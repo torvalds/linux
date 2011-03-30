@@ -7,38 +7,9 @@
 #ifndef _BF548_IRQ_H_
 #define _BF548_IRQ_H_
 
-/*
- * Interrupt source definitions
-            Event Source    Core Event Name
-Core        Emulation               **
-Events         (highest priority)  EMU         0
-            Reset                   RST         1
-            NMI                     NMI         2
-            Exception               EVX         3
-            Reserved                --          4
-            Hardware Error          IVHW        5
-            Core Timer              IVTMR       6 *
-
-.....
-
-            Software Interrupt 1    IVG14       31
-            Software Interrupt 2    --
-                 (lowest priority)  IVG15       32 *
- */
+#include <mach-common/irq.h>
 
 #define NR_PERI_INTS    (32 * 3)
-
-/* The ABSTRACT IRQ definitions */
-/** the first seven of the following are fixed, the rest you change if you need to **/
-#define IRQ_EMU			0	/* Emulation */
-#define IRQ_RST			1	/* reset */
-#define IRQ_NMI			2	/* Non Maskable */
-#define IRQ_EVX			3	/* Exception */
-#define IRQ_UNUSED		4	/* - unused interrupt*/
-#define IRQ_HWERR		5	/* Hardware Error */
-#define IRQ_CORETMR		6	/* Core timer */
-
-#define BFIN_IRQ(x)		((x) + 7)
 
 #define IRQ_PLL_WAKEUP		BFIN_IRQ(0)	/* PLL Wakeup Interrupt */
 #define IRQ_DMAC0_ERROR		BFIN_IRQ(1)	/* DMAC0 Status Interrupt */
@@ -314,7 +285,6 @@ Events         (highest priority)  EMU         0
 #define GPIO_IRQ_BASE	IRQ_PA0
 
 #define NR_MACH_IRQS	(IRQ_PJ15 + 1)
-#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 /* For compatibility reasons with existing code */
 
@@ -342,17 +312,6 @@ Events         (highest priority)  EMU         0
 #define IRQ_ATAPI_ERR 		IRQ_ATAPI_ERROR
 #define IRQ_CAN1_ERR  		IRQ_CAN1_ERROR
 #define IRQ_HS_DMA_ERR		IRQ_HS_DMA_ERROR
-
-
-#define IVG7            7
-#define IVG8            8
-#define IVG9            9
-#define IVG10           10
-#define IVG11           11
-#define IVG12           12
-#define IVG13           13
-#define IVG14           14
-#define IVG15           15
 
 /* IAR0 BIT FIELDS */
 #define IRQ_PLL_WAKEUP_POS	0

@@ -7,58 +7,10 @@
 #ifndef _BF533_IRQ_H_
 #define _BF533_IRQ_H_
 
-/*
- * Interrupt source definitions
-             Event Source    Core Event Name
-Core        Emulation               **
- Events         (highest priority)  EMU         0
-            Reset                   RST         1
-            NMI                     NMI         2
-            Exception               EVX         3
-            Reserved                --          4
-            Hardware Error          IVHW        5
-            Core Timer              IVTMR       6 *
-	    PLL Wakeup Interrupt    IVG7	7
-	    DMA Error (generic)	    IVG7	8
-	    PPI Error Interrupt     IVG7	9
-	    SPORT0 Error Interrupt  IVG7	10
-	    SPORT1 Error Interrupt  IVG7	11
-	    SPI Error Interrupt	    IVG7	12
-	    UART Error Interrupt    IVG7	13
-	    RTC Interrupt	    IVG8        14
-	    DMA0 Interrupt (PPI)    IVG8	15
-	    DMA1 (SPORT0 RX)	    IVG9	16
-	    DMA2 (SPORT0 TX)	    IVG9        17
-	    DMA3 (SPORT1 RX)        IVG9	18
-	    DMA4 (SPORT1 TX)	    IVG9	19
-	    DMA5 (PPI)		    IVG10	20
-	    DMA6 (UART RX)	    IVG10	21
-	    DMA7 (UART TX)	    IVG10	22
-	    Timer0		    IVG11	23
-	    Timer1		    IVG11	24
-	    Timer2		    IVG11	25
-	    PF Interrupt A	    IVG12	26
-	    PF Interrupt B	    IVG12	27
-	    DMA8/9 Interrupt	    IVG13	28
-	    DMA10/11 Interrupt	    IVG13	29
-	    Watchdog Timer	    IVG13	30
+#include <mach-common/irq.h>
 
-            Softirq		    IVG14       31
-            System Call    --
-                 (lowest priority)  IVG15       32 *
- */
 #define SYS_IRQS	31
 #define NR_PERI_INTS	24
-
-/* The ABSTRACT IRQ definitions */
-/** the first seven of the following are fixed, the rest you change if you need to **/
-#define	IRQ_EMU			0	/*Emulation */
-#define	IRQ_RST			1	/*reset */
-#define	IRQ_NMI			2	/*Non Maskable */
-#define	IRQ_EVX			3	/*Exception */
-#define	IRQ_UNUSED		4	/*- unused interrupt*/
-#define	IRQ_HWERR		5	/*Hardware Error */
-#define	IRQ_CORETMR		6	/*Core timer */
 
 #define	IRQ_PLL_WAKEUP		7	/*PLL Wakeup Interrupt */
 #define	IRQ_DMA_ERROR		8	/*DMA Error (general) */
@@ -105,17 +57,6 @@ Core        Emulation               **
 #define GPIO_IRQ_BASE		IRQ_PF0
 
 #define NR_MACH_IRQS		(IRQ_PF15 + 1)
-#define NR_IRQS			(NR_MACH_IRQS + NR_SPARE_IRQS)
-
-#define IVG7			7
-#define IVG8			8
-#define IVG9			9
-#define IVG10			10
-#define IVG11			11
-#define IVG12			12
-#define IVG13			13
-#define IVG14			14
-#define IVG15			15
 
 /* IAR0 BIT FIELDS*/
 #define RTC_ERROR_POS			28
