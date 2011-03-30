@@ -1304,50 +1304,54 @@ int __init init_arch_irq(void)
 #ifdef CONFIG_DO_IRQ_L1
 __attribute__((l1_text))
 #endif
+static int vec_to_irq(int vec)
+{
+	struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
+	struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
+	unsigned long sic_status[3];
+
+	if (likely(vec == EVT_IVTMR_P))
+		return IRQ_CORETMR;
+
+#ifdef SIC_ISR
+	sic_status[0] = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
+#else
+	if (smp_processor_id()) {
+# ifdef SICB_ISR0
+		/* This will be optimized out in UP mode. */
+		sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
+		sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
+# endif
+	} else {
+		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
+		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
+	}
+#endif
+#ifdef SIC_ISR2
+	sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
+#endif
+
+	for (;; ivg++) {
+		if (ivg >= ivg_stop)
+			return -1;
+#ifdef SIC_ISR
+		if (sic_status[0] & ivg->isrflag)
+#else
+		if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
+#endif
+			return ivg->irqno;
+	}
+}
+
+#ifdef CONFIG_DO_IRQ_L1
+__attribute__((l1_text))
+#endif
 void do_irq(int vec, struct pt_regs *fp)
 {
-	if (vec == EVT_IVTMR_P) {
-		vec = IRQ_CORETMR;
-	} else {
-		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
-		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(SIC_ISR0)
-		unsigned long sic_status[3];
-
-		if (smp_processor_id()) {
-# ifdef SICB_ISR0
-			/* This will be optimized out in UP mode. */
-			sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
-			sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
-# endif
-		} else {
-			sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
-			sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-		}
-# ifdef SIC_ISR2
-		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-# endif
-		for (;; ivg++) {
-			if (ivg >= ivg_stop)
-				return;
-			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
-				break;
-		}
-#else
-		unsigned long sic_status;
-
-		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
-
-		for (;; ivg++) {
-			if (ivg >= ivg_stop)
-				return;
-			if (sic_status & ivg->isrflag)
-				break;
-		}
-#endif
-		vec = ivg->irqno;
-	}
-	asm_do_IRQ(vec, fp);
+	int irq = vec_to_irq(vec);
+	if (irq == -1)
+		return;
+	asm_do_IRQ(irq, fp);
 }
 
 #ifdef CONFIG_IPIPE
@@ -1385,37 +1389,9 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
 	int irq, s = 0;
 
-	if (likely(vec == EVT_IVTMR_P))
-		irq = IRQ_CORETMR;
-	else {
-#if defined(SIC_ISR0)
-		unsigned long sic_status[3];
-
-		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
-		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-# ifdef SIC_ISR2
-		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-# endif
-		for (;; ivg++) {
-			if (ivg >= ivg_stop)
-				return 0;
-			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
-				break;
-		}
-#else
-		unsigned long sic_status;
-
-		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
-
-		for (;; ivg++) {
-			if (ivg >= ivg_stop)
-				return 0;
-			if (sic_status & ivg->isrflag)
-				break;
-		}
-#endif
-		irq = ivg->irqno;
-	}
+	irq = vec_to_irq(vec);
+	if (irq == -1)
+		return 0;
 
 	if (irq == IRQ_SYSTMR) {
 #if !defined(CONFIG_GENERIC_CLOCKEVENTS) || defined(CONFIG_TICKSOURCE_GPTMR0)
