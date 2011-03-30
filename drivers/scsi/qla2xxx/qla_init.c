@@ -397,7 +397,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		else
-			qla2x00_mark_device_lost(vha, fcport, 1, 1);
+			qla2x00_mark_device_lost(vha, fcport, 1, 0);
 		break;
 	case MBS_PORT_ID_USED:
 		fcport->loop_id = data[1];
@@ -409,7 +409,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		rval = qla2x00_find_new_loop_id(vha, fcport);
 		if (rval != QLA_SUCCESS) {
 			fcport->flags &= ~FCF_ASYNC_SENT;
-			qla2x00_mark_device_lost(vha, fcport, 1, 1);
+			qla2x00_mark_device_lost(vha, fcport, 1, 0);
 			break;
 		}
 		qla2x00_post_async_login_work(vha, fcport, NULL);
@@ -441,7 +441,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	else
-		qla2x00_mark_device_lost(vha, fcport, 1, 1);
+		qla2x00_mark_device_lost(vha, fcport, 1, 0);
 
 	return;
 }
