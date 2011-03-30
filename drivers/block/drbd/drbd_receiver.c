@@ -995,7 +995,7 @@ static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct p_header *h = tconn->data.rbuf;
 	int err;
 
-	err = drbd_recv_all_warn(tconn, h, sizeof(*h));
+	err = drbd_recv_all_warn(tconn, h, drbd_header_size(tconn));
 	if (err)
 		return err;
 
@@ -4842,7 +4842,8 @@ int drbd_asender(struct drbd_thread *thi)
 	int rv;
 	void *buf    = h;
 	int received = 0;
-	int expect   = sizeof(struct p_header);
+	unsigned int header_size = drbd_header_size(tconn);
+	int expect   = header_size;
 	int ping_timeout_active = 0;
 
 	current->policy = SCHED_RR;  /* Make this a realtime task! */
@@ -4926,7 +4927,7 @@ int drbd_asender(struct drbd_thread *thi)
 				goto disconnect;
 			}
 			expect = cmd->pkt_size;
-			if (pi.size != expect - sizeof(struct p_header)) {
+			if (pi.size != expect - header_size) {
 				conn_err(tconn, "Wrong packet size on meta (c: %d, l: %d)\n",
 					pi.cmd, pi.size);
 				goto reconnect;
@@ -4950,7 +4951,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 			buf	 = h;
 			received = 0;
-			expect	 = sizeof(struct p_header);
+			expect	 = header_size;
 			cmd	 = NULL;
 		}
 	}

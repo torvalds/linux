@@ -315,6 +315,8 @@ struct p_header {
 	u8	  payload[0];
 };
 
+extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
+
 /*
  * short commands, packets without payload, plain p_header:
  *   P_PING

@@ -689,6 +689,20 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
 }
 #endif
 
+/**
+ * drbd_header_size  -  size of a packet header
+ *
+ * The header size is a multiple of 8, so any payload following the header is
+ * word aligned on 64-bit architectures.  (The bitmap send and receive code
+ * relies on this.)
+ */
+unsigned int drbd_header_size(struct drbd_tconn *tconn)
+{
+	BUILD_BUG_ON(sizeof(struct p_header80) != sizeof(struct p_header95));
+	BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
+	return sizeof(struct p_header80);
+}
+
 static void prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
 {
 	h->magic   = cpu_to_be32(DRBD_MAGIC);
