@@ -1794,12 +1794,13 @@ out:
 	if (logit)
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "scsi(%ld:%d:%d) FCP command status: 0x%x-0x%x (0x%x) "
-		    "oxid=0x%x cdb=%02x%02x%02x len=0x%x "
+		    "portid=%02x%02x%02x oxid=0x%x cdb=%02x%02x%02x len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x\n", vha->host_no,
 		    cp->device->id, cp->device->lun, comp_status, scsi_status,
-		    cp->result, ox_id, cp->cmnd[0],
-		    cp->cmnd[1], cp->cmnd[2], scsi_bufflen(cp), rsp_info_len,
-		    resid_len, fw_resid_len));
+		    cp->result, fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, ox_id, cp->cmnd[0], cp->cmnd[1],
+		    cp->cmnd[2], scsi_bufflen(cp), rsp_info_len, resid_len,
+		    fw_resid_len));
 
 	if (rsp->status_srb == NULL)
 		qla2x00_sp_compl(ha, sp);
