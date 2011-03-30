@@ -173,17 +173,6 @@ static void wait_till_not_busy(struct dw_spi *dws)
 		"DW SPI: Status keeps busy for 5000us after a read/write!\n");
 }
 
-static void flush(struct dw_spi *dws)
-{
-	while (dw_readw(dws, sr) & SR_RF_NOT_EMPT) {
-		dw_readw(dws, dr);
-		cpu_relax();
-	}
-
-	wait_till_not_busy(dws);
-}
-
-
 static int dw_writer(struct dw_spi *dws)
 {
 	u16 txw = 0;
@@ -297,8 +286,7 @@ static void giveback(struct dw_spi *dws)
 
 static void int_error_stop(struct dw_spi *dws, const char *msg)
 {
-	/* Stop and reset hw */
-	flush(dws);
+	/* Stop the hw */
 	spi_enable_chip(dws, 0);
 
 	dev_err(&dws->master->dev, "%s\n", msg);
@@ -800,7 +788,6 @@ static void spi_hw_init(struct dw_spi *dws)
 	spi_enable_chip(dws, 0);
 	spi_mask_intr(dws, 0xff);
 	spi_enable_chip(dws, 1);
-	flush(dws);
 
 	/*
 	 * Try to detect the FIFO depth if not set by interface driver,
