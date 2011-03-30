@@ -1497,6 +1497,9 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 	hci_dev_lock(hdev);
 
+	if (ev->status == 0 && test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_remote_name(hdev->id, &ev->bdaddr, ev->name);
+
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
 		struct hci_cp_auth_requested cp;

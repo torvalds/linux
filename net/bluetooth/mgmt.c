@@ -2063,3 +2063,15 @@ int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 *dev_class, s8 rssi,
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, index, &ev, sizeof(ev), NULL);
 }
+
+int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 *name)
+{
+	struct mgmt_ev_remote_name ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	bacpy(&ev.bdaddr, bdaddr);
+	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
+
+	return mgmt_event(MGMT_EV_REMOTE_NAME, index, &ev, sizeof(ev), NULL);
+}
