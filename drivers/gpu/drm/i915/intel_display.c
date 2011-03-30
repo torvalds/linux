@@ -4899,12 +4899,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_wait_for_vblank(dev, pipe);
 
-	if (IS_GEN5(dev)) {
-		/* enable address swizzle for tiling buffer */
-		temp = I915_READ(DISP_ARB_CTL);
-		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
-	}
-
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
 
