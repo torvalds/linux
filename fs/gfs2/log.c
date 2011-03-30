@@ -91,6 +91,7 @@ static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
+	struct gfs2_glock *gl = NULL;
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
 	int retry;
@@ -113,19 +114,13 @@ __acquires(&sdp->sd_ail_lock)
 
 			if (!buffer_dirty(bh))
 				continue;
-
+			if (gl == bd->bd_gl)
+				continue;
+			gl = bd->bd_gl;
 			list_move(&bd->bd_ail_st_list, &ai->ai_ail1_list);
 
-			get_bh(bh);
 			spin_unlock(&sdp->sd_ail_lock);
-			lock_buffer(bh);
-			if (test_clear_buffer_dirty(bh)) {
-				bh->b_end_io = end_buffer_write_sync;
-				submit_bh(WRITE_SYNC, bh);
-			} else {
-				unlock_buffer(bh);
-				brelse(bh);
-			}
+			filemap_fdatawrite(gfs2_glock2aspace(gl));
 			spin_lock(&sdp->sd_ail_lock);
 
 			retry = 1;
