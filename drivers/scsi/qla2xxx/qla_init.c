@@ -2544,7 +2544,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->vp_idx = vha->vp_idx;
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
-	atomic_set(&fcport->state, FCS_UNCONFIGURED);
+	qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 
 	return fcport;
@@ -2730,7 +2730,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    "loop_id=0x%04x\n",
 			    vha->host_no, fcport->loop_id));
 
-			atomic_set(&fcport->state, FCS_DEVICE_LOST);
+			qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 		}
 	}
 
@@ -2942,7 +2942,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	qla2x00_iidma_fcport(vha, fcport);
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
 	qla2x00_reg_remote_port(vha, fcport);
-	atomic_set(&fcport->state, FCS_ONLINE);
+	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 }
 
 /*
