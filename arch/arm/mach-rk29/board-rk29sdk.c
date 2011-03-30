@@ -70,14 +70,19 @@
 #define MEM_CAMIPP_SIZE     0
 #endif
 #define MEM_FB_SIZE         (3*SZ_2M)
-
+#ifdef CONFIG_FB_WORK_IPP
+#define MEM_FBIPP_SIZE      SZ_8M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
+#else
+#define MEM_FBIPP_SIZE      0
+#endif
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
 #define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
-#define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
+#define MEM_FBIPP_BASE      (MEM_FB_BASE - MEM_FBIPP_SIZE)
+#define LINUX_SIZE          (MEM_FBIPP_BASE - RK29_SDRAM_PHYS)
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -234,6 +239,14 @@ static struct resource rk29_fb_resource[] = {
         .end    = MEM_FB_BASE + MEM_FB_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
+    #ifdef CONFIG_FB_WORK_IPP
+    [3] = {
+	    .name   = "win1 ipp buf",
+        .start  = MEM_FBIPP_BASE,
+        .end    = MEM_FBIPP_BASE + MEM_FBIPP_SIZE - 1,
+        .flags  = IORESOURCE_MEM,
+    },
+    #endif
 };
 
 /*platform_device*/
