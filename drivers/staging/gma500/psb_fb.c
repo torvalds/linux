@@ -698,8 +698,16 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 	psb_create_backlight_property(dev);
 
-	psb_intel_lvds_init(dev, &dev_priv->mode_dev);
-	/* psb_intel_sdvo_init(dev, SDVOB); */
+	if (IS_MRST(dev)) {
+		if (dev_priv->iLVDS_enable)
+			mrst_lvds_init(dev, &dev_priv->mode_dev);
+		else
+			DRM_ERROR("DSI is not supported\n");
+	} else {
+		/* FIXME: check if SDVO init should be re-enabled */
+		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
+		/* psb_intel_sdvo_init(dev, SDVOB); */
+	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
@@ -717,10 +725,9 @@ static void psb_setup_outputs(struct drm_device *dev)
 		case INTEL_OUTPUT_LVDS:
 			PSB_DEBUG_ENTRY("LVDS.\n");
 			if (IS_MRST(dev))
-			        crtc_mask = (1 << 0);
-                        else
-        			crtc_mask = (1 << 1);
-
+				crtc_mask = (1 << 0);
+			else
+				crtc_mask = (1 << 1);
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
