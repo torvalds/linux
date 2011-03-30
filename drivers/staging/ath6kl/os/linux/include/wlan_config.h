@@ -105,10 +105,4 @@
  */
 #define WLAN_CONFIG_DISABLE_TX_BURSTING     0
 
-/*
- * Platform specific function to power ON/OFF AR6000 
- * and enable/disable SDIO card detection
- */
-#define plat_setup_power(on, detect)
-
 #endif /* _HOST_WLAN_CONFIG_H_ */

@@ -304,13 +304,11 @@ int ar6000_power_change_ev(void *context, u32 config)
 
 static int ar6000_pm_probe(struct platform_device *pdev)
 {
-    plat_setup_power(1,1);
     return 0;
 }
 
 static int ar6000_pm_remove(struct platform_device *pdev)
 {
-    plat_setup_power(0,1);
     return 0;
 }
 
@@ -352,8 +350,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                 break;
             }
 
-            plat_setup_power(1,0);
-
             /* Change the state to ON */
             ar->arWlanPowerState = WLAN_POWER_STATE_ON;
 
@@ -384,8 +380,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                                 HIF_DEVICE_POWER_STATE_CHANGE,
                                 &config,
                                 sizeof(HIF_DEVICE_POWER_CHANGE_TYPE));
-
-            plat_setup_power(0,0);
 
             ar->arWlanPowerState = WLAN_POWER_STATE_CUT_PWR;
         }
