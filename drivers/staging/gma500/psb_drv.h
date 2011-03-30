@@ -948,6 +948,21 @@ int psb_set_brightness(struct backlight_device *bd);
 int psb_get_brightness(struct backlight_device *bd);
 struct backlight_device * psb_get_backlight_device(void);
 
+/* mrst_crtc.c */
+extern const struct drm_crtc_helper_funcs mrst_helper_funcs;
+
+/* mrst_lvds.c */
+extern void mrst_lvds_init(struct drm_device *dev,
+		    struct psb_intel_mode_device *mode_dev);
+
+/* psb_intel_lvds.c */
+extern void psb_intel_lvds_prepare(struct drm_encoder *encoder);
+extern void psb_intel_lvds_commit(struct drm_encoder *encoder);
+extern const struct drm_connector_helper_funcs
+					psb_intel_lvds_connector_helper_funcs;
+extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
+
+
 /*
  *Debug print bits setting
  */

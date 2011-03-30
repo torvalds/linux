@@ -1335,10 +1335,6 @@ static const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.commit = psb_intel_crtc_commit,
 };
 
-static const struct drm_crtc_helper_funcs mrst_helper_funcs;
-static const struct drm_crtc_helper_funcs mdfld_helper_funcs;
-const struct drm_crtc_funcs mdfld_intel_crtc_funcs;
-
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.save = psb_intel_crtc_save,
 	.restore = psb_intel_crtc_restore,

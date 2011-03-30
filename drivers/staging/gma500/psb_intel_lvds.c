@@ -449,7 +449,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void psb_intel_lvds_prepare(struct drm_encoder *encoder)
+void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
@@ -470,7 +470,7 @@ static void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
 }
 
-static void psb_intel_lvds_commit(struct drm_encoder *encoder)
+void psb_intel_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
@@ -673,14 +673,14 @@ static const struct drm_encoder_helper_funcs psb_intel_lvds_helper_funcs = {
 	.commit = psb_intel_lvds_commit,
 };
 
-static const struct drm_connector_helper_funcs
+const struct drm_connector_helper_funcs
 				psb_intel_lvds_connector_helper_funcs = {
 	.get_modes = psb_intel_lvds_get_modes,
 	.mode_valid = psb_intel_lvds_mode_valid,
 	.best_encoder = psb_intel_best_encoder,
 };
 
-static const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
+const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.save = psb_intel_lvds_save,
 	.restore = psb_intel_lvds_restore,
