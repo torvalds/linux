@@ -164,14 +164,14 @@ static void ath6kl_hifdev_remove(struct sdio_func *func)
 }
 
 #if defined(CONFIG_PM)
-static int hifDeviceSuspend(struct device *dev)
+static int ath6kl_hifdev_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	int status = 0;
 	struct hif_device *device;
 
 	device = ath6kl_get_hifdev(func);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceSuspend\n"));
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +ath6kl_hifdev_suspend\n"));
 
 	if (device && device->claimedContext &&
 	    osdrvCallbacks.deviceSuspendHandler) {
@@ -184,7 +184,7 @@ static int hifDeviceSuspend(struct device *dev)
 	}
 
 	CleanupHIFScatterResources(device);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceSuspend\n"));
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -ath6kl_hifdev_suspend\n"));
 
 	switch (status) {
 	case 0:
@@ -197,14 +197,14 @@ static int hifDeviceSuspend(struct device *dev)
 	}
 }
 
-static int hifDeviceResume(struct device *dev)
+static int ath6kl_hifdev_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	int status = 0;
 	struct hif_device *device;
 
 	device = ath6kl_get_hifdev(func);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceResume\n"));
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +ath6kl_hifdev_resume\n"));
 	if (device && device->claimedContext &&
 	    osdrvCallbacks.deviceSuspendHandler) {
 		status = osdrvCallbacks.
@@ -212,14 +212,14 @@ static int hifDeviceResume(struct device *dev)
 		if (status == 0)
 			device->is_suspend = false;
 	}
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceResume\n"));
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -ath6kl_hifdev_resume\n"));
 
 	return status;
 }
 
-static const struct dev_pm_ops ar6k_device_pm_ops = {
-	.suspend = hifDeviceSuspend,
-	.resume = hifDeviceResume,
+static const struct dev_pm_ops ath6kl_hifdev_pmops = {
+	.suspend = ath6kl_hifdev_suspend,
+	.resume = ath6kl_hifdev_resume,
 };
 #endif /* CONFIG_PM */
 
@@ -230,7 +230,7 @@ static struct sdio_driver ath6kl_hifdev_driver = {
 	.remove = ath6kl_hifdev_remove,
 #if defined(CONFIG_PM)
 	.drv = {
-		.pm = &ar6k_device_pm_ops,
+		.pm = &ath6kl_hifdev_pmops,
 	},
 #endif
 };
