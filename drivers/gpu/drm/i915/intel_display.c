@@ -76,255 +76,6 @@ struct intel_limit {
 		      int, int, intel_clock_t *);
 };
 
-#define I8XX_DOT_MIN		  25000
-#define I8XX_DOT_MAX		 350000
-#define I8XX_VCO_MIN		 930000
-#define I8XX_VCO_MAX		1400000
-#define I8XX_N_MIN		      3
-#define I8XX_N_MAX		     16
-#define I8XX_M_MIN		     96
-#define I8XX_M_MAX		    140
-#define I8XX_M1_MIN		     18
-#define I8XX_M1_MAX		     26
-#define I8XX_M2_MIN		      6
-#define I8XX_M2_MAX		     16
-#define I8XX_P_MIN		      4
-#define I8XX_P_MAX		    128
-#define I8XX_P1_MIN		      2
-#define I8XX_P1_MAX		     33
-#define I8XX_P1_LVDS_MIN	      1
-#define I8XX_P1_LVDS_MAX	      6
-#define I8XX_P2_SLOW		      4
-#define I8XX_P2_FAST		      2
-#define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      7
-#define I8XX_P2_SLOW_LIMIT	 165000
-
-#define I9XX_DOT_MIN		  20000
-#define I9XX_DOT_MAX		 400000
-#define I9XX_VCO_MIN		1400000
-#define I9XX_VCO_MAX		2800000
-#define PINEVIEW_VCO_MIN		1700000
-#define PINEVIEW_VCO_MAX		3500000
-#define I9XX_N_MIN		      1
-#define I9XX_N_MAX		      6
-/* Pineview's Ncounter is a ring counter */
-#define PINEVIEW_N_MIN		      3
-#define PINEVIEW_N_MAX		      6
-#define I9XX_M_MIN		     70
-#define I9XX_M_MAX		    120
-#define PINEVIEW_M_MIN		      2
-#define PINEVIEW_M_MAX		    256
-#define I9XX_M1_MIN		     10
-#define I9XX_M1_MAX		     22
-#define I9XX_M2_MIN		      5
-#define I9XX_M2_MAX		      9
-/* Pineview M1 is reserved, and must be 0 */
-#define PINEVIEW_M1_MIN		      0
-#define PINEVIEW_M1_MAX		      0
-#define PINEVIEW_M2_MIN		      0
-#define PINEVIEW_M2_MAX		      254
-#define I9XX_P_SDVO_DAC_MIN	      5
-#define I9XX_P_SDVO_DAC_MAX	     80
-#define I9XX_P_LVDS_MIN		      7
-#define I9XX_P_LVDS_MAX		     98
-#define PINEVIEW_P_LVDS_MIN		      7
-#define PINEVIEW_P_LVDS_MAX		     112
-#define I9XX_P1_MIN		      1
-#define I9XX_P1_MAX		      8
-#define I9XX_P2_SDVO_DAC_SLOW		     10
-#define I9XX_P2_SDVO_DAC_FAST		      5
-#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
-#define I9XX_P2_LVDS_SLOW		     14
-#define I9XX_P2_LVDS_FAST		      7
-#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
-
-/*The parameter is for SDVO on G4x platform*/
-#define G4X_DOT_SDVO_MIN           25000
-#define G4X_DOT_SDVO_MAX           270000
-#define G4X_VCO_MIN                1750000
-#define G4X_VCO_MAX                3500000
-#define G4X_N_SDVO_MIN             1
-#define G4X_N_SDVO_MAX             4
-#define G4X_M_SDVO_MIN             104
-#define G4X_M_SDVO_MAX             138
-#define G4X_M1_SDVO_MIN            17
-#define G4X_M1_SDVO_MAX            23
-#define G4X_M2_SDVO_MIN            5
-#define G4X_M2_SDVO_MAX            11
-#define G4X_P_SDVO_MIN             10
-#define G4X_P_SDVO_MAX             30
-#define G4X_P1_SDVO_MIN            1
-#define G4X_P1_SDVO_MAX            3
-#define G4X_P2_SDVO_SLOW           10
-#define G4X_P2_SDVO_FAST           10
-#define G4X_P2_SDVO_LIMIT          270000
-
-/*The parameter is for HDMI_DAC on G4x platform*/
-#define G4X_DOT_HDMI_DAC_MIN           22000
-#define G4X_DOT_HDMI_DAC_MAX           400000
-#define G4X_N_HDMI_DAC_MIN             1
-#define G4X_N_HDMI_DAC_MAX             4
-#define G4X_M_HDMI_DAC_MIN             104
-#define G4X_M_HDMI_DAC_MAX             138
-#define G4X_M1_HDMI_DAC_MIN            16
-#define G4X_M1_HDMI_DAC_MAX            23
-#define G4X_M2_HDMI_DAC_MIN            5
-#define G4X_M2_HDMI_DAC_MAX            11
-#define G4X_P_HDMI_DAC_MIN             5
-#define G4X_P_HDMI_DAC_MAX             80
-#define G4X_P1_HDMI_DAC_MIN            1
-#define G4X_P1_HDMI_DAC_MAX            8
-#define G4X_P2_HDMI_DAC_SLOW           10
-#define G4X_P2_HDMI_DAC_FAST           5
-#define G4X_P2_HDMI_DAC_LIMIT          165000
-
-/*The parameter is for SINGLE_CHANNEL_LVDS on G4x platform*/
-#define G4X_DOT_SINGLE_CHANNEL_LVDS_MIN           20000
-#define G4X_DOT_SINGLE_CHANNEL_LVDS_MAX           115000
-#define G4X_N_SINGLE_CHANNEL_LVDS_MIN             1
-#define G4X_N_SINGLE_CHANNEL_LVDS_MAX             3
-#define G4X_M_SINGLE_CHANNEL_LVDS_MIN             104
-#define G4X_M_SINGLE_CHANNEL_LVDS_MAX             138
-#define G4X_M1_SINGLE_CHANNEL_LVDS_MIN            17
-#define G4X_M1_SINGLE_CHANNEL_LVDS_MAX            23
-#define G4X_M2_SINGLE_CHANNEL_LVDS_MIN            5
-#define G4X_M2_SINGLE_CHANNEL_LVDS_MAX            11
-#define G4X_P_SINGLE_CHANNEL_LVDS_MIN             28
-#define G4X_P_SINGLE_CHANNEL_LVDS_MAX             112
-#define G4X_P1_SINGLE_CHANNEL_LVDS_MIN            2
-#define G4X_P1_SINGLE_CHANNEL_LVDS_MAX            8
-#define G4X_P2_SINGLE_CHANNEL_LVDS_SLOW           14
-#define G4X_P2_SINGLE_CHANNEL_LVDS_FAST           14
-#define G4X_P2_SINGLE_CHANNEL_LVDS_LIMIT          0
-
-/*The parameter is for DUAL_CHANNEL_LVDS on G4x platform*/
-#define G4X_DOT_DUAL_CHANNEL_LVDS_MIN           80000
-#define G4X_DOT_DUAL_CHANNEL_LVDS_MAX           224000
-#define G4X_N_DUAL_CHANNEL_LVDS_MIN             1
-#define G4X_N_DUAL_CHANNEL_LVDS_MAX             3
-#define G4X_M_DUAL_CHANNEL_LVDS_MIN             104
-#define G4X_M_DUAL_CHANNEL_LVDS_MAX             138
-#define G4X_M1_DUAL_CHANNEL_LVDS_MIN            17
-#define G4X_M1_DUAL_CHANNEL_LVDS_MAX            23
-#define G4X_M2_DUAL_CHANNEL_LVDS_MIN            5
-#define G4X_M2_DUAL_CHANNEL_LVDS_MAX            11
-#define G4X_P_DUAL_CHANNEL_LVDS_MIN             14
-#define G4X_P_DUAL_CHANNEL_LVDS_MAX             42
-#define G4X_P1_DUAL_CHANNEL_LVDS_MIN            2
-#define G4X_P1_DUAL_CHANNEL_LVDS_MAX            6
-#define G4X_P2_DUAL_CHANNEL_LVDS_SLOW           7
-#define G4X_P2_DUAL_CHANNEL_LVDS_FAST           7
-#define G4X_P2_DUAL_CHANNEL_LVDS_LIMIT          0
-
-/*The parameter is for DISPLAY PORT on G4x platform*/
-#define G4X_DOT_DISPLAY_PORT_MIN           161670
-#define G4X_DOT_DISPLAY_PORT_MAX           227000
-#define G4X_N_DISPLAY_PORT_MIN             1
-#define G4X_N_DISPLAY_PORT_MAX             2
-#define G4X_M_DISPLAY_PORT_MIN             97
-#define G4X_M_DISPLAY_PORT_MAX             108
-#define G4X_M1_DISPLAY_PORT_MIN            0x10
-#define G4X_M1_DISPLAY_PORT_MAX            0x12
-#define G4X_M2_DISPLAY_PORT_MIN            0x05
-#define G4X_M2_DISPLAY_PORT_MAX            0x06
-#define G4X_P_DISPLAY_PORT_MIN             10
-#define G4X_P_DISPLAY_PORT_MAX             20
-#define G4X_P1_DISPLAY_PORT_MIN            1
-#define G4X_P1_DISPLAY_PORT_MAX            2
-#define G4X_P2_DISPLAY_PORT_SLOW           10
-#define G4X_P2_DISPLAY_PORT_FAST           10
-#define G4X_P2_DISPLAY_PORT_LIMIT          0
-
-/* Ironlake / Sandybridge */
-/* as we calculate clock using (register_value + 2) for
-   N/M1/M2, so here the range value for them is (actual_value-2).
- */
-#define IRONLAKE_DOT_MIN         25000
-#define IRONLAKE_DOT_MAX         350000
-#define IRONLAKE_VCO_MIN         1760000
-#define IRONLAKE_VCO_MAX         3510000
-#define IRONLAKE_M1_MIN          12
-#define IRONLAKE_M1_MAX          22
-#define IRONLAKE_M2_MIN          5
-#define IRONLAKE_M2_MAX          9
-#define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
-
-/* We have parameter ranges for different type of outputs. */
-
-/* DAC & HDMI Refclk 120Mhz */
-#define IRONLAKE_DAC_N_MIN	1
-#define IRONLAKE_DAC_N_MAX	5
-#define IRONLAKE_DAC_M_MIN	79
-#define IRONLAKE_DAC_M_MAX	127
-#define IRONLAKE_DAC_P_MIN	5
-#define IRONLAKE_DAC_P_MAX	80
-#define IRONLAKE_DAC_P1_MIN	1
-#define IRONLAKE_DAC_P1_MAX	8
-#define IRONLAKE_DAC_P2_SLOW	10
-#define IRONLAKE_DAC_P2_FAST	5
-
-/* LVDS single-channel 120Mhz refclk */
-#define IRONLAKE_LVDS_S_N_MIN	1
-#define IRONLAKE_LVDS_S_N_MAX	3
-#define IRONLAKE_LVDS_S_M_MIN	79
-#define IRONLAKE_LVDS_S_M_MAX	118
-#define IRONLAKE_LVDS_S_P_MIN	28
-#define IRONLAKE_LVDS_S_P_MAX	112
-#define IRONLAKE_LVDS_S_P1_MIN	2
-#define IRONLAKE_LVDS_S_P1_MAX	8
-#define IRONLAKE_LVDS_S_P2_SLOW	14
-#define IRONLAKE_LVDS_S_P2_FAST	14
-
-/* LVDS dual-channel 120Mhz refclk */
-#define IRONLAKE_LVDS_D_N_MIN	1
-#define IRONLAKE_LVDS_D_N_MAX	3
-#define IRONLAKE_LVDS_D_M_MIN	79
-#define IRONLAKE_LVDS_D_M_MAX	127
-#define IRONLAKE_LVDS_D_P_MIN	14
-#define IRONLAKE_LVDS_D_P_MAX	56
-#define IRONLAKE_LVDS_D_P1_MIN	2
-#define IRONLAKE_LVDS_D_P1_MAX	8
-#define IRONLAKE_LVDS_D_P2_SLOW	7
-#define IRONLAKE_LVDS_D_P2_FAST	7
-
-/* LVDS single-channel 100Mhz refclk */
-#define IRONLAKE_LVDS_S_SSC_N_MIN	1
-#define IRONLAKE_LVDS_S_SSC_N_MAX	2
-#define IRONLAKE_LVDS_S_SSC_M_MIN	79
-#define IRONLAKE_LVDS_S_SSC_M_MAX	126
-#define IRONLAKE_LVDS_S_SSC_P_MIN	28
-#define IRONLAKE_LVDS_S_SSC_P_MAX	112
-#define IRONLAKE_LVDS_S_SSC_P1_MIN	2
-#define IRONLAKE_LVDS_S_SSC_P1_MAX	8
-#define IRONLAKE_LVDS_S_SSC_P2_SLOW	14
-#define IRONLAKE_LVDS_S_SSC_P2_FAST	14
-
-/* LVDS dual-channel 100Mhz refclk */
-#define IRONLAKE_LVDS_D_SSC_N_MIN	1
-#define IRONLAKE_LVDS_D_SSC_N_MAX	3
-#define IRONLAKE_LVDS_D_SSC_M_MIN	79
-#define IRONLAKE_LVDS_D_SSC_M_MAX	126
-#define IRONLAKE_LVDS_D_SSC_P_MIN	14
-#define IRONLAKE_LVDS_D_SSC_P_MAX	42
-#define IRONLAKE_LVDS_D_SSC_P1_MIN	2
-#define IRONLAKE_LVDS_D_SSC_P1_MAX	6
-#define IRONLAKE_LVDS_D_SSC_P2_SLOW	7
-#define IRONLAKE_LVDS_D_SSC_P2_FAST	7
-
-/* DisplayPort */
-#define IRONLAKE_DP_N_MIN		1
-#define IRONLAKE_DP_N_MAX		2
-#define IRONLAKE_DP_M_MIN		81
-#define IRONLAKE_DP_M_MAX		90
-#define IRONLAKE_DP_P_MIN		10
-#define IRONLAKE_DP_P_MAX		20
-#define IRONLAKE_DP_P2_FAST		10
-#define IRONLAKE_DP_P2_SLOW		10
-#define IRONLAKE_DP_P2_LIMIT		0
-#define IRONLAKE_DP_P1_MIN		1
-#define IRONLAKE_DP_P1_MAX		2
-
 /* FDI */
 #define IRONLAKE_FDI_FREQ		2700000 /* in kHz for mode->clock */
 
@@ -353,292 +104,253 @@ intel_fdi_link_freq(struct drm_device *dev)
 }
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
-        .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
-        .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
-        .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
-        .m   = { .min = I8XX_M_MIN,		.max = I8XX_M_MAX },
-        .m1  = { .min = I8XX_M1_MIN,		.max = I8XX_M1_MAX },
-        .m2  = { .min = I8XX_M2_MIN,		.max = I8XX_M2_MAX },
-        .p   = { .min = I8XX_P_MIN,		.max = I8XX_P_MAX },
-        .p1  = { .min = I8XX_P1_MIN,		.max = I8XX_P1_MAX },
-	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
-		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
+        .dot = { .min = 25000, .max = 350000 },
+        .vco = { .min = 930000, .max = 1400000 },
+        .n = { .min = 3, .max = 16 },
+        .m = { .min = 96, .max = 140 },
+        .m1 = { .min = 18, .max = 26 },
+        .m2 = { .min = 6, .max = 16 },
+        .p = { .min = 4, .max = 128 },
+        .p1 = { .min = 2, .max = 33 },
+	.p2 = { .dot_limit = 165000,
+		.p2_slow = 4, .p2_fast = 2 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
-        .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
-        .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
-        .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
-        .m   = { .min = I8XX_M_MIN,		.max = I8XX_M_MAX },
-        .m1  = { .min = I8XX_M1_MIN,		.max = I8XX_M1_MAX },
-        .m2  = { .min = I8XX_M2_MIN,		.max = I8XX_M2_MAX },
-        .p   = { .min = I8XX_P_MIN,		.max = I8XX_P_MAX },
-        .p1  = { .min = I8XX_P1_LVDS_MIN,	.max = I8XX_P1_LVDS_MAX },
-	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
-		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
+        .dot = { .min = 25000, .max = 350000 },
+        .vco = { .min = 930000, .max = 1400000 },
+        .n = { .min = 3, .max = 16 },
+        .m = { .min = 96, .max = 140 },
+        .m1 = { .min = 18, .max = 26 },
+        .m2 = { .min = 6, .max = 16 },
+        .p = { .min = 4, .max = 128 },
+        .p1 = { .min = 1, .max = 6 },
+	.p2 = { .dot_limit = 165000,
+		.p2_slow = 14, .p2_fast = 7 },
 	.find_pll = intel_find_best_PLL,
 };
-	
+
 static const intel_limit_t intel_limits_i9xx_sdvo = {
-        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
-        .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
-        .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
-        .m   = { .min = I9XX_M_MIN,		.max = I9XX_M_MAX },
-        .m1  = { .min = I9XX_M1_MIN,		.max = I9XX_M1_MAX },
-        .m2  = { .min = I9XX_M2_MIN,		.max = I9XX_M2_MAX },
-        .p   = { .min = I9XX_P_SDVO_DAC_MIN,	.max = I9XX_P_SDVO_DAC_MAX },
-        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
-	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
-		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+        .dot = { .min = 20000, .max = 400000 },
+        .vco = { .min = 1400000, .max = 2800000 },
+        .n = { .min = 1, .max = 6 },
+        .m = { .min = 70, .max = 120 },
+        .m1 = { .min = 10, .max = 22 },
+        .m2 = { .min = 5, .max = 9 },
+        .p = { .min = 5, .max = 80 },
+        .p1 = { .min = 1, .max = 8 },
+	.p2 = { .dot_limit = 200000,
+		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
-        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
-        .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
-        .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
-        .m   = { .min = I9XX_M_MIN,		.max = I9XX_M_MAX },
-        .m1  = { .min = I9XX_M1_MIN,		.max = I9XX_M1_MAX },
-        .m2  = { .min = I9XX_M2_MIN,		.max = I9XX_M2_MAX },
-        .p   = { .min = I9XX_P_LVDS_MIN,	.max = I9XX_P_LVDS_MAX },
-        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
-	/* The single-channel range is 25-112Mhz, and dual-channel
-	 * is 80-224Mhz.  Prefer single channel as much as possible.
-	 */
-	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
-		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
+        .dot = { .min = 20000, .max = 400000 },
+        .vco = { .min = 1400000, .max = 2800000 },
+        .n = { .min = 1, .max = 6 },
+        .m = { .min = 70, .max = 120 },
+        .m1 = { .min = 10, .max = 22 },
+        .m2 = { .min = 5, .max = 9 },
+        .p = { .min = 7, .max = 98 },
+        .p1 = { .min = 1, .max = 8 },
+	.p2 = { .dot_limit = 112000,
+		.p2_slow = 14, .p2_fast = 7 },
 	.find_pll = intel_find_best_PLL,
 };
 
-    /* below parameter and function is for G4X Chipset Family*/
+
 static const intel_limit_t intel_limits_g4x_sdvo = {
-	.dot = { .min = G4X_DOT_SDVO_MIN,	.max = G4X_DOT_SDVO_MAX },
-	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
-	.n   = { .min = G4X_N_SDVO_MIN,	        .max = G4X_N_SDVO_MAX },
-	.m   = { .min = G4X_M_SDVO_MIN,         .max = G4X_M_SDVO_MAX },
-	.m1  = { .min = G4X_M1_SDVO_MIN,	.max = G4X_M1_SDVO_MAX },
-	.m2  = { .min = G4X_M2_SDVO_MIN,	.max = G4X_M2_SDVO_MAX },
-	.p   = { .min = G4X_P_SDVO_MIN,         .max = G4X_P_SDVO_MAX },
-	.p1  = { .min = G4X_P1_SDVO_MIN,	.max = G4X_P1_SDVO_MAX},
-	.p2  = { .dot_limit = G4X_P2_SDVO_LIMIT,
-		 .p2_slow = G4X_P2_SDVO_SLOW,
-		 .p2_fast = G4X_P2_SDVO_FAST
+	.dot = { .min = 25000, .max = 270000 },
+	.vco = { .min = 1750000, .max = 3500000},
+	.n = { .min = 1, .max = 4 },
+	.m = { .min = 104, .max = 138 },
+	.m1 = { .min = 17, .max = 23 },
+	.m2 = { .min = 5, .max = 11 },
+	.p = { .min = 10, .max = 30 },
+	.p1 = { .min = 1, .max = 3},
+	.p2 = { .dot_limit = 270000,
+		.p2_slow = 10,
+		.p2_fast = 10
 	},
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_hdmi = {
-	.dot = { .min = G4X_DOT_HDMI_DAC_MIN,	.max = G4X_DOT_HDMI_DAC_MAX },
-	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
-	.n   = { .min = G4X_N_HDMI_DAC_MIN,	.max = G4X_N_HDMI_DAC_MAX },
-	.m   = { .min = G4X_M_HDMI_DAC_MIN,	.max = G4X_M_HDMI_DAC_MAX },
-	.m1  = { .min = G4X_M1_HDMI_DAC_MIN,	.max = G4X_M1_HDMI_DAC_MAX },
-	.m2  = { .min = G4X_M2_HDMI_DAC_MIN,	.max = G4X_M2_HDMI_DAC_MAX },
-	.p   = { .min = G4X_P_HDMI_DAC_MIN,	.max = G4X_P_HDMI_DAC_MAX },
-	.p1  = { .min = G4X_P1_HDMI_DAC_MIN,	.max = G4X_P1_HDMI_DAC_MAX},
-	.p2  = { .dot_limit = G4X_P2_HDMI_DAC_LIMIT,
-		 .p2_slow = G4X_P2_HDMI_DAC_SLOW,
-		 .p2_fast = G4X_P2_HDMI_DAC_FAST
-	},
+	.dot = { .min = 22000, .max = 400000 },
+	.vco = { .min = 1750000, .max = 3500000},
+	.n = { .min = 1, .max = 4 },
+	.m = { .min = 104, .max = 138 },
+	.m1 = { .min = 16, .max = 23 },
+	.m2 = { .min = 5, .max = 11 },
+	.p = { .min = 5, .max = 80 },
+	.p1 = { .min = 1, .max = 8},
+	.p2 = { .dot_limit = 165000,
+		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
-	.dot = { .min = G4X_DOT_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_DOT_SINGLE_CHANNEL_LVDS_MAX },
-	.vco = { .min = G4X_VCO_MIN,
-		 .max = G4X_VCO_MAX },
-	.n   = { .min = G4X_N_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_N_SINGLE_CHANNEL_LVDS_MAX },
-	.m   = { .min = G4X_M_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_M_SINGLE_CHANNEL_LVDS_MAX },
-	.m1  = { .min = G4X_M1_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_M1_SINGLE_CHANNEL_LVDS_MAX },
-	.m2  = { .min = G4X_M2_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_M2_SINGLE_CHANNEL_LVDS_MAX },
-	.p   = { .min = G4X_P_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_P_SINGLE_CHANNEL_LVDS_MAX },
-	.p1  = { .min = G4X_P1_SINGLE_CHANNEL_LVDS_MIN,
-		 .max = G4X_P1_SINGLE_CHANNEL_LVDS_MAX },
-	.p2  = { .dot_limit = G4X_P2_SINGLE_CHANNEL_LVDS_LIMIT,
-		 .p2_slow = G4X_P2_SINGLE_CHANNEL_LVDS_SLOW,
-		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
+	.dot = { .min = 20000, .max = 115000 },
+	.vco = { .min = 1750000, .max = 3500000 },
+	.n = { .min = 1, .max = 3 },
+	.m = { .min = 104, .max = 138 },
+	.m1 = { .min = 17, .max = 23 },
+	.m2 = { .min = 5, .max = 11 },
+	.p = { .min = 28, .max = 112 },
+	.p1 = { .min = 2, .max = 8 },
+	.p2 = { .dot_limit = 0,
+		.p2_slow = 14, .p2_fast = 14
 	},
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
-	.dot = { .min = G4X_DOT_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_DOT_DUAL_CHANNEL_LVDS_MAX },
-	.vco = { .min = G4X_VCO_MIN,
-		 .max = G4X_VCO_MAX },
-	.n   = { .min = G4X_N_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_N_DUAL_CHANNEL_LVDS_MAX },
-	.m   = { .min = G4X_M_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_M_DUAL_CHANNEL_LVDS_MAX },
-	.m1  = { .min = G4X_M1_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_M1_DUAL_CHANNEL_LVDS_MAX },
-	.m2  = { .min = G4X_M2_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_M2_DUAL_CHANNEL_LVDS_MAX },
-	.p   = { .min = G4X_P_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_P_DUAL_CHANNEL_LVDS_MAX },
-	.p1  = { .min = G4X_P1_DUAL_CHANNEL_LVDS_MIN,
-		 .max = G4X_P1_DUAL_CHANNEL_LVDS_MAX },
-	.p2  = { .dot_limit = G4X_P2_DUAL_CHANNEL_LVDS_LIMIT,
-		 .p2_slow = G4X_P2_DUAL_CHANNEL_LVDS_SLOW,
-		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
+	.dot = { .min = 80000, .max = 224000 },
+	.vco = { .min = 1750000, .max = 3500000 },
+	.n = { .min = 1, .max = 3 },
+	.m = { .min = 104, .max = 138 },
+	.m1 = { .min = 17, .max = 23 },
+	.m2 = { .min = 5, .max = 11 },
+	.p = { .min = 14, .max = 42 },
+	.p1 = { .min = 2, .max = 6 },
+	.p2 = { .dot_limit = 0,
+		.p2_slow = 7, .p2_fast = 7
 	},
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_display_port = {
-        .dot = { .min = G4X_DOT_DISPLAY_PORT_MIN,
-                 .max = G4X_DOT_DISPLAY_PORT_MAX },
-        .vco = { .min = G4X_VCO_MIN,
-                 .max = G4X_VCO_MAX},
-        .n   = { .min = G4X_N_DISPLAY_PORT_MIN,
-                 .max = G4X_N_DISPLAY_PORT_MAX },
-        .m   = { .min = G4X_M_DISPLAY_PORT_MIN,
-                 .max = G4X_M_DISPLAY_PORT_MAX },
-        .m1  = { .min = G4X_M1_DISPLAY_PORT_MIN,
-                 .max = G4X_M1_DISPLAY_PORT_MAX },
-        .m2  = { .min = G4X_M2_DISPLAY_PORT_MIN,
-                 .max = G4X_M2_DISPLAY_PORT_MAX },
-        .p   = { .min = G4X_P_DISPLAY_PORT_MIN,
-                 .max = G4X_P_DISPLAY_PORT_MAX },
-        .p1  = { .min = G4X_P1_DISPLAY_PORT_MIN,
-                 .max = G4X_P1_DISPLAY_PORT_MAX},
-        .p2  = { .dot_limit = G4X_P2_DISPLAY_PORT_LIMIT,
-                 .p2_slow = G4X_P2_DISPLAY_PORT_SLOW,
-                 .p2_fast = G4X_P2_DISPLAY_PORT_FAST },
+        .dot = { .min = 161670, .max = 227000 },
+        .vco = { .min = 1750000, .max = 3500000},
+        .n = { .min = 1, .max = 2 },
+        .m = { .min = 97, .max = 108 },
+        .m1 = { .min = 0x10, .max = 0x12 },
+        .m2 = { .min = 0x05, .max = 0x06 },
+        .p = { .min = 10, .max = 20 },
+        .p1 = { .min = 1, .max = 2},
+        .p2 = { .dot_limit = 0,
+		.p2_slow = 10, .p2_fast = 10 },
         .find_pll = intel_find_pll_g4x_dp,
 };
 
 static const intel_limit_t intel_limits_pineview_sdvo = {
-        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
-        .vco = { .min = PINEVIEW_VCO_MIN,		.max = PINEVIEW_VCO_MAX },
-        .n   = { .min = PINEVIEW_N_MIN,		.max = PINEVIEW_N_MAX },
-        .m   = { .min = PINEVIEW_M_MIN,		.max = PINEVIEW_M_MAX },
-        .m1  = { .min = PINEVIEW_M1_MIN,		.max = PINEVIEW_M1_MAX },
-        .m2  = { .min = PINEVIEW_M2_MIN,		.max = PINEVIEW_M2_MAX },
-        .p   = { .min = I9XX_P_SDVO_DAC_MIN,    .max = I9XX_P_SDVO_DAC_MAX },
-        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
-	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
-		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+        .dot = { .min = 20000, .max = 400000},
+        .vco = { .min = 1700000, .max = 3500000 },
+	/* Pineview's Ncounter is a ring counter */
+        .n = { .min = 3, .max = 6 },
+        .m = { .min = 2, .max = 256 },
+	/* Pineview only has one combined m divider, which we treat as m2. */
+        .m1 = { .min = 0, .max = 0 },
+        .m2 = { .min = 0, .max = 254 },
+        .p = { .min = 5, .max = 80 },
+        .p1 = { .min = 1, .max = 8 },
+	.p2 = { .dot_limit = 200000,
+		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
-        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
-        .vco = { .min = PINEVIEW_VCO_MIN,		.max = PINEVIEW_VCO_MAX },
-        .n   = { .min = PINEVIEW_N_MIN,		.max = PINEVIEW_N_MAX },
-        .m   = { .min = PINEVIEW_M_MIN,		.max = PINEVIEW_M_MAX },
-        .m1  = { .min = PINEVIEW_M1_MIN,		.max = PINEVIEW_M1_MAX },
-        .m2  = { .min = PINEVIEW_M2_MIN,		.max = PINEVIEW_M2_MAX },
-        .p   = { .min = PINEVIEW_P_LVDS_MIN,	.max = PINEVIEW_P_LVDS_MAX },
-        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
-	/* Pineview only supports single-channel mode. */
-	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
-		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
+        .dot = { .min = 20000, .max = 400000 },
+        .vco = { .min = 1700000, .max = 3500000 },
+        .n = { .min = 3, .max = 6 },
+        .m = { .min = 2, .max = 256 },
+        .m1 = { .min = 0, .max = 0 },
+        .m2 = { .min = 0, .max = 254 },
+        .p = { .min = 7, .max = 112 },
+        .p1 = { .min = 1, .max = 8 },
+	.p2 = { .dot_limit = 112000,
+		.p2_slow = 14, .p2_fast = 14 },
 	.find_pll = intel_find_best_PLL,
 };
 
+/* Ironlake / Sandybridge
+ *
+ * We calculate clock using (register_value + 2) for N/M1/M2, so here
+ * the range value for them is (actual_value - 2).
+ */
 static const intel_limit_t intel_limits_ironlake_dac = {
-	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
-	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_DAC_N_MIN,        .max = IRONLAKE_DAC_N_MAX },
-	.m   = { .min = IRONLAKE_DAC_M_MIN,        .max = IRONLAKE_DAC_M_MAX },
-	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
-	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_DAC_P_MIN,	   .max = IRONLAKE_DAC_P_MAX },
-	.p1  = { .min = IRONLAKE_DAC_P1_MIN,       .max = IRONLAKE_DAC_P1_MAX },
-	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_DAC_P2_SLOW,
-		 .p2_fast = IRONLAKE_DAC_P2_FAST },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000 },
+	.n = { .min = 1, .max = 5 },
+	.m = { .min = 79, .max = 127 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 5, .max = 80 },
+	.p1 = { .min = 1, .max = 8 },
+	.p2 = { .dot_limit = 225000,
+		.p2_slow = 10, .p2_fast = 5 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_single_lvds = {
-	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
-	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_LVDS_S_N_MIN,     .max = IRONLAKE_LVDS_S_N_MAX },
-	.m   = { .min = IRONLAKE_LVDS_S_M_MIN,     .max = IRONLAKE_LVDS_S_M_MAX },
-	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
-	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_LVDS_S_P_MIN,     .max = IRONLAKE_LVDS_S_P_MAX },
-	.p1  = { .min = IRONLAKE_LVDS_S_P1_MIN,    .max = IRONLAKE_LVDS_S_P1_MAX },
-	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_LVDS_S_P2_SLOW,
-		 .p2_fast = IRONLAKE_LVDS_S_P2_FAST },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000 },
+	.n = { .min = 1, .max = 3 },
+	.m = { .min = 79, .max = 118 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 28, .max = 112 },
+	.p1 = { .min = 2, .max = 8 },
+	.p2 = { .dot_limit = 225000,
+		.p2_slow = 14, .p2_fast = 14 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_dual_lvds = {
-	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
-	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_LVDS_D_N_MIN,     .max = IRONLAKE_LVDS_D_N_MAX },
-	.m   = { .min = IRONLAKE_LVDS_D_M_MIN,     .max = IRONLAKE_LVDS_D_M_MAX },
-	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
-	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_LVDS_D_P_MIN,     .max = IRONLAKE_LVDS_D_P_MAX },
-	.p1  = { .min = IRONLAKE_LVDS_D_P1_MIN,    .max = IRONLAKE_LVDS_D_P1_MAX },
-	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_LVDS_D_P2_SLOW,
-		 .p2_fast = IRONLAKE_LVDS_D_P2_FAST },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000 },
+	.n = { .min = 1, .max = 3 },
+	.m = { .min = 79, .max = 127 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 14, .max = 56 },
+	.p1 = { .min = 2, .max = 8 },
+	.p2 = { .dot_limit = 225000,
+		.p2_slow = 7, .p2_fast = 7 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
+/* LVDS 100mhz refclk limits. */
 static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
-	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
-	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_LVDS_S_SSC_N_MIN, .max = IRONLAKE_LVDS_S_SSC_N_MAX },
-	.m   = { .min = IRONLAKE_LVDS_S_SSC_M_MIN, .max = IRONLAKE_LVDS_S_SSC_M_MAX },
-	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
-	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_LVDS_S_SSC_P_MIN, .max = IRONLAKE_LVDS_S_SSC_P_MAX },
-	.p1  = { .min = IRONLAKE_LVDS_S_SSC_P1_MIN,.max = IRONLAKE_LVDS_S_SSC_P1_MAX },
-	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_LVDS_S_SSC_P2_SLOW,
-		 .p2_fast = IRONLAKE_LVDS_S_SSC_P2_FAST },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000 },
+	.n = { .min = 1, .max = 2 },
+	.m = { .min = 79, .max = 126 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 28, .max = 112 },
+	.p1 = { .min = 2,.max = 8 },
+	.p2 = { .dot_limit = 225000,
+		.p2_slow = 14, .p2_fast = 14 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
-	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
-	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_LVDS_D_SSC_N_MIN, .max = IRONLAKE_LVDS_D_SSC_N_MAX },
-	.m   = { .min = IRONLAKE_LVDS_D_SSC_M_MIN, .max = IRONLAKE_LVDS_D_SSC_M_MAX },
-	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
-	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_LVDS_D_SSC_P_MIN, .max = IRONLAKE_LVDS_D_SSC_P_MAX },
-	.p1  = { .min = IRONLAKE_LVDS_D_SSC_P1_MIN,.max = IRONLAKE_LVDS_D_SSC_P1_MAX },
-	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_LVDS_D_SSC_P2_SLOW,
-		 .p2_fast = IRONLAKE_LVDS_D_SSC_P2_FAST },
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 1760000, .max = 3510000 },
+	.n = { .min = 1, .max = 3 },
+	.m = { .min = 79, .max = 126 },
+	.m1 = { .min = 12, .max = 22 },
+	.m2 = { .min = 5, .max = 9 },
+	.p = { .min = 14, .max = 42 },
+	.p1 = { .min = 2,.max = 6 },
+	.p2 = { .dot_limit = 225000,
+		.p2_slow = 7, .p2_fast = 7 },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_display_port = {
-        .dot = { .min = IRONLAKE_DOT_MIN,
-                 .max = IRONLAKE_DOT_MAX },
-        .vco = { .min = IRONLAKE_VCO_MIN,
-                 .max = IRONLAKE_VCO_MAX},
-        .n   = { .min = IRONLAKE_DP_N_MIN,
-                 .max = IRONLAKE_DP_N_MAX },
-        .m   = { .min = IRONLAKE_DP_M_MIN,
-                 .max = IRONLAKE_DP_M_MAX },
-        .m1  = { .min = IRONLAKE_M1_MIN,
-                 .max = IRONLAKE_M1_MAX },
-        .m2  = { .min = IRONLAKE_M2_MIN,
-                 .max = IRONLAKE_M2_MAX },
-        .p   = { .min = IRONLAKE_DP_P_MIN,
-                 .max = IRONLAKE_DP_P_MAX },
-        .p1  = { .min = IRONLAKE_DP_P1_MIN,
-                 .max = IRONLAKE_DP_P1_MAX},
-        .p2  = { .dot_limit = IRONLAKE_DP_P2_LIMIT,
-                 .p2_slow = IRONLAKE_DP_P2_SLOW,
-                 .p2_fast = IRONLAKE_DP_P2_FAST },
+        .dot = { .min = 25000, .max = 350000 },
+        .vco = { .min = 1760000, .max = 3510000},
+        .n = { .min = 1, .max = 2 },
+        .m = { .min = 81, .max = 90 },
+        .m1 = { .min = 12, .max = 22 },
+        .m2 = { .min = 5, .max = 9 },
+        .p = { .min = 10, .max = 20 },
+        .p1 = { .min = 1, .max = 2},
+        .p2 = { .dot_limit = 0,
+		.p2_slow = 10, .p2_fast = 10 },
         .find_pll = intel_find_pll_ironlake_dp,
 };
 
