@@ -290,14 +290,6 @@ static void disconnect_timer_handler(unsigned long ptr);
 
 void read_rssi_compensation_param(struct ar6_softc *ar);
 
-    /* for android builds we call external APIs that handle firmware download and configuration */
-#ifdef ANDROID_ENV
-/* !!!! Interim android support to make it easier to patch the default driver for
- * android use. You must define an external source file ar6000_android.c that handles the following
- * APIs */
-extern void android_module_init(OSDRV_CALLBACKS *osdrvCallbacks);
-extern void android_module_exit(void);
-#endif
 /*
  * HTC service connection handlers
  */
@@ -660,10 +652,6 @@ ar6000_init_module(void)
 
     ar6000_pm_init();
 
-#ifdef ANDROID_ENV
-    android_module_init(&osdrvCallbacks);
-#endif
-
 #ifdef DEBUG
     /* Set the debug flags if specified at load time */
     if(debugflags != 0)
@@ -718,10 +706,6 @@ ar6000_cleanup_module(void)
     a_module_debug_support_cleanup();
 
     ar6000_pm_exit();
-
-#ifdef ANDROID_ENV    
-    android_module_exit();
-#endif
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("ar6000_cleanup: success\n"));
 }

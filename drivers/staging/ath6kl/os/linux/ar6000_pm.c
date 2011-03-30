@@ -36,9 +36,6 @@
 extern unsigned int wmitimeout;
 extern wait_queue_head_t arEvent;
 
-#ifdef ANDROID_ENV
-extern void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
-#endif
 #undef ATH_MODULE_NAME
 #define ATH_MODULE_NAME pm
 #define  ATH_DEBUG_PM       ATH_DEBUG_MAKE_MODULE_MASK(0)
@@ -283,10 +280,6 @@ void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isE
         /* Wow resume from irq interrupt */
         AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: WoW resume from irq thread status %d\n", __func__, ar->arWlanPowerState));
         ar6000_wow_resume(ar);
-    } else {
-#ifdef ANDROID_ENV
-        android_ar6k_check_wow_status(ar, skb, isEvent);
-#endif
     }
 }
 
@@ -373,17 +366,6 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                                 sizeof(HIF_DEVICE_POWER_CHANGE_TYPE));
 
             if (status == A_PENDING) {
-#ifdef ANDROID_ENV
-                 /* Wait for WMI ready event */
-                u32 timeleft = wait_event_interruptible_timeout(arEvent,
-                            (ar->arWmiReady == true), wmitimeout * HZ);
-                if (!timeleft || signal_pending(current)) {
-                    AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000 : Failed to get wmi ready \n"));
-                    status = A_ERROR;
-                    break;
-                }
-#endif
-                status = 0;
             } else if (status == 0) {
                 ar6000_restart_endpoint(ar->arNetDev);
                 status = 0;

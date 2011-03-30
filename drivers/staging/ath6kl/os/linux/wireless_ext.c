@@ -2499,39 +2499,6 @@ ar6000_ioctl_siwscan(struct net_device *dev,
         }
     }
 
-#ifdef ANDROID_ENV
-#if WIRELESS_EXT >= 18
-    if (data->pointer && (data->length == sizeof(struct iw_scan_req)))
-    {
-        if ((data->flags & IW_SCAN_THIS_ESSID) == IW_SCAN_THIS_ESSID)
-        {
-            struct iw_scan_req req;
-            if (copy_from_user(&req, data->pointer, sizeof(struct iw_scan_req)))
-                return -EIO;
-            if (wmi_probedSsid_cmd(ar->arWmi, 1, SPECIFIC_SSID_FLAG, req.essid_len, req.essid) != 0)
-                return -EIO;
-            ar->scanSpecificSsid = true;
-        }
-        else
-        {
-            if (ar->scanSpecificSsid) {
-                if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != 0)
-                    return -EIO;
-                 ar->scanSpecificSsid = false;
-            }
-        }
-    }
-    else
-    {
-        if (ar->scanSpecificSsid) {
-            if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != 0)
-                return -EIO;
-             ar->scanSpecificSsid = false;
-        }
-    }
-#endif
-#endif /* ANDROID_ENV */
-
     if (wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, false, false, \
                           0, 0, 0, NULL) != 0) {
         ret = -EIO;

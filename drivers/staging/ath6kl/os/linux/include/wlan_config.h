@@ -56,11 +56,7 @@
  * If the firmware successly roams within the disconnect timeout
  * it sends a new connect event
  */
-#ifdef ANDROID_ENV
-#define WLAN_CONFIG_DISCONNECT_TIMEOUT 3
-#else
 #define WLAN_CONFIG_DISCONNECT_TIMEOUT 10
-#endif /* ANDROID_ENV */ 
 
 /*
  * This configuration item disables 11n support. 
