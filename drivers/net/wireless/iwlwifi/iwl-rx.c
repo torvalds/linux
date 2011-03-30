@@ -873,6 +873,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 {
 	struct sk_buff *skb;
 	__le16 fc = hdr->frame_control;
+	struct iwl_rxon_context *ctx;
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
@@ -895,6 +896,26 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb), len);
 
 	iwl_update_stats(priv, false, fc, len);
+
+	/*
+	* Wake any queues that were stopped due to a passive channel tx
+	* failure. This can happen because the regulatory enforcement in
+	* the device waits for a beacon before allowing transmission,
+	* sometimes even after already having transmitted frames for the
+	* association because the new RXON may reset the information.
+	*/
+	if (unlikely(ieee80211_is_beacon(fc))) {
+		for_each_context(priv, ctx) {
+			if (!ctx->last_tx_rejected)
+				continue;
+			if (compare_ether_addr(hdr->addr3,
+					       ctx->active.bssid_addr))
+				continue;
+			ctx->last_tx_rejected = false;
+			iwl_wake_any_queue(priv, ctx);
+		}
+	}
+
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);

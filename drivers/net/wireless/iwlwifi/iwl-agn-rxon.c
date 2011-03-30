@@ -29,6 +29,7 @@
 #include "iwl-sta.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
+#include "iwl-helpers.h"
 
 static int iwlagn_disable_bss(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
@@ -600,6 +601,18 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->timestamp;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
+			/*
+			 * If we disassociate while there are pending
+			 * frames, just wake up the queues and let the
+			 * frames "escape" ... This shouldn't really
+			 * be happening to start with, but we should
+			 * not get stuck in this case either since it
+			 * can happen if userspace gets confused.
+			 */
+			if (ctx->last_tx_rejected) {
+				ctx->last_tx_rejected = false;
+				iwl_wake_any_queue(priv, ctx);
+			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		}
 	}

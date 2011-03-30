@@ -1170,6 +1170,8 @@ struct iwl_rxon_context {
 		bool enabled, is_40mhz;
 		u8 extension_chan_offset;
 	} ht;
+
+	bool last_tx_rejected;
 };
 
 enum iwl_scan_type {

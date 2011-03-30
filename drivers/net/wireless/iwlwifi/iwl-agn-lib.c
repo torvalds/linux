@@ -172,6 +172,7 @@ static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 
 static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct ieee80211_tx_info *info,
+				 struct iwl_rxon_context *ctx,
 				 struct iwlagn_tx_resp *tx_resp,
 				 int txq_id, bool is_agg)
 {
@@ -185,6 +186,13 @@ static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				    info);
 	if (!iwl_is_tx_success(status))
 		iwlagn_count_tx_err_status(priv, status);
+
+	if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
+	    iwl_is_associated_ctx(ctx) && ctx->vif &&
+	    ctx->vif->type == NL80211_IFTYPE_STATION) {
+		ctx->last_tx_rejected = true;
+		iwl_stop_queue(priv, &priv->txq[txq_id]);
+	}
 
 	IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) rate_n_flags "
 			   "0x%x retries %d\n",
@@ -242,15 +250,16 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 
 	/* # frames attempted by Tx command */
 	if (agg->frame_count == 1) {
+		struct iwl_tx_info *txb;
+
 		/* Only one frame was attempted; no block-ack will arrive */
 		idx = start_idx;
 
 		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
-		iwlagn_set_tx_status(priv,
-				     IEEE80211_SKB_CB(
-					priv->txq[txq_id].txb[idx].skb),
-				     tx_resp, txq_id, true);
+		txb = &priv->txq[txq_id].txb[idx];
+		iwlagn_set_tx_status(priv, IEEE80211_SKB_CB(txb->skb),
+				     txb->ctx, tx_resp, txq_id, true);
 		agg->wait_for_ba = 0;
 	} else {
 		/* Two or more frames were attempted; expect block-ack */
@@ -391,7 +400,8 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct ieee80211_tx_info *info;
 	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
-	u32  status = le16_to_cpu(tx_resp->status.status);
+	struct iwl_tx_info *txb;
+	u32 status = le16_to_cpu(tx_resp->status.status);
 	int tid;
 	int sta_id;
 	int freed;
@@ -406,7 +416,8 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	}
 
 	txq->time_stamp = jiffies;
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
+	txb = &txq->txb[txq->q.read_ptr];
+	info = IEEE80211_SKB_CB(txb->skb);
 	memset(&info->status, 0, sizeof(info->status));
 
 	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
@@ -450,12 +461,14 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 				iwl_wake_queue(priv, txq);
 		}
 	} else {
-		iwlagn_set_tx_status(priv, info, tx_resp, txq_id, false);
+		iwlagn_set_tx_status(priv, info, txb->ctx, tx_resp,
+				     txq_id, false);
 		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
 
 		if (priv->mac80211_registered &&
-		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
+		    iwl_queue_space(&txq->q) > txq->q.low_mark &&
+		    status != TX_STATUS_FAIL_PASSIVE_NO_RX)
 			iwl_wake_queue(priv, txq);
 	}
 

@@ -220,6 +220,7 @@ static inline u32 iwl_tx_status_to_mac80211(u32 status)
 	case TX_STATUS_DIRECT_DONE:
 		return IEEE80211_TX_STAT_ACK;
 	case TX_STATUS_FAIL_DEST_PS:
+	case TX_STATUS_FAIL_PASSIVE_NO_RX:
 		return IEEE80211_TX_STAT_TX_FILTERED;
 	default:
 		return 0;
