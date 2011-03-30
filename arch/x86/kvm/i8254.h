@@ -33,7 +33,6 @@ struct kvm_kpit_state {
 };
 
 struct kvm_pit {
-	unsigned long base_addresss;
 	struct kvm_io_device dev;
 	struct kvm_io_device speaker_dev;
 	struct kvm *kvm;
