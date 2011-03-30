@@ -704,7 +704,7 @@ void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
  * @inode: The inode
- * @sync: synchronous write flag
+ * @wbc: The writeback control structure
  *
  * Returns: errno
  */
@@ -713,15 +713,16 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
 	struct timespec atime;
 	struct gfs2_dinode *di;
-	int ret = 0;
+	int ret = -EAGAIN;
 
-	/* Check this is a "normal" inode, etc */
+	/* Skip timestamp update, if this is from a memalloc */
 	if (current->flags & PF_MEMALLOC)
-		return 0;
+		goto do_flush;
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (ret)
 		goto do_flush;
@@ -745,6 +746,11 @@ do_unlock:
 do_flush:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
+	filemap_fdatawrite(metamapping);
+	if (!ret && (wbc->sync_mode == WB_SYNC_ALL))
+		ret = filemap_fdatawait(metamapping);
+	if (ret)
+		mark_inode_dirty_sync(inode);
 	return ret;
 }
 
@@ -874,8 +880,9 @@ restart:
 
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
-	if (wait && sb->s_fs_info)
-		gfs2_log_flush(sb->s_fs_info, NULL);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	if (wait && sdp)
+		gfs2_log_flush(sdp, NULL);
 	return 0;
 }
 
