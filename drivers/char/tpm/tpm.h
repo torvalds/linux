@@ -56,6 +56,8 @@ extern ssize_t tpm_show_owned(struct device *, struct device_attribute *attr,
 				char *);
 extern ssize_t tpm_show_temp_deactivated(struct device *,
 					 struct device_attribute *attr, char *);
+extern ssize_t tpm_show_durations(struct device *,
+				  struct device_attribute *attr, char *);
 
 struct tpm_chip;
 
@@ -82,6 +84,7 @@ struct tpm_vendor_specific {
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
 	unsigned long duration[3]; /* jiffies */
+	bool duration_adjusted;
 
 	wait_queue_head_t read_queue;
 	wait_queue_head_t int_queue;
