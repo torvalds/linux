@@ -14,6 +14,10 @@
 
 #include <lantiq_soc.h>
 
+#include "machtypes.h"
+#include "devices.h"
+#include "prom.h"
+
 void __init plat_mem_setup(void)
 {
 	/* assume 16M as default incase uboot fails to pass proper ramsize */
@@ -39,3 +43,24 @@ void __init plat_mem_setup(void)
 	memsize *= 1024 * 1024;
 	add_memory_region(0x00000000, memsize, BOOT_MEM_RAM);
 }
+
+static int __init
+lantiq_setup(void)
+{
+	ltq_soc_setup();
+	mips_machine_setup();
+	return 0;
+}
+
+arch_initcall(lantiq_setup);
+
+static void __init
+lantiq_generic_init(void)
+{
+	/* Nothing to do */
+}
+
+MIPS_MACHINE(LTQ_MACH_GENERIC,
+	     "Generic",
+	     "Generic Lantiq based board",
+	     lantiq_generic_init);
