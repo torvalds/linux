@@ -1413,7 +1413,7 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + RK29_GPU_PHYS_SIZE,
+        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {

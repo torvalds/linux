@@ -54,7 +54,7 @@
 #define RK29_SPDIF_PHYS				0x1011E000
 #define RK29_SPDIF_SIZE				SZ_8K
 #define RK29_GPU_PHYS				0x10120000
-#define RK29_GPU_PHYS_SIZE			SZ_16K
+#define RK29_GPU_SIZE				SZ_16K
 #define RK29_DDRC_PHYS          	0x10124000
 #define RK29_DDRC_BASE          	(RK29_ADDR_BASE0+0x124000)
 #define RK29_DDRC_SIZE          	SZ_16K
