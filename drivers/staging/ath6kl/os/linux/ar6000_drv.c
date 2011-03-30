@@ -2328,16 +2328,52 @@ u8 ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
     return(arEndpoint2Ac(ar, ep ));
 }
 
+#if defined(CONFIG_ATH6KL_ENABLE_COEXISTENCE)
+static int ath6kl_config_btcoex_params(struct ar6_softc *ar)
+{
+	int r;
+	WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
+	WMI_SET_BTCOEX_FE_ANT_CMD sbfa_cmd;
+
+	/* Configure the type of BT collocated with WLAN */
+	memset(&sbcb_cmd, 0, sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
+	sbcb_cmd.btcoexCoLocatedBTdev = ATH6KL_BT_DEV;
+
+	r = wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd);
+
+	if (r) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("Unable to set collocated BT type\n"));
+		return r;
+	}
+
+	/* Configure the type of BT collocated with WLAN */
+	memset(&sbfa_cmd, 0, sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
+
+	sbfa_cmd.btcoexFeAntType = ATH6KL_BT_ANTENNA;
+
+	r = wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd);
+	if (r) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("Unable to set fornt end antenna configuration\n"));
+		return r;
+	}
+
+	return 0;
+}
+#else
+static int ath6kl_config_btcoex_params(struct ar6_softc *ar)
+{
+	return 0;
+}
+#endif /* CONFIG_ATH6KL_ENABLE_COEXISTENCE */
+
 /*
  * This function applies WLAN specific configuration defined in wlan_config.h
  */
 int ar6000_target_config_wlan_params(struct ar6_softc *ar)
 {
     int status = 0;
-#if defined(CONFIG_ATH6KL_ENABLE_COEXISTENCE)
-    WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
-    WMI_SET_BTCOEX_FE_ANT_CMD sbfa_cmd;
-#endif /* CONFIG_ATH6KL_ENABLE_COEXISTENCE */
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
     if (ar->arTargetMode != AR6000_WLAN_MODE) {
@@ -2355,39 +2391,9 @@ int ar6000_target_config_wlan_params(struct ar6_softc *ar)
         status = A_ERROR;
     }
 
-#if defined(CONFIG_ATH6KL_ENABLE_COEXISTENCE)
-    /* Configure the type of BT collocated with WLAN */
-    memset(&sbcb_cmd, 0, sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
-#ifdef CONFIG_AR600x_BT_QCOM
-    sbcb_cmd.btcoexCoLocatedBTdev = 1;
-#elif defined(CONFIG_AR600x_BT_CSR)
-    sbcb_cmd.btcoexCoLocatedBTdev = 2;
-#elif defined(CONFIG_AR600x_BT_AR3001)
-    sbcb_cmd.btcoexCoLocatedBTdev = 3;
-#else
-#error Unsupported Bluetooth Type
-#endif /* Collocated Bluetooth Type */
-
-    if ((wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd)) != 0) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set collocated BT type\n"));
-        status = A_ERROR;
-    }
-
-    /* Configure the type of BT collocated with WLAN */
-    memset(&sbfa_cmd, 0, sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
-#ifdef CONFIG_AR600x_DUAL_ANTENNA
-    sbfa_cmd.btcoexFeAntType = 2;
-#elif defined(CONFIG_AR600x_SINGLE_ANTENNA)
-    sbfa_cmd.btcoexFeAntType = 1;
-#else
-#error Unsupported Front-End Antenna Configuration
-#endif /* AR600x Front-End Antenna Configuration */
-
-    if ((wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd)) != 0) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set fornt end antenna configuration\n"));
-        status = A_ERROR;
-    }
-#endif /* CONFIG_ATH6KL_ENABLE_COEXISTENCE */
+    status = ath6kl_config_btcoex_params(ar);
+    if (status)
+	return status;
 
 #if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
     if ((wmi_pmparams_cmd(ar->arWmi, 0, 1, 0, 0, 1, IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN)) != 0) {
