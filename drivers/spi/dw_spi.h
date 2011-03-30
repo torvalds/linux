@@ -137,8 +137,6 @@ struct dw_spi {
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
 	int			cs_change;
-	int			(*write)(struct dw_spi *dws);
-	int			(*read)(struct dw_spi *dws);
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	void			(*cs_control)(u32 command);
 
