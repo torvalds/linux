@@ -12,5 +12,6 @@ menuconfig ETHERNET
 if ETHERNET
 
 source "drivers/net/ethernet/3com/Kconfig"
+source "drivers/net/ethernet/amd/Kconfig"
 
 endif # ETHERNET

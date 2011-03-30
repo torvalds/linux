@@ -4,7 +4,6 @@
 
 # 16-bit client drivers
 obj-$(CONFIG_PCMCIA_FMVJ18X)	+= fmvj18x_cs.o
-obj-$(CONFIG_PCMCIA_NMCLAN)	+= nmclan_cs.o
 obj-$(CONFIG_PCMCIA_PCNET)	+= pcnet_cs.o
 obj-$(CONFIG_PCMCIA_SMC91C92)	+= smc91c92_cs.o
 obj-$(CONFIG_PCMCIA_XIRC2PS)	+= xirc2ps_cs.o

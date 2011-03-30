@@ -746,7 +746,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/mach-ebsa110/
-F:	drivers/net/arm/am79c961a.*
+F:	drivers/net/ethernet/amd/am79c961a.*
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 M:	Daniel Ribeiro <drwyrm@gmail.com>
@@ -4941,7 +4941,7 @@ PCNET32 NETWORK DRIVER
 M:	Don Fry <pcnet32@frontier.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/pcnet32.c
+F:	drivers/net/ethernet/amd/pcnet32.c
 
 PCRYPT PARALLEL CRYPTO ENGINE
 M:	Steffen Klassert <steffen.klassert@secunet.com>

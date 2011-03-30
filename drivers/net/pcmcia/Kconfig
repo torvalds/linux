@@ -41,15 +41,6 @@ config PCMCIA_PCNET
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcnet_cs.  If unsure, say N.
 
-config PCMCIA_NMCLAN
-	tristate "New Media PCMCIA support"
-	help
-	  Say Y here if you intend to attach a New Media Ethernet or LiveWire
-	  PCMCIA (PC-card) Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called nmclan_cs.  If unsure, say N.
-
 config PCMCIA_SMC91C92
 	tristate "SMC 91Cxx PCMCIA support"
 	select CRC32

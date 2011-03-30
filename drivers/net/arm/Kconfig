@@ -2,13 +2,6 @@
 # Acorn Network device configuration
 #  These are for Acorn's Expansion card network interfaces
 #
-config ARM_AM79C961A
-	bool "ARM EBSA110 AM79C961A support"
-	depends on ARM && ARCH_EBSA110
-	select CRC32
-	help
-	  If you wish to compile a kernel for the EBSA-110, then you should
-	  always answer Y to this.
 
 config ARM_ETHER1
 	tristate "Acorn Ether1 support"

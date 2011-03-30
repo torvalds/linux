@@ -287,27 +287,6 @@ config BMAC
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmac.
 
-config ARIADNE
-	tristate "Ariadne support"
-	depends on ZORRO
-	help
-	  If you have a Village Tronic Ariadne Ethernet adapter, say Y.
-	  Otherwise, say N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ariadne.
-
-config A2065
-	tristate "A2065 support"
-	depends on ZORRO
-	select CRC32
-	help
-	  If you have a Commodore A2065 Ethernet adapter, say Y. Otherwise,
-	  say N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called a2065.
-
 config HYDRA
 	tristate "Hydra support"
 	depends on ZORRO
@@ -387,16 +366,6 @@ config MACMACE
 	  say Y and read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-config MVME147_NET
-	tristate "MVME147 (Lance) Ethernet support"
-	depends on MVME147
-	select CRC32
-	help
-	  Support for the on-board Ethernet interface on the Motorola MVME147
-	  single-board computer.  Say Y here to include the
-	  driver for this chip in your kernel.
-	  To compile this driver as a module, choose M here.
-
 config MVME16x_NET
 	tristate "MVME16x Ethernet support"
 	depends on MVME16x
@@ -415,27 +384,6 @@ config BVME6000_NET
 	  in your kernel.
 	  To compile this driver as a module, choose M here.
 
-config ATARILANCE
-	tristate "Atari Lance support"
-	depends on ATARI
-	help
-	  Say Y to include support for several Atari Ethernet adapters based
-	  on the AMD Lance chipset: RieblCard (with or without battery), or
-	  PAMCard VME (also the version by Rhotron, with different addresses).
-
-config SUN3LANCE
-	tristate "Sun3/Sun3x on-board LANCE support"
-	depends on SUN3 || SUN3X
-	help
-	  Most Sun3 and Sun3x motherboards (including the 3/50, 3/60 and 3/80)
-	  featured an AMD Lance 10Mbit Ethernet controller on board; say Y
-	  here to compile in the Linux driver for this and enable Ethernet.
-	  General Linux information on the Sun 3 and 3x series (now
-	  discontinued) is at
-	  <http://www.angelfire.com/ca2/tech68k/sun3.html>.
-
-	  If you're not building a kernel for a Sun 3, say N.
-
 config SUN3_82586
 	bool "Sun3 on-board Intel 82586 support"
 	depends on SUN3
@@ -444,14 +392,6 @@ config SUN3_82586
 	  Ethernet adapter found on Sun 3/1xx and 3/2xx motherboards.  Note
 	  that this driver does not support 82586-based adapters on additional
 	  VME boards.
-
-config HPLANCE
-	bool "HP on-board LANCE support"
-	depends on DIO
-	select CRC32
-	help
-	  If you want to use the builtin "LANCE" Ethernet controller on an
-	  HP300 machine, say Y here.
 
 config LASI_82596
 	tristate "Lasi ethernet"
@@ -486,15 +426,6 @@ config XTENSA_XT2000_SONIC
 	depends on XTENSA_PLATFORM_XT2000
 	help
 	  This is the driver for the onboard card of the Xtensa XT2000 board.
-
-config MIPS_AU1X00_ENET
-	tristate "MIPS AU1000 Ethernet support"
-	depends on MIPS_ALCHEMY
-	select PHYLIB
-	select CRC32
-	help
-	  If you have an Alchemy Semi AU1X00 based system
-	  say Y.  Otherwise, say N.
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
@@ -544,19 +475,6 @@ config SH_ETH
 	  Renesas SuperH Ethernet device driver.
 	  This driver supporting CPUs are:
 		- SH7710, SH7712, SH7763, SH7619, SH7724, and SH7757.
-
-config SUNLANCE
-	tristate "Sun LANCE support"
-	depends on SBUS
-	select CRC32
-	help
-	  This driver supports the "le" interface present on all 32-bit Sparc
-	  systems, on some older Ultra systems and as an Sbus option.  These
-	  cards are based on the AMD Lance chipset, which is better known
-	  via the NE2100 cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called sunlance.
 
 config HAPPYMEAL
 	tristate "Sun Happy Meal 10/100baseT support"
@@ -672,18 +590,6 @@ config ELMC_II
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c527.
-
-config LANCE
-	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
-	depends on ISA && ISA_DMA_API
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>. Some LinkSys cards are
-	  of this type.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called lance.  This is recommended.
 
 config NET_VENDOR_SMC
 	bool "Western Digital/SMC cards"
@@ -1020,17 +926,6 @@ config NI52
 	  To compile this driver as a module, choose M here. The module
 	  will be called ni52.
 
-config NI65
-	tristate "NI6510 support"
-	depends on NET_VENDOR_RACAL && ISA && ISA_DMA_API
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ni65.
-
 config DNET
 	tristate "Dave ethernet support (DNET)"
 	depends on NET_ETHERNET && HAS_IOMEM
@@ -1055,19 +950,6 @@ config AT1700
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called at1700.
-
-config DEPCA
-	tristate "DEPCA, DE10x, DE200, DE201, DE202, DE422 support"
-	depends on ISA || EISA || MCA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto> as well as
-	  <file:drivers/net/depca.c>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called depca.
 
 config HP100
 	tristate "HP 10/100VG PCLAN (ISA, EISA, PCI) support"
@@ -1286,32 +1168,6 @@ config NET_PCI
 	  the questions about this class of network cards. If you say Y, you
 	  will be asked for your specific card in the following questions. If
 	  you are unsure, say Y.
-
-config PCNET32
-	tristate "AMD PCnet32 PCI support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  If you have a PCnet32 or PCnetPCI based network (Ethernet) card,
-	  answer Y here and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called pcnet32.
-
-config AMD8111_ETH
-	tristate "AMD 8111 (new PCI lance) support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  If you have an AMD 8111-based PCI lance ethernet card,
-	  answer Y here and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called amd8111e.
 
 config ADAPTEC_STARFIRE
 	tristate "Adaptec Starfire/DuraLAN support"
@@ -1833,15 +1689,6 @@ config SGISEEQ
 	help
 	  Say Y here if you have an Seeq based Ethernet network card. This is
 	  used in many Silicon Graphics machines.
-
-config DECLANCE
-	tristate "DEC LANCE ethernet controller support"
-	depends on MACH_DECSTATION
-	select CRC32
-	help
-	  This driver is for the series of Ethernet controllers produced by
-	  DEC (now Compaq) based on the AMD Lance chipset, including the
-	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
