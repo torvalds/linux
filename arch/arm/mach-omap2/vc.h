@@ -37,6 +37,9 @@ struct voltagedomain;
  * @cmd_ret_shift: RET field shift in PRM_VC_CMD_VAL_* register
  * @cmd_off_shift: OFF field shift in PRM_VC_CMD_VAL_* register
  * @cfg_channel_reg: VC channel configuration register
+ * @i2c_cfg_reg: I2C configuration register offset
+ * @i2c_cfg_hsen_mask: high-speed mode bit field mask in I2C config register
+ * @i2c_mcode_mask: MCODE field mask for I2C config register
  *
  * XXX One of cmd_on_mask and cmd_on_shift are not needed
  * XXX VALID should probably be a shift, not a mask
@@ -56,6 +59,9 @@ struct omap_vc_common {
 	u8 cmd_ret_shift;
 	u8 cmd_off_shift;
 	u8 cfg_channel_reg;
+	u8 i2c_cfg_reg;
+	u8 i2c_cfg_hsen_mask;
+	u8 i2c_mcode_mask;
 };
 
 /* omap_vc_channel.flags values */
@@ -68,6 +74,7 @@ struct omap_vc_common {
  * @cmd_reg_addr: command configuration register address
  * @setup_time: setup time (in sys_clk cycles) of regulator for this channel
  * @cfg_channel: current value of VC channel configuration register
+ * @i2c_high_speed: whether or not to use I2C high-speed mode
  *
  * @common: pointer to VC common data for this platform
  * @smps_sa_mask: i2c slave address bitmask in the PRM_VC_SMPS_SA register
@@ -84,6 +91,7 @@ struct omap_vc_channel {
 	u16 cmd_reg_addr;
 	u16 setup_time;
 	u8 cfg_channel;
+	bool i2c_high_speed;
 
 	/* register access data */
 	const struct omap_vc_common *common;

@@ -208,13 +208,6 @@ static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 	if (is_initialized)
 		return;
 
-	/*
-	 * Generic VC parameters init
-	 * XXX This data should be abstracted out
-	 */
-	voltdm->write(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN_MASK,
-		       OMAP3_PRM_VC_I2C_CFG_OFFSET);
-
 	omap3_vfsm_init(voltdm);
 
 	is_initialized = true;
@@ -235,6 +228,48 @@ static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 	voltdm->write(vc_val, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
 
 	is_initialized = true;
+}
+
+/**
+ * omap_vc_i2c_init - initialize I2C interface to PMIC
+ * @voltdm: voltage domain containing VC data
+ *
+ * Use PMIC supplied seetings for I2C high-speed mode and
+ * master code (if set) and program the VC I2C configuration
+ * register.
+ *
+ * The VC I2C configuration is common to all VC channels,
+ * so this function only configures I2C for the first VC
+ * channel registers.  All other VC channels will use the
+ * same configuration.
+ */
+static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
+{
+	struct omap_vc_channel *vc = voltdm->vc;
+	static bool initialized;
+	static bool i2c_high_speed;
+	u8 mcode;
+
+	if (initialized) {
+		if (voltdm->pmic->i2c_high_speed != i2c_high_speed)
+			pr_warn("%s: I2C config for all channels must match.",
+				__func__);
+		return;
+	}
+
+	i2c_high_speed = voltdm->pmic->i2c_high_speed;
+	if (i2c_high_speed)
+		voltdm->rmw(vc->common->i2c_cfg_hsen_mask,
+			    vc->common->i2c_cfg_hsen_mask,
+			    vc->common->i2c_cfg_reg);
+
+	mcode = voltdm->pmic->i2c_mcode;
+	if (mcode)
+		voltdm->rmw(vc->common->i2c_mcode_mask,
+			    mcode << __ffs(vc->common->i2c_mcode_mask),
+			    vc->common->i2c_cfg_reg);
+
+	initialized = true;
 }
 
 void __init omap_vc_init_channel(struct voltagedomain *voltdm)
@@ -304,6 +339,8 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	voltdm->rmw(voltdm->vfsm->voltsetup_mask,
 		    vc->setup_time << __ffs(voltdm->vfsm->voltsetup_mask),
 		    voltdm->vfsm->voltsetup_reg);
+
+	omap_vc_i2c_init(voltdm);
 
 	if (cpu_is_omap34xx())
 		omap3_vc_init_channel(voltdm);
