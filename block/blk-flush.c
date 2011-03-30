@@ -261,7 +261,7 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_rq.end_io = flush_end_io;
 
 	q->flush_pending_idx ^= 1;
-	elv_insert(q, &q->flush_rq, ELEVATOR_INSERT_REQUEUE);
+	__elv_add_request(q, &q->flush_rq, ELEVATOR_INSERT_REQUEUE);
 	return true;
 }
 
@@ -281,7 +281,7 @@ static void flush_data_end_io(struct request *rq, int error)
  * blk_insert_flush - insert a new FLUSH/FUA request
  * @rq: request to insert
  *
- * To be called from elv_insert() for %ELEVATOR_INSERT_FLUSH insertions.
+ * To be called from __elv_add_request() for %ELEVATOR_INSERT_FLUSH insertions.
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
  *
