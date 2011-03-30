@@ -29,10 +29,6 @@ ccflags-y += -I$(obj)/os
 ccflags-y += -I$(obj)/bmi/include
 ccflags-y += -I$(obj)/include/common/AR6002/hw4.0
 
-ifeq ($(CONFIG_AR600x_SD31_XXX),y)
-ccflags-y += -DAR600x_SD31_XXX
-endif
-
 ifeq ($(CONFIG_AR600x_WB31_XXX),y)
 ccflags-y += -DAR600x_WB31_XXX
 endif
