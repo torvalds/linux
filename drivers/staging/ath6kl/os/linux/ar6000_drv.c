@@ -1586,6 +1586,52 @@ init_netdev(struct net_device *dev, char *name)
     return;
 }
 
+static int __ath6kl_init_netdev(struct net_device *dev)
+{
+	int r;
+
+	rtnl_lock();
+	r = ar6000_init(dev);
+	rtnl_unlock();
+
+	if (r) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_init\n"));
+		return r;
+	}
+
+	return 0;
+}
+
+#ifdef HTC_RAW_INTERFACE
+static int ath6kl_init_netdev_wmi(struct net_device *dev)
+{
+	if (!eppingtest && bypasswmi)
+		return 0;
+
+	return __ath6kl_init_netdev(dev);
+}
+#else
+static int ath6kl_init_netdev_wmi(struct net_device *dev)
+{
+	return __ath6kl_init_netdev(dev);
+}
+#endif
+
+static int ath6kl_init_netdev(struct ar6_softc *ar)
+{
+	int r;
+
+        r = ar6000_sysfs_bmi_get_config(ar, wlaninitmode);
+        if (r) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("ar6000_avail: "
+				 "ar6000_sysfs_bmi_get_config failed\n"));
+		return r;
+        }
+
+	return ath6kl_init_netdev_wmi(ar->arNetDev);
+}
+
 /*
  * HTC Event handlers
  */
@@ -1788,26 +1834,8 @@ ar6000_avail_ev(void *context, void *hif_handle)
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("BMI enabled: %d\n", wlaninitmode));
     if ((wlaninitmode == WLAN_INIT_MODE_UDEV) ||
         (wlaninitmode == WLAN_INIT_MODE_DRV)) {
-        do {
-            r = ar6000_sysfs_bmi_get_config(ar, wlaninitmode);
-            if (r) {
-                AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_sysfs_bmi_get_config failed\n"));
-                break;
-            }
-#ifdef HTC_RAW_INTERFACE
-            if (!eppingtest && bypasswmi) {
-                break; /* Don't call ar6000_init for ART */
-            }
-#endif 
-            rtnl_lock();
-            r = ar6000_init(dev);
-            rtnl_unlock();
-            if (r) {
-                AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_init\n"));
-            }
-        } while (false);
-
-        if (r)
+	r = ath6kl_init_netdev(ar);
+	if (r)
             goto avail_ev_failed;
     }
 
