@@ -110,8 +110,6 @@ ifeq ($(CONFIG_ATH6KL_SKIP_ABI_VERSION_CHECK),y)
 ccflags-y += -DATH6KL_SKIP_ABI_VERSION_CHECK
 endif
 
-ccflags-y += -DTCMD
-ccflags-y += -DSEND_EVENT_TO_APP
 ccflags-y += -DUSER_KEYS
 ccflags-y += -DNO_SYNC_FLUSH
 ccflags-y += -DHTC_EP_STAT_PROFILING

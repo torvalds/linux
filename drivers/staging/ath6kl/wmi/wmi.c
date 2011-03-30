@@ -944,23 +944,19 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_READY_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_READY_EVENTID\n", DBGARG));
         status = wmi_ready_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         A_WMI_DBGLOG_INIT_DONE(wmip->wmi_devt);
         break;
     case (WMI_CONNECT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_CONNECT_EVENTID\n", DBGARG));
         status = wmi_connect_event_rx(wmip, datap, len);
-        A_WMI_SEND_GENERIC_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_DISCONNECT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_DISCONNECT_EVENTID\n", DBGARG));
         status = wmi_disconnect_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_PEER_NODE_EVENTID):
         A_DPRINTF (DBG_WMI, (DBGFMT "WMI_PEER_NODE_EVENTID\n", DBGARG));
         status = wmi_peer_node_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_TKIP_MICERR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_TKIP_MICERR_EVENTID\n", DBGARG));
@@ -991,7 +987,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
             memcpy(bih->bssid, bih2.bssid, ATH_MAC_LEN);
 
             status = wmi_bssInfo_event_rx(wmip, datap, len);
-            A_WMI_SEND_GENERIC_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         }
         break;
     case (WMI_REGDOMAIN_EVENTID):
@@ -1001,13 +996,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_PSTREAM_TIMEOUT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_PSTREAM_TIMEOUT_EVENTID\n", DBGARG));
         status = wmi_pstream_timeout_event_rx(wmip, datap, len);
-            /* pstreams are fatpipe abstractions that get implicitly created.
-             * User apps only deal with thinstreams. creation of a thinstream
-             * by the user or data traffic flow in an AC triggers implicit
-             * pstream creation. Do we need to send this event to App..?
-             * no harm in sending it.
-             */
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_NEIGHBOR_REPORT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_NEIGHBOR_REPORT_EVENTID\n", DBGARG));
@@ -1016,7 +1004,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_SCAN_COMPLETE_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SCAN_COMPLETE_EVENTID\n", DBGARG));
         status = wmi_scanComplete_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_CMDERROR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_CMDERROR_EVENTID\n", DBGARG));
@@ -1033,7 +1020,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_ERROR_REPORT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_ERROR_REPORT_EVENTID\n", DBGARG));
         status = wmi_reportErrorEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_OPT_RX_FRAME_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_OPT_RX_FRAME_EVENTID\n", DBGARG));
@@ -1072,7 +1058,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_TX_RETRY_ERR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_TX_RETRY_ERR_EVENTID\n", DBGARG));
         status = wmi_txRetryErrEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_SNR_THRESHOLD_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SNR_THRESHOLD_EVENTID\n", DBGARG));
@@ -1081,7 +1066,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_LQ_THRESHOLD_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_LQ_THRESHOLD_EVENTID\n", DBGARG));
         status = wmi_lqThresholdEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_APLIST_EVENTID):
         AR_DEBUG_PRINTF(ATH_DEBUG_WMI, ("Received APLIST Event\n"));

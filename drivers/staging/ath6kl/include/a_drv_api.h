@@ -130,19 +130,9 @@ extern "C" {
 #define A_WMI_PEER_EVENT(devt, eventCode, bssid)    \
     ar6000_peer_event ((devt), (eventCode), (bssid))
 
-#ifdef SEND_EVENT_TO_APP
-
-#define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len) \
-    ar6000_send_event_to_app((ar), (eventId), (datap), (len))
-
-#define A_WMI_SEND_GENERIC_EVENT_TO_APP(ar, eventId, datap, len) \
-    ar6000_send_generic_event_to_app((ar), (eventId), (datap), (len))
-
-#else
-
-#define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len)
-#define A_WMI_SEND_GENERIC_EVENT_TO_APP(ar, eventId, datap, len)
-
+#ifdef CONFIG_HOST_TCMD_SUPPORT
+#define A_WMI_TCMD_RX_REPORT_EVENT(devt, results, len) \
+    ar6000_tcmd_rx_report_event((devt), (results), (len))
 #endif
 
 #define A_WMI_HBCHALLENGERESP_EVENT(devt, cookie, source)    \

@@ -624,8 +624,6 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool
         }
         if (pSleepEvent) {
             AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("SENT WLAN Sleep Event %d\n", wmiSleepEvent.sleepState));
-            ar6000_send_event_to_app(ar, WMI_REPORT_SLEEP_STATE_EVENTID, (u8 *)pSleepEvent,
-                                     sizeof(WMI_REPORT_SLEEP_STATE_EVENTID));
         }
     }
     up(&ar->arSem);

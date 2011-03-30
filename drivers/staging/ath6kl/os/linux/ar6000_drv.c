@@ -591,7 +591,6 @@ ar6000_dbglog_event(struct ar6_softc *ar, u32 dropped,
     send = dbglog_get_debug_fragment(&buffer[sent], length - sent,
                                      MAX_WIRELESS_EVENT_SIZE);
     while (send) {
-        ar6000_send_event_to_app(ar, WMIX_DBGLOG_EVENTID, (u8 *)&buffer[sent], send);
         sent += send;
         send = dbglog_get_debug_fragment(&buffer[sent], length - sent,
                                          MAX_WIRELESS_EVENT_SIZE);
@@ -1830,9 +1829,6 @@ static void ar6000_target_failure(void *Instance, int Status)
             sip = true;
             errEvent.errorVal = WMI_TARGET_COM_ERR |
                                 WMI_TARGET_FATAL_ERR;
-            ar6000_send_event_to_app(ar, WMI_ERROR_REPORT_EVENTID,
-                                     (u8 *)&errEvent,
-                                     sizeof(WMI_TARGET_ERROR_REPORT_EVENT));
         }
     }
 }
@@ -2122,9 +2118,6 @@ static void ar6000_detect_error(unsigned long ptr)
         ar->arHBChallengeResp.seqNum = 0;
         errEvent.errorVal = WMI_TARGET_COM_ERR | WMI_TARGET_FATAL_ERR;
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
-        ar6000_send_event_to_app(ar, WMI_ERROR_REPORT_EVENTID,
-                                 (u8 *)&errEvent,
-                                 sizeof(WMI_TARGET_ERROR_REPORT_EVENT));
         return;
     }
 
@@ -4922,19 +4915,13 @@ ar6000_rssiThreshold_event(struct ar6_softc *ar,  WMI_RSSI_THRESHOLD_VAL newThre
     userRssiThold.rssi = rssi;
     A_PRINTF("rssi Threshold range = %d tag = %d  rssi = %d\n", newThreshold,
              userRssiThold.tag, userRssiThold.rssi);
-
-    ar6000_send_event_to_app(ar, WMI_RSSI_THRESHOLD_EVENTID,(u8 *)&userRssiThold, sizeof(USER_RSSI_THOLD));
 }
 
 
 void
 ar6000_hbChallengeResp_event(struct ar6_softc *ar, u32 cookie, u32 source)
 {
-    if (source == APP_HB_CHALLENGE) {
-        /* Report it to the app in case it wants a positive acknowledgement */
-        ar6000_send_event_to_app(ar, WMIX_HB_CHALLENGE_RESP_EVENTID,
-                                 (u8 *)&cookie, sizeof(cookie));
-    } else {
+    if (source != APP_HB_CHALLENGE) {
         /* This would ignore the replys that come in after their due time */
         if (cookie == ar->arHBChallengeResp.seqNum) {
             ar->arHBChallengeResp.outstanding = false;
@@ -5387,100 +5374,6 @@ ar6000_alloc_cookie(struct ar6_softc  *ar)
     return cookie;
 }
 
-#ifdef SEND_EVENT_TO_APP
-/*
- * This function is used to send event which come from taget to
- * the application. The buf which send to application is include
- * the event ID and event content.
- */
-#define EVENT_ID_LEN   2
-void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId,
-                              u8 *datap, int len)
-{
-
-#if (WIRELESS_EXT >= 15)
-
-/* note: IWEVCUSTOM only exists in wireless extensions after version 15 */
-
-    char *buf;
-    u16 size;
-    union iwreq_data wrqu;
-
-    size = len + EVENT_ID_LEN;
-
-    if (size > IW_CUSTOM_MAX) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("WMI event ID : 0x%4.4X, len = %d too big for IWEVCUSTOM (max=%d) \n",
-                eventId, size, IW_CUSTOM_MAX));
-        return;
-    }
-
-    buf = A_MALLOC_NOWAIT(size);
-    if (NULL == buf){
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s: failed to allocate %d bytes\n", __func__, size));
-        return;
-    }
-
-    A_MEMZERO(buf, size);
-    memcpy(buf, &eventId, EVENT_ID_LEN);
-    memcpy(buf+EVENT_ID_LEN, datap, len);
-
-    //AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("event ID = %d,len = %d\n",*(u16 *)buf, size));
-    A_MEMZERO(&wrqu, sizeof(wrqu));
-    wrqu.data.length = size;
-    wireless_send_event(ar->arNetDev, IWEVCUSTOM, &wrqu, buf);
-    kfree(buf);
-#endif
-
-
-}
-
-/*
- * This function is used to send events larger than 256 bytes
- * to the application. The buf which is sent to application
- * includes the event ID and event content.
- */
-void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId,
-                                      u8 *datap, int len)
-{
-
-#if (WIRELESS_EXT >= 18)
-
-/* IWEVGENIE exists in wireless extensions version 18 onwards */
-
-    char *buf;
-    u16 size;
-    union iwreq_data wrqu;
-
-    size = len + EVENT_ID_LEN;
-
-    if (size > IW_GENERIC_IE_MAX) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("WMI event ID : 0x%4.4X, len = %d too big for IWEVGENIE (max=%d) \n",
-                        eventId, size, IW_GENERIC_IE_MAX));
-        return;
-    }
-
-    buf = A_MALLOC_NOWAIT(size);
-    if (NULL == buf){
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s: failed to allocate %d bytes\n", __func__, size));
-        return;
-    }
-
-    A_MEMZERO(buf, size);
-    memcpy(buf, &eventId, EVENT_ID_LEN);
-    memcpy(buf+EVENT_ID_LEN, datap, len);
-
-    A_MEMZERO(&wrqu, sizeof(wrqu));
-    wrqu.data.length = size;
-    wireless_send_event(ar->arNetDev, IWEVGENIE, &wrqu, buf);
-
-    kfree(buf);
-
-#endif /* (WIRELESS_EXT >= 18) */
-
-}
-#endif /* SEND_EVENT_TO_APP */
-
-
 void
 ar6000_tx_retry_err_event(void *devt)
 {
@@ -5491,13 +5384,9 @@ void
 ar6000_snrThresholdEvent_rx(void *devt, WMI_SNR_THRESHOLD_VAL newThreshold, u8 snr)
 {
     WMI_SNR_THRESHOLD_EVENT event;
-    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     event.range = newThreshold;
     event.snr = snr;
-
-    ar6000_send_event_to_app(ar, WMI_SNR_THRESHOLD_EVENTID, (u8 *)&event,
-                             sizeof(WMI_SNR_THRESHOLD_EVENT));
 }
 
 void

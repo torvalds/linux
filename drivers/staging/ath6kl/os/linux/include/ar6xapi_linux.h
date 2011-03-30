@@ -83,11 +83,6 @@ s16 rssi_compensation_reverse_calc(struct ar6_softc *ar, s16 rssi, bool Above);
 
 void ar6000_dbglog_init_done(struct ar6_softc *ar);
 
-#ifdef SEND_EVENT_TO_APP
-void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
-void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
-#endif
-
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 void ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len);
 #endif
