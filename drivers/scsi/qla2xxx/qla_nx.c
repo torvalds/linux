@@ -3650,6 +3650,24 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 			if (qla82xx_check_fw_alive(vha)) {
 				halt_status = qla82xx_rd_32(ha,
 				    QLA82XX_PEG_HALT_STATUS1);
+				qla_printk(KERN_INFO, ha,
+				    "scsi(%ld): %s, Dumping hw/fw registers:\n "
+				    " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n "
+				    " PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n "
+				    " PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n "
+				    " PEG_NET_4_PC: 0x%x\n",
+				    vha->host_no, __func__, halt_status,
+				    qla82xx_rd_32(ha, QLA82XX_PEG_HALT_STATUS2),
+				    qla82xx_rd_32(ha,
+					    QLA82XX_CRB_PEG_NET_0 + 0x3c),
+				    qla82xx_rd_32(ha,
+					    QLA82XX_CRB_PEG_NET_1 + 0x3c),
+				    qla82xx_rd_32(ha,
+					    QLA82XX_CRB_PEG_NET_2 + 0x3c),
+				    qla82xx_rd_32(ha,
+					    QLA82XX_CRB_PEG_NET_3 + 0x3c),
+				    qla82xx_rd_32(ha,
+					    QLA82XX_CRB_PEG_NET_4 + 0x3c));
 				if (halt_status & HALT_STATUS_UNRECOVERABLE) {
 					set_bit(ISP_UNRECOVERABLE,
 					    &vha->dpc_flags);
