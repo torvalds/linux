@@ -469,7 +469,6 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 vep_num, u8 port,
 
 	/*remove from list of promisc qps */
 	list_del(&pqp->list);
-	kfree(pqp);
 
 	/* set the default entry not to include the removed one */
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -528,6 +527,8 @@ out_mailbox:
 out_list:
 	if (back_to_list)
 		list_add_tail(&pqp->list, &s_steer->promisc_qps[steer]);
+	else
+		kfree(pqp);
 out_mutex:
 	mutex_unlock(&priv->mcg_table.mutex);
 	return err;
