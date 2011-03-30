@@ -6959,7 +6959,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
-	u32 pcu_mbox;
+	u32 pcu_mbox, rc6_mask = 0;
 	int cur_freq, min_freq, max_freq;
 	int i;
 
@@ -6990,9 +6990,12 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
+	if (i915_enable_rc6)
+		rc6_mask = GEN6_RC_CTL_RC6p_ENABLE |
+			GEN6_RC_CTL_RC6_ENABLE;
+
 	I915_WRITE(GEN6_RC_CONTROL,
-		   GEN6_RC_CTL_RC6p_ENABLE |
-		   GEN6_RC_CTL_RC6_ENABLE |
+		   rc6_mask |
 		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
