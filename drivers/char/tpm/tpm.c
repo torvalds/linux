@@ -545,9 +545,10 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	if (rc)
 		goto duration;
 
-	if (be32_to_cpu(tpm_cmd.header.out.length)
-	    != 4 * sizeof(u32))
-		goto duration;
+	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
+	    be32_to_cpu(tpm_cmd.header.out.length)
+	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 4 * sizeof(u32))
+		return;
 
 	timeout_cap = &tpm_cmd.params.getcap_out.cap.timeout;
 	/* Don't overwrite default if value is 0 */
