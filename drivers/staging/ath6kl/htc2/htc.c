@@ -448,9 +448,7 @@ static void ResetEndpointStates(struct htc_target *target)
         pEndpoint->ServiceID = 0;
         pEndpoint->MaxMsgLength = 0;
         pEndpoint->MaxTxQueueDepth = 0;
-#ifdef HTC_EP_STAT_PROFILING
         A_MEMZERO(&pEndpoint->EndPointStats,sizeof(pEndpoint->EndPointStats));
-#endif
         INIT_HTC_PACKET_QUEUE(&pEndpoint->RxBuffers);
         INIT_HTC_PACKET_QUEUE(&pEndpoint->TxQueue);
         INIT_HTC_PACKET_QUEUE(&pEndpoint->RecvIndicationQueue);
@@ -527,7 +525,6 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
                                 struct htc_endpoint_stats       *pStats)
 {
 
-#ifdef HTC_EP_STAT_PROFILING
     struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     bool     clearStats = false;
     bool     sample = false;
@@ -568,9 +565,6 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
     UNLOCK_HTC_TX(target);
 
     return true;
-#else
-    return false;
-#endif
 }
 
 struct ar6k_device  *HTCGetAR6KDevice(void *HTCHandle)

@@ -36,7 +36,6 @@
                         (pP)->PktInfo.AsRx.ExpectedHdr,        \
                         (pP)->Endpoint))                         
                         
-#ifdef HTC_EP_STAT_PROFILING
 #define HTC_RX_STAT_PROFILE(t,ep,numLookAheads)        \
 {                                                      \
     INC_HTC_EP_STAT((ep), RxReceived, 1);              \
@@ -46,9 +45,6 @@
         INC_HTC_EP_STAT((ep), RxBundleLookAheads, 1);  \
     }                                                  \
 }
-#else
-#define HTC_RX_STAT_PROFILE(t,ep,lookAhead)
-#endif
 
 static void DoRecvCompletion(struct htc_endpoint     *pEndpoint,
                              struct htc_packet_queue *pQueueToIndicate)
@@ -931,12 +927,10 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
         }
         
         if (!status) {
-#ifdef HTC_EP_STAT_PROFILING
             LOCK_HTC_RX(target);              
             HTC_RX_STAT_PROFILE(target,pEndpoint,numLookAheads);
             INC_HTC_EP_STAT(pEndpoint, RxPacketsBundled, 1);
             UNLOCK_HTC_RX(target);
-#endif      
             if (i == (pScatterReq->ValidScatterEntries - 1)) {
                     /* last packet's more packets flag is set based on the lookahead */
                 SET_MORE_RX_PACKET_INDICATION_FLAG(lookAheads,numLookAheads,pEndpoint,pPacket);
