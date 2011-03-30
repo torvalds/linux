@@ -94,23 +94,10 @@ enum {
 #define PSB_MEM_MMU_START       0x00000000
 #define PSB_MEM_TT_START        0xE0000000
 
-#define PSB_GL3_CACHE_CTL	0x2100
-#define PSB_GL3_CACHE_STAT	0x2108
-
 /*
  *Flags for external memory type field.
  */
 
-#define MRST_MSVDX_OFFSET	0x90000	/*MSVDX Base offset */
-#define PSB_MSVDX_OFFSET	0x50000	/*MSVDX Base offset */
-/* MSVDX MMIO region is 0x50000 - 0x57fff ==> 32KB */
-#define PSB_MSVDX_SIZE		0x10000
-
-#define LNC_TOPAZ_OFFSET	0xA0000
-#define PNW_TOPAZ_OFFSET	0xC0000
-#define PNW_GL3_OFFSET		0xB0000
-#define LNC_TOPAZ_SIZE		0x10000
-#define PNW_TOPAZ_SIZE		0x30000 /* PNW VXE285 has two cores */
 #define PSB_MMU_CACHED_MEMORY	  0x0001	/* Bind to MMU only */
 #define PSB_MMU_RO_MEMORY	  0x0002	/* MMU RO memory */
 #define PSB_MMU_WO_MEMORY	  0x0004	/* MMU WO memory */
@@ -222,20 +209,6 @@ enum {
 #define MDFLD_PNW_B0 0x04
 #define MDFLD_PNW_C0 0x08
 
-#define MDFLD_DSR_2D_3D_0 BIT0
-#define MDFLD_DSR_2D_3D_2 BIT1
-#define MDFLD_DSR_CURSOR_0 BIT2
-#define MDFLD_DSR_CURSOR_2 BIT3
-#define MDFLD_DSR_OVERLAY_0 BIT4
-#define MDFLD_DSR_OVERLAY_2 BIT5
-#define MDFLD_DSR_MIPI_CONTROL	BIT6
-#define MDFLD_DSR_2D_3D 	(MDFLD_DSR_2D_3D_0 | MDFLD_DSR_2D_3D_2)
-
-#define MDFLD_DSR_RR 45
-#define MDFLD_DPU_ENABLE BIT31
-#define MDFLD_DSR_FULLSCREEN BIT30
-#define MDFLD_DSR_DELAY (DRM_HZ / MDFLD_DSR_RR)
-
 #define PSB_PWR_STATE_ON		1
 #define PSB_PWR_STATE_OFF		2
 
@@ -248,9 +221,6 @@ enum {
 #define PSB_PMSTATE_POWERDOWN		2
 #define PSB_PCIx_MSI_ADDR_LOC		0x94
 #define PSB_PCIx_MSI_DATA_LOC		0x98
-
-#define MDFLD_PLANE_MAX_WIDTH		2048
-#define MDFLD_PLANE_MAX_HEIGHT		2048
 
 struct opregion_header;
 struct opregion_acpi;
@@ -271,66 +241,6 @@ struct psb_intel_opregion {
 
 struct drm_psb_uopt {
 	int pad; /*keep it here in case we use it in future*/
-};
-
-/**
- *struct psb_context
- *
- *@buffers:	 array of pre-allocated validate buffers.
- *@used_buffers: number of buffers in @buffers array currently in use.
- *@validate_buffer: buffers validated from user-space.
- *@kern_validate_buffers : buffers validated from kernel-space.
- *@fence_flags : Fence flags to be used for fence creation.
- *
- *This structure is used during execbuf validation.
- */
-
-struct psb_context {
-	struct psb_validate_buffer *buffers;
-	uint32_t used_buffers;
-	struct list_head validate_list;
-	struct list_head kern_validate_list;
-	uint32_t fence_types;
-	uint32_t val_seq;
-};
-
-struct psb_validate_buffer;
-
-/* Currently defined profiles */
-enum VAProfile {
-	VAProfileMPEG2Simple		= 0,
-	VAProfileMPEG2Main		= 1,
-	VAProfileMPEG4Simple		= 2,
-	VAProfileMPEG4AdvancedSimple	= 3,
-	VAProfileMPEG4Main		= 4,
-	VAProfileH264Baseline		= 5,
-	VAProfileH264Main		= 6,
-	VAProfileH264High		= 7,
-	VAProfileVC1Simple		= 8,
-	VAProfileVC1Main		= 9,
-	VAProfileVC1Advanced		= 10,
-	VAProfileH263Baseline		= 11,
-	VAProfileJPEGBaseline           = 12,
-	VAProfileH264ConstrainedBaseline = 13
-};
-
-/* Currently defined entrypoints */
-enum VAEntrypoint {
-	VAEntrypointVLD		= 1,
-	VAEntrypointIZZ		= 2,
-	VAEntrypointIDCT	= 3,
-	VAEntrypointMoComp	= 4,
-	VAEntrypointDeblocking	= 5,
-	VAEntrypointEncSlice	= 6,	/* slice level encode */
-	VAEntrypointEncPicture 	= 7	/* pictuer encode, JPEG, etc */
-};
-
-
-struct psb_video_ctx {
-	struct list_head head;
-	struct file *filp; /* DRM device file pointer */
-	int ctx_type; /* profile<<8|entrypoint */
-	/* todo: more context specific data for multi-context support */
 };
 
 struct mrst_vbt {
@@ -573,10 +483,6 @@ struct drm_psb_private {
 	uint8_t *sgx_reg;
 	uint8_t *vdc_reg;
 	uint32_t gatt_free_offset;
-
-	/* IMG video context */
-	struct list_head video_ctx;
-
 
 
 	/*
@@ -870,12 +776,6 @@ struct drm_psb_private {
 	atomic_t val_seq;
 
 	/*
-	 *TODO: change this to be per drm-context.
-	 */
-
-	struct psb_context context;
-
-	/*
 	 * LID-Switch
 	 */
 	spinlock_t lid_lock;
@@ -1032,11 +932,6 @@ extern void psb_fence_or_sync(struct drm_file *file_priv,
 			      struct list_head *list,
 			      struct psb_ttm_fence_rep *fence_arg,
 			      struct ttm_fence_object **fence_p);
-extern int psb_validate_kernel_buffer(struct psb_context *context,
-				      struct ttm_buffer_object *bo,
-				      uint32_t fence_class,
-				      uint64_t set_flags,
-				      uint64_t clr_flags);
 
 /*
  *psb_irq.c

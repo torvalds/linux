@@ -284,20 +284,7 @@ static void psb_set_uopt(struct drm_psb_uopt *uopt)
 
 static void psb_lastclose(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-
 	return;
-
-	if (!dev->dev_private)
-		return;
-
-	mutex_lock(&dev_priv->cmdbuf_mutex);
-	if (dev_priv->context.buffers) {
-		vfree(dev_priv->context.buffers);
-		dev_priv->context.buffers = NULL;
-	}
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
 }
 
 static void psb_do_takedown(struct drm_device *dev)
@@ -744,7 +731,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
-	INIT_LIST_HEAD(&dev_priv->video_ctx);
 
 	if (IS_MRST(dev))
 		dev_priv->num_pipe = 1;
@@ -767,8 +753,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->temp_mem);
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->reset_mutex);
-	INIT_LIST_HEAD(&dev_priv->context.validate_list);
-	INIT_LIST_HEAD(&dev_priv->context.kern_validate_list);
 
 /*	mutex_init(&dev_priv->dsr_mutex); */
 
