@@ -534,6 +534,7 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	struct duration_t *duration_cap;
 	ssize_t rc;
 	u32 timeout;
+	unsigned int scale = 1;
 
 	tpm_cmd.header.in = tpm_getcap_header;
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
@@ -553,17 +554,21 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	timeout_cap = &tpm_cmd.params.getcap_out.cap.timeout;
 	/* Don't overwrite default if value is 0 */
 	timeout = be32_to_cpu(timeout_cap->a);
+	if (timeout && timeout < 1000) {
+		/* timeouts in msec rather usec */
+		scale = 1000;
+	}
 	if (timeout)
-		chip->vendor.timeout_a = usecs_to_jiffies(timeout);
+		chip->vendor.timeout_a = usecs_to_jiffies(timeout * scale);
 	timeout = be32_to_cpu(timeout_cap->b);
 	if (timeout)
-		chip->vendor.timeout_b = usecs_to_jiffies(timeout);
+		chip->vendor.timeout_b = usecs_to_jiffies(timeout * scale);
 	timeout = be32_to_cpu(timeout_cap->c);
 	if (timeout)
-		chip->vendor.timeout_c = usecs_to_jiffies(timeout);
+		chip->vendor.timeout_c = usecs_to_jiffies(timeout * scale);
 	timeout = be32_to_cpu(timeout_cap->d);
 	if (timeout)
-		chip->vendor.timeout_d = usecs_to_jiffies(timeout);
+		chip->vendor.timeout_d = usecs_to_jiffies(timeout * scale);
 
 duration:
 	tpm_cmd.header.in = tpm_getcap_header;
