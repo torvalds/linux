@@ -349,9 +349,7 @@ static void ar6000_cookie_cleanup(struct ar6_softc *ar);
 static void ar6000_free_cookie(struct ar6_softc *ar, struct ar_cookie * cookie);
 static struct ar_cookie *ar6000_alloc_cookie(struct ar6_softc *ar);
 
-#ifdef USER_KEYS
 static int ar6000_reinstall_keys(struct ar6_softc *ar,u8 key_op_ctrl);
-#endif
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
 struct net_device *arApNetDev;
@@ -1926,10 +1924,8 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
                     ar6000_disconnect_event(ar, DISCONNECT_CMD, ar->arBssid, 0, NULL, 0);
                 }
             }
-#ifdef USER_KEYS
             ar->user_savedkeys_stat = USER_SAVEDKEYS_STAT_INIT;
             ar->user_key_ctrl      = 0;
-#endif
         }
 
          AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("%s(): WMI stopped\n", __func__));
@@ -4347,7 +4343,6 @@ skip_key:
         wireless_send_event(ar->arNetDev, IWEVCUSTOM, &wrqu, buf);
     }
 
-#ifdef USER_KEYS
     if (ar->user_savedkeys_stat == USER_SAVEDKEYS_STAT_RUN &&
         ar->user_saved_keys.keyOk == true)
     {
@@ -4360,7 +4355,6 @@ skip_key:
         }
         ar6000_reinstall_keys(ar, key_op_ctrl);
     }
-#endif /* USER_KEYS */
 
     netif_wake_queue(ar->arNetDev);
 
@@ -4581,13 +4575,11 @@ ar6000_disconnect_event(struct ar6_softc *ar, u8 reason, u8 *bssid,
         reconnect_flag = 0;
     }
 
-#ifdef USER_KEYS
     if (reason != CSERV_DISCONNECT)
     {
         ar->user_savedkeys_stat = USER_SAVEDKEYS_STAT_INIT;
         ar->user_key_ctrl      = 0;
     }
-#endif /* USER_KEYS */
 
     netif_stop_queue(ar->arNetDev);
     A_MEMZERO(ar->arBssid, sizeof(ar->arBssid));
@@ -5713,9 +5705,7 @@ void ap_wapi_rekey_event(struct ar6_softc *ar, u8 type, u8 *mac)
 }
 #endif
 
-#ifdef USER_KEYS
 static int
-
 ar6000_reinstall_keys(struct ar6_softc *ar, u8 key_op_ctrl)
 {
     int status = 0;
@@ -5760,7 +5750,6 @@ _reinstall_keys_out:
 
     return status;
 }
-#endif /* USER_KEYS */
 
 
 void

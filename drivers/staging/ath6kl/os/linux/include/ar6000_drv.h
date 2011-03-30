@@ -92,8 +92,6 @@
 #endif
 
 
-#ifdef USER_KEYS
-
 #define USER_SAVEDKEYS_STAT_INIT     0
 #define USER_SAVEDKEYS_STAT_RUN      1
 
@@ -104,7 +102,6 @@ struct USER_SAVEDKEYS {
     CRYPTO_TYPE               keyType;
     bool                    keyOk;
 };
-#endif
 
 #define DBG_INFO        0x00000001
 #define DBG_ERROR       0x00000002
@@ -540,11 +537,9 @@ struct ar6_softc {
     u32 log_cnt;
     u32 dbglog_init_done;
     u32 arConnectCtrlFlags;
-#ifdef USER_KEYS
     s32 user_savedkeys_stat;
     u32 user_key_ctrl;
     struct USER_SAVEDKEYS   user_saved_keys;
-#endif
     USER_RSSI_THOLD rssi_map[12];
     u8 arUserBssFilter;
     u16 ap_profile_flag;    /* AP mode */

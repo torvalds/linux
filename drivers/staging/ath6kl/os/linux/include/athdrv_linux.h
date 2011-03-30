@@ -620,7 +620,6 @@ typedef enum {
  */
 #define AR6000_XIOCTL_WMI_SET_TXOP                      57
 
-#ifdef USER_KEYS
 /*
  * arguments:
  * UINT32 cmd (AR6000_XIOCTL_USER_SETKEYS)
@@ -628,7 +627,6 @@ typedef enum {
  * uses struct ar6000_user_setkeys_info
  */
 #define AR6000_XIOCTL_USER_SETKEYS                      58
-#endif /* USER_KEYS */
 
 #define AR6000_XIOCTL_WMI_SET_KEEPALIVE                 59
 /*
