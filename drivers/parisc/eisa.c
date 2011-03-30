@@ -340,7 +340,7 @@ static int __init eisa_probe(struct parisc_device *dev)
 	/* Reserve IRQ2 */
 	setup_irq(2, &irq2_action);
 	for (i = 0; i < 16; i++) {
-		set_irq_chip_and_handler(i, &eisa_interrupt_type,
+		irq_set_chip_and_handler(i, &eisa_interrupt_type,
 					 handle_simple_irq);
 	}
 	

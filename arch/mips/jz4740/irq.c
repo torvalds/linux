@@ -104,8 +104,8 @@ void __init arch_init_irq(void)
 	writel(0xffffffff, jz_intc_base + JZ_REG_INTC_SET_MASK);
 
 	for (i = JZ4740_IRQ_BASE; i < JZ4740_IRQ_BASE + 32; i++) {
-		set_irq_chip_data(i, (void *)IRQ_BIT(i));
-		set_irq_chip_and_handler(i, &intc_irq_type, handle_level_irq);
+		irq_set_chip_data(i, (void *)IRQ_BIT(i));
+		irq_set_chip_and_handler(i, &intc_irq_type, handle_level_irq);
 	}
 
 	setup_irq(2, &jz4740_cascade_action);

@@ -60,15 +60,6 @@ config MFD_ASIC3
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
-config MFD_SH_MOBILE_SDHI
-	bool "Support for SuperH Mobile SDHI"
-	depends on SUPERH || ARCH_SHMOBILE
-	select MFD_CORE
-	select TMIO_MMC_DMA
-	 ---help---
-	  This driver supports the SDHI hardware block found in many
-	  SuperH Mobile SoCs.
-
 config MFD_DAVINCI_VOICECODEC
 	tristate
 	select MFD_CORE
@@ -265,11 +256,6 @@ config MFD_TC3589X
 config MFD_TMIO
 	bool
 	default n
-
-config TMIO_MMC_DMA
-	bool
-	select DMA_ENGINE
-	select DMADEVICES
 
 config MFD_T7L66XB
 	bool "Support Toshiba T7L66XB"
@@ -592,7 +578,7 @@ config AB3550_CORE
 config MFD_CS5535
 	tristate "Support for CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE
-	depends on PCI
+	depends on PCI && X86
 	---help---
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
           necessary for using the board's GPIO and MFGPT functionality.

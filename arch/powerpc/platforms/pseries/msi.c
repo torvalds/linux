@@ -137,7 +137,7 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 		if (entry->irq == NO_IRQ)
 			continue;
 
-		set_irq_msi(entry->irq, NULL);
+		irq_set_msi_desc(entry->irq, NULL);
 		irq_dispose_mapping(entry->irq);
 	}
 
@@ -437,7 +437,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		}
 
 		dev_dbg(&pdev->dev, "rtas_msi: allocated virq %d\n", virq);
-		set_irq_msi(virq, entry);
+		irq_set_msi_desc(virq, entry);
 
 		/* Read config space back so we can restore after reset */
 		read_msi_msg(virq, &msg);

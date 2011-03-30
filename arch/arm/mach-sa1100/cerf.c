@@ -96,7 +96,7 @@ static struct resource cerf_flash_resource = {
 static void __init cerf_init_irq(void)
 {
 	sa1100_init_irq();
-	set_irq_type(CERF_ETH_IRQ, IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(CERF_ETH_IRQ, IRQ_TYPE_EDGE_RISING);
 }
 
 static struct map_desc cerf_io_desc[] __initdata = {

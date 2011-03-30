@@ -9,6 +9,7 @@ config PPC_CELL_COMMON
 	select PPC_INDIRECT_IO
 	select PPC_NATIVE
 	select PPC_RTAS
+	select IRQ_EDGE_EOI_HANDLER
 
 config PPC_CELL_NATIVE
 	bool

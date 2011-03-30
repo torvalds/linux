@@ -153,7 +153,7 @@ static void __init hub_rt_clock_event_global_init(void)
 			panic("Allocation of irq number for timer failed");
 	} while (xchg(&rt_timer_irq, irq));
 
-	set_irq_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
+	irq_set_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
 	setup_irq(irq, &hub_rt_irqaction);
 }
 

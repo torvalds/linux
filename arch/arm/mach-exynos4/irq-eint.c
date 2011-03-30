@@ -190,8 +190,8 @@ static void exynos4_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 
 static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 {
-	u32 *irq_data = get_irq_data(irq);
-	struct irq_chip *chip = get_irq_chip(irq);
+	u32 *irq_data = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_get_chip(irq);
 
 	chip->irq_mask(&desc->irq_data);
 
@@ -208,18 +208,19 @@ int __init exynos4_init_irq_eint(void)
 	int irq;
 
 	for (irq = 0 ; irq <= 31 ; irq++) {
-		set_irq_chip(IRQ_EINT(irq), &exynos4_irq_eint);
-		set_irq_handler(IRQ_EINT(irq), handle_level_irq);
+		irq_set_chip_and_handler(IRQ_EINT(irq), &exynos4_irq_eint,
+					 handle_level_irq);
 		set_irq_flags(IRQ_EINT(irq), IRQF_VALID);
 	}
 
-	set_irq_chained_handler(IRQ_EINT16_31, exynos4_irq_demux_eint16_31);
+	irq_set_chained_handler(IRQ_EINT16_31, exynos4_irq_demux_eint16_31);
 
 	for (irq = 0 ; irq <= 15 ; irq++) {
 		eint0_15_data[irq] = IRQ_EINT(irq);
 
-		set_irq_data(exynos4_get_irq_nr(irq), &eint0_15_data[irq]);
-		set_irq_chained_handler(exynos4_get_irq_nr(irq),
+		irq_set_handler_data(exynos4_get_irq_nr(irq),
+				     &eint0_15_data[irq]);
+		irq_set_chained_handler(exynos4_get_irq_nr(irq),
 					exynos4_irq_eint0_15);
 	}
 

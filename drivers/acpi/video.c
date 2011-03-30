@@ -824,11 +824,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight->props.brightness =
 				acpi_video_get_brightness(device->backlight);
 
-		result = sysfs_create_link(&device->backlight->dev.kobj,
-					   &device->dev->dev.kobj, "device");
-		if (result)
-			printk(KERN_ERR PREFIX "Create sysfs link\n");
-
 		device->cooling_dev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
 		if (IS_ERR(device->cooling_dev)) {
@@ -1381,7 +1376,6 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 		       "Cant remove video notify handler\n");
 	}
 	if (device->backlight) {
-		sysfs_remove_link(&device->backlight->dev.kobj, "device");
 		backlight_device_unregister(device->backlight);
 		device->backlight = NULL;
 	}

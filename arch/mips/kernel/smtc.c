@@ -1146,7 +1146,7 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
-	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
+	irq_set_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 
 /*

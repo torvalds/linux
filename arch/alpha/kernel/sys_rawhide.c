@@ -180,7 +180,8 @@ rawhide_init_irq(void)
 	}
 
 	for (i = 16; i < 128; ++i) {
-		set_irq_chip_and_handler(i, &rawhide_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &rawhide_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

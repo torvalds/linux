@@ -470,8 +470,8 @@ static int xics_host_map(struct irq_host *h, unsigned int virq,
 	/* Insert the interrupt mapping into the radix tree for fast lookup */
 	irq_radix_revmap_insert(xics_host, virq, hw);
 
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, xics_irq_chip, handle_fasteoi_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, xics_irq_chip, handle_fasteoi_irq);
 	return 0;
 }
 
@@ -600,7 +600,7 @@ static void xics_request_ipi(void)
 	 * IPIs are marked IRQF_DISABLED as they must run with irqs
 	 * disabled
 	 */
-	set_irq_handler(ipi, handle_percpu_irq);
+	irq_set_handler(ipi, handle_percpu_irq);
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		rc = request_irq(ipi, xics_ipi_action_lpar,
 				IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL);
@@ -912,7 +912,7 @@ void xics_migrate_irqs_away(void)
 		if (desc == NULL || desc->action == NULL)
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_desc_get_chip(desc);
 		if (chip == NULL || chip->irq_set_affinity == NULL)
 			continue;
 

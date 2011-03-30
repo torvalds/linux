@@ -742,6 +742,9 @@ int mlx4_en_start_port(struct net_device *dev)
 				  0, MLX4_PROT_ETH))
 		mlx4_warn(mdev, "Failed Attaching Broadcast\n");
 
+	/* Must redo promiscuous mode setup. */
+	priv->flags &= ~(MLX4_EN_FLAG_PROMISC | MLX4_EN_FLAG_MC_PROMISC);
+
 	/* Schedule multicast task to populate multicast list */
 	queue_work(mdev->workqueue, &priv->mcast_task);
 

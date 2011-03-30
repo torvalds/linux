@@ -1724,6 +1724,7 @@ again:
 
 			eb = read_tree_block(dest, old_bytenr, blocksize,
 					     old_ptr_gen);
+			BUG_ON(!eb);
 			btrfs_tree_lock(eb);
 			if (cow) {
 				ret = btrfs_cow_block(trans, dest, eb, parent,
@@ -2513,6 +2514,10 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		blocksize = btrfs_level_size(root, node->level);
 		generation = btrfs_node_ptr_generation(upper->eb, slot);
 		eb = read_tree_block(root, bytenr, blocksize, generation);
+		if (!eb) {
+			err = -EIO;
+			goto next;
+		}
 		btrfs_tree_lock(eb);
 		btrfs_set_lock_blocking(eb);
 
@@ -2670,6 +2675,7 @@ static int get_tree_block_key(struct reloc_control *rc,
 	BUG_ON(block->key_ready);
 	eb = read_tree_block(rc->extent_root, block->bytenr,
 			     block->key.objectid, block->key.offset);
+	BUG_ON(!eb);
 	WARN_ON(btrfs_header_level(eb) != block->level);
 	if (block->level == 0)
 		btrfs_item_key_to_cpu(eb, &block->key, 0);
@@ -4209,7 +4215,7 @@ out:
 		if (IS_ERR(fs_root))
 			err = PTR_ERR(fs_root);
 		else
-			btrfs_orphan_cleanup(fs_root);
+			err = btrfs_orphan_cleanup(fs_root);
 	}
 	return err;
 }

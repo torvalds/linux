@@ -135,14 +135,14 @@ void nfs_clear_page_tag_locked(struct nfs_page *req)
 		nfs_unlock_request(req);
 }
 
-/**
+/*
  * nfs_clear_request - Free up all resources allocated to the request
  * @req:
  *
  * Release page and open context resources associated with a read/write
  * request after it has completed.
  */
-void nfs_clear_request(struct nfs_page *req)
+static void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
 	struct nfs_open_context *ctx = req->wb_context;

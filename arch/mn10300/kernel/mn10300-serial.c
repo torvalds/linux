@@ -933,7 +933,7 @@ static int mn10300_serial_startup(struct uart_port *_port)
 		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
 	set_intr_level(port->tx_irq,
 		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
-	set_irq_chip(port->tm_irq, &mn10300_serial_pic);
+	irq_set_chip(port->tm_irq, &mn10300_serial_pic);
 
 	if (request_irq(port->rx_irq, mn10300_serial_interrupt,
 			IRQF_DISABLED, port->rx_name, port) < 0)

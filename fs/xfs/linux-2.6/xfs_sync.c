@@ -761,8 +761,10 @@ xfs_reclaim_inode(
 	struct xfs_perag	*pag,
 	int			sync_mode)
 {
-	int	error = 0;
+	int	error;
 
+restart:
+	error = 0;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (!xfs_iflock_nowait(ip)) {
 		if (!(sync_mode & SYNC_WAIT))
@@ -788,9 +790,31 @@ xfs_reclaim_inode(
 	if (xfs_inode_clean(ip))
 		goto reclaim;
 
-	/* Now we have an inode that needs flushing */
-	error = xfs_iflush(ip, sync_mode);
+	/*
+	 * Now we have an inode that needs flushing.
+	 *
+	 * We do a nonblocking flush here even if we are doing a SYNC_WAIT
+	 * reclaim as we can deadlock with inode cluster removal.
+	 * xfs_ifree_cluster() can lock the inode buffer before it locks the
+	 * ip->i_lock, and we are doing the exact opposite here. As a result,
+	 * doing a blocking xfs_itobp() to get the cluster buffer will result
+	 * in an ABBA deadlock with xfs_ifree_cluster().
+	 *
+	 * As xfs_ifree_cluser() must gather all inodes that are active in the
+	 * cache to mark them stale, if we hit this case we don't actually want
+	 * to do IO here - we want the inode marked stale so we can simply
+	 * reclaim it. Hence if we get an EAGAIN error on a SYNC_WAIT flush,
+	 * just unlock the inode, back off and try again. Hopefully the next
+	 * pass through will see the stale flag set on the inode.
+	 */
+	error = xfs_iflush(ip, SYNC_TRYLOCK | sync_mode);
 	if (sync_mode & SYNC_WAIT) {
+		if (error == EAGAIN) {
+			xfs_iunlock(ip, XFS_ILOCK_EXCL);
+			/* backoff longer than in xfs_ifree_cluster */
+			delay(2);
+			goto restart;
+		}
 		xfs_iflock(ip);
 		goto reclaim;
 	}

@@ -296,8 +296,7 @@ config ETRAX_RTC
 choice
 	prompt "RTC chip"
 	depends on ETRAX_RTC
-	default ETRAX_PCF8563 if ETRAX_ARCH_V32
-	default ETRAX_DS1302 if ETRAX_ARCH_V10
+	default ETRAX_DS1302
 
 config ETRAX_DS1302
 	depends on ETRAX_ARCH_V10
