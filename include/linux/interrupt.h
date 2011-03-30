@@ -338,14 +338,6 @@ static inline void enable_irq_lockdep_irqrestore(unsigned int irq, unsigned long
 /* IRQ wakeup (PM) control: */
 extern int irq_set_irq_wake(unsigned int irq, unsigned int on);
 
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-/* Please do not use: Use the replacement functions instead */
-static inline int set_irq_wake(unsigned int irq, unsigned int on)
-{
-	return irq_set_irq_wake(irq, on);
-}
-#endif
-
 static inline int enable_irq_wake(unsigned int irq)
 {
 	return irq_set_irq_wake(irq, 1);
