@@ -33,7 +33,6 @@ u32 tcmdRxFreq;
 extern unsigned int wmitimeout;
 extern A_WAITQUEUE_HEAD arEvent;
 extern int tspecCompliance;
-extern int bmienable;
 extern int loghci;
 
 static int
@@ -2105,16 +2104,9 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #endif /* CONFIG_HOST_TCMD_SUPPORT */
 
         case AR6000_XIOCTL_BMI_DONE:
-            if(bmienable)
-            {
-                rtnl_lock(); /* ar6000_init expects to be called holding rtnl lock */
-                ret = ar6000_init(dev);
-                rtnl_unlock();
-            }
-            else
-            {
-                ret = BMIDone(hifDevice);
-            }
+            rtnl_lock(); /* ar6000_init expects to be called holding rtnl lock */
+            ret = ar6000_init(dev);
+            rtnl_unlock();
             break;
 
         case AR6000_XIOCTL_BMI_READ_MEMORY:

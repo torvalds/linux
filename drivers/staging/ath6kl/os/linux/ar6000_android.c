@@ -37,7 +37,6 @@ char fwpath[256] = "/system/wifi";
 int wowledon;
 unsigned int enablelogcat;
 
-extern int bmienable;
 extern struct net_device *ar6000_devices[];
 extern char ifname[];
 
@@ -309,7 +308,6 @@ static void android_late_resume(struct early_suspend *h)
 
 void android_module_init(OSDRV_CALLBACKS *osdrvCallbacks)
 {
-    bmienable = 1;
     if (ifname[0] == '\0')
         strcpy(ifname, def_ifname);
 #ifdef CONFIG_HAS_EARLYSUSPEND

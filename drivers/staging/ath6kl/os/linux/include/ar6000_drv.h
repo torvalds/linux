@@ -227,12 +227,6 @@ typedef enum _AR6K_BIN_FILE {
 #define SETUPBTDEV_DEFAULT         0
 #endif /* SETUPBTDEV_ENABLED */
 
-#ifdef BMIENABLE_SET
-#define BMIENABLE_DEFAULT          1
-#else
-#define BMIENABLE_DEFAULT          0
-#endif /* BMIENABLE_SET */
-
 #ifdef ENABLEUARTPRINT_SET
 #define ENABLEUARTPRINT_DEFAULT    1
 #else
