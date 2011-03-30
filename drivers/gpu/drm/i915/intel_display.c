@@ -4543,8 +4543,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	u32 lvds_sync = 0;
 	int target_clock;
 
-	drm_vblank_pre_modeset(dev, pipe);
-
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
 			continue;
@@ -4601,7 +4599,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		drm_vblank_post_modeset(dev, pipe);
 		return -EINVAL;
 	}
 
@@ -5159,8 +5156,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_update_watermarks(dev);
 
-	drm_vblank_post_modeset(dev, pipe);
-
 	return ret;
 }
 
@@ -5190,8 +5185,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	u32 reg, temp;
 	u32 lvds_sync = 0;
 	int target_clock;
-
-	drm_vblank_pre_modeset(dev, pipe);
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
@@ -5249,7 +5242,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		drm_vblank_post_modeset(dev, pipe);
 		return -EINVAL;
 	}
 
@@ -5807,8 +5799,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_update_watermarks(dev);
 
-	drm_vblank_post_modeset(dev, pipe);
-
 	return ret;
 }
 
@@ -5820,10 +5810,16 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	int ret;
+
+	drm_vblank_pre_modeset(dev, pipe);
 
 	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
 					      x, y, old_fb);
+
+	drm_vblank_post_modeset(dev, pipe);
 
 	return ret;
 }
