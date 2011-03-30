@@ -68,7 +68,7 @@ static void  pwm2gpiodefault(void)
 	// set gpio to input
 	*pGPIO2_DIR &= ~(0x1<<3);
 
-	memset(RK29_PWM_BASE, 0, 0x40);
+	memset((void *)RK29_PWM_BASE, 0, 0x40);
 } 
 
 
@@ -89,10 +89,16 @@ void rb( void )
 
 void  rk29_arch_reset(int mode, const char *cmd)
 {
-	u32 reg;
-
 	local_irq_disable();
 	local_fiq_disable();
+
+#ifdef CONFIG_MACH_RK29SDK
+	/* from panic? loop for debug */
+	if (system_state != SYSTEM_RESTART) {
+		printk("\nLoop for debug...\n");
+		while (1);
+	}
+#endif
 
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 	delay_500ns();
