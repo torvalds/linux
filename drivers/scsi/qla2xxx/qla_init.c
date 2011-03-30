@@ -35,8 +35,6 @@ static int qla2x00_fabric_dev_login(scsi_qla_host_t *, fc_port_t *,
 
 static int qla2x00_restart_isp(scsi_qla_host_t *);
 
-static int qla2x00_find_new_loop_id(scsi_qla_host_t *, fc_port_t *);
-
 static struct qla_chip_state_84xx *qla84xx_get_chip(struct scsi_qla_host *);
 static int qla84xx_init_chip(scsi_qla_host_t *);
 static int qla25xx_init_queues(struct qla_hw_data *);
@@ -3390,7 +3388,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
  * Context:
  *	Kernel context.
  */
-static int
+int
 qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 {
 	int	rval;

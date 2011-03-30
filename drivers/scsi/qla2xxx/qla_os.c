@@ -3214,6 +3214,17 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 							fcport->d_id.b.area,
 							fcport->d_id.b.al_pa);
 
+				if (fcport->loop_id == FC_NO_LOOP_ID) {
+					fcport->loop_id = next_loopid =
+					    ha->min_external_loopid;
+					status = qla2x00_find_new_loop_id(
+					    vha, fcport);
+					if (status != QLA_SUCCESS) {
+						/* Ran out of IDs to use */
+						break;
+					}
+				}
+
 				if (IS_ALOGIO_CAPABLE(ha)) {
 					fcport->flags |= FCF_ASYNC_SENT;
 					data[0] = 0;
