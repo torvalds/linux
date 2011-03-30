@@ -1,5 +1,5 @@
 #
-# Makefile for the Linux network (ethercard) device drivers.
+# Makefile for the Linux network device drivers.
 #
 
 obj-$(CONFIG_MII) += mii.o

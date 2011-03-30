@@ -1,0 +1,14 @@
+#
+# Ethernet LAN device configuration
+#
+
+menuconfig ETHERNET
+	bool "Ethernet driver support"
+	depends on NET
+	default y
+	---help---
+	  This section contains all the Ethernet device drivers.
+
+if ETHERNET
+
+endif # ETHERNET
