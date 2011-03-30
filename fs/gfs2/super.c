@@ -1318,12 +1318,13 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 
 static void gfs2_evict_inode(struct inode *inode)
 {
-	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
+	struct super_block *sb = inode->i_sb;
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
 
-	if (inode->i_nlink)
+	if (inode->i_nlink || (sb->s_flags & MS_RDONLY))
 		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
