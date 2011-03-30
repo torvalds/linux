@@ -557,6 +557,7 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	if (timeout && timeout < 1000) {
 		/* timeouts in msec rather usec */
 		scale = 1000;
+		chip->vendor.timeout_adjusted = true;
 	}
 	if (timeout)
 		chip->vendor.timeout_a = usecs_to_jiffies(timeout * scale);
@@ -964,6 +965,21 @@ ssize_t tpm_show_durations(struct device *dev, struct device_attribute *attr,
 		       ? "adjusted" : "original");
 }
 EXPORT_SYMBOL_GPL(tpm_show_durations);
+
+ssize_t tpm_show_timeouts(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d %d %d %d [%s]\n",
+		       jiffies_to_usecs(chip->vendor.timeout_a),
+		       jiffies_to_usecs(chip->vendor.timeout_b),
+		       jiffies_to_usecs(chip->vendor.timeout_c),
+		       jiffies_to_usecs(chip->vendor.timeout_d),
+		       chip->vendor.timeout_adjusted
+		       ? "adjusted" : "original");
+}
+EXPORT_SYMBOL_GPL(tpm_show_timeouts);
 
 ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
