@@ -22,10 +22,6 @@
 #ifndef __TARGADDRS_H__
 #define __TARGADDRS_H__
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #if defined(AR6002)
 #include "AR6002/addrs.h"
 #endif
@@ -237,9 +233,5 @@ PREPACK struct host_interest_s {
 #define AR6003_FETCH_TARG_REGS_COUNT 64
 
 #endif /* !__ASSEMBLER__ */
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #endif /* __TARGADDRS_H__ */

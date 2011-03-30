@@ -27,32 +27,6 @@
 #ifndef _A_TYPES_H_
 #define _A_TYPES_H_
 
-#if defined(__linux__) && !defined(LINUX_EMULATION)
 #include "../os/linux/include/athtypes_linux.h"
-#endif
-
-#ifdef UNDER_NWIFI
-#include "../os/windows/include/athtypes.h"
-#endif
-
-#ifdef ATHR_CE_LEGACY
-#include "../os/windows/include/athtypes.h"
-#endif
-
-#ifdef REXOS
-#include "../os/rexos/include/common/athtypes_rexos.h"
-#endif
-
-#if defined ART_WIN
-#include "../os/win_art/include/athtypes_win.h"
-#endif
-
-#ifdef WIN_NWF
-#include <athtypes_win.h>
-#endif
-
-#ifdef THREADX
-#include "../os/threadx/include/common/athtypes_threadx.h"
-#endif
 
 #endif /* _ATHTYPES_H_ */

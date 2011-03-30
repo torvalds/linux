@@ -110,7 +110,6 @@ ifeq ($(CONFIG_ATH6KL_SKIP_ABI_VERSION_CHECK),y)
 ccflags-y += -DATH6KL_SKIP_ABI_VERSION_CHECK
 endif
 
-ccflags-y += -DLINUX -DKERNEL_2_6
 ccflags-y += -DTCMD
 ccflags-y += -DSEND_EVENT_TO_APP
 ccflags-y += -DUSER_KEYS

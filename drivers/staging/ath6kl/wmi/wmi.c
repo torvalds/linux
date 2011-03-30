@@ -265,8 +265,6 @@ const u8 up_to_ac[]= {
                 WMM_AC_VO,
             };
 
-#include "athstartpack.h"
-
 /* This stuff is used when we want a simple layer-3 visibility */
 typedef PREPACK struct _iphdr {
     u8 ip_ver_hdrlen;          /* version and hdr length */
@@ -283,8 +281,6 @@ typedef PREPACK struct _iphdr {
     u8 ip_src[4];              /* source and dest address */
     u8 ip_dst[4];
 } POSTPACK iphdr;
-
-#include "athendpack.h"
 
 static s16 rssi_event_value = 0;
 static s16 snr_event_value = 0;

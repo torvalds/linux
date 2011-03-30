@@ -24,10 +24,6 @@
 #ifndef __REGDUMP_H__
 #define __REGDUMP_H__
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #if defined(AR6001)
 #include "AR6001/AR6001_regdump.h"
 #endif
@@ -51,9 +47,5 @@ PREPACK struct register_dump_s {
     /* Could copy top of stack here, too.... */
 } POSTPACK;
 #endif /* __ASSEMBLER__ */
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #endif /* __REGDUMP_H__ */

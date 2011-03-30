@@ -24,10 +24,6 @@
 #ifndef __HTC_H__
 #define __HTC_H__
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #define A_OFFSETOF(type,field) (unsigned long)(&(((type *)NULL)->field))
 
 #define ASSEMBLE_UNALIGNED_UINT16(p,highbyte,lowbyte) \
@@ -226,11 +222,6 @@ typedef PREPACK struct {
 typedef PREPACK struct {    
     u8 LookAhead[4];     /* 4 byte lookahead */
 } POSTPACK HTC_BUNDLED_LOOKAHEAD_REPORT;
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
-
 
 #endif /* __HTC_H__ */
 

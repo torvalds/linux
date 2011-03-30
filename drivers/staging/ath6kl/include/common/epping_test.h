@@ -25,10 +25,6 @@
 #ifndef EPPING_TEST_H_
 #define EPPING_TEST_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
     /* alignment to 4-bytes */
 #define EPPING_ALIGNMENT_PAD  (((sizeof(struct htc_frame_hdr) + 3) & (~0x3)) - sizeof(struct htc_frame_hdr))
 
@@ -112,9 +108,4 @@ typedef PREPACK struct {
 #define HCI_TRANSPORT_STREAM_NUM  16  /* this number is higher than the define WMM AC classes so we
                                          can use this to distinguish packets */
 
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
-    
-    
 #endif /*EPPING_TEST_H_*/

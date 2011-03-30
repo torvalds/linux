@@ -40,10 +40,6 @@
 extern "C" {
 #endif
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #include "dbglog.h"
 
 /*
@@ -268,9 +264,6 @@ typedef PREPACK struct {
     u32 count;
 } POSTPACK WMIX_PROF_COUNT_EVENT;
 
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #ifdef __cplusplus
 }

@@ -34,10 +34,6 @@
 #ifndef _WMI_H_
 #define _WMI_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #include "wmix.h"
 #include "wlan_defs.h"
 
@@ -3121,10 +3117,6 @@ typedef PREPACK struct {
 /*
  * End of AP mode definitions
  */
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #ifdef __cplusplus
 }

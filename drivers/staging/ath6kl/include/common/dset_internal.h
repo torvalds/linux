@@ -25,10 +25,6 @@
 #ifndef __DSET_INTERNAL_H__
 #define __DSET_INTERNAL_H__
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 /*
  * Internal dset definitions, common for DataSet layer.
  */
@@ -55,9 +51,5 @@ typedef PREPACK struct dset_descriptor_s {
                                               example, pointer to patch
                                               Dataset descriptor for BPatch. */
 } POSTPACK dset_descriptor_t;
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #endif /* __DSET_INTERNAL_H__ */

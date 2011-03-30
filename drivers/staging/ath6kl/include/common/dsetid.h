@@ -25,10 +25,6 @@
 #ifndef __DSETID_H__
 #define __DSETID_H__
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 /* Well-known DataSet IDs */
 #define DSETID_UNUSED                     0x00000000
 #define DSETID_BOARD_DATA                 0x00000001 /* Cal and board data */
@@ -126,9 +122,5 @@ PREPACK struct patch_s {
  * on which DataSets can be BPatched.
  */
 #define DSETID_BPATCH_FLAG                0x80000000
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #endif /* __DSETID_H__ */
