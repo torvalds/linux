@@ -1781,7 +1781,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	struct crypto_hash *tfm = NULL;
 	struct crypto_hash *integrity_w_tfm = NULL;
 	struct crypto_hash *integrity_r_tfm = NULL;
-	void *int_dig_out = NULL;
 	void *int_dig_in = NULL;
 	void *int_dig_vv = NULL;
 	struct drbd_tconn *oconn;
@@ -1955,11 +1954,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	/* allocation not in the IO path, cqueue thread context */
 	if (integrity_w_tfm) {
 		i = crypto_hash_digestsize(integrity_w_tfm);
-		int_dig_out = kmalloc(i, GFP_KERNEL);
-		if (!int_dig_out) {
-			retcode = ERR_NOMEM;
-			goto fail;
-		}
 		int_dig_in = kmalloc(i, GFP_KERNEL);
 		if (!int_dig_in) {
 			retcode = ERR_NOMEM;
@@ -1990,10 +1984,8 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	crypto_free_hash(tconn->integrity_r_tfm);
 	tconn->integrity_r_tfm = integrity_r_tfm;
 
-	kfree(tconn->int_dig_out);
 	kfree(tconn->int_dig_in);
 	kfree(tconn->int_dig_vv);
-	tconn->int_dig_out=int_dig_out;
 	tconn->int_dig_in=int_dig_in;
 	tconn->int_dig_vv=int_dig_vv;
 	retcode = _conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
@@ -2009,7 +2001,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 
 fail:
-	kfree(int_dig_out);
 	kfree(int_dig_in);
 	kfree(int_dig_vv);
 	crypto_free_hash(tfm);

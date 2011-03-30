@@ -893,7 +893,6 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
-	void *int_dig_out;
 	void *int_dig_in;
 	void *int_dig_vv;
 

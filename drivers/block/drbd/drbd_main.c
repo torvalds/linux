@@ -2404,7 +2404,6 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	drbd_free_socket(&tconn->meta);
 	drbd_free_socket(&tconn->data);
 	kfree(tconn->name);
-	kfree(tconn->int_dig_out);
 	kfree(tconn->int_dig_in);
 	kfree(tconn->int_dig_vv);
 	kfree(tconn);
