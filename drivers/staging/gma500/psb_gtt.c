@@ -75,10 +75,10 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	struct drm_device *dev = pg->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned gtt_pages;
-	unsigned long stolen_size, vram_stolen_size, ci_stolen_size;
+	unsigned long stolen_size, vram_stolen_size;
 	unsigned i, num_pages;
 	unsigned pfn_base;
-	uint32_t ci_pages, vram_pages;
+	uint32_t vram_pages;
 	uint32_t tt_pages;
 	uint32_t *ttm_gtt_map;
 	uint32_t dvmt_mode = 0;
@@ -111,10 +111,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	pci_read_config_dword(dev->pdev, PSB_BSM, &pg->stolen_base);
 	vram_stolen_size = pg->gtt_phys_start - pg->stolen_base - PAGE_SIZE;
 
-	/* CI is not included in the stolen size since the TOPAZ MMU bug */
-	ci_stolen_size = dev_priv->ci_region_size;
-	/* Don't add CI & RAR share buffer space
-	 * managed by TTM to stolen_size */
 	stolen_size = vram_stolen_size;
 
 	printk(KERN_INFO"GMMADR(region 0) start: 0x%08x (%dM).\n",
@@ -129,11 +125,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	printk(KERN_INFO "      the correct size should be: %dM(dvmt mode=%d)\n",
 		(dvmt_mode == 1) ? 1 : (2 << (dvmt_mode - 1)), dvmt_mode);
 
-	if (ci_stolen_size > 0)
-		printk(KERN_INFO"CI Stole memory: RAM base = 0x%08x, size = %lu M\n",
-				dev_priv->ci_region_start,
-				ci_stolen_size / 1024 / 1024);
-
 	if (resume && (gtt_pages != pg->gtt_pages) &&
 	    (stolen_size != pg->stolen_size)) {
 		DRM_ERROR("GTT resume error.\n");
@@ -144,7 +135,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	pg->gtt_pages = gtt_pages;
 	pg->stolen_size = stolen_size;
 	pg->vram_stolen_size = vram_stolen_size;
-	pg->ci_stolen_size = ci_stolen_size;
 	pg->gtt_map =
 	    ioremap_nocache(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
 	if (!pg->gtt_map) {
@@ -187,19 +177,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	pte = psb_gtt_mask_pte(pfn_base, 0);
 	for (; i < tt_pages / 2 - 1; ++i)
 		iowrite32(pte, pg->gtt_map + i);
-
-	/*
-	 * insert CI stolen pages
-	 */
-
-	pfn_base = dev_priv->ci_region_start >> PAGE_SHIFT;
-	ci_pages = num_pages = ci_stolen_size >> PAGE_SHIFT;
-	printk(KERN_INFO"Set up %d CI stolen pages starting at 0x%08x, GTT offset %dK\n",
-	       num_pages, pfn_base, (ttm_gtt_map - pg->gtt_map) * 4);
-	for (i = 0; i < num_pages; ++i) {
-		pte = psb_gtt_mask_pte(pfn_base + i, 0);
-		iowrite32(pte, ttm_gtt_map + i);
-	}
 
 	/*
 	 * Init rest of gtt managed by TTM.

@@ -316,11 +316,6 @@ static void psb_do_takedown(struct drm_device *dev)
 		ttm_bo_clean_mm(bdev, TTM_PL_TT);
 		dev_priv->have_tt = 0;
 	}
-
-	if (dev_priv->have_camera) {
-		ttm_bo_clean_mm(bdev, TTM_PL_CI);
-		dev_priv->have_camera = 0;
-	}
 }
 
 void mrst_get_fuse_settings(struct drm_device *dev)
@@ -639,12 +634,7 @@ static int psb_do_init(struct drm_device *dev)
       	PSB_WSGX32(pg->mmu_gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
 	/* TT region managed by TTM. */
-	if (!ttm_bo_init_mm(bdev, TTM_PL_TT,
-			pg->gatt_pages -
-			(pg->ci_start >> PAGE_SHIFT) -
-			((dev_priv->ci_region_size)
-			 >> PAGE_SHIFT))) {
-
+	if (!ttm_bo_init_mm(bdev, TTM_PL_TT, pg->gatt_pages)) {
 		dev_priv->have_tt = 1;
 		dev_priv->sizes.tt_size =
 			(tt_pages << PAGE_SHIFT) / (1024 * 1024) / 2;
@@ -696,12 +686,6 @@ static int psb_driver_unload(struct drm_device *dev)
 					(dev_priv->mmu),
 					pg->mmu_gatt_start,
 					pg->vram_stolen_size >> PAGE_SHIFT);
-			if (pg->ci_stolen_size != 0)
-				psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->ci_start,
-					pg->ci_stolen_size >> PAGE_SHIFT);
 			up_read(&pg->sem);
 			psb_mmu_driver_takedown(dev_priv->mmu);
 			dev_priv->mmu = NULL;
@@ -870,24 +854,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
 		(pg->gatt_pages) : PSB_TT_PRIV0_PLIMIT;
 
-	/* CI/RAR use the lower half of TT. */
-	pg->ci_start = (tt_pages / 2) << PAGE_SHIFT;
-
-
-	/*
-	 * Make MSVDX/TOPAZ MMU aware of the CI stolen memory area.
-	 */
-	if (dev_priv->pg->ci_stolen_size != 0) {
-		down_read(&pg->sem);
-		ret = psb_mmu_insert_pfn_sequence(psb_mmu_get_default_pd
-				(dev_priv->mmu),
-				dev_priv->ci_region_start >> PAGE_SHIFT,
-				pg->mmu_gatt_start + pg->ci_start,
-				pg->ci_stolen_size >> PAGE_SHIFT, 0);
-		up_read(&pg->sem);
-		if (ret)
-			goto out_err;
-	}
 
 	dev_priv->pf_pd = psb_mmu_alloc_pd(dev_priv->mmu, 1, 0);
 	if (!dev_priv->pf_pd)

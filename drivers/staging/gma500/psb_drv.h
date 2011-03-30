@@ -600,17 +600,9 @@ struct drm_psb_private {
 	uint32_t num_pipe;
 
 	/*
-	 * CI share buffer
-	 */
-	unsigned int ci_region_start;
-	unsigned int ci_region_size;
-
-	/*
 	 *Memory managers
 	 */
 
-	int have_camera;
-	int have_rar;
 	int have_tt;
 	int have_mem_mmu;
 	struct mutex temp_mem;

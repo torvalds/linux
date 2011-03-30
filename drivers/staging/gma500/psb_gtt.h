@@ -29,8 +29,6 @@ struct psb_gtt {
 	int initialized;
 	uint32_t gatt_start;
 	uint32_t mmu_gatt_start;
-	uint32_t ci_start;
-	uint32_t rar_start;
 	uint32_t gtt_start;
 	uint32_t gtt_phys_start;
 	unsigned gtt_pages;
@@ -41,8 +39,6 @@ struct psb_gtt {
 	u16 gmch_ctrl;
 	unsigned long stolen_size;
 	unsigned long vram_stolen_size;
-	unsigned long ci_stolen_size;
-	unsigned long rar_stolen_size;
 	uint32_t *gtt_map;
 	struct rw_semaphore sem;
 };
