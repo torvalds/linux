@@ -649,10 +649,35 @@ static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 	return tpm_pm_suspend(&dev->dev, msg);
 }
 
+static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
+{
+	u32 intmask;
+
+	/* reenable interrupts that device may have lost or
+	   BIOS/firmware may have disabled */
+	iowrite8(chip->vendor.irq, chip->vendor.iobase +
+		 TPM_INT_VECTOR(chip->vendor.locality));
+
+	intmask =
+	    ioread32(chip->vendor.iobase +
+		     TPM_INT_ENABLE(chip->vendor.locality));
+
+	intmask |= TPM_INTF_CMD_READY_INT
+	    | TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_DATA_AVAIL_INT
+	    | TPM_INTF_STS_VALID_INT | TPM_GLOBAL_INT_ENABLE;
+
+	iowrite32(intmask,
+		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
+}
+
+
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
 	int ret;
+
+	if (chip->vendor.irq)
+		tpm_tis_reenable_interrupts(chip);
 
 	ret = tpm_pm_resume(&dev->dev);
 	if (!ret)
@@ -706,6 +731,11 @@ static int tpm_tis_suspend(struct platform_device *dev, pm_message_t msg)
 
 static int tpm_tis_resume(struct platform_device *dev)
 {
+	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
+
+	if (chip->vendor.irq)
+		tpm_tis_reenable_interrupts(chip);
+
 	return tpm_pm_resume(&dev->dev);
 }
 static struct platform_driver tis_drv = {
