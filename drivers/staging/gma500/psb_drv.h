@@ -644,7 +644,8 @@ struct drm_psb_private {
 
 	struct drm_psb_sizes_arg sizes;
 
-	uint32_t fuse_reg_value;
+	u32 fuse_reg_value;
+	u32 video_device_fuse;
 
 	/* pci revision id for B0:D2:F0 */
 	uint8_t platform_rev_id;
@@ -669,12 +670,27 @@ struct drm_psb_private {
 	unsigned int lvds_use_ssc:1;
 	int lvds_ssc_freq;
 	bool is_lvds_on;
+	bool is_mipi_on;
 
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
 
 	/*runtime PM state*/
 	int rpm_enabled;
+
+	/* Moorestown specific */
+	struct mrst_vbt vbt_data;
+	struct mrst_gct_data gct_data;
+
+	/* Moorestown pipe config register value cache */
+	uint32_t pipeconf;
+	uint32_t pipeconf1;
+	uint32_t pipeconf2;
+
+	/* Moorestown plane control register value cache */
+	uint32_t dspcntr;
+	uint32_t dspcntr1;
+	uint32_t dspcntr2;
 
 	/*
 	 *Register state
