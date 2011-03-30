@@ -3,8 +3,6 @@
 #undef	Z_EXT_CHARS_IN_BUFFER
 
 /*
- *  linux/drivers/char/cyclades.c
- *
  * This file contains the driver for the Cyclades async multiport
  * serial boards.
  *

@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/8250_pci.c
- *
  *  Probe module for 8250/16550-type PCI serial ports.
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.

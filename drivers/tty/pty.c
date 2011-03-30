@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/pty.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  Added support for a Unix98-style ptmx device.

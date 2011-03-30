@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/atmel_serial.c
- *
  *  Driver for Atmel AT91 / AT32 Serial ports
  *  Copyright (C) 2003 Rick Bronson
  *

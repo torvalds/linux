@@ -1,5 +1,4 @@
-/* linux/drivers/serial/s3c2440.c
- *
+/*
  * Driver for Samsung S3C2440 and S3C2442 SoC onboard UARTs.
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics

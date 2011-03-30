@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/serial/imx.c
- *
  *  Driver for Motorola IMX serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.

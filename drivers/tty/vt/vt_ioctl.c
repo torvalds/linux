@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/vt_ioctl.c
- *
  *  Copyright (C) 1992 obz under the linux copyright
  *
  *  Dynamic diacritical handling - aeb@cwi.nl - Dec 1993

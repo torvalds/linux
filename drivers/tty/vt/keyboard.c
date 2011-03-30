@@ -1,6 +1,4 @@
 /*
- * linux/drivers/char/keyboard.c
- *
  * Written for linux by Johan Myreen as a translation from
  * the assembly version by Linus (with diacriticals added)
  *

@@ -1,6 +1,4 @@
 /*
- * drivers/serial/sh-sci.c
- *
  * SuperH on-chip serial module support.  (SCI with no FIFO / with FIFO)
  *
  *  Copyright (C) 2002 - 2011  Paul Mundt

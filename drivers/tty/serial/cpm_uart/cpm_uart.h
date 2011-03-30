@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/serial/cpm_uart.h
- *
  *  Driver for CPM (SCC/SMC) serial ports
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
