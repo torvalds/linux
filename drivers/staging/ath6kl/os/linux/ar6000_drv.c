@@ -147,7 +147,6 @@ unsigned int panic_on_assert = 1;
 unsigned int nohifscattersupport = NOHIFSCATTERSUPPORT_DEFAULT;
 
 unsigned int setuphci = SETUPHCI_DEFAULT;
-unsigned int setuphcipal = SETUPHCIPAL_DEFAULT;
 unsigned int loghci = 0;
 unsigned int setupbtdev = SETUPBTDEV_DEFAULT;
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
@@ -190,7 +189,6 @@ module_param(irqprocmode, uint, 0644);
 module_param(nohifscattersupport, uint, 0644);
 module_param(panic_on_assert, uint, 0644);
 module_param(setuphci, uint, 0644);
-module_param(setuphcipal, uint, 0644);
 module_param(loghci, uint, 0644);
 module_param(setupbtdev, uint, 0644);
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
@@ -344,8 +342,6 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
 static int
 ar6000_sysfs_bmi_init(struct ar6_softc *ar);
 
-/* HCI PAL callback function declarations */
-int ar6k_setup_hci_pal(struct ar6_softc *ar);
 void  ar6k_cleanup_hci_pal(struct ar6_softc *ar);
 
 static void
@@ -2028,15 +2024,6 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
         if (setuphci)
         	ar6000_cleanup_hci(ar);
 #endif
-#ifdef EXPORT_HCI_PAL_INTERFACE
-        if (setuphcipal && (NULL != ar6kHciPalCallbacks_g.cleanupTransport)) {
-           ar6kHciPalCallbacks_g.cleanupTransport(ar);
-        }
-#else
-				/* cleanup hci pal driver data structures */
-        if(setuphcipal)
-          ar6k_cleanup_hci_pal(ar);
-#endif
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,(" Shutting down HTC .... \n"));
         /* stop HTC */
         HTCStop(ar->arHtcTarget);
@@ -2736,13 +2723,6 @@ int ar6000_init(struct net_device *dev)
                 /* setup HCI */
             status = ar6000_setup_hci(ar);
         }
-#endif
-#ifdef EXPORT_HCI_PAL_INTERFACE
-        if (setuphcipal && (NULL != ar6kHciPalCallbacks_g.setupTransport))
-          status = ar6kHciPalCallbacks_g.setupTransport(ar);
-#else
-        if(setuphcipal)
-          status = ar6k_setup_hci_pal(ar);
 #endif
 
     } while (false);
@@ -3705,8 +3685,23 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                 WMI_DATA_HDR *dhdr = (WMI_DATA_HDR *)A_NETBUF_DATA(skb);
                 bool is_amsdu;
                 u8 tid;
-                bool is_acl_data_frame;
-                is_acl_data_frame = WMI_DATA_HDR_GET_DATA_TYPE(dhdr) == WMI_DATA_HDR_DATA_TYPE_ACL;
+
+		/*
+		 * This check can be removed if after a while we do not
+		 * see the warning. For now we leave it to ensure
+		 * we drop these frames accordingly in case the
+		 * target generates them for some reason. These
+		 * were used for an internal PAL but that's not
+		 * used or supported anymore. These frames should
+		 * not come up from the target.
+		 */
+                if (WARN_ON(WMI_DATA_HDR_GET_DATA_TYPE(dhdr) ==
+			    WMI_DATA_HDR_DATA_TYPE_ACL)) {
+			AR6000_STAT_INC(ar, rx_errors);
+			A_NETBUF_FREE(skb);
+			return;
+		}
+
 #ifdef CONFIG_PM 
                 ar6000_check_wow_status(ar, NULL, false);
 #endif /* CONFIG_PM */
@@ -3728,7 +3723,7 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                  * ACL data frames don't follow ethernet frame bounds for
                  * min length
                  */
-                if (ar->arNetworkType != AP_NETWORK &&  !is_acl_data_frame &&
+                if (ar->arNetworkType != AP_NETWORK &&
                     ((pPacket->ActualLength < minHdrLen) ||
                     (pPacket->ActualLength > AR6000_MAX_RX_MESSAGE_SIZE)))
                 {
@@ -3863,7 +3858,7 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                     /* NWF: print the 802.11 hdr bytes */
                     if(containsDot11Hdr) {
                         status = wmi_dot11_hdr_remove(ar->arWmi,skb);
-                    } else if(!is_amsdu && !is_acl_data_frame) {
+                    } else if(!is_amsdu) {
                         status = wmi_dot3_2_dix(skb);
                     }
 
@@ -3871,16 +3866,6 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                         /* Drop frames that could not be processed (lack of memory, etc.) */
                         A_NETBUF_FREE(skb);
                         goto rx_done;
-                    }
-
-                    if (is_acl_data_frame) {
-                        A_NETBUF_PUSH(skb, sizeof(int));
-                        *((short *)A_NETBUF_DATA(skb)) = WMI_ACL_DATA_EVENTID;
-	                /* send the data packet to PAL driver */
-			if(ar6k_pal_config_g.fpar6k_pal_recv_pkt) {
-				if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, skb) == true)
-					goto rx_done;
-			}
                     }
 
                     if ((ar->arNetDev->flags & IFF_UP) == IFF_UP) {
@@ -4829,12 +4814,6 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
     buf += sizeof(int);
     memcpy(buf, cmd->buf, cmd->evt_buf_sz);
 
-    if(ar6k_pal_config_g.fpar6k_pal_recv_pkt)
-    {
-      /* pass the cmd packet to PAL driver */
-      if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, osbuf) == true)
-        return;
-    }
     ar6000_deliver_frames_to_nw_stack(ar->arNetDev, osbuf);
     if(loghci) {
         A_PRINTF_LOG("HCI Event From PAL <-- \n");

@@ -1488,57 +1488,6 @@ prof_count_rx(u32 addr, u32 count)
 }
 #endif /* CONFIG_TARGET_PROFILE_SUPPORT */
 
-
-static int
-ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbuf)
-{
-    void *osbuf = NULL;
-    u8 tmp_space[8];
-    HCI_ACL_DATA_PKT *acl;
-    u8 hdr_size, *datap=NULL;
-    int ret = 0;
-
-    /* ACL is in data path. There is a need to create pool
-     * mechanism for allocating and freeing NETBUFs - ToDo later.
-     */
-
-    *p_osbuf = NULL;
-    acl = (HCI_ACL_DATA_PKT *)tmp_space;
-    hdr_size = sizeof(acl->hdl_and_flags) + sizeof(acl->data_len);
-
-    do {
-        if (a_copy_from_user(acl, userdata, hdr_size)) {
-            ret = A_EFAULT;
-            break;
-        }
-
-        osbuf = A_NETBUF_ALLOC(hdr_size + acl->data_len);
-        if (osbuf == NULL) {
-           ret = A_NO_MEMORY;
-           break;
-        }
-        A_NETBUF_PUT(osbuf, hdr_size + acl->data_len);
-        datap = (u8 *)A_NETBUF_DATA(osbuf);
-
-        /* Real copy to osbuf */
-        acl = (HCI_ACL_DATA_PKT *)(datap);
-        memcpy(acl, tmp_space, hdr_size);
-        if (a_copy_from_user(acl->data, userdata + hdr_size, acl->data_len)) {
-            ret = A_EFAULT;
-            break;
-        }
-    } while(false);
-
-    if (ret == 0) {
-        *p_osbuf = osbuf;
-    } else {
-        A_NETBUF_FREE(osbuf);
-    }
-    return ret;
-}
-
-
-
 int
 ar6000_ioctl_ap_setparam(struct ar6_softc *ar, int param, int value)
 {
@@ -4411,23 +4360,6 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
              break;
         }
 #endif
-        case AR6000_XIOCTL_ACL_DATA:
-        {
-            void *osbuf = NULL;
-            if (ar->arWmiReady == false) {
-                ret = -EIO;
-            } else if (ar6000_create_acl_data_osbuf(dev, (u8 *)userdata, &osbuf) != 0) {
-                     ret = -EIO;
-            } else {
-                if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != 0) {
-                    AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("XIOCTL_ACL_DATA - wmi_data_hdr_add failed\n"));
-                } else {
-                    /* Send data buffer over HTC */
-                    ar6000_acl_data_tx(osbuf, ar->arNetDev);
-                }
-            }
-            break;
-        }
         case AR6000_XIOCTL_HCI_CMD:
         {
             char tmp_buf[512];

@@ -215,12 +215,6 @@ typedef enum _AR6K_BIN_FILE {
 #define SETUPHCI_DEFAULT           0
 #endif /* SETUPHCI_ENABLED */
 
-#ifdef SETUPHCIPAL_ENABLED
-#define SETUPHCIPAL_DEFAULT           1
-#else
-#define SETUPHCIPAL_DEFAULT           0
-#endif /* SETUPHCIPAL_ENABLED */
-
 #ifdef SETUPBTDEV_ENABLED
 #define SETUPBTDEV_DEFAULT         1
 #else
@@ -571,7 +565,6 @@ struct ar6_softc {
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
     void                    *hcidev_info;
 #endif
-    void                    *hcipal_info;
     WMI_AP_MODE_STAT        arAPStats;
     u8 ap_hidden_ssid;
     u8 ap_country_code[3];

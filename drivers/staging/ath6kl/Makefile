@@ -142,7 +142,6 @@ ath6kl-y += os/linux/netbuf.o
 ath6kl-y += os/linux/wireless_ext.o
 ath6kl-y += os/linux/ioctl.o
 ath6kl-y += os/linux/hci_bridge.o
-ath6kl-y += os/linux/ar6k_pal.o
 ath6kl-y += miscdrv/common_drv.o
 ath6kl-y += miscdrv/credit_dist.o
 ath6kl-y += wmi/wmi.o

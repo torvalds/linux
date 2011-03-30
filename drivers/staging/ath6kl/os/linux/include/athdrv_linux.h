@@ -942,7 +942,7 @@ typedef enum {
 
 #define AR6000_XIOCTL_HCI_CMD                       132
 
-#define AR6000_XIOCTL_ACL_DATA                      133
+#define AR6000_XIOCTL_ACL_DATA                      133 /* used to be used for PAL */
 
 #define AR6000_XIOCTL_WLAN_CONN_PRECEDENCE          134
 
