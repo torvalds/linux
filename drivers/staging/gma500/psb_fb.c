@@ -703,9 +703,8 @@ static void psb_setup_outputs(struct drm_device *dev)
 		else
 			DRM_ERROR("DSI is not supported\n");
 	} else {
-		/* FIXME: check if SDVO init should be re-enabled */
 		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
-		/* psb_intel_sdvo_init(dev, SDVOB); */
+		psb_intel_sdvo_init(dev, SDVOB);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
