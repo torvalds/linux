@@ -36,9 +36,7 @@
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
-#include "psb_ttm_userobj_api.h"
 #include "psb_fb.h"
-#include "psb_sgx.h"
 #include "psb_pvr_glue.h"
 
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
@@ -317,6 +315,8 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
 			 struct drm_mode_fb_cmd *r)
 {
+        return NULL;
+#if 0
 	struct ttm_buffer_object *bo = NULL;
 	uint64_t size;
 
@@ -332,7 +332,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	/* JB: TODO not drop, refcount buffer */
 	return psb_framebuffer_create(dev, r, bo);
 
-#if 0
 	struct psb_framebuffer *psbfb;
 	struct drm_framebuffer *fb;
 	struct fb_info *info;

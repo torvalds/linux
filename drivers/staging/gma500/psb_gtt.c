@@ -101,7 +101,7 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	pg->gatt_start = pci_resource_start(dev->pdev, PSB_GATT_RESOURCE);
 	/* fix me: video mmu has hw bug to access 0x0D0000000,
 	 * then make gatt start at 0x0e000,0000 */
-	pg->mmu_gatt_start = PSB_MEM_TT_START;
+	pg->mmu_gatt_start = 0xE0000000;
 	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
 	gtt_pages =
 	    pci_resource_len(dev->pdev, PSB_GTT_RESOURCE) >> PAGE_SHIFT;
