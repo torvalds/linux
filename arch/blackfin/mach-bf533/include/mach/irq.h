@@ -11,30 +11,30 @@
 
 #define NR_PERI_INTS		24
 
-#define IRQ_PLL_WAKEUP		7	/* PLL Wakeup Interrupt */
-#define IRQ_DMA_ERROR		8	/* DMA Error (general) */
-#define IRQ_PPI_ERROR		9	/* PPI Error Interrupt */
-#define IRQ_SPORT0_ERROR	10	/* SPORT0 Error Interrupt */
-#define IRQ_SPORT1_ERROR	11	/* SPORT1 Error Interrupt */
-#define IRQ_SPI_ERROR		12	/* SPI Error Interrupt */
-#define IRQ_UART0_ERROR		13	/* UART Error Interrupt */
-#define IRQ_RTC			14	/* RTC Interrupt */
-#define IRQ_PPI			15	/* DMA0 Interrupt (PPI) */
-#define IRQ_SPORT0_RX		16	/* DMA1 Interrupt (SPORT0 RX) */
-#define IRQ_SPORT0_TX		17	/* DMA2 Interrupt (SPORT0 TX) */
-#define IRQ_SPORT1_RX		18	/* DMA3 Interrupt (SPORT1 RX) */
-#define IRQ_SPORT1_TX		19	/* DMA4 Interrupt (SPORT1 TX) */
-#define IRQ_SPI			20	/* DMA5 Interrupt (SPI) */
-#define IRQ_UART0_RX		21	/* DMA6 Interrupt (UART RX) */
-#define IRQ_UART0_TX		22	/* DMA7 Interrupt (UART TX) */
-#define IRQ_TIMER0		23	/* Timer 0 */
-#define IRQ_TIMER1		24	/* Timer 1 */
-#define IRQ_TIMER2		25	/* Timer 2 */
-#define IRQ_PROG_INTA		26	/* Programmable Flags A (8) */
-#define IRQ_PROG_INTB		27	/* Programmable Flags B (8) */
-#define IRQ_MEM_DMA0		28	/* DMA8/9 Interrupt (Memory DMA Stream 0) */
-#define IRQ_MEM_DMA1		29	/* DMA10/11 Interrupt (Memory DMA Stream 1) */
-#define IRQ_WATCH		30	/* Watch Dog Timer */
+#define IRQ_PLL_WAKEUP		BFIN_IRQ(0)	/* PLL Wakeup Interrupt */
+#define IRQ_DMA_ERROR		BFIN_IRQ(1)	/* DMA Error (general) */
+#define IRQ_PPI_ERROR		BFIN_IRQ(2)	/* PPI Error Interrupt */
+#define IRQ_SPORT0_ERROR	BFIN_IRQ(3)	/* SPORT0 Error Interrupt */
+#define IRQ_SPORT1_ERROR	BFIN_IRQ(4)	/* SPORT1 Error Interrupt */
+#define IRQ_SPI_ERROR		BFIN_IRQ(5)	/* SPI Error Interrupt */
+#define IRQ_UART0_ERROR		BFIN_IRQ(6)	/* UART Error Interrupt */
+#define IRQ_RTC			BFIN_IRQ(7)	/* RTC Interrupt */
+#define IRQ_PPI			BFIN_IRQ(8)	/* DMA0 Interrupt (PPI) */
+#define IRQ_SPORT0_RX		BFIN_IRQ(9)	/* DMA1 Interrupt (SPORT0 RX) */
+#define IRQ_SPORT0_TX		BFIN_IRQ(10)	/* DMA2 Interrupt (SPORT0 TX) */
+#define IRQ_SPORT1_RX		BFIN_IRQ(11)	/* DMA3 Interrupt (SPORT1 RX) */
+#define IRQ_SPORT1_TX		BFIN_IRQ(12)	/* DMA4 Interrupt (SPORT1 TX) */
+#define IRQ_SPI			BFIN_IRQ(13)	/* DMA5 Interrupt (SPI) */
+#define IRQ_UART0_RX		BFIN_IRQ(14)	/* DMA6 Interrupt (UART RX) */
+#define IRQ_UART0_TX		BFIN_IRQ(15)	/* DMA7 Interrupt (UART TX) */
+#define IRQ_TIMER0		BFIN_IRQ(16)	/* Timer 0 */
+#define IRQ_TIMER1		BFIN_IRQ(17)	/* Timer 1 */
+#define IRQ_TIMER2		BFIN_IRQ(18)	/* Timer 2 */
+#define IRQ_PROG_INTA		BFIN_IRQ(19)	/* Programmable Flags A (8) */
+#define IRQ_PROG_INTB		BFIN_IRQ(20)	/* Programmable Flags B (8) */
+#define IRQ_MEM_DMA0		BFIN_IRQ(21)	/* DMA8/9 Interrupt (Memory DMA Stream 0) */
+#define IRQ_MEM_DMA1		BFIN_IRQ(22)	/* DMA10/11 Interrupt (Memory DMA Stream 1) */
+#define IRQ_WATCH		BFIN_IRQ(23)	/* Watch Dog Timer */
 
 #define SYS_IRQS		31
 

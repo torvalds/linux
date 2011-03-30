@@ -11,39 +11,39 @@
 
 #define NR_PERI_INTS		32
 
-#define IRQ_PLL_WAKEUP		7	/* PLL Wakeup Interrupt */
-#define IRQ_DMA_ERROR		8	/* DMA Error (general) */
-#define IRQ_GENERIC_ERROR	9	/* GENERIC Error Interrupt */
-#define IRQ_RTC			10	/* RTC Interrupt */
-#define IRQ_PPI			11	/* DMA0 Interrupt (PPI) */
-#define IRQ_SPORT0_RX		12	/* DMA3 Interrupt (SPORT0 RX) */
-#define IRQ_SPORT0_TX		13	/* DMA4 Interrupt (SPORT0 TX) */
-#define IRQ_SPORT1_RX		14	/* DMA5 Interrupt (SPORT1 RX) */
-#define IRQ_SPORT1_TX		15	/* DMA6 Interrupt (SPORT1 TX) */
-#define IRQ_TWI			16	/* TWI Interrupt */
-#define IRQ_SPI			17	/* DMA7 Interrupt (SPI) */
-#define IRQ_UART0_RX		18	/* DMA8 Interrupt (UART0 RX) */
-#define IRQ_UART0_TX		19	/* DMA9 Interrupt (UART0 TX) */
-#define IRQ_UART1_RX		20	/* DMA10 Interrupt (UART1 RX) */
-#define IRQ_UART1_TX		21	/* DMA11 Interrupt (UART1 TX) */
-#define IRQ_CAN_RX		22	/* CAN Receive Interrupt */
-#define IRQ_CAN_TX		23	/* CAN Transmit Interrupt */
-#define IRQ_MAC_RX		24	/* DMA1 (Ethernet RX) Interrupt */
-#define IRQ_MAC_TX		25	/* DMA2 (Ethernet TX) Interrupt */
-#define IRQ_TIMER0		26	/* Timer 0 */
-#define IRQ_TIMER1		27	/* Timer 1 */
-#define IRQ_TIMER2		28	/* Timer 2 */
-#define IRQ_TIMER3		29	/* Timer 3 */
-#define IRQ_TIMER4		30	/* Timer 4 */
-#define IRQ_TIMER5		31	/* Timer 5 */
-#define IRQ_TIMER6		32	/* Timer 6 */
-#define IRQ_TIMER7		33	/* Timer 7 */
-#define IRQ_PROG_INTA		34	/* PF Ports F&G (PF15:0) Interrupt A */
-#define IRQ_PORTG_INTB		35	/* PF Port G (PF15:0) Interrupt B */
-#define IRQ_MEM_DMA0		36	/* (Memory DMA Stream 0) */
-#define IRQ_MEM_DMA1		37	/* (Memory DMA Stream 1) */
-#define IRQ_PROG_INTB		38	/* PF Ports F (PF15:0) Interrupt B */
-#define IRQ_WATCH		38	/* Watch Dog Timer */
+#define IRQ_PLL_WAKEUP		BFIN_IRQ(0)	/* PLL Wakeup Interrupt */
+#define IRQ_DMA_ERROR		BFIN_IRQ(1)	/* DMA Error (general) */
+#define IRQ_GENERIC_ERROR	BFIN_IRQ(2)	/* GENERIC Error Interrupt */
+#define IRQ_RTC			BFIN_IRQ(3)	/* RTC Interrupt */
+#define IRQ_PPI			BFIN_IRQ(4)	/* DMA0 Interrupt (PPI) */
+#define IRQ_SPORT0_RX		BFIN_IRQ(5)	/* DMA3 Interrupt (SPORT0 RX) */
+#define IRQ_SPORT0_TX		BFIN_IRQ(6)	/* DMA4 Interrupt (SPORT0 TX) */
+#define IRQ_SPORT1_RX		BFIN_IRQ(7)	/* DMA5 Interrupt (SPORT1 RX) */
+#define IRQ_SPORT1_TX		BFIN_IRQ(8)	/* DMA6 Interrupt (SPORT1 TX) */
+#define IRQ_TWI			BFIN_IRQ(9)	/* TWI Interrupt */
+#define IRQ_SPI			BFIN_IRQ(10)	/* DMA7 Interrupt (SPI) */
+#define IRQ_UART0_RX		BFIN_IRQ(11)	/* DMA8 Interrupt (UART0 RX) */
+#define IRQ_UART0_TX		BFIN_IRQ(12)	/* DMA9 Interrupt (UART0 TX) */
+#define IRQ_UART1_RX		BFIN_IRQ(13)	/* DMA10 Interrupt (UART1 RX) */
+#define IRQ_UART1_TX		BFIN_IRQ(14)	/* DMA11 Interrupt (UART1 TX) */
+#define IRQ_CAN_RX		BFIN_IRQ(15)	/* CAN Receive Interrupt */
+#define IRQ_CAN_TX		BFIN_IRQ(16)	/* CAN Transmit Interrupt */
+#define IRQ_MAC_RX		BFIN_IRQ(17)	/* DMA1 (Ethernet RX) Interrupt */
+#define IRQ_MAC_TX		BFIN_IRQ(18)	/* DMA2 (Ethernet TX) Interrupt */
+#define IRQ_TIMER0		BFIN_IRQ(19)	/* Timer 0 */
+#define IRQ_TIMER1		BFIN_IRQ(20)	/* Timer 1 */
+#define IRQ_TIMER2		BFIN_IRQ(21)	/* Timer 2 */
+#define IRQ_TIMER3		BFIN_IRQ(22)	/* Timer 3 */
+#define IRQ_TIMER4		BFIN_IRQ(23)	/* Timer 4 */
+#define IRQ_TIMER5		BFIN_IRQ(24)	/* Timer 5 */
+#define IRQ_TIMER6		BFIN_IRQ(25)	/* Timer 6 */
+#define IRQ_TIMER7		BFIN_IRQ(26)	/* Timer 7 */
+#define IRQ_PROG_INTA		BFIN_IRQ(27)	/* PF Ports F&G (PF15:0) Interrupt A */
+#define IRQ_PORTG_INTB		BFIN_IRQ(28)	/* PF Port G (PF15:0) Interrupt B */
+#define IRQ_MEM_DMA0		BFIN_IRQ(29)	/* (Memory DMA Stream 0) */
+#define IRQ_MEM_DMA1		BFIN_IRQ(30)	/* (Memory DMA Stream 1) */
+#define IRQ_PROG_INTB		BFIN_IRQ(31)	/* PF Ports F (PF15:0) Interrupt B */
+#define IRQ_WATCH		BFIN_IRQ(32)	/* Watch Dog Timer */
 
 #define SYS_IRQS		39
 
