@@ -212,6 +212,23 @@ config MACH_JZ4740
 	select HAVE_PWM
 	select HAVE_CLK
 
+config LANTIQ
+	bool "Lantiq based platforms"
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_HAS_EARLY_PRINTK
+	select ARCH_REQUIRE_GPIOLIB
+	select SWAP_IO_SPACE
+	select BOOT_RAW
+	select HAVE_CLK
+
 config LASAT
 	bool "LASAT Networks platforms"
 	select CEVT_R4K
