@@ -63,22 +63,19 @@ unsigned long bfin_irq_flags = 0x1f;
 EXPORT_SYMBOL(bfin_irq_flags);
 #endif
 
-/* The number of spurious interrupts */
-atomic_t num_spurious;
-
 #ifdef CONFIG_PM
 unsigned long bfin_sic_iwr[3];	/* Up to 3 SIC_IWRx registers */
 unsigned vr_wakeup;
 #endif
 
-struct ivgx {
+static struct ivgx {
 	/* irq number for request_irq, available in mach-bf5xx/irq.h */
 	unsigned int irqno;
 	/* corresponding bit in the SIC_ISR register */
 	unsigned int isrflag;
 } ivg_table[NR_PERI_INTS];
 
-struct ivg_slice {
+static struct ivg_slice {
 	/* position of first irq in ivg_table for given ivg */
 	struct ivgx *ifirst;
 	struct ivgx *istop;
@@ -1331,10 +1328,8 @@ void do_irq(int vec, struct pt_regs *fp)
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
 # endif
 		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
+			if (ivg >= ivg_stop)
 				return;
-			}
 			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
 				break;
 		}
@@ -1344,10 +1339,9 @@ void do_irq(int vec, struct pt_regs *fp)
 		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
 
 		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
+			if (ivg >= ivg_stop)
 				return;
-			} else if (sic_status & ivg->isrflag)
+			if (sic_status & ivg->isrflag)
 				break;
 		}
 #endif
@@ -1403,10 +1397,8 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
 # endif
 		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
+			if (ivg >= ivg_stop)
 				return 0;
-			}
 			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
 				break;
 		}
@@ -1416,10 +1408,9 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
 
 		for (;; ivg++) {
-			if (ivg >= ivg_stop) {
-				atomic_inc(&num_spurious);
+			if (ivg >= ivg_stop)
 				return 0;
-			} else if (sic_status & ivg->isrflag)
+			if (sic_status & ivg->isrflag)
 				break;
 		}
 #endif
