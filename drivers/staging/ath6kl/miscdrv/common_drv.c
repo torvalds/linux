@@ -683,40 +683,6 @@ int ar6000_set_htc_params(struct hif_device *hifDevice,
     return status;
 }
 
-
-static int prepare_ar6002(struct hif_device *hifDevice, u32 TargetVersion)
-{
-    int status = 0;
-
-    /* placeholder */
-
-    return status;
-}
-
-static int prepare_ar6003(struct hif_device *hifDevice, u32 TargetVersion)
-{
-    int status = 0;
-
-    /* placeholder */
-
-    return status;
-}
-
-/* this function assumes the caller has already initialized the BMI APIs */
-int ar6000_prepare_target(struct hif_device *hifDevice,
-                               u32 TargetType,
-                               u32 TargetVersion)
-{
-    if (TargetType == TARGET_TYPE_AR6002) {
-            /* do any preparations for AR6002 devices */
-        return prepare_ar6002(hifDevice,TargetVersion);
-    } else if (TargetType == TARGET_TYPE_AR6003) {
-        return prepare_ar6003(hifDevice,TargetVersion);
-    }
-
-    return 0;
-}
-
 #if defined(CONFIG_AR6002_REV1_FORCE_HOST)
 /*
  * Call this function just before the call to BMIInit

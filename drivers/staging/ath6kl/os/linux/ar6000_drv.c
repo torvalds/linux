@@ -1698,14 +1698,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
 
         ar->arVersion.target_ver = targ_info.target_ver;
         ar->arTargetType = targ_info.target_type;
-
-        /* do any target-specific preparation that can be done through BMI */
-        r = ar6000_prepare_target(ar->arHifDevice,
-                                  targ_info.target_type,
-                                  targ_info.target_ver);
-        if (r)
-            goto avail_ev_failed;
-
     }
 
     r = ar6000_configure_target(ar);
