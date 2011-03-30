@@ -201,9 +201,9 @@ static int easycap_open(struct inode *inode, struct file *file)
 static int reset(struct easycap *peasycap)
 {
 	struct easycap_standard const *peasycap_standard;
-	int i, rc, input, rate;
+	int fmtidx, input, rate;
 	bool ntsc, other;
-	int fmtidx;
+	int rc;
 
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
@@ -226,33 +226,27 @@ static int reset(struct easycap *peasycap)
 	JOM(8, "peasycap->ntsc=%d\n", peasycap->ntsc);
 
 	rate = ready_saa(peasycap->pusb_device);
-	if (0 > rate) {
+	if (rate < 0) {
 		JOM(8, "not ready to capture after %i ms ...\n", PATIENCE);
-		if (peasycap->ntsc) {
-			JOM(8, "... trying PAL ...\n");  ntsc = false;
-		} else {
-			JOM(8, "... trying NTSC ...\n"); ntsc = true;
-	}
-	rc = setup_stk(peasycap->pusb_device, ntsc);
-	if (0 == rc)
-		JOM(4, "setup_stk() OK\n");
-	else {
-		SAM("ERROR: setup_stk() rc = %i\n", rc);
-		return -EFAULT;
-	}
-	rc = setup_saa(peasycap->pusb_device, ntsc);
-	if (0 == rc)
-		JOM(4, "setup_saa() OK\n");
-	else {
-		SAM("ERROR: setup_saa() rc = %i\n", rc);
-		return -EFAULT;
-	}
-	rate = ready_saa(peasycap->pusb_device);
-	if (0 > rate) {
-		JOM(8, "not ready to capture after %i ms ...\n", PATIENCE);
-		JOM(8, "... saa register 0x1F has 0x%02X\n",
+		ntsc = !peasycap->ntsc;
+		JOM(8, "... trying  %s ..\n", ntsc ? "NTSC" : "PAL");
+		rc = setup_stk(peasycap->pusb_device, ntsc);
+		if (rc) {
+			SAM("ERROR: setup_stk() rc = %i\n", rc);
+			return -EFAULT;
+		}
+		rc = setup_saa(peasycap->pusb_device, ntsc);
+		if (rc) {
+			SAM("ERROR: setup_saa() rc = %i\n", rc);
+			return -EFAULT;
+		}
+
+		rate = ready_saa(peasycap->pusb_device);
+		if (rate < 0) {
+			JOM(8, "not ready to capture after %i ms\n", PATIENCE);
+			JOM(8, "... saa register 0x1F has 0x%02X\n",
 					read_saa(peasycap->pusb_device, 0x1F));
-		ntsc = peasycap->ntsc;
+			ntsc = peasycap->ntsc;
 		} else {
 			JOM(8, "... success at second try:  %i=rate\n", rate);
 			ntsc = (0 < (rate/2)) ? true : false ;
@@ -266,22 +260,17 @@ static int reset(struct easycap *peasycap)
 /*---------------------------------------------------------------------------*/
 
 	rc = setup_stk(peasycap->pusb_device, ntsc);
-	if (0 == rc)
-		JOM(4, "setup_stk() OK\n");
-	else {
+	if (rc) {
 		SAM("ERROR: setup_stk() rc = %i\n", rc);
 		return -EFAULT;
 	}
 	rc = setup_saa(peasycap->pusb_device, ntsc);
-	if (0 == rc)
-		JOM(4, "setup_saa() OK\n");
-	else {
+	if (rc) {
 		SAM("ERROR: setup_saa() rc = %i\n", rc);
 		return -EFAULT;
 	}
 
-	for (i = 0; i < 180; i++)
-		peasycap->merit[i] = 0;
+	memset(peasycap->merit, 0, sizeof(peasycap->merit));
 
 	peasycap->video_eof = 0;
 	peasycap->audio_eof = 0;
