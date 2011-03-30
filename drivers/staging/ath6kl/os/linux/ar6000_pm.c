@@ -302,35 +302,6 @@ int ar6000_power_change_ev(void *context, u32 config)
     return status;
 }
 
-static int ar6000_pm_probe(struct platform_device *pdev)
-{
-    return 0;
-}
-
-static int ar6000_pm_remove(struct platform_device *pdev)
-{
-    return 0;
-}
-
-static int ar6000_pm_suspend(struct platform_device *pdev, pm_message_t state)
-{
-    return 0;
-}
-
-static int ar6000_pm_resume(struct platform_device *pdev)
-{
-    return 0;
-}
-
-static struct platform_driver ar6000_pm_device = {
-    .probe      = ar6000_pm_probe,
-    .remove     = ar6000_pm_remove,
-    .suspend    = ar6000_pm_suspend,
-    .resume     = ar6000_pm_resume,
-    .driver     = {
-        .name = "wlan_ar6000_pm",
-    },
-};
 #endif /* CONFIG_PM */
 
 int
@@ -652,30 +623,4 @@ ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
     ar->arWlanOff = off;
     status = ar6000_update_wlan_pwr_state(ar, state, false);
     return status;
-}
-
-int ar6000_pm_init()
-{
-	int  r;
-	A_REGISTER_MODULE_DEBUG_INFO(pm);
-
-#ifdef CONFIG_PM
-	/*
-	 * Register ar6000_pm_device into system.
-	 * We should also add platform_device into the first item of array
-	 * of devices[] in file arch/xxx/mach-xxx/board-xxxx.c
-	 */
-	r = platform_driver_register(&ar6000_pm_device);
-	if (r < 0)
-		return -ENODEV;
-#endif /* CONFIG_PM */
-
-	return 0;
-}
-
-void ar6000_pm_exit()
-{
-#ifdef CONFIG_PM
-	platform_driver_unregister(&ar6000_pm_device);
-#endif /* CONFIG_PM */
 }

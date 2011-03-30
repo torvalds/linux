@@ -178,9 +178,6 @@ int ar6000_power_change_ev(void *context, u32 config);
 void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
 #endif
 
-int ar6000_pm_init(void);
-void ar6000_pm_exit(void);
-
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
 int ar6000_add_ap_interface(struct ar6_softc *ar, char *ifname);
 int ar6000_remove_ap_interface(struct ar6_softc *ar);

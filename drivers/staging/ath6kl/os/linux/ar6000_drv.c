@@ -636,10 +636,6 @@ ar6000_init_module(void)
     osdrvCallbacks.devicePowerChangeHandler = ar6000_power_change_ev;
 #endif
 
-    r = ar6000_pm_init();
-    if (r)
-	return r;
-
 #ifdef DEBUG
     /* Set the debug flags if specified at load time */
     if(debugflags != 0)
@@ -688,8 +684,6 @@ ar6000_cleanup_module(void)
     HIFShutDownDevice(NULL);
 
     a_module_debug_support_cleanup();
-
-    ar6000_pm_exit();
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("ar6000_cleanup: success\n"));
 }
