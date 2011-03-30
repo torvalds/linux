@@ -569,9 +569,7 @@ static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 	if ((pfit_control & PFIT_ENABLE) == 0)
 		return -1;
 	/* Must be on PIPE 1 for PSB */
-	if (!IS_MRST(dev))
-		return 1;
-	return (pfit_control >> 29) & 3;
+	return 1;
 }
 
 static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
@@ -1395,7 +1393,11 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->mode_dev = mode_dev;
 	psb_intel_crtc->cursor_addr = 0;
 
-	drm_crtc_helper_add(&psb_intel_crtc->base,
+	if (IS_MRST(dev))
+        	drm_crtc_helper_add(&psb_intel_crtc->base,
+				    &mrst_helper_funcs);
+	else
+        	drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &psb_intel_helper_funcs);
 
 	/* Setup the array of drm_connector pointer array */
