@@ -285,7 +285,7 @@ typedef enum _AR6K_BIN_FILE {
 #define AR6003_REV1_EPPING_FIRMWARE_FILE    "ath6k/AR6003/hw1.0/endpointping.bin"
 #ifdef CONFIG_AR600x_SD31_XXX
 #define AR6003_REV1_BOARD_DATA_FILE         "ath6k/AR6003/hw1.0/bdata.SD31.bin"
-#elif defined(AR600x_SD32_XXX)
+#elif defined(CONFIG_AR600x_SD32_XXX)
 #define AR6003_REV1_BOARD_DATA_FILE         "ath6k/AR6003/hw1.0/bdata.SD32.bin"
 #elif defined(CONFIG_AR600x_WB31_XXX)
 #define AR6003_REV1_BOARD_DATA_FILE         "ath6k/AR6003/hw1.0/bdata.WB31.bin"
@@ -305,7 +305,7 @@ typedef enum _AR6K_BIN_FILE {
 #define AR6003_REV2_EPPING_FIRMWARE_FILE    "ath6k/AR6003/hw2.0/endpointping.bin"
 #ifdef CONFIG_AR600x_SD31_XXX
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.SD31.bin"
-#elif defined(AR600x_SD32_XXX)
+#elif defined(CONFIG_AR600x_SD32_XXX)
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.SD32.bin"
 #elif defined(CONFIG_AR600x_WB31_XXX)
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.WB31.bin"
