@@ -362,7 +362,8 @@ static void rk29_sdmmc_start_command(struct rk29_sdmmc *host,
 static void rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 {
 	unsigned long flags;
-
+	return 0;
+	dev_info(&host->pdev->dev, "reset fifo\n");
 	local_irq_save(flags);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_FIFO_RESET);
 	/* wait till resets clear */
@@ -374,7 +375,7 @@ static int rk29_sdmmc_wait_unbusy(struct rk29_sdmmc *host)
 {
 	const int time_out_us = 500000;
 	int time_out = time_out_us, time_out2 = 3;
-
+	return 0;
 	while (rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY) {
 		udelay(1);
 		time_out--;
@@ -553,7 +554,7 @@ void rk29_sdmmc_setup_bus(struct rk29_sdmmc *host)
 		  	/* wait till resets clear */
 			dev_info(&host->pdev->dev, "sdmmc_send cmd mci busy, ctrl reset ");
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
-			dev_info(&host->pdev->dev, "done\n");
+			printk("done\n");
 			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
 		}
 		//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,0);
@@ -577,10 +578,6 @@ void rk29_sdmmc_setup_bus(struct rk29_sdmmc *host)
 		sdmmc_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
 		host->current_speed = host->clock;
-		//if(host->use_dma)
-			//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
-		//else
-			//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	}
 
 	/* Set the current  bus width */
@@ -603,7 +600,8 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 	}
 	/* Slot specific timing and width adjustment */
 	rk29_sdmmc_setup_bus(host);
-	//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
+	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
+	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	host->curr_mrq = mrq;
 	host->pending_events = 0;
 	host->completed_events = 0;
@@ -751,7 +749,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 {
 	struct mmc_host		*prev_mmc = host->mmc;
 	
-	WARN_ON(host->cmd || host->data);
+	//WARN_ON(host->cmd || host->data);
 	host->curr_mrq = NULL;
 	host->mrq = NULL;
 
@@ -772,11 +770,12 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 	}
 
 	spin_unlock(&host->lock);
+	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD);
 	if(mrq && mrq->data && mrq->data->error) {
 		//mrq->data->bytes_xfered = 0;
+		rk29_sdmmc_write(host->regs, SDMMC_CMD, host->stop_cmdr | SDMMC_CMD_START); 
 		dev_info(&host->pdev->dev, "data error, request done!\n");
 	}
-	//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD);
 	mmc_request_done(prev_mmc, mrq);
 
 	spin_lock(&host->lock);
@@ -939,7 +938,8 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 				break;
 
 			host->cmd = NULL;
-			rk29_sdmmc_command_complete(host, mrq->stop);
+			if(mrq)
+				rk29_sdmmc_command_complete(host, mrq->stop);
 			if(host->curr_mrq)
 				rk29_sdmmc_request_end(host, host->curr_mrq);
 			goto unlock;
@@ -1349,17 +1349,18 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 				mmc_request_done(host->mmc, mrq);
 				spin_lock(&host->lock);
 			}
-	}	
-	spin_unlock(&host->lock);
-	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY){
+		
+	
 		/* reset all blocks */
-		  	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
-		  	/* wait till resets clear */
-			dev_info(&host->pdev->dev, "mmc_detect_change: mci busy, ctrl reset ");
-			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
-			dev_info(&host->pdev->dev, "done\n");
-			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+		/* wait till resets clear */
+		dev_info(&host->pdev->dev, "mmc_detect_change: ctrl reset ");
+		while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+		printk("done\n");
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
 	}
+	spin_unlock(&host->lock);
+	
 	mmc_detect_change(host->mmc, 0);	
 }
 
