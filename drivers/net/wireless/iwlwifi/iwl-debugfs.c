@@ -437,8 +437,7 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -ENOMEM;
 
-	ret = pos = priv->cfg->ops->lib->dump_nic_event_log(
-					priv, true, &buf, true);
+	ret = pos = iwl_dump_nic_event_log(priv, true, &buf, true);
 	if (buf) {
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 		kfree(buf);
@@ -462,8 +461,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		priv->cfg->ops->lib->dump_nic_event_log(priv, true,
-							NULL, false);
+		iwl_dump_nic_event_log(priv, true, NULL, false);
 
 	return count;
 }
@@ -1268,8 +1266,7 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	if (sscanf(buf, "%d", &csr) != 1)
 		return -EFAULT;
 
-	if (priv->cfg->ops->lib->dump_csr)
-		priv->cfg->ops->lib->dump_csr(priv);
+	iwl_dump_csr(priv);
 
 	return count;
 }
@@ -1359,13 +1356,11 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (priv->cfg->ops->lib->dump_fh) {
-		ret = pos = priv->cfg->ops->lib->dump_fh(priv, &buf, true);
-		if (buf) {
-			ret = simple_read_from_buffer(user_buf,
-						      count, ppos, buf, pos);
-			kfree(buf);
-		}
+	ret = pos = iwl_dump_fh(priv, &buf, true);
+	if (buf) {
+		ret = simple_read_from_buffer(user_buf,
+					      count, ppos, buf, pos);
+		kfree(buf);
 	}
 
 	return ret;
