@@ -4538,10 +4538,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
-	struct fdi_m_n m_n = {0};
 	u32 reg, temp;
 	u32 lvds_sync = 0;
-	int target_clock;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
@@ -4583,9 +4581,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      refclk / 1000);
 	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
-		if (HAS_PCH_SPLIT(dev) &&
-		    (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)))
-			refclk = 120000; /* 120Mhz refclk */
 	} else {
 		refclk = 48000;
 	}
@@ -4642,143 +4637,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	/* FDI link */
-	if (HAS_PCH_SPLIT(dev)) {
-		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-		int lane = 0, link_bw, bpp;
-		/* CPU eDP doesn't require FDI link, so just set DP M/N
-		   according to current link config */
-		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-			target_clock = mode->clock;
-			intel_edp_link_config(has_edp_encoder,
-					      &lane, &link_bw);
-		} else {
-			/* [e]DP over FDI requires target mode clock
-			   instead of link clock */
-			if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
-				target_clock = mode->clock;
-			else
-				target_clock = adjusted_mode->clock;
-
-			/* FDI is a binary signal running at ~2.7GHz, encoding
-			 * each output octet as 10 bits. The actual frequency
-			 * is stored as a divider into a 100MHz clock, and the
-			 * mode pixel clock is stored in units of 1KHz.
-			 * Hence the bw of each lane in terms of the mode signal
-			 * is:
-			 */
-			link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
-		}
-
-		/* determine panel color depth */
-		temp = I915_READ(PIPECONF(pipe));
-		temp &= ~PIPE_BPC_MASK;
-		if (is_lvds) {
-			/* the BPC will be 6 if it is 18-bit LVDS panel */
-			if ((I915_READ(PCH_LVDS) & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
-				temp |= PIPE_8BPC;
-			else
-				temp |= PIPE_6BPC;
-		} else if (has_edp_encoder) {
-			switch (dev_priv->edp.bpp/3) {
-			case 8:
-				temp |= PIPE_8BPC;
-				break;
-			case 10:
-				temp |= PIPE_10BPC;
-				break;
-			case 6:
-				temp |= PIPE_6BPC;
-				break;
-			case 12:
-				temp |= PIPE_12BPC;
-				break;
-			}
-		} else
-			temp |= PIPE_8BPC;
-		I915_WRITE(PIPECONF(pipe), temp);
-
-		switch (temp & PIPE_BPC_MASK) {
-		case PIPE_8BPC:
-			bpp = 24;
-			break;
-		case PIPE_10BPC:
-			bpp = 30;
-			break;
-		case PIPE_6BPC:
-			bpp = 18;
-			break;
-		case PIPE_12BPC:
-			bpp = 36;
-			break;
-		default:
-			DRM_ERROR("unknown pipe bpc value\n");
-			bpp = 24;
-		}
-
-		if (!lane) {
-			/*
-			 * Account for spread spectrum to avoid
-			 * oversubscribing the link. Max center spread
-			 * is 2.5%; use 5% for safety's sake.
-			 */
-			u32 bps = target_clock * bpp * 21 / 20;
-			lane = bps / (link_bw * 8) + 1;
-		}
-
-		intel_crtc->fdi_lanes = lane;
-
-		if (pixel_multiplier > 1)
-			link_bw *= pixel_multiplier;
-		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
-	}
-
-	/* Ironlake: try to setup display ref clock before DPLL
-	 * enabling. This is only under driver's control after
-	 * PCH B stepping, previous chipset stepping should be
-	 * ignoring this setting.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		temp = I915_READ(PCH_DREF_CONTROL);
-		/* Always enable nonspread source */
-		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
-		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
-		temp &= ~DREF_SSC_SOURCE_MASK;
-		temp |= DREF_SSC_SOURCE_ENABLE;
-		I915_WRITE(PCH_DREF_CONTROL, temp);
-
-		POSTING_READ(PCH_DREF_CONTROL);
-		udelay(200);
-
-		if (has_edp_encoder) {
-			if (intel_panel_use_ssc(dev_priv)) {
-				temp |= DREF_SSC1_ENABLE;
-				I915_WRITE(PCH_DREF_CONTROL, temp);
-
-				POSTING_READ(PCH_DREF_CONTROL);
-				udelay(200);
-			}
-			temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-
-			/* Enable CPU source on CPU attached eDP */
-			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-				if (intel_panel_use_ssc(dev_priv))
-					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
-				else
-					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
-			} else {
-				/* Enable SSC on PCH eDP if needed */
-				if (intel_panel_use_ssc(dev_priv)) {
-					DRM_ERROR("enabling SSC on PCH\n");
-					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
-				}
-			}
-			I915_WRITE(PCH_DREF_CONTROL, temp);
-			POSTING_READ(PCH_DREF_CONTROL);
-			udelay(200);
-		}
-	}
-
 	if (IS_PINEVIEW(dev)) {
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
 		if (has_reduced_clock)
@@ -4791,25 +4649,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 				reduced_clock.m2;
 	}
 
-	/* Enable autotuning of the PLL clock (if permissible) */
-	if (HAS_PCH_SPLIT(dev)) {
-		int factor = 21;
-
-		if (is_lvds) {
-			if ((intel_panel_use_ssc(dev_priv) &&
-			     dev_priv->lvds_ssc_freq == 100) ||
-			    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
-				factor = 25;
-		} else if (is_sdvo && is_tv)
-			factor = 20;
-
-		if (clock.m1 < factor * clock.n)
-			fp |= FP_CB_TUNE;
-	}
-
-	dpll = 0;
-	if (!HAS_PCH_SPLIT(dev))
-		dpll = DPLL_VGA_MODE_DIS;
+	dpll = DPLL_VGA_MODE_DIS;
 
 	if (!IS_GEN2(dev)) {
 		if (is_lvds)
@@ -4821,12 +4661,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			if (pixel_multiplier > 1) {
 				if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 					dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-				else if (HAS_PCH_SPLIT(dev))
-					dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 			}
 			dpll |= DPLL_DVO_HIGH_SPEED;
 		}
-		if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
+		if (is_dp)
 			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
@@ -4834,9 +4672,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
 		else {
 			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			/* also FPA1 */
-			if (HAS_PCH_SPLIT(dev))
-				dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 			if (IS_G4X(dev) && has_reduced_clock)
 				dpll |= (1 << (reduced_clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 		}
@@ -4854,7 +4689,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 			break;
 		}
-		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
+		if (INTEL_INFO(dev)->gen >= 4)
 			dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
 	} else {
 		if (is_lvds) {
@@ -4888,12 +4723,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Ironlake's plane is forced to pipe, bit 24 is to
 	   enable color space conversion */
-	if (!HAS_PCH_SPLIT(dev)) {
-		if (pipe == 0)
-			dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
-		else
-			dspcntr |= DISPPLANE_SEL_PIPE_B;
-	}
+	if (pipe == 0)
+		dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
+	else
+		dspcntr |= DISPPLANE_SEL_PIPE_B;
 
 	if (pipe == 0 && INTEL_INFO(dev)->gen < 4) {
 		/* Enable pixel doubling when the dot clock is > 90% of the (display)
@@ -4909,50 +4742,20 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
-	if (!HAS_PCH_SPLIT(dev))
-		dpll |= DPLL_VCO_ENABLE;
+	dpll |= DPLL_VCO_ENABLE;
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	/* assign to Ironlake registers */
-	if (HAS_PCH_SPLIT(dev)) {
-		fp_reg = PCH_FP0(pipe);
-		dpll_reg = PCH_DPLL(pipe);
-	} else {
-		fp_reg = FP0(pipe);
-		dpll_reg = DPLL(pipe);
-	}
+	fp_reg = FP0(pipe);
+	dpll_reg = DPLL(pipe);
 
 	/* PCH eDP needs FDI, but CPU eDP does not */
-	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (!has_edp_encoder) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 
 		POSTING_READ(dpll_reg);
-		udelay(150);
-	}
-
-	/* enable transcoder DPLL */
-	if (HAS_PCH_CPT(dev)) {
-		temp = I915_READ(PCH_DPLL_SEL);
-		switch (pipe) {
-		case 0:
-			temp |= TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL;
-			break;
-		case 1:
-			temp |=	TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL;
-			break;
-		case 2:
-			/* FIXME: manage transcoder PLLs? */
-			temp |= TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL;
-			break;
-		default:
-			BUG();
-		}
-		I915_WRITE(PCH_DPLL_SEL, temp);
-
-		POSTING_READ(PCH_DPLL_SEL);
 		udelay(150);
 	}
 
@@ -4962,21 +4765,13 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 */
 	if (is_lvds) {
 		reg = LVDS;
-		if (HAS_PCH_SPLIT(dev))
-			reg = PCH_LVDS;
 
 		temp = I915_READ(reg);
 		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		if (pipe == 1) {
-			if (HAS_PCH_CPT(dev))
-				temp |= PORT_TRANS_B_SEL_CPT;
-			else
-				temp |= LVDS_PIPEB_SELECT;
+			temp |= LVDS_PIPEB_SELECT;
 		} else {
-			if (HAS_PCH_CPT(dev))
-				temp &= ~PORT_TRANS_SEL_MASK;
-			else
-				temp &= ~LVDS_PIPEB_SELECT;
+			temp &= ~LVDS_PIPEB_SELECT;
 		}
 		/* set the corresponsding LVDS_BORDER bit */
 		temp |= dev_priv->lvds_border_bits;
@@ -4992,8 +4787,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		 * appropriately here, but we need to look more thoroughly into how
 		 * panels behave in the two modes.
 		 */
-		/* set the dithering flag on non-PCH LVDS as needed */
-		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
+		/* set the dithering flag on LVDS as needed */
+		if (INTEL_INFO(dev)->gen >= 4) {
 			if (dev_priv->lvds_dither)
 				temp |= LVDS_ENABLE_DITHER;
 			else
@@ -5018,34 +4813,18 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(reg, temp);
 	}
 
-	/* set the dithering flag and clear for anything other than a panel. */
-	if (HAS_PCH_SPLIT(dev)) {
-		pipeconf &= ~PIPECONF_DITHER_EN;
-		pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
-		if (dev_priv->lvds_dither && (is_lvds || has_edp_encoder)) {
-			pipeconf |= PIPECONF_DITHER_EN;
-			pipeconf |= PIPECONF_DITHER_TYPE_ST1;
-		}
-	}
-
-	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (is_dp) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	} else if (HAS_PCH_SPLIT(dev)) {
-		/* For non-DP output, clear any trans DP clock recovery setting.*/
-		I915_WRITE(TRANSDATA_M1(pipe), 0);
-		I915_WRITE(TRANSDATA_N1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_M1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
 	}
 
-	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (!has_edp_encoder) {
 		I915_WRITE(dpll_reg, dpll);
 
 		/* Wait for the clocks to stabilize. */
 		POSTING_READ(dpll_reg);
 		udelay(150);
 
-		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
+		if (INTEL_INFO(dev)->gen >= 4) {
 			temp = 0;
 			if (is_sdvo) {
 				temp = intel_mode_get_pixel_multiplier(adjusted_mode);
@@ -5116,30 +4895,16 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* pipesrc and dspsize control the size that is scaled from,
 	 * which should always be the user's requested size.
 	 */
-	if (!HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(DSPSIZE(plane),
-			   ((mode->vdisplay - 1) << 16) |
-			   (mode->hdisplay - 1));
-		I915_WRITE(DSPPOS(plane), 0);
-	}
+	I915_WRITE(DSPSIZE(plane),
+		   ((mode->vdisplay - 1) << 16) |
+		   (mode->hdisplay - 1));
+	I915_WRITE(DSPPOS(plane), 0);
 	I915_WRITE(PIPESRC(pipe),
 		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
-		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
-		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
-
-		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
-		}
-	}
-
 	I915_WRITE(PIPECONF(pipe), pipeconf);
 	POSTING_READ(PIPECONF(pipe));
-	if (!HAS_PCH_SPLIT(dev))
-		intel_enable_pipe(dev_priv, pipe, false);
+	intel_enable_pipe(dev_priv, pipe, false);
 
 	intel_wait_for_vblank(dev, pipe);
 
