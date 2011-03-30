@@ -383,6 +383,17 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
+		/*
+		 * Driver must validate login state - If PRLI not complete,
+		 * force a relogin attempt via implicit LOGO, PLOGI, and PRLI
+		 * requests.
+		 */
+		rval = qla2x00_get_port_database(vha, fcport, 0);
+		if (rval != QLA_SUCCESS) {
+			qla2x00_post_async_logout_work(vha, fcport, NULL);
+			qla2x00_post_async_login_work(vha, fcport, NULL);
+			break;
+		}
 		if (fcport->flags & FCF_FCP2_DEVICE) {
 			qla2x00_post_async_adisc_work(vha, fcport, data);
 			break;
