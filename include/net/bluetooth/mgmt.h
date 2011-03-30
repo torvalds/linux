@@ -267,3 +267,11 @@ struct mgmt_ev_auth_failed {
 struct mgmt_ev_local_name_changed {
 	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
+
+#define MGMT_EV_DEVICE_FOUND		0x0012
+struct mgmt_ev_device_found {
+	bdaddr_t bdaddr;
+	__u8 dev_class[3];
+	__s8 rssi;
+	__u8 eir[HCI_MAX_EIR_LENGTH];
+} __packed;

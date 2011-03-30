@@ -2046,3 +2046,20 @@ int mgmt_read_local_oob_data_reply_complete(u16 index, u8 *hash, u8 *randomizer,
 
 	return err;
 }
+
+int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 *dev_class, s8 rssi,
+								u8 *eir)
+{
+	struct mgmt_ev_device_found ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	bacpy(&ev.bdaddr, bdaddr);
+	memcpy(ev.dev_class, dev_class, sizeof(ev.dev_class));
+	ev.rssi = rssi;
+
+	if (eir)
+		memcpy(ev.eir, eir, sizeof(ev.eir));
+
+	return mgmt_event(MGMT_EV_DEVICE_FOUND, index, &ev, sizeof(ev), NULL);
+}
