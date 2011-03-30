@@ -3543,15 +3543,18 @@ int
 qla82xx_device_state_handler(scsi_qla_host_t *vha)
 {
 	uint32_t dev_state;
+	uint32_t old_dev_state;
 	int rval = QLA_SUCCESS;
 	unsigned long dev_init_timeout;
 	struct qla_hw_data *ha = vha->hw;
+	int loopcount = 0;
 
 	qla82xx_idc_lock(ha);
 	if (!vha->flags.init_done)
 		qla82xx_set_drv_active(vha);
 
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	old_dev_state = dev_state;
 	qla_printk(KERN_INFO, ha, "1:Device state is 0x%x = %s\n", dev_state,
 		dev_state < MAX_STATES ? qdev_state[dev_state] : "Unknown");
 
@@ -3568,10 +3571,16 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			break;
 		}
 		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla_printk(KERN_INFO, ha,
-			"2:Device state is 0x%x = %s\n", dev_state,
-			dev_state < MAX_STATES ?
-			qdev_state[dev_state] : "Unknown");
+		if (old_dev_state != dev_state) {
+			loopcount = 0;
+			old_dev_state = dev_state;
+		}
+		if (loopcount < 5) {
+			qla_printk(KERN_INFO, ha,
+			    "2:Device state is 0x%x = %s\n", dev_state,
+			    dev_state < MAX_STATES ?
+			    qdev_state[dev_state] : "Unknown");
+		}
 
 		switch (dev_state) {
 		case QLA82XX_DEV_READY:
@@ -3620,6 +3629,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			msleep(1000);
 			qla82xx_idc_lock(ha);
 		}
+		loopcount++;
 	}
 exit:
 	qla82xx_idc_unlock(ha);
