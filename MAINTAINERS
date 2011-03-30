@@ -1908,6 +1908,12 @@ S:	Maintained
 F:	arch/x86/kernel/cpuid.c
 F:	arch/x86/kernel/msr.c
 
+CPU POWER MONITORING SUBSYSTEM
+M:	Dominik Brodowski <linux@dominikbrodowski.net>
+M:	Thomas Renninger <trenn@suse.de>
+S:	Maintained
+F:	tools/power/cpupower
+
 CPUSETS
 M:	Paul Menage <menage@google.com>
 W:	http://www.bullopensource.org/cpuset/
