@@ -24,11 +24,11 @@
 #define IRQ_DMAC0_2     RK29XX_IRQ(2)
 #define IRQ_DMAC0_3     RK29XX_IRQ(3)
 
-#define IRQ_DMAC2_0     RK29XX_IRQ(4)
-#define IRQ_DMAC2_1     RK29XX_IRQ(5)
-#define IRQ_DMAC2_2     RK29XX_IRQ(6)
-#define IRQ_DMAC2_3     RK29XX_IRQ(7)
-#define IRQ_DMAC2_4     RK29XX_IRQ(8)
+#define IRQ_DMAC1_0     RK29XX_IRQ(4)
+#define IRQ_DMAC1_1     RK29XX_IRQ(5)
+#define IRQ_DMAC1_2     RK29XX_IRQ(6)
+#define IRQ_DMAC1_3     RK29XX_IRQ(7)
+#define IRQ_DMAC1_4     RK29XX_IRQ(8)
 
 #define IRQ_GPU         RK29XX_IRQ(9)
 #define IRQ_VEPU        RK29XX_IRQ(10)

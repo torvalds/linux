@@ -1082,23 +1082,23 @@ static int pl330_probe(struct platform_device *pdev)
 			dev_name(&pdev->dev), pl330_info);
 
         if(pdev->id == 0){
-                request_irq(IRQ_DMAC0_1, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
-	        request_irq(IRQ_DMAC0_2, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
-		request_irq(IRQ_DMAC0_3, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
+		WARN_ON(request_irq(IRQ_DMAC0_1, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
+		WARN_ON(request_irq(IRQ_DMAC0_2, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
+		WARN_ON(request_irq(IRQ_DMAC0_3, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
         }
 
         if(pdev->id == 1){
-                request_irq(IRQ_DMAC2_1, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
-	        request_irq(IRQ_DMAC2_2, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
-		request_irq(IRQ_DMAC2_3, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
-	        request_irq(IRQ_DMAC2_4, pl330_irq_handler, 0,
-			dev_name(&pdev->dev), pl330_info);
+		WARN_ON(request_irq(IRQ_DMAC1_1, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
+		WARN_ON(request_irq(IRQ_DMAC1_2, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
+		WARN_ON(request_irq(IRQ_DMAC1_3, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
+		WARN_ON(request_irq(IRQ_DMAC1_4, pl330_irq_handler, 0,
+				    dev_name(&pdev->dev), pl330_info) < 0);
         }
 			
 	if (ret)

@@ -54,20 +54,20 @@ static struct platform_device rk29_device_dmac0 = {
 	},
 };
 
-static struct resource rk29_dmac2_resource[] = {
+static struct resource rk29_dmac1_resource[] = {
 	[0] = {
-		.start  = RK29_DMA2_PHYS,
-		.end    = RK29_DMA2_PHYS + RK29_DMA2_SIZE - 1,
+		.start  = RK29_DMAC1_PHYS,
+		.end    = RK29_DMAC1_PHYS + RK29_DMAC1_SIZE - 1,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_DMAC2_0,
-		.end	= IRQ_DMAC2_0,
+		.start	= IRQ_DMAC1_0,
+		.end	= IRQ_DMAC1_0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct rk29_pl330_platdata rk29_dmac2_pdata = {
+static struct rk29_pl330_platdata rk29_dmac1_pdata = {
 	.peri = {
 		[0] = DMACH_HSADC,
 		[1] = DMACH_SDMMC,
@@ -89,21 +89,21 @@ static struct rk29_pl330_platdata rk29_dmac2_pdata = {
 	},
 };
 
-static struct platform_device rk29_device_dmac2 = {
+static struct platform_device rk29_device_dmac1 = {
 	.name		= "rk29-pl330",
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(rk29_dmac2_resource),
-	.resource	= rk29_dmac2_resource,
+	.num_resources	= ARRAY_SIZE(rk29_dmac1_resource),
+	.resource	= rk29_dmac1_resource,
 	.dev		= {
 		.dma_mask = &dma_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.platform_data = &rk29_dmac2_pdata,
+		.platform_data = &rk29_dmac1_pdata,
 	},
 };
 
 static struct platform_device *rk29_dmacs[] __initdata = {
 	&rk29_device_dmac0,
-	&rk29_device_dmac2,
+	&rk29_device_dmac1,
 };
 
 static int __init rk29_dma_init(void)
