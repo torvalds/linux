@@ -43,6 +43,7 @@ extern struct ttm_bo_driver psb_ttm_bo_driver;
 enum {
 	CHIP_PSB_8108 = 0,
 	CHIP_PSB_8109 = 1,
+	CHIP_MRST_4100 = 2,
 };
 
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
