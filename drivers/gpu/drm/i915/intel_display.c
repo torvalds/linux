@@ -4924,7 +4924,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
-	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
+	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct intel_encoder *has_edp_encoder = NULL;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -4950,9 +4950,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 			if (encoder->needs_tv_clock)
 				is_tv = true;
 			break;
-		case INTEL_OUTPUT_DVO:
-			is_dvo = true;
-			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
 			break;
@@ -4974,13 +4971,11 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		refclk = dev_priv->lvds_ssc_freq * 1000;
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
 			      refclk / 1000);
-	} else if (!IS_GEN2(dev)) {
+	} else {
 		refclk = 96000;
 		if (!has_edp_encoder ||
 		    intel_encoder_is_pch_edp(&has_edp_encoder->base))
 			refclk = 120000; /* 120Mhz refclk */
-	} else {
-		refclk = 48000;
 	}
 
 	/*
@@ -5169,17 +5164,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(200);
 	}
 
-	if (IS_PINEVIEW(dev)) {
-		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = (1 << reduced_clock.n) << 16 |
-				reduced_clock.m1 << 8 | reduced_clock.m2;
-	} else {
-		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-				reduced_clock.m2;
-	}
+	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+	if (has_reduced_clock)
+		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
+			reduced_clock.m2;
 
 	/* Enable autotuning of the PLL clock (if permissible) */
 	factor = 21;
@@ -5196,59 +5184,38 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	dpll = 0;
 
-	if (!IS_GEN2(dev)) {
-		if (is_lvds)
-			dpll |= DPLLB_MODE_LVDS;
-		else
-			dpll |= DPLLB_MODE_DAC_SERIAL;
-		if (is_sdvo) {
-			int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (pixel_multiplier > 1) {
-				if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-					dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-				else
-					dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
-			}
-			dpll |= DPLL_DVO_HIGH_SPEED;
+	if (is_lvds)
+		dpll |= DPLLB_MODE_LVDS;
+	else
+		dpll |= DPLLB_MODE_DAC_SERIAL;
+	if (is_sdvo) {
+		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+		if (pixel_multiplier > 1) {
+			dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
-		if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
-			dpll |= DPLL_DVO_HIGH_SPEED;
+		dpll |= DPLL_DVO_HIGH_SPEED;
+	}
+	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
+		dpll |= DPLL_DVO_HIGH_SPEED;
 
-		/* compute bitmask from p1 value */
-		if (IS_PINEVIEW(dev))
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
-		else {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			/* also FPA1 */
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
-			if (IS_G4X(dev) && has_reduced_clock)
-				dpll |= (1 << (reduced_clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
-		}
-		switch (clock.p2) {
-		case 5:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-			break;
-		case 7:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-			break;
-		case 10:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-			break;
-		case 14:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-			break;
-		}
-	} else {
-		if (is_lvds) {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-		} else {
-			if (clock.p1 == 2)
-				dpll |= PLL_P1_DIVIDE_BY_TWO;
-			else
-				dpll |= (clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			if (clock.p2 == 4)
-				dpll |= PLL_P2_DIVIDE_BY_4;
-		}
+	/* compute bitmask from p1 value */
+	dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	/* also FPA1 */
+	dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+
+	switch (clock.p2) {
+	case 5:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+		break;
+	case 7:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+		break;
+	case 10:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+		break;
+	case 14:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+		break;
 	}
 
 	if (is_sdvo && is_tv)
@@ -5267,20 +5234,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
-
-	if (pipe == 0 && INTEL_INFO(dev)->gen < 4) {
-		/* Enable pixel doubling when the dot clock is > 90% of the (display)
-		 * core speed.
-		 *
-		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
-		 * pipe == 0 check?
-		 */
-		if (mode->clock >
-		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
-			pipeconf |= PIPECONF_DOUBLE_WIDE;
-		else
-			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
-	}
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
