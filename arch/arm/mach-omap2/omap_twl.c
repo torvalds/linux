@@ -143,7 +143,7 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 		return DIV_ROUND_UP(uv - 600000, 12500) + 1;
 }
 
-static struct omap_volt_pmic_info omap3_mpu_volt_info = {
+static struct omap_voltdm_pmic omap3_mpu_pmic = {
 	.slew_rate		= 4000,
 	.step_size		= 12500,
 	.on_volt		= 1200000,
@@ -163,7 +163,7 @@ static struct omap_volt_pmic_info omap3_mpu_volt_info = {
 	.uv_to_vsel		= twl4030_uv_to_vsel,
 };
 
-static struct omap_volt_pmic_info omap3_core_volt_info = {
+static struct omap_voltdm_pmic omap3_core_pmic = {
 	.slew_rate		= 4000,
 	.step_size		= 12500,
 	.on_volt                = 1200000,
@@ -183,7 +183,7 @@ static struct omap_volt_pmic_info omap3_core_volt_info = {
 	.uv_to_vsel		= twl4030_uv_to_vsel,
 };
 
-static struct omap_volt_pmic_info omap4_mpu_volt_info = {
+static struct omap_voltdm_pmic omap4_mpu_pmic = {
 	.slew_rate		= 4000,
 	.step_size		= 12500,
 	.on_volt		= 1350000,
@@ -203,7 +203,7 @@ static struct omap_volt_pmic_info omap4_mpu_volt_info = {
 	.uv_to_vsel		= twl6030_uv_to_vsel,
 };
 
-static struct omap_volt_pmic_info omap4_iva_volt_info = {
+static struct omap_voltdm_pmic omap4_iva_pmic = {
 	.slew_rate		= 4000,
 	.step_size		= 12500,
 	.on_volt		= 1100000,
@@ -223,7 +223,7 @@ static struct omap_volt_pmic_info omap4_iva_volt_info = {
 	.uv_to_vsel		= twl6030_uv_to_vsel,
 };
 
-static struct omap_volt_pmic_info omap4_core_volt_info = {
+static struct omap_voltdm_pmic omap4_core_pmic = {
 	.slew_rate		= 4000,
 	.step_size		= 12500,
 	.on_volt		= 1100000,
@@ -251,13 +251,13 @@ int __init omap4_twl_init(void)
 		return -ENODEV;
 
 	voltdm = voltdm_lookup("mpu");
-	omap_voltage_register_pmic(voltdm, &omap4_mpu_volt_info);
+	omap_voltage_register_pmic(voltdm, &omap4_mpu_pmic);
 
 	voltdm = voltdm_lookup("iva");
-	omap_voltage_register_pmic(voltdm, &omap4_iva_volt_info);
+	omap_voltage_register_pmic(voltdm, &omap4_iva_pmic);
 
 	voltdm = voltdm_lookup("core");
-	omap_voltage_register_pmic(voltdm, &omap4_core_volt_info);
+	omap_voltage_register_pmic(voltdm, &omap4_core_pmic);
 
 	return 0;
 }
@@ -270,10 +270,10 @@ int __init omap3_twl_init(void)
 		return -ENODEV;
 
 	if (cpu_is_omap3630()) {
-		omap3_mpu_volt_info.vp_vddmin = OMAP3630_VP1_VLIMITTO_VDDMIN;
-		omap3_mpu_volt_info.vp_vddmax = OMAP3630_VP1_VLIMITTO_VDDMAX;
-		omap3_core_volt_info.vp_vddmin = OMAP3630_VP2_VLIMITTO_VDDMIN;
-		omap3_core_volt_info.vp_vddmax = OMAP3630_VP2_VLIMITTO_VDDMAX;
+		omap3_mpu_pmic.vp_vddmin = OMAP3630_VP1_VLIMITTO_VDDMIN;
+		omap3_mpu_pmic.vp_vddmax = OMAP3630_VP1_VLIMITTO_VDDMAX;
+		omap3_core_pmic.vp_vddmin = OMAP3630_VP2_VLIMITTO_VDDMIN;
+		omap3_core_pmic.vp_vddmax = OMAP3630_VP2_VLIMITTO_VDDMAX;
 	}
 
 	/*
@@ -289,10 +289,10 @@ int __init omap3_twl_init(void)
 		omap3_twl_set_sr_bit(true);
 
 	voltdm = voltdm_lookup("mpu_iva");
-	omap_voltage_register_pmic(voltdm, &omap3_mpu_volt_info);
+	omap_voltage_register_pmic(voltdm, &omap3_mpu_pmic);
 
 	voltdm = voltdm_lookup("core");
-	omap_voltage_register_pmic(voltdm, &omap3_core_volt_info);
+	omap_voltage_register_pmic(voltdm, &omap3_core_pmic);
 
 	return 0;
 }

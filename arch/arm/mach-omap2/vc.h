@@ -36,6 +36,7 @@ struct voltagedomain;
  * @cmd_onlp_shift: ONLP field shift in PRM_VC_CMD_VAL_* register
  * @cmd_ret_shift: RET field shift in PRM_VC_CMD_VAL_* register
  * @cmd_off_shift: OFF field shift in PRM_VC_CMD_VAL_* register
+ * @cfg_channel_reg: VC channel configuration register
  *
  * XXX One of cmd_on_mask and cmd_on_shift are not needed
  * XXX VALID should probably be a shift, not a mask
@@ -66,11 +67,14 @@ struct omap_vc_common {
  * @volt_reg_addr: voltage configuration register address
  * @cmd_reg_addr: command configuration register address
  * @setup_time: setup time (in sys_clk cycles) of regulator for this channel
+ * @cfg_channel: current value of VC channel configuration register
+ *
  * @common: pointer to VC common data for this platform
  * @smps_sa_mask: i2c slave address bitmask in the PRM_VC_SMPS_SA register
  * @smps_volra_mask: VOLRA* bitmask in the PRM_VC_VOL_RA register
  * @smps_cmdra_mask: CMDRA* bitmask in the PRM_VC_CMD_RA register
  * @cmdval_reg: register for on/ret/off voltage level values for this channel
+ * @cfg_channel_sa_shift: bit shift for slave address cfg_channel register
  * @flags: VC channel-specific flags (optional)
  */
 struct omap_vc_channel {

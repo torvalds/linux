@@ -67,6 +67,7 @@ struct voltagedomain {
 	struct list_head pwrdm_list;
 	struct omap_vc_channel *vc;
 	const struct omap_vfsm_instance *vfsm;
+	struct omap_voltdm_pmic *pmic;
 
 	/* VC/VP register access functions: SoC specific */
 	u32 (*read) (u8 offset);
@@ -96,7 +97,7 @@ struct omap_volt_data {
 };
 
 /**
- * struct omap_volt_pmic_info - PMIC specific data required by voltage driver.
+ * struct omap_voltdm_pmic - PMIC specific data required by voltage driver.
  * @slew_rate:	PMIC slew rate (in uv/us)
  * @step_size:	PMIC voltage step size (in uv)
  * @i2c_slave_addr: I2C slave address of PMIC
@@ -105,7 +106,7 @@ struct omap_volt_data {
  * @vsel_to_uv:	PMIC API to convert vsel value to actual voltage in uV.
  * @uv_to_vsel:	PMIC API to convert voltage in uV to vsel value.
  */
-struct omap_volt_pmic_info {
+struct omap_voltdm_pmic {
 	int slew_rate;
 	int step_size;
 	u32 on_volt;
@@ -131,8 +132,6 @@ struct omap_volt_pmic_info {
  *
  * @volt_data		: voltage table having the distinct voltages supported
  *			  by the domain and other associated per voltage data.
- * @pmic_info		: pmic specific parameters which should be populted by
- *			  the pmic drivers.
  * @vp_data		: the register values, shifts, masks for various
  *			  vp registers
  * @vp_rt_data          : VP data derived at runtime, not predefined
@@ -143,7 +142,6 @@ struct omap_volt_pmic_info {
  */
 struct omap_vdd_info {
 	struct omap_volt_data *volt_data;
-	struct omap_volt_pmic_info *pmic_info;
 	struct omap_vp_instance_data *vp_data;
 	struct omap_vp_runtime_data vp_rt_data;
 	struct dentry *debug_dir;
@@ -165,13 +163,13 @@ unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm);
 struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm);
 #ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
-		struct omap_volt_pmic_info *pmic_info);
+			       struct omap_voltdm_pmic *pmic);
 void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		int voltscale_method);
 int omap_voltage_late_init(void);
 #else
 static inline int omap_voltage_register_pmic(struct voltagedomain *voltdm,
-		struct omap_volt_pmic_info *pmic_info)
+					     struct omap_voltdm_pmic *pmic)
 {
 	return -EINVAL;
 }

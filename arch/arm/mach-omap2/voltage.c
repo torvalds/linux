@@ -84,20 +84,20 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 	vdd->vp_enabled = false;
 
 	vdd->vp_rt_data.vpconfig_erroroffset =
-		(vdd->pmic_info->vp_erroroffset <<
+		(voltdm->pmic->vp_erroroffset <<
 		 vdd->vp_data->vp_common->vpconfig_erroroffset_shift);
 
-	timeout_val = (sys_clk_speed * vdd->pmic_info->vp_timeout_us) / 1000;
+	timeout_val = (sys_clk_speed * voltdm->pmic->vp_timeout_us) / 1000;
 	vdd->vp_rt_data.vlimitto_timeout = timeout_val;
-	vdd->vp_rt_data.vlimitto_vddmin = vdd->pmic_info->vp_vddmin;
-	vdd->vp_rt_data.vlimitto_vddmax = vdd->pmic_info->vp_vddmax;
+	vdd->vp_rt_data.vlimitto_vddmin = voltdm->pmic->vp_vddmin;
+	vdd->vp_rt_data.vlimitto_vddmax = voltdm->pmic->vp_vddmax;
 
-	waittime = ((vdd->pmic_info->step_size / vdd->pmic_info->slew_rate) *
+	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
 				sys_clk_speed) / 1000;
 	vdd->vp_rt_data.vstepmin_smpswaittimemin = waittime;
 	vdd->vp_rt_data.vstepmax_smpswaittimemax = waittime;
-	vdd->vp_rt_data.vstepmin_stepmin = vdd->pmic_info->vp_vstepmin;
-	vdd->vp_rt_data.vstepmax_stepmax = vdd->pmic_info->vp_vstepmax;
+	vdd->vp_rt_data.vstepmin_stepmin = voltdm->pmic->vp_vstepmin;
+	vdd->vp_rt_data.vstepmax_stepmax = voltdm->pmic->vp_vstepmax;
 
 	return 0;
 }
@@ -149,10 +149,9 @@ static void __init vdd_debugfs_init(struct voltagedomain *voltdm)
 
 static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
 {
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	int ret = -EINVAL;
 
-	if (!vdd->pmic_info) {
+	if (!voltdm->pmic) {
 		pr_err("%s: PMIC info requried to configure vdd_%s not"
 			"populated.Hence cannot initialize vdd_%s\n",
 			__func__, voltdm->name, voltdm->name);
@@ -324,24 +323,20 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
  * omap_voltage_register_pmic() - API to register PMIC specific data
  * @voltdm:	pointer to the VDD for which the PMIC specific data is
  *		to be registered
- * @pmic_info:	the structure containing pmic info
+ * @pmic:	the structure containing pmic info
  *
  * This API is to be called by the SOC/PMIC file to specify the
- * pmic specific info as present in omap_volt_pmic_info structure.
+ * pmic specific info as present in omap_voltdm_pmic structure.
  */
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
-		struct omap_volt_pmic_info *pmic_info)
+			       struct omap_voltdm_pmic *pmic)
 {
-	struct omap_vdd_info *vdd;
-
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return -EINVAL;
 	}
 
-	vdd = voltdm->vdd;
-
-	vdd->pmic_info = pmic_info;
+	voltdm->pmic = pmic;
 
 	return 0;
 }

@@ -18,7 +18,6 @@ static void vp_latch_vsel(struct voltagedomain *voltdm)
 	u32 vpconfig;
 	unsigned long uvdc;
 	char vsel;
-	struct omap_vdd_info *vdd = voltdm->vdd;
 
 	uvdc = omap_voltage_get_nom_volt(voltdm);
 	if (!uvdc) {
@@ -27,13 +26,13 @@ static void vp_latch_vsel(struct voltagedomain *voltdm)
 		return;
 	}
 
-	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
+	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
 		pr_warning("%s: PMIC function to convert voltage in uV to"
 			" vsel not registered\n", __func__);
 		return;
 	}
 
-	vsel = vdd->pmic_info->uv_to_vsel(uvdc);
+	vsel = voltdm->pmic->uv_to_vsel(uvdc);
 
 	vpconfig = voltdm->read(vp->vpconfig);
 	vpconfig &= ~(vp->vp_common->vpconfig_initvoltage_mask |
@@ -206,13 +205,13 @@ unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm)
 
 	curr_vsel = voltdm->read(vp->voltage);
 
-	if (!vdd->pmic_info || !vdd->pmic_info->vsel_to_uv) {
+	if (!voltdm->pmic || !voltdm->pmic->vsel_to_uv) {
 		pr_warning("%s: PMIC function to convert vsel to voltage"
 			"in uV not registerd\n", __func__);
 		return 0;
 	}
 
-	return vdd->pmic_info->vsel_to_uv(curr_vsel);
+	return voltdm->pmic->vsel_to_uv(curr_vsel);
 }
 
 /**
@@ -323,13 +322,13 @@ static int vp_volt_debug_get(void *data, u64 *val)
 
 	vsel = voltdm->read(vp->voltage);
 
-	if (!vdd->pmic_info->vsel_to_uv) {
+	if (!voltdm->pmic->vsel_to_uv) {
 		pr_warning("PMIC function to convert vsel to voltage"
 			"in uV not registerd\n");
 		return -EINVAL;
 	}
 
-	*val = vdd->pmic_info->vsel_to_uv(vsel);
+	*val = voltdm->pmic->vsel_to_uv(vsel);
 	return 0;
 }
 

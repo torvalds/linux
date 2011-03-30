@@ -79,13 +79,13 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	vp_common = vdd->vp_data->vp_common;
 
 	/* Check if sufficient pmic info is available for this vdd */
-	if (!vdd->pmic_info) {
+	if (!voltdm->pmic) {
 		pr_err("%s: Insufficient pmic info to scale the vdd_%s\n",
 			__func__, voltdm->name);
 		return -EINVAL;
 	}
 
-	if (!vdd->pmic_info->uv_to_vsel) {
+	if (!voltdm->pmic->uv_to_vsel) {
 		pr_err("%s: PMIC function to convert voltage in uV to"
 			"vsel not registered. Hence unable to scale voltage"
 			"for vdd_%s\n", __func__, voltdm->name);
@@ -103,7 +103,7 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	if (IS_ERR(volt_data))
 		volt_data = NULL;
 
-	*target_vsel = vdd->pmic_info->uv_to_vsel(target_volt);
+	*target_vsel = voltdm->pmic->uv_to_vsel(target_volt);
 	*current_vsel = voltdm->read(vdd->vp_data->voltage);
 
 	/* Setting the ON voltage to the new target voltage */
@@ -134,8 +134,8 @@ void omap_vc_post_scale(struct voltagedomain *voltdm,
 
 	smps_steps = abs(target_vsel - current_vsel);
 	/* SMPS slew rate / step size. 2us added as buffer. */
-	smps_delay = ((smps_steps * vdd->pmic_info->step_size) /
-			vdd->pmic_info->slew_rate) + 2;
+	smps_delay = ((smps_steps * voltdm->pmic->step_size) /
+			voltdm->pmic->slew_rate) + 2;
 	udelay(smps_delay);
 
 	vdd->curr_volt = target_volt;
@@ -240,11 +240,10 @@ static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 {
 	struct omap_vc_channel *vc = voltdm->vc;
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	u8 on_vsel, onlp_vsel, ret_vsel, off_vsel;
 	u32 val;
 
-	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
+	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
 		pr_err("%s: PMIC info requried to configure vc for"
 			"vdd_%s not populated.Hence cannot initialize vc\n",
 			__func__, voltdm->name);
@@ -260,10 +259,10 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	vc->cfg_channel = 0;
 
 	/* get PMIC/board specific settings */
-	vc->i2c_slave_addr = vdd->pmic_info->i2c_slave_addr;
-	vc->volt_reg_addr = vdd->pmic_info->volt_reg_addr;
-	vc->cmd_reg_addr = vdd->pmic_info->cmd_reg_addr;
-	vc->setup_time = vdd->pmic_info->volt_setup_time;
+	vc->i2c_slave_addr = voltdm->pmic->i2c_slave_addr;
+	vc->volt_reg_addr = voltdm->pmic->volt_reg_addr;
+	vc->cmd_reg_addr = voltdm->pmic->cmd_reg_addr;
+	vc->setup_time = voltdm->pmic->volt_setup_time;
 
 	/* Configure the i2c slave address for this VC */
 	voltdm->rmw(vc->smps_sa_mask,
@@ -287,10 +286,10 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	}
 
 	/* Set up the on, inactive, retention and off voltage */
-	on_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->on_volt);
-	onlp_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->onlp_volt);
-	ret_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->ret_volt);
-	off_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->off_volt);
+	on_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->on_volt);
+	onlp_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->onlp_volt);
+	ret_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->ret_volt);
+	off_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->off_volt);
 	val = ((on_vsel << vc->common->cmd_on_shift) |
 	       (onlp_vsel << vc->common->cmd_onlp_shift) |
 	       (ret_vsel << vc->common->cmd_ret_shift) |
