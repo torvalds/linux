@@ -1685,6 +1685,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     }
     ether_setup(dev);
     ar_netif = ar6k_priv(dev);
+    SET_NETDEV_DEV(dev, osDevInfo.pOSDevice);
 #endif /* ATH6K_CONFIG_CFG80211 */
 
     if (ar_netif == NULL) {
@@ -1715,11 +1716,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
 
     init_netdev(dev, ifname);
 
-#ifdef SET_NETDEV_DEV
-    if (ar_netif) { 
-        SET_NETDEV_DEV(dev, osDevInfo.pOSDevice);
-    }
-#endif 
 
     ar->arNetDev             = dev;
     ar->arHifDevice          = hif_handle;
