@@ -691,7 +691,7 @@ static void drv_exit(void)
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] Entering drv_exit\n");
 
-#if 1
+#if 0
     misc_deregister(&miscdev);
 #else
 
@@ -754,10 +754,6 @@ module_exit(drv_exit);
 static void gpu_early_suspend(struct early_suspend *h)
 {
 	gceSTATUS status;
-    
-    //printk("Enter %s \n", __func__);
-
-    msleep(50); //Wait for gpu finish
 
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
 
@@ -766,27 +762,19 @@ static void gpu_early_suspend(struct early_suspend *h)
 	    printk("%s fail!\n", __func__);
 		return;
 	}
-
-	//printk("Exit %s \n", __func__);
 }
 
 static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
     
-    //printk("Enter %s \n", __func__);
-
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
-
-	msleep(50);
 
 	if (gcmIS_ERROR(status))
 	{
 	    printk("%s fail!\n", __func__);
 		return;
 	}
-
-	//printk("Exit %s \n", __func__);
 }
 
 struct early_suspend gpu_early_suspend_info = {
@@ -856,12 +844,8 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
-    
-    //printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
-
-	msleep(50); //Wait for gpu finish
 
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
 
@@ -871,8 +855,6 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 		return -1;
 	}
 
-	//printk("Exit %s \n", __func__);
-
 	return 0;
 }
 
@@ -880,31 +862,23 @@ static int __devinit gpu_resume(struct platform_device *dev)
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
-    
-    //printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
 
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE);
-
-	msleep(50);
 
 	if (gcmIS_ERROR(status))
 	{
 	    printk("%s fail!\n", __func__);
 		return -1;
 	}
-
-	//printk("Exit %s \n", __func__);
     
 	return 0;
 }
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
-    printk("Enter %s \n", __func__);
     drv_exit();
-    printk("Exit %s \n", __func__);
 }
 
 

@@ -3038,6 +3038,12 @@ gckHARDWARE_SetPowerManagementState(
                 gcmkFOOTER_NO();
                 return gcvSTATUS_OK;
             }
+            else if(gcvPOWER_IDLE==State)   // dkm add 110330
+            {
+                /* Bail out on idle broadcast with other process is setting power. */
+                gcmkFOOTER_NO();
+                return gcvSTATUS_OK;
+            }
             else
             {
                 /* Acquire the power mutex. */
@@ -3063,6 +3069,8 @@ gckHARDWARE_SetPowerManagementState(
     if ((flag == 0) || (Hardware->settingPowerState))
     {
         /* Release the power mutex. */
+        Hardware->powerProcess = 0;
+        Hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
         /* No need to do anything. */
@@ -3075,6 +3083,8 @@ gckHARDWARE_SetPowerManagementState(
     )
     {
         /* Release the power mutex. */
+        Hardware->powerProcess = 0;
+        Hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
         /* No broadcast while GPU is forced power off. */
@@ -3226,6 +3236,8 @@ gckHARDWARE_SetPowerManagementState(
     Hardware->settingPowerState = gcvFALSE;
 
     /* Release the power mutex. */
+    Hardware->powerProcess = 0;
+    Hardware->powerThread = 0;
     gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
     /* Success. */
@@ -3250,6 +3262,8 @@ OnError:
     {
         Hardware->settingPowerState = gcvFALSE;
 
+        Hardware->powerProcess = 0;
+        Hardware->powerThread = 0;
         gcmkVERIFY_OK(gckOS_ReleaseMutex(Hardware->os, Hardware->powerMutex));
     }
 

@@ -836,6 +836,8 @@ gckCOMMAND_Commit(
     if (powerAcquired)
     {
         /* Release the power mutex. */
+        hardware->powerProcess = 0;
+        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
         powerAcquired = gcvFALSE;
     }
@@ -1361,6 +1363,8 @@ OnError:
     if (powerAcquired)
     {
         /* Release the power mutex. */
+        hardware->powerProcess = 0;
+        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
     }
 
@@ -1463,6 +1467,8 @@ gckCOMMAND_Reserve(
     if (powerAcquired)
     {
         /* Release the power mutex. */
+        hardware->powerProcess = 0;
+        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os,
                                        Command->kernel->hardware->powerMutex));
         powerAcquired = gcvFALSE;
@@ -1550,6 +1556,8 @@ OnError:
     if (powerAcquired)
     {
         /* Release the power mutex. */
+        hardware->powerProcess = 0;
+        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os,
                                        Command->kernel->hardware->powerMutex));
     }
