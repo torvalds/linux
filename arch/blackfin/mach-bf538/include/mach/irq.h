@@ -9,7 +9,7 @@
 
 #include <mach-common/irq.h>
 
-#define NR_PERI_INTS    (2 * 32)
+#define NR_PERI_INTS		(2 * 32)
 
 #define IRQ_PLL_WAKEUP		BFIN_IRQ(0)	/* PLL Wakeup Interrupt */
 #define IRQ_DMA0_ERROR		BFIN_IRQ(1)	/* DMA Error 0 (generic) */
@@ -62,26 +62,26 @@
 
 #define SYS_IRQS		BFIN_IRQ(63)	/* 70 */
 
-#define IRQ_PF0         71
-#define IRQ_PF1         72
-#define IRQ_PF2         73
-#define IRQ_PF3         74
-#define IRQ_PF4         75
-#define IRQ_PF5         76
-#define IRQ_PF6         77
-#define IRQ_PF7         78
-#define IRQ_PF8         79
-#define IRQ_PF9         80
-#define IRQ_PF10        81
-#define IRQ_PF11        82
-#define IRQ_PF12        83
-#define IRQ_PF13        84
-#define IRQ_PF14        85
-#define IRQ_PF15        86
+#define IRQ_PF0			71
+#define IRQ_PF1			72
+#define IRQ_PF2			73
+#define IRQ_PF3			74
+#define IRQ_PF4			75
+#define IRQ_PF5			76
+#define IRQ_PF6			77
+#define IRQ_PF7			78
+#define IRQ_PF8			79
+#define IRQ_PF9			80
+#define IRQ_PF10		81
+#define IRQ_PF11		82
+#define IRQ_PF12		83
+#define IRQ_PF13		84
+#define IRQ_PF14		85
+#define IRQ_PF15		86
 
-#define GPIO_IRQ_BASE	IRQ_PF0
+#define GPIO_IRQ_BASE		IRQ_PF0
 
-#define NR_MACH_IRQS	(IRQ_PF15 + 1)
+#define NR_MACH_IRQS		(IRQ_PF15 + 1)
 
 /* IAR0 BIT FIELDS */
 #define IRQ_PLL_WAKEUP_POS	0
@@ -144,4 +144,5 @@
 #define IRQ_CAN_TX_POS		0
 #define IRQ_MEM1_DMA0_POS	4
 #define IRQ_MEM1_DMA1_POS	8
-#endif				/* _BF538_IRQ_H_ */
+
+#endif
