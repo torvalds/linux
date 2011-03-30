@@ -1143,7 +1143,7 @@ typedef struct {
 
 #define WATCHDOG_EN	0x0001	/* Watchdog Enabled */
 #define WATCHDOG_ISEL	0x0002	/* Select the watchdog interrupt */
-#define WATCHDOG_INTF	0x0080	/* Watchdog interrupt occcured */
+#define WATCHDOG_INTF	0x0080	/* Watchdog interrupt occurred */
 #define WATCHDOG_CNT_MASK  0x0300	/* Watchdog Counter */
 #define WATCHDOG_CNT_SHIFT 8
 
