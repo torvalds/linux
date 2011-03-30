@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/acpi.h>
+#include <linux/freezer.h>
 #include "tpm.h"
 
 #define TPM_HEADER_SIZE 10
@@ -120,7 +121,7 @@ static void release_locality(struct tpm_chip *chip, int l, int force)
 
 static int request_locality(struct tpm_chip *chip, int l)
 {
-	unsigned long stop;
+	unsigned long stop, timeout;
 	long rc;
 
 	if (check_locality(chip, l) >= 0)
@@ -129,17 +130,25 @@ static int request_locality(struct tpm_chip *chip, int l)
 	iowrite8(TPM_ACCESS_REQUEST_USE,
 		 chip->vendor.iobase + TPM_ACCESS(l));
 
+	stop = jiffies + chip->vendor.timeout_a;
+
 	if (chip->vendor.irq) {
+again:
+		timeout = stop - jiffies;
+		if ((long)timeout <= 0)
+			return -1;
 		rc = wait_event_interruptible_timeout(chip->vendor.int_queue,
 						      (check_locality
 						       (chip, l) >= 0),
-						      chip->vendor.timeout_a);
+						      timeout);
 		if (rc > 0)
 			return l;
-
+		if (rc == -ERESTARTSYS && freezing(current)) {
+			clear_thread_flag(TIF_SIGPENDING);
+			goto again;
+		}
 	} else {
 		/* wait for burstcount */
-		stop = jiffies + chip->vendor.timeout_a;
 		do {
 			if (check_locality(chip, l) >= 0)
 				return l;
@@ -196,15 +205,24 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 	if ((status & mask) == mask)
 		return 0;
 
+	stop = jiffies + timeout;
+
 	if (chip->vendor.irq) {
+again:
+		timeout = stop - jiffies;
+		if ((long)timeout <= 0)
+			return -ETIME;
 		rc = wait_event_interruptible_timeout(*queue,
 						      ((tpm_tis_status
 							(chip) & mask) ==
 						       mask), timeout);
 		if (rc > 0)
 			return 0;
+		if (rc == -ERESTARTSYS && freezing(current)) {
+			clear_thread_flag(TIF_SIGPENDING);
+			goto again;
+		}
 	} else {
-		stop = jiffies + timeout;
 		do {
 			msleep(TPM_TIMEOUT);
 			status = tpm_tis_status(chip);
