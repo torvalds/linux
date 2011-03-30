@@ -510,18 +510,18 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	if (ret < 0)
 		return ret;
 
-	fd = open_vmlinux(module);
-	if (fd < 0) {
-		pr_warning("Failed to open debug information file.\n");
-		return fd;
-	}
-
 	setup_pager();
 
-	for (i = 0; i < npevs && ret >= 0; i++)
+	for (i = 0; i < npevs && ret >= 0; i++) {
+		fd = open_vmlinux(module);
+		if (fd < 0) {
+			pr_warning("Failed to open debug information file.\n");
+			ret = fd;
+			break;
+		}
 		ret = show_available_vars_at(fd, &pevs[i], max_vls, _filter,
 					     externs);
-
+	}
 	return ret;
 }
 
