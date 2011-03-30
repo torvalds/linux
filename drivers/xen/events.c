@@ -912,8 +912,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      unsigned long irqflags,
 			      const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_evtchn_to_irq(evtchn);
 	if (irq < 0)
@@ -955,8 +954,7 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_virq_to_irq(virq, cpu);
 	if (irq < 0)
