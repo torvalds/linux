@@ -843,7 +843,10 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid SCSI completion handle %d.\n", index);
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		return;
 	}
 
@@ -861,7 +864,10 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid ISP SCSI completion handle\n");
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	}
 }
 
@@ -878,7 +884,10 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	if (index >= MAX_OUTSTANDING_COMMANDS) {
 		qla_printk(KERN_WARNING, ha,
 		    "%s: Invalid completion handle (%x).\n", func, index);
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		goto done;
 	}
 	sp = req->outstanding_cmds[index];
@@ -1564,7 +1573,10 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		    "scsi(%ld): Invalid status handle (0x%x).\n", vha->host_no,
 		    sts->handle);
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 		return;
 	}
@@ -1909,13 +1921,17 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 		qla2x00_sp_compl(ha, sp);
 
 	} else if (pkt->entry_type == COMMAND_A64_TYPE || pkt->entry_type ==
-	    COMMAND_TYPE || pkt->entry_type == COMMAND_TYPE_7) {
+		COMMAND_TYPE || pkt->entry_type == COMMAND_TYPE_7
+		|| pkt->entry_type == COMMAND_TYPE_6) {
 		DEBUG2(printk("scsi(%ld): Error entry - invalid handle\n",
-		    vha->host_no));
+			vha->host_no));
 		qla_printk(KERN_WARNING, ha,
-		    "Error entry - invalid handle\n");
+			"Error entry - invalid handle\n");
 
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 	}
 }

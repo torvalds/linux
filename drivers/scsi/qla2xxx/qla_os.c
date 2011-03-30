@@ -3612,7 +3612,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 	/* Loop down handler. */
 	if (atomic_read(&vha->loop_down_timer) > 0 &&
-	    !(test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+	    !(test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) &&
+	    !(test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags))
 		&& vha->flags.online) {
 
 		if (atomic_read(&vha->loop_down_timer) ==
@@ -3648,7 +3649,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 					if (!(sfcp->flags & FCF_FCP2_DEVICE))
 						continue;
 
-					set_bit(ISP_ABORT_NEEDED,
+					if (IS_QLA82XX(ha))
+						set_bit(FCOE_CTX_RESET_NEEDED,
+							&vha->dpc_flags);
+					else
+						set_bit(ISP_ABORT_NEEDED,
 							&vha->dpc_flags);
 					break;
 				}
@@ -3667,7 +3672,12 @@ qla2x00_timer(scsi_qla_host_t *vha)
 				qla_printk(KERN_WARNING, ha,
 				    "Loop down - aborting ISP.\n");
 
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				if (IS_QLA82XX(ha))
+					set_bit(FCOE_CTX_RESET_NEEDED,
+						&vha->dpc_flags);
+				else
+					set_bit(ISP_ABORT_NEEDED,
+						&vha->dpc_flags);
 			}
 		}
 		DEBUG3(printk("scsi(%ld): Loop Down - seconds remaining %d\n",
