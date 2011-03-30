@@ -40,7 +40,7 @@ static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
-	gfs2_assert_withdraw(sdp, test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
+	BUG_ON(!current->journal_info);
 
 	clear_buffer_dirty(bh);
 	if (test_set_buffer_pinned(bh))
@@ -65,6 +65,7 @@ static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
  * @sdp: the filesystem the buffer belongs to
  * @bh: The buffer to unpin
  * @ai:
+ * @flags: The inode dirty flags
  *
  */
 
@@ -73,10 +74,8 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 {
 	struct gfs2_bufdata *bd = bh->b_private;
 
-	gfs2_assert_withdraw(sdp, buffer_uptodate(bh));
-
-	if (!buffer_pinned(bh))
-		gfs2_assert_withdraw(sdp, 0);
+	BUG_ON(!buffer_uptodate(bh));
+	BUG_ON(!buffer_pinned(bh));
 
 	lock_buffer(bh);
 	mark_buffer_dirty(bh);
@@ -95,8 +94,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
-	if (test_and_clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags))
-		gfs2_glock_schedule_for_reclaim(bd->bd_gl);
+	clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 	trace_gfs2_pin(bd, 0);
 	unlock_buffer(bh);
 	atomic_dec(&sdp->sd_log_pinned);

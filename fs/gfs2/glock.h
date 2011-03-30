@@ -225,11 +225,10 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 
 extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
-extern void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
 extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
-extern void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);
+extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
 extern void gfs2_glock_free(struct gfs2_glock *gl);
 
 extern int __init gfs2_glock_init(void);

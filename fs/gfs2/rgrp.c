@@ -392,6 +392,7 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 
 		if (gl) {
 			gl->gl_object = NULL;
+			gfs2_glock_add_to_lru(gl);
 			gfs2_glock_put(gl);
 		}
 

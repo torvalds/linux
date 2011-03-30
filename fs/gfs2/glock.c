@@ -160,6 +160,19 @@ static int demote_ok(const struct gfs2_glock *gl)
 }
 
 
+void gfs2_glock_add_to_lru(struct gfs2_glock *gl)
+{
+	spin_lock(&lru_lock);
+
+	if (!list_empty(&gl->gl_lru))
+		list_del_init(&gl->gl_lru);
+	else
+		atomic_inc(&lru_count);
+
+	list_add_tail(&gl->gl_lru, &lru_list);
+	spin_unlock(&lru_lock);
+}
+
 /**
  * __gfs2_glock_schedule_for_reclaim - Add a glock to the reclaim list
  * @gl: the glock
@@ -170,24 +183,8 @@ static int demote_ok(const struct gfs2_glock *gl)
 
 static void __gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
 {
-	if (demote_ok(gl)) {
-		spin_lock(&lru_lock);
-
-		if (!list_empty(&gl->gl_lru))
-			list_del_init(&gl->gl_lru);
-		else
-			atomic_inc(&lru_count);
-
-		list_add_tail(&gl->gl_lru, &lru_list);
-		spin_unlock(&lru_lock);
-	}
-}
-
-void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
-{
-	spin_lock(&gl->gl_spin);
-	__gfs2_glock_schedule_for_reclaim(gl);
-	spin_unlock(&gl->gl_spin);
+	if (demote_ok(gl))
+		gfs2_glock_add_to_lru(gl);
 }
 
 /**
