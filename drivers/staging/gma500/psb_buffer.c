@@ -76,14 +76,6 @@ static int psb_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_UNCACHED;
 		man->default_caching = TTM_PL_FLAG_UNCACHED;
 		break;
-	case TTM_PL_RAR:	/* Unmappable RAR memory */
-		man->func = &ttm_bo_manager_func;
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE |
-			TTM_MEMTYPE_FLAG_FIXED;
-		man->available_caching = TTM_PL_FLAG_UNCACHED;
-		man->default_caching = TTM_PL_FLAG_UNCACHED;
-		man->gpu_offset = pg->mmu_gatt_start + (pg->rar_start);
-		break;
 	case TTM_PL_TT:	/* Mappable GATT memory */
 		man->func = &ttm_bo_manager_func;
 #ifdef PSB_WORKING_HOST_MMU_ACCESS
@@ -95,8 +87,7 @@ static int psb_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_CACHED |
 		    TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		man->gpu_offset = pg->mmu_gatt_start +
-				(pg->rar_start + dev_priv->rar_region_size);
+		man->gpu_offset = pg->mmu_gatt_start;
 		break;
 	default:
 		DRM_ERROR("Unsupported memory type %u\n", (unsigned) type);
@@ -385,11 +376,6 @@ static int psb_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 	case TTM_PL_CI:
 		mem->bus.offset = mm_node->start << PAGE_SHIFT;
 		mem->bus.base = dev_priv->ci_region_start;;
-		mem->bus.is_iomem = true;
-		break;
-	case TTM_PL_RAR:
-		mem->bus.offset = mm_node->start << PAGE_SHIFT;
-		mem->bus.base = dev_priv->rar_region_start;;
 		mem->bus.is_iomem = true;
 		break;
 	default:

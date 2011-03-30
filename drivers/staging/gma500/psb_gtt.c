@@ -76,7 +76,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned gtt_pages;
 	unsigned long stolen_size, vram_stolen_size, ci_stolen_size;
-	unsigned long rar_stolen_size;
 	unsigned i, num_pages;
 	unsigned pfn_base;
 	uint32_t ci_pages, vram_pages;
@@ -118,8 +117,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	 * managed by TTM to stolen_size */
 	stolen_size = vram_stolen_size;
 
-	rar_stolen_size = dev_priv->rar_region_size;
-
 	printk(KERN_INFO"GMMADR(region 0) start: 0x%08x (%dM).\n",
 		pg->gatt_start, pg->gatt_pages/256);
 	printk(KERN_INFO"GTTADR(region 3) start: 0x%08x (can map %dM RAM), and actual RAM base 0x%08x.\n",
@@ -136,10 +133,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 		printk(KERN_INFO"CI Stole memory: RAM base = 0x%08x, size = %lu M\n",
 				dev_priv->ci_region_start,
 				ci_stolen_size / 1024 / 1024);
-	if (rar_stolen_size > 0)
-		printk(KERN_INFO "RAR Stole memory: RAM base = 0x%08x, size = %lu M\n",
-			dev_priv->rar_region_start,
-			rar_stolen_size / 1024 / 1024);
 
 	if (resume && (gtt_pages != pg->gtt_pages) &&
 	    (stolen_size != pg->stolen_size)) {
@@ -152,7 +145,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 	pg->stolen_size = stolen_size;
 	pg->vram_stolen_size = vram_stolen_size;
 	pg->ci_stolen_size = ci_stolen_size;
-	pg->rar_stolen_size = rar_stolen_size;
 	pg->gtt_map =
 	    ioremap_nocache(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
 	if (!pg->gtt_map) {
@@ -209,20 +201,6 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 		iowrite32(pte, ttm_gtt_map + i);
 	}
 
-	/*
-	 * insert RAR stolen pages
-	 */
-	if (rar_stolen_size != 0) {
-		pfn_base = dev_priv->rar_region_start >> PAGE_SHIFT;
-		num_pages = rar_stolen_size >> PAGE_SHIFT;
-		printk(KERN_INFO"Set up %d RAR stolen pages starting at 0x%08x, GTT offset %dK\n",
-			num_pages, pfn_base,
-			(ttm_gtt_map - pg->gtt_map + i) * 4);
-		for (; i < num_pages + ci_pages; ++i) {
-			pte = psb_gtt_mask_pte(pfn_base + i - ci_pages, 0);
-			iowrite32(pte, ttm_gtt_map + i);
-		}
-	}
 	/*
 	 * Init rest of gtt managed by TTM.
 	 */

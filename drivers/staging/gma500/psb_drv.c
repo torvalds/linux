@@ -321,11 +321,6 @@ static void psb_do_takedown(struct drm_device *dev)
 		ttm_bo_clean_mm(bdev, TTM_PL_CI);
 		dev_priv->have_camera = 0;
 	}
-	if (dev_priv->have_rar) {
-		ttm_bo_clean_mm(bdev, TTM_PL_RAR);
-		dev_priv->have_rar = 0;
-	}
-
 }
 
 void mrst_get_fuse_settings(struct drm_device *dev)
@@ -647,7 +642,7 @@ static int psb_do_init(struct drm_device *dev)
 	if (!ttm_bo_init_mm(bdev, TTM_PL_TT,
 			pg->gatt_pages -
 			(pg->ci_start >> PAGE_SHIFT) -
-			((dev_priv->ci_region_size + dev_priv->rar_region_size)
+			((dev_priv->ci_region_size)
 			 >> PAGE_SHIFT))) {
 
 		dev_priv->have_tt = 1;
@@ -707,12 +702,6 @@ static int psb_driver_unload(struct drm_device *dev)
 					(dev_priv->mmu),
 					pg->ci_start,
 					pg->ci_stolen_size >> PAGE_SHIFT);
-			if (pg->rar_stolen_size != 0)
-				psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->rar_start,
-					pg->rar_stolen_size >> PAGE_SHIFT);
 			up_read(&pg->sem);
 			psb_mmu_driver_takedown(dev_priv->mmu);
 			dev_priv->mmu = NULL;
@@ -883,7 +872,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	/* CI/RAR use the lower half of TT. */
 	pg->ci_start = (tt_pages / 2) << PAGE_SHIFT;
-	pg->rar_start = pg->ci_start + pg->ci_stolen_size;
 
 
 	/*
@@ -896,21 +884,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 				dev_priv->ci_region_start >> PAGE_SHIFT,
 				pg->mmu_gatt_start + pg->ci_start,
 				pg->ci_stolen_size >> PAGE_SHIFT, 0);
-		up_read(&pg->sem);
-		if (ret)
-			goto out_err;
-	}
-
-	/*
-	 * Make MSVDX/TOPAZ MMU aware of the rar stolen memory area.
-	 */
-	if (dev_priv->pg->rar_stolen_size != 0) {
-		down_read(&pg->sem);
-		ret = psb_mmu_insert_pfn_sequence(
-				psb_mmu_get_default_pd(dev_priv->mmu),
-				dev_priv->rar_region_start >> PAGE_SHIFT,
-				pg->mmu_gatt_start + pg->rar_start,
-				pg->rar_stolen_size >> PAGE_SHIFT, 0);
 		up_read(&pg->sem);
 		if (ret)
 			goto out_err;

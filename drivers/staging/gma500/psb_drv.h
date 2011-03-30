@@ -606,12 +606,6 @@ struct drm_psb_private {
 	unsigned int ci_region_size;
 
 	/*
-	 * RAR share buffer;
-	 */
-	unsigned int rar_region_start;
-	unsigned int rar_region_size;
-
-	/*
 	 *Memory managers
 	 */
 
