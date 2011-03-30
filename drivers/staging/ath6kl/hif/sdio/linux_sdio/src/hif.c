@@ -144,7 +144,6 @@ static void ath6kl_hifdev_remove(struct sdio_func *func)
 {
 	int status = 0;
 	struct hif_device *device;
-	AR_DEBUG_ASSERT(func != NULL);
 
 	device = ath6kl_get_hifdev(func);
 	if (device->claimedContext != NULL)
@@ -159,8 +158,6 @@ static void ath6kl_hifdev_remove(struct sdio_func *func)
 	CleanupHIFScatterResources(device);
 
 	delHifDevice(device);
-	AR_DEBUG_ASSERT(status == 0);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceRemoved\n"));
 }
 
 #if defined(CONFIG_PM)
@@ -171,7 +168,6 @@ static int ath6kl_hifdev_suspend(struct device *dev)
 	struct hif_device *device;
 
 	device = ath6kl_get_hifdev(func);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +ath6kl_hifdev_suspend\n"));
 
 	if (device && device->claimedContext &&
 	    osdrvCallbacks.deviceSuspendHandler) {
@@ -184,7 +180,6 @@ static int ath6kl_hifdev_suspend(struct device *dev)
 	}
 
 	CleanupHIFScatterResources(device);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -ath6kl_hifdev_suspend\n"));
 
 	switch (status) {
 	case 0:
@@ -204,7 +199,6 @@ static int ath6kl_hifdev_resume(struct device *dev)
 	struct hif_device *device;
 
 	device = ath6kl_get_hifdev(func);
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +ath6kl_hifdev_resume\n"));
 	if (device && device->claimedContext &&
 	    osdrvCallbacks.deviceSuspendHandler) {
 		status = osdrvCallbacks.
@@ -212,7 +206,6 @@ static int ath6kl_hifdev_resume(struct device *dev)
 		if (status == 0)
 			device->is_suspend = false;
 	}
-	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -ath6kl_hifdev_resume\n"));
 
 	return status;
 }
