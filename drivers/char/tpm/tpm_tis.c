@@ -438,7 +438,7 @@ static irqreturn_t tis_int_probe(int irq, void *dev_id)
 	if (interrupt == 0)
 		return IRQ_NONE;
 
-	chip->vendor.irq = irq;
+	chip->vendor.probed_irq = irq;
 
 	/* Clear interrupts handled with TPM_EOI */
 	iowrite32(interrupt,
@@ -486,7 +486,7 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 			resource_size_t len, unsigned int irq)
 {
 	u32 vendor, intfcaps, intmask;
-	int rc, i;
+	int rc, i, irq_s, irq_e;
 	struct tpm_chip *chip;
 
 	if (!(chip = tpm_register_hardware(dev, &tpm_tis)))
@@ -544,6 +544,9 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	if (intfcaps & TPM_INTF_DATA_AVAIL_INT)
 		dev_dbg(dev, "\tData Avail Int Support\n");
 
+	/* get the timeouts before testing for irqs */
+	tpm_get_timeouts(chip);
+
 	/* INTERRUPT Setup */
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
@@ -562,13 +565,19 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	if (interrupts)
 		chip->vendor.irq = irq;
 	if (interrupts && !chip->vendor.irq) {
-		chip->vendor.irq =
+		irq_s =
 		    ioread8(chip->vendor.iobase +
 			    TPM_INT_VECTOR(chip->vendor.locality));
+		if (irq_s) {
+			irq_e = irq_s;
+		} else {
+			irq_s = 3;
+			irq_e = 15;
+		}
 
-		for (i = 3; i < 16 && chip->vendor.irq == 0; i++) {
+		for (i = irq_s; i <= irq_e && chip->vendor.irq == 0; i++) {
 			iowrite8(i, chip->vendor.iobase +
-				    TPM_INT_VECTOR(chip->vendor.locality));
+				 TPM_INT_VECTOR(chip->vendor.locality));
 			if (request_irq
 			    (i, tis_int_probe, IRQF_SHARED,
 			     chip->vendor.miscdev.name, chip) != 0) {
@@ -590,8 +599,21 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
 
+			chip->vendor.probed_irq = 0;
+
 			/* Generate Interrupts */
 			tpm_gen_interrupt(chip);
+
+			chip->vendor.irq = chip->vendor.probed_irq;
+
+			/* free_irq will call into tis_int_probe;
+			   clear all irqs we haven't seen while doing
+			   tpm_gen_interrupt */
+			iowrite32(ioread32
+				  (chip->vendor.iobase +
+				   TPM_INT_STATUS(chip->vendor.locality)),
+				  chip->vendor.iobase +
+				  TPM_INT_STATUS(chip->vendor.locality));
 
 			/* Turn off */
 			iowrite32(intmask,
@@ -631,7 +653,6 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	list_add(&chip->vendor.list, &tis_chips);
 	spin_unlock(&tis_lock);
 
-	tpm_get_timeouts(chip);
 	tpm_continue_selftest(chip);
 
 	return 0;

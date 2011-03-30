@@ -71,6 +71,7 @@ struct tpm_vendor_specific {
 	unsigned long base;		/* TPM base address */
 
 	int irq;
+	int probed_irq;
 
 	int region_size;
 	int have_region;
