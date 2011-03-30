@@ -1528,7 +1528,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->recovery_work);
 }
 
-static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
+void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
 {
 	wl1271_set_default_filters(wl);
 
@@ -1650,7 +1650,7 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	memset(wl->bssid, 0, ETH_ALEN);
 
-	/* stop filterting packets based on bssid */
+	/* stop filtering packets based on bssid */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 out:

@@ -70,6 +70,28 @@ static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 	}
 }
 
+static int wl1271_tx_update_filters(struct wl1271 *wl,
+						 struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *)(skb->data +
+				       sizeof(struct wl1271_tx_hw_descr));
+
+	/*
+	 * stop bssid-based filtering before transmitting authentication
+	 * requests. this way the hw will never drop authentication
+	 * responses coming from BSSIDs it isn't familiar with (e.g. on
+	 * roaming)
+	 */
+	if (!ieee80211_is_auth(hdr->frame_control))
+		return 0;
+
+	wl1271_configure_filters(wl, FIF_OTHER_BSS);
+
+	return wl1271_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
+}
+
 static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 						 struct sk_buff *skb)
 {
@@ -350,6 +372,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
 		wl1271_tx_regulate_link(wl, hlid);
+	} else {
+		wl1271_tx_update_filters(wl, skb);
 	}
 
 	wl1271_tx_fill_hdr(wl, skb, extra, info, hlid);
