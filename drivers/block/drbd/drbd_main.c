@@ -703,27 +703,29 @@ unsigned int drbd_header_size(struct drbd_tconn *tconn)
 	return sizeof(struct p_header80);
 }
 
-static void prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
+static unsigned int prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
 {
 	h->magic   = cpu_to_be32(DRBD_MAGIC);
 	h->command = cpu_to_be16(cmd);
 	h->length  = cpu_to_be16(size);
+	return sizeof(struct p_header80);
 }
 
-static void prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int size)
+static unsigned int prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int size)
 {
 	h->magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 	h->command = cpu_to_be16(cmd);
 	h->length  = cpu_to_be32(size);
+	return sizeof(struct p_header95);
 }
 
-static void prepare_header(struct drbd_tconn *tconn, int vnr, struct p_header *h,
-			   enum drbd_packet cmd, int size)
+static unsigned int prepare_header(struct drbd_tconn *tconn, int vnr, void *buffer,
+				   enum drbd_packet cmd, int size)
 {
 	if (tconn->agreed_pro_version >= 95)
-		prepare_header95(&h->h95, cmd, size);
+		return prepare_header95(buffer, cmd, size);
 	else
-		prepare_header80(&h->h80, cmd, size);
+		return prepare_header80(buffer, cmd, size);
 }
 
 void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
@@ -733,7 +735,7 @@ void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
 		mutex_unlock(&sock->mutex);
 		return NULL;
 	}
-	return sock->sbuf;
+	return sock->sbuf + drbd_header_size(tconn);
 }
 
 void *drbd_prepare_command(struct drbd_conf *mdev, struct drbd_socket *sock)
@@ -758,8 +760,8 @@ static int __send_command(struct drbd_tconn *tconn, int vnr,
 	 */
 	msg_flags = data ? MSG_MORE : 0;
 
-	prepare_header(tconn, vnr, sock->sbuf, cmd,
-		       header_size - sizeof(struct p_header) + size);
+	header_size += prepare_header(tconn, vnr, sock->sbuf, cmd,
+				      header_size + size);
 	err = drbd_send_all(tconn, sock->socket, sock->sbuf, header_size,
 			    msg_flags);
 	if (data && !err)
@@ -797,7 +799,7 @@ int drbd_send_ping(struct drbd_tconn *tconn)
 	sock = &tconn->meta;
 	if (!conn_prepare_command(tconn, sock))
 		return -EIO;
-	return conn_send_command(tconn, sock, P_PING, sizeof(struct p_header), NULL, 0);
+	return conn_send_command(tconn, sock, P_PING, 0, NULL, 0);
 }
 
 int drbd_send_ping_ack(struct drbd_tconn *tconn)
@@ -807,7 +809,7 @@ int drbd_send_ping_ack(struct drbd_tconn *tconn)
 	sock = &tconn->meta;
 	if (!conn_prepare_command(tconn, sock))
 		return -EIO;
-	return conn_send_command(tconn, sock, P_PING_ACK, sizeof(struct p_header), NULL, 0);
+	return conn_send_command(tconn, sock, P_PING_ACK, 0, NULL, 0);
 }
 
 int drbd_send_sync_param(struct drbd_conf *mdev)
@@ -1205,10 +1207,11 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 {
 	struct drbd_socket *sock = &mdev->tconn->data;
 	unsigned int header_size = drbd_header_size(mdev->tconn);
-	struct p_compressed_bm *p = sock->sbuf;
+	struct p_compressed_bm *p = sock->sbuf + header_size;
 	int len, err;
 
-	len = fill_bitmap_rle_bits(mdev, p, DRBD_SOCKET_BUFFER_SIZE - sizeof(*p) /* FIXME */, c);
+	len = fill_bitmap_rle_bits(mdev, p,
+			DRBD_SOCKET_BUFFER_SIZE - header_size - sizeof(*p), c);
 	if (len < 0)
 		return -EIO;
 
@@ -1218,7 +1221,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 				     P_COMPRESSED_BITMAP, sizeof(*p) + len,
 				     NULL, 0);
 		c->packets[0]++;
-		c->bytes[0] += sizeof(*p) + len;
+		c->bytes[0] += header_size + sizeof(*p) + len;
 
 		if (c->bit_offset >= c->bm_bits)
 			len = 0; /* DONE */
@@ -1227,17 +1230,15 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 		 * send a buffer full of plain text bits instead. */
 		unsigned int data_size;
 		unsigned long num_words;
-		struct p_header *h = sock->sbuf;
+		unsigned long *p = sock->sbuf + header_size;
 
 		data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
-		num_words = min_t(size_t, data_size / sizeof(unsigned long),
+		num_words = min_t(size_t, data_size / sizeof(*p),
 				  c->bm_words - c->word_offset);
-		len = num_words * sizeof(unsigned long);
+		len = num_words * sizeof(*p);
 		if (len)
-			drbd_bm_get_lel(mdev, c->word_offset, num_words,
-					(unsigned long *)h->payload);
-		err = __send_command(mdev->tconn, mdev->vnr, sock, P_BITMAP,
-				     sizeof(*h) + len, NULL, 0);
+			drbd_bm_get_lel(mdev, c->word_offset, num_words, p);
+		err = __send_command(mdev->tconn, mdev->vnr, sock, P_BITMAP, len, NULL, 0);
 		c->word_offset += num_words;
 		c->bit_offset = c->word_offset * BITS_PER_LONG;
 
@@ -2555,8 +2556,6 @@ void drbd_free_mdev(struct drbd_conf *mdev)
 int __init drbd_init(void)
 {
 	int err;
-
-	BUILD_BUG_ON(sizeof(struct p_connection_features) != 80);
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
 		printk(KERN_ERR

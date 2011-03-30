@@ -307,31 +307,7 @@ struct p_header95 {
 	u32	  length;	/* Use only 24 bits of that. Ignore the highest 8 bit. */
 } __packed;
 
-struct p_header {
-	union {
-		struct p_header80 h80;
-		struct p_header95 h95;
-	};
-	u8	  payload[0];
-};
-
 extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
-
-/*
- * short commands, packets without payload, plain p_header:
- *   P_PING
- *   P_PING_ACK
- *   P_BECOME_SYNC_TARGET
- *   P_BECOME_SYNC_SOURCE
- *   P_UNPLUG_REMOTE
- */
-
-/*
- * commands with out-of-struct payload:
- *   P_BITMAP    (no additional fields)
- *   P_DATA, P_DATA_REPLY (see p_data)
- *   P_COMPRESSED_BITMAP (see receive_compressed_bitmap)
- */
 
 /* these defines must not be changed without changing the protocol version */
 #define DP_HARDBARRIER	      1 /* depricated */
@@ -343,7 +319,6 @@ extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
 #define DP_DISCARD           64 /* equals REQ_DISCARD */
 
 struct p_data {
-	struct p_header head;
 	u64	    sector;    /* 64 bits sector number */
 	u64	    block_id;  /* to identify the request in protocol B&C */
 	u32	    seq_num;
@@ -359,7 +334,6 @@ struct p_data {
  *   P_DATA_REQUEST, P_RS_DATA_REQUEST
  */
 struct p_block_ack {
-	struct p_header head;
 	u64	    sector;
 	u64	    block_id;
 	u32	    blksize;
@@ -367,7 +341,6 @@ struct p_block_ack {
 } __packed;
 
 struct p_block_req {
-	struct p_header head;
 	u64 sector;
 	u64 block_id;
 	u32 blksize;
@@ -384,7 +357,6 @@ struct p_block_req {
  */
 
 struct p_connection_features {
-	struct p_header head;   /* Note: vnr will be ignored */
 	u32 protocol_min;
 	u32 feature_flags;
 	u32 protocol_max;
@@ -396,22 +368,18 @@ struct p_connection_features {
 	u32 _pad;
 	u64 reserverd[7];
 } __packed;
-/* 80 bytes, FIXED for the next century */
 
 struct p_barrier {
-	struct p_header head;
 	u32 barrier;	/* barrier number _handle_ only */
 	u32 pad;	/* to multiple of 8 Byte */
 } __packed;
 
 struct p_barrier_ack {
-	struct p_header head;
 	u32 barrier;
 	u32 set_size;
 } __packed;
 
 struct p_rs_param {
-	struct p_header head;
 	u32 rate;
 
 	      /* Since protocol version 88 and higher. */
@@ -419,7 +387,6 @@ struct p_rs_param {
 } __packed;
 
 struct p_rs_param_89 {
-	struct p_header head;
 	u32 rate;
         /* protocol version 89: */
 	char verify_alg[SHARED_SECRET_MAX];
@@ -427,7 +394,6 @@ struct p_rs_param_89 {
 } __packed;
 
 struct p_rs_param_95 {
-	struct p_header head;
 	u32 rate;
 	char verify_alg[SHARED_SECRET_MAX];
 	char csums_alg[SHARED_SECRET_MAX];
@@ -443,7 +409,6 @@ enum drbd_conn_flags {
 };
 
 struct p_protocol {
-	struct p_header head;
 	u32 protocol;
 	u32 after_sb_0p;
 	u32 after_sb_1p;
@@ -457,17 +422,14 @@ struct p_protocol {
 } __packed;
 
 struct p_uuids {
-	struct p_header head;
 	u64 uuid[UI_EXTENDED_SIZE];
 } __packed;
 
 struct p_rs_uuid {
-	struct p_header head;
 	u64	    uuid;
 } __packed;
 
 struct p_sizes {
-	struct p_header head;
 	u64	    d_size;  /* size of disk */
 	u64	    u_size;  /* user requested size */
 	u64	    c_size;  /* current exported size */
@@ -477,18 +439,15 @@ struct p_sizes {
 } __packed;
 
 struct p_state {
-	struct p_header head;
 	u32	    state;
 } __packed;
 
 struct p_req_state {
-	struct p_header head;
 	u32	    mask;
 	u32	    val;
 } __packed;
 
 struct p_req_state_reply {
-	struct p_header head;
 	u32	    retcode;
 } __packed;
 
@@ -503,14 +462,12 @@ struct p_drbd06_param {
 } __packed;
 
 struct p_discard {
-	struct p_header head;
 	u64	    block_id;
 	u32	    seq_num;
 	u32	    pad;
 } __packed;
 
 struct p_block_desc {
-	struct p_header head;
 	u64 sector;
 	u32 blksize;
 	u32 pad;	/* to multiple of 8 Byte */
@@ -526,7 +483,6 @@ enum drbd_bitmap_code {
 };
 
 struct p_compressed_bm {
-	struct p_header head;
 	/* (encoding & 0x0f): actual encoding, see enum drbd_bitmap_code
 	 * (encoding & 0x80): polarity (set/unset) of first runlength
 	 * ((encoding >> 4) & 0x07): pad_bits, number of trailing zero bits
@@ -538,7 +494,6 @@ struct p_compressed_bm {
 } __packed;
 
 struct p_delay_probe93 {
-	struct p_header head;
 	u32     seq_num; /* sequence number to match the two probe packets */
 	u32     offset;  /* usecs the probe got sent after the reference time point */
 } __packed;

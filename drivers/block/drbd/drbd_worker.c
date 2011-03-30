@@ -1229,7 +1229,7 @@ int w_send_write_hint(struct drbd_work *w, int cancel)
 	sock = &mdev->tconn->data;
 	if (!drbd_prepare_command(mdev, sock))
 		return -EIO;
-	return drbd_send_command(mdev, sock, P_UNPLUG_REMOTE, sizeof(struct p_header), NULL, 0);
+	return drbd_send_command(mdev, sock, P_UNPLUG_REMOTE, 0, NULL, 0);
 }
 
 int w_send_out_of_sync(struct drbd_work *w, int cancel)
