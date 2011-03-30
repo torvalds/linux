@@ -33,9 +33,7 @@
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/wireless.h>
-#ifdef ATH6K_CONFIG_CFG80211
 #include <net/cfg80211.h>
-#endif /* ATH6K_CONFIG_CFG80211 */
 #include <linux/module.h>
 #include <asm/io.h>
 
@@ -373,7 +371,6 @@ struct ar_wep_key {
     u8 arKey[64];
 } ;
 
-#ifdef ATH6K_CONFIG_CFG80211
 struct ar_key {
     u8 key[WLAN_MAX_KEY_LEN];
     u8 key_len;
@@ -387,8 +384,6 @@ enum {
     SME_CONNECTING,
     SME_CONNECTED
 };
-#endif /* ATH6K_CONFIG_CFG80211 */
-
 
 struct ar_node_mapping {
     u8 macAddress[6];
@@ -584,12 +579,10 @@ struct ar6_softc {
 	WMI_BTCOEX_STATS_EVENT  arBtcoexStats;
     s32 (*exitCallback)(void *config);  /* generic callback at AR6K exit */
     struct hif_device_os_device_info   osDevInfo;
-#ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
     struct cfg80211_scan_request    *scan_request;
     struct ar_key   keys[WMI_MAX_KEY_INDEX + 1];
     u32 smeState;
-#endif /* ATH6K_CONFIG_CFG80211 */
     u16 arWlanPowerState;
     bool                  arWlanOff;
 #ifdef CONFIG_PM
@@ -619,30 +612,10 @@ struct ar_virtual_interface {
 };
 #endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
 
-#ifdef ATH6K_CONFIG_CFG80211
 static inline void *ar6k_priv(struct net_device *dev)
 {
     return (wdev_priv(dev->ieee80211_ptr));
 }
-#else
-#ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
-static inline void *ar6k_priv(struct net_device *dev)
-{
-    extern struct net_device *arApNetDev;
-
-    if (arApNetDev == dev) {
-        /* return arDev saved in virtual interface context */
-        struct ar_virtual_interface *arVirDev;
-        arVirDev = netdev_priv(dev);
-        return arVirDev->arDev;   
-    } else {
-        return netdev_priv(dev);
-    }
-}
-#else
-#define ar6k_priv   netdev_priv
-#endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
-#endif /* ATH6K_CONFIG_CFG80211 */
 
 #define SET_HCI_BUS_TYPE(pHciDev, __bus, __type) do { \
     (pHciDev)->bus = (__bus); \
@@ -688,9 +661,6 @@ struct ar_giwscan_param {
     spin_unlock_bh(lock);                                               \
 } while (0)
 
-int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-int ar6000_ioctl_dispatcher(struct net_device *dev, struct ifreq *rq, int cmd);
-void ar6000_gpio_init(void);
 void ar6000_init_profile_info(struct ar6_softc *ar);
 void ar6000_install_static_wep_keys(struct ar6_softc *ar);
 int ar6000_init(struct net_device *dev);

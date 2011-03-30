@@ -27,9 +27,7 @@
  */
 
 #include "ar6000_drv.h"
-#ifdef ATH6K_CONFIG_CFG80211
 #include "cfg80211.h"
-#endif /* ATH6K_CONFIG_CFG80211 */
 #include "htc.h"
 #include "wmi_filter_linux.h"
 #include "epping_test.h"
@@ -284,7 +282,6 @@ void ar6000_destroy(struct net_device *dev, unsigned int unregister);
 static void ar6000_detect_error(unsigned long ptr);
 static void	ar6000_set_multicast_list(struct net_device *dev);
 static struct net_device_stats *ar6000_get_stats(struct net_device *dev);
-static struct iw_statistics *ar6000_get_iwstats(struct net_device * dev);
 
 static void disconnect_timer_handler(unsigned long ptr);
 
@@ -348,7 +345,6 @@ ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode);
 
 struct net_device *ar6000_devices[MAX_AR6000];
 static int is_netdev_registered;
-extern struct iw_handler_def ath_iw_handler_def;
 DECLARE_WAIT_QUEUE_HEAD(arEvent);
 static void ar6000_cookie_init(struct ar6_softc *ar);
 static void ar6000_cookie_cleanup(struct ar6_softc *ar);
@@ -375,7 +371,6 @@ static struct net_device_ops ar6000_netdev_ops = {
     .ndo_open               = ar6000_open,
     .ndo_stop               = ar6000_close,
     .ndo_get_stats          = ar6000_get_stats,
-    .ndo_do_ioctl           = ar6000_ioctl,
     .ndo_start_xmit         = ar6000_data_tx,
     .ndo_set_multicast_list = ar6000_set_multicast_list,
 };
@@ -668,10 +663,6 @@ ar6000_init_module(void)
 #ifdef ADAPTIVE_POWER_THROUGHPUT_CONTROL
     memset(&aptcTR, 0, sizeof(APTC_TRAFFIC_RECORD));
 #endif /* ADAPTIVE_POWER_THROUGHPUT_CONTROL */
-
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-    ar6000_gpio_init();
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
 
     status = HIFInit(&osdrvCallbacks);
     if (status)
@@ -1533,9 +1524,6 @@ init_netdev(struct net_device *dev, char *name)
 {
     dev->netdev_ops = &ar6000_netdev_ops;
     dev->watchdog_timeo = AR6000_TX_TIMEOUT;
-    dev->wireless_handlers = &ath_iw_handler_def;
-
-    ath_iw_handler_def.get_wireless_stats = ar6000_get_iwstats; /*Displayed via proc fs */
 
    /*
     * We need the OS to provide us with more headroom in order to
@@ -1620,9 +1608,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     struct ar6_softc *ar;
     int device_index = 0;
     struct htc_init_info  htcInfo;
-#ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
-#endif /* ATH6K_CONFIG_CFG80211 */
     int r = 0;
     struct hif_device_os_device_info osDevInfo;
 
@@ -1650,23 +1636,12 @@ ar6000_avail_ev(void *context, void *hif_handle)
     /* we use another local "i" variable below.                      */
     device_index = i;
 
-#ifdef ATH6K_CONFIG_CFG80211
     wdev = ar6k_cfg80211_init(osDevInfo.pOSDevice);
     if (IS_ERR(wdev)) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: ar6k_cfg80211_init failed\n", __func__));
         return A_ERROR;
     }
     ar_netif = wdev_priv(wdev);
-#else
-    dev = alloc_etherdev(sizeof(struct ar6_softc));
-    if (dev == NULL) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_available: can't alloc etherdev\n"));
-        return A_ERROR;
-    }
-    ether_setup(dev);
-    ar_netif = ar6k_priv(dev);
-    SET_NETDEV_DEV(dev, osDevInfo.pOSDevice);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     if (ar_netif == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Can't allocate ar6k priv memory\n", __func__));
@@ -1676,7 +1651,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
     A_MEMZERO(ar_netif, sizeof(struct ar6_softc));
     ar = (struct ar6_softc *)ar_netif;
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar->wdev = wdev;
     wdev->iftype = NL80211_IFTYPE_STATION;
 
@@ -1692,7 +1666,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
     wdev->netdev = dev;
     ar->arNetworkType = INFRA_NETWORK;
     ar->smeState = SME_DISCONNECTED;
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     init_netdev(dev, ifname);
 
@@ -2117,9 +2090,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
     }
     free_netdev(dev);
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_deinit(ar);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
 #ifdef CONFIG_AP_VIRTUL_ADAPTER_SUPPORT
     ar6000_remove_ap_interface();
@@ -2267,11 +2238,9 @@ ar6000_open(struct net_device *dev)
 
     spin_lock_irqsave(&ar->arLock, flags);
 
-#ifdef ATH6K_CONFIG_CFG80211
     if(ar->arWlanState == WLAN_DISABLED) {
         ar->arWlanState = WLAN_ENABLED;
     }
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     if( ar->arConnected || bypasswmi) {
         netif_carrier_on(dev);
@@ -2288,12 +2257,9 @@ ar6000_open(struct net_device *dev)
 static int
 ar6000_close(struct net_device *dev)
 {
-#ifdef ATH6K_CONFIG_CFG80211
     struct ar6_softc    *ar = (struct ar6_softc *)ar6k_priv(dev);
-#endif /* ATH6K_CONFIG_CFG80211 */
     netif_stop_queue(dev);
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6000_disconnect(ar);
 
     if(ar->arWmiReady == true) {
@@ -2304,7 +2270,6 @@ ar6000_close(struct net_device *dev)
         ar->arWlanState = WLAN_DISABLED;
     }
 	ar6k_cfg80211_scanComplete_event(ar, A_ECANCELED);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     return 0;
 }
@@ -4116,93 +4081,6 @@ ar6000_get_stats(struct net_device *dev)
     return &ar->arNetStats;
 }
 
-static struct iw_statistics *
-ar6000_get_iwstats(struct net_device * dev)
-{
-    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
-    TARGET_STATS *pStats = &ar->arTargetStats;
-    struct iw_statistics * pIwStats = &ar->arIwStats;
-    int rtnllocked;
-
-    if (ar->bIsDestroyProgress || ar->arWmiReady == false || ar->arWlanState == WLAN_DISABLED)
-    {
-        pIwStats->status = 0;
-        pIwStats->qual.qual = 0;
-        pIwStats->qual.level =0;
-        pIwStats->qual.noise = 0;
-        pIwStats->discard.code =0;
-        pIwStats->discard.retries=0;
-        pIwStats->miss.beacon =0;
-        return pIwStats;
-    }
-
-    /*
-     * The in_atomic function is used to determine if the scheduling is
-     * allowed in the current context or not. This was introduced in 2.6
-     * From what I have read on the differences between 2.4 and 2.6, the
-     * 2.4 kernel did not support preemption and so this check might not
-     * be required for 2.4 kernels.
-     */
-    if (in_atomic())
-    {
-        wmi_get_stats_cmd(ar->arWmi);
-
-        pIwStats->status = 1 ;
-        pIwStats->qual.qual = pStats->cs_aveBeacon_rssi - 161;
-        pIwStats->qual.level =pStats->cs_aveBeacon_rssi; /* noise is -95 dBm */
-        pIwStats->qual.noise = pStats->noise_floor_calibation;
-        pIwStats->discard.code = pStats->rx_decrypt_err;
-        pIwStats->discard.retries = pStats->tx_retry_cnt;
-        pIwStats->miss.beacon = pStats->cs_bmiss_cnt;
-        return pIwStats;
-    }
-
-    dev_hold(dev);   
-    rtnllocked = rtnl_is_locked();
-    if (rtnllocked) {
-        rtnl_unlock();
-    }
-    pIwStats->status = 0;
-
-    if (down_interruptible(&ar->arSem)) {
-        goto err_exit;
-    }
-    
-    do {
-
-        if (ar->bIsDestroyProgress || ar->arWlanState == WLAN_DISABLED) {
-            break;
-        }
-    
-        ar->statsUpdatePending = true;
-    
-        if(wmi_get_stats_cmd(ar->arWmi) != 0) {
-            break;
-        }
-    
-        wait_event_interruptible_timeout(arEvent, ar->statsUpdatePending == false, wmitimeout * HZ);
-        if (signal_pending(current)) {
-            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000 : WMI get stats timeout \n"));
-            break;
-        }
-        pIwStats->status = 1 ;
-        pIwStats->qual.qual = pStats->cs_aveBeacon_rssi - 161;
-        pIwStats->qual.level =pStats->cs_aveBeacon_rssi;  /* noise is -95 dBm */
-        pIwStats->qual.noise = pStats->noise_floor_calibation;
-        pIwStats->discard.code = pStats->rx_decrypt_err;
-        pIwStats->discard.retries = pStats->tx_retry_cnt;
-        pIwStats->miss.beacon = pStats->cs_bmiss_cnt;
-    } while (0);
-    up(&ar->arSem);
-
-err_exit:
-    if (rtnllocked) {
-        rtnl_lock();
-    }
-    dev_put(dev);
-    return pIwStats;
-}
-
 void
 ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
 {
@@ -4222,6 +4100,29 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
     /* Indicate to the waiting thread that the ready event was received */
     ar->arWmiReady = true;
     wake_up(&arEvent);
+}
+
+void ar6000_install_static_wep_keys(struct ar6_softc *ar)
+{
+    u8 index;
+    u8 keyUsage;
+
+    for (index = WMI_MIN_KEY_INDEX; index <= WMI_MAX_KEY_INDEX; index++) {
+        if (ar->arWepKeyList[index].arKeyLen) {
+            keyUsage = GROUP_USAGE;
+            if (index == ar->arDefTxKeyIndex) {
+                keyUsage |= TX_USAGE;
+            }
+            wmi_addKey_cmd(ar->arWmi,
+                           index,
+                           WEP_CRYPT,
+                           keyUsage,
+                           ar->arWepKeyList[index].arKeyLen,
+                           NULL,
+                           ar->arWepKeyList[index].arKey, KEY_OP_INIT_VAL, NULL,
+                           NO_SYNC_WMIFLAG);
+        }
+    }
 }
 
 void
@@ -4362,13 +4263,11 @@ skip_key:
         return;
     }
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_connect_event(ar, channel, bssid,
                                 listenInterval, beaconInterval,
                                 networkType, beaconIeLen,
                                 assocReqLen, assocRespLen,
                                 assocInfo);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     memcpy(ar->arBssid, bssid, sizeof(ar->arBssid));
     ar->arBssChannel = channel;
@@ -4481,26 +4380,6 @@ skip_key:
 #endif /* USER_KEYS */
 
     netif_wake_queue(ar->arNetDev);
-
-    /* For CFG80211 the key configuration and the default key comes in after connect so no point in plumbing invalid keys */
-#ifndef ATH6K_CONFIG_CFG80211
-    if ((networkType & ADHOC_NETWORK)      &&
-        (OPEN_AUTH == ar->arDot11AuthMode) &&
-        (NONE_AUTH == ar->arAuthMode)      &&
-        (WEP_CRYPT == ar->arPairwiseCrypto))
-    {
-        if (!ar->arConnected) {
-            wmi_addKey_cmd(ar->arWmi,
-                           ar->arDefTxKeyIndex,
-                           WEP_CRYPT,
-                           GROUP_USAGE | TX_USAGE,
-                           ar->arWepKeyList[ar->arDefTxKeyIndex].arKeyLen,
-                           NULL,
-                           ar->arWepKeyList[ar->arDefTxKeyIndex].arKey, KEY_OP_INIT_VAL, NULL,
-                           NO_SYNC_WMIFLAG);
-        }
-    }
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     /* Update connect & link status atomically */
     spin_lock_irqsave(&ar->arLock, flags);
@@ -4631,11 +4510,9 @@ ar6000_disconnect_event(struct ar6_softc *ar, u8 reason, u8 *bssid,
         return;
     }
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_disconnect_event(ar, reason, bssid,
                                    assocRespLen, assocInfo,
                                    protocolReasonStatus);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     /* Send disconnect event to supplicant */
     A_MEMZERO(&wrqu, sizeof(wrqu));
@@ -4882,9 +4759,7 @@ ar6000_tkip_micerr_event(struct ar6_softc *ar, u8 keyid, bool ismcast)
             tag, s->mac[0],s->mac[1],s->mac[2],s->mac[3],s->mac[4],s->mac[5]);
     } else {
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_tkip_micerr_event(ar, keyid, ismcast);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
         A_PRINTF("AR6000 TKIP MIC error received for keyid %d %scast\n",
              keyid & 0x3, ismcast ? "multi": "uni");
@@ -4901,9 +4776,7 @@ void
 ar6000_scanComplete_event(struct ar6_softc *ar, int status)
 {
 
-#ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_scanComplete_event(ar, status);
-#endif /* ATH6K_CONFIG_CFG80211 */
 
     if (!ar->arUserBssFilter) {
         wmi_bssfilter_cmd(ar->arWmi, NONE_BSS_FILTER, 0);

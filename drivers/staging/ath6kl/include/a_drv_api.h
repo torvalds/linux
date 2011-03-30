@@ -130,19 +130,6 @@ extern "C" {
 #define A_WMI_PEER_EVENT(devt, eventCode, bssid)    \
     ar6000_peer_event ((devt), (eventCode), (bssid))
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-
-#define A_WMI_GPIO_INTR_RX(intr_mask, input_values) \
-    ar6000_gpio_intr_rx((intr_mask), (input_values))
-
-#define A_WMI_GPIO_DATA_RX(reg_id, value) \
-    ar6000_gpio_data_rx((reg_id), (value))
-
-#define A_WMI_GPIO_ACK_RX() \
-    ar6000_gpio_ack_rx()
-
-#endif
-
 #ifdef SEND_EVENT_TO_APP
 
 #define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len) \
@@ -156,11 +143,6 @@ extern "C" {
 #define A_WMI_SEND_EVENT_TO_APP(ar, eventId, datap, len)
 #define A_WMI_SEND_GENERIC_EVENT_TO_APP(ar, eventId, datap, len)
 
-#endif
-
-#ifdef CONFIG_HOST_TCMD_SUPPORT
-#define A_WMI_TCMD_RX_REPORT_EVENT(devt, results, len) \
-    ar6000_tcmd_rx_report_event((devt), (results), (len))
 #endif
 
 #define A_WMI_HBCHALLENGERESP_EVENT(devt, cookie, source)    \

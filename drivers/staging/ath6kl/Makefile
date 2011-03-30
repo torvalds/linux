@@ -85,11 +85,6 @@ ifeq ($(CONFIG_ATH6KL_CONFIG_GPIO_BT_RESET),y)
 ccflags-y += -DATH6KL_CONFIG_GPIO_BT_RESET
 endif
 
-ifeq ($(CONFIG_ATH6KL_CFG80211),y)
-ccflags-y += -DATH6K_CONFIG_CFG80211
-ath6kl-y += os/linux/cfg80211.o
-endif
-
 ifeq ($(CONFIG_ATH6KL_HTC_RAW_INTERFACE),y)
 ccflags-y += -DHTC_RAW_INTERFACE
 endif
@@ -135,12 +130,11 @@ ath6kl-y += htc2/htc_recv.o
 ath6kl-y += htc2/htc_services.o
 ath6kl-y += htc2/htc.o
 ath6kl-y += bmi/src/bmi.o
+ath6kl-y += os/linux/cfg80211.o
 ath6kl-y += os/linux/ar6000_drv.o
 ath6kl-y += os/linux/ar6000_raw_if.o
 ath6kl-y += os/linux/ar6000_pm.o
 ath6kl-y += os/linux/netbuf.o
-ath6kl-y += os/linux/wireless_ext.o
-ath6kl-y += os/linux/ioctl.o
 ath6kl-y += os/linux/hci_bridge.o
 ath6kl-y += miscdrv/common_drv.o
 ath6kl-y += miscdrv/credit_dist.o

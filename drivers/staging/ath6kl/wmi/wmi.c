@@ -132,12 +132,6 @@ wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 static int
 wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-static int wmi_gpio_intr_rx(struct wmi_t *wmip, u8 *datap, int len);
-static int wmi_gpio_data_rx(struct wmi_t *wmip, u8 *datap, int len);
-static int wmi_gpio_ack_rx(struct wmi_t *wmip, u8 *datap, int len);
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
-
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 static int
 wmi_tcmd_test_report_rx(struct wmi_t *wmip, u8 *datap, int len);
@@ -865,17 +859,6 @@ wmi_control_rx_xtnd(struct wmi_t *wmip, void *osbuf)
         status = wmi_dset_data_req_rx(wmip, datap, len);
         break;
 #endif /* CONFIG_HOST_DSET_SUPPORT */
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-    case (WMIX_GPIO_INTR_EVENTID):
-        wmi_gpio_intr_rx(wmip, datap, len);
-        break;
-    case (WMIX_GPIO_DATA_EVENTID):
-        wmi_gpio_data_rx(wmip, datap, len);
-        break;
-    case (WMIX_GPIO_ACK_EVENTID):
-        wmi_gpio_ack_rx(wmip, datap, len);
-        break;
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
     case (WMIX_HB_CHALLENGE_RESP_EVENTID):
         wmi_hbChallengeResp_rx(wmip, datap, len);
         break;
@@ -1208,7 +1191,7 @@ wmi_simple_cmd(struct wmi_t *wmip, WMI_COMMAND_ID cmdid)
 /* Send a "simple" extended wmi command -- one with no arguments.
    Enabling this command only if GPIO or profiling support is enabled.
    This is to suppress warnings on some platforms */
-#if defined(CONFIG_HOST_GPIO_SUPPORT) || defined(CONFIG_TARGET_PROFILE_SUPPORT)
+#if defined(CONFIG_TARGET_PROFILE_SUPPORT)
 static int
 wmi_simple_cmd_xtnd(struct wmi_t *wmip, WMIX_COMMAND_ID cmdid)
 {
@@ -2297,46 +2280,6 @@ wmi_dbglog_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     A_WMI_DBGLOG_EVENT(wmip->wmi_devt, dropped, (s8 *)datap, len);
     return 0;
 }
-
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-static int
-wmi_gpio_intr_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    WMIX_GPIO_INTR_EVENT *gpio_intr = (WMIX_GPIO_INTR_EVENT *)datap;
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - intrmask=0x%x input=0x%x.\n", DBGARG,
-        gpio_intr->intr_mask, gpio_intr->input_values));
-
-    A_WMI_GPIO_INTR_RX(gpio_intr->intr_mask, gpio_intr->input_values);
-
-    return 0;
-}
-
-static int
-wmi_gpio_data_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    WMIX_GPIO_DATA_EVENT *gpio_data = (WMIX_GPIO_DATA_EVENT *)datap;
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - reg=%d value=0x%x\n", DBGARG,
-        gpio_data->reg_id, gpio_data->value));
-
-    A_WMI_GPIO_DATA_RX(gpio_data->reg_id, gpio_data->value);
-
-    return 0;
-}
-
-static int
-wmi_gpio_ack_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-    A_WMI_GPIO_ACK_RX();
-
-    return 0;
-}
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
 
 /*
  * Called to send a wmi command. Command specific data is already built
@@ -4282,132 +4225,6 @@ wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
                          NO_SYNC_WMIFLAG));
 }
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-/* Send a command to Target to change GPIO output pins. */
-int
-wmi_gpio_output_set(struct wmi_t *wmip,
-                    u32 set_mask,
-                    u32 clear_mask,
-                    u32 enable_mask,
-                    u32 disable_mask)
-{
-    void *osbuf;
-    WMIX_GPIO_OUTPUT_SET_CMD *output_set;
-    int size;
-
-    size = sizeof(*output_set);
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - set=0x%x clear=0x%x enb=0x%x dis=0x%x\n", DBGARG,
-        set_mask, clear_mask, enable_mask, disable_mask));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    output_set = (WMIX_GPIO_OUTPUT_SET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    output_set->set_mask                   = set_mask;
-    output_set->clear_mask                 = clear_mask;
-    output_set->enable_mask                = enable_mask;
-    output_set->disable_mask               = disable_mask;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_OUTPUT_SET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target requesting state of the GPIO input pins */
-int
-wmi_gpio_input_get(struct wmi_t *wmip)
-{
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-    return wmi_simple_cmd_xtnd(wmip, WMIX_GPIO_INPUT_GET_CMDID);
-}
-
-/* Send a command to the Target that changes the value of a GPIO register. */
-int
-wmi_gpio_register_set(struct wmi_t *wmip,
-                      u32 gpioreg_id,
-                      u32 value)
-{
-    void *osbuf;
-    WMIX_GPIO_REGISTER_SET_CMD *register_set;
-    int size;
-
-    size = sizeof(*register_set);
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - reg=%d value=0x%x\n", DBGARG, gpioreg_id, value));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    register_set = (WMIX_GPIO_REGISTER_SET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    register_set->gpioreg_id               = gpioreg_id;
-    register_set->value                    = value;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_REGISTER_SET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target to fetch the value of a GPIO register. */
-int
-wmi_gpio_register_get(struct wmi_t *wmip,
-                      u32 gpioreg_id)
-{
-    void *osbuf;
-    WMIX_GPIO_REGISTER_GET_CMD *register_get;
-    int size;
-
-    size = sizeof(*register_get);
-
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter - reg=%d\n", DBGARG, gpioreg_id));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    register_get = (WMIX_GPIO_REGISTER_GET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    register_get->gpioreg_id               = gpioreg_id;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_REGISTER_GET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target acknowledging some GPIO interrupts. */
-int
-wmi_gpio_intr_ack(struct wmi_t *wmip,
-                  u32 ack_mask)
-{
-    void *osbuf;
-    WMIX_GPIO_INTR_ACK_CMD *intr_ack;
-    int size;
-
-    size = sizeof(*intr_ack);
-
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter ack_mask=0x%x\n", DBGARG, ack_mask));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    intr_ack = (WMIX_GPIO_INTR_ACK_CMD *)(A_NETBUF_DATA(osbuf));
-
-    intr_ack->ack_mask               = ack_mask;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_INTR_ACK_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
-
 int
 wmi_set_access_params_cmd(struct wmi_t *wmip, u8 ac,  u16 txop, u8 eCWmin,
                           u8 eCWmax, u8 aifsn)
@@ -4682,8 +4499,6 @@ wmi_tcmd_test_report_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
 
    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-   A_WMI_TCMD_RX_REPORT_EVENT(wmip->wmi_devt, datap, len);
 
    return 0;
 }
