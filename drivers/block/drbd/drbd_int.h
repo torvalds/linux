@@ -543,19 +543,10 @@ struct p_delay_probe93 {
 	u32     offset;  /* usecs the probe got sent after the reference time point */
 } __packed;
 
-/* one bitmap packet, including the p_header,
- * should fit within one _architecture independend_ page.
- * so we need to use the fixed size 4KiB page size
- * most architectures have used for a long time.
+/*
+ * Bitmap packets need to fit within a single page on the sender and receiver,
+ * so we are limited to 4 KiB (and not to PAGE_SIZE, which can be bigger).
  */
-#define BM_PACKET_PAYLOAD_BYTES (4096 - sizeof(struct p_header))
-#define BM_PACKET_WORDS (BM_PACKET_PAYLOAD_BYTES/sizeof(long))
-#define BM_PACKET_VLI_BYTES_MAX (4096 - sizeof(struct p_compressed_bm))
-#if (PAGE_SIZE < 4096)
-/* drbd_send_bitmap / receive_bitmap would break horribly */
-#error "PAGE_SIZE too small"
-#endif
-
 #define DRBD_SOCKET_BUFFER_SIZE 4096
 
 /**********************************************************************/

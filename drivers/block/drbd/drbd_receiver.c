@@ -3660,16 +3660,19 @@ static int receive_sync_uuid(struct drbd_tconn *tconn, struct packet_info *pi)
  * code upon failure.
  */
 static int
-receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
+receive_bitmap_plain(struct drbd_conf *mdev, unsigned int size,
 		     struct p_header *h, struct bm_xfer_ctx *c)
 {
 	unsigned long *buffer = (unsigned long *)h->payload;
-	unsigned num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
-	unsigned want = num_words * sizeof(long);
+	unsigned int data_size = DRBD_SOCKET_BUFFER_SIZE -
+				 drbd_header_size(mdev->tconn);
+	unsigned int num_words = min_t(size_t, data_size / sizeof(unsigned long),
+				       c->bm_words - c->word_offset);
+	unsigned int want = num_words * sizeof(unsigned long);
 	int err;
 
-	if (want != data_size) {
-		dev_err(DEV, "%s:want (%u) != data_size (%u)\n", __func__, want, data_size);
+	if (want != size) {
+		dev_err(DEV, "%s:want (%u) != size (%u)\n", __func__, want, size);
 		return -EIO;
 	}
 	if (want == 0)
@@ -3796,11 +3799,13 @@ void INFO_bm_xfer_stats(struct drbd_conf *mdev,
 		const char *direction, struct bm_xfer_ctx *c)
 {
 	/* what would it take to transfer it "plaintext" */
-	unsigned plain = sizeof(struct p_header) *
-		((c->bm_words+BM_PACKET_WORDS-1)/BM_PACKET_WORDS+1)
-		+ c->bm_words * sizeof(long);
-	unsigned total = c->bytes[0] + c->bytes[1];
-	unsigned r;
+	unsigned int header_size = drbd_header_size(mdev->tconn);
+	unsigned int data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
+	unsigned int plain =
+		header_size * (DIV_ROUND_UP(c->bm_words, data_size) + 1) +
+		c->bm_words * sizeof(unsigned long);
+	unsigned int total = c->bytes[0] + c->bytes[1];
+	unsigned int r;
 
 	/* total can not be zero. but just in case: */
 	if (total == 0)
@@ -3862,7 +3867,7 @@ static int receive_bitmap(struct drbd_tconn *tconn, struct packet_info *pi)
 			 * and the feature is enabled! */
 			struct p_compressed_bm *p;
 
-			if (pi->size > BM_PACKET_PAYLOAD_BYTES) {
+			if (pi->size > DRBD_SOCKET_BUFFER_SIZE - drbd_header_size(tconn)) {
 				dev_err(DEV, "ReportCBitmap packet too large\n");
 				err = -EIO;
 				goto out;
@@ -3885,7 +3890,7 @@ static int receive_bitmap(struct drbd_tconn *tconn, struct packet_info *pi)
 		}
 
 		c.packets[pi->cmd == P_BITMAP]++;
-		c.bytes[pi->cmd == P_BITMAP] += sizeof(struct p_header) + pi->size;
+		c.bytes[pi->cmd == P_BITMAP] += drbd_header_size(tconn) + pi->size;
 
 		if (err <= 0) {
 			if (err < 0)

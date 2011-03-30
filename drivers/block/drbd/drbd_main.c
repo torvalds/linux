@@ -1100,8 +1100,9 @@ static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
 }
 
 int fill_bitmap_rle_bits(struct drbd_conf *mdev,
-	struct p_compressed_bm *p,
-	struct bm_xfer_ctx *c)
+			 struct p_compressed_bm *p,
+			 unsigned int size,
+			 struct bm_xfer_ctx *c)
 {
 	struct bitstream bs;
 	unsigned long plain_bits;
@@ -1120,8 +1121,8 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 		return 0; /* nothing to do. */
 
 	/* use at most thus many bytes */
-	bitstream_init(&bs, p->code, BM_PACKET_VLI_BYTES_MAX, 0);
-	memset(p->code, 0, BM_PACKET_VLI_BYTES_MAX);
+	bitstream_init(&bs, p->code, size, 0);
+	memset(p->code, 0, size);
 	/* plain bits covered in this code string */
 	plain_bits = 0;
 
@@ -1203,11 +1204,11 @@ static int
 send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 {
 	struct drbd_socket *sock = &mdev->tconn->data;
+	unsigned int header_size = drbd_header_size(mdev->tconn);
 	struct p_compressed_bm *p = sock->sbuf;
-	unsigned long num_words;
 	int len, err;
 
-	len = fill_bitmap_rle_bits(mdev, p, c);
+	len = fill_bitmap_rle_bits(mdev, p, DRBD_SOCKET_BUFFER_SIZE - sizeof(*p) /* FIXME */, c);
 	if (len < 0)
 		return -EIO;
 
@@ -1224,9 +1225,14 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 	} else {
 		/* was not compressible.
 		 * send a buffer full of plain text bits instead. */
+		unsigned int data_size;
+		unsigned long num_words;
 		struct p_header *h = sock->sbuf;
-		num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
-		len = num_words * sizeof(long);
+
+		data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
+		num_words = min_t(size_t, data_size / sizeof(unsigned long),
+				  c->bm_words - c->word_offset);
+		len = num_words * sizeof(unsigned long);
 		if (len)
 			drbd_bm_get_lel(mdev, c->word_offset, num_words,
 					(unsigned long *)h->payload);
@@ -1236,7 +1242,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 		c->bit_offset = c->word_offset * BITS_PER_LONG;
 
 		c->packets[1]++;
-		c->bytes[1] += sizeof(struct p_header80) + len;
+		c->bytes[1] += header_size + len;
 
 		if (c->bit_offset > c->bm_bits)
 			c->bit_offset = c->bm_bits;
@@ -2550,7 +2556,6 @@ int __init drbd_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct p_header80) != sizeof(struct p_header95));
 	BUILD_BUG_ON(sizeof(struct p_connection_features) != 80);
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
