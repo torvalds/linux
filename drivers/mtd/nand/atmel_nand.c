@@ -611,7 +611,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		}
 	}
 	if (use_dma)
-		dev_info(host->dev, "Using DMA for NAND access.\n");
+		dev_info(host->dev, "Using %s for DMA transfers.\n",
+					dma_chan_name(host->dma_chan));
 	else
 		dev_info(host->dev, "No DMA support for NAND access.\n");
 
