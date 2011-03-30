@@ -95,8 +95,6 @@ GENL_struct(DRBD_NLA_CFG_REPLY, 1, drbd_cfg_reply,
  * and/or the replication group (aka resource) name,
  * and the volume id within the resource. */
 GENL_struct(DRBD_NLA_CFG_CONTEXT, 2, drbd_cfg_context,
-		/* currently only 256 volumes per group,
-		 * but maybe we still change that */
 	__u32_field(1, GENLA_F_MANDATORY,	ctx_volume)
 	__str_field(2, GENLA_F_MANDATORY,	ctx_conn_name, 128)
 )

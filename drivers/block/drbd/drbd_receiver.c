@@ -983,8 +983,18 @@ static int decode_header(struct drbd_tconn *tconn, void *header, struct packet_i
 {
 	unsigned int header_size = drbd_header_size(tconn);
 
-	if (header_size == sizeof(struct p_header95) &&
-	    *(__be16 *)header == cpu_to_be16(DRBD_MAGIC_BIG)) {
+	if (header_size == sizeof(struct p_header100) &&
+	    *(__be32 *)header == cpu_to_be32(DRBD_MAGIC_100)) {
+		struct p_header100 *h = header;
+		if (h->pad != 0) {
+			conn_err(tconn, "Header padding is not zero\n");
+			return -EINVAL;
+		}
+		pi->vnr = be16_to_cpu(h->volume);
+		pi->cmd = be16_to_cpu(h->command);
+		pi->size = be32_to_cpu(h->length);
+	} else if (header_size == sizeof(struct p_header95) &&
+		   *(__be16 *)header == cpu_to_be16(DRBD_MAGIC_BIG)) {
 		struct p_header95 *h = header;
 
 		pi->cmd = be16_to_cpu(h->command);

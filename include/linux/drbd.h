@@ -341,6 +341,7 @@ enum drbd_timeout_flag {
 
 #define DRBD_MAGIC 0x83740267
 #define DRBD_MAGIC_BIG 0x835a
+#define DRBD_MAGIC_100 0x8620ec20
 
 /* how I came up with this magic?
  * base64 decode "actlog==" ;) */

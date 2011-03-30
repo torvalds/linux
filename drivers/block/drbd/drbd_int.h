@@ -307,6 +307,14 @@ struct p_header95 {
 	u32	  length;	/* Use only 24 bits of that. Ignore the highest 8 bit. */
 } __packed;
 
+struct p_header100 {
+	u32	  magic;
+	u16	  volume;
+	u16	  command;
+	u32	  length;
+	u32	  pad;
+} __packed;
+
 extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
 
 /* these defines must not be changed without changing the protocol version */

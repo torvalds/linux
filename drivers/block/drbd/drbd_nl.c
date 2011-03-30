@@ -2833,8 +2833,7 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
 		retcode = ERR_INVALID_REQUEST;
 		goto out;
 	}
-	/* FIXME we need a define here */
-	if (adm_ctx.volume >= 256) {
+	if (adm_ctx.volume > DRBD_VOLUME_MAX) {
 		drbd_msg_put_info("requested volume id out of range");
 		retcode = ERR_INVALID_REQUEST;
 		goto out;

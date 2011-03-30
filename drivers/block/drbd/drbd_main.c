@@ -698,9 +698,15 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
  */
 unsigned int drbd_header_size(struct drbd_tconn *tconn)
 {
-	BUILD_BUG_ON(sizeof(struct p_header80) != sizeof(struct p_header95));
-	BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
-	return sizeof(struct p_header80);
+	if (tconn->agreed_pro_version >= 100) {
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header100), 8));
+		return sizeof(struct p_header100);
+	} else {
+		BUILD_BUG_ON(sizeof(struct p_header80) !=
+			     sizeof(struct p_header95));
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
+		return sizeof(struct p_header80);
+	}
 }
 
 static unsigned int prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
@@ -719,10 +725,24 @@ static unsigned int prepare_header95(struct p_header95 *h, enum drbd_packet cmd,
 	return sizeof(struct p_header95);
 }
 
-static unsigned int prepare_header(struct drbd_tconn *tconn, int vnr, void *buffer,
-				   enum drbd_packet cmd, int size)
+static unsigned int prepare_header100(struct p_header100 *h, enum drbd_packet cmd,
+				      int size, int vnr)
 {
-	if (tconn->agreed_pro_version >= 95)
+	h->magic = cpu_to_be32(DRBD_MAGIC_100);
+	h->volume = cpu_to_be16(vnr);
+	h->command = cpu_to_be16(cmd);
+	h->length = cpu_to_be32(size);
+	h->pad = 0;
+	return sizeof(struct p_header100);
+}
+
+static unsigned int prepare_header(struct drbd_tconn *tconn, int vnr,
+				   void *buffer, enum drbd_packet cmd, int size)
+{
+	if (tconn->agreed_pro_version >= 100)
+		return prepare_header100(buffer, cmd, size, vnr);
+	else if (tconn->agreed_pro_version >= 95 &&
+		 size > DRBD_MAX_SIZE_H80_PACKET)
 		return prepare_header95(buffer, cmd, size);
 	else
 		return prepare_header80(buffer, cmd, size);
