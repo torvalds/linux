@@ -152,10 +152,8 @@ unsigned int ar3khcibaud = AR3KHCIBAUD_DEFAULT;
 unsigned int hciuartscale = HCIUARTSCALE_DEFAULT;
 unsigned int hciuartstep = HCIUARTSTEP_DEFAULT;
 #endif
-#ifdef CONFIG_CHECKSUM_OFFLOAD
 unsigned int csumOffload=0;
 unsigned int csumOffloadTest=0;
-#endif
 unsigned int eppingtest=0;
 
 module_param_string(ifname, ifname, sizeof(ifname), 0644);
@@ -177,9 +175,7 @@ module_param(reduce_credit_dribble, int, 0644);
 module_param(allow_trace_signal, int, 0644);
 module_param(enablerssicompensation, uint, 0644);
 module_param(processDot11Hdr, uint, 0644);
-#ifdef CONFIG_CHECKSUM_OFFLOAD
 module_param(csumOffload, uint, 0644);
-#endif
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 module_param(testmode, uint, 0644);
 #endif
@@ -1744,12 +1740,10 @@ ar6000_avail_ev(void *context, void *hif_handle)
 #endif
 
 
-#ifdef CONFIG_CHECKSUM_OFFLOAD
     if(csumOffload){
         /*if external frame work is also needed, change and use an extended rxMetaVerion*/
         ar->rxMetaVersion=WMI_META_VERSION_2;
     }
-#endif
 
     ar->aggr_cntxt = aggr_init(ar6000_alloc_netbufs);
     if (!ar->aggr_cntxt) {
@@ -3006,7 +3000,6 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
         }
 
         if (ar->arWmiEnabled) {
-#ifdef CONFIG_CHECKSUM_OFFLOAD
         u8 csumStart=0;
         u8 csumDest=0;
         u8 csum=skb->ip_summed;
@@ -3015,7 +3008,6 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 			 sizeof(ATH_LLC_SNAP_HDR));
             csumDest=skb->csum_offset+csumStart;
         }
-#endif
             if (A_NETBUF_HEADROOM(skb) < dev->hard_header_len - LINUX_HACK_FUDGE_FACTOR) {
                 struct sk_buff  *newbuf;
 
@@ -3046,7 +3038,6 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                     break;
                 }
             }
-#ifdef CONFIG_CHECKSUM_OFFLOAD
             if(csumOffload && (csum ==CHECKSUM_PARTIAL)){
                 WMI_TX_META_V2  metaV2;
                 metaV2.csumStart =csumStart;
@@ -3060,7 +3051,6 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 
             }
             else
-#endif
             {
                 if (wmi_data_hdr_add(ar->arWmi, skb, DATA_MSGTYPE, bMoreData, dot11Hdr,0,NULL) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_data_tx - wmi_data_hdr_add failed\n"));
@@ -3693,11 +3683,9 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                             case WMI_META_VERSION_1:
                                 offset += sizeof(WMI_RX_META_V1);
                                 break;
-#ifdef CONFIG_CHECKSUM_OFFLOAD
                             case WMI_META_VERSION_2:
                                 offset += sizeof(WMI_RX_META_V2);
                                 break;
-#endif
                             default:
                                 break;
                         }
@@ -3767,7 +3755,6 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                                 A_NETBUF_PULL((void*)skb, sizeof(WMI_RX_META_V1));
                                 break;
                             }
-#ifdef CONFIG_CHECKSUM_OFFLOAD
                         case WMI_META_VERSION_2:
                             {
                                 WMI_RX_META_V2 *pMeta = (WMI_RX_META_V2 *)A_NETBUF_DATA(skb);
@@ -3778,7 +3765,6 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                                 A_NETBUF_PULL((void*)skb, sizeof(WMI_RX_META_V2));
                                 break;
                             }
-#endif
                         default:
                             break;
                     }

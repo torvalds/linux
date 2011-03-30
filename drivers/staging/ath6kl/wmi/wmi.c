@@ -463,7 +463,6 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, u8 *pVersion,void *pTxMetaS)
         	*pVersion = WMI_META_VERSION_1;
 		return (0);
     		}
-#ifdef CONFIG_CHECKSUM_OFFLOAD
 	case WMI_META_VERSION_2:
 		{
      		WMI_TX_META_V2 *pV2 ;
@@ -475,7 +474,6 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, u8 *pVersion,void *pTxMetaS)
          	memcpy(pV2,(WMI_TX_META_V2 *)pTxMetaS,sizeof(WMI_TX_META_V2));
 		return (0);
     		}
-#endif
 	default:
 		return (0);
     }

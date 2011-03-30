@@ -112,7 +112,6 @@ endif
 
 ccflags-y += -DWAPI_ENABLE
 ccflags-y += -DCHECKSUM_OFFLOAD
-ccflags-y += -DWLAN_HEADERS
 ccflags-y += -DINIT_MODE_DRV_ENABLED
 
 obj-$(CONFIG_ATH6K_LEGACY) := ath6kl.o

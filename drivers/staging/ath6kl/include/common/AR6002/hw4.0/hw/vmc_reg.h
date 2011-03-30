@@ -21,10 +21,7 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "vmc_wlan_reg.h"
-
 
 #ifndef BT_HEADERS
 
@@ -159,9 +156,4 @@
 #define CPU_RAM4_CONFLICT_CNT_GET(x) WLAN_CPU_RAM4_CONFLICT_CNT_GET(x)
 #define CPU_RAM4_CONFLICT_CNT_SET(x) WLAN_CPU_RAM4_CONFLICT_CNT_SET(x)
 
-
 #endif
-#endif
-
-
-

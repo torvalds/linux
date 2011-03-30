@@ -21,10 +21,7 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "gpio_athr_wlan_reg.h"
-
 
 #ifndef BT_HEADERS
 
@@ -1086,9 +1083,4 @@
 #define RESET_TUPLE_STATUS_PIN_RESET_TUPLE_GET(x) WLAN_RESET_TUPLE_STATUS_PIN_RESET_TUPLE_GET(x)
 #define RESET_TUPLE_STATUS_PIN_RESET_TUPLE_SET(x) WLAN_RESET_TUPLE_STATUS_PIN_RESET_TUPLE_SET(x)
 
-
 #endif
-#endif
-
-
-

@@ -21,17 +21,4 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "analog_intf_athr_wlan_reg.h"
-
-
-#ifndef BT_HEADERS
-
-
-
-#endif
-#endif
-
-
-

@@ -20,18 +20,4 @@
 // Author(s): ="Atheros"
 //===================================================================
 
-
-#ifdef WLAN_HEADERS
-
 #include "umbox_wlan_reg.h"
-
-
-#ifndef BT_HEADERS
-
-
-
-#endif
-#endif
-
-
-

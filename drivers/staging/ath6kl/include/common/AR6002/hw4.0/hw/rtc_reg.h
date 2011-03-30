@@ -21,10 +21,7 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "rtc_wlan_reg.h"
-
 
 #ifndef BT_HEADERS
 
@@ -967,9 +964,4 @@
 #define GPIO_WAKEUP_CONTROL_ENABLE_GET(x) WLAN_GPIO_WAKEUP_CONTROL_ENABLE_GET(x)
 #define GPIO_WAKEUP_CONTROL_ENABLE_SET(x) WLAN_GPIO_WAKEUP_CONTROL_ENABLE_SET(x)
 
-
 #endif
-#endif
-
-
-
