@@ -306,9 +306,7 @@ static void ar6000_tx_complete(void *Context, struct htc_packet_queue *pPackets)
 
 static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, struct htc_packet *pPacket);
 
-#ifdef ATH_AR6K_11N_SUPPORT
 static void ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, u16 num);
-#endif
 static void ar6000_deliver_frames_to_nw_stack(void * dev, void *osbuf);
 //static void ar6000_deliver_frames_to_bt_stack(void * dev, void *osbuf);
 
@@ -738,7 +736,6 @@ aptcTimerHandler(unsigned long arg)
 }
 #endif /* ADAPTIVE_POWER_THROUGHPUT_CONTROL */
 
-#ifdef ATH_AR6K_11N_SUPPORT
 static void
 ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, u16 num)
 {
@@ -757,7 +754,6 @@ ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, u16 num)
         A_PRINTF("%s(), allocation of netbuf failed", __func__);
     }
 }
-#endif
 
 static struct bin_attribute bmi_attr = {
     .attr = {.name = "bmi", .mode = 0600},
@@ -1758,7 +1754,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
     }
 #endif
 
-#ifdef ATH_AR6K_11N_SUPPORT
     ar->aggr_cntxt = aggr_init(ar6000_alloc_netbufs);
     if (!ar->aggr_cntxt) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s() Failed to initialize aggr.\n", __func__));
@@ -1767,7 +1762,6 @@ ar6000_avail_ev(void *context, void *hif_handle)
     }
 
     aggr_register_rx_dispatcher(ar->aggr_cntxt, (void *)dev, ar6000_deliver_frames_to_nw_stack);
-#endif
 
     HIFClaimDevice(ar->arHifDevice, ar);
 
@@ -2057,9 +2051,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
         HIFReleaseDevice(ar->arHifDevice);
         HIFShutDownDevice(ar->arHifDevice);
     }
-#ifdef ATH_AR6K_11N_SUPPORT
     aggr_module_destroy(ar->aggr_cntxt);
-#endif
 
        /* Done with cookies */
     ar6000_cookie_cleanup(ar);
@@ -3850,9 +3842,7 @@ ar6000_rx(void *Context, struct htc_packet *pPacket)
                             }
                         }
                     }
-#ifdef ATH_AR6K_11N_SUPPORT
                     aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no, is_amsdu, (void **)&skb);
-#endif
                     ar6000_deliver_frames_to_nw_stack((void *) ar->arNetDev, (void *)skb);
                 }
             }
@@ -4621,7 +4611,6 @@ ar6000_regDomain_event(struct ar6_softc *ar, u32 regCode)
     ar->arRegCode = regCode;
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 void
 ar6000_aggr_rcv_addba_req_evt(struct ar6_softc *ar, WMI_ADDBA_REQ_EVENT *evt)
 {
@@ -4643,7 +4632,6 @@ ar6000_aggr_rcv_delba_req_evt(struct ar6_softc *ar, WMI_DELBA_EVENT *evt)
 {
     aggr_recv_delba_req_evt(ar->aggr_cntxt, evt->tid);
 }
-#endif
 
 void register_pal_cb(ar6k_pal_config_t *palConfig_p)
 {

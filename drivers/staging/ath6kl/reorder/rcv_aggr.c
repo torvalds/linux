@@ -21,8 +21,6 @@
  *
  */
 
-#ifdef  ATH_AR6K_11N_SUPPORT
-
 #include <a_config.h>
 #include <athdefs.h>
 #include <a_types.h>
@@ -662,5 +660,3 @@ aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
     A_PRINTF("================================================\n\n");
 
 }
-
-#endif  /* ATH_AR6K_11N_SUPPORT */

@@ -116,7 +116,6 @@ ccflags-y += -DSEND_EVENT_TO_APP
 ccflags-y += -DUSER_KEYS
 ccflags-y += -DNO_SYNC_FLUSH
 ccflags-y += -DHTC_EP_STAT_PROFILING
-ccflags-y += -DATH_AR6K_11N_SUPPORT
 ccflags-y += -DWAPI_ENABLE
 ccflags-y += -DCHECKSUM_OFFLOAD
 ccflags-y += -DWLAN_HEADERS

@@ -181,13 +181,11 @@ static int wmi_dtimexpiry_event_rx(struct wmi_t *wmip, u8 *datap,
 
 static int wmi_peer_node_event_rx (struct wmi_t *wmip, u8 *datap,
                                         int len);
-#ifdef ATH_AR6K_11N_SUPPORT
 static int wmi_addba_req_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_addba_resp_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_delba_req_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_btcoex_config_event_rx(struct wmi_t *wmip, u8 *datap, int len);
 static int wmi_btcoex_stats_event_rx(struct wmi_t *wmip, u8 *datap, int len);
-#endif
 static int wmi_hci_event_rx(struct wmi_t *, u8 *, int);
 
 #ifdef WAPI_ENABLE
@@ -1120,7 +1118,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SET_PARAMS_REPLY Event\n", DBGARG));
         status = wmi_acm_reject_event_rx(wmip, datap, len);
         break;		
-#ifdef ATH_AR6K_11N_SUPPORT
     case (WMI_ADDBA_REQ_EVENTID):
         status = wmi_addba_req_event_rx(wmip, datap, len);
         break;
@@ -1138,7 +1135,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
 	    A_DPRINTF(DBG_WMI, (DBGFMT "WMI_BTCOEX_STATS_EVENTID", DBGARG));
     	status = wmi_btcoex_stats_event_rx(wmip, datap, len);
 	    break;
-#endif
     case (WMI_TX_COMPLETE_EVENTID):
         {
             int index;
@@ -5810,7 +5806,6 @@ int wmi_add_current_bss (struct wmi_t *wmip, u8 *id, bss_t *bss)
     return 0;
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 static int
 wmi_addba_req_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
@@ -5863,7 +5858,6 @@ wmi_btcoex_stats_event_rx(struct wmi_t * wmip,u8 *datap,int len)
      return 0;
 
 }
-#endif
 
 static int
 wmi_hci_event_rx(struct wmi_t *wmip, u8 *datap, int len)
@@ -6187,7 +6181,6 @@ wmi_ap_set_rateset(struct wmi_t *wmip, u8 rateset)
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_SET_11BG_RATESET_CMDID, NO_SYNC_WMIFLAG));
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 int
 wmi_set_ht_cap_cmd(struct wmi_t *wmip, WMI_SET_HT_CAP_CMD *cmd)
 {
@@ -6233,7 +6226,6 @@ wmi_set_ht_op_cmd(struct wmi_t *wmip, u8 sta_chan_width)
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_HT_OP_CMDID,
                          NO_SYNC_WMIFLAG));
 }
-#endif
 
 int
 wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, u32 *pMaskArray)
@@ -6275,7 +6267,6 @@ wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, u16 sz)
     return (wmi_cmd_send(wmip, osbuf, WMI_HCI_CMD_CMDID, NO_SYNC_WMIFLAG));
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 int
 wmi_allow_aggr_cmd(struct wmi_t *wmip, u16 tx_tidmask, u16 rx_tidmask)
 {
@@ -6335,7 +6326,6 @@ wmi_delete_aggr_cmd(struct wmi_t *wmip, u8 tid, bool uplink)
     /* Delete the local aggr state, on host */
     return (wmi_cmd_send(wmip, osbuf, WMI_DELBA_REQ_CMDID, NO_SYNC_WMIFLAG));
 }
-#endif
 
 int
 wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, u8 rxMetaVersion,
