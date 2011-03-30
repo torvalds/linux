@@ -1591,10 +1591,10 @@ static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 	 * One of the side effects of the JOIN command is that is clears
 	 * WPA/WPA2 keys from the chipset. Performing a JOIN while associated
 	 * to a WPA/WPA2 access point will therefore kill the data-path.
-	 * Currently there is no supported scenario for JOIN during
-	 * association - if it becomes a supported scenario, the WPA/WPA2 keys
-	 * must be handled somehow.
-	 *
+	 * Currently the only valid scenario for JOIN during association
+	 * is on roaming, in which case we will also be given new keys.
+	 * Keep the below message for now, unless it starts bothering
+	 * users who really like to roam a lot :)
 	 */
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		wl1271_info("JOIN while associated.");
