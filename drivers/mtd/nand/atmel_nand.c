@@ -599,7 +599,10 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		nand_chip->options |= NAND_USE_FLASH_BBT;
 	}
 
-	if (cpu_has_dma() && use_dma) {
+	if (!cpu_has_dma())
+		use_dma = 0;
+
+	if (use_dma) {
 		dma_cap_mask_t mask;
 
 		dma_cap_zero(mask);
