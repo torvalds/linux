@@ -4527,7 +4527,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 fp_reg, dpll_reg;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
@@ -4537,7 +4536,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
-	u32 reg, temp;
+	u32 temp;
 	u32 lvds_sync = 0;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
@@ -4743,13 +4742,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	fp_reg = FP0(pipe);
-	dpll_reg = DPLL(pipe);
+	I915_WRITE(FP0(pipe), fp);
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
-	I915_WRITE(fp_reg, fp);
-	I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-
-	POSTING_READ(dpll_reg);
+	POSTING_READ(DPLL(pipe));
 	udelay(150);
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
@@ -4757,9 +4753,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * things on.
 	 */
 	if (is_lvds) {
-		reg = LVDS;
-
-		temp = I915_READ(reg);
+		temp = I915_READ(LVDS);
 		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		if (pipe == 1) {
 			temp |= LVDS_PIPEB_SELECT;
@@ -4803,17 +4797,17 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
 			temp |= lvds_sync;
 		}
-		I915_WRITE(reg, temp);
+		I915_WRITE(LVDS, temp);
 	}
 
 	if (is_dp) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	}
 
-	I915_WRITE(dpll_reg, dpll);
+	I915_WRITE(DPLL(pipe), dpll);
 
 	/* Wait for the clocks to stabilize. */
-	POSTING_READ(dpll_reg);
+	POSTING_READ(DPLL(pipe));
 	udelay(150);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -4832,19 +4826,19 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		 *
 		 * So write it again.
 		 */
-		I915_WRITE(dpll_reg, dpll);
+		I915_WRITE(DPLL(pipe), dpll);
 	}
 
 	intel_crtc->lowfreq_avail = false;
 	if (is_lvds && has_reduced_clock && i915_powersave) {
-		I915_WRITE(fp_reg + 4, fp2);
+		I915_WRITE(FP1(pipe), fp2);
 		intel_crtc->lowfreq_avail = true;
 		if (HAS_PIPE_CXSR(dev)) {
 			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
 		}
 	} else {
-		I915_WRITE(fp_reg + 4, fp);
+		I915_WRITE(FP1(pipe), fp);
 		if (HAS_PIPE_CXSR(dev)) {
 			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
@@ -4920,7 +4914,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 fp_reg, dpll_reg;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
@@ -4932,7 +4925,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
-	u32 reg, temp;
+	u32 temp;
 	u32 lvds_sync = 0;
 	int target_clock, pixel_multiplier, lane, link_bw, bpp, factor;
 
@@ -5238,16 +5231,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	/* assign to Ironlake registers */
-	fp_reg = PCH_FP0(pipe);
-	dpll_reg = PCH_DPLL(pipe);
-
 	/* PCH eDP needs FDI, but CPU eDP does not */
 	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-		I915_WRITE(fp_reg, fp);
-		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+		I915_WRITE(PCH_FP0(pipe), fp);
+		I915_WRITE(PCH_DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
-		POSTING_READ(dpll_reg);
+		POSTING_READ(PCH_DPLL(pipe));
 		udelay(150);
 	}
 
@@ -5279,9 +5268,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	 * things on.
 	 */
 	if (is_lvds) {
-		reg = PCH_LVDS;
-
-		temp = I915_READ(reg);
+		temp = I915_READ(PCH_LVDS);
 		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		if (pipe == 1) {
 			if (HAS_PCH_CPT(dev))
@@ -5324,7 +5311,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
 			temp |= lvds_sync;
 		}
-		I915_WRITE(reg, temp);
+		I915_WRITE(PCH_LVDS, temp);
 	}
 
 	/* set the dithering flag and clear for anything other than a panel. */
@@ -5347,10 +5334,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (!has_edp_encoder ||
 	    intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-		I915_WRITE(dpll_reg, dpll);
+		I915_WRITE(PCH_DPLL(pipe), dpll);
 
 		/* Wait for the clocks to stabilize. */
-		POSTING_READ(dpll_reg);
+		POSTING_READ(PCH_DPLL(pipe));
 		udelay(150);
 
 		/* The pixel multiplier can only be updated once the
@@ -5358,19 +5345,19 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 *
 		 * So write it again.
 		 */
-		I915_WRITE(dpll_reg, dpll);
+		I915_WRITE(PCH_DPLL(pipe), dpll);
 	}
 
 	intel_crtc->lowfreq_avail = false;
 	if (is_lvds && has_reduced_clock && i915_powersave) {
-		I915_WRITE(fp_reg + 4, fp2);
+		I915_WRITE(PCH_FP1(pipe), fp2);
 		intel_crtc->lowfreq_avail = true;
 		if (HAS_PIPE_CXSR(dev)) {
 			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
 		}
 	} else {
-		I915_WRITE(fp_reg + 4, fp);
+		I915_WRITE(PCH_FP1(pipe), fp);
 		if (HAS_PIPE_CXSR(dev)) {
 			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
