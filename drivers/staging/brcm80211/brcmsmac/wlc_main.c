@@ -7078,10 +7078,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (ieee80211_is_probe_req(h->frame_control))
 		goto toss;
 
-	if (is_amsdu) {
-		WL_ERROR("%s: is_amsdu causing toss\n", __func__);
+	if (is_amsdu)
 		goto toss;
-	}
 
 	wlc_recvctl(wlc, rxh, p);
 	return;
