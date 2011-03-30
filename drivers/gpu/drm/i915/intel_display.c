@@ -4533,7 +4533,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
-	struct intel_encoder *has_edp_encoder = NULL;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
@@ -4566,9 +4565,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			has_edp_encoder = encoder;
 			break;
 		}
 
@@ -4750,14 +4746,11 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	fp_reg = FP0(pipe);
 	dpll_reg = DPLL(pipe);
 
-	/* PCH eDP needs FDI, but CPU eDP does not */
-	if (!has_edp_encoder) {
-		I915_WRITE(fp_reg, fp);
-		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	I915_WRITE(fp_reg, fp);
+	I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 
-		POSTING_READ(dpll_reg);
-		udelay(150);
-	}
+	POSTING_READ(dpll_reg);
+	udelay(150);
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
@@ -4817,31 +4810,29 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	}
 
-	if (!has_edp_encoder) {
-		I915_WRITE(dpll_reg, dpll);
+	I915_WRITE(dpll_reg, dpll);
 
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(dpll_reg);
-		udelay(150);
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(dpll_reg);
+	udelay(150);
 
-		if (INTEL_INFO(dev)->gen >= 4) {
-			temp = 0;
-			if (is_sdvo) {
-				temp = intel_mode_get_pixel_multiplier(adjusted_mode);
-				if (temp > 1)
-					temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
-				else
-					temp = 0;
-			}
-			I915_WRITE(DPLL_MD(pipe), temp);
-		} else {
-			/* The pixel multiplier can only be updated once the
-			 * DPLL is enabled and the clocks are stable.
-			 *
-			 * So write it again.
-			 */
-			I915_WRITE(dpll_reg, dpll);
+	if (INTEL_INFO(dev)->gen >= 4) {
+		temp = 0;
+		if (is_sdvo) {
+			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
+			if (temp > 1)
+				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+			else
+				temp = 0;
 		}
+		I915_WRITE(DPLL_MD(pipe), temp);
+	} else {
+		/* The pixel multiplier can only be updated once the
+		 * DPLL is enabled and the clocks are stable.
+		 *
+		 * So write it again.
+		 */
+		I915_WRITE(dpll_reg, dpll);
 	}
 
 	intel_crtc->lowfreq_avail = false;
