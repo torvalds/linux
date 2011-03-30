@@ -931,15 +931,63 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 /* On F10h and later ErrAddr is MC4_ADDR[47:1] */
 static u64 get_error_address(struct mce *m)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+	u64 addr;
 	u8 start_bit = 1;
 	u8 end_bit   = 47;
 
-	if (boot_cpu_data.x86 == 0xf) {
+	if (c->x86 == 0xf) {
 		start_bit = 3;
 		end_bit   = 39;
 	}
 
-	return m->addr & GENMASK(start_bit, end_bit);
+	addr = m->addr & GENMASK(start_bit, end_bit);
+
+	/*
+	 * Erratum 637 workaround
+	 */
+	if (c->x86 == 0x15) {
+		struct amd64_pvt *pvt;
+		u64 cc6_base, tmp_addr;
+		u32 tmp;
+		u8 mce_nid, intlv_en;
+
+		if ((addr & GENMASK(24, 47)) >> 24 != 0x00fdf7)
+			return addr;
+
+		mce_nid	= amd_get_nb_id(m->extcpu);
+		pvt	= mcis[mce_nid]->pvt_info;
+
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_LIM, &tmp);
+		intlv_en = tmp >> 21 & 0x7;
+
+		/* add [47:27] + 3 trailing bits */
+		cc6_base  = (tmp & GENMASK(0, 20)) << 3;
+
+		/* reverse and add DramIntlvEn */
+		cc6_base |= intlv_en ^ 0x7;
+
+		/* pin at [47:24] */
+		cc6_base <<= 24;
+
+		if (!intlv_en)
+			return cc6_base | (addr & GENMASK(0, 23));
+
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_BASE, &tmp);
+
+							/* faster log2 */
+		tmp_addr  = (addr & GENMASK(12, 23)) << __fls(intlv_en + 1);
+
+		/* OR DramIntlvSel into bits [14:12] */
+		tmp_addr |= (tmp & GENMASK(21, 23)) >> 9;
+
+		/* add remaining [11:0] bits from original MC4_ADDR */
+		tmp_addr |= addr & GENMASK(0, 11);
+
+		return cc6_base | tmp_addr;
+	}
+
+	return addr;
 }
 
 static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
