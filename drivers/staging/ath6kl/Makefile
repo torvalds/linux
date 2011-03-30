@@ -29,10 +29,6 @@ ccflags-y += -I$(obj)/os
 ccflags-y += -I$(obj)/bmi/include
 ccflags-y += -I$(obj)/include/common/AR6002/hw4.0
 
-ifeq ($(CONFIG_ATH6KL_ENABLE_COEXISTENCE),y)
-ccflags-y += -DENABLE_COEXISTENCE
-endif
-
 ifeq ($(CONFIG_AR600x_DUAL_ANTENNA),y)
 ccflags-y += -DAR600x_DUAL_ANTENNA
 endif

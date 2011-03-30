@@ -2334,10 +2334,10 @@ u8 ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
 int ar6000_target_config_wlan_params(struct ar6_softc *ar)
 {
     int status = 0;
-#if defined(ENABLE_COEXISTENCE)
+#if defined(CONFIG_ATH6KL_ENABLE_COEXISTENCE)
     WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
     WMI_SET_BTCOEX_FE_ANT_CMD sbfa_cmd;
-#endif /* ENABLE_COEXISTENCE */
+#endif /* CONFIG_ATH6KL_ENABLE_COEXISTENCE */
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
     if (ar->arTargetMode != AR6000_WLAN_MODE) {
@@ -2355,7 +2355,7 @@ int ar6000_target_config_wlan_params(struct ar6_softc *ar)
         status = A_ERROR;
     }
 
-#if defined(ENABLE_COEXISTENCE)
+#if defined(CONFIG_ATH6KL_ENABLE_COEXISTENCE)
     /* Configure the type of BT collocated with WLAN */
     memset(&sbcb_cmd, 0, sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
 #ifdef CONFIG_AR600x_BT_QCOM
@@ -2387,7 +2387,7 @@ int ar6000_target_config_wlan_params(struct ar6_softc *ar)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set fornt end antenna configuration\n"));
         status = A_ERROR;
     }
-#endif /* ENABLE_COEXISTENCE */
+#endif /* CONFIG_ATH6KL_ENABLE_COEXISTENCE */
 
 #if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
     if ((wmi_pmparams_cmd(ar->arWmi, 0, 1, 0, 0, 1, IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN)) != 0) {
