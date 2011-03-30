@@ -104,20 +104,26 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct drm_device *dev = vm->dev;
 	struct nouveau_vm_pgd *vpgd;
-	u32 r100c80, engine;
+	u32 engine = (dev_priv->chan_vm == vm) ? 1 : 5;
 
 	pinstmem->flush(vm->dev);
 
-	if (vm == dev_priv->chan_vm)
-		engine = 1;
-	else
-		engine = 5;
-
+	spin_lock(&dev_priv->ramin_lock);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		r100c80 = nv_rd32(dev, 0x100c80);
+		/* looks like maybe a "free flush slots" counter, the
+		 * faster you write to 0x100cbc to more it decreases
+		 */
+		if (!nv_wait_ne(dev, 0x100c80, 0x00ff0000, 0x00000000)) {
+			NV_ERROR(dev, "vm timeout 0: 0x%08x %d\n",
+				 nv_rd32(dev, 0x100c80), engine);
+		}
 		nv_wr32(dev, 0x100cb8, vpgd->obj->vinst >> 8);
 		nv_wr32(dev, 0x100cbc, 0x80000000 | engine);
-		if (!nv_wait(dev, 0x100c80, 0xffffffff, r100c80))
-			NV_ERROR(dev, "vm flush timeout eng %d\n", engine);
+		/* wait for flush to be queued? */
+		if (!nv_wait(dev, 0x100c80, 0x00008000, 0x00008000)) {
+			NV_ERROR(dev, "vm timeout 1: 0x%08x %d\n",
+				 nv_rd32(dev, 0x100c80), engine);
+		}
 	}
+	spin_unlock(&dev_priv->ramin_lock);
 }
