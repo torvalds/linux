@@ -92,6 +92,8 @@
 #define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)	/* aid bitmap size in bytes */
 #endif				/* AIDMAPSZ */
 
+struct ieee80211_tx_queue_params;
+
 typedef struct wlc_tunables {
 	int ntxd;		/* size of tx descriptor table */
 	int nrxd;		/* size of rx descriptor table */
@@ -515,9 +517,9 @@ extern int wlc_get_header_len(void);
 extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
 extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
 			      const u8 *addr);
-extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg,
+extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci,
+			      const struct ieee80211_tx_queue_params *arg,
 			      bool suspend);
-
 extern struct wlc_pub *wlc_pub(void *wlc);
 
 /* common functions for every port */

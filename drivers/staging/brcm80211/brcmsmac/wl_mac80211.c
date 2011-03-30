@@ -554,7 +554,7 @@ wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		 params->txop, params->cw_min, params->cw_max, params->aifs);
 
 	WL_LOCK(wl);
-	wlc_wme_setparams(wl->wlc, queue, (void *)params, true);
+	wlc_wme_setparams(wl->wlc, queue, params, true);
 	WL_UNLOCK(wl);
 
 	return 0;

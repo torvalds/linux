@@ -525,7 +525,7 @@ void wlc_init(struct wlc_info *wlc)
 	/* Enable EDCF mode (while the MAC is suspended) */
 	if (EDCF_ENAB(wlc->pub)) {
 		OR_REG(&regs->ifs_ctl, IFS_USEEDCF);
-		wlc_edcf_setparams(wlc->cfg, false);
+		wlc_edcf_setparams(wlc, false);
 	}
 
 	/* Init precedence maps for empty FIFOs */
@@ -1361,12 +1361,13 @@ void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe)
 	memcpy(pe, &stadef, sizeof(*pe));
 }
 
-void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
+void wlc_wme_setparams(struct wlc_info *wlc, u16 aci,
+		       const struct ieee80211_tx_queue_params *params,
+		       bool suspend)
 {
 	int i;
 	shm_acparams_t acp_shm;
 	u16 *shm_entry;
-	struct ieee80211_tx_queue_params *params = arg;
 
 	ASSERT(wlc);
 
@@ -1376,20 +1377,12 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 		return;
 	}
 
-	/*
-	 * AP uses AC params from wme_param_ie_ap.
-	 * AP advertises AC params from wme_param_ie.
-	 * STA uses AC params from wme_param_ie.
-	 */
-
 	wlc->wme_admctl = 0;
 
 	do {
 		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
 		/* find out which ac this set of params applies to */
 		ASSERT(aci < AC_COUNT);
-		/* set the admission control policy for this AC */
-		/* wlc->wme_admctl |= 1 << aci; *//* should be set ??  seems like off by default */
 
 		/* fill in shm ac params struct */
 		acp_shm.txop = le16_to_cpu(params->txop);
@@ -1440,15 +1433,13 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 
 }
 
-void wlc_edcf_setparams(struct wlc_bsscfg *cfg, bool suspend)
+void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 {
-	struct wlc_info *wlc = cfg->wlc;
 	uint aci, i, j;
 	edcf_acparam_t *edcf_acp;
 	shm_acparams_t acp_shm;
 	u16 *shm_entry;
 
-	ASSERT(cfg);
 	ASSERT(wlc);
 
 	/* Only apply params if the core is out of reset and has clocks */

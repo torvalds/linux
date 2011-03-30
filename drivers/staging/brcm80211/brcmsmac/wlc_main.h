@@ -942,7 +942,7 @@ extern void wlc_mimops_action_ht_send(struct wlc_info *wlc,
 
 extern void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot);
 extern void wlc_set_bssid(struct wlc_bsscfg *cfg);
-extern void wlc_edcf_setparams(struct wlc_bsscfg *cfg, bool suspend);
+extern void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend);
 
 extern void wlc_set_ratetable(struct wlc_info *wlc);
 extern int wlc_set_mac(struct wlc_bsscfg *cfg);
