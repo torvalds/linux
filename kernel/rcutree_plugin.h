@@ -1198,11 +1198,13 @@ static int rcu_boost_kthread(void *arg)
 	int more2boost;
 
 	for (;;) {
+		rnp->boost_kthread_status = RCU_KTHREAD_WAITING;
 		wait_event_interruptible(rnp->boost_wq, rnp->boost_tasks ||
 							rnp->exp_tasks ||
 							kthread_should_stop());
 		if (kthread_should_stop())
 			break;
+		rnp->boost_kthread_status = RCU_KTHREAD_RUNNING;
 		more2boost = rcu_boost(rnp);
 		if (more2boost)
 			spincnt++;
@@ -1213,6 +1215,7 @@ static int rcu_boost_kthread(void *arg)
 			spincnt = 0;
 		}
 	}
+	rnp->boost_kthread_status = RCU_KTHREAD_STOPPED;
 	return 0;
 }
 

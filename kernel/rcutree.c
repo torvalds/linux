@@ -91,8 +91,9 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
  * handle all flavors of RCU.
  */
 static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
+DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 static DEFINE_PER_CPU(wait_queue_head_t, rcu_cpu_wq);
-static DEFINE_PER_CPU(char, rcu_cpu_has_work);
+DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
 
 static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
@@ -1563,11 +1564,13 @@ static int rcu_cpu_kthread(void *arg)
 	int cpu = (int)(long)arg;
 	unsigned long flags;
 	int spincnt = 0;
+	unsigned int *statusp = &per_cpu(rcu_cpu_kthread_status, cpu);
 	wait_queue_head_t *wqp = &per_cpu(rcu_cpu_wq, cpu);
 	char work;
 	char *workp = &per_cpu(rcu_cpu_has_work, cpu);
 
 	for (;;) {
+		*statusp = RCU_KTHREAD_WAITING;
 		wait_event_interruptible(*wqp,
 					 *workp != 0 || kthread_should_stop());
 		local_bh_disable();
@@ -1575,6 +1578,7 @@ static int rcu_cpu_kthread(void *arg)
 			local_bh_enable();
 			break;
 		}
+		*statusp = RCU_KTHREAD_RUNNING;
 		local_irq_save(flags);
 		work = *workp;
 		*workp = 0;
@@ -1587,10 +1591,12 @@ static int rcu_cpu_kthread(void *arg)
 		else
 			spincnt = 0;
 		if (spincnt > 10) {
+			*statusp = RCU_KTHREAD_YIELDING;
 			rcu_yield(rcu_cpu_kthread_timer, (unsigned long)cpu);
 			spincnt = 0;
 		}
 	}
+	*statusp = RCU_KTHREAD_STOPPED;
 	return 0;
 }
 
@@ -1637,10 +1643,12 @@ static int rcu_node_kthread(void *arg)
 	struct task_struct *t;
 
 	for (;;) {
+		rnp->node_kthread_status = RCU_KTHREAD_WAITING;
 		wait_event_interruptible(rnp->node_wq, rnp->wakemask != 0 ||
 						       kthread_should_stop());
 		if (kthread_should_stop())
 			break;
+		rnp->node_kthread_status = RCU_KTHREAD_RUNNING;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		mask = rnp->wakemask;
 		rnp->wakemask = 0;
@@ -1661,6 +1669,7 @@ static int rcu_node_kthread(void *arg)
 			preempt_enable();
 		}
 	}
+	rnp->node_kthread_status = RCU_KTHREAD_STOPPED;
 	return 0;
 }
 

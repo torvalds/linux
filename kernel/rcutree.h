@@ -89,6 +89,13 @@ struct rcu_dynticks {
 	atomic_t dynticks;	/* Even value for dynticks-idle, else odd. */
 };
 
+/* RCU's kthread states for tracing. */
+#define RCU_KTHREAD_STOPPED  0
+#define RCU_KTHREAD_RUNNING  1
+#define RCU_KTHREAD_WAITING  2
+#define RCU_KTHREAD_YIELDING 3
+#define RCU_KTHREAD_MAX      3
+
 /*
  * Definition for node within the RCU grace-period-detection hierarchy.
  */
@@ -152,6 +159,8 @@ struct rcu_node {
 	wait_queue_head_t boost_wq;
 				/* Wait queue on which to park the boost */
 				/*  kthread. */
+	unsigned int boost_kthread_status;
+				/* State of boost_kthread_task for tracing. */
 	unsigned long n_tasks_boosted;
 				/* Total number of tasks boosted. */
 	unsigned long n_exp_boosts;
@@ -179,6 +188,8 @@ struct rcu_node {
 	wait_queue_head_t node_wq;
 				/* Wait queue on which to park the per-node */
 				/*  kthread. */
+	unsigned int node_kthread_status;
+				/* State of node_kthread_task for tracing. */
 } ____cacheline_internodealigned_in_smp;
 
 /*

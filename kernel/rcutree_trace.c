@@ -46,6 +46,16 @@
 #define RCU_TREE_NONCORE
 #include "rcutree.h"
 
+DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
+DECLARE_PER_CPU(char, rcu_cpu_has_work);
+
+static char convert_kthread_status(unsigned int kthread_status)
+{
+	if (kthread_status > RCU_KTHREAD_MAX)
+		return '?';
+	return "SRWY"[kthread_status];
+}
+
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
@@ -64,7 +74,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_printf(m, " of=%lu ri=%lu", rdp->offline_fqs, rdp->resched_ipi);
-	seq_printf(m, " ql=%ld qs=%c%c%c%c b=%ld",
+	seq_printf(m, " ql=%ld qs=%c%c%c%c kt=%d/%c b=%ld",
 		   rdp->qlen,
 		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
 			rdp->nxttail[RCU_NEXT_TAIL]],
@@ -73,6 +83,9 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
 			rdp->nxttail[RCU_WAIT_TAIL]],
 		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]],
+		   per_cpu(rcu_cpu_has_work, rdp->cpu),
+		   convert_kthread_status(per_cpu(rcu_cpu_kthread_status,
+					  rdp->cpu)),
 		   rdp->blimit);
 	seq_printf(m, " ci=%lu co=%lu ca=%lu\n",
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
@@ -130,7 +143,7 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_printf(m, ",%lu,%lu", rdp->offline_fqs, rdp->resched_ipi);
-	seq_printf(m, ",%ld,\"%c%c%c%c\",%ld", rdp->qlen,
+	seq_printf(m, ",%ld,\"%c%c%c%c\",%d,\"%c\",%ld", rdp->qlen,
 		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
 			rdp->nxttail[RCU_NEXT_TAIL]],
 		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
@@ -138,6 +151,9 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
 			rdp->nxttail[RCU_WAIT_TAIL]],
 		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]],
+		   per_cpu(rcu_cpu_has_work, rdp->cpu),
+		   convert_kthread_status(per_cpu(rcu_cpu_kthread_status,
+					  rdp->cpu)),
 		   rdp->blimit);
 	seq_printf(m, ",%lu,%lu,%lu\n",
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
@@ -178,13 +194,14 @@ static const struct file_operations rcudata_csv_fops = {
 
 static void print_one_rcu_node_boost(struct seq_file *m, struct rcu_node *rnp)
 {
-	seq_printf(m,  "%d:%d tasks=%c%c%c%c ntb=%lu neb=%lu nnb=%lu "
+	seq_printf(m,  "%d:%d tasks=%c%c%c%c kt=%c ntb=%lu neb=%lu nnb=%lu "
 		   "j=%04x bt=%04x\n",
 		   rnp->grplo, rnp->grphi,
 		   "T."[list_empty(&rnp->blkd_tasks)],
 		   "N."[!rnp->gp_tasks],
 		   "E."[!rnp->exp_tasks],
 		   "B."[!rnp->boost_tasks],
+		   convert_kthread_status(rnp->boost_kthread_status),
 		   rnp->n_tasks_boosted, rnp->n_exp_boosts,
 		   rnp->n_normal_boosts,
 		   (int)(jiffies & 0xffff),
