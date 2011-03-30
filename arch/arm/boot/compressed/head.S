@@ -21,18 +21,10 @@
 
 #if defined(CONFIG_DEBUG_ICEDCC)
 
-#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
-		mcr	p14, 0, \ch, c0, c5, 0
-		.endm
-#elif defined(CONFIG_CPU_V7)
-		.macro	loadsp, rb, tmp
-		.endm
-		.macro	writeb, ch, rb
-wait:		mrc	p14, 0, pc, c0, c1, 0
-		bcs	wait
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
 #elif defined(CONFIG_CPU_XSCALE)
