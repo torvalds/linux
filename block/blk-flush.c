@@ -261,7 +261,7 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_rq.end_io = flush_end_io;
 
 	q->flush_pending_idx ^= 1;
-	__elv_add_request(q, &q->flush_rq, ELEVATOR_INSERT_REQUEUE);
+	list_add_tail(&q->flush_rq.queuelist, &q->queue_head);
 	return true;
 }
 
@@ -312,7 +312,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		list_add(&rq->queuelist, &q->queue_head);
+		list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
 
