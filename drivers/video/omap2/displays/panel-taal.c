@@ -819,7 +819,7 @@ err:
 	return r;
 }
 
-static void taal_remove(struct omap_dss_device *dssdev)
+static void __exit taal_remove(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
@@ -1557,7 +1557,7 @@ static enum omap_dss_update_mode taal_get_update_mode(
 
 static struct omap_dss_driver taal_driver = {
 	.probe		= taal_probe,
-	.remove		= taal_remove,
+	.remove		= __exit_p(taal_remove),
 
 	.enable		= taal_enable,
 	.disable	= taal_disable,
