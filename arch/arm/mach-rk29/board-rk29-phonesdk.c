@@ -1433,7 +1433,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 200*1000,
+	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
@@ -2730,10 +2730,10 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
  * xpt2046 touch panel
  * author: hhb@rock-chips.com
  *****************************************************************************************/
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
 #define XPT2046_GPIO_INT           RK29_PIN4_PD5 //中断脚
 #define DEBOUNCE_REPTIME  3
 
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
 	.keep_vref_on 	= 1,
@@ -2846,6 +2846,70 @@ static struct spi_board_info board_spi_devices[] = {
 };
 
 
+/**********************************************************************************************
+ *
+ * The virtual keys for android "back", "home", "menu", "search", these four keys are touch key
+ * on the touch screen panel. (added by hhb@rock-chips.com 2011.03.31)
+ *
+ ***********************************************************************************************/
+static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+#if (defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) && defined(CONFIG_TOUCHSCREEN_480X800)) \
+	|| defined(CONFIG_TOUCHSCREEN_HX8520_IIC) || defined(CONFIG_TOUCHSCREEN_GT801_IIC)
+	/* center: x: home: 50, menu: 184, back: 315, search 435, y: 830*/
+    /* centerx;centery;width;height; */
+	return sprintf(buf,
+		__stringify(EV_KEY) ":" __stringify(KEY_BACK)	    ":315:815:120:50"     //":50:830:98:50"  //":210:796:98:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":85:815:88:50"   // ":184:830:120:50"  // ":435:796:120:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":184:815:100:50"   //":315:830:100:50"  //":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":435:815:88:50"   //":50:815:98:50"    //   //":85:796:88:50"
+		"\n");
+#endif
+	return 0;
+}
+
+static struct kobj_attribute rk29xx_virtual_keys_attr = {
+	.attr = {
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
+		.name = "virtualkeys.xpt2046-touchscreen",
+#elif defined(CONFIG_TOUCHSCREEN_HX8520_IIC)
+        .name = "virtualkeys.hx8520-touchscreen",
+#elif defined(CONFIG_TOUCHSCREEN_GT801_IIC)
+		.name = "virtualkeys.gt801-touchscreen",
+#endif
+
+
+		.mode = S_IRUGO,
+	},
+	.show = &rk29xx_virtual_keys_show,
+};
+
+static struct attribute *rk29xx_properties_attrs[] = {
+	&rk29xx_virtual_keys_attr.attr,
+	NULL
+};
+
+static struct attribute_group rk29xx_properties_attr_group = {
+	.attrs = rk29xx_properties_attrs,
+};
+static int rk29xx_virtual_keys_init(void)
+{
+	int ret;
+	struct kobject *properties_kobj;
+	printk("rk29xx_virtual_keys_init \n");
+	properties_kobj = kobject_create_and_add("board_properties", NULL);
+	if (properties_kobj)
+		ret = sysfs_create_group(properties_kobj,
+				&rk29xx_properties_attr_group);
+	if (!properties_kobj || ret)
+	{
+		pr_err("failed to create board_properties\n");
+	}
+	return ret;
+}
+
+
 static void __init rk29_gic_init_irq(void)
 {
 	gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
@@ -2905,6 +2969,7 @@ static void __init machine_rk29_board_init(void)
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 
         rk29sdk_init_wifi_mem();
+        rk29xx_virtual_keys_init();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

@@ -4,7 +4,9 @@
  * author: hhb@rock-chips.com
  * creat date: 2011-03-22
  * route:drivers/video/display/screen/lcd_ls035y8dx02a.c - driver for rk29 phone sdk
- * station:haven't been tested in any hardware platform
+ * declaration: This program driver have been tested in rk29_phonesdk hardware platform at 2011.03.31.
+ * about migration: you need just 3 interface functions,such as lcd_init(void),lcd_standby(u8 enable),
+ * set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -28,20 +30,20 @@
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
 #define OUT_CLK			(26*1000000)	//***27  uint Hz
-#define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��           //rk29
+#define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��
 
 /* Timing */
-#define H_PW			8 //16
-#define H_BP			6//24
-#define H_VD			480//320	//***800 
-#define H_FP			60//16
+#define H_PW			16//8 //16
+#define H_BP			24//6//24
+#define H_VD			480//320
+#define H_FP			16//60//16
 
 #define V_PW			12//2
 #define V_BP			4// 2
-#define V_VD			800//480	//***480
-#define V_FP			40//4
+#define V_VD			800//480
+#define V_FP			50//4
 
-#define LCD_WIDTH       800    //need modify   //rk29
+#define LCD_WIDTH       800    //need modify
 #define LCD_HEIGHT      480
 
 /* Other */
@@ -51,16 +53,12 @@
 static struct rk29lcd_info *gLcd_info = NULL;
 int lcd_init(void);
 int lcd_standby(u8 enable);
-/*
-#define RXD_PORT	    RK2818_PIN_PB7
-#define TXD_PORT        RK2818_PIN_PB6    //gLcd_info->txd_pin
-#define CLK_PORT        RK2818_PIN_PB5    //gLcd_info->clk_pin
-#define CS_PORT         RK2818_PIN_PB4    // gLcd_info->cs_pin
-*/
+
 #define RXD_PORT        RK29_PIN2_PC7
 #define TXD_PORT        gLcd_info->txd_pin
 #define CLK_PORT        gLcd_info->clk_pin
 #define CS_PORT         gLcd_info->cs_pin
+#define RESET_PORT      RK29_PIN6_PC6
 
 #define CS_OUT()        gpio_direction_output(CS_PORT, 1)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
@@ -167,8 +165,6 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
 					TXD_SET();
 			else
 					TXD_CLR();
-
-			// \u6a21\u62dfCLK
 			CLK_SET();
 			DRVDelayUs(2);
 			CLK_CLR();
@@ -180,8 +176,9 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
         CLK_CLR();		
         DRVDelayUs(10);
 
-	 if(0xffff == Data0)
-		return;
+	 if(0xffff == Data0){
+		 return;
+	 }
 		
         CS_CLR();
  
@@ -194,8 +191,6 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
 					TXD_SET();
 			else
 					TXD_CLR();
-
-			// \u6a21\u62dfCLK
 			CLK_SET();
 			DRVDelayUs(2);
 			CLK_CLR();
@@ -221,8 +216,6 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
 					TXD_SET();
 			else
 					TXD_CLR();
-
-			// \u6a21\u62dfCLK
 			CLK_SET();
 			DRVDelayUs(2);
 			CLK_CLR();
@@ -244,11 +237,11 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;
-    screen->width = LCD_WIDTH;    //rk29
-    screen->height = LCD_HEIGHT;  //rk29
+    screen->width = LCD_WIDTH;
+    screen->height = LCD_HEIGHT;
 
     /* Timing */
-    screen->lcdc_aclk = LCDC_ACLK;  //rk29
+    screen->lcdc_aclk = LCDC_ACLK;
     screen->pixclock = OUT_CLK;
 	screen->left_margin = H_BP;		/*>2*/ 
 	screen->right_margin = H_FP;	/*>2*/ 
@@ -281,27 +274,26 @@ int lcd_init(void)
 { 
 	volatile u32 data;
     if(gLcd_info){
-    	printk("lcd init11111111111111111111111111...\n");
         gLcd_info->io_init();
 	}
 
-    /* reset lcd to start init lcd */
-    gpio_request(RK29_PIN6_PC6, NULL);
-    gpio_direction_output(RK29_PIN6_PC6, 0);
+    /* reset lcd to start init lcd by software if there is no hardware reset circuit for the lcd */
+#ifdef RESET_PORT
+    gpio_request(RESET_PORT, NULL);
+    gpio_direction_output(RESET_PORT, 0);
     mdelay(2);
-    gpio_set_value(RK29_PIN6_PC6, 1);
+    gpio_set_value(RESET_PORT, 1);
     mdelay(10);
-    gpio_free(RK29_PIN6_PC6);
+    gpio_free(RESET_PORT);
+#endif
 
-
-	printk("lcd init22222222222222222222222222...\n");
 	printk("lcd init...\n");
-	spi_screenreg_set(0x29, 0xffff, 0xffff);
-	spi_screenreg_set(0x11, 0xffff, 0xffff);
-	
+	spi_screenreg_set(0x29, 0xffff, 0xffff);      //display on
+	spi_screenreg_set(0x11, 0xffff, 0xffff);      //sleep out
 	mdelay(150);
-	spi_screenreg_set(0x36, 0x0000, 0xffff);	
-	//while(1)
+	spi_screenreg_set(0x36, 0x0000, 0xffff);      //set address mode
+	
+	while(0)  //this code is not used here
 	{	
 		data = spi_screenreg_get(0x0a);	
 		printk("------------liuylcd init reg 0x0a=0x%x \n", spi_screenreg_get(0x0a));
@@ -314,11 +306,12 @@ int lcd_init(void)
 		data = spi_screenreg_get(0x0f);
 		printk("------------liuylcd init reg 0x0f=0x%x \n", spi_screenreg_get(0x0f));
 	}	
-	spi_screenreg_set(0x3a, 0x0070, 0xffff);
-	spi_screenreg_set(0xb0, 0x0000, 0xffff);
-	spi_screenreg_set(0xb8, 0x0001, 0xffff);
-	spi_screenreg_set(0xb9, 0x0001, 0x00ff);
-	spi_screenreg_set(0xb0, 0x0003, 0xffff);
+
+	spi_screenreg_set(0x3a, 0x0070, 0xffff);      //set pixel format
+	spi_screenreg_set(0xb0, 0x0000, 0xffff);      //enable command acess
+	spi_screenreg_set(0xb8, 0x0001, 0xffff);      //BLC setting
+	spi_screenreg_set(0xb9, 0x0001, 0x00ff);      //LED PWM
+	spi_screenreg_set(0xb0, 0x0003, 0xffff);      //disable command acess
 	
     if(gLcd_info)
         gLcd_info->io_deinit();
