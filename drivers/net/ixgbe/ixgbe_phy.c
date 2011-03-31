@@ -657,7 +657,8 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 				     MDIO_MMD_AN,
 				     &autoneg_reg);
 
-		autoneg_reg &= ~ADVERTISE_100FULL;
+		autoneg_reg &= ~(ADVERTISE_100FULL |
+				 ADVERTISE_100HALF);
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
 			autoneg_reg |= ADVERTISE_100FULL;
 
