@@ -287,8 +287,15 @@ done
 # we are carefull to delete tmp files
 if [ ! -z ${output_file} ]; then
 	if [ -z ${cpio_file} ]; then
+		timestamp=
+		if test -n "$KBUILD_BUILD_TIMESTAMP"; then
+			timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
+			if test -n "$timestamp"; then
+				timestamp="-t $timestamp"
+			fi
+		fi
 		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
-		usr/gen_init_cpio ${cpio_list} > ${cpio_tfile}
+		usr/gen_init_cpio $timestamp ${cpio_list} > ${cpio_tfile}
 	else
 		cpio_tfile=${cpio_file}
 	fi
