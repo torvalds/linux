@@ -1902,12 +1902,10 @@ got_driver:
 #ifdef TTY_DEBUG_HANGUP
 	printk(KERN_DEBUG "opening %s...", tty->name);
 #endif
-	if (!retval) {
-		if (tty->ops->open)
-			retval = tty->ops->open(tty, filp);
-		else
-			retval = -ENODEV;
-	}
+	if (tty->ops->open)
+		retval = tty->ops->open(tty, filp);
+	else
+		retval = -ENODEV;
 	filp->f_flags = saved_flags;
 
 	if (!retval && test_bit(TTY_EXCLUSIVE, &tty->flags) &&
