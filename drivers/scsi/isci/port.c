@@ -400,55 +400,43 @@ void isci_port_hard_reset_complete(struct isci_port *isci_port,
 
 	complete_all(&isci_port->hard_reset_complete);
 }
-/**
- * isci_port_perform_hard_reset() - This function is one of the SAS Domain
- *    Template functions. This is a phy management function.
- * @isci_port:
- * @isci_phy:
- *
- * status, TMF_RESP_FUNC_COMPLETE indicates success.
- */
-int isci_port_perform_hard_reset(
-	struct isci_port *isci_port,
-	struct isci_phy *isci_phy)
+
+int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
+				 struct isci_phy *iphy)
 {
+	unsigned long flags;
 	enum sci_status status;
 	int ret = TMF_RESP_FUNC_COMPLETE;
-	unsigned long flags;
 
+	dev_dbg(&ihost->pdev->dev, "%s: iport = %p\n",
+		__func__, iport);
 
-	dev_dbg(&isci_port->isci_host->pdev->dev,
-		"%s: isci_port = %p\n",
-		__func__, isci_port);
+	init_completion(&iport->hard_reset_complete);
 
-	BUG_ON(isci_port == NULL);
-
-	init_completion(&isci_port->hard_reset_complete);
-
-	spin_lock_irqsave(&isci_port->isci_host->scic_lock, flags);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	#define ISCI_PORT_RESET_TIMEOUT SCIC_SDS_SIGNATURE_FIS_TIMEOUT
-	status = scic_port_hard_reset(isci_port->sci_port_handle,
+	status = scic_port_hard_reset(iport->sci_port_handle,
 				      ISCI_PORT_RESET_TIMEOUT);
 
-	spin_unlock_irqrestore(&isci_port->isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	if (status == SCI_SUCCESS) {
-		wait_for_completion(&isci_port->hard_reset_complete);
+		wait_for_completion(&iport->hard_reset_complete);
 
-		dev_dbg(&isci_port->isci_host->pdev->dev,
-			"%s: isci_port = %p; hard reset completion\n",
-			__func__, isci_port);
+		dev_dbg(&ihost->pdev->dev,
+			"%s: iport = %p; hard reset completion\n",
+			__func__, iport);
 
-		if (isci_port->hard_reset_status != SCI_SUCCESS)
+		if (iport->hard_reset_status != SCI_SUCCESS)
 			ret = TMF_RESP_FUNC_FAILED;
 	} else {
 		ret = TMF_RESP_FUNC_FAILED;
 
-		dev_err(&isci_port->isci_host->pdev->dev,
-			"%s: isci_port = %p; scic_port_hard_reset call"
+		dev_err(&ihost->pdev->dev,
+			"%s: iport = %p; scic_port_hard_reset call"
 			" failed 0x%x\n",
-			__func__, isci_port, status);
+			__func__, iport, status);
 
 	}
 
@@ -456,19 +444,12 @@ int isci_port_perform_hard_reset(
 	 * the same as link failures on all phys in the port.
 	 */
 	if (ret != TMF_RESP_FUNC_COMPLETE) {
-		BUG_ON(isci_port->isci_host == NULL);
-
-		dev_err(&isci_port->isci_host->pdev->dev,
-			"%s: isci_port = %p; hard reset failed "
+		dev_err(&ihost->pdev->dev,
+			"%s: iport = %p; hard reset failed "
 			"(0x%x) - sending link down to libsas for phy %p\n",
-			__func__,
-			isci_port,
-			isci_port->hard_reset_status,
-			isci_phy);
+			__func__, iport, iport->hard_reset_status, iphy);
 
-		isci_port_link_down(isci_port->isci_host,
-				    isci_phy,
-				    isci_port);
+		isci_port_link_down(ihost, iphy, iport);
 	}
 
 	return ret;
@@ -491,8 +472,7 @@ void isci_port_invalid_link_up(struct scic_sds_controller *scic,
 				      struct scic_sds_port *sci_port,
 				      struct scic_sds_phy *phy)
 {
-	struct isci_host *ihost =
-		(struct isci_host *)sci_object_get_association(scic);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
 	dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
 }

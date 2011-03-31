@@ -163,7 +163,7 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 			return -ENODEV;
 
 		/* Perform the port reset. */
-		ret = isci_port_perform_hard_reset(iport, iphy);
+		ret = isci_port_perform_hard_reset(ihost, iport, iphy);
 
 		break;
 

@@ -218,32 +218,19 @@ static enum sci_status isci_remote_device_construct(
 	return status;
 }
 
-
-/**
- * isci_remote_device_nuke_requests() - This function terminates all requests
- *    for a given remote device.
- * @isci_device: This parameter specifies the remote device
- *
- */
-void isci_remote_device_nuke_requests(
-	struct isci_remote_device *isci_device)
+void isci_remote_device_nuke_requests(struct isci_host *ihost, struct isci_remote_device *idev)
 {
 	DECLARE_COMPLETION_ONSTACK(aborted_task_completion);
-	struct isci_host *isci_host;
 
-	isci_host = isci_device->isci_port->isci_host;
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: idev = %p\n", __func__, idev);
 
 	/* Cleanup all requests pending for this device. */
-	isci_terminate_pending_requests(isci_host, isci_device, terminating);
+	isci_terminate_pending_requests(ihost, idev, terminating);
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p, done\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: idev = %p, done\n", __func__, idev);
 }
-
-
 
 /**
  * This function builds the isci_remote_device when a libsas dev_found message
@@ -380,7 +367,7 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 	isci_remote_device_change_state(idev, isci_stopping);
 
 	/* Kill all outstanding requests. */
-	isci_remote_device_nuke_requests(idev);
+	isci_remote_device_nuke_requests(ihost, idev);
 
 	set_bit(IDEV_STOP_PENDING, &idev->flags);
 
@@ -409,7 +396,7 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
  */
 void isci_remote_device_gone(struct domain_device *dev)
 {
-	struct isci_host *ihost = dev->port->ha->lldd_ha;
+	struct isci_host *ihost = dev_to_ihost(dev);
 	struct isci_remote_device *idev = dev->lldd_dev;
 
 	dev_dbg(&ihost->pdev->dev,
@@ -431,15 +418,13 @@ void isci_remote_device_gone(struct domain_device *dev)
  */
 int isci_remote_device_found(struct domain_device *domain_dev)
 {
-	struct isci_host *isci_host;
+	struct isci_host *isci_host = dev_to_ihost(domain_dev);
 	struct isci_port *isci_port;
 	struct isci_phy *isci_phy;
 	struct asd_sas_port *sas_port;
 	struct asd_sas_phy *sas_phy;
 	struct isci_remote_device *isci_device;
 	enum sci_status status;
-
-	isci_host = isci_host_from_sas_ha(domain_dev->port->ha);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: domain_device = %p\n", __func__, domain_dev);
@@ -556,41 +541,22 @@ bool isci_device_is_reset_pending(
  *
  * true if there is a reset pending for the device.
  */
-void isci_device_clear_reset_pending(struct isci_remote_device *isci_device)
+void isci_device_clear_reset_pending(struct isci_host *ihost, struct isci_remote_device *idev)
 {
 	struct isci_request *isci_request;
 	struct isci_request *tmp_req;
-	struct isci_host *isci_host = NULL;
 	unsigned long flags = 0;
 
-	/* FIXME more port gone confusion, and this time it makes the
-	 * locking "fun"
-	 */
-	if (isci_device->isci_port != NULL)
-		isci_host = isci_device->isci_port->isci_host;
+	dev_dbg(&ihost->pdev->dev, "%s: idev=%p, ihost=%p\n",
+		 __func__, idev, ihost);
 
-	/*
-	 * FIXME when the isci_host gets sorted out
-	 * use dev_dbg()
-	 */
-	pr_debug("%s: isci_device=%p, isci_host=%p\n",
-		 __func__, isci_device, isci_host);
-
-	if (isci_host != NULL)
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
-	else
-		pr_err("%s: isci_device %p; isci_host == NULL!\n",
-		       __func__, isci_device);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* Clear reset pending on all pending requests. */
 	list_for_each_entry_safe(isci_request, tmp_req,
-				 &isci_device->reqs_in_process, dev_node) {
-		/*
-		 * FIXME when the conditional spinlock is gone
-		 * change to dev_dbg()
-		 */
-		pr_debug("%s: isci_device = %p request = %p\n",
-			 __func__, isci_device, isci_request);
+				 &idev->reqs_in_process, dev_node) {
+		dev_dbg(&ihost->pdev->dev, "%s: idev = %p request = %p\n",
+			 __func__, idev, isci_request);
 
 		if (isci_request->ttype == io_task) {
 
@@ -603,9 +569,7 @@ void isci_device_clear_reset_pending(struct isci_remote_device *isci_device)
 			spin_unlock_irqrestore(&task->task_state_lock, flags2);
 		}
 	}
-
-	if (isci_host != NULL)
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /**

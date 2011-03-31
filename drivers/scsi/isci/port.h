@@ -143,9 +143,8 @@ void isci_port_hard_reset_complete(
 	struct isci_port *isci_port,
 	enum sci_status completion_status);
 
-int isci_port_perform_hard_reset(
-	struct isci_port *isci_port_ptr,
-	struct isci_phy *isci_phy_ptr);
+int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
+				 struct isci_phy *iphy);
 
 void isci_port_invalid_link_up(
 		struct scic_sds_controller *scic,

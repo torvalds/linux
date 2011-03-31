@@ -78,59 +78,29 @@ static inline struct scic_sds_remote_device *to_sci_dev(struct isci_remote_devic
 	return (struct scic_sds_remote_device *) &idev[1];
 }
 
-#define to_isci_remote_device(p)	\
-	container_of(p, struct isci_remote_device, sci_remote_device);
-
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
 
-
-/**
- * isci_dev_from_domain_dev() - This accessor retrieves the remote_device
- *    object reference from the Linux domain_device reference.
- * @domdev,: This parameter points to the Linux domain_device object .
- *
- * A reference to the associated isci remote device.
- */
-#define isci_dev_from_domain_dev(domdev) \
-	((struct isci_remote_device *)(domdev)->lldd_dev)
-
-void isci_remote_device_start_complete(
-	struct isci_host *,
-	struct isci_remote_device *,
-	enum sci_status);
-
-void isci_remote_device_stop_complete(
-	struct isci_host *,
-	struct isci_remote_device *,
-	enum sci_status);
-
+void isci_remote_device_start_complete(struct isci_host *ihost,
+				       struct isci_remote_device *idev,
+				       enum sci_status);
+void isci_remote_device_stop_complete(struct isci_host *ihost,
+				      struct isci_remote_device *idev,
+				      enum sci_status);
 enum sci_status isci_remote_device_stop(struct isci_host *ihost,
 					struct isci_remote_device *idev);
-void isci_remote_device_nuke_requests(
-	struct isci_remote_device *isci_device);
-
+void isci_remote_device_nuke_requests(struct isci_host *ihost,
+				      struct isci_remote_device *idev);
 void isci_remote_device_ready(struct isci_host *ihost,
 			      struct isci_remote_device *idev);
-
 void isci_remote_device_not_ready(struct isci_host *ihost,
 				  struct isci_remote_device *idev, u32 reason);
-
-void isci_remote_device_gone(
-	struct domain_device *domain_dev);
-
-int isci_remote_device_found(
-	struct domain_device *domain_dev);
-
-bool isci_device_is_reset_pending(
-	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device);
-
-void isci_device_clear_reset_pending(
-	struct isci_remote_device *isci_device);
-
-void isci_remote_device_change_state(
-	struct isci_remote_device *isci_device,
-	enum isci_status status);
+void isci_remote_device_gone(struct domain_device *domain_dev);
+int isci_remote_device_found(struct domain_device *domain_dev);
+bool isci_device_is_reset_pending(struct isci_host *ihost,
+				  struct isci_remote_device *idev);
+void isci_device_clear_reset_pending(struct isci_host *ihost,
+				     struct isci_remote_device *idev);
+void isci_remote_device_change_state(struct isci_remote_device *idev,
+				     enum isci_status status);
 
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */
-

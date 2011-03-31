@@ -129,7 +129,7 @@ void isci_host_start_complete(struct isci_host *ihost, enum sci_status completio
 
 int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	struct isci_host *ihost = isci_host_from_sas_ha(SHOST_TO_SAS_HA(shost));
+	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
 
 	if (test_bit(IHOST_START_PENDING, &ihost->flags))
 		return 0;
@@ -149,7 +149,7 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 void isci_host_scan_start(struct Scsi_Host *shost)
 {
-	struct isci_host *ihost = isci_host_from_sas_ha(SHOST_TO_SAS_HA(shost));
+	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
 	struct scic_sds_controller *scic = ihost->core_controller;
 	unsigned long tmo = scic_controller_get_suggested_start_timeout(scic);
 

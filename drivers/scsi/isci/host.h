@@ -233,15 +233,10 @@ static inline void wait_for_device_stop(struct isci_host *ihost, struct isci_rem
 	wait_event(ihost->eventq, !test_bit(IDEV_STOP_PENDING, &idev->flags));
 }
 
-/**
- * isci_host_from_sas_ha() - This accessor retrieves the isci_host object
- *    reference from the Linux sas_ha_struct reference.
- * @ha_struct,: This parameter points to the Linux sas_ha_struct object
- *
- * A reference to the associated isci_host structure.
- */
-#define isci_host_from_sas_ha(ha_struct) \
-	((struct isci_host *)(ha_struct)->lldd_ha)
+static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
+{
+	return dev->port->ha->lldd_ha;
+}
 
 /**
  * isci_host_scan_finished() -

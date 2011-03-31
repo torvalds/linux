@@ -146,7 +146,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
  */
 int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 {
-	struct isci_host *ihost = task->dev->port->ha->lldd_ha;
+	struct isci_host *ihost = dev_to_ihost(task->dev);
 	struct isci_request *request = NULL;
 	struct isci_remote_device *device;
 	unsigned long flags;
@@ -169,7 +169,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 			"task = %p, num = %d; dev = %p; cmd = %p\n",
 			    task, num, task->dev, task->uldd_task);
 
-		device = isci_dev_from_domain_dev(task->dev);
+		device = task->dev->lldd_dev;
 
 		if (device)
 			device_status = device->status;
@@ -593,7 +593,6 @@ static void isci_task_build_abort_task_tmf(
 
 static struct isci_request *isci_task_get_request_from_task(
 	struct sas_task *task,
-	struct isci_host **isci_host,
 	struct isci_remote_device **isci_device)
 {
 
@@ -608,9 +607,6 @@ static struct isci_request *isci_task_get_request_from_task(
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE) &&
 	    (task->task_state_flags & SAS_TASK_AT_INITIATOR) &&
 	    (request != NULL)) {
-
-		if (isci_host != NULL)
-			*isci_host = request->isci_host;
 
 		if (isci_device != NULL)
 			*isci_device = request->isci_device;
@@ -1027,26 +1023,17 @@ static int isci_task_send_lu_reset_sas(
  *
  * status, zero indicates success.
  */
-int isci_task_lu_reset(
-	struct domain_device *domain_device,
-	u8 *lun)
+int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
 {
-	struct isci_host *isci_host = NULL;
+	struct isci_host *isci_host = dev_to_ihost(domain_device);
 	struct isci_remote_device *isci_device = NULL;
 	int ret;
 	bool device_stopping = false;
 
-	if (domain_device == NULL) {
-		pr_warn("%s: domain_device == NULL\n", __func__);
-		return TMF_RESP_FUNC_FAILED;
-	}
+	isci_device = domain_device->lldd_dev;
 
-	isci_device = isci_dev_from_domain_dev(domain_device);
-
-	if (domain_device->port != NULL)
-		isci_host = isci_host_from_sas_ha(domain_device->port->ha);
-
-	pr_debug("%s: domain_device=%p, isci_host=%p; isci_device=%p\n",
+	dev_dbg(&isci_host->pdev->dev,
+		"%s: domain_device=%p, isci_host=%p; isci_device=%p\n",
 		 __func__, domain_device, isci_host, isci_device);
 
 	if (isci_device != NULL)
@@ -1057,24 +1044,18 @@ int isci_task_lu_reset(
 	 * device's list, fail this LUN reset request in order to
 	 * escalate to the device reset.
 	 */
-	if ((isci_device == NULL) ||
-	    (isci_host == NULL) ||
-	    ((isci_host != NULL) &&
-	     (isci_device != NULL) &&
-	     (device_stopping ||
-	      (isci_device_is_reset_pending(isci_host, isci_device))))) {
+	if (!isci_device || device_stopping ||
+	    isci_device_is_reset_pending(isci_host, isci_device)) {
 		dev_warn(&isci_host->pdev->dev,
-			 "%s: No dev (%p), no host (%p), or "
+			 "%s: No dev (%p), or "
 			 "RESET PENDING: domain_device=%p\n",
-			 __func__, isci_device, isci_host, domain_device);
+			 __func__, isci_device, domain_device);
 		return TMF_RESP_FUNC_FAILED;
 	}
 
 	/* Send the task management part of the reset. */
 	if (sas_protocol_ata(domain_device->tproto)) {
-		ret = isci_task_send_lu_reset_sata(
-			isci_host, isci_device, lun
-			);
+		ret = isci_task_send_lu_reset_sata(isci_host, isci_device, lun);
 	} else
 		ret = isci_task_send_lu_reset_sas(isci_host, isci_device, lun);
 
@@ -1173,11 +1154,11 @@ static void isci_abort_task_process_cb(
  */
 int isci_task_abort_task(struct sas_task *task)
 {
+	struct isci_host *isci_host = dev_to_ihost(task->dev);
 	DECLARE_COMPLETION_ONSTACK(aborted_io_completion);
 	struct isci_request       *old_request = NULL;
 	enum isci_request_status  old_state;
 	struct isci_remote_device *isci_device = NULL;
-	struct isci_host          *isci_host = NULL;
 	struct isci_tmf           tmf;
 	int                       ret = TMF_RESP_FUNC_FAILED;
 	unsigned long             flags;
@@ -1189,8 +1170,7 @@ int isci_task_abort_task(struct sas_task *task)
 	 * in the device, because tasks driving resets may land here
 	 * after completion in the core.
 	 */
-	old_request = isci_task_get_request_from_task(task, &isci_host,
-						      &isci_device);
+	old_request = isci_task_get_request_from_task(task, &isci_device);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: task = %p\n", __func__, task);
@@ -1610,37 +1590,29 @@ u32 isci_task_ssp_request_get_response_data_length(
  */
 int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 {
+	struct domain_device *dev = cmd_to_domain_dev(cmd);
+	struct isci_host *isci_host = dev_to_ihost(dev);
 	unsigned long flags = 0;
-	struct isci_host *isci_host = NULL;
 	enum sci_status status;
 	int base_status;
-	struct isci_remote_device *isci_dev
-		= isci_dev_from_domain_dev(
-		sdev_to_domain_dev(cmd->device));
+	struct isci_remote_device *isci_dev = dev->lldd_dev;
 
-	dev_dbg(&cmd->device->sdev_gendev,
+	dev_dbg(&isci_host->pdev->dev,
 		"%s: cmd %p, isci_dev %p\n",
 		__func__, cmd, isci_dev);
 
 	if (!isci_dev) {
-		dev_warn(&cmd->device->sdev_gendev,
+		dev_warn(&isci_host->pdev->dev,
 			 "%s: isci_dev is GONE!\n",
 			 __func__);
 
 		return TMF_RESP_FUNC_COMPLETE; /* Nothing to reset. */
 	}
 
-	if (isci_dev->isci_port != NULL)
-		isci_host = isci_dev->isci_port->isci_host;
-
-	if (isci_host != NULL)
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
-
+	spin_lock_irqsave(&isci_host->scic_lock, flags);
 	status = scic_remote_device_reset(to_sci_dev(isci_dev));
 	if (status != SCI_SUCCESS) {
-
-		if (isci_host != NULL)
-			spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 		scmd_printk(KERN_WARNING, cmd,
 			    "%s: scic_remote_device_reset(%p) returned %d!\n",
@@ -1648,14 +1620,13 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 
 		return TMF_RESP_FUNC_FAILED;
 	}
-	if (isci_host != NULL)
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 	/* Make sure all pending requests are able to be fully terminated. */
-	isci_device_clear_reset_pending(isci_dev);
+	isci_device_clear_reset_pending(isci_host, isci_dev);
 
 	/* Terminate in-progress I/O now. */
-	isci_remote_device_nuke_requests(isci_dev);
+	isci_remote_device_nuke_requests(isci_host, isci_dev);
 
 	/* Call into the libsas default handler (which calls sas_phy_reset). */
 	base_status = sas_eh_bus_reset_handler(cmd);
@@ -1672,13 +1643,9 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	}
 
 	/* WHAT TO DO HERE IF sas_phy_reset FAILS? */
-
-	if (isci_host != NULL)
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
+	spin_lock_irqsave(&isci_host->scic_lock, flags);
 	status = scic_remote_device_reset_complete(to_sci_dev(isci_dev));
-
-	if (isci_host != NULL)
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 	if (status != SCI_SUCCESS) {
 		scmd_printk(KERN_WARNING, cmd,
@@ -1688,7 +1655,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	}
 	/* WHAT TO DO HERE IF scic_remote_device_reset_complete FAILS? */
 
-	dev_dbg(&cmd->device->sdev_gendev,
+	dev_dbg(&isci_host->pdev->dev,
 		"%s: cmd %p, isci_dev %p complete.\n",
 		__func__, cmd, isci_dev);
 

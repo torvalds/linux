@@ -379,7 +379,7 @@ int isci_request_execute(
 	struct isci_request *request;
 	unsigned long flags;
 
-	isci_device = isci_dev_from_domain_dev(task->dev);
+	isci_device = task->dev->lldd_dev;
 	sci_device = to_sci_dev(isci_device);
 
 	/* do common allocation and init of request object. */
