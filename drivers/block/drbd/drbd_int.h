@@ -1326,8 +1326,16 @@ struct bm_extent {
 #endif
 #endif
 
-#define HT_SHIFT 8
-#define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
+/* BIO_MAX_SIZE is 256 * PAGE_CACHE_SIZE,
+ * so for typical PAGE_CACHE_SIZE of 4k, that is (1<<20) Byte.
+ * Since we may live in a mixed-platform cluster,
+ * we limit us to a platform agnostic constant here for now.
+ * A followup commit may allow even bigger BIO sizes,
+ * once we thought that through. */
+#define DRBD_MAX_BIO_SIZE (1 << 20)
+#if DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
+#error Architecture not supported: DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
+#endif
 #define DRBD_MAX_BIO_SIZE_SAFE (1 << 12)       /* Works always = 4k */
 
 #define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
@@ -2231,20 +2239,20 @@ static inline bool may_inc_ap_bio(struct drbd_conf *mdev)
 	return true;
 }
 
-static inline bool inc_ap_bio_cond(struct drbd_conf *mdev, int count)
+static inline bool inc_ap_bio_cond(struct drbd_conf *mdev)
 {
 	bool rv = false;
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	rv = may_inc_ap_bio(mdev);
 	if (rv)
-		atomic_add(count, &mdev->ap_bio_cnt);
+		atomic_inc(&mdev->ap_bio_cnt);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	return rv;
 }
 
-static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
+static inline void inc_ap_bio(struct drbd_conf *mdev)
 {
 	/* we wait here
 	 *    as long as the device is suspended
@@ -2254,7 +2262,7 @@ static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 	 * to avoid races with the reconnect code,
 	 * we need to atomic_inc within the spinlock. */
 
-	wait_event(mdev->misc_wait, inc_ap_bio_cond(mdev, count));
+	wait_event(mdev->misc_wait, inc_ap_bio_cond(mdev));
 }
 
 static inline void dec_ap_bio(struct drbd_conf *mdev)

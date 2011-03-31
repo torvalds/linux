@@ -998,7 +998,6 @@ fail_and_free_req:
 
 int drbd_make_request(struct request_queue *q, struct bio *bio)
 {
-	unsigned int s_enr, e_enr;
 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
 	unsigned long start_time;
 
@@ -1010,93 +1009,30 @@ int drbd_make_request(struct request_queue *q, struct bio *bio)
 	D_ASSERT(bio->bi_size > 0);
 	D_ASSERT(IS_ALIGNED(bio->bi_size, 512));
 
-	/* to make some things easier, force alignment of requests within the
-	 * granularity of our hash tables */
-	s_enr = bio->bi_sector >> HT_SHIFT;
-	e_enr = (bio->bi_sector+(bio->bi_size>>9)-1) >> HT_SHIFT;
-
-	if (likely(s_enr == e_enr)) {
-		inc_ap_bio(mdev, 1);
-		return __drbd_make_request(mdev, bio, start_time);
-	}
-
-	/* can this bio be split generically?
-	 * Maybe add our own split-arbitrary-bios function. */
-	if (bio->bi_vcnt != 1 || bio->bi_idx != 0 || bio->bi_size > DRBD_MAX_BIO_SIZE) {
-		/* rather error out here than BUG in bio_split */
-		dev_err(DEV, "bio would need to, but cannot, be split: "
-		    "(vcnt=%u,idx=%u,size=%u,sector=%llu)\n",
-		    bio->bi_vcnt, bio->bi_idx, bio->bi_size,
-		    (unsigned long long)bio->bi_sector);
-		bio_endio(bio, -EINVAL);
-	} else {
-		/* This bio crosses some boundary, so we have to split it. */
-		struct bio_pair *bp;
-		/* works for the "do not cross hash slot boundaries" case
-		 * e.g. sector 262269, size 4096
-		 * s_enr = 262269 >> 6 = 4097
-		 * e_enr = (262269+8-1) >> 6 = 4098
-		 * HT_SHIFT = 6
-		 * sps = 64, mask = 63
-		 * first_sectors = 64 - (262269 & 63) = 3
-		 */
-		const sector_t sect = bio->bi_sector;
-		const int sps = 1 << HT_SHIFT; /* sectors per slot */
-		const int mask = sps - 1;
-		const sector_t first_sectors = sps - (sect & mask);
-		bp = bio_split(bio, first_sectors);
-
-		/* we need to get a "reference count" (ap_bio_cnt)
-		 * to avoid races with the disconnect/reconnect/suspend code.
-		 * In case we need to split the bio here, we need to get three references
-		 * atomically, otherwise we might deadlock when trying to submit the
-		 * second one! */
-		inc_ap_bio(mdev, 3);
-
-		D_ASSERT(e_enr == s_enr + 1);
-
-		while (__drbd_make_request(mdev, &bp->bio1, start_time))
-			inc_ap_bio(mdev, 1);
-
-		while (__drbd_make_request(mdev, &bp->bio2, start_time))
-			inc_ap_bio(mdev, 1);
-
-		dec_ap_bio(mdev);
-
-		bio_pair_release(bp);
-	}
-	return 0;
+	inc_ap_bio(mdev);
+	return __drbd_make_request(mdev, bio, start_time);
 }
 
-/* This is called by bio_add_page().  With this function we reduce
- * the number of BIOs that span over multiple DRBD_MAX_BIO_SIZEs
- * units (was AL_EXTENTs).
+/* This is called by bio_add_page().
  *
- * we do the calculation within the lower 32bit of the byte offsets,
- * since we don't care for actual offset, but only check whether it
- * would cross "activity log extent" boundaries.
+ * q->max_hw_sectors and other global limits are already enforced there.
+ *
+ * We need to call down to our lower level device,
+ * in case it has special restrictions.
+ *
+ * We also may need to enforce configured max-bio-bvecs limits.
  *
  * As long as the BIO is empty we have to allow at least one bvec,
- * regardless of size and offset.  so the resulting bio may still
- * cross extent boundaries.  those are dealt with (bio_split) in
- * drbd_make_request.
+ * regardless of size and offset, so no need to ask lower levels.
  */
 int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
-	unsigned int bio_offset =
-		(unsigned int)bvm->bi_sector << 9; /* 32 bit */
 	unsigned int bio_size = bvm->bi_size;
-	int limit, backing_limit;
+	int limit = DRBD_MAX_BIO_SIZE;
+	int backing_limit;
 
-	limit = DRBD_MAX_BIO_SIZE
-	      - ((bio_offset & (DRBD_MAX_BIO_SIZE-1)) + bio_size);
-	if (limit < 0)
-		limit = 0;
-	if (bio_size == 0) {
-		if (limit <= bvec->bv_len)
-			limit = bvec->bv_len;
-	} else if (limit && get_ldev(mdev)) {
+	if (bio_size && get_ldev(mdev)) {
 		struct request_queue * const b =
 			mdev->ldev->backing_bdev->bd_disk->queue;
 		if (b->merge_bvec_fn) {
