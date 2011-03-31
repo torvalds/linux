@@ -540,6 +540,15 @@ static int emulate_nm(struct x86_emulate_ctxt *ctxt)
 	return emulate_exception(ctxt, NM_VECTOR, 0, false);
 }
 
+static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
+			      struct segmented_address addr,
+			      void *data,
+			      unsigned size)
+{
+	return ctxt->ops->read_std(linear(ctxt, addr), data, size, ctxt->vcpu,
+				   &ctxt->exception);
+}
+
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
@@ -604,13 +613,11 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (op_bytes == 2)
 		op_bytes = 3;
 	*address = 0;
-	rc = ops->read_std(linear(ctxt, addr), (unsigned long *)size, 2,
-			   ctxt->vcpu, &ctxt->exception);
+	rc = segmented_read_std(ctxt, addr, size, 2);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	addr.ea += 2;
-	rc = ops->read_std(linear(ctxt, addr), address, op_bytes,
-			   ctxt->vcpu, &ctxt->exception);
+	rc = segmented_read_std(ctxt, addr, address, op_bytes);
 	return rc;
 }
 
@@ -950,6 +957,32 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 }
 
+static int segmented_read(struct x86_emulate_ctxt *ctxt,
+			  struct segmented_address addr,
+			  void *data,
+			  unsigned size)
+{
+	return read_emulated(ctxt, ctxt->ops, linear(ctxt, addr), data, size);
+}
+
+static int segmented_write(struct x86_emulate_ctxt *ctxt,
+			   struct segmented_address addr,
+			   const void *data,
+			   unsigned size)
+{
+	return ctxt->ops->write_emulated(linear(ctxt, addr), data, size,
+					 &ctxt->exception, ctxt->vcpu);
+}
+
+static int segmented_cmpxchg(struct x86_emulate_ctxt *ctxt,
+			     struct segmented_address addr,
+			     const void *orig_data, const void *data,
+			     unsigned size)
+{
+	return ctxt->ops->cmpxchg_emulated(linear(ctxt, addr), orig_data, data,
+					   size, &ctxt->exception, ctxt->vcpu);
+}
+
 static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 			   struct x86_emulate_ops *ops,
 			   unsigned int size, unsigned short port,
@@ -1197,20 +1230,16 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 		break;
 	case OP_MEM:
 		if (c->lock_prefix)
-			rc = ops->cmpxchg_emulated(
-					linear(ctxt, c->dst.addr.mem),
-					&c->dst.orig_val,
-					&c->dst.val,
-					c->dst.bytes,
-					&ctxt->exception,
-					ctxt->vcpu);
+			rc = segmented_cmpxchg(ctxt,
+					       c->dst.addr.mem,
+					       &c->dst.orig_val,
+					       &c->dst.val,
+					       c->dst.bytes);
 		else
-			rc = ops->write_emulated(
-					linear(ctxt, c->dst.addr.mem),
-					&c->dst.val,
-					c->dst.bytes,
-					&ctxt->exception,
-					ctxt->vcpu);
+			rc = segmented_write(ctxt,
+					     c->dst.addr.mem,
+					     &c->dst.val,
+					     c->dst.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
@@ -1249,7 +1278,7 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 
 	addr.ea = register_address(c, c->regs[VCPU_REGS_RSP]);
 	addr.seg = VCPU_SREG_SS;
-	rc = read_emulated(ctxt, ops, linear(ctxt, addr), dest, len);
+	rc = segmented_read(ctxt, addr, dest, len);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -3440,16 +3469,16 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if ((c->src.type == OP_MEM) && !(c->d & NoAccess)) {
-		rc = read_emulated(ctxt, ops, linear(ctxt, c->src.addr.mem),
-					c->src.valptr, c->src.bytes);
+		rc = segmented_read(ctxt, c->src.addr.mem,
+				    c->src.valptr, c->src.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->src.orig_val64 = c->src.val64;
 	}
 
 	if (c->src2.type == OP_MEM) {
-		rc = read_emulated(ctxt, ops, linear(ctxt, c->src2.addr.mem),
-					&c->src2.val, c->src2.bytes);
+		rc = segmented_read(ctxt, c->src2.addr.mem,
+				    &c->src2.val, c->src2.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}
@@ -3460,7 +3489,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	if ((c->dst.type == OP_MEM) && !(c->d & Mov)) {
 		/* optimisation - avoid slow emulated read if Mov */
-		rc = read_emulated(ctxt, ops, linear(ctxt, c->dst.addr.mem),
+		rc = segmented_read(ctxt, c->dst.addr.mem,
 				   &c->dst.val, c->dst.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
