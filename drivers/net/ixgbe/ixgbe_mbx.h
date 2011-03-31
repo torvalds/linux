@@ -36,9 +36,6 @@
 #define IXGBE_VFMAILBOX             0x002FC
 #define IXGBE_VFMBMEM               0x00200
 
-#define IXGBE_PFMAILBOX(x)          (0x04B00 + (4 * x))
-#define IXGBE_PFMBMEM(vfn)          (0x13000 + (64 * vfn))
-
 #define IXGBE_PFMAILBOX_STS   0x00000001 /* Initiate message send to VF */
 #define IXGBE_PFMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */
 #define IXGBE_PFMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
