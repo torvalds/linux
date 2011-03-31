@@ -4420,6 +4420,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	vcpu->arch.emulate_ctxt.guest_mode = is_guest_mode(vcpu);
 	memset(c, 0, sizeof(struct decode_cache));
 	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
 }
 
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq)
@@ -4502,6 +4503,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 {
 	int r;
 	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+	bool writeback = true;
 
 	kvm_clear_exception_queue(vcpu);
 	vcpu->arch.mmio_fault_cr2 = cr2;
@@ -4542,9 +4544,12 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		return EMULATE_DONE;
 	}
 
-	/* this is needed for vmware backdor interface to work since it
+	/* this is needed for vmware backdoor interface to work since it
 	   changes registers values  during IO operation */
-	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+	if (vcpu->arch.emulate_regs_need_sync_from_vcpu) {
+		vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
+		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+	}
 
 restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt);
@@ -4565,19 +4570,28 @@ restart:
 	} else if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
+		else
+			writeback = false;
 		r = EMULATE_DO_MMIO;
-	} else if (vcpu->mmio_needed)
+	} else if (vcpu->mmio_needed) {
+		if (!vcpu->mmio_is_write)
+			writeback = false;
 		r = EMULATE_DO_MMIO;
-	else if (r == EMULATION_RESTART)
+	} else if (r == EMULATION_RESTART)
 		goto restart;
 	else
 		r = EMULATE_DONE;
 
-	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
-	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
-	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
+	if (writeback) {
+		toggle_interruptibility(vcpu,
+				vcpu->arch.emulate_ctxt.interruptibility);
+		kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
+		kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
+	} else
+		vcpu->arch.emulate_regs_need_sync_to_vcpu = true;
 
 	return r;
 }
@@ -5587,6 +5601,18 @@ out:
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
+	if (vcpu->arch.emulate_regs_need_sync_to_vcpu) {
+		/*
+		 * We are here if userspace calls get_regs() in the middle of
+		 * instruction emulation. Registers state needs to be copied
+		 * back from emulation context to vcpu. Usrapace shouldn't do
+		 * that usually, but some bad designed PV devices (vmware
+		 * backdoor interface) need this to work
+		 */
+		struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+		memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
+	}
 	regs->rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	regs->rbx = kvm_register_read(vcpu, VCPU_REGS_RBX);
 	regs->rcx = kvm_register_read(vcpu, VCPU_REGS_RCX);
@@ -5614,6 +5640,9 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
+	vcpu->arch.emulate_regs_need_sync_from_vcpu = true;
+	vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
+
 	kvm_register_write(vcpu, VCPU_REGS_RAX, regs->rax);
 	kvm_register_write(vcpu, VCPU_REGS_RBX, regs->rbx);
 	kvm_register_write(vcpu, VCPU_REGS_RCX, regs->rcx);
