@@ -2371,9 +2371,6 @@ static void __iwl_down(struct iwl_priv *priv)
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;
 
-	/* Unblock any waiting calls */
-	wake_up_interruptible_all(&priv->wait_command_queue);
-
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
 	if (!exit_pending)
@@ -3620,7 +3617,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->sync_cmd_mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
