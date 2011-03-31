@@ -277,16 +277,9 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
 /* ----- L2CAP channels and connections ----- */
-
 struct l2cap_chan {
 	struct sock *sk;
-	struct l2cap_chan	*next_c;
-	struct l2cap_chan	*prev_c;
-};
-
-struct l2cap_chan_list {
-	struct l2cap_chan *head;
-	rwlock_t	lock;
+	struct list_head list;
 };
 
 struct l2cap_conn {
@@ -312,7 +305,8 @@ struct l2cap_conn {
 
 	__u8		disc_reason;
 
-	struct l2cap_chan_list chan_list;
+	struct list_head chan_l;
+	rwlock_t	chan_lock;
 };
 
 struct sock_del_list {
