@@ -909,19 +909,13 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		rt = (struct rtable *)sk_dst_check(sk, 0);
 
 	if (rt == NULL) {
-		struct flowi4 fl4 = {
-			.flowi4_oif = ipc.oif,
-			.flowi4_mark = sk->sk_mark,
-			.daddr = faddr,
-			.saddr = saddr,
-			.flowi4_tos = tos,
-			.flowi4_proto = sk->sk_protocol,
-			.flowi4_flags = (inet_sk_flowi_flags(sk) |
-					 FLOWI_FLAG_CAN_SLEEP),
-			.fl4_sport = inet->inet_sport,
-			.fl4_dport = dport,
-		};
+		struct flowi4 fl4;
 		struct net *net = sock_net(sk);
+
+		flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
+				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+				   inet_sk_flowi_flags(sk)|FLOWI_FLAG_CAN_SLEEP,
+				   faddr, saddr, dport, inet->inet_sport);
 
 		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
 		rt = ip_route_output_flow(net, &fl4, sk);
