@@ -248,24 +248,24 @@ static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
 	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 	data_in_this_rsp = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
 
-	remaining = total_data_size - data_in_this_rsp;
-
-	if (remaining == 0)
+	if (total_data_size == data_in_this_rsp)
 		return 0;
-	else if (remaining < 0) {
+	else if (total_data_size < data_in_this_rsp) {
 		cFYI(1, "total data %d smaller than data in frame %d",
 			total_data_size, data_in_this_rsp);
 		return -EINVAL;
-	} else {
-		cFYI(1, "missing %d bytes from transact2, check next response",
-			remaining);
-		if (total_data_size > maxBufSize) {
-			cERROR(1, "TotalDataSize %d is over maximum buffer %d",
-				total_data_size, maxBufSize);
-			return -EINVAL;
-		}
-		return remaining;
 	}
+
+	remaining = total_data_size - data_in_this_rsp;
+
+	cFYI(1, "missing %d bytes from transact2, check next response",
+		remaining);
+	if (total_data_size > maxBufSize) {
+		cERROR(1, "TotalDataSize %d is over maximum buffer %d",
+			total_data_size, maxBufSize);
+		return -EINVAL;
+	}
+	return remaining;
 }
 
 static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
