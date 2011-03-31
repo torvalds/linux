@@ -6961,8 +6961,10 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * should cover the worst case number of items we'll modify.
 	 */
 	trans = btrfs_start_transaction(root, 20);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	if (IS_ERR(trans)) {
+                ret = PTR_ERR(trans);
+                goto out_notrans;
+        }
 
 	btrfs_set_trans_block_group(trans, new_dir);
 
@@ -7062,7 +7064,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 out_fail:
 	btrfs_end_transaction_throttle(trans, root);
-
+out_notrans:
 	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&root->fs_info->subvol_sem);
 
