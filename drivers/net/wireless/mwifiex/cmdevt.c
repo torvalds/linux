@@ -275,14 +275,14 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	}
 	if (GET_BSS_ROLE(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY))
 			== MWIFIEX_BSS_ROLE_STA) {
-		if (!sleep_cfm_buf->ps_cfm_sleep.sleep_cfm.resp_ctrl)
+		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl)
 			/* Response is not needed for sleep
 			   confirm command */
 			adapter->ps_state = PS_STATE_SLEEP;
 		else
 			adapter->ps_state = PS_STATE_SLEEP_CFM;
 
-		if (!sleep_cfm_buf->ps_cfm_sleep.sleep_cfm.resp_ctrl
+		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl
 				&& (adapter->is_hs_configured
 					&& !adapter->sleep_period.period)) {
 			adapter->pm_wakeup_card_req = true;
@@ -1211,15 +1211,18 @@ int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
 	if (cmd_action == DIS_AUTO_PS) {
 		psmode_enh->action = cpu_to_le16(DIS_AUTO_PS);
 		psmode_enh->params.ps_bitmap = cpu_to_le16(ps_bitmap);
-		cmd->size = cpu_to_le16(S_DS_GEN + AUTO_PS_FIX_SIZE);
+		cmd->size = cpu_to_le16(S_DS_GEN + sizeof(psmode_enh->action) +
+				sizeof(psmode_enh->params.ps_bitmap));
 	} else if (cmd_action == GET_PS) {
 		psmode_enh->action = cpu_to_le16(GET_PS);
 		psmode_enh->params.ps_bitmap = cpu_to_le16(ps_bitmap);
-		cmd->size = cpu_to_le16(S_DS_GEN + AUTO_PS_FIX_SIZE);
+		cmd->size = cpu_to_le16(S_DS_GEN + sizeof(psmode_enh->action) +
+				sizeof(psmode_enh->params.ps_bitmap));
 	} else if (cmd_action == EN_AUTO_PS) {
 		psmode_enh->action = cpu_to_le16(EN_AUTO_PS);
-		psmode_enh->params.auto_ps.ps_bitmap = cpu_to_le16(ps_bitmap);
-		cmd_size = S_DS_GEN + AUTO_PS_FIX_SIZE;
+		psmode_enh->params.ps_bitmap = cpu_to_le16(ps_bitmap);
+		cmd_size = S_DS_GEN + sizeof(psmode_enh->action) +
+				sizeof(psmode_enh->params.ps_bitmap);
 		tlv = (u8 *) cmd + cmd_size;
 		if (ps_bitmap & BITMAP_STA_PS) {
 			struct mwifiex_adapter *adapter = priv->adapter;
@@ -1249,24 +1252,23 @@ int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
 
 		}
 		if (ps_bitmap & BITMAP_AUTO_DS) {
-			struct mwifiex_ie_types_auto_ds_param *auto_ps_tlv =
+			struct mwifiex_ie_types_auto_ds_param *auto_ds_tlv =
 				(struct mwifiex_ie_types_auto_ds_param *) tlv;
-			struct mwifiex_auto_ds_param *auto_ds =
-				&auto_ps_tlv->param;
 			u16 idletime = 0;
-			auto_ps_tlv->header.type =
+
+			auto_ds_tlv->header.type =
 				cpu_to_le16(TLV_TYPE_AUTO_DS_PARAM);
-			auto_ps_tlv->header.len =
-				cpu_to_le16(sizeof(*auto_ps_tlv) -
+			auto_ds_tlv->header.len =
+				cpu_to_le16(sizeof(*auto_ds_tlv) -
 					sizeof(struct mwifiex_ie_types_header));
-			cmd_size += sizeof(*auto_ps_tlv);
-			tlv += sizeof(*auto_ps_tlv);
+			cmd_size += sizeof(*auto_ds_tlv);
+			tlv += sizeof(*auto_ds_tlv);
 			if (data_buf)
 				idletime = ((struct mwifiex_ds_auto_ds *)
 					     data_buf)->idle_time;
 			dev_dbg(priv->adapter->dev,
 					"cmd: PS Command: Enter Auto Deep Sleep\n");
-			auto_ds->deep_sleep_timeout = cpu_to_le16(idletime);
+			auto_ds_tlv->deep_sleep_timeout = cpu_to_le16(idletime);
 		}
 		cmd->size = cpu_to_le16(cmd_size);
 	}
@@ -1290,7 +1292,7 @@ int mwifiex_ret_enh_power_mode(struct mwifiex_private *priv,
 	uint16_t action = le16_to_cpu(ps_mode->action);
 	uint16_t ps_bitmap = le16_to_cpu(ps_mode->params.ps_bitmap);
 	uint16_t auto_ps_bitmap =
-		le16_to_cpu(ps_mode->params.auto_ps.ps_bitmap);
+		le16_to_cpu(ps_mode->params.ps_bitmap);
 
 	dev_dbg(adapter->dev, "info: %s: PS_MODE cmd reply result=%#x action=%#X\n",
 					__func__, resp->result, action);
@@ -1318,8 +1320,7 @@ int mwifiex_ret_enh_power_mode(struct mwifiex_private *priv,
 			}
 		}
 	} else if (action == GET_PS) {
-		if (ps_bitmap & (BITMAP_STA_PS | BITMAP_UAP_INACT_PS
-							| BITMAP_UAP_DTIM_PS))
+		if (ps_bitmap & BITMAP_STA_PS)
 			adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_PSP;
 		else
 			adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_CAM;

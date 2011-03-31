@@ -127,11 +127,14 @@ enum MWIFIEX_802_11_WEP_STATUS {
 #define TLV_TYPE_WMMQSTATUS         (PROPRIETARY_TLV_BASE_ID + 16)
 #define TLV_TYPE_WILDCARDSSID       (PROPRIETARY_TLV_BASE_ID + 18)
 #define TLV_TYPE_TSFTIMESTAMP       (PROPRIETARY_TLV_BASE_ID + 19)
-
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
-
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
+#define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
+#define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
+#define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
+#define TLV_TYPE_AUTO_DS_PARAM      (PROPRIETARY_TLV_BASE_ID + 113)
+#define TLV_TYPE_PS_PARAM           (PROPRIETARY_TLV_BASE_ID + 114)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -183,11 +186,6 @@ enum MWIFIEX_802_11_WEP_STATUS {
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
 
 #define LLC_SNAP_LEN    8
-
-#define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
-#define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
-
-#define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
 
 #define MOD_CLASS_HR_DSSS       0x03
 #define MOD_CLASS_OFDM          0x07
@@ -553,34 +551,12 @@ struct mwifiex_ps_param {
 	__le16 delay_to_ps;
 };
 
-struct mwifiex_auto_ds_param {
-	__le16 deep_sleep_timeout;
-};
-
-struct sleep_confirm_param {
-	__le16 resp_ctrl;
-};
-
 #define BITMAP_AUTO_DS         0x01
 #define BITMAP_STA_PS          0x10
-#define BITMAP_UAP_INACT_PS    0x100
-#define BITMAP_UAP_DTIM_PS     0x200
-struct auto_ps_param {
-	__le16 ps_bitmap;
-	/* auto deep sleep parameter,
-	 * sta power save parameter
-	 * uap inactivity parameter
-	 * uap DTIM parameter */
-};
-
-#define AUTO_PS_FIX_SIZE    4
-
-#define TLV_TYPE_AUTO_DS_PARAM        (PROPRIETARY_TLV_BASE_ID + 113)
-#define TLV_TYPE_PS_PARAM             (PROPRIETARY_TLV_BASE_ID + 114)
 
 struct mwifiex_ie_types_auto_ds_param {
 	struct mwifiex_ie_types_header header;
-	struct mwifiex_auto_ds_param param;
+	__le16 deep_sleep_timeout;
 } __packed;
 
 struct mwifiex_ie_types_ps_param {
@@ -593,10 +569,7 @@ struct host_cmd_ds_802_11_ps_mode_enh {
 
 	union {
 		struct mwifiex_ps_param opt_ps;
-		struct mwifiex_auto_ds_param auto_ds;
-		struct sleep_confirm_param sleep_cfm;
 		__le16 ps_bitmap;
-		struct auto_ps_param auto_ps;
 	} params;
 } __packed;
 
@@ -1260,7 +1233,7 @@ struct mwifiex_opt_sleep_confirm {
 	__le16 seq_num;
 	__le16 result;
 	__le16 action;
-	struct sleep_confirm_param sleep_cfm;
+	__le16 resp_ctrl;
 } __packed;
 
 struct mwifiex_opt_sleep_confirm_buffer {

@@ -46,6 +46,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 {
 	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node = NULL;
 	struct mwifiex_adapter *adapter = priv->adapter;
+	struct host_cmd_ds_802_11_ps_mode_enh *pm;
 	unsigned long flags;
 
 	dev_err(adapter->dev, "CMD_RESP: cmd %#x error, result=%#x\n",
@@ -55,20 +56,16 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 	switch (le16_to_cpu(resp->command)) {
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
-		{
-			struct host_cmd_ds_802_11_ps_mode_enh *pm =
-				&resp->params.psmode_enh;
-			dev_err(adapter->dev, "PS_MODE_ENH cmd failed: "
-				"result=0x%x action=0x%X\n",
+		pm = &resp->params.psmode_enh;
+		dev_err(adapter->dev, "PS_MODE_ENH cmd failed: "
+					"result=0x%x action=0x%X\n",
 				resp->result, le16_to_cpu(pm->action));
-			/* We do not re-try enter-ps command in ad-hoc mode. */
-			if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
-				(le16_to_cpu(pm->params.auto_ps.ps_bitmap) &
-				 BITMAP_STA_PS)
-				&& priv->bss_mode == NL80211_IFTYPE_ADHOC)
-				adapter->ps_mode =
-					MWIFIEX_802_11_POWER_MODE_CAM;
-		}
+		/* We do not re-try enter-ps command in ad-hoc mode. */
+		if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
+			(le16_to_cpu(pm->params.ps_bitmap) & BITMAP_STA_PS) &&
+				priv->bss_mode == NL80211_IFTYPE_ADHOC)
+			adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_CAM;
+
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		/* Cancel all pending scan command */

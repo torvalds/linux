@@ -280,7 +280,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 			cpu_to_le16(adapter->sleep_cfm->len);
 		sleep_cfm_buf->ps_cfm_sleep.result = 0;
 		sleep_cfm_buf->ps_cfm_sleep.action = cpu_to_le16(SLEEP_CONFIRM);
-		sleep_cfm_buf->ps_cfm_sleep.sleep_cfm.resp_ctrl =
+		sleep_cfm_buf->ps_cfm_sleep.resp_ctrl =
 			cpu_to_le16(RESP_NEEDED);
 	}
 	memset(&adapter->sleep_params, 0, sizeof(adapter->sleep_params));
