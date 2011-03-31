@@ -424,6 +424,8 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 	int ret = 0;
+	struct rtc_time tm;
+
 	//printk("wm831x_rtc_probe\n");
 	wm831x_rtc = kzalloc(sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
@@ -432,38 +434,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wm831x_rtc);
 	wm831x_rtc->wm831x = wm831x;
 
- #if 0	
-	/*set time when power on for debug*/
-	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_1,
-			       (0x1000000 >> 16) & 0xffff);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to write TIME_1: %d\n", ret);
-		return ret;
-	}
-	
-	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_2, 0x100000 & 0xffff);
-
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to write TIME_2: %d\n", ret);
-		return ret;
-	}
-
-	ret = wm831x_reg_read(wm831x, WM831X_RTC_TIME_1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to read TIME_2: %d\n", ret);
-		goto err;
-	}
-	printk("%s:WM831X_RTC_TIME_1=0x%x\n",__FUNCTION__,ret);
-	ret = wm831x_reg_read(wm831x, WM831X_RTC_TIME_2);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to read TIME_2: %d\n", ret);
-		goto err;
-	}
-	printk("%s:WM831X_RTC_TIME_2=0x%x\n",__FUNCTION__,ret);
-	
-#endif
-
-
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to read RTC control: %d\n", ret);
@@ -471,6 +441,17 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	}
 	if (ret & WM831X_RTC_ALM_ENA)
 		wm831x_rtc->alarm_enabled = 1;
+
+	ret = wm831x_rtc_readtime(&pdev->dev, &tm);
+	if (ret < 0 || tm.tm_year < 111) {
+		if (ret)
+			dev_err(&pdev->dev, "Failed to read RTC time\n");
+		else
+			dev_err(&pdev->dev, "Invalid RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+				1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday, tm.tm_wday,
+				tm.tm_hour, tm.tm_min, tm.tm_sec);
+		wm831x_rtc_set_mmss(&pdev->dev, 1293883200); // 2011-01-01 12:00:00
+	}
 
 	device_init_wakeup(&pdev->dev, 1);
 
