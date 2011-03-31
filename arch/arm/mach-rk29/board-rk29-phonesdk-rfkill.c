@@ -46,7 +46,7 @@ struct bt_ctrl
 #define BT_GPIO_POWER           RK29_PIN5_PD6
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6);
 #define BT_GPIO_RESET          	RK29_PIN6_PC4
-#define BT_GPIO_WAKE_UP         RK29_PIN6_PC5
+#define BT_GPIO_WAKE_UP         RK29_PIN6_PD0
 #define BT_GPIO_WAKE_UP_HOST    //RK2818_PIN_PA7
 #define IOMUX_BT_GPIO_WAKE_UP_HOST() //rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME,0);
 

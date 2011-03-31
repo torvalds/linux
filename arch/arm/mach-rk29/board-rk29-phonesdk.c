@@ -1514,7 +1514,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "ak8973",
 		.addr           = 0x1d,
 		.flags			= 0,
-		.irq			= RK29_PIN0_PA4,
+		.irq			= RK29_PIN6_PC5,
 	},
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
@@ -1522,7 +1522,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "ak8975",
 		.addr           = 0x0d,
 		.flags			= 0,
-		.irq			= RK29_PIN0_PA4,
+		.irq			= RK29_PIN6_PC5,
 	},
 #endif
 #if defined (CONFIG_INPUT_LPSENSOR_ISL29028)
