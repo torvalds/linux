@@ -523,9 +523,6 @@ struct omap_dss_driver {
 int omap_dss_register_driver(struct omap_dss_driver *);
 void omap_dss_unregister_driver(struct omap_dss_driver *);
 
-int omap_dss_register_device(struct omap_dss_device *);
-void omap_dss_unregister_device(struct omap_dss_device *);
-
 void omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
 #define for_each_dss_dev(d) while ((d = omap_dss_get_next_device(d)) != NULL)
