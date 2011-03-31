@@ -226,7 +226,7 @@ cpio_list=
 output="/dev/stdout"
 output_file=""
 is_cpio_compressed=
-compr="gzip -9 -f"
+compr="gzip -n -9 -f"
 
 arg="$1"
 case "$arg" in
@@ -240,7 +240,7 @@ case "$arg" in
 		output_file="$1"
 		cpio_list="$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)"
 		output=${cpio_list}
-		echo "$output_file" | grep -q "\.gz$" && compr="gzip -9 -f"
+		echo "$output_file" | grep -q "\.gz$" && compr="gzip -n -9 -f"
 		echo "$output_file" | grep -q "\.bz2$" && compr="bzip2 -9 -f"
 		echo "$output_file" | grep -q "\.lzma$" && compr="lzma -9 -f"
 		echo "$output_file" | grep -q "\.xz$" && \
