@@ -548,17 +548,13 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	{
-		struct flowi4 fl4 = {
-			.flowi4_oif = ipc.oif,
-			.flowi4_mark = sk->sk_mark,
-			.daddr = daddr,
-			.saddr = saddr,
-			.flowi4_tos = tos,
-			.flowi4_proto = (inet->hdrincl ?
-					 IPPROTO_RAW :
-					 sk->sk_protocol),
-			.flowi4_flags = FLOWI_FLAG_CAN_SLEEP,
-		};
+		struct flowi4 fl4;
+
+		flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
+				   RT_SCOPE_UNIVERSE,
+				   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+				   FLOWI_FLAG_CAN_SLEEP, daddr, saddr, 0, 0);
+
 		if (!inet->hdrincl) {
 			err = raw_probe_proto_opt(&fl4, msg);
 			if (err)
