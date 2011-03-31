@@ -893,7 +893,7 @@ ip_set_swap(struct sock *ctnl, struct sk_buff *skb,
 	to = ip_set_list[to_id];
 
 	/* Features must not change.
-	 * Not an artifical restriction anymore, as we must prevent
+	 * Not an artificial restriction anymore, as we must prevent
 	 * possible loops created by swapping in setlist type of sets. */
 	if (!(from->type->features == to->type->features &&
 	      from->type->family == to->type->family))

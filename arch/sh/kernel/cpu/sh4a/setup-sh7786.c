@@ -648,7 +648,7 @@ static void __init sh7786_usb_setup(void)
 	 * The following settings are necessary
 	 * for using the USB modules.
 	 *
-	 * see "USB Inital Settings" for detail
+	 * see "USB Initial Settings" for detail
 	 */
 	__raw_writel(USBINITVAL1, USBINITREG1);
 	__raw_writel(USBINITVAL2, USBINITREG2);

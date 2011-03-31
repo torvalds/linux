@@ -699,7 +699,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
 
-			This is desgined to be used in conjunction with
+			This is designed to be used in conjunction with
 			the boot argument: earlyprintk=vga
 
 	edd=		[EDD]

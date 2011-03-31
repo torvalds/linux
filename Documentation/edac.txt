@@ -741,7 +741,7 @@ were done at i7core_edac driver. This chapter will cover those differences
    As EDAC API maps the minimum unity is csrows, the driver sequencially
    maps channel/dimm into different csrows.
 
-   For example, suposing the following layout:
+   For example, supposing the following layout:
 	Ch0 phy rd0, wr0 (0x063f4031): 2 ranks, UDIMMs
 	  dimm 0 1024 Mb offset: 0, bank: 8, rank: 1, row: 0x4000, col: 0x400
 	  dimm 1 1024 Mb offset: 4, bank: 8, rank: 1, row: 0x4000, col: 0x400

@@ -81,7 +81,7 @@ xfs_trans_ijoin(
  *
  *
  * Grabs a reference to the inode which will be dropped when the transaction
- * is commited.  The inode will also be unlocked at that point.  The inode
+ * is committed.  The inode will also be unlocked at that point.  The inode
  * must be locked, and it cannot be associated with any transaction.
  */
 void

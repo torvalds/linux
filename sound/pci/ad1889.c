@@ -29,7 +29,7 @@
  *	PM support
  *	MIDI support
  *	Game Port support
- *	SG DMA support (this will need *alot* of work)
+ *	SG DMA support (this will need *a lot* of work)
  */
 
 #include <linux/init.h>

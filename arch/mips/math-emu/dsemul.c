@@ -32,7 +32,7 @@
  * not change cp0_epc due to the instruction
  *
  * According to the spec:
- * 1) it shouldnt be a branch :-)
+ * 1) it shouldn't be a branch :-)
  * 2) it can be a COP instruction :-(
  * 3) if we are tring to run a protected memory space we must take
  *    special care on memory access instructions :-(

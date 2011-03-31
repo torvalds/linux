@@ -222,7 +222,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 vep_num, u8 port,
 
 	/* the given qpn is listed as a promisc qpn
 	 * we need to add it as a duplicate to this entry
-	 * for future refernce */
+	 * for future references */
 	list_for_each_entry(dqp, &entry->duplicates, list) {
 		if (qpn == dqp->qpn)
 			return 0; /* qp is already duplicated */

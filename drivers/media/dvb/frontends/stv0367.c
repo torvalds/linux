@@ -1328,7 +1328,7 @@ stv0367_ter_signal_type stv0367ter_lock_algo(struct stv0367_state *state)
 
 	/*guard=stv0367_readbits(state,F367TER_SYR_GUARD); */
 
-	/*supress EPQ auto for SYR_GARD 1/16 or 1/32
+	/*suppress EPQ auto for SYR_GARD 1/16 or 1/32
 	and set channel predictor in automatic */
 #if 0
 	switch (guard) {

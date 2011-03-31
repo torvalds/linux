@@ -207,7 +207,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 	unsigned long mmcra;
 	unsigned long slot;
 
-	/* Cant do much about it */
+	/* Can't do much about it */
 	if (!cur_cpu_spec->oprofile_mmcra_sihv)
 		return pc;
 

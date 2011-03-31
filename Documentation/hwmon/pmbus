@@ -150,11 +150,11 @@ The following attributes are supported. Limits are read-write; all other
 attributes are read-only.
 
 inX_input		Measured voltage. From READ_VIN or READ_VOUT register.
-inX_min			Minumum Voltage.
+inX_min			Minimum Voltage.
 			From VIN_UV_WARN_LIMIT or VOUT_UV_WARN_LIMIT register.
 inX_max			Maximum voltage.
 			From VIN_OV_WARN_LIMIT or VOUT_OV_WARN_LIMIT register.
-inX_lcrit		Critical minumum Voltage.
+inX_lcrit		Critical minimum Voltage.
 			From VIN_UV_FAULT_LIMIT or VOUT_UV_FAULT_LIMIT register.
 inX_crit		Critical maximum voltage.
 			From VIN_OV_FAULT_LIMIT or VOUT_OV_FAULT_LIMIT register.
@@ -169,7 +169,7 @@ inX_label		"vin", "vcap", or "voutY"
 currX_input		Measured current. From READ_IIN or READ_IOUT register.
 currX_max		Maximum current.
 			From IIN_OC_WARN_LIMIT or IOUT_OC_WARN_LIMIT register.
-currX_lcrit		Critical minumum output current.
+currX_lcrit		Critical minimum output current.
 			From IOUT_UC_FAULT_LIMIT register.
 currX_crit		Critical maximum current.
 			From IIN_OC_FAULT_LIMIT or IOUT_OC_FAULT_LIMIT register.

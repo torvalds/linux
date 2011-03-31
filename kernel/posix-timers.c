@@ -313,7 +313,7 @@ static void schedule_next_timer(struct k_itimer *timr)
  * restarted (i.e. we have flagged this in the sys_private entry of the
  * info block).
  *
- * To protect aginst the timer going away while the interrupt is queued,
+ * To protect against the timer going away while the interrupt is queued,
  * we require that the it_requeue_pending flag be set.
  */
 void do_schedule_next_timer(struct siginfo *info)

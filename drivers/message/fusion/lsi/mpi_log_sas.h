@@ -56,9 +56,9 @@
 #define IOP_LOGINFO_CODE_FWUPLOAD_NO_FLASH_AVAILABLE         (0x0003E000) /* Tried to upload from flash, but there is none */
 #define IOP_LOGINFO_CODE_FWUPLOAD_UNKNOWN_IMAGE_TYPE         (0x0003E001) /* ImageType field contents were invalid */
 #define IOP_LOGINFO_CODE_FWUPLOAD_WRONG_IMAGE_SIZE           (0x0003E002) /* ImageSize field in TCSGE was bad/offset in MfgPg 4 was wrong */
-#define IOP_LOGINFO_CODE_FWUPLOAD_ENTIRE_FLASH_UPLOAD_FAILED (0x0003E003) /* Error occured while attempting to upload the entire flash */
-#define IOP_LOGINFO_CODE_FWUPLOAD_REGION_UPLOAD_FAILED       (0x0003E004) /* Error occured while attempting to upload single flash region */
-#define IOP_LOGINFO_CODE_FWUPLOAD_DMA_FAILURE                (0x0003E005) /* Problem occured while DMAing FW to host memory */
+#define IOP_LOGINFO_CODE_FWUPLOAD_ENTIRE_FLASH_UPLOAD_FAILED (0x0003E003) /* Error occurred while attempting to upload the entire flash */
+#define IOP_LOGINFO_CODE_FWUPLOAD_REGION_UPLOAD_FAILED       (0x0003E004) /* Error occurred while attempting to upload single flash region */
+#define IOP_LOGINFO_CODE_FWUPLOAD_DMA_FAILURE                (0x0003E005) /* Problem occurred while DMAing FW to host memory */
 
 #define IOP_LOGINFO_CODE_DIAG_MSG_ERROR                      (0x00040000) /* Error handling diag msg - or'd with diag status */
 
@@ -187,8 +187,8 @@
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_INCOMPLETE_BREAK_RCVD   (0x00005000)
 
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_FAILURE          (0x00200000) /* Can't get SMP Frame */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /* Error occured on SMP Read */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_WRITE_ERROR            (0x00200020) /* Error occured on SMP Write */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /* Error occurred on SMP Read */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_WRITE_ERROR            (0x00200020) /* Error occurred on SMP Write */
 #define PL_LOGINFO_CODE_ENCL_MGMT_NOT_SUPPORTED_ON_ENCL      (0x00200040) /* Encl Mgmt services not available for this WWID */
 #define PL_LOGINFO_CODE_ENCL_MGMT_ADDR_MODE_NOT_SUPPORTED    (0x00200050) /* Address Mode not suppored */
 #define PL_LOGINFO_CODE_ENCL_MGMT_BAD_SLOT_NUM               (0x00200060) /* Invalid Slot Number in SEP Msg */
@@ -207,8 +207,8 @@
 #define PL_LOGINFO_DA_SEP_RECEIVED_NACK_FROM_SLAVE           (0x00200103) /* SEP NACK'd, it is busy */
 #define PL_LOGINFO_DA_SEP_DID_NOT_RECEIVE_ACK                (0x00200104) /* SEP didn't rcv. ACK (Last Rcvd Bit = 1) */
 #define PL_LOGINFO_DA_SEP_BAD_STATUS_HDR_CHKSUM              (0x00200105) /* SEP stopped or sent bad chksum in Hdr */
-#define PL_LOGINFO_DA_SEP_STOP_ON_DATA                       (0x00200106) /* SEP stopped while transfering data */
-#define PL_LOGINFO_DA_SEP_STOP_ON_SENSE_DATA                 (0x00200107) /* SEP stopped while transfering sense data */
+#define PL_LOGINFO_DA_SEP_STOP_ON_DATA                       (0x00200106) /* SEP stopped while transferring data */
+#define PL_LOGINFO_DA_SEP_STOP_ON_SENSE_DATA                 (0x00200107) /* SEP stopped while transferring sense data */
 #define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_1          (0x00200108) /* SEP returned unknown scsi status */
 #define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_2          (0x00200109) /* SEP returned unknown scsi status */
 #define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP            (0x0020010A) /* SEP returned bad chksum after STOP */

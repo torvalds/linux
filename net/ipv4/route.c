@@ -821,7 +821,7 @@ static int has_noalias(const struct rtable *head, const struct rtable *rth)
 }
 
 /*
- * Pertubation of rt_genid by a small quantity [1..256]
+ * Perturbation of rt_genid by a small quantity [1..256]
  * Using 8 bits of shuffling ensure we can call rt_cache_invalidate()
  * many times (2^24) without giving recent rt_genid.
  * Jenkins hash is strong enough that litle changes of rt_genid are OK.
@@ -1191,7 +1191,7 @@ restart:
 #endif
 	/*
 	 * Since lookup is lockfree, we must make sure
-	 * previous writes to rt are comitted to memory
+	 * previous writes to rt are committed to memory
 	 * before making rt visible to other CPUS.
 	 */
 	rcu_assign_pointer(rt_hash_table[hash].chain, rt);

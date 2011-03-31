@@ -578,7 +578,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	mutex_lock(&kvm->slots_lock);
 
-	/* Verify that there isnt a match already */
+	/* Verify that there isn't a match already */
 	if (ioeventfd_check_collision(kvm, p)) {
 		ret = -EEXIST;
 		goto unlock_fail;

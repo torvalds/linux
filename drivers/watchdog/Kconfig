@@ -933,7 +933,7 @@ config PNX833X_WDT
 	depends on SOC_PNX8335
 	help
 	  Hardware driver for the PNX833x's watchdog. This is a
-	  watchdog timer that will reboot the machine after a programable
+	  watchdog timer that will reboot the machine after a programmable
 	  timer has expired and no process has written to /dev/watchdog during
 	  that time.
 

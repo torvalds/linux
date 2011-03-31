@@ -144,7 +144,7 @@ static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
 	/* Initialize the list of destination pages */
 	INIT_LIST_HEAD(&image->dest_pages);
 
-	/* Initialize the list of unuseable pages */
+	/* Initialize the list of unusable pages */
 	INIT_LIST_HEAD(&image->unuseable_pages);
 
 	/* Read in the segments */
@@ -454,7 +454,7 @@ static struct page *kimage_alloc_normal_control_pages(struct kimage *image,
 	/* Deal with the destination pages I have inadvertently allocated.
 	 *
 	 * Ideally I would convert multi-page allocations into single
-	 * page allocations, and add everyting to image->dest_pages.
+	 * page allocations, and add everything to image->dest_pages.
 	 *
 	 * For now it is simpler to just free the pages.
 	 */
@@ -602,7 +602,7 @@ static void kimage_free_extra_pages(struct kimage *image)
 	/* Walk through and free any extra destination pages I may have */
 	kimage_free_page_list(&image->dest_pages);
 
-	/* Walk through and free any unuseable pages I have cached */
+	/* Walk through and free any unusable pages I have cached */
 	kimage_free_page_list(&image->unuseable_pages);
 
 }

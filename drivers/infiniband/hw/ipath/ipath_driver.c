@@ -2392,7 +2392,7 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	/*
 	 * clear SerdesEnable and turn the leds off; do this here because
 	 * we are unloading, so don't count on interrupts to move along
-	 * Turn the LEDs off explictly for the same reason.
+	 * Turn the LEDs off explicitly for the same reason.
 	 */
 	dd->ipath_f_quiet_serdes(dd);
 

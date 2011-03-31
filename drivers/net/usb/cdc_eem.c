@@ -190,7 +190,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		/*
 		 * EEM packet header format:
-		 * b0..14:	EEM type dependant (Data or Command)
+		 * b0..14:	EEM type dependent (Data or Command)
 		 * b15:		bmType
 		 */
 		header = get_unaligned_le16(skb->data);

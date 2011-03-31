@@ -97,7 +97,7 @@ extern unsigned long empty_zero_page;
 #define pte_clear(mm,addr,xp)	do { pte_val(*(xp)) = 0; } while (0)
 
 #define pmd_none(x)     (!pmd_val(x))
-/* by removing the _PAGE_KERNEL bit from the comparision, the same pmd_bad
+/* by removing the _PAGE_KERNEL bit from the comparison, the same pmd_bad
  * works for both _PAGE_TABLE and _KERNPG_TABLE pmd entries.
  */
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_KERNEL)) != _PAGE_TABLE)

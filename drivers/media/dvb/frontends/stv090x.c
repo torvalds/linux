@@ -1424,7 +1424,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, CFRLOW0, 0x00) < 0)
 				goto err;
 
-			/*enlarge the timing bandwith for Low SR*/
+			/*enlarge the timing bandwidth for Low SR*/
 			if (STV090x_WRITE_DEMOD(state, RTCS2, 0x68) < 0)
 				goto err;
 		} else {
@@ -1432,17 +1432,17 @@ static int stv090x_start_search(struct stv090x_state *state)
 			Set The carrier search up and low to auto mode */
 			if (STV090x_WRITE_DEMOD(state, CARCFG, 0xc4) < 0)
 				goto err;
-			/*reduce the timing bandwith for high SR*/
+			/*reduce the timing bandwidth for high SR*/
 			if (STV090x_WRITE_DEMOD(state, RTCS2, 0x44) < 0)
 				goto err;
 		}
 	} else {
 		/* >= Cut 3 */
 		if (state->srate <= 5000000) {
-			/* enlarge the timing bandwith for Low SR */
+			/* enlarge the timing bandwidth for Low SR */
 			STV090x_WRITE_DEMOD(state, RTCS2, 0x68);
 		} else {
-			/* reduce timing bandwith for high SR */
+			/* reduce timing bandwidth for high SR */
 			STV090x_WRITE_DEMOD(state, RTCS2, 0x44);
 		}
 
@@ -2482,7 +2482,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 					dvbs2_fly_wheel = STV090x_GETFIELD_Px(reg, FLYWHEEL_CPT_FIELD);
 				}
 				if (dvbs2_fly_wheel < 0xd) {
-					/*FALSE lock, The demod is loosing lock */
+					/*FALSE lock, The demod is losing lock */
 					lock = 0;
 					if (trials < 2) {
 						if (state->internal->dev_ver >= 0x20) {
@@ -3202,7 +3202,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, CORRELMANT, 0x70) < 0)
 			goto err;
-		if (stv090x_set_srate(state, 1000000) < 0) /* inital srate = 1Msps */
+		if (stv090x_set_srate(state, 1000000) < 0) /* initial srate = 1Msps */
 			goto err;
 	} else {
 		/* known srate */

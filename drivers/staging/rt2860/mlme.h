@@ -374,7 +374,7 @@ struct PACKED rt_sec_cha_offset_ie {
 struct rt_ht_phy_info {
 	BOOLEAN bHtEnable;	/* If we should use ht rate. */
 	BOOLEAN bPreNHt;	/* If we should use ht rate. */
-	/*Substract from HT Capability IE */
+	/*Subtract from HT Capability IE */
 	u8 MCSSet[16];
 };
 
@@ -392,7 +392,7 @@ struct rt_ht_capability {
 	u16 AmsduSize:1;	/* Max receiving A-MSDU size */
 	u16 rsv:5;
 
-	/*Substract from Addiont HT INFO IE */
+	/*Subtract from Addiont HT INFO IE */
 	u8 MaxRAmpduFactor:2;
 	u8 MpduDensity:3;
 	u8 ExtChanOffset:2;	/* Please note the difference with following     u8   NewExtChannelOffset; from 802.11n */
@@ -410,7 +410,7 @@ struct rt_ht_capability {
 	u8 BSSCoexist2040;
 };
 
-/*   field in Addtional HT Information IE . */
+/*   field in Additional HT Information IE . */
 struct PACKED rt_add_htinfo {
 	u8 ExtChanOffset:2;
 	u8 RecomWidth:1;
@@ -857,7 +857,7 @@ struct rt_state_machine {
 };
 
 /* MLME AUX data structure that holds temporarliy settings during a connection attempt. */
-/* Once this attemp succeeds, all settings will be copy to pAd->StaActive. */
+/* Once this attempt succeeds, all settings will be copy to pAd->StaActive. */
 /* A connection attempt (user set OID, roaming, CCX fast roaming,..) consists of */
 /* several steps (JOIN, AUTH, ASSOC or REASSOC) and may fail at any step. We purposely */
 /* separate this under-trial settings away from pAd->StaActive so that once */

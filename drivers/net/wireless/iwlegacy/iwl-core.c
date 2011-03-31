@@ -1030,7 +1030,7 @@ int iwl_legacy_apm_init(struct iwl_priv *priv)
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
-	 * NOTE:  This is no-op for 3945 (non-existant bit)
+	 * NOTE:  This is no-op for 3945 (non-existent bit)
 	 */
 	iwl_legacy_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);

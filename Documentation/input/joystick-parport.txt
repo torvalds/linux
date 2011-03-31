@@ -272,7 +272,7 @@ if you want to use gamecon.c.
 
   Also, the connection is a bit more complex. You'll need a bunch of diodes,
 and one pullup resistor. First, you connect the Directions and the button
-the same as for db9, however with the diodes inbetween.
+the same as for db9, however with the diodes between.
 
 	    Diodes
 (pin 2) -----|<|----> Up

@@ -255,7 +255,7 @@ static ssize_t max1363_read_single_channel(struct device *dev,
 		goto error_ret;
 	}
 
-	/* If ring buffer capture is occuring, query the buffer */
+	/* If ring buffer capture is occurring, query the buffer */
 	if (iio_ring_enabled(dev_info)) {
 		mask = max1363_mode_table[this_attr->address].modemask;
 		data = max1363_single_channel_from_ring(mask, st);
@@ -1425,7 +1425,7 @@ error_ret:
 }
 
 /*
- * To keep this managable we always use one of 3 scan modes.
+ * To keep this manageable we always use one of 3 scan modes.
  * Scan 0...3, 0-1,2-3 and 1-0,3-2
  */
 static inline int __max1363_check_event_mask(int thismask, int checkmask)

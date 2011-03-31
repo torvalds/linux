@@ -690,7 +690,7 @@ static int memrar_mmap(struct file *filp, struct vm_area_struct *vma)
  *	@inode: inode to open
  *	@filp: file handle
  *
- *	As we support multiple arbitary opens there is no work to be done
+ *	As we support multiple arbitrary opens there is no work to be done
  *	really.
  */
 

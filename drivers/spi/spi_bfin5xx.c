@@ -905,7 +905,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			"IO write error!\n");
 		message->state = ERROR_STATE;
 	} else {
-		/* Update total byte transfered */
+		/* Update total byte transferred */
 		message->actual_length += drv_data->len_in_bytes;
 		/* Move to next transfer of this msg */
 		message->state = bfin_spi_next_transfer(drv_data);

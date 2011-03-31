@@ -113,7 +113,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	 * be aligned on a 4-byte boundary. If WDS is enabled add another 6 bytes
 	 * and add WDS address information */
 	if (likely(((long) skb->data & 0x03) | init_wds)) {
-		/* get the number of bytes to add and re-allign */
+		/* get the number of bytes to add and re-align */
 		offset = (4 - (long) skb->data) & 0x03;
 		offset += init_wds ? 6 : 0;
 
@@ -342,7 +342,7 @@ islpci_eth_receive(islpci_private *priv)
 			 priv->pci_map_rx_address[index],
 			 MAX_FRAGMENT_SIZE_RX + 2, PCI_DMA_FROMDEVICE);
 
-	/* update the skb structure and allign the buffer */
+	/* update the skb structure and align the buffer */
 	skb_put(skb, size);
 	if (offset) {
 		/* shift the buffer allocation offset bytes to get the right frame */

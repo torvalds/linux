@@ -1965,7 +1965,7 @@ struct ieee80211_device {
 	u16 prev_seq_ctl;       /* used to drop duplicate frames */
 
 	/* map of allowed channels. 0 is dummy */
-	// FIXME: remeber to default to a basic channel plan depending of the PHY type
+	// FIXME: remember to default to a basic channel plan depending of the PHY type
 	void* pDot11dInfo;
 	bool bGlobalDomain;
 	int rate;       /* current rate */
@@ -2119,7 +2119,7 @@ struct ieee80211_device {
 	 * not set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
 	 * the option to have two callbacks might be useful.
-	 * This fucntion can't sleep.
+	 * This function can't sleep.
 	 */
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev);
@@ -2158,9 +2158,9 @@ struct ieee80211_device {
 	 * it is called in a work_queue when swithcing to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
-	 * the fucntion stop_scan should stop both the syncro and
+	 * the function stop_scan should stop both the syncro and
 	 * background scanning and can sleep.
-	 * The fucntion start_scan should initiate the background
+	 * The function start_scan should initiate the background
 	 * scanning and can't sleep.
 	 */
 	void (*scan_syncro)(struct net_device *dev);

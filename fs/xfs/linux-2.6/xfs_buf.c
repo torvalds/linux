@@ -120,7 +120,7 @@ xfs_buf_lru_add(
  * The unlocked check is safe here because it only occurs when there are not
  * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
  * to optimise the shrinker removing the buffer from the LRU and calling
- * xfs_buf_free(). i.e. it removes an unneccessary round trip on the
+ * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
  * bt_lru_lock.
  */
 STATIC void
@@ -380,7 +380,7 @@ out_free_pages:
 }
 
 /*
- *	Map buffer into kernel address-space if nessecary.
+ *	Map buffer into kernel address-space if necessary.
  */
 STATIC int
 _xfs_buf_map_pages(

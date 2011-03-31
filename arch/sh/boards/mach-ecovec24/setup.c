@@ -936,7 +936,7 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 		return;
 	}
 
-	/* read MAC address frome EEPROM */
+	/* read MAC address from EEPROM */
 	for (i = 0; i < sizeof(pd->mac_addr); i++) {
 		pd->mac_addr[i] = mac_read(a, 0x10 + i);
 		msleep(10);

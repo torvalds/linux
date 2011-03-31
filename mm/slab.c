@@ -878,7 +878,7 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 	nc = kmalloc_node(memsize, gfp, node);
 	/*
 	 * The array_cache structures contain pointers to free object.
-	 * However, when such objects are allocated or transfered to another
+	 * However, when such objects are allocated or transferred to another
 	 * cache the pointers are not cleared and they could be counted as
 	 * valid references during a kmemleak scan. Therefore, kmemleak must
 	 * not scan such objects.
@@ -2606,7 +2606,7 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  *
  * The cache must be empty before calling this function.
  *
- * The caller must guarantee that noone will allocate memory from the cache
+ * The caller must guarantee that no one will allocate memory from the cache
  * during the kmem_cache_destroy().
  */
 void kmem_cache_destroy(struct kmem_cache *cachep)

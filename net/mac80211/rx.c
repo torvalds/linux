@@ -381,7 +381,7 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
  * specs were sane enough this time around to require padding each A-MSDU
  * subframe to a length that is a multiple of four.
  *
- * Padding like Atheros hardware adds which is inbetween the 802.11 header and
+ * Padding like Atheros hardware adds which is between the 802.11 header and
  * the payload is not supported, the driver is required to move the 802.11
  * header to be directly in front of the payload in that case.
  */

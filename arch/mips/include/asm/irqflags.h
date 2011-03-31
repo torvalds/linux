@@ -174,7 +174,7 @@ __asm__(
 	"mtc0	\\flags, $2, 1						\n"
 #elif defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
 	/*
-	 * Slow, but doesn't suffer from a relativly unlikely race
+	 * Slow, but doesn't suffer from a relatively unlikely race
 	 * condition we're having since days 1.
 	 */
 	"	beqz	\\flags, 1f					\n"

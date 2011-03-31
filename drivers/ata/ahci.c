@@ -926,7 +926,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		/*
 		 * Acer eMachines G725 has the same problem.  BIOS
 		 * V1.03 is known to be broken.  V3.04 is known to
-		 * work.  Inbetween, there are V1.06, V2.06 and V3.03
+		 * work.  Between, there are V1.06, V2.06 and V3.03
 		 * that we don't have much idea about.  For now,
 		 * blacklist anything older than V3.04.
 		 *

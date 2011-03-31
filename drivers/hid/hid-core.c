@@ -306,7 +306,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_PUSH:
 
 		if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
-			dbg_hid("global enviroment stack overflow\n");
+			dbg_hid("global environment stack overflow\n");
 			return -1;
 		}
 
@@ -317,7 +317,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_POP:
 
 		if (!parser->global_stack_ptr) {
-			dbg_hid("global enviroment stack underflow\n");
+			dbg_hid("global environment stack underflow\n");
 			return -1;
 		}
 

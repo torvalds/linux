@@ -916,7 +916,7 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 /*
  * For all update functions, key should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn key is valid. queue exit path can not race becuase
+ * valid and in turn key is valid. queue exit path can not race because
  * of blkcg_lock
  *
  * Can not take queue lock in update functions as queue lock under blkcg_lock

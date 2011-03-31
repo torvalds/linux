@@ -1,7 +1,7 @@
 TODO
 ----
 
-Get the memrar driver cleaned up and upstream (dependancy blocking SST)
+Get the memrar driver cleaned up and upstream (dependency blocking SST)
 Replace long/short press with two virtual buttons
 Review the printks and kill off any left over ST_ERR: messages
 Review the misc device ioctls for 32/64bit safety and sanity

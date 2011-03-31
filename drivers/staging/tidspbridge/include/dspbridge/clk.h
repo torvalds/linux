@@ -55,7 +55,7 @@ extern void dsp_clk_exit(void);
  *      Initializes private state of CLK module.
  *  Parameters:
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      CLK initialized.
@@ -71,7 +71,7 @@ void dsp_gpt_wait_overflow(short int clk_id, unsigned int load);
  *  Parameters:
  *  Returns:
  *      0:	Success.
- *	-EPERM:	Error occured while enabling the clock.
+ *	-EPERM:	Error occurred while enabling the clock.
  *  Requires:
  *  Ensures:
  */
@@ -86,7 +86,7 @@ u32 dsp_clock_enable_all(u32 dsp_per_clocks);
  *  Parameters:
  *  Returns:
  *      0:        Success.
- *      -EPERM:      Error occured while disabling the clock.
+ *      -EPERM:      Error occurred while disabling the clock.
  *  Requires:
  *  Ensures:
  */

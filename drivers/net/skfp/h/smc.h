@@ -388,7 +388,7 @@ struct smt_config {
 	u_long	rmt_t_poll ;		/* RMT : claim/beacon poller */
 	u_long  rmt_dup_mac_behavior ;  /* Flag for the beavior of SMT if
 					 * a Duplicate MAC Address was detected.
-					 * FALSE: SMT will leave finaly the ring
+					 * FALSE: SMT will leave finally the ring
 					 * TRUE:  SMT will reinstert into the ring
 					 */
 	u_long	mac_d_max ;		/* MAC : D_Max timer value */

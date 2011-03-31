@@ -520,7 +520,7 @@ static bool pl011_dma_tx_irq(struct uart_amba_port *uap)
 
 	/*
 	 * We don't have a TX buffer queued, so try to queue one.
-	 * If we succesfully queued a buffer, mask the TX IRQ.
+	 * If we successfully queued a buffer, mask the TX IRQ.
 	 */
 	if (pl011_dma_tx_refill(uap) > 0) {
 		uap->im &= ~UART011_TXIM;

@@ -67,7 +67,7 @@ EXPORT_SYMBOL(p9_idpool_create);
 
 /**
  * p9_idpool_destroy - create a new per-connection id pool
- * @p: idpool to destory
+ * @p: idpool to destroy
  */
 
 void p9_idpool_destroy(struct p9_idpool *p)

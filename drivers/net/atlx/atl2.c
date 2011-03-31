@@ -1701,7 +1701,7 @@ static struct pci_driver atl2_driver = {
 	.id_table = atl2_pci_tbl,
 	.probe    = atl2_probe,
 	.remove   = __devexit_p(atl2_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = atl2_suspend,
 #ifdef CONFIG_PM
 	.resume   = atl2_resume,

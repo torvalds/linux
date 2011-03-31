@@ -377,7 +377,7 @@ not_enough_page:
  * @new: new id
  *
  * Returns old id at success, 0 at failure.
- * (There is no mem_cgroup useing 0 as its id)
+ * (There is no mem_cgroup using 0 as its id)
  */
 unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
 					unsigned short old, unsigned short new)

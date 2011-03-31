@@ -1669,7 +1669,7 @@ static int smsc911x_eeprom_send_cmd(struct smsc911x_data *pdata, u32 op)
 	}
 
 	if (e2cmd & E2P_CMD_EPC_TIMEOUT_) {
-		SMSC_TRACE(DRV, "Error occured during eeprom operation");
+		SMSC_TRACE(DRV, "Error occurred during eeprom operation");
 		return -EINVAL;
 	}
 

@@ -465,7 +465,7 @@ void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 	od = omap_device_build(name, ctrl_nr - 1, oh, mmc_data,
 		sizeof(struct omap_mmc_platform_data), ohl, ohl_cnt, false);
 	if (IS_ERR(od)) {
-		WARN(1, "Cant build omap_device for %s:%s.\n", name, oh->name);
+		WARN(1, "Can't build omap_device for %s:%s.\n", name, oh->name);
 		kfree(mmc_data->slots[0].name);
 		goto done;
 	}

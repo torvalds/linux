@@ -5247,7 +5247,7 @@ cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
 	 * Samba server ignores set of file size to zero due to bugs in some
 	 * older clients, but we should be precise - we use SetFileSize to
 	 * set file size and do not want to truncate file size to zero
-	 * accidently as happened on one Samba server beta by putting
+	 * accidentally as happened on one Samba server beta by putting
 	 * zero instead of -1 here
 	 */
 	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);

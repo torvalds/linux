@@ -2019,7 +2019,7 @@ int __init viafb_init(void)
 		return -EINVAL;
 
 	printk(KERN_INFO
-       "VIA Graphics Intergration Chipset framebuffer %d.%d initializing\n",
+       "VIA Graphics Integration Chipset framebuffer %d.%d initializing\n",
 	       VERSION_MAJOR, VERSION_MINOR);
 	return 0;
 }

@@ -50,10 +50,10 @@ struct drm_mm_node;
  *
  * @fpfn:		first valid page frame number to put the object
  * @lpfn:		last valid page frame number to put the object
- * @num_placement:	number of prefered placements
- * @placement:		prefered placements
- * @num_busy_placement:	number of prefered placements when need to evict buffer
- * @busy_placement:	prefered placements when need to evict buffer
+ * @num_placement:	number of preferred placements
+ * @placement:		preferred placements
+ * @num_busy_placement:	number of preferred placements when need to evict buffer
+ * @busy_placement:	preferred placements when need to evict buffer
  *
  * Structure indicating the placement you request for an object.
  */
@@ -160,7 +160,7 @@ struct ttm_tt;
  * @mem: structure describing current placement.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistant shmem object.
+ * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
  * @cpu_writes: For synchronization. Number of cpu writers.
@@ -461,7 +461,7 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * sleep interruptible.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistant shmem object. Typically, this would
+ * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
  * @acc_size: Accounted size for this object.
@@ -508,7 +508,7 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
  * sleep interruptible.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistant shmem object. Typically, this would
+ * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
  * @p_bo: On successful completion *p_bo points to the created object.

@@ -662,7 +662,7 @@ struct pmu {
 	int  (*commit_txn)	(struct pmu *pmu); /* optional */
 	/*
 	 * Will cancel the transaction, assumes ->del() is called
-	 * for each successfull ->add() during the transaction.
+	 * for each successful ->add() during the transaction.
 	 */
 	void (*cancel_txn)	(struct pmu *pmu); /* optional */
 };

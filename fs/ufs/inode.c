@@ -78,7 +78,7 @@ static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t off
 
 /*
  * Returns the location of the fragment from
- * the begining of the filesystem.
+ * the beginning of the filesystem.
  */
 
 static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock)

@@ -23,7 +23,7 @@
 /*
  * SoC dynamic audio power management
  *
- * We can have upto 4 power domains
+ * We can have up to 4 power domains
  * 	1. Codec domain - VREF, VMID
  *     Usually controlled at codec probe/remove, although can be set
  *     at stream time if power is not needed for sidetone, etc.

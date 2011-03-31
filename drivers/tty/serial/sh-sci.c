@@ -812,7 +812,7 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 }
 
 /*
- * Here we define a transistion notifier so that we can update all of our
+ * Here we define a transition notifier so that we can update all of our
  * ports' baud rate when the peripheral clock changes.
  */
 static int sci_notifier(struct notifier_block *self,

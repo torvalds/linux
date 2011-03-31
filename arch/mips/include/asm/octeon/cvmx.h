@@ -151,7 +151,7 @@ enum cvmx_mips_space {
 #endif
 
 /**
- * Convert a memory pointer (void*) into a hardware compatable
+ * Convert a memory pointer (void*) into a hardware compatible
  * memory address (uint64_t). Octeon hardware widgets don't
  * understand logical addresses.
  *

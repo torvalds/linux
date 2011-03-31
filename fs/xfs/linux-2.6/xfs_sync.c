@@ -401,7 +401,7 @@ xfs_quiesce_fs(
 /*
  * Second stage of a quiesce. The data is already synced, now we have to take
  * care of the metadata. New transactions are already blocked, so we need to
- * wait for any remaining transactions to drain out before proceding.
+ * wait for any remaining transactions to drain out before proceeding.
  */
 void
 xfs_quiesce_attr(

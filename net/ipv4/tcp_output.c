@@ -73,7 +73,7 @@ static void tcp_event_new_data_sent(struct sock *sk, struct sk_buff *skb)
 	tcp_advance_send_head(sk, skb);
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
 
-	/* Don't override Nagle indefinately with F-RTO */
+	/* Don't override Nagle indefinitely with F-RTO */
 	if (tp->frto_counter == 2)
 		tp->frto_counter = 3;
 

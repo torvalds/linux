@@ -440,7 +440,7 @@ static void __init igep3_init(void)
 	igep3_leds_init();
 
 	/*
-	 * WLAN-BT combo module from MuRata wich has a Marvell WLAN
+	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
 	 * (88W8686) + CSR Bluetooth chipset. Uses SDIO interface.
 	 */
 	igep3_wifi_bt_init();

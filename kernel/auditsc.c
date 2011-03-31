@@ -1011,7 +1011,7 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 /*
  * to_send and len_sent accounting are very loose estimates.  We aren't
  * really worried about a hard cap to MAX_EXECVE_AUDIT_LEN so much as being
- * within about 500 bytes (next page boundry)
+ * within about 500 bytes (next page boundary)
  *
  * why snprintf?  an int is up to 12 digits long.  if we just assumed when
  * logging that a[%d]= was going to be 16 characters long we would be wasting
