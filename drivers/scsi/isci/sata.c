@@ -299,7 +299,6 @@ int isci_task_send_lu_reset_sata(
 {
 	struct isci_tmf tmf;
 	int ret = TMF_RESP_FUNC_FAILED;
-	unsigned long flags;
 
 	/* Send the soft reset to the target */
 	#define ISCI_SRST_TIMEOUT_MS 25000 /* 25 second timeout. */

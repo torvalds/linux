@@ -56,6 +56,8 @@
 #if !defined(_ISCI_TASK_H_)
 #define _ISCI_TASK_H_
 
+#include <scsi/sas_ata.h>
+
 struct isci_request;
 struct isci_host;
 
@@ -331,6 +333,41 @@ isci_task_set_completion_status(
 
 	return task_notification_selection;
 
+}
+/**
+* isci_execpath_callback() - This function is called from the task
+* execute path when the task needs to callback libsas about the submit-time
+* task failure.  The callback occurs either through the task's done function
+* or through sas_task_abort.  In the case of regular non-discovery SATA/STP I/O
+* requests, libsas takes the host lock before calling execute task.  Therefore
+* in this situation the host lock must be managed before calling the func.
+*
+* @ihost: This parameter is the controller to which the I/O request was sent.
+* @task: This parameter is the I/O request.
+* @func: This parameter is the function to call in the correct context.
+* @status: This parameter is the status code for the completed task.
+*
+*/
+static inline void isci_execpath_callback(
+	struct isci_host *ihost,
+	struct sas_task  *task,
+	void (*func)(struct sas_task *))
+{
+	unsigned long flags;
+
+	if (dev_is_sata(task->dev) && task->uldd_task) {
+		/* Since we are still in the submit path, and since
+		* libsas takes the host lock on behalf of SATA
+		* devices before I/O starts (in the non-discovery case),
+		* we need to unlock before we can call the callback function.
+		*/
+		raw_local_irq_save(flags);
+		spin_unlock(ihost->shost->host_lock);
+		func(task);
+		spin_lock(ihost->shost->host_lock);
+		raw_local_irq_restore(flags);
+	} else
+		func(task);
 }
 
 #endif /* !defined(_SCI_TASK_H_) */

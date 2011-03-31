@@ -53,7 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <scsi/sas_ata.h>
 #include "isci.h"
 #include "scic_remote_device.h"
 #include "scic_io_request.h"
@@ -452,22 +451,11 @@ int isci_request_execute(
 			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-			/* Cause this task to be scheduled in the SCSI error handler
-			* thread.
+			/* Cause this task to be scheduled in the SCSI error
+			* handler thread.
 			*/
-			if (dev_is_sata(task->dev)) {
-				/* Since we are still in the submit path, and since
-				* libsas takes the host lock on behalf of SATA
-				* devices before I/O starts, we need to unlock
-				* before we can put the task in the error path.
-				*/
-				raw_local_irq_save(flags);
-				spin_unlock(isci_host->shost->host_lock);
-				sas_task_abort(task);
-				spin_lock(isci_host->shost->host_lock);
-				raw_local_irq_restore(flags);
-			} else
-				sas_task_abort(task);
+			isci_execpath_callback(isci_host, task,
+					       sas_task_abort);
 
 			/* Change the status, since we are holding
 			* the I/O until it is managed by the SCSI

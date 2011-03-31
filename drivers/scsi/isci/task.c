@@ -55,7 +55,6 @@
 
 #include <linux/completion.h>
 #include <linux/irqflags.h>
-#include <scsi/sas_ata.h>
 #include "scic_task_request.h"
 #include "scic_remote_device.h"
 #include "scic_io_request.h"
@@ -93,26 +92,13 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 		case isci_perform_normal_io_completion:
 			/* Normal notification (task_done) */
 			dev_dbg(&ihost->pdev->dev,
-				"%s: Normal - task = %p, response=%d, status=%d\n",
+				"%s: Normal - task = %p, response=%d, "
+				"status=%d\n",
 				__func__, task, response, status);
 
 			task->lldd_task = NULL;
-			if (dev_is_sata(task->dev)) {
-				/* Since we are still in the submit path, and since
-				* libsas takes the host lock on behalf of SATA
-				* devices before I/O starts, we need to unlock
-				* before we can call back and report the I/O
-				* submission error.
-				*/
-				unsigned long flags;
 
-				raw_local_irq_save(flags);
-				spin_unlock(ihost->shost->host_lock);
-				task->task_done(task);
-				spin_lock(ihost->shost->host_lock);
-				raw_local_irq_restore(flags);
-			} else
-				task->task_done(task);
+			isci_execpath_callback(ihost, task, task->task_done);
 			break;
 
 		case isci_perform_aborted_io_completion:
@@ -120,16 +106,19 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			* abort path.
 			*/
 			dev_warn(&ihost->pdev->dev,
-				 "%s: Aborted - task = %p, response=%d, status=%d\n",
+				 "%s: Aborted - task = %p, response=%d, "
+				"status=%d\n",
 				 __func__, task, response, status);
 			break;
 
 		case isci_perform_error_io_completion:
 			/* Use sas_task_abort */
 			dev_warn(&ihost->pdev->dev,
-				 "%s: Error - task = %p, response=%d, status=%d\n",
+				 "%s: Error - task = %p, response=%d, "
+				"status=%d\n",
 				 __func__, task, response, status);
-			sas_task_abort(task);
+
+			isci_execpath_callback(ihost, task, sas_task_abort);
 			break;
 
 		default:
