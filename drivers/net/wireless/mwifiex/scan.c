@@ -1210,7 +1210,8 @@ mwifiex_interpret_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 	struct ieee_types_ds_param_set *ds_param_set;
 	struct ieee_types_cf_param_set *cf_param_set;
 	struct ieee_types_ibss_param_set *ibss_param_set;
-	struct mwifiex_802_11_fixed_ies fixed_ie;
+	__le16 beacon_interval;
+	__le16 capabilities;
 	u8 *current_ptr;
 	u8 *rate;
 	u8 element_len;
@@ -1283,22 +1284,21 @@ mwifiex_interpret_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 	bss_entry->beacon_buf_size = bytes_left_for_current_beacon;
 
 	/* Time stamp is 8 bytes long */
-	memcpy(fixed_ie.time_stamp, current_ptr, 8);
 	memcpy(bss_entry->time_stamp, current_ptr, 8);
 	current_ptr += 8;
 	bytes_left_for_current_beacon -= 8;
 
 	/* Beacon interval is 2 bytes long */
-	memcpy(&fixed_ie.beacon_interval, current_ptr, 2);
-	bss_entry->beacon_period = le16_to_cpu(fixed_ie.beacon_interval);
+	memcpy(&beacon_interval, current_ptr, 2);
+	bss_entry->beacon_period = le16_to_cpu(beacon_interval);
 	current_ptr += 2;
 	bytes_left_for_current_beacon -= 2;
 
 	/* Capability information is 2 bytes long */
-	memcpy(&fixed_ie.capabilities, current_ptr, 2);
-	dev_dbg(adapter->dev, "info: InterpretIE: fixed_ie.capabilities=0x%X\n",
-	       fixed_ie.capabilities);
-	bss_entry->cap_info_bitmap = le16_to_cpu(fixed_ie.capabilities);
+	memcpy(&capabilities, current_ptr, 2);
+	dev_dbg(adapter->dev, "info: InterpretIE: capabilities=0x%X\n",
+	       capabilities);
+	bss_entry->cap_info_bitmap = le16_to_cpu(capabilities);
 	current_ptr += 2;
 	bytes_left_for_current_beacon -= 2;
 

@@ -343,20 +343,6 @@ enum ENH_PS_MODES {
 #define EVENT_GET_BSS_TYPE(event_cause)         \
 	(((event_cause) >> 24) & 0x00ff)
 
-struct mwifiex_event_wep_icv_err {
-	u16 reason_code;
-	u8 src_mac_addr[ETH_ALEN];
-	u8 wep_key_index;
-	u8 wep_key_length;
-	u8 key[WLAN_KEY_LEN_WEP104];
-};
-
-struct mwifiex_802_11_fixed_ies {
-	u8 time_stamp[8];
-	__le16 beacon_interval;
-	__le16 capabilities;
-};
-
 struct mwifiex_ie_types_header {
 	__le16 type;
 	__le16 len;
