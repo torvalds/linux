@@ -41,7 +41,7 @@ static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
 
 static unsigned int		page_size;
-static unsigned int		mmap_pages			=    128;
+static unsigned int		mmap_pages			= UINT_MAX;
 static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
@@ -512,6 +512,10 @@ static int __cmd_record(int argc, const char **argv)
 
 	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
+
+	/* 512 kiB: default amount of unprivileged mlocked memory */
+	if (mmap_pages == UINT_MAX)
+		mmap_pages = (512 * 1024) / page_size;
 
 	if (forks) {
 		child_pid = fork();
