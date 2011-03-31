@@ -381,7 +381,13 @@ static int uio_get_minor(struct uio_device *idev)
 			retval = -ENOMEM;
 		goto exit;
 	}
-	idev->minor = id & MAX_ID_MASK;
+	if (id < UIO_MAX_DEVICES) {
+		idev->minor = id;
+	} else {
+		dev_err(idev->dev, "too many uio devices\n");
+		retval = -EINVAL;
+		idr_remove(&uio_idr, id);
+	}
 exit:
 	mutex_unlock(&minor_lock);
 	return retval;
