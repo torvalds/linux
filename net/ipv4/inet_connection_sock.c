@@ -356,20 +356,14 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options *opt = inet_rsk(req)->opt;
-	struct flowi4 fl4 = {
-		.flowi4_oif = sk->sk_bound_dev_if,
-		.flowi4_mark = sk->sk_mark,
-		.daddr = ((opt && opt->srr) ?
-			  opt->faddr : ireq->rmt_addr),
-		.saddr = ireq->loc_addr,
-		.flowi4_tos = RT_CONN_FLAGS(sk),
-		.flowi4_proto = sk->sk_protocol,
-		.flowi4_flags = inet_sk_flowi_flags(sk),
-		.fl4_sport = inet_sk(sk)->inet_sport,
-		.fl4_dport = ireq->rmt_port,
-	};
 	struct net *net = sock_net(sk);
+	struct flowi4 fl4;
 
+	flowi4_init_output(&fl4, sk->sk_bound_dev_if, sk->sk_mark,
+			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
+			   sk->sk_protocol, inet_sk_flowi_flags(sk),
+			   (opt && opt->srr) ? opt->faddr : ireq->rmt_addr,
+			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
 	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_flow(net, &fl4, sk);
 	if (IS_ERR(rt))
