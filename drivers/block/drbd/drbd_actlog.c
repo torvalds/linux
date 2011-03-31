@@ -31,6 +31,11 @@
 #include "drbd_int.h"
 #include "drbd_wrappers.h"
 
+
+enum al_transaction_types {
+	AL_TR_UPDATE = 0,
+	AL_TR_INITIALIZED = 0xffff
+};
 /* all fields on disc in big endian */
 struct __packed al_transaction_on_disk {
 	/* don't we all like magic */
@@ -44,7 +49,8 @@ struct __packed al_transaction_on_disk {
 	__be32	crc32c;
 
 	/* type of transaction, special transaction types like:
-	 * purge-all, set-all-idle, set-all-active, ... to-be-defined */
+	 * purge-all, set-all-idle, set-all-active, ... to-be-defined
+	 * see also enum al_transaction_types */
 	__be16	transaction_type;
 
 	/* we currently allow only a few thousand extents,
@@ -476,6 +482,7 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	int active_extents = 0;
 	int transactions = 0;
 	int found_valid = 0;
+	int found_initialized = 0;
 	int from = 0;
 	int to = 0;
 	u32 from_tnr = 0;
@@ -504,6 +511,10 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		/* invalid data in that block */
 		if (rv == 0)
 			continue;
+		if (be16_to_cpu(b->transaction_type) == AL_TR_INITIALIZED) {
+			++found_initialized;
+			continue;
+		}
 
 		/* IO error */
 		if (rv == -1) {
@@ -535,7 +546,8 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	}
 
 	if (!found_valid) {
-		dev_warn(DEV, "No usable activity log found.\n");
+		if (found_initialized != mx)
+			dev_warn(DEV, "No usable activity log found.\n");
 		mutex_unlock(&mdev->md_io_mutex);
 		return 1;
 	}
