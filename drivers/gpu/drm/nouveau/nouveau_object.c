@@ -636,18 +636,20 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 	return -EINVAL;
 
 found:
-	switch (oc->engine) {
-	case NVOBJ_ENGINE_SW:
-		return nouveau_gpuobj_sw_new(chan, handle, class);
-	case NVOBJ_ENGINE_GR:
-		if ((dev_priv->card_type >= NV_20 && !chan->ramin_grctx) ||
-		    (dev_priv->card_type  < NV_20 && !chan->pgraph_ctx)) {
-			ret = pgraph->create_context(chan);
-			if (ret)
-				return ret;
-		}
+	if (!dev_priv->eng[oc->engine]) {
+		switch (oc->engine) {
+		case NVOBJ_ENGINE_SW:
+			return nouveau_gpuobj_sw_new(chan, handle, class);
+		case NVOBJ_ENGINE_GR:
+			if ((dev_priv->card_type >= NV_20 && !chan->ramin_grctx) ||
+			    (dev_priv->card_type  < NV_20 && !chan->pgraph_ctx)) {
+				ret = pgraph->create_context(chan);
+				if (ret)
+					return ret;
+			}
 
-		return pgraph->object_new(chan, handle, class);
+			return pgraph->object_new(chan, handle, class);
+		}
 	}
 
 	if (!chan->engctx[oc->engine]) {

@@ -151,7 +151,6 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	struct drm_nouveau_private *dev_priv = vm->dev->dev_private;
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	int i;
 
 	pinstmem->flush(vm->dev);
@@ -163,9 +162,6 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	}
 
 	pfifo->tlb_flush(vm->dev);
-
-	if (atomic_read(&vm->pgraph_refs))
-		pgraph->tlb_flush(vm->dev);
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
 		if (atomic_read(&vm->engref[i]))
 			dev_priv->eng[i]->tlb_flush(vm->dev, i);

@@ -304,7 +304,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 
 	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
-	pgraph->destroy_context(chan);
+	if (pgraph->destroy_context)
+		pgraph->destroy_context(chan);
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);

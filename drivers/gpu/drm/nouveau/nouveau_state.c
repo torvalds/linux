@@ -363,20 +363,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv50_fb_init;
 		engine->fb.takedown		= nv50_fb_takedown;
-		engine->graph.init		= nv50_graph_init;
-		engine->graph.takedown		= nv50_graph_takedown;
-		engine->graph.fifo_access	= nv50_graph_fifo_access;
-		engine->graph.channel		= nv50_graph_channel;
-		engine->graph.create_context	= nv50_graph_create_context;
-		engine->graph.destroy_context	= nv50_graph_destroy_context;
-		engine->graph.load_context	= nv50_graph_load_context;
-		engine->graph.unload_context	= nv50_graph_unload_context;
-		engine->graph.object_new	= nv50_graph_object_new;
-		if (dev_priv->chipset == 0x50 ||
-		    dev_priv->chipset == 0xac)
-			engine->graph.tlb_flush	= nv50_graph_tlb_flush;
-		else
-			engine->graph.tlb_flush	= nv84_graph_tlb_flush;
+		engine->graph.init		= nouveau_stub_init;
+		engine->graph.takedown		= nouveau_stub_takedown;
+		engine->graph.fifo_access	= nvc0_graph_fifo_access;
+		engine->graph.channel		= nvc0_graph_channel;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nv50_fifo_init;
 		engine->fifo.takedown		= nv50_fifo_takedown;
@@ -635,6 +625,9 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
+	if (dev_priv->card_type == NV_50)
+		nv50_graph_create(dev);
+
 	switch (dev_priv->chipset) {
 	case 0x84:
 	case 0x86:
@@ -712,8 +705,10 @@ out_graph:
 out_engine:
 	if (!nouveau_noaccel) {
 		for (e = e - 1; e >= 0; e--) {
+			if (!dev_priv->eng[e])
+				continue;
 			dev_priv->eng[e]->fini(dev, e);
-			dev_priv->eng[e]->destroy(dev, e);
+			dev_priv->eng[e]->destroy(dev,e );
 		}
 	}
 

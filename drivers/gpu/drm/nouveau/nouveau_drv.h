@@ -1189,18 +1189,8 @@ extern void nv40_grctx_init(struct nouveau_grctx *);
 extern void nv40_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv50_graph.c */
-extern int  nv50_graph_init(struct drm_device *);
-extern void nv50_graph_takedown(struct drm_device *);
-extern void nv50_graph_fifo_access(struct drm_device *, bool);
-extern struct nouveau_channel *nv50_graph_channel(struct drm_device *);
-extern int  nv50_graph_create_context(struct nouveau_channel *);
-extern void nv50_graph_destroy_context(struct nouveau_channel *);
-extern int  nv50_graph_load_context(struct nouveau_channel *);
-extern int  nv50_graph_unload_context(struct drm_device *);
-extern int  nv50_graph_object_new(struct nouveau_channel *, u32, u16);
+extern int  nv50_graph_create(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
-extern void nv50_graph_tlb_flush(struct drm_device *dev);
-extern void nv84_graph_tlb_flush(struct drm_device *dev);
 extern struct nouveau_enum nv50_data_error_names[];
 
 /* nvc0_graph.c */

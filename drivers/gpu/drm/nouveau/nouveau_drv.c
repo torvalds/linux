@@ -217,7 +217,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	pfifo->reassign(dev, false);
 	pfifo->disable(dev);
 	pfifo->unload_context(dev);
-	pgraph->unload_context(dev);
+	if (pgraph->unload_context)
+		pgraph->unload_context(dev);
 
 	ret = pinstmem->suspend(dev);
 	if (ret) {
