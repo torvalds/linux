@@ -305,7 +305,7 @@ void __devinit smp_prepare_boot_cpu(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* State of each CPU during hotplug phases */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
+static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 int generic_cpu_disable(void)
 {
@@ -347,6 +347,11 @@ void generic_mach_cpu_die(void)
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
+}
+
+void generic_set_cpu_dead(unsigned int cpu)
+{
+	per_cpu(cpu_state, cpu) = CPU_DEAD;
 }
 #endif
 

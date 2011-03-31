@@ -920,10 +920,12 @@ static int smp_core99_cpu_disable(void)
 
 static void pmac_cpu_die(void)
 {
+	int cpu = smp_processor_id();
+
 	local_irq_disable();
 	idle_task_exit();
-	printk(KERN_DEBUG "CPU%d offline\n", smp_processor_id());
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	pr_debug("CPU%d offline\n", cpu);
+	generic_set_cpu_dead(cpu);
 	smp_wmb();
 	mb();
 	low_cpu_die();
@@ -933,6 +935,8 @@ static void pmac_cpu_die(void)
 
 static void pmac_cpu_die(void)
 {
+	int cpu = smp_processor_id();
+
 	local_irq_disable();
 	idle_task_exit();
 
@@ -942,8 +946,8 @@ static void pmac_cpu_die(void)
 	 * on core99 platforms for now ...
 	 */
 
-	printk(KERN_INFO "CPU#%d offline\n", smp_processor_id());
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	printk(KERN_INFO "CPU#%d offline\n", cpu);
+	generic_set_cpu_dead(cpu);
 	smp_wmb();
 
 	/*
