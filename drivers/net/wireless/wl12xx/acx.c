@@ -1081,8 +1081,6 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 	wl1271_debug(DEBUG_TX, "available tx blocks: %d",
 		     wl->tx_blocks_available);
 
-	wl->tx_new_total = wl->tx_blocks_available;
-
 	return 0;
 }
 

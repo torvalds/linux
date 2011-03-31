@@ -418,10 +418,8 @@ struct wl1271 {
 	/* Accounting for allocated / available TX blocks on HW */
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
+	u32 tx_allocated_blocks;
 	u32 tx_results_count;
-	/* Indicates how many memory blocks should be moved to the RX pool */
-	int tx_total_diff;
-	u32 tx_new_total;
 
 	/* Transmitted TX packets counter for chipset interface */
 	u32 tx_packets_count;

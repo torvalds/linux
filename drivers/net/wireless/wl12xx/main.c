@@ -622,7 +622,7 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
-	u32 total = 0;
+	u32 freed_blocks = 0;
 	int i;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
@@ -631,15 +631,6 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	} else {
 		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
 				sizeof(struct wl1271_fw_sta_status), false);
-
-		/* Update tx total blocks change */
-		wl->tx_total_diff +=
-			((struct wl1271_fw_sta_status *)status)->tx_total -
-			wl->tx_new_total;
-
-		/* Update total tx blocks */
-		wl->tx_new_total =
-			((struct wl1271_fw_sta_status *)status)->tx_total;
 	}
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
@@ -651,33 +642,37 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		total += le32_to_cpu(status->tx_released_blks[i]) -
-			wl->tx_blocks_freed[i];
+		freed_blocks += le32_to_cpu(status->tx_released_blks[i]) -
+				wl->tx_blocks_freed[i];
 
 		wl->tx_blocks_freed[i] =
 			le32_to_cpu(status->tx_released_blks[i]);
-
 	}
 
-	/*
-	 * By adding the freed blocks to tx_total_diff we are actually
-	 * moving them to the RX pool.
-	 */
-	wl->tx_total_diff += total;
+	wl->tx_allocated_blocks -= freed_blocks;
 
-	/* if we have positive difference, add the blocks to the TX pool */
-	if (wl->tx_total_diff >= 0) {
-		wl->tx_blocks_available += wl->tx_total_diff;
-		wl->tx_total_diff = 0;
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		/* Update num of allocated TX blocks per link and ps status */
+		wl1271_irq_update_links_status(wl, &full_status->ap);
+		wl->tx_blocks_available += freed_blocks;
+	} else {
+		int avail = full_status->sta.tx_total - wl->tx_allocated_blocks;
+
+		/*
+		 * The FW might change the total number of TX memblocks before
+		 * we get a notification about blocks being released. Thus, the
+		 * available blocks calculation might yield a temporary result
+		 * which is lower than the actual available blocks. Keeping in
+		 * mind that only blocks that were allocated can be moved from
+		 * TX to RX, tx_blocks_available should never decrease here.
+		 */
+		wl->tx_blocks_available = max((int)wl->tx_blocks_available,
+					      avail);
 	}
 
 	/* if more blocks are available now, tx work can be scheduled */
 	if (wl->tx_blocks_available > old_tx_blk_count)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
-
-	/* for AP update num of allocated TX blocks per link and ps status */
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		wl1271_irq_update_links_status(wl, &full_status->ap);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -1495,6 +1490,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
+	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
 	wl->tx_security_last_seq = 0;
