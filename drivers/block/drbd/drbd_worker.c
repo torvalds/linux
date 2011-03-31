@@ -101,7 +101,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 {
 	unsigned long flags = 0;
 	struct drbd_conf *mdev = peer_req->w.mdev;
-	sector_t e_sector;
+	struct drbd_interval i;
 	int do_wake;
 	u64 block_id;
 	int do_al_complete_io;
@@ -110,7 +110,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 	 * we may no longer access it,
 	 * it may be freed/reused already!
 	 * (as soon as we release the req_lock) */
-	e_sector = peer_req->i.sector;
+	i = peer_req->i;
 	do_al_complete_io = peer_req->flags & EE_CALL_AL_COMPLETE_IO;
 	block_id = peer_req->block_id;
 
@@ -134,13 +134,13 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (block_id == ID_SYNCER)
-		drbd_rs_complete_io(mdev, e_sector);
+		drbd_rs_complete_io(mdev, i.sector);
 
 	if (do_wake)
 		wake_up(&mdev->ee_wait);
 
 	if (do_al_complete_io)
-		drbd_al_complete_io(mdev, e_sector);
+		drbd_al_complete_io(mdev, &i);
 
 	wake_asender(mdev->tconn);
 	put_ldev(mdev);
@@ -1301,7 +1301,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 	struct drbd_conf *mdev = w->mdev;
 
 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
-		drbd_al_begin_io(mdev, req->i.sector);
+		drbd_al_begin_io(mdev, &req->i);
 	/* Calling drbd_al_begin_io() out of the worker might deadlocks
 	   theoretically. Practically it can not deadlock, since this is
 	   only used when unfreezing IOs. All the extents of the requests

@@ -205,9 +205,9 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 	return al_ext;
 }
 
-void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
+void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
-	unsigned int enr = (sector >> (AL_EXTENT_SHIFT-9));
+	unsigned int enr = (i->sector >> (AL_EXTENT_SHIFT-9));
 	struct lc_element *al_ext;
 	struct update_al_work al_work;
 
@@ -254,9 +254,9 @@ void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
 	}
 }
 
-void drbd_al_complete_io(struct drbd_conf *mdev, sector_t sector)
+void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
-	unsigned int enr = (sector >> (AL_EXTENT_SHIFT-9));
+	unsigned int enr = (i->sector >> (AL_EXTENT_SHIFT-9));
 	struct lc_element *extent;
 	unsigned long flags;
 

@@ -2061,7 +2061,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 		drbd_set_out_of_sync(mdev, peer_req->i.sector, peer_req->i.size);
 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
 		peer_req->flags &= ~EE_MAY_SET_IN_SYNC;
-		drbd_al_begin_io(mdev, peer_req->i.sector);
+		drbd_al_begin_io(mdev, &peer_req->i);
 	}
 
 	err = drbd_submit_peer_request(mdev, peer_req, rw, DRBD_FAULT_DT_WR);
@@ -2075,7 +2075,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	drbd_remove_epoch_entry_interval(mdev, peer_req);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 	if (peer_req->flags & EE_CALL_AL_COMPLETE_IO)
-		drbd_al_complete_io(mdev, peer_req->i.sector);
+		drbd_al_complete_io(mdev, &peer_req->i);
 
 out_interrupted:
 	drbd_may_finish_epoch(mdev, peer_req->epoch, EV_PUT + EV_CLEANUP);
