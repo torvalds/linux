@@ -7,6 +7,7 @@ DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
 	-DDHD_USE_STATIC_BUF -DDHD_DEBUG_TRAP -DSOFTAP -DSDIO_ISR_THREAD      \
 	-DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT        \
 	-DGET_CUSTOM_MAC_ENABLE -DSET_RANDOM_MAC_SOFTAP -DCSCAN   \
+        -DKEEP_ALIVE -DCONFIG_US_NON_DFS_CHANNELS_ONLY   \
 	-Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
 
 #options defines dependent on platform board and applicantion requirements: 
