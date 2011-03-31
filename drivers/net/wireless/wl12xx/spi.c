@@ -364,6 +364,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	struct wl12xx_platform_data *pdata;
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
+	unsigned long irqflags;
 	int ret;
 
 	pdata = spi->dev.platform_data;
@@ -402,6 +403,12 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 
 	wl->ref_clock = pdata->board_ref_clock;
 	wl->tcxo_clock = pdata->board_tcxo_clock;
+	wl->platform_quirks = pdata->platform_quirks;
+
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		irqflags = IRQF_TRIGGER_RISING;
+	else
+		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
 
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {
@@ -411,7 +418,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	}
 
 	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   irqflags,
 				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);

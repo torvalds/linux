@@ -579,6 +579,9 @@ struct wl1271 {
 
 	/* Quirks of specific hardware revisions */
 	unsigned int quirks;
+
+	/* Platform limitations */
+	unsigned int platform_quirks;
 };
 
 struct wl1271_station {

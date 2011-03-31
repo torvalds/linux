@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/wl12xx.h>
 
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
@@ -718,6 +719,13 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 	/* TX might be handled here, avoid redundant work */
 	set_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
 	cancel_work_sync(&wl->tx_work);
+
+	/*
+	 * In case edge triggered interrupt must be used, we cannot iterate
+	 * more than once without introducing race conditions with the hardirq.
+	 */
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		loopcount = 1;
 
 	mutex_lock(&wl->mutex);
 
@@ -3648,6 +3656,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
 	wl->quirks = 0;
+	wl->platform_quirks = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

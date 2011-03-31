@@ -53,7 +53,11 @@ struct wl12xx_platform_data {
 	bool use_eeprom;
 	int board_ref_clock;
 	int board_tcxo_clock;
+	unsigned long platform_quirks;
 };
+
+/* Platform does not support level trigger interrupts */
+#define WL12XX_PLATFORM_QUIRK_EDGE_IRQ	BIT(0)
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
 

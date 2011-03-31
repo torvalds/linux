@@ -220,6 +220,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	struct ieee80211_hw *hw;
 	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
+	unsigned long irqflags;
 	int ret;
 
 	/* We are only able to handle the wlan function */
@@ -251,9 +252,15 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	wl->irq = wlan_data->irq;
 	wl->ref_clock = wlan_data->board_ref_clock;
 	wl->tcxo_clock = wlan_data->board_tcxo_clock;
+	wl->platform_quirks = wlan_data->platform_quirks;
+
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		irqflags = IRQF_TRIGGER_RISING;
+	else
+		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
 
 	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   irqflags,
 				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
