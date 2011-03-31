@@ -2477,6 +2477,15 @@ static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_invlpg(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	emulate_invlpg(ctxt->vcpu, linear(ctxt, c->src.addr.mem));
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3966,10 +3975,7 @@ twobyte_insn:
 			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		case 7: /* invlpg*/
-			emulate_invlpg(ctxt->vcpu,
-				       linear(ctxt, c->src.addr.mem));
-			/* Disable writeback. */
-			c->dst.type = OP_NONE;
+			rc = em_invlpg(ctxt);
 			break;
 		default:
 			goto cannot_emulate;
