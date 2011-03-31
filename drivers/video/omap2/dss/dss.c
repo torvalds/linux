@@ -385,8 +385,14 @@ enum dss_clk_source dss_get_dsi_clk_source(void)
 
 enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 {
-	int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
-	return dss.lcd_clk_source[ix];
+	if (dss_has_feature(FEAT_LCD_CLK_SRC)) {
+		int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
+		return dss.lcd_clk_source[ix];
+	} else {
+		/* LCD_CLK source is the same as DISPC_FCLK source for
+		 * OMAP2 and OMAP3 */
+		return dss.dispc_clk_source;
+	}
 }
 
 /* calculate clock rates using dividers in cinfo */
