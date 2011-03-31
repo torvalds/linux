@@ -176,10 +176,6 @@ enum sci_status scic_sds_stp_pio_request_construct(
 	u8 sat_protocol,
 	bool copy_rx_frame);
 
-enum sci_status scic_sds_stp_pio_request_construct_pass_through(
-	struct scic_sds_request *scic_io_request,
-	struct scic_stp_passthru_request_callbacks *passthru_cb);
-
 enum sci_status scic_sds_stp_udma_request_construct(
 	struct scic_sds_request *this_request,
 	u32 transfer_length,
