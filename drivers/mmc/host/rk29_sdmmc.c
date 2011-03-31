@@ -601,7 +601,10 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 	/* Slot specific timing and width adjustment */
 	rk29_sdmmc_setup_bus(host);
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
-	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
+	if(rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & SDMMC_INT_SDIO)
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_SDIO |SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
+	else
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	host->curr_mrq = mrq;
 	host->pending_events = 0;
 	host->completed_events = 0;
@@ -770,7 +773,10 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 	}
 
 	spin_unlock(&host->lock);
-	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD);
+	if(rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & SDMMC_INT_SDIO)
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD|SDMMC_INT_SDIO);
+	else
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD);
 	if(mrq && mrq->data && mrq->data->error) {
 		//mrq->data->bytes_xfered = 0;
 		rk29_sdmmc_write(host->regs, SDMMC_CMD, host->stop_cmdr | SDMMC_CMD_START); 
