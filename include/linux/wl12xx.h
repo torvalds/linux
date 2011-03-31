@@ -26,10 +26,12 @@
 
 /* Reference clock values */
 enum {
-	WL12XX_REFCLOCK_19 = 0,	/* 19.2 MHz */
-	WL12XX_REFCLOCK_26 = 1,	/* 26 MHz */
-	WL12XX_REFCLOCK_38 = 2,	/* 38.4 MHz */
-	WL12XX_REFCLOCK_54 = 3,	/* 54 MHz */
+	WL12XX_REFCLOCK_19	= 0, /* 19.2 MHz */
+	WL12XX_REFCLOCK_26	= 1, /* 26 MHz */
+	WL12XX_REFCLOCK_38	= 2, /* 38.4 MHz */
+	WL12XX_REFCLOCK_52	= 3, /* 52 MHz */
+	WL12XX_REFCLOCK_38_XTAL = 4, /* 38.4 MHz, XTAL */
+	WL12XX_REFCLOCK_26_XTAL = 5, /* 26 MHz, XTAL */
 };
 
 /* TCXO clock values */

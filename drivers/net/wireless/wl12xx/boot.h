@@ -107,6 +107,7 @@ struct wl1271_static_data {
 #define MCS_SEL_IN_FREQ_MASK         0x0070
 #define MCS_SEL_IN_FREQ_SHIFT        4
 #define MCS_PLL_CONFIG_REG_VAL       0x73
+#define MCS_PLL_ENABLE_HP            (BIT(0) | BIT(1))
 
 #define MCS_PLL_M_REG                0xD94
 #define MCS_PLL_N_REG                0xD96
