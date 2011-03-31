@@ -316,7 +316,7 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 
 	/* Stop the IDMAC running */
 	temp = mci_readl(host, BMOD);
-	temp &= ~SDMMC_IDMAC_ENABLE;
+	temp &= ~(SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB);
 	mci_writel(host, BMOD, temp);
 }
 
@@ -385,7 +385,7 @@ static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 	/* Enable the IDMAC */
 	temp = mci_readl(host, BMOD);
-	temp |= SDMMC_IDMAC_ENABLE;
+	temp |= SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB;
 	mci_writel(host, BMOD, temp);
 
 	/* Start it running */

@@ -215,8 +215,8 @@ static int __devinit z2_batt_probe(struct i2c_client *client,
 		if (ret)
 			goto err2;
 
-		set_irq_type(gpio_to_irq(info->charge_gpio),
-				IRQ_TYPE_EDGE_BOTH);
+		irq_set_irq_type(gpio_to_irq(info->charge_gpio),
+				 IRQ_TYPE_EDGE_BOTH);
 		ret = request_irq(gpio_to_irq(info->charge_gpio),
 				z2_charge_switch_irq, IRQF_DISABLED,
 				"AC Detect", charger);

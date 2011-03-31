@@ -265,7 +265,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 			goto disable;
 		}
 
-		set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
+		irq_set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 		disable_irq(wl->irq);
 
 		wl1251_sdio_ops.enable_irq = wl1251_enable_line_irq;

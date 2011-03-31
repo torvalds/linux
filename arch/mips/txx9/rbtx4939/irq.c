@@ -88,8 +88,8 @@ void __init rbtx4939_irq_setup(void)
 	tx4939_irq_init();
 	for (i = RBTX4939_IRQ_IOC;
 	     i < RBTX4939_IRQ_IOC + RBTX4939_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &rbtx4939_ioc_irq_chip,
+		irq_set_chip_and_handler(i, &rbtx4939_ioc_irq_chip,
 					 handle_level_irq);
 
-	set_irq_chained_handler(RBTX4939_IRQ_IOCINT, handle_simple_irq);
+	irq_set_chained_handler(RBTX4939_IRQ_IOCINT, handle_simple_irq);
 }

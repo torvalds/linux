@@ -77,7 +77,7 @@ void __init msp_slp_irq_init(void)
 
 	/* initialize all the IRQ descriptors */
 	for (i = MSP_SLP_INTBASE; i < MSP_PER_INTBASE + 32; i++)
-		set_irq_chip_and_handler(i, &msp_slp_irq_controller,
+		irq_set_chip_and_handler(i, &msp_slp_irq_controller,
 					 handle_level_irq);
 }
 

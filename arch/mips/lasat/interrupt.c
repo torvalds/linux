@@ -128,7 +128,7 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init();
 
 	for (i = LASAT_IRQ_BASE; i <= LASAT_IRQ_END; i++)
-		set_irq_chip_and_handler(i, &lasat_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &lasat_irq_type, handle_level_irq);
 
 	setup_irq(LASAT_CASCADE_IRQ, &cascade);
 }

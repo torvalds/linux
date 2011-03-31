@@ -597,7 +597,7 @@ static int cy_as_hal_configure_interrupts(void *dev_p)
 	int result;
 	int irq_pin  = AST_INT;
 
-	set_irq_type(OMAP_GPIO_IRQ(irq_pin), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(OMAP_GPIO_IRQ(irq_pin), IRQ_TYPE_LEVEL_LOW);
 
 	/*
 	 * for shared IRQS must provide non NULL device ptr

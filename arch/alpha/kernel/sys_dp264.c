@@ -270,7 +270,7 @@ init_tsunami_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		set_irq_chip_and_handler(i, ops, handle_level_irq);
+		irq_set_chip_and_handler(i, ops, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 }

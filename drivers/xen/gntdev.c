@@ -273,7 +273,7 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 				map->vma->vm_start + map->notify.addr;
 			err = copy_to_user(tmp, &err, 1);
 			if (err)
-				return err;
+				return -EFAULT;
 			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
 		} else if (pgno >= offset && pgno < offset + pages) {
 			uint8_t *tmp = kmap(map->pages[pgno]);
@@ -662,7 +662,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (map->flags) {
 		if ((vma->vm_flags & VM_WRITE) &&
 				(map->flags & GNTMAP_readonly))
-			return -EINVAL;
+			goto out_unlock_put;
 	} else {
 		map->flags = GNTMAP_host_map;
 		if (!(vma->vm_flags & VM_WRITE))
@@ -700,6 +700,8 @@ unlock_out:
 	spin_unlock(&priv->lock);
 	return err;
 
+out_unlock_put:
+	spin_unlock(&priv->lock);
 out_put_map:
 	if (use_ptemod)
 		map->vma = NULL;

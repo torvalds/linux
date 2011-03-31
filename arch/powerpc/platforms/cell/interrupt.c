@@ -101,9 +101,9 @@ static void iic_ioexc_eoi(struct irq_data *d)
 
 static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct cbe_iic_regs __iomem *node_iic =
-		(void __iomem *)get_irq_desc_data(desc);
+		(void __iomem *)irq_desc_get_handler_data(desc);
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
 	unsigned long bits, ack;
 	int cascade;
@@ -240,14 +240,14 @@ static int iic_host_map(struct irq_host *h, unsigned int virq,
 {
 	switch (hw & IIC_IRQ_TYPE_MASK) {
 	case IIC_IRQ_TYPE_IPI:
-		set_irq_chip_and_handler(virq, &iic_chip, handle_percpu_irq);
+		irq_set_chip_and_handler(virq, &iic_chip, handle_percpu_irq);
 		break;
 	case IIC_IRQ_TYPE_IOEXC:
-		set_irq_chip_and_handler(virq, &iic_ioexc_chip,
-					 handle_iic_irq);
+		irq_set_chip_and_handler(virq, &iic_ioexc_chip,
+					 handle_edge_eoi_irq);
 		break;
 	default:
-		set_irq_chip_and_handler(virq, &iic_chip, handle_edge_eoi_irq);
+		irq_set_chip_and_handler(virq, &iic_chip, handle_edge_eoi_irq);
 	}
 	return 0;
 }
@@ -364,8 +364,8 @@ static int __init setup_iic(void)
 		 * irq_data is a generic pointer that gets passed back
 		 * to us later, so the forced cast is fine.
 		 */
-		set_irq_data(cascade, (void __force *)node_iic);
-		set_irq_chained_handler(cascade , iic_ioexc_cascade);
+		irq_set_handler_data(cascade, (void __force *)node_iic);
+		irq_set_chained_handler(cascade, iic_ioexc_cascade);
 		out_be64(&node_iic->iic_ir,
 			 (1 << 12)		/* priority */ |
 			 (node << 4)		/* dest node */ |

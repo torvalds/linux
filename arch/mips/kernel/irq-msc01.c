@@ -137,16 +137,20 @@ void __init init_msc_irqs(unsigned long icubase, unsigned int irqbase, msc_irqma
 
 		switch (imp->im_type) {
 		case MSC01_IRQ_EDGE:
-			set_irq_chip_and_handler_name(irqbase + n,
-				&msc_edgeirq_type, handle_edge_irq, "edge");
+			irq_set_chip_and_handler_name(irqbase + n,
+						      &msc_edgeirq_type,
+						      handle_edge_irq,
+						      "edge");
 			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT);
 			else
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT | imp->im_lvl);
 			break;
 		case MSC01_IRQ_LEVEL:
-			set_irq_chip_and_handler_name(irqbase+n,
-				&msc_levelirq_type, handle_level_irq, "level");
+			irq_set_chip_and_handler_name(irqbase + n,
+						      &msc_levelirq_type,
+						      handle_level_irq,
+						      "level");
 			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, 0);
 			else

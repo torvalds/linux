@@ -214,7 +214,7 @@ static int mpc52xx_extirq_set_type(struct irq_data *d, unsigned int flow_type)
 	ctrl_reg |= (type << (22 - (l2irq * 2)));
 	out_be32(&intr->ctrl, ctrl_reg);
 
-	__set_irq_handler_unlocked(d->irq, handler);
+	__irq_set_handler_locked(d->irq, handler);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 		else
 			hndlr = handle_level_irq;
 
-		set_irq_chip_and_handler(virq, &mpc52xx_extirq_irqchip, hndlr);
+		irq_set_chip_and_handler(virq, &mpc52xx_extirq_irqchip, hndlr);
 		pr_debug("%s: External IRQ%i virq=%x, hw=%x. type=%x\n",
 			 __func__, l2irq, virq, (int)irq, type);
 		return 0;
@@ -431,7 +431,7 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 		return -EINVAL;
 	}
 
-	set_irq_chip_and_handler(virq, irqchip, handle_level_irq);
+	irq_set_chip_and_handler(virq, irqchip, handle_level_irq);
 	pr_debug("%s: virq=%x, l1=%i, l2=%i\n", __func__, virq, l1irq, l2irq);
 
 	return 0;
