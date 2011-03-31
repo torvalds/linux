@@ -1973,21 +1973,6 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 }
 
 /**
- *  ixgbe_get_device_caps_82599 - Get additional device capabilities
- *  @hw: pointer to hardware structure
- *  @device_caps: the EEPROM word with the extra device capabilities
- *
- *  This function will read the EEPROM location for the device capabilities,
- *  and return the word through device_caps.
- **/
-static s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
-{
-	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
-
-	return 0;
-}
-
-/**
  *  ixgbe_verify_fw_version_82599 - verify fw version for 82599
  *  @hw: pointer to hardware structure
  *
@@ -2087,7 +2072,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
-	.get_device_caps        = &ixgbe_get_device_caps_82599,
+	.get_device_caps        = &ixgbe_get_device_caps_generic,
 	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_generic,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
