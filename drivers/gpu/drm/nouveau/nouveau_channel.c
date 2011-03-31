@@ -269,8 +269,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
 	unsigned long flags;
+	int i;
 
 	/* decrement the refcount, and we're done if there's still refs */
 	if (likely(!atomic_dec_and_test(&chan->users))) {
@@ -305,8 +305,10 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
 	pgraph->destroy_context(chan);
-	if (pcrypt->destroy_context)
-		pcrypt->destroy_context(chan);
+	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
+		if (chan->engctx[i])
+			dev_priv->eng[i]->context_del(chan, i);
+	}
 
 	pfifo->reassign(dev, true);
 

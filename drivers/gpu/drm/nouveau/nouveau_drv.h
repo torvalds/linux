@@ -150,13 +150,9 @@ enum nouveau_flags {
 
 #define NVOBJ_ENGINE_SW		0
 #define NVOBJ_ENGINE_GR		1
-#define NVOBJ_ENGINE_PPP	2
-#define NVOBJ_ENGINE_COPY	3
-#define NVOBJ_ENGINE_VP		4
-#define NVOBJ_ENGINE_CRYPT      5
-#define NVOBJ_ENGINE_BSP	6
-#define NVOBJ_ENGINE_DISPLAY	0xcafe0001
-#define NVOBJ_ENGINE_INT	0xdeadbeef
+#define NVOBJ_ENGINE_CRYPT	2
+#define NVOBJ_ENGINE_DISPLAY	15
+#define NVOBJ_ENGINE_NR		16
 
 #define NVOBJ_FLAG_DONT_MAP             (1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
@@ -248,8 +244,8 @@ struct nouveau_channel {
 	/* PGRAPH context */
 	/* XXX may be merge 2 pointers as private data ??? */
 	struct nouveau_gpuobj *ramin_grctx;
-	struct nouveau_gpuobj *crypt_ctx;
 	void *pgraph_ctx;
+	void *engctx[NVOBJ_ENGINE_NR];
 
 	/* NV50 VM */
 	struct nouveau_vm     *vm;
@@ -296,6 +292,17 @@ struct nouveau_channel {
 		char name[32];
 		struct drm_info_list info;
 	} debugfs;
+};
+
+struct nouveau_exec_engine {
+	void (*destroy)(struct drm_device *, int engine);
+	int  (*init)(struct drm_device *, int engine);
+	int  (*fini)(struct drm_device *, int engine);
+	int  (*context_new)(struct nouveau_channel *, int engine);
+	void (*context_del)(struct nouveau_channel *, int engine);
+	int  (*object_new)(struct nouveau_channel *, int engine,
+			   u32 handle, u16 class);
+	void (*tlb_flush)(struct drm_device *, int engine);
 };
 
 struct nouveau_instmem_engine {
@@ -501,17 +508,6 @@ struct nouveau_pm_engine {
 	int (*temp_get)(struct drm_device *);
 };
 
-struct nouveau_crypt_engine {
-	bool registered;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-	int  (*create_context)(struct nouveau_channel *);
-	void (*destroy_context)(struct nouveau_channel *);
-	int  (*object_new)(struct nouveau_channel *, u32 handle, u16 class);
-	void (*tlb_flush)(struct drm_device *dev);
-};
-
 struct nouveau_vram_engine {
 	int  (*init)(struct drm_device *);
 	int  (*get)(struct drm_device *, u64, u32 align, u32 size_nc,
@@ -531,7 +527,6 @@ struct nouveau_engine {
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
-	struct nouveau_crypt_engine   crypt;
 	struct nouveau_vram_engine    vram;
 };
 
@@ -651,6 +646,7 @@ struct drm_nouveau_private {
 	u32 ramin_base;
 	bool ramin_available;
 	struct drm_mm ramin_heap;
+	struct nouveau_exec_engine *eng[NVOBJ_ENGINE_NR];
 	struct list_head gpuobj_list;
 	struct list_head classes;
 
@@ -881,6 +877,16 @@ extern void nouveau_channel_ref(struct nouveau_channel *chan,
 extern void nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
+#define NVOBJ_ENGINE_ADD(d, e, p) do {                                         \
+	struct drm_nouveau_private *dev_priv = (d)->dev_private;               \
+	dev_priv->eng[NVOBJ_ENGINE_##e] = (p);                                 \
+} while (0)
+
+#define NVOBJ_ENGINE_DEL(d, e) do {                                            \
+	struct drm_nouveau_private *dev_priv = (d)->dev_private;               \
+	dev_priv->eng[NVOBJ_ENGINE_##e] = NULL;                                \
+} while (0)
+
 #define NVOBJ_CLASS(d, c, e) do {                                              \
 	int ret = nouveau_gpuobj_class_new((d), (c), NVOBJ_ENGINE_##e);        \
 	if (ret)                                                               \
@@ -1209,12 +1215,7 @@ extern int  nvc0_graph_unload_context(struct drm_device *);
 extern int  nvc0_graph_object_new(struct nouveau_channel *, u32, u16);
 
 /* nv84_crypt.c */
-extern int  nv84_crypt_init(struct drm_device *dev);
-extern void nv84_crypt_fini(struct drm_device *dev);
-extern int  nv84_crypt_create_context(struct nouveau_channel *);
-extern void nv84_crypt_destroy_context(struct nouveau_channel *);
-extern void nv84_crypt_tlb_flush(struct drm_device *dev);
-extern int  nv84_crypt_object_new(struct nouveau_channel *, u32, u16);
+extern int  nv84_crypt_create(struct drm_device *);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
@@ -1580,6 +1581,13 @@ nv_match_device(struct drm_device *dev, unsigned device,
 	return dev->pdev->device == device &&
 		dev->pdev->subsystem_vendor == sub_vendor &&
 		dev->pdev->subsystem_device == sub_device;
+}
+
+static inline void *
+nv_engine(struct drm_device *dev, int engine)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	return (void *)dev_priv->eng[engine];
 }
 
 /* returns 1 if device is one of the nv4x using the 0x4497 object class,

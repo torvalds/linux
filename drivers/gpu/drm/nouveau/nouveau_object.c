@@ -621,7 +621,6 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_gpuobj_class *oc;
 	int ret;
@@ -649,17 +648,15 @@ found:
 		}
 
 		return pgraph->object_new(chan, handle, class);
-	case NVOBJ_ENGINE_CRYPT:
-		if (!chan->crypt_ctx) {
-			ret = pcrypt->create_context(chan);
-			if (ret)
-				return ret;
-		}
-
-		return pcrypt->object_new(chan, handle, class);
 	}
 
-	BUG_ON(1);
+	if (!chan->engctx[oc->engine]) {
+		ret = dev_priv->eng[oc->engine]->context_new(chan, oc->engine);
+		if (ret)
+			return ret;
+	}
+
+	return dev_priv->eng[oc->engine]->object_new(chan, oc->engine, handle, class);
 }
 
 static int

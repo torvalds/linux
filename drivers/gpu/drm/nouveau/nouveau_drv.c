@@ -208,6 +208,12 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 	pgraph->fifo_access(dev, false);
 	nouveau_wait_for_idle(dev);
+
+	for (i = NVOBJ_ENGINE_NR - 1; i >= 0; i--) {
+		if (dev_priv->eng[i])
+			dev_priv->eng[i]->fini(dev, i);
+	}
+
 	pfifo->reassign(dev, false);
 	pfifo->disable(dev);
 	pfifo->unload_context(dev);
@@ -299,8 +305,11 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	engine->mc.init(dev);
 	engine->timer.init(dev);
 	engine->fb.init(dev);
+	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
+		if (dev_priv->eng[i])
+			dev_priv->eng[i]->init(dev, i);
+	}
 	engine->graph.init(dev);
-	engine->crypt.init(dev);
 	engine->fifo.init(dev);
 
 	nouveau_irq_postinstall(dev);
