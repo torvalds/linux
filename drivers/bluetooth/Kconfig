@@ -206,7 +206,7 @@ config BT_HCIBCM4325
 	  Say Y here to compile support for HCI BCM4325 devices into the
 	  kernel or say M to compile it as module (bcm4325).
 
-if BT_HCIBCM432x
+if BT_HCIBCM4325
 choice
         prompt "BD_ADDR read from"
 config IDBLOCK
