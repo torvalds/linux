@@ -42,8 +42,6 @@
 #define TX_HW_ATTR_TX_CMPLT_REQ          BIT(12)
 #define TX_HW_ATTR_TX_DUMMY_REQ          BIT(13)
 
-#define TX_PKT_TYPE_DUMMY_REQ            5
-
 #define TX_HW_ATTR_OFST_SAVE_RETRIES     0
 #define TX_HW_ATTR_OFST_HEADER_PAD       1
 #define TX_HW_ATTR_OFST_SESSION_COUNTER  2

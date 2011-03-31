@@ -219,6 +219,11 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	return ret;
 }
 
+static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
+{
+	return wl->dummy_packet == skb;
+}
+
 static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 			      u32 extra, struct ieee80211_tx_info *control,
 			      u8 hlid)
@@ -253,7 +258,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	desc->tid = skb->priority;
 
-	if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
+	if (wl12xx_is_dummy_packet(wl, skb)) {
 		/*
 		 * FW expects the dummy packet to have an invalid session id -
 		 * any session id that is different than the one set in the join
@@ -396,6 +401,10 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	memcpy(wl->aggr_buf + buf_offset, skb->data, skb->len);
 	memset(wl->aggr_buf + buf_offset + skb->len, 0, total_len - skb->len);
 
+	/* Revert side effects in the dummy packet skb, so it can be reused */
+	if (wl12xx_is_dummy_packet(wl, skb))
+		skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
+
 	return total_len;
 }
 
@@ -508,10 +517,23 @@ out:
 
 static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 {
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		return wl1271_ap_skb_dequeue(wl);
+	unsigned long flags;
+	struct sk_buff *skb = NULL;
 
-	return wl1271_sta_skb_dequeue(wl);
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		skb = wl1271_ap_skb_dequeue(wl);
+	else
+		skb = wl1271_sta_skb_dequeue(wl);
+
+	if (!skb &&
+	    test_and_clear_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags)) {
+		skb = wl->dummy_packet;
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		wl->tx_queue_count--;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	}
+
+	return skb;
 }
 
 static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
@@ -519,7 +541,9 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 	unsigned long flags;
 	int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+	if (wl12xx_is_dummy_packet(wl, skb)) {
+		set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
+	} else if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		u8 hlid = wl1271_tx_get_hlid(skb);
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
@@ -628,8 +652,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	skb = wl->tx_frames[id];
 	info = IEEE80211_SKB_CB(skb);
 
-	if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
-		dev_kfree_skb(skb);
+	if (wl12xx_is_dummy_packet(wl, skb)) {
 		wl1271_free_tx_id(wl, id);
 		return;
 	}
@@ -764,9 +787,7 @@ void wl1271_tx_reset(struct wl1271 *wl)
 				wl1271_debug(DEBUG_TX, "freeing skb 0x%p",
 					     skb);
 
-				if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
-					dev_kfree_skb(skb);
-				} else {
+				if (!wl12xx_is_dummy_packet(wl, skb)) {
 					info = IEEE80211_SKB_CB(skb);
 					info->status.rates[0].idx = -1;
 					info->status.rates[0].count = 0;
@@ -792,9 +813,7 @@ void wl1271_tx_reset(struct wl1271 *wl)
 		wl1271_free_tx_id(wl, i);
 		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 
-		if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
-			dev_kfree_skb(skb);
-		} else {
+		if (!wl12xx_is_dummy_packet(wl, skb)) {
 			/*
 			 * Remove private headers before passing the skb to
 			 * mac80211

@@ -356,6 +356,7 @@ enum wl12xx_flags {
 	WL1271_FLAG_FW_TX_BUSY,
 	WL1271_FLAG_AP_STARTED,
 	WL1271_FLAG_IF_INITIALIZED,
+	WL1271_FLAG_DUMMY_PACKET_PENDING,
 };
 
 struct wl1271_link {
@@ -460,6 +461,9 @@ struct wl1271 {
 
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
+
+	/* Reusable dummy packet template */
+	struct sk_buff *dummy_packet;
 
 	/* Network stack work  */
 	struct work_struct netstack_work;

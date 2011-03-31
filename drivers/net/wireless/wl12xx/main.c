@@ -1212,20 +1212,46 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
-#define TX_DUMMY_PACKET_SIZE 1400
 int wl1271_tx_dummy_packet(struct wl1271 *wl)
 {
-	struct sk_buff *skb = NULL;
-	struct ieee80211_hdr_3addr *hdr;
-	int ret = 0;
+	unsigned long flags;
 
-	skb = dev_alloc_skb(
-		sizeof(struct wl1271_tx_hw_descr) + sizeof(*hdr) +
-		TX_DUMMY_PACKET_SIZE);
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
+	wl->tx_queue_count++;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/* The FW is low on RX memory blocks, so send the dummy packet asap */
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
+		wl1271_tx_work_locked(wl);
+
+	/*
+	 * If the FW TX is busy, TX work will be scheduled by the threaded
+	 * interrupt handler function
+	 */
+	return 0;
+}
+
+/*
+ * The size of the dummy packet should be at least 1400 bytes. However, in
+ * order to minimize the number of bus transactions, aligning it to 512 bytes
+ * boundaries could be beneficial, performance wise
+ */
+#define TOTAL_TX_DUMMY_PACKET_SIZE (ALIGN(1400, 512))
+
+struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
+{
+	struct sk_buff *skb;
+	struct ieee80211_hdr_3addr *hdr;
+	unsigned int dummy_packet_size;
+
+	dummy_packet_size = TOTAL_TX_DUMMY_PACKET_SIZE -
+			    sizeof(struct wl1271_tx_hw_descr) - sizeof(*hdr);
+
+	skb = dev_alloc_skb(TOTAL_TX_DUMMY_PACKET_SIZE);
 	if (!skb) {
-		wl1271_warning("failed to allocate buffer for dummy packet");
-		ret = -ENOMEM;
-		goto out;
+		wl1271_warning("Failed to allocate a dummy packet skb");
+		return NULL;
 	}
 
 	skb_reserve(skb, sizeof(struct wl1271_tx_hw_descr));
@@ -1233,28 +1259,21 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
 	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
-					 IEEE80211_FCTL_TODS  |
-					 IEEE80211_STYPE_NULLFUNC);
+					 IEEE80211_STYPE_NULLFUNC |
+					 IEEE80211_FCTL_TODS);
 
-	memcpy(hdr->addr1, wl->bssid, ETH_ALEN);
-	memcpy(hdr->addr2, wl->mac_addr, ETH_ALEN);
-	memcpy(hdr->addr3, wl->bssid, ETH_ALEN);
+	memset(skb_put(skb, dummy_packet_size), 0, dummy_packet_size);
 
-	skb_put(skb, TX_DUMMY_PACKET_SIZE);
-
-	memset(skb->data, 0, TX_DUMMY_PACKET_SIZE);
-
-	skb->pkt_type = TX_PKT_TYPE_DUMMY_REQ;
 	/* Dummy packets require the TID to be management */
 	skb->priority = WL1271_TID_MGMT;
-	/* CONF_TX_AC_VO */
+
+	/* Initialize all fields that might be used */
 	skb->queue_mapping = 0;
+	memset(IEEE80211_SKB_CB(skb), 0, sizeof(struct ieee80211_tx_info));
 
-	wl1271_op_tx(wl->hw, skb);
-
-out:
-	return ret;
+	return skb;
 }
+
 
 static struct notifier_block wl1271_dev_notifier = {
 	.notifier_call = wl1271_dev_notify,
@@ -3653,11 +3672,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_hw;
 	}
 
+	wl->dummy_packet = wl12xx_alloc_dummy_packet(wl);
+	if (!wl->dummy_packet) {
+		ret = -ENOMEM;
+		goto err_aggr;
+	}
+
 	/* Register platform device */
 	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
-		goto err_aggr;
+		goto err_dummy_packet;
 	}
 	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
@@ -3683,6 +3708,9 @@ err_bt_coex_state:
 err_platform:
 	platform_device_unregister(wl->plat_dev);
 
+err_dummy_packet:
+	dev_kfree_skb(wl->dummy_packet);
+
 err_aggr:
 	free_pages((unsigned long)wl->aggr_buf, order);
 
@@ -3702,6 +3730,7 @@ EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 int wl1271_free_hw(struct wl1271 *wl)
 {
 	platform_device_unregister(wl->plat_dev);
+	dev_kfree_skb(wl->dummy_packet);
 	free_pages((unsigned long)wl->aggr_buf,
 			get_order(WL1271_AGGR_BUFFER_SIZE));
 	kfree(wl->plat_dev);
