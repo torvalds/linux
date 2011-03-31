@@ -489,8 +489,9 @@ static unsigned seg_override(struct x86_emulate_ctxt *ctxt,
 	return c->seg_override;
 }
 
-static ulong linear(struct x86_emulate_ctxt *ctxt,
-		    struct segmented_address addr)
+static int linearize(struct x86_emulate_ctxt *ctxt,
+		     struct segmented_address addr,
+		     ulong *linear)
 {
 	struct decode_cache *c = &ctxt->decode;
 	ulong la;
@@ -498,7 +499,8 @@ static ulong linear(struct x86_emulate_ctxt *ctxt,
 	la = seg_base(ctxt, ctxt->ops, addr.seg) + addr.ea;
 	if (c->ad_bytes != 8)
 		la &= (u32)-1;
-	return la;
+	*linear = la;
+	return X86EMUL_CONTINUE;
 }
 
 static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
@@ -545,7 +547,13 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 			      void *data,
 			      unsigned size)
 {
-	return ctxt->ops->read_std(linear(ctxt, addr), data, size, ctxt->vcpu,
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, addr, &linear);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	return ctxt->ops->read_std(linear, data, size, ctxt->vcpu,
 				   &ctxt->exception);
 }
 
@@ -962,7 +970,13 @@ static int segmented_read(struct x86_emulate_ctxt *ctxt,
 			  void *data,
 			  unsigned size)
 {
-	return read_emulated(ctxt, ctxt->ops, linear(ctxt, addr), data, size);
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, addr, &linear);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	return read_emulated(ctxt, ctxt->ops, linear, data, size);
 }
 
 static int segmented_write(struct x86_emulate_ctxt *ctxt,
@@ -970,7 +984,13 @@ static int segmented_write(struct x86_emulate_ctxt *ctxt,
 			   const void *data,
 			   unsigned size)
 {
-	return ctxt->ops->write_emulated(linear(ctxt, addr), data, size,
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, addr, &linear);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	return ctxt->ops->write_emulated(linear, data, size,
 					 &ctxt->exception, ctxt->vcpu);
 }
 
@@ -979,7 +999,13 @@ static int segmented_cmpxchg(struct x86_emulate_ctxt *ctxt,
 			     const void *orig_data, const void *data,
 			     unsigned size)
 {
-	return ctxt->ops->cmpxchg_emulated(linear(ctxt, addr), orig_data, data,
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, addr, &linear);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	return ctxt->ops->cmpxchg_emulated(linear, orig_data, data,
 					   size, &ctxt->exception, ctxt->vcpu);
 }
 
@@ -2480,7 +2506,12 @@ static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 static int em_invlpg(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
-	emulate_invlpg(ctxt->vcpu, linear(ctxt, c->src.addr.mem));
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, c->src.addr.mem, &linear);
+	if (rc == X86EMUL_CONTINUE)
+		emulate_invlpg(ctxt->vcpu, linear);
 	/* Disable writeback. */
 	c->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
