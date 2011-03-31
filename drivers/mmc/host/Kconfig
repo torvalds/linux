@@ -154,7 +154,7 @@ config MMC_SDHCI_DOVE
 	  If unsure, say N.
 
 config MMC_SDHCI_TEGRA
-	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	bool "SDHCI platform support for the Tegra SD/MMC Controller"
 	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
 	select MMC_SDHCI_IO_ACCESSORS
 	help
