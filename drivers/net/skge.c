@@ -537,46 +537,6 @@ static int skge_nway_reset(struct net_device *dev)
 	return 0;
 }
 
-static int skge_set_sg(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-
-	if (hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-	return ethtool_op_set_sg(dev, data);
-}
-
-static int skge_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-
-	if (hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-
-	return ethtool_op_set_tx_csum(dev, data);
-}
-
-static u32 skge_get_rx_csum(struct net_device *dev)
-{
-	struct skge_port *skge = netdev_priv(dev);
-
-	return skge->rx_csum;
-}
-
-/* Only Yukon supports checksum offload. */
-static int skge_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct skge_port *skge = netdev_priv(dev);
-
-	if (skge->hw->chip_id == CHIP_ID_GENESIS && data)
-		return -EOPNOTSUPP;
-
-	skge->rx_csum = data;
-	return 0;
-}
-
 static void skge_get_pauseparam(struct net_device *dev,
 				struct ethtool_pauseparam *ecmd)
 {
@@ -924,10 +884,6 @@ static const struct ethtool_ops skge_ethtool_ops = {
 	.set_pauseparam = skge_set_pauseparam,
 	.get_coalesce	= skge_get_coalesce,
 	.set_coalesce	= skge_set_coalesce,
-	.set_sg		= skge_set_sg,
-	.set_tx_csum	= skge_set_tx_csum,
-	.get_rx_csum	= skge_get_rx_csum,
-	.set_rx_csum	= skge_set_rx_csum,
 	.get_strings	= skge_get_strings,
 	.set_phys_id	= skge_set_phys_id,
 	.get_sset_count = skge_get_sset_count,
@@ -3084,7 +3040,8 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 	}
 
 	skb_put(skb, len);
-	if (skge->rx_csum) {
+
+	if (dev->features & NETIF_F_RXCSUM) {
 		skb->csum = csum;
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
@@ -3846,10 +3803,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	setup_timer(&skge->link_timer, xm_link_timer, (unsigned long) skge);
 
 	if (hw->chip_id != CHIP_ID_GENESIS) {
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		skge->rx_csum = 1;
+		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
+		                   NETIF_F_RXCSUM;
+		dev->features |= dev->hw_features;
 	}
-	dev->features |= NETIF_F_GRO;
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
