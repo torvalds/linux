@@ -869,15 +869,15 @@ static int i8042_controller_selftest(void)
 	do {
 
 		if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
-			pr_err("i8042 controller self test timeout\n");
+			pr_err("i8042 controller selftest timeout\n");
 			return -ENODEV;
 		}
 
 		if (param == I8042_RET_CTL_TEST)
 			return 0;
 
-		pr_err("i8042 controller selftest failed. (%#x != %#x)\n",
-		       param, I8042_RET_CTL_TEST);
+		dbg("i8042 controller selftest: %#x != %#x\n",
+		    param, I8042_RET_CTL_TEST);
 		msleep(50);
 	} while (i++ < 5);
 
@@ -891,6 +891,7 @@ static int i8042_controller_selftest(void)
 	pr_info("giving up on controller selftest, continuing anyway...\n");
 	return 0;
 #else
+	pr_err("i8042 controller selftest failed\n");
 	return -EIO;
 #endif
 }
