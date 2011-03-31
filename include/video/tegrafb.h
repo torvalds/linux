@@ -51,6 +51,7 @@
 
 #define TEGRA_FB_WIN_FLAG_INVERT_H	(1 << 0)
 #define TEGRA_FB_WIN_FLAG_INVERT_V	(1 << 1)
+#define TEGRA_FB_WIN_FLAG_TILED		(1 << 2)
 
 /* set index to -1 to ignore window data */
 struct tegra_fb_windowattr {

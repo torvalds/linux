@@ -391,6 +391,9 @@ static int tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
 		win->flags |= TEGRA_WIN_FLAG_INVERT_H;
 	if (flip_win->attr.flags & TEGRA_FB_WIN_FLAG_INVERT_V)
 		win->flags |= TEGRA_WIN_FLAG_INVERT_V;
+	if (flip_win->attr.flags & TEGRA_FB_WIN_FLAG_TILED)
+		win->flags |= TEGRA_WIN_FLAG_TILED;
+
 	win->fmt = flip_win->attr.pixformat;
 	win->x = flip_win->attr.x;
 	win->y = flip_win->attr.y;

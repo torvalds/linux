@@ -585,6 +585,17 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
 		tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
+		if (win->flags & TEGRA_WIN_FLAG_TILED)
+			tegra_dc_writel(dc,
+					DC_WIN_BUFFER_ADDR_MODE_TILE |
+					DC_WIN_BUFFER_ADDR_MODE_TILE_UV,
+					DC_WIN_BUFFER_ADDR_MODE);
+		else
+			tegra_dc_writel(dc,
+					DC_WIN_BUFFER_ADDR_MODE_LINEAR |
+					DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV,
+					DC_WIN_BUFFER_ADDR_MODE);
+
 		val = WIN_ENABLE;
 		if (yuvp)
 			val |= CSC_ENABLE;
