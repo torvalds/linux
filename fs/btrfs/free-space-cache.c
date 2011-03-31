@@ -81,6 +81,8 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 		return ERR_PTR(-ENOENT);
 	}
 
+	inode->i_mapping->flags &= ~__GFP_FS;
+
 	spin_lock(&block_group->lock);
 	if (!root->fs_info->closing) {
 		block_group->inode = igrab(inode);

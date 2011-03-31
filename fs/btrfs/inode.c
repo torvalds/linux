@@ -2535,8 +2535,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
-	if (location.objectid == BTRFS_FREE_SPACE_OBJECTID)
-		inode->i_mapping->flags &= ~__GFP_FS;
 
 	/*
 	 * try to precache a NULL acl entry for files that don't have
