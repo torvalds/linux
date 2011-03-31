@@ -301,8 +301,8 @@ int isci_task_send_lu_reset_sata(
 	int ret = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 
-	/* Send the initial SRST to the target */
-	#define ISCI_SRST_TIMEOUT_MS 20 /* 20 ms timeout. */
+	/* Send the soft reset to the target */
+	#define ISCI_SRST_TIMEOUT_MS 25000 /* 25 second timeout. */
 	isci_task_build_tmf(&tmf, isci_device, isci_tmf_sata_srst_high,
 			    NULL, NULL
 			    );
@@ -319,38 +319,6 @@ int isci_task_send_lu_reset_sata(
 		/* Return the failure so that the LUN reset is escalated
 		 * to a target reset.
 		 */
-		goto out;
 	}
-
-	/* Leave SRST high for a bit. */
-	#define ISCI_SRST_ASSERT_DELAY 100 /* usecs */
-	udelay(ISCI_SRST_ASSERT_DELAY);
-
-	/* Deassert SRST. */
-	isci_task_build_tmf(&tmf, isci_device, isci_tmf_sata_srst_low,
-			    NULL, NULL
-			    );
-	ret = isci_task_execute_tmf(isci_host, &tmf, ISCI_SRST_TIMEOUT_MS);
-
-	if (ret == TMF_RESP_FUNC_COMPLETE)
-		dev_dbg(&isci_host->pdev->dev,
-			"%s: SATA LUN reset passed (%p)\n",
-			__func__,
-			isci_device);
-	else
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: Deassert SRST failed (%p)=%x\n",
-			 __func__,
-			 isci_device,
-			 ret);
-
- out:
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
-
-	/* Resume the device. */
-	scic_sds_remote_device_resume(to_sci_dev(isci_device));
-
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
 	return ret;
 }
