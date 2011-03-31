@@ -253,20 +253,19 @@ static const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_dev
  * This function sets the ready cmd substate handlers and reports the device as
  * ready. none
  */
-static inline void scic_sds_smp_remote_device_ready_idle_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
+	SET_STATE_HANDLER(sci_dev,
+			  scic_sds_smp_remote_device_ready_substate_handler_table,
+			  SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
 
-	SET_STATE_HANDLER(
-			sci_dev,
-			scic_sds_smp_remote_device_ready_substate_handler_table,
-			SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-
-	isci_remote_device_ready(idev);
+	isci_remote_device_ready(ihost, idev);
 }
 
 /**
@@ -281,20 +280,20 @@ static inline void scic_sds_smp_remote_device_ready_idle_substate_enter(
 static void scic_sds_smp_remote_device_ready_cmd_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
 
-	SET_STATE_HANDLER(
-			sci_dev,
-			scic_sds_smp_remote_device_ready_substate_handler_table,
-			SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
+	SET_STATE_HANDLER(sci_dev,
+			  scic_sds_smp_remote_device_ready_substate_handler_table,
+			  SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
-	isci_remote_device_not_ready(
-			idev,
-			SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);
+	isci_remote_device_not_ready(ihost, idev,
+				     SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);
 }
 
 /**
@@ -304,12 +303,11 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(
  *
  * This is the SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_CMD exit method. none
  */
-static void scic_sds_smp_remote_device_ready_cmd_substate_exit(
-	struct sci_base_object *object)
+static void scic_sds_smp_remote_device_ready_cmd_substate_exit(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)object;
-
-	this_device->working_request = NULL;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	sci_dev->working_request = NULL;
 }
 
 /* --------------------------------------------------------------------------- */

@@ -281,13 +281,12 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
  * isci_remote_device_ready() - This function is called by the scic when the
  *    remote device is ready. We mark the isci device as ready and signal the
  *    waiting proccess.
- * @idev: This parameter specifies the remote device
+ * @ihost: our valid isci_host
+ * @idev: remote device
  *
  */
-void isci_remote_device_ready(struct isci_remote_device *idev)
+void isci_remote_device_ready(struct isci_host *ihost, struct isci_remote_device *idev)
 {
-	struct isci_host *ihost = idev->isci_port->isci_host;
-
 	dev_dbg(&ihost->pdev->dev,
 		"%s: idev = %p\n", __func__, idev);
 
@@ -304,18 +303,17 @@ void isci_remote_device_ready(struct isci_remote_device *idev)
  * @isci_device: This parameter specifies the remote device
  *
  */
-void isci_remote_device_not_ready(
-	struct isci_remote_device *isci_device,
-	u32 reason_code)
+void isci_remote_device_not_ready(struct isci_host *ihost,
+				  struct isci_remote_device *idev, u32 reason)
 {
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_device = %p\n", __func__, idev);
 
-	if (reason_code == SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED)
-		isci_remote_device_change_state(isci_device, isci_stopping);
+	if (reason == SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED)
+		isci_remote_device_change_state(idev, isci_stopping);
 	else
 		/* device ready is actually a "not ready for io" state. */
-		isci_remote_device_change_state(isci_device, isci_ready);
+		isci_remote_device_change_state(idev, isci_ready);
 }
 
 /**

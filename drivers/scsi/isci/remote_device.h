@@ -109,12 +109,11 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost,
 void isci_remote_device_nuke_requests(
 	struct isci_remote_device *isci_device);
 
-void isci_remote_device_ready(
-	struct isci_remote_device *);
+void isci_remote_device_ready(struct isci_host *ihost,
+			      struct isci_remote_device *idev);
 
-void isci_remote_device_not_ready(
-	struct isci_remote_device *,
-	u32);
+void isci_remote_device_not_ready(struct isci_host *ihost,
+				  struct isci_remote_device *idev, u32 reason);
 
 void isci_remote_device_gone(
 	struct domain_device *domain_dev);

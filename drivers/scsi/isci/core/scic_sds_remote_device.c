@@ -1513,24 +1513,19 @@ static void scic_sds_remote_device_stopped_state_enter(
  * sets the starting state handlers, sets the device not ready, and posts the
  * remote node context to the hardware. none
  */
-static void scic_sds_remote_device_starting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_starting_state_enter(struct sci_base_object *object)
 {
-	struct scic_sds_controller *scic;
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
-	scic = scic_sds_remote_device_get_controller(sci_dev);
+	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
+			  SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
 
-	SET_STATE_HANDLER(
-			sci_dev,
-			scic_sds_remote_device_state_handler_table,
-			SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
-
-	isci_remote_device_not_ready(
-			idev,
-			SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
+	isci_remote_device_not_ready(ihost, idev,
+				     SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
 }
 
 static void scic_sds_remote_device_starting_state_exit(struct sci_base_object *object)
@@ -1556,14 +1551,13 @@ static void scic_sds_remote_device_starting_state_exit(struct sci_base_object *o
  * This is the enter function for the SCI_BASE_REMOTE_DEVICE_STATE_READY it sets
  * the ready state handlers, and starts the ready substate machine. none
  */
-static void scic_sds_remote_device_ready_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_ready_state_enter(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
-	struct scic_sds_controller *scic
-		= scic_sds_remote_device_get_controller(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev,
 			  scic_sds_remote_device_state_handler_table,
@@ -1574,7 +1568,7 @@ static void scic_sds_remote_device_ready_state_enter(
 	if (sci_dev->has_ready_substate_machine)
 		sci_base_state_machine_start(&sci_dev->ready_substate_machine);
 	else
-		isci_remote_device_ready(idev);
+		isci_remote_device_ready(ihost, idev);
 }
 
 /**
@@ -1588,16 +1582,18 @@ static void scic_sds_remote_device_ready_state_enter(
 static void scic_sds_remote_device_ready_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
-	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
-
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
 	if (sci_dev->has_ready_substate_machine)
 		sci_base_state_machine_stop(&sci_dev->ready_substate_machine);
-	else
-		isci_remote_device_not_ready(
-				idev,
-				SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED);
+	else {
+		struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+		struct isci_host *ihost = sci_object_get_association(scic);
+		struct isci_remote_device *idev = sci_object_get_association(sci_dev);
+
+		isci_remote_device_not_ready(ihost, idev,
+					     SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED);
+	}
 }
 
 /**

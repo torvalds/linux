@@ -677,13 +677,13 @@ static const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_dev
  * *  STP REMOTE DEVICE READY SUBSTATE PRIVATE METHODS
  * ***************************************************************************** */
 
-static inline void
-scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(
-		void *user_cookie)
+static void
+scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *user_cookie)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)user_cookie;
+	struct scic_sds_remote_device *sci_dev = user_cookie;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
 	/*
 	 * For NCQ operation we do not issue a
@@ -692,7 +692,7 @@ scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(
 	 */
 	if (sci_dev->ready_substate_machine.previous_state_id !=
 			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ)
-		isci_remote_device_ready(idev);
+		isci_remote_device_ready(ihost, idev);
 }
 
 /*
@@ -737,87 +737,48 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(
 	}
 }
 
-/*
- * *****************************************************************************
- * *  STP REMOTE DEVICE READY CMD SUBSTATE
- * ***************************************************************************** */
-
-/**
- *
- * @device: This is the SCI base object which is cast into a
- *    struct scic_sds_remote_device object.
- *
- */
-static inline void scic_sds_stp_remote_device_ready_cmd_substate_enter(
-	struct sci_base_object *device)
+static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
 
-	SET_STATE_HANDLER(
-			sci_dev,
-			scic_sds_stp_remote_device_ready_substate_handler_table,
-			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
+	SET_STATE_HANDLER(sci_dev,
+			  scic_sds_stp_remote_device_ready_substate_handler_table,
+			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
-	isci_remote_device_not_ready(
-			idev,
-			SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
+	isci_remote_device_not_ready(ihost, idev,
+				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
 }
 
-/*
- * *****************************************************************************
- * *  STP REMOTE DEVICE READY NCQ SUBSTATE
- * ***************************************************************************** */
-
-/**
- *
- * @device: This is the SCI base object which is cast into a
- *    struct scic_sds_remote_device object.
- *
- */
-static void scic_sds_stp_remote_device_ready_ncq_substate_enter(
-	struct sci_base_object *device)
+static void scic_sds_stp_remote_device_ready_ncq_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *this_device;
-
-	this_device = (struct scic_sds_remote_device *)device;
-
-	SET_STATE_HANDLER(
-		this_device,
-		scic_sds_stp_remote_device_ready_substate_handler_table,
-		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ
-		);
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	SET_STATE_HANDLER(sci_dev,
+			  scic_sds_stp_remote_device_ready_substate_handler_table,
+			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
 }
 
-/*
- * *****************************************************************************
- * *  STP REMOTE DEVICE READY NCQ ERROR SUBSTATE
- * ***************************************************************************** */
-
-/**
- *
- * @device: This is the SCI base object which is cast into a
- *    struct scic_sds_remote_device object.
- *
- */
-static inline void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
-	struct sci_base_object *device)
+static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
+	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
-	SET_STATE_HANDLER(
-			sci_dev,
-			scic_sds_stp_remote_device_ready_substate_handler_table,
-			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
+	SET_STATE_HANDLER(sci_dev,
+			  scic_sds_stp_remote_device_ready_substate_handler_table,
+			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
 
 	if (sci_dev->not_ready_reason ==
 		SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED)
-		isci_remote_device_not_ready(idev, sci_dev->not_ready_reason);
+		isci_remote_device_not_ready(ihost, idev, sci_dev->not_ready_reason);
 }
 
 /*
