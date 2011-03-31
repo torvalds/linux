@@ -209,22 +209,8 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 	int err = -EIO;
 	enum dma_data_direction dir = is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
-	if (buf >= high_memory) {
-		struct page *pg;
-
-		if (((size_t)buf & PAGE_MASK) !=
-		    ((size_t)(buf + len - 1) & PAGE_MASK)) {
-			dev_warn(host->dev, "Buffer not fit in one page\n");
-			goto err_buf;
-		}
-
-		pg = vmalloc_to_page(buf);
-		if (pg == 0) {
-			dev_err(host->dev, "Failed to vmalloc_to_page\n");
-			goto err_buf;
-		}
-		p = page_address(pg) + ((size_t)buf & ~PAGE_MASK);
-	}
+	if (buf >= high_memory)
+		goto err_buf;
 
 	dma_dev = host->dma_chan->device;
 
