@@ -28,6 +28,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_util.h"
+#include "nouveau_ramht.h"
 
 static int  nv04_graph_register(struct drm_device *dev);
 static void nv04_graph_isr(struct drm_device *dev);
@@ -479,6 +480,33 @@ nv04_graph_unload_context(struct drm_device *dev)
 	tmp |= (dev_priv->engine.fifo.channels - 1) << 24;
 	nv_wr32(dev, NV04_PGRAPH_CTX_USER, tmp);
 	return 0;
+}
+
+int
+nv04_graph_object_new(struct nouveau_channel *chan, u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 1;
+	obj->class  = class;
+
+#ifdef __BIG_ENDIAN
+	nv_wo32(obj, 0x00, 0x00080000 | class);
+#else
+	nv_wo32(obj, 0x00, class);
+#endif
+	nv_wo32(obj, 0x04, 0x00000000);
+	nv_wo32(obj, 0x08, 0x00000000);
+	nv_wo32(obj, 0x0c, 0x00000000);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
 }
 
 int nv04_graph_init(struct drm_device *dev)

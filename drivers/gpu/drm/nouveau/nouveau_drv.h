@@ -383,6 +383,7 @@ struct nouveau_pgraph_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+	int  (*object_new)(struct nouveau_channel *chan, u32 handle, u16 class);
 	void (*tlb_flush)(struct drm_device *dev);
 
 	void (*set_tile_region)(struct drm_device *dev, int i);
@@ -507,6 +508,7 @@ struct nouveau_crypt_engine {
 	void (*takedown)(struct drm_device *);
 	int  (*create_context)(struct nouveau_channel *);
 	void (*destroy_context)(struct nouveau_channel *);
+	int  (*object_new)(struct nouveau_channel *, u32 handle, u16 class);
 	void (*tlb_flush)(struct drm_device *dev);
 };
 
@@ -1147,6 +1149,7 @@ extern int  nv04_graph_create_context(struct nouveau_channel *);
 extern void nv04_graph_destroy_context(struct nouveau_channel *);
 extern int  nv04_graph_load_context(struct nouveau_channel *);
 extern int  nv04_graph_unload_context(struct drm_device *);
+extern int  nv04_graph_object_new(struct nouveau_channel *, u32, u16);
 extern int  nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
 				      u32 class, u32 mthd, u32 data);
 extern struct nouveau_bitfield nv04_graph_nsource[];
@@ -1181,6 +1184,7 @@ extern int  nv40_graph_create_context(struct nouveau_channel *);
 extern void nv40_graph_destroy_context(struct nouveau_channel *);
 extern int  nv40_graph_load_context(struct nouveau_channel *);
 extern int  nv40_graph_unload_context(struct drm_device *);
+extern int  nv40_graph_object_new(struct nouveau_channel *, u32, u16);
 extern void nv40_grctx_init(struct nouveau_grctx *);
 extern void nv40_graph_set_tile_region(struct drm_device *dev, int i);
 
@@ -1193,6 +1197,7 @@ extern int  nv50_graph_create_context(struct nouveau_channel *);
 extern void nv50_graph_destroy_context(struct nouveau_channel *);
 extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
+extern int  nv50_graph_object_new(struct nouveau_channel *, u32, u16);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern void nv50_graph_tlb_flush(struct drm_device *dev);
 extern void nv84_graph_tlb_flush(struct drm_device *dev);
@@ -1207,6 +1212,7 @@ extern int  nvc0_graph_create_context(struct nouveau_channel *);
 extern void nvc0_graph_destroy_context(struct nouveau_channel *);
 extern int  nvc0_graph_load_context(struct nouveau_channel *);
 extern int  nvc0_graph_unload_context(struct drm_device *);
+extern int  nvc0_graph_object_new(struct nouveau_channel *, u32, u16);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_init(struct drm_device *dev);
@@ -1214,6 +1220,7 @@ extern void nv84_crypt_fini(struct drm_device *dev);
 extern int  nv84_crypt_create_context(struct nouveau_channel *);
 extern void nv84_crypt_destroy_context(struct nouveau_channel *);
 extern void nv84_crypt_tlb_flush(struct drm_device *dev);
+extern int  nv84_crypt_object_new(struct nouveau_channel *, u32, u16);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);

@@ -270,6 +270,12 @@ nvc0_graph_unload_context(struct drm_device *dev)
 	return nvc0_graph_unload_context_to(dev, inst);
 }
 
+int
+nvc0_graph_object_new(struct nouveau_channel *chan, u32 handle, u16 class)
+{
+	return 0;
+}
+
 static void
 nvc0_graph_destroy(struct drm_device *dev)
 {

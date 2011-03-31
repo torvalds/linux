@@ -31,6 +31,7 @@
 #include "nouveau_grctx.h"
 #include "nouveau_dma.h"
 #include "nouveau_vm.h"
+#include "nouveau_ramht.h"
 #include "nv50_evo.h"
 
 static int  nv50_graph_register(struct drm_device *);
@@ -362,6 +363,31 @@ nv50_graph_unload_context(struct drm_device *dev)
 
 	nv_wr32(dev, NV50_PGRAPH_CTXCTL_CUR, inst);
 	return 0;
+}
+
+int
+nv50_graph_object_new(struct nouveau_channel *chan, u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 1;
+	obj->class  = class;
+
+	nv_wo32(obj, 0x00, class);
+	nv_wo32(obj, 0x04, 0x00000000);
+	nv_wo32(obj, 0x08, 0x00000000);
+	nv_wo32(obj, 0x0c, 0x00000000);
+	dev_priv->engine.instmem.flush(dev);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
 }
 
 static void

@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_grctx.h"
+#include "nouveau_ramht.h"
 
 static int nv40_graph_register(struct drm_device *);
 static void nv40_graph_isr(struct drm_device *);
@@ -201,6 +202,32 @@ nv40_graph_unload_context(struct drm_device *dev)
 	ret = nv40_graph_transfer_context(dev, inst, 1);
 
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, inst);
+	return ret;
+}
+
+int
+nv40_graph_object_new(struct nouveau_channel *chan, u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 20, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 1;
+	obj->class  = class;
+
+	nv_wo32(obj, 0x00, class);
+	nv_wo32(obj, 0x04, 0x00000000);
+#ifdef __BIG_ENDIAN
+	nv_wo32(obj, 0x08, 0x01000000);
+#endif
+	nv_wo32(obj, 0x0c, 0x00000000);
+	nv_wo32(obj, 0x10, 0x00000000);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
 	return ret;
 }
 

@@ -73,6 +73,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv04_graph_destroy_context;
 		engine->graph.load_context	= nv04_graph_load_context;
 		engine->graph.unload_context	= nv04_graph_unload_context;
+		engine->graph.object_new	= nv04_graph_object_new;
 		engine->fifo.channels		= 16;
 		engine->fifo.init		= nv04_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -131,6 +132,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
 		engine->graph.load_context	= nv10_graph_load_context;
 		engine->graph.unload_context	= nv10_graph_unload_context;
+		engine->graph.object_new	= nv04_graph_object_new;
 		engine->graph.set_tile_region	= nv10_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
@@ -190,6 +192,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.fifo_access	= nv04_graph_fifo_access;
 		engine->graph.load_context	= nv20_graph_load_context;
 		engine->graph.unload_context	= nv20_graph_unload_context;
+		engine->graph.object_new	= nv04_graph_object_new;
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
@@ -249,6 +252,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv20_graph_destroy_context;
 		engine->graph.load_context	= nv20_graph_load_context;
 		engine->graph.unload_context	= nv20_graph_unload_context;
+		engine->graph.object_new	= nv04_graph_object_new;
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
@@ -311,6 +315,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv40_graph_destroy_context;
 		engine->graph.load_context	= nv40_graph_load_context;
 		engine->graph.unload_context	= nv40_graph_unload_context;
+		engine->graph.object_new	= nv40_graph_object_new;
 		engine->graph.set_tile_region	= nv40_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
@@ -376,6 +381,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv50_graph_destroy_context;
 		engine->graph.load_context	= nv50_graph_load_context;
 		engine->graph.unload_context	= nv50_graph_unload_context;
+		engine->graph.object_new	= nv50_graph_object_new;
 		if (dev_priv->chipset == 0x50 ||
 		    dev_priv->chipset == 0xac)
 			engine->graph.tlb_flush	= nv50_graph_tlb_flush;
@@ -443,6 +449,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->crypt.takedown	= nv84_crypt_fini;
 			engine->crypt.create_context = nv84_crypt_create_context;
 			engine->crypt.destroy_context = nv84_crypt_destroy_context;
+			engine->crypt.object_new = nv84_crypt_object_new;
 			engine->crypt.tlb_flush	= nv84_crypt_tlb_flush;
 			break;
 		default:
@@ -480,6 +487,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nvc0_graph_destroy_context;
 		engine->graph.load_context	= nvc0_graph_load_context;
 		engine->graph.unload_context	= nvc0_graph_unload_context;
+		engine->graph.object_new	= nvc0_graph_object_new;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nvc0_fifo_init;
 		engine->fifo.takedown		= nvc0_fifo_takedown;

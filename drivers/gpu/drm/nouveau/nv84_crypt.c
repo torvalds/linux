@@ -26,6 +26,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
 #include "nouveau_vm.h"
+#include "nouveau_ramht.h"
 
 static void nv84_crypt_isr(struct drm_device *);
 
@@ -82,6 +83,28 @@ nv84_crypt_destroy_context(struct nouveau_channel *chan)
 
 	nouveau_gpuobj_ref(NULL, &chan->crypt_ctx);
 	atomic_dec(&chan->vm->pcrypt_refs);
+}
+
+int
+nv84_crypt_object_new(struct nouveau_channel *chan, u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 5;
+	obj->class  = class;
+
+	nv_wo32(obj, 0x00, class);
+	dev_priv->engine.instmem.flush(dev);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
 }
 
 void
