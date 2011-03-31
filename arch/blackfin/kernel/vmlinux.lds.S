@@ -155,14 +155,8 @@ SECTIONS
 		SECURITY_INITCALL
 		INIT_RAM_FS
 
-		. = ALIGN(4);
 		___per_cpu_load = .;
-		___per_cpu_start = .;
-		*(.data.percpu.first)
-		*(.data.percpu.page_aligned)
-		*(.data.percpu)
-		*(.data.percpu.shared_aligned)
-		___per_cpu_end = .;
+		PERCPU_INPUT(32)
 
 		EXIT_DATA
 		__einitdata = .;
