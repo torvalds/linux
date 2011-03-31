@@ -207,15 +207,22 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 
 void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
-	unsigned int enr = (i->sector >> (AL_EXTENT_SHIFT-9));
-	struct lc_element *al_ext;
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned int enr[2];
+	struct lc_element *al_ext[2] = { NULL, NULL };
 	struct update_al_work al_work;
 
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
-	wait_event(mdev->al_wait, (al_ext = _al_get(mdev, enr)));
+	enr[0] = i->sector >> (AL_EXTENT_SHIFT-9);
+	enr[1] = (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	wait_event(mdev->al_wait, (al_ext[0] = _al_get(mdev, enr[0])));
+	if (enr[0] != enr[1])
+		wait_event(mdev->al_wait, (al_ext[1] = _al_get(mdev, enr[1])));
 
-	if (al_ext->lc_number != enr) {
+	if (al_ext[0]->lc_number != enr[0] ||
+	    (al_ext[1] && al_ext[1]->lc_number != enr[1])) {
 		/* drbd_al_write_transaction(mdev,al_ext,enr);
 		 * recurses into generic_make_request(), which
 		 * disallows recursion, bios being serialized on the
@@ -232,7 +239,8 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
-		if (al_ext->lc_number != enr) {
+		if (al_ext[0]->lc_number != enr[0] ||
+		    (al_ext[1] && al_ext[1]->lc_number != enr[1])) {
 			init_completion(&al_work.event);
 			al_work.w.cb = w_al_write_transaction;
 			al_work.w.mdev = mdev;
