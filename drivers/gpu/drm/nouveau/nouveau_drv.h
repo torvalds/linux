@@ -749,10 +749,6 @@ struct drm_nouveau_private {
 	uint32_t crtc_owner;
 	uint32_t dac_users[4];
 
-	struct nouveau_suspend_resume {
-		uint32_t *ramin_copy;
-	} susres;
-
 	struct backlight_device *backlight;
 
 	struct {
@@ -761,8 +757,6 @@ struct drm_nouveau_private {
 
 	struct nouveau_fbdev *nfbdev;
 	struct apertures_struct *apertures;
-
-	bool powered_down;
 };
 
 static inline struct drm_nouveau_private *
