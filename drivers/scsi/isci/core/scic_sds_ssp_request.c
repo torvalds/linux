@@ -180,21 +180,11 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_response_frame_handler
 
 static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_started_substate_handler_table[] = {
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
-		.start_handler		= scic_sds_request_default_start_handler,
 		.abort_handler		= scic_sds_request_started_state_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
 		.tc_completion_handler	= scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
-		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = {
-		.start_handler		= scic_sds_request_default_start_handler,
 		.abort_handler		= scic_sds_ssp_task_request_await_tc_response_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
-		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
 		.frame_handler		= scic_sds_ssp_task_request_await_tc_response_frame_handler,
 	}
 };

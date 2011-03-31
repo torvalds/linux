@@ -315,13 +315,6 @@ struct scic_sds_io_request_state_handler {
 	 */
 	scic_sds_io_request_handler_t complete_handler;
 
-	/**
-	 * The destruct_handler specifies the method invoked when a user attempts to
-	 * destruct a request.
-	 */
-	scic_sds_io_request_handler_t destruct_handler;
-
-
 	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
 	scic_sds_io_request_event_handler_t event_handler;
 	scic_sds_io_request_frame_handler_t frame_handler;
@@ -394,24 +387,8 @@ extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substat
 	((a_request)->state_handlers->complete_handler(a_request))
 
 
-
-
-/**
- * scic_sds_io_request_tc_completion() -
- *
- * This macro invokes the core state task completion handler for the
- * struct scic_sds_io_request object.
- */
-#define scic_sds_io_request_tc_completion(this_request, completion_code) \
-{ \
-	if (this_request->state_machine.current_state_id	 \
-	    == SCI_BASE_REQUEST_STATE_STARTED \
-	    && this_request->has_started_substate_machine \
-	    == false) \
-		scic_sds_request_started_state_tc_completion_handler(this_request, completion_code); \
-	else \
-		this_request->state_handlers->tc_completion_handler(this_request, completion_code); \
-}
+extern enum sci_status
+scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completion_code);
 
 /**
  * SCU_SGL_ZERO() -
@@ -491,33 +468,6 @@ enum sci_status scic_sds_io_request_frame_handler(
 
 enum sci_status scic_sds_task_request_terminate(
 	struct scic_sds_request *this_request);
-
-/*
- * *****************************************************************************
- * * DEFAULT STATE HANDLERS
- * ***************************************************************************** */
-
-enum sci_status scic_sds_request_default_start_handler(
-	struct scic_sds_request *request);
-
-
-enum sci_status scic_sds_request_default_complete_handler(
-	struct scic_sds_request *request);
-
-enum sci_status scic_sds_request_default_destruct_handler(
-	struct scic_sds_request *request);
-
-enum sci_status scic_sds_request_default_tc_completion_handler(
-	struct scic_sds_request *this_request,
-	u32 completion_code);
-
-enum sci_status scic_sds_request_default_event_handler(
-	struct scic_sds_request *this_request,
-	u32 event_code);
-
-enum sci_status scic_sds_request_default_frame_handler(
-	struct scic_sds_request *this_request,
-	u32 frame_index);
 
 /*
  * *****************************************************************************

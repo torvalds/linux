@@ -874,66 +874,92 @@ u32 scic_io_request_get_number_of_bytes_transferred(
  * * SCIC SDS Interface Implementation
  * **************************************************************************** */
 
-/**
- *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the start
- *    operation is to be executed.
- *
- * This method invokes the base state start request handler for the
- * SCIC_SDS_IO_REQUEST_T object. enum sci_status
- */
 enum sci_status
 scic_sds_request_start(struct scic_sds_request *request)
 {
-	if (request->device_sequence ==
+	if (request->device_sequence !=
 	    scic_sds_remote_device_get_sequence(request->target_device))
+		return SCI_FAILURE;
+
+	if (request->state_handlers->start_handler)
 		return request->state_handlers->start_handler(request);
-	return SCI_FAILURE;
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		 "%s: SCIC IO Request requested to start while in wrong "
+		 "state %d\n",
+		 __func__,
+		 sci_base_state_machine_get_state(&request->state_machine));
+
+	return SCI_FAILURE_INVALID_STATE;
 }
 
-/**
- *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the start
- *    operation is to be executed.
- *
- * This method invokes the base state terminate request handber for the
- * SCIC_SDS_IO_REQUEST_T object. enum sci_status
- */
 enum sci_status
 scic_sds_io_request_terminate(struct scic_sds_request *request)
 {
-	return request->state_handlers->abort_handler(request);
+	if (request->state_handlers->abort_handler)
+		return request->state_handlers->abort_handler(request);
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		"%s: SCIC IO Request requested to abort while in wrong "
+		"state %d\n",
+		__func__,
+		sci_base_state_machine_get_state(&request->state_machine));
+
+	return SCI_FAILURE_INVALID_STATE;
 }
 
-/**
- *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the start
- *    operation is to be executed.
- *
- * This method invokes the base state request completion handler for the
- * SCIC_SDS_IO_REQUEST_T object. enum sci_status
- */
 enum sci_status
 scic_sds_io_request_complete(struct scic_sds_request *request)
 {
-	return request->state_handlers->complete_handler(request);
+	if (request->state_handlers->complete_handler)
+		return request->state_handlers->complete_handler(request);
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		"%s: SCIC IO Request requested to complete while in wrong "
+		"state %d\n",
+		__func__,
+		sci_base_state_machine_get_state(&request->state_machine));
+
+	return SCI_FAILURE_INVALID_STATE;
 }
 
-/**
- *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the start
- *    operation is to be executed.
- * @event_code: The event code returned by the hardware for the task reqeust.
- *
- * This method invokes the core state handler for the SCIC_SDS_IO_REQUEST_T
- * object. enum sci_status
- */
 enum sci_status scic_sds_io_request_event_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *request,
 	u32 event_code)
 {
-	return this_request->state_handlers->event_handler(this_request, event_code);
+	if (request->state_handlers->event_handler)
+		return request->state_handlers->event_handler(request, event_code);
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		 "%s: SCIC IO Request given event code notification %x while "
+		 "in wrong state %d\n",
+		 __func__,
+		 event_code,
+		 sci_base_state_machine_get_state(&request->state_machine));
+
+	return SCI_FAILURE_INVALID_STATE;
 }
+
+enum sci_status
+scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completion_code)
+{
+	if (request->state_machine.current_state_id == SCI_BASE_REQUEST_STATE_STARTED &&
+	    request->has_started_substate_machine == false)
+		return scic_sds_request_started_state_tc_completion_handler(request, completion_code);
+	else if (request->state_handlers->tc_completion_handler)
+		return request->state_handlers->tc_completion_handler(request, completion_code);
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		"%s: SCIC IO Request given task completion notification %x "
+		"while in wrong state %d\n",
+		__func__,
+		completion_code,
+		sci_base_state_machine_get_state(&request->state_machine));
+
+	return SCI_FAILURE_INVALID_STATE;
+
+}
+
 
 /**
  *
@@ -946,10 +972,21 @@ enum sci_status scic_sds_io_request_event_handler(
  * SCIC_SDS_IO_REQUEST_T object. enum sci_status
  */
 enum sci_status scic_sds_io_request_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *request,
 	u32 frame_index)
 {
-	return this_request->state_handlers->frame_handler(this_request, frame_index);
+	if (request->state_handlers->frame_handler)
+		return request->state_handlers->frame_handler(request, frame_index);
+
+	dev_warn(scic_to_dev(request->owning_controller),
+		 "%s: SCIC IO Request given unexpected frame %x while in "
+		 "state %d\n",
+		 __func__,
+		 frame_index,
+		 sci_base_state_machine_get_state(&request->state_machine));
+
+	scic_sds_controller_release_frame(request->owning_controller, frame_index);
+	return SCI_FAILURE_INVALID_STATE;
 }
 
 /**
@@ -999,141 +1036,6 @@ void scic_sds_io_request_copy_response(struct scic_sds_request *sds_request)
 	user_response_length = min(user_response_length, core_response_length);
 
 	memcpy(response_buffer, ssp_response->data, user_response_length);
-}
-
-/*
- * *****************************************************************************
- * *  DEFAULT STATE HANDLERS
- * ***************************************************************************** */
-
-/*
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_start() request.  The default action is
- * to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_start_handler(
-	struct scic_sds_request *request)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request requested to start while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_request_default_abort_handler(
-	struct scic_sds_request *request)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		"%s: SCIC IO Request requested to abort while in wrong "
-		"state %d\n",
-		__func__,
-		sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/*
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_complete() request.  The default action
- * is to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_complete_handler(
-	struct scic_sds_request *request)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		"%s: SCIC IO Request requested to complete while in wrong "
-		"state %d\n",
-		__func__,
-		sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/*
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_complete() request.  The default action
- * is to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_destruct_handler(
-	struct scic_sds_request *request)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request requested to destroy while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_task_request_complete() request.  The default
- * action is to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_tc_completion_handler(
-	struct scic_sds_request *request,
-	u32 completion_code)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		"%s: SCIC IO Request given task completion notification %x "
-		"while in wrong state %d\n",
-		__func__,
-		completion_code,
-		sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-
-}
-
-/*
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_event_handler() request.  The default
- * action is to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_event_handler(
-	struct scic_sds_request *request,
-	u32 event_code)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request given event code notification %x while "
-		 "in wrong state %d\n",
-		 __func__,
-		 event_code,
-		 sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/*
- * This method is the default action to take when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_event_handler() request.  The default
- * action is to log a warning and return a failure status. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_request_default_frame_handler(
-	struct scic_sds_request *request,
-	u32 frame_index)
-{
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request given unexpected frame %x while in "
-		 "state %d\n",
-		 __func__,
-		 frame_index,
-		 sci_base_state_machine_get_state(&request->state_machine));
-
-	scic_sds_controller_release_frame(
-		request->owning_controller, frame_index);
-
-	return SCI_FAILURE_INVALID_STATE;
 }
 
 /*
@@ -1601,58 +1503,25 @@ static enum sci_status scic_sds_request_aborting_state_frame_handler(
 
 static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {
-		.start_handler		= scic_sds_request_default_start_handler,
-		.abort_handler		= scic_sds_request_default_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
-		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
-		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {
 		.start_handler		= scic_sds_request_constructed_state_start_handler,
 		.abort_handler		= scic_sds_request_constructed_state_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
-		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
-		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_STARTED] = {
-		.start_handler		= scic_sds_request_default_start_handler,
 		.abort_handler		= scic_sds_request_started_state_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
 		.tc_completion_handler	= scic_sds_request_started_state_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
 		.frame_handler		= scic_sds_request_started_state_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
-		.start_handler		= scic_sds_request_default_start_handler,
-		.abort_handler		= scic_sds_request_default_abort_handler,
 		.complete_handler	= scic_sds_request_completed_state_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
-		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
-		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_ABORTING] = {
-		.start_handler		= scic_sds_request_default_start_handler,
 		.abort_handler		= scic_sds_request_aborting_state_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
 		.tc_completion_handler	= scic_sds_request_aborting_state_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
 		.frame_handler		= scic_sds_request_aborting_state_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_FINAL] = {
-		.start_handler		= scic_sds_request_default_start_handler,
-		.abort_handler		= scic_sds_request_default_abort_handler,
-		.complete_handler	= scic_sds_request_default_complete_handler,
-		.destruct_handler	= scic_sds_request_default_destruct_handler,
-		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
-		.event_handler		= scic_sds_request_default_event_handler,
-		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 };
 
