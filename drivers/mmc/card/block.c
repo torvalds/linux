@@ -48,6 +48,10 @@ MODULE_ALIAS("mmc:block");
 #endif
 #define MODULE_PARAM_PREFIX "mmcblk."
 
+#define REL_WRITES_SUPPORTED(card) (mmc_card_mmc((card)) &&	\
+    (((card)->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN) ||	\
+     ((card)->ext_csd.rel_sectors)))
+
 static DEFINE_MUTEX(block_mutex);
 
 /*
@@ -331,12 +335,72 @@ out:
 	return err ? 0 : 1;
 }
 
+static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
+{
+	struct mmc_blk_data *md = mq->data;
+
+	/*
+	 * No-op, only service this because we need REQ_FUA for reliable
+	 * writes.
+	 */
+	spin_lock_irq(&md->lock);
+	__blk_end_request_all(req, 0);
+	spin_unlock_irq(&md->lock);
+
+	return 1;
+}
+
+/*
+ * Reformat current write as a reliable write, supporting
+ * both legacy and the enhanced reliable write MMC cards.
+ * In each transfer we'll handle only as much as a single
+ * reliable write can handle, thus finish the request in
+ * partial completions.
+ */
+static inline int mmc_apply_rel_rw(struct mmc_blk_request *brq,
+				   struct mmc_card *card,
+				   struct request *req)
+{
+	int err;
+	struct mmc_command set_count;
+
+	if (!(card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN)) {
+		/* Legacy mode imposes restrictions on transfers. */
+		if (!IS_ALIGNED(brq->cmd.arg, card->ext_csd.rel_sectors))
+			brq->data.blocks = 1;
+
+		if (brq->data.blocks > card->ext_csd.rel_sectors)
+			brq->data.blocks = card->ext_csd.rel_sectors;
+		else if (brq->data.blocks < card->ext_csd.rel_sectors)
+			brq->data.blocks = 1;
+	}
+
+	memset(&set_count, 0, sizeof(struct mmc_command));
+	set_count.opcode = MMC_SET_BLOCK_COUNT;
+	set_count.arg = brq->data.blocks | (1 << 31);
+	set_count.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	err = mmc_wait_for_cmd(card->host, &set_count, 0);
+	if (err)
+		printk(KERN_ERR "%s: error %d SET_BLOCK_COUNT\n",
+		       req->rq_disk->disk_name, err);
+	return err;
+}
+
 static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
 	int ret = 1, disable_multi = 0;
+
+	/*
+	 * Reliable writes are used to implement Forced Unit Access and
+	 * REQ_META accesses, and are supported only on MMCs.
+	 */
+	bool do_rel_wr = ((req->cmd_flags & REQ_FUA) ||
+			  (req->cmd_flags & REQ_META)) &&
+		(rq_data_dir(req) == WRITE) &&
+		REL_WRITES_SUPPORTED(card);
 
 	mmc_claim_host(card->host);
 
@@ -374,12 +438,14 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		if (disable_multi && brq.data.blocks > 1)
 			brq.data.blocks = 1;
 
-		if (brq.data.blocks > 1) {
+		if (brq.data.blocks > 1 || do_rel_wr) {
 			/* SPI multiblock writes terminate using a special
-			 * token, not a STOP_TRANSMISSION request.
+			 * token, not a STOP_TRANSMISSION request. Reliable
+			 * writes use SET_BLOCK_COUNT and do not use a
+			 * STOP_TRANSMISSION request either.
 			 */
-			if (!mmc_host_is_spi(card->host)
-					|| rq_data_dir(req) == READ)
+			if ((!mmc_host_is_spi(card->host) && !do_rel_wr) ||
+			    rq_data_dir(req) == READ)
 				brq.mrq.stop = &brq.stop;
 			readcmd = MMC_READ_MULTIPLE_BLOCK;
 			writecmd = MMC_WRITE_MULTIPLE_BLOCK;
@@ -395,6 +461,9 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			brq.cmd.opcode = writecmd;
 			brq.data.flags |= MMC_DATA_WRITE;
 		}
+
+		if (do_rel_wr && mmc_apply_rel_rw(&brq, card, req))
+			goto cmd_err;
 
 		mmc_set_data_timeout(&brq.data, card);
 
@@ -565,6 +634,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			return mmc_blk_issue_secdiscard_rq(mq, req);
 		else
 			return mmc_blk_issue_discard_rq(mq, req);
+	} else if (req->cmd_flags & REQ_FLUSH) {
+		return mmc_blk_issue_flush(mq, req);
 	} else {
 		return mmc_blk_issue_rw_rq(mq, req);
 	}
@@ -622,6 +693,8 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->disk->queue = md->queue.queue;
 	md->disk->driverfs_dev = &card->dev;
 	set_disk_ro(md->disk, md->read_only);
+	if (REL_WRITES_SUPPORTED(card))
+		blk_queue_flush(md->queue.queue, REQ_FLUSH | REQ_FUA);
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:
