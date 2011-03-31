@@ -903,7 +903,9 @@ static void isci_terminate_request(
 		new_request_state
 		);
 
-	if ((old_state == started) || (old_state == completed)) {
+	if ((old_state == started) ||
+	    (old_state == completed) ||
+	    (old_state == aborting)) {
 
 		/* If the old_state is started:
 		 * This request was not already being aborted. If it had been,
@@ -920,6 +922,10 @@ static void isci_terminate_request(
 		 * This request completed from the SCU hardware perspective
 		 * and now just needs cleaning up in terms of freeing the
 		 * request and potentially calling up to libsas.
+		 *
+		 * If old_state == aborting:
+		 * This request has already gone through a TMF timeout, but may
+		 * not have been terminated; needs cleaning up at least.
 		 */
 		isci_terminate_request_core(isci_host, isci_device,
 					    isci_request);
@@ -1297,14 +1303,16 @@ int isci_task_abort_task(struct sas_task *task)
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
-	/* Check the request status and change to "aborting" if currently
+	/* Check the request status and change to "aborted" if currently
 	 * "starting"; if true then set the I/O kernel completion
 	 * struct that will be triggered when the request completes.
 	 */
 	old_state = isci_task_validate_request_to_abort(
 				old_request, isci_host, isci_device,
 				&aborted_io_completion);
-	if ((old_state != started) && (old_state != completed)) {
+	if ((old_state != started) &&
+	    (old_state != completed) &&
+	    (old_state != aborting)) {
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 

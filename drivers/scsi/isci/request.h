@@ -199,7 +199,7 @@ static inline enum isci_request_status isci_request_change_started_to_newstate(
 
 	old_state = isci_request->status;
 
-	if (old_state == started) {
+	if (old_state == started || old_state == aborting) {
 		BUG_ON(isci_request->io_request_completion != NULL);
 
 		isci_request->io_request_completion = completion_ptr;
