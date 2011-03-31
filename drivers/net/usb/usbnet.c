@@ -387,8 +387,12 @@ static int rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 {
 	if (dev->driver_info->rx_fixup &&
-	    !dev->driver_info->rx_fixup (dev, skb))
-		goto error;
+	    !dev->driver_info->rx_fixup (dev, skb)) {
+		/* With RX_ASSEMBLE, rx_fixup() must update counters */
+		if (!(dev->driver_info->flags & FLAG_RX_ASSEMBLE))
+			dev->net->stats.rx_errors++;
+		goto done;
+	}
 	// else network stack removes extra byte if we forced a short packet
 
 	if (skb->len) {
@@ -401,8 +405,8 @@ static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 	}
 
 	netif_dbg(dev, rx_err, dev->net, "drop\n");
-error:
 	dev->net->stats.rx_errors++;
+done:
 	skb_queue_tail(&dev->done, skb);
 }
 
