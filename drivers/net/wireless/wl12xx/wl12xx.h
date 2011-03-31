@@ -323,7 +323,7 @@ struct wl1271_if_operations {
 	struct device* (*dev)(struct wl1271 *wl);
 	void (*enable_irq)(struct wl1271 *wl);
 	void (*disable_irq)(struct wl1271 *wl);
-	void (*set_block_size) (struct wl1271 *wl);
+	void (*set_block_size) (struct wl1271 *wl, unsigned int blksz);
 };
 
 #define MAX_NUM_KEYS 14
@@ -558,7 +558,6 @@ struct wl1271 {
 	bool ba_support;
 	u8 ba_rx_bitmap;
 
-	u32 block_size;
 	int tcxo_clock;
 
 	/*
@@ -610,12 +609,15 @@ int wl1271_plt_stop(struct wl1271 *wl);
 /* Quirks */
 
 /* Each RX/TX transaction requires an end-of-transaction transfer */
-#define WL12XX_QUIRK_END_OF_TRANSACTION	BIT(0)
+#define WL12XX_QUIRK_END_OF_TRANSACTION		BIT(0)
 
 /*
  * Older firmwares use 2 spare TX blocks
  * (for STA < 6.1.3.50.58 or for AP < 6.2.0.0.47)
  */
-#define WL12XX_QUIRK_USE_2_SPARE_BLOCKS BIT(1)
+#define WL12XX_QUIRK_USE_2_SPARE_BLOCKS		BIT(1)
+
+/* WL128X requires aggregated packets to be aligned to the SDIO block size */
+#define WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT	BIT(2)
 
 #endif

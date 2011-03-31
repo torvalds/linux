@@ -149,6 +149,15 @@ u8 wl1271_tx_get_hlid(struct sk_buff *skb)
 	}
 }
 
+static unsigned int wl12xx_calc_packet_alignment(struct wl1271 *wl,
+						unsigned int packet_length)
+{
+	if (wl->quirks & WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT)
+		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
+	else
+		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
+}
+
 static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 				u32 buf_offset, u8 hlid)
 {
@@ -174,10 +183,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
-	if (wl->block_size)
-		len = ALIGN(total_len, wl->block_size);
-	else
-		len = total_len;
+	len = wl12xx_calc_packet_alignment(wl, total_len);
 
 	total_blocks = (len + TX_HW_BLOCK_SIZE - 1) / TX_HW_BLOCK_SIZE +
 		spare_blocks;
@@ -291,9 +297,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
 	desc->reserved = 0;
 
-	if (wl->block_size) {
-		aligned_len = ALIGN(skb->len, wl->block_size);
+	aligned_len = wl12xx_calc_packet_alignment(wl, skb->len);
 
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		desc->wl128x_mem.extra_bytes = aligned_len - skb->len;
 		desc->length = cpu_to_le16(aligned_len >> 2);
 
@@ -306,8 +312,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	} else {
 		int pad;
 
-		/* align the length (and store in terms of words) */
-		aligned_len = ALIGN(skb->len, WL1271_TX_ALIGN_TO);
+		/* Store the aligned length in terms of words */
 		desc->length = cpu_to_le16(aligned_len >> 2);
 
 		/* calculate number of padding bytes */
@@ -386,10 +391,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	 * In special cases, we want to align to a specific block size
 	 * (eg. for wl128x with SDIO we align to 256).
 	 */
-	if (wl->block_size)
-		total_len = ALIGN(skb->len, wl->block_size);
-	else
-		total_len = ALIGN(skb->len, WL1271_TX_ALIGN_TO);
+	total_len = wl12xx_calc_packet_alignment(wl, skb->len);
 
 	memcpy(wl->aggr_buf + buf_offset, skb->data, skb->len);
 	memset(wl->aggr_buf + buf_offset + skb->len, 0, total_len - skb->len);

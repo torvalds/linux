@@ -1017,6 +1017,8 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		ret = wl1271_setup(wl);
 		if (ret < 0)
 			goto out;
+		if (wl1271_set_block_size(wl))
+			wl->quirks |= WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT;
 		break;
 	case CHIP_ID_1283_PG10:
 	default:
@@ -1487,7 +1489,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
-	wl->block_size = 0;
 
 	/*
 	 * this is performed after the cancel_work calls and the associated
@@ -3632,7 +3633,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
 	wl->quirks = 0;
-	wl->block_size = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

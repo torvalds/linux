@@ -51,15 +51,10 @@ static const struct sdio_device_id wl1271_devices[] = {
 };
 MODULE_DEVICE_TABLE(sdio, wl1271_devices);
 
-/* The max SDIO block size is 256 when working with tx padding to SDIO block */
-#define TX_PAD_SDIO_BLK_SIZE                  256
-
-static void wl1271_sdio_set_block_size(struct wl1271 *wl)
+static void wl1271_sdio_set_block_size(struct wl1271 *wl, unsigned int blksz)
 {
-	wl->block_size = TX_PAD_SDIO_BLK_SIZE;
-
 	sdio_claim_host(wl->if_priv);
-	sdio_set_block_size(wl->if_priv, TX_PAD_SDIO_BLK_SIZE);
+	sdio_set_block_size(wl->if_priv, blksz);
 	sdio_release_host(wl->if_priv);
 }
 
@@ -177,9 +172,6 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
-
-	/* Set the default block size in case it was modified */
-	sdio_set_block_size(func, 0);
 
 out:
 	return ret;
