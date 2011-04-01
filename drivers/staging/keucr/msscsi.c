@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -44,7 +46,7 @@ int MS_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb)
 //----- MS_SCSI_Test_Unit_Ready() --------------------------------------------------
 int MS_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 {
-	//printk("MS_SCSI_Test_Unit_Ready\n");
+	/* pr_info("MS_SCSI_Test_Unit_Ready\n"); */
 	if (us->MS_Status.Insert && us->MS_Status.Ready)
 		return USB_STOR_TRANSPORT_GOOD;
 	else
@@ -59,7 +61,7 @@ int MS_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 //----- MS_SCSI_Inquiry() --------------------------------------------------
 int MS_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb)
 {
-	//printk("MS_SCSI_Inquiry\n");
+	/* pr_info("MS_SCSI_Inquiry\n"); */
 	BYTE data_ptr[36] = {0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55, 0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61, 0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30};
 
 	usb_stor_set_xfer_buf(us, data_ptr, 36, srb, TO_XFER_BUF);
@@ -91,7 +93,7 @@ int MS_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 	WORD    bl_len;
 	BYTE    buf[8];
 
-	printk("MS_SCSI_Read_Capacity\n");
+	pr_info("MS_SCSI_Read_Capacity\n");
 
 	bl_len = 0x200;
 	if ( us->MS_Status.IsMSPro )
@@ -100,8 +102,8 @@ int MS_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 		bl_num = us->MS_Lib.NumberOfLogBlock * us->MS_Lib.blockSize * 2 - 1;
 
 	us->bl_num = bl_num;
-	printk("bl_len = %x\n", bl_len);
-	printk("bl_num = %x\n", bl_num);
+	pr_info("bl_len = %x\n", bl_len);
+	pr_info("bl_num = %x\n", bl_num);
 
 	//srb->request_bufflen = 8;
 	buf[0] = (bl_num>>24) & 0xff;
@@ -130,7 +132,8 @@ int MS_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 	WORD  blen = ((Cdb[7]<< 8) & 0xff00)     | ((Cdb[8]<< 0) & 0x00ff);
 	DWORD	blenByte = blen * 0x200;
 
-	//printk("SCSIOP_READ --- bn = %X, blen = %X, srb->use_sg = %X\n", bn, blen, srb->use_sg);
+	/* pr_info("SCSIOP_READ --- bn = %X, blen = %X, srb->use_sg = %X\n",
+						bn, blen, srb->use_sg); */
 	
 	if (bn > us->bl_num)
 		return USB_STOR_TRANSPORT_ERROR;
@@ -140,7 +143,7 @@ int MS_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 		result = ENE_LoadBinCode(us, MSP_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD)
 		{
-			printk("Load MSP RW pattern Fail !!\n");
+			pr_info("Load MSP RW pattern Fail !!\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
 
@@ -174,7 +177,7 @@ int MS_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 		result = ENE_LoadBinCode(us, MS_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD)
 		{
-			printk("Load MS RW pattern Fail !!\n");
+			pr_info("Load MS RW pattern Fail !!\n");
 			result = USB_STOR_TRANSPORT_ERROR;
 			goto exit;
 		}
@@ -207,7 +210,8 @@ int MS_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 			result = ENE_SendScsiCmd(us, FDIR_READ, buf+offset, 0);
 			if (result != USB_STOR_XFER_GOOD)
 			{
-				printk("MS_SCSI_Read --- result = %x\n", result);
+				pr_info("MS_SCSI_Read --- result = %x\n",
+								result);
 				result =  USB_STOR_TRANSPORT_ERROR;
 				goto exit;
 			}
@@ -245,7 +249,7 @@ int MS_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 		result = ENE_LoadBinCode(us, MSP_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD)
 		{
-			printk("Load MSP RW pattern Fail !!\n");
+			pr_info("Load MSP RW pattern Fail !!\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
 
@@ -280,7 +284,7 @@ int MS_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 		result = ENE_LoadBinCode(us, MS_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD)
 		{
-			printk("Load MS RW pattern Fail !!\n");
+			pr_info("Load MS RW pattern Fail !!\n");
 			result = USB_STOR_TRANSPORT_ERROR;
 			goto exit;
 		}
@@ -301,7 +305,8 @@ int MS_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 			result = MS_ReaderCopyBlock(us, oldphy, newphy, PhyBlockAddr, PageNum, buf+offset, len);
 			if (result != USB_STOR_XFER_GOOD)
 			{
-				printk("MS_SCSI_Write --- result = %x\n", result);
+				pr_info("MS_SCSI_Write --- result = %x\n",
+								result);
 				result =  USB_STOR_TRANSPORT_ERROR;
 				goto exit;
 			}
