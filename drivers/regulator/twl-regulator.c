@@ -76,6 +76,11 @@ struct twlreg_info {
 #define VREG_BC_PROC		3
 #define VREG_BC_CLK_RST		4
 
+/* TWL6030 LDO register values for CFG_STATE */
+#define TWL6030_CFG_STATE_OFF	0x00
+#define TWL6030_CFG_STATE_ON	0x01
+#define TWL6030_CFG_STATE_GRP_SHIFT	5
+
 static inline int
 twlreg_read(struct twlreg_info *info, unsigned slave_subgp, unsigned offset)
 {
@@ -149,6 +154,11 @@ static int twlreg_enable(struct regulator_dev *rdev)
 
 	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
 
+	if (!ret && twl_class_is_6030())
+		ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_STATE,
+				grp << TWL6030_CFG_STATE_GRP_SHIFT |
+				TWL6030_CFG_STATE_ON);
+
 	udelay(info->delay);
 
 	return ret;
@@ -158,17 +168,36 @@ static int twlreg_disable(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			grp;
+	int			ret;
 
 	grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
 	if (grp < 0)
 		return grp;
+
+	/* For 6030, set the off state for all grps enabled */
+	if (twl_class_is_6030()) {
+		ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_STATE,
+			(grp & (P1_GRP_6030 | P2_GRP_6030 | P3_GRP_6030)) <<
+				TWL6030_CFG_STATE_GRP_SHIFT |
+			TWL6030_CFG_STATE_OFF);
+		if (ret)
+			return ret;
+	}
 
 	if (twl_class_is_4030())
 		grp &= ~(P1_GRP_4030 | P2_GRP_4030 | P3_GRP_4030);
 	else
 		grp &= ~(P1_GRP_6030 | P2_GRP_6030 | P3_GRP_6030);
 
-	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
+	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
+
+	/* Next, associate cleared grp in state register */
+	if (!ret && twl_class_is_6030())
+		ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_STATE,
+				grp << TWL6030_CFG_STATE_GRP_SHIFT |
+				TWL6030_CFG_STATE_OFF);
+
+	return ret;
 }
 
 static int twlreg_get_status(struct regulator_dev *rdev)
