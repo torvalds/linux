@@ -134,14 +134,14 @@ void __init board_setup(void)
 
 static int __init pb1500_init_irq(void)
 {
-	set_irq_type(AU1500_GPIO9_INT, IRQF_TRIGGER_LOW);   /* CD0# */
-	set_irq_type(AU1500_GPIO10_INT, IRQF_TRIGGER_LOW);  /* CARD0 */
-	set_irq_type(AU1500_GPIO11_INT, IRQF_TRIGGER_LOW);  /* STSCHG0# */
-	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO9_INT, IRQF_TRIGGER_LOW);   /* CD0# */
+	irq_set_irq_type(AU1500_GPIO10_INT, IRQF_TRIGGER_LOW);  /* CARD0 */
+	irq_set_irq_type(AU1500_GPIO11_INT, IRQF_TRIGGER_LOW);  /* STSCHG0# */
+	irq_set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	irq_set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

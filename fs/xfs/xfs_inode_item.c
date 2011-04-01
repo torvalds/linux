@@ -760,11 +760,11 @@ xfs_inode_item_push(
 	 * Push the inode to it's backing buffer. This will not remove the
 	 * inode from the AIL - a further push will be required to trigger a
 	 * buffer push. However, this allows all the dirty inodes to be pushed
-	 * to the buffer before it is pushed to disk. THe buffer IO completion
-	 * will pull th einode from the AIL, mark it clean and unlock the flush
+	 * to the buffer before it is pushed to disk. The buffer IO completion
+	 * will pull the inode from the AIL, mark it clean and unlock the flush
 	 * lock.
 	 */
-	(void) xfs_iflush(ip, 0);
+	(void) xfs_iflush(ip, SYNC_TRYLOCK);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 }
 

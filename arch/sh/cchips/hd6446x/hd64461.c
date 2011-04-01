@@ -107,12 +107,12 @@ int __init setup_hd64461(void)
 			return -EINVAL;
 		}
 
-		set_irq_chip_and_handler(i, &hd64461_irq_chip,
+		irq_set_chip_and_handler(i, &hd64461_irq_chip,
 					 handle_level_irq);
 	}
 
-	set_irq_chained_handler(CONFIG_HD64461_IRQ, hd64461_irq_demux);
-	set_irq_type(CONFIG_HD64461_IRQ, IRQ_TYPE_LEVEL_LOW);
+	irq_set_chained_handler(CONFIG_HD64461_IRQ, hd64461_irq_demux);
+	irq_set_irq_type(CONFIG_HD64461_IRQ, IRQ_TYPE_LEVEL_LOW);
 
 #ifdef CONFIG_HD64461_ENABLER
 	printk(KERN_INFO "HD64461: enabling PCMCIA devices\n");

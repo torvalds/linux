@@ -799,12 +799,12 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	struct inode *dir;
 	int ret;
 	struct btrfs_inode_ref *ref;
-	struct btrfs_dir_item *di;
 	struct inode *inode;
 	char *name;
 	int namelen;
 	unsigned long ref_ptr;
 	unsigned long ref_end;
+	int search_done = 0;
 
 	/*
 	 * it is possible that we didn't log all the parent directories
@@ -845,7 +845,10 @@ again:
 	 * existing back reference, and we don't want to create
 	 * dangling pointers in the directory.
 	 */
-conflict_again:
+
+	if (search_done)
+		goto insert;
+
 	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
 	if (ret == 0) {
 		char *victim_name;
@@ -886,37 +889,21 @@ conflict_again:
 				ret = btrfs_unlink_inode(trans, root, dir,
 							 inode, victim_name,
 							 victim_name_len);
-				kfree(victim_name);
-				btrfs_release_path(root, path);
-				goto conflict_again;
 			}
 			kfree(victim_name);
 			ptr = (unsigned long)(victim_ref + 1) + victim_name_len;
 		}
 		BUG_ON(ret);
+
+		/*
+		 * NOTE: we have searched root tree and checked the
+		 * coresponding ref, it does not need to check again.
+		 */
+		search_done = 1;
 	}
 	btrfs_release_path(root, path);
 
-	/* look for a conflicting sequence number */
-	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
-					 btrfs_inode_ref_index(eb, ref),
-					 name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(root, path);
-
-
-	/* look for a conflicting name */
-	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
-				   name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(root, path);
-
+insert:
 	/* insert our name */
 	ret = btrfs_add_link(trans, dir, inode, name, namelen, 0,
 			     btrfs_inode_ref_index(eb, ref));
@@ -1286,6 +1273,8 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
+		if (verify_dir_item(root, eb, di))
+			return -EIO;
 		name_len = btrfs_dir_name_len(eb, di);
 		ret = replay_one_name(trans, root, path, eb, di, key);
 		BUG_ON(ret);
@@ -1412,6 +1401,11 @@ again:
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
+		if (verify_dir_item(root, eb, di)) {
+			ret = -EIO;
+			goto out;
+		}
+
 		name_len = btrfs_dir_name_len(eb, di);
 		name = kmalloc(name_len, GFP_NOFS);
 		if (!name) {
@@ -1821,7 +1815,8 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	int orig_level;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	level = btrfs_header_level(log->node);
 	orig_level = level;
@@ -3107,9 +3102,11 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 		.stage = 0,
 	};
 
-	fs_info->log_root_recovering = 1;
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
+	fs_info->log_root_recovering = 1;
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
 	BUG_ON(IS_ERR(trans));
@@ -3117,7 +3114,8 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	wc.trans = trans;
 	wc.pin = 1;
 
-	walk_log_tree(trans, log_root_tree, &wc);
+	ret = walk_log_tree(trans, log_root_tree, &wc);
+	BUG_ON(ret);
 
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
@@ -3141,8 +3139,7 @@ again:
 
 		log = btrfs_read_fs_root_no_radix(log_root_tree,
 						  &found_key);
-		BUG_ON(!log);
-
+		BUG_ON(IS_ERR(log));
 
 		tmp_key.objectid = found_key.offset;
 		tmp_key.type = BTRFS_ROOT_ITEM_KEY;

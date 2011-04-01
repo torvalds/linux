@@ -122,7 +122,7 @@ static struct irq_chip xen_pirq_chip;
 /* Get info for IRQ */
 static struct irq_info *info_for_irq(unsigned irq)
 {
-	return get_irq_data(irq);
+	return irq_get_handler_data(irq);
 }
 
 /* Constructors for packed IRQ information. */
@@ -403,7 +403,7 @@ static void xen_irq_init(unsigned irq)
 
 	info->type = IRQT_UNBOUND;
 
-	set_irq_data(irq, info);
+	irq_set_handler_data(irq, info);
 
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
@@ -458,11 +458,11 @@ static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 
 static void xen_free_irq(unsigned irq)
 {
-	struct irq_info *info = get_irq_data(irq);
+	struct irq_info *info = irq_get_handler_data(irq);
 
 	list_del(&info->list);
 
-	set_irq_data(irq, NULL);
+	irq_set_handler_data(irq, NULL);
 
 	kfree(info);
 
@@ -585,7 +585,7 @@ static void ack_pirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 
 	if (VALID_EVTCHN(evtchn)) {
 		mask_evtchn(evtchn);
@@ -639,8 +639,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	if (irq < 0)
 		goto out;
 
-	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
-				      handle_level_irq, name);
+	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
+				      name);
 
 	irq_op.irq = irq;
 	irq_op.vector = 0;
@@ -690,8 +690,8 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (irq == -1)
 		goto out;
 
-	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
-				      handle_level_irq, name);
+	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
+				      name);
 
 	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
@@ -772,7 +772,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		if (irq == -1)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_dynamic_chip,
+		irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
 					      handle_fasteoi_irq, "event");
 
 		xen_irq_info_evtchn_init(irq, evtchn);
@@ -799,7 +799,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		if (irq < 0)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
+		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "ipi");
 
 		bind_ipi.vcpu = cpu;
@@ -848,7 +848,7 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		if (irq == -1)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
+		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "virq");
 
 		bind_virq.virq = virq;
@@ -1339,7 +1339,7 @@ static void ack_dynirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_masked_irq(data->irq);
+	irq_move_masked_irq(data);
 
 	if (VALID_EVTCHN(evtchn))
 		unmask_evtchn(evtchn);

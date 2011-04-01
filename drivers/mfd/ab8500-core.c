@@ -362,6 +362,15 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 	}
 }
 
+static struct resource ab8500_gpio_resources[] = {
+	{
+		.name	= "GPIO_INT6",
+		.start	= AB8500_INT_GPIO6R,
+		.end	= AB8500_INT_GPIO41F,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 static struct resource ab8500_gpadc_resources[] = {
 	{
 		.name	= "HW_CONV_END",
@@ -594,6 +603,11 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-regulator",
+	},
+	{
+		.name = "ab8500-gpio",
+		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
+		.resources = ab8500_gpio_resources,
 	},
 	{
 		.name = "ab8500-gpadc",

@@ -32,10 +32,10 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -690,7 +690,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start	= 0xe6850000,
-		.end	= 0xe68501ff,
+		.end	= 0xe68500ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -725,7 +725,7 @@ static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start	= 0xe6860000,
-		.end	= 0xe68601ff,
+		.end	= 0xe68600ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -768,7 +768,7 @@ static struct resource sdhi2_resources[] = {
 	[0] = {
 		.name	= "SDHI2",
 		.start	= 0xe6870000,
-		.end	= 0xe68701ff,
+		.end	= 0xe68700ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -1124,15 +1124,15 @@ static void __init mackerel_init(void)
 
 	/* enable Keypad */
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
-	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable Touchscreen */
 	gpio_request(GPIO_FN_IRQ7_40,	NULL);
-	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
-	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable SDHI0 */
 	gpio_request(GPIO_FN_SDHICD0, NULL);

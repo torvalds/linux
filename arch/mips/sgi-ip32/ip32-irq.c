@@ -451,43 +451,51 @@ void __init arch_init_irq(void)
 	for (irq = CRIME_IRQ_BASE; irq <= IP32_IRQ_MAX; irq++) {
 		switch (irq) {
 		case MACE_VID_IN1_IRQ ... MACE_PCI_BRIDGE_IRQ:
-			set_irq_chip_and_handler_name(irq,&ip32_mace_interrupt,
-				handle_level_irq, "level");
+			irq_set_chip_and_handler_name(irq,
+						      &ip32_mace_interrupt,
+						      handle_level_irq,
+						      "level");
 			break;
 
 		case MACEPCI_SCSI0_IRQ ...  MACEPCI_SHARED2_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&ip32_macepci_interrupt, handle_level_irq,
-				"level");
+			irq_set_chip_and_handler_name(irq,
+						      &ip32_macepci_interrupt,
+						      handle_level_irq,
+						      "level");
 			break;
 
 		case CRIME_CPUERR_IRQ:
 		case CRIME_MEMERR_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&crime_level_interrupt, handle_level_irq,
-				"level");
+			irq_set_chip_and_handler_name(irq,
+						      &crime_level_interrupt,
+						      handle_level_irq,
+						      "level");
 			break;
 
 		case CRIME_GBE0_IRQ ... CRIME_GBE3_IRQ:
 		case CRIME_RE_EMPTY_E_IRQ ... CRIME_RE_IDLE_E_IRQ:
 		case CRIME_SOFT0_IRQ ... CRIME_SOFT2_IRQ:
 		case CRIME_VICE_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&crime_edge_interrupt, handle_edge_irq, "edge");
+			irq_set_chip_and_handler_name(irq,
+						      &crime_edge_interrupt,
+						      handle_edge_irq,
+						      "edge");
 			break;
 
 		case MACEISA_PARALLEL_IRQ:
 		case MACEISA_SERIAL1_TDMAPR_IRQ:
 		case MACEISA_SERIAL2_TDMAPR_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&ip32_maceisa_edge_interrupt, handle_edge_irq,
-				"edge");
+			irq_set_chip_and_handler_name(irq,
+						      &ip32_maceisa_edge_interrupt,
+						      handle_edge_irq,
+						      "edge");
 			break;
 
 		default:
-			set_irq_chip_and_handler_name(irq,
-				&ip32_maceisa_level_interrupt, handle_level_irq,
-				"level");
+			irq_set_chip_and_handler_name(irq,
+						      &ip32_maceisa_level_interrupt,
+						      handle_level_irq,
+						      "level");
 			break;
 		}
 	}

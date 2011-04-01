@@ -68,10 +68,10 @@ void __init init_ioasic_irqs(int base)
 	fast_iob();
 
 	for (i = base; i < base + IO_INR_DMA; i++)
-		set_irq_chip_and_handler(i, &ioasic_irq_type,
+		irq_set_chip_and_handler(i, &ioasic_irq_type,
 					 handle_level_irq);
 	for (; i < base + IO_IRQ_LINES; i++)
-		set_irq_chip(i, &ioasic_dma_irq_type);
+		irq_set_chip(i, &ioasic_dma_irq_type);
 
 	ioasic_irq_base = base;
 }

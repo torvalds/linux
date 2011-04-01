@@ -157,7 +157,7 @@ static unsigned int pmac_startup_irq(struct irq_data *d)
         int i = src >> 5;
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
-	if ((irq_to_desc(d->irq)->status & IRQ_LEVEL) == 0)
+	if (!irqd_is_level_type(d))
 		out_le32(&pmac_irq_hw[i]->ack, bit);
         __set_bit(src, ppc_cached_irq_mask);
         __pmac_set_irq_mask(src, 0);
@@ -289,7 +289,6 @@ static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
 static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
 	int level;
 
 	if (hw >= max_irqs)
@@ -300,9 +299,9 @@ static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 	 */
 	level = !!(level_mask[hw >> 5] & (1UL << (hw & 0x1f)));
 	if (level)
-		desc->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &pmac_pic, level ?
-				 handle_level_irq : handle_edge_irq);
+		irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &pmac_pic,
+				 level ? handle_level_irq : handle_edge_irq);
 	return 0;
 }
 
@@ -472,8 +471,8 @@ int of_irq_map_oldworld(struct device_node *device, int index,
 
 static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	struct mpic *mpic = get_irq_desc_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct mpic *mpic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq = mpic_get_one_irq(mpic);
 
 	if (cascade_irq != NO_IRQ)
@@ -591,8 +590,8 @@ static int __init pmac_pic_probe_mpic(void)
 		of_node_put(slave);
 		return 0;
 	}
-	set_irq_data(cascade, mpic2);
-	set_irq_chained_handler(cascade, pmac_u3_cascade);
+	irq_set_handler_data(cascade, mpic2);
+	irq_set_chained_handler(cascade, pmac_u3_cascade);
 
 	of_node_put(slave);
 	return 0;

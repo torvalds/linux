@@ -69,7 +69,7 @@ void emma2rh_irq_init(void)
 	u32 i;
 
 	for (i = 0; i < NUM_EMMA2RH_IRQ; i++)
-		set_irq_chip_and_handler_name(EMMA2RH_IRQ_BASE + i,
+		irq_set_chip_and_handler_name(EMMA2RH_IRQ_BASE + i,
 					      &emma2rh_irq_controller,
 					      handle_level_irq, "level");
 }
@@ -105,7 +105,7 @@ void emma2rh_sw_irq_init(void)
 	u32 i;
 
 	for (i = 0; i < NUM_EMMA2RH_IRQ_SW; i++)
-		set_irq_chip_and_handler_name(EMMA2RH_SW_IRQ_BASE + i,
+		irq_set_chip_and_handler_name(EMMA2RH_SW_IRQ_BASE + i,
 					      &emma2rh_sw_irq_controller,
 					      handle_level_irq, "level");
 }
@@ -162,7 +162,7 @@ void emma2rh_gpio_irq_init(void)
 	u32 i;
 
 	for (i = 0; i < NUM_EMMA2RH_IRQ_GPIO; i++)
-		set_irq_chip_and_handler_name(EMMA2RH_GPIO_IRQ_BASE + i,
+		irq_set_chip_and_handler_name(EMMA2RH_GPIO_IRQ_BASE + i,
 					      &emma2rh_gpio_irq_controller,
 					      handle_edge_irq, "edge");
 }

@@ -988,7 +988,7 @@ void __devinit pmac_pci_irq_fixup(struct pci_dev *dev)
 	    dev->vendor == PCI_VENDOR_ID_DEC &&
 	    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS) {
 		dev->irq = irq_create_mapping(NULL, 60);
-		set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
 	}
 #endif /* CONFIG_PPC32 */
 }

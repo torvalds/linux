@@ -118,6 +118,9 @@ static int xfrm_replay_check(struct xfrm_state *x,
 	u32 diff;
 	u32 seq = ntohl(net_seq);
 
+	if (!x->props.replay_window)
+		return 0;
+
 	if (unlikely(seq == 0))
 		goto err;
 
@@ -193,9 +196,14 @@ static int xfrm_replay_check_bmp(struct xfrm_state *x,
 {
 	unsigned int bitnr, nr;
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
+	u32 pos;
 	u32 seq = ntohl(net_seq);
 	u32 diff =  replay_esn->seq - seq;
-	u32 pos = (replay_esn->seq - 1) % replay_esn->replay_window;
+
+	if (!replay_esn->replay_window)
+		return 0;
+
+	pos = (replay_esn->seq - 1) % replay_esn->replay_window;
 
 	if (unlikely(seq == 0))
 		goto err;
@@ -373,11 +381,16 @@ static int xfrm_replay_check_esn(struct xfrm_state *x,
 	unsigned int bitnr, nr;
 	u32 diff;
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
+	u32 pos;
 	u32 seq = ntohl(net_seq);
-	u32 pos = (replay_esn->seq - 1) % replay_esn->replay_window;
 	u32 wsize = replay_esn->replay_window;
 	u32 top = replay_esn->seq;
 	u32 bottom = top - wsize + 1;
+
+	if (!wsize)
+		return 0;
+
+	pos = (replay_esn->seq - 1) % replay_esn->replay_window;
 
 	if (unlikely(seq == 0 && replay_esn->seq_hi == 0 &&
 		     (replay_esn->seq < replay_esn->replay_window - 1)))

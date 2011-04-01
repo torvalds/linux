@@ -1644,7 +1644,7 @@ static int __devinit msm_hs_probe(struct platform_device *pdev)
 	if (unlikely(uport->irq < 0))
 		return -ENXIO;
 
-	if (unlikely(set_irq_wake(uport->irq, 1)))
+	if (unlikely(irq_set_irq_wake(uport->irq, 1)))
 		return -ENXIO;
 
 	if (pdata == NULL || pdata->rx_wakeup_irq < 0)
@@ -1658,7 +1658,7 @@ static int __devinit msm_hs_probe(struct platform_device *pdev)
 		if (unlikely(msm_uport->rx_wakeup.irq < 0))
 			return -ENXIO;
 
-		if (unlikely(set_irq_wake(msm_uport->rx_wakeup.irq, 1)))
+		if (unlikely(irq_set_irq_wake(msm_uport->rx_wakeup.irq, 1)))
 			return -ENXIO;
 	}
 

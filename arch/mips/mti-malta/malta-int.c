@@ -472,7 +472,7 @@ static void __init fill_ipi_map(void)
 void __init arch_init_ipiirq(int irq, struct irqaction *action)
 {
 	setup_irq(irq, action);
-	set_irq_handler(irq, handle_percpu_irq);
+	irq_set_handler(irq, handle_percpu_irq);
 }
 
 void __init arch_init_irq(void)

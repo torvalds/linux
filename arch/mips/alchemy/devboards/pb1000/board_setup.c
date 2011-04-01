@@ -197,7 +197,7 @@ void __init board_setup(void)
 
 static int __init pb1000_init_irq(void)
 {
-	set_irq_type(AU1000_GPIO15_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1000_GPIO15_INT, IRQF_TRIGGER_LOW);
 	return 0;
 }
 arch_initcall(pb1000_init_irq);
