@@ -1767,9 +1767,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	if (priv->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &priv->disable_chain_noise_cal);
-	if (priv->cfg->base_params->tx_power_by_driver)
-		DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf,
-				&priv->disable_tx_power_cal);
 	return 0;
 
 err:

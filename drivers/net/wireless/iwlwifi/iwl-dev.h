@@ -1489,7 +1489,6 @@ struct iwl_priv {
 	struct work_struct txpower_work;
 	u32 disable_sens_cal;
 	u32 disable_chain_noise_cal;
-	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;

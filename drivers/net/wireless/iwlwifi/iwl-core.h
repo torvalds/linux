@@ -250,8 +250,6 @@ struct iwl_mod_params {
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @tx_power_by_driver: tx power calibration performed by driver
- *	instead of uCode
  * @ucode_tracing: support ucode continuous tracing
  * @sensitivity_calib_by_driver: driver has the capability to perform
  *	sensitivity calibration operation
@@ -278,7 +276,6 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
-	const bool tx_power_by_driver;
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;

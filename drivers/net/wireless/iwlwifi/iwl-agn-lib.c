@@ -495,8 +495,10 @@ void iwlagn_rx_handler_setup(struct iwl_priv *priv)
 
 void iwlagn_setup_deferred_work(struct iwl_priv *priv)
 {
-	/* in agn, the tx power calibration is done in uCode */
-	priv->disable_tx_power_cal = 1;
+	/*
+	 * nothing need to be done here anymore
+	 * still keep for future use if needed
+	 */
 }
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
