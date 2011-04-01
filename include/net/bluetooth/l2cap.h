@@ -293,6 +293,11 @@ struct l2cap_chan {
 	__u8		expected_tx_seq;
 	__u8		buffer_seq;
 	__u8		buffer_seq_srej;
+	__u8		srej_save_reqseq;
+	__u8		frames_sent;
+	__u8		unacked_frames;
+	__u8		retry_count;
+	__u8		num_acked;
 
 	struct list_head list;
 };
@@ -359,11 +364,6 @@ struct l2cap_pinfo {
 
 	__u8		conf_state;
 
-	__u8		srej_save_reqseq;
-	__u8		frames_sent;
-	__u8		unacked_frames;
-	__u8		retry_count;
-	__u8		num_acked;
 	__u16		sdu_len;
 	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
