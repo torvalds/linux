@@ -1866,7 +1866,8 @@ static int do_signal_stop(int signr)
 		 * still in effect and then receive a stop signal and
 		 * initiate another group stop.  This deviates from the
 		 * usual behavior as two consecutive stop signals can't
-		 * cause two group stops when !ptraced.
+		 * cause two group stops when !ptraced.  That is why we
+		 * also check !task_is_stopped(t) below.
 		 *
 		 * The condition can be distinguished by testing whether
 		 * SIGNAL_STOP_STOPPED is already set.  Don't generate
@@ -1896,8 +1897,6 @@ static int do_signal_stop(int signr)
 				t->group_stop |= signr | gstop;
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
-			} else {
-				task_clear_group_stop_pending(t);
 			}
 		}
 	}
