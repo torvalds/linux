@@ -306,6 +306,10 @@ struct l2cap_chan {
 	__u8		remote_max_tx;
 	__u16		remote_mps;
 
+	struct timer_list	retrans_timer;
+	struct timer_list	monitor_timer;
+	struct timer_list	ack_timer;
+
 	struct list_head list;
 };
 
@@ -379,9 +383,6 @@ struct l2cap_pinfo {
 
 	__le16		sport;
 
-	struct timer_list	retrans_timer;
-	struct timer_list	monitor_timer;
-	struct timer_list	ack_timer;
 	struct sk_buff_head	tx_queue;
 	struct sk_buff_head	srej_queue;
 	struct sk_buff_head	busy_queue;
@@ -415,11 +416,11 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_RNR_SENT        0x0200
 #define L2CAP_CONN_SAR_RETRY       0x0400
 
-#define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
+#define __mod_retrans_timer() mod_timer(&chan->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
-#define __mod_monitor_timer() mod_timer(&l2cap_pi(sk)->monitor_timer, \
+#define __mod_monitor_timer() mod_timer(&chan->monitor_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
-#define __mod_ack_timer() mod_timer(&l2cap_pi(sk)->ack_timer, \
+#define __mod_ack_timer() mod_timer(&chan->ack_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 
 static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
@@ -466,7 +467,7 @@ void l2cap_sock_kill(struct sock *sk);
 void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
-void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err);
+void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
 int l2cap_do_connect(struct sock *sk);
 

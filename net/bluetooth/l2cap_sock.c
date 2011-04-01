@@ -866,6 +866,7 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 void __l2cap_sock_close(struct sock *sk, int reason)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 
 	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
 
@@ -880,9 +881,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 					sk->sk_type == SOCK_STREAM) &&
 					conn->hcon->type == ACL_LINK) {
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
-			l2cap_send_disconn_req(conn, sk, reason);
+			l2cap_send_disconn_req(conn, chan, reason);
 		} else
-			l2cap_chan_del(l2cap_pi(sk)->chan, reason);
+			l2cap_chan_del(chan, reason);
 		break;
 
 	case BT_CONNECT2:
@@ -901,16 +902,16 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, l2cap_pi(sk)->chan->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
+							sizeof(rsp), &rsp);
 		}
 
-		l2cap_chan_del(l2cap_pi(sk)->chan, reason);
+		l2cap_chan_del(chan, reason);
 		break;
 
 	case BT_CONNECT:
 	case BT_DISCONN:
-		l2cap_chan_del(l2cap_pi(sk)->chan, reason);
+		l2cap_chan_del(chan, reason);
 		break;
 
 	default:
