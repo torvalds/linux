@@ -1482,7 +1482,7 @@ static __init int atm_mpoa_init(void)
 	if (mpc_proc_init() != 0)
 		pr_info("failed to initialize /proc/mpoa\n");
 
-	pr_info("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
+	pr_info("mpc.c: initialized\n");
 
 	return 0;
 }

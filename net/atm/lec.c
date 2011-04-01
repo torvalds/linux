@@ -1173,7 +1173,7 @@ static int __init lane_module_init(void)
 #endif
 
 	register_atm_ioctl(&lane_ioctl_ops);
-	pr_info("lec.c: " __DATE__ " " __TIME__ " initialized\n");
+	pr_info("lec.c: initialized\n");
 	return 0;
 }
 
