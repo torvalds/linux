@@ -4498,7 +4498,7 @@ static int got_RqSReply(struct drbd_tconn *tconn, struct packet_info *pi)
 
 static int got_Ping(struct drbd_tconn *tconn, struct packet_info *pi)
 {
-	return drbd_send_ping_ack(tconn);
+	return !drbd_send_ping_ack(tconn);
 
 }
 
@@ -4851,7 +4851,7 @@ int drbd_asender(struct drbd_thread *thi)
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 		if (test_and_clear_bit(SEND_PING, &tconn->flags)) {
-			if (!drbd_send_ping(tconn)) {
+			if (drbd_send_ping(tconn)) {
 				conn_err(tconn, "drbd_send_ping has failed\n");
 				goto reconnect;
 			}
