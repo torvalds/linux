@@ -768,9 +768,8 @@ static void sta_info_cleanup(unsigned long data)
 	if (!timer_needed)
 		return;
 
-	local->sta_cleanup.expires =
-		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-	add_timer(&local->sta_cleanup);
+	mod_timer(&local->sta_cleanup,
+		  round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL));
 }
 
 void sta_info_init(struct ieee80211_local *local)
@@ -783,14 +782,6 @@ void sta_info_init(struct ieee80211_local *local)
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
 		    (unsigned long)local);
-	local->sta_cleanup.expires =
-		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-}
-
-int sta_info_start(struct ieee80211_local *local)
-{
-	add_timer(&local->sta_cleanup);
-	return 0;
 }
 
 void sta_info_stop(struct ieee80211_local *local)
