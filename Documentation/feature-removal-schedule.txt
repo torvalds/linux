@@ -24,6 +24,17 @@ Who:	Len Brown <len.brown@intel.com>
 
 ----------------------------
 
+What:	x86_32 "no-hlt" cmdline param
+When:	2012
+Why:	remove a branch from idle path, simplify code used by everybody.
+	This option disabled the use of HLT in idle and machine_halt()
+	for hardware that was flakey 15-years ago.  Today we have
+	"idle=poll" that removed HLT from idle, and so if such a machine
+	is still running the upstream kernel, "idle=poll" is likely sufficient.
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
 What:	PRISM54
 When:	2.6.34
 
