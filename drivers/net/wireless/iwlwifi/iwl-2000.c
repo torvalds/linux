@@ -98,6 +98,8 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 
+	if (priv->cfg->disable_otp_refresh)
+		iwl_write_prph(priv, APMG_ANALOG_SVR_REG, 0x80000010);
 }
 
 static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
@@ -409,7 +411,8 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.iq_invert = true					\
+	.iq_invert = true,					\
+	.disable_otp_refresh = true				\
 
 struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN",
