@@ -79,6 +79,8 @@ struct twlreg_info {
 /* TWL6030 LDO register values for CFG_STATE */
 #define TWL6030_CFG_STATE_OFF	0x00
 #define TWL6030_CFG_STATE_ON	0x01
+#define TWL6030_CFG_STATE_OFF2	0x02
+#define TWL6030_CFG_STATE_SLEEP	0x03
 #define TWL6030_CFG_STATE_GRP_SHIFT	5
 #define TWL6030_CFG_STATE_APP_SHIFT	2
 #define TWL6030_CFG_STATE_APP_MASK	(0x03 << TWL6030_CFG_STATE_APP_SHIFT)
@@ -217,12 +219,9 @@ static int twlreg_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static int twlreg_get_status(struct regulator_dev *rdev)
+static int twl4030reg_get_status(struct regulator_dev *rdev)
 {
 	int	state = twlreg_grp(rdev);
-
-	if (twl_class_is_6030())
-		return 0; /* FIXME return for 6030 regulator */
 
 	if (state < 0)
 		return state;
@@ -234,6 +233,33 @@ static int twlreg_get_status(struct regulator_dev *rdev)
 	return (state & BIT(3))
 		? REGULATOR_STATUS_NORMAL
 		: REGULATOR_STATUS_STANDBY;
+}
+
+static int twl6030reg_get_status(struct regulator_dev *rdev)
+{
+	struct twlreg_info	*info = rdev_get_drvdata(rdev);
+	int			val;
+
+	val = twlreg_grp(rdev);
+	if (val < 0)
+		return val;
+
+	val = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_STATE);
+
+	switch (TWL6030_CFG_STATE_APP(val)) {
+	case TWL6030_CFG_STATE_ON:
+		return REGULATOR_STATUS_NORMAL;
+
+	case TWL6030_CFG_STATE_SLEEP:
+		return REGULATOR_STATUS_STANDBY;
+
+	case TWL6030_CFG_STATE_OFF:
+	case TWL6030_CFG_STATE_OFF2:
+	default:
+		break;
+	}
+
+	return REGULATOR_STATUS_OFF;
 }
 
 static int twlreg_set_mode(struct regulator_dev *rdev, unsigned mode)
@@ -427,7 +453,7 @@ static struct regulator_ops twl4030ldo_ops = {
 
 	.set_mode	= twlreg_set_mode,
 
-	.get_status	= twlreg_get_status,
+	.get_status	= twl4030reg_get_status,
 };
 
 static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
@@ -485,7 +511,7 @@ static struct regulator_ops twl6030ldo_ops = {
 
 	.set_mode	= twlreg_set_mode,
 
-	.get_status	= twlreg_get_status,
+	.get_status	= twl6030reg_get_status,
 };
 
 /*----------------------------------------------------------------------*/
@@ -518,7 +544,7 @@ static struct regulator_ops twl4030fixed_ops = {
 
 	.set_mode	= twlreg_set_mode,
 
-	.get_status	= twlreg_get_status,
+	.get_status	= twl4030reg_get_status,
 };
 
 static struct regulator_ops twl6030fixed_ops = {
@@ -532,14 +558,14 @@ static struct regulator_ops twl6030fixed_ops = {
 
 	.set_mode	= twlreg_set_mode,
 
-	.get_status	= twlreg_get_status,
+	.get_status	= twl6030reg_get_status,
 };
 
 static struct regulator_ops twl6030_fixed_resource = {
 	.enable		= twlreg_enable,
 	.disable	= twlreg_disable,
 	.is_enabled	= twl6030reg_is_enabled,
-	.get_status	= twlreg_get_status,
+	.get_status	= twl6030reg_get_status,
 };
 
 /*----------------------------------------------------------------------*/
