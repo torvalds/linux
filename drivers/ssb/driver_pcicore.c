@@ -444,11 +444,35 @@ static void ssb_pcie_write(struct ssb_pcicore *pc, u32 address, u32 data)
 	pcicore_write32(pc, 0x134, data);
 }
 
+static void ssb_pcie_mdio_set_phy(struct ssb_pcicore *pc, u8 phy)
+{
+	const u16 mdio_control = 0x128;
+	const u16 mdio_data = 0x12C;
+	u32 v;
+	int i;
+
+	v = (1 << 30); /* Start of Transaction */
+	v |= (1 << 28); /* Write Transaction */
+	v |= (1 << 17); /* Turnaround */
+	v |= (0x1F << 18);
+	v |= (phy << 4);
+	pcicore_write32(pc, mdio_data, v);
+
+	udelay(10);
+	for (i = 0; i < 200; i++) {
+		v = pcicore_read32(pc, mdio_control);
+		if (v & 0x100 /* Trans complete */)
+			break;
+		msleep(1);
+	}
+}
+
 static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
 				u8 address, u16 data)
 {
 	const u16 mdio_control = 0x128;
 	const u16 mdio_data = 0x12C;
+	int max_retries = 10;
 	u32 v;
 	int i;
 
@@ -456,16 +480,22 @@ static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
 	v |= 0x2; /* MDIO Clock Divisor */
 	pcicore_write32(pc, mdio_control, v);
 
+	if (pc->dev->id.revision >= 10) {
+		max_retries = 200;
+		ssb_pcie_mdio_set_phy(pc, device);
+	}
+
 	v = (1 << 30); /* Start of Transaction */
 	v |= (1 << 28); /* Write Transaction */
 	v |= (1 << 17); /* Turnaround */
-	v |= (u32)device << 22;
+	if (pc->dev->id.revision < 10)
+		v |= (u32)device << 22;
 	v |= (u32)address << 18;
 	v |= data;
 	pcicore_write32(pc, mdio_data, v);
 	/* Wait for the device to complete the transaction */
 	udelay(10);
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < max_retries; i++) {
 		v = pcicore_read32(pc, mdio_control);
 		if (v & 0x100 /* Trans complete */)
 			break;
