@@ -15,7 +15,7 @@ psb_gfx-y += psb_bl.o \
 	  psb_intel_lvds.o \
 	  psb_intel_modes.o \
 	  psb_intel_sdvo.o \
-	  psb_reset.o \
+	  psb_lid.o \
 	  psb_pvr_glue.o \
 	  psb_mmu.o \
 	  psb_powermgmt.o \
