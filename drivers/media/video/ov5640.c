@@ -63,7 +63,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Exposure      0
-#define CONFIG_SENSOR_Flash         0
+#define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 #ifdef CONFIG_OV5640_AUTOFOCUS
@@ -1382,6 +1382,7 @@ struct sensor
 	atomic_t tasklock_cnt;
 #endif
 	struct rk29camera_platform_data *sensor_io_request;
+    struct rk29camera_gpio_res *sensor_gpio_res;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -2038,6 +2039,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret = 0;
 
+    SENSOR_DG("%s %s  cmd(%d) on(%d)\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd,on);
 
 	switch (cmd)
 	{
@@ -2070,7 +2072,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 		}
 		default:
 		{
-			SENSOR_TR("%s power cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),cmd);
+			SENSOR_TR("%s cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),cmd);
 			break;
 		}
 	}
@@ -2452,7 +2454,20 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
 				sensor_af_cmdset(client, PauseFocus_Cmd, NULL);
 		#endif
-		}
+		#if CONFIG_SENSOR_Flash
+            if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
+                sensor_ioctrl(icd, Sensor_Flash, Flash_On);
+                SENSOR_DG("%s flash on in capture!\n", SENSOR_NAME_STRING());
+            }
+        #endif
+		}else {                                        /* ddl@rock-chips.com : Video */
+		#if CONFIG_SENSOR_Flash
+            if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
+                sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+                SENSOR_DG("%s flash off in preivew!\n", SENSOR_NAME_STRING());
+            }
+        #endif
+        }
 
 		if ((sensor->info_priv.winseqe_cur_addr->reg == SEQUENCE_PROPERTY) && (sensor->info_priv.winseqe_cur_addr->val == SEQUENCE_INIT)) {
 			if (((winseqe_set_addr->reg == SEQUENCE_PROPERTY) && (winseqe_set_addr->val == SEQUENCE_NORMAL))
@@ -2465,6 +2480,14 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         ret |= sensor_write_array(client, winseqe_set_addr);
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
+            #if CONFIG_SENSOR_Flash
+            if (sensor_fmt_capturechk(sd,f) == true) {
+                if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
+                    sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+                    SENSOR_TR("%s Capture format set fail, flash off !\n", SENSOR_NAME_STRING());
+                }
+            }
+            #endif
             goto sensor_s_fmt_end;
         }
 
@@ -2927,6 +2950,27 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 	return ret;
 }
 #endif
+#if CONFIG_SENSOR_Flash
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
+{
+    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    struct sensor *sensor = to_sensor(client);
+	const struct v4l2_queryctrl *qctrl_info;
+    
+    if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
+        if (value == 3) {       /* ddl@rock-chips.com: torch */
+            sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
+        } else {
+            sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+        }
+        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
+        return 0;
+    }
+    
+	SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+    return -EINVAL;
+}
+#endif
 static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
     struct i2c_client *client = sd->priv;
@@ -3287,6 +3331,8 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 #if CONFIG_SENSOR_Flash
         case V4L2_CID_FLASH:
             {
+                if (sensor_set_flash(icd, qctrl,ext_ctrl->value) != 0)
+                    return -EINVAL;
                 sensor->info_priv.flash = ext_ctrl->value;
 
                 SENSOR_DG("%s flash is %x\n",SENSOR_NAME_STRING(), sensor->info_priv.flash);
@@ -3463,7 +3509,9 @@ sensor_video_probe_err:
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct i2c_client *client = sd->priv;
+    struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
+    int ret = 0,i;
 
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
@@ -3475,7 +3523,35 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
+            if (sensor->sensor_io_request != NULL) { 
+                if (sensor->sensor_io_request->gpio_res[0].dev_name && 
+                    (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
+                } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
+                    (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                }
+            } else {
+                SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
+                ret = -EINVAL;
+                goto sensor_ioctl_end;
+            }
+            /* ddl@rock-chips.com : if gpio_flash havn't been set in board-xxx.c, sensor driver must notify is not support flash control 
+               for this project */
+            #if CONFIG_SENSOR_Flash	
+        	if (sensor->sensor_gpio_res) {
+                if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
+                    for (i = 0; i < icd->ops->num_controls; i++) {
+                		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
+                			memset(&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
+                		}
+                    }
+                    sensor->info_priv.flash = 0xff;
+                    SENSOR_DG("%s flash gpio is invalidate!\n",SENSOR_NAME_STRING());
+                }
+        	}
+            #endif
 			break;
 		}
 		default:
@@ -3485,7 +3561,8 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 	}
 
-	return 0;
+sensor_ioctl_end:
+	return ret;
 
 }
 

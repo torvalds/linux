@@ -82,6 +82,13 @@ enum rk29sensor_power_cmd
 	Sensor_Flash
 };
 
+enum rk29camera_flash_cmd
+{
+    Flash_Off,
+    Flash_On,
+    Flash_Torch
+};
+
 struct rk29camera_gpio_res {
     unsigned int gpio_reset;
     unsigned int gpio_power;

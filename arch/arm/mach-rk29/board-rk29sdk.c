@@ -894,13 +894,35 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 		{
 			if (camera_flash != INVALID_GPIO) {
 				if (camera_io_init & RK29_CAM_FLASHACTIVE_MASK) {
-					if (on) {
-			        	gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-			        	//printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-					} else {
-						gpio_set_value(camera_flash,(((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-		        		//printk("\n%s..%s..FlashPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_flash, (((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-			        }
+                    switch (on)
+                    {
+                        case Flash_Off:
+                        {
+                            gpio_set_value(camera_flash,(((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+		        		    //printk("\n%s..%s..FlashPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_flash, (((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS)); 
+		        		    break;
+                        }
+
+                        case Flash_On:
+                        {
+                            gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    //printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    break;
+                        }
+
+                        case Flash_Torch:
+                        {
+                            gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    //printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    break;
+                        }
+
+                        default:
+                        {
+                            printk("\n%s..%s..Flash command(%d) is invalidate \n",__FUNCTION__,dev_name(dev),on);
+                            break;
+                        }
+                    }
 				} else {
 					ret = RK29_CAM_EIO_REQUESTFAIL;
 					printk("\n%s..%s..FlashPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_flash);
