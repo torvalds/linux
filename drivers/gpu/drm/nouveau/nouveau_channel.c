@@ -406,7 +406,7 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	if (dev_priv->engine.graph.accel_blocked)
+	if (!dev_priv->eng[NVOBJ_ENGINE_GR])
 		return -ENODEV;
 
 	if (init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)

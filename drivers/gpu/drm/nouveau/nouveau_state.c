@@ -65,10 +65,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv04_fb_init;
 		engine->fb.takedown		= nv04_fb_takedown;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->fifo.channels		= 16;
 		engine->fifo.init		= nv04_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -117,10 +113,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -169,10 +161,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -221,10 +209,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -276,10 +260,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv40_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.channel		= nvc0_graph_channel;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -334,10 +314,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv50_fb_init;
 		engine->fb.takedown		= nv50_fb_takedown;
-		engine->graph.init		= nouveau_stub_init;
-		engine->graph.takedown		= nouveau_stub_takedown;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.channel		= nvc0_graph_channel;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nv50_fifo_init;
 		engine->fifo.takedown		= nv50_fifo_takedown;
@@ -411,8 +387,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
-		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.channel		= nvc0_graph_channel;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nvc0_fifo_init;
 		engine->fifo.takedown		= nvc0_fifo_takedown;
@@ -624,9 +598,7 @@ nouveau_card_init(struct drm_device *dev)
 		break;
 	}
 
-	if (nouveau_noaccel)
-		engine->graph.accel_blocked = true;
-	else {
+	if (!nouveau_noaccel) {
 		for (e = 0; e < NVOBJ_ENGINE_NR; e++) {
 			if (dev_priv->eng[e]) {
 				ret = dev_priv->eng[e]->init(dev, e);
@@ -635,15 +607,10 @@ nouveau_card_init(struct drm_device *dev)
 			}
 		}
 
-		/* PGRAPH */
-		ret = engine->graph.init(dev);
-		if (ret)
-			goto out_engine;
-
 		/* PFIFO */
 		ret = engine->fifo.init(dev);
 		if (ret)
-			goto out_graph;
+			goto out_engine;
 	}
 
 	ret = engine->display.create(dev);
@@ -660,7 +627,7 @@ nouveau_card_init(struct drm_device *dev)
 
 	/* what about PVIDEO/PCRTC/PRAMDAC etc? */
 
-	if (!engine->graph.accel_blocked) {
+	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_fence_init(dev);
 		if (ret)
 			goto out_irq;
@@ -684,9 +651,6 @@ out_vblank:
 out_fifo:
 	if (!nouveau_noaccel)
 		engine->fifo.takedown(dev);
-out_graph:
-	if (!nouveau_noaccel)
-		engine->graph.takedown(dev);
 out_engine:
 	if (!nouveau_noaccel) {
 		for (e = e - 1; e >= 0; e--) {
@@ -728,14 +692,13 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	int e;
 
-	if (!engine->graph.accel_blocked) {
+	if (dev_priv->channel) {
 		nouveau_fence_fini(dev);
 		nouveau_channel_put_unlocked(&dev_priv->channel);
 	}
 
 	if (!nouveau_noaccel) {
 		engine->fifo.takedown(dev);
-		engine->graph.takedown(dev);
 		for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 			if (dev_priv->eng[e]) {
 				dev_priv->eng[e]->fini(dev, e);

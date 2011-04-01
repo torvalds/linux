@@ -620,7 +620,6 @@ int
 nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_gpuobj_class *oc;
 	int ret;
@@ -628,37 +627,25 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 	NV_DEBUG(dev, "ch%d class=0x%04x\n", chan->id, class);
 
 	list_for_each_entry(oc, &dev_priv->classes, head) {
-		if (oc->id == class)
-			goto found;
+		struct nouveau_exec_engine *eng = dev_priv->eng[oc->engine];
+
+		if (oc->id != class)
+			continue;
+
+		if (oc->engine == NVOBJ_ENGINE_SW)
+			return nouveau_gpuobj_sw_new(chan, handle, class);
+
+		if (!chan->engctx[oc->engine]) {
+			ret = eng->context_new(chan, oc->engine);
+			if (ret)
+				return ret;
+		}
+
+		return eng->object_new(chan, oc->engine, handle, class);
 	}
 
 	NV_ERROR(dev, "illegal object class: 0x%x\n", class);
 	return -EINVAL;
-
-found:
-	if (!dev_priv->eng[oc->engine]) {
-		switch (oc->engine) {
-		case NVOBJ_ENGINE_SW:
-			return nouveau_gpuobj_sw_new(chan, handle, class);
-		case NVOBJ_ENGINE_GR:
-			if ((dev_priv->card_type >= NV_20 && !chan->ramin_grctx) ||
-			    (dev_priv->card_type  < NV_20 && !chan->pgraph_ctx)) {
-				ret = pgraph->create_context(chan);
-				if (ret)
-					return ret;
-			}
-
-			return pgraph->object_new(chan, handle, class);
-		}
-	}
-
-	if (!chan->engctx[oc->engine]) {
-		ret = dev_priv->eng[oc->engine]->context_new(chan, oc->engine);
-		if (ret)
-			return ret;
-	}
-
-	return dev_priv->eng[oc->engine]->object_new(chan, oc->engine, handle, class);
 }
 
 static int
@@ -675,9 +662,6 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 	/* Base amount for object storage (4KiB enough?) */
 	size = 0x2000;
 	base = 0;
-
-	/* PGRAPH context */
-	size += dev_priv->engine.graph.grctx_size;
 
 	if (dev_priv->card_type == NV_50) {
 		/* Various fixed table thingos */

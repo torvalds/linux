@@ -30,17 +30,6 @@
 #include "nouveau_mm.h"
 #include "nvc0_graph.h"
 
-void
-nvc0_graph_fifo_access(struct drm_device *dev, bool enabled)
-{
-}
-
-struct nouveau_channel *
-nvc0_graph_channel(struct drm_device *dev)
-{
-	return NULL;
-}
-
 static int
 nvc0_graph_load_context(struct nouveau_channel *chan)
 {
@@ -508,22 +497,7 @@ nvc0_graph_init_ctxctl(struct drm_device *dev)
 static int
 nvc0_graph_init(struct drm_device *dev, int engine)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int ret;
-
-	dev_priv->engine.graph.accel_blocked = true;
-
-	switch (dev_priv->chipset) {
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-		break;
-	default:
-		NV_ERROR(dev, "PGRAPH: unsupported chipset, please report!\n");
-		if (nouveau_noaccel != 0)
-			return 0;
-		break;
-	}
 
 	nv_mask(dev, 0x000200, 0x18001000, 0x00000000);
 	nv_mask(dev, 0x000200, 0x18001000, 0x18001000);
@@ -551,8 +525,9 @@ nvc0_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, 0x400054, 0x34ce3464);
 
 	ret = nvc0_graph_init_ctxctl(dev);
-	if (ret == 0)
-		dev_priv->engine.graph.accel_blocked = false;
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -685,6 +660,16 @@ nvc0_graph_create(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvc0_graph_priv *priv;
 	int ret, gpc, i;
+
+	switch (dev_priv->chipset) {
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+		break;
+	default:
+		NV_ERROR(dev, "PGRAPH: unsupported chipset, please report!\n");
+		return 0;
+	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)

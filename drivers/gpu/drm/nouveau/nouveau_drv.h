@@ -241,10 +241,7 @@ struct nouveau_channel {
 	struct nouveau_gpuobj *cache;
 	void *fifo_priv;
 
-	/* PGRAPH context */
-	/* XXX may be merge 2 pointers as private data ??? */
-	struct nouveau_gpuobj *ramin_grctx;
-	void *pgraph_ctx;
+	/* Execution engine contexts */
 	void *engctx[NVOBJ_ENGINE_NR];
 
 	/* NV50 VM */
@@ -370,30 +367,6 @@ struct nouveau_fifo_engine {
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
 	void (*tlb_flush)(struct drm_device *dev);
-};
-
-struct nouveau_pgraph_engine {
-	bool accel_blocked;
-	bool registered;
-	int grctx_size;
-	void *priv;
-
-	/* NV2x/NV3x context table (0x400780) */
-	struct nouveau_gpuobj *ctx_table;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-
-	void (*fifo_access)(struct drm_device *, bool);
-
-	struct nouveau_channel *(*channel)(struct drm_device *);
-	int  (*create_context)(struct nouveau_channel *);
-	void (*destroy_context)(struct nouveau_channel *);
-	int  (*load_context)(struct nouveau_channel *);
-	int  (*unload_context)(struct drm_device *);
-	int  (*object_new)(struct nouveau_channel *chan, u32 handle, u16 class);
-	void (*tlb_flush)(struct drm_device *dev);
-
 };
 
 struct nouveau_display_engine {
@@ -522,7 +495,6 @@ struct nouveau_engine {
 	struct nouveau_mc_engine      mc;
 	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
-	struct nouveau_pgraph_engine  graph;
 	struct nouveau_fifo_engine    fifo;
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
@@ -1168,8 +1140,6 @@ extern struct nouveau_enum nv50_data_error_names[];
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_create(struct drm_device *);
-extern void nvc0_graph_fifo_access(struct drm_device *, bool);
-extern struct nouveau_channel *nvc0_graph_channel(struct drm_device *);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);

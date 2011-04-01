@@ -1053,7 +1053,6 @@ nv50_graph_create(struct drm_device *dev)
 	ret = nv50_grctx_init(&ctx);
 	if (ret) {
 		NV_ERROR(dev, "PGRAPH: ctxprog build failed\n");
-		dev_priv->engine.graph.accel_blocked = true;
 		kfree(pgraph);
 		return 0;
 	}

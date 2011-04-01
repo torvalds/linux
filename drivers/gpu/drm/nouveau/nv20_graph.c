@@ -752,8 +752,7 @@ nv20_graph_create(struct drm_device *dev)
 			pgraph->grctx_user = 0x0000;
 			break;
 		default:
-			NV_ERROR(dev, "unknown nv20, disabling acceleration\n");
-			dev_priv->engine.graph.accel_blocked = true;
+			NV_ERROR(dev, "PGRAPH: unknown chipset\n");
 			return 0;
 		}
 	} else {
@@ -774,8 +773,7 @@ nv20_graph_create(struct drm_device *dev)
 			pgraph->grctx_size = NV35_36_GRCTX_SIZE;
 			break;
 		default:
-			NV_ERROR(dev, "unknown nv30, disabling acceleration\n");
-			dev_priv->engine.graph.accel_blocked = true;
+			NV_ERROR(dev, "PGRAPH: unknown chipset\n");
 			return 0;
 		}
 	}

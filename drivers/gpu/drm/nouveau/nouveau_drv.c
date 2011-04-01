@@ -310,7 +310,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		if (dev_priv->eng[i])
 			dev_priv->eng[i]->init(dev, i);
 	}
-	engine->graph.init(dev);
 	engine->fifo.init(dev);
 
 	nouveau_irq_postinstall(dev);
