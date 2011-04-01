@@ -769,7 +769,6 @@ extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
 extern int drm_psb_debug;
 extern int drm_psb_no_fb;
-extern int drm_psb_disable_vsync;
 extern int drm_idle_check_interval;
 
 #define PSB_DEBUG_GENERAL(_fmt, _arg...) \

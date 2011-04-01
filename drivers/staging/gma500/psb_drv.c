@@ -38,25 +38,16 @@
 int drm_psb_debug;
 static int drm_psb_trap_pagefaults;
 
-int drm_psb_disable_vsync = 1;
 int drm_psb_no_fb;
-int gfxrtdelay = 2 * 1000;
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 MODULE_PARM_DESC(debug, "Enable debug output");
 MODULE_PARM_DESC(no_fb, "Disable FBdev");
 MODULE_PARM_DESC(trap_pagefaults, "Error and reset on MMU pagefaults");
-MODULE_PARM_DESC(disable_vsync, "Disable vsync interrupts");
-MODULE_PARM_DESC(force_pipeb, "Forces PIPEB to become primary fb");
-MODULE_PARM_DESC(ta_mem_size, "TA memory size in kiB");
-MODULE_PARM_DESC(ospm, "switch for ospm support");
-MODULE_PARM_DESC(rtpm, "Specifies Runtime PM delay for GFX");
-MODULE_PARM_DESC(hdmi_edid, "EDID info for HDMI monitor");
 module_param_named(debug, drm_psb_debug, int, 0600);
 module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
-module_param_named(rtpm, gfxrtdelay, int, 0600);
 
 
 static struct pci_device_id pciidlist[] = {
@@ -498,6 +489,7 @@ static int psb_do_init(struct drm_device *dev)
 	    pg->gatt_pages : PSB_TT_PRIV0_PLIMIT;
 	tt_start = dev_priv->gatt_free_offset - pg->mmu_gatt_start;
 	tt_pages -= tt_start >> PAGE_SHIFT;
+	/* FIXME: can we kill ta_mem_size ? */
 	dev_priv->sizes.ta_mem_size = 0;
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
