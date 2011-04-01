@@ -95,6 +95,8 @@
 
 #define IMX_IO_ADDRESS(x)	IOMEM(IMX_IO_P2V(x))
 
+#include <mach/mxc.h>
+
 #ifdef CONFIG_ARCH_MX5
 #include <mach/mx50.h>
 #include <mach/mx51.h>
@@ -124,8 +126,6 @@
 #ifdef CONFIG_ARCH_MX25
 # include <mach/mx25.h>
 #endif
-
-#include <mach/mxc.h>
 
 #define imx_map_entry(soc, name, _type)	{				\
 	.virtual = soc ## _IO_P2V(soc ## _ ## name ## _BASE_ADDR),	\
