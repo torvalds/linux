@@ -42,13 +42,13 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	  
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
     /*by Vincent Hsiung for EQ Vol Change*/
-//    #define HW_PARAMS_FLAG_EQVOL_ON 0x21
-//    #define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-//    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-//    {
-//     	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent      
-//    }
-//    else
+    #define HW_PARAMS_FLAG_EQVOL_ON 0x21
+    #define HW_PARAMS_FLAG_EQVOL_OFF 0x22
+    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
+    {
+     	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent      
+    }
+    else
     {
         /* set codec DAI configuration */
         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
@@ -59,7 +59,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 			   
             ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
                             SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-			DBG("Set codec_dai master\n",ret); 						
+			DBG("Set codec_dai master\n"); 						
         #endif
         if (ret < 0)
             return ret; 
@@ -73,11 +73,12 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
 		    ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
                             SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-			DBG("Set cpu_dai master\n",ret);   				
+			DBG("Set cpu_dai master\n");   				
         #endif		
         if (ret < 0)
             return ret;
     }
+/*	
     switch(params_rate(params)) {
         case 8000:
         case 16000:
@@ -101,8 +102,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_sysclk(codec_dai,WM8994_SYSCLK_FLL1,12000000,pll_out);
 	//2、设置FLL1 CLK
 	snd_soc_dai_set_pll(codec_dai,WM8994_FLL1,12000000,pll_out);
-		
-      
+*/		     
+	snd_soc_dai_set_sysclk(cpu_dai, 0, 12000000, 0);
     return 0;
 }
 /*
@@ -125,13 +126,21 @@ static const struct snd_soc_dapm_route audio_map[]= {
 */
 /*
  * Logic for a wm8994 as connected on a rockchip board.
- 开机初始化codec一次?   应该可以自己改动
  */
 static int rk29_wm8994_init(struct snd_soc_codec *codec)
 {
-//	struct snd_soc_dai *codec_dai = &codec->dai[0];
-    DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+	struct snd_soc_dai *codec_dai = &codec->dai[0];
+	int ret;
 
+    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+    
+    ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+		12000000, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		printk(KERN_ERR "Failed to set WM8994 SYSCLK: %d\n", ret);
+		return ret;
+	}
+	
     /* Add specific widgets */
 //	snd_soc_dapm_new_controls(codec, rk2818_dapm_widgets,
 //				  ARRAY_SIZE(rk2818_dapm_widgets));

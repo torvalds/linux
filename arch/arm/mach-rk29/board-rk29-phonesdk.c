@@ -1475,7 +1475,9 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "wm8994",
 		.addr           = 0x1a,
 		.flags			= 0,
+	#if defined(CONFIG_MFD_WM8994)	
 		.platform_data  = &wm8994_platdata,	
+	#endif	
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
