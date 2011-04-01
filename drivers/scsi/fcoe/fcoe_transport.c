@@ -343,6 +343,7 @@ EXPORT_SYMBOL(fcoe_transport_attach);
 int fcoe_transport_detach(struct fcoe_transport *ft)
 {
 	int rc = 0;
+	struct fcoe_netdev_mapping *nm = NULL, *tmp;
 
 	mutex_lock(&ft_mutex);
 	if (!ft->attached) {
@@ -351,6 +352,19 @@ int fcoe_transport_detach(struct fcoe_transport *ft)
 		rc = -ENODEV;
 		goto out_attach;
 	}
+
+	/* remove netdev mapping for this transport as it is going away */
+	mutex_lock(&fn_mutex);
+	list_for_each_entry_safe(nm, tmp, &fcoe_netdevs, list) {
+		if (nm->ft == ft) {
+			LIBFCOE_TRANSPORT_DBG("transport %s going away, "
+				"remove its netdev mapping for %s\n",
+				ft->name, nm->netdev->name);
+			list_del(&nm->list);
+			kfree(nm);
+		}
+	}
+	mutex_unlock(&fn_mutex);
 
 	list_del(&ft->list);
 	ft->attached = false;
