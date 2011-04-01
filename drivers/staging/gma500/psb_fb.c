@@ -287,7 +287,7 @@ static int psbfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 		if (l > 32)
 			return -EMSGSIZE;
-		if (copy_from_user(buf, p + 1, l))
+		if (copy_from_user(buf, p + 1, l * sizeof(u32)))
 			return -EFAULT;
 		psbfb_2d_submit(dev_priv, buf, l);
 		return 0;

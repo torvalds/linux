@@ -343,7 +343,7 @@ void psbfb_copyarea(struct fb_info *info,
 	if (unlikely(info->state != FBINFO_STATE_RUNNING))
 		return;
 
-	if (1 || (info->flags & FBINFO_HWACCEL_DISABLED))
+	if (info->flags & FBINFO_HWACCEL_DISABLED)
 		return cfb_copyarea(info, region);
 
 	/* psb_check_power_state(dev, PSB_DEVICE_SGX); */
