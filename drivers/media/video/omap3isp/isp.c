@@ -662,6 +662,8 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
 
 	/* Apply power change to connected non-nodes. */
 	ret = isp_pipeline_pm_power(entity, change);
+	if (ret < 0)
+		entity->use_count -= change;
 
 	mutex_unlock(&entity->parent->graph_mutex);
 
