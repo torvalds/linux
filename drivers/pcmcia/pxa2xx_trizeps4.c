@@ -226,6 +226,9 @@ static int __init trizeps_pcmcia_init(void)
 {
 	int ret;
 
+	if (!machine_is_trizeps4() && !machine_is_trizeps4wl())
+		return -ENODEV;
+
 	trizeps_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!trizeps_pcmcia_device)
 		return -ENOMEM;
