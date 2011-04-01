@@ -2946,11 +2946,7 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(RK29_PIN5_PA1,GPIO_HIGH); 		
 	gpio_free(RK29_PIN5_PA1);
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-                rk29sdk_wifi_bt_gpio_control_init();
-#endif
-
-		platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));
@@ -2970,8 +2966,14 @@ static void __init machine_rk29_board_init(void)
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 
-        rk29sdk_init_wifi_mem();
-        rk29xx_virtual_keys_init();
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	rk29sdk_wifi_bt_gpio_control_init();
+	rk29sdk_init_wifi_mem();
+#endif
+
+	rk29xx_virtual_keys_init();
+
+	board_usb_detect_init(RK29_PIN0_PA0, IRQF_TRIGGER_FALLING);
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
