@@ -2806,13 +2806,11 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	struct ubifs_debug_info *d = c->dbg;
 
 	sprintf(d->dfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
-	d->dfs_dir = debugfs_create_dir(d->dfs_dir_name, dfs_rootdir);
-	if (IS_ERR(d->dfs_dir)) {
-		err = PTR_ERR(d->dfs_dir);
-		ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
-			  d->dfs_dir_name, err);
+	fname = d->dfs_dir_name;
+	dent = debugfs_create_dir(fname, dfs_rootdir);
+	if (IS_ERR(dent))
 		goto out;
-	}
+	d->dfs_dir = dent;
 
 	fname = "dump_lprops";
 	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
@@ -2835,11 +2833,11 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	return 0;
 
 out_remove:
+	debugfs_remove_recursive(d->dfs_dir);
+out:
 	err = PTR_ERR(dent);
 	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
 		  fname, err);
-	debugfs_remove_recursive(d->dfs_dir);
-out:
 	return err;
 }
 
