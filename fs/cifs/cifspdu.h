@@ -428,9 +428,12 @@ struct smb_hdr {
 	__u8 WordCount;
 } __attribute__((packed));
 
-/* given a pointer to an smb_hdr retrieve a char pointer to the byte count */
-#define BCC(smb_var) ((unsigned char *)(smb_var) + sizeof(struct smb_hdr) + \
-			 (2 * (smb_var)->WordCount))
+/* given a pointer to an smb_hdr, retrieve a void pointer to the ByteCount */
+static inline void *
+BCC(struct smb_hdr *smb)
+{
+	return (void *)smb + sizeof(*smb) + 2 * smb->WordCount;
+}
 
 /* given a pointer to an smb_hdr retrieve the pointer to the byte area */
 #define pByteArea(smb_var) (BCC(smb_var) + 2)
