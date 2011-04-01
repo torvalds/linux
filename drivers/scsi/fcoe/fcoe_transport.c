@@ -530,9 +530,6 @@ static int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
 	struct fcoe_transport *ft = NULL;
 	enum fip_state fip_mode = (enum fip_state)(long)kp->arg;
 
-	if (!mutex_trylock(&ft_mutex))
-		return restart_syscall();
-
 #ifdef CONFIG_LIBFCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -542,6 +539,8 @@ static int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
 	if (THIS_MODULE->state != MODULE_STATE_LIVE)
 		goto out_nodev;
 #endif
+
+	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
@@ -586,10 +585,7 @@ out_putdev:
 	dev_put(netdev);
 out_nodev:
 	mutex_unlock(&ft_mutex);
-	if (rc == -ERESTARTSYS)
-		return restart_syscall();
-	else
-		return rc;
+	return rc;
 }
 
 /**
@@ -608,9 +604,6 @@ static int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
-	if (!mutex_trylock(&ft_mutex))
-		return restart_syscall();
-
 #ifdef CONFIG_LIBFCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -620,6 +613,8 @@ static int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
 	if (THIS_MODULE->state != MODULE_STATE_LIVE)
 		goto out_nodev;
 #endif
+
+	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
@@ -645,11 +640,7 @@ out_putdev:
 	dev_put(netdev);
 out_nodev:
 	mutex_unlock(&ft_mutex);
-
-	if (rc == -ERESTARTSYS)
-		return restart_syscall();
-	else
-		return rc;
+	return rc;
 }
 
 /**
@@ -667,9 +658,6 @@ static int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
-	if (!mutex_trylock(&ft_mutex))
-		return restart_syscall();
-
 #ifdef CONFIG_LIBFCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -679,6 +667,8 @@ static int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
 	if (THIS_MODULE->state != MODULE_STATE_LIVE)
 		goto out_nodev;
 #endif
+
+	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
@@ -716,9 +706,6 @@ static int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
-	if (!mutex_trylock(&ft_mutex))
-		return restart_syscall();
-
 #ifdef CONFIG_LIBFCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -728,6 +715,8 @@ static int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
 	if (THIS_MODULE->state != MODULE_STATE_LIVE)
 		goto out_nodev;
 #endif
+
+	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
@@ -743,10 +732,7 @@ out_putdev:
 	dev_put(netdev);
 out_nodev:
 	mutex_unlock(&ft_mutex);
-	if (rc == -ERESTARTSYS)
-		return restart_syscall();
-	else
-		return rc;
+	return rc;
 }
 
 /**
