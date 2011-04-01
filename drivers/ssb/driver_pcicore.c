@@ -15,6 +15,11 @@
 
 #include "ssb_private.h"
 
+static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address);
+static void ssb_pcie_write(struct ssb_pcicore *pc, u32 address, u32 data);
+static u16 ssb_pcie_mdio_read(struct ssb_pcicore *pc, u8 device, u8 address);
+static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
+				u8 address, u16 data);
 
 static inline
 u32 pcicore_read32(struct ssb_pcicore *pc, u16 offset)
@@ -403,6 +408,27 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 }
 #endif /* CONFIG_SSB_PCICORE_HOSTMODE */
 
+/**************************************************
+ * Workarounds.
+ **************************************************/
+
+static u8 ssb_pcicore_polarity_workaround(struct ssb_pcicore *pc)
+{
+	return (ssb_pcie_read(pc, 0x204) & 0x10) ? 0xC0 : 0x80;
+}
+
+static void ssb_pcicore_serdes_workaround(struct ssb_pcicore *pc)
+{
+	const u8 serdes_pll_device = 0x1D;
+	const u8 serdes_rx_device = 0x1F;
+	u16 tmp;
+
+	ssb_pcie_mdio_write(pc, serdes_rx_device, 1 /* Control */,
+			    ssb_pcicore_polarity_workaround(pc));
+	tmp = ssb_pcie_mdio_read(pc, serdes_pll_device, 1 /* Control */);
+	if (tmp & 0x4000)
+		ssb_pcie_mdio_write(pc, serdes_pll_device, 1, tmp & ~0x4000);
+}
 
 /**************************************************
  * Generic and Clientmode operation code.
@@ -430,6 +456,8 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 #endif /* CONFIG_SSB_PCICORE_HOSTMODE */
 	if (!pc->hostmode)
 		ssb_pcicore_init_clientmode(pc);
+
+	ssb_pcicore_serdes_workaround(pc);
 }
 
 static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address)
@@ -467,8 +495,6 @@ static void ssb_pcie_mdio_set_phy(struct ssb_pcicore *pc, u8 phy)
 	}
 }
 
-#if 0
-//done but not used yet
 static u16 ssb_pcie_mdio_read(struct ssb_pcicore *pc, u8 device, u8 address)
 {
 	const u16 mdio_control = 0x128;
@@ -508,7 +534,6 @@ static u16 ssb_pcie_mdio_read(struct ssb_pcicore *pc, u8 device, u8 address)
 	pcicore_write32(pc, mdio_control, 0);
 	return ret;
 }
-#endif
 
 static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
 				u8 address, u16 data)
