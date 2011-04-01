@@ -2828,9 +2828,8 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 
-	if (!priv->cfg->base_params->broken_powersave)
-		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
+		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	if (priv->cfg->sku & IWL_SKU_N)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |

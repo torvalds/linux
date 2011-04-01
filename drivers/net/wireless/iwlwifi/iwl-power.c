@@ -354,9 +354,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
 
-	if (priv->cfg->base_params->broken_powersave)
-		iwl_power_sleep_cam_cmd(priv, cmd);
-	else if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+	if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (priv->cfg->ops->lib->tt_ops.lower_power_detection &&
 		 priv->cfg->ops->lib->tt_ops.tt_power_mode &&

@@ -269,7 +269,6 @@ struct iwl_base_params {
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;
-	const bool broken_powersave;
 	int chain_noise_num_beacons;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
