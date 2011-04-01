@@ -385,9 +385,9 @@ static int fcoe_transport_show(char *buffer, const struct kernel_param *kp)
 	i = j = sprintf(buffer, "Attached FCoE transports:");
 	mutex_lock(&ft_mutex);
 	list_for_each_entry(ft, &fcoe_transports, list) {
-		i += snprintf(&buffer[i], IFNAMSIZ, "%s ", ft->name);
-		if (i >= PAGE_SIZE)
+		if (i >= PAGE_SIZE - IFNAMSIZ)
 			break;
+		i += snprintf(&buffer[i], IFNAMSIZ, "%s ", ft->name);
 	}
 	mutex_unlock(&ft_mutex);
 	if (i == j)
