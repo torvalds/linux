@@ -2011,7 +2011,7 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 	}
 
 	/* constraints check */
-	ret = regulator_mode_constrain(rdev, mode);
+	ret = regulator_mode_constrain(rdev, &mode);
 	if (ret < 0)
 		goto out;
 
