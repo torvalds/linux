@@ -46,7 +46,7 @@ struct hv_input_dev_info {
 /* Represents the input vsc driver */
 /* FIXME - can be removed entirely */
 struct mousevsc_drv_obj {
-	struct hv_driver Base;
+	struct hv_driver base;
 };
 
 
@@ -836,7 +836,7 @@ static int mousevsc_probe(struct device *device)
 	dev_set_drvdata(device, input_dev_ctx);
 
 	/* Call to the vsc driver to add the device */
-	ret = mousevsc_drv_obj->Base.dev_add(device_obj, NULL);
+	ret = mousevsc_drv_obj->base.dev_add(device_obj, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV, "unable to add input vsc device");
@@ -868,14 +868,14 @@ static int mousevsc_remove(struct device *device)
 		input_dev_ctx->connected = 0;
 	}
 
-	if (!mousevsc_drv_obj->Base.dev_rm)
+	if (!mousevsc_drv_obj->base.dev_rm)
 		return -1;
 
 	/*
 	 * Call to the vsc driver to let it know that the device
 	 * is being removed
 	 */
-	ret = mousevsc_drv_obj->Base.dev_rm(device_obj);
+	ret = mousevsc_drv_obj->base.dev_rm(device_obj);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV,
@@ -951,7 +951,7 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 static void mousevsc_drv_exit(void)
 {
 	struct mousevsc_drv_obj *mousevsc_drv_obj = &g_mousevsc_drv;
-	struct hv_driver *drv = &g_mousevsc_drv.Base;
+	struct hv_driver *drv = &g_mousevsc_drv.base;
 	int ret;
 
 	struct device *current_dev = NULL;
@@ -973,8 +973,8 @@ static void mousevsc_drv_exit(void)
 		device_unregister(current_dev);
 	}
 
-	if (mousevsc_drv_obj->Base.cleanup)
-		mousevsc_drv_obj->Base.cleanup(&mousevsc_drv_obj->Base);
+	if (mousevsc_drv_obj->base.cleanup)
+		mousevsc_drv_obj->base.cleanup(&mousevsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(&drv->driver);
 
@@ -992,9 +992,9 @@ static int mouse_vsc_initialize(struct hv_driver *driver)
 	       sizeof(struct hv_guid));
 
 	/* Setup the dispatch table */
-	inputDriver->Base.dev_add = mousevsc_on_device_add;
-	inputDriver->Base.dev_rm = mousevsc_on_device_remove;
-	inputDriver->Base.cleanup = mousevsc_on_cleanup;
+	inputDriver->base.dev_add = mousevsc_on_device_add;
+	inputDriver->base.dev_rm = mousevsc_on_device_remove;
+	inputDriver->base.cleanup = mousevsc_on_cleanup;
 
 	return ret;
 }
@@ -1003,14 +1003,14 @@ static int mouse_vsc_initialize(struct hv_driver *driver)
 static int __init mousevsc_init(void)
 {
 	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv;
-	struct hv_driver *drv = &g_mousevsc_drv.Base;
+	struct hv_driver *drv = &g_mousevsc_drv.base;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
 	/* Callback to client driver to complete the initialization */
-	mouse_vsc_initialize(&input_drv_obj->Base);
+	mouse_vsc_initialize(&input_drv_obj->base);
 
-	drv->driver.name = input_drv_obj->Base.name;
+	drv->driver.name = input_drv_obj->base.name;
 	drv->priv = input_drv_obj;
 
 	drv->driver.probe = mousevsc_probe;
