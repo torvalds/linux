@@ -35,6 +35,13 @@ Who:	Len Brown <len.brown@intel.com>
 
 ----------------------------
 
+What:	x86 "idle=mwait" cmdline param
+When:	2012
+Why:	simplify x86 idle code
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
 What:	PRISM54
 When:	2.6.34
 
