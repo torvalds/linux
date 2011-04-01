@@ -1020,15 +1020,6 @@ enum single_dual_band_enum {
 #define CONF_NUMBER_OF_CHANNELS_2_4 14
 #define CONF_NUMBER_OF_CHANNELS_5   35
 
-struct conf_radio_parms {
-	/*
-	 * FEM parameter set to use
-	 *
-	 * Range: 0 or 1
-	 */
-	u8 fem;
-};
-
 struct conf_itrim_settings {
 	/* enable dco itrim */
 	u8 enable;
