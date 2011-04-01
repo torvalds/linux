@@ -209,20 +209,16 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,
 	 * we may need to activate two extents in one go */
-	unsigned int enr[2];
-	struct lc_element *al_ext[2] = { NULL, NULL };
-	struct update_al_work al_work;
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	unsigned enr;
 
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
-	enr[0] = i->sector >> (AL_EXTENT_SHIFT-9);
-	enr[1] = (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
-	wait_event(mdev->al_wait, (al_ext[0] = _al_get(mdev, enr[0])));
-	if (enr[0] != enr[1])
-		wait_event(mdev->al_wait, (al_ext[1] = _al_get(mdev, enr[1])));
+	for (enr = first; enr <= last; enr++)
+		wait_event(mdev->al_wait, _al_get(mdev, enr) != NULL);
 
-	if (al_ext[0]->lc_number != enr[0] ||
-	    (al_ext[1] && al_ext[1]->lc_number != enr[1])) {
+	if (mdev->act_log->pending_changes) {
 		/* drbd_al_write_transaction(mdev,al_ext,enr);
 		 * recurses into generic_make_request(), which
 		 * disallows recursion, bios being serialized on the
@@ -239,8 +235,8 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
-		if (al_ext[0]->lc_number != enr[0] ||
-		    (al_ext[1] && al_ext[1]->lc_number != enr[1])) {
+		if (mdev->act_log->pending_changes) {
+			struct update_al_work al_work;
 			init_completion(&al_work.event);
 			al_work.w.cb = w_al_write_transaction;
 			al_work.w.mdev = mdev;
@@ -264,24 +260,28 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 
 void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
-	unsigned int enr = (i->sector >> (AL_EXTENT_SHIFT-9));
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	unsigned enr;
 	struct lc_element *extent;
 	unsigned long flags;
+	bool wake = false;
 
 	spin_lock_irqsave(&mdev->al_lock, flags);
 
-	extent = lc_find(mdev->act_log, enr);
-
-	if (!extent) {
-		spin_unlock_irqrestore(&mdev->al_lock, flags);
-		dev_err(DEV, "al_complete_io() called on inactive extent %u\n", enr);
-		return;
+	for (enr = first; enr <= last; enr++) {
+		extent = lc_find(mdev->act_log, enr);
+		if (!extent) {
+			dev_err(DEV, "al_complete_io() called on inactive extent %u\n", enr);
+			continue;
+		}
+		if (lc_put(mdev->act_log, extent) == 0)
+			wake = true;
 	}
-
-	if (lc_put(mdev->act_log, extent) == 0)
-		wake_up(&mdev->al_wait);
-
 	spin_unlock_irqrestore(&mdev->al_lock, flags);
+	wake_up(&mdev->al_wait);
 }
 
 #if (PAGE_SHIFT + 3) < (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT)
