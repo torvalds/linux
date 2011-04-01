@@ -15,13 +15,12 @@
 #ifndef __ASM_ARCH_RK29_BOARD_H
 #define __ASM_ARCH_RK29_BOARD_H
 
+#include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/i2c.h>
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/notifier.h>
-
-/* platform device data structures */
-struct platform_device;
-struct i2c_client;
 
 /*spi*/
 struct spi_cs_gpio {
@@ -243,5 +242,15 @@ void __init rk29_clock_init(void);
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
 int board_boot_mode(void);
+
+/* for USB detection */
+#ifdef CONFIG_USB_GADGET
+int board_usb_detect_init(unsigned gpio, unsigned long flags);
+#else
+static int inline board_usb_detect_init(unsigned, unsigned long) { return 0; }
+#endif
+
+/* for wakeup Android */
+void rk28_send_wakeup_key(void);
 
 #endif

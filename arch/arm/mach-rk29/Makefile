@@ -4,6 +4,7 @@ obj-y += early_printk.o
 ifndef CONFIG_DEBUG_LL
 obj-y += ../kernel/debug.o
 endif
+obj-$(CONFIG_USB_GADGET) += usb_detect.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_RK29_VPU) += vpu.o vpu_mem.o

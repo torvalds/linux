@@ -57,6 +57,19 @@ struct rk29_keys_drvdata {
 	struct rk29_button_data data[0];
 };
 
+static struct input_dev *input_dev;
+
+void rk28_send_wakeup_key(void)
+{
+	if (!input_dev)
+		return;
+
+	input_report_key(input_dev, KEY_WAKEUP, 1);
+	input_sync(input_dev);
+	input_report_key(input_dev, KEY_WAKEUP, 0);
+	input_sync(input_dev);
+}
+
 static void keys_long_press_timer(unsigned long _data)
 {
 	int state;
@@ -282,6 +295,8 @@ static int __devinit keys_probe(struct platform_device *pdev)
 		input_set_capability(input, type, button->code);
 	}
 
+	input_set_capability(input, EV_KEY, KEY_WAKEUP);
+
 	error = input_register_device(input);
 	if (error) {
 		pr_err("gpio-keys: Unable to register input device, "
@@ -291,6 +306,8 @@ static int __devinit keys_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, wakeup);
 	error = device_create_file(&pdev->dev, &dev_attr_get_adc_value);
+
+	input_dev = input;
 	return error;
 
  fail2:
@@ -317,6 +334,7 @@ static int __devexit keys_remove(struct platform_device *pdev)
 	struct input_dev *input = ddata->input;
 	int i;
 
+	input_dev = NULL;
 	device_init_wakeup(&pdev->dev, 0);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
