@@ -571,6 +571,28 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 {
 	switch (state) {
 	case BNX2X_DCBX_STATE_NEG_RECEIVED:
+#ifdef BCM_CNIC
+		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
+			struct cnic_ops *c_ops;
+			struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
+			bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
+			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
+			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI;
+
+			rcu_read_lock();
+			c_ops = rcu_dereference(bp->cnic_ops);
+			if (c_ops) {
+				bnx2x_cnic_notify(bp, CNIC_CTL_STOP_ISCSI_CMD);
+				rcu_read_unlock();
+				return;
+			}
+			rcu_read_unlock();
+		}
+
+		/* fall through if no CNIC initialized  */
+	case BNX2X_DCBX_STATE_ISCSI_STOPPED:
+#endif
+
 		{
 			DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_NEG_RECEIVED\n");
 #ifdef BCM_DCBNL

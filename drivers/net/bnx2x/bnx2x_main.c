@@ -10342,6 +10342,11 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 		break;
 	}
 
+	case DRV_CTL_ISCSI_STOPPED_CMD: {
+		bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_ISCSI_STOPPED);
+		break;
+	}
+
 	default:
 		BNX2X_ERR("unknown command %x\n", ctl->cmd);
 		rc = -EINVAL;

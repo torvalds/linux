@@ -183,9 +183,13 @@ void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled);
 
 enum {
 	BNX2X_DCBX_STATE_NEG_RECEIVED = 0x1,
-	BNX2X_DCBX_STATE_TX_PAUSED = 0x2,
-	BNX2X_DCBX_STATE_TX_RELEASED = 0x4
+#ifdef BCM_CNIC
+	BNX2X_DCBX_STATE_ISCSI_STOPPED,
+#endif
+	BNX2X_DCBX_STATE_TX_PAUSED,
+	BNX2X_DCBX_STATE_TX_RELEASED
 };
+
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
 
 /* DCB netlink */
