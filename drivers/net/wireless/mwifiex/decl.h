@@ -51,7 +51,6 @@
 #define MWIFIEX_RATE_BITMAP_MCS127 159
 
 #define MWIFIEX_RX_DATA_BUF_SIZE     (4 * 1024)
-#define MWIFIEX_RX_CMD_BUF_SIZE      (2 * 1024)
 
 #define MWIFIEX_RTS_MIN_VALUE              (0)
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
@@ -141,34 +140,11 @@ struct mwifiex_bss_attr {
 	u32 bss_num;
 };
 
-enum mwifiex_cmd_result_e {
-	MWIFIEX_CMD_RESULT_SUCCESS = 0,
-	MWIFIEX_CMD_RESULT_FAILURE = 1,
-	MWIFIEX_CMD_RESULT_TIMEOUT = 2,
-	MWIFIEX_CMD_RESULT_INVALID_DATA = 3
-} __packed;
-
 enum mwifiex_wmm_ac_e {
 	WMM_AC_BK,
 	WMM_AC_BE,
 	WMM_AC_VI,
 	WMM_AC_VO
-} __packed;
-
-enum mwifiex_wmm_queue_config_action_e {
-	MWIFIEX_WMM_QUEUE_CONFIG_ACTION_GET = 0,
-	MWIFIEX_WMM_QUEUE_CONFIG_ACTION_SET = 1,
-	MWIFIEX_WMM_QUEUE_CONFIG_ACTION_DEFAULT = 2,
-	MWIFIEX_WMM_QUEUE_CONFIG_ACTION_MAX
-} __packed;
-
-enum mwifiex_wmm_queue_stats_action_e {
-	MWIFIEX_WMM_STATS_ACTION_START = 0,
-	MWIFIEX_WMM_STATS_ACTION_STOP = 1,
-	MWIFIEX_WMM_STATS_ACTION_GET_CLR = 2,
-	MWIFIEX_WMM_STATS_ACTION_SET_CFG = 3,	/* Not currently used */
-	MWIFIEX_WMM_STATS_ACTION_GET_CFG = 4,	/* Not currently used */
-	MWIFIEX_WMM_STATS_ACTION_MAX
 } __packed;
 
 struct mwifiex_device {

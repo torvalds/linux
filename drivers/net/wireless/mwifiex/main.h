@@ -50,8 +50,6 @@ enum {
 };
 
 #define DRV_MODE_STA       0x1
-#define DRV_MODE_UAP       0x2
-#define DRV_MODE_UAP_STA   0x3
 
 #define SD8787_W0   0x30
 #define SD8787_W1   0x31
@@ -74,12 +72,7 @@ struct mwifiex_drv_mode {
 #define MWIFIEX_TIMER_10S			10000
 #define MWIFIEX_TIMER_1S			1000
 
-#define NL_MAX_PAYLOAD      1024
-#define NL_MULTICAST_GROUP  1
-
 #define MAX_TX_PENDING      60
-
-#define HEADER_ALIGNMENT                8
 
 #define MWIFIEX_UPLD_SIZE               (2312)
 
