@@ -181,11 +181,6 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 
 };
 
-static void psb_set_uopt(struct drm_psb_uopt *uopt)
-{
-	return;
-}
-
 static void psb_lastclose(struct drm_device *dev)
 {
 	return;
@@ -589,16 +584,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->dev = dev;
 
-	mutex_init(&dev_priv->temp_mem);
-	mutex_init(&dev_priv->cmdbuf_mutex);
-	mutex_init(&dev_priv->reset_mutex);
-	spin_lock_init(&dev_priv->reloc_lock);
-
-	DRM_INIT_WAITQUEUE(&dev_priv->rel_mapped_queue);
-
 	dev->dev_private = (void *) dev_priv;
 	dev_priv->chipset = chipset;
-	psb_set_uopt(&dev_priv->uopt);
 
 	PSB_DEBUG_INIT("Mapping MMIO\n");
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
