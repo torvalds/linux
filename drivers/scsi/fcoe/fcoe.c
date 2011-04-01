@@ -1795,11 +1795,7 @@ static int fcoe_disable(struct net_device *netdev)
 	}
 #endif
 
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1839,11 +1835,7 @@ static int fcoe_enable(struct net_device *netdev)
 		goto out_nodev;
 	}
 #endif
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1882,11 +1874,7 @@ static int fcoe_destroy(struct net_device *netdev)
 		goto out_nodev;
 	}
 #endif
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
 		rtnl_unlock();
@@ -1948,11 +1936,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	struct fc_lport *lport;
 
 	mutex_lock(&fcoe_config_mutex);
-
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
+	rtnl_lock();
 
 #ifdef CONFIG_FCOE_MODULE
 	/*
