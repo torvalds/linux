@@ -102,12 +102,12 @@ int SM_FreeMem(void)
 {
 	int	i;
 
-	printk("SM_FreeMem start\n");
+	pr_info("SM_FreeMem start\n");
 	for (i=0; i<MAX_ZONENUM; i++)
 	{
 		if (Log2Phy[i]!=NULL)
 		{
-			printk("Free Zone = %x, Addr = %p\n", i, Log2Phy[i]);
+			pr_info("Free Zone = %x, Addr = %p\n", i, Log2Phy[i]);
 			kfree(Log2Phy[i]);
 			Log2Phy[i] = NULL;
 		}
@@ -198,7 +198,7 @@ int Media_D_CopySector(struct us_data *us, DWORD start,WORD count,BYTE *buf)
 	//SSFDCTYPE_T aa = (SSFDCTYPE_T ) &Ssfdc;
 	//ADDRESS_T   bb = (ADDRESS_T) &Media;
 
-	//printk("Media_D_CopySector !!!\n");
+	/* pr_info("Media_D_CopySector !!!\n"); */
 	if (Conv_D_MediaAddr(us, start))
 		return(ErrCode);
 
@@ -657,7 +657,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //----- Check_D_MediaFmt() ---------------------------------------------
 int Check_D_MediaFmt(struct us_data *us)
 {
-	printk("Check_D_MediaFmt\n");
+	pr_info("Check_D_MediaFmt\n");
 	//ULONG i,j, result=FALSE, zone,block;
 
 	//usleep(56*1024);
@@ -1334,7 +1334,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 	//SSFDCTYPE_T aa = (SSFDCTYPE_T ) &Ssfdc;
 	//ADDRESS_T   bb = (ADDRESS_T) &Media;
 
-	//printk("Copy_D_PhyOneSect --- Secotr = %x\n", Media.Sector);
+	/* pr_info("Copy_D_PhyOneSect --- Secotr = %x\n", Media.Sector); */
 	if (ReadBlock!=NO_ASSIGN)
 	{
 		Media.PhyBlock=ReadBlock;
@@ -1620,7 +1620,8 @@ int Make_D_LogTable(struct us_data *us)
 	if (Log2Phy[Media.Zone]==NULL)
 	{
 		Log2Phy[Media.Zone] = kmalloc(MAX_LOGBLOCK*sizeof(WORD), GFP_KERNEL);
-		//printk("ExAllocatePool Zone = %x, Addr = %x\n", Media.Zone, Log2Phy[Media.Zone]);
+		/* pr_info("ExAllocatePool Zone = %x, Addr = %x\n",
+				Media.Zone, Log2Phy[Media.Zone]); */
 		if (Log2Phy[Media.Zone]==NULL)
 			return(ERROR);
 	}
@@ -1630,7 +1631,8 @@ int Make_D_LogTable(struct us_data *us)
 	//for(Media.Zone=0; Media.Zone<MAX_ZONENUM; Media.Zone++)
 	//for(Media.Zone=0; Media.Zone<Ssfdc.MaxZones; Media.Zone++)
 	{
-		//printk("Make_D_LogTable --- MediaZone = 0x%x\n", Media.Zone);
+		/* pr_info("Make_D_LogTable --- MediaZone = 0x%x\n",
+							Media.Zone); */
 		for(Media.LogBlock=0; Media.LogBlock<Ssfdc.MaxLogBlocks; Media.LogBlock++)
 			Log2Phy[Media.Zone][Media.LogBlock]=NO_ASSIGN;
 
