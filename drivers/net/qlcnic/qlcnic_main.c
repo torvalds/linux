@@ -773,7 +773,8 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 		features |= (NETIF_F_TSO | NETIF_F_TSO6);
 		vlan_features |= (NETIF_F_TSO | NETIF_F_TSO6);
 	}
-	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
+
+	if (netdev->features & NETIF_F_LRO)
 		features |= NETIF_F_LRO;
 
 	if (esw_cfg->offload_flags & BIT_0) {

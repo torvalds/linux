@@ -566,6 +566,9 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	u64 word;
 	int rv;
 
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
+		return 0;
+
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
 
 	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
@@ -710,6 +713,9 @@ int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter)
 	struct qlcnic_nic_req req;
 	u64 word;
 	int rv;
+
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
+		return 0;
 
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
 	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);

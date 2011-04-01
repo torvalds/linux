@@ -998,22 +998,28 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
 		return -EINVAL;
 
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
-		return -EINVAL;
-
-	if (!adapter->rx_csum) {
-		dev_info(&adapter->pdev->dev, "rx csum is off, "
-			"cannot toggle lro\n");
-		return -EINVAL;
-	}
-
-	if ((data & ETH_FLAG_LRO) && (netdev->features & NETIF_F_LRO))
-		return 0;
-
 	if (data & ETH_FLAG_LRO) {
+
+		if (netdev->features & NETIF_F_LRO)
+			return 0;
+
+		if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
+			return -EINVAL;
+
+		if (!adapter->rx_csum) {
+			dev_info(&adapter->pdev->dev, "rx csum is off, "
+				"cannot toggle lro\n");
+			return -EINVAL;
+		}
+
 		hw_lro = QLCNIC_LRO_ENABLED;
 		netdev->features |= NETIF_F_LRO;
+
 	} else {
+
+		if (!(netdev->features & NETIF_F_LRO))
+			return 0;
+
 		hw_lro = 0;
 		netdev->features &= ~NETIF_F_LRO;
 	}
