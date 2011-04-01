@@ -1722,11 +1722,11 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
 	unsigned long flags;
 
+	mdelay(10);
 	local_irq_save(flags);
-	mdelay(10);
 	do_pmu_set_power_domain(pd, on);
-	mdelay(10);
 	local_irq_restore(flags);
+	mdelay(10);
 }
 
 static int pd_vcodec_mode(struct clk *clk, int on)
