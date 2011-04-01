@@ -1141,15 +1141,9 @@ extern int  nvc0_fifo_load_context(struct nouveau_channel *);
 extern int  nvc0_fifo_unload_context(struct drm_device *);
 
 /* nv04_graph.c */
-extern int  nv04_graph_init(struct drm_device *);
-extern void nv04_graph_takedown(struct drm_device *);
+extern int  nv04_graph_create(struct drm_device *);
 extern void nv04_graph_fifo_access(struct drm_device *, bool);
-extern struct nouveau_channel *nv04_graph_channel(struct drm_device *);
-extern int  nv04_graph_create_context(struct nouveau_channel *);
-extern void nv04_graph_destroy_context(struct nouveau_channel *);
-extern int  nv04_graph_load_context(struct nouveau_channel *);
-extern int  nv04_graph_unload_context(struct drm_device *);
-extern int  nv04_graph_object_new(struct nouveau_channel *, u32, u16);
+extern int  nv04_graph_object_new(struct nouveau_channel *, int, u32, u16);
 extern int  nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
 				      u32 class, u32 mthd, u32 data);
 extern struct nouveau_bitfield nv04_graph_nsource[];
