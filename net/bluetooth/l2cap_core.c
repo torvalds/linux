@@ -236,6 +236,10 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	} else
 		sk->sk_state_change(sk);
 
+	if (!(l2cap_pi(sk)->conf_state & L2CAP_CONF_OUTPUT_DONE &&
+			l2cap_pi(sk)->conf_state & L2CAP_CONF_INPUT_DONE))
+		goto free;
+
 	skb_queue_purge(TX_QUEUE(sk));
 
 	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
@@ -254,6 +258,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		}
 	}
 
+free:
 	kfree(chan);
 }
 
