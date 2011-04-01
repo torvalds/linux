@@ -66,8 +66,8 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* rx/tx gain */
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-				ar9485_common_rx_gain_1_1,
-				ARRAY_SIZE(ar9485_common_rx_gain_1_1), 2);
+				ar9485Common_wo_xlna_rx_gain_1_1,
+				ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_1), 2);
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9485_modes_lowest_ob_db_tx_gain_1_1,
 				ARRAY_SIZE(ar9485_modes_lowest_ob_db_tx_gain_1_1),
@@ -220,8 +220,8 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 	default:
 		if (AR_SREV_9485_11(ah))
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
-				       ar9485_common_rx_gain_1_1,
-				       ARRAY_SIZE(ar9485_common_rx_gain_1_1),
+				       ar9485Common_wo_xlna_rx_gain_1_1,
+				       ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_1),
 				       2);
 		else
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
