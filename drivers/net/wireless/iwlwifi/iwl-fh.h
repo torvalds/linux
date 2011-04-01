@@ -424,7 +424,6 @@
 #define RX_LOW_WATERMARK 8
 
 /* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
 #define IWL_RX_BUF_SIZE_4K (4 * 1024)
 #define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
@@ -443,7 +442,7 @@ struct iwl_rb_status {
 	__le16 closed_fr_num;
 	__le16 finished_rb_num;
 	__le16 finished_fr_nam;
-	__le32 __unused; /* 3945 only */
+	__le32 __unused;
 } __packed;
 
 
