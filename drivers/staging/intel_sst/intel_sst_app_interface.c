@@ -418,10 +418,6 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 	static int sent_offset;
 	static unsigned long sent_index;
 
-	stream_bufs = kzalloc(sizeof(*stream_bufs), GFP_KERNEL);
-	if (!stream_bufs)
-		return -ENOMEM;
-	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 #ifdef CONFIG_MRST_RAR_HANDLER
 	if (stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 		for (index = stream->sg_index; index < nr_segs; index++) {
@@ -448,6 +444,10 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 		return retval;
 	}
 #endif
+	stream_bufs = kzalloc(sizeof(*stream_bufs), GFP_KERNEL);
+	if (!stream_bufs)
+		return -ENOMEM;
+	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 	mmap_len = sst_drv_ctx->mmap_len;
 	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 	bufp = stream->cur_ptr;
