@@ -1243,7 +1243,7 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
  */
 #define TOTAL_TX_DUMMY_PACKET_SIZE (ALIGN(1400, 512))
 
-struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
+static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 {
 	struct sk_buff *skb;
 	struct ieee80211_hdr_3addr *hdr;
