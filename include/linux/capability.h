@@ -421,9 +421,6 @@ extern const kernel_cap_t __cap_init_eff_set;
 
 #endif /* _KERNEL_CAPABILITY_U32S != 2 */
 
-#define CAP_INIT_INH_SET    CAP_EMPTY_SET
-#define CAP_INIT_EFF_SET    CAP_FULL_SET
-
 # define cap_clear(c)         do { (c) = __cap_empty_set; } while (0)
 
 #define cap_raise(c, flag)  ((c).cap[CAP_TO_INDEX(flag)] |= CAP_TO_MASK(flag))
