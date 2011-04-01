@@ -788,37 +788,14 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 	} else if (sig == SIGCONT) {
 		unsigned int why;
 		/*
-		 * Remove all stop signals from all queues,
-		 * and wake all threads.
+		 * Remove all stop signals from all queues, wake all threads.
 		 */
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &signal->shared_pending);
 		t = p;
 		do {
-			unsigned int state;
-
 			task_clear_group_stop_pending(t);
-
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
-			/*
-			 * If there is a handler for SIGCONT, we must make
-			 * sure that no thread returns to user mode before
-			 * we post the signal, in case it was the only
-			 * thread eligible to run the signal handler--then
-			 * it must not do anything between resuming and
-			 * running the handler.  With the TIF_SIGPENDING
-			 * flag set, the thread will pause and acquire the
-			 * siglock that we hold now and until we've queued
-			 * the pending signal.
-			 *
-			 * Wake up the stopped thread _after_ setting
-			 * TIF_SIGPENDING
-			 */
-			state = __TASK_STOPPED;
-			if (sig_user_defined(t, SIGCONT) && !sigismember(&t->blocked, SIGCONT)) {
-				set_tsk_thread_flag(t, TIF_SIGPENDING);
-				state |= TASK_INTERRUPTIBLE;
-			}
-			wake_up_state(t, state);
+			wake_up_state(t, __TASK_STOPPED);
 		} while_each_thread(p, t);
 
 		/*
