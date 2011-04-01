@@ -81,7 +81,7 @@ int mrst_set_brightness(struct backlight_device *bd)
 	if (level < 1)
 		level = 1;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, OSPM_UHB_ONLY_IF_ON)) {
+	if (gma_power_begin(dev, 0)) {
 		/* Calculate and set the brightness value */
 		max_pwm_blc = REG_READ(BLC_PWM_CTL) >> 16;
 		blc_pwm_ctl = level * max_pwm_blc / 100;
@@ -103,7 +103,7 @@ int mrst_set_brightness(struct backlight_device *bd)
 		/* force PWM bit on */
 		REG_WRITE(BLC_PWM_CTL2, (0x80000000 | REG_READ(BLC_PWM_CTL2)));
 		REG_WRITE(BLC_PWM_CTL, (max_pwm_blc << 16) | blc_pwm_ctl);
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	}
 	psb_brightness = level;
 	return 0;
@@ -161,8 +161,7 @@ static int device_backlight_init(struct drm_device *dev)
 	value /= bl_max_freq;
 	value /= blc_pwm_precision_factor;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-						OSPM_UHB_ONLY_IF_ON)) {
+	if (gma_power_begin(dev, false)) {
 		if (IS_MRST(dev)) {
 			if (value > (unsigned long long)MRST_BLC_MAX_PWM_REG_FREQ)
 				return 2;
@@ -182,7 +181,7 @@ static int device_backlight_init(struct drm_device *dev)
 					(value));
 			}
 		}
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	}
 	return 0;
 }

@@ -48,8 +48,7 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
 	PSB_DEBUG_ENTRY("\n");
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return;
 
 	if (on) {
@@ -69,7 +68,7 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 		pm_request_idle(&dev->pdev->dev);
 	}
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 }
 
 static void mrst_lvds_dpms(struct drm_encoder *encoder, int mode)
@@ -99,8 +98,7 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 
 	PSB_DEBUG_ENTRY("\n");
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return;
 
 	/*
@@ -144,7 +142,7 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 	} else /*(v == DRM_MODE_SCALE_FULLSCREEN)*/
 		REG_WRITE(PFIT_CONTROL, PFIT_ENABLE);
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 }
 
 

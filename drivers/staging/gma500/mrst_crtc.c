@@ -174,8 +174,7 @@ static void mrst_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	PSB_DEBUG_ENTRY("mode = %d, pipe = %d\n", mode, pipe);
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				       OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
@@ -270,7 +269,7 @@ static void mrst_crtc_dpms(struct drm_crtc *crtc, int mode)
 	REG_WRITE(0x70400, REG_READ(0x70400) | 0x4000);
 	/* Must write Bit 14 of the Chicken Bit Register */
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 }
 
 /**
@@ -323,8 +322,7 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 
 	PSB_DEBUG_ENTRY("pipe = 0x%x\n", pipe);
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return 0;
 
 	memcpy(&psb_intel_crtc->saved_mode,
@@ -514,7 +512,7 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 	psb_intel_wait_for_vblank(dev);
 
 mrst_crtc_mode_set_exit:
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 	return 0;
 }
 
@@ -551,8 +549,7 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				       OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return 0;
 
 	Start = mode_dev->bo_offset(dev, psbfb);
@@ -596,7 +593,7 @@ int mrst_pipe_set_base(struct drm_crtc *crtc,
 	}
 
 pipe_set_base_exit:
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 	return ret;
 }
 

@@ -246,7 +246,6 @@ struct drm_psb_private {
 	uint8_t *vdc_reg;
 	uint32_t gatt_free_offset;
 
-
 	/*
 	 *Fencing / irq.
 	 */
@@ -255,6 +254,14 @@ struct drm_psb_private {
 	uint32_t pipestat[PSB_NUM_PIPE];
 
 	spinlock_t irqmask_lock;
+
+	/*
+	 * Power
+         */
+
+	bool suspended;
+	bool display_power;
+	int display_count;
 
 	/*
 	 *Modesetting
@@ -527,8 +534,6 @@ extern int psb_irq_disable_dpst(struct drm_device *dev);
 extern void psb_irq_preinstall(struct drm_device *dev);
 extern int psb_irq_postinstall(struct drm_device *dev);
 extern void psb_irq_uninstall(struct drm_device *dev);
-extern void psb_irq_preinstall_islands(struct drm_device *dev, int hw_islands);
-extern int psb_irq_postinstall_islands(struct drm_device *dev, int hw_islands);
 extern void psb_irq_turn_on_dpst(struct drm_device *dev);
 extern void psb_irq_turn_off_dpst(struct drm_device *dev);
 

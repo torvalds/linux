@@ -359,8 +359,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				       OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return 0;
 
 	Start = mode_dev->bo_offset(dev, psbfb);
@@ -405,7 +404,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 psb_intel_pipe_set_base_exit:
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 
 	return ret;
 }
@@ -816,8 +815,7 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 		return;
 	}
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				      OSPM_UHB_ONLY_IF_ON)) {
+	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
 				  ((psb_intel_crtc->lut_r[i] +
@@ -827,7 +825,7 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 				  (psb_intel_crtc->lut_b[i] +
 				  psb_intel_crtc->lut_adj[i]));
 		}
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
 			dev_priv->save_palette_a[i] =
@@ -1046,11 +1044,10 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		temp = 0;
 		temp |= CURSOR_MODE_DISABLE;
 
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					      OSPM_UHB_ONLY_IF_ON)) {
+        	if (gma_power_begin(dev, false)) {
 			REG_WRITE(control, temp);
 			REG_WRITE(base, 0);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		}
 
 		/* unpin the old bo */
@@ -1104,11 +1101,10 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	temp |= (pipe << 28);
 	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				      OSPM_UHB_ONLY_IF_ON)) {
+       	if (gma_power_begin(dev, false)) {
 		REG_WRITE(control, temp);
 		REG_WRITE(base, addr);
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	}
 
 	/* unpin the old bo */
@@ -1143,11 +1139,10 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	adder = psb_intel_crtc->cursor_addr;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				      OSPM_UHB_ONLY_IF_ON)) {
+       	if (gma_power_begin(dev, false)) {
 		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
 		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	}
 	return 0;
 }
@@ -1197,15 +1192,14 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 	bool is_lvds;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				      OSPM_UHB_ONLY_IF_ON)) {
+       	if (gma_power_begin(dev, false)) {
 		dpll = REG_READ((pipe == 0) ? DPLL_A : DPLL_B);
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
 			fp = REG_READ((pipe == 0) ? FPA0 : FPB0);
 		else
 			fp = REG_READ((pipe == 0) ? FPA1 : FPB1);
 		is_lvds = (pipe == 1) && (REG_READ(LVDS) & LVDS_PORT_EN);
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	} else {
 		dpll = (pipe == 0) ?
 			dev_priv->saveDPLL_A : dev_priv->saveDPLL_B;
@@ -1277,13 +1271,12 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	int vsync;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-				      OSPM_UHB_ONLY_IF_ON)) {
+       	if (gma_power_begin(dev, false)) {
 		htot = REG_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
 		hsync = REG_READ((pipe == 0) ? HSYNC_A : HSYNC_B);
 		vtot = REG_READ((pipe == 0) ? VTOTAL_A : VTOTAL_B);
 		vsync = REG_READ((pipe == 0) ? VSYNC_A : VSYNC_B);
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	} else {
 		htot = (pipe == 0) ?
 			dev_priv->saveHTOTAL_A : dev_priv->saveHTOTAL_B;

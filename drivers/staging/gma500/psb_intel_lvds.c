@@ -83,13 +83,12 @@ static u32 psb_intel_lvds_get_max_backlight(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 retVal;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_ONLY_IF_ON)) {
+	if (gma_power_begin(dev, false)) {
 		retVal = ((REG_READ(BLC_PWM_CTL) &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
 			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	} else
 		retVal = ((dev_priv->saveBLC_PWM_CTL &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
@@ -200,14 +199,13 @@ static void psb_intel_lvds_set_backlight(struct drm_device *dev, int level)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 blc_pwm_ctl;
 
-	if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_ONLY_IF_ON)) {
+	if (gma_power_begin(dev, false)) {
 		blc_pwm_ctl =
 			REG_READ(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
 		REG_WRITE(BLC_PWM_CTL,
 				(blc_pwm_ctl |
 				(level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
-		ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+		gma_power_end(dev);
 	} else {
 		blc_pwm_ctl = dev_priv->saveBLC_PWM_CTL &
 				~BACKLIGHT_DUTY_CYCLE_MASK;
@@ -224,8 +222,7 @@ static void psb_intel_lvds_set_power(struct drm_device *dev,
 {
 	u32 pp_status;
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return;
 
 	if (on) {
@@ -248,7 +245,7 @@ static void psb_intel_lvds_set_power(struct drm_device *dev,
 		} while (pp_status & PP_ON);
 	}
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 }
 
 static void psb_intel_lvds_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -457,8 +454,7 @@ void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 
 	PSB_DEBUG_ENTRY("\n");
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					OSPM_UHB_FORCE_POWER_ON))
+	if (!gma_power_begin(dev, true))
 		return;
 
 	mode_dev->saveBLC_PWM_CTL = REG_READ(BLC_PWM_CTL);
@@ -467,7 +463,7 @@ void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 
 	psb_intel_lvds_set_power(dev, output, false);
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 }
 
 void psb_intel_lvds_commit(struct drm_encoder *encoder)
