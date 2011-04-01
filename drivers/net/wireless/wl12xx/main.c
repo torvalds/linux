@@ -3397,8 +3397,7 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	unsigned long res;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &res);
-
+	ret = kstrtoul(buf, 10, &res);
 	if (ret < 0) {
 		wl1271_warning("incorrect value written to bt_coex_mode");
 		return count;
