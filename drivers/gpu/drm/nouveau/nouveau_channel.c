@@ -268,7 +268,6 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	unsigned long flags;
 	int i;
 
@@ -294,18 +293,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* boot it off the hardware */
 	pfifo->reassign(dev, false);
 
-	/* We want to give pgraph a chance to idle and get rid of all
-	 * potential errors. We need to do this without the context
-	 * switch lock held, otherwise the irq handler is unable to
-	 * process them.
-	 */
-	if (pgraph->channel(dev) == chan)
-		nouveau_wait_for_idle(dev);
-
 	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
-	if (pgraph->destroy_context)
-		pgraph->destroy_context(chan);
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);
