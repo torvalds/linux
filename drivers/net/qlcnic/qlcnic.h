@@ -29,6 +29,8 @@
 
 #include <linux/io.h>
 #include <asm/byteorder.h>
+#include <linux/bitops.h>
+#include <linux/if_vlan.h>
 
 #include "qlcnic_hdr.h"
 
@@ -982,8 +984,8 @@ struct qlcnic_adapter {
 	u8 mac_addr[ETH_ALEN];
 
 	u64 dev_rst_time;
+	unsigned long vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-	struct vlan_group *vlgrp;
 	struct qlcnic_npar_info *npars;
 	struct qlcnic_eswitch *eswitch;
 	struct qlcnic_nic_template *nic_ops;

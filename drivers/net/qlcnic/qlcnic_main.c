@@ -13,7 +13,6 @@
 
 #include <linux/swab.h>
 #include <linux/dma-mapping.h>
-#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <linux/ipv6.h>
 #include <linux/inetdevice.h>
@@ -98,6 +97,9 @@ static int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
 static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
 static void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
+static void qlcnic_vlan_rx_add(struct net_device *, u16);
+static void qlcnic_vlan_rx_del(struct net_device *, u16);
+
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, (device)), \
@@ -317,13 +319,6 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static void qlcnic_vlan_rx_register(struct net_device *netdev,
-		struct vlan_group *grp)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	adapter->vlgrp = grp;
-}
-
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
 	.ndo_stop	   = qlcnic_close,
@@ -334,7 +329,8 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_set_mac_address    = qlcnic_set_mac,
 	.ndo_change_mtu	   = qlcnic_change_mtu,
 	.ndo_tx_timeout	   = qlcnic_tx_timeout,
-	.ndo_vlan_rx_register = qlcnic_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= qlcnic_vlan_rx_add,
+	.ndo_vlan_rx_kill_vid	= qlcnic_vlan_rx_del,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -710,6 +706,22 @@ qlcnic_set_vlan_config(struct qlcnic_adapter *adapter,
 }
 
 static void
+qlcnic_vlan_rx_add(struct net_device *netdev, u16 vid)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	set_bit(vid, adapter->vlans);
+}
+
+static void
+qlcnic_vlan_rx_del(struct net_device *netdev, u16 vid)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+
+	qlcnic_restore_indev_addr(netdev, NETDEV_DOWN);
+	clear_bit(vid, adapter->vlans);
+}
+
+static void
 qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
@@ -755,7 +767,7 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	features = (NETIF_F_SG | NETIF_F_IP_CSUM |
 			NETIF_F_IPV6_CSUM | NETIF_F_GRO);
 	vlan_features = (NETIF_F_SG | NETIF_F_IP_CSUM |
-			NETIF_F_IPV6_CSUM);
+			NETIF_F_IPV6_CSUM | NETIF_F_HW_VLAN_FILTER);
 
 	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO) {
 		features |= (NETIF_F_TSO | NETIF_F_TSO6);
@@ -1448,7 +1460,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_IPV6_CSUM | NETIF_F_GRO | NETIF_F_HW_VLAN_RX);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM);
+		NETIF_F_IPV6_CSUM | NETIF_F_HW_VLAN_FILTER);
 
 	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO) {
 		netdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
@@ -4068,14 +4080,10 @@ qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 
 	qlcnic_config_indev_addr(adapter, netdev, event);
 
-	if (!adapter->vlgrp)
-		return;
-
-	for (vid = 0; vid < VLAN_N_VID; vid++) {
-		dev = vlan_group_get_device(adapter->vlgrp, vid);
+	for_each_set_bit(vid, adapter->vlans, VLAN_N_VID) {
+		dev = vlan_find_dev(netdev, vid);
 		if (!dev)
 			continue;
-
 		qlcnic_config_indev_addr(adapter, dev, event);
 	}
 }

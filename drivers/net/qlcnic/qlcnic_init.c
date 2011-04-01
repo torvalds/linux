@@ -1467,10 +1467,10 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	if ((vid != 0xffff) && adapter->vlgrp)
-		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
-	else
-		napi_gro_receive(&sds_ring->napi, skb);
+	if (vid != 0xffff)
+		__vlan_hwaccel_put_tag(skb, vid);
+
+	napi_gro_receive(&sds_ring->napi, skb);
 
 	adapter->stats.rx_pkts++;
 	adapter->stats.rxbytes += length;
@@ -1552,10 +1552,9 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	length = skb->len;
 
-	if ((vid != 0xffff) && adapter->vlgrp)
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
-	else
-		netif_receive_skb(skb);
+	if (vid != 0xffff)
+		__vlan_hwaccel_put_tag(skb, vid);
+	netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
 	adapter->stats.lrobytes += length;
