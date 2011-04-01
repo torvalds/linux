@@ -63,8 +63,8 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 
 /*
  * Adjust led blink rate to compensate on a MAC Clock difference on every HW
- * Led blink rate analysis showed an average deviation of 0% on 3945,
- * 5% on 4965 HW and 20% on 5000 series and up.
+ * Led blink rate analysis showed an average deviation of 20% on 5000 series
+ * and up.
  * Need to compensate on the led on/off time per HW according to the deviation
  * to achieve the desired led frequency
  * The calculation is: (100-averageDeviation)/100 * blinkTime
