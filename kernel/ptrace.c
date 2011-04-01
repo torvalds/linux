@@ -112,16 +112,14 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	 */
 	read_lock(&tasklist_lock);
 	if ((child->ptrace & PT_PTRACED) && child->parent == current) {
-		ret = 0;
 		/*
 		 * child->sighand can't be NULL, release_task()
 		 * does ptrace_unlink() before __exit_signal().
 		 */
 		spin_lock_irq(&child->sighand->siglock);
-		if (task_is_stopped(child))
-			child->state = TASK_TRACED;
-		else if (!task_is_traced(child) && !kill)
-			ret = -ESRCH;
+		WARN_ON_ONCE(task_is_stopped(child));
+		if (task_is_traced(child) || kill)
+			ret = 0;
 		spin_unlock_irq(&child->sighand->siglock);
 	}
 	read_unlock(&tasklist_lock);
