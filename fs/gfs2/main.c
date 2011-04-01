@@ -145,7 +145,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_register_debugfs();
 
-	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
+	printk("GFS2 installed\n");
 
 	return 0;
 
