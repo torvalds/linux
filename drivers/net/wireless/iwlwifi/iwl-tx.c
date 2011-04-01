@@ -232,7 +232,6 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
  * reclaiming packets (on 'tx done IRQ), if free space become > high mark,
  * Tx queue resumed.
  *
- * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
 int iwl_queue_space(const struct iwl_queue *q)
