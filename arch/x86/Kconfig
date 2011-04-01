@@ -1703,10 +1703,6 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
-config HAVE_ARCH_EARLY_PFN_TO_NID
-	def_bool X86_64
-	depends on NUMA
-
 config USE_PERCPU_NUMA_NODE_ID
 	def_bool y
 	depends on NUMA
