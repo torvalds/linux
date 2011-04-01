@@ -31,7 +31,7 @@
 /*
  * Alter this version for the I7300 module when modifications are made
  */
-#define I7300_REVISION    " Ver: 1.0.0 " __DATE__
+#define I7300_REVISION    " Ver: 1.0.0"
 
 #define EDAC_MOD_STR      "i7300_edac"
 

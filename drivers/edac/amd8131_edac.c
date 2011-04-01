@@ -33,7 +33,7 @@
 #include "edac_module.h"
 #include "amd8131_edac.h"
 
-#define AMD8131_EDAC_REVISION	" Ver: 1.0.0 " __DATE__
+#define AMD8131_EDAC_REVISION	" Ver: 1.0.0"
 #define AMD8131_EDAC_MOD_STR	"amd8131_edac"
 
 /* Wrapper functions for accessing PCI configuration space */

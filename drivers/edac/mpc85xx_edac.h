@@ -11,7 +11,7 @@
 #ifndef _MPC85XX_EDAC_H_
 #define _MPC85XX_EDAC_H_
 
-#define MPC85XX_REVISION " Ver: 2.0.0 " __DATE__
+#define MPC85XX_REVISION " Ver: 2.0.0"
 #define EDAC_MOD_STR	"MPC85xx_edac"
 
 #define mpc85xx_printk(level, fmt, arg...) \

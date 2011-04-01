@@ -30,7 +30,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define CPC925_EDAC_REVISION	" Ver: 1.0.0 " __DATE__
+#define CPC925_EDAC_REVISION	" Ver: 1.0.0"
 #define CPC925_EDAC_MOD_STR	"cpc925_edac"
 
 #define cpc925_printk(level, fmt, arg...) \
