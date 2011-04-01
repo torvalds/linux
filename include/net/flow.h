@@ -26,8 +26,8 @@ struct flowi_common {
 
 union flowi_uli {
 	struct {
-		__be16	sport;
 		__be16	dport;
+		__be16	sport;
 	} ports;
 
 	struct {
@@ -36,8 +36,8 @@ union flowi_uli {
 	} icmpt;
 
 	struct {
-		__le16	sport;
 		__le16	dport;
+		__le16	sport;
 	} dnports;
 
 	__be32		spi;
@@ -86,8 +86,8 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 	fl4->flowi4_secid = 0;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
-	fl4->fl4_sport = sport;
 	fl4->fl4_dport = dport;
+	fl4->fl4_sport = sport;
 }
 				      
 
