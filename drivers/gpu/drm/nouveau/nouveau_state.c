@@ -440,15 +440,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
-		engine->graph.init		= nvc0_graph_init;
-		engine->graph.takedown		= nvc0_graph_takedown;
 		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.create_context	= nvc0_graph_create_context;
-		engine->graph.destroy_context	= nvc0_graph_destroy_context;
-		engine->graph.load_context	= nvc0_graph_load_context;
-		engine->graph.unload_context	= nvc0_graph_unload_context;
-		engine->graph.object_new	= nvc0_graph_object_new;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nvc0_fifo_init;
 		engine->fifo.takedown		= nvc0_fifo_takedown;
@@ -627,6 +620,9 @@ nouveau_card_init(struct drm_device *dev)
 
 	if (dev_priv->card_type == NV_50)
 		nv50_graph_create(dev);
+	else
+	if (dev_priv->card_type == NV_C0)
+		nvc0_graph_create(dev);
 
 	switch (dev_priv->chipset) {
 	case 0x84:

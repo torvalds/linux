@@ -35,6 +35,8 @@
 #define TP_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
 struct nvc0_graph_priv {
+	struct nouveau_exec_engine base;
+
 	u8 gpc_nr;
 	u8 rop_nr;
 	u8 tp_nr[GPC_MAX];

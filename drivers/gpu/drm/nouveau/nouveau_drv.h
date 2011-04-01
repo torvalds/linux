@@ -1194,15 +1194,9 @@ extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern struct nouveau_enum nv50_data_error_names[];
 
 /* nvc0_graph.c */
-extern int  nvc0_graph_init(struct drm_device *);
-extern void nvc0_graph_takedown(struct drm_device *);
+extern int  nvc0_graph_create(struct drm_device *);
 extern void nvc0_graph_fifo_access(struct drm_device *, bool);
 extern struct nouveau_channel *nvc0_graph_channel(struct drm_device *);
-extern int  nvc0_graph_create_context(struct nouveau_channel *);
-extern void nvc0_graph_destroy_context(struct nouveau_channel *);
-extern int  nvc0_graph_load_context(struct nouveau_channel *);
-extern int  nvc0_graph_unload_context(struct drm_device *);
-extern int  nvc0_graph_object_new(struct nouveau_channel *, u32, u16);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);

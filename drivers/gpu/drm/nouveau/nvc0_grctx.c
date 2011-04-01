@@ -1797,8 +1797,8 @@ int
 nvc0_grctx_generate(struct nouveau_channel *chan)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nvc0_graph_priv *priv = dev_priv->engine.graph.priv;
-	struct nvc0_graph_chan *grch = chan->pgraph_ctx;
+	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
 	int i, gpc, tp, id;
 	u32 r000260, tmp;
