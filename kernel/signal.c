@@ -254,7 +254,8 @@ static void task_clear_group_stop_trapping(struct task_struct *task)
  */
 void task_clear_group_stop_pending(struct task_struct *task)
 {
-	task->group_stop &= ~(GROUP_STOP_PENDING | GROUP_STOP_CONSUME);
+	task->group_stop &= ~(GROUP_STOP_PENDING | GROUP_STOP_CONSUME |
+			      GROUP_STOP_DEQUEUED);
 }
 
 /**
@@ -602,7 +603,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * is to alert stop-signal processing code when another
 		 * processor has come along and cleared the flag.
 		 */
-		tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+		current->group_stop |= GROUP_STOP_DEQUEUED;
 	}
 	if ((info->si_code & __SI_MASK) == __SI_TIMER && info->si_sys_private) {
 		/*
@@ -821,13 +822,6 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 			signal->flags = why | SIGNAL_STOP_CONTINUED;
 			signal->group_stop_count = 0;
 			signal->group_exit_code = 0;
-		} else {
-			/*
-			 * We are not stopped, but there could be a stop
-			 * signal in the middle of being processed after
-			 * being removed from the queue.  Clear that too.
-			 */
-			signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 		}
 	}
 
@@ -1855,7 +1849,7 @@ static int do_signal_stop(int signr)
 		/* signr will be recorded in task->group_stop for retries */
 		WARN_ON_ONCE(signr & ~GROUP_STOP_SIGMASK);
 
-		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
+		if (!likely(current->group_stop & GROUP_STOP_DEQUEUED) ||
 		    unlikely(signal_group_exit(sig)))
 			return 0;
 		/*
