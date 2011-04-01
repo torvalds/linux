@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -18,7 +20,7 @@ static void usb_stor_blocking_completion(struct urb *urb)
 {
 	struct completion *urb_done_ptr = urb->context;
 
-	//printk("transport --- usb_stor_blocking_completion\n");
+	/* pr_info("transport --- usb_stor_blocking_completion\n"); */
 	complete(urb_done_ptr);
 }
 
@@ -29,7 +31,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	long timeleft;
 	int status;
 
-	//printk("transport --- usb_stor_msg_common\n");
+	/* pr_info("transport --- usb_stor_msg_common\n"); */
 	if (test_bit(US_FLIDX_ABORTING, &us->dflags))
 		return -EIO;
 
@@ -56,7 +58,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	{
 		if (test_and_clear_bit(US_FLIDX_URB_ACTIVE, &us->dflags))
 		{
-			//printk("-- cancelling URB\n");
+			/* pr_info("-- cancelling URB\n"); */
 			usb_unlink_urb(us->current_urb);
 		}
 	}
@@ -66,7 +68,8 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 
 	if (timeleft <= 0)
 	{
-		//printk("%s -- cancelling URB\n", timeleft == 0 ? "Timeout" : "Signal");
+		/* pr_info("%s -- cancelling URB\n",
+			timeleft == 0 ? "Timeout" : "Signal"); */
 		usb_kill_urb(us->current_urb);
 	}
 
@@ -80,7 +83,7 @@ int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
 {
 	int status;
 
-	//printk("transport --- usb_stor_control_msg\n");
+	/* pr_info("transport --- usb_stor_control_msg\n"); */
 
 	/* fill in the devrequest structure */
 	us->cr->bRequestType = requesttype;
@@ -107,7 +110,7 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 	int result;
 	int endp = usb_pipeendpoint(pipe);
 
-	//printk("transport --- usb_stor_clear_halt\n");
+	/* pr_info("transport --- usb_stor_clear_halt\n"); */
 	if (usb_pipein (pipe))
 		endp |= USB_DIR_IN;
 
@@ -128,41 +131,41 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 static int interpret_urb_result(struct us_data *us, unsigned int pipe,
 		unsigned int length, int result, unsigned int partial)
 {
-	//printk("transport --- interpret_urb_result\n");
+	/* pr_info("transport --- interpret_urb_result\n"); */
 	switch (result) {
 	/* no error code; did we send all the data? */
 	case 0:
 		if (partial != length)
 		{
-			//printk("-- short transfer\n");
+			/* pr_info("-- short transfer\n"); */
 			return USB_STOR_XFER_SHORT;
 		}
-		//printk("-- transfer complete\n");
+		/* pr_info("-- transfer complete\n"); */
 		return USB_STOR_XFER_GOOD;
 	case -EPIPE:
 		if (usb_pipecontrol(pipe))
 		{
-			//printk("-- stall on control pipe\n");
+			/* pr_info("-- stall on control pipe\n"); */
 			return USB_STOR_XFER_STALLED;
 		}
-		//printk("clearing endpoint halt for pipe 0x%x\n", pipe);
+		/* pr_info("clearing endpoint halt for pipe 0x%x\n", pipe); */
 		if (usb_stor_clear_halt(us, pipe) < 0)
 			return USB_STOR_XFER_ERROR;
 		return USB_STOR_XFER_STALLED;
 	case -EOVERFLOW:
-		//printk("-- babble\n");
+		/* pr_info("-- babble\n"); */
 		return USB_STOR_XFER_LONG;
 	case -ECONNRESET:
-		//printk("-- transfer cancelled\n");
+		/* pr_info("-- transfer cancelled\n"); */
 		return USB_STOR_XFER_ERROR;
 	case -EREMOTEIO:
-		//printk("-- short read transfer\n");
+		/* pr_info("-- short read transfer\n"); */
 		return USB_STOR_XFER_SHORT;
 	case -EIO:
-		//printk("-- abort or disconnect in progress\n");
+		/* pr_info("-- abort or disconnect in progress\n"); */
 		return USB_STOR_XFER_ERROR;
 	default:
-		//printk("-- unknown error\n");
+		/* pr_info("-- unknown error\n"); */
 		return USB_STOR_XFER_ERROR;
 	}
 }
@@ -173,7 +176,7 @@ int usb_stor_bulk_transfer_buf(struct us_data *us, unsigned int pipe,
 {
 	int result;
 
-	//printk("transport --- usb_stor_bulk_transfer_buf\n");
+	/* pr_info("transport --- usb_stor_bulk_transfer_buf\n"); */
 
 	/* fill and submit the URB */
 	usb_fill_bulk_urb(us->current_urb, us->pusb_dev, pipe, buf, length, usb_stor_blocking_completion, NULL);
@@ -193,7 +196,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 {
 	int result;
 
-	//printk("transport --- usb_stor_bulk_transfer_sglist\n");
+	/* pr_info("transport --- usb_stor_bulk_transfer_sglist\n"); */
 	if (test_bit(US_FLIDX_ABORTING, &us->dflags))
 		return USB_STOR_XFER_ERROR;
 
@@ -201,7 +204,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 	result = usb_sg_init(&us->current_sg, us->pusb_dev, pipe, 0, sg, num_sg, length, GFP_NOIO);
 	if (result)
 	{
-		//printk("usb_sg_init returned %d\n", result);
+		/* pr_info("usb_sg_init returned %d\n", result); */
 		return USB_STOR_XFER_ERROR;
 	}
 
@@ -214,7 +217,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 		/* cancel the request, if it hasn't been cancelled already */
 		if (test_and_clear_bit(US_FLIDX_SG_ACTIVE, &us->dflags))
 		{
-			//printk("-- cancelling sg request\n");
+			/* pr_info("-- cancelling sg request\n"); */
 			usb_sg_cancel(&us->current_sg);
 		}
 	}
@@ -249,7 +252,7 @@ int usb_stor_bulk_transfer_sg(struct us_data* us, unsigned int pipe,
 	int result;
 	unsigned int partial;
 
-	//printk("transport --- usb_stor_bulk_transfer_sg\n");
+	/* pr_info("transport --- usb_stor_bulk_transfer_sg\n"); */
 	/* are we scatter-gathering? */
 	if (use_sg)
 	{
@@ -281,7 +284,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int need_auto_sense;
 	int result;
 
-	//printk("transport --- usb_stor_invoke_transport\n");
+	/* pr_info("transport --- usb_stor_invoke_transport\n"); */
 	usb_stor_print_cmd(srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
@@ -290,7 +293,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if the command gets aborted by the higher layers, we need to short-circuit all other processing */
 	if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags))
 	{
-		//printk("-- command was aborted\n");
+		/* pr_info("-- command was aborted\n"); */
 		srb->result = DID_ABORT << 16;
 		goto Handle_Errors;
 	}
@@ -298,7 +301,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if there is a transport error, reset and don't auto-sense */
 	if (result == USB_STOR_TRANSPORT_ERROR)
 	{
-		//printk("-- transport indicates error, resetting\n");
+		/* pr_info("-- transport indicates error, resetting\n"); */
 		srb->result = DID_ERROR << 16;
 		goto Handle_Errors;
 	}
@@ -317,13 +320,13 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_DPCM_USB) && srb->sc_data_direction != DMA_FROM_DEVICE)
 	{
-		//printk("-- CB transport device requiring auto-sense\n");
+		/* pr_info("-- CB transport device requiring auto-sense\n"); */
 		need_auto_sense = 1;
 	}
 
 	if (result == USB_STOR_TRANSPORT_FAILED)
 	{
-		//printk("-- transport indicates command failure\n");
+		/* pr_info("-- transport indicates command failure\n"); */
 		need_auto_sense = 1;
 	}
 
@@ -333,7 +336,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		int temp_result;
 		struct scsi_eh_save ses;
 
-		printk("Issuing auto-REQUEST_SENSE\n");
+		pr_info("Issuing auto-REQUEST_SENSE\n");
 
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, US_SENSE_SIZE);
 
@@ -352,13 +355,13 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags))
 		{
-			//printk("-- auto-sense aborted\n");
+			/* pr_info("-- auto-sense aborted\n"); */
 			srb->result = DID_ABORT << 16;
 			goto Handle_Errors;
 		}
 		if (temp_result != USB_STOR_TRANSPORT_GOOD)
 		{
-			//printk("-- auto-sense failure\n");
+			/* pr_info("-- auto-sense failure\n"); */
 			srb->result = DID_ERROR << 16;
 			if (!(us->fflags & US_FL_SCM_MULT_TARG))
 				goto Handle_Errors;
@@ -409,7 +412,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int result=0;
 
-	//printk("transport --- ENE_stor_invoke_transport\n");
+	/* pr_info("transport --- ENE_stor_invoke_transport\n"); */
 	usb_stor_print_cmd(srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
@@ -427,7 +430,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if the command gets aborted by the higher layers, we need to short-circuit all other processing */
 	if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags))
 	{
-		//printk("-- command was aborted\n");
+		/* pr_info("-- command was aborted\n"); */
 		srb->result = DID_ABORT << 16;
 		goto Handle_Errors;
 	}
@@ -435,7 +438,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if there is a transport error, reset and don't auto-sense */
 	if (result == USB_STOR_TRANSPORT_ERROR)
 	{
-		//printk("-- transport indicates error, resetting\n");
+		/* pr_info("-- transport indicates error, resetting\n"); */
 		srb->result = DID_ERROR << 16;
 		goto Handle_Errors;
 	}
@@ -450,7 +453,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	srb->result = SAM_STAT_GOOD;
 	if (result == USB_STOR_TRANSPORT_FAILED)
 	{
-		//printk("-- transport indicates command failure\n");
+		/* pr_info("-- transport indicates command failure\n"); */
 		//need_auto_sense = 1;
 		BuildSenseBuffer(srb, us->SrbStatus);
 		srb->result = SAM_STAT_CHECK_CONDITION;
@@ -488,7 +491,7 @@ void BuildSenseBuffer(struct scsi_cmnd *srb, int SrbStatus)
     BYTE    *buf = srb->sense_buffer;
     BYTE    asc;
 
-    printk("transport --- BuildSenseBuffer\n");
+	pr_info("transport --- BuildSenseBuffer\n");
     switch (SrbStatus)
     {
         case SS_NOT_READY:        asc = 0x3a;    break;  // sense key = 0x02
@@ -507,17 +510,17 @@ void BuildSenseBuffer(struct scsi_cmnd *srb, int SrbStatus)
 //----- usb_stor_stop_transport() ---------------------
 void usb_stor_stop_transport(struct us_data *us)
 {
-	//printk("transport --- usb_stor_stop_transport\n");
+	/* pr_info("transport --- usb_stor_stop_transport\n"); */
 
 	if (test_and_clear_bit(US_FLIDX_URB_ACTIVE, &us->dflags))
 	{
-		//printk("-- cancelling URB\n");
+		/* pr_info("-- cancelling URB\n"); */
 		usb_unlink_urb(us->current_urb);
 	}
 
 	if (test_and_clear_bit(US_FLIDX_SG_ACTIVE, &us->dflags))
 	{
-		//printk("-- cancelling sg request\n");
+		/* pr_info("-- cancelling sg request\n"); */
 		usb_sg_cancel(&us->current_sg);
 	}
 }
@@ -527,7 +530,7 @@ int usb_stor_Bulk_max_lun(struct us_data *us)
 {
 	int result;
 
-	//printk("transport --- usb_stor_Bulk_max_lun\n");
+	/* pr_info("transport --- usb_stor_Bulk_max_lun\n"); */
 	/* issue the command */
 	us->iobuf[0] = 0;
 	result = usb_stor_control_msg(us, us->recv_ctrl_pipe,
@@ -536,7 +539,8 @@ int usb_stor_Bulk_max_lun(struct us_data *us)
 				 USB_RECIP_INTERFACE,
 				 0, us->ifnum, us->iobuf, 1, HZ);
 
-	//printk("GetMaxLUN command result is %d, data is %d\n", result, us->iobuf[0]);
+	/* pr_info("GetMaxLUN command result is %d, data is %d\n",
+						result, us->iobuf[0]); */
 
 	/* if we have a successful request, return the result */
 	if (result > 0)
@@ -557,7 +561,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	unsigned int cswlen;
 	unsigned int cbwlen = US_BULK_CB_WRAP_LEN;
 
-	//printk("transport --- usb_stor_Bulk_transport\n");
+	/* pr_info("transport --- usb_stor_Bulk_transport\n"); */
 	/* Take care of BULK32 devices; set extra byte to 0 */
 	if (unlikely(us->fflags & US_FL_BULK32))
 	{
@@ -581,13 +585,13 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	// send command
 	/* send it to out endpoint */
-	/*printk("Bulk Command S 0x%x T 0x%x L %d F %d Trg %d LUN %d CL %d\n",
+	/* pr_info("Bulk Command S 0x%x T 0x%x L %d F %d Trg %d LUN %d CL %d\n",
 			le32_to_cpu(bcb->Signature), bcb->Tag,
 			le32_to_cpu(bcb->DataTransferLength), bcb->Flags,
 			(bcb->Lun >> 4), (bcb->Lun & 0x0F),
-			bcb->Length);*/
+			bcb->Length); */
 	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe, bcb, cbwlen, NULL);
-	//printk("Bulk command transfer result=%d\n", result);
+	/* pr_info("Bulk command transfer result=%d\n", result); */
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
@@ -599,7 +603,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	{
 		unsigned int pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? us->recv_bulk_pipe : us->send_bulk_pipe;
 		result = usb_stor_bulk_srb(us, pipe, srb);
-		//printk("Bulk data transfer result 0x%x\n", result);
+		/* pr_info("Bulk data transfer result 0x%x\n", result); */
 		if (result == USB_STOR_XFER_ERROR)
 			return USB_STOR_TRANSPORT_ERROR;
 
@@ -608,12 +612,12 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/* get CSW for device status */
-	//printk("Attempting to get CSW...\n");
+	/* pr_info("Attempting to get CSW...\n"); */
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe, bcs, US_BULK_CS_WRAP_LEN, &cswlen);
 
 	if (result == USB_STOR_XFER_SHORT && cswlen == 0)
 	{
-		//printk("Received 0-length CSW; retrying...\n");
+		/* pr_info("Received 0-length CSW; retrying...\n"); */
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe, bcs, US_BULK_CS_WRAP_LEN, &cswlen);
 	}
 
@@ -621,21 +625,23 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (result == USB_STOR_XFER_STALLED)
 	{
 		/* get the status again */
-		//printk("Attempting to get CSW (2nd try)...\n");
+		/* pr_info("Attempting to get CSW (2nd try)...\n"); */
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe, bcs, US_BULK_CS_WRAP_LEN, NULL);
 	}
 
 	/* if we still have a failure at this point, we're in trouble */
-	//printk("Bulk status result = %d\n", result);
+	/* pr_info("Bulk status result = %d\n", result); */
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	/* check bulk status */
 	residue = le32_to_cpu(bcs->Residue);
-	//printk("Bulk Status S 0x%x T 0x%x R %u Stat 0x%x\n", le32_to_cpu(bcs->Signature), bcs->Tag, residue, bcs->Status);
+	/* pr_info("Bulk Status S 0x%x T 0x%x R %u Stat 0x%x\n",
+				le32_to_cpu(bcs->Signature),
+				bcs->Tag, residue, bcs->Status); */
 	if (!(bcs->Tag == us->tag || (us->fflags & US_FL_BULK_IGNORE_TAG)) || bcs->Status > US_BULK_STAT_PHASE)
 	{
-		//printk("Bulk logical error\n");
+		/* pr_info("Bulk logical error\n"); */
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -643,13 +649,14 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	{
 		us->bcs_signature = bcs->Signature;
 		//if (us->bcs_signature != cpu_to_le32(US_BULK_CS_SIGN))
-		//	printk("Learnt BCS signature 0x%08X\n", le32_to_cpu(us->bcs_signature));
+		/* pr_info("Learnt BCS signature 0x%08X\n",
+				le32_to_cpu(us->bcs_signature)); */
 	}
 	else if (bcs->Signature != us->bcs_signature)
 	{
-		/*printk("Signature mismatch: got %08X, expecting %08X\n",
+		/* pr_info("Signature mismatch: got %08X, expecting %08X\n",
 			  le32_to_cpu(bcs->Signature),
-			  le32_to_cpu(us->bcs_signature));*/
+			  le32_to_cpu(us->bcs_signature)); */
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -710,47 +717,47 @@ static int usb_stor_reset_common(struct us_data *us,
 	int result;
 	int result2;
 
-	//printk("transport --- usb_stor_reset_common\n");
+	/* pr_info("transport --- usb_stor_reset_common\n"); */
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags))
 	{
-		//printk("No reset during disconnect\n");
+		/* pr_info("No reset during disconnect\n"); */
 		return -EIO;
 	}
 
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe, request, requesttype, value, index, data, size,	5*HZ);
 	if (result < 0)
 	{
-		//printk("Soft reset failed: %d\n", result);
+		/* pr_info("Soft reset failed: %d\n", result); */
 		return result;
 	}
 
 	wait_event_interruptible_timeout(us->delay_wait, test_bit(US_FLIDX_DISCONNECTING, &us->dflags),	HZ*6);
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags))
 	{
-		//printk("Reset interrupted by disconnect\n");
+		/* pr_info("Reset interrupted by disconnect\n"); */
 		return -EIO;
 	}
 
-	//printk("Soft reset: clearing bulk-in endpoint halt\n");
+	/* pr_info("Soft reset: clearing bulk-in endpoint halt\n"); */
 	result = usb_stor_clear_halt(us, us->recv_bulk_pipe);
 
-	//printk("Soft reset: clearing bulk-out endpoint halt\n");
+	/* pr_info("Soft reset: clearing bulk-out endpoint halt\n"); */
 	result2 = usb_stor_clear_halt(us, us->send_bulk_pipe);
 
 	/* return a result code based on the result of the clear-halts */
 	if (result >= 0)
 		result = result2;
 	//if (result < 0)
-	//	printk("Soft reset failed\n");
+		/* pr_info("Soft reset failed\n"); */
 	//else
-	//	printk("Soft reset done\n");
+		/* pr_info("Soft reset done\n"); */
 	return result;
 }
 
 //----- usb_stor_Bulk_reset() ---------------------
 int usb_stor_Bulk_reset(struct us_data *us)
 {
-	//printk("transport --- usb_stor_Bulk_reset\n");
+	/* pr_info("transport --- usb_stor_Bulk_reset\n"); */
 	return usb_stor_reset_common(us, US_BULK_RESET_REQUEST,
 				 USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 				 0, us->ifnum, NULL, 0);
@@ -761,18 +768,19 @@ int usb_stor_port_reset(struct us_data *us)
 {
 	int result;
 
-	//printk("transport --- usb_stor_port_reset\n");
+	/* pr_info("transport --- usb_stor_port_reset\n"); */
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)
-		printk("unable to lock device for reset: %d\n", result);
+		pr_info("unable to lock device for reset: %d\n", result);
 	else {
 		/* Were we disconnected while waiting for the lock? */
 		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 			result = -EIO;
-			//printk("No reset during disconnect\n");
+			/* pr_info("No reset during disconnect\n"); */
 		} else {
 			result = usb_reset_device(us->pusb_dev);
-			//printk("usb_reset_composite_device returns %d\n", result);
+			/* pr_info("usb_reset_composite_device returns %d\n",
+								result); */
 		}
 		usb_unlock_device(us->pusb_dev);
 	}
