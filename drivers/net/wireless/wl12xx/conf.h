@@ -1206,6 +1206,7 @@ struct conf_drv_settings {
 	struct conf_ht_setting ht;
 	struct conf_memory_settings mem_wl127x;
 	struct conf_memory_settings mem_wl128x;
+	u8 hci_io_ds;
 };
 
 #endif

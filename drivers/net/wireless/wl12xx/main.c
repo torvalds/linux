@@ -319,6 +319,7 @@ static struct conf_drv_settings default_conf = {
 		.min_req_rx_blocks            = 22,
 		.tx_min                       = 27,
 	},
+	.hci_io_ds = HCI_IO_DS_6MA,
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);

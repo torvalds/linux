@@ -117,10 +117,13 @@ struct wl1271_static_data {
 #define SDIO_IO_DS                   0xd14
 
 /* SDIO/wSPI DS configuration values */
-#define HCI_IO_DS_8MA                0
-#define HCI_IO_DS_4MA                1 /* default */
-#define HCI_IO_DS_6MA                2
-#define HCI_IO_DS_2MA                3
+enum {
+	HCI_IO_DS_8MA = 0,
+	HCI_IO_DS_4MA = 1, /* default */
+	HCI_IO_DS_6MA = 2,
+	HCI_IO_DS_2MA = 3,
+};
+
 /* end PLL configuration algorithm for wl128x */
 
 #endif

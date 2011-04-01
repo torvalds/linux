@@ -779,7 +779,7 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	 * to upload_fw) */
 
 	if (wl->chip.id == CHIP_ID_1283_PG20)
-		wl1271_top_reg_write(wl, SDIO_IO_DS, HCI_IO_DS_6MA);
+		wl1271_top_reg_write(wl, SDIO_IO_DS, wl->conf.hci_io_ds);
 
 	ret = wl1271_boot_upload_firmware(wl);
 	if (ret < 0)
