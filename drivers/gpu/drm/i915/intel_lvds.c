@@ -473,19 +473,13 @@ static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	enum drm_connector_status status = connector_status_connected;
+	enum drm_connector_status status;
 
 	status = intel_panel_detect(dev);
 	if (status != connector_status_unknown)
 		return status;
 
-	/* ACPI lid methods were generally unreliable in this generation, so
-	 * don't even bother.
-	 */
-	if (IS_GEN2(dev) || IS_GEN3(dev))
-		return connector_status_connected;
-
-	return status;
+	return connector_status_connected;
 }
 
 /**
