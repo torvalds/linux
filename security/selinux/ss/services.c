@@ -1360,14 +1360,14 @@ out:
 
 static void filename_compute_type(struct policydb *p, struct context *newcontext,
 				  u32 scon, u32 tcon, u16 tclass,
-				  const struct qstr *qstr)
+				  const char *objname)
 {
 	struct filename_trans *ft;
 	for (ft = p->filename_trans; ft; ft = ft->next) {
 		if (ft->stype == scon &&
 		    ft->ttype == tcon &&
 		    ft->tclass == tclass &&
-		    !strcmp(ft->name, qstr->name)) {
+		    !strcmp(ft->name, objname)) {
 			newcontext->type = ft->otype;
 			return;
 		}
@@ -1378,7 +1378,7 @@ static int security_compute_sid(u32 ssid,
 				u32 tsid,
 				u16 orig_tclass,
 				u32 specified,
-				const struct qstr *qstr,
+				const char *objname,
 				u32 *out_sid,
 				bool kern)
 {
@@ -1479,9 +1479,9 @@ static int security_compute_sid(u32 ssid,
 	}
 
 	/* if we have a qstr this is a file trans check so check those rules */
-	if (qstr)
+	if (objname)
 		filename_compute_type(&policydb, &newcontext, scontext->type,
-				      tcontext->type, tclass, qstr);
+				      tcontext->type, tclass, objname);
 
 	/* Check for class-specific changes. */
 	if (specified & AVTAB_TRANSITION) {
@@ -1539,13 +1539,14 @@ int security_transition_sid(u32 ssid, u32 tsid, u16 tclass,
 			    const struct qstr *qstr, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    qstr, out_sid, true);
+				    qstr ? qstr->name : NULL, out_sid, true);
 }
 
-int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass, u32 *out_sid)
+int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass,
+				 const char *objname, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    NULL, out_sid, false);
+				    objname, out_sid, false);
 }
 
 /**

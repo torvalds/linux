@@ -112,8 +112,8 @@ void security_compute_av_user(u32 ssid, u32 tsid,
 int security_transition_sid(u32 ssid, u32 tsid, u16 tclass,
 			    const struct qstr *qstr, u32 *out_sid);
 
-int security_transition_sid_user(u32 ssid, u32 tsid,
-				 u16 tclass, u32 *out_sid);
+int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass,
+				 const char *objname, u32 *out_sid);
 
 int security_member_sid(u32 ssid, u32 tsid,
 	u16 tclass, u32 *out_sid);
