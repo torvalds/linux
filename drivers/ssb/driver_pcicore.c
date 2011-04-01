@@ -417,11 +417,9 @@ static void ssb_pcicore_init_clientmode(struct ssb_pcicore *pc)
 void ssb_pcicore_init(struct ssb_pcicore *pc)
 {
 	struct ssb_device *dev = pc->dev;
-	struct ssb_bus *bus;
 
 	if (!dev)
 		return;
-	bus = dev->bus;
 	if (!ssb_device_is_enabled(dev))
 		ssb_device_enable(dev, 0);
 
