@@ -1671,6 +1671,10 @@ static void iowrite16v_urb_complete(struct urb *urb)
 
 	if (urb->status && !usb->cmd_error)
 		usb->cmd_error = urb->status;
+
+	if (!usb->cmd_error &&
+			urb->actual_length != urb->transfer_buffer_length)
+		usb->cmd_error = -EIO;
 }
 
 static int zd_submit_waiting_urb(struct zd_usb *usb, bool last)
@@ -1805,7 +1809,7 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
 			 req, req_len, iowrite16v_urb_complete, usb,
 			 ep->desc.bInterval);
-	urb->transfer_flags |= URB_FREE_BUFFER | URB_SHORT_NOT_OK;
+	urb->transfer_flags |= URB_FREE_BUFFER;
 
 	/* Submit previous URB */
 	r = zd_submit_waiting_urb(usb, false);
