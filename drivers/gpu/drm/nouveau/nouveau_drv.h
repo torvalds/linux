@@ -1177,14 +1177,7 @@ extern int  nv30_graph_init(struct drm_device *);
 extern void nv20_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv40_graph.c */
-extern int  nv40_graph_init(struct drm_device *);
-extern void nv40_graph_takedown(struct drm_device *);
-extern struct nouveau_channel *nv40_graph_channel(struct drm_device *);
-extern int  nv40_graph_create_context(struct nouveau_channel *);
-extern void nv40_graph_destroy_context(struct nouveau_channel *);
-extern int  nv40_graph_load_context(struct nouveau_channel *);
-extern int  nv40_graph_unload_context(struct drm_device *);
-extern int  nv40_graph_object_new(struct nouveau_channel *, u32, u16);
+extern int  nv40_graph_create(struct drm_device *);
 extern void nv40_grctx_init(struct nouveau_grctx *);
 extern void nv40_graph_set_tile_region(struct drm_device *dev, int i);
 

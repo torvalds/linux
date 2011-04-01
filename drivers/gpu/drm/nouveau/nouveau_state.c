@@ -299,15 +299,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv40_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->graph.init		= nv40_graph_init;
-		engine->graph.takedown		= nv40_graph_takedown;
-		engine->graph.fifo_access	= nv04_graph_fifo_access;
-		engine->graph.channel		= nv40_graph_channel;
-		engine->graph.create_context	= nv40_graph_create_context;
-		engine->graph.destroy_context	= nv40_graph_destroy_context;
-		engine->graph.load_context	= nv40_graph_load_context;
-		engine->graph.unload_context	= nv40_graph_unload_context;
-		engine->graph.object_new	= nv40_graph_object_new;
+		engine->graph.init		= nouveau_stub_init;
+		engine->graph.takedown		= nouveau_stub_takedown;
+		engine->graph.fifo_access	= nvc0_graph_fifo_access;
+		engine->graph.channel		= nvc0_graph_channel;
 		engine->graph.set_tile_region	= nv40_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
@@ -618,11 +613,17 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	if (dev_priv->card_type == NV_50)
+	switch (dev_priv->card_type) {
+	case NV_40:
+		nv40_graph_create(dev);
+		break;
+	case NV_50:
 		nv50_graph_create(dev);
-	else
-	if (dev_priv->card_type == NV_C0)
+		break;
+	case NV_C0:
 		nvc0_graph_create(dev);
+		break;
+	}
 
 	switch (dev_priv->chipset) {
 	case 0x84:
