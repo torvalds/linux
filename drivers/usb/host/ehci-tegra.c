@@ -25,6 +25,8 @@
 
 #define TEGRA_USB_DMA_ALIGN 32
 
+#define STS_SRI	(1<<7)	/*	SOF Recieved	*/
+
 struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
 	struct tegra_usb_phy *phy;
@@ -71,6 +73,7 @@ static int tegra_ehci_hub_control(
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 	u32 __iomem	*status_reg;
 	u32		temp;
+	u32		usbsts_reg;
 	unsigned long	flags;
 	int		retval = 0;
 
@@ -144,6 +147,26 @@ static int tegra_ehci_hub_control(
 
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
 
+		ehci_dbg(ehci, "%s:USBSTS = 0x%x", __func__,
+			ehci_readl(ehci, &ehci->regs->status));
+		usbsts_reg = ehci_readl(ehci, &ehci->regs->status);
+		ehci_writel(ehci, usbsts_reg, &ehci->regs->status);
+		usbsts_reg = ehci_readl(ehci, &ehci->regs->status);
+		udelay(20);
+
+		if (handshake(ehci, &ehci->regs->status, STS_SRI, STS_SRI, 2000))
+			pr_err("%s: timeout set for STS_SRI\n", __func__);
+
+		usbsts_reg = ehci_readl(ehci, &ehci->regs->status);
+		ehci_writel(ehci, usbsts_reg, &ehci->regs->status);
+
+		if (handshake(ehci, &ehci->regs->status, STS_SRI, 0, 2000))
+			pr_err("%s: timeout clear STS_SRI\n", __func__);
+
+		if (handshake(ehci, &ehci->regs->status, STS_SRI, STS_SRI, 2000))
+			pr_err("%s: timeout set STS_SRI\n", __func__);
+
+		udelay(20);
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		/* start resume signalling */
 		ehci_writel(ehci, temp | PORT_RESUME, status_reg);

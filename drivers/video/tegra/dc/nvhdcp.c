@@ -1012,6 +1012,7 @@ void tegra_nvhdcp_set_plug(struct tegra_nvhdcp *nvhdcp, bool hpd)
 	nvhdcp_set_plugged(nvhdcp, hpd);
 
 	if (hpd) {
+		nvhdcp->fail_count = 0;
 		queue_work(nvhdcp->downstream_wq, &nvhdcp->work);
 	} else {
 		flush_workqueue(nvhdcp->downstream_wq);
