@@ -2808,25 +2808,25 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	sprintf(d->dfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
 	fname = d->dfs_dir_name;
 	dent = debugfs_create_dir(fname, dfs_rootdir);
-	if (IS_ERR(dent))
+	if (IS_ERR_OR_NULL(dent))
 		goto out;
 	d->dfs_dir = dent;
 
 	fname = "dump_lprops";
 	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_lprops = dent;
 
 	fname = "dump_budg";
 	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_budg = dent;
 
 	fname = "dump_tnc";
 	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
-	if (IS_ERR(dent))
+	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_tnc = dent;
 
@@ -2835,7 +2835,7 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 out_remove:
 	debugfs_remove_recursive(d->dfs_dir);
 out:
-	err = PTR_ERR(dent);
+	err = dent ? PTR_ERR(dent) : -ENODEV;
 	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
 		  fname, err);
 	return err;
