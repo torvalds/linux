@@ -117,9 +117,9 @@ int psb_gtt_init(struct psb_gtt *pg, int resume)
 		pg->gatt_start, pg->gatt_pages/256);
 	printk(KERN_INFO"GTTADR(region 3) start: 0x%08x (can map %dM RAM), and actual RAM base 0x%08x.\n",
 		pg->gtt_start, gtt_pages * 4, pg->gtt_phys_start);
-	printk(KERN_INFO "Stole memory information\n");
-	printk(KERN_INFO "      base in RAM: 0x%x\n", pg->stolen_base);
-	printk(KERN_INFO "      size: %luK, calculated by (GTT RAM base) - (Stolen base), seems wrong\n",
+	printk(KERN_INFO "Stolen memory information\n");
+	printk(KERN_INFO "       base in RAM: 0x%x\n", pg->stolen_base);
+	printk(KERN_INFO "       size: %luK, calculated by (GTT RAM base) - (Stolen base), seems wrong\n",
 		vram_stolen_size/1024);
 	dvmt_mode = (pg->gmch_ctrl >> 4) & 0x7;
 	printk(KERN_INFO "      the correct size should be: %dM(dvmt mode=%d)\n",
