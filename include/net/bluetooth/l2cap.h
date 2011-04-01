@@ -309,11 +309,6 @@ struct l2cap_conn {
 	rwlock_t	chan_lock;
 };
 
-struct sock_del_list {
-	struct sock *sk;
-	struct list_head list;
-};
-
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
 #define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
 #define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08

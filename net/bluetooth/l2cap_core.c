@@ -487,16 +487,13 @@ void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err)
 /* ---- L2CAP connections ---- */
 static void l2cap_conn_start(struct l2cap_conn *conn)
 {
-	struct sock_del_list del, *tmp1, *tmp2;
-	struct l2cap_chan *chan;
+	struct l2cap_chan *chan, *tmp;
 
 	BT_DBG("conn %p", conn);
 
-	INIT_LIST_HEAD(&del.list);
-
 	read_lock(&conn->chan_lock);
 
-	list_for_each_entry(chan, &conn->chan_l, list) {
+	list_for_each_entry_safe(chan, tmp, &conn->chan_l, list) {
 		struct sock *sk = chan->sk;
 
 		bh_lock_sock(sk);
@@ -520,10 +517,11 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					conn->feat_mask)
 					&& l2cap_pi(sk)->conf_state &
 					L2CAP_CONF_STATE2_DEVICE) {
-				tmp1 = kzalloc(sizeof(struct sock_del_list),
-						GFP_ATOMIC);
-				tmp1->sk = sk;
-				list_add_tail(&tmp1->list, &del.list);
+				/* __l2cap_sock_close() calls list_del(chan)
+				 * so release the lock */
+				read_unlock_bh(&conn->chan_lock);
+				 __l2cap_sock_close(sk, ECONNRESET);
+				read_lock_bh(&conn->chan_lock);
 				bh_unlock_sock(sk);
 				continue;
 			}
@@ -579,14 +577,6 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 	}
 
 	read_unlock(&conn->chan_lock);
-
-	list_for_each_entry_safe(tmp1, tmp2, &del.list, list) {
-		bh_lock_sock(tmp1->sk);
-		__l2cap_sock_close(tmp1->sk, ECONNRESET);
-		bh_unlock_sock(tmp1->sk);
-		list_del(&tmp1->list);
-		kfree(tmp1);
-	}
 }
 
 /* Find socket with cid and source bdaddr.
