@@ -5171,6 +5171,7 @@ static void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
+	bool nmi_pending;
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
 		vcpu->run->request_interrupt_window;
 
@@ -5214,11 +5215,19 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (unlikely(r))
 		goto out;
 
+	/*
+	 * An NMI can be injected between local nmi_pending read and
+	 * vcpu->arch.nmi_pending read inside inject_pending_event().
+	 * But in that case, KVM_REQ_EVENT will be set, which makes
+	 * the race described above benign.
+	 */
+	nmi_pending = ACCESS_ONCE(vcpu->arch.nmi_pending);
+
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
 		inject_pending_event(vcpu);
 
 		/* enable NMI/IRQ window open exits if needed */
-		if (vcpu->arch.nmi_pending)
+		if (nmi_pending)
 			kvm_x86_ops->enable_nmi_window(vcpu);
 		else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
 			kvm_x86_ops->enable_irq_window(vcpu);
