@@ -434,50 +434,49 @@ struct qlcnic_adapter_stats {
  * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
  */
 struct qlcnic_host_rds_ring {
-	u32 producer;
-	u32 num_desc;
-	u32 dma_size;
-	u32 skb_size;
-	u32 flags;
 	void __iomem *crb_rcv_producer;
 	struct rcv_desc *desc_head;
 	struct qlcnic_rx_buffer *rx_buf_arr;
+	u32 num_desc;
+	u32 producer;
+	u32 dma_size;
+	u32 skb_size;
+	u32 flags;
 	struct list_head free_list;
 	spinlock_t lock;
 	dma_addr_t phys_addr;
-};
+} ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_sds_ring {
 	u32 consumer;
 	u32 num_desc;
 	void __iomem *crb_sts_consumer;
-	void __iomem *crb_intr_mask;
 
 	struct status_desc *desc_head;
 	struct qlcnic_adapter *adapter;
 	struct napi_struct napi;
 	struct list_head free_list[NUM_RCV_DESC_RINGS];
 
+	void __iomem *crb_intr_mask;
 	int irq;
 
 	dma_addr_t phys_addr;
 	char name[IFNAMSIZ+4];
-};
+} ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
 	u32 producer;
-	__le32 *hw_consumer;
 	u32 sw_consumer;
-	void __iomem *crb_cmd_producer;
 	u32 num_desc;
-
-	struct netdev_queue *txq;
-
-	struct qlcnic_cmd_buffer *cmd_buf_arr;
+	void __iomem *crb_cmd_producer;
 	struct cmd_desc_type0 *desc_head;
+	struct qlcnic_cmd_buffer *cmd_buf_arr;
+	__le32 *hw_consumer;
+
 	dma_addr_t phys_addr;
 	dma_addr_t hw_cons_phys_addr;
-};
+	struct netdev_queue *txq;
+} ____cacheline_internodealigned_in_smp;
 
 /*
  * Receive context. There is one such structure per instance of the
@@ -1328,8 +1327,7 @@ static const struct qlcnic_brdinfo qlcnic_boards[] = {
 
 static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 {
-	smp_mb();
-	if (tx_ring->producer < tx_ring->sw_consumer)
+	if (likely(tx_ring->producer < tx_ring->sw_consumer))
 		return tx_ring->sw_consumer - tx_ring->producer;
 	else
 		return tx_ring->sw_consumer + tx_ring->num_desc -
