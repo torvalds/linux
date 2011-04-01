@@ -6,6 +6,14 @@ be removed from this file.
 
 ---------------------------
 
+What:	x86 floppy disable_hlt
+When:	2012
+Why:	ancient workaround of dubious utility clutters the
+	code used by everybody else.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
 What:	PRISM54
 When:	2.6.34
 
