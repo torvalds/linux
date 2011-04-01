@@ -1130,9 +1130,20 @@ qlcnic_load_firmware(struct qlcnic_adapter *adapter)
 	} else {
 		u64 data;
 		u32 hi, lo;
+		int ret;
+		struct qlcnic_flt_entry bootld_entry;
 
-		size = (QLCNIC_IMAGE_START - QLCNIC_BOOTLD_START) / 8;
-		flashaddr = QLCNIC_BOOTLD_START;
+		ret = qlcnic_get_flt_entry(adapter, QLCNIC_BOOTLD_REGION,
+					&bootld_entry);
+		if (!ret) {
+			size = bootld_entry.size / 8;
+			flashaddr = bootld_entry.start_addr;
+		} else {
+			size = (QLCNIC_IMAGE_START - QLCNIC_BOOTLD_START) / 8;
+			flashaddr = QLCNIC_BOOTLD_START;
+			dev_info(&pdev->dev,
+				"using legacy method to get flash fw region");
+		}
 
 		for (i = 0; i < size; i++) {
 			if (qlcnic_rom_fast_read(adapter,
