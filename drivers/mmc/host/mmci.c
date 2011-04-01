@@ -103,6 +103,8 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	if (desired) {
 		if (desired >= host->mclk) {
 			clk = MCI_CLK_BYPASS;
+			if (variant->st_clkdiv)
+				clk |= MCI_ST_UX500_NEG_EDGE;
 			host->cclk = host->mclk;
 		} else if (variant->st_clkdiv) {
 			/*
