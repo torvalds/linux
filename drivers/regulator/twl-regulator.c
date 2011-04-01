@@ -517,10 +517,9 @@ static struct regulator_ops twl6030_fixed_resource = {
 			remap_conf) \
 		TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
 			remap_conf, TWL4030)
-#define TWL6030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
-			remap_conf) \
+#define TWL6030_FIXED_LDO(label, offset, mVolts, num, turnon_delay) \
 		TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
-			remap_conf, TWL6030)
+			0x0, TWL6030)
 
 #define TWL4030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf) { \
 	.base = offset, \
@@ -539,13 +538,11 @@ static struct regulator_ops twl6030_fixed_resource = {
 		}, \
 	}
 
-#define TWL6030_ADJUSTABLE_LDO(label, offset, min_mVolts, max_mVolts, num, \
-		remap_conf) { \
+#define TWL6030_ADJUSTABLE_LDO(label, offset, min_mVolts, max_mVolts, num) { \
 	.base = offset, \
 	.id = num, \
 	.min_mV = min_mVolts, \
 	.max_mV = max_mVolts, \
-	.remap = remap_conf, \
 	.desc = { \
 		.name = #label, \
 		.id = TWL6030_REG_##label, \
@@ -574,11 +571,10 @@ static struct regulator_ops twl6030_fixed_resource = {
 		}, \
 	}
 
-#define TWL6030_FIXED_RESOURCE(label, offset, num, turnon_delay, remap_conf) { \
+#define TWL6030_FIXED_RESOURCE(label, offset, num, turnon_delay) { \
 	.base = offset, \
 	.id = num, \
 	.delay = turnon_delay, \
-	.remap = remap_conf, \
 	.desc = { \
 		.name = #label, \
 		.id = TWL6030_REG_##label, \
@@ -618,17 +614,17 @@ static struct twlreg_info twl_regs[] = {
 	/* 6030 REG with base as PMC Slave Misc : 0x0030 */
 	/* Turnon-delay and remap configuration values for 6030 are not
 	   verified since the specification is not public */
-	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1000, 3300, 1, 0x21),
-	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 1000, 3300, 2, 0x21),
-	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 1000, 3300, 3, 0x21),
-	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 1000, 3300, 4, 0x21),
-	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 1000, 3300, 5, 0x21),
-	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 1000, 3300, 7, 0x21),
-	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x21),
-	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x21),
-	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x21),
-	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21),
-	TWL6030_FIXED_RESOURCE(CLK32KG, 0x8C, 48, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1000, 3300, 1),
+	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 1000, 3300, 2),
+	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 1000, 3300, 3),
+	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 1000, 3300, 4),
+	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 1000, 3300, 5),
+	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 1000, 3300, 7),
+	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0),
+	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0),
+	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0),
+	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0),
+	TWL6030_FIXED_RESOURCE(CLK32KG, 0x8C, 48, 0),
 };
 
 static int __devinit twlreg_probe(struct platform_device *pdev)
@@ -682,7 +678,8 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, rdev);
 
-	twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_REMAP,
+	if (twl_class_is_4030())
+		twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_REMAP,
 						info->remap);
 
 	/* NOTE:  many regulators support short-circuit IRQs (presentable
