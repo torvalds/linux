@@ -663,6 +663,22 @@ struct ethtool_rx_ntuple_list {
 	unsigned int		count;
 };
 
+/**
+ * enum ethtool_phys_id_state - indicator state for physical identification
+ * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
+ * @ETHTOOL_ID_ACTIVE: Physical ID indicator should be activated
+ * @ETHTOOL_ID_ON: LED should be turned on (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ * @ETHTOOL_ID_OFF: LED should be turned off (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ */
+enum ethtool_phys_id_state {
+	ETHTOOL_ID_INACTIVE,
+	ETHTOOL_ID_ACTIVE,
+	ETHTOOL_ID_ON,
+	ETHTOOL_ID_OFF
+};
+
 struct net_device;
 
 /* Some generic methods drivers may use in their ethtool_ops */
@@ -741,7 +757,18 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  *	segmentation offload on or off.  Returns a negative error code or zero.
  * @self_test: Run specified self-tests
  * @get_strings: Return a set of strings that describe the requested objects
- * @phys_id: Identify the physical device, e.g. by flashing an LED
+ * @set_phys_id: Identify the physical devices, e.g. by flashing an LED
+ *	attached to it.  The implementation may update the indicator
+ *	asynchronously or synchronously, but in either case it must return
+ *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
+ *	and must either activate asynchronous updates or return -%EINVAL.
+ *	If it returns -%EINVAL then it will be called again at intervals with
+ *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
+ *	the indicator accordingly.  Finally, it is called with the argument
+ *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
+ *	negative error code or zero.
+ * @phys_id: Deprecated in favour of @set_phys_id.
+ *	Identify the physical device, e.g. by flashing an LED
  *	attached to it until interrupted by a signal or the given time
  *	(in seconds) elapses.  If the given time is zero, use a default
  *	time limit.  Returns a negative error code or zero.  Being
@@ -830,6 +857,7 @@ struct ethtool_ops {
 	int	(*set_tso)(struct net_device *, u32);
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
+	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
 	int	(*phys_id)(struct net_device *, u32);
 	void	(*get_ethtool_stats)(struct net_device *,
 				     struct ethtool_stats *, u64 *);
