@@ -493,7 +493,8 @@ static int psb_do_init(struct drm_device *dev)
         PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
 							PSB_CR_BIF_CTRL);
 	psb_spank(dev_priv);
-       
+
+	printk(KERN_INFO "TWOD base %08lX\n", (u32) pg->mmu_gatt_start);
       	PSB_WSGX32(pg->mmu_gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
 	return 0;
