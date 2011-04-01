@@ -335,7 +335,7 @@ out_attach:
 EXPORT_SYMBOL(fcoe_transport_attach);
 
 /**
- * fcoe_transport_attach - Detaches an FCoE transport
+ * fcoe_transport_detach - Detaches an FCoE transport
  * @ft: The fcoe transport to be attached
  *
  * Returns : 0 for success
