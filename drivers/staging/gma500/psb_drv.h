@@ -709,6 +709,9 @@ extern int psbfb_sync(struct fb_info *info);
 
 extern void psb_spank(struct drm_psb_private *dev_priv);
 
+extern int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
+	 	  	   unsigned size);
+
 /*
  *psb_reset.c
  */

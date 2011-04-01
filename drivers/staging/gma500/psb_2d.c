@@ -84,7 +84,7 @@ static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
 /* FIXME: Remember if we expose the 2D engine to the DRM we need to serialize
    it with console use */
 
-static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
+int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 	 	  	   unsigned size)
 {
 	int ret = 0;
