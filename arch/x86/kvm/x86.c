@@ -361,8 +361,8 @@ void kvm_propagate_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
 {
-	kvm_make_request(KVM_REQ_NMI, vcpu);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
+	vcpu->arch.nmi_pending = 1;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_nmi);
 
@@ -5208,8 +5208,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			r = 1;
 			goto out;
 		}
-		if (kvm_check_request(KVM_REQ_NMI, vcpu))
-			vcpu->arch.nmi_pending = true;
 	}
 
 	r = kvm_mmu_reload(vcpu);
