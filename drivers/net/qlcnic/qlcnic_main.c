@@ -464,8 +464,10 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pfn = pci_info[i].id;
-		if (pfn > QLCNIC_MAX_PCI_FUNC)
-			return QL_STATUS_INVALID_PARAM;
+		if (pfn > QLCNIC_MAX_PCI_FUNC) {
+			ret = QL_STATUS_INVALID_PARAM;
+			goto err_eswitch;
+		}
 		adapter->npars[pfn].active = (u8)pci_info[i].active;
 		adapter->npars[pfn].type = (u8)pci_info[i].type;
 		adapter->npars[pfn].phy_port = (u8)pci_info[i].default_port;
