@@ -93,8 +93,6 @@
 #define TX_IP_PKT	0x04
 #define TX_TCP_LSO	0x05
 #define TX_TCP_LSO6	0x06
-#define TX_IPSEC	0x07
-#define TX_IPSEC_CMD	0x0a
 #define TX_TCPV6_PKT	0x0b
 #define TX_UDPV6_PKT	0x0c
 
@@ -200,7 +198,7 @@ struct rcv_desc {
 	__le16 reserved;
 	__le32 buffer_length;	/* allocated buffer length (usually 2K) */
 	__le64 addr_buffer;
-};
+} __packed;
 
 /* opcode field in status_desc */
 #define QLCNIC_SYN_OFFLOAD	0x03
@@ -365,12 +363,6 @@ struct qlcnic_skb_frag {
 	u64 length;
 };
 
-struct qlcnic_recv_crb {
-	u32 crb_rcv_producer[NUM_RCV_DESC_RINGS];
-	u32 crb_sts_consumer[NUM_STS_DESC_RINGS];
-	u32 sw_int_mask[NUM_STS_DESC_RINGS];
-};
-
 /*    Following defines are for the state of the buffers    */
 #define	QLCNIC_BUFFER_FREE	0
 #define	QLCNIC_BUFFER_BUSY	1
@@ -387,10 +379,10 @@ struct qlcnic_cmd_buffer {
 
 /* In rx_buffer, we do not need multiple fragments as is a single buffer */
 struct qlcnic_rx_buffer {
-	struct list_head list;
-	struct sk_buff *skb;
-	u64 dma;
 	u16 ref_handle;
+	struct sk_buff *skb;
+	struct list_head list;
+	u64 dma;
 };
 
 /* Board types */
@@ -494,12 +486,12 @@ struct qlcnic_host_tx_ring {
  * present elsewhere.
  */
 struct qlcnic_recv_context {
+	struct qlcnic_host_rds_ring *rds_rings;
+	struct qlcnic_host_sds_ring *sds_rings;
 	u32 state;
 	u16 context_id;
 	u16 virt_port;
 
-	struct qlcnic_host_rds_ring *rds_rings;
-	struct qlcnic_host_sds_ring *sds_rings;
 };
 
 /* HW context creation */
@@ -538,9 +530,6 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_DESTROY_RX_CTX          0x00000008
 #define QLCNIC_CDRP_CMD_CREATE_TX_CTX           0x00000009
 #define QLCNIC_CDRP_CMD_DESTROY_TX_CTX          0x0000000a
-#define QLCNIC_CDRP_CMD_SETUP_STATISTICS        0x0000000e
-#define QLCNIC_CDRP_CMD_GET_STATISTICS          0x0000000f
-#define QLCNIC_CDRP_CMD_DELETE_STATISTICS       0x00000010
 #define QLCNIC_CDRP_CMD_SET_MTU                 0x00000012
 #define QLCNIC_CDRP_CMD_READ_PHY		0x00000013
 #define QLCNIC_CDRP_CMD_WRITE_PHY		0x00000014
@@ -549,17 +538,11 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_SET_FLOW_CTL		0x00000017
 #define QLCNIC_CDRP_CMD_READ_MAX_MTU		0x00000018
 #define QLCNIC_CDRP_CMD_READ_MAX_LRO		0x00000019
-#define QLCNIC_CDRP_CMD_CONFIGURE_TOE		0x0000001a
-#define QLCNIC_CDRP_CMD_FUNC_ATTRIB		0x0000001b
-#define QLCNIC_CDRP_CMD_READ_PEXQ_PARAMETERS	0x0000001c
-#define QLCNIC_CDRP_CMD_GET_LIC_CAPABILITIES	0x0000001d
-#define QLCNIC_CDRP_CMD_READ_MAX_LRO_PER_BOARD	0x0000001e
 #define QLCNIC_CDRP_CMD_MAC_ADDRESS		0x0000001f
 
 #define QLCNIC_CDRP_CMD_GET_PCI_INFO		0x00000020
 #define QLCNIC_CDRP_CMD_GET_NIC_INFO		0x00000021
 #define QLCNIC_CDRP_CMD_SET_NIC_INFO		0x00000022
-#define QLCNIC_CDRP_CMD_RESET_NPAR		0x00000023
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_CAPABILITY	0x00000024
 #define QLCNIC_CDRP_CMD_TOGGLE_ESWITCH		0x00000025
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_STATUS	0x00000026
@@ -597,14 +580,14 @@ struct qlcnic_hostrq_sds_ring {
 	__le32 ring_size;		/* Ring entries */
 	__le16 msi_index;
 	__le16 rsvd;		/* Padding */
-};
+} __packed;
 
 struct qlcnic_hostrq_rds_ring {
 	__le64 host_phys_addr;	/* Ring base addr */
 	__le64 buff_size;		/* Packet buffer size */
 	__le32 ring_size;		/* Ring entries */
 	__le32 ring_kind;		/* Class of ring */
-};
+} __packed;
 
 struct qlcnic_hostrq_rx_ctx {
 	__le64 host_rsp_dma_addr;	/* Response dma'd here */
@@ -625,17 +608,17 @@ struct qlcnic_hostrq_rx_ctx {
 	   - N hostrq_rds_rings
 	   - N hostrq_sds_rings */
 	char data[0];
-};
+} __packed;
 
 struct qlcnic_cardrsp_rds_ring{
 	__le32 host_producer_crb;	/* Crb to use */
 	__le32 rsvd1;		/* Padding */
-};
+} __packed;
 
 struct qlcnic_cardrsp_sds_ring {
 	__le32 host_consumer_crb;	/* Crb to use */
 	__le32 interrupt_crb;	/* Crb to use */
-};
+} __packed;
 
 struct qlcnic_cardrsp_rx_ctx {
 	/* These ring offsets are relative to data[0] below */
@@ -654,7 +637,7 @@ struct qlcnic_cardrsp_rx_ctx {
 	   - N cardrsp_rds_rings
 	   - N cardrs_sds_rings */
 	char data[0];
-};
+} __packed;
 
 #define SIZEOF_HOSTRQ_RX(HOSTRQ_RX, rds_rings, sds_rings)	\
 	(sizeof(HOSTRQ_RX) + 					\
@@ -674,7 +657,7 @@ struct qlcnic_hostrq_cds_ring {
 	__le64 host_phys_addr;	/* Ring base addr */
 	__le32 ring_size;		/* Ring entries */
 	__le32 rsvd;		/* Padding */
-};
+} __packed;
 
 struct qlcnic_hostrq_tx_ctx {
 	__le64 host_rsp_dma_addr;	/* Response dma'd here */
@@ -689,12 +672,12 @@ struct qlcnic_hostrq_tx_ctx {
 	__le16 rsvd3;		/* Padding */
 	struct qlcnic_hostrq_cds_ring cds_ring;	/* Desc of cds ring */
 	u8  reserved[128];	/* future expansion */
-};
+} __packed;
 
 struct qlcnic_cardrsp_cds_ring {
 	__le32 host_producer_crb;	/* Crb to use */
 	__le32 interrupt_crb;	/* Crb to use */
-};
+} __packed;
 
 struct qlcnic_cardrsp_tx_ctx {
 	__le32 host_ctx_state;	/* Starting state */
@@ -703,7 +686,7 @@ struct qlcnic_cardrsp_tx_ctx {
 	u8  virt_port;		/* Virtual/Logical id of port */
 	struct qlcnic_cardrsp_cds_ring cds_ring;	/* Card cds settings */
 	u8  reserved[128];	/* future expansion */
-};
+} __packed;
 
 #define SIZEOF_HOSTRQ_TX(HOSTRQ_TX)	(sizeof(HOSTRQ_TX))
 #define SIZEOF_CARDRSP_TX(CARDRSP_TX)	(sizeof(CARDRSP_TX))
@@ -782,50 +765,20 @@ struct qlcnic_nic_intr_coalesce {
 /*
  * Driver --> Firmware
  */
-#define QLCNIC_H2C_OPCODE_START 			0
-#define QLCNIC_H2C_OPCODE_CONFIG_RSS			1
-#define QLCNIC_H2C_OPCODE_CONFIG_RSS_TBL		2
-#define QLCNIC_H2C_OPCODE_CONFIG_INTR_COALESCE		3
-#define QLCNIC_H2C_OPCODE_CONFIG_LED			4
-#define QLCNIC_H2C_OPCODE_CONFIG_PROMISCUOUS		5
-#define QLCNIC_H2C_OPCODE_CONFIG_L2_MAC 		6
-#define QLCNIC_H2C_OPCODE_LRO_REQUEST			7
-#define QLCNIC_H2C_OPCODE_GET_SNMP_STATS		8
-#define QLCNIC_H2C_OPCODE_PROXY_START_REQUEST		9
-#define QLCNIC_H2C_OPCODE_PROXY_STOP_REQUEST		10
-#define QLCNIC_H2C_OPCODE_PROXY_SET_MTU 		11
-#define QLCNIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE	12
-#define QLCNIC_H2C_OPCODE_GET_FINGER_PRINT_REQUEST	13
-#define QLCNIC_H2C_OPCODE_INSTALL_LICENSE_REQUEST	14
-#define QLCNIC_H2C_OPCODE_GET_LICENSE_CAPABILITY_REQUEST	15
-#define QLCNIC_H2C_OPCODE_GET_NET_STATS 		16
-#define QLCNIC_H2C_OPCODE_PROXY_UPDATE_P2V		17
-#define QLCNIC_H2C_OPCODE_CONFIG_IPADDR 		18
-#define QLCNIC_H2C_OPCODE_PROXY_STOP_DONE		20
-#define QLCNIC_H2C_OPCODE_GET_LINKEVENT 		21
-#define QLCNIC_C2C_OPCODE				22
-#define QLCNIC_H2C_OPCODE_CONFIG_BRIDGING		23
-#define QLCNIC_H2C_OPCODE_CONFIG_HW_LRO 		24
-#define QLCNIC_H2C_OPCODE_LAST				25
+#define QLCNIC_H2C_OPCODE_CONFIG_RSS			0x1
+#define QLCNIC_H2C_OPCODE_CONFIG_INTR_COALESCE		0x3
+#define QLCNIC_H2C_OPCODE_CONFIG_LED			0x4
+#define QLCNIC_H2C_OPCODE_LRO_REQUEST			0x7
+#define QLCNIC_H2C_OPCODE_SET_MAC_RECEIVE_MODE		0xc
+#define QLCNIC_H2C_OPCODE_CONFIG_IPADDR		0x12
+#define QLCNIC_H2C_OPCODE_GET_LINKEVENT		0x15
+#define QLCNIC_H2C_OPCODE_CONFIG_BRIDGING		0x17
+#define QLCNIC_H2C_OPCODE_CONFIG_HW_LRO		0x18
 /*
  * Firmware --> Driver
  */
 
-#define QLCNIC_C2H_OPCODE_START 			128
-#define QLCNIC_C2H_OPCODE_CONFIG_RSS_RESPONSE		129
-#define QLCNIC_C2H_OPCODE_CONFIG_RSS_TBL_RESPONSE	130
-#define QLCNIC_C2H_OPCODE_CONFIG_MAC_RESPONSE		131
-#define QLCNIC_C2H_OPCODE_CONFIG_PROMISCUOUS_RESPONSE	132
-#define QLCNIC_C2H_OPCODE_CONFIG_L2_MAC_RESPONSE	133
-#define QLCNIC_C2H_OPCODE_LRO_DELETE_RESPONSE		134
-#define QLCNIC_C2H_OPCODE_LRO_ADD_FAILURE_RESPONSE	135
-#define QLCNIC_C2H_OPCODE_GET_SNMP_STATS		136
-#define QLCNIC_C2H_OPCODE_GET_FINGER_PRINT_REPLY	137
-#define QLCNIC_C2H_OPCODE_INSTALL_LICENSE_REPLY 	138
-#define QLCNIC_C2H_OPCODE_GET_LICENSE_CAPABILITIES_REPLY 139
-#define QLCNIC_C2H_OPCODE_GET_NET_STATS_RESPONSE	140
 #define QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	141
-#define QLCNIC_C2H_OPCODE_LAST				142
 
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
@@ -894,7 +847,7 @@ struct qlcnic_nic_req {
 	__le64 qhdr;
 	__le64 req_hdr;
 	__le64 words[6];
-};
+} __packed;
 
 struct qlcnic_mac_req {
 	u8 op;
@@ -905,7 +858,7 @@ struct qlcnic_mac_req {
 struct qlcnic_vlan_req {
 	__le16 vlan_id;
 	__le16 rsvd[3];
-};
+} __packed;
 
 struct qlcnic_ipaddr {
 	__be32 ipv4;
@@ -964,14 +917,14 @@ struct qlcnic_filter_hash {
 };
 
 struct qlcnic_adapter {
-	struct qlcnic_hardware_context ahw;
-
+	struct qlcnic_hardware_context *ahw;
+	struct qlcnic_recv_context *recv_ctx;
+	struct qlcnic_host_tx_ring *tx_ring;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct list_head mac_list;
 
-	spinlock_t tx_clean_lock;
-	spinlock_t mac_learn_lock;
+	unsigned long state;
+	u32 flags;
 
 	u16 num_txd;
 	u16 num_rxd;
@@ -989,7 +942,6 @@ struct qlcnic_adapter {
 
 	u8 mc_enabled;
 	u8 max_mc_count;
-	u8 rss_supported;
 	u8 fw_wait_cnt;
 	u8 fw_fail_cnt;
 	u8 tx_timeo_cnt;
@@ -1014,7 +966,6 @@ struct qlcnic_adapter {
 
 	u32 fw_hal_version;
 	u32 capabilities;
-	u32 flags;
 	u32 irq;
 	u32 temp;
 
@@ -1039,9 +990,7 @@ struct qlcnic_adapter {
 	struct qlcnic_nic_template *nic_ops;
 
 	struct qlcnic_adapter_stats stats;
-
-	struct qlcnic_recv_context recv_ctx;
-	struct qlcnic_host_tx_ring *tx_ring;
+	struct list_head mac_list;
 
 	void __iomem	*tgt_mask_reg;
 	void __iomem	*tgt_status_reg;
@@ -1056,7 +1005,8 @@ struct qlcnic_adapter {
 
 	struct qlcnic_filter_hash fhash;
 
-	unsigned long state;
+	spinlock_t tx_clean_lock;
+	spinlock_t mac_learn_lock;
 	__le32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
@@ -1078,7 +1028,7 @@ struct qlcnic_info {
 	__le16	min_tx_bw;
 	__le16	max_tx_bw;
 	u8	reserved2[104];
-};
+} __packed;
 
 struct qlcnic_pci_info {
 	__le16	id; /* pci function id */
@@ -1092,7 +1042,7 @@ struct qlcnic_pci_info {
 
 	u8	mac[ETH_ALEN];
 	u8	reserved2[106];
-};
+} __packed;
 
 struct qlcnic_npar_info {
 	u16	pvid;
@@ -1209,7 +1159,7 @@ struct __qlcnic_esw_statistics {
 	__le64 local_frames;
 	__le64 numbytes;
 	__le64 rsvd[3];
-};
+} __packed;
 
 struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics rx;
@@ -1293,7 +1243,7 @@ void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter);
 
 int qlcnic_check_fw_status(struct qlcnic_adapter *adapter);
 void qlcnic_watchdog_task(struct work_struct *work);
-void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
+void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring);
 int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max);
 void qlcnic_set_multi(struct net_device *netdev);

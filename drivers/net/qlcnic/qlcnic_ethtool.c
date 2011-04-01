@@ -150,10 +150,10 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int check_sfp_module = 0;
-	u16 pcifn = adapter->ahw.pci_func;
+	u16 pcifn = adapter->ahw->pci_func;
 
 	/* read which mode */
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
+	if (adapter->ahw->port_type == QLCNIC_GBE) {
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
 				   SUPPORTED_100baseT_Half |
@@ -170,7 +170,7 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
-	} else if (adapter->ahw.port_type == QLCNIC_XGBE) {
+	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		u32 val;
 
 		val = QLCRD32(adapter, QLCNIC_PORT_MODE_ADDR);
@@ -201,7 +201,7 @@ skip:
 	ecmd->phy_address = adapter->physical_port;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
-	switch (adapter->ahw.board_type) {
+	switch (adapter->ahw->board_type) {
 	case QLCNIC_BRDTYPE_P3P_REF_QG:
 	case QLCNIC_BRDTYPE_P3P_4_GB:
 	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
@@ -238,7 +238,7 @@ skip:
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
 	case QLCNIC_BRDTYPE_P3P_10G_TP:
-		if (adapter->ahw.port_type == QLCNIC_XGBE) {
+		if (adapter->ahw->port_type == QLCNIC_XGBE) {
 			ecmd->autoneg = AUTONEG_DISABLE;
 			ecmd->supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
 			ecmd->advertising |=
@@ -256,7 +256,7 @@ skip:
 		break;
 	default:
 		dev_err(&adapter->pdev->dev, "Unsupported board model %d\n",
-			adapter->ahw.board_type);
+			adapter->ahw->board_type);
 		return -EIO;
 	}
 
@@ -288,7 +288,7 @@ qlcnic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	__u32 status;
 
 	/* read which mode */
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
+	if (adapter->ahw->port_type == QLCNIC_GBE) {
 		/* autonegotiation */
 		if (qlcnic_fw_cmd_set_phy(adapter,
 			       QLCNIC_NIU_GB_MII_MGMT_ADDR_AUTONEG,
@@ -340,14 +340,14 @@ static void
 qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring;
 	u32 *regs_buff = p;
 	int ring, i = 0, j = 0;
 
 	memset(p, 0, qlcnic_get_regs_len(dev));
 	regs->version = (QLCNIC_ETHTOOL_REGS_VER << 24) |
-		(adapter->ahw.revision_id << 16) | (adapter->pdev)->device;
+		(adapter->ahw->revision_id << 16) | (adapter->pdev)->device;
 
 	regs_buff[0] = (0xcafe0000 | (QLCNIC_DEV_INFO_SIZE & 0xffff));
 	regs_buff[1] = QLCNIC_MGMT_API_VERSION;
@@ -382,7 +382,7 @@ static u32 qlcnic_test_link(struct net_device *dev)
 	u32 val;
 
 	val = QLCRD32(adapter, CRB_XG_STATE_P3P);
-	val = XG_LINK_STATE_P3P(adapter->ahw.pci_func, val);
+	val = XG_LINK_STATE_P3P(adapter->ahw->pci_func, val);
 	return (val == XG_LINK_UP_P3P) ? 0 : 1;
 }
 
@@ -482,7 +482,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 	int port = adapter->physical_port;
 	__u32 val;
 
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
+	if (adapter->ahw->port_type == QLCNIC_GBE) {
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_GBE_PORTS))
 			return;
 		/* get flow control settings */
@@ -504,7 +504,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 			pause->tx_pause = !(qlcnic_gb_get_gb3_mask(val));
 			break;
 		}
-	} else if (adapter->ahw.port_type == QLCNIC_XGBE) {
+	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_XG_PORTS))
 			return;
 		pause->rx_pause = 1;
@@ -515,7 +515,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 			pause->tx_pause = !(qlcnic_xg_get_xg1_mask(val));
 	} else {
 		dev_err(&netdev->dev, "Unknown board type: %x\n",
-					adapter->ahw.port_type);
+					adapter->ahw->port_type);
 	}
 }
 
@@ -528,7 +528,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 	__u32 val;
 
 	/* read mode */
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
+	if (adapter->ahw->port_type == QLCNIC_GBE) {
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_GBE_PORTS))
 			return -EIO;
 		/* set flow control */
@@ -571,7 +571,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 			break;
 		}
 		QLCWR32(adapter, QLCNIC_NIU_GB_PAUSE_CTL, val);
-	} else if (adapter->ahw.port_type == QLCNIC_XGBE) {
+	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		if (!pause->rx_pause || pause->autoneg)
 			return -EOPNOTSUPP;
 
@@ -593,7 +593,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		QLCWR32(adapter, QLCNIC_NIU_XG_PAUSE_CTL, val);
 	} else {
 		dev_err(&netdev->dev, "Unknown board type: %x\n",
-				adapter->ahw.port_type);
+				adapter->ahw->port_type);
 	}
 	return 0;
 }
@@ -639,8 +639,8 @@ static int qlcnic_irq_test(struct net_device *netdev)
 		goto clear_it;
 
 	adapter->diag_cnt = 0;
-	ret = qlcnic_issue_cmd(adapter, adapter->ahw.pci_func,
-			adapter->fw_hal_version, adapter->portnum,
+	ret = qlcnic_issue_cmd(adapter, adapter->ahw->pci_func,
+			adapter->fw_hal_version, adapter->ahw->pci_func,
 			0, 0, 0x00000011);
 	if (ret)
 		goto done;
@@ -749,14 +749,14 @@ qlcnic_get_ethtool_stats(struct net_device *dev,
 		return;
 
 	memset(&port_stats, 0, sizeof(struct qlcnic_esw_statistics));
-	ret = qlcnic_get_port_stats(adapter, adapter->ahw.pci_func,
+	ret = qlcnic_get_port_stats(adapter, adapter->ahw->pci_func,
 			QLCNIC_QUERY_RX_COUNTER, &port_stats.rx);
 	if (ret)
 		return;
 
 	qlcnic_fill_device_stats(&index, data, &port_stats.rx);
 
-	ret = qlcnic_get_port_stats(adapter, adapter->ahw.pci_func,
+	ret = qlcnic_get_port_stats(adapter, adapter->ahw->pci_func,
 			QLCNIC_QUERY_TX_COUNTER, &port_stats.tx);
 	if (ret)
 		return;
