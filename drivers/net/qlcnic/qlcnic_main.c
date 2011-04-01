@@ -1097,20 +1097,6 @@ qlcnic_free_irq(struct qlcnic_adapter *adapter)
 	}
 }
 
-static void
-qlcnic_init_coalesce_defaults(struct qlcnic_adapter *adapter)
-{
-	adapter->coal.flags = QLCNIC_INTR_DEFAULT;
-	adapter->coal.normal.data.rx_time_us =
-		QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US;
-	adapter->coal.normal.data.rx_packets =
-		QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS;
-	adapter->coal.normal.data.tx_time_us =
-		QLCNIC_DEFAULT_INTR_COALESCE_TX_TIME_US;
-	adapter->coal.normal.data.tx_packets =
-		QLCNIC_DEFAULT_INTR_COALESCE_TX_PACKETS;
-}
-
 static int
 __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
@@ -1244,8 +1230,6 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 		goto err_out_free_hw;
 	}
 
-	qlcnic_init_coalesce_defaults(adapter);
-
 	qlcnic_create_sysfs_entries(adapter);
 
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
@@ -1326,7 +1310,12 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 		kfree(adapter->ahw);
 		adapter->ahw = NULL;
 		err = -ENOMEM;
+		goto err_out;
 	}
+	/* Initialize interrupt coalesce parameters */
+	adapter->ahw->coal.flag = QLCNIC_INTR_DEFAULT;
+	adapter->ahw->coal.rx_time_us = QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US;
+	adapter->ahw->coal.rx_packets = QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS;
 err_out:
 	return err;
 }

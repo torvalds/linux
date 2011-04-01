@@ -532,33 +532,31 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 	}
 }
 
-#define	QLCNIC_CONFIG_INTR_COALESCE	3
-
 /*
  * Send the interrupt coalescing parameter set by ethtool to the card.
  */
 int qlcnic_config_intr_coalesce(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_nic_req req;
-	u64 word[6];
-	int rv, i;
+	int rv;
 
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
 
 	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
 
-	word[0] = QLCNIC_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
-	req.req_hdr = cpu_to_le64(word[0]);
+	req.req_hdr = cpu_to_le64(QLCNIC_CONFIG_INTR_COALESCE |
+		((u64) adapter->portnum << 16));
 
-	memcpy(&word[0], &adapter->coal, sizeof(adapter->coal));
-	for (i = 0; i < 6; i++)
-		req.words[i] = cpu_to_le64(word[i]);
-
+	req.words[0] = cpu_to_le64(((u64) adapter->ahw->coal.flag) << 32);
+	req.words[2] = cpu_to_le64(adapter->ahw->coal.rx_packets |
+			((u64) adapter->ahw->coal.rx_time_us) << 16);
+	req.words[5] = cpu_to_le64(adapter->ahw->coal.timer_out |
+			((u64) adapter->ahw->coal.type) << 32 |
+			((u64) adapter->ahw->coal.sts_ring_mask) << 40);
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
 			"Could not send interrupt coalescing parameters\n");
-
 	return rv;
 }
 

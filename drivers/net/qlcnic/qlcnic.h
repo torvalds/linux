@@ -392,6 +392,25 @@ struct qlcnic_rx_buffer {
 #define	QLCNIC_XGBE	0x02
 
 /*
+ * Interrupt coalescing defaults. The defaults are for 1500 MTU. It is
+ * adjusted based on configured MTU.
+ */
+#define QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US	3
+#define QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS	256
+
+#define QLCNIC_INTR_DEFAULT			0x04
+#define QLCNIC_CONFIG_INTR_COALESCE		3
+
+struct qlcnic_nic_intr_coalesce {
+	u8	type;
+	u8	sts_ring_mask;
+	u16	rx_packets;
+	u16	rx_time_us;
+	u16	flag;
+	u32	timer_out;
+};
+
+/*
  * One hardware_context{} per adapter
  * contains interrupt info as well shared hardware info.
  */
@@ -409,6 +428,8 @@ struct qlcnic_hardware_context {
 	u8 linkup;
 	u16 port_type;
 	u16 board_type;
+
+	struct qlcnic_nic_intr_coalesce coal;
 };
 
 struct qlcnic_adapter_stats {
@@ -721,40 +742,6 @@ struct qlcnic_mac_list_s {
 	uint8_t mac_addr[ETH_ALEN+2];
 };
 
-/*
- * Interrupt coalescing defaults. The defaults are for 1500 MTU. It is
- * adjusted based on configured MTU.
- */
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US	3
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS	256
-#define QLCNIC_DEFAULT_INTR_COALESCE_TX_PACKETS	64
-#define QLCNIC_DEFAULT_INTR_COALESCE_TX_TIME_US	4
-
-#define QLCNIC_INTR_DEFAULT			0x04
-
-union qlcnic_nic_intr_coalesce_data {
-	struct {
-		u16	rx_packets;
-		u16	rx_time_us;
-		u16	tx_packets;
-		u16	tx_time_us;
-	} data;
-	u64		word;
-};
-
-struct qlcnic_nic_intr_coalesce {
-	u16		stats_time_us;
-	u16		rate_sample_time;
-	u16		flags;
-	u16		rsvd_1;
-	u32		low_threshold;
-	u32		high_threshold;
-	union qlcnic_nic_intr_coalesce_data	normal;
-	union qlcnic_nic_intr_coalesce_data	low;
-	union qlcnic_nic_intr_coalesce_data	high;
-	union qlcnic_nic_intr_coalesce_data	irq;
-};
-
 #define QLCNIC_HOST_REQUEST	0x13
 #define QLCNIC_REQUEST		0x14
 
@@ -1002,7 +989,6 @@ struct qlcnic_adapter {
 
 	struct delayed_work fw_work;
 
-	struct qlcnic_nic_intr_coalesce coal;
 
 	struct qlcnic_filter_hash fhash;
 

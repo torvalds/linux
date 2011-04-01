@@ -936,8 +936,8 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 	*/
 	if (ethcoal->rx_coalesce_usecs > 0xffff ||
 		ethcoal->rx_max_coalesced_frames > 0xffff ||
-		ethcoal->tx_coalesce_usecs > 0xffff ||
-		ethcoal->tx_max_coalesced_frames > 0xffff ||
+		ethcoal->tx_coalesce_usecs ||
+		ethcoal->tx_max_coalesced_frames ||
 		ethcoal->rx_coalesce_usecs_irq ||
 		ethcoal->rx_max_coalesced_frames_irq ||
 		ethcoal->tx_coalesce_usecs_irq ||
@@ -959,21 +959,17 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 
 	if (!ethcoal->rx_coalesce_usecs ||
 		!ethcoal->rx_max_coalesced_frames) {
-		adapter->coal.flags = QLCNIC_INTR_DEFAULT;
-		adapter->coal.normal.data.rx_time_us =
+		adapter->ahw->coal.flag = QLCNIC_INTR_DEFAULT;
+		adapter->ahw->coal.rx_time_us =
 			QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US;
-		adapter->coal.normal.data.rx_packets =
+		adapter->ahw->coal.rx_packets =
 			QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS;
 	} else {
-		adapter->coal.flags = 0;
-		adapter->coal.normal.data.rx_time_us =
-		ethcoal->rx_coalesce_usecs;
-		adapter->coal.normal.data.rx_packets =
-		ethcoal->rx_max_coalesced_frames;
+		adapter->ahw->coal.flag = 0;
+		adapter->ahw->coal.rx_time_us = ethcoal->rx_coalesce_usecs;
+		adapter->ahw->coal.rx_packets =
+			ethcoal->rx_max_coalesced_frames;
 	}
-	adapter->coal.normal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
-	adapter->coal.normal.data.tx_packets =
-	ethcoal->tx_max_coalesced_frames;
 
 	qlcnic_config_intr_coalesce(adapter);
 
@@ -988,12 +984,8 @@ static int qlcnic_get_intr_coalesce(struct net_device *netdev,
 	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
 		return -EINVAL;
 
-	ethcoal->rx_coalesce_usecs = adapter->coal.normal.data.rx_time_us;
-	ethcoal->tx_coalesce_usecs = adapter->coal.normal.data.tx_time_us;
-	ethcoal->rx_max_coalesced_frames =
-		adapter->coal.normal.data.rx_packets;
-	ethcoal->tx_max_coalesced_frames =
-		adapter->coal.normal.data.tx_packets;
+	ethcoal->rx_coalesce_usecs = adapter->ahw->coal.rx_time_us;
+	ethcoal->rx_max_coalesced_frames = adapter->ahw->coal.rx_packets;
 
 	return 0;
 }
