@@ -609,6 +609,10 @@ nouveau_card_init(struct drm_device *dev)
 			break;
 		}
 		break;
+	case NV_C0:
+		nvc0_copy_create(dev, 0);
+		nvc0_copy_create(dev, 1);
+		break;
 	default:
 		break;
 	}

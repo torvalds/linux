@@ -531,7 +531,7 @@ nvc0_graph_init(struct drm_device *dev, int engine)
 	return 0;
 }
 
-static int
+int
 nvc0_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

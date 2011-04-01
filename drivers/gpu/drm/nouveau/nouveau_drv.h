@@ -1143,6 +1143,7 @@ extern int  nv50_graph_isr_chid(struct drm_device *dev, u64 inst);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_create(struct drm_device *);
+extern int  nvc0_graph_isr_chid(struct drm_device *dev, u64 inst);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);
