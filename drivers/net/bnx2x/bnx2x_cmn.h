@@ -1041,12 +1041,23 @@ static inline void storm_memset_cmng(struct bnx2x *bp,
 				struct cmng_struct_per_port *cmng,
 				u8 port)
 {
-	size_t size = sizeof(struct cmng_struct_per_port);
+	size_t size =
+		sizeof(struct rate_shaping_vars_per_port) +
+		sizeof(struct fairness_vars_per_port) +
+		sizeof(struct safc_struct_per_port) +
+		sizeof(struct pfc_struct_per_port);
 
 	u32 addr = BAR_XSTRORM_INTMEM +
 			XSTORM_CMNG_PER_PORT_VARS_OFFSET(port);
 
 	__storm_memset_struct(bp, addr, size, (u32 *)cmng);
+
+	addr += size + 4 /* SKIP DCB+LLFC */;
+	size = sizeof(struct cmng_struct_per_port) -
+		size /* written */ - 4 /*skipped*/;
+
+	__storm_memset_struct(bp, addr, size,
+			      (u32 *)(cmng->traffic_type_to_priority_cos));
 }
 
 /* HW Lock for shared dual port PHYs */
