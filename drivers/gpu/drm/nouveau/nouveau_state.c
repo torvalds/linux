@@ -121,7 +121,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.takedown		= nouveau_stub_takedown;
 		engine->graph.channel		= nvc0_graph_channel;
 		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.set_tile_region	= nv10_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -174,7 +173,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.takedown		= nouveau_stub_takedown;
 		engine->graph.channel		= nvc0_graph_channel;
 		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -227,7 +225,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.takedown		= nouveau_stub_takedown;
 		engine->graph.channel		= nvc0_graph_channel;
 		engine->graph.fifo_access	= nvc0_graph_fifo_access;
-		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -283,7 +280,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.takedown		= nouveau_stub_takedown;
 		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->graph.channel		= nvc0_graph_channel;
-		engine->graph.set_tile_region	= nv40_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;

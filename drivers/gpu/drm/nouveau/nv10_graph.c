@@ -893,7 +893,7 @@ nv10_graph_context_del(struct nouveau_channel *chan, int engine)
 	kfree(pgraph_ctx);
 }
 
-void
+static void
 nv10_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -1143,6 +1143,7 @@ nv10_graph_create(struct drm_device *dev)
 	pgraph->base.context_new = nv10_graph_context_new;
 	pgraph->base.context_del = nv10_graph_context_del;
 	pgraph->base.object_new = nv04_graph_object_new;
+	pgraph->base.set_tile_region = nv10_graph_set_tile_region;
 
 	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
 	nouveau_irq_register(dev, 12, nv10_graph_isr);

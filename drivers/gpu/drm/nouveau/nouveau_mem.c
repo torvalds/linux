@@ -51,8 +51,7 @@ nv10_mem_update_tile_region(struct drm_device *dev,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	int i = tile - dev_priv->tile.reg;
+	int i = tile - dev_priv->tile.reg, j;
 	unsigned long save;
 
 	nouveau_fence_unref(&tile->fence);
@@ -70,7 +69,10 @@ nv10_mem_update_tile_region(struct drm_device *dev,
 	nouveau_wait_for_idle(dev);
 
 	pfb->set_tile_region(dev, i);
-	pgraph->set_tile_region(dev, i);
+	for (j = 0; j < NVOBJ_ENGINE_NR; j++) {
+		if (dev_priv->eng[j] && dev_priv->eng[j]->set_tile_region)
+			dev_priv->eng[j]->set_tile_region(dev, i);
+	}
 
 	pfifo->cache_pull(dev, true);
 	pfifo->reassign(dev, true);

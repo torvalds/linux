@@ -470,7 +470,7 @@ nv20_graph_context_del(struct nouveau_channel *chan, int engine)
 	chan->engctx[engine] = NULL;
 }
 
-void
+static void
 nv20_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -730,6 +730,7 @@ nv20_graph_create(struct drm_device *dev)
 	pgraph->base.context_new = nv20_graph_context_new;
 	pgraph->base.context_del = nv20_graph_context_del;
 	pgraph->base.object_new = nv04_graph_object_new;
+	pgraph->base.set_tile_region = nv20_graph_set_tile_region;
 
 	pgraph->grctx_user = 0x0028;
 	if (dev_priv->card_type == NV_20) {

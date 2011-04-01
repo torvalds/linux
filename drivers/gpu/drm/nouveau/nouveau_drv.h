@@ -302,6 +302,7 @@ struct nouveau_exec_engine {
 	void (*context_del)(struct nouveau_channel *, int engine);
 	int  (*object_new)(struct nouveau_channel *, int engine,
 			   u32 handle, u16 class);
+	void (*set_tile_region)(struct drm_device *dev, int i);
 	void (*tlb_flush)(struct drm_device *, int engine);
 };
 
@@ -393,7 +394,6 @@ struct nouveau_pgraph_engine {
 	int  (*object_new)(struct nouveau_channel *chan, u32 handle, u16 class);
 	void (*tlb_flush)(struct drm_device *dev);
 
-	void (*set_tile_region)(struct drm_device *dev, int i);
 };
 
 struct nouveau_display_engine {
@@ -1151,18 +1151,15 @@ extern struct nouveau_bitfield nv04_graph_nsource[];
 /* nv10_graph.c */
 extern int  nv10_graph_create(struct drm_device *);
 extern struct nouveau_channel *nv10_graph_channel(struct drm_device *);
-extern void nv10_graph_set_tile_region(struct drm_device *dev, int i);
 extern struct nouveau_bitfield nv10_graph_intr[];
 extern struct nouveau_bitfield nv10_graph_nstatus[];
 
 /* nv20_graph.c */
 extern int  nv20_graph_create(struct drm_device *);
-extern void nv20_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv40_graph.c */
 extern int  nv40_graph_create(struct drm_device *);
 extern void nv40_grctx_init(struct nouveau_grctx *);
-extern void nv40_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv50_graph.c */
 extern int  nv50_graph_create(struct drm_device *);

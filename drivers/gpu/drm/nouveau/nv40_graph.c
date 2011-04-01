@@ -207,7 +207,7 @@ nv40_graph_object_new(struct nouveau_channel *chan, int engine,
 	return ret;
 }
 
-void
+static void
 nv40_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -525,6 +525,7 @@ nv40_graph_create(struct drm_device *dev)
 	pgraph->base.context_new = nv40_graph_context_new;
 	pgraph->base.context_del = nv40_graph_context_del;
 	pgraph->base.object_new = nv40_graph_object_new;
+	pgraph->base.set_tile_region = nv40_graph_set_tile_region;
 
 	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
 	nouveau_irq_register(dev, 12, nv40_graph_isr);
