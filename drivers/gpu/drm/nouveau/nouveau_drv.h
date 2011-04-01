@@ -1155,13 +1155,8 @@ extern int  nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
 extern struct nouveau_bitfield nv04_graph_nsource[];
 
 /* nv10_graph.c */
-extern int  nv10_graph_init(struct drm_device *);
-extern void nv10_graph_takedown(struct drm_device *);
+extern int  nv10_graph_create(struct drm_device *);
 extern struct nouveau_channel *nv10_graph_channel(struct drm_device *);
-extern int  nv10_graph_create_context(struct nouveau_channel *);
-extern void nv10_graph_destroy_context(struct nouveau_channel *);
-extern int  nv10_graph_load_context(struct nouveau_channel *);
-extern int  nv10_graph_unload_context(struct drm_device *);
 extern void nv10_graph_set_tile_region(struct drm_device *dev, int i);
 extern struct nouveau_bitfield nv10_graph_intr[];
 extern struct nouveau_bitfield nv10_graph_nstatus[];
