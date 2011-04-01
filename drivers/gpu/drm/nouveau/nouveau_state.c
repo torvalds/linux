@@ -180,15 +180,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
-		engine->graph.init		= nv20_graph_init;
-		engine->graph.takedown		= nv20_graph_takedown;
-		engine->graph.channel		= nv10_graph_channel;
-		engine->graph.create_context	= nv20_graph_create_context;
-		engine->graph.destroy_context	= nv20_graph_destroy_context;
-		engine->graph.fifo_access	= nv04_graph_fifo_access;
-		engine->graph.load_context	= nv20_graph_load_context;
-		engine->graph.unload_context	= nv20_graph_unload_context;
-		engine->graph.object_new	= nv04_graph_object_new;
+		engine->graph.init		= nouveau_stub_init;
+		engine->graph.takedown		= nouveau_stub_takedown;
+		engine->graph.channel		= nvc0_graph_channel;
+		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
@@ -238,15 +233,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->graph.init		= nv30_graph_init;
-		engine->graph.takedown		= nv20_graph_takedown;
-		engine->graph.fifo_access	= nv04_graph_fifo_access;
-		engine->graph.channel		= nv10_graph_channel;
-		engine->graph.create_context	= nv20_graph_create_context;
-		engine->graph.destroy_context	= nv20_graph_destroy_context;
-		engine->graph.load_context	= nv20_graph_load_context;
-		engine->graph.unload_context	= nv20_graph_unload_context;
-		engine->graph.object_new	= nv04_graph_object_new;
+		engine->graph.init		= nouveau_stub_init;
+		engine->graph.takedown		= nouveau_stub_takedown;
+		engine->graph.channel		= nvc0_graph_channel;
+		engine->graph.fifo_access	= nvc0_graph_fifo_access;
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
@@ -614,6 +604,10 @@ nouveau_card_init(struct drm_device *dev)
 		goto out_timer;
 
 	switch (dev_priv->card_type) {
+	case NV_20:
+	case NV_30:
+		nv20_graph_create(dev);
+		break;
 	case NV_40:
 		nv40_graph_create(dev);
 		break;
@@ -622,6 +616,8 @@ nouveau_card_init(struct drm_device *dev)
 		break;
 	case NV_C0:
 		nvc0_graph_create(dev);
+		break;
+	default:
 		break;
 	}
 

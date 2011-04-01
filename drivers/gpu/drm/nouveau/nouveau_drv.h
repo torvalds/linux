@@ -1167,13 +1167,7 @@ extern struct nouveau_bitfield nv10_graph_intr[];
 extern struct nouveau_bitfield nv10_graph_nstatus[];
 
 /* nv20_graph.c */
-extern int  nv20_graph_create_context(struct nouveau_channel *);
-extern void nv20_graph_destroy_context(struct nouveau_channel *);
-extern int  nv20_graph_load_context(struct nouveau_channel *);
-extern int  nv20_graph_unload_context(struct drm_device *);
-extern int  nv20_graph_init(struct drm_device *);
-extern void nv20_graph_takedown(struct drm_device *);
-extern int  nv30_graph_init(struct drm_device *);
+extern int  nv20_graph_create(struct drm_device *);
 extern void nv20_graph_set_tile_region(struct drm_device *dev, int i);
 
 /* nv40_graph.c */
