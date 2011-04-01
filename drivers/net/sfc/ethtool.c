@@ -178,19 +178,27 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
  */
 
 /* Identify device by flashing LEDs */
-static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
+static int efx_ethtool_phys_id(struct net_device *net_dev,
+			       enum ethtool_phys_id_state state)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	enum efx_led_mode mode;
 
-	do {
-		efx->type->set_id_led(efx, EFX_LED_ON);
-		schedule_timeout_interruptible(HZ / 2);
+	switch (state) {
+	case ETHTOOL_ID_ON:
+		mode = EFX_LED_ON;
+		break;
+	case ETHTOOL_ID_OFF:
+		mode = EFX_LED_OFF;
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		mode = EFX_LED_DEFAULT;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-		efx->type->set_id_led(efx, EFX_LED_OFF);
-		schedule_timeout_interruptible(HZ / 2);
-	} while (!signal_pending(current) && --count != 0);
-
-	efx->type->set_id_led(efx, EFX_LED_DEFAULT);
+	efx->type->set_id_led(efx, mode);
 	return 0;
 }
 
@@ -1007,7 +1015,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_sset_count		= efx_ethtool_get_sset_count,
 	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,
-	.phys_id		= efx_ethtool_phys_id,
+	.set_phys_id		= efx_ethtool_phys_id,
 	.get_ethtool_stats	= efx_ethtool_get_stats,
 	.get_wol                = efx_ethtool_get_wol,
 	.set_wol                = efx_ethtool_set_wol,
