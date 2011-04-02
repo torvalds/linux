@@ -30,12 +30,13 @@
 #include <linux/ctype.h>
 #include <linux/random.h>
 
-/* Calculate and return the CIFS signature based on the mac key and SMB PDU */
-/* the 16 byte signature must be allocated by the caller  */
-/* Note we only use the 1st eight bytes */
-/* Note that the smb header signature field on input contains the
-	sequence number before this function is called */
-
+/*
+ * Calculate and return the CIFS signature based on the mac key and SMB PDU.
+ * The 16 byte signature must be allocated by the caller. Note we only use the
+ * 1st eight bytes and that the smb header signature field on input contains
+ * the sequence number before this function is called. Also, this function
+ * should be called with the server->srv_mutex held.
+ */
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 				struct TCP_Server_Info *server, char *signature)
 {
@@ -209,8 +210,10 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
+	mutex_lock(&server->srv_mutex);
 	rc = cifs_calculate_signature(cifs_pdu, server,
 		what_we_think_sig_should_be);
+	mutex_unlock(&server->srv_mutex);
 
 	if (rc)
 		return rc;
