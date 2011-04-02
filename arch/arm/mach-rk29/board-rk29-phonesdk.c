@@ -2230,8 +2230,8 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
     }
 
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
-    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
-    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
+    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_HIGH);
+    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_HIGH);
 
     pr_info("%s: init finished\n",__func__);
 
