@@ -64,7 +64,6 @@
 #define _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_
 
 #include "scu_unsolicited_frame.h"
-#include "sci_memory_descriptor_list.h"
 #include "scu_constants.h"
 #include "sci_status.h"
 
@@ -248,14 +247,9 @@ struct scic_sds_unsolicited_frame_control {
 
 };
 
-void scic_sds_unsolicited_frame_control_set_address_table_count(
-	struct scic_sds_unsolicited_frame_control *uf_control);
-
 struct scic_sds_controller;
-void scic_sds_unsolicited_frame_control_construct(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	struct sci_physical_memory_descriptor *mde,
-	struct scic_sds_controller *this_controller);
+
+int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *scic);
 
 enum sci_status scic_sds_unsolicited_frame_control_get_header(
 	struct scic_sds_unsolicited_frame_control *uf_control,
@@ -270,17 +264,5 @@ enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
 bool scic_sds_unsolicited_frame_control_release_frame(
 	struct scic_sds_unsolicited_frame_control *uf_control,
 	u32 frame_index);
-
-/**
- * scic_sds_unsolicited_frame_control_get_mde_size() -
- *
- * This macro simply calculates the size of the memory descriptor entry that
- * relates to unsolicited frames and the surrounding silicon memory required to
- * utilize it.
- */
-#define scic_sds_unsolicited_frame_control_get_mde_size(uf_control) \
-	(((uf_control).buffers.count * SCU_UNSOLICITED_FRAME_BUFFER_SIZE) \
-	 + ((uf_control).address_table.count * sizeof(dma_addr_t)) \
-	 + ((uf_control).buffers.count * sizeof(struct scu_unsolicited_frame_header)))
 
 #endif /* _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_ */

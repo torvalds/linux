@@ -68,10 +68,8 @@
 
 #include "sci_pool.h"
 #include "sci_controller_constants.h"
-#include "sci_memory_descriptor_list.h"
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
-#include "sci_base_memory_descriptor_list.h"
 #include "scic_config_parameters.h"
 #include "scic_sds_port.h"
 #include "scic_sds_phy.h"
@@ -88,40 +86,6 @@ struct sci_base_remote_device;
 struct scic_sds_remote_device;
 struct scic_sds_request;
 struct scic_sds_controller;
-
-#define SCU_COMPLETION_RAM_ALIGNMENT            (64)
-
-/**
- * enum scic_sds_controller_memory_descriptors -
- *
- * This enumeration depects the types of MDEs that are going to be created for
- * the controller object.
- */
-enum scic_sds_controller_memory_descriptors {
-	/**
-	 * Completion queue MDE entry
-	 */
-	SCU_MDE_COMPLETION_QUEUE,
-
-	/**
-	 * Remote node context MDE entry
-	 */
-	SCU_MDE_REMOTE_NODE_CONTEXT,
-
-	/**
-	 * Task context MDE entry
-	 */
-	SCU_MDE_TASK_CONTEXT,
-
-	/**
-	 * Unsolicited frame buffer MDE entrys this is the start of the unsolicited
-	 * frame buffer entries.
-	 */
-	SCU_MDE_UF_BUFFER,
-
-	SCU_MAX_MDES
-};
-
 
 /**
  * struct scic_power_control -
@@ -172,13 +136,6 @@ struct scic_sds_controller {
 	 * is the base object itself.
 	 */
 	struct sci_base_object parent;
-
-	/**
-	 * This field points to the memory descriptor list associated with this
-	 * controller.  The MDL indicates the memory requirements necessary for
-	 * this controller object.
-	 */
-	struct sci_base_memory_descriptor_list mdl;
 
 	/**
 	 * This field contains the information for the base controller state
@@ -283,12 +240,6 @@ struct scic_sds_controller {
 	 * software.
 	 */
 	union scu_remote_node_context *remote_node_context_table;
-
-	/**
-	 * This field is the array of physical memory requiremets for this controller
-	 * object.
-	 */
-	struct sci_physical_memory_descriptor memory_descriptors[SCU_MAX_MDES];
 
 	/**
 	 * This field is a pointer to the completion queue.  This memory is

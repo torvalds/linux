@@ -144,4 +144,5 @@ enum sci_status scic_controller_free_io_tag(
 
 struct device;
 struct scic_sds_controller *scic_controller_alloc(struct device *dev);
+int scic_controller_mem_init(struct scic_sds_controller *scic);
 #endif  /* _SCIC_CONTROLLER_H_ */

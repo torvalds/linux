@@ -75,14 +75,6 @@
 #define ISCI_CAN_QUEUE_VAL 250 /* < SCI_MAX_IO_REQUESTS ? */
 #define SCIC_CONTROLLER_STOP_TIMEOUT 5000
 
-struct coherent_memory_info {
-	struct list_head node;
-	dma_addr_t dma_handle;
-	void *vaddr;
-	size_t size;
-	struct sci_physical_memory_descriptor *mde;
-};
-
 struct isci_host {
 	struct scic_sds_controller *core_controller;
 	union scic_oem_parameters oem_parameters;
@@ -114,7 +106,6 @@ struct isci_host {
 	wait_queue_head_t eventq;
 	struct Scsi_Host *shost;
 	struct tasklet_struct completion_tasklet;
-	struct list_head mdl_struct_list;
 	struct list_head requests_to_complete;
 	struct list_head requests_to_errorback;
 	spinlock_t scic_lock;

@@ -68,26 +68,6 @@
 #include "sci_environment.h"
 
 /**
- * The UF buffer address table size must be programmed to a power of 2.  Find
- *    the first power of 2 that is equal to or greater then the number of
- *    unsolicited frame buffers to be utilized.
- * @uf_control: This parameter specifies the UF control object for which to
- *    update the address table count.
- *
- */
-void scic_sds_unsolicited_frame_control_set_address_table_count(
-	struct scic_sds_unsolicited_frame_control *uf_control)
-{
-	uf_control->address_table.count = SCU_MIN_UF_TABLE_ENTRIES;
-	while (
-		(uf_control->address_table.count < uf_control->buffers.count)
-		&& (uf_control->address_table.count < SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES)
-		) {
-		uf_control->address_table.count <<= 1;
-	}
-}
-
-/**
  * This method will program the unsolicited frames (UFs) into the UF address
  *    table and construct the UF frame structure being modeled in the core.  It
  *    will handle the case where some of the UFs are not being used and thus
@@ -155,23 +135,9 @@ static void scic_sds_unsolicited_frame_control_construct_frames(
 	}
 }
 
-/**
- * This method constructs the various members of the unsolicted frame control
- *    object (buffers, headers, address, table, etc).
- * @uf_control: This parameter specifies the unsolicited frame control object
- *    to construct.
- * @mde: This parameter specifies the memory descriptor from which to derive
- *    all of the address information needed to get the unsolicited frame
- *    functionality working.
- * @controller: This parameter specifies the controller object associated with
- *    the uf_control being constructed.
- *
- */
-void scic_sds_unsolicited_frame_control_construct(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	struct sci_physical_memory_descriptor *mde,
-	struct scic_sds_controller *controller)
+int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *scic)
 {
+	struct scic_sds_unsolicited_frame_control *uf_control = &scic->uf_control;
 	u32 unused_uf_header_entries;
 	u32 used_uf_header_entries;
 	u32 used_uf_buffer_bytes;
@@ -179,10 +145,22 @@ void scic_sds_unsolicited_frame_control_construct(
 	u32 used_uf_header_bytes;
 	dma_addr_t uf_buffer_phys_address;
 	void *uf_buffer_virt_address;
+	size_t size;
+
+	/*
+	 * The UF buffer address table size must be programmed to a power
+	 * of 2.  Find the first power of 2 that is equal to or greater then
+	 * the number of unsolicited frame buffers to be utilized.
+	 */
+	uf_control->address_table.count = SCU_MIN_UF_TABLE_ENTRIES;
+	while (uf_control->address_table.count < uf_control->buffers.count &&
+	       uf_control->address_table.count < SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES)
+		uf_control->address_table.count <<= 1;
 
 	/*
 	 * Prepare all of the memory sizes for the UF headers, UF address
-	 * table, and UF buffers themselves. */
+	 * table, and UF buffers themselves.
+	 */
 	used_uf_buffer_bytes     = uf_control->buffers.count
 				   * SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
 	unused_uf_header_entries = uf_control->address_table.count
@@ -193,13 +171,19 @@ void scic_sds_unsolicited_frame_control_construct(
 	used_uf_header_bytes     = used_uf_header_entries
 				   * sizeof(struct scu_unsolicited_frame_header);
 
+	size = used_uf_buffer_bytes + used_uf_header_bytes +
+			uf_control->address_table.count * sizeof(dma_addr_t);
+
+
 	/*
 	 * The Unsolicited Frame buffers are set at the start of the UF
 	 * memory descriptor entry. The headers and address table will be
 	 * placed after the buffers.
 	 */
-	uf_buffer_phys_address = mde->physical_address;
-	uf_buffer_virt_address = mde->virtual_address;
+	uf_buffer_virt_address = dmam_alloc_coherent(scic_to_dev(scic), size,
+							&uf_buffer_phys_address, GFP_KERNEL);
+	if (!uf_buffer_virt_address)
+		return -ENOMEM;
 
 	/*
 	 * Program the location of the UF header table into the SCU.
@@ -254,10 +238,12 @@ void scic_sds_unsolicited_frame_control_construct(
 	scic_sds_unsolicited_frame_control_construct_frames(
 		uf_control,
 		uf_buffer_phys_address,
-		mde->virtual_address,
+		uf_buffer_virt_address,
 		unused_uf_header_entries,
 		used_uf_header_entries
 		);
+
+	return 0;
 }
 
 /**

@@ -25,6 +25,5 @@ isci-objs := init.o phy.o request.o sata.o \
 	     core/scic_sds_smp_remote_device.o \
 	     core/scic_sds_remote_node_table.o \
 	     core/scic_sds_unsolicited_frame_control.o \
-	     core/sci_base_memory_descriptor_list.o \
 	     core/sci_base_state_machine.o \
 	     core/sci_util.o

@@ -226,171 +226,66 @@ static void scic_sds_controller_initialize_power_control(struct scic_sds_control
 	scic->power_control.phys_granted_power = 0;
 }
 
-#define SCU_REMOTE_NODE_CONTEXT_ALIGNMENT       (32)
-#define SCU_TASK_CONTEXT_ALIGNMENT              (256)
-#define SCU_UNSOLICITED_FRAME_ADDRESS_ALIGNMENT (64)
-#define SCU_UNSOLICITED_FRAME_BUFFER_ALIGNMENT  (1024)
-#define SCU_UNSOLICITED_FRAME_HEADER_ALIGNMENT  (64)
-
-/**
- * This method builds the memory descriptor table for this controller.
- * @this_controller: This parameter specifies the controller object for which
- *    to build the memory table.
- *
- */
-static void scic_sds_controller_build_memory_descriptor_table(
-	struct scic_sds_controller *this_controller)
+int scic_controller_mem_init(struct scic_sds_controller *scic)
 {
-	sci_base_mde_construct(
-		&this_controller->memory_descriptors[SCU_MDE_COMPLETION_QUEUE],
-		SCU_COMPLETION_RAM_ALIGNMENT,
-		(sizeof(u32) * this_controller->completion_queue_entries),
-		(SCI_MDE_ATTRIBUTE_CACHEABLE | SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS)
-		);
+	struct device *dev = scic_to_dev(scic);
+	dma_addr_t dma_handle;
+	enum sci_status result;
 
-	sci_base_mde_construct(
-		&this_controller->memory_descriptors[SCU_MDE_REMOTE_NODE_CONTEXT],
-		SCU_REMOTE_NODE_CONTEXT_ALIGNMENT,
-		this_controller->remote_node_entries * sizeof(union scu_remote_node_context),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
+	scic->completion_queue = dmam_alloc_coherent(dev,
+			scic->completion_queue_entries * sizeof(u32),
+			&dma_handle, GFP_KERNEL);
+	if (!scic->completion_queue)
+		return -ENOMEM;
 
-	sci_base_mde_construct(
-		&this_controller->memory_descriptors[SCU_MDE_TASK_CONTEXT],
-		SCU_TASK_CONTEXT_ALIGNMENT,
-		this_controller->task_context_entries * sizeof(struct scu_task_context),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
+	writel(lower_32_bits(dma_handle),
+		&scic->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(dma_handle),
+		&scic->smu_registers->completion_queue_upper);
 
-	/*
-	 * The UF buffer address table size must be programmed to a power
-	 * of 2.  Find the first power of 2 that is equal to or greater then
-	 * the number of unsolicited frame buffers to be utilized. */
-	scic_sds_unsolicited_frame_control_set_address_table_count(
-		&this_controller->uf_control
-		);
+	scic->remote_node_context_table = dmam_alloc_coherent(dev,
+			scic->remote_node_entries *
+				sizeof(union scu_remote_node_context),
+			&dma_handle, GFP_KERNEL);
+	if (!scic->remote_node_context_table)
+		return -ENOMEM;
 
-	sci_base_mde_construct(
-		&this_controller->memory_descriptors[SCU_MDE_UF_BUFFER],
-		SCU_UNSOLICITED_FRAME_BUFFER_ALIGNMENT,
-		scic_sds_unsolicited_frame_control_get_mde_size(this_controller->uf_control),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
-}
+	writel(lower_32_bits(dma_handle),
+		&scic->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(dma_handle),
+		&scic->smu_registers->remote_node_context_upper);
 
-/**
- * This method validates the driver supplied memory descriptor table.
- * @this_controller:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_controller_validate_memory_descriptor_table(
-	struct scic_sds_controller *this_controller)
-{
-	bool mde_list_valid;
+	scic->task_context_table = dmam_alloc_coherent(dev,
+			scic->task_context_entries *
+				sizeof(struct scu_task_context),
+			&dma_handle, GFP_KERNEL);
+	if (!scic->task_context_table)
+		return -ENOMEM;
 
-	mde_list_valid = sci_base_mde_is_valid(
-		&this_controller->memory_descriptors[SCU_MDE_COMPLETION_QUEUE],
-		SCU_COMPLETION_RAM_ALIGNMENT,
-		(sizeof(u32) * this_controller->completion_queue_entries),
-		(SCI_MDE_ATTRIBUTE_CACHEABLE | SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS)
-		);
+	writel(lower_32_bits(dma_handle),
+		&scic->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(dma_handle),
+		&scic->smu_registers->host_task_table_upper);
 
-	if (mde_list_valid == false)
-		return SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD;
-
-	mde_list_valid = sci_base_mde_is_valid(
-		&this_controller->memory_descriptors[SCU_MDE_REMOTE_NODE_CONTEXT],
-		SCU_REMOTE_NODE_CONTEXT_ALIGNMENT,
-		this_controller->remote_node_entries * sizeof(union scu_remote_node_context),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
-
-	if (mde_list_valid == false)
-		return SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD;
-
-	mde_list_valid = sci_base_mde_is_valid(
-		&this_controller->memory_descriptors[SCU_MDE_TASK_CONTEXT],
-		SCU_TASK_CONTEXT_ALIGNMENT,
-		this_controller->task_context_entries * sizeof(struct scu_task_context),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
-
-	if (mde_list_valid == false)
-		return SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD;
-
-	mde_list_valid = sci_base_mde_is_valid(
-		&this_controller->memory_descriptors[SCU_MDE_UF_BUFFER],
-		SCU_UNSOLICITED_FRAME_BUFFER_ALIGNMENT,
-		scic_sds_unsolicited_frame_control_get_mde_size(this_controller->uf_control),
-		SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
-		);
-
-	if (mde_list_valid == false)
-		return SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD;
-
-	return SCI_SUCCESS;
-}
-
-/**
- * This method initializes the controller with the physical memory addresses
- *    that are used to communicate with the driver.
- * @this_controller:
- *
- */
-static void scic_sds_controller_ram_initialization(
-	struct scic_sds_controller *this_controller)
-{
-	struct sci_physical_memory_descriptor *mde;
-
-	/*
-	 * The completion queue is actually placed in cacheable memory
-	 * Therefore it no longer comes out of memory in the MDL. */
-	mde = &this_controller->memory_descriptors[SCU_MDE_COMPLETION_QUEUE];
-	this_controller->completion_queue = (u32 *)mde->virtual_address;
-	writel(lower_32_bits(mde->physical_address), \
-		&this_controller->smu_registers->completion_queue_lower);
-	writel(upper_32_bits(mde->physical_address),
-		&this_controller->smu_registers->completion_queue_upper);
-
-	/*
-	 * Program the location of the Remote Node Context table
-	 * into the SCU. */
-	mde = &this_controller->memory_descriptors[SCU_MDE_REMOTE_NODE_CONTEXT];
-	this_controller->remote_node_context_table = (union scu_remote_node_context *)
-						     mde->virtual_address;
-	writel(lower_32_bits(mde->physical_address),
-		&this_controller->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(mde->physical_address),
-		&this_controller->smu_registers->remote_node_context_upper);
-
-	/* Program the location of the Task Context table into the SCU. */
-	mde = &this_controller->memory_descriptors[SCU_MDE_TASK_CONTEXT];
-	this_controller->task_context_table = (struct scu_task_context *)
-					      mde->virtual_address;
-	writel(lower_32_bits(mde->physical_address),
-		&this_controller->smu_registers->host_task_table_lower);
-	writel(upper_32_bits(mde->physical_address),
-		&this_controller->smu_registers->host_task_table_upper);
-
-	mde = &this_controller->memory_descriptors[SCU_MDE_UF_BUFFER];
-	scic_sds_unsolicited_frame_control_construct(
-		&this_controller->uf_control, mde, this_controller
-		);
+	result = scic_sds_unsolicited_frame_control_construct(scic);
+	if (result)
+		return result;
 
 	/*
 	 * Inform the silicon as to the location of the UF headers and
 	 * address table.
 	 */
-	writel(lower_32_bits(this_controller->uf_control.headers.physical_address),
-		&this_controller->scu_registers->sdma.uf_header_base_address_lower);
-	writel(upper_32_bits(this_controller->uf_control.headers.physical_address),
-		&this_controller->scu_registers->sdma.uf_header_base_address_upper);
+	writel(lower_32_bits(scic->uf_control.headers.physical_address),
+		&scic->scu_registers->sdma.uf_header_base_address_lower);
+	writel(upper_32_bits(scic->uf_control.headers.physical_address),
+		&scic->scu_registers->sdma.uf_header_base_address_upper);
 
-	writel(lower_32_bits(this_controller->uf_control.address_table.physical_address),
-		&this_controller->scu_registers->sdma.uf_address_table_lower);
-	writel(upper_32_bits(this_controller->uf_control.address_table.physical_address),
-		&this_controller->scu_registers->sdma.uf_address_table_upper);
+	writel(lower_32_bits(scic->uf_control.address_table.physical_address),
+		&scic->scu_registers->sdma.uf_address_table_lower);
+	writel(upper_32_bits(scic->uf_control.address_table.physical_address),
+		&scic->scu_registers->sdma.uf_address_table_upper);
+
+	return 0;
 }
 
 /**
@@ -2525,7 +2420,6 @@ static enum sci_status scic_controller_set_mode(
 			scic->completion_event_entries = SCU_EVENT_COUNT;
 			scic->completion_queue_entries =
 				SCU_COMPLETION_QUEUE_COUNT;
-			scic_sds_controller_build_memory_descriptor_table(scic);
 			break;
 
 		case SCI_MODE_SIZE:
@@ -2536,7 +2430,6 @@ static enum sci_status scic_controller_set_mode(
 			scic->completion_event_entries = SCU_MIN_EVENTS;
 			scic->completion_queue_entries =
 				SCU_MIN_COMPLETION_QUEUE_ENTRIES;
-			scic_sds_controller_build_memory_descriptor_table(scic);
 			break;
 
 		default:
@@ -3040,72 +2933,52 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 	u16 index;
 	enum sci_status result;
 
+	/* Build the TCi free pool */
+	sci_pool_initialize(scic->tci_pool);
+	for (index = 0; index < scic->task_context_entries; index++)
+		sci_pool_put(scic->tci_pool, index);
+
+	/* Build the RNi free pool */
+	scic_sds_remote_node_table_initialize(
+			&scic->available_remote_nodes,
+			scic->remote_node_entries);
+
 	/*
-	 * Make sure that the SCI User filled in the memory descriptor
-	 * table correctly
+	 * Before anything else lets make sure we will not be
+	 * interrupted by the hardware.
 	 */
-	result = scic_sds_controller_validate_memory_descriptor_table(scic);
+	scic_controller_disable_interrupts(scic);
 
-	if (result == SCI_SUCCESS) {
-		/*
-		 * The memory descriptor list looks good so program the
-		 * hardware
-		 */
-		scic_sds_controller_ram_initialization(scic);
-	}
+	/* Enable the port task scheduler */
+	scic_sds_controller_enable_port_task_scheduler(scic);
 
-	if (result == SCI_SUCCESS) {
-		/* Build the TCi free pool */
-		sci_pool_initialize(scic->tci_pool);
-		for (index = 0; index < scic->task_context_entries; index++)
-			sci_pool_put(scic->tci_pool, index);
+	/* Assign all the task entries to scic physical function */
+	scic_sds_controller_assign_task_entries(scic);
 
-		/* Build the RNi free pool */
-		scic_sds_remote_node_table_initialize(
-				&scic->available_remote_nodes,
-				scic->remote_node_entries);
-	}
+	/* Now initialze the completion queue */
+	scic_sds_controller_initialize_completion_queue(scic);
 
-	if (result == SCI_SUCCESS) {
-		/*
-		 * Before anything else lets make sure we will not be
-		 * interrupted by the hardware.
-		 */
-		scic_controller_disable_interrupts(scic);
-
-		/* Enable the port task scheduler */
-		scic_sds_controller_enable_port_task_scheduler(scic);
-
-		/* Assign all the task entries to scic physical function */
-		scic_sds_controller_assign_task_entries(scic);
-
-		/* Now initialze the completion queue */
-		scic_sds_controller_initialize_completion_queue(scic);
-
-		/* Initialize the unsolicited frame queue for use */
-		scic_sds_controller_initialize_unsolicited_frame_queue(scic);
-	}
+	/* Initialize the unsolicited frame queue for use */
+	scic_sds_controller_initialize_unsolicited_frame_queue(scic);
 
 	/* Start all of the ports on this controller */
-	for (index = 0;
-	     (index < scic->logical_port_entries) && (result == SCI_SUCCESS);
-	     index++) {
+	for (index = 0; index < scic->logical_port_entries; index++) {
 		struct scic_sds_port *sci_port = &scic->port_table[index];
 
 		result = sci_port->state_handlers->parent.start_handler(
 				&sci_port->parent);
+		if (result)
+			return result;
 	}
 
-	if (result == SCI_SUCCESS) {
-		scic_sds_controller_start_next_phy(scic);
+	scic_sds_controller_start_next_phy(scic);
 
-		isci_timer_start(scic->timeout_timer, timeout);
+	isci_timer_start(scic->timeout_timer, timeout);
 
-		sci_base_state_machine_change_state(&scic->state_machine,
-						    SCI_BASE_CONTROLLER_STATE_STARTING);
-	}
+	sci_base_state_machine_change_state(&scic->state_machine,
+					    SCI_BASE_CONTROLLER_STATE_STARTING);
 
-	return result;
+	return SCI_SUCCESS;
 }
 
 /*
@@ -3658,8 +3531,6 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
 		&scic->parent, scic_sds_controller_state_table,
 		SCI_BASE_CONTROLLER_STATE_INITIAL);
 
-	sci_base_mdl_construct(&scic->mdl, scic->memory_descriptors,
-				ARRAY_SIZE(scic->memory_descriptors), NULL);
 	sci_base_state_machine_start(&scic->state_machine);
 
 	scic->scu_registers = scu_base;
