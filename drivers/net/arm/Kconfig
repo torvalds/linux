@@ -17,14 +17,6 @@ config ARM_ETHER3
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
 
-config ARM_ETHERH
-	tristate "I-cubed EtherH/ANT EtherM support"
-	depends on ARM && ARCH_ACORN
-	select CRC32
-	help
-	  If you have an Acorn system with one of these network cards, you
-	  should say Y to this option if you wish to use it with Linux.
-
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
 	depends on ARM && ARCH_AT91RM9200

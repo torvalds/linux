@@ -31,16 +31,6 @@ config PCMCIA_FMVJ18X
 	  To compile this driver as a module, choose M here: the module will be
 	  called fmvj18x_cs.  If unsure, say N.
 
-config PCMCIA_PCNET
-	tristate "NE2000 compatible PCMCIA support"
-	select CRC32
-	help
-	  Say Y here if you intend to attach an NE2000 compatible PCMCIA
-	  (PC-card) Ethernet or Fast Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called pcnet_cs.  If unsure, say N.
-
 config PCMCIA_SMC91C92
 	tristate "SMC 91Cxx PCMCIA support"
 	select CRC32
@@ -60,17 +50,6 @@ config PCMCIA_XIRC2PS
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called xirc2ps_cs.  If unsure, say N.
-
-config PCMCIA_AXNET
-	tristate "Asix AX88190 PCMCIA support"
-	---help---
-	  Say Y here if you intend to attach an Asix AX88190-based PCMCIA
-	  (PC-card) Fast Ethernet card to your computer.  These cards are
-	  nearly NE2000 compatible but need a separate driver due to a few
-	  misfeatures.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called axnet_cs.  If unsure, say N.
 
 config ARCNET_COM20020_CS
 	tristate "COM20020 ARCnet PCMCIA support"

@@ -41,7 +41,7 @@
 #include <linux/log2.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
-#include "../8390.h"
+#include "8390.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>

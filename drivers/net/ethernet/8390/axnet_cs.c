@@ -38,7 +38,7 @@
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
-#include "../8390.h"
+#include "8390.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>

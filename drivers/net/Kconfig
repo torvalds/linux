@@ -237,22 +237,6 @@ config MACB
 
 source "drivers/net/arm/Kconfig"
 
-config AX88796
-	tristate "ASIX AX88796 NE2000 clone support"
-	depends on ARM || MIPS || SUPERH
-	select PHYLIB
-	select MDIO_BITBANG
-	help
-	  AX88796 driver, using platform bus to provide
-	  chip detection and resources
-
-config AX88796_93CX6
-	bool "ASIX AX88796 external 93CX6 eeprom support"
-	depends on AX88796
-	select EEPROM_93CX6
-	help
-	  Select this if your platform comes with an external 93CX6 eeprom.
-
 config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32
@@ -286,50 +270,6 @@ config BMAC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmac.
-
-config HYDRA
-	tristate "Hydra support"
-	depends on ZORRO
-	select CRC32
-	help
-	  If you have a Hydra Ethernet adapter, say Y. Otherwise, say N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called hydra.
-
-config ZORRO8390
-	tristate "Zorro NS8390-based Ethernet support"
-	depends on ZORRO
-	select CRC32
-	help
-	  This driver is for Zorro Ethernet cards using an NS8390-compatible
-	  chipset, like the Village Tronic Ariadne II and the Individual
-	  Computers X-Surf Ethernet cards. If you have such a card, say Y.
-	  Otherwise, say N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called zorro8390.
-
-config APNE
-	tristate "PCMCIA NE2000 support"
-	depends on AMIGA_PCMCIA
-	select CRC32
-	help
-	  If you have a PCMCIA NE2000 compatible adapter, say Y.  Otherwise,
-	  say N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called apne.
-
-config MAC8390
-	bool "Macintosh NS 8390 based ethernet cards"
-	depends on MAC
-	select CRC32
-	help
-	  If you want to include a driver to support Nubus or LC-PDS
-	  Ethernet cards using an NS8390 chipset or its equivalent, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
 
 config MAC89x0
 	tristate "Macintosh CS89x0 based ethernet cards"
@@ -448,18 +388,6 @@ config MIPS_SIM_NET
 config SGI_O2MACE_ETH
 	tristate "SGI O2 MACE Fast Ethernet support"
 	depends on SGI_IP32=y
-
-config STNIC
-	tristate "National DP83902AV  support"
-	depends on SUPERH
-	select CRC32
-	help
-	  Support for cards based on the National Semiconductor DP83902AV
-	  ST-NIC Serial Network Interface Controller for Twisted Pair.  This
-	  is a 10Mbit/sec Ethernet controller.  Product overview and specs at
-	  <http://www.national.com/pf/DP/DP83902A.html>.
-
-	  If unsure, say N.
 
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
@@ -590,74 +518,6 @@ config ELMC_II
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c527.
-
-config NET_VENDOR_SMC
-	bool "Western Digital/SMC cards"
-	depends on ISA || MCA || EISA || MAC
-	help
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Western Digital cards. If you say Y, you will be
-	  asked for your specific card in the following questions.
-
-config WD80x3
-	tristate "WD80*3 support"
-	depends on NET_VENDOR_SMC && ISA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called wd.
-
-config ULTRAMCA
-	tristate "SMC Ultra MCA support"
-	depends on NET_VENDOR_SMC && MCA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type and are running
-	  an MCA based system (PS/2), say Y and read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc-mca.
-
-config ULTRA
-	tristate "SMC Ultra support"
-	depends on NET_VENDOR_SMC && ISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Important: There have been many reports that, with some motherboards
-	  mixing an SMC Ultra and an Adaptec AHA154x SCSI card (or compatible,
-	  such as some BusLogic models) causes corruption problems with many
-	  operating systems. The Linux smc-ultra driver has a work-around for
-	  this but keep it in mind if you have such a SCSI card and have
-	  problems.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc-ultra.
-
-config ULTRA32
-	tristate "SMC Ultra32 EISA support"
-	depends on NET_VENDOR_SMC && EISA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc-ultra32.
 
 config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
@@ -979,18 +839,6 @@ config NET_ISA
 	  the remaining ISA network card questions. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
-config E2100
-	tristate "Cabletron E21xx support"
-	depends on NET_ISA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called e2100.
-
 config EWRK3
 	tristate "EtherWORKS 3 (DE203, DE204, DE205) support"
 	depends on NET_ISA
@@ -1032,30 +880,6 @@ config EEXPRESS_PRO
 	  To compile this driver as a module, choose M here. The module
 	  will be called eepro.
 
-config HPLAN_PLUS
-	tristate "HP PCLAN+ (27247B and 27252A) support"
-	depends on NET_ISA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called hp-plus.
-
-config HPLAN
-	tristate "HP PCLAN (27245 and other 27xxx series) support"
-	depends on NET_ISA
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called hp.
-
 config LP486E
 	tristate "LP486E on board Ethernet"
 	depends on NET_ISA
@@ -1074,26 +898,6 @@ config ETH16I
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called eth16i.
-
-config NE2000
-	tristate "NE2000/NE1000 support"
-	depends on NET_ISA || (Q40 && m) || M32R || MACH_TX49XX
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Many Ethernet cards
-	  without a specific driver are compatible with NE2000.
-
-	  If you have a PCI NE2000 card however, say N here and Y to "PCI
-	  NE2000 and clone support" under "EISA, VLB, PCI and on board
-	  controllers" below. If you have a NE2000 card and are running on
-	  an MCA system (a bus system used on some IBM PS/2 computers and
-	  laptops), say N here and Y to "NE/2 (ne2000 MCA version) support",
-	  below.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne.
 
 config ZNET
 	tristate "Zenith Z-Note support (EXPERIMENTAL)"
@@ -1115,18 +919,6 @@ config SEEQ8005
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called seeq8005.
-
-config NE2_MCA
-	tristate "NE/2 (ne2000 MCA version) support"
-	depends on MCA_LEGACY
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne2.
 
 config IBMLANA
 	tristate "IBM LAN Adapter/A support"
@@ -1182,18 +974,6 @@ config ADAPTEC_STARFIRE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called starfire.  This is recommended.
-
-config AC3200
-	tristate "Ansel Communications EISA 3200 support (EXPERIMENTAL)"
-	depends on NET_PCI && (ISA || EISA) && EXPERIMENTAL
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ac3200.
 
 config KSZ884X_PCI
 	tristate "Micrel KSZ8841/2 PCI"
@@ -1310,18 +1090,6 @@ config E100
 	  To compile this driver as a module, choose M here. The module
 	  will be called e100.
 
-config LNE390
-	tristate "Mylex EISA LNE390A/B support (EXPERIMENTAL)"
-	depends on NET_PCI && EISA && EXPERIMENTAL
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called lne390.
-
 config FEALNX
 	tristate "Myson MTD-8xx PCI Ethernet support"
 	depends on NET_PCI && PCI
@@ -1341,50 +1109,6 @@ config NATSEMI
 	  and others, including the 83815 chip.
 	  More specific information and updates are available from
 	  <http://www.scyld.com/network/natsemi.html>.
-
-config NE2K_PCI
-	tristate "PCI NE2000 and clones support (see help)"
-	depends on NET_PCI && PCI
-	select CRC32
-	---help---
-	  This driver is for NE2000 compatible PCI cards. It will not work
-	  with ISA NE2000 cards (they have their own driver, "NE2000/NE1000
-	  support" below). If you have a PCI NE2000 network (Ethernet) card,
-	  say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver also works for the following NE2000 clone cards:
-	  RealTek RTL-8029  Winbond 89C940  Compex RL2000  KTI ET32P2
-	  NetVin NV5000SC   Via 86C926      SureCom NE34   Winbond
-	  Holtek HT80232    Holtek HT80229
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne2k-pci.
-
-config NE3210
-	tristate "Novell/Eagle/Microdyne NE3210 EISA support (EXPERIMENTAL)"
-	depends on NET_PCI && EISA && EXPERIMENTAL
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that this driver
-	  will NOT WORK for NE3200 cards as they are completely different.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne3210.
-
-config ES3210
-	tristate "Racal-Interlan EISA ES3210 support (EXPERIMENTAL)"
-	depends on NET_PCI && EISA && EXPERIMENTAL
-	select CRC32
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called es3210.
 
 config 8139CP
 	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support (EXPERIMENTAL)"
@@ -1722,13 +1446,6 @@ config FEC_MPC52xx_MDIO
 	  If your board uses an external PHY connected to FEC, enable this.
 	  If not sure, enable.
 	  If compiled as module, it will be called fec_mpc52xx_phy.
-
-config NE_H8300
-	tristate "NE2000 compatible support for H8/300"
-	depends on H8300
-	help
-	  Say Y here if you want to use the NE2000 compatible
-	  controller on the Renesas H8/300 processor.
 
 config ATL2
 	tristate "Atheros L2 Fast Ethernet support"

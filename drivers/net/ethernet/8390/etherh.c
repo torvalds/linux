@@ -65,7 +65,7 @@
 static char version[] __initdata =
 	"EtherH/EtherM Driver (c) 2002-2004 Russell King " DRV_VERSION "\n";
 
-#include "../lib8390.c"
+#include "lib8390.c"
 
 static unsigned int net_debug = NET_DEBUG;
 

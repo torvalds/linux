@@ -170,8 +170,7 @@ F:	include/linux/serial_8250.h
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 L:	netdev@vger.kernel.org
 S:	Orphan / Obsolete
-F:	drivers/net/*8390*
-F:	drivers/net/ax88796.c
+F:	drivers/net/ethernet/8390/
 
 9P FILE SYSTEM
 M:	Eric Van Hensbergen <ericvh@gmail.com>
@@ -6568,7 +6567,7 @@ W:	http://uclinux-h8.sourceforge.jp/
 S:	Supported
 F:	arch/h8300/
 F:	drivers/ide/ide-h8300.c
-F:	drivers/net/ne-h8300.c
+F:	drivers/net/ethernet/8390/ne-h8300.c
 
 UDF FILESYSTEM
 M:	Jan Kara <jack@suse.cz>
