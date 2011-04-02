@@ -46,6 +46,7 @@ struct wm831x_on {
 
 struct wm831x_on *g_wm831x_on;
 
+#ifndef CONFIG_KEYS_RK29
 void rk28_send_wakeup_key(void)
 {
         printk("%s\n", __FUNCTION__);
@@ -60,6 +61,7 @@ void rk28_send_wakeup_key(void)
         input_sync(g_wm831x_on->dev);
         printk("%s end\n", __FUNCTION__);
 }
+#endif
 
 #if 1
 
