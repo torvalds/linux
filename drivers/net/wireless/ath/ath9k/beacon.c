@@ -392,14 +392,6 @@ void ath_beacon_tasklet(unsigned long data)
 	tsf += TU_TO_USEC(ah->config.sw_beacon_response_time);
 	tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
 	slot = (tsftu % (intval * ATH_BCBUF)) / intval;
-	/*
-	 * Reverse the slot order to get slot 0 on the TBTT offset that does
-	 * not require TSF adjustment and other slots adding
-	 * slot/ATH_BCBUF * beacon_int to timestamp. For example, with
-	 * ATH_BCBUF = 4, we process beacon slots as follows: 3 2 1 0 3 2 1 ..
-	 * and slot 0 is at correct offset to TBTT.
-	 */
-	slot = ATH_BCBUF - slot - 1;
 	vif = sc->beacon.bslot[slot];
 
 	ath_dbg(common, ATH_DBG_BEACON,
