@@ -90,8 +90,8 @@ mwifiex_is_alg_wep(u32 cipher)
 	int alg = 0;
 
 	switch (cipher) {
-	case MWIFIEX_ENCRYPTION_MODE_WEP40:
-	case MWIFIEX_ENCRYPTION_MODE_WEP104:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		alg = 1;
 		break;
 	default:
@@ -99,55 +99,6 @@ mwifiex_is_alg_wep(u32 cipher)
 		break;
 	}
 	return alg;
-}
-
-/*
- * This function maps the given cipher type into driver specific type.
- *
- * It also sets a flag to indicate whether WPA is enabled or not.
- *
- * The mapping table is -
- *      Input cipher                Driver cipher type              WPA enabled?
- *      ------------                ------------------              ------------
- *      IW_AUTH_CIPHER_NONE         MWIFIEX_ENCRYPTION_MODE_NONE    No
- *      WLAN_CIPHER_SUITE_WEP40     MWIFIEX_ENCRYPTION_MODE_WEP40   No
- *      WLAN_CIPHER_SUITE_WEP104    MWIFIEX_ENCRYPTION_MODE_WEP104  No
- *      WLAN_CIPHER_SUITE_TKIP      MWIFIEX_ENCRYPTION_MODE_TKIP    Yes
- *      WLAN_CIPHER_SUITE_CCMP      MWIFIEX_ENCRYPTION_MODE_CCMP    Yes
- *      Others                      -1                              No
- */
-static int
-mwifiex_get_mwifiex_cipher(u32 cipher, int *wpa_enabled)
-{
-	int encrypt_mode;
-
-	if (wpa_enabled)
-		*wpa_enabled = 0;
-	switch (cipher) {
-	case IW_AUTH_CIPHER_NONE:
-		encrypt_mode = MWIFIEX_ENCRYPTION_MODE_NONE;
-		break;
-	case WLAN_CIPHER_SUITE_WEP40:
-		encrypt_mode = MWIFIEX_ENCRYPTION_MODE_WEP40;
-		break;
-	case WLAN_CIPHER_SUITE_WEP104:
-		encrypt_mode = MWIFIEX_ENCRYPTION_MODE_WEP104;
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		encrypt_mode = MWIFIEX_ENCRYPTION_MODE_TKIP;
-		if (wpa_enabled)
-			*wpa_enabled = 1;
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		encrypt_mode = MWIFIEX_ENCRYPTION_MODE_CCMP;
-		if (wpa_enabled)
-			*wpa_enabled = 1;
-		break;
-	default:
-		encrypt_mode = -1;
-	}
-
-	return encrypt_mode;
 }
 
 /*
@@ -252,13 +203,9 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 {
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	int ret = 0;
-	int encrypt_mode;
 
-	encrypt_mode = mwifiex_get_mwifiex_cipher(params->cipher, NULL);
-
-	if (encrypt_mode != -1)
-		ret = mwifiex_set_encode(priv, params->key, params->key_len,
-						key_index, 0);
+	ret = mwifiex_set_encode(priv, params->key, params->key_len,
+								key_index, 0);
 
 	wiphy_dbg(wiphy, "info: crypto keys added\n");
 
@@ -1019,7 +966,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct mwifiex_802_11_ssid req_ssid;
 	struct mwifiex_ssid_bssid ssid_bssid;
 	int ret = 0;
-	int auth_type = 0, pairwise_encrypt_mode = 0, wpa_enabled = 0;
+	int auth_type = 0, pairwise_encrypt_mode = 0;
 	int group_encrypt_mode = 0;
 	int alg_is_wep = 0;
 
@@ -1052,13 +999,13 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		/* "privacy" is set only for ad-hoc mode */
 		if (privacy) {
 			/*
-			 * Keep MWIFIEX_ENCRYPTION_MODE_WEP104 for now so that
+			 * Keep WLAN_CIPHER_SUITE_WEP104 for now so that
 			 * the firmware can find a matching network from the
 			 * scan. The cfg80211 does not give us the encryption
 			 * mode at this stage so just setting it to WEP here.
 			 */
 			priv->sec_info.encryption_mode =
-					MWIFIEX_ENCRYPTION_MODE_WEP104;
+					WLAN_CIPHER_SUITE_WEP104;
 			priv->sec_info.authentication_mode =
 					NL80211_AUTHTYPE_OPEN_SYSTEM;
 		}
@@ -1074,16 +1021,13 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
 
 	if (sme->crypto.n_ciphers_pairwise) {
-		pairwise_encrypt_mode = mwifiex_get_mwifiex_cipher(sme->crypto.
-					ciphers_pairwise[0], &wpa_enabled);
-		priv->sec_info.encryption_mode = pairwise_encrypt_mode;
+		priv->sec_info.encryption_mode =
+						sme->crypto.ciphers_pairwise[0];
 		priv->sec_info.authentication_mode = auth_type;
 	}
 
 	if (sme->crypto.cipher_group) {
-		group_encrypt_mode = mwifiex_get_mwifiex_cipher(sme->crypto.
-						   cipher_group, &wpa_enabled);
-		priv->sec_info.encryption_mode = group_encrypt_mode;
+		priv->sec_info.encryption_mode = sme->crypto.cipher_group;
 		priv->sec_info.authentication_mode = auth_type;
 	}
 	if (sme->ie)

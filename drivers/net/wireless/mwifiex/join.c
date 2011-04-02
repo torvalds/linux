@@ -869,7 +869,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	tmp_cap |= WLAN_CAPABILITY_IBSS;
 
 	/* Set up privacy in bss_desc */
-	if (priv->sec_info.encryption_mode != MWIFIEX_ENCRYPTION_MODE_NONE) {
+	if (priv->sec_info.encryption_mode) {
 		/* Ad-Hoc capability privacy on */
 		dev_dbg(adapter->dev,
 			"info: ADHOC_S_CMD: wep_status set privacy to WEP\n");

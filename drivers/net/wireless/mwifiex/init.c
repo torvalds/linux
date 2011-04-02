@@ -86,7 +86,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->sec_info.wep_status = MWIFIEX_802_11_WEP_DISABLED;
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
-	priv->sec_info.encryption_mode = MWIFIEX_ENCRYPTION_MODE_NONE;
+	priv->sec_info.encryption_mode = 0;
 	for (i = 0; i < ARRAY_SIZE(priv->wep_key); i++)
 		memset(&priv->wep_key[i], 0, sizeof(struct mwifiex_wep_key));
 	priv->wep_key_curr_index = 0;

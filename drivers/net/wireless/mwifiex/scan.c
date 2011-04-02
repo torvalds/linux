@@ -273,8 +273,8 @@ mwifiex_is_network_compatible_for_no_sec(struct mwifiex_private *priv,
 	    && ((!bss_desc->bcn_rsn_ie) ||
 		((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id !=
 	    WLAN_EID_RSN))
-	    && priv->sec_info.encryption_mode ==
-	    MWIFIEX_ENCRYPTION_MODE_NONE && !bss_desc->privacy) {
+	    && !priv->sec_info.encryption_mode
+	    && !bss_desc->privacy) {
 		return true;
 	}
 	return false;
@@ -386,8 +386,8 @@ mwifiex_is_network_compatible_for_adhoc_aes(struct mwifiex_private *priv,
 		   element_id != WLAN_EID_WPA))
 	    && ((!bss_desc->bcn_rsn_ie) || ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.
 		   element_id != WLAN_EID_RSN))
-	    && priv->sec_info.encryption_mode ==
-	    MWIFIEX_ENCRYPTION_MODE_NONE && bss_desc->privacy) {
+	    && !priv->sec_info.encryption_mode
+	    && bss_desc->privacy) {
 		return true;
 	}
 	return false;
@@ -408,8 +408,8 @@ mwifiex_is_network_compatible_for_dynamic_wep(struct mwifiex_private *priv,
 		   element_id != WLAN_EID_WPA))
 	    && ((!bss_desc->bcn_rsn_ie) || ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.
 		   element_id != WLAN_EID_RSN))
-	    && priv->sec_info.encryption_mode !=
-	    MWIFIEX_ENCRYPTION_MODE_NONE && bss_desc->privacy) {
+	    && priv->sec_info.encryption_mode
+	    && bss_desc->privacy) {
 		dev_dbg(priv->adapter->dev, "info: %s: dynamic "
 			"WEP: index=%d wpa_ie=%#x wpa2_ie=%#x "
 			"EncMode=%#x privacy=%#x\n",

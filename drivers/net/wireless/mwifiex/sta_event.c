@@ -76,7 +76,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	priv->wapi_ie_len = 0;
 	priv->sec_info.wapi_key_on = false;
 
-	priv->sec_info.encryption_mode = MWIFIEX_ENCRYPTION_MODE_NONE;
+	priv->sec_info.encryption_mode = 0;
 
 	/* Enable auto data rate */
 	priv->is_data_rate_auto = true;
