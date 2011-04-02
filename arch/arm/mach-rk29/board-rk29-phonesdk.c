@@ -2972,8 +2972,6 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	rk29xx_virtual_keys_init();
-
-	board_usb_detect_init(RK29_PIN0_PA0, IRQF_TRIGGER_FALLING);
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
