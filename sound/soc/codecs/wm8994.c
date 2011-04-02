@@ -39,6 +39,7 @@
 #ifdef WM8994_PROC
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 #endif
 
 /* If digital BB is used,open this define. */
@@ -134,6 +135,7 @@ enum VoiceDeviceSwitch
 
 #ifdef WM8994_PROC
 char wm8994_current_route = SPEAKER_NORMAL;
+char debug_write_read = 1;
 #endif
 
 #define WM_EN_PIN RK29_PIN5_PA1
@@ -207,10 +209,16 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 
 	if(isSetChannelErr)return -EIO;
 
-	while(i > 0){
+	while(i > 0)
+	{
 		i--;
-		if (reg_recv_data(wm8994_client,&regs,&values,400000) > 0){
+		if (reg_recv_data(wm8994_client,&regs,&values,400000) > 0)
+		{
 			*value=((values>>8)& 0x00FF)|((values<<8)&0xFF00);
+		#ifdef WM8994_PROC	
+			if(debug_write_read != 0)
+				DBG("%s:0x%04x = 0x%04x",__FUNCTION__,reg,*value);
+		#endif
 			return 0;
 		}
 	}
@@ -227,11 +235,17 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 	char i = 2;
 
 	if(isSetChannelErr)return -EIO;
-
-	while(i > 0){
+#ifdef WM8994_PROC	
+	if(debug_write_read != 0)
+		DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,value);
+#endif		
+	while(i > 0)
+	{
 		i--;
-		if (reg_send_data(wm8994_client,&regs,&values,400000) > 0) {
-			if (reg == 0x302) {
+		if (reg_send_data(wm8994_client,&regs,&values,400000) > 0) 
+		{
+			if (reg == 0x302) 
+			{
 				wm8994_read(0x406, &values);
 				wm8994_write(0x406, values);
 				wm8994_read(reg, &values);
@@ -476,7 +490,7 @@ void AP_to_speakers_and_headset(void)
 
 	//wm8994_write(0x24,  0x0018);
 	wm8994_set_channel_vol();
-	wm8994_write(0x25,  0x003F);
+	//wm8994_write(0x25,  0x003F);
 
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
 	wm8994_write(0x05,  0x0303);   
@@ -547,7 +561,7 @@ void recorder_and_AP_to_headset(void)
 	wm8994_write(0x611, 0x0100); // DAC1_VU=1, DAC1R_VOL=1100_0000
 
 	wm8994_set_channel_vol();
-	wm8994_write(0x25,  0x003F);
+	//wm8994_write(0x25,  0x003F);
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
 	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
@@ -624,7 +638,7 @@ void recorder_and_AP_to_speakers(void)
 	wm8994_write(0x611, 0x0100); // DAC1_VU=1, DAC1R_VOL=1100_0000
 	wm8994_set_channel_vol();
 	//wm8994_write(0x24,  0x0018);
-	wm8994_write(0x25,  0x003F);
+	//wm8994_write(0x25,  0x003F);
 
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
@@ -2019,7 +2033,7 @@ void mainMIC_to_baseband_to_speakers(void) //pcmbaseband
 	wm8994_write(0x1A,  0x011F);
 	wm8994_write(0x22,  0x0000);
 	wm8994_write(0x23,  0x0100);  ///0x0000);
-	wm8994_write(0x25,  0x0152);
+	//wm8994_write(0x25,  0x0152);
 	wm8994_write(0x28,  0x0003);
 	wm8994_write(0x2A,  0x0020);
 	wm8994_write(0x2D,  0x0001);
@@ -2380,7 +2394,7 @@ void wm8994_set_channel_vol(void)
 			wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
 			wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
 		}else{
-			wm8994_write(0x25,  0x003F);      //0~12dB
+		//	wm8994_write(0x25,  0x003F);      //0~12dB
 			wm8994_write(0x26,  320+vol+45);  //-57dB~6dB
 			wm8994_write(0x27,  320+vol+45);  //-57dB~6dB
 		}
@@ -2573,9 +2587,9 @@ void wm8994_set_channel_vol(void)
 		if(vol<=0){
 			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);
 		}else if(vol <= 9){
-			wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
+		//	wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
 		}else{
-			wm8994_write(0x25,  0x003F);
+		//	wm8994_write(0x25,  0x003F);
 		}
 		break;
 
@@ -2639,7 +2653,7 @@ void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned c
 {
 	unsigned short lvol=0,rvol=0;
 
-	DBG("%s::volume = %d \n",__FUNCTION__,volume);
+//	DBG("%s::volume = %d \n",__FUNCTION__,volume);
 
 	if(volume>max_volume)volume=max_volume;
 	
@@ -2798,11 +2812,11 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 
 		/* Earpiece*/			    
 		case EARPIECE_INCALL:	//:BB-> 8994Codec -> EARPIECE
-#ifdef CONFIG_SND_NO_EARPIECE
+//#ifdef CONFIG_SND_NO_EARPIECE
 			mainMIC_to_baseband_to_speakers();
-#else
-			mainMIC_to_baseband_to_earpiece();
-#endif
+//#else
+//			mainMIC_to_baseband_to_earpiece();
+//#endif
 			break;
 
 		case EARPIECE_NORMAL:	//:BB-> 8994Codec -> EARPIECE
@@ -3446,48 +3460,37 @@ static int wm8994_resume(struct platform_device *pdev)
 static struct snd_soc_codec *wm8994_codec;
 
 #ifdef WM8994_PROC
-
-void wm8994_read_printk(unsigned short reg){
-	unsigned short value;
-	wm8994_read(reg, &value);
-	printk("wm8994_read_printk :: reg = 0x%x, value = 0x%x\n", reg, value);
-}
-
-void read_test(void){
-	wm8994_read_printk(0x200);
-	wm8994_read_printk(0x220);
-	wm8994_read_printk(0x221);
-	wm8994_read_printk(0x222);
-	wm8994_read_printk(0x223);
-	wm8994_read_printk(0x210);
-	wm8994_read_printk(0x300);
-	wm8994_read_printk(0x303);
-	wm8994_read_printk(0x304);
-	wm8994_read_printk(0x305);
-	wm8994_read_printk(0x302);
-	wm8994_read_printk(0x700);
-	wm8994_read_printk(0x208);
-}
-
-static int CheckCommand(const char __user *buffer)
+static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
+			   unsigned long len, void *data)
 {
+	char *cookie_pot; 
+	char *p;
+	int reg;
+	int value;
+	
 	char procadd = 0;
 	unsigned short eqvol;
 	unsigned char wm8994_proc_mode;
 	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
-
-	switch(*buffer){
-	case 'r':
-	case 'R':
-		read_test();
-		return 0;
-		break;
-
+	
+	cookie_pot = (char *)vmalloc( len );
+	if (!cookie_pot) 
+	{
+		return -ENOMEM;
+	} 
+	else 
+	{
+		if (copy_from_user( cookie_pot, buffer, len )) 
+			return -EFAULT;
+	}
+	
+	switch(cookie_pot[0])
+	{
 	case 'n':
 	case 'N':
-		if(*(buffer+1)=='+'){
+		if(*(cookie_pot+1)=='+'){
 			procadd = 3;
-		}else if(*(buffer+1)=='-'){
+		}else if(*(cookie_pot+1)=='-'){
 			procadd = -3;
 		}else{
 			printk("Please press '+' or '-' follow 'n'!\n");
@@ -3553,12 +3556,11 @@ static int CheckCommand(const char __user *buffer)
 			return -1;
 		}
 		break;
-
 	case 'i':
 	case 'I':
-		if(*(buffer+1)=='+'){
+		if(*(cookie_pot+1)=='+'){
 			procadd = 3;
-		}else if(*(buffer+1)=='-'){
+		}else if(*(cookie_pot+1)=='-'){
 			procadd = -3;
 		}else{
 			printk("Please press '+' or '-' follow 'i'!\n");
@@ -3627,12 +3629,11 @@ static int CheckCommand(const char __user *buffer)
 			return -1;
 		}
 		break;
-
 	case 'm':
 	case 'M':
-		if(*(buffer+1)=='+'){
+		if(*(cookie_pot+1)=='+'){
 			procadd = 3;
-		}else if(*(buffer+1)=='-'){
+		}else if(*(cookie_pot+1)=='-'){
 			procadd = -3;
 		}else{
 			printk("Please press '+' or '-' follow 'm'!\n");
@@ -3714,9 +3715,9 @@ static int CheckCommand(const char __user *buffer)
 			return -1;
 		}
 		break;
-
 	case 'l':
 	case 'L':
+		{
 		printk("headset_normal_vol = %ddB \n",headset_normal_vol);
 		printk("speaker_normal_vol = %ddB \n",speaker_normal_vol);
 		printk("headset_incall_vol = %ddB \n",headset_incall_vol);
@@ -3732,13 +3733,13 @@ static int CheckCommand(const char __user *buffer)
 		printk("bank_vol[3] = %ddB \n",bank_vol[3]);
 		printk("bank_vol[4] = %ddB \n",bank_vol[4]);
 		printk("bank_vol[5] = %ddB \n",bank_vol[5]);
+		}
 		return 0;
 		break;
-
 	case 'c':
 	case 'C':
-		if(((*(buffer+1) == 't') || (*(buffer+1) == 'T')) &&
-		((*(buffer+2) == 'a') || (*(buffer+2) == 'A'))){
+		if(((*(cookie_pot+1) == 't') || (*(cookie_pot+1) == 'T')) &&
+		((*(cookie_pot+2) == 'a') || (*(cookie_pot+2) == 'A'))){
 			if(earpiece_vol_table[5] == 0x013D){
 				earpiece_vol_table[0] = 0x0127;//for cta
 				earpiece_vol_table[1] = 0x012D;
@@ -3752,12 +3753,12 @@ static int CheckCommand(const char __user *buffer)
 			break;
 		}
 		isWM8994SetChannel = true;
-		if(*(buffer+1) == '+'){
+		if(*(cookie_pot+1) == '+'){
 			wm8994_proc_mode = wm8994_current_mode+1;
 
 			if(wm8994_proc_mode > wm8994_BT_baseband)
 				wm8994_proc_mode = wm8994_AP_to_headset;
-		}else if(*(buffer+1) == '-'){
+		}else if(*(cookie_pot+1) == '-'){
 			wm8994_proc_mode = wm8994_current_mode-1;
 
 			if(wm8994_proc_mode == null || wm8994_proc_mode > wm8994_BT_baseband)
@@ -3770,20 +3771,18 @@ static int CheckCommand(const char __user *buffer)
 		wm8994_fnc_ptr += wm8994_proc_mode;
 		(*wm8994_fnc_ptr)();
 		isWM8994SetChannel = false;
-
 		return 0;
 		break;
-
 	case 'e':
 	case 'E':
-		if(*(buffer+1)=='+'){
+		if(*(cookie_pot+1)=='+'){
 			procadd = 3;
-		}else if(*(buffer+1)=='-'){
+		}else if(*(cookie_pot+1)=='-'){
 			procadd = -3;
-		}else if(*(buffer+1)=='c'){
+		}else if(*(cookie_pot+1)=='c'){
 			wm8994_write(0x0480, 0x0000);
 			return 0;
-		}else if(*(buffer+1)=='o'){
+		}else if(*(cookie_pot+1)=='o'){
 			wm8994_write(0x0480, 0x0001|((bank_vol[1]+12)<<11)|
 			((bank_vol[2]+12)<<6)|((bank_vol[3]+12)<<1));
 			wm8994_write(0x0481, 0x0000|((bank_vol[4]+12)<<11)|
@@ -3794,7 +3793,7 @@ static int CheckCommand(const char __user *buffer)
 			return -1;
 		}
 
-		switch(*(buffer+2)){
+		switch(*(cookie_pot+2)){
 		case '1':
 			if(procadd == 3)
 				bank_vol[1] += 3;
@@ -3876,29 +3875,79 @@ static int CheckCommand(const char __user *buffer)
 		}
 		return 0;
 		break;
-	case 'g':
-		recorder_and_AP_to_headset();
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+	case 'd':
+	case 'D':
+		debug_write_read ++;
+		debug_write_read %= 2;
+		if(debug_write_read != 0)
+			DBG("Debug read and write reg on\n");
+		else	
+			DBG("Debug read and write reg off\n");	
+		break;	
+	case 'r':
+	case 'R':
+		DBG("Read reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,",")))
+			{
+				wm8994_read(simple_strtol(p,NULL,16),(unsigned short *)&value);
+			}
+			debug_write_read = 0;;
+			DBG("\n");		
+		}
+		else
+		{
+			DBG("Error Read reg debug.\n");
+			DBG("For example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		}
 		break;
+	case 'w':
+	case 'W':
+		DBG("Write reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,"=")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				p=strsep(&cookie_pot,",");
+				value = simple_strtol(p,NULL,16);
+				wm8994_write(reg,value);
+			}
+			debug_write_read = 0;;
+			DBG("\n");
+		}
+		else
+		{
+			DBG("Error Write reg debug.\n");
+			DBG("For example: w:22=0,23=0,24=0,25=0\n");
+		}
+		break;	
+	case 's':
+		AP_to_speakers();
+		break;
+	case 'h':
+		recorder_and_AP_to_headset();
+		break;		
 	default:
-		printk("Please press 'n' 'i' 'm' 'l' 'c' 'e' !\n");
-		return -1;
+		DBG("Help for wm8994_ts .\n-->The Cmd list: \n");
+		DBG("-->'d&&D' Open or Off the debug\n");
+		DBG("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		DBG("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>wm8994_ts\n");
+		break;
 	}
 
-	wm8994_set_channel_vol();
-
-	return 0;
+	wm8994_set_channel_vol();	
+	return len;
 }
 
-static int wm8994_proc_write(struct file *file, const char __user *buffer,
-			   unsigned long count, void *data)
-{
-	if(CheckCommand(buffer) != 0){
-		printk("Write proc error !\n");
-		return -1;
-	}
-
-	return sizeof(buffer);
-}
 static const struct file_operations wm8994_proc_fops = {
 	.owner		= THIS_MODULE,
 	//.open		= snd_mem_proc_open,
