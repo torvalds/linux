@@ -281,23 +281,23 @@ enum MP_MODE {
 	MP_ERR_MODE
 };
 
-struct rwreg_param{
+struct rwreg_param {
 	unsigned int offset;
 	unsigned int width;
 	unsigned int value;
 };
 
-struct bbreg_param{
+struct bbreg_param {
 	unsigned int offset;
 	unsigned int phymask;
 	unsigned int value;
 };
 
-struct txpower_param{
+struct txpower_param {
 	unsigned int pwr_index;
 };
 
-struct datarate_param{
+struct datarate_param {
 	unsigned int rate_index;
 };
 
@@ -321,7 +321,7 @@ struct mp_ioctl_handler {
 	unsigned int oid;
 };
 
-struct mp_ioctl_param{
+struct mp_ioctl_param {
 	unsigned int subcode;
 	unsigned int len;
 	unsigned char data[0];

@@ -93,7 +93,7 @@ struct recv_buf {
 	end   ----->
 	len = (unsigned int )(tail - data);
 */
-struct recv_frame_hdr{
+struct recv_frame_hdr {
 	struct list_head list;
 	_pkt	*pkt;
 	_pkt *pkt_newalloc;
