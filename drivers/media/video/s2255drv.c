@@ -2382,7 +2382,7 @@ static void read_pipe_completion(struct urb *purb)
 			  read_pipe_completion, pipe_info);
 
 	if (pipe_info->state != 0) {
-		if (usb_submit_urb(pipe_info->stream_urb, GFP_KERNEL)) {
+		if (usb_submit_urb(pipe_info->stream_urb, GFP_ATOMIC)) {
 			dev_err(&dev->udev->dev, "error submitting urb\n");
 		}
 	} else {
