@@ -291,7 +291,8 @@ static inline char *translate_scan(struct _adapter *padapter,
 			memset(buf, 0, MAX_WPA_IE_LEN);
 			n = sprintf(buf, "wpa_ie=");
 			for (i = 0; i < wpa_len; i++) {
-				n += snprintf(buf + n, MAX_WPA_IE_LEN - n, "%02x", wpa_ie[i]);
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n,
+							"%02x", wpa_ie[i]);
 				if (n >= MAX_WPA_IE_LEN)
 					break;
 			}
@@ -310,7 +311,8 @@ static inline char *translate_scan(struct _adapter *padapter,
 			memset(buf, 0, MAX_WPA_IE_LEN);
 			n = sprintf(buf, "rsn_ie=");
 			for (i = 0; i < rsn_len; i++) {
-				n += snprintf(buf + n, MAX_WPA_IE_LEN - n, "%02x", rsn_ie[i]);
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n,
+							"%02x", rsn_ie[i]);
 				if (n >= MAX_WPA_IE_LEN)
 					break;
 			}

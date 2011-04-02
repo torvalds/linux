@@ -477,8 +477,8 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		 * to avoid some IOT issues, especially for Realtek 8192u
 		 * SoftAP.
 		 */
-		if ((padapter->securitypriv.PrivacyAlgrthm != _WEP40_ ) &&
-		    (padapter->securitypriv.PrivacyAlgrthm != _WEP104_ )) {
+		if ((padapter->securitypriv.PrivacyAlgrthm != _WEP40_) &&
+		    (padapter->securitypriv.PrivacyAlgrthm != _WEP104_)) {
 			/* restructure_ht_ie */
 			r8712_restructure_ht_ie(padapter,
 						&pnetwork->network.IEs[0],
