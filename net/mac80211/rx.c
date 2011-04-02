@@ -612,7 +612,8 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 				skipped++;
 				continue;
 			}
-			if (!time_after(jiffies, tid_agg_rx->reorder_time[j] +
+			if (skipped &&
+			    !time_after(jiffies, tid_agg_rx->reorder_time[j] +
 					HT_RX_REORDER_BUF_TIMEOUT))
 				goto set_release_timer;
 
