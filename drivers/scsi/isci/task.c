@@ -1480,7 +1480,7 @@ void isci_task_request_complete(
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_task(
+	scic_controller_complete_io(
 		isci_host->core_controller,
 		to_sci_dev(isci_device),
 		request->sci_request_handle

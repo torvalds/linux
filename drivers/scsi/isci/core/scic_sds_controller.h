@@ -430,90 +430,6 @@ enum scic_sds_controller_states {
 
 };
 
-typedef enum sci_status (*scic_sds_controller_handler_t)
-				(struct scic_sds_controller *);
-typedef enum sci_status (*scic_sds_controller_timed_handler_t)
-				(struct scic_sds_controller *, u32);
-typedef enum sci_status (*scic_sds_controller_request_handler_t)
-				(struct scic_sds_controller *,
-				 struct sci_base_remote_device *,
-				 struct scic_sds_request *);
-typedef enum sci_status (*scic_sds_controller_start_request_handler_t)
-				(struct scic_sds_controller *,
-				 struct sci_base_remote_device *,
-				 struct scic_sds_request *, u16);
-typedef void (*scic_sds_controller_phy_handler_t)
-				(struct scic_sds_controller *,
-				 struct scic_sds_port *,
-				 struct scic_sds_phy *);
-typedef void (*scic_sds_controller_device_handler_t)
-				(struct scic_sds_controller *,
-				 struct scic_sds_remote_device *);
-
-struct scic_sds_controller_state_handler {
-	/**
-	 * The start_handler specifies the method invoked when a user attempts to
-	 * start a controller.
-	 */
-	scic_sds_controller_timed_handler_t start;
-
-	/**
-	 * The stop_handler specifies the method invoked when a user attempts to
-	 * stop a controller.
-	 */
-	scic_sds_controller_timed_handler_t stop;
-
-	/**
-	 * The reset_handler specifies the method invoked when a user attempts to
-	 * reset a controller.
-	 */
-	scic_sds_controller_handler_t reset;
-
-	/**
-	 * The initialize_handler specifies the method invoked when a user
-	 * attempts to initialize a controller.
-	 */
-	scic_sds_controller_handler_t initialize;
-
-	/**
-	 * The start_io_handler specifies the method invoked when a user
-	 * attempts to start an IO request for a controller.
-	 */
-	scic_sds_controller_start_request_handler_t start_io;
-
-	/**
-	 * The complete_io_handler specifies the method invoked when a user
-	 * attempts to complete an IO request for a controller.
-	 */
-	scic_sds_controller_request_handler_t complete_io;
-
-	/**
-	 * The continue_io_handler specifies the method invoked when a user
-	 * attempts to continue an IO request for a controller.
-	 */
-	scic_sds_controller_request_handler_t continue_io;
-
-	/**
-	 * The start_task_handler specifies the method invoked when a user
-	 * attempts to start a task management request for a controller.
-	 */
-	scic_sds_controller_start_request_handler_t start_task;
-
-	/**
-	 * The complete_task_handler specifies the method invoked when a user
-	 * attempts to complete a task management request for a controller.
-	 */
-	scic_sds_controller_request_handler_t complete_task;
-
-	scic_sds_controller_request_handler_t terminate_request;
-	scic_sds_controller_phy_handler_t link_up;
-	scic_sds_controller_phy_handler_t link_down;
-	scic_sds_controller_device_handler_t device_stopped;
-};
-
-extern const struct scic_sds_controller_state_handler
-	scic_sds_controller_state_handler_table[];
-
 /**
  * INCREMENT_QUEUE_GET() -
  *
@@ -675,5 +591,7 @@ void scic_sds_controller_copy_task_context(
 
 void scic_sds_controller_register_setup(
 	struct scic_sds_controller *this_controller);
+
+enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req);
 
 #endif /* _SCIC_SDS_CONTROLLER_H_ */

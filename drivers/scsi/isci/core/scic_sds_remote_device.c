@@ -558,17 +558,10 @@ void scic_sds_remote_device_start_request(
 void scic_sds_remote_device_continue_request(void *dev)
 {
 	struct scic_sds_remote_device *sci_dev = dev;
-	struct scic_sds_request *sci_req = sci_dev->working_request;
 
 	/* we need to check if this request is still valid to continue. */
-	if (sci_req) {
-		struct scic_sds_controller *scic = sci_req->owning_controller;
-		u32 state = scic->state_machine.current_state_id;
-		scic_sds_controller_request_handler_t continue_io;
-
-		continue_io = scic_sds_controller_state_handler_table[state].continue_io;
-		continue_io(scic, &sci_req->target_device->parent, sci_req);
-	}
+	if (sci_dev->working_request)
+		scic_controller_continue_io(sci_dev->working_request);
 }
 
 /**

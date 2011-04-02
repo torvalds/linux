@@ -110,11 +110,6 @@ enum sci_task_status scic_controller_start_task(
 	struct scic_sds_request *task_request,
 	u16 io_tag);
 
-enum sci_status scic_controller_complete_task(
-	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *task_request);
-
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *remote_device,

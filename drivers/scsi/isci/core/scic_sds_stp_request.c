@@ -637,10 +637,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	u32 length)
 {
 	struct scic_sds_stp_request *this_sds_stp_request = (struct scic_sds_stp_request *)this_request;
-	scic_sds_controller_request_handler_t continue_io;
 	struct scu_sgl_element *current_sgl;
-	struct scic_sds_controller *scic;
-	u32 state;
 
 	/*
 	 * Recycle the TC and reconstruct it for sending out DATA FIS containing
@@ -662,10 +659,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	task_context->type.stp.fis_type = SATA_FIS_TYPE_DATA;
 
 	/* send the new TC out. */
-	scic = this_request->owning_controller;
-	state = scic->state_machine.current_state_id;
-	continue_io = scic_sds_controller_state_handler_table[state].continue_io;
-	return continue_io(scic, &this_request->target_device->parent, this_request);
+	return scic_controller_continue_io(this_request);
 }
 
 /**
@@ -1758,12 +1752,9 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 	struct sci_base_object *object)
 {
 	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
-	scic_sds_controller_request_handler_t continue_io;
 	struct scu_task_context *task_context;
 	struct sata_fis_reg_h2d *h2d_fis;
-	struct scic_sds_controller *scic;
 	enum sci_status status;
-	u32 state;
 
 	/* Clear the SRST bit */
 	h2d_fis = scic_stp_io_request_get_h2d_reg_address(this_request);
@@ -1774,12 +1765,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 		this_request->owning_controller, this_request->io_tag);
 	task_context->control_frame = 0;
 
-	scic = this_request->owning_controller;
-	state = scic->state_machine.current_state_id;
-	continue_io = scic_sds_controller_state_handler_table[state].continue_io;
-
-	status = continue_io(scic, &this_request->target_device->parent, this_request);
-
+	status = scic_controller_continue_io(this_request);
 	if (status == SCI_SUCCESS) {
 		SET_STATE_HANDLER(
 			this_request,
