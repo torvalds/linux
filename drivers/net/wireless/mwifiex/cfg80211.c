@@ -228,6 +228,10 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	int ret;
 
+	/* Return if WEP key not configured */
+	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED)
+		return 0;
+
 	ret = mwifiex_set_encode(priv, NULL, 0, key_index, 0);
 
 	wiphy_dbg(wiphy, "info: set default Tx key index\n");
