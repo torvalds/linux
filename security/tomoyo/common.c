@@ -108,10 +108,9 @@ static bool tomoyo_flush(struct tomoyo_io_buffer *head)
 			head->read_user_buf += len;
 			w += len;
 		}
-		if (*w) {
-			head->r.w[0] = w;
+		head->r.w[0] = w;
+		if (*w)
 			return false;
-		}
 		/* Add '\0' for query. */
 		if (head->poll) {
 			if (!head->read_user_buf_avail ||
