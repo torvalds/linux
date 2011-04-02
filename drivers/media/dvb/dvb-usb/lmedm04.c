@@ -62,8 +62,6 @@
  *	LME2510: SHARP:BS2F7HZ0194(MV0194) cannot cold reset and share system
  * with other tuners. After a cold reset streaming will not start.
  *
- *	PID functions have been removed from this driver version due to
- * problems with different firmware and application versions.
  */
 #define DVB_USB_LOG_PREFIX "LME2510(C)"
 #include <linux/usb.h>
@@ -103,6 +101,10 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able))."
 static int dvb_usb_lme2510_firmware;
 module_param_named(firmware, dvb_usb_lme2510_firmware, int, 0644);
 MODULE_PARM_DESC(firmware, "set default firmware 0=Sharp7395 1=LG");
+
+static int pid_filter;
+module_param_named(pid, pid_filter, int, 0644);
+MODULE_PARM_DESC(pid, "set default 0=on 1=off");
 
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -216,6 +218,38 @@ static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u32 keypress)
 	return 0;
 }
 
+static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
+{
+	struct lme2510_state *st = d->priv;
+	static u8 pid_buff[] = LME_ZERO_PID;
+	static u8 rbuf[1];
+	u8 pid_no = index * 2;
+	int ret = 0;
+	deb_info(1, "PID Setting Pid %04x", pid_out);
+
+	pid_buff[2] = pid_no;
+	pid_buff[3] = (u8)pid_out & 0xff;
+	pid_buff[4] = pid_no + 1;
+	pid_buff[5] = (u8)(pid_out >> 8);
+
+	/* wait for i2c mutex */
+	ret = mutex_lock_interruptible(&d->i2c_mutex);
+	if (ret < 0) {
+		ret = -EAGAIN;
+		return ret;
+	}
+
+	ret |= lme2510_usb_talk(d, pid_buff ,
+		sizeof(pid_buff) , rbuf, sizeof(rbuf));
+
+	if (st->stream_on & 1)
+		ret |= lme2510_stream_restart(d);
+
+	mutex_unlock(&d->i2c_mutex);
+
+	return ret;
+}
+
 static void lme2510_int_response(struct urb *lme_urb)
 {
 	struct dvb_usb_adapter *adap = lme_urb->context;
@@ -325,6 +359,41 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 
 	return 0;
 }
+
+static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+{
+	static u8 clear_pid_reg[] = LME_CLEAR_PID;
+	static u8 rbuf[1];
+	int ret = 0;
+
+	deb_info(1, "PID Clearing Filter");
+
+	ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+
+	if (!onoff)
+		ret |= lme2510_usb_talk(adap->dev, clear_pid_reg,
+			sizeof(clear_pid_reg), rbuf, sizeof(rbuf));
+
+	mutex_unlock(&adap->dev->i2c_mutex);
+
+	return 0;
+}
+
+static int lme2510_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
+	int onoff)
+{
+	int ret = 0;
+
+	deb_info(3, "%s PID=%04x Index=%04x onoff=%02x", __func__,
+		pid, index, onoff);
+
+	if (onoff)
+		if (!pid_filter)
+			ret = lme2510_enable_pid(adap->dev, index, pid);
+
+	return ret;
+}
+
 
 static int lme2510_return_status(struct usb_device *dev)
 {
@@ -1099,7 +1168,13 @@ static struct dvb_usb_device_properties lme2510_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
+				DVB_USB_ADAP_NEED_PID_FILTERING|
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.streaming_ctrl   = lme2510_streaming_ctrl,
+			.pid_filter_count = 15,
+			.pid_filter = lme2510_pid_filter,
+			.pid_filter_ctrl  = lme2510_pid_filter_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
 			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
@@ -1135,7 +1210,13 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
+				DVB_USB_ADAP_NEED_PID_FILTERING|
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.streaming_ctrl   = lme2510_streaming_ctrl,
+			.pid_filter_count = 15,
+			.pid_filter = lme2510_pid_filter,
+			.pid_filter_ctrl  = lme2510_pid_filter_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
 			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
@@ -1233,5 +1314,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.81");
+MODULE_VERSION("1.84");
 MODULE_LICENSE("GPL");
