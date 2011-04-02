@@ -79,9 +79,15 @@ endef
 endif
 
 ifndef NO_LIBPYTHON
+define SOURCE_PYTHON_VERSION
+#include <Python.h>
+#if PY_VERSION_HEX >= 0x03000000
+	#error
+#endif
+int main(void){}
+endef
 define SOURCE_PYTHON_EMBED
 #include <Python.h>
-
 int main(void)
 {
 	Py_Initialize();
