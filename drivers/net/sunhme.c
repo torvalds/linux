@@ -2788,7 +2788,8 @@ static int __devinit happy_meal_sbus_probe_one(struct platform_device *op, int i
 	dev->ethtool_ops = &hme_ethtool_ops;
 
 	/* Happy Meal can do it all... */
-	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 
 	dev->irq = op->archdata.irqs[0];
 
@@ -3113,7 +3114,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	dev->dma = 0;
 
 	/* Happy Meal can do it all... */
-	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up PCI register/descriptor accessors. */
