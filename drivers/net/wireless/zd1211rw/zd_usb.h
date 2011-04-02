@@ -109,7 +109,7 @@ struct usb_req_rfwrite {
 	__le16 bits;
 	/* RF2595: 24 */
 	__le16 bit_values[0];
-	/* (CR203 & ~(RF_IF_LE | RF_CLK | RF_DATA)) | (bit ? RF_DATA : 0) */
+	/* (ZD_CR203 & ~(RF_IF_LE | RF_CLK | RF_DATA)) | (bit ? RF_DATA : 0) */
 } __packed;
 
 /* USB interrupt */
