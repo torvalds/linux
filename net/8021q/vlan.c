@@ -327,10 +327,6 @@ static void vlan_sync_address(struct net_device *dev,
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
-	u32 old_features = vlandev->features;
-
-	vlandev->features &= ~dev->vlan_features;
-	vlandev->features |= dev->features & dev->vlan_features;
 	vlandev->gso_max_size = dev->gso_max_size;
 
 	if (dev->features & NETIF_F_HW_VLAN_TX)
@@ -341,8 +337,8 @@ static void vlan_transfer_features(struct net_device *dev,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
-	if (old_features != vlandev->features)
-		netdev_features_change(vlandev);
+
+	netdev_update_features(vlandev);
 }
 
 static void __vlan_device_event(struct net_device *dev, unsigned long event)

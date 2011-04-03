@@ -704,8 +704,8 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	dev->features |= real_dev->features & real_dev->vlan_features;
-	dev->features |= NETIF_F_LLTX;
+	dev->hw_features = real_dev->vlan_features & NETIF_F_ALL_TX_OFFLOADS;
+	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 
 	/* ipv6 shared card related stuff */
@@ -759,6 +759,17 @@ static void vlan_dev_uninit(struct net_device *dev)
 	}
 }
 
+static u32 vlan_dev_fix_features(struct net_device *dev, u32 features)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+
+	features &= (real_dev->features | NETIF_F_LLTX);
+	if (dev_ethtool_get_rx_csum(real_dev))
+		features |= NETIF_F_RXCSUM;
+
+	return features;
+}
+
 static int vlan_ethtool_get_settings(struct net_device *dev,
 				     struct ethtool_cmd *cmd)
 {
@@ -772,18 +783,6 @@ static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, vlan_fullname);
 	strcpy(info->version, vlan_version);
 	strcpy(info->fw_version, "N/A");
-}
-
-static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
-{
-	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	return dev_ethtool_get_rx_csum(vlan->real_dev);
-}
-
-static u32 vlan_ethtool_get_flags(struct net_device *dev)
-{
-	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	return dev_ethtool_get_flags(vlan->real_dev);
 }
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
@@ -823,32 +822,10 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 	return stats;
 }
 
-static int vlan_ethtool_set_tso(struct net_device *dev, u32 data)
-{
-       if (data) {
-		struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
-
-		/* Underlying device must support TSO for VLAN-tagged packets
-		 * and must have TSO enabled now.
-		 */
-		if (!(real_dev->vlan_features & NETIF_F_TSO))
-			return -EOPNOTSUPP;
-		if (!(real_dev->features & NETIF_F_TSO))
-			return -EINVAL;
-		dev->features |= NETIF_F_TSO;
-	} else {
-		dev->features &= ~NETIF_F_TSO;
-	}
-	return 0;
-}
-
 static const struct ethtool_ops vlan_ethtool_ops = {
 	.get_settings	        = vlan_ethtool_get_settings,
 	.get_drvinfo	        = vlan_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_rx_csum		= vlan_ethtool_get_rx_csum,
-	.get_flags		= vlan_ethtool_get_flags,
-	.set_tso                = vlan_ethtool_set_tso,
 };
 
 static const struct net_device_ops vlan_netdev_ops = {
@@ -874,6 +851,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
 	.ndo_fcoe_ddp_target	= vlan_dev_fcoe_ddp_target,
 #endif
+	.ndo_fix_features	= vlan_dev_fix_features,
 };
 
 void vlan_setup(struct net_device *dev)
