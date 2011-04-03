@@ -92,8 +92,8 @@ static int min_bytes_needed(unsigned long val)
 static int format_register_str(struct snd_soc_codec *codec,
 			       unsigned int reg, char *buf, size_t len)
 {
-	int wordsize = codec->driver->reg_word_size * 2;
-	int regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int regsize = codec->driver->reg_word_size * 2;
 	int ret;
 	char tmpbuf[len + 1];
 	char regbuf[regsize + 1];
@@ -132,8 +132,8 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf,
 	size_t total = 0;
 	loff_t p = 0;
 
-	wordsize = codec->driver->reg_word_size * 2;
-	regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	regsize = codec->driver->reg_word_size * 2;
 
 	len = wordsize + regsize + 2 + 1;
 
