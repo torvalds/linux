@@ -220,8 +220,7 @@ static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 		offset += 32;
 	}
 	/* No zero yet, search remaining full bytes for a zero */
-	res = find_first_zero_bit(p, size - ((long)p - (long)vaddr) * 8);
-	return offset + res;
+	return offset + find_first_zero_bit(p, size - offset);
 }
 
 static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
@@ -267,8 +266,7 @@ static inline int find_next_bit(const unsigned long *vaddr, int size,
 		offset += 32;
 	}
 	/* No one yet, search remaining full bytes for a one */
-	res = find_first_bit(p, size - ((long)p - (long)vaddr) * 8);
-	return offset + res;
+	return offset + find_first_bit(p, size - offset);
 }
 
 /*
