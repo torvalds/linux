@@ -464,6 +464,13 @@ static inline void jmp_rel(struct decode_cache *c, int rel)
 	register_address_increment(c, &c->eip, rel);
 }
 
+static u32 desc_limit_scaled(struct desc_struct *desc)
+{
+	u32 limit = get_desc_limit(desc);
+
+	return desc->g ? (limit << 12) | 0xfff : limit;
+}
+
 static void set_seg_override(struct decode_cache *c, int seg)
 {
 	c->has_seg_override = true;
@@ -1038,13 +1045,6 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 	memcpy(dest, rc->data + rc->pos, size);
 	rc->pos += size;
 	return 1;
-}
-
-static u32 desc_limit_scaled(struct desc_struct *desc)
-{
-	u32 limit = get_desc_limit(desc);
-
-	return desc->g ? (limit << 12) | 0xfff : limit;
 }
 
 static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
