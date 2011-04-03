@@ -251,10 +251,6 @@ struct iwl_mod_params {
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @ucode_tracing: support ucode continuous tracing
- * @sensitivity_calib_by_driver: driver has the capability to perform
- *	sensitivity calibration operation
- * @chain_noise_calib_by_driver: driver has the capability to perform
- *	chain noise calibration operation
  * @shadow_reg_enable: HW shadhow register bit
  */
 struct iwl_base_params {
@@ -277,8 +273,6 @@ struct iwl_base_params {
 	bool temperature_kelvin;
 	u32 max_event_log_size;
 	const bool ucode_tracing;
-	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
 	const bool shadow_reg_enable;
 };
 /*

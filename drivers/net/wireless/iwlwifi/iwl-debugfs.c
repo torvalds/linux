@@ -1747,10 +1747,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
 
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 	if (priv->cfg->base_params->ucode_tracing)
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	if (iwl_bt_statistics(priv))
@@ -1761,12 +1759,10 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
 	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
-				 &priv->disable_sens_cal);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-				 &priv->disable_chain_noise_cal);
+	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
+			 &priv->disable_sens_cal);
+	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
+			 &priv->disable_chain_noise_cal);
 	return 0;
 
 err:
