@@ -197,6 +197,7 @@ again:
 
 	ret = join_transaction(root);
 	if (ret < 0) {
+		kmem_cache_free(btrfs_trans_handle_cachep, h);
 		if (type != TRANS_JOIN_NOLOCK)
 			mutex_unlock(&root->fs_info->trans_mutex);
 		return ERR_PTR(ret);
