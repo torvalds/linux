@@ -489,21 +489,6 @@ static unsigned seg_override(struct x86_emulate_ctxt *ctxt,
 	return c->seg_override;
 }
 
-static int linearize(struct x86_emulate_ctxt *ctxt,
-		     struct segmented_address addr,
-		     unsigned size, bool write,
-		     ulong *linear)
-{
-	struct decode_cache *c = &ctxt->decode;
-	ulong la;
-
-	la = seg_base(ctxt, ctxt->ops, addr.seg) + addr.ea;
-	if (c->ad_bytes != 8)
-		la &= (u32)-1;
-	*linear = la;
-	return X86EMUL_CONTINUE;
-}
-
 static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 			     u32 error, bool valid)
 {
@@ -541,6 +526,21 @@ static int emulate_de(struct x86_emulate_ctxt *ctxt)
 static int emulate_nm(struct x86_emulate_ctxt *ctxt)
 {
 	return emulate_exception(ctxt, NM_VECTOR, 0, false);
+}
+
+static int linearize(struct x86_emulate_ctxt *ctxt,
+		     struct segmented_address addr,
+		     unsigned size, bool write,
+		     ulong *linear)
+{
+	struct decode_cache *c = &ctxt->decode;
+	ulong la;
+
+	la = seg_base(ctxt, ctxt->ops, addr.seg) + addr.ea;
+	if (c->ad_bytes != 8)
+		la &= (u32)-1;
+	*linear = la;
+	return X86EMUL_CONTINUE;
 }
 
 static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
