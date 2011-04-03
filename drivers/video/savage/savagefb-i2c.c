@@ -159,8 +159,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 		else
 			dev_warn(&chan->par->pcidev->dev,
 				 "Failed to register I2C bus %s.\n", name);
-	} else
-		chan->par = NULL;
+	}
 
 	return rc;
 }
