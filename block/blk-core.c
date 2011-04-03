@@ -2665,7 +2665,7 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	struct request *rqa = container_of(a, struct request, queuelist);
 	struct request *rqb = container_of(b, struct request, queuelist);
 
-	return !(rqa->q == rqb->q);
+	return !(rqa->q <= rqb->q);
 }
 
 static void flush_plug_list(struct blk_plug *plug)
