@@ -2345,6 +2345,7 @@ static int be_clear(struct be_adapter *adapter)
 	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
+	adapter->eq_next_idx = 0;
 
 	if (be_physfn(adapter) && adapter->sriov_enabled)
 		for (vf = 0; vf < num_vfs; vf++)
