@@ -515,6 +515,11 @@ static int emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
 	return emulate_exception(ctxt, GP_VECTOR, err, true);
 }
 
+static int emulate_ss(struct x86_emulate_ctxt *ctxt, int err)
+{
+	return emulate_exception(ctxt, SS_VECTOR, err, true);
+}
+
 static int emulate_ud(struct x86_emulate_ctxt *ctxt)
 {
 	return emulate_exception(ctxt, UD_VECTOR, 0, false);
@@ -541,13 +546,71 @@ static int linearize(struct x86_emulate_ctxt *ctxt,
 		     ulong *linear)
 {
 	struct decode_cache *c = &ctxt->decode;
+	struct desc_struct desc;
+	bool usable;
 	ulong la;
+	u32 lim;
+	unsigned cpl, rpl;
 
 	la = seg_base(ctxt, ctxt->ops, addr.seg) + addr.ea;
+	switch (ctxt->mode) {
+	case X86EMUL_MODE_REAL:
+		break;
+	case X86EMUL_MODE_PROT64:
+		if (((signed long)la << 16) >> 16 != la)
+			return emulate_gp(ctxt, 0);
+		break;
+	default:
+		usable = ctxt->ops->get_cached_descriptor(&desc, NULL, addr.seg,
+							  ctxt->vcpu);
+		if (!usable)
+			goto bad;
+		/* code segment or read-only data segment */
+		if (((desc.type & 8) || !(desc.type & 2)) && write)
+			goto bad;
+		/* unreadable code segment */
+		if ((desc.type & 8) && !(desc.type & 2))
+			goto bad;
+		lim = desc_limit_scaled(&desc);
+		if ((desc.type & 8) || !(desc.type & 4)) {
+			/* expand-up segment */
+			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
+				goto bad;
+		} else {
+			/* exapand-down segment */
+			if (addr.ea <= lim || (u32)(addr.ea + size - 1) <= lim)
+				goto bad;
+			lim = desc.d ? 0xffffffff : 0xffff;
+			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
+				goto bad;
+		}
+		cpl = ctxt->ops->cpl(ctxt->vcpu);
+		rpl = ctxt->ops->get_segment_selector(addr.seg, ctxt->vcpu) & 3;
+		cpl = max(cpl, rpl);
+		if (!(desc.type & 8)) {
+			/* data segment */
+			if (cpl > desc.dpl)
+				goto bad;
+		} else if ((desc.type & 8) && !(desc.type & 4)) {
+			/* nonconforming code segment */
+			if (cpl != desc.dpl)
+				goto bad;
+		} else if ((desc.type & 8) && (desc.type & 4)) {
+			/* conforming code segment */
+			if (cpl < desc.dpl)
+				goto bad;
+		}
+		break;
+	}
 	if (c->ad_bytes != 8)
 		la &= (u32)-1;
 	*linear = la;
 	return X86EMUL_CONTINUE;
+bad:
+	if (addr.seg == VCPU_SREG_SS)
+		return emulate_ss(ctxt, addr.seg);
+	else
+		return emulate_gp(ctxt, addr.seg);
 }
 
 static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
