@@ -32,10 +32,10 @@
          
 /* list functions */
 /* pointers for the list */
-typedef struct _DL_LIST {
-    struct _DL_LIST *pPrev;
-    struct _DL_LIST *pNext;
-}DL_LIST, *PDL_LIST;
+struct dl_list {
+	struct dl_list *pPrev;
+	struct dl_list *pNext;
+};
 /*
  * DL_LIST_INIT , initialize doubly linked list
 */
@@ -67,7 +67,7 @@ typedef struct _DL_LIST {
  */
 #define ITERATE_OVER_LIST_ALLOW_REMOVE(pStart,pItem,st,offset)  \
 {                                                       \
-    PDL_LIST  pTemp;                                     \
+    struct dl_list *  pTemp;                                     \
     pTemp = (pStart)->pNext;                            \
     while (pTemp != (pStart)) {                         \
         (pItem) = A_CONTAINING_STRUCT(pTemp,st,offset);   \
@@ -78,7 +78,7 @@ typedef struct _DL_LIST {
 /*
  * DL_ListInsertTail - insert pAdd to the end of the list
 */
-static INLINE PDL_LIST DL_ListInsertTail(PDL_LIST pList, PDL_LIST pAdd) {
+static INLINE struct dl_list *DL_ListInsertTail(struct dl_list *pList, struct dl_list *pAdd) {
         /* insert at tail */
     pAdd->pPrev = pList->pPrev;
     pAdd->pNext = pList;
@@ -90,7 +90,7 @@ static INLINE PDL_LIST DL_ListInsertTail(PDL_LIST pList, PDL_LIST pAdd) {
 /*
  * DL_ListInsertHead - insert pAdd into the head of the list
 */
-static INLINE PDL_LIST DL_ListInsertHead(PDL_LIST pList, PDL_LIST pAdd) {
+static INLINE struct dl_list * DL_ListInsertHead(struct dl_list * pList, struct dl_list * pAdd) {
         /* insert at head */
     pAdd->pPrev = pList;
     pAdd->pNext = pList->pNext;
@@ -103,7 +103,7 @@ static INLINE PDL_LIST DL_ListInsertHead(PDL_LIST pList, PDL_LIST pAdd) {
 /*
  * DL_ListRemove - remove pDel from list
 */
-static INLINE PDL_LIST DL_ListRemove(PDL_LIST pDel) {
+static INLINE struct dl_list * DL_ListRemove(struct dl_list * pDel) {
     pDel->pNext->pPrev = pDel->pPrev;
     pDel->pPrev->pNext = pDel->pNext;
         /* point back to itself just to be safe, incase remove is called again */
@@ -115,8 +115,8 @@ static INLINE PDL_LIST DL_ListRemove(PDL_LIST pDel) {
 /*
  * DL_ListRemoveItemFromHead - get a list item from the head
 */
-static INLINE PDL_LIST DL_ListRemoveItemFromHead(PDL_LIST pList) {
-    PDL_LIST pItem = NULL;
+static INLINE struct dl_list * DL_ListRemoveItemFromHead(struct dl_list * pList) {
+    struct dl_list * pItem = NULL;
     if (pList->pNext != pList) {
         pItem = pList->pNext;
             /* remove the first item from head */
@@ -125,8 +125,8 @@ static INLINE PDL_LIST DL_ListRemoveItemFromHead(PDL_LIST pList) {
     return pItem;
 }
 
-static INLINE PDL_LIST DL_ListRemoveItemFromTail(PDL_LIST pList) {
-    PDL_LIST pItem = NULL;
+static INLINE struct dl_list * DL_ListRemoveItemFromTail(struct dl_list * pList) {
+    struct dl_list * pItem = NULL;
     if (pList->pPrev != pList) {
         pItem = pList->pPrev;
             /* remove the item from tail */
@@ -136,7 +136,7 @@ static INLINE PDL_LIST DL_ListRemoveItemFromTail(PDL_LIST pList) {
 }
 
 /* transfer src list items to the tail of the destination list */
-static INLINE void DL_ListTransferItemsToTail(PDL_LIST pDest, PDL_LIST pSrc) {
+static INLINE void DL_ListTransferItemsToTail(struct dl_list * pDest, struct dl_list * pSrc) {
         /* only concatenate if src is not empty */
     if (!DL_LIST_IS_EMPTY(pSrc)) {
             /* cut out circular list in src and re-attach to end of dest */

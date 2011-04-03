@@ -328,12 +328,12 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
 	if (fdb) {
 		memcpy(fdb->addr.addr, addr, ETH_ALEN);
-		hlist_add_head_rcu(&fdb->hlist, head);
-
 		fdb->dst = source;
 		fdb->is_local = is_local;
 		fdb->is_static = is_local;
 		fdb->ageing_timer = jiffies;
+
+		hlist_add_head_rcu(&fdb->hlist, head);
 	}
 	return fdb;
 }

@@ -384,3 +384,7 @@ static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

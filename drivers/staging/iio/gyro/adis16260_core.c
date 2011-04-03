@@ -238,10 +238,24 @@ error_ret:
 	return ret ? ret : len;
 }
 
+static ssize_t adis16260_read_frequency_available(struct device *dev,
+						  struct device_attribute *attr,
+						  char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16260_state *st = iio_dev_get_devdata(indio_dev);
+	if (spi_get_device_id(st->us)->driver_data)
+		return sprintf(buf, "%s\n", "0.129 ~ 256");
+	else
+		return sprintf(buf, "%s\n", "256 2048");
+}
+
 static ssize_t adis16260_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16260_state *st = iio_dev_get_devdata(indio_dev);
 	int ret, len = 0;
 	u16 t;
 	int sps;
@@ -250,7 +264,11 @@ static ssize_t adis16260_read_frequency(struct device *dev,
 			&t);
 	if (ret)
 		return ret;
-	sps =  (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 66 : 2048;
+
+	if (spi_get_device_id(st->us)->driver_data) /* If an adis16251 */
+		sps =  (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 8 : 256;
+	else
+		sps =  (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 66 : 2048;
 	sps /= (t & ADIS16260_SMPL_PRD_DIV_MASK) + 1;
 	len = sprintf(buf, "%d SPS\n", sps);
 	return len;
@@ -272,16 +290,21 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 		return ret;
 
 	mutex_lock(&indio_dev->mlock);
-
-	t = (2048 / val);
-	if (t > 0)
-		t--;
-	t &= ADIS16260_SMPL_PRD_DIV_MASK;
+	if (spi_get_device_id(st->us)) {
+		t = (256 / val);
+		if (t > 0)
+			t--;
+		t &= ADIS16260_SMPL_PRD_DIV_MASK;
+	} else {
+		t = (2048 / val);
+		if (t > 0)
+			t--;
+		t &= ADIS16260_SMPL_PRD_DIV_MASK;
+	}
 	if ((t & ADIS16260_SMPL_PRD_DIV_MASK) >= 0x0A)
 		st->us->max_speed_hz = ADIS16260_SPI_SLOW;
 	else
 		st->us->max_speed_hz = ADIS16260_SPI_FAST;
-
 	ret = adis16260_spi_write_reg_8(dev,
 			ADIS16260_SMPL_PRD,
 			t);
@@ -302,7 +325,10 @@ static ssize_t adis16260_read_gyro_scale(struct device *dev,
 	if (st->negate)
 		ret = sprintf(buf, "-");
 	/* Take the iio_dev status lock */
-	ret += sprintf(buf + ret, "%s\n", "0.00127862821");
+	if (spi_get_device_id(st->us)->driver_data)
+		ret += sprintf(buf + ret, "%s\n", "0.00031974432");
+	else
+		ret += sprintf(buf + ret, "%s\n", "0.00127862821");
 
 	return ret;
 }
@@ -475,7 +501,9 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16260_write_reset, 0);
 
-static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("256 2048");
+
+static IIO_DEVICE_ATTR(sampling_frequency_available,
+		       S_IRUGO, adis16260_read_frequency_available, NULL, 0);
 
 static IIO_CONST_ATTR_NAME("adis16260");
 
@@ -525,7 +553,7 @@ static ADIS16260_GYRO_ATTR_SET(_Z);
 		&iio_dev_attr_in1_raw.dev_attr.attr,			\
 		&iio_const_attr_in1_scale.dev_attr.attr,		\
 		&iio_dev_attr_sampling_frequency.dev_attr.attr,		\
-		&iio_const_attr_sampling_frequency_available.dev_attr.attr, \
+		&iio_dev_attr_sampling_frequency_available.dev_attr.attr, \
 		&iio_dev_attr_reset.dev_attr.attr,			\
 		&iio_const_attr_name.dev_attr.attr,			\
 		NULL							\
@@ -693,6 +721,7 @@ static const struct spi_device_id adis16260_id[] = {
 	{"adis16265", 0},
 	{"adis16250", 0},
 	{"adis16255", 0},
+	{"adis16251", 1},
 	{}
 };
 

@@ -42,10 +42,13 @@ dbx500_add_sdi(const char *name, resource_size_t base, int irq,
 	return dbx500_add_amba_device(name, base, irq, pdata, 0);
 }
 
+struct amba_pl011_data;
+
 static inline struct amba_device *
-dbx500_add_uart(const char *name, resource_size_t base, int irq)
+dbx500_add_uart(const char *name, resource_size_t base, int irq,
+		struct amba_pl011_data *pdata)
 {
-	return dbx500_add_amba_device(name, base, irq, NULL, 0);
+	return dbx500_add_amba_device(name, base, irq, pdata, 0);
 }
 
 struct nmk_i2c_controller;

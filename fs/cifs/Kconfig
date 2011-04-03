@@ -3,6 +3,7 @@ config CIFS
 	depends on INET
 	select NLS
 	select CRYPTO
+	select CRYPTO_MD4
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4

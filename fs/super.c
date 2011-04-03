@@ -71,6 +71,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
 #else
 		INIT_LIST_HEAD(&s->s_files);
 #endif
+		s->s_bdi = &default_backing_dev_info;
 		INIT_LIST_HEAD(&s->s_instances);
 		INIT_HLIST_BL_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
@@ -177,6 +178,11 @@ void deactivate_locked_super(struct super_block *s)
 	struct file_system_type *fs = s->s_type;
 	if (atomic_dec_and_test(&s->s_active)) {
 		fs->kill_sb(s);
+		/*
+		 * We need to call rcu_barrier so all the delayed rcu free
+		 * inodes are flushed before we release the fs module.
+		 */
+		rcu_barrier();
 		put_filesystem(fs);
 		put_super(s);
 	} else {
@@ -838,23 +844,6 @@ error:
 }
 EXPORT_SYMBOL(mount_bdev);
 
-int get_sb_bdev(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
-{
-	struct dentry *root;
-
-	root = mount_bdev(fs_type, flags, dev_name, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-
-EXPORT_SYMBOL(get_sb_bdev);
-
 void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
@@ -892,22 +881,6 @@ struct dentry *mount_nodev(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_nodev);
 
-int get_sb_nodev(struct file_system_type *fs_type,
-	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
-{
-	struct dentry *root;
-
-	root = mount_nodev(fs_type, flags, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-EXPORT_SYMBOL(get_sb_nodev);
-
 static int compare_single(struct super_block *s, void *p)
 {
 	return 1;
@@ -938,69 +911,36 @@ struct dentry *mount_single(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_single);
 
-int get_sb_single(struct file_system_type *fs_type,
-	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+struct dentry *
+mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 {
 	struct dentry *root;
-	root = mount_single(fs_type, flags, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-
-EXPORT_SYMBOL(get_sb_single);
-
-struct vfsmount *
-vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
-{
-	struct vfsmount *mnt;
-	struct dentry *root;
+	struct super_block *sb;
 	char *secdata = NULL;
-	int error;
-
-	if (!type)
-		return ERR_PTR(-ENODEV);
-
-	error = -ENOMEM;
-	mnt = alloc_vfsmnt(name);
-	if (!mnt)
-		goto out;
-
-	if (flags & MS_KERNMOUNT)
-		mnt->mnt_flags = MNT_INTERNAL;
+	int error = -ENOMEM;
 
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
 		secdata = alloc_secdata();
 		if (!secdata)
-			goto out_mnt;
+			goto out;
 
 		error = security_sb_copy_data(data, secdata);
 		if (error)
 			goto out_free_secdata;
 	}
 
-	if (type->mount) {
-		root = type->mount(type, flags, name, data);
-		if (IS_ERR(root)) {
-			error = PTR_ERR(root);
-			goto out_free_secdata;
-		}
-		mnt->mnt_root = root;
-		mnt->mnt_sb = root->d_sb;
-	} else {
-		error = type->get_sb(type, flags, name, data, mnt);
-		if (error < 0)
-			goto out_free_secdata;
+	root = type->mount(type, flags, name, data);
+	if (IS_ERR(root)) {
+		error = PTR_ERR(root);
+		goto out_free_secdata;
 	}
-	BUG_ON(!mnt->mnt_sb);
-	WARN_ON(!mnt->mnt_sb->s_bdi);
-	mnt->mnt_sb->s_flags |= MS_BORN;
+	sb = root->d_sb;
+	BUG_ON(!sb);
+	WARN_ON(!sb->s_bdi);
+	WARN_ON(sb->s_bdi == &default_backing_dev_info);
+	sb->s_flags |= MS_BORN;
 
-	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
+	error = security_sb_kern_mount(sb, flags, secdata);
 	if (error)
 		goto out_sb;
 
@@ -1011,26 +951,20 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	 * violate this rule. This warning should be either removed or
 	 * converted to a BUG() in 2.6.34.
 	 */
-	WARN((mnt->mnt_sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
-		"negative value (%lld)\n", type->name, mnt->mnt_sb->s_maxbytes);
+	WARN((sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
+		"negative value (%lld)\n", type->name, sb->s_maxbytes);
 
-	mnt->mnt_mountpoint = mnt->mnt_root;
-	mnt->mnt_parent = mnt;
-	up_write(&mnt->mnt_sb->s_umount);
+	up_write(&sb->s_umount);
 	free_secdata(secdata);
-	return mnt;
+	return root;
 out_sb:
-	dput(mnt->mnt_root);
-	deactivate_locked_super(mnt->mnt_sb);
+	dput(root);
+	deactivate_locked_super(sb);
 out_free_secdata:
 	free_secdata(secdata);
-out_mnt:
-	free_vfsmnt(mnt);
 out:
 	return ERR_PTR(error);
 }
-
-EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
 /**
  * freeze_super - lock the filesystem and force it into a consistent state
@@ -1121,49 +1055,3 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(thaw_super);
-
-static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
-{
-	int err;
-	const char *subtype = strchr(fstype, '.');
-	if (subtype) {
-		subtype++;
-		err = -EINVAL;
-		if (!subtype[0])
-			goto err;
-	} else
-		subtype = "";
-
-	mnt->mnt_sb->s_subtype = kstrdup(subtype, GFP_KERNEL);
-	err = -ENOMEM;
-	if (!mnt->mnt_sb->s_subtype)
-		goto err;
-	return mnt;
-
- err:
-	mntput(mnt);
-	return ERR_PTR(err);
-}
-
-struct vfsmount *
-do_kern_mount(const char *fstype, int flags, const char *name, void *data)
-{
-	struct file_system_type *type = get_fs_type(fstype);
-	struct vfsmount *mnt;
-	if (!type)
-		return ERR_PTR(-ENODEV);
-	mnt = vfs_kern_mount(type, flags, name, data);
-	if (!IS_ERR(mnt) && (type->fs_flags & FS_HAS_SUBTYPE) &&
-	    !mnt->mnt_sb->s_subtype)
-		mnt = fs_set_subtype(mnt, fstype);
-	put_filesystem(type);
-	return mnt;
-}
-EXPORT_SYMBOL_GPL(do_kern_mount);
-
-struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
-{
-	return vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
-}
-
-EXPORT_SYMBOL_GPL(kern_mount_data);

@@ -518,6 +518,8 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 		flags |= CONF_ENABLE_IOCARD;
 	if (flags & CONF_ENABLE_IOCARD)
 		s->socket.flags |= SS_IOCARD;
+	if (flags & CONF_ENABLE_ZVCARD)
+		s->socket.flags |= SS_ZVCARD | SS_IOCARD;
 	if (flags & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;
 		status = CCSR_AUDIO_ENA;

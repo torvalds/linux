@@ -54,9 +54,9 @@
 
 static struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
-struct ext4_lazy_init *ext4_li_info;
-struct mutex ext4_li_mtx;
-struct ext4_features *ext4_feat;
+static struct ext4_lazy_init *ext4_li_info;
+static struct mutex ext4_li_mtx;
+static struct ext4_features *ext4_feat;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -75,8 +75,10 @@ static void ext4_write_super(struct super_block *sb);
 static int ext4_freeze(struct super_block *sb);
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data);
+static int ext4_feature_set_ok(struct super_block *sb, int readonly);
 static void ext4_destroy_lazyinit_thread(void);
 static void ext4_unregister_li_request(struct super_block *sb);
+static void ext4_clear_request_list(void);
 
 #if !defined(CONFIG_EXT3_FS) && !defined(CONFIG_EXT3_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
 static struct file_system_type ext3_fs_type = {
@@ -593,7 +595,7 @@ __acquires(bitlock)
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u",
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u, ",
 	       sb->s_id, function, line, grp);
 	if (ino)
 		printk(KERN_CONT "inode %lu: ", ino);
@@ -832,6 +834,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;
 	atomic_set(&ei->i_ioend_count, 0);
+	atomic_set(&ei->i_aiodio_unwritten, 0);
 
 	return &ei->vfs_inode;
 }
@@ -995,13 +998,10 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, OLDALLOC))
 		seq_puts(seq, ",oldalloc");
 #ifdef CONFIG_EXT4_FS_XATTR
-	if (test_opt(sb, XATTR_USER) &&
-		!(def_mount_opts & EXT4_DEFM_XATTR_USER))
+	if (test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
-	if (!test_opt(sb, XATTR_USER) &&
-	    (def_mount_opts & EXT4_DEFM_XATTR_USER)) {
+	if (!test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",nouser_xattr");
-	}
 #endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	if (test_opt(sb, POSIX_ACL) && !(def_mount_opts & EXT4_DEFM_ACL))
@@ -1039,8 +1039,8 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	    !(def_mount_opts & EXT4_DEFM_NODELALLOC))
 		seq_puts(seq, ",nodelalloc");
 
-	if (test_opt(sb, MBLK_IO_SUBMIT))
-		seq_puts(seq, ",mblk_io_submit");
+	if (!test_opt(sb, MBLK_IO_SUBMIT))
+		seq_puts(seq, ",nomblk_io_submit");
 	if (sbi->s_stripe)
 		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
 	/*
@@ -1161,7 +1161,7 @@ static int ext4_release_dquot(struct dquot *dquot);
 static int ext4_mark_dquot_dirty(struct dquot *dquot);
 static int ext4_write_info(struct super_block *sb, int type);
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
-				char *path);
+			 struct path *path);
 static int ext4_quota_off(struct super_block *sb, int type);
 static int ext4_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
@@ -1449,7 +1449,7 @@ static int parse_options(char *options, struct super_block *sb,
 		 * Initialize args struct so we know whether arg was
 		 * found; some options take optional arguments.
 		 */
-		args[0].to = args[0].from = 0;
+		args[0].to = args[0].from = NULL;
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_bsd_df:
@@ -1769,7 +1769,7 @@ set_qf_format:
 				return 0;
 			if (option < 0 || option > (1 << 30))
 				return 0;
-			if (!is_power_of_2(option)) {
+			if (option && !is_power_of_2(option)) {
 				ext4_msg(sb, KERN_ERR,
 					 "EXT4-fs: inode_readahead_blks"
 					 " must be a power of 2");
@@ -2118,6 +2118,13 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		return;
 	}
 
+	/* Check if feature set would not allow a r/w mount */
+	if (!ext4_feature_set_ok(sb, 0)) {
+		ext4_msg(sb, KERN_INFO, "Skipping orphan cleanup due to "
+			 "unknown ROCOMPAT features");
+		return;
+	}
+
 	if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
 		if (es->s_last_orphan)
 			jbd_debug(1, "Errors on filesystem, "
@@ -2410,7 +2417,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	if (parse_strtoul(buf, 0x40000000, &t))
 		return -EINVAL;
 
-	if (!is_power_of_2(t))
+	if (t && !is_power_of_2(t))
 		return -EINVAL;
 
 	sbi->s_inode_readahead_blks = t;
@@ -2716,6 +2723,8 @@ static void ext4_unregister_li_request(struct super_block *sb)
 	mutex_unlock(&ext4_li_info->li_list_mtx);
 }
 
+static struct task_struct *ext4_lazyinit_task;
+
 /*
  * This is the function where ext4lazyinit thread lives. It walks
  * through the request list searching for next scheduled filesystem.
@@ -2784,6 +2793,10 @@ cont_thread:
 		if (time_before(jiffies, next_wakeup))
 			schedule();
 		finish_wait(&eli->li_wait_daemon, &wait);
+		if (kthread_should_stop()) {
+			ext4_clear_request_list();
+			goto exit_thread;
+		}
 	}
 
 exit_thread:
@@ -2808,6 +2821,7 @@ exit_thread:
 	wake_up(&eli->li_wait_task);
 
 	kfree(ext4_li_info);
+	ext4_lazyinit_task = NULL;
 	ext4_li_info = NULL;
 	mutex_unlock(&ext4_li_mtx);
 
@@ -2830,11 +2844,10 @@ static void ext4_clear_request_list(void)
 
 static int ext4_run_lazyinit_thread(void)
 {
-	struct task_struct *t;
-
-	t = kthread_run(ext4_lazyinit_thread, ext4_li_info, "ext4lazyinit");
-	if (IS_ERR(t)) {
-		int err = PTR_ERR(t);
+	ext4_lazyinit_task = kthread_run(ext4_lazyinit_thread,
+					 ext4_li_info, "ext4lazyinit");
+	if (IS_ERR(ext4_lazyinit_task)) {
+		int err = PTR_ERR(ext4_lazyinit_task);
 		ext4_clear_request_list();
 		del_timer_sync(&ext4_li_info->li_timer);
 		kfree(ext4_li_info);
@@ -2985,16 +2998,10 @@ static void ext4_destroy_lazyinit_thread(void)
 	 * If thread exited earlier
 	 * there's nothing to be done.
 	 */
-	if (!ext4_li_info)
+	if (!ext4_li_info || !ext4_lazyinit_task)
 		return;
 
-	ext4_clear_request_list();
-
-	while (ext4_li_info->li_task) {
-		wake_up(&ext4_li_info->li_wait_daemon);
-		wait_event(ext4_li_info->li_wait_task,
-			   ext4_li_info->li_task == NULL);
-	}
+	kthread_stop(ext4_lazyinit_task);
 }
 
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
@@ -3093,14 +3100,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (def_mount_opts & EXT4_DEFM_UID16)
 		set_opt(sb, NO_UID32);
+	/* xattr user namespace & acls are now defaulted on */
 #ifdef CONFIG_EXT4_FS_XATTR
-	if (def_mount_opts & EXT4_DEFM_XATTR_USER)
-		set_opt(sb, XATTR_USER);
+	set_opt(sb, XATTR_USER);
 #endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
-	if (def_mount_opts & EXT4_DEFM_ACL)
-		set_opt(sb, POSIX_ACL);
+	set_opt(sb, POSIX_ACL);
 #endif
+	set_opt(sb, MBLK_IO_SUBMIT);
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
 		set_opt(sb, JOURNAL_DATA);
 	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)
@@ -3413,6 +3420,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_qcop = &ext4_qctl_operations;
 	sb->dq_op = &ext4_quota_operations;
 #endif
+	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
+
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
 	mutex_init(&sbi->s_resize_lock);
@@ -3507,7 +3516,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	percpu_counter_set(&sbi->s_dirtyblocks_counter, 0);
 
 no_journal:
-	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
+	/*
+	 * The maximum number of concurrent works can be high and
+	 * concurrency isn't really necessary.  Limit it to 1.
+	 */
+	EXT4_SB(sb)->dio_unwritten_wq =
+		alloc_workqueue("ext4-dio-unwritten", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!EXT4_SB(sb)->dio_unwritten_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");
 		goto failed_mount_wq;
@@ -3522,17 +3536,16 @@ no_journal:
 	if (IS_ERR(root)) {
 		ext4_msg(sb, KERN_ERR, "get root inode failed");
 		ret = PTR_ERR(root);
+		root = NULL;
 		goto failed_mount4;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
-		iput(root);
 		ext4_msg(sb, KERN_ERR, "corrupt root inode, run e2fsck");
 		goto failed_mount4;
 	}
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
 		ext4_msg(sb, KERN_ERR, "get root dentry failed");
-		iput(root);
 		ret = -ENOMEM;
 		goto failed_mount4;
 	}
@@ -3648,6 +3661,8 @@ cantfind_ext4:
 	goto failed_mount;
 
 failed_mount4:
+	iput(root);
+	sb->s_root = NULL;
 	ext4_msg(sb, KERN_ERR, "mount failed");
 	destroy_workqueue(EXT4_SB(sb)->dio_unwritten_wq);
 failed_mount_wq:
@@ -4558,27 +4573,20 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
-			 char *name)
+			 struct path *path)
 {
 	int err;
-	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
 
-	err = kern_path(name, LOOKUP_FOLLOW, &path);
-	if (err)
-		return err;
-
 	/* Quotafile not on the same filesystem? */
-	if (path.mnt->mnt_sb != sb) {
-		path_put(&path);
+	if (path->mnt->mnt_sb != sb)
 		return -EXDEV;
-	}
 	/* Journaling quota? */
 	if (EXT4_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not in fs root? */
-		if (path.dentry->d_parent != sb->s_root)
+		if (path->dentry->d_parent != sb->s_root)
 			ext4_msg(sb, KERN_WARNING,
 				"Quota file not on filesystem root. "
 				"Journaled quota will not work");
@@ -4589,7 +4597,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	 * all updates to the file when we bypass pagecache...
 	 */
 	if (EXT4_SB(sb)->s_journal &&
-	    ext4_should_journal_data(path.dentry->d_inode)) {
+	    ext4_should_journal_data(path->dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -4597,15 +4605,11 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
 		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
-		if (err) {
-			path_put(&path);
+		if (err)
 			return err;
-		}
 	}
 
-	err = dquot_quota_on_path(sb, type, format_id, &path);
-	path_put(&path);
-	return err;
+	return dquot_quota_on(sb, type, format_id, path);
 }
 
 static int ext4_quota_off(struct super_block *sb, int type)
@@ -4779,7 +4783,7 @@ static struct file_system_type ext4_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-int __init ext4_init_feat_adverts(void)
+static int __init ext4_init_feat_adverts(void)
 {
 	struct ext4_features *ef;
 	int ret = -ENOMEM;
@@ -4803,23 +4807,44 @@ out:
 	return ret;
 }
 
+static void ext4_exit_feat_adverts(void)
+{
+	kobject_put(&ext4_feat->f_kobj);
+	wait_for_completion(&ext4_feat->f_kobj_unregister);
+	kfree(ext4_feat);
+}
+
+/* Shared across all ext4 file systems */
+wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
+struct mutex ext4__aio_mutex[EXT4_WQ_HASH_SZ];
+
 static int __init ext4_init_fs(void)
 {
-	int err;
+	int i, err;
 
 	ext4_check_flag_values();
+
+	for (i = 0; i < EXT4_WQ_HASH_SZ; i++) {
+		mutex_init(&ext4__aio_mutex[i]);
+		init_waitqueue_head(&ext4__ioend_wq[i]);
+	}
+
 	err = ext4_init_pageio();
 	if (err)
 		return err;
 	err = ext4_init_system_zone();
 	if (err)
-		goto out5;
+		goto out7;
 	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
 	if (!ext4_kset)
-		goto out4;
+		goto out6;
 	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
+	if (!ext4_proc_root)
+		goto out5;
 
 	err = ext4_init_feat_adverts();
+	if (err)
+		goto out4;
 
 	err = ext4_init_mballoc();
 	if (err)
@@ -4849,12 +4874,14 @@ out1:
 out2:
 	ext4_exit_mballoc();
 out3:
-	kfree(ext4_feat);
-	remove_proc_entry("fs/ext4", NULL);
-	kset_unregister(ext4_kset);
+	ext4_exit_feat_adverts();
 out4:
-	ext4_exit_system_zone();
+	remove_proc_entry("fs/ext4", NULL);
 out5:
+	kset_unregister(ext4_kset);
+out6:
+	ext4_exit_system_zone();
+out7:
 	ext4_exit_pageio();
 	return err;
 }
@@ -4868,6 +4895,7 @@ static void __exit ext4_exit_fs(void)
 	destroy_inodecache();
 	ext4_exit_xattr();
 	ext4_exit_mballoc();
+	ext4_exit_feat_adverts();
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
 	ext4_exit_system_zone();

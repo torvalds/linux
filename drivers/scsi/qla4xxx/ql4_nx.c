@@ -2304,14 +2304,13 @@ qla4_8xxx_enable_intrs(struct scsi_qla_host *ha)
 void
 qla4_8xxx_disable_intrs(struct scsi_qla_host *ha)
 {
-	if (test_bit(AF_INTERRUPTS_ON, &ha->flags))
+	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
 		qla4_8xxx_mbx_intr_disable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - set */
 	qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0x0400);
 	spin_unlock_irq(&ha->hardware_lock);
-	clear_bit(AF_INTERRUPTS_ON, &ha->flags);
 }
 
 struct ql4_init_msix_entry {

@@ -578,7 +578,8 @@ static void atmci_dma_cleanup(struct atmel_mci *host)
 	struct mmc_data			*data = host->data;
 
 	if (data)
-		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
+		dma_unmap_sg(host->dma.chan->device->dev,
+			     data->sg, data->sg_len,
 			     ((data->flags & MMC_DATA_WRITE)
 			      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 }
@@ -588,7 +589,7 @@ static void atmci_stop_dma(struct atmel_mci *host)
 	struct dma_chan *chan = host->data_chan;
 
 	if (chan) {
-	  chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		atmci_dma_cleanup(host);
 	} else {
 		/* Data transfer was stopped by the interrupt handler */
@@ -684,11 +685,11 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	else
 		direction = DMA_TO_DEVICE;
 
-	sglen = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, direction);
-	if (sglen != data->sg_len)
-		goto unmap_exit;
+	sglen = dma_map_sg(chan->device->dev, data->sg,
+			   data->sg_len, direction);
+
 	desc = chan->device->device_prep_slave_sg(chan,
-			data->sg, data->sg_len, direction,
+			data->sg, sglen, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;
@@ -699,7 +700,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	return 0;
 unmap_exit:
-	dma_unmap_sg(&host->pdev->dev, data->sg, sglen, direction);
+	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, direction);
 	return -ENOMEM;
 }
 
@@ -709,8 +710,8 @@ static void atmci_submit_data(struct atmel_mci *host)
 	struct dma_async_tx_descriptor	*desc = host->dma.data_desc;
 
 	if (chan) {
-		desc->tx_submit(desc);
-		chan->device->device_issue_pending(chan);
+		dmaengine_submit(desc);
+		dma_async_issue_pending(chan);
 	}
 }
 

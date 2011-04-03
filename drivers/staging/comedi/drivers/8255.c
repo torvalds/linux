@@ -383,14 +383,7 @@ EXPORT_SYMBOL(subdev_8255_init_irq);
 
 void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	if (s->private) {
-		/* this test does nothing, so comment it out
-		 * if (subdevpriv->have_irq) {
-		 * }
-		 */
-
-		kfree(s->private);
-	}
+	kfree(s->private);
 }
 EXPORT_SYMBOL(subdev_8255_cleanup);
 

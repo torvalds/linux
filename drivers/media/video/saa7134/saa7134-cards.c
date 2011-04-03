@@ -3620,6 +3620,38 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = 0,
 		},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV_FM3] = {
+		.name           = "Encore ENLTV-FM 3",
+		.audio_clock    = 0x02187de7,
+		.tuner_type     = TUNER_TENA_TNF_5337,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr	= 0x61,
+		.radio_addr	= 0x60,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.vmux = 1,
+			.amux = LINE1,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x43000,
+		},
+	},
 	[SAA7134_BOARD_CINERGY_HT_PCI] = {
 		.name           = "Terratec Cinergy HT PCI",
 		.audio_clock    = 0x00187de7,
@@ -5179,18 +5211,8 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG] = {
 		.name           = "Kworld PCI SBTVD/ISDB-T Full-Seg Hybrid",
 		.audio_clock    = 0x00187de7,
-#if 0
-	/*
-	 * FIXME: Analog mode doesn't work, if digital is enabled. The proper
-	 * fix is to use tda8290 driver, but Kworld seems to use an
-	 * unsupported version of tda8295.
-	 */
-		.tuner_type     = TUNER_NXP_TDA18271,	/* TUNER_PHILIPS_TDA8290 */
-		.tuner_addr     = 0x60,
-#else
-		.tuner_type     = UNSET,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.tuner_addr     = ADDR_UNSET,
-#endif
 		.radio_type     = UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.gpiomask       = 0x8e054000,
@@ -6397,6 +6419,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM53,
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1a7f,
+		.subdevice    = 0x2108,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM3,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1175,
@@ -6932,10 +6960,17 @@ static inline int saa7134_kworld_sbtvd_toggle_agc(struct saa7134_dev *dev,
 	/* toggle AGC switch through GPIO 27 */
 	switch (mode) {
 	case TDA18271_ANALOG:
-		saa7134_set_gpio(dev, 27, 0);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x4000);
+		msleep(20);
 		break;
 	case TDA18271_DIGITAL:
-		saa7134_set_gpio(dev, 27, 1);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x14000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x14000);
+		msleep(20);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x54000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x54000);
+		msleep(30);
 		break;
 	default:
 		return -EINVAL;
@@ -6993,6 +7028,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 int saa7134_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct saa7134_dev *dev = priv;
+
 	if (dev != NULL) {
 		switch (dev->tuner_type) {
 		case TUNER_PHILIPS_TDA8290:
@@ -7104,6 +7140,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM3:
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 	case SAA7134_BOARD_BEHOLD_401:
 	case SAA7134_BOARD_BEHOLD_403:
@@ -7296,9 +7333,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 static void saa7134_tuner_setup(struct saa7134_dev *dev)
 {
 	struct tuner_setup tun_setup;
-	unsigned int mode_mask = T_RADIO     |
-				 T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_RADIO | T_ANALOG_TV;
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.tuner_callback = saa7134_tuner_callback;
@@ -7659,36 +7694,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	}
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
-	{
-		struct i2c_msg msg = { .addr = 0x4b, .flags = 0 };
-		int i;
-		static u8 buffer[][2] = {
-			{0x30, 0x31},
-			{0xff, 0x00},
-			{0x41, 0x03},
-			{0x41, 0x1a},
-			{0xff, 0x02},
-			{0x34, 0x00},
-			{0x45, 0x97},
-			{0x45, 0xc1},
-		};
 		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x4000);
 		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x4000);
 
-		/*
-		 * FIXME: identify what device is at addr 0x4b and what means
-		 * this initialization
-		 */
-		for (i = 0; i < ARRAY_SIZE(buffer); i++) {
-			msg.buf = &buffer[i][0];
-			msg.len = ARRAY_SIZE(buffer[0]);
-			if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
-				printk(KERN_WARNING
-				       "%s: Unable to enable tuner(%i).\n",
-				       dev->name, i);
-		}
+		saa7134_set_gpio(dev, 27, 0);
 		break;
-	}
 	} /* switch() */
 
 	/* initialize tuner */

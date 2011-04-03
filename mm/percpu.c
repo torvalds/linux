@@ -1008,8 +1008,7 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 	}
 
 	if (in_first_chunk) {
-		if ((unsigned long)addr < VMALLOC_START ||
-		    (unsigned long)addr >= VMALLOC_END)
+		if (!is_vmalloc_addr(addr))
 			return __pa(addr);
 		else
 			return page_to_phys(vmalloc_to_page(addr));

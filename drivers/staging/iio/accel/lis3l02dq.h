@@ -196,6 +196,16 @@ ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev);
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev);
 
+#ifdef CONFIG_LIS3L02DQ_BUF_RING_SW
+#define lis3l02dq_free_buf iio_sw_rb_free
+#define lis3l02dq_alloc_buf iio_sw_rb_allocate
+#define lis3l02dq_register_buf_funcs iio_ring_sw_register_funcs
+#endif
+#ifdef CONFIG_LIS3L02DQ_BUF_KFIFO
+#define lis3l02dq_free_buf iio_kfifo_free
+#define lis3l02dq_alloc_buf iio_kfifo_allocate
+#define lis3l02dq_register_buf_funcs iio_kfifo_register_funcs
+#endif
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)

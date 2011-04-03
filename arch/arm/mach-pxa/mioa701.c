@@ -39,6 +39,7 @@
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
 #include <linux/slab.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -50,7 +51,6 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
-#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <media/soc_camera.h>

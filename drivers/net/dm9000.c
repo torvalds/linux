@@ -621,9 +621,9 @@ static int dm9000_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 		/* change in wol state, update IRQ state */
 
 		if (!dm->wake_state)
-			set_irq_wake(dm->irq_wake, 1);
+			irq_set_irq_wake(dm->irq_wake, 1);
 		else if (dm->wake_state & !opts)
-			set_irq_wake(dm->irq_wake, 0);
+			irq_set_irq_wake(dm->irq_wake, 0);
 	}
 
 	dm->wake_state = opts;
@@ -802,10 +802,7 @@ dm9000_init_dm9000(struct net_device *dev)
 	/* Checksum mode */
 	dm9000_set_rx_csum_unlocked(dev, db->rx_csum);
 
-	/* GPIO0 on pre-activate PHY */
-	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
-	iow(db, DM9000_GPR, 0);	/* Enable PHY */
 
 	ncr = (db->flags & DM9000_PLATF_EXT_PHY) ? NCR_EXT_PHY : 0;
 
@@ -852,8 +849,8 @@ static void dm9000_timeout(struct net_device *dev)
 	unsigned long flags;
 
 	/* Save previous register address */
-	reg_save = readb(db->io_addr);
 	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
 
 	netif_stop_queue(dev);
 	dm9000_reset(db);
@@ -1194,6 +1191,10 @@ dm9000_open(struct net_device *dev)
 	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
 		return -EAGAIN;
 
+	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
+	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
+	mdelay(1); /* delay needs by DM9000B */
+
 	/* Initialize DM9000 board */
 	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
@@ -1423,13 +1424,13 @@ dm9000_probe(struct platform_device *pdev)
 		} else {
 
 			/* test to see if irq is really wakeup capable */
-			ret = set_irq_wake(db->irq_wake, 1);
+			ret = irq_set_irq_wake(db->irq_wake, 1);
 			if (ret) {
 				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
 					db->irq_wake, ret);
 				ret = 0;
 			} else {
-				set_irq_wake(db->irq_wake, 0);
+				irq_set_irq_wake(db->irq_wake, 0);
 				db->wake_supported = 1;
 			}
 		}
@@ -1592,9 +1593,14 @@ dm9000_probe(struct platform_device *pdev)
 			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
 	}
 
-	if (!is_valid_ether_addr(ndev->dev_addr))
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please "
 			 "set using ifconfig\n", ndev->name);
+
+		random_ether_addr(ndev->dev_addr);
+		mac_src = "random";
+	}
+
 
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);

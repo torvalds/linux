@@ -458,20 +458,26 @@ static int ir_getkeycode(struct input_dev *idev,
 		index = ir_lookup_by_scancode(rc_map, scancode);
 	}
 
-	if (index >= rc_map->len) {
-		if (!(ke->flags & INPUT_KEYMAP_BY_INDEX))
-			IR_dprintk(1, "unknown key for scancode 0x%04x\n",
-				   scancode);
+	if (index < rc_map->len) {
+		entry = &rc_map->scan[index];
+
+		ke->index = index;
+		ke->keycode = entry->keycode;
+		ke->len = sizeof(entry->scancode);
+		memcpy(ke->scancode, &entry->scancode, sizeof(entry->scancode));
+
+	} else if (!(ke->flags & INPUT_KEYMAP_BY_INDEX)) {
+		/*
+		 * We do not really know the valid range of scancodes
+		 * so let's respond with KEY_RESERVED to anything we
+		 * do not have mapping for [yet].
+		 */
+		ke->index = index;
+		ke->keycode = KEY_RESERVED;
+	} else {
 		retval = -EINVAL;
 		goto out;
 	}
-
-	entry = &rc_map->scan[index];
-
-	ke->index = index;
-	ke->keycode = entry->keycode;
-	ke->len = sizeof(entry->scancode);
-	memcpy(ke->scancode, &entry->scancode, sizeof(entry->scancode));
 
 	retval = 0;
 
@@ -844,7 +850,7 @@ static ssize_t store_protocols(struct device *device,
 			count++;
 		} else {
 			for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
-				if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+				if (!strcasecmp(tmp, proto_names[i].name)) {
 					tmp += strlen(proto_names[i].name);
 					mask = proto_names[i].type;
 					break;
@@ -960,8 +966,8 @@ struct rc_dev *rc_allocate_device(void)
 		return NULL;
 	}
 
-	dev->input_dev->getkeycode_new = ir_getkeycode;
-	dev->input_dev->setkeycode_new = ir_setkeycode;
+	dev->input_dev->getkeycode = ir_getkeycode;
+	dev->input_dev->setkeycode = ir_setkeycode;
 	input_set_drvdata(dev->input_dev, dev);
 
 	spin_lock_init(&dev->rc_map.lock);

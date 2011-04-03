@@ -893,8 +893,6 @@ struct iga2_crtc_timing {
 /* VT3410 chipset*/
 #define VX900_FUNCTION3     0x3410
 
-#define NUM_TOTAL_PLL_TABLE ARRAY_SIZE(pll_value)
-
 struct IODATA {
 	u8 Index;
 	u8 Mask;

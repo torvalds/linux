@@ -37,7 +37,7 @@ struct vmbus_channel_packet_page_buffer {
 	u32 reserved;
 	u32 rangecount;
 	struct hv_page_buffer range[MAX_PAGE_BUFFER_COUNT];
-} __attribute__((packed));
+} __packed;
 
 /* The format must be the same as struct vmdata_gpa_direct */
 struct vmbus_channel_packet_multipage_buffer {
@@ -49,7 +49,7 @@ struct vmbus_channel_packet_multipage_buffer {
 	u32 reserved;
 	u32 rangecount;		/* Always 1 in this case */
 	struct hv_multipage_buffer range;
-} __attribute__((packed));
+} __packed;
 
 
 extern int vmbus_open(struct vmbus_channel *channel,

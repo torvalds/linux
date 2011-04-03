@@ -188,7 +188,8 @@ static void serio_free_event(struct serio_event *event)
 	kfree(event);
 }
 
-static void serio_remove_duplicate_events(struct serio_event *event)
+static void serio_remove_duplicate_events(void *object,
+					  enum serio_event_type type)
 {
 	struct serio_event *e, *next;
 	unsigned long flags;
@@ -196,13 +197,13 @@ static void serio_remove_duplicate_events(struct serio_event *event)
 	spin_lock_irqsave(&serio_event_lock, flags);
 
 	list_for_each_entry_safe(e, next, &serio_event_list, node) {
-		if (event->object == e->object) {
+		if (object == e->object) {
 			/*
 			 * If this event is of different type we should not
 			 * look further - we only suppress duplicate events
 			 * that were sent back-to-back.
 			 */
-			if (event->type != e->type)
+			if (type != e->type)
 				break;
 
 			list_del_init(&e->node);
@@ -245,7 +246,7 @@ static void serio_handle_event(struct work_struct *work)
 			break;
 		}
 
-		serio_remove_duplicate_events(event);
+		serio_remove_duplicate_events(event->object, event->type);
 		serio_free_event(event);
 	}
 
@@ -298,7 +299,7 @@ static int serio_queue_event(void *object, struct module *owner,
 	event->owner = owner;
 
 	list_add_tail(&event->node, &serio_event_list);
-	schedule_work(&serio_event_work);
+	queue_work(system_long_wq, &serio_event_work);
 
 out:
 	spin_unlock_irqrestore(&serio_event_lock, flags);
@@ -436,10 +437,12 @@ static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *
 	} else if (!strncmp(buf, "rescan", count)) {
 		serio_disconnect_port(serio);
 		serio_find_driver(serio);
+		serio_remove_duplicate_events(serio, SERIO_RESCAN_PORT);
 	} else if ((drv = driver_find(buf, &serio_bus)) != NULL) {
 		serio_disconnect_port(serio);
 		error = serio_bind_driver(serio, to_serio_driver(drv));
 		put_driver(drv);
+		serio_remove_duplicate_events(serio, SERIO_RESCAN_PORT);
 	} else {
 		error = -EINVAL;
 	}

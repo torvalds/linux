@@ -29,7 +29,7 @@
 	:	"r" (uaddr), "r"(oparg)				\
 	:	"memory")
 
-static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
+static inline int futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -39,7 +39,7 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();
@@ -81,21 +81,23 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
 {
-	int prev, cmp;
+	int ret = 0, cmp;
+	u32 prev;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	__asm__ __volatile__ (
 		__ASM_SMP_MB
-	"1:	ldl_l	%0,0(%2)\n"
-	"	cmpeq	%0,%3,%1\n"
-	"	beq	%1,3f\n"
-	"	mov	%4,%1\n"
-	"2:	stl_c	%1,0(%2)\n"
-	"	beq	%1,4f\n"
+	"1:	ldl_l	%1,0(%3)\n"
+	"	cmpeq	%1,%4,%2\n"
+	"	beq	%2,3f\n"
+	"	mov	%5,%2\n"
+	"2:	stl_c	%2,0(%3)\n"
+	"	beq	%2,4f\n"
 	"3:	.subsection 2\n"
 	"4:	br	1b\n"
 	"	.previous\n"
@@ -105,11 +107,12 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	"	.long	2b-.\n"
 	"	lda	$31,3b-2b(%0)\n"
 	"	.previous\n"
-	:	"=&r"(prev), "=&r"(cmp)
+	:	"+r"(ret), "=&r"(prev), "=&r"(cmp)
 	:	"r"(uaddr), "r"((long)oldval), "r"(newval)
 	:	"memory");
 
-	return prev;
+	*uval = prev;
+	return ret;
 }
 
 #endif /* __KERNEL__ */

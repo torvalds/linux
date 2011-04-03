@@ -11,6 +11,7 @@
 
 #define	CPU_NAME		"COLDFIRE(m532x)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		(MCF_CLK / 3)
 
 #include <asm/m53xxacr.h>
 
@@ -84,6 +85,14 @@
 #define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
 #define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
 #define MCFUART_BASE3		0xFC068000	/* Base address of UART3 */
+
+/*
+ *  Timer module.
+ */
+#define MCFTIMER_BASE1		0xFC070000	/* Base address of TIMER1 */
+#define MCFTIMER_BASE2		0xFC074000	/* Base address of TIMER2 */
+#define MCFTIMER_BASE3		0xFC078000	/* Base address of TIMER3 */
+#define MCFTIMER_BASE4		0xFC07C000	/* Base address of TIMER4 */
 
 /*********************************************************************
  *

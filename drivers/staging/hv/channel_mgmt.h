@@ -27,6 +27,7 @@
 
 #include <linux/list.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 #include "ring_buffer.h"
 #include "vmbus_channel_interface.h"
 #include "vmbus_packet_format.h"
@@ -60,19 +61,19 @@ enum vmbus_channel_message_type {
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type msgtype;
 	u32 padding;
-} __attribute__((packed));
+} __packed;
 
 /* Query VMBus Version parameters */
 struct vmbus_channel_query_vmbus_version {
 	struct vmbus_channel_message_header header;
 	u32 version;
-} __attribute__((packed));
+} __packed;
 
 /* VMBus Version Supported parameters */
 struct vmbus_channel_version_supported {
 	struct vmbus_channel_message_header header;
 	bool version_supported;
-} __attribute__((packed));
+} __packed;
 
 /* Offer Channel parameters */
 struct vmbus_channel_offer_channel {
@@ -81,13 +82,13 @@ struct vmbus_channel_offer_channel {
 	u32 child_relid;
 	u8 monitorid;
 	bool monitor_allocated;
-} __attribute__((packed));
+} __packed;
 
 /* Rescind Offer parameters */
 struct vmbus_channel_rescind_offer {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
-} __attribute__((packed));
+} __packed;
 
 /*
  * Request Offer -- no parameters, SynIC message contains the partition ID
@@ -123,7 +124,7 @@ struct vmbus_channel_open_channel {
 
 	/* User-specific data to be passed along to the server endpoint. */
 	unsigned char userdata[MAX_USER_DEFINED_BYTES];
-} __attribute__((packed));
+} __packed;
 
 /* Open Channel Result parameters */
 struct vmbus_channel_open_result {
@@ -131,13 +132,13 @@ struct vmbus_channel_open_result {
 	u32 child_relid;
 	u32 openid;
 	u32 status;
-} __attribute__((packed));
+} __packed;
 
 /* Close channel parameters; */
 struct vmbus_channel_close_channel {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
-} __attribute__((packed));
+} __packed;
 
 /* Channel Message GPADL */
 #define GPADL_TYPE_RING_BUFFER		1
@@ -157,7 +158,7 @@ struct vmbus_channel_gpadl_header {
 	u16 range_buflen;
 	u16 rangecount;
 	struct gpa_range range[0];
-} __attribute__((packed));
+} __packed;
 
 /* This is the followup packet that contains more PFNs. */
 struct vmbus_channel_gpadl_body {
@@ -165,25 +166,25 @@ struct vmbus_channel_gpadl_body {
 	u32 msgnumber;
 	u32 gpadl;
 	u64 pfn[0];
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_gpadl_created {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
 	u32 gpadl;
 	u32 creation_status;
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_gpadl_teardown {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
 	u32 gpadl;
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_gpadl_torndown {
 	struct vmbus_channel_message_header header;
 	u32 gpadl;
-} __attribute__((packed));
+} __packed;
 
 #ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
 struct vmbus_channel_view_range_add {
@@ -191,19 +192,19 @@ struct vmbus_channel_view_range_add {
 	PHYSICAL_ADDRESS viewrange_base;
 	u64 viewrange_length;
 	u32 child_relid;
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_view_range_remove {
 	struct vmbus_channel_message_header header;
 	PHYSICAL_ADDRESS viewrange_base;
 	u32 child_relid;
-} __attribute__((packed));
+} __packed;
 #endif
 
 struct vmbus_channel_relid_released {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_initiate_contact {
 	struct vmbus_channel_message_header header;
@@ -212,12 +213,12 @@ struct vmbus_channel_initiate_contact {
 	u64 interrupt_page;
 	u64 monitor_page1;
 	u64 monitor_page2;
-} __attribute__((packed));
+} __packed;
 
 struct vmbus_channel_version_response {
 	struct vmbus_channel_message_header header;
 	bool version_supported;
-} __attribute__((packed));
+} __packed;
 
 enum vmbus_channel_state {
 	CHANNEL_OFFER_STATE,
@@ -289,8 +290,8 @@ struct vmbus_channel_msginfo {
 	struct list_head submsglist;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *waitevent;
-
+	int wait_condition;
+	wait_queue_head_t waitevent;
 	union {
 		struct vmbus_channel_version_supported version_supported;
 		struct vmbus_channel_open_result open_result;

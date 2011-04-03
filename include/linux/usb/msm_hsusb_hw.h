@@ -16,12 +16,8 @@
 #ifndef __LINUX_USB_GADGET_MSM72K_UDC_H__
 #define __LINUX_USB_GADGET_MSM72K_UDC_H__
 
-#ifdef CONFIG_ARCH_MSM7X00A
-#define USB_SBUSCFG          (MSM_USB_BASE + 0x0090)
-#else
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
-#endif
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
 
 #define USB_USBCMD           (MSM_USB_BASE + 0x0140)

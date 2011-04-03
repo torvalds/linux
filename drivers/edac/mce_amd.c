@@ -594,6 +594,7 @@ static bool nb_noop_mce(u16 ec, u8 xec)
 
 void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 	u16 ec   = EC(m->status);
 	u8 xec   = XEC(m->status, 0x1f);
 	u32 nbsh = (u32)(m->status >> 32);
@@ -602,9 +603,8 @@ void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 	pr_emerg(HW_ERR "Northbridge Error (node %d", node_id);
 
 	/* F10h, revD can disable ErrCpu[3:0] through ErrCpuVal */
-	if ((boot_cpu_data.x86 == 0x10) &&
-	    (boot_cpu_data.x86_model > 7)) {
-		if (nbsh & K8_NBSH_ERR_CPU_VAL)
+	if (c->x86 == 0x10 && c->x86_model > 7) {
+		if (nbsh & NBSH_ERR_CPU_VAL)
 			core = nbsh & nb_err_cpumask;
 	} else {
 		u8 assoc_cpus = nbsh & nb_err_cpumask;
@@ -646,7 +646,7 @@ void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 	if (!fam_ops->nb_mce(ec, xec))
 		goto wrong_nb_mce;
 
-	if (boot_cpu_data.x86 == 0xf || boot_cpu_data.x86 == 0x10)
+	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x15)
 		if ((xec == 0x8 || xec == 0x0) && nb_bus_decoder)
 			nb_bus_decoder(node_id, m, nbcfg);
 

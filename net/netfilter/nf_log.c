@@ -85,6 +85,8 @@ EXPORT_SYMBOL(nf_log_unregister);
 
 int nf_log_bind_pf(u_int8_t pf, const struct nf_logger *logger)
 {
+	if (pf >= ARRAY_SIZE(nf_loggers))
+		return -EINVAL;
 	mutex_lock(&nf_log_mutex);
 	if (__find_logger(pf, logger->name) == NULL) {
 		mutex_unlock(&nf_log_mutex);
@@ -98,6 +100,8 @@ EXPORT_SYMBOL(nf_log_bind_pf);
 
 void nf_log_unbind_pf(u_int8_t pf)
 {
+	if (pf >= ARRAY_SIZE(nf_loggers))
+		return;
 	mutex_lock(&nf_log_mutex);
 	rcu_assign_pointer(nf_loggers[pf], NULL);
 	mutex_unlock(&nf_log_mutex);
@@ -161,7 +165,8 @@ static int seq_show(struct seq_file *s, void *v)
 	struct nf_logger *t;
 	int ret;
 
-	logger = nf_loggers[*pos];
+	logger = rcu_dereference_protected(nf_loggers[*pos],
+					   lockdep_is_held(&nf_log_mutex));
 
 	if (!logger)
 		ret = seq_printf(s, "%2lld NONE (", *pos);
@@ -249,7 +254,8 @@ static int nf_log_proc_dostring(ctl_table *table, int write,
 		mutex_unlock(&nf_log_mutex);
 	} else {
 		mutex_lock(&nf_log_mutex);
-		logger = nf_loggers[tindex];
+		logger = rcu_dereference_protected(nf_loggers[tindex],
+						   lockdep_is_held(&nf_log_mutex));
 		if (!logger)
 			table->data = "NONE";
 		else

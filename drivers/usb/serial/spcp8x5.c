@@ -133,7 +133,7 @@ struct spcp8x5_usb_ctrl_arg {
 
 /* how come ??? */
 #define UART_STATE			0x08
-#define UART_STATE_TRANSIENT_MASK	0x74
+#define UART_STATE_TRANSIENT_MASK	0x75
 #define UART_DCD			0x01
 #define UART_DSR			0x02
 #define UART_BREAK_ERROR		0x04
@@ -525,6 +525,10 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+
+		if (status & UART_DCD)
+			usb_serial_handle_dcd_change(port, tty,
+				   priv->line_status & MSR_STATUS_LINE_DCD);
 	}
 
 	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
@@ -572,7 +576,7 @@ static int spcp8x5_wait_modem_info(struct usb_serial_port *port,
 	return 0;
 }
 
-static int spcp8x5_ioctl(struct tty_struct *tty, struct file *file,
+static int spcp8x5_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -591,7 +595,7 @@ static int spcp8x5_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
-static int spcp8x5_tiocmset(struct tty_struct *tty, struct file *file,
+static int spcp8x5_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -614,7 +618,7 @@ static int spcp8x5_tiocmset(struct tty_struct *tty, struct file *file,
 	return spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
 }
 
-static int spcp8x5_tiocmget(struct tty_struct *tty, struct file *file)
+static int spcp8x5_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
@@ -645,6 +649,7 @@ static struct usb_serial_driver spcp8x5_device = {
 		.name =		"SPCP8x5",
 	},
 	.id_table		= id_table,
+	.usb_driver		= &spcp8x5_driver,
 	.num_ports		= 1,
 	.open 			= spcp8x5_open,
 	.dtr_rts		= spcp8x5_dtr_rts,

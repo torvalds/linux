@@ -31,6 +31,7 @@
 #include "nvc0_graph.h"
 
 static void nvc0_graph_isr(struct drm_device *);
+static void nvc0_runk140_isr(struct drm_device *);
 static int  nvc0_graph_unload_context_to(struct drm_device *dev, u64 chan);
 
 void
@@ -281,6 +282,7 @@ nvc0_graph_destroy(struct drm_device *dev)
 		return;
 
 	nouveau_irq_unregister(dev, 12);
+	nouveau_irq_unregister(dev, 25);
 
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b8);
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b4);
@@ -294,6 +296,14 @@ void
 nvc0_graph_takedown(struct drm_device *dev)
 {
 	nvc0_graph_destroy(dev);
+}
+
+static int
+nvc0_graph_mthd_page_flip(struct nouveau_channel *chan,
+			  u32 class, u32 mthd, u32 data)
+{
+	nouveau_finish_page_flip(chan, NULL);
+	return 0;
 }
 
 static int
@@ -390,8 +400,10 @@ nvc0_graph_create(struct drm_device *dev)
 	}
 
 	nouveau_irq_register(dev, 12, nvc0_graph_isr);
+	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
 	NVOBJ_CLASS(dev, 0x902d, GR); /* 2D */
 	NVOBJ_CLASS(dev, 0x9039, GR); /* M2MF */
+	NVOBJ_MTHD (dev, 0x9039, 0x0500, nvc0_graph_mthd_page_flip);
 	NVOBJ_CLASS(dev, 0x9097, GR); /* 3D */
 	NVOBJ_CLASS(dev, 0x90c0, GR); /* COMPUTE */
 	return 0;
@@ -512,8 +524,8 @@ nvc0_graph_init_gpc_1(struct drm_device *dev)
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x224), 0xc0000000);
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x48c), 0xc0000000);
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x084), 0xc0000000);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0xe44), 0x001ffffe);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0xe4c), 0x0000000f);
+			nv_wr32(dev, TP_UNIT(gpc, tp, 0x644), 0x001ffffe);
+			nv_wr32(dev, TP_UNIT(gpc, tp, 0x64c), 0x0000000f);
 		}
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
@@ -637,7 +649,6 @@ nvc0_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nvc0_graph_priv *priv;
 	int ret;
 
 	dev_priv->engine.graph.accel_blocked = true;
@@ -662,7 +673,6 @@ nvc0_graph_init(struct drm_device *dev)
 		if (ret)
 			return ret;
 	}
-	priv = pgraph->priv;
 
 	nvc0_graph_init_obj418880(dev);
 	nvc0_graph_init_regs(dev);
@@ -727,9 +737,12 @@ nvc0_graph_isr(struct drm_device *dev)
 	u32 class = nv_rd32(dev, 0x404200 + (subc * 4));
 
 	if (stat & 0x00000010) {
-		NV_INFO(dev, "PGRAPH: ILLEGAL_MTHD ch %d [0x%010llx] subc %d "
-			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, inst, subc, class, mthd, data);
+		if (nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data)) {
+			NV_INFO(dev, "PGRAPH: ILLEGAL_MTHD ch %d [0x%010llx] "
+				     "subc %d class 0x%04x mthd 0x%04x "
+				     "data 0x%08x\n",
+				chid, inst, subc, class, mthd, data);
+		}
 		nv_wr32(dev, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
 	}
@@ -776,4 +789,20 @@ nvc0_graph_isr(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, 0x400500, 0x00010001);
+}
+
+static void
+nvc0_runk140_isr(struct drm_device *dev)
+{
+	u32 units = nv_rd32(dev, 0x00017c) & 0x1f;
+
+	while (units) {
+		u32 unit = ffs(units) - 1;
+		u32 reg = 0x140000 + unit * 0x2000;
+		u32 st0 = nv_mask(dev, reg + 0x1020, 0, 0);
+		u32 st1 = nv_mask(dev, reg + 0x1420, 0, 0);
+
+		NV_INFO(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
+		units &= ~(1 << unit);
+	}
 }

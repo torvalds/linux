@@ -21,6 +21,8 @@
 #include "ext4_jbd2.h"
 #include "mballoc.h"
 
+#include <trace/events/ext4.h>
+
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -342,6 +344,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	 * We do it here so the bitmap uptodate bit
 	 * get set with buffer lock held.
 	 */
+	trace_ext4_read_block_bitmap_load(sb, block_group);
 	set_bitmap_uptodate(bh);
 	if (bh_submit_read(bh) < 0) {
 		put_bh(bh);

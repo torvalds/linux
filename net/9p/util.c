@@ -92,7 +92,7 @@ int p9_idpool_get(struct p9_idpool *p)
 	unsigned long flags;
 
 retry:
-	if (idr_pre_get(&p->pool, GFP_KERNEL) == 0)
+	if (idr_pre_get(&p->pool, GFP_NOFS) == 0)
 		return 0;
 
 	spin_lock_irqsave(&p->lock, flags);

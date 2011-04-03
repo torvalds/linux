@@ -44,7 +44,9 @@ config ARCH_OMAP4
 	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
+	select LOCAL_TIMERS if SMP
 	select PL310_ERRATA_588369
+	select PL310_ERRATA_727915
 	select ARM_ERRATA_720789
 	select ARCH_HAS_OPP
 	select PM_OPP if PM
@@ -53,24 +55,29 @@ config ARCH_OMAP4
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
-config ARCH_OMAP2420
+config SOC_OMAP2420
 	bool "OMAP2420 support"
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
-config ARCH_OMAP2430
+config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
 	select ARCH_OMAP_OTG
 
-config ARCH_OMAP3430
+config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
 	select ARCH_OMAP_OTG
+
+config SOC_OMAPTI816X
+	bool "TI816X support"
+	depends on ARCH_OMAP3
+	default y
 
 config OMAP_PACKAGE_ZAF
        bool
@@ -106,25 +113,25 @@ config MACH_OMAP_GENERIC
 
 config MACH_OMAP2_TUSB6010
 	bool
-	depends on ARCH_OMAP2 && ARCH_OMAP2420
+	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
 
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAF
 	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
-	depends on ARCH_OMAP2430
+	depends on SOC_OMAP2430
 	default y
 	select OMAP_PACKAGE_ZAC
 
@@ -219,7 +226,7 @@ config MACH_NOKIA_N810_WIMAX
 
 config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAC
 	select MACH_NOKIA_N800
@@ -294,12 +301,18 @@ config MACH_OMAP_3630SDP
 	default y
 	select OMAP_PACKAGE_CBP
 
+config MACH_TI8168EVM
+	bool "TI8168 Evaluation Module"
+	depends on SOC_OMAPTI816X
+	default y
+
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	default y
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
@@ -307,6 +320,7 @@ config MACH_OMAP4_PANDA
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
+	select REGULATOR_FIXED_VOLTAGE
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

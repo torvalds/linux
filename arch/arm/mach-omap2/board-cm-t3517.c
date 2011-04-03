@@ -124,8 +124,9 @@ static inline void cm_t3517_init_hecc(void) {}
 #if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
 #define RTC_IO_GPIO		(153)
 #define RTC_WR_GPIO		(154)
-#define RTC_RD_GPIO		(160)
+#define RTC_RD_GPIO		(53)
 #define RTC_CS_GPIO		(163)
+#define RTC_CS_EN_GPIO		(160)
 
 struct v3020_platform_data cm_t3517_v3020_pdata = {
 	.use_gpio	= 1,
@@ -145,6 +146,16 @@ static struct platform_device cm_t3517_rtc_device = {
 
 static void __init cm_t3517_init_rtc(void)
 {
+	int err;
+
+	err = gpio_request(RTC_CS_EN_GPIO, "rtc cs en");
+	if (err) {
+		pr_err("CM-T3517: rtc cs en gpio request failed: %d\n", err);
+		return;
+	}
+
+	gpio_direction_output(RTC_CS_EN_GPIO, 1);
+
 	platform_device_register(&cm_t3517_rtc_device);
 }
 #else
@@ -156,10 +167,10 @@ static inline void cm_t3517_init_rtc(void) {}
 #define HSUSB2_RESET_GPIO	(147)
 #define USB_HUB_RESET_GPIO	(152)
 
-static struct ehci_hcd_omap_platform_data cm_t3517_ehci_pdata __initdata = {
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+static struct usbhs_omap_board_data cm_t3517_ehci_pdata __initdata = {
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
 	.reset_gpio_port[0]  = HSUSB1_RESET_GPIO,
@@ -181,7 +192,7 @@ static int cm_t3517_init_usbh(void)
 		msleep(1);
 	}
 
-	usb_ehci_init(&cm_t3517_ehci_pdata);
+	usbhs_init(&cm_t3517_ehci_pdata);
 
 	return 0;
 }
@@ -214,12 +225,12 @@ static struct mtd_partition cm_t3517_nand_partitions[] = {
 	},
 	{
 		.name           = "linux",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x280000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x2A0000 */
 		.size           = 32 * NAND_BLOCK_SIZE,
 	},
 	{
 		.name           = "rootfs",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x6A0000 */
 		.size           = MTDPART_SIZ_FULL,
 	},
 };
@@ -243,24 +254,29 @@ static inline void cm_t3517_init_nand(void) {}
 static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
 };
 
-static void __init cm_t3517_init_irq(void)
+static void __init cm_t3517_init_early(void)
 {
-	omap_board_config = cm_t3517_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
-
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* GPIO186 - Green LED */
 	OMAP3_MUX(SYS_CLKOUT2, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
-	/* RTC GPIOs: IO, WR#, RD#, CS# */
+
+	/* RTC GPIOs: */
+	/* IO - GPIO153 */
 	OMAP3_MUX(MCBSP4_DR, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
+	/* WR# - GPIO154 */
 	OMAP3_MUX(MCBSP4_DX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
-	OMAP3_MUX(MCBSP_CLKS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
+	/* RD# - GPIO53 */
+	OMAP3_MUX(GPMC_NCS2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
+	/* CS# - GPIO163 */
 	OMAP3_MUX(UART3_CTS_RCTX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
+	/* CS EN - GPIO160 */
+	OMAP3_MUX(MCBSP_CLKS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
+
 	/* HSUSB1 RESET */
 	OMAP3_MUX(UART2_TX, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	/* HSUSB2 RESET */
@@ -270,11 +286,14 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static void __init cm_t3517_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+	omap_board_config = cm_t3517_config;
+	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
 	cm_t3517_init_leds();
 	cm_t3517_init_nand();
 	cm_t3517_init_rtc();
@@ -284,9 +303,10 @@ static void __init cm_t3517_init(void)
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve        = omap_reserve,
-	.init_irq	= cm_t3517_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= cm_t3517_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= cm_t3517_init,
 	.timer		= &omap_timer,
 MACHINE_END

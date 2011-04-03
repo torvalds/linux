@@ -254,14 +254,14 @@ static int __devinit stmpe_gpio_irq_init(struct stmpe_gpio *stmpe_gpio)
 	int irq;
 
 	for (irq = base; irq < base + stmpe_gpio->chip.ngpio; irq++) {
-		set_irq_chip_data(irq, stmpe_gpio);
-		set_irq_chip_and_handler(irq, &stmpe_gpio_irq_chip,
+		irq_set_chip_data(irq, stmpe_gpio);
+		irq_set_chip_and_handler(irq, &stmpe_gpio_irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -277,8 +277,8 @@ static void stmpe_gpio_irq_remove(struct stmpe_gpio *stmpe_gpio)
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip_and_handler(irq, NULL, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 

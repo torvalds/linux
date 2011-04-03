@@ -7,7 +7,7 @@
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
-	depends on X86 || PPC
+	depends on X86 || PPC || TILE
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -281,5 +281,13 @@ config EDAC_CPC925
 	  IBM CPC925 Bridge and Memory Controller, which is
 	  a companion chip to the PowerPC 970 family of
 	  processors.
+
+config EDAC_TILE
+	tristate "Tilera Memory Controller"
+	depends on EDAC_MM_EDAC && TILE
+	default y
+	help
+	  Support for error detection and correction on the
+	  Tilera memory controller.
 
 endif # EDAC

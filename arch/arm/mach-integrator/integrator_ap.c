@@ -48,6 +48,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include <plat/fpga-irq.h>
+
 #include "common.h"
 
 /* 
@@ -57,10 +59,10 @@
  * Setup a VA for the Integrator interrupt controller (for header #0,
  * just for now).
  */
-#define VA_IC_BASE	IO_ADDRESS(INTEGRATOR_IC_BASE) 
-#define VA_SC_BASE	IO_ADDRESS(INTEGRATOR_SC_BASE)
-#define VA_EBI_BASE	IO_ADDRESS(INTEGRATOR_EBI_BASE)
-#define VA_CMIC_BASE	IO_ADDRESS(INTEGRATOR_HDR_IC)
+#define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
+#define VA_SC_BASE	__io_address(INTEGRATOR_SC_BASE)
+#define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
+#define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
 /*
  * Logical      Physical
@@ -156,27 +158,14 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static void sc_mask_irq(struct irq_data *d)
-{
-	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void sc_unmask_irq(struct irq_data *d)
-{
-	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sc_chip = {
-	.name		= "SC",
-	.irq_ack	= sc_mask_irq,
-	.irq_mask	= sc_mask_irq,
-	.irq_unmask	= sc_unmask_irq,
+static struct fpga_irq_data sc_irq_data = {
+	.base		= VA_IC_BASE,
+	.irq_start	= 0,
+	.chip.name	= "SC",
 };
 
 static void __init ap_init_irq(void)
 {
-	unsigned int i;
-
 	/* Disable all interrupts initially. */
 	/* Do the core module ones */
 	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
@@ -185,13 +174,7 @@ static void __init ap_init_irq(void)
 	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
-	for (i = 0; i < NR_IRQS; i++) {
-		if (((1 << i) & INTEGRATOR_SC_VALID_INT) != 0) {
-			set_irq_chip(i, &sc_chip);
-			set_irq_handler(i, handle_level_irq);
-			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		}
-	}
+	fpga_irq_init(-1, INTEGRATOR_SC_VALID_INT, &sc_irq_data);
 }
 
 #ifdef CONFIG_PM
@@ -282,7 +265,7 @@ static void ap_flash_exit(void)
 
 static void ap_flash_set_vpp(int on)
 {
-	unsigned long reg = on ? SC_CTRLS : SC_CTRLC;
+	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
 
 	writel(INTEGRATOR_SC_CTRL_nFLVPPEN, reg);
 }
@@ -499,8 +482,9 @@ static struct sys_timer ap_timer = {
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.boot_params	= 0x00000100,
-	.map_io		= ap_map_io,
 	.reserve	= integrator_reserve,
+	.map_io		= ap_map_io,
+	.init_early	= integrator_init_early,
 	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,
 	.init_machine	= ap_init,

@@ -53,6 +53,14 @@ enum tm6000_devtype {
 	TM6010,
 };
 
+enum tm6000_inaudio {
+	TM6000_AIP_UNK = 0,
+	TM6000_AIP_SIF1,
+	TM6000_AIP_SIF2,
+	TM6000_AIP_LINE1,
+	TM6000_AIP_LINE2,
+};
+
 /* ------------------------------------------------------------------
  *	Basic structures
  * ------------------------------------------------------------------
@@ -121,6 +129,8 @@ struct tm6000_capabilities {
 	unsigned int    has_zl10353:1;
 	unsigned int    has_eeprom:1;
 	unsigned int    has_remote:1;
+	unsigned int    has_input_comp:1;
+	unsigned int    has_input_svid:1;
 };
 
 struct tm6000_dvb {
@@ -174,6 +184,8 @@ struct tm6000_core {
 
 	char				*ir_codes;
 
+	__u8				radio;
+
 	/* Demodulator configuration */
 	int				demod_addr;	/* demodulator address */
 
@@ -194,6 +206,7 @@ struct tm6000_core {
 	bool				is_res_read;
 
 	struct video_device		*vfd;
+	struct video_device		*radio_dev;
 	struct tm6000_dmaqueue		vidq;
 	struct v4l2_device		v4l2_dev;
 
@@ -203,6 +216,9 @@ struct tm6000_core {
 
 	enum tm6000_mode		mode;
 
+	int				ctl_mute;             /* audio */
+	int				ctl_volume;
+
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;
 
@@ -210,7 +226,8 @@ struct tm6000_core {
 	struct snd_tm6000_card		*adev;
 	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
 	atomic_t			stream_started;  /* stream should be running if true */
-
+	enum tm6000_inaudio		avideo;
+	enum tm6000_inaudio		aradio;
 
 	struct tm6000_IR		*ir;
 
@@ -248,6 +265,7 @@ struct tm6000_ops {
 
 struct tm6000_fh {
 	struct tm6000_core           *dev;
+	unsigned int                 radio;
 
 	/* video capture */
 	struct tm6000_fmt            *fmt;
@@ -276,12 +294,17 @@ int tm6000_get_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg32(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg(struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
+						u16 index, u16 mask);
 int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
 int tm6000_init(struct tm6000_core *dev);
 
 int tm6000_init_analog_mode(struct tm6000_core *dev);
 int tm6000_init_digital_mode(struct tm6000_core *dev);
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate);
+int tm6000_set_audio_input(struct tm6000_core *dev, enum tm6000_inaudio ainp);
+int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute);
+void tm6000_set_volume(struct tm6000_core *dev, int vol);
 
 int tm6000_v4l2_register(struct tm6000_core *dev);
 int tm6000_v4l2_unregister(struct tm6000_core *dev);

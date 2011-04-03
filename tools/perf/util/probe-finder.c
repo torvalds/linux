@@ -33,6 +33,7 @@
 #include <ctype.h>
 #include <dwarf-regs.h>
 
+#include <linux/bitops.h>
 #include "event.h"
 #include "debug.h"
 #include "util.h"
@@ -280,6 +281,19 @@ static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 	return name ? (strcmp(tname, name) == 0) : false;
 }
 
+/* Get callsite line number of inline-function instance */
+static int die_get_call_lineno(Dwarf_Die *in_die)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Word ret;
+
+	if (!dwarf_attr(in_die, DW_AT_call_line, &attr))
+		return -ENOENT;
+
+	dwarf_formudata(&attr, &ret);
+	return (int)ret;
+}
+
 /* Get type die */
 static Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 {
@@ -320,13 +334,23 @@ static Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 	return vr_die;
 }
 
-static bool die_is_signed_type(Dwarf_Die *tp_die)
+static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
+			      Dwarf_Word *result)
 {
 	Dwarf_Attribute attr;
+
+	if (dwarf_attr(tp_die, attr_name, &attr) == NULL ||
+	    dwarf_formudata(&attr, result) != 0)
+		return -ENOENT;
+
+	return 0;
+}
+
+static bool die_is_signed_type(Dwarf_Die *tp_die)
+{
 	Dwarf_Word ret;
 
-	if (dwarf_attr(tp_die, DW_AT_encoding, &attr) == NULL ||
-	    dwarf_formudata(&attr, &ret) != 0)
+	if (die_get_attr_udata(tp_die, DW_AT_encoding, &ret))
 		return false;
 
 	return (ret == DW_ATE_signed_char || ret == DW_ATE_signed ||
@@ -335,11 +359,29 @@ static bool die_is_signed_type(Dwarf_Die *tp_die)
 
 static int die_get_byte_size(Dwarf_Die *tp_die)
 {
-	Dwarf_Attribute attr;
 	Dwarf_Word ret;
 
-	if (dwarf_attr(tp_die, DW_AT_byte_size, &attr) == NULL ||
-	    dwarf_formudata(&attr, &ret) != 0)
+	if (die_get_attr_udata(tp_die, DW_AT_byte_size, &ret))
+		return 0;
+
+	return (int)ret;
+}
+
+static int die_get_bit_size(Dwarf_Die *tp_die)
+{
+	Dwarf_Word ret;
+
+	if (die_get_attr_udata(tp_die, DW_AT_bit_size, &ret))
+		return 0;
+
+	return (int)ret;
+}
+
+static int die_get_bit_offset(Dwarf_Die *tp_die)
+{
+	Dwarf_Word ret;
+
+	if (die_get_attr_udata(tp_die, DW_AT_bit_offset, &ret))
 		return 0;
 
 	return (int)ret;
@@ -456,6 +498,151 @@ static Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 				      Dwarf_Die *die_mem)
 {
 	return die_find_child(sp_die, __die_find_inline_cb, &addr, die_mem);
+}
+
+/* Walker on lines (Note: line number will not be sorted) */
+typedef int (* line_walk_handler_t) (const char *fname, int lineno,
+				     Dwarf_Addr addr, void *data);
+
+struct __line_walk_param {
+	const char *fname;
+	line_walk_handler_t handler;
+	void *data;
+	int retval;
+};
+
+static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
+{
+	struct __line_walk_param *lw = data;
+	Dwarf_Addr addr;
+	int lineno;
+
+	if (dwarf_tag(in_die) == DW_TAG_inlined_subroutine) {
+		lineno = die_get_call_lineno(in_die);
+		if (lineno > 0 && dwarf_entrypc(in_die, &addr) == 0) {
+			lw->retval = lw->handler(lw->fname, lineno, addr,
+						 lw->data);
+			if (lw->retval != 0)
+				return DIE_FIND_CB_FOUND;
+		}
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/* Walk on lines of blocks included in given DIE */
+static int __die_walk_funclines(Dwarf_Die *sp_die,
+				line_walk_handler_t handler, void *data)
+{
+	struct __line_walk_param lw = {
+		.handler = handler,
+		.data = data,
+		.retval = 0,
+	};
+	Dwarf_Die die_mem;
+	Dwarf_Addr addr;
+	int lineno;
+
+	/* Handle function declaration line */
+	lw.fname = dwarf_decl_file(sp_die);
+	if (lw.fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
+	    dwarf_entrypc(sp_die, &addr) == 0) {
+		lw.retval = handler(lw.fname, lineno, addr, data);
+		if (lw.retval != 0)
+			goto done;
+	}
+	die_find_child(sp_die, __die_walk_funclines_cb, &lw, &die_mem);
+done:
+	return lw.retval;
+}
+
+static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
+{
+	struct __line_walk_param *lw = data;
+
+	lw->retval = __die_walk_funclines(sp_die, lw->handler, lw->data);
+	if (lw->retval != 0)
+		return DWARF_CB_ABORT;
+
+	return DWARF_CB_OK;
+}
+
+/*
+ * Walk on lines inside given PDIE. If the PDIE is subprogram, walk only on
+ * the lines inside the subprogram, otherwise PDIE must be a CU DIE.
+ */
+static int die_walk_lines(Dwarf_Die *pdie, line_walk_handler_t handler,
+			  void *data)
+{
+	Dwarf_Lines *lines;
+	Dwarf_Line *line;
+	Dwarf_Addr addr;
+	const char *fname;
+	int lineno, ret = 0;
+	Dwarf_Die die_mem, *cu_die;
+	size_t nlines, i;
+
+	/* Get the CU die */
+	if (dwarf_tag(pdie) == DW_TAG_subprogram)
+		cu_die = dwarf_diecu(pdie, &die_mem, NULL, NULL);
+	else
+		cu_die = pdie;
+	if (!cu_die) {
+		pr_debug2("Failed to get CU from subprogram\n");
+		return -EINVAL;
+	}
+
+	/* Get lines list in the CU */
+	if (dwarf_getsrclines(cu_die, &lines, &nlines) != 0) {
+		pr_debug2("Failed to get source lines on this CU.\n");
+		return -ENOENT;
+	}
+	pr_debug2("Get %zd lines from this CU\n", nlines);
+
+	/* Walk on the lines on lines list */
+	for (i = 0; i < nlines; i++) {
+		line = dwarf_onesrcline(lines, i);
+		if (line == NULL ||
+		    dwarf_lineno(line, &lineno) != 0 ||
+		    dwarf_lineaddr(line, &addr) != 0) {
+			pr_debug2("Failed to get line info. "
+				  "Possible error in debuginfo.\n");
+			continue;
+		}
+		/* Filter lines based on address */
+		if (pdie != cu_die)
+			/*
+			 * Address filtering
+			 * The line is included in given function, and
+			 * no inline block includes it.
+			 */
+			if (!dwarf_haspc(pdie, addr) ||
+			    die_find_inlinefunc(pdie, addr, &die_mem))
+				continue;
+		/* Get source line */
+		fname = dwarf_linesrc(line, NULL, NULL);
+
+		ret = handler(fname, lineno, addr, data);
+		if (ret != 0)
+			return ret;
+	}
+
+	/*
+	 * Dwarf lines doesn't include function declarations and inlined
+	 * subroutines. We have to check functions list or given function.
+	 */
+	if (pdie != cu_die)
+		ret = __die_walk_funclines(pdie, handler, data);
+	else {
+		struct __line_walk_param param = {
+			.handler = handler,
+			.data = data,
+			.retval = 0,
+		};
+		dwarf_getfuncs(cu_die, __die_walk_culines_cb, &param, 0);
+		ret = param.retval;
+	}
+
+	return ret;
 }
 
 struct __find_variable_param {
@@ -669,6 +856,8 @@ static_var:
 	return 0;
 }
 
+#define BYTES_TO_BITS(nb)	((nb) * BITS_PER_LONG / sizeof(long))
+
 static int convert_variable_type(Dwarf_Die *vr_die,
 				 struct probe_trace_arg *tvar,
 				 const char *cast)
@@ -683,6 +872,14 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		/* Non string type is OK */
 		tvar->type = strdup(cast);
 		return (tvar->type == NULL) ? -ENOMEM : 0;
+	}
+
+	if (die_get_bit_size(vr_die) != 0) {
+		/* This is a bitfield */
+		ret = snprintf(buf, 16, "b%d@%d/%zd", die_get_bit_size(vr_die),
+				die_get_bit_offset(vr_die),
+				BYTES_TO_BITS(die_get_byte_size(vr_die)));
+		goto formatted;
 	}
 
 	if (die_get_real_type(vr_die, &type) == NULL) {
@@ -729,29 +926,31 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
 
-	ret = die_get_byte_size(&type) * 8;
-	if (ret) {
-		/* Check the bitwidth */
-		if (ret > MAX_BASIC_TYPE_BITS) {
-			pr_info("%s exceeds max-bitwidth."
-				" Cut down to %d bits.\n",
-				dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
-			ret = MAX_BASIC_TYPE_BITS;
-		}
+	ret = BYTES_TO_BITS(die_get_byte_size(&type));
+	if (!ret)
+		/* No size ... try to use default type */
+		return 0;
 
-		ret = snprintf(buf, 16, "%c%d",
-			       die_is_signed_type(&type) ? 's' : 'u', ret);
-		if (ret < 0 || ret >= 16) {
-			if (ret >= 16)
-				ret = -E2BIG;
-			pr_warning("Failed to convert variable type: %s\n",
-				   strerror(-ret));
-			return ret;
-		}
-		tvar->type = strdup(buf);
-		if (tvar->type == NULL)
-			return -ENOMEM;
+	/* Check the bitwidth */
+	if (ret > MAX_BASIC_TYPE_BITS) {
+		pr_info("%s exceeds max-bitwidth. Cut down to %d bits.\n",
+			dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
+		ret = MAX_BASIC_TYPE_BITS;
 	}
+	ret = snprintf(buf, 16, "%c%d",
+		       die_is_signed_type(&type) ? 's' : 'u', ret);
+
+formatted:
+	if (ret < 0 || ret >= 16) {
+		if (ret >= 16)
+			ret = -E2BIG;
+		pr_warning("Failed to convert variable type: %s\n",
+			   strerror(-ret));
+		return ret;
+	}
+	tvar->type = strdup(buf);
+	if (tvar->type == NULL)
+		return -ENOMEM;
 	return 0;
 }
 
@@ -1050,157 +1249,102 @@ static int call_probe_finder(Dwarf_Die *sp_die, struct probe_finder *pf)
 	return ret;
 }
 
+static int probe_point_line_walker(const char *fname, int lineno,
+				   Dwarf_Addr addr, void *data)
+{
+	struct probe_finder *pf = data;
+	int ret;
+
+	if (lineno != pf->lno || strtailcmp(fname, pf->fname) != 0)
+		return 0;
+
+	pf->addr = addr;
+	ret = call_probe_finder(NULL, pf);
+
+	/* Continue if no error, because the line will be in inline function */
+	return ret < 0 ? ret : 0;
+}
+
 /* Find probe point from its line number */
 static int find_probe_point_by_line(struct probe_finder *pf)
 {
-	Dwarf_Lines *lines;
-	Dwarf_Line *line;
-	size_t nlines, i;
-	Dwarf_Addr addr;
-	int lineno;
-	int ret = 0;
-
-	if (dwarf_getsrclines(&pf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found.\n");
-		return -ENOENT;
-	}
-
-	for (i = 0; i < nlines && ret == 0; i++) {
-		line = dwarf_onesrcline(lines, i);
-		if (dwarf_lineno(line, &lineno) != 0 ||
-		    lineno != pf->lno)
-			continue;
-
-		/* TODO: Get fileno from line, but how? */
-		if (strtailcmp(dwarf_linesrc(line, NULL, NULL), pf->fname) != 0)
-			continue;
-
-		if (dwarf_lineaddr(line, &addr) != 0) {
-			pr_warning("Failed to get the address of the line.\n");
-			return -ENOENT;
-		}
-		pr_debug("Probe line found: line[%d]:%d addr:0x%jx\n",
-			 (int)i, lineno, (uintmax_t)addr);
-		pf->addr = addr;
-
-		ret = call_probe_finder(NULL, pf);
-		/* Continuing, because target line might be inlined. */
-	}
-	return ret;
+	return die_walk_lines(&pf->cu_die, probe_point_line_walker, pf);
 }
 
 /* Find lines which match lazy pattern */
 static int find_lazy_match_lines(struct list_head *head,
 				 const char *fname, const char *pat)
 {
-	char *fbuf, *p1, *p2;
-	int fd, line, nlines = -1;
-	struct stat st;
+	FILE *fp;
+	char *line = NULL;
+	size_t line_len;
+	ssize_t len;
+	int count = 0, linenum = 1;
 
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		pr_warning("Failed to open %s: %s\n", fname, strerror(-fd));
+	fp = fopen(fname, "r");
+	if (!fp) {
+		pr_warning("Failed to open %s: %s\n", fname, strerror(errno));
 		return -errno;
 	}
 
-	if (fstat(fd, &st) < 0) {
-		pr_warning("Failed to get the size of %s: %s\n",
-			   fname, strerror(errno));
-		nlines = -errno;
-		goto out_close;
+	while ((len = getline(&line, &line_len, fp)) > 0) {
+
+		if (line[len - 1] == '\n')
+			line[len - 1] = '\0';
+
+		if (strlazymatch(line, pat)) {
+			line_list__add_line(head, linenum);
+			count++;
+		}
+		linenum++;
 	}
 
-	nlines = -ENOMEM;
-	fbuf = malloc(st.st_size + 2);
-	if (fbuf == NULL)
-		goto out_close;
-	if (read(fd, fbuf, st.st_size) < 0) {
-		pr_warning("Failed to read %s: %s\n", fname, strerror(errno));
-		nlines = -errno;
-		goto out_free_fbuf;
-	}
-	fbuf[st.st_size] = '\n';	/* Dummy line */
-	fbuf[st.st_size + 1] = '\0';
-	p1 = fbuf;
-	line = 1;
-	nlines = 0;
-	while ((p2 = strchr(p1, '\n')) != NULL) {
-		*p2 = '\0';
-		if (strlazymatch(p1, pat)) {
-			line_list__add_line(head, line);
-			nlines++;
-		}
-		line++;
-		p1 = p2 + 1;
-	}
-out_free_fbuf:
-	free(fbuf);
-out_close:
-	close(fd);
-	return nlines;
+	if (ferror(fp))
+		count = -errno;
+	free(line);
+	fclose(fp);
+
+	if (count == 0)
+		pr_debug("No matched lines found in %s.\n", fname);
+	return count;
+}
+
+static int probe_point_lazy_walker(const char *fname, int lineno,
+				   Dwarf_Addr addr, void *data)
+{
+	struct probe_finder *pf = data;
+	int ret;
+
+	if (!line_list__has_line(&pf->lcache, lineno) ||
+	    strtailcmp(fname, pf->fname) != 0)
+		return 0;
+
+	pr_debug("Probe line found: line:%d addr:0x%llx\n",
+		 lineno, (unsigned long long)addr);
+	pf->addr = addr;
+	ret = call_probe_finder(NULL, pf);
+
+	/*
+	 * Continue if no error, because the lazy pattern will match
+	 * to other lines
+	 */
+	return ret < 0 ? ret : 0;
 }
 
 /* Find probe points from lazy pattern  */
 static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
-	Dwarf_Lines *lines;
-	Dwarf_Line *line;
-	size_t nlines, i;
-	Dwarf_Addr addr;
-	Dwarf_Die die_mem;
-	int lineno;
 	int ret = 0;
 
 	if (list_empty(&pf->lcache)) {
 		/* Matching lazy line pattern */
 		ret = find_lazy_match_lines(&pf->lcache, pf->fname,
 					    pf->pev->point.lazy_line);
-		if (ret == 0) {
-			pr_debug("No matched lines found in %s.\n", pf->fname);
-			return 0;
-		} else if (ret < 0)
+		if (ret <= 0)
 			return ret;
 	}
 
-	if (dwarf_getsrclines(&pf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found.\n");
-		return -ENOENT;
-	}
-
-	for (i = 0; i < nlines && ret >= 0; i++) {
-		line = dwarf_onesrcline(lines, i);
-
-		if (dwarf_lineno(line, &lineno) != 0 ||
-		    !line_list__has_line(&pf->lcache, lineno))
-			continue;
-
-		/* TODO: Get fileno from line, but how? */
-		if (strtailcmp(dwarf_linesrc(line, NULL, NULL), pf->fname) != 0)
-			continue;
-
-		if (dwarf_lineaddr(line, &addr) != 0) {
-			pr_debug("Failed to get the address of line %d.\n",
-				 lineno);
-			continue;
-		}
-		if (sp_die) {
-			/* Address filtering 1: does sp_die include addr? */
-			if (!dwarf_haspc(sp_die, addr))
-				continue;
-			/* Address filtering 2: No child include addr? */
-			if (die_find_inlinefunc(sp_die, addr, &die_mem))
-				continue;
-		}
-
-		pr_debug("Probe line found: line[%d]:%d addr:0x%llx\n",
-			 (int)i, lineno, (unsigned long long)addr);
-		pf->addr = addr;
-
-		ret = call_probe_finder(sp_die, pf);
-		/* Continuing, because target line might be inlined. */
-	}
-	/* TODO: deallocate lines, but how? */
-	return ret;
+	return die_walk_lines(sp_die, probe_point_lazy_walker, pf);
 }
 
 /* Callback parameter with return value */
@@ -1318,8 +1462,7 @@ static int find_probes(int fd, struct probe_finder *pf)
 	off = 0;
 	line_list__init(&pf->lcache);
 	/* Loop on CUs (Compilation Unit) */
-	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL) &&
-	       ret >= 0) {
+	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL)) {
 		/* Get the DIE(Debugging Information Entry) of this CU */
 		diep = dwarf_offdie(dbg, off + cuhl, &pf->cu_die);
 		if (!diep)
@@ -1340,6 +1483,8 @@ static int find_probes(int fd, struct probe_finder *pf)
 				pf->lno = pp->line;
 				ret = find_probe_point_by_line(pf);
 			}
+			if (ret < 0)
+				break;
 		}
 		off = noff;
 	}
@@ -1644,91 +1789,28 @@ static int line_range_add_line(const char *src, unsigned int lineno,
 	return line_list__add_line(&lr->line_list, lineno);
 }
 
-/* Search function declaration lines */
-static int line_range_funcdecl_cb(Dwarf_Die *sp_die, void *data)
+static int line_range_walk_cb(const char *fname, int lineno,
+			      Dwarf_Addr addr __used,
+			      void *data)
 {
-	struct dwarf_callback_param *param = data;
-	struct line_finder *lf = param->data;
-	const char *src;
-	int lineno;
+	struct line_finder *lf = data;
 
-	src = dwarf_decl_file(sp_die);
-	if (src && strtailcmp(src, lf->fname) != 0)
-		return DWARF_CB_OK;
-
-	if (dwarf_decl_line(sp_die, &lineno) != 0 ||
+	if ((strtailcmp(fname, lf->fname) != 0) ||
 	    (lf->lno_s > lineno || lf->lno_e < lineno))
-		return DWARF_CB_OK;
+		return 0;
 
-	param->retval = line_range_add_line(src, lineno, lf->lr);
-	if (param->retval < 0)
-		return DWARF_CB_ABORT;
-	return DWARF_CB_OK;
-}
+	if (line_range_add_line(fname, lineno, lf->lr) < 0)
+		return -EINVAL;
 
-static int find_line_range_func_decl_lines(struct line_finder *lf)
-{
-	struct dwarf_callback_param param = {.data = (void *)lf, .retval = 0};
-	dwarf_getfuncs(&lf->cu_die, line_range_funcdecl_cb, &param, 0);
-	return param.retval;
+	return 0;
 }
 
 /* Find line range from its line number */
 static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 {
-	Dwarf_Lines *lines;
-	Dwarf_Line *line;
-	size_t nlines, i;
-	Dwarf_Addr addr;
-	int lineno, ret = 0;
-	const char *src;
-	Dwarf_Die die_mem;
+	int ret;
 
-	line_list__init(&lf->lr->line_list);
-	if (dwarf_getsrclines(&lf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found.\n");
-		return -ENOENT;
-	}
-
-	/* Search probable lines on lines list */
-	for (i = 0; i < nlines; i++) {
-		line = dwarf_onesrcline(lines, i);
-		if (dwarf_lineno(line, &lineno) != 0 ||
-		    (lf->lno_s > lineno || lf->lno_e < lineno))
-			continue;
-
-		if (sp_die) {
-			/* Address filtering 1: does sp_die include addr? */
-			if (dwarf_lineaddr(line, &addr) != 0 ||
-			    !dwarf_haspc(sp_die, addr))
-				continue;
-
-			/* Address filtering 2: No child include addr? */
-			if (die_find_inlinefunc(sp_die, addr, &die_mem))
-				continue;
-		}
-
-		/* TODO: Get fileno from line, but how? */
-		src = dwarf_linesrc(line, NULL, NULL);
-		if (strtailcmp(src, lf->fname) != 0)
-			continue;
-
-		ret = line_range_add_line(src, lineno, lf->lr);
-		if (ret < 0)
-			return ret;
-	}
-
-	/*
-	 * Dwarf lines doesn't include function declarations. We have to
-	 * check functions list or given function.
-	 */
-	if (sp_die) {
-		src = dwarf_decl_file(sp_die);
-		if (src && dwarf_decl_line(sp_die, &lineno) == 0 &&
-		    (lf->lno_s <= lineno && lf->lno_e >= lineno))
-			ret = line_range_add_line(src, lineno, lf->lr);
-	} else
-		ret = find_line_range_func_decl_lines(lf);
+	ret = die_walk_lines(sp_die ?: &lf->cu_die, line_range_walk_cb, lf);
 
 	/* Update status */
 	if (ret >= 0)
@@ -1758,9 +1840,6 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 	struct line_finder *lf = param->data;
 	struct line_range *lr = lf->lr;
 
-	pr_debug("find (%llx) %s\n",
-		 (unsigned long long)dwarf_dieoffset(sp_die),
-		 dwarf_diename(sp_die));
 	if (dwarf_tag(sp_die) == DW_TAG_subprogram &&
 	    die_compare_name(sp_die, lr->function)) {
 		lf->fname = dwarf_decl_file(sp_die);

@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -333,17 +334,12 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 /*-------------------------------------------------------------------------*/
 
-void stub_tx_loop(struct usbip_task *ut)
+int stub_tx_loop(void *data)
 {
-	struct usbip_device *ud = container_of(ut, struct usbip_device, tcp_tx);
+	struct usbip_device *ud = data;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
 
-	while (1) {
-		if (signal_pending(current)) {
-			usbip_dbg_stub_tx("signal catched\n");
-			break;
-		}
-
+	while (!kthread_should_stop()) {
 		if (usbip_event_happened(ud))
 			break;
 
@@ -369,6 +365,9 @@ void stub_tx_loop(struct usbip_task *ut)
 
 		wait_event_interruptible(sdev->tx_waitq,
 				(!list_empty(&sdev->priv_tx) ||
-				 !list_empty(&sdev->unlink_tx)));
+				 !list_empty(&sdev->unlink_tx) ||
+				 kthread_should_stop()));
 	}
+
+	return 0;
 }

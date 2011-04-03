@@ -62,7 +62,7 @@ mn10300_local_dcache_flush:
 
 mn10300_local_dcache_flush_loop:
 	mov	(a0),d0
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d0
+	and	L1_CACHE_TAG_MASK,d0
 	or	L1_CACHE_TAG_VALID,d0		# retain valid entries in the
 						# cache
 	mov	d0,(a1)				# conditional purge
@@ -112,11 +112,11 @@ mn10300_local_dcache_flush_range:
 1:
 
 	# round start addr down
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d0
+	and	L1_CACHE_TAG_MASK,d0
 	mov	d0,a1
 
 	add	L1_CACHE_BYTES,d1			# round end addr up
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d1
+	and	L1_CACHE_TAG_MASK,d1
 
 	# write a request to flush all instances of an address from the cache
 	mov	DCACHE_PURGE(0,0),a0
@@ -215,12 +215,11 @@ mn10300_local_dcache_flush_inv_range:
 	bra	mn10300_local_dcache_flush_inv
 1:
 
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d0	# round start
-								# addr down
+	and	L1_CACHE_TAG_MASK,d0		# round start addr down
 	mov	d0,a1
 
-	add	L1_CACHE_BYTES,d1			# round end addr up
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d1
+	add	L1_CACHE_BYTES,d1		# round end addr up
+	and	L1_CACHE_TAG_MASK,d1
 
 	# write a request to flush and invalidate all instances of an address
 	# from the cache

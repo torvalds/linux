@@ -79,7 +79,9 @@ enum {
 	MAX_IDLE_WORKERS_RATIO	= 4,		/* 1/4 of busy can be idle */
 	IDLE_WORKER_TIMEOUT	= 300 * HZ,	/* keep idle ones for 5 mins */
 
-	MAYDAY_INITIAL_TIMEOUT	= HZ / 100,	/* call for help after 10ms */
+	MAYDAY_INITIAL_TIMEOUT  = HZ / 100 >= 2 ? HZ / 100 : 2,
+						/* call for help after 10ms
+						   (min two ticks) */
 	MAYDAY_INTERVAL		= HZ / 10,	/* and then every 100ms */
 	CREATE_COOLDOWN		= HZ,		/* time to breath after fail */
 	TRUSTEE_COOLDOWN	= HZ / 10,	/* for trustee draining */
@@ -249,10 +251,12 @@ struct workqueue_struct *system_wq __read_mostly;
 struct workqueue_struct *system_long_wq __read_mostly;
 struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
+struct workqueue_struct *system_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
+EXPORT_SYMBOL_GPL(system_freezable_wq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -313,6 +317,11 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
 static struct debug_obj_descr work_debug_descr;
+
+static void *work_debug_hint(void *addr)
+{
+	return ((struct work_struct *) addr)->func;
+}
 
 /*
  * fixup_init is called when:
@@ -385,6 +394,7 @@ static int work_fixup_free(void *addr, enum debug_obj_state state)
 
 static struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
+	.debug_hint	= work_debug_hint,
 	.fixup_init	= work_fixup_init,
 	.fixup_activate	= work_fixup_activate,
 	.fixup_free	= work_fixup_free,
@@ -768,7 +778,11 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 
 	worker->flags &= ~flags;
 
-	/* if transitioning out of NOT_RUNNING, increment nr_running */
+	/*
+	 * If transitioning out of NOT_RUNNING, increment nr_running.  Note
+	 * that the nested NOT_RUNNING is not a noop.  NOT_RUNNING is mask
+	 * of multiple flags, not a single flag.
+	 */
 	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
 		if (!(worker->flags & WORKER_NOT_RUNNING))
 			atomic_inc(get_gcwq_nr_running(gcwq->cpu));
@@ -1352,8 +1366,10 @@ static struct worker *create_worker(struct global_cwq *gcwq, bool bind)
 	worker->id = id;
 
 	if (!on_unbound_cpu)
-		worker->task = kthread_create(worker_thread, worker,
-					      "kworker/%u:%d", gcwq->cpu, id);
+		worker->task = kthread_create_on_node(worker_thread,
+						      worker,
+						      cpu_to_node(gcwq->cpu),
+						      "kworker/%u:%d", gcwq->cpu, id);
 	else
 		worker->task = kthread_create(worker_thread, worker,
 					      "kworker/u:%d", id);
@@ -1840,7 +1856,7 @@ __acquires(&gcwq->lock)
 	spin_unlock_irq(&gcwq->lock);
 
 	work_clear_pending(work);
-	lock_map_acquire(&cwq->wq->lockdep_map);
+	lock_map_acquire_read(&cwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
 	trace_workqueue_execute_start(work);
 	f(work);
@@ -2043,6 +2059,15 @@ repeat:
 				move_linked_works(work, scheduled, &n);
 
 		process_scheduled_works(rescuer);
+
+		/*
+		 * Leave this gcwq.  If keep_working() is %true, notify a
+		 * regular worker; otherwise, we end up with 0 concurrency
+		 * and stalling the execution.
+		 */
+		if (keep_working(gcwq))
+			wake_up_worker(gcwq);
+
 		spin_unlock_irq(&gcwq->lock);
 	}
 
@@ -2384,8 +2409,18 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
 	insert_wq_barrier(cwq, barr, work, worker);
 	spin_unlock_irq(&gcwq->lock);
 
-	lock_map_acquire(&cwq->wq->lockdep_map);
+	/*
+	 * If @max_active is 1 or rescuer is in use, flushing another work
+	 * item on the same workqueue may lead to deadlock.  Make sure the
+	 * flusher is not running on the same workqueue by verifying write
+	 * access.
+	 */
+	if (cwq->wq->saved_max_active == 1 || cwq->wq->flags & WQ_RESCUER)
+		lock_map_acquire(&cwq->wq->lockdep_map);
+	else
+		lock_map_acquire_read(&cwq->wq->lockdep_map);
 	lock_map_release(&cwq->wq->lockdep_map);
+
 	return true;
 already_gone:
 	spin_unlock_irq(&gcwq->lock);
@@ -2942,7 +2977,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 	 */
 	spin_lock(&workqueue_lock);
 
-	if (workqueue_freezing && wq->flags & WQ_FREEZEABLE)
+	if (workqueue_freezing && wq->flags & WQ_FREEZABLE)
 		for_each_cwq_cpu(cpu, wq)
 			get_cwq(cpu, wq)->max_active = 0;
 
@@ -3054,7 +3089,7 @@ void workqueue_set_max_active(struct workqueue_struct *wq, int max_active)
 
 		spin_lock_irq(&gcwq->lock);
 
-		if (!(wq->flags & WQ_FREEZEABLE) ||
+		if (!(wq->flags & WQ_FREEZABLE) ||
 		    !(gcwq->flags & GCWQ_FREEZING))
 			get_cwq(gcwq->cpu, wq)->max_active = max_active;
 
@@ -3304,7 +3339,7 @@ static int __cpuinit trustee_thread(void *__gcwq)
 	 * want to get it over with ASAP - spam rescuers, wake up as
 	 * many idlers as necessary and create new ones till the
 	 * worklist is empty.  Note that if the gcwq is frozen, there
-	 * may be frozen works in freezeable cwqs.  Don't declare
+	 * may be frozen works in freezable cwqs.  Don't declare
 	 * completion while frozen.
 	 */
 	while (gcwq->nr_workers != gcwq->nr_idle ||
@@ -3562,9 +3597,9 @@ EXPORT_SYMBOL_GPL(work_on_cpu);
 /**
  * freeze_workqueues_begin - begin freezing workqueues
  *
- * Start freezing workqueues.  After this function returns, all
- * freezeable workqueues will queue new works to their frozen_works
- * list instead of gcwq->worklist.
+ * Start freezing workqueues.  After this function returns, all freezable
+ * workqueues will queue new works to their frozen_works list instead of
+ * gcwq->worklist.
  *
  * CONTEXT:
  * Grabs and releases workqueue_lock and gcwq->lock's.
@@ -3590,7 +3625,7 @@ void freeze_workqueues_begin(void)
 		list_for_each_entry(wq, &workqueues, list) {
 			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 
-			if (cwq && wq->flags & WQ_FREEZEABLE)
+			if (cwq && wq->flags & WQ_FREEZABLE)
 				cwq->max_active = 0;
 		}
 
@@ -3601,7 +3636,7 @@ void freeze_workqueues_begin(void)
 }
 
 /**
- * freeze_workqueues_busy - are freezeable workqueues still busy?
+ * freeze_workqueues_busy - are freezable workqueues still busy?
  *
  * Check whether freezing is complete.  This function must be called
  * between freeze_workqueues_begin() and thaw_workqueues().
@@ -3610,8 +3645,8 @@ void freeze_workqueues_begin(void)
  * Grabs and releases workqueue_lock.
  *
  * RETURNS:
- * %true if some freezeable workqueues are still busy.  %false if
- * freezing is complete.
+ * %true if some freezable workqueues are still busy.  %false if freezing
+ * is complete.
  */
 bool freeze_workqueues_busy(void)
 {
@@ -3631,7 +3666,7 @@ bool freeze_workqueues_busy(void)
 		list_for_each_entry(wq, &workqueues, list) {
 			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 
-			if (!cwq || !(wq->flags & WQ_FREEZEABLE))
+			if (!cwq || !(wq->flags & WQ_FREEZABLE))
 				continue;
 
 			BUG_ON(cwq->nr_active < 0);
@@ -3676,7 +3711,7 @@ void thaw_workqueues(void)
 		list_for_each_entry(wq, &workqueues, list) {
 			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 
-			if (!cwq || !(wq->flags & WQ_FREEZEABLE))
+			if (!cwq || !(wq->flags & WQ_FREEZABLE))
 				continue;
 
 			/* restore max_active and repopulate worklist */
@@ -3750,8 +3785,10 @@ static int __init init_workqueues(void)
 	system_nrt_wq = alloc_workqueue("events_nrt", WQ_NON_REENTRANT, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND,
 					    WQ_UNBOUND_MAX_ACTIVE);
+	system_freezable_wq = alloc_workqueue("events_freezable",
+					      WQ_FREEZABLE, 0);
 	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
-	       !system_unbound_wq);
+	       !system_unbound_wq || !system_freezable_wq);
 	return 0;
 }
 early_initcall(init_workqueues);

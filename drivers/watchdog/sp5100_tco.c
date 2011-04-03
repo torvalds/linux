@@ -42,6 +42,7 @@
 #define PFX TCO_MODULE_NAME ": "
 
 /* internal variables */
+static u32 tcobase_phys;
 static void __iomem *tcobase;
 static unsigned int pm_iobase;
 static DEFINE_SPINLOCK(tco_lock);	/* Guards the hardware */
@@ -259,7 +260,7 @@ static struct miscdevice sp5100_tco_miscdev = {
  * register a pci_driver, because someone else might
  * want to register another driver on the same PCI id.
  */
-static struct pci_device_id sp5100_tco_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(sp5100_tco_pci_tbl) = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,
 	  PCI_ANY_ID, },
 	{ 0, },			/* End of list */
@@ -305,10 +306,18 @@ static unsigned char __devinit sp5100_tco_setupdevice(void)
 	/* Low three bits of BASE0 are reserved. */
 	val = val << 8 | (inb(SP5100_IO_PM_DATA_REG) & 0xf8);
 
+	if (!request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
+								"SP5100 TCO")) {
+		printk(KERN_ERR PFX "mmio address 0x%04x already in use\n",
+			val);
+		goto unreg_region;
+	}
+	tcobase_phys = val;
+
 	tcobase = ioremap(val, SP5100_WDT_MEM_MAP_SIZE);
 	if (tcobase == 0) {
 		printk(KERN_ERR PFX "failed to get tcobase address\n");
-		goto unreg_region;
+		goto unreg_mem_region;
 	}
 
 	/* Enable watchdog decode bit */
@@ -346,7 +355,8 @@ static unsigned char __devinit sp5100_tco_setupdevice(void)
 	/* Done */
 	return 1;
 
-	iounmap(tcobase);
+unreg_mem_region:
+	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
 unreg_region:
 	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
 exit:
@@ -401,6 +411,7 @@ static int __devinit sp5100_tco_init(struct platform_device *dev)
 
 exit:
 	iounmap(tcobase);
+	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
 	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
 	return ret;
 }
@@ -414,6 +425,7 @@ static void __devexit sp5100_tco_cleanup(void)
 	/* Deregister */
 	misc_deregister(&sp5100_tco_miscdev);
 	iounmap(tcobase);
+	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
 	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
 }
 

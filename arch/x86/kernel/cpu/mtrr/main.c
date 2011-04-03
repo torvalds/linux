@@ -45,6 +45,7 @@
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/processor.h>
 #include <asm/e820.h>
@@ -630,7 +631,7 @@ struct mtrr_value {
 
 static struct mtrr_value mtrr_value[MTRR_MAX_VAR_RANGES];
 
-static int mtrr_save(struct sys_device *sysdev, pm_message_t state)
+static int mtrr_save(void)
 {
 	int i;
 
@@ -642,7 +643,7 @@ static int mtrr_save(struct sys_device *sysdev, pm_message_t state)
 	return 0;
 }
 
-static int mtrr_restore(struct sys_device *sysdev)
+static void mtrr_restore(void)
 {
 	int i;
 
@@ -653,12 +654,11 @@ static int mtrr_restore(struct sys_device *sysdev)
 				    mtrr_value[i].ltype);
 		}
 	}
-	return 0;
 }
 
 
 
-static struct sysdev_driver mtrr_sysdev_driver = {
+static struct syscore_ops mtrr_syscore_ops = {
 	.suspend	= mtrr_save,
 	.resume		= mtrr_restore,
 };
@@ -793,11 +793,19 @@ void set_mtrr_aps_delayed_init(void)
 }
 
 /*
- * MTRR initialization for all AP's
+ * Delayed MTRR initialization for all AP's
  */
 void mtrr_aps_init(void)
 {
 	if (!use_intel())
+		return;
+
+	/*
+	 * Check if someone has requested the delay of AP MTRR initialization,
+	 * by doing set_mtrr_aps_delayed_init(), prior to this point. If not,
+	 * then we are done.
+	 */
+	if (!mtrr_aps_delayed_init)
 		return;
 
 	set_mtrr(~0U, 0, 0, 0);
@@ -831,7 +839,7 @@ static int __init mtrr_init_finialize(void)
 	 * TBD: is there any system with such CPU which supports
 	 * suspend/resume? If no, we should remove the code.
 	 */
-	sysdev_driver_register(&cpu_sysdev_class, &mtrr_sysdev_driver);
+	register_syscore_ops(&mtrr_syscore_ops);
 
 	return 0;
 }

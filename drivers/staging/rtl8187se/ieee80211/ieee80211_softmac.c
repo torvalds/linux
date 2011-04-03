@@ -1435,8 +1435,9 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 
 		if(*(t++) == MFIE_TYPE_CHALLENGE){
 			*chlen = *(t++);
-			*challenge = kmalloc(*chlen, GFP_ATOMIC);
-			memcpy(*challenge, t, *chlen);
+			*challenge = kmemdup(t, *chlen, GFP_ATOMIC);
+			if (!*challenge)
+				return -ENOMEM;
 		}
 	}
 
@@ -2604,8 +2605,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	cancel_delayed_work(&ieee->GPIOChangeRFWorkItem);
 
 	destroy_workqueue(ieee->wq);
-	if(NULL != ieee->pDot11dInfo)
-		kfree(ieee->pDot11dInfo);
+	kfree(ieee->pDot11dInfo);
 	up(&ieee->wx_sem);
 }
 

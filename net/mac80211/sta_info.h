@@ -82,6 +82,7 @@ enum ieee80211_sta_info_flags {
  * @state: session state (see above)
  * @stop_initiator: initiator of a session stop
  * @tx_stop: TX DelBA frame when stopping
+ * @buf_size: reorder buffer size at receiver
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
@@ -101,6 +102,7 @@ struct tid_ampdu_tx {
 	u8 dialog_token;
 	u8 stop_initiator;
 	bool tx_stop;
+	u8 buf_size;
 };
 
 /**
@@ -207,6 +209,8 @@ enum plink_state {
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
  *	"the" transmit rate
+ * @last_rx_rate_idx: rx status rate index of the last data packet
+ * @last_rx_rate_flag: rx status flag of the last data packet
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
  * @flaglock: spinlock for flags accesses
@@ -309,6 +313,8 @@ struct sta_info {
 	unsigned long tx_bytes;
 	unsigned long tx_fragments;
 	struct ieee80211_tx_rate last_tx_rate;
+	int last_rx_rate_idx;
+	int last_rx_rate_flag;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
 	/*

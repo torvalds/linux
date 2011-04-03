@@ -171,7 +171,7 @@ int sst_set_stream_param(int str_id, struct snd_sst_params *str_param)
 }
 
 /**
-* sst_get_vol - This fuction allows to get the premix gain or gain of a stream
+* sst_get_vol - This function allows to get the premix gain or gain of a stream
 *
 * @get_vol: this is an output param through which the volume
 *	structure is passed back to user
@@ -221,7 +221,7 @@ int sst_get_vol(struct snd_sst_vol *get_vol)
 }
 
 /**
-* sst_set_vol - This fuction allows to set the premix gain or gain of a stream
+* sst_set_vol - This function allows to set the premix gain or gain of a stream
 *
 * @set_vol:	this holds the volume structure that needs to be set
 *
@@ -263,7 +263,7 @@ int sst_set_vol(struct snd_sst_vol *set_vol)
 }
 
 /**
-* sst_set_mute - This fuction sets premix mute or soft mute of a stream
+* sst_set_mute - This function sets premix mute or soft mute of a stream
 *
 * @set_mute:	this holds the mute structure that needs to be set
 *
@@ -450,7 +450,7 @@ err:
 }
 
 /**
- * sst_target_device_select - This fuction sets the target device configurations
+ * sst_target_device_select - This function sets the target device configurations
  *
  * @target: this parameter holds the configurations to be set
  *

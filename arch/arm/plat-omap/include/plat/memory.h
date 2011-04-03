@@ -37,9 +37,9 @@
  * Physical DRAM offset.
  */
 #if defined(CONFIG_ARCH_OMAP1)
-#define PHYS_OFFSET		UL(0x10000000)
+#define PLAT_PHYS_OFFSET		UL(0x10000000)
 #else
-#define PHYS_OFFSET		UL(0x80000000)
+#define PLAT_PHYS_OFFSET		UL(0x80000000)
 #endif
 
 /*

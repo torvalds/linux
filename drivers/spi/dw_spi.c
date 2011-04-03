@@ -22,9 +22,9 @@
 #include <linux/highmem.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-
-#include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>
+
+#include "dw_spi.h"
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>

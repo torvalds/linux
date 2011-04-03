@@ -794,10 +794,9 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	if (hdr_arg.minorversion == 0) {
 		cps.clp = nfs4_find_client_ident(hdr_arg.cb_ident);
-		if (!cps.clp)
+		if (!cps.clp || !check_gss_callback_principal(cps.clp, rqstp))
 			return rpc_drop_reply;
-	} else
-		cps.svc_sid = bc_xprt_sid(rqstp);
+	}
 
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;

@@ -205,15 +205,14 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		break;
 	case IVTV_HW_I2C_IR_RX_HAUP_EXT:
 	case IVTV_HW_I2C_IR_RX_HAUP_INT:
-		/* Default to old black remote */
-		init_data->ir_codes = RC_MAP_RC5_TV;
+		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
 		init_data->type = RC_TYPE_RC5;
 		init_data->name = itv->card_name;
 		break;
 	case IVTV_HW_Z8F0811_IR_RX_HAUP:
 		/* Default to grey remote */
-		init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		init_data->type = RC_TYPE_RC5;
 		init_data->name = itv->card_name;
@@ -300,10 +299,15 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
+		struct i2c_board_info cx25840_info = {
+			.type = "cx25840",
+			.addr = hw_addrs[idx],
+			.platform_data = &pdata,
+		};
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
-		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, type, 0, &pdata, hw_addrs[idx], NULL);
+		sd = v4l2_i2c_new_subdev_board(&itv->v4l2_dev, adap,
+				&cx25840_info, NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, type, hw_addrs[idx], NULL);

@@ -29,6 +29,7 @@
 #include <sound/asoundef.h>
 #include <sound/tlv.h>
 #include <sound/initval.h>
+#include <sound/jack.h>
 #include "hda_local.h"
 #include "hda_beep.h"
 #include <sound/hda_hwdep.h>
@@ -4958,6 +4959,110 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen)
 	buf[j] = '\0'; /* necessary when j == 0 */
 }
 EXPORT_SYMBOL_HDA(snd_print_pcm_bits);
+
+#ifdef CONFIG_SND_HDA_INPUT_JACK
+/*
+ * Input-jack notification support
+ */
+struct hda_jack_item {
+	hda_nid_t nid;
+	int type;
+	struct snd_jack *jack;
+};
+
+static const char *get_jack_default_name(struct hda_codec *codec, hda_nid_t nid,
+					 int type)
+{
+	switch (type) {
+	case SND_JACK_HEADPHONE:
+		return "Headphone";
+	case SND_JACK_MICROPHONE:
+		return "Mic";
+	case SND_JACK_LINEOUT:
+		return "Line-out";
+	case SND_JACK_HEADSET:
+		return "Headset";
+	default:
+		return "Misc";
+	}
+}
+
+static void hda_free_jack_priv(struct snd_jack *jack)
+{
+	struct hda_jack_item *jacks = jack->private_data;
+	jacks->nid = 0;
+	jacks->jack = NULL;
+}
+
+int snd_hda_input_jack_add(struct hda_codec *codec, hda_nid_t nid, int type,
+			   const char *name)
+{
+	struct hda_jack_item *jack;
+	int err;
+
+	snd_array_init(&codec->jacks, sizeof(*jack), 32);
+	jack = snd_array_new(&codec->jacks);
+	if (!jack)
+		return -ENOMEM;
+
+	jack->nid = nid;
+	jack->type = type;
+	if (!name)
+		name = get_jack_default_name(codec, nid, type);
+	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
+	if (err < 0) {
+		jack->nid = 0;
+		return err;
+	}
+	jack->jack->private_data = jack;
+	jack->jack->private_free = hda_free_jack_priv;
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_input_jack_add);
+
+void snd_hda_input_jack_report(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_jack_item *jacks = codec->jacks.list;
+	int i;
+
+	if (!jacks)
+		return;
+
+	for (i = 0; i < codec->jacks.used; i++, jacks++) {
+		unsigned int pin_ctl;
+		unsigned int present;
+		int type;
+
+		if (jacks->nid != nid)
+			continue;
+		present = snd_hda_jack_detect(codec, nid);
+		type = jacks->type;
+		if (type == (SND_JACK_HEADPHONE | SND_JACK_LINEOUT)) {
+			pin_ctl = snd_hda_codec_read(codec, nid, 0,
+					     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			type = (pin_ctl & AC_PINCTL_HP_EN) ?
+				SND_JACK_HEADPHONE : SND_JACK_LINEOUT;
+		}
+		snd_jack_report(jacks->jack, present ? type : 0);
+	}
+}
+EXPORT_SYMBOL_HDA(snd_hda_input_jack_report);
+
+/* free jack instances manually when clearing/reconfiguring */
+void snd_hda_input_jack_free(struct hda_codec *codec)
+{
+	if (!codec->bus->shutdown && codec->jacks.list) {
+		struct hda_jack_item *jacks = codec->jacks.list;
+		int i;
+		for (i = 0; i < codec->jacks.used; i++, jacks++) {
+			if (jacks->jack)
+				snd_device_free(codec->bus->card, jacks->jack);
+		}
+	}
+	snd_array_free(&codec->jacks);
+}
+EXPORT_SYMBOL_HDA(snd_hda_input_jack_free);
+#endif /* CONFIG_SND_HDA_INPUT_JACK */
 
 MODULE_DESCRIPTION("HDA codec core");
 MODULE_LICENSE("GPL");

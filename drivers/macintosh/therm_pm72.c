@@ -443,7 +443,7 @@ static int fan_read_reg(int reg, unsigned char *buf, int nb)
 	tries = 0;
 	for (;;) {
 		nr = i2c_master_recv(fcu, buf, nb);
-		if (nr > 0 || (nr < 0 && nr != ENODEV) || tries >= 100)
+		if (nr > 0 || (nr < 0 && nr != -ENODEV) || tries >= 100)
 			break;
 		msleep(10);
 		++tries;
@@ -464,7 +464,7 @@ static int fan_write_reg(int reg, const unsigned char *ptr, int nb)
 	tries = 0;
 	for (;;) {
 		nw = i2c_master_send(fcu, buf, nb);
-		if (nw > 0 || (nw < 0 && nw != EIO) || tries >= 100)
+		if (nw > 0 || (nw < 0 && nw != -EIO) || tries >= 100)
 			break;
 		msleep(10);
 		++tries;
@@ -2210,7 +2210,7 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 	}
 }
 
-static int fcu_of_probe(struct platform_device* dev, const struct of_device_id *match)
+static int fcu_of_probe(struct platform_device* dev)
 {
 	state = state_detached;
 	of_dev = dev;
@@ -2240,7 +2240,7 @@ static const struct of_device_id fcu_match[] =
 };
 MODULE_DEVICE_TABLE(of, fcu_match);
 
-static struct of_platform_driver fcu_of_platform_driver = 
+static struct platform_driver fcu_of_platform_driver = 
 {
 	.driver = {
 		.name = "temperature",
@@ -2263,12 +2263,12 @@ static int __init therm_pm72_init(void)
 	    !rackmac)
 	    	return -ENODEV;
 
-	return of_register_platform_driver(&fcu_of_platform_driver);
+	return platform_driver_register(&fcu_of_platform_driver);
 }
 
 static void __exit therm_pm72_exit(void)
 {
-	of_unregister_platform_driver(&fcu_of_platform_driver);
+	platform_driver_unregister(&fcu_of_platform_driver);
 }
 
 module_init(therm_pm72_init);

@@ -81,8 +81,6 @@ static int tosa_bt_probe(struct platform_device *dev)
 		goto err_rfk_alloc;
 	}
 
-	rfkill_set_led_trigger_name(rfk, "tosa-bt");
-
 	rc = rfkill_register(rfk);
 	if (rc)
 		goto err_rfkill;

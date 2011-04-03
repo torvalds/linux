@@ -40,7 +40,7 @@
 
 #ifdef ATH_DEBUG_MODULE
 
-static ATH_DEBUG_MASK_DESCRIPTION wlan_debug_desc[] = {
+static struct ath_debug_mask_description wlan_debug_desc[] = {
     { ATH_DEBUG_WLAN , "General WLAN Node Tracing"},
 };
 
@@ -58,7 +58,7 @@ static void wlan_node_timeout(A_ATH_TIMER arg);
 #endif
 
 static bss_t * _ieee80211_find_node (struct ieee80211_node_table *nt,
-                                     const A_UINT8 *macaddr);
+                                     const u8 *macaddr);
 
 bss_t *
 wlan_node_alloc(struct ieee80211_node_table *nt, int wh_size)
@@ -111,18 +111,18 @@ wlan_node_free(bss_t *ni)
 
 void
 wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
-                const A_UINT8 *macaddr)
+                const u8 *macaddr)
 {
     int hash;
-    A_UINT32 timeoutValue = 0;
+    u32 timeoutValue = 0;
 
-    A_MEMCPY(ni->ni_macaddr, macaddr, IEEE80211_ADDR_LEN);
+    memcpy(ni->ni_macaddr, macaddr, IEEE80211_ADDR_LEN);
     hash = IEEE80211_NODE_HASH (macaddr);
     ieee80211_node_initref (ni);     /* mark referenced */
 
     timeoutValue = nt->nt_nodeAge;
 
-    ni->ni_tstamp = A_GET_MS (timeoutValue);
+    ni->ni_tstamp = A_GET_MS (0);
     ni->ni_actcnt = WLAN_NODE_INACT_CNT;
 
     IEEE80211_NODE_LOCK_BH(nt);
@@ -151,7 +151,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
 #ifdef THREAD_X
     if (!nt->isTimerArmed) {
         A_TIMEOUT_MS(&nt->nt_inact_timer, timeoutValue, 0);
-        nt->isTimerArmed = TRUE;
+        nt->isTimerArmed = true;
     }
 #endif
 
@@ -160,7 +160,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
 
 static bss_t *
 _ieee80211_find_node(struct ieee80211_node_table *nt,
-    const A_UINT8 *macaddr)
+    const u8 *macaddr)
 {
     bss_t *ni;
     int hash;
@@ -178,7 +178,7 @@ _ieee80211_find_node(struct ieee80211_node_table *nt,
 }
 
 bss_t *
-wlan_find_node(struct ieee80211_node_table *nt, const A_UINT8 *macaddr)
+wlan_find_node(struct ieee80211_node_table *nt, const u8 *macaddr)
 {
     bss_t *ni;
 
@@ -262,7 +262,7 @@ wlan_iterate_nodes(struct ieee80211_node_table *nt, wlan_node_iter_func *f,
                    void *arg)
 {
     bss_t *ni;
-    A_UINT32 gen;
+    u32 gen;
 
     gen = ++nt->nt_scangen;
 
@@ -299,7 +299,7 @@ wlan_node_table_init(void *wmip, struct ieee80211_node_table *nt)
 
 #ifdef THREAD_X
     A_INIT_TIMER(&nt->nt_inact_timer, wlan_node_timeout, nt);
-    nt->isTimerArmed = FALSE;
+    nt->isTimerArmed = false;
 #endif
     nt->nt_wmip = wmip;
     nt->nt_nodeAge = WLAN_NODE_INACT_TIMEOUT_MSEC;
@@ -316,7 +316,7 @@ wlan_node_table_init(void *wmip, struct ieee80211_node_table *nt)
 }
 
 void
-wlan_set_nodeage(struct ieee80211_node_table *nt, A_UINT32 nodeAge)
+wlan_set_nodeage(struct ieee80211_node_table *nt, u32 nodeAge)
 {
     nt->nt_nodeAge = nodeAge;
     return;
@@ -326,7 +326,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
 {
 #ifdef THREAD_X
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = FALSE;
+    u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
 
     wmi_get_current_bssid(nt->nt_wmip, myBssid);
 
@@ -334,7 +334,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
                /*
                 * free up all but the current bss - if set
@@ -346,9 +346,9 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     }
 #else
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN];
-    A_UINT32 timeoutValue = 0;
-    A_UINT32 now = A_GET_MS(0);
+    u8 myBssid[IEEE80211_ADDR_LEN];
+    u32 timeoutValue = 0;
+    u32 now = A_GET_MS(0);
     timeoutValue = nt->nt_nodeAge;
 
     wmi_get_current_bssid(nt->nt_wmip, myBssid);
@@ -357,10 +357,10 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
-            if (bss->ni_tstamp <= now || --bss->ni_actcnt == 0)
+            if (((now - bss->ni_tstamp) > timeoutValue)  || --bss->ni_actcnt == 0)
             {
                /*
                 * free up all but the current bss - if set
@@ -379,8 +379,9 @@ wlan_node_timeout (A_ATH_TIMER arg)
 {
     struct ieee80211_node_table *nt = (struct ieee80211_node_table *)arg;
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = FALSE;
-    A_UINT32 timeoutValue = 0;
+    u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
+    u32 timeoutValue = 0;
+    u32 now = A_GET_MS(0);
 
     timeoutValue = nt->nt_nodeAge;
 
@@ -390,10 +391,10 @@ wlan_node_timeout (A_ATH_TIMER arg)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
-            if (bss->ni_tstamp <= A_GET_MS(0))
+            if ((now - bss->ni_tstamp) > timeoutValue)
             {
                /*
                 * free up all but the current bss - if set
@@ -406,7 +407,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
                  * Re-arm timer, only when we have a bss other than
                  * current bss AND it is not aged-out.
                  */
-                reArmTimer = TRUE;
+                reArmTimer = true;
             }
         }
         bss = nextBss;
@@ -431,11 +432,11 @@ wlan_node_table_cleanup(struct ieee80211_node_table *nt)
 }
 
 bss_t *
-wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID)
+wlan_find_Ssidnode (struct ieee80211_node_table *nt, u8 *pSsid,
+                    u32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t   *ni = NULL;
-    A_UCHAR *pIESsid = NULL;
+    u8 *pIESsid = NULL;
 
     IEEE80211_NODE_LOCK (nt);
 
@@ -447,22 +448,22 @@ wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
             if (0x00 == memcmp (pSsid, &pIESsid[2], ssidLength)) {
 
                 //
-                // Step 2.1 : Check MatchSSID is TRUE, if so, return Matched SSID
+                // Step 2.1 : Check MatchSSID is true, if so, return Matched SSID
                 // Profile, otherwise check whether WPA2 or WPA
                 //
-                if (TRUE == bMatchSSID) {
+                if (true == bMatchSSID) {
                     ieee80211_node_incref (ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;
                 }
 
                 // Step 2 : if SSID matches, check WPA or WPA2
-                if (TRUE == bIsWPA2 && NULL != ni->ni_cie.ie_rsn) {
+                if (true == bIsWPA2 && NULL != ni->ni_cie.ie_rsn) {
                     ieee80211_node_incref (ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;
                 }
-                if (FALSE == bIsWPA2 && NULL != ni->ni_cie.ie_wpa) {
+                if (false == bIsWPA2 && NULL != ni->ni_cie.ie_wpa) {
                     ieee80211_node_incref(ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;
@@ -526,7 +527,7 @@ wlan_node_remove_core (struct ieee80211_node_table *nt, bss_t *ni)
 }
 
 bss_t *
-wlan_node_remove(struct ieee80211_node_table *nt, A_UINT8 *bssid)
+wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid)
 {
     bss_t *bss, *nextBss;
 
@@ -538,7 +539,7 @@ wlan_node_remove(struct ieee80211_node_table *nt, A_UINT8 *bssid)
     {
         nextBss = bss->ni_list_next;
 
-        if (A_MEMCMP(bssid, bss->ni_macaddr, 6) == 0)
+        if (memcmp(bssid, bss->ni_macaddr, 6) == 0)
         {
             wlan_node_remove_core (nt, bss);
             IEEE80211_NODE_UNLOCK(nt);
@@ -553,13 +554,13 @@ wlan_node_remove(struct ieee80211_node_table *nt, A_UINT8 *bssid)
 }
 
 bss_t *
-wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_UINT32 dot11AuthMode, A_UINT32 authMode,
-                   A_UINT32 pairwiseCryptoType, A_UINT32 grpwiseCryptoTyp)
+wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, u8 *pSsid,
+                    u32 ssidLength, u32 dot11AuthMode, u32 authMode,
+                   u32 pairwiseCryptoType, u32 grpwiseCryptoTyp)
 {
     bss_t   *ni = NULL;
     bss_t   *best_ni = NULL;
-    A_UCHAR *pIESsid = NULL;
+    u8 *pIESsid = NULL;
 
     IEEE80211_NODE_LOCK (nt);
 

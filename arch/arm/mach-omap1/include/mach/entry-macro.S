@@ -14,19 +14,6 @@
 #include <mach/irqs.h>
 #include <asm/hardware/gic.h>
 
-/*
- * We use __glue to avoid errors with multiple definitions of
- * .globl omap_irq_flags as it's included from entry-armv.S but not
- * from entry-common.S.
- */
-#ifdef __glue
-		.pushsection .data
-		.globl	omap_irq_flags
-omap_irq_flags:
-		.word	0
-		.popsection
-#endif
-
  		.macro	disable_fiq
 		.endm
 

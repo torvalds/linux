@@ -26,6 +26,9 @@
 #include "sirc.h"
 #elif defined(CONFIG_ARCH_MSM8X60)
 #include "irqs-8x60.h"
+#elif defined(CONFIG_ARCH_MSM8960)
+/* TODO: Make these not generic. */
+#include "irqs-8960.h"
 #elif defined(CONFIG_ARCH_MSM_ARM11)
 #include "irqs-7x00.h"
 #else

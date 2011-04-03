@@ -34,6 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -41,7 +42,6 @@
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
@@ -875,6 +875,11 @@ static struct platform_device sharpsl_rom_device = {
 	.dev.platform_data = &sharpsl_rom_data,
 };
 
+static struct platform_device wm9712_device = {
+	.name	= "wm9712-codec",
+	.id	= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -885,6 +890,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosaled_device,
 	&tosa_bt_device,
 	&sharpsl_rom_device,
+	&wm9712_device,
 };
 
 static void tosa_poweroff(void)

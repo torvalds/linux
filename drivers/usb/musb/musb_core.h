@@ -212,8 +212,8 @@ enum musb_g_ep0_state {
  * directly with the "flat" model, or after setting up an index register.
  */
 
-#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_ARCH_OMAP2430) \
-		|| defined(CONFIG_ARCH_OMAP3430) || defined(CONFIG_BLACKFIN) \
+#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_SOC_OMAP2430) \
+		|| defined(CONFIG_SOC_OMAP3430) || defined(CONFIG_BLACKFIN) \
 		|| defined(CONFIG_ARCH_OMAP4)
 /* REVISIT indexed access seemed to
  * misbehave (on DaVinci) for at least peripheral IN ...
@@ -328,7 +328,7 @@ struct musb_hw_ep {
 #endif
 };
 
-static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_in_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_in);
@@ -337,7 +337,7 @@ static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
-static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_out_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_out);
@@ -358,10 +358,6 @@ struct musb_csr_regs {
 
 struct musb_context_registers {
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
 	u8 power;
 	u16 intrtxe, intrrxe;
 	u8 intrusbe;
@@ -496,6 +492,19 @@ struct musb {
 	struct usb_gadget	g;			/* the gadget */
 	struct usb_gadget_driver *gadget_driver;	/* its driver */
 #endif
+
+	/*
+	 * FIXME: Remove this flag.
+	 *
+	 * This is only added to allow Blackfin to work
+	 * with current driver. For some unknown reason
+	 * Blackfin doesn't work with double buffering
+	 * and that's enabled by default.
+	 *
+	 * We added this flag to forcefully disable double
+	 * buffering until we get it working.
+	 */
+	unsigned                double_buffer_not_ok:1 __deprecated;
 
 	struct musb_hdrc_config	*config;
 

@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -480,16 +480,10 @@ typedef enum {
 	AML_FIELD_ATTRIB_SMB_BLOCK_CALL = 0x0D
 } AML_ACCESS_ATTRIBUTE;
 
-/* Bit fields in method_flags byte */
+/* Bit fields in the AML method_flags byte */
 
 #define AML_METHOD_ARG_COUNT        0x07
 #define AML_METHOD_SERIALIZED       0x08
 #define AML_METHOD_SYNC_LEVEL       0xF0
-
-/* METHOD_FLAGS_ARG_COUNT is not used internally, define additional flags */
-
-#define AML_METHOD_INTERNAL_ONLY    0x01
-#define AML_METHOD_RESERVED1        0x02
-#define AML_METHOD_RESERVED2        0x04
 
 #endif				/* __AMLCODE_H__ */

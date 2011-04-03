@@ -416,8 +416,7 @@ void MeasureReqTabExit(struct rt_rtmp_adapter *pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.MeasureReqTabLock);
 
-	if (pAd->CommonCfg.pMeasureReqTab)
-		kfree(pAd->CommonCfg.pMeasureReqTab);
+	kfree(pAd->CommonCfg.pMeasureReqTab);
 	pAd->CommonCfg.pMeasureReqTab = NULL;
 
 	return;
@@ -614,8 +613,7 @@ void TpcReqTabExit(struct rt_rtmp_adapter *pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.TpcReqTabLock);
 
-	if (pAd->CommonCfg.pTpcReqTab)
-		kfree(pAd->CommonCfg.pTpcReqTab);
+	kfree(pAd->CommonCfg.pTpcReqTab);
 	pAd->CommonCfg.pTpcReqTab = NULL;
 
 	return;

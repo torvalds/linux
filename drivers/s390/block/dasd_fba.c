@@ -65,8 +65,10 @@ dasd_fba_set_online(struct ccw_device *cdev)
 }
 
 static struct ccw_driver dasd_fba_driver = {
-	.name        = "dasd-fba",
-	.owner       = THIS_MODULE,
+	.driver = {
+		.name	= "dasd-fba",
+		.owner	= THIS_MODULE,
+	},
 	.ids         = dasd_fba_ids,
 	.probe       = dasd_fba_probe,
 	.remove      = dasd_generic_remove,

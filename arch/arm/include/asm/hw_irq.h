@@ -10,14 +10,6 @@ static inline void ack_bad_irq(int irq)
 	irq_err_count++;
 }
 
-/*
- * Obsolete inline function for calling irq descriptor handlers.
- */
-static inline void desc_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	desc->handle_irq(irq, desc);
-}
-
 void set_irq_flags(unsigned int irq, unsigned int flags);
 
 #define IRQF_VALID	(1 << 0)

@@ -3829,7 +3829,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
 		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
 	if (flagset)
 		queue_flag_set(QUEUE_FLAG_REENTER, rport->rqst_q);
-	__blk_run_queue(rport->rqst_q);
+	__blk_run_queue(rport->rqst_q, false);
 	if (flagset)
 		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
 	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
@@ -3913,7 +3913,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 	if (!get_device(dev))
 		return;
 
-	while (!blk_queue_plugged(q)) {
+	while (1) {
 		if (rport && (rport->port_state == FC_PORTSTATE_BLOCKED) &&
 		    !(rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT))
 			break;

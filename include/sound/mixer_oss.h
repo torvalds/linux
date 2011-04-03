@@ -73,6 +73,9 @@ struct snd_mixer_oss_file {
 	struct snd_mixer_oss *mixer;
 };
 
+int snd_mixer_oss_ioctl_card(struct snd_card *card,
+			     unsigned int cmd, unsigned long arg);
+
 #endif /* CONFIG_SND_MIXER_OSS */
 
 #endif /* __SOUND_MIXER_OSS_H */

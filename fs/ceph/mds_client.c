@@ -693,9 +693,11 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (%d/%d)\n",
 				     inode, ceph_vinop(inode),
-				     frag.frag, frag.mds,
+				     frag.frag, mds,
 				     (int)r, frag.ndist);
-				return mds;
+				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
+				    CEPH_MDS_STATE_ACTIVE)
+					return mds;
 			}
 
 			/* since this file/dir wasn't known to be
@@ -708,7 +710,9 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (auth)\n",
 				     inode, ceph_vinop(inode), frag.frag, mds);
-				return mds;
+				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
+				    CEPH_MDS_STATE_ACTIVE)
+					return mds;
 			}
 		}
 	}

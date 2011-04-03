@@ -42,6 +42,10 @@
 #define CSR_BROADCAST_CHANNEL		0x234
 #define CSR_CONFIG_ROM			0x400
 #define CSR_CONFIG_ROM_END		0x800
+#define CSR_OMPR			0x900
+#define CSR_OPCR(i)			(0x904 + (i) * 4)
+#define CSR_IMPR			0x980
+#define CSR_IPCR(i)			(0x984 + (i) * 4)
 #define CSR_FCP_COMMAND			0xB00
 #define CSR_FCP_RESPONSE		0xD00
 #define CSR_FCP_END			0xF00
@@ -89,7 +93,7 @@ struct fw_card {
 	int current_tlabel;
 	u64 tlabel_mask;
 	struct list_head transaction_list;
-	unsigned long reset_jiffies;
+	u64 reset_jiffies;
 
 	u32 split_timeout_hi;
 	u32 split_timeout_lo;
@@ -441,5 +445,8 @@ int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);
 void fw_iso_context_destroy(struct fw_iso_context *ctx);
+void fw_iso_resource_manage(struct fw_card *card, int generation,
+			    u64 channels_mask, int *channel, int *bandwidth,
+			    bool allocate, __be32 buffer[2]);
 
 #endif /* _LINUX_FIREWIRE_H */

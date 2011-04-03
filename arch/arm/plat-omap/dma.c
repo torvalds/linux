@@ -53,7 +53,7 @@ enum { DMA_CHAIN_STARTED, DMA_CHAIN_NOTSTARTED };
 #endif
 
 #define OMAP_DMA_ACTIVE			0x01
-#define OMAP2_DMA_CSR_CLEAR_MASK	0xffe
+#define OMAP2_DMA_CSR_CLEAR_MASK	0xffffffff
 
 #define OMAP_FUNC_MUX_ARM_BASE		(0xfffe1000 + 0xec)
 
@@ -134,7 +134,7 @@ static inline void omap_enable_channel_irq(int lch);
 
 #ifdef CONFIG_ARCH_OMAP15XX
 /* Returns 1 if the DMA module is in OMAP1510-compatible mode, 0 otherwise */
-int omap_dma_in_1510_mode(void)
+static int omap_dma_in_1510_mode(void)
 {
 	return enable_1510_mode;
 }
@@ -1873,7 +1873,7 @@ static int omap2_dma_handle_ch(int ch)
 		printk(KERN_INFO "DMA misaligned error with device %d\n",
 		       dma_chan[ch].dev_id);
 
-	p->dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR, ch);
+	p->dma_write(status, CSR, ch);
 	p->dma_write(1 << ch, IRQSTATUS_L0, ch);
 	/* read back the register to flush the write */
 	p->dma_read(IRQSTATUS_L0, ch);
@@ -1893,9 +1893,8 @@ static int omap2_dma_handle_ch(int ch)
 			OMAP_DMA_CHAIN_INCQHEAD(chain_id);
 
 		status = p->dma_read(CSR, ch);
+		p->dma_write(status, CSR, ch);
 	}
-
-	p->dma_write(status, CSR, ch);
 
 	if (likely(dma_chan[ch].callback != NULL))
 		dma_chan[ch].callback(ch, status, dma_chan[ch].data);

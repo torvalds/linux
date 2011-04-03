@@ -179,23 +179,46 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 	panic("Unsafe to continue.");
 }
 
+void flush_remote_page(struct page *page, int order)
+{
+	int i, pages = (1 << order);
+	for (i = 0; i < pages; ++i, ++page) {
+		void *p = kmap_atomic(page);
+		int hfh = 0;
+		int home = page_home(page);
+#if CHIP_HAS_CBOX_HOME_MAP()
+		if (home == PAGE_HOME_HASH)
+			hfh = 1;
+		else
+#endif
+			BUG_ON(home < 0 || home >= NR_CPUS);
+		finv_buffer_remote(p, PAGE_SIZE, hfh);
+		kunmap_atomic(p);
+	}
+}
+
 void homecache_evict(const struct cpumask *mask)
 {
 	flush_remote(0, HV_FLUSH_EVICT_L2, mask, 0, 0, 0, NULL, NULL, 0);
 }
 
-/* Return a mask of the cpus whose caches currently own these pages. */
-static void homecache_mask(struct page *page, int pages,
-			   struct cpumask *home_mask)
+/*
+ * Return a mask of the cpus whose caches currently own these pages.
+ * The return value is whether the pages are all coherently cached
+ * (i.e. none are immutable, incoherent, or uncached).
+ */
+static int homecache_mask(struct page *page, int pages,
+			  struct cpumask *home_mask)
 {
 	int i;
+	int cached_coherently = 1;
 	cpumask_clear(home_mask);
 	for (i = 0; i < pages; ++i) {
 		int home = page_home(&page[i]);
 		if (home == PAGE_HOME_IMMUTABLE ||
 		    home == PAGE_HOME_INCOHERENT) {
 			cpumask_copy(home_mask, cpu_possible_mask);
-			return;
+			return 0;
 		}
 #if CHIP_HAS_CBOX_HOME_MAP()
 		if (home == PAGE_HOME_HASH) {
@@ -203,11 +226,14 @@ static void homecache_mask(struct page *page, int pages,
 			continue;
 		}
 #endif
-		if (home == PAGE_HOME_UNCACHED)
+		if (home == PAGE_HOME_UNCACHED) {
+			cached_coherently = 0;
 			continue;
+		}
 		BUG_ON(home < 0 || home >= NR_CPUS);
 		cpumask_set_cpu(home, home_mask);
 	}
+	return cached_coherently;
 }
 
 /*
@@ -386,7 +412,7 @@ void homecache_change_page_home(struct page *page, int order, int home)
 		pte_t *ptep = virt_to_pte(NULL, kva);
 		pte_t pteval = *ptep;
 		BUG_ON(!pte_present(pteval) || pte_huge(pteval));
-		*ptep = pte_set_home(pteval, home);
+		__set_pte(ptep, pte_set_home(pteval, home));
 	}
 }
 

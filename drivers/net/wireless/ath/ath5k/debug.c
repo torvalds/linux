@@ -308,8 +308,6 @@ static const struct {
 	{ ATH5K_DEBUG_CALIBRATE, "calib",	"periodic calibration" },
 	{ ATH5K_DEBUG_TXPOWER,	"txpower",	"transmit power setting" },
 	{ ATH5K_DEBUG_LED,	"led",		"LED management" },
-	{ ATH5K_DEBUG_DUMP_RX,	"dumprx",	"print received skb content" },
-	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_DMA,	"dma",		"dma start/stop" },
 	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
@@ -1033,24 +1031,6 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 			ath5k_debug_printrxbuf(bf, status == 0, &rs);
 	}
 	spin_unlock_bh(&sc->rxbuflock);
-}
-
-void
-ath5k_debug_dump_skb(struct ath5k_softc *sc,
-			struct sk_buff *skb, const char *prefix, int tx)
-{
-	char buf[16];
-
-	if (likely(!((tx && (sc->debug.level & ATH5K_DEBUG_DUMP_TX)) ||
-		     (!tx && (sc->debug.level & ATH5K_DEBUG_DUMP_RX)))))
-		return;
-
-	snprintf(buf, sizeof(buf), "%s %s", wiphy_name(sc->hw->wiphy), prefix);
-
-	print_hex_dump_bytes(buf, DUMP_PREFIX_NONE, skb->data,
-		min(200U, skb->len));
-
-	printk(KERN_DEBUG "\n");
 }
 
 void

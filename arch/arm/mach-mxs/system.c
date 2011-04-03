@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/proc-fns.h>
 #include <asm/system.h>
@@ -135,3 +136,4 @@ error:
 	pr_err("%s(%p): module reset timeout\n", __func__, reset_addr);
 	return -ETIMEDOUT;
 }
+EXPORT_SYMBOL(mxs_reset_block);

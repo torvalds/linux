@@ -6726,7 +6726,7 @@ static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
 	int rc = 0;
 	int changed = 0;
 
-	if (data & ~ETH_FLAG_LRO)
+	if (ethtool_invalid_flags(dev, data, ETH_FLAG_LRO))
 		return -EINVAL;
 
 	if (data & ETH_FLAG_LRO) {
@@ -7556,7 +7556,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			if (ring_data->lro) {
-				u32 tcp_len;
+				u32 tcp_len = 0;
 				u8 *tcp;
 				int ret = 0;
 

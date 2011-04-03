@@ -96,7 +96,6 @@ static struct tda18271_config hauppauge_woodbury_tunerconfig = {
 /*-------------------------------------------------------------------*/
 static void urb_completion(struct urb *purb)
 {
-	u8 *ptr;
 	struct au0828_dev *dev = purb->context;
 	int ptype = usb_pipetype(purb->pipe);
 
@@ -113,8 +112,6 @@ static void urb_completion(struct urb *purb)
 		       __func__, ptype);
 		return;
 	}
-
-	ptr = (u8 *)purb->transfer_buffer;
 
 	/* Feed the transport payload into the kernel demux */
 	dvb_dmx_swfilter_packets(&dev->dvb.demux,

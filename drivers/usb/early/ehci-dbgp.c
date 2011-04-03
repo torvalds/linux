@@ -601,7 +601,7 @@ try_again:
 		dbgp_printk("dbgp_bulk_write failed: %d\n", ret);
 		goto err;
 	}
-	dbgp_printk("small write doned\n");
+	dbgp_printk("small write done\n");
 	dbgp_not_safe = 0;
 
 	return 0;

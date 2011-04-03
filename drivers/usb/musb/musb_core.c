@@ -128,12 +128,7 @@ MODULE_ALIAS("platform:" MUSB_DRIVER_NAME);
 
 static inline struct musb *dev_to_musb(struct device *dev)
 {
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
-	/* usbcore insists dev->driver_data is a "struct hcd *" */
-	return hcd_to_musb(dev_get_drvdata(dev));
-#else
 	return dev_get_drvdata(dev);
-#endif
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1535,7 +1530,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430) || \
+#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430) || \
 	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_U8500) || \
 	defined(CONFIG_ARCH_U5500)
 
@@ -1869,6 +1864,7 @@ allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&musb->out_bulk);
 
 	hcd->uses_new_polling = 1;
+	hcd->has_tt = 1;
 
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
@@ -1876,10 +1872,9 @@ allocate_instance(struct device *dev,
 	musb = kzalloc(sizeof *musb, GFP_KERNEL);
 	if (!musb)
 		return NULL;
-	dev_set_drvdata(dev, musb);
 
 #endif
-
+	dev_set_drvdata(dev, musb);
 	musb->mregs = mbase;
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
@@ -1955,37 +1950,16 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail0;
 	}
 
-	switch (plat->mode) {
-	case MUSB_HOST:
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
-		break;
-#else
-		goto bad_config;
-#endif
-	case MUSB_PERIPHERAL:
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-		break;
-#else
-		goto bad_config;
-#endif
-	case MUSB_OTG:
-#ifdef CONFIG_USB_MUSB_OTG
-		break;
-#else
-bad_config:
-#endif
-	default:
-		dev_err(dev, "incompatible Kconfig role setting\n");
-		status = -EINVAL;
-		goto fail0;
-	}
-
 	/* allocate */
 	musb = allocate_instance(dev, plat->config, ctrl);
 	if (!musb) {
 		status = -ENOMEM;
 		goto fail0;
 	}
+
+	pm_runtime_use_autosuspend(musb->controller);
+	pm_runtime_set_autosuspend_delay(musb->controller, 200);
+	pm_runtime_enable(musb->controller);
 
 	spin_lock_init(&musb->lock);
 	musb->board_mode = plat->mode;
@@ -2122,6 +2096,8 @@ bad_config:
 	if (status < 0)
 		goto fail3;
 
+	pm_runtime_put(musb->controller);
+
 	status = musb_init_debugfs(musb);
 	if (status < 0)
 		goto fail4;
@@ -2191,7 +2167,7 @@ static int __init musb_probe(struct platform_device *pdev)
 	void __iomem	*base;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem || irq == 0)
+	if (!iomem || irq <= 0)
 		return -ENODEV;
 
 	base = ioremap(iomem->start, resource_size(iomem));
@@ -2221,9 +2197,11 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 *  - Peripheral mode: peripheral is deactivated (or never-activated)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
+	pm_runtime_get_sync(musb->controller);
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
 
+	pm_runtime_put(musb->controller);
 	musb_free(musb);
 	iounmap(ctrl_base);
 	device_init_wakeup(&pdev->dev, 0);
@@ -2409,9 +2387,41 @@ static int musb_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static int musb_runtime_suspend(struct device *dev)
+{
+	struct musb	*musb = dev_to_musb(dev);
+
+	musb_save_context(musb);
+
+	return 0;
+}
+
+static int musb_runtime_resume(struct device *dev)
+{
+	struct musb	*musb = dev_to_musb(dev);
+	static int	first = 1;
+
+	/*
+	 * When pm_runtime_get_sync called for the first time in driver
+	 * init,  some of the structure is still not initialized which is
+	 * used in restore function. But clock needs to be
+	 * enabled before any register access, so
+	 * pm_runtime_get_sync has to be called.
+	 * Also context restore without save does not make
+	 * any sense
+	 */
+	if (!first)
+		musb_restore_context(musb);
+	first = 0;
+
+	return 0;
+}
+
 static const struct dev_pm_ops musb_dev_pm_ops = {
 	.suspend	= musb_suspend,
 	.resume_noirq	= musb_resume_noirq,
+	.runtime_suspend = musb_runtime_suspend,
+	.runtime_resume = musb_runtime_resume,
 };
 
 #define MUSB_DEV_PM_OPS (&musb_dev_pm_ops)

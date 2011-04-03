@@ -13,7 +13,7 @@
 /dts-v1/;
 / {
 	model = "MGCOGE";
-	compatible = "keymile,mgcoge";
+	compatible = "keymile,km82xx";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -48,8 +48,10 @@
 		reg = <0xf0010100 0x40>;
 
 		ranges = <0 0 0xfe000000 0x00400000
-			  5 0 0x50000000 0x20000000
-			>; /* Filled in by U-Boot */
+			  1 0 0x30000000 0x00010000
+			  2 0 0x40000000 0x00010000
+			  5 0 0x50000000 0x04000000
+			>;
 
 		flash@0,0 {
 			compatible = "cfi-flash";
@@ -60,36 +62,32 @@
 			device-width = <1>;
 			partition@0 {
 				label = "u-boot";
-				reg = <0 0x40000>;
+				reg = <0x00000 0xC0000>;
 			};
-			partition@40000 {
+			partition@1 {
 				label = "env";
-				reg = <0x40000 0x20000>;
+				reg = <0xC0000 0x20000>;
 			};
-			partition@60000 {
-				label = "kernel";
-				reg = <0x60000 0x220000>;
+			partition@2 {
+				label = "envred";
+				reg = <0xE0000 0x20000>;
 			};
-			partition@280000 {
-				label = "dtb";
-				reg = <0x280000 0x20000>;
+			partition@3 {
+				label = "free";
+				reg = <0x100000 0x300000>;
 			};
 		};
 
 		flash@5,0 {
 			compatible = "cfi-flash";
-			reg = <5 0x0 0x2000000>;
+			reg = <5 0x00000000 0x02000000
+			       5 0x02000000 0x02000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			bank-width = <2>;
-			device-width = <2>;
-			partition@0 {
-				label = "ramdisk";
-				reg = <0 0x7a0000>;
-			};
-			partition@7a0000 {
-				label = "user";
-				reg = <0x7a0000 0x1860000>;
+			partition@app { /* 64 MBytes */
+				label = "ubi0";
+				reg = <0x00000000 0x04000000>;
 			};
 		};
 	};
@@ -215,6 +213,13 @@
 				linux,network-index = <2>;
 				fsl,cpm-command = <0x16200300>;
 			};
+		};
+
+		cpm2_pio_c: gpio-controller@10d40 {
+			#gpio-cells = <2>;
+			compatible = "fsl,cpm2-pario-bank";
+			reg = <0x10d40 0x14>;
+			gpio-controller;
 		};
 
 		PIC: interrupt-controller@10c00 {

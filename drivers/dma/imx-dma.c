@@ -49,6 +49,7 @@ struct imxdma_channel {
 
 struct imxdma_engine {
 	struct device			*dev;
+	struct device_dma_parameters	dma_parms;
 	struct dma_device		dma_device;
 	struct imxdma_channel		channel[MAX_DMA_CHANNELS];
 };
@@ -242,6 +243,21 @@ static struct dma_async_tx_descriptor *imxdma_prep_slave_sg(
 	else
 		dmamode = DMA_MODE_WRITE;
 
+	switch (imxdmac->word_size) {
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		if (sgl->length & 3 || sgl->dma_address & 3)
+			return NULL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		if (sgl->length & 1 || sgl->dma_address & 1)
+			return NULL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
+		break;
+	default:
+		return NULL;
+	}
+
 	ret = imx_dma_setup_sg(imxdmac->imxdma_channel, sgl, sg_len,
 		 dma_length, imxdmac->per_address, dmamode);
 	if (ret)
@@ -329,6 +345,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&imxdma->dma_device.channels);
 
+	dma_cap_set(DMA_SLAVE, imxdma->dma_device.cap_mask);
+	dma_cap_set(DMA_CYCLIC, imxdma->dma_device.cap_mask);
+
 	/* Initialize channel parameters */
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		struct imxdma_channel *imxdmac = &imxdma->channel[i];
@@ -346,11 +365,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		imxdmac->imxdma = imxdma;
 		spin_lock_init(&imxdmac->lock);
 
-		dma_cap_set(DMA_SLAVE, imxdma->dma_device.cap_mask);
-		dma_cap_set(DMA_CYCLIC, imxdma->dma_device.cap_mask);
-
 		imxdmac->chan.device = &imxdma->dma_device;
-		imxdmac->chan.chan_id = i;
 		imxdmac->channel = i;
 
 		/* Add the channel to the DMAC list */
@@ -369,6 +384,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imxdma->dma_device.device_issue_pending = imxdma_issue_pending;
 
 	platform_set_drvdata(pdev, imxdma);
+
+	imxdma->dma_device.dev->dma_parms = &imxdma->dma_parms;
+	dma_set_max_seg_size(imxdma->dma_device.dev, 0xffffff);
 
 	ret = dma_async_device_register(&imxdma->dma_device);
 	if (ret) {

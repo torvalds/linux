@@ -75,7 +75,6 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
  * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
-			     struct input_handler *src_handler,
 			     unsigned int type, unsigned int code, int value)
 {
 	struct input_handler *handler;
@@ -94,15 +93,6 @@ static void input_pass_event(struct input_dev *dev,
 				continue;
 
 			handler = handle->handler;
-
-			/*
-			 * If this is the handler that injected this
-			 * particular event we want to skip it to avoid
-			 * filters firing again and again.
-			 */
-			if (handler == src_handler)
-				continue;
-
 			if (!handler->filter) {
 				if (filtered)
 					break;
@@ -132,7 +122,7 @@ static void input_repeat_key(unsigned long data)
 	if (test_bit(dev->repeat_key, dev->key) &&
 	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
 
-		input_pass_event(dev, NULL, EV_KEY, dev->repeat_key, 2);
+		input_pass_event(dev, EV_KEY, dev->repeat_key, 2);
 
 		if (dev->sync) {
 			/*
@@ -141,7 +131,7 @@ static void input_repeat_key(unsigned long data)
 			 * Otherwise assume that the driver will send
 			 * SYN_REPORT once it's done.
 			 */
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 		}
 
 		if (dev->rep[REP_PERIOD])
@@ -174,7 +164,6 @@ static void input_stop_autorepeat(struct input_dev *dev)
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
 
 static int input_handle_abs_event(struct input_dev *dev,
-				  struct input_handler *src_handler,
 				  unsigned int code, int *pval)
 {
 	bool is_mt_event;
@@ -218,15 +207,13 @@ static int input_handle_abs_event(struct input_dev *dev,
 	/* Flush pending "slot" event */
 	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
 		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
-		input_pass_event(dev, src_handler,
-				 EV_ABS, ABS_MT_SLOT, dev->slot);
+		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
 	return INPUT_PASS_TO_HANDLERS;
 }
 
 static void input_handle_event(struct input_dev *dev,
-			       struct input_handler *src_handler,
 			       unsigned int type, unsigned int code, int value)
 {
 	int disposition = INPUT_IGNORE_EVENT;
@@ -279,8 +266,7 @@ static void input_handle_event(struct input_dev *dev,
 
 	case EV_ABS:
 		if (is_event_supported(code, dev->absbit, ABS_MAX))
-			disposition = input_handle_abs_event(dev, src_handler,
-							     code, &value);
+			disposition = input_handle_abs_event(dev, code, &value);
 
 		break;
 
@@ -338,7 +324,7 @@ static void input_handle_event(struct input_dev *dev,
 		dev->event(dev, type, code, value);
 
 	if (disposition & INPUT_PASS_TO_HANDLERS)
-		input_pass_event(dev, src_handler, type, code, value);
+		input_pass_event(dev, type, code, value);
 }
 
 /**
@@ -367,7 +353,7 @@ void input_event(struct input_dev *dev,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		add_input_randomness(type, code, value);
-		input_handle_event(dev, NULL, type, code, value);
+		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
@@ -397,8 +383,7 @@ void input_inject_event(struct input_handle *handle,
 		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
-			input_handle_event(dev, handle->handler,
-					   type, code, value);
+			input_handle_event(dev, type, code, value);
 		rcu_read_unlock();
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -611,10 +596,10 @@ static void input_dev_release_keys(struct input_dev *dev)
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, NULL, EV_KEY, code, 0);
+				input_pass_event(dev, EV_KEY, code, 0);
 			}
 		}
-		input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 }
 
@@ -806,22 +791,9 @@ int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke)
 	int retval;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (dev->getkeycode) {
-		/*
-		 * Support for legacy drivers, that don't implement the new
-		 * ioctls
-		 */
-		u32 scancode = ke->index;
-
-		memcpy(ke->scancode, &scancode, sizeof(scancode));
-		ke->len = sizeof(scancode);
-		retval = dev->getkeycode(dev, scancode, &ke->keycode);
-	} else {
-		retval = dev->getkeycode_new(dev, ke);
-	}
-
+	retval = dev->getkeycode(dev, ke);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 	return retval;
 }
 EXPORT_SYMBOL(input_get_keycode);
@@ -846,35 +818,7 @@ int input_set_keycode(struct input_dev *dev,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (dev->setkeycode) {
-		/*
-		 * Support for legacy drivers, that don't implement the new
-		 * ioctls
-		 */
-		unsigned int scancode;
-
-		retval = input_scancode_to_scalar(ke, &scancode);
-		if (retval)
-			goto out;
-
-		/*
-		 * We need to know the old scancode, in order to generate a
-		 * keyup effect, if the set operation happens successfully
-		 */
-		if (!dev->getkeycode) {
-			retval = -EINVAL;
-			goto out;
-		}
-
-		retval = dev->getkeycode(dev, scancode, &old_keycode);
-		if (retval)
-			goto out;
-
-		retval = dev->setkeycode(dev, scancode, ke->keycode);
-	} else {
-		retval = dev->setkeycode_new(dev, ke, &old_keycode);
-	}
-
+	retval = dev->setkeycode(dev, ke, &old_keycode);
 	if (retval)
 		goto out;
 
@@ -889,9 +833,9 @@ int input_set_keycode(struct input_dev *dev,
 	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
 	    __test_and_clear_bit(old_keycode, dev->key)) {
 
-		input_pass_event(dev, NULL, EV_KEY, old_keycode, 0);
+		input_pass_event(dev, EV_KEY, old_keycode, 0);
 		if (dev->sync)
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -1861,11 +1805,11 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
-	if (!dev->getkeycode && !dev->getkeycode_new)
-		dev->getkeycode_new = input_default_getkeycode;
+	if (!dev->getkeycode)
+		dev->getkeycode = input_default_getkeycode;
 
-	if (!dev->setkeycode && !dev->setkeycode_new)
-		dev->setkeycode_new = input_default_setkeycode;
+	if (!dev->setkeycode)
+		dev->setkeycode = input_default_setkeycode;
 
 	dev_set_name(&dev->dev, "input%ld",
 		     (unsigned long) atomic_inc_return(&input_no) - 1);

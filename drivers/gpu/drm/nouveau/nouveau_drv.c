@@ -234,9 +234,9 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	acquire_console_sem();
+	console_lock();
 	nouveau_fbcon_set_suspend(dev, 1);
-	release_console_sem();
+	console_unlock();
 	nouveau_fbcon_restore_accel(dev);
 	return 0;
 
@@ -359,9 +359,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		nv_crtc->lut.depth = 0;
 	}
 
-	acquire_console_sem();
+	console_lock();
 	nouveau_fbcon_set_suspend(dev, 0);
-	release_console_sem();
+	console_unlock();
 
 	nouveau_fbcon_zfill_all(dev);
 
@@ -408,14 +408,6 @@ static struct drm_driver driver = {
 #endif
 		.llseek = noop_llseek,
 	},
-	.pci_driver = {
-		.name = DRIVER_NAME,
-		.id_table = pciidlist,
-		.probe = nouveau_pci_probe,
-		.remove = nouveau_pci_remove,
-		.suspend = nouveau_pci_suspend,
-		.resume = nouveau_pci_resume
-	},
 
 	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
@@ -430,6 +422,15 @@ static struct drm_driver driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static struct pci_driver nouveau_pci_driver = {
+		.name = DRIVER_NAME,
+		.id_table = pciidlist,
+		.probe = nouveau_pci_probe,
+		.remove = nouveau_pci_remove,
+		.suspend = nouveau_pci_suspend,
+		.resume = nouveau_pci_resume
 };
 
 static int __init nouveau_init(void)
@@ -449,7 +450,7 @@ static int __init nouveau_init(void)
 		return 0;
 
 	nouveau_register_dsm_handler();
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &nouveau_pci_driver);
 }
 
 static void __exit nouveau_exit(void)
@@ -457,7 +458,7 @@ static void __exit nouveau_exit(void)
 	if (!nouveau_modeset)
 		return;
 
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &nouveau_pci_driver);
 	nouveau_unregister_dsm_handler();
 }
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -272,6 +272,10 @@ ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
 ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
 ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
+
+/* Initialization sequencing */
+
+ACPI_EXTERN u8 acpi_gbl_reg_methods_executed;
 
 /* Misc */
 

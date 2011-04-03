@@ -82,7 +82,7 @@ config SSB_SDIOHOST
 
 config SSB_SILENT
 	bool "No SSB kernel messages"
-	depends on SSB && EMBEDDED
+	depends on SSB && EXPERT
 	help
 	  This option turns off all Sonics Silicon Backplane printks.
 	  Note that you won't be able to identify problems, once

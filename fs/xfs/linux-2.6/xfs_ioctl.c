@@ -624,6 +624,10 @@ xfs_ioc_space(
 
 	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 		attr_flags |= XFS_ATTR_NONBLOCK;
+
+	if (filp->f_flags & O_DSYNC)
+		attr_flags |= XFS_ATTR_SYNC;
+
 	if (ioflags & IO_INVIS)
 		attr_flags |= XFS_ATTR_DMI;
 
@@ -695,14 +699,19 @@ xfs_ioc_fsgeometry_v1(
 	xfs_mount_t		*mp,
 	void			__user *arg)
 {
-	xfs_fsop_geom_v1_t	fsgeo;
+	xfs_fsop_geom_t         fsgeo;
 	int			error;
 
-	error = xfs_fs_geometry(mp, (xfs_fsop_geom_t *)&fsgeo, 3);
+	error = xfs_fs_geometry(mp, &fsgeo, 3);
 	if (error)
 		return -error;
 
-	if (copy_to_user(arg, &fsgeo, sizeof(fsgeo)))
+	/*
+	 * Caller should have passed an argument of type
+	 * xfs_fsop_geom_v1_t.  This is a proper subset of the
+	 * xfs_fsop_geom_t that xfs_fs_geometry() fills in.
+	 */
+	if (copy_to_user(arg, &fsgeo, sizeof(xfs_fsop_geom_v1_t)))
 		return -XFS_ERROR(EFAULT);
 	return 0;
 }
@@ -985,10 +994,22 @@ xfs_ioctl_setattr(
 
 		/*
 		 * Extent size must be a multiple of the appropriate block
-		 * size, if set at all.
+		 * size, if set at all. It must also be smaller than the
+		 * maximum extent size supported by the filesystem.
+		 *
+		 * Also, for non-realtime files, limit the extent size hint to
+		 * half the size of the AGs in the filesystem so alignment
+		 * doesn't result in extents larger than an AG.
 		 */
 		if (fa->fsx_extsize != 0) {
-			xfs_extlen_t	size;
+			xfs_extlen_t    size;
+			xfs_fsblock_t   extsize_fsb;
+
+			extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
+			if (extsize_fsb > MAXEXTLEN) {
+				code = XFS_ERROR(EINVAL);
+				goto error_return;
+			}
 
 			if (XFS_IS_REALTIME_INODE(ip) ||
 			    ((mask & FSX_XFLAGS) &&
@@ -997,6 +1018,10 @@ xfs_ioctl_setattr(
 				       mp->m_sb.sb_blocklog;
 			} else {
 				size = mp->m_sb.sb_blocksize;
+				if (extsize_fsb > mp->m_sb.sb_agblocks / 2) {
+					code = XFS_ERROR(EINVAL);
+					goto error_return;
+				}
 			}
 
 			if (fa->fsx_extsize % size) {

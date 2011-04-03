@@ -12,7 +12,6 @@ static atomic_t autogroup_seq_nr;
 static void __init autogroup_init(struct task_struct *init_task)
 {
 	autogroup_default.tg = &root_task_group;
-	root_task_group.autogroup = &autogroup_default;
 	kref_init(&autogroup_default.kref);
 	init_rwsem(&autogroup_default.lock);
 	init_task->signal->autogroup = &autogroup_default;
@@ -27,6 +26,11 @@ static inline void autogroup_destroy(struct kref *kref)
 {
 	struct autogroup *ag = container_of(kref, struct autogroup, kref);
 
+#ifdef CONFIG_RT_GROUP_SCHED
+	/* We've redirected RT tasks to the root task group... */
+	ag->tg->rt_se = NULL;
+	ag->tg->rt_rq = NULL;
+#endif
 	sched_destroy_group(ag->tg);
 }
 
@@ -55,6 +59,10 @@ static inline struct autogroup *autogroup_task_get(struct task_struct *p)
 	return ag;
 }
 
+#ifdef CONFIG_RT_GROUP_SCHED
+static void free_rt_sched_group(struct task_group *tg);
+#endif
+
 static inline struct autogroup *autogroup_create(void)
 {
 	struct autogroup *ag = kzalloc(sizeof(*ag), GFP_KERNEL);
@@ -72,6 +80,19 @@ static inline struct autogroup *autogroup_create(void)
 	init_rwsem(&ag->lock);
 	ag->id = atomic_inc_return(&autogroup_seq_nr);
 	ag->tg = tg;
+#ifdef CONFIG_RT_GROUP_SCHED
+	/*
+	 * Autogroup RT tasks are redirected to the root task group
+	 * so we don't have to move tasks around upon policy change,
+	 * or flail around trying to allocate bandwidth on the fly.
+	 * A bandwidth exception in __sched_setscheduler() allows
+	 * the policy change to proceed.  Thereafter, task_group()
+	 * returns &root_task_group, so zero bandwidth is required.
+	 */
+	free_rt_sched_group(tg);
+	tg->rt_se = root_task_group.rt_se;
+	tg->rt_rq = root_task_group.rt_rq;
+#endif
 	tg->autogroup = ag;
 
 	return ag;
@@ -106,6 +127,11 @@ task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 	return true;
 }
 
+static inline bool task_group_is_autogroup(struct task_group *tg)
+{
+	return !!tg->autogroup;
+}
+
 static inline struct task_group *
 autogroup_task_group(struct task_struct *p, struct task_group *tg)
 {
@@ -134,11 +160,15 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 
+	if (!ACCESS_ONCE(sysctl_sched_autogroup_enabled))
+		goto out;
+
 	t = p;
 	do {
 		sched_move_task(t);
 	} while_each_thread(p, t);
 
+out:
 	unlock_task_sighand(p, &flags);
 	autogroup_kref_put(prev);
 }
@@ -220,10 +250,14 @@ void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m)
 {
 	struct autogroup *ag = autogroup_task_get(p);
 
+	if (!task_group_is_autogroup(ag->tg))
+		goto out;
+
 	down_read(&ag->lock);
 	seq_printf(m, "/autogroup-%ld nice %d\n", ag->id, ag->nice);
 	up_read(&ag->lock);
 
+out:
 	autogroup_kref_put(ag);
 }
 #endif /* CONFIG_PROC_FS */
@@ -231,6 +265,9 @@ void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m)
 #ifdef CONFIG_SCHED_DEBUG
 static inline int autogroup_path(struct task_group *tg, char *buf, int buflen)
 {
+	if (!task_group_is_autogroup(tg))
+		return 0;
+
 	return snprintf(buf, buflen, "%s-%ld", "/autogroup", tg->autogroup->id);
 }
 #endif /* CONFIG_SCHED_DEBUG */

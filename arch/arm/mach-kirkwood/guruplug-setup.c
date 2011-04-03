@@ -124,6 +124,7 @@ MACHINE_START(GURUPLUG, "Marvell GuruPlug Reference Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= guruplug_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

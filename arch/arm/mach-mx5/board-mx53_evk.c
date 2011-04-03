@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2010 Yong Shen. <Yong.Shen@linaro.org>
  */
 
@@ -42,28 +42,24 @@
 #include "devices-imx53.h"
 
 static iomux_v3_cfg_t mx53_evk_pads[] = {
-	MX53_PAD_CSI0_D10__UART1_TXD,
-	MX53_PAD_CSI0_D11__UART1_RXD,
-	MX53_PAD_ATA_DIOW__UART1_TXD,
-	MX53_PAD_ATA_DMACK__UART1_RXD,
+	MX53_PAD_CSI0_DAT10__UART1_TXD_MUX,
+	MX53_PAD_CSI0_DAT11__UART1_RXD_MUX,
 
-	MX53_PAD_ATA_BUFFER_EN__UART2_RXD,
-	MX53_PAD_ATA_DMARQ__UART2_TXD,
-	MX53_PAD_ATA_DIOR__UART2_RTS,
-	MX53_PAD_ATA_INTRQ__UART2_CTS,
+	MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX,
+	MX53_PAD_PATA_DMARQ__UART2_TXD_MUX,
+	MX53_PAD_PATA_DIOR__UART2_RTS,
+	MX53_PAD_PATA_INTRQ__UART2_CTS,
 
-	MX53_PAD_ATA_CS_0__UART3_TXD,
-	MX53_PAD_ATA_CS_1__UART3_RXD,
-	MX53_PAD_ATA_DA_1__UART3_CTS,
-	MX53_PAD_ATA_DA_2__UART3_RTS,
+	MX53_PAD_PATA_CS_0__UART3_TXD_MUX,
+	MX53_PAD_PATA_CS_1__UART3_RXD_MUX,
 
-	MX53_PAD_EIM_D16__CSPI1_SCLK,
-	MX53_PAD_EIM_D17__CSPI1_MISO,
-	MX53_PAD_EIM_D18__CSPI1_MOSI,
+	MX53_PAD_EIM_D16__ECSPI1_SCLK,
+	MX53_PAD_EIM_D17__ECSPI1_MISO,
+	MX53_PAD_EIM_D18__ECSPI1_MOSI,
 
 	/* ecspi chip select lines */
-	MX53_PAD_EIM_EB2__GPIO_2_30,
-	MX53_PAD_EIM_D19__GPIO_3_19,
+	MX53_PAD_EIM_EB2__GPIO2_30,
+	MX53_PAD_EIM_D19__GPIO3_19,
 };
 
 static const struct imxuart_platform_data mx53_evk_uart_pdata __initconst = {
@@ -72,9 +68,9 @@ static const struct imxuart_platform_data mx53_evk_uart_pdata __initconst = {
 
 static inline void mx53_evk_init_uart(void)
 {
-	imx53_add_imx_uart(0, &mx53_evk_uart_pdata);
+	imx53_add_imx_uart(0, NULL);
 	imx53_add_imx_uart(1, &mx53_evk_uart_pdata);
-	imx53_add_imx_uart(2, &mx53_evk_uart_pdata);
+	imx53_add_imx_uart(2, NULL);
 }
 
 static const struct imxi2c_platform_data mx53_evk_i2c_data __initconst = {
@@ -139,6 +135,7 @@ static void __init mx53_evk_board_init(void)
 	spi_register_board_info(mx53_evk_spi_board_info,
 		ARRAY_SIZE(mx53_evk_spi_board_info));
 	imx53_add_ecspi(0, &mx53_evk_spi_data);
+	imx53_add_imx2_wdt(0, NULL);
 }
 
 static void __init mx53_evk_timer_init(void)
@@ -152,7 +149,8 @@ static struct sys_timer mx53_evk_timer = {
 
 MACHINE_START(MX53_EVK, "Freescale MX53 EVK Board")
 	.map_io = mx53_map_io,
+	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
-	.init_machine = mx53_evk_board_init,
 	.timer = &mx53_evk_timer,
+	.init_machine = mx53_evk_board_init,
 MACHINE_END

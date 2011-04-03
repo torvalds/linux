@@ -684,7 +684,11 @@ const u32 r6xx_vs[] =
 	0x00000000,
 	0x3c000000,
 	0x68cd1000,
+#ifdef __BIG_ENDIAN
+	0x000a0000,
+#else
 	0x00080000,
+#endif
 	0x00000000,
 };
 

@@ -102,8 +102,8 @@ int __init x3proto_gpio_setup(void)
 
 		spin_lock_irqsave(&x3proto_gpio_lock, flags);
 		x3proto_gpio_irq_map[i] = irq;
-		set_irq_chip_and_handler_name(irq, &dummy_irq_chip,
-					handle_simple_irq, "gpio");
+		irq_set_chip_and_handler_name(irq, &dummy_irq_chip,
+					      handle_simple_irq, "gpio");
 		spin_unlock_irqrestore(&x3proto_gpio_lock, flags);
 	}
 
@@ -113,8 +113,8 @@ int __init x3proto_gpio_setup(void)
 		x3proto_gpio_chip.base + x3proto_gpio_chip.ngpio,
 		ilsel);
 
-	set_irq_chained_handler(ilsel, x3proto_gpio_irq_handler);
-	set_irq_wake(ilsel, 1);
+	irq_set_chained_handler(ilsel, x3proto_gpio_irq_handler);
+	irq_set_irq_wake(ilsel, 1);
 
 	return 0;
 

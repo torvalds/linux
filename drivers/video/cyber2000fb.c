@@ -47,6 +47,8 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -61,10 +63,10 @@ struct cfb_info {
 	struct fb_info		fb;
 	struct display_switch	*dispsw;
 	struct display		*display;
-	struct pci_dev		*dev;
 	unsigned char		__iomem *region;
 	unsigned char		__iomem *regs;
 	u_int			id;
+	u_int			irq;
 	int			func_use_count;
 	u_long			ref_ps;
 
@@ -88,6 +90,19 @@ struct cfb_info {
 	u_char			ramdac_powerdown;
 
 	u32			pseudo_palette[16];
+
+	spinlock_t		reg_b0_lock;
+
+#ifdef CONFIG_FB_CYBER2000_DDC
+	bool			ddc_registered;
+	struct i2c_adapter	ddc_adapter;
+	struct i2c_algo_bit_data	ddc_algo;
+#endif
+
+#ifdef CONFIG_FB_CYBER2000_I2C
+	struct i2c_adapter	i2c_adapter;
+	struct i2c_algo_bit_data i2c_algo;
+#endif
 };
 
 static char *default_font = "Acorn8x8";
@@ -494,6 +509,7 @@ static void cyber2000fb_set_timing(struct cfb_info *cfb, struct par_info *hw)
 	cyber2000_attrw(0x14, 0x00, cfb);
 
 	/* PLL registers */
+	spin_lock(&cfb->reg_b0_lock);
 	cyber2000_grphw(EXT_DCLK_MULT, hw->clock_mult, cfb);
 	cyber2000_grphw(EXT_DCLK_DIV, hw->clock_div, cfb);
 	cyber2000_grphw(EXT_MCLK_MULT, cfb->mclk_mult, cfb);
@@ -501,6 +517,7 @@ static void cyber2000fb_set_timing(struct cfb_info *cfb, struct par_info *hw)
 	cyber2000_grphw(0x90, 0x01, cfb);
 	cyber2000_grphw(0xb9, 0x80, cfb);
 	cyber2000_grphw(0xb9, 0x00, cfb);
+	spin_unlock(&cfb->reg_b0_lock);
 
 	cfb->ramdac_ctrl = hw->ramdac;
 	cyber2000fb_write_ramdac_ctrl(cfb);
@@ -681,9 +698,9 @@ cyber2000fb_decode_clock(struct par_info *hw, struct cfb_info *cfb,
 	 *    pll_ps_calc = best_div1 / (ref_ps * best_mult)
 	 */
 	best_diff = 0x7fffffff;
-	best_mult = 32;
-	best_div1 = 255;
-	for (t_div1 = 32; t_div1 > 1; t_div1 -= 1) {
+	best_mult = 2;
+	best_div1 = 32;
+	for (t_div1 = 2; t_div1 < 32; t_div1 += 1) {
 		u_int rr, t_mult, t_pll_ps;
 		int diff;
 
@@ -1105,24 +1122,22 @@ void cyber2000fb_disable_extregs(struct cfb_info *cfb)
 }
 EXPORT_SYMBOL(cyber2000fb_disable_extregs);
 
-void cyber2000fb_get_fb_var(struct cfb_info *cfb, struct fb_var_screeninfo *var)
-{
-	memcpy(var, &cfb->fb.var, sizeof(struct fb_var_screeninfo));
-}
-EXPORT_SYMBOL(cyber2000fb_get_fb_var);
-
 /*
  * Attach a capture/tv driver to the core CyberX0X0 driver.
  */
 int cyber2000fb_attach(struct cyberpro_info *info, int idx)
 {
 	if (int_cfb_info != NULL) {
-		info->dev	      = int_cfb_info->dev;
+		info->dev	      = int_cfb_info->fb.device;
+#ifdef CONFIG_FB_CYBER2000_I2C
+		info->i2c	      = &int_cfb_info->i2c_adapter;
+#else
+		info->i2c	      = NULL;
+#endif
 		info->regs	      = int_cfb_info->regs;
+		info->irq             = int_cfb_info->irq;
 		info->fb	      = int_cfb_info->fb.screen_base;
 		info->fb_size	      = int_cfb_info->fb.fix.smem_len;
-		info->enable_extregs  = cyber2000fb_enable_extregs;
-		info->disable_extregs = cyber2000fb_disable_extregs;
 		info->info	      = int_cfb_info;
 
 		strlcpy(info->dev_name, int_cfb_info->fb.fix.id,
@@ -1140,6 +1155,183 @@ void cyber2000fb_detach(int idx)
 {
 }
 EXPORT_SYMBOL(cyber2000fb_detach);
+
+#ifdef CONFIG_FB_CYBER2000_DDC
+
+#define DDC_REG		0xb0
+#define DDC_SCL_OUT	(1 << 0)
+#define DDC_SDA_OUT	(1 << 4)
+#define DDC_SCL_IN	(1 << 2)
+#define DDC_SDA_IN	(1 << 6)
+
+static void cyber2000fb_enable_ddc(struct cfb_info *cfb)
+{
+	spin_lock(&cfb->reg_b0_lock);
+	cyber2000fb_writew(0x1bf, 0x3ce, cfb);
+}
+
+static void cyber2000fb_disable_ddc(struct cfb_info *cfb)
+{
+	cyber2000fb_writew(0x0bf, 0x3ce, cfb);
+	spin_unlock(&cfb->reg_b0_lock);
+}
+
+
+static void cyber2000fb_ddc_setscl(void *data, int val)
+{
+	struct cfb_info *cfb = data;
+	unsigned char reg;
+
+	cyber2000fb_enable_ddc(cfb);
+	reg = cyber2000_grphr(DDC_REG, cfb);
+	if (!val)	/* bit is inverted */
+		reg |= DDC_SCL_OUT;
+	else
+		reg &= ~DDC_SCL_OUT;
+	cyber2000_grphw(DDC_REG, reg, cfb);
+	cyber2000fb_disable_ddc(cfb);
+}
+
+static void cyber2000fb_ddc_setsda(void *data, int val)
+{
+	struct cfb_info *cfb = data;
+	unsigned char reg;
+
+	cyber2000fb_enable_ddc(cfb);
+	reg = cyber2000_grphr(DDC_REG, cfb);
+	if (!val)	/* bit is inverted */
+		reg |= DDC_SDA_OUT;
+	else
+		reg &= ~DDC_SDA_OUT;
+	cyber2000_grphw(DDC_REG, reg, cfb);
+	cyber2000fb_disable_ddc(cfb);
+}
+
+static int cyber2000fb_ddc_getscl(void *data)
+{
+	struct cfb_info *cfb = data;
+	int retval;
+
+	cyber2000fb_enable_ddc(cfb);
+	retval = !!(cyber2000_grphr(DDC_REG, cfb) & DDC_SCL_IN);
+	cyber2000fb_disable_ddc(cfb);
+
+	return retval;
+}
+
+static int cyber2000fb_ddc_getsda(void *data)
+{
+	struct cfb_info *cfb = data;
+	int retval;
+
+	cyber2000fb_enable_ddc(cfb);
+	retval = !!(cyber2000_grphr(DDC_REG, cfb) & DDC_SDA_IN);
+	cyber2000fb_disable_ddc(cfb);
+
+	return retval;
+}
+
+static int __devinit cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
+{
+	strlcpy(cfb->ddc_adapter.name, cfb->fb.fix.id,
+		sizeof(cfb->ddc_adapter.name));
+	cfb->ddc_adapter.owner		= THIS_MODULE;
+	cfb->ddc_adapter.class		= I2C_CLASS_DDC;
+	cfb->ddc_adapter.algo_data	= &cfb->ddc_algo;
+	cfb->ddc_adapter.dev.parent	= cfb->fb.device;
+	cfb->ddc_algo.setsda		= cyber2000fb_ddc_setsda;
+	cfb->ddc_algo.setscl		= cyber2000fb_ddc_setscl;
+	cfb->ddc_algo.getsda		= cyber2000fb_ddc_getsda;
+	cfb->ddc_algo.getscl		= cyber2000fb_ddc_getscl;
+	cfb->ddc_algo.udelay		= 10;
+	cfb->ddc_algo.timeout		= 20;
+	cfb->ddc_algo.data		= cfb;
+
+	i2c_set_adapdata(&cfb->ddc_adapter, cfb);
+
+	return i2c_bit_add_bus(&cfb->ddc_adapter);
+}
+#endif /* CONFIG_FB_CYBER2000_DDC */
+
+#ifdef CONFIG_FB_CYBER2000_I2C
+static void cyber2000fb_i2c_setsda(void *data, int state)
+{
+	struct cfb_info *cfb = data;
+	unsigned int latch2;
+
+	spin_lock(&cfb->reg_b0_lock);
+	latch2 = cyber2000_grphr(EXT_LATCH2, cfb);
+	latch2 &= EXT_LATCH2_I2C_CLKEN;
+	if (state)
+		latch2 |= EXT_LATCH2_I2C_DATEN;
+	cyber2000_grphw(EXT_LATCH2, latch2, cfb);
+	spin_unlock(&cfb->reg_b0_lock);
+}
+
+static void cyber2000fb_i2c_setscl(void *data, int state)
+{
+	struct cfb_info *cfb = data;
+	unsigned int latch2;
+
+	spin_lock(&cfb->reg_b0_lock);
+	latch2 = cyber2000_grphr(EXT_LATCH2, cfb);
+	latch2 &= EXT_LATCH2_I2C_DATEN;
+	if (state)
+		latch2 |= EXT_LATCH2_I2C_CLKEN;
+	cyber2000_grphw(EXT_LATCH2, latch2, cfb);
+	spin_unlock(&cfb->reg_b0_lock);
+}
+
+static int cyber2000fb_i2c_getsda(void *data)
+{
+	struct cfb_info *cfb = data;
+	int ret;
+
+	spin_lock(&cfb->reg_b0_lock);
+	ret = !!(cyber2000_grphr(EXT_LATCH2, cfb) & EXT_LATCH2_I2C_DAT);
+	spin_unlock(&cfb->reg_b0_lock);
+
+	return ret;
+}
+
+static int cyber2000fb_i2c_getscl(void *data)
+{
+	struct cfb_info *cfb = data;
+	int ret;
+
+	spin_lock(&cfb->reg_b0_lock);
+	ret = !!(cyber2000_grphr(EXT_LATCH2, cfb) & EXT_LATCH2_I2C_CLK);
+	spin_unlock(&cfb->reg_b0_lock);
+
+	return ret;
+}
+
+static int __devinit cyber2000fb_i2c_register(struct cfb_info *cfb)
+{
+	strlcpy(cfb->i2c_adapter.name, cfb->fb.fix.id,
+		sizeof(cfb->i2c_adapter.name));
+	cfb->i2c_adapter.owner = THIS_MODULE;
+	cfb->i2c_adapter.algo_data = &cfb->i2c_algo;
+	cfb->i2c_adapter.dev.parent = cfb->fb.device;
+	cfb->i2c_algo.setsda = cyber2000fb_i2c_setsda;
+	cfb->i2c_algo.setscl = cyber2000fb_i2c_setscl;
+	cfb->i2c_algo.getsda = cyber2000fb_i2c_getsda;
+	cfb->i2c_algo.getscl = cyber2000fb_i2c_getscl;
+	cfb->i2c_algo.udelay = 5;
+	cfb->i2c_algo.timeout = msecs_to_jiffies(100);
+	cfb->i2c_algo.data = cfb;
+
+	return i2c_bit_add_bus(&cfb->i2c_adapter);
+}
+
+static void cyber2000fb_i2c_unregister(struct cfb_info *cfb)
+{
+	i2c_del_adapter(&cfb->i2c_adapter);
+}
+#else
+#define cyber2000fb_i2c_register(cfb)	(0)
+#define cyber2000fb_i2c_unregister(cfb)	do { } while (0)
+#endif
 
 /*
  * These parameters give
@@ -1275,6 +1467,8 @@ static struct cfb_info __devinit *cyberpro_alloc_fb_info(unsigned int id,
 	cfb->fb.flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 	cfb->fb.pseudo_palette	= cfb->pseudo_palette;
 
+	spin_lock_init(&cfb->reg_b0_lock);
+
 	fb_alloc_cmap(&cfb->fb.cmap, NR_PALETTE, 0);
 
 	return cfb;
@@ -1369,6 +1563,11 @@ static int __devinit cyberpro_common_probe(struct cfb_info *cfb)
 	cfb->fb.fix.mmio_len   = MMIO_SIZE;
 	cfb->fb.screen_base    = cfb->region;
 
+#ifdef CONFIG_FB_CYBER2000_DDC
+	if (cyber2000fb_setup_ddc_bus(cfb) == 0)
+		cfb->ddc_registered = true;
+#endif
+
 	err = -EINVAL;
 	if (!fb_find_mode(&cfb->fb.var, &cfb->fb, NULL, NULL, 0,
 			  &cyber2000fb_default_mode, 8)) {
@@ -1401,12 +1600,30 @@ static int __devinit cyberpro_common_probe(struct cfb_info *cfb)
 		cfb->fb.var.xres, cfb->fb.var.yres,
 		h_sync / 1000, h_sync % 1000, v_sync);
 
-	if (cfb->dev)
-		cfb->fb.device = &cfb->dev->dev;
+	err = cyber2000fb_i2c_register(cfb);
+	if (err)
+		goto failed;
+
 	err = register_framebuffer(&cfb->fb);
+	if (err)
+		cyber2000fb_i2c_unregister(cfb);
 
 failed:
+#ifdef CONFIG_FB_CYBER2000_DDC
+	if (err && cfb->ddc_registered)
+		i2c_del_adapter(&cfb->ddc_adapter);
+#endif
 	return err;
+}
+
+static void __devexit cyberpro_common_remove(struct cfb_info *cfb)
+{
+	unregister_framebuffer(&cfb->fb);
+#ifdef CONFIG_FB_CYBER2000_DDC
+	if (cfb->ddc_registered)
+		i2c_del_adapter(&cfb->ddc_adapter);
+#endif
+	cyber2000fb_i2c_unregister(cfb);
 }
 
 static void cyberpro_common_resume(struct cfb_info *cfb)
@@ -1442,12 +1659,13 @@ static int __devinit cyberpro_vl_probe(void)
 	if (!cfb)
 		goto failed_release;
 
-	cfb->dev = NULL;
+	cfb->irq = -1;
 	cfb->region = ioremap(FB_START, FB_SIZE);
 	if (!cfb->region)
 		goto failed_ioremap;
 
 	cfb->regs = cfb->region + MMIO_OFFSET;
+	cfb->fb.device = NULL;
 	cfb->fb.fix.mmio_start = FB_START + MMIO_OFFSET;
 	cfb->fb.fix.smem_start = FB_START;
 
@@ -1585,12 +1803,13 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto failed_regions;
 
-	cfb->dev = dev;
+	cfb->irq = dev->irq;
 	cfb->region = pci_ioremap_bar(dev, 0);
 	if (!cfb->region)
 		goto failed_ioremap;
 
 	cfb->regs = cfb->region + MMIO_OFFSET;
+	cfb->fb.device = &dev->dev;
 	cfb->fb.fix.mmio_start = pci_resource_start(dev, 0) + MMIO_OFFSET;
 	cfb->fb.fix.smem_start = pci_resource_start(dev, 0);
 
@@ -1648,15 +1867,7 @@ static void __devexit cyberpro_pci_remove(struct pci_dev *dev)
 	struct cfb_info *cfb = pci_get_drvdata(dev);
 
 	if (cfb) {
-		/*
-		 * If unregister_framebuffer fails, then
-		 * we will be leaving hooks that could cause
-		 * oopsen laying around.
-		 */
-		if (unregister_framebuffer(&cfb->fb))
-			printk(KERN_WARNING "%s: danger Will Robinson, "
-				"danger danger!  Oopsen imminent!\n",
-				cfb->fb.fix.id);
+		cyberpro_common_remove(cfb);
 		iounmap(cfb->region);
 		cyberpro_free_fb_info(cfb);
 

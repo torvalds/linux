@@ -1151,7 +1151,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 		ch = info->par;
 
-		acquire_console_sem();
+		console_lock();
 
 		/* HDMI plug in */
 		if (!sh_hdmi_must_reconfigure(hdmi) &&
@@ -1171,7 +1171,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 			fb_set_suspend(info, 0);
 		}
 
-		release_console_sem();
+		console_unlock();
 	} else {
 		ret = 0;
 		if (!hdmi->info)
@@ -1181,12 +1181,12 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		fb_destroy_modedb(hdmi->monspec.modedb);
 		hdmi->monspec.modedb = NULL;
 
-		acquire_console_sem();
+		console_lock();
 
 		/* HDMI disconnect */
 		fb_set_suspend(hdmi->info, 1);
 
-		release_console_sem();
+		console_unlock();
 		pm_runtime_put(hdmi->dev);
 	}
 

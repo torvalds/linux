@@ -258,7 +258,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 		break;
 	case R8A66597_BULK:
 		/* isochronous pipes may be used as bulk pipes */
-		if (info->pipe > R8A66597_BASE_PIPENUM_BULK)
+		if (info->pipe >= R8A66597_BASE_PIPENUM_BULK)
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_BULK;
 		else
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_ISOC;

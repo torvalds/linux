@@ -2,7 +2,7 @@
  *  linux/drivers/mmc/host/mmci.c - ARM PrimeCell MMCI PL180/1 driver
  *
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
- *  Copyright (C) 2010 ST-Ericsson AB.
+ *  Copyright (C) 2010 ST-Ericsson SA
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
@@ -24,8 +25,10 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/gpio.h>
-#include <linux/amba/mmci.h>
 #include <linux/regulator/consumer.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
+#include <linux/amba/mmci.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
@@ -46,10 +49,6 @@ static unsigned int fmax = 515633;
  *	      is asserted (likewise for RX)
  * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
  *		  is asserted (likewise for RX)
- * @broken_blockend: the MCI_DATABLOCKEND is broken on the hardware
- *		and will not work at all.
- * @broken_blockend_dma: the MCI_DATABLOCKEND is broken on the hardware when
- *		using DMA.
  * @sdio: variant supports SDIO
  * @st_clkdiv: true if using a ST-specific clock divider algorithm
  */
@@ -59,8 +58,6 @@ struct variant_data {
 	unsigned int		datalength_bits;
 	unsigned int		fifosize;
 	unsigned int		fifohalfsize;
-	bool			broken_blockend;
-	bool			broken_blockend_dma;
 	bool			sdio;
 	bool			st_clkdiv;
 };
@@ -71,12 +68,17 @@ static struct variant_data variant_arm = {
 	.datalength_bits	= 16,
 };
 
+static struct variant_data variant_arm_extended_fifo = {
+	.fifosize		= 128 * 4,
+	.fifohalfsize		= 64 * 4,
+	.datalength_bits	= 16,
+};
+
 static struct variant_data variant_u300 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg_enable		= 1 << 13, /* HWFCEN */
 	.datalength_bits	= 16,
-	.broken_blockend_dma	= true,
 	.sdio			= true,
 };
 
@@ -86,7 +88,6 @@ static struct variant_data variant_ux500 = {
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
 	.datalength_bits	= 24,
-	.broken_blockend	= true,
 	.sdio			= true,
 	.st_clkdiv		= true,
 };
@@ -149,9 +150,6 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 	host->mrq = NULL;
 	host->cmd = NULL;
 
-	if (mrq->data)
-		mrq->data->bytes_xfered = host->data_xfered;
-
 	/*
 	 * Need to drop the host lock here; mmc_request_done may call
 	 * back into the driver...
@@ -196,6 +194,248 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 	sg_miter_start(&host->sg_miter, data->sg, data->sg_len, flags);
 }
 
+/*
+ * All the DMA operation mode stuff goes inside this ifdef.
+ * This assumes that you have a generic DMA device interface,
+ * no custom DMA interfaces are supported.
+ */
+#ifdef CONFIG_DMA_ENGINE
+static void __devinit mmci_dma_setup(struct mmci_host *host)
+{
+	struct mmci_platform_data *plat = host->plat;
+	const char *rxname, *txname;
+	dma_cap_mask_t mask;
+
+	if (!plat || !plat->dma_filter) {
+		dev_info(mmc_dev(host->mmc), "no DMA platform data\n");
+		return;
+	}
+
+	/* Try to acquire a generic DMA engine slave channel */
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	/*
+	 * If only an RX channel is specified, the driver will
+	 * attempt to use it bidirectionally, however if it is
+	 * is specified but cannot be located, DMA will be disabled.
+	 */
+	if (plat->dma_rx_param) {
+		host->dma_rx_channel = dma_request_channel(mask,
+							   plat->dma_filter,
+							   plat->dma_rx_param);
+		/* E.g if no DMA hardware is present */
+		if (!host->dma_rx_channel)
+			dev_err(mmc_dev(host->mmc), "no RX DMA channel\n");
+	}
+
+	if (plat->dma_tx_param) {
+		host->dma_tx_channel = dma_request_channel(mask,
+							   plat->dma_filter,
+							   plat->dma_tx_param);
+		if (!host->dma_tx_channel)
+			dev_warn(mmc_dev(host->mmc), "no TX DMA channel\n");
+	} else {
+		host->dma_tx_channel = host->dma_rx_channel;
+	}
+
+	if (host->dma_rx_channel)
+		rxname = dma_chan_name(host->dma_rx_channel);
+	else
+		rxname = "none";
+
+	if (host->dma_tx_channel)
+		txname = dma_chan_name(host->dma_tx_channel);
+	else
+		txname = "none";
+
+	dev_info(mmc_dev(host->mmc), "DMA channels RX %s, TX %s\n",
+		 rxname, txname);
+
+	/*
+	 * Limit the maximum segment size in any SG entry according to
+	 * the parameters of the DMA engine device.
+	 */
+	if (host->dma_tx_channel) {
+		struct device *dev = host->dma_tx_channel->device->dev;
+		unsigned int max_seg_size = dma_get_max_seg_size(dev);
+
+		if (max_seg_size < host->mmc->max_seg_size)
+			host->mmc->max_seg_size = max_seg_size;
+	}
+	if (host->dma_rx_channel) {
+		struct device *dev = host->dma_rx_channel->device->dev;
+		unsigned int max_seg_size = dma_get_max_seg_size(dev);
+
+		if (max_seg_size < host->mmc->max_seg_size)
+			host->mmc->max_seg_size = max_seg_size;
+	}
+}
+
+/*
+ * This is used in __devinit or __devexit so inline it
+ * so it can be discarded.
+ */
+static inline void mmci_dma_release(struct mmci_host *host)
+{
+	struct mmci_platform_data *plat = host->plat;
+
+	if (host->dma_rx_channel)
+		dma_release_channel(host->dma_rx_channel);
+	if (host->dma_tx_channel && plat->dma_tx_param)
+		dma_release_channel(host->dma_tx_channel);
+	host->dma_rx_channel = host->dma_tx_channel = NULL;
+}
+
+static void mmci_dma_unmap(struct mmci_host *host, struct mmc_data *data)
+{
+	struct dma_chan *chan = host->dma_current;
+	enum dma_data_direction dir;
+	u32 status;
+	int i;
+
+	/* Wait up to 1ms for the DMA to complete */
+	for (i = 0; ; i++) {
+		status = readl(host->base + MMCISTATUS);
+		if (!(status & MCI_RXDATAAVLBLMASK) || i >= 100)
+			break;
+		udelay(10);
+	}
+
+	/*
+	 * Check to see whether we still have some data left in the FIFO -
+	 * this catches DMA controllers which are unable to monitor the
+	 * DMALBREQ and DMALSREQ signals while allowing us to DMA to non-
+	 * contiguous buffers.  On TX, we'll get a FIFO underrun error.
+	 */
+	if (status & MCI_RXDATAAVLBLMASK) {
+		dmaengine_terminate_all(chan);
+		if (!data->error)
+			data->error = -EIO;
+	}
+
+	if (data->flags & MMC_DATA_WRITE) {
+		dir = DMA_TO_DEVICE;
+	} else {
+		dir = DMA_FROM_DEVICE;
+	}
+
+	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
+
+	/*
+	 * Use of DMA with scatter-gather is impossible.
+	 * Give up with DMA and switch back to PIO mode.
+	 */
+	if (status & MCI_RXDATAAVLBLMASK) {
+		dev_err(mmc_dev(host->mmc), "buggy DMA detected. Taking evasive action.\n");
+		mmci_dma_release(host);
+	}
+}
+
+static void mmci_dma_data_error(struct mmci_host *host)
+{
+	dev_err(mmc_dev(host->mmc), "error during DMA transfer!\n");
+	dmaengine_terminate_all(host->dma_current);
+}
+
+static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
+{
+	struct variant_data *variant = host->variant;
+	struct dma_slave_config conf = {
+		.src_addr = host->phybase + MMCIFIFO,
+		.dst_addr = host->phybase + MMCIFIFO,
+		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+		.src_maxburst = variant->fifohalfsize >> 2, /* # of words */
+		.dst_maxburst = variant->fifohalfsize >> 2, /* # of words */
+	};
+	struct mmc_data *data = host->data;
+	struct dma_chan *chan;
+	struct dma_device *device;
+	struct dma_async_tx_descriptor *desc;
+	int nr_sg;
+
+	host->dma_current = NULL;
+
+	if (data->flags & MMC_DATA_READ) {
+		conf.direction = DMA_FROM_DEVICE;
+		chan = host->dma_rx_channel;
+	} else {
+		conf.direction = DMA_TO_DEVICE;
+		chan = host->dma_tx_channel;
+	}
+
+	/* If there's no DMA channel, fall back to PIO */
+	if (!chan)
+		return -EINVAL;
+
+	/* If less than or equal to the fifo size, don't bother with DMA */
+	if (host->size <= variant->fifosize)
+		return -EINVAL;
+
+	device = chan->device;
+	nr_sg = dma_map_sg(device->dev, data->sg, data->sg_len, conf.direction);
+	if (nr_sg == 0)
+		return -EINVAL;
+
+	dmaengine_slave_config(chan, &conf);
+	desc = device->device_prep_slave_sg(chan, data->sg, nr_sg,
+					    conf.direction, DMA_CTRL_ACK);
+	if (!desc)
+		goto unmap_exit;
+
+	/* Okay, go for it. */
+	host->dma_current = chan;
+
+	dev_vdbg(mmc_dev(host->mmc),
+		 "Submit MMCI DMA job, sglen %d blksz %04x blks %04x flags %08x\n",
+		 data->sg_len, data->blksz, data->blocks, data->flags);
+	dmaengine_submit(desc);
+	dma_async_issue_pending(chan);
+
+	datactrl |= MCI_DPSM_DMAENABLE;
+
+	/* Trigger the DMA transfer */
+	writel(datactrl, host->base + MMCIDATACTRL);
+
+	/*
+	 * Let the MMCI say when the data is ended and it's time
+	 * to fire next DMA request. When that happens, MMCI will
+	 * call mmci_data_end()
+	 */
+	writel(readl(host->base + MMCIMASK0) | MCI_DATAENDMASK,
+	       host->base + MMCIMASK0);
+	return 0;
+
+unmap_exit:
+	dmaengine_terminate_all(chan);
+	dma_unmap_sg(device->dev, data->sg, data->sg_len, conf.direction);
+	return -ENOMEM;
+}
+#else
+/* Blank functions if the DMA engine is not available */
+static inline void mmci_dma_setup(struct mmci_host *host)
+{
+}
+
+static inline void mmci_dma_release(struct mmci_host *host)
+{
+}
+
+static inline void mmci_dma_unmap(struct mmci_host *host, struct mmc_data *data)
+{
+}
+
+static inline void mmci_dma_data_error(struct mmci_host *host)
+{
+}
+
+static inline int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
+{
+	return -ENOSYS;
+}
+#endif
+
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
 	struct variant_data *variant = host->variant;
@@ -209,11 +449,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 	host->data = data;
 	host->size = data->blksz * data->blocks;
-	host->data_xfered = 0;
-	host->blockend = false;
-	host->dataend = false;
-
-	mmci_init_sg(host, data);
+	data->bytes_xfered = 0;
 
 	clks = (unsigned long long)data->timeout_ns * host->cclk;
 	do_div(clks, 1000000000UL);
@@ -228,15 +464,29 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	BUG_ON(1 << blksz_bits != data->blksz);
 
 	datactrl = MCI_DPSM_ENABLE | blksz_bits << 4;
-	if (data->flags & MMC_DATA_READ) {
+
+	if (data->flags & MMC_DATA_READ)
 		datactrl |= MCI_DPSM_DIRECTION;
+
+	/*
+	 * Attempt to use DMA operation mode, if this
+	 * should fail, fall back to PIO mode
+	 */
+	if (!mmci_dma_start_data(host, datactrl))
+		return;
+
+	/* IRQ mode, map the SG list for CPU reading/writing */
+	mmci_init_sg(host, data);
+
+	if (data->flags & MMC_DATA_READ) {
 		irqmask = MCI_RXFIFOHALFFULLMASK;
 
 		/*
-		 * If we have less than a FIFOSIZE of bytes to transfer,
-		 * trigger a PIO interrupt as soon as any data is available.
+		 * If we have less than the fifo 'half-full' threshold to
+		 * transfer, trigger a PIO interrupt as soon as any data
+		 * is available.
 		 */
-		if (host->size < variant->fifosize)
+		if (host->size < variant->fifohalfsize)
 			irqmask |= MCI_RXDATAAVLBLMASK;
 	} else {
 		/*
@@ -288,95 +538,55 @@ static void
 mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	      unsigned int status)
 {
-	struct variant_data *variant = host->variant;
-
 	/* First check for errors */
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
-		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
-		if (status & MCI_DATACRCFAIL)
+		u32 remain, success;
+
+		/* Terminate the DMA transfer */
+		if (dma_inprogress(host))
+			mmci_dma_data_error(host);
+
+		/*
+		 * Calculate how far we are into the transfer.  Note that
+		 * the data counter gives the number of bytes transferred
+		 * on the MMC bus, not on the host side.  On reads, this
+		 * can be as much as a FIFO-worth of data ahead.  This
+		 * matters for FIFO overruns only.
+		 */
+		remain = readl(host->base + MMCIDATACNT);
+		success = data->blksz * data->blocks - remain;
+
+		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ, status 0x%08x at 0x%08x\n",
+			status, success);
+		if (status & MCI_DATACRCFAIL) {
+			/* Last block was not successful */
+			success -= 1;
 			data->error = -EILSEQ;
-		else if (status & MCI_DATATIMEOUT)
+		} else if (status & MCI_DATATIMEOUT) {
 			data->error = -ETIMEDOUT;
-		else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN))
+		} else if (status & MCI_TXUNDERRUN) {
 			data->error = -EIO;
-
-		/* Force-complete the transaction */
-		host->blockend = true;
-		host->dataend = true;
-
-		/*
-		 * We hit an error condition.  Ensure that any data
-		 * partially written to a page is properly coherent.
-		 */
-		if (data->flags & MMC_DATA_READ) {
-			struct sg_mapping_iter *sg_miter = &host->sg_miter;
-			unsigned long flags;
-
-			local_irq_save(flags);
-			if (sg_miter_next(sg_miter)) {
-				flush_dcache_page(sg_miter->page);
-				sg_miter_stop(sg_miter);
-			}
-			local_irq_restore(flags);
+		} else if (status & MCI_RXOVERRUN) {
+			if (success > host->variant->fifosize)
+				success -= host->variant->fifosize;
+			else
+				success = 0;
+			data->error = -EIO;
 		}
+		data->bytes_xfered = round_down(success, data->blksz);
 	}
 
-	/*
-	 * On ARM variants in PIO mode, MCI_DATABLOCKEND
-	 * is always sent first, and we increase the
-	 * transfered number of bytes for that IRQ. Then
-	 * MCI_DATAEND follows and we conclude the transaction.
-	 *
-	 * On the Ux500 single-IRQ variant MCI_DATABLOCKEND
-	 * doesn't seem to immediately clear from the status,
-	 * so we can't use it keep count when only one irq is
-	 * used because the irq will hit for other reasons, and
-	 * then the flag is still up. So we use the MCI_DATAEND
-	 * IRQ at the end of the entire transfer because
-	 * MCI_DATABLOCKEND is broken.
-	 *
-	 * In the U300, the IRQs can arrive out-of-order,
-	 * e.g. MCI_DATABLOCKEND sometimes arrives after MCI_DATAEND,
-	 * so for this case we use the flags "blockend" and
-	 * "dataend" to make sure both IRQs have arrived before
-	 * concluding the transaction. (This does not apply
-	 * to the Ux500 which doesn't fire MCI_DATABLOCKEND
-	 * at all.) In DMA mode it suffers from the same problem
-	 * as the Ux500.
-	 */
-	if (status & MCI_DATABLOCKEND) {
-		/*
-		 * Just being a little over-cautious, we do not
-		 * use this progressive update if the hardware blockend
-		 * flag is unreliable: since it can stay high between
-		 * IRQs it will corrupt the transfer counter.
-		 */
-		if (!variant->broken_blockend)
-			host->data_xfered += data->blksz;
-		host->blockend = true;
-	}
+	if (status & MCI_DATABLOCKEND)
+		dev_err(mmc_dev(host->mmc), "stray MCI_DATABLOCKEND interrupt\n");
 
-	if (status & MCI_DATAEND)
-		host->dataend = true;
-
-	/*
-	 * On variants with broken blockend we shall only wait for dataend,
-	 * on others we must sync with the blockend signal since they can
-	 * appear out-of-order.
-	 */
-	if (host->dataend && (host->blockend || variant->broken_blockend)) {
+	if (status & MCI_DATAEND || data->error) {
+		if (dma_inprogress(host))
+			mmci_dma_unmap(host, data);
 		mmci_stop_data(host);
 
-		/* Reset these flags */
-		host->blockend = false;
-		host->dataend = false;
-
-		/*
-		 * Variants with broken blockend flags need to handle the
-		 * end of the entire transfer here.
-		 */
-		if (variant->broken_blockend && !data->error)
-			host->data_xfered += data->blksz * data->blocks;
+		if (!data->error)
+			/* The error clause is handled above, success! */
+			data->bytes_xfered = data->blksz * data->blocks;
 
 		if (!data->stop) {
 			mmci_request_end(host, data->mrq);
@@ -394,15 +604,15 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 	host->cmd = NULL;
 
-	cmd->resp[0] = readl(base + MMCIRESPONSE0);
-	cmd->resp[1] = readl(base + MMCIRESPONSE1);
-	cmd->resp[2] = readl(base + MMCIRESPONSE2);
-	cmd->resp[3] = readl(base + MMCIRESPONSE3);
-
 	if (status & MCI_CMDTIMEOUT) {
 		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
 		cmd->error = -EILSEQ;
+	} else {
+		cmd->resp[0] = readl(base + MMCIRESPONSE0);
+		cmd->resp[1] = readl(base + MMCIRESPONSE1);
+		cmd->resp[2] = readl(base + MMCIRESPONSE2);
+		cmd->resp[3] = readl(base + MMCIRESPONSE3);
 	}
 
 	if (!cmd->data || cmd->error) {
@@ -549,9 +759,6 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 		if (remain)
 			break;
 
-		if (status & MCI_RXACTIVE)
-			flush_dcache_page(sg_miter->page);
-
 		status = readl(base + MMCISTATUS);
 	} while (1);
 
@@ -560,10 +767,10 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	local_irq_restore(flags);
 
 	/*
-	 * If we're nearing the end of the read, switch to
-	 * "any data available" mode.
+	 * If we have less than the fifo 'half-full' threshold to transfer,
+	 * trigger a PIO interrupt as soon as any data is available.
 	 */
-	if (status & MCI_RXACTIVE && host->size < variant->fifosize)
+	if (status & MCI_RXACTIVE && host->size < variant->fifohalfsize)
 		mmci_set_mask1(host, MCI_RXDATAAVLBLMASK);
 
 	/*
@@ -764,13 +971,13 @@ static const struct mmc_host_ops mmci_ops = {
 	.get_cd		= mmci_get_cd,
 };
 
-static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
+static int __devinit mmci_probe(struct amba_device *dev,
+	const struct amba_id *id)
 {
 	struct mmci_platform_data *plat = dev->dev.platform_data;
 	struct variant_data *variant = id->data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
-	unsigned int mask;
 	int ret;
 
 	/* must have platform data */
@@ -828,6 +1035,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		dev_dbg(mmc_dev(mmc), "eventual mclk rate: %u Hz\n",
 			host->mclk);
 	}
+	host->phybase = dev->res.start;
 	host->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!host->base) {
 		ret = -ENOMEM;
@@ -951,18 +1159,16 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 			goto irq0_free;
 	}
 
-	mask = MCI_IRQENABLE;
-	/* Don't use the datablockend flag if it's broken */
-	if (variant->broken_blockend)
-		mask &= ~MCI_DATABLOCKEND;
-
-	writel(mask, host->base + MMCIMASK0);
+	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
 
-	dev_info(&dev->dev, "%s: PL%03x rev%u at 0x%08llx irq %d,%d\n",
-		mmc_hostname(mmc), amba_part(dev), amba_rev(dev),
-		(unsigned long long)dev->res.start, dev->irq[0], dev->irq[1]);
+	dev_info(&dev->dev, "%s: PL%03x manf %x rev%u at 0x%08llx irq %d,%d (pio)\n",
+		 mmc_hostname(mmc), amba_part(dev), amba_manf(dev),
+		 amba_rev(dev), (unsigned long long)dev->res.start,
+		 dev->irq[0], dev->irq[1]);
+
+	mmci_dma_setup(host);
 
 	mmc_add_host(mmc);
 
@@ -1009,6 +1215,7 @@ static int __devexit mmci_remove(struct amba_device *dev)
 		writel(0, host->base + MMCICOMMAND);
 		writel(0, host->base + MMCIDATACTRL);
 
+		mmci_dma_release(host);
 		free_irq(dev->irq[0], host);
 		if (!host->singleirq)
 			free_irq(dev->irq[1], host);
@@ -1076,8 +1283,13 @@ static int mmci_resume(struct amba_device *dev)
 static struct amba_id mmci_ids[] = {
 	{
 		.id	= 0x00041180,
-		.mask	= 0x000fffff,
+		.mask	= 0xff0fffff,
 		.data	= &variant_arm,
+	},
+	{
+		.id	= 0x01041180,
+		.mask	= 0xff0fffff,
+		.data	= &variant_arm_extended_fifo,
 	},
 	{
 		.id	= 0x00041181,

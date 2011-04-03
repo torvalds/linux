@@ -626,12 +626,6 @@ void machine_check_exception(struct pt_regs *regs)
 	if (recover > 0)
 		return;
 
-	if (user_mode(regs)) {
-		regs->msr |= MSR_RI;
-		_exception(SIGBUS, regs, BUS_ADRERR, regs->nip);
-		return;
-	}
-
 #if defined(CONFIG_8xx) && defined(CONFIG_PCI)
 	/* the qspan pci read routines can cause machine checks -- Cort
 	 *
@@ -643,16 +637,12 @@ void machine_check_exception(struct pt_regs *regs)
 	return;
 #endif
 
-	if (debugger_fault_handler(regs)) {
-		regs->msr |= MSR_RI;
+	if (debugger_fault_handler(regs))
 		return;
-	}
 
 	if (check_io_access(regs))
 		return;
 
-	if (debugger_fault_handler(regs))
-		return;
 	die("Machine check", regs, SIGBUS);
 
 	/* Must die if the interrupt is not recoverable */

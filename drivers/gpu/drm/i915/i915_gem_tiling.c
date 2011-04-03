@@ -284,14 +284,10 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_set_tiling *args = data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	int ret;
-
-	ret = i915_gem_check_is_wedged(dev);
-	if (ret)
-		return ret;
+	int ret = 0;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL)
+	if (&obj->base == NULL)
 		return -ENOENT;
 
 	if (!i915_tiling_ok(dev,
@@ -349,14 +345,27 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
-		obj->tiling_changed = true;
-		obj->tiling_mode = args->tiling_mode;
-		obj->stride = args->stride;
+		/* Rebind if we need a change of alignment */
+		if (!obj->map_and_fenceable) {
+			u32 unfenced_alignment =
+				i915_gem_get_unfenced_gtt_alignment(obj);
+			if (obj->gtt_offset & (unfenced_alignment - 1))
+				ret = i915_gem_object_unbind(obj);
+		}
+
+		if (ret == 0) {
+			obj->tiling_changed = true;
+			obj->tiling_mode = args->tiling_mode;
+			obj->stride = args->stride;
+		}
 	}
+	/* we have to maintain this existing ABI... */
+	args->stride = obj->stride;
+	args->tiling_mode = obj->tiling_mode;
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -371,7 +380,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL)
+	if (&obj->base == NULL)
 		return -ENOENT;
 
 	mutex_lock(&dev->struct_mutex);

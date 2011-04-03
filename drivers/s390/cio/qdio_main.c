@@ -476,7 +476,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -643,7 +643,7 @@ void qdio_inbound_processing(unsigned long data)
 static int get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
@@ -1508,7 +1508,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;
-
+	if (!count)
+		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
 		return handle_inbound(irq_ptr->input_qs[q_nr],
 				      callflags, bufnr, count);

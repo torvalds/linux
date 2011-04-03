@@ -31,7 +31,7 @@ iprange_mt4(const struct sk_buff *skb, struct xt_action_param *par)
 			pr_debug("src IP %pI4 NOT in range %s%pI4-%pI4\n",
 			         &iph->saddr,
 			         (info->flags & IPRANGE_SRC_INV) ? "(INV) " : "",
-			         &info->src_max.ip,
+			         &info->src_min.ip,
 			         &info->src_max.ip);
 			return false;
 		}
@@ -53,15 +53,13 @@ iprange_mt4(const struct sk_buff *skb, struct xt_action_param *par)
 }
 
 static inline int
-iprange_ipv6_sub(const struct in6_addr *a, const struct in6_addr *b)
+iprange_ipv6_lt(const struct in6_addr *a, const struct in6_addr *b)
 {
 	unsigned int i;
-	int r;
 
 	for (i = 0; i < 4; ++i) {
-		r = ntohl(a->s6_addr32[i]) - ntohl(b->s6_addr32[i]);
-		if (r != 0)
-			return r;
+		if (a->s6_addr32[i] != b->s6_addr32[i])
+			return ntohl(a->s6_addr32[i]) < ntohl(b->s6_addr32[i]);
 	}
 
 	return 0;
@@ -75,18 +73,30 @@ iprange_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 	bool m;
 
 	if (info->flags & IPRANGE_SRC) {
-		m  = iprange_ipv6_sub(&iph->saddr, &info->src_min.in6) < 0;
-		m |= iprange_ipv6_sub(&iph->saddr, &info->src_max.in6) > 0;
+		m  = iprange_ipv6_lt(&iph->saddr, &info->src_min.in6);
+		m |= iprange_ipv6_lt(&info->src_max.in6, &iph->saddr);
 		m ^= !!(info->flags & IPRANGE_SRC_INV);
-		if (m)
+		if (m) {
+			pr_debug("src IP %pI6 NOT in range %s%pI6-%pI6\n",
+				 &iph->saddr,
+				 (info->flags & IPRANGE_SRC_INV) ? "(INV) " : "",
+				 &info->src_min.in6,
+				 &info->src_max.in6);
 			return false;
+		}
 	}
 	if (info->flags & IPRANGE_DST) {
-		m  = iprange_ipv6_sub(&iph->daddr, &info->dst_min.in6) < 0;
-		m |= iprange_ipv6_sub(&iph->daddr, &info->dst_max.in6) > 0;
+		m  = iprange_ipv6_lt(&iph->daddr, &info->dst_min.in6);
+		m |= iprange_ipv6_lt(&info->dst_max.in6, &iph->daddr);
 		m ^= !!(info->flags & IPRANGE_DST_INV);
-		if (m)
+		if (m) {
+			pr_debug("dst IP %pI6 NOT in range %s%pI6-%pI6\n",
+				 &iph->daddr,
+				 (info->flags & IPRANGE_DST_INV) ? "(INV) " : "",
+				 &info->dst_min.in6,
+				 &info->dst_max.in6);
 			return false;
+		}
 	}
 	return true;
 }

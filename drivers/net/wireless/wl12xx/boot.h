@@ -59,6 +59,11 @@ struct wl1271_static_data {
 #define PG_VER_MASK          0x3c
 #define PG_VER_OFFSET        2
 
+#define PG_MAJOR_VER_MASK    0x3
+#define PG_MAJOR_VER_OFFSET  0x0
+#define PG_MINOR_VER_MASK    0xc
+#define PG_MINOR_VER_OFFSET  0x2
+
 #define CMD_MBOX_ADDRESS     0x407B4
 
 #define POLARITY_LOW         BIT(1)

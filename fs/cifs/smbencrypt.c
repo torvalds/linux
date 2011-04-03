@@ -32,9 +32,8 @@
 #include "cifs_unicode.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "md5.h"
 #include "cifs_debug.h"
-#include "cifsencrypt.h"
+#include "cifsproto.h"
 
 #ifndef false
 #define false 0
@@ -48,14 +47,58 @@
 #define SSVALX(buf,pos,val) (CVAL(buf,pos)=(val)&0xFF,CVAL(buf,pos+1)=(val)>>8)
 #define SSVAL(buf,pos,val) SSVALX((buf),(pos),((__u16)(val)))
 
-/*The following definitions come from  libsmb/smbencrypt.c  */
+/* produce a md4 message digest from data of length n bytes */
+int
+mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
+{
+	int rc;
+	unsigned int size;
+	struct crypto_shash *md4;
+	struct sdesc *sdescmd4;
 
-void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-		unsigned char *p24);
-void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-static void SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
-		   unsigned char p24[24]);
-void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
+	md4 = crypto_alloc_shash("md4", 0, 0);
+	if (IS_ERR(md4)) {
+		rc = PTR_ERR(md4);
+		cERROR(1, "%s: Crypto md4 allocation error %d\n", __func__, rc);
+		return rc;
+	}
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(md4);
+	sdescmd4 = kmalloc(size, GFP_KERNEL);
+	if (!sdescmd4) {
+		rc = -ENOMEM;
+		cERROR(1, "%s: Memory allocation failure\n", __func__);
+		goto mdfour_err;
+	}
+	sdescmd4->shash.tfm = md4;
+	sdescmd4->shash.flags = 0x0;
+
+	rc = crypto_shash_init(&sdescmd4->shash);
+	if (rc) {
+		cERROR(1, "%s: Could not init md4 shash\n", __func__);
+		goto mdfour_err;
+	}
+	crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+
+mdfour_err:
+	crypto_free_shash(md4);
+	kfree(sdescmd4);
+
+	return rc;
+}
+
+/* Does the des encryption from the NT or LM MD4 hash. */
+static void
+SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
+	      unsigned char p24[24])
+{
+	unsigned char p21[21];
+
+	memset(p21, '\0', 21);
+
+	memcpy(p21, passwd, 16);
+	E_P24(p21, c8, p24);
+}
 
 /*
    This implements the X/Open SMB password encryption
@@ -118,9 +161,10 @@ _my_mbstowcs(__u16 *dst, const unsigned char *src, int len)
  * Creates the MD4 Hash of the users password in NT UNICODE.
  */
 
-void
+int
 E_md4hash(const unsigned char *passwd, unsigned char *p16)
 {
+	int rc;
 	int len;
 	__u16 wpwd[129];
 
@@ -139,8 +183,10 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	/* Calculate length in bytes */
 	len = _my_wcslen(wpwd) * sizeof(__u16);
 
-	mdfour(p16, (unsigned char *) wpwd, len);
+	rc = mdfour(p16, (unsigned char *) wpwd, len);
 	memset(wpwd, 0, 129 * 2);
+
+	return rc;
 }
 
 #if 0 /* currently unused */
@@ -212,19 +258,6 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 }
 #endif
 
-/* Does the des encryption from the NT or LM MD4 hash. */
-static void
-SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
-	      unsigned char p24[24])
-{
-	unsigned char p21[21];
-
-	memset(p21, '\0', 21);
-
-	memcpy(p21, passwd, 16);
-	E_P24(p21, c8, p24);
-}
-
 /* Does the des encryption from the FIRST 8 BYTES of the NT or LM MD4 hash. */
 #if 0 /* currently unused */
 static void
@@ -242,16 +275,21 @@ NTLMSSPOWFencrypt(unsigned char passwd[8],
 #endif
 
 /* Does the NT MD4 hash then des encryption. */
-
-void
+int
 SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 {
+	int rc;
 	unsigned char p21[21];
 
 	memset(p21, '\0', 21);
 
-	E_md4hash(passwd, p21);
+	rc = E_md4hash(passwd, p21);
+	if (rc) {
+		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
+		return rc;
+	}
 	SMBOWFencrypt(p21, c8, p24);
+	return rc;
 }
 
 

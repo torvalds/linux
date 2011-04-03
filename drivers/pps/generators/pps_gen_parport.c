@@ -198,7 +198,7 @@ static void parport_attach(struct parport *port)
 	}
 
 	device.pardev = parport_register_device(port, KBUILD_MODNAME,
-			NULL, NULL, NULL, 0, &device);
+			NULL, NULL, NULL, PARPORT_FLAG_EXCL, &device);
 	if (!device.pardev) {
 		pr_err("couldn't register with %s\n", port->name);
 		return;
@@ -216,11 +216,6 @@ static void parport_attach(struct parport *port)
 
 	hrtimer_init(&device.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	device.timer.function = hrtimer_event;
-#ifdef CONFIG_PREEMPT_RT
-	/* hrtimer interrupt will run in the interrupt context with this */
-	device.timer.irqsafe = 1;
-#endif
-
 	hrtimer_start(&device.timer, next_intr_time(&device), HRTIMER_MODE_ABS);
 
 	return;

@@ -13,7 +13,6 @@
 #include <linux/statfs.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 
@@ -103,15 +102,11 @@ static void hpfs_put_super(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 
-	lock_kernel();
-
 	kfree(sbi->sb_cp_table);
 	kfree(sbi->sb_bmp_dir);
 	unmark_dirty(s);
 	s->s_fs_info = NULL;
 	kfree(sbi);
-
-	unlock_kernel();
 }
 
 unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
@@ -143,7 +138,7 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *s = dentry->d_sb;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	u64 id = huge_encode_dev(s->s_bdev->bd_dev);
-	lock_kernel();
+	hpfs_lock(s);
 
 	/*if (sbi->sb_n_free == -1) {*/
 		sbi->sb_n_free = count_bitmaps(s);
@@ -160,7 +155,7 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[1] = (u32)(id >> 32);
 	buf->f_namelen = 254;
 
-	unlock_kernel();
+	hpfs_unlock(s);
 
 	return 0;
 }
@@ -406,7 +401,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	
 	*flags |= MS_NOATIME;
 	
-	lock_kernel();
+	hpfs_lock(s);
 	lock_super(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
@@ -441,12 +436,12 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	replace_mount_options(s, new_opts);
 
 	unlock_super(s);
-	unlock_kernel();
+	hpfs_unlock(s);
 	return 0;
 
 out_err:
 	unlock_super(s);
-	unlock_kernel();
+	hpfs_unlock(s);
 	kfree(new_opts);
 	return -EINVAL;
 }
@@ -484,13 +479,15 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	int o;
 
-	lock_kernel();
+	if (num_possible_cpus() > 1) {
+		printk(KERN_ERR "HPFS is not SMP safe\n");
+		return -EINVAL;
+	}
 
 	save_mount_options(s, options);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi) {
-		unlock_kernel();
 		return -ENOMEM;
 	}
 	s->s_fs_info = sbi;
@@ -677,7 +674,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 			root->i_blocks = 5;
 		hpfs_brelse4(&qbh);
 	}
-	unlock_kernel();
 	return 0;
 
 bail4:	brelse(bh2);
@@ -689,7 +685,6 @@ bail0:
 	kfree(sbi->sb_cp_table);
 	s->s_fs_info = NULL;
 	kfree(sbi);
-	unlock_kernel();
 	return -EINVAL;
 }
 

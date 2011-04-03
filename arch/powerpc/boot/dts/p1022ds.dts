@@ -291,13 +291,13 @@
 			ranges = <0x0 0xc100 0x200>;
 			cell-index = <1>;
 			dma00: dma-channel@0 {
-				compatible = "fsl,eloplus-dma-channel";
+				compatible = "fsl,ssi-dma-channel";
 				reg = <0x0 0x80>;
 				cell-index = <0>;
 				interrupts = <76 2>;
 			};
 			dma01: dma-channel@80 {
-				compatible = "fsl,eloplus-dma-channel";
+				compatible = "fsl,ssi-dma-channel";
 				reg = <0x80 0x80>;
 				cell-index = <1>;
 				interrupts = <77 2>;
@@ -475,14 +475,14 @@
 		};
 
 		sata@18000 {
-			compatible = "fsl,mpc8536-sata", "fsl,pq-sata";
+			compatible = "fsl,p1022-sata", "fsl,pq-sata-v2";
 			reg = <0x18000 0x1000>;
 			cell-index = <1>;
 			interrupts = <74 0x2>;
 		};
 
 		sata@19000 {
-			compatible = "fsl,mpc8536-sata", "fsl,pq-sata";
+			compatible = "fsl,p1022-sata", "fsl,pq-sata-v2";
 			reg = <0x19000 0x1000>;
 			cell-index = <2>;
 			interrupts = <41 0x2>;

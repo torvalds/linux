@@ -168,12 +168,6 @@ static int jz4740_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return ret;
 }
 
-static int jz4740_rtc_update_irq_enable(struct device *dev, unsigned int enable)
-{
-	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
-	return jz4740_rtc_ctrl_set_bits(rtc, JZ_RTC_CTRL_1HZ_IRQ, enable);
-}
-
 static int jz4740_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
 	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
@@ -185,7 +179,6 @@ static struct rtc_class_ops jz4740_rtc_ops = {
 	.set_mmss	= jz4740_rtc_set_mmss,
 	.read_alarm	= jz4740_rtc_read_alarm,
 	.set_alarm	= jz4740_rtc_set_alarm,
-	.update_irq_enable = jz4740_rtc_update_irq_enable,
 	.alarm_irq_enable = jz4740_rtc_alarm_irq_enable,
 };
 

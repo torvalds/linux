@@ -12,7 +12,7 @@
 #include "xen-ops.h"
 #include "mmu.h"
 
-void xen_pre_suspend(void)
+void xen_arch_pre_suspend(void)
 {
 	xen_start_info->store_mfn = mfn_to_pfn(xen_start_info->store_mfn);
 	xen_start_info->console.domU.mfn =
@@ -26,8 +26,9 @@ void xen_pre_suspend(void)
 		BUG();
 }
 
-void xen_hvm_post_suspend(int suspend_cancelled)
+void xen_arch_hvm_post_suspend(int suspend_cancelled)
 {
+#ifdef CONFIG_XEN_PVHVM
 	int cpu;
 	xen_hvm_init_shared_info();
 	xen_callback_vector();
@@ -37,9 +38,10 @@ void xen_hvm_post_suspend(int suspend_cancelled)
 			xen_setup_runstate_info(cpu);
 		}
 	}
+#endif
 }
 
-void xen_post_suspend(int suspend_cancelled)
+void xen_arch_post_suspend(int suspend_cancelled)
 {
 	xen_build_mfn_list_list();
 

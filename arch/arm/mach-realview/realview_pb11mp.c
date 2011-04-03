@@ -136,47 +136,26 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  */
 
 #define GPIO2_IRQ		{ IRQ_PB11MP_GPIO2, NO_IRQ }
-#define GPIO2_DMA		{ 0, 0 }
 #define GPIO3_IRQ		{ IRQ_PB11MP_GPIO3, NO_IRQ }
-#define GPIO3_DMA		{ 0, 0 }
 #define AACI_IRQ		{ IRQ_TC11MP_AACI, NO_IRQ }
-#define AACI_DMA		{ 0x80, 0x81 }
 #define MMCI0_IRQ		{ IRQ_TC11MP_MMCI0A, IRQ_TC11MP_MMCI0B }
-#define MMCI0_DMA		{ 0x84, 0 }
 #define KMI0_IRQ		{ IRQ_TC11MP_KMI0, NO_IRQ }
-#define KMI0_DMA		{ 0, 0 }
 #define KMI1_IRQ		{ IRQ_TC11MP_KMI1, NO_IRQ }
-#define KMI1_DMA		{ 0, 0 }
 #define PB11MP_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PB11MP_SMC_DMA		{ 0, 0 }
 #define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_DMA		{ 0, 0 }
 #define PB11MP_CLCD_IRQ		{ IRQ_PB11MP_CLCD, NO_IRQ }
-#define PB11MP_CLCD_DMA		{ 0, 0 }
 #define DMAC_IRQ		{ IRQ_PB11MP_DMAC, NO_IRQ }
-#define DMAC_DMA		{ 0, 0 }
 #define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define SCTL_DMA		{ 0, 0 }
 #define PB11MP_WATCHDOG_IRQ	{ IRQ_PB11MP_WATCHDOG, NO_IRQ }
-#define PB11MP_WATCHDOG_DMA	{ 0, 0 }
 #define PB11MP_GPIO0_IRQ	{ IRQ_PB11MP_GPIO0, NO_IRQ }
-#define PB11MP_GPIO0_DMA	{ 0, 0 }
 #define GPIO1_IRQ		{ IRQ_PB11MP_GPIO1, NO_IRQ }
-#define GPIO1_DMA		{ 0, 0 }
 #define PB11MP_RTC_IRQ		{ IRQ_TC11MP_RTC, NO_IRQ }
-#define PB11MP_RTC_DMA		{ 0, 0 }
 #define SCI_IRQ			{ IRQ_PB11MP_SCI, NO_IRQ }
-#define SCI_DMA			{ 7, 6 }
 #define PB11MP_UART0_IRQ	{ IRQ_TC11MP_UART0, NO_IRQ }
-#define PB11MP_UART0_DMA	{ 15, 14 }
 #define PB11MP_UART1_IRQ	{ IRQ_TC11MP_UART1, NO_IRQ }
-#define PB11MP_UART1_DMA	{ 13, 12 }
 #define PB11MP_UART2_IRQ	{ IRQ_PB11MP_UART2, NO_IRQ }
-#define PB11MP_UART2_DMA	{ 11, 10 }
 #define PB11MP_UART3_IRQ	{ IRQ_PB11MP_UART3, NO_IRQ }
-#define PB11MP_UART3_DMA	{ 0x86, 0x87 }
 #define PB11MP_SSP_IRQ		{ IRQ_PB11MP_SSP, NO_IRQ }
-#define PB11MP_SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
@@ -381,9 +360,10 @@ static void __init realview_pb11mp_init(void)
 
 MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_fixup,
 	.map_io		= realview_pb11mp_map_io,
+	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb11mp_timer,
 	.init_machine	= realview_pb11mp_init,

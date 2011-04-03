@@ -1163,7 +1163,7 @@ static const struct sd_desc sd_desc = {
 #define ST(sensor, type) \
 	.driver_info = (SENSOR_ ## sensor << 8) \
 			| (type)
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4038), ST(MI0360, 0)},
 	{USB_DEVICE(0x041e, 0x403c), ST(LZ24BP, 0)},
 	{USB_DEVICE(0x041e, 0x403d), ST(LZ24BP, 0)},

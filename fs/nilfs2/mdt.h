@@ -66,7 +66,7 @@ static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
 
 static inline struct the_nilfs *NILFS_I_NILFS(struct inode *inode)
 {
-	return NILFS_SB(inode->i_sb)->s_nilfs;
+	return inode->i_sb->s_fs_info;
 }
 
 /* Default GFP flags using highmem */

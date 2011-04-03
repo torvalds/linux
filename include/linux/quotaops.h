@@ -76,11 +76,9 @@ int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 int dquot_file_open(struct inode *inode, struct file *file);
 
-int dquot_quota_on(struct super_block *sb, int type, int format_id,
-	char *path);
 int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
-int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
+int dquot_quota_on(struct super_block *sb, int type, int format_id,
  	struct path *path);
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
@@ -279,7 +277,7 @@ static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 		/*
 		 * Mark inode fully dirty. Since we are allocating blocks, inode
 		 * would become fully dirty soon anyway and it reportedly
-		 * reduces inode_lock contention.
+		 * reduces lock contention.
 		 */
 		mark_inode_dirty(inode);
 	}

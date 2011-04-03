@@ -242,6 +242,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			break;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
+		if (verify_dir_item(root, leaf, di))
+			continue;
 
 		name_len = btrfs_dir_name_len(leaf, di);
 		total_size += name_len + 1;
@@ -370,7 +372,8 @@ int btrfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,
-			      struct inode *inode, struct inode *dir)
+			      struct inode *inode, struct inode *dir,
+			      const struct qstr *qstr)
 {
 	int err;
 	size_t len;
@@ -378,7 +381,8 @@ int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,
 	char *suffix;
 	char *name;
 
-	err = security_inode_init_security(inode, dir, &suffix, &value, &len);
+	err = security_inode_init_security(inode, dir, qstr, &suffix, &value,
+					   &len);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;

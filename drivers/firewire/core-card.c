@@ -75,6 +75,15 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
 #define BIB_IRMC		((1) << 31)
 #define NODE_CAPABILITIES	0x0c0083c0 /* per IEEE 1394 clause 8.3.2.6.5.2 */
 
+/*
+ * IEEE-1394 specifies a default SPLIT_TIMEOUT value of 800 cycles (100 ms),
+ * but we have to make it longer because there are many devices whose firmware
+ * is just too slow for that.
+ */
+#define DEFAULT_SPLIT_TIMEOUT	(2 * 8000)
+
+#define CANON_OUI		0x000085
+
 static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 {
 	struct fw_descriptor *desc;
@@ -231,7 +240,7 @@ static void br_work(struct work_struct *work)
 
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
-	    time_is_after_jiffies(card->reset_jiffies + 2 * HZ)) {
+	    time_before64(get_jiffies_64(), card->reset_jiffies + 2 * HZ)) {
 		if (!schedule_delayed_work(&card->br_work, 2 * HZ))
 			fw_card_put(card);
 		return;
@@ -284,6 +293,7 @@ static void bm_work(struct work_struct *work)
 	bool root_device_is_running;
 	bool root_device_is_cmc;
 	bool irm_is_1394_1995_only;
+	bool keep_this_irm;
 
 	spin_lock_irq(&card->lock);
 
@@ -305,11 +315,16 @@ static void bm_work(struct work_struct *work)
 	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
 			(irm_device->config_rom[2] & 0x000000f0) == 0;
 
+	/* Canon MV5i works unreliably if it is not root node. */
+	keep_this_irm = irm_device && irm_device->config_rom &&
+			irm_device->config_rom[3] >> 8 == CANON_OUI;
+
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
 
-	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
+	grace = time_after64(get_jiffies_64(),
+			     card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
 
 	if ((is_next_generation(generation, card->bm_generation) &&
 	     !card->bm_abdicate) ||
@@ -333,7 +348,7 @@ static void bm_work(struct work_struct *work)
 			goto pick_me;
 		}
 
-		if (irm_is_1394_1995_only) {
+		if (irm_is_1394_1995_only && !keep_this_irm) {
 			new_root_id = local_id;
 			fw_notify("%s, making local node (%02x) root.\n",
 				  "IRM is not 1394a compliant", new_root_id);
@@ -382,7 +397,7 @@ static void bm_work(struct work_struct *work)
 
 		spin_lock_irq(&card->lock);
 
-		if (rcode != RCODE_COMPLETE) {
+		if (rcode != RCODE_COMPLETE && !keep_this_irm) {
 			/*
 			 * The lock request failed, maybe the IRM
 			 * isn't really IRM capable after all. Let's
@@ -504,10 +519,11 @@ void fw_card_initialize(struct fw_card *card,
 	card->device = device;
 	card->current_tlabel = 0;
 	card->tlabel_mask = 0;
-	card->split_timeout_hi = 0;
-	card->split_timeout_lo = 800 << 19;
-	card->split_timeout_cycles = 800;
-	card->split_timeout_jiffies = DIV_ROUND_UP(HZ, 10);
+	card->split_timeout_hi = DEFAULT_SPLIT_TIMEOUT / 8000;
+	card->split_timeout_lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
+	card->split_timeout_cycles = DEFAULT_SPLIT_TIMEOUT;
+	card->split_timeout_jiffies =
+			DIV_ROUND_UP(DEFAULT_SPLIT_TIMEOUT * HZ, 8000);
 	card->color = 0;
 	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 

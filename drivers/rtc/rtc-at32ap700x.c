@@ -134,36 +134,29 @@ static int at32_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return ret;
 }
 
-static int at32_rtc_ioctl(struct device *dev, unsigned int cmd,
-			unsigned long arg)
+static int at32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct rtc_at32ap700x *rtc = dev_get_drvdata(dev);
 	int ret = 0;
 
 	spin_lock_irq(&rtc->lock);
 
-	switch (cmd) {
-	case RTC_AIE_ON:
+	if(enabled) {
 		if (rtc_readl(rtc, VAL) > rtc->alarm_time) {
 			ret = -EINVAL;
-			break;
+			goto out;
 		}
 		rtc_writel(rtc, CTRL, rtc_readl(rtc, CTRL)
 				| RTC_BIT(CTRL_TOPEN));
 		rtc_writel(rtc, ICR, RTC_BIT(ICR_TOPI));
 		rtc_writel(rtc, IER, RTC_BIT(IER_TOPI));
-		break;
-	case RTC_AIE_OFF:
+	} else {
 		rtc_writel(rtc, CTRL, rtc_readl(rtc, CTRL)
 				& ~RTC_BIT(CTRL_TOPEN));
 		rtc_writel(rtc, IDR, RTC_BIT(IDR_TOPI));
 		rtc_writel(rtc, ICR, RTC_BIT(ICR_TOPI));
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
-		break;
 	}
-
+out:
 	spin_unlock_irq(&rtc->lock);
 
 	return ret;
@@ -195,11 +188,11 @@ static irqreturn_t at32_rtc_interrupt(int irq, void *dev_id)
 }
 
 static struct rtc_class_ops at32_rtc_ops = {
-	.ioctl		= at32_rtc_ioctl,
 	.read_time	= at32_rtc_readtime,
 	.set_time	= at32_rtc_settime,
 	.read_alarm	= at32_rtc_readalarm,
 	.set_alarm	= at32_rtc_setalarm,
+	.alarm_irq_enable = at32_rtc_alarm_irq_enable,
 };
 
 static int __init at32_rtc_probe(struct platform_device *pdev)

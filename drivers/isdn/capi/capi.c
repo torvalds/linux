@@ -1219,16 +1219,10 @@ static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 	return mp->outbytes;
 }
 
-static int capinc_tty_ioctl(struct tty_struct *tty, struct file * file,
+static int capinc_tty_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
-	int error = 0;
-	switch (cmd) {
-	default:
-		error = n_tty_ioctl_helper(tty, file, cmd, arg);
-		break;
-	}
-	return error;
+	return -ENOIOCTLCMD;
 }
 
 static void capinc_tty_set_termios(struct tty_struct *tty, struct ktermios * old)

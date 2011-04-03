@@ -2626,7 +2626,7 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 		goto done;
 	}
 
-	acquire_console_sem();
+	console_lock();
 
 	fb_set_suspend(info, 1);
 
@@ -2690,7 +2690,7 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	if (rinfo->pm_mode & radeon_pm_d2)
 		radeon_set_suspend(rinfo, 1);
 
-	release_console_sem();
+	console_unlock();
 
  done:
 	pdev->dev.power.power_state = mesg;
@@ -2715,10 +2715,10 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 		return 0;
 
 	if (rinfo->no_schedule) {
-		if (try_acquire_console_sem())
+		if (!console_trylock())
 			return 0;
 	} else
-		acquire_console_sem();
+		console_lock();
 
 	printk(KERN_DEBUG "radeonfb (%s): resuming from state: %d...\n",
 	       pci_name(pdev), pdev->dev.power.power_state.event);
@@ -2783,7 +2783,7 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 	pdev->dev.power.power_state = PMSG_ON;
 
  bail:
-	release_console_sem();
+	console_unlock();
 
 	return rc;
 }

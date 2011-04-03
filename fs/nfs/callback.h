@@ -7,6 +7,7 @@
  */
 #ifndef __LINUX_FS_NFS_CALLBACK_H
 #define __LINUX_FS_NFS_CALLBACK_H
+#include <linux/sunrpc/svc.h>
 
 #define NFS4_CALLBACK 0x40000000
 #define NFS4_CALLBACK_XDRSIZE 2048
@@ -37,7 +38,6 @@ enum nfs4_callback_opnum {
 struct cb_process_state {
 	__be32			drc_status;
 	struct nfs_client	*clp;
-	struct nfs4_sessionid	*svc_sid; /* v4.1 callback service sessionid */
 };
 
 struct cb_compound_hdr_arg {
@@ -168,7 +168,7 @@ extern unsigned nfs4_callback_layoutrecall(
 extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
 extern void nfs4_cb_take_slot(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4_1 */
-
+extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 				    struct cb_getattrres *res,
 				    struct cb_process_state *cps);

@@ -384,7 +384,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 		bus->reg0 = i | GMBUS_RATE_100KHZ;
 
 		/* XXX force bit banging until GMBUS is fully debugged */
-		bus->force_bit = intel_gpio_create(dev_priv, i);
+		if (IS_GEN2(dev))
+			bus->force_bit = intel_gpio_create(dev_priv, i);
 	}
 
 	intel_i2c_reset(dev_priv->dev);

@@ -34,6 +34,10 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
+	/* First fill our portion of the GTT with scratch pages */
+	intel_gtt_clear_range(dev_priv->mm.gtt_start / PAGE_SIZE,
+			      (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
+
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
 		i915_gem_clflush_object(obj);
 
