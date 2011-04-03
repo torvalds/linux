@@ -129,6 +129,9 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	if (gp->tx_bip_fem_auto_detect)
 		answer = true;
 
+	/* Override the REF CLK from the NVS with the one from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
+
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
@@ -167,6 +170,10 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 
 	if (gp->tx_bip_fem_auto_detect)
 		answer = true;
+
+	/* Replace REF and TCXO CLKs with the ones from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
+	gen_parms->general_params.tcxo_ref_clock = wl->tcxo_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
