@@ -609,7 +609,6 @@ struct dib0700_rc_response {
 static void dib0700_rc_urb_completion(struct urb *purb)
 {
 	struct dvb_usb_device *d = purb->context;
-	struct dib0700_state *st;
 	struct dib0700_rc_response *poll_reply;
 	u32 uninitialized_var(keycode);
 	u8 toggle;
@@ -624,7 +623,6 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		return;
 	}
 
-	st = d->priv;
 	poll_reply = purb->transfer_buffer;
 
 	if (purb->status < 0) {
