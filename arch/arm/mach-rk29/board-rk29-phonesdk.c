@@ -57,6 +57,9 @@
 
 #include "devices.h"
 
+#if defined(CONFIG_MTK23D)
+#include <linux/mtk23d.h>
+#endif
 
 
 /*set touchscreen different type header*/
@@ -2105,6 +2108,26 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 #endif
 
+
+#if defined(CONFIG_MTK23D)
+struct rk2818_23d_data rk2818_23d_info = {
+	.bp_power = RK29_PIN0_PA0,
+	//.bp_reset = TCA6424_P11,
+	//.bp_statue = RK2818_PIN_PH7,//input  high bp sleep;
+	//.ap_statue = RK2818_PIN_PA4,//output high ap sleep;
+	//.ap_bp_wakeup = RK2818_PIN_PF5, //output AP wake up BP used rising edge;
+	//.bp_ap_wakeup = RK2818_PIN_PE0,//input BP wake up AP
+};
+struct platform_device rk2818_device_mtk23d = {	
+        .name = "mtk23d",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &rk2818_23d_info,
+	}    	
+    };
+#endif
+
+
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
@@ -2529,6 +2552,10 @@ static struct platform_device *devices[] __initdata = {
         &rk29sdk_rfkill,
 #endif
 
+#if defined(CONFIG_MTK23D)
+	&rk2818_device_mtk23d,
+#endif
+
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif
@@ -2733,8 +2760,7 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
  * author: hhb@rock-chips.com
  *****************************************************************************************/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //中断脚
-#define DEBOUNCE_REPTIME  3
+#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //中断�?#define DEBOUNCE_REPTIME  3
 
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,

@@ -288,6 +288,10 @@ config STE
 	bool "STE modem control driver"
 	default n
 	
+config MTK23D
+	bool "MTK6223D modem control driver"
+	default n	
+	
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
