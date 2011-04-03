@@ -42,6 +42,8 @@
 #include <linux/vmalloc.h>
 #endif
 
+#define CONFIG_SND_BB_NORMAL_INPUT
+#define CONFIG_SND_INSIDE_EARPIECE
 /* If digital BB is used,open this define. */
 //#define PCM_BB
 
@@ -135,7 +137,7 @@ enum VoiceDeviceSwitch
 
 #ifdef WM8994_PROC
 char wm8994_current_route = SPEAKER_NORMAL;
-char debug_write_read = 1;
+char debug_write_read = 0;
 #endif
 
 #define WM_EN_PIN RK29_PIN5_PA1
@@ -488,7 +490,7 @@ void AP_to_speakers_and_headset(void)
 	wm8994_write(0x610, 0x0100);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x0100);  //DAC1 Right Volume bit0~7
 
-	//wm8994_write(0x24,  0x0018);
+	wm8994_write(0x24,  0x0011);
 	wm8994_set_channel_vol();
 	//wm8994_write(0x25,  0x003F);
 
@@ -637,7 +639,7 @@ void recorder_and_AP_to_speakers(void)
 	wm8994_write(0x610, 0x0100); // DAC1_VU=1, DAC1L_VOL=1100_0000
 	wm8994_write(0x611, 0x0100); // DAC1_VU=1, DAC1R_VOL=1100_0000
 	wm8994_set_channel_vol();
-	//wm8994_write(0x24,  0x0018);
+	wm8994_write(0x24,  0x0011);
 	//wm8994_write(0x25,  0x003F);
 
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
@@ -1230,7 +1232,7 @@ void mainMIC_to_baseband_to_speakers(void)
 	wm8994_write(0x610, 0x0100);
 	wm8994_write(0x611, 0x0100);
 
-	//wm8994_write(0x24,  0x0018);
+	wm8994_write(0x24,  0x0011);
 	wm8994_set_channel_vol();
 
 	wm8994_write(0x02,  0x6210);
@@ -1417,7 +1419,7 @@ void BT_baseband(void)
 #endif
 	wm8994_write(0x22,   0x0000);
 	wm8994_write(0x23,   0x0100);
-//	wm8994_write(0x24,   0x0009);
+	wm8994_write(0x24,   0x0009);
 	wm8994_write(0x29,   0x0130);
 	wm8994_write(0x2A,   0x0130);
 	wm8994_write(0x2D,   0x0001);
@@ -1490,7 +1492,7 @@ void BT_baseband_old(void)
 #endif
 	wm8994_write(0x22, 0x0000);
 	wm8994_write(0x23, 0x0100);
-//	wm8994_write(0x24, 0x0009);
+	wm8994_write(0x24, 0x0009);
 	wm8994_write(0x29, 0x0130);
 	wm8994_write(0x2A, 0x0130);
 	wm8994_write(0x2D, 0x0001);
@@ -2791,7 +2793,8 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	{
 		/* Speaker*/
 		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
-			recorder_and_AP_to_speakers();
+		//	recorder_and_AP_to_speakers();
+			mainMIC_to_baseband_to_speakers();
 			break;
 
 		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
@@ -2804,18 +2807,18 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			break;
 		case HEADSET_INCALL:	//AP-> 8994Codec -> Headset
 		//	if(isHSKey_MIC())
-		//		handsetMIC_to_baseband_to_headset();
+				handsetMIC_to_baseband_to_headset();
 		//	else
-				mainMIC_to_baseband_to_headset();
+		//		mainMIC_to_baseband_to_headset();
 
 			break;		    
 
 		/* Earpiece*/			    
 		case EARPIECE_INCALL:	//:BB-> 8994Codec -> EARPIECE
 //#ifdef CONFIG_SND_NO_EARPIECE
-			mainMIC_to_baseband_to_speakers();
+//			mainMIC_to_baseband_to_speakers();
 //#else
-//			mainMIC_to_baseband_to_earpiece();
+			mainMIC_to_baseband_to_earpiece();
 //#endif
 			break;
 
