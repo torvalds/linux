@@ -505,17 +505,13 @@ static int __init numa_init(int (*init_func)(void))
 
 void __init initmem_init(void)
 {
-	int ret;
-
 	if (!numa_off) {
 #ifdef CONFIG_ACPI_NUMA
-		ret = numa_init(x86_acpi_numa_init);
-		if (!ret)
+		if (!numa_init(x86_acpi_numa_init))
 			return;
 #endif
 #ifdef CONFIG_AMD_NUMA
-		ret = numa_init(amd_numa_init);
-		if (!ret)
+		if (!numa_init(amd_numa_init))
 			return;
 #endif
 	}
