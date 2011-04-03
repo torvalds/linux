@@ -1497,7 +1497,7 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 	if (be_cmd_eq_create(adapter, eq, adapter->tx_eq.cur_eqd))
 		goto tx_eq_free;
 
-	adapter->tx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+	adapter->tx_eq.eq_idx = adapter->eq_next_idx++;
 
 
 	/* Alloc TX eth compl queue */
@@ -1590,7 +1590,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		if (rc)
 			goto err;
 
-		rxo->rx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+		rxo->rx_eq.eq_idx = adapter->eq_next_idx++;
 
 		/* CQ */
 		cq = &rxo->cq;
@@ -1666,11 +1666,11 @@ static irqreturn_t be_intx(int irq, void *dev)
 		if (!isr)
 			return IRQ_NONE;
 
-		if ((1 << adapter->tx_eq.msix_vec_idx & isr))
+		if ((1 << adapter->tx_eq.eq_idx & isr))
 			event_handle(adapter, &adapter->tx_eq);
 
 		for_all_rx_queues(adapter, rxo, i) {
-			if ((1 << rxo->rx_eq.msix_vec_idx & isr))
+			if ((1 << rxo->rx_eq.eq_idx & isr))
 				event_handle(adapter, &rxo->rx_eq);
 		}
 	}
@@ -1951,7 +1951,7 @@ static void be_sriov_disable(struct be_adapter *adapter)
 static inline int be_msix_vec_get(struct be_adapter *adapter,
 					struct be_eq_obj *eq_obj)
 {
-	return adapter->msix_entries[eq_obj->msix_vec_idx].vector;
+	return adapter->msix_entries[eq_obj->eq_idx].vector;
 }
 
 static int be_request_irq(struct be_adapter *adapter,
