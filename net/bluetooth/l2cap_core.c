@@ -211,7 +211,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	l2cap_sock_clear_timer(sk);
 
-	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
+	BT_DBG("chan %p, conn %p, err %d", chan, conn, err);
 
 	if (conn) {
 		/* Delete from channel list */
@@ -361,7 +361,7 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u16 control)
 	if (pi->fcs == L2CAP_FCS_CRC16)
 		hlen += 2;
 
-	BT_DBG("pi %p, control 0x%2.2x", pi, control);
+	BT_DBG("chan %p, control 0x%2.2x", chan, control);
 
 	count = min_t(unsigned int, conn->mtu, hlen);
 	control |= L2CAP_CTRL_FRAME_TYPE;
@@ -982,7 +982,7 @@ static void l2cap_retrans_timeout(unsigned long arg)
 	struct l2cap_chan *chan = (void *) arg;
 	struct sock *sk = chan->sk;
 
-	BT_DBG("sk %p", sk);
+	BT_DBG("chan %p", chan);
 
 	bh_lock_sock(sk);
 	chan->retry_count = 1;
@@ -1618,13 +1618,12 @@ static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
 
 static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 {
-	struct sock *sk = chan->sk;
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
 	struct l2cap_conf_req *req = data;
 	struct l2cap_conf_rfc rfc = { .mode = pi->mode };
 	void *ptr = req->data;
 
-	BT_DBG("sk %p", sk);
+	BT_DBG("chan %p", chan);
 
 	if (chan->num_conf_req || chan->num_conf_rsp)
 		goto done;
@@ -2972,7 +2971,6 @@ disconnect:
 
 static int l2cap_try_push_rx_skb(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
 	struct sk_buff *skb;
 	u16 control;
 	int err;
@@ -3005,7 +3003,7 @@ done:
 	chan->conn_state &= ~L2CAP_CONN_LOCAL_BUSY;
 	chan->conn_state &= ~L2CAP_CONN_RNR_SENT;
 
-	BT_DBG("sk %p, Exit local busy", sk);
+	BT_DBG("chan %p, Exit local busy", chan);
 
 	return 0;
 }
@@ -3246,8 +3244,7 @@ static void l2cap_send_srejframe(struct l2cap_chan *chan, u8 tx_seq)
 
 static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_control, struct sk_buff *skb)
 {
-	struct sock *sk = chan->sk;
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
 	u8 tx_seq = __get_txseq(rx_control);
 	u8 req_seq = __get_reqseq(rx_control);
 	u8 sar = rx_control >> L2CAP_CTRL_SAR_SHIFT;
@@ -3301,7 +3298,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 				chan->buffer_seq = chan->buffer_seq_srej;
 				chan->conn_state &= ~L2CAP_CONN_SREJ_SENT;
 				l2cap_send_ack(chan);
-				BT_DBG("sk %p, Exit SREJ_SENT", sk);
+				BT_DBG("chan %p, Exit SREJ_SENT", chan);
 			}
 		} else {
 			struct srej_list *l;
@@ -3330,7 +3327,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 		chan->conn_state |= L2CAP_CONN_SREJ_SENT;
 
-		BT_DBG("sk %p, Enter SREJ", sk);
+		BT_DBG("chan %p, Enter SREJ", chan);
 
 		INIT_LIST_HEAD(&chan->srej_l);
 		chan->buffer_seq_srej = chan->buffer_seq;
@@ -3383,9 +3380,7 @@ drop:
 
 static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u16 rx_control)
 {
-	struct sock *sk = chan->sk;
-
-	BT_DBG("sk %p, req_seq %d ctrl 0x%4.4x", sk, __get_reqseq(rx_control),
+	BT_DBG("chan %p, req_seq %d ctrl 0x%4.4x", chan, __get_reqseq(rx_control),
 						rx_control);
 
 	chan->expected_ack_seq = __get_reqseq(rx_control);
@@ -3633,7 +3628,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	sk = chan->sk;
 	pi = l2cap_pi(sk);
 
-	BT_DBG("sk %p, len %d", sk, skb->len);
+	BT_DBG("chan %p, len %d", chan, skb->len);
 
 	if (sk->sk_state != BT_CONNECTED)
 		goto drop;
@@ -3691,7 +3686,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		goto done;
 
 	default:
-		BT_DBG("sk %p: bad mode 0x%2.2x", sk, pi->mode);
+		BT_DBG("chan %p: bad mode 0x%2.2x", chan, pi->mode);
 		break;
 	}
 
