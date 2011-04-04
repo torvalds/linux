@@ -77,6 +77,7 @@
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define Prefix      (1<<16)     /* Instruction varies with 66/f2/f3 prefix */
 #define Sse         (1<<17)     /* SSE Vector instruction */
+#define RMExt       (1<<18)     /* Opcode extension in ModRM r/m if mod == 3 */
 /* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
@@ -2580,11 +2581,35 @@ static int check_dr_write(struct x86_emulate_ctxt *ctxt)
 	return check_dr_read(ctxt);
 }
 
+static int check_svme(struct x86_emulate_ctxt *ctxt)
+{
+	u64 efer;
+
+	ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+
+	if (!(efer & EFER_SVME))
+		return emulate_ud(ctxt);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int check_svme_pa(struct x86_emulate_ctxt *ctxt)
+{
+	u64 rax = kvm_register_read(ctxt->vcpu, VCPU_REGS_RAX);
+
+	/* Valid physical address? */
+	if (rax & 0xffff000000000000)
+		return emulate_gp(ctxt, 0);
+
+	return check_svme(ctxt);
+}
+
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
 		      .check_perm = (_p) }
 #define N    D(0)
+#define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
@@ -2602,6 +2627,16 @@ static int check_dr_write(struct x86_emulate_ctxt *ctxt)
 		D2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock),		\
 		D2bv(((_f) & ~Lock) | DstAcc | SrcImm)
 
+static struct opcode group7_rm3[] = {
+	DIP(SrcNone | ModRM | Prot | Priv, vmrun,   check_svme_pa),
+	DIP(SrcNone | ModRM | Prot       , vmmcall, check_svme),
+	DIP(SrcNone | ModRM | Prot | Priv, vmload,  check_svme_pa),
+	DIP(SrcNone | ModRM | Prot | Priv, vmsave,  check_svme_pa),
+	DIP(SrcNone | ModRM | Prot | Priv, stgi,    check_svme),
+	DIP(SrcNone | ModRM | Prot | Priv, clgi,    check_svme),
+	DIP(SrcNone | ModRM | Prot | Priv, skinit,  check_svme),
+	DIP(SrcNone | ModRM | Prot | Priv, invlpga, check_svme),
+};
 
 static struct opcode group1[] = {
 	X7(D(Lock)), N
@@ -2647,7 +2682,7 @@ static struct group_dual group7 = { {
 	DI(SrcMem | ModRM | ByteOp | Priv | NoAccess, invlpg),
 }, {
 	D(SrcNone | ModRM | Priv | VendorSpecific), N,
-	N, D(SrcNone | ModRM | Priv | VendorSpecific),
+	N, EXT(0, group7_rm3),
 	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
 	DI(SrcMem16 | ModRM | Mov | Priv, lmsw), N,
 } };
@@ -2853,6 +2888,7 @@ static struct opcode twobyte_table[256] = {
 #undef GD
 #undef I
 #undef GP
+#undef EXT
 
 #undef D2bv
 #undef I2bv
@@ -3030,6 +3066,12 @@ done_prefixes:
 			opcode = g_mod3[goffset];
 		else
 			opcode = g_mod012[goffset];
+
+		if (opcode.flags & RMExt) {
+			goffset = c->modrm & 7;
+			opcode = opcode.u.group[goffset];
+		}
+
 		c->d |= opcode.flags;
 	}
 
