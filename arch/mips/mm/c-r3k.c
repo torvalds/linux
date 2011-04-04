@@ -1,7 +1,7 @@
 /*
  * r2300.c: R2000 and R3000 specific mmu/cache code.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  *
  * with a lot of changes to make this thing work for R3000s
  * Tx39XX R4k style caches added. HK

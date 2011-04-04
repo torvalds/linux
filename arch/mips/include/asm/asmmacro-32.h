@@ -1,7 +1,7 @@
 /*
  * asmmacro.h: Assembler macros to make things easier to read.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998, 1999, 2003 Ralf Baechle
  */
 #ifndef _ASM_ASMMACRO_32_H
