@@ -2413,10 +2413,12 @@ const char *jbd2_dev_to_name(dev_t device)
 	new_dev = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
 	if (!new_dev)
 		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
+	bd = bdget(device);
 	spin_lock(&devname_cache_lock);
 	if (devcache[i]) {
 		if (devcache[i]->device == device) {
 			kfree(new_dev);
+			bdput(bd);
 			ret = devcache[i]->devname;
 			spin_unlock(&devname_cache_lock);
 			return ret;
@@ -2425,7 +2427,6 @@ const char *jbd2_dev_to_name(dev_t device)
 	}
 	devcache[i] = new_dev;
 	devcache[i]->device = device;
-	bd = bdget(device);
 	if (bd) {
 		bdevname(bd, devcache[i]->devname);
 		bdput(bd);
