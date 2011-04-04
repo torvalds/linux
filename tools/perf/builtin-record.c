@@ -41,7 +41,7 @@ static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
 
 static unsigned int		page_size;
-static unsigned int		mmap_pages			=    128;
+static unsigned int		mmap_pages			= UINT_MAX;
 static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
@@ -275,11 +275,10 @@ try_again:
 				     !no_inherit) < 0) {
 			int err = errno;
 
-			if (err == EPERM || err == EACCES)
-				die("Permission error - are you root?\n"
-					"\t Consider tweaking"
-					" /proc/sys/kernel/perf_event_paranoid.\n");
-			else if (err ==  ENODEV && cpu_list) {
+			if (err == EPERM || err == EACCES) {
+				ui__warning_paranoid();
+				exit(EXIT_FAILURE);
+			} else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
 			} else if (err == EINVAL && sample_id_all_avail) {
@@ -302,11 +301,19 @@ try_again:
 					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
 				if (verbose)
-					warning(" ... trying to fall back to cpu-clock-ticks\n");
+					ui__warning("The cycles event is not supported, "
+						    "trying to fall back to cpu-clock-ticks\n");
 				attr->type = PERF_TYPE_SOFTWARE;
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
 				goto try_again;
 			}
+
+			if (err == ENOENT) {
+				ui__warning("The %s event is not supported.\n",
+					    event_name(pos));
+				exit(EXIT_FAILURE);
+			}
+
 			printf("\n");
 			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
 			      err, strerror(err));
@@ -505,6 +512,10 @@ static int __cmd_record(int argc, const char **argv)
 
 	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
+
+	/* 512 kiB: default amount of unprivileged mlocked memory */
+	if (mmap_pages == UINT_MAX)
+		mmap_pages = (512 * 1024) / page_size;
 
 	if (forks) {
 		child_pid = fork();
