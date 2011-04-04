@@ -274,6 +274,10 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT32   4	/* 32-bit protected mode. */
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */
 
+/* any protected mode   */
+#define X86EMUL_MODE_PROT     (X86EMUL_MODE_PROT16|X86EMUL_MODE_PROT32| \
+			       X86EMUL_MODE_PROT64)
+
 enum x86_intercept_stage {
 	X86_ICPT_PRE_EXCEPT,
 	X86_ICPT_POST_EXCEPT,

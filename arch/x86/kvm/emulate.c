@@ -78,6 +78,7 @@
 #define Prefix      (1<<16)     /* Instruction varies with 66/f2/f3 prefix */
 #define Sse         (1<<17)     /* SSE Vector instruction */
 /* Misc flags */
+#define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
 #define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
@@ -3140,6 +3141,12 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		rc = emulate_gp(ctxt, 0);
+		goto done;
+	}
+
+	/* Instruction can only be executed in protected mode */
+	if ((c->d & Prot) && !(ctxt->mode & X86EMUL_MODE_PROT)) {
+		rc = emulate_ud(ctxt);
 		goto done;
 	}
 
