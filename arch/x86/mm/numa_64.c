@@ -28,124 +28,9 @@ EXPORT_SYMBOL(node_data);
 
 nodemask_t numa_nodes_parsed __initdata;
 
-struct memnode memnode;
-
-static unsigned long __initdata nodemap_addr;
-static unsigned long __initdata nodemap_size;
-
 static struct numa_meminfo numa_meminfo __initdata;
-
 static int numa_distance_cnt;
 static u8 *numa_distance;
-
-/*
- * Given a shift value, try to populate memnodemap[]
- * Returns :
- * 1 if OK
- * 0 if memnodmap[] too small (of shift too small)
- * -1 if node overlap or lost ram (shift too big)
- */
-static int __init populate_memnodemap(const struct numa_meminfo *mi, int shift)
-{
-	unsigned long addr, end;
-	int i, res = -1;
-
-	memset(memnodemap, 0xff, sizeof(s16)*memnodemapsize);
-	for (i = 0; i < mi->nr_blks; i++) {
-		addr = mi->blk[i].start;
-		end = mi->blk[i].end;
-		if (addr >= end)
-			continue;
-		if ((end >> shift) >= memnodemapsize)
-			return 0;
-		do {
-			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
-				return -1;
-			memnodemap[addr >> shift] = mi->blk[i].nid;
-			addr += (1UL << shift);
-		} while (addr < end);
-		res = 1;
-	}
-	return res;
-}
-
-static int __init allocate_cachealigned_memnodemap(void)
-{
-	unsigned long addr;
-
-	memnodemap = memnode.embedded_map;
-	if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
-		return 0;
-
-	addr = 0x8000;
-	nodemap_size = roundup(sizeof(s16) * memnodemapsize, L1_CACHE_BYTES);
-	nodemap_addr = memblock_find_in_range(addr, get_max_mapped(),
-				      nodemap_size, L1_CACHE_BYTES);
-	if (nodemap_addr == MEMBLOCK_ERROR) {
-		printk(KERN_ERR
-		       "NUMA: Unable to allocate Memory to Node hash map\n");
-		nodemap_addr = nodemap_size = 0;
-		return -1;
-	}
-	memnodemap = phys_to_virt(nodemap_addr);
-	memblock_x86_reserve_range(nodemap_addr, nodemap_addr + nodemap_size, "MEMNODEMAP");
-
-	printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
-	       nodemap_addr, nodemap_addr + nodemap_size);
-	return 0;
-}
-
-/*
- * The LSB of all start and end addresses in the node map is the value of the
- * maximum possible shift.
- */
-static int __init extract_lsb_from_nodes(const struct numa_meminfo *mi)
-{
-	int i, nodes_used = 0;
-	unsigned long start, end;
-	unsigned long bitfield = 0, memtop = 0;
-
-	for (i = 0; i < mi->nr_blks; i++) {
-		start = mi->blk[i].start;
-		end = mi->blk[i].end;
-		if (start >= end)
-			continue;
-		bitfield |= start;
-		nodes_used++;
-		if (end > memtop)
-			memtop = end;
-	}
-	if (nodes_used <= 1)
-		i = 63;
-	else
-		i = find_first_bit(&bitfield, sizeof(unsigned long)*8);
-	memnodemapsize = (memtop >> i)+1;
-	return i;
-}
-
-static int __init compute_hash_shift(const struct numa_meminfo *mi)
-{
-	int shift;
-
-	shift = extract_lsb_from_nodes(mi);
-	if (allocate_cachealigned_memnodemap())
-		return -1;
-	printk(KERN_DEBUG "NUMA: Using %d for the hash shift.\n",
-		shift);
-
-	if (populate_memnodemap(mi, shift) != 1) {
-		printk(KERN_INFO "Your memory is not aligned you need to "
-		       "rebuild your kernel with a bigger NODEMAPSIZE "
-		       "shift=%d\n", shift);
-		return -1;
-	}
-	return shift;
-}
-
-int __meminit  __early_pfn_to_nid(unsigned long pfn)
-{
-	return phys_to_nid(pfn << PAGE_SHIFT);
-}
 
 static void * __init early_node_mem(int nodeid, unsigned long start,
 				    unsigned long end, unsigned long size,
@@ -270,7 +155,7 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	memblock_x86_reserve_range(nodedata_phys, nodedata_phys + pgdat_size, "NODE_DATA");
 	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n", nodedata_phys,
 		nodedata_phys + pgdat_size - 1);
-	nid = phys_to_nid(nodedata_phys);
+	nid = early_pfn_to_nid(nodedata_phys >> PAGE_SHIFT);
 	if (nid != nodeid)
 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nodeid, nid);
 
@@ -527,12 +412,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	if (WARN_ON(nodes_empty(node_possible_map)))
 		return -EINVAL;
 
-	memnode_shift = compute_hash_shift(mi);
-	if (memnode_shift < 0) {
-		printk(KERN_ERR "NUMA: No NUMA node hash function found. Contact maintainer\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < mi->nr_blks; i++)
 		memblock_x86_register_active_regions(mi->blk[i].nid,
 					mi->blk[i].start >> PAGE_SHIFT,
@@ -626,17 +505,13 @@ static int __init numa_init(int (*init_func)(void))
 
 void __init initmem_init(void)
 {
-	int ret;
-
 	if (!numa_off) {
 #ifdef CONFIG_ACPI_NUMA
-		ret = numa_init(x86_acpi_numa_init);
-		if (!ret)
+		if (!numa_init(x86_acpi_numa_init))
 			return;
 #endif
 #ifdef CONFIG_AMD_NUMA
-		ret = numa_init(amd_numa_init);
-		if (!ret)
+		if (!numa_init(amd_numa_init))
 			return;
 #endif
 	}
