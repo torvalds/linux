@@ -64,7 +64,7 @@ static const struct snd_pcm_hardware pcm_hw = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BATCH,
 
-	.formats = SNDRV_PCM_FMTBIT_S24_LE,
+	.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 
 	.rates = SNDRV_PCM_RATE_44100 |
 		SNDRV_PCM_RATE_48000 |
@@ -228,7 +228,7 @@ static void usb6fire_pcm_capture(struct pcm_substream *sub, struct pcm_urb *urb)
 	unsigned int total_length = 0;
 	struct pcm_runtime *rt = snd_pcm_substream_chip(sub->instance);
 	struct snd_pcm_runtime *alsa_rt = sub->instance->runtime;
-	u32 *src = (u32 *) urb->buffer;
+	u32 *src = NULL;
 	u32 *dest = (u32 *) (alsa_rt->dma_area + sub->dma_off
 			* (alsa_rt->frame_bits >> 3));
 	u32 *dest_end = (u32 *) (alsa_rt->dma_area + alsa_rt->buffer_size
@@ -244,7 +244,12 @@ static void usb6fire_pcm_capture(struct pcm_substream *sub, struct pcm_urb *urb)
 		else
 			frame_count = 0;
 
-		src = (u32 *) (urb->buffer + total_length);
+		if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
+			src = (u32 *) (urb->buffer + total_length);
+		else if (alsa_rt->format == SNDRV_PCM_FORMAT_S32_LE)
+			src = (u32 *) (urb->buffer - 1 + total_length);
+		else
+			return;
 		src++; /* skip leading 4 bytes of every packet */
 		total_length += urb->packets[i].length;
 		for (frame = 0; frame < frame_count; frame++) {
@@ -274,8 +279,17 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 			* (alsa_rt->frame_bits >> 3));
 	u32 *src_end = (u32 *) (alsa_rt->dma_area + alsa_rt->buffer_size
 			* (alsa_rt->frame_bits >> 3));
-	u32 *dest = (u32 *) urb->buffer;
+	u32 *dest;
 	int bytes_per_frame = alsa_rt->channels << 2;
+
+	if (alsa_rt->format == SNDRV_PCM_FORMAT_S32_LE)
+		dest = (u32 *) (urb->buffer - 1);
+	else if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
+		dest = (u32 *) (urb->buffer);
+	else {
+		snd_printk(KERN_ERR PREFIX "Unknown sample format.");
+		return;
+	}
 
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
 		/* at least 4 header bytes for valid packet.
