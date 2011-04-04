@@ -266,6 +266,7 @@ struct iio_const_attr {
 #define IIO_EV_CLASS_MAGN		4
 #define IIO_EV_CLASS_LIGHT		5
 #define IIO_EV_CLASS_PROXIMITY		6
+#define IIO_EV_CLASS_TEMP		7
 
 #define IIO_EV_MOD_X			0
 #define IIO_EV_MOD_Y			1
