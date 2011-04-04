@@ -304,6 +304,9 @@ enum x86_intercept_stage {
 
 enum x86_intercept {
 	x86_intercept_none,
+	x86_intercept_cr_read,
+	x86_intercept_cr_write,
+	x86_intercept_clts,
 	x86_intercept_lmsw,
 	x86_intercept_smsw,
 	x86_intercept_lidt,

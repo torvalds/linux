@@ -3868,11 +3868,90 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	update_cr0_intercept(svm);
 }
 
+#define POST_EX(exit) { .exit_code = (exit), \
+			.stage = X86_ICPT_POST_EXCEPT, \
+			.valid = true }
+
+static struct __x86_intercept {
+	u32 exit_code;
+	enum x86_intercept_stage stage;
+	bool valid;
+} x86_intercept_map[] = {
+	[x86_intercept_cr_read]		= POST_EX(SVM_EXIT_READ_CR0),
+	[x86_intercept_cr_write]	= POST_EX(SVM_EXIT_WRITE_CR0),
+	[x86_intercept_clts]		= POST_EX(SVM_EXIT_WRITE_CR0),
+	[x86_intercept_lmsw]		= POST_EX(SVM_EXIT_WRITE_CR0),
+	[x86_intercept_smsw]		= POST_EX(SVM_EXIT_READ_CR0),
+};
+
+#undef POST_EX
+
 static int svm_check_intercept(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
 			       enum x86_intercept_stage stage)
 {
-	return X86EMUL_CONTINUE;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int vmexit, ret = X86EMUL_CONTINUE;
+	struct __x86_intercept icpt_info;
+	struct vmcb *vmcb = svm->vmcb;
+
+	if (info->intercept >= ARRAY_SIZE(x86_intercept_map))
+		goto out;
+
+	icpt_info = x86_intercept_map[info->intercept];
+
+	if (!icpt_info.valid || stage != icpt_info.stage)
+		goto out;
+
+	switch (icpt_info.exit_code) {
+	case SVM_EXIT_READ_CR0:
+		if (info->intercept == x86_intercept_cr_read)
+			icpt_info.exit_code += info->modrm_reg;
+		break;
+	case SVM_EXIT_WRITE_CR0: {
+		unsigned long cr0, val;
+		u64 intercept;
+
+		if (info->intercept == x86_intercept_cr_write)
+			icpt_info.exit_code += info->modrm_reg;
+
+		if (icpt_info.exit_code != SVM_EXIT_WRITE_CR0)
+			break;
+
+		intercept = svm->nested.intercept;
+
+		if (!(intercept & (1ULL << INTERCEPT_SELECTIVE_CR0)))
+			break;
+
+		cr0 = vcpu->arch.cr0 & ~SVM_CR0_SELECTIVE_MASK;
+		val = info->src_val  & ~SVM_CR0_SELECTIVE_MASK;
+
+		if (info->intercept == x86_intercept_lmsw) {
+			cr0 &= 0xfUL;
+			val &= 0xfUL;
+			/* lmsw can't clear PE - catch this here */
+			if (cr0 & X86_CR0_PE)
+				val |= X86_CR0_PE;
+		}
+
+		if (cr0 ^ val)
+			icpt_info.exit_code = SVM_EXIT_CR0_SEL_WRITE;
+
+		break;
+	}
+	default:
+		break;
+	}
+
+	vmcb->control.next_rip  = info->next_rip;
+	vmcb->control.exit_code = icpt_info.exit_code;
+	vmexit = nested_svm_exit_handled(svm);
+
+	ret = (vmexit == NESTED_EXIT_DONE) ? X86EMUL_INTERCEPTED
+					   : X86EMUL_CONTINUE;
+
+out:
+	return ret;
 }
 
 static struct kvm_x86_ops svm_x86_ops = {

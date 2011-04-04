@@ -2445,6 +2445,95 @@ static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static bool valid_cr(int nr)
+{
+	switch (nr) {
+	case 0:
+	case 2 ... 4:
+	case 8:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int check_cr_read(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	if (!valid_cr(c->modrm_reg))
+		return emulate_ud(ctxt);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int check_cr_write(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	u64 new_val = c->src.val64;
+	int cr = c->modrm_reg;
+
+	static u64 cr_reserved_bits[] = {
+		0xffffffff00000000ULL,
+		0, 0, 0, /* CR3 checked later */
+		CR4_RESERVED_BITS,
+		0, 0, 0,
+		CR8_RESERVED_BITS,
+	};
+
+	if (!valid_cr(cr))
+		return emulate_ud(ctxt);
+
+	if (new_val & cr_reserved_bits[cr])
+		return emulate_gp(ctxt, 0);
+
+	switch (cr) {
+	case 0: {
+		u64 cr4, efer;
+		if (((new_val & X86_CR0_PG) && !(new_val & X86_CR0_PE)) ||
+		    ((new_val & X86_CR0_NW) && !(new_val & X86_CR0_CD)))
+			return emulate_gp(ctxt, 0);
+
+		cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+		ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+
+		if ((new_val & X86_CR0_PG) && (efer & EFER_LME) &&
+		    !(cr4 & X86_CR4_PAE))
+			return emulate_gp(ctxt, 0);
+
+		break;
+		}
+	case 3: {
+		u64 rsvd = 0;
+
+		if (is_long_mode(ctxt->vcpu))
+			rsvd = CR3_L_MODE_RESERVED_BITS;
+		else if (is_pae(ctxt->vcpu))
+			rsvd = CR3_PAE_RESERVED_BITS;
+		else if (is_paging(ctxt->vcpu))
+			rsvd = CR3_NONPAE_RESERVED_BITS;
+
+		if (new_val & rsvd)
+			return emulate_gp(ctxt, 0);
+
+		break;
+		}
+	case 4: {
+		u64 cr4, efer;
+
+		cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+		ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+
+		if ((efer & EFER_LMA) && !(new_val & X86_CR4_PAE))
+			return emulate_gp(ctxt, 0);
+
+		break;
+		}
+	}
+
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
@@ -2632,14 +2721,16 @@ static struct opcode opcode_table[256] = {
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	N, GD(0, &group7), N, N,
-	N, D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv), N,
+	N, D(ImplicitOps | VendorSpecific), DI(ImplicitOps | Priv, clts), N,
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
-	D(ModRM | DstMem | Priv | Op3264), D(ModRM | DstMem | Priv | Op3264),
-	D(ModRM | SrcMem | Priv | Op3264), D(ModRM | SrcMem | Priv | Op3264),
+	DIP(ModRM | DstMem | Priv | Op3264, cr_read, check_cr_read),
+	D(ModRM | DstMem | Priv | Op3264),
+	DIP(ModRM | SrcMem | Priv | Op3264, cr_write, check_cr_write),
+	D(ModRM | SrcMem | Priv | Op3264),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
@@ -3724,14 +3815,6 @@ twobyte_insn:
 	case 0x18:		/* Grp16 (prefetch/nop) */
 		break;
 	case 0x20: /* mov cr, reg */
-		switch (c->modrm_reg) {
-		case 1:
-		case 5 ... 7:
-		case 9 ... 15:
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
 		c->dst.val = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		break;
 	case 0x21: /* mov from dr to reg */
