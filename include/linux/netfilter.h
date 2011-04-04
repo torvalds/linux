@@ -271,7 +271,7 @@ struct nf_afinfo {
 					    unsigned int len,
 					    u_int8_t protocol);
 	int		(*route)(struct net *net, struct dst_entry **dst,
-				 struct flowi *fl);
+				 struct flowi *fl, bool strict);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
 	int		(*reroute)(struct sk_buff *skb,

@@ -222,7 +222,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 }
 
 static int nf_ip_route(struct net *net, struct dst_entry **dst,
-		       struct flowi *fl)
+		       struct flowi *fl, bool strict __always_unused)
 {
 	struct rtable *rt = ip_route_output_key(net, &fl->u.ip4);
 	if (IS_ERR(rt))

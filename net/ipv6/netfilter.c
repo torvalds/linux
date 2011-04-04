@@ -91,9 +91,17 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 }
 
 static int nf_ip6_route(struct net *net, struct dst_entry **dst,
-			struct flowi *fl)
+			struct flowi *fl, bool strict)
 {
-	*dst = ip6_route_output(net, NULL, &fl->u.ip6);
+	static const struct ipv6_pinfo fake_pinfo;
+	static const struct inet_sock fake_sk = {
+		/* makes ip6_route_output set RT6_LOOKUP_F_IFACE: */
+		.sk.sk_bound_dev_if = 1,
+		.pinet6 = (struct ipv6_pinfo *) &fake_pinfo,
+	};
+	const void *sk = strict ? &fake_sk : NULL;
+
+	*dst = ip6_route_output(net, sk, &fl->u.ip6);
 	return (*dst)->error;
 }
 
