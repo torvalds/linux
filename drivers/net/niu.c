@@ -7888,28 +7888,31 @@ static void niu_force_led(struct niu *np, int on)
 	nw64_mac(reg, val);
 }
 
-static int niu_phys_id(struct net_device *dev, u32 data)
+static int niu_set_phys_id(struct net_device *dev,
+			   enum ethtool_phys_id_state state)
+
 {
 	struct niu *np = netdev_priv(dev);
-	u64 orig_led_state;
-	int i;
 
 	if (!netif_running(dev))
 		return -EAGAIN;
 
-	if (data == 0)
-		data = 2;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		np->orig_led_state = niu_led_state_save(np);
+		return -EINVAL;
 
-	orig_led_state = niu_led_state_save(np);
-	for (i = 0; i < (data * 2); i++) {
-		int on = ((i % 2) == 0);
+	case ETHTOOL_ID_ON:
+		niu_force_led(np, 1);
+		break;
 
-		niu_force_led(np, on);
+	case ETHTOOL_ID_OFF:
+		niu_force_led(np, 0);
+		break;
 
-		if (msleep_interruptible(500))
-			break;
+	case ETHTOOL_ID_INACTIVE:
+		niu_led_state_restore(np, np->orig_led_state);
 	}
-	niu_led_state_restore(np, orig_led_state);
 
 	return 0;
 }
@@ -7932,7 +7935,7 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.get_strings		= niu_get_strings,
 	.get_sset_count		= niu_get_sset_count,
 	.get_ethtool_stats	= niu_get_ethtool_stats,
-	.phys_id		= niu_phys_id,
+	.set_phys_id		= niu_set_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
 	.set_flags		= niu_set_flags,
