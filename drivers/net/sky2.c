@@ -3826,23 +3826,24 @@ static void sky2_led(struct sky2_port *sky2, enum led_mode mode)
 }
 
 /* blink LED's for finding board */
-static int sky2_phys_id(struct net_device *dev, u32 data)
+static int sky2_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	unsigned int i;
 
-	if (data == 0)
-		data = UINT_MAX;
-
-	for (i = 0; i < data; i++) {
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return -EINVAL;
+	case ETHTOOL_ID_INACTIVE:
+		sky2_led(sky2, MO_LED_NORM);
+		break;
+	case ETHTOOL_ID_ON:
 		sky2_led(sky2, MO_LED_ON);
-		if (msleep_interruptible(500))
-			break;
+		break;
+	case ETHTOOL_ID_OFF:
 		sky2_led(sky2, MO_LED_OFF);
-		if (msleep_interruptible(500))
-			break;
+		break;
 	}
-	sky2_led(sky2, MO_LED_NORM);
 
 	return 0;
 }
@@ -4269,7 +4270,7 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 	.set_ringparam	= sky2_set_ringparam,
 	.get_pauseparam = sky2_get_pauseparam,
 	.set_pauseparam = sky2_set_pauseparam,
-	.phys_id	= sky2_phys_id,
+	.set_phys_id	= sky2_set_phys_id,
 	.get_sset_count = sky2_get_sset_count,
 	.get_ethtool_stats = sky2_get_ethtool_stats,
 	.set_flags	= sky2_set_flags,
