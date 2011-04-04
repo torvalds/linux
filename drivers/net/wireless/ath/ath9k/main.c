@@ -299,7 +299,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
 		if (sc->sc_flags & SC_OP_BEACONS)
-			ath_beacon_config(sc, NULL);
+			ath_set_beacon(sc);
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
 		ath_start_ani(common);
@@ -828,43 +828,6 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static void ath9k_bss_assoc_info(struct ath_softc *sc,
-				 struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_bss_conf *bss_conf)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (bss_conf->assoc) {
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Bss Info ASSOC %d, bssid: %pM\n",
-			bss_conf->aid, common->curbssid);
-
-		/*
-		 * Request a re-configuration of Beacon related timers
-		 * on the receipt of the first Beacon frame (i.e.,
-		 * after time sync with the AP).
-		 */
-		sc->ps_flags |= PS_BEACON_SYNC;
-
-		/* Configure the beacon */
-		ath_beacon_config(sc, vif);
-
-		/* Reset rssi stats */
-		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
-		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-
-		sc->sc_flags |= SC_OP_ANI_RUN;
-		ath_start_ani(common);
-	} else {
-		ath_dbg(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
-		/* Stop ANI */
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
-		del_timer_sync(&common->ani.timer);
-	}
-}
-
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -894,7 +857,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		goto out;
 	}
 	if (sc->sc_flags & SC_OP_BEACONS)
-		ath_beacon_config(sc, NULL);	/* restart beacons */
+		ath_set_beacon(sc);	/* restart beacons */
 
 	/* Re-Enable  interrupts */
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -1001,7 +964,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 			       sc->config.txpowlimit, &sc->curtxpow);
 
 	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
-		ath_beacon_config(sc, NULL);	/* restart beacons */
+		ath_set_beacon(sc);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
@@ -1408,9 +1371,6 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
-	} else {
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
-		del_timer_sync(&common->ani.timer);
 	}
 }
 
@@ -1894,6 +1854,9 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = bss_conf->aid;
 		ath9k_hw_write_associd(sc->sc_ah);
+		/* configure beacon */
+		if (bss_conf->enable_beacon)
+			ath_beacon_config(sc, vif);
 		break;
 	case NL80211_IFTYPE_STATION:
 		/*
@@ -1909,6 +1872,16 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 			common->curaid = bss_conf->aid;
 			ath9k_hw_write_associd(sc->sc_ah);
+			ath_dbg(common, ATH_DBG_CONFIG,
+				"Bss Info ASSOC %d, bssid: %pM\n",
+				bss_conf->aid, common->curbssid);
+			ath_beacon_config(sc, vif);
+			/* Reset rssi stats */
+			sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
+
+			sc->sc_flags |= SC_OP_ANI_RUN;
+			ath_start_ani(common);
 		}
 		break;
 	default:
@@ -1924,7 +1897,10 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 
 	/* Reconfigure bss info */
 	if (avp->primary_sta_vif && !bss_conf->assoc) {
-		sc->sc_flags &= ~SC_OP_PRIM_STA_VIF;
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Bss Info DISASSOC %d, bssid %pM\n",
+			common->curaid, common->curbssid);
+		sc->sc_flags &= ~(SC_OP_PRIM_STA_VIF | SC_OP_BEACONS);
 		avp->primary_sta_vif = false;
 		memset(common->curbssid, 0, ETH_ALEN);
 		common->curaid = 0;
@@ -1938,8 +1914,12 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 	 * Clear bssid & aid
 	 */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
-	    !(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+	    !(sc->sc_flags & SC_OP_PRIM_STA_VIF)) {
 		ath9k_hw_write_associd(sc->sc_ah);
+		/* Stop ANI */
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
+	}
 }
 
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
@@ -1948,7 +1928,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1965,9 +1944,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
-
-		/* need to reconfigure the beacon */
-		sc->sc_flags &= ~SC_OP_BEACONS ;
 	}
 
 	/* Enable transmission of beacons (AP, IBSS, MESH) */
@@ -2008,7 +1984,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		cur_conf->beacon_interval = bss_conf->beacon_int;
 		/*
 		 * In case of AP mode, the HW TSF has to be reset
 		 * when the beacon interval changes.
@@ -2020,9 +1995,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			if (!error)
 				ath_beacon_config(sc, vif);
 			ath9k_set_beaconing_status(sc, true);
-		} else {
+		} else
 			ath_beacon_config(sc, vif);
-		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -2042,12 +2016,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
 		else
 			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
-	}
-
-	if (changed & BSS_CHANGED_ASSOC) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
-			bss_conf->assoc);
-		ath9k_bss_assoc_info(sc, hw, vif, bss_conf);
 	}
 
 	mutex_unlock(&sc->mutex);
