@@ -37,8 +37,7 @@
 
 #define NILFS_BUFFER_INHERENT_BITS  \
 	((1UL << BH_Uptodate) | (1UL << BH_Mapped) | (1UL << BH_NILFS_Node) | \
-	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated) | \
-	 (1UL << BH_NILFS_Checked))
+	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Checked))
 
 static struct buffer_head *
 __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
@@ -214,56 +213,6 @@ void nilfs_page_bug(struct page *page)
 			bh = bh->b_this_page;
 		} while (bh != head);
 	}
-}
-
-/**
- * nilfs_alloc_private_page - allocate a private page with buffer heads
- *
- * Return Value: On success, a pointer to the allocated page is returned.
- * On error, NULL is returned.
- */
-struct page *nilfs_alloc_private_page(struct block_device *bdev, int size,
-				      unsigned long state)
-{
-	struct buffer_head *bh, *head, *tail;
-	struct page *page;
-
-	page = alloc_page(GFP_NOFS); /* page_count of the returned page is 1 */
-	if (unlikely(!page))
-		return NULL;
-
-	lock_page(page);
-	head = alloc_page_buffers(page, size, 0);
-	if (unlikely(!head)) {
-		unlock_page(page);
-		__free_page(page);
-		return NULL;
-	}
-
-	bh = head;
-	do {
-		bh->b_state = (1UL << BH_NILFS_Allocated) | state;
-		tail = bh;
-		bh->b_bdev = bdev;
-		bh = bh->b_this_page;
-	} while (bh);
-
-	tail->b_this_page = head;
-	attach_page_buffers(page, head);
-
-	return page;
-}
-
-void nilfs_free_private_page(struct page *page)
-{
-	BUG_ON(!PageLocked(page));
-	BUG_ON(page->mapping);
-
-	if (page_has_buffers(page) && !try_to_free_buffers(page))
-		NILFS_PAGE_BUG(page, "failed to free page");
-
-	unlock_page(page);
-	__free_page(page);
 }
 
 /**

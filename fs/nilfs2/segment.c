@@ -1556,83 +1556,24 @@ static int nilfs_segctor_assign(struct nilfs_sc_info *sci, int mode)
 	return 0;
 }
 
-static int
-nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
-{
-	struct page *clone_page;
-	struct buffer_head *bh, *head, *bh2;
-	void *kaddr;
-
-	bh = head = page_buffers(page);
-
-	clone_page = nilfs_alloc_private_page(bh->b_bdev, bh->b_size, 0);
-	if (unlikely(!clone_page))
-		return -ENOMEM;
-
-	bh2 = page_buffers(clone_page);
-	kaddr = kmap_atomic(page, KM_USER0);
-	do {
-		if (list_empty(&bh->b_assoc_buffers))
-			continue;
-		get_bh(bh2);
-		page_cache_get(clone_page); /* for each bh */
-		memcpy(bh2->b_data, kaddr + bh_offset(bh), bh2->b_size);
-		bh2->b_blocknr = bh->b_blocknr;
-		list_replace(&bh->b_assoc_buffers, &bh2->b_assoc_buffers);
-		list_add_tail(&bh->b_assoc_buffers, out);
-	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
-	kunmap_atomic(kaddr, KM_USER0);
-
-	if (!TestSetPageWriteback(clone_page))
-		account_page_writeback(clone_page);
-	unlock_page(clone_page);
-
-	return 0;
-}
-
-static int nilfs_test_page_to_be_frozen(struct page *page)
-{
-	struct address_space *mapping = page->mapping;
-
-	if (!mapping || !mapping->host || S_ISDIR(mapping->host->i_mode))
-		return 0;
-
-	if (page_mapped(page)) {
-		ClearPageChecked(page);
-		return 1;
-	}
-	return PageChecked(page);
-}
-
-static int nilfs_begin_page_io(struct page *page, struct list_head *out)
+static void nilfs_begin_page_io(struct page *page)
 {
 	if (!page || PageWriteback(page))
 		/* For split b-tree node pages, this function may be called
 		   twice.  We ignore the 2nd or later calls by this check. */
-		return 0;
+		return;
 
 	lock_page(page);
 	clear_page_dirty_for_io(page);
 	set_page_writeback(page);
 	unlock_page(page);
-
-	if (nilfs_test_page_to_be_frozen(page)) {
-		int err = nilfs_copy_replace_page_buffers(page, out);
-		if (unlikely(err))
-			return err;
-	}
-	return 0;
 }
 
-static int nilfs_segctor_prepare_write(struct nilfs_sc_info *sci,
-				       struct page **failed_page)
+static void nilfs_segctor_prepare_write(struct nilfs_sc_info *sci)
 {
 	struct nilfs_segment_buffer *segbuf;
 	struct page *bd_page = NULL, *fs_page = NULL;
-	struct list_head *list = &sci->sc_copied_buffers;
-	int err;
 
-	*failed_page = NULL;
 	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list) {
 		struct buffer_head *bh;
 
@@ -1662,11 +1603,7 @@ static int nilfs_segctor_prepare_write(struct nilfs_sc_info *sci,
 				break;
 			}
 			if (bh->b_page != fs_page) {
-				err = nilfs_begin_page_io(fs_page, list);
-				if (unlikely(err)) {
-					*failed_page = fs_page;
-					goto out;
-				}
+				nilfs_begin_page_io(fs_page);
 				fs_page = bh->b_page;
 			}
 		}
@@ -1677,11 +1614,7 @@ static int nilfs_segctor_prepare_write(struct nilfs_sc_info *sci,
 		set_page_writeback(bd_page);
 		unlock_page(bd_page);
 	}
-	err = nilfs_begin_page_io(fs_page, list);
-	if (unlikely(err))
-		*failed_page = fs_page;
- out:
-	return err;
+	nilfs_begin_page_io(fs_page);
 }
 
 static int nilfs_segctor_write(struct nilfs_sc_info *sci,
@@ -1692,24 +1625,6 @@ static int nilfs_segctor_write(struct nilfs_sc_info *sci,
 	ret = nilfs_write_logs(&sci->sc_segbufs, nilfs);
 	list_splice_tail_init(&sci->sc_segbufs, &sci->sc_write_logs);
 	return ret;
-}
-
-static void __nilfs_end_page_io(struct page *page, int err)
-{
-	if (!err) {
-		if (!nilfs_page_buffers_clean(page))
-			__set_page_dirty_nobuffers(page);
-		ClearPageError(page);
-	} else {
-		__set_page_dirty_nobuffers(page);
-		SetPageError(page);
-	}
-
-	if (buffer_nilfs_allocated(page_buffers(page))) {
-		if (TestClearPageWriteback(page))
-			dec_zone_page_state(page, NR_WRITEBACK);
-	} else
-		end_page_writeback(page);
 }
 
 static void nilfs_end_page_io(struct page *page, int err)
@@ -1738,40 +1653,19 @@ static void nilfs_end_page_io(struct page *page, int err)
 		return;
 	}
 
-	__nilfs_end_page_io(page, err);
-}
-
-static void nilfs_clear_copied_buffers(struct list_head *list, int err)
-{
-	struct buffer_head *bh, *head;
-	struct page *page;
-
-	while (!list_empty(list)) {
-		bh = list_entry(list->next, struct buffer_head,
-				b_assoc_buffers);
-		page = bh->b_page;
-		page_cache_get(page);
-		head = bh = page_buffers(page);
-		do {
-			if (!list_empty(&bh->b_assoc_buffers)) {
-				list_del_init(&bh->b_assoc_buffers);
-				if (!err) {
-					set_buffer_uptodate(bh);
-					clear_buffer_dirty(bh);
-					clear_buffer_delay(bh);
-					clear_buffer_nilfs_volatile(bh);
-				}
-				brelse(bh); /* for b_assoc_buffers */
-			}
-		} while ((bh = bh->b_this_page) != head);
-
-		__nilfs_end_page_io(page, err);
-		page_cache_release(page);
+	if (!err) {
+		if (!nilfs_page_buffers_clean(page))
+			__set_page_dirty_nobuffers(page);
+		ClearPageError(page);
+	} else {
+		__set_page_dirty_nobuffers(page);
+		SetPageError(page);
 	}
+
+	end_page_writeback(page);
 }
 
-static void nilfs_abort_logs(struct list_head *logs, struct page *failed_page,
-			     int err)
+static void nilfs_abort_logs(struct list_head *logs, int err)
 {
 	struct nilfs_segment_buffer *segbuf;
 	struct page *bd_page = NULL, *fs_page = NULL;
@@ -1801,8 +1695,6 @@ static void nilfs_abort_logs(struct list_head *logs, struct page *failed_page,
 			}
 			if (bh->b_page != fs_page) {
 				nilfs_end_page_io(fs_page, err);
-				if (fs_page && fs_page == failed_page)
-					return;
 				fs_page = bh->b_page;
 			}
 		}
@@ -1821,12 +1713,11 @@ static void nilfs_segctor_abort_construction(struct nilfs_sc_info *sci,
 
 	list_splice_tail_init(&sci->sc_write_logs, &logs);
 	ret = nilfs_wait_on_logs(&logs);
-	nilfs_abort_logs(&logs, NULL, ret ? : err);
+	nilfs_abort_logs(&logs, ret ? : err);
 
 	list_splice_tail_init(&sci->sc_segbufs, &logs);
 	nilfs_cancel_segusage(&logs, nilfs->ns_sufile);
 	nilfs_free_incomplete_logs(&logs, nilfs);
-	nilfs_clear_copied_buffers(&sci->sc_copied_buffers, err);
 
 	if (sci->sc_stage.flags & NILFS_CF_SUFREED) {
 		ret = nilfs_sufile_cancel_freev(nilfs->ns_sufile,
@@ -1919,8 +1810,6 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 		end_page_writeback(bd_page);
 
 	nilfs_end_page_io(fs_page, 0);
-
-	nilfs_clear_copied_buffers(&sci->sc_copied_buffers, 0);
 
 	nilfs_drop_collected_inodes(&sci->sc_dirty_files);
 
@@ -2024,7 +1913,6 @@ static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
 static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 {
 	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
-	struct page *failed_page;
 	int err;
 
 	sci->sc_stage.scnt = NILFS_ST_INIT;
@@ -2079,11 +1967,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 		nilfs_segctor_update_segusage(sci, nilfs->ns_sufile);
 
 		/* Write partial segments */
-		err = nilfs_segctor_prepare_write(sci, &failed_page);
-		if (err) {
-			nilfs_abort_logs(&sci->sc_segbufs, failed_page, err);
-			goto failed_to_write;
-		}
+		nilfs_segctor_prepare_write(sci);
 
 		nilfs_add_checksums_on_logs(&sci->sc_segbufs,
 					    nilfs->ns_crc_seed);
@@ -2685,7 +2569,6 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 	INIT_LIST_HEAD(&sci->sc_segbufs);
 	INIT_LIST_HEAD(&sci->sc_write_logs);
 	INIT_LIST_HEAD(&sci->sc_gc_inodes);
-	INIT_LIST_HEAD(&sci->sc_copied_buffers);
 	init_timer(&sci->sc_timer);
 
 	sci->sc_interval = HZ * NILFS_SC_DEFAULT_TIMEOUT;
@@ -2738,8 +2621,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 
 	if (flag || !nilfs_segctor_confirm(sci))
 		nilfs_segctor_write_out(sci);
-
-	WARN_ON(!list_empty(&sci->sc_copied_buffers));
 
 	if (!list_empty(&sci->sc_dirty_files)) {
 		nilfs_warning(sci->sc_super, __func__,
