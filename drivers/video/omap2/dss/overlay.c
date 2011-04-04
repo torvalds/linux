@@ -201,12 +201,16 @@ static ssize_t overlay_enabled_show(struct omap_overlay *ovl, char *buf)
 static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 		size_t size)
 {
-	int r;
+	int r, enable;
 	struct omap_overlay_info info;
 
 	ovl->get_overlay_info(ovl, &info);
 
-	info.enabled = simple_strtoul(buf, NULL, 10);
+	r = kstrtoint(buf, 0, &enable);
+	if (r)
+		return r;
+
+	info.enabled = !!enable;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
@@ -231,7 +235,12 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 		const char *buf, size_t size)
 {
 	int r;
+	u8 alpha;
 	struct omap_overlay_info info;
+
+	r = kstrtou8(buf, 0, &alpha);
+	if (r)
+		return r;
 
 	ovl->get_overlay_info(ovl, &info);
 
@@ -242,7 +251,7 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 			ovl->id == OMAP_DSS_VIDEO1)
 		info.global_alpha = 255;
 	else
-		info.global_alpha = simple_strtoul(buf, NULL, 10);
+		info.global_alpha = alpha;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
@@ -268,7 +277,12 @@ static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
 		const char *buf, size_t size)
 {
 	int r;
+	u8 alpha;
 	struct omap_overlay_info info;
+
+	r = kstrtou8(buf, 0, &alpha);
+	if (r)
+		return r;
 
 	ovl->get_overlay_info(ovl, &info);
 
@@ -279,7 +293,7 @@ static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
 		ovl->id == OMAP_DSS_VIDEO1)
 		info.pre_mult_alpha = 0;
 	else
-		info.pre_mult_alpha = simple_strtoul(buf, NULL, 10);
+		info.pre_mult_alpha = alpha;
 
 	r = ovl->set_overlay_info(ovl, &info);
 	if (r)
