@@ -64,7 +64,8 @@ struct net_bridge_fdb_entry
 	struct net_bridge_port		*dst;
 
 	struct rcu_head			rcu;
-	unsigned long			ageing_timer;
+	unsigned long			updated;
+	unsigned long			used;
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;

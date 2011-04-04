@@ -62,7 +62,7 @@ static inline int has_expired(const struct net_bridge *br,
 				  const struct net_bridge_fdb_entry *fdb)
 {
 	return !fdb->is_static &&
-		time_before_eq(fdb->ageing_timer + hold_time(br), jiffies);
+		time_before_eq(fdb->updated + hold_time(br), jiffies);
 }
 
 static inline int br_mac_hash(const unsigned char *mac)
@@ -140,7 +140,7 @@ void br_fdb_cleanup(unsigned long _data)
 			unsigned long this_timer;
 			if (f->is_static)
 				continue;
-			this_timer = f->ageing_timer + delay;
+			this_timer = f->updated + delay;
 			if (time_before_eq(this_timer, jiffies))
 				fdb_delete(f);
 			else if (time_before(this_timer, next_timer))
@@ -293,7 +293,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 
 			fe->is_local = f->is_local;
 			if (!f->is_static)
-				fe->ageing_timer_value = jiffies_to_clock_t(jiffies - f->ageing_timer);
+				fe->ageing_timer_value = jiffies_to_clock_t(jiffies - f->updated);
 			++fe;
 			++num;
 		}
@@ -330,7 +330,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->dst = source;
 		fdb->is_local = 0;
 		fdb->is_static = 0;
-		fdb->ageing_timer = jiffies;
+		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
 	}
 	return fdb;
@@ -404,7 +404,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		} else {
 			/* fastpath: update of existing entry */
 			fdb->dst = source;
-			fdb->ageing_timer = jiffies;
+			fdb->updated = jiffies;
 		}
 	} else {
 		spin_lock(&br->hash_lock);
