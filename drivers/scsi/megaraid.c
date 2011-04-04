@@ -1469,8 +1469,8 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 			if( scb->state & SCB_ABORT ) {
 
 				printk(KERN_WARNING
-				"megaraid: aborted cmd %lx[%x] complete.\n",
-					scb->cmd->serial_number, scb->idx);
+				"megaraid: aborted cmd [%x] complete.\n",
+					scb->idx);
 
 				scb->cmd->result = (DID_ABORT << 16);
 
@@ -1488,8 +1488,8 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 			if( scb->state & SCB_RESET ) {
 
 				printk(KERN_WARNING
-				"megaraid: reset cmd %lx[%x] complete.\n",
-					scb->cmd->serial_number, scb->idx);
+				"megaraid: reset cmd [%x] complete.\n",
+					scb->idx);
 
 				scb->cmd->result = (DID_RESET << 16);
 
@@ -1958,8 +1958,8 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 	struct list_head	*pos, *next;
 	scb_t			*scb;
 
-	printk(KERN_WARNING "megaraid: %s-%lx cmd=%x <c=%d t=%d l=%d>\n",
-	     (aor == SCB_ABORT)? "ABORTING":"RESET", cmd->serial_number,
+	printk(KERN_WARNING "megaraid: %s cmd=%x <c=%d t=%d l=%d>\n",
+	     (aor == SCB_ABORT)? "ABORTING":"RESET",
 	     cmd->cmnd[0], cmd->device->channel, 
 	     cmd->device->id, cmd->device->lun);
 
@@ -1983,9 +1983,9 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 			if( scb->state & SCB_ISSUED ) {
 
 				printk(KERN_WARNING
-					"megaraid: %s-%lx[%x], fw owner.\n",
+					"megaraid: %s[%x], fw owner.\n",
 					(aor==SCB_ABORT) ? "ABORTING":"RESET",
-					cmd->serial_number, scb->idx);
+					scb->idx);
 
 				return FALSE;
 			}
@@ -1996,9 +1996,9 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 				 * list
 				 */
 				printk(KERN_WARNING
-					"megaraid: %s-%lx[%x], driver owner.\n",
+					"megaraid: %s-[%x], driver owner.\n",
 					(aor==SCB_ABORT) ? "ABORTING":"RESET",
-					cmd->serial_number, scb->idx);
+					scb->idx);
 
 				mega_free_scb(adapter, scb);
 

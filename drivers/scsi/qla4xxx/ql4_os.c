@@ -2068,15 +2068,14 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
 	unsigned int id = cmd->device->id;
 	unsigned int lun = cmd->device->lun;
-	unsigned long serial = cmd->serial_number;
 	unsigned long flags;
 	struct srb *srb = NULL;
 	int ret = SUCCESS;
 	int wait = 0;
 
 	ql4_printk(KERN_INFO, ha,
-	    "scsi%ld:%d:%d: Abort command issued cmd=%p, pid=%ld\n",
-	    ha->host_no, id, lun, cmd, serial);
+	    "scsi%ld:%d:%d: Abort command issued cmd=%p\n",
+	    ha->host_no, id, lun, cmd);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	srb = (struct srb *) CMD_SP(cmd);
