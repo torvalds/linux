@@ -245,7 +245,6 @@ static unsigned int do_i2c_read(struct snd_soc_codec *codec,
 	xfer[1].buf = data;
 
 	ret = i2c_transfer(client->adapter, xfer, 2);
-	dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
 	if (ret == 2)
 		return 0;
 	else if (ret < 0)
