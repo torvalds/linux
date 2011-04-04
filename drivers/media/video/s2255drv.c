@@ -433,6 +433,10 @@ static const struct s2255_fmt formats[] = {
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.depth = 24
 	}, {
+		.name = "MJPG",
+		.fourcc = V4L2_PIX_FMT_MJPEG,
+		.depth = 24
+	}, {
 		.name = "8bpp GREY",
 		.fourcc = V4L2_PIX_FMT_GREY,
 		.depth = 8
@@ -653,6 +657,7 @@ static void s2255_fillbuff(struct s2255_channel *channel,
 			memcpy(vbuf, tmpbuf, buf->vb.width * buf->vb.height);
 			break;
 		case V4L2_PIX_FMT_JPEG:
+		case V4L2_PIX_FMT_MJPEG:
 			buf->vb.size = jpgsize;
 			memcpy(vbuf, tmpbuf, buf->vb.size);
 			break;
@@ -1037,6 +1042,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		mode.color |= COLOR_Y8;
 		break;
 	case V4L2_PIX_FMT_JPEG:
+	case V4L2_PIX_FMT_MJPEG:
 		mode.color &= ~MASK_COLOR;
 		mode.color |= COLOR_JPG;
 		mode.color |= (channel->jc.quality << 8);
