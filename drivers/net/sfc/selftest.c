@@ -770,6 +770,8 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
+	netif_tx_wake_all_queues(efx->net_dev);
+
 	return rc_test;
 }
 
