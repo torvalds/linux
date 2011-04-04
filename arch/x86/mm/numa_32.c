@@ -108,9 +108,6 @@ static unsigned long node_remap_size[MAX_NUMNODES];
 static void *node_remap_start_vaddr[MAX_NUMNODES];
 void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
-static unsigned long kva_start_pfn;
-static unsigned long kva_pages;
-
 int __cpuinit numa_cpu_node(int cpu)
 {
 	return apic->x86_32_numa_cpu_node(cpu);
@@ -266,7 +263,8 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 {
 	unsigned long size;
-	u64 node_pa;
+	u64 node_pa, remap_pa;
+	void *remap_va;
 
 	/*
 	 * The acpi/srat node info can show hot-add memroy zones where
@@ -287,6 +285,7 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 	size = ALIGN(size, LARGE_PAGE_BYTES);
 
+	/* allocate node memory and the lowmem remap area */
 	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
 					 (u64)node_end_pfn[nid] << PAGE_SHIFT,
 					 size, LARGE_PAGE_BYTES);
@@ -295,43 +294,33 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 			   size, nid);
 		return 0;
 	}
-
-	node_remap_size[nid] = size >> PAGE_SHIFT;
-	node_remap_offset[nid] = offset;
-	printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
-	       size >> PAGE_SHIFT, nid, node_pa >> PAGE_SHIFT);
-
-	/*
-	 *  prevent kva address below max_low_pfn want it on system
-	 *  with less memory later.
-	 *  layout will be: KVA address , KVA RAM
-	 *
-	 *  we are supposed to only record the one less then
-	 *  max_low_pfn but we could have some hole in high memory,
-	 *  and it will only check page_is_ram(pfn) &&
-	 *  !page_is_reserved_early(pfn) to decide to use it as free.
-	 *  So memblock_x86_reserve_range here, hope we don't run out
-	 *  of that array
-	 */
 	memblock_x86_reserve_range(node_pa, node_pa + size, "KVA RAM");
 
+	remap_pa = memblock_find_in_range(min_low_pfn << PAGE_SHIFT,
+					  max_low_pfn << PAGE_SHIFT,
+					  size, LARGE_PAGE_BYTES);
+	if (remap_pa == MEMBLOCK_ERROR) {
+		pr_warning("remap_alloc: failed to allocate %lu bytes remap area for node %d\n",
+			   size, nid);
+		memblock_x86_free_range(node_pa, node_pa + size);
+		return 0;
+	}
+	memblock_x86_reserve_range(remap_pa, remap_pa + size, "KVA PG");
+	remap_va = phys_to_virt(remap_pa);
+
+	/* initialize remap allocator parameters */
 	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
+	node_remap_size[nid] = size >> PAGE_SHIFT;
+	node_remap_offset[nid] = offset;
+
+	node_remap_start_vaddr[nid] = remap_va;
+	node_remap_end_vaddr[nid] = remap_va + size;
+	node_remap_alloc_vaddr[nid] = remap_va + ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+
+	printk(KERN_DEBUG "remap_alloc: node %d [%08llx-%08llx) -> [%p-%p)\n",
+	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
 
 	return size >> PAGE_SHIFT;
-}
-
-static void init_remap_allocator(int nid)
-{
-	node_remap_start_vaddr[nid] = pfn_to_kaddr(
-			kva_start_pfn + node_remap_offset[nid]);
-	node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
-		(node_remap_size[nid] * PAGE_SIZE);
-	node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
-		ALIGN(sizeof(pg_data_t), PAGE_SIZE);
-
-	printk(KERN_DEBUG "node %d will remap to vaddr %08lx - %08lx\n", nid,
-		(ulong) node_remap_start_vaddr[nid],
-		(ulong) node_remap_end_vaddr[nid]);
 }
 
 void __init initmem_init(void)
@@ -352,25 +341,7 @@ void __init initmem_init(void)
 
 	for_each_online_node(nid)
 		reserve_pages += init_alloc_remap(nid, reserve_pages);
-	kva_pages = roundup(reserve_pages, PTRS_PER_PTE);
-	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
-			reserve_pages);
 
-	kva_start_pfn = memblock_find_in_range(min_low_pfn << PAGE_SHIFT,
-				max_low_pfn << PAGE_SHIFT,
-				kva_pages << PAGE_SHIFT,
-				PTRS_PER_PTE << PAGE_SHIFT) >> PAGE_SHIFT;
-	if (kva_start_pfn == MEMBLOCK_ERROR)
-		panic("Can not get kva space\n");
-
-	printk(KERN_INFO "kva_start_pfn ~ %lx max_low_pfn ~ %lx\n",
-		kva_start_pfn, max_low_pfn);
-	printk(KERN_INFO "max_pfn = %lx\n", max_pfn);
-
-	/* avoid clash with initrd */
-	memblock_x86_reserve_range(kva_start_pfn<<PAGE_SHIFT,
-		      (kva_start_pfn + kva_pages)<<PAGE_SHIFT,
-		     "KVA PG");
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
 	if (max_pfn > max_low_pfn)
@@ -390,11 +361,8 @@ void __init initmem_init(void)
 
 	printk(KERN_DEBUG "Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
-	for_each_online_node(nid) {
-		init_remap_allocator(nid);
-
+	for_each_online_node(nid)
 		allocate_pgdat(nid);
-	}
 	remap_numa_kva();
 
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
