@@ -515,12 +515,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 				 0xffff);
 	}
 
-	if (!irq) {
-		dev_warn(wm831x->dev,
-			 "No interrupt specified - functionality limited\n");
-		return 0;
-	}
-
 	if (!pdata || !pdata->irq_base) {
 		dev_err(wm831x->dev,
 			"No interrupt base specified, no interrupts\n");
@@ -567,14 +561,21 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 #endif
 	}
 
-	ret = request_threaded_irq(irq, NULL, wm831x_irq_thread,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "wm831x", wm831x);
-	if (ret != 0) {
-		dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
-			irq, ret);
-		return ret;
+	if (irq) {
+		ret = request_threaded_irq(irq, NULL, wm831x_irq_thread,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					   "wm831x", wm831x);
+		if (ret != 0) {
+			dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
+				irq, ret);
+			return ret;
+		}
+	} else {
+		dev_warn(wm831x->dev,
+			 "No interrupt specified - functionality limited\n");
 	}
+
+
 
 	/* Enable top level interrupts, we mask at secondary level */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);
