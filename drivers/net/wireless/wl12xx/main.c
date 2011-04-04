@@ -1011,6 +1011,10 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
 
+		/* end-of-transaction flag should be set in wl127x AP mode */
+		if (wl->bss_type == BSS_TYPE_AP_BSS)
+			wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
+
 		ret = wl1271_setup(wl);
 		if (ret < 0)
 			goto out;
