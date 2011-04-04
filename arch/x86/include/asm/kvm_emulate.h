@@ -344,6 +344,8 @@ enum x86_intercept {
 	x86_intercept_wbinvd,
 	x86_intercept_monitor,
 	x86_intercept_mwait,
+	x86_intercept_rdmsr,
+	x86_intercept_wrmsr,
 
 	nr_x86_intercepts
 };

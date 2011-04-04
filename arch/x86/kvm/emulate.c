@@ -2425,12 +2425,9 @@ static int em_cwd(struct x86_emulate_ctxt *ctxt)
 
 static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 {
-	unsigned cpl = ctxt->ops->cpl(ctxt->vcpu);
 	struct decode_cache *c = &ctxt->decode;
 	u64 tsc = 0;
 
-	if (cpl > 0 && (ctxt->ops->get_cr(4, ctxt->vcpu) & X86_CR4_TSD))
-		return emulate_gp(ctxt, 0);
 	ctxt->ops->get_msr(ctxt->vcpu, MSR_IA32_TSC, &tsc);
 	c->regs[VCPU_REGS_RAX] = (u32)tsc;
 	c->regs[VCPU_REGS_RDX] = tsc >> 32;
@@ -2610,6 +2607,18 @@ static int check_rdtsc(struct x86_emulate_ctxt *ctxt)
 
 	if (cr4 & X86_CR4_TSD && ctxt->ops->cpl(ctxt->vcpu))
 		return emulate_ud(ctxt);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
+{
+	u64 cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+	u64 rcx = kvm_register_read(ctxt->vcpu, VCPU_REGS_RCX);
+
+	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt->vcpu)) ||
+	    (rcx > 3))
+		return emulate_gp(ctxt, 0);
 
 	return X86EMUL_CONTINUE;
 }
@@ -2846,8 +2855,10 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
-	D(ImplicitOps | Priv), II(ImplicitOps, em_rdtsc, rdtsc),
-	D(ImplicitOps | Priv), N,
+	DI(ImplicitOps | Priv, wrmsr),
+	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
+	DI(ImplicitOps | Priv, rdmsr),
+	DIP(ImplicitOps | Priv, rdpmc, check_rdpmc),
 	D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv | VendorSpecific),
 	N, N,
 	N, N, N, N, N, N, N, N,
@@ -2871,12 +2882,12 @@ static struct opcode twobyte_table[256] = {
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
-	N, D(DstMem | SrcReg | ModRM | BitOp),
+	DI(ImplicitOps, cpuid), D(DstMem | SrcReg | ModRM | BitOp),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
-	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	DI(ImplicitOps, rsm), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),

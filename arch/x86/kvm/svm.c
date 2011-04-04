@@ -3868,6 +3868,9 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	update_cr0_intercept(svm);
 }
 
+#define PRE_EX(exit)  { .exit_code = (exit), \
+			.stage = X86_ICPT_PRE_EXCEPT, \
+			.valid = true }
 #define POST_EX(exit) { .exit_code = (exit), \
 			.stage = X86_ICPT_POST_EXCEPT, \
 			.valid = true }
@@ -3906,8 +3909,18 @@ static struct __x86_intercept {
 	[x86_intercept_rdtscp]		= POST_EX(SVM_EXIT_RDTSCP),
 	[x86_intercept_monitor]		= POST_MEM(SVM_EXIT_MONITOR),
 	[x86_intercept_mwait]		= POST_EX(SVM_EXIT_MWAIT),
+	[x86_intercept_invlpg]		= POST_EX(SVM_EXIT_INVLPG),
+	[x86_intercept_invd]		= POST_EX(SVM_EXIT_INVD),
+	[x86_intercept_wbinvd]		= POST_EX(SVM_EXIT_WBINVD),
+	[x86_intercept_wrmsr]		= POST_EX(SVM_EXIT_MSR),
+	[x86_intercept_rdtsc]		= POST_EX(SVM_EXIT_RDTSC),
+	[x86_intercept_rdmsr]		= POST_EX(SVM_EXIT_MSR),
+	[x86_intercept_rdpmc]		= POST_EX(SVM_EXIT_RDPMC),
+	[x86_intercept_cpuid]		= PRE_EX(SVM_EXIT_CPUID),
+	[x86_intercept_rsm]		= PRE_EX(SVM_EXIT_RSM),
 };
 
+#undef PRE_EX
 #undef POST_EX
 #undef POST_MEM
 
@@ -3967,6 +3980,12 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 	case SVM_EXIT_READ_DR0:
 	case SVM_EXIT_WRITE_DR0:
 		icpt_info.exit_code += info->modrm_reg;
+		break;
+	case SVM_EXIT_MSR:
+		if (info->intercept == x86_intercept_wrmsr)
+			vmcb->control.exit_info_1 = 1;
+		else
+			vmcb->control.exit_info_1 = 0;
 		break;
 	default:
 		break;
