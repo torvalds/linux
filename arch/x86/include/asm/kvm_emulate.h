@@ -222,6 +222,7 @@ struct decode_cache {
 	u8 seg_override;
 	unsigned int d;
 	int (*execute)(struct x86_emulate_ctxt *ctxt);
+	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 	unsigned long regs[NR_VCPU_REGS];
 	unsigned long eip;
 	/* modrm */

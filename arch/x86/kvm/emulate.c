@@ -111,6 +111,7 @@ struct opcode {
 		struct group_dual *gdual;
 		struct gprefix *gprefix;
 	} u;
+	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 };
 
 struct group_dual {
@@ -2425,12 +2426,17 @@ static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
+#define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
+		      .check_perm = (_p) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define II(_f, _e, _i) \
 	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
+#define IIP(_f, _e, _i, _p) \
+	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i, \
+	  .check_perm = (_p) }
 #define GP(_f, _g) { .flags = ((_f) | Prefix), .u.gprefix = (_g) }
 
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
@@ -2873,6 +2879,7 @@ done_prefixes:
 	}
 
 	c->execute = opcode.u.execute;
+	c->check_perm = opcode.check_perm;
 	c->intercept = opcode.intercept;
 
 	/* Unrecognised? */
@@ -3134,6 +3141,13 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		rc = emulate_gp(ctxt, 0);
 		goto done;
+	}
+
+	/* Do instruction specific permission checks */
+	if (c->check_perm) {
+		rc = c->check_perm(ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 	}
 
 	if (unlikely(ctxt->guest_mode) && c->intercept) {
