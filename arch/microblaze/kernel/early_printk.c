@@ -60,7 +60,7 @@ static void early_printk_uartlite_write(struct console *unused,
 static struct console early_serial_uartlite_console = {
 	.name = "earlyser",
 	.write = early_printk_uartlite_write,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1,
 };
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
@@ -104,7 +104,7 @@ static void early_printk_uart16550_write(struct console *unused,
 static struct console early_serial_uart16550_console = {
 	.name = "earlyser",
 	.write = early_printk_uart16550_write,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1,
 };
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
@@ -141,7 +141,7 @@ int __init setup_early_printk(char *opt)
 		early_printk("early_printk_console is enabled at 0x%08x\n",
 							base_addr);
 
-		/* register_console(early_console); */
+		register_console(early_console);
 
 		return 0;
 	}
@@ -160,13 +160,25 @@ int __init setup_early_printk(char *opt)
 		early_printk("early_printk_console is enabled at 0x%08x\n",
 							base_addr);
 
-		/* register_console(early_console); */
+		register_console(early_console);
 
 		return 0;
 	}
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
 
 	return 1;
+}
+
+/* Remap early console to virtual address and do not allocate one TLB
+ * only for early console because of performance degression */
+void __init remap_early_printk(void)
+{
+	if (!early_console_initialized || !early_console)
+		return;
+	printk(KERN_INFO "early_printk_console remaping from 0x%x to ",
+								base_addr);
+	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
+	printk(KERN_CONT "0x%x\n", base_addr);
 }
 
 void __init disable_early_printk(void)
