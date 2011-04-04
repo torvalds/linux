@@ -7495,41 +7495,39 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 }
 
 static int
-bnx2_phys_id(struct net_device *dev, u32 data)
+bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-	int i;
-	u32 save;
 
-	bnx2_set_power_state(bp, PCI_D0);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		bnx2_set_power_state(bp, PCI_D0);
 
-	if (data == 0)
-		data = 2;
+		bp->leds_save = REG_RD(bp, BNX2_MISC_CFG);
+		REG_WR(bp, BNX2_MISC_CFG, BNX2_MISC_CFG_LEDMODE_MAC);
+		return -EINVAL;
 
-	save = REG_RD(bp, BNX2_MISC_CFG);
-	REG_WR(bp, BNX2_MISC_CFG, BNX2_MISC_CFG_LEDMODE_MAC);
+	case ETHTOOL_ID_ON:
+		REG_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE |
+		       BNX2_EMAC_LED_1000MB_OVERRIDE |
+		       BNX2_EMAC_LED_100MB_OVERRIDE |
+		       BNX2_EMAC_LED_10MB_OVERRIDE |
+		       BNX2_EMAC_LED_TRAFFIC_OVERRIDE |
+		       BNX2_EMAC_LED_TRAFFIC);
+		break;
 
-	for (i = 0; i < (data * 2); i++) {
-		if ((i % 2) == 0) {
-			REG_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE);
-		}
-		else {
-			REG_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE |
-				BNX2_EMAC_LED_1000MB_OVERRIDE |
-				BNX2_EMAC_LED_100MB_OVERRIDE |
-				BNX2_EMAC_LED_10MB_OVERRIDE |
-				BNX2_EMAC_LED_TRAFFIC_OVERRIDE |
-				BNX2_EMAC_LED_TRAFFIC);
-		}
-		msleep_interruptible(500);
-		if (signal_pending(current))
-			break;
+	case ETHTOOL_ID_OFF:
+		REG_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		REG_WR(bp, BNX2_EMAC_LED, 0);
+		REG_WR(bp, BNX2_MISC_CFG, bp->leds_save);
+
+		if (!netif_running(dev))
+			bnx2_set_power_state(bp, PCI_D3hot);
+		break;
 	}
-	REG_WR(bp, BNX2_EMAC_LED, 0);
-	REG_WR(bp, BNX2_MISC_CFG, save);
-
-	if (!netif_running(dev))
-		bnx2_set_power_state(bp, PCI_D3hot);
 
 	return 0;
 }
@@ -7602,7 +7600,7 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_tso		= bnx2_set_tso,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
-	.phys_id		= bnx2_phys_id,
+	.set_phys_id		= bnx2_set_phys_id,
 	.get_ethtool_stats	= bnx2_get_ethtool_stats,
 	.get_sset_count		= bnx2_get_sset_count,
 	.set_flags		= bnx2_set_flags,

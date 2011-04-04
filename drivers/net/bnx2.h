@@ -6922,6 +6922,7 @@ struct bnx2 {
 	u8			num_tx_rings;
 	u8			num_rx_rings;
 
+	u32 			leds_save;
 	u32			idle_chk_status_idx;
 
 #ifdef BCM_CNIC
