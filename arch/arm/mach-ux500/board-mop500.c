@@ -458,6 +458,9 @@ static void __init mop500_init_machine(void)
 	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 	i2c_register_board_info(2, mop500_i2c2_devices,
 				ARRAY_SIZE(mop500_i2c2_devices));
+
+	/* This board has full regulator constraints */
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
