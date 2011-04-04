@@ -111,7 +111,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	ifnum = intf->desc.bInterfaceNumber;
 	dbg("This Interface = %d", ifnum);
 
-	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private),
+	data = kzalloc(sizeof(struct usb_wwan_intf_private),
 					 GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -134,8 +134,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
 			dbg("QDL port found");
 
-			if (serial->interface->num_altsetting == 1)
-				return 0;
+			if (serial->interface->num_altsetting == 1) {
+				retval = 0; /* Success */
+				break;
+			}
 
 			retval = usb_set_interface(serial->dev, ifnum, 1);
 			if (retval < 0) {
@@ -145,7 +147,6 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 				retval = -ENODEV;
 				kfree(data);
 			}
-			return retval;
 		}
 		break;
 
@@ -177,7 +178,6 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 				retval = -ENODEV;
 				kfree(data);
 			}
-			return retval;
 		} else if (ifnum==3) {
 			/*
 			 * NMEA (serial line 9600 8N1)
@@ -199,9 +199,12 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		dev_err(&serial->dev->dev,
 			"unknown number of interfaces: %d\n", nintf);
 		kfree(data);
-		return -ENODEV;
+		retval = -ENODEV;
 	}
 
+	/* Set serial->private if not returning -ENODEV */
+	if (retval != -ENODEV)
+		usb_set_serial_data(serial, data);
 	return retval;
 }
 
