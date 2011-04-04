@@ -104,7 +104,6 @@ extern unsigned long highend_pfn, highstart_pfn;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
 
-static unsigned long node_remap_size[MAX_NUMNODES];
 static void *node_remap_start_vaddr[MAX_NUMNODES];
 void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
@@ -214,15 +213,16 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 	int node;
 
 	for_each_online_node(node) {
-		unsigned long start_va, start_pfn, size, pfn;
+		unsigned long start_va, start_pfn, nr_pages, pfn;
 
 		start_va = (unsigned long)node_remap_start_vaddr[node];
 		start_pfn = node_remap_start_pfn[node];
-		size = node_remap_size[node];
+		nr_pages = (node_remap_end_vaddr[node] -
+			    node_remap_start_vaddr[node]) >> PAGE_SHIFT;
 
 		printk(KERN_DEBUG "%s: node %d\n", __func__, node);
 
-		for (pfn = 0; pfn < size; pfn += PTRS_PER_PTE) {
+		for (pfn = 0; pfn < nr_pages; pfn += PTRS_PER_PTE) {
 			unsigned long vaddr = start_va + (pfn << PAGE_SHIFT);
 			pgd_t *pgd = pgd_base + pgd_index(vaddr);
 			pud_t *pud = pud_offset(pgd, vaddr);
@@ -294,8 +294,6 @@ static __init void init_alloc_remap(int nid)
 
 	/* initialize remap allocator parameters */
 	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
-	node_remap_size[nid] = size >> PAGE_SHIFT;
-
 	node_remap_start_vaddr[nid] = remap_va;
 	node_remap_end_vaddr[nid] = remap_va + size;
 	node_remap_alloc_vaddr[nid] = remap_va;
