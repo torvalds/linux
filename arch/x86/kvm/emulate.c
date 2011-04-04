@@ -509,6 +509,11 @@ static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 	return X86EMUL_PROPAGATE_FAULT;
 }
 
+static int emulate_db(struct x86_emulate_ctxt *ctxt)
+{
+	return emulate_exception(ctxt, DB_VECTOR, 0, false);
+}
+
 static int emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
 {
 	return emulate_exception(ctxt, GP_VECTOR, err, true);
@@ -2534,6 +2539,47 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int check_dr7_gd(struct x86_emulate_ctxt *ctxt)
+{
+	unsigned long dr7;
+
+	ctxt->ops->get_dr(7, &dr7, ctxt->vcpu);
+
+	/* Check if DR7.Global_Enable is set */
+	return dr7 & (1 << 13);
+}
+
+static int check_dr_read(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int dr = c->modrm_reg;
+	u64 cr4;
+
+	if (dr > 7)
+		return emulate_ud(ctxt);
+
+	cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+	if ((cr4 & X86_CR4_DE) && (dr == 4 || dr == 5))
+		return emulate_ud(ctxt);
+
+	if (check_dr7_gd(ctxt))
+		return emulate_db(ctxt);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int check_dr_write(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	u64 new_val = c->src.val64;
+	int dr = c->modrm_reg;
+
+	if ((dr == 6 || dr == 7) && (new_val & 0xffffffff00000000ULL))
+		return emulate_gp(ctxt, 0);
+
+	return check_dr_read(ctxt);
+}
+
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
@@ -2728,9 +2774,9 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
 	/* 0x20 - 0x2F */
 	DIP(ModRM | DstMem | Priv | Op3264, cr_read, check_cr_read),
-	D(ModRM | DstMem | Priv | Op3264),
+	DIP(ModRM | DstMem | Priv | Op3264, dr_read, check_dr_read),
 	DIP(ModRM | SrcMem | Priv | Op3264, cr_write, check_cr_write),
-	D(ModRM | SrcMem | Priv | Op3264),
+	DIP(ModRM | SrcMem | Priv | Op3264, dr_write, check_dr_write),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
@@ -3818,12 +3864,6 @@ twobyte_insn:
 		c->dst.val = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		break;
 	case 0x21: /* mov from dr to reg */
-		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
-		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
 		ops->get_dr(c->modrm_reg, &c->dst.val, ctxt->vcpu);
 		break;
 	case 0x22: /* mov reg, cr */
@@ -3835,13 +3875,6 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
-		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
-		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
-
 		if (ops->set_dr(c->modrm_reg, c->src.val &
 				((ctxt->mode == X86EMUL_MODE_PROT64) ?
 				 ~0ULL : ~0U), ctxt->vcpu) < 0) {

@@ -3882,6 +3882,8 @@ static struct __x86_intercept {
 	[x86_intercept_clts]		= POST_EX(SVM_EXIT_WRITE_CR0),
 	[x86_intercept_lmsw]		= POST_EX(SVM_EXIT_WRITE_CR0),
 	[x86_intercept_smsw]		= POST_EX(SVM_EXIT_READ_CR0),
+	[x86_intercept_dr_read]		= POST_EX(SVM_EXIT_READ_DR0),
+	[x86_intercept_dr_write]	= POST_EX(SVM_EXIT_WRITE_DR0),
 };
 
 #undef POST_EX
@@ -3939,6 +3941,10 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 
 		break;
 	}
+	case SVM_EXIT_READ_DR0:
+	case SVM_EXIT_WRITE_DR0:
+		icpt_info.exit_code += info->modrm_reg;
+		break;
 	default:
 		break;
 	}

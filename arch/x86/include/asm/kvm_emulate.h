@@ -309,6 +309,8 @@ enum x86_intercept {
 	x86_intercept_clts,
 	x86_intercept_lmsw,
 	x86_intercept_smsw,
+	x86_intercept_dr_read,
+	x86_intercept_dr_write,
 	x86_intercept_lidt,
 	x86_intercept_sidt,
 	x86_intercept_lgdt,
