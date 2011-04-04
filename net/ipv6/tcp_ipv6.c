@@ -503,6 +503,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
+		dst = NULL;
 		goto done;
 	}
 	skb = tcp_make_synack(sk, dst, req, rvp);
