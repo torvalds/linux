@@ -515,8 +515,7 @@ type_pf_head(struct ip_set *set, struct sk_buff *skb)
 	if (h->netmask != HOST_MASK)
 		NLA_PUT_U8(skb, IPSET_ATTR_NETMASK, h->netmask);
 #endif
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize));
 	if (with_timeout(h->timeout))
 		NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout));
