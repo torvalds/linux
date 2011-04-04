@@ -2075,6 +2075,9 @@ EXPORT_SYMBOL(unblock_all_signals);
  * System call entry points.
  */
 
+/**
+ *  sys_restart_syscall - restart a system call
+ */
 SYSCALL_DEFINE0(restart_syscall)
 {
 	struct restart_block *restart = &current_thread_info()->restart_block;
@@ -2128,6 +2131,13 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 	return error;
 }
 
+/**
+ *  sys_rt_sigprocmask - change the list of currently blocked signals
+ *  @how: whether to add, remove, or set signals
+ *  @set: stores pending signals
+ *  @oset: previous value of signal mask if non-null
+ *  @sigsetsize: size of sigset_t type
+ */
 SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, set,
 		sigset_t __user *, oset, size_t, sigsetsize)
 {
@@ -2188,6 +2198,12 @@ out:
 	return error;
 }
 
+/**
+ *  sys_rt_sigpending - examine a pending signal that has been raised
+ *			while blocked
+ *  @set: stores pending signals
+ *  @sigsetsize: size of sigset_t type or larger
+ */
 SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, set, size_t, sigsetsize)
 {
 	return do_sigpending(set, sigsetsize);
@@ -2267,6 +2283,14 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 
 #endif
 
+/**
+ *  sys_rt_sigtimedwait - synchronously wait for queued signals specified
+ *			in @uthese
+ *  @uthese: queued signals to wait for
+ *  @uinfo: if non-null, the signal's siginfo is returned here
+ *  @uts: upper bound on process time suspension
+ *  @sigsetsize: size of sigset_t type
+ */
 SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 		siginfo_t __user *, uinfo, const struct timespec __user *, uts,
 		size_t, sigsetsize)
@@ -2344,6 +2368,11 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 	return ret;
 }
 
+/**
+ *  sys_kill - send a signal to a process
+ *  @pid: the PID of the process
+ *  @sig: signal to be sent
+ */
 SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 {
 	struct siginfo info;
@@ -2419,7 +2448,11 @@ SYSCALL_DEFINE3(tgkill, pid_t, tgid, pid_t, pid, int, sig)
 	return do_tkill(tgid, pid, sig);
 }
 
-/*
+/**
+ *  sys_tkill - send signal to one specific task
+ *  @pid: the PID of the task
+ *  @sig: signal to be sent
+ *
  *  Send a signal to only one task, even if it's a CLONE_THREAD task.
  */
 SYSCALL_DEFINE2(tkill, pid_t, pid, int, sig)
@@ -2431,6 +2464,12 @@ SYSCALL_DEFINE2(tkill, pid_t, pid, int, sig)
 	return do_tkill(0, pid, sig);
 }
 
+/**
+ *  sys_rt_sigqueueinfo - send signal information to a signal
+ *  @pid: the PID of the thread
+ *  @sig: signal to be sent
+ *  @uinfo: signal info to be sent
+ */
 SYSCALL_DEFINE3(rt_sigqueueinfo, pid_t, pid, int, sig,
 		siginfo_t __user *, uinfo)
 {
@@ -2596,6 +2635,10 @@ out:
 
 #ifdef __ARCH_WANT_SYS_SIGPENDING
 
+/**
+ *  sys_sigpending - examine pending signals
+ *  @set: where mask of pending signal is returned
+ */
 SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
 	return do_sigpending(set, sizeof(*set));
@@ -2604,7 +2647,12 @@ SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 #endif
 
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
-/*
+/**
+ *  sys_sigprocmask - examine and change blocked signals
+ *  @how: whether to add, remove, or set signals
+ *  @set: signals to add or remove (if non-null)
+ *  @oset: previous value of signal mask if non-null
+ *
  * Some platforms have their own version with special arguments;
  * others support only sys_rt_sigprocmask.
  */
@@ -2660,6 +2708,13 @@ out:
 #endif /* __ARCH_WANT_SYS_SIGPROCMASK */
 
 #ifdef __ARCH_WANT_SYS_RT_SIGACTION
+/**
+ *  sys_rt_sigaction - alter an action taken by a process
+ *  @sig: signal to be sent
+ *  @act: the thread group ID of the thread
+ *  @oact: the PID of the thread
+ *  @sigsetsize: size of sigset_t type
+ */
 SYSCALL_DEFINE4(rt_sigaction, int, sig,
 		const struct sigaction __user *, act,
 		struct sigaction __user *, oact,
@@ -2746,6 +2801,12 @@ SYSCALL_DEFINE0(pause)
 #endif
 
 #ifdef __ARCH_WANT_SYS_RT_SIGSUSPEND
+/**
+ *  sys_rt_sigsuspend - replace the signal mask for a value with the
+ *	@unewset value until a signal is received
+ *  @unewset: new signal mask value
+ *  @sigsetsize: size of sigset_t type
+ */
 SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 {
 	sigset_t newset;
