@@ -324,6 +324,8 @@ struct iwl3945_power_per_rate {
 #define RATE_MCS_SPATIAL_MSK 0x18
 #define RATE_MCS_HT_DUP_POS 5
 #define RATE_MCS_HT_DUP_MSK 0x20
+/* Both legacy and HT use bits 7:0 as the CCK/OFDM rate or HT MCS */
+#define RATE_MCS_RATE_MSK 0xff
 
 /* Bit 8: (1) HT format, (0) legacy format in bits 7:0 */
 #define RATE_MCS_FLAGS_POS 8
@@ -2130,7 +2132,7 @@ struct iwl_link_qual_general_params {
 #define LINK_QUAL_AGG_DISABLE_START_MAX	(255)
 #define LINK_QUAL_AGG_DISABLE_START_MIN	(0)
 
-#define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(31)
+#define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 

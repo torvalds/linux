@@ -171,11 +171,6 @@ struct iwl_lib_ops {
 			     struct iwl_tx_queue *txq);
 	int (*txq_init)(struct iwl_priv *priv,
 			struct iwl_tx_queue *txq);
-	/* aggregations */
-	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
-			      int sta_id, int tid, u16 ssn_idx);
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id, u16 ssn_idx,
-			       u8 tx_fifo);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* setup deferred work */
@@ -252,7 +247,6 @@ struct iwl_ops {
 
 struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
-	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
 	int disable_11n;	/* def: 0 = 11n capabilities enabled */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
@@ -286,8 +280,6 @@ struct iwl_mod_params {
  * @chain_noise_calib_by_driver: driver has the capability to perform
  *	chain noise calibration operation
  * @shadow_reg_enable: HW shadhow register bit
- * @no_agg_framecnt_info: uCode do not provide aggregation frame count
- *	information
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -298,7 +290,6 @@ struct iwl_base_params {
 	bool set_l0s;
 	bool use_bsm;
 
-	bool use_isr_legacy;
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;
@@ -317,7 +308,6 @@ struct iwl_base_params {
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
 	const bool shadow_reg_enable;
-	const bool no_agg_framecnt_info;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist

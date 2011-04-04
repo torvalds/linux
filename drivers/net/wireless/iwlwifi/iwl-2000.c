@@ -259,8 +259,6 @@ static struct iwl_lib_ops iwl2000_lib = {
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
@@ -469,37 +467,6 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 struct iwl_cfg iwl2030_2bg_cfg = {
 	.name = "2000 Series 2x2 BG/BT",
 	IWL_DEVICE_2030,
-};
-
-#define IWL_DEVICE_6035						\
-	.fw_name_pre = IWL2030_FW_PRE,				\
-	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
-	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
-	.eeprom_ver = EEPROM_6035_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6035_TX_POWER_VERSION,	\
-	.ops = &iwl2030_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
-	.base_params = &iwl2030_base_params,			\
-	.bt_params = &iwl2030_bt_params,			\
-	.need_dc_calib = true,					\
-	.need_temp_offset_calib = true,				\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.adv_pm = true						\
-
-struct iwl_cfg iwl6035_2agn_cfg = {
-	.name = "2000 Series 2x2 AGN/BT",
-	IWL_DEVICE_6035,
-	.ht_params = &iwl2000_ht_params,
-};
-
-struct iwl_cfg iwl6035_2abg_cfg = {
-	.name = "2000 Series 2x2 ABG/BT",
-	IWL_DEVICE_6035,
-};
-
-struct iwl_cfg iwl6035_2bg_cfg = {
-	.name = "2000 Series 2x2 BG/BT",
-	IWL_DEVICE_6035,
 };
 
 #define IWL_DEVICE_200						\

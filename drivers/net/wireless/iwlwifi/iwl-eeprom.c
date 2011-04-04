@@ -198,8 +198,6 @@ static int iwlcore_get_nvm_type(struct iwl_priv *priv)
 	case CSR_HW_REV_TYPE_NONE:
 		IWL_ERR(priv, "Unknown hardware type\n");
 		return -ENOENT;
-	case CSR_HW_REV_TYPE_3945:
-	case CSR_HW_REV_TYPE_4965:
 	case CSR_HW_REV_TYPE_5300:
 	case CSR_HW_REV_TYPE_5350:
 	case CSR_HW_REV_TYPE_5100:

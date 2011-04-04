@@ -115,13 +115,18 @@ const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 	/* FIXME:RS:          ^^    should be INV (legacy) */
 };
 
+static inline u8 rs_extract_rate(u32 rate_n_flags)
+{
+	return (u8)(rate_n_flags & RATE_MCS_RATE_MSK);
+}
+
 static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 {
 	int idx = 0;
 
 	/* HT rate format */
 	if (rate_n_flags & RATE_MCS_HT_MSK) {
-		idx = (rate_n_flags & 0xff);
+		idx = rs_extract_rate(rate_n_flags);
 
 		if (idx >= IWL_RATE_MIMO3_6M_PLCP)
 			idx = idx - IWL_RATE_MIMO3_6M_PLCP;
@@ -138,7 +143,8 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 	/* legacy rate format, search for match in table */
 	} else {
 		for (idx = 0; idx < ARRAY_SIZE(iwl_rates); idx++)
-			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
+			if (iwl_rates[idx].plcp ==
+					rs_extract_rate(rate_n_flags))
 				return idx;
 	}
 
@@ -238,11 +244,6 @@ static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
 };
 
 #define MCS_INDEX_PER_STREAM	(8)
-
-static inline u8 rs_extract_rate(u32 rate_n_flags)
-{
-	return (u8)(rate_n_flags & 0xFF);
-}
 
 static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 {
@@ -2912,7 +2913,8 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 		ant_toggle_cnt = 1;
 		repeat_rate = IWL_NUMBER_TRY;
 	} else {
-		repeat_rate = IWL_HT_NUMBER_TRY;
+		repeat_rate = min(IWL_HT_NUMBER_TRY,
+				  LINK_QUAL_AGG_DISABLE_START_DEF - 1);
 	}
 
 	lq_cmd->general_params.mimo_delimiter =

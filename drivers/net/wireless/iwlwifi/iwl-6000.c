@@ -288,8 +288,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
@@ -357,8 +355,6 @@ static struct iwl_lib_ops iwl6030_lib = {
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
@@ -610,6 +606,22 @@ struct iwl_cfg iwl6030_2bgn_cfg = {
 
 struct iwl_cfg iwl6030_2bg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
+	IWL_DEVICE_6030,
+};
+
+struct iwl_cfg iwl6035_2agn_cfg = {
+	.name = "6035 Series 2x2 AGN/BT",
+	IWL_DEVICE_6030,
+	.ht_params = &iwl6000_ht_params,
+};
+
+struct iwl_cfg iwl6035_2abg_cfg = {
+	.name = "6035 Series 2x2 ABG/BT",
+	IWL_DEVICE_6030,
+};
+
+struct iwl_cfg iwl6035_2bg_cfg = {
+	.name = "6035 Series 2x2 BG/BT",
 	IWL_DEVICE_6030,
 };
 

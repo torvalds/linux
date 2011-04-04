@@ -133,10 +133,6 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 				    u16 byte_cnt);
 void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 				   struct iwl_tx_queue *txq);
-int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
-			  int tx_fifo, int sta_id, int tid, u16 ssn_idx);
-int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);
@@ -206,6 +202,9 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
+void iwlagn_txq_agg_queue_setup(struct iwl_priv *priv,
+				struct ieee80211_sta *sta,
+				int tid, int frame_limit);
 int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			   int sta_id, u8 tid, int txq_id);
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
@@ -311,7 +310,7 @@ static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 
 static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
 {
-	return le32_to_cpu(rate_n_flags) & 0xFF;
+	return le32_to_cpu(rate_n_flags) & RATE_MCS_RATE_MSK;
 }
 
 static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
