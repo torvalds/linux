@@ -2975,6 +2975,12 @@ static int ext4_register_li_request(struct super_block *sb,
 	mutex_unlock(&ext4_li_info->li_list_mtx);
 
 	sbi->s_li_request = elr;
+	/*
+	 * set elr to NULL here since it has been inserted to
+	 * the request_list and the removal and free of it is
+	 * handled by ext4_clear_request_list from now on.
+	 */
+	elr = NULL;
 
 	if (!(ext4_li_info->li_state & EXT4_LAZYINIT_RUNNING)) {
 		ret = ext4_run_lazyinit_thread();
