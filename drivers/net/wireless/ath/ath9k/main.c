@@ -1450,7 +1450,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_vif *avp = (void *)vif->drv_priv;
 	int ret = 0;
 
 	mutex_lock(&sc->mutex);
@@ -1490,10 +1489,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d\n", vif->type);
-
-	/* Set the VIF opmode */
-	avp->av_opmode = vif->type;
-	avp->av_bslot = -1;
 
 	sc->nvifs++;
 
@@ -1910,7 +1905,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		/* Set BSSID */
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = 0;
 		ath9k_hw_write_associd(ah);
 

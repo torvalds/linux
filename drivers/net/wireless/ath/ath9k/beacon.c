@@ -323,6 +323,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = NULL;
 			sc->nbcnvifs--;
+			avp->av_bslot = -1;
 		}
 
 		bf = avp->av_bcbuf;
