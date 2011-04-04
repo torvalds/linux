@@ -2436,8 +2436,10 @@ static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp
 		return PTR_ERR(trans);
 	transid = trans->transid;
 	ret = btrfs_commit_transaction_async(trans, root, 0);
-	if (ret)
+	if (ret) {
+		btrfs_end_transaction(trans, root);
 		return ret;
+	}
 
 	if (argp)
 		if (copy_to_user(argp, &transid, sizeof(transid)))
