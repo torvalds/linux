@@ -617,6 +617,9 @@ nouveau_card_init(struct drm_device *dev)
 		break;
 	}
 
+	if (dev_priv->card_type == NV_40)
+		nv40_mpeg_create(dev);
+
 	if (!nouveau_noaccel) {
 		for (e = 0; e < NVOBJ_ENGINE_NR; e++) {
 			if (dev_priv->eng[e]) {

@@ -153,6 +153,7 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_CRYPT	2
 #define NVOBJ_ENGINE_COPY0	3
 #define NVOBJ_ENGINE_COPY1	4
+#define NVOBJ_ENGINE_MPEG	5
 #define NVOBJ_ENGINE_DISPLAY	15
 #define NVOBJ_ENGINE_NR		16
 
@@ -1153,6 +1154,9 @@ extern int  nva3_copy_create(struct drm_device *dev);
 
 /* nvc0_copy.c */
 extern int  nvc0_copy_create(struct drm_device *dev, int engine);
+
+/* nv40_mpeg.c */
+extern int  nv40_mpeg_create(struct drm_device *dev);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
