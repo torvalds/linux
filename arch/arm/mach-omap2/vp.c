@@ -34,8 +34,7 @@ static void vp_latch_vsel(struct voltagedomain *voltdm)
 	vpconfig = voltdm->read(vp->vpconfig);
 	vpconfig &= ~(vp->common->vpconfig_initvoltage_mask |
 			vp->common->vpconfig_initvdd);
-	vpconfig |= vsel << vp->common->vpconfig_initvoltage_shift;
-
+	vpconfig |= vsel << __ffs(vp->common->vpconfig_initvoltage_mask);
 	voltdm->write(vpconfig, vp->vpconfig);
 
 	/* Trigger initVDD value copy to voltage processor */
@@ -61,28 +60,28 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 
 	vp_val = vdd->vp_rt_data.vpconfig_erroroffset |
 		(vdd->vp_rt_data.vpconfig_errorgain <<
-		vp->common->vpconfig_errorgain_shift) |
+		 __ffs(vp->common->vpconfig_errorgain_mask)) |
 		vp->common->vpconfig_timeouten;
 	voltdm->write(vp_val, vp->vpconfig);
 
 	vp_val = ((vdd->vp_rt_data.vstepmin_smpswaittimemin <<
-		vp->common->vstepmin_smpswaittimemin_shift) |
-		(vdd->vp_rt_data.vstepmin_stepmin <<
-		vp->common->vstepmin_stepmin_shift));
+		   vp->common->vstepmin_smpswaittimemin_shift) |
+		  (vdd->vp_rt_data.vstepmin_stepmin <<
+		   vp->common->vstepmin_stepmin_shift));
 	voltdm->write(vp_val, vp->vstepmin);
 
 	vp_val = ((vdd->vp_rt_data.vstepmax_smpswaittimemax <<
-		vp->common->vstepmax_smpswaittimemax_shift) |
-		(vdd->vp_rt_data.vstepmax_stepmax <<
-		vp->common->vstepmax_stepmax_shift));
+		   vp->common->vstepmax_smpswaittimemax_shift) |
+		  (vdd->vp_rt_data.vstepmax_stepmax <<
+		   vp->common->vstepmax_stepmax_shift));
 	voltdm->write(vp_val, vp->vstepmax);
 
 	vp_val = ((vdd->vp_rt_data.vlimitto_vddmax <<
-		vp->common->vlimitto_vddmax_shift) |
-		(vdd->vp_rt_data.vlimitto_vddmin <<
-		vp->common->vlimitto_vddmin_shift) |
-		(vdd->vp_rt_data.vlimitto_timeout <<
-		vp->common->vlimitto_timeout_shift));
+		   vp->common->vlimitto_vddmax_shift) |
+		  (vdd->vp_rt_data.vlimitto_vddmin <<
+		   vp->common->vlimitto_vddmin_shift) |
+		  (vdd->vp_rt_data.vlimitto_timeout <<
+		   vp->common->vlimitto_timeout_shift));
 	voltdm->write(vp_val, vp->vlimitto);
 }
 
@@ -121,7 +120,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 			vp->common->vpconfig_forceupdate |
 			vp->common->vpconfig_initvoltage_mask);
 	vpconfig |= ((target_vsel <<
-			vp->common->vpconfig_initvoltage_shift));
+		      __ffs(vp->common->vpconfig_initvoltage_mask)));
 	voltdm->write(vpconfig, vp->vpconfig);
 
 	/* Trigger initVDD value copy to voltage processor */

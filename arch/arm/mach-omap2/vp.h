@@ -46,37 +46,32 @@ struct omap_vp_ops {
 
 /**
  * struct omap_vp_common - register data common to all VDDs
+ * @vpconfig_erroroffset_mask: ERROROFFSET bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_errorgain_mask: ERRORGAIN bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_initvoltage_mask: INITVOLTAGE bitmask in the PRM_VP*_CONFIG reg
- * @vpconfig_timeouten_mask: TIMEOUT bitmask in the PRM_VP*_CONFIG reg
+ * @vpconfig_timeouten: TIMEOUT bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_initvdd: INITVDD bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_forceupdate: FORCEUPDATE bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_vpenable: VPENABLE bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_erroroffset_shift: ERROROFFSET field shift in PRM_VP*_CONFIG reg
  * @vpconfig_errorgain_shift: ERRORGAIN field shift in PRM_VP*_CONFIG reg
  * @vpconfig_initvoltage_shift: INITVOLTAGE field shift in PRM_VP*_CONFIG reg
- * @vpconfig_stepmin_shift: VSTEPMIN field shift in the PRM_VP*_VSTEPMIN reg
- * @vpconfig_smpswaittimemin_shift: SMPSWAITTIMEMIN field shift in PRM_VP*_VSTEPMIN reg
- * @vpconfig_stepmax_shift: VSTEPMAX field shift in the PRM_VP*_VSTEPMAX reg
- * @vpconfig_smpswaittimemax_shift: SMPSWAITTIMEMAX field shift in PRM_VP*_VSTEPMAX reg
- * @vpconfig_vlimitto_vddmin_shift: VDDMIN field shift in PRM_VP*_VLIMITTO reg
- * @vpconfig_vlimitto_vddmax_shift: VDDMAX field shift in PRM_VP*_VLIMITTO reg
- * @vpconfig_vlimitto_timeout_shift: TIMEOUT field shift in PRM_VP*_VLIMITTO reg
- *
- * XXX It it not necessary to have both a mask and a shift for the same
- *     bitfield - remove one
- * XXX Many of these fields are wrongly named -- e.g., vpconfig_smps* -- fix!
+ * @vstepmin_stepmin_shift: VSTEPMIN field shift in the PRM_VP*_VSTEPMIN reg
+ * @vstepmin_smpswaittimemin_shift: SMPSWAITTIMEMIN field shift in PRM_VP*_VSTEPMIN reg
+ * @vstepmax_stepmax_shift: VSTEPMAX field shift in the PRM_VP*_VSTEPMAX reg
+ * @vstepmax_smpswaittimemax_shift: SMPSWAITTIMEMAX field shift in PRM_VP*_VSTEPMAX reg
+ * @vlimitto_vddmin_shift: VDDMIN field shift in PRM_VP*_VLIMITTO reg
+ * @vlimitto_vddmax_shift: VDDMAX field shift in PRM_VP*_VLIMITTO reg
+ * @vlimitto_timeout_shift: TIMEOUT field shift in PRM_VP*_VLIMITTO reg
  */
 struct omap_vp_common {
+	u32 vpconfig_erroroffset_mask;
 	u32 vpconfig_errorgain_mask;
 	u32 vpconfig_initvoltage_mask;
-	u32 vpconfig_timeouten;
-	u32 vpconfig_initvdd;
-	u32 vpconfig_forceupdate;
-	u32 vpconfig_vpenable;
-	u8 vpconfig_erroroffset_shift;
-	u8 vpconfig_errorgain_shift;
-	u8 vpconfig_initvoltage_shift;
+	u8 vpconfig_timeouten;
+	u8 vpconfig_initvdd;
+	u8 vpconfig_forceupdate;
+	u8 vpconfig_vpenable;
 	u8 vstepmin_stepmin_shift;
 	u8 vstepmin_smpswaittimemin_shift;
 	u8 vstepmax_stepmax_shift;
@@ -128,7 +123,6 @@ struct omap_vp_instance {
  * XXX Is this structure really needed?  Why not just program the
  * device directly?  They are in PRM space, therefore in the WKUP
  * powerdomain, so register contents should not be lost in off-mode.
- * XXX Some of these fields are incorrectly named, e.g., vstep*
  */
 struct omap_vp_runtime_data {
 	u32 vpconfig_erroroffset;

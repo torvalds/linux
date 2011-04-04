@@ -149,7 +149,7 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 		vdd->vp_rt_data.vpconfig_errorgain = volt_data->vp_errgain;
 		vp_errgain_val &= voltdm->vp->common->vpconfig_errorgain_mask;
 		vp_errgain_val |= vdd->vp_rt_data.vpconfig_errorgain <<
-			voltdm->vp->common->vpconfig_errorgain_shift;
+			__ffs(voltdm->vp->common->vpconfig_errorgain_mask);
 		voltdm->write(vp_errgain_val, voltdm->vp->vpconfig);
 	}
 
