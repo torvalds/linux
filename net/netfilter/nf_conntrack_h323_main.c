@@ -731,9 +731,9 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 
 		memset(&fl2, 0, sizeof(fl2));
 		fl2.daddr = dst->ip;
-		if (!afinfo->route((struct dst_entry **)&rt1,
+		if (!afinfo->route(&init_net, (struct dst_entry **)&rt1,
 				   flowi4_to_flowi(&fl1))) {
-			if (!afinfo->route((struct dst_entry **)&rt2,
+			if (!afinfo->route(&init_net, (struct dst_entry **)&rt2,
 					   flowi4_to_flowi(&fl2))) {
 				if (rt1->rt_gateway == rt2->rt_gateway &&
 				    rt1->dst.dev  == rt2->dst.dev)
@@ -755,9 +755,9 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 
 		memset(&fl2, 0, sizeof(fl2));
 		ipv6_addr_copy(&fl2.daddr, &dst->in6);
-		if (!afinfo->route((struct dst_entry **)&rt1,
+		if (!afinfo->route(&init_net, (struct dst_entry **)&rt1,
 				   flowi6_to_flowi(&fl1))) {
-			if (!afinfo->route((struct dst_entry **)&rt2,
+			if (!afinfo->route(&init_net, (struct dst_entry **)&rt2,
 					   flowi6_to_flowi(&fl2))) {
 				if (!memcmp(&rt1->rt6i_gateway, &rt2->rt6i_gateway,
 					    sizeof(rt1->rt6i_gateway)) &&
