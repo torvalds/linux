@@ -267,7 +267,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 {
 	unsigned long size;
-	u64 node_kva;
+	u64 node_pa;
 
 	/*
 	 * The acpi/srat node info can show hot-add memroy zones where
@@ -291,17 +291,17 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	/* now the roundup is correct, convert to PAGE_SIZE pages */
 	size = size * PTRS_PER_PTE;
 
-	node_kva = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
-					  (u64)node_end_pfn[nid] << PAGE_SHIFT,
-					  (u64)size << PAGE_SHIFT,
-					  LARGE_PAGE_BYTES);
-	if (node_kva == MEMBLOCK_ERROR)
+	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
+					 (u64)node_end_pfn[nid] << PAGE_SHIFT,
+					 (u64)size << PAGE_SHIFT,
+					 LARGE_PAGE_BYTES);
+	if (node_pa == MEMBLOCK_ERROR)
 		panic("Can not get kva ram\n");
 
 	node_remap_size[nid] = size;
 	node_remap_offset[nid] = offset;
 	printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
-	       size, nid, node_kva >> PAGE_SHIFT);
+	       size, nid, node_pa >> PAGE_SHIFT);
 
 	/*
 	 *  prevent kva address below max_low_pfn want it on system
@@ -315,11 +315,10 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	 *  So memblock_x86_reserve_range here, hope we don't run out
 	 *  of that array
 	 */
-	memblock_x86_reserve_range(node_kva,
-				   node_kva + ((u64)size << PAGE_SHIFT),
+	memblock_x86_reserve_range(node_pa, node_pa + ((u64)size << PAGE_SHIFT),
 				   "KVA RAM");
 
-	node_remap_start_pfn[nid] = node_kva >> PAGE_SHIFT;
+	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
 
 	return size;
 }
