@@ -3034,6 +3034,66 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	return 0;
 }
 
+int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
+				    enum i915_cache_level cache_level)
+{
+	int ret;
+
+	if (obj->cache_level == cache_level)
+		return 0;
+
+	if (obj->pin_count) {
+		DRM_DEBUG("can not change the cache level of pinned objects\n");
+		return -EBUSY;
+	}
+
+	if (obj->gtt_space) {
+		ret = i915_gem_object_finish_gpu(obj);
+		if (ret)
+			return ret;
+
+		i915_gem_object_finish_gtt(obj);
+
+		/* Before SandyBridge, you could not use tiling or fence
+		 * registers with snooped memory, so relinquish any fences
+		 * currently pointing to our region in the aperture.
+		 */
+		if (INTEL_INFO(obj->base.dev)->gen < 6) {
+			ret = i915_gem_object_put_fence(obj);
+			if (ret)
+				return ret;
+		}
+
+		i915_gem_gtt_rebind_object(obj, cache_level);
+	}
+
+	if (cache_level == I915_CACHE_NONE) {
+		u32 old_read_domains, old_write_domain;
+
+		/* If we're coming from LLC cached, then we haven't
+		 * actually been tracking whether the data is in the
+		 * CPU cache or not, since we only allow one bit set
+		 * in obj->write_domain and have been skipping the clflushes.
+		 * Just set it to the CPU cache for now.
+		 */
+		WARN_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
+		WARN_ON(obj->base.read_domains & ~I915_GEM_DOMAIN_CPU);
+
+		old_read_domains = obj->base.read_domains;
+		old_write_domain = obj->base.write_domain;
+
+		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+
+		trace_i915_gem_object_change_domain(obj,
+						    old_read_domains,
+						    old_write_domain);
+	}
+
+	obj->cache_level = cache_level;
+	return 0;
+}
+
 /*
  * Prepare buffer for display plane. Use uninterruptible for possible flush
  * wait, as in modesetting process we're not supposed to be interrupted.

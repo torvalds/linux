@@ -29,9 +29,6 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
-static void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
-				       enum i915_cache_level cache_level);
-
 /* XXX kill agp_type! */
 static unsigned int cache_level_to_agp_type(struct drm_device *dev,
 					    enum i915_cache_level cache_level)
@@ -97,8 +94,8 @@ int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
-				       enum i915_cache_level cache_level)
+void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
+				enum i915_cache_level cache_level)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
