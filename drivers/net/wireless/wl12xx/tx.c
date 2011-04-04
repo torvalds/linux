@@ -630,7 +630,7 @@ void wl1271_tx_work(struct work_struct *work)
 
 	wl1271_tx_work_locked(wl);
 
-	wl1271_ps_elp_wakeup(wl);
+	wl1271_ps_elp_sleep(wl);
 out:
 	mutex_unlock(&wl->mutex);
 }
