@@ -134,22 +134,29 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 /**
  * vxge_ethtool_idnic - To physically identify the nic on the system.
  * @dev : device pointer.
- * @id : pointer to the structure with identification parameters given by
- * ethtool.
+ * @state : requested LED state
  *
  * Used to physically identify the NIC on the system.
- * The Link LED will blink for a time specified by the user.
- * Return value:
  * 0 on success
  */
-static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
+static int vxge_ethtool_idnic(struct net_device *dev,
+			      enum ethtool_phys_id_state state)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
-	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
-	msleep_interruptible(data ? (data * HZ) : VXGE_MAX_FLICKER_TIME);
-	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_OFF);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_OFF);
+		break;
+
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1183,7 +1190,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= vxge_ethtool_op_set_tso,
 	.get_strings		= vxge_ethtool_get_strings,
-	.phys_id		= vxge_ethtool_idnic,
+	.set_phys_id		= vxge_ethtool_idnic,
 	.get_sset_count		= vxge_ethtool_get_sset_count,
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
 	.set_flags		= vxge_set_flags,
