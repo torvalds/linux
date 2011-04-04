@@ -319,7 +319,7 @@ static irqreturn_t mrst_rtc_irq(int irq, void *p)
 	return IRQ_NONE;
 }
 
-static int __init
+static int __devinit
 vrtc_mrst_do_probe(struct device *dev, struct resource *iomem, int rtc_irq)
 {
 	int retval = 0;
@@ -391,7 +391,7 @@ static void rtc_mrst_do_shutdown(void)
 	spin_unlock_irq(&rtc_lock);
 }
 
-static void __exit rtc_mrst_do_remove(struct device *dev)
+static void __devexit rtc_mrst_do_remove(struct device *dev)
 {
 	struct mrst_rtc	*mrst = dev_get_drvdata(dev);
 	struct resource *iomem;
@@ -500,14 +500,14 @@ static inline int mrst_poweroff(struct device *dev)
 
 #endif
 
-static int __init vrtc_mrst_platform_probe(struct platform_device *pdev)
+static int __devinit vrtc_mrst_platform_probe(struct platform_device *pdev)
 {
 	return vrtc_mrst_do_probe(&pdev->dev,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0),
 			platform_get_irq(pdev, 0));
 }
 
-static int __exit vrtc_mrst_platform_remove(struct platform_device *pdev)
+static int __devexit vrtc_mrst_platform_remove(struct platform_device *pdev)
 {
 	rtc_mrst_do_remove(&pdev->dev);
 	return 0;
@@ -525,7 +525,7 @@ MODULE_ALIAS("platform:vrtc_mrst");
 
 static struct platform_driver vrtc_mrst_platform_driver = {
 	.probe		= vrtc_mrst_platform_probe,
-	.remove		= __exit_p(vrtc_mrst_platform_remove),
+	.remove		= __devexit_p(vrtc_mrst_platform_remove),
 	.shutdown	= vrtc_mrst_platform_shutdown,
 	.driver = {
 		.name		= (char *) driver_name,
