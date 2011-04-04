@@ -187,7 +187,6 @@ static void __init allocate_pgdat(int nid)
 static unsigned long node_remap_start_pfn[MAX_NUMNODES];
 static void *node_remap_end_vaddr[MAX_NUMNODES];
 static void *node_remap_alloc_vaddr[MAX_NUMNODES];
-static unsigned long node_remap_offset[MAX_NUMNODES];
 
 void *alloc_remap(int nid, unsigned long size)
 {
@@ -239,7 +238,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 }
 #endif
 
-static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
+static __init void init_alloc_remap(int nid)
 {
 	unsigned long size, pfn;
 	u64 node_pa, remap_pa;
@@ -252,9 +251,9 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
 	       nid, node_start_pfn[nid], node_end_pfn[nid]);
 	if (node_start_pfn[nid] > max_pfn)
-		return 0;
+		return;
 	if (!node_end_pfn[nid])
-		return 0;
+		return;
 	if (node_end_pfn[nid] > max_pfn)
 		node_end_pfn[nid] = max_pfn;
 
@@ -271,7 +270,7 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	if (node_pa == MEMBLOCK_ERROR) {
 		pr_warning("remap_alloc: failed to allocate %lu bytes for node %d\n",
 			   size, nid);
-		return 0;
+		return;
 	}
 	memblock_x86_reserve_range(node_pa, node_pa + size, "KVA RAM");
 
@@ -282,7 +281,7 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 		pr_warning("remap_alloc: failed to allocate %lu bytes remap area for node %d\n",
 			   size, nid);
 		memblock_x86_free_range(node_pa, node_pa + size);
-		return 0;
+		return;
 	}
 	memblock_x86_reserve_range(remap_pa, remap_pa + size, "KVA PG");
 	remap_va = phys_to_virt(remap_pa);
@@ -296,7 +295,6 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	/* initialize remap allocator parameters */
 	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
 	node_remap_size[nid] = size >> PAGE_SHIFT;
-	node_remap_offset[nid] = offset;
 
 	node_remap_start_vaddr[nid] = remap_va;
 	node_remap_end_vaddr[nid] = remap_va + size;
@@ -304,13 +302,10 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 
 	printk(KERN_DEBUG "remap_alloc: node %d [%08llx-%08llx) -> [%p-%p)\n",
 	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
-
-	return size >> PAGE_SHIFT;
 }
 
 void __init initmem_init(void)
 {
-	unsigned long reserve_pages = 0;
 	int nid;
 
 	/*
@@ -325,7 +320,7 @@ void __init initmem_init(void)
 	numa_init_array();
 
 	for_each_online_node(nid)
-		reserve_pages += init_alloc_remap(nid, reserve_pages);
+		init_alloc_remap(nid);
 
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
