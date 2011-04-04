@@ -2469,15 +2469,15 @@ static struct opcode group5[] = {
 };
 
 static struct group_dual group7 = { {
-	N, N, D(ModRM | SrcMem | Priv), D(ModRM | SrcMem | Priv),
-	D(SrcNone | ModRM | DstMem | Mov), N,
-	D(SrcMem16 | ModRM | Mov | Priv),
-	D(SrcMem | ModRM | ByteOp | Priv | NoAccess),
+	N, N, DI(ModRM | SrcMem | Priv, lgdt), DI(ModRM | SrcMem | Priv, lidt),
+	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
+	DI(SrcMem16 | ModRM | Mov | Priv, lmsw),
+	DI(SrcMem | ModRM | ByteOp | Priv | NoAccess, invlpg),
 }, {
 	D(SrcNone | ModRM | Priv | VendorSpecific), N,
 	N, D(SrcNone | ModRM | Priv | VendorSpecific),
-	D(SrcNone | ModRM | DstMem | Mov), N,
-	D(SrcMem16 | ModRM | Mov | Priv), N,
+	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
+	DI(SrcMem16 | ModRM | Mov | Priv, lmsw), N,
 } };
 
 static struct opcode group8[] = {
@@ -2556,7 +2556,7 @@ static struct opcode opcode_table[256] = {
 	/* 0x98 - 0x9F */
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
-	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
+	DI(ImplicitOps | Stack, pushf), DI(ImplicitOps | Stack, popf), N, N,
 	/* 0xA0 - 0xA7 */
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs, em_mov),
@@ -2579,7 +2579,8 @@ static struct opcode opcode_table[256] = {
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
-	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
+	D(ImplicitOps), DI(SrcImmByte, intn),
+	D(ImplicitOps | No64), DI(ImplicitOps, iret),
 	/* 0xD0 - 0xD7 */
 	D2bv(DstMem | SrcOne | ModRM), D2bv(DstMem | ModRM),
 	N, N, N, N,
@@ -2594,7 +2595,8 @@ static struct opcode opcode_table[256] = {
 	D2bv(SrcNone | DstAcc),	D2bv(SrcAcc | ImplicitOps),
 	/* 0xF0 - 0xF7 */
 	N, N, N, N,
-	D(ImplicitOps | Priv), D(ImplicitOps), G(ByteOp, group3), G(0, group3),
+	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
+	G(ByteOp, group3), G(0, group3),
 	/* 0xF8 - 0xFF */
 	D(ImplicitOps), D(ImplicitOps), D(ImplicitOps), D(ImplicitOps),
 	D(ImplicitOps), D(ImplicitOps), G(0, group4), G(0, group5),
@@ -2604,7 +2606,7 @@ static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	N, GD(0, &group7), N, N,
 	N, D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv), N,
-	D(ImplicitOps | Priv), D(ImplicitOps | Priv), N, N,
+	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
 	N, N, N, N, N, N, N, N, D(ImplicitOps | ModRM), N, N, N, N, N, N, N,
@@ -2614,7 +2616,7 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
-	D(ImplicitOps | Priv), I(ImplicitOps, em_rdtsc),
+	D(ImplicitOps | Priv), II(ImplicitOps, em_rdtsc, rdtsc),
 	D(ImplicitOps | Priv), N,
 	D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv | VendorSpecific),
 	N, N,
