@@ -41,7 +41,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/mxc_nand.h>
 
 #include "devices-imx35.h"
 #include "devices.h"

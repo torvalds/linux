@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 
 #include <mach/iomux-mx3.h>
-#include <mach/imx-uart.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 

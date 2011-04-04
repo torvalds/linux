@@ -39,7 +39,6 @@
 #include <mach/iomux-mx3.h>
 #include <mach/3ds_debugboard.h>
 #include <mach/ulpi.h>
-#include <mach/mmc.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
 #include <mach/mx3_camera.h>

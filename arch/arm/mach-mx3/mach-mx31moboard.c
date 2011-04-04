@@ -41,7 +41,6 @@
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
 #include <mach/mx3_camera.h>
-#include <mach/spi.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"

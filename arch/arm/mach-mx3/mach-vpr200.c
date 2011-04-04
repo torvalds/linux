@@ -38,7 +38,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/mfd/mc13xxx.h>
-#include <linux/gpio_keys.h>
 
 #include "devices-imx35.h"
 #include "devices.h"

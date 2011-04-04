@@ -37,12 +37,10 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
 #include <mach/audmux.h>
-#include <mach/esdhc.h>
 
 #include "devices-imx35.h"
 #include "devices.h"

@@ -31,9 +31,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/mx25.h>
-#include <mach/imx-uart.h>
 #include <mach/audmux.h>
-#include <mach/esdhc.h>
 
 #include "devices-imx25.h"
 

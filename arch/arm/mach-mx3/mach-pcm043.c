@@ -40,7 +40,6 @@
 #include <mach/mx3fb.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
-#include <mach/esdhc.h>
 
 #include "devices-imx35.h"
 #include "devices.h"

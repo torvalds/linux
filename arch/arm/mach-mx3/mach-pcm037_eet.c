@@ -13,7 +13,6 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/spi.h>
 
 #include <asm/mach-types.h>
 
