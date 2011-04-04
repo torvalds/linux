@@ -293,7 +293,6 @@ xfs_buf_allocate_memory(
 	size_t			nbytes, offset;
 	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
-	pgoff_t			first;
 	xfs_off_t		end;
 	int			error;
 
@@ -333,7 +332,6 @@ use_alloc_page:
 		return error;
 
 	offset = bp->b_offset;
-	first = bp->b_file_offset >> PAGE_SHIFT;
 	bp->b_flags |= _XBF_PAGES;
 
 	for (i = 0; i < bp->b_page_count; i++) {
