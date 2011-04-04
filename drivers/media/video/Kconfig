@@ -946,6 +946,15 @@ config  VIDEO_SAMSUNG_S5P_FIMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-fimc.
 
+config VIDEO_S5P_MIPI_CSIS
+	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
+	depends on VIDEO_V4L2 && PM_RUNTIME && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5p-csis.
+
 #
 # USB Multimedia device configuration
 #
