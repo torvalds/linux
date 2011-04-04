@@ -1026,6 +1026,14 @@ static void core_dump_clocks(struct seq_file *s)
 		dss.dss_video_fck
 	};
 
+	const char *names[5] = {
+		"ick",
+		"fck",
+		"sys_clk",
+		"tv_fck",
+		"video_fck"
+	};
+
 	seq_printf(s, "- CORE -\n");
 
 	seq_printf(s, "internal clk count\t\t%u\n", dss.num_clks_enabled);
@@ -1033,8 +1041,11 @@ static void core_dump_clocks(struct seq_file *s)
 	for (i = 0; i < 5; i++) {
 		if (!clocks[i])
 			continue;
-		seq_printf(s, "%-15s\t%lu\t%d\n",
+		seq_printf(s, "%s (%s)%*s\t%lu\t%d\n",
+				names[i],
 				clocks[i]->name,
+				24 - strlen(names[i]) - strlen(clocks[i]->name),
+				"",
 				clk_get_rate(clocks[i]),
 				clocks[i]->usecount);
 	}
