@@ -286,22 +286,19 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	size = node_remap_size[nid];
 	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 
-	/* convert size to large (pmd size) pages, rounding up */
-	size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
-	/* now the roundup is correct, convert to PAGE_SIZE pages */
-	size = size * PTRS_PER_PTE;
+	/* align to large page */
+	size = ALIGN(size, LARGE_PAGE_BYTES);
 
 	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
 					 (u64)node_end_pfn[nid] << PAGE_SHIFT,
-					 (u64)size << PAGE_SHIFT,
-					 LARGE_PAGE_BYTES);
+					 size, LARGE_PAGE_BYTES);
 	if (node_pa == MEMBLOCK_ERROR)
 		panic("Can not get kva ram\n");
 
-	node_remap_size[nid] = size;
+	node_remap_size[nid] = size >> PAGE_SHIFT;
 	node_remap_offset[nid] = offset;
 	printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
-	       size, nid, node_pa >> PAGE_SHIFT);
+	       size >> PAGE_SHIFT, nid, node_pa >> PAGE_SHIFT);
 
 	/*
 	 *  prevent kva address below max_low_pfn want it on system
@@ -315,12 +312,11 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	 *  So memblock_x86_reserve_range here, hope we don't run out
 	 *  of that array
 	 */
-	memblock_x86_reserve_range(node_pa, node_pa + ((u64)size << PAGE_SHIFT),
-				   "KVA RAM");
+	memblock_x86_reserve_range(node_pa, node_pa + size, "KVA RAM");
 
 	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
 
-	return size;
+	return size >> PAGE_SHIFT;
 }
 
 static void init_remap_allocator(int nid)
