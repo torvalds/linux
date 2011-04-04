@@ -893,9 +893,6 @@ struct s2io_nic {
 	u16 all_multi_pos;
 	u16 promisc_flg;
 
-	/*  Id timer, used to blink NIC to physically identify NIC. */
-	struct timer_list id_timer;
-
 	/*  Restart timer, used to restart NIC if the device is stuck and
 	 *  a schedule task that will set the correct Link state once the
 	 *  NIC's PHY has stabilized after a state change.
