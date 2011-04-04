@@ -36,6 +36,12 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	struct net_bridge *br;
 	int err;
 
+	/* register of bridge completed, add sysfs entries */
+	if ((dev->priv_flags && IFF_EBRIDGE) && event == NETDEV_REGISTER) {
+		br_sysfs_addbr(dev);
+		return NOTIFY_DONE;
+	}
+
 	/* not a port of a bridge */
 	p = br_port_get_rtnl(dev);
 	if (!p)

@@ -74,6 +74,17 @@ out:
 	return NETDEV_TX_OK;
 }
 
+static int br_dev_init(struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	br->stats = alloc_percpu(struct br_cpu_netstats);
+	if (!br->stats)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int br_dev_open(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -334,6 +345,7 @@ static const struct ethtool_ops br_ethtool_ops = {
 static const struct net_device_ops br_netdev_ops = {
 	.ndo_open		 = br_dev_open,
 	.ndo_stop		 = br_dev_stop,
+	.ndo_init		 = br_dev_init,
 	.ndo_start_xmit		 = br_dev_xmit,
 	.ndo_get_stats64	 = br_get_stats64,
 	.ndo_set_mac_address	 = br_set_mac_address,
@@ -357,18 +369,47 @@ static void br_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static struct device_type br_type = {
+	.name	= "bridge",
+};
+
 void br_dev_setup(struct net_device *dev)
 {
+	struct net_bridge *br = netdev_priv(dev);
+
 	random_ether_addr(dev->dev_addr);
 	ether_setup(dev);
 
 	dev->netdev_ops = &br_netdev_ops;
 	dev->destructor = br_dev_free;
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
+	SET_NETDEV_DEVTYPE(dev, &br_type);
 	dev->tx_queue_len = 0;
 	dev->priv_flags = IFF_EBRIDGE;
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX |
 			NETIF_F_NETNS_LOCAL | NETIF_F_GSO | NETIF_F_HW_VLAN_TX;
+
+	br->dev = dev;
+	spin_lock_init(&br->lock);
+	INIT_LIST_HEAD(&br->port_list);
+	spin_lock_init(&br->hash_lock);
+
+	br->bridge_id.prio[0] = 0x80;
+	br->bridge_id.prio[1] = 0x00;
+
+	memcpy(br->group_addr, br_group_address, ETH_ALEN);
+
+	br->feature_mask = dev->features;
+	br->stp_enabled = BR_NO_STP;
+	br->designated_root = br->bridge_id;
+	br->bridge_max_age = br->max_age = 20 * HZ;
+	br->bridge_hello_time = br->hello_time = 2 * HZ;
+	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
+	br->ageing_time = 300 * HZ;
+
+	br_netfilter_rtable_init(br);
+	br_stp_timer_init(br);
+	br_multicast_init(br);
 }

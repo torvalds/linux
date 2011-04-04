@@ -175,56 +175,6 @@ static void del_br(struct net_bridge *br, struct list_head *head)
 	unregister_netdevice_queue(br->dev, head);
 }
 
-static struct net_device *new_bridge_dev(struct net *net, const char *name)
-{
-	struct net_bridge *br;
-	struct net_device *dev;
-
-	dev = alloc_netdev(sizeof(struct net_bridge), name,
-			   br_dev_setup);
-
-	if (!dev)
-		return NULL;
-	dev_net_set(dev, net);
-
-	br = netdev_priv(dev);
-	br->dev = dev;
-
-	br->stats = alloc_percpu(struct br_cpu_netstats);
-	if (!br->stats) {
-		free_netdev(dev);
-		return NULL;
-	}
-
-	spin_lock_init(&br->lock);
-	INIT_LIST_HEAD(&br->port_list);
-	spin_lock_init(&br->hash_lock);
-
-	br->bridge_id.prio[0] = 0x80;
-	br->bridge_id.prio[1] = 0x00;
-
-	memcpy(br->group_addr, br_group_address, ETH_ALEN);
-
-	br->feature_mask = dev->features;
-	br->stp_enabled = BR_NO_STP;
-	br->designated_root = br->bridge_id;
-	br->root_path_cost = 0;
-	br->root_port = 0;
-	br->bridge_max_age = br->max_age = 20 * HZ;
-	br->bridge_hello_time = br->hello_time = 2 * HZ;
-	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
-	br->topology_change = 0;
-	br->topology_change_detected = 0;
-	br->ageing_time = 300 * HZ;
-
-	br_netfilter_rtable_init(br);
-
-	br_stp_timer_init(br);
-	br_multicast_init(br);
-
-	return dev;
-}
-
 /* find an available port number */
 static int find_portno(struct net_bridge *br)
 {
@@ -277,42 +227,19 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	return p;
 }
 
-static struct device_type br_type = {
-	.name	= "bridge",
-};
-
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
-	int ret;
 
-	dev = new_bridge_dev(net, name);
+	dev = alloc_netdev(sizeof(struct net_bridge), name,
+			   br_dev_setup);
+
 	if (!dev)
 		return -ENOMEM;
 
-	rtnl_lock();
-	if (strchr(dev->name, '%')) {
-		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0)
-			goto out_free;
-	}
+	dev_net_set(dev, net);
 
-	SET_NETDEV_DEVTYPE(dev, &br_type);
-
-	ret = register_netdevice(dev);
-	if (ret)
-		goto out_free;
-
-	ret = br_sysfs_addbr(dev);
-	if (ret)
-		unregister_netdevice(dev);
- out:
-	rtnl_unlock();
-	return ret;
-
-out_free:
-	free_netdev(dev);
-	goto out;
+	return register_netdev(dev);
 }
 
 int br_del_bridge(struct net *net, const char *name)
