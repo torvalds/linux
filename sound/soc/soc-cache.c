@@ -393,10 +393,11 @@ static int snd_soc_16_16_spi_write(void *control_data, const char *data,
 #define snd_soc_16_16_spi_write NULL
 #endif
 
-/* Primitive bulk write support for soc-cache.  The data pointed to by `data' needs
- * to already be in the form the hardware expects including any leading register specific
- * data.  Any data written through this function will not go through the cache as it
- * only handles writing to volatile or out of bounds registers.
+/* Primitive bulk write support for soc-cache.  The data pointed to by
+ * `data' needs to already be in the form the hardware expects
+ * including any leading register specific data.  Any data written
+ * through this function will not go through the cache as it only
+ * handles writing to volatile or out of bounds registers.
  */
 static int snd_soc_hw_bulk_write_raw(struct snd_soc_codec *codec, unsigned int reg,
 				     const void *data, size_t len)
