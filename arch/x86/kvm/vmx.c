@@ -4409,6 +4409,13 @@ static void vmx_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 {
 }
 
+static int vmx_check_intercept(struct kvm_vcpu *vcpu,
+			       struct x86_instruction_info *info,
+			       enum x86_intercept_stage stage)
+{
+	return X86EMUL_CONTINUE;
+}
+
 static struct kvm_x86_ops vmx_x86_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -4494,6 +4501,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
 
 	.set_tdp_cr3 = vmx_set_cr3,
+
+	.check_intercept = vmx_check_intercept,
 };
 
 static int __init vmx_init(void)

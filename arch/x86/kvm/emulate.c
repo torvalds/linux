@@ -408,6 +408,26 @@ struct gprefix {
 	(_eip) += (_size);						\
 })
 
+static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
+				    enum x86_intercept intercept,
+				    enum x86_intercept_stage stage)
+{
+	struct x86_instruction_info info = {
+		.intercept  = intercept,
+		.rep_prefix = ctxt->decode.rep_prefix,
+		.modrm_mod  = ctxt->decode.modrm_mod,
+		.modrm_reg  = ctxt->decode.modrm_reg,
+		.modrm_rm   = ctxt->decode.modrm_rm,
+		.src_val    = ctxt->decode.src.val64,
+		.src_bytes  = ctxt->decode.src.bytes,
+		.dst_bytes  = ctxt->decode.dst.bytes,
+		.ad_bytes   = ctxt->decode.ad_bytes,
+		.next_rip   = ctxt->eip,
+	};
+
+	return ctxt->ops->intercept(ctxt->vcpu, &info, stage);
+}
+
 static inline unsigned long ad_mask(struct decode_cache *c)
 {
 	return (1UL << (c->ad_bytes << 3)) - 1;
@@ -3132,8 +3152,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if (unlikely(ctxt->guest_mode) && c->intercept) {
-		rc = ops->intercept(ctxt, c->intercept,
-				    X86_ICPT_PRE_EXCEPT);
+		rc = emulator_check_intercept(ctxt, c->intercept,
+					      X86_ICPT_PRE_EXCEPT);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}
@@ -3158,8 +3178,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if (unlikely(ctxt->guest_mode) && c->intercept) {
-		rc = ops->intercept(ctxt, c->intercept,
-				    X86_ICPT_POST_EXCEPT);
+		rc = emulator_check_intercept(ctxt, c->intercept,
+					      X86_ICPT_POST_EXCEPT);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}
@@ -3203,8 +3223,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 special_insn:
 
 	if (unlikely(ctxt->guest_mode) && c->intercept) {
-		rc = ops->intercept(ctxt, c->intercept,
-				    X86_ICPT_POST_MEMACCESS);
+		rc = emulator_check_intercept(ctxt, c->intercept,
+					      X86_ICPT_POST_MEMACCESS);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}

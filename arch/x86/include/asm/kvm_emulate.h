@@ -26,6 +26,24 @@ struct x86_exception {
 };
 
 /*
+ * This struct is used to carry enough information from the instruction
+ * decoder to main KVM so that a decision can be made whether the
+ * instruction needs to be intercepted or not.
+ */
+struct x86_instruction_info {
+	u8  intercept;          /* which intercept                      */
+	u8  rep_prefix;         /* rep prefix?                          */
+	u8  modrm_mod;		/* mod part of modrm			*/
+	u8  modrm_reg;          /* index of register used               */
+	u8  modrm_rm;		/* rm part of modrm			*/
+	u64 src_val;            /* value of source operand              */
+	u8  src_bytes;          /* size of source operand               */
+	u8  dst_bytes;          /* size of destination operand          */
+	u8  ad_bytes;           /* size of src/dst address              */
+	u64 next_rip;           /* rip following the instruction        */
+};
+
+/*
  * x86_emulate_ops:
  *
  * These operations represent the instruction emulator's interface to memory.
@@ -163,8 +181,8 @@ struct x86_emulate_ops {
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
 	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
-	int (*intercept)(struct x86_emulate_ctxt *ctxt,
-			 enum x86_intercept intercept,
+	int (*intercept)(struct kvm_vcpu *vcpu,
+			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
 };
 

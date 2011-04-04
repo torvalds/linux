@@ -505,6 +505,8 @@ struct kvm_vcpu_stat {
 	u32 nmi_injections;
 };
 
+struct x86_instruction_info;
+
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
@@ -592,6 +594,11 @@ struct kvm_x86_ops {
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);
+
+	int (*check_intercept)(struct kvm_vcpu *vcpu,
+			       struct x86_instruction_info *info,
+			       enum x86_intercept_stage stage);
+
 	const struct trace_print_flags *exit_reasons_str;
 };
 

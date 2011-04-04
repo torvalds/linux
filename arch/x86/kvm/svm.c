@@ -3868,6 +3868,13 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	update_cr0_intercept(svm);
 }
 
+static int svm_check_intercept(struct kvm_vcpu *vcpu,
+			       struct x86_instruction_info *info,
+			       enum x86_intercept_stage stage)
+{
+	return X86EMUL_CONTINUE;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -3953,6 +3960,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.adjust_tsc_offset = svm_adjust_tsc_offset,
 
 	.set_tdp_cr3 = set_tdp_cr3,
+
+	.check_intercept = svm_check_intercept,
 };
 
 static int __init svm_init(void)
