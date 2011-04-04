@@ -354,6 +354,7 @@ extern int br_fdb_insert(struct net_bridge *br,
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
 			  const unsigned char *addr);
+extern int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 /* br_forward.c */
 extern void br_deliver(const struct net_bridge_port *to,

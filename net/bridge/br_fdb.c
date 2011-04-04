@@ -28,6 +28,7 @@
 static struct kmem_cache *br_fdb_cache __read_mostly;
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr);
+static void fdb_notify(const struct net_bridge_fdb_entry *, int);
 
 static u32 fdb_salt __read_mostly;
 
@@ -81,6 +82,7 @@ static void fdb_rcu_free(struct rcu_head *head)
 
 static inline void fdb_delete(struct net_bridge_fdb_entry *f)
 {
+	fdb_notify(f, RTM_DELNEIGH);
 	hlist_del_rcu(&f->hlist);
 	call_rcu(&f->rcu, fdb_rcu_free);
 }
@@ -345,6 +347,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->is_static = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
+		fdb_notify(fdb, RTM_NEWNEIGH);
 	}
 	return fdb;
 }
@@ -429,4 +432,126 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		 */
 		spin_unlock(&br->hash_lock);
 	}
+}
+
+static int fdb_to_nud(const struct net_bridge_fdb_entry *fdb)
+{
+	if (fdb->is_local)
+		return NUD_PERMANENT;
+	else if (fdb->is_static)
+		return NUD_NOARP;
+	else if (has_expired(fdb->dst->br, fdb))
+		return NUD_STALE;
+	else
+		return NUD_REACHABLE;
+}
+
+static int fdb_fill_info(struct sk_buff *skb,
+			 const struct net_bridge_fdb_entry *fdb,
+			 u32 pid, u32 seq, int type, unsigned int flags)
+{
+	unsigned long now = jiffies;
+	struct nda_cacheinfo ci;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), flags);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family	 = AF_BRIDGE;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags	 = 0;
+	ndm->ndm_type	 = 0;
+	ndm->ndm_ifindex = fdb->dst->dev->ifindex;
+	ndm->ndm_state   = fdb_to_nud(fdb);
+
+	NLA_PUT(skb, NDA_LLADDR, ETH_ALEN, &fdb->addr);
+
+	ci.ndm_used	 = jiffies_to_clock_t(now - fdb->used);
+	ci.ndm_confirmed = 0;
+	ci.ndm_updated	 = jiffies_to_clock_t(now - fdb->updated);
+	ci.ndm_refcnt	 = 0;
+	NLA_PUT(skb, NDA_CACHEINFO, sizeof(ci), &ci);
+
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t fdb_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+		+ nla_total_size(ETH_ALEN) /* NDA_LLADDR */
+		+ nla_total_size(sizeof(struct nda_cacheinfo));
+}
+
+static void fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+{
+	struct net *net = dev_net(fdb->dst->dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
+	if (skb == NULL)
+		goto errout;
+
+	err = fdb_fill_info(skb, fdb, 0, 0, type, 0);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in fdb_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	return;
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+}
+
+/* Dump information about entries, in response to GETNEIGH */
+int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+	int idx = 0;
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		struct net_bridge *br = netdev_priv(dev);
+		int i;
+
+		if (!(dev->priv_flags & IFF_EBRIDGE))
+			continue;
+
+		for (i = 0; i < BR_HASH_SIZE; i++) {
+			struct hlist_node *h;
+			struct net_bridge_fdb_entry *f;
+
+			hlist_for_each_entry_rcu(f, h, &br->hash[i], hlist) {
+				if (idx < cb->args[0])
+					goto skip;
+
+				if (fdb_fill_info(skb, f,
+						  NETLINK_CB(cb->skb).pid,
+						  cb->nlh->nlmsg_seq,
+						  RTM_NEWNEIGH,
+						  NLM_F_MULTI) < 0)
+					break;
+skip:
+				++idx;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	cb->args[0] = idx;
+
+	return skb->len;
 }
