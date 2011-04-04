@@ -313,6 +313,7 @@ struct be_adapter {
 	char fw_ver[FW_VER_LEN];
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
+	u32 beacon_state;	/* for set_phys_id */
 
 	bool eeh_err;
 	bool link_up;
