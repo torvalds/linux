@@ -68,6 +68,7 @@ extern void _tlbia(void);		/* invalidate all TLB entries */
  */
 
 #  define MICROBLAZE_TLB_SIZE 64
+#  define MICROBLAZE_TLB_SKIP 2
 
 /*
  * TLB entries are defined by a "high" tag portion and a "low" data

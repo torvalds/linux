@@ -36,7 +36,7 @@ _tlbia_1:
 	nop
 	mts	rtlbhi, r0 /* flush: ensure V is clear */
 	nop
-	addik	r11, r12, -2
+	addik	r11, r12, -MICROBLAZE_TLB_SKIP
 	bneid	r11, _tlbia_1 /* loop for all entries */
 	addik	r12, r12, -1
 	/* sync */
@@ -75,7 +75,7 @@ early_console_reg_tlb_alloc:
 	 * Load a TLB entry for the UART, so that microblaze_progress() can use
 	 * the UARTs nice and early.  We use a 4k real==virtual mapping.
 	 */
-	ori	r4, r0, MICROBLAZE_TLB_SIZE - 1
+	ori	r4, r0, 63
 	mts	rtlbx, r4 /* TLB slot 63 */
 
 	or	r4,r5,r0
