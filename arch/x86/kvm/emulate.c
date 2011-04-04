@@ -104,6 +104,7 @@
 
 struct opcode {
 	u32 flags;
+	u8 intercept;
 	union {
 		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		struct opcode *group;
@@ -2423,10 +2424,13 @@ static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 }
 
 #define D(_y) { .flags = (_y) }
+#define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
+#define II(_f, _e, _i) \
+	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
 #define GP(_f, _g) { .flags = ((_f) | Prefix), .u.gprefix = (_g) }
 
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
@@ -2867,6 +2871,7 @@ done_prefixes:
 	}
 
 	c->execute = opcode.u.execute;
+	c->intercept = opcode.intercept;
 
 	/* Unrecognised? */
 	if (c->d == 0 || (c->d & Undefined))
@@ -3116,10 +3121,24 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		goto done;
 	}
 
+	if (unlikely(ctxt->guest_mode) && c->intercept) {
+		rc = ops->intercept(ctxt, c->intercept,
+				    X86_ICPT_PRE_EXCEPT);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	}
+
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		rc = emulate_gp(ctxt, 0);
 		goto done;
+	}
+
+	if (unlikely(ctxt->guest_mode) && c->intercept) {
+		rc = ops->intercept(ctxt, c->intercept,
+				    X86_ICPT_POST_EXCEPT);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 	}
 
 	if (c->rep_prefix && (c->d & String)) {
@@ -3159,6 +3178,13 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	c->dst.orig_val = c->dst.val;
 
 special_insn:
+
+	if (unlikely(ctxt->guest_mode) && c->intercept) {
+		rc = ops->intercept(ctxt, c->intercept,
+				    X86_ICPT_POST_MEMACCESS);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	}
 
 	if (c->execute) {
 		rc = c->execute(ctxt);

@@ -4297,6 +4297,13 @@ static void emulator_put_fpu(struct x86_emulate_ctxt *ctxt)
 	preempt_enable();
 }
 
+static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
+			      enum x86_intercept intercept,
+			      enum x86_intercept_stage stage)
+{
+	return X86EMUL_CONTINUE;
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.write_std           = kvm_write_guest_virt_system,
@@ -4322,6 +4329,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.get_msr             = kvm_get_msr,
 	.get_fpu             = emulator_get_fpu,
 	.put_fpu             = emulator_put_fpu,
+	.intercept           = emulator_intercept,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
@@ -4376,6 +4384,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 		? X86EMUL_MODE_VM86 : cs_l
 		? X86EMUL_MODE_PROT64 :	cs_db
 		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+	vcpu->arch.emulate_ctxt.guest_mode = is_guest_mode(vcpu);
 	memset(c, 0, sizeof(struct decode_cache));
 	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 }

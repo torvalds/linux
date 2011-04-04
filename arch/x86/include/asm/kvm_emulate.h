@@ -14,6 +14,8 @@
 #include <asm/desc_defs.h>
 
 struct x86_emulate_ctxt;
+enum x86_intercept;
+enum x86_intercept_stage;
 
 struct x86_exception {
 	u8 vector;
@@ -62,6 +64,7 @@ struct x86_exception {
 #define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
 #define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
 #define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
+#define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
 
 struct x86_emulate_ops {
 	/*
@@ -160,6 +163,9 @@ struct x86_emulate_ops {
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
 	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
+	int (*intercept)(struct x86_emulate_ctxt *ctxt,
+			 enum x86_intercept intercept,
+			 enum x86_intercept_stage stage);
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
@@ -203,6 +209,7 @@ struct read_cache {
 struct decode_cache {
 	u8 twobyte;
 	u8 b;
+	u8 intercept;
 	u8 lock_prefix;
 	u8 rep_prefix;
 	u8 op_bytes;
@@ -244,6 +251,7 @@ struct x86_emulate_ctxt {
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
+	bool guest_mode; /* guest running a nested guest */
 	bool perm_ok; /* do not check permissions if true */
 	bool only_vendor_specific_insn;
 
@@ -264,6 +272,18 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT16   2	/* 16-bit protected mode. */
 #define X86EMUL_MODE_PROT32   4	/* 32-bit protected mode. */
 #define X86EMUL_MODE_PROT64   8	/* 64-bit (long) mode.    */
+
+enum x86_intercept_stage {
+	X86_ICPT_PRE_EXCEPT,
+	X86_ICPT_POST_EXCEPT,
+	X86_ICPT_POST_MEMACCESS,
+};
+
+enum x86_intercept {
+	x86_intercept_none,
+
+	nr_x86_intercepts
+};
 
 /* Host execution mode. */
 #if defined(CONFIG_X86_32)
