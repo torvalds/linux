@@ -276,7 +276,6 @@ int __init get_memcfg_from_srat(void)
 		unsigned long end = min(node_end_pfn[nid], max_pfn);
 
 		memory_present(nid, start, end);
-		node_remap_size[nid] = node_memmap_size_bytes(nid, start, end);
 	}
 	return 1;
 out_fail:

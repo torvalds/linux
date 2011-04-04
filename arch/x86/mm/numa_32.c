@@ -104,7 +104,7 @@ extern unsigned long highend_pfn, highstart_pfn;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
 
-unsigned long node_remap_size[MAX_NUMNODES];
+static unsigned long node_remap_size[MAX_NUMNODES];
 static void *node_remap_start_vaddr[MAX_NUMNODES];
 void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
@@ -129,7 +129,6 @@ int __init get_memcfg_numa_flat(void)
 	node_end_pfn[0] = max_pfn;
 	memblock_x86_register_active_regions(0, 0, max_pfn);
 	memory_present(0, 0, max_pfn);
-	node_remap_size[0] = node_memmap_size_bytes(0, 0, max_pfn);
 
         /* Indicate there is one node available. */
 	nodes_clear(node_online_map);
@@ -282,11 +281,10 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	if (node_end_pfn[nid] > max_pfn)
 		node_end_pfn[nid] = max_pfn;
 
-	/* ensure the remap includes space for the pgdat. */
-	size = node_remap_size[nid];
+	/* calculate the necessary space aligned to large page size */
+	size = node_memmap_size_bytes(nid, node_start_pfn[nid],
+				      min(node_end_pfn[nid], max_pfn));
 	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
-
-	/* align to large page */
 	size = ALIGN(size, LARGE_PAGE_BYTES);
 
 	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
