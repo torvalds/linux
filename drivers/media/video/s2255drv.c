@@ -394,12 +394,17 @@ static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 /* start video number */
 static int video_nr = -1;	/* /dev/videoN, -1 for autodetect */
 
+/* Enable jpeg capture. */
+static int jpeg_enable = 1;
+
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level(0-100) default 0");
 module_param(vid_limit, int, 0644);
 MODULE_PARM_DESC(vid_limit, "video memory limit(Mb)");
 module_param(video_nr, int, 0644);
 MODULE_PARM_DESC(video_nr, "start video minor(-1 default autodetect)");
+module_param(jpeg_enable, int, 0644);
+MODULE_PARM_DESC(jpeg_enable, "Jpeg enable(1-on 0-off) default 1");
 
 /* USB device table */
 #define USB_SENSORAY_VID	0x1943
@@ -413,6 +418,7 @@ MODULE_DEVICE_TABLE(usb, s2255_table);
 #define BUFFER_TIMEOUT msecs_to_jiffies(400)
 
 /* image formats.  */
+/* JPEG formats must be defined last to support jpeg_enable parameter */
 static const struct s2255_fmt formats[] = {
 	{
 		.name = "4:2:2, planar, YUV422P",
@@ -429,6 +435,10 @@ static const struct s2255_fmt formats[] = {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.depth = 16
 	}, {
+		.name = "8bpp GREY",
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.depth = 8
+	}, {
 		.name = "JPG",
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.depth = 24
@@ -436,10 +446,6 @@ static const struct s2255_fmt formats[] = {
 		.name = "MJPG",
 		.fourcc = V4L2_PIX_FMT_MJPEG,
 		.depth = 24
-	}, {
-		.name = "8bpp GREY",
-		.fourcc = V4L2_PIX_FMT_GREY,
-		.depth = 8
 	}
 };
 
@@ -614,6 +620,9 @@ static const struct s2255_fmt *format_by_fourcc(int fourcc)
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (-1 == formats[i].fourcc)
 			continue;
+	if (!jpeg_enable && ((formats[i].fourcc == V4L2_PIX_FMT_JPEG) ||
+			     (formats[i].fourcc == V4L2_PIX_FMT_MJPEG)))
+	    continue;
 		if (formats[i].fourcc == fourcc)
 			return formats + i;
 	}
@@ -861,7 +870,9 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	if (index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-
+    if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
+			 (formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
+	return -EINVAL;
 	dprintk(4, "name %s\n", formats[index].name);
 	strlcpy(f->description, formats[index].name, sizeof(f->description));
 	f->pixelformat = formats[index].fourcc;
