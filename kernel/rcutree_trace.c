@@ -394,6 +394,29 @@ static const struct file_operations rcu_pending_fops = {
 	.release = single_release,
 };
 
+static int show_rcutorture(struct seq_file *m, void *unused)
+{
+	seq_printf(m, "rcutorture test sequence: %lu %s\n",
+		   rcutorture_testseq >> 1,
+		   (rcutorture_testseq & 0x1) ? "(test in progress)" : "");
+	seq_printf(m, "rcutorture update version number: %lu\n",
+		   rcutorture_vernum);
+	return 0;
+}
+
+static int rcutorture_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_rcutorture, NULL);
+}
+
+static const struct file_operations rcutorture_fops = {
+	.owner = THIS_MODULE,
+	.open = rcutorture_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static struct dentry *rcudir;
 
 static int __init rcutree_trace_init(void)
@@ -428,6 +451,11 @@ static int __init rcutree_trace_init(void)
 
 	retval = debugfs_create_file("rcu_pending", 0444, rcudir,
 						NULL, &rcu_pending_fops);
+	if (!retval)
+		goto free_out;
+
+	retval = debugfs_create_file("rcutorture", 0444, rcudir,
+						NULL, &rcutorture_fops);
 	if (!retval)
 		goto free_out;
 	return 0;

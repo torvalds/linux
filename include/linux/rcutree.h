@@ -58,9 +58,12 @@ static inline void synchronize_rcu_bh_expedited(void)
 
 extern void rcu_barrier(void);
 
+extern unsigned long rcutorture_testseq;
+extern unsigned long rcutorture_vernum;
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 extern long rcu_batches_completed_sched(void);
+
 extern void rcu_force_quiescent_state(void);
 extern void rcu_bh_force_quiescent_state(void);
 extern void rcu_sched_force_quiescent_state(void);
