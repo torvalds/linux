@@ -414,12 +414,16 @@ static int snd_soc_hw_bulk_write_raw(struct snd_soc_codec *codec, unsigned int r
 		return -EINVAL;
 
 	switch (codec->control_type) {
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 	case SND_SOC_I2C:
 		ret = i2c_master_send(codec->control_data, data, len);
 		break;
+#endif
+#if defined(CONFIG_SPI_MASTER)
 	case SND_SOC_SPI:
 		ret = do_spi_write(codec->control_data, data, len);
 		break;
+#endif
 	default:
 		BUG();
 	}
