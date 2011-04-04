@@ -105,6 +105,9 @@ struct wm831x_watchdog_pdata {
 #define WM831X_MAX_LDO    11
 #define WM831X_MAX_ISINK  2
 
+#define WM831X_GPIO_CONFIGURE 0x10000
+#define WM831X_GPIO_NUM 16
+
 struct wm831x_pdata {
 	/** Used to distinguish multiple WM831x chips */
 	int wm831x_num;
@@ -119,6 +122,7 @@ struct wm831x_pdata {
 
 	int irq_base;
 	int gpio_base;
+	int gpio_defaults[WM831X_GPIO_NUM];
 	struct wm831x_backlight_pdata *backlight;
 	struct wm831x_backup_pdata *backup;
 	struct wm831x_battery_pdata *battery;
