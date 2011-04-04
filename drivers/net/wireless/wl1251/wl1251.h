@@ -132,6 +132,7 @@ enum wl1251_partition_type {
 enum wl1251_station_mode {
 	STATION_ACTIVE_MODE,
 	STATION_POWER_SAVE_MODE,
+	STATION_IDLE,
 };
 
 struct wl1251_partition {

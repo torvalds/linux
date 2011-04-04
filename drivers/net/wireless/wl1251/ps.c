@@ -136,6 +136,17 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_station_mode mode)
 		if (ret < 0)
 			return ret;
 		break;
+	case STATION_IDLE:
+		wl1251_debug(DEBUG_PSM, "entering idle");
+
+		ret = wl1251_acx_sleep_auth(wl, WL1251_PSM_ELP);
+		if (ret < 0)
+			return ret;
+
+		ret = wl1251_cmd_template_set(wl, CMD_DISCONNECT, NULL, 0);
+		if (ret < 0)
+			return ret;
+		break;
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1251_debug(DEBUG_PSM, "leaving psm");
