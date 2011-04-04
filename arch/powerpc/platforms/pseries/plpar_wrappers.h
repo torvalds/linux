@@ -270,31 +270,4 @@ static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
 			lbuf[1]);
 }
 
-static inline long plpar_eoi(unsigned long xirr)
-{
-	return plpar_hcall_norets(H_EOI, xirr);
-}
-
-static inline long plpar_cppr(unsigned long cppr)
-{
-	return plpar_hcall_norets(H_CPPR, cppr);
-}
-
-static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
-{
-	return plpar_hcall_norets(H_IPI, servernum, mfrr);
-}
-
-static inline long plpar_xirr(unsigned long *xirr_ret, unsigned char cppr)
-{
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-
-	rc = plpar_hcall(H_XIRR, retbuf, cppr);
-
-	*xirr_ret = retbuf[0];
-
-	return rc;
-}
-
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */

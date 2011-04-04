@@ -142,6 +142,12 @@ extern struct irq_map_entry irq_map[NR_IRQS];
 
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
+/* This will eventually -replace- virq_to_hw if/when we stash the
+ * HW number in the irq_data itself. We use a macro so we can inline
+ * it as irq_data isn't defined yet
+ */
+#define irq_data_to_hw(d) (irq_map[(d)->irq].hwirq)
+
 /**
  * irq_alloc_host - Allocate a new irq_host data structure
  * @of_node: optional device-tree node of the interrupt controller

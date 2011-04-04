@@ -3,7 +3,10 @@ config PPC_PSERIES
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select MPIC
 	select PCI_MSI
-	select XICS
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	select PPC_ICP_HV
+	select PPC_ICS_RTAS
 	select PPC_I8259
 	select PPC_RTAS
 	select PPC_RTAS_DAEMON

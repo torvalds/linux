@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/system.h>
@@ -28,7 +29,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/pSeries_reconfig.h>
-#include "xics.h"
+#include <asm/xics.h>
 #include "plpar_wrappers.h"
 #include "offline_states.h"
 

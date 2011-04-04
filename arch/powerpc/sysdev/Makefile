@@ -57,3 +57,7 @@ obj-$(CONFIG_PPC_MPC52xx)	+= mpc5xxx_clocks.o
 ifeq ($(CONFIG_SUSPEND),y)
 obj-$(CONFIG_6xx)		+= 6xx-suspend.o
 endif
+
+subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+
+obj-$(CONFIG_PPC_XICS)		+= xics/

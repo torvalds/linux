@@ -53,9 +53,9 @@
 #include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
-#include "xics.h"
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/xics.h>
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
@@ -205,6 +205,9 @@ static void __init pseries_mpic_init_IRQ(void)
 		mpic_assign_isu(mpic, n, isuaddr);
 	}
 
+	/* Setup top-level get_irq */
+	ppc_md.get_irq = mpic_get_irq;
+
 	/* All ISUs are setup, complete initialization */
 	mpic_init(mpic);
 
@@ -214,7 +217,7 @@ static void __init pseries_mpic_init_IRQ(void)
 
 static void __init pseries_xics_init_IRQ(void)
 {
-	xics_init_IRQ();
+	xics_init();
 	pseries_setup_i8259_cascade();
 }
 
@@ -238,7 +241,6 @@ static void __init pseries_discover_pic(void)
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
-			ppc_md.get_irq        = mpic_get_irq;
 			setup_kexec_cpu_down_mpic();
 			smp_init_pseries_mpic();
 			return;
