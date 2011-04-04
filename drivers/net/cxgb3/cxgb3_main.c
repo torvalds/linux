@@ -1749,23 +1749,26 @@ static int restart_autoneg(struct net_device *dev)
 	return 0;
 }
 
-static int cxgb3_phys_id(struct net_device *dev, u32 data)
+static int set_phys_id(struct net_device *dev,
+		       enum ethtool_phys_id_state state)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int i;
 
-	if (data == 0)
-		data = 2;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return -EINVAL;
 
-	for (i = 0; i < data * 2; i++) {
+	case ETHTOOL_ID_OFF:
+		t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL, 0);
+		break;
+
+	case ETHTOOL_ID_ON:
+	case ETHTOOL_ID_INACTIVE:
 		t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL,
-				 (i & 1) ? F_GPIO0_OUT_VAL : 0);
-		if (msleep_interruptible(500))
-			break;
-	}
-	t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL,
 			 F_GPIO0_OUT_VAL);
+	}
+
 	return 0;
 }
 
@@ -2107,7 +2110,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
 	.get_strings = get_strings,
-	.phys_id = cxgb3_phys_id,
+	.set_phys_id = set_phys_id,
 	.nway_reset = restart_autoneg,
 	.get_sset_count = get_sset_count,
 	.get_ethtool_stats = get_stats,
