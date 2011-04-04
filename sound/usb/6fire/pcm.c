@@ -456,7 +456,7 @@ static int usb6fire_pcm_close(struct snd_pcm_substream *alsa_sub)
 		/* all substreams closed? if so, stop streaming */
 		if (!rt->playback.instance && !rt->capture.instance) {
 			usb6fire_pcm_stream_stop(rt);
-			rt->rate = -1;
+			rt->rate = ARRAY_SIZE(rates);
 		}
 	}
 	mutex_unlock(&rt->stream_mutex);
@@ -480,7 +480,6 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
 	struct pcm_substream *sub = usb6fire_pcm_get_substream(alsa_sub);
 	struct snd_pcm_runtime *alsa_rt = alsa_sub->runtime;
-	int i;
 	int ret;
 
 	if (rt->panic)
@@ -493,12 +492,10 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	sub->period_off = 0;
 
 	if (rt->stream_state == STREAM_DISABLED) {
-		for (i = 0; i < ARRAY_SIZE(rates); i++)
-			if (alsa_rt->rate == rates[i]) {
-				rt->rate = i;
+		for (rt->rate = 0; rt->rate < ARRAY_SIZE(rates); rt->rate++)
+			if (alsa_rt->rate == rates[rt->rate])
 				break;
-			}
-		if (i == ARRAY_SIZE(rates)) {
+		if (rt->rate == ARRAY_SIZE(rates)) {
 			mutex_unlock(&rt->stream_mutex);
 			snd_printk("invalid rate %d in prepare.\n",
 					alsa_rt->rate);
@@ -613,7 +610,7 @@ int __devinit usb6fire_pcm_init(struct sfire_chip *chip)
 
 	rt->chip = chip;
 	rt->stream_state = STREAM_DISABLED;
-	rt->rate = -1;
+	rt->rate = ARRAY_SIZE(rates);
 	init_waitqueue_head(&rt->stream_wait_queue);
 	mutex_init(&rt->stream_mutex);
 
