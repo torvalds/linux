@@ -2478,8 +2478,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	topology=	[S390]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
-			topology informations if the hardware supports these.
-			The scheduler will make use of these informations and
+			topology information if the hardware supports this.
+			The scheduler will make use of this information and
 			e.g. base its process migration decisions on it.
 			Default is on.
 
