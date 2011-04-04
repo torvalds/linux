@@ -24,6 +24,7 @@
 #include <asm/firmware.h>
 #include <linux/compiler.h>
 #include <asm/udbg.h>
+#include <asm/code-patching.h>
 
 
 extern void slb_allocate_realmode(unsigned long ea);
@@ -249,9 +250,8 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 static inline void patch_slb_encoding(unsigned int *insn_addr,
 				      unsigned int immed)
 {
-	*insn_addr = (*insn_addr & 0xffff0000) | immed;
-	flush_icache_range((unsigned long)insn_addr, 4+
-			   (unsigned long)insn_addr);
+	int insn = (*insn_addr & 0xffff0000) | immed;
+	patch_instruction(insn_addr, insn);
 }
 
 void slb_set_size(u16 size)

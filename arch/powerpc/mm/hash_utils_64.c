@@ -53,6 +53,7 @@
 #include <asm/sections.h>
 #include <asm/spu.h>
 #include <asm/udbg.h>
+#include <asm/code-patching.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -547,15 +548,7 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-static inline void make_bl(unsigned int *insn_addr, void *func)
-{
-	unsigned long funcp = *((unsigned long *)func);
-	int offset = funcp - (unsigned long)insn_addr;
-
-	*insn_addr = (unsigned int)(0x48000001 | (offset & 0x03fffffc));
-	flush_icache_range((unsigned long)insn_addr, 4+
-			   (unsigned long)insn_addr);
-}
+#define FUNCTION_TEXT(A)	((*(unsigned long *)(A)))
 
 static void __init htab_finish_init(void)
 {
@@ -570,16 +563,33 @@ static void __init htab_finish_init(void)
 	extern unsigned int *ht64_call_hpte_remove;
 	extern unsigned int *ht64_call_hpte_updatepp;
 
-	make_bl(ht64_call_hpte_insert1, ppc_md.hpte_insert);
-	make_bl(ht64_call_hpte_insert2, ppc_md.hpte_insert);
-	make_bl(ht64_call_hpte_remove, ppc_md.hpte_remove);
-	make_bl(ht64_call_hpte_updatepp, ppc_md.hpte_updatepp);
+	patch_branch(ht64_call_hpte_insert1,
+		FUNCTION_TEXT(ppc_md.hpte_insert),
+		BRANCH_SET_LINK);
+	patch_branch(ht64_call_hpte_insert2,
+		FUNCTION_TEXT(ppc_md.hpte_insert),
+		BRANCH_SET_LINK);
+	patch_branch(ht64_call_hpte_remove,
+		FUNCTION_TEXT(ppc_md.hpte_remove),
+		BRANCH_SET_LINK);
+	patch_branch(ht64_call_hpte_updatepp,
+		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		BRANCH_SET_LINK);
+
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 
-	make_bl(htab_call_hpte_insert1, ppc_md.hpte_insert);
-	make_bl(htab_call_hpte_insert2, ppc_md.hpte_insert);
-	make_bl(htab_call_hpte_remove, ppc_md.hpte_remove);
-	make_bl(htab_call_hpte_updatepp, ppc_md.hpte_updatepp);
+	patch_branch(htab_call_hpte_insert1,
+		FUNCTION_TEXT(ppc_md.hpte_insert),
+		BRANCH_SET_LINK);
+	patch_branch(htab_call_hpte_insert2,
+		FUNCTION_TEXT(ppc_md.hpte_insert),
+		BRANCH_SET_LINK);
+	patch_branch(htab_call_hpte_remove,
+		FUNCTION_TEXT(ppc_md.hpte_remove),
+		BRANCH_SET_LINK);
+	patch_branch(htab_call_hpte_updatepp,
+		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		BRANCH_SET_LINK);
 }
 
 static void __init htab_initialize(void)
