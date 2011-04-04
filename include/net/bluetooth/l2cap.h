@@ -277,6 +277,11 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
 /* ----- L2CAP channels and connections ----- */
+struct srej_list {
+	__u8	tx_seq;
+	struct list_head list;
+};
+
 struct l2cap_chan {
 	struct sock *sk;
 	__u8		ident;
@@ -312,6 +317,7 @@ struct l2cap_chan {
 	struct sk_buff_head	srej_q;
 	struct sk_buff_head	busy_q;
 	struct work_struct	busy_work;
+	struct list_head	srej_l;
 
 	struct list_head list;
 };
@@ -350,12 +356,6 @@ struct l2cap_conn {
 /* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
-#define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
-
-struct srej_list {
-	__u8	tx_seq;
-	struct list_head list;
-};
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
@@ -385,7 +385,6 @@ struct l2cap_pinfo {
 	__le16		sport;
 
 	struct sk_buff_head	tx_queue;
-	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
 	struct l2cap_chan	*chan;
 };

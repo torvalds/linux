@@ -1018,7 +1018,6 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	/* Default config options */
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 	skb_queue_head_init(TX_QUEUE(sk));
-	INIT_LIST_HEAD(SREJ_LIST(sk));
 }
 
 static struct proto l2cap_proto = {

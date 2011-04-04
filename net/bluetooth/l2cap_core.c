@@ -252,7 +252,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		skb_queue_purge(&chan->srej_q);
 		skb_queue_purge(&chan->busy_q);
 
-		list_for_each_entry_safe(l, tmp, SREJ_LIST(sk), list) {
+		list_for_each_entry_safe(l, tmp, &chan->srej_l, list) {
 			list_del(&l->list);
 			kfree(l);
 		}
@@ -1205,7 +1205,7 @@ static void l2cap_send_srejtail(struct l2cap_chan *chan)
 	control = L2CAP_SUPER_SELECT_REJECT;
 	control |= L2CAP_CTRL_FINAL;
 
-	tail = list_entry(SREJ_LIST(chan->sk)->prev, struct srej_list, list);
+	tail = list_entry((&chan->srej_l)->prev, struct srej_list, list);
 	control |= tail->tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 
 	l2cap_send_sframe(chan, control);
@@ -1595,6 +1595,8 @@ static inline void l2cap_ertm_init(struct l2cap_chan *chan)
 
 	skb_queue_head_init(&chan->srej_q);
 	skb_queue_head_init(&chan->busy_q);
+
+	INIT_LIST_HEAD(&chan->srej_l);
 
 	INIT_WORK(&chan->busy_work, l2cap_busy_work);
 
@@ -3207,11 +3209,10 @@ static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 
 static void l2cap_resend_srejframe(struct l2cap_chan *chan, u8 tx_seq)
 {
-	struct sock *sk = chan->sk;
 	struct srej_list *l, *tmp;
 	u16 control;
 
-	list_for_each_entry_safe(l, tmp, SREJ_LIST(sk), list) {
+	list_for_each_entry_safe(l, tmp, &chan->srej_l, list) {
 		if (l->tx_seq == tx_seq) {
 			list_del(&l->list);
 			kfree(l);
@@ -3221,13 +3222,12 @@ static void l2cap_resend_srejframe(struct l2cap_chan *chan, u8 tx_seq)
 		control |= l->tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 		l2cap_send_sframe(chan, control);
 		list_del(&l->list);
-		list_add_tail(&l->list, SREJ_LIST(sk));
+		list_add_tail(&l->list, &chan->srej_l);
 	}
 }
 
 static void l2cap_send_srejframe(struct l2cap_chan *chan, u8 tx_seq)
 {
-	struct sock *sk = chan->sk;
 	struct srej_list *new;
 	u16 control;
 
@@ -3239,7 +3239,7 @@ static void l2cap_send_srejframe(struct l2cap_chan *chan, u8 tx_seq)
 		new = kzalloc(sizeof(struct srej_list), GFP_ATOMIC);
 		new->tx_seq = chan->expected_tx_seq;
 		chan->expected_tx_seq = (chan->expected_tx_seq + 1) % 64;
-		list_add_tail(&new->list, SREJ_LIST(sk));
+		list_add_tail(&new->list, &chan->srej_l);
 	}
 	chan->expected_tx_seq = (chan->expected_tx_seq + 1) % 64;
 }
@@ -3288,7 +3288,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 	if (chan->conn_state & L2CAP_CONN_SREJ_SENT) {
 		struct srej_list *first;
 
-		first = list_first_entry(SREJ_LIST(sk),
+		first = list_first_entry(&chan->srej_l,
 				struct srej_list, list);
 		if (tx_seq == first->tx_seq) {
 			l2cap_add_to_srej_queue(chan, skb, tx_seq, sar);
@@ -3297,7 +3297,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 			list_del(&first->list);
 			kfree(first);
 
-			if (list_empty(SREJ_LIST(sk))) {
+			if (list_empty(&chan->srej_l)) {
 				chan->buffer_seq = chan->buffer_seq_srej;
 				chan->conn_state &= ~L2CAP_CONN_SREJ_SENT;
 				l2cap_send_ack(chan);
@@ -3310,7 +3310,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 			if (l2cap_add_to_srej_queue(chan, skb, tx_seq, sar) < 0)
 				goto drop;
 
-			list_for_each_entry(l, SREJ_LIST(sk), list) {
+			list_for_each_entry(l, &chan->srej_l, list) {
 				if (l->tx_seq == tx_seq) {
 					l2cap_resend_srejframe(chan, tx_seq);
 					return 0;
@@ -3332,7 +3332,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 		BT_DBG("sk %p, Enter SREJ", sk);
 
-		INIT_LIST_HEAD(SREJ_LIST(sk));
+		INIT_LIST_HEAD(&chan->srej_l);
 		chan->buffer_seq_srej = chan->buffer_seq;
 
 		__skb_queue_head_init(&chan->srej_q);
