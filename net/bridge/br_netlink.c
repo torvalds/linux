@@ -196,6 +196,9 @@ int __init br_netlink_init(void)
 
 	/* Only the first call to __rtnl_register can fail */
 	__rtnl_register(PF_BRIDGE, RTM_SETLINK, br_rtm_setlink, NULL);
+
+	__rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, br_fdb_add, NULL);
+	__rtnl_register(PF_BRIDGE, RTM_DELNEIGH, br_fdb_delete, NULL);
 	__rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, br_fdb_dump);
 
 	return 0;
