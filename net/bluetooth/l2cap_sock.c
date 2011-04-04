@@ -764,10 +764,10 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 				err = PTR_ERR(skb);
 				goto done;
 			}
-			__skb_queue_tail(TX_QUEUE(sk), skb);
+			__skb_queue_tail(&pi->chan->tx_q, skb);
 
-			if (sk->sk_send_head == NULL)
-				sk->sk_send_head = skb;
+			if (pi->chan->tx_send_head == NULL)
+				pi->chan->tx_send_head = skb;
 
 		} else {
 		/* Segment SDU into multiples PDUs */
@@ -1017,7 +1017,6 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 	/* Default config options */
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
-	skb_queue_head_init(TX_QUEUE(sk));
 }
 
 static struct proto l2cap_proto = {

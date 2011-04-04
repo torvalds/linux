@@ -240,7 +240,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 			l2cap_pi(sk)->conf_state & L2CAP_CONF_INPUT_DONE))
 		goto free;
 
-	skb_queue_purge(TX_QUEUE(sk));
+	skb_queue_purge(&chan->tx_q);
 
 	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
 		struct srej_list *l, *tmp;
@@ -477,7 +477,7 @@ void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, in
 
 	sk = chan->sk;
 
-	skb_queue_purge(TX_QUEUE(sk));
+	skb_queue_purge(&chan->tx_q);
 
 	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
 		del_timer(&chan->retrans_timer);
@@ -996,15 +996,14 @@ static void l2cap_retrans_timeout(unsigned long arg)
 
 static void l2cap_drop_acked_frames(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
 	struct sk_buff *skb;
 
-	while ((skb = skb_peek(TX_QUEUE(sk))) &&
+	while ((skb = skb_peek(&chan->tx_q)) &&
 			chan->unacked_frames) {
 		if (bt_cb(skb)->tx_seq == chan->expected_ack_seq)
 			break;
 
-		skb = skb_dequeue(TX_QUEUE(sk));
+		skb = skb_dequeue(&chan->tx_q);
 		kfree_skb(skb);
 
 		chan->unacked_frames--;
@@ -1037,7 +1036,7 @@ void l2cap_streaming_send(struct l2cap_chan *chan)
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u16 control, fcs;
 
-	while ((skb = skb_dequeue(TX_QUEUE(sk)))) {
+	while ((skb = skb_dequeue(&chan->tx_q))) {
 		control = get_unaligned_le16(skb->data + L2CAP_HDR_SIZE);
 		control |= chan->next_tx_seq << L2CAP_CTRL_TXSEQ_SHIFT;
 		put_unaligned_le16(control, skb->data + L2CAP_HDR_SIZE);
@@ -1060,7 +1059,7 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u8 tx_seq)
 	struct sk_buff *skb, *tx_skb;
 	u16 control, fcs;
 
-	skb = skb_peek(TX_QUEUE(sk));
+	skb = skb_peek(&chan->tx_q);
 	if (!skb)
 		return;
 
@@ -1068,10 +1067,10 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u8 tx_seq)
 		if (bt_cb(skb)->tx_seq == tx_seq)
 			break;
 
-		if (skb_queue_is_last(TX_QUEUE(sk), skb))
+		if (skb_queue_is_last(&chan->tx_q, skb))
 			return;
 
-	} while ((skb = skb_queue_next(TX_QUEUE(sk), skb)));
+	} while ((skb = skb_queue_next(&chan->tx_q, skb)));
 
 	if (chan->remote_max_tx &&
 			bt_cb(skb)->retries == chan->remote_max_tx) {
@@ -1112,7 +1111,7 @@ int l2cap_ertm_send(struct l2cap_chan *chan)
 	if (sk->sk_state != BT_CONNECTED)
 		return -ENOTCONN;
 
-	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(chan))) {
+	while ((skb = chan->tx_send_head) && (!l2cap_tx_window_full(chan))) {
 
 		if (chan->remote_max_tx &&
 				bt_cb(skb)->retries == chan->remote_max_tx) {
@@ -1153,10 +1152,10 @@ int l2cap_ertm_send(struct l2cap_chan *chan)
 
 		chan->frames_sent++;
 
-		if (skb_queue_is_last(TX_QUEUE(sk), skb))
-			sk->sk_send_head = NULL;
+		if (skb_queue_is_last(&chan->tx_q, skb))
+			chan->tx_send_head = NULL;
 		else
-			sk->sk_send_head = skb_queue_next(TX_QUEUE(sk), skb);
+			chan->tx_send_head = skb_queue_next(&chan->tx_q, skb);
 
 		nsent++;
 	}
@@ -1166,11 +1165,10 @@ int l2cap_ertm_send(struct l2cap_chan *chan)
 
 static int l2cap_retransmit_frames(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
 	int ret;
 
-	if (!skb_queue_empty(TX_QUEUE(sk)))
-		sk->sk_send_head = TX_QUEUE(sk)->next;
+	if (!skb_queue_empty(&chan->tx_q))
+		chan->tx_send_head = chan->tx_q.next;
 
 	chan->next_tx_seq = chan->expected_ack_seq;
 	ret = l2cap_ertm_send(chan);
@@ -1384,9 +1382,9 @@ int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t le
 		len -= buflen;
 		size += buflen;
 	}
-	skb_queue_splice_tail(&sar_queue, TX_QUEUE(sk));
-	if (sk->sk_send_head == NULL)
-		sk->sk_send_head = sar_queue.next;
+	skb_queue_splice_tail(&sar_queue, &chan->tx_q);
+	if (chan->tx_send_head == NULL)
+		chan->tx_send_head = sar_queue.next;
 
 	return size;
 }
@@ -2319,7 +2317,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 		chan->next_tx_seq = 0;
 		chan->expected_tx_seq = 0;
-		__skb_queue_head_init(TX_QUEUE(sk));
+		skb_queue_head_init(&chan->tx_q);
 		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
 			l2cap_ertm_init(chan);
 
@@ -2410,7 +2408,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		sk->sk_state = BT_CONNECTED;
 		chan->next_tx_seq = 0;
 		chan->expected_tx_seq = 0;
-		__skb_queue_head_init(TX_QUEUE(sk));
+		skb_queue_head_init(&chan->tx_q);
 		if (l2cap_pi(sk)->mode ==  L2CAP_MODE_ERTM)
 			l2cap_ertm_init(chan);
 
