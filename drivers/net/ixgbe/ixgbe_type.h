@@ -1728,6 +1728,8 @@
 #define IXGBE_MFLCN_RPFCE       0x00000004 /* Receive Priority FC Enable */
 #define IXGBE_MFLCN_RFCE        0x00000008 /* Receive FC Enable */
 
+#define IXGBE_MFLCN_RPFCE_SHIFT		 4
+
 /* Multiple Receive Queue Control */
 #define IXGBE_MRQC_RSSEN                 0x00000001  /* RSS Enable */
 #define IXGBE_MRQC_MRQE_MASK                    0xF /* Bits 3:0 */

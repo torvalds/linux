@@ -301,12 +301,17 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 		IXGBE_WRITE_REG(hw, IXGBE_FCCFG, reg);
 		/*
 		 * Enable Receive PFC
-		 * We will always honor XOFF frames we receive when
-		 * we are in PFC mode.
+		 * 82599 will always honor XOFF frames we receive when
+		 * we are in PFC mode however X540 only honors enabled
+		 * traffic classes.
 		 */
 		reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 		reg &= ~IXGBE_MFLCN_RFCE;
 		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
+
+		if (hw->mac.type == ixgbe_mac_X540)
+			reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
+
 		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 
 	} else {
