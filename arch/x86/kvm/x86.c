@@ -4516,6 +4516,9 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt);
 
+	if (r == EMULATION_INTERCEPTED)
+		return EMULATE_DONE;
+
 	if (r == EMULATION_FAILED) {
 		if (reexecute_instruction(vcpu, cr2))
 			return EMULATE_DONE;

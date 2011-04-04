@@ -331,6 +331,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
 #define EMULATION_FAILED -1
 #define EMULATION_OK 0
 #define EMULATION_RESTART 1
+#define EMULATION_INTERCEPTED 2
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			 u16 tss_selector, int reason,

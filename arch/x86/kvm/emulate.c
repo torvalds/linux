@@ -3592,6 +3592,9 @@ writeback:
 done:
 	if (rc == X86EMUL_PROPAGATE_FAULT)
 		ctxt->have_exception = true;
+	if (rc == X86EMUL_INTERCEPTED)
+		return EMULATION_INTERCEPTED;
+
 	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 
 twobyte_insn:
