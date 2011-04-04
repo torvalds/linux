@@ -38,6 +38,7 @@
 #define IXGBE_82599_RAR_ENTRIES   128
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
+#define IXGBE_82599_RX_PB_SIZE	  512
 
 static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
@@ -1765,6 +1766,7 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
+	hw->mac.rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 
 	if (ret_val == 0)
 		ret_val = ixgbe_verify_fw_version_82599(hw);

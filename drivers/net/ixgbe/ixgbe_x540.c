@@ -37,6 +37,7 @@
 #define IXGBE_X540_RAR_ENTRIES   128
 #define IXGBE_X540_MC_TBL_SIZE   128
 #define IXGBE_X540_VFT_TBL_SIZE  128
+#define IXGBE_X540_RX_PB_SIZE	 384
 
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
 static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw);
@@ -242,7 +243,7 @@ static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 		goto out;
 
 	ret_val = ixgbe_start_hw_gen2(hw);
-
+	hw->mac.rx_pb_size = IXGBE_X540_RX_PB_SIZE;
 out:
 	return ret_val;
 }
