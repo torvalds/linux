@@ -3106,10 +3106,10 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 
 	/* create an ASCONF_ACK chunk.
 	 * Based on the definitions of parameters, we know that the size of
-	 * ASCONF_ACK parameters are less than or equal to the twice of ASCONF
+	 * ASCONF_ACK parameters are less than or equal to the fourfold of ASCONF
 	 * parameters.
 	 */
-	asconf_ack = sctp_make_asconf_ack(asoc, serial, chunk_len * 2);
+	asconf_ack = sctp_make_asconf_ack(asoc, serial, chunk_len * 4);
 	if (!asconf_ack)
 		goto done;
 

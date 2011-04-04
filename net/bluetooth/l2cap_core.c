@@ -1116,7 +1116,9 @@ int l2cap_ertm_send(struct sock *sk)
 		bt_cb(skb)->tx_seq = pi->next_tx_seq;
 		pi->next_tx_seq = (pi->next_tx_seq + 1) % 64;
 
-		pi->unacked_frames++;
+		if (bt_cb(skb)->retries == 1)
+			pi->unacked_frames++;
+
 		pi->frames_sent++;
 
 		if (skb_queue_is_last(TX_QUEUE(sk), skb))

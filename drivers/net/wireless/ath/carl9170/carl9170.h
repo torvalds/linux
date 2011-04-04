@@ -443,6 +443,7 @@ struct carl9170_ba_stats {
 	u8 ampdu_len;
 	u8 ampdu_ack_len;
 	bool clear;
+	bool req;
 };
 
 struct carl9170_sta_info {
