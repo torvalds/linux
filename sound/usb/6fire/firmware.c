@@ -3,12 +3,6 @@
  *
  * Firmware loader
  *
- * Currently not working for all devices. To be able to use the device
- * in linux, it is also possible to let the windows driver upload the firmware.
- * For that, start the computer in windows and reboot.
- * As long as the device is connected to the power supply, no firmware reload
- * needs to be performed.
- *
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
  * Version:	0.3.0
@@ -70,6 +64,10 @@ static const u8 ep_w_max_packet_size[] = {
 	0xe4, 0x00, 0xe4, 0x00, /* alt 1: 228 EP2 and EP6 (7 fpp) */
 	0xa4, 0x01, 0xa4, 0x01, /* alt 2: 420 EP2 and EP6 (13 fpp)*/
 	0x94, 0x01, 0x5c, 0x02  /* alt 3: 404 EP2 and 604 EP6 (25 fpp) */
+};
+
+static const u8 known_fw_versions[][4] = {
+	{ 0x03, 0x01, 0x0b, 0x00 }
 };
 
 struct ihex_record {
@@ -363,6 +361,25 @@ static int usb6fire_fw_fpga_upload(
 	return 0;
 }
 
+/* check, if the firmware version the devices has currently loaded
+ * is known by this driver. 'version' needs to have 4 bytes version
+ * info data. */
+static int usb6fire_fw_check(u8 *version)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(known_fw_versions); i++)
+		if (!memcmp(version, known_fw_versions + i, 4))
+			return 0;
+
+	snd_printk(KERN_ERR PREFIX "invalid fimware version in device: "
+			"%02x %02x %02x %02x. "
+			"please reconnect to power. if this failure "
+			"still happens, check your firmware installation.",
+			version[0], version[1], version[2], version[3]);
+	return -EINVAL;
+}
+
 int usb6fire_fw_init(struct usb_interface *intf)
 {
 	int i;
@@ -378,9 +395,7 @@ int usb6fire_fw_init(struct usb_interface *intf)
 				"firmware state.\n");
 		return ret;
 	}
-	if (buffer[0] != 0xeb || buffer[1] != 0xaa || buffer[2] != 0x55
-			|| buffer[4] != 0x03 || buffer[5] != 0x01 || buffer[7]
-			!= 0x00) {
+	if (buffer[0] != 0xeb || buffer[1] != 0xaa || buffer[2] != 0x55) {
 		snd_printk(KERN_ERR PREFIX "unknown device firmware state "
 				"received from device: ");
 		for (i = 0; i < 8; i++)
@@ -389,7 +404,7 @@ int usb6fire_fw_init(struct usb_interface *intf)
 		return -EIO;
 	}
 	/* do we need fpga loader ezusb firmware? */
-	if (buffer[3] == 0x01 && buffer[6] == 0x19) {
+	if (buffer[3] == 0x01) {
 		ret = usb6fire_fw_ezusb_upload(intf,
 				"6fire/dmx6firel2.ihx", 0, NULL, 0);
 		if (ret < 0)
@@ -397,7 +412,10 @@ int usb6fire_fw_init(struct usb_interface *intf)
 		return FW_NOT_READY;
 	}
 	/* do we need fpga firmware and application ezusb firmware? */
-	else if (buffer[3] == 0x02 && buffer[6] == 0x0b) {
+	else if (buffer[3] == 0x02) {
+		ret = usb6fire_fw_check(buffer + 4);
+		if (ret < 0)
+			return ret;
 		ret = usb6fire_fw_fpga_upload(intf, "6fire/dmx6firecf.bin");
 		if (ret < 0)
 			return ret;
@@ -410,8 +428,8 @@ int usb6fire_fw_init(struct usb_interface *intf)
 		return FW_NOT_READY;
 	}
 	/* all fw loaded? */
-	else if (buffer[3] == 0x03 && buffer[6] == 0x0b)
-		return 0;
+	else if (buffer[3] == 0x03)
+		return usb6fire_fw_check(buffer + 4);
 	/* unknown data? */
 	else {
 		snd_printk(KERN_ERR PREFIX "unknown device firmware state "
