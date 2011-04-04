@@ -841,10 +841,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 			"Bss Info ASSOC %d, bssid: %pM\n",
 			bss_conf->aid, common->curbssid);
 
-		/* New association, store aid */
-		common->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(ah);
-
 		/*
 		 * Request a re-configuration of Beacon related timers
 		 * on the receipt of the first Beacon frame (i.e.,
@@ -863,7 +859,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_start_ani(common);
 	} else {
 		ath_dbg(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
-		common->curaid = 0;
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
@@ -1886,6 +1881,66 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	return ret;
 }
+static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	switch (sc->sc_ah->opmode) {
+	case NL80211_IFTYPE_ADHOC:
+		/* There can be only one vif available */
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		common->curaid = bss_conf->aid;
+		ath9k_hw_write_associd(sc->sc_ah);
+		break;
+	case NL80211_IFTYPE_STATION:
+		/*
+		 * Skip iteration if primary station vif's bss info
+		 * was not changed
+		 */
+		if (sc->sc_flags & SC_OP_PRIM_STA_VIF)
+			break;
+
+		if (bss_conf->assoc) {
+			sc->sc_flags |= SC_OP_PRIM_STA_VIF;
+			avp->primary_sta_vif = true;
+			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+			common->curaid = bss_conf->aid;
+			ath9k_hw_write_associd(sc->sc_ah);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	/* Reconfigure bss info */
+	if (avp->primary_sta_vif && !bss_conf->assoc) {
+		sc->sc_flags &= ~SC_OP_PRIM_STA_VIF;
+		avp->primary_sta_vif = false;
+		memset(common->curbssid, 0, ETH_ALEN);
+		common->curaid = 0;
+	}
+
+	ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, ath9k_bss_iter, sc);
+
+	/*
+	 * None of station vifs are associated.
+	 * Clear bssid & aid
+	 */
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
+	    !(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+		ath9k_hw_write_associd(sc->sc_ah);
+}
 
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
@@ -1903,10 +1958,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	if (changed & BSS_CHANGED_BSSID) {
-		/* Set BSSID */
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = 0;
-		ath9k_hw_write_associd(ah);
+		ath9k_config_bss(sc, vif);
 
 		/* Set aggregation protection mode parameters */
 		sc->config.ath_aggr_prot = 0;
