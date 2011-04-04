@@ -2604,6 +2604,16 @@ static int check_svme_pa(struct x86_emulate_ctxt *ctxt)
 	return check_svme(ctxt);
 }
 
+static int check_rdtsc(struct x86_emulate_ctxt *ctxt)
+{
+	u64 cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+
+	if (cr4 & X86_CR4_TSD && ctxt->ops->cpl(ctxt->vcpu))
+		return emulate_ud(ctxt);
+
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
@@ -2627,6 +2637,12 @@ static int check_svme_pa(struct x86_emulate_ctxt *ctxt)
 		D2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock),		\
 		D2bv(((_f) & ~Lock) | DstAcc | SrcImm)
 
+static struct opcode group7_rm1[] = {
+	DI(SrcNone | ModRM | Priv, monitor),
+	DI(SrcNone | ModRM | Priv, mwait),
+	N, N, N, N, N, N,
+};
+
 static struct opcode group7_rm3[] = {
 	DIP(SrcNone | ModRM | Prot | Priv, vmrun,   check_svme_pa),
 	DIP(SrcNone | ModRM | Prot       , vmmcall, check_svme),
@@ -2638,6 +2654,11 @@ static struct opcode group7_rm3[] = {
 	DIP(SrcNone | ModRM | Prot | Priv, invlpga, check_svme),
 };
 
+static struct opcode group7_rm7[] = {
+	N,
+	DIP(SrcNone | ModRM, rdtscp, check_rdtsc),
+	N, N, N, N, N, N,
+};
 static struct opcode group1[] = {
 	X7(D(Lock)), N
 };
@@ -2681,10 +2702,10 @@ static struct group_dual group7 = { {
 	DI(SrcMem16 | ModRM | Mov | Priv, lmsw),
 	DI(SrcMem | ModRM | ByteOp | Priv | NoAccess, invlpg),
 }, {
-	D(SrcNone | ModRM | Priv | VendorSpecific), N,
+	D(SrcNone | ModRM | Priv | VendorSpecific), EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
 	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
-	DI(SrcMem16 | ModRM | Mov | Priv, lmsw), N,
+	DI(SrcMem16 | ModRM | Mov | Priv, lmsw), EXT(0, group7_rm7),
 } };
 
 static struct opcode group8[] = {

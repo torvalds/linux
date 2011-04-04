@@ -3871,6 +3871,9 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 #define POST_EX(exit) { .exit_code = (exit), \
 			.stage = X86_ICPT_POST_EXCEPT, \
 			.valid = true }
+#define POST_MEM(exit) { .exit_code = (exit), \
+			 .stage = X86_ICPT_POST_MEMACCESS, \
+			 .valid = true }
 
 static struct __x86_intercept {
 	u32 exit_code;
@@ -3900,9 +3903,13 @@ static struct __x86_intercept {
 	[x86_intercept_clgi]		= POST_EX(SVM_EXIT_CLGI),
 	[x86_intercept_skinit]		= POST_EX(SVM_EXIT_SKINIT),
 	[x86_intercept_invlpga]		= POST_EX(SVM_EXIT_INVLPGA),
+	[x86_intercept_rdtscp]		= POST_EX(SVM_EXIT_RDTSCP),
+	[x86_intercept_monitor]		= POST_MEM(SVM_EXIT_MONITOR),
+	[x86_intercept_mwait]		= POST_EX(SVM_EXIT_MWAIT),
 };
 
 #undef POST_EX
+#undef POST_MEM
 
 static int svm_check_intercept(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
