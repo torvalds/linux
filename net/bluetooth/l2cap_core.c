@@ -623,7 +623,7 @@ static struct sock *l2cap_get_sock_by_scid(int state, __le16 cid, bdaddr_t *src)
 
 static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 {
-	struct sock *parent, *uninitialized_var(sk);
+	struct sock *parent, *sk;
 	struct l2cap_chan *chan;
 
 	BT_DBG("");
