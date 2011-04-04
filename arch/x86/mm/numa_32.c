@@ -205,26 +205,6 @@ void *alloc_remap(int nid, unsigned long size)
 	return allocation;
 }
 
-static void __init remap_numa_kva(void)
-{
-	void *vaddr;
-	unsigned long pfn;
-	int node;
-
-	for_each_online_node(node) {
-		printk(KERN_DEBUG "remap_numa_kva: node %d\n", node);
-		for (pfn=0; pfn < node_remap_size[node]; pfn += PTRS_PER_PTE) {
-			vaddr = node_remap_start_vaddr[node]+(pfn<<PAGE_SHIFT);
-			printk(KERN_DEBUG "remap_numa_kva: %08lx to pfn %08lx\n",
-				(unsigned long)vaddr,
-				node_remap_start_pfn[node] + pfn);
-			set_pmd_pfn((ulong) vaddr, 
-				node_remap_start_pfn[node] + pfn, 
-				PAGE_KERNEL_LARGE);
-		}
-	}
-}
-
 #ifdef CONFIG_HIBERNATION
 /**
  * resume_map_numa_kva - add KVA mapping to the temporary page tables created
@@ -262,7 +242,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 
 static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 {
-	unsigned long size;
+	unsigned long size, pfn;
 	u64 node_pa, remap_pa;
 	void *remap_va;
 
@@ -307,6 +287,12 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	}
 	memblock_x86_reserve_range(remap_pa, remap_pa + size, "KVA PG");
 	remap_va = phys_to_virt(remap_pa);
+
+	/* perform actual remap */
+	for (pfn = 0; pfn < size >> PAGE_SHIFT; pfn += PTRS_PER_PTE)
+		set_pmd_pfn((unsigned long)remap_va + (pfn << PAGE_SHIFT),
+			    (node_pa >> PAGE_SHIFT) + pfn,
+			    PAGE_KERNEL_LARGE);
 
 	/* initialize remap allocator parameters */
 	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
@@ -363,7 +349,6 @@ void __init initmem_init(void)
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid)
 		allocate_pgdat(nid);
-	remap_numa_kva();
 
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
