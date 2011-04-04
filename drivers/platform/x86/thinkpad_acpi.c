@@ -535,15 +535,6 @@ TPACPI_HANDLE(hkey, ec, "\\_SB.HKEY",	/* 600e/x, 770e, 770x */
 	   "HKEY",		/* all others */
 	   );			/* 570 */
 
-TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
-	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
-	   "\\_SB.PCI0.VID0",	/* 770e */
-	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
-	   "\\_SB.PCI0.AGP.VGA",	/* X100e and a few others */
-	   "\\_SB.PCI0.AGP.VID",	/* all others */
-	   );				/* R30, R31 */
-
-
 /*************************************************************************
  * ACPI helpers
  */
@@ -4443,6 +4434,15 @@ static int video_orig_autosw;
 
 static int video_autosw_get(void);
 static int video_autosw_set(int enable);
+
+TPACPI_HANDLE(vid, root,
+	      "\\_SB.PCI.AGP.VGA",	/* 570 */
+	      "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
+	      "\\_SB.PCI0.VID0",	/* 770e */
+	      "\\_SB.PCI0.VID",		/* A21e, G4x, R50e, X30, X40 */
+	      "\\_SB.PCI0.AGP.VGA",	/* X100e and a few others */
+	      "\\_SB.PCI0.AGP.VID",	/* all others */
+	);				/* R30, R31 */
 
 TPACPI_HANDLE(vid2, root, "\\_SB.PCI0.AGPB.VID");	/* G41 */
 
