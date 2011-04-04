@@ -3918,6 +3918,13 @@ static struct __x86_intercept {
 	[x86_intercept_rdpmc]		= POST_EX(SVM_EXIT_RDPMC),
 	[x86_intercept_cpuid]		= PRE_EX(SVM_EXIT_CPUID),
 	[x86_intercept_rsm]		= PRE_EX(SVM_EXIT_RSM),
+	[x86_intercept_pause]		= PRE_EX(SVM_EXIT_PAUSE),
+	[x86_intercept_pushf]		= PRE_EX(SVM_EXIT_PUSHF),
+	[x86_intercept_popf]		= PRE_EX(SVM_EXIT_POPF),
+	[x86_intercept_intn]		= PRE_EX(SVM_EXIT_SWINT),
+	[x86_intercept_iret]		= PRE_EX(SVM_EXIT_IRET),
+	[x86_intercept_icebp]		= PRE_EX(SVM_EXIT_ICEBP),
+	[x86_intercept_hlt]		= POST_EX(SVM_EXIT_HLT),
 };
 
 #undef PRE_EX
@@ -3987,6 +3994,13 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		else
 			vmcb->control.exit_info_1 = 0;
 		break;
+	case SVM_EXIT_PAUSE:
+		/*
+		 * We get this for NOP only, but pause
+		 * is rep not, check this here
+		 */
+		if (info->rep_prefix != REPE_PREFIX)
+			goto out;
 	default:
 		break;
 	}

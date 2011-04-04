@@ -2789,7 +2789,7 @@ static struct opcode opcode_table[256] = {
 	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | SrcMem | NoAccess | DstReg),
 	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
 	/* 0x90 - 0x97 */
-	X8(D(SrcAcc | DstReg)),
+	DI(SrcAcc | DstReg, pause), X7(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
@@ -2831,7 +2831,7 @@ static struct opcode opcode_table[256] = {
 	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
 	D2bv(SrcNone | DstAcc),	D2bv(SrcAcc | ImplicitOps),
 	/* 0xF0 - 0xF7 */
-	N, N, N, N,
+	N, DI(ImplicitOps, icebp), N, N,
 	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
 	G(ByteOp, group3), G(0, group3),
 	/* 0xF8 - 0xFF */
