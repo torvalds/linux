@@ -1491,7 +1491,6 @@ void dsi_pll_uninit(void)
 
 void dsi_dump_clocks(struct seq_file *s)
 {
-	int clksel;
 	struct dsi_clock_info *cinfo = &dsi.current_cinfo;
 	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 
@@ -1500,13 +1499,10 @@ void dsi_dump_clocks(struct seq_file *s)
 
 	enable_clocks(1);
 
-	clksel = REG_GET(DSI_PLL_CONFIGURATION2, 11, 11);
-
 	seq_printf(s,	"- DSI PLL -\n");
 
 	seq_printf(s,	"dsi pll source = %s\n",
-			clksel == 0 ?
-			"dss_sys_clk" : "pclkfree");
+			cinfo->use_sys_clk ? "dss_sys_clk" : "pclkfree");
 
 	seq_printf(s,	"Fint\t\t%-16luregn %u\n", cinfo->fint, cinfo->regn);
 
