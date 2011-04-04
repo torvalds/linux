@@ -2623,6 +2623,28 @@ static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int check_perm_in(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.bytes = min(c->dst.bytes, 4u);
+	if (!emulator_io_permited(ctxt, ctxt->ops, c->src.val, c->dst.bytes))
+		return emulate_gp(ctxt, 0);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int check_perm_out(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->src.bytes = min(c->src.bytes, 4u);
+	if (!emulator_io_permited(ctxt, ctxt->ops, c->dst.val, c->src.bytes))
+		return emulate_gp(ctxt, 0);
+
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
@@ -2640,6 +2662,7 @@ static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 #define GP(_f, _g) { .flags = ((_f) | Prefix), .u.gprefix = (_g) }
 
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
+#define D2bvIP(_f, _i, _p) DIP((_f) | ByteOp, _i, _p), DIP(_f, _i, _p)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
 
 #define D6ALU(_f) D2bv((_f) | DstMem | SrcReg | ModRM),			\
@@ -2773,8 +2796,8 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
-	D2bv(DstDI | Mov | String), /* insb, insw/insd */
-	D2bv(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
+	D2bvIP(DstDI | Mov | String, ins, check_perm_in), /* insb, insw/insd */
+	D2bvIP(SrcSI | ImplicitOps | String, outs, check_perm_out), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
@@ -2825,11 +2848,13 @@ static struct opcode opcode_table[256] = {
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
 	X4(D(SrcImmByte)),
-	D2bv(SrcImmUByte | DstAcc), D2bv(SrcAcc | DstImmUByte),
+	D2bvIP(SrcImmUByte | DstAcc, in,  check_perm_in),
+	D2bvIP(SrcAcc | DstImmUByte, out, check_perm_out),
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
 	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
-	D2bv(SrcNone | DstAcc),	D2bv(SrcAcc | ImplicitOps),
+	D2bvIP(SrcNone | DstAcc,     in,  check_perm_in),
+	D2bvIP(SrcAcc | ImplicitOps, out, check_perm_out),
 	/* 0xF0 - 0xF7 */
 	N, DI(ImplicitOps, icebp), N, N,
 	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
@@ -2923,6 +2948,7 @@ static struct opcode twobyte_table[256] = {
 #undef EXT
 
 #undef D2bv
+#undef D2bvIP
 #undef I2bv
 #undef D6ALU
 
@@ -3731,11 +3757,6 @@ special_insn:
 	case 0xed: /* in (e/r)ax,dx */
 		c->src.val = c->regs[VCPU_REGS_RDX];
 	do_io_in:
-		c->dst.bytes = min(c->dst.bytes, 4u);
-		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
-			rc = emulate_gp(ctxt, 0);
-			goto done;
-		}
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
 				     &c->dst.val))
 			goto done; /* IO is needed */
@@ -3744,12 +3765,6 @@ special_insn:
 	case 0xef: /* out dx,(e/r)ax */
 		c->dst.val = c->regs[VCPU_REGS_RDX];
 	do_io_out:
-		c->src.bytes = min(c->src.bytes, 4u);
-		if (!emulator_io_permited(ctxt, ops, c->dst.val,
-					  c->src.bytes)) {
-			rc = emulate_gp(ctxt, 0);
-			goto done;
-		}
 		ops->pio_out_emulated(c->src.bytes, c->dst.val,
 				      &c->src.val, 1, ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* Disable writeback. */

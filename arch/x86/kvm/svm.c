@@ -3925,6 +3925,10 @@ static struct __x86_intercept {
 	[x86_intercept_iret]		= PRE_EX(SVM_EXIT_IRET),
 	[x86_intercept_icebp]		= PRE_EX(SVM_EXIT_ICEBP),
 	[x86_intercept_hlt]		= POST_EX(SVM_EXIT_HLT),
+	[x86_intercept_in]		= POST_EX(SVM_EXIT_IOIO),
+	[x86_intercept_ins]		= POST_EX(SVM_EXIT_IOIO),
+	[x86_intercept_out]		= POST_EX(SVM_EXIT_IOIO),
+	[x86_intercept_outs]		= POST_EX(SVM_EXIT_IOIO),
 };
 
 #undef PRE_EX
@@ -4001,6 +4005,38 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		 */
 		if (info->rep_prefix != REPE_PREFIX)
 			goto out;
+	case SVM_EXIT_IOIO: {
+		u64 exit_info;
+		u32 bytes;
+
+		exit_info = (vcpu->arch.regs[VCPU_REGS_RDX] & 0xffff) << 16;
+
+		if (info->intercept == x86_intercept_in ||
+		    info->intercept == x86_intercept_ins) {
+			exit_info |= SVM_IOIO_TYPE_MASK;
+			bytes = info->src_bytes;
+		} else {
+			bytes = info->dst_bytes;
+		}
+
+		if (info->intercept == x86_intercept_outs ||
+		    info->intercept == x86_intercept_ins)
+			exit_info |= SVM_IOIO_STR_MASK;
+
+		if (info->rep_prefix)
+			exit_info |= SVM_IOIO_REP_MASK;
+
+		bytes = min(bytes, 4u);
+
+		exit_info |= bytes << SVM_IOIO_SIZE_SHIFT;
+
+		exit_info |= (u32)info->ad_bytes << (SVM_IOIO_ASIZE_SHIFT - 1);
+
+		vmcb->control.exit_info_1 = exit_info;
+		vmcb->control.exit_info_2 = info->next_rip;
+
+		break;
+	}
 	default:
 		break;
 	}

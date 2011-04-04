@@ -346,6 +346,10 @@ enum x86_intercept {
 	x86_intercept_mwait,
 	x86_intercept_rdmsr,
 	x86_intercept_wrmsr,
+	x86_intercept_in,
+	x86_intercept_ins,
+	x86_intercept_out,
+	x86_intercept_outs,
 
 	nr_x86_intercepts
 };
