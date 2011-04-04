@@ -1140,6 +1140,42 @@ static void xennet_uninit(struct net_device *dev)
 	gnttab_free_grant_references(np->gref_rx_head);
 }
 
+static u32 xennet_fix_features(struct net_device *dev, u32 features)
+{
+	struct netfront_info *np = netdev_priv(dev);
+	int val;
+
+	if (features & NETIF_F_SG) {
+		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend, "feature-sg",
+				 "%d", &val) < 0)
+			val = 0;
+
+		if (!val)
+			features &= ~NETIF_F_SG;
+	}
+
+	if (features & NETIF_F_TSO) {
+		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
+				 "feature-gso-tcpv4", "%d", &val) < 0)
+			val = 0;
+
+		if (!val)
+			features &= ~NETIF_F_TSO;
+	}
+
+	return features;
+}
+
+static int xennet_set_features(struct net_device *dev, u32 features)
+{
+	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN) {
+		netdev_info(dev, "Reducing MTU because no SG offload");
+		dev->mtu = ETH_DATA_LEN;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops xennet_netdev_ops = {
 	.ndo_open            = xennet_open,
 	.ndo_uninit          = xennet_uninit,
@@ -1511,42 +1547,6 @@ again:
 	xennet_disconnect_backend(info);
  out:
 	return err;
-}
-
-static u32 xennet_fix_features(struct net_device *dev, u32 features)
-{
-	struct netfront_info *np = netdev_priv(dev);
-	int val;
-
-	if (features & NETIF_F_SG) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend, "feature-sg",
-				 "%d", &val) < 0)
-			val = 0;
-
-		if (!val)
-			features &= ~NETIF_F_SG;
-	}
-
-	if (features & NETIF_F_TSO) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
-				 "feature-gso-tcpv4", "%d", &val) < 0)
-			val = 0;
-
-		if (!val)
-			features &= ~NETIF_F_TSO;
-	}
-
-	return features;
-}
-
-static int xennet_set_features(struct net_device *dev, u32 features)
-{
-	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN) {
-		netdev_info(dev, "Reducing MTU because no SG offload");
-		dev->mtu = ETH_DATA_LEN;
-	}
-
-	return 0;
 }
 
 static int xennet_connect(struct net_device *dev)
