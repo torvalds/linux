@@ -2133,8 +2133,7 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
 	switch (type) {
 	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
 		scmd_lookup = _scsih_scsi_lookup_get(ioc, smid_task);
-		if (scmd_lookup && (scmd_lookup->serial_number ==
-		    scmd->serial_number))
+		if (scmd_lookup)
 			rc = FAILED;
 		else
 			rc = SUCCESS;
