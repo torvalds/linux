@@ -786,28 +786,27 @@ static void skge_led(struct skge_port *skge, enum led_mode mode)
 }
 
 /* blink LED's for finding board */
-static int skge_phys_id(struct net_device *dev, u32 data)
+static int skge_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	unsigned long ms;
-	enum led_mode mode = LED_MODE_TST;
 
-	if (!data || data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ))
-		ms = jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT / HZ) * 1000;
-	else
-		ms = data * 1000;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return -EINVAL;
 
-	while (ms > 0) {
-		skge_led(skge, mode);
-		mode ^= LED_MODE_TST;
+	case ETHTOOL_ID_ON:
+		skge_led(skge, LED_MODE_TST);
+		break;
 
-		if (msleep_interruptible(BLINK_MS))
-			break;
-		ms -= BLINK_MS;
+	case ETHTOOL_ID_OFF:
+		skge_led(skge, LED_MODE_OFF);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		/* back to regular LED state */
+		skge_led(skge, netif_running(dev) ? LED_MODE_ON : LED_MODE_OFF);
 	}
-
-	/* back to regular LED state */
-	skge_led(skge, netif_running(dev) ? LED_MODE_ON : LED_MODE_OFF);
 
 	return 0;
 }
@@ -930,7 +929,7 @@ static const struct ethtool_ops skge_ethtool_ops = {
 	.get_rx_csum	= skge_get_rx_csum,
 	.set_rx_csum	= skge_set_rx_csum,
 	.get_strings	= skge_get_strings,
-	.phys_id	= skge_phys_id,
+	.set_phys_id	= skge_set_phys_id,
 	.get_sset_count = skge_get_sset_count,
 	.get_ethtool_stats = skge_get_ethtool_stats,
 };
