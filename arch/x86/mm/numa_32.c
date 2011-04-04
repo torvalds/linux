@@ -287,7 +287,8 @@ static __init unsigned long calculate_numa_remap_pages(void)
 			node_end_pfn[nid] = max_pfn;
 
 		/* ensure the remap includes space for the pgdat. */
-		size = node_remap_size[nid] + sizeof(pg_data_t);
+		size = node_remap_size[nid];
+		size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 
 		/* convert size to large (pmd size) pages, rounding up */
 		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
