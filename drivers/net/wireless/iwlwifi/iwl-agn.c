@@ -1481,7 +1481,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		default:
-			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
+			IWL_DEBUG_INFO(priv, "unknown TLV: %d\n", tlv_type);
 			break;
 		}
 	}
