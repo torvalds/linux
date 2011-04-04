@@ -264,70 +264,64 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 }
 #endif
 
-static __init unsigned long calculate_numa_remap_pages(void)
+static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 {
-	int nid;
-	unsigned long size, reserve_pages = 0;
+	unsigned long size;
+	u64 node_kva;
 
-	for_each_online_node(nid) {
-		u64 node_kva;
+	/*
+	 * The acpi/srat node info can show hot-add memroy zones where
+	 * memory could be added but not currently present.
+	 */
+	printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
+	       nid, node_start_pfn[nid], node_end_pfn[nid]);
+	if (node_start_pfn[nid] > max_pfn)
+		return 0;
+	if (!node_end_pfn[nid])
+		return 0;
+	if (node_end_pfn[nid] > max_pfn)
+		node_end_pfn[nid] = max_pfn;
 
-		/*
-		 * The acpi/srat node info can show hot-add memroy zones
-		 * where memory could be added but not currently present.
-		 */
-		printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
-			nid, node_start_pfn[nid], node_end_pfn[nid]);
-		if (node_start_pfn[nid] > max_pfn)
-			continue;
-		if (!node_end_pfn[nid])
-			continue;
-		if (node_end_pfn[nid] > max_pfn)
-			node_end_pfn[nid] = max_pfn;
+	/* ensure the remap includes space for the pgdat. */
+	size = node_remap_size[nid];
+	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 
-		/* ensure the remap includes space for the pgdat. */
-		size = node_remap_size[nid];
-		size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+	/* convert size to large (pmd size) pages, rounding up */
+	size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
+	/* now the roundup is correct, convert to PAGE_SIZE pages */
+	size = size * PTRS_PER_PTE;
 
-		/* convert size to large (pmd size) pages, rounding up */
-		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
-		/* now the roundup is correct, convert to PAGE_SIZE pages */
-		size = size * PTRS_PER_PTE;
+	node_kva = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
+					  (u64)node_end_pfn[nid] << PAGE_SHIFT,
+					  (u64)size << PAGE_SHIFT,
+					  LARGE_PAGE_BYTES);
+	if (node_kva == MEMBLOCK_ERROR)
+		panic("Can not get kva ram\n");
 
-		node_kva = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
-					((u64)node_end_pfn[nid])<<PAGE_SHIFT,
-					((u64)size)<<PAGE_SHIFT,
-					LARGE_PAGE_BYTES);
-		if (node_kva == MEMBLOCK_ERROR)
-			panic("Can not get kva ram\n");
+	node_remap_size[nid] = size;
+	node_remap_offset[nid] = offset;
+	printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
+	       size, nid, node_kva >> PAGE_SHIFT);
 
-		node_remap_size[nid] = size;
-		node_remap_offset[nid] = reserve_pages;
-		reserve_pages += size;
-		printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of"
-				  " node %d at %llx\n",
-				size, nid, node_kva >> PAGE_SHIFT);
+	/*
+	 *  prevent kva address below max_low_pfn want it on system
+	 *  with less memory later.
+	 *  layout will be: KVA address , KVA RAM
+	 *
+	 *  we are supposed to only record the one less then
+	 *  max_low_pfn but we could have some hole in high memory,
+	 *  and it will only check page_is_ram(pfn) &&
+	 *  !page_is_reserved_early(pfn) to decide to use it as free.
+	 *  So memblock_x86_reserve_range here, hope we don't run out
+	 *  of that array
+	 */
+	memblock_x86_reserve_range(node_kva,
+				   node_kva + ((u64)size << PAGE_SHIFT),
+				   "KVA RAM");
 
-		/*
-		 *  prevent kva address below max_low_pfn want it on system
-		 *  with less memory later.
-		 *  layout will be: KVA address , KVA RAM
-		 *
-		 *  we are supposed to only record the one less then max_low_pfn
-		 *  but we could have some hole in high memory, and it will only
-		 *  check page_is_ram(pfn) && !page_is_reserved_early(pfn) to decide
-		 *  to use it as free.
-		 *  So memblock_x86_reserve_range here, hope we don't run out of that array
-		 */
-		memblock_x86_reserve_range(node_kva,
-					   node_kva + (((u64)size)<<PAGE_SHIFT),
-					   "KVA RAM");
+	node_remap_start_pfn[nid] = node_kva >> PAGE_SHIFT;
 
-		node_remap_start_pfn[nid] = node_kva >> PAGE_SHIFT;
-	}
-	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
-			reserve_pages);
-	return reserve_pages;
+	return size;
 }
 
 static void init_remap_allocator(int nid)
@@ -346,6 +340,7 @@ static void init_remap_allocator(int nid)
 
 void __init initmem_init(void)
 {
+	unsigned long reserve_pages = 0;
 	int nid;
 
 	/*
@@ -359,7 +354,11 @@ void __init initmem_init(void)
 	get_memcfg_numa();
 	numa_init_array();
 
-	kva_pages = roundup(calculate_numa_remap_pages(), PTRS_PER_PTE);
+	for_each_online_node(nid)
+		reserve_pages += init_alloc_remap(nid, reserve_pages);
+	kva_pages = roundup(reserve_pages, PTRS_PER_PTE);
+	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
+			reserve_pages);
 
 	kva_start_pfn = memblock_find_in_range(min_low_pfn << PAGE_SHIFT,
 				max_low_pfn << PAGE_SHIFT,
