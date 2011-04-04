@@ -290,8 +290,11 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
 					 (u64)node_end_pfn[nid] << PAGE_SHIFT,
 					 size, LARGE_PAGE_BYTES);
-	if (node_pa == MEMBLOCK_ERROR)
-		panic("Can not get kva ram\n");
+	if (node_pa == MEMBLOCK_ERROR) {
+		pr_warning("remap_alloc: failed to allocate %lu bytes for node %d\n",
+			   size, nid);
+		return 0;
+	}
 
 	node_remap_size[nid] = size >> PAGE_SHIFT;
 	node_remap_offset[nid] = offset;
