@@ -934,6 +934,17 @@ config VIDEO_MX2
 	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
 	  Interface
 
+config  VIDEO_SAMSUNG_S5P_FIMC
+	tristate "Samsung S5P and EXYNOS4 camera host interface driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  This is a v4l2 driver for Samsung S5P and EXYNOS4 camera
+	  host interface and video postprocessor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5p-fimc.
 
 #
 # USB Multimedia device configuration
@@ -1029,13 +1040,5 @@ config VIDEO_MEM2MEM_TESTDEV
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 
-config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P FIMC (video postprocessor) driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	  This is a v4l2 driver for the S5P camera interface
-	  (video postprocessor)
 
 endif # V4L_MEM2MEM_DRIVERS
