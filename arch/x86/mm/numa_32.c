@@ -160,9 +160,8 @@ static void __init allocate_pgdat(int nid)
 {
 	char buf[16];
 
-	if (node_has_online_mem(nid) && node_remap_start_vaddr[nid])
-		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
-	else {
+	NODE_DATA(nid) = alloc_remap(nid, ALIGN(sizeof(pg_data_t), PAGE_SIZE));
+	if (!NODE_DATA(nid)) {
 		unsigned long pgdat_phys;
 		pgdat_phys = memblock_find_in_range(min_low_pfn<<PAGE_SHIFT,
 				 max_pfn_mapped<<PAGE_SHIFT,
@@ -301,7 +300,7 @@ static __init unsigned long init_alloc_remap(int nid, unsigned long offset)
 
 	node_remap_start_vaddr[nid] = remap_va;
 	node_remap_end_vaddr[nid] = remap_va + size;
-	node_remap_alloc_vaddr[nid] = remap_va + ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+	node_remap_alloc_vaddr[nid] = remap_va;
 
 	printk(KERN_DEBUG "remap_alloc: node %d [%08llx-%08llx) -> [%p-%p)\n",
 	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
