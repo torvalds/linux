@@ -2630,8 +2630,18 @@ static struct opcode group5[] = {
 	D(SrcMem | ModRM | Stack), N,
 };
 
+static struct opcode group6[] = {
+	DI(ModRM | Prot,        sldt),
+	DI(ModRM | Prot,        str),
+	DI(ModRM | Prot | Priv, lldt),
+	DI(ModRM | Prot | Priv, ltr),
+	N, N, N, N,
+};
+
 static struct group_dual group7 = { {
-	N, N, DI(ModRM | SrcMem | Priv, lgdt), DI(ModRM | SrcMem | Priv, lidt),
+	DI(ModRM | Mov | DstMem | Priv, sgdt),
+	DI(ModRM | Mov | DstMem | Priv, sidt),
+	DI(ModRM | SrcMem | Priv, lgdt), DI(ModRM | SrcMem | Priv, lidt),
 	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
 	DI(SrcMem16 | ModRM | Mov | Priv, lmsw),
 	DI(SrcMem | ModRM | ByteOp | Priv | NoAccess, invlpg),
@@ -2766,7 +2776,7 @@ static struct opcode opcode_table[256] = {
 
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	N, GD(0, &group7), N, N,
+	G(0, group6), GD(0, &group7), N, N,
 	N, D(ImplicitOps | VendorSpecific), DI(ImplicitOps | Priv, clts), N,
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM), N, N,

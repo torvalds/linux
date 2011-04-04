@@ -3884,6 +3884,14 @@ static struct __x86_intercept {
 	[x86_intercept_smsw]		= POST_EX(SVM_EXIT_READ_CR0),
 	[x86_intercept_dr_read]		= POST_EX(SVM_EXIT_READ_DR0),
 	[x86_intercept_dr_write]	= POST_EX(SVM_EXIT_WRITE_DR0),
+	[x86_intercept_sldt]		= POST_EX(SVM_EXIT_LDTR_READ),
+	[x86_intercept_str]		= POST_EX(SVM_EXIT_TR_READ),
+	[x86_intercept_lldt]		= POST_EX(SVM_EXIT_LDTR_WRITE),
+	[x86_intercept_ltr]		= POST_EX(SVM_EXIT_TR_WRITE),
+	[x86_intercept_sgdt]		= POST_EX(SVM_EXIT_GDTR_READ),
+	[x86_intercept_sidt]		= POST_EX(SVM_EXIT_IDTR_READ),
+	[x86_intercept_lgdt]		= POST_EX(SVM_EXIT_GDTR_WRITE),
+	[x86_intercept_lidt]		= POST_EX(SVM_EXIT_IDTR_WRITE),
 };
 
 #undef POST_EX
