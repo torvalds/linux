@@ -81,11 +81,11 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 
 	/* Generic voltage parameters */
 	vdd->volt_scale = omap_vp_forceupdate_scale;
-	vdd->vp_enabled = false;
+	voltdm->vp->enabled = false;
 
 	vdd->vp_rt_data.vpconfig_erroroffset =
 		(voltdm->pmic->vp_erroroffset <<
-		 vdd->vp_data->vp_common->vpconfig_erroroffset_shift);
+		 voltdm->vp->common->vpconfig_erroroffset_shift);
 
 	timeout_val = (sys_clk_speed * voltdm->pmic->vp_timeout_us) / 1000;
 	vdd->vp_rt_data.vlimitto_timeout = timeout_val;

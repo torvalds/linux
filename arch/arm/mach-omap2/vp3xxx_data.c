@@ -36,7 +36,7 @@ static const struct omap_vp_ops omap3_vp_ops = {
  * VP data common to 34xx/36xx chips
  * XXX This stuff presumably belongs in the vp3xxx.c or vp.c file.
  */
-static const struct omap_vp_common_data omap3_vp_common = {
+static const struct omap_vp_common omap3_vp_common = {
 	.vpconfig_erroroffset_shift = OMAP3430_ERROROFFSET_SHIFT,
 	.vpconfig_errorgain_mask = OMAP3430_ERRORGAIN_MASK,
 	.vpconfig_errorgain_shift = OMAP3430_ERRORGAIN_SHIFT,
@@ -56,9 +56,9 @@ static const struct omap_vp_common_data omap3_vp_common = {
 	.ops = &omap3_vp_ops,
 };
 
-struct omap_vp_instance_data omap3_vp1_data = {
+struct omap_vp_instance omap3_vp_mpu = {
 	.id = OMAP3_VP_VDD_MPU_ID,
-	.vp_common = &omap3_vp_common,
+	.common = &omap3_vp_common,
 	.vpconfig = OMAP3_PRM_VP1_CONFIG_OFFSET,
 	.vstepmin = OMAP3_PRM_VP1_VSTEPMIN_OFFSET,
 	.vstepmax = OMAP3_PRM_VP1_VSTEPMAX_OFFSET,
@@ -67,9 +67,9 @@ struct omap_vp_instance_data omap3_vp1_data = {
 	.voltage = OMAP3_PRM_VP1_VOLTAGE_OFFSET,
 };
 
-struct omap_vp_instance_data omap3_vp2_data = {
+struct omap_vp_instance omap3_vp_core = {
 	.id = OMAP3_VP_VDD_CORE_ID,
-	.vp_common = &omap3_vp_common,
+	.common = &omap3_vp_common,
 	.vpconfig = OMAP3_PRM_VP2_CONFIG_OFFSET,
 	.vstepmin = OMAP3_PRM_VP2_VSTEPMIN_OFFSET,
 	.vstepmax = OMAP3_PRM_VP2_VSTEPMAX_OFFSET,

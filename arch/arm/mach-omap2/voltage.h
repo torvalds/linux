@@ -55,6 +55,7 @@ struct omap_vfsm_instance {
  * @node: list_head linking all voltage domains
  * @pwrdm_list: list_head linking all powerdomains in this voltagedomain
  * @vc: pointer to VC channel associated with this voltagedomain
+ * @vp: pointer to VP associated with this voltagedomain
  * @read: read a VC/VP register
  * @write: write a VC/VP register
  * @read: read-modify-write a VC/VP register
@@ -67,6 +68,7 @@ struct voltagedomain {
 	struct list_head pwrdm_list;
 	struct omap_vc_channel *vc;
 	const struct omap_vfsm_instance *vfsm;
+	struct omap_vp_instance *vp;
 	struct omap_voltdm_pmic *pmic;
 
 	/* VC/VP register access functions: SoC specific */
@@ -136,21 +138,16 @@ struct omap_voltdm_pmic {
  *
  * @volt_data		: voltage table having the distinct voltages supported
  *			  by the domain and other associated per voltage data.
- * @vp_data		: the register values, shifts, masks for various
- *			  vp registers
  * @vp_rt_data          : VP data derived at runtime, not predefined
  * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
- * @vp_enabled		: flag to keep track of whether vp is enabled or not
  * @volt_scale		: API to scale the voltage of the vdd.
  */
 struct omap_vdd_info {
 	struct omap_volt_data *volt_data;
-	struct omap_vp_instance_data *vp_data;
 	struct omap_vp_runtime_data vp_rt_data;
 	struct dentry *debug_dir;
 	u32 curr_volt;
-	bool vp_enabled;
 
 	int (*volt_scale) (struct voltagedomain *voltdm,
 		unsigned long target_volt);

@@ -36,7 +36,7 @@ static const struct omap_vp_ops omap4_vp_ops = {
  * VP data common to 44xx chips
  * XXX This stuff presumably belongs in the vp44xx.c or vp.c file.
  */
-static const struct omap_vp_common_data omap4_vp_common = {
+static const struct omap_vp_common omap4_vp_common = {
 	.vpconfig_erroroffset_shift = OMAP4430_ERROROFFSET_SHIFT,
 	.vpconfig_errorgain_mask = OMAP4430_ERRORGAIN_MASK,
 	.vpconfig_errorgain_shift = OMAP4430_ERRORGAIN_SHIFT,
@@ -56,9 +56,9 @@ static const struct omap_vp_common_data omap4_vp_common = {
 	.ops = &omap4_vp_ops,
 };
 
-struct omap_vp_instance_data omap4_vp_mpu_data = {
+struct omap_vp_instance omap4_vp_mpu = {
 	.id = OMAP4_VP_VDD_MPU_ID,
-	.vp_common = &omap4_vp_common,
+	.common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_MPU_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_MPU_VSTEPMIN_OFFSET,
 	.vstepmax = OMAP4_PRM_VP_MPU_VSTEPMAX_OFFSET,
@@ -67,9 +67,9 @@ struct omap_vp_instance_data omap4_vp_mpu_data = {
 	.voltage = OMAP4_PRM_VP_MPU_VOLTAGE_OFFSET,
 };
 
-struct omap_vp_instance_data omap4_vp_iva_data = {
+struct omap_vp_instance omap4_vp_iva = {
 	.id = OMAP4_VP_VDD_IVA_ID,
-	.vp_common = &omap4_vp_common,
+	.common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_IVA_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_IVA_VSTEPMIN_OFFSET,
 	.vstepmax = OMAP4_PRM_VP_IVA_VSTEPMAX_OFFSET,
@@ -78,9 +78,9 @@ struct omap_vp_instance_data omap4_vp_iva_data = {
 	.voltage = OMAP4_PRM_VP_IVA_VOLTAGE_OFFSET,
 };
 
-struct omap_vp_instance_data omap4_vp_core_data = {
+struct omap_vp_instance omap4_vp_core = {
 	.id = OMAP4_VP_VDD_CORE_ID,
-	.vp_common = &omap4_vp_common,
+	.common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_CORE_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_CORE_VSTEPMIN_OFFSET,
 	.vstepmax = OMAP4_PRM_VP_CORE_VSTEPMAX_OFFSET,

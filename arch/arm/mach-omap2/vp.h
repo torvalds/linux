@@ -45,7 +45,7 @@ struct omap_vp_ops {
 };
 
 /**
- * struct omap_vp_common_data - register data common to all VDDs
+ * struct omap_vp_common - register data common to all VDDs
  * @vpconfig_errorgain_mask: ERRORGAIN bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_initvoltage_mask: INITVOLTAGE bitmask in the PRM_VP*_CONFIG reg
  * @vpconfig_timeouten_mask: TIMEOUT bitmask in the PRM_VP*_CONFIG reg
@@ -67,7 +67,7 @@ struct omap_vp_ops {
  *     bitfield - remove one
  * XXX Many of these fields are wrongly named -- e.g., vpconfig_smps* -- fix!
  */
-struct omap_vp_common_data {
+struct omap_vp_common {
 	u32 vpconfig_errorgain_mask;
 	u32 vpconfig_initvoltage_mask;
 	u32 vpconfig_timeouten;
@@ -89,19 +89,20 @@ struct omap_vp_common_data {
 };
 
 /**
- * struct omap_vp_instance_data - VP register offsets (per-VDD)
- * @vp_common: pointer to struct omap_vp_common_data * for this SoC
+ * struct omap_vp_instance - VP register offsets (per-VDD)
+ * @common: pointer to struct omap_vp_common * for this SoC
  * @vpconfig: PRM_VP*_CONFIG reg offset from PRM start
  * @vstepmin: PRM_VP*_VSTEPMIN reg offset from PRM start
  * @vlimitto: PRM_VP*_VLIMITTO reg offset from PRM start
  * @vstatus: PRM_VP*_VSTATUS reg offset from PRM start
  * @voltage: PRM_VP*_VOLTAGE reg offset from PRM start
  * @id: Unique identifier for VP instance.
+ * @enabled: flag to keep track of whether vp is enabled or not
  *
  * XXX vp_common is probably not needed since it is per-SoC
  */
-struct omap_vp_instance_data {
-	const struct omap_vp_common_data *vp_common;
+struct omap_vp_instance {
+	const struct omap_vp_common *common;
 	u8 vpconfig;
 	u8 vstepmin;
 	u8 vstepmax;
@@ -109,6 +110,7 @@ struct omap_vp_instance_data {
 	u8 vstatus;
 	u8 voltage;
 	u8 id;
+	bool enabled;
 };
 
 /**
@@ -140,12 +142,12 @@ struct omap_vp_runtime_data {
 	u8 vlimitto_vddmax;
 };
 
-extern struct omap_vp_instance_data omap3_vp1_data;
-extern struct omap_vp_instance_data omap3_vp2_data;
+extern struct omap_vp_instance omap3_vp_mpu;
+extern struct omap_vp_instance omap3_vp_core;
 
-extern struct omap_vp_instance_data omap4_vp_mpu_data;
-extern struct omap_vp_instance_data omap4_vp_iva_data;
-extern struct omap_vp_instance_data omap4_vp_core_data;
+extern struct omap_vp_instance omap4_vp_mpu;
+extern struct omap_vp_instance omap4_vp_iva;
+extern struct omap_vp_instance omap4_vp_core;
 
 void omap_vp_init(struct voltagedomain *voltdm);
 void omap_vp_enable(struct voltagedomain *voltdm);
