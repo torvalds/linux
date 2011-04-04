@@ -93,14 +93,6 @@ struct nested_state {
 	/* A VMEXIT is required but not yet emulated */
 	bool exit_required;
 
-	/*
-	 * If we vmexit during an instruction emulation we need this to restore
-	 * the l1 guest rip after the emulation
-	 */
-	unsigned long vmexit_rip;
-	unsigned long vmexit_rsp;
-	unsigned long vmexit_rax;
-
 	/* cache for intercepts of the guest */
 	u32 intercept_cr;
 	u32 intercept_dr;
@@ -1361,31 +1353,6 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (is_guest_mode(vcpu)) {
-		/*
-		 * We are here because we run in nested mode, the host kvm
-		 * intercepts cr0 writes but the l1 hypervisor does not.
-		 * But the L1 hypervisor may intercept selective cr0 writes.
-		 * This needs to be checked here.
-		 */
-		unsigned long old, new;
-
-		/* Remove bits that would trigger a real cr0 write intercept */
-		old = vcpu->arch.cr0 & SVM_CR0_SELECTIVE_MASK;
-		new = cr0 & SVM_CR0_SELECTIVE_MASK;
-
-		if (old == new) {
-			/* cr0 write with ts and mp unchanged */
-			svm->vmcb->control.exit_code = SVM_EXIT_CR0_SEL_WRITE;
-			if (nested_svm_exit_handled(svm) == NESTED_EXIT_DONE) {
-				svm->nested.vmexit_rip = kvm_rip_read(vcpu);
-				svm->nested.vmexit_rsp = kvm_register_read(vcpu, VCPU_REGS_RSP);
-				svm->nested.vmexit_rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
-				return;
-			}
-		}
-	}
 
 #ifdef CONFIG_X86_64
 	if (vcpu->arch.efer & EFER_LME) {
@@ -2673,6 +2640,29 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
+bool check_selective_cr0_intercepted(struct vcpu_svm *svm, unsigned long val)
+{
+	unsigned long cr0 = svm->vcpu.arch.cr0;
+	bool ret = false;
+	u64 intercept;
+
+	intercept = svm->nested.intercept;
+
+	if (!is_guest_mode(&svm->vcpu) ||
+	    (!(intercept & (1ULL << INTERCEPT_SELECTIVE_CR0))))
+		return false;
+
+	cr0 &= ~SVM_CR0_SELECTIVE_MASK;
+	val &= ~SVM_CR0_SELECTIVE_MASK;
+
+	if (cr0 ^ val) {
+		svm->vmcb->control.exit_code = SVM_EXIT_CR0_SEL_WRITE;
+		ret = (nested_svm_exit_handled(svm) == NESTED_EXIT_DONE);
+	}
+
+	return ret;
+}
+
 #define CR_VALID (1ULL << 63)
 
 static int cr_interception(struct vcpu_svm *svm)
@@ -2696,7 +2686,8 @@ static int cr_interception(struct vcpu_svm *svm)
 		val = kvm_register_read(&svm->vcpu, reg);
 		switch (cr) {
 		case 0:
-			err = kvm_set_cr0(&svm->vcpu, val);
+			if (!check_selective_cr0_intercepted(svm, val))
+				err = kvm_set_cr0(&svm->vcpu, val);
 			break;
 		case 3:
 			err = kvm_set_cr3(&svm->vcpu, val);
@@ -2739,23 +2730,6 @@ static int cr_interception(struct vcpu_svm *svm)
 	kvm_complete_insn_gp(&svm->vcpu, err);
 
 	return 1;
-}
-
-static int cr0_write_interception(struct vcpu_svm *svm)
-{
-	struct kvm_vcpu *vcpu = &svm->vcpu;
-	int r;
-
-	r = cr_interception(svm);
-
-	if (svm->nested.vmexit_rip) {
-		kvm_register_write(vcpu, VCPU_REGS_RIP, svm->nested.vmexit_rip);
-		kvm_register_write(vcpu, VCPU_REGS_RSP, svm->nested.vmexit_rsp);
-		kvm_register_write(vcpu, VCPU_REGS_RAX, svm->nested.vmexit_rax);
-		svm->nested.vmexit_rip = 0;
-	}
-
-	return r;
 }
 
 static int dr_interception(struct vcpu_svm *svm)
@@ -3045,7 +3019,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR4]			= cr_interception,
 	[SVM_EXIT_READ_CR8]			= cr_interception,
 	[SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception,
-	[SVM_EXIT_WRITE_CR0]			= cr0_write_interception,
+	[SVM_EXIT_WRITE_CR0]			= cr_interception,
 	[SVM_EXIT_WRITE_CR3]			= cr_interception,
 	[SVM_EXIT_WRITE_CR4]			= cr_interception,
 	[SVM_EXIT_WRITE_CR8]			= cr8_write_interception,
