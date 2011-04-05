@@ -1372,10 +1372,12 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 #ifdef CONFIG_SMP
 
-static void task_waking_fair(struct rq *rq, struct task_struct *p)
+static void task_waking_fair(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	lockdep_assert_held(&task_rq(p)->lock);
 
 	se->vruntime -= cfs_rq->min_vruntime;
 }

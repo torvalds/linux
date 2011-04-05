@@ -2531,7 +2531,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	p->state = TASK_WAKING;
 
 	if (p->sched_class->task_waking) {
-		p->sched_class->task_waking(rq, p);
+		p->sched_class->task_waking(p);
 		en_flags |= ENQUEUE_WAKING;
 	}
 
