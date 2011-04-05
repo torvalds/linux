@@ -4463,9 +4463,12 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 		conf->power_level = 18;
 
 	if (priv->ap_fw) {
-		rc = mwl8k_cmd_tx_power(hw, conf, conf->power_level);
-		if (rc)
-			goto out;
+
+		if (conf->flags & IEEE80211_CONF_CHANGE_POWER) {
+			rc = mwl8k_cmd_tx_power(hw, conf, conf->power_level);
+			if (rc)
+				goto out;
+		}
 
 		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
 		if (rc)
