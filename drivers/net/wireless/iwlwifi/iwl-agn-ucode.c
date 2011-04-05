@@ -530,9 +530,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	iwlagn_send_wimax_coex(priv);
 
 	iwlagn_set_Xtal_calib(priv);
-	iwl_send_calib_results(priv);
-
-	return 0;
+	return iwl_send_calib_results(priv);
 }
 
 
