@@ -1191,7 +1191,7 @@ static void iwl_nic_start(struct iwl_priv *priv)
 struct iwlagn_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
-	bool pan;
+	u32 flags;
 };
 
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
@@ -1418,7 +1418,23 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 		case IWL_UCODE_TLV_PAN:
 			if (tlv_len)
 				goto invalid_tlv_len;
-			capa->pan = true;
+			capa->flags |= IWL_UCODE_TLV_FLAGS_PAN;
+			break;
+		case IWL_UCODE_TLV_FLAGS:
+			/* must be at least one u32 */
+			if (tlv_len < sizeof(u32))
+				goto invalid_tlv_len;
+			/* and a proper number of u32s */
+			if (tlv_len % sizeof(u32))
+				goto invalid_tlv_len;
+			/*
+			 * This driver only reads the first u32 as
+			 * right now no more features are defined,
+			 * if that changes then either the driver
+			 * will not work with the new firmware, or
+			 * it'll not take advantage of new features.
+			 */
+			capa->flags = le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
 			if (tlv_len != sizeof(u32))
@@ -1681,11 +1697,15 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
 
-	if (ucode_capa.pan) {
+	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 	} else
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+
+	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BTSTATS ||
+	    (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics))
+		priv->bt_statistics = true;
 
 	/* Copy images into buffers for card's bus-master reads ... */
 
@@ -2826,6 +2846,9 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 	if (priv->cfg->sku & IWL_SKU_N)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+
+	if (capa->flags & IWL_UCODE_TLV_FLAGS_MFP)
+		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->vif_data_size = sizeof(struct iwl_vif_priv);

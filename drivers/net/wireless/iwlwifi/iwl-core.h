@@ -723,7 +723,7 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 
 static inline bool iwl_bt_statistics(struct iwl_priv *priv)
 {
-	return priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics;
+	return priv->bt_statistics;
 }
 
 extern bool bt_coex_active;
