@@ -518,72 +518,6 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 }
 
-static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
-{
-	struct efx_nic *efx __attribute__ ((unused)) = netdev_priv(net_dev);
-	u32 features;
-
-	features = NETIF_F_TSO;
-	if (efx->type->offload_features & NETIF_F_V6_CSUM)
-		features |= NETIF_F_TSO6;
-
-	if (enable)
-		net_dev->features |= features;
-	else
-		net_dev->features &= ~features;
-
-	return 0;
-}
-
-static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	u32 features = efx->type->offload_features & NETIF_F_ALL_CSUM;
-
-	if (enable)
-		net_dev->features |= features;
-	else
-		net_dev->features &= ~features;
-
-	return 0;
-}
-
-static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	/* No way to stop the hardware doing the checks; we just
-	 * ignore the result.
-	 */
-	efx->rx_checksum_enabled = !!enable;
-
-	return 0;
-}
-
-static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	return efx->rx_checksum_enabled;
-}
-
-static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	u32 supported = (efx->type->offload_features &
-			 (ETH_FLAG_RXHASH | ETH_FLAG_NTUPLE));
-	int rc;
-
-	rc = ethtool_op_set_flags(net_dev, data, supported);
-	if (rc)
-		return rc;
-
-	if (!(data & ETH_FLAG_NTUPLE))
-		efx_filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
-
-	return 0;
-}
-
 static void efx_ethtool_self_test(struct net_device *net_dev,
 				  struct ethtool_test *test, u64 *data)
 {
@@ -1070,18 +1004,6 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.set_ringparam		= efx_ethtool_set_ringparam,
 	.get_pauseparam         = efx_ethtool_get_pauseparam,
 	.set_pauseparam         = efx_ethtool_set_pauseparam,
-	.get_rx_csum		= efx_ethtool_get_rx_csum,
-	.set_rx_csum		= efx_ethtool_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	/* Need to enable/disable IPv6 too */
-	.set_tx_csum		= efx_ethtool_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
-	/* Need to enable/disable TSO-IPv6 too */
-	.set_tso		= efx_ethtool_set_tso,
-	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= efx_ethtool_set_flags,
 	.get_sset_count		= efx_ethtool_get_sset_count,
 	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,

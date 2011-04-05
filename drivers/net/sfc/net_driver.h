@@ -681,7 +681,6 @@ struct efx_filter_state;
  * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
- * @rx_checksum_enabled: RX checksumming enabled
  * @stats_buffer: DMA buffer for statistics
  * @mac_op: MAC interface
  * @phy_type: PHY type
@@ -771,7 +770,6 @@ struct efx_nic {
 
 	bool port_initialized;
 	struct net_device *net_dev;
-	bool rx_checksum_enabled;
 
 	struct efx_buffer stats_buffer;
 
