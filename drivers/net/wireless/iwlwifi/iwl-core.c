@@ -1105,21 +1105,13 @@ int iwl_apm_init(struct iwl_priv *priv)
 	}
 
 	/*
-	 * Enable DMA and BSM (if used) clocks, wait for them to stabilize.
-	 * BSM (Boostrap State Machine) is only in 3945 and 4965;
-	 * later devices (i.e. 5000 and later) have non-volatile SRAM,
-	 * and don't need BSM to restore data after power-saving sleep.
+	 * Enable DMA clock and wait for it to stabilize.
 	 *
 	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
 	 * do not disable clocks.  This preserves any hardware bits already
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
-	if (priv->cfg->base_params->use_bsm)
-		iwl_write_prph(priv, APMG_CLK_EN_REG,
-			APMG_CLK_VAL_DMA_CLK_RQT | APMG_CLK_VAL_BSM_CLK_RQT);
-	else
-		iwl_write_prph(priv, APMG_CLK_EN_REG,
-			APMG_CLK_VAL_DMA_CLK_RQT);
+	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(20);
 
 	/* Disable L1-Active */

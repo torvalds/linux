@@ -283,7 +283,6 @@ struct iwl_base_params {
 	/* for iwl_apm_init() */
 	u32 pll_cfg_val;
 	bool set_l0s;
-	bool use_bsm;
 
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
