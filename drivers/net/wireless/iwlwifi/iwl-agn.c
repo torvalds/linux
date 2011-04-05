@@ -590,10 +590,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 
-	if (priv->ucode_type == UCODE_INIT)
-		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
-	else
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
+	base = priv->device_pointers.error_event_table;
 	if (priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		capacity = iwl_read_targ_mem(priv, base);
 		num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
@@ -1871,12 +1868,11 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	u32 blink1, blink2, ilink1, ilink2;
 	u32 pc, hcmd;
 
+	base = priv->device_pointers.error_event_table;
 	if (priv->ucode_type == UCODE_INIT) {
-		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
 		if (!base)
 			base = priv->_agn.init_errlog_ptr;
 	} else {
-		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 		if (!base)
 			base = priv->_agn.inst_errlog_ptr;
 	}
@@ -1941,12 +1937,11 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	if (num_events == 0)
 		return pos;
 
+	base = priv->device_pointers.log_event_table;
 	if (priv->ucode_type == UCODE_INIT) {
-		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
 		if (!base)
 			base = priv->_agn.init_evtlog_ptr;
 	} else {
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 		if (!base)
 			base = priv->_agn.inst_evtlog_ptr;
 	}
@@ -2055,13 +2050,12 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	int pos = 0;
 	size_t bufsz = 0;
 
+	base = priv->device_pointers.log_event_table;
 	if (priv->ucode_type == UCODE_INIT) {
-		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
 		logsize = priv->_agn.init_evtlog_size;
 		if (!base)
 			base = priv->_agn.init_evtlog_ptr;
 	} else {
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 		logsize = priv->_agn.inst_evtlog_size;
 		if (!base)
 			base = priv->_agn.inst_evtlog_ptr;
@@ -2415,8 +2409,6 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_apm_stop(priv);
 
  exit:
-	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
-
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
 

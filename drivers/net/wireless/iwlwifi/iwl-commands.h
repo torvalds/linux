@@ -388,54 +388,6 @@ struct iwl_tx_ant_config_cmd {
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 #define INITIALIZE_SUBTYPE    (9)
 
-/*
- * ("Initialize") REPLY_ALIVE = 0x1 (response only, not a command)
- *
- * uCode issues this "initialize alive" notification once the initialization
- * uCode image has completed its work, and is ready to load the runtime image.
- * This is the *first* "alive" notification that the driver will receive after
- * rebooting uCode; the "initialize" alive is indicated by subtype field == 9.
- *
- * See comments documenting "BSM" (bootstrap state machine).
- *
- * For 4965, this notification contains important calibration data for
- * calculating txpower settings:
- *
- * 1)  Power supply voltage indication.  The voltage sensor outputs higher
- *     values for lower voltage, and vice verse.
- *
- * 2)  Temperature measurement parameters, for each of two channel widths
- *     (20 MHz and 40 MHz) supported by the radios.  Temperature sensing
- *     is done via one of the receiver chains, and channel width influences
- *     the results.
- *
- * 3)  Tx gain compensation to balance 4965's 2 Tx chains for MIMO operation,
- *     for each of 5 frequency ranges.
- */
-struct iwl_init_alive_resp {
-	u8 ucode_minor;
-	u8 ucode_major;
-	__le16 reserved1;
-	u8 sw_rev[8];
-	u8 ver_type;
-	u8 ver_subtype;		/* "9" for initialize alive */
-	__le16 reserved2;
-	__le32 log_event_table_ptr;
-	__le32 error_event_table_ptr;
-	__le32 timestamp;
-	__le32 is_valid;
-
-	/* calibration values from "initialize" uCode */
-	__le32 voltage;		/* signed, higher value is lower voltage */
-	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for HT40 */
-	__le32 therm_r2[2];	/* signed */
-	__le32 therm_r3[2];	/* signed */
-	__le32 therm_r4[2];	/* signed */
-	__le32 tx_atten[5][2];	/* signed MIMO gain comp, 5 freq groups,
-				 * 2 Tx chains */
-} __packed;
-
-
 /**
  * REPLY_ALIVE = 0x1 (response only, not a command)
  *

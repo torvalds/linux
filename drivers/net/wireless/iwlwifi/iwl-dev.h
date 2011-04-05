@@ -1285,10 +1285,10 @@ struct iwl_priv {
 
 	struct iwl_switch_rxon switch_rxon;
 
-	/* 1st responses from initialize and runtime uCode images.
-	 * _agn's initialize alive response contains some calibration data. */
-	struct iwl_init_alive_resp card_alive_init;
-	struct iwl_alive_resp card_alive;
+	struct {
+		u32 error_event_table;
+		u32 log_event_table;
+	} device_pointers;
 
 	u16 active_rate;
 
