@@ -1202,6 +1202,7 @@ struct task_struct {
 #ifdef CONFIG_SMP
 	int on_cpu;
 #endif
+	int on_rq;
 
 	int prio, static_prio, normal_prio;
 	unsigned int rt_priority;
