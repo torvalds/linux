@@ -150,28 +150,27 @@
 /*
  * Exception vectors.
  */
-#define STD_EXCEPTION_PSERIES(n, label)			\
-	. = n;						\
+#define STD_EXCEPTION_PSERIES(loc, vec, label)		\
+	. = loc;					\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	DO_KVM	n;					\
+	DO_KVM	vec;					\
 	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_STD)
 
-#define HSTD_EXCEPTION_PSERIES(n, label)		\
-	. = n;						\
-	.globl label##_pSeries;				\
-label##_pSeries:					\
+#define STD_EXCEPTION_HV(loc, vec, label)		\
+	. = loc;					\
+	.globl label##_hv;				\
+label##_hv:						\
 	HMT_MEDIUM;					\
-	DO_KVM	n;					\
+	DO_KVM	vec;					\
 	mtspr	SPRN_SPRG_HSCRATCH0,r13;/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_HV)
 
-
-#define __MASKABLE_EXCEPTION_PSERIES(n, label, h)			\
+#define __MASKABLE_EXCEPTION_PSERIES(vec, label, h)			\
 	HMT_MEDIUM;							\
-	DO_KVM	n;							\
+	DO_KVM	vec;							\
 	mtspr	SPRN_SPRG_##h##SCRATCH0,r13;    /* save r13 */		\
 	GET_PACA(r13);							\
 	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
@@ -193,8 +192,20 @@ label##_pSeries:					\
 	mtspr	SPRN_##h##SRR1,r10;					\
 	h##rfid;							\
 	b	.	/* prevent speculative execution */
-#define MASKABLE_EXCEPTION_PSERIES(n, label, h)				\
-	__MASKABLE_EXCEPTION_PSERIES(n, label, h)
+#define _MASKABLE_EXCEPTION_PSERIES(vec, label, h)			\
+	__MASKABLE_EXCEPTION_PSERIES(vec, label, h)
+
+#define MASKABLE_EXCEPTION_PSERIES(loc, vec, label)			\
+	. = loc;							\
+	.globl label##_pSeries;						\
+label##_pSeries:							\
+	_MASKABLE_EXCEPTION_PSERIES(vec, label, EXC_STD)
+
+#define MASKABLE_EXCEPTION_HV(loc, vec, label)				\
+	. = loc;							\
+	.globl label##_hv;						\
+label##_hv:								\
+	_MASKABLE_EXCEPTION_PSERIES(vec, label, EXC_HV)
 
 #ifdef CONFIG_PPC_ISERIES
 #define DISABLE_INTS				\

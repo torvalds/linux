@@ -49,7 +49,7 @@ label##5:							\
 	FTR_ENTRY_OFFSET label##2b-label##5b;			\
 	FTR_ENTRY_OFFSET label##3b-label##5b;			\
 	FTR_ENTRY_OFFSET label##4b-label##5b;			\
-	.ifgt (label##4b-label##3b)-(label##2b-label##1b);	\
+	.ifgt (label##4b- label##3b)-(label##2b- label##1b);	\
 	.error "Feature section else case larger than body";	\
 	.endif;							\
 	.popsection;

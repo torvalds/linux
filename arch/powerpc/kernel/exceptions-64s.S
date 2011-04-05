@@ -37,7 +37,7 @@
 	.globl __start_interrupts
 __start_interrupts:
 
-	STD_EXCEPTION_PSERIES(0x100, system_reset)
+	STD_EXCEPTION_PSERIES(0x100, 0x100, system_reset)
 
 	. = 0x200
 _machine_check_pSeries:
@@ -113,7 +113,7 @@ data_access_slb_pSeries:
 	bctr
 #endif
 
-	STD_EXCEPTION_PSERIES(0x400, instruction_access)
+	STD_EXCEPTION_PSERIES(0x400, 0x400, instruction_access)
 
 	. = 0x480
 	.globl instruction_access_slb_pSeries
@@ -147,26 +147,29 @@ instruction_access_slb_pSeries:
 	bctr
 #endif
 
+	/* We open code these as we can't have a ". = x" (even with
+	 * x = "." within a feature section
+	 */
 	. = 0x500;
-	.globl hardware_interrupt_pSeries
+	.globl hardware_interrupt_pSeries;
+	.globl hardware_interrupt_hv;
 hardware_interrupt_pSeries:
+hardware_interrupt_hv:
 	BEGIN_FTR_SECTION
-	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt, EXC_STD)
+		_MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt, EXC_STD)
 	FTR_SECTION_ELSE
-	MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt, EXC_HV)
+		_MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt, EXC_HV)
 	ALT_FTR_SECTION_END_IFCLR(CPU_FTR_HVMODE_206)
 
-	STD_EXCEPTION_PSERIES(0x600, alignment)
-	STD_EXCEPTION_PSERIES(0x700, program_check)
-	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
+	STD_EXCEPTION_PSERIES(0x600, 0x600, alignment)
+	STD_EXCEPTION_PSERIES(0x700, 0x700, program_check)
+	STD_EXCEPTION_PSERIES(0x800, 0x800, fp_unavailable)
 
-	. = 0x900;
-	.globl decrementer_pSeries
-decrementer_pSeries:
-	MASKABLE_EXCEPTION_PSERIES(0x900, decrementer, EXC_STD)
+	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
+	MASKABLE_EXCEPTION_HV(0x980, 0x980, decrementer)
 
-	STD_EXCEPTION_PSERIES(0xa00, trap_0a)
-	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
+	STD_EXCEPTION_PSERIES(0xa00, 0xa00, trap_0a)
+	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
 
 	. = 0xc00
 	.globl	system_call_pSeries
@@ -196,8 +199,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	rfid		/* return to userspace */
 	b	.
 
-	STD_EXCEPTION_PSERIES(0xd00, single_step)
-	STD_EXCEPTION_PSERIES(0xe00, trap_0e)
+	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
+
+	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
+	 * out of line to handle them
+	 */
+	. = 0xe00
+	b	h_data_storage_hv
+	. = 0xe20
+	b	h_instr_storage_hv
+	. = 0xe40
+	b	emulation_assist_hv
+	. = 0xe50
+	b	hmi_exception_hv
+	. = 0xe60
+	b	hmi_exception_hv
 
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
@@ -206,39 +222,42 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 */
 performance_monitor_pSeries_1:
 	. = 0xf00
-	DO_KVM	0xf00
 	b	performance_monitor_pSeries
 
 altivec_unavailable_pSeries_1:
 	. = 0xf20
-	DO_KVM	0xf20
 	b	altivec_unavailable_pSeries
 
 vsx_unavailable_pSeries_1:
 	. = 0xf40
-	DO_KVM	0xf40
 	b	vsx_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1202, cbe_system_error)
+	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
 #endif /* CONFIG_CBE_RAS */
-	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+	STD_EXCEPTION_PSERIES(0x1300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1602, cbe_maintenance)
+	STD_EXCEPTION_HV(0x1600, 0x1602, cbe_maintenance)
 #endif /* CONFIG_CBE_RAS */
-	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+	STD_EXCEPTION_PSERIES(0x1700, 0x1700, altivec_assist)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1802, cbe_thermal)
+	STD_EXCEPTION_HV(0x1800, 0x1802, cbe_thermal)
 #endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
 
-/*** pSeries interrupt support ***/
+/*** Out of line interrupts support ***/
+
+	/* moved from 0xe00 */
+	STD_EXCEPTION_HV(., 0xe00, h_data_storage)
+	STD_EXCEPTION_HV(., 0xe20, h_instr_storage)
+	STD_EXCEPTION_HV(., 0xe40, emulation_assist)
+	STD_EXCEPTION_HV(., 0xe60, hmi_exception) /* need to flush cache ? */
 
 	/* moved from 0xf00 */
-	STD_EXCEPTION_PSERIES(., performance_monitor)
-	STD_EXCEPTION_PSERIES(., altivec_unavailable)
-	STD_EXCEPTION_PSERIES(., vsx_unavailable)
+	STD_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
+	STD_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
+	STD_EXCEPTION_PSERIES(., 0xf40, vsx_unavailable)
 
 /*
  * An interrupt came in while soft-disabled; clear EE in SRR1,
@@ -368,6 +387,8 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
+        STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
+        STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
 	STD_EXCEPTION_COMMON_IDLE(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 #ifdef CONFIG_ALTIVEC
@@ -445,6 +466,19 @@ data_access_common:
 	li	r5,0x300
 	b	.do_hash_page	 	/* Try to handle as hpte fault */
 
+	.align  7
+        .globl  h_data_storage_common
+h_data_storage_common:
+        mfspr   r10,SPRN_HDAR
+        std     r10,PACA_EXGEN+EX_DAR(r13)
+        mfspr   r10,SPRN_HDSISR
+        stw     r10,PACA_EXGEN+EX_DSISR(r13)
+        EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
+        bl      .save_nvgprs
+        addi    r3,r1,STACK_FRAME_OVERHEAD
+        bl      .unknown_exception
+        b       .ret_from_except
+
 	.align	7
 	.globl instruction_access_common
 instruction_access_common:
@@ -453,6 +487,8 @@ instruction_access_common:
 	andis.	r4,r12,0x5820
 	li	r5,0x400
 	b	.do_hash_page		/* Try to handle as hpte fault */
+
+        STD_EXCEPTION_COMMON(0xe20, h_instr_storage, .unknown_exception)
 
 /*
  * Here is the common SLB miss user that is used when going to virtual
