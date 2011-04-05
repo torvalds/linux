@@ -558,7 +558,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	}
 
 	/* Set starting address; reads will auto-increment */
-	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(priv, HBUS_TARG_MEM_RADDR, ptr);
 	rmb();
 
 	/*
@@ -566,13 +566,13 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
-		ev = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			trace_iwlwifi_dev_ucode_cont_event(priv,
 							0, time, ev);
 		} else {
-			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 			trace_iwlwifi_dev_ucode_cont_event(priv,
 						time, data, ev);
 		}
@@ -1963,14 +1963,14 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	iwl_grab_nic_access(priv);
 
 	/* Set starting address; reads will auto-increment */
-	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(priv, HBUS_TARG_MEM_RADDR, ptr);
 	rmb();
 
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	* place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
 			if (bufsz) {
@@ -1984,7 +1984,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 					time, ev);
 			}
 		} else {
-			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 			if (bufsz) {
 				pos += scnprintf(*buf + pos, bufsz - pos,
 						"EVT_LOGT:%010u:0x%08x:%04u\n",
@@ -3689,7 +3689,7 @@ static u32 iwl_hw_detect(struct iwl_priv *priv)
 
 	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
-	return _iwl_read32(priv, CSR_HW_REV);
+	return iwl_read32(priv, CSR_HW_REV);
 }
 
 static int iwl_set_hw_params(struct iwl_priv *priv)

@@ -103,7 +103,7 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IWL_DEBUG_IO(priv,
+			IWL_DEBUG_EEPROM(priv,
 				"Acquired semaphore after %d tries.\n",
 				count+1);
 			return ret;

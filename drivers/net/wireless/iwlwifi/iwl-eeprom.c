@@ -226,15 +226,15 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 	int ret;
 
 	/* Enable 40MHz radio clock */
-	_iwl_write32(priv, CSR_GP_CNTRL,
-		     _iwl_read32(priv, CSR_GP_CNTRL) |
-		     CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_write32(priv, CSR_GP_CNTRL,
+		    iwl_read32(priv, CSR_GP_CNTRL) |
+		    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock to be ready */
 	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
-				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				  25000);
+				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				 25000);
 	if (ret < 0)
 		IWL_ERR(priv, "Time out access OTP\n");
 	else {
@@ -261,17 +261,17 @@ static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, __le16 *eeprom_dat
 	u32 r;
 	u32 otpgp;
 
-	_iwl_write32(priv, CSR_EEPROM_REG,
-		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	iwl_write32(priv, CSR_EEPROM_REG,
+		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 	ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
-				  CSR_EEPROM_REG_READ_VALID_MSK,
-				  CSR_EEPROM_REG_READ_VALID_MSK,
-				  IWL_EEPROM_ACCESS_TIMEOUT);
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret < 0) {
 		IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
 		return ret;
 	}
-	r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+	r = iwl_read32(priv, CSR_EEPROM_REG);
 	/* check for ECC errors: */
 	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
@@ -442,9 +442,9 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 			ret = -ENOENT;
 			goto done;
 		}
-		_iwl_write32(priv, CSR_EEPROM_GP,
-			     iwl_read32(priv, CSR_EEPROM_GP) &
-			     ~CSR_EEPROM_GP_IF_OWNER_MSK);
+		iwl_write32(priv, CSR_EEPROM_GP,
+			    iwl_read32(priv, CSR_EEPROM_GP) &
+			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
 		iwl_set_bit(priv, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
@@ -471,8 +471,8 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			_iwl_write32(priv, CSR_EEPROM_REG,
-				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+			iwl_write32(priv, CSR_EEPROM_REG,
+				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
 			ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
@@ -482,7 +482,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 				IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 				goto done;
 			}
-			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+			r = iwl_read32(priv, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}

@@ -561,7 +561,7 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
 		 * if IWL_DL_IO is set */
 		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			i + IWLAGN_RTC_INST_LOWER_BOUND);
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
 	}
@@ -587,9 +587,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 	     offs < len && errors < 20;
 	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
-		 * if IWL_DL_IO is set */
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERR(priv, "uCode INST section at "
 				"offset 0x%x, is 0x%x, s/b 0x%x\n",
