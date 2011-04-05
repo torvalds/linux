@@ -187,7 +187,7 @@ static int sdio_disable_cd(struct mmc_card *card)
 	int ret;
 	u8 ctrl;
 
-	if (!card->cccr.disable_cd)
+	if (!mmc_card_disable_cd(card))
 		return 0;
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IF, 0, &ctrl);
