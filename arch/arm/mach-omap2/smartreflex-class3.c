@@ -32,7 +32,7 @@ static int sr_class3_disable(struct voltagedomain *voltdm, int is_volt_reset)
 	omap_vp_disable(voltdm);
 	sr_disable(voltdm);
 	if (is_volt_reset)
-		omap_voltage_reset(voltdm);
+		voltdm_reset(voltdm);
 
 	return 0;
 }

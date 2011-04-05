@@ -212,7 +212,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	omap_voltage_scale_vdd(voltdm, bootup_volt);
+	voltdm_scale(voltdm, bootup_volt);
 	return 0;
 
 exit:

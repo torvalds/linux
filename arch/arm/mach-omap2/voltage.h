@@ -155,9 +155,6 @@ struct omap_vdd_info {
 	u32 curr_volt;
 };
 
-int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
-		unsigned long target_volt);
-void omap_voltage_reset(struct voltagedomain *voltdm);
 void omap_voltage_get_volttable(struct voltagedomain *voltdm,
 		struct omap_volt_data **volt_data);
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
@@ -195,4 +192,6 @@ int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
 int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
 			  int (*fn)(struct voltagedomain *voltdm,
 				    struct powerdomain *pwrdm));
+int voltdm_scale(struct voltagedomain *voltdm, unsigned long target_volt);
+void voltdm_reset(struct voltagedomain *voltdm);
 #endif

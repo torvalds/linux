@@ -94,16 +94,15 @@ unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm)
 }
 
 /**
- * omap_voltage_scale_vdd() - API to scale voltage of a particular
- *				voltage domain.
- * @voltdm:	pointer to the VDD which is to be scaled.
- * @target_volt:	The target voltage of the voltage domain
+ * voltdm_scale() - API to scale voltage of a particular voltage domain.
+ * @voltdm: pointer to the voltage domain which is to be scaled.
+ * @target_volt: The target voltage of the voltage domain
  *
  * This API should be called by the kernel to do the voltage scaling
- * for a particular voltage domain during dvfs or any other situation.
+ * for a particular voltage domain during DVFS.
  */
-int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
-		unsigned long target_volt)
+int voltdm_scale(struct voltagedomain *voltdm,
+		 unsigned long target_volt)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
@@ -120,31 +119,31 @@ int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
 }
 
 /**
- * omap_voltage_reset() - Resets the voltage of a particular voltage domain
- *			to that of the current OPP.
- * @voltdm:	pointer to the VDD whose voltage is to be reset.
+ * voltdm_reset() - Resets the voltage of a particular voltage domain
+ *		    to that of the current OPP.
+ * @voltdm: pointer to the voltage domain whose voltage is to be reset.
  *
  * This API finds out the correct voltage the voltage domain is supposed
  * to be at and resets the voltage to that level. Should be used especially
  * while disabling any voltage compensation modules.
  */
-void omap_voltage_reset(struct voltagedomain *voltdm)
+void voltdm_reset(struct voltagedomain *voltdm)
 {
-	unsigned long target_uvdc;
+	unsigned long target_volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
-	target_uvdc = omap_voltage_get_nom_volt(voltdm);
-	if (!target_uvdc) {
+	target_volt = omap_voltage_get_nom_volt(voltdm);
+	if (!target_volt) {
 		pr_err("%s: unable to find current voltage for vdd_%s\n",
 			__func__, voltdm->name);
 		return;
 	}
 
-	omap_voltage_scale_vdd(voltdm, target_uvdc);
+	voltdm_scale(voltdm, target_volt);
 }
 
 /**
