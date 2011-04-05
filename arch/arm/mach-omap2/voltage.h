@@ -139,14 +139,12 @@ struct omap_voltdm_pmic {
  * @volt_data		: voltage table having the distinct voltages supported
  *			  by the domain and other associated per voltage data.
  * @vp_rt_data          : VP data derived at runtime, not predefined
- * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
  * @volt_scale		: API to scale the voltage of the vdd.
  */
 struct omap_vdd_info {
 	struct omap_volt_data *volt_data;
 	struct omap_vp_runtime_data vp_rt_data;
-	struct dentry *debug_dir;
 	u32 curr_volt;
 
 	int (*volt_scale) (struct voltagedomain *voltdm,
@@ -161,7 +159,6 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
 unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm);
-struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm);
 #ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 			       struct omap_voltdm_pmic *pmic);

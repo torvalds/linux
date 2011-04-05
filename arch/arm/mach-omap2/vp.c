@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
 
 #include <plat/common.h>
 
@@ -9,8 +8,6 @@
 #include "prm-regbits-34xx.h"
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
-
-static void __init vp_debugfs_init(struct voltagedomain *voltdm);
 
 static void vp_latch_vsel(struct voltagedomain *voltdm)
 {
@@ -87,8 +84,6 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 		(vdd->vp_rt_data.vlimitto_timeout <<
 		vp->common->vlimitto_timeout_shift));
 	voltdm->write(vp_val, vp->vlimitto);
-
-	vp_debugfs_init(voltdm);
 }
 
 /* VP force update method of voltage scaling */
@@ -299,62 +294,4 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 	vp->enabled = false;
 
 	return;
-}
-
-/* Voltage debugfs support */
-static int vp_volt_debug_get(void *data, u64 *val)
-{
-	struct voltagedomain *voltdm = (struct voltagedomain *)data;
-	struct omap_vp_instance *vp = voltdm->vp;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u8 vsel;
-
-	if (!vdd) {
-		pr_warning("Wrong paramater passed\n");
-		return -EINVAL;
-	}
-
-	vsel = voltdm->read(vp->voltage);
-
-	if (!voltdm->pmic->vsel_to_uv) {
-		pr_warning("PMIC function to convert vsel to voltage"
-			"in uV not registerd\n");
-		return -EINVAL;
-	}
-
-	*val = voltdm->pmic->vsel_to_uv(vsel);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(vp_volt_debug_fops, vp_volt_debug_get, NULL, "%llu\n");
-
-static void __init vp_debugfs_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	struct dentry *debug_dir;
-
-	debug_dir = debugfs_create_dir("vp", vdd->debug_dir);
-	if (IS_ERR(debug_dir))
-		pr_err("%s: Unable to create VP debugfs dir dir\n", __func__);
-
-	(void) debugfs_create_x16("errorgain", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vpconfig_errorgain));
-	(void) debugfs_create_x16("smpswaittimemin", S_IRUGO,
-				debug_dir,
-				&(vdd->vp_rt_data.vstepmin_smpswaittimemin));
-	(void) debugfs_create_x8("stepmin", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vstepmin_stepmin));
-	(void) debugfs_create_x16("smpswaittimemax", S_IRUGO,
-				debug_dir,
-				&(vdd->vp_rt_data.vstepmax_smpswaittimemax));
-	(void) debugfs_create_x8("stepmax", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vstepmax_stepmax));
-	(void) debugfs_create_x8("vddmax", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vlimitto_vddmax));
-	(void) debugfs_create_x8("vddmin", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vlimitto_vddmin));
-	(void) debugfs_create_x16("timeout", S_IRUGO, debug_dir,
-				&(vdd->vp_rt_data.vlimitto_timeout));
-	(void) debugfs_create_file("curr_volt", S_IRUGO, debug_dir,
-				(void *) voltdm, &vp_volt_debug_fops);
 }

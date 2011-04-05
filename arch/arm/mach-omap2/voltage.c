@@ -43,9 +43,6 @@
 
 static LIST_HEAD(voltdm_list);
 
-#define VOLTAGE_DIR_SIZE	16
-static struct dentry *voltage_dir;
-
 static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 {
 	char *sys_ck_name;
@@ -100,51 +97,6 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 	vdd->vp_rt_data.vstepmax_stepmax = voltdm->pmic->vp_vstepmax;
 
 	return 0;
-}
-
-static int nom_volt_debug_get(void *data, u64 *val)
-{
-	struct voltagedomain *voltdm = (struct voltagedomain *)data;
-
-	if (!voltdm) {
-		pr_warning("Wrong paramater passed\n");
-		return -EINVAL;
-	}
-
-	*val = omap_voltage_get_nom_volt(voltdm);
-
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(nom_volt_debug_fops, nom_volt_debug_get, NULL,
-								"%llu\n");
-static void __init vdd_debugfs_init(struct voltagedomain *voltdm)
-{
-	char *name;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-
-	name = kzalloc(VOLTAGE_DIR_SIZE, GFP_KERNEL);
-	if (!name) {
-		pr_warning("%s: Unable to allocate memory for debugfs"
-			" directory name for vdd_%s",
-			__func__, voltdm->name);
-		return;
-	}
-	strcpy(name, "vdd_");
-	strcat(name, voltdm->name);
-
-	vdd->debug_dir = debugfs_create_dir(name, voltage_dir);
-	kfree(name);
-	if (IS_ERR(vdd->debug_dir)) {
-		pr_warning("%s: Unable to create debugfs directory for"
-			" vdd_%s\n", __func__, voltdm->name);
-		vdd->debug_dir = NULL;
-		return;
-	}
-
-	(void) debugfs_create_file("curr_nominal_volt", S_IRUGO,
-				vdd->debug_dir, (void *) voltdm,
-				&nom_volt_debug_fops);
 }
 
 static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
@@ -342,31 +294,6 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 }
 
 /**
- * omap_voltage_get_dbgdir() - API to get pointer to the debugfs directory
- *				corresponding to a voltage domain.
- *
- * @voltdm:	pointer to the VDD whose debug directory is required.
- *
- * This API returns pointer to the debugfs directory corresponding
- * to the voltage domain. Should be used by drivers requiring to
- * add any debug entry for a particular voltage domain. Returns NULL
- * in case of error.
- */
-struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd;
-
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return NULL;
-	}
-
-	vdd = voltdm->vdd;
-
-	return vdd->debug_dir;
-}
-
-/**
  * omap_change_voltscale_method() - API to change the voltage scaling method.
  * @voltdm:	pointer to the VDD whose voltage scaling method
  *		has to be changed.
@@ -418,10 +345,6 @@ int __init omap_voltage_late_init(void)
 		return -EINVAL;
 	}
 
-	voltage_dir = debugfs_create_dir("voltage", NULL);
-	if (IS_ERR(voltage_dir))
-		pr_err("%s: Unable to create voltage debugfs main dir\n",
-			__func__);
 	list_for_each_entry(voltdm, &voltdm_list, node) {
 		if (!voltdm->scalable)
 			continue;
@@ -434,7 +357,6 @@ int __init omap_voltage_late_init(void)
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
 				continue;
-			vdd_debugfs_init(voltdm);
 			omap_vp_init(voltdm);
 		}
 	}
