@@ -311,7 +311,7 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 	/* initialize uCode was loaded... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
 	 * "initialize" alive if code weren't properly loaded.  */
-	if (iwl_verify_ucode(priv)) {
+	if (iwl_verify_ucode(priv, &priv->ucode_init)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
 		IWL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
@@ -539,8 +539,11 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
+static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
+				      struct fw_desc *fw_desc)
 {
+	__le32 *image = (__le32 *)fw_desc->v_addr;
+	u32 len = fw_desc->len;
 	u32 val;
 	u32 i;
 
@@ -561,8 +564,10 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 }
 
 static void iwl_print_mismatch_inst(struct iwl_priv *priv,
-				    __le32 *image, u32 len)
+				    struct fw_desc *fw_desc)
 {
+	__le32 *image = (__le32 *)fw_desc->v_addr;
+	u32 len = fw_desc->len;
 	u32 val;
 	u32 offs;
 	int errors = 0;
@@ -592,47 +597,15 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
  * iwl_verify_ucode - determine which instruction image is in SRAM,
  *    and verify its contents
  */
-int iwl_verify_ucode(struct iwl_priv *priv)
+int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc)
 {
-	__le32 *image;
-	u32 len;
-	int ret;
-
-	/* Try bootstrap */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
+	if (!iwlcore_verify_inst_sparse(priv, fw_desc)) {
 		IWL_DEBUG_INFO(priv, "Bootstrap uCode is good in inst SRAM\n");
 		return 0;
 	}
 
-	/* Try initialize */
-	image = (__le32 *)priv->ucode_init.v_addr;
-	len = priv->ucode_init.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Initialize uCode is good in inst SRAM\n");
-		return 0;
-	}
+	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	/* Try runtime/protocol */
-	image = (__le32 *)priv->ucode_code.v_addr;
-	len = priv->ucode_code.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Runtime uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
-
-	/* Since nothing seems to match, show first several data entries in
-	 * instruction SRAM, so maybe visual inspection will give a clue.
-	 * Selection of bootstrap image (vs. other images) is arbitrary. */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	iwl_print_mismatch_inst(priv, image, len);
-
+	iwl_print_mismatch_inst(priv, fw_desc);
 	return -EIO;
 }

@@ -2241,7 +2241,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* Initialize uCode has loaded Runtime uCode ... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
 	 * "runtime" alive if code weren't properly loaded.  */
-	if (iwl_verify_ucode(priv)) {
+	if (iwl_verify_ucode(priv, &priv->ucode_code)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
 		IWL_DEBUG_INFO(priv, "Bad runtime uCode load.\n");
