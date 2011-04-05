@@ -188,13 +188,13 @@ static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
-static int iwlcore_get_nvm_type(struct iwl_priv *priv)
+static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
 {
 	u32 otpgp;
 	int nvm_type;
 
 	/* OTP only valid for CP/PP and after */
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	switch (hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_NONE:
 		IWL_ERR(priv, "Unknown hardware type\n");
 		return -ENOENT;
@@ -394,7 +394,7 @@ u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
  *
  * NOTE:  This routine uses the non-debug IO access functions.
  */
-int iwl_eeprom_init(struct iwl_priv *priv)
+int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 {
 	__le16 *e;
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
@@ -404,7 +404,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
+	priv->nvm_device_type = iwlcore_get_nvm_type(priv, hw_rev);
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */

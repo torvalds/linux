@@ -3685,11 +3685,11 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
 };
 
-static void iwl_hw_detect(struct iwl_priv *priv)
+static u32 iwl_hw_detect(struct iwl_priv *priv)
 {
-	priv->hw_rev = _iwl_read32(priv, CSR_HW_REV);
 	priv->rev_id = priv->pci_dev->revision;
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", priv->rev_id);
+	return _iwl_read32(priv, CSR_HW_REV);
 }
 
 static int iwl_set_hw_params(struct iwl_priv *priv)
@@ -3740,6 +3740,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	unsigned long flags;
 	u16 pci_cmd, num_mac;
+	u32 hw_rev;
 
 	/************************
 	 * 1. Allocating HW data
@@ -3885,9 +3886,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
-	iwl_hw_detect(priv);
+	hw_rev = iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		priv->cfg->name, priv->hw_rev);
+		priv->cfg->name, hw_rev);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
@@ -3903,7 +3904,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 4. Read EEPROM
 	 *****************/
 	/* Read the EEPROM */
-	err = iwl_eeprom_init(priv);
+	err = iwl_eeprom_init(priv, hw_rev);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_iounmap;
