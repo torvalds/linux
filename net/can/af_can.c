@@ -85,7 +85,7 @@ static struct kmem_cache *rcv_cache __read_mostly;
 
 /* table of registered CAN protocols */
 static struct can_proto *proto_tab[CAN_NPROTO] __read_mostly;
-static DEFINE_SPINLOCK(proto_tab_lock);
+static DEFINE_MUTEX(proto_tab_lock);
 
 struct timer_list can_stattimer;   /* timer for statistics update */
 struct s_stats    can_stats;       /* packet statistics */
@@ -115,6 +115,19 @@ static void can_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 }
 
+static struct can_proto *can_try_module_get(int protocol)
+{
+	struct can_proto *cp;
+
+	rcu_read_lock();
+	cp = rcu_dereference(proto_tab[protocol]);
+	if (cp && !try_module_get(cp->prot->owner))
+		cp = NULL;
+	rcu_read_unlock();
+
+	return cp;
+}
+
 static int can_create(struct net *net, struct socket *sock, int protocol,
 		      int kern)
 {
@@ -130,9 +143,12 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
+	cp = can_try_module_get(protocol);
+
 #ifdef CONFIG_MODULES
-	/* try to load protocol module kernel is modular */
-	if (!proto_tab[protocol]) {
+	if (!cp) {
+		/* try to load protocol module if kernel is modular */
+
 		err = request_module("can-proto-%d", protocol);
 
 		/*
@@ -143,14 +159,10 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		if (err && printk_ratelimit())
 			printk(KERN_ERR "can: request_module "
 			       "(can-proto-%d) failed.\n", protocol);
+
+		cp = can_try_module_get(protocol);
 	}
 #endif
-
-	spin_lock(&proto_tab_lock);
-	cp = proto_tab[protocol];
-	if (cp && !try_module_get(cp->prot->owner))
-		cp = NULL;
-	spin_unlock(&proto_tab_lock);
 
 	/* check for available protocol and correct usage */
 
@@ -158,7 +170,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		return -EPROTONOSUPPORT;
 
 	if (cp->type != sock->type) {
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOTYPE;
 		goto errout;
 	}
 
@@ -694,15 +706,16 @@ int can_proto_register(struct can_proto *cp)
 	if (err < 0)
 		return err;
 
-	spin_lock(&proto_tab_lock);
+	mutex_lock(&proto_tab_lock);
+
 	if (proto_tab[proto]) {
 		printk(KERN_ERR "can: protocol %d already registered\n",
 		       proto);
 		err = -EBUSY;
 	} else
-		proto_tab[proto] = cp;
+		rcu_assign_pointer(proto_tab[proto], cp);
 
-	spin_unlock(&proto_tab_lock);
+	mutex_unlock(&proto_tab_lock);
 
 	if (err < 0)
 		proto_unregister(cp->prot);
@@ -719,13 +732,12 @@ void can_proto_unregister(struct can_proto *cp)
 {
 	int proto = cp->protocol;
 
-	spin_lock(&proto_tab_lock);
-	if (!proto_tab[proto]) {
-		printk(KERN_ERR "BUG: can: protocol %d is not registered\n",
-		       proto);
-	}
-	proto_tab[proto] = NULL;
-	spin_unlock(&proto_tab_lock);
+	mutex_lock(&proto_tab_lock);
+	BUG_ON(proto_tab[proto] != cp);
+	rcu_assign_pointer(proto_tab[proto], NULL);
+	mutex_unlock(&proto_tab_lock);
+
+	synchronize_rcu();
 
 	proto_unregister(cp->prot);
 }
