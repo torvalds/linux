@@ -996,7 +996,7 @@ out:
 		clk_put(hdmi_ick);
 }
 
-static int __init fsi_init_pm_clock(void)
+static void __init fsi_init_pm_clock(void)
 {
 	struct clk *fsia_ick;
 	int ret;
@@ -1005,7 +1005,7 @@ static int __init fsi_init_pm_clock(void)
 	if (IS_ERR(fsia_ick)) {
 		ret = PTR_ERR(fsia_ick);
 		pr_err("Cannot get FSI ICK: %d\n", ret);
-		return ret;
+		return;
 	}
 
 	ret = clk_set_parent(fsia_ick, &sh7372_fsiack_clk);
@@ -1013,10 +1013,7 @@ static int __init fsi_init_pm_clock(void)
 		pr_err("Cannot set FSI-A parent: %d\n", ret);
 
 	clk_put(fsia_ick);
-
-	return ret;
 }
-device_initcall(fsi_init_pm_clock);
 
 /*
  * FIXME !!
@@ -1345,6 +1342,7 @@ static void __init ap4evb_init(void)
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
 	hdmi_init_pm_clock();
+	fsi_init_pm_clock();
 }
 
 static void __init ap4evb_timer_init(void)
