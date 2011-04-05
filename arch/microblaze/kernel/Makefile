@@ -10,6 +10,7 @@ CFLAGS_REMOVE_early_printk.o = -pg
 CFLAGS_REMOVE_selfmod.o = -pg
 CFLAGS_REMOVE_heartbeat.o = -pg
 CFLAGS_REMOVE_ftrace.o = -pg
+CFLAGS_REMOVE_process.o = -pg
 endif
 
 extra-y := head.o vmlinux.lds
