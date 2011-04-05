@@ -3035,6 +3035,7 @@ struct tg3 {
 #define TG3_PHY_ID_BCM5718S		0xbc050ff0
 #define TG3_PHY_ID_BCM57765		0x5c0d8a40
 #define TG3_PHY_ID_BCM5719C		0x5c0d8a20
+#define TG3_PHY_ID_BCM5720C		0x5c0d8b60
 #define TG3_PHY_ID_BCM5906		0xdc00ac40
 #define TG3_PHY_ID_BCM8002		0x60010140
 #define TG3_PHY_ID_INVALID		0xffffffff
