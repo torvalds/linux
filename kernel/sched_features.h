@@ -64,3 +64,9 @@ SCHED_FEAT(OWNER_SPIN, 1)
  * Decrement CPU power based on irq activity
  */
 SCHED_FEAT(NONIRQ_POWER, 1)
+
+/*
+ * Queue remote wakeups on the target CPU and process them
+ * using the scheduler IPI. Reduces rq->lock contention/bounces.
+ */
+SCHED_FEAT(TTWU_QUEUE, 1)
