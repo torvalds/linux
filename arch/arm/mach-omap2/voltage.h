@@ -62,6 +62,7 @@ struct omap_vfsm_instance {
  * @sys_clk: system clock name/frequency, used for various timing calculations
  * @vdd: to be removed
  * @scale: function used to scale the voltage of the voltagedomain
+ * @nominal_volt: current nominal voltage for this voltage domain
  */
 struct voltagedomain {
 	char *name;
@@ -85,6 +86,7 @@ struct voltagedomain {
 
 	int (*scale) (struct voltagedomain *voltdm,
 		      unsigned long target_volt);
+	u32 nominal_volt;
 
 	struct omap_vdd_info *vdd;
 };
@@ -148,11 +150,9 @@ struct omap_voltdm_pmic {
  *
  * @volt_data		: voltage table having the distinct voltages supported
  *			  by the domain and other associated per voltage data.
- * @curr_volt		: current voltage for this vdd.
  */
 struct omap_vdd_info {
 	struct omap_volt_data *volt_data;
-	u32 curr_volt;
 };
 
 void omap_voltage_get_volttable(struct voltagedomain *voltdm,

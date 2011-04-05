@@ -128,7 +128,7 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	}
 
 	*target_vsel = voltdm->pmic->uv_to_vsel(target_volt);
-	*current_vsel = voltdm->pmic->uv_to_vsel(vdd->curr_volt);
+	*current_vsel = voltdm->pmic->uv_to_vsel(voltdm->nominal_volt);
 
 	/* Setting the ON voltage to the new target voltage */
 	vc_cmdval = voltdm->read(vc->cmdval_reg);
@@ -145,7 +145,6 @@ void omap_vc_post_scale(struct voltagedomain *voltdm,
 			unsigned long target_volt,
 			u8 target_vsel, u8 current_vsel)
 {
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	u32 smps_steps = 0, smps_delay = 0;
 
 	smps_steps = abs(target_vsel - current_vsel);
@@ -154,7 +153,7 @@ void omap_vc_post_scale(struct voltagedomain *voltdm,
 			voltdm->pmic->slew_rate) + 2;
 	udelay(smps_delay);
 
-	vdd->curr_volt = target_volt;
+	voltdm->nominal_volt = target_volt;
 }
 
 /* vc_bypass_scale - VC bypass method of voltage scaling */
