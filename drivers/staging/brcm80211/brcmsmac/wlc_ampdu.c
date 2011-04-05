@@ -164,10 +164,6 @@ struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc)
 	struct ampdu_info *ampdu;
 	int i;
 
-	/* some code depends on packed structures */
-	ASSERT(DOT11_MAXNUMFRAGS == NBITS(u16));
-	ASSERT(ISPOWEROF2(AMPDU_TX_BA_MAX_WSIZE));
-	ASSERT(ISPOWEROF2(AMPDU_RX_BA_MAX_WSIZE));
 	ASSERT(wlc->pub->tunables->ampdunummpdu <= AMPDU_MAX_MPDU);
 	ASSERT(wlc->pub->tunables->ampdunummpdu > 0);
 

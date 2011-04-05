@@ -1356,8 +1356,6 @@ void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe)
 		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
 		 }
 	};
-
-	ASSERT(sizeof(*pe) == WME_PARAM_IE_LEN);
 	memcpy(pe, &stadef, sizeof(*pe));
 }
 
@@ -1688,39 +1686,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 
 	WL_NONE("wl%d: %s: vendor 0x%x device 0x%x\n",
 		unit, __func__, vendor, device);
-
-	ASSERT(WSEC_MAX_RCMTA_KEYS <= WSEC_MAX_KEYS);
-	ASSERT(WSEC_MAX_DEFAULT_KEYS == WLC_DEFAULT_KEYS);
-
-	/* some code depends on packed structures */
-	ASSERT(sizeof(struct ethhdr) == ETH_HLEN);
-	ASSERT(sizeof(d11regs_t) == SI_CORE_SIZE);
-	ASSERT(sizeof(ofdm_phy_hdr_t) == D11_PHY_HDR_LEN);
-	ASSERT(sizeof(cck_phy_hdr_t) == D11_PHY_HDR_LEN);
-	ASSERT(sizeof(d11txh_t) == D11_TXH_LEN);
-	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
-	ASSERT(sizeof(struct ieee80211_hdr) == DOT11_A4_HDR_LEN);
-	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
-	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
-	ASSERT(sizeof(struct ieee80211_ht_cap) == HT_CAP_IE_LEN);
-#ifdef BRCM_FULLMAC
-	ASSERT(offsetof(wl_scan_params_t, channel_list) ==
-	       WL_SCAN_PARAMS_FIXED_SIZE);
-#endif
-	ASSERT(IS_ALIGNED(offsetof(wsec_key_t, data), sizeof(u32)));
-	ASSERT(ISPOWEROF2(MA_WINDOW_SZ));
-
-	ASSERT(sizeof(wlc_d11rxhdr_t) <= WL_HWRXOFF);
-
-	/*
-	 * Number of replay counters value used in WPA IE must match # rxivs
-	 * supported in wsec_key_t struct. See 802.11i/D3.0 sect. 7.3.2.17
-	 * 'RSN Information Element' figure 8 for this mapping.
-	 */
-	ASSERT((WPA_CAP_16_REPLAY_CNTRS == WLC_REPLAY_CNTRS_VALUE
-		&& 16 == WLC_NUMRXIVS)
-	       || (WPA_CAP_4_REPLAY_CNTRS == WLC_REPLAY_CNTRS_VALUE
-		   && 4 == WLC_NUMRXIVS));
 
 	/* allocate struct wlc_info state and its substructures */
 	wlc = (struct wlc_info *) wlc_attach_malloc(unit, &err, device);

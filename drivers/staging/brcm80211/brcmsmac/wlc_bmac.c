@@ -547,8 +547,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_BK_FIFO (TX AC Background data packets)
 		 * RX: RX_FIFO (RX data packets)
 		 */
-		ASSERT(TX_AC_BK_FIFO == 0);
-		ASSERT(RX_FIFO == 0);
 		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih,
 					   (wme ? DMAREG(wlc_hw, DMA_TX, 0) :
 					    NULL), DMAREG(wlc_hw, DMA_RX, 0),
@@ -563,8 +561,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 *   (legacy) TX_DATA_FIFO (TX data packets)
 		 * RX: UNUSED
 		 */
-		ASSERT(TX_AC_BE_FIFO == 1);
-		ASSERT(TX_DATA_FIFO == 1);
 		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 1), NULL,
 					   tune->ntxd, 0, 0, -1, 0, 0,
@@ -576,7 +572,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VI_FIFO (TX AC Video data packets)
 		 * RX: UNUSED
 		 */
-		ASSERT(TX_AC_VI_FIFO == 2);
 		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 2), NULL,
 					   tune->ntxd, 0, 0, -1, 0, 0,
@@ -587,8 +582,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VO_FIFO (TX AC Voice data packets)
 		 *   (legacy) TX_CTL_FIFO (TX control & mgmt packets)
 		 */
-		ASSERT(TX_AC_VO_FIFO == 3);
-		ASSERT(TX_CTL_FIFO == 3);
 		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 3),
 					   NULL, tune->ntxd, 0, 0, -1,
@@ -648,7 +641,6 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	WL_TRACE("wl%d: wlc_bmac_attach: vendor 0x%x device 0x%x\n",
 		 unit, vendor, device);
 
-	ASSERT(sizeof(wlc_d11rxhdr_t) <= WL_HWRXOFF);
 
 	wme = true;
 
@@ -1384,7 +1376,6 @@ wlc_bmac_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 
 	ASSERT((val & ~mask) == 0);
 	ASSERT(idx < MHFMAX);
-	ASSERT(ARRAY_SIZE(addr) == MHFMAX);
 
 	switch (bands) {
 		/* Current band only or all bands,
@@ -1459,8 +1450,6 @@ static void wlc_write_mhf(struct wlc_hw_info *wlc_hw, u16 *mhfs)
 		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
 	};
-
-	ASSERT(ARRAY_SIZE(addr) == MHFMAX);
 
 	for (idx = 0; idx < MHFMAX; idx++) {
 		wlc_bmac_write_shm(wlc_hw, addr[idx], mhfs[idx]);
