@@ -70,7 +70,7 @@
 .global kvmppc_trampoline_\intno
 kvmppc_trampoline_\intno:
 
-	mtspr	SPRN_SPRG_SCRATCH0, r13		/* Save r13 */
+	SET_SCRATCH0(r13)		/* Save r13 */
 
 	/*
 	 * First thing to do is to find out if we're coming
@@ -89,7 +89,7 @@ kvmppc_trampoline_\intno:
 	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
 	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
+	GET_SCRATCH0(r13)			/* r13 = original r13 */
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
 	/* Now we know we're handling a KVM guest */
@@ -157,7 +157,7 @@ kvmppc_handler_skip_ins:
 	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
 	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	mfspr	r13, SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r13)
 
 	/* And get back into the code */
 	RFI

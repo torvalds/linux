@@ -168,7 +168,7 @@ kvmppc_handler_trampoline_exit:
 	PPC_STL	r4, (SHADOW_VCPU_OFF + SVCPU_SHADOW_SRR1)(r13)
 
 	/* Get scratch'ed off registers */
-	mfspr	r9, SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r9)
 	PPC_LL	r8, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	lwz	r7, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 

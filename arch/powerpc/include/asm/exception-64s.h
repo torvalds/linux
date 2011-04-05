@@ -60,16 +60,15 @@
 #define EXC_HV	H
 #define EXC_STD
 
-#define __EXCEPTION_PROLOG_1(area, h)					\
+#define EXCEPTION_PROLOG_1(area)					\
 	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG_##h##SCRATCH0;				\
+	GET_SCRATCH0(r9);						\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
-#define EXCEPTION_PROLOG_1(area, h) __EXCEPTION_PROLOG_1(area, h)
 
 #define __EXCEPTION_PROLOG_PSERIES_1(label, h)				\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
@@ -85,7 +84,7 @@
 	__EXCEPTION_PROLOG_PSERIES_1(label, h)
 
 #define EXCEPTION_PROLOG_PSERIES(area, label, h)			\
-	EXCEPTION_PROLOG_1(area, h);					\
+	EXCEPTION_PROLOG_1(area);					\
 	EXCEPTION_PROLOG_PSERIES_1(label, h);
 
 /*
@@ -156,7 +155,7 @@
 label##_pSeries:					\
 	HMT_MEDIUM;					\
 	DO_KVM	vec;					\
-	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
+	SET_SCRATCH0(r13);		/* save r13 */		\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_STD)
 
 #define STD_EXCEPTION_HV(loc, vec, label)		\
@@ -165,13 +164,13 @@ label##_pSeries:					\
 label##_hv:						\
 	HMT_MEDIUM;					\
 	DO_KVM	vec;					\
-	mtspr	SPRN_SPRG_HSCRATCH0,r13;/* save r13 */	\
+	SET_SCRATCH0(r13);	/* save r13 */		\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_HV)
 
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h)			\
 	HMT_MEDIUM;							\
 	DO_KVM	vec;							\
-	mtspr	SPRN_SPRG_##h##SCRATCH0,r13;    /* save r13 */		\
+	SET_SCRATCH0(r13);    /* save r13 */				\
 	GET_PACA(r13);							\
 	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
@@ -179,7 +178,7 @@ label##_hv:						\
 	mfcr	r9;							\
 	cmpwi	r10,0;							\
 	beq	masked_##h##interrupt;					\
-	mfspr	r10,SPRN_SPRG_##h##SCRATCH0;				\
+	GET_SCRATCH0(r10);						\
 	std	r10,PACA_EXGEN+EX_R13(r13);				\
 	std	r11,PACA_EXGEN+EX_R11(r13);				\
 	std	r12,PACA_EXGEN+EX_R12(r13);				\

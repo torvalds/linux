@@ -43,7 +43,7 @@ __start_interrupts:
 _machine_check_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x200
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
+	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 	. = 0x300
@@ -51,7 +51,7 @@ _machine_check_pSeries:
 data_access_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x300
-	mtspr	SPRN_SPRG_SCRATCH0,r13
+	SET_SCRATCH0(r13)
 BEGIN_FTR_SECTION
 	GET_PACA(r13)
 	std	r9,PACA_EXSLB+EX_R9(r13)
@@ -67,7 +67,7 @@ BEGIN_FTR_SECTION
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r11,PACA_EXSLB+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r12,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r12)
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R13(r13)
@@ -81,7 +81,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x380
-	mtspr	SPRN_SPRG_SCRATCH0,r13
+	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
@@ -95,7 +95,7 @@ data_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -120,7 +120,7 @@ data_access_slb_pSeries:
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x480
-	mtspr	SPRN_SPRG_SCRATCH0,r13
+	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
@@ -134,7 +134,7 @@ instruction_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -272,7 +272,7 @@ masked_interrupt:
 	rotldi	r10,r10,16
 	mtspr	SPRN_SRR1,r10
 	ld	r10,PACA_EXGEN+EX_R10(r13)
-	mfspr	r13,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r13)
 	rfid
 	b	.
 
@@ -285,7 +285,7 @@ masked_Hinterrupt:
 	rotldi	r10,r10,16
 	mtspr	SPRN_HSRR1,r10
 	ld	r10,PACA_EXGEN+EX_R10(r13)
-	mfspr	r13,SPRN_SPRG_HSCRATCH0
+	GET_SCRATCH0(r13)
 	hrfid
 	b	.
 
@@ -293,7 +293,7 @@ masked_Hinterrupt:
 do_stab_bolted_pSeries:
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted, EXC_STD)
 
@@ -305,14 +305,14 @@ do_stab_bolted_pSeries:
       .align 7
 system_reset_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
+	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD)
 
 	.globl machine_check_fwnmi
       .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
+	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 #endif /* CONFIG_PPC_PSERIES */
@@ -327,7 +327,7 @@ slb_miss_user_pseries:
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r10,SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	ld	r11,PACA_EXSLB+EX_R9(r13)
 	ld	r12,PACA_EXSLB+EX_R3(r13)
 	std	r10,PACA_EXGEN+EX_R13(r13)
