@@ -97,14 +97,12 @@
  * them in the NIC onboard memory.
  */
 #define TG3_RX_STD_RING_SIZE(tp) \
-	((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 || \
-	  GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) ? \
-	 RX_STD_MAX_SIZE_5717 : 512)
+	((tp->tg3_flags3 & TG3_FLG3_LRG_PROD_RING_CAP) ? \
+	 TG3_RX_STD_MAX_SIZE_5717 : TG3_RX_STD_MAX_SIZE_5700)
 #define TG3_DEF_RX_RING_PENDING		200
 #define TG3_RX_JMB_RING_SIZE(tp) \
-	((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 || \
-	  GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) ? \
-	 1024 : 256)
+	((tp->tg3_flags3 & TG3_FLG3_LRG_PROD_RING_CAP) ? \
+	 TG3_RX_JMB_MAX_SIZE_5717 : TG3_RX_JMB_MAX_SIZE_5700)
 #define TG3_DEF_RX_JUMBO_RING_PENDING	100
 #define TG3_RSS_INDIR_TBL_SIZE		128
 
@@ -8115,9 +8113,10 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			     ((u64) tpr->rx_jmb_mapping >> 32));
 			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_HOST_ADDR + TG3_64BIT_REG_LOW,
 			     ((u64) tpr->rx_jmb_mapping & 0xffffffff));
+			val = TG3_RX_JMB_RING_SIZE(tp) <<
+			      BDINFO_FLAGS_MAXLEN_SHIFT;
 			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_MAXLEN_FLAGS,
-			     (RX_JUMBO_MAX_SIZE << BDINFO_FLAGS_MAXLEN_SHIFT) |
-			     BDINFO_FLAGS_USE_EXT_RECV);
+			     val | BDINFO_FLAGS_USE_EXT_RECV);
 			if (!(tp->tg3_flags3 & TG3_FLG3_USE_JUMBO_BDFLAG) ||
 			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 				tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_NIC_ADDR,
@@ -8129,15 +8128,15 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 		if (tp->tg3_flags3 & TG3_FLG3_5717_PLUS) {
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
-				val = RX_STD_MAX_SIZE_5705;
+				val = TG3_RX_STD_MAX_SIZE_5700;
 			else
-				val = RX_STD_MAX_SIZE_5717;
+				val = TG3_RX_STD_MAX_SIZE_5717;
 			val <<= BDINFO_FLAGS_MAXLEN_SHIFT;
 			val |= (TG3_RX_STD_DMA_SZ << 2);
 		} else
 			val = TG3_RX_STD_DMA_SZ << BDINFO_FLAGS_MAXLEN_SHIFT;
 	} else
-		val = RX_STD_MAX_SIZE_5705 << BDINFO_FLAGS_MAXLEN_SHIFT;
+		val = TG3_RX_STD_MAX_SIZE_5700 << BDINFO_FLAGS_MAXLEN_SHIFT;
 
 	tw32(RCVDBDI_STD_BD + TG3_BDINFO_MAXLEN_FLAGS, val);
 
@@ -8421,8 +8420,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32(SNDBDC_MODE, SNDBDC_MODE_ENABLE | SNDBDC_MODE_ATTN_ENABLE);
 	tw32(RCVBDI_MODE, RCVBDI_MODE_ENABLE | RCVBDI_MODE_RCB_ATTN_ENAB);
 	val = RCVDBDI_MODE_ENABLE | RCVDBDI_MODE_INV_RING_SZ;
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+	if (tp->tg3_flags3 & TG3_FLG3_LRG_PROD_RING_CAP)
 		val |= RCVDBDI_MODE_LRG_RING_SZ;
 	tw32(RCVDBDI_MODE, val);
 	tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE);
@@ -13125,14 +13123,13 @@ static inline void vlan_features_add(struct net_device *dev, unsigned long flags
 
 static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
 {
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
-		return 4096;
+	if (tp->tg3_flags3 & TG3_FLG3_LRG_PROD_RING_CAP)
+		return TG3_RX_RET_MAX_SIZE_5717;
 	else if ((tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) &&
 		 !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
-		return 1024;
+		return TG3_RX_RET_MAX_SIZE_5700;
 	else
-		return 512;
+		return TG3_RX_RET_MAX_SIZE_5705;
 }
 
 static DEFINE_PCI_DEVICE_TABLE(tg3_write_reorder_chipsets) = {
@@ -13429,6 +13426,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags3 |= TG3_FLG3_4G_DMA_BNDRY_BUG;
 		tp->tg3_flags3 |= TG3_FLG3_40BIT_DMA_LIMIT_BUG;
 	}
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+		tp->tg3_flags3 |= TG3_FLG3_LRG_PROD_RING_CAP;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_5717_PLUS) &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5719)
