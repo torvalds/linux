@@ -211,24 +211,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 		HPIMSGX__init(phm, phr);
 		break;
 
-	case HPI_SUBSYS_DELETE_ADAPTER:
-		HPIMSGX__cleanup(phm->obj_index, h_owner);
-		{
-			struct hpi_message hm;
-			struct hpi_response hr;
-			hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
-				HPI_ADAPTER_CLOSE);
-			hm.adapter_index = phm->obj_index;
-			hw_entry_point(&hm, &hr);
-		}
-		if ((phm->obj_index < HPI_MAX_ADAPTERS)
-			&& hpi_entry_points[phm->obj_index]) {
-			hpi_entry_points[phm->obj_index] (phm, phr);
-			hpi_entry_points[phm->obj_index] = NULL;
-		} else
-			phr->error = HPI_ERROR_INVALID_OBJ_INDEX;
-
-		break;
 	default:
 		/* Must explicitly handle every subsys message in this switch */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, phm->function,
@@ -247,6 +229,19 @@ static void adapter_message(struct hpi_message *phm, struct hpi_response *phr,
 	case HPI_ADAPTER_CLOSE:
 		adapter_close(phm, phr);
 		break;
+	case HPI_ADAPTER_DELETE:
+		HPIMSGX__cleanup(phm->adapter_index, h_owner);
+		{
+			struct hpi_message hm;
+			struct hpi_response hr;
+			hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
+				HPI_ADAPTER_CLOSE);
+			hm.adapter_index = phm->adapter_index;
+			hw_entry_point(&hm, &hr);
+		}
+		hw_entry_point(phm, phr);
+		break;
+
 	default:
 		hw_entry_point(phm, phr);
 		break;

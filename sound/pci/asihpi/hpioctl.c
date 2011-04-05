@@ -25,6 +25,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #include "hpidebug.h"
 #include "hpimsgx.h"
 #include "hpioctl.h"
+#include "hpicmn.h"
 
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -161,26 +162,24 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		goto out;
 	}
 
-	pa = &adapters[hm->h.adapter_index];
+	switch (hm->h.function) {
+	case HPI_SUBSYS_CREATE_ADAPTER:
+	case HPI_ADAPTER_DELETE:
+		/* Application must not use these functions! */
+		hr->h.size = sizeof(hr->h);
+		hr->h.error = HPI_ERROR_INVALID_OPERATION;
+		hr->h.function = hm->h.function;
+		uncopied_bytes = copy_to_user(puhr, hr, hr->h.size);
+		if (uncopied_bytes)
+			err = -EFAULT;
+		else
+			err = 0;
+		goto out;
+	}
+
 	hr->h.size = res_max_size;
 	if (hm->h.object == HPI_OBJ_SUBSYSTEM) {
-		switch (hm->h.function) {
-		case HPI_SUBSYS_CREATE_ADAPTER:
-		case HPI_SUBSYS_DELETE_ADAPTER:
-			/* Application must not use these functions! */
-			hr->h.size = sizeof(hr->h);
-			hr->h.error = HPI_ERROR_INVALID_OPERATION;
-			hr->h.function = hm->h.function;
-			uncopied_bytes = copy_to_user(puhr, hr, hr->h.size);
-			if (uncopied_bytes)
-				err = -EFAULT;
-			else
-				err = 0;
-			goto out;
-
-		default:
-			hpi_send_recv_f(&hm->m0, &hr->r0, file);
-		}
+		hpi_send_recv_f(&hm->m0, &hr->r0, file);
 	} else {
 		u16 __user *ptr = NULL;
 		u32 size = 0;
@@ -188,8 +187,9 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* -1=no data 0=read from user mem, 1=write to user mem */
 		int wrflag = -1;
 		u32 adapter = hm->h.adapter_index;
+		pa = &adapters[adapter];
 
-		if ((hm->h.adapter_index > HPI_MAX_ADAPTERS) || (!pa->type)) {
+		if ((adapter > HPI_MAX_ADAPTERS) || (!pa->type)) {
 			hpi_init_response(&hr->r0, HPI_OBJ_ADAPTER,
 				HPI_ADAPTER_OPEN,
 				HPI_ERROR_BAD_ADAPTER_NUMBER);
@@ -395,17 +395,20 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 
 	adapter.index = hr.u.s.adapter_index;
 	adapter.type = hr.u.s.adapter_type;
-	hm.adapter_index = adapter.index;
 
-	err = hpi_adapter_open(adapter.index);
-	if (err)
+	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
+		HPI_ADAPTER_OPEN);
+	hm.adapter_index = adapter.index;
+	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
+
+	if (hr.error)
 		goto err;
 
 	adapter.snd_card_asihpi = NULL;
 	/* WARNING can't init mutex in 'adapter'
 	 * and then copy it to adapters[] ?!?!
 	 */
-	adapters[hr.u.s.adapter_index] = adapter;
+	adapters[adapter.index] = adapter;
 	mutex_init(&adapters[adapter.index].mutex);
 	pci_set_drvdata(pci_dev, &adapters[adapter.index]);
 
@@ -440,10 +443,9 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 	struct hpi_adapter *pa;
 	pa = pci_get_drvdata(pci_dev);
 
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_DELETE_ADAPTER);
-	hm.obj_index = pa->index;
-	hm.adapter_index = HPI_ADAPTER_INDEX_INVALID;
+	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
+		HPI_ADAPTER_DELETE);
+	hm.adapter_index = pa->index;
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 
 	/* unmap PCI memory space, mapped during device init. */

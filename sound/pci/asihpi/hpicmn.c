@@ -667,7 +667,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 		phr->u.s.num_adapters = adapters.gw_num_adapters;
 		break;
 	case HPI_SUBSYS_CREATE_ADAPTER:
-	case HPI_SUBSYS_DELETE_ADAPTER:
 		break;
 	default:
 		phr->error = HPI_ERROR_INVALID_FUNC;
