@@ -2397,8 +2397,7 @@ static void __iwl_down(struct iwl_priv *priv)
 				STATUS_EXIT_PENDING;
 
 	/* device going down, Stop using ICT table */
-	if (priv->cfg->ops->lib->isr_ops.disable)
-		priv->cfg->ops->lib->isr_ops.disable(priv);
+	iwl_disable_ict(priv);
 
 	iwlagn_txq_ctx_stop(priv);
 	iwlagn_rxq_stop(priv);
@@ -2606,8 +2605,7 @@ static void iwl_bg_alive_start(struct work_struct *data)
 		goto unlock;
 
 	/* enable dram interrupt */
-	if (priv->cfg->ops->lib->isr_ops.reset)
-		priv->cfg->ops->lib->isr_ops.reset(priv);
+	iwl_reset_ict(priv);
 
 	iwl_alive_start(priv);
 unlock:
@@ -3958,10 +3956,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_enable_msi(priv->pci_dev);
 
-	if (priv->cfg->ops->lib->isr_ops.alloc)
-		priv->cfg->ops->lib->isr_ops.alloc(priv);
+	iwl_alloc_isr_ict(priv);
 
-	err = request_irq(priv->pci_dev->irq, priv->cfg->ops->lib->isr_ops.isr,
+	err = request_irq(priv->pci_dev->irq, iwl_isr_ict,
 			  IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
@@ -4008,8 +4005,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	free_irq(priv->pci_dev->irq, priv);
-	if (priv->cfg->ops->lib->isr_ops.free)
-		priv->cfg->ops->lib->isr_ops.free(priv);
+	iwl_free_isr_ict(priv);
  out_disable_msi:
 	pci_disable_msi(priv->pci_dev);
 	iwl_uninit_drv(priv);
@@ -4107,8 +4103,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_uninit_drv(priv);
 
-	if (priv->cfg->ops->lib->isr_ops.free)
-		priv->cfg->ops->lib->isr_ops.free(priv);
+	iwl_free_isr_ict(priv);
 
 	dev_kfree_skb(priv->beacon_skb);
 

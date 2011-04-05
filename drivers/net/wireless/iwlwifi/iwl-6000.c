@@ -320,13 +320,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.isr_ops = {
-		.isr = iwl_isr_ict,
-		.free = iwl_free_isr_ict,
-		.alloc = iwl_alloc_isr_ict,
-		.reset = iwl_reset_ict,
-		.disable = iwl_disable_ict,
-	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
@@ -384,13 +377,6 @@ static struct iwl_lib_ops iwl6030_lib = {
 		.calib_version	= iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
-	},
-	.isr_ops = {
-		.isr = iwl_isr_ict,
-		.free = iwl_free_isr_ict,
-		.alloc = iwl_alloc_isr_ict,
-		.reset = iwl_reset_ict,
-		.disable = iwl_disable_ict,
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,

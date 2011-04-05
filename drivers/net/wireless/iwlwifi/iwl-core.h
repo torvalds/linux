@@ -122,14 +122,6 @@ struct iwl_apm_ops {
 	void (*config)(struct iwl_priv *priv);
 };
 
-struct iwl_isr_ops {
-	irqreturn_t (*isr) (int irq, void *data);
-	void (*free)(struct iwl_priv *priv);
-	int (*alloc)(struct iwl_priv *priv);
-	int (*reset)(struct iwl_priv *priv);
-	void (*disable)(struct iwl_priv *priv);
-};
-
 struct iwl_debugfs_ops {
 	ssize_t (*rx_stats_read)(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos);
@@ -193,9 +185,6 @@ struct iwl_lib_ops {
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-
-	/* isr */
-	struct iwl_isr_ops isr_ops;
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
