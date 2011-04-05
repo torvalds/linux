@@ -4339,7 +4339,6 @@ static void e1000_watchdog_task(struct work_struct *work)
 link_up:
 	spin_lock(&adapter->stats64_lock);
 	e1000e_update_stats(adapter);
-	spin_unlock(&adapter->stats64_lock);
 
 	mac->tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
 	adapter->tpt_old = adapter->stats.tpt;
@@ -4350,6 +4349,7 @@ link_up:
 	adapter->gorc_old = adapter->stats.gorc;
 	adapter->gotc = adapter->stats.gotc - adapter->gotc_old;
 	adapter->gotc_old = adapter->stats.gotc;
+	spin_unlock(&adapter->stats64_lock);
 
 	e1000e_update_adaptive(&adapter->hw);
 
