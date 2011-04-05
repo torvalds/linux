@@ -797,15 +797,17 @@ ifdef CONFIG_KALLSYMS
 # o The correct .tmp_kallsyms2.o is linked into the final vmlinux.
 # o Verify that the System.map from vmlinux matches the map from
 #   .tmp_vmlinux2, just in case we did not generate kallsyms correctly.
-# o If CONFIG_KALLSYMS_EXTRA_PASS is set, do an extra pass using
+# o If 'make KALLSYMS_EXTRA_PASS=1" was used, do an extra pass using
 #   .tmp_vmlinux3 and .tmp_kallsyms3.o.  This is only meant as a
 #   temporary bypass to allow the kernel to be built while the
 #   maintainers work out what went wrong with kallsyms.
 
-ifdef CONFIG_KALLSYMS_EXTRA_PASS
-last_kallsyms := 3
-else
 last_kallsyms := 2
+
+ifdef KALLSYMS_EXTRA_PASS
+ifneq ($(KALLSYMS_EXTRA_PASS),0)
+last_kallsyms := 3
+endif
 endif
 
 kallsyms.o := .tmp_kallsyms$(last_kallsyms).o
@@ -816,7 +818,8 @@ define verify_kallsyms
 	  $(cmd_sysmap) .tmp_vmlinux$(last_kallsyms) .tmp_System.map
 	$(Q)cmp -s System.map .tmp_System.map ||                             \
 		(echo Inconsistent kallsyms data;                            \
-		 echo Try setting CONFIG_KALLSYMS_EXTRA_PASS;                \
+		 echo This is a bug - please report about it;                \
+		 echo Try "make KALLSYMS_EXTRA_PASS=1" as a workaround;      \
 		 rm .tmp_kallsyms* ; /bin/false )
 endef
 

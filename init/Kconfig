@@ -981,18 +981,6 @@ config KALLSYMS_ALL
 
 	   Say N unless you really need all symbols.
 
-config KALLSYMS_EXTRA_PASS
-	bool "Do an extra kallsyms pass"
-	depends on KALLSYMS
-	help
-	   If kallsyms is not working correctly, the build will fail with
-	   inconsistent kallsyms data.  If that occurs, log a bug report and
-	   turn on KALLSYMS_EXTRA_PASS which should result in a stable build.
-	   Always say N here unless you find a bug in kallsyms, which must be
-	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
-	   you wait for kallsyms to be fixed.
-
-
 config HOTPLUG
 	bool "Support for hot-pluggable devices" if EXPERT
 	default y
