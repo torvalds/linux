@@ -258,7 +258,7 @@ if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
     ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
 
     if [ -n "$gzip" ]; then
-        gzip -f -9 "$vmz.$$"
+        gzip -n -f -9 "$vmz.$$"
     fi
 
     if [ -n "$cacheit" ]; then
@@ -343,7 +343,7 @@ coff)
     $objbin/hack-coff "$ofile"
     ;;
 cuboot*)
-    gzip -f -9 "$ofile"
+    gzip -n -f -9 "$ofile"
     ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
             $uboot_version -d "$ofile".gz "$ofile"
     ;;
@@ -390,6 +390,6 @@ ps3)
 
     odir="$(dirname "$ofile.bin")"
     rm -f "$odir/otheros.bld"
-    gzip --force -9 --stdout "$ofile.bin" > "$odir/otheros.bld"
+    gzip -n --force -9 --stdout "$ofile.bin" > "$odir/otheros.bld"
     ;;
 esac
