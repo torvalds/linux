@@ -185,7 +185,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
@@ -231,7 +230,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;

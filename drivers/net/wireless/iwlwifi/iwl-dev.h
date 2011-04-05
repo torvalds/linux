@@ -641,7 +641,6 @@ struct iwl_hw_params {
 	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
 	u32 max_data_size;
-	u32 max_bsm_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
 				    /* for 1000, 6000 series and up */
@@ -1263,7 +1262,6 @@ struct iwl_priv {
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
 	struct fw_desc ucode_init;	/* initialization inst */
 	struct fw_desc ucode_init_data;	/* initialization data */
-	struct fw_desc ucode_boot;	/* bootstrap inst */
 	enum ucode_type ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];

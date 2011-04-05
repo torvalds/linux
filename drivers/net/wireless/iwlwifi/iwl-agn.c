@@ -1181,7 +1181,6 @@ static void iwl_dealloc_ucode_pci(struct iwl_priv *priv)
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init);
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init_data);
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_boot);
 }
 
 static void iwl_nic_start(struct iwl_priv *priv)
@@ -1239,8 +1238,8 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 }
 
 struct iwlagn_firmware_pieces {
-	const void *inst, *data, *init, *init_data, *boot;
-	size_t inst_size, data_size, init_size, init_data_size, boot_size;
+	const void *inst, *data, *init, *init_data;
+	size_t inst_size, data_size, init_size, init_data_size;
 
 	u32 build;
 
@@ -1271,7 +1270,6 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 		pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
 		pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
 		pieces->init_data_size = le32_to_cpu(ucode->u.v2.init_data_size);
-		pieces->boot_size = le32_to_cpu(ucode->u.v2.boot_size);
 		src = ucode->u.v2.data;
 		break;
 	case 0:
@@ -1287,7 +1285,6 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 		pieces->data_size = le32_to_cpu(ucode->u.v1.data_size);
 		pieces->init_size = le32_to_cpu(ucode->u.v1.init_size);
 		pieces->init_data_size = le32_to_cpu(ucode->u.v1.init_data_size);
-		pieces->boot_size = le32_to_cpu(ucode->u.v1.boot_size);
 		src = ucode->u.v1.data;
 		break;
 	}
@@ -1295,7 +1292,7 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 	/* Verify size of file vs. image size info in file's header */
 	if (ucode_raw->size != hdr_size + pieces->inst_size +
 				pieces->data_size + pieces->init_size +
-				pieces->init_data_size + pieces->boot_size) {
+				pieces->init_data_size) {
 
 		IWL_ERR(priv,
 			"uCode file size %d does not match expected size\n",
@@ -1311,8 +1308,6 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 	src += pieces->init_size;
 	pieces->init_data = src;
 	src += pieces->init_data_size;
-	pieces->boot = src;
-	src += pieces->boot_size;
 
 	return 0;
 }
@@ -1413,8 +1408,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			pieces->init_data_size = tlv_len;
 			break;
 		case IWL_UCODE_TLV_BOOT:
-			pieces->boot = tlv_data;
-			pieces->boot_size = tlv_len;
+			IWL_ERR(priv, "Found unexpected BOOT ucode\n");
 			break;
 		case IWL_UCODE_TLV_PROBE_MAX_LEN:
 			if (tlv_len != sizeof(u32))
@@ -1614,8 +1608,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		       pieces.init_size);
 	IWL_DEBUG_INFO(priv, "f/w package hdr init data size = %Zd\n",
 		       pieces.init_data_size);
-	IWL_DEBUG_INFO(priv, "f/w package hdr boot inst size = %Zd\n",
-		       pieces.boot_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
 	if (pieces.inst_size > priv->hw_params.max_inst_size) {
@@ -1639,12 +1631,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (pieces.init_data_size > priv->hw_params.max_data_size) {
 		IWL_ERR(priv, "uCode init data len %Zd too large to fit in\n",
 			pieces.init_data_size);
-		goto try_again;
-	}
-
-	if (pieces.boot_size > priv->hw_params.max_bsm_size) {
-		IWL_ERR(priv, "uCode boot instr len %Zd too large to fit in\n",
-			pieces.boot_size);
 		goto try_again;
 	}
 
@@ -1675,15 +1661,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init_data);
 
 		if (!priv->ucode_init.v_addr || !priv->ucode_init_data.v_addr)
-			goto err_pci_alloc;
-	}
-
-	/* Bootstrap (instructions only, no data) */
-	if (pieces.boot_size) {
-		priv->ucode_boot.len = pieces.boot_size;
-		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_boot);
-
-		if (!priv->ucode_boot.v_addr)
 			goto err_pci_alloc;
 	}
 
@@ -1748,11 +1725,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		memcpy(priv->ucode_init_data.v_addr, pieces.init_data,
 		       pieces.init_data_size);
 	}
-
-	/* Bootstrap instructions */
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n",
-			pieces.boot_size);
-	memcpy(priv->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
 
 	/*
 	 * figure out the offset of chain noise reset and gain commands
