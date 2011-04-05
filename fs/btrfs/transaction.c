@@ -181,6 +181,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 {
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
+	int retries = 0;
 	int ret;
 
 	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
@@ -224,10 +225,18 @@ again:
 
 	if (num_items > 0) {
 		ret = btrfs_trans_reserve_metadata(h, root, num_items);
-		if (ret == -EAGAIN) {
+		if (ret == -EAGAIN && !retries) {
+			retries++;
 			btrfs_commit_transaction(h, root);
 			goto again;
+		} else if (ret == -EAGAIN) {
+			/*
+			 * We have already retried and got EAGAIN, so really we
+			 * don't have space, so set ret to -ENOSPC.
+			 */
+			ret = -ENOSPC;
 		}
+
 		if (ret < 0) {
 			btrfs_end_transaction(h, root);
 			return ERR_PTR(ret);
