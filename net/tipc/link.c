@@ -1658,18 +1658,11 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			continue;
 		}
 
+		/* Discard unicast link messages destined for another node */
+
 		if (unlikely(!msg_short(msg) &&
 			     (msg_destnode(msg) != tipc_own_addr)))
 			goto cont;
-
-		/* Discard non-routeable messages destined for another node */
-
-		if (unlikely(!msg_isdata(msg) &&
-			     (msg_destnode(msg) != tipc_own_addr))) {
-			if ((msg_user(msg) != CONN_MANAGER) &&
-			    (msg_user(msg) != MSG_FRAGMENTER))
-				goto cont;
-		}
 
 		/* Locate neighboring node that sent message */
 
