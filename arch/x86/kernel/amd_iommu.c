@@ -18,6 +18,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -463,6 +464,37 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 }
 
+static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
+				  u64 address, size_t size)
+{
+	u64 pages;
+	int s;
+
+	pages = iommu_num_pages(address, size, PAGE_SIZE);
+	s     = 0;
+
+	if (pages > 1) {
+		/*
+		 * If we have to flush more than one page, flush all
+		 * TLB entries for this domain
+		 */
+		address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
+		s = 1;
+	}
+
+	address &= PAGE_MASK;
+
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->data[0]  = devid;
+	cmd->data[0] |= (qdep & 0xff) << 24;
+	cmd->data[1]  = devid;
+	cmd->data[2]  = lower_32_bits(address);
+	cmd->data[3]  = upper_32_bits(address);
+	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
+	if (s)
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
+}
+
 /*
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command.
@@ -574,17 +606,47 @@ void iommu_flush_all_caches(struct amd_iommu *iommu)
 }
 
 /*
+ * Command send function for flushing on-device TLB
+ */
+static int device_flush_iotlb(struct device *dev, u64 address, size_t size)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct amd_iommu *iommu;
+	struct iommu_cmd cmd;
+	u16 devid;
+	int qdep;
+
+	qdep  = pci_ats_queue_depth(pdev);
+	devid = get_device_id(dev);
+	iommu = amd_iommu_rlookup_table[devid];
+
+	build_inv_iotlb_pages(&cmd, devid, qdep, address, size);
+
+	return iommu_queue_command(iommu, &cmd);
+}
+
+/*
  * Command send function for invalidating a device table entry
  */
 static int device_flush_dte(struct device *dev)
 {
 	struct amd_iommu *iommu;
+	struct pci_dev *pdev;
 	u16 devid;
+	int ret;
 
+	pdev  = to_pci_dev(dev);
 	devid = get_device_id(dev);
 	iommu = amd_iommu_rlookup_table[devid];
 
-	return iommu_flush_dte(iommu, devid);
+	ret = iommu_flush_dte(iommu, devid);
+	if (ret)
+		return ret;
+
+	if (pci_ats_enabled(pdev))
+		ret = device_flush_iotlb(dev, 0, ~0UL);
+
+	return ret;
 }
 
 /*
@@ -595,6 +657,7 @@ static int device_flush_dte(struct device *dev)
 static void __domain_flush_pages(struct protection_domain *domain,
 				 u64 address, size_t size, int pde)
 {
+	struct iommu_dev_data *dev_data;
 	struct iommu_cmd cmd;
 	int ret = 0, i;
 
@@ -609,6 +672,15 @@ static void __domain_flush_pages(struct protection_domain *domain,
 		 * We need a TLB flush
 		 */
 		ret |= iommu_queue_command(amd_iommus[i], &cmd);
+	}
+
+	list_for_each_entry(dev_data, &domain->dev_list, list) {
+		struct pci_dev *pdev = to_pci_dev(dev_data->dev);
+
+		if (!pci_ats_enabled(pdev))
+			continue;
+
+		ret |= device_flush_iotlb(dev_data->dev, address, size);
 	}
 
 	WARN_ON(ret);

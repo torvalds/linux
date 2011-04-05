@@ -113,7 +113,8 @@
 /* command specific defines */
 #define CMD_COMPL_WAIT          0x01
 #define CMD_INV_DEV_ENTRY       0x02
-#define CMD_INV_IOMMU_PAGES     0x03
+#define CMD_INV_IOMMU_PAGES	0x03
+#define CMD_INV_IOTLB_PAGES	0x04
 
 #define CMD_COMPL_WAIT_STORE_MASK	0x01
 #define CMD_COMPL_WAIT_INT_MASK		0x02
