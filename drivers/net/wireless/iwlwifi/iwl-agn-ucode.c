@@ -653,7 +653,5 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 	 * Selection of bootstrap image (vs. other images) is arbitrary. */
 	image = (__le32 *)priv->ucode_boot.v_addr;
 	len = priv->ucode_boot.len;
-	ret = iwl_verify_inst_full(priv, image, len);
-
-	return ret;
+	return iwl_verify_inst_full(priv, image, len);
 }
