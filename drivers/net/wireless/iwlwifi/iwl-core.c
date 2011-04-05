@@ -1430,7 +1430,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_teardown_interface(priv, vif, false);
 
-	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");

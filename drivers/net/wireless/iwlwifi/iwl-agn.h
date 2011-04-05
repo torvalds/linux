@@ -66,7 +66,6 @@
 #include "iwl-dev.h"
 
 /* configuration for the _agn devices */
-extern struct iwl_cfg iwl4965_agn_cfg;
 extern struct iwl_cfg iwl5300_agn_cfg;
 extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;
@@ -114,7 +113,6 @@ extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
-extern struct ieee80211_ops iwl4965_hw_ops;
 
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);

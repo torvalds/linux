@@ -474,7 +474,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	memset(&priv->stations[sta_id].keyinfo, 0,
 					sizeof(struct iwl_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
-					sizeof(struct iwl4965_keyinfo));
+					sizeof(struct iwl_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags =
 			STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
 	priv->stations[sta_id].sta.key.key_offset = WEP_INVALID_OFFSET;

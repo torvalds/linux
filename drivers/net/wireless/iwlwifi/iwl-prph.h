@@ -91,7 +91,6 @@
 #define APMG_PS_CTRL_VAL_RESET_REQ		(0x04000000)
 #define APMG_PS_CTRL_MSK_PWR_SRC		(0x03000000)
 #define APMG_PS_CTRL_VAL_PWR_SRC_VMAIN		(0x00000000)
-#define APMG_PS_CTRL_VAL_PWR_SRC_MAX		(0x01000000) /* 3945 only */
 #define APMG_PS_CTRL_VAL_PWR_SRC_VAUX		(0x02000000)
 #define APMG_SVR_VOLTAGE_CONFIG_BIT_MSK	(0x000001E0) /* bit 8:5 */
 #define APMG_SVR_DIGITAL_VOLTAGE_1_32		(0x00000060)
@@ -233,16 +232,6 @@
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
 #define BSM_SRAM_SIZE			(1024) /* bytes */
 
-
-/* 3945 Tx scheduler registers */
-#define ALM_SCD_BASE                        (PRPH_BASE + 0x2E00)
-#define ALM_SCD_MODE_REG                    (ALM_SCD_BASE + 0x000)
-#define ALM_SCD_ARASTAT_REG                 (ALM_SCD_BASE + 0x004)
-#define ALM_SCD_TXFACT_REG                  (ALM_SCD_BASE + 0x010)
-#define ALM_SCD_TXF4MF_REG                  (ALM_SCD_BASE + 0x014)
-#define ALM_SCD_TXF5MF_REG                  (ALM_SCD_BASE + 0x020)
-#define ALM_SCD_SBYP_MODE_1_REG             (ALM_SCD_BASE + 0x02C)
-#define ALM_SCD_SBYP_MODE_2_REG             (ALM_SCD_BASE + 0x030)
 
 /**
  * Tx Scheduler

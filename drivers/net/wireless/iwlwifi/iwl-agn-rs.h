@@ -41,20 +41,6 @@ struct iwl_rate_info {
 	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
 };
 
-struct iwl3945_rate_info {
-	u8 plcp;		/* uCode API:  IWL_RATE_6M_PLCP, etc. */
-	u8 ieee;		/* MAC header:  IWL_RATE_6M_IEEE, etc. */
-	u8 prev_ieee;		/* previous rate in IEEE speeds */
-	u8 next_ieee;		/* next rate in IEEE speeds */
-	u8 prev_rs;		/* previous rate used in rs algo */
-	u8 next_rs;		/* next rate used in rs algo */
-	u8 prev_rs_tgg;		/* previous rate used in TGG rs algo */
-	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
-	u8 table_rs_index;	/* index in rate scale table cmd */
-	u8 prev_table_rs;	/* prev in rate table cmd */
-};
-
-
 /*
  * These serve as indexes into
  * struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
@@ -75,7 +61,6 @@ enum {
 	IWL_RATE_60M_INDEX,
 	IWL_RATE_COUNT, /*FIXME:RS:change to IWL_RATE_INDEX_COUNT,*/
 	IWL_RATE_COUNT_LEGACY = IWL_RATE_COUNT - 1,	/* Excluding 60M */
-	IWL_RATE_COUNT_3945 = IWL_RATE_COUNT - 1,
 	IWL_RATE_INVM_INDEX = IWL_RATE_COUNT,
 	IWL_RATE_INVALID = IWL_RATE_COUNT,
 };
@@ -213,7 +198,6 @@ enum {
 	 IWL_CCK_BASIC_RATES_MASK)
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
-#define IWL_RATES_MASK_3945 ((1 << IWL_RATE_COUNT_3945) - 1)
 
 #define IWL_INVALID_VALUE    -1
 
@@ -453,19 +437,9 @@ static inline u8 first_antenna(u8 mask)
 }
 
 
-/**
- * iwl3945_rate_scale_init - Initialize the rate scale table based on assoc info
- *
- * The specific throughput table used is based on the type of network
- * the associated with, including A, B, G, and G w/ TGG protection
- */
-extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
-
 /* Initialize station's rate scaling information after adding station */
 extern void iwl_rs_rate_init(struct iwl_priv *priv,
 			     struct ieee80211_sta *sta, u8 sta_id);
-extern void iwl3945_rs_rate_init(struct iwl_priv *priv,
-				 struct ieee80211_sta *sta, u8 sta_id);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
@@ -478,7 +452,6 @@ extern void iwl3945_rs_rate_init(struct iwl_priv *priv,
  *
  */
 extern int iwlagn_rate_control_register(void);
-extern int iwl3945_rate_control_register(void);
 
 /**
  * iwl_rate_control_unregister - Unregister the rate control callbacks
@@ -487,6 +460,5 @@ extern int iwl3945_rate_control_register(void);
  * the driver is unloaded.
  */
 extern void iwlagn_rate_control_unregister(void);
-extern void iwl3945_rate_control_unregister(void);
 
 #endif /* __iwl_agn__rs__ */
