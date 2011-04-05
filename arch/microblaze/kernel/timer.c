@@ -79,7 +79,7 @@ static inline void microblaze_timer0_start_periodic(unsigned long load_val)
 	 * !PWMA - disable pwm
 	 * TINT - clear interrupt status
 	 * ENT- enable timer itself
-	 * EINT - enable interrupt
+	 * ENIT - enable interrupt
 	 * !LOAD - clear the bit to let go
 	 * ARHT - auto reload
 	 * !CAPT - no external trigger
