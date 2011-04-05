@@ -57,7 +57,8 @@ static noinline int join_transaction(struct btrfs_root *root)
 	if (!cur_trans) {
 		cur_trans = kmem_cache_alloc(btrfs_transaction_cachep,
 					     GFP_NOFS);
-		BUG_ON(!cur_trans);
+		if (!cur_trans)
+			return -ENOMEM;
 		root->fs_info->generation++;
 		cur_trans->num_writers = 1;
 		cur_trans->num_joined = 0;
@@ -195,7 +196,11 @@ again:
 		wait_current_trans(root);
 
 	ret = join_transaction(root);
-	BUG_ON(ret);
+	if (ret < 0) {
+		if (type != TRANS_JOIN_NOLOCK)
+			mutex_unlock(&root->fs_info->trans_mutex);
+		return ERR_PTR(ret);
+	}
 
 	cur_trans = root->fs_info->running_transaction;
 	cur_trans->use_count++;
@@ -1156,7 +1161,8 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans;
 
 	ac = kmalloc(sizeof(*ac), GFP_NOFS);
-	BUG_ON(!ac);
+	if (!ac)
+		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&ac->work, do_async_commit);
 	ac->root = root;
@@ -1388,6 +1394,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
+
+	trace_btrfs_transaction_commit(root);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
 

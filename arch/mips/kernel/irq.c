@@ -102,7 +102,7 @@ void __init init_IRQ(void)
 #endif
 
 	for (i = 0; i < NR_IRQS; i++)
-		set_irq_noprobe(i);
+		irq_set_noprobe(i);
 
 	arch_init_irq();
 

@@ -92,8 +92,8 @@ static int min_bytes_needed(unsigned long val)
 static int format_register_str(struct snd_soc_codec *codec,
 			       unsigned int reg, char *buf, size_t len)
 {
-	int wordsize = codec->driver->reg_word_size * 2;
-	int regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int regsize = codec->driver->reg_word_size * 2;
 	int ret;
 	char tmpbuf[len + 1];
 	char regbuf[regsize + 1];
@@ -132,8 +132,8 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf,
 	size_t total = 0;
 	loff_t p = 0;
 
-	wordsize = codec->driver->reg_word_size * 2;
-	regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	regsize = codec->driver->reg_word_size * 2;
 
 	len = wordsize + regsize + 2 + 1;
 
@@ -2147,6 +2147,42 @@ int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_codec_volatile_register);
 
 /**
+ * snd_soc_codec_readable_register: Report if a register is readable.
+ *
+ * @codec: CODEC to query.
+ * @reg: Register to query.
+ *
+ * Boolean function indicating if a CODEC register is readable.
+ */
+int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	if (codec->readable_register)
+		return codec->readable_register(codec, reg);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_readable_register);
+
+/**
+ * snd_soc_codec_writable_register: Report if a register is writable.
+ *
+ * @codec: CODEC to query.
+ * @reg: Register to query.
+ *
+ * Boolean function indicating if a CODEC register is writable.
+ */
+int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	if (codec->writable_register)
+		return codec->writable_register(codec, reg);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_writable_register);
+
+/**
  * snd_soc_new_ac97_codec - initailise AC97 device
  * @codec: audio codec
  * @ops: AC97 bus operations
@@ -2227,6 +2263,13 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 	return codec->write(codec, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
+
+unsigned int snd_soc_bulk_write_raw(struct snd_soc_codec *codec,
+				    unsigned int reg, const void *data, size_t len)
+{
+	return codec->bulk_write_raw(codec, reg, data, len);
+}
+EXPORT_SYMBOL_GPL(snd_soc_bulk_write_raw);
 
 /**
  * snd_soc_update_bits - update codec register bits
@@ -3666,6 +3709,7 @@ int snd_soc_register_codec(struct device *dev,
 	codec->read = codec_drv->read;
 	codec->volatile_register = codec_drv->volatile_register;
 	codec->readable_register = codec_drv->readable_register;
+	codec->writable_register = codec_drv->writable_register;
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
@@ -3700,6 +3744,8 @@ int snd_soc_register_codec(struct device *dev,
 			codec->volatile_register = snd_soc_default_volatile_register;
 		if (!codec->readable_register)
 			codec->readable_register = snd_soc_default_readable_register;
+		if (!codec->writable_register)
+			codec->writable_register = snd_soc_default_writable_register;
 	}
 
 	for (i = 0; i < num_dai; i++) {

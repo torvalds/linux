@@ -110,7 +110,7 @@ int i8259A_irq_pending(unsigned int irq)
 void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	set_irq_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
 	enable_irq(irq);
 }
 
@@ -336,8 +336,8 @@ void __init init_i8259_irqs(void)
 	init_8259A(0);
 
 	for (i = I8259A_IRQ_BASE; i < I8259A_IRQ_BASE + 16; i++) {
-		set_irq_chip_and_handler(i, &i8259A_chip, handle_level_irq);
-		set_irq_probe(i);
+		irq_set_chip_and_handler(i, &i8259A_chip, handle_level_irq);
+		irq_set_probe(i);
 	}
 
 	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);

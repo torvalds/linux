@@ -80,6 +80,6 @@ static struct irq_chip imask_irq_chip = {
 
 void make_imask_irq(unsigned int irq)
 {
-	set_irq_chip_and_handler_name(irq, &imask_irq_chip,
-				      handle_level_irq, "level");
+	irq_set_chip_and_handler_name(irq, &imask_irq_chip, handle_level_irq,
+				      "level");
 }

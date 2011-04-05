@@ -10,6 +10,9 @@
 #define _WM8994_H
 
 #include <sound/soc.h>
+#include <linux/firmware.h>
+
+#include "wm_hubs.h"
 
 /* Sources for AIF1/2 SYSCLK - use with set_dai_sysclk() */
 #define WM8994_SYSCLK_MCLK1 1
@@ -44,5 +47,99 @@ struct wm8994_access_mask {
 
 extern const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE];
 extern const u16 wm8994_reg_defaults[WM8994_CACHE_SIZE];
+
+int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event);
+
+void wm8958_dsp2_init(struct snd_soc_codec *codec);
+
+struct wm8994_micdet {
+	struct snd_soc_jack *jack;
+	int det;
+	int shrt;
+};
+
+/* codec private data */
+struct wm8994_fll_config {
+	int src;
+	int in;
+	int out;
+};
+
+#define WM8994_NUM_DRC 3
+#define WM8994_NUM_EQ  3
+
+struct wm8994_priv {
+	struct wm_hubs_data hubs;
+	enum snd_soc_control_type control_type;
+	void *control_data;
+	struct snd_soc_codec *codec;
+	int sysclk[2];
+	int sysclk_rate[2];
+	int mclk[2];
+	int aifclk[2];
+	struct wm8994_fll_config fll[2], fll_suspend[2];
+
+	int dac_rates[2];
+	int lrclk_shared[2];
+
+	int mbc_ena[3];
+	int hpf1_ena[3];
+	int hpf2_ena[3];
+	int vss_ena[3];
+	int enh_eq_ena[3];
+
+	/* Platform dependant DRC configuration */
+	const char **drc_texts;
+	int drc_cfg[WM8994_NUM_DRC];
+	struct soc_enum drc_enum;
+
+	/* Platform dependant ReTune mobile configuration */
+	int num_retune_mobile_texts;
+	const char **retune_mobile_texts;
+	int retune_mobile_cfg[WM8994_NUM_EQ];
+	struct soc_enum retune_mobile_enum;
+
+	/* Platform dependant MBC configuration */
+	int mbc_cfg;
+	const char **mbc_texts;
+	struct soc_enum mbc_enum;
+
+	/* Platform dependant VSS configuration */
+	int vss_cfg;
+	const char **vss_texts;
+	struct soc_enum vss_enum;
+
+	/* Platform dependant VSS HPF configuration */
+	int vss_hpf_cfg;
+	const char **vss_hpf_texts;
+	struct soc_enum vss_hpf_enum;
+
+	/* Platform dependant enhanced EQ configuration */
+	int enh_eq_cfg;
+	const char **enh_eq_texts;
+	struct soc_enum enh_eq_enum;
+
+	struct wm8994_micdet micdet[2];
+
+	wm8958_micdet_cb jack_cb;
+	void *jack_cb_data;
+	int micdet_irq;
+
+	int revision;
+	struct wm8994_pdata *pdata;
+
+	unsigned int aif1clk_enable:1;
+	unsigned int aif2clk_enable:1;
+
+	unsigned int aif1clk_disable:1;
+	unsigned int aif2clk_disable:1;
+
+	int dsp_active;
+	const struct firmware *cur_fw;
+	const struct firmware *mbc;
+	const struct firmware *mbc_vss;
+	const struct firmware *enh_eq;
+};
 
 #endif

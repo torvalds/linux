@@ -50,7 +50,7 @@ static DEFINE_SPINLOCK(irq_2_ir_lock);
 
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	struct irq_cfg *cfg = get_irq_chip_data(irq);
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 

@@ -230,11 +230,11 @@ void __init arch_init_irq(void)
 
 	mips_cpu_irq_init();
 	for (i = IRQ_INTERNAL_BASE; i < NR_IRQS; ++i)
-		set_irq_chip_and_handler(i, &bcm63xx_internal_irq_chip,
+		irq_set_chip_and_handler(i, &bcm63xx_internal_irq_chip,
 					 handle_level_irq);
 
 	for (i = IRQ_EXT_BASE; i < IRQ_EXT_BASE + 4; ++i)
-		set_irq_chip_and_handler(i, &bcm63xx_external_irq_chip,
+		irq_set_chip_and_handler(i, &bcm63xx_external_irq_chip,
 					 handle_edge_irq);
 
 	setup_irq(IRQ_MIPS_BASE + 2, &cpu_ip2_cascade_action);

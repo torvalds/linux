@@ -184,7 +184,7 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
 	.platform_name = "atmel-pcm-audio",
-	.codec_name = "wm8731-codec.0-001b",
+	.codec_name = "wm8731.0-001b",
 	.ops = &at91sam9g20ek_ops,
 };
 

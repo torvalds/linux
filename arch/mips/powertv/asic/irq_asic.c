@@ -112,5 +112,5 @@ void __init asic_irq_init(void)
 	 * Initialize interrupt handlers.
 	 */
 	for (i = 0; i < NR_IRQS; i++)
-		set_irq_chip_and_handler(i, &asic_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(i, &asic_irq_chip, handle_level_irq);
 }

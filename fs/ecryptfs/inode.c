@@ -143,26 +143,6 @@ out:
 }
 
 /**
- * grow_file
- * @ecryptfs_dentry: the eCryptfs dentry
- *
- * This is the code which will grow the file to its correct size.
- */
-static int grow_file(struct dentry *ecryptfs_dentry)
-{
-	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
-	char zero_virt[] = { 0x00 };
-	int rc = 0;
-
-	rc = ecryptfs_write(ecryptfs_inode, zero_virt, 0, 1);
-	i_size_write(ecryptfs_inode, 0);
-	rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
-	ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat.flags |=
-		ECRYPTFS_NEW_FILE;
-	return rc;
-}
-
-/**
  * ecryptfs_initialize_file
  *
  * Cause the file to be changed from a basic empty file to an ecryptfs
@@ -181,7 +161,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		goto out;
 	}
-	crypt_stat->flags |= ECRYPTFS_NEW_FILE;
 	ecryptfs_printk(KERN_DEBUG, "Initializing crypto context\n");
 	rc = ecryptfs_new_file_context(ecryptfs_dentry);
 	if (rc) {
@@ -202,9 +181,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 		printk(KERN_ERR "Error writing headers; rc = [%d]\n", rc);
 		goto out;
 	}
-	rc = grow_file(ecryptfs_dentry);
-	if (rc)
-		printk(KERN_ERR "Error growing file; rc = [%d]\n", rc);
 out:
 	return rc;
 }

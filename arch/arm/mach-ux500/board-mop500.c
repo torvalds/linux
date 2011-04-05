@@ -20,7 +20,10 @@
 #include <linux/amba/serial.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/regulator/ab8500.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/mfd/tps6105x.h>
+#include <linux/mfd/ab8500/gpio.h>
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -41,10 +44,35 @@
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
 
+static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
+	.gpio_base		= MOP500_AB8500_GPIO(0),
+	.irq_base		= MOP500_AB8500_VIR_GPIO_IRQ_BASE,
+	/* config_reg is the initial configuration of ab8500 pins.
+	 * The pins can be configured as GPIO or alt functions based
+	 * on value present in GpioSel1 to GpioSel6 and AlternatFunction
+	 * register. This is the array of 7 configuration settings.
+	 * One has to compile time decide these settings. Below is the
+	 * explaination of these setting
+	 * GpioSel1 = 0x00 => Pins GPIO1 to GPIO8 are not used as GPIO
+	 * GpioSel2 = 0x1E => Pins GPIO10 to GPIO13 are configured as GPIO
+	 * GpioSel3 = 0x80 => Pin GPIO24 is configured as GPIO
+	 * GpioSel4 = 0x01 => Pin GPIo25 is configured as GPIO
+	 * GpioSel5 = 0x7A => Pins GPIO34, GPIO36 to GPIO39 are conf as GPIO
+	 * GpioSel6 = 0x00 => Pins GPIO41 & GPIo42 are not configured as GPIO
+	 * AlternaFunction = 0x00 => If Pins GPIO10 to 13 are not configured
+	 * as GPIO then this register selectes the alternate fucntions
+	 */
+	.config_reg		= {0x00, 0x1E, 0x80, 0x01,
+					0x7A, 0x00, 0x00},
+};
+
 static struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator_reg_init = ab8500_regulator_reg_init,
+	.num_regulator_reg_init	= ARRAY_SIZE(ab8500_regulator_reg_init),
 	.regulator	= ab8500_regulators,
 	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
+	.gpio		= &ab8500_gpio_pdata,
 };
 
 static struct resource ab8500_resources[] = {
@@ -63,6 +91,15 @@ struct platform_device ab8500_device = {
 	},
 	.num_resources = 1,
 	.resource = ab8500_resources,
+};
+
+/*
+ * TPS61052
+ */
+
+static struct tps6105x_platform_data mop500_tps61052_data = {
+	.mode = TPS6105X_MODE_VOLTAGE,
+	.regulator_data = &tps61052_regulator,
 };
 
 /*
@@ -135,11 +172,19 @@ static struct lp5521_platform_data __initdata lp5521_sec_data = {
        .clock_mode     = LP5521_CLOCK_EXT,
 };
 
-static struct i2c_board_info mop500_i2c0_devices[] = {
+static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("tc3589x", 0x42),
 		.irq		= NOMADIK_GPIO_TO_IRQ(217),
 		.platform_data  = &mop500_tc35892_data,
+	},
+};
+
+/* I2C0 devices only available prior to HREFv60 */
+static struct i2c_board_info __initdata mop500_i2c0_old_devices[] = {
+	{
+		I2C_BOARD_INFO("tps61052", 0x33),
+		.platform_data  = &mop500_tps61052_data,
 	},
 };
 
@@ -405,6 +450,9 @@ static void __init mop500_init_machine(void)
 
 	i2c_register_board_info(0, mop500_i2c0_devices,
 				ARRAY_SIZE(mop500_i2c0_devices));
+	if (!machine_is_hrefv60())
+		i2c_register_board_info(0, mop500_i2c0_old_devices,
+					ARRAY_SIZE(mop500_i2c0_old_devices));
 	i2c_register_board_info(2, mop500_i2c2_devices,
 				ARRAY_SIZE(mop500_i2c2_devices));
 }

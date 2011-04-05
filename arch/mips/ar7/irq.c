@@ -119,11 +119,11 @@ static void __init ar7_irq_init(int base)
 	for (i = 0; i < 40; i++) {
 		writel(i, REG(CHNL_OFFSET(i)));
 		/* Primary IRQ's */
-		set_irq_chip_and_handler(base + i, &ar7_irq_type,
+		irq_set_chip_and_handler(base + i, &ar7_irq_type,
 					 handle_level_irq);
 		/* Secondary IRQ's */
 		if (i < 32)
-			set_irq_chip_and_handler(base + i + 40,
+			irq_set_chip_and_handler(base + i + 40,
 						 &ar7_sec_irq_type,
 						 handle_level_irq);
 	}

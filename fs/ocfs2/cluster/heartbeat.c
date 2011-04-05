@@ -1654,8 +1654,6 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 	struct o2hb_disk_slot *slot;
 	struct o2hb_disk_heartbeat_block *hb_block;
 
-	mlog_entry_void();
-
 	ret = o2hb_read_slots(reg, reg->hr_blocks);
 	if (ret) {
 		mlog_errno(ret);
@@ -1677,7 +1675,6 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 	}
 
 out:
-	mlog_exit(ret);
 	return ret;
 }
 

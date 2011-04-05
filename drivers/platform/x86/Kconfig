@@ -101,6 +101,19 @@ config DELL_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
 
+config DELL_WMI_AIO
+	tristate "WMI Hotkeys for Dell All-In-One series"
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	---help---
+	  Say Y here if you want to support WMI-based hotkeys on Dell
+	  All-In-One machines.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi.
+
+
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
 	depends on ACPI
@@ -438,23 +451,53 @@ config EEEPC_LAPTOP
 	  Bluetooth, backlight and allows powering on/off some other
 	  devices.
 
-	  If you have an Eee PC laptop, say Y or M here.
+	  If you have an Eee PC laptop, say Y or M here. If this driver
+	  doesn't work on your Eee PC, try eeepc-wmi instead.
 
-config EEEPC_WMI
-	tristate "Eee PC WMI Hotkey Driver (EXPERIMENTAL)"
+config ASUS_WMI
+	tristate "ASUS WMI Driver (EXPERIMENTAL)"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on HWMON
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
+	depends on HOTPLUG_PCI
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
 	---help---
-	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
+	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
+	  Asus Notebooks).
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called eeepc-wmi.
+	  be called asus-wmi.
+
+config ASUS_NB_WMI
+	tristate "Asus Notebook WMI Driver (EXPERIMENTAL)"
+	depends on ASUS_WMI
+	---help---
+	  This is a driver for newer Asus notebooks. It adds extra features
+	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
+
+	  For more informations, see
+	  <file:Documentation/ABI/testing/sysfs-platform-asus-wmi>
+
+	  If you have an ACPI-WMI compatible Asus Notebook, say Y or M
+	  here.
+
+config EEEPC_WMI
+	tristate "Eee PC WMI Driver (EXPERIMENTAL)"
+	depends on ASUS_WMI
+	---help---
+	  This is a driver for newer Eee PC laptops. It adds extra features
+	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
+
+	  For more informations, see
+	  <file:Documentation/ABI/testing/sysfs-platform-asus-wmi>
+
+	  If you have an ACPI-WMI compatible Eee PC laptop (>= 1000), say Y or M
+	  here.
 
 config ACPI_WMI
 	tristate "WMI"
@@ -616,6 +659,21 @@ config GPIO_INTEL_PMIC
 	  Say Y here to support GPIO via the SCU IPC interface
 	  on Intel MID platforms.
 
+config INTEL_MID_POWER_BUTTON
+	tristate "power button driver for Intel MID platforms"
+	depends on INTEL_SCU_IPC && INPUT
+	help
+	  This driver handles the power button on the Intel MID platforms.
+
+	  If unsure, say N.
+
+config INTEL_MFLD_THERMAL
+       tristate "Thermal driver for Intel Medfield platform"
+       depends on INTEL_SCU_IPC && THERMAL
+       help
+         Say Y here to enable thermal driver support for the  Intel Medfield
+         platform.
+
 config RAR_REGISTER
 	bool "Restricted Access Region Register Driver"
 	depends on PCI && X86_MRST
@@ -671,5 +729,27 @@ config XO1_RFKILL
 	---help---
 	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
 	  laptop.
+
+config XO15_EBOOK
+	tristate "OLPC XO-1.5 ebook switch"
+	depends on ACPI && INPUT
+	---help---
+	  Support for the ebook switch on the OLPC XO-1.5 laptop.
+
+	  This switch is triggered as the screen is rotated and folded down to
+	  convert the device into ebook form.
+
+config SAMSUNG_LAPTOP
+	tristate "Samsung Laptop driver"
+	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && X86
+	---help---
+	  This module implements a driver for a wide range of different
+	  Samsung laptops.  It offers control over the different
+	  function keys, wireless LED, LCD backlight level, and
+	  sometimes provides a "performance_control" sysfs file to allow
+	  the performance level of the laptop to be changed.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called samsung-laptop.
 
 endif # X86_PLATFORM_DEVICES

@@ -156,15 +156,15 @@ static void init_ipi(void)
 	u16 tmp16;
 
 	/* set up the reschedule IPI */
-	set_irq_chip_and_handler(RESCHEDULE_IPI,
-				 &mn10300_ipi_type, handle_percpu_irq);
+	irq_set_chip_and_handler(RESCHEDULE_IPI, &mn10300_ipi_type,
+				 handle_percpu_irq);
 	setup_irq(RESCHEDULE_IPI, &reschedule_ipi);
 	set_intr_level(RESCHEDULE_IPI, RESCHEDULE_GxICR_LV);
 	mn10300_ipi_enable(RESCHEDULE_IPI);
 
 	/* set up the call function IPI */
-	set_irq_chip_and_handler(CALL_FUNC_SINGLE_IPI,
-				 &mn10300_ipi_type, handle_percpu_irq);
+	irq_set_chip_and_handler(CALL_FUNC_SINGLE_IPI, &mn10300_ipi_type,
+				 handle_percpu_irq);
 	setup_irq(CALL_FUNC_SINGLE_IPI, &call_function_ipi);
 	set_intr_level(CALL_FUNC_SINGLE_IPI, CALL_FUNCTION_GxICR_LV);
 	mn10300_ipi_enable(CALL_FUNC_SINGLE_IPI);
@@ -172,8 +172,8 @@ static void init_ipi(void)
 	/* set up the local timer IPI */
 #if !defined(CONFIG_GENERIC_CLOCKEVENTS) || \
     defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
-	set_irq_chip_and_handler(LOCAL_TIMER_IPI,
-				 &mn10300_ipi_type, handle_percpu_irq);
+	irq_set_chip_and_handler(LOCAL_TIMER_IPI, &mn10300_ipi_type,
+				 handle_percpu_irq);
 	setup_irq(LOCAL_TIMER_IPI, &local_timer_ipi);
 	set_intr_level(LOCAL_TIMER_IPI, LOCAL_TIMER_GxICR_LV);
 	mn10300_ipi_enable(LOCAL_TIMER_IPI);

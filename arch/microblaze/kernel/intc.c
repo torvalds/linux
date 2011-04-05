@@ -50,7 +50,7 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	 * ack function since the handle_level_irq function
 	 * acks the irq before calling the interrupt handler
 	 */
-	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		out_be32(INTC_BASE + IAR, mask);
 }
 
@@ -157,11 +157,11 @@ void __init init_IRQ(void)
 
 	for (i = 0; i < nr_irq; ++i) {
 		if (intr_type & (0x00000001 << i)) {
-			set_irq_chip_and_handler_name(i, &intc_dev,
+			irq_set_chip_and_handler_name(i, &intc_dev,
 				handle_edge_irq, intc_dev.name);
 			irq_clear_status_flags(i, IRQ_LEVEL);
 		} else {
-			set_irq_chip_and_handler_name(i, &intc_dev,
+			irq_set_chip_and_handler_name(i, &intc_dev,
 				handle_level_irq, intc_dev.name);
 			irq_set_status_flags(i, IRQ_LEVEL);
 		}

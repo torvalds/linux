@@ -871,7 +871,7 @@ static int netxen_nic_set_flags(struct net_device *netdev, u32 data)
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	int hw_lro;
 
-	if (data & ~ETH_FLAG_LRO)
+	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
 		return -EINVAL;
 
 	if (!(adapter->capabilities & NX_FW_CAPABILITY_HW_LRO))

@@ -1112,7 +1112,7 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
        SND_SOC_DAPM_INPUT("INB2"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route max98088_audio_map[] = {
        /* Left headphone output mixer */
        {"Left HP Mixer", "Left DAC1 Switch", "DACL1"},
        {"Left HP Mixer", "Left DAC2 Switch", "DACL2"},
@@ -1225,22 +1225,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
        {"MIC1 Input", NULL, "MIC1"},
        {"MIC2 Input", NULL, "MIC2"},
 };
-
-static int max98088_add_widgets(struct snd_soc_codec *codec)
-{
-       struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-       snd_soc_dapm_new_controls(dapm, max98088_dapm_widgets,
-                                 ARRAY_SIZE(max98088_dapm_widgets));
-
-       snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-       snd_soc_add_controls(codec, max98088_snd_controls,
-                            ARRAY_SIZE(max98088_snd_controls));
-
-       snd_soc_dapm_new_widgets(dapm);
-       return 0;
-}
 
 /* codec mclk clock divider coefficients */
 static const struct {
@@ -2010,7 +1994,8 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        max98088_handle_pdata(codec);
 
-       max98088_add_widgets(codec);
+       snd_soc_add_controls(codec, max98088_snd_controls,
+                            ARRAY_SIZE(max98088_snd_controls));
 
 err_access:
        return ret;
@@ -2036,6 +2021,10 @@ static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
        .reg_word_size = sizeof(u8),
        .reg_cache_default = max98088_reg,
        .volatile_register = max98088_volatile_register,
+	.dapm_widgets = max98088_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(max98088_dapm_widgets),
+	.dapm_routes = max98088_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(max98088_audio_map),
 };
 
 static int max98088_i2c_probe(struct i2c_client *i2c,
