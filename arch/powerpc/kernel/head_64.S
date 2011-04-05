@@ -147,6 +147,8 @@ __secondary_hold:
 	mtctr	r4
 	mr	r3,r24
 	li	r4,0
+	/* Make sure that patched code is visible */
+	isync
 	bctr
 #else
 	BUG_OPCODE
