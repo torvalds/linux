@@ -2199,21 +2199,6 @@ struct migration_arg {
 static int migration_cpu_stop(void *data);
 
 /*
- * The task's runqueue lock must be held.
- * Returns true if you have to wait for migration thread.
- */
-static bool need_migrate_task(struct task_struct *p)
-{
-	/*
-	 * If the task is not on a runqueue (and not running), then
-	 * the next wake-up will properly place the task.
-	 */
-	bool running = p->on_rq || p->on_cpu;
-	smp_rmb(); /* finish_lock_switch() */
-	return running;
-}
-
-/*
  * wait_task_inactive - wait for a thread to unschedule.
  *
  * If @match_state is nonzero, it's the @p->state value just checked and
@@ -5985,7 +5970,7 @@ int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask)
 		goto out;
 
 	dest_cpu = cpumask_any_and(cpu_active_mask, new_mask);
-	if (need_migrate_task(p)) {
+	if (p->on_rq) {
 		struct migration_arg arg = { p, dest_cpu };
 		/* Need help from migration thread: drop lock and wait. */
 		task_rq_unlock(rq, p, &flags);
