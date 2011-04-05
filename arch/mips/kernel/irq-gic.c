@@ -229,7 +229,7 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 	vpe_local_setup(numvpes);
 
 	for (i = _irqbase; i < (_irqbase + numintrs); i++)
-		set_irq_chip(i, &gic_irq_controller);
+		irq_set_chip(i, &gic_irq_controller);
 }
 
 void __init gic_init(unsigned long gic_base_addr,

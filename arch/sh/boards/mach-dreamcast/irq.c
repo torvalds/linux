@@ -161,7 +161,6 @@ void systemasic_irq_init(void)
 			return;
 		}
 
-		set_irq_chip_and_handler(i, &systemasic_int,
-					 handle_level_irq);
+		irq_set_chip_and_handler(i, &systemasic_int, handle_level_irq);
 	}
 }

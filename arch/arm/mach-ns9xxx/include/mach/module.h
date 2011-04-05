@@ -18,7 +18,6 @@
 		)
 
 #define module_is_cc9c()	(0			\
-		|| machine_is_cc9c()			\
 		)
 
 #define module_is_cc9p9210()	(0			\
@@ -32,21 +31,17 @@
 		)
 
 #define module_is_cc9p9360()	(0			\
-		|| machine_is_a9m9360()			\
 		|| machine_is_cc9p9360dev()		\
 		|| machine_is_cc9p9360js()		\
-		|| machine_is_cc9p9360val()		\
 		)
 
 #define module_is_cc9p9750()	(0			\
 		|| machine_is_a9m9750()			\
-		|| machine_is_cc9p9750dev()		\
 		|| machine_is_cc9p9750js()		\
 		|| machine_is_cc9p9750val()		\
 		)
 
 #define module_is_ccw9c()	(0			\
-		|| machine_is_ccw9c()			\
 		)
 
 #define module_is_inc20otter()	(0			\

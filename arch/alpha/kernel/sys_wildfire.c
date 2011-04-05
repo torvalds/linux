@@ -183,17 +183,17 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 	for (i = 0; i < 16; ++i) {
 		if (i == 2)
 			continue;
-		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
-			handle_level_irq);
+		irq_set_chip_and_handler(i + irq_bias, &wildfire_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 
-	set_irq_chip_and_handler(36+irq_bias, &wildfire_irq_type,
-		handle_level_irq);
+	irq_set_chip_and_handler(36 + irq_bias, &wildfire_irq_type,
+				 handle_level_irq);
 	irq_set_status_flags(36 + irq_bias, IRQ_LEVEL);
 	for (i = 40; i < 64; ++i) {
-		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
-			handle_level_irq);
+		irq_set_chip_and_handler(i + irq_bias, &wildfire_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 

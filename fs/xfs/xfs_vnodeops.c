@@ -2831,7 +2831,8 @@ xfs_change_file_space(
 		ip->i_d.di_flags &= ~XFS_DIFLAG_PREALLOC;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_trans_set_sync(tp);
+	if (attr_flags & XFS_ATTR_SYNC)
+		xfs_trans_set_sync(tp);
 
 	error = xfs_trans_commit(tp, 0);
 

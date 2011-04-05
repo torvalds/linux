@@ -281,16 +281,16 @@ static void __init pcm990_init_irq(void)
 
 	/* setup extra PCM990 irqs */
 	for (irq = PCM027_IRQ(0); irq <= PCM027_IRQ(3); irq++) {
-		set_irq_chip(irq, &pcm990_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &pcm990_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	PCM990_INTMSKENA = 0x00;	/* disable all Interrupts */
 	PCM990_INTSETCLR = 0xFF;
 
-	set_irq_chained_handler(PCM990_CTRL_INT_IRQ, pcm990_irq_handler);
-	set_irq_type(PCM990_CTRL_INT_IRQ, PCM990_CTRL_INT_IRQ_EDGE);
+	irq_set_chained_handler(PCM990_CTRL_INT_IRQ, pcm990_irq_handler);
+	irq_set_irq_type(PCM990_CTRL_INT_IRQ, PCM990_CTRL_INT_IRQ_EDGE);
 }
 
 static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,

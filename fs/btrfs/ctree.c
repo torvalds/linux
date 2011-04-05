@@ -147,10 +147,11 @@ noinline void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
-	spin_lock(&root->node_lock);
-	eb = root->node;
+
+	rcu_read_lock();
+	eb = rcu_dereference(root->node);
 	extent_buffer_get(eb);
-	spin_unlock(&root->node_lock);
+	rcu_read_unlock();
 	return eb;
 }
 
@@ -165,14 +166,8 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
 	while (1) {
 		eb = btrfs_root_node(root);
 		btrfs_tree_lock(eb);
-
-		spin_lock(&root->node_lock);
-		if (eb == root->node) {
-			spin_unlock(&root->node_lock);
+		if (eb == root->node)
 			break;
-		}
-		spin_unlock(&root->node_lock);
-
 		btrfs_tree_unlock(eb);
 		free_extent_buffer(eb);
 	}
@@ -458,10 +453,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		else
 			parent_start = 0;
 
-		spin_lock(&root->node_lock);
-		root->node = cow;
 		extent_buffer_get(cow);
-		spin_unlock(&root->node_lock);
+		rcu_assign_pointer(root->node, cow);
 
 		btrfs_free_tree_block(trans, root, buf, parent_start,
 				      last_ref);
@@ -542,6 +535,9 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
+
+	trace_btrfs_cow_block(root, buf, *cow_ret);
+
 	return ret;
 }
 
@@ -686,6 +682,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			if (!cur) {
 				cur = read_tree_block(root, blocknr,
 							 blocksize, gen);
+				if (!cur)
+					return -EIO;
 			} else if (!uptodate) {
 				btrfs_read_buffer(cur, gen);
 			}
@@ -732,122 +730,6 @@ static inline unsigned int leaf_data_end(struct btrfs_root *root,
 	return btrfs_item_offset_nr(leaf, nr - 1);
 }
 
-/*
- * extra debugging checks to make sure all the items in a key are
- * well formed and in the proper order
- */
-static int check_node(struct btrfs_root *root, struct btrfs_path *path,
-		      int level)
-{
-	struct extent_buffer *parent = NULL;
-	struct extent_buffer *node = path->nodes[level];
-	struct btrfs_disk_key parent_key;
-	struct btrfs_disk_key node_key;
-	int parent_slot;
-	int slot;
-	struct btrfs_key cpukey;
-	u32 nritems = btrfs_header_nritems(node);
-
-	if (path->nodes[level + 1])
-		parent = path->nodes[level + 1];
-
-	slot = path->slots[level];
-	BUG_ON(nritems == 0);
-	if (parent) {
-		parent_slot = path->slots[level + 1];
-		btrfs_node_key(parent, &parent_key, parent_slot);
-		btrfs_node_key(node, &node_key, 0);
-		BUG_ON(memcmp(&parent_key, &node_key,
-			      sizeof(struct btrfs_disk_key)));
-		BUG_ON(btrfs_node_blockptr(parent, parent_slot) !=
-		       btrfs_header_bytenr(node));
-	}
-	BUG_ON(nritems > BTRFS_NODEPTRS_PER_BLOCK(root));
-	if (slot != 0) {
-		btrfs_node_key_to_cpu(node, &cpukey, slot - 1);
-		btrfs_node_key(node, &node_key, slot);
-		BUG_ON(comp_keys(&node_key, &cpukey) <= 0);
-	}
-	if (slot < nritems - 1) {
-		btrfs_node_key_to_cpu(node, &cpukey, slot + 1);
-		btrfs_node_key(node, &node_key, slot);
-		BUG_ON(comp_keys(&node_key, &cpukey) >= 0);
-	}
-	return 0;
-}
-
-/*
- * extra checking to make sure all the items in a leaf are
- * well formed and in the proper order
- */
-static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
-		      int level)
-{
-	struct extent_buffer *leaf = path->nodes[level];
-	struct extent_buffer *parent = NULL;
-	int parent_slot;
-	struct btrfs_key cpukey;
-	struct btrfs_disk_key parent_key;
-	struct btrfs_disk_key leaf_key;
-	int slot = path->slots[0];
-
-	u32 nritems = btrfs_header_nritems(leaf);
-
-	if (path->nodes[level + 1])
-		parent = path->nodes[level + 1];
-
-	if (nritems == 0)
-		return 0;
-
-	if (parent) {
-		parent_slot = path->slots[level + 1];
-		btrfs_node_key(parent, &parent_key, parent_slot);
-		btrfs_item_key(leaf, &leaf_key, 0);
-
-		BUG_ON(memcmp(&parent_key, &leaf_key,
-		       sizeof(struct btrfs_disk_key)));
-		BUG_ON(btrfs_node_blockptr(parent, parent_slot) !=
-		       btrfs_header_bytenr(leaf));
-	}
-	if (slot != 0 && slot < nritems - 1) {
-		btrfs_item_key(leaf, &leaf_key, slot);
-		btrfs_item_key_to_cpu(leaf, &cpukey, slot - 1);
-		if (comp_keys(&leaf_key, &cpukey) <= 0) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad key\n", slot);
-			BUG_ON(1);
-		}
-		if (btrfs_item_offset_nr(leaf, slot - 1) !=
-		       btrfs_item_end_nr(leaf, slot)) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad\n", slot);
-			BUG_ON(1);
-		}
-	}
-	if (slot < nritems - 1) {
-		btrfs_item_key(leaf, &leaf_key, slot);
-		btrfs_item_key_to_cpu(leaf, &cpukey, slot + 1);
-		BUG_ON(comp_keys(&leaf_key, &cpukey) >= 0);
-		if (btrfs_item_offset_nr(leaf, slot) !=
-			btrfs_item_end_nr(leaf, slot + 1)) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad\n", slot);
-			BUG_ON(1);
-		}
-	}
-	BUG_ON(btrfs_item_offset_nr(leaf, 0) +
-	       btrfs_item_size_nr(leaf, 0) != BTRFS_LEAF_DATA_SIZE(root));
-	return 0;
-}
-
-static noinline int check_block(struct btrfs_root *root,
-				struct btrfs_path *path, int level)
-{
-	return 0;
-	if (level == 0)
-		return check_leaf(root, path, level);
-	return check_node(root, path, level);
-}
 
 /*
  * search for key in the extent_buffer.  The items start at offset p,
@@ -1046,9 +928,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
-		spin_lock(&root->node_lock);
-		root->node = child;
-		spin_unlock(&root->node_lock);
+		rcu_assign_pointer(root->node, child);
 
 		add_root_to_dirty_list(root);
 		btrfs_tree_unlock(child);
@@ -1188,7 +1068,6 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		}
 	}
 	/* double check we haven't messed things up */
-	check_block(root, path, level);
 	if (orig_ptr !=
 	    btrfs_node_blockptr(path->nodes[level], path->slots[level]))
 		BUG();
@@ -1798,12 +1677,6 @@ cow_done:
 		if (!cow)
 			btrfs_unlock_up_safe(p, level + 1);
 
-		ret = check_block(root, p, level);
-		if (ret) {
-			ret = -1;
-			goto done;
-		}
-
 		ret = bin_search(b, key, level, &slot);
 
 		if (level != 0) {
@@ -2130,10 +2003,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(c);
 
-	spin_lock(&root->node_lock);
 	old = root->node;
-	root->node = c;
-	spin_unlock(&root->node_lock);
+	rcu_assign_pointer(root->node, c);
 
 	/* the super has an extra ref to root->node */
 	free_extent_buffer(old);
@@ -3840,7 +3711,8 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	unsigned long ptr;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_insert_empty_item(trans, root, path, cpu_key, data_size);
 	if (!ret) {
 		leaf = path->nodes[0];
@@ -4217,6 +4089,7 @@ find_next_key:
 		}
 		btrfs_set_path_blocking(path);
 		cur = read_node_slot(root, cur, slot);
+		BUG_ON(!cur);
 
 		btrfs_tree_lock(cur);
 

@@ -63,7 +63,7 @@ void intc_set_prio_level(unsigned int irq, unsigned int level)
 
 static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 {
-	generic_handle_irq((unsigned int)get_irq_data(irq));
+	generic_handle_irq((unsigned int)irq_get_handler_data(irq));
 }
 
 static void __init intc_register_irq(struct intc_desc *desc,
@@ -116,9 +116,9 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	irq_data = irq_get_irq_data(irq);
 
 	disable_irq_nosync(irq);
-	set_irq_chip_and_handler_name(irq, &d->chip,
-				      handle_level_irq, "level");
-	set_irq_chip_data(irq, (void *)data[primary]);
+	irq_set_chip_and_handler_name(irq, &d->chip, handle_level_irq,
+				      "level");
+	irq_set_chip_data(irq, (void *)data[primary]);
 
 	/*
 	 * set priority level
@@ -340,9 +340,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 			vect2->enum_id = 0;
 
 			/* redirect this interrupts to the first one */
-			set_irq_chip(irq2, &dummy_irq_chip);
-			set_irq_chained_handler(irq2, intc_redirect_irq);
-			set_irq_data(irq2, (void *)irq);
+			irq_set_chip(irq2, &dummy_irq_chip);
+			irq_set_chained_handler(irq2, intc_redirect_irq);
+			irq_set_handler_data(irq2, (void *)irq);
 		}
 	}
 
@@ -387,19 +387,16 @@ static int intc_suspend(void)
 		/* enable wakeup irqs belonging to this intc controller */
 		for_each_active_irq(irq) {
 			struct irq_data *data;
-			struct irq_desc *desc;
 			struct irq_chip *chip;
 
 			data = irq_get_irq_data(irq);
 			chip = irq_data_get_irq_chip(data);
 			if (chip != &d->chip)
 				continue;
-			desc = irq_to_desc(irq);
-			if ((desc->status & IRQ_WAKEUP))
+			if (irqd_is_wakeup_set(data))
 				chip->irq_enable(data);
 		}
 	}
-
 	return 0;
 }
 
@@ -412,7 +409,6 @@ static void intc_resume(void)
 
 		for_each_active_irq(irq) {
 			struct irq_data *data;
-			struct irq_desc *desc;
 			struct irq_chip *chip;
 
 			data = irq_get_irq_data(irq);
@@ -423,8 +419,7 @@ static void intc_resume(void)
 			 */
 			if (chip != &d->chip)
 				continue;
-			desc = irq_to_desc(irq);
-			if (desc->status & IRQ_DISABLED)
+			if (irqd_irq_disabled(data))
 				chip->irq_disable(data);
 			else
 				chip->irq_enable(data);

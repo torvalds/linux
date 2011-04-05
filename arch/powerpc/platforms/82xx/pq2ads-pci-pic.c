@@ -81,7 +81,7 @@ static struct irq_chip pq2ads_pci_ic = {
 
 static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	struct pq2ads_pci_pic *priv = get_irq_desc_data(desc);
+	struct pq2ads_pci_pic *priv = irq_desc_get_handler_data(desc);
 	u32 stat, mask, pend;
 	int bit;
 
@@ -106,17 +106,17 @@ static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_data(virq, h->host_data);
-	set_irq_chip_and_handler(virq, &pq2ads_pci_ic, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_chip_and_handler(virq, &pq2ads_pci_ic, handle_level_irq);
 	return 0;
 }
 
 static void pci_host_unmap(struct irq_host *h, unsigned int virq)
 {
 	/* remove chip and handler */
-	set_irq_chip_data(virq, NULL);
-	set_irq_chip(virq, NULL);
+	irq_set_chip_data(virq, NULL);
+	irq_set_chip(virq, NULL);
 }
 
 static struct irq_host_ops pci_pic_host_ops = {
@@ -175,8 +175,8 @@ int __init pq2ads_pci_init_irq(void)
 
 	priv->host = host;
 	host->host_data = priv;
-	set_irq_data(irq, priv);
-	set_irq_chained_handler(irq, pq2ads_pci_irq_demux);
+	irq_set_handler_data(irq, priv);
+	irq_set_chained_handler(irq, pq2ads_pci_irq_demux);
 
 	of_node_put(np);
 	return 0;

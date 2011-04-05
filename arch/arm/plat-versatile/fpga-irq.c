@@ -30,7 +30,7 @@ static void fpga_irq_unmask(struct irq_data *d)
 
 static void fpga_irq_handle(unsigned int irq, struct irq_desc *desc)
 {
-	struct fpga_irq_data *f = get_irq_desc_data(desc);
+	struct fpga_irq_data *f = irq_desc_get_handler_data(desc);
 	u32 status = readl(f->base + IRQ_STATUS);
 
 	if (status == 0) {
@@ -55,17 +55,17 @@ void __init fpga_irq_init(int parent_irq, u32 valid, struct fpga_irq_data *f)
 	f->chip.irq_unmask = fpga_irq_unmask;
 
 	if (parent_irq != -1) {
-		set_irq_data(parent_irq, f);
-		set_irq_chained_handler(parent_irq, fpga_irq_handle);
+		irq_set_handler_data(parent_irq, f);
+		irq_set_chained_handler(parent_irq, fpga_irq_handle);
 	}
 
 	for (i = 0; i < 32; i++) {
 		if (valid & (1 << i)) {
 			unsigned int irq = f->irq_start + i;
 
-			set_irq_chip_data(irq, f);
-			set_irq_chip(irq, &f->chip);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_chip_data(irq, f);
+			irq_set_chip_and_handler(irq, &f->chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}

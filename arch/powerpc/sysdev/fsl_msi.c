@@ -64,10 +64,10 @@ static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 	struct fsl_msi *msi_data = h->host_data;
 	struct irq_chip *chip = &fsl_msi_chip;
 
-	irq_to_desc(virq)->status |= IRQ_TYPE_EDGE_FALLING;
+	irq_set_status_flags(virq, IRQ_TYPE_EDGE_FALLING);
 
-	set_irq_chip_data(virq, msi_data);
-	set_irq_chip_and_handler(virq, chip, handle_edge_irq);
+	irq_set_chip_data(virq, msi_data);
+	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 
 	return 0;
 }
@@ -110,8 +110,8 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
-		msi_data = get_irq_data(entry->irq);
-		set_irq_msi(entry->irq, NULL);
+		msi_data = irq_get_handler_data(entry->irq);
+		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_data->bitmap,
 				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
@@ -168,8 +168,8 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			rc = -ENOSPC;
 			goto out_free;
 		}
-		set_irq_data(virq, msi_data);
-		set_irq_msi(virq, entry);
+		irq_set_handler_data(virq, msi_data);
+		irq_set_msi_desc(virq, entry);
 
 		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
 		write_msi_msg(virq, &msg);
@@ -183,7 +183,8 @@ out_free:
 
 static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_data *idata = irq_desc_get_irq_data(desc);
 	unsigned int cascade_irq;
 	struct fsl_msi *msi_data;
 	int msir_index = -1;
@@ -192,20 +193,20 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 have_shift = 0;
 	struct fsl_msi_cascade_data *cascade_data;
 
-	cascade_data = (struct fsl_msi_cascade_data *)get_irq_data(irq);
+	cascade_data = (struct fsl_msi_cascade_data *)irq_get_handler_data(irq);
 	msi_data = cascade_data->msi_data;
 
 	raw_spin_lock(&desc->lock);
 	if ((msi_data->feature &  FSL_PIC_IP_MASK) == FSL_PIC_IP_IPIC) {
 		if (chip->irq_mask_ack)
-			chip->irq_mask_ack(&desc->irq_data);
+			chip->irq_mask_ack(idata);
 		else {
-			chip->irq_mask(&desc->irq_data);
-			chip->irq_ack(&desc->irq_data);
+			chip->irq_mask(idata);
+			chip->irq_ack(idata);
 		}
 	}
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
+	if (unlikely(irqd_irq_inprogress(idata)))
 		goto unlock;
 
 	msir_index = cascade_data->index;
@@ -213,7 +214,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	if (msir_index >= NR_MSI_REG)
 		cascade_irq = NO_IRQ;
 
-	desc->status |= IRQ_INPROGRESS;
+	irqd_set_chained_irq_inprogress(idata);
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs,
@@ -235,15 +236,15 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		have_shift += intr_index + 1;
 		msir_value = msir_value >> (intr_index + 1);
 	}
-	desc->status &= ~IRQ_INPROGRESS;
+	irqd_clr_chained_irq_inprogress(idata);
 
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
-		chip->irq_eoi(&desc->irq_data);
+		chip->irq_eoi(idata);
 		break;
 	case FSL_PIC_IP_IPIC:
-		if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
-			chip->irq_unmask(&desc->irq_data);
+		if (!irqd_irq_disabled(idata) && chip->irq_unmask)
+			chip->irq_unmask(idata);
 		break;
 	}
 unlock:
@@ -261,7 +262,7 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	for (i = 0; i < NR_MSI_REG; i++) {
 		virq = msi->msi_virqs[i];
 		if (virq != NO_IRQ) {
-			cascade_data = get_irq_data(virq);
+			cascade_data = irq_get_handler_data(virq);
 			kfree(cascade_data);
 			irq_dispose_mapping(virq);
 		}
@@ -297,8 +298,8 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 	msi->msi_virqs[irq_index] = virt_msir;
 	cascade_data->index = offset + irq_index;
 	cascade_data->msi_data = msi;
-	set_irq_data(virt_msir, cascade_data);
-	set_irq_chained_handler(virt_msir, fsl_msi_cascade);
+	irq_set_handler_data(virt_msir, cascade_data);
+	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
 
 	return 0;
 }

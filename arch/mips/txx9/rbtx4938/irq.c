@@ -132,10 +132,10 @@ static void __init toshiba_rbtx4938_irq_ioc_init(void)
 
 	for (i = RBTX4938_IRQ_IOC;
 	     i < RBTX4938_IRQ_IOC + RBTX4938_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &toshiba_rbtx4938_irq_ioc_type,
+		irq_set_chip_and_handler(i, &toshiba_rbtx4938_irq_ioc_type,
 					 handle_level_irq);
 
-	set_irq_chained_handler(RBTX4938_IRQ_IOCINT, handle_simple_irq);
+	irq_set_chained_handler(RBTX4938_IRQ_IOCINT, handle_simple_irq);
 }
 
 void __init rbtx4938_irq_setup(void)
@@ -153,5 +153,5 @@ void __init rbtx4938_irq_setup(void)
 	tx4938_irq_init();
 	toshiba_rbtx4938_irq_ioc_init();
 	/* Onboard 10M Ether: High Active */
-	set_irq_type(RBTX4938_IRQ_ETHER, IRQF_TRIGGER_HIGH);
+	irq_set_irq_type(RBTX4938_IRQ_ETHER, IRQF_TRIGGER_HIGH);
 }

@@ -306,7 +306,7 @@ static void jz_gpio_irq_demux_handler(unsigned int irq, struct irq_desc *desc)
 	uint32_t flag;
 	unsigned int gpio_irq;
 	unsigned int gpio_bank;
-	struct jz_gpio_chip *chip = get_irq_desc_data(desc);
+	struct jz_gpio_chip *chip = irq_desc_get_handler_data(desc);
 
 	gpio_bank = JZ4740_IRQ_GPIO0 - irq;
 
@@ -416,7 +416,7 @@ static int jz_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
 		chip->wakeup &= ~IRQ_TO_BIT(data->irq);
 	spin_unlock(&chip->lock);
 
-	set_irq_wake(chip->irq, on);
+	irq_set_irq_wake(chip->irq, on);
 	return 0;
 }
 
@@ -510,14 +510,14 @@ static int jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	gpiochip_add(&chip->gpio_chip);
 
 	chip->irq = JZ4740_IRQ_INTC_GPIO(id);
-	set_irq_data(chip->irq, chip);
-	set_irq_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
+	irq_set_handler_data(chip->irq, chip);
+	irq_set_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
 
 	for (irq = chip->irq_base; irq < chip->irq_base + chip->gpio_chip.ngpio; ++irq) {
 		irq_set_lockdep_class(irq, &gpio_lock_class);
-		set_irq_chip_data(irq, chip);
-		set_irq_chip_and_handler(irq, &jz_gpio_irq_chip,
-			handle_level_irq);
+		irq_set_chip_data(irq, chip);
+		irq_set_chip_and_handler(irq, &jz_gpio_irq_chip,
+					 handle_level_irq);
 	}
 
 	return 0;

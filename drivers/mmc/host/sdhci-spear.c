@@ -50,7 +50,7 @@ static irqreturn_t sdhci_gpio_irq(int irq, void *dev_id)
 	/* val == 1 -> card removed, val == 0 -> card inserted */
 	/* if card removed - set irq for low level, else vice versa */
 	gpio_irq_type = val ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH;
-	set_irq_type(irq, gpio_irq_type);
+	irq_set_irq_type(irq, gpio_irq_type);
 
 	if (sdhci->data->card_power_gpio >= 0) {
 		if (!sdhci->data->power_always_enb) {

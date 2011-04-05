@@ -44,7 +44,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		if (ap) {
 			seq_printf(p, "%3d: ", irq);
 			seq_printf(p, "%10u ", kstat_irqs(irq));
-			seq_printf(p, "%14s  ", get_irq_desc_chip(desc)->name);
+			seq_printf(p, "%14s  ", irq_desc_get_chip(desc)->name);
 
 			seq_printf(p, "%s", ap->name);
 			for (ap = ap->next; ap; ap = ap->next)

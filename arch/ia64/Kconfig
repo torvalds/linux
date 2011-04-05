@@ -26,6 +26,7 @@ config IA64
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select IRQ_PER_CPU
+	select GENERIC_IRQ_SHOW
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
