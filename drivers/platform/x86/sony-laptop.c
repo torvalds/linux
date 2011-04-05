@@ -771,11 +771,6 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 	if (!handles)
 		return -ENOMEM;
 
-	sysfs_attr_init(&handles->devattr.attr);
-	handles->devattr.attr.name = "handles";
-	handles->devattr.attr.mode = S_IRUGO;
-	handles->devattr.show = sony_nc_handles_show;
-
 	for (i = 0; i < ARRAY_SIZE(handles->cap); i++) {
 		if (!acpi_callsetfunc(sony_nc_acpi_handle,
 					"SN00", i + 0x20, &result)) {
@@ -785,11 +780,18 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 		}
 	}
 
-	/* allow reading capabilities via sysfs */
-	if (device_create_file(&pd->dev, &handles->devattr)) {
-		kfree(handles);
-		handles = NULL;
-		return -1;
+	if (debug) {
+		sysfs_attr_init(&handles->devattr.attr);
+		handles->devattr.attr.name = "handles";
+		handles->devattr.attr.mode = S_IRUGO;
+		handles->devattr.show = sony_nc_handles_show;
+
+		/* allow reading capabilities via sysfs */
+		if (device_create_file(&pd->dev, &handles->devattr)) {
+			kfree(handles);
+			handles = NULL;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -798,7 +800,8 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 static int sony_nc_handles_cleanup(struct platform_device *pd)
 {
 	if (handles) {
-		device_remove_file(&pd->dev, &handles->devattr);
+		if (debug)
+			device_remove_file(&pd->dev, &handles->devattr);
 		kfree(handles);
 		handles = NULL;
 	}
