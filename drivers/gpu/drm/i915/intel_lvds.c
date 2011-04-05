@@ -829,25 +829,6 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
-static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u8 buf = 0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0xA0,
-			.flags = 0,
-			.len = 1,
-			.buf = &buf,
-		},
-	};
-	struct i2c_adapter *i2c = &dev_priv->gmbus[pin].adapter;
-	/* XXX this only appears to work when using GMBUS */
-	if (intel_gmbus_is_forced_bit(i2c))
-		return true;
-	return i2c_transfer(i2c, msgs, 1) == 1;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -886,11 +867,6 @@ bool intel_lvds_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return false;
 		}
-	}
-
-	if (!intel_lvds_ddc_probe(dev, pin)) {
-		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
-		return false;
 	}
 
 	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);
