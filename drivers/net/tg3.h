@@ -2917,6 +2917,7 @@ struct tg3 {
 #define TG3_FLG3_L1PLLPD_EN		0x00800000
 #define TG3_FLG3_57765_PLUS		0x01000000
 #define TG3_FLG3_APE_HAS_NCSI		0x02000000
+#define TG3_FLG3_5717_PLUS		0x04000000
 
 	struct timer_list		timer;
 	u16				timer_counter;
