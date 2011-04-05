@@ -142,7 +142,7 @@ struct hidp_session {
 	uint ctrl_mtu;
 	uint intr_mtu;
 
-	atomic_t terminate;
+	struct task_struct *task;
 
 	unsigned char keys[8];
 	unsigned char leds;
