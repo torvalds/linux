@@ -2182,7 +2182,6 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	int update_ptrs = 1;
 	int ret;
 
-	xhci_dbg(xhci, "In %s\n", __func__);
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
 		xhci->error_bitmask |= 1 << 1;
 		return 0;
@@ -2195,7 +2194,6 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 		xhci->error_bitmask |= 1 << 2;
 		return 0;
 	}
-	xhci_dbg(xhci, "%s - OS owns TRB\n", __func__);
 
 	/*
 	 * Barrier between reading the TRB_CYCLE (valid) flag above and any
@@ -2205,20 +2203,14 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	/* FIXME: Handle more event types. */
 	switch ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK)) {
 	case TRB_TYPE(TRB_COMPLETION):
-		xhci_dbg(xhci, "%s - calling handle_cmd_completion\n", __func__);
 		handle_cmd_completion(xhci, &event->event_cmd);
-		xhci_dbg(xhci, "%s - returned from handle_cmd_completion\n", __func__);
 		break;
 	case TRB_TYPE(TRB_PORT_STATUS):
-		xhci_dbg(xhci, "%s - calling handle_port_status\n", __func__);
 		handle_port_status(xhci, event);
-		xhci_dbg(xhci, "%s - returned from handle_port_status\n", __func__);
 		update_ptrs = 0;
 		break;
 	case TRB_TYPE(TRB_TRANSFER):
-		xhci_dbg(xhci, "%s - calling handle_tx_event\n", __func__);
 		ret = handle_tx_event(xhci, &event->trans_event);
-		xhci_dbg(xhci, "%s - returned from handle_tx_event\n", __func__);
 		if (ret < 0)
 			xhci->error_bitmask |= 1 << 9;
 		else
