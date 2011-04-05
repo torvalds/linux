@@ -167,9 +167,7 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 		next = ring->dequeue;
 	}
 	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
-	if (ring == xhci->event_ring)
-		xhci_dbg(xhci, "Event ring deq = 0x%llx (DMA)\n", addr);
-	else if (ring == xhci->cmd_ring)
+	if (ring == xhci->cmd_ring)
 		xhci_dbg(xhci, "Command ring deq = 0x%llx (DMA)\n", addr);
 	else
 		xhci_dbg(xhci, "Ring deq = 0x%llx (DMA)\n", addr);
@@ -2267,16 +2265,6 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		spin_unlock(&xhci->lock);
 		return IRQ_NONE;
 	}
-	xhci_dbg(xhci, "op reg status = %08x\n", status);
-	xhci_dbg(xhci, "Event ring dequeue ptr:\n");
-	xhci_dbg(xhci, "@%llx %08x %08x %08x %08x\n",
-		 (unsigned long long)
-		 xhci_trb_virt_to_dma(xhci->event_ring->deq_seg, trb),
-		 lower_32_bits(le64_to_cpu(trb->link.segment_ptr)),
-		 upper_32_bits(le64_to_cpu(trb->link.segment_ptr)),
-		 (unsigned int) le32_to_cpu(trb->link.intr_target),
-		 (unsigned int) le32_to_cpu(trb->link.control));
-
 	if (status & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
