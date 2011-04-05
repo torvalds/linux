@@ -325,5 +325,9 @@ static inline int mmc_card_keep_power(struct mmc_host *host)
 	return host->pm_flags & MMC_PM_KEEP_POWER;
 }
 
+static inline int mmc_card_wake_sdio_irq(struct mmc_host *host)
+{
+	return host->pm_flags & MMC_PM_WAKE_SDIO_IRQ;
+}
 #endif
 
