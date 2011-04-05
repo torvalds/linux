@@ -1877,7 +1877,7 @@ static s32 igb_validate_nvm_checksum_82580(struct e1000_hw *hw)
 	}
 
 	if (nvm_data & NVM_COMPATIBILITY_BIT_MASK) {
-		/* if chekcsums compatibility bit is set validate checksums
+		/* if checksums compatibility bit is set validate checksums
 		 * for all 4 ports. */
 		eeprom_regions_count = 4;
 	}
@@ -1988,6 +1988,7 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw)
 out:
 	return ret_val;
 }
+
 /**
  *  igb_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
