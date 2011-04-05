@@ -177,14 +177,9 @@ struct iwl_lib_ops {
 	void (*setup_deferred_work)(struct iwl_priv *priv);
 	/* cancel deferred work */
 	void (*cancel_deferred_work)(struct iwl_priv *priv);
-	/* alive notification after init uCode load */
-	void (*init_alive_start)(struct iwl_priv *priv);
-	/* alive notification */
-	int (*alive_notify)(struct iwl_priv *priv);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr)(u32 addr);
-	/* 1st ucode load */
-	int (*load_ucode)(struct iwl_priv *priv);
+
 	int (*dump_nic_event_log)(struct iwl_priv *priv,
 				  bool full_log, char **buf, bool display);
 	void (*dump_nic_error_log)(struct iwl_priv *priv);

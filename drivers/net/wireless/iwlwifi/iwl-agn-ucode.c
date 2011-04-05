@@ -318,7 +318,7 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	ret = priv->cfg->ops->lib->alive_notify(priv);
+	ret = iwlagn_alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
 			"Could not complete ALIVE transition: %d\n", ret);

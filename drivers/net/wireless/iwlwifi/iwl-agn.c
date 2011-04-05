@@ -2248,7 +2248,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	ret = priv->cfg->ops->lib->alive_notify(priv);
+	ret = iwlagn_alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
 			"Could not complete ALIVE transition [ntf]: %d\n", ret);
@@ -2581,7 +2581,7 @@ static int __iwl_up(struct iwl_priv *priv)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		ret = priv->cfg->ops->lib->load_ucode(priv);
+		ret = iwlagn_load_ucode(priv);
 
 		if (ret) {
 			IWL_ERR(priv, "Unable to set up bootstrap uCode: %d\n",
@@ -2626,7 +2626,7 @@ static void iwl_bg_init_alive_start(struct work_struct *data)
 		return;
 	}
 
-	priv->cfg->ops->lib->init_alive_start(priv);
+	iwlagn_init_alive_start(priv);
 	mutex_unlock(&priv->mutex);
 }
 
