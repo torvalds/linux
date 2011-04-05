@@ -2410,9 +2410,11 @@ static void update_avg(u64 *avg, u64 sample)
 #endif
 
 static void
-ttwu_stat(struct rq *rq, struct task_struct *p, int cpu, int wake_flags)
+ttwu_stat(struct task_struct *p, int cpu, int wake_flags)
 {
 #ifdef CONFIG_SCHEDSTATS
+	struct rq *rq = this_rq();
+
 #ifdef CONFIG_SMP
 	int this_cpu = smp_processor_id();
 
@@ -2561,9 +2563,10 @@ out_activate:
 	ttwu_activate(rq, p, ENQUEUE_WAKEUP | ENQUEUE_WAKING);
 out_running:
 	ttwu_post_activation(p, rq, wake_flags);
-	ttwu_stat(rq, p, cpu, wake_flags);
 	success = 1;
 	__task_rq_unlock(rq);
+
+	ttwu_stat(p, cpu, wake_flags);
 out:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 	put_cpu();
@@ -2600,7 +2603,7 @@ static void try_to_wake_up_local(struct task_struct *p)
 		ttwu_activate(rq, p, ENQUEUE_WAKEUP);
 
 	ttwu_post_activation(p, rq, 0);
-	ttwu_stat(rq, p, smp_processor_id(), 0);
+	ttwu_stat(p, smp_processor_id(), 0);
 out:
 	raw_spin_unlock(&p->pi_lock);
 }
