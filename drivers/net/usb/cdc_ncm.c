@@ -1237,7 +1237,7 @@ static int cdc_ncm_manage_power(struct usbnet *dev, int status)
 
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET,
+	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.check_connect = cdc_ncm_check_connect,

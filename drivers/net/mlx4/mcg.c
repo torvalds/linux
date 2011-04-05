@@ -111,7 +111,7 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 vep_num, u8 port,
 	u32 members_count;
 	struct mlx4_steer_index *new_entry;
 	struct mlx4_promisc_qp *pqp;
-	struct mlx4_promisc_qp *dqp;
+	struct mlx4_promisc_qp *dqp = NULL;
 	u32 prot;
 	int err;
 	u8 pf_num;
@@ -184,7 +184,7 @@ out_mailbox:
 out_alloc:
 	if (dqp) {
 		list_del(&dqp->list);
-		kfree(&dqp);
+		kfree(dqp);
 	}
 	list_del(&new_entry->list);
 	kfree(new_entry);
