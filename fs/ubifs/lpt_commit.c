@@ -29,6 +29,12 @@
 #include <linux/slab.h>
 #include "ubifs.h"
 
+#ifdef CONFIG_UBIFS_FS_DEBUG
+static int dbg_populate_lsave(struct ubifs_info *c);
+#else
+#define dbg_populate_lsave(c) 0
+#endif
+
 /**
  * first_dirty_cnode - find first dirty cnode.
  * @c: UBIFS file-system description object
@@ -815,6 +821,10 @@ static void populate_lsave(struct ubifs_info *c)
 		c->lpt_drty_flgs |= LSAVE_DIRTY;
 		ubifs_add_lpt_dirt(c, c->lsave_lnum, c->lsave_sz);
 	}
+
+	if (dbg_populate_lsave(c))
+		return;
+
 	list_for_each_entry(lprops, &c->empty_list, list) {
 		c->lsave[cnt++] = lprops->lnum;
 		if (cnt >= c->lsave_cnt)
@@ -1992,6 +2002,49 @@ void dbg_dump_lpt_lebs(const struct ubifs_info *c)
 		dump_lpt_leb(c, i + c->lpt_first);
 	printk(KERN_DEBUG "(pid %d) finish dumping all LPT LEBs\n",
 	       current->pid);
+}
+
+/**
+ * dbg_populate_lsave - debugging version of 'populate_lsave()'
+ * @c: UBIFS file-system description object
+ *
+ * This is a debugging version for 'populate_lsave()' which populates lsave
+ * with random LEBs instead of useful LEBs, which is good for test coverage.
+ * Returns zero if lsave has not been populated (this debugging feature is
+ * disabled) an non-zero if lsave has been populated.
+ */
+static int dbg_populate_lsave(struct ubifs_info *c)
+{
+	struct ubifs_lprops *lprops;
+	struct ubifs_lpt_heap *heap;
+	int i;
+
+	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+		return 0;
+	if (random32() & 3)
+		return 0;
+
+	for (i = 0; i < c->lsave_cnt; i++)
+		c->lsave[i] = c->main_first;
+
+	list_for_each_entry(lprops, &c->empty_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+	list_for_each_entry(lprops, &c->freeable_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+	list_for_each_entry(lprops, &c->frdi_idx_list, list)
+		c->lsave[random32() % c->lsave_cnt] = lprops->lnum;
+
+	heap = &c->lpt_heap[LPROPS_DIRTY_IDX - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+	heap = &c->lpt_heap[LPROPS_DIRTY - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+	heap = &c->lpt_heap[LPROPS_FREE - 1];
+	for (i = 0; i < heap->cnt; i++)
+		c->lsave[random32() % c->lsave_cnt] = heap->arr[i]->lnum;
+
+	return 1;
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */
