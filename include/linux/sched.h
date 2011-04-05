@@ -1200,9 +1200,7 @@ struct task_struct {
 	int lock_depth;		/* BKL lock depth */
 
 #ifdef CONFIG_SMP
-#ifdef __ARCH_WANT_UNLOCKED_CTXSW
-	int oncpu;
-#endif
+	int on_cpu;
 #endif
 
 	int prio, static_prio, normal_prio;
