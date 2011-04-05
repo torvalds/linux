@@ -94,17 +94,32 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int ret;
 
+	/*
+	 * install host/gadget driver
+	 */
+	ret = usbhs_mod_gadget_probe(priv);
+	if (ret < 0)
+		return ret;
+
 	/* irq settings */
 	ret = request_irq(priv->irq, usbhs_interrupt,
 			  IRQF_DISABLED, dev_name(dev), priv);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "irq request err\n");
+		goto mod_init_gadget_err;
+	}
+
+	return ret;
+
+mod_init_gadget_err:
+	usbhs_mod_gadget_remove(priv);
 
 	return ret;
 }
 
 void usbhs_mod_remove(struct usbhs_priv *priv)
 {
+	usbhs_mod_gadget_remove(priv);
 	free_irq(priv->irq, priv);
 }
 

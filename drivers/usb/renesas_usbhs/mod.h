@@ -103,4 +103,20 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod);
 		 mod->func(param);			\
 	})
 
+/*
+ * gadget control
+ */
+#ifdef CONFIG_USB_RENESAS_USBHS_UDC
+extern int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv);
+extern void __devexit usbhs_mod_gadget_remove(struct usbhs_priv *priv);
+#else
+static inline int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
+{
+	return 0;
+}
+static inline void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
+{
+}
+#endif
+
 #endif /* RENESAS_USB_MOD_H */

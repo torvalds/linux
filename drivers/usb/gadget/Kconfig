@@ -260,6 +260,24 @@ config USB_R8A66597
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_RENESAS_USBHS
+	boolean "Renesas USBHS"
+	depends on USB_RENESAS_USBHS
+	select USB_GADGET_DUALSPEED
+	help
+	   Renesas USBHS is a discrete USB host and peripheral controller
+	   chip that supports both full and high speed USB 2.0 data transfers.
+	   platform is able to configure endpoint (pipe) style
+
+	   Say "y" to enable the gadget specific portion of the USBHS driver.
+
+
+config USB_RENESAS_USBHS_UDC
+	tristate
+	depends on USB_GADGET_RENESAS_USBHS
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_PXA27X
 	boolean "PXA 27x"
 	depends on ARCH_PXA && (PXA27x || PXA3xx)
