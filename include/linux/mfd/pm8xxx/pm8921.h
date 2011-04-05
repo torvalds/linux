@@ -19,9 +19,13 @@
 #define __MFD_PM8921_H
 
 #include <linux/device.h>
+#include <linux/mfd/pm8xxx/irq.h>
+
+#define PM8921_NR_IRQS		256
 
 struct pm8921_platform_data {
 	int					irq_base;
+	struct pm8xxx_irq_platform_data		*irq_pdata;
 };
 
 #endif

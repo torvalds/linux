@@ -709,6 +709,16 @@ config MFD_PM8921_CORE
 	  Say M here if you want to include support for PM8921 chip as a module.
 	  This will build a module called "pm8921-core".
 
+config MFD_PM8XXX_IRQ
+	bool "Support for Qualcomm PM8xxx IRQ features"
+	depends on MFD_PM8XXX
+	default y if MFD_PM8XXX
+	help
+	  This is the IRQ driver for Qualcomm PM 8xxx PMIC chips.
+
+	  This is required to use certain other PM 8xxx features, such as GPIO
+	  and MPP.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"

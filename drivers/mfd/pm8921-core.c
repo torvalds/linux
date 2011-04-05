@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 #include <linux/msm_ssbi.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/pm8xxx/pm8921.h>
@@ -26,6 +27,7 @@
 
 struct pm8921 {
 	struct device			*dev;
+	struct pm_irq_chip		*irq_chip;
 };
 
 static int pm8921_readb(const struct device *dev, u16 addr, u8 *val)
@@ -62,12 +64,45 @@ static int pm8921_write_buf(const struct device *dev, u16 addr, u8 *buf,
 	return msm_ssbi_write(pmic->dev->parent, addr, buf, cnt);
 }
 
+static int pm8921_read_irq_stat(const struct device *dev, int irq)
+{
+	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
+	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
+
+	return pm8xxx_get_irq_stat(pmic->irq_chip, irq);
+}
+
 static struct pm8xxx_drvdata pm8921_drvdata = {
 	.pmic_readb		= pm8921_readb,
 	.pmic_writeb		= pm8921_writeb,
 	.pmic_read_buf		= pm8921_read_buf,
 	.pmic_write_buf		= pm8921_write_buf,
+	.pmic_read_irq_stat	= pm8921_read_irq_stat,
 };
+
+static int __devinit pm8921_add_subdevices(const struct pm8921_platform_data
+					   *pdata,
+					   struct pm8921 *pmic,
+					   u32 rev)
+{
+	int ret = 0, irq_base = 0;
+	struct pm_irq_chip *irq_chip;
+
+	if (pdata->irq_pdata) {
+		pdata->irq_pdata->irq_cdata.nirqs = PM8921_NR_IRQS;
+		pdata->irq_pdata->irq_cdata.rev = rev;
+		irq_base = pdata->irq_pdata->irq_base;
+		irq_chip = pm8xxx_irq_init(pmic->dev, pdata->irq_pdata);
+
+		if (IS_ERR(irq_chip)) {
+			pr_err("Failed to init interrupts ret=%ld\n",
+					PTR_ERR(irq_chip));
+			return PTR_ERR(irq_chip);
+		}
+		pmic->irq_chip = irq_chip;
+	}
+	return ret;
+}
 
 static int __devinit pm8921_probe(struct platform_device *pdev)
 {
@@ -75,6 +110,7 @@ static int __devinit pm8921_probe(struct platform_device *pdev)
 	struct pm8921 *pmic;
 	int rc;
 	u8 val;
+	u32 rev;
 
 	if (!pdata) {
 		pr_err("missing platform data\n");
@@ -94,6 +130,7 @@ static int __devinit pm8921_probe(struct platform_device *pdev)
 		goto err_read_rev;
 	}
 	pr_info("PMIC revision 1: %02X\n", val);
+	rev = val;
 
 	/* Read PMIC chip revision 2 */
 	rc = msm_ssbi_read(pdev->dev.parent, REG_HWREV_2, &val, sizeof(val));
@@ -103,13 +140,26 @@ static int __devinit pm8921_probe(struct platform_device *pdev)
 		goto err_read_rev;
 	}
 	pr_info("PMIC revision 2: %02X\n", val);
+	rev |= val << BITS_PER_BYTE;
 
 	pmic->dev = &pdev->dev;
 	pm8921_drvdata.pm_chip_data = pmic;
 	platform_set_drvdata(pdev, &pm8921_drvdata);
 
+	rc = pm8921_add_subdevices(pdata, pmic, rev);
+	if (rc) {
+		pr_err("Cannot add subdevices rc=%d\n", rc);
+		goto err;
+	}
+
+	/* gpio might not work if no irq device is found */
+	WARN_ON(pmic->irq_chip == NULL);
+
 	return 0;
 
+err:
+	mfd_remove_devices(pmic->dev);
+	platform_set_drvdata(pdev, NULL);
 err_read_rev:
 	kfree(pmic);
 	return rc;
@@ -125,6 +175,10 @@ static int __devexit pm8921_remove(struct platform_device *pdev)
 		pmic = drvdata->pm_chip_data;
 	if (pmic)
 		mfd_remove_devices(pmic->dev);
+	if (pmic->irq_chip) {
+		pm8xxx_irq_exit(pmic->irq_chip);
+		pmic->irq_chip = NULL;
+	}
 	platform_set_drvdata(pdev, NULL);
 	kfree(pmic);
 
