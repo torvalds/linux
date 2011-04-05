@@ -80,8 +80,13 @@ static struct voltagedomain *voltagedomains_omap3[] __initdata = {
 	NULL,
 };
 
+static const char *sys_clk_name __initdata = "sys_ck";
+
 void __init omap3xxx_voltagedomains_init(void)
 {
+	struct voltagedomain *voltdm;
+	int i;
+
 	/*
 	 * XXX Will depend on the process, validation, and binning
 	 * for the currently-running IC
@@ -93,6 +98,9 @@ void __init omap3xxx_voltagedomains_init(void)
 		omap3_vdd1_info.volt_data = omap34xx_vddmpu_volt_data;
 		omap3_vdd2_info.volt_data = omap34xx_vddcore_volt_data;
 	}
+
+	for (i = 0; voltdm = voltagedomains_omap3[i], voltdm; i++)
+		voltdm->sys_clk.name = sys_clk_name;
 
 	voltdm_init(voltagedomains_omap3);
 };

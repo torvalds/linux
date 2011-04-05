@@ -21,10 +21,10 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <plat/common.h>
 
@@ -45,36 +45,12 @@ static LIST_HEAD(voltdm_list);
 
 static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 {
-	char *sys_ck_name;
-	struct clk *sys_ck;
-	u32 sys_clk_speed, timeout_val, waittime;
 	struct omap_vdd_info *vdd = voltdm->vdd;
+	u32 sys_clk_rate, timeout_val, waittime;
 
-	/*
-	 * XXX Clockfw should handle this, or this should be in a
-	 * struct record
-	 */
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		sys_ck_name = "sys_ck";
-	else if (cpu_is_omap44xx())
-		sys_ck_name = "sys_clkin_ck";
-	else
-		return -EINVAL;
-
-	/*
-	 * Sys clk rate is require to calculate vp timeout value and
-	 * smpswaittimemin and smpswaittimemax.
-	 */
-	sys_ck = clk_get(NULL, sys_ck_name);
-	if (IS_ERR(sys_ck)) {
-		pr_warning("%s: Could not get the sys clk to calculate"
-			"various vdd_%s params\n", __func__, voltdm->name);
-		return -EINVAL;
-	}
-	sys_clk_speed = clk_get_rate(sys_ck);
-	clk_put(sys_ck);
 	/* Divide to avoid overflow */
-	sys_clk_speed /= 1000;
+	sys_clk_rate = voltdm->sys_clk.rate / 1000;
+	WARN_ON(!sys_clk_rate);
 
 	/* Generic voltage parameters */
 	vdd->volt_scale = omap_vp_forceupdate_scale;
@@ -84,13 +60,13 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 		(voltdm->pmic->vp_erroroffset <<
 		 __ffs(voltdm->vp->common->vpconfig_erroroffset_mask));
 
-	timeout_val = (sys_clk_speed * voltdm->pmic->vp_timeout_us) / 1000;
+	timeout_val = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
 	vdd->vp_rt_data.vlimitto_timeout = timeout_val;
 	vdd->vp_rt_data.vlimitto_vddmin = voltdm->pmic->vp_vddmin;
 	vdd->vp_rt_data.vlimitto_vddmax = voltdm->pmic->vp_vddmax;
 
 	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
-				sys_clk_speed) / 1000;
+		    sys_clk_rate) / 1000;
 	vdd->vp_rt_data.vstepmin_smpswaittimemin = waittime;
 	vdd->vp_rt_data.vstepmax_smpswaittimemax = waittime;
 	vdd->vp_rt_data.vstepmin_stepmin = voltdm->pmic->vp_vstepmin;
@@ -346,8 +322,19 @@ int __init omap_voltage_late_init(void)
 	}
 
 	list_for_each_entry(voltdm, &voltdm_list, node) {
+		struct clk *sys_ck;
+
 		if (!voltdm->scalable)
 			continue;
+
+		sys_ck = clk_get(NULL, voltdm->sys_clk.name);
+		if (IS_ERR(sys_ck)) {
+			pr_warning("%s: Could not get sys clk.\n", __func__);
+			return -EINVAL;
+		}
+		voltdm->sys_clk.rate = clk_get_rate(sys_ck);
+		WARN_ON(!voltdm->sys_clk.rate);
+		clk_put(sys_ck);
 
 		if (voltdm->vc) {
 			voltdm->vdd->volt_scale = omap_vc_bypass_scale;

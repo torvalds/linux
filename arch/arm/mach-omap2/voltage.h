@@ -59,6 +59,7 @@ struct omap_vfsm_instance {
  * @read: read a VC/VP register
  * @write: write a VC/VP register
  * @read: read-modify-write a VC/VP register
+ * @sys_clk: system clock name/frequency, used for various timing calculations
  * @vdd: to be removed
  */
 struct voltagedomain {
@@ -75,6 +76,11 @@ struct voltagedomain {
 	u32 (*read) (u8 offset);
 	void (*write) (u32 val, u8 offset);
 	u32 (*rmw)(u32 mask, u32 bits, u8 offset);
+
+	union {
+		const char *name;
+		u32 rate;
+	} sys_clk;
 
 	struct omap_vdd_info *vdd;
 };
