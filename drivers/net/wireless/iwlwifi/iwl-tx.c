@@ -474,7 +474,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		}
 		if (!is_ct_kill) {
 			IWL_ERR(priv, "Restarting adapter due to queue full\n");
-			queue_work(priv->workqueue, &priv->restart);
+			iwlagn_fw_error(priv, false);
 		}
 		return -ENOSPC;
 	}
@@ -582,7 +582,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 		if (nfreed++ > 0) {
 			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			queue_work(priv->workqueue, &priv->restart);
+			iwlagn_fw_error(priv, false);
 		}
 
 	}

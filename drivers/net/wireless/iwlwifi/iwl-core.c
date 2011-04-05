@@ -890,10 +890,8 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
 }
 #endif
-/**
- * iwl_irq_handle_error - called for HW or SW error interrupt from card
- */
-void iwl_irq_handle_error(struct iwl_priv *priv)
+
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
@@ -904,18 +902,62 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
+	/* Keep the restart process from trying to send host
+	 * commands by clearing the ready bit */
+	clear_bit(STATUS_READY, &priv->status);
+
+	wake_up_interruptible(&priv->wait_command_queue);
+
+	if (!ondemand) {
+		/*
+		 * If firmware keep reloading, then it indicate something
+		 * serious wrong and firmware having problem to recover
+		 * from it. Instead of keep trying which will fill the syslog
+		 * and hang the system, let's just stop it
+		 */
+		reload_jiffies = jiffies;
+		reload_msec = jiffies_to_msecs((long) reload_jiffies -
+					(long) priv->reload_jiffies);
+		priv->reload_jiffies = reload_jiffies;
+		if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
+			priv->reload_count++;
+			if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
+				IWL_ERR(priv, "BUG_ON, Stop restarting\n");
+				return;
+			}
+		} else
+			priv->reload_count = 0;
+	}
+
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+		if (priv->cfg->mod_params->restart_fw) {
+			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
+				  "Restarting adapter due to uCode error.\n");
+			queue_work(priv->workqueue, &priv->restart);
+		} else
+			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
+				  "Detected FW error, but not restarting\n");
+	}
+}
+
+/**
+ * iwl_irq_handle_error - called for HW or SW error interrupt from card
+ */
+void iwl_irq_handle_error(struct iwl_priv *priv)
+{
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (priv->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(priv, APMG_CLK_CTRL_REG) &
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(priv, APMG_PS_CTRL_REG) &
 			APMG_PS_CTRL_VAL_RESET_REQ))) {
-		wake_up_interruptible(&priv->wait_command_queue);
 		/*
-		 *Keep the restart process from trying to send host
-		 * commands by clearing the INIT status bit
+		 * Keep the restart process from trying to send host
+		 * commands by clearing the ready bit.
 		 */
 		clear_bit(STATUS_READY, &priv->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+		wake_up_interruptible(&priv->wait_command_queue);
 		IWL_ERR(priv, "RF is used by WiMAX\n");
 		return;
 	}
@@ -935,38 +977,7 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 					&priv->contexts[IWL_RXON_CTX_BSS]);
 #endif
 
-	wake_up_interruptible(&priv->wait_command_queue);
-
-	/* Keep the restart process from trying to send host
-	 * commands by clearing the INIT status bit */
-	clear_bit(STATUS_READY, &priv->status);
-
-	/*
-	 * If firmware keep reloading, then it indicate something
-	 * serious wrong and firmware having problem to recover
-	 * from it. Instead of keep trying which will fill the syslog
-	 * and hang the system, let's just stop it
-	 */
-	reload_jiffies = jiffies;
-	reload_msec = jiffies_to_msecs((long) reload_jiffies -
-				(long) priv->reload_jiffies);
-	priv->reload_jiffies = reload_jiffies;
-	if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
-		priv->reload_count++;
-		if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
-			IWL_ERR(priv, "BUG_ON, Stop restarting\n");
-			return;
-		}
-	} else
-		priv->reload_count = 0;
-
-	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
-			  "Restarting adapter due to uCode error.\n");
-
-		if (priv->cfg->mod_params->restart_fw)
-			queue_work(priv->workqueue, &priv->restart);
-	}
+	iwlagn_fw_error(priv, false);
 }
 
 static int iwl_apm_stop_master(struct iwl_priv *priv)
@@ -1755,15 +1766,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 			break;
 		}
 		IWL_ERR(priv, "On demand firmware reload\n");
-		/* Set the FW error flag -- cleared on iwl_down */
-		set_bit(STATUS_FW_ERROR, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
-		/*
-		 * Keep the restart process from trying to send host
-		 * commands by clearing the INIT status bit
-		 */
-		clear_bit(STATUS_READY, &priv->status);
-		queue_work(priv->workqueue, &priv->restart);
+		iwlagn_fw_error(priv, true);
 		break;
 	}
 	return 0;

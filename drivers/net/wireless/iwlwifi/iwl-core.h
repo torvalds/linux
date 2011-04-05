@@ -729,4 +729,7 @@ static inline bool iwl_bt_statistics(struct iwl_priv *priv)
 extern bool bt_coex_active;
 extern bool bt_siso_mode;
 
+
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+
 #endif /* __iwl_core_h__ */
