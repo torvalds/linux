@@ -4390,6 +4390,7 @@ static void tg3_serdes_parallel_detect(struct tg3 *tp)
 
 static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 {
+	u32 val;
 	int err;
 
 	if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
@@ -4400,7 +4401,7 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		err = tg3_setup_copper_phy(tp, force_reset);
 
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5784_AX) {
-		u32 val, scale;
+		u32 scale;
 
 		val = tr32(TG3_CPMU_CLCK_STAT) & CPMU_CLCK_STAT_MAC_CLCK_MASK;
 		if (val == CPMU_CLCK_STAT_MAC_CLCK_62_5)
@@ -4415,17 +4416,20 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		tw32(GRC_MISC_CFG, val);
 	}
 
+	val = (2 << TX_LENGTHS_IPG_CRS_SHIFT) |
+	      (6 << TX_LENGTHS_IPG_SHIFT);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		val |= tr32(MAC_TX_LENGTHS) &
+		       (TX_LENGTHS_JMB_FRM_LEN_MSK |
+			TX_LENGTHS_CNT_DWN_VAL_MSK);
+
 	if (tp->link_config.active_speed == SPEED_1000 &&
 	    tp->link_config.active_duplex == DUPLEX_HALF)
-		tw32(MAC_TX_LENGTHS,
-		     ((2 << TX_LENGTHS_IPG_CRS_SHIFT) |
-		      (6 << TX_LENGTHS_IPG_SHIFT) |
-		      (0xff << TX_LENGTHS_SLOT_TIME_SHIFT)));
+		tw32(MAC_TX_LENGTHS, val |
+		     (0xff << TX_LENGTHS_SLOT_TIME_SHIFT));
 	else
-		tw32(MAC_TX_LENGTHS,
-		     ((2 << TX_LENGTHS_IPG_CRS_SHIFT) |
-		      (6 << TX_LENGTHS_IPG_SHIFT) |
-		      (32 << TX_LENGTHS_SLOT_TIME_SHIFT)));
+		tw32(MAC_TX_LENGTHS, val |
+		     (32 << TX_LENGTHS_SLOT_TIME_SHIFT));
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
 		if (netif_carrier_ok(tp->dev)) {
@@ -4437,7 +4441,7 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 	}
 
 	if (tp->tg3_flags & TG3_FLAG_ASPM_WORKAROUND) {
-		u32 val = tr32(PCIE_PWR_MGMT_THRESH);
+		val = tr32(PCIE_PWR_MGMT_THRESH);
 		if (!netif_carrier_ok(tp->dev))
 			val = (val & ~PCIE_PWR_MGMT_L1_THRESH_MSK) |
 			      tp->pwrmgmt_thresh;
@@ -8164,10 +8168,16 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* The slot time is changed by tg3_setup_phy if we
 	 * run at gigabit with half duplex.
 	 */
-	tw32(MAC_TX_LENGTHS,
-	     (2 << TX_LENGTHS_IPG_CRS_SHIFT) |
-	     (6 << TX_LENGTHS_IPG_SHIFT) |
-	     (32 << TX_LENGTHS_SLOT_TIME_SHIFT));
+	val = (2 << TX_LENGTHS_IPG_CRS_SHIFT) |
+	      (6 << TX_LENGTHS_IPG_SHIFT) |
+	      (32 << TX_LENGTHS_SLOT_TIME_SHIFT);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		val |= tr32(MAC_TX_LENGTHS) &
+		       (TX_LENGTHS_JMB_FRM_LEN_MSK |
+			TX_LENGTHS_CNT_DWN_VAL_MSK);
+
+	tw32(MAC_TX_LENGTHS, val);
 
 	/* Receive rules. */
 	tw32(MAC_RCV_RULE_CFG, RCV_RULE_CFG_DEFAULT_CLASS);
@@ -8213,6 +8223,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 		rdmac_mode |= RDMAC_MODE_IPV6_LSO_EN;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		rdmac_mode |= tr32(RDMAC_MODE) & RDMAC_MODE_H2BNC_VLAN_DET;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
@@ -8447,9 +8460,17 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	tp->tx_mode = TX_MODE_ENABLE;
+
 	if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		tp->tx_mode |= TX_MODE_MBUF_LOCKUP_FIX;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
+		val = TX_MODE_JMB_FRM_LEN | TX_MODE_CNT_DN_MODE;
+		tp->tx_mode &= ~val;
+		tp->tx_mode |= tr32(MAC_TX_MODE) & val;
+	}
+
 	tw32_f(MAC_TX_MODE, tp->tx_mode);
 	udelay(100);
 
@@ -13880,7 +13901,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	/* Initialize data/descriptor byte/word swapping. */
 	val = tr32(GRC_MODE);
-	val &= GRC_MODE_HOST_STACKUP;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		val &= (GRC_MODE_BYTE_SWAP_B2HRX_DATA |
+			GRC_MODE_WORD_SWAP_B2HRX_DATA |
+			GRC_MODE_B2HRX_ENABLE |
+			GRC_MODE_HTX2B_ENABLE |
+			GRC_MODE_HOST_STACKUP);
+	else
+		val &= GRC_MODE_HOST_STACKUP;
+
 	tw32(GRC_MODE, val | tp->grc_mode);
 
 	tg3_switch_clocks(tp);
