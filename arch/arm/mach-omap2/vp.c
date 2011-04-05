@@ -49,8 +49,8 @@ static void vp_latch_vsel(struct voltagedomain *voltdm)
 void __init omap_vp_init(struct voltagedomain *voltdm)
 {
 	struct omap_vp_instance *vp = voltdm->vp;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vp_val, sys_clk_rate, timeout_val, waittime;
+	u32 val, sys_clk_rate, timeout, waittime;
+	u32 vddmin, vddmax, vstepmin, vstepmax;
 
 	if (!voltdm->read || !voltdm->write) {
 		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
@@ -63,47 +63,39 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	/* Divide to avoid overflow */
 	sys_clk_rate = voltdm->sys_clk.rate / 1000;
 
-	vdd->vp_rt_data.vpconfig_erroroffset =
-		(voltdm->pmic->vp_erroroffset <<
-		 __ffs(voltdm->vp->common->vpconfig_erroroffset_mask));
-
-	timeout_val = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
-	vdd->vp_rt_data.vlimitto_timeout = timeout_val;
-	vdd->vp_rt_data.vlimitto_vddmin = voltdm->pmic->vp_vddmin;
-	vdd->vp_rt_data.vlimitto_vddmax = voltdm->pmic->vp_vddmax;
+	timeout = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
+	vddmin = voltdm->pmic->vp_vddmin;
+	vddmax = voltdm->pmic->vp_vddmax;
 
 	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
 		    sys_clk_rate) / 1000;
-	vdd->vp_rt_data.vstepmin_smpswaittimemin = waittime;
-	vdd->vp_rt_data.vstepmax_smpswaittimemax = waittime;
-	vdd->vp_rt_data.vstepmin_stepmin = voltdm->pmic->vp_vstepmin;
-	vdd->vp_rt_data.vstepmax_stepmax = voltdm->pmic->vp_vstepmax;
+	vstepmin = voltdm->pmic->vp_vstepmin;
+	vstepmax = voltdm->pmic->vp_vstepmax;
 
-	vp_val = vdd->vp_rt_data.vpconfig_erroroffset |
-		(vdd->vp_rt_data.vpconfig_errorgain <<
-		 __ffs(vp->common->vpconfig_errorgain_mask)) |
+	/*
+	 * VP_CONFIG: error gain is not set here, it will be updated
+	 * on each scale, based on OPP.
+	 */
+	val = (voltdm->pmic->vp_erroroffset <<
+	       __ffs(voltdm->vp->common->vpconfig_erroroffset_mask)) |
 		vp->common->vpconfig_timeouten;
-	voltdm->write(vp_val, vp->vpconfig);
+	voltdm->write(val, vp->vpconfig);
 
-	vp_val = ((vdd->vp_rt_data.vstepmin_smpswaittimemin <<
-		   vp->common->vstepmin_smpswaittimemin_shift) |
-		  (vdd->vp_rt_data.vstepmin_stepmin <<
-		   vp->common->vstepmin_stepmin_shift));
-	voltdm->write(vp_val, vp->vstepmin);
+	/* VSTEPMIN */
+	val = (waittime << vp->common->vstepmin_smpswaittimemin_shift) |
+		(vstepmin <<  vp->common->vstepmin_stepmin_shift);
+	voltdm->write(val, vp->vstepmin);
 
-	vp_val = ((vdd->vp_rt_data.vstepmax_smpswaittimemax <<
-		   vp->common->vstepmax_smpswaittimemax_shift) |
-		  (vdd->vp_rt_data.vstepmax_stepmax <<
-		   vp->common->vstepmax_stepmax_shift));
-	voltdm->write(vp_val, vp->vstepmax);
+	/* VSTEPMAX */
+	val = (vstepmax << vp->common->vstepmax_stepmax_shift) |
+		(waittime << vp->common->vstepmax_smpswaittimemax_shift);
+	voltdm->write(val, vp->vstepmax);
 
-	vp_val = ((vdd->vp_rt_data.vlimitto_vddmax <<
-		   vp->common->vlimitto_vddmax_shift) |
-		  (vdd->vp_rt_data.vlimitto_vddmin <<
-		   vp->common->vlimitto_vddmin_shift) |
-		  (vdd->vp_rt_data.vlimitto_timeout <<
-		   vp->common->vlimitto_timeout_shift));
-	voltdm->write(vp_val, vp->vlimitto);
+	/* VLIMITTO */
+	val = (vddmax << vp->common->vlimitto_vddmax_shift) |
+		(vddmin << vp->common->vlimitto_vddmin_shift) |
+		(timeout <<  vp->common->vlimitto_timeout_shift);
+	voltdm->write(val, vp->vlimitto);
 }
 
 int omap_vp_update_errorgain(struct voltagedomain *voltdm,

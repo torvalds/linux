@@ -108,34 +108,6 @@ struct omap_vp_instance {
 	bool enabled;
 };
 
-/**
- * struct omap_vp_runtime_data - VP data populated at runtime by code
- * @vpconfig_erroroffset: value of ERROROFFSET bitfield in PRM_VP*_CONFIG
- * @vpconfig_errorgain: value of ERRORGAIN bitfield in PRM_VP*_CONFIG
- * @vstepmin_smpswaittimemin: value of SMPSWAITTIMEMIN bitfield in PRM_VP*_VSTEPMIN
- * @vstepmax_smpswaittimemax: value of SMPSWAITTIMEMAX bitfield in PRM_VP*_VSTEPMAX
- * @vlimitto_timeout: value of TIMEOUT bitfield in PRM_VP*_VLIMITTO
- * @vstepmin_stepmin: value of VSTEPMIN bitfield in PRM_VP*_VSTEPMIN
- * @vstepmax_stepmax: value of VSTEPMAX bitfield in PRM_VP*_VSTEPMAX
- * @vlimitto_vddmin: value of VDDMIN bitfield in PRM_VP*_VLIMITTO
- * @vlimitto_vddmax: value of VDDMAX bitfield in PRM_VP*_VLIMITTO
- *
- * XXX Is this structure really needed?  Why not just program the
- * device directly?  They are in PRM space, therefore in the WKUP
- * powerdomain, so register contents should not be lost in off-mode.
- */
-struct omap_vp_runtime_data {
-	u32 vpconfig_erroroffset;
-	u16 vpconfig_errorgain;
-	u16 vstepmin_smpswaittimemin;
-	u16 vstepmax_smpswaittimemax;
-	u16 vlimitto_timeout;
-	u8 vstepmin_stepmin;
-	u8 vstepmax_stepmax;
-	u8 vlimitto_vddmin;
-	u8 vlimitto_vddmax;
-};
-
 extern struct omap_vp_instance omap3_vp_mpu;
 extern struct omap_vp_instance omap3_vp_core;
 

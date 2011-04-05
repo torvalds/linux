@@ -144,13 +144,11 @@ struct omap_voltdm_pmic {
  *
  * @volt_data		: voltage table having the distinct voltages supported
  *			  by the domain and other associated per voltage data.
- * @vp_rt_data          : VP data derived at runtime, not predefined
  * @curr_volt		: current voltage for this vdd.
  * @volt_scale		: API to scale the voltage of the vdd.
  */
 struct omap_vdd_info {
 	struct omap_volt_data *volt_data;
-	struct omap_vp_runtime_data vp_rt_data;
 	u32 curr_volt;
 
 	int (*volt_scale) (struct voltagedomain *voltdm,
