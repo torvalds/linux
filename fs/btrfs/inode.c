@@ -1769,9 +1769,12 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	add_pending_csums(trans, inode, ordered_extent->file_offset,
 			  &ordered_extent->list);
 
-	btrfs_ordered_update_i_size(inode, 0, ordered_extent);
-	ret = btrfs_update_inode(trans, root, inode);
-	BUG_ON(ret);
+	ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
+	if (!ret) {
+		ret = btrfs_update_inode(trans, root, inode);
+		BUG_ON(ret);
+	}
+	ret = 0;
 out:
 	if (nolock) {
 		if (trans)
@@ -5865,8 +5868,10 @@ again:
 	}
 
 	add_pending_csums(trans, inode, ordered->file_offset, &ordered->list);
-	btrfs_ordered_update_i_size(inode, 0, ordered);
-	btrfs_update_inode(trans, root, inode);
+	ret = btrfs_ordered_update_i_size(inode, 0, ordered);
+	if (!ret)
+		btrfs_update_inode(trans, root, inode);
+	ret = 0;
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, ordered->file_offset,
 			     ordered->file_offset + ordered->len - 1,
