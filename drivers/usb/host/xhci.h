@@ -1338,9 +1338,6 @@ static inline unsigned int xhci_readl(const struct xhci_hcd *xhci,
 static inline void xhci_writel(struct xhci_hcd *xhci,
 		const unsigned int val, __le32 __iomem *regs)
 {
-	xhci_dbg(xhci,
-			"`MEM_WRITE_DWORD(3'b000, 32'h%p, 32'h%0x, 4'hf);\n",
-			regs, val);
 	writel(val, regs);
 }
 
@@ -1368,9 +1365,6 @@ static inline void xhci_write_64(struct xhci_hcd *xhci,
 	u32 val_lo = lower_32_bits(val);
 	u32 val_hi = upper_32_bits(val);
 
-	xhci_dbg(xhci,
-			"`MEM_WRITE_DWORD(3'b000, 64'h%p, 64'h%0lx, 4'hf);\n",
-			regs, (long unsigned int) val);
 	writel(val_lo, ptr);
 	writel(val_hi, ptr + 1);
 }
