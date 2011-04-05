@@ -2566,9 +2566,9 @@ out:
  * try_to_wake_up_local - try to wake up a local task with rq lock held
  * @p: the thread to be awakened
  *
- * Put @p on the run-queue if it's not already there.  The caller must
+ * Put @p on the run-queue if it's not already there. The caller must
  * ensure that this_rq() is locked, @p is bound to this_rq() and not
- * the current task.  this_rq() stays locked over invocation.
+ * the current task.
  */
 static void try_to_wake_up_local(struct task_struct *p)
 {
@@ -2578,14 +2578,22 @@ static void try_to_wake_up_local(struct task_struct *p)
 	BUG_ON(p == current);
 	lockdep_assert_held(&rq->lock);
 
+	if (!raw_spin_trylock(&p->pi_lock)) {
+		raw_spin_unlock(&rq->lock);
+		raw_spin_lock(&p->pi_lock);
+		raw_spin_lock(&rq->lock);
+	}
+
 	if (!(p->state & TASK_NORMAL))
-		return;
+		goto out;
 
 	if (!p->on_rq)
 		ttwu_activate(rq, p, ENQUEUE_WAKEUP);
 
 	ttwu_post_activation(p, rq, 0);
 	ttwu_stat(rq, p, smp_processor_id(), 0);
+out:
+	raw_spin_unlock(&p->pi_lock);
 }
 
 /**
@@ -4114,11 +4122,13 @@ need_resched:
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
 		} else {
+			deactivate_task(rq, prev, DEQUEUE_SLEEP);
+			prev->on_rq = 0;
+
 			/*
-			 * If a worker is going to sleep, notify and
-			 * ask workqueue whether it wants to wake up a
-			 * task to maintain concurrency.  If so, wake
-			 * up the task.
+			 * If a worker went to sleep, notify and ask workqueue
+			 * whether it wants to wake up a task to maintain
+			 * concurrency.
 			 */
 			if (prev->flags & PF_WQ_WORKER) {
 				struct task_struct *to_wakeup;
@@ -4128,12 +4138,9 @@ need_resched:
 					try_to_wake_up_local(to_wakeup);
 			}
 
-			deactivate_task(rq, prev, DEQUEUE_SLEEP);
-			prev->on_rq = 0;
-
 			/*
-			 * If we are going to sleep and we have plugged IO queued, make
-			 * sure to submit it to avoid deadlocks.
+			 * If we are going to sleep and we have plugged IO
+			 * queued, make sure to submit it to avoid deadlocks.
 			 */
 			if (blk_needs_flush_plug(prev)) {
 				raw_spin_unlock(&rq->lock);
