@@ -632,9 +632,9 @@ static struct rc_map_table rc_map_pinnacle310e_table[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },
-	{ 0x48, KEY_MEDIA },		/* preview */
+	{ 0x48, KEY_PROGRAM },		/* preview */
 	{ 0x1c, KEY_EPG },
-	{ 0x04, KEY_LIST },			/* record list */
+	{ 0x04, KEY_LIST },		/* record list */
 	{ 0x03, KEY_1 },
 	{ 0x01, KEY_2 },
 	{ 0x06, KEY_3 },
@@ -674,14 +674,14 @@ static struct rc_map_table rc_map_pinnacle310e_table[] = {
 	{ 0x0e, KEY_MUTE },
 /*	{ 0x49, KEY_LR },	*/		/* L/R */
 	{ 0x07, KEY_SLEEP },		/* Hibernate */
-	{ 0x08, KEY_MEDIA },		/* A/V */
-	{ 0x0e, KEY_MENU },			/* Recall */
+	{ 0x08, KEY_VIDEO },		/* A/V */
+	{ 0x0e, KEY_MENU },		/* Recall */
 	{ 0x45, KEY_ZOOMIN },
 	{ 0x46, KEY_ZOOMOUT },
-	{ 0x18, KEY_TV },			/* Red */
-	{ 0x53, KEY_VCR },			/* Green */
-	{ 0x5e, KEY_SAT },			/* Yellow */
-	{ 0x5f, KEY_PLAYER },		/* Blue */
+	{ 0x18, KEY_RED },		/* Red */
+	{ 0x53, KEY_GREEN },		/* Green */
+	{ 0x5e, KEY_YELLOW },		/* Yellow */
+	{ 0x5f, KEY_BLUE },		/* Blue */
 };
 
 /* DVB USB Driver stuff */
