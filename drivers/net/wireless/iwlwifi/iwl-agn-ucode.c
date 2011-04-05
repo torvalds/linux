@@ -432,6 +432,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	unsigned long flags;
 	int i, chan;
 	u32 reg_val;
+	int ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -527,9 +528,14 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwlagn_send_wimax_coex(priv);
+	ret = iwlagn_send_wimax_coex(priv);
+	if (ret)
+		return ret;
 
-	iwlagn_set_Xtal_calib(priv);
+	ret = iwlagn_set_Xtal_calib(priv);
+	if (ret)
+		return ret;
+
 	return iwl_send_calib_results(priv);
 }
 
