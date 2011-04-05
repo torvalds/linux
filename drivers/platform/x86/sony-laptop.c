@@ -966,9 +966,10 @@ static int sony_nc_update_status_ng(struct backlight_device *bd)
 	int *handle = (int *)bl_get_data(bd);
 
 	value = bd->props.brightness;
-	sony_call_snc_handle(*handle, 0x0100 | (value << 16), &result);
+	if (sony_call_snc_handle(*handle, 0x0100 | (value << 16), &result))
+		return -EIO;
 
-	return sony_nc_get_brightness_ng(bd);
+	return value;
 }
 
 static const struct backlight_ops sony_backlight_ops = {
