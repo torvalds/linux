@@ -2493,69 +2493,78 @@ ttwu_post_activation(struct task_struct *p, struct rq *rq, int wake_flags)
  * Returns %true if @p was woken up, %false if it was already running
  * or @state didn't match @p's state.
  */
-static int try_to_wake_up(struct task_struct *p, unsigned int state,
-			  int wake_flags)
+static int
+try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 {
-	int cpu, orig_cpu, this_cpu, success = 0;
+	int cpu, this_cpu, success = 0;
 	unsigned long flags;
-	unsigned long en_flags = ENQUEUE_WAKEUP;
 	struct rq *rq;
 
 	this_cpu = get_cpu();
 
 	smp_wmb();
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	rq = __task_rq_lock(p);
 	if (!(p->state & state))
 		goto out;
 
 	cpu = task_cpu(p);
 
-	if (p->on_rq)
-		goto out_running;
+	if (p->on_rq) {
+		rq = __task_rq_lock(p);
+		if (p->on_rq)
+			goto out_running;
+		__task_rq_unlock(rq);
+	}
 
-	orig_cpu = cpu;
 #ifdef CONFIG_SMP
-	if (unlikely(task_running(rq, p)))
-		goto out_activate;
+	while (p->on_cpu) {
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+		/*
+		 * If called from interrupt context we could have landed in the
+		 * middle of schedule(), in this case we should take care not
+		 * to spin on ->on_cpu if p is current, since that would
+		 * deadlock.
+		 */
+		if (p == current)
+			goto out_activate;
+#endif
+		cpu_relax();
+	}
+	/*
+	 * Pairs with the smp_wmb() in finish_lock_switch().
+	 */
+	smp_rmb();
 
 	p->sched_contributes_to_load = !!task_contributes_to_load(p);
 	p->state = TASK_WAKING;
 
-	if (p->sched_class->task_waking) {
+	if (p->sched_class->task_waking)
 		p->sched_class->task_waking(p);
-		en_flags |= ENQUEUE_WAKING;
-	}
 
 	cpu = select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
-	if (cpu != orig_cpu)
-		set_task_cpu(p, cpu);
-	__task_rq_unlock(rq);
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+out_activate:
+#endif
+#endif /* CONFIG_SMP */
 
 	rq = cpu_rq(cpu);
 	raw_spin_lock(&rq->lock);
 
-	/*
-	 * We migrated the task without holding either rq->lock, however
-	 * since the task is not on the task list itself, nobody else
-	 * will try and migrate the task, hence the rq should match the
-	 * cpu we just moved it to.
-	 */
-	WARN_ON(task_cpu(p) != cpu);
-	WARN_ON(p->state != TASK_WAKING);
+#ifdef CONFIG_SMP
+	if (cpu != task_cpu(p))
+		set_task_cpu(p, cpu);
 
 	if (p->sched_contributes_to_load)
 		rq->nr_uninterruptible--;
+#endif
 
-out_activate:
-#endif /* CONFIG_SMP */
-	ttwu_activate(rq, p, en_flags);
+	ttwu_activate(rq, p, ENQUEUE_WAKEUP | ENQUEUE_WAKING);
 out_running:
 	ttwu_post_activation(p, rq, wake_flags);
 	ttwu_stat(rq, p, cpu, wake_flags);
 	success = 1;
-out:
 	__task_rq_unlock(rq);
+out:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 	put_cpu();
 
