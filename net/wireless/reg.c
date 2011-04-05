@@ -106,6 +106,9 @@ struct reg_beacon {
 static void reg_todo(struct work_struct *work);
 static DECLARE_WORK(reg_work, reg_todo);
 
+static void reg_timeout_work(struct work_struct *work);
+static DECLARE_DELAYED_WORK(reg_timeout, reg_timeout_work);
+
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
 	.n_reg_rules = 5,
@@ -1330,6 +1333,9 @@ static void reg_set_request_processed(void)
 		need_more_processing = true;
 	spin_unlock(&reg_requests_lock);
 
+	if (last_request->initiator == NL80211_REGDOM_SET_BY_USER)
+		cancel_delayed_work_sync(&reg_timeout);
+
 	if (need_more_processing)
 		schedule_work(&reg_work);
 }
@@ -1440,8 +1446,17 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	r = __regulatory_hint(wiphy, reg_request);
 	/* This is required so that the orig_* parameters are saved */
 	if (r == -EALREADY && wiphy &&
-	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
+	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
 		wiphy_update_regulatory(wiphy, initiator);
+		return;
+	}
+
+	/*
+	 * We only time out user hints, given that they should be the only
+	 * source of bogus requests.
+	 */
+	if (reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
+		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
 }
 
 /*
@@ -2169,6 +2184,13 @@ out:
 	mutex_unlock(&reg_mutex);
 }
 
+static void reg_timeout_work(struct work_struct *work)
+{
+	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, "
+		      "restoring regulatory settings");
+	restore_regulatory_settings(true);
+}
+
 int __init regulatory_init(void)
 {
 	int err = 0;
@@ -2222,6 +2244,7 @@ void /* __init_or_exit */ regulatory_exit(void)
 	struct reg_beacon *reg_beacon, *btmp;
 
 	cancel_work_sync(&reg_work);
+	cancel_delayed_work_sync(&reg_timeout);
 
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
