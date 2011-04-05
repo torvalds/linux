@@ -64,6 +64,8 @@ static const struct mmc_fixup mmc_fixup_methods[] = {
 		add_quirk_for_sdio_devices, MMC_QUIRK_BROKEN_CLK_GATING },
 	{ SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
 		remove_quirk, MMC_QUIRK_BROKEN_CLK_GATING },
+	{ SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
+		add_quirk, MMC_QUIRK_NONSTD_FUNC_IF },
 	{ 0 }
 };
 
