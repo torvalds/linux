@@ -1413,14 +1413,16 @@ static void asihpi_ctl_init(struct snd_kcontrol_new *snd_control,
 				struct hpi_control *hpi_ctl,
 				char *name)
 {
-	char *dir = "";
+	char *dir;
 	memset(snd_control, 0, sizeof(*snd_control));
 	snd_control->name = hpi_ctl->name;
 	snd_control->private_value = hpi_ctl->h_control;
 	snd_control->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	snd_control->index = 0;
 
-	if (hpi_ctl->dst_node_type + HPI_DESTNODE_NONE == HPI_DESTNODE_ISTREAM)
+	if (hpi_ctl->src_node_type + HPI_SOURCENODE_NONE == HPI_SOURCENODE_CLOCK_SOURCE)
+		dir = ""; /* clock is neither capture nor playback */
+	else if (hpi_ctl->dst_node_type + HPI_DESTNODE_NONE == HPI_DESTNODE_ISTREAM)
 		dir = "Capture ";  /* On or towards a PCM capture destination*/
 	else if ((hpi_ctl->src_node_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
 		(!hpi_ctl->dst_node_type))
@@ -1433,7 +1435,7 @@ static void asihpi_ctl_init(struct snd_kcontrol_new *snd_control,
 		dir = "Playback "; /* PCM Playback source, or  output node */
 
 	if (hpi_ctl->src_node_type && hpi_ctl->dst_node_type)
-		sprintf(hpi_ctl->name, "%s%d %s%d %s%s",
+		sprintf(hpi_ctl->name, "%s %d %s %d %s%s",
 			asihpi_src_names[hpi_ctl->src_node_type],
 			hpi_ctl->src_node_index,
 			asihpi_dst_names[hpi_ctl->dst_node_type],
