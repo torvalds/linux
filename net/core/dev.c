@@ -5425,6 +5425,14 @@ int register_netdevice(struct net_device *dev)
 		dev->features &= ~NETIF_F_GSO;
 	}
 
+	/* Turn on no cache copy if HW is doing checksum */
+	dev->hw_features |= NETIF_F_NOCACHE_COPY;
+	if ((dev->features & NETIF_F_ALL_CSUM) &&
+	    !(dev->features & NETIF_F_NO_CSUM)) {
+		dev->wanted_features |= NETIF_F_NOCACHE_COPY;
+		dev->features |= NETIF_F_NOCACHE_COPY;
+	}
+
 	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
 	 * vlan_dev_init() will do the dev->features check, so these features
 	 * are enabled only if supported by underlying device.
@@ -6181,6 +6189,10 @@ u32 netdev_increment_features(u32 all, u32 one, u32 mask)
 			all |= NETIF_F_HW_CSUM;
 		}
 	}
+
+	/* If device can't no cache copy, don't do for all */
+	if (!(one & NETIF_F_NOCACHE_COPY))
+		all &= ~NETIF_F_NOCACHE_COPY;
 
 	one |= NETIF_F_ALL_CSUM;
 
