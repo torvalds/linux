@@ -16,6 +16,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/sdio_ids.h>
 
 #include "core.h"
 #include "bus.h"
@@ -30,6 +31,11 @@ static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
 	unsigned char data;
+
+	if (mmc_card_nonstd_func_interface(func->card)) {
+		func->class = SDIO_CLASS_NONE;
+		return 0;
+	}
 
 	ret = mmc_io_rw_direct(func->card, 0, 0,
 		SDIO_FBR_BASE(func->num) + SDIO_FBR_STD_IF, 0, &data);
