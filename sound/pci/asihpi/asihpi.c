@@ -47,18 +47,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AudioScience inc. <support@audioscience.com>");
 MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx");
 
-#if defined CONFIG_SND_DEBUG_VERBOSE
-/**
- * snd_printddd - very verbose debug printk
- * @format: format string
- *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
- * Must set snd module debug parameter to 3 to enable at runtime.
- */
-#define snd_printddd(format, args...) \
-	__snd_printk(3, __FILE__, __LINE__, format, ##args)
-
+#if defined CONFIG_SND_DEBUG
 /* copied from pcm_lib.c, hope later patch will make that version public
 and this copy can be removed */
 static void pcm_debug_name(struct snd_pcm_substream *substream,
@@ -71,12 +60,24 @@ static void pcm_debug_name(struct snd_pcm_substream *substream,
 		 substream->number);
 }
 #define DEBUG_NAME(substream, name) char name[16]; pcm_debug_name(substream, name, sizeof(name))
-
 #else
-#define snd_printddd(format, args...) do { } while (0)
 #define pcm_debug_name(s, n, l) do { } while (0)
 #define DEBUG_NAME(name, substream) do { } while (0)
+#endif
 
+#if defined CONFIG_SND_DEBUG_VERBOSE
+/**
+ * snd_printddd - very verbose debug printk
+ * @format: format string
+ *
+ * Works like snd_printk() for debugging purposes.
+ * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
+ * Must set snd module debug parameter to 3 to enable at runtime.
+ */
+#define snd_printddd(format, args...) \
+	__snd_printk(3, __FILE__, __LINE__, format, ##args)
+#else
+#define snd_printddd(format, args...) do { } while (0)
 #endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* index 0-MAX */
@@ -857,7 +858,7 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 			unsigned int xfer1, xfer2;
 			char *pd = &s->runtime->dma_area[buf_ofs];
 
-			if (card->can_dma) {
+			if (card->can_dma) { /* buffer wrap is handled at lower level */
 				xfer1 = xfercount;
 				xfer2 = 0;
 			} else {
