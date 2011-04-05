@@ -233,7 +233,6 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	struct iwl_station_entry *station;
 	int i;
 	u8 sta_id = IWL_INVALID_STATION;
-	u16 rate;
 
 	if (is_ap)
 		sta_id = ctx->ap_sta_id;
