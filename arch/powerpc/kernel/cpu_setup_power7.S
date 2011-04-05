@@ -52,13 +52,14 @@ __init_hvmode_206:
 __init_LPCR:
 	/* Setup a sane LPCR:
 	 *
-	 *   LPES = 0b11 (SRR0/1 used for 0x500)
+	 *   LPES = 0b01 (HSRR0/1 used for 0x500)
 	 *   PECE = 0b111
 	 *
 	 * Other bits untouched for now
 	 */
 	mfspr	r3,SPRN_LPCR
 	ori	r3,r3,(LPCR_LPES0|LPCR_LPES1)
+	xori	r3,r3, LPCR_LPES0
 	ori	r3,r3,(LPCR_PECE0|LPCR_PECE1|LPCR_PECE2)
 	mtspr	SPRN_LPCR,r3
 	isync

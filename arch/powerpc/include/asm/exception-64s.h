@@ -56,30 +56,37 @@
 #define LOAD_HANDLER(reg, label)					\
 	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
-#define EXCEPTION_PROLOG_1(area)					\
+/* Exception register prefixes */
+#define EXC_HV	H
+#define EXC_STD
+
+#define __EXCEPTION_PROLOG_1(area, h)					\
 	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG_SCRATCH0;					\
+	mfspr	r9,SPRN_SPRG_##h##SCRATCH0;				\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
+#define EXCEPTION_PROLOG_1(area, h) __EXCEPTION_PROLOG_1(area, h)
 
-#define EXCEPTION_PROLOG_PSERIES_1(label)				\
+#define __EXCEPTION_PROLOG_PSERIES_1(label, h)				\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
-	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
+	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label)						\
-	mtspr	SPRN_SRR0,r12;						\
-	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
-	mtspr	SPRN_SRR1,r10;						\
-	rfid;								\
+	mtspr	SPRN_##h##SRR0,r12;					\
+	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
+	mtspr	SPRN_##h##SRR1,r10;					\
+	h##rfid;							\
 	b	.	/* prevent speculative execution */
+#define EXCEPTION_PROLOG_PSERIES_1(label, h) \
+	__EXCEPTION_PROLOG_PSERIES_1(label, h)
 
-#define EXCEPTION_PROLOG_PSERIES(area, label)				\
-	EXCEPTION_PROLOG_1(area);					\
-	EXCEPTION_PROLOG_PSERIES_1(label);
+#define EXCEPTION_PROLOG_PSERIES(area, label, h)			\
+	EXCEPTION_PROLOG_1(area, h);					\
+	EXCEPTION_PROLOG_PSERIES_1(label, h);
 
 /*
  * The common exception prolog is used for all except a few exceptions
@@ -150,50 +157,44 @@ label##_pSeries:					\
 	HMT_MEDIUM;					\
 	DO_KVM	n;					\
 	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_STD)
 
 #define HSTD_EXCEPTION_PSERIES(n, label)		\
 	. = n;						\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	mtspr	SPRN_SPRG_SCRATCH0,r20;	/* save r20 */	\
-	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
-	mtspr	SPRN_SRR0,r20;				\
-	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
-	mtspr	SPRN_SRR1,r20;				\
-	mfspr	r20,SPRN_SPRG_SCRATCH0;	/* restore r20 */ \
-	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+	DO_KVM	n;					\
+	mtspr	SPRN_SPRG_HSCRATCH0,r13;/* save r13 */	\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common, EXC_HV)
 
 
-#define MASKABLE_EXCEPTION_PSERIES(n, label)				\
-	. = n;								\
-	.globl label##_pSeries;						\
-label##_pSeries:							\
+#define __MASKABLE_EXCEPTION_PSERIES(n, label, h)			\
 	HMT_MEDIUM;							\
 	DO_KVM	n;							\
-	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
+	mtspr	SPRN_SPRG_##h##SCRATCH0,r13;    /* save r13 */		\
 	GET_PACA(r13);							\
 	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
 	lbz	r10,PACASOFTIRQEN(r13);					\
 	mfcr	r9;							\
 	cmpwi	r10,0;							\
-	beq	masked_interrupt;					\
-	mfspr	r10,SPRN_SPRG_SCRATCH0;					\
+	beq	masked_##h##interrupt;					\
+	mfspr	r10,SPRN_SPRG_##h##SCRATCH0;				\
 	std	r10,PACA_EXGEN+EX_R13(r13);				\
 	std	r11,PACA_EXGEN+EX_R11(r13);				\
 	std	r12,PACA_EXGEN+EX_R12(r13);				\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
-	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
+	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label##_common)				\
-	mtspr	SPRN_SRR0,r12;						\
-	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
-	mtspr	SPRN_SRR1,r10;						\
-	rfid;								\
+	mtspr	SPRN_##h##SRR0,r12;					\
+	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
+	mtspr	SPRN_##h##SRR1,r10;					\
+	h##rfid;							\
 	b	.	/* prevent speculative execution */
+#define MASKABLE_EXCEPTION_PSERIES(n, label, h)				\
+	__MASKABLE_EXCEPTION_PSERIES(n, label, h)
 
 #ifdef CONFIG_PPC_ISERIES
 #define DISABLE_INTS				\

@@ -44,7 +44,7 @@ _machine_check_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x200
 	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 	. = 0x300
 	.globl data_access_pSeries
@@ -71,9 +71,9 @@ BEGIN_FTR_SECTION
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R13(r13)
-	EXCEPTION_PROLOG_PSERIES_1(data_access_common)
+	EXCEPTION_PROLOG_PSERIES_1(data_access_common, EXC_STD)
 FTR_SECTION_ELSE
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD)
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
 
 	. = 0x380
@@ -147,11 +147,24 @@ instruction_access_slb_pSeries:
 	bctr
 #endif
 
-	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt)
+	. = 0x500;
+	.globl hardware_interrupt_pSeries
+hardware_interrupt_pSeries:
+	BEGIN_FTR_SECTION
+	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt, EXC_STD)
+	FTR_SECTION_ELSE
+	MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt, EXC_HV)
+	ALT_FTR_SECTION_END_IFCLR(CPU_FTR_HVMODE_206)
+
 	STD_EXCEPTION_PSERIES(0x600, alignment)
 	STD_EXCEPTION_PSERIES(0x700, program_check)
 	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
-	MASKABLE_EXCEPTION_PSERIES(0x900, decrementer)
+
+	. = 0x900;
+	.globl decrementer_pSeries
+decrementer_pSeries:
+	MASKABLE_EXCEPTION_PSERIES(0x900, decrementer, EXC_STD)
+
 	STD_EXCEPTION_PSERIES(0xa00, trap_0a)
 	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
 
@@ -207,15 +220,15 @@ vsx_unavailable_pSeries_1:
 	b	vsx_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
+	HSTD_EXCEPTION_PSERIES(0x1202, cbe_system_error)
 #endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1600, cbe_maintenance)
+	HSTD_EXCEPTION_PSERIES(0x1602, cbe_maintenance)
 #endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1800, cbe_thermal)
+	HSTD_EXCEPTION_PSERIES(0x1802, cbe_thermal)
 #endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
@@ -244,13 +257,26 @@ masked_interrupt:
 	rfid
 	b	.
 
+masked_Hinterrupt:
+	stb	r10,PACAHARDIRQEN(r13)
+	mtcrf	0x80,r9
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	mfspr	r10,SPRN_HSRR1
+	rldicl	r10,r10,48,1		/* clear MSR_EE */
+	rotldi	r10,r10,16
+	mtspr	SPRN_HSRR1,r10
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	mfspr	r13,SPRN_SPRG_HSCRATCH0
+	hrfid
+	b	.
+
 	.align	7
 do_stab_bolted_pSeries:
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
 	mfspr	r10,SPRN_SPRG_SCRATCH0
 	std	r10,PACA_EXSLB+EX_R13(r13)
-	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted)
+	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted, EXC_STD)
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -261,14 +287,14 @@ do_stab_bolted_pSeries:
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD)
 
 	.globl machine_check_fwnmi
       .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 #endif /* CONFIG_PPC_PSERIES */
 
