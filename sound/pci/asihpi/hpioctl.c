@@ -317,7 +317,7 @@ out:
 int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	const struct pci_device_id *pci_id)
 {
-	int err, idx, nm;
+	int idx, nm;
 	unsigned int memlen;
 	struct hpi_message hm;
 	struct hpi_response hr;
@@ -351,11 +351,8 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	nm = HPI_MAX_ADAPTER_MEM_SPACES;
 
 	for (idx = 0; idx < nm; idx++) {
-		HPI_DEBUG_LOG(INFO, "resource %d %s %08llx-%08llx %04llx\n",
-			idx, pci_dev->resource[idx].name,
-			(unsigned long long)pci_resource_start(pci_dev, idx),
-			(unsigned long long)pci_resource_end(pci_dev, idx),
-			(unsigned long long)pci_resource_flags(pci_dev, idx));
+		HPI_DEBUG_LOG(INFO, "resource %d %pR\n", idx,
+			&pci_dev->resource[idx]);
 
 		if (pci_resource_flags(pci_dev, idx) & IORESOURCE_MEM) {
 			memlen = pci_resource_len(pci_dev, idx);

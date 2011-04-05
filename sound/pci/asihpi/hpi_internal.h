@@ -1583,9 +1583,7 @@ void hpi_stream_response_to_legacy(struct hpi_stream_res *pSR);
 
 /*////////////////////////////////////////////////////////////////////////// */
 /* declarations for individual HPI entry points */
-hpi_handler_func HPI_1000;
 hpi_handler_func HPI_6000;
 hpi_handler_func HPI_6205;
-hpi_handler_func HPI_COMMON;
 
 #endif				/* _HPI_INTERNAL_H_ */
