@@ -269,7 +269,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->dcid) {
+	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->scid) {
 		bdaddr_t *src = &bt_sk(sk)->src;
 		u16 psm;
 
