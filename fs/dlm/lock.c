@@ -305,7 +305,7 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 		rv = -EDEADLK;
 	}
 
-	dlm_add_ast(lkb, DLM_CB_CAST, lkb->lkb_grmode, rv, lkb->lkb_sbflags);
+	dlm_add_cb(lkb, DLM_CB_CAST, lkb->lkb_grmode, rv, lkb->lkb_sbflags);
 }
 
 static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -319,7 +319,7 @@ static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
 	if (is_master_copy(lkb)) {
 		send_bast(r, lkb, rqmode);
 	} else {
-		dlm_add_ast(lkb, DLM_CB_BAST, rqmode, 0, 0);
+		dlm_add_cb(lkb, DLM_CB_BAST, rqmode, 0, 0);
 	}
 }
 
@@ -638,7 +638,9 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
 	INIT_LIST_HEAD(&lkb->lkb_rsb_lookup);
 	INIT_LIST_HEAD(&lkb->lkb_time_list);
-	INIT_LIST_HEAD(&lkb->lkb_astqueue);
+	INIT_LIST_HEAD(&lkb->lkb_cb_list);
+	mutex_init(&lkb->lkb_cb_mutex);
+	INIT_WORK(&lkb->lkb_cb_work, dlm_callback_work);
 
  retry:
 	rv = idr_pre_get(&ls->ls_lkbidr, GFP_NOFS);
@@ -4010,8 +4012,6 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms)
 	default:
 		log_error(ls, "unknown message type %d", ms->m_type);
 	}
-
-	dlm_astd_wake();
 }
 
 /* If the lockspace is in recovery mode (locking stopped), then normal
@@ -4826,7 +4826,7 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		goto out_put;
 
 	spin_lock(&ua->proc->locks_spin);
-	/* dlm_user_add_ast() may have already taken lkb off the proc list */
+	/* dlm_user_add_cb() may have already taken lkb off the proc list */
 	if (!list_empty(&lkb->lkb_ownqueue))
 		list_move(&lkb->lkb_ownqueue, &ua->proc->unlocking);
 	spin_unlock(&ua->proc->locks_spin);
@@ -4963,7 +4963,7 @@ static int unlock_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 
 /* We have to release clear_proc_locks mutex before calling unlock_proc_lock()
    (which does lock_rsb) due to deadlock with receiving a message that does
-   lock_rsb followed by dlm_user_add_ast() */
+   lock_rsb followed by dlm_user_add_cb() */
 
 static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
 				     struct dlm_user_proc *proc)
@@ -4986,7 +4986,7 @@ static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
 	return lkb;
 }
 
-/* The ls_clear_proc_locks mutex protects against dlm_user_add_asts() which
+/* The ls_clear_proc_locks mutex protects against dlm_user_add_cb() which
    1) references lkb->ua which we free here and 2) adds lkbs to proc->asts,
    which we clear here. */
 
@@ -5028,10 +5028,10 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 		dlm_put_lkb(lkb);
 	}
 
-	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_cb_list) {
 		memset(&lkb->lkb_callbacks, 0,
 		       sizeof(struct dlm_callback) * DLM_CALLBACKS_SIZE);
-		list_del_init(&lkb->lkb_astqueue);
+		list_del_init(&lkb->lkb_cb_list);
 		dlm_put_lkb(lkb);
 	}
 
@@ -5070,10 +5070,10 @@ static void purge_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 	spin_unlock(&proc->locks_spin);
 
 	spin_lock(&proc->asts_spin);
-	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_cb_list) {
 		memset(&lkb->lkb_callbacks, 0,
 		       sizeof(struct dlm_callback) * DLM_CALLBACKS_SIZE);
-		list_del_init(&lkb->lkb_astqueue);
+		list_del_init(&lkb->lkb_cb_list);
 		dlm_put_lkb(lkb);
 	}
 	spin_unlock(&proc->asts_spin);

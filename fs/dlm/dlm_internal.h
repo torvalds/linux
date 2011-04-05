@@ -246,13 +246,15 @@ struct dlm_lkb {
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
-	struct list_head	lkb_astqueue;	/* need ast to be sent */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
 	ktime_t			lkb_timestamp;
 	ktime_t			lkb_wait_time;
 	unsigned long		lkb_timeout_cs;
 
+	struct mutex		lkb_cb_mutex;
+	struct work_struct	lkb_cb_work;
+	struct list_head	lkb_cb_list; /* for ls_cb_delay or proc->asts */
 	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];
 	struct dlm_callback	lkb_last_cast;
 	struct dlm_callback	lkb_last_bast;
@@ -504,8 +506,12 @@ struct dlm_ls {
 
 	struct miscdevice       ls_device;
 
+	struct workqueue_struct	*ls_callback_wq;
+
 	/* recovery related */
 
+	struct mutex		ls_cb_mutex;
+	struct list_head	ls_cb_delay; /* save for queue_work later */
 	struct timer_list	ls_timer;
 	struct task_struct	*ls_recoverd_task;
 	struct mutex		ls_recoverd_active;
@@ -542,6 +548,7 @@ struct dlm_ls {
 #define LSFL_RCOM_WAIT		4
 #define LSFL_UEVENT_WAIT	5
 #define LSFL_TIMEWARN		6
+#define LSFL_CB_DELAY		7
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */

@@ -15,7 +15,6 @@
 #include "lockspace.h"
 #include "member.h"
 #include "recoverd.h"
-#include "ast.h"
 #include "dir.h"
 #include "lowcomms.h"
 #include "config.h"
@@ -24,6 +23,7 @@
 #include "recover.h"
 #include "requestqueue.h"
 #include "user.h"
+#include "ast.h"
 
 static int			ls_count;
 static struct mutex		ls_lock;
@@ -359,17 +359,10 @@ static int threads_start(void)
 {
 	int error;
 
-	/* Thread which process lock requests for all lockspace's */
-	error = dlm_astd_start();
-	if (error) {
-		log_print("cannot start dlm_astd thread %d", error);
-		goto fail;
-	}
-
 	error = dlm_scand_start();
 	if (error) {
 		log_print("cannot start dlm_scand thread %d", error);
-		goto astd_fail;
+		goto fail;
 	}
 
 	/* Thread for sending/receiving messages for all lockspace's */
@@ -383,8 +376,6 @@ static int threads_start(void)
 
  scand_fail:
 	dlm_scand_stop();
- astd_fail:
-	dlm_astd_stop();
  fail:
 	return error;
 }
@@ -393,7 +384,6 @@ static void threads_stop(void)
 {
 	dlm_scand_stop();
 	dlm_lowcomms_stop();
-	dlm_astd_stop();
 }
 
 static int new_lockspace(const char *name, int namelen, void **lockspace,
@@ -514,6 +504,9 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	init_completion(&ls->ls_members_done);
 	ls->ls_members_result = -1;
 
+	mutex_init(&ls->ls_cb_mutex);
+	INIT_LIST_HEAD(&ls->ls_cb_delay);
+
 	ls->ls_recoverd_task = NULL;
 	mutex_init(&ls->ls_recoverd_active);
 	spin_lock_init(&ls->ls_recover_lock);
@@ -547,18 +540,26 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	list_add(&ls->ls_list, &lslist);
 	spin_unlock(&lslist_lock);
 
+	if (flags & DLM_LSFL_FS) {
+		error = dlm_callback_start(ls);
+		if (error) {
+			log_error(ls, "can't start dlm_callback %d", error);
+			goto out_delist;
+		}
+	}
+
 	/* needs to find ls in lslist */
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
-		goto out_delist;
+		goto out_callback;
 	}
 
 	ls->ls_kobj.kset = dlm_kset;
 	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,
 				     "%s", ls->ls_name);
 	if (error)
-		goto out_stop;
+		goto out_recoverd;
 	kobject_uevent(&ls->ls_kobj, KOBJ_ADD);
 
 	/* let kobject handle freeing of ls if there's an error */
@@ -572,7 +573,7 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 
 	error = do_uevent(ls, 1);
 	if (error)
-		goto out_stop;
+		goto out_recoverd;
 
 	wait_for_completion(&ls->ls_members_done);
 	error = ls->ls_members_result;
@@ -589,8 +590,10 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	do_uevent(ls, 0);
 	dlm_clear_members(ls);
 	kfree(ls->ls_node_array);
- out_stop:
+ out_recoverd:
 	dlm_recoverd_stop(ls);
+ out_callback:
+	dlm_callback_stop(ls);
  out_delist:
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
@@ -651,8 +654,6 @@ static int lkb_idr_is_any(int id, void *p, void *data)
 static int lkb_idr_free(int id, void *p, void *data)
 {
 	struct dlm_lkb *lkb = p;
-
-	dlm_del_ast(lkb);
 
 	if (lkb->lkb_lvbptr && lkb->lkb_flags & DLM_IFL_MSTCPY)
 		dlm_free_lvb(lkb->lkb_lvbptr);
@@ -717,11 +718,11 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_recoverd_stop(ls);
 
+	dlm_callback_stop(ls);
+
 	remove_lockspace(ls);
 
 	dlm_delete_debug_file(ls);
-
-	dlm_astd_suspend();
 
 	kfree(ls->ls_recover_buf);
 
@@ -739,8 +740,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	idr_for_each(&ls->ls_lkbidr, lkb_idr_free, ls);
 	idr_remove_all(&ls->ls_lkbidr);
 	idr_destroy(&ls->ls_lkbidr);
-
-	dlm_astd_resume();
 
 	/*
 	 * Free all rsb's on rsbtbl[] lists
