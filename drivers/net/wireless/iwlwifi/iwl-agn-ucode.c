@@ -606,7 +606,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc)
 {
 	if (!iwlcore_verify_inst_sparse(priv, fw_desc)) {
-		IWL_DEBUG_INFO(priv, "Bootstrap uCode is good in inst SRAM\n");
+		IWL_DEBUG_INFO(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
