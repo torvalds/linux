@@ -11866,6 +11866,8 @@ static void __devinit tg3_get_5717_nvram_info(struct tg3 *tp)
 
 		switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
 		case FLASH_5717VENDOR_ATMEL_MDB021D:
+			/* Detect size with tg3_nvram_get_size() */
+			break;
 		case FLASH_5717VENDOR_ATMEL_ADB021B:
 		case FLASH_5717VENDOR_ATMEL_ADB021D:
 			tp->nvram_size = TG3_NVRAM_SIZE_256KB;
@@ -11891,8 +11893,10 @@ static void __devinit tg3_get_5717_nvram_info(struct tg3 *tp)
 
 		switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
 		case FLASH_5717VENDOR_ST_M_M25PE20:
-		case FLASH_5717VENDOR_ST_A_M25PE20:
 		case FLASH_5717VENDOR_ST_M_M45PE20:
+			/* Detect size with tg3_nvram_get_size() */
+			break;
+		case FLASH_5717VENDOR_ST_A_M25PE20:
 		case FLASH_5717VENDOR_ST_A_M45PE20:
 			tp->nvram_size = TG3_NVRAM_SIZE_256KB;
 			break;
