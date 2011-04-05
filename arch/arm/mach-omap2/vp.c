@@ -106,6 +106,25 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	voltdm->write(vp_val, vp->vlimitto);
 }
 
+int omap_vp_update_errorgain(struct voltagedomain *voltdm,
+			     unsigned long target_volt)
+{
+	struct omap_volt_data *volt_data;
+
+	/* Get volt_data corresponding to target_volt */
+	volt_data = omap_voltage_get_voltdata(voltdm, target_volt);
+	if (IS_ERR(volt_data))
+		return -EINVAL;
+
+	/* Setting vp errorgain based on the voltage */
+	voltdm->rmw(voltdm->vp->common->vpconfig_errorgain_mask,
+		    volt_data->vp_errgain <<
+		    __ffs(voltdm->vp->common->vpconfig_errorgain_mask),
+		    voltdm->vp->vpconfig);
+
+	return 0;
+}
+
 /* VP force update method of voltage scaling */
 int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 			      unsigned long target_volt)
