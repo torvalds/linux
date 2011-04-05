@@ -17432,8 +17432,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 #define ALC662_DIGOUT_NID	0x06
 #define ALC662_DIGIN_NID	0x0a
 
-static hda_nid_t alc662_dac_nids[4] = {
-	/* front, rear, clfe, rear_surr */
+static hda_nid_t alc662_dac_nids[3] = {
+	/* front, rear, clfe */
 	0x02, 0x03, 0x04
 };
 
@@ -18691,7 +18691,7 @@ static const char * const alc662_models[ALC662_MODEL_LAST] = {
 	[ALC662_3ST_2ch_DIG]	= "3stack-dig",
 	[ALC662_3ST_6ch_DIG]	= "3stack-6ch-dig",
 	[ALC662_3ST_6ch]	= "3stack-6ch",
-	[ALC662_5ST_DIG]	= "6stack-dig",
+	[ALC662_5ST_DIG]	= "5stack-dig",
 	[ALC662_LENOVO_101E]	= "lenovo-101e",
 	[ALC662_ASUS_EEEPC_P701] = "eeepc-p701",
 	[ALC662_ASUS_EEEPC_EP20] = "eeepc-ep20",
