@@ -217,7 +217,6 @@ struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
 	const struct iwl_legacy_ops *legacy;
 	const struct ieee80211_ops *ieee80211_ops;

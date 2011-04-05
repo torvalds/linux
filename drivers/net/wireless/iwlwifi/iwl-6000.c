@@ -46,7 +46,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
-#include "iwl-agn-led.h"
 #include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
@@ -397,7 +396,6 @@ static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
@@ -405,7 +403,6 @@ static const struct iwl_ops iwl6050_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.nic = &iwl6050_nic_ops,
 	.ieee80211_ops = &iwlagn_hw_ops,
 };
@@ -414,7 +411,6 @@ static const struct iwl_ops iwl6150_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.nic = &iwl6150_nic_ops,
 	.ieee80211_ops = &iwlagn_hw_ops,
 };
@@ -423,7 +419,6 @@ static const struct iwl_ops iwl6030_ops = {
 	.lib = &iwl6030_lib,
 	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.ieee80211_ops = &iwlagn_hw_ops,
 };
 

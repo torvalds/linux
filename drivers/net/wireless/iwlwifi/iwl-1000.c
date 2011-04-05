@@ -45,7 +45,6 @@
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-agn-led.h"
 #include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
@@ -226,7 +225,6 @@ static const struct iwl_ops iwl1000_ops = {
 	.lib = &iwl1000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
