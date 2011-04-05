@@ -140,8 +140,6 @@ static void finish_reset(struct uhci_hcd *uhci)
 	uhci->rh_state = UHCI_RH_RESET;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	clear_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
-
-	uhci->dead = 0;		/* Full reset resurrects the controller */
 }
 
 /*
@@ -837,16 +835,17 @@ static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	spin_lock_irq(&uhci->lock);
 
 	/* Make sure resume from hibernation re-enumerates everything */
-	if (hibernated)
-		uhci_hc_died(uhci);
+	if (hibernated) {
+		uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+		finish_reset(uhci);
+	}
 
-	/* The firmware or a boot kernel may have changed the controller
-	 * settings during a system wakeup.  Check it and reconfigure
-	 * to avoid problems.
+	/* The firmware may have changed the controller settings during
+	 * a system wakeup.  Check it and reconfigure to avoid problems.
 	 */
-	check_and_reset_hc(uhci);
-
-	/* If the controller was dead before, it's back alive now */
+	else {
+		check_and_reset_hc(uhci);
+	}
 	configure_hc(uhci);
 
 	/* Tell the core if the controller had to be reset */
