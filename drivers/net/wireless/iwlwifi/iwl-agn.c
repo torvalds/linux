@@ -1178,7 +1178,6 @@ static void iwl_dealloc_ucode_pci(struct iwl_priv *priv)
 {
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_code);
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data);
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init);
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init_data);
 }
@@ -1645,11 +1644,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	priv->ucode_data.len = pieces.data_size;
 	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data);
 
-	priv->ucode_data_backup.len = pieces.data_size;
-	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
-
-	if (!priv->ucode_code.v_addr || !priv->ucode_data.v_addr ||
-	    !priv->ucode_data_backup.v_addr)
+	if (!priv->ucode_code.v_addr || !priv->ucode_data.v_addr)
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
@@ -1709,7 +1704,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode data len %Zd\n",
 			pieces.data_size);
 	memcpy(priv->ucode_data.v_addr, pieces.data, pieces.data_size);
-	memcpy(priv->ucode_data_backup.v_addr, pieces.data, pieces.data_size);
 
 	/* Initialization instructions */
 	if (pieces.init_size) {
@@ -2481,11 +2475,6 @@ static int __iwl_up(struct iwl_priv *priv)
 		return -EIO;
 	}
 
-	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
-		IWL_ERR(priv, "ucode not available for device bringup\n");
-		return -EIO;
-	}
-
 	for_each_context(priv, ctx) {
 		ret = iwlagn_alloc_bcast_station(priv, ctx);
 		if (ret) {
@@ -2541,12 +2530,6 @@ static int __iwl_up(struct iwl_priv *priv)
 	/* really make sure rfkill handshake bits are cleared */
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	/* Copy original ucode data image from disk into backup cache.
-	 * This will be used to initialize the on-board processor's
-	 * data SRAM for a clean start when the runtime program first loads. */
-	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
-	       priv->ucode_data.len);
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
