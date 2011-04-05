@@ -2698,8 +2698,10 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			}
 		} else {
 			/* use defaults when not associated */
+			bool was_assoc =
+			    !!test_and_clear_bit(WL1271_FLAG_STA_ASSOCIATED,
+						 &wl->flags);
 			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
-			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
 
 			/* free probe-request template */
@@ -2725,8 +2727,10 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 				goto out;
 
 			/* restore the bssid filter and go to dummy bssid */
-			wl1271_unjoin(wl);
-			wl1271_dummy_join(wl);
+			if (was_assoc) {
+				wl1271_unjoin(wl);
+				wl1271_dummy_join(wl);
+			}
 		}
 	}
 
