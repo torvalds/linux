@@ -691,6 +691,24 @@ config MFD_OMAP_USB_HOST
 	  This MFD driver does the required setup functionalities for
 	  OMAP USB Host drivers.
 
+config MFD_PM8XXX
+	tristate
+
+config MFD_PM8921_CORE
+	tristate "Qualcomm PM8921 PMIC chip"
+	depends on MSM_SSBI
+	select MFD_CORE
+	select MFD_PM8XXX
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in PM8921 PMIC chip.
+
+	  This is required if your board has a PM8921 and uses its features,
+	  such as: MPPs, GPIOs, regulators, interrupts, and PWM.
+
+	  Say M here if you want to include support for PM8921 chip as a module.
+	  This will build a module called "pm8921-core".
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
