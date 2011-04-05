@@ -250,6 +250,8 @@ extern bool amd_iommu_dump;
 
 /* global flag if IOMMUs cache non-present entries */
 extern bool amd_iommu_np_cache;
+/* Only true if all IOMMUs support device IOTLBs */
+extern bool amd_iommu_iotlb_sup;
 
 /*
  * Make iterating over all IOMMUs easier

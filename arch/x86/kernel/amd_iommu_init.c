@@ -137,6 +137,7 @@ int amd_iommus_present;
 
 /* IOMMUs have a non-present cache? */
 bool amd_iommu_np_cache __read_mostly;
+bool amd_iommu_iotlb_sup __read_mostly = true;
 
 /*
  * The ACPI table parsing functions set this variable on an error
@@ -672,6 +673,9 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
 					MMIO_GET_LD(range));
 	iommu->evt_msi_num = MMIO_MSI_NUM(misc);
+
+	if (!(iommu->cap & (1 << IOMMU_CAP_IOTLB)))
+		amd_iommu_iotlb_sup = false;
 
 	if (!is_rd890_iommu(iommu->dev))
 		return;
