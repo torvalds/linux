@@ -1191,7 +1191,6 @@ struct iwl_priv {
 	int frames_count;
 
 	enum ieee80211_band band;
-	int alloc_rxb_page;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb);
@@ -1609,12 +1608,10 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 static inline void __iwl_free_pages(struct iwl_priv *priv, struct page *page)
 {
 	__free_pages(page, priv->hw_params.rx_page_order);
-	priv->alloc_rxb_page--;
 }
 
 static inline void iwl_free_pages(struct iwl_priv *priv, unsigned long page)
 {
 	free_pages(page, priv->hw_params.rx_page_order);
-	priv->alloc_rxb_page--;
 }
 #endif				/* __iwl_dev_h__ */

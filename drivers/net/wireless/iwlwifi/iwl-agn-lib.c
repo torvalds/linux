@@ -912,7 +912,6 @@ void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
-		priv->alloc_rxb_page++;
 
 		spin_unlock_irqrestore(&rxq->lock, flags);
 	}

@@ -898,7 +898,6 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);
-	priv->alloc_rxb_page--;
 	rxb->page = NULL;
 }
 
