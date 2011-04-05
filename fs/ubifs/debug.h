@@ -31,6 +31,8 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
+#include <linux/random.h>
+
 /**
  * ubifs_debug_info - per-FS debugging information.
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
@@ -237,11 +239,9 @@ enum {
 /*
  * Special testing flags.
  *
- * UBIFS_TST_FORCE_IN_THE_GAPS: force the use of in-the-gaps method
  * UBIFS_TST_RCVRY: failure mode for recovery testing
  */
 enum {
-	UBIFS_TST_FORCE_IN_THE_GAPS = 0x2,
 	UBIFS_TST_RCVRY             = 0x4,
 };
 
@@ -308,18 +308,16 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
 
 /* Force the use of in-the-gaps method for testing */
-
-#define dbg_force_in_the_gaps_enabled \
-	(ubifs_tst_flags & UBIFS_TST_FORCE_IN_THE_GAPS)
-
+static inline int dbg_force_in_the_gaps_enabled(void)
+{
+	return ubifs_chk_flags & UBIFS_CHK_GEN;
+}
 int dbg_force_in_the_gaps(void);
 
 /* Failure mode for recovery testing */
-
 #define dbg_failure_mode (ubifs_tst_flags & UBIFS_TST_RCVRY)
 
 #ifndef UBIFS_DBG_PRESERVE_UBI
-
 #define ubi_leb_read   dbg_leb_read
 #define ubi_leb_write  dbg_leb_write
 #define ubi_leb_change dbg_leb_change
@@ -327,7 +325,6 @@ int dbg_force_in_the_gaps(void);
 #define ubi_leb_unmap  dbg_leb_unmap
 #define ubi_is_mapped  dbg_is_mapped
 #define ubi_leb_map    dbg_leb_map
-
 #endif
 
 int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
@@ -488,8 +485,8 @@ dbg_check_nondata_nodes_order(struct ubifs_info *c,
 			      struct list_head *head)             { return 0; }
 
 static inline int dbg_force_in_the_gaps(void)                     { return 0; }
-#define dbg_force_in_the_gaps_enabled 0
-#define dbg_failure_mode              0
+#define dbg_force_in_the_gaps_enabled() 0
+#define dbg_failure_mode                0
 
 static inline int dbg_debugfs_init(void)                          { return 0; }
 static inline void dbg_debugfs_exit(void)                         { return; }

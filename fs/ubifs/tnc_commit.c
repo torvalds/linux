@@ -377,12 +377,12 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				c->gap_lebs = NULL;
 				return err;
 			}
-			if (!dbg_force_in_the_gaps_enabled) {
+			if (dbg_force_in_the_gaps_enabled()) {
 				/*
 				 * Do not print scary warnings if the debugging
 				 * option which forces in-the-gaps is enabled.
 				 */
-				ubifs_err("out of space");
+				ubifs_warn("out of space");
 				dbg_dump_budg(c, &c->bi);
 				dbg_dump_lprops(c);
 			}

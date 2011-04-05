@@ -154,7 +154,6 @@ debug_tsts	Selects a mode of testing, as follows:
 
 		Test mode				Flag value
 
-		Force in-the-gaps method		2
 		Failure mode for recovery testing	4
 
 For example, set debug_msgs to 5 to display General messages and Mount
