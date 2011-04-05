@@ -2677,7 +2677,7 @@ static struct opcode group7_rm1[] = {
 
 static struct opcode group7_rm3[] = {
 	DIP(SrcNone | ModRM | Prot | Priv, vmrun,   check_svme_pa),
-	DIP(SrcNone | ModRM | Prot | VendorSpecific, vmmcall, check_svme),
+	DI(SrcNone | ModRM | Prot | VendorSpecific, vmmcall),
 	DIP(SrcNone | ModRM | Prot | Priv, vmload,  check_svme_pa),
 	DIP(SrcNone | ModRM | Prot | Priv, vmsave,  check_svme_pa),
 	DIP(SrcNone | ModRM | Prot | Priv, stgi,    check_svme),
