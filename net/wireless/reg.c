@@ -1744,12 +1744,33 @@ static void restore_regulatory_settings(bool reset_user)
 {
 	char alpha2[2];
 	struct reg_beacon *reg_beacon, *btmp;
+	struct regulatory_request *reg_request, *tmp;
+	LIST_HEAD(tmp_reg_req_list);
 
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
 	reset_regdomains();
 	restore_alpha2(alpha2, reset_user);
+
+	/*
+	 * If there's any pending requests we simply
+	 * stash them to a temporary pending queue and
+	 * add then after we've restored regulatory
+	 * settings.
+	 */
+	spin_lock(&reg_requests_lock);
+	if (!list_empty(&reg_requests_list)) {
+		list_for_each_entry_safe(reg_request, tmp,
+					 &reg_requests_list, list) {
+			if (reg_request->initiator !=
+			    NL80211_REGDOM_SET_BY_USER)
+				continue;
+			list_del(&reg_request->list);
+			list_add_tail(&reg_request->list, &tmp_reg_req_list);
+		}
+	}
+	spin_unlock(&reg_requests_lock);
 
 	/* Clear beacon hints */
 	spin_lock_bh(&reg_pending_beacons_lock);
@@ -1785,8 +1806,31 @@ static void restore_regulatory_settings(bool reset_user)
 	 */
 	if (is_an_alpha2(alpha2))
 		regulatory_hint_user(user_alpha2);
-}
 
+	if (list_empty(&tmp_reg_req_list))
+		return;
+
+	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
+
+	spin_lock(&reg_requests_lock);
+	list_for_each_entry_safe(reg_request, tmp, &tmp_reg_req_list, list) {
+		REG_DBG_PRINT("Adding request for country %c%c back "
+			      "into the queue\n",
+			      reg_request->alpha2[0],
+			      reg_request->alpha2[1]);
+		list_del(&reg_request->list);
+		list_add_tail(&reg_request->list, &reg_requests_list);
+	}
+	spin_unlock(&reg_requests_lock);
+
+	mutex_unlock(&reg_mutex);
+	mutex_unlock(&cfg80211_mutex);
+
+	REG_DBG_PRINT("Kicking the queue\n");
+
+	schedule_work(&reg_work);
+}
 
 void regulatory_hint_disconnect(void)
 {
