@@ -1700,6 +1700,11 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	} else
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+	else
+		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+
 	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BTSTATS ||
 	    (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics))
 		priv->bt_statistics = true;
@@ -2517,12 +2522,6 @@ static int __iwl_up(struct iwl_priv *priv)
 	}
 
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
-
-	/* must be initialised before iwl_hw_nic_init */
-	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
-		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
-	else
-		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 
 	ret = iwlagn_hw_nic_init(priv);
 	if (ret) {
