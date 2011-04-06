@@ -139,9 +139,9 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
-#define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO//RK29_PIN6_PD0
+#define FB_LCD_STANDBY_PIN          INVALID_GPIO//RK29_PIN6_PD1
+#define FB_LCD_CABC_EN_PIN          INVALID_GPIO//RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
@@ -151,18 +151,30 @@ struct rk29_nand_platform_data rk29_nand_data = {
 static int rk29_lcd_io_init(void)
 {
 	int ret = 0;
-	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_GPIO2C6); 
-	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME, GPIO2H_GPIO2C5); 
-	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_GPIO2C4); 	
+	//printk("rk29_lcd_io_init\n");
+	//ret = gpio_request(LCD_RXD_PIN, NULL);
+	ret = gpio_request(LCD_TXD_PIN, NULL);
+	ret = gpio_request(LCD_CLK_PIN, NULL);
+	ret = gpio_request(LCD_CS_PIN, NULL);
+	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_GPIO2C6);
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_GPIO2C5);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_GPIO2C4);
 	return ret;
 }
 
 static int rk29_lcd_io_deinit(void)
 {
 	int ret = 0;
-	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_SPI1_TXD); 
-	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME, GPIO2H_SPI1_CSN0); 
-	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_SPI1_CLK); 
+	//printk("rk29_lcd_io_deinit\n");
+	gpio_free(LCD_CS_PIN);
+	gpio_free(LCD_CLK_PIN);
+	gpio_free(LCD_TXD_PIN);
+	//gpio_free(LCD_RXD_PIN);
+	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_SPI1_TXD);
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_SPI1_CSN0);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_SPI1_CLK);
 	return ret;
 }
 
@@ -687,6 +699,9 @@ static struct regulator_consumer_supply dcdc1_consumers[] = {
 static struct regulator_consumer_supply dcdc2_consumers[] = {
 	{
 		.supply = "dcdc2",
+	},
+	{
+		.supply = "vcore",
 	}
 };
 static struct regulator_consumer_supply dcdc3_consumers[] = {
@@ -2706,14 +2721,14 @@ static struct spi_board_info board_spi_devices[] = {
 	},
 #endif
 
-#if defined(CONFIG_MFD_WM831X_SPI)
+#if defined(CONFIG_MFD_WM831X_SPI_A22)
 	{
 		.modalias	= "wm8310",
 		.chip_select	= 1,
-		.max_speed_hz	= 12*1000*1000,
+		.max_speed_hz	= 2*1000*1000,
 		.bus_num	= 1,
 		.irq            = RK29_PIN4_PD0,
-		.platform_data = &wm831x_platdata,
+		//.platform_data = &wm831x_platdata,
 	},
 #endif
 

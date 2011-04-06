@@ -247,7 +247,7 @@ int board_boot_mode(void);
 #ifdef CONFIG_USB_GADGET
 int board_usb_detect_init(unsigned gpio, unsigned long flags);
 #else
-static int inline board_usb_detect_init(unsigned, unsigned long) { return 0; }
+static int inline board_usb_detect_init(unsigned gpio, unsigned long flags) { return 0; }
 #endif
 
 /* for wakeup Android */

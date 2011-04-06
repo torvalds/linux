@@ -14,13 +14,13 @@
 #include "ili2102_ts.h"
 
 
-#if 1
+#if 0
 	#define DBG(msg...)	printk(msg);
 #else
 	#define DBG(msg...)
 #endif
 
-#define TOUCH_NUMBER 2
+#define TOUCH_NUMBER 1
 
 static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
 
@@ -115,7 +115,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	unsigned int x, y;
 	struct i2c_msg msg[2];
 	uint8_t start_reg;
-	uint32_t buf[4];
+	uint8_t buf[9];//uint32_t buf[4];
 	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
 
 	DBG("ili2102_ts_work_func\n");
@@ -130,8 +130,8 @@ static void ili2102_ts_work_func(struct work_struct *work)
 
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = I2C_M_RD;
-	msg[1].len = 4 * TOUCH_NUMBER;
-	msg[1].buf = (u8*)&buf[0];
+	msg[1].len = 9;	
+	msg[1].buf = buf;//msg[1].buf = (u8*)&buf[0];
 
 	ret = i2c_transfer(ts->client->adapter, msg, 2);
     
@@ -140,46 +140,46 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	printk("ili2102_ts_work_func:i2c_transfer fail =%d\n",ret);
 	}
 
-	for(i=0; i<TOUCH_NUMBER; i++)
+	if((buf[0] & 0x03) == 0)
 	{
-		if(buf[i] == 0xffffffff || buf[i] == 0)
-		{
-		  	if (touch_state[i] == TOUCH_DOWN)
-		  	{
-				DBG("ili2102_ts_work_func:buf[%d]=%d\n",i,buf[i]);
-				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
-				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
-				input_mt_sync(ts->input_dev);
-				syn_flag = 1;
-				touch_state[i] = TOUCH_UP;
-			}
-
-		}
-		else
-		{
-			#if 0
-		        x = ((buf[i] & 0xff) << 8) | ((buf[i] & 0xff00) >> 8);
-		        y = ((buf[i] & 0xff0000) >> 8) | ((buf[i] & 0xff000000) >> 24);
-			#else
-			x = (buf[i] & 0xff00)  | (buf[i] & 0xff);
-		        y = ((buf[i] & 0xff000000) >> 16) | ((buf[i] & 0xff0000) >> 16);
-			#endif
-
-			if (ts->swap_xy)
-			swap(x, y);
-
-			if (verify_coord(ts,&x,&y))
-			goto out;
-				
-		        DBG("buf[%d]=%x X = %d, Y = %d\n", i, buf[i], x, y);
-
-		        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
-		        input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
-		        input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
-		        input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 5); //Touch Size
-		        input_mt_sync(ts->input_dev);
+	  	if (touch_state[i] == TOUCH_DOWN)
+	  	{
+			DBG("ili2102_ts_work_func:buf[%d]=%d\n",i,buf[i]);
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
+			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
+			input_mt_sync(ts->input_dev);
 			syn_flag = 1;
-			touch_state[i] = TOUCH_DOWN;
+			touch_state[i] = TOUCH_UP;
+		}
+
+	}
+	else
+	{
+
+		for(i=0; i<TOUCH_NUMBER; i++)
+		{
+			if((buf[0]>>i)&0x01)
+			{
+				x = buf[1+(i<<2)] | (buf[2+(i<<2)] << 8);
+				y = buf[3+(i<<2)] | (buf[4+(i<<2)] << 8);
+				
+
+				if (ts->swap_xy)
+				swap(x, y);
+
+				if (verify_coord(ts,&x,&y))
+				goto out;
+					
+			        printk("buf[%d]=%x X = %d, Y = %d\n", i, buf[i], x, y);
+
+			        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
+			        input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
+			        input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
+			        input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 5); //Touch Size
+			        input_mt_sync(ts->input_dev);
+				syn_flag = 1;
+				touch_state[i] = TOUCH_DOWN;
+			}
 		}
 	}
 	

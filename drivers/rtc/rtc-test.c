@@ -30,7 +30,9 @@ static int test_rtc_set_alarm(struct device *dev,
 static int test_rtc_read_time(struct device *dev,
 	struct rtc_time *tm)
 {
-	rtc_time_to_tm(get_seconds(), tm);
+	unsigned long time = 0xffffff;
+	rtc_time_to_tm(time, tm);
+	//rtc_time_to_tm(get_seconds(), tm);
 	return 0;
 }
 
