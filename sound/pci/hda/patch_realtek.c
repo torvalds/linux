@@ -19105,16 +19105,17 @@ static struct alc_config_preset alc662_presets[] = {
  */
 
 /* convert from MIX nid to DAC */
-static inline hda_nid_t alc662_mix_to_dac(hda_nid_t nid)
+static hda_nid_t alc662_mix_to_dac(struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == 0x0f)
-		return 0x02;
-	else if (nid >= 0x0c && nid <= 0x0e)
-		return nid - 0x0c + 0x02;
-	else if (nid == 0x26) /* ALC887-VD has this DAC too */
-		return 0x25;
-	else
-		return 0;
+	hda_nid_t list[4];
+	int i, num;
+
+	num = snd_hda_get_connections(codec, nid, list, ARRAY_SIZE(list));
+	for (i = 0; i < num; i++) {
+		if (get_wcaps_type(get_wcaps(codec, list[i])) == AC_WID_AUD_OUT)
+			return list[i];
+	}
+	return 0;
 }
 
 /* get MIX nid connected to the given pin targeted to DAC */
@@ -19126,7 +19127,7 @@ static hda_nid_t alc662_dac_to_mix(struct hda_codec *codec, hda_nid_t pin,
 
 	num = snd_hda_get_connections(codec, pin, mix, ARRAY_SIZE(mix));
 	for (i = 0; i < num; i++) {
-		if (alc662_mix_to_dac(mix[i]) == dac)
+		if (alc662_mix_to_dac(codec, mix[i]) == dac)
 			return mix[i];
 	}
 	return 0;
@@ -19143,7 +19144,7 @@ static hda_nid_t alc662_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 	if (num < 0)
 		return 0;
 	for (i = 0; i < num; i++) {
-		hda_nid_t nid = alc662_mix_to_dac(srcs[i]);
+		hda_nid_t nid = alc662_mix_to_dac(codec, srcs[i]);
 		if (!nid)
 			continue;
 		for (j = 0; j < spec->multiout.num_dacs; j++)
@@ -19297,7 +19298,7 @@ static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 	if (num <= 1)
 		return;
 	for (i = 0; i < num; i++) {
-		if (alc662_mix_to_dac(srcs[i]) != dac)
+		if (alc662_mix_to_dac(codec, srcs[i]) != dac)
 			continue;
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, i);
 		return;
