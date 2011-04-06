@@ -5957,7 +5957,7 @@ static struct bio *btrfs_dio_bio_alloc(struct block_device *bdev,
 
 static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 					 int rw, u64 file_offset, int skip_sum,
-					 u32 *csums)
+					 u32 *csums, int async_submit)
 {
 	int write = rw & REQ_WRITE;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -5968,13 +5968,24 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	if (ret)
 		goto err;
 
-	if (write && !skip_sum) {
+	if (skip_sum)
+		goto map;
+
+	if (write && async_submit) {
 		ret = btrfs_wq_submit_bio(root->fs_info,
 				   inode, rw, bio, 0, 0,
 				   file_offset,
 				   __btrfs_submit_bio_start_direct_io,
 				   __btrfs_submit_bio_done);
 		goto err;
+	} else if (write) {
+		/*
+		 * If we aren't doing async submit, calculate the csum of the
+		 * bio now.
+		 */
+		ret = btrfs_csum_one_bio(root, inode, bio, file_offset, 1);
+		if (ret)
+			goto err;
 	} else if (!skip_sum) {
 		ret = btrfs_lookup_bio_sums_dio(root, inode, bio,
 					  file_offset, csums);
@@ -5982,7 +5993,8 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 			goto err;
 	}
 
-	ret = btrfs_map_bio(root, rw, bio, 0, 1);
+map:
+	ret = btrfs_map_bio(root, rw, bio, 0, async_submit);
 err:
 	bio_put(bio);
 	return ret;
@@ -6004,6 +6016,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int nr_pages = 0;
 	u32 *csums = dip->csums;
 	int ret = 0;
+	int async_submit = 0;
 	int write = rw & REQ_WRITE;
 
 	map_length = orig_bio->bi_size;
@@ -6019,6 +6032,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		goto submit;
 	}
 
+	async_submit = 1;
 	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
 	if (!bio)
 		return -ENOMEM;
@@ -6039,7 +6053,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			atomic_inc(&dip->pending_bios);
 			ret = __btrfs_submit_dio_bio(bio, inode, rw,
 						     file_offset, skip_sum,
-						     csums);
+						     csums, async_submit);
 			if (ret) {
 				bio_put(bio);
 				atomic_dec(&dip->pending_bios);
@@ -6078,7 +6092,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 
 submit:
 	ret = __btrfs_submit_dio_bio(bio, inode, rw, file_offset, skip_sum,
-				     csums);
+				     csums, async_submit);
 	if (!ret)
 		return 0;
 
