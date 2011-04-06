@@ -1819,6 +1819,9 @@ enum ieee80211_ampdu_mlme_action {
  * @set_ringparam: Set tx and rx ring sizes.
  *
  * @get_ringparam: Get tx and rx ring current and maximum sizes.
+ *
+ * @tx_frames_pending: Check if there is any pending frame in the hardware
+ *	queues before entering power save.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1906,6 +1909,7 @@ struct ieee80211_ops {
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
 	void (*get_ringparam)(struct ieee80211_hw *hw,
 			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
+	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
 };
 
 /**
