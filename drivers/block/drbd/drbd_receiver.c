@@ -223,7 +223,7 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
-		drbd_free_net_ee(mdev, peer_req);
+		drbd_free_net_peer_req(mdev, peer_req);
 }
 
 /**
@@ -307,7 +307,7 @@ You need to hold the req_lock:
  _drbd_wait_ee_list_empty()
 
 You must not have the req_lock:
- drbd_free_ee()
+ drbd_free_peer_req()
  drbd_alloc_peer_req()
  drbd_release_ee()
  drbd_ee_fix_bhs()
@@ -362,7 +362,7 @@ drbd_alloc_peer_req(struct drbd_conf *mdev, u64 id, sector_t sector,
 	return NULL;
 }
 
-void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_peer_request *peer_req,
+void __drbd_free_peer_req(struct drbd_conf *mdev, struct drbd_peer_request *peer_req,
 		       int is_net)
 {
 	if (peer_req->flags & EE_HAS_DIGEST)
@@ -385,7 +385,7 @@ int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
-		drbd_free_some_ee(mdev, peer_req, is_net);
+		__drbd_free_peer_req(mdev, peer_req, is_net);
 		count++;
 	}
 	return count;
@@ -412,7 +412,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
-		drbd_free_net_ee(mdev, peer_req);
+		drbd_free_net_peer_req(mdev, peer_req);
 
 	/* possible callbacks here:
 	 * e_end_block, and e_end_resync_block, e_send_discard_write.
@@ -425,7 +425,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 		err2 = peer_req->w.cb(&peer_req->w, !!err);
 		if (!err)
 			err = err2;
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 	}
 	wake_up(&mdev->ee_wait);
 
@@ -1395,7 +1395,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		}
 		kunmap(page);
 		if (err) {
-			drbd_free_ee(mdev, peer_req);
+			drbd_free_peer_req(mdev, peer_req);
 			return NULL;
 		}
 		ds -= len;
@@ -1406,7 +1406,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
-			drbd_free_ee(mdev, peer_req);
+			drbd_free_peer_req(mdev, peer_req);
 			return NULL;
 		}
 	}
@@ -1547,7 +1547,7 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 	list_del(&peer_req->w.list);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 fail:
 	put_ldev(mdev);
 	return -EIO;
@@ -2109,7 +2109,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 out_interrupted:
 	drbd_may_finish_epoch(mdev, peer_req->epoch, EV_PUT + EV_CLEANUP);
 	put_ldev(mdev);
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 	return err;
 }
 
@@ -2364,7 +2364,7 @@ submit:
 
 out_free_e:
 	put_ldev(mdev);
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 	return -EIO;
 }
 

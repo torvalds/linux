@@ -319,7 +319,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 		 * some distributed deadlock, if the other side blocks on
 		 * congestion as well, because our receiver blocks in
 		 * drbd_pp_alloc due to pp_in_use > max_buffers. */
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 		peer_req = NULL;
 		inc_rs_pending(mdev);
 		err = drbd_send_drequest_csum(mdev, sector, size,
@@ -333,7 +333,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 
 out:
 	if (peer_req)
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 
 	if (unlikely(err))
 		dev_err(DEV, "drbd_send_drequest(..., csum) failed\n");
@@ -376,7 +376,7 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	list_del(&peer_req->w.list);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 defer:
 	put_ldev(mdev);
 	return -EAGAIN;
@@ -900,7 +900,7 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_requ
 		spin_unlock_irq(&mdev->tconn->req_lock);
 		wake_up(&drbd_pp_wait);
 	} else
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 }
 
 /**
@@ -916,7 +916,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 		dec_unacked(mdev);
 		return 0;
 	}
@@ -953,7 +953,7 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 		dec_unacked(mdev);
 		return 0;
 	}
@@ -1005,7 +1005,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 	int err, eq = 0;
 
 	if (unlikely(cancel)) {
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 		dec_unacked(mdev);
 		return 0;
 	}
@@ -1088,7 +1088,7 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
 	 * some distributed deadlock, if the other side blocks on
 	 * congestion as well, because our receiver blocks in
 	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 	peer_req = NULL;
 	inc_rs_pending(mdev);
 	err = drbd_send_drequest_csum(mdev, sector, size, digest, digest_size, P_OV_REPLY);
@@ -1098,7 +1098,7 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
 
 out:
 	if (peer_req)
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 	dec_unacked(mdev);
 	return err;
 }
@@ -1126,7 +1126,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 	int err, eq = 0;
 
 	if (unlikely(cancel)) {
-		drbd_free_ee(mdev, peer_req);
+		drbd_free_peer_req(mdev, peer_req);
 		dec_unacked(mdev);
 		return 0;
 	}
@@ -1157,7 +1157,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 	 * some distributed deadlock, if the other side blocks on
 	 * congestion as well, because our receiver blocks in
 	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
-	drbd_free_ee(mdev, peer_req);
+	drbd_free_peer_req(mdev, peer_req);
 	if (!eq)
 		drbd_ov_out_of_sync_found(mdev, sector, size);
 	else
