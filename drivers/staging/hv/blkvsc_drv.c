@@ -184,6 +184,65 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 	return ret;
 }
 
+
+static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
+			void (*request_completion)(struct hv_storvsc_request *))
+{
+	struct block_device_context *blkdev = blkvsc_req->dev;
+	struct hv_device *device_ctx = blkdev->device_ctx;
+	struct hv_driver *drv =
+			drv_to_hv_drv(device_ctx->device.driver);
+	struct storvsc_driver_object *storvsc_drv_obj =
+			drv->priv;
+	struct hv_storvsc_request *storvsc_req;
+	struct vmscsi_request *vm_srb;
+	int ret;
+
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
+		   "req %p type %s start_sector %lu count %ld offset %d "
+		   "len %d\n", blkvsc_req,
+		   (blkvsc_req->write) ? "WRITE" : "READ",
+		   (unsigned long) blkvsc_req->sector_start,
+		   blkvsc_req->sector_count,
+		   blkvsc_req->request.data_buffer.offset,
+		   blkvsc_req->request.data_buffer.len);
+#if 0
+	for (i = 0; i < (blkvsc_req->request.data_buffer.len >> 12); i++) {
+		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
+			   "req %p pfn[%d] %llx\n",
+			   blkvsc_req, i,
+			   blkvsc_req->request.data_buffer.pfn_array[i]);
+	}
+#endif
+
+	storvsc_req = &blkvsc_req->request;
+	vm_srb = &storvsc_req->vstor_packet.vm_srb;
+
+	vm_srb->data_in = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
+
+	storvsc_req->on_io_completion = request_completion;
+	storvsc_req->context = blkvsc_req;
+
+	vm_srb->port_number = blkdev->port;
+	vm_srb->path_id = blkdev->path;
+	vm_srb->target_id = blkdev->target;
+	vm_srb->lun = 0;	 /* this is not really used at all */
+
+	vm_srb->cdb_length = blkvsc_req->cmd_len;
+
+	memcpy(vm_srb->cdb, blkvsc_req->cmnd, vm_srb->cdb_length);
+
+	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
+
+	ret = storvsc_drv_obj->on_io_request(blkdev->device_ctx,
+					   &blkvsc_req->request);
+	if (ret == 0)
+		blkdev->num_outstanding_reqs++;
+
+	return ret;
+}
+
+
 /* Static decl */
 static DEFINE_MUTEX(blkvsc_mutex);
 static int blkvsc_probe(struct device *dev);
@@ -202,8 +261,6 @@ static void blkvsc_request(struct request_queue *queue);
 static void blkvsc_request_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_request(struct block_device_context *blkdev,
 			     struct request *req);
-static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
-		void (*request_completion)(struct hv_storvsc_request *));
 static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req);
 static void blkvsc_cmd_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_inquiry(struct block_device_context *blkdev);
@@ -891,62 +948,6 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 	}
 }
 
-static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
-			void (*request_completion)(struct hv_storvsc_request *))
-{
-	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct hv_device *device_ctx = blkdev->device_ctx;
-	struct hv_driver *drv =
-			drv_to_hv_drv(device_ctx->device.driver);
-	struct storvsc_driver_object *storvsc_drv_obj =
-			drv->priv;
-	struct hv_storvsc_request *storvsc_req;
-	struct vmscsi_request *vm_srb;
-	int ret;
-
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
-		   "req %p type %s start_sector %lu count %ld offset %d "
-		   "len %d\n", blkvsc_req,
-		   (blkvsc_req->write) ? "WRITE" : "READ",
-		   (unsigned long) blkvsc_req->sector_start,
-		   blkvsc_req->sector_count,
-		   blkvsc_req->request.data_buffer.offset,
-		   blkvsc_req->request.data_buffer.len);
-#if 0
-	for (i = 0; i < (blkvsc_req->request.data_buffer.len >> 12); i++) {
-		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
-			   "req %p pfn[%d] %llx\n",
-			   blkvsc_req, i,
-			   blkvsc_req->request.data_buffer.pfn_array[i]);
-	}
-#endif
-
-	storvsc_req = &blkvsc_req->request;
-	vm_srb = &storvsc_req->vstor_packet.vm_srb;
-
-	vm_srb->data_in = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
-
-	storvsc_req->on_io_completion = request_completion;
-	storvsc_req->context = blkvsc_req;
-
-	vm_srb->port_number = blkdev->port;
-	vm_srb->path_id = blkdev->path;
-	vm_srb->target_id = blkdev->target;
-	vm_srb->lun = 0;	 /* this is not really used at all */
-
-	vm_srb->cdb_length = blkvsc_req->cmd_len;
-
-	memcpy(vm_srb->cdb, blkvsc_req->cmnd, vm_srb->cdb_length);
-
-	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
-
-	ret = storvsc_drv_obj->on_io_request(blkdev->device_ctx,
-					   &blkvsc_req->request);
-	if (ret == 0)
-		blkdev->num_outstanding_reqs++;
-
-	return ret;
-}
 
 /*
  * We break the request into 1 or more blkvsc_requests and submit
