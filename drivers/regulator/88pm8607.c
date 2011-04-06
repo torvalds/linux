@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
 
 struct pm8607_regulator_info {
@@ -400,13 +399,9 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;
 	struct regulator_init_data *pdata;
-	struct mfd_cell *cell;
 	int i;
 
-	cell = pdev->dev.platform_data;
-	if (cell == NULL)
-		return -ENODEV;
-	pdata = cell->mfd_data;
+	pdata = pdev->dev.platform_data;
 	if (pdata == NULL)
 		return -EINVAL;
 
