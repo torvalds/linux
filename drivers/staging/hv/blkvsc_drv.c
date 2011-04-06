@@ -243,6 +243,14 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 }
 
 
+static unsigned int blkvsc_check_events(struct gendisk *gd,
+					unsigned int clearing)
+{
+	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
+	return DISK_EVENT_MEDIA_CHANGE;
+}
+
+
 /* Static decl */
 static DEFINE_MUTEX(blkvsc_mutex);
 static int blkvsc_probe(struct device *dev);
@@ -251,8 +259,6 @@ static void blkvsc_shutdown(struct device *device);
 
 static int blkvsc_open(struct block_device *bdev,  fmode_t mode);
 static int blkvsc_release(struct gendisk *disk, fmode_t mode);
-static unsigned int blkvsc_check_events(struct gendisk *gd,
-					unsigned int clearing);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
 static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
@@ -1405,13 +1411,6 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	spin_unlock(&blkdev->lock);
 	mutex_unlock(&blkvsc_mutex);
 	return 0;
-}
-
-static unsigned int blkvsc_check_events(struct gendisk *gd,
-					unsigned int clearing)
-{
-	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
-	return DISK_EVENT_MEDIA_CHANGE;
 }
 
 static int blkvsc_revalidate_disk(struct gendisk *gd)
