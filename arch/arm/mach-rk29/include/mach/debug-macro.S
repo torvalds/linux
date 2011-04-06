@@ -30,16 +30,5 @@
 		ldrne	\rx, = RK29_UART1_BASE
 	.endm
 
-	.macro	senduart,rd,rx
-	str	\rd, [\rx, #0x00]
-	.endm
-
-	.macro	waituart,rd,rx
-	@ wait for TX_READY
-1:	ldr	\rd, [\rx, #0x7C]
-	tst	\rd, #0x02
-	beq	1b
-	.endm
-
-	.macro	busyuart,rd,rx
-	.endm
+#define UART_SHIFT	2
+#include <asm/hardware/debug-8250.S>

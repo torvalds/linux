@@ -15,13 +15,16 @@
 
 #ifndef __ASM_ARCH_RK29_UNCOMPRESS_H
 
+#include <linux/serial_reg.h>
 #include <mach/rk29_iomap.h>
+
+static volatile u32 *UART = (u32 *)RK29_UART1_PHYS;
 
 static void putc(int c)
 {
-	while (!(*(volatile u32 *) (RK29_UART1_PHYS + 0x14) & (1 << 5)))
+	while (!(UART[UART_LSR] & UART_LSR_THRE))
 		barrier();
-	*(volatile u32 *) (RK29_UART1_PHYS) = c;
+	UART[UART_TX] = c;
 }
 
 static inline void flush(void)
