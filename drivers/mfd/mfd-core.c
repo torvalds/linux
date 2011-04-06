@@ -88,6 +88,13 @@ static int mfd_add_device(struct device *parent, int id,
 
 	pdev->dev.parent = parent;
 
+	if (cell->pdata_size) {
+		ret = platform_device_add_data(pdev,
+					cell->platform_data, cell->pdata_size);
+		if (ret)
+			goto fail_res;
+	}
+
 	ret = mfd_platform_add_cell(pdev, cell);
 	if (ret)
 		goto fail_res;
