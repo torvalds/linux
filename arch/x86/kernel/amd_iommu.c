@@ -25,6 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iommu-helper.h>
 #include <linux/iommu.h>
+#include <linux/delay.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -34,7 +35,7 @@
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
-#define EXIT_LOOP_COUNT 10000000
+#define LOOP_TIMEOUT	100000
 
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 
@@ -383,10 +384,14 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
  *
  ****************************************************************************/
 
-static void build_completion_wait(struct iommu_cmd *cmd)
+static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
 {
+	WARN_ON(address & 0x7ULL);
+
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->data[0] = CMD_COMPL_WAIT_INT_MASK;
+	cmd->data[0] = lower_32_bits(__pa(address)) | CMD_COMPL_WAIT_STORE_MASK;
+	cmd->data[1] = upper_32_bits(__pa(address));
+	cmd->data[2] = 1;
 	CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
 }
 
@@ -432,12 +437,14 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command. Must be called with iommu->lock held.
  */
-static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
+static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 {
+	unsigned long flags;
 	u32 tail, head;
 	u8 *target;
 
 	WARN_ON(iommu->cmd_buf_size & CMD_BUFFER_UNINITIALIZED);
+	spin_lock_irqsave(&iommu->lock, flags);
 	tail = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
 	target = iommu->cmd_buf + tail;
 	memcpy_toio(target, cmd, sizeof(*cmd));
@@ -446,99 +453,41 @@ static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 	if (tail == head)
 		return -ENOMEM;
 	writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
-
-	return 0;
-}
-
-/*
- * General queuing function for commands. Takes iommu->lock and calls
- * __iommu_queue_command().
- */
-static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&iommu->lock, flags);
-	ret = __iommu_queue_command(iommu, cmd);
-	if (!ret)
-		iommu->need_sync = true;
+	iommu->need_sync = true;
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	return ret;
-}
-
-/*
- * This function waits until an IOMMU has completed a completion
- * wait command
- */
-static void __iommu_wait_for_completion(struct amd_iommu *iommu)
-{
-	int ready = 0;
-	unsigned status = 0;
-	unsigned long i = 0;
-
-	INC_STATS_COUNTER(compl_wait);
-
-	while (!ready && (i < EXIT_LOOP_COUNT)) {
-		++i;
-		/* wait for the bit to become one */
-		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
-		ready = status & MMIO_STATUS_COM_WAIT_INT_MASK;
-	}
-
-	/* set bit back to zero */
-	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
-	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
-
-	if (unlikely(i == EXIT_LOOP_COUNT))
-		iommu->reset_in_progress = true;
+	return 0;
 }
 
 /*
  * This function queues a completion wait command into the command
  * buffer of an IOMMU
  */
-static int __iommu_completion_wait(struct amd_iommu *iommu)
-{
-	struct iommu_cmd cmd;
-
-	build_completion_wait(&cmd);
-
-	 return __iommu_queue_command(iommu, &cmd);
-}
-
-/*
- * This function is called whenever we need to ensure that the IOMMU has
- * completed execution of all commands we sent. It sends a
- * COMPLETION_WAIT command and waits for it to finish. The IOMMU informs
- * us about that by writing a value to a physical address we pass with
- * the command.
- */
 static int iommu_completion_wait(struct amd_iommu *iommu)
 {
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iommu->lock, flags);
+	struct iommu_cmd cmd;
+	volatile u64 sem = 0;
+	int ret, i = 0;
 
 	if (!iommu->need_sync)
-		goto out;
+		return 0;
 
-	ret = __iommu_completion_wait(iommu);
+	build_completion_wait(&cmd, (u64)&sem);
 
-	iommu->need_sync = false;
-
+	ret = iommu_queue_command(iommu, &cmd);
 	if (ret)
-		goto out;
+		return ret;
 
-	__iommu_wait_for_completion(iommu);
+	while (sem == 0 && i < LOOP_TIMEOUT) {
+		udelay(1);
+		i += 1;
+	}
 
-out:
-	spin_unlock_irqrestore(&iommu->lock, flags);
-
-	if (iommu->reset_in_progress)
+	if (i == LOOP_TIMEOUT) {
+		pr_alert("AMD-Vi: Completion-Wait loop timed out\n");
+		iommu->reset_in_progress = true;
 		reset_iommu_command_buffer(iommu);
+	}
 
 	return 0;
 }
