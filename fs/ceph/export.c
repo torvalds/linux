@@ -86,6 +86,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 static struct dentry *__fh_to_dentry(struct super_block *sb,
 				     struct ceph_nfs_fh *fh)
 {
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -95,8 +96,22 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 	vino.ino = fh->ino;
 	vino.snap = CEPH_NOSNAP;
 	inode = ceph_find_inode(sb, vino);
-	if (!inode)
-		return ERR_PTR(-ESTALE);
+	if (!inode) {
+		struct ceph_mds_request *req;
+
+		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPINO,
+					       USE_ANY_MDS);
+		if (IS_ERR(req))
+			return ERR_CAST(req);
+
+		req->r_ino1 = vino;
+		req->r_num_caps = 1;
+		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		ceph_mdsc_put_request(req);
+		inode = ceph_find_inode(sb, vino);
+		if (!inode)
+			return ERR_PTR(-ESTALE);
+	}
 
 	dentry = d_obtain_alias(inode);
 	if (IS_ERR(dentry)) {
