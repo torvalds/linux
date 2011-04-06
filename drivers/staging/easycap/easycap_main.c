@@ -2987,13 +2987,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
 	int ndong;
 	struct data_urb *pdata_urb;
 	size_t wMaxPacketSize;
-	int ISOCwMaxPacketSize;
-	int BULKwMaxPacketSize;
-	int INTwMaxPacketSize;
-	int CTRLwMaxPacketSize;
 	u8 bEndpointAddress;
-	u8 ISOCbEndpointAddress;
-	u8 INTbEndpointAddress;
 	int isin, i, j, k, m, rc;
 	u8 bInterfaceNumber;
 	u8 bInterfaceClass;
@@ -3361,13 +3355,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		bInterfaceNumber, i, interface->bInterfaceProtocol);
 		JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n",
 		bInterfaceNumber, i, interface->iInterface);
-
-		ISOCwMaxPacketSize = -1;
-		BULKwMaxPacketSize = -1;
-		INTwMaxPacketSize = -1;
-		CTRLwMaxPacketSize = -1;
-		ISOCbEndpointAddress = 0;
-		INTbEndpointAddress = 0;
 
 		if (0 == interface->bNumEndpoints)
 			JOM(4, "intf[%i]alt[%i] has no endpoints\n",
