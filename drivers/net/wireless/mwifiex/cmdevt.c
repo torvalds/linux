@@ -206,6 +206,8 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 					     cmd_node->cmd_skb->data,
 					     cmd_node->cmd_skb->len, NULL);
 
+	skb_pull(cmd_node->cmd_skb, INTF_HEADER_LEN);
+
 	if (ret == -1) {
 		dev_err(adapter->dev, "DNLD_CMD: host to card failed\n");
 		if (wait_queue)
