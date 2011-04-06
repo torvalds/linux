@@ -252,6 +252,8 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 	ret_val = register_sst_card(stream->sstdrv_ops);
 	if (ret_val) {
 		pr_err("sst: sst card registration failed\n");
+		kfree(stream->sstdrv_ops);
+		kfree(stream);
 		return ret_val;
 	}
 	runtime->private_data = stream;
