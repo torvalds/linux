@@ -428,7 +428,8 @@ static int drbd_finish_peer_reqs(struct drbd_conf *mdev)
 	return err;
 }
 
-void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
+static void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
+				     struct list_head *head)
 {
 	DEFINE_WAIT(wait);
 
@@ -443,7 +444,8 @@ void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
 	}
 }
 
-void drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
+static void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
+				    struct list_head *head)
 {
 	spin_lock_irq(&mdev->tconn->req_lock);
 	_drbd_wait_ee_list_empty(mdev, head);
