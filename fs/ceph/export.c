@@ -107,8 +107,10 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		req->r_ino1 = vino;
 		req->r_num_caps = 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			igrab(inode);
 		ceph_mdsc_put_request(req);
-		inode = ceph_find_inode(sb, vino);
 		if (!inode)
 			return ERR_PTR(-ESTALE);
 	}
@@ -163,8 +165,10 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		snprintf(req->r_path2, 16, "%d", cfh->parent_name_hash);
 		req->r_num_caps = 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
+		inode = req->r_target_inode;
+		if (inode)
+			igrab(inode);
 		ceph_mdsc_put_request(req);
-		inode = ceph_find_inode(sb, vino);
 		if (!inode)
 			return ERR_PTR(err ? err : -ESTALE);
 	}
