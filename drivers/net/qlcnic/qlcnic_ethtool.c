@@ -831,48 +831,51 @@ static int qlcnic_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static int qlcnic_blink_led(struct net_device *dev, u32 val)
+static int qlcnic_set_led(struct net_device *dev,
+			  enum ethtool_phys_id_state state)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int max_sds_rings = adapter->max_sds_rings;
-	int dev_down = 0;
-	int ret;
 
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-		dev_down = 1;
-		if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-			return -EIO;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		adapter->blink_was_down = false;
+		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+				return -EIO;
 
-		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
-		if (ret) {
-			clear_bit(__QLCNIC_RESETTING, &adapter->state);
-			return ret;
+			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST)) {
+				clear_bit(__QLCNIC_RESETTING, &adapter->state);
+				return -EIO;
+			}
+			adapter->blink_was_down = true;
 		}
-	}
 
-	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
-	if (ret) {
+		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0)
+			return 0;
+
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
-		goto done;
-	}
+		break;
 
-	msleep_interruptible(val * 1000);
+	case ETHTOOL_ID_INACTIVE:
+		if (adapter->nic_ops->config_led(adapter, 0, 0xf) == 0)
+			return 0;
 
-	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
-	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to reset LED blink state.\n");
-		goto done;
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
-done:
-	if (dev_down) {
+	if (adapter->blink_was_down) {
 		qlcnic_diag_free_res(dev, max_sds_rings);
 		clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	}
-	return ret;
 
+	return -EIO;
 }
 
 static void
@@ -1078,7 +1081,7 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_coalesce = qlcnic_set_intr_coalesce,
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = qlcnic_set_flags,
-	.phys_id = qlcnic_blink_led,
+	.set_phys_id = qlcnic_set_led,
 	.set_msglevel = qlcnic_set_msglevel,
 	.get_msglevel = qlcnic_get_msglevel,
 };

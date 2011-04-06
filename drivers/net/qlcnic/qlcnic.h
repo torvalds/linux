@@ -912,6 +912,7 @@ struct qlcnic_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
+	bool 		blink_was_down;
 	unsigned long state;
 	u32 flags;
 
