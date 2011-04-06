@@ -5445,17 +5445,30 @@ out:
 }
 
 static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
+						  struct extent_map *em,
 						  u64 start, u64 len)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct btrfs_key ins;
 	u64 alloc_hint;
 	int ret;
+	bool insert = false;
 
-	btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
+	/*
+	 * Ok if the extent map we looked up is a hole and is for the exact
+	 * range we want, there is no reason to allocate a new one, however if
+	 * it is not right then we need to free this one and drop the cache for
+	 * our range.
+	 */
+	if (em->block_start != EXTENT_MAP_HOLE || em->start != start ||
+	    em->len != len) {
+		free_extent_map(em);
+		em = NULL;
+		insert = true;
+		btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
+	}
 
 	trans = btrfs_join_transaction(root, 0);
 	if (IS_ERR(trans))
@@ -5471,10 +5484,12 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 		goto out;
 	}
 
-	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
-		em = ERR_PTR(-ENOMEM);
-		goto out;
+		em = alloc_extent_map(GFP_NOFS);
+		if (!em) {
+			em = ERR_PTR(-ENOMEM);
+			goto out;
+		}
 	}
 
 	em->start = start;
@@ -5484,9 +5499,15 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	em->block_start = ins.objectid;
 	em->block_len = ins.offset;
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
+
+	/*
+	 * We need to do this because if we're using the original em we searched
+	 * for, we could have EXTENT_FLAG_VACANCY set, and we don't want that.
+	 */
+	em->flags = 0;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
-	while (1) {
+	while (insert) {
 		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
@@ -5704,8 +5725,7 @@ must_cow:
 	 * it above
 	 */
 	len = bh_result->b_size;
-	free_extent_map(em);
-	em = btrfs_new_extent_direct(inode, start, len);
+	em = btrfs_new_extent_direct(inode, em, start, len);
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 	len = min(len, em->len - (start - em->start));
