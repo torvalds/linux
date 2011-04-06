@@ -163,6 +163,7 @@ static void crash_kexec_prepare_cpus(int cpu)
 }
 
 /* wait for all the CPUs to hit real mode but timeout if they don't come in */
+#ifdef CONFIG_PPC_STD_MMU_64
 static void crash_kexec_wait_realmode(int cpu)
 {
 	unsigned int msecs;
@@ -187,6 +188,7 @@ static void crash_kexec_wait_realmode(int cpu)
 	}
 	mb();
 }
+#endif
 
 /*
  * This function will be called by secondary cpus or by kexec cpu
@@ -445,7 +447,9 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	crash_kexec_prepare_cpus(crashing_cpu);
 	cpu_set(crashing_cpu, cpus_in_crash);
 	crash_kexec_stop_spus();
+#ifdef CONFIG_PPC_STD_MMU_64
 	crash_kexec_wait_realmode(crashing_cpu);
+#endif
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 0);
 }
