@@ -173,6 +173,8 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	}
 
 	if (pdata && pdata->led_pdata) {
+		led_cell.platform_data = pdata->led_pdata;
+		led_cell.pdata_size = sizeof(struct pasic3_leds_machinfo);
 		ret = mfd_add_devices(&pdev->dev, pdev->id, &led_cell, 1, r, 0);
 		if (ret < 0)
 			dev_warn(dev, "failed to register LED device\n");
