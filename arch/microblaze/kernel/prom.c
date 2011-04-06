@@ -88,7 +88,8 @@ int __init early_init_dt_scan_chosen_serial(unsigned long node,
 		}
 		if ((strncmp(p, "xlnx,xps-uartlite", 17) == 0) ||
 				(strncmp(p, "xlnx,opb-uartlite", 17) == 0) ||
-				(strncmp(p, "xlnx,axi-uartlite", 17) == 0)) {
+				(strncmp(p, "xlnx,axi-uartlite", 17) == 0) ||
+				(strncmp(p, "xlnx,mdm", 8) == 0)) {
 			unsigned int *addrp;
 
 			*(u32 *)data = UARTLITE;

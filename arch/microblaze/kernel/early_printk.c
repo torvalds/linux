@@ -35,7 +35,7 @@ static void early_printk_uartlite_putc(char c)
 	 * we'll never timeout on a working UART.
 	 */
 
-	unsigned retries = 10000;
+	unsigned retries = 1000000;
 	/* read status bit - 0x8 offset */
 	while (--retries && (in_be32(base_addr + 8) & (1 << 3)))
 		;
