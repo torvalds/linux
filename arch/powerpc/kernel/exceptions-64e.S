@@ -253,9 +253,6 @@ exception_marker:
 	.balign	0x1000
 	.globl interrupt_base_book3e
 interrupt_base_book3e:					/* fake trap */
-	/* Note: If real debug exceptions are supported by the HW, the vector
-	 * below will have to be patched up to point to an appropriate handler
-	 */
 	EXCEPTION_STUB(0x000, machine_check)		/* 0x0200 */
 	EXCEPTION_STUB(0x020, critical_input)		/* 0x0580 */
 	EXCEPTION_STUB(0x040, debug_crit)		/* 0x0d00 */
@@ -454,6 +451,68 @@ interrupt_end_book3e:
 
 kernel_dbg_exc:
 	b	.	/* NYI */
+
+/* Debug exception as a debug interrupt*/
+	START_EXCEPTION(debug_debug);
+	DBG_EXCEPTION_PROLOG(0xd00, PROLOG_ADDITION_2REGS)
+
+	/*
+	 * If there is a single step or branch-taken exception in an
+	 * exception entry sequence, it was probably meant to apply to
+	 * the code where the exception occurred (since exception entry
+	 * doesn't turn off DE automatically).  We simulate the effect
+	 * of turning off DE on entry to an exception handler by turning
+	 * off DE in the DSRR1 value and clearing the debug status.
+	 */
+
+	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
+	andis.	r15,r14,DBSR_IC@h
+	beq+	1f
+
+	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
+	LOAD_REG_IMMEDIATE(r15,interrupt_end_book3e)
+	cmpld	cr0,r10,r14
+	cmpld	cr1,r10,r15
+	blt+	cr0,1f
+	bge+	cr1,1f
+
+	/* here it looks like we got an inappropriate debug exception. */
+	lis	r14,DBSR_IC@h		/* clear the IC event */
+	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the DSRR1 value */
+	mtspr	SPRN_DBSR,r14
+	mtspr	SPRN_DSRR1,r11
+	lwz	r10,PACA_EXDBG+EX_CR(r13)	/* restore registers */
+	ld	r1,PACA_EXDBG+EX_R1(r13)
+	ld	r14,PACA_EXDBG+EX_R14(r13)
+	ld	r15,PACA_EXDBG+EX_R15(r13)
+	mtcr	r10
+	ld	r10,PACA_EXDBG+EX_R10(r13)	/* restore registers */
+	ld	r11,PACA_EXDBG+EX_R11(r13)
+	mfspr	r13,SPRN_SPRG_DBG_SCRATCH
+	rfdi
+
+	/* Normal debug exception */
+	/* XXX We only handle coming from userspace for now since we can't
+	 *     quite save properly an interrupted kernel state yet
+	 */
+1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
+	beq	kernel_dbg_exc;		/* if from kernel mode */
+
+	/* Now we mash up things to make it look like we are coming on a
+	 * normal exception
+	 */
+	mfspr	r15,SPRN_SPRG_DBG_SCRATCH
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r15
+	mfspr	r14,SPRN_DBSR
+	EXCEPTION_COMMON(0xd00, PACA_EXDBG, INTS_DISABLE_ALL)
+	std	r14,_DSISR(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r14
+	ld	r14,PACA_EXDBG+EX_R14(r13)
+	ld	r15,PACA_EXDBG+EX_R15(r13)
+	bl	.save_nvgprs
+	bl	.DebugException
+	b	.ret_from_except
 
 /* Doorbell interrupt */
 	MASKABLE_EXCEPTION(0x2070, doorbell, .doorbell_exception, ACK_NONE)
