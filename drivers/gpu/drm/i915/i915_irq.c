@@ -462,6 +462,94 @@ static void pch_irq_handler(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
 }
 
+irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
+{
+	struct drm_device *dev = (struct drm_device *) arg;
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int ret = IRQ_NONE;
+	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
+	struct drm_i915_master_private *master_priv;
+
+	atomic_inc(&dev_priv->irq_received);
+
+	/* disable master interrupt before clearing iir  */
+	de_ier = I915_READ(DEIER);
+	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+	POSTING_READ(DEIER);
+
+	de_iir = I915_READ(DEIIR);
+	gt_iir = I915_READ(GTIIR);
+	pch_iir = I915_READ(SDEIIR);
+	pm_iir = I915_READ(GEN6_PMIIR);
+
+	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 && pm_iir == 0)
+		goto done;
+
+	ret = IRQ_HANDLED;
+
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
+	}
+
+	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
+		notify_ring(dev, &dev_priv->ring[RCS]);
+	if (gt_iir & GT_GEN6_BSD_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[VCS]);
+	if (gt_iir & GT_BLT_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[BCS]);
+
+	if (de_iir & DE_GSE_IVB)
+		intel_opregion_gse_intr(dev);
+
+	if (de_iir & DE_PLANEA_FLIP_DONE_IVB) {
+		intel_prepare_page_flip(dev, 0);
+		intel_finish_page_flip_plane(dev, 0);
+	}
+
+	if (de_iir & DE_PLANEB_FLIP_DONE_IVB) {
+		intel_prepare_page_flip(dev, 1);
+		intel_finish_page_flip_plane(dev, 1);
+	}
+
+	if (de_iir & DE_PIPEA_VBLANK_IVB)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK_IVB);
+		drm_handle_vblank(dev, 1);
+
+	/* check event from PCH */
+	if (de_iir & DE_PCH_EVENT_IVB) {
+		if (pch_iir & SDE_HOTPLUG_MASK_CPT)
+			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+		pch_irq_handler(dev);
+	}
+
+	if (pm_iir & GEN6_PM_DEFERRED_EVENTS) {
+		unsigned long flags;
+		spin_lock_irqsave(&dev_priv->rps_lock, flags);
+		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
+		I915_WRITE(GEN6_PMIMR, pm_iir);
+		dev_priv->pm_iir |= pm_iir;
+		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+		queue_work(dev_priv->wq, &dev_priv->rps_work);
+	}
+
+	/* should clear PCH hotplug event before clear CPU irq */
+	I915_WRITE(SDEIIR, pch_iir);
+	I915_WRITE(GTIIR, gt_iir);
+	I915_WRITE(DEIIR, de_iir);
+	I915_WRITE(GEN6_PMIIR, pm_iir);
+
+done:
+	I915_WRITE(DEIER, de_ier);
+	POSTING_READ(DEIER);
+
+	return ret;
+}
+
 irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -1406,6 +1494,22 @@ int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
+int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+
+	if (!i915_pipe_enabled(dev, pipe))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
+				    DE_PIPEA_VBLANK_IVB : DE_PIPEB_VBLANK_IVB);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	return 0;
+}
+
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -1433,6 +1537,17 @@ void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
 				     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
+				     DE_PIPEA_VBLANK_IVB : DE_PIPEB_VBLANK_IVB);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -1709,6 +1824,56 @@ int ironlake_irq_postinstall(struct drm_device *dev)
 		I915_WRITE(DEIER, I915_READ(DEIER) | DE_PCU_EVENT);
 		ironlake_enable_display_irq(dev_priv, DE_PCU_EVENT);
 	}
+
+	return 0;
+}
+
+int ivybridge_irq_postinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	/* enable kind of interrupts always enabled */
+	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
+		DE_PCH_EVENT_IVB | DE_PLANEA_FLIP_DONE_IVB |
+		DE_PLANEB_FLIP_DONE_IVB;
+	u32 render_irqs;
+	u32 hotplug_mask;
+
+	DRM_INIT_WAITQUEUE(&dev_priv->ring[RCS].irq_queue);
+	if (HAS_BSD(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->ring[VCS].irq_queue);
+	if (HAS_BLT(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->ring[BCS].irq_queue);
+
+	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
+	dev_priv->irq_mask = ~display_mask;
+
+	/* should always can generate irq */
+	I915_WRITE(DEIIR, I915_READ(DEIIR));
+	I915_WRITE(DEIMR, dev_priv->irq_mask);
+	I915_WRITE(DEIER, display_mask | DE_PIPEA_VBLANK_IVB |
+		   DE_PIPEB_VBLANK_IVB);
+	POSTING_READ(DEIER);
+
+	dev_priv->gt_irq_mask = ~0;
+
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+
+	render_irqs = GT_USER_INTERRUPT | GT_GEN6_BSD_USER_INTERRUPT |
+		GT_BLT_USER_INTERRUPT;
+	I915_WRITE(GTIER, render_irqs);
+	POSTING_READ(GTIER);
+
+	hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
+			SDE_PORTB_HOTPLUG_CPT |
+			SDE_PORTC_HOTPLUG_CPT |
+			SDE_PORTD_HOTPLUG_CPT);
+	dev_priv->pch_irq_mask = ~hotplug_mask;
+
+	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
+	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask);
+	I915_WRITE(SDEIER, hotplug_mask);
+	POSTING_READ(SDEIER);
 
 	return 0;
 }

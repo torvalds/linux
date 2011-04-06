@@ -2778,6 +2778,19 @@
 #define DE_PIPEA_VSYNC          (1 << 3)
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
 
+/* More Ivybridge lolz */
+#define DE_ERR_DEBUG_IVB		(1<<30)
+#define DE_GSE_IVB			(1<<29)
+#define DE_PCH_EVENT_IVB		(1<<28)
+#define DE_DP_A_HOTPLUG_IVB		(1<<27)
+#define DE_AUX_CHANNEL_A_IVB		(1<<26)
+#define DE_SPRITEB_FLIP_DONE_IVB	(1<<9)
+#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
+#define DE_PLANEB_FLIP_DONE_IVB		(1<<8)
+#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
+#define DE_PIPEB_VBLANK_IVB		(1<<5)
+#define DE_PIPEA_VBLANK_IVB		(1<<0)
+
 #define DEISR   0x44000
 #define DEIMR   0x44004
 #define DEIIR   0x44008
