@@ -304,6 +304,11 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	dev_vdbg(chan2dev(&dwc->chan), "scan_descriptors: llp=0x%x\n", llp);
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
+		/* check first descriptors addr */
+		if (desc->txd.phys == llp)
+			return;
+
+		/* check first descriptors llp */
 		if (desc->lli.llp == llp)
 			/* This one is currently in progress */
 			return;
