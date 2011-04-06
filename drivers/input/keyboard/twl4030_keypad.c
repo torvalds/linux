@@ -338,7 +338,7 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 	u8 reg;
 	int error;
 
-	if (!pdata || !pdata->rows || !pdata->cols ||
+	if (!pdata || !pdata->rows || !pdata->cols || !pdata->keymap_data ||
 	    pdata->rows > TWL4030_MAX_ROWS || pdata->cols > TWL4030_MAX_COLS) {
 		dev_err(&pdev->dev, "Invalid platform_data\n");
 		return -EINVAL;
