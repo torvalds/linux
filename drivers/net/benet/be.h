@@ -458,18 +458,10 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 
 static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
 {
-	u8 data;
 	u32 sli_intf;
 
-	if (lancer_chip(adapter)) {
-		pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET,
-								&sli_intf);
-		adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
-	} else {
-		pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
-		pci_read_config_byte(adapter->pdev, 0xFE, &data);
-		adapter->is_virtfn = (data != 0xAA);
-	}
+	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+	adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
 }
 
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
