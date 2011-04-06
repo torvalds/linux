@@ -159,8 +159,8 @@ o	"qs" gives an indication of the state of the callback queue
 	the corresponding character is replaced by ".".
 
 o	"kt" is the per-CPU kernel-thread state.  The digit preceding
-	the slash is zero if there is no work pending and 1 otherwise.
-	The character after the slash is as follows:
+	the first slash is zero if there is no work pending and 1
+	otherwise.  The character between the slashes is as follows:
 
 	"S"	The kernel thread is stopped, in other words, all
 		CPUs corresponding to this rcu_node structure are
@@ -171,9 +171,17 @@ o	"kt" is the per-CPU kernel-thread state.  The digit preceding
 	"W"	The kernel thread is waiting because there is no work
 		for it to do.
 
+	"O"	The kernel thread is waiting because it has been
+		forced off of its designated CPU or because its
+		->cpus_allowed mask permits it to run on other than
+		its designated CPU.
+
 	"Y"	The kernel thread is yielding to avoid hogging CPU.
 
 	"?"	Unknown value, indicates a bug.
+
+	The number after the final slash is the CPU that the kthread
+	is actually running on.
 
 o	"b" is the batch limit for this CPU.  If more than this number
 	of RCU callbacks is ready to invoke, then the remainder will

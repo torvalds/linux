@@ -47,13 +47,14 @@
 #include "rcutree.h"
 
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
+DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_cpu);
 DECLARE_PER_CPU(char, rcu_cpu_has_work);
 
 static char convert_kthread_status(unsigned int kthread_status)
 {
 	if (kthread_status > RCU_KTHREAD_MAX)
 		return '?';
-	return "SRWY"[kthread_status];
+	return "SRWOY"[kthread_status];
 }
 
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
@@ -74,7 +75,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_printf(m, " of=%lu ri=%lu", rdp->offline_fqs, rdp->resched_ipi);
-	seq_printf(m, " ql=%ld qs=%c%c%c%c kt=%d/%c b=%ld",
+	seq_printf(m, " ql=%ld qs=%c%c%c%c kt=%d/%c/%d b=%ld",
 		   rdp->qlen,
 		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
 			rdp->nxttail[RCU_NEXT_TAIL]],
@@ -86,6 +87,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   per_cpu(rcu_cpu_has_work, rdp->cpu),
 		   convert_kthread_status(per_cpu(rcu_cpu_kthread_status,
 					  rdp->cpu)),
+		   per_cpu(rcu_cpu_kthread_cpu, rdp->cpu),
 		   rdp->blimit);
 	seq_printf(m, " ci=%lu co=%lu ca=%lu\n",
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
@@ -312,16 +314,35 @@ static const struct file_operations rcuhier_fops = {
 	.release = single_release,
 };
 
+static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
+{
+	unsigned long flags;
+	unsigned long completed;
+	unsigned long gpnum;
+	unsigned long gpage;
+	unsigned long gpmax;
+	struct rcu_node *rnp = &rsp->node[0];
+
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	completed = rsp->completed;
+	gpnum = rsp->gpnum;
+	if (rsp->completed == rsp->gpnum)
+		gpage = 0;
+	else
+		gpage = jiffies - rsp->gp_start;
+	gpmax = rsp->gp_max;
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	seq_printf(m, "%s: completed=%ld  gpnum=%lu  age=%ld  max=%ld\n",
+		   rsp->name, completed, gpnum, gpage, gpmax);
+}
+
 static int show_rcugp(struct seq_file *m, void *unused)
 {
 #ifdef CONFIG_TREE_PREEMPT_RCU
-	seq_printf(m, "rcu_preempt: completed=%ld  gpnum=%lu\n",
-		   rcu_preempt_state.completed, rcu_preempt_state.gpnum);
+	show_one_rcugp(m, &rcu_preempt_state);
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
-	seq_printf(m, "rcu_sched: completed=%ld  gpnum=%lu\n",
-		   rcu_sched_state.completed, rcu_sched_state.gpnum);
-	seq_printf(m, "rcu_bh: completed=%ld  gpnum=%lu\n",
-		   rcu_bh_state.completed, rcu_bh_state.gpnum);
+	show_one_rcugp(m, &rcu_sched_state);
+	show_one_rcugp(m, &rcu_bh_state);
 	return 0;
 }
 

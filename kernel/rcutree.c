@@ -92,6 +92,7 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
  */
 static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
+DEFINE_PER_CPU(int, rcu_cpu_kthread_cpu);
 static DEFINE_PER_CPU(wait_queue_head_t, rcu_cpu_wq);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
@@ -888,6 +889,8 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
 {
+	unsigned long gp_duration;
+
 	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 
 	/*
@@ -895,6 +898,9 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	 * is seen before the assignment to rsp->completed.
 	 */
 	smp_mb(); /* See above block comment. */
+	gp_duration = jiffies - rsp->gp_start;
+	if (gp_duration > rsp->gp_max)
+		rsp->gp_max = gp_duration;
 	rsp->completed = rsp->gpnum;
 	rsp->signaled = RCU_GP_IDLE;
 	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
@@ -1583,12 +1589,15 @@ static int rcu_cpu_kthread_should_stop(int cpu)
 	       smp_processor_id() != cpu) {
 		if (kthread_should_stop())
 			return 1;
+		per_cpu(rcu_cpu_kthread_status, cpu) = RCU_KTHREAD_OFFCPU;
+		per_cpu(rcu_cpu_kthread_cpu, cpu) = raw_smp_processor_id();
 		local_bh_enable();
 		schedule_timeout_uninterruptible(1);
 		if (!cpumask_equal(&current->cpus_allowed, cpumask_of(cpu)))
 			set_cpus_allowed_ptr(current, cpumask_of(cpu));
 		local_bh_disable();
 	}
+	per_cpu(rcu_cpu_kthread_cpu, cpu) = cpu;
 	return 0;
 }
 
@@ -1656,6 +1665,7 @@ static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 	kthread_bind(t, cpu);
+	per_cpu(rcu_cpu_kthread_cpu, cpu) = cpu;
 	WARN_ON_ONCE(per_cpu(rcu_cpu_kthread_task, cpu) != NULL);
 	per_cpu(rcu_cpu_kthread_task, cpu) = t;
 	wake_up_process(t);
