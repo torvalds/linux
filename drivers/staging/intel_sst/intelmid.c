@@ -802,6 +802,7 @@ static int __devinit snd_intelmad_sst_register(
 		pr_err("sst card registration failed\n");
 		return ret_val;
 	}
+	sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 
 	sst_card_vendor_id = intelmaddata->sstdrv_ops->vendor_id;
 	intelmaddata->pmic_status = PMIC_UNINIT;
