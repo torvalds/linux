@@ -38,8 +38,6 @@
 #include <linux/isdn/capiutil.h>
 #include <linux/isdn/capicmd.h>
 
-#include "capifs.h"
-
 MODULE_DESCRIPTION("CAPI4Linux: Userspace /dev/capi20 interface");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
@@ -85,7 +83,6 @@ struct capiminor {
 	struct kref kref;
 
 	unsigned int      minor;
-	struct dentry *capifs_dentry;
 
 	struct capi20_appl	*ap;
 	u32			ncci;
@@ -300,17 +297,8 @@ static void capiminor_free(struct capiminor *mp)
 
 static void capincci_alloc_minor(struct capidev *cdev, struct capincci *np)
 {
-	struct capiminor *mp;
-	dev_t device;
-
-	if (!(cdev->userflags & CAPIFLAG_HIGHJACKING))
-		return;
-
-	mp = np->minorp = capiminor_alloc(&cdev->ap, np->ncci);
-	if (mp) {
-		device = MKDEV(capinc_tty_driver->major, mp->minor);
-		mp->capifs_dentry = capifs_new_ncci(mp->minor, device);
-	}
+	if (cdev->userflags & CAPIFLAG_HIGHJACKING)
+		np->minorp = capiminor_alloc(&cdev->ap, np->ncci);
 }
 
 static void capincci_free_minor(struct capincci *np)
@@ -319,8 +307,6 @@ static void capincci_free_minor(struct capincci *np)
 	struct tty_struct *tty;
 
 	if (mp) {
-		capifs_free_ncci(mp->capifs_dentry);
-
 		tty = tty_port_tty_get(&mp->port);
 		if (tty) {
 			tty_vhangup(tty);
@@ -1514,10 +1500,8 @@ static int __init capi_init(void)
 
 	proc_init();
 
-#if defined(CONFIG_ISDN_CAPI_CAPIFS) || defined(CONFIG_ISDN_CAPI_CAPIFS_MODULE)
-        compileinfo = " (middleware+capifs)";
-#elif defined(CONFIG_ISDN_CAPI_MIDDLEWARE)
-        compileinfo = " (no capifs)";
+#ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
+        compileinfo = " (middleware)";
 #else
         compileinfo = " (no middleware)";
 #endif

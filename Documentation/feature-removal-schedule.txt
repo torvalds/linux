@@ -425,16 +425,6 @@ Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
