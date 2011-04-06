@@ -436,7 +436,11 @@ struct modal_eep_4k_header {
 	u8 db2_2:4, db2_3:4;
 	u8 db2_4:4, reserved:4;
 #endif
-	u8 futureModal[4];
+	u8 tx_diversity;
+	u8 flc_pwr_thresh;
+	u8 bb_scale_smrt_antenna;
+#define EEP_4K_BB_DESIRED_SCALE_MASK	0x1f
+	u8 futureModal[1];
 	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
