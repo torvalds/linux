@@ -308,7 +308,7 @@ You need to hold the req_lock:
 
 You must not have the req_lock:
  drbd_free_ee()
- drbd_alloc_ee()
+ drbd_alloc_peer_req()
  drbd_release_ee()
  drbd_ee_fix_bhs()
  drbd_process_done_ee()
@@ -317,8 +317,8 @@ You must not have the req_lock:
 */
 
 struct drbd_peer_request *
-drbd_alloc_ee(struct drbd_conf *mdev, u64 id, sector_t sector,
-	      unsigned int data_size, gfp_t gfp_mask) __must_hold(local)
+drbd_alloc_peer_req(struct drbd_conf *mdev, u64 id, sector_t sector,
+		    unsigned int data_size, gfp_t gfp_mask) __must_hold(local)
 {
 	struct drbd_peer_request *peer_req;
 	struct page *page;
@@ -330,7 +330,7 @@ drbd_alloc_ee(struct drbd_conf *mdev, u64 id, sector_t sector,
 	peer_req = mempool_alloc(drbd_ee_mempool, gfp_mask & ~__GFP_HIGHMEM);
 	if (!peer_req) {
 		if (!(gfp_mask & __GFP_NOWARN))
-			dev_err(DEV, "alloc_ee: Allocation of an EE failed\n");
+			dev_err(DEV, "%s: allocation failed\n", __func__);
 		return NULL;
 	}
 
@@ -1379,7 +1379,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	peer_req = drbd_alloc_ee(mdev, id, sector, data_size, GFP_NOIO);
+	peer_req = drbd_alloc_peer_req(mdev, id, sector, data_size, GFP_NOIO);
 	if (!peer_req)
 		return NULL;
 
@@ -2240,7 +2240,7 @@ static int receive_DataRequest(struct drbd_tconn *tconn, struct packet_info *pi)
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	peer_req = drbd_alloc_ee(mdev, p->block_id, sector, size, GFP_NOIO);
+	peer_req = drbd_alloc_peer_req(mdev, p->block_id, sector, size, GFP_NOIO);
 	if (!peer_req) {
 		put_ldev(mdev);
 		return -ENOMEM;

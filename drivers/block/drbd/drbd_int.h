@@ -1456,9 +1456,9 @@ extern int drbd_submit_peer_request(struct drbd_conf *,
 				    struct drbd_peer_request *, const unsigned,
 				    const int);
 extern int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list);
-extern struct drbd_peer_request *drbd_alloc_ee(struct drbd_conf *,
-					       u64, sector_t, unsigned int,
-					       gfp_t) __must_hold(local);
+extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_conf *, u64,
+						     sector_t, unsigned int,
+						     gfp_t) __must_hold(local);
 extern void drbd_free_some_ee(struct drbd_conf *, struct drbd_peer_request *,
 			      int);
 #define drbd_free_ee(m,e)	drbd_free_some_ee(m, e, 0)

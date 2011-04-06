@@ -354,7 +354,8 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 
 	/* GFP_TRY, because if there is no memory available right now, this may
 	 * be rescheduled for later. It is "only" background resync, after all. */
-	peer_req = drbd_alloc_ee(mdev, ID_SYNCER /* unused */, sector, size, GFP_TRY);
+	peer_req = drbd_alloc_peer_req(mdev, ID_SYNCER /* unused */, sector,
+				       size, GFP_TRY);
 	if (!peer_req)
 		goto defer;
 
