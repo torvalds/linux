@@ -2178,27 +2178,27 @@ static struct notifier_block drbd_notifier = {
 	.notifier_call = drbd_notify_sys,
 };
 
-static void drbd_release_ee_lists(struct drbd_conf *mdev)
+static void drbd_release_all_peer_reqs(struct drbd_conf *mdev)
 {
 	int rr;
 
-	rr = drbd_release_ee(mdev, &mdev->active_ee);
+	rr = drbd_free_peer_reqs(mdev, &mdev->active_ee);
 	if (rr)
 		dev_err(DEV, "%d EEs in active list found!\n", rr);
 
-	rr = drbd_release_ee(mdev, &mdev->sync_ee);
+	rr = drbd_free_peer_reqs(mdev, &mdev->sync_ee);
 	if (rr)
 		dev_err(DEV, "%d EEs in sync list found!\n", rr);
 
-	rr = drbd_release_ee(mdev, &mdev->read_ee);
+	rr = drbd_free_peer_reqs(mdev, &mdev->read_ee);
 	if (rr)
 		dev_err(DEV, "%d EEs in read list found!\n", rr);
 
-	rr = drbd_release_ee(mdev, &mdev->done_ee);
+	rr = drbd_free_peer_reqs(mdev, &mdev->done_ee);
 	if (rr)
 		dev_err(DEV, "%d EEs in done list found!\n", rr);
 
-	rr = drbd_release_ee(mdev, &mdev->net_ee);
+	rr = drbd_free_peer_reqs(mdev, &mdev->net_ee);
 	if (rr)
 		dev_err(DEV, "%d EEs in net list found!\n", rr);
 }
@@ -2230,7 +2230,7 @@ void drbd_delete_device(unsigned int minor)
 
 	drbd_free_resources(mdev);
 
-	drbd_release_ee_lists(mdev);
+	drbd_release_all_peer_reqs(mdev);
 
 	lc_destroy(mdev->act_log);
 	lc_destroy(mdev->resync);

@@ -309,7 +309,7 @@ You need to hold the req_lock:
 You must not have the req_lock:
  drbd_free_peer_req()
  drbd_alloc_peer_req()
- drbd_release_ee()
+ drbd_free_peer_reqs()
  drbd_ee_fix_bhs()
  drbd_process_done_ee()
  drbd_clear_done_ee()
@@ -373,7 +373,7 @@ void __drbd_free_peer_req(struct drbd_conf *mdev, struct drbd_peer_request *peer
 	mempool_free(peer_req, drbd_ee_mempool);
 }
 
-int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
+int drbd_free_peer_reqs(struct drbd_conf *mdev, struct list_head *list)
 {
 	LIST_HEAD(work_list);
 	struct drbd_peer_request *peer_req, *t;
@@ -4175,7 +4175,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 	 * Actually we don't care for exactly when the network stack does its
 	 * put_page(), but release our reference on these pages right here.
 	 */
-	i = drbd_release_ee(mdev, &mdev->net_ee);
+	i = drbd_free_peer_reqs(mdev, &mdev->net_ee);
 	if (i)
 		dev_info(DEV, "net_ee not empty, killed %u entries\n", i);
 	i = atomic_read(&mdev->pp_in_use_by_net);
