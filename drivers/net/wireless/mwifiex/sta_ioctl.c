@@ -1729,8 +1729,7 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_adapter *adapter,
 		       sizeof(ibss_key->key_param_set.key_len));
 		ibss_key->key_param_set.key_type_id
 			= cpu_to_le16(KEY_TYPE_ID_TKIP);
-		ibss_key->key_param_set.key_info
-			= cpu_to_le16(KEY_INFO_TKIP_ENABLED);
+		ibss_key->key_param_set.key_info = cpu_to_le16(KEY_ENABLED);
 
 		/* Send the key as GTK to firmware */
 		encrypt_key->key_index = ~MWIFIEX_KEY_INDEX_UNICAST;

@@ -574,8 +574,7 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 		&resp->params.key_material;
 
 	if (le16_to_cpu(key->action) == HostCmd_ACT_GEN_SET) {
-		if ((le16_to_cpu(key->key_param_set.key_info) &
-		     KEY_INFO_TKIP_MCAST)) {
+		if ((le16_to_cpu(key->key_param_set.key_info) & KEY_MCAST)) {
 			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;

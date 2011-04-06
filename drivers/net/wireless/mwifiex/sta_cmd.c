@@ -500,9 +500,8 @@ mwifiex_set_keyparamset_wep(struct mwifiex_private *priv,
 			key_param_set->key_type_id =
 				cpu_to_le16(KEY_TYPE_ID_WEP);
 			key_param_set->key_info =
-				cpu_to_le16(KEY_INFO_WEP_ENABLED |
-					    KEY_INFO_WEP_UNICAST |
-					    KEY_INFO_WEP_MCAST);
+				cpu_to_le16(KEY_ENABLED | KEY_UNICAST |
+					    KEY_MCAST);
 			key_param_set->key_len =
 				cpu_to_le16(priv->wep_key[i].key_length);
 			/* Set WEP key index */
@@ -589,10 +588,10 @@ static int mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 			cpu_to_le16(KEY_TYPE_ID_WAPI);
 		if (cmd_oid == KEY_INFO_ENABLED)
 			key_material->key_param_set.key_info =
-				cpu_to_le16(KEY_INFO_WAPI_ENABLED);
+				cpu_to_le16(KEY_ENABLED);
 		else
 			key_material->key_param_set.key_info =
-				cpu_to_le16(!KEY_INFO_WAPI_ENABLED);
+				cpu_to_le16(!KEY_ENABLED);
 
 		key_material->key_param_set.key[0] = enc_key->key_index;
 		if (!priv->sec_info.wapi_key_on)
@@ -604,10 +603,10 @@ static int mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		if (0 != memcmp(enc_key->mac_addr, bc_mac, sizeof(bc_mac))) {
 			/* WAPI pairwise key: unicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_WAPI_UNICAST);
+				cpu_to_le16(KEY_UNICAST);
 		} else {	/* WAPI group key: multicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_WAPI_MCAST);
+				cpu_to_le16(KEY_MCAST);
 			priv->sec_info.wapi_key_on = true;
 		}
 
@@ -634,32 +633,32 @@ static int mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 			cpu_to_le16(KEY_TYPE_ID_AES);
 		if (cmd_oid == KEY_INFO_ENABLED)
 			key_material->key_param_set.key_info =
-				cpu_to_le16(KEY_INFO_AES_ENABLED);
+				cpu_to_le16(KEY_ENABLED);
 		else
 			key_material->key_param_set.key_info =
-				cpu_to_le16(!KEY_INFO_AES_ENABLED);
+				cpu_to_le16(!KEY_ENABLED);
 
 		if (enc_key->key_index & MWIFIEX_KEY_INDEX_UNICAST)
 				/* AES pairwise key: unicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_AES_UNICAST);
+				cpu_to_le16(KEY_UNICAST);
 		else		/* AES group key: multicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_AES_MCAST);
+				cpu_to_le16(KEY_MCAST);
 	} else if (enc_key->key_len == WLAN_KEY_LEN_TKIP) {
 		dev_dbg(priv->adapter->dev, "cmd: WPA_TKIP\n");
 		key_material->key_param_set.key_type_id =
 			cpu_to_le16(KEY_TYPE_ID_TKIP);
 		key_material->key_param_set.key_info =
-			cpu_to_le16(KEY_INFO_TKIP_ENABLED);
+			cpu_to_le16(KEY_ENABLED);
 
 		if (enc_key->key_index & MWIFIEX_KEY_INDEX_UNICAST)
 				/* TKIP pairwise key: unicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_TKIP_UNICAST);
+				cpu_to_le16(KEY_UNICAST);
 		else		/* TKIP group key: multicast */
 			key_material->key_param_set.key_info |=
-				cpu_to_le16(KEY_INFO_TKIP_MCAST);
+				cpu_to_le16(KEY_MCAST);
 	}
 
 	if (key_material->key_param_set.key_type_id) {
