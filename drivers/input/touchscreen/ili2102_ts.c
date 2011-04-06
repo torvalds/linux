@@ -23,6 +23,7 @@
 #define TOUCH_NUMBER 2
 
 static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
+static unsigned int g_x =  0,g_y = 0;
 
 struct ili2102_ts_data {
 	u16		model;			/* 801. */	
@@ -31,6 +32,7 @@ struct ili2102_ts_data {
 	u16		y_min, y_max;
 	uint16_t addr;
 	int 	use_irq;
+	int	pendown;
 	int 	gpio_pendown;
 	int 	gpio_reset;
 	int 	gpio_reset_active_low;
@@ -43,8 +45,8 @@ struct ili2102_ts_data {
 	struct 	i2c_client *client;
 	struct 	input_dev *input_dev;
 	struct 	hrtimer timer;
-	struct 	work_struct  work;
-	struct 	workqueue_struct *ts_wq;
+	struct 	delayed_work	work;
+	struct 	workqueue_struct *ts_wq;	
 	struct 	early_suspend early_suspend;
 };
 
@@ -74,40 +76,7 @@ static int ili2102_init_panel(struct ili2102_ts_data *ts)
 	mdelay(100);//need?
 	return 0;
 }
-#if 0
-static void ili2102_test(struct i2c_client *client)
-{
-	int i;
-    int ret;
-	struct i2c_msg msg[2];
-    uint8_t start_reg;
-    uint8_t buf[4];
 
-	start_reg = 0x31;
-
-    msg[0].addr =client->addr;
-    msg[0].flags = 0;
-    msg[0].len = 1;
-    msg[0].buf = &start_reg;
-    
-    msg[1].addr = client->addr;
-    msg[1].flags = I2C_M_RD;
-    msg[1].len = 3;
-    msg[1].buf = buf;
-
-	
-	ret = i2c_transfer(client->adapter, msg, 2);
-    
-    if (ret < 0) {
-	  printk("ili2102_test:i2c_transfer fail =%d\n",ret);
-    }
-
-    for(i=0; i<3; i++){
-    	 printk("ili2102_test:buf[%d]=%x\n", i, buf[i]);
-    }
-		
-}
-#endif
 static void ili2102_ts_work_func(struct work_struct *work)
 {
 	int i,ret;
@@ -119,7 +88,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
 
 	DBG("ili2102_ts_work_func\n");
-	
+
 	/*Touch Information Report*/
 	start_reg = 0x10;
 
@@ -127,23 +96,27 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	msg[0].flags = 0;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
+	msg[0].scl_rate = 200*1000;
 
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = I2C_M_RD;
 	msg[1].len = 9;	
 	msg[1].buf = buf;//msg[1].buf = (u8*)&buf[0];
+	msg[1].scl_rate = 200*1000;
 
-	ret = i2c_transfer(ts->client->adapter, msg, 2);
-    
-	if (ret < 0) {
-	for(i=0; i<TOUCH_NUMBER; i++) buf[i] = 0xffffffff;
-	printk("ili2102_ts_work_func:i2c_transfer fail =%d\n",ret);
+	ret = i2c_transfer(ts->client->adapter, msg, 2); 
+	if (ret < 0) 
+	{
+		//for(i=0; i<msg[1].len; i++) 
+		//buf[i] = 0xff;
+		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
+		goto out;
 	}
 
 	for(i=0; i<TOUCH_NUMBER; i++)
 	{
 
-		if((buf[0] & 0x03) == 0)
+		if(!((buf[0]>>i)&0x01))
 		{
 		  	if (touch_state[i] == TOUCH_DOWN)
 		  	{
@@ -153,6 +126,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				input_mt_sync(ts->input_dev);
 				syn_flag = 1;
 				touch_state[i] = TOUCH_UP;
+				printk("touch_up \n");
 			}
 
 		}
@@ -163,15 +137,18 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				x = buf[1+(i<<2)] | (buf[2+(i<<2)] << 8);
 				y = buf[3+(i<<2)] | (buf[4+(i<<2)] << 8);
 				
-
 				if (ts->swap_xy)
 				swap(x, y);
 
-				if (verify_coord(ts,&x,&y))
-				goto out;
-					
-			        printk("buf[%d]=%x X = %d, Y = %d\n", i, buf[i], x, y);
+				if (verify_coord(ts,&x,&y))//goto out;
+				{
+					x = g_x;
+					y = g_y;
+				}
 
+				g_x = x;
+				g_y = y;			
+				input_event(ts->input_dev, EV_ABS, ABS_MT_TRACKING_ID, i);
 			        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
 			        input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
 			        input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
@@ -179,6 +156,8 @@ static void ili2102_ts_work_func(struct work_struct *work)
 			        input_mt_sync(ts->input_dev);
 				syn_flag = 1;
 				touch_state[i] = TOUCH_DOWN;
+				 ts->pendown = 1;
+				printk("touch_down X = %d, Y = %d\n", x, y);
 			}
 			
 		}
@@ -187,22 +166,19 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	if(syn_flag)
 	input_sync(ts->input_dev);
 out:   
-	
-	if (ts->use_irq) 
-	enable_irq(ts->client->irq);
-	
-    return;
-}
+	if(ts->pendown)
+	{
+		schedule_delayed_work(&ts->work, msecs_to_jiffies(20));
+		ts->pendown = 0;
+	}
+	else
+	{
+		if (ts->use_irq) 
+		enable_irq(ts->client->irq);
+	}
 
-static enum hrtimer_restart ili2102_ts_timer_func(struct hrtimer *timer)
-{
-    struct ili2102_ts_data *ts = container_of(timer, struct ili2102_ts_data, timer);
-    DBG("ili2102_ts_timer_func\n"); 
+	DBG("pin=%d,level=%d,irq=%d\n",irq_to_gpio(ts->client->irq),gpio_get_value(irq_to_gpio(ts->client->irq)),ts->client->irq);
 
-    queue_work(ts->ts_wq, &ts->work);
-
-    hrtimer_start(&ts->timer, ktime_set(0, 12500000), HRTIMER_MODE_REL);
-    return HRTIMER_NORESTART;
 }
 
 static irqreturn_t ili2102_ts_irq_handler(int irq, void *dev_id)
@@ -211,7 +187,7 @@ static irqreturn_t ili2102_ts_irq_handler(int irq, void *dev_id)
 	DBG("ili2102_ts_irq_handler=%d,%d\n",ts->client->irq,ts->use_irq);
 
 	disable_irq_nosync(ts->client->irq); //disable_irq(ts->client->irq);
-	queue_work(ts->ts_wq, &ts->work);
+	schedule_delayed_work(&ts->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -239,7 +215,7 @@ static int __devinit setup_resetPin(struct i2c_client *client, struct ili2102_ts
 				ts->gpio_reset);
 		return err;
 	}
-	
+	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
 	mdelay(100);
 
 	err = gpio_direction_output(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
@@ -316,18 +292,20 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	msg[0].flags = 0;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
+	msg[0].scl_rate = 200*1000;
 
 	msg[1].addr = client->addr;
 	msg[1].flags = I2C_M_RD;
 	msg[1].len = 6;
 	msg[1].buf = (u8*)&buf[0];
+	msg[1].scl_rate = 200*1000;
 
 	ret = i2c_transfer(client->adapter, msg, 2);   
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
 
-	DBG("%s:b[0]=0x%x,b[1]=0x%x,b[2]=0x%x,b[3]=0x%x,b[4]=0x%x,b[5]=0x%x\n", 
+	printk("%s:b[0]=0x%x,b[1]=0x%x,b[2]=0x%x,b[3]=0x%x,b[4]=0x%x,b[5]=0x%x\n", 
 		__FUNCTION__,buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 
 	/*get firmware version:3bytes */	
@@ -336,18 +314,20 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	msg[0].flags = 0;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
+	msg[0].scl_rate = 200*1000;
 
 	msg[1].addr = client->addr;
 	msg[1].flags = I2C_M_RD;
 	msg[1].len = 3;
 	msg[1].buf = (u8*)&buf[0];
+	msg[1].scl_rate =200*1000;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
 
-	DBG("%s:Ver %d.%d.%d\n",__FUNCTION__,buf[0],buf[1],buf[2]);
+	printk("%s:Ver %d.%d.%d\n",__FUNCTION__,buf[0],buf[1],buf[2]);
 
 	return 0;
     
@@ -379,7 +359,8 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
     		printk("%s:fail to create ts_wq,ret=0x%x\n",__FUNCTION__, ENOMEM);
         	return -ENOMEM;
     	}
-	INIT_WORK(&ts->work, ili2102_ts_work_func);
+	//INIT_WORK(&ts->work, ili2102_ts_work_func);
+	INIT_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
 
@@ -416,6 +397,7 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->input_dev->phys = ts->phys;
 	ts->input_dev->name = ts->name;
 	ts->input_dev->dev.parent = &client->dev;
+	ts->pendown = 0;
 
 	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
 	//ts->input_dev->absbit[0] = 
@@ -456,12 +438,7 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	        else 
 		dev_err(&client->dev, "request_irq failed\n");
     	}
-    
-	if (!ts->use_irq) {
-	hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	ts->timer.function = ili2102_ts_timer_func;
-	hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
-	}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = ili2102_ts_early_suspend;
@@ -494,7 +471,7 @@ static int ili2102_ts_remove(struct i2c_client *client)
 	hrtimer_cancel(&ts->timer);
 	input_unregister_device(ts->input_dev);
 	if (ts->ts_wq)
-	destroy_workqueue(ts->ts_wq);
+	cancel_delayed_work_sync(&ts->work);
 	kfree(ts);
 	return 0;
 }
@@ -511,7 +488,7 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 	hrtimer_cancel(&ts->timer);
 
-	ret = cancel_work_sync(&ts->work);
+	ret = cancel_delayed_work_sync(&ts->work);
 	if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
 	enable_irq(client->irq);
 
@@ -542,8 +519,8 @@ static int ili2102_ts_resume(struct i2c_client *client)
 		printk("enabling IRQ %d\n", client->irq);
 		enable_irq(client->irq);
 	}
-	else
-	hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+	//else
+	//hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 
 	DBG("%s\n",__FUNCTION__);
 
