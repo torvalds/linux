@@ -530,21 +530,27 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	return wait_on_sem(&sem);
 }
 
+static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
+{
+	struct iommu_cmd cmd;
+
+	build_inv_dte(&cmd, devid);
+
+	return iommu_queue_command(iommu, &cmd);
+}
+
 /*
  * Command send function for invalidating a device table entry
  */
-static int iommu_flush_device(struct device *dev)
+static int device_flush_dte(struct device *dev)
 {
 	struct amd_iommu *iommu;
-	struct iommu_cmd cmd;
 	u16 devid;
 
 	devid = get_device_id(dev);
 	iommu = amd_iommu_rlookup_table[devid];
 
-	build_inv_dte(&cmd, devid);
-
-	return iommu_queue_command(iommu, &cmd);
+	return iommu_flush_dte(iommu, devid);
 }
 
 /*
@@ -620,7 +626,7 @@ static void domain_flush_devices(struct protection_domain *domain)
 	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry(dev_data, &domain->dev_list, list)
-		iommu_flush_device(dev_data->dev);
+		device_flush_dte(dev_data->dev);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
@@ -1424,7 +1430,7 @@ static void do_attach(struct device *dev, struct protection_domain *domain)
 	domain->dev_cnt                 += 1;
 
 	/* Flush the DTE entry */
-	iommu_flush_device(dev);
+	device_flush_dte(dev);
 }
 
 static void do_detach(struct device *dev)
@@ -1447,7 +1453,7 @@ static void do_detach(struct device *dev)
 	clear_dte_entry(devid);
 
 	/* Flush the DTE entry */
-	iommu_flush_device(dev);
+	device_flush_dte(dev);
 }
 
 /*
@@ -1663,7 +1669,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		goto out;
 	}
 
-	iommu_flush_device(dev);
+	device_flush_dte(dev);
 	iommu_completion_wait(iommu);
 
 out:
@@ -2448,7 +2454,7 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 	if (!iommu)
 		return;
 
-	iommu_flush_device(dev);
+	device_flush_dte(dev);
 	iommu_completion_wait(iommu);
 }
 
