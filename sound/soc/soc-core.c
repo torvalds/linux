@@ -640,7 +640,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			codec_dai->name, cpu_dai->name);
 		goto config_err;
 	}
-	if (!runtime->hw.channels_min || !runtime->hw.channels_max) {
+	if (!runtime->hw.channels_min || !runtime->hw.channels_max ||
+	    runtime->hw.channels_min > runtime->hw.channels_max) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching channels\n",
 				codec_dai->name, cpu_dai->name);
 		goto config_err;
