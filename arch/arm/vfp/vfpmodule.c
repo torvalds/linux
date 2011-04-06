@@ -78,6 +78,14 @@ static void vfp_thread_exit(struct thread_info *thread)
 	put_cpu();
 }
 
+static void vfp_thread_copy(struct thread_info *thread)
+{
+	struct thread_info *parent = current_thread_info();
+
+	vfp_sync_hwstate(parent);
+	thread->vfpstate = parent->vfpstate;
+}
+
 /*
  * When this function is called with the following 'cmd's, the following
  * is true while this function is being run:
@@ -147,6 +155,10 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 
 	case THREAD_NOTIFY_EXIT:
 		vfp_thread_exit(thread);
+		break;
+
+	case THREAD_NOTIFY_COPY:
+		vfp_thread_copy(thread);
 		break;
 	}
 
