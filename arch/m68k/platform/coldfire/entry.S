@@ -26,7 +26,6 @@
  * Bug, speed and maintainability fixes by Philippe De Muyter <phdm@macqel.be>
  */
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>

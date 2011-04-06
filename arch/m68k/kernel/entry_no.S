@@ -24,7 +24,6 @@
  * linux 2.4 support David McCullough <davidm@snapgear.com>
  */
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
