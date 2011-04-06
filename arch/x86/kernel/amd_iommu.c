@@ -381,6 +381,39 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
  *
  ****************************************************************************/
 
+static int wait_on_sem(volatile u64 *sem)
+{
+	int i = 0;
+
+	while (*sem == 0 && i < LOOP_TIMEOUT) {
+		udelay(1);
+		i += 1;
+	}
+
+	if (i == LOOP_TIMEOUT) {
+		pr_alert("AMD-Vi: Completion-Wait loop timed out\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void copy_cmd_to_buffer(struct amd_iommu *iommu,
+			       struct iommu_cmd *cmd,
+			       u32 tail)
+{
+	u8 *target;
+
+	target = iommu->cmd_buf + tail;
+	tail   = (tail + sizeof(*cmd)) % iommu->cmd_buf_size;
+
+	/* Copy command to buffer */
+	memcpy(target, cmd, sizeof(*cmd));
+
+	/* Tell the IOMMU about it */
+	writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+}
+
 static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
 {
 	WARN_ON(address & 0x7ULL);
@@ -432,25 +465,44 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 
 /*
  * Writes the command to the IOMMUs command buffer and informs the
- * hardware about the new command. Must be called with iommu->lock held.
+ * hardware about the new command.
  */
 static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 {
+	u32 left, tail, head, next_tail;
 	unsigned long flags;
-	u32 tail, head;
-	u8 *target;
 
 	WARN_ON(iommu->cmd_buf_size & CMD_BUFFER_UNINITIALIZED);
+
+again:
 	spin_lock_irqsave(&iommu->lock, flags);
-	tail = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
-	target = iommu->cmd_buf + tail;
-	memcpy_toio(target, cmd, sizeof(*cmd));
-	tail = (tail + sizeof(*cmd)) % iommu->cmd_buf_size;
-	head = readl(iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
-	if (tail == head)
-		return -ENOMEM;
-	writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+
+	head      = readl(iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
+	tail      = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+	next_tail = (tail + sizeof(*cmd)) % iommu->cmd_buf_size;
+	left      = (head - next_tail) % iommu->cmd_buf_size;
+
+	if (left <= 2) {
+		struct iommu_cmd sync_cmd;
+		volatile u64 sem = 0;
+		int ret;
+
+		build_completion_wait(&sync_cmd, (u64)&sem);
+		copy_cmd_to_buffer(iommu, &sync_cmd, tail);
+
+		spin_unlock_irqrestore(&iommu->lock, flags);
+
+		if ((ret = wait_on_sem(&sem)) != 0)
+			return ret;
+
+		goto again;
+	}
+
+	copy_cmd_to_buffer(iommu, cmd, tail);
+
+	/* We need to sync now to make sure all commands are processed */
 	iommu->need_sync = true;
+
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
@@ -464,7 +516,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 {
 	struct iommu_cmd cmd;
 	volatile u64 sem = 0;
-	int ret, i = 0;
+	int ret;
 
 	if (!iommu->need_sync)
 		return 0;
@@ -475,17 +527,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	if (ret)
 		return ret;
 
-	while (sem == 0 && i < LOOP_TIMEOUT) {
-		udelay(1);
-		i += 1;
-	}
-
-	if (i == LOOP_TIMEOUT) {
-		pr_alert("AMD-Vi: Completion-Wait loop timed out\n");
-		ret = -EIO;
-	}
-
-	return 0;
+	return wait_on_sem(&sem);
 }
 
 /*
