@@ -390,6 +390,13 @@ static void build_completion_wait(struct iommu_cmd *cmd)
 	CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
 }
 
+static void build_inv_dte(struct iommu_cmd *cmd, u16 devid)
+{
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->data[0] = devid;
+	CMD_SET_TYPE(cmd, CMD_INV_DEV_ENTRY);
+}
+
 /*
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command. Must be called with iommu->lock held.
@@ -533,10 +540,7 @@ static int iommu_flush_device(struct device *dev)
 	devid = get_device_id(dev);
 	iommu = amd_iommu_rlookup_table[devid];
 
-	/* Build command */
-	memset(&cmd, 0, sizeof(cmd));
-	CMD_SET_TYPE(&cmd, CMD_INV_DEV_ENTRY);
-	cmd.data[0] = devid;
+	build_inv_dte(&cmd, devid);
 
 	return iommu_queue_command(iommu, &cmd);
 }
