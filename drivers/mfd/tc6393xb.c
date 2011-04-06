@@ -693,7 +693,9 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 			goto err_setup;
 	}
 
-	tc6393xb_cells[TC6393XB_CELL_NAND].mfd_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].pdata_size =
+						sizeof(*tcpd->nand_data);
 	tc6393xb_cells[TC6393XB_CELL_FB].platform_data = tcpd->fb_data;
 	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
