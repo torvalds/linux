@@ -1207,7 +1207,7 @@ space_cccc_001x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	 * *S (bit 20) updates condition codes
 	 * ADC/SBC/RSC reads the C flag
 	 */
-	insn &= 0xffff0fff;	/* Rd = r0 */
+	insn &= 0xfff00fff;	/* Rn = r0 and Rd = r0 */
 	asi->insn[0] = insn;
 
 	if ((insn & 0x0f900000) == 0x03100000) {
