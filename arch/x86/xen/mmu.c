@@ -518,7 +518,7 @@ static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	xen_mc_batch();
 
 	/* ptr may be ioremapped for 64-bit pagetable setup */
-	u.ptr = virt_to_machine(ptr).maddr;
+	u.ptr = arbitrary_virt_to_machine(ptr).maddr;
 	u.val = pud_val_ma(val);
 	xen_extend_mmu_update(&u);
 
