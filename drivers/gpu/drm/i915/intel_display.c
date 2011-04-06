@@ -6431,6 +6431,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		break;
 
 	case 6:
+	case 7:
 		OUT_RING(MI_DISPLAY_FLIP |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 		OUT_RING(fb->pitch | obj->tiling_mode);
