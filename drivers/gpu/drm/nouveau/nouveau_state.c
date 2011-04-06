@@ -608,6 +608,7 @@ nouveau_card_init(struct drm_device *dev)
 	spin_lock_init(&dev_priv->channels.lock);
 	spin_lock_init(&dev_priv->tile.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
+	spin_lock_init(&dev_priv->vm_lock);
 
 	/* Make the CRTCs and I2C buses accessible */
 	ret = engine->display.early_init(dev);
