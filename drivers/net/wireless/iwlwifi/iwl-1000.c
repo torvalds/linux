@@ -195,7 +195,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REG_BAND_4_CHANNELS,
 			EEPROM_REG_BAND_5_CHANNELS,
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
