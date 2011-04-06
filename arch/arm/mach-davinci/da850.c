@@ -1055,7 +1055,7 @@ int da850_register_pm(struct platform_device *pdev)
 	if (!pdata->cpupll_reg_base)
 		return -ENOMEM;
 
-	pdata->ddrpll_reg_base = ioremap(DA8XX_PLL1_BASE, SZ_4K);
+	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
 	if (!pdata->ddrpll_reg_base) {
 		ret = -ENOMEM;
 		goto no_ddrpll_mem;
