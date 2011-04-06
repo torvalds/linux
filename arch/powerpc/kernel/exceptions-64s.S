@@ -102,7 +102,7 @@ BEGIN_FTR_SECTION
 	EXCEPTION_PROLOG_PSERIES_1(data_access_common, EXC_STD)
 FTR_SECTION_ELSE
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD)
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_SLB)
 
 	. = 0x380
 	.globl data_access_slb_pSeries
@@ -840,7 +840,7 @@ _STATIC(do_hash_page)
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
 	bne-	do_ste_alloc		/* If so handle it */
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 
 	clrrdi	r11,r1,THREAD_SHIFT
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */

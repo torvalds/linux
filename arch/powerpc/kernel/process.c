@@ -757,11 +757,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 				_ALIGN_UP(sizeof(struct thread_info), 16);
 
 #ifdef CONFIG_PPC_STD_MMU_64
-	if (cpu_has_feature(CPU_FTR_SLB)) {
+	if (mmu_has_feature(MMU_FTR_SLB)) {
 		unsigned long sp_vsid;
 		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
-		if (cpu_has_feature(CPU_FTR_1T_SEGMENT))
+		if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 			sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_1T)
 				<< SLB_VSID_SHIFT_1T;
 		else

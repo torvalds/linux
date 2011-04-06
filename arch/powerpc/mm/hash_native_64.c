@@ -98,8 +98,8 @@ static inline void __tlbiel(unsigned long va, int psize, int ssize)
 
 static inline void tlbie(unsigned long va, int psize, int ssize, int local)
 {
-	unsigned int use_local = local && cpu_has_feature(CPU_FTR_TLBIEL);
-	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
+	unsigned int use_local = local && mmu_has_feature(MMU_FTR_TLBIEL);
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 	if (use_local)
 		use_local = mmu_psize_defs[psize].tlbiel;
@@ -503,7 +503,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		} pte_iterate_hashed_end();
 	}
 
-	if (cpu_has_feature(CPU_FTR_TLBIEL) &&
+	if (mmu_has_feature(MMU_FTR_TLBIEL) &&
 	    mmu_psize_defs[psize].tlbiel && local) {
 		asm volatile("ptesync":::"memory");
 		for (i = 0; i < number; i++) {
@@ -517,7 +517,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		}
 		asm volatile("ptesync":::"memory");
 	} else {
-		int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
+		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
 			raw_spin_lock(&native_tlbie_lock);

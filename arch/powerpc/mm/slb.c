@@ -167,7 +167,7 @@ static inline int esids_match(unsigned long addr1, unsigned long addr2)
 	int esid_1t_count;
 
 	/* System is not 1T segment size capable. */
-	if (!cpu_has_feature(CPU_FTR_1T_SEGMENT))
+	if (!mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return (GET_ESID(addr1) == GET_ESID(addr2));
 
 	esid_1t_count = (((addr1 >> SID_SHIFT_1T) != 0) +
@@ -202,7 +202,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	 */
 	hard_irq_disable();
 	offset = get_paca()->slb_cache_ptr;
-	if (!cpu_has_feature(CPU_FTR_NO_SLBIE_B) &&
+	if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
 	    offset <= SLB_CACHE_ENTRIES) {
 		int i;
 		asm volatile("isync" : : : "memory");

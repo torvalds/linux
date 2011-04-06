@@ -123,18 +123,19 @@ static void __init move_device_tree(void)
  */
 static struct ibm_pa_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
+	unsigned long	mmu_features;	/* MMU_FTR_xxx bit */
 	unsigned int	cpu_user_ftrs;	/* PPC_FEATURE_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
 } ibm_pa_features[] __initdata = {
-	{0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
-	{0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
-	{CPU_FTR_SLB, 0,		0, 2, 0},
-	{CPU_FTR_CTRL, 0,		0, 3, 0},
-	{CPU_FTR_NOEXECUTE, 0,		0, 6, 0},
-	{CPU_FTR_NODSISRALIGN, 0,	1, 1, 1},
-	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
+	{0, 0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
+	{0, 0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
+	{0, MMU_FTR_SLB, 0,		0, 2, 0},
+	{CPU_FTR_CTRL, 0, 0,		0, 3, 0},
+	{CPU_FTR_NOEXECUTE, 0, 0,	0, 6, 0},
+	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},
+	{0, MMU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
@@ -166,9 +167,11 @@ static void __init scan_features(unsigned long node, unsigned char *ftrs,
 		if (bit ^ fp->invert) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
+			cur_cpu_spec->mmu_features |= fp->mmu_features;
 		} else {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
+			cur_cpu_spec->mmu_features &= ~fp->mmu_features;
 		}
 	}
 }

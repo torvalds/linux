@@ -468,10 +468,10 @@ BEGIN_FTR_SECTION
   FTR_SECTION_ELSE_NESTED(95)
 	clrrdi	r6,r8,40	/* get its 1T ESID */
 	clrrdi	r9,r1,40	/* get current sp 1T ESID */
-  ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_1T_SEGMENT, 95)
+  ALT_MMU_FTR_SECTION_END_NESTED_IFCLR(MMU_FTR_1T_SEGMENT, 95)
 FTR_SECTION_ELSE
 	b	2f
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_SLB)
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_SLB)
 	clrldi.	r0,r6,2		/* is new ESID c00000000? */
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
@@ -485,7 +485,7 @@ BEGIN_FTR_SECTION
 	li	r9,MMU_SEGSIZE_1T	/* insert B field */
 	oris	r6,r6,(MMU_SEGSIZE_1T << SLBIE_SSIZE_SHIFT)@h
 	rldimi	r7,r9,SLB_VSID_SSIZE_SHIFT,0
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 
 	/* Update the last bolted SLB.  No write barriers are needed
 	 * here, provided we only update the current CPU's SLB shadow
@@ -497,7 +497,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
 	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
 	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
 
-	/* No need to check for CPU_FTR_NO_SLBIE_B here, since when
+	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
 	 * we have 1TB segments, the only CPUs known to have the errata
 	 * only support less than 1TB of system memory and we'll never
 	 * actually hit this code path.

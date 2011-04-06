@@ -259,11 +259,11 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 	for (; size >= 4; size -= 4, ++prop) {
 		if (prop[0] == 40) {
 			DBG("1T segment support detected\n");
-			cur_cpu_spec->cpu_features |= CPU_FTR_1T_SEGMENT;
+			cur_cpu_spec->mmu_features |= MMU_FTR_1T_SEGMENT;
 			return 1;
 		}
 	}
-	cur_cpu_spec->cpu_features &= ~CPU_FTR_NO_SLBIE_B;
+	cur_cpu_spec->mmu_features &= ~MMU_FTR_NO_SLBIE_B;
 	return 0;
 }
 
@@ -289,7 +289,7 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 	if (prop != NULL) {
 		DBG("Page sizes from device-tree:\n");
 		size /= 4;
-		cur_cpu_spec->cpu_features &= ~(CPU_FTR_16M_PAGE);
+		cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
 		while(size > 0) {
 			unsigned int shift = prop[0];
 			unsigned int slbenc = prop[1];
@@ -317,7 +317,7 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 				break;
 			case 0x18:
 				idx = MMU_PAGE_16M;
-				cur_cpu_spec->cpu_features |= CPU_FTR_16M_PAGE;
+				cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
 				break;
 			case 0x22:
 				idx = MMU_PAGE_16G;
@@ -412,7 +412,7 @@ static void __init htab_init_page_sizes(void)
 	 * Not in the device-tree, let's fallback on known size
 	 * list for 16M capable GP & GR
 	 */
-	if (cpu_has_feature(CPU_FTR_16M_PAGE))
+	if (mmu_has_feature(MMU_FTR_16M_PAGE))
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
  found:
@@ -442,7 +442,7 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmalloc_psize = MMU_PAGE_64K;
 		if (mmu_linear_psize == MMU_PAGE_4K)
 			mmu_linear_psize = MMU_PAGE_64K;
-		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE)) {
+		if (mmu_has_feature(MMU_FTR_CI_LARGE_PAGE)) {
 			/*
 			 * Don't use 64k pages for ioremap on pSeries, since
 			 * that would stop us accessing the HEA ethernet.
@@ -608,7 +608,7 @@ static void __init htab_initialize(void)
 	/* Initialize page sizes */
 	htab_init_page_sizes();
 
-	if (cpu_has_feature(CPU_FTR_1T_SEGMENT)) {
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		mmu_kernel_ssize = MMU_SEGSIZE_1T;
 		mmu_highuser_ssize = MMU_SEGSIZE_1T;
 		printk(KERN_INFO "Using 1TB segments\n");
@@ -749,7 +749,7 @@ void __init early_init_mmu(void)
 
 	/* Initialize stab / SLB management except on iSeries
 	 */
-	if (cpu_has_feature(CPU_FTR_SLB))
+	if (mmu_has_feature(MMU_FTR_SLB))
 		slb_initialize();
 	else if (!firmware_has_feature(FW_FEATURE_ISERIES))
 		stab_initialize(get_paca()->stab_real);
@@ -766,7 +766,7 @@ void __cpuinit early_init_mmu_secondary(void)
 	 * in real mode on pSeries and we want a virtual address on
 	 * iSeries anyway
 	 */
-	if (cpu_has_feature(CPU_FTR_SLB))
+	if (mmu_has_feature(MMU_FTR_SLB))
 		slb_initialize();
 	else
 		stab_initialize(get_paca()->stab_addr);

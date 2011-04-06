@@ -31,6 +31,7 @@
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
+#include <asm/mmu.h>
 
 #include "exception.h"
 
@@ -157,7 +158,7 @@ BEGIN_FTR_SECTION
 FTR_SECTION_ELSE
 	EXCEPTION_PROLOG_1(PACA_EXGEN)
 	EXCEPTION_PROLOG_ISERIES_1
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_SLB)
 	b	data_access_common
 
 .do_stab_bolted_iSeries:

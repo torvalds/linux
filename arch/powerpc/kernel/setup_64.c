@@ -436,7 +436,7 @@ void __init setup_system(void)
 
 static u64 slb0_limit(void)
 {
-	if (cpu_has_feature(CPU_FTR_1T_SEGMENT)) {
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		return 1UL << SID_SHIFT_1T;
 	}
 	return 1UL << SID_SHIFT;
