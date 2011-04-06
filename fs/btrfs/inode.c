@@ -6207,6 +6207,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *io
 			unsigned long nr_segs)
 {
 	int seg;
+	int i;
 	size_t size;
 	unsigned long addr;
 	unsigned blocksize_mask = root->sectorsize - 1;
@@ -6221,8 +6222,22 @@ static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *io
 		addr = (unsigned long)iov[seg].iov_base;
 		size = iov[seg].iov_len;
 		end += size;
-		if ((addr & blocksize_mask) || (size & blocksize_mask)) 
+		if ((addr & blocksize_mask) || (size & blocksize_mask))
 			goto out;
+
+		/* If this is a write we don't need to check anymore */
+		if (rw & WRITE)
+			continue;
+
+		/*
+		 * Check to make sure we don't have duplicate iov_base's in this
+		 * iovec, if so return EINVAL, otherwise we'll get csum errors
+		 * when reading back.
+		 */
+		for (i = seg + 1; i < nr_segs; i++) {
+			if (iov[seg].iov_base == iov[i].iov_base)
+				goto out;
+		}
 	}
 	retval = 0;
 out:
