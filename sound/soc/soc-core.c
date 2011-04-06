@@ -629,6 +629,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			runtime->hw.rates |= codec_dai_drv->capture.rates;
 	}
 
+	ret = -EINVAL;
 	snd_pcm_limit_hw_rates(runtime);
 	if (!runtime->hw.rates) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching rates\n",
