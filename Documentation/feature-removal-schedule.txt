@@ -513,16 +513,6 @@ Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
 
-What:	cancel_rearming_delayed_work[queue]()
-When:	2.6.39
-
-Why:	The functions have been superceded by cancel_delayed_work_sync()
-	quite some time ago.  The conversion is trivial and there is no
-	in-kernel user left.
-Who:	Tejun Heo <tj@kernel.org>
-
-----------------------------
-
 What:	Legacy, non-standard chassis intrusion detection interface.
 When:	June 2011
 Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have

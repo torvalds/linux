@@ -412,21 +412,6 @@ static inline bool __cancel_delayed_work(struct delayed_work *work)
 	return ret;
 }
 
-/* Obsolete. use cancel_delayed_work_sync() */
-static inline __deprecated
-void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
-					struct delayed_work *work)
-{
-	cancel_delayed_work_sync(work);
-}
-
-/* Obsolete. use cancel_delayed_work_sync() */
-static inline __deprecated
-void cancel_rearming_delayed_work(struct delayed_work *work)
-{
-	cancel_delayed_work_sync(work);
-}
-
 #ifndef CONFIG_SMP
 static inline long work_on_cpu(unsigned int cpu, long (*fn)(void *), void *arg)
 {
