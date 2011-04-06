@@ -78,7 +78,7 @@ static off_t
 ulseek(int const fd, off_t const offset, int const whence)
 {
 	off_t const w = lseek(fd, offset, whence);
-	if ((off_t)-1 == w) {
+	if (w == (off_t)-1) {
 		perror("lseek");
 		fail_file();
 	}
@@ -111,7 +111,7 @@ static void *
 umalloc(size_t size)
 {
 	void *const addr = malloc(size);
-	if (0 == addr) {
+	if (addr == 0) {
 		fprintf(stderr, "malloc failed: %zu bytes\n", size);
 		fail_file();
 	}
@@ -136,7 +136,7 @@ static void *mmap_file(char const *fname)
 	void *addr;
 
 	fd_map = open(fname, O_RDWR);
-	if (0 > fd_map || 0 > fstat(fd_map, &sb)) {
+	if (fd_map < 0 || fstat(fd_map, &sb) < 0) {
 		perror(fname);
 		fail_file();
 	}
@@ -147,7 +147,7 @@ static void *mmap_file(char const *fname)
 	addr = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
 		    fd_map, 0);
 	mmap_failed = 0;
-	if (MAP_FAILED == addr) {
+	if (addr == MAP_FAILED) {
 		mmap_failed = 1;
 		addr = umalloc(sb.st_size);
 		uread(fd_map, addr, sb.st_size);
@@ -206,12 +206,12 @@ static uint32_t (*w2)(uint16_t);
 static int
 is_mcounted_section_name(char const *const txtname)
 {
-	return 0 == strcmp(".text",           txtname) ||
-		0 == strcmp(".ref.text",      txtname) ||
-		0 == strcmp(".sched.text",    txtname) ||
-		0 == strcmp(".spinlock.text", txtname) ||
-		0 == strcmp(".irqentry.text", txtname) ||
-		0 == strcmp(".text.unlikely", txtname);
+	return strcmp(".text",           txtname) == 0 ||
+		strcmp(".ref.text",      txtname) == 0 ||
+		strcmp(".sched.text",    txtname) == 0 ||
+		strcmp(".spinlock.text", txtname) == 0 ||
+		strcmp(".irqentry.text", txtname) == 0 ||
+		strcmp(".text.unlikely", txtname) == 0;
 }
 
 /* 32 bit and 64 bit are very similar */
@@ -270,7 +270,7 @@ do_file(char const *const fname)
 		fail_file();
 	} break;
 	case ELFDATA2LSB: {
-		if (1 != *(unsigned char const *)&endian) {
+		if (*(unsigned char const *)&endian != 1) {
 			/* main() is big endian, file.o is little endian. */
 			w = w4rev;
 			w2 = w2rev;
@@ -278,7 +278,7 @@ do_file(char const *const fname)
 		}
 	} break;
 	case ELFDATA2MSB: {
-		if (0 != *(unsigned char const *)&endian) {
+		if (*(unsigned char const *)&endian != 0) {
 			/* main() is little endian, file.o is big endian. */
 			w = w4rev;
 			w2 = w2rev;
@@ -286,9 +286,9 @@ do_file(char const *const fname)
 		}
 	} break;
 	}  /* end switch */
-	if (0 != memcmp(ELFMAG, ehdr->e_ident, SELFMAG)
-	||  ET_REL != w2(ehdr->e_type)
-	||  EV_CURRENT != ehdr->e_ident[EI_VERSION]) {
+	if (memcmp(ELFMAG, ehdr->e_ident, SELFMAG) != 0
+	||  w2(ehdr->e_type) != ET_REL
+	||  ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
 		fprintf(stderr, "unrecognized ET_REL file %s\n", fname);
 		fail_file();
 	}
@@ -321,15 +321,15 @@ do_file(char const *const fname)
 		fail_file();
 	} break;
 	case ELFCLASS32: {
-		if (sizeof(Elf32_Ehdr) != w2(ehdr->e_ehsize)
-		||  sizeof(Elf32_Shdr) != w2(ehdr->e_shentsize)) {
+		if (w2(ehdr->e_ehsize) != sizeof(Elf32_Ehdr)
+		||  w2(ehdr->e_shentsize) != sizeof(Elf32_Shdr)) {
 			fprintf(stderr,
 				"unrecognized ET_REL file: %s\n", fname);
 			fail_file();
 		}
-		if (EM_S390 == w2(ehdr->e_machine))
+		if (w2(ehdr->e_machine) == EM_S390)
 			reltype = R_390_32;
-		if (EM_MIPS == w2(ehdr->e_machine)) {
+		if (w2(ehdr->e_machine) == EM_MIPS) {
 			reltype = R_MIPS_32;
 			is_fake_mcount32 = MIPS32_is_fake_mcount;
 		}
@@ -337,15 +337,15 @@ do_file(char const *const fname)
 	} break;
 	case ELFCLASS64: {
 		Elf64_Ehdr *const ghdr = (Elf64_Ehdr *)ehdr;
-		if (sizeof(Elf64_Ehdr) != w2(ghdr->e_ehsize)
-		||  sizeof(Elf64_Shdr) != w2(ghdr->e_shentsize)) {
+		if (w2(ghdr->e_ehsize) != sizeof(Elf64_Ehdr)
+		||  w2(ghdr->e_shentsize) != sizeof(Elf64_Shdr)) {
 			fprintf(stderr,
 				"unrecognized ET_REL file: %s\n", fname);
 			fail_file();
 		}
-		if (EM_S390 == w2(ghdr->e_machine))
+		if (w2(ghdr->e_machine) == EM_S390)
 			reltype = R_390_64;
-		if (EM_MIPS == w2(ghdr->e_machine)) {
+		if (w2(ghdr->e_machine) == EM_MIPS) {
 			reltype = R_MIPS_64;
 			Elf64_r_sym = MIPS64_r_sym;
 			Elf64_r_info = MIPS64_r_info;
@@ -371,7 +371,7 @@ main(int argc, char const *argv[])
 	}
 
 	/* Process each file in turn, allowing deep failure. */
-	for (--argc, ++argv; 0 < argc; --argc, ++argv) {
+	for (--argc, ++argv; argc > 0; --argc, ++argv) {
 		int const sjval = setjmp(jmpenv);
 		int len;
 

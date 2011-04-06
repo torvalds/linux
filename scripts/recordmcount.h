@@ -275,12 +275,12 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 			Elf_Sym const *const symp =
 				&sym0[Elf_r_sym(relp)];
 			char const *symname = &str0[w(symp->st_name)];
-			char const *mcount = '_' == gpfx ? "_mcount" : "mcount";
+			char const *mcount = gpfx == '_' ? "_mcount" : "mcount";
 
-			if ('.' == symname[0])
+			if (symname[0] == '.')
 				++symname;  /* ppc64 hack */
-			if (0 == strcmp(mcount, symname) ||
-			    (altmcount && 0 == strcmp(altmcount, symname)))
+			if (strcmp(mcount, symname) == 0 ||
+			    (altmcount && strcmp(altmcount, symname) == 0))
 				mcountsym = Elf_r_sym(relp);
 		}
 
@@ -290,7 +290,7 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 			mrelp->r_offset = _w(offbase
 				+ ((void *)mlocp - (void *)mloc0));
 			Elf_r_info(mrelp, recsym, reltype);
-			if (sizeof(Elf_Rela) == rel_entsize) {
+			if (rel_entsize == sizeof(Elf_Rela)) {
 				((Elf_Rela *)mrelp)->r_addend = addend;
 				*mlocp++ = 0;
 			} else
@@ -354,12 +354,12 @@ __has_rel_mcount(Elf_Shdr const *const relhdr,  /* is SHT_REL or SHT_RELA */
 	Elf_Shdr const *const txthdr = &shdr0[w(relhdr->sh_info)];
 	char const *const txtname = &shstrtab[w(txthdr->sh_name)];
 
-	if (0 == strcmp("__mcount_loc", txtname)) {
+	if (strcmp("__mcount_loc", txtname) == 0) {
 		fprintf(stderr, "warning: __mcount_loc already exists: %s\n",
 			fname);
 		succeed_file();
 	}
-	if (SHT_PROGBITS != w(txthdr->sh_type) ||
+	if (w(txthdr->sh_type) != SHT_PROGBITS ||
 	    !is_mcounted_section_name(txtname))
 		return NULL;
 	return txtname;
@@ -370,7 +370,7 @@ static char const *has_rel_mcount(Elf_Shdr const *const relhdr,
 				  char const *const shstrtab,
 				  char const *const fname)
 {
-	if (SHT_REL  != w(relhdr->sh_type) && SHT_RELA != w(relhdr->sh_type))
+	if (w(relhdr->sh_type) != SHT_REL && w(relhdr->sh_type) != SHT_RELA)
 		return NULL;
 	return __has_rel_mcount(relhdr, shdr0, shstrtab, fname);
 }
