@@ -935,11 +935,18 @@ enum intel_chip_family {
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
+/*
+ * The genX designation typically refers to the render engine, so render
+ * capability related checks should use IS_GEN, while display and other checks
+ * have their own (e.g. HAS_PCH_SPLIT for ILK+ display, IS_foo for particular
+ * chips, etc.).
+ */
 #define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
 #define IS_GEN3(dev)	(INTEL_INFO(dev)->gen == 3)
 #define IS_GEN4(dev)	(INTEL_INFO(dev)->gen == 4)
 #define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
+#define IS_GEN7(dev)	(INTEL_INFO(dev)->gen == 7)
 
 #define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
 #define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
