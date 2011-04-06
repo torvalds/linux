@@ -2031,10 +2031,6 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	drbd_free_resources(mdev);
 	clear_bit(AL_SUSPENDED, &mdev->flags);
 
-	/*
-	 * currently we drbd_init_ee only on module load, so
-	 * we may do drbd_release_ee only on module unload!
-	 */
 	D_ASSERT(list_empty(&mdev->active_ee));
 	D_ASSERT(list_empty(&mdev->sync_ee));
 	D_ASSERT(list_empty(&mdev->done_ee));

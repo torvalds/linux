@@ -309,7 +309,6 @@ You need to hold the req_lock:
 You must not have the req_lock:
  drbd_free_ee()
  drbd_alloc_ee()
- drbd_init_ee()
  drbd_release_ee()
  drbd_ee_fix_bhs()
  drbd_process_done_ee()
