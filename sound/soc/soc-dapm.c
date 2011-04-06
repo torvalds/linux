@@ -1477,6 +1477,19 @@ static int snd_soc_dapm_set_pin(struct snd_soc_dapm_context *dapm,
 		}
 	}
 
+	/* Try again in other contexts */
+	list_for_each_entry(w, &dapm->card->widgets, list) {
+		if (!strcmp(w->name, pin)) {
+			dev_dbg(w->dapm->dev, "dapm: pin %s = %d\n",
+				pin, status);
+			w->connected = status;
+			/* Allow disabling of forced pins */
+			if (status == 0)
+				w->force = 0;
+			return 0;
+		}
+	}
+
 	dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
 	return -EINVAL;
 }
@@ -2308,6 +2321,17 @@ int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm,
 	list_for_each_entry(w, &dapm->card->widgets, list) {
 		if (w->dapm != dapm)
 			continue;
+		if (!strcmp(w->name, pin)) {
+			dev_dbg(w->dapm->dev,
+				"dapm: force enable pin %s\n", pin);
+			w->connected = 1;
+			w->force = 1;
+			return 0;
+		}
+	}
+
+	/* Try again with other contexts */
+	list_for_each_entry(w, &dapm->card->widgets, list) {
 		if (!strcmp(w->name, pin)) {
 			dev_dbg(w->dapm->dev,
 				"dapm: force enable pin %s\n", pin);
