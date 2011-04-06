@@ -264,27 +264,27 @@ do_file(char const *const fname)
 	w8 = w8nat;
 	switch (ehdr->e_ident[EI_DATA]) {
 		static unsigned int const endian = 1;
-	default: {
+	default:
 		fprintf(stderr, "unrecognized ELF data encoding %d: %s\n",
 			ehdr->e_ident[EI_DATA], fname);
 		fail_file();
-	} break;
-	case ELFDATA2LSB: {
+		break;
+	case ELFDATA2LSB:
 		if (*(unsigned char const *)&endian != 1) {
 			/* main() is big endian, file.o is little endian. */
 			w = w4rev;
 			w2 = w2rev;
 			w8 = w8rev;
 		}
-	} break;
-	case ELFDATA2MSB: {
+		break;
+	case ELFDATA2MSB:
 		if (*(unsigned char const *)&endian != 0) {
 			/* main() is little endian, file.o is big endian. */
 			w = w4rev;
 			w2 = w2rev;
 			w8 = w8rev;
 		}
-	} break;
+		break;
 	}  /* end switch */
 	if (memcmp(ELFMAG, ehdr->e_ident, SELFMAG) != 0
 	||  w2(ehdr->e_type) != ET_REL
@@ -295,11 +295,11 @@ do_file(char const *const fname)
 
 	gpfx = 0;
 	switch (w2(ehdr->e_machine)) {
-	default: {
+	default:
 		fprintf(stderr, "unrecognized e_machine %d %s\n",
 			w2(ehdr->e_machine), fname);
 		fail_file();
-	} break;
+		break;
 	case EM_386:	 reltype = R_386_32;                   break;
 	case EM_ARM:	 reltype = R_ARM_ABS32;
 			 altmcount = "__gnu_mcount_nc";
@@ -315,12 +315,12 @@ do_file(char const *const fname)
 	}  /* end switch */
 
 	switch (ehdr->e_ident[EI_CLASS]) {
-	default: {
+	default:
 		fprintf(stderr, "unrecognized ELF class %d %s\n",
 			ehdr->e_ident[EI_CLASS], fname);
 		fail_file();
-	} break;
-	case ELFCLASS32: {
+		break;
+	case ELFCLASS32:
 		if (w2(ehdr->e_ehsize) != sizeof(Elf32_Ehdr)
 		||  w2(ehdr->e_shentsize) != sizeof(Elf32_Shdr)) {
 			fprintf(stderr,
@@ -334,7 +334,7 @@ do_file(char const *const fname)
 			is_fake_mcount32 = MIPS32_is_fake_mcount;
 		}
 		do32(ehdr, fname, reltype);
-	} break;
+		break;
 	case ELFCLASS64: {
 		Elf64_Ehdr *const ghdr = (Elf64_Ehdr *)ehdr;
 		if (w2(ghdr->e_ehsize) != sizeof(Elf64_Ehdr)
@@ -352,7 +352,8 @@ do_file(char const *const fname)
 			is_fake_mcount64 = MIPS64_is_fake_mcount;
 		}
 		do64(ghdr, fname, reltype);
-	} break;
+		break;
+	}
 	}  /* end switch */
 
 	cleanup();
@@ -386,23 +387,23 @@ main(int argc, char const *argv[])
 			continue;
 
 		switch (sjval) {
-		default: {
+		default:
 			fprintf(stderr, "internal error: %s\n", argv[0]);
 			exit(1);
-		} break;
-		case SJ_SETJMP: {  /* normal sequence */
+			break;
+		case SJ_SETJMP:    /* normal sequence */
 			/* Avoid problems if early cleanup() */
 			fd_map = -1;
 			ehdr_curr = NULL;
 			mmap_failed = 1;
 			do_file(argv[0]);
-		} break;
-		case SJ_FAIL: {  /* error in do_file or below */
+			break;
+		case SJ_FAIL:    /* error in do_file or below */
 			++n_error;
-		} break;
-		case SJ_SUCCEED: {  /* premature success */
+			break;
+		case SJ_SUCCEED:    /* premature success */
 			/* do nothing */
-		} break;
+			break;
 		}  /* end switch */
 	}
 	return !!n_error;
