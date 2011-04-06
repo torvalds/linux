@@ -50,9 +50,8 @@ static inline void __tlbie(unsigned long va, int psize, int ssize)
 	case MMU_PAGE_4K:
 		va &= ~0xffful;
 		va |= ssize << 8;
-		asm volatile(ASM_MMU_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0),
-					       %2)
-			     : : "r" (va), "r"(0), "i" (MMU_FTR_TLBIE_206)
+		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
+			     : : "r" (va), "r"(0), "i" (CPU_FTR_HVMODE_206)
 			     : "memory");
 		break;
 	default:
@@ -61,9 +60,8 @@ static inline void __tlbie(unsigned long va, int psize, int ssize)
 		va |= penc << 12;
 		va |= ssize << 8;
 		va |= 1; /* L */
-		asm volatile(ASM_MMU_FTR_IFCLR("tlbie %0,1", PPC_TLBIE(%1,%0),
-					       %2)
-			     : : "r" (va), "r"(0), "i" (MMU_FTR_TLBIE_206)
+		asm volatile(ASM_FTR_IFCLR("tlbie %0,1", PPC_TLBIE(%1,%0), %2)
+			     : : "r" (va), "r"(0), "i" (CPU_FTR_HVMODE_206)
 			     : "memory");
 		break;
 	}

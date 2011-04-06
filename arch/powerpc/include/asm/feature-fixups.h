@@ -146,6 +146,19 @@ label##5:							\
 
 #ifndef __ASSEMBLY__
 
+#define ASM_FTR_IF(section_if, section_else, msk, val)	\
+	stringify_in_c(BEGIN_FTR_SECTION)			\
+	section_if "; "						\
+	stringify_in_c(FTR_SECTION_ELSE)			\
+	section_else "; "					\
+	stringify_in_c(ALT_FTR_SECTION_END((msk), (val)))
+
+#define ASM_FTR_IFSET(section_if, section_else, msk)	\
+	ASM_FTR_IF(section_if, section_else, (msk), (msk))
+
+#define ASM_FTR_IFCLR(section_if, section_else, msk)	\
+	ASM_FTR_IF(section_if, section_else, (msk), 0)
+
 #define ASM_MMU_FTR_IF(section_if, section_else, msk, val)	\
 	stringify_in_c(BEGIN_MMU_FTR_SECTION)			\
 	section_if "; "						\

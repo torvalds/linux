@@ -56,11 +56,6 @@
  */
 #define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
 
-/* This indicates that the processor uses the ISA 2.06 server tlbie
- * mnemonics
- */
-#define MMU_FTR_TLBIE_206		ASM_CONST(0x00400000)
-
 /* Enable use of TLB reservation.  Processor should support tlbsrx.
  * instruction and MAS0[WQ].
  */
@@ -105,8 +100,7 @@
 #define MMU_FTRS_PPC970		MMU_FTRS_POWER4
 #define MMU_FTRS_POWER5		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
 #define MMU_FTRS_POWER6		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
-#define MMU_FTRS_POWER7		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE | \
-				MMU_FTR_TLBIE_206
+#define MMU_FTRS_POWER7		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
 #define MMU_FTRS_CELL		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
