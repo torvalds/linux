@@ -253,6 +253,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_frame *frame;
 	unsigned int frame_size;
 	int rc;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_TX_BEACON,
+		.flags = CMD_SIZE_HUGE,
+	};
 
 	frame = iwl_get_free_frame(priv);
 	if (!frame) {
@@ -268,8 +272,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	rc = iwl_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
-			      &frame->u.cmd[0]);
+	cmd.len = frame_size;
+	cmd.data = &frame->u.cmd[0];
+
+	rc = iwl_send_cmd_sync(priv, &cmd);
 
 	iwl_free_frame(priv, frame);
 
