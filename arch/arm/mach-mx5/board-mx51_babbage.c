@@ -355,7 +355,7 @@ static void __init mx51_babbage_init(void)
 
 	/* Set the PAD settings for the pwr key. */
 	mxc_iomux_v3_setup_pad(power_key);
-	imx51_add_gpio_keys(&imx_button_data);
+	imx_add_gpio_keys(&imx_button_data);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);

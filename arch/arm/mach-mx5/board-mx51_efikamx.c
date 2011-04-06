@@ -249,7 +249,7 @@ static void __init mx51_efikamx_init(void)
 	}
 
 	platform_device_register(&mx51_efikamx_leds_device);
-	imx51_add_gpio_keys(&mx51_efikamx_powerkey_data);
+	imx_add_gpio_keys(&mx51_efikamx_powerkey_data);
 
 	if (system_rev == 0x11) {
 		gpio_request(EFIKAMX_RESET1_1, "reset");

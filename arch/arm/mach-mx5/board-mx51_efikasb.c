@@ -257,7 +257,7 @@ static void __init efikasb_board_init(void)
 	imx51_add_sdhci_esdhc_imx(1, NULL);
 
 	platform_device_register(&mx51_efikasb_leds_device);
-	imx51_add_gpio_keys(&mx51_efikasb_keys_data);
+	imx_add_gpio_keys(&mx51_efikasb_keys_data);
 
 }
 
