@@ -5226,7 +5226,7 @@ again:
 			btrfs_mark_buffer_dirty(leaf);
 		}
 		set_extent_uptodate(io_tree, em->start,
-				    extent_map_end(em) - 1, GFP_NOFS);
+				    extent_map_end(em) - 1, NULL, GFP_NOFS);
 		goto insert;
 	} else {
 		printk(KERN_ERR "btrfs unknown found_type %d\n", found_type);
