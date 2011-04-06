@@ -92,8 +92,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define FW_VER_LEN		32
 
-#define BE_MAX_VF		32
-
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -336,7 +334,7 @@ struct be_adapter {
 
 	bool be3_native;
 	bool sriov_enabled;
-	struct be_vf_cfg vf_cfg[BE_MAX_VF];
+	struct be_vf_cfg *vf_cfg;
 	u8 is_virtfn;
 	u32 sli_family;
 	u8 hba_port_num;

@@ -2838,6 +2838,7 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 	be_ctrl_cleanup(adapter);
 
+	kfree(adapter->vf_cfg);
 	be_sriov_disable(adapter);
 
 	be_msix_disable(adapter);
@@ -3022,16 +3023,23 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	}
 
 	be_sriov_enable(adapter);
+	if (adapter->sriov_enabled) {
+		adapter->vf_cfg = kcalloc(num_vfs,
+			sizeof(struct be_vf_cfg), GFP_KERNEL);
+
+		if (!adapter->vf_cfg)
+			goto free_netdev;
+	}
 
 	status = be_ctrl_init(adapter);
 	if (status)
-		goto free_netdev;
+		goto free_vf_cfg;
 
 	if (lancer_chip(adapter)) {
 		status = lancer_test_and_set_rdy_state(adapter);
 		if (status) {
 			dev_err(&pdev->dev, "Adapter in non recoverable error\n");
-			goto free_netdev;
+			goto ctrl_clean;
 		}
 	}
 
@@ -3093,6 +3101,8 @@ stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
 	be_ctrl_cleanup(adapter);
+free_vf_cfg:
+	kfree(adapter->vf_cfg);
 free_netdev:
 	be_sriov_disable(adapter);
 	free_netdev(netdev);
