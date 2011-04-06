@@ -73,7 +73,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
-#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_FALLING|\
+#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
@@ -140,7 +140,7 @@ static struct reginfo sensor_init_data[] =
 	{0x3a0e, 0x06},
 	{0x3a14, 0x02},
 	{0x3a15, 0x28},
-		{0x4708, 0x00},
+		{0x4708, 0x01},
 	{0x3623, 0x00},
 	{0x3634, 0x76},
 	{0x3701, 0x44},
@@ -312,7 +312,7 @@ static struct reginfo sensor_720p[]=
 	{0x3a0e, 0x06	},
 	{0x3a14, 0x02	},
 	{0x3a15, 0x9a	},
-	    {0x4708, 0x00  },
+	    {0x4708, 0x01  },
 	{0x3623, 0x02	},
 	{0x3634, 0x44	},
 	{0x3701, 0x41	},
