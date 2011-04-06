@@ -383,6 +383,13 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
  *
  ****************************************************************************/
 
+static void build_completion_wait(struct iommu_cmd *cmd)
+{
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->data[0] = CMD_COMPL_WAIT_INT_MASK;
+	CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
+}
+
 /*
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command. Must be called with iommu->lock held.
@@ -458,9 +465,7 @@ static int __iommu_completion_wait(struct amd_iommu *iommu)
 {
 	struct iommu_cmd cmd;
 
-	 memset(&cmd, 0, sizeof(cmd));
-	 cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
-	 CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
+	build_completion_wait(&cmd);
 
 	 return __iommu_queue_command(iommu, &cmd);
 }
