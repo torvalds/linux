@@ -44,6 +44,7 @@ static struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.unlocked_ioctl = cx18_v4l2_ioctl,
 	.release = cx18_v4l2_close,
 	.poll = cx18_v4l2_enc_poll,
+	.mmap = cx18_v4l2_mmap,
 };
 
 /* offset from 0 to register ts v4l2 minors on */
@@ -132,6 +133,15 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	cx18_queue_init(&s->q_idle);
 
 	INIT_WORK(&s->out_work_order, cx18_out_work_handler);
+
+	INIT_LIST_HEAD(&s->vb_capture);
+	s->vb_timeout.function = cx18_vb_timeout;
+	s->vb_timeout.data = (unsigned long)s;
+	init_timer(&s->vb_timeout);
+	spin_lock_init(&s->vb_lock);
+
+	/* Assume the previous pixel default */
+	s->pixelformat = V4L2_PIX_FMT_HM12;
 }
 
 static int cx18_prep_dev(struct cx18 *cx, int type)
@@ -729,6 +739,19 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		    test_bit(CX18_F_I_RADIO_USER, &cx->i_flags))
 			cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2, s->handle,
 			  (v4l2_ctrl_g_ctrl(cx->cxhdl.video_mute_yuv) << 8) | 1);
+
+		/* Enable the Video Format Converter for UYVY 4:2:2 support,
+		 * rather than the default HM12 Macroblovk 4:2:0 support.
+		 */
+		if (captype == CAPTURE_CHANNEL_TYPE_YUV) {
+			if (s->pixelformat == V4L2_PIX_FMT_YUYV)
+				cx18_vapi(cx, CX18_CPU_SET_VFC_PARAM, 2,
+					s->handle, 1);
+			else
+				/* If in doubt, default to HM12 */
+				cx18_vapi(cx, CX18_CPU_SET_VFC_PARAM, 2,
+					s->handle, 0);
+		}
 	}
 
 	if (atomic_read(&cx->tot_capturing) == 0) {

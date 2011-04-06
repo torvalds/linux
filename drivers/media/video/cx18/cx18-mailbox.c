@@ -81,6 +81,7 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(CPU, CX18_CPU_SET_SLICED_VBI_PARAM,           0),
 	API_ENTRY(CPU, CX18_CPU_SET_USERDATA_PLACE_HOLDER,      0),
 	API_ENTRY(CPU, CX18_CPU_GET_ENC_PTS,                    0),
+	API_ENTRY(CPU, CX18_CPU_SET_VFC_PARAM,                  0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL_ACK,			0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL,			API_FAST),
 	API_ENTRY(CPU, CX18_CPU_DE_RELEASE_MDL,			API_SLOW),
@@ -158,6 +159,72 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	}
 }
 
+static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
+	struct cx18_mdl *mdl)
+{
+	struct cx18_videobuf_buffer *vb_buf;
+	struct cx18_buffer *buf;
+	u8 *p, u;
+	u32 offset = 0;
+	int dispatch = 0;
+	int i;
+
+	if (mdl->bytesused == 0)
+		return;
+
+	/* Acquire a videobuf buffer, clone to and and release it */
+	spin_lock(&s->vb_lock);
+	if (list_empty(&s->vb_capture))
+		goto out;
+
+	vb_buf = list_entry(s->vb_capture.next, struct cx18_videobuf_buffer,
+		vb.queue);
+
+	p = videobuf_to_vmalloc(&vb_buf->vb);
+	if (!p)
+		goto out;
+
+	offset = vb_buf->bytes_used;
+	list_for_each_entry(buf, &mdl->buf_list, list) {
+		if (buf->bytesused == 0)
+			break;
+
+		if ((offset + buf->bytesused) <= vb_buf->vb.bsize) {
+			memcpy(p + offset, buf->buf, buf->bytesused);
+			offset += buf->bytesused;
+			vb_buf->bytes_used += buf->bytesused;
+		}
+	}
+
+	/* If we've filled the buffer as per the callers res then dispatch it */
+	if (vb_buf->bytes_used >= (vb_buf->vb.width * vb_buf->vb.height * 2)) {
+		dispatch = 1;
+		vb_buf->bytes_used = 0;
+	}
+
+	/* */
+	if (dispatch) {
+
+		if (s->pixelformat == V4L2_PIX_FMT_YUYV) {
+			/* UYVY to YUYV */
+			for (i = 0; i < (720 * 480 * 2); i += 2) {
+				u = *(p + i);
+				*(p + i) = *(p + i + 1);
+				*(p + i + 1) = u;
+			}
+		}
+
+		do_gettimeofday(&vb_buf->vb.ts);
+		list_del(&vb_buf->vb.queue);
+		vb_buf->vb.state = VIDEOBUF_DONE;
+		wake_up(&vb_buf->vb.done);
+	}
+
+	mod_timer(&s->vb_timeout, jiffies + (HZ / 10));
+
+out:
+	spin_unlock(&s->vb_lock);
+}
 
 static void cx18_mdl_send_to_alsa(struct cx18 *cx, struct cx18_stream *s,
 				  struct cx18_mdl *mdl)
@@ -263,6 +330,9 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 			} else {
 				cx18_enqueue(s, mdl, &s->q_full);
 			}
+		} else if (s->type == CX18_ENC_STREAM_TYPE_YUV) {
+			cx18_mdl_send_to_videobuf(s, mdl);
+			cx18_enqueue(s, mdl, &s->q_free);
 		} else {
 			cx18_enqueue(s, mdl, &s->q_full);
 			if (s->type == CX18_ENC_STREAM_TYPE_IDX)
