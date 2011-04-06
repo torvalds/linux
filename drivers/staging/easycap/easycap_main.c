@@ -4183,11 +4183,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		if (rc) {
 			err("easycap_alsa_probe() rc = %i\n", rc);
 			return -ENODEV;
-		} else {
-			JOM(8, "kref_get() with %i=kref.refcount.counter\n",
-					peasycap->kref.refcount.counter);
-			kref_get(&peasycap->kref);
-			peasycap->registered_audio++;
 		}
 
 #else /* CONFIG_EASYCAP_OSS */
@@ -4196,15 +4191,14 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			SAY("ERROR: usb_register_dev() failed\n");
 			usb_set_intfdata(intf, NULL);
 			return -ENODEV;
-		} else {
-			JOM(8, "kref_get() with %i=kref.refcount.counter\n",
-					peasycap->kref.refcount.counter);
-			kref_get(&peasycap->kref);
-			peasycap->registered_audio++;
 		}
 		SAM("easyoss attached to minor #%d\n", intf->minor);
 #endif /* CONFIG_EASYCAP_OSS */
 
+		JOM(8, "kref_get() with %i=kref.refcount.counter\n",
+				peasycap->kref.refcount.counter);
+		kref_get(&peasycap->kref);
+		peasycap->registered_audio++;
 		break;
 	}
 /*---------------------------------------------------------------------------*/
