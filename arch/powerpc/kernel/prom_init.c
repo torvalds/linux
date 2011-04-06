@@ -335,6 +335,7 @@ static void __init prom_printf(const char *format, ...)
 	const char *p, *q, *s;
 	va_list args;
 	unsigned long v;
+	long vs;
 	struct prom_t *_prom = &RELOC(prom);
 
 	va_start(args, format);
@@ -368,12 +369,35 @@ static void __init prom_printf(const char *format, ...)
 			v = va_arg(args, unsigned long);
 			prom_print_hex(v);
 			break;
+		case 'd':
+			++q;
+			vs = va_arg(args, int);
+			if (vs < 0) {
+				prom_print(RELOC("-"));
+				vs = -vs;
+			}
+			prom_print_dec(vs);
+			break;
 		case 'l':
 			++q;
-			if (*q == 'u') { /* '%lu' */
+			if (*q == 0)
+				break;
+			else if (*q == 'x') {
+				++q;
+				v = va_arg(args, unsigned long);
+				prom_print_hex(v);
+			} else if (*q == 'u') { /* '%lu' */
 				++q;
 				v = va_arg(args, unsigned long);
 				prom_print_dec(v);
+			} else if (*q == 'd') { /* %ld */
+				++q;
+				vs = va_arg(args, long);
+				if (vs < 0) {
+					prom_print(RELOC("-"));
+					vs = -vs;
+				}
+				prom_print_dec(vs);
 			}
 			break;
 		}
