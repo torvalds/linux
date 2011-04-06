@@ -694,7 +694,8 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	}
 
 	tc6393xb_cells[TC6393XB_CELL_NAND].mfd_data = tcpd->nand_data;
-	tc6393xb_cells[TC6393XB_CELL_FB].mfd_data = tcpd->fb_data;
+	tc6393xb_cells[TC6393XB_CELL_FB].platform_data = tcpd->fb_data;
+	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
