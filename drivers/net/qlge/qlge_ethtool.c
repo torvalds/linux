@@ -412,31 +412,31 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static int ql_phys_id(struct net_device *ndev, u32 data)
+static int ql_set_phys_id(struct net_device *ndev,
+			  enum ethtool_phys_id_state state)
+
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	u32 led_reg, i;
-	int status;
 
-	/* Save the current LED settings */
-	status = ql_mb_get_led_cfg(qdev);
-	if (status)
-		return status;
-	led_reg = qdev->led_config;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		/* Save the current LED settings */
+		if (ql_mb_get_led_cfg(qdev))
+			return -EIO;
 
-	/* Start blinking the led */
-	if (!data || data > 300)
-		data = 300;
-
-	for (i = 0; i < (data * 10); i++)
+		/* Start blinking */
 		ql_mb_set_led_cfg(qdev, QL_LED_BLINK);
+		return 0;
 
-	/* Restore LED settings */
-	status = ql_mb_set_led_cfg(qdev, led_reg);
-	if (status)
-		return status;
+	case ETHTOOL_ID_INACTIVE:
+		/* Restore LED settings */
+		if (ql_mb_set_led_cfg(qdev, qdev->led_config))
+			return -EIO;
+		return 0;
 
-	return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ql_start_loopback(struct ql_adapter *qdev)
@@ -703,7 +703,7 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
-	.phys_id		 = ql_phys_id,
+	.set_phys_id		 = ql_set_phys_id,
 	.self_test		 = ql_self_test,
 	.get_pauseparam		 = ql_get_pauseparam,
 	.set_pauseparam		 = ql_set_pauseparam,
