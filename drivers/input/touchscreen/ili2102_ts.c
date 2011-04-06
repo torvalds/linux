@@ -20,7 +20,7 @@
 	#define DBG(msg...)
 #endif
 
-#define TOUCH_NUMBER 1
+#define TOUCH_NUMBER 2
 
 static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
 
@@ -140,23 +140,23 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	printk("ili2102_ts_work_func:i2c_transfer fail =%d\n",ret);
 	}
 
-	if((buf[0] & 0x03) == 0)
+	for(i=0; i<TOUCH_NUMBER; i++)
 	{
-	  	if (touch_state[i] == TOUCH_DOWN)
-	  	{
-			DBG("ili2102_ts_work_func:buf[%d]=%d\n",i,buf[i]);
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
-			input_mt_sync(ts->input_dev);
-			syn_flag = 1;
-			touch_state[i] = TOUCH_UP;
+
+		if((buf[0] & 0x03) == 0)
+		{
+		  	if (touch_state[i] == TOUCH_DOWN)
+		  	{
+				DBG("ili2102_ts_work_func:buf[%d]=%d\n",i,buf[i]);
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
+				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
+				input_mt_sync(ts->input_dev);
+				syn_flag = 1;
+				touch_state[i] = TOUCH_UP;
+			}
+
 		}
-
-	}
-	else
-	{
-
-		for(i=0; i<TOUCH_NUMBER; i++)
+		else
 		{
 			if((buf[0]>>i)&0x01)
 			{
@@ -180,6 +180,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				syn_flag = 1;
 				touch_state[i] = TOUCH_DOWN;
 			}
+			
 		}
 	}
 	
@@ -411,7 +412,7 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->y_min = pdata->y_min;
 	ts->y_max = pdata->y_max;
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&client->dev));
-	snprintf(ts->name, sizeof(ts->name), "gt%d-touchscreen", ts->model);
+	snprintf(ts->name, sizeof(ts->name), "ili%d-touchscreen", ts->model);
 	ts->input_dev->phys = ts->phys;
 	ts->input_dev->name = ts->name;
 	ts->input_dev->dev.parent = &client->dev;
