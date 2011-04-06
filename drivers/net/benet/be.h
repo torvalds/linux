@@ -485,6 +485,11 @@ static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 	memcpy(mac, adapter->netdev->dev_addr, 3);
 }
 
+static inline bool be_multi_rxq(const struct be_adapter *adapter)
+{
+	return adapter->num_rx_qs > 1;
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);

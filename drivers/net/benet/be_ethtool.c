@@ -735,6 +735,18 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	return status;
 }
 
+static int be_set_flags(struct net_device *netdev, u32 data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int rc = -1;
+
+	if (be_multi_rxq(adapter))
+		rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_RXHASH |
+				ETH_FLAG_TXVLAN | ETH_FLAG_RXVLAN);
+
+	return rc;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -764,4 +776,5 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
+	.set_flags = be_set_flags,
 };
