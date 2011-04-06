@@ -975,8 +975,8 @@ enum intel_chip_family {
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
-#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
-#define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))
+#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev))
+#define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
