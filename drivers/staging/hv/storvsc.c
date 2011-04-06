@@ -279,6 +279,7 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 				  struct hv_storvsc_request *request)
 {
 	struct storvsc_device *stor_device;
+	struct vstor_packet *stor_pkt;
 
 	stor_device = must_get_stor_device(device);
 	if (!stor_device) {
@@ -287,19 +288,24 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 		return;
 	}
 
-	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request  %p "
+	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request %p "
 		   "completed bytes xfer %u", request,
 		   vstor_packet->vm_srb.data_transfer_length);
 
+	stor_pkt = &request->vstor_packet;
 
 
 	/* Copy over the status...etc */
+	stor_pkt->vm_srb.scsi_status = vstor_packet->vm_srb.scsi_status;
+	stor_pkt->vm_srb.srb_status = vstor_packet->vm_srb.srb_status;
+	stor_pkt->vm_srb.sense_info_length =
+	vstor_packet->vm_srb.sense_info_length;
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
 		vstor_packet->vm_srb.srb_status != 1) {
 		DPRINT_WARN(STORVSC,
 			    "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
-			    vstor_packet->vm_srb.cdb[0],
+			    stor_pkt->vm_srb.cdb[0],
 			    vstor_packet->vm_srb.scsi_status,
 			    vstor_packet->vm_srb.srb_status);
 	}
@@ -319,6 +325,8 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 		}
 	}
 
+	stor_pkt->vm_srb.data_transfer_length =
+	vstor_packet->vm_srb.data_transfer_length;
 
 	request->on_io_completion(request);
 
@@ -534,6 +542,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 
 
 	request->device  = device;
+
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
