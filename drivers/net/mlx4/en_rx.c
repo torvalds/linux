@@ -345,6 +345,8 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		err = mlx4_en_init_allocator(priv, ring);
 		if (err) {
 			en_err(priv, "Failed initializing ring allocator\n");
+			if (ring->stride <= TXBB_SIZE)
+				ring->buf -= TXBB_SIZE;
 			ring_ind--;
 			goto err_allocator;
 		}
@@ -369,6 +371,8 @@ err_buffers:
 	ring_ind = priv->rx_ring_num - 1;
 err_allocator:
 	while (ring_ind >= 0) {
+		if (priv->rx_ring[ring_ind].stride <= TXBB_SIZE)
+			priv->rx_ring[ring_ind].buf -= TXBB_SIZE;
 		mlx4_en_destroy_allocator(priv, &priv->rx_ring[ring_ind]);
 		ring_ind--;
 	}
