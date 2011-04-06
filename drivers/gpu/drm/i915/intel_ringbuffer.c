@@ -286,7 +286,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 
 	if (INTEL_INFO(dev)->gen > 3) {
 		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
-		if (IS_GEN6(dev))
+		if (IS_GEN6(dev) || IS_GEN7(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
 	}
@@ -552,7 +552,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	u32 mmio = IS_GEN6(ring->dev) ?
+	u32 mmio = (IS_GEN6(ring->dev) || IS_GEN7(ring->dev)) ?
 		RING_HWS_PGA_GEN6(ring->mmio_base) :
 		RING_HWS_PGA(ring->mmio_base);
 	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
@@ -1334,7 +1334,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[VCS];
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		*ring = gen6_bsd_ring;
 	else
 		*ring = bsd_ring;
