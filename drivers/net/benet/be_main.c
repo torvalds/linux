@@ -1947,7 +1947,20 @@ static void be_sriov_enable(struct be_adapter *adapter)
 	be_check_sriov_fn_type(adapter);
 #ifdef CONFIG_PCI_IOV
 	if (be_physfn(adapter) && num_vfs) {
-		int status;
+		int status, pos;
+		u16 nvfs;
+
+		pos = pci_find_ext_capability(adapter->pdev,
+						PCI_EXT_CAP_ID_SRIOV);
+		pci_read_config_word(adapter->pdev,
+					pos + PCI_SRIOV_TOTAL_VF, &nvfs);
+
+		if (num_vfs > nvfs) {
+			dev_info(&adapter->pdev->dev,
+					"Device supports %d VFs and not %d\n",
+					nvfs, num_vfs);
+			num_vfs = nvfs;
+		}
 
 		status = pci_enable_sriov(adapter->pdev, num_vfs);
 		adapter->sriov_enabled = status ? false : true;
@@ -3282,13 +3295,6 @@ static int __init be_init_module(void)
 			" : Module param rx_frag_size must be 2048/4096/8192."
 			" Using 2048\n");
 		rx_frag_size = 2048;
-	}
-
-	if (num_vfs > 32) {
-		printk(KERN_WARNING DRV_NAME
-			" : Module param num_vfs must not be greater than 32."
-			"Using 32\n");
-		num_vfs = 32;
 	}
 
 	return pci_register_driver(&be_driver);
