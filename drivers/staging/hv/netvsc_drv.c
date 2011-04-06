@@ -44,6 +44,7 @@ struct net_device_context {
 	/* point back to our device context */
 	struct device_context *device_ctx;
 	struct net_device_stats stats;
+	struct work_struct work;
 };
 
 struct netvsc_driver_context {
@@ -284,6 +285,7 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 {
 	struct device_context *device_ctx = to_device_context(device_obj);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct net_device_context *ndev_ctx;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -297,6 +299,8 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 		netif_carrier_on(net);
 		netif_wake_queue(net);
 		netif_notify_peers(net);
+		ndev_ctx = netdev_priv(net);
+		schedule_work(&ndev_ctx->work);
 	} else {
 		netif_carrier_off(net);
 		netif_stop_queue(net);
@@ -398,6 +402,25 @@ static const struct net_device_ops device_ops = {
 	.ndo_set_mac_address =		eth_mac_addr,
 };
 
+/*
+ * Send GARP packet to network peers after migrations.
+ * After Quick Migration, the network is not immediately operational in the
+ * current context when receiving RNDIS_STATUS_MEDIA_CONNECT event. So, add
+ * another netif_notify_peers() into a scheduled work, otherwise GARP packet
+ * will not be sent after quick migration, and cause network disconnection.
+ */
+static void netvsc_send_garp(struct work_struct *w)
+{
+	struct net_device_context *ndev_ctx;
+	struct net_device *net;
+
+	msleep(20);
+	ndev_ctx = container_of(w, struct net_device_context, work);
+	net = dev_get_drvdata(&ndev_ctx->device_ctx->device);
+	netif_notify_peers(net);
+}
+
+
 static int netvsc_probe(struct device *device)
 {
 	struct driver_context *driver_ctx =
@@ -428,6 +451,7 @@ static int netvsc_probe(struct device *device)
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = device_ctx;
 	dev_set_drvdata(device, net);
+	INIT_WORK(&net_device_ctx->work, netvsc_send_garp);
 
 	/* Notify the netvsc driver of the new device */
 	ret = net_drv_obj->Base.OnDeviceAdd(device_obj, &device_info);
