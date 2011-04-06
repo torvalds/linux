@@ -3141,12 +3141,14 @@ static int be_resume(struct pci_dev *pdev)
 static void be_shutdown(struct pci_dev *pdev)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
-	if (netif_running(netdev))
+	if (!adapter)
+		return;
+
+	if (netif_running(adapter->netdev))
 		cancel_delayed_work_sync(&adapter->work);
 
-	netif_device_detach(netdev);
+	netif_device_detach(adapter->netdev);
 
 	be_cmd_reset_function(adapter);
 
