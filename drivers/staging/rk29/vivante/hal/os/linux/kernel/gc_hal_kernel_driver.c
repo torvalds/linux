@@ -878,7 +878,8 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
-    drv_exit();
+    pm_message_t state = {0};
+    gpu_suspend(dev, state);
 }
 
 
