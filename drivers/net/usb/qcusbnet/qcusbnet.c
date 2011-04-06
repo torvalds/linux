@@ -39,13 +39,13 @@ int qc_suspend(struct usb_interface *iface, pm_message_t event)
 	usbnet = usb_get_intfdata(iface);
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get netdevice\n");
+		ERR("failed to get netdevice\n");
 		return -ENXIO;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return -ENXIO;
 	}
 
@@ -81,13 +81,13 @@ static int qc_resume(struct usb_interface *iface)
 	usbnet = usb_get_intfdata(iface);
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get netdevice\n");
+		ERR("failed to get netdevice\n");
 		return -ENXIO;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return -ENXIO;
 	}
 
@@ -100,13 +100,13 @@ static int qc_resume(struct usb_interface *iface)
 
 		ret = usbnet_resume(iface);
 		if (ret) {
-			DBG("usbnet_resume error %d\n", ret);
+			ERR("usbnet_resume error %d\n", ret);
 			return ret;
 		}
 
 		ret = qc_startread(dev);
 		if (ret) {
-			DBG("qc_startread error %d\n", ret);
+			ERR("qc_startread error %d\n", ret);
 			return ret;
 		}
 
@@ -133,7 +133,7 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	struct usb_host_endpoint *out = NULL;
 
 	if (iface->num_altsetting != 1) {
-		DBG("invalid num_altsetting %u\n", iface->num_altsetting);
+		ERR("invalid num_altsetting %u\n", iface->num_altsetting);
 		return -EINVAL;
 	}
 
@@ -141,7 +141,7 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	for (i = 0; i < numends; i++) {
 		endpoint = iface->cur_altsetting->endpoint + i;
 		if (!endpoint) {
-			DBG("invalid endpoint %u\n", i);
+			ERR("invalid endpoint %u\n", i);
 			return -EINVAL;
 		}
 
@@ -152,13 +152,13 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	}
 
 	if (!in || !out) {
-		DBG("invalid endpoints\n");
+		ERR("invalid bulk endpoints\n");
 		return -EINVAL;
 	}
 
 	if (usb_set_interface(usbnet->udev,
 			      iface->cur_altsetting->desc.bInterfaceNumber, 0))	{
-		DBG("unable to set interface\n");
+		ERR("unable to set interface\n");
 		return -EINVAL;
 	}
 
@@ -193,12 +193,12 @@ static void qcnet_urbhook(struct urb *urb)
 	unsigned long flags;
 	struct worker *worker = urb->context;
 	if (!worker) {
-		DBG("bad context\n");
+		ERR("bad context\n");
 		return;
 	}
 
 	if (urb->status)
-		DBG("urb finished with error %d\n", urb->status);
+		ERR("urb finished with error %d\n", urb->status);
 
 	spin_lock_irqsave(&worker->active_lock, flags);
 	worker->active = ERR_PTR(-EAGAIN);
@@ -218,13 +218,13 @@ static void qcnet_txtimeout(struct net_device *netdev)
 	struct usbnet *usbnet = netdev_priv(netdev);
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get usbnet device\n");
+		ERR("failed to get usbnet device\n");
 		return;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return;
 	}
 	worker = &dev->worker;
@@ -257,7 +257,7 @@ static int qcnet_worker(void *arg)
 	struct usb_device *usbdev;
 	struct worker *worker = arg;
 	if (!worker) {
-		DBG("passed null pointer\n");
+		ERR("passed null pointer\n");
 		return -EINVAL;
 	}
 
@@ -315,7 +315,7 @@ static int qcnet_worker(void *arg)
 
 		status = usb_autopm_get_interface(worker->iface);
 		if (status < 0) {
-			DBG("unable to autoresume interface: %d\n", status);
+			ERR("unable to autoresume interface: %d\n", status);
 			if (status == -EPERM)
 				qc_suspend(worker->iface, PMSG_SUSPEND);
 
@@ -332,7 +332,7 @@ static int qcnet_worker(void *arg)
 
 		status = usb_submit_urb(worker->active, GFP_KERNEL);
 		if (status < 0) {
-			DBG("Failed to submit URB: %d.  Packet dropped\n", status);
+			ERR("Failed to submit URB: %d.  Packet dropped\n", status);
 			spin_lock_irqsave(&worker->active_lock, activeflags);
 			usb_free_urb(worker->active);
 			worker->active = NULL;
@@ -361,26 +361,26 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 	DBG("\n");
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get usbnet device\n");
+		ERR("failed to get usbnet device\n");
 		return NETDEV_TX_BUSY;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return NETDEV_TX_BUSY;
 	}
 	worker = &dev->worker;
 
 	if (qc_isdown(dev, DOWN_DRIVER_SUSPENDED)) {
-		DBG("device is suspended\n");
+		ERR("device is suspended\n");
 		dump_stack();
 		return NETDEV_TX_BUSY;
 	}
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req) {
-		DBG("unable to allocate URBList memory\n");
+		ERR("unable to allocate URBList memory\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -388,7 +388,7 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (!req->urb) {
 		kfree(req);
-		DBG("unable to allocate URB\n");
+		ERR("unable to allocate URB\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -396,7 +396,7 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 	if (!data) {
 		usb_free_urb(req->urb);
 		kfree(req);
-		DBG("unable to allocate URB data\n");
+		ERR("unable to allocate URB data\n");
 		return NETDEV_TX_BUSY;
 	}
 	memcpy(data, skb->data, skb->len);
@@ -423,13 +423,13 @@ static int qcnet_open(struct net_device *netdev)
 	struct usbnet *usbnet = netdev_priv(netdev);
 
 	if (!usbnet) {
-		DBG("failed to get usbnet device\n");
+		ERR("failed to get usbnet device\n");
 		return -ENXIO;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return -ENXIO;
 	}
 
@@ -444,7 +444,7 @@ static int qcnet_open(struct net_device *netdev)
 
 	dev->worker.thread = kthread_run(qcnet_worker, &dev->worker, "qcnet_worker");
 	if (IS_ERR(dev->worker.thread)) {
-		DBG("AutoPM thread creation error\n");
+		ERR("AutoPM thread creation error\n");
 		return PTR_ERR(dev->worker.thread);
 	}
 
@@ -454,7 +454,7 @@ static int qcnet_open(struct net_device *netdev)
 		if (status == 0)
 			usb_autopm_put_interface(dev->iface);
 	} else {
-		DBG("no USBNetOpen defined\n");
+		ERR("no USBNetOpen defined\n");
 	}
 
 	return status;
@@ -466,13 +466,13 @@ int qcnet_stop(struct net_device *netdev)
 	struct usbnet *usbnet = netdev_priv(netdev);
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get netdevice\n");
+		ERR("failed to get netdevice\n");
 		return -ENXIO;
 	}
 
 	dev = (struct qcusbnet *)usbnet->data[0];
 	if (!dev) {
-		DBG("failed to get QMIDevice\n");
+		ERR("failed to get QMIDevice\n");
 		return -ENXIO;
 	}
 
@@ -545,20 +545,20 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 
 	status = usbnet_probe(iface, vidpids);
 	if (status < 0) {
-		DBG("usbnet_probe failed %d\n", status);
+		ERR("usbnet_probe failed %d\n", status);
 		return status;
 	}
 
 	usbnet = usb_get_intfdata(iface);
 
 	if (!usbnet || !usbnet->net) {
-		DBG("failed to get netdevice\n");
+		ERR("failed to get netdevice\n");
 		return -ENXIO;
 	}
 
 	dev = kmalloc(sizeof(struct qcusbnet), GFP_KERNEL);
 	if (!dev) {
-		DBG("failed to allocate device buffers\n");
+		ERR("failed to allocate device buffers\n");
 		return -ENOMEM;
 	}
 
@@ -568,7 +568,7 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 
 	netdevops = kmalloc(sizeof(struct net_device_ops), GFP_KERNEL);
 	if (!netdevops) {
-		DBG("failed to allocate net device ops\n");
+		ERR("failed to allocate net device ops\n");
 		return -ENOMEM;
 	}
 	memcpy(netdevops, usbnet->net->netdev_ops, sizeof(struct net_device_ops));
@@ -625,7 +625,7 @@ static int __init modinit(void)
 {
 	devclass = class_create(THIS_MODULE, "QCQMI");
 	if (IS_ERR(devclass)) {
-		DBG("error at class_create %ld\n", PTR_ERR(devclass));
+		ERR("error at class_create %ld\n", PTR_ERR(devclass));
 		return -ENOMEM;
 	}
 	printk(KERN_INFO "%s: %s\n", DRIVER_DESC, DRIVER_VERSION);

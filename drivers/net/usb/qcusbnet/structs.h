@@ -37,6 +37,9 @@ do {									\
 		printk(KERN_INFO "QCUSBNet2k::%s " fmt, __func__, ##arg); \
 } while (0)
 
+#define ERR(fmt, arg...)\
+	printk(KERN_ERR "QCUSBNet2k::%s " fmt, __func__, ##arg)
+
 struct qcusbnet;
 
 struct urbreq {
