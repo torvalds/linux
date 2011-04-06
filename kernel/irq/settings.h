@@ -8,6 +8,7 @@ enum {
 	_IRQ_LEVEL		= IRQ_LEVEL,
 	_IRQ_NOPROBE		= IRQ_NOPROBE,
 	_IRQ_NOREQUEST		= IRQ_NOREQUEST,
+	_IRQ_NOTHREAD		= IRQ_NOTHREAD,
 	_IRQ_NOAUTOEN		= IRQ_NOAUTOEN,
 	_IRQ_MOVE_PCNTXT	= IRQ_MOVE_PCNTXT,
 	_IRQ_NO_BALANCING	= IRQ_NO_BALANCING,
@@ -20,6 +21,7 @@ enum {
 #define IRQ_LEVEL		GOT_YOU_MORON
 #define IRQ_NOPROBE		GOT_YOU_MORON
 #define IRQ_NOREQUEST		GOT_YOU_MORON
+#define IRQ_NOTHREAD		GOT_YOU_MORON
 #define IRQ_NOAUTOEN		GOT_YOU_MORON
 #define IRQ_NESTED_THREAD	GOT_YOU_MORON
 #undef IRQF_MODIFY_MASK
@@ -92,6 +94,21 @@ static inline void irq_settings_clr_norequest(struct irq_desc *desc)
 static inline void irq_settings_set_norequest(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NOREQUEST;
+}
+
+static inline bool irq_settings_can_thread(struct irq_desc *desc)
+{
+	return !(desc->status_use_accessors & _IRQ_NOTHREAD);
+}
+
+static inline void irq_settings_clr_nothread(struct irq_desc *desc)
+{
+	desc->status_use_accessors &= ~_IRQ_NOTHREAD;
+}
+
+static inline void irq_settings_set_nothread(struct irq_desc *desc)
+{
+	desc->status_use_accessors |= _IRQ_NOTHREAD;
 }
 
 static inline bool irq_settings_can_probe(struct irq_desc *desc)

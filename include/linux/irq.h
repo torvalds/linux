@@ -59,6 +59,7 @@ typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
  * IRQ_NOPROBE			- Interrupt cannot be probed by autoprobing
  * IRQ_NOREQUEST		- Interrupt cannot be requested via
  *				  request_irq()
+ * IRQ_NOTHREAD			- Interrupt cannot be threaded
  * IRQ_NOAUTOEN			- Interrupt is not automatically enabled in
  *				  request/setup_irq()
  * IRQ_NO_BALANCING		- Interrupt cannot be balanced (affinity set)
@@ -85,6 +86,7 @@ enum {
 	IRQ_NO_BALANCING	= (1 << 13),
 	IRQ_MOVE_PCNTXT		= (1 << 14),
 	IRQ_NESTED_THREAD	= (1 << 15),
+	IRQ_NOTHREAD		= (1 << 16),
 };
 
 #define IRQF_MODIFY_MASK	\
@@ -422,7 +424,7 @@ irq_set_handler(unsigned int irq, irq_flow_handler_t handle)
 /*
  * Set a highlevel chained flow handler for a given IRQ.
  * (a chained handler is automatically enabled and set to
- *  IRQ_NOREQUEST and IRQ_NOPROBE)
+ *  IRQ_NOREQUEST, IRQ_NOPROBE, and IRQ_NOTHREAD)
  */
 static inline void
 irq_set_chained_handler(unsigned int irq, irq_flow_handler_t handle)
@@ -450,6 +452,16 @@ static inline void irq_set_noprobe(unsigned int irq)
 static inline void irq_set_probe(unsigned int irq)
 {
 	irq_modify_status(irq, IRQ_NOPROBE, 0);
+}
+
+static inline void irq_set_nothread(unsigned int irq)
+{
+	irq_modify_status(irq, 0, IRQ_NOTHREAD);
+}
+
+static inline void irq_set_thread(unsigned int irq)
+{
+	irq_modify_status(irq, IRQ_NOTHREAD, 0);
 }
 
 static inline void irq_set_nested_thread(unsigned int irq, bool nest)
