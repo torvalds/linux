@@ -249,7 +249,6 @@ struct iwl_mod_params {
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @ucode_tracing: support ucode continuous tracing
  * @shadow_reg_enable: HW shadhow register bit
  */
 struct iwl_base_params {
@@ -271,7 +270,6 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
-	const bool ucode_tracing;
 	const bool shadow_reg_enable;
 };
 /*

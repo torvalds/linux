@@ -437,7 +437,6 @@ static struct iwl_base_params iwl6000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 
@@ -456,7 +455,6 @@ static struct iwl_base_params iwl6050_base_params = {
 	.chain_noise_scale = 1500,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 static struct iwl_base_params iwl6000_g2_base_params = {
@@ -474,7 +472,6 @@ static struct iwl_base_params iwl6000_g2_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 
