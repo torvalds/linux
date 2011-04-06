@@ -43,3 +43,4 @@ obj-$(CONFIG_IBM_RTL)		+= ibm_rtl.o
 obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop.o
 obj-$(CONFIG_INTEL_MFLD_THERMAL)	+= intel_mid_thermal.o
 obj-$(CONFIG_MXM_WMI)		+= mxm-wmi.o
+obj-$(CONFIG_INTEL_OAKTRAIL)	+= intel_oaktrail.o
