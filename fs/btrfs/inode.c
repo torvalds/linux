@@ -6006,13 +6006,6 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int ret = 0;
 	int write = rw & REQ_WRITE;
 
-	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
-	if (!bio)
-		return -ENOMEM;
-	bio->bi_private = dip;
-	bio->bi_end_io = btrfs_end_dio_bio;
-	atomic_inc(&dip->pending_bios);
-
 	map_length = orig_bio->bi_size;
 	ret = btrfs_map_block(map_tree, READ, start_sector << 9,
 			      &map_length, NULL, 0);
@@ -6020,6 +6013,18 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		bio_put(bio);
 		return -EIO;
 	}
+
+	if (map_length >= orig_bio->bi_size) {
+		bio = orig_bio;
+		goto submit;
+	}
+
+	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
+	if (!bio)
+		return -ENOMEM;
+	bio->bi_private = dip;
+	bio->bi_end_io = btrfs_end_dio_bio;
+	atomic_inc(&dip->pending_bios);
 
 	while (bvec <= (orig_bio->bi_io_vec + orig_bio->bi_vcnt - 1)) {
 		if (unlikely(map_length < submit_len + bvec->bv_len ||
@@ -6071,6 +6076,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		}
 	}
 
+submit:
 	ret = __btrfs_submit_dio_bio(bio, inode, rw, file_offset, skip_sum,
 				     csums);
 	if (!ret)
