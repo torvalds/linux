@@ -394,11 +394,12 @@ void AP_to_speakers(void)
 
 	if(wm8994_current_mode==wm8994_AP_to_speakers)return;
 	wm8994_current_mode=wm8994_AP_to_speakers;
-	wm8994_reset();
+//	wm8994_reset();
+	wm8994_write(0,0);
 	msleep(WM8994_DELAY);
 
-	wm8994_write(0x700, 0xA101);
-	wm8994_write(0x39,  0x006C);
+//	wm8994_write(0x700, 0xA101);
+//	wm8994_write(0x39,  0x006C);
 	wm8994_write(0x01,  0x0023);
 	wm8994_write(0x200, 0x0000);
 	mdelay(WM8994_DELAY);
@@ -428,10 +429,13 @@ void AP_to_speakers(void)
 	wm8994_write(0x200, 0x0011); // sysclk = fll (bit4 =1)   0x0011
   
 	wm8994_write(0x01,  0x3023);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
+	wm8994_write(0x03,  0x0330);
 	wm8994_write(0x05,  0x0303);   
-	wm8994_write(0x2D,  0x0100);
-	wm8994_write(0x2E,  0x0100);
+	wm8994_write(0x22,  0x0000);
+	wm8994_write(0x23,  0x0100);	
+	wm8994_write(0x2D,  0x0001);
+	wm8994_write(0x2E,  0x0000);
+	wm8994_write(0x36,  0x000C);	
 	wm8994_write(0x4C,  0x9F25);
 	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x420, 0x0000); 
@@ -441,10 +445,7 @@ void AP_to_speakers(void)
 
 	wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7	
-	wm8994_write(0x03,  0x0330);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	wm8994_write(0x36,  0x0003);
+
 	wm8994_write(0x26,  0x017F);  //Speaker Left Output Volume
 	wm8994_write(0x27,  0x017F);  //Speaker Right Output Volume
 }
@@ -490,7 +491,7 @@ void AP_to_speakers_and_headset(void)
 	wm8994_write(0x610, 0x0100);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x0100);  //DAC1 Right Volume bit0~7
 
-	wm8994_write(0x24,  0x0011);
+//	wm8994_write(0x24,  0x0011);
 	wm8994_set_channel_vol();
 	//wm8994_write(0x25,  0x003F);
 
@@ -639,7 +640,7 @@ void recorder_and_AP_to_speakers(void)
 	wm8994_write(0x610, 0x0100); // DAC1_VU=1, DAC1L_VOL=1100_0000
 	wm8994_write(0x611, 0x0100); // DAC1_VU=1, DAC1R_VOL=1100_0000
 	wm8994_set_channel_vol();
-	wm8994_write(0x24,  0x0011);
+//	wm8994_write(0x24,  0x001f);
 	//wm8994_write(0x25,  0x003F);
 
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
@@ -1232,7 +1233,7 @@ void mainMIC_to_baseband_to_speakers(void)
 	wm8994_write(0x610, 0x0100);
 	wm8994_write(0x611, 0x0100);
 
-	wm8994_write(0x24,  0x0011);
+//	wm8994_write(0x24,  0x0011);
 	wm8994_set_channel_vol();
 
 	wm8994_write(0x02,  0x6210);
@@ -2793,8 +2794,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	{
 		/* Speaker*/
 		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
-		//	recorder_and_AP_to_speakers();
-			mainMIC_to_baseband_to_speakers();
+			recorder_and_AP_to_speakers();
 			break;
 
 		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
