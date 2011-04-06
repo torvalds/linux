@@ -1071,6 +1071,40 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 	return 0;
 }
+
+static int wm8900_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = card->codec;
+	
+	printk("wm8900_shutdown \n");
+
+	snd_soc_write(codec, WM8900_REG_RESET, 0);
+
+	//open SPK control GPIO
+	gpio_request(SPK_CON, NULL);
+	gpio_direction_output(SPK_CON,GPIO_LOW);
+	gpio_free(SPK_CON);
+
+	return 0;
+}
+
+static int wm8900_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = card->codec;
+
+	printk("wm8900_prepare \n");
+
+	wm8900_set_hw(codec);
+
+	return 0;
+}
+
 #ifdef CONFIG_MACH_RK29_MALATA
 static int wm8900_trigger(struct snd_pcm_substream *substream, int trigger)
 {	
@@ -1097,6 +1131,8 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
 	.digital_mute	= wm8900_digital_mute,
+	.shutdown	= wm8900_shutdown,
+	.prepare	= wm8900_prepare,
 #ifdef CONFIG_MACH_RK29_MALATA	
 	.trigger = wm8900_trigger,
 #endif
@@ -1227,7 +1263,7 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
-	
+
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
@@ -1262,9 +1298,6 @@ static int wm8900_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
 	int ret;
-
-	msleep(50);
-	wm8900_set_hw(codec);
 
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1464,8 +1497,6 @@ static int wm8900_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register card\n");
 		goto card_err;
 	}
-
-	wm8900_set_hw(codec);
 
 	return ret;
 
