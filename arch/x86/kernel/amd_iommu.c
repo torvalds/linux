@@ -58,7 +58,6 @@ struct iommu_cmd {
 	u32 data[4];
 };
 
-static void reset_iommu_command_buffer(struct amd_iommu *iommu);
 static void update_domain(struct protection_domain *domain);
 
 /****************************************************************************
@@ -323,8 +322,6 @@ static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 		break;
 	case EVENT_TYPE_ILL_CMD:
 		printk("ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
-		iommu->reset_in_progress = true;
-		reset_iommu_command_buffer(iommu);
 		dump_command(address);
 		break;
 	case EVENT_TYPE_CMD_HARD_ERR:
@@ -485,8 +482,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	if (i == LOOP_TIMEOUT) {
 		pr_alert("AMD-Vi: Completion-Wait loop timed out\n");
-		iommu->reset_in_progress = true;
-		reset_iommu_command_buffer(iommu);
+		ret = -EIO;
 	}
 
 	return 0;
@@ -626,20 +622,6 @@ void amd_iommu_flush_all_domains(void)
 	}
 
 	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
-}
-
-static void reset_iommu_command_buffer(struct amd_iommu *iommu)
-{
-	pr_err("AMD-Vi: Resetting IOMMU command buffer\n");
-
-	if (iommu->reset_in_progress)
-		panic("AMD-Vi: ILLEGAL_COMMAND_ERROR while resetting command buffer\n");
-
-	amd_iommu_reset_cmd_buffer(iommu);
-	amd_iommu_flush_all_devices();
-	amd_iommu_flush_all_domains();
-
-	iommu->reset_in_progress = false;
 }
 
 /****************************************************************************
