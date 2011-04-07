@@ -2275,6 +2275,11 @@ int policydb_read(struct policydb *p, void *fp)
 		p->symtab[i].nprim = nprim;
 	}
 
+	rc = -EINVAL;
+	p->process_class = string_to_security_class(p, "process");
+	if (!p->process_class)
+		goto bad;
+
 	rc = avtab_read(&p->te_avtab, fp, p);
 	if (rc)
 		goto bad;
@@ -2356,11 +2361,6 @@ int policydb_read(struct policydb *p, void *fp)
 
 	rc = policydb_index(p);
 	if (rc)
-		goto bad;
-
-	rc = -EINVAL;
-	p->process_class = string_to_security_class(p, "process");
-	if (!p->process_class)
 		goto bad;
 
 	rc = -EINVAL;
