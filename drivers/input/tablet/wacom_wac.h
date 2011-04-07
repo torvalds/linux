@@ -74,6 +74,8 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int x_resolution;
+	int y_resolution;
 	int device_type;
 	int x_phy;
 	int y_phy;

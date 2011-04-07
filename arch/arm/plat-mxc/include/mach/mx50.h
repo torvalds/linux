@@ -282,4 +282,8 @@
 #define MX50_INT_APBHDMA_CHAN6	116
 #define MX50_INT_APBHDMA_CHAN7	117
 
+#if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
+extern int mx50_revision(void);
+#endif
+
 #endif /* ifndef __MACH_MX50_H__ */

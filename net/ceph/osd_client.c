@@ -837,8 +837,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		if (list_empty(&req->r_osd_item) &&
-		    list_empty(&req->r_linger_item))
+		if (list_empty(&req->r_linger_item))
 			req->r_osd = NULL;
 	}
 
@@ -883,7 +882,8 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		req->r_osd = NULL;
+		if (list_empty(&req->r_osd_item))
+			req->r_osd = NULL;
 	}
 }
 
@@ -1602,11 +1602,11 @@ void handle_watch_notify(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	     cookie, ver, event);
 	if (event) {
 		event_work = kmalloc(sizeof(*event_work), GFP_NOIO);
-		INIT_WORK(&event_work->work, do_event_work);
 		if (!event_work) {
 			dout("ERROR: could not allocate event_work\n");
 			goto done_err;
 		}
+		INIT_WORK(&event_work->work, do_event_work);
 		event_work->event = event;
 		event_work->ver = ver;
 		event_work->notify_id = notify_id;
@@ -1672,7 +1672,7 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req);
 		if (rc < 0)
-			return rc;
+			goto out_unlock;
 		if (req->r_osd == NULL) {
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);
@@ -1689,6 +1689,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			}
 		}
 	}
+
+out_unlock:
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
 	return rc;

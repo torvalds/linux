@@ -2229,7 +2229,7 @@ Proc interfaces (/proc/asound)
 
 /proc/asound/card#/pcm#[cp]/oss
 -------------------------------
-  String "erase" - erase all additional informations about OSS applications
+  String "erase" - erase all additional information about OSS applications
   String "<app_name> <fragments> <fragment_size> [<options>]"
 
    <app_name> - name of application with (higher priority) or without path

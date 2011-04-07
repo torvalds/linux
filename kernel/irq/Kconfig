@@ -10,9 +10,6 @@ menu "IRQ subsystem"
 config GENERIC_HARDIRQS
        def_bool y
 
-config GENERIC_HARDIRQS_NO_COMPAT
-       bool
-
 # Options selectable by the architecture code
 
 # Make sparse irq Kconfig switch below available

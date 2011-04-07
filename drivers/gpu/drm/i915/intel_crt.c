@@ -269,21 +269,6 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-static bool intel_crt_ddc_probe(struct drm_i915_private *dev_priv, int ddc_bus)
-{
-	u8 buf;
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0xA0,
-			.flags = 0,
-			.len = 1,
-			.buf = &buf,
-		},
-	};
-	/* DDC monitor detect: Does it ACK a write to 0xA0? */
-	return i2c_transfer(&dev_priv->gmbus[ddc_bus].adapter, msgs, 1) == 1;
-}
-
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(connector);
@@ -292,11 +277,6 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	/* CRT should always be at 0, but check anyway */
 	if (crt->base.type != INTEL_OUTPUT_ANALOG)
 		return false;
-
-	if (intel_crt_ddc_probe(dev_priv, dev_priv->crt_ddc_pin)) {
-		DRM_DEBUG_KMS("CRT detected via DDC:0xa0\n");
-		return true;
-	}
 
 	if (intel_ddc_probe(&crt->base, dev_priv->crt_ddc_pin)) {
 		struct edid *edid;
