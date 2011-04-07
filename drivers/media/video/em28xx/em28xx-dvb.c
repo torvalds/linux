@@ -39,6 +39,7 @@
 #include "tda18271.h"
 #include "s921.h"
 #include "drxd.h"
+#include "cxd2820r.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -332,6 +333,26 @@ static struct mt352_config terratec_xs_mt352_cfg = {
 static struct tda10023_config em28xx_tda10023_config = {
 	.demod_address = 0x0c,
 	.invert = 1,
+};
+
+static struct cxd2820r_config em28xx_cxd2820r_config = {
+	.i2c_address = (0xd8 >> 1),
+	.ts_mode = CXD2820R_TS_SERIAL,
+	.if_dvbt_6  = 3300,
+	.if_dvbt_7  = 3500,
+	.if_dvbt_8  = 4000,
+	.if_dvbt2_6 = 3300,
+	.if_dvbt2_7 = 3500,
+	.if_dvbt2_8 = 4000,
+	.if_dvbc    = 5000,
+
+	/* enable LNA for DVB-T2 and DVB-C */
+	.gpio_dvbt2[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
+	.gpio_dvbc[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
+};
+
+static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 /* ------------------------------------------------------------------ */
@@ -639,6 +660,34 @@ static int dvb_init(struct em28xx *dev)
 		if (dvb->fe[0] != NULL)
 			dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
 				   &dev->i2c_adap, &kworld_a340_config);
+		break;
+	case EM28174_BOARD_PCTV_290E:
+		/* MFE
+		 * FE 0 = DVB-T/T2 + FE 1 = DVB-C, both sharing same tuner. */
+		/* FE 0 */
+		dvb->fe[0] = dvb_attach(cxd2820r_attach,
+			&em28xx_cxd2820r_config, &dev->i2c_adap, NULL);
+		if (dvb->fe[0]) {
+			struct i2c_adapter *i2c_tuner;
+			i2c_tuner = cxd2820r_get_tuner_i2c_adapter(dvb->fe[0]);
+			/* FE 0 attach tuner */
+			if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+				i2c_tuner, &em28xx_cxd2820r_tda18271_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -EINVAL;
+				goto out_free;
+			}
+			/* FE 1. This dvb_attach() cannot fail. */
+			dvb->fe[1] = dvb_attach(cxd2820r_attach, NULL, NULL,
+				dvb->fe[0]);
+			dvb->fe[1]->id = 1;
+			/* FE 1 attach tuner */
+			if (!dvb_attach(tda18271_attach, dvb->fe[1], 0x60,
+				i2c_tuner, &em28xx_cxd2820r_tda18271_config)) {
+				dvb_frontend_detach(dvb->fe[1]);
+				/* leave FE 0 still active */
+			}
+		}
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"

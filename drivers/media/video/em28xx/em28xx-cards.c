@@ -289,6 +289,16 @@ static struct em28xx_reg_seq leadership_reset[] = {
 	{	-1,		-1,	-1,	-1},
 };
 
+/* 2013:024f PCTV Systems nanoStick T2 290e
+ * GPIO_6 - demod reset
+ * GPIO_7 - LED
+ */
+static struct em28xx_reg_seq pctv_290e[] = {
+	{EM2874_R80_GPIO,	0x00,	0xff,		80},
+	{EM2874_R80_GPIO,	0x40,	0xff,		80}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO,	0xc0,	0xff,		80}, /* GPIO_7 = 1 */
+	{-1,			-1,	-1,		-1},
+};
 
 /*
  *  Board definitions
@@ -1760,6 +1770,17 @@ struct em28xx_board em28xx_boards[] = {
 		.dvb_gpio   = kworld_a340_digital,
 		.tuner_gpio = default_tuner_gpio,
 	},
+	/* 2013:024f PCTV Systems nanoStick T2 290e.
+	 * Empia EM28174, Sony CXD2820R and NXP TDA18271HD/C2 */
+	[EM28174_BOARD_PCTV_290E] = {
+		.i2c_speed      = EM2874_I2C_SECONDARY_BUS_SELECT |
+			EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
+		.xclk          = EM28XX_XCLK_FREQUENCY_12MHZ,
+		.name          = "PCTV Systems nanoStick T2 290e",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_290e,
+		.has_dvb       = 1,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1887,6 +1908,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_GADMEI_UTV330 },
 	{ USB_DEVICE(0x1b80, 0xa340),
 			.driver_info = EM2870_BOARD_KWORLD_A340 },
+	{ USB_DEVICE(0x2013, 0x024f),
+			.driver_info = EM28174_BOARD_PCTV_290E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

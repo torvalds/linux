@@ -118,6 +118,7 @@
 #define EM2882_BOARD_DIKOM_DK300		  75
 #define EM2870_BOARD_KWORLD_A340		  76
 #define EM2874_LEADERSHIP_ISDBT			  77
+#define EM28174_BOARD_PCTV_290E                   78
 
 
 /* Limits minimum and default number of buffers */
