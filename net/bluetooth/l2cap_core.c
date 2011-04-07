@@ -169,7 +169,7 @@ static inline void l2cap_chan_unlink(struct l2cap_chan_list *l, struct sock *sk)
 	__sock_put(sk);
 }
 
-static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct sock *parent)
+static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk)
 {
 	struct l2cap_chan_list *l = &conn->chan_list;
 
@@ -204,9 +204,6 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct so
 	}
 
 	__l2cap_chan_link(l, sk);
-
-	if (parent)
-		bt_accept_enqueue(parent, sk);
 }
 
 /* Delete channel.
@@ -652,7 +649,9 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	bacpy(&bt_sk(sk)->src, conn->src);
 	bacpy(&bt_sk(sk)->dst, conn->dst);
 
-	__l2cap_chan_add(conn, sk, parent);
+	bt_accept_enqueue(parent, sk);
+
+	__l2cap_chan_add(conn, sk);
 
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
@@ -793,11 +792,11 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	kfree(conn);
 }
 
-static inline void l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct sock *parent)
+static inline void l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk)
 {
 	struct l2cap_chan_list *l = &conn->chan_list;
 	write_lock_bh(&l->lock);
-	__l2cap_chan_add(conn, sk, parent);
+	__l2cap_chan_add(conn, sk);
 	write_unlock_bh(&l->lock);
 }
 
@@ -876,7 +875,7 @@ int l2cap_do_connect(struct sock *sk)
 	/* Update source addr of the socket */
 	bacpy(src, conn->src);
 
-	l2cap_chan_add(conn, sk, NULL);
+	l2cap_chan_add(conn, sk);
 
 	sk->sk_state = BT_CONNECT;
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
@@ -1116,7 +1115,9 @@ int l2cap_ertm_send(struct sock *sk)
 		bt_cb(skb)->tx_seq = pi->next_tx_seq;
 		pi->next_tx_seq = (pi->next_tx_seq + 1) % 64;
 
-		pi->unacked_frames++;
+		if (bt_cb(skb)->retries == 1)
+			pi->unacked_frames++;
+
 		pi->frames_sent++;
 
 		if (skb_queue_is_last(TX_QUEUE(sk), skb))
@@ -2030,7 +2031,9 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	l2cap_pi(sk)->psm  = psm;
 	l2cap_pi(sk)->dcid = scid;
 
-	__l2cap_chan_add(conn, sk, parent);
+	bt_accept_enqueue(parent, sk);
+
+	__l2cap_chan_add(conn, sk);
 	dcid = l2cap_pi(sk)->scid;
 
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
@@ -2460,6 +2463,11 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 
 	BT_DBG("type 0x%4.4x result 0x%2.2x", type, result);
 
+	/* L2CAP Info req/rsp are unbound to channels, add extra checks */
+	if (cmd->ident != conn->info_ident ||
+			conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE)
+		return 0;
+
 	del_timer(&conn->info_timer);
 
 	if (result != L2CAP_IR_SUCCESS) {
@@ -2670,7 +2678,8 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 
 		if (err) {
 			struct l2cap_cmd_rej rej;
-			BT_DBG("error %d", err);
+
+			BT_ERR("Wrong link type (%d)", err);
 
 			/* FIXME: Map err to a valid reason */
 			rej.reason = cpu_to_le16(0);

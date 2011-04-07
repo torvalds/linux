@@ -82,6 +82,13 @@ struct link_key {
 	u8 pin_len;
 };
 
+struct oob_data {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 hash[16];
+	u8 randomizer[16];
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -94,7 +101,8 @@ struct hci_dev {
 	__u8		bus;
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
-	__u8		dev_name[248];
+	__u8		dev_name[HCI_MAX_NAME_LENGTH];
+	__u8		eir[HCI_MAX_EIR_LENGTH];
 	__u8		dev_class[3];
 	__u8		major_class;
 	__u8		minor_class;
@@ -168,6 +176,8 @@ struct hci_dev {
 	struct list_head	uuids;
 
 	struct list_head	link_keys;
+
+	struct list_head	remote_oob_data;
 
 	struct hci_dev_stats	stat;
 
@@ -505,6 +515,13 @@ int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 						u8 *key, u8 type, u8 pin_len);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
+int hci_remote_oob_data_clear(struct hci_dev *hdev);
+struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
+							bdaddr_t *bdaddr);
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
+								u8 *randomizer);
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
 void hci_del_off_timer(struct hci_dev *hdev);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
@@ -767,6 +784,12 @@ int mgmt_user_confirm_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
 int mgmt_user_confirm_neg_reply_complete(u16 index, bdaddr_t *bdaddr,
 								u8 status);
 int mgmt_auth_failed(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_set_local_name_complete(u16 index, u8 *name, u8 status);
+int mgmt_read_local_oob_data_reply_complete(u16 index, u8 *hash, u8 *randomizer,
+								u8 status);
+int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 *dev_class, s8 rssi,
+								u8 *eir);
+int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 *name);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
