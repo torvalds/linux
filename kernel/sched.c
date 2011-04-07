@@ -6822,7 +6822,6 @@ struct sd_data {
 };
 
 struct s_data {
-	cpumask_var_t		send_covered;
 	struct sched_domain ** __percpu sd;
 	struct sd_data 		sdd[SD_LV_MAX];
 	struct root_domain	*rd;
@@ -6832,7 +6831,6 @@ enum s_alloc {
 	sa_rootdomain,
 	sa_sd,
 	sa_sd_storage,
-	sa_send_covered,
 	sa_none,
 };
 
@@ -6853,6 +6851,8 @@ static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
 	return cpu;
 }
 
+static cpumask_var_t sched_domains_tmpmask; /* sched_domains_mutex */
+
 /*
  * build_sched_groups takes the cpumask we wish to span, and a pointer
  * to a function which identifies what group(along with sched group) a CPU
@@ -6864,12 +6864,16 @@ static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
  * and ->cpu_power to 0.
  */
 static void
-build_sched_groups(struct sched_domain *sd, struct cpumask *covered)
+build_sched_groups(struct sched_domain *sd)
 {
 	struct sched_group *first = NULL, *last = NULL;
 	struct sd_data *sdd = sd->private;
 	const struct cpumask *span = sched_domain_span(sd);
+	struct cpumask *covered;
 	int i;
+
+	lockdep_assert_held(&sched_domains_mutex);
+	covered = sched_domains_tmpmask;
 
 	cpumask_clear(covered);
 
@@ -7015,8 +7019,6 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 			free_percpu(d->sdd[i].sd);
 			free_percpu(d->sdd[i].sg);
 		} /* fall through */
-	case sa_send_covered:
-		free_cpumask_var(d->send_covered); /* fall through */
 	case sa_none:
 		break;
 	}
@@ -7029,8 +7031,6 @@ static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
 
 	memset(d, 0, sizeof(*d));
 
-	if (!alloc_cpumask_var(&d->send_covered, GFP_KERNEL))
-		return sa_none;
 	for (i = 0; i < SD_LV_MAX; i++) {
 		d->sdd[i].sd = alloc_percpu(struct sched_domain *);
 		if (!d->sdd[i].sd)
@@ -7219,7 +7219,7 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 			if (i != cpumask_first(sched_domain_span(sd)))
 				continue;
 
-			build_sched_groups(sd, d.send_covered);
+			build_sched_groups(sd);
 		}
 	}
 
@@ -7896,6 +7896,7 @@ void __init sched_init(void)
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
 	zalloc_cpumask_var(&nohz_cpu_mask, GFP_NOWAIT);
+	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
 #ifdef CONFIG_SMP
 #ifdef CONFIG_NO_HZ
 	zalloc_cpumask_var(&nohz.idle_cpus_mask, GFP_NOWAIT);
