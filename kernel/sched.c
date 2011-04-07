@@ -7231,15 +7231,12 @@ static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
 	return sd;
 }
 
-static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
+static void build_sched_groups(struct s_data *d, struct sched_domain *sd,
 			       const struct cpumask *cpu_map, int cpu)
 {
-	struct sched_domain *sd;
-
-	switch (l) {
+	switch (sd->level) {
 #ifdef CONFIG_SCHED_SMT
 	case SD_LV_SIBLING: /* set up CPU (sibling) groups */
-		sd = &per_cpu(cpu_domains, cpu).sd;
 		if (cpu == cpumask_first(sched_domain_span(sd)))
 			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_cpu_group,
@@ -7248,7 +7245,6 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 #endif
 #ifdef CONFIG_SCHED_MC
 	case SD_LV_MC: /* set up multi-core groups */
-		sd = &per_cpu(core_domains, cpu).sd;
 		if (cpu == cpumask_first(sched_domain_span(sd)))
 			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_core_group,
@@ -7257,7 +7253,6 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 #endif
 #ifdef CONFIG_SCHED_BOOK
 	case SD_LV_BOOK: /* set up book groups */
-		sd = &per_cpu(book_domains, cpu).sd;
 		if (cpu == cpumask_first(sched_domain_span(sd)))
 			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_book_group,
@@ -7265,7 +7260,6 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 		break;
 #endif
 	case SD_LV_CPU: /* set up physical groups */
-		sd = &per_cpu(phys_domains, cpu).sd;
 		if (cpu == cpumask_first(sched_domain_span(sd)))
 			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_phys_group,
@@ -7273,7 +7267,6 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 		break;
 #ifdef CONFIG_NUMA
 	case SD_LV_NODE:
-		sd = &per_cpu(node_domains, cpu).sd;
 		if (cpu == cpumask_first(sched_domain_span(sd)))
 			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_node_group,
@@ -7323,17 +7316,10 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
 
-		for (tmp = sd; tmp; tmp = tmp->parent)
+		for (tmp = sd; tmp; tmp = tmp->parent) {
 			tmp->span_weight = cpumask_weight(sched_domain_span(tmp));
-	}
-
-	for_each_cpu(i, cpu_map) {
-		build_sched_groups(&d, SD_LV_SIBLING, cpu_map, i);
-		build_sched_groups(&d, SD_LV_BOOK, cpu_map, i);
-		build_sched_groups(&d, SD_LV_MC, cpu_map, i);
-		build_sched_groups(&d, SD_LV_CPU, cpu_map, i);
-		build_sched_groups(&d, SD_LV_NODE, cpu_map, i);
-		build_sched_groups(&d, SD_LV_ALLNODES, cpu_map, i);
+			build_sched_groups(&d, tmp, cpu_map, i);
+		}
 	}
 
 	/* Calculate CPU power for physical packages and nodes */
