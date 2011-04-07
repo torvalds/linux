@@ -234,6 +234,7 @@ struct tca6424_platform_data {
 void __init rk29_setup_early_printk(void);
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
+void __init board_power_init(void);
 
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1

@@ -1874,22 +1874,11 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init();
 }
 
-#define POWER_ON_PIN RK29_PIN4_PA4
-static void rk29_pm_power_off(void)
-{
-	printk(KERN_ERR "rk29_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-	while (1);
-}
-
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
 
-	gpio_request(POWER_ON_PIN,"poweronpin");
-	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
-	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-	pm_power_off = rk29_pm_power_off;
+	board_power_init();
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
