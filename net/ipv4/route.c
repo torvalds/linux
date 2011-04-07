@@ -1891,6 +1891,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
+	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->dst.dev	= init_net.loopback_dev;
 	dev_hold(rth->dst.dev);
@@ -2026,6 +2027,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_key_src	= saddr;
 	rth->rt_src	= saddr;
 	rth->rt_gateway	= daddr;
+	rth->rt_route_iif = in_dev->dev->ifindex;
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->dst.dev	= (out_dev)->dev;
 	dev_hold(rth->dst.dev);
@@ -2202,6 +2204,7 @@ local_input:
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
+	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->dst.dev	= net->loopback_dev;
 	dev_hold(rth->dst.dev);
@@ -2401,7 +2404,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_mark    = oldflp4->flowi4_mark;
 	rth->rt_dst	= fl4->daddr;
 	rth->rt_src	= fl4->saddr;
-	rth->rt_iif	= 0;
+	rth->rt_route_iif = 0;
+	rth->rt_iif	= oldflp4->flowi4_oif ? : dev_out->ifindex;
 	/* get references to the devices that are to be hold by the routing
 	   cache entry */
 	rth->dst.dev	= dev_out;
@@ -2716,6 +2720,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_key_dst = ort->rt_key_dst;
 		rt->rt_key_src = ort->rt_key_src;
 		rt->rt_tos = ort->rt_tos;
+		rt->rt_route_iif = ort->rt_route_iif;
 		rt->rt_iif = ort->rt_iif;
 		rt->rt_oif = ort->rt_oif;
 		rt->rt_mark = ort->rt_mark;
@@ -2725,7 +2730,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_type = ort->rt_type;
 		rt->rt_dst = ort->rt_dst;
 		rt->rt_src = ort->rt_src;
-		rt->rt_iif = ort->rt_iif;
 		rt->rt_gateway = ort->rt_gateway;
 		rt->rt_spec_dst = ort->rt_spec_dst;
 		rt->peer = ort->peer;

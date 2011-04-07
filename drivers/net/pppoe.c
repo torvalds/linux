@@ -317,7 +317,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			lock_sock(sk);
 
 			if (po->pppoe_dev == dev &&
-			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
 				pppox_unbind_sock(sk);
 				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);

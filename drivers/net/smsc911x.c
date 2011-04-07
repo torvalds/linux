@@ -1818,6 +1818,7 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	SMSC_TRACE(pdata, probe, "PHY will be autodetected.");
 
 	spin_lock_init(&pdata->dev_lock);
+	spin_lock_init(&pdata->mac_lock);
 
 	if (pdata->ioaddr == 0) {
 		SMSC_WARN(pdata, probe, "pdata->ioaddr: 0x00000000");
@@ -1897,8 +1898,11 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	/* workaround for platforms without an eeprom, where the mac address
 	 * is stored elsewhere and set by the bootloader.  This saves the
 	 * mac address before resetting the device */
-	if (pdata->config.flags & SMSC911X_SAVE_MAC_ADDRESS)
+	if (pdata->config.flags & SMSC911X_SAVE_MAC_ADDRESS) {
+		spin_lock_irq(&pdata->mac_lock);
 		smsc911x_read_mac_address(dev);
+		spin_unlock_irq(&pdata->mac_lock);
+	}
 
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata))
@@ -2057,8 +2061,6 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		SMSC_TRACE(pdata, probe,
 			   "Network interface: \"%s\"", dev->name);
 	}
-
-	spin_lock_init(&pdata->mac_lock);
 
 	retval = smsc911x_mii_init(pdev, dev);
 	if (retval) {

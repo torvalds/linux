@@ -155,7 +155,7 @@ struct be_eq_obj {
 	u16 min_eqd;		/* in usecs */
 	u16 max_eqd;		/* in usecs */
 	u16 cur_eqd;		/* in usecs */
-	u8  msix_vec_idx;
+	u8  eq_idx;
 
 	struct napi_struct napi;
 };
@@ -292,7 +292,7 @@ struct be_adapter {
 	u32 num_rx_qs;
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
-	u8 msix_vec_next_idx;
+	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
 
 	struct vlan_group *vlan_grp;

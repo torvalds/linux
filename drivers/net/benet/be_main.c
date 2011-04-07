@@ -1509,7 +1509,7 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 	if (be_cmd_eq_create(adapter, eq, adapter->tx_eq.cur_eqd))
 		goto tx_eq_free;
 
-	adapter->tx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+	adapter->tx_eq.eq_idx = adapter->eq_next_idx++;
 
 
 	/* Alloc TX eth compl queue */
@@ -1621,7 +1621,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		if (rc)
 			goto err;
 
-		rxo->rx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+		rxo->rx_eq.eq_idx = adapter->eq_next_idx++;
 
 		/* CQ */
 		cq = &rxo->cq;
@@ -1697,11 +1697,11 @@ static irqreturn_t be_intx(int irq, void *dev)
 		if (!isr)
 			return IRQ_NONE;
 
-		if ((1 << adapter->tx_eq.msix_vec_idx & isr))
+		if ((1 << adapter->tx_eq.eq_idx & isr))
 			event_handle(adapter, &adapter->tx_eq);
 
 		for_all_rx_queues(adapter, rxo, i) {
-			if ((1 << rxo->rx_eq.msix_vec_idx & isr))
+			if ((1 << rxo->rx_eq.eq_idx & isr))
 				event_handle(adapter, &rxo->rx_eq);
 		}
 	}
@@ -1964,7 +1964,7 @@ static void be_sriov_disable(struct be_adapter *adapter)
 static inline int be_msix_vec_get(struct be_adapter *adapter,
 					struct be_eq_obj *eq_obj)
 {
-	return adapter->msix_entries[eq_obj->msix_vec_idx].vector;
+	return adapter->msix_entries[eq_obj->eq_idx].vector;
 }
 
 static int be_request_irq(struct be_adapter *adapter,
@@ -2356,6 +2356,7 @@ static int be_clear(struct be_adapter *adapter)
 	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
+	adapter->eq_next_idx = 0;
 
 	if (be_physfn(adapter) && adapter->sriov_enabled)
 		for (vf = 0; vf < num_vfs; vf++)
@@ -3152,11 +3153,13 @@ static int be_resume(struct pci_dev *pdev)
 static void be_shutdown(struct pci_dev *pdev)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
+
+	if (!adapter)
+		return;
 
 	cancel_delayed_work_sync(&adapter->work);
 
-	netif_device_detach(netdev);
+	netif_device_detach(adapter->netdev);
 
 	be_cmd_reset_function(adapter);
 
