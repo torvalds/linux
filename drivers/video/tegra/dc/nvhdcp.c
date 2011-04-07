@@ -354,6 +354,9 @@ static int get_ksvfifo(struct tegra_nvhdcp *nvhdcp,
 	if (!ksv_list || num_bksv_list > TEGRA_NVHDCP_MAX_DEVS)
 		return -EINVAL;
 
+	if (num_bksv_list == 0)
+		return 0;
+
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(buf))
 		return -ENOMEM;
