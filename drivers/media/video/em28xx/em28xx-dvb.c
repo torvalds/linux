@@ -59,7 +59,7 @@ if (debug >= level) 						\
 #define EM28XX_DVB_MAX_PACKETS 64
 
 struct em28xx_dvb {
-	struct dvb_frontend        *frontend;
+	struct dvb_frontend        *fe[2];
 
 	/* feed count management */
 	struct mutex               lock;
@@ -345,17 +345,17 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.i2c_adap  = &dev->i2c_adap;
 	cfg.i2c_addr  = addr;
 
-	if (!dev->dvb->frontend) {
+	if (!dev->dvb->fe[0]) {
 		em28xx_errdev("/2: dvb frontend not attached. "
 				"Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
-	fe = dvb_attach(xc2028_attach, dev->dvb->frontend, &cfg);
+	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
 		em28xx_errdev("/2: xc3028 attach failed\n");
-		dvb_frontend_detach(dev->dvb->frontend);
-		dev->dvb->frontend = NULL;
+		dvb_frontend_detach(dev->dvb->fe[0]);
+		dev->dvb->fe[0] = NULL;
 		return -EINVAL;
 	}
 
@@ -385,16 +385,28 @@ static int register_dvb(struct em28xx_dvb *dvb,
 	}
 
 	/* Ensure all frontends negotiate bus access */
-	dvb->frontend->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
+	dvb->fe[0]->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
+	if (dvb->fe[1])
+		dvb->fe[1]->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
 
 	dvb->adapter.priv = dev;
 
 	/* register frontend */
-	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+	result = dvb_register_frontend(&dvb->adapter, dvb->fe[0]);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
 		       dev->name, result);
-		goto fail_frontend;
+		goto fail_frontend0;
+	}
+
+	/* register 2nd frontend */
+	if (dvb->fe[1]) {
+		result = dvb_register_frontend(&dvb->adapter, dvb->fe[1]);
+		if (result < 0) {
+			printk(KERN_WARNING "%s: 2nd dvb_register_frontend failed (errno = %d)\n",
+				dev->name, result);
+			goto fail_frontend1;
+		}
 	}
 
 	/* register demux stuff */
@@ -460,9 +472,14 @@ fail_fe_hw:
 fail_dmxdev:
 	dvb_dmx_release(&dvb->demux);
 fail_dmx:
-	dvb_unregister_frontend(dvb->frontend);
-fail_frontend:
-	dvb_frontend_detach(dvb->frontend);
+	if (dvb->fe[1])
+		dvb_unregister_frontend(dvb->fe[1]);
+	dvb_unregister_frontend(dvb->fe[0]);
+fail_frontend1:
+	if (dvb->fe[1])
+		dvb_frontend_detach(dvb->fe[1]);
+fail_frontend0:
+	dvb_frontend_detach(dvb->fe[0]);
 	dvb_unregister_adapter(&dvb->adapter);
 fail_adapter:
 	return result;
@@ -475,11 +492,14 @@ static void unregister_dvb(struct em28xx_dvb *dvb)
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	dvb_dmxdev_release(&dvb->dmxdev);
 	dvb_dmx_release(&dvb->demux);
-	dvb_unregister_frontend(dvb->frontend);
-	dvb_frontend_detach(dvb->frontend);
+	if (dvb->fe[1])
+		dvb_unregister_frontend(dvb->fe[1]);
+	dvb_unregister_frontend(dvb->fe[0]);
+	if (dvb->fe[1])
+		dvb_frontend_detach(dvb->fe[1]);
+	dvb_frontend_detach(dvb->fe[0]);
 	dvb_unregister_adapter(&dvb->adapter);
 }
-
 
 static int dvb_init(struct em28xx *dev)
 {
@@ -499,16 +519,17 @@ static int dvb_init(struct em28xx *dev)
 		return -ENOMEM;
 	}
 	dev->dvb = dvb;
+	dvb->fe[0] = dvb->fe[1] = NULL;
 
 	mutex_lock(&dev->lock);
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
 	case EM2874_LEADERSHIP_ISDBT:
-		dvb->frontend = dvb_attach(s921_attach,
+		dvb->fe[0] = dvb_attach(s921_attach,
 				&sharp_isdbt, &dev->i2c_adap);
 
-		if (!dvb->frontend) {
+		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -518,7 +539,7 @@ static int dvb_init(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-		dvb->frontend = dvb_attach(lgdt330x_attach,
+		dvb->fe[0] = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
@@ -527,7 +548,7 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_KWORLD_DVB_310U:
-		dvb->frontend = dvb_attach(zl10353_attach,
+		dvb->fe[0] = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_with_xc3028,
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
@@ -538,7 +559,7 @@ static int dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
-		dvb->frontend = dvb_attach(zl10353_attach,
+		dvb->fe[0] = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_xc3028_no_i2c_gate,
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
@@ -551,13 +572,13 @@ static int dvb_init(struct em28xx *dev)
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
 	case EM2882_BOARD_DIKOM_DK300:
 	case EM2882_BOARD_KWORLD_VS_DVBT:
-		dvb->frontend = dvb_attach(zl10353_attach,
+		dvb->fe[0] = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_xc3028_no_i2c_gate,
 					   &dev->i2c_adap);
-		if (dvb->frontend == NULL) {
+		if (dvb->fe[0] == NULL) {
 			/* This board could have either a zl10353 or a mt352.
 			   If the chip id isn't for zl10353, try mt352 */
-			dvb->frontend = dvb_attach(mt352_attach,
+			dvb->fe[0] = dvb_attach(mt352_attach,
 						   &terratec_xs_mt352_cfg,
 						   &dev->i2c_adap);
 		}
@@ -569,7 +590,7 @@ static int dvb_init(struct em28xx *dev)
 		break;
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
 	case EM2882_BOARD_EVGA_INDTUBE:
-		dvb->frontend = dvb_attach(s5h1409_attach,
+		dvb->fe[0] = dvb_attach(s5h1409_attach,
 					   &em28xx_s5h1409_with_xc3028,
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
@@ -578,11 +599,11 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2882_BOARD_KWORLD_ATSC_315U:
-		dvb->frontend = dvb_attach(lgdt330x_attach,
+		dvb->fe[0] = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
-		if (dvb->frontend != NULL) {
-			if (!dvb_attach(simple_tuner_attach, dvb->frontend,
+		if (dvb->fe[0] != NULL) {
+			if (!dvb_attach(simple_tuner_attach, dvb->fe[0],
 				&dev->i2c_adap, 0x61, TUNER_THOMSON_DTT761X)) {
 				result = -EINVAL;
 				goto out_free;
@@ -591,7 +612,7 @@ static int dvb_init(struct em28xx *dev)
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
-		dvb->frontend = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
+		dvb->fe[0] = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
 					   &dev->i2c_adap, &dev->udev->dev);
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
@@ -600,11 +621,11 @@ static int dvb_init(struct em28xx *dev)
 		break;
 	case EM2870_BOARD_REDDO_DVB_C_USB_BOX:
 		/* Philips CU1216L NIM (Philips TDA10023 + Infineon TUA6034) */
-		dvb->frontend = dvb_attach(tda10023_attach,
+		dvb->fe[0] = dvb_attach(tda10023_attach,
 			&em28xx_tda10023_config,
 			&dev->i2c_adap, 0x48);
-		if (dvb->frontend) {
-			if (!dvb_attach(simple_tuner_attach, dvb->frontend,
+		if (dvb->fe[0]) {
+			if (!dvb_attach(simple_tuner_attach, dvb->fe[0],
 				&dev->i2c_adap, 0x60, TUNER_PHILIPS_CU1216L)) {
 				result = -EINVAL;
 				goto out_free;
@@ -612,11 +633,11 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2870_BOARD_KWORLD_A340:
-		dvb->frontend = dvb_attach(lgdt3305_attach,
+		dvb->fe[0] = dvb_attach(lgdt3305_attach,
 					   &em2870_lgdt3304_dev,
 					   &dev->i2c_adap);
-		if (dvb->frontend != NULL)
-			dvb_attach(tda18271_attach, dvb->frontend, 0x60,
+		if (dvb->fe[0] != NULL)
+			dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
 				   &dev->i2c_adap, &kworld_a340_config);
 		break;
 	default:
@@ -624,13 +645,13 @@ static int dvb_init(struct em28xx *dev)
 				" isn't supported yet\n");
 		break;
 	}
-	if (NULL == dvb->frontend) {
+	if (NULL == dvb->fe[0]) {
 		em28xx_errdev("/2: frontend initialization failed\n");
 		result = -EINVAL;
 		goto out_free;
 	}
 	/* define general-purpose callback pointer */
-	dvb->frontend->callback = em28xx_tuner_callback;
+	dvb->fe[0]->callback = em28xx_tuner_callback;
 
 	/* register everything */
 	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
