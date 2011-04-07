@@ -539,6 +539,40 @@ static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
 	return iommu_queue_command(iommu, &cmd);
 }
 
+static void iommu_flush_dte_all(struct amd_iommu *iommu)
+{
+	u32 devid;
+
+	for (devid = 0; devid <= 0xffff; ++devid)
+		iommu_flush_dte(iommu, devid);
+
+	iommu_completion_wait(iommu);
+}
+
+/*
+ * This function uses heavy locking and may disable irqs for some time. But
+ * this is no issue because it is only called during resume.
+ */
+static void iommu_flush_tlb_all(struct amd_iommu *iommu)
+{
+	u32 dom_id;
+
+	for (dom_id = 0; dom_id <= 0xffff; ++dom_id) {
+		struct iommu_cmd cmd;
+		build_inv_iommu_pages(&cmd, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
+				      dom_id, 1);
+		iommu_queue_command(iommu, &cmd);
+	}
+
+	iommu_completion_wait(iommu);
+}
+
+void iommu_flush_all_caches(struct amd_iommu *iommu)
+{
+	iommu_flush_dte_all(iommu);
+	iommu_flush_tlb_all(iommu);
+}
+
 /*
  * Command send function for invalidating a device table entry
  */
@@ -629,47 +663,6 @@ static void domain_flush_devices(struct protection_domain *domain)
 		device_flush_dte(dev_data->dev);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
-}
-
-static void iommu_flush_all_domain_devices(void)
-{
-	struct protection_domain *domain;
-	unsigned long flags;
-
-	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
-
-	list_for_each_entry(domain, &amd_iommu_pd_list, list) {
-		domain_flush_devices(domain);
-		domain_flush_complete(domain);
-	}
-
-	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
-}
-
-void amd_iommu_flush_all_devices(void)
-{
-	iommu_flush_all_domain_devices();
-}
-
-/*
- * This function uses heavy locking and may disable irqs for some time. But
- * this is no issue because it is only called during resume.
- */
-void amd_iommu_flush_all_domains(void)
-{
-	struct protection_domain *domain;
-	unsigned long flags;
-
-	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
-
-	list_for_each_entry(domain, &amd_iommu_pd_list, list) {
-		spin_lock(&domain->lock);
-		domain_flush_tlb_pde(domain);
-		domain_flush_complete(domain);
-		spin_unlock(&domain->lock);
-	}
-
-	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
 }
 
 /****************************************************************************

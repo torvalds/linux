@@ -180,6 +180,12 @@ static u32 dev_table_size;	/* size of the device table */
 static u32 alias_table_size;	/* size of the alias table */
 static u32 rlookup_table_size;	/* size if the rlookup table */
 
+/*
+ * This function flushes all internal caches of
+ * the IOMMU used by this driver.
+ */
+extern void iommu_flush_all_caches(struct amd_iommu *iommu);
+
 static inline void update_last_devid(u16 devid)
 {
 	if (devid > amd_iommu_last_bdf)
@@ -1244,6 +1250,7 @@ static void enable_iommus(void)
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
 		iommu_enable(iommu);
+		iommu_flush_all_caches(iommu);
 	}
 }
 
@@ -1274,8 +1281,8 @@ static void amd_iommu_resume(void)
 	 * we have to flush after the IOMMUs are enabled because a
 	 * disabled IOMMU will never execute the commands we send
 	 */
-	amd_iommu_flush_all_devices();
-	amd_iommu_flush_all_domains();
+	for_each_iommu(iommu)
+		iommu_flush_all_caches(iommu);
 }
 
 static int amd_iommu_suspend(void)
