@@ -762,6 +762,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->hw.wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MESH_POINT);
 #endif
 
+	/* if the underlying driver supports mesh, mac80211 will (at least)
+	 * provide routing of mesh authentication frames to userspace */
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
+		local->hw.wiphy->flags |= WIPHY_FLAG_MESH_AUTH;
+
 	/* mac80211 supports control port protocol changing */
 	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
 

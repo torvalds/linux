@@ -237,8 +237,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data *sdata,
-			   bool peer_accepting_plinks)
+void mesh_neighbour_update(u8 *hw_addr, u32 rates,
+		struct ieee80211_sub_if_data *sdata,
+		struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
@@ -248,8 +249,14 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data 
 	sta = sta_info_get(sdata, hw_addr);
 	if (!sta) {
 		rcu_read_unlock();
-
-		sta = mesh_plink_alloc(sdata, hw_addr, rates);
+		/* Userspace handles peer allocation when security is enabled
+		 * */
+		if (sdata->u.mesh.is_secure)
+			cfg80211_notify_new_peer_candidate(sdata->dev, hw_addr,
+					elems->ie_start, elems->total_len,
+					GFP_KERNEL);
+		else
+			sta = mesh_plink_alloc(sdata, hw_addr, rates);
 		if (!sta)
 			return;
 		if (sta_info_insert_rcu(sta)) {
@@ -260,7 +267,8 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data 
 
 	sta->last_rx = jiffies;
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
-	if (peer_accepting_plinks && sta->plink_state == PLINK_LISTEN &&
+	if (mesh_peer_accepts_plinks(elems) &&
+			sta->plink_state == PLINK_LISTEN &&
 			sdata->u.mesh.accepting_plinks &&
 			sdata->u.mesh.mshcfg.auto_open_plinks)
 		mesh_plink_open(sta);
