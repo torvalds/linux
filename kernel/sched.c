@@ -6816,6 +6816,11 @@ static const struct cpumask *cpu_node_mask(int cpu)
 
 	return sched_domains_tmpmask;
 }
+
+static const struct cpumask *cpu_allnodes_mask(int cpu)
+{
+	return cpu_possible_mask;
+}
 #endif /* CONFIG_NUMA */
 
 static const struct cpumask *cpu_cpu_mask(int cpu)
@@ -6843,14 +6848,12 @@ enum s_alloc {
 	sa_none,
 };
 
-typedef struct sched_domain *(*sched_domain_build_f)(struct s_data *d,
-		const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-		struct sched_domain *parent, int cpu);
-
+typedef struct sched_domain *(*sched_domain_init_f)(struct s_data *d, int cpu);
 typedef const struct cpumask *(*sched_domain_mask_f)(int cpu);
 
 struct sched_domain_topology_level {
-	sched_domain_build_f build;
+	sched_domain_init_f init;
+	sched_domain_mask_f mask;
 };
 
 /*
@@ -7104,108 +7107,50 @@ static void claim_allocations(int cpu, struct sched_domain *sd)
 	}
 }
 
-static struct sched_domain *__build_allnodes_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd = NULL;
-#ifdef CONFIG_NUMA
-	sd = sd_init_ALLNODES(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, cpu_possible_mask);
-	sd->parent = parent;
-	if (parent)
-		parent->child = sd;
-#endif
-	return sd;
-}
-
-static struct sched_domain *__build_node_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd = NULL;
-#ifdef CONFIG_NUMA
-	sd = sd_init_NODE(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, cpu_node_mask(i));
-	sd->parent = parent;
-	if (parent)
-		parent->child = sd;
-#endif
-	return sd;
-}
-
-static struct sched_domain *__build_cpu_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd;
-	sd = sd_init_CPU(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, cpu_cpu_mask(i));
-	sd->parent = parent;
-	if (parent)
-		parent->child = sd;
-	return sd;
-}
-
-static struct sched_domain *__build_book_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd = parent;
-#ifdef CONFIG_SCHED_BOOK
-	sd = sd_init_BOOK(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, cpu_book_mask(i));
-	sd->parent = parent;
-	parent->child = sd;
-#endif
-	return sd;
-}
-
-static struct sched_domain *__build_mc_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd = parent;
-#ifdef CONFIG_SCHED_MC
-	sd = sd_init_MC(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, cpu_coregroup_mask(i));
-	sd->parent = parent;
-	parent->child = sd;
-#endif
-	return sd;
-}
-
-static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
-	struct sched_domain *parent, int i)
-{
-	struct sched_domain *sd = parent;
 #ifdef CONFIG_SCHED_SMT
-	sd = sd_init_SIBLING(d, i);
-	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd), cpu_map, topology_thread_cpumask(i));
-	sd->parent = parent;
-	parent->child = sd;
-#endif
-	return sd;
+static const struct cpumask *cpu_smt_mask(int cpu)
+{
+	return topology_thread_cpumask(cpu);
 }
+#endif
 
 static struct sched_domain_topology_level default_topology[] = {
-	{ __build_allnodes_sched_domain, },
-	{ __build_node_sched_domain, },
-	{ __build_cpu_sched_domain, },
-	{ __build_book_sched_domain, },
-	{ __build_mc_sched_domain, },
-	{ __build_smt_sched_domain, },
+#ifdef CONFIG_NUMA
+	{ sd_init_ALLNODES, cpu_allnodes_mask, },
+	{ sd_init_NODE, cpu_node_mask, },
+#endif
+	{ sd_init_CPU, cpu_cpu_mask, },
+#ifdef CONFIG_SCHED_BOOK
+	{ sd_init_BOOK, cpu_book_mask, },
+#endif
+#ifdef CONFIG_SCHED_MC
+	{ sd_init_MC, cpu_coregroup_mask, },
+#endif
+#ifdef CONFIG_SCHED_SMT
+	{ sd_init_SIBLING, cpu_smt_mask, },
+#endif
 	{ NULL, },
 };
 
 static struct sched_domain_topology_level *sched_domain_topology = default_topology;
+
+struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
+		struct s_data *d, const struct cpumask *cpu_map,
+		struct sched_domain_attr *attr, struct sched_domain *parent,
+		int cpu)
+{
+	struct sched_domain *sd = tl->init(d, cpu);
+	if (!sd)
+		return parent;
+
+	set_domain_attribute(sd, attr);
+	cpumask_and(sched_domain_span(sd), cpu_map, tl->mask(cpu));
+	sd->parent = parent;
+	if (parent)
+		parent->child = sd;
+
+	return sd;
+}
 
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
@@ -7228,8 +7173,8 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		struct sched_domain_topology_level *tl;
 
 		sd = NULL;
-		for (tl = sched_domain_topology; tl->build; tl++)
-			sd = tl->build(&d, cpu_map, attr, sd, i);
+		for (tl = sched_domain_topology; tl->init; tl++)
+			sd = build_sched_domain(tl, &d, cpu_map, attr, sd, i);
 
 		*per_cpu_ptr(d.sd, i) = sd;
 	}
