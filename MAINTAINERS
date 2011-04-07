@@ -1994,7 +1994,7 @@ M:	Divy Le Ray <divy@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb3/
+F:	drivers/net/ethernet/chelsio/cxgb3/
 
 CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
 M:	Steve Wise <swise@chelsio.com>
@@ -2008,7 +2008,7 @@ M:	Dimitris Michailidis <dm@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb4/
+F:	drivers/net/ethernet/chelsio/cxgb4/
 
 CXGB4 IWARP RNIC DRIVER (IW_CXGB4)
 M:	Steve Wise <swise@chelsio.com>
@@ -2022,7 +2022,7 @@ M:	Casey Leedom <leedom@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
-F:	drivers/net/cxgb4vf/
+F:	drivers/net/ethernet/chelsio/cxgb4vf/
 
 STMMAC ETHERNET DRIVER
 M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
