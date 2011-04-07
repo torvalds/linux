@@ -1102,13 +1102,16 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	}
 
 	/* cccc 0000 xxxx xxxx xxxx xxxx xxxx 1001 xxxx */
-	else if ((insn & 0x0f000090) == 0x00000090) {
+	else if ((insn & 0x0f0000f0) == 0x00000090) {
 
 		/* MUL    : cccc 0000 0000 xxxx xxxx xxxx 1001 xxxx :   */
 		/* MULS   : cccc 0000 0001 xxxx xxxx xxxx 1001 xxxx :cc */
 		/* MLA    : cccc 0000 0010 xxxx xxxx xxxx 1001 xxxx :   */
 		/* MLAS   : cccc 0000 0011 xxxx xxxx xxxx 1001 xxxx :cc */
 		/* UMAAL  : cccc 0000 0100 xxxx xxxx xxxx 1001 xxxx :   */
+		/* undef  : cccc 0000 0101 xxxx xxxx xxxx 1001 xxxx :   */
+		/* MLS    : cccc 0000 0110 xxxx xxxx xxxx 1001 xxxx :   */
+		/* undef  : cccc 0000 0111 xxxx xxxx xxxx 1001 xxxx :   */
 		/* UMULL  : cccc 0000 1000 xxxx xxxx xxxx 1001 xxxx :   */
 		/* UMULLS : cccc 0000 1001 xxxx xxxx xxxx 1001 xxxx :cc */
 		/* UMLAL  : cccc 0000 1010 xxxx xxxx xxxx 1001 xxxx :   */
@@ -1117,9 +1120,11 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 		/* SMULLS : cccc 0000 1101 xxxx xxxx xxxx 1001 xxxx :cc */
 		/* SMLAL  : cccc 0000 1110 xxxx xxxx xxxx 1001 xxxx :   */
 		/* SMLALS : cccc 0000 1111 xxxx xxxx xxxx 1001 xxxx :cc */
-		if ((insn & 0x0fe000f0) == 0x00000090) {
+		if ((insn & 0x00d00000) == 0x00500000) {
+			return INSN_REJECTED;
+		} else if ((insn & 0x00e00000) == 0x00000000) {
 		       return prep_emulate_rd16rs8rm0_wflags(insn, asi);
-		} else if  ((insn & 0x0fe000f0) == 0x00200090) {
+		} else if ((insn & 0x00a00000) == 0x00200000) {
 		       return prep_emulate_rd16rn12rs8rm0_wflags(insn, asi);
 		} else {
 		       return prep_emulate_rdhi16rdlo12rs8rm0_wflags(insn, asi);
