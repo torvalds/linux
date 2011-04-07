@@ -39,6 +39,7 @@
 #include "link.h"
 #include "port.h"
 #include "bcast.h"
+#include "name_distr.h"
 
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */
 
@@ -445,6 +446,8 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 		goto unlock;
 
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL)) {
+		if (msg_type(msg) != STATE_MSG)
+			goto unlock;
 		if (msg_destnode(msg) == tipc_own_addr) {
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));
 			tipc_node_unlock(node);
@@ -480,7 +483,10 @@ receive:
 		}
 		if (likely(msg_isdata(msg))) {
 			tipc_node_unlock(node);
-			tipc_port_recv_mcast(buf, NULL);
+			if (likely(msg_mcast(msg)))
+				tipc_port_recv_mcast(buf, NULL);
+			else
+				buf_discard(buf);
 		} else if (msg_user(msg) == MSG_BUNDLER) {
 			bcl->stats.recv_bundles++;
 			bcl->stats.recv_bundled += msg_msgcnt(msg);
@@ -493,9 +499,12 @@ receive:
 				bcl->stats.recv_fragmented++;
 			tipc_node_unlock(node);
 			tipc_net_route_msg(buf);
+		} else if (msg_user(msg) == NAME_DISTRIBUTOR) {
+			tipc_node_unlock(node);
+			tipc_named_recv(buf);
 		} else {
 			tipc_node_unlock(node);
-			tipc_net_route_msg(buf);
+			buf_discard(buf);
 		}
 		buf = NULL;
 		tipc_node_lock(node);
