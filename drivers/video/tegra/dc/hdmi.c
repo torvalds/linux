@@ -1128,8 +1128,7 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
-	if (!hdmi->dvi)
-		tegra_nvhdcp_set_plug(hdmi->nvhdcp, 1);
+	tegra_nvhdcp_set_plug(hdmi->nvhdcp, 1);
 }
 
 static void tegra_dc_hdmi_disable(struct tegra_dc *dc)
