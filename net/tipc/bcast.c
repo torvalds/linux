@@ -535,10 +535,11 @@ u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
 /**
  * tipc_bcbearer_send - send a packet through the broadcast pseudo-bearer
  *
- * Send through as many bearers as necessary to reach all nodes
- * that support TIPC multicasting.
+ * Send packet over as many bearers as necessary to reach all nodes
+ * that have joined the broadcast link.
  *
- * Returns 0 if packet sent successfully, non-zero if not
+ * Returns 0 (packet sent successfully) under all circumstances,
+ * since the broadcast link's pseudo-bearer never blocks
  */
 
 static int tipc_bcbearer_send(struct sk_buff *buf,
@@ -547,7 +548,12 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 {
 	int bp_index;
 
-	/* Prepare buffer for broadcasting (if first time trying to send it) */
+	/*
+	 * Prepare broadcast link message for reliable transmission,
+	 * if first time trying to send it;
+	 * preparation is skipped for broadcast link protocol messages
+	 * since they are sent in an unreliable manner and don't need it
+	 */
 
 	if (likely(!msg_non_seq(buf_msg(buf)))) {
 		struct tipc_msg *msg;
@@ -596,18 +602,12 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		}
 
 		if (bcbearer->remains_new.count == 0)
-			return 0;
+			break;	/* all targets reached */
 
 		bcbearer->remains = bcbearer->remains_new;
 	}
 
-	/*
-	 * Unable to reach all targets (indicate success, since currently
-	 * there isn't code in place to properly block & unblock the
-	 * pseudo-bearer used by the broadcast link)
-	 */
-
-	return TIPC_OK;
+	return 0;
 }
 
 /**
