@@ -6,6 +6,7 @@
  *
  * Copyright (c) 2009 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
  * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2011 Analog Devices Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -93,7 +94,6 @@ static int adis16400_spi_write_reg_16(struct device *dev,
 			.tx_buf = st->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 1,
 		},
 	};
 
@@ -137,7 +137,6 @@ static int adis16400_spi_read_reg_16(struct device *dev,
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 1,
 		},
 	};
 
@@ -375,7 +374,7 @@ static int adis16400_self_test(struct device *dev)
 		dev_err(dev, "problem starting self test");
 		goto err_ret;
 	}
-
+	msleep(ADIS16400_MTEST_DELAY);
 	adis16400_check_status(dev);
 
 err_ret:
@@ -471,10 +470,11 @@ static int adis16400_initial_setup(struct adis16400_state *st)
 	if (ret)
 		goto err_ret;
 
-	if (prod_id != ADIS16400_PRODUCT_ID_DEFAULT)
+	if ((prod_id & 0xF000) != ADIS16400_PRODUCT_ID_DEFAULT)
 		dev_warn(dev, "unknown product id");
 
-	printk(KERN_INFO DRIVER_NAME ": prod_id 0x%04x at CS%d (irq %d)\n",
+
+	dev_info(dev, ": prod_id 0x%04x at CS%d (irq %d)\n",
 			prod_id, st->us->chip_select, st->us->irq);
 
 	/* use high spi speed if possible */
@@ -497,12 +497,12 @@ err_ret:
 			_reg)
 
 static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_X, ADIS16400_XGYRO_OFF);
-static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Y, ADIS16400_XGYRO_OFF);
-static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Z, ADIS16400_XGYRO_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Y, ADIS16400_YGYRO_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Z, ADIS16400_ZGYRO_OFF);
 
 static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_X, ADIS16400_XACCL_OFF);
-static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Y, ADIS16400_XACCL_OFF);
-static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Z, ADIS16400_XACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Y, ADIS16400_YACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Z, ADIS16400_ZACCL_OFF);
 
 
 static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16400_read_14bit_signed,
@@ -647,7 +647,7 @@ static int __devinit adis16400_probe(struct spi_device *spi)
 
 	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
 	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
+		dev_err(&spi->dev, "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
 	}
 

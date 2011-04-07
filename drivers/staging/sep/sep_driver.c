@@ -55,8 +55,6 @@
 #include <linux/jiffies.h>
 #include <linux/rar_register.h>
 
-#include "../memrar/memrar.h"
-
 #include "sep_driver_hw_defs.h"
 #include "sep_driver_config.h"
 #include "sep_driver_api.h"
@@ -2372,7 +2370,6 @@ static int sep_rar_prepare_output_msg_handler(struct sep_device *sep,
 	int error = 0;
 	/* Command args */
 	struct rar_hndl_to_bus_struct command_args;
-	struct RAR_buffer rar_buf;
 	/* Bus address */
 	dma_addr_t  rar_bus = 0;
 	/* Holds the RAR address in the system memory offset */
@@ -2386,16 +2383,8 @@ static int sep_rar_prepare_output_msg_handler(struct sep_device *sep,
 	}
 
 	/* Call to translation function only if user handle is not NULL */
-	if (command_args.rar_handle) {
-		memset(&rar_buf, 0, sizeof(rar_buf));
-		rar_buf.info.handle = (u32)command_args.rar_handle;
-
-		if (rar_handle_to_bus(&rar_buf, 1) != 1) {
-			error = -EFAULT;
-			goto end_function;
-		}
-		rar_bus = rar_buf.bus_address;
-	}
+	if (command_args.rar_handle)
+		return -EOPNOTSUPP;
 	dev_dbg(&sep->pdev->dev, "rar msg; rar_addr_bus = %x\n", (u32)rar_bus);
 
 	/* Set value in the SYSTEM MEMORY offset */
