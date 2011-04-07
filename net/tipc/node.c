@@ -331,28 +331,32 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	char addr_string[16];
 	u32 i;
 
-	/* Clean up broadcast reception remains */
-	n_ptr->bclink.gap_after = n_ptr->bclink.gap_to = 0;
-	while (n_ptr->bclink.deferred_head) {
-		struct sk_buff *buf = n_ptr->bclink.deferred_head;
-		n_ptr->bclink.deferred_head = buf->next;
-		buf_discard(buf);
-	}
-	if (n_ptr->bclink.defragm) {
-		buf_discard(n_ptr->bclink.defragm);
-		n_ptr->bclink.defragm = NULL;
-	}
+	info("Lost contact with %s\n",
+	     tipc_addr_string_fill(addr_string, n_ptr->addr));
+
+	/* Flush broadcast link info associated with lost node */
 
 	if (n_ptr->bclink.supported) {
+		n_ptr->bclink.gap_after = n_ptr->bclink.gap_to = 0;
+		while (n_ptr->bclink.deferred_head) {
+			struct sk_buff *buf = n_ptr->bclink.deferred_head;
+			n_ptr->bclink.deferred_head = buf->next;
+			buf_discard(buf);
+		}
+
+		if (n_ptr->bclink.defragm) {
+			buf_discard(n_ptr->bclink.defragm);
+			n_ptr->bclink.defragm = NULL;
+		}
+
 		tipc_bclink_acknowledge(n_ptr,
 					mod(n_ptr->bclink.acked + 10000));
 		tipc_nmap_remove(&tipc_bcast_nmap, n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag--;
-	}
 
-	info("Lost contact with %s\n",
-	     tipc_addr_string_fill(addr_string, n_ptr->addr));
+		n_ptr->bclink.supported = 0;
+	}
 
 	/* Abort link changeover */
 	for (i = 0; i < MAX_BEARERS; i++) {
