@@ -311,6 +311,9 @@ struct <link linkend="v4l2-pix-format">v4l2_pix_format</link> {
 #define <link linkend="V4L2-PIX-FMT-Y10">V4L2_PIX_FMT_Y10</link>     v4l2_fourcc('Y', '1', '0', ' ') /* 10  Greyscale     */
 #define <link linkend="V4L2-PIX-FMT-Y16">V4L2_PIX_FMT_Y16</link>     v4l2_fourcc('Y', '1', '6', ' ') /* 16  Greyscale     */
 
+/* Grey bit-packed formats */
+#define <link linkend="V4L2-PIX-FMT-Y10BPACK">V4L2_PIX_FMT_Y10BPACK</link>    v4l2_fourcc('Y', '1', '0', 'B') /* 10  Greyscale bit-packed */
+
 /* Palette formats */
 #define <link linkend="V4L2-PIX-FMT-PAL8">V4L2_PIX_FMT_PAL8</link>    v4l2_fourcc('P', 'A', 'L', '8') /*  8  8-bit palette */
 
