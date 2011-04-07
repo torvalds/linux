@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -556,6 +557,43 @@ static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.reg_cache_default = ssm2602_reg,
 };
 
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit ssm2602_spi_probe(struct spi_device *spi)
+{
+	struct ssm2602_priv *ssm2602;
+	int ret;
+
+	ssm2602 = kzalloc(sizeof(struct ssm2602_priv), GFP_KERNEL);
+	if (ssm2602 == NULL)
+		return -ENOMEM;
+
+	spi_set_drvdata(spi, ssm2602);
+	ssm2602->control_type = SND_SOC_SPI;
+
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
+	if (ret < 0)
+		kfree(ssm2602);
+	return ret;
+}
+
+static int __devexit ssm2602_spi_remove(struct spi_device *spi)
+{
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
+	return 0;
+}
+
+static struct spi_driver ssm2602_spi_driver = {
+	.driver = {
+		.name	= "ssm2602",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ssm2602_spi_probe,
+	.remove		= __devexit_p(ssm2602_spi_remove),
+};
+#endif
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
  * ssm2602 2 wire address is determined by GPIO5
@@ -612,19 +650,29 @@ static struct i2c_driver ssm2602_i2c_driver = {
 static int __init ssm2602_modinit(void)
 {
 	int ret = 0;
+
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&ssm2602_spi_driver);
+	if (ret)
+		return ret;
+#endif
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&ssm2602_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register SSM2602 I2C driver: %d\n",
-		       ret);
-	}
+	if (ret)
+		return ret;
 #endif
+
 	return ret;
 }
 module_init(ssm2602_modinit);
 
 static void __exit ssm2602_exit(void)
 {
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&ssm2602_spi_driver);
+#endif
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&ssm2602_i2c_driver);
 #endif
