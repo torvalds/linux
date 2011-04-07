@@ -75,7 +75,6 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 		*sc->rx.rxlink = bf->bf_daddr;
 
 	sc->rx.rxlink = &ds->ds_link;
-	ath9k_hw_rxena(ah);
 }
 
 static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
@@ -1765,6 +1764,7 @@ requeue:
 		} else {
 			list_move_tail(&bf->list, &sc->rx.rxbuf);
 			ath_rx_buf_link(sc, bf);
+			ath9k_hw_rxena(ah);
 		}
 	} while (1);
 
