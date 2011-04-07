@@ -1280,6 +1280,39 @@ static int simple_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+static void nvhdmi_8ch_7x_set_info_frame_parameters(struct hda_codec *codec,
+						    int channels)
+{
+	unsigned int chanmask;
+	int chan = channels ? (channels - 1) : 1;
+
+	switch (channels) {
+	default:
+	case 0:
+	case 2:
+		chanmask = 0x00;
+		break;
+	case 4:
+		chanmask = 0x08;
+		break;
+	case 6:
+		chanmask = 0x0b;
+		break;
+	case 8:
+		chanmask = 0x13;
+		break;
+	}
+
+	/* Set the audio infoframe channel allocation and checksum fields.  The
+	 * channel count is computed implicitly by the hardware. */
+	snd_hda_codec_write(codec, 0x1, 0,
+			Nv_VERB_SET_Channel_Allocation, chanmask);
+
+	snd_hda_codec_write(codec, 0x1, 0,
+			Nv_VERB_SET_Info_Frame_Checksum,
+			(0x71 - chan - chanmask));
+}
+
 static int nvhdmi_8ch_7x_pcm_close(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   struct snd_pcm_substream *substream)
@@ -1298,6 +1331,10 @@ static int nvhdmi_8ch_7x_pcm_close(struct hda_pcm_stream *hinfo,
 				AC_VERB_SET_STREAM_FORMAT, 0);
 	}
 
+	/* The audio hardware sends a channel count of 0x7 (8ch) when all the
+	 * streams are disabled. */
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, 8);
+
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
@@ -1308,36 +1345,15 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 				     struct snd_pcm_substream *substream)
 {
 	int chs;
-	unsigned int dataDCC1, dataDCC2, chan, chanmask, channel_id;
+	unsigned int dataDCC1, dataDCC2, channel_id;
 	int i;
 
 	mutex_lock(&codec->spdif_mutex);
 
 	chs = substream->runtime->channels;
-	chan = chs ? (chs - 1) : 1;
 
-	switch (chs) {
-	default:
-	case 0:
-	case 2:
-		chanmask = 0x00;
-		break;
-	case 4:
-		chanmask = 0x08;
-		break;
-	case 6:
-		chanmask = 0x0b;
-		break;
-	case 8:
-		chanmask = 0x13;
-		break;
-	}
 	dataDCC1 = AC_DIG1_ENABLE | AC_DIG1_COPYRIGHT;
 	dataDCC2 = 0x2;
-
-	/* set the Audio InforFrame Channel Allocation */
-	snd_hda_codec_write(codec, 0x1, 0,
-			Nv_VERB_SET_Channel_Allocation, chanmask);
 
 	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
 	if (codec->spdif_status_reset && (codec->spdif_ctls & AC_DIG1_ENABLE))
@@ -1413,10 +1429,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 		}
 	}
 
-	/* set the Audio Info Frame Checksum */
-	snd_hda_codec_write(codec, 0x1, 0,
-			Nv_VERB_SET_Info_Frame_Checksum,
-			(0x71 - chan - chanmask));
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, chs);
 
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
@@ -1512,6 +1525,11 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	spec->multiout.max_channels = 8;
 	spec->pcm_playback = &nvhdmi_pcm_playback_8ch_7x;
 	codec->patch_ops = nvhdmi_patch_ops_8ch_7x;
+
+	/* Initialize the audio infoframe channel mask and checksum to something
+	 * valid */
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, 8);
+
 	return 0;
 }
 
