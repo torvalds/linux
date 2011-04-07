@@ -2860,7 +2860,6 @@ static struct rate_control_ops rs_4965_ops = {
 
 int iwl4965_rate_control_register(void)
 {
-	pr_err("Registering 4965 rate control operations\n");
 	return ieee80211_rate_control_register(&rs_4965_ops);
 }
 
