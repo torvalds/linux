@@ -199,7 +199,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	} else if (show_unhandled_signals &&
 		    unhandled_signal(current, signr) &&
 		    printk_ratelimit()) {
-			printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+			printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				current->comm, current->pid, signr,
 				addr, regs->nip, regs->link, code);
 		}
