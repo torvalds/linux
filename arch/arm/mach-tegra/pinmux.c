@@ -459,8 +459,22 @@ static int tegra_drive_pinmux_set_pull_up(enum tegra_drive_pingroup pg,
 	spin_lock_irqsave(&mux_lock, flags);
 
 	reg = pg_readl(drive_pingroups[pg].reg);
-	reg &= ~(0x1f << 12);
-	reg |= pull_up << 12;
+
+	/*
+	 * 12 is the wrong offset for pull_up drive strength.  This is
+	 * a hack for stingray to only use the correct offset for the
+	 * DDC lines to avoid changing drive strengths across the board
+	 * before cutting a release kernel.  This should be updated to
+	 * use the correct offset on the release is cut.
+	 */
+
+	if (pg == TEGRA_DRIVE_PINGROUP_DDC) {
+		reg &= ~(0x1f << 20);
+		reg |= pull_up << 20;
+	} else {
+		reg &= ~(0x1f << 12);
+		reg |= pull_up << 12;
+	}
 	pg_writel(reg, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
