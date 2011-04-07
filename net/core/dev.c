@@ -3130,6 +3130,12 @@ another_round:
 
 	__this_cpu_inc(softnet_data.processed);
 
+	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			goto out;
+	}
+
 #ifdef CONFIG_NET_CLS_ACT
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
@@ -3177,7 +3183,7 @@ ncls:
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		if (vlan_hwaccel_do_receive(&skb)) {
+		if (vlan_do_receive(&skb)) {
 			ret = __netif_receive_skb(skb);
 			goto out;
 		} else if (unlikely(!skb))
