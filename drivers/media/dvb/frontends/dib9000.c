@@ -2255,8 +2255,10 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 	if (st == NULL)
 		return NULL;
 	fe = kzalloc(sizeof(struct dvb_frontend), GFP_KERNEL);
-	if (fe == NULL)
+	if (fe == NULL) {
+		kfree(st);
 		return NULL;
+	}
 
 	memcpy(&st->chip.d9.cfg, cfg, sizeof(struct dib9000_config));
 	st->i2c.i2c_adap = i2c_adap;
