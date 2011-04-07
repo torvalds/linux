@@ -251,56 +251,6 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 		*(data++) = ((u64 *)&vstats->rx)[enic_rx_stats[i].offset];
 }
 
-static u32 enic_get_rx_csum(struct net_device *netdev)
-{
-	struct enic *enic = netdev_priv(netdev);
-	return enic->csum_rx_enabled;
-}
-
-static int enic_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct enic *enic = netdev_priv(netdev);
-
-	if (data && !ENIC_SETTING(enic, RXCSUM))
-		return -EINVAL;
-
-	enic->csum_rx_enabled = !!data;
-
-	return 0;
-}
-
-static int enic_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	struct enic *enic = netdev_priv(netdev);
-
-	if (data && !ENIC_SETTING(enic, TXCSUM))
-		return -EINVAL;
-
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
-}
-
-static int enic_set_tso(struct net_device *netdev, u32 data)
-{
-	struct enic *enic = netdev_priv(netdev);
-
-	if (data && !ENIC_SETTING(enic, TSO))
-		return -EINVAL;
-
-	if (data)
-		netdev->features |=
-			NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN;
-	else
-		netdev->features &=
-			~(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN);
-
-	return 0;
-}
-
 static u32 enic_get_msglevel(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
@@ -388,17 +338,8 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_strings = enic_get_strings,
 	.get_sset_count = enic_get_sset_count,
 	.get_ethtool_stats = enic_get_ethtool_stats,
-	.get_rx_csum = enic_get_rx_csum,
-	.set_rx_csum = enic_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = enic_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = enic_set_tso,
 	.get_coalesce = enic_get_coalesce,
 	.set_coalesce = enic_set_coalesce,
-	.get_flags = ethtool_op_get_flags,
 };
 
 static void enic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
@@ -1309,7 +1250,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		skb_put(skb, bytes_written);
 		skb->protocol = eth_type_trans(skb, netdev);
 
-		if (enic->csum_rx_enabled && !csum_not_calc) {
+		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc) {
 			skb->csum = htons(checksum);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
@@ -2438,16 +2379,17 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		dev_info(dev, "loopback tag=0x%04x\n", enic->loop_tag);
 	}
 	if (ENIC_SETTING(enic, TXCSUM))
-		netdev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
+		netdev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (ENIC_SETTING(enic, TSO))
-		netdev->features |= NETIF_F_TSO |
+		netdev->hw_features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
-	if (ENIC_SETTING(enic, LRO))
-		netdev->features |= NETIF_F_GRO;
+	if (ENIC_SETTING(enic, RXCSUM))
+		netdev->hw_features |= NETIF_F_RXCSUM;
+
+	netdev->features |= netdev->hw_features;
+
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
-
-	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
 
 	err = register_netdev(netdev);
 	if (err) {
