@@ -6838,7 +6838,6 @@ struct sd_data {
 };
 
 struct s_data {
-	cpumask_var_t		nodemask;
 	cpumask_var_t		send_covered;
 	struct sched_domain ** __percpu sd;
 	struct sd_data 		sdd[SD_LV_MAX];
@@ -6850,7 +6849,6 @@ enum s_alloc {
 	sa_sd,
 	sa_sd_storage,
 	sa_send_covered,
-	sa_nodemask,
 	sa_none,
 };
 
@@ -7035,8 +7033,6 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 		} /* fall through */
 	case sa_send_covered:
 		free_cpumask_var(d->send_covered); /* fall through */
-	case sa_nodemask:
-		free_cpumask_var(d->nodemask); /* fall through */
 	case sa_none:
 		break;
 	}
@@ -7049,10 +7045,8 @@ static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
 
 	memset(d, 0, sizeof(*d));
 
-	if (!alloc_cpumask_var(&d->nodemask, GFP_KERNEL))
-		return sa_none;
 	if (!alloc_cpumask_var(&d->send_covered, GFP_KERNEL))
-		return sa_nodemask;
+		return sa_none;
 	for (i = 0; i < SD_LV_MAX; i++) {
 		d->sdd[i].sd = alloc_percpu(struct sched_domain *);
 		if (!d->sdd[i].sd)
@@ -7149,7 +7143,8 @@ static struct sched_domain *__build_cpu_sched_domain(struct s_data *d,
 	struct sched_domain *sd;
 	sd = sd_init_CPU(d, i);
 	set_domain_attribute(sd, attr);
-	cpumask_copy(sched_domain_span(sd), d->nodemask);
+	cpumask_and(sched_domain_span(sd),
+			cpumask_of_node(cpu_to_node(i)), cpu_map);
 	sd->parent = parent;
 	if (parent)
 		parent->child = sd;
@@ -7219,9 +7214,6 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Set up domains for cpus specified by the cpu_map. */
 	for_each_cpu(i, cpu_map) {
-		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
-			    cpu_map);
-
 		sd = NULL;
 		sd = __build_allnodes_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_node_sched_domain(&d, cpu_map, attr, sd, i);
