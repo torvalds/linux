@@ -6966,7 +6966,6 @@ sd_init_##type(struct sched_domain_topology_level *tl, int cpu) 	\
 {									\
 	struct sched_domain *sd = *per_cpu_ptr(tl->data.sd, cpu);	\
 	*sd = SD_##type##_INIT;						\
-	sd->level = SD_LV_##type;					\
 	SD_INIT_NAME(sd, type);						\
 	sd->private = &tl->data;					\
 	return sd;							\
@@ -6988,13 +6987,14 @@ SD_INIT_FUNC(CPU)
 #endif
 
 static int default_relax_domain_level = -1;
+int sched_domain_level_max;
 
 static int __init setup_relax_domain_level(char *str)
 {
 	unsigned long val;
 
 	val = simple_strtoul(str, NULL, 0);
-	if (val < SD_LV_MAX)
+	if (val < sched_domain_level_max)
 		default_relax_domain_level = val;
 
 	return 1;
@@ -7173,8 +7173,11 @@ struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 
 	set_domain_attribute(sd, attr);
 	cpumask_and(sched_domain_span(sd), cpu_map, tl->mask(cpu));
-	if (child)
+	if (child) {
+		sd->level = child->level + 1;
+		sched_domain_level_max = max(sched_domain_level_max, sd->level);
 		child->parent = sd;
+	}
 	sd->child = child;
 
 	return sd;
