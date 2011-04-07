@@ -385,13 +385,9 @@ static int bearer_push(struct tipc_bearer *b_ptr)
 
 void tipc_bearer_lock_push(struct tipc_bearer *b_ptr)
 {
-	int res;
-
 	spin_lock_bh(&b_ptr->lock);
-	res = bearer_push(b_ptr);
+	bearer_push(b_ptr);
 	spin_unlock_bh(&b_ptr->lock);
-	if (res)
-		tipc_bcbearer_push();
 }
 
 

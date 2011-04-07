@@ -667,27 +667,6 @@ void tipc_bcbearer_sort(void)
 	spin_unlock_bh(&bc_lock);
 }
 
-/**
- * tipc_bcbearer_push - resolve bearer congestion
- *
- * Forces bclink to push out any unsent packets, until all packets are gone
- * or congestion reoccurs.
- * No locks set when function called
- */
-
-void tipc_bcbearer_push(void)
-{
-	struct tipc_bearer *b_ptr;
-
-	spin_lock_bh(&bc_lock);
-	b_ptr = &bcbearer->bearer;
-	if (b_ptr->blocked) {
-		b_ptr->blocked = 0;
-		tipc_bearer_lock_push(b_ptr);
-	}
-	spin_unlock_bh(&bc_lock);
-}
-
 
 int tipc_bclink_stats(char *buf, const u32 buf_size)
 {
