@@ -261,25 +261,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	return 0;
 }
 
-static u32 be_get_rx_csum(struct net_device *netdev)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-
-	return adapter->rx_csum;
-}
-
-static int be_set_rx_csum(struct net_device *netdev, uint32_t data)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-
-	if (data)
-		adapter->rx_csum = true;
-	else
-		adapter->rx_csum = false;
-
-	return 0;
-}
-
 static void
 be_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
@@ -760,14 +741,6 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_ringparam = be_get_ringparam,
 	.get_pauseparam = be_get_pauseparam,
 	.set_pauseparam = be_set_pauseparam,
-	.get_rx_csum = be_get_rx_csum,
-	.set_rx_csum = be_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_hw_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
 	.get_strings = be_get_stat_strings,
 	.set_phys_id = be_set_phys_id,
 	.get_sset_count = be_get_sset_count,

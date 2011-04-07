@@ -988,9 +988,10 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_rx_obj *rxo,
 			struct be_rx_compl_info *rxcp)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
+	skb = netdev_alloc_skb_ip_align(netdev, BE_HDR_LEN);
 	if (unlikely(!skb)) {
 		if (net_ratelimit())
 			dev_warn(&adapter->pdev->dev, "skb alloc failed\n");
@@ -1000,13 +1001,13 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb_fill_rx_data(adapter, rxo, skb, rxcp);
 
-	if (likely(adapter->rx_csum && csum_passed(rxcp)))
+	if (likely((netdev->features & NETIF_F_RXCSUM) && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
-	skb->protocol = eth_type_trans(skb, adapter->netdev);
+	skb->protocol = eth_type_trans(skb, netdev);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
@@ -2627,10 +2628,12 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_rx_obj *rxo;
 	int i;
 
-	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER |
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_GRO | NETIF_F_TSO6;
+	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
+
+	netdev->features |= netdev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
+		NETIF_F_HW_VLAN_FILTER;
 
 	if (be_multi_rxq(adapter))
 		netdev->features |= NETIF_F_RXHASH;
@@ -2642,8 +2645,6 @@ static void be_netdev_init(struct net_device *netdev)
 		netdev->vlan_features |= NETIF_F_TSO6;
 
 	netdev->flags |= IFF_MULTICAST;
-
-	adapter->rx_csum = true;
 
 	/* Default settings for Rx and Tx flow control */
 	adapter->rx_fc = true;

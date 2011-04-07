@@ -307,7 +307,6 @@ struct be_adapter {
 	u16 work_counter;
 
 	/* Ethtool knobs and info */
-	bool rx_csum; 		/* BE card must perform rx-checksumming */
 	char fw_ver[FW_VER_LEN];
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
