@@ -2321,7 +2321,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 		/*
 		 * if ret == 0 means we found what we were searching for, which
-		 * is weird, but possible, so only screw with path if we didnt
+		 * is weird, but possible, so only screw with path if we didn't
 		 * find the key and see if we have stuff that matches
 		 */
 		if (ret > 0) {

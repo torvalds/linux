@@ -617,7 +617,7 @@ __acquires(bitlock)
 	 * filesystem will have already been marked read/only and the
 	 * journal has been aborted.  We return 1 as a hint to callers
 	 * who might what to use the return value from
-	 * ext4_grp_locked_error() to distinguish beween the
+	 * ext4_grp_locked_error() to distinguish between the
 	 * ERRORS_CONT and ERRORS_RO case, and perhaps return more
 	 * aggressively from the ext4 function in question, with a
 	 * more appropriate error code.
@@ -4624,7 +4624,7 @@ static int ext4_quota_off(struct super_block *sb, int type)
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off)

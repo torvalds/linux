@@ -2265,7 +2265,7 @@ int __init init_dmars(void)
 		/*
 		 * TBD:
 		 * we could share the same root & context tables
-		 * amoung all IOMMU's. Need to Split it later.
+		 * among all IOMMU's. Need to Split it later.
 		 */
 		ret = iommu_alloc_root_entry(iommu);
 		if (ret) {

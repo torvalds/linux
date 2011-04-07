@@ -8295,7 +8295,7 @@ wlc_txflowcontrol_prio_isset(struct wlc_info *wlc, struct wlc_txq_info *q,
 	return (q->stopped & prio_mask) == prio_mask;
 }
 
-/* propogate the flow control to all interfaces using the given tx queue */
+/* propagate the flow control to all interfaces using the given tx queue */
 void wlc_txflowcontrol(struct wlc_info *wlc, struct wlc_txq_info *qi,
 		       bool on, int prio)
 {
@@ -8462,7 +8462,7 @@ static void wlc_txq_free(struct wlc_info *wlc, struct wlc_txq_info *qi)
 }
 
 /*
- * Flag 'scan in progress' to withold dynamic phy calibration
+ * Flag 'scan in progress' to withhold dynamic phy calibration
  */
 void wlc_scan_start(struct wlc_info *wlc)
 {

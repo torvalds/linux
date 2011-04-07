@@ -202,7 +202,7 @@ kvp_get_ip_address(int family, char *buffer, int length)
 
 			/*
 			 * We only support AF_INET and AF_INET6
-			 * and the list of addresses is seperated by a ";".
+			 * and the list of addresses is separated by a ";".
 			 */
 				struct sockaddr_in6 *addr =
 				(struct sockaddr_in6 *) curp->ifa_addr;

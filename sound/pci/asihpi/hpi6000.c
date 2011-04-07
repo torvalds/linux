@@ -423,7 +423,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 
 	ao.priv = kzalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
 	if (!ao.priv) {
-		HPI_DEBUG_LOG(ERROR, "cant get mem for adapter object\n");
+		HPI_DEBUG_LOG(ERROR, "can't get mem for adapter object\n");
 		phr->error = HPI_ERROR_MEMORY_ALLOC;
 		return;
 	}

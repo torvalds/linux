@@ -65,7 +65,7 @@ static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
 };
 
 /* Early prototypes of the QI LB60 had only 1GB of NAND.
- * In order to support these devices aswell the partition and ecc layout is
+ * In order to support these devices as well the partition and ecc layout is
  * initialized depending on the NAND size */
 static struct mtd_partition qi_lb60_partitions_1gb[] = {
 	{
@@ -439,7 +439,7 @@ static struct platform_device *jz_platform_devices[] __initdata = {
 static void __init board_gpio_setup(void)
 {
 	/* We only need to enable/disable pullup here for pins used in generic
-	 * drivers. Everything else is done by the drivers themselfs. */
+	 * drivers. Everything else is done by the drivers themselves. */
 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_VCC_EN_N);
 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_CD);
 }

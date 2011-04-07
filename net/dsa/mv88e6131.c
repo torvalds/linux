@@ -124,7 +124,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	 * Ignore removed tag data on doubly tagged packets, disable
 	 * flow control messages, force flow control priority to the
 	 * highest, and send all special multicast frames to the CPU
-	 * port at the higest priority.
+	 * port at the highest priority.
 	 */
 	REG_WRITE(REG_GLOBAL2, 0x05, 0x00ff);
 

@@ -980,7 +980,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 	}
 
 	/* hyper z clear */
-	/* no docs available, based on reverse engeneering by Stephane Marchesin */
+	/* no docs available, based on reverse engineering by Stephane Marchesin */
 	if ((flags & (RADEON_DEPTH | RADEON_STENCIL))
 	    && (flags & RADEON_CLEAR_FASTZ)) {
 

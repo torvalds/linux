@@ -1887,7 +1887,7 @@ relock:
 	for (;;) {
 		struct k_sigaction *ka;
 		/*
-		 * Tracing can induce an artifical signal and choose sigaction.
+		 * Tracing can induce an artificial signal and choose sigaction.
 		 * The return value in @signr determines the default action,
 		 * but @info->si_signo is the signal number we will report.
 		 */

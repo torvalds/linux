@@ -538,7 +538,7 @@ EXPORT_SYMBOL(phy_detach);
 /* Generic PHY support and helper functions */
 
 /**
- * genphy_config_advert - sanitize and advertise auto-negotation parameters
+ * genphy_config_advert - sanitize and advertise auto-negotiation parameters
  * @phydev: target phy_device struct
  *
  * Description: Writes MII_ADVERTISE with the appropriate values,
@@ -687,7 +687,7 @@ int genphy_config_aneg(struct phy_device *phydev)
 		return result;
 
 	if (result == 0) {
-		/* Advertisment hasn't changed, but maybe aneg was never on to
+		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated? */
 		int ctl = phy_read(phydev, MII_BMCR);
 

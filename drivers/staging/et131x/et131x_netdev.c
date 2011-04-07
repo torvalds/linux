@@ -415,7 +415,7 @@ void et131x_multicast(struct net_device *netdev)
 	 */
 	PacketFilter = adapter->PacketFilter;
 
-	/* Clear the 'multicast' flag locally; becuase we only have a single
+	/* Clear the 'multicast' flag locally; because we only have a single
 	 * flag to check multicast, and multiple multicast addresses can be
 	 * set, this is the easiest way to determine if more than one
 	 * multicast address is being set.

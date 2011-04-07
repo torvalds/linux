@@ -2,7 +2,7 @@
 bttv and sound mini howto
 =========================
 
-There are alot of different bt848/849/878/879 based boards available.
+There are a lot of different bt848/849/878/879 based boards available.
 Making video work often is not a big deal, because this is handled
 completely by the bt8xx chip, which is common on all boards.  But
 sound is handled in slightly different ways on each board.

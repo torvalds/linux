@@ -172,7 +172,7 @@ xfs_qm_scall_quotaoff(
 	/*
 	 * Next we make the changes in the quota flag in the mount struct.
 	 * This isn't protected by a particular lock directly, because we
-	 * don't want to take a mrlock everytime we depend on quotas being on.
+	 * don't want to take a mrlock every time we depend on quotas being on.
 	 */
 	mp->m_qflags &= ~(flags);
 
@@ -354,7 +354,7 @@ xfs_qm_scall_quotaon(
 		return XFS_ERROR(EINVAL);
 	}
 	/*
-	 * If everything's upto-date incore, then don't waste time.
+	 * If everything's up to-date incore, then don't waste time.
 	 */
 	if ((mp->m_qflags & flags) == flags)
 		return XFS_ERROR(EEXIST);

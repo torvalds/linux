@@ -121,7 +121,7 @@ struct powerdomain {
 };
 
 /**
- * struct pwrdm_ops - Arch specfic function implementations
+ * struct pwrdm_ops - Arch specific function implementations
  * @pwrdm_set_next_pwrst: Set the target power state for a pd
  * @pwrdm_read_next_pwrst: Read the target power state set for a pd
  * @pwrdm_read_pwrst: Read the current power state of a pd

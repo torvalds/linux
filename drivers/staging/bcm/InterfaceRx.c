@@ -34,7 +34,7 @@ GetBulkInRcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return pRcb;
 }
 
-/*this is receive call back - when pkt avilable for receive (BULK IN- end point)*/
+/*this is receive call back - when pkt available for receive (BULK IN- end point)*/
 static void read_bulk_callback(struct urb *urb)
 {
 	struct sk_buff *skb = NULL;
@@ -123,7 +123,7 @@ static void read_bulk_callback(struct urb *urb)
 	if((ntohs(pLeader->Vcid) == VCID_CONTROL_PACKET) ||
 	    (!(pLeader->Status >= 0x20  &&  pLeader->Status <= 0x3F)))
 	{
-	    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL, "Recived control pkt...");
+	    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL, "Received control pkt...");
 		*(PUSHORT)skb->data = pLeader->Status;
        	memcpy(skb->data+sizeof(USHORT), urb->transfer_buffer +
 			(sizeof(LEADER)), pLeader->PLength);
@@ -142,7 +142,7 @@ static void read_bulk_callback(struct urb *urb)
 		  * Data Packet, Format a proper Ethernet Header
         	  * and give it to the stack
 		  */
-        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt...");
+        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Received Data pkt...");
 		skb_reserve(skb, 2 + SKB_RESERVE_PHS_BYTES);
 		memcpy(skb->data+ETH_HLEN, (PUCHAR)urb->transfer_buffer + sizeof(LEADER), pLeader->PLength);
 		skb->dev = Adapter->dev;
@@ -151,7 +151,7 @@ static void read_bulk_callback(struct urb *urb)
 		skb_put (skb, pLeader->PLength + ETH_HLEN);
 		Adapter->PackInfo[QueueIndex].uiTotalRxBytes+=pLeader->PLength;
 		Adapter->PackInfo[QueueIndex].uiThisPeriodRxBytes+= pLeader->PLength;
-        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt of len :0x%X", pLeader->PLength);
+        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Received Data pkt of len :0x%X", pLeader->PLength);
 
 		if(netif_running(Adapter->dev))
 		{
@@ -237,7 +237,7 @@ Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
 
 
 Return:				TRUE  - If Rx was successful.
-					Other - If an error occured.
+					Other - If an error occurred.
 */
 
 BOOLEAN InterfaceRx (PS_INTERFACE_ADAPTER psIntfAdapter)

@@ -412,7 +412,7 @@ struct tmComResVBIFormatDescrHeader {
 	u8	StartLine; /* NTSC Start = 10 */
 	u8	EndLine; /* NTSC = 21 */
 	u8	FieldRate; /* 60 for NTSC */
-	u8	bNumLines; /* Unsed - scheduled for removal */
+	u8	bNumLines; /* Unused - scheduled for removal */
 } __attribute__((packed));
 
 struct tmComResProbeCommit {

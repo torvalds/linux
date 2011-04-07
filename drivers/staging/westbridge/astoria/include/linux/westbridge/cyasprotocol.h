@@ -756,7 +756,7 @@
 	 * 1 : Debug mode
 
    Description
-   This reponse is sent to return the firmware version
+   This response is sent to return the firmware version
    number to the requestor.
  */
 #define CY_RESP_FIRMWARE_VERSION (16)
@@ -3655,7 +3655,7 @@
    This request is sent to the West Bridge when the P port
    needs to send data to the Host in a Turbo Endpoint.
    Upon receiving this event, Firmware will make the end point
-   avilable for the P port. If the length is zero, then
+   available for the P port. If the length is zero, then
    firmware will send a zero length packet.
 
    Direction

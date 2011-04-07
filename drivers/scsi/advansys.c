@@ -4544,7 +4544,7 @@ AscMemWordCopyPtrToLram(PortAddr iop_base, ushort s_addr,
  * Copy 4 bytes to LRAM.
  *
  * The source data is assumed to be in little-endian order in memory
- * and is maintained in little-endian order when writen to LRAM.
+ * and is maintained in little-endian order when written to LRAM.
  */
 static void
 AscMemDWordCopyPtrToLram(PortAddr iop_base,

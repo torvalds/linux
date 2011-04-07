@@ -178,7 +178,7 @@ opp_find_freq_ceil - Search for an available OPP which is *at least* the
 		if (!IS_ERR(opp))
 			soc_switch_to_freq_voltage(freq);
 		else
-			/* do something when we cant satisfy the req */
+			/* do something when we can't satisfy the req */
 		/* do other stuff */
 	 }
 

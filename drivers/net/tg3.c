@@ -9712,7 +9712,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		eeprom->len += b_count;
 	}
 
-	/* read bytes upto the last 4 byte boundary */
+	/* read bytes up to the last 4 byte boundary */
 	pd = &data[eeprom->len];
 	for (i = 0; i < (len - (len & 3)); i += 4) {
 		ret = tg3_nvram_read_be32(tp, offset + i, &val);

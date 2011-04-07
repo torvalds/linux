@@ -1773,7 +1773,7 @@ cy_as_storage_async_oper(cy_as_device *dev_p, cy_as_end_point_number_t ep,
 	if (unit > 255)
 		return CY_AS_ERROR_NO_SUCH_UNIT;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	* blocks is zero
 	*/
 	if (num_blocks == 0) {
@@ -1969,7 +1969,7 @@ cy_as_storage_sync_oper(cy_as_device *dev_p,
 	if (cy_as_device_is_usb_async_pending(dev_p, 6))
 		return CY_AS_ERROR_ASYNC_PENDING;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	* blocks is zero
 	*/
 	if (num_blocks == 0)
@@ -3285,7 +3285,7 @@ cy_as_sdio_extended_i_o_async(
 	if (callback == 0)
 		return CY_AS_ERROR_NULL_CALLBACK;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	 * blocks is zero
 	 */
 	if (((misc_buf&CY_SDIO_BLOCKMODE) != 0) && (argument == 0)) {

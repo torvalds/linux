@@ -192,7 +192,7 @@ normal_tlb_miss:
 	or	r10,r15,r14
 
 BEGIN_MMU_FTR_SECTION
-	/* Set the TLB reservation and seach for existing entry. Then load
+	/* Set the TLB reservation and search for existing entry. Then load
 	 * the entry.
 	 */
 	PPC_TLBSRX_DOT(0,r16)
@@ -425,7 +425,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 
 virt_page_table_tlb_miss_fault:
 	/* If we fault here, things are a little bit tricky. We need to call
-	 * either data or instruction store fault, and we need to retreive
+	 * either data or instruction store fault, and we need to retrieve
 	 * the original fault address and ESR (for data).
 	 *
 	 * The thing is, we know that in normal circumstances, this is

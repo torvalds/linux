@@ -62,7 +62,7 @@ MODULE_PARM_DESC(fake_hw_scan, "Install fake (no-op) hw-scan handler");
  * 	an intersection to occur but each device will still use their
  * 	respective regulatory requested domains. Subsequent radios will
  * 	use the resulting intersection.
- * @HWSIM_REGTEST_WORLD_ROAM: Used for testing the world roaming. We acomplish
+ * @HWSIM_REGTEST_WORLD_ROAM: Used for testing the world roaming. We accomplish
  *	this by using a custom beacon-capable regulatory domain for the first
  *	radio. All other device world roam.
  * @HWSIM_REGTEST_CUSTOM_WORLD: Used for testing the custom world regulatory

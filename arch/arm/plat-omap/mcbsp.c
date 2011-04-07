@@ -1103,7 +1103,7 @@ int omap_mcbsp_pollread(unsigned int id, u16 *buf)
 		/* resend */
 		return -1;
 	} else {
-		/* wait for recieve confirmation */
+		/* wait for receive confirmation */
 		int attemps = 0;
 		while (!(MCBSP_READ(mcbsp, SPCR1) & RRDY)) {
 			if (attemps++ > 1000) {

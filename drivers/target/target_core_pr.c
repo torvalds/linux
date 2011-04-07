@@ -478,7 +478,7 @@ static int core_scsi3_pr_seq_non_holder(
 		break;
 	}
 	/*
-	 * Case where the CDB is explictly allowed in the above switch
+	 * Case where the CDB is explicitly allowed in the above switch
 	 * statement.
 	 */
 	if (!(ret) && !(other_cdb)) {
@@ -3735,7 +3735,7 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
 
 	if (cmd->data_length < 24) {
-		printk(KERN_WARNING "SPC-PR: Recieved PR OUT parameter list"
+		printk(KERN_WARNING "SPC-PR: Received PR OUT parameter list"
 			" length too small: %u\n", cmd->data_length);
 		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
 	}
@@ -3778,7 +3778,7 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	 */
 	if (!(spec_i_pt) && ((cdb[1] & 0x1f) != PRO_REGISTER_AND_MOVE) &&
 	    (cmd->data_length != 24)) {
-		printk(KERN_WARNING "SPC-PR: Recieved PR OUT illegal parameter"
+		printk(KERN_WARNING "SPC-PR: Received PR OUT illegal parameter"
 			" list length: %u\n", cmd->data_length);
 		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
 	}

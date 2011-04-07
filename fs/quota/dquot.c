@@ -956,7 +956,7 @@ static inline int dqput_blocks(struct dquot *dquot)
 
 /*
  * Remove references to dquots from inode and add dquot to list for freeing
- * if we have the last referece to dquot
+ * if we have the last reference to dquot
  * We can't race with anybody because we hold dqptr_sem for writing...
  */
 static int remove_inode_dquot_ref(struct inode *inode, int type,

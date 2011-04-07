@@ -965,7 +965,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		goto failed;
 
 	smtcfb_setmode(sfb);
-	/* Primary display starting from 0 postion */
+	/* Primary display starting from 0 position */
 	hw.BaseAddressInVRAM = 0;
 	sfb->fb.par = &hw;
 
@@ -1055,7 +1055,7 @@ static int __maybe_unused smtcfb_suspend(struct pci_dev *pdev, pm_message_t msg)
 
 	pdev->dev.power.power_state = msg;
 
-	/* additionaly turn off all function blocks including internal PLLs */
+	/* additionally turn off all function blocks including internal PLLs */
 	smtc_seqw(0x21, 0xff);
 
 	return 0;

@@ -440,7 +440,7 @@ static int sst_platform_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(sst_platform_dai));
 	snd_soc_unregister_platform(&pdev->dev);
-	pr_debug("sst_platform_remove sucess\n");
+	pr_debug("sst_platform_remove success\n");
 	return 0;
 }
 
@@ -463,7 +463,7 @@ module_init(sst_soc_platform_init);
 static void __exit sst_soc_platform_exit(void)
 {
 	platform_driver_unregister(&sst_platform_driver);
-	pr_debug("sst_soc_platform_exit sucess\n");
+	pr_debug("sst_soc_platform_exit success\n");
 }
 module_exit(sst_soc_platform_exit);
 

@@ -1347,7 +1347,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 
 	/*
 	 * Now that all the timers on our list have the firing flag,
-	 * noone will touch their list entries but us.  We'll take
+	 * no one will touch their list entries but us.  We'll take
 	 * each timer's lock before clearing its firing flag, so no
 	 * timer call will interfere.
 	 */

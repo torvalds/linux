@@ -520,7 +520,7 @@ dbglog_parse_debug_logs(s8 *datap, u32 len)
 int
 ar6000_dbglog_get_debug_logs(struct ar6_softc *ar)
 {
-    u32 data[8]; /* Should be able to accomodate struct dbglog_buf_s */
+    u32 data[8]; /* Should be able to accommodate struct dbglog_buf_s */
     u32 address;
     u32 length;
     u32 dropped;
@@ -2063,7 +2063,7 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
  * - In case of surprise removal, the hcd already frees up the pending
  *   for the device and hence there is no need to unregister the function
  *   driver inorder to get these requests. For planned removal, the function
- *   driver has to explictly unregister itself to have the hcd return all the
+ *   driver has to explicitly unregister itself to have the hcd return all the
  *   pending requests before the data structures for the devices are freed up.
  *   Note that as per the current implementation, the function driver will
  *   end up releasing all the devices since there is no API to selectively
@@ -2982,7 +2982,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
     /* If target is not associated */
     if( (!ar->arConnected && !bypasswmi)
 #ifdef CONFIG_HOST_TCMD_SUPPORT
-     /* TCMD doesnt support any data, free the buf and return */
+     /* TCMD doesn't support any data, free the buf and return */
     || (ar->arTargetMode == AR6000_TCMD_MODE)
 #endif
                                             ) {
@@ -6393,7 +6393,7 @@ static void DoHTCSendPktsTest(struct ar6_softc *ar, int MapNo, HTC_ENDPOINT_ID e
 /*
  * Add support for adding and removing a virtual adapter for soft AP.
  * Some OS requires different adapters names for station and soft AP mode.
- * To support these requirement, create and destory a netdevice  instance
+ * To support these requirement, create and destroy a netdevice  instance
  * when the AP mode is operational. A full fledged support for virual device
  * is not implemented. Rather a virtual interface is created and is linked
  * with the existing physical device instance during the operation of the 

@@ -374,7 +374,7 @@ crisv32_do_multiple(struct pt_regs* regs)
 	irq_enter();
 
 	for (i = 0; i < NBR_REGS; i++) {
-		/* Get which IRQs that happend. */
+		/* Get which IRQs that happened. */
 		masked[i] = REG_RD_INT_VECT(intr_vect, irq_regs[cpu],
 			r_masked_vect, i);
 

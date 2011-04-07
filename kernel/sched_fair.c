@@ -3062,7 +3062,7 @@ static inline void calculate_imbalance(struct sd_lb_stats *sds, int this_cpu,
 
 	/*
 	 * if *imbalance is less than the average load per runnable task
-	 * there is no gaurantee that any tasks will be moved so we'll have
+	 * there is no guarantee that any tasks will be moved so we'll have
 	 * a think about bumping its value to force at least one task to be
 	 * moved
 	 */

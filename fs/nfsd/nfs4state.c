@@ -3055,7 +3055,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 	if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
 	else if (locks_in_grace()) {
-		/* Answer in remaining cases depends on existance of
+		/* Answer in remaining cases depends on existence of
 		 * conflicting state; so we must wait out the grace period. */
 		return nfserr_grace;
 	} else if (flags & WR_STATE)
@@ -3675,7 +3675,7 @@ find_lockstateowner_str(struct inode *inode, clientid_t *clid,
 /*
  * Alloc a lock owner structure.
  * Called in nfsd4_lock - therefore, OPEN and OPEN_CONFIRM (if needed) has 
- * occured. 
+ * occurred. 
  *
  * strhashval = lock_ownerstr_hashval 
  */

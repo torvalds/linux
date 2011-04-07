@@ -400,7 +400,7 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 	 * the traditional AGP which resides only in chipset. AGP is used
 	 * by 3D driver which wasn't available for the VT3336 and VT3364
 	 * generation until now.  Unfortunately, by testing, VT3364 works
-	 * but VT3336 doesn't. - explaination from via, just leave this as
+	 * but VT3336 doesn't. - explanation from via, just leave this as
 	 * as a placeholder to avoid future patches adding it back in.
 	 */
 #if 0

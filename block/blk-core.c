@@ -1184,7 +1184,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 
 /*
  * Attempts to merge with the plugged list in the current process. Returns
- * true if merge was succesful, otherwise false.
+ * true if merge was successful, otherwise false.
  */
 static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
 			       struct bio *bio)

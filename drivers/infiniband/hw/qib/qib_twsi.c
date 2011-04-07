@@ -41,7 +41,7 @@
  * QLogic_IB "Two Wire Serial Interface" driver.
  * Originally written for a not-quite-i2c serial eeprom, which is
  * still used on some supported boards. Later boards have added a
- * variety of other uses, most board-specific, so teh bit-boffing
+ * variety of other uses, most board-specific, so the bit-boffing
  * part has been split off to this file, while the other parts
  * have been moved to chip-specific files.
  *

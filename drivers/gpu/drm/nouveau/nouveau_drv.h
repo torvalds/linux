@@ -216,7 +216,7 @@ struct nouveau_channel {
 	/* mapping of the fifo itself */
 	struct drm_local_map *map;
 
-	/* mapping of the regs controling the fifo */
+	/* mapping of the regs controlling the fifo */
 	void __iomem *user;
 	uint32_t user_get;
 	uint32_t user_put;

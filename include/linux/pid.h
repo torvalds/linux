@@ -21,7 +21,7 @@ enum pid_type
  * quickly from the numeric pid value.  The attached processes may be
  * quickly accessed by following pointers from struct pid.
  *
- * Storing pid_t values in the kernel and refering to them later has a
+ * Storing pid_t values in the kernel and referring to them later has a
  * problem.  The process originally with that pid may have exited and the
  * pid allocator wrapped, and another process could have come along
  * and been assigned that pid.

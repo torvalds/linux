@@ -512,7 +512,7 @@ static int ep93xx_spi_read_write(struct ep93xx_spi *espi)
  *
  * This function processes one SPI transfer given in @t. Function waits until
  * transfer is complete (may sleep) and updates @msg->status based on whether
- * transfer was succesfully processed or not.
+ * transfer was successfully processed or not.
  */
 static void ep93xx_spi_process_transfer(struct ep93xx_spi *espi,
 					struct spi_message *msg,
