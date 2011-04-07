@@ -339,7 +339,7 @@ static int isp_video_buffer_prepare_user(struct isp_video_buffer *buf)
 	up_read(&current->mm->mmap_sem);
 
 	if (ret != buf->npages) {
-		buf->npages = ret;
+		buf->npages = ret < 0 ? 0 : ret;
 		isp_video_buffer_cleanup(buf);
 		return -EFAULT;
 	}
