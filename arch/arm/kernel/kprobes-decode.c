@@ -1026,14 +1026,16 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	/* cccc 0001 0xx0 xxxx xxxx xxxx xxxx xxx0 xxxx */
 	if ((insn & 0x0f900010) == 0x01000000) {
 
-		/* BXJ  : cccc 0001 0010 xxxx xxxx xxxx 0010 xxxx */
-		/* MSR  : cccc 0001 0x10 xxxx xxxx xxxx 0000 xxxx */
+		/* BXJ      : cccc 0001 0010 xxxx xxxx xxxx 0010 xxxx */
+		/* MSR      : cccc 0001 0x10 xxxx xxxx xxxx 0000 xxxx */
+		/* MRS spsr : cccc 0001 0100 xxxx xxxx xxxx 0000 xxxx */
 		if ((insn & 0x0ff000f0) == 0x01200020 ||
-		    (insn & 0x0fb000f0) == 0x01200000)
+		    (insn & 0x0fb000f0) == 0x01200000 ||
+		    (insn & 0x0ff000f0) == 0x01400000)
 			return INSN_REJECTED;
 
-		/* MRS : cccc 0001 0x00 xxxx xxxx xxxx 0000 xxxx */
-		if ((insn & 0x0fb00010) == 0x01000000)
+		/* MRS cpsr : cccc 0001 0000 xxxx xxxx xxxx 0000 xxxx */
+		if ((insn & 0x0ff000f0) == 0x01000000)
 			return prep_emulate_rd12(insn, asi);
 
 		/* SMLALxy : cccc 0001 0100 xxxx xxxx xxxx 1xx0 xxxx */
