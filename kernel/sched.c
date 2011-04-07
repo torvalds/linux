@@ -6843,6 +6843,16 @@ enum s_alloc {
 	sa_none,
 };
 
+typedef struct sched_domain *(*sched_domain_build_f)(struct s_data *d,
+		const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+		struct sched_domain *parent, int cpu);
+
+typedef const struct cpumask *(*sched_domain_mask_f)(int cpu);
+
+struct sched_domain_topology_level {
+	sched_domain_build_f build;
+};
+
 /*
  * Assumes the sched_domain tree is fully constructed
  */
@@ -7185,6 +7195,18 @@ static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
 	return sd;
 }
 
+static struct sched_domain_topology_level default_topology[] = {
+	{ __build_allnodes_sched_domain, },
+	{ __build_node_sched_domain, },
+	{ __build_cpu_sched_domain, },
+	{ __build_book_sched_domain, },
+	{ __build_mc_sched_domain, },
+	{ __build_smt_sched_domain, },
+	{ NULL, },
+};
+
+static struct sched_domain_topology_level *sched_domain_topology = default_topology;
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
@@ -7203,13 +7225,11 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Set up domains for cpus specified by the cpu_map. */
 	for_each_cpu(i, cpu_map) {
+		struct sched_domain_topology_level *tl;
+
 		sd = NULL;
-		sd = __build_allnodes_sched_domain(&d, cpu_map, attr, sd, i);
-		sd = __build_node_sched_domain(&d, cpu_map, attr, sd, i);
-		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
-		sd = __build_book_sched_domain(&d, cpu_map, attr, sd, i);
-		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
-		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
+		for (tl = sched_domain_topology; tl->build; tl++)
+			sd = tl->build(&d, cpu_map, attr, sd, i);
 
 		*per_cpu_ptr(d.sd, i) = sd;
 	}
