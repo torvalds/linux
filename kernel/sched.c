@@ -7280,7 +7280,9 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 						d->send_covered, d->tmpmask);
 
 	case SD_LV_ALLNODES:
-		init_sched_build_groups(cpu_map, cpu_map, &cpu_to_allnodes_group,
+		if (cpu == cpumask_first(cpu_map))
+			init_sched_build_groups(cpu_map, cpu_map,
+					&cpu_to_allnodes_group,
 					d->send_covered, d->tmpmask);
 		break;
 #endif
@@ -7331,13 +7333,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		build_sched_groups(&d, SD_LV_MC, cpu_map, i);
 		build_sched_groups(&d, SD_LV_CPU, cpu_map, i);
 		build_sched_groups(&d, SD_LV_NODE, cpu_map, i);
+		build_sched_groups(&d, SD_LV_ALLNODES, cpu_map, i);
 	}
-
-#ifdef CONFIG_NUMA
-	/* Set up node groups */
-	if (d.sd_allnodes)
-		build_sched_groups(&d, SD_LV_ALLNODES, cpu_map, 0);
-#endif
 
 	/* Calculate CPU power for physical packages and nodes */
 #ifdef CONFIG_SCHED_SMT
