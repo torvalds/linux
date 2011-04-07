@@ -14825,8 +14825,6 @@ static void alc269_toggle_power_output(struct hda_codec *codec, int power_up)
 
 static void alc269_shutup(struct hda_codec *codec)
 {
-	struct alc_spec *spec = codec->spec;
-
 	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017)
 		alc269_toggle_power_output(codec, 0);
 	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
