@@ -1236,6 +1236,34 @@ static void set_eapd(struct hda_codec *codec, hda_nid_t nid, int on)
 				    on ? 2 : 0);
 }
 
+/* turn on/off EAPD controls of the codec */
+static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x10ec0260:
+		set_eapd(codec, 0x0f, on);
+		set_eapd(codec, 0x10, on);
+		break;
+	case 0x10ec0262:
+	case 0x10ec0267:
+	case 0x10ec0268:
+	case 0x10ec0269:
+	case 0x10ec0270:
+	case 0x10ec0272:
+	case 0x10ec0660:
+	case 0x10ec0662:
+	case 0x10ec0663:
+	case 0x10ec0665:
+	case 0x10ec0862:
+	case 0x10ec0889:
+	case 0x10ec0892:
+		set_eapd(codec, 0x14, on);
+		set_eapd(codec, 0x15, on);
+		break;
+	}
+}
+
 static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
 	unsigned int tmp;
@@ -1251,28 +1279,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
 		break;
 	case ALC_INIT_DEFAULT:
-		switch (codec->vendor_id) {
-		case 0x10ec0260:
-			set_eapd(codec, 0x0f, 1);
-			set_eapd(codec, 0x10, 1);
-			break;
-		case 0x10ec0262:
-		case 0x10ec0267:
-		case 0x10ec0268:
-		case 0x10ec0269:
-		case 0x10ec0270:
-		case 0x10ec0272:
-		case 0x10ec0660:
-		case 0x10ec0662:
-		case 0x10ec0663:
-		case 0x10ec0665:
-		case 0x10ec0862:
-		case 0x10ec0889:
-		case 0x10ec0892:
-			set_eapd(codec, 0x14, 1);
-			set_eapd(codec, 0x15, 1);
-			break;
-		}
+		alc_auto_setup_eapd(codec, true);
 		switch (codec->vendor_id) {
 		case 0x10ec0260:
 			snd_hda_codec_write(codec, 0x1a, 0,
@@ -4227,29 +4234,7 @@ static void alc_free(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void alc_power_eapd(struct hda_codec *codec)
 {
-	/* We currently only handle front, HP */
-	switch (codec->vendor_id) {
-	case 0x10ec0260:
-		set_eapd(codec, 0x0f, 0);
-		set_eapd(codec, 0x10, 0);
-		break;
-	case 0x10ec0262:
-	case 0x10ec0267:
-	case 0x10ec0268:
-	case 0x10ec0269:
-	case 0x10ec0270:
-	case 0x10ec0272:
-	case 0x10ec0660:
-	case 0x10ec0662:
-	case 0x10ec0663:
-	case 0x10ec0665:
-	case 0x10ec0862:
-	case 0x10ec0889:
-	case 0x10ec0892:
-		set_eapd(codec, 0x14, 0);
-		set_eapd(codec, 0x15, 0);
-		break;
-	}
+	alc_auto_setup_eapd(codec, false);
 }
 
 static int alc_suspend(struct hda_codec *codec, pm_message_t state)
