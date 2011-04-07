@@ -7114,20 +7114,23 @@ static const struct cpumask *cpu_smt_mask(int cpu)
 }
 #endif
 
+/*
+ * Topology list, bottom-up.
+ */
 static struct sched_domain_topology_level default_topology[] = {
-#ifdef CONFIG_NUMA
-	{ sd_init_ALLNODES, cpu_allnodes_mask, },
-	{ sd_init_NODE, cpu_node_mask, },
-#endif
-	{ sd_init_CPU, cpu_cpu_mask, },
-#ifdef CONFIG_SCHED_BOOK
-	{ sd_init_BOOK, cpu_book_mask, },
+#ifdef CONFIG_SCHED_SMT
+	{ sd_init_SIBLING, cpu_smt_mask, },
 #endif
 #ifdef CONFIG_SCHED_MC
 	{ sd_init_MC, cpu_coregroup_mask, },
 #endif
-#ifdef CONFIG_SCHED_SMT
-	{ sd_init_SIBLING, cpu_smt_mask, },
+#ifdef CONFIG_SCHED_BOOK
+	{ sd_init_BOOK, cpu_book_mask, },
+#endif
+	{ sd_init_CPU, cpu_cpu_mask, },
+#ifdef CONFIG_NUMA
+	{ sd_init_NODE, cpu_node_mask, },
+	{ sd_init_ALLNODES, cpu_allnodes_mask, },
 #endif
 	{ NULL, },
 };
@@ -7136,18 +7139,18 @@ static struct sched_domain_topology_level *sched_domain_topology = default_topol
 
 struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 		struct s_data *d, const struct cpumask *cpu_map,
-		struct sched_domain_attr *attr, struct sched_domain *parent,
+		struct sched_domain_attr *attr, struct sched_domain *child,
 		int cpu)
 {
 	struct sched_domain *sd = tl->init(d, cpu);
 	if (!sd)
-		return parent;
+		return child;
 
 	set_domain_attribute(sd, attr);
 	cpumask_and(sched_domain_span(sd), cpu_map, tl->mask(cpu));
-	sd->parent = parent;
-	if (parent)
-		parent->child = sd;
+	if (child)
+		child->parent = sd;
+	sd->child = child;
 
 	return sd;
 }
@@ -7175,6 +7178,9 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		sd = NULL;
 		for (tl = sched_domain_topology; tl->init; tl++)
 			sd = build_sched_domain(tl, &d, cpu_map, attr, sd, i);
+
+		while (sd->child)
+			sd = sd->child;
 
 		*per_cpu_ptr(d.sd, i) = sd;
 	}
