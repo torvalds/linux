@@ -383,6 +383,13 @@ config DVB_STV0367
 	help
 	  A DVB-T/C tuner module. Say Y when you want to support this frontend.
 
+config DVB_CXD2820R
+	tristate "Sony CXD2820R"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
