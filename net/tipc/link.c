@@ -341,6 +341,7 @@ struct link *tipc_link_create(struct tipc_node *n_ptr,
 	memcpy(&l_ptr->media_addr, media_addr, sizeof(*media_addr));
 	l_ptr->owner = n_ptr;
 	l_ptr->checkpoint = 1;
+	l_ptr->peer_session = INVALID_SESSION;
 	l_ptr->b_ptr = b_ptr;
 	link_set_supervision_props(l_ptr, b_ptr->media->tolerance);
 	l_ptr->state = RESET_UNKNOWN;
