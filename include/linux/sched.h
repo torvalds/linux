@@ -897,12 +897,20 @@ static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
 
 enum sched_domain_level {
 	SD_LV_NONE = 0,
+#ifdef CONFIG_SCHED_SMT
 	SD_LV_SIBLING,
+#endif
+#ifdef CONFIG_SCHED_MC
 	SD_LV_MC,
+#endif
+#ifdef CONFIG_SCHED_BOOK
 	SD_LV_BOOK,
+#endif
 	SD_LV_CPU,
+#ifdef CONFIG_NUMA
 	SD_LV_NODE,
 	SD_LV_ALLNODES,
+#endif
 	SD_LV_MAX
 };
 
