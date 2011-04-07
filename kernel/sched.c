@@ -6395,6 +6395,8 @@ early_initcall(migration_init);
 
 #ifdef CONFIG_SMP
 
+static cpumask_var_t sched_domains_tmpmask; /* sched_domains_mutex */
+
 #ifdef CONFIG_SCHED_DEBUG
 
 static __read_mostly int sched_domain_debug_enabled;
@@ -6490,7 +6492,6 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
-	cpumask_var_t groupmask;
 	int level = 0;
 
 	if (!sched_domain_debug_enabled)
@@ -6503,20 +6504,14 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 
 	printk(KERN_DEBUG "CPU%d attaching sched-domain:\n", cpu);
 
-	if (!alloc_cpumask_var(&groupmask, GFP_KERNEL)) {
-		printk(KERN_DEBUG "Cannot load-balance (out of memory)\n");
-		return;
-	}
-
 	for (;;) {
-		if (sched_domain_debug_one(sd, cpu, level, groupmask))
+		if (sched_domain_debug_one(sd, cpu, level, sched_domains_tmpmask))
 			break;
 		level++;
 		sd = sd->parent;
 		if (!sd)
 			break;
 	}
-	free_cpumask_var(groupmask);
 }
 #else /* !CONFIG_SCHED_DEBUG */
 # define sched_domain_debug(sd, cpu) do { } while (0)
@@ -6721,7 +6716,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 			sd->child = NULL;
 	}
 
-	/* sched_domain_debug(sd, cpu); */
+	sched_domain_debug(sd, cpu);
 
 	rq_attach_root(rq, rd);
 	tmp = rq->sd;
@@ -6850,8 +6845,6 @@ static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
 
 	return cpu;
 }
-
-static cpumask_var_t sched_domains_tmpmask; /* sched_domains_mutex */
 
 /*
  * build_sched_groups takes the cpumask we wish to span, and a pointer
@@ -7896,8 +7889,8 @@ void __init sched_init(void)
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
 	zalloc_cpumask_var(&nohz_cpu_mask, GFP_NOWAIT);
-	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
 #ifdef CONFIG_SMP
+	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
 #ifdef CONFIG_NO_HZ
 	zalloc_cpumask_var(&nohz.idle_cpus_mask, GFP_NOWAIT);
 	alloc_cpumask_var(&nohz.grp_idle_mask, GFP_NOWAIT);
