@@ -825,6 +825,8 @@ struct hda_codec {
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
+	struct snd_array conn_lists;	/* connection-list array */
+
 	struct mutex spdif_mutex;
 	struct mutex control_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
