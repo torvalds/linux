@@ -299,14 +299,9 @@ static void bclink_send_nack(struct tipc_node *n_ptr)
 		msg_set_bcgap_to(msg, n_ptr->bclink.gap_to);
 		msg_set_bcast_tag(msg, tipc_own_tag);
 
-		if (tipc_bearer_send(&bcbearer->bearer, buf, NULL)) {
-			bcl->stats.sent_nacks++;
-			buf_discard(buf);
-		} else {
-			tipc_bearer_schedule(bcl->b_ptr, bcl);
-			bcl->proto_msg_queue = buf;
-			bcl->stats.bearer_congs++;
-		}
+		tipc_bearer_send(&bcbearer->bearer, buf, NULL);
+		bcl->stats.sent_nacks++;
+		buf_discard(buf);
 
 		/*
 		 * Ensure we doesn't send another NACK msg to the node
