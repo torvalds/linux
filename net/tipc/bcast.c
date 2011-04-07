@@ -764,7 +764,7 @@ int tipc_bclink_init(void)
 	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
 	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
 	if (!bcbearer || !bclink) {
-		warn("Multicast link creation failed, no memory\n");
+		warn("Broadcast link creation failed, no memory\n");
 		kfree(bcbearer);
 		bcbearer = NULL;
 		kfree(bclink);
@@ -775,7 +775,7 @@ int tipc_bclink_init(void)
 	INIT_LIST_HEAD(&bcbearer->bearer.cong_links);
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
-	sprintf(bcbearer->media.name, "tipc-multicast");
+	sprintf(bcbearer->media.name, "tipc-broadcast");
 
 	bcl = &bclink->link;
 	INIT_LIST_HEAD(&bcl->waiting_ports);
