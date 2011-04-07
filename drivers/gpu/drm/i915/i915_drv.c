@@ -236,6 +236,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 #define INTEL_PCH_DEVICE_ID_MASK	0xff00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
+#define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 
 void intel_detect_pch (struct drm_device *dev)
 {
@@ -257,6 +258,10 @@ void intel_detect_pch (struct drm_device *dev)
 			if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
+				/* PantherPoint is CPT compatible */
+				dev_priv->pch_type = PCH_CPT;
+				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
 			}
 		}
 		pci_dev_put(pch);
