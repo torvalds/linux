@@ -1016,20 +1016,6 @@ err:
 	return;
 }
 
-void tegra_nvhdcp_set_plug(struct tegra_nvhdcp *nvhdcp, bool hpd)
-{
-	nvhdcp_debug("hdmi hotplug detected (hpd = %d)\n", hpd);
-
-	nvhdcp_set_plugged(nvhdcp, hpd);
-
-	if (hpd) {
-		nvhdcp->fail_count = 0;
-		queue_work(nvhdcp->downstream_wq, &nvhdcp->work);
-	} else {
-		flush_workqueue(nvhdcp->downstream_wq);
-	}
-}
-
 static int tegra_nvhdcp_on(struct tegra_nvhdcp *nvhdcp)
 {
 	nvhdcp->state = STATE_UNAUTHENTICATED;
@@ -1048,6 +1034,18 @@ static int tegra_nvhdcp_off(struct tegra_nvhdcp *nvhdcp)
 	mutex_unlock(&nvhdcp->lock);
 	flush_workqueue(nvhdcp->downstream_wq);
 	return 0;
+}
+
+void tegra_nvhdcp_set_plug(struct tegra_nvhdcp *nvhdcp, bool hpd)
+{
+	nvhdcp_debug("hdmi hotplug detected (hpd = %d)\n", hpd);
+
+	if (hpd) {
+		nvhdcp_set_plugged(nvhdcp, true);
+		tegra_nvhdcp_on(nvhdcp);
+	} else {
+		tegra_nvhdcp_off(nvhdcp);
+	}
 }
 
 int tegra_nvhdcp_set_policy(struct tegra_nvhdcp *nvhdcp, int pol)
