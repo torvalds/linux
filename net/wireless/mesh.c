@@ -72,6 +72,10 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_MESH_AUTH) &&
+	      setup->is_secure)
+		return -EOPNOTSUPP;
+
 	if (wdev->mesh_id_len)
 		return -EALREADY;
 
