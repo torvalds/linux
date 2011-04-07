@@ -50,6 +50,10 @@ void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 			       struct net_device *netdev, u16 reason,
 			       const u8 *ie, size_t ie_len, bool from_ap);
 
+void nl80211_send_new_peer_candidate(struct cfg80211_registered_device *rdev,
+				     struct net_device *netdev,
+				     const u8 *macaddr, const u8* ie, u8 ie_len,
+				     gfp_t gfp);
 void
 nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 			    struct net_device *netdev, const u8 *addr,
