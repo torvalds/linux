@@ -21,10 +21,6 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
-#define LOOPS_PER_USEC	13
-#define LOOPS_PER_MSEC	12000
-#define LOOP(loops) do { int i = loops; barrier(); while (i--) barrier(); } while (0)
-
 static void  pwm2gpiodefault(void)
 {
 	#define     REG_FILE_BASE_ADDR         RK29_GRF_BASE

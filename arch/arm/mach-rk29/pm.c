@@ -29,9 +29,6 @@
 
 static unsigned long save_sp;
 
-#define LOOPS_PER_USEC	13
-#define LOOP(loops) do { int i = loops; barrier(); while (i--) barrier(); } while (0)
-
 static inline void delay_500ns(void)
 {
 	LOOP(LOOPS_PER_USEC);
