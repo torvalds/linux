@@ -1622,6 +1622,7 @@ static int select_idle_sibling(struct task_struct *p, int target)
 	/*
 	 * Otherwise, iterate the domains and find an elegible idle cpu.
 	 */
+	rcu_read_lock();
 	for_each_domain(target, sd) {
 		if (!(sd->flags & SD_SHARE_PKG_RESOURCES))
 			break;
@@ -1641,6 +1642,7 @@ static int select_idle_sibling(struct task_struct *p, int target)
 		    cpumask_test_cpu(prev_cpu, sched_domain_span(sd)))
 			break;
 	}
+	rcu_read_unlock();
 
 	return target;
 }
@@ -1673,6 +1675,7 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		new_cpu = prev_cpu;
 	}
 
+	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
 		if (!(tmp->flags & SD_LOAD_BALANCE))
 			continue;
@@ -1723,9 +1726,10 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 
 	if (affine_sd) {
 		if (cpu == prev_cpu || wake_affine(affine_sd, p, sync))
-			return select_idle_sibling(p, cpu);
-		else
-			return select_idle_sibling(p, prev_cpu);
+			prev_cpu = cpu;
+
+		new_cpu = select_idle_sibling(p, prev_cpu);
+		goto unlock;
 	}
 
 	while (sd) {
@@ -1766,6 +1770,8 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		}
 		/* while loop will break here if sd == NULL */
 	}
+unlock:
+	rcu_read_unlock();
 
 	return new_cpu;
 }
@@ -3462,6 +3468,7 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 	raw_spin_unlock(&this_rq->lock);
 
 	update_shares(this_cpu);
+	rcu_read_lock();
 	for_each_domain(this_cpu, sd) {
 		unsigned long interval;
 		int balance = 1;
@@ -3483,6 +3490,7 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 			break;
 		}
 	}
+	rcu_read_unlock();
 
 	raw_spin_lock(&this_rq->lock);
 
@@ -3531,6 +3539,7 @@ static int active_load_balance_cpu_stop(void *data)
 	double_lock_balance(busiest_rq, target_rq);
 
 	/* Search for an sd spanning us and the target CPU. */
+	rcu_read_lock();
 	for_each_domain(target_cpu, sd) {
 		if ((sd->flags & SD_LOAD_BALANCE) &&
 		    cpumask_test_cpu(busiest_cpu, sched_domain_span(sd)))
@@ -3546,6 +3555,7 @@ static int active_load_balance_cpu_stop(void *data)
 		else
 			schedstat_inc(sd, alb_failed);
 	}
+	rcu_read_unlock();
 	double_unlock_balance(busiest_rq, target_rq);
 out_unlock:
 	busiest_rq->active_balance = 0;
@@ -3672,6 +3682,7 @@ static int find_new_ilb(int cpu)
 {
 	struct sched_domain *sd;
 	struct sched_group *ilb_group;
+	int ilb = nr_cpu_ids;
 
 	/*
 	 * Have idle load balancer selection from semi-idle packages only
@@ -3687,20 +3698,25 @@ static int find_new_ilb(int cpu)
 	if (cpumask_weight(nohz.idle_cpus_mask) < 2)
 		goto out_done;
 
+	rcu_read_lock();
 	for_each_flag_domain(cpu, sd, SD_POWERSAVINGS_BALANCE) {
 		ilb_group = sd->groups;
 
 		do {
-			if (is_semi_idle_group(ilb_group))
-				return cpumask_first(nohz.grp_idle_mask);
+			if (is_semi_idle_group(ilb_group)) {
+				ilb = cpumask_first(nohz.grp_idle_mask);
+				goto unlock;
+			}
 
 			ilb_group = ilb_group->next;
 
 		} while (ilb_group != sd->groups);
 	}
+unlock:
+	rcu_read_unlock();
 
 out_done:
-	return nr_cpu_ids;
+	return ilb;
 }
 #else /*  (CONFIG_SCHED_MC || CONFIG_SCHED_SMT) */
 static inline int find_new_ilb(int call_cpu)
@@ -3845,6 +3861,7 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 
 	update_shares(cpu);
 
+	rcu_read_lock();
 	for_each_domain(cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
 			continue;
@@ -3890,6 +3907,7 @@ out:
 		if (!balance)
 			break;
 	}
+	rcu_read_unlock();
 
 	/*
 	 * next_balance will be updated only when there is a need.
