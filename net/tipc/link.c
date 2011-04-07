@@ -2045,8 +2045,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 	case RESET_MSG:
 		if (!link_working_unknown(l_ptr) &&
 		    (l_ptr->peer_session != INVALID_SESSION)) {
-			if (msg_session(msg) == l_ptr->peer_session)
-				break; /* duplicate: ignore */
+			if (less_eq(msg_session(msg), l_ptr->peer_session))
+				break; /* duplicate or old reset: ignore */
 		}
 		/* fall thru' */
 	case ACTIVATE_MSG:
