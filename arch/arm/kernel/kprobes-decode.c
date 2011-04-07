@@ -451,6 +451,14 @@ static void __kprobes simulate_blx2bx(struct kprobe *p, struct pt_regs *regs)
 		regs->ARM_cpsr |= PSR_T_BIT;
 }
 
+static void __kprobes simulate_mrs(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	int rd = (insn >> 12) & 0xf;
+	unsigned long mask = 0xf8ff03df; /* Mask out execution state */
+	regs->uregs[rd] = regs->ARM_cpsr & mask;
+}
+
 static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
 {
 	kprobe_opcode_t insn = p->opcode;
@@ -896,15 +904,6 @@ prep_emulate_rd12rm0(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 }
 
 static enum kprobe_insn __kprobes
-prep_emulate_rd12(kprobe_opcode_t insn, struct arch_specific_insn *asi)
-{
-	insn &= 0xffff0fff;	/* Rd = r0 */
-	asi->insn[0] = insn;
-	asi->insn_handler = emulate_rd12;
-	return INSN_GOOD;
-}
-
-static enum kprobe_insn __kprobes
 prep_emulate_rd12rn16rm0_wflags(kprobe_opcode_t insn,
 				struct arch_specific_insn *asi)
 {
@@ -1035,8 +1034,10 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 			return INSN_REJECTED;
 
 		/* MRS cpsr : cccc 0001 0000 xxxx xxxx xxxx 0000 xxxx */
-		if ((insn & 0x0ff000f0) == 0x01000000)
-			return prep_emulate_rd12(insn, asi);
+		if ((insn & 0x0ff000f0) == 0x01000000) {
+			asi->insn_handler = simulate_mrs;
+			return INSN_GOOD_NO_SLOT;
+		}
 
 		/* SMLALxy : cccc 0001 0100 xxxx xxxx xxxx 1xx0 xxxx */
 		if ((insn & 0x0ff00090) == 0x01400080)
