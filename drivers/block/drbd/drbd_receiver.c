@@ -208,7 +208,7 @@ static void reclaim_finished_net_peer_reqs(struct drbd_conf *mdev,
 
 	list_for_each_safe(le, tle, &mdev->net_ee) {
 		peer_req = list_entry(le, struct drbd_peer_request, w.list);
-		if (drbd_ee_has_active_page(peer_req))
+		if (drbd_peer_req_has_active_page(peer_req))
 			break;
 		list_move(le, to_be_freed);
 	}

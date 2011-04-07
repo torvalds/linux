@@ -1594,7 +1594,7 @@ static inline int drbd_bio_has_active_page(struct bio *bio)
 	return 0;
 }
 
-static inline int drbd_ee_has_active_page(struct drbd_peer_request *peer_req)
+static inline int drbd_peer_req_has_active_page(struct drbd_peer_request *peer_req)
 {
 	struct page *page = peer_req->pages;
 	page_chain_for_each(page) {
