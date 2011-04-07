@@ -527,6 +527,7 @@ static int mid_thermal_remove(struct platform_device *pdev)
 	for (i = 0; i < MSIC_THERMAL_SENSORS; i++)
 		thermal_zone_device_unregister(pinfo->tzd[i]);
 
+	kfree(pinfo);
 	platform_set_drvdata(pdev, NULL);
 
 	/* Stop the ADC */
