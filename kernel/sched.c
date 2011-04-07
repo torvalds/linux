@@ -7334,43 +7334,14 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	}
 
 	/* Calculate CPU power for physical packages and nodes */
-#ifdef CONFIG_SCHED_SMT
-	for_each_cpu(i, cpu_map) {
-		sd = &per_cpu(cpu_domains, i).sd;
-		init_sched_groups_power(i, sd);
-	}
-#endif
-#ifdef CONFIG_SCHED_MC
-	for_each_cpu(i, cpu_map) {
-		sd = &per_cpu(core_domains, i).sd;
-		init_sched_groups_power(i, sd);
-	}
-#endif
-#ifdef CONFIG_SCHED_BOOK
-	for_each_cpu(i, cpu_map) {
-		sd = &per_cpu(book_domains, i).sd;
-		init_sched_groups_power(i, sd);
-	}
-#endif
+	for (i = nr_cpumask_bits-1; i >= 0; i--) {
+		if (!cpumask_test_cpu(i, cpu_map))
+			continue;
 
-	for_each_cpu(i, cpu_map) {
-		sd = &per_cpu(phys_domains, i).sd;
-		init_sched_groups_power(i, sd);
-	}
-
-#ifdef CONFIG_NUMA
-	for_each_cpu(i, cpu_map) {
-		sd = &per_cpu(node_domains, i).sd;
-		init_sched_groups_power(i, sd);
-	}
-
-	if (d.sd_allnodes) {
-		for_each_cpu(i, cpu_map) {
-			sd = &per_cpu(allnodes_domains, i).sd;
+		sd = *per_cpu_ptr(d.sd, i);
+		for (; sd; sd = sd->parent)
 			init_sched_groups_power(i, sd);
-		}
 	}
-#endif
 
 	/* Attach the domains */
 	for_each_cpu(i, cpu_map) {
