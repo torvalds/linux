@@ -184,7 +184,7 @@ static struct page *__drbd_alloc_pages(struct drbd_conf *mdev,
 		return page;
 
 	/* Not enough pages immediately available this time.
-	 * No need to jump around here, drbd_pp_alloc will retry this
+	 * No need to jump around here, drbd_alloc_pages will retry this
 	 * function "soon". */
 	if (page) {
 		tmp = page_chain_tail(page, NULL);
@@ -229,7 +229,7 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 }
 
 /**
- * drbd_pp_alloc() - Returns @number pages, retries forever (or until signalled)
+ * drbd_alloc_pages() - Returns @number pages, retries forever (or until signalled)
  * @mdev:	DRBD device.
  * @number:	number of pages requested
  * @retry:	whether to retry, if not enough pages are available right now
@@ -240,7 +240,8 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
  *
  * Returns a page chain linked via page->private.
  */
-static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool retry)
+struct page *drbd_alloc_pages(struct drbd_conf *mdev, unsigned int number,
+			      bool retry)
 {
 	struct page *page = NULL;
 	DEFINE_WAIT(wait);
@@ -265,7 +266,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
 			break;
 
 		if (signal_pending(current)) {
-			dev_warn(DEV, "drbd_pp_alloc interrupted!\n");
+			dev_warn(DEV, "drbd_alloc_pages interrupted!\n");
 			break;
 		}
 
@@ -278,7 +279,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
 	return page;
 }
 
-/* Must not be used from irq, as that may deadlock: see drbd_pp_alloc.
+/* Must not be used from irq, as that may deadlock: see drbd_alloc_pages.
  * Is also used from inside an other spin_lock_irq(&mdev->tconn->req_lock);
  * Either links the page chain back to the global pool,
  * or returns all pages to the system. */
@@ -336,7 +337,7 @@ drbd_alloc_peer_req(struct drbd_conf *mdev, u64 id, sector_t sector,
 		return NULL;
 	}
 
-	page = drbd_pp_alloc(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
+	page = drbd_alloc_pages(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
 	if (!page)
 		goto fail;
 
@@ -1425,7 +1426,7 @@ static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 	if (!data_size)
 		return 0;
 
-	page = drbd_pp_alloc(mdev, 1, 1);
+	page = drbd_alloc_pages(mdev, 1, 1);
 
 	data = kmap(page);
 	while (data_size) {

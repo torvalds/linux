@@ -318,7 +318,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 		 * In case we block on congestion, we could otherwise run into
 		 * some distributed deadlock, if the other side blocks on
 		 * congestion as well, because our receiver blocks in
-		 * drbd_pp_alloc due to pp_in_use > max_buffers. */
+		 * drbd_alloc_pages due to pp_in_use > max_buffers. */
 		drbd_free_peer_req(mdev, peer_req);
 		peer_req = NULL;
 		inc_rs_pending(mdev);
@@ -1087,7 +1087,7 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
 	 * In case we block on congestion, we could otherwise run into
 	 * some distributed deadlock, if the other side blocks on
 	 * congestion as well, because our receiver blocks in
-	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
+	 * drbd_alloc_pages due to pp_in_use > max_buffers. */
 	drbd_free_peer_req(mdev, peer_req);
 	peer_req = NULL;
 	inc_rs_pending(mdev);
@@ -1156,7 +1156,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 	 * In case we block on congestion, we could otherwise run into
 	 * some distributed deadlock, if the other side blocks on
 	 * congestion as well, because our receiver blocks in
-	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
+	 * drbd_alloc_pages due to pp_in_use > max_buffers. */
 	drbd_free_peer_req(mdev, peer_req);
 	if (!eq)
 		drbd_ov_out_of_sync_found(mdev, sector, size);
