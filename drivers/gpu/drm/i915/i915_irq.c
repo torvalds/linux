@@ -1375,10 +1375,7 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-					    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
-	else if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	else
@@ -1388,6 +1385,22 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	/* maintain vblank delivery even in deep C-states */
 	if (dev_priv->info->gen == 3)
 		I915_WRITE(INSTPM, INSTPM_AGPBUSY_DIS << 16);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	return 0;
+}
+
+int ironlake_enable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+
+	if (!i915_pipe_enabled(dev, pipe))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
+				    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1406,13 +1419,20 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 		I915_WRITE(INSTPM,
 			   INSTPM_AGPBUSY_DIS << 16 | INSTPM_AGPBUSY_DIS);
 
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-					     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
-	else
-		i915_disable_pipestat(dev_priv, pipe,
-				      PIPE_VBLANK_INTERRUPT_ENABLE |
-				      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+	i915_disable_pipestat(dev_priv, pipe,
+			      PIPE_VBLANK_INTERRUPT_ENABLE |
+			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+void ironlake_disable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
+				     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 

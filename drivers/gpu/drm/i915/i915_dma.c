@@ -1271,11 +1271,15 @@ static int i915_load_modeset_init(struct drm_device *dev)
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
 		dev->driver->irq_postinstall = ironlake_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
+		dev->driver->enable_vblank = ironlake_enable_vblank;
+		dev->driver->disable_vblank = ironlake_disable_vblank;
 	} else {
 		dev->driver->irq_preinstall = i915_driver_irq_preinstall;
 		dev->driver->irq_postinstall = i915_driver_irq_postinstall;
 		dev->driver->irq_uninstall = i915_driver_irq_uninstall;
 		dev->driver->irq_handler = i915_driver_irq_handler;
+		dev->driver->enable_vblank = i915_enable_vblank;
+		dev->driver->disable_vblank = i915_disable_vblank;
 	}
 
 	ret = drm_irq_install(dev);
