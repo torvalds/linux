@@ -227,9 +227,9 @@ extern struct fib_table *fib_get_table(struct net *net, u32 id);
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
-extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
-			       struct net_device *dev, __be32 *spec_dst,
-			       u32 *itag, u32 mark);
+extern int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+			       u8 tos, int oif, struct net_device *dev,
+			       __be32 *spec_dst, u32 *itag);
 extern void fib_select_default(struct fib_result *res);
 
 /* Exported by fib_semantics.c */

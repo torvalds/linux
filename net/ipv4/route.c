@@ -1871,8 +1871,8 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			goto e_inval;
 		spec_dst = inet_select_addr(dev, 0, RT_SCOPE_LINK);
 	} else {
-		err = fib_validate_source(saddr, 0, tos, 0, dev, &spec_dst,
-					  &itag, 0);
+		err = fib_validate_source(skb, saddr, 0, tos, 0, dev, &spec_dst,
+					  &itag);
 		if (err < 0)
 			goto e_err;
 	}
@@ -1981,8 +1981,8 @@ static int __mkroute_input(struct sk_buff *skb,
 	}
 
 
-	err = fib_validate_source(saddr, daddr, tos, FIB_RES_OIF(*res),
-				  in_dev->dev, &spec_dst, &itag, skb->mark);
+	err = fib_validate_source(skb, saddr, daddr, tos, FIB_RES_OIF(*res),
+				  in_dev->dev, &spec_dst, &itag);
 	if (err < 0) {
 		ip_handle_martian_source(in_dev->dev, in_dev, skb, daddr,
 					 saddr);
@@ -2150,9 +2150,9 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto brd_input;
 
 	if (res.type == RTN_LOCAL) {
-		err = fib_validate_source(saddr, daddr, tos,
+		err = fib_validate_source(skb, saddr, daddr, tos,
 					  net->loopback_dev->ifindex,
-					  dev, &spec_dst, &itag, skb->mark);
+					  dev, &spec_dst, &itag);
 		if (err < 0)
 			goto martian_source_keep_err;
 		if (err)
@@ -2176,8 +2176,8 @@ brd_input:
 	if (ipv4_is_zeronet(saddr))
 		spec_dst = inet_select_addr(dev, 0, RT_SCOPE_LINK);
 	else {
-		err = fib_validate_source(saddr, 0, tos, 0, dev, &spec_dst,
-					  &itag, skb->mark);
+		err = fib_validate_source(skb, saddr, 0, tos, 0, dev, &spec_dst,
+					  &itag);
 		if (err < 0)
 			goto martian_source_keep_err;
 		if (err)
