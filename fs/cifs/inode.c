@@ -1683,18 +1683,15 @@ cifs_inode_needs_reval(struct inode *inode)
 /*
  * Zap the cache. Called when invalid_mapping flag is set.
  */
-void
+int
 cifs_invalidate_mapping(struct inode *inode)
 {
-	int rc;
+	int rc = 0;
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 
 	cifs_i->invalid_mapping = false;
 
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
-		/* write back any cached data */
-		rc = filemap_write_and_wait(inode->i_mapping);
-		mapping_set_error(inode->i_mapping, rc);
 		rc = invalidate_inode_pages2(inode->i_mapping);
 		if (rc) {
 			cERROR(1, "%s: could not invalidate inode %p", __func__,
@@ -1704,56 +1701,52 @@ cifs_invalidate_mapping(struct inode *inode)
 	}
 
 	cifs_fscache_reset_inode_cookie(inode);
+	return rc;
 }
 
-int cifs_revalidate_file(struct file *filp)
+int cifs_revalidate_file_attr(struct file *filp)
 {
 	int rc = 0;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
 
 	if (!cifs_inode_needs_reval(inode))
-		goto check_inval;
+		return rc;
 
 	if (tlink_tcon(cfile->tlink)->unix_ext)
 		rc = cifs_get_file_info_unix(filp);
 	else
 		rc = cifs_get_file_info(filp);
 
-check_inval:
-	if (CIFS_I(inode)->invalid_mapping)
-		cifs_invalidate_mapping(inode);
-
 	return rc;
 }
 
-/* revalidate a dentry's inode attributes */
-int cifs_revalidate_dentry(struct dentry *dentry)
+int cifs_revalidate_dentry_attr(struct dentry *dentry)
 {
 	int xid;
 	int rc = 0;
-	char *full_path = NULL;
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = dentry->d_sb;
+	char *full_path = NULL;
 
 	if (inode == NULL)
 		return -ENOENT;
 
-	xid = GetXid();
-
 	if (!cifs_inode_needs_reval(inode))
-		goto check_inval;
+		return rc;
+
+	xid = GetXid();
 
 	/* can not safely grab the rename sem here if rename calls revalidate
 	   since that would deadlock */
 	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		goto check_inval;
+		goto out;
 	}
 
-	cFYI(1, "Revalidate: %s inode 0x%p count %d dentry: 0x%p d_time %ld "
-		 "jiffies %ld", full_path, inode, inode->i_count.counter,
+	cFYI(1, "Update attributes: %s inode 0x%p count %d dentry: 0x%p d_time "
+		 "%ld jiffies %ld", full_path, inode, inode->i_count.counter,
 		 dentry, dentry->d_time, jiffies);
 
 	if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
@@ -1762,12 +1755,38 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
 					 xid, NULL);
 
-check_inval:
-	if (CIFS_I(inode)->invalid_mapping)
-		cifs_invalidate_mapping(inode);
-
+out:
 	kfree(full_path);
 	FreeXid(xid);
+	return rc;
+}
+
+int cifs_revalidate_file(struct file *filp)
+{
+	int rc;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+	rc = cifs_revalidate_file_attr(filp);
+	if (rc)
+		return rc;
+
+	if (CIFS_I(inode)->invalid_mapping)
+		rc = cifs_invalidate_mapping(inode);
+	return rc;
+}
+
+/* revalidate a dentry's inode attributes */
+int cifs_revalidate_dentry(struct dentry *dentry)
+{
+	int rc;
+	struct inode *inode = dentry->d_inode;
+
+	rc = cifs_revalidate_dentry_attr(dentry);
+	if (rc)
+		return rc;
+
+	if (CIFS_I(inode)->invalid_mapping)
+		rc = cifs_invalidate_mapping(inode);
 	return rc;
 }
 
@@ -1776,27 +1795,41 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
 	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
-	int err = cifs_revalidate_dentry(dentry);
+	struct inode *inode = dentry->d_inode;
+	int rc;
 
-	if (!err) {
-		generic_fillattr(dentry->d_inode, stat);
-		stat->blksize = CIFS_MAX_MSGSIZE;
-		stat->ino = CIFS_I(dentry->d_inode)->uniqueid;
-
-		/*
-		 * If on a multiuser mount without unix extensions, and the
-		 * admin hasn't overridden them, set the ownership to the
-		 * fsuid/fsgid of the current process.
-		 */
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER) &&
-		    !tcon->unix_ext) {
-			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID))
-				stat->uid = current_fsuid();
-			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID))
-				stat->gid = current_fsgid();
-		}
+	/*
+	 * We need to be sure that all dirty pages are written and the server
+	 * has actual ctime, mtime and file length.
+	 */
+	if (!CIFS_I(inode)->clientCanCacheRead && inode->i_mapping &&
+	    inode->i_mapping->nrpages != 0) {
+		rc = filemap_fdatawait(inode->i_mapping);
+		mapping_set_error(inode->i_mapping, rc);
+		return rc;
 	}
-	return err;
+
+	rc = cifs_revalidate_dentry_attr(dentry);
+	if (rc)
+		return rc;
+
+	generic_fillattr(inode, stat);
+	stat->blksize = CIFS_MAX_MSGSIZE;
+	stat->ino = CIFS_I(inode)->uniqueid;
+
+	/*
+	 * If on a multiuser mount without unix extensions, and the admin hasn't
+	 * overridden them, set the ownership to the fsuid/fsgid of the current
+	 * process.
+	 */
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER) &&
+	    !tcon->unix_ext) {
+		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID))
+			stat->uid = current_fsuid();
+		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID))
+			stat->gid = current_fsgid();
+	}
+	return rc;
 }
 
 static int cifs_truncate_page(struct address_space *mapping, loff_t from)
