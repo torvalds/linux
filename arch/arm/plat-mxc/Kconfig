@@ -30,13 +30,6 @@ config ARCH_MX3
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
-config ARCH_MXC91231
-	bool "MXC91231-based"
-	select CPU_V6
-	select MXC_AVIC
-	help
-	  This enables support for systems based on the Freescale MXC91231 family
-
 config ARCH_MX5
 	bool "MX5-based"
 	select CPU_V7
@@ -48,7 +41,6 @@ endchoice
 
 source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
-source "arch/arm/mach-mxc91231/Kconfig"
 source "arch/arm/mach-mx5/Kconfig"
 
 endmenu
