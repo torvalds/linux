@@ -4953,7 +4953,7 @@ static int ipr_eh_abort(struct scsi_cmnd * scsi_cmd)
  * 	IRQ_NONE / IRQ_HANDLED
  **/
 static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
-					      volatile u32 int_reg)
+					      u32 int_reg)
 {
 	irqreturn_t rc = IRQ_HANDLED;
 
@@ -5016,7 +5016,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
 	unsigned long lock_flags = 0;
-	volatile u32 int_reg, int_mask_reg;
+	u32 int_reg, int_mask_reg;
 	u32 ioasc;
 	u16 cmd_index;
 	int num_hrrq = 0;
@@ -7517,7 +7517,7 @@ static int ipr_reset_get_unit_check_job(struct ipr_cmnd *ipr_cmd)
 static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
-	volatile u32 int_reg;
+	u32 int_reg;
 
 	ENTER;
 	ioa_cfg->pdev->state_saved = true;
