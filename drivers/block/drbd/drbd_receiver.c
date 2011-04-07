@@ -150,11 +150,12 @@ static void page_chain_add(struct page **head,
 	*head = chain_first;
 }
 
-static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int number)
+static struct page *__drbd_alloc_pages(struct drbd_conf *mdev,
+				       unsigned int number)
 {
 	struct page *page = NULL;
 	struct page *tmp = NULL;
-	int i = 0;
+	unsigned int i = 0;
 
 	/* Yes, testing drbd_pp_vacant outside the lock is racy.
 	 * So what. It saves a spin_lock. */
@@ -247,7 +248,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
 	/* Yes, we may run up to @number over max_buffers. If we
 	 * follow it strictly, the admin will get it wrong anyways. */
 	if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers)
-		page = drbd_pp_first_pages_or_try_alloc(mdev, number);
+		page = __drbd_alloc_pages(mdev, number);
 
 	while (page == NULL) {
 		prepare_to_wait(&drbd_pp_wait, &wait, TASK_INTERRUPTIBLE);
@@ -255,7 +256,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
 		drbd_kick_lo_and_reclaim_net(mdev);
 
 		if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers) {
-			page = drbd_pp_first_pages_or_try_alloc(mdev, number);
+			page = __drbd_alloc_pages(mdev, number);
 			if (page)
 				break;
 		}
