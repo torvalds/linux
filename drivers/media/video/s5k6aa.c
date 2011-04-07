@@ -4569,8 +4569,8 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			break;
 		}
 	}
-
-	return 0;
+sensor_ioctl_end:
+	return ret;
 
 }
 static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
