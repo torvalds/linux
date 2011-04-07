@@ -373,6 +373,7 @@ static long vpu_clear_irqs(VPU_CLIENT_TYPE type)
 		break;
 	}
 	default : {
+		printk("undefined vpu_clear_irqs case\n");
 		ret = -1;
 	}
 	}
@@ -408,29 +409,37 @@ static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 
 	case VPU_IOC_WR_DEC: {
-		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC)))
+		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC))) {
+			printk("VPU_IOC_WR_DEC copy_from_user failed\n");
 			return -EFAULT;
+		}
 		vpu_write_dec(regs_dec);
 		break;
 	}
 
 	case VPU_IOC_WR_DEC_PP: {
-		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC_PP)))
+		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC_PP))) {
+			printk("VPU_IOC_WR_DEC_PP copy_from_user failed\n");
 			return -EFAULT;
+		}
 		vpu_write_dec_pp(regs_dec);
 		break;
 	}
 
 	case VPU_IOC_WR_ENC: {
-		if (copy_from_user(regs_enc, (void __user *)arg, SIZE_REG(REG_NUM_ENC)))
+		if (copy_from_user(regs_enc, (void __user *)arg, SIZE_REG(REG_NUM_ENC))) {
+			printk("VPU_IOC_WR_ENC copy_from_user failed\n");
 			return -EFAULT;
+		}
 		vpu_write_enc(regs_enc);
 		break;
 	}
 
 	case VPU_IOC_WR_PP: {
-		if (copy_from_user(regs_pp, (void __user *)arg, SIZE_REG(REG_NUM_PP)))
+		if (copy_from_user(regs_pp, (void __user *)arg, SIZE_REG(REG_NUM_PP))) {
+			printk("VPU_IOC_WR_PP copy_from_user failed\n");
 			return -EFAULT;
+		}
 		vpu_write_pp(regs_pp);
 		break;
 	}
@@ -438,29 +447,37 @@ static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case VPU_IOC_RD_DEC: {
 		vpu_read_dec(regs_dec);
-		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC)))
+		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC))) {
+			printk("VPU_IOC_RD_DEC copy_to_user failed\n");
 			return -EFAULT;
+		}
 		break;
 	}
 
 	case VPU_IOC_RD_DEC_PP: {
 		vpu_read_dec_pp(regs_dec);
-		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC_PP)))
+		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC_PP))) {
+			printk("VPU_IOC_RD_DEC_PP copy_to_user failed\n");
 			return -EFAULT;
+		}
 		break;
 	}
 
 	case VPU_IOC_RD_ENC: {
 		vpu_read_enc(regs_enc);
-		if (copy_to_user((void __user *)arg, regs_enc, SIZE_REG(REG_NUM_ENC)))
+		if (copy_to_user((void __user *)arg, regs_enc, SIZE_REG(REG_NUM_ENC))) {
+			printk("VPU_IOC_RD_ENC copy_to_user failed\n");
 			return -EFAULT;
+		}
 		break;
 	}
 
 	case VPU_IOC_RD_PP: {
 		vpu_read_pp(regs_pp);
-		if (copy_to_user((void __user *)arg, regs_pp, SIZE_REG(REG_NUM_PP)))
+		if (copy_to_user((void __user *)arg, regs_pp, SIZE_REG(REG_NUM_PP))) {
+			printk("VPU_IOC_RD_PP copy_to_user failed\n");
 			return -EFAULT;
+		}
 		break;
 	}
 
@@ -470,8 +487,10 @@ static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	default:
+	default: {
+		printk("undefined ioctl cmd\n");
 		return -ENOTTY;
+	}
 	}
 
 	return 0;
@@ -479,8 +498,10 @@ static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int vpu_open(struct inode *inode, struct file *filp)
 {
-	if (client.filp)
+	if (client.filp) {
+		printk("vpu is already opened\n");
 		return -EBUSY;
+	}
 
 	client.filp = filp;
 	vpu_power_on();
