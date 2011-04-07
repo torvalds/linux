@@ -462,14 +462,17 @@ static void pch_irq_handler(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
 }
 
-static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
+irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 {
+	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
 	u32 hotplug_mask;
 	struct drm_i915_master_private *master_priv;
 	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
+
+	atomic_inc(&dev_priv->irq_received);
 
 	if (IS_GEN6(dev))
 		bsd_usr_interrupt = GT_GEN6_BSD_USER_INTERRUPT;
@@ -1134,9 +1137,6 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 	atomic_inc(&dev_priv->irq_received);
 
-	if (HAS_PCH_SPLIT(dev))
-		return ironlake_irq_handler(dev);
-
 	iir = I915_READ(IIR);
 
 	if (INTEL_INFO(dev)->gen >= 4)
@@ -1593,9 +1593,14 @@ repeat:
 
 /* drm_dma.h hooks
 */
-static void ironlake_irq_preinstall(struct drm_device *dev)
+void ironlake_irq_preinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	atomic_set(&dev_priv->irq_received, 0);
+
+	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
+	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
@@ -1616,7 +1621,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
-static int ironlake_irq_postinstall(struct drm_device *dev)
+int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
@@ -1625,6 +1630,13 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	u32 render_irqs;
 	u32 hotplug_mask;
 
+	DRM_INIT_WAITQUEUE(&dev_priv->ring[RCS].irq_queue);
+	if (HAS_BSD(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->ring[VCS].irq_queue);
+	if (HAS_BLT(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->ring[BCS].irq_queue);
+
+	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 	dev_priv->irq_mask = ~display_mask;
 
 	/* should always can generate irq */
@@ -1692,11 +1704,6 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
-	if (HAS_PCH_SPLIT(dev)) {
-		ironlake_irq_preinstall(dev);
-		return;
-	}
-
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
@@ -1721,9 +1728,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	u32 error_mask;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
-
-	if (HAS_PCH_SPLIT(dev))
-		return ironlake_irq_postinstall(dev);
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask = ~I915_INTERRUPT_ENABLE_FIX;
@@ -1793,9 +1797,15 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void ironlake_irq_uninstall(struct drm_device *dev)
+void ironlake_irq_uninstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	if (!dev_priv)
+		return;
+
+	dev_priv->vblank_pipe = 0;
+
 	I915_WRITE(HWSTAM, 0xffffffff);
 
 	I915_WRITE(DEIMR, 0xffffffff);
@@ -1816,11 +1826,6 @@ void i915_driver_irq_uninstall(struct drm_device * dev)
 		return;
 
 	dev_priv->vblank_pipe = 0;
-
-	if (HAS_PCH_SPLIT(dev)) {
-		ironlake_irq_uninstall(dev);
-		return;
-	}
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);
