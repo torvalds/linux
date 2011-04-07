@@ -698,11 +698,23 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	case KDGKBMODE:
-		uival = ((kbd->kbdmode == VC_RAW) ? K_RAW :
-				 (kbd->kbdmode == VC_MEDIUMRAW) ? K_MEDIUMRAW :
-				 (kbd->kbdmode == VC_UNICODE) ? K_UNICODE :
-				 (kbd->kbdmode == VC_OFF) ? K_OFF :
-				 K_XLATE);
+		switch (kbd->kbdmode) {
+		case VC_RAW:
+			uival = K_RAW;
+			break;
+		case VC_MEDIUMRAW:
+			uival = K_MEDIUMRAW;
+			break;
+		case VC_UNICODE:
+			uival = K_UNICODE;
+			break;
+		case VC_OFF:
+			uival = K_OFF;
+			break;
+		default:
+			uival = K_XLATE;
+			break;
+		}
 		goto setint;
 
 	/* this could be folded into KDSKBMODE, but for compatibility
