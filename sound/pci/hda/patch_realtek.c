@@ -375,6 +375,7 @@ struct alc_spec {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	void (*power_hook)(struct hda_codec *codec);
 #endif
+	void (*shutup)(struct hda_codec *codec);
 
 	/* for pin sensing */
 	unsigned int sense_updated: 1;
@@ -1262,6 +1263,15 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 		set_eapd(codec, 0x15, on);
 		break;
 	}
+}
+
+/* generic shutup callback;
+ * just turning off EPAD and a little pause for avoiding pop-noise
+ */
+static void alc_eapd_shutup(struct hda_codec *codec)
+{
+	alc_auto_setup_eapd(codec, false);
+	msleep(200);
 }
 
 static void alc_auto_init_amp(struct hda_codec *codec, int type)
@@ -4201,6 +4211,10 @@ static int alc_build_pcms(struct hda_codec *codec)
 
 static inline void alc_shutup(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
+
+	if (spec && spec->shutup)
+		spec->shutup(codec);
 	snd_hda_shutup_pins(codec);
 }
 
@@ -4250,6 +4264,7 @@ static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 #ifdef SND_HDA_NEEDS_RESUME
 static int alc_resume(struct hda_codec *codec)
 {
+	msleep(150); /* to avoid pop noise */
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
@@ -7370,6 +7385,7 @@ static int patch_alc260(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC260_AUTO)
 		spec->init_hook = alc260_auto_init;
+	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc260_loopbacks;
@@ -13005,6 +13021,7 @@ static int patch_alc262(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC262_AUTO)
 		spec->init_hook = alc262_auto_init;
+	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -14079,6 +14096,7 @@ static int patch_alc268(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC268_AUTO)
 		spec->init_hook = alc268_auto_init;
+	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);
 
@@ -17397,6 +17415,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 
 	if (board_config == ALC861VD_AUTO)
 		spec->init_hook = alc861vd_auto_init;
+	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861vd_loopbacks;
@@ -19628,6 +19647,7 @@ static int patch_alc662(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC662_AUTO)
 		spec->init_hook = alc662_auto_init;
+	spec->shutup = alc_eapd_shutup;
 
 	alc_init_jacks(codec);
 
