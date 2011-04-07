@@ -1021,12 +1021,6 @@ void arch_teardown_msi_irq(unsigned int irq)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	return pdev->dev.of_node;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
-
 static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
 {
 	struct pci_dev *ali_isa_bridge;

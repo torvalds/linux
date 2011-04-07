@@ -102,11 +102,6 @@ struct pci_controller {
 };
 
 #ifdef CONFIG_PCI
-static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
-{
-	return dev->dev.of_node;
-}
-
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 {
 	return bus->dev.of_node;
