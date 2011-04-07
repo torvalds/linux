@@ -53,8 +53,8 @@ const struct mesh_config default_mesh_config = {
 const struct mesh_setup default_mesh_setup = {
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
-	.vendor_ie = NULL,
-	.vendor_ie_len = 0,
+	.ie = NULL,
+	.ie_len = 0,
 };
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,

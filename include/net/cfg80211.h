@@ -689,8 +689,8 @@ struct mesh_config {
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
  * @path_sel_proto: which path selection protocol to use
  * @path_metric: which metric to use
- * @vendor_ie: vendor information elements (optional)
- * @vendor_ie_len: length of vendor information elements
+ * @ie: vendor information elements (optional)
+ * @ie_len: length of vendor information elements
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -699,8 +699,8 @@ struct mesh_setup {
 	u8 mesh_id_len;
 	u8  path_sel_proto;
 	u8  path_metric;
-	const u8 *vendor_ie;
-	u8 vendor_ie_len;
+	const u8 *ie;
+	u8 ie_len;
 };
 
 /**

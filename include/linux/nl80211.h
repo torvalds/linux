@@ -545,6 +545,7 @@ enum nl80211_commands {
 /* source-level API compatibility */
 #define NL80211_CMD_GET_MESH_PARAMS NL80211_CMD_GET_MESH_CONFIG
 #define NL80211_CMD_SET_MESH_PARAMS NL80211_CMD_SET_MESH_CONFIG
+#define NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE NL80211_MESH_SETUP_IE
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -1719,9 +1720,9 @@ enum nl80211_meshconf_params {
  * vendor specific path metric or disable it to use the default Airtime
  * metric.
  *
- * @NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE: A vendor specific information
- * element that vendors will use to identify the path selection methods and
- * metrics in use.
+ * @NL80211_MESH_SETUP_IE: Information elements for this mesh, for instance, a
+ * robust security network ie, or a vendor specific information element that
+ * vendors will use to identify the path selection methods and metrics in use.
  *
  * @NL80211_MESH_SETUP_ATTR_MAX: highest possible mesh setup attribute number
  * @__NL80211_MESH_SETUP_ATTR_AFTER_LAST: Internal use
@@ -1730,7 +1731,7 @@ enum nl80211_mesh_setup_params {
 	__NL80211_MESH_SETUP_INVALID,
 	NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL,
 	NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC,
-	NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE,
+	NL80211_MESH_SETUP_IE,
 
 	/* keep last */
 	__NL80211_MESH_SETUP_ATTR_AFTER_LAST,

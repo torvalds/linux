@@ -488,8 +488,8 @@ struct ieee80211_if_mesh {
 	struct mesh_config mshcfg;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
-	const u8 *vendor_ie;
-	u8 vendor_ie_len;
+	const u8 *ie;
+	u8 ie_len;
 };
 
 #ifdef CONFIG_MAC80211_MESH

@@ -2823,7 +2823,7 @@ static const struct nla_policy
 	nl80211_mesh_setup_params_policy[NL80211_MESH_SETUP_ATTR_MAX+1] = {
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC] = { .type = NLA_U8 },
-	[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE] = { .type = NLA_BINARY,
+	[NL80211_MESH_SETUP_IE] = { .type = NLA_BINARY,
 		.len = IEEE80211_MAX_DATA_LEN },
 };
 
@@ -2925,13 +2925,14 @@ static int nl80211_parse_mesh_setup(struct genl_info *info,
 		 IEEE80211_PATH_METRIC_VENDOR :
 		 IEEE80211_PATH_METRIC_AIRTIME;
 
-	if (tb[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE]) {
+
+	if (tb[NL80211_MESH_SETUP_IE]) {
 		struct nlattr *ieattr =
-			tb[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE];
+			tb[NL80211_MESH_SETUP_IE];
 		if (!is_valid_ie_attr(ieattr))
 			return -EINVAL;
-		setup->vendor_ie = nla_data(ieattr);
-		setup->vendor_ie_len = nla_len(ieattr);
+		setup->ie = nla_data(ieattr);
+		setup->ie_len = nla_len(ieattr);
 	}
 
 	return 0;
