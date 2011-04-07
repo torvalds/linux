@@ -10852,6 +10852,11 @@ static void alc882_auto_init_input_src(struct hda_codec *codec)
 		const struct hda_input_mux *imux;
 		int conns, mute, idx, item;
 
+		/* mute ADC */
+		snd_hda_codec_write(codec, spec->adc_nids[c], 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_MUTE(0));
+
 		conns = snd_hda_get_connections(codec, nid, conn_list,
 						ARRAY_SIZE(conn_list));
 		if (conns < 0)
