@@ -484,6 +484,15 @@ static void atl1c_set_rxbufsize(struct atl1c_adapter *adapter,
 	adapter->rx_buffer_len = mtu > AT_RX_BUF_SIZE ?
 		roundup(mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN, 8) : AT_RX_BUF_SIZE;
 }
+
+static u32 atl1c_fix_features(struct net_device *netdev, u32 features)
+{
+	if (netdev->mtu > MAX_TSO_FRAME_SIZE)
+		features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+
+	return features;
+}
+
 /*
  * atl1c_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
@@ -510,14 +519,8 @@ static int atl1c_change_mtu(struct net_device *netdev, int new_mtu)
 		netdev->mtu = new_mtu;
 		adapter->hw.max_frame_size = new_mtu;
 		atl1c_set_rxbufsize(adapter, netdev);
-		if (new_mtu > MAX_TSO_FRAME_SIZE) {
-			adapter->netdev->features &= ~NETIF_F_TSO;
-			adapter->netdev->features &= ~NETIF_F_TSO6;
-		} else {
-			adapter->netdev->features |= NETIF_F_TSO;
-			adapter->netdev->features |= NETIF_F_TSO6;
-		}
 		atl1c_down(adapter);
+		netdev_update_features(netdev);
 		atl1c_up(adapter);
 		clear_bit(__AT_RESETTING, &adapter->flags);
 		if (adapter->hw.ctrl_flags & ATL1C_FPGA_VERSION) {
@@ -2585,6 +2588,7 @@ static const struct net_device_ops atl1c_netdev_ops = {
 	.ndo_set_mac_address 	= atl1c_set_mac_addr,
 	.ndo_set_multicast_list = atl1c_set_multi,
 	.ndo_change_mtu		= atl1c_change_mtu,
+	.ndo_fix_features	= atl1c_fix_features,
 	.ndo_do_ioctl		= atl1c_ioctl,
 	.ndo_tx_timeout		= atl1c_tx_timeout,
 	.ndo_get_stats		= atl1c_get_stats,
@@ -2605,12 +2609,13 @@ static int atl1c_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	atl1c_set_ethtool_ops(netdev);
 
 	/* TODO: add when ready */
-	netdev->features =	NETIF_F_SG	   |
+	netdev->hw_features =	NETIF_F_SG	   |
 				NETIF_F_HW_CSUM	   |
 				NETIF_F_HW_VLAN_TX |
-				NETIF_F_HW_VLAN_RX |
 				NETIF_F_TSO	   |
 				NETIF_F_TSO6;
+	netdev->features =	netdev->hw_features |
+				NETIF_F_HW_VLAN_RX;
 	return 0;
 }
 

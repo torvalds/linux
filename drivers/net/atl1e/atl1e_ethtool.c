@@ -382,9 +382,6 @@ static const struct ethtool_ops atl1e_ethtool_ops = {
 	.get_eeprom_len         = atl1e_get_eeprom_len,
 	.get_eeprom             = atl1e_get_eeprom,
 	.set_eeprom             = atl1e_set_eeprom,
-	.set_tx_csum            = ethtool_op_set_tx_hw_csum,
-	.set_sg                 = ethtool_op_set_sg,
-	.set_tso                = ethtool_op_set_tso,
 };
 
 void atl1e_set_ethtool_ops(struct net_device *netdev)
