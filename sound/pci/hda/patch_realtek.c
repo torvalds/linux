@@ -1268,6 +1268,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		case 0x10ec0665:
 		case 0x10ec0862:
 		case 0x10ec0889:
+		case 0x10ec0892:
 			set_eapd(codec, 0x14, 1);
 			set_eapd(codec, 0x15, 1);
 			break;
@@ -4244,6 +4245,7 @@ static void alc_power_eapd(struct hda_codec *codec)
 	case 0x10ec0665:
 	case 0x10ec0862:
 	case 0x10ec0889:
+	case 0x10ec0892:
 		set_eapd(codec, 0x14, 0);
 		set_eapd(codec, 0x15, 0);
 		break;
@@ -17922,10 +17924,13 @@ static struct hda_verb alc662_init_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 
+	{ }
+};
+
+static struct hda_verb alc662_eapd_init_verbs[] = {
 	/* always trun on EAPD */
 	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
-
 	{ }
 };
 
@@ -18797,7 +18802,7 @@ static struct snd_pci_quirk alc662_cfg_tbl[] = {
 static struct alc_config_preset alc662_presets[] = {
 	[ALC662_3ST_2ch_DIG] = {
 		.mixers = { alc662_3ST_2ch_mixer },
-		.init_verbs = { alc662_init_verbs },
+		.init_verbs = { alc662_init_verbs, alc662_eapd_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18808,7 +18813,7 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC662_3ST_6ch_DIG] = {
 		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
-		.init_verbs = { alc662_init_verbs },
+		.init_verbs = { alc662_init_verbs, alc662_eapd_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18820,7 +18825,7 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC662_3ST_6ch] = {
 		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
-		.init_verbs = { alc662_init_verbs },
+		.init_verbs = { alc662_init_verbs, alc662_eapd_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_6ch_modes),
@@ -18830,7 +18835,7 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC662_5ST_DIG] = {
 		.mixers = { alc662_base_mixer, alc662_chmode_mixer },
-		.init_verbs = { alc662_init_verbs },
+		.init_verbs = { alc662_init_verbs, alc662_eapd_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18841,7 +18846,9 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC662_LENOVO_101E] = {
 		.mixers = { alc662_lenovo_101e_mixer },
-		.init_verbs = { alc662_init_verbs, alc662_sue_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc662_sue_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
@@ -18853,6 +18860,7 @@ static struct alc_config_preset alc662_presets[] = {
 	[ALC662_ASUS_EEEPC_P701] = {
 		.mixers = { alc662_eeepc_p701_mixer },
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc662_eeepc_sue_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -18866,6 +18874,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc662_eeepc_ep20_mixer,
 			    alc662_chmode_mixer },
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc662_eeepc_ep20_sue_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -18879,6 +18888,7 @@ static struct alc_config_preset alc662_presets[] = {
 	[ALC662_ECS] = {
 		.mixers = { alc662_ecs_mixer },
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc662_ecs_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -18890,7 +18900,9 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC663_ASUS_M51VA] = {
 		.mixers = { alc663_m51va_mixer },
-		.init_verbs = { alc662_init_verbs, alc663_m51va_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc663_m51va_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18902,7 +18914,9 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC663_ASUS_G71V] = {
 		.mixers = { alc663_g71v_mixer },
-		.init_verbs = { alc662_init_verbs, alc663_g71v_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc663_g71v_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18914,7 +18928,9 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC663_ASUS_H13] = {
 		.mixers = { alc663_m51va_mixer },
-		.init_verbs = { alc662_init_verbs, alc663_m51va_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc663_m51va_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
@@ -18924,7 +18940,9 @@ static struct alc_config_preset alc662_presets[] = {
 	},
 	[ALC663_ASUS_G50V] = {
 		.mixers = { alc663_g50v_mixer },
-		.init_verbs = { alc662_init_verbs, alc663_g50v_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc663_g50v_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
 		.dig_out_nid = ALC662_DIGOUT_NID,
@@ -18939,6 +18957,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_m51va_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_21jd_amic_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -18954,6 +18973,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc662_1bjd_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc662_1bjd_amic_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -18968,6 +18988,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_two_hp_m1_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_two_hp_amic_m1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -18983,6 +19004,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_asus_21jd_clfe_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_21jd_amic_init_verbs},
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -18998,6 +19020,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_asus_15jd_clfe_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_15jd_amic_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -19013,6 +19036,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_two_hp_m2_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_two_hp_amic_m2_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -19028,6 +19052,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_mode7_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_mode7_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -19043,6 +19068,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.mixers = { alc663_mode8_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_mode8_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.hp_nid = 0x03,
@@ -19057,7 +19083,9 @@ static struct alc_config_preset alc662_presets[] = {
 	[ALC272_DELL] = {
 		.mixers = { alc663_m51va_mixer },
 		.cap_mixer = alc272_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs, alc272_dell_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc272_dell_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
 		.dac_nids = alc272_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
@@ -19072,7 +19100,9 @@ static struct alc_config_preset alc662_presets[] = {
 	[ALC272_DELL_ZM1] = {
 		.mixers = { alc663_m51va_mixer },
 		.cap_mixer = alc662_auto_capture_mixer,
-		.init_verbs = { alc662_init_verbs, alc272_dell_zm1_init_verbs },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
+				alc272_dell_zm1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
 		.dac_nids = alc272_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
@@ -19087,6 +19117,7 @@ static struct alc_config_preset alc662_presets[] = {
 	[ALC272_SAMSUNG_NC10] = {
 		.mixers = { alc272_nc10_mixer },
 		.init_verbs = { alc662_init_verbs,
+				alc662_eapd_init_verbs,
 				alc663_21jd_amic_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
 		.dac_nids = alc272_dac_nids,
