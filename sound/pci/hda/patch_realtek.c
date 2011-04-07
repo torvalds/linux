@@ -19319,14 +19319,21 @@ static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 	hda_nid_t srcs[HDA_MAX_CONNECTIONS];
 
 	alc_set_pin_output(codec, nid, pin_type);
-	/* need the manual connection? */
 	num = snd_hda_get_connections(codec, nid, srcs, ARRAY_SIZE(srcs));
-	if (num <= 1)
-		return;
 	for (i = 0; i < num; i++) {
 		if (alc662_mix_to_dac(codec, srcs[i]) != dac)
 			continue;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, i);
+		/* need the manual connection? */
+		if (num > 1)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CONNECT_SEL, i);
+		/* unmute mixer widget inputs */
+		snd_hda_codec_write(codec, srcs[i], 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(0));
+		snd_hda_codec_write(codec, srcs[i], 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(1));
 		return;
 	}
 }
