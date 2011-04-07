@@ -467,7 +467,6 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	/* Handle in-sequence broadcast message */
 
 receive:
-	deferred = node->bclink.deferred_head;
 	next_in = mod(node->bclink.last_in + 1);
 	seqno = msg_seqno(msg);
 
@@ -500,6 +499,7 @@ receive:
 		}
 		buf = NULL;
 		tipc_node_lock(node);
+		deferred = node->bclink.deferred_head;
 		if (deferred && (buf_seqno(deferred) == mod(next_in + 1))) {
 			buf = deferred;
 			msg = buf_msg(buf);
