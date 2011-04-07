@@ -6807,7 +6807,21 @@ static void sched_domain_node_span(int node, struct cpumask *span)
 		cpumask_or(span, span, cpumask_of_node(next_node));
 	}
 }
+
+static const struct cpumask *cpu_node_mask(int cpu)
+{
+	lockdep_assert_held(&sched_domains_mutex);
+
+	sched_domain_node_span(cpu_to_node(cpu), sched_domains_tmpmask);
+
+	return sched_domains_tmpmask;
+}
 #endif /* CONFIG_NUMA */
+
+static const struct cpumask *cpu_cpu_mask(int cpu)
+{
+	return cpumask_of_node(cpu_to_node(cpu));
+}
 
 int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
 
@@ -7088,7 +7102,7 @@ static struct sched_domain *__build_allnodes_sched_domain(struct s_data *d,
 #ifdef CONFIG_NUMA
 	sd = sd_init_ALLNODES(d, i);
 	set_domain_attribute(sd, attr);
-	cpumask_copy(sched_domain_span(sd), cpu_map);
+	cpumask_and(sched_domain_span(sd), cpu_map, cpu_possible_mask);
 	sd->parent = parent;
 	if (parent)
 		parent->child = sd;
@@ -7104,8 +7118,7 @@ static struct sched_domain *__build_node_sched_domain(struct s_data *d,
 #ifdef CONFIG_NUMA
 	sd = sd_init_NODE(d, i);
 	set_domain_attribute(sd, attr);
-	sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
-	cpumask_and(sched_domain_span(sd), sched_domain_span(sd), cpu_map);
+	cpumask_and(sched_domain_span(sd), cpu_map, cpu_node_mask(i));
 	sd->parent = parent;
 	if (parent)
 		parent->child = sd;
@@ -7120,8 +7133,7 @@ static struct sched_domain *__build_cpu_sched_domain(struct s_data *d,
 	struct sched_domain *sd;
 	sd = sd_init_CPU(d, i);
 	set_domain_attribute(sd, attr);
-	cpumask_and(sched_domain_span(sd),
-			cpumask_of_node(cpu_to_node(i)), cpu_map);
+	cpumask_and(sched_domain_span(sd), cpu_map, cpu_cpu_mask(i));
 	sd->parent = parent;
 	if (parent)
 		parent->child = sd;
