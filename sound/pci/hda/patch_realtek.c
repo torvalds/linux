@@ -14808,7 +14808,6 @@ static void alc269_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
 static void alc269_toggle_power_output(struct hda_codec *codec, int power_up)
 {
 	int val = alc_read_coef_idx(codec, 0x04);
@@ -14819,8 +14818,7 @@ static void alc269_toggle_power_output(struct hda_codec *codec, int power_up)
 	alc_write_coef_idx(codec, 0x04, val);
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-static int alc269_suspend(struct hda_codec *codec, pm_message_t state)
+static void alc269_shutup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -14830,14 +14828,9 @@ static int alc269_suspend(struct hda_codec *codec, pm_message_t state)
 		alc269_toggle_power_output(codec, 0);
 		msleep(150);
 	}
-
-	alc_shutup(codec);
-	if (spec && spec->power_hook)
-		spec->power_hook(codec);
-	return 0;
 }
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
+#ifdef SND_HDA_NEEDS_RESUME
 static int alc269_resume(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
@@ -15302,14 +15295,12 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	codec->patch_ops.suspend = alc269_suspend;
-#endif
 #ifdef SND_HDA_NEEDS_RESUME
 	codec->patch_ops.resume = alc269_resume;
 #endif
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
+	spec->shutup = alc269_shutup;
 
 	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
