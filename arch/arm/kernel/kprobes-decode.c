@@ -1069,7 +1069,7 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 			return prep_emulate_rd16rs8rm0_wflags(insn, asi);
 
 		/* SMLAxy : cccc 0001 0000 xxxx xxxx xxxx 1xx0 xxxx : Q */
-		/* SMLAWy : cccc 0001 0010 xxxx xxxx xxxx 0x00 xxxx : Q */
+		/* SMLAWy : cccc 0001 0010 xxxx xxxx xxxx 1x00 xxxx : Q */
 		return prep_emulate_rd16rn12rs8rm0_wflags(insn, asi);
 
 	}
