@@ -126,7 +126,7 @@ struct sk_buff;
  * GRO uses frags we allocate at least 16 regardless of page size.
  */
 #if (65536/PAGE_SIZE + 2) < 16
-#define MAX_SKB_FRAGS 16
+#define MAX_SKB_FRAGS 16UL
 #else
 #define MAX_SKB_FRAGS (65536/PAGE_SIZE + 2)
 #endif
