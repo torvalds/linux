@@ -115,15 +115,14 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 
 	int ret = 0;
 
-#if 0 //phc
 	gpio_direction_output(pdata->bp_power, GPIO_HIGH);
 	
 	gpio_direction_input(pdata->bp_statue);
 	
-	rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
+	//rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
 	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
 	
-	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,0);
+	//rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,0);
 	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
 	mdelay(100);
 	//rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
@@ -138,10 +137,6 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 	
 	//INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
 	device_init_wakeup(&pdev, 1);
-#endif
-  gpio_direction_output(pdata->bp_power, GPIO_HIGH);
-  mdelay(2000);
-  gpio_set_value(pdata->bp_power, GPIO_LOW);
 
 	return 0;
 }
@@ -189,7 +184,6 @@ static int mtk23d_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, mt6223d_data);
 
-#if 0 //phc
 	result = gpio_request(pdata->bp_statue, "mtk23d");
 	if (result) {
 		printk("failed to request BP_STATUS gpio\n");
@@ -212,15 +206,11 @@ static int mtk23d_probe(struct platform_device *pdev)
 		printk("failed to request BP_RESET gpio\n");
 		goto err2;
 	}		
-#endif		// phc
-	
 	result = gpio_request(pdata->bp_power, "mtk23d");
 	if (result) {
 		printk("failed to request BP_POW_EN gpio\n");
 		goto err1;
 	}
-
-	
 #if 0
 	gpio_direction_output(pdata->bp_power, GPIO_HIGH);	
 	

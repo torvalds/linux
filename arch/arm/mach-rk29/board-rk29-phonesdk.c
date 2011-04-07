@@ -2134,10 +2134,10 @@ static struct platform_device rk29_device_pwm_regulator = {
 #if defined(CONFIG_MTK23D)
 struct rk2818_23d_data rk2818_23d_info = {
 	.bp_power = RK29_PIN0_PA0,
-	//.bp_reset = TCA6424_P11,
-	//.bp_statue = RK2818_PIN_PH7,//input  high bp sleep;
-	//.ap_statue = RK2818_PIN_PA4,//output high ap sleep;
-	//.ap_bp_wakeup = RK2818_PIN_PF5, //output AP wake up BP used rising edge;
+	.bp_reset = RK29_PIN0_PA1,
+	.bp_statue = RK29_PIN0_PA3,//input  high bp sleep;
+	.ap_statue = RK29_PIN0_PA2,//output high ap sleep;
+	.ap_bp_wakeup = RK29_PIN0_PA4, //output AP wake up BP used rising edge;
 	//.bp_ap_wakeup = RK2818_PIN_PE0,//input BP wake up AP
 };
 struct platform_device rk2818_device_mtk23d = {	
