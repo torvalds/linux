@@ -997,38 +997,6 @@ config APRICOT
 	  To compile this driver as a module, choose M here. The module
 	  will be called apricot.
 
-config B44
-	tristate "Broadcom 440x/47xx ethernet support"
-	depends on SSB_POSSIBLE && HAS_DMA
-	select SSB
-	select MII
-	help
-	  If you have a network (Ethernet) controller of this type, say Y
-	  or M and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called b44.
-
-# Auto-select SSB PCI-HOST support, if possible
-config B44_PCI_AUTOSELECT
-	bool
-	depends on B44 && SSB_PCIHOST_POSSIBLE
-	select SSB_PCIHOST
-	default y
-
-# Auto-select SSB PCICORE driver, if possible
-config B44_PCICORE_AUTOSELECT
-	bool
-	depends on B44 && SSB_DRIVER_PCICORE_POSSIBLE
-	select SSB_DRIVER_PCICORE
-	default y
-
-config B44_PCI
-	bool
-	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
-	default y
-
 config FORCEDETH
 	tristate "nForce Ethernet support"
 	depends on NET_PCI && PCI
@@ -1465,15 +1433,6 @@ config XILINX_EMACLITE
 	help
 	  This driver supports the 10/100 Ethernet Lite from Xilinx.
 
-config BCM63XX_ENET
-	tristate "Broadcom 63xx internal mac support"
-	depends on BCM63XX
-	select MII
-	select PHYLIB
-	help
-	  This driver supports the ethernet MACs in the Broadcom 63xx
-	  MIPS chipset family (BCM63XX).
-
 config FTMAC100
 	tristate "Faraday FTMAC100 10/100 Ethernet support"
 	depends on ARM
@@ -1683,19 +1642,6 @@ config R8169
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.
 
-config SB1250_MAC
-	tristate "SB1250 Gigabit Ethernet support"
-	depends on SIBYTE_SB1xxx_SOC
-	select PHYLIB
-	---help---
-	  This driver supports Gigabit Ethernet interfaces based on the
-	  Broadcom SiByte family of System-On-a-Chip parts.  They include
-	  the BCM1120, BCM1125, BCM1125H, BCM1250, BCM1255, BCM1280, BCM1455
-	  and BCM1480 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called sb1250-mac.
-
 config SIS190
 	tristate "SiS190/SiS191 gigabit ethernet support"
 	depends on PCI
@@ -1788,39 +1734,6 @@ config VIA_VELOCITY
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called via-velocity.
-
-config TIGON3
-	tristate "Broadcom Tigon3 support"
-	depends on PCI
-	select PHYLIB
-	help
-	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called tg3.  This is recommended.
-
-config BNX2
-	tristate "Broadcom NetXtremeII support"
-	depends on PCI
-	select CRC32
-	select FW_LOADER
-	help
-	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called bnx2.  This is recommended.
-
-config CNIC
-	tristate "Broadcom CNIC support"
-	depends on PCI
-	select BNX2
-	select UIO
-	help
-	  This driver supports offload features of Broadcom NetXtremeII
-	  gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called cnic.  This is recommended.
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
@@ -2326,18 +2239,6 @@ config TEHUTI
 	depends on PCI
 	help
 	  Tehuti Networks 10G Ethernet NIC
-
-config BNX2X
-	tristate "Broadcom NetXtremeII 10Gb support"
-	depends on PCI
-	select FW_LOADER
-	select ZLIB_INFLATE
-	select LIBCRC32C
-	select MDIO
-	help
-	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
-	  To compile this driver as a module, choose M here: the module
-	  will be called bnx2x.  This is recommended.
 
 config QLCNIC
 	tristate "QLOGIC QLCNIC 1/10Gb Converged Ethernet NIC Support"
