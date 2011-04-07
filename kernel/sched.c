@@ -6865,11 +6865,13 @@ struct s_data {
 	cpumask_var_t		nodemask;
 	cpumask_var_t		send_covered;
 	cpumask_var_t		tmpmask;
+	struct sched_domain ** __percpu sd;
 	struct root_domain	*rd;
 };
 
 enum s_alloc {
 	sa_rootdomain,
+	sa_sd,
 	sa_tmpmask,
 	sa_send_covered,
 	sa_nodemask,
@@ -7104,6 +7106,8 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 	switch (what) {
 	case sa_rootdomain:
 		free_rootdomain(d->rd); /* fall through */
+	case sa_sd:
+		free_percpu(d->sd); /* fall through */
 	case sa_tmpmask:
 		free_cpumask_var(d->tmpmask); /* fall through */
 	case sa_send_covered:
@@ -7124,10 +7128,15 @@ static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
 		return sa_nodemask;
 	if (!alloc_cpumask_var(&d->tmpmask, GFP_KERNEL))
 		return sa_send_covered;
+	d->sd = alloc_percpu(struct sched_domain *);
+	if (!d->sd) {
+		printk(KERN_WARNING "Cannot alloc per-cpu pointers\n");
+		return sa_tmpmask;
+	}
 	d->rd = alloc_rootdomain();
 	if (!d->rd) {
 		printk(KERN_WARNING "Cannot alloc root domain\n");
-		return sa_tmpmask;
+		return sa_sd;
 	}
 	return sa_rootdomain;
 }
@@ -7316,6 +7325,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
 
+		*per_cpu_ptr(d.sd, i) = sd;
+
 		for (tmp = sd; tmp; tmp = tmp->parent) {
 			tmp->span_weight = cpumask_weight(sched_domain_span(tmp));
 			build_sched_groups(&d, tmp, cpu_map, i);
@@ -7363,15 +7374,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Attach the domains */
 	for_each_cpu(i, cpu_map) {
-#ifdef CONFIG_SCHED_SMT
-		sd = &per_cpu(cpu_domains, i).sd;
-#elif defined(CONFIG_SCHED_MC)
-		sd = &per_cpu(core_domains, i).sd;
-#elif defined(CONFIG_SCHED_BOOK)
-		sd = &per_cpu(book_domains, i).sd;
-#else
-		sd = &per_cpu(phys_domains, i).sd;
-#endif
+		sd = *per_cpu_ptr(d.sd, i);
 		cpu_attach_domain(sd, d.rd, i);
 	}
 
