@@ -116,6 +116,7 @@ static int nvhdcp_i2c_read(struct tegra_nvhdcp *nvhdcp, u8 reg,
 					size_t len, void *data)
 {
 	int status;
+	int retries = 15;
 	struct i2c_msg msg[] = {
 		{
 			.addr = 0x74 >> 1, /* primary link */
@@ -131,7 +132,16 @@ static int nvhdcp_i2c_read(struct tegra_nvhdcp *nvhdcp, u8 reg,
 		},
 	};
 
-	status = i2c_transfer(nvhdcp->client->adapter, msg, ARRAY_SIZE(msg));
+	do {
+		if (!nvhdcp_is_plugged(nvhdcp)) {
+			nvhdcp_err("disconnect during i2c xfer\n");
+			return -EIO;
+		}
+		status = i2c_transfer(nvhdcp->client->adapter,
+			msg, ARRAY_SIZE(msg));
+		if (retries > 1)
+			msleep(250);
+	} while ((status < 0) && retries--);
 
 	if (status < 0) {
 		nvhdcp_err("i2c xfer error %d\n", status);
@@ -154,11 +164,21 @@ static int nvhdcp_i2c_write(struct tegra_nvhdcp *nvhdcp, u8 reg,
 			.buf = buf,
 		},
 	};
+	int retries = 15;
 
 	buf[0] = reg;
 	memcpy(buf + 1, data, len);
 
-	status = i2c_transfer(nvhdcp->client->adapter, msg, ARRAY_SIZE(msg));
+	do {
+		if (!nvhdcp_is_plugged(nvhdcp)) {
+			nvhdcp_err("disconnect during i2c xfer\n");
+			return -EIO;
+		}
+		status = i2c_transfer(nvhdcp->client->adapter,
+			msg, ARRAY_SIZE(msg));
+		if (retries > 1)
+			msleep(250);
+	} while ((status < 0) && retries--);
 
 	if (status < 0) {
 		nvhdcp_err("i2c xfer error %d\n", status);
@@ -320,16 +340,7 @@ static inline int get_receiver_ri(struct tegra_nvhdcp *nvhdcp, u16 *r)
 
 static int get_bcaps(struct tegra_nvhdcp *nvhdcp, u8 *b_caps)
 {
-	int e, retries = 4;
-	do {
-		e = nvhdcp_i2c_read8(nvhdcp, 0x40, b_caps);
-		if (!e)
-			return 0;
-		if (retries > 1)
-			msleep(100);
-	} while (--retries);
-
-	return -EIO;
+	return nvhdcp_i2c_read8(nvhdcp, 0x40, b_caps);
 }
 
 static int get_ksvfifo(struct tegra_nvhdcp *nvhdcp,
