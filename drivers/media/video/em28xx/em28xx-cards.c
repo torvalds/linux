@@ -2810,6 +2810,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
+		case CHIP_ID_EM28174:
+			em28xx_info("chip ID is em28174\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->wait_after_write = 0;
+			break;
 		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;
