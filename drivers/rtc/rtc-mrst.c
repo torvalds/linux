@@ -342,6 +342,8 @@ vrtc_mrst_do_probe(struct device *dev, struct resource *iomem, int rtc_irq)
 
 	mrst_rtc.irq = rtc_irq;
 	mrst_rtc.iomem = iomem;
+	mrst_rtc.dev = dev;
+	dev_set_drvdata(dev, &mrst_rtc);
 
 	mrst_rtc.rtc = rtc_device_register(driver_name, dev,
 				&mrst_rtc_ops, THIS_MODULE);
@@ -350,8 +352,6 @@ vrtc_mrst_do_probe(struct device *dev, struct resource *iomem, int rtc_irq)
 		goto cleanup0;
 	}
 
-	mrst_rtc.dev = dev;
-	dev_set_drvdata(dev, &mrst_rtc);
 	rename_region(iomem, dev_name(&mrst_rtc.rtc->dev));
 
 	spin_lock_irq(&rtc_lock);
@@ -376,9 +376,10 @@ vrtc_mrst_do_probe(struct device *dev, struct resource *iomem, int rtc_irq)
 	return 0;
 
 cleanup1:
-	mrst_rtc.dev = NULL;
 	rtc_device_unregister(mrst_rtc.rtc);
 cleanup0:
+	dev_set_drvdata(dev, NULL);
+	mrst_rtc.dev = NULL;
 	release_region(iomem->start, iomem->end + 1 - iomem->start);
 	dev_err(dev, "rtc-mrst: unable to initialise\n");
 	return retval;
