@@ -2387,8 +2387,6 @@ static inline void hci_io_capa_reply_evt(struct hci_dev *hdev, struct sk_buff *s
 	if (!conn)
 		goto unlock;
 
-	hci_conn_hold(conn);
-
 	conn->remote_cap = ev->capability;
 	conn->remote_oob = ev->oob_data;
 	conn->remote_auth = ev->authentication;
