@@ -6866,9 +6866,6 @@ struct s_data {
 	cpumask_var_t		notcovered;
 #endif
 	cpumask_var_t		nodemask;
-	cpumask_var_t		this_sibling_map;
-	cpumask_var_t		this_core_map;
-	cpumask_var_t		this_book_map;
 	cpumask_var_t		send_covered;
 	cpumask_var_t		tmpmask;
 	struct sched_group	**sched_group_nodes;
@@ -6880,9 +6877,6 @@ enum s_alloc {
 	sa_rootdomain,
 	sa_tmpmask,
 	sa_send_covered,
-	sa_this_book_map,
-	sa_this_core_map,
-	sa_this_sibling_map,
 	sa_nodemask,
 	sa_sched_group_nodes,
 #ifdef CONFIG_NUMA
@@ -7251,12 +7245,6 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 		free_cpumask_var(d->tmpmask); /* fall through */
 	case sa_send_covered:
 		free_cpumask_var(d->send_covered); /* fall through */
-	case sa_this_book_map:
-		free_cpumask_var(d->this_book_map); /* fall through */
-	case sa_this_core_map:
-		free_cpumask_var(d->this_core_map); /* fall through */
-	case sa_this_sibling_map:
-		free_cpumask_var(d->this_sibling_map); /* fall through */
 	case sa_nodemask:
 		free_cpumask_var(d->nodemask); /* fall through */
 	case sa_sched_group_nodes:
@@ -7295,14 +7283,8 @@ static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
 #endif
 	if (!alloc_cpumask_var(&d->nodemask, GFP_KERNEL))
 		return sa_sched_group_nodes;
-	if (!alloc_cpumask_var(&d->this_sibling_map, GFP_KERNEL))
-		return sa_nodemask;
-	if (!alloc_cpumask_var(&d->this_core_map, GFP_KERNEL))
-		return sa_this_sibling_map;
-	if (!alloc_cpumask_var(&d->this_book_map, GFP_KERNEL))
-		return sa_this_core_map;
 	if (!alloc_cpumask_var(&d->send_covered, GFP_KERNEL))
-		return sa_this_book_map;
+		return sa_nodemask;
 	if (!alloc_cpumask_var(&d->tmpmask, GFP_KERNEL))
 		return sa_send_covered;
 	d->rd = alloc_rootdomain();
@@ -7414,39 +7396,40 @@ static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
 static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 			       const struct cpumask *cpu_map, int cpu)
 {
+	struct sched_domain *sd;
+
 	switch (l) {
 #ifdef CONFIG_SCHED_SMT
 	case SD_LV_SIBLING: /* set up CPU (sibling) groups */
-		cpumask_and(d->this_sibling_map, cpu_map,
-			    topology_thread_cpumask(cpu));
-		if (cpu == cpumask_first(d->this_sibling_map))
-			init_sched_build_groups(d->this_sibling_map, cpu_map,
+		sd = &per_cpu(cpu_domains, cpu).sd;
+		if (cpu == cpumask_first(sched_domain_span(sd)))
+			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_cpu_group,
 						d->send_covered, d->tmpmask);
 		break;
 #endif
 #ifdef CONFIG_SCHED_MC
 	case SD_LV_MC: /* set up multi-core groups */
-		cpumask_and(d->this_core_map, cpu_map, cpu_coregroup_mask(cpu));
-		if (cpu == cpumask_first(d->this_core_map))
-			init_sched_build_groups(d->this_core_map, cpu_map,
+		sd = &per_cpu(core_domains, cpu).sd;
+		if (cpu == cpumask_first(sched_domain_span(sd)))
+			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_core_group,
 						d->send_covered, d->tmpmask);
 		break;
 #endif
 #ifdef CONFIG_SCHED_BOOK
 	case SD_LV_BOOK: /* set up book groups */
-		cpumask_and(d->this_book_map, cpu_map, cpu_book_mask(cpu));
-		if (cpu == cpumask_first(d->this_book_map))
-			init_sched_build_groups(d->this_book_map, cpu_map,
+		sd = &per_cpu(book_domains, cpu).sd;
+		if (cpu == cpumask_first(sched_domain_span(sd)))
+			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_book_group,
 						d->send_covered, d->tmpmask);
 		break;
 #endif
 	case SD_LV_CPU: /* set up physical groups */
-		cpumask_and(d->nodemask, cpumask_of_node(cpu), cpu_map);
-		if (!cpumask_empty(d->nodemask))
-			init_sched_build_groups(d->nodemask, cpu_map,
+		sd = &per_cpu(phys_domains, cpu).sd;
+		if (cpu == cpumask_first(sched_domain_span(sd)))
+			init_sched_build_groups(sched_domain_span(sd), cpu_map,
 						&cpu_to_phys_group,
 						d->send_covered, d->tmpmask);
 		break;
@@ -7502,11 +7485,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		build_sched_groups(&d, SD_LV_SIBLING, cpu_map, i);
 		build_sched_groups(&d, SD_LV_BOOK, cpu_map, i);
 		build_sched_groups(&d, SD_LV_MC, cpu_map, i);
-	}
-
-	/* Set up physical groups */
-	for (i = 0; i < nr_node_ids; i++)
 		build_sched_groups(&d, SD_LV_CPU, cpu_map, i);
+	}
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
