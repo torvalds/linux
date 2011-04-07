@@ -6838,9 +6838,6 @@ struct sd_data {
 };
 
 struct s_data {
-#ifdef CONFIG_NUMA
-	int			sd_allnodes;
-#endif
 	cpumask_var_t		nodemask;
 	cpumask_var_t		send_covered;
 	struct sched_domain ** __percpu sd;
@@ -7112,30 +7109,35 @@ static void claim_allocations(int cpu, struct sched_domain *sd)
 	}
 }
 
-static struct sched_domain *__build_numa_sched_domains(struct s_data *d,
-	const struct cpumask *cpu_map, struct sched_domain_attr *attr, int i)
+static struct sched_domain *__build_allnodes_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
 {
 	struct sched_domain *sd = NULL;
 #ifdef CONFIG_NUMA
-	struct sched_domain *parent;
-
-	d->sd_allnodes = 0;
-	if (cpumask_weight(cpu_map) >
-	    SD_NODES_PER_DOMAIN * cpumask_weight(d->nodemask)) {
-		sd = sd_init_ALLNODES(d, i);
-		set_domain_attribute(sd, attr);
-		cpumask_copy(sched_domain_span(sd), cpu_map);
-		d->sd_allnodes = 1;
-	}
-	parent = sd;
-
-	sd = sd_init_NODE(d, i);
+	sd = sd_init_ALLNODES(d, i);
 	set_domain_attribute(sd, attr);
-	sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
+	cpumask_copy(sched_domain_span(sd), cpu_map);
 	sd->parent = parent;
 	if (parent)
 		parent->child = sd;
+#endif
+	return sd;
+}
+
+static struct sched_domain *__build_node_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd = NULL;
+#ifdef CONFIG_NUMA
+	sd = sd_init_NODE(d, i);
+	set_domain_attribute(sd, attr);
+	sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
 	cpumask_and(sched_domain_span(sd), sched_domain_span(sd), cpu_map);
+	sd->parent = parent;
+	if (parent)
+		parent->child = sd;
 #endif
 	return sd;
 }
@@ -7220,7 +7222,9 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
 			    cpu_map);
 
-		sd = __build_numa_sched_domains(&d, cpu_map, attr, i);
+		sd = NULL;
+		sd = __build_allnodes_sched_domain(&d, cpu_map, attr, sd, i);
+		sd = __build_node_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_book_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
