@@ -10,14 +10,7 @@ obj-$(CONFIG_TI_DAVINCI_EMAC) += davinci_emac.o
 obj-$(CONFIG_TI_DAVINCI_MDIO) += davinci_mdio.o
 obj-$(CONFIG_TI_DAVINCI_CPDMA) += davinci_cpdma.o
 
-obj-$(CONFIG_E1000) += e1000/
-obj-$(CONFIG_E1000E) += e1000e/
 obj-$(CONFIG_IBM_NEW_EMAC) += ibm_newemac/
-obj-$(CONFIG_IGB) += igb/
-obj-$(CONFIG_IGBVF) += igbvf/
-obj-$(CONFIG_IXGBE) += ixgbe/
-obj-$(CONFIG_IXGBEVF) += ixgbevf/
-obj-$(CONFIG_IXGB) += ixgb/
 obj-$(CONFIG_IP1000) += ipg.o
 obj-$(CONFIG_EHEA) += ehea/
 obj-$(CONFIG_CAN) += can/
@@ -61,7 +54,6 @@ obj-$(CONFIG_SUNVNET) += sunvnet.o
 obj-$(CONFIG_MACE) += mace.o
 obj-$(CONFIG_BMAC) += bmac.o
 
-obj-$(CONFIG_E100) += e100.o
 obj-$(CONFIG_TLAN) += tlan.o
 obj-$(CONFIG_EPIC100) += epic100.o
 obj-$(CONFIG_SMSC9420) += smsc9420.o
