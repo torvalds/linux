@@ -45,3 +45,8 @@ obj-$(CONFIG_EARLY_PRINTK_DBGP)	+= early/
 
 obj-$(CONFIG_USB_ATM)		+= atm/
 obj-$(CONFIG_USB_SPEEDTOUCH)	+= atm/
+
+obj-$(CONFIG_USB_MUSB_HDRC)	+= musb/
+obj-$(CONFIG_USB_RENESAS_USBHS)	+= renesas_usbhs/
+obj-$(CONFIG_USB_OTG_UTILS)	+= otg/
+obj-$(CONFIG_USB_GADGET)	+= gadget/
