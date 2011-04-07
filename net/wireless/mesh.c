@@ -55,6 +55,7 @@ const struct mesh_setup default_mesh_setup = {
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
 	.ie = NULL,
 	.ie_len = 0,
+	.is_secure = false,
 };
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
