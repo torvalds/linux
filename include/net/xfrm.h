@@ -957,6 +957,15 @@ struct sec_path {
 	struct xfrm_state	*xvec[XFRM_MAX_DEPTH];
 };
 
+static inline int secpath_exists(struct sk_buff *skb)
+{
+#ifdef CONFIG_XFRM
+	return skb->sp != NULL;
+#else
+	return 0;
+#endif
+}
+
 static inline struct sec_path *
 secpath_get(struct sec_path *sp)
 {
