@@ -1401,12 +1401,8 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 		return -EINVAL;
 	}
 
-	if (intlv_en &&
-	    (intlv_sel != ((sys_addr >> 12) & intlv_en))) {
-		amd64_warn("Botched intlv bits, en: 0x%x, sel: 0x%x\n",
-			   intlv_en, intlv_sel);
+	if (intlv_en && (intlv_sel != ((sys_addr >> 12) & intlv_en)))
 		return -EINVAL;
-	}
 
 	sys_addr = f1x_swap_interleaved_region(pvt, sys_addr);
 
