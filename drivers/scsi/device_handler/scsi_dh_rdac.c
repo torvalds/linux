@@ -670,12 +670,27 @@ static int rdac_activate(struct scsi_device *sdev,
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
 	int err = SCSI_DH_OK;
+	int act = 0;
 
 	err = check_ownership(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto done;
 
-	if (h->lun_state == RDAC_LUN_UNOWNED) {
+	switch (h->mode) {
+	case RDAC_MODE:
+		if (h->lun_state == RDAC_LUN_UNOWNED)
+			act = 1;
+		break;
+	case RDAC_MODE_IOSHIP:
+		if ((h->lun_state == RDAC_LUN_UNOWNED) &&
+		    (h->preferred == RDAC_PREFERRED))
+			act = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (act) {
 		err = queue_mode_select(sdev, fn, data);
 		if (err == SCSI_DH_OK)
 			return 0;
