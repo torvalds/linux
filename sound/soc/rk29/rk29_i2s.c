@@ -569,6 +569,8 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 {
         struct rk29_i2s_info *i2s;
         struct snd_soc_dai *dai;
+		struct clk *general_pll;
+		unsigned long i2smclk;
         int    ret;
 
         I2S_DBG("Enter %s, %d pdev->id = %d >>>>>>>>>>>\n", __func__, __LINE__, pdev->id);
@@ -631,7 +633,21 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(i2s->iis_clk);
-        clk_set_rate(i2s->iis_clk, 11289600);
+	general_pll=clk_get(NULL, "general_pll");
+	if(clk_get_rate(general_pll)>260000000)
+	{
+		i2smclk=11289600;
+	}
+	else if(clk_get_rate(general_pll)>130000000)
+	{
+		i2smclk=11289600/2;
+	}
+	else
+	{
+		i2smclk=11289600/4;
+	}
+	I2S_DBG("func is %s,general pll=%ld,mclk=%ld\n",__FUNCTION__,clk_get_rate(general_pll),i2smclk);
+	clk_set_rate(i2s->iis_clk, i2smclk);
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;

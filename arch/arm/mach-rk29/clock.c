@@ -621,10 +621,22 @@ static int general_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	u32 pll_con;
 
 	switch (rate) {
+	case 96 * MHZ:
+		/* 96M: low-band, NR=1, NF=16, NO=4 */
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(16) | PLL_NO_4;
+	break;
+	case 144*MHZ:
+		/* 96M: low-band, NR=1, NF=16, NO=4 */
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(24) | PLL_NO_4;
+	break;
 	case 288 * MHZ:
 		/* 288M: low-band, NR=1, NF=24, NO=2 */
 		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(24) | PLL_NO_2;
 		break;
+	case 300 * MHZ:
+		/* 300M: low-band, NR=1, NF=25, NO=2 */
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(25) | PLL_NO_2;
+	break;
 	case 624 * MHZ:
 		/* 624M: high-band, NR=1, NF=26, NO=1 */
 		pll_con = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(26) | PLL_NO_1;
@@ -878,11 +890,50 @@ static struct clk clk_spdif_div = {
 	.clksel_parent_shift	= 20,
 	.parents	= clk_i2s_div_parents,
 };
+u32 clk_gcd(u32 numerator,u32 denominator)
+{
 
+	u32 a,b,r;
+
+	if(!numerator||!denominator)
+		return 0;
+	if(numerator > denominator){
+		a = numerator;
+		b = denominator;
+	}else{
+		a = denominator;
+		b = numerator;
+	}
+	while(b != 0){
+        int r = b;
+        b = a % b;
+        a = r;
+    }
+
+	return a;
+}
 static int clk_i2s_frac_div_set_rate(struct clk *clk, unsigned long rate)
 {
 	u16 numerator, denominator;
-
+	u32 gcd=0;
+	gcd=clk_gcd(rate,clk->parent->rate);
+	pr_debug("%s i2s rate=%d,parent=%d,gcd=%d\n",__FUNCTION__,
+		rate,clk->parent->rate,gcd);
+	if(!gcd)
+	{
+		printk("gcd=0,i2s frac div is not be supported\n");
+		return -ENOENT;
+	}
+	numerator=rate/gcd;
+	denominator=clk->parent->rate/gcd;
+	pr_debug("%s i2s numerator=%d,denominator=%d,times=%d\n",
+		__FUNCTION__,numerator,denominator,denominator/numerator);
+	if(numerator>0xffff||denominator>0xffff)
+	{
+		printk("i2s can't get a available nume and deno\n");
+		return -ENOENT;
+	}
+#if 0
 	switch (rate) {
 	case 8192000:	/* 288*32/1125 */
 		numerator = 32;
@@ -899,7 +950,7 @@ static int clk_i2s_frac_div_set_rate(struct clk *clk, unsigned long rate)
 	default:
 		return -ENOENT;
 	}
-
+#endif
 	pr_debug("set clock %s to rate %ld (%d/%d)\n", clk->name, rate, numerator, denominator);
 	cru_writel((u32)numerator << 16 | denominator, clk->clksel_con);
 
@@ -1187,7 +1238,24 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 static int clk_uart_frac_div_set_rate(struct clk *clk, unsigned long rate)
 {
 	u16 numerator, denominator;
-
+	u32 gcd=0;
+	gcd=clk_gcd(rate,clk->parent->rate);
+	pr_debug("%s uart rate=%d,parent=%d,gcd=%d\n",__FUNCTION__,rate,clk->parent->rate,gcd);
+	if(!gcd)
+	{
+		printk("gcd=0,uart frac div is not be supported\n");
+		return -ENOENT;
+	}
+	numerator=rate/gcd;
+	denominator=clk->parent->rate/gcd;
+	pr_debug("%s uart numerator=%d,denominator=%d,times=%d\n",__FUNCTION__,
+		numerator,denominator,denominator/numerator);
+	if(numerator>0xffff||denominator>0xffff)
+	{
+		printk("uart_frac can't get a available nume and deno\n");
+		return -ENOENT;
+	}
+#if 0
 	switch (rate) {
 	case 19200*16:	/* 288*2/1875 */
 		numerator = 2;
@@ -1220,7 +1288,7 @@ static int clk_uart_frac_div_set_rate(struct clk *clk, unsigned long rate)
 	default:
 		return -ENOENT;
 	}
-
+#endif
 	pr_debug("set clock %s to rate %ld (%d/%d)\n", clk->name, rate, numerator, denominator);
 	cru_writel((u32)numerator << 16 | denominator, clk->clksel_con);
 
@@ -2341,44 +2409,83 @@ static int __init armclk_setup(char *str)
 }
 early_param("armclk", armclk_setup);
 
-static void __init rk29_clock_common_init(void)
+static void __init rk29_clock_common_init(unsigned long ppll_rate)
 {
-	/* general pll */
-	clk_set_rate_nolock(&general_pll_clk, 288 * MHZ);
-	clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
-	clk_set_rate_nolock(&aclk_periph, 144 * MHZ);
-	clk_set_rate_nolock(&hclk_periph, 144 * MHZ);
-	clk_set_rate_nolock(&pclk_periph, 36 * MHZ);
-	clk_set_parent_nolock(&clk_uhost, &general_pll_clk);
-	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
-	clk_set_parent_nolock(&clk_i2s0_div, &general_pll_clk);
-	clk_set_parent_nolock(&clk_i2s1_div, &general_pll_clk);
-	clk_set_parent_nolock(&clk_spdif_div, &general_pll_clk);
-	clk_set_parent_nolock(&clk_spi_src, &general_pll_clk);
-	clk_set_parent_nolock(&clk_mmc_src, &general_pll_clk);
-	clk_set_parent_nolock(&clk_uart01_src, &general_pll_clk);
-	clk_set_parent_nolock(&clk_uart23_src, &general_pll_clk);
-	clk_set_parent_nolock(&dclk_lcdc_div, &general_pll_clk);
-	clk_set_parent_nolock(&aclk_lcdc, &general_pll_clk);
-	clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
-	clk_set_rate_nolock(&aclk_vepu, 288 * MHZ);
-	clk_set_rate_nolock(&clk_aclk_ddr_vepu, 288 * MHZ);
-	clk_set_rate_nolock(&hclk_vepu, 144 * MHZ);
-	clk_set_parent_nolock(&aclk_vdpu, &general_pll_clk);
-	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
-	clk_set_rate_nolock(&aclk_gpu, 288 * MHZ);
-	clk_set_parent_nolock(&clk_mac_ref_div, &general_pll_clk);
-	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
-
-	/* codec pll */
-	clk_set_rate_nolock(&codec_pll_clk, 552 * MHZ);
-	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
-
-	/* arm pll */
-	clk_set_rate_nolock(&arm_pll_clk, armclk);
-	clk_set_parent_nolock(&clk_mac_ref_div, &arm_pll_clk);
+		unsigned long aclk_p,hclk_p,pclk_p;
+		struct clk *aclk_vepu_parent,*aclk_vdpu_parent,*aclk_gpu_parent;
+		unsigned long aclk_vepu_rate,hclk_vepu_rate,aclk_ddr_vepu_rate,aclk_gpu_rate;
+		unsigned long codec_pll=552 * MHZ;
+		/* general pll */
+		switch(ppll_rate)
+		{
+			case 96* MHZ:
+				aclk_p=96*MHZ;
+				hclk_p=48*MHZ;
+				pclk_p=24*MHZ;
+				aclk_gpu_parent=aclk_vdpu_parent=aclk_vepu_parent=&codec_pll_clk;
+				aclk_gpu_rate=aclk_ddr_vepu_rate=aclk_vepu_rate=codec_pll/2;
+				hclk_vepu_rate=codec_pll/4;
+				break;
+			case 144* MHZ:
+				aclk_p=144*MHZ;
+				hclk_p=72*MHZ;
+				pclk_p=36*MHZ;
+				aclk_gpu_parent=aclk_vdpu_parent=aclk_vepu_parent=&codec_pll_clk;
+				aclk_gpu_rate=aclk_ddr_vepu_rate=aclk_vepu_rate=codec_pll/2;
+				hclk_vepu_rate=codec_pll/4;
+				break;
+			case 288* MHZ:
+			case 300* MHZ:
+				aclk_p=ppll_rate/2;
+				hclk_p=ppll_rate/2;
+				pclk_p=ppll_rate/8;
+				aclk_gpu_parent=aclk_vdpu_parent=aclk_vepu_parent=&general_pll_clk;
+				aclk_gpu_rate=aclk_ddr_vepu_rate=aclk_vepu_rate=ppll_rate;
+				hclk_vepu_rate=ppll_rate/2;
+				break;
+			default:
+				ppll_rate=288* MHZ;
+				aclk_p=ppll_rate/2;
+				hclk_p=ppll_rate/2;
+				pclk_p=ppll_rate/8;
+				aclk_gpu_parent=aclk_vdpu_parent=aclk_vepu_parent=&general_pll_clk;
+				aclk_gpu_rate=aclk_ddr_vepu_rate=aclk_vepu_rate=ppll_rate;
+				hclk_vepu_rate=ppll_rate/2;
+				break;
+		}
+		clk_set_rate_nolock(&general_pll_clk,ppll_rate);// 288
+		clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
+		clk_set_rate_nolock(&aclk_periph, aclk_p);//144
+		clk_set_rate_nolock(&hclk_periph, hclk_p);// 144
+		clk_set_rate_nolock(&pclk_periph, pclk_p);// 36
+		clk_set_parent_nolock(&clk_uhost, &general_pll_clk);
+		clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
+		clk_set_parent_nolock(&clk_i2s0_div, &general_pll_clk);
+		clk_set_parent_nolock(&clk_i2s1_div, &general_pll_clk);
+		clk_set_parent_nolock(&clk_spdif_div, &general_pll_clk);
+		clk_set_parent_nolock(&clk_spi_src, &general_pll_clk);
+		clk_set_parent_nolock(&clk_mmc_src, &general_pll_clk);
+		clk_set_parent_nolock(&clk_uart01_src, &general_pll_clk);
+		clk_set_parent_nolock(&clk_uart23_src, &general_pll_clk);
+		clk_set_parent_nolock(&dclk_lcdc_div, &general_pll_clk);
+		clk_set_parent_nolock(&aclk_lcdc, &general_pll_clk);
+		clk_set_parent_nolock(&clk_mac_ref_div, &general_pll_clk);
+		clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
+		/* codec pll */
+		clk_set_rate_nolock(&codec_pll_clk, codec_pll);
+		clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
+		/* arm pll */
+		clk_set_rate_nolock(&arm_pll_clk, armclk);
+		clk_set_parent_nolock(&clk_mac_ref_div, &arm_pll_clk);
+		/*you can choose clk parent form codec pll or periph pll for following logic*/
+		clk_set_parent_nolock(&aclk_vepu, aclk_vepu_parent);
+		clk_set_rate_nolock(&aclk_vepu, aclk_vepu_rate);
+		clk_set_rate_nolock(&clk_aclk_ddr_vepu,aclk_ddr_vepu_rate);
+		clk_set_rate_nolock(&hclk_vepu, hclk_vepu_rate);
+		clk_set_parent_nolock(&aclk_vdpu, aclk_vdpu_parent);
+		clk_set_parent_nolock(&aclk_gpu, aclk_gpu_parent);
+		clk_set_rate_nolock(&aclk_gpu,aclk_gpu_rate);
 }
-
 static void __init clk_enable_init_clocks(void)
 {
 	clk_enable_nolock(&hclk_cpu);
@@ -2421,7 +2528,7 @@ static int __init clk_disable_unused(void)
 	return 0;
 }
 
-void __init rk29_clock_init(void)
+void __init rk29_clock_init(unsigned long ppll_rate)
 {
 	struct clk_lookup *lk;
 
@@ -2449,7 +2556,7 @@ void __init rk29_clock_init(void)
 	 */
 	clk_disable_unused();
 
-	rk29_clock_common_init();
+	rk29_clock_common_init(ppll_rate);
 
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
