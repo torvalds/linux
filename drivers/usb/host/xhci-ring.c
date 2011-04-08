@@ -3123,6 +3123,27 @@ static int count_isoc_trbs_needed(struct xhci_hcd *xhci,
 	return num_trbs;
 }
 
+/*
+ * The transfer burst count field of the isochronous TRB defines the number of
+ * bursts that are required to move all packets in this TD.  Only SuperSpeed
+ * devices can burst up to bMaxBurst number of packets per service interval.
+ * This field is zero based, meaning a value of zero in the field means one
+ * burst.  Basically, for everything but SuperSpeed devices, this field will be
+ * zero.  Only xHCI 1.0 host controllers support this field.
+ */
+static unsigned int xhci_get_burst_count(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct urb *urb, unsigned int total_packet_count)
+{
+	unsigned int max_burst;
+
+	if (xhci->hci_version < 0x100 || udev->speed != USB_SPEED_SUPER)
+		return 0;
+
+	max_burst = urb->ep->ss_ep_comp.bMaxBurst;
+	return roundup(total_packet_count, max_burst + 1) - 1;
+}
+
 /* This is for isoc transfer */
 static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
@@ -3164,14 +3185,18 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* Queue the first TRB, even if it's zero-length */
 	for (i = 0; i < num_tds; i++) {
 		unsigned int total_packet_count;
+		unsigned int burst_count;
 
 		first_trb = true;
 		running_total = 0;
 		addr = start_addr + urb->iso_frame_desc[i].offset;
 		td_len = urb->iso_frame_desc[i].length;
 		td_remain_len = td_len;
+		/* FIXME: Ignoring zero-length packets, can those happen? */
 		total_packet_count = roundup(td_len,
 				le16_to_cpu(urb->ep->desc.wMaxPacketSize));
+		burst_count = xhci_get_burst_count(xhci, urb->dev, urb,
+				total_packet_count);
 
 		trbs_per_td = count_isoc_trbs_needed(xhci, urb, i);
 
@@ -3185,7 +3210,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 		for (j = 0; j < trbs_per_td; j++) {
 			u32 remainder = 0;
-			field = 0;
+			field = TRB_TBC(burst_count);
 
 			if (first_trb) {
 				/* Queue the isoc TRB */
