@@ -188,6 +188,12 @@ config USB_EHCI_SH
 	  Enables support for the on-chip EHCI controller on the SuperH.
 	  If you use the PCI EHCI controller, this option is not necessary.
 
+config USB_EHCI_S5P
+       boolean "S5P EHCI support"
+       depends on USB_EHCI_HCD && PLAT_S5P
+       help
+	 Enable support for the S5P SOC's on-chip EHCI controller.
+
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
 	depends on USB_EHCI_HCD && ARCH_W90X900
