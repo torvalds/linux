@@ -182,6 +182,12 @@ struct rdac_dh_data {
 	struct rdac_controller	*ctlr;
 #define UNINITIALIZED_LUN	(1 << 8)
 	unsigned		lun;
+
+#define RDAC_MODE		0
+#define RDAC_MODE_AVT		1
+#define RDAC_MODE_IOSHIP	2
+	unsigned char		mode;
+
 #define RDAC_STATE_ACTIVE	0
 #define RDAC_STATE_PASSIVE	1
 	unsigned char		state;
@@ -190,6 +196,11 @@ struct rdac_dh_data {
 #define RDAC_LUN_OWNED		1
 #define RDAC_LUN_AVT		2
 	char			lun_state;
+
+#define RDAC_PREFERRED		0
+#define RDAC_NON_PREFERRED	1
+	char			preferred;
+
 	unsigned char		sense[SCSI_SENSE_BUFFERSIZE];
 	union			{
 		struct c2_inquiry c2;
@@ -199,11 +210,15 @@ struct rdac_dh_data {
 	} inq;
 };
 
+static const char *mode[] = {
+	"RDAC",
+	"AVT",
+	"IOSHIP",
+};
 static const char *lun_state[] =
 {
 	"unowned",
 	"owned",
-	"owned (AVT mode)",
 };
 
 struct rdac_queue_data {
@@ -836,8 +851,9 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 
 	sdev_printk(KERN_NOTICE, sdev,
-		    "%s: LUN %d (%s)\n",
-		    RDAC_NAME, h->lun, lun_state[(int)h->lun_state]);
+		    "%s: LUN %d (%s) (%s)\n",
+		    RDAC_NAME, h->lun, mode[(int)h->mode],
+		    lun_state[(int)h->lun_state]);
 
 	return 0;
 
