@@ -1789,10 +1789,7 @@ wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
 	 * This is especially important for buddies when the leftmost
 	 * task is higher priority than the buddy.
 	 */
-	if (unlikely(se->load.weight != NICE_0_LOAD))
-		gran = calc_delta_fair(gran, se);
-
-	return gran;
+	return calc_delta_fair(gran, se);
 }
 
 /*
