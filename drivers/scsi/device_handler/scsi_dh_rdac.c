@@ -194,7 +194,6 @@ struct rdac_dh_data {
 
 #define RDAC_LUN_UNOWNED	0
 #define RDAC_LUN_OWNED		1
-#define RDAC_LUN_AVT		2
 	char			lun_state;
 
 #define RDAC_PREFERRED		0
@@ -473,25 +472,33 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 	int err;
 	struct c9_inquiry *inqp;
 
-	h->lun_state = RDAC_LUN_UNOWNED;
 	h->state = RDAC_STATE_ACTIVE;
 	err = submit_inquiry(sdev, 0xC9, sizeof(struct c9_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c9;
-		if ((inqp->avte_cvp >> 7) == 0x1) {
-			/* LUN in AVT mode */
-			sdev_printk(KERN_NOTICE, sdev,
-				    "%s: AVT mode detected\n",
-				    RDAC_NAME);
-			h->lun_state = RDAC_LUN_AVT;
-		} else if ((inqp->avte_cvp & 0x1) != 0) {
-			/* LUN was owned by the controller */
-			h->lun_state = RDAC_LUN_OWNED;
-		}
-	}
+		/* detect the operating mode */
+		if ((inqp->avte_cvp >> 5) & 0x1)
+			h->mode = RDAC_MODE_IOSHIP; /* LUN in IOSHIP mode */
+		else if (inqp->avte_cvp >> 7)
+			h->mode = RDAC_MODE_AVT; /* LUN in AVT mode */
+		else
+			h->mode = RDAC_MODE; /* LUN in RDAC mode */
 
-	if (h->lun_state == RDAC_LUN_UNOWNED)
-		h->state = RDAC_STATE_PASSIVE;
+		/* Update ownership */
+		if (inqp->avte_cvp & 0x1)
+			h->lun_state = RDAC_LUN_OWNED;
+		else {
+			h->lun_state = RDAC_LUN_UNOWNED;
+			if (h->mode == RDAC_MODE)
+				h->state = RDAC_STATE_PASSIVE;
+		}
+
+		/* Update path prio*/
+		if (inqp->path_prio & 0x1)
+			h->preferred = RDAC_PREFERRED;
+		else
+			h->preferred = RDAC_NON_PREFERRED;
+	}
 
 	return err;
 }
