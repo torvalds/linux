@@ -858,9 +858,7 @@
 #define AR_SREV_9300(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300))
 #define AR_SREV_9300_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9300) || \
-	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300) && \
-	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9300_20)))
+	((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9300)
 
 #define AR_SREV_9485(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
