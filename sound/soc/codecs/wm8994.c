@@ -2720,7 +2720,7 @@ void wm8994_check_channel(void)
 {
 	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
 	unsigned char wm8994_mode = wm8994_current_mode;
-unsigned int error_count = 0;
+	unsigned int error_count = 0;
 	DBG("%s--%d::Enter\n",__FUNCTION__,__LINE__);
 
 	isWM8994SetChannel = true;
@@ -2883,7 +2883,11 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	wm8994_check_channel();
 
 	isWM8994SetChannel = false;
-
+#if defined(CONFIG_MACH_A22)
+	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+	gpio_free(RK29_PIN6_PD3);
+#endif
 	return 0;
 }
 /*
@@ -3419,7 +3423,11 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 	gpio_request(WM_EN_PIN, NULL);
 	gpio_direction_output(WM_EN_PIN,GPIO_LOW);
 	gpio_free(WM_EN_PIN);
-
+#if defined(CONFIG_MACH_A22)	
+	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+	gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
+	gpio_free(RK29_PIN6_PD3);
+#endif	
 	msleep(50);
 
 	return 0;
@@ -3436,7 +3444,7 @@ static int wm8994_resume(struct platform_device *pdev)
 	gpio_request(WM_EN_PIN, NULL);
 	gpio_direction_output(WM_EN_PIN,GPIO_HIGH);
 	gpio_free(WM_EN_PIN);
-
+	
 	msleep(50);
 
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_STANDBY);
@@ -3459,6 +3467,11 @@ static int wm8994_resume(struct platform_device *pdev)
 	wm8994_check_channel();
 
 	isWM8994SetChannel = false;
+#if defined(CONFIG_MACH_A22)	
+	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+	gpio_free(RK29_PIN6_PD3);
+#endif	
 	return 0;
 }
 

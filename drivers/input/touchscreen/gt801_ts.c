@@ -581,7 +581,7 @@ static int gt801_ts_resume(struct i2c_client *client)
     printk("gt801 TS Resume\n");
 	
     gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	
+	msleep(50);
     if (ts->use_irq) {
         printk("enabling IRQ %d\n", client->irq);
         enable_irq(client->irq);
