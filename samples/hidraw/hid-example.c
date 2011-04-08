@@ -14,6 +14,17 @@
 #include <linux/input.h>
 #include <linux/hidraw.h>
 
+/*
+ * Ugly hack to work around failing compilation on systems that don't
+ * yet populate new version of hidraw.h to userspace.
+ *
+ * If you need this, please have your distro update the kernel headers.
+ */
+#ifndef HIDIOCSFEATURE
+#define HIDIOCSFEATURE(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x06, len)
+#define HIDIOCGFEATURE(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x07, len)
+#endif
+
 /* Unix */
 #include <sys/ioctl.h>
 #include <sys/types.h>
