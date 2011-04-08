@@ -2720,7 +2720,7 @@ void wm8994_check_channel(void)
 {
 	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
 	unsigned char wm8994_mode = wm8994_current_mode;
-
+unsigned int error_count = 0;
 	DBG("%s--%d::Enter\n",__FUNCTION__,__LINE__);
 
 	isWM8994SetChannel = true;
@@ -2746,7 +2746,9 @@ void wm8994_check_channel(void)
 		gpio_free(WM_EN_PIN);
 
 		msleep(50);
-
+		error_count ++;
+		if(error_count >= 10)
+			return;
 		wm8994_current_mode = null;
 		isSetChannelErr = false;
 
@@ -3934,7 +3936,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		}
 		break;	
 	case 's':
-		AP_to_speakers();
+		recorder_and_AP_to_speakers();
 		break;
 	case 'h':
 		recorder_and_AP_to_headset();
