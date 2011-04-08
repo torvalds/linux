@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/firmware.h>
 #include <sound/control.h>
 #include <asm/mrst.h>
 #include <sound/pcm.h>
@@ -40,6 +41,8 @@
 #include <sound/initval.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
+#include "intel_sst_fw_ipc.h"
+#include "intel_sst_common.h"
 #include "intelmid_snd_control.h"
 #include "intelmid.h"
 
