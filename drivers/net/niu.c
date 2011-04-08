@@ -7022,6 +7022,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 	case UDP_V4_FLOW:
 		*class = CLASS_CODE_UDP_IPV4;
 		break;
+	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
 	case ESP_V4_FLOW:
 		*class = CLASS_CODE_AH_ESP_IPV4;
@@ -7035,6 +7036,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 	case UDP_V6_FLOW:
 		*class = CLASS_CODE_UDP_IPV6;
 		break;
+	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 		*class = CLASS_CODE_AH_ESP_IPV6;
