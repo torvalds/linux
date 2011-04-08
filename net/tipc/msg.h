@@ -741,15 +741,6 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 #define ORIGINAL_MSG     1
 
 /*
- * Routing table message types
- */
-#define EXT_ROUTING_TABLE    0
-#define LOCAL_ROUTING_TABLE  1		/* obsoleted */
-#define SLAVE_ROUTING_TABLE  2
-#define ROUTE_ADDITION       3
-#define ROUTE_REMOVAL        4
-
-/*
  * Config protocol message types
  */
 
