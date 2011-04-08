@@ -1453,6 +1453,16 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num)
 	}
 }
 
+static void soc_remove_dai_links(struct snd_soc_card *card)
+{
+	int i;
+
+	for (i = 0; i < card->num_rtd; i++)
+		soc_remove_dai_link(card, i);
+
+	card->num_rtd = 0;
+}
+
 static void soc_set_name_prefix(struct snd_soc_card *card,
 				struct snd_soc_codec *codec)
 {
@@ -1960,8 +1970,7 @@ probe_aux_dev_err:
 		soc_remove_aux_dev(card, i);
 
 probe_dai_err:
-	for (i = 0; i < card->num_links; i++)
-		soc_remove_dai_link(card, i);
+	soc_remove_dai_links(card);
 
 card_probe_error:
 	if (card->remove)
@@ -2023,8 +2032,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 		soc_remove_aux_dev(card, i);
 
 	/* remove and free each DAI */
-	for (i = 0; i < card->num_rtd; i++)
-		soc_remove_dai_link(card, i);
+	soc_remove_dai_links(card);
 
 	soc_cleanup_card_debugfs(card);
 
