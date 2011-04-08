@@ -1136,17 +1136,34 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 
 		/* SWP   : cccc 0001 0000 xxxx xxxx xxxx 1001 xxxx */
 		/* SWPB  : cccc 0001 0100 xxxx xxxx xxxx 1001 xxxx */
-		/* LDRD  : cccc 000x xxx0 xxxx xxxx xxxx 1101 xxxx */
-		/* STRD  : cccc 000x xxx0 xxxx xxxx xxxx 1111 xxxx */
+		/* ???   : cccc 0001 0x01 xxxx xxxx xxxx 1001 xxxx */
+		/* ???   : cccc 0001 0x10 xxxx xxxx xxxx 1001 xxxx */
+		/* ???   : cccc 0001 0x11 xxxx xxxx xxxx 1001 xxxx */
 		/* STREX : cccc 0001 1000 xxxx xxxx xxxx 1001 xxxx */
 		/* LDREX : cccc 0001 1001 xxxx xxxx xxxx 1001 xxxx */
+		/* STREXD: cccc 0001 1010 xxxx xxxx xxxx 1001 xxxx */
+		/* LDREXD: cccc 0001 1011 xxxx xxxx xxxx 1001 xxxx */
+		/* STREXB: cccc 0001 1100 xxxx xxxx xxxx 1001 xxxx */
+		/* LDREXB: cccc 0001 1101 xxxx xxxx xxxx 1001 xxxx */
+		/* STREXH: cccc 0001 1110 xxxx xxxx xxxx 1001 xxxx */
+		/* LDREXH: cccc 0001 1111 xxxx xxxx xxxx 1001 xxxx */
+
+		/* LDRD  : cccc 000x xxx0 xxxx xxxx xxxx 1101 xxxx */
+		/* STRD  : cccc 000x xxx0 xxxx xxxx xxxx 1111 xxxx */
 		/* LDRH  : cccc 000x xxx1 xxxx xxxx xxxx 1011 xxxx */
 		/* STRH  : cccc 000x xxx0 xxxx xxxx xxxx 1011 xxxx */
 		/* LDRSB : cccc 000x xxx1 xxxx xxxx xxxx 1101 xxxx */
 		/* LDRSH : cccc 000x xxx1 xxxx xxxx xxxx 1111 xxxx */
-		if ((insn & 0x0fb000f0) == 0x01000090) {
-			/* SWP/SWPB */
-			return prep_emulate_rd12rn16rm0_wflags(insn, asi);
+		if ((insn & 0x0f0000f0) == 0x01000090) {
+			if ((insn & 0x0fb000f0) == 0x01000090) {
+				/* SWP/SWPB */
+				return prep_emulate_rd12rn16rm0_wflags(insn,
+									asi);
+			} else {
+				/* STREX/LDREX variants and unallocaed space */
+				return INSN_REJECTED;
+			}
+
 		} else if ((insn & 0x0e1000d0) == 0x00000d0) {
 			/* STRD/LDRD */
 			insn &= 0xfff00fff;
