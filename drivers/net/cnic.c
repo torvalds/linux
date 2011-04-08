@@ -3983,9 +3983,7 @@ static void cnic_delete_task(struct work_struct *work)
 	if (test_and_clear_bit(CNIC_LCL_FL_STOP_ISCSI, &cp->cnic_local_flags)) {
 		struct drv_ctl_info info;
 
-		rtnl_lock();
 		cnic_ulp_stop_one(cp, CNIC_ULP_ISCSI);
-		rtnl_unlock();
 
 		info.cmd = DRV_CTL_ISCSI_STOPPED_CMD;
 		cp->ethdev->drv_ctl(dev->netdev, &info);
