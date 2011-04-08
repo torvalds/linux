@@ -271,4 +271,15 @@ config CRYPTO_DEV_PICOXCELL
 
 	  Saying m here will build a module named pipcoxcell_crypto.
 
+config CRYPTO_DEV_S5P
+	tristate "Support for Samsung S5PV210 crypto accelerator"
+	depends on ARCH_S5PV210
+	select CRYPTO_AES
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This option allows you to have support for S5P crypto acceleration.
+	  Select this to offload Samsung S5PV210 or S5PC110 from AES
+	  algorithms execution.
+
 endif # CRYPTO_HW
