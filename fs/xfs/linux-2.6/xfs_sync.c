@@ -39,6 +39,8 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
+
 /*
  * The inode lookup is done in batches to keep the amount of lock traffic and
  * radix tree lookups to a minimum. The batch size is a trade off between
@@ -489,32 +491,6 @@ xfs_flush_inodes(
 	xfs_log_force(ip->i_mount, XFS_LOG_SYNC);
 }
 
-/*
- * Every sync period we need to unpin all items, reclaim inodes and sync
- * disk quotas.  We might need to cover the log to indicate that the
- * filesystem is idle and not frozen.
- */
-STATIC void
-xfs_sync_worker(
-	struct xfs_mount *mp,
-	void		*unused)
-{
-	int		error;
-
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		/* dgc: errors ignored here */
-		if (mp->m_super->s_frozen == SB_UNFROZEN &&
-		    xfs_log_need_covered(mp))
-			error = xfs_fs_log_dummy(mp);
-		else
-			xfs_log_force(mp, 0);
-		xfs_reclaim_inodes(mp, 0);
-		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
-	}
-	mp->m_sync_seq++;
-	wake_up(&mp->m_wait_single_sync_task);
-}
-
 STATIC int
 xfssyncd(
 	void			*arg)
@@ -528,34 +504,19 @@ xfssyncd(
 	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
 	for (;;) {
 		if (list_empty(&mp->m_sync_list))
-			timeleft = schedule_timeout_interruptible(timeleft);
+			schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
 		if (kthread_should_stop() && list_empty(&mp->m_sync_list))
 			break;
 
 		spin_lock(&mp->m_sync_lock);
-		/*
-		 * We can get woken by laptop mode, to do a sync -
-		 * that's the (only!) case where the list would be
-		 * empty with time remaining.
-		 */
-		if (!timeleft || list_empty(&mp->m_sync_list)) {
-			if (!timeleft)
-				timeleft = xfs_syncd_centisecs *
-							msecs_to_jiffies(10);
-			INIT_LIST_HEAD(&mp->m_sync_work.w_list);
-			list_add_tail(&mp->m_sync_work.w_list,
-					&mp->m_sync_list);
-		}
 		list_splice_init(&mp->m_sync_list, &tmp);
 		spin_unlock(&mp->m_sync_lock);
 
 		list_for_each_entry_safe(work, n, &tmp, w_list) {
 			(*work->w_syncer)(mp, work->w_data);
 			list_del(&work->w_list);
-			if (work == &mp->m_sync_work)
-				continue;
 			if (work->w_completion)
 				complete(work->w_completion);
 			kmem_free(work);
@@ -565,13 +526,49 @@ xfssyncd(
 	return 0;
 }
 
+static void
+xfs_syncd_queue_sync(
+	struct xfs_mount        *mp)
+{
+	queue_delayed_work(xfs_syncd_wq, &mp->m_sync_work,
+				msecs_to_jiffies(xfs_syncd_centisecs * 10));
+}
+
+/*
+ * Every sync period we need to unpin all items, reclaim inodes and sync
+ * disk quotas.  We might need to cover the log to indicate that the
+ * filesystem is idle and not frozen.
+ */
+STATIC void
+xfs_sync_worker(
+	struct work_struct *work)
+{
+	struct xfs_mount *mp = container_of(to_delayed_work(work),
+					struct xfs_mount, m_sync_work);
+	int		error;
+
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		/* dgc: errors ignored here */
+		if (mp->m_super->s_frozen == SB_UNFROZEN &&
+		    xfs_log_need_covered(mp))
+			error = xfs_fs_log_dummy(mp);
+		else
+			xfs_log_force(mp, 0);
+		xfs_reclaim_inodes(mp, 0);
+		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
+	}
+
+	/* queue us up again */
+	xfs_syncd_queue_sync(mp);
+}
+
 int
 xfs_syncd_init(
 	struct xfs_mount	*mp)
 {
-	mp->m_sync_work.w_syncer = xfs_sync_worker;
-	mp->m_sync_work.w_mount = mp;
-	mp->m_sync_work.w_completion = NULL;
+	INIT_DELAYED_WORK(&mp->m_sync_work, xfs_sync_worker);
+	xfs_syncd_queue_sync(mp);
+
 	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd/%s", mp->m_fsname);
 	if (IS_ERR(mp->m_sync_task))
 		return -PTR_ERR(mp->m_sync_task);
@@ -582,6 +579,7 @@ void
 xfs_syncd_stop(
 	struct xfs_mount	*mp)
 {
+	cancel_delayed_work_sync(&mp->m_sync_work);
 	kthread_stop(mp->m_sync_task);
 }
 

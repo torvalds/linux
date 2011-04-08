@@ -1191,22 +1191,12 @@ xfs_fs_sync_fs(
 		return -error;
 
 	if (laptop_mode) {
-		int	prev_sync_seq = mp->m_sync_seq;
-
 		/*
 		 * The disk must be active because we're syncing.
 		 * We schedule xfssyncd now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		wake_up_process(mp->m_sync_task);
-		/*
-		 * We have to wait for the sync iteration to complete.
-		 * If we don't, the disk activity caused by the sync
-		 * will come after the sync is completed, and that
-		 * triggers another sync from laptop mode.
-		 */
-		wait_event(mp->m_wait_single_sync_task,
-				mp->m_sync_seq != prev_sync_seq);
+		flush_delayed_work_sync(&mp->m_sync_work);
 	}
 
 	return 0;
@@ -1492,7 +1482,6 @@ xfs_fs_fill_super(
 	atomic_set(&mp->m_active_trans, 0);
 	INIT_LIST_HEAD(&mp->m_sync_list);
 	spin_lock_init(&mp->m_sync_lock);
-	init_waitqueue_head(&mp->m_wait_single_sync_task);
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
@@ -1833,13 +1822,27 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
+	/*
+	 * max_active is set to 8 to give enough concurency to allow
+	 * multiple work operations on each CPU to run. This allows multiple
+	 * filesystems to be running sync work concurrently, and scales with
+	 * the number of CPUs in the system.
+	 */
+	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_CPU_INTENSIVE, 8);
+	if (!xfs_syncd_wq) {
+		error = -ENOMEM;
+		goto out_sysctl_unregister;
+	}
+
 	vfs_initquota();
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
-		goto out_sysctl_unregister;
+		goto out_destroy_xfs_syncd;
 	return 0;
 
+ out_destroy_xfs_syncd:
+	destroy_workqueue(xfs_syncd_wq);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
@@ -1861,6 +1864,7 @@ exit_xfs_fs(void)
 {
 	vfs_exitquota();
 	unregister_filesystem(&xfs_fs_type);
+	destroy_workqueue(xfs_syncd_wq);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();
