@@ -320,6 +320,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 	if (avp->av_bcbuf != NULL) {
 		struct ath_buf *bf;
 
+		avp->is_bslot_active = false;
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = NULL;
 			sc->nbcnvifs--;
