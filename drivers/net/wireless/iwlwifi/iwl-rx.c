@@ -390,21 +390,16 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
  * the BA_TIMEOUT_MAX, reload firmware and bring system back to normal
  * operation state.
  */
-static bool iwl_good_ack_health(struct iwl_priv *priv, struct iwl_rx_packet *pkt)
+static bool iwl_good_ack_health(struct iwl_priv *priv,
+				struct statistics_tx *cur)
 {
 	int actual_delta, expected_delta, ba_timeout_delta;
-	struct statistics_tx *cur, *old;
+	struct statistics_tx *old;
 
 	if (priv->_agn.agg_tids_count)
 		return true;
 
-	if (iwl_bt_statistics(priv)) {
-		cur = &pkt->u.stats_bt.tx;
-		old = &priv->_agn.statistics_bt.tx;
-	} else {
-		cur = &pkt->u.stats.tx;
-		old = &priv->_agn.statistics.tx;
-	}
+	old = &priv->statistics.tx;
 
 	actual_delta = le32_to_cpu(cur->actual_ack_cnt) -
 		       le32_to_cpu(old->actual_ack_cnt);
@@ -430,10 +425,10 @@ static bool iwl_good_ack_health(struct iwl_priv *priv, struct iwl_rx_packet *pkt
 		 * DEBUG is not, these will just compile out.
 		 */
 		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta %d\n",
-				priv->_agn.delta_statistics.tx.rx_detected_cnt);
+				priv->delta_stats.tx.rx_detected_cnt);
 		IWL_DEBUG_RADIO(priv,
 				"ack_or_ba_timeout_collision delta %d\n",
-				priv->_agn.delta_statistics.tx.ack_or_ba_timeout_collision);
+				priv->delta_stats.tx.ack_or_ba_timeout_collision);
 #endif
 
 		if (ba_timeout_delta >= BA_TIMEOUT_MAX)
@@ -450,7 +445,9 @@ static bool iwl_good_ack_health(struct iwl_priv *priv, struct iwl_rx_packet *pkt
  * to improve the throughput.
  */
 static bool iwl_good_plcp_health(struct iwl_priv *priv,
-				 struct iwl_rx_packet *pkt, unsigned int msecs)
+				 struct statistics_rx_phy *cur_ofdm,
+				 struct statistics_rx_ht_phy *cur_ofdm_ht,
+				 unsigned int msecs)
 {
 	int delta;
 	int threshold = priv->cfg->base_params->plcp_delta_threshold;
@@ -460,29 +457,12 @@ static bool iwl_good_plcp_health(struct iwl_priv *priv,
 		return true;
 	}
 
-	if (iwl_bt_statistics(priv)) {
-		struct statistics_rx_bt *cur, *old;
+	delta = le32_to_cpu(cur_ofdm->plcp_err) -
+		le32_to_cpu(priv->statistics.rx_ofdm.plcp_err) +
+		le32_to_cpu(cur_ofdm_ht->plcp_err) -
+		le32_to_cpu(priv->statistics.rx_ofdm_ht.plcp_err);
 
-		cur = &pkt->u.stats_bt.rx;
-		old = &priv->_agn.statistics_bt.rx;
-
-		delta = le32_to_cpu(cur->ofdm.plcp_err) -
-			le32_to_cpu(old->ofdm.plcp_err) +
-			le32_to_cpu(cur->ofdm_ht.plcp_err) -
-			le32_to_cpu(old->ofdm_ht.plcp_err);
-	} else {
-		struct statistics_rx *cur, *old;
-
-		cur = &pkt->u.stats.rx;
-		old = &priv->_agn.statistics.rx;
-
-		delta = le32_to_cpu(cur->ofdm.plcp_err) -
-			le32_to_cpu(old->ofdm.plcp_err) +
-			le32_to_cpu(cur->ofdm_ht.plcp_err) -
-			le32_to_cpu(old->ofdm_ht.plcp_err);
-	}
-
-	/* Can be negative if firmware reseted statistics */
+	/* Can be negative if firmware reset statistics */
 	if (delta <= 0)
 		return true;
 
@@ -497,44 +477,36 @@ static bool iwl_good_plcp_health(struct iwl_priv *priv,
 }
 
 static void iwl_recover_from_statistics(struct iwl_priv *priv,
-					struct iwl_rx_packet *pkt)
+					struct statistics_rx_phy *cur_ofdm,
+					struct statistics_rx_ht_phy *cur_ofdm_ht,
+					struct statistics_tx *tx,
+					unsigned long stamp)
 {
 	const struct iwl_mod_params *mod_params = priv->cfg->mod_params;
 	unsigned int msecs;
-	unsigned long stamp;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	stamp = jiffies;
 	msecs = jiffies_to_msecs(stamp - priv->rx_statistics_jiffies);
 
 	/* Only gather statistics and update time stamp when not associated */
 	if (!iwl_is_any_associated(priv))
-		goto out;
+		return;
 
 	/* Do not check/recover when do not have enough statistics data */
 	if (msecs < 99)
 		return;
 
-	if (mod_params->ack_check && !iwl_good_ack_health(priv, pkt)) {
+	if (mod_params->ack_check && !iwl_good_ack_health(priv, tx)) {
 		IWL_ERR(priv, "low ack count detected, restart firmware\n");
 		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
 			return;
 	}
 
-	if (mod_params->plcp_check && !iwl_good_plcp_health(priv, pkt, msecs))
+	if (mod_params->plcp_check &&
+	    !iwl_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_reset(priv, IWL_RF_RESET, false);
-
-out:
-	if (iwl_bt_statistics(priv))
-		memcpy(&priv->_agn.statistics_bt, &pkt->u.stats_bt,
-			sizeof(priv->_agn.statistics_bt));
-	else
-		memcpy(&priv->_agn.statistics, &pkt->u.stats,
-			sizeof(priv->_agn.statistics));
-
-	priv->rx_statistics_jiffies = stamp;
 }
 
 /* Calculate noise level, based on measurements during network silence just
@@ -548,10 +520,8 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 	int bcn_silence_a, bcn_silence_b, bcn_silence_c;
 	int last_rx_noise;
 
-	if (iwl_bt_statistics(priv))
-		rx_info = &(priv->_agn.statistics_bt.rx.general.common);
-	else
-		rx_info = &(priv->_agn.statistics.rx.general);
+	rx_info = &priv->statistics.rx_non_phy;
+
 	bcn_silence_a =
 		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
 	bcn_silence_b =
@@ -583,105 +553,153 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 			last_rx_noise);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
  *  the case of counters roll-over.
  */
-static void iwl_accumulative_statistics(struct iwl_priv *priv,
-					__le32 *stats)
+static void accum_stats(__le32 *prev, __le32 *cur, __le32 *delta,
+			__le32 *max_delta, __le32 *accum, int size)
 {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	int i, size;
-	__le32 *prev_stats;
-	u32 *accum_stats;
-	u32 *delta, *max_delta;
-	struct statistics_general_common *general, *accum_general;
-	struct statistics_tx *tx, *accum_tx;
+	int i;
 
-	if (iwl_bt_statistics(priv)) {
-		prev_stats = (__le32 *)&priv->_agn.statistics_bt;
-		accum_stats = (u32 *)&priv->_agn.accum_statistics_bt;
-		size = sizeof(struct iwl_bt_notif_statistics);
-		general = &priv->_agn.statistics_bt.general.common;
-		accum_general = &priv->_agn.accum_statistics_bt.general.common;
-		tx = &priv->_agn.statistics_bt.tx;
-		accum_tx = &priv->_agn.accum_statistics_bt.tx;
-		delta = (u32 *)&priv->_agn.delta_statistics_bt;
-		max_delta = (u32 *)&priv->_agn.max_delta_bt;
-	} else {
-		prev_stats = (__le32 *)&priv->_agn.statistics;
-		accum_stats = (u32 *)&priv->_agn.accum_statistics;
-		size = sizeof(struct iwl_notif_statistics);
-		general = &priv->_agn.statistics.general.common;
-		accum_general = &priv->_agn.accum_statistics.general.common;
-		tx = &priv->_agn.statistics.tx;
-		accum_tx = &priv->_agn.accum_statistics.tx;
-		delta = (u32 *)&priv->_agn.delta_statistics;
-		max_delta = (u32 *)&priv->_agn.max_delta;
-	}
-	for (i = sizeof(__le32); i < size;
-	     i += sizeof(__le32), stats++, prev_stats++, delta++,
-	     max_delta++, accum_stats++) {
-		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
-			*delta = (le32_to_cpu(*stats) -
-				le32_to_cpu(*prev_stats));
-			*accum_stats += *delta;
-			if (*delta > *max_delta)
+	for (i = 0;
+	     i < size / sizeof(__le32);
+	     i++, prev++, cur++, delta++, max_delta++, accum++) {
+		if (le32_to_cpu(*cur) > le32_to_cpu(*prev)) {
+			*delta = cpu_to_le32(
+				le32_to_cpu(*cur) - le32_to_cpu(*prev));
+			le32_add_cpu(accum, le32_to_cpu(*delta));
+			if (le32_to_cpu(*delta) > le32_to_cpu(*max_delta))
 				*max_delta = *delta;
 		}
 	}
-
-	/* reset accumulative statistics for "no-counter" type statistics */
-	accum_general->temperature = general->temperature;
-	accum_general->temperature_m = general->temperature_m;
-	accum_general->ttl_timestamp = general->ttl_timestamp;
-	accum_tx->tx_power.ant_a = tx->tx_power.ant_a;
-	accum_tx->tx_power.ant_b = tx->tx_power.ant_b;
-	accum_tx->tx_power.ant_c = tx->tx_power.ant_c;
-#endif
 }
+
+static void
+iwl_accumulative_statistics(struct iwl_priv *priv,
+			    struct statistics_general_common *common,
+			    struct statistics_rx_non_phy *rx_non_phy,
+			    struct statistics_rx_phy *rx_ofdm,
+			    struct statistics_rx_ht_phy *rx_ofdm_ht,
+			    struct statistics_rx_phy *rx_cck,
+			    struct statistics_tx *tx,
+			    struct statistics_bt_activity *bt_activity)
+{
+#define ACCUM(_name)	\
+	accum_stats((__le32 *)&priv->statistics._name,		\
+		    (__le32 *)_name,				\
+		    (__le32 *)&priv->delta_stats._name,		\
+		    (__le32 *)&priv->max_delta_stats._name,	\
+		    (__le32 *)&priv->accum_stats._name,		\
+		    sizeof(*_name));
+
+	ACCUM(common);
+	ACCUM(rx_non_phy);
+	ACCUM(rx_ofdm);
+	ACCUM(rx_ofdm_ht);
+	ACCUM(rx_cck);
+	ACCUM(tx);
+	if (bt_activity)
+		ACCUM(bt_activity);
+#undef ACCUM
+}
+#else
+static inline void
+iwl_accumulative_statistics(struct iwl_priv *priv,
+			    struct statistics_general_common *common,
+			    struct statistics_rx_non_phy *rx_non_phy,
+			    struct statistics_rx_phy *rx_ofdm,
+			    struct statistics_rx_ht_phy *rx_ofdm_ht,
+			    struct statistics_rx_phy *rx_cck,
+			    struct statistics_tx *tx,
+			    struct statistics_bt_activity *bt_activity)
+{
+}
+#endif
 
 static void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
+	unsigned long stamp = jiffies;
 	const int reg_recalib_period = 60;
 	int change;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+	__le32 *flag;
+	struct statistics_general_common *common;
+	struct statistics_rx_non_phy *rx_non_phy;
+	struct statistics_rx_phy *rx_ofdm;
+	struct statistics_rx_ht_phy *rx_ofdm_ht;
+	struct statistics_rx_phy *rx_cck;
+	struct statistics_tx *tx;
+	struct statistics_bt_activity *bt_activity;
 
-	if (iwl_bt_statistics(priv)) {
-		IWL_DEBUG_RX(priv,
-			     "Statistics notification received (%d vs %d).\n",
-			     (int)sizeof(struct iwl_bt_notif_statistics),
-			     le32_to_cpu(pkt->len_n_flags) &
-			     FH_RSCSR_FRAME_SIZE_MSK);
+	len -= sizeof(struct iwl_cmd_header); /* skip header */
 
-		change = ((priv->_agn.statistics_bt.general.common.temperature !=
-			   pkt->u.stats_bt.general.common.temperature) ||
-			   ((priv->_agn.statistics_bt.flag &
-			   STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
-			   (pkt->u.stats_bt.flag &
-			   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
+	IWL_DEBUG_RX(priv, "Statistics notification received (%d bytes).\n",
+		     len);
 
-		iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats_bt);
+	if (len == sizeof(struct iwl_bt_notif_statistics)) {
+		struct iwl_bt_notif_statistics *stats;
+		stats = &pkt->u.stats_bt;
+		flag = &stats->flag;
+		common = &stats->general.common;
+		rx_non_phy = &stats->rx.general.common;
+		rx_ofdm = &stats->rx.ofdm;
+		rx_ofdm_ht = &stats->rx.ofdm_ht;
+		rx_cck = &stats->rx.cck;
+		tx = &stats->tx;
+		bt_activity = &stats->general.activity;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		/* handle this exception directly */
+		priv->statistics.num_bt_kills = stats->rx.general.num_bt_kills;
+		le32_add_cpu(&priv->statistics.accum_num_bt_kills,
+			     le32_to_cpu(stats->rx.general.num_bt_kills));
+#endif
+	} else if (len == sizeof(struct iwl_notif_statistics)) {
+		struct iwl_notif_statistics *stats;
+		stats = &pkt->u.stats;
+		flag = &stats->flag;
+		common = &stats->general.common;
+		rx_non_phy = &stats->rx.general;
+		rx_ofdm = &stats->rx.ofdm;
+		rx_ofdm_ht = &stats->rx.ofdm_ht;
+		rx_cck = &stats->rx.cck;
+		tx = &stats->tx;
+		bt_activity = NULL;
 	} else {
-		IWL_DEBUG_RX(priv,
-			     "Statistics notification received (%d vs %d).\n",
-			     (int)sizeof(struct iwl_notif_statistics),
-			     le32_to_cpu(pkt->len_n_flags) &
-			     FH_RSCSR_FRAME_SIZE_MSK);
-
-		change = ((priv->_agn.statistics.general.common.temperature !=
-			   pkt->u.stats.general.common.temperature) ||
-			   ((priv->_agn.statistics.flag &
-			   STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
-			   (pkt->u.stats.flag &
-			   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
-
-		iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
+		WARN_ONCE(1, "len %d doesn't match BT (%zu) or normal (%zu)\n",
+			  len, sizeof(struct iwl_bt_notif_statistics),
+			  sizeof(struct iwl_notif_statistics));
+		return;
 	}
 
-	iwl_recover_from_statistics(priv, pkt);
+	change = common->temperature != priv->statistics.common.temperature ||
+		 (*flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		 (priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK);
+
+	iwl_accumulative_statistics(priv, common, rx_non_phy, rx_ofdm,
+				    rx_ofdm_ht, rx_cck, tx, bt_activity);
+
+	iwl_recover_from_statistics(priv, rx_ofdm, rx_ofdm_ht, tx, stamp);
+
+	priv->statistics.flag = *flag;
+	memcpy(&priv->statistics.common, common, sizeof(*common));
+	memcpy(&priv->statistics.rx_non_phy, rx_non_phy, sizeof(*rx_non_phy));
+	memcpy(&priv->statistics.rx_ofdm, rx_ofdm, sizeof(*rx_ofdm));
+	memcpy(&priv->statistics.rx_ofdm_ht, rx_ofdm_ht, sizeof(*rx_ofdm_ht));
+	memcpy(&priv->statistics.rx_cck, rx_cck, sizeof(*rx_cck));
+	memcpy(&priv->statistics.tx, tx, sizeof(*tx));
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (bt_activity)
+		memcpy(&priv->statistics.bt_activity, bt_activity,
+			sizeof(*bt_activity));
+#endif
+
+	priv->rx_statistics_jiffies = stamp;
 
 	set_bit(STATUS_STATISTICS, &priv->status);
 
@@ -708,18 +726,12 @@ static void iwl_rx_reply_statistics(struct iwl_priv *priv,
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		memset(&priv->_agn.accum_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
-		memset(&priv->_agn.delta_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
-		memset(&priv->_agn.max_delta, 0,
-			sizeof(struct iwl_notif_statistics));
-		memset(&priv->_agn.accum_statistics_bt, 0,
-			sizeof(struct iwl_bt_notif_statistics));
-		memset(&priv->_agn.delta_statistics_bt, 0,
-			sizeof(struct iwl_bt_notif_statistics));
-		memset(&priv->_agn.max_delta_bt, 0,
-			sizeof(struct iwl_bt_notif_statistics));
+		memset(&priv->accum_stats, 0,
+			sizeof(priv->accum_stats));
+		memset(&priv->delta_stats, 0,
+			sizeof(priv->delta_stats));
+		memset(&priv->max_delta_stats, 0,
+			sizeof(priv->max_delta_stats));
 #endif
 		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
 	}

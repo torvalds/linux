@@ -549,9 +549,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 void iwlagn_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from correct statistics (in Celsius) */
-	priv->temperature = le32_to_cpu((iwl_bt_statistics(priv)) ?
-		priv->_agn.statistics_bt.general.common.temperature :
-		priv->_agn.statistics.general.common.temperature);
+	priv->temperature = le32_to_cpu(priv->statistics.common.temperature);
 	iwl_tt_handler(priv);
 }
 

@@ -1705,10 +1705,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	else
 		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 
-	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BTSTATS ||
-	    (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics))
-		priv->bt_statistics = true;
-
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
@@ -2626,17 +2622,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		if (iwl_bt_statistics(priv)) {
-			iwl_chain_noise_calibration(priv,
-					(void *)&priv->_agn.statistics_bt);
-			iwl_sensitivity_calibration(priv,
-					(void *)&priv->_agn.statistics_bt);
-		} else {
-			iwl_chain_noise_calibration(priv,
-					(void *)&priv->_agn.statistics);
-			iwl_sensitivity_calibration(priv,
-					(void *)&priv->_agn.statistics);
-		}
+		iwl_chain_noise_calibration(priv);
+		iwl_sensitivity_calibration(priv);
 	}
 
 	mutex_unlock(&priv->mutex);

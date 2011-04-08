@@ -383,7 +383,6 @@ static struct iwl_ht_params iwl2000_ht_params = {
 };
 
 static struct iwl_bt_params iwl2030_bt_params = {
-	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,

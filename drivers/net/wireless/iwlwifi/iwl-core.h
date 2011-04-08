@@ -279,7 +279,6 @@ struct iwl_base_params {
  * @advanced_bt_coexist: support advanced bt coexist
  * @bt_init_traffic_load: specify initial bt traffic load
  * @bt_prio_boost: default bt priority boost value
- * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
@@ -289,7 +288,6 @@ struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
 	u8 bt_prio_boost;
-	const bool bt_statistics;
 	u16 agg_time_limit;
 	u8 ampdu_factor;
 	u8 ampdu_density;
@@ -694,11 +692,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
 	return priv->cfg->bt_params &&
 	       priv->cfg->bt_params->advanced_bt_coexist;
-}
-
-static inline bool iwl_bt_statistics(struct iwl_priv *priv)
-{
-	return priv->bt_statistics;
 }
 
 extern bool bt_coex_active;
