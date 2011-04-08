@@ -23,6 +23,7 @@
 #include "../codecs/wm8900.h"
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
+#include <linux/clk.h>
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -38,7 +39,9 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
         unsigned int pll_out = 0; 
         unsigned int lrclk = 0;
+		int div_bclk,div_mclk;
         int ret;
+		struct clk	*general_pll;
           
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
         /*by Vincent Hsiung for EQ Vol Change*/
@@ -110,9 +113,28 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         #endif
 
         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-        snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+		general_pll=clk_get(NULL, "general_pll");
+		if(clk_get_rate(general_pll)>260000000)
+		{
+			div_bclk=(pll_out/4)/params_rate(params)-1;
+			div_mclk=3;
+		}
+		else if(clk_get_rate(general_pll)>130000000)
+		{
+			div_bclk=(pll_out/2)/params_rate(params)-1;
+			div_mclk=1;
+		}
+		else
+		{
+			pll_out=pll_out/4;
+			div_bclk=(pll_out)/params_rate(params)-1;
+			div_mclk=0;
+		}
+		DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld\n",
+			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
         #endif
         DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
         
