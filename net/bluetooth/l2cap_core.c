@@ -149,7 +149,7 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 	return 0;
 }
 
-static struct l2cap_chan *l2cap_chan_alloc(struct sock *sk)
+struct l2cap_chan *l2cap_chan_alloc(struct sock *sk)
 {
 	struct l2cap_chan *chan;
 
@@ -648,6 +648,8 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 		goto clean;
 	}
 
+	l2cap_pi(sk)->chan = chan;
+
 	write_lock_bh(&conn->chan_lock);
 
 	hci_conn_hold(conn->hcon);
@@ -660,8 +662,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	bt_accept_enqueue(parent, sk);
 
 	__l2cap_chan_add(conn, chan);
-
-	l2cap_pi(sk)->chan = chan;
 
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
@@ -847,12 +847,12 @@ static struct sock *l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src)
 	return node ? sk : sk1;
 }
 
-int l2cap_do_connect(struct sock *sk)
+int l2cap_do_connect(struct l2cap_chan *chan)
 {
+	struct sock *sk = chan->sk;
 	bdaddr_t *src = &bt_sk(sk)->src;
 	bdaddr_t *dst = &bt_sk(sk)->dst;
 	struct l2cap_conn *conn;
-	struct l2cap_chan *chan;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
 	__u8 auth_type;
@@ -888,19 +888,10 @@ int l2cap_do_connect(struct sock *sk)
 		goto done;
 	}
 
-	chan = l2cap_chan_alloc(sk);
-	if (!chan) {
-		hci_conn_put(hcon);
-		err = -ENOMEM;
-		goto done;
-	}
-
 	/* Update source addr of the socket */
 	bacpy(src, conn->src);
 
 	l2cap_chan_add(conn, chan);
-
-	l2cap_pi(sk)->chan = chan;
 
 	sk->sk_state = BT_CONNECT;
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
@@ -2076,6 +2067,8 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		goto response;
 	}
 
+	l2cap_pi(sk)->chan = chan;
+
 	write_lock_bh(&conn->chan_lock);
 
 	/* Check if we already have channel with that dcid */
@@ -2097,8 +2090,6 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	bt_accept_enqueue(parent, sk);
 
 	__l2cap_chan_add(conn, chan);
-
-	l2cap_pi(sk)->chan = chan;
 
 	dcid = l2cap_pi(sk)->scid;
 

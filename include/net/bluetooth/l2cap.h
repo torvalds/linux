@@ -465,7 +465,8 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
+struct l2cap_chan *l2cap_chan_alloc(struct sock *sk);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
-int l2cap_do_connect(struct sock *sk);
+int l2cap_do_connect(struct l2cap_chan *chan);
 
 #endif /* __L2CAP_H */

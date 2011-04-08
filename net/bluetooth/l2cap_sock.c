@@ -229,7 +229,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	l2cap_pi(sk)->psm = la.l2_psm;
 	l2cap_pi(sk)->dcid = la.l2_cid;
 
-	err = l2cap_do_connect(sk);
+	err = l2cap_do_connect(l2cap_pi(sk)->chan);
 	if (err)
 		goto done;
 
@@ -1054,6 +1054,7 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 			     int kern)
 {
 	struct sock *sk;
+	struct l2cap_chan *chan;
 
 	BT_DBG("sock %p", sock);
 
@@ -1071,6 +1072,14 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 	sk = l2cap_sock_alloc(net, sock, protocol, GFP_ATOMIC);
 	if (!sk)
 		return -ENOMEM;
+
+	chan = l2cap_chan_alloc(sk);
+	if (!chan) {
+		l2cap_sock_kill(sk);
+		return -ENOMEM;
+	}
+
+	l2cap_pi(sk)->chan = chan;
 
 	l2cap_sock_init(sk, NULL);
 	return 0;
