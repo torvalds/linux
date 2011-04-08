@@ -72,14 +72,19 @@
 #define MEM_CAMIPP_SIZE     0
 #endif
 #define MEM_FB_SIZE         (3*SZ_2M)
-
+#ifdef CONFIG_FB_WORK_IPP
+#define MEM_FBIPP_SIZE      SZ_8M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
+#else
+#define MEM_FBIPP_SIZE      0
+#endif
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
 #define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
-#define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
+#define MEM_FBIPP_BASE      (MEM_FB_BASE - MEM_FBIPP_SIZE)
+#define LINUX_SIZE          (MEM_FBIPP_BASE - RK29_SDRAM_PHYS)
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -236,6 +241,14 @@ static struct resource rk29_fb_resource[] = {
         .end    = MEM_FB_BASE + MEM_FB_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
+    #ifdef CONFIG_FB_WORK_IPP
+    [3] = {
+	    .name   = "win1 ipp buf",
+        .start  = MEM_FBIPP_BASE,
+        .end    = MEM_FBIPP_BASE + MEM_FBIPP_SIZE - 1,
+        .flags  = IORESOURCE_MEM,
+    },
+    #endif
 };
 
 /*platform_device*/
@@ -408,9 +421,6 @@ static struct mma8452_platform_data mma8452_info = {
 static struct mpu3050_platform_data mpu3050_data = {
 		.int_config = 0x10,
 		.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
-		//{ 0, -1, 0 ,-1 , 0, 0, 0, 0, 1 },
-//{ 0, -1, 0 ,-1 , 0, 0, 0, 0, 1 },
-//{ 1, 0, 0,0, -1, 0,0, 0, 1 },//{ 0, 1, 0,1, 0, 0,0, 0, -1 },
 		.level_shifter = 0,
 #if defined (CONFIG_SENSORS_KXTF9)
 		.accel = {
@@ -421,9 +431,6 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
 				.address = 0x0f,
 				.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-				//{ 0, -1, 0 ,1 , 0, 0, 0, 0, 1 },
-//{ 0, -1, 0 ,1 , 0, 0, 0, 0, 1 },
-//{ 1, 0, 0,0, 1, 0,0, 0, 1 },//{ 0, 1, 0,1, 0, 0,0, 0, -1 },
 		},
 #endif
 #if defined (CONFIG_SENSORS_AK8975)
@@ -435,13 +442,7 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.irq = RK29_PIN0_PA4,
 				.bus = EXT_SLAVE_BUS_PRIMARY,
 				.address = 0x0d,
-				.orientation = /*{ 0, 1, 0,
-								-1, 0, 0,
-								 0, 0, 1 },*/
-				{ -1, 0, 0,0, -1, 0,0, 0, 1 },
-				//{ 0, 1, 0 , -1 , 0, 0, 0, 0, 1 },
-//{ -1, 0, 0 ,0 , -1, 0, 0, 0, 1 },
-//{ -1, 0, 0,0, -1, 0,0, 0, 1 },//{ 0, 1, 0,-1, 0, 0,0, 0, 1 },
+				.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
 		},
 };
 #endif
@@ -791,6 +792,27 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
 		return -EIO;
 	}
+
+#if 0
+	printk(KERN_INFO "TPS65910 Set default voltage.\n");
+	/* VDD1 Set the default voltage: 1150 mV(47)*/
+	val = 47;	
+	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1_OP);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDD1_OP);
+		return -EIO;
+	}
+
+	/* VDD2 Set the default voltage: 1087 * 1.25mV(41)*/
+	val = 42;	
+	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDD2_OP);
+		return -EIO;
+	}
+#endif
 
 	/* initilize all ISR work as NULL, specific driver will
 	 * assign function(s) later.
@@ -1443,6 +1465,7 @@ static struct platform_device rk29_device_camera = {
 #define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
+#define PWM_GPIO RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  1
 
 //#define LCD_DISP_ON_PIN
@@ -1483,11 +1506,33 @@ static int rk29_backlight_io_deinit(void)
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
     return ret;
 }
+
+static int rk29_backlight_pwm_suspend(void)
+{
+	int ret = 0;
+	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+	if (ret = gpio_request(PWM_GPIO, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	return ret;
+}
+
+static int rk29_backlight_pwm_resume(void)
+{
+	gpio_free(PWM_GPIO);
+	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+	return 0;
+}
+
 struct rk29_bl_info rk29_bl_info = {
     .pwm_id   = PWM_ID,
     .bl_ref   = PWM_EFFECT_VALUE,
     .io_init   = rk29_backlight_io_init,
     .io_deinit = rk29_backlight_io_deinit,
+    .pwm_suspend = rk29_backlight_pwm_suspend,
+    .pwm_resume = rk29_backlight_pwm_resume,
 };
 #endif
 /*****************************************************************************************
@@ -1555,9 +1600,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
+#if 0
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(RK29_PIN5_PD5,GPIO_LOW);
+#else
+	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
+#endif
 	return 0;
 }
 
@@ -2213,24 +2262,11 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init();
 }
 
-#define POWER_ON_PIN RK29_PIN4_PA4
-static void rk29_pm_power_off(void)
-{
-	printk(KERN_ERR "rk29_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-	while (1);
-}
-
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
 
-	gpio_request(POWER_ON_PIN,"poweronpin");
-	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
-	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-	pm_power_off = rk29_pm_power_off;
-
-
+	board_power_init();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
@@ -2255,7 +2291,9 @@ static void __init machine_rk29_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
     rk29sdk_wifi_bt_gpio_control_init();
 	rk29sdk_init_wifi_mem();
-#endif        
+#endif
+
+	board_usb_detect_init(RK29_PIN0_PA0, IRQF_TRIGGER_FALLING);
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
