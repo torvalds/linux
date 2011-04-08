@@ -101,7 +101,7 @@ struct twl6030_usb {
 	bool			irq_enabled;
 };
 
-#define xceiv_to_twl(x)		container_of((x), struct twl6030_usb, otg);
+#define xceiv_to_twl(x)		container_of((x), struct twl6030_usb, otg)
 
 /*-------------------------------------------------------------------------*/
 
