@@ -3127,6 +3127,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	if (!sds.busiest || sds.busiest_nr_running == 0)
 		goto out_balanced;
 
+	sds.avg_load = (SCHED_LOAD_SCALE * sds.total_load) / sds.total_pwr;
+
 	/*
 	 * If the busiest group is imbalanced the below checks don't
 	 * work because they assumes all things are equal, which typically
@@ -3151,7 +3153,6 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * Don't pull any tasks if this group is already above the domain
 	 * average load.
 	 */
-	sds.avg_load = (SCHED_LOAD_SCALE * sds.total_load) / sds.total_pwr;
 	if (sds.this_load >= sds.avg_load)
 		goto out_balanced;
 
