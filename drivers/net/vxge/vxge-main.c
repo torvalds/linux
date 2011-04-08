@@ -3112,8 +3112,7 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 	return net_stats;
 }
 
-static enum vxge_hw_status vxge_timestamp_config(struct vxgedev *vdev,
-						 int enable)
+static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)
 {
 	enum vxge_hw_status status;
 	u64 val64;
@@ -3123,27 +3122,24 @@ static enum vxge_hw_status vxge_timestamp_config(struct vxgedev *vdev,
 	 * required for the driver to load (due to a hardware bug),
 	 * there is no need to do anything special here.
 	 */
-	if (enable)
-		val64 = VXGE_HW_XMAC_TIMESTAMP_EN |
-			VXGE_HW_XMAC_TIMESTAMP_USE_LINK_ID(0) |
-			VXGE_HW_XMAC_TIMESTAMP_INTERVAL(0);
-	else
-		val64 = 0;
+	val64 = VXGE_HW_XMAC_TIMESTAMP_EN |
+		VXGE_HW_XMAC_TIMESTAMP_USE_LINK_ID(0) |
+		VXGE_HW_XMAC_TIMESTAMP_INTERVAL(0);
 
-	status = vxge_hw_mgmt_reg_write(vdev->devh,
+	status = vxge_hw_mgmt_reg_write(devh,
 					vxge_hw_mgmt_reg_type_mrpcim,
 					0,
 					offsetof(struct vxge_hw_mrpcim_reg,
 						 xmac_timestamp),
 					val64);
-	vxge_hw_device_flush_io(vdev->devh);
+	vxge_hw_device_flush_io(devh);
+	devh->config.hwts_en = VXGE_HW_HWTS_ENABLE;
 	return status;
 }
 
 static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 {
 	struct hwtstamp_config config;
-	enum vxge_hw_status status;
 	int i;
 
 	if (copy_from_user(&config, data, sizeof(config)))
@@ -3164,10 +3160,6 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		status = vxge_timestamp_config(vdev, 0);
-		if (status != VXGE_HW_OK)
-			return -EFAULT;
-
 		vdev->rx_hwts = 0;
 		config.rx_filter = HWTSTAMP_FILTER_NONE;
 		break;
@@ -3186,8 +3178,7 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		status = vxge_timestamp_config(vdev, 1);
-		if (status != VXGE_HW_OK)
+		if (vdev->devh->config.hwts_en != VXGE_HW_HWTS_ENABLE)
 			return -EFAULT;
 
 		vdev->rx_hwts = 1;
@@ -4573,6 +4564,24 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 				" failing driver load", VXGE_DRIVER_NAME);
 		ret = -EINVAL;
 		goto _exit4;
+	}
+
+	/* Always enable HWTS.  This will always cause the FCS to be invalid,
+	 * due to the fact that HWTS is using the FCS as the location of the
+	 * timestamp.  The HW FCS checking will still correctly determine if
+	 * there is a valid checksum, and the FCS is being removed by the driver
+	 * anyway.  So no fucntionality is being lost.  Since it is always
+	 * enabled, we now simply use the ioctl call to set whether or not the
+	 * driver should be paying attention to the HWTS.
+	 */
+	if (is_privileged == VXGE_HW_OK) {
+		status = vxge_timestamp_config(hldev);
+		if (status != VXGE_HW_OK) {
+			vxge_debug_init(VXGE_ERR, "%s: HWTS enable failed",
+					VXGE_DRIVER_NAME);
+			ret = -EFAULT;
+			goto _exit4;
+		}
 	}
 
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_LL);
