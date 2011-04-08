@@ -910,6 +910,9 @@ static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
 	struct ethtool_rx_ntuple_flow_spec_container *fsc = NULL;
 	int ret;
 
+	if (!ops->set_rx_ntuple)
+		return -EOPNOTSUPP;
+
 	if (!(dev->features & NETIF_F_NTUPLE))
 		return -EINVAL;
 
