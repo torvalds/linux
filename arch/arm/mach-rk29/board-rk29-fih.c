@@ -62,7 +62,7 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE      ( SZ_64M *3)
+#define PMEM_GPU_SIZE       (SZ_64M*3)
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x01300000
@@ -1017,7 +1017,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
       .addr           = 0x4B,
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
-      //.platform_data  = &p1003_info,
     },
 #endif
 };
