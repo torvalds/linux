@@ -4,6 +4,12 @@ source "arch/arm/plat-mxc/devices/Kconfig"
 
 menu "Freescale MXC Implementations"
 
+config ARCH_MX50_SUPPORTED
+	bool
+
+config ARCH_MX53_SUPPORTED
+	bool
+
 choice
 	prompt "Freescale CPU family:"
 	default ARCH_MX3
@@ -28,8 +34,17 @@ config ARCH_MX3
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
-config ARCH_MX5
-	bool "MX5-based"
+config ARCH_MX503
+	bool "i.MX50 + i.MX53"
+	select ARCH_MX50_SUPPORTED
+	select ARCH_MX53_SUPPORTED
+	help
+	  This enables support for machines using Freescale's i.MX50 and i.MX51
+	  processors.
+
+config ARCH_MX51
+	bool "i.MX51"
+	select ARCH_MX51_SUPPORTED
 	help
 	  This enables support for systems based on the Freescale i.MX51 family
 
