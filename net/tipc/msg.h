@@ -491,6 +491,35 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define PUBLICATION       0
 #define WITHDRAWAL        1
 
+/*
+ * Segmentation message types
+ */
+
+#define FIRST_FRAGMENT		0
+#define FRAGMENT		1
+#define LAST_FRAGMENT		2
+
+/*
+ * Link management protocol message types
+ */
+
+#define STATE_MSG		0
+#define RESET_MSG		1
+#define ACTIVATE_MSG		2
+
+/*
+ * Changeover tunnel message types
+ */
+#define DUPLICATE_MSG		0
+#define ORIGINAL_MSG		1
+
+/*
+ * Config protocol message types
+ */
+
+#define DSC_REQ_MSG		0
+#define DSC_RESP_MSG		1
+
 
 /*
  * Word 1
@@ -717,35 +746,6 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }
-
-/*
- * Segmentation message types
- */
-
-#define FIRST_FRAGMENT     0
-#define FRAGMENT           1
-#define LAST_FRAGMENT      2
-
-/*
- * Link management protocol message types
- */
-
-#define STATE_MSG       0
-#define RESET_MSG       1
-#define ACTIVATE_MSG    2
-
-/*
- * Changeover tunnel message types
- */
-#define DUPLICATE_MSG    0
-#define ORIGINAL_MSG     1
-
-/*
- * Config protocol message types
- */
-
-#define DSC_REQ_MSG          0
-#define DSC_RESP_MSG         1
 
 u32 tipc_msg_tot_importance(struct tipc_msg *m);
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
