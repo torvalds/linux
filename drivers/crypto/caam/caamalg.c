@@ -1120,6 +1120,7 @@ static int __init caam_algapi_init(void)
 	if (err < 0 && i == 0) {
 		dev_err(ctrldev, "algapi error in job ring registration: %d\n",
 			err);
+		kfree(jrdev);
 		return err;
 	}
 
