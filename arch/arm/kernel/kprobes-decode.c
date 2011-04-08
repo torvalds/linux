@@ -560,8 +560,8 @@ static void __kprobes emulate_ldrd(struct kprobe *p, struct pt_regs *regs)
 		  [i_fn] "r" (i_fn)
 		: "r0", "r1", "r2", "r3", "lr", "cc"
 	);
-	if (rn != 15)
-		regs->uregs[rn] = rnv;  /* Save Rn in case of writeback. */
+	if (is_writeback(insn))
+		regs->uregs[rn] = rnv;
 }
 
 static void __kprobes emulate_strd(struct kprobe *p, struct pt_regs *regs)
@@ -580,8 +580,8 @@ static void __kprobes emulate_strd(struct kprobe *p, struct pt_regs *regs)
 	rnv_wb = insnslot_4arg_rflags(rnv, rmv, regs->uregs[rd],
 					       regs->uregs[rd+1],
 					       regs->ARM_cpsr, i_fn);
-	if (rn != 15)
-		regs->uregs[rn] = rnv_wb;  /* Save Rn in case of writeback. */
+	if (is_writeback(insn))
+		regs->uregs[rn] = rnv_wb;
 }
 
 static void __kprobes emulate_ldr(struct kprobe *p, struct pt_regs *regs)
@@ -1183,8 +1183,8 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 
 			insn &= 0xfff00fff;
 			insn |= 0x00002000;	/* Rn = r0, Rd = r2 */
-			if (insn & (1 << 22)) {
-				/* I bit */
+			if (!(insn & (1 << 22))) {
+				/* Register index */
 				insn &= ~0xf;
 				insn |= 1;	/* Rm = r1 */
 			}
