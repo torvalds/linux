@@ -382,23 +382,6 @@ extern const char gfar_driver_version[];
 #define BD_LFLAG(flags) ((flags) << 16)
 #define BD_LENGTH_MASK		0x0000ffff
 
-#define CLASS_CODE_UNRECOG		0x00
-#define CLASS_CODE_DUMMY1		0x01
-#define CLASS_CODE_ETHERTYPE1		0x02
-#define CLASS_CODE_ETHERTYPE2		0x03
-#define CLASS_CODE_USER_PROG1		0x04
-#define CLASS_CODE_USER_PROG2		0x05
-#define CLASS_CODE_USER_PROG3		0x06
-#define CLASS_CODE_USER_PROG4		0x07
-#define CLASS_CODE_TCP_IPV4		0x08
-#define CLASS_CODE_UDP_IPV4		0x09
-#define CLASS_CODE_AH_ESP_IPV4		0x0a
-#define CLASS_CODE_SCTP_IPV4		0x0b
-#define CLASS_CODE_TCP_IPV6		0x0c
-#define CLASS_CODE_UDP_IPV6		0x0d
-#define CLASS_CODE_AH_ESP_IPV6		0x0e
-#define CLASS_CODE_SCTP_IPV6		0x0f
-
 #define FPR_FILER_MASK	0xFFFFFFFF
 #define MAX_FILER_IDX	0xFF
 

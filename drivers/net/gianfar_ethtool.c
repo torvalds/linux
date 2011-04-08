@@ -645,42 +645,6 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 #endif
 
-static int gfar_ethflow_to_class(int flow_type, u64 *class)
-{
-	switch (flow_type) {
-	case TCP_V4_FLOW:
-		*class = CLASS_CODE_TCP_IPV4;
-		break;
-	case UDP_V4_FLOW:
-		*class = CLASS_CODE_UDP_IPV4;
-		break;
-	case AH_V4_FLOW:
-	case ESP_V4_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV4;
-		break;
-	case SCTP_V4_FLOW:
-		*class = CLASS_CODE_SCTP_IPV4;
-		break;
-	case TCP_V6_FLOW:
-		*class = CLASS_CODE_TCP_IPV6;
-		break;
-	case UDP_V6_FLOW:
-		*class = CLASS_CODE_UDP_IPV6;
-		break;
-	case AH_V6_FLOW:
-	case ESP_V6_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV6;
-		break;
-	case SCTP_V6_FLOW:
-		*class = CLASS_CODE_SCTP_IPV6;
-		break;
-	default:
-		return 0;
-	}
-
-	return 1;
-}
-
 static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 {
 	u32 fcr = 0x0, fpr = FPR_FILER_MASK;
@@ -778,11 +742,6 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	case UDP_V6_FLOW:
 		cmp_rqfpr = RQFPR_IPV6 |RQFPR_UDP;
 		break;
-	case IPV4_FLOW:
-		cmp_rqfpr = RQFPR_IPV4;
-	case IPV6_FLOW:
-		cmp_rqfpr = RQFPR_IPV6;
-		break;
 	default:
 		printk(KERN_ERR "Right now this class is not supported\n");
 		return 0;
@@ -848,18 +807,9 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 
 static int gfar_set_hash_opts(struct gfar_private *priv, struct ethtool_rxnfc *cmd)
 {
-	u64 class;
-
-	if (!gfar_ethflow_to_class(cmd->flow_type, &class))
-		return -EINVAL;
-
-	if (class < CLASS_CODE_USER_PROG1 ||
-			class > CLASS_CODE_SCTP_IPV6)
-		return -EINVAL;
-
 	/* write the filer rules here */
 	if (!gfar_ethflow_to_filer_table(priv, cmd->data, cmd->flow_type))
-		return -1;
+		return -EINVAL;
 
 	return 0;
 }
