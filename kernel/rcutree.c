@@ -1839,6 +1839,13 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	/* Add the callback to our list. */
 	*rdp->nxttail[RCU_NEXT_TAIL] = head;
 	rdp->nxttail[RCU_NEXT_TAIL] = &head->next;
+	rdp->qlen++;
+
+	/* If interrupts were disabled, don't dive into RCU core. */
+	if (irqs_disabled_flags(flags)) {
+		local_irq_restore(flags);
+		return;
+	}
 
 	/*
 	 * Force the grace period if too many callbacks or too long waiting.
@@ -1847,7 +1854,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	 * invoking force_quiescent_state() if the newly enqueued callback
 	 * is the only one waiting for a grace period to complete.
 	 */
-	if (unlikely(++rdp->qlen > rdp->qlen_last_fqs_check + qhimark)) {
+	if (unlikely(rdp->qlen > rdp->qlen_last_fqs_check + qhimark)) {
 
 		/* Are we ignoring a completed grace period? */
 		rcu_process_gp_end(rsp, rdp);
