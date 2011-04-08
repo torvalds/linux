@@ -118,6 +118,34 @@ umalloc(size_t size)
 	return addr;
 }
 
+static unsigned char ideal_nop5_x86_64[5] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
+static unsigned char ideal_nop5_x86_32[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
+static unsigned char *ideal_nop;
+
+static char rel_type_nop;
+
+static int (*make_nop)(void *map, size_t const offset);
+
+static int make_nop_x86(void *map, size_t const offset)
+{
+	uint32_t *ptr;
+	unsigned char *op;
+
+	/* Confirm we have 0xe8 0x0 0x0 0x0 0x0 */
+	ptr = map + offset;
+	if (*ptr != 0)
+		return -1;
+
+	op = map + offset - 1;
+	if (*op != 0xe8)
+		return -1;
+
+	/* convert to nop */
+	ulseek(fd_map, offset - 1, SEEK_SET);
+	uwrite(fd_map, ideal_nop, 5);
+	return 0;
+}
+
 /*
  * Get the whole file as a programming convenience in order to avoid
  * malloc+lseek+read+free of many pieces.  If successful, then mmap
@@ -301,7 +329,11 @@ do_file(char const *const fname)
 			w2(ehdr->e_machine), fname);
 		fail_file();
 		break;
-	case EM_386:	 reltype = R_386_32;                   break;
+	case EM_386:
+		reltype = R_386_32;
+		make_nop = make_nop_x86;
+		ideal_nop = ideal_nop5_x86_32;
+		break;
 	case EM_ARM:	 reltype = R_ARM_ABS32;
 			 altmcount = "__gnu_mcount_nc";
 			 break;
@@ -312,7 +344,11 @@ do_file(char const *const fname)
 	case EM_S390:    /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_SH:	 reltype = R_SH_DIR32;                 break;
 	case EM_SPARCV9: reltype = R_SPARC_64;     gpfx = '_'; break;
-	case EM_X86_64:	 reltype = R_X86_64_64;                break;
+	case EM_X86_64:
+		make_nop = make_nop_x86;
+		ideal_nop = ideal_nop5_x86_64;
+		reltype = R_X86_64_64;
+		break;
 	}  /* end switch */
 
 	switch (ehdr->e_ident[EI_CLASS]) {
