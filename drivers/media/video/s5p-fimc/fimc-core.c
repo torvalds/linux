@@ -1750,7 +1750,7 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 }
 
 /* Image pixel limits, similar across several FIMC HW revisions. */
-static struct fimc_pix_limit s5p_pix_limit[3] = {
+static struct fimc_pix_limit s5p_pix_limit[4] = {
 	[0] = {
 		.scaler_en_w	= 3264,
 		.scaler_dis_w	= 8192,
@@ -1773,6 +1773,14 @@ static struct fimc_pix_limit s5p_pix_limit[3] = {
 		.in_rot_en_h	= 1280,
 		.in_rot_dis_w	= 8192,
 		.out_rot_en_w	= 1280,
+		.out_rot_dis_w	= 1920,
+	},
+	[3] = {
+		.scaler_en_w	= 1920,
+		.scaler_dis_w	= 8192,
+		.in_rot_en_h	= 1366,
+		.in_rot_dis_w	= 8192,
+		.out_rot_en_w	= 1366,
 		.out_rot_dis_w	= 1920,
 	},
 };
@@ -1827,7 +1835,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
+static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1840,7 +1848,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
+static struct samsung_fimc_variant fimc2_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_cistatus2	 = 1,
 	.has_mainscaler_ext = 1,
@@ -1848,7 +1856,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,
 	.out_buf_count	 = 32,
-	.pix_limit	 = &s5p_pix_limit[2],
+	.pix_limit	 = &s5p_pix_limit[3],
 };
 
 /* S5PC100 */
@@ -1874,12 +1882,12 @@ static struct samsung_fimc_driverdata fimc_drvdata_s5pv210 = {
 };
 
 /* S5PV310, S5PC210 */
-static struct samsung_fimc_driverdata fimc_drvdata_s5pv310 = {
+static struct samsung_fimc_driverdata fimc_drvdata_exynos4 = {
 	.variant = {
-		[0] = &fimc0_variant_s5pv310,
-		[1] = &fimc0_variant_s5pv310,
-		[2] = &fimc0_variant_s5pv310,
-		[3] = &fimc2_variant_s5pv310,
+		[0] = &fimc0_variant_exynos4,
+		[1] = &fimc0_variant_exynos4,
+		[2] = &fimc0_variant_exynos4,
+		[3] = &fimc2_variant_exynos4,
 	},
 	.num_entities = 4,
 	.lclk_frequency = 166000000UL,
@@ -1893,8 +1901,8 @@ static struct platform_device_id fimc_driver_ids[] = {
 		.name		= "s5pv210-fimc",
 		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
 	}, {
-		.name		= "s5pv310-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5pv310,
+		.name		= "exynos4-fimc",
+		.driver_data	= (unsigned long)&fimc_drvdata_exynos4,
 	},
 	{},
 };
