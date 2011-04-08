@@ -744,6 +744,66 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 }
 
+/**
+ * ixgbe_blink_led_start_X540 - Blink LED based on index.
+ * @hw: pointer to hardware structure
+ * @index: led number to blink
+ *
+ * Devices that implement the version 2 interface:
+ *   X540
+ **/
+static s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
+{
+	u32 macc_reg;
+	u32 ledctl_reg;
+
+	/*
+	 * In order for the blink bit in the LED control register
+	 * to work, link and speed must be forced in the MAC. We
+	 * will reverse this when we stop the blinking.
+	 */
+	macc_reg = IXGBE_READ_REG(hw, IXGBE_MACC);
+	macc_reg |= IXGBE_MACC_FLU | IXGBE_MACC_FSV_10G | IXGBE_MACC_FS;
+	IXGBE_WRITE_REG(hw, IXGBE_MACC, macc_reg);
+
+	/* Set the LED to LINK_UP + BLINK. */
+	ledctl_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	ledctl_reg &= ~IXGBE_LED_MODE_MASK(index);
+	ledctl_reg |= IXGBE_LED_BLINK(index);
+	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, ledctl_reg);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return 0;
+}
+
+/**
+ * ixgbe_blink_led_stop_X540 - Stop blinking LED based on index.
+ * @hw: pointer to hardware structure
+ * @index: led number to stop blinking
+ *
+ * Devices that implement the version 2 interface:
+ *   X540
+ **/
+static s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
+{
+	u32 macc_reg;
+	u32 ledctl_reg;
+
+	/* Restore the LED to its default value. */
+	ledctl_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	ledctl_reg &= ~IXGBE_LED_MODE_MASK(index);
+	ledctl_reg |= IXGBE_LED_LINK_ACTIVE << IXGBE_LED_MODE_SHIFT(index);
+	ledctl_reg &= ~IXGBE_LED_BLINK(index);
+	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, ledctl_reg);
+
+	/* Unforce link and speed in the MAC. */
+	macc_reg = IXGBE_READ_REG(hw, IXGBE_MACC);
+	macc_reg &= ~(IXGBE_MACC_FLU | IXGBE_MACC_FSV_10G | IXGBE_MACC_FS);
+	IXGBE_WRITE_REG(hw, IXGBE_MACC, macc_reg);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return 0;
+}
 static struct ixgbe_mac_operations mac_ops_X540 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_X540,
@@ -767,8 +827,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.get_link_capabilities  = &ixgbe_get_copper_link_capabilities_generic,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
-	.blink_led_start        = &ixgbe_blink_led_start_generic,
-	.blink_led_stop         = &ixgbe_blink_led_stop_generic,
+	.blink_led_start        = &ixgbe_blink_led_start_X540,
+	.blink_led_stop         = &ixgbe_blink_led_stop_X540,
 	.set_rar                = &ixgbe_set_rar_generic,
 	.clear_rar              = &ixgbe_clear_rar_generic,
 	.set_vmdq               = &ixgbe_set_vmdq_generic,
