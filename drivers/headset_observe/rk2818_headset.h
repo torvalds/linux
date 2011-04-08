@@ -6,6 +6,7 @@
 
 /* 耳机数据结构体 */
 struct rk2818_headset_data {
+	unsigned int gpio;
 	unsigned int irq;
 	unsigned int irq_type;
 	unsigned int headset_in_type;

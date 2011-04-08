@@ -61,7 +61,7 @@
 #include <linux/mtk23d.h>
 #endif
 
-
+#include "../../../drivers/headset_observe/rk2818_headset.h"
 /*set touchscreen different type header*/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
@@ -1383,6 +1383,23 @@ struct wm8994_pdata wm8994_platdata = {
 };
 #endif 
 
+#ifdef CONFIG_HEADSET_DET
+#define HEADSET_GPIO RK29_PIN4_PD2
+struct rk2818_headset_data rk2818_headset_info = {
+	.gpio		= HEADSET_GPIO,
+	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ÉÏÉýÑØ	IRQF_TRIGGER_FALLING -- ÏÂ½µÑØ
+	.headset_in_type= HEADSET_IN_HIGH,
+};
+
+struct platform_device rk28_device_headset = {
+		.name	= "rk2818_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		    .platform_data = &rk2818_headset_info,
+		}
+};
+#endif
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -2570,6 +2587,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
+#endif
+#ifdef CONFIG_HEADSET_DET
+    &rk28_device_headset,
 #endif
 };
 
