@@ -883,11 +883,12 @@ emulate_alu_tests(struct kprobe *p, struct pt_regs *regs)
 static enum kprobe_insn __kprobes
 prep_emulate_ldr_str(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
-	int ibit = (insn & (1 << 26)) ? 25 : 22;
+	int not_imm = (insn & (1 << 26)) ? (insn & (1 << 25))
+					 : (~insn & (1 << 22));
 
 	insn &= 0xfff00fff;
 	insn |= 0x00001000;	/* Rn = r0, Rd = r1 */
-	if (insn & (1 << ibit)) {
+	if (not_imm) {
 		insn &= ~0xf;
 		insn |= 2;	/* Rm = r2 */
 	}
