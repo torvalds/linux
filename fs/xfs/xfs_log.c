@@ -761,7 +761,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		break;
 	case XLOG_STATE_COVER_NEED:
 	case XLOG_STATE_COVER_NEED2:
-		if (!xfs_trans_ail_tail(log->l_ailp) &&
+		if (!xfs_ail_min_lsn(log->l_ailp) &&
 		    xlog_iclogs_empty(log)) {
 			if (log->l_covered_state == XLOG_STATE_COVER_NEED)
 				log->l_covered_state = XLOG_STATE_COVER_DONE;
@@ -801,7 +801,7 @@ xlog_assign_tail_lsn(
 	xfs_lsn_t		tail_lsn;
 	struct log		*log = mp->m_log;
 
-	tail_lsn = xfs_trans_ail_tail(mp->m_ail);
+	tail_lsn = xfs_ail_min_lsn(mp->m_ail);
 	if (!tail_lsn)
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 
@@ -1239,7 +1239,7 @@ xlog_grant_push_ail(
 	 * the filesystem is shutting down.
 	 */
 	if (!XLOG_FORCED_SHUTDOWN(log))
-		xfs_trans_ail_push(log->l_ailp, threshold_lsn);
+		xfs_ail_push(log->l_ailp, threshold_lsn);
 }
 
 /*

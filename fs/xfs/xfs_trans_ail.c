@@ -90,6 +90,20 @@ xfs_ail_min(
 	return list_first_entry(&ailp->xa_ail, xfs_log_item_t, li_ail);
 }
 
+ /*
+ * Return a pointer to the last item in the AIL.  If the AIL is empty, then
+ * return NULL.
+ */
+static xfs_log_item_t *
+xfs_ail_max(
+	struct xfs_ail  *ailp)
+{
+	if (list_empty(&ailp->xa_ail))
+		return NULL;
+
+	return list_entry(ailp->xa_ail.prev, xfs_log_item_t, li_ail);
+}
+
 /*
  * Return a pointer to the item which follows the given item in the AIL.  If
  * the given item is the last item in the list, then return NULL.
@@ -114,7 +128,7 @@ xfs_ail_next(
  * item in the AIL.
  */
 xfs_lsn_t
-xfs_trans_ail_tail(
+xfs_ail_min_lsn(
 	struct xfs_ail	*ailp)
 {
 	xfs_lsn_t	lsn = 0;
@@ -122,6 +136,25 @@ xfs_trans_ail_tail(
 
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_ail_min(ailp);
+	if (lip)
+		lsn = lip->li_lsn;
+	spin_unlock(&ailp->xa_lock);
+
+	return lsn;
+}
+
+/*
+ * Return the maximum lsn held in the AIL, or zero if the AIL is empty.
+ */
+static xfs_lsn_t
+xfs_ail_max_lsn(
+	struct xfs_ail  *ailp)
+{
+	xfs_lsn_t       lsn = 0;
+	xfs_log_item_t  *lip;
+
+	spin_lock(&ailp->xa_lock);
+	lip = xfs_ail_max(ailp);
 	if (lip)
 		lsn = lip->li_lsn;
 	spin_unlock(&ailp->xa_lock);
@@ -504,7 +537,7 @@ xfs_ail_worker(
  * any of the objects, so the lock is not needed.
  */
 void
-xfs_trans_ail_push(
+xfs_ail_push(
 	struct xfs_ail	*ailp,
 	xfs_lsn_t	threshold_lsn)
 {
@@ -523,6 +556,19 @@ xfs_trans_ail_push(
 	ailp->xa_target = threshold_lsn;
 	if (!test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
 		queue_delayed_work(xfs_syncd_wq, &ailp->xa_work, 0);
+}
+
+/*
+ * Push out all items in the AIL immediately
+ */
+void
+xfs_ail_push_all(
+	struct xfs_ail  *ailp)
+{
+	xfs_lsn_t       threshold_lsn = xfs_ail_max_lsn(ailp);
+
+	if (threshold_lsn)
+		xfs_ail_push(ailp, threshold_lsn);
 }
 
 /*

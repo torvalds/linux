@@ -22,6 +22,7 @@
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
+#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -462,6 +463,9 @@ xfs_sync_worker(
 		else
 			xfs_log_force(mp, 0);
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
+
+		/* start pushing all the metadata that is currently dirty */
+		xfs_ail_push_all(mp->m_ail);
 	}
 
 	/* queue us up again */
@@ -1027,8 +1031,9 @@ xfs_reclaim_inode_shrink(
 
 	mp = container_of(shrink, struct xfs_mount, m_inode_shrink);
 	if (nr_to_scan) {
-		/* kick background reclaimer */
+		/* kick background reclaimer and push the AIL */
 		xfs_syncd_queue_reclaim(mp);
+		xfs_ail_push_all(mp->m_ail);
 
 		if (!(gfp_mask & __GFP_FS))
 			return -1;

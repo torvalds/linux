@@ -104,11 +104,12 @@ xfs_trans_ail_delete(
 	xfs_trans_ail_delete_bulk(ailp, &lip, 1);
 }
 
-void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_ail_push_all(struct xfs_ail *);
+xfs_lsn_t		xfs_ail_min_lsn(struct xfs_ail *ailp);
+
 void			xfs_trans_unlocked_item(struct xfs_ail *,
 					xfs_log_item_t *);
-
-xfs_lsn_t		xfs_trans_ail_tail(struct xfs_ail *ailp);
 
 struct xfs_log_item	*xfs_trans_ail_cursor_first(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur,
