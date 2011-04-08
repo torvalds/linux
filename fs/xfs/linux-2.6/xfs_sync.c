@@ -433,99 +433,6 @@ xfs_quiesce_attr(
 	xfs_unmountfs_writesb(mp);
 }
 
-/*
- * Enqueue a work item to be picked up by the vfs xfssyncd thread.
- * Doing this has two advantages:
- * - It saves on stack space, which is tight in certain situations
- * - It can be used (with care) as a mechanism to avoid deadlocks.
- * Flushing while allocating in a full filesystem requires both.
- */
-STATIC void
-xfs_syncd_queue_work(
-	struct xfs_mount *mp,
-	void		*data,
-	void		(*syncer)(struct xfs_mount *, void *),
-	struct completion *completion)
-{
-	struct xfs_sync_work *work;
-
-	work = kmem_alloc(sizeof(struct xfs_sync_work), KM_SLEEP);
-	INIT_LIST_HEAD(&work->w_list);
-	work->w_syncer = syncer;
-	work->w_data = data;
-	work->w_mount = mp;
-	work->w_completion = completion;
-	spin_lock(&mp->m_sync_lock);
-	list_add_tail(&work->w_list, &mp->m_sync_list);
-	spin_unlock(&mp->m_sync_lock);
-	wake_up_process(mp->m_sync_task);
-}
-
-/*
- * Flush delayed allocate data, attempting to free up reserved space
- * from existing allocations.  At this point a new allocation attempt
- * has failed with ENOSPC and we are in the process of scratching our
- * heads, looking about for more room...
- */
-STATIC void
-xfs_flush_inodes_work(
-	struct xfs_mount *mp,
-	void		*arg)
-{
-	struct inode	*inode = arg;
-	xfs_sync_data(mp, SYNC_TRYLOCK);
-	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_WAIT);
-	iput(inode);
-}
-
-void
-xfs_flush_inodes(
-	xfs_inode_t	*ip)
-{
-	struct inode	*inode = VFS_I(ip);
-	DECLARE_COMPLETION_ONSTACK(completion);
-
-	igrab(inode);
-	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inodes_work, &completion);
-	wait_for_completion(&completion);
-	xfs_log_force(ip->i_mount, XFS_LOG_SYNC);
-}
-
-STATIC int
-xfssyncd(
-	void			*arg)
-{
-	struct xfs_mount	*mp = arg;
-	long			timeleft;
-	xfs_sync_work_t		*work, *n;
-	LIST_HEAD		(tmp);
-
-	set_freezable();
-	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
-	for (;;) {
-		if (list_empty(&mp->m_sync_list))
-			schedule_timeout_interruptible(timeleft);
-		/* swsusp */
-		try_to_freeze();
-		if (kthread_should_stop() && list_empty(&mp->m_sync_list))
-			break;
-
-		spin_lock(&mp->m_sync_lock);
-		list_splice_init(&mp->m_sync_list, &tmp);
-		spin_unlock(&mp->m_sync_lock);
-
-		list_for_each_entry_safe(work, n, &tmp, w_list) {
-			(*work->w_syncer)(mp, work->w_data);
-			list_del(&work->w_list);
-			if (work->w_completion)
-				complete(work->w_completion);
-			kmem_free(work);
-		}
-	}
-
-	return 0;
-}
-
 static void
 xfs_syncd_queue_sync(
 	struct xfs_mount        *mp)
@@ -562,16 +469,47 @@ xfs_sync_worker(
 	xfs_syncd_queue_sync(mp);
 }
 
+/*
+ * Flush delayed allocate data, attempting to free up reserved space
+ * from existing allocations.  At this point a new allocation attempt
+ * has failed with ENOSPC and we are in the process of scratching our
+ * heads, looking about for more room.
+ *
+ * Queue a new data flush if there isn't one already in progress and
+ * wait for completion of the flush. This means that we only ever have one
+ * inode flush in progress no matter how many ENOSPC events are occurring and
+ * so will prevent the system from bogging down due to every concurrent
+ * ENOSPC event scanning all the active inodes in the system for writeback.
+ */
+void
+xfs_flush_inodes(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	queue_work(xfs_syncd_wq, &mp->m_flush_work);
+	flush_work_sync(&mp->m_flush_work);
+}
+
+STATIC void
+xfs_flush_worker(
+	struct work_struct *work)
+{
+	struct xfs_mount *mp = container_of(work,
+					struct xfs_mount, m_flush_work);
+
+	xfs_sync_data(mp, SYNC_TRYLOCK);
+	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_WAIT);
+}
+
 int
 xfs_syncd_init(
 	struct xfs_mount	*mp)
 {
+	INIT_WORK(&mp->m_flush_work, xfs_flush_worker);
 	INIT_DELAYED_WORK(&mp->m_sync_work, xfs_sync_worker);
 	xfs_syncd_queue_sync(mp);
 
-	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd/%s", mp->m_fsname);
-	if (IS_ERR(mp->m_sync_task))
-		return -PTR_ERR(mp->m_sync_task);
 	return 0;
 }
 
@@ -580,7 +518,7 @@ xfs_syncd_stop(
 	struct xfs_mount	*mp)
 {
 	cancel_delayed_work_sync(&mp->m_sync_work);
-	kthread_stop(mp->m_sync_task);
+	cancel_work_sync(&mp->m_flush_work);
 }
 
 void

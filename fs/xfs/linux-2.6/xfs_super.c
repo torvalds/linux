@@ -1480,8 +1480,6 @@ xfs_fs_fill_super(
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
-	INIT_LIST_HEAD(&mp->m_sync_list);
-	spin_lock_init(&mp->m_sync_lock);
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
