@@ -195,21 +195,11 @@ struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
 };
 
-struct iwl_legacy_ops {
-	void (*post_associate)(struct iwl_priv *priv);
-	void (*config_ap)(struct iwl_priv *priv);
-	/* station management */
-	int (*update_bcast_stations)(struct iwl_priv *priv);
-	int (*manage_ibss_station)(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif, bool add);
-};
-
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_nic_ops *nic;
-	const struct iwl_legacy_ops *legacy;
 };
 
 struct iwl_mod_params {
