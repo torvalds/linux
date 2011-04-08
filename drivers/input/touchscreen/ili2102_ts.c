@@ -23,7 +23,7 @@
 #define TOUCH_NUMBER 2
 
 static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
-static unsigned int g_x =  0,g_y = 0;
+static unsigned int g_x[TOUCH_NUMBER] =  {0},g_y[TOUCH_NUMBER] = {0};
 
 struct ili2102_ts_data {
 	u16		model;			/* 801. */	
@@ -142,12 +142,12 @@ static void ili2102_ts_work_func(struct work_struct *work)
 
 				if (verify_coord(ts,&x,&y))//goto out;
 				{
-					x = g_x;
-					y = g_y;
+					x = g_x[i];
+					y = g_y[i];
 				}
 
-				g_x = x;
-				g_y = y;			
+				g_x[i] = x;
+				g_y[i] = y;			
 				input_event(ts->input_dev, EV_ABS, ABS_MT_TRACKING_ID, i);
 			        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
 			        input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
