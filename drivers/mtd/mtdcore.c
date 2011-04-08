@@ -638,6 +638,54 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	return ret;
 }
 
+/**
+ * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size
+ * @size: A pointer to the ideal or maximum size of the allocation. Points
+ *        to the actual allocation size on success.
+ *
+ * This routine attempts to allocate a contiguous kernel buffer up to
+ * the specified size, backing off the size of the request exponentially
+ * until the request succeeds or until the allocation size falls below
+ * the system page size. This attempts to make sure it does not adversely
+ * impact system performance, so when allocating more than one page, we
+ * ask the memory allocator to avoid re-trying, swapping, writing back
+ * or performing I/O.
+ *
+ * Note, this function also makes sure that the allocated buffer is aligned to
+ * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
+ *
+ * This is called, for example by mtd_{read,write} and jffs2_scan_medium,
+ * to handle smaller (i.e. degraded) buffer allocations under low- or
+ * fragmented-memory situations where such reduced allocations, from a
+ * requested ideal, are allowed.
+ *
+ * Returns a pointer to the allocated buffer on success; otherwise, NULL.
+ */
+void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
+{
+	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
+		       __GFP_NORETRY | __GFP_NO_KSWAPD;
+	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
+	void *kbuf;
+
+	*size = min_t(size_t, *size, KMALLOC_MAX_SIZE);
+
+	while (*size > min_alloc) {
+		kbuf = kmalloc(*size, flags);
+		if (kbuf)
+			return kbuf;
+
+		*size >>= 1;
+		*size = ALIGN(*size, mtd->writesize);
+	}
+
+	/*
+	 * For the last resort allocation allow 'kmalloc()' to do all sorts of
+	 * things (write-back, dropping caches, etc) by using GFP_KERNEL.
+	 */
+	return kmalloc(*size, GFP_KERNEL);
+}
+
 EXPORT_SYMBOL_GPL(add_mtd_device);
 EXPORT_SYMBOL_GPL(del_mtd_device);
 EXPORT_SYMBOL_GPL(get_mtd_device);
@@ -648,6 +696,7 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
 EXPORT_SYMBOL_GPL(register_mtd_user);
 EXPORT_SYMBOL_GPL(unregister_mtd_user);
 EXPORT_SYMBOL_GPL(default_mtd_writev);
+EXPORT_SYMBOL_GPL(mtd_kmalloc_up_to);
 
 #ifdef CONFIG_PROC_FS
 
