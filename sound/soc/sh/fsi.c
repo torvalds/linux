@@ -1248,12 +1248,11 @@ static int fsi_remove(struct platform_device *pdev)
 
 	master = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
-	snd_soc_unregister_platform(&pdev->dev);
-
+	free_irq(master->irq, master);
 	pm_runtime_disable(&pdev->dev);
 
-	free_irq(master->irq, master);
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
+	snd_soc_unregister_platform(&pdev->dev);
 
 	iounmap(master->base);
 	kfree(master);
