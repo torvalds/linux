@@ -228,6 +228,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
+	struct timespec uptime;
 	int i;
 
 	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
@@ -245,6 +246,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sdata = sdata;
 	sta->last_rx = jiffies;
 
+	do_posix_clock_monotonic_gettime(&uptime);
+	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
 
 	if (sta_prepare_rate_control(local, sta, gfp)) {

@@ -423,6 +423,7 @@ struct station_parameters {
  * @STATION_INFO_SIGNAL_AVG: @signal_avg filled
  * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
  * @STATION_INFO_BSS_PARAM: @bss_param filled
+ * @STATION_INFO_CONNECTED_TIME: @connected_time filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -441,6 +442,7 @@ enum station_info_flags {
 	STATION_INFO_SIGNAL_AVG		= 1<<13,
 	STATION_INFO_RX_BITRATE		= 1<<14,
 	STATION_INFO_BSS_PARAM          = 1<<15,
+	STATION_INFO_CONNECTED_TIME	= 1<<16
 };
 
 /**
@@ -511,6 +513,7 @@ struct sta_bss_parameters {
  * Station information filled by driver for get_station() and dump_station.
  *
  * @filled: bitflag of flags from &enum station_info_flags
+ * @connected_time: time(in secs) since a station is last connected
  * @inactive_time: time since last station activity (tx/rx) in milliseconds
  * @rx_bytes: bytes received from this station
  * @tx_bytes: bytes transmitted to this station
@@ -533,6 +536,7 @@ struct sta_bss_parameters {
  */
 struct station_info {
 	u32 filled;
+	u32 connected_time;
 	u32 inactive_time;
 	u32 rx_bytes;
 	u32 tx_bytes;

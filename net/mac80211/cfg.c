@@ -330,6 +330,7 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct timespec uptime;
 
 	sinfo->generation = sdata->local->sta_generation;
 
@@ -343,7 +344,11 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_TX_BITRATE |
 			STATION_INFO_RX_BITRATE |
 			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_BSS_PARAM;
+			STATION_INFO_BSS_PARAM |
+			STATION_INFO_CONNECTED_TIME;
+
+	do_posix_clock_monotonic_gettime(&uptime);
+	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;

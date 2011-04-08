@@ -2020,6 +2020,9 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	sinfoattr = nla_nest_start(msg, NL80211_ATTR_STA_INFO);
 	if (!sinfoattr)
 		goto nla_put_failure;
+	if (sinfo->filled & STATION_INFO_CONNECTED_TIME)
+		NLA_PUT_U32(msg, NL80211_STA_INFO_CONNECTED_TIME,
+			    sinfo->connected_time);
 	if (sinfo->filled & STATION_INFO_INACTIVE_TIME)
 		NLA_PUT_U32(msg, NL80211_STA_INFO_INACTIVE_TIME,
 			    sinfo->inactive_time);
