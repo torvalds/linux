@@ -1218,8 +1218,17 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
-	return snd_soc_register_dais(&pdev->dev, fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
+	ret = snd_soc_register_dais(&pdev->dev, fsi_soc_dai,
+				    ARRAY_SIZE(fsi_soc_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot snd dai register\n");
+		goto exit_snd_soc;
+	}
 
+	return ret;
+
+exit_snd_soc:
+	snd_soc_unregister_platform(&pdev->dev);
 exit_free_irq:
 	free_irq(irq, master);
 exit_iounmap:
