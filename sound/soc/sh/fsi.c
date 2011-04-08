@@ -1200,10 +1200,11 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsib.master	= master;
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_resume(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
 
+	pm_runtime_get_sync(&pdev->dev);
 	fsi_soft_all_reset(master);
+	pm_runtime_put_sync(&pdev->dev);
 
 	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
 			  id_entry->name, master);
