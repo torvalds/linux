@@ -927,23 +927,23 @@ int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
 	pix->num_planes = fmt->memplanes;
 	pix->colorspace	= V4L2_COLORSPACE_JPEG;
 
+
 	for (i = 0; i < pix->num_planes; ++i) {
-		int bpl = pix->plane_fmt[i].bytesperline;
+		u32 bpl = pix->plane_fmt[i].bytesperline;
+		u32 *sizeimage = &pix->plane_fmt[i].sizeimage;
 
-		dbg("[%d] bpl: %d, depth: %d, w: %d, h: %d",
-		    i, bpl, fmt->depth[i], pix->width, pix->height);
+		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
+			bpl = pix->width; /* Planar */
 
-		if (!bpl || (bpl * 8 / fmt->depth[i]) > pix->width)
-			bpl = (pix->width * fmt->depth[0]) >> 3;
+		if (fmt->colplanes == 1 && /* Packed */
+		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
+			bpl = (pix->width * fmt->depth[0]) / 8;
 
-		if (!pix->plane_fmt[i].sizeimage)
-			pix->plane_fmt[i].sizeimage = pix->height * bpl;
+		if (i == 0) /* Same bytesperline for each plane. */
+			mod_x = bpl;
 
-		pix->plane_fmt[i].bytesperline = bpl;
-
-		dbg("[%d]: bpl: %d, sizeimage: %d",
-		    i, pix->plane_fmt[i].bytesperline,
-		    pix->plane_fmt[i].sizeimage);
+		pix->plane_fmt[i].bytesperline = mod_x;
+		*sizeimage = (pix->width * pix->height * fmt->depth[i]) / 8;
 	}
 
 	return 0;
@@ -985,8 +985,10 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 	if (!frame->fmt)
 		return -EINVAL;
 
-	for (i = 0; i < frame->fmt->colplanes; i++)
-		frame->payload[i] = pix->plane_fmt[i].bytesperline * pix->height;
+	for (i = 0; i < frame->fmt->colplanes; i++) {
+		frame->payload[i] =
+			(pix->width * pix->height * frame->fmt->depth[i]) / 8;
+	}
 
 	frame->f_width	= pix->plane_fmt[0].bytesperline * 8 /
 		frame->fmt->depth[0];

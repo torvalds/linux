@@ -539,8 +539,10 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < frame->fmt->colplanes; i++)
-		frame->payload[i] = pix->plane_fmt[i].bytesperline * pix->height;
+	for (i = 0; i < frame->fmt->colplanes; i++) {
+		frame->payload[i] =
+			(pix->width * pix->height * frame->fmt->depth[i]) >> 3;
+	}
 
 	/* Output DMA frame pixel size and offsets. */
 	frame->f_width = pix->plane_fmt[0].bytesperline * 8
