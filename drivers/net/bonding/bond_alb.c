@@ -176,7 +176,7 @@ static int tlb_initialize(struct bonding *bond)
 	bond_info->tx_hashtbl = new_hashtbl;
 
 	for (i = 0; i < TLB_HASH_TABLE_SIZE; i++) {
-		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 1);
+		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 0);
 	}
 
 	_unlock_tx_hashtbl(bond);
