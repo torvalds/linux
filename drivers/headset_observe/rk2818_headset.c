@@ -1,4 +1,4 @@
-/* arch/arm/mach-rockchip/rk28_headset.c
+﻿/* arch/arm/mach-rockchip/rk28_headset.c
  *
  * Copyright (C) 2009 Rockchip Corporation.
  *
@@ -82,7 +82,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 static int headset_change_irqtype(unsigned int irq_type)
 {
 	int ret = 0;
-	DBG("--------%s----------",__FUNCTION__);
+	DBG("--------%s----------\n",__FUNCTION__);
 	free_irq(prk2818_headset_info->irq,NULL);
 	
 	ret = request_irq(prk2818_headset_info->irq, headset_interrupt, irq_type, NULL, NULL);
@@ -106,7 +106,7 @@ static void headsetobserve_work(struct work_struct *work)
 		level = gpio_get_value(prk2818_headset_info->gpio);
 		if(level < 0)
 		{
-			printk("%s:get pin level again,pin=%d,i=%d\n",__FUNCTION__,prk2818_headset_info->irq,i);
+			printk("%s:get pin level again,pin=%d,i=%d\n",__FUNCTION__,prk2818_headset_info->gpio,i);
 			msleep(1);
 			continue;
 		}
@@ -124,13 +124,13 @@ static void headsetobserve_work(struct work_struct *work)
 		case HEADSET_IN_HIGH:
 			if(level > 0)
 			{//插入--高电平
-				DBG("---headset in---\n");
+				DBG("--- HEADSET_IN_HIGH headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
 				headset_change_irqtype(IRQF_TRIGGER_FALLING);//设置为下降沿
 			}
 			else if(level == 0)
 			{//拔出--低电平
-				DBG("---headset out---\n");		
+				DBG("---HEADSET_IN_HIGH headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 				headset_change_irqtype(IRQF_TRIGGER_RISING);//设置为上升沿
 			}
@@ -138,13 +138,13 @@ static void headsetobserve_work(struct work_struct *work)
 		case HEADSET_IN_LOW:
 			if(level == 0)
 			{//插入--低电平
-				DBG("---headset in---\n");
+				DBG("---HEADSET_IN_LOW headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
-				headset_change_irqtype(IRQF_TRIGGER_RISING);///设置为上升沿
+				headset_change_irqtype(IRQF_TRIGGER_RISING);//设置为上升沿
 			}
 			else if(level > 0)
 			{//拔出--高电平
-				DBG("---headset out---\n");		
+				DBG("---HEADSET_IN_LOW headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 				headset_change_irqtype(IRQF_TRIGGER_FALLING);//设置为下降沿
 			}

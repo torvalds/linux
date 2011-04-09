@@ -92,6 +92,9 @@ struct wm8994_pdata {
         /* Jack detect threashold levels, see datasheet for values */
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
+
+		//rk29-a22功放ldo  =1使能=0不使能
+		unsigned int a22_ldo_enable:1;
 };
 
 #endif

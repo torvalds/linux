@@ -33,7 +33,10 @@
 #include "wm8994.h"
 #include <linux/miscdevice.h>
 #include <linux/circ_buf.h>
-//#include <mach/spi_fpga.h>
+#include <linux/mfd/wm8994/core.h>
+#include <linux/mfd/wm8994/registers.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/gpio.h>
 
 #define WM8994_PROC
 #ifdef WM8994_PROC
@@ -64,6 +67,7 @@
 #define wm8994_mic_VCC 0x0010
 #define WM8994_DELAY 50
 
+static struct snd_soc_codec *wm8994_codec;
 struct i2c_client *wm8994_client;
 bool first_incall = false, isWM8994SetChannel = true, isSetChannelErr = false;
 struct workqueue_struct *wm8994_workqueue;
@@ -195,6 +199,7 @@ struct wm8994_priv {
 	struct snd_soc_codec codec;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
 	u16 reg_cache[WM8994_NUM_REG];
+	struct wm8994_pdata *pdata;
 };
 
 bool wm8994_set_status(void)
@@ -2883,11 +2888,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	wm8994_check_channel();
 
 	isWM8994SetChannel = false;
-#if defined(CONFIG_MACH_A22)
-	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-	gpio_free(RK29_PIN6_PD3);
-#endif
+
 	return 0;
 }
 /*
@@ -3414,20 +3415,25 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-
+	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	
 	isWM8994SetChannel = true;
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
+	if(pdata ->a22_ldo_enable == 1)
+	{
+		DBG("wm8994 suspend disable a22_ldo\n");
+		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+		gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
+		gpio_free(RK29_PIN6_PD3);
+	}
+	
 	wm8994_write(0x00, 0x00);
-	msleep(50);
 
 	gpio_request(WM_EN_PIN, NULL);
 	gpio_direction_output(WM_EN_PIN,GPIO_LOW);
 	gpio_free(WM_EN_PIN);
-#if defined(CONFIG_MACH_A22)	
-	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-	gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
-	gpio_free(RK29_PIN6_PD3);
-#endif	
+	
 	msleep(50);
 
 	return 0;
@@ -3437,6 +3443,8 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;	
 	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
 	unsigned char wm8994_resume_mode = wm8994_current_mode;
 	wm8994_current_mode = null;
@@ -3467,15 +3475,16 @@ static int wm8994_resume(struct platform_device *pdev)
 	wm8994_check_channel();
 
 	isWM8994SetChannel = false;
-#if defined(CONFIG_MACH_A22)	
-	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-	gpio_free(RK29_PIN6_PD3);
-#endif	
+	
+	if(pdata ->a22_ldo_enable == 1)
+	{
+		DBG("wm8994_resume enable a22_ldo\n");
+		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+		gpio_free(RK29_PIN6_PD3);
+	}
 	return 0;
 }
-
-static struct snd_soc_codec *wm8994_codec;
 
 #ifdef WM8994_PROC
 static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
@@ -3996,7 +4005,6 @@ static int wm8994_proc_init(void){
 }
 
 #endif
-
 static int wm8994_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -4004,7 +4012,8 @@ static int wm8994_probe(struct platform_device *pdev)
 	unsigned long wm8994_port = 0;
 	int ret = 0;
 	char b[20];
-
+	struct wm8994_priv *wm8994;
+	struct wm8994_pdata *pdata;
 #ifdef WM8994_PROC
 	wm8994_proc_init();
 #endif
@@ -4016,9 +4025,19 @@ static int wm8994_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm8994_codec;
 	codec = wm8994_codec;
-
-//	recorder_and_AP_to_speakers();
-
+	
+	recorder_and_AP_to_speakers();
+	
+	wm8994 = codec->private_data;
+	pdata = wm8994->pdata;
+	if(pdata->a22_ldo_enable == 1)
+	{
+		DBG("enable a22_ldo\n");
+		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+		gpio_free(RK29_PIN6_PD3);
+	}
+	
 	setup_timer(&wm8994_timer, wm8994_codec_timer, wm8994_port);
 	wm8994_timer.expires  = jiffies+500;//=500ms
 	add_timer(&wm8994_timer);
@@ -4029,12 +4048,6 @@ static int wm8994_probe(struct platform_device *pdev)
 		printk("cannot create wm8994 workqueue\n");
 	else
 		INIT_WORK(&wm8994_work, wm8994_work_handler);
-
-	if (wm8994_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -4178,7 +4191,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	codec->dev = &i2c->dev;
-
+	wm8994->pdata = i2c->dev.platform_data;//add
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }
 

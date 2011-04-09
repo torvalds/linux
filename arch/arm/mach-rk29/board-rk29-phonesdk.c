@@ -1277,7 +1277,7 @@ struct platform_device rk29_device_gps = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-#if defined(CONFIG_MFD_WM8994)
+//#if defined(CONFIG_MFD_WM8994)
 #if defined (CONFIG_REGULATOR_WM8994)
 static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
 	{
@@ -1381,7 +1381,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.jd_scthr = 0,
 	.jd_thr = 0,
 };
-#endif 
+//#endif 
 
 #ifdef CONFIG_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
@@ -1495,9 +1495,9 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "wm8994",
 		.addr           = 0x1a,
 		.flags			= 0,
-	#if defined(CONFIG_MFD_WM8994)	
+//	#if defined(CONFIG_MFD_WM8994)	
 		.platform_data  = &wm8994_platdata,	
-	#endif	
+//	#endif	
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
