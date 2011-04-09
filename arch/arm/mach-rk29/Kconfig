@@ -58,7 +58,7 @@ endchoice
 
 choice DDR_TYPE
 	prompt "DDR Memory Type"
-	default DDR_TYPE_DDR3_800D
+	default DDR_TYPE_DDR3_DEFAULT 
 
 config DDR_TYPE_DDRII
 	bool "DDRII"
@@ -134,7 +134,7 @@ config DDR_TYPE_DDR3_DEFAULT
 endchoice
 
 config RK29_MEM_SIZE_M
-	int "Memory size (in MB)"
+	int "DDR Memory size (in MB)"
 	default 512
 
 config DDR_SDRAM_FREQ
