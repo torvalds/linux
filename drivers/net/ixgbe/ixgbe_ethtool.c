@@ -1030,9 +1030,6 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 		return IXGBE_TEST_LEN;
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
-	case ETH_SS_NTUPLE_FILTERS:
-		return ETHTOOL_MAX_NTUPLE_LIST_ENTRY *
-		       ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY;
 	default:
 		return -EOPNOTSUPP;
 	}

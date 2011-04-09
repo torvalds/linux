@@ -4203,9 +4203,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		break;
 	}
 
-	/* clear n-tuple filters that are cached */
-	ethtool_ntuple_flush(netdev);
-
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
 
