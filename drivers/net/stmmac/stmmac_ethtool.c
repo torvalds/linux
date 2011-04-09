@@ -197,13 +197,6 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 	}
 }
 
-static u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	return priv->rx_coe;
-}
-
 static void
 stmmac_get_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
@@ -358,11 +351,6 @@ static struct ethtool_ops stmmac_ethtool_ops = {
 	.get_regs = stmmac_ethtool_gregs,
 	.get_regs_len = stmmac_ethtool_get_regs_len,
 	.get_link = ethtool_op_get_link,
-	.get_rx_csum = stmmac_ethtool_get_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_ipv6_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
 	.get_pauseparam = stmmac_get_pauseparam,
 	.set_pauseparam = stmmac_set_pauseparam,
 	.get_ethtool_stats = stmmac_get_ethtool_stats,
@@ -370,8 +358,6 @@ static struct ethtool_ops stmmac_ethtool_ops = {
 	.get_wol = stmmac_get_wol,
 	.set_wol = stmmac_set_wol,
 	.get_sset_count	= stmmac_get_sset_count,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
 };
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)
