@@ -93,17 +93,19 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	start_reg = 0x10;
 
 	msg[0].addr = ts->client->addr;
-	msg[0].flags = 0;
+	msg[0].flags = ts->client->flags;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 200*1000;
+	msg[0].udelay = 500;
 
 	msg[1].addr = ts->client->addr;
-	msg[1].flags = I2C_M_RD;
+	msg[1].flags = ts->client->flags | I2C_M_RD;
 	msg[1].len = 9;	
 	msg[1].buf = buf;//msg[1].buf = (u8*)&buf[0];
 	msg[1].scl_rate = 200*1000;
-
+	msg[1].udelay = 500;
+	
 	ret = i2c_transfer(ts->client->adapter, msg, 2); 
 	if (ret < 0) 
 	{
@@ -126,7 +128,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				input_mt_sync(ts->input_dev);
 				syn_flag = 1;
 				touch_state[i] = TOUCH_UP;
-				printk("touch_up \n");
+				DBG("touch_up \n");
 			}
 
 		}
@@ -142,6 +144,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 
 				if (verify_coord(ts,&x,&y))//goto out;
 				{
+					printk("err:x=%d,y=%d\n",x,y);
 					x = g_x[i];
 					y = g_y[i];
 				}
@@ -157,7 +160,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				syn_flag = 1;
 				touch_state[i] = TOUCH_DOWN;
 				 ts->pendown = 1;
-				printk("touch_down X = %d, Y = %d\n", x, y);
+				DBG("touch_down X = %d, Y = %d\n", x, y);
 			}
 			
 		}
@@ -289,16 +292,18 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	/* get panel information:6bytes */
 	start_reg = 0x20;
 	msg[0].addr =client->addr;
-	msg[0].flags = 0;
+	msg[0].flags = client->flags;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 200*1000;
+	msg[0].udelay = 500;
 
 	msg[1].addr = client->addr;
-	msg[1].flags = I2C_M_RD;
+	msg[1].flags = client->flags |I2C_M_RD;
 	msg[1].len = 6;
 	msg[1].buf = (u8*)&buf[0];
 	msg[1].scl_rate = 200*1000;
+	msg[1].udelay = 500;
 
 	ret = i2c_transfer(client->adapter, msg, 2);   
 	if (ret < 0) {
@@ -311,16 +316,18 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	/*get firmware version:3bytes */	
 	start_reg = 0x40;
 	msg[0].addr =client->addr;
-	msg[0].flags = 0;
+	msg[0].flags = client->flags;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 200*1000;
+	msg[0].udelay = 500;
 
 	msg[1].addr = client->addr;
-	msg[1].flags = I2C_M_RD;
+	msg[1].flags = client->flags | I2C_M_RD;
 	msg[1].len = 3;
 	msg[1].buf = (u8*)&buf[0];
 	msg[1].scl_rate =200*1000;
+	msg[1].udelay = 500;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret < 0) {

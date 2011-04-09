@@ -1587,7 +1587,8 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 {
 	.type           = "ili2102_ts",
 	.addr           = 0x41,
-	.flags          = 0,
+	.flags          = I2C_M_NEED_DELAY,
+	.udelay      = 600,
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &ili2102_info,
 },	
@@ -2203,6 +2204,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+	.detect_irq = INVALID_GPIO,
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
