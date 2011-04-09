@@ -151,9 +151,9 @@ unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 		slot_time = AR5K_INIT_SLOT_TIME_QUARTER_RATE;
 		break;
 	case AR5K_BWMODE_DEFAULT:
-		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
 	default:
-		if (channel->hw_value & CHANNEL_CCK)
+		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
+		if ((channel->hw_value & CHANNEL_CCK) && !ah->ah_short_slot)
 			slot_time = AR5K_INIT_SLOT_TIME_B;
 		break;
 	}

@@ -1057,6 +1057,7 @@ struct ath5k_hw {
 	u8			ah_coverage_class;
 	bool			ah_ack_bitrate_high;
 	u8			ah_bwmode;
+	bool			ah_short_slot;
 
 	/* Antenna Control */
 	u32			ah_ant_ctl[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
