@@ -519,7 +519,7 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 		return -EINVAL;
 
 	sifs = ath5k_hw_get_default_sifs(ah);
-	sifs_clock = ath5k_hw_htoclock(ah, sifs);
+	sifs_clock = ath5k_hw_htoclock(ah, sifs - 2);
 
 	/* EIFS
 	 * Txtime of ack at lowest rate + SIFS + DIFS

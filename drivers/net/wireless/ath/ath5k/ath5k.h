@@ -224,8 +224,7 @@
 
 /* SIFS */
 #define	AR5K_INIT_SIFS_TURBO			6
-/* XXX: 8 from initvals 10 from standard */
-#define	AR5K_INIT_SIFS_DEFAULT_BG		8
+#define	AR5K_INIT_SIFS_DEFAULT_BG		10
 #define	AR5K_INIT_SIFS_DEFAULT_A		16
 #define	AR5K_INIT_SIFS_HALF_RATE		32
 #define AR5K_INIT_SIFS_QUARTER_RATE		64
