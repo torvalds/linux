@@ -162,7 +162,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
 			u8 buf[6];
 			buf[0] = CMD_I2C_READ;
-			buf[1] = msg[i].addr + 1;
+			buf[1] = (msg[i].addr << 1) | 0x01;
 			buf[2] = msg[i].buf[0];
 			buf[3] = 0x00;
 			buf[4] = 0x00;
@@ -173,7 +173,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 		} else {
 			u8 buf[4+msg[i].len];
 			buf[0] = CMD_I2C_WRITE;
-			buf[1] = msg[i].addr;
+			buf[1] = (msg[i].addr << 1);
 			buf[2] = msg[i].len;
 			buf[3] = 0x01;
 			memcpy(&buf[4], msg[i].buf, msg[i].len);
@@ -224,7 +224,7 @@ static int anysee_mt352_demod_init(struct dvb_frontend *fe)
 
 /* Callbacks for DVB USB */
 static struct tda10023_config anysee_tda10023_config = {
-	.demod_address = 0x1a,
+	.demod_address = (0x1a >> 1),
 	.invert = 0,
 	.xtal   = 16000000,
 	.pll_m  = 11,
@@ -235,12 +235,12 @@ static struct tda10023_config anysee_tda10023_config = {
 };
 
 static struct mt352_config anysee_mt352_config = {
-	.demod_address = 0x1e,
+	.demod_address = (0x1e >> 1),
 	.demod_init    = anysee_mt352_demod_init,
 };
 
 static struct zl10353_config anysee_zl10353_config = {
-	.demod_address = 0x1e,
+	.demod_address = (0x1e >> 1),
 	.parallel_ts = 1,
 };
 
@@ -361,13 +361,13 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* Thomson dtt7579 (not sure) PLL inside of:
 		   Samsung DNOS404ZH102A NIM
 		   Samsung DNOS404ZH103A NIM */
-		dvb_attach(dvb_pll_attach, adap->fe, 0x61,
-			   NULL, DVB_PLL_THOMSON_DTT7579);
+		dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+			NULL, DVB_PLL_THOMSON_DTT7579);
 		break;
 	case DVB_PLL_SAMSUNG_DTOS403IH102A:
 		/* Unknown PLL inside of Samsung DTOS403IH102A tuner module */
-		dvb_attach(dvb_pll_attach, adap->fe, 0xc0,
-			   &adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
+		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 		break;
 	}
 
