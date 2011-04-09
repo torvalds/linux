@@ -1031,6 +1031,11 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	return nfs_ok;
 }
 
+static inline struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
+{
+	return &nfsd4_ops[op->opnum];
+}
+
 /*
  * COMPOUND call.
  */
@@ -1108,7 +1113,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			goto encode_op;
 		}
 
-		opdesc = &nfsd4_ops[op->opnum];
+		opdesc = OPDESC(op);
 
 		if (!cstate->current_fh.fh_dentry) {
 			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
