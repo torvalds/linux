@@ -1707,15 +1707,6 @@ config XILINX_LL_TEMAC
 	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
 	  core used in Xilinx Spartan and Virtex FPGAs
 
-config QLA3XXX
-	tristate "QLogic QLA3XXX Network Driver Support"
-	depends on PCI
-	help
-	  This driver supports QLogic ISP3XXX gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called qla3xxx.
-
 config ATL1
 	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
 	depends on PCI
@@ -1953,23 +1944,6 @@ config TEHUTI
 	depends on PCI
 	help
 	  Tehuti Networks 10G Ethernet NIC
-
-config QLCNIC
-	tristate "QLOGIC QLCNIC 1/10Gb Converged Ethernet NIC Support"
-	depends on PCI
-	select FW_LOADER
-	help
-	  This driver supports QLogic QLE8240 and QLE8242 Converged Ethernet
-	  devices.
-
-config QLGE
-	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
-	depends on PCI
-	help
-	  This driver supports QLogic ISP8XXX 10Gb Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called qlge.
 
 config BNA
 	tristate "Brocade 1010/1020 10Gb Ethernet Driver support"

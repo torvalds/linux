@@ -4499,7 +4499,7 @@ M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 L:	netdev@vger.kernel.org
 W:	http://www.qlogic.com
 S:	Supported
-F:	drivers/net/netxen/
+F:	drivers/net/ethernet/qlogic/netxen/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <Trond.Myklebust@netapp.com>
@@ -5245,7 +5245,7 @@ M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/LICENSE.qla3xxx
-F:	drivers/net/qla3xxx.*
+F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
 M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
@@ -5253,7 +5253,7 @@ M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/qlcnic/
+F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
@@ -5261,7 +5261,7 @@ M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/qlge/
+F:	drivers/net/ethernet/qlogic/qlge/
 
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
