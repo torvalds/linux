@@ -590,7 +590,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 #endif
 	mmc_release_host(host);
 
-	if (err) {
+	if (err && mmc_card_present(host->card)) { //mod by kfx
 		mmc_sd_remove(host);
 
 		mmc_claim_host(host);

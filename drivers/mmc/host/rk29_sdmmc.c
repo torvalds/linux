@@ -36,6 +36,8 @@
 #include <mach/board.h>
 #include <mach/rk29_iomap.h>
 #include <mach/gpio.h>
+#include <mach/iomux.h>
+
 #include <asm/dma.h>
 #include <mach/rk29-dma-pl330.h>
 #include <asm/scatterlist.h>
@@ -113,6 +115,8 @@ struct rk29_sdmmc {
 	int			irq;
 	struct timer_list	detect_timer;
         unsigned int            oldstatus;
+
+	int gpio_irq;
 };
 
 #define rk29_sdmmc_test_and_clear_pending(host, event)		\
@@ -362,7 +366,7 @@ static void rk29_sdmmc_start_command(struct rk29_sdmmc *host,
 static void rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 {
 	unsigned long flags;
-	return 0;
+	//return;
 	dev_info(&host->pdev->dev, "reset fifo\n");
 	local_irq_save(flags);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_FIFO_RESET);
@@ -375,7 +379,7 @@ static int rk29_sdmmc_wait_unbusy(struct rk29_sdmmc *host)
 {
 	const int time_out_us = 500000;
 	int time_out = time_out_us, time_out2 = 3;
-	return 0;
+	//return 0;
 	while (rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY) {
 		udelay(1);
 		time_out--;
@@ -414,6 +418,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 {
 	if(host->use_dma == 0)
 		return;
+#if 0
 	if (host->dma_chn > 0) {
 		//dma_stop_channel(host->dma_chn);
 		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
@@ -422,6 +427,8 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 		/* Data transfer was stopped by the interrupt handler */
 		rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 	}
+	#endif
+	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
 
 /* This function is called by the DMA driver from tasklet context. */
@@ -545,7 +552,7 @@ void rk29_sdmmc_setup_bus(struct rk29_sdmmc *host)
 {
 	u32 div;
 
-	if (host->clock != host->current_speed) {
+	if (host->clock != host->current_speed && host->clock != 0) {
 
 
 		while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)){
@@ -556,6 +563,11 @@ void rk29_sdmmc_setup_bus(struct rk29_sdmmc *host)
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 			printk("done\n");
 			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
+			if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_FULL){
+				dev_info(&host->pdev->dev, "fifo is full\n");
+				rk29_sdmmc_read(host->regs, SDMMC_DATA);
+				rk29_sdmmc_read(host->regs, SDMMC_DATA);
+			}
 		}
 		//rk29_sdmmc_write(host->regs, SDMMC_INTMASK,0);
 		div  = (((host->bus_hz + (host->bus_hz / 5)) / host->clock)) >> 1;
@@ -600,7 +612,7 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 	}
 	/* Slot specific timing and width adjustment */
 	rk29_sdmmc_setup_bus(host);
-	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
+	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, ~SDMMC_INT_SDIO);
 	if(rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & SDMMC_INT_SDIO)
 		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_SDIO |SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	else
@@ -779,7 +791,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CD);
 	if(mrq && mrq->data && mrq->data->error) {
 		//mrq->data->bytes_xfered = 0;
-		rk29_sdmmc_write(host->regs, SDMMC_CMD, host->stop_cmdr | SDMMC_CMD_START); 
+		//rk29_sdmmc_write(host->regs, SDMMC_CMD, host->stop_cmdr | SDMMC_CMD_START); 
 		dev_info(&host->pdev->dev, "data error, request done!\n");
 	}
 	mmc_request_done(prev_mmc, mrq);
@@ -1297,7 +1309,10 @@ static void rk29_sdmmc_detect_change(unsigned long data)
    
 	smp_rmb();
 	if (test_bit(RK29_SDMMC_SHUTDOWN, &host->flags))
-		return;		
+		return;	
+
+	rk28_send_wakeup_key();
+	
 	spin_lock(&host->lock);		
 	/* Clean up queue if present */
 	mrq = host->mrq;
@@ -1594,6 +1609,35 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 	kfree(host);
 	return 0;
 }
+static irqreturn_t det_keys_isr(int irq, void *dev_id)
+{
+	struct rk29_sdmmc *host = dev_id;
+	dev_info(&host->pdev->dev, "sd det_gpio changed(%c), send wakeup key!\n",
+		gpio_get_value(RK29_PIN2_PA2)?"removed":"insert");
+	rk29_sdmmc_detect_change((unsigned long)dev_id);
+}
+
+static void rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
+{
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+	gpio_request(RK29_PIN2_PA2, "sd_detect");
+	gpio_direction_input(RK29_PIN2_PA2);
+
+	host->gpio_irq = gpio_to_irq(RK29_PIN2_PA2);
+	request_irq(host->gpio_irq, det_keys_isr,
+					    (gpio_get_value(RK29_PIN2_PA2))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
+					    "sd_detect",
+					    host);
+	enable_irq_wake(host->gpio_irq);
+}
+static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
+{
+	disable_irq_wake(host->gpio_irq);
+	free_irq(host->gpio_irq,host);
+	gpio_free(RK29_PIN2_PA2);
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+}
+
 static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	int ret = 0;
@@ -1601,8 +1645,10 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
 
 	dev_info(&host->pdev->dev, "Enter rk29_sdmmc_suspend\n");
-	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0))
+	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)){
 		ret = mmc_suspend_host(host->mmc, state);
+		rk29_sdmmc_sdcard_suspend(host);
+	}
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	clk_disable(host->clk);
 #endif
@@ -1618,8 +1664,10 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 	dev_info(&host->pdev->dev, "Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
         rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
-	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0))
+	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)){
+		rk29_sdmmc_sdcard_resume(host);	
 		ret = mmc_resume_host(host->mmc);
+	}
 #endif
 	return ret;
 }
