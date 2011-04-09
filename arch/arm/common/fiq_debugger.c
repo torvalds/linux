@@ -136,9 +136,9 @@ static void debug_force_irq(struct fiq_debugger_state *state)
 	if (state->pdata->force_irq)
 		state->pdata->force_irq(state->pdev, irq);
 	else {
-		struct irq_chip *chip = get_irq_chip(irq);
-		if (chip && chip->retrigger)
-			chip->retrigger(irq);
+		struct irq_chip *chip = irq_get_chip(irq);
+		if (chip && chip->irq_retrigger)
+			chip->irq_retrigger(irq_get_irq_data(irq));
 	}
 }
 
@@ -340,7 +340,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		debug_printf(state, "%5d: %10u %11u %8x  %s\n", n,
 			kstat_irqs(n),
 			kstat_irqs(n) - state->last_irqs[n],
-			irq_desc[n].status,
+			irq_desc[n].status_use_accessors,
 			(act && act->name) ? act->name : "???");
 		state->last_irqs[n] = kstat_irqs(n);
 	}
