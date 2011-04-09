@@ -122,7 +122,7 @@ static int lnw_gpio_direction_output(struct gpio_chip *chip,
 	lnw_gpio_set(chip, offset, value);
 	spin_lock_irqsave(&lnw->lock, flags);
 	value = readl(gpdr);
-	value |= BIT(offset % 32);;
+	value |= BIT(offset % 32);
 	writel(value, gpdr);
 	spin_unlock_irqrestore(&lnw->lock, flags);
 	return 0;

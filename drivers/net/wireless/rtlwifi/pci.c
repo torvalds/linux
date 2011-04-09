@@ -1226,7 +1226,7 @@ static unsigned int _rtl_mac_to_hwqueue(__le16 fc,
 		hw_queue_index = VI_QUEUE;
 		break;
 	case 2:
-		hw_queue_index = BE_QUEUE;;
+		hw_queue_index = BE_QUEUE;
 		break;
 	case 3:
 		hw_queue_index = BK_QUEUE;

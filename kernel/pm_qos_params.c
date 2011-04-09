@@ -385,7 +385,7 @@ static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
 	s32 value;
 	unsigned long flags;
 	struct pm_qos_object *o;
-	struct pm_qos_request_list *pm_qos_req = filp->private_data;;
+	struct pm_qos_request_list *pm_qos_req = filp->private_data;
 
 	if (!pm_qos_req)
 		return -EINVAL;

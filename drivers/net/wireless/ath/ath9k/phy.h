@@ -54,7 +54,7 @@
 #define RF_BANK_SETUP(_bank, _iniarray, _col) do {			\
 		int i;							\
 		for (i = 0; i < (_iniarray)->ia_rows; i++)		\
-			(_bank)[i] = INI_RA((_iniarray), i, _col);;	\
+			(_bank)[i] = INI_RA((_iniarray), i, _col);	\
 	} while (0)
 
 #define	AR_PHY_TIMING11_SPUR_FREQ_SD		0x3FF00000

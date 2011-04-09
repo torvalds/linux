@@ -280,7 +280,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 
 	length = -ENOMEM;
 	if (count >= PAGE_SIZE)
-		goto out;;
+		goto out;
 
 	/* No partial writes. */
 	length = -EINVAL;
@@ -876,12 +876,12 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 
 	length = task_has_security(current, SECURITY__COMPUTE_USER);
 	if (length)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	con = kzalloc(size + 1, GFP_KERNEL);
 	if (!con)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	user = kzalloc(size + 1, GFP_KERNEL);
@@ -941,7 +941,7 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	length = -ENOMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
