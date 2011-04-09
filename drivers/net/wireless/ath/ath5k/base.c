@@ -1580,21 +1580,14 @@ ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
 	info = IEEE80211_SKB_CB(skb);
 
 	ieee80211_tx_info_clear_status(info);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i <= ts->ts_final_idx; i++) {
 		struct ieee80211_tx_rate *r =
 			&info->status.rates[i];
 
-		if (ts->ts_rate[i]) {
-			r->idx = ath5k_hw_to_driver_rix(sc, ts->ts_rate[i]);
-			r->count = ts->ts_retry[i];
-		} else {
-			r->idx = -1;
-			r->count = 0;
-		}
+		r->count = ts->ts_retry[i];
 	}
 
-	/* count the successful attempt as well */
-	info->status.rates[ts->ts_final_idx].count++;
+	info->status.rates[ts->ts_final_idx + 1].idx = -1;
 
 	if (unlikely(ts->ts_status)) {
 		sc->stats.ack_fail++;
@@ -1609,6 +1602,9 @@ ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
 	} else {
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		info->status.ack_signal = ts->ts_rssi;
+
+		/* count the successful attempt as well */
+		info->status.rates[ts->ts_final_idx].count++;
 	}
 
 	/*
