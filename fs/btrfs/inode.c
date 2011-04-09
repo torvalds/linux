@@ -4526,14 +4526,17 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	BUG_ON(!path);
 
 	inode = new_inode(root->fs_info->sb);
-	if (!inode)
+	if (!inode) {
+		btrfs_free_path(path);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	if (dir) {
 		trace_btrfs_inode_request(dir);
 
 		ret = btrfs_set_inode_index(dir, index);
 		if (ret) {
+			btrfs_free_path(path);
 			iput(inode);
 			return ERR_PTR(ret);
 		}
