@@ -1143,11 +1143,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
-	if (calldir) {
+	if (calldir)
 		len = receive_cb_reply(svsk, rqstp);
-		if (len < 0)
-			goto error;
-	}
 
 	/* Reset TCP read info */
 	svsk->sk_reclen = 0;
@@ -1156,6 +1153,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
+	if (len < 0)
+		goto error;
 
 	svc_xprt_copy_addrs(rqstp, &svsk->sk_xprt);
 	if (serv->sv_stats)
