@@ -50,7 +50,6 @@
 struct scrub_bio;
 struct scrub_page;
 struct scrub_dev;
-struct scrub_fixup;
 static void scrub_bio_end_io(struct bio *bio, int err);
 static void scrub_checksum(struct btrfs_work *work);
 static int scrub_checksum_data(struct scrub_dev *sdev,
@@ -59,9 +58,11 @@ static int scrub_checksum_tree_block(struct scrub_dev *sdev,
 				     struct scrub_page *spag, u64 logical,
 				     void *buffer);
 static int scrub_checksum_super(struct scrub_bio *sbio, void *buffer);
-static void scrub_recheck_end_io(struct bio *bio, int err);
-static void scrub_fixup_worker(struct btrfs_work *work);
-static void scrub_fixup(struct scrub_fixup *fixup);
+static int scrub_fixup_check(struct scrub_bio *sbio, int ix);
+static void scrub_fixup_end_io(struct bio *bio, int err);
+static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
+			  struct page *page);
+static void scrub_fixup(struct scrub_bio *sbio, int ix);
 
 #define SCRUB_PAGES_PER_BIO	16	/* 64k per bio */
 #define SCRUB_BIOS_PER_DEV	16	/* 1 MB per device in flight */
@@ -103,17 +104,6 @@ struct scrub_dev {
 	 */
 	struct btrfs_scrub_progress stat;
 	spinlock_t		stat_lock;
-};
-
-struct scrub_fixup {
-	struct scrub_dev	*sdev;
-	struct bio		*bio;
-	u64			logical;
-	u64			physical;
-	struct scrub_page	spag;
-	struct btrfs_work	work;
-	int			err;
-	int			recheck;
 };
 
 static void scrub_free_csums(struct scrub_dev *sdev)
@@ -240,107 +230,34 @@ nomem:
  */
 static void scrub_recheck_error(struct scrub_bio *sbio, int ix)
 {
-	struct scrub_dev *sdev = sbio->sdev;
-	struct btrfs_fs_info *fs_info = sdev->dev->dev_root->fs_info;
-	struct bio *bio = NULL;
-	struct page *page = NULL;
-	struct scrub_fixup *fixup = NULL;
-	int ret;
-
-	/*
-	 * while we're in here we do not want the transaction to commit.
-	 * To prevent it, we increment scrubs_running. scrub_pause will
-	 * have to wait until we're finished
-	 * we can safely increment scrubs_running here, because we're
-	 * in the context of the original bio which is still marked in_flight
-	 */
-	atomic_inc(&fs_info->scrubs_running);
-
-	fixup = kzalloc(sizeof(*fixup), GFP_NOFS);
-	if (!fixup)
-		goto malloc_error;
-
-	fixup->logical = sbio->logical + ix * PAGE_SIZE;
-	fixup->physical = sbio->physical + ix * PAGE_SIZE;
-	fixup->spag = sbio->spag[ix];
-	fixup->sdev = sdev;
-
-	bio = bio_alloc(GFP_NOFS, 1);
-	if (!bio)
-		goto malloc_error;
-	bio->bi_private = fixup;
-	bio->bi_size = 0;
-	bio->bi_bdev = sdev->dev->bdev;
-	fixup->bio = bio;
-	fixup->recheck = 0;
-
-	page = alloc_page(GFP_NOFS);
-	if (!page)
-		goto malloc_error;
-
-	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
-	if (!ret)
-		goto malloc_error;
-
-	if (!sbio->err) {
-		/*
-		 * shorter path: just a checksum error, go ahead and correct it
-		 */
-		scrub_fixup_worker(&fixup->work);
-		return;
+	if (sbio->err) {
+		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev,
+				   (sbio->physical + ix * PAGE_SIZE) >> 9,
+				   sbio->bio->bi_io_vec[ix].bv_page) == 0) {
+			if (scrub_fixup_check(sbio, ix) == 0)
+				return;
+		}
 	}
 
-	/*
-	 * an I/O-error occured for one of the blocks in the bio, not
-	 * necessarily for this one, so first try to read it separately
-	 */
-	fixup->work.func = scrub_fixup_worker;
-	fixup->recheck = 1;
-	bio->bi_end_io = scrub_recheck_end_io;
-	bio->bi_sector = fixup->physical >> 9;
-	bio->bi_bdev = sdev->dev->bdev;
-	submit_bio(0, bio);
-
-	return;
-
-malloc_error:
-	if (bio)
-		bio_put(bio);
-	if (page)
-		__free_page(page);
-	kfree(fixup);
-	spin_lock(&sdev->stat_lock);
-	++sdev->stat.malloc_errors;
-	spin_unlock(&sdev->stat_lock);
-	atomic_dec(&fs_info->scrubs_running);
-	wake_up(&fs_info->scrub_pause_wait);
+	scrub_fixup(sbio, ix);
 }
 
-static void scrub_recheck_end_io(struct bio *bio, int err)
-{
-	struct scrub_fixup *fixup = bio->bi_private;
-	struct btrfs_fs_info *fs_info = fixup->sdev->dev->dev_root->fs_info;
-
-	fixup->err = err;
-	btrfs_queue_worker(&fs_info->scrub_workers, &fixup->work);
-}
-
-static int scrub_fixup_check(struct scrub_fixup *fixup)
+static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
 {
 	int ret = 1;
 	struct page *page;
 	void *buffer;
-	u64 flags = fixup->spag.flags;
+	u64 flags = sbio->spag[ix].flags;
 
-	page = fixup->bio->bi_io_vec[0].bv_page;
+	page = sbio->bio->bi_io_vec[ix].bv_page;
 	buffer = kmap_atomic(page, KM_USER0);
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		ret = scrub_checksum_data(fixup->sdev,
-					  &fixup->spag, buffer);
+		ret = scrub_checksum_data(sbio->sdev,
+					  sbio->spag + ix, buffer);
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		ret = scrub_checksum_tree_block(fixup->sdev,
-						&fixup->spag,
-						fixup->logical,
+		ret = scrub_checksum_tree_block(sbio->sdev,
+						sbio->spag + ix,
+						sbio->logical + ix * PAGE_SIZE,
 						buffer);
 	} else {
 		WARN_ON(1);
@@ -350,51 +267,25 @@ static int scrub_fixup_check(struct scrub_fixup *fixup)
 	return ret;
 }
 
-static void scrub_fixup_worker(struct btrfs_work *work)
-{
-	struct scrub_fixup *fixup;
-	struct btrfs_fs_info *fs_info;
-	u64 flags;
-	int ret = 1;
-
-	fixup = container_of(work, struct scrub_fixup, work);
-	fs_info = fixup->sdev->dev->dev_root->fs_info;
-	flags = fixup->spag.flags;
-
-	if (fixup->recheck && fixup->err == 0)
-		ret = scrub_fixup_check(fixup);
-
-	if (ret || fixup->err)
-		scrub_fixup(fixup);
-
-	__free_page(fixup->bio->bi_io_vec[0].bv_page);
-	bio_put(fixup->bio);
-
-	atomic_dec(&fs_info->scrubs_running);
-	wake_up(&fs_info->scrub_pause_wait);
-
-	kfree(fixup);
-}
-
 static void scrub_fixup_end_io(struct bio *bio, int err)
 {
 	complete((struct completion *)bio->bi_private);
 }
 
-static void scrub_fixup(struct scrub_fixup *fixup)
+static void scrub_fixup(struct scrub_bio *sbio, int ix)
 {
-	struct scrub_dev *sdev = fixup->sdev;
+	struct scrub_dev *sdev = sbio->sdev;
 	struct btrfs_fs_info *fs_info = sdev->dev->dev_root->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct btrfs_multi_bio *multi = NULL;
-	struct bio *bio = fixup->bio;
+	u64 logical = sbio->logical + ix * PAGE_SIZE;
 	u64 length;
 	int i;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(complete);
 
-	if ((fixup->spag.flags & BTRFS_EXTENT_FLAG_DATA) &&
-	    (fixup->spag.have_csum == 0)) {
+	if ((sbio->spag[ix].flags & BTRFS_EXTENT_FLAG_DATA) &&
+	    (sbio->spag[ix].have_csum == 0)) {
 		/*
 		 * nodatasum, don't try to fix anything
 		 * FIXME: we can do better, open the inode and trigger a
@@ -404,71 +295,49 @@ static void scrub_fixup(struct scrub_fixup *fixup)
 	}
 
 	length = PAGE_SIZE;
-	ret = btrfs_map_block(map_tree, REQ_WRITE, fixup->logical, &length,
+	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length,
 			      &multi, 0);
 	if (ret || !multi || length < PAGE_SIZE) {
 		printk(KERN_ERR
 		       "scrub_fixup: btrfs_map_block failed us for %llu\n",
-		       (unsigned long long)fixup->logical);
+		       (unsigned long long)logical);
 		WARN_ON(1);
 		return;
 	}
 
-	if (multi->num_stripes == 1) {
+	if (multi->num_stripes == 1)
 		/* there aren't any replicas */
 		goto uncorrectable;
-	}
 
 	/*
 	 * first find a good copy
 	 */
 	for (i = 0; i < multi->num_stripes; ++i) {
-		if (i == fixup->spag.mirror_num)
+		if (i == sbio->spag[ix].mirror_num)
 			continue;
 
-		bio->bi_sector = multi->stripes[i].physical >> 9;
-		bio->bi_bdev = multi->stripes[i].dev->bdev;
-		bio->bi_size = PAGE_SIZE;
-		bio->bi_next = NULL;
-		bio->bi_flags |= 1 << BIO_UPTODATE;
-		bio->bi_comp_cpu = -1;
-		bio->bi_end_io = scrub_fixup_end_io;
-		bio->bi_private = &complete;
-
-		submit_bio(0, bio);
-
-		wait_for_completion(&complete);
-
-		if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		if (scrub_fixup_io(READ, multi->stripes[i].dev->bdev,
+				   multi->stripes[i].physical >> 9,
+				   sbio->bio->bi_io_vec[ix].bv_page)) {
 			/* I/O-error, this is not a good copy */
 			continue;
+		}
 
-		ret = scrub_fixup_check(fixup);
-		if (ret == 0)
+		if (scrub_fixup_check(sbio, ix) == 0)
 			break;
 	}
 	if (i == multi->num_stripes)
 		goto uncorrectable;
 
 	/*
-	 * the bio now contains good data, write it back
+	 * bi_io_vec[ix].bv_page now contains good data, write it back
 	 */
-	bio->bi_sector = fixup->physical >> 9;
-	bio->bi_bdev = sdev->dev->bdev;
-	bio->bi_size = PAGE_SIZE;
-	bio->bi_next = NULL;
-	bio->bi_flags |= 1 << BIO_UPTODATE;
-	bio->bi_comp_cpu = -1;
-	bio->bi_end_io = scrub_fixup_end_io;
-	bio->bi_private = &complete;
-
-	submit_bio(REQ_WRITE, bio);
-
-	wait_for_completion(&complete);
-
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+	if (scrub_fixup_io(WRITE, sdev->dev->bdev,
+			   (sbio->physical + ix * PAGE_SIZE) >> 9,
+			   sbio->bio->bi_io_vec[ix].bv_page)) {
 		/* I/O-error, writeback failed, give up */
 		goto uncorrectable;
+	}
 
 	kfree(multi);
 	spin_lock(&sdev->stat_lock);
@@ -477,7 +346,7 @@ static void scrub_fixup(struct scrub_fixup *fixup)
 
 	if (printk_ratelimit())
 		printk(KERN_ERR "btrfs: fixed up at %llu\n",
-		       (unsigned long long)fixup->logical);
+		       (unsigned long long)logical);
 	return;
 
 uncorrectable:
@@ -488,7 +357,32 @@ uncorrectable:
 
 	if (printk_ratelimit())
 		printk(KERN_ERR "btrfs: unable to fixup at %llu\n",
-			 (unsigned long long)fixup->logical);
+			 (unsigned long long)logical);
+}
+
+static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
+			 struct page *page)
+{
+	struct bio *bio = NULL;
+	int ret;
+	DECLARE_COMPLETION_ONSTACK(complete);
+
+	/* we are going to wait on this IO */
+	rw |= REQ_SYNC | REQ_UNPLUG;
+
+	bio = bio_alloc(GFP_NOFS, 1);
+	bio->bi_bdev = bdev;
+	bio->bi_sector = sector;
+	bio_add_page(bio, page, PAGE_SIZE, 0);
+	bio->bi_end_io = scrub_fixup_end_io;
+	bio->bi_private = &complete;
+	submit_bio(rw, bio);
+
+	wait_for_completion(&complete);
+
+	ret = !test_bit(BIO_UPTODATE, &bio->bi_flags);
+	bio_put(bio);
+	return ret;
 }
 
 static void scrub_bio_end_io(struct bio *bio, int err)
@@ -514,44 +408,24 @@ static void scrub_checksum(struct btrfs_work *work)
 	int ret;
 
 	if (sbio->err) {
-		struct bio *bio;
-		struct bio *old_bio;
-
 		for (i = 0; i < sbio->count; ++i)
 			scrub_recheck_error(sbio, i);
+
+		sbio->bio->bi_flags &= ~(BIO_POOL_MASK - 1);
+		sbio->bio->bi_flags |= 1 << BIO_UPTODATE;
+		sbio->bio->bi_phys_segments = 0;
+		sbio->bio->bi_idx = 0;
+
+		for (i = 0; i < sbio->count; i++) {
+			struct bio_vec *bi;
+			bi = &sbio->bio->bi_io_vec[i];
+			bi->bv_offset = 0;
+			bi->bv_len = PAGE_SIZE;
+		}
+
 		spin_lock(&sdev->stat_lock);
 		++sdev->stat.read_errors;
 		spin_unlock(&sdev->stat_lock);
-
-		/*
-		 * FIXME: allocate a new bio after a media error. I haven't
-		 * figured out how to reuse this one
-		 */
-		old_bio = sbio->bio;
-		bio = bio_kmalloc(GFP_NOFS, SCRUB_PAGES_PER_BIO);
-		if (!bio) {
-			/*
-			 * alloc failed. cancel the scrub and don't requeue
-			 * this sbio
-			 */
-			printk(KERN_ERR "btrfs scrub: allocation failure, "
-					"cancelling scrub\n");
-			atomic_inc(&sdev->dev->dev_root->fs_info->
-				   scrub_cancel_req);
-			goto out_no_enqueue;
-		}
-		sbio->bio = bio;
-		bio->bi_private = sbio;
-		bio->bi_end_io = scrub_bio_end_io;
-		bio->bi_sector = 0;
-		bio->bi_bdev = sbio->sdev->dev->bdev;
-		bio->bi_size = 0;
-		for (i = 0; i < SCRUB_PAGES_PER_BIO; ++i) {
-			struct page *page;
-			page = old_bio->bi_io_vec[i].bv_page;
-			bio_add_page(bio, page, PAGE_SIZE, 0);
-		}
-		bio_put(old_bio);
 		goto out;
 	}
 	for (i = 0; i < sbio->count; ++i) {
@@ -581,7 +455,6 @@ out:
 	sbio->next_free = sdev->first_free;
 	sdev->first_free = sbio->index;
 	spin_unlock(&sdev->list_lock);
-out_no_enqueue:
 	atomic_dec(&sdev->in_flight);
 	wake_up(&sdev->list_wait);
 }
