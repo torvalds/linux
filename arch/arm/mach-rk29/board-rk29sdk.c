@@ -604,9 +604,10 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
     {
       .type           = "p1003_touch",
       .addr           = 0x04,
-      .flags          = 0,
+      .flags          = 0, //I2C_M_NEED_DELAY
       .irq            = RK29_PIN0_PA2,
       .platform_data  = &p1003_info,
+      //.udelay		  = 100
     },
 #endif
 #if defined (CONFIG_EETI_EGALAX)
@@ -1209,6 +1210,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+	.detect_irq = INVALID_GPIO,//RK29_PIN2_PA2 // INVALID_GPIO
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29

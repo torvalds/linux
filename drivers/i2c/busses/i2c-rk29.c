@@ -103,6 +103,7 @@ struct rk29_i2c_data {
 
 	unsigned int			msg_idx;
 	unsigned int			msg_num;
+	int						udelay;
 	int (*io_init)(void);
 #ifdef CONFIG_CPU_FREQ
 		struct notifier_block	freq_transition;
@@ -427,6 +428,7 @@ static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 		lsr = readl(i2c->regs + I2C_LSR);
 		if((lsr & I2C_LSR_RCV_NAK) && (i != msg->len -1) && !(msg->flags & I2C_M_IGNORE_NAK))
 			return -EINVAL;
+		udelay(i2c->udelay);
 
 	}
 	return ret;
@@ -454,6 +456,7 @@ static int rk29_i2c_recv_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 			rk29_set_nak(i2c);
 		else
 			rk29_set_ack(i2c);
+		udelay(i2c->udelay);
 		i2c_dbg(i2c->dev, "i2c recv >>>>>>>>>>>> buf[%d]: %x\n", i, msg->buf[i]);
 	}
 	return ret;
@@ -470,7 +473,10 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 		i2c_err(i2c->dev, "<error>msg->len = %d\n", msg->len);
 		goto exit;
 	}
-
+	if(msg->flags & I2C_M_NEED_DELAY)
+		i2c->udelay = msg->udelay;
+	else
+		i2c->udelay = 0;
 	if((ret = rk29_send_address(i2c, msg, start))!= 0)
 	{
 		rk29_set_nak(i2c);

@@ -117,6 +117,7 @@ struct rk29_sdmmc {
         unsigned int            oldstatus;
 
 	int gpio_irq;
+	int gpio_det;
 };
 
 #define rk29_sdmmc_test_and_clear_pending(host, event)		\
@@ -666,6 +667,8 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mmc_request_done(mmc, mrq);
 		return;
 	}
+	clk_enable(host->clk);
+    rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
 	rk29_sdmmc_queue_request(host,mrq);
 }
 
@@ -719,7 +722,12 @@ static int rk29_sdmmc_get_ro(struct mmc_host *mmc)
 static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
 {
 	struct rk29_sdmmc *host = mmc_priv(mmc);
-	u32 cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
+	u32 cdetect;
+
+	if(host->gpio_det == INVALID_GPIO)
+		return 1;
+	
+	cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
 	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
 }
 
@@ -794,6 +802,8 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 		//rk29_sdmmc_write(host->regs, SDMMC_CMD, host->stop_cmdr | SDMMC_CMD_START); 
 		dev_info(&host->pdev->dev, "data error, request done!\n");
 	}
+	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
+	clk_disable(host->clk);
 	mmc_request_done(prev_mmc, mrq);
 
 	spin_lock(&host->lock);
@@ -1444,6 +1454,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_freehost;
 	}
+	host->gpio_det = pdata->detect_irq;
 	if(pdata->io_init)
 		pdata->io_init();
 	spin_lock_init(&host->lock);
@@ -1663,7 +1674,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 
 	dev_info(&host->pdev->dev, "Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
-        rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
+    rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
 	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)){
 		rk29_sdmmc_sdcard_resume(host);	
 		ret = mmc_resume_host(host->mmc);

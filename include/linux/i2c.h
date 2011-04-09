@@ -255,6 +255,7 @@ struct i2c_board_info {
 	void		*platform_data;
 	struct dev_archdata	*archdata;
 	int		irq;
+	int		udelay;   //add by kfx
 };
 
 /**
@@ -520,9 +521,11 @@ struct i2c_msg {
 #define I2C_M_IGNORE_NAK	0x1000	/* if I2C_FUNC_PROTOCOL_MANGLING */
 #define I2C_M_NO_RD_ACK		0x0800	/* if I2C_FUNC_PROTOCOL_MANGLING */
 #define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
+#define I2C_M_NEED_DELAY	0x8000  // add by kfx
 	__u16 len;		/* msg length				*/
 	__u8 *buf;		/* pointer to msg data			*/
-	__u32 scl_rate;
+	__u32 scl_rate;  // add by kfx
+	int udelay;		//add by kfx
 	__u16 read_type;
 };
 
