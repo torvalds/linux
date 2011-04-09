@@ -416,8 +416,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (!ddp->udl)
 		goto ddp_out;
 
-	ddp->err = (fcerr | fceofe);
-	if (ddp->err)
+	if (fcerr | fceofe)
 		goto ddp_out;
 
 	fcstat = (sterr & IXGBE_RXDADV_STAT_FCSTAT);
@@ -428,6 +427,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		if (fcstat == IXGBE_RXDADV_STAT_FCSTAT_FCPRSP) {
 			pci_unmap_sg(adapter->pdev, ddp->sgl,
 				     ddp->sgc, DMA_FROM_DEVICE);
+			ddp->err = (fcerr | fceofe);
 			ddp->sgl = NULL;
 			ddp->sgc = 0;
 		}
