@@ -1342,7 +1342,9 @@ static int fb0_set_par(struct fb_info *info)
     {
     case 16:    // rgb565
         par->format = 1;
-        fix->line_length = 2 * xres_virtual;
+        //fix->line_length = 2 * xres_virtual;
+        fix->line_length = (inf->fb0_color_deepth ? 4:2) * xres_virtual;   //32bit and 16bit change
+
         #ifdef CONFIG_FB_WORK_IPP
         dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
         ipp_req.src0.fmt = IPP_RGB_565;
