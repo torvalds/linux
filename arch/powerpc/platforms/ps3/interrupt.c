@@ -197,7 +197,7 @@ static int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	result = irq_set_chip_data(*virq, pd);
 
 	if (result) {
-		pr_debug("%s:%d: set_irq_chip_data failed\n",
+		pr_debug("%s:%d: irq_set_chip_data failed\n",
 			__func__, __LINE__);
 		goto fail_set;
 	}
