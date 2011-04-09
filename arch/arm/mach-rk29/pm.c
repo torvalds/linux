@@ -187,6 +187,7 @@ void __sramfunc ddr_testmode(void)
     extern char _stext[], _etext[];
     if(ddr_debug == 1)
     {
+        printascii("ddr change frequence test\n");
         for (;;)
         {
 	        printch(' ');
@@ -201,7 +202,6 @@ void __sramfunc ddr_testmode(void)
 	        printhex(nMHz);
 	        printch(' ');
 	        printhex(n++);
-            //ddr_print("%s change freq to: %d MHz\n", __func__, nMHz);
             ddr_change_freq(nMHz);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
@@ -212,12 +212,12 @@ void __sramfunc ddr_testmode(void)
 	            printch('i');
 	            printch('l');
 	        }
-               //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
-           //     printascii("change freq success\n");
+	        printch('\n');
         }
     }
     else if(ddr_debug == 2)
     {
+        printascii("ddr self refresh test\n");
         for (;;)
         {
 	        printch(' ');
@@ -227,11 +227,11 @@ void __sramfunc ddr_testmode(void)
 	        printch(' ');
             g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             nMHz = (random32()>>13);// 16.7s max
+	        printhex(nMHz);
+	        printch(' ');
             ddr_suspend();
             delayus(nMHz);
             ddr_resume();
-	        printhex(nMHz);
-	        printch(' ');
 	        printhex(n++);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
@@ -242,11 +242,7 @@ void __sramfunc ddr_testmode(void)
 	            printch('i');
 	            printch('l');
 	        }
-              // ddr_print("check image crc32 fail!, count:%d\n", n++);
-            //    printascii("self refresh fail\n");
-            //else
-               //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
-            //    printascii("self refresh success\n");
+	        printch('\n');
         }
     }
     else if(ddr_debug == 3)
