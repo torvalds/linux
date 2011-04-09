@@ -1,0 +1,49 @@
+# bcm94319wlusbn4l board
+# $Copyright (C) 2008 Broadcom Corporation$
+# $Id: bcm94319lcsdn4l.txt,v 1.18 2009/11/11 17:44:06 jayaramn Exp $
+
+sromrev=3
+vendid=0x14e4
+devid=0x4338
+
+boardtype=0x507
+boardrev=0x1402
+boardflags=0x02000200
+
+# On board crystal frequency in KHz
+xtalfreq=30000
+
+aa2g=1
+aa5g=0
+ag0=3
+
+ccode=ww
+regrev=5
+opo=0
+pa0b0=0x15E0
+pa0b1=0xFAC6
+pa0b2=0xFEC3
+pa0itssit=62
+pa0maxpwr=74
+
+rssismf2g=0xa 
+rssismc2g=0xb 
+rssisav2g=0x3 
+bxa2g=0
+tri2g=0x6B
+cckdigfilttype=3
+rxpo2g=2
+
+cckpo=0
+ofdmpo=0x44444444
+mcs2gpo0=0x6666
+mcs2gpo1=0x6666
+mcs2gpo2=0x0000
+mcs2gpo3=0x0000
+mcs2gpo4=0x6666
+mcs2gpo5=0x6666
+boardnum=1
+macaddr=00:90:4c:14:43:19
+
+#for mfgc
+otpimagesize=182

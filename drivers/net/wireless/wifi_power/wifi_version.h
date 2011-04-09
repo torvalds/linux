@@ -22,7 +22,7 @@
 /*
  * Broadcom BCM4319 driver version.
  */
-#define BCM4319_DRV_VERSION "1.02"
+#define BCM4319_DRV_VERSION "1.05"
 
 /*
  * Nanoradio NRX700 driver version.

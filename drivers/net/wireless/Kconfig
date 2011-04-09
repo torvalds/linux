@@ -56,6 +56,8 @@ choice
 	      (3) USI        WM-G-MR-09
 	      (4) Murata     SP-8HEP-P
 
+source "drivers/net/wireless/bcm4319/Kconfig"
+
 endchoice
 
 #source "drivers/net/wireless/bcm4329/Kconfig"
