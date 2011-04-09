@@ -427,6 +427,9 @@ static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 		lsr = readl(i2c->regs + I2C_LSR);
 		if((lsr & I2C_LSR_RCV_NAK) && (i != msg->len -1) && !(msg->flags & I2C_M_IGNORE_NAK))
 			return -EINVAL;
+		
+		if(msg->addr == 0x41)	//delay for tp
+		udelay(50);
 
 	}
 	return ret;
@@ -455,6 +458,9 @@ static int rk29_i2c_recv_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 		else
 			rk29_set_ack(i2c);
 		i2c_dbg(i2c->dev, "i2c recv >>>>>>>>>>>> buf[%d]: %x\n", i, msg->buf[i]);
+		
+		if(msg->addr == 0x41)	//delay for tp
+		udelay(50);
 	}
 	return ret;
 }

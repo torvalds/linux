@@ -706,9 +706,13 @@ static int rk29_sdmmc_get_ro(struct mmc_host *mmc)
 
 static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
 {
+#if defined(CONFIG_MACH_RK29_A22)	//A22's sdcard do not support detect pin
+return 1;
+#else
 	struct rk29_sdmmc *host = mmc_priv(mmc);
 	u32 cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
 	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
+#endif
 }
 
 static void rk29_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)

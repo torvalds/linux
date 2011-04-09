@@ -1226,8 +1226,10 @@ static int __init ddr_probe(void)
 
     Hz = clk_get_rate(clk_get(NULL,"ddr"));
     MHz = Hz/1000000;
-    
-    value = ddr_change_freq(MHz);
+#if defined(CONFIG_MACH_RK29_A22)	//a22 should not change freq
+#else
+   value = ddr_change_freq(MHz);
+#endif
     ddr_print("init success!!! freq=%dMHz\n", value);
     return 0;
 }
