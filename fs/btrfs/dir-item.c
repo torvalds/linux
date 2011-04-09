@@ -151,7 +151,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = PTR_ERR(dir_item);
 		if (ret == -EEXIST)
 			goto second_insert;
-		goto out;
+		goto out_free;
 	}
 
 	leaf = path->nodes[0];
@@ -170,7 +170,7 @@ second_insert:
 	/* FIXME, use some real flag for selecting the extra index */
 	if (root == root->fs_info->tree_root) {
 		ret = 0;
-		goto out;
+		goto out_free;
 	}
 	btrfs_release_path(root, path);
 
@@ -180,7 +180,7 @@ second_insert:
 					name, name_len);
 	if (IS_ERR(dir_item)) {
 		ret2 = PTR_ERR(dir_item);
-		goto out;
+		goto out_free;
 	}
 	leaf = path->nodes[0];
 	btrfs_cpu_key_to_disk(&disk_key, location);
@@ -192,7 +192,9 @@ second_insert:
 	name_ptr = (unsigned long)(dir_item + 1);
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	btrfs_mark_buffer_dirty(leaf);
-out:
+
+out_free:
+
 	btrfs_free_path(path);
 	if (ret)
 		return ret;
@@ -377,6 +379,9 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
 
 	leaf = path->nodes[0];
 	dir_item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_dir_item);
+	if (verify_dir_item(root, leaf, dir_item))
+		return NULL;
+
 	total_len = btrfs_item_size_nr(leaf, path->slots[0]);
 	while (cur < total_len) {
 		this_len = sizeof(*dir_item) +
@@ -428,4 +433,36 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 					  item_len - sub_item_len, 1);
 	}
 	return ret;
+}
+
+int verify_dir_item(struct btrfs_root *root,
+		    struct extent_buffer *leaf,
+		    struct btrfs_dir_item *dir_item)
+{
+	u16 namelen = BTRFS_NAME_LEN;
+	u8 type = btrfs_dir_type(leaf, dir_item);
+
+	if (type >= BTRFS_FT_MAX) {
+		printk(KERN_CRIT "btrfs: invalid dir item type: %d\n",
+		       (int)type);
+		return 1;
+	}
+
+	if (type == BTRFS_FT_XATTR)
+		namelen = XATTR_NAME_MAX;
+
+	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
+		printk(KERN_CRIT "btrfS: invalid dir item name len: %u\n",
+		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
+		return 1;
+	}
+
+	/* BTRFS_MAX_XATTR_SIZE is the same for all dir items */
+	if (btrfs_dir_data_len(leaf, dir_item) > BTRFS_MAX_XATTR_SIZE(root)) {
+		printk(KERN_CRIT "btrfs: invalid dir item data len: %u\n",
+		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
+		return 1;
+	}
+
+	return 0;
 }

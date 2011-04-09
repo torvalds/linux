@@ -87,7 +87,7 @@ static void irq_dispatch(unsigned int irq)
 			atomic_inc(&irq_err_count);
 		else
 			irq_dispatch(irq);
-		if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
+		if (!irqd_irq_disabled(idata) && chip->irq_unmask)
 			chip->irq_unmask(idata);
 	} else
 		do_IRQ(irq);

@@ -182,7 +182,7 @@ void __init msp_cic_irq_init(void)
 
 	/* initialize all the IRQ descriptors */
 	for (i = MSP_CIC_INTBASE ; i < MSP_CIC_INTBASE + 32 ; i++) {
-		set_irq_chip_and_handler(i, &msp_cic_irq_controller,
+		irq_set_chip_and_handler(i, &msp_cic_irq_controller,
 					 handle_level_irq);
 #ifdef CONFIG_MIPS_MT_SMTC
 		/* Mask of CIC interrupt */

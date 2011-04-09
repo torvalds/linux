@@ -141,7 +141,7 @@ static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (tb)
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_handler(irq, handle_edge_irq);
 
 	ebit = irq2ebit(irq) * 2;
 	pa = __raw_readw(MCFEPORT_EPPAR);
@@ -181,11 +181,11 @@ void __init init_IRQ(void)
 	eirq = MCFINT_VECBASE + 64 + (MCFINTC1_ICR0 ? 64 : 0);
 	for (irq = MCFINT_VECBASE; (irq < eirq); irq++) {
 		if ((irq >= EINT1) && (irq <= EINT7))
-			set_irq_chip(irq, &intc_irq_chip_edge_port);
+			irq_set_chip(irq, &intc_irq_chip_edge_port);
 		else
-			set_irq_chip(irq, &intc_irq_chip);
-		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
-		set_irq_handler(irq, handle_level_irq);
+			irq_set_chip(irq, &intc_irq_chip);
+		irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+		irq_set_handler(irq, handle_level_irq);
 	}
 }
 

@@ -420,7 +420,6 @@ void octeon_user_io_init(void)
 void __init prom_init(void)
 {
 	struct cvmx_sysinfo *sysinfo;
-	const int coreid = cvmx_get_core_num();
 	int i;
 	int argc;
 #ifdef CONFIG_CAVIUM_RESERVE32
@@ -536,17 +535,6 @@ void __init prom_init(void)
 	octeon_check_cpu_bist();
 
 	octeon_uart = octeon_get_boot_uart();
-
-	/*
-	 * Disable All CIU Interrupts. The ones we need will be
-	 * enabled later.  Read the SUM register so we know the write
-	 * completed.
-	 */
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2 + 1)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2)), 0);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1((coreid * 2 + 1)), 0);
-	cvmx_read_csr(CVMX_CIU_INTX_SUM0((coreid * 2)));
 
 #ifdef CONFIG_SMP
 	octeon_write_lcd("LinuxSMP");
