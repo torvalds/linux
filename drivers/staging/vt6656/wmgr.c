@@ -3167,7 +3167,7 @@ s_vMgrFormatTIM(
             }
             wEndIndex = (WORD)ii;
         }
-    };
+    }
 
 
     // Round start index down to nearest even number

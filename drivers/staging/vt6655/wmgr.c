@@ -3179,7 +3179,7 @@ s_vMgrFormatTIM(
             }
             wEndIndex = ii;
         }
-    };
+    }
 
 
     // Round start index down to nearest even number

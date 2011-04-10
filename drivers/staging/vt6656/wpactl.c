@@ -660,7 +660,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
          }
 
-    };
+    }
 
   kfree(ptempBSS);
 
@@ -673,7 +673,7 @@ static int wpa_get_scan(PSDevice pDevice,
         if (!pBSS->bActive)
             continue;
         count++;
-    };
+    }
 
     pBuf = kcalloc(count, sizeof(struct viawget_scan_result), (int)GFP_ATOMIC);
 

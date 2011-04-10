@@ -768,7 +768,7 @@ uint32_t cy_as_hal_processor_hw_init(void)
 		cy_as_hal_print_message(KERN_INFO "%s virt_addr=%x\n",
 					gpio_vma_tab[i].name,
 					(u32)gpio_vma_tab[i].virt_addr);
-	};
+	}
 
 	/*
 	 * force OMAP_GPIO_126  to rleased state,

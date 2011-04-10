@@ -307,7 +307,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             if (!pBSS->bActive)
                 continue;
             cbListCount++;
-        };
+        }
         sList.uItem = cbListCount;
         if (copy_to_user(pReq->data, &sList, sizeof(SBSSIDList))) {
 			result = -EFAULT;
@@ -594,7 +594,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             if (!pNode->bActive)
                 continue;
             cbListCount++;
-        };
+        }
 
         sNodeList.uItem = cbListCount;
         if (copy_to_user(pReq->data, &sNodeList, sizeof(SNodeList))) {
@@ -645,7 +645,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    if (jj >= pNodeList->uItem)
     		        break;
     		}
-		};
+		}
         if (copy_to_user(pReq->data, pNodeList, sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)))) {
 			result = -EFAULT;
 			break;
