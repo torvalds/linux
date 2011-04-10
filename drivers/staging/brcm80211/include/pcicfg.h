@@ -52,56 +52,6 @@ typedef struct _pci_config_regs {
 } pci_config_regs;
 
 #define	SZPCR		(sizeof (pci_config_regs))
-#define	MINSZPCR	64	/* offsetof (dev_dep[0] */
-
-/* Classes and subclasses */
-
-/* Overlay for a PCI-to-PCI bridge */
-
-#define	PPB_RSVDA_MAX		2
-#define	PPB_RSVDD_MAX		8
-
-typedef struct _ppb_config_regs {
-	u16 vendor;
-	u16 device;
-	u16 command;
-	u16 status;
-	u8 rev_id;
-	u8 prog_if;
-	u8 sub_class;
-	u8 base_class;
-	u8 cache_line_size;
-	u8 latency_timer;
-	u8 header_type;
-	u8 bist;
-	u32 rsvd_a[PPB_RSVDA_MAX];
-	u8 prim_bus;
-	u8 sec_bus;
-	u8 sub_bus;
-	u8 sec_lat;
-	u8 io_base;
-	u8 io_lim;
-	u16 sec_status;
-	u16 mem_base;
-	u16 mem_lim;
-	u16 pf_mem_base;
-	u16 pf_mem_lim;
-	u32 pf_mem_base_hi;
-	u32 pf_mem_lim_hi;
-	u16 io_base_hi;
-	u16 io_lim_hi;
-	u16 subsys_vendor;
-	u16 subsys_id;
-	u32 rsvd_b;
-	u8 rsvd_c;
-	u8 int_pin;
-	u16 bridge_ctrl;
-	u8 chip_ctrl;
-	u8 diag_ctrl;
-	u16 arb_ctrl;
-	u32 rsvd_d[PPB_RSVDD_MAX];
-	u8 dev_dep[192];
-} ppb_config_regs;
 
 /* Everything below is BRCM HND proprietary */
 
