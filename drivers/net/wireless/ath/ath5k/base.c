@@ -2901,7 +2901,6 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 	 * XXX: ??? detach ath5k_hw ???
 	 * Other than that, it's straightforward...
 	 */
-	ath5k_debug_finish_device(sc);
 	ieee80211_unregister_hw(hw);
 	ath5k_desc_free(sc);
 	ath5k_txq_release(sc);
