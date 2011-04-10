@@ -130,7 +130,7 @@ pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 
 	/* check for Header type 0 */
 	pci_read_config_byte(dev, PCI_HEADER_TYPE, &byte_val);
-	if ((byte_val & 0x7f) != PCI_HEADER_NORMAL)
+	if ((byte_val & 0x7f) != PCI_HEADER_TYPE_NORMAL)
 		goto end;
 
 	/* check if the capability pointer field exists */

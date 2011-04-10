@@ -56,11 +56,6 @@ typedef struct _pci_config_regs {
 
 /* Classes and subclasses */
 
-/* Header types */
-typedef enum {
-	PCI_HEADER_NORMAL
-} pci_header_types;
-
 /* Overlay for a PCI-to-PCI bridge */
 
 #define	PPB_RSVDA_MAX		2
