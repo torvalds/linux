@@ -700,7 +700,7 @@ device_receive_frame (
                 pDevice->pMgmt->bInTIMWake = false;
             }
         }
-    };
+    }
 
     // Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
     if (pDevice->bDiversityEnable && (FrameSize>50) &&
@@ -884,7 +884,7 @@ device_receive_frame (
                      memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
                      netif_rx(pDevice->skb);
                      pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-                 };
+                 }
 
                 return false;
 
@@ -1049,7 +1049,7 @@ static bool s_bAPModeRxCtl (
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDeAuthenBeginSta 1\n");
                     return true;
-                };
+                }
                 if (pMgmt->sNodeDBTable[iSANodeIndex].eNodeState < NODE_ASSOC) {
                     // send deassoc notification
                     // reason = (7) class 3 received from nonassoc sta
@@ -1061,7 +1061,7 @@ static bool s_bAPModeRxCtl (
                                          );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDisassocBeginSta 2\n");
                     return true;
-                };
+                }
 
                 if (pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable) {
                     // delcare received ps-poll event
@@ -1486,7 +1486,7 @@ static bool s_bAPModeRxData (
                     bRelayOnly = true;
                 }
             }
-        };
+        }
     }
 
     if (bRelayOnly || bRelayAndForward) {

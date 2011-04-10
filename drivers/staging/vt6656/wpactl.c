@@ -729,7 +729,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
     if (copy_to_user(param->u.scan_results.buf, pBuf, sizeof(struct viawget_scan_result) * count)) {
 		ret = -EFAULT;
-	};
+	}
 	param->u.scan_results.scan_count = count;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count)
 
@@ -886,7 +886,7 @@ static int wpa_set_associate(PSDevice pDevice,
     bScheduleCommand((void *) pDevice,
 		     WLAN_CMD_BSSID_SCAN,
 		     pMgmt->abyDesireSSID);
-  };
+  }
 }
 /****************************************************************/
 

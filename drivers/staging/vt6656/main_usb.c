@@ -709,7 +709,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
 	        if(ii>20)
 		  break;
               }
-           };
+           }
     return TRUE;
 }
 
@@ -995,7 +995,7 @@ static BOOL device_init_defrag_cb(PSDevice pDevice) {
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc frag bufs\n",
                 pDevice->dev->name);
             goto free_frag;
-        };
+        }
     }
     pDevice->cbDFCB = CB_MAX_RX_FRAG;
     pDevice->cbFreeDFCB = pDevice->cbDFCB;
