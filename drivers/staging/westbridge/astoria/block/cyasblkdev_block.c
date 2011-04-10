@@ -515,7 +515,7 @@ static void cyasblkdev_issuecallback(
 	while (blk_end_request(gl_bd->queue.req,
 	status, blk_rq_sectors(gl_bd->queue.req)*512)) {
 		retry_cnt++;
-	};
+	}
 
 	#ifndef WESTBRIDGE_NDEBUG
 	cy_as_hal_print_message(
