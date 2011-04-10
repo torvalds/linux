@@ -36,6 +36,7 @@
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
+#include "tda18212.h"
 
 /* debug */
 static int dvb_usb_anysee_debug;
@@ -265,6 +266,32 @@ static struct zl10353_config anysee_zl10353_config = {
 	.parallel_ts = 1,
 };
 
+static struct zl10353_config anysee_zl10353_tda18212_config = {
+	.demod_address = (0x18 >> 1),
+	.parallel_ts = 1,
+	.disable_i2c_gate_ctrl = 1,
+	.no_tuner = 1,
+	.if2 = 41500,
+};
+
+static struct tda10023_config anysee_tda10023_tda18212_config = {
+	.demod_address = (0x1a >> 1),
+	.xtal   = 16000000,
+	.pll_m  = 12,
+	.pll_p  = 3,
+	.pll_n  = 1,
+	.output_mode = TDA10023_OUTPUT_MODE_PARALLEL_C,
+	.deltaf = 0xba02,
+};
+
+static struct tda18212_config anysee_tda18212_config = {
+	.i2c_address = (0xc0 >> 1),
+	.if_dvbt_6 = 4150,
+	.if_dvbt_7 = 4150,
+	.if_dvbt_8 = 4150,
+	.if_dvbc = 5000,
+};
+
 /*
  * New USB device strings: Mfr=1, Product=2, SerialNumber=0
  * Manufacturer: AMT.CO.KR
@@ -316,6 +343,20 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	int ret;
 	struct anysee_state *state = adap->dev->priv;
 	u8 hw_info[3];
+	u8 tmp;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = anysee_tda18212_config.i2c_address,
+			.flags = 0,
+			.len = 1,
+			.buf = "\x00",
+		}, {
+			.addr = anysee_tda18212_config.i2c_address,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &tmp,
+		}
+	};
 
 	/* Check which hardware we have.
 	 * We must do this call two times to get reliable values (hw bug).
@@ -390,6 +431,24 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* E30 Combo Plus */
 		/* E30 C Plus */
 
+		/* enable tuner on IOE[4] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
+		if (ret)
+			goto error;
+
+		/* probe TDA18212 */
+		tmp = 0;
+		ret = i2c_transfer(&adap->dev->i2c_adap, msg, 2);
+		if (ret == 2 && tmp == 0xc7)
+			deb_info("%s: TDA18212 found\n", __func__);
+		else
+			tmp = 0;
+
+		/* disable tuner on IOE[4] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 4), 0x10);
+		if (ret)
+			goto error;
+
 		if (dvb_usb_anysee_delsys) {
 			/* disable DVB-C demod on IOD[5] */
 			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 5),
@@ -404,8 +463,17 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				goto error;
 
 			/* attach demod */
-			adap->fe = dvb_attach(zl10353_attach,
-				&anysee_zl10353_config, &adap->dev->i2c_adap);
+			if (tmp == 0xc7) {
+				/* TDA18212 config */
+				adap->fe = dvb_attach(zl10353_attach,
+					&anysee_zl10353_tda18212_config,
+					&adap->dev->i2c_adap);
+			} else {
+				/* PLL config */
+				adap->fe = dvb_attach(zl10353_attach,
+					&anysee_zl10353_config,
+					&adap->dev->i2c_adap);
+			}
 			if (adap->fe)
 				break;
 		} else {
@@ -422,9 +490,17 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				goto error;
 
 			/* attach demod */
-			adap->fe = dvb_attach(tda10023_attach,
-				&anysee_tda10023_config, &adap->dev->i2c_adap,
-				0x48);
+			if (tmp == 0xc7) {
+				/* TDA18212 config */
+				adap->fe = dvb_attach(tda10023_attach,
+					&anysee_tda10023_tda18212_config,
+					&adap->dev->i2c_adap, 0x48);
+			} else {
+				/* PLL config */
+				adap->fe = dvb_attach(tda10023_attach,
+					&anysee_tda10023_config,
+					&adap->dev->i2c_adap, 0x48);
+			}
 			if (adap->fe)
 				break;
 		}
@@ -445,6 +521,7 @@ error:
 static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap->dev->priv;
+	struct dvb_frontend *fe;
 	int ret = 0;
 	deb_info("%s:\n", __func__);
 
@@ -474,6 +551,25 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	case ANYSEE_HW_507FA: /* 15 */
 		/* E30 Combo Plus */
 		/* E30 C Plus */
+
+		/* Try first attach TDA18212 silicon tuner on IOE[4], if that
+		 * fails attach old simple PLL. */
+
+		/* enable tuner on IOE[4] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
+		if (ret)
+			goto error;
+
+		/* attach tuner */
+		fe = dvb_attach(tda18212_attach, adap->fe, &adap->dev->i2c_adap,
+			&anysee_tda18212_config);
+		if (fe)
+			break;
+
+		/* disable tuner on IOE[4] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 4), 0x10);
+		if (ret)
+			goto error;
 
 		if (dvb_usb_anysee_delsys) {
 			/* enable DVB-T tuner on IOE[0] */
