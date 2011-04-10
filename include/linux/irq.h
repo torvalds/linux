@@ -53,7 +53,7 @@ typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
  * Bits which can be modified via irq_set/clear/modify_status_flags()
  * IRQ_LEVEL			- Interrupt is level type. Will be also
  *				  updated in the code when the above trigger
- *				  bits are modified via set_irq_type()
+ *				  bits are modified via irq_set_irq_type()
  * IRQ_PER_CPU			- Mark an interrupt PER_CPU. Will protect
  *				  it from affinity setting
  * IRQ_NOPROBE			- Interrupt cannot be probed by autoprobing
@@ -261,23 +261,6 @@ static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
  * struct irq_chip - hardware interrupt chip descriptor
  *
  * @name:		name for /proc/interrupts
- * @startup:		deprecated, replaced by irq_startup
- * @shutdown:		deprecated, replaced by irq_shutdown
- * @enable:		deprecated, replaced by irq_enable
- * @disable:		deprecated, replaced by irq_disable
- * @ack:		deprecated, replaced by irq_ack
- * @mask:		deprecated, replaced by irq_mask
- * @mask_ack:		deprecated, replaced by irq_mask_ack
- * @unmask:		deprecated, replaced by irq_unmask
- * @eoi:		deprecated, replaced by irq_eoi
- * @end:		deprecated, will go away with __do_IRQ()
- * @set_affinity:	deprecated, replaced by irq_set_affinity
- * @retrigger:		deprecated, replaced by irq_retrigger
- * @set_type:		deprecated, replaced by irq_set_type
- * @set_wake:		deprecated, replaced by irq_wake
- * @bus_lock:		deprecated, replaced by irq_bus_lock
- * @bus_sync_unlock:	deprecated, replaced by irq_bus_sync_unlock
- *
  * @irq_startup:	start up the interrupt (defaults to ->enable if NULL)
  * @irq_shutdown:	shut down the interrupt (defaults to ->disable if NULL)
  * @irq_enable:		enable the interrupt (defaults to chip->unmask if NULL)
