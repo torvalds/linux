@@ -1574,7 +1574,7 @@ int cx25821_set_control(struct cx25821_dev *dev,
 		break;
 	default:
 		/* nothing */ ;
-	};
+	}
 
 	switch (ctl->id) {
 	case V4L2_CID_BRIGHTNESS:

@@ -832,7 +832,7 @@ else
 		break;
 	default:
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-	};
+	}
 
 //DavidWang add for WPA_supplicant support open/share mode
 

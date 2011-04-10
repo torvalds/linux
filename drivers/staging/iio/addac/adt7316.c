@@ -403,7 +403,7 @@ static ssize_t adt7316_show_ad_channel(struct device *dev,
 		return sprintf(buf, "5 - AIN4\n");
 	default:
 		return sprintf(buf, "N/A\n");
-	};
+	}
 }
 
 static ssize_t adt7316_store_ad_channel(struct device *dev,
@@ -893,7 +893,7 @@ static ssize_t adt7316_show_DAC_update_mode(struct device *dev,
 			return sprintf(buf, "2 - auto at MSB DAC ABCD writing\n");
 		default: /* ADT7316_DA_EN_MODE_LDAC */
 			return sprintf(buf, "3 - manual\n");
-		};
+		}
 	}
 }
 
@@ -1205,7 +1205,7 @@ static ssize_t adt7316_show_ad(struct adt7316_chip_info *chip,
 			return sprintf(buf, "%d\n", data);
 		else
 			break;
-	};
+	}
 
 	if (data & ADT7316_T_VALUE_SIGN) {
 		/* convert supplement to positive value */

@@ -4230,7 +4230,7 @@ skip_key:
             default:
                 A_PRINTF("AUTH: Unknown\n");
                 break;
-        };
+        }
         switch (listenInterval&0xFF) {
             case WPA_PSK_AUTH:
                 A_PRINTF("KeyMgmt: WPA-PSK\n");
@@ -4241,7 +4241,7 @@ skip_key:
             default:
                 A_PRINTF("KeyMgmt: NONE\n");
                 break;
-        };
+        }
         switch (beaconInterval) {
             case AES_CRYPT:
                 A_PRINTF("Cipher: AES\n");
@@ -4260,7 +4260,7 @@ skip_key:
             default:
                 A_PRINTF("Cipher: NONE\n");
                 break;
-        };
+        }
 
         add_new_sta(ar, bssid, channel /*aid*/,
             assocInfo /* WPA IE */, assocRespLen /* IE len */,

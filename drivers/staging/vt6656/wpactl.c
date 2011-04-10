@@ -831,7 +831,7 @@ static int wpa_set_associate(PSDevice pDevice,
 		break;
 	default:
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-	};
+	}
 
            pMgmt->Roam_dbm = param->u.wpa_associate.roam_dbm;
          // if ((pMgmt->Roam_dbm > 40)&&(pMgmt->Roam_dbm<80))

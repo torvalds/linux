@@ -399,7 +399,7 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 	default:
 		ret = -EINVAL;
 		goto error_ret_mutex;
-	};
+	}
 
 	ret = lis3l02dq_spi_write_reg_8(dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,

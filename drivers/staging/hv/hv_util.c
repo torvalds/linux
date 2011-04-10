@@ -88,7 +88,7 @@ static void shutdown_onchannelcallback(void *context)
 				pr_info("Shutdown request received -"
 					    " Invalid request\n");
 				break;
-			};
+			}
 		}
 
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
