@@ -1967,7 +1967,8 @@ static int savage_init_hw(struct savagefb_par *par)
 		}
 	}
 
-	if (S3_SAVAGE_MOBILE_SERIES(par->chip) && !par->crtonly)
+	if ((S3_SAVAGE_MOBILE_SERIES(par->chip) ||
+	     S3_MOBILE_TWISTER_SERIES(par->chip)) && !par->crtonly)
 		par->display_type = DISP_LCD;
 	else if (dvi || (par->chip == S3_SAVAGE4 && par->dvi))
 		par->display_type = DISP_DFP;
