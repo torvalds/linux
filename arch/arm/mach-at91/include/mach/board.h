@@ -140,6 +140,7 @@ extern void __init at91_set_serial_console(unsigned portnr);
 extern struct platform_device *atmel_default_console_device;
 
 struct atmel_uart_data {
+	int			num;		/* port num */
 	short			use_dma_tx;	/* use transmit DMA? */
 	short			use_dma_rx;	/* use receive DMA? */
 	void __iomem		*regs;		/* virt. base address, if any */
