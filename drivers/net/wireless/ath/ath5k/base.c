@@ -1573,20 +1573,27 @@ ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
 			 struct ath5k_txq *txq, struct ath5k_tx_status *ts)
 {
 	struct ieee80211_tx_info *info;
+	u8 tries[3];
 	int i;
 
 	sc->stats.tx_all_count++;
 	sc->stats.tx_bytes_count += skb->len;
 	info = IEEE80211_SKB_CB(skb);
 
+	tries[0] = info->status.rates[0].count;
+	tries[1] = info->status.rates[1].count;
+	tries[2] = info->status.rates[2].count;
+
 	ieee80211_tx_info_clear_status(info);
-	for (i = 0; i <= ts->ts_final_idx; i++) {
+
+	for (i = 0; i < ts->ts_final_idx; i++) {
 		struct ieee80211_tx_rate *r =
 			&info->status.rates[i];
 
-		r->count = ts->ts_retry[i];
+		r->count = tries[i];
 	}
 
+	info->status.rates[ts->ts_final_idx].count = ts->ts_final_retry;
 	info->status.rates[ts->ts_final_idx + 1].idx = -1;
 
 	if (unlikely(ts->ts_status)) {

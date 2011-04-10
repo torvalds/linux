@@ -366,7 +366,7 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
 	ts->ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	ts->ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_final_retry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
 	/*TODO: ts->ts_virtcol + test*/
 	ts->ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
@@ -375,7 +375,6 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
 	ts->ts_antenna = 1;
 	ts->ts_status = 0;
-	ts->ts_retry[0] = ts->ts_longretry;
 	ts->ts_final_idx = 0;
 
 	if (!(tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
@@ -401,7 +400,7 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
-	u32 txstat0, txstat1, txctl2;
+	u32 txstat0, txstat1;
 
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 	tx_status = &desc->ud.ds_tx5212.tx_stat;
@@ -413,7 +412,6 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 		return -EINPROGRESS;
 
 	txstat0 = ACCESS_ONCE(tx_status->tx_status_0);
-	txctl2 = ACCESS_ONCE(tx_ctl->tx_control_2);
 
 	/*
 	 * Get descriptor status
@@ -422,7 +420,7 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
 	ts->ts_shortretry = AR5K_REG_MS(txstat0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	ts->ts_longretry = AR5K_REG_MS(txstat0,
+	ts->ts_final_retry = AR5K_REG_MS(txstat0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
 	ts->ts_seqnum = AR5K_REG_MS(txstat1,
 		AR5K_DESC_TX_STATUS1_SEQ_NUM);
@@ -434,32 +432,6 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 
 	ts->ts_final_idx = AR5K_REG_MS(txstat1,
 			AR5K_DESC_TX_STATUS1_FINAL_TS_IX_5212);
-
-	/* The longretry counter has the number of un-acked retries
-	 * for the final rate. To get the total number of retries
-	 * we have to add the retry counters for the other rates
-	 * as well
-	 */
-	ts->ts_retry[ts->ts_final_idx] = ts->ts_longretry;
-	switch (ts->ts_final_idx) {
-	case 3:
-		ts->ts_retry[2] = AR5K_REG_MS(txctl2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES2);
-		ts->ts_longretry += ts->ts_retry[2];
-		/* fall through */
-	case 2:
-		ts->ts_retry[1] = AR5K_REG_MS(txctl2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
-		ts->ts_longretry += ts->ts_retry[1];
-		/* fall through */
-	case 1:
-		ts->ts_retry[0] = AR5K_REG_MS(txctl2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
-		ts->ts_longretry += ts->ts_retry[0];
-		/* fall through */
-	case 0:
-		break;
-	}
 
 	/* TX error */
 	if (!(txstat0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
