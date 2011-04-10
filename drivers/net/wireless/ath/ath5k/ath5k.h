@@ -452,7 +452,6 @@ struct ath5k_tx_status {
 	u16	ts_seqnum;
 	u16	ts_tstamp;
 	u8	ts_status;
-	u8	ts_rate[4];
 	u8	ts_retry[4];
 	u8	ts_final_idx;
 	s8	ts_rssi;
