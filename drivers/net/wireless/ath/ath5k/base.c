@@ -1444,6 +1444,21 @@ ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 }
 
 static void
+ath5k_set_current_imask(struct ath5k_softc *sc)
+{
+	enum ath5k_int imask = sc->imask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->irqlock, flags);
+	if (sc->rx_pending)
+		imask &= ~AR5K_INT_RX_ALL;
+	if (sc->tx_pending)
+		imask &= ~AR5K_INT_TX_ALL;
+	ath5k_hw_set_imr(sc->ah, imask);
+	spin_unlock_irqrestore(&sc->irqlock, flags);
+}
+
+static void
 ath5k_tasklet_rx(unsigned long data)
 {
 	struct ath5k_rx_status rs = {};
@@ -1506,6 +1521,8 @@ next:
 	} while (ath5k_rxbuf_setup(sc, bf) == 0);
 unlock:
 	spin_unlock(&sc->rxbuflock);
+	sc->rx_pending = false;
+	ath5k_set_current_imask(sc);
 }
 
 
@@ -1693,6 +1710,9 @@ ath5k_tasklet_tx(unsigned long data)
 	for (i=0; i < AR5K_NUM_TX_QUEUES; i++)
 		if (sc->txqs[i].setup && (sc->ah->ah_txq_isr & BIT(i)))
 			ath5k_tx_processq(sc, &sc->txqs[i]);
+
+	sc->tx_pending = false;
+	ath5k_set_current_imask(sc);
 }
 
 
@@ -2122,6 +2142,20 @@ ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 	 * AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI); */
 }
 
+static void
+ath5k_schedule_rx(struct ath5k_softc *sc)
+{
+	sc->rx_pending = true;
+	tasklet_schedule(&sc->rxtq);
+}
+
+static void
+ath5k_schedule_tx(struct ath5k_softc *sc)
+{
+	sc->tx_pending = true;
+	tasklet_schedule(&sc->txtq);
+}
+
 irqreturn_t
 ath5k_intr(int irq, void *dev_id)
 {
@@ -2164,7 +2198,7 @@ ath5k_intr(int irq, void *dev_id)
 				ieee80211_queue_work(sc->hw, &sc->reset_work);
 			}
 			else
-				tasklet_schedule(&sc->rxtq);
+				ath5k_schedule_rx(sc);
 		} else {
 			if (status & AR5K_INT_SWBA) {
 				tasklet_hi_schedule(&sc->beacontq);
@@ -2182,10 +2216,10 @@ ath5k_intr(int irq, void *dev_id)
 				ath5k_hw_update_tx_triglevel(ah, true);
 			}
 			if (status & (AR5K_INT_RXOK | AR5K_INT_RXERR))
-				tasklet_schedule(&sc->rxtq);
+				ath5k_schedule_rx(sc);
 			if (status & (AR5K_INT_TXOK | AR5K_INT_TXDESC
 					| AR5K_INT_TXERR | AR5K_INT_TXEOL))
-				tasklet_schedule(&sc->txtq);
+				ath5k_schedule_tx(sc);
 			if (status & AR5K_INT_BMISS) {
 				/* TODO */
 			}
@@ -2203,6 +2237,9 @@ ath5k_intr(int irq, void *dev_id)
 			break;
 
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
+
+	if (sc->rx_pending || sc->tx_pending)
+		ath5k_set_current_imask(sc);
 
 	if (unlikely(!counter))
 		ATH5K_WARN(sc, "too many interrupts, giving up for now\n");
@@ -2575,6 +2612,8 @@ done:
 
 static void stop_tasklets(struct ath5k_softc *sc)
 {
+	sc->rx_pending = false;
+	sc->tx_pending = false;
 	tasklet_kill(&sc->rxtq);
 	tasklet_kill(&sc->txtq);
 	tasklet_kill(&sc->calib);

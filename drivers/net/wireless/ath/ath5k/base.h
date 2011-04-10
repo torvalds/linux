@@ -207,6 +207,10 @@ struct ath5k_softc {
 
 	enum ath5k_int		imask;		/* interrupt mask copy */
 
+	spinlock_t		irqlock;
+	bool			rx_pending;	/* rx tasklet pending */
+	bool			tx_pending;	/* tx tasklet pending */
+
 	u8			lladdr[ETH_ALEN];
 	u8			bssidmask[ETH_ALEN];
 
