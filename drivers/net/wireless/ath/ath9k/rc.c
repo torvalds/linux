@@ -1092,8 +1092,7 @@ static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 	if (!(rate->flags & IEEE80211_TX_RC_MCS))
 		return rate->idx;
 
-	while (rate->idx > mcs_rix_off[i] &&
-	       i < ARRAY_SIZE(mcs_rix_off)) {
+	while (i < ARRAY_SIZE(mcs_rix_off) && rate->idx > mcs_rix_off[i]) {
 		rix++; i++;
 	}
 
