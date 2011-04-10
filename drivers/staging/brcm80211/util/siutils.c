@@ -312,7 +312,8 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 	switch (sii->pub.bustype) {
 	case PCI_BUS:
 		/* do a pci config read to get subsystem id and subvendor id */
-		pci_read_config_dword(sii->pbus, PCI_CFG_SVID, &w);
+		pci_read_config_dword(sii->pbus, PCI_SUBSYSTEM_VENDOR_ID,
+				      &w);
 		/* Let nvram variables override subsystem Vend/ID */
 		sii->pub.boardvendor = (u16)si_getdevpathintvar(&sii->pub,
 			"boardvendor");
@@ -1864,7 +1865,7 @@ bool si_deviceremoved(si_t *sih)
 	switch (sih->bustype) {
 	case PCI_BUS:
 		ASSERT(sii->pbus != NULL);
-		pci_read_config_dword(sii->pbus, PCI_CFG_VID, &w);
+		pci_read_config_dword(sii->pbus, PCI_VENDOR_ID, &w);
 		if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 			return true;
 		break;

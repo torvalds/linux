@@ -17,6 +17,8 @@
 #ifndef	_h_pcicfg_
 #define	_h_pcicfg_
 
+#include <linux/pci_regs.h>
+
 /* The actual config space */
 
 #define	PCI_BAR_MAX		6
@@ -55,38 +57,6 @@ typedef struct _pci_config_regs {
 
 #define	SZPCR		(sizeof (pci_config_regs))
 #define	MINSZPCR	64	/* offsetof (dev_dep[0] */
-
-/* A structure for the config registers is nice, but in most
- * systems the config space is not memory mapped, so we need
- * field offsetts. :-(
- */
-#define	PCI_CFG_VID		0
-#define	PCI_CFG_DID		2
-#define	PCI_CFG_CMD		4
-#define	PCI_CFG_STAT		6
-#define	PCI_CFG_REV		8
-#define	PCI_CFG_PROGIF		9
-#define	PCI_CFG_SUBCL		0xa
-#define	PCI_CFG_BASECL		0xb
-#define	PCI_CFG_CLSZ		0xc
-#define	PCI_CFG_LATTIM		0xd
-#define	PCI_CFG_HDR		0xe
-#define	PCI_CFG_BIST		0xf
-#define	PCI_CFG_BAR0		0x10
-#define	PCI_CFG_BAR1		0x14
-#define	PCI_CFG_BAR2		0x18
-#define	PCI_CFG_BAR3		0x1c
-#define	PCI_CFG_BAR4		0x20
-#define	PCI_CFG_BAR5		0x24
-#define	PCI_CFG_CIS		0x28
-#define	PCI_CFG_SVID		0x2c
-#define	PCI_CFG_SSID		0x2e
-#define	PCI_CFG_ROMBAR		0x30
-#define PCI_CFG_CAPPTR		0x34
-#define	PCI_CFG_INT		0x3c
-#define	PCI_CFG_PIN		0x3d
-#define	PCI_CFG_MINGNT		0x3e
-#define	PCI_CFG_MAXLAT		0x3f
 
 /* Classes and subclasses */
 

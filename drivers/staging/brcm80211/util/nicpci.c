@@ -130,16 +130,16 @@ pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 	u8 byte_val;
 
 	/* check for Header type 0 */
-	pci_read_config_byte(dev, PCI_CFG_HDR, &byte_val);
+	pci_read_config_byte(dev, PCI_HEADER_TYPE, &byte_val);
 	if ((byte_val & 0x7f) != PCI_HEADER_NORMAL)
 		goto end;
 
 	/* check if the capability pointer field exists */
-	pci_read_config_byte(dev, PCI_CFG_STAT, &byte_val);
+	pci_read_config_byte(dev, PCI_STATUS, &byte_val);
 	if (!(byte_val & PCI_CAPPTR_PRESENT))
 		goto end;
 
-	pci_read_config_byte(dev, PCI_CFG_CAPPTR, &cap_ptr);
+	pci_read_config_byte(dev, PCI_CAPABILITY_LIST, &cap_ptr);
 	/* check if the capability pointer is 0x00 */
 	if (cap_ptr == 0x00)
 		goto end;
