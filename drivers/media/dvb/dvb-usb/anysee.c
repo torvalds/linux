@@ -105,6 +105,27 @@ static int anysee_write_reg(struct dvb_usb_device *d, u16 reg, u8 val)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
+/* write single register with mask */
+static int anysee_wr_reg_mask(struct dvb_usb_device *d, u16 reg, u8 val,
+	u8 mask)
+{
+	int ret;
+	u8 tmp;
+
+	/* no need for read if whole reg is written */
+	if (mask != 0xff) {
+		ret = anysee_read_reg(d, reg, &tmp);
+		if (ret)
+			return ret;
+
+		val &= mask;
+		tmp &= ~mask;
+		val |= tmp;
+	}
+
+	return anysee_write_reg(d, reg, val);
+}
+
 static int anysee_get_hw_info(struct dvb_usb_device *d, u8 *id)
 {
 	u8 buf[] = {CMD_GET_HW_INFO};
@@ -244,134 +265,241 @@ static struct zl10353_config anysee_zl10353_config = {
 	.parallel_ts = 1,
 };
 
+/*
+ * New USB device strings: Mfr=1, Product=2, SerialNumber=0
+ * Manufacturer: AMT.CO.KR
+ *
+ * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
+ * PCB: ?
+ * parts: MT352, DTT7579(?), DNOS404ZH102A NIM
+ *
+ * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
+ * PCB: ?
+ * parts: ZL10353, DTT7579(?), DNOS404ZH103A NIM
+ *
+ * E30 Plus VID=04b4 PID=861f HW=6 FW=1.0 "anysee"
+ * PCB: 507CD (rev1.1)
+ * parts: ZL10353, DTT7579(?), CST56I01, DNOS404ZH103A NIM
+ * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
+ * IOD[0] ZL10353 1=enabled
+ * IOA[7] TS 0=enabled
+ * tuner is not behind ZL10353 I2C-gate (no care if gate disabled or not)
+ *
+ * E30 C Plus VID=04b4 PID=861f HW=10 FW=1.0 "anysee-DC(LP)"
+ * PCB: 507DC (rev0.2)
+ * parts: TDA10023, CST56I01, DTOS403IH102B TM
+ * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
+ * IOD[0] TDA10023 1=enabled
+ *
+ * E30 C Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
+ * PCB: 507FA (rev0.4)
+ * parts: TDA10023, TDA8024, DTOS403IH102B TM
+ * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
+ * IOD[5] TDA10023 1=enabled
+ * IOE[0] tuner 1=enabled
+ *
+ * E30 Combo Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
+ * PCB: 507FA (rev1.1)
+ * parts: ZL10353, TDA10023, TDA8024, DTOS403IH102B TM
+ * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
+ * DVB-C:
+ * IOD[5] TDA10023 1=enabled
+ * IOE[0] tuner 1=enabled
+ * DVB-T:
+ * IOD[0] ZL10353 1=enabled
+ * IOE[0] tuner 0=enabled
+ * tuner is behind ZL10353 I2C-gate
+ */
+
 static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	struct anysee_state *state = adap->dev->priv;
 	u8 hw_info[3];
-	u8 io_d; /* IO port D */
 
-	/* check which hardware we have
-	   We must do this call two times to get reliable values (hw bug). */
+	/* Check which hardware we have.
+	 * We must do this call two times to get reliable values (hw bug).
+	 */
 	ret = anysee_get_hw_info(adap->dev, hw_info);
 	if (ret)
-		return ret;
+		goto error;
+
 	ret = anysee_get_hw_info(adap->dev, hw_info);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* Meaning of these info bytes are guessed. */
 	info("firmware version:%d.%d hardware id:%d",
 		hw_info[1], hw_info[2], hw_info[0]);
 
-	ret = anysee_read_reg(adap->dev, 0xb0, &io_d); /* IO port D */
-	if (ret)
-		return ret;
-	deb_info("%s: IO port D:%02x\n", __func__, io_d);
+	state->hw = hw_info[0];
 
-	/* Select demod using trial and error method. */
+	switch (state->hw) {
+	case ANYSEE_HW_02: /* 2 */
+		/* E30 */
 
-	/* Try to attach demodulator in following order:
-	      model      demod     hw  fw
-	   1. E30        MT352     02  2.1
-	   2. E30        ZL10353   02  2.1
-	   3. E30 Combo  ZL10353   0f  1.2  DVB-T/C combo
-	   4. E30 Plus   ZL10353   06  1.0
-	   5. E30C Plus  TDA10023  0a  1.0  rev 0.2
-	      E30C Plus  TDA10023  0f  1.2  rev 0.4
-	      E30 Combo  TDA10023  0f  1.2  DVB-T/C combo
-	*/
+		/* attach demod */
+		adap->fe = dvb_attach(mt352_attach, &anysee_mt352_config,
+			&adap->dev->i2c_adap);
+		if (adap->fe)
+			break;
 
-	/* Zarlink MT352 DVB-T demod inside of Samsung DNOS404ZH102A NIM */
-	adap->fe = dvb_attach(mt352_attach, &anysee_mt352_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe != NULL) {
-		state->tuner = DVB_PLL_THOMSON_DTT7579;
-		return 0;
-	}
-
-	/* Zarlink ZL10353 DVB-T demod inside of Samsung DNOS404ZH103A NIM */
-	adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe != NULL) {
-		state->tuner = DVB_PLL_THOMSON_DTT7579;
-		return 0;
-	}
-
-	/* for E30 Combo Plus DVB-T demodulator */
-	if (dvb_usb_anysee_delsys) {
-		ret = anysee_write_reg(adap->dev, 0xb0, 0x01);
-		if (ret)
-			return ret;
-
-		/* Zarlink ZL10353 DVB-T demod */
+		/* attach demod */
 		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
-				      &adap->dev->i2c_adap);
-		if (adap->fe != NULL) {
-			state->tuner = DVB_PLL_SAMSUNG_DTOS403IH102A;
-			return 0;
+			&adap->dev->i2c_adap);
+		if (adap->fe)
+			break;
+
+		break;
+	case ANYSEE_HW_507CD: /* 6 */
+		/* E30 Plus */
+
+		/* enable DVB-T demod on IOD[0] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 0), 0x01);
+		if (ret)
+			goto error;
+
+		/* enable transport stream on IOA[7] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (0 << 7), 0x80);
+		if (ret)
+			goto error;
+
+		/* attach demod */
+		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
+			&adap->dev->i2c_adap);
+		if (adap->fe)
+			break;
+
+		break;
+	case ANYSEE_HW_507DC: /* 10 */
+		/* E30 C Plus */
+
+		/* enable DVB-C demod on IOD[0] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 0), 0x01);
+		if (ret)
+			goto error;
+
+		/* attach demod */
+		adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
+			&adap->dev->i2c_adap, 0x48);
+		if (adap->fe)
+			break;
+
+		break;
+	case ANYSEE_HW_507FA: /* 15 */
+		/* E30 Combo Plus */
+		/* E30 C Plus */
+
+		if (dvb_usb_anysee_delsys) {
+			/* disable DVB-C demod on IOD[5] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 5),
+				0x20);
+			if (ret)
+				goto error;
+
+			/* enable DVB-T demod on IOD[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 0),
+				0x01);
+			if (ret)
+				goto error;
+
+			/* attach demod */
+			adap->fe = dvb_attach(zl10353_attach,
+				&anysee_zl10353_config, &adap->dev->i2c_adap);
+			if (adap->fe)
+				break;
+		} else {
+			/* disable DVB-T demod on IOD[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 0),
+				0x01);
+			if (ret)
+				goto error;
+
+			/* enable DVB-C demod on IOD[5] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 5),
+				0x20);
+			if (ret)
+				goto error;
+
+			/* attach demod */
+			adap->fe = dvb_attach(tda10023_attach,
+				&anysee_tda10023_config, &adap->dev->i2c_adap,
+				0x48);
+			if (adap->fe)
+				break;
 		}
+		break;
 	}
 
-	/* connect demod on IO port D for TDA10023 & ZL10353 */
-	ret = anysee_write_reg(adap->dev, 0xb0, 0x25);
-	if (ret)
-		return ret;
-
-	/* Zarlink ZL10353 DVB-T demod inside of Samsung DNOS404ZH103A NIM */
-	adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe != NULL) {
-		state->tuner = DVB_PLL_THOMSON_DTT7579;
-		return 0;
+	if (!adap->fe) {
+		/* we have no frontend :-( */
+		ret = -ENODEV;
+		err("Unknown Anysee version: %02x %02x %02x. " \
+			"Please report the <linux-media@vger.kernel.org>.",
+			hw_info[0], hw_info[1], hw_info[2]);
 	}
-
-	/* IO port E - E30C rev 0.4 board requires this */
-	ret = anysee_write_reg(adap->dev, 0xb1, 0xa7);
-	if (ret)
-		return ret;
-
-	/* Philips TDA10023 DVB-C demod */
-	adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
-			      &adap->dev->i2c_adap, 0x48);
-	if (adap->fe != NULL) {
-		state->tuner = DVB_PLL_SAMSUNG_DTOS403IH102A;
-		return 0;
-	}
-
-	/* return IO port D to init value for safe */
-	ret = anysee_write_reg(adap->dev, 0xb0, io_d);
-	if (ret)
-		return ret;
-
-	err("Unknown Anysee version: %02x %02x %02x. " \
-		"Please report the <linux-media@vger.kernel.org>.",
-		hw_info[0], hw_info[1], hw_info[2]);
-
-	return -ENODEV;
+error:
+	return ret;
 }
 
 static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap->dev->priv;
+	int ret = 0;
 	deb_info("%s:\n", __func__);
 
-	switch (state->tuner) {
-	case DVB_PLL_THOMSON_DTT7579:
-		/* Thomson dtt7579 (not sure) PLL inside of:
-		   Samsung DNOS404ZH102A NIM
-		   Samsung DNOS404ZH103A NIM */
+	switch (state->hw) {
+	case ANYSEE_HW_02: /* 2 */
+		/* E30 */
+
+		/* attach tuner */
 		dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
 			NULL, DVB_PLL_THOMSON_DTT7579);
 		break;
-	case DVB_PLL_SAMSUNG_DTOS403IH102A:
-		/* Unknown PLL inside of Samsung DTOS403IH102A tuner module */
+	case ANYSEE_HW_507CD: /* 6 */
+		/* E30 Plus */
+
+		/* attach tuner */
+		dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+			&adap->dev->i2c_adap, DVB_PLL_THOMSON_DTT7579);
+
+		break;
+	case ANYSEE_HW_507DC: /* 10 */
+		/* E30 C Plus */
+
+		/* attach tuner */
 		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 		break;
+	case ANYSEE_HW_507FA: /* 15 */
+		/* E30 Combo Plus */
+		/* E30 C Plus */
+
+		if (dvb_usb_anysee_delsys) {
+			/* enable DVB-T tuner on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 0),
+				0x01);
+			if (ret)
+				goto error;
+		} else {
+			/* enable DVB-C tuner on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 0),
+				0x01);
+			if (ret)
+				goto error;
+		}
+
+		/* attach tuner */
+		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
+
+		break;
+	default:
+		ret = -ENODEV;
 	}
 
-	return 0;
+error:
+	return ret;
 }
 
 static int anysee_rc_query(struct dvb_usb_device *d)
