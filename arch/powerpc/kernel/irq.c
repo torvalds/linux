@@ -1086,10 +1086,11 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	struct irq_desc *desc;
 	const char *p;
 	static const char none[] = "none";
+	void *data;
 	int i;
 
-	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
-		      "chip name", "host name");
+	seq_printf(m, "%-5s  %-7s  %-15s  %-18s  %s\n", "virq", "hwirq",
+		      "chip name", "chip data", "host name");
 
 	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);
@@ -1110,6 +1111,9 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			else
 				p = none;
 			seq_printf(m, "%-15s  ", p);
+
+			data = irq_desc_get_chip_data(desc);
+			seq_printf(m, "0x%16p  ", data);
 
 			if (irq_map[i].host && irq_map[i].host->of_node)
 				p = irq_map[i].host->of_node->full_name;
