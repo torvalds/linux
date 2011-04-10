@@ -25,10 +25,6 @@
 
 #define	PCR_RSVDA_MAX		2
 
-/* pci config status reg has a bit to indicate that capability ptr is present */
-
-#define PCI_CAPPTR_PRESENT	0x0010
-
 typedef struct _pci_config_regs {
 	u16 vendor;
 	u16 device;
@@ -111,15 +107,6 @@ typedef struct _ppb_config_regs {
 	u32 rsvd_d[PPB_RSVDD_MAX];
 	u8 dev_dep[192];
 } ppb_config_regs;
-
-/* PCI CAPABILITY DEFINES */
-#define PCI_CAP_POWERMGMTCAP_ID		0x01
-#define PCI_CAP_PCIECAP_ID		0x10
-
-#define PME_CAP_PM_STATES (0x1f << 27)	/* Bits 31:27 states that can generate PME */
-#define PME_CSR_OFFSET	    0x4	/* 4-bytes offset */
-#define PME_CSR_PME_EN	  (1 << 8)	/* Bit 8 Enable generating of PME */
-#define PME_CSR_PME_STAT  (1 << 15)	/* Bit 15 PME got asserted */
 
 /* Everything below is BRCM HND proprietary */
 

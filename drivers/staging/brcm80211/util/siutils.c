@@ -1486,9 +1486,8 @@ static __used bool si_ispcie(si_info_t *sii)
 	if (sii->pub.bustype != PCI_BUS)
 		return false;
 
-	cap_ptr =
-	    pcicore_find_pci_capability(sii->pbus, PCI_CAP_PCIECAP_ID, NULL,
-					NULL);
+	cap_ptr = pcicore_find_pci_capability(sii->pbus, PCI_CAP_ID_EXP, NULL,
+					      NULL);
 	if (!cap_ptr)
 		return false;
 
