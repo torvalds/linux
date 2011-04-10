@@ -328,7 +328,9 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 		savage_out32(0x48C18, savage_in32(0x48C18, par) | 0x0C, par);
 		break;
 	case S3_SAVAGE4:
+	case S3_TWISTER:
 	case S3_PROSAVAGE:
+	case S3_PROSAVAGEDDR:
 	case S3_SUPERSAVAGE:
 		/* Disable BCI */
 		savage_out32(0x48C18, savage_in32(0x48C18, par) & 0x3FF0, par);
@@ -1886,6 +1888,8 @@ static int savage_init_hw(struct savagefb_par *par)
 		break;
 
 	case S3_PROSAVAGE:
+	case S3_PROSAVAGEDDR:
+	case S3_TWISTER:
 		videoRam = RamSavageNB[(config1 & 0xE0) >> 5] * 1024;
 		break;
 
@@ -2111,19 +2115,19 @@ static int __devinit savage_init_fb_info(struct fb_info *info,
 		snprintf(info->fix.id, 16, "ProSavageKM");
 		break;
 	case FB_ACCEL_S3TWISTER_P:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_TWISTER;
 		snprintf(info->fix.id, 16, "TwisterP");
 		break;
 	case FB_ACCEL_S3TWISTER_K:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_TWISTER;
 		snprintf(info->fix.id, 16, "TwisterK");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDR:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_PROSAVAGEDDR;
 		snprintf(info->fix.id, 16, "ProSavageDDR");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDRK:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_PROSAVAGEDDR;
 		snprintf(info->fix.id, 16, "ProSavage8");
 		break;
 	}
