@@ -139,7 +139,6 @@ struct alb_bond_info {
 	struct slave		*next_rx_slave;/* next slave to be assigned
 						* to a new rx client for
 						*/
-	u32			rlb_interval_counter;
 	u8			primary_is_promisc;	   /* boolean */
 	u32			rlb_promisc_timeout_counter;/* counts primary
 							     * promiscuity time
