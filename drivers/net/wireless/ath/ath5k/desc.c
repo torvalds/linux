@@ -603,37 +603,37 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 					struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
+	u32 rxstat0, rxstat1;
 
 	rx_status = &desc->ud.ds_rx.rx_stat;
+	rxstat1 = ACCESS_ONCE(rx_status->rx_status_1);
 
 	/* No frame received / not ready */
-	if (unlikely(!(rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_DONE)))
+	if (unlikely(!(rxstat1 & AR5K_5212_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
 
 	memset(rs, 0, sizeof(struct ath5k_rx_status));
+	rxstat0 = ACCESS_ONCE(rx_status->rx_status_0);
 
 	/*
 	 * Frame receive status
 	 */
-	rs->rs_datalen = rx_status->rx_status_0 &
-		AR5K_5212_RX_DESC_STATUS0_DATA_LEN;
-	rs->rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_datalen = rxstat0 & AR5K_5212_RX_DESC_STATUS0_DATA_LEN;
+	rs->rs_rssi = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_SIGNAL);
-	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_rate = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_RATE);
-	rs->rs_antenna = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_antenna = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_ANTENNA);
-	rs->rs_more = !!(rx_status->rx_status_0 &
-		AR5K_5212_RX_DESC_STATUS0_MORE);
-	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
+	rs->rs_more = !!(rxstat0 & AR5K_5212_RX_DESC_STATUS0_MORE);
+	rs->rs_tstamp = AR5K_REG_MS(rxstat1,
 		AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
 
 	/*
 	 * Key table status
 	 */
-	if (rx_status->rx_status_1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
-		rs->rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
+	if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
+		rs->rs_keyix = AR5K_REG_MS(rxstat1,
 					   AR5K_5212_RX_DESC_STATUS1_KEY_INDEX);
 	else
 		rs->rs_keyix = AR5K_RXKEYIX_INVALID;
@@ -641,27 +641,22 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	/*
 	 * Receive/descriptor errors
 	 */
-	if (!(rx_status->rx_status_1 &
-	    AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
+	if (!(rxstat1 & AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_CRC;
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
 			rs->rs_status |= AR5K_RXERR_PHY;
-			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
+			rs->rs_phyerr = AR5K_REG_MS(rxstat1,
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE);
 			if (!ah->ah_capabilities.cap_has_phyerr_counters)
 				ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_DECRYPT;
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
 			rs->rs_status |= AR5K_RXERR_MIC;
 	}
 	return 0;
