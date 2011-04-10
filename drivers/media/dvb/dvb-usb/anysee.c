@@ -166,7 +166,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			buf[2] = msg[i].buf[0];
 			buf[3] = 0x00;
 			buf[4] = 0x00;
-			buf[5] = 0x01;
+			buf[5] = msg[i+1].len;
 			ret = anysee_ctrl_msg(d, buf, sizeof(buf), msg[i+1].buf,
 				msg[i+1].len);
 			inc = 2;
