@@ -17,6 +17,9 @@
 #define NFSD_MAY_SATTR		8
 #define NFSD_MAY_TRUNC		16
 #define NFSD_MAY_LOCK		32
+#define NFSD_MAY_MASK		63
+
+/* extra hints to permission and open routines: */
 #define NFSD_MAY_OWNER_OVERRIDE	64
 #define NFSD_MAY_LOCAL_ACCESS	128 /* IRIX doing local access check on device special file*/
 #define NFSD_MAY_BYPASS_GSS_ON_ROOT 256
