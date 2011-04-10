@@ -261,8 +261,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		return ret;
 
 	/* Meaning of these info bytes are guessed. */
-	info("firmware version:%d.%d.%d hardware id:%d",
-		0, hw_info[1], hw_info[2], hw_info[0]);
+	info("firmware version:%d.%d hardware id:%d",
+		hw_info[1], hw_info[2], hw_info[0]);
 
 	ret = anysee_read_reg(adap->dev, 0xb0, &io_d); /* IO port D */
 	if (ret)
@@ -272,14 +272,14 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	/* Select demod using trial and error method. */
 
 	/* Try to attach demodulator in following order:
-	      model      demod     hw  firmware
-	   1. E30        MT352     02  0.2.1
-	   2. E30        ZL10353   02  0.2.1
-	   3. E30 Combo  ZL10353   0f  0.1.2    DVB-T/C combo
-	   4. E30 Plus   ZL10353   06  0.1.0
-	   5. E30C Plus  TDA10023  0a  0.1.0    rev 0.2
-	      E30C Plus  TDA10023  0f  0.1.2    rev 0.4
-	      E30 Combo  TDA10023  0f  0.1.2    DVB-T/C combo
+	      model      demod     hw  fw
+	   1. E30        MT352     02  2.1
+	   2. E30        ZL10353   02  2.1
+	   3. E30 Combo  ZL10353   0f  1.2  DVB-T/C combo
+	   4. E30 Plus   ZL10353   06  1.0
+	   5. E30C Plus  TDA10023  0a  1.0  rev 0.2
+	      E30C Plus  TDA10023  0f  1.2  rev 0.4
+	      E30 Combo  TDA10023  0f  1.2  DVB-T/C combo
 	*/
 
 	/* Zarlink MT352 DVB-T demod inside of Samsung DNOS404ZH102A NIM */
@@ -344,9 +344,9 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (ret)
 		return ret;
 
-	err("Unknown Anysee version: %02x %02x %02x. "\
-	    "Please report the <linux-dvb@linuxtv.org>.",
-	    hw_info[0], hw_info[1], hw_info[2]);
+	err("Unknown Anysee version: %02x %02x %02x. " \
+		"Please report the <linux-media@vger.kernel.org>.",
+		hw_info[0], hw_info[1], hw_info[2]);
 
 	return -ENODEV;
 }
