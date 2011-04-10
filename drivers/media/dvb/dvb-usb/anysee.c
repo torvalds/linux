@@ -505,6 +505,66 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				break;
 		}
 		break;
+	case ANYSEE_HW_508TC: /* 18 */
+		/* E7 TC */
+
+		/* enable transport stream on IOA[7] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
+		if (ret)
+			goto error;
+
+		if (dvb_usb_anysee_delsys) {
+			/* disable DVB-C demod on IOD[5] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 5),
+				0x20);
+			if (ret)
+				goto error;
+
+			/* enable DVB-T demod on IOD[6] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 6),
+				0x40);
+			if (ret)
+				goto error;
+
+			/* enable IF route on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 0),
+				0x01);
+			if (ret)
+				goto error;
+
+			/* attach demod */
+			adap->fe = dvb_attach(zl10353_attach,
+				&anysee_zl10353_tda18212_config,
+				&adap->dev->i2c_adap);
+			if (adap->fe)
+				break;
+		} else {
+			/* disable DVB-T demod on IOD[6] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 6),
+				0x40);
+			if (ret)
+				goto error;
+
+			/* enable DVB-C demod on IOD[5] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 5),
+				0x20);
+			if (ret)
+				goto error;
+
+			/* enable IF route on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 0),
+				0x01);
+			if (ret)
+				goto error;
+
+			/* attach demod */
+			adap->fe = dvb_attach(tda10023_attach,
+				&anysee_tda10023_tda18212_config,
+				&adap->dev->i2c_adap, 0x48);
+			if (adap->fe)
+				break;
+		}
+		break;
 	}
 
 	if (!adap->fe) {
@@ -590,6 +650,22 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 
 		break;
+	case ANYSEE_HW_508TC: /* 18 */
+		/* E7 TC */
+
+		/* enable tuner on IOE[4] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
+		if (ret)
+			goto error;
+
+		/* attach tuner */
+		fe = dvb_attach(tda18212_attach, adap->fe, &adap->dev->i2c_adap,
+			&anysee_tda18212_config);
+		if (!fe)
+			ret = -ENODEV;
+
+		break;
+
 	default:
 		ret = -ENODEV;
 	}
