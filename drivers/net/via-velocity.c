@@ -2600,8 +2600,7 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	/*
 	 *	Handle hardware checksum
 	 */
-	if ((dev->features & NETIF_F_IP_CSUM) &&
-	    (skb->ip_summed == CHECKSUM_PARTIAL)) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
 		if (ip->protocol == IPPROTO_TCP)
 			td_ptr->tdesc1.TCR |= TCR0_TCPCK;
@@ -2841,6 +2840,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	dev->ethtool_ops = &velocity_ethtool_ops;
 	netif_napi_add(dev, &vptr->napi, velocity_poll, VELOCITY_NAPI_WEIGHT);
 
+	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_HW_VLAN_TX;
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER |
 		NETIF_F_HW_VLAN_RX | NETIF_F_IP_CSUM;
 
@@ -3457,13 +3457,10 @@ static const struct ethtool_ops velocity_ethtool_ops = {
 	.get_settings	=	velocity_get_settings,
 	.set_settings	=	velocity_set_settings,
 	.get_drvinfo	=	velocity_get_drvinfo,
-	.set_tx_csum	=	ethtool_op_set_tx_csum,
-	.get_tx_csum	=	ethtool_op_get_tx_csum,
 	.get_wol	=	velocity_ethtool_get_wol,
 	.set_wol	=	velocity_ethtool_set_wol,
 	.get_msglevel	=	velocity_get_msglevel,
 	.set_msglevel	=	velocity_set_msglevel,
-	.set_sg 	=	ethtool_op_set_sg,
 	.get_link	=	velocity_get_link,
 	.get_coalesce	=	velocity_get_coalesce,
 	.set_coalesce	=	velocity_set_coalesce,
