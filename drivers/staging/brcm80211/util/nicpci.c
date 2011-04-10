@@ -166,8 +166,8 @@ pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 		*buflen = 0;
 		/* copy the cpability data excluding cap ID and next ptr */
 		cap_data = cap_ptr + 2;
-		if ((bufsize + cap_data) > SZPCR)
-			bufsize = SZPCR - cap_data;
+		if ((bufsize + cap_data) > PCI_SZPCR)
+			bufsize = PCI_SZPCR - cap_data;
 		*buflen = bufsize;
 		while (bufsize--) {
 			pci_read_config_byte(dev, cap_data, buf);
