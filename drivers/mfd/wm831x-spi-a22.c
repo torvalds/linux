@@ -532,75 +532,35 @@ static int wm831x_init(struct wm831x *wm831x)
 	
 }
 
-
-struct wm831x_on {
-	struct input_dev *dev;
-	struct delayed_work work;
-	struct wm831x *wm831x;
-	struct wake_lock 	wm831x_on_wake;
-};
-
-static struct wm831x_on *g_wm831x_on;
-
-void rk29_send_wakeup_key(void)
-{
-     
-	if(!g_wm831x_on)
-	{
-		printk("%s:addr err!\n",__FUNCTION__);
-		return;
-	}
-        input_report_key(g_wm831x_on->dev, KEY_POWER, 1);
-        input_sync(g_wm831x_on->dev);
-        input_report_key(g_wm831x_on->dev, KEY_POWER, 0);
-        input_sync(g_wm831x_on->dev);
-	//printk("%s\n", __FUNCTION__);
-}
-
+extern void rk28_send_wakeup_key(void);
+static int gNumInt = 0;
 
 static void wm831x_irq_worker(struct work_struct *work)
 {
 	struct wm831x *wm831x = container_of(work, struct wm831x, irq_work);	
-	
 	wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1, 0xffff);//clear all intterupt
-	rk29_send_wakeup_key();
-	//enable_irq(wm831x->irq);	
+
+	if(++ gNumInt >= 2)
+	{
+		rk28_send_wakeup_key();
+		//wake_lock_timeout(&wm831x->irq_wake,msecs_to_jiffies(2000));
+		gNumInt = 0;
+	}
+	enable_irq(wm831x->irq);	
 	wake_unlock(&wm831x->irq_wake);
-	printk("%s\n",__FUNCTION__);
+	//printk("%s,irq=%d\n",__FUNCTION__,wm831x->irq);
 }
 
 static irqreturn_t wm831x_irq_thread(int irq, void *data)
 {
 	struct wm831x *wm831x = data;
 
-	//disable_irq_nosync(irq);
+	disable_irq_nosync(irq);
 	wake_lock(&wm831x->irq_wake);
 	queue_work(wm831x->irq_wq, &wm831x->irq_work);
 
 	return IRQ_HANDLED;
 }
-
-static struct platform_driver wm831x_on_driver = {
-	.driver		= {
-		.name	= "wm831x-on",
-	},
-};
-
-static struct platform_device wm831x_on_device = {
-	.name		= "wm831x-on",
-	.id		= -1,
-	.dev = {
-		.driver = &wm831x_on_driver.driver,
-	}
-	
-};
-
-static inline void wm831x_on_init(void)
-{
-	if (platform_driver_register(&wm831x_on_driver) == 0)
-	(void) platform_device_register(&wm831x_on_device);
-}
-
 
 static int __devinit wm831x_spi_probe(struct spi_device *spi)
 {
@@ -655,38 +615,6 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	mutex_init(&wm831x->io_lock);
 	
 	wm831x_init(wm831x);
-	//wm831x_device_init(wm831x, type, irq);
-	
-	dev_set_drvdata(wm831x->dev, wm831x);
-	wm831x_on_init();
-
-	g_wm831x_on = kzalloc(sizeof(struct wm831x_on), GFP_KERNEL);
-	if (!g_wm831x_on) {
-		printk( "Can't allocate data\n");
-		return -ENOMEM;
-	}
-	
-	g_wm831x_on->wm831x = wm831x;
-	g_wm831x_on->dev = input_allocate_device();
-	if (!g_wm831x_on->dev) {
-		//dev_err(&wm831x->dev, "Can't allocate input dev\n");
-		return  -ENOMEM;
-	}
-
-	g_wm831x_on->dev->evbit[0] = BIT_MASK(EV_KEY);
-	g_wm831x_on->dev->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
-	g_wm831x_on->dev->name = "wm831x_on";
-	g_wm831x_on->dev->phys = "wm831x_on/input0";
-#if 0
-	g_wm831x_on->dev->dev.parent = &wm831x_on_device.dev;
-	dev_err(&wm831x_on_device.dev, "%s\n", __FUNCTION__);
-	ret = input_register_device(g_wm831x_on->dev);
-	if (ret) {
-		printk( "Can't register input device: %d\n");
-		return  -ENOMEM;
-	}
-	
-#endif
 	
 	wm831x->irq_wq = create_singlethread_workqueue("wm831x-irq");
 	if (!wm831x->irq_wq) {
@@ -698,14 +626,14 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	wake_lock_init(&wm831x->irq_wake, WAKE_LOCK_SUSPEND, "wm831x_irq_wake");
 
 	ret = request_threaded_irq(irq, wm831x_irq_thread, NULL, 
-				 IRQF_TRIGGER_FALLING,
+				 IRQF_TRIGGER_LOW,
 				   "wm831x", wm831x);
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
 			wm831x->irq, ret);
 		return ret;
 	}
-
+	wm831x->irq = irq;
 	enable_irq_wake(irq); // so wm831x irq can wake up system
 	/* only support on intterupt */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0xefff);
@@ -731,6 +659,11 @@ static int wm831x_spi_suspend(struct spi_device *spi, pm_message_t m)
 	//return wm831x_device_suspend(wm831x);
 }
 
+static int wm831x_spi_resume(struct spi_device *spi)
+{
+	return 0;
+}
+
 static struct spi_driver wm8310_spi_driver = {
 	.driver = {
 		.name	= "wm8310",
@@ -740,6 +673,7 @@ static struct spi_driver wm8310_spi_driver = {
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
 	.suspend	= wm831x_spi_suspend,
+	.resume	= wm831x_spi_resume,
 };
 
 static struct spi_driver wm8311_spi_driver = {

@@ -8,7 +8,7 @@
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
-#define OUT_FACE		OUT_P666
+#define OUT_FACE		OUT_P888
 #define OUT_CLK		26*1000*1000	//***27
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��           //rk29
 
@@ -196,7 +196,7 @@ void set_backlight(int brightness)
         gpio_direction_output(PIN_BL_SET,GPIO_HIGH);
 	else
 	gpio_direction_output(PIN_BL_SET,GPIO_LOW);	
-
+	printk("%s:brightness=%d\n",__FUNCTION__,brightness);
 }
 
 void WriteCommand( int  Command)
@@ -1380,7 +1380,11 @@ void init_nt35510(void)
 	WriteParameter(0x00);
 
 	WriteCommand(0X3a00); 
-	WriteParameter(0x60);//WriteParameter(0x66);
+	
+if(OUT_FACE == OUT_P888)
+	WriteParameter(0x70);	//24bit
+else if(OUT_FACE == OUT_P666)
+	WriteParameter(0x60);//18bit
 
 	WriteCommand(0X3600); 
 	WriteParameter(0x00);//R<->B
@@ -1427,30 +1431,26 @@ int init(void)
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
 	int i;
-	set_backlight(0);
-#if 0
+
     if(gLcd_info)
         gLcd_info->io_init();
 
 	if(enable) {
-		spi_screenreg_cmd(0xB7);
-		spi_screenreg_param(0x0f);
+		WriteCommand(0X2800); 
+		set_backlight(0);
+		mdelay(100);
+		WriteCommand(0X1000); 
 	} else { 
- 		CS_OUT() ;
-		for(i=0; i<6; i++)
-		{
-			CS_SET();
-			DRVDelayUs(1);
-			CS_CLR();
-			DRVDelayUs(1);
-			CS_SET();
-			mdelay(2);			
-		}
+ 		WriteCommand(0X1100); 
+		mdelay(120);
+		WriteCommand(0X2900); 
+		mdelay(100);
+		set_backlight(255);
 	}
 
     if(gLcd_info)
         gLcd_info->io_deinit();
-#endif
+
     return 0;
 }
 
