@@ -401,7 +401,7 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 
 	ar9003_hw_spur_ofdm_clear(ah);
 
-	for (i = 0; spurChansPtr[i] && i < 5; i++) {
+	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
 		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
