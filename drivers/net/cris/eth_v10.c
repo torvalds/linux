@@ -1131,7 +1131,6 @@ static irqreturn_t
 e100rxtx_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct net_local *np = netdev_priv(dev);
 	unsigned long irqbits;
 
 	/*
