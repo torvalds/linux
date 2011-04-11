@@ -548,7 +548,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (card->ext_csd.enhanced_area_en) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_ERASE_GROUP_DEF, 1);
+				 EXT_CSD_ERASE_GROUP_DEF, 1, 0);
 
 		if (err && err != -EBADMSG)
 			goto free_card;
@@ -579,7 +579,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (card->ext_csd.bootconfig & 0x7) {
 		card->ext_csd.bootconfig &= ~0x7;
 		mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_CONFIG,
-			   card->ext_csd.bootconfig);
+			   card->ext_csd.bootconfig, 0);
 	}
 
 	/*
@@ -588,7 +588,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if ((card->ext_csd.hs_max_dtr != 0) &&
 		(host->caps & MMC_CAP_MMC_HIGHSPEED)) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_HS_TIMING, 1);
+				 EXT_CSD_HS_TIMING, 1, 0);
 		if (err && err != -EBADMSG)
 			goto free_card;
 
@@ -655,7 +655,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				ddr = 0; /* no DDR for 1-bit width */
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 					 EXT_CSD_BUS_WIDTH,
-					 ext_csd_bits[idx][0]);
+					 ext_csd_bits[idx][0],
+					 0);
 			if (!err) {
 				mmc_set_bus_width_ddr(card->host,
 						      bus_width, MMC_SDR_MODE);
@@ -674,8 +675,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 		if (!err && ddr) {
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					EXT_CSD_BUS_WIDTH,
-					ext_csd_bits[idx][1]);
+					 EXT_CSD_BUS_WIDTH,
+					 ext_csd_bits[idx][1],
+					 0);
 		}
 		if (err) {
 			printk(KERN_WARNING "%s: switch to bus width %d ddr %d "

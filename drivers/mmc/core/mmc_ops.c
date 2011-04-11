@@ -387,7 +387,19 @@ int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
 	return err;
 }
 
-int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
+/**
+ *	mmc_switch - modify EXT_CSD register
+ *	@card: the MMC card associated with the data transfer
+ *	@set: cmd set values
+ *	@index: EXT_CSD register index
+ *	@value: value to program into EXT_CSD register
+ *	@timeout_ms: timeout (ms) for operation performed by register write,
+ *                   timeout of zero implies maximum possible timeout
+ *
+ *	Modifies the EXT_CSD register for selected card.
+ */
+int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
+	       unsigned int timeout_ms)
 {
 	int err;
 	struct mmc_command cmd;
@@ -404,6 +416,7 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 		  (value << 8) |
 		  set;
 	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+	cmd.cmd_timeout_ms = timeout_ms;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
 	if (err)
@@ -433,6 +446,7 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mmc_switch);
 
 int mmc_send_status(struct mmc_card *card, u32 *status)
 {
