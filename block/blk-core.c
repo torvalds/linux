@@ -2673,19 +2673,24 @@ static void flush_plug_list(struct blk_plug *plug)
 	struct request_queue *q;
 	unsigned long flags;
 	struct request *rq;
+	LIST_HEAD(list);
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
 	if (list_empty(&plug->list))
 		return;
 
-	if (plug->should_sort)
-		list_sort(NULL, &plug->list, plug_rq_cmp);
+	list_splice_init(&plug->list, &list);
+
+	if (plug->should_sort) {
+		list_sort(NULL, &list, plug_rq_cmp);
+		plug->should_sort = 0;
+	}
 
 	q = NULL;
 	local_irq_save(flags);
-	while (!list_empty(&plug->list)) {
-		rq = list_entry_rq(plug->list.next);
+	while (!list_empty(&list)) {
+		rq = list_entry_rq(list.next);
 		list_del_init(&rq->queuelist);
 		BUG_ON(!(rq->cmd_flags & REQ_ON_PLUG));
 		BUG_ON(!rq->q);
@@ -2713,7 +2718,6 @@ static void flush_plug_list(struct blk_plug *plug)
 		spin_unlock(q->queue_lock);
 	}
 
-	BUG_ON(!list_empty(&plug->list));
 	local_irq_restore(flags);
 }
 
