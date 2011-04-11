@@ -1095,16 +1095,9 @@ static void wm8900_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	
+
 	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
-		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");	
-
-	/* If  */
-	if (!codec_dai->capture.active && !codec_dai->playback.active &&
-	    (substream->stream == SNDRV_PCM_STREAM_CAPTURE)) {
-
-		msleep(200);
-	}
+		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
 
 	if (!codec_dai->capture.active && !codec_dai->playback.active) {
 
