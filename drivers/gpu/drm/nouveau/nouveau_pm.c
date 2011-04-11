@@ -449,7 +449,7 @@ nouveau_hwmon_fini(struct drm_device *dev)
 #endif
 }
 
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && defined(CONFIG_POWER_SUPPLY)
 static int
 nouveau_pm_acpi_event(struct notifier_block *nb, unsigned long val, void *data)
 {
@@ -508,7 +508,7 @@ nouveau_pm_init(struct drm_device *dev)
 
 	nouveau_sysfs_init(dev);
 	nouveau_hwmon_init(dev);
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && defined(CONFIG_POWER_SUPPLY)
 	pm->acpi_nb.notifier_call = nouveau_pm_acpi_event;
 	register_acpi_notifier(&pm->acpi_nb);
 #endif
@@ -530,7 +530,7 @@ nouveau_pm_fini(struct drm_device *dev)
 	nouveau_perf_fini(dev);
 	nouveau_volt_fini(dev);
 
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && defined(CONFIG_POWER_SUPPLY)
 	unregister_acpi_notifier(&pm->acpi_nb);
 #endif
 	nouveau_hwmon_fini(dev);
