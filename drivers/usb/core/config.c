@@ -129,7 +129,7 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 		max_tx = ep->desc.wMaxPacketSize * (desc->bMaxBurst + 1);
 	else
 		max_tx = 999999;
-	if (desc->wBytesPerInterval > max_tx) {
+	if (le16_to_cpu(desc->wBytesPerInterval) > max_tx) {
 		dev_warn(ddev, "%s endpoint with wBytesPerInterval of %d in "
 				"config %d interface %d altsetting %d ep %d: "
 				"setting to %d\n",
