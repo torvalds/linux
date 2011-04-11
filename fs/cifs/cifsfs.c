@@ -129,24 +129,19 @@ cifs_read_super(struct super_block *sb, void *data,
 	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	/* copy mount params to sb for use in submounts */
-	/* BB: should we move this after the mount so we
-	 * do not have to do the copy on failed mounts?
-	 * BB: May be it is better to do simple copy before
-	 * complex operation (mount), and in case of fail
-	 * just exit instead of doing mount and attempting
-	 * undo it if this copy fails?*/
+	/*
+	 * Copy mount params to sb for use in submounts. Better to do
+	 * the copy here and deal with the error before cleanup gets
+	 * complicated post-mount.
+	 */
 	if (data) {
-		int len = strlen(data);
-		cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
+		cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
 		if (cifs_sb->mountdata == NULL) {
 			bdi_destroy(&cifs_sb->bdi);
 			kfree(sb->s_fs_info);
 			sb->s_fs_info = NULL;
 			return -ENOMEM;
 		}
-		strncpy(cifs_sb->mountdata, data, len + 1);
-		cifs_sb->mountdata[len] = '\0';
 	}
 #endif
 
