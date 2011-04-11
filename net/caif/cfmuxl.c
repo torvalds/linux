@@ -188,7 +188,8 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	u8 linkid;
 	struct cflayer *dn;
 	struct caif_payload_info *info = cfpkt_info(pkt);
-	dn = get_dn(muxl, cfpkt_info(pkt)->dev_info);
+	BUG_ON(!info);
+	dn = get_dn(muxl, info->dev_info);
 	if (dn == NULL) {
 		pr_warn("Send data on unknown phy ID = %d (0x%x)\n",
 			info->dev_info->id, info->dev_info->id);
