@@ -210,38 +210,6 @@ static struct device_node *scan_OF_for_pci_bus(struct pci_bus *bus)
 	return np;
 }
 
-/*
- * Scans the OF tree for a device node matching a PCI device
- */
-struct device_node *
-pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
-{
-	struct device_node *parent, *np;
-
-	pr_debug("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
-	parent = scan_OF_for_pci_bus(bus);
-	if (parent == NULL)
-		return NULL;
-	pr_debug(" parent is %s\n", parent ? parent->full_name : "<NULL>");
-	np = scan_OF_for_pci_dev(parent, devfn);
-	of_node_put(parent);
-	pr_debug(" result is %s\n", np ? np->full_name : "<NULL>");
-
-	/* XXX most callers don't release the returned node
-	 * mostly because ppc64 doesn't increase the refcount,
-	 * we need to fix that.
-	 */
-	return np;
-}
-EXPORT_SYMBOL(pci_busdev_to_OF_node);
-
-struct device_node*
-pci_device_to_OF_node(struct pci_dev *dev)
-{
-	return pci_busdev_to_OF_node(dev->bus, dev->devfn);
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
-
 static int
 find_OF_pci_device_filter(struct device_node *node, void *data)
 {
@@ -315,6 +283,13 @@ pci_create_OF_bus_map(void)
 	}
 }
 
+struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	return of_node_get(hose->dn);
+}
+
 static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 {
 	struct pci_bus *bus;
@@ -332,7 +307,6 @@ static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 		       hose->global_number);
 		return;
 	}
-	bus.dev->of_node = of_node_get(node);
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 

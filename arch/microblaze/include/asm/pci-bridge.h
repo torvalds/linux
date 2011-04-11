@@ -105,19 +105,19 @@ struct pci_controller {
 };
 
 #ifdef CONFIG_PCI
-static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
+static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 {
-	return bus->sysdata;
+	return dev->dev.of_node;
 }
 
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 {
-	struct pci_controller *host;
+	return bus->dev.of_node;
+}
 
-	if (bus->self)
-		return pci_device_to_OF_node(bus->self);
-	host = pci_bus_to_host(bus);
-	return host ? host->dn : NULL;
+static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
+{
+	return bus->sysdata;
 }
 
 static inline int isa_vaddr_is_ioport(void __iomem *address)

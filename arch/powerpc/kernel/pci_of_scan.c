@@ -202,9 +202,9 @@ EXPORT_SYMBOL(of_create_pci_dev);
  * this routine in turn call of_scan_bus() recusively to scan for more child
  * devices.
  */
-void __devinit of_scan_pci_bridge(struct device_node *node,
-				  struct pci_dev *dev)
+void __devinit of_scan_pci_bridge(struct pci_dev *dev)
 {
+	struct device_node *node = dev->dev.of_node;
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
 	int len, i, mode;
@@ -238,7 +238,6 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 	bus->primary = dev->bus->number;
 	bus->subordinate = busrange[1];
 	bus->bridge_ctl = 0;
-	bus->dev.of_node = of_node_get(node);
 
 	/* parse ranges property */
 	/* PCI #address-cells == 3 and #size-cells == 2 always */
@@ -335,9 +334,7 @@ static void __devinit __of_scan_bus(struct device_node *node,
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
-			struct device_node *child = pci_device_to_OF_node(dev);
-			if (child)
-				of_scan_pci_bridge(child, dev);
+			of_scan_pci_bridge(dev);
 		}
 	}
 }

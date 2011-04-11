@@ -1589,5 +1589,23 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt);
 int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw);
 
+/* PCI <-> OF binding helpers */
+#ifdef CONFIG_OF
+struct device_node;
+extern void pci_set_of_node(struct pci_dev *dev);
+extern void pci_release_of_node(struct pci_dev *dev);
+extern void pci_set_bus_of_node(struct pci_bus *bus);
+extern void pci_release_bus_of_node(struct pci_bus *bus);
+
+/* Arch may override this (weak) */
+extern struct device_node * __weak pcibios_get_phb_of_node(struct pci_bus *bus);
+
+#else /* CONFIG_OF */
+static inline void pci_set_of_node(struct pci_dev *dev) { }
+static inline void pci_release_of_node(struct pci_dev *dev) { }
+static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
+static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
+#endif  /* CONFIG_OF */
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
