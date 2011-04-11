@@ -1549,7 +1549,7 @@ static int s3c_fb_resume(struct device *dev)
 	return 0;
 }
 
-int s3c_fb_runtime_suspend(struct device *dev)
+static int s3c_fb_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
@@ -1569,7 +1569,7 @@ int s3c_fb_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-int s3c_fb_runtime_resume(struct device *dev)
+static int s3c_fb_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
