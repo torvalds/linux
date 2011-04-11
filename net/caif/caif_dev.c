@@ -120,25 +120,12 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 {
 	struct caif_device_entry *caifd =
 	    container_of(layer, struct caif_device_entry, layer);
-	struct sk_buff *skb, *skb2;
-	int ret = -EINVAL;
+	struct sk_buff *skb;
+
 	skb = cfpkt_tonative(pkt);
 	skb->dev = caifd->netdev;
-	/*
-	 * Don't allow SKB to be destroyed upon error, but signal resend
-	 * notification to clients. We can't rely on the return value as
-	 * congestion (NET_XMIT_CN) sometimes drops the packet, sometimes don't.
-	 */
-	if (netif_queue_stopped(caifd->netdev))
-		return -EAGAIN;
-	skb2 = skb_get(skb);
 
-	ret = dev_queue_xmit(skb2);
-
-	if (!ret)
-		kfree_skb(skb);
-	else
-		return -EAGAIN;
+	dev_queue_xmit(skb);
 
 	return 0;
 }

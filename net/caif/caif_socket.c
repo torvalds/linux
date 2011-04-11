@@ -519,43 +519,14 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 			int noblock, long timeo)
 {
 	struct cfpkt *pkt;
-	int ret, loopcnt = 0;
 
 	pkt = cfpkt_fromnative(CAIF_DIR_OUT, skb);
 	memset(cfpkt_info(pkt), 0, sizeof(struct caif_payload_info));
-	do {
 
-		ret = -ETIMEDOUT;
+	if (cf_sk->layer.dn == NULL)
+		return -EINVAL;
 
-		/* Slight paranoia, probably not needed. */
-		if (unlikely(loopcnt++ > 1000)) {
-			pr_warn("transmit retries failed, error = %d\n", ret);
-			break;
-		}
-
-		if (cf_sk->layer.dn != NULL)
-			ret = cf_sk->layer.dn->transmit(cf_sk->layer.dn, pkt);
-		if (likely(ret >= 0))
-			break;
-		/* if transmit return -EAGAIN, then retry */
-		if (noblock && ret == -EAGAIN)
-			break;
-		timeo = caif_wait_for_flow_on(cf_sk, 0, timeo, &ret);
-		if (signal_pending(current)) {
-			ret = sock_intr_errno(timeo);
-			break;
-		}
-		if (ret)
-			break;
-		if (cf_sk->sk.sk_state != CAIF_CONNECTED ||
-			sock_flag(&cf_sk->sk, SOCK_DEAD) ||
-			(cf_sk->sk.sk_shutdown & RCV_SHUTDOWN)) {
-			ret = -EPIPE;
-			cf_sk->sk.sk_err = EPIPE;
-			break;
-		}
-	} while (ret == -EAGAIN);
-	return ret;
+	return cf_sk->layer.dn->transmit(cf_sk->layer.dn, pkt);
 }
 
 /* Copied from af_unix:unix_dgram_sendmsg, and adapted to CAIF */

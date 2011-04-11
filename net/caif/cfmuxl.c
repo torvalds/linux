@@ -184,7 +184,6 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 
 static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 {
-	int ret;
 	struct cfmuxl *muxl = container_obj(layr);
 	u8 linkid;
 	struct cflayer *dn;
@@ -198,11 +197,7 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	info->hdr_len += 1;
 	linkid = info->channel_id;
 	cfpkt_add_head(pkt, &linkid, 1);
-	ret = dn->transmit(dn, pkt);
-	/* Remove MUX protocol header upon error. */
-	if (ret < 0)
-		cfpkt_extr_head(pkt, &linkid, 1);
-	return ret;
+	return dn->transmit(dn, pkt);
 }
 
 static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,

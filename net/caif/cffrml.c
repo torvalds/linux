@@ -120,7 +120,6 @@ static int cffrml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	int tmp;
 	u16 chks;
 	u16 len;
-	int ret;
 	struct cffrml *this = container_obj(layr);
 	if (this->dofcs) {
 		chks = cfpkt_iterate(pkt, cffrml_checksum, 0xffff);
@@ -137,12 +136,7 @@ static int cffrml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 		pr_err("Packet is erroneous!\n");
 		return -EPROTO;
 	}
-	ret = layr->dn->transmit(layr->dn, pkt);
-	if (ret < 0) {
-		/* Remove header on faulty packet. */
-		cfpkt_extr_head(pkt, &tmp, 2);
-	}
-	return ret;
+	return layr->dn->transmit(layr->dn, pkt);
 }
 
 static void cffrml_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,

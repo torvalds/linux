@@ -108,10 +108,5 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	 */
 	info->hdr_len = 4;
 	info->dev_info = &service->dev_info;
-	ret = layr->dn->transmit(layr->dn, pkt);
-	if (ret < 0) {
-		u32 tmp32;
-		cfpkt_extr_head(pkt, &tmp32, 4);
-	}
-	return ret;
+	return layr->dn->transmit(layr->dn, pkt);
 }
