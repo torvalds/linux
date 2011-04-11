@@ -2244,13 +2244,12 @@ static int verify_xena_quiescence(struct s2io_nic *sp)
 static void fix_mac_address(struct s2io_nic *sp)
 {
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	u64 val64;
 	int i = 0;
 
 	while (fix_mac[i] != END_SIGN) {
 		writeq(fix_mac[i++], &bar0->gpio_control);
 		udelay(10);
-		val64 = readq(&bar0->gpio_control);
+		(void) readq(&bar0->gpio_control);
 	}
 }
 
@@ -2727,7 +2726,6 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 	int j;
 	struct sk_buff *skb;
 	struct RxD_t *rxdp;
-	struct buffAdd *ba;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
 	struct mac_info *mac_control = &sp->mac_control;
@@ -2751,7 +2749,6 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 			memset(rxdp, 0, sizeof(struct RxD1));
 		} else if (sp->rxd_mode == RXD_MODE_3B) {
 			rxdp3 = (struct RxD3 *)rxdp;
-			ba = &mac_control->rings[ring_no].ba[blk][j];
 			pci_unmap_single(sp->pdev,
 					 (dma_addr_t)rxdp3->Buffer0_ptr,
 					 BUF0_LEN,

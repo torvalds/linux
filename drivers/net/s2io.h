@@ -1002,18 +1002,16 @@ static inline void writeq(u64 val, void __iomem *addr)
 #define LF	2
 static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 {
-	u32 ret;
-
 	if (order == LF) {
 		writel((u32) (val), addr);
-		ret = readl(addr);
+		(void) readl(addr);
 		writel((u32) (val >> 32), (addr + 4));
-		ret = readl(addr + 4);
+		(void) readl(addr + 4);
 	} else {
 		writel((u32) (val >> 32), (addr + 4));
-		ret = readl(addr + 4);
+		(void) readl(addr + 4);
 		writel((u32) (val), addr);
-		ret = readl(addr);
+		(void) readl(addr);
 	}
 }
 
