@@ -1741,7 +1741,7 @@ out:
 	return -ENOMEM;
 }
 
-STATIC void __exit
+STATIC void
 xfs_destroy_workqueues(void)
 {
 	destroy_workqueue(xfs_ail_wq);
