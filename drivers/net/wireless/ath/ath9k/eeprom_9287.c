@@ -858,34 +858,11 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
-	u16 antWrites[AR9287_ANT_16S];
 	u32 regChainOffset, regval;
 	u8 txRxAttenLocal;
-	int i, j, offset_num;
+	int i;
 
 	pModal = &eep->modalHeader;
-
-	antWrites[0] = (u16)((pModal->antCtrlCommon >> 28) & 0xF);
-	antWrites[1] = (u16)((pModal->antCtrlCommon >> 24) & 0xF);
-	antWrites[2] = (u16)((pModal->antCtrlCommon >> 20) & 0xF);
-	antWrites[3] = (u16)((pModal->antCtrlCommon >> 16) & 0xF);
-	antWrites[4] = (u16)((pModal->antCtrlCommon >> 12) & 0xF);
-	antWrites[5] = (u16)((pModal->antCtrlCommon >> 8) & 0xF);
-	antWrites[6] = (u16)((pModal->antCtrlCommon >> 4)  & 0xF);
-	antWrites[7] = (u16)(pModal->antCtrlCommon & 0xF);
-
-	offset_num = 8;
-
-	for (i = 0, j = offset_num; i < AR9287_MAX_CHAINS; i++) {
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 28) & 0xf);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 10) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 8) & 0x3);
-		antWrites[j++] = 0;
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 6) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 4) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 2) & 0x3);
-		antWrites[j++] = (u16)(pModal->antCtrlChain[i] & 0x3);
-	}
 
 	REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 
