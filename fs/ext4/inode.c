@@ -4429,8 +4429,8 @@ void ext4_truncate(struct inode *inode)
 	Indirect chain[4];
 	Indirect *partial;
 	__le32 nr = 0;
-	int n;
-	ext4_lblk_t last_block;
+	int n = 0;
+	ext4_lblk_t last_block, max_block;
 	unsigned blocksize = inode->i_sb->s_blocksize;
 
 	trace_ext4_truncate_enter(inode);
@@ -4455,14 +4455,18 @@ void ext4_truncate(struct inode *inode)
 
 	last_block = (inode->i_size + blocksize-1)
 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
+	max_block = (EXT4_SB(inode->i_sb)->s_bitmap_maxbytes + blocksize-1)
+					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
 
 	if (inode->i_size & (blocksize - 1))
 		if (ext4_block_truncate_page(handle, mapping, inode->i_size))
 			goto out_stop;
 
-	n = ext4_block_to_path(inode, last_block, offsets, NULL);
-	if (n == 0)
-		goto out_stop;	/* error */
+	if (last_block != max_block) {
+		n = ext4_block_to_path(inode, last_block, offsets, NULL);
+		if (n == 0)
+			goto out_stop;	/* error */
+	}
 
 	/*
 	 * OK.  This truncate is going to happen.  We add the inode to the
@@ -4493,7 +4497,13 @@ void ext4_truncate(struct inode *inode)
 	 */
 	ei->i_disksize = inode->i_size;
 
-	if (n == 1) {		/* direct blocks */
+	if (last_block == max_block) {
+		/*
+		 * It is unnecessary to free any data blocks if last_block is
+		 * equal to the indirect block limit.
+		 */
+		goto out_unlock;
+	} else if (n == 1) {		/* direct blocks */
 		ext4_free_data(handle, inode, NULL, i_data+offsets[0],
 			       i_data + EXT4_NDIR_BLOCKS);
 		goto do_indirects;
@@ -4553,6 +4563,7 @@ do_indirects:
 		;
 	}
 
+out_unlock:
 	up_write(&ei->i_data_sem);
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
