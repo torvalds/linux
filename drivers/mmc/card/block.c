@@ -939,6 +939,11 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	return ret;
 }
 
+static const struct mmc_fixup blk_fixups[] =
+{
+	END_FIXUP
+};
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -969,6 +974,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 		goto out;
 
 	mmc_set_drvdata(card, md);
+	mmc_fixup_device(card, blk_fixups);
+
 	if (mmc_add_disk(md))
 		goto out;
 
