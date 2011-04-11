@@ -95,7 +95,7 @@ int smt_enabled_at_boot = 1;
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
 #ifdef CONFIG_PPC64
-void __devinit smp_generic_kick_cpu(int nr)
+int __devinit smp_generic_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
@@ -106,6 +106,8 @@ void __devinit smp_generic_kick_cpu(int nr)
 	 */
 	paca[nr].cpu_start = 1;
 	smp_mb();
+
+	return 0;
 }
 #endif
 
@@ -434,7 +436,11 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	/* wake up cpus */
 	DBG("smp: kicking cpu %d\n", cpu);
-	smp_ops->kick_cpu(cpu);
+	rc = smp_ops->kick_cpu(cpu);
+	if (rc) {
+		pr_err("smp: failed starting cpu %d (rc %d)\n", cpu, rc);
+		return rc;
+	}
 
 	/*
 	 * wait to see if the cpu made a callin (is actually up).

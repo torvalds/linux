@@ -93,12 +93,11 @@ static void __devinit smp_beatic_setup_cpu(int cpu)
 	beatic_setup_cpu(cpu);
 }
 
-static void __devinit smp_celleb_kick_cpu(int nr)
+static int __devinit smp_celleb_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
-	if (!smp_startup_cpu(nr))
-		return;
+	return smp_startup_cpu(nr);
 }
 
 static int smp_celleb_cpu_bootable(unsigned int nr)

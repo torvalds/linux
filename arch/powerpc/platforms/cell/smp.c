@@ -137,12 +137,12 @@ static void __devinit smp_cell_setup_cpu(int cpu)
 	mtspr(SPRN_DABRX, DABRX_KERNEL | DABRX_USER);
 }
 
-static void __devinit smp_cell_kick_cpu(int nr)
+static int __devinit smp_cell_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
 	if (!smp_startup_cpu(nr))
-		return;
+		return -ENOENT;
 
 	/*
 	 * The processor is currently spinning, waiting for the
@@ -150,6 +150,8 @@ static void __devinit smp_cell_kick_cpu(int nr)
 	 * the processor will continue on to secondary_start
 	 */
 	paca[nr].cpu_start = 1;
+
+	return 0;
 }
 
 static int smp_cell_cpu_bootable(unsigned int nr)

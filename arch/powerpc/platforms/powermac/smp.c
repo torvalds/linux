@@ -329,7 +329,7 @@ static int __init smp_psurge_probe(void)
 	return ncpus;
 }
 
-static void __init smp_psurge_kick_cpu(int nr)
+static int __init smp_psurge_kick_cpu(int nr)
 {
 	unsigned long start = __pa(__secondary_start_pmac_0) + nr * 8;
 	unsigned long a, flags;
@@ -394,6 +394,8 @@ static void __init smp_psurge_kick_cpu(int nr)
 		psurge_set_ipi(1);
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_kick_cpu - done", 0x354);
+
+	return 0;
 }
 
 static struct irqaction psurge_irqaction = {
@@ -791,14 +793,14 @@ static int __init smp_core99_probe(void)
 	return ncpus;
 }
 
-static void __devinit smp_core99_kick_cpu(int nr)
+static int __devinit smp_core99_kick_cpu(int nr)
 {
 	unsigned int save_vector;
 	unsigned long target, flags;
 	unsigned int *vector = (unsigned int *)(PAGE_OFFSET+0x100);
 
 	if (nr < 0 || nr > 3)
-		return;
+		return -ENOENT;
 
 	if (ppc_md.progress)
 		ppc_md.progress("smp_core99_kick_cpu", 0x346);
@@ -830,6 +832,8 @@ static void __devinit smp_core99_kick_cpu(int nr)
 
 	local_irq_restore(flags);
 	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu done", 0x347);
+
+	return 0;
 }
 
 static void __devinit smp_core99_setup_cpu(int cpu_nr)

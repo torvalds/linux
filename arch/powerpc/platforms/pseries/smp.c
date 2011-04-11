@@ -152,12 +152,12 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 #endif
 }
 
-static void __devinit smp_pSeries_kick_cpu(int nr)
+static int __devinit smp_pSeries_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
 	if (!smp_startup_cpu(nr))
-		return;
+		return -ENOENT;
 
 	/*
 	 * The processor is currently spinning, waiting for the
@@ -179,6 +179,8 @@ static void __devinit smp_pSeries_kick_cpu(int nr)
 						"Ret= %ld\n", nr, rc);
 	}
 #endif
+
+	return 0;
 }
 
 static int smp_pSeries_cpu_bootable(unsigned int nr)

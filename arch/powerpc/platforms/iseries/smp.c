@@ -86,13 +86,13 @@ static int smp_iSeries_probe(void)
 	return cpumask_weight(cpu_possible_mask);
 }
 
-static void smp_iSeries_kick_cpu(int nr)
+static int smp_iSeries_kick_cpu(int nr)
 {
 	BUG_ON((nr < 0) || (nr >= NR_CPUS));
 
 	/* Verify that our partition has a processor nr */
 	if (lppaca_of(nr).dyn_proc_status >= 2)
-		return;
+		return -ENOENT;
 
 	/* The processor is currently spinning, waiting
 	 * for the cpu_start field to become non-zero
@@ -100,6 +100,8 @@ static void smp_iSeries_kick_cpu(int nr)
 	 * continue on to secondary_start in iSeries_head.S
 	 */
 	paca[nr].cpu_start = 1;
+
+	return 0;
 }
 
 static void __devinit smp_iSeries_setup_cpu(int nr)
