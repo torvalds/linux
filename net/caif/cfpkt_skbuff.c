@@ -42,22 +42,22 @@ struct cfpkt_priv_data {
 	bool erronous;
 };
 
-inline struct cfpkt_priv_data *cfpkt_priv(struct cfpkt *pkt)
+static inline struct cfpkt_priv_data *cfpkt_priv(struct cfpkt *pkt)
 {
 	return (struct cfpkt_priv_data *) pkt->skb.cb;
 }
 
-inline bool is_erronous(struct cfpkt *pkt)
+static inline bool is_erronous(struct cfpkt *pkt)
 {
 	return cfpkt_priv(pkt)->erronous;
 }
 
-inline struct sk_buff *pkt_to_skb(struct cfpkt *pkt)
+static inline struct sk_buff *pkt_to_skb(struct cfpkt *pkt)
 {
 	return &pkt->skb;
 }
 
-inline struct cfpkt *skb_to_pkt(struct sk_buff *skb)
+static inline struct cfpkt *skb_to_pkt(struct sk_buff *skb)
 {
 	return (struct cfpkt *) skb;
 }
@@ -317,17 +317,6 @@ int cfpkt_setlen(struct cfpkt *pkt, u16 len)
 }
 EXPORT_SYMBOL(cfpkt_setlen);
 
-struct cfpkt *cfpkt_create_uplink(const unsigned char *data, unsigned int len)
-{
-	struct cfpkt *pkt = cfpkt_create_pfx(len + PKT_POSTFIX, PKT_PREFIX);
-	if (!pkt)
-		return NULL;
-	if (unlikely(data != NULL))
-		cfpkt_add_body(pkt, data, len);
-	return pkt;
-}
-EXPORT_SYMBOL(cfpkt_create_uplink);
-
 struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
 			     struct cfpkt *addpkt,
 			     u16 expectlen)
@@ -408,169 +397,12 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 }
 EXPORT_SYMBOL(cfpkt_split);
 
-char *cfpkt_log_pkt(struct cfpkt *pkt, char *buf, int buflen)
-{
-	struct sk_buff *skb = pkt_to_skb(pkt);
-	char *p = buf;
-	int i;
-
-	/*
-	 * Sanity check buffer length, it needs to be at least as large as
-	 * the header info: ~=50+ bytes
-	 */
-	if (buflen < 50)
-		return NULL;
-
-	snprintf(buf, buflen, "%s: pkt:%p len:%ld(%ld+%ld) {%ld,%ld} data: [",
-		is_erronous(pkt) ? "ERRONOUS-SKB" :
-		 (skb->data_len != 0 ? "COMPLEX-SKB" : "SKB"),
-		 skb,
-		 (long) skb->len,
-		 (long) (skb_tail_pointer(skb) - skb->data),
-		 (long) skb->data_len,
-		 (long) (skb->data - skb->head),
-		 (long) (skb_tail_pointer(skb) - skb->head));
-	p = buf + strlen(buf);
-
-	for (i = 0; i < skb_tail_pointer(skb) - skb->data && i < 300; i++) {
-		if (p > buf + buflen - 10) {
-			sprintf(p, "...");
-			p = buf + strlen(buf);
-			break;
-		}
-		sprintf(p, "%02x,", skb->data[i]);
-		p = buf + strlen(buf);
-	}
-	sprintf(p, "]\n");
-	return buf;
-}
-EXPORT_SYMBOL(cfpkt_log_pkt);
-
-int cfpkt_raw_append(struct cfpkt *pkt, void **buf, unsigned int buflen)
-{
-	struct sk_buff *skb = pkt_to_skb(pkt);
-	struct sk_buff *lastskb;
-
-	caif_assert(buf != NULL);
-	if (unlikely(is_erronous(pkt)))
-		return -EPROTO;
-	/* Make sure SKB is writable */
-	if (unlikely(skb_cow_data(skb, 0, &lastskb) < 0)) {
-		PKT_ERROR(pkt, "skb_cow_data failed\n");
-		return -EPROTO;
-	}
-
-	if (unlikely(skb_linearize(skb) != 0)) {
-		PKT_ERROR(pkt, "linearize failed\n");
-		return -EPROTO;
-	}
-
-	if (unlikely(skb_tailroom(skb) < buflen)) {
-		PKT_ERROR(pkt, "buffer too short - failed\n");
-		return -EPROTO;
-	}
-
-	*buf = skb_put(skb, buflen);
-	return 1;
-}
-EXPORT_SYMBOL(cfpkt_raw_append);
-
-int cfpkt_raw_extract(struct cfpkt *pkt, void **buf, unsigned int buflen)
-{
-	struct sk_buff *skb = pkt_to_skb(pkt);
-
-	caif_assert(buf != NULL);
-	if (unlikely(is_erronous(pkt)))
-		return -EPROTO;
-
-	if (unlikely(buflen > skb->len)) {
-		PKT_ERROR(pkt, "buflen too large - failed\n");
-		return -EPROTO;
-	}
-
-	if (unlikely(buflen > skb_headlen(skb))) {
-		if (unlikely(skb_linearize(skb) != 0)) {
-			PKT_ERROR(pkt, "linearize failed\n");
-			return -EPROTO;
-		}
-	}
-
-	*buf = skb->data;
-	skb_pull(skb, buflen);
-
-	return 1;
-}
-EXPORT_SYMBOL(cfpkt_raw_extract);
-
-inline bool cfpkt_erroneous(struct cfpkt *pkt)
+bool cfpkt_erroneous(struct cfpkt *pkt)
 {
 	return cfpkt_priv(pkt)->erronous;
 }
 EXPORT_SYMBOL(cfpkt_erroneous);
 
-struct cfpktq *cfpktq_create(void)
-{
-	struct cfpktq *q = kmalloc(sizeof(struct cfpktq), GFP_ATOMIC);
-	if (!q)
-		return NULL;
-	skb_queue_head_init(&q->head);
-	atomic_set(&q->count, 0);
-	spin_lock_init(&q->lock);
-	return q;
-}
-EXPORT_SYMBOL(cfpktq_create);
-
-void cfpkt_queue(struct cfpktq *pktq, struct cfpkt *pkt, unsigned short prio)
-{
-	atomic_inc(&pktq->count);
-	spin_lock(&pktq->lock);
-	skb_queue_tail(&pktq->head, pkt_to_skb(pkt));
-	spin_unlock(&pktq->lock);
-
-}
-EXPORT_SYMBOL(cfpkt_queue);
-
-struct cfpkt *cfpkt_qpeek(struct cfpktq *pktq)
-{
-	struct cfpkt *tmp;
-	spin_lock(&pktq->lock);
-	tmp = skb_to_pkt(skb_peek(&pktq->head));
-	spin_unlock(&pktq->lock);
-	return tmp;
-}
-EXPORT_SYMBOL(cfpkt_qpeek);
-
-struct cfpkt *cfpkt_dequeue(struct cfpktq *pktq)
-{
-	struct cfpkt *pkt;
-	spin_lock(&pktq->lock);
-	pkt = skb_to_pkt(skb_dequeue(&pktq->head));
-	if (pkt) {
-		atomic_dec(&pktq->count);
-		caif_assert(atomic_read(&pktq->count) >= 0);
-	}
-	spin_unlock(&pktq->lock);
-	return pkt;
-}
-EXPORT_SYMBOL(cfpkt_dequeue);
-
-int cfpkt_qcount(struct cfpktq *pktq)
-{
-	return atomic_read(&pktq->count);
-}
-EXPORT_SYMBOL(cfpkt_qcount);
-
-struct cfpkt *cfpkt_clone_release(struct cfpkt *pkt)
-{
-	struct cfpkt *clone;
-	clone  = skb_to_pkt(skb_clone(pkt_to_skb(pkt), GFP_ATOMIC));
-	/* Free original packet. */
-	cfpkt_destroy(pkt);
-	if (!clone)
-		return NULL;
-	return clone;
-}
-EXPORT_SYMBOL(cfpkt_clone_release);
 
 struct caif_payload_info *cfpkt_info(struct cfpkt *pkt)
 {

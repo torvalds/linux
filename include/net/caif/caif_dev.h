@@ -74,19 +74,8 @@ int caif_connect_client(struct caif_connect_request *conn_req,
 int caif_disconnect_client(struct cflayer *client_layer);
 
 /**
- * caif_release_client - Release adaptation layer reference to client.
- *
- * @client_layer: Client layer.
- *
- * Releases a client/adaptation layer use of the caif stack.
- * This function must be used after caif_disconnect_client to
- * decrease the reference count of the service layer.
- */
-void caif_release_client(struct cflayer *client_layer);
-
-/**
- * connect_req_to_link_param - Translate configuration parameters
- *				from socket format to internal format.
+ * caif_connect_req_to_link_param - Translate configuration parameters
+ *				    from socket format to internal format.
  * @cnfg:	Pointer to configuration handler
  * @con_req:	Configuration parameters supplied in function
  *		caif_connect_client
@@ -94,14 +83,8 @@ void caif_release_client(struct cflayer *client_layer);
  *			 setting up channels.
  *
  */
-int connect_req_to_link_param(struct cfcnfg *cnfg,
-				struct caif_connect_request *con_req,
-				struct cfctrl_link_param *channel_setup_param);
-
-/**
- * get_caif_conf() - Get the configuration handler.
- */
-struct cfcnfg *get_caif_conf(void);
-
+int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
+				   struct caif_connect_request *con_req,
+				   struct cfctrl_link_param *setup_param);
 
 #endif /* CAIF_DEV_H_ */

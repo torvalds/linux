@@ -151,12 +151,7 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 	return -EINVAL;
 }
 
-void cfservl_destroy(struct cflayer *layer)
-{
-	kfree(layer);
-}
-
-void cfsrvl_release(struct kref *kref)
+static void cfsrvl_release(struct kref *kref)
 {
 	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
 	kfree(service);

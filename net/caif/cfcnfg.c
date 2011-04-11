@@ -253,7 +253,7 @@ static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id)
 {
 }
 
-int protohead[CFCTRL_SRV_MASK] = {
+static const int protohead[CFCTRL_SRV_MASK] = {
 	[CFCTRL_SRV_VEI] = 4,
 	[CFCTRL_SRV_DATAGRAM] = 7,
 	[CFCTRL_SRV_UTIL] = 4,

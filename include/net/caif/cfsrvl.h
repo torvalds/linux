@@ -22,7 +22,6 @@ struct cfsrvl {
 	struct kref ref;
 };
 
-void cfsrvl_release(struct kref *kref);
 struct cflayer *cfvei_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfdgml_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfutill_create(u8 linkid, struct dev_info *dev_info);
@@ -31,7 +30,7 @@ struct cflayer *cfrfml_create(u8 linkid, struct dev_info *dev_info,
 				int mtu_size);
 struct cflayer *cfdbgl_create(u8 linkid, struct dev_info *dev_info);
 bool cfsrvl_phyid_match(struct cflayer *layer, int phyid);
-void cfservl_destroy(struct cflayer *layer);
+
 void cfsrvl_init(struct cfsrvl *service,
 			u8 channel_id,
 			struct dev_info *dev_info,

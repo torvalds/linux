@@ -58,7 +58,8 @@ struct cflayer *cfctrl_create(void)
 	return &this->serv.layer;
 }
 
-static bool param_eq(struct cfctrl_link_param *p1, struct cfctrl_link_param *p2)
+static bool param_eq(const struct cfctrl_link_param *p1,
+			const struct cfctrl_link_param *p2)
 {
 	bool eq =
 	    p1->linktype == p2->linktype &&
@@ -100,8 +101,8 @@ static bool param_eq(struct cfctrl_link_param *p1, struct cfctrl_link_param *p2)
 	return false;
 }
 
-bool cfctrl_req_eq(struct cfctrl_request_info *r1,
-		   struct cfctrl_request_info *r2)
+static bool cfctrl_req_eq(const struct cfctrl_request_info *r1,
+			  const struct cfctrl_request_info *r2)
 {
 	if (r1->cmd != r2->cmd)
 		return false;
@@ -112,7 +113,7 @@ bool cfctrl_req_eq(struct cfctrl_request_info *r1,
 }
 
 /* Insert request at the end */
-void cfctrl_insert_req(struct cfctrl *ctrl,
+static void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req)
 {
 	spin_lock(&ctrl->info_list_lock);
@@ -123,8 +124,8 @@ void cfctrl_insert_req(struct cfctrl *ctrl,
 }
 
 /* Compare and remove request */
-struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
-					      struct cfctrl_request_info *req)
+static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
+						struct cfctrl_request_info *req)
 {
 	struct cfctrl_request_info *p, *tmp, *first;
 
@@ -152,16 +153,6 @@ struct cfctrl_rsp *cfctrl_get_respfuncs(struct cflayer *layer)
 {
 	struct cfctrl *this = container_obj(layer);
 	return &this->res;
-}
-
-void cfctrl_set_dnlayer(struct cflayer *this, struct cflayer *dn)
-{
-	this->dn = dn;
-}
-
-void cfctrl_set_uplayer(struct cflayer *this, struct cflayer *up)
-{
-	this->up = up;
 }
 
 static void init_info(struct caif_payload_info *info, struct cfctrl *cfctrl)
@@ -303,58 +294,6 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	}
 	return ret;
 }
-
-void cfctrl_sleep_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warn("Out of memory\n");
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_SLEEP);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
-void cfctrl_wake_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warn("Out of memory\n");
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_WAKE);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
-void cfctrl_getstartreason_req(struct cflayer *layer)
-{
-	int ret;
-	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warn("Out of memory\n");
-		return;
-	}
-	cfpkt_addbdy(pkt, CFCTRL_CMD_START_REASON);
-	init_info(cfpkt_info(pkt), cfctrl);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0)
-		cfpkt_destroy(pkt);
-}
-
 
 void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
 {

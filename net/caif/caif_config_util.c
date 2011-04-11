@@ -10,9 +10,9 @@
 #include <net/caif/cfcnfg.h>
 #include <net/caif/caif_dev.h>
 
-int connect_req_to_link_param(struct cfcnfg *cnfg,
-				struct caif_connect_request *s,
-				struct cfctrl_link_param *l)
+int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
+				   struct caif_connect_request *s,
+				   struct cfctrl_link_param *l)
 {
 	struct dev_info *dev_info;
 	enum cfcnfg_phy_preference pref;
