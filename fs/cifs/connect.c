@@ -2842,7 +2842,7 @@ expand_dfs_referral(int xid, struct cifsSesInfo *pSesInfo,
 
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
-		char *mount_data_global, const char *devname)
+		const char *devname)
 {
 	int rc;
 	int xid;
@@ -2851,13 +2851,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	struct cifsTconInfo *tcon;
 	struct TCP_Server_Info *srvTcp;
 	char   *full_path;
-	char *mount_data = mount_data_global;
 	struct tcon_link *tlink;
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	int referral_walks_count = 0;
 try_mount_again:
-	mount_data = cifs_sb->mountdata;
-
 	/* cleanup activities if we're chasing a referral */
 	if (referral_walks_count) {
 		if (tcon)
@@ -2884,7 +2881,8 @@ try_mount_again:
 		goto out;
 	}
 
-	if (cifs_parse_mount_options(mount_data, devname, volume_info)) {
+	if (cifs_parse_mount_options(cifs_sb->mountdata, devname,
+				     volume_info)) {
 		rc = -EINVAL;
 		goto out;
 	}

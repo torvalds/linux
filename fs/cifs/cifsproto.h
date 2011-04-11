@@ -148,7 +148,7 @@ extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *);
 
-extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
+extern int cifs_mount(struct super_block *, struct cifs_sb_info *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);

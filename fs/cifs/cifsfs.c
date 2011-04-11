@@ -128,7 +128,6 @@ cifs_read_super(struct super_block *sb, void *data,
 	}
 	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
 
-#ifdef CONFIG_CIFS_DFS_UPCALL
 	/*
 	 * Copy mount params to sb for use in submounts. Better to do
 	 * the copy here and deal with the error before cleanup gets
@@ -143,9 +142,8 @@ cifs_read_super(struct super_block *sb, void *data,
 			return -ENOMEM;
 		}
 	}
-#endif
 
-	rc = cifs_mount(sb, cifs_sb, data, devname);
+	rc = cifs_mount(sb, cifs_sb, devname);
 
 	if (rc) {
 		if (!silent)
@@ -197,12 +195,10 @@ out_no_root:
 
 out_mount_failed:
 	if (cifs_sb) {
-#ifdef CONFIG_CIFS_DFS_UPCALL
 		if (cifs_sb->mountdata) {
 			kfree(cifs_sb->mountdata);
 			cifs_sb->mountdata = NULL;
 		}
-#endif
 		unload_nls(cifs_sb->local_nls);
 		bdi_destroy(&cifs_sb->bdi);
 		kfree(cifs_sb);
@@ -226,12 +222,10 @@ cifs_put_super(struct super_block *sb)
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, "cifs_umount failed with return code %d", rc);
-#ifdef CONFIG_CIFS_DFS_UPCALL
 	if (cifs_sb->mountdata) {
 		kfree(cifs_sb->mountdata);
 		cifs_sb->mountdata = NULL;
 	}
-#endif
 
 	unload_nls(cifs_sb->local_nls);
 	bdi_destroy(&cifs_sb->bdi);
