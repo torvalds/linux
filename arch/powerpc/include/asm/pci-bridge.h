@@ -169,11 +169,6 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 	return bus->sysdata;
 }
 
-static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
-{
-	return bus->dev.of_node;
-}
-
 #ifndef CONFIG_PPC64
 
 extern int pci_device_from_OF_node(struct device_node *node,

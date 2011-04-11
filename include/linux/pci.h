@@ -1605,6 +1605,11 @@ static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 	return pdev ? pdev->dev.of_node : NULL;
 }
 
+static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
+{
+	return bus ? bus->dev.of_node : NULL;
+}
+
 #else /* CONFIG_OF */
 static inline void pci_set_of_node(struct pci_dev *dev) { }
 static inline void pci_release_of_node(struct pci_dev *dev) { }
