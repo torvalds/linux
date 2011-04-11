@@ -309,6 +309,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
     /* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
       if devices havn't work at the same time.*/
     status = i2c_check_addr_ex(adap, client->addr);
+    if (status != 0)
+        dev_err(&adap->dev, "%d i2c clients have been registered at 0x%02x",
+		   status, client->addr);   
     #endif
 
 	client->dev.parent = &client->adapter->dev;
@@ -325,7 +328,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
     	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
     		     client->addr);
     else 
-        dev_set_name(&client->dev, "%d-%02x-%01x", i2c_adapter_id(adap),
+        dev_set_name(&client->dev, "%d-%04x-%01x", i2c_adapter_id(adap),
     		     client->addr,status);
     #endif
     
