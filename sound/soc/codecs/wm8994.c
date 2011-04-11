@@ -3420,9 +3420,9 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 	
 	isWM8994SetChannel = true;
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
-	if(pdata ->a22_ldo_enable == 1)
+	if(pdata ->PA_control == 1)
 	{
-		DBG("wm8994 suspend disable a22_ldo\n");
+		DBG("wm8994 suspend disable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
 		gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
 		gpio_free(RK29_PIN6_PD3);
@@ -3476,9 +3476,9 @@ static int wm8994_resume(struct platform_device *pdev)
 
 	isWM8994SetChannel = false;
 	
-	if(pdata ->a22_ldo_enable == 1)
+	if(pdata ->PA_control == 1)
 	{
-		DBG("wm8994_resume enable a22_ldo\n");
+		DBG("wm8994_resume enable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
 		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
 		gpio_free(RK29_PIN6_PD3);
@@ -4030,9 +4030,9 @@ static int wm8994_probe(struct platform_device *pdev)
 	
 	wm8994 = codec->private_data;
 	pdata = wm8994->pdata;
-	if(pdata->a22_ldo_enable == 1)
+	if(pdata->PA_control == 1)
 	{
-		DBG("enable a22_ldo\n");
+		DBG("enable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
 		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
 		gpio_free(RK29_PIN6_PD3);

@@ -1381,7 +1381,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.jd_scthr = 0,
 	.jd_thr = 0,
 
-	.a22_ldo_enable =0,
+	.PA_control =0,
 };
 //#endif 
 

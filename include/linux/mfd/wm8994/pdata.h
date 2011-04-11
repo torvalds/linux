@@ -93,8 +93,8 @@ struct wm8994_pdata {
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
 
-		//rk29-a22功放ldo  =1使能=0不使能
-		unsigned int a22_ldo_enable:1;
+		//If an external amplifier speakers wm8994		enable=1 disable=0
+		unsigned int PA_control:1;
 };
 
 #endif

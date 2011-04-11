@@ -123,30 +123,30 @@ static void headsetobserve_work(struct work_struct *work)
 	{
 		case HEADSET_IN_HIGH:
 			if(level > 0)
-			{//插入--高电平
+			{//in--High level
 				DBG("--- HEADSET_IN_HIGH headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
-				headset_change_irqtype(IRQF_TRIGGER_FALLING);//设置为下降沿
+				headset_change_irqtype(IRQF_TRIGGER_FALLING);//
 			}
 			else if(level == 0)
-			{//拔出--低电平
+			{//out--Low level
 				DBG("---HEADSET_IN_HIGH headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
-				headset_change_irqtype(IRQF_TRIGGER_RISING);//设置为上升沿
+				headset_change_irqtype(IRQF_TRIGGER_RISING);//
 			}
 			break;
 		case HEADSET_IN_LOW:
 			if(level == 0)
-			{//插入--低电平
+			{//in--High level
 				DBG("---HEADSET_IN_LOW headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
-				headset_change_irqtype(IRQF_TRIGGER_RISING);//设置为上升沿
+				headset_change_irqtype(IRQF_TRIGGER_RISING);//
 			}
 			else if(level > 0)
-			{//拔出--高电平
+			{//out--High level
 				DBG("---HEADSET_IN_LOW headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
-				headset_change_irqtype(IRQF_TRIGGER_FALLING);//设置为下降沿
+				headset_change_irqtype(IRQF_TRIGGER_FALLING);//
 			}
 			break;			
 		default:
@@ -206,7 +206,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		DBG("headsetobserve: request gpio_request failed\n");
 		return ret;
 	}
-	gpio_pull_updown(prk2818_headset_info->gpio, GPIONormal);//不上拉也不下拉
+	gpio_pull_updown(prk2818_headset_info->gpio, GPIONormal);
 	gpio_direction_input(prk2818_headset_info->gpio);
 	prk2818_headset_info->irq = gpio_to_irq(prk2818_headset_info->gpio);
 
