@@ -242,27 +242,44 @@ static void ext4_put_nojournal(handle_t *handle)
  * journal_end calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
  * appropriate.
+ *
+ * To avoid j_barrier hold in userspace when a user calls freeze(),
+ * ext4 prevents a new handle from being started by s_frozen, which
+ * is in an upper layer.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
 	journal_t *journal;
+	handle_t  *handle;
 
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
-	vfs_check_frozen(sb, SB_FREEZE_TRANS);
-	/* Special case here: if the journal has aborted behind our
-	 * backs (eg. EIO in the commit thread), then we still need to
-	 * take the FS itself readonly cleanly. */
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		if (is_journal_aborted(journal)) {
-			ext4_abort(sb, "Detected aborted journal");
-			return ERR_PTR(-EROFS);
-		}
-		return jbd2_journal_start(journal, nblocks);
+	handle = ext4_journal_current_handle();
+
+	/*
+	 * If a handle has been started, it should be allowed to
+	 * finish, otherwise deadlock could happen between freeze
+	 * and others(e.g. truncate) due to the restart of the
+	 * journal handle if the filesystem is forzen and active
+	 * handles are not stopped.
+	 */
+	if (!handle)
+		vfs_check_frozen(sb, SB_FREEZE_TRANS);
+
+	if (!journal)
+		return ext4_get_nojournal();
+	/*
+	 * Special case here: if the journal has aborted behind our
+	 * backs (eg. EIO in the commit thread), then we still need to
+	 * take the FS itself readonly cleanly.
+	 */
+	if (is_journal_aborted(journal)) {
+		ext4_abort(sb, "Detected aborted journal");
+		return ERR_PTR(-EROFS);
 	}
-	return ext4_get_nojournal();
+	return jbd2_journal_start(journal, nblocks);
 }
 
 /*
@@ -4146,6 +4163,11 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 /*
  * LVM calls this function before a (read-only) snapshot is created.  This
  * gives us a chance to flush the journal completely and mark the fs clean.
+ *
+ * Note that only this function cannot bring a filesystem to be in a clean
+ * state independently, because ext4 prevents a new handle from being started
+ * by @sb->s_frozen, which stays in an upper layer.  It thus needs help from
+ * the upper layer.
  */
 static int ext4_freeze(struct super_block *sb)
 {
