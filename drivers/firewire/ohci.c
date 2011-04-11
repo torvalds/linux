@@ -2066,8 +2066,6 @@ static int ohci_enable(struct fw_card *card,
 
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->self_id_bus);
 	reg_write(ohci, OHCI1394_LinkControlSet,
-		  OHCI1394_LinkControl_rcvSelfID |
-		  OHCI1394_LinkControl_rcvPhyPkt |
 		  OHCI1394_LinkControl_cycleTimerEnable |
 		  OHCI1394_LinkControl_cycleMaster);
 
@@ -2093,9 +2091,6 @@ static int ohci_enable(struct fw_card *card,
 	ohci->pri_req_max = reg_read(ohci, OHCI1394_FairnessControl) & 0x3f;
 	reg_write(ohci, OHCI1394_FairnessControl, 0);
 	card->priority_budget_implemented = ohci->pri_req_max != 0;
-
-	ar_context_run(&ohci->ar_request_ctx);
-	ar_context_run(&ohci->ar_response_ctx);
 
 	reg_write(ohci, OHCI1394_PhyUpperBound, 0x00010000);
 	reg_write(ohci, OHCI1394_IntEventClear, ~0);
@@ -2186,7 +2181,13 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_linkEnable |
 		  OHCI1394_HCControl_BIBimageValid);
-	flush_writes(ohci);
+
+	reg_write(ohci, OHCI1394_LinkControlSet,
+		  OHCI1394_LinkControl_rcvSelfID |
+		  OHCI1394_LinkControl_rcvPhyPkt);
+
+	ar_context_run(&ohci->ar_request_ctx);
+	ar_context_run(&ohci->ar_response_ctx); /* also flushes writes */
 
 	/* We are ready to go, reset bus to finish initialization. */
 	fw_schedule_bus_reset(&ohci->card, false, true);
