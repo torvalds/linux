@@ -55,6 +55,7 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 				be->func->clear(be);
 				return -EFAULT;
 			}
+			nvbe->ttm_alloced[nvbe->nr_pages] = false;
 		}
 
 		nvbe->nr_pages++;
