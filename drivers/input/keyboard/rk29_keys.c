@@ -59,6 +59,17 @@ struct rk29_keys_drvdata {
 
 static struct input_dev *input_dev;
 
+void rk29_send_power_key(void)
+{
+	if (!input_dev)
+		return;
+
+	input_report_key(input_dev, KEY_POWER, 1);
+	input_sync(input_dev);
+	input_report_key(input_dev, KEY_POWER, 0);
+	input_sync(input_dev);
+}
+
 void rk28_send_wakeup_key(void)
 {
 	if (!input_dev)

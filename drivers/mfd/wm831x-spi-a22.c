@@ -532,7 +532,7 @@ static int wm831x_init(struct wm831x *wm831x)
 	
 }
 
-extern void rk28_send_wakeup_key(void);
+extern void rk29_send_power_key(void);
 static int gNumInt = 0;
 
 static void wm831x_irq_worker(struct work_struct *work)
@@ -542,7 +542,7 @@ static void wm831x_irq_worker(struct work_struct *work)
 
 	if(++ gNumInt >= 2)
 	{
-		rk28_send_wakeup_key();
+		rk29_send_power_key();
 		//wake_lock_timeout(&wm831x->irq_wake,msecs_to_jiffies(2000));
 		gNumInt = 0;
 	}
