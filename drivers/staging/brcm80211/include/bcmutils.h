@@ -251,7 +251,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
  * update osl files with os specific errorcode map
 */
 
-#define BCME_OK				0	/* Success */
 #define BCME_ERROR			-1	/* Error generic */
 #define BCME_BADARG			-2	/* Bad Argument */
 #define BCME_NOTUP			-4	/* Not up */

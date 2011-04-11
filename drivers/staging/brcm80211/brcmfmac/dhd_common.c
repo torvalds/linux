@@ -902,7 +902,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	wl_show_host_event(event, event_data);
 #endif				/* SHOW_EVENTS */
 
-	return BCME_OK;
+	return 0;
 }
 
 /* Convert user's input in hex pattern to byte-size mask */

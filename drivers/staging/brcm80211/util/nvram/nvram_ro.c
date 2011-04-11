@@ -98,7 +98,7 @@ int nvram_append(void *si, char *varlst, uint varsz)
 	new->next = vars;
 	vars = new;
 
-	return BCME_OK;
+	return 0;
 }
 
 void nvram_exit(void *si)

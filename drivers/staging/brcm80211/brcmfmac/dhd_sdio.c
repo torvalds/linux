@@ -558,7 +558,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			DHD_INFO(("CLKCTL: set PENDING\n"));
 			bus->clkstate = CLK_PENDING;
 
-			return BCME_OK;
+			return 0;
 		} else if (bus->clkstate == CLK_PENDING) {
 			/* Cancel CA-only interrupt filter */
 			devctl =
@@ -634,7 +634,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			return BCME_ERROR;
 		}
 	}
-	return BCME_OK;
+	return 0;
 }
 
 /* Change idle/active SD state */
@@ -721,7 +721,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 		bus->clkstate = CLK_NONE;
 	}
 
-	return BCME_OK;
+	return 0;
 }
 
 /* Transition SD and backplane clock readiness */
@@ -739,7 +739,7 @@ static int dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 			dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
 			bus->activity = true;
 		}
-		return BCME_OK;
+		return 0;
 	}
 
 	switch (target) {
@@ -778,7 +778,7 @@ static int dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 	DHD_INFO(("dhdsdio_clkctl: %d -> %d\n", oldstate, bus->clkstate));
 #endif				/* DHD_DEBUG */
 
-	return BCME_OK;
+	return 0;
 }
 
 int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
@@ -793,7 +793,7 @@ int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 
 	/* Done if we're already in the requested state */
 	if (sleep == bus->sleeping)
-		return BCME_OK;
+		return 0;
 
 	/* Going to sleep: set the alarm and turn off the lights... */
 	if (sleep) {
@@ -865,7 +865,7 @@ int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 		}
 	}
 
-	return BCME_OK;
+	return 0;
 }
 
 #if defined(OOB_INTR_ONLY)
@@ -1115,7 +1115,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
 			ret = BCME_NORESOURCE;
 		} else {
-			ret = BCME_OK;
+			ret = 0;
 		}
 		dhd_os_sdunlock_txq(bus->dhd);
 
@@ -1805,7 +1805,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 		return BCME_ERROR;
 	}
 
-	return BCME_OK;
+	return 0;
 }
 
 static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
@@ -2020,7 +2020,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 	/* Skip reading the console buffer if the index pointer
 	 has not moved */
 	if (idx == c->last)
-		return BCME_OK;
+		return 0;
 
 	/* Read the console buffer */
 	addr = le32_to_cpu(c->log.buf);
@@ -2058,13 +2058,13 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 	}
 break2:
 
-	return BCME_OK;
+	return 0;
 }
 #endif				/* DHD_DEBUG */
 
 int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 {
-	int bcmerror = BCME_OK;
+	int bcmerror = 0;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -2740,7 +2740,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		if (set && strcmp(name, "sd_divisor") == 0) {
 			if (bcmsdh_iovar_op(bus->sdh, "sd_divisor", NULL, 0,
 					    &bus->sd_divisor, sizeof(s32),
-					    false) != BCME_OK) {
+					    false) != 0) {
 				bus->sd_divisor = -1;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
 					   name));
@@ -2753,7 +2753,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		if (set && strcmp(name, "sd_mode") == 0) {
 			if (bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
 					    &bus->sd_mode, sizeof(s32),
-					    false) != BCME_OK) {
+					    false) != 0) {
 				bus->sd_mode = -1;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
 					   name));
@@ -2768,7 +2768,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 			if (bcmsdh_iovar_op
 			    (bus->sdh, "sd_blocksize", &fnum, sizeof(s32),
 			     &bus->blocksize, sizeof(s32),
-			     false) != BCME_OK) {
+			     false) != 0) {
 				bus->blocksize = 0;
 				DHD_ERROR(("%s: fail on %s get\n", __func__,
 					   "sd_blocksize"));
@@ -5426,7 +5426,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 	/* Query the SD clock speed */
 	if (bcmsdh_iovar_op(sdh, "sd_divisor", NULL, 0,
 			    &bus->sd_divisor, sizeof(s32),
-			    false) != BCME_OK) {
+			    false) != 0) {
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_divisor"));
 		bus->sd_divisor = -1;
 	} else {
@@ -5436,7 +5436,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 
 	/* Query the SD bus mode */
 	if (bcmsdh_iovar_op(sdh, "sd_mode", NULL, 0,
-			    &bus->sd_mode, sizeof(s32), false) != BCME_OK) {
+			    &bus->sd_mode, sizeof(s32), false) != 0) {
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_mode"));
 		bus->sd_mode = -1;
 	} else {
@@ -5447,7 +5447,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 	/* Query the F2 block size, set roundup accordingly */
 	fnum = 2;
 	if (bcmsdh_iovar_op(sdh, "sd_blocksize", &fnum, sizeof(s32),
-			    &bus->blocksize, sizeof(s32), false) != BCME_OK) {
+			    &bus->blocksize, sizeof(s32), false) != 0) {
 		bus->blocksize = 0;
 		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_blocksize"));
 	} else {
@@ -5460,7 +5460,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 		 default to use if supported */
 	if (bcmsdh_iovar_op(sdh, "sd_rxchain", NULL, 0,
 			    &bus->sd_rxchain, sizeof(s32),
-			    false) != BCME_OK) {
+			    false) != 0) {
 		bus->sd_rxchain = false;
 	} else {
 		DHD_INFO(("%s: bus module (through bcmsdh API) %s chaining\n",

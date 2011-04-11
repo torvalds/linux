@@ -14892,10 +14892,10 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 				}
 
 				if (wlc_phy_cal_txiqlo_nphy
-				    (pi, target_gain, true, false) == BCME_OK) {
+				    (pi, target_gain, true, false) == 0) {
 					if (wlc_phy_cal_rxiq_nphy
 					    (pi, target_gain, 2,
-					     false) == BCME_OK) {
+					     false) == 0) {
 						wlc_phy_savecal_nphy(pi);
 
 					}
@@ -22372,7 +22372,7 @@ wlc_phy_tx_tone_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 	wlc_phy_runsamples_nphy(pi, num_samps, loops, wait, iqmode,
 				dac_test_mode, modify_bbmult);
 
-	return BCME_OK;
+	return 0;
 }
 
 static void
@@ -23876,7 +23876,7 @@ void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 
 			target_gain = pi->nphy_cal_target_gain;
 		}
-		if (BCME_OK ==
+		if (0 ==
 		    wlc_phy_cal_txiqlo_nphy(pi, target_gain, fullcal, mphase)) {
 			if (PHY_IPA(pi))
 				wlc_phy_a4(pi, true);
@@ -23888,7 +23888,7 @@ void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 			wlc_phyreg_enter((wlc_phy_t *) pi);
 
-			if (BCME_OK == wlc_phy_cal_rxiq_nphy(pi, target_gain,
+			if (0 == wlc_phy_cal_rxiq_nphy(pi, target_gain,
 							     (pi->
 							      first_cal_after_assoc
 							      || (pi->
@@ -23941,7 +23941,7 @@ void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 
 			if (wlc_phy_cal_txiqlo_nphy
 			    (pi, pi->nphy_cal_target_gain, fullcal,
-			     true) != BCME_OK) {
+			     true) != 0) {
 
 				wlc_phy_cal_perical_mphase_reset(pi);
 				break;
@@ -23973,7 +23973,7 @@ void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 						  (pi->first_cal_after_assoc ||
 						   (pi->cal_type_override ==
 						    PHY_PERICAL_FULL)) ? 2 : 0,
-						  false) == BCME_OK) {
+						  false) == 0) {
 				wlc_phy_savecal_nphy(pi);
 			}
 
@@ -24076,7 +24076,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 	void *tbl_ptr;
 	bool ladder_updated[2];
 	u8 mphase_cal_lastphase = 0;
-	int bcmerror = BCME_OK;
+	int bcmerror = 0;
 	bool phyhang_avoid_state = false;
 
 	u16 tbl_tx_iqlo_cal_loft_ladder_20[] = {
@@ -24202,13 +24202,13 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 
 	if (pi->mphase_cal_phase_id > MPHASE_CAL_STATE_TXPHASE0) {
 		wlc_phy_runsamples_nphy(pi, phy_bw * 8, 0xffff, 0, 1, 0, false);
-		bcmerror = BCME_OK;
+		bcmerror = 0;
 	} else {
 		bcmerror =
 		    wlc_phy_tx_tone_nphy(pi, tone_freq, max_val, 1, 0, false);
 	}
 
-	if (bcmerror == BCME_OK) {
+	if (bcmerror == 0) {
 
 		if (pi->mphase_cal_phase_id > MPHASE_CAL_STATE_TXPHASE0) {
 			tbl_ptr = pi->mphase_txcal_bestcoeffs;
@@ -24529,7 +24529,7 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 	u32 ii = 0, qq = 0;
 	s16 iq_nbits, qq_nbits, brsh, arsh;
 	s32 a, b, temp;
-	int bcmerror = BCME_OK;
+	int bcmerror = 0;
 	uint cal_retry = 0;
 
 	if (core_mask == 0x0)
@@ -24628,7 +24628,7 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 		}
 	}
 
-	if (bcmerror != BCME_OK) {
+	if (bcmerror != 0) {
 		printk("%s: Failed, cnt = %d\n", __func__, cal_retry);
 
 		if (cal_retry < CAL_RETRY_CNT) {
@@ -25873,7 +25873,7 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 
 	wlc_phy_stay_in_carriersearch_nphy(pi, false);
 
-	return BCME_OK;
+	return 0;
 }
 
 static int
@@ -25898,7 +25898,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 	u16 cal_gain[2];
 	nphy_iqcal_params_t cal_params[2];
 	u8 phy_bw;
-	int bcmerror = BCME_OK;
+	int bcmerror = 0;
 	bool first_playtone = true;
 
 	wlc_phy_stay_in_carriersearch_nphy(pi, true);
@@ -26048,7 +26048,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 							0, 0, 0, true);
 			}
 
-			if (bcmerror == BCME_OK) {
+			if (bcmerror == 0) {
 				if (gain_pass < 3) {
 
 					wlc_phy_rx_iq_est_nphy(pi, est,
@@ -26071,7 +26071,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 				wlc_phy_stopplayback_nphy(pi);
 			}
 
-			if (bcmerror != BCME_OK)
+			if (bcmerror != 0)
 				break;
 		}
 
@@ -26087,7 +26087,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 			      0xa7, orig_AfectrlCore);
 		write_phy_reg(pi, 0xa2, orig_RfseqCoreActv);
 
-		if (bcmerror != BCME_OK)
+		if (bcmerror != 0)
 			break;
 	}
 

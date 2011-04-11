@@ -4040,7 +4040,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 						    ~WSEC_PRIMARY_KEY;
 					key->flags |= WSEC_PRIMARY_KEY;
 					bsscfg->wsec_index = i;
-					bcmerror = BCME_OK;
+					bcmerror = 0;
 				}
 			}
 			break;
@@ -4472,7 +4472,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 
 			err = wlc_phy_txpower_get(wlc->band->pi, &qdbm,
 				&override);
-			if (err != BCME_OK)
+			if (err != 0)
 				return err;
 
 			/* Return qdbm units */
@@ -7831,7 +7831,7 @@ int wlc_get_revision_info(struct wlc_info *wlc, void *buf, uint len)
 		rinfo->chippkg = wlc->pub->sih->chippkg;
 	}
 
-	return BCME_OK;
+	return 0;
 }
 
 void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs)
@@ -8027,7 +8027,7 @@ wlc_duty_cycle_set(struct wlc_info *wlc, int duty_cycle, bool isOFDM,
 	else
 		wlc->tx_duty_cycle_cck = (u16) duty_cycle;
 
-	return BCME_OK;
+	return 0;
 }
 
 /* Read a single u16 from shared memory.

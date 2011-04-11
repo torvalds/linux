@@ -225,7 +225,7 @@ static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 core_mask)
 		}
 	}
 
-	return BCME_OK;
+	return 0;
 }
 
 static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val)
@@ -241,7 +241,7 @@ static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val)
 		    wlc->stf->txchain : txcore_default[i];
 		wlc_stf_txcore_set(wlc, (u8) i, core_mask);
 	}
-	return BCME_OK;
+	return 0;
 }
 
 int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
@@ -251,7 +251,7 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 	uint i;
 
 	if (wlc->stf->txchain == txchain)
-		return BCME_OK;
+		return 0;
 
 	if ((txchain & ~wlc->stf->hw_txchain)
 	    || !(txchain & wlc->stf->hw_txchain))
@@ -303,7 +303,7 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++)
 		wlc_stf_txcore_set(wlc, (u8) i, txcore_default[i]);
 
-	return BCME_OK;
+	return 0;
 }
 
 /* update wlc->stf->ss_opmode which represents the operational stf_ss mode we're using */
@@ -371,7 +371,7 @@ void wlc_stf_detach(struct wlc_info *wlc)
 
 int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
 {
-	int bcmerror = BCME_OK;
+	int bcmerror = 0;
 
 	/* when there is only 1 tx_streams, don't allow to change the txant */
 	if (WLCISNPHY(wlc->band) && (wlc->stf->txstreams == 1))
@@ -395,7 +395,7 @@ int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
 		break;
 	}
 
-	if (bcmerror == BCME_OK)
+	if (bcmerror == 0)
 		wlc->stf->txant = (s8) val;
 
 	return bcmerror;

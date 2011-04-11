@@ -2694,7 +2694,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 	ASSERT(dhd != NULL);
 
 	bcmerror = wl_host_event(dhd, ifidx, pktdata, event, data);
-	if (bcmerror != BCME_OK)
+	if (bcmerror != 0)
 		return bcmerror;
 
 #if defined(CONFIG_WIRELESS_EXT)
