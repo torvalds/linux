@@ -19,9 +19,6 @@ enum {
 	 */
 	PCI_REASSIGN_ALL_RSRC	= 0x00000001,
 
-	/* Re-assign all bus numbers */
-	PCI_REASSIGN_ALL_BUS	= 0x00000002,
-
 	/* Do not try to assign, just use existing setup */
 	PCI_PROBE_ONLY		= 0x00000004,
 
