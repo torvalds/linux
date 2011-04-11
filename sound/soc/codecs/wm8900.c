@@ -221,7 +221,7 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	u16 hpctl1 = snd_soc_read(codec, WM8900_REG_HPCTL1);
 	
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -637,7 +637,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8900_add_widgets(struct snd_soc_codec *codec)
 {
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	snd_soc_dapm_new_controls(codec, wm8900_dapm_widgets,
 				ARRAY_SIZE(wm8900_dapm_widgets));
@@ -649,13 +649,13 @@ static int wm8900_add_widgets(struct snd_soc_codec *codec)
 
 static void wm8900_set_hw(struct snd_soc_codec *codec)
 {
-	printk("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0x30);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0100);
 	snd_soc_write(codec, WM8900_REG_POWER3, 0x60);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0101);
-	msleep(400);
+	msleep(300);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0109);
 	snd_soc_write(codec, WM8900_REG_ADDCTL, 0x02);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x09);
@@ -688,11 +688,6 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_INBOOSTMIX1, 0x0042);
 	snd_soc_write(codec, WM8900_REG_INBOOSTMIX2, 0x0042);
 	snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0055);
-
-	//open SPK control GPIO
-	gpio_request(SPK_CON, NULL);
-	gpio_direction_output(SPK_CON,GPIO_HIGH);
-	gpio_free(SPK_CON);
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -704,7 +699,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	reg = snd_soc_read(codec, WM8900_REG_AUDIO1) & ~0x60;
 
@@ -751,7 +746,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	BUG_ON(!Fout);
 	
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	/* The FLL must run at 90-100MHz which is then scaled down to
 	 * the output value by FLLCLK_DIV. */
@@ -815,7 +810,7 @@ static int wm8900_set_fll(struct snd_soc_codec *codec,
 	struct _fll_div fll_div;
 	unsigned int reg;
 
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	if (wm8900->fll_in == freq_in && wm8900->fll_out == freq_out)
 		return 0;
@@ -893,7 +888,7 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int reg;
-        WM8900_DBG("Enter:%s, %d, div_id=%d, div=%d \n", __FUNCTION__, __LINE__, div_id, div);
+	WM8900_DBG("Enter:%s, %d, div_id=%d, div=%d \n", __FUNCTION__, __LINE__, div_id, div);
 
 	switch (div_id) {
 	case WM8900_BCLK_DIV:
@@ -945,7 +940,7 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int clocking1, aif1, aif3, aif4;
 
-        WM8900_DBG("Enter:%s, %d, fmt=0x%08X \n", __FUNCTION__, __LINE__, fmt);
+	WM8900_DBG("Enter:%s, %d, fmt=0x%08X \n", __FUNCTION__, __LINE__, fmt);
 
 	clocking1 = snd_soc_read(codec, WM8900_REG_CLOCKING1);
 	aif1 = snd_soc_read(codec, WM8900_REG_AUDIO1);
@@ -1072,51 +1067,84 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm8900_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
+static int wm8900_startup(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_codec *codec = card->codec;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *codec_dai = machine->codec_dai;
+	struct snd_soc_codec *codec = socdev->card->codec;
+
+	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
+		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
+
+	if (!(codec_dai->playback.active || codec_dai->capture.active)) {
+
+		WM8900_DBG("Power up wm8900\n");
+		wm8900_set_hw(codec);
+	}
+	return 0;
+}
+
+static void wm8900_shutdown(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *codec_dai = machine->codec_dai;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	
-	printk("wm8900_shutdown \n");
+	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
+		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");	
 
-	snd_soc_write(codec, WM8900_REG_RESET, 0);
+	/* If  */
+	if (!codec_dai->capture.active && !codec_dai->playback.active &&
+	    (substream->stream == SNDRV_PCM_STREAM_CAPTURE)) {
 
-	//open SPK control GPIO
-	gpio_request(SPK_CON, NULL);
-	gpio_direction_output(SPK_CON,GPIO_LOW);
-	gpio_free(SPK_CON);
+		msleep(200);
+	}
 
-	return 0;
+	if (!codec_dai->capture.active && !codec_dai->playback.active) {
+
+		WM8900_DBG("Power down wm8900\n");
+
+		/* When codec is not using , close it. */
+		snd_soc_write(codec, WM8900_REG_RESET, 0);
+	}    
 }
 
-static int wm8900_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_codec *codec = card->codec;
-
-	printk("wm8900_prepare \n");
-
-	wm8900_set_hw(codec);
-
-	return 0;
-}
-
-#ifdef CONFIG_MACH_RK29_MALATA
-static int wm8900_trigger(struct snd_pcm_substream *substream, int trigger)
+static int wm8900_trigger(struct snd_pcm_substream *substream,
+			  int status,
+			  struct snd_soc_dai *dai)
 {	
-	WM8900_DBG("Enter::%s----%d trigger = %d\n",__FUNCTION__,__LINE__, trigger);	
-	if(trigger == 1){		
-		gpio_set_value(SPK_CON, GPIO_HIGH);
-	}	else{		
-		gpio_set_value(SPK_CON, GPIO_LOW);
-	}	
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *codec_dai = machine->codec_dai;
+
+	WM8900_DBG("Enter::%s----%d status = %d substream->stream:%s \n",__FUNCTION__, __LINE__, status,
+		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");	
+
+	if(status == 1 || status == 0){
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+
+			codec_dai->playback.active = status;
+#ifdef SPK_CON
+			if(status == 1){		
+				gpio_set_value(SPK_CON, GPIO_HIGH);
+			}else{		
+				gpio_set_value(SPK_CON, GPIO_LOW);
+			}
+#endif
+		}else{
+			codec_dai->capture.active = status;
+		}
+	}
+
 	return 0;
 }
-#endif
+
 #define WM8900_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		      SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		      SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
@@ -1131,11 +1159,9 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
 	.digital_mute	= wm8900_digital_mute,
+	.startup	= wm8900_startup,
+	.trigger	= wm8900_trigger,
 	.shutdown	= wm8900_shutdown,
-	.prepare	= wm8900_prepare,
-#ifdef CONFIG_MACH_RK29_MALATA	
-	.trigger = wm8900_trigger,
-#endif
 };
 
 struct snd_soc_dai wm8900_dai = {
@@ -1163,7 +1189,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 {
 	u16 reg;
 
-        WM8900_DBG("Enter:%s, %d, level=0x%08X \n", __FUNCTION__, __LINE__, level);
+	WM8900_DBG("Enter:%s, %d, level=0x%08X \n", __FUNCTION__, __LINE__, level);
 
 	codec->bias_level = level;
 	return 0;
@@ -1270,11 +1296,6 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
-	//close SPK control GPIO
-	gpio_request(SPK_CON, NULL);
-	gpio_direction_output(SPK_CON,GPIO_LOW);
-	gpio_free(SPK_CON);
-
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
 	/* Stop the FLL in an orderly fashion */
@@ -1329,7 +1350,7 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	unsigned int reg;
 	int ret;
 
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
 	if (wm8900 == NULL)
@@ -1404,7 +1425,7 @@ err:
 
 static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	snd_soc_unregister_dai(&wm8900_dai);
 	snd_soc_unregister_codec(wm8900_codec);
@@ -1418,10 +1439,16 @@ static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+void wm8900_i2c_shutdown(struct i2c_client *client)
+{
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	snd_soc_write(wm8900_codec, WM8900_REG_RESET, 0);
+}
+
 #ifdef CONFIG_PM
 static int wm8900_i2c_suspend(struct i2c_client *client, pm_message_t msg)
 {
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	return snd_soc_suspend_device(&client->dev);
 }
 
@@ -1449,6 +1476,7 @@ static struct i2c_driver wm8900_i2c_driver = {
 	.remove = __devexit_p(wm8900_i2c_remove),
 	.suspend = wm8900_i2c_suspend,
 	.resume = wm8900_i2c_resume,
+	.shutdown = wm8900_i2c_shutdown,
 	.id_table = wm8900_i2c_id,
 };
 
@@ -1458,16 +1486,14 @@ static int wm8900_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	int ret = 0;
 
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
         
 	if (!wm8900_codec) {
 		dev_err(&pdev->dev, "I2C client not yet instantiated\n");
 		return -ENODEV;
 	}
-
-#ifdef CONFIG_MACH_RK29_MALATA
-	gpio_request(SPK_CON,"spk_con");
-	gpio_set_value(SPK_CON, GPIO_LOW);
+#if defined(SPK_CON)
+	gpio_request(SPK_CON,NULL);
 	gpio_direction_output(SPK_CON, GPIO_LOW);
 #endif
 
