@@ -2476,7 +2476,6 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate)
 		clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
 		/* arm pll */
 		clk_set_rate_nolock(&arm_pll_clk, armclk);
-		clk_set_parent_nolock(&clk_mac_ref_div, &arm_pll_clk);
 		/*you can choose clk parent form codec pll or periph pll for following logic*/
 		clk_set_parent_nolock(&aclk_vepu, aclk_vepu_parent);
 		clk_set_rate_nolock(&aclk_vepu, aclk_vepu_rate);
