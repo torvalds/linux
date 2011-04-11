@@ -1,4 +1,4 @@
-ï»¿/* arch/arm/mach-rockchip/rk28_headset.c
+/* arch/arm/mach-rockchip/rk28_headset.c
  *
  * Copyright (C) 2009 Rockchip Corporation.
  *
@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(headset_status);
 
 static irqreturn_t headset_interrupt(int irq, void *dev_id)
 {
-	DBG("---headset_interrupt---\n");	
+//	DBG("---headset_interrupt---\n");	
 	schedule_delayed_work(&g_headsetobserve_work, msecs_to_jiffies(20));
 	return IRQ_HANDLED;
 }
@@ -82,7 +82,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 static int headset_change_irqtype(unsigned int irq_type)
 {
 	int ret = 0;
-	DBG("--------%s----------\n",__FUNCTION__);
+//	DBG("--------%s----------\n",__FUNCTION__);
 	free_irq(prk2818_headset_info->irq,NULL);
 	
 	ret = request_irq(prk2818_headset_info->irq, headset_interrupt, irq_type, NULL, NULL);
@@ -98,7 +98,7 @@ static void headsetobserve_work(struct work_struct *work)
 {
 	int i,level = 0;
 
-	DBG("---headsetobserve_work---\n");
+//	DBG("---headsetobserve_work---\n");
 	mutex_lock(&Headset_dev.mutex_lock);
 
 	for(i=0; i<3; i++)
@@ -123,30 +123,30 @@ static void headsetobserve_work(struct work_struct *work)
 	{
 		case HEADSET_IN_HIGH:
 			if(level > 0)
-			{//æ’å…¥--é«˜ç”µå¹³
+			{//²åÈë--¸ßµçÆ½
 				DBG("--- HEADSET_IN_HIGH headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
-				headset_change_irqtype(IRQF_TRIGGER_FALLING);//è®¾ç½®ä¸ºä¸‹é™æ²¿
+				headset_change_irqtype(IRQF_TRIGGER_FALLING);//ÉèÖÃÎªÏÂ½µÑØ
 			}
 			else if(level == 0)
-			{//æ‹”å‡º--ä½Žç”µå¹³
+			{//°Î³ö--µÍµçÆ½
 				DBG("---HEADSET_IN_HIGH headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
-				headset_change_irqtype(IRQF_TRIGGER_RISING);//è®¾ç½®ä¸ºä¸Šå‡æ²¿
+				headset_change_irqtype(IRQF_TRIGGER_RISING);//ÉèÖÃÎªÉÏÉýÑØ
 			}
 			break;
 		case HEADSET_IN_LOW:
 			if(level == 0)
-			{//æ’å…¥--ä½Žç”µå¹³
+			{//²åÈë--µÍµçÆ½
 				DBG("---HEADSET_IN_LOW headset in---\n");
 				Headset_dev.cur_headset_status = BIT_HEADSET;
-				headset_change_irqtype(IRQF_TRIGGER_RISING);//è®¾ç½®ä¸ºä¸Šå‡æ²¿
+				headset_change_irqtype(IRQF_TRIGGER_RISING);//ÉèÖÃÎªÉÏÉýÑØ
 			}
 			else if(level > 0)
-			{//æ‹”å‡º--é«˜ç”µå¹³
+			{//°Î³ö--¸ßµçÆ½
 				DBG("---HEADSET_IN_LOW headset out---\n");		
 				Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
-				headset_change_irqtype(IRQF_TRIGGER_FALLING);//è®¾ç½®ä¸ºä¸‹é™æ²¿
+				headset_change_irqtype(IRQF_TRIGGER_FALLING);//ÉèÖÃÎªÏÂ½µÑØ
 			}
 			break;			
 		default:
@@ -206,7 +206,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		DBG("headsetobserve: request gpio_request failed\n");
 		return ret;
 	}
-	gpio_pull_updown(prk2818_headset_info->gpio, GPIONormal);//ä¸ä¸Šæ‹‰ä¹Ÿä¸ä¸‹æ‹‰
+	gpio_pull_updown(prk2818_headset_info->gpio, GPIONormal);//²»ÉÏÀ­Ò²²»ÏÂÀ­
 	gpio_direction_input(prk2818_headset_info->gpio);
 	prk2818_headset_info->irq = gpio_to_irq(prk2818_headset_info->gpio);
 
