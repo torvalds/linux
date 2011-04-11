@@ -2136,10 +2136,10 @@ int prepare_to_merge(struct reloc_control *rc, int err)
 	u64 num_bytes = 0;
 	int ret;
 
-	mutex_lock(&root->fs_info->trans_mutex);
+	spin_lock(&root->fs_info->trans_lock);
 	rc->merging_rsv_size += root->nodesize * (BTRFS_MAX_LEVEL - 1) * 2;
 	rc->merging_rsv_size += rc->nodes_relocated * 2;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	spin_unlock(&root->fs_info->trans_lock);
 again:
 	if (!err) {
 		num_bytes = rc->merging_rsv_size;
@@ -2208,9 +2208,9 @@ int merge_reloc_roots(struct reloc_control *rc)
 	int ret;
 again:
 	root = rc->extent_root;
-	mutex_lock(&root->fs_info->trans_mutex);
+	spin_lock(&root->fs_info->trans_lock);
 	list_splice_init(&rc->reloc_roots, &reloc_roots);
-	mutex_unlock(&root->fs_info->trans_mutex);
+	spin_unlock(&root->fs_info->trans_lock);
 
 	while (!list_empty(&reloc_roots)) {
 		found = 1;
@@ -3583,17 +3583,17 @@ next:
 static void set_reloc_control(struct reloc_control *rc)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	mutex_lock(&fs_info->trans_mutex);
+	spin_lock(&fs_info->trans_lock);
 	fs_info->reloc_ctl = rc;
-	mutex_unlock(&fs_info->trans_mutex);
+	spin_unlock(&fs_info->trans_lock);
 }
 
 static void unset_reloc_control(struct reloc_control *rc)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	mutex_lock(&fs_info->trans_mutex);
+	spin_lock(&fs_info->trans_lock);
 	fs_info->reloc_ctl = NULL;
-	mutex_unlock(&fs_info->trans_mutex);
+	spin_unlock(&fs_info->trans_lock);
 }
 
 static int check_extent_flags(u64 flags)

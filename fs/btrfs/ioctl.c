@@ -2177,9 +2177,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	if (ret)
 		goto out;
 
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans++;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_inc(&root->fs_info->open_ioctl_trans);
 
 	ret = -ENOMEM;
 	trans = btrfs_start_ioctl_transaction(root);
@@ -2190,9 +2188,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	return 0;
 
 out_drop:
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans--;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_dec(&root->fs_info->open_ioctl_trans);
 	mnt_drop_write(file->f_path.mnt);
 out:
 	return ret;
@@ -2426,9 +2422,7 @@ long btrfs_ioctl_trans_end(struct file *file)
 
 	btrfs_end_transaction(trans, root);
 
-	mutex_lock(&root->fs_info->trans_mutex);
-	root->fs_info->open_ioctl_trans--;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	atomic_dec(&root->fs_info->open_ioctl_trans);
 
 	mnt_drop_write(file->f_path.mnt);
 	return 0;

@@ -28,10 +28,12 @@ struct btrfs_transaction {
 	 * transaction can end
 	 */
 	atomic_t num_writers;
+	atomic_t use_count;
 
 	unsigned long num_joined;
+
+	spinlock_t commit_lock;
 	int in_commit;
-	atomic_t use_count;
 	int commit_done;
 	int blocked;
 	struct list_head list;

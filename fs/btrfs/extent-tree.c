@@ -3200,7 +3200,8 @@ alloc:
 
 		/* commit the current transaction and try again */
 commit_trans:
-		if (!committed && !root->fs_info->open_ioctl_trans) {
+		if (!committed &&
+		    !atomic_read(&root->fs_info->open_ioctl_trans)) {
 			committed = 1;
 			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))

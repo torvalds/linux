@@ -1222,14 +1222,12 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * the current transaction, we can bail out now without any
 	 * syncing
 	 */
-	mutex_lock(&root->fs_info->trans_mutex);
+	smp_mb();
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
 		BTRFS_I(inode)->last_trans = 0;
-		mutex_unlock(&root->fs_info->trans_mutex);
 		goto out;
 	}
-	mutex_unlock(&root->fs_info->trans_mutex);
 
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
