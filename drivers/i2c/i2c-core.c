@@ -295,6 +295,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->flags = info->flags;
 	client->addr = info->addr;
 	client->irq = info->irq;
+	client->udelay = info->udelay;  // add by kfx
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
@@ -1149,6 +1150,7 @@ int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 	msg.len = count;
 	msg.buf = (char *)buf;
 	msg.scl_rate = 100 * 1000;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	return (ret == 1) ? count : ret;
@@ -1166,6 +1168,7 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 	msg.len = count;
 	msg.buf = (char *)buf;
 	msg.scl_rate = 400 * 1000;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 
@@ -1184,6 +1187,7 @@ int i2c_master_normal_send(struct i2c_client *client,const char *buf ,int count,
 	msg.len = count;
 	msg.buf = (char *)buf;
 	msg.scl_rate = scl_rate;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	return (ret == 1) ? count : ret;
@@ -1201,6 +1205,7 @@ int i2c_master_normal_recv(struct i2c_client *client, char *buf ,int count, int 
 	msg.len = count;
 	msg.buf = (char *)buf;
 	msg.scl_rate = scl_rate;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 
@@ -1224,6 +1229,7 @@ int i2c_master_reg8_send(struct i2c_client *client, const char reg, const char *
 	msg.len = count + 1;
 	msg.buf = (char *)tx_buf;
 	msg.scl_rate = scl_rate;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
@@ -1244,12 +1250,14 @@ int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, i
 	msgs[0].len = 1;
 	msgs[0].buf = &reg_buf;
 	msgs[0].scl_rate = scl_rate;
+	msgs[0].udelay = client->udelay;
 
 	msgs[1].addr = client->addr;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = count;
 	msgs[1].buf = (char *)buf;
 	msgs[1].scl_rate = scl_rate;
+	msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(adap, msgs, 2);
 
@@ -1274,6 +1282,7 @@ int i2c_master_reg16_send(struct i2c_client *client, const short regs, const sho
 	msg.len = 2 * (count + 1);
 	msg.buf = (char *)tx_buf;
 	msg.scl_rate = scl_rate;
+	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
@@ -1295,12 +1304,14 @@ int i2c_master_reg16_recv(struct i2c_client *client, const short regs, short *bu
 	msgs[0].len = 2;
 	msgs[0].buf = reg_buf;
 	msgs[0].scl_rate = scl_rate;
+	msgs[0].udelay = client->udelay;
 
 	msgs[1].addr = client->addr;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = count * 2;
 	msgs[1].buf = (char *)buf;
 	msgs[1].scl_rate = scl_rate;
+	msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(adap, msgs, 2);
 
@@ -1937,8 +1948,8 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
 	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
 	int num = read_write == I2C_SMBUS_READ?2:1;
-	struct i2c_msg msg[2] = { { 0, addr, flags, 1, msgbuf0 },
-	                          { 0, addr, flags | I2C_M_RD, 0, msgbuf1 }
+	struct i2c_msg msg[2] = { { addr, flags, 1, msgbuf0 ,100000, 0, 0},
+	                          { addr, flags | I2C_M_RD, 0, msgbuf1  ,100000, 0, 0}
 	                        };
 	int i;
 	u8 partial_pec = 0;

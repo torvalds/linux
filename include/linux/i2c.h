@@ -206,6 +206,7 @@ struct i2c_client {
 	struct i2c_driver *driver;	/* and our access routines	*/
 	struct device dev;		/* the device structure		*/
 	int irq;			/* irq issued by device		*/
+	int udelay;
 	struct list_head detected;
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
