@@ -463,6 +463,12 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 }
 
+static void build_inv_all(struct iommu_cmd *cmd)
+{
+	memset(cmd, 0, sizeof(*cmd));
+	CMD_SET_TYPE(cmd, CMD_INV_ALL);
+}
+
 /*
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command.
@@ -567,10 +573,24 @@ static void iommu_flush_tlb_all(struct amd_iommu *iommu)
 	iommu_completion_wait(iommu);
 }
 
+static void iommu_flush_all(struct amd_iommu *iommu)
+{
+	struct iommu_cmd cmd;
+
+	build_inv_all(&cmd);
+
+	iommu_queue_command(iommu, &cmd);
+	iommu_completion_wait(iommu);
+}
+
 void iommu_flush_all_caches(struct amd_iommu *iommu)
 {
-	iommu_flush_dte_all(iommu);
-	iommu_flush_tlb_all(iommu);
+	if (iommu_feature(iommu, FEATURE_IA)) {
+		iommu_flush_all(iommu);
+	} else {
+		iommu_flush_dte_all(iommu);
+		iommu_flush_tlb_all(iommu);
+	}
 }
 
 /*
