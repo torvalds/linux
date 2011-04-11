@@ -3885,6 +3885,12 @@ static void move_pages(struct page *dst_page, struct page *src_page,
 	kunmap_atomic(dst_kaddr, KM_USER0);
 }
 
+static inline bool areas_overlap(unsigned long src, unsigned long dst, unsigned long len)
+{
+	unsigned long distance = (src > dst) ? src - dst : dst - src;
+	return distance < len;
+}
+
 static void copy_pages(struct page *dst_page, struct page *src_page,
 		       unsigned long dst_off, unsigned long src_off,
 		       unsigned long len)
@@ -3892,10 +3898,12 @@ static void copy_pages(struct page *dst_page, struct page *src_page,
 	char *dst_kaddr = kmap_atomic(dst_page, KM_USER0);
 	char *src_kaddr;
 
-	if (dst_page != src_page)
+	if (dst_page != src_page) {
 		src_kaddr = kmap_atomic(src_page, KM_USER1);
-	else
+	} else {
 		src_kaddr = dst_kaddr;
+		BUG_ON(areas_overlap(src_off, dst_off, len));
+	}
 
 	memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
 	kunmap_atomic(dst_kaddr, KM_USER0);
@@ -3970,7 +3978,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		       "len %lu len %lu\n", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}
-	if (dst_offset < src_offset) {
+	if (!areas_overlap(src_offset, dst_offset, len)) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
 		return;
 	}
