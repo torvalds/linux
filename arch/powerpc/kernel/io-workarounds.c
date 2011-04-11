@@ -17,8 +17,7 @@
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
-
-#include "io-workarounds.h"
+#include <asm/io-workarounds.h>
 
 #define IOWA_MAX_BUS	8
 

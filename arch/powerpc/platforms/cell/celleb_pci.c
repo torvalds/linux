@@ -41,7 +41,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "io-workarounds.h"
 #include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES    32

@@ -16,6 +16,7 @@ config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL_COMMON
 	select MPIC
+	select PPC_IO_WORKAROUNDS
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII #test only

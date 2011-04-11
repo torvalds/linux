@@ -163,6 +163,9 @@ config PPC_INDIRECT_MMIO
 	bool
 	select PPC_INDIRECT_IO
 
+config PPC_IO_WORKAROUNDS
+	bool
+
 config GENERIC_IOMAP
 	bool
 

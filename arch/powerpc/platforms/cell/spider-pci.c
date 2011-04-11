@@ -27,8 +27,7 @@
 
 #include <asm/ppc-pci.h>
 #include <asm/pci-bridge.h>
-
-#include "io-workarounds.h"
+#include <asm/io-workarounds.h>
 
 #define SPIDER_PCI_DISABLE_PREFETCH
 

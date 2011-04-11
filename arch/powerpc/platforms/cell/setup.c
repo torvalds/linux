@@ -51,11 +51,11 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/cell-regs.h>
+#include <asm/io-workarounds.h>
 
 #include "interrupt.h"
 #include "pervasive.h"
 #include "ras.h"
-#include "io-workarounds.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

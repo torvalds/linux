@@ -106,6 +106,8 @@ obj-$(CONFIG_KEXEC)		+= machine_kexec.o crash.o \
 obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
+obj-$(CONFIG_PPC_IO_WORKAROUNDS)	+= io-workarounds.o
+
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_callchain.o
