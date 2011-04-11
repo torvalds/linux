@@ -1065,7 +1065,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_MT9P111         /* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x00
+#define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
