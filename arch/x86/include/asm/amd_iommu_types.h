@@ -68,11 +68,24 @@
 #define MMIO_CONTROL_OFFSET     0x0018
 #define MMIO_EXCL_BASE_OFFSET   0x0020
 #define MMIO_EXCL_LIMIT_OFFSET  0x0028
+#define MMIO_EXT_FEATURES	0x0030
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
 #define MMIO_EVT_TAIL_OFFSET	0x2018
 #define MMIO_STATUS_OFFSET	0x2020
+
+
+/* Extended Feature Bits */
+#define FEATURE_PREFETCH	(1ULL<<0)
+#define FEATURE_PPR		(1ULL<<1)
+#define FEATURE_X2APIC		(1ULL<<2)
+#define FEATURE_NX		(1ULL<<3)
+#define FEATURE_GT		(1ULL<<4)
+#define FEATURE_IA		(1ULL<<6)
+#define FEATURE_GA		(1ULL<<7)
+#define FEATURE_HE		(1ULL<<8)
+#define FEATURE_PC		(1ULL<<9)
 
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
@@ -227,6 +240,7 @@
 /* IOMMU capabilities */
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
+#define IOMMU_CAP_EFR     27
 
 #define MAX_DOMAIN_ID 65536
 
@@ -370,6 +384,9 @@ struct amd_iommu {
 
 	/* flags read from acpi table */
 	u8 acpi_flags;
+
+	/* Extended features */
+	u64 features;
 
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI

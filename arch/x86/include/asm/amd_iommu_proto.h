@@ -19,7 +19,7 @@
 #ifndef _ASM_X86_AMD_IOMMU_PROTO_H
 #define _ASM_X86_AMD_IOMMU_PROTO_H
 
-struct amd_iommu;
+#include <asm/amd_iommu_types.h>
 
 extern int amd_iommu_init_dma_ops(void);
 extern int amd_iommu_init_passthrough(void);
@@ -40,6 +40,14 @@ static inline bool is_rd890_iommu(struct pci_dev *pdev)
 {
 	return (pdev->vendor == PCI_VENDOR_ID_ATI) &&
 	       (pdev->device == PCI_DEVICE_ID_RD890_IOMMU);
+}
+
+static inline bool iommu_feature(struct amd_iommu *iommu, u64 f)
+{
+	if (!(iommu->cap & (1 << IOMMU_CAP_EFR)))
+		return false;
+
+	return !!(iommu->features & f);
 }
 
 #endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */
