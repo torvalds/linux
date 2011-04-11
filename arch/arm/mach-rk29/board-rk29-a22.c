@@ -2969,10 +2969,6 @@ static void __init machine_rk29_board_init(void)
 	gpio_request(RK29_PIN5_PA1, NULL);			 
 	gpio_direction_output(RK29_PIN5_PA1,GPIO_HIGH); 		
 	gpio_free(RK29_PIN5_PA1);
-	
-	gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-	gpio_free(RK29_PIN6_PD3);
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29

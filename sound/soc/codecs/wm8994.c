@@ -2791,6 +2791,8 @@ int snd_soc_get_route(struct snd_kcontrol *kcontrol,
 int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	char route = kcontrol->private_value & 0xff;
 
 #ifdef WM8994_PROC
@@ -2888,7 +2890,14 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	wm8994_check_channel();
 
 	isWM8994SetChannel = false;
-
+	
+	if(pdata->PA_control == 1)
+	{
+		DBG("enable PA_control\n");
+		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+		gpio_free(RK29_PIN6_PD3);
+	}
 	return 0;
 }
 /*
@@ -3420,7 +3429,7 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 	
 	isWM8994SetChannel = true;
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
-	if(pdata ->PA_control == 1)
+//	if(pdata ->PA_control == 1)
 	{
 		DBG("wm8994 suspend disable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
@@ -3476,7 +3485,7 @@ static int wm8994_resume(struct platform_device *pdev)
 
 	isWM8994SetChannel = false;
 	
-	if(pdata ->PA_control == 1)
+//	if(pdata ->PA_control == 1)
 	{
 		DBG("wm8994_resume enable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
@@ -4012,8 +4021,7 @@ static int wm8994_probe(struct platform_device *pdev)
 	unsigned long wm8994_port = 0;
 	int ret = 0;
 	char b[20];
-	struct wm8994_priv *wm8994;
-	struct wm8994_pdata *pdata;
+
 #ifdef WM8994_PROC
 	wm8994_proc_init();
 #endif
@@ -4025,18 +4033,6 @@ static int wm8994_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm8994_codec;
 	codec = wm8994_codec;
-	
-	recorder_and_AP_to_speakers();
-	
-	wm8994 = codec->private_data;
-	pdata = wm8994->pdata;
-	if(pdata->PA_control == 1)
-	{
-		DBG("enable PA_control\n");
-		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-		gpio_free(RK29_PIN6_PD3);
-	}
 	
 	setup_timer(&wm8994_timer, wm8994_codec_timer, wm8994_port);
 	wm8994_timer.expires  = jiffies+500;//=500ms
