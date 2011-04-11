@@ -1347,7 +1347,7 @@ struct megasas_instance {
 	struct timer_list io_completion_timer;
 	struct list_head internal_reset_pending_q;
 
-	/* Ptr to hba specfic information */
+	/* Ptr to hba specific information */
 	void *ctrl_context;
 	u8	msi_flag;
 	struct msix_entry msixentry;

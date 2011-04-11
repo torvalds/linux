@@ -92,7 +92,7 @@ static inline struct net *skb_sknet(const struct sk_buff *skb)
 }
 /*
  * This one needed for single_open_net since net is stored directly in
- * private not as a struct i.e. seq_file_net cant be used.
+ * private not as a struct i.e. seq_file_net can't be used.
  */
 static inline struct net *seq_file_single_net(struct seq_file *seq)
 {

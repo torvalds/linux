@@ -464,7 +464,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 
 	max = le16_to_cpu(desc->wMaxPacketSize);
 
-	/* Disable automatic zlp generation.  Driver is reponsible to indicate
+	/* Disable automatic zlp generation.  Driver is responsible to indicate
 	 * explicitly through req->req.zero.  This is needed to enable multi-td
 	 * request. */
 	zlt = 1;
@@ -648,7 +648,7 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 			| EP_QUEUE_HEAD_STATUS_HALT));
 	dQH->size_ioc_int_sts &= temp;
 
-	/* Ensure that updates to the QH will occure before priming. */
+	/* Ensure that updates to the QH will occur before priming. */
 	wmb();
 
 	/* Prime endpoint by writing 1 to ENDPTPRIME */
@@ -1459,7 +1459,7 @@ static int process_ep_req(struct fsl_udc *udc, int pipe,
 				status = -EILSEQ;
 				break;
 			} else
-				ERR("Unknown error has occured (0x%x)!\n",
+				ERR("Unknown error has occurred (0x%x)!\n",
 					errors);
 
 		} else if (le32_to_cpu(curr_td->size_ioc_sts)

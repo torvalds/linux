@@ -125,7 +125,7 @@ struct clockdomain {
 };
 
 /**
- * struct clkdm_ops - Arch specfic function implementations
+ * struct clkdm_ops - Arch specific function implementations
  * @clkdm_add_wkdep: Add a wakeup dependency between clk domains
  * @clkdm_del_wkdep: Delete a wakeup dependency between clk domains
  * @clkdm_read_wkdep: Read wakeup dependency state between clk domains

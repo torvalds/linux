@@ -78,7 +78,7 @@ motherboards (most modern Abit motherboards).
 
 The first and second revision of the uGuru chip in reality is a Winbond
 W83L950D in disguise (despite Abit claiming it is "a new microprocessor
-designed by the ABIT Engineers"). Unfortunatly this doesn't help since the
+designed by the ABIT Engineers"). Unfortunately this doesn't help since the
 W83L950D is a generic microcontroller with a custom Abit application running
 on it.
 

@@ -37,6 +37,7 @@ struct sh_mobile_lcdc_chan {
 	struct completion vsync_completion;
 	struct fb_var_screeninfo display_var;
 	int use_count;
+	int blank_status;
 	struct mutex open_lock;		/* protects the use counter */
 };
 

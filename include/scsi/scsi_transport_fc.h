@@ -192,9 +192,9 @@ struct fc_vport_identifiers {
  *
  * This structure exists for each FC port is a virtual FC port. Virtual
  * ports share the physical link with the Physical port. Each virtual
- * ports has a unique presense on the SAN, and may be instantiated via
+ * ports has a unique presence on the SAN, and may be instantiated via
  * NPIV, Virtual Fabrics, or via additional ALPAs. As the vport is a
- * unique presense, each vport has it's own view of the fabric,
+ * unique presence, each vport has it's own view of the fabric,
  * authentication privilege, and priorities.
  *
  * A virtual port may support 1 or more FC4 roles. Typically it is a
@@ -370,7 +370,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 /*
  * FC SCSI Target Attributes
  *
- * The SCSI Target is considered an extention of a remote port (as
+ * The SCSI Target is considered an extension of a remote port (as
  * a remote port can be more than a SCSI Target). Within the scsi
  * subsystem, we leave the Target as a separate entity. Doing so
  * provides backward compatibility with prior FC transport api's,

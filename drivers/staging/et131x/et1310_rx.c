@@ -122,7 +122,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * number of entries in FBR1.
 	 *
 	 * FBR1 holds "large" frames, FBR0 holds "small" frames.  If FBR1
-	 * entries are huge in order to accomodate a "jumbo" frame, then it
+	 * entries are huge in order to accommodate a "jumbo" frame, then it
 	 * will have less entries.  Conversely, FBR1 will now be relied upon
 	 * to carry more "normal" frames, thus it's entry size also increases
 	 * and the number of entries goes up too (since it now carries

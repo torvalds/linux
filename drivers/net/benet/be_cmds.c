@@ -1438,7 +1438,7 @@ err:
 
 /*
  * Uses MCC for this command as it may be called in BH context
- * (mc == NULL) => multicast promiscous
+ * (mc == NULL) => multicast promiscuous
  */
 int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 		struct net_device *netdev, struct be_dma_mem *mem)

@@ -605,7 +605,7 @@ cas_action:
 	copy	%r0, %r21
 
 3:		
-	/* Error occured on load or store */
+	/* Error occurred on load or store */
 	/* Free lock */
 	stw	%r20, 0(%sr2,%r20)
 #if ENABLE_LWS_DEBUG

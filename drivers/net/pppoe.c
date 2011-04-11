@@ -115,7 +115,7 @@ struct pppoe_net {
  * 2) Session stage (MAC and SID are known)
  *
  * Ethernet frames have a special tag for this but
- * we use simplier approach based on session id
+ * we use simpler approach based on session id
  */
 static inline bool stage_session(__be16 sid)
 {

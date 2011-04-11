@@ -46,7 +46,7 @@ c) Falling edge on channel A, channel B in high state
 
 d) Falling edge on channel B, channel A in low state
 	Parking position. If the encoder enters this state, a full transition
-	should have happend, unless it flipped back on half the way. The
+	should have happened, unless it flipped back on half the way. The
 	'armed' state tells us about that.
 
 2. Platform requirements

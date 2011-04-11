@@ -1011,7 +1011,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	tmp_skb->len = skb->len;
 	memcpy(&tmp_skb->data[ETH_HLEN + 2], &skb->data[ETH_HLEN],
 	       (skb->len - ETH_HLEN));
-	/*-- Set Buffer infomation --*/
+	/*-- Set Buffer information --*/
 	buffer_info->length = tmp_skb->len;
 	buffer_info->dma = dma_map_single(&adapter->pdev->dev, tmp_skb->data,
 					  buffer_info->length,
@@ -1540,7 +1540,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info) {
-		pr_err("Unable to allocate memory for the buffer infomation\n");
+		pr_err("Unable to allocate memory for the buffer information\n");
 		return -ENOMEM;
 	}
 

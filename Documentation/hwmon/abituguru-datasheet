@@ -5,9 +5,9 @@ First of all, what I know about uGuru is no fact based on any help, hints or
 datasheet from Abit. The data I have got on uGuru have I assembled through
 my weak knowledge in "backwards engineering".
 And just for the record, you may have noticed uGuru isn't a chip developed by
-Abit, as they claim it to be. It's realy just an microprocessor (uC) created by
+Abit, as they claim it to be. It's really just an microprocessor (uC) created by
 Winbond (W83L950D). And no, reading the manual for this specific uC or
-mailing  Windbond for help won't give any usefull data about uGuru, as it is
+mailing  Windbond for help won't give any useful data about uGuru, as it is
 the program inside the uC that is responding to calls.
 
 Olle Sandberg <ollebull@gmail.com>, 2005-05-25
@@ -41,7 +41,7 @@ later on attached again data-port will hold 0x08, more about this later.
 
 After wider testing of the Linux kernel driver some variants of the uGuru have
 turned up which will hold 0x00 instead of 0xAC at the CMD port, thus we also
-have to test CMD for two different values. On these uGuru's DATA will initally
+have to test CMD for two different values. On these uGuru's DATA will initially
 hold 0x09 and will only hold 0x08 after reading CMD first, so CMD must be read
 first!
 
@@ -308,5 +308,5 @@ the voltage / clock programming out, I tried reading and only reading banks
 resulted in a _permanent_ reprogramming of the voltages, luckily I had the
 sensors part configured so that it would shutdown my system on any out of spec
 voltages which proprably safed my computer (after a reboot I managed to
-immediatly enter the bios and reload the defaults). This probably means that
+immediately enter the bios and reload the defaults). This probably means that
 the read/write cycle for the non sensor part is different from the sensor part.

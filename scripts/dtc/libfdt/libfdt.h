@@ -61,7 +61,7 @@
 #define FDT_ERR_NOTFOUND	1
 	/* FDT_ERR_NOTFOUND: The requested node or property does not exist */
 #define FDT_ERR_EXISTS		2
-	/* FDT_ERR_EXISTS: Attemped to create a node or property which
+	/* FDT_ERR_EXISTS: Attempted to create a node or property which
 	 * already exists */
 #define FDT_ERR_NOSPACE		3
 	/* FDT_ERR_NOSPACE: Operation needed to expand the device

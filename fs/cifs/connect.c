@@ -1572,7 +1572,7 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 		return false;
 	}
 
-	/* now check if signing mode is acceptible */
+	/* now check if signing mode is acceptable */
 	if ((secFlags & CIFSSEC_MAY_SIGN) == 0 &&
 	    (server->secMode & SECMODE_SIGN_REQUIRED))
 			return false;
@@ -2933,7 +2933,7 @@ mount_fail_check:
 		if (mount_data != mount_data_global)
 			kfree(mount_data);
 		/* If find_unc succeeded then rc == 0 so we can not end */
-		/* up accidently freeing someone elses tcon struct */
+		/* up accidentally freeing someone elses tcon struct */
 		if (tcon)
 			cifs_put_tcon(tcon);
 		else if (pSesInfo)

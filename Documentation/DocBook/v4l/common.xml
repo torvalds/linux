@@ -100,7 +100,7 @@ linux-kernel@vger.kernel.org, 2002-11-20. --></para>
 
       <para>By convention system administrators create various
 character device special files with these major and minor numbers in
-the <filename>/dev</filename> directory. The names recomended for the
+the <filename>/dev</filename> directory. The names recommended for the
 different V4L2 device types are listed in <xref linkend="devices" />.
 </para>
 

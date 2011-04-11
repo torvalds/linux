@@ -1065,7 +1065,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		 * surrounding the tag page.  Only take those pages of
 		 * the same active state as that tag page.  We may safely
 		 * round the target page pfn down to the requested order
-		 * as the mem_map is guarenteed valid out to MAX_ORDER,
+		 * as the mem_map is guaranteed valid out to MAX_ORDER,
 		 * where that page is in a different zone we will detect
 		 * it from its zone id and abort this block scan.
 		 */
@@ -2224,7 +2224,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
  *   o a 16M DMA zone that is balanced will not balance a zone on any
  *     reasonable sized machine
  *   o On all other machines, the top zone must be at least a reasonable
- *     precentage of the middle zones. For example, on 32-bit x86, highmem
+ *     percentage of the middle zones. For example, on 32-bit x86, highmem
  *     would need to be at least 256M for it to be balance a whole node.
  *     Similarly, on x86-64 the Normal zone would need to be at least 1G
  *     to balance a node on its own. These seemed like reasonable ratios.

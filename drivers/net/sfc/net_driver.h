@@ -670,7 +670,7 @@ struct efx_filter_state;
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @fatal_irq_level: IRQ level (bit number) used for serious errors
  * @mtd_list: List of MTDs attached to the NIC
- * @nic_data: Hardware dependant state
+ * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.

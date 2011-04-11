@@ -62,7 +62,7 @@ be fixed.
 
 The REMOVE uevent is generated at the end of an unsuccessful mount
 or at the end of a umount of the filesystem. All REMOVE uevents will
-have been preceeded by at least an ADD uevent for the same fileystem,
+have been preceded by at least an ADD uevent for the same fileystem,
 and unlike the other uevents is generated automatically by the kernel's
 kobject subsystem.
 

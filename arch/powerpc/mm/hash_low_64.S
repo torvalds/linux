@@ -192,8 +192,8 @@ htab_insert_pte:
 	rldicr	r3,r0,3,63-3		/* r3 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */
@@ -215,8 +215,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3	/* r0 = (~hash & mask) << 3 */
 	
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */
@@ -495,8 +495,8 @@ htab_special_pfn:
 	rldicr	r3,r0,3,63-3		/* r0 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */
@@ -522,8 +522,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3		/* r0 = (~hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */
@@ -813,8 +813,8 @@ ht64_insert_pte:
 	rldicr	r3,r0,3,63-3	/* r0 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_64K
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */
@@ -836,8 +836,8 @@ _GLOBAL(ht64_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3	/* r0 = (~hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retreive new pp bits */
-	mr	r4,r29			/* Retreive va */
+	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_64K
 	ld	r9,STK_PARM(r9)(r1)	/* segment size */

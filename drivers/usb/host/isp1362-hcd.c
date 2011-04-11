@@ -546,7 +546,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 			if (usb_pipecontrol(urb->pipe)) {
 				ep->nextpid = USB_PID_ACK;
 				/* save the data underrun error code for later and
-				 * procede with the status stage
+				 * proceed with the status stage
 				 */
 				urb->actual_length += PTD_GET_COUNT(ptd);
 				BUG_ON(urb->actual_length > urb->transfer_buffer_length);

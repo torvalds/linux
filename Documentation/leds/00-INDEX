@@ -1,0 +1,8 @@
+leds-class.txt
+	- documents LED handling under Linux.
+leds-lp3944.txt
+	- notes on how to use the leds-lp3944 driver.
+leds-lp5521.txt
+	- notes on how to use the leds-lp5521 driver.
+leds-lp5523.txt
+	- notes on how to use the leds-lp5523 driver.

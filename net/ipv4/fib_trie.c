@@ -12,7 +12,7 @@
  *
  *   Hans Liss <hans.liss@its.uu.se>  Uppsala Universitet
  *
- * This work is based on the LPC-trie which is originally descibed in:
+ * This work is based on the LPC-trie which is originally described in:
  *
  * An experimental study of compression methods for dynamic tries
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.

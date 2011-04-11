@@ -868,7 +868,7 @@ static void blkio_update_policy_rule(struct blkio_policy_node *oldpn,
 }
 
 /*
- * Some rules/values in blkg have changed. Propogate those to respective
+ * Some rules/values in blkg have changed. Propagate those to respective
  * policies.
  */
 static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
@@ -903,7 +903,7 @@ static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
 }
 
 /*
- * A policy node rule has been updated. Propogate this update to all the
+ * A policy node rule has been updated. Propagate this update to all the
  * block groups which might be affected by this update.
  */
 static void blkio_update_policy_node_blkg(struct blkio_cgroup *blkcg,

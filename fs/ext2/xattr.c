@@ -35,7 +35,7 @@
  *   +------------------+
  *
  * The block header is followed by multiple entry descriptors. These entry
- * descriptors are variable in size, and alligned to EXT2_XATTR_PAD
+ * descriptors are variable in size, and aligned to EXT2_XATTR_PAD
  * byte boundaries. The entry descriptors are sorted by attribute name,
  * so that two extended attribute blocks can be compared efficiently.
  *

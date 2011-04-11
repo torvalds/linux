@@ -15,7 +15,7 @@
  * for this mutex, no need for a system wide mutex facility.
  *
  * Also this lock is often released before a call that could block because
- * reiserfs performances were partialy based on the release while schedule()
+ * reiserfs performances were partially based on the release while schedule()
  * property of the Bkl.
  */
 void reiserfs_write_lock(struct super_block *s)

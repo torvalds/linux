@@ -5,7 +5,7 @@
  * handling and other fixed offset specific things.
  *
  * This file is meant to be #included from head_64.S due to
- * position dependant assembly.
+ * position dependent assembly.
  *
  * Most of this originates from head_64.S and thus has the same
  * copyright history.

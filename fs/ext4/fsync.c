@@ -101,7 +101,7 @@ extern int ext4_flush_completed_IO(struct inode *inode)
 		 * to the work-to-be schedule is freed.
 		 *
 		 * Thus we need to keep the io structure still valid here after
-		 * convertion finished. The io structure has a flag to
+		 * conversion finished. The io structure has a flag to
 		 * avoid double converting from both fsync and background work
 		 * queue work.
 		 */

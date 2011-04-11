@@ -897,7 +897,7 @@ void xics_migrate_irqs_away(void)
 		int status;
 		unsigned long flags;
 
-		/* We cant set affinity on ISA interrupts */
+		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
 		if (irq_map[virq].host != xics_host)

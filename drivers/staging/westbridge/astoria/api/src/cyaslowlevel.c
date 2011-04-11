@@ -432,7 +432,7 @@ cy_as_mail_box_queued_data_handler(cy_as_device *dev_p)
 * is received.  When a complete request is received, the callback
 * associated with requests on that context is called.  When a complete
 * response is recevied, the callback associated with the request that
-* generated the reponse is called.
+* generated the response is called.
 */
 void
 cy_as_mail_box_interrupt_handler(cy_as_device *dev_p)

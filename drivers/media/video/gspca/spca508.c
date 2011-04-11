@@ -592,7 +592,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 /* This line seems to setup the frame/canvas */
 	{0x000f, 0x8402},
 
-/* Theese 6 lines are needed to startup the webcam */
+/* These 6 lines are needed to startup the webcam */
 	{0x0090, 0x8110},
 	{0x0001, 0x8114},
 	{0x0001, 0x8114},

@@ -542,7 +542,7 @@ static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
 	 * ADC power on, start, enable PENDET and set loop delay
 	 * ADC loop delay is set to 4.5 ms approximately
 	 * Loop delay more than this results in jitter in adc readings
-	 * Setting loop delay to 0 (continous loop) in MAXIM stops PENDET
+	 * Setting loop delay to 0 (continuous loop) in MAXIM stops PENDET
 	 * interrupt generation sometimes.
 	 */
 

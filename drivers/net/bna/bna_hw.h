@@ -897,7 +897,7 @@ static struct bna_ritseg_pool_cfg name[BFI_RIT_SEG_TOTAL_POOLS] =	\
  * Catapult RSS Table Base Offset Address
  *
  * Exists in RAD memory space.
- * Each entry is 352 bits, but alligned on
+ * Each entry is 352 bits, but aligned on
  * 64 byte (512 bit) boundary. Accessed
  * 4 byte words, the whole entry can be
  * broken into 11 word accesses.

@@ -603,7 +603,7 @@ slow_path:
 		/* IF: it doesn't fit, use 'mtu' - the data space left */
 		if (len > mtu)
 			len = mtu;
-		/* IF: we are not sending upto and including the packet end
+		/* IF: we are not sending up to and including the packet end
 		   then align the next start on an eight byte boundary */
 		if (len < left)	{
 			len &= ~7;

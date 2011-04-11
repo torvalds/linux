@@ -826,7 +826,7 @@ done:
 	return status;
 }
 
-/* reinit == restore inital software state */
+/* reinit == restore initial software state */
 static void udc_reinit(struct at91_udc *udc)
 {
 	u32 i;

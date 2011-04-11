@@ -126,9 +126,9 @@ enum i2c_operation {
 /**
  * struct i2c_nmk_client - client specific data
  * @slave_adr: 7-bit slave address
- * @count: no. bytes to be transfered
+ * @count: no. bytes to be transferred
  * @buffer: client data buffer
- * @xfer_bytes: bytes transfered till now
+ * @xfer_bytes: bytes transferred till now
  * @operation: current I2C operation
  */
 struct i2c_nmk_client {
@@ -330,7 +330,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 	 * slsu defines the data setup time after SCL clock
 	 * stretching in terms of i2c clk cycles. The
 	 * needed setup time for the three modes are 250ns,
-	 * 100ns, 10ns repectively thus leading to the values
+	 * 100ns, 10ns respectively thus leading to the values
 	 * of 14, 6, 2 for a 48 MHz i2c clk.
 	 */
 	writel(dev->cfg.slsu << 16, dev->virtbase + I2C_SCR);
@@ -364,7 +364,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 	/*
 	 * set the speed mode. Currently we support
 	 * only standard and fast mode of operation
-	 * TODO - support for fast mode plus (upto 1Mb/s)
+	 * TODO - support for fast mode plus (up to 1Mb/s)
 	 * and high speed (up to 3.4 Mb/s)
 	 */
 	if (dev->cfg.sm > I2C_FREQ_MODE_FAST) {

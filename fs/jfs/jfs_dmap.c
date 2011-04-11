@@ -1649,7 +1649,7 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
 		}
 
 		/* search the tree within the dmap control page for
-		 * sufficent free space.  if sufficient free space is found,
+		 * sufficient free space.  if sufficient free space is found,
 		 * dbFindLeaf() returns the index of the leaf at which
 		 * free space was found.
 		 */
@@ -2744,7 +2744,7 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
 			/* check which (leafno or buddy) is the left buddy.
 			 * the left buddy gets to claim the blocks resulting
 			 * from the join while the right gets to claim none.
-			 * the left buddy is also eligable to participate in
+			 * the left buddy is also eligible to participate in
 			 * a join at the next higher level while the right
 			 * is not.
 			 *

@@ -262,7 +262,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  *
- * Note: We don't explictly enforce VRAM start to be aligned on VRAM size,
+ * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
  * not IGP.

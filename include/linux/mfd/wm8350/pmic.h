@@ -1,5 +1,5 @@
 /*
- * pmic.h  --  Power Managment Driver for Wolfson WM8350 PMIC
+ * pmic.h  --  Power Management Driver for Wolfson WM8350 PMIC
  *
  * Copyright 2007 Wolfson Microelectronics PLC
  *

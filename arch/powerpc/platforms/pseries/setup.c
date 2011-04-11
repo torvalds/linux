@@ -378,7 +378,7 @@ static int __init pSeries_init_panel(void)
 
 	return 0;
 }
-arch_initcall(pSeries_init_panel);
+machine_arch_initcall(pseries, pSeries_init_panel);
 
 static int pseries_set_dabr(unsigned long dabr)
 {

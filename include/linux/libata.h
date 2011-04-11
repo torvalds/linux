@@ -364,7 +364,7 @@ enum {
 	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 6,
 
 	/* Horkage types. May be set by libata or controller on drives
-	   (some horkage may be drive/controller pair dependant */
+	   (some horkage may be drive/controller pair dependent */
 
 	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
 	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */

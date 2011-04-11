@@ -244,9 +244,9 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 				int phyid)
 {
 	struct cfmuxl *muxl = container_obj(layr);
-	struct list_head *node;
+	struct list_head *node, *next;
 	struct cflayer *layer;
-	list_for_each(node, &muxl->srvl_list) {
+	list_for_each_safe(node, next, &muxl->srvl_list) {
 		layer = list_entry(node, struct cflayer, node);
 		if (cfsrvl_phyid_match(layer, phyid))
 			layer->ctrlcmd(layer, ctrl, phyid);

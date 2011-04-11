@@ -1368,7 +1368,7 @@ skip_recovery:
 		mlog_errno(status);
 
 	/* Now it is right time to recover quotas... We have to do this under
-	 * superblock lock so that noone can start using the slot (and crash)
+	 * superblock lock so that no one can start using the slot (and crash)
 	 * before we recover it */
 	for (i = 0; i < rm_quota_used; i++) {
 		qrec = ocfs2_begin_quota_recovery(osb, rm_quota[i]);

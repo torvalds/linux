@@ -13,7 +13,7 @@
 
 /* Full speed: max # of bytes to transfer for a single urb
    at a time must be < 1024 && must be multiple of 64.
-   832 allows transfering 4kiB within 5 frames. */
+   832 allows transferring 4kiB within 5 frames. */
 #define MAX_TRANSFER_SIZE_FULLSPEED	832
 
 /* Low speed: there is no reason to schedule in very big
