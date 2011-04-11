@@ -1218,6 +1218,7 @@ static void context_stop(struct context *ctx)
 }
 
 struct driver_data {
+	u8 inline_data[8];
 	struct fw_packet *packet;
 };
 
@@ -1301,20 +1302,28 @@ static int at_context_queue_packet(struct context *ctx,
 		return -1;
 	}
 
+	BUILD_BUG_ON(sizeof(struct driver_data) > sizeof(struct descriptor));
 	driver_data = (struct driver_data *) &d[3];
 	driver_data->packet = packet;
 	packet->driver_data = driver_data;
 
 	if (packet->payload_length > 0) {
-		payload_bus =
-			dma_map_single(ohci->card.device, packet->payload,
-				       packet->payload_length, DMA_TO_DEVICE);
-		if (dma_mapping_error(ohci->card.device, payload_bus)) {
-			packet->ack = RCODE_SEND_ERROR;
-			return -1;
+		if (packet->payload_length > sizeof(driver_data->inline_data)) {
+			payload_bus = dma_map_single(ohci->card.device,
+						     packet->payload,
+						     packet->payload_length,
+						     DMA_TO_DEVICE);
+			if (dma_mapping_error(ohci->card.device, payload_bus)) {
+				packet->ack = RCODE_SEND_ERROR;
+				return -1;
+			}
+			packet->payload_bus	= payload_bus;
+			packet->payload_mapped	= true;
+		} else {
+			memcpy(driver_data->inline_data, packet->payload,
+			       packet->payload_length);
+			payload_bus = d_bus + 3 * sizeof(*d);
 		}
-		packet->payload_bus	= payload_bus;
-		packet->payload_mapped	= true;
 
 		d[2].req_count    = cpu_to_le16(packet->payload_length);
 		d[2].data_address = cpu_to_le32(payload_bus);
