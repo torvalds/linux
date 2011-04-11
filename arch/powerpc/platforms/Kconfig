@@ -154,11 +154,17 @@ config PPC_P7_NAP
 config PPC_INDIRECT_IO
 	bool
 	select GENERIC_IOMAP
-	default n
+
+config PPC_INDIRECT_PIO
+	bool
+	select PPC_INDIRECT_IO
+
+config PPC_INDIRECT_MMIO
+	bool
+	select PPC_INDIRECT_IO
 
 config GENERIC_IOMAP
 	bool
-	default n
 
 source "drivers/cpufreq/Kconfig"
 

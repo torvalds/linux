@@ -481,10 +481,16 @@ __do_out_asm(_rec_outl, "stwbrx")
 				_memcpy_fromio(dst,PCI_FIX_ADDR(src),n)
 #endif /* !CONFIG_EEH */
 
-#ifdef CONFIG_PPC_INDIRECT_IO
-#define DEF_PCI_HOOK(x)		x
+#ifdef CONFIG_PPC_INDIRECT_PIO
+#define DEF_PCI_HOOK_pio(x)	x
 #else
-#define DEF_PCI_HOOK(x)		NULL
+#define DEF_PCI_HOOK_pio(x)	NULL
+#endif
+
+#ifdef CONFIG_PPC_INDIRECT_MMIO
+#define DEF_PCI_HOOK_mem(x)	x
+#else
+#define DEF_PCI_HOOK_mem(x)	NULL
 #endif
 
 /* Structure containing all the hooks */
@@ -504,7 +510,7 @@ extern struct ppc_pci_io {
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static inline ret name at					\
 {								\
-	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
+	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)	\
 		return ppc_pci_io.name al;			\
 	return __do_##name al;					\
 }
@@ -512,7 +518,7 @@ static inline ret name at					\
 #define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
 static inline void name at					\
 {								\
-	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
+	if (DEF_PCI_HOOK_##space(ppc_pci_io.name) != NULL)		\
 		ppc_pci_io.name al;				\
 	else							\
 		__do_##name al;					\
