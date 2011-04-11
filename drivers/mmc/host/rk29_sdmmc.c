@@ -651,6 +651,7 @@ static void rk29_sdmmc_queue_request(struct rk29_sdmmc *host,struct mmc_request 
 		host->state = STATE_SENDING_CMD;
 		rk29_sdmmc_start_request(host);
 	} else {
+		dev_info(&host->pdev->dev, "list add tail\n");
 		list_add_tail(&host->queue_node, &host->queue);
 	}
 	spin_unlock(&host->lock);
@@ -782,6 +783,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 		rk29_sdmmc_reset_fifo(host);
 	}
 	if (!list_empty(&host->queue)) {
+		dev_info(&host->pdev->dev, "queque list is not empty\n");
 		host = list_entry(host->queue.next,
 				struct rk29_sdmmc, queue_node);
 		list_del(&host->queue_node);
@@ -1367,6 +1369,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 
 				rk29_sdmmc_request_end(host, mrq);
 			} else {
+				dev_info(&host->pdev->dev, "mrq != host->curr_mrq")
 				if (host->queue_node.next && host->queue_node.prev)
 					list_del(&host->queue_node);
 				mrq->cmd->error = -ENOMEDIUM;
