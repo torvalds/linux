@@ -1653,7 +1653,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	if (rc == 0) {
 		/* Driver will handle this itself */
 		schedule_timeout_interruptible(
-			id.data ? id.data : MAX_SCHEDULE_TIMEOUT);
+			id.data ? (id.data * HZ) : MAX_SCHEDULE_TIMEOUT);
 	} else {
 		/* Driver expects to be called periodically */
 		do {
