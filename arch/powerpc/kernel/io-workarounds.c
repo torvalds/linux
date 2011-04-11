@@ -175,6 +175,7 @@ void __devinit iowa_register_bus(struct pci_controller *phb,
 	bus = &iowa_busses[iowa_bus_count];
 	bus->phb = phb;
 	bus->ops = ops;
+	bus->private = data;
 
 	if (initfunc)
 		if ((*initfunc)(bus, data))
