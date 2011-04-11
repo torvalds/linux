@@ -1254,7 +1254,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				dev_info(&host->pdev->dev, "host->cmd == NULL\n");
 			}
 			else
-				dev_info(&host->pdev->dev, "cmd transfer error(int status 0x%x cmd %d host->state %d pending_events %d)\n", 
+				dev_info(&host->pdev->dev, "cmd transfer error(int status 0x%x cmd %d host->state %d pending_events %ld)\n", 
 						status,host->cmd->opcode,host->state,host->pending_events);
 			tasklet_schedule(&host->tasklet);
 		}
@@ -1265,7 +1265,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
-			dev_info(&host->pdev->dev, "data transfer error(int status 0x%x host->state %d pending_events %d pending=0x%x)\n", 
+			dev_info(&host->pdev->dev, "data transfer error(int status 0x%x host->state %d pending_events %ld pending=0x%x)\n", 
 					status,host->state,host->pending_events,pending);
 		}
 
@@ -1369,7 +1369,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 
 				rk29_sdmmc_request_end(host, mrq);
 			} else {
-				dev_info(&host->pdev->dev, "mrq != host->curr_mrq")
+				dev_info(&host->pdev->dev, "mrq != host->curr_mrq");
 				if (host->queue_node.next && host->queue_node.prev)
 					list_del(&host->queue_node);
 				mrq->cmd->error = -ENOMEDIUM;
@@ -1626,23 +1626,29 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 static irqreturn_t det_keys_isr(int irq, void *dev_id)
 {
 	struct rk29_sdmmc *host = dev_id;
-	dev_info(&host->pdev->dev, "sd det_gpio changed(%c), send wakeup key!\n",
+	dev_info(&host->pdev->dev, "sd det_gpio changed(%s), send wakeup key!\n",
 		gpio_get_value(RK29_PIN2_PA2)?"removed":"insert");
 	rk29_sdmmc_detect_change((unsigned long)dev_id);
+
+	return IRQ_HANDLED;
 }
 
-static void rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
+static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
 {
+	int ret = 0;
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
 	gpio_request(RK29_PIN2_PA2, "sd_detect");
 	gpio_direction_input(RK29_PIN2_PA2);
 
 	host->gpio_irq = gpio_to_irq(RK29_PIN2_PA2);
-	request_irq(host->gpio_irq, det_keys_isr,
+	ret = request_irq(host->gpio_irq, det_keys_isr,
 					    (gpio_get_value(RK29_PIN2_PA2))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
 					    "sd_detect",
 					    host);
+	
 	enable_irq_wake(host->gpio_irq);
+
+	return ret;
 }
 static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 {
@@ -1661,7 +1667,8 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	dev_info(&host->pdev->dev, "Enter rk29_sdmmc_suspend\n");
 	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0)){
 		ret = mmc_suspend_host(host->mmc, state);
-		rk29_sdmmc_sdcard_suspend(host);
+		if(rk29_sdmmc_sdcard_suspend(host) < 0)
+			dev_info(&host->pdev->dev, "rk29_sdmmc_sdcard_suspend error\n");
 	}
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	clk_disable(host->clk);
