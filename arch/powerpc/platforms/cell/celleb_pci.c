@@ -468,18 +468,6 @@ static struct of_device_id celleb_phb_match[] __initdata = {
 	},
 };
 
-static int __init celleb_io_workaround_init(struct pci_controller *phb,
-					    struct celleb_phb_spec *phb_spec)
-{
-	if (phb_spec->ops) {
-		iowa_register_bus(phb, phb_spec->ops, phb_spec->iowa_init,
-				  phb_spec->iowa_data);
-		io_workaround_init();
-	}
-
-	return 0;
-}
-
 int __init celleb_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
@@ -499,7 +487,11 @@ int __init celleb_setup_phb(struct pci_controller *phb)
 	if (rc)
 		return 1;
 
-	return celleb_io_workaround_init(phb, phb_spec);
+	if (phb_spec->ops)
+		iowa_register_bus(phb, phb_spec->ops,
+				  phb_spec->iowa_init,
+				  phb_spec->iowa_data);
+	return 0;
 }
 
 int celleb_pci_probe_mode(struct pci_bus *bus)
