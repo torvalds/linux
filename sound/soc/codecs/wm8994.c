@@ -325,6 +325,29 @@ static void wm8994_set_level_volume(void)
 	
 }
 
+void PA_ctrl(unsigned char ctrl)
+{
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	
+	if(pdata->PA_control == 1 )
+	{
+		if(ctrl == 1)
+		{
+			DBG("enable PA_control\n");
+			gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+			gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
+			gpio_free(RK29_PIN6_PD3);
+		}
+		else
+		{
+			DBG("enable PA_control\n");
+			gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
+			gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
+			gpio_free(RK29_PIN6_PD3);			
+		}
+	}
+}
 #define wm8994_reset()	wm8994_set_all_mute();\
 						wm8994_write(WM8994_RESET, 0)
 						
@@ -533,6 +556,7 @@ void recorder_and_AP_to_headset(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
+	PA_ctrl(0);	
 	wm8994_reset();
 	msleep(WM8994_DELAY);
 
@@ -2891,7 +2915,8 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 
 	isWM8994SetChannel = false;
 	
-	if(pdata->PA_control == 1)
+	if(pdata->PA_control == 1 &&
+	wm8994_current_mode !=wm8994_recorder_and_AP_to_headset)
 	{
 		DBG("enable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
@@ -3429,7 +3454,7 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 	
 	isWM8994SetChannel = true;
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
-//	if(pdata ->PA_control == 1)
+	if(pdata ->PA_control == 1)
 	{
 		DBG("wm8994 suspend disable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
@@ -3485,7 +3510,7 @@ static int wm8994_resume(struct platform_device *pdev)
 
 	isWM8994SetChannel = false;
 	
-//	if(pdata ->PA_control == 1)
+	if(pdata ->PA_control == 1)
 	{
 		DBG("wm8994_resume enable PA_control\n");
 		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
