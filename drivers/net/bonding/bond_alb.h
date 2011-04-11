@@ -75,7 +75,7 @@ struct tlb_client_info {
 				 * gave this entry index.
 				 */
 	u32 tx_bytes;		/* Each Client accumulates the BytesTx that
-				 * were tranmitted to it, and after each
+				 * were transmitted to it, and after each
 				 * CallBack the LoadHistory is divided
 				 * by the balance interval
 				 */
