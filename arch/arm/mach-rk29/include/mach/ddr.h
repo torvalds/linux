@@ -304,6 +304,8 @@
 #define DDR3_2133M  (19)    // 13-13-13
 #define DDR3_2133N  (20)    // 14-14-14
 #define DDR3_DEFAULT (21)
+#define DDR_DDRII   (22)
+#define DDR_LPDDR   (23)
 
 /* DDR Controller register struct */
 typedef volatile struct DDR_REG_Tag
