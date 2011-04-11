@@ -356,6 +356,11 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	/* FM WLAN coexistence */
+	ret = wl1271_acx_fm_coex(wl);
+	if (ret < 0)
+		return ret;
+
 	/* Beacons and broadcast settings */
 	ret = wl1271_init_beacon_broadcast(wl);
 	if (ret < 0)

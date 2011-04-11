@@ -320,6 +320,18 @@ static struct conf_drv_settings default_conf = {
 		.min_req_rx_blocks            = 22,
 		.tx_min                       = 27,
 	},
+	.fm_coex = {
+		.enable                       = true,
+		.swallow_period               = 5,
+		.n_divider_fref_set_1         = 0xff,       /* default */
+		.n_divider_fref_set_2         = 12,
+		.m_divider_fref_set_1         = 148,
+		.m_divider_fref_set_2         = 0xffff,     /* default */
+		.coex_pll_stabilization_time  = 0xffffffff, /* default */
+		.ldo_stabilization_time       = 0xffff,     /* default */
+		.fm_disturbed_band_margin     = 0xff,       /* default */
+		.swallow_clk_diff             = 0xff,       /* default */
+	},
 	.hci_io_ds = HCI_IO_DS_6MA,
 };
 
@@ -505,6 +517,11 @@ static int wl1271_plt_init(struct wl1271 *wl)
 
 	/* Bluetooth WLAN coexistence */
 	ret = wl1271_init_pta(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* FM WLAN coexistence */
+	ret = wl1271_acx_fm_coex(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

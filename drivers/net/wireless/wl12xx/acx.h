@@ -1179,6 +1179,65 @@ struct wl1271_acx_inconnection_sta {
 	u8 padding1[2];
 } __packed;
 
+/*
+ * ACX_FM_COEX_CFG
+ * set the FM co-existence parameters.
+ */
+struct wl1271_acx_fm_coex {
+	struct acx_header header;
+	/* enable(1) / disable(0) the FM Coex feature */
+	u8 enable;
+	/*
+	 * Swallow period used in COEX PLL swallowing mechanism.
+	 * 0xFF = use FW default
+	 */
+	u8 swallow_period;
+	/*
+	 * The N divider used in COEX PLL swallowing mechanism for Fref of
+	 * 38.4/19.2 Mhz. 0xFF = use FW default
+	 */
+	u8 n_divider_fref_set_1;
+	/*
+	 * The N divider used in COEX PLL swallowing mechanism for Fref of
+	 * 26/52 Mhz. 0xFF = use FW default
+	 */
+	u8 n_divider_fref_set_2;
+	/*
+	 * The M divider used in COEX PLL swallowing mechanism for Fref of
+	 * 38.4/19.2 Mhz. 0xFFFF = use FW default
+	 */
+	__le16 m_divider_fref_set_1;
+	/*
+	 * The M divider used in COEX PLL swallowing mechanism for Fref of
+	 * 26/52 Mhz. 0xFFFF = use FW default
+	 */
+	__le16 m_divider_fref_set_2;
+	/*
+	 * The time duration in uSec required for COEX PLL to stabilize.
+	 * 0xFFFFFFFF = use FW default
+	 */
+	__le32 coex_pll_stabilization_time;
+	/*
+	 * The time duration in uSec required for LDO to stabilize.
+	 * 0xFFFFFFFF = use FW default
+	 */
+	__le16 ldo_stabilization_time;
+	/*
+	 * The disturbed frequency band margin around the disturbed frequency
+	 * center (single sided).
+	 * For example, if 2 is configured, the following channels will be
+	 * considered disturbed channel:
+	 *   80 +- 0.1 MHz, 91 +- 0.1 MHz, 98 +- 0.1 MHz, 102 +- 0.1 MH
+	 * 0xFF = use FW default
+	 */
+	u8 fm_disturbed_band_margin;
+	/*
+	 * The swallow clock difference of the swallowing mechanism.
+	 * 0xFF = use FW default
+	 */
+	u8 swallow_clk_diff;
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1208,6 +1267,7 @@ enum {
 	ACX_BCN_DTIM_OPTIONS        = 0x0031,
 	ACX_SG_ENABLE               = 0x0032,
 	ACX_SG_CFG                  = 0x0033,
+	ACX_FM_COEX_CFG             = 0x0034,
 	ACX_BEACON_FILTER_TABLE     = 0x0038,
 	ACX_ARP_IP_FILTER           = 0x0039,
 	ACX_ROAMING_STATISTICS_TBL  = 0x003B,
@@ -1318,5 +1378,6 @@ int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl);
 int wl1271_acx_sta_max_tx_retry(struct wl1271 *wl);
 int wl1271_acx_config_ps(struct wl1271 *wl);
 int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
+int wl1271_acx_fm_coex(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

@@ -1626,3 +1626,43 @@ out:
 	kfree(acx);
 	return ret;
 }
+
+int wl1271_acx_fm_coex(struct wl1271 *wl)
+{
+	struct wl1271_acx_fm_coex *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx fm coex setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->enable = wl->conf.fm_coex.enable;
+	acx->swallow_period = wl->conf.fm_coex.swallow_period;
+	acx->n_divider_fref_set_1 = wl->conf.fm_coex.n_divider_fref_set_1;
+	acx->n_divider_fref_set_2 = wl->conf.fm_coex.n_divider_fref_set_2;
+	acx->m_divider_fref_set_1 =
+		cpu_to_le16(wl->conf.fm_coex.m_divider_fref_set_1);
+	acx->m_divider_fref_set_2 =
+		cpu_to_le16(wl->conf.fm_coex.m_divider_fref_set_2);
+	acx->coex_pll_stabilization_time =
+		cpu_to_le32(wl->conf.fm_coex.coex_pll_stabilization_time);
+	acx->ldo_stabilization_time =
+		cpu_to_le16(wl->conf.fm_coex.ldo_stabilization_time);
+	acx->fm_disturbed_band_margin =
+		wl->conf.fm_coex.fm_disturbed_band_margin;
+	acx->swallow_clk_diff = wl->conf.fm_coex.swallow_clk_diff;
+
+	ret = wl1271_cmd_configure(wl, ACX_FM_COEX_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx fm coex setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
