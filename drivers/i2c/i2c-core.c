@@ -48,6 +48,7 @@ static LIST_HEAD(userspace_devices);
 
 static struct device_type i2c_client_type;
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
+static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
@@ -300,16 +301,34 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	strlcpy(client->name, info->type, sizeof(client->name));
 
 	/* Check for address business */
+    #if 0
 	status = i2c_check_addr(adap, client->addr);
 	if (status)
 		goto out_err;
+    #else
+    /* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
+      if devices havn't work at the same time.*/
+    status = i2c_check_addr_ex(adap, client->addr);
+    #endif
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 
-	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
-		     client->addr);
+    /* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
+      if devices havn't work at the same time.*/
+    #if 0
+    dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+    		     client->addr);
+    #else
+    if (status == 0)
+    	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+    		     client->addr);
+    else 
+        dev_set_name(&client->dev, "%d-%02x-%01x", i2c_adapter_id(adap),
+    		     client->addr,status);
+    #endif
+    
 	status = device_register(&client->dev);
 	if (status)
 		goto out_err;
@@ -946,6 +965,33 @@ static int __i2c_check_addr(struct device *dev, void *addrp)
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 {
 	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
+}
+/* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
+      if devices havn't work at the same time.*/
+struct i2c_addr_cnt
+{
+    int addr;
+    int cnt;
+};
+static int __i2c_check_addr_ex(struct device *dev, void *addrp)
+{
+	struct i2c_client	*client = i2c_verify_client(dev);
+	struct i2c_addr_cnt *addrinfo = (struct i2c_addr_cnt *)addrp;
+    int addr = addrinfo->addr;
+
+	if (client && client->addr == addr) {
+		addrinfo->cnt++;
+	}
+	return 0;
+}
+static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr)
+{
+    struct i2c_addr_cnt addrinfo;
+
+    addrinfo.addr = addr;
+    addrinfo.cnt = 0;
+    device_for_each_child(&adapter->dev, &addrinfo, __i2c_check_addr_ex);
+    return addrinfo.cnt;
 }
 
 /**
