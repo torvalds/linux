@@ -2332,6 +2332,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 
 /* Native Instruments MK2 series */
 {
+	/* Audio Kontrol 6 */
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x17cc,
+	.idProduct = 0x1000,
+},
+{
 	/* Traktor Audio 6 */
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
 	.idVendor = 0x17cc,
