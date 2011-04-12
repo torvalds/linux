@@ -372,12 +372,14 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (get_ldev_if_state(mdev, D_CONSISTENT)) {
 			fp = max_t(enum drbd_fencing_p, fp, mdev->ldev->dc.fencing);
 			put_ldev(mdev);
 		}
 	}
+	rcu_read_unlock();
 
 	return fp;
 }
@@ -1624,29 +1626,41 @@ out:
 static bool conn_resync_running(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
+	bool rv = false;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (mdev->state.conn == C_SYNC_SOURCE ||
 		    mdev->state.conn == C_SYNC_TARGET ||
 		    mdev->state.conn == C_PAUSED_SYNC_S ||
-		    mdev->state.conn == C_PAUSED_SYNC_T)
-			return true;
+		    mdev->state.conn == C_PAUSED_SYNC_T) {
+			rv = true;
+			break;
+		}
 	}
-	return false;
+	rcu_read_unlock();
+
+	return rv;
 }
 
 static bool conn_ov_running(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
+	bool rv = false;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (mdev->state.conn == C_VERIFY_S ||
-		    mdev->state.conn == C_VERIFY_T)
-			return true;
+		    mdev->state.conn == C_VERIFY_T) {
+			rv = true;
+			break;
+		}
 	}
-	return false;
+	rcu_read_unlock();
+
+	return rv;
 }
 
 int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
@@ -1858,26 +1872,28 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {
 		if (get_ldev(mdev)) {
 			enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
 			put_ldev(mdev);
 			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
 				retcode = ERR_STONITH_AND_PROT_A;
-				goto fail;
+				goto fail_rcu_unlock;
 			}
 		}
 		if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
 			retcode = ERR_DISCARD;
-			goto fail;
+			goto fail_rcu_unlock;
 		}
 		if (!mdev->bitmap) {
 			if(drbd_bm_init(mdev)) {
 				retcode = ERR_NOMEM;
-				goto fail;
+				goto fail_rcu_unlock;
 			}
 		}
 	}
+	rcu_read_unlock();
 
 	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A) {
 		retcode = ERR_CONG_NOT_PROTO_A;
@@ -1991,15 +2007,19 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	retcode = _conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 	spin_unlock_irq(&tconn->req_lock);
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {
 		mdev->send_cnt = 0;
 		mdev->recv_cnt = 0;
 		kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	}
+	rcu_read_unlock();
 	conn_reconfig_done(tconn);
 	drbd_adm_finish(info, retcode);
 	return 0;
 
+fail_rcu_unlock:
+	rcu_read_unlock();
 fail:
 	kfree(int_dig_in);
 	kfree(int_dig_vv);
@@ -2562,8 +2582,6 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 	/* synchronize with drbd_new_tconn/drbd_free_tconn */
 	mutex_lock(&drbd_cfg_mutex);
-	/* synchronize with drbd_delete_device */
-	rcu_read_lock();
 next_tconn:
 	/* revalidate iterator position */
 	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
@@ -2624,7 +2642,6 @@ next_tconn:
         }
 
 out:
-	rcu_read_unlock();
 	mutex_unlock(&drbd_cfg_mutex);
 	/* where to start the next iteration */
         cb->args[0] = (long)pos;

@@ -1348,6 +1348,7 @@ static int _drbd_pause_after(struct drbd_conf *mdev)
 	struct drbd_conf *odev;
 	int i, rv = 0;
 
+	rcu_read_lock();
 	idr_for_each_entry(&minors, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
@@ -1355,6 +1356,7 @@ static int _drbd_pause_after(struct drbd_conf *mdev)
 			rv |= (__drbd_set_state(_NS(odev, aftr_isp, 1), CS_HARD, NULL)
 			       != SS_NOTHING_TO_DO);
 	}
+	rcu_read_unlock();
 
 	return rv;
 }
@@ -1370,6 +1372,7 @@ static int _drbd_resume_next(struct drbd_conf *mdev)
 	struct drbd_conf *odev;
 	int i, rv = 0;
 
+	rcu_read_lock();
 	idr_for_each_entry(&minors, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
@@ -1380,6 +1383,7 @@ static int _drbd_resume_next(struct drbd_conf *mdev)
 				       != SS_NOTHING_TO_DO) ;
 		}
 	}
+	rcu_read_unlock();
 	return rv;
 }
 

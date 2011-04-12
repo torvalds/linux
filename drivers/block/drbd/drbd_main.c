@@ -453,8 +453,10 @@ void tl_clear(struct drbd_tconn *tconn)
 	}
 
 	/* ensure bit indicating barrier is required is clear */
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		clear_bit(CREATE_BARRIER, &mdev->flags);
+	rcu_read_unlock();
 
 	spin_unlock_irq(&tconn->req_lock);
 }
@@ -634,13 +636,15 @@ char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *tas
 
 int conn_lowest_minor(struct drbd_tconn *tconn)
 {
-	int vnr = 0;
 	struct drbd_conf *mdev;
+	int vnr = 0, m;
 
+	rcu_read_lock();
 	mdev = idr_get_next(&tconn->volumes, &vnr);
-	if (!mdev)
-		return -1;
-	return mdev_to_minor(mdev);
+	m = mdev ? mdev_to_minor(mdev) : -1;
+	rcu_read_unlock();
+
+	return m;
 }
 
 #ifdef CONFIG_SMP

@@ -4828,11 +4828,13 @@ static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
 		set_bit(SIGNAL_ASENDER, &tconn->flags);
 
 		spin_lock_irq(&tconn->req_lock);
+		rcu_read_lock();
 		idr_for_each_entry(&tconn->volumes, mdev, i) {
 			not_empty = !list_empty(&mdev->done_ee);
 			if (not_empty)
 				break;
 		}
+		rcu_read_unlock();
 		spin_unlock_irq(&tconn->req_lock);
 	} while (not_empty);
 

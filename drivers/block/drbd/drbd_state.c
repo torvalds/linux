@@ -55,15 +55,21 @@ static inline bool is_susp(union drbd_state s)
 bool conn_all_vols_unconf(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
+	bool rv = true;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (mdev->state.disk != D_DISKLESS ||
 		    mdev->state.conn != C_STANDALONE ||
-		    mdev->state.role != R_SECONDARY)
-			return false;
+		    mdev->state.role != R_SECONDARY) {
+			rv = false;
+			break;
+		}
 	}
-	return true;
+	rcu_read_unlock();
+
+	return rv;
 }
 
 /* Unfortunately the states where not correctly ordered, when
@@ -91,8 +97,10 @@ enum drbd_role conn_highest_role(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		role = max_role(role, mdev->state.role);
+	rcu_read_unlock();
 
 	return role;
 }
@@ -103,8 +111,10 @@ enum drbd_role conn_highest_peer(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		peer = max_role(peer, mdev->state.peer);
+	rcu_read_unlock();
 
 	return peer;
 }
@@ -115,8 +125,10 @@ enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		ds = max_t(enum drbd_disk_state, ds, mdev->state.disk);
+	rcu_read_unlock();
 
 	return ds;
 }
@@ -127,8 +139,10 @@ enum drbd_disk_state conn_lowest_disk(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		ds = min_t(enum drbd_disk_state, ds, mdev->state.disk);
+	rcu_read_unlock();
 
 	return ds;
 }
@@ -139,8 +153,10 @@ enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		ds = max_t(enum drbd_disk_state, ds, mdev->state.pdsk);
+	rcu_read_unlock();
 
 	return ds;
 }
@@ -151,8 +167,10 @@ enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		conn = min_t(enum drbd_conns, conn, mdev->state.conn);
+	rcu_read_unlock();
 
 	return conn;
 }
@@ -1406,12 +1424,14 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		/* case1: The outdate peer handler is successful: */
 		if (ns_max.pdsk <= D_OUTDATED) {
 			tl_clear(tconn);
+			rcu_read_lock();
 			idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 				if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
 					drbd_uuid_new_current(mdev);
 					clear_bit(NEW_CUR_UUID, &mdev->flags);
 				}
 			}
+			rcu_read_unlock();
 			conn_request_state(tconn,
 					   (union drbd_state) { { .susp_fen = 1 } },
 					   (union drbd_state) { { .susp_fen = 0 } },
@@ -1419,8 +1439,10 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		}
 		/* case2: The connection was established again: */
 		if (ns_min.conn >= C_CONNECTED) {
+			rcu_read_lock();
 			idr_for_each_entry(&tconn->volumes, mdev, vnr)
 				clear_bit(NEW_CUR_UUID, &mdev->flags);
+			rcu_read_unlock();
 			spin_lock_irq(&tconn->req_lock);
 			_tl_restart(tconn, RESEND);
 			_conn_request_state(tconn,
@@ -1445,6 +1467,7 @@ void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, enum
 	struct drbd_conf *mdev;
 	int vnr, first_vol = 1;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		os = mdev->state;
 
@@ -1469,6 +1492,7 @@ void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, enum
 		if (cs.pdsk != os.pdsk)
 			flags &= ~CS_DC_PDSK;
 	}
+	rcu_read_unlock();
 
 	*pf |= CS_DC_MASK;
 	*pf &= flags;
@@ -1484,6 +1508,7 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 	struct drbd_conf *mdev;
 	int vnr;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		os = drbd_read_state(mdev);
 		ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
@@ -1509,6 +1534,7 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 		if (rv < SS_SUCCESS)
 			break;
 	}
+	rcu_read_unlock();
 
 	if (rv < SS_SUCCESS && flags & CS_VERBOSE)
 		print_st_err(mdev, os, ns, rv);
@@ -1534,6 +1560,7 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 	if (mask.conn == C_MASK)
 		tconn->cstate = val.conn;
 
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		os = drbd_read_state(mdev);
 		ns = apply_mask_val(os, mask, val);
@@ -1559,6 +1586,7 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		ns_min.disk = min_t(enum drbd_disk_state, ns.disk, ns_min.disk);
 		ns_min.pdsk = min_t(enum drbd_disk_state, ns.pdsk, ns_min.pdsk);
 	}
+	rcu_read_unlock();
 
 	ns_min.susp = ns_max.susp = tconn->susp;
 	ns_min.susp_nod = ns_max.susp_nod = tconn->susp_nod;
