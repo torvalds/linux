@@ -528,6 +528,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct l2cap_options opts;
 	int len, err = 0;
 	u32 opt;
@@ -565,7 +566,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		l2cap_pi(sk)->mode = opts.mode;
 		switch (l2cap_pi(sk)->mode) {
 		case L2CAP_MODE_BASIC:
-			l2cap_pi(sk)->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
+			chan->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
 			break;
 		case L2CAP_MODE_ERTM:
 		case L2CAP_MODE_STREAMING:
@@ -979,16 +980,19 @@ static void l2cap_sock_destruct(struct sock *sk)
 void l2cap_sock_init(struct sock *sk, struct sock *parent)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct l2cap_chan *chan = pi->chan;
 
 	BT_DBG("sk %p", sk);
 
 	if (parent) {
+		struct l2cap_chan *pchan = l2cap_pi(parent)->chan;
+
 		sk->sk_type = parent->sk_type;
 		bt_sk(sk)->defer_setup = bt_sk(parent)->defer_setup;
 
 		pi->imtu = l2cap_pi(parent)->imtu;
 		pi->omtu = l2cap_pi(parent)->omtu;
-		pi->conf_state = l2cap_pi(parent)->conf_state;
+		chan->conf_state = pchan->conf_state;
 		pi->mode = l2cap_pi(parent)->mode;
 		pi->fcs  = l2cap_pi(parent)->fcs;
 		pi->max_tx = l2cap_pi(parent)->max_tx;
@@ -1002,7 +1006,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->omtu = 0;
 		if (!disable_ertm && sk->sk_type == SOCK_STREAM) {
 			pi->mode = L2CAP_MODE_ERTM;
-			pi->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+			chan->conf_state |= L2CAP_CONF_STATE2_DEVICE;
 		} else {
 			pi->mode = L2CAP_MODE_BASIC;
 		}

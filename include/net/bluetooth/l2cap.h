@@ -291,6 +291,7 @@ struct l2cap_chan {
 	__u8		num_conf_req;
 	__u8		num_conf_rsp;
 
+	__u8		conf_state;
 	__u16		conn_state;
 
 	__u8		next_tx_seq;
@@ -374,8 +375,6 @@ struct l2cap_pinfo {
 	__u8		role_switch;
 	__u8		force_reliable;
 	__u8		flushable;
-
-	__u8		conf_state;
 
 	__u8		tx_win;
 	__u8		max_tx;
