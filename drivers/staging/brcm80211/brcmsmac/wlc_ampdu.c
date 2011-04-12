@@ -1122,21 +1122,12 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				ini->txretry[index] = 0;
 
 				/* ampdu_ack_len: number of acked aggregated frames */
-				/* ampdu_ack_map: block ack bit map for the aggregation */
 				/* ampdu_len: number of aggregated frames */
 				rate_status(wlc, tx_info, txs, mcs);
 				tx_info->flags |= IEEE80211_TX_STAT_ACK;
 				tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
-
-				/* XXX TODO: Make these accurate. */
 				tx_info->status.ampdu_ack_len =
-				    (txs->
-				     status & TX_STATUS_FRM_RTX_MASK) >>
-				    TX_STATUS_FRM_RTX_SHIFT;
-				tx_info->status.ampdu_len =
-				    (txs->
-				     status & TX_STATUS_FRM_RTX_MASK) >>
-				    TX_STATUS_FRM_RTX_SHIFT;
+					tx_info->status.ampdu_len = 1;
 
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
@@ -1162,6 +1153,8 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				/* Retry timeout */
 				ini->tx_in_transit--;
 				ieee80211_tx_info_clear_status(tx_info);
+				tx_info->status.ampdu_ack_len = 0;
+				tx_info->status.ampdu_len = 1;
 				tx_info->flags |=
 				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
 				skb_pull(p, D11_PHY_HDR_LEN);
