@@ -3993,7 +3993,8 @@ special_insn:
 	jump_far:
 		memcpy(&sel, c->src.valptr + c->op_bytes, 2);
 
-		if (load_segment_descriptor(ctxt, ops, sel, VCPU_SREG_CS))
+		rc = load_segment_descriptor(ctxt, ops, sel, VCPU_SREG_CS);
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 
 		c->eip = 0;
