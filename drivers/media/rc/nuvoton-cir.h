@@ -330,9 +330,13 @@ struct nvt_dev {
 #define EFER_EFM_DISABLE	0xaa
 
 /* Chip IDs found in CR_CHIP_ID_{HI,LO} */
-#define CHIP_ID_HIGH		0xb4
-#define CHIP_ID_LOW		0x72
-#define CHIP_ID_LOW2		0x73
+#define CHIP_ID_HIGH_667	0xa5
+#define CHIP_ID_HIGH_677B	0xb4
+#define CHIP_ID_HIGH_677C	0xc3
+#define CHIP_ID_LOW_667		0x13
+#define CHIP_ID_LOW_677B2	0x72
+#define CHIP_ID_LOW_677B3	0x73
+#define CHIP_ID_LOW_677C	0x33
 
 /* Config regs we need to care about */
 #define CR_SOFTWARE_RESET	0x02
