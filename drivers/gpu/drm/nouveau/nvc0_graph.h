@@ -34,8 +34,18 @@
 #define GPC_UNIT(t, r)   (0x500000 + (t) * 0x8000 + (r))
 #define TP_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
+struct nvc0_graph_fuc {
+	u32 *data;
+	u32  size;
+};
+
 struct nvc0_graph_priv {
 	struct nouveau_exec_engine base;
+
+	struct nvc0_graph_fuc fuc409c;
+	struct nvc0_graph_fuc fuc409d;
+	struct nvc0_graph_fuc fuc41ac;
+	struct nvc0_graph_fuc fuc41ad;
 
 	u8 gpc_nr;
 	u8 rop_nr;

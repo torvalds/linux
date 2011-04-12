@@ -398,42 +398,22 @@ nvc0_graph_init_rop(struct drm_device *dev)
 	}
 }
 
-static int
-nvc0_fuc_load_fw(struct drm_device *dev, u32 fuc_base,
-		 const char *code_fw, const char *data_fw)
+static void
+nvc0_graph_init_fuc(struct drm_device *dev, u32 fuc_base,
+		    struct nvc0_graph_fuc *code, struct nvc0_graph_fuc *data)
 {
-	const struct firmware *fw;
-	char name[32];
-	int ret, i;
-
-	snprintf(name, sizeof(name), "nouveau/%s", data_fw);
-	ret = request_firmware(&fw, name, &dev->pdev->dev);
-	if (ret) {
-		NV_ERROR(dev, "failed to load %s\n", data_fw);
-		return ret;
-	}
+	int i;
 
 	nv_wr32(dev, fuc_base + 0x01c0, 0x01000000);
-	for (i = 0; i < fw->size / 4; i++)
-		nv_wr32(dev, fuc_base + 0x01c4, ((u32 *)fw->data)[i]);
-	release_firmware(fw);
-
-	snprintf(name, sizeof(name), "nouveau/%s", code_fw);
-	ret = request_firmware(&fw, name, &dev->pdev->dev);
-	if (ret) {
-		NV_ERROR(dev, "failed to load %s\n", code_fw);
-		return ret;
-	}
+	for (i = 0; i < data->size / 4; i++)
+		nv_wr32(dev, fuc_base + 0x01c4, data->data[i]);
 
 	nv_wr32(dev, fuc_base + 0x0180, 0x01000000);
-	for (i = 0; i < fw->size / 4; i++) {
+	for (i = 0; i < code->size / 4; i++) {
 		if ((i & 0x3f) == 0)
 			nv_wr32(dev, fuc_base + 0x0188, i >> 6);
-		nv_wr32(dev, fuc_base + 0x0184, ((u32 *)fw->data)[i]);
+		nv_wr32(dev, fuc_base + 0x0184, code->data[i]);
 	}
-	release_firmware(fw);
-
-	return 0;
 }
 
 static int
@@ -441,17 +421,12 @@ nvc0_graph_init_ctxctl(struct drm_device *dev)
 {
 	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	u32 r000260;
-	int ret;
 
 	/* load fuc microcode */
 	r000260 = nv_mask(dev, 0x000260, 0x00000001, 0x00000000);
-	ret = nvc0_fuc_load_fw(dev, 0x409000, "fuc409c", "fuc409d");
-	if (ret == 0)
-		ret = nvc0_fuc_load_fw(dev, 0x41a000, "fuc41ac", "fuc41ad");
+	nvc0_graph_init_fuc(dev, 0x409000, &priv->fuc409c, &priv->fuc409d);
+	nvc0_graph_init_fuc(dev, 0x41a000, &priv->fuc41ac, &priv->fuc41ad);
 	nv_wr32(dev, 0x000260, r000260);
-
-	if (ret)
-		return ret;
 
 	/* start both of them running */
 	nv_wr32(dev, 0x409840, 0xffffffff);
@@ -636,10 +611,50 @@ nvc0_runk140_isr(struct drm_device *dev)
 	}
 }
 
+static int
+nvc0_graph_create_fw(struct drm_device *dev, const char *fwname,
+		     struct nvc0_graph_fuc *fuc)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	const struct firmware *fw;
+	char f[32];
+	int ret;
+
+	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", dev_priv->chipset, fwname);
+	ret = request_firmware(&fw, f, &dev->pdev->dev);
+	if (ret) {
+		snprintf(f, sizeof(f), "nouveau/%s", fwname);
+		ret = request_firmware(&fw, f, &dev->pdev->dev);
+		if (ret) {
+			NV_ERROR(dev, "failed to load %s\n", fwname);
+			return ret;
+		}
+	}
+
+	fuc->size = fw->size;
+	fuc->data = kmemdup(fw->data, fuc->size, GFP_KERNEL);
+	release_firmware(fw);
+	return (fuc->data != NULL) ? 0 : -ENOMEM;
+}
+
+static void
+nvc0_graph_destroy_fw(struct nvc0_graph_fuc *fuc)
+{
+	if (fuc->data) {
+		kfree(fuc->data);
+		fuc->data = NULL;
+	}
+}
+
 static void
 nvc0_graph_destroy(struct drm_device *dev, int engine)
 {
 	struct nvc0_graph_priv *priv = nv_engine(dev, engine);
+
+	nvc0_graph_destroy_fw(&priv->fuc409c);
+	nvc0_graph_destroy_fw(&priv->fuc409d);
+	nvc0_graph_destroy_fw(&priv->fuc41ac);
+	nvc0_graph_destroy_fw(&priv->fuc41ad);
 
 	nouveau_irq_unregister(dev, 12);
 	nouveau_irq_unregister(dev, 25);
@@ -685,6 +700,15 @@ nvc0_graph_create(struct drm_device *dev)
 	NVOBJ_ENGINE_ADD(dev, GR, &priv->base);
 	nouveau_irq_register(dev, 12, nvc0_graph_isr);
 	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
+
+	if (nvc0_graph_create_fw(dev, "fuc409c", &priv->fuc409c) ||
+	    nvc0_graph_create_fw(dev, "fuc409d", &priv->fuc409d) ||
+	    nvc0_graph_create_fw(dev, "fuc41ac", &priv->fuc41ac) ||
+	    nvc0_graph_create_fw(dev, "fuc41ad", &priv->fuc41ad)) {
+		ret = 0;
+		goto error;
+	}
+
 
 	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 256, 0, &priv->unk4188b4);
 	if (ret)
@@ -777,3 +801,20 @@ error:
 	nvc0_graph_destroy(dev, NVOBJ_ENGINE_GR);
 	return ret;
 }
+
+MODULE_FIRMWARE("nouveau/nvc0_fuc409c");
+MODULE_FIRMWARE("nouveau/nvc0_fuc409d");
+MODULE_FIRMWARE("nouveau/nvc0_fuc41ac");
+MODULE_FIRMWARE("nouveau/nvc0_fuc41ad");
+MODULE_FIRMWARE("nouveau/nvc3_fuc409c");
+MODULE_FIRMWARE("nouveau/nvc3_fuc409d");
+MODULE_FIRMWARE("nouveau/nvc3_fuc41ac");
+MODULE_FIRMWARE("nouveau/nvc3_fuc41ad");
+MODULE_FIRMWARE("nouveau/nvc4_fuc409c");
+MODULE_FIRMWARE("nouveau/nvc4_fuc409d");
+MODULE_FIRMWARE("nouveau/nvc4_fuc41ac");
+MODULE_FIRMWARE("nouveau/nvc4_fuc41ad");
+MODULE_FIRMWARE("nouveau/fuc409c");
+MODULE_FIRMWARE("nouveau/fuc409d");
+MODULE_FIRMWARE("nouveau/fuc41ac");
+MODULE_FIRMWARE("nouveau/fuc41ad");
