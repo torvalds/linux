@@ -1345,17 +1345,19 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 }
 
-static inline void emulate_push(struct x86_emulate_ctxt *ctxt,
-				struct x86_emulate_ops *ops)
+static int emulate_push(struct x86_emulate_ctxt *ctxt,
+			struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
+	struct segmented_address addr;
 
-	c->dst.type  = OP_MEM;
-	c->dst.bytes = c->op_bytes;
-	c->dst.val = c->src.val;
 	register_address_increment(c, &c->regs[VCPU_REGS_RSP], -c->op_bytes);
-	c->dst.addr.mem.ea = register_address(c, c->regs[VCPU_REGS_RSP]);
-	c->dst.addr.mem.seg = VCPU_SREG_SS;
+	addr.ea = register_address(c, c->regs[VCPU_REGS_RSP]);
+	addr.seg = VCPU_SREG_SS;
+
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return segmented_write(ctxt, addr, &c->src.val, c->op_bytes);
 }
 
 static int emulate_pop(struct x86_emulate_ctxt *ctxt,
@@ -1417,14 +1419,14 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
-static void emulate_push_sreg(struct x86_emulate_ctxt *ctxt,
-			      struct x86_emulate_ops *ops, int seg)
+static int emulate_push_sreg(struct x86_emulate_ctxt *ctxt,
+			     struct x86_emulate_ops *ops, int seg)
 {
 	struct decode_cache *c = &ctxt->decode;
 
 	c->src.val = ops->get_segment_selector(seg, ctxt->vcpu);
 
-	emulate_push(ctxt, ops);
+	return emulate_push(ctxt, ops);
 }
 
 static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
@@ -1454,17 +1456,12 @@ static int emulate_pusha(struct x86_emulate_ctxt *ctxt,
 		(reg == VCPU_REGS_RSP) ?
 		(c->src.val = old_esp) : (c->src.val = c->regs[reg]);
 
-		emulate_push(ctxt, ops);
-
-		rc = writeback(ctxt, ops);
+		rc = emulate_push(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 
 		++reg;
 	}
-
-	/* Disable writeback. */
-	c->dst.type = OP_NONE;
 
 	return rc;
 }
@@ -1503,26 +1500,21 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 
 	/* TODO: Add limit checks */
 	c->src.val = ctxt->eflags;
-	emulate_push(ctxt, ops);
-	rc = writeback(ctxt, ops);
+	rc = emulate_push(ctxt, ops);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	ctxt->eflags &= ~(EFLG_IF | EFLG_TF | EFLG_AC);
 
 	c->src.val = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
-	emulate_push(ctxt, ops);
-	rc = writeback(ctxt, ops);
+	rc = emulate_push(ctxt, ops);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	c->src.val = c->eip;
-	emulate_push(ctxt, ops);
-	rc = writeback(ctxt, ops);
+	rc = emulate_push(ctxt, ops);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-
-	c->dst.type = OP_NONE;
 
 	ops->get_idt(&dt, ctxt->vcpu);
 
@@ -1713,6 +1705,7 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
+	int rc = X86EMUL_CONTINUE;
 
 	switch (c->modrm_reg) {
 	case 0:	/* inc */
@@ -1726,17 +1719,17 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 		old_eip = c->eip;
 		c->eip = c->src.val;
 		c->src.val = old_eip;
-		emulate_push(ctxt, ops);
+		rc = emulate_push(ctxt, ops);
 		break;
 	}
 	case 4: /* jmp abs */
 		c->eip = c->src.val;
 		break;
 	case 6:	/* push */
-		emulate_push(ctxt, ops);
+		rc = emulate_push(ctxt, ops);
 		break;
 	}
-	return X86EMUL_CONTINUE;
+	return rc;
 }
 
 static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
@@ -2380,7 +2373,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 		c->op_bytes = c->ad_bytes = (next_tss_desc.type & 8) ? 4 : 2;
 		c->lock_prefix = 0;
 		c->src.val = (unsigned long) error_code;
-		emulate_push(ctxt, ops);
+		ret = emulate_push(ctxt, ops);
 	}
 
 	return ret;
@@ -2400,11 +2393,8 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	rc = emulator_do_task_switch(ctxt, ops, tss_selector, reason,
 				     has_error_code, error_code);
 
-	if (rc == X86EMUL_CONTINUE) {
-		rc = writeback(ctxt, ops);
-		if (rc == X86EMUL_CONTINUE)
-			ctxt->eip = c->eip;
-	}
+	if (rc == X86EMUL_CONTINUE)
+		ctxt->eip = c->eip;
 
 	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 }
@@ -2422,8 +2412,7 @@ static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned seg,
 
 static int em_push(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_push(ctxt, ctxt->ops);
-	return X86EMUL_CONTINUE;
+	return emulate_push(ctxt, ctxt->ops);
 }
 
 static int em_das(struct x86_emulate_ctxt *ctxt)
@@ -2483,20 +2472,12 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	memcpy(&c->eip, c->src.valptr, c->op_bytes);
 
 	c->src.val = old_cs;
-	emulate_push(ctxt, ctxt->ops);
-	rc = writeback(ctxt, ctxt->ops);
+	rc = emulate_push(ctxt, ctxt->ops);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	c->src.val = old_eip;
-	emulate_push(ctxt, ctxt->ops);
-	rc = writeback(ctxt, ctxt->ops);
-	if (rc != X86EMUL_CONTINUE)
-		return rc;
-
-	c->dst.type = OP_NONE;
-
-	return X86EMUL_CONTINUE;
+	return emulate_push(ctxt, ctxt->ops);
 }
 
 static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
@@ -3625,7 +3606,7 @@ special_insn:
 		emulate_2op_SrcV("add", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x06:		/* push es */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_ES);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_ES);
 		break;
 	case 0x07:		/* pop es */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_ES);
@@ -3635,14 +3616,14 @@ special_insn:
 		emulate_2op_SrcV("or", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x0e:		/* push cs */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_CS);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_CS);
 		break;
 	case 0x10 ... 0x15:
 	      adc:		/* adc */
 		emulate_2op_SrcV("adc", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x16:		/* push ss */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_SS);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_SS);
 		break;
 	case 0x17:		/* pop ss */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_SS);
@@ -3652,7 +3633,7 @@ special_insn:
 		emulate_2op_SrcV("sbb", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x1e:		/* push ds */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_DS);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_DS);
 		break;
 	case 0x1f:		/* pop ds */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_DS);
@@ -3789,7 +3770,7 @@ special_insn:
 		break;
 	case 0x9c: /* pushf */
 		c->src.val =  (unsigned long) ctxt->eflags;
-		emulate_push(ctxt, ops);
+		rc = emulate_push(ctxt, ops);
 		break;
 	case 0x9d: /* popf */
 		c->dst.type = OP_REG;
@@ -3864,7 +3845,7 @@ special_insn:
 		long int rel = c->src.val;
 		c->src.val = (unsigned long) c->eip;
 		jmp_rel(c, rel);
-		emulate_push(ctxt, ops);
+		rc = emulate_push(ctxt, ops);
 		break;
 	}
 	case 0xe9: /* jmp rel */
@@ -4157,7 +4138,7 @@ twobyte_insn:
 		c->dst.val = test_cc(c->b, ctxt->eflags);
 		break;
 	case 0xa0:	  /* push fs */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_FS);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_FS);
 		break;
 	case 0xa1:	 /* pop fs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_FS);
@@ -4174,7 +4155,7 @@ twobyte_insn:
 		emulate_2op_cl("shld", c->src2, c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xa8:	/* push gs */
-		emulate_push_sreg(ctxt, ops, VCPU_SREG_GS);
+		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_GS);
 		break;
 	case 0xa9:	/* pop gs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_GS);
