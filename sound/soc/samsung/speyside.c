@@ -63,10 +63,38 @@ static struct snd_soc_dai_link speyside_dai[] = {
 	},
 };
 
+static struct snd_soc_dapm_widget widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", NULL),
+
+	SND_SOC_DAPM_SPK("Main Speaker", NULL),
+
+	SND_SOC_DAPM_MIC("Main AMIC", NULL),
+	SND_SOC_DAPM_MIC("Main DMIC", NULL),
+};
+
+static struct snd_soc_dapm_route audio_paths[] = {
+	{ "IN1LP", NULL, "MICB2" },
+	{ "MICB2", NULL, "Main AMIC" },
+
+	{ "DMIC1DAT", NULL, "MICB1" },
+	{ "DMIC2DAT", NULL, "MICB1" },
+	{ "MICB1", NULL, "Main DMIC" },
+
+	{ "Headphone", NULL, "HPOUT1L" },
+	{ "Headphone", NULL, "HPOUT1R" },
+
+	{ "Main Speaker", NULL, "SPKDAT" },
+};
+
 static struct snd_soc_card speyside = {
 	.name = "Speyside",
 	.dai_link = speyside_dai,
 	.num_links = ARRAY_SIZE(speyside_dai),
+
+	.dapm_widgets = widgets,
+	.num_dapm_widgets = ARRAY_SIZE(widgets),
+	.dapm_routes = audio_paths,
+	.num_dapm_routes = ARRAY_SIZE(audio_paths),
 };
 
 static __devinit int speyside_probe(struct platform_device *pdev)
