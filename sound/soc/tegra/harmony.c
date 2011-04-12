@@ -50,7 +50,7 @@
 #include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
-#define DRV_NAME "tegra-snd-harmony"
+#define DRV_NAME "tegra-snd-wm8903"
 
 #define GPIO_SPKR_EN    BIT(0)
 #define GPIO_INT_MIC_EN BIT(1)

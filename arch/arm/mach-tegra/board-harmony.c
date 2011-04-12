@@ -75,7 +75,7 @@ static struct tegra_wm8903_platform_data harmony_audio_pdata = {
 };
 
 static struct platform_device harmony_audio_device = {
-	.name	= "tegra-snd-harmony",
+	.name	= "tegra-snd-wm8903",
 	.id	= 0,
 	.dev	= {
 		.platform_data  = &harmony_audio_pdata,
