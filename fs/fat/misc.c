@@ -20,26 +20,26 @@
  * In case the file system is remounted read-only, it can be made writable
  * again by remounting it.
  */
-void __fat_fs_error(struct super_block *s, int report, const char *fmt, ...)
+void __fat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 {
-	struct fat_mount_options *opts = &MSDOS_SB(s)->options;
+	struct fat_mount_options *opts = &MSDOS_SB(sb)->options;
 	va_list args;
+	struct va_format vaf;
 
 	if (report) {
-		printk(KERN_ERR "FAT: Filesystem error (dev %s)\n", s->s_id);
-
-		printk(KERN_ERR "    ");
 		va_start(args, fmt);
-		vprintk(fmt, args);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		printk(KERN_ERR "FAT-fs (%s): error, %pV\n", sb->s_id, &vaf);
 		va_end(args);
-		printk("\n");
 	}
 
 	if (opts->errors == FAT_ERRORS_PANIC)
-		panic("FAT: fs panic from previous error\n");
-	else if (opts->errors == FAT_ERRORS_RO && !(s->s_flags & MS_RDONLY)) {
-		s->s_flags |= MS_RDONLY;
-		printk(KERN_ERR "FAT: Filesystem has been set read-only\n");
+		panic("FAT-fs (%s): fs panic from previous error\n", sb->s_id);
+	else if (opts->errors == FAT_ERRORS_RO && !(sb->s_flags & MS_RDONLY)) {
+		sb->s_flags |= MS_RDONLY;
+		printk(KERN_ERR "FAT-fs (%s): Filesystem has been "
+				"set read-only\n", sb->s_id);
 	}
 }
 EXPORT_SYMBOL_GPL(__fat_fs_error);
