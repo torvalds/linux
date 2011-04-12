@@ -8,14 +8,18 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * For further information, see the Documentation/hwmon/sht15 file.
  */
 
 /**
  * struct sht15_platform_data - sht15 connectivity info
- * @gpio_data:	no. of gpio to which bidirectional data line is connected
- * @gpio_sck:	no. of gpio to which the data clock is connected.
- * @supply_mv:	supply voltage in mv. Overridden by regulator if available.
- **/
+ * @gpio_data:		no. of gpio to which bidirectional data line is
+ *			connected.
+ * @gpio_sck:		no. of gpio to which the data clock is connected.
+ * @supply_mv:		supply voltage in mv. Overridden by regulator if
+ *			available.
+ */
 struct sht15_platform_data {
 	int gpio_data;
 	int gpio_sck;

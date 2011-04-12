@@ -1,0 +1,42 @@
+Kernel driver sht15
+===================
+
+Authors:
+  * Wouter Horre
+  * Jonathan Cameron
+
+Supported chips:
+  * Sensirion SHT10
+    Prefix: 'sht10'
+
+  * Sensirion SHT11
+    Prefix: 'sht11'
+
+  * Sensirion SHT15
+    Prefix: 'sht15'
+
+  * Sensirion SHT71
+    Prefix: 'sht71'
+
+  * Sensirion SHT75
+    Prefix: 'sht75'
+
+Datasheet: Publicly available at the Sensirion website
+http://www.sensirion.ch/en/pdf/product_information/Datasheet-humidity-sensor-SHT1x.pdf
+
+Description
+-----------
+
+The SHT10, SHT11, SHT15, SHT71, and SHT75 are humidity and temperature
+sensors.
+
+The devices communicate using two GPIO lines and use the default
+resolution settings of 14 bits for temperature and 12 bits for humidity.
+
+Note: The regulator supply name is set to "vcc".
+
+Sysfs interface
+---------------
+
+* temp1_input:     temperature input
+* humidity1_input: humidity input
