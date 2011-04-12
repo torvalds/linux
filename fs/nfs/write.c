@@ -1417,8 +1417,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
                                 task->tk_pid, task->tk_status);
 
 	/* Call the NFS version-specific code */
-	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
-		return;
+	NFS_PROTO(data->inode)->commit_done(task, data);
 }
 
 void nfs_commit_release_pages(struct nfs_write_data *data)
