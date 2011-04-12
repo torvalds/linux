@@ -3419,8 +3419,8 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 
 	fck = dsi_get_pll_hsdiv_dispc_rate();
 
-	dispc_cinfo.lck_div = dssdev->clocks.dispc.lck_div;
-	dispc_cinfo.pck_div = dssdev->clocks.dispc.pck_div;
+	dispc_cinfo.lck_div = dssdev->clocks.dispc.channel.lck_div;
+	dispc_cinfo.pck_div = dssdev->clocks.dispc.channel.pck_div;
 
 	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
 	if (r) {
@@ -3455,10 +3455,10 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
-	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI);
+	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
+	dss_select_dsi_clk_source(dssdev->clocks.dsi.dsi_fclk_src);
 	dss_select_lcd_clk_source(dssdev->manager->id,
-		OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
+			dssdev->clocks.dispc.channel.lcd_clk_src);
 
 	DSSDBG("PLL OK\n");
 
