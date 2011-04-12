@@ -532,20 +532,47 @@ static int wm831x_init(struct wm831x *wm831x)
 	
 }
 
-extern void rk29_send_power_key(void);
-static int gNumInt = 0;
+extern void rk29_send_power_key(int state);
+static int gNumInt = 0, gNumTimer = 0;
+static struct timer_list 	irq_timer;
+static struct wm831x *gwm831x;
+
+void wm831x_power_off(void)
+{
+	wm831x_reg_write(gwm831x, WM831X_POWER_STATE, 0);//power off
+}
+
+static void wm831x_irq_timer(unsigned long data)
+{
+	struct wm831x *wm831x = (struct wm831x *)data;
+	int pin = irq_to_gpio(wm831x->irq);
+
+	if(gNumInt >0)
+	{
+		if(gpio_get_value(pin) > 0)	
+		gNumTimer++;
+		else
+		gNumTimer = 0;
+
+		if(gNumTimer >20)
+		{
+			rk29_send_power_key(0);
+			gNumTimer = 0;
+			gNumInt = 0;
+		}
+	}
+		
+	irq_timer.expires  = jiffies + msecs_to_jiffies(20);
+	add_timer(&irq_timer);
+
+}
 
 static void wm831x_irq_worker(struct work_struct *work)
 {
 	struct wm831x *wm831x = container_of(work, struct wm831x, irq_work);	
 	wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1, 0xffff);//clear all intterupt
-
-	if(++ gNumInt >= 2)
-	{
-		rk29_send_power_key();
-		//wake_lock_timeout(&wm831x->irq_wake,msecs_to_jiffies(2000));
-		gNumInt = 0;
-	}
+	gNumInt++;
+	rk29_send_power_key(1);
 	enable_irq(wm831x->irq);	
 	wake_unlock(&wm831x->irq_wake);
 	//printk("%s,irq=%d\n",__FUNCTION__,wm831x->irq);
@@ -611,7 +638,7 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	wm831x->control_data = spi;
 	wm831x->read_dev = wm831x_spi_read_device;
 	wm831x->write_dev = wm831x_spi_write_device;
-
+	gwm831x = wm831x;
 	mutex_init(&wm831x->io_lock);
 	
 	wm831x_init(wm831x);
@@ -638,6 +665,10 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	/* only support on intterupt */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0xefff);
 	wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1_MASK, 0xefff);
+
+	setup_timer(&irq_timer, wm831x_irq_timer, (unsigned long)wm831x);
+	irq_timer.expires  = jiffies+2000;
+	add_timer(&irq_timer);
 
 	return 0;
 	//return wm831x_device_init(wm831x, type, irq);

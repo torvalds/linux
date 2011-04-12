@@ -2949,9 +2949,11 @@ static void __init machine_rk29_init_irq(void)
 }
 
 #define POWER_ON_PIN RK29_PIN4_PA4
+extern void wm831x_power_off(void);
 static void rk29_pm_power_off(void)
 {
 	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	wm831x_power_off();
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	while (1);
 }
