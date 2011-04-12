@@ -178,3 +178,11 @@ endef
 _ge_attempt = $(or $(get-executable),$(_gea_warn),$(call _gea_err,$(2)))
 _gea_warn = $(warning The path '$(1)' is not executable.)
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
+
+# try-cc
+# Usage: option = $(call try-cc, source-to-build, cc-options)
+try-cc = $(shell sh -c						  \
+	'TMP="$(OUTPUT)$(TMPOUT).$$$$";				  \
+	 echo "$(1)" |						  \
+	 $(CC) -x c - $(2) -o "$$TMP" > /dev/null 2>&1 && echo y; \
+	 rm -f "$$TMP"')
