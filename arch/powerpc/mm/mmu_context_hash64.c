@@ -31,7 +31,6 @@ static DEFINE_IDA(mmu_context_ida);
  * Each segment contains 2^28 bytes.  Each context maps 2^44 bytes,
  * so we can support 2^19-1 contexts (19 == 35 + 28 - 44).
  */
-#define NO_CONTEXT	0
 #define MAX_CONTEXT	((1UL << 19) - 1)
 
 int __init_new_context(void)
@@ -95,5 +94,5 @@ void destroy_context(struct mm_struct *mm)
 {
 	__destroy_context(mm->context.id);
 	subpage_prot_free(mm);
-	mm->context.id = NO_CONTEXT;
+	mm->context.id = MMU_NO_CONTEXT;
 }
