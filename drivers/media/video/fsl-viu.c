@@ -926,11 +926,15 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct viu_fh *fh = priv;
+	struct viu_dev *dev = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (fh->type != i)
 		return -EINVAL;
+
+	if (dev->ovenable)
+		dev->ovenable = 0;
 
 	viu_start_dma(fh->dev);
 
