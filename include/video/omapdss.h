@@ -438,6 +438,11 @@ struct omap_dss_device {
 			u16 lp_clk_div;
 			enum omap_dss_clk_source dsi_fclk_src;
 		} dsi;
+
+		struct {
+			u16 regn;
+			u16 regm2;
+		} hdmi;
 	} clocks;
 
 	struct {
