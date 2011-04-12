@@ -142,9 +142,9 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
 		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus == CifsGood), 10 * HZ);
+			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
 
-		/* is TCP session is reestablished now ?*/
+		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
 			break;
 

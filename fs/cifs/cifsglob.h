@@ -91,7 +91,8 @@ enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
 	CifsExiting,
-	CifsNeedReconnect
+	CifsNeedReconnect,
+	CifsNeedNegotiate
 };
 
 enum securityEnum {
