@@ -16,12 +16,13 @@ config SND_SOC_TEGRA_I2S
 
 config SND_SOC_TEGRA_WM8903
 	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
-	depends on SND_SOC_TEGRA && MACH_HARMONY && I2C
+	depends on SND_SOC_TEGRA && I2C
+	depends on MACH_HARMONY || MACH_VENTANA || MACH_SEABOARD || MACH_KAEN || MACH_AEBL
 	default m
 	select SND_SOC_TEGRA_I2S
 	select SND_SOC_WM8903
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
-	  boards using the WM8093 codec. Currently, the only supported board
-	  is Harmony.
+	  boards using the WM8093 codec. Currently, the supported boards are
+	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
 

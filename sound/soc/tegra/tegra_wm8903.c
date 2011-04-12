@@ -53,8 +53,9 @@
 #define DRV_NAME "tegra-snd-wm8903"
 
 #define GPIO_SPKR_EN    BIT(0)
-#define GPIO_INT_MIC_EN BIT(1)
-#define GPIO_EXT_MIC_EN BIT(2)
+#define GPIO_HP_MUTE    BIT(1)
+#define GPIO_INT_MIC_EN BIT(2)
+#define GPIO_EXT_MIC_EN BIT(3)
 
 struct tegra_wm8903 {
 	struct tegra_asoc_utils_data util_data;
@@ -163,15 +164,35 @@ static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
+	if (!(machine->gpio_requested & GPIO_SPKR_EN))
+		return 0;
+
 	gpio_set_value_cansleep(pdata->gpio_spkr_en,
 				SND_SOC_DAPM_EVENT_ON(event));
 
 	return 0;
 }
 
+static int tegra_wm8903_event_hp(struct snd_soc_dapm_widget *w,
+					struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_card *card = codec->card;
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
+	struct tegra_wm8903_platform_data *pdata = machine->pdata;
+
+	if (!(machine->gpio_requested & GPIO_HP_MUTE))
+		return 0;
+
+	gpio_set_value_cansleep(pdata->gpio_hp_mute,
+				!SND_SOC_DAPM_EVENT_ON(event));
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget tegra_wm8903_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Int Spk", tegra_wm8903_event_int_spk),
-	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", tegra_wm8903_event_hp),
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 };
 
@@ -184,6 +205,37 @@ static const struct snd_soc_dapm_route harmony_audio_map[] = {
 	{"Int Spk", NULL, "LON"},
 	{"Mic Bias", NULL, "Mic Jack"},
 	{"IN1L", NULL, "Mic Bias"},
+};
+
+static const struct snd_soc_dapm_route seaboard_audio_map[] = {
+	{"Headphone Jack", NULL, "HPOUTR"},
+	{"Headphone Jack", NULL, "HPOUTL"},
+	{"Int Spk", NULL, "ROP"},
+	{"Int Spk", NULL, "RON"},
+	{"Int Spk", NULL, "LOP"},
+	{"Int Spk", NULL, "LON"},
+	{"Mic Bias", NULL, "Mic Jack"},
+	{"IN1R", NULL, "Mic Bias"},
+};
+
+static const struct snd_soc_dapm_route kaen_audio_map[] = {
+	{"Headphone Jack", NULL, "HPOUTR"},
+	{"Headphone Jack", NULL, "HPOUTL"},
+	{"Int Spk", NULL, "ROP"},
+	{"Int Spk", NULL, "RON"},
+	{"Int Spk", NULL, "LOP"},
+	{"Int Spk", NULL, "LON"},
+	{"Mic Bias", NULL, "Mic Jack"},
+	{"IN2R", NULL, "Mic Bias"},
+};
+
+static const struct snd_soc_dapm_route aebl_audio_map[] = {
+	{"Headphone Jack", NULL, "HPOUTR"},
+	{"Headphone Jack", NULL, "HPOUTL"},
+	{"Int Spk", NULL, "LINEOUTR"},
+	{"Int Spk", NULL, "LINEOUTL"},
+	{"Mic Bias", NULL, "Mic Jack"},
+	{"IN1R", NULL, "Mic Bias"},
 };
 
 static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
@@ -199,34 +251,51 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 	int ret;
 
-	ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
-	if (ret) {
-		dev_err(card->dev, "cannot get spkr_en gpio\n");
-		return ret;
+	if (gpio_is_valid(pdata->gpio_spkr_en)) {
+		ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
+		if (ret) {
+			dev_err(card->dev, "cannot get spkr_en gpio\n");
+			return ret;
+		}
+		machine->gpio_requested |= GPIO_SPKR_EN;
+
+		gpio_direction_output(pdata->gpio_spkr_en, 0);
 	}
-	machine->gpio_requested |= GPIO_SPKR_EN;
 
-	gpio_direction_output(pdata->gpio_spkr_en, 0);
+	if (gpio_is_valid(pdata->gpio_hp_mute)) {
+		ret = gpio_request(pdata->gpio_hp_mute, "hp_mute");
+		if (ret) {
+			dev_err(card->dev, "cannot get hp_mute gpio\n");
+			return ret;
+		}
+		machine->gpio_requested |= GPIO_HP_MUTE;
 
-	ret = gpio_request(pdata->gpio_int_mic_en, "int_mic_en");
-	if (ret) {
-		dev_err(card->dev, "cannot get int_mic_en gpio\n");
-		return ret;
+		gpio_direction_output(pdata->gpio_hp_mute, 0);
 	}
-	machine->gpio_requested |= GPIO_INT_MIC_EN;
 
-	/* Disable int mic; enable signal is active-high */
-	gpio_direction_output(pdata->gpio_int_mic_en, 0);
+	if (gpio_is_valid(pdata->gpio_int_mic_en)) {
+		ret = gpio_request(pdata->gpio_int_mic_en, "int_mic_en");
+		if (ret) {
+			dev_err(card->dev, "cannot get int_mic_en gpio\n");
+			return ret;
+		}
+		machine->gpio_requested |= GPIO_INT_MIC_EN;
 
-	ret = gpio_request(pdata->gpio_ext_mic_en, "ext_mic_en");
-	if (ret) {
-		dev_err(card->dev, "cannot get ext_mic_en gpio\n");
-		return ret;
+		/* Disable int mic; enable signal is active-high */
+		gpio_direction_output(pdata->gpio_int_mic_en, 0);
 	}
-	machine->gpio_requested |= GPIO_EXT_MIC_EN;
 
-	/* Enable ext mic; enable signal is active-low */
-	gpio_direction_output(pdata->gpio_ext_mic_en, 0);
+	if (gpio_is_valid(pdata->gpio_ext_mic_en)) {
+		ret = gpio_request(pdata->gpio_ext_mic_en, "ext_mic_en");
+		if (ret) {
+			dev_err(card->dev, "cannot get ext_mic_en gpio\n");
+			return ret;
+		}
+		machine->gpio_requested |= GPIO_EXT_MIC_EN;
+
+		/* Enable ext mic; enable signal is active-low */
+		gpio_direction_output(pdata->gpio_ext_mic_en, 0);
+	}
 
 	ret = snd_soc_add_controls(codec, tegra_wm8903_controls,
 				   ARRAY_SIZE(tegra_wm8903_controls));
@@ -236,18 +305,31 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_new_controls(dapm, tegra_wm8903_dapm_widgets,
 					ARRAY_SIZE(tegra_wm8903_dapm_widgets));
 
-	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
-				ARRAY_SIZE(harmony_audio_map));
+	if (machine_is_harmony() || machine_is_ventana()) {
+		snd_soc_dapm_add_routes(dapm, harmony_audio_map,
+					ARRAY_SIZE(harmony_audio_map));
+	} else if (machine_is_seaboard()) {
+		snd_soc_dapm_add_routes(dapm, seaboard_audio_map,
+					ARRAY_SIZE(seaboard_audio_map));
+	} else if (machine_is_kaen()) {
+		snd_soc_dapm_add_routes(dapm, kaen_audio_map,
+					ARRAY_SIZE(kaen_audio_map));
+	} else {
+		snd_soc_dapm_add_routes(dapm, aebl_audio_map,
+					ARRAY_SIZE(aebl_audio_map));
+	}
 
-	tegra_wm8903_hp_jack_gpio.gpio = pdata->gpio_hp_det;
-	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-			 &tegra_wm8903_hp_jack);
-	snd_soc_jack_add_pins(&tegra_wm8903_hp_jack,
-			      ARRAY_SIZE(tegra_wm8903_hp_jack_pins),
-			      tegra_wm8903_hp_jack_pins);
-	snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
-			       1,
-			       &tegra_wm8903_hp_jack_gpio);
+	if (gpio_is_valid(pdata->gpio_hp_det)) {
+		tegra_wm8903_hp_jack_gpio.gpio = pdata->gpio_hp_det;
+		snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
+				&tegra_wm8903_hp_jack);
+		snd_soc_jack_add_pins(&tegra_wm8903_hp_jack,
+					ARRAY_SIZE(tegra_wm8903_hp_jack_pins),
+					tegra_wm8903_hp_jack_pins);
+		snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
+					1,
+					&tegra_wm8903_hp_jack_gpio);
+	}
 
 	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
 			 &tegra_wm8903_mic_jack);
@@ -259,10 +341,26 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
 
+	/* FIXME: Calculate automatically based on DAPM routes? */
+	if (!machine_is_harmony() && !machine_is_ventana())
+		snd_soc_dapm_nc_pin(dapm, "IN1L");
+	if (!machine_is_seaboard() && !machine_is_aebl())
+		snd_soc_dapm_nc_pin(dapm, "IN1R");
+	snd_soc_dapm_nc_pin(dapm, "IN2L");
+	if (!machine_is_kaen())
+		snd_soc_dapm_nc_pin(dapm, "IN2R");
 	snd_soc_dapm_nc_pin(dapm, "IN3L");
 	snd_soc_dapm_nc_pin(dapm, "IN3R");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUTL");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUTR");
+
+	if (machine_is_aebl()) {
+		snd_soc_dapm_nc_pin(dapm, "LON");
+		snd_soc_dapm_nc_pin(dapm, "RON");
+		snd_soc_dapm_nc_pin(dapm, "ROP");
+		snd_soc_dapm_nc_pin(dapm, "LOP");
+	} else {
+		snd_soc_dapm_nc_pin(dapm, "LINEOUTR");
+		snd_soc_dapm_nc_pin(dapm, "LINEOUTL");
+	}
 
 	snd_soc_dapm_sync(dapm);
 
@@ -293,14 +391,16 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	struct tegra_wm8903_platform_data *pdata;
 	int ret;
 
-	if (!machine_is_harmony()) {
-		dev_err(&pdev->dev, "Not running on Tegra Harmony!\n");
+	if (!machine_is_harmony() && !machine_is_ventana() &&
+	    !machine_is_seaboard() && !machine_is_kaen() &&
+	    !machine_is_aebl()) {
+		dev_err(&pdev->dev, "Not running on a supported board!\n");
 		return -ENODEV;
 	}
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "No platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -357,6 +457,8 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 		gpio_free(pdata->gpio_ext_mic_en);
 	if (machine->gpio_requested & GPIO_INT_MIC_EN)
 		gpio_free(pdata->gpio_int_mic_en);
+	if (machine->gpio_requested & GPIO_HP_MUTE)
+		gpio_free(pdata->gpio_hp_mute);
 	if (machine->gpio_requested & GPIO_SPKR_EN)
 		gpio_free(pdata->gpio_spkr_en);
 
