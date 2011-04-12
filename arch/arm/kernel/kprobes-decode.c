@@ -1320,9 +1320,10 @@ space_cccc_0110__1(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 
 	/* REV    : cccc 0110 1011 xxxx xxxx xxxx 0011 xxxx */
 	/* REV16  : cccc 0110 1011 xxxx xxxx xxxx 1011 xxxx */
+	/* RBIT   : cccc 0110 1111 xxxx xxxx xxxx 0011 xxxx */
 	/* REVSH  : cccc 0110 1111 xxxx xxxx xxxx 1011 xxxx */
 	if ((insn & 0x0ff00070) == 0x06b00030 ||
-	    (insn & 0x0ff000f0) == 0x06f000b0)
+	    (insn & 0x0ff00070) == 0x06f00030)
 		return prep_emulate_rd12rm0(insn, asi);
 
 	/* SADD16    : cccc 0110 0001 xxxx xxxx xxxx 0001 xxxx :GE */
