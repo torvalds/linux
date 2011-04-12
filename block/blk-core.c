@@ -198,19 +198,6 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 }
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
-/*
- * Make sure that plugs that were pending when this function was entered,
- * are now complete and requests pushed to the queue.
-*/
-static inline void queue_sync_plugs(struct request_queue *q)
-{
-	/*
-	 * If the current process is plugged and has barriers submitted,
-	 * we will livelock if we don't unplug first.
-	 */
-	blk_flush_plug(current);
-}
-
 static void blk_delay_work(struct work_struct *work)
 {
 	struct request_queue *q;
@@ -298,7 +285,6 @@ void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->timeout);
 	cancel_delayed_work_sync(&q->delay_work);
-	queue_sync_plugs(q);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
