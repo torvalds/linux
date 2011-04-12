@@ -3203,7 +3203,7 @@ static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
 			list_for_each_entry(p, &n->partial, lru)
 				p->slab = s;
 
-#ifdef CONFIG_SLAB_DEBUG
+#ifdef CONFIG_SLUB_DEBUG
 			list_for_each_entry(p, &n->full, lru)
 				p->slab = s;
 #endif
