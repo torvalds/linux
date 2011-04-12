@@ -2577,25 +2577,25 @@ union set_voltage {
 	struct _SET_VOLTAGE_PARAMETERS_V2 v2;
 };
 
-void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level)
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type)
 {
 	union set_voltage args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
-	u8 frev, crev, volt_index = level;
+	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
 	switch (crev) {
 	case 1:
-		args.v1.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v1.ucVoltageType = voltage_type;
 		args.v1.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_ALL_SOURCE;
 		args.v1.ucVoltageIndex = volt_index;
 		break;
 	case 2:
-		args.v2.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v2.ucVoltageType = voltage_type;
 		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_SET_VOLTAGE;
-		args.v2.usVoltageLevel = cpu_to_le16(level);
+		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
 		break;
 	default:
 		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);

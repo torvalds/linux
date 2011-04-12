@@ -106,7 +106,7 @@ void rv770_pm_misc(struct radeon_device *rdev)
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
 		if (voltage->voltage != rdev->pm.current_vddc) {
-			radeon_atom_set_voltage(rdev, voltage->voltage);
+			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
 			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
 		}

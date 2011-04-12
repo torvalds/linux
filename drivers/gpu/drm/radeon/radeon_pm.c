@@ -23,6 +23,7 @@
 #include "drmP.h"
 #include "radeon.h"
 #include "avivod.h"
+#include "atom.h"
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #endif
@@ -535,7 +536,8 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	/* set up the default clocks if the MC ucode is loaded */
 	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
 		if (rdev->pm.default_vddc)
-			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+						SET_VOLTAGE_TYPE_ASIC_VDDC);
 		if (rdev->pm.default_sclk)
 			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
 		if (rdev->pm.default_mclk)
@@ -585,7 +587,8 @@ int radeon_pm_init(struct radeon_device *rdev)
 		/* set up the default clocks if the MC ucode is loaded */
 		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+							SET_VOLTAGE_TYPE_ASIC_VDDC);
 			if (rdev->pm.default_sclk)
 				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
 			if (rdev->pm.default_mclk)
