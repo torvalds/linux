@@ -164,6 +164,15 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.init = speyside_wm8915_init,
 		.ops = &speyside_ops,
 	},
+	{
+		.name = "Baseband",
+		.stream_name = "Baseband",
+		.cpu_dai_name = "wm8915-aif2",
+		.codec_dai_name = "wm1250-ev1",
+		.codec_name = "wm1250-ev1.1-0027",
+		.platform_name = "samsung-audio",
+		.ops = &speyside_ops,
+	},
 };
 
 static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
@@ -194,6 +203,8 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Main Speaker"),
 	SOC_DAPM_PIN_SWITCH("Main DMIC"),
 	SOC_DAPM_PIN_SWITCH("Main AMIC"),
+	SOC_DAPM_PIN_SWITCH("WM1250 Input"),
+	SOC_DAPM_PIN_SWITCH("WM1250 Output"),
 };
 
 static struct snd_soc_dapm_widget widgets[] = {
