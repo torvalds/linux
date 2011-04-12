@@ -1151,10 +1151,10 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 	{
 		int pipeconf_reg = PIPECONF(pipe);
-		int dspcntr_reg = DSPCNTR(pipe);
+		int dspcntr_reg = DSPCNTR(intel_crtc->plane);
 		int pipeconf = I915_READ(pipeconf_reg);
 		int dspcntr = I915_READ(dspcntr_reg);
-		int dspbase_reg = DSPADDR(pipe);
+		int dspbase_reg = DSPADDR(intel_crtc->plane);
 		int xpos = 0x0, ypos = 0x0;
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */
