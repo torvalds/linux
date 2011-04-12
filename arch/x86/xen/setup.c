@@ -166,7 +166,7 @@ static unsigned long __init xen_set_identity(const struct e820entry *list,
 		if (last > end)
 			continue;
 
-		if (entry->type == E820_RAM) {
+		if ((entry->type == E820_RAM) || (entry->type == E820_UNUSABLE)) {
 			if (start > start_pci)
 				identity += set_phys_range_identity(
 						PFN_UP(start_pci), PFN_DOWN(start));
