@@ -37,10 +37,6 @@ arch/arm/configs/rk29_malata_defconfig
 arch/arm/mach-rk29/board-rk29-winaccord.c
 arch/arm/configs/rk29_Winaccord_defconfig
 
-arch/arm/mach-rk29/board-rk29-aigo.c
-arch/arm/mach-rk29/board-rk29aigo-key.c
-arch/arm/configs/rk29_aigo_defconfig
-
 arch/arm/mach-rk29/board-rk29-a22*
 arch/arm/configs/rk29_a22_defconfig
 
