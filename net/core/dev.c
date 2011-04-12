@@ -5247,6 +5247,8 @@ int __netdev_update_features(struct net_device *dev)
 	u32 features;
 	int err = 0;
 
+	ASSERT_RTNL();
+
 	features = netdev_get_wanted_features(dev);
 
 	if (dev->netdev_ops->ndo_fix_features)
