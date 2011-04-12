@@ -913,6 +913,32 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+/* Used to sort the devices by max_avail(descending sort) */
+static int btrfs_cmp_device_free_bytes(const void *dev_info1,
+				       const void *dev_info2)
+{
+	if (((struct btrfs_device_info *)dev_info1)->max_avail >
+	    ((struct btrfs_device_info *)dev_info2)->max_avail)
+		return -1;
+	else if (((struct btrfs_device_info *)dev_info1)->max_avail <
+		 ((struct btrfs_device_info *)dev_info2)->max_avail)
+		return 1;
+	else
+	return 0;
+}
+
+/*
+ * sort the devices by max_avail, in which max free extent size of each device
+ * is stored.(Descending Sort)
+ */
+static inline void btrfs_descending_sort_devices(
+					struct btrfs_device_info *devices,
+					size_t nr_devices)
+{
+	sort(devices, nr_devices, sizeof(struct btrfs_device_info),
+	     btrfs_cmp_device_free_bytes, NULL);
+}
+
 /*
  * The helper to calc the free space on the devices that can be used to store
  * file data.

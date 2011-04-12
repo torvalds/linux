@@ -2282,19 +2282,6 @@ static noinline u64 chunk_bytes_by_type(u64 type, u64 calc_size,
 		return calc_size * num_stripes;
 }
 
-/* Used to sort the devices by max_avail(descending sort) */
-int btrfs_cmp_device_free_bytes(const void *dev_info1, const void *dev_info2)
-{
-	if (((struct btrfs_device_info *)dev_info1)->max_avail >
-	    ((struct btrfs_device_info *)dev_info2)->max_avail)
-		return -1;
-	else if (((struct btrfs_device_info *)dev_info1)->max_avail <
-		 ((struct btrfs_device_info *)dev_info2)->max_avail)
-		return 1;
-	else
-		return 0;
-}
-
 static int __btrfs_calc_nstripes(struct btrfs_fs_devices *fs_devices, u64 type,
 				 int *num_stripes, int *min_stripes,
 				 int *sub_stripes)
