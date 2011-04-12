@@ -180,7 +180,7 @@ struct mmc_fixup {
 	int data;
 };
 
-#define CID_MANFID_ANY (-1ul)
+#define CID_MANFID_ANY (-1u)
 #define CID_OEMID_ANY ((unsigned short) -1)
 #define CID_NAME_ANY (NULL)
 
