@@ -1368,8 +1368,10 @@ static void rt2400pci_tbtt_tasklet(unsigned long data)
 static void rt2400pci_rxdone_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
-	rt2x00pci_rxdone(rt2x00dev);
-	rt2400pci_enable_interrupt(rt2x00dev, CSR8_RXDONE);
+	if (rt2x00pci_rxdone(rt2x00dev))
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
+	else
+		rt2400pci_enable_interrupt(rt2x00dev, CSR8_RXDONE);
 }
 
 static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)

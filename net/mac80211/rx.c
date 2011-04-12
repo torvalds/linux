@@ -707,6 +707,8 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	/*
 	 * If the current MPDU is in the right order and nothing else
 	 * is stored we can process it directly, no need to buffer it.
+	 * If it is first but there's something stored, we may be able
+	 * to release frames after this one.
 	 */
 	if (mpdu_seq_num == tid_agg_rx->head_seq_num &&
 	    tid_agg_rx->stored_mpdu_num == 0) {

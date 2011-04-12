@@ -155,7 +155,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	nexttbtt = intval;
 
 	if (priv->op_flags & OP_TSF_RESET) {
-		intval |= ATH9K_BEACON_RESET_TSF;
+		ath9k_hw_reset_tsf(priv->ah);
 		priv->op_flags &= ~OP_TSF_RESET;
 	} else {
 		/*
@@ -168,8 +168,6 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		} while (nexttbtt < tsftu);
 	}
 
-	intval |= ATH9K_BEACON_ENA;
-
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
@@ -178,7 +176,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		bss_conf->beacon_interval, nexttbtt, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
-	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
+	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
 	priv->bmiss_cnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
@@ -207,7 +205,6 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 		nexttbtt += intval;
 	} while (nexttbtt < tsftu);
 
-	intval |= ATH9K_BEACON_ENA;
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
@@ -216,7 +213,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 		bss_conf->beacon_interval, nexttbtt, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
-	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
+	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
 	priv->bmiss_cnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);

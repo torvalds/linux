@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -652,8 +652,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
 
-	if (!priv->cfg->base_params->use_isr_legacy)
-		rb_timeout = RX_RB_TIMEOUT;
+	rb_timeout = RX_RB_TIMEOUT;
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
@@ -913,7 +912,6 @@ void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
-		priv->alloc_rxb_page++;
 
 		spin_unlock_irqrestore(&rxq->lock, flags);
 	}

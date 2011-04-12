@@ -90,20 +90,11 @@ enum rx_mgmt_action {
 	/* no action required */
 	RX_MGMT_NONE,
 
-	/* caller must call cfg80211_send_rx_auth() */
-	RX_MGMT_CFG80211_AUTH,
-
-	/* caller must call cfg80211_send_rx_assoc() */
-	RX_MGMT_CFG80211_ASSOC,
-
 	/* caller must call cfg80211_send_deauth() */
 	RX_MGMT_CFG80211_DEAUTH,
 
 	/* caller must call cfg80211_send_disassoc() */
 	RX_MGMT_CFG80211_DISASSOC,
-
-	/* caller must tell cfg80211 about internal error */
-	RX_MGMT_CFG80211_ASSOC_ERROR,
 };
 
 /* utils */

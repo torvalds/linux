@@ -430,13 +430,16 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
 
-static const struct ath_ops ath9k_common_ops = {
-	.read = ath9k_regread,
-	.multi_read = ath9k_multi_regread,
-	.write = ath9k_regwrite,
-	.enable_write_buffer = ath9k_enable_regwrite_buffer,
-	.write_flush = ath9k_regwrite_flush,
-};
+static u32 ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
+{
+	u32 val;
+
+	val = ath9k_regread(hw_priv, reg_offset);
+	val &= ~clr;
+	val |= set;
+	ath9k_regwrite(hw_priv, val, reg_offset);
+	return val;
+}
 
 static void ath_usb_read_cachesize(struct ath_common *common, int *csz)
 {
@@ -561,13 +564,7 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	int i = 0;
 
 	/* Get the hardware key cache size. */
-	common->keymax = priv->ah->caps.keycache_size;
-	if (common->keymax > ATH_KEYMAX) {
-		ath_dbg(common, ATH_DBG_ANY,
-			"Warning, using only %u entries in %u key cache\n",
-			ATH_KEYMAX, common->keymax);
-		common->keymax = ATH_KEYMAX;
-	}
+	common->keymax = AR_KEYTABLE_SIZE;
 
 	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
 		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
@@ -658,10 +655,16 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	ah->hw_version.subsysid = 0; /* FIXME */
 	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
+	ah->reg_ops.read = ath9k_regread;
+	ah->reg_ops.multi_read = ath9k_multi_regread;
+	ah->reg_ops.write = ath9k_regwrite;
+	ah->reg_ops.enable_write_buffer = ath9k_enable_regwrite_buffer;
+	ah->reg_ops.write_flush = ath9k_regwrite_flush;
+	ah->reg_ops.rmw = ath9k_reg_rmw;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
-	common->ops = &ath9k_common_ops;
+	common->ops = &ah->reg_ops;
 	common->bus_ops = &ath9k_usb_bus_ops;
 	common->ah = ah;
 	common->hw = priv->hw;

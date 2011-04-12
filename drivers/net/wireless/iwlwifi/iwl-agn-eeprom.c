@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,7 +103,7 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IWL_DEBUG_IO(priv,
+			IWL_DEBUG_EEPROM(priv,
 				"Acquired semaphore after %d tries.\n",
 				count+1);
 			return ret;

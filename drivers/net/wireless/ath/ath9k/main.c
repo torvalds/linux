@@ -299,7 +299,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
 		if (sc->sc_flags & SC_OP_BEACONS)
-			ath_beacon_config(sc, NULL);
+			ath_set_beacon(sc);
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
 		ath_start_ani(common);
@@ -828,48 +828,6 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static void ath9k_bss_assoc_info(struct ath_softc *sc,
-				 struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_bss_conf *bss_conf)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (bss_conf->assoc) {
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Bss Info ASSOC %d, bssid: %pM\n",
-			bss_conf->aid, common->curbssid);
-
-		/* New association, store aid */
-		common->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(ah);
-
-		/*
-		 * Request a re-configuration of Beacon related timers
-		 * on the receipt of the first Beacon frame (i.e.,
-		 * after time sync with the AP).
-		 */
-		sc->ps_flags |= PS_BEACON_SYNC;
-
-		/* Configure the beacon */
-		ath_beacon_config(sc, vif);
-
-		/* Reset rssi stats */
-		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
-		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-
-		sc->sc_flags |= SC_OP_ANI_RUN;
-		ath_start_ani(common);
-	} else {
-		ath_dbg(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
-		common->curaid = 0;
-		/* Stop ANI */
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
-		del_timer_sync(&common->ani.timer);
-	}
-}
-
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -899,7 +857,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		goto out;
 	}
 	if (sc->sc_flags & SC_OP_BEACONS)
-		ath_beacon_config(sc, NULL);	/* restart beacons */
+		ath_set_beacon(sc);	/* restart beacons */
 
 	/* Re-Enable  interrupts */
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -1006,7 +964,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 			       sc->config.txpowlimit, &sc->curtxpow);
 
 	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
-		ath_beacon_config(sc, NULL);	/* restart beacons */
+		ath_set_beacon(sc);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
@@ -1415,9 +1373,6 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
-	} else {
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
-		del_timer_sync(&common->ani.timer);
 	}
 }
 
@@ -1452,7 +1407,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_vif *avp = (void *)vif->drv_priv;
 	int ret = 0;
 
 	ath9k_ps_wakeup(sc);
@@ -1482,8 +1436,9 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	if ((vif->type == NL80211_IFTYPE_ADHOC) &&
-	    sc->nvifs > 0) {
+	if ((ah->opmode == NL80211_IFTYPE_ADHOC) ||
+	    ((vif->type == NL80211_IFTYPE_ADHOC) &&
+	     sc->nvifs > 0)) {
 		ath_err(common, "Cannot create ADHOC interface when other"
 			" interfaces already exist.\n");
 		ret = -EINVAL;
@@ -1492,10 +1447,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d\n", vif->type);
-
-	/* Set the VIF opmode */
-	avp->av_opmode = vif->type;
-	avp->av_bslot = -1;
 
 	sc->nvifs++;
 
@@ -1855,6 +1806,20 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	if (ath9k_modparam_nohwcrypt)
 		return -ENOSPC;
 
+	if (vif->type == NL80211_IFTYPE_ADHOC &&
+	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
+	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		/*
+		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * could be optimized in the future to use a modified key cache
+		 * design to support per-STA RX GTK, but until that gets
+		 * implemented, use of software crypto for group addressed
+		 * frames is a acceptable to allow RSN IBSS to be used.
+		 */
+		return -EOPNOTSUPP;
+	}
+
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
 	ath_dbg(common, ATH_DBG_CONFIG, "Set HW Key\n");
@@ -1886,6 +1851,86 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	return ret;
 }
+static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	switch (sc->sc_ah->opmode) {
+	case NL80211_IFTYPE_ADHOC:
+		/* There can be only one vif available */
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		common->curaid = bss_conf->aid;
+		ath9k_hw_write_associd(sc->sc_ah);
+		/* configure beacon */
+		if (bss_conf->enable_beacon)
+			ath_beacon_config(sc, vif);
+		break;
+	case NL80211_IFTYPE_STATION:
+		/*
+		 * Skip iteration if primary station vif's bss info
+		 * was not changed
+		 */
+		if (sc->sc_flags & SC_OP_PRIM_STA_VIF)
+			break;
+
+		if (bss_conf->assoc) {
+			sc->sc_flags |= SC_OP_PRIM_STA_VIF;
+			avp->primary_sta_vif = true;
+			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+			common->curaid = bss_conf->aid;
+			ath9k_hw_write_associd(sc->sc_ah);
+			ath_dbg(common, ATH_DBG_CONFIG,
+				"Bss Info ASSOC %d, bssid: %pM\n",
+				bss_conf->aid, common->curbssid);
+			ath_beacon_config(sc, vif);
+			/* Reset rssi stats */
+			sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
+
+			sc->sc_flags |= SC_OP_ANI_RUN;
+			ath_start_ani(common);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	/* Reconfigure bss info */
+	if (avp->primary_sta_vif && !bss_conf->assoc) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Bss Info DISASSOC %d, bssid %pM\n",
+			common->curaid, common->curbssid);
+		sc->sc_flags &= ~(SC_OP_PRIM_STA_VIF | SC_OP_BEACONS);
+		avp->primary_sta_vif = false;
+		memset(common->curbssid, 0, ETH_ALEN);
+		common->curaid = 0;
+	}
+
+	ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, ath9k_bss_iter, sc);
+
+	/*
+	 * None of station vifs are associated.
+	 * Clear bssid & aid
+	 */
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
+	    !(sc->sc_flags & SC_OP_PRIM_STA_VIF)) {
+		ath9k_hw_write_associd(sc->sc_ah);
+		/* Stop ANI */
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
+	}
+}
 
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
@@ -1893,7 +1938,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1904,20 +1948,13 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	if (changed & BSS_CHANGED_BSSID) {
-		/* Set BSSID */
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = 0;
-		ath9k_hw_write_associd(ah);
+		ath9k_config_bss(sc, vif);
 
 		/* Set aggregation protection mode parameters */
 		sc->config.ath_aggr_prot = 0;
 
 		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
-
-		/* need to reconfigure the beacon */
-		sc->sc_flags &= ~SC_OP_BEACONS ;
 	}
 
 	/* Enable transmission of beacons (AP, IBSS, MESH) */
@@ -1958,7 +1995,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		cur_conf->beacon_interval = bss_conf->beacon_int;
 		/*
 		 * In case of AP mode, the HW TSF has to be reset
 		 * when the beacon interval changes.
@@ -1970,9 +2006,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			if (!error)
 				ath_beacon_config(sc, vif);
 			ath9k_set_beaconing_status(sc, true);
-		} else {
+		} else
 			ath_beacon_config(sc, vif);
-		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -1992,12 +2027,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
 		else
 			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
-	}
-
-	if (changed & BSS_CHANGED_ASSOC) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
-			bss_conf->assoc);
-		ath9k_bss_assoc_info(sc, hw, vif, bss_conf);
 	}
 
 	mutex_unlock(&sc->mutex);

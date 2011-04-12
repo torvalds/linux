@@ -532,9 +532,9 @@
 #define CLEAR_PCI_TX_DESC_CONTENT(__pdesc, _size)	\
 do {							\
 	if (_size > TX_DESC_NEXT_DESC_OFFSET)		\
-		memset((void *)__pdesc, 0, TX_DESC_NEXT_DESC_OFFSET);	\
+		memset(__pdesc, 0, TX_DESC_NEXT_DESC_OFFSET);	\
 	else						\
-		memset((void *)__pdesc, 0, _size);	\
+		memset(__pdesc, 0, _size);	\
 } while (0);
 
 #define RX_HAL_IS_CCK_RATE(_pdesc)\

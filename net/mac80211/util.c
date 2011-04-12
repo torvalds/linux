@@ -1290,7 +1290,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	add_timer(&local->sta_cleanup);
+	mod_timer(&local->sta_cleanup, jiffies + 1);
 
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list)

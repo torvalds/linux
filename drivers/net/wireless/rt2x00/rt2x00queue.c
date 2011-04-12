@@ -148,19 +148,6 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 	skb_trim(skb, frame_length);
 }
 
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
-{
-	unsigned int frame_length = skb->len;
-	unsigned int align = ALIGN_SIZE(skb, header_length);
-
-	if (!align)
-		return;
-
-	skb_push(skb, align);
-	memmove(skb->data, skb->data + align, frame_length);
-	skb_trim(skb, frame_length);
-}
-
 void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
 	unsigned int payload_length = skb->len - header_length;
@@ -495,8 +482,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	struct skb_frame_desc *skbdesc;
 	u8 rate_idx, rate_flags;
 
-	if (unlikely(rt2x00queue_full(queue)))
+	if (unlikely(rt2x00queue_full(queue))) {
+		ERROR(queue->rt2x00dev,
+		      "Dropping frame due to full tx queue %d.\n", queue->qid);
 		return -ENOBUFS;
+	}
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {

@@ -35,7 +35,7 @@
 /*mutex for start & stop is must here. */
 static int rtl_op_start(struct ieee80211_hw *hw)
 {
-	int err = 0;
+	int err;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
@@ -45,10 +45,8 @@ static int rtl_op_start(struct ieee80211_hw *hw)
 		return 0;
 	mutex_lock(&rtlpriv->locks.conf_mutex);
 	err = rtlpriv->intf_ops->adapter_start(hw);
-	if (err)
-		goto out;
-	rtl_watch_dog_timer_callback((unsigned long)hw);
-out:
+	if (!err)
+		rtl_watch_dog_timer_callback((unsigned long)hw);
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 	return err;
 }

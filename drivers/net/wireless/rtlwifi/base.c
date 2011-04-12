@@ -432,7 +432,7 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 	}
 
 	if (rtlpriv->dm.useramask) {
-		/* TODO we will differentiate adhoc and station futrue  */
+		/* TODO adhoc and station handled differently in the future */
 		tcb_desc->mac_id = 0;
 
 		if ((mac->mode == WIRELESS_MODE_N_24G) ||
@@ -630,7 +630,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	const struct iphdr *ip;
 
 	if (!ieee80211_is_data(fc))
-		goto end;
+		return false;
 
 	if (ieee80211_is_nullfunc(fc))
 		return true;
@@ -686,7 +686,6 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		return true;
 	}
 
-end:
 	return false;
 }
 

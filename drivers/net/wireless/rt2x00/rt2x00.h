@@ -348,6 +348,11 @@ struct link {
 	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
+
+	/*
+	 * Work structure for scheduling periodic AGC adjustments.
+	 */
+	struct delayed_work agc_work;
 };
 
 enum rt2x00_delayed_flags {
@@ -556,6 +561,7 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+	void (*gain_calibration) (struct rt2x00_dev *rt2x00dev);
 
 	/*
 	 * Data queue handlers.
@@ -674,7 +680,6 @@ enum rt2x00_flags {
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
 	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
 	DRIVER_SUPPORT_LINK_TUNING,
-	DRIVER_SUPPORT_WATCHDOG,
 
 	/*
 	 * Driver configuration

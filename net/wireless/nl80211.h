@@ -79,6 +79,9 @@ void nl80211_send_remain_on_channel_cancel(
 void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 			    struct net_device *dev, const u8 *mac_addr,
 			    struct station_info *sinfo, gfp_t gfp);
+void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, const u8 *mac_addr,
+				gfp_t gfp);
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct net_device *netdev, u32 nlpid, int freq,

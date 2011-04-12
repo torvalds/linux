@@ -41,6 +41,10 @@ struct mgmt_rp_read_index_list {
 	__le16 index[0];
 } __packed;
 
+/* Reserve one extra byte for names in management messages so that they
+ * are always guaranteed to be nul-terminated */
+#define MGMT_MAX_NAME_LENGTH		(HCI_MAX_NAME_LENGTH + 1)
+
 #define MGMT_OP_READ_INFO		0x0004
 struct mgmt_rp_read_info {
 	__u8 type;
@@ -55,6 +59,7 @@ struct mgmt_rp_read_info {
 	__u16 manufacturer;
 	__u8 hci_ver;
 	__u16 hci_rev;
+	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
 
 struct mgmt_mode {
@@ -167,6 +172,29 @@ struct mgmt_rp_user_confirm_reply {
 
 #define MGMT_OP_USER_CONFIRM_NEG_REPLY	0x0016
 
+#define MGMT_OP_SET_LOCAL_NAME		0x0017
+struct mgmt_cp_set_local_name {
+	__u8 name[MGMT_MAX_NAME_LENGTH];
+} __packed;
+
+#define MGMT_OP_READ_LOCAL_OOB_DATA	0x0018
+struct mgmt_rp_read_local_oob_data {
+	__u8 hash[16];
+	__u8 randomizer[16];
+} __packed;
+
+#define MGMT_OP_ADD_REMOTE_OOB_DATA	0x0019
+struct mgmt_cp_add_remote_oob_data {
+	bdaddr_t bdaddr;
+	__u8 hash[16];
+	__u8 randomizer[16];
+} __packed;
+
+#define MGMT_OP_REMOVE_REMOTE_OOB_DATA	0x001A
+struct mgmt_cp_remove_remote_oob_data {
+	bdaddr_t bdaddr;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
@@ -233,4 +261,23 @@ struct mgmt_ev_user_confirm_request {
 struct mgmt_ev_auth_failed {
 	bdaddr_t bdaddr;
 	__u8 status;
+} __packed;
+
+#define MGMT_EV_LOCAL_NAME_CHANGED	0x0011
+struct mgmt_ev_local_name_changed {
+	__u8 name[MGMT_MAX_NAME_LENGTH];
+} __packed;
+
+#define MGMT_EV_DEVICE_FOUND		0x0012
+struct mgmt_ev_device_found {
+	bdaddr_t bdaddr;
+	__u8 dev_class[3];
+	__s8 rssi;
+	__u8 eir[HCI_MAX_EIR_LENGTH];
+} __packed;
+
+#define MGMT_EV_REMOTE_NAME		0x0013
+struct mgmt_ev_remote_name {
+	bdaddr_t bdaddr;
+	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
