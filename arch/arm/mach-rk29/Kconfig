@@ -29,13 +29,6 @@ config MACH_RK29FIH
         help
 	  Support for the ROCKCHIP Board For Rk29 FIH.
 
-
-config MACH_RK29_AIGO
-	depends on ARCH_RK29
-	bool "ROCKCHIP Board Rk29 For Aigo"
-        help
-	  Support for the ROCKCHIP Board For Rk29 Aigo.
-	  
 config MACH_RK29_MALATA
 	depends on ARCH_RK29
 	bool "ROCKCHIP Board Rk29 For Malata"
