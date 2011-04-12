@@ -117,15 +117,6 @@ enum dss_clock {
 	DSS_CLK_VIDFCK	= 1 << 4,	/* DSS_96M_FCLK*/
 };
 
-enum dss_clk_source {
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* OMAP3: DSI1_PLL_FCLK
-						 * OMAP4: PLL1_CLK1 */
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,		/* OMAP3: DSI2_PLL_FCLK
-						 * OMAP4: PLL1_CLK2 */
-	DSS_CLK_SRC_FCK,			/* OMAP2/3: DSS1_ALWON_FCLK
-						 * OMAP4: DSS_FCLK */
-};
-
 enum dss_hdmi_venc_clk_source_select {
 	DSS_VENC_TV_CLK = 0,
 	DSS_HDMI_M_PCLK = 1,
@@ -236,7 +227,7 @@ void dss_clk_enable(enum dss_clock clks);
 void dss_clk_disable(enum dss_clock clks);
 unsigned long dss_clk_get_rate(enum dss_clock clk);
 int dss_need_ctx_restore(void);
-const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src);
+const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
 void dss_dump_regs(struct seq_file *s);
@@ -248,13 +239,13 @@ void dss_sdi_init(u8 datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
-void dss_select_dispc_clk_source(enum dss_clk_source clk_src);
-void dss_select_dsi_clk_source(enum dss_clk_source clk_src);
+void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src);
+void dss_select_dsi_clk_source(enum omap_dss_clk_source clk_src);
 void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum dss_clk_source clk_src);
-enum dss_clk_source dss_get_dispc_clk_source(void);
-enum dss_clk_source dss_get_dsi_clk_source(void);
-enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
+		enum omap_dss_clk_source clk_src);
+enum omap_dss_clk_source dss_get_dispc_clk_source(void);
+enum omap_dss_clk_source dss_get_dsi_clk_source(void);
+enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
 
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);

@@ -178,21 +178,21 @@ static const enum omap_color_mode omap3_dss_supported_color_modes[] = {
 };
 
 static const char * const omap2_dss_clk_source_names[] = {
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "N/A",
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "N/A",
-	[DSS_CLK_SRC_FCK]			= "DSS_FCLK1",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "N/A",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "N/A",
+	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCLK1",
 };
 
 static const char * const omap3_dss_clk_source_names[] = {
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI1_PLL_FCLK",
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "DSI2_PLL_FCLK",
-	[DSS_CLK_SRC_FCK]			= "DSS1_ALWON_FCLK",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI1_PLL_FCLK",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI2_PLL_FCLK",
+	[OMAP_DSS_CLK_SRC_FCK]			= "DSS1_ALWON_FCLK",
 };
 
 static const char * const omap4_dss_clk_source_names[] = {
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "PLL1_CLK1",
-	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "PLL1_CLK2",
-	[DSS_CLK_SRC_FCK]			= "DSS_FCLK",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "PLL1_CLK1",
+	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "PLL1_CLK2",
+	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCLK",
 };
 
 static const struct dss_param_range omap2_dss_param_range[] = {
@@ -340,7 +340,7 @@ bool dss_feat_color_mode_supported(enum omap_plane plane,
 			color_mode;
 }
 
-const char *dss_feat_get_clk_source_name(enum dss_clk_source id)
+const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id)
 {
 	return omap_current_dss_features->clksrc_names[id];
 }

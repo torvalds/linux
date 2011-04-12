@@ -1009,7 +1009,7 @@ static unsigned long dsi_fclk_rate(void)
 {
 	unsigned long r;
 
-	if (dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK) {
+	if (dss_get_dsi_clk_source() == OMAP_DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 	} else {
@@ -1317,12 +1317,12 @@ int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 	DSSDBG("Clock lane freq %ld Hz\n", cinfo->clkin4ddr / 4);
 
 	DSSDBG("regm_dispc = %d, %s (%s) = %lu\n", cinfo->regm_dispc,
-		dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
-		dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+		dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+		dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
 		cinfo->dsi_pll_hsdiv_dispc_clk);
 	DSSDBG("regm_dsi = %d, %s (%s) = %lu\n", cinfo->regm_dsi,
-		dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
-		dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+		dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+		dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
 		cinfo->dsi_pll_hsdiv_dsi_clk);
 
 	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGN, &regn_start, &regn_end);
@@ -1497,7 +1497,7 @@ void dsi_pll_uninit(void)
 void dsi_dump_clocks(struct seq_file *s)
 {
 	struct dsi_clock_info *cinfo = &dsi.current_cinfo;
-	enum dss_clk_source dispc_clk_src, dsi_clk_src;
+	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
 
 	dispc_clk_src = dss_get_dispc_clk_source();
 	dsi_clk_src = dss_get_dsi_clk_source();
@@ -1519,7 +1519,7 @@ void dsi_dump_clocks(struct seq_file *s)
 			dss_feat_get_clk_source_name(dispc_clk_src),
 			cinfo->dsi_pll_hsdiv_dispc_clk,
 			cinfo->regm_dispc,
-			dispc_clk_src == DSS_CLK_SRC_FCK ?
+			dispc_clk_src == OMAP_DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"%s (%s)\t%-16luregm_dsi %u\t(%s)\n",
@@ -1527,7 +1527,7 @@ void dsi_dump_clocks(struct seq_file *s)
 			dss_feat_get_clk_source_name(dsi_clk_src),
 			cinfo->dsi_pll_hsdiv_dsi_clk,
 			cinfo->regm_dsi,
-			dsi_clk_src == DSS_CLK_SRC_FCK ?
+			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"- DSI -\n");
@@ -3455,10 +3455,10 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	dss_select_dispc_clk_source(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
-	dss_select_dsi_clk_source(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI);
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
+	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI);
 	dss_select_lcd_clk_source(dssdev->manager->id,
-		DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
+		OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
 
 	DSSDBG("PLL OK\n");
 
@@ -3494,8 +3494,8 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 err3:
 	dsi_complexio_uninit();
 err2:
-	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(DSS_CLK_SRC_FCK);
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
 err1:
 	dsi_pll_uninit();
 err0:
@@ -3511,8 +3511,8 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 	dsi_vc_enable(2, 0);
 	dsi_vc_enable(3, 0);
 
-	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(DSS_CLK_SRC_FCK);
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dsi_complexio_uninit();
 	dsi_pll_uninit();
 }
@@ -3703,16 +3703,16 @@ void dsi_wait_pll_hsdiv_dispc_active(void)
 {
 	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
 		DSSERR("%s (%s) not active\n",
-			dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
-			dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC));
+			dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+			dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC));
 }
 
 void dsi_wait_pll_hsdiv_dsi_active(void)
 {
 	if (wait_for_bit_change(DSI_PLL_STATUS, 8, 1) != 1)
 		DSSERR("%s (%s) not active\n",
-			dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
-			dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI));
+			dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+			dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI));
 }
 
 static void dsi_calc_clock_param_ranges(void)

@@ -1160,7 +1160,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	 * dynamically by user. This can be moved to single location , say
 	 * Boardfile.
 	 */
-	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 
 	/* bypass TV gamma table */
 	dispc_enable_gamma_table(0);
