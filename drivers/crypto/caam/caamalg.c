@@ -828,15 +828,13 @@ static int aead_authenc_givencrypt(struct aead_givcrypt_request *req)
 	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
 
 	/* MOVE DECO Alignment -> C1 Context 16 bytes */
-	append_move(desc, MOVE_WAITCOMP | MOVE_SRC_INFIFO |
-		    MOVE_DEST_CLASS1CTX | ivsize);
+	append_move(desc, MOVE_SRC_INFIFO | MOVE_DEST_CLASS1CTX | ivsize);
 
 	/* re-enable info fifo entries */
 	append_cmd(desc, CMD_LOAD | ENABLE_AUTO_INFO_FIFO);
 
 	/* MOVE C1 Context -> OFIFO 16 bytes */
-	append_move(desc, MOVE_WAITCOMP | MOVE_SRC_CLASS1CTX |
-		    MOVE_DEST_OUTFIFO | ivsize);
+	append_move(desc, MOVE_SRC_CLASS1CTX | MOVE_DEST_OUTFIFO | ivsize);
 
 	append_fifo_store(desc, iv_dma, ivsize, FIFOST_TYPE_MESSAGE_DATA);
 
