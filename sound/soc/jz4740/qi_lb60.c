@@ -27,11 +27,7 @@
 static int qi_lb60_spk_event(struct snd_soc_dapm_widget *widget,
 			     struct snd_kcontrol *ctrl, int event)
 {
-	int on = 0;
-	if (event & SND_SOC_DAPM_POST_PMU)
-		on = 1;
-	else if (event & SND_SOC_DAPM_PRE_PMD)
-		on = 0;
+	int on = !SND_SOC_DAPM_EVENT_OFF(event);
 
 	gpio_set_value(QI_LB60_SND_GPIO, on);
 	gpio_set_value(QI_LB60_AMP_GPIO, on);
