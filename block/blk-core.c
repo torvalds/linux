@@ -2696,6 +2696,11 @@ static void flush_plug_list(struct blk_plug *plug)
 
 	q = NULL;
 	depth = 0;
+
+	/*
+	 * Save and disable interrupts here, to avoid doing it for every
+	 * queue lock we have to take.
+	 */
 	local_irq_save(flags);
 	while (!list_empty(&list)) {
 		rq = list_entry_rq(list.next);
