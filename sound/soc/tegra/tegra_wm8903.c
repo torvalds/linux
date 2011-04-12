@@ -139,13 +139,11 @@ static struct snd_soc_jack_pin tegra_wm8903_hp_jack_pins[] = {
 	},
 };
 
-static struct snd_soc_jack_gpio tegra_wm8903_hp_jack_gpios[] = {
-	{
-		.name = "headphone detect",
-		.report = SND_JACK_HEADPHONE,
-		.debounce_time = 150,
-		.invert = 1,
-	}
+static struct snd_soc_jack_gpio tegra_wm8903_hp_jack_gpio = {
+	.name = "headphone detect",
+	.report = SND_JACK_HEADPHONE,
+	.debounce_time = 150,
+	.invert = 1,
 };
 
 static struct snd_soc_jack tegra_wm8903_mic_jack;
@@ -241,15 +239,15 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
 				ARRAY_SIZE(harmony_audio_map));
 
-	tegra_wm8903_hp_jack_gpios[0].gpio = pdata->gpio_hp_det;
+	tegra_wm8903_hp_jack_gpio.gpio = pdata->gpio_hp_det;
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 			 &tegra_wm8903_hp_jack);
 	snd_soc_jack_add_pins(&tegra_wm8903_hp_jack,
 			      ARRAY_SIZE(tegra_wm8903_hp_jack_pins),
 			      tegra_wm8903_hp_jack_pins);
 	snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
-			       ARRAY_SIZE(tegra_wm8903_hp_jack_gpios),
-			       tegra_wm8903_hp_jack_gpios);
+			       1,
+			       &tegra_wm8903_hp_jack_gpio);
 
 	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
 			 &tegra_wm8903_mic_jack);
