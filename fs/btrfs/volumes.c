@@ -849,10 +849,7 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 	/* we don't want to overwrite the superblock on the drive,
 	 * so we make sure to start at an offset of at least 1MB
 	 */
-	search_start = 1024 * 1024;
-
-	if (root->fs_info->alloc_start + num_bytes <= search_end)
-		search_start = max(root->fs_info->alloc_start, search_start);
+	search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
 
 	max_hole_start = search_start;
 	max_hole_size = 0;
