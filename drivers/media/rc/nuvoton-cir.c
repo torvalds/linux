@@ -291,13 +291,23 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 {
-	u8 val;
+	u8 val, psreg, psmask, psval;
 
-	/* output pin selection (Pin95=CIRRX, Pin96=CIRTX1, WB enabled */
-	val = nvt_cr_read(nvt, CR_OUTPUT_PIN_SEL);
-	val &= OUTPUT_PIN_SEL_MASK;
-	val |= (OUTPUT_ENABLE_CIR | OUTPUT_ENABLE_CIRWB);
-	nvt_cr_write(nvt, val, CR_OUTPUT_PIN_SEL);
+	if (nvt->chip_major == CHIP_ID_HIGH_667) {
+		psreg = CR_MULTIFUNC_PIN_SEL;
+		psmask = MULTIFUNC_PIN_SEL_MASK;
+		psval = MULTIFUNC_ENABLE_CIR | MULTIFUNC_ENABLE_CIRWB;
+	} else {
+		psreg = CR_OUTPUT_PIN_SEL;
+		psmask = OUTPUT_PIN_SEL_MASK;
+		psval = OUTPUT_ENABLE_CIR | OUTPUT_ENABLE_CIRWB;
+	}
+
+	/* output pin selection: enable CIR, with WB sensor enabled */
+	val = nvt_cr_read(nvt, psreg);
+	val &= psmask;
+	val |= psval;
+	nvt_cr_write(nvt, val, psreg);
 
 	/* Select CIR logical device and enable */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);

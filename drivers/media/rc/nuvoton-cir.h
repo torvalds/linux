@@ -345,6 +345,7 @@ struct nvt_dev {
 #define CR_CHIP_ID_LO		0x21
 #define CR_DEV_POWER_DOWN	0x22 /* bit 2 is CIR power, default power on */
 #define CR_OUTPUT_PIN_SEL	0x27
+#define CR_MULTIFUNC_PIN_SEL	0x2c
 #define CR_LOGICAL_DEV_EN	0x30 /* valid for all logical devices */
 /* next three regs valid for both the CIR and CIR_WAKE logical devices */
 #define CR_CIR_BASE_ADDR_HI	0x60
@@ -368,9 +369,15 @@ struct nvt_dev {
 #define CIR_INTR_MOUSE_IRQ_BIT	0x80
 #define PME_INTR_CIR_PASS_BIT	0x08
 
+/* w83677hg CIR pin config */
 #define OUTPUT_PIN_SEL_MASK	0xbc
 #define OUTPUT_ENABLE_CIR	0x01 /* Pin95=CIRRX, Pin96=CIRTX1 */
 #define OUTPUT_ENABLE_CIRWB	0x40 /* enable wide-band sensor */
+
+/* w83667hg CIR pin config */
+#define MULTIFUNC_PIN_SEL_MASK	0x1f
+#define MULTIFUNC_ENABLE_CIR	0x80 /* Pin75=CIRRX, Pin76=CIRTX1 */
+#define MULTIFUNC_ENABLE_CIRWB	0x20 /* enable wide-band sensor */
 
 /* MCE CIR signal length, related on sample period */
 
