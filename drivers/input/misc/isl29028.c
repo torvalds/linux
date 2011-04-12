@@ -77,7 +77,7 @@ struct isl29028_data {
 	struct i2c_client        *client;
 	struct delayed_work      p_work; //for psensor
 	struct delayed_work 	l_work;	//for light sensor
-
+	struct mutex lock;
 	int enabled;
 	int irq;
 };
@@ -85,6 +85,8 @@ struct isl29028_data {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend isl29028_early_suspend;
 #endif
+
+int g_lightlevel = 8;
 
 static const int luxValues[8] = {
 		10, 160, 225, 320,
@@ -148,6 +150,7 @@ static void isl29028_psensor_work_handler(struct work_struct *work)
 	struct isl29028_data *isl = (struct isl29028_data *)container_of(work, struct isl29028_data, p_work.work);
 	char reg, value, int_flag;
 
+	mutex_lock(&isl->lock);
 	reg = ISL_REG_INT;
 	isl29028_read_reg(isl->client, reg, (char *)&int_flag);
 
@@ -158,7 +161,7 @@ static void isl29028_psensor_work_handler(struct work_struct *work)
 	}
 
 	if (int_flag & 0x08) {
-		D("line %d; light sensor interrupt\n");
+		D("line %d; light sensor interrupt\n", __LINE__);
 		isl29028_write_reg(isl->client, reg, int_flag & 0xf7);		
 	}
 
@@ -167,6 +170,7 @@ static void isl29028_psensor_work_handler(struct work_struct *work)
 	//D("%s: int is %#x\n", __FUNCTION__, int_flag);
 	D("%s: prox_int is %d\n", __FUNCTION__, (int_flag >> 7 ));
 	D("%s: prox_data is %#x\n", __FUNCTION__, value);
+	mutex_unlock(&isl->lock);
 
 	enable_irq(isl->irq);
 }
@@ -190,6 +194,7 @@ static int isl29028_psensor_enable(struct i2c_client *client)
 	int ret;
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
+	mutex_lock(&isl->lock);
 	reg = ISL_REG_CONFIG;
 	ret = isl29028_read_reg(client, reg, &value);
 	value |= PROX_EN;
@@ -198,6 +203,9 @@ static int isl29028_psensor_enable(struct i2c_client *client)
 	ret = isl29028_read_reg(client, reg, &value);
 	D("%s: configure reg value %#x ...\n", __FUNCTION__, value);	
 #endif
+	mutex_unlock(&isl->lock);
+
+	enable_irq(isl->irq);
 
 	return ret;
 }
@@ -209,7 +217,8 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 
 	disable_irq(isl->irq);
 	cancel_delayed_work_sync(&isl->p_work);
-	enable_irq(isl->irq);
+
+	mutex_lock(&isl->lock);
 
 	reg = ISL_REG_CONFIG;
 	ret = isl29028_read_reg(client, reg, &value);
@@ -227,6 +236,7 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 	D("%s: configure reg value %#x ...\n", __FUNCTION__, value);	
 	D("%s: interrupt reg value %#x ...\n", __FUNCTION__, value2);	
 #endif
+	mutex_unlock(&isl->lock);
 
 	return ret;
 }
@@ -251,23 +261,24 @@ static struct miscdevice isl29028_psensor_misc = {
 
 static int isl29028_psensor_open(struct inode *inode, struct file *file)
 {
-	struct i2c_client *client = 
-		       container_of (isl29028_psensor_misc.parent, struct i2c_client, dev);
+//	struct i2c_client *client = 
+//		       container_of (isl29028_psensor_misc.parent, struct i2c_client, dev);
 	D("%s\n", __func__);
 	if (misc_ps_opened)
 		return -EBUSY;
 	misc_ps_opened = 1;
-	
-	return isl29028_psensor_enable(client);
+	return 0;
+	//return isl29028_psensor_enable(client);
 }
 
 static int isl29028_psensor_release(struct inode *inode, struct file *file)
 {	
-	struct i2c_client *client = 
-		       container_of (isl29028_psensor_misc.parent, struct i2c_client, dev);
+//	struct i2c_client *client = 
+//		       container_of (isl29028_psensor_misc.parent, struct i2c_client, dev);
 	D("%s\n", __func__);
 	misc_ps_opened = 0;
-	return isl29028_psensor_disable(client);
+	return 0;
+	//return isl29028_psensor_disable(client);
 }
 
 static long isl29028_psensor_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -275,6 +286,7 @@ static long isl29028_psensor_ioctl(struct file *file, unsigned int cmd, unsigned
 	char reg, val, enabled;
 	struct i2c_client *client = 
 		       container_of (isl29028_psensor_misc.parent, struct i2c_client, dev);
+	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
 	D("%s cmd %d\n", __func__, _IOC_NR(cmd));
 	switch (cmd) {
@@ -287,9 +299,11 @@ static long isl29028_psensor_ioctl(struct file *file, unsigned int cmd, unsigned
 			return isl29028_psensor_disable(client);
 		break;
 	case PSENSOR_IOCTL_GET_ENABLED:
+		mutex_lock(&isl->lock);
 		reg = ISL_REG_CONFIG;
 		isl29028_read_reg(client, reg, &val);
 		enabled = (val & (1 << 7)) ? 1 : 0;
+		mutex_unlock(&isl->lock);
 		return put_user(enabled, (unsigned long __user *)arg);
 		break;
 	default:
@@ -358,6 +372,9 @@ static int register_psensor_device(struct i2c_client *client, struct isl29028_da
 		goto err_free_gpio;
 	}
 
+	
+	disable_irq(isl->irq);
+	
 	return 0;
 
 err_free_gpio:
@@ -387,6 +404,8 @@ static int isl29028_lsensor_enable(struct i2c_client *client)
 	int ret;
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
+	mutex_lock(&isl->lock);
+
 	reg = ISL_REG_CONFIG;
 	ret = isl29028_read_reg(client, reg, &value);
 	value |= ALS_EN;
@@ -396,6 +415,8 @@ static int isl29028_lsensor_enable(struct i2c_client *client)
 	ret = isl29028_read_reg(client, reg, &value);
 	D("%s: configure reg value %#x ...\n", __FUNCTION__, value);	
 #endif
+
+	mutex_unlock(&isl->lock);
 
 	schedule_delayed_work(&(isl->l_work), msecs_to_jiffies(LSENSOR_POLL_PROMESHUTOK));
 
@@ -408,6 +429,8 @@ static int isl29028_lsensor_disable(struct i2c_client *client)
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
 	cancel_delayed_work_sync(&(isl->l_work));
+
+	mutex_lock(&isl->lock);
 
 	reg = ISL_REG_CONFIG;
 	ret = isl29028_read_reg(client, reg, &value);
@@ -426,6 +449,8 @@ static int isl29028_lsensor_disable(struct i2c_client *client)
 	D("%s: interrupt reg value %#x ...\n", __FUNCTION__, value2);	
 #endif
 
+	mutex_unlock(&isl->lock);
+
 	return ret;
 }
 
@@ -439,6 +464,7 @@ static int luxValue_to_level(int value)
 	for (i=0;i<7;i++)
 		if (value>=luxValues[i] && value<luxValues[i+1])
 			return i;
+	return -1;
 }
 
 static void isl29028_lsensor_work_handler(struct work_struct *work)
@@ -448,11 +474,14 @@ static void isl29028_lsensor_work_handler(struct work_struct *work)
 	unsigned int als_value;
 	int level;
 
+	mutex_lock(&isl->lock);
 	reg = ISL_REG_ALSIR_LDATA;
 	isl29028_read_reg(isl->client, reg, (char *)&l_value);
 
 	reg = ISL_REG_ALSIR_HDATA;
 	isl29028_read_reg(isl->client, reg, (char *)&h_value);
+
+	mutex_unlock(&isl->lock);
 
 	als_value = h_value;
 	als_value = (als_value << 8) | l_value;
@@ -467,9 +496,11 @@ static void isl29028_lsensor_work_handler(struct work_struct *work)
 	D("%s: ls_level is %d\n", __FUNCTION__, level);
 #endif
 
-	input_report_abs(isl->lsensor_input_dev, ABS_MISC, level);
-	input_sync(isl->lsensor_input_dev);
-
+	if (level != g_lightlevel) {
+		g_lightlevel = level;
+		input_report_abs(isl->lsensor_input_dev, ABS_MISC, level);
+		input_sync(isl->lsensor_input_dev);
+	}
 	schedule_delayed_work(&(isl->l_work), msecs_to_jiffies(LSENSOR_POLL_PROMESHUTOK));
 }
 
@@ -493,25 +524,25 @@ static struct miscdevice isl29028_lsensor_misc = {
 
 static int isl29028_lsensor_open(struct inode *inode, struct file *file)
 {
-	struct i2c_client *client = 
-		       container_of (isl29028_lsensor_misc.parent, struct i2c_client, dev);
+//	struct i2c_client *client = 
+//		       container_of (isl29028_lsensor_misc.parent, struct i2c_client, dev);
 	D("%s\n", __func__);
 	if (misc_ls_opened)
 		return -EBUSY;
 	misc_ls_opened = 1;
-	
-	return isl29028_lsensor_enable(client);
+	return 0;
+	//return isl29028_lsensor_enable(client);
 }
 
 static int isl29028_lsensor_release(struct inode *inode, struct file *file)
 {
 	
-	struct i2c_client *client = 
-		       container_of (isl29028_lsensor_misc.parent, struct i2c_client, dev);
+//	struct i2c_client *client = 
+//		       container_of (isl29028_lsensor_misc.parent, struct i2c_client, dev);
 	D("%s\n", __func__);
 	misc_ls_opened = 0;
-	
-	return isl29028_lsensor_disable(client);
+	return 0;
+	//return isl29028_lsensor_disable(client);
 }
 
 static long isl29028_lsensor_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -519,6 +550,7 @@ static long isl29028_lsensor_ioctl(struct file *file, unsigned int cmd, unsigned
 	char reg, val, enabled;
 	struct i2c_client *client = 
 		       container_of (isl29028_lsensor_misc.parent, struct i2c_client, dev);
+	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
 	D("%s cmd %d\n", __func__, _IOC_NR(cmd));
 	switch (cmd) {
@@ -531,8 +563,10 @@ static long isl29028_lsensor_ioctl(struct file *file, unsigned int cmd, unsigned
 			return isl29028_lsensor_disable(client);
 		break;
 	case LIGHTSENSOR_IOCTL_GET_ENABLED:
+		mutex_lock(&isl->lock);
 		reg = ISL_REG_CONFIG;
 		isl29028_read_reg(client, reg, &val);
+		mutex_unlock(&isl->lock);
 		enabled = (val & (1 << 2)) ? 1 : 0;
 		return put_user(enabled, (unsigned long __user *)arg);
 		break;
@@ -602,8 +636,11 @@ static int isl29028_config(struct i2c_client *client)
 {
 	int ret;
 	char value, buf[2];
+	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
 
 	D("%s: init isl29028 all register\n", __func__);
+
+	mutex_lock(&isl->lock);
 
 	/*********************** power on **************************/
 	buf[0] = 0x0e;
@@ -624,15 +661,16 @@ static int isl29028_config(struct i2c_client *client)
 		printk("%s: config isl29028 register %#x err %d\n", __FUNCTION__, buf[0], ret);
 	}
 
-	if (ret < 2)
+	if (ret < 2) {
+		mutex_unlock(&isl->lock);
 		return -1;
-	
+	}
 	mdelay(2);
 	
     /***********************config**************************/
 
 	buf[0] = ISL_REG_CONFIG;
-	buf[1] = /*PROX_EN | */PROX_SLP(4) | PROX_DR_220 /*| ALS_EN | ALS_RANGE_L*/; 
+	buf[1] = /*PROX_EN | */PROX_SLP(4) | PROX_DR_220 | ALS_RANGE_H /*| ALS_EN */; 
 	if ((ret = i2c_master_send(client, buf, 2)) < 2) {
 		printk("%s: config isl29028 register %#x err %d\n", __FUNCTION__, buf[0], ret);
 	}
@@ -670,6 +708,8 @@ static int isl29028_config(struct i2c_client *client)
 	isl29028_read_reg(client, 0x04, &value);
 	printk("%s: config isl29028 PROX_HT(0x04) reg %#x \n", __FUNCTION__, value);
 #endif
+
+	mutex_unlock(&isl->lock);
 
 	return 0;
 }
@@ -715,6 +755,9 @@ static int isl29028_probe(struct i2c_client *client, const struct i2c_device_id 
 
 	isl->client = client;
 	i2c_set_clientdata(client, isl);
+
+	
+	mutex_init(&isl->lock);
 
 	rc = register_psensor_device(client, isl);
 	if (rc) {
