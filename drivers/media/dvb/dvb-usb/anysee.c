@@ -396,8 +396,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* attach demod */
 		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
 			&adap->dev->i2c_adap);
-		if (adap->fe)
-			break;
 
 		break;
 	case ANYSEE_HW_507CD: /* 6 */
@@ -416,8 +414,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* attach demod */
 		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
 			&adap->dev->i2c_adap);
-		if (adap->fe)
-			break;
 
 		break;
 	case ANYSEE_HW_507DC: /* 10 */
@@ -431,8 +427,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* attach demod */
 		adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
 			&adap->dev->i2c_adap, 0x48);
-		if (adap->fe)
-			break;
 
 		break;
 	case ANYSEE_HW_507FA: /* 15 */
@@ -482,8 +476,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 					&anysee_zl10353_config,
 					&adap->dev->i2c_adap);
 			}
-			if (adap->fe)
-				break;
 		} else {
 			/* disable DVB-T demod on IOD[0] */
 			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 0),
@@ -509,9 +501,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 					&anysee_tda10023_config,
 					&adap->dev->i2c_adap, 0x48);
 			}
-			if (adap->fe)
-				break;
 		}
+
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
 		/* E7 TC */
@@ -544,8 +535,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe = dvb_attach(zl10353_attach,
 				&anysee_zl10353_tda18212_config,
 				&adap->dev->i2c_adap);
-			if (adap->fe)
-				break;
 		} else {
 			/* disable DVB-T demod on IOD[6] */
 			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 6),
@@ -569,18 +558,16 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe = dvb_attach(tda10023_attach,
 				&anysee_tda10023_tda18212_config,
 				&adap->dev->i2c_adap, 0x48);
-			if (adap->fe)
-				break;
 		}
+
 		break;
 	}
 
 	if (!adap->fe) {
 		/* we have no frontend :-( */
 		ret = -ENODEV;
-		err("Unknown Anysee version: %02x %02x %02x. " \
-			"Please report the <linux-media@vger.kernel.org>.",
-			hw_info[0], hw_info[1], hw_info[2]);
+		err("Unsupported Anysee version. " \
+			"Please report the <linux-media@vger.kernel.org>.");
 	}
 error:
 	return ret;
@@ -590,7 +577,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap->dev->priv;
 	struct dvb_frontend *fe;
-	int ret = 0;
+	int ret;
 	deb_info("%s:\n", __func__);
 
 	switch (state->hw) {
@@ -598,14 +585,15 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 */
 
 		/* attach tuner */
-		dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
 			NULL, DVB_PLL_THOMSON_DTT7579);
+
 		break;
 	case ANYSEE_HW_507CD: /* 6 */
 		/* E30 Plus */
 
 		/* attach tuner */
-		dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_THOMSON_DTT7579);
 
 		break;
@@ -613,8 +601,9 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 C Plus */
 
 		/* attach tuner */
-		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
+
 		break;
 	case ANYSEE_HW_507FA: /* 15 */
 		/* E30 Combo Plus */
@@ -654,7 +643,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach tuner */
-		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 
 		break;
@@ -669,14 +658,16 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach tuner */
 		fe = dvb_attach(tda18212_attach, adap->fe, &adap->dev->i2c_adap,
 			&anysee_tda18212_config);
-		if (!fe)
-			ret = -ENODEV;
 
 		break;
-
 	default:
-		ret = -ENODEV;
+		fe = NULL;
 	}
+
+	if (fe)
+		ret = 0;
+	else
+		ret = -ENODEV;
 
 error:
 	return ret;
