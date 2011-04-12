@@ -1311,7 +1311,15 @@ get_rq:
 
 	plug = current->plug;
 	if (plug) {
-		if (!plug->should_sort && !list_empty(&plug->list)) {
+		/*
+		 * If this is the first request added after a plug, fire
+		 * of a plug trace. If others have been added before, check
+		 * if we have multiple devices in this plug. If so, make a
+		 * note to sort the list before dispatch.
+		 */
+		if (list_empty(&plug->list))
+			trace_block_plug(q);
+		else if (!plug->should_sort) {
 			struct request *__rq;
 
 			__rq = list_entry_rq(plug->list.prev);
