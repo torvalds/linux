@@ -73,7 +73,7 @@ static const struct i2c_device_id wm1250_ev1_i2c_id[] = {
 	{ "wm1250-ev1", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, wm1250_ev1__id);
+MODULE_DEVICE_TABLE(i2c, wm1250_ev1_i2c_id);
 
 static struct i2c_driver wm1250_ev1_i2c_driver = {
 	.driver = {
