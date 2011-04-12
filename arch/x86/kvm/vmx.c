@@ -4251,8 +4251,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto free_vcpu;
 
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	err = -ENOMEM;
 	if (!vmx->guest_msrs) {
-		err = -ENOMEM;
 		goto uninit_vcpu;
 	}
 
@@ -4271,7 +4271,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_vmcs;
 	if (vm_need_virtualize_apic_accesses(kvm))
-		if (alloc_apic_access_page(kvm) != 0)
+		err = alloc_apic_access_page(kvm);
+		if (err)
 			goto free_vmcs;
 
 	if (enable_ept) {
