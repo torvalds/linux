@@ -4459,6 +4459,12 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
 	int cs_db, cs_l;
 
+	/*
+	 * TODO: fix emulate.c to use guest_read/write_register
+	 * instead of direct ->regs accesses, can save hundred cycles
+	 * on Intel for instructions that don't read/change RSP, for
+	 * for example.
+	 */
 	cache_all_regs(vcpu);
 
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
@@ -4561,14 +4567,6 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	bool writeback = true;
 
 	kvm_clear_exception_queue(vcpu);
-
-	/*
-	 * TODO: fix emulate.c to use guest_read/write_register
-	 * instead of direct ->regs accesses, can save hundred cycles
-	 * on Intel for instructions that don't read/change RSP, for
-	 * for example.
-	 */
-	cache_all_regs(vcpu);
 
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		init_emulate_ctxt(vcpu);
