@@ -1302,7 +1302,7 @@ int
 p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 								u32 count)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
@@ -1311,7 +1311,6 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 					(long long unsigned) offset, count);
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
@@ -1367,7 +1366,7 @@ int
 p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 
@@ -1375,7 +1374,6 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 				fid->fid, (long long unsigned) offset, count);
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
@@ -1766,7 +1764,7 @@ EXPORT_SYMBOL_GPL(p9_client_xattrcreate);
 
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
@@ -1776,7 +1774,6 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_READDIRHDRSZ)
