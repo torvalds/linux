@@ -2861,7 +2861,7 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_conf *mdev)
 	     * we may want to delete a minor from a live replication group.
 	     */
 	    mdev->state.role == R_SECONDARY) {
-		drbd_delete_device(mdev_to_minor(mdev));
+		drbd_delete_device(mdev);
 		return NO_ERROR;
 	} else
 		return ERR_MINOR_CONFIGURED;

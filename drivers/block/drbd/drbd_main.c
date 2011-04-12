@@ -2204,15 +2204,10 @@ static void drbd_release_all_peer_reqs(struct drbd_conf *mdev)
 }
 
 /* caution. no locking. */
-void drbd_delete_device(unsigned int minor)
+void drbd_delete_device(struct drbd_conf *mdev)
 {
-	struct drbd_conf *mdev = minor_to_mdev(minor);
-
-	if (!mdev)
-		return;
-
 	idr_remove(&mdev->tconn->volumes, mdev->vnr);
-	idr_remove(&minors, minor);
+	idr_remove(&minors, mdev_to_minor(mdev));
 	synchronize_rcu();
 
 	/* paranoia asserts */
@@ -2265,7 +2260,8 @@ static void drbd_cleanup(void)
 	drbd_genl_unregister();
 
 	idr_for_each_entry(&minors, mdev, i)
-		drbd_delete_device(i);
+		drbd_delete_device(mdev);
+
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
 

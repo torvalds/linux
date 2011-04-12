@@ -1367,7 +1367,7 @@ extern rwlock_t global_state_lock;
 extern int conn_lowest_minor(struct drbd_tconn *tconn);
 enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
 extern void drbd_free_mdev(struct drbd_conf *mdev);
-extern void drbd_delete_device(unsigned int minor);
+extern void drbd_delete_device(struct drbd_conf *mdev);
 
 struct drbd_tconn *drbd_new_tconn(const char *name);
 extern void drbd_free_tconn(struct drbd_tconn *tconn);
