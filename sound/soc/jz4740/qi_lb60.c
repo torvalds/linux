@@ -70,12 +70,6 @@ static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_soc_dapm_new_controls(dapm, qi_lb60_widgets,
-				  ARRAY_SIZE(qi_lb60_widgets));
-	snd_soc_dapm_add_routes(dapm, qi_lb60_routes,
-				ARRAY_SIZE(qi_lb60_routes));
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
@@ -93,6 +87,11 @@ static struct snd_soc_card qi_lb60 = {
 	.name = "QI LB60",
 	.dai_link = &qi_lb60_dai,
 	.num_links = 1,
+
+	.dapm_widgets = qi_lb60_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(qi_lb60_widgets),
+	.dapm_routes = qi_lb60_routes,
+	.num_dapm_routes = ARRAY_SIZE(qi_lb60_routes),
 };
 
 static struct platform_device *qi_lb60_snd_device;
