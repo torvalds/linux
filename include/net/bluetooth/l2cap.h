@@ -280,7 +280,6 @@ struct l2cap_conn_param_update_rsp {
 struct l2cap_chan_list {
 	struct sock	*head;
 	rwlock_t	lock;
-	long		num;
 };
 
 struct l2cap_conn {
@@ -302,7 +301,6 @@ struct l2cap_conn {
 
 	struct sk_buff *rx_skb;
 	__u32		rx_len;
-	__u8		rx_ident;
 	__u8		tx_ident;
 
 	__u8		disc_reason;

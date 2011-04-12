@@ -113,32 +113,19 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 
 	/*Set HW definition to determine if it supports ASPM. */
 	switch (rtlpci->const_support_pciaspm) {
-	case 0:{
-			/*Not support ASPM. */
-			bool support_aspm = false;
-			ppsc->support_aspm = support_aspm;
-			break;
-		}
-	case 1:{
-			/*Support ASPM. */
-			bool support_aspm = true;
-			bool support_backdoor = true;
-			ppsc->support_aspm = support_aspm;
-
-			/*if(priv->oem_id == RT_CID_TOSHIBA &&
-			   !priv->ndis_adapter.amd_l1_patch)
-			   support_backdoor = false; */
-
-			ppsc->support_backdoor = support_backdoor;
-
-			break;
-		}
+	case 0:
+		/*Not support ASPM. */
+		ppsc->support_aspm = false;
+		break;
+	case 1:
+		/*Support ASPM. */
+		ppsc->support_aspm = true;
+		ppsc->support_backdoor = true;
+		break;
 	case 2:
 		/*ASPM value set by chipset. */
-		if (pcibridge_vendor == PCI_BRIDGE_VENDOR_INTEL) {
-			bool support_aspm = true;
-			ppsc->support_aspm = support_aspm;
-		}
+		if (pcibridge_vendor == PCI_BRIDGE_VENDOR_INTEL)
+			ppsc->support_aspm = true;
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -152,13 +139,11 @@ static bool _rtl_pci_platform_switch_device_pci_aspm(
 			u8 value)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	bool bresult = false;
 
 	value |= 0x40;
-
 	pci_write_config_byte(rtlpci->pdev, 0x80, value);
 
-	return bresult;
+	return false;
 }
 
 /*When we set 0x01 to enable clk request. Set 0x0 to disable clk req.*/
@@ -166,14 +151,11 @@ static bool _rtl_pci_switch_clk_req(struct ieee80211_hw *hw, u8 value)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 buffer;
-	bool bresult = false;
 
 	buffer = value;
-
 	pci_write_config_byte(rtlpci->pdev, 0x81, value);
-	bresult = true;
 
-	return bresult;
+	return true;
 }
 
 /*Disable RTL8192SE ASPM & Disable Pci Bridge ASPM*/
@@ -191,6 +173,7 @@ static void rtl_pci_disable_aspm(struct ieee80211_hw *hw)
 	u16 pcibridge_linkctrlreg = pcipriv->ndis_adapter.
 				pcibridge_linkctrlreg;
 	u16 aspmlevel = 0;
+	u8 tmp_u1b = 0;
 
 	if (pcibridge_vendor == PCI_BRIDGE_VENDOR_UNKNOWN) {
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_TRACE,
@@ -204,11 +187,8 @@ static void rtl_pci_disable_aspm(struct ieee80211_hw *hw)
 		_rtl_pci_switch_clk_req(hw, 0x0);
 	}
 
-	if (1) {
-		/*for promising device will in L0 state after an I/O. */
-		u8 tmp_u1b;
-		pci_read_config_byte(rtlpci->pdev, 0x80, &tmp_u1b);
-	}
+	/*for promising device will in L0 state after an I/O. */
+	pci_read_config_byte(rtlpci->pdev, 0x80, &tmp_u1b);
 
 	/*Set corresponding value. */
 	aspmlevel |= BIT(0) | BIT(1);
@@ -224,7 +204,6 @@ static void rtl_pci_disable_aspm(struct ieee80211_hw *hw)
 	rtl_pci_raw_write_port_uchar(PCI_CONF_DATA, pcibridge_linkctrlreg);
 
 	udelay(50);
-
 }
 
 /*

@@ -56,7 +56,6 @@
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
-static void hci_notify(struct hci_dev *hdev, int event);
 
 static DEFINE_RWLOCK(hci_task_lock);
 
@@ -1083,6 +1082,70 @@ static void hci_cmd_timer(unsigned long arg)
 	tasklet_schedule(&hdev->cmd_task);
 }
 
+struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
+							bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	list_for_each_entry(data, &hdev->remote_oob_data, list)
+		if (bacmp(bdaddr, &data->bdaddr) == 0)
+			return data;
+
+	return NULL;
+}
+
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+	if (!data)
+		return -ENOENT;
+
+	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+
+	list_del(&data->list);
+	kfree(data);
+
+	return 0;
+}
+
+int hci_remote_oob_data_clear(struct hci_dev *hdev)
+{
+	struct oob_data *data, *n;
+
+	list_for_each_entry_safe(data, n, &hdev->remote_oob_data, list) {
+		list_del(&data->list);
+		kfree(data);
+	}
+
+	return 0;
+}
+
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
+								u8 *randomizer)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+
+	if (!data) {
+		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		if (!data)
+			return -ENOMEM;
+
+		bacpy(&data->bdaddr, bdaddr);
+		list_add(&data->list, &hdev->remote_oob_data);
+	}
+
+	memcpy(data->hash, hash, sizeof(data->hash));
+	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
+
+	BT_DBG("%s for %s", hdev->name, batostr(bdaddr));
+
+	return 0;
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -1146,6 +1209,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->uuids);
 
 	INIT_LIST_HEAD(&hdev->link_keys);
+
+	INIT_LIST_HEAD(&hdev->remote_oob_data);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
@@ -1226,6 +1291,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	hci_blacklist_clear(hdev);
 	hci_uuids_clear(hdev);
 	hci_link_keys_clear(hdev);
+	hci_remote_oob_data_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	__hci_dev_put(hdev);
@@ -1275,7 +1341,7 @@ int hci_recv_frame(struct sk_buff *skb)
 EXPORT_SYMBOL(hci_recv_frame);
 
 static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
-			  int count, __u8 index, gfp_t gfp_mask)
+						  int count, __u8 index)
 {
 	int len = 0;
 	int hlen = 0;
@@ -1305,7 +1371,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 			break;
 		}
 
-		skb = bt_skb_alloc(len, gfp_mask);
+		skb = bt_skb_alloc(len, GFP_ATOMIC);
 		if (!skb)
 			return -ENOMEM;
 
@@ -1391,8 +1457,7 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 		return -EILSEQ;
 
 	while (count) {
-		rem = hci_reassembly(hdev, type, data, count,
-						type - 1, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count, type - 1);
 		if (rem < 0)
 			return rem;
 
@@ -1426,8 +1491,8 @@ int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
 		} else
 			type = bt_cb(skb)->pkt_type;
 
-		rem = hci_reassembly(hdev, type, data,
-					count, STREAM_REASSEMBLY, GFP_ATOMIC);
+		rem = hci_reassembly(hdev, type, data, count,
+							STREAM_REASSEMBLY);
 		if (rem < 0)
 			return rem;
 

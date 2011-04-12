@@ -568,7 +568,6 @@ static struct dentry *rt2x00debug_create_file_driver(const char *name,
 	blob->data = data;
 	data += sprintf(data, "driver:\t%s\n", intf->rt2x00dev->ops->name);
 	data += sprintf(data, "version:\t%s\n", DRV_VERSION);
-	data += sprintf(data, "compiled:\t%s %s\n", __DATE__, __TIME__);
 	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);

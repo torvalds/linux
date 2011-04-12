@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -141,7 +141,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
-	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
@@ -179,21 +178,16 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_agg_enable = iwlagn_txq_agg_enable,
-	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.load_ucode = iwlagn_load_ucode,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
 	.dump_fh = iwl_dump_fh,
-	.init_alive_start = iwlagn_init_alive_start,
-	.alive_notify = iwlagn_alive_notify,
 	.send_tx_power = iwlagn_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
@@ -214,13 +208,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version	= iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
-	},
-	.isr_ops = {
-		.isr = iwl_isr_ict,
-		.free = iwl_free_isr_ict,
-		.alloc = iwl_alloc_isr_ict,
-		.reset = iwl_reset_ict,
-		.disable = iwl_disable_ict,
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
@@ -255,7 +242,6 @@ static struct iwl_base_params iwl1000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.set_l0s = true,
-	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
 	.led_compensation = 51,

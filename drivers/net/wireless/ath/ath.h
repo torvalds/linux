@@ -119,6 +119,7 @@ struct ath_ops {
 	void (*write)(void *, u32 val, u32 reg_offset);
 	void (*enable_write_buffer)(void *);
 	void (*write_flush) (void *);
+	u32 (*rmw)(void *, u32 reg_offset, u32 set, u32 clr);
 };
 
 struct ath_common;

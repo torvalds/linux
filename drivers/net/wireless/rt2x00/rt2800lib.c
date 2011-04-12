@@ -687,6 +687,9 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 		mcs = real_mcs;
 	}
 
+	if (aggr == 1 || ampdu == 1)
+		__set_bit(TXDONE_AMPDU, &txdesc.flags);
+
 	/*
 	 * Ralink has a retry mechanism using a global fallback
 	 * table. We setup this fallback table to try the immediate
@@ -1813,17 +1816,131 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC, &reg);
 }
 
+static int rt2800_get_gain_calibration_delta(struct rt2x00_dev *rt2x00dev)
+{
+	u8 tssi_bounds[9];
+	u8 current_tssi;
+	u16 eeprom;
+	u8 step;
+	int i;
+
+	/*
+	 * Read TSSI boundaries for temperature compensation from
+	 * the EEPROM.
+	 *
+	 * Array idx               0    1    2    3    4    5    6    7    8
+	 * Matching Delta value   -4   -3   -2   -1    0   +1   +2   +3   +4
+	 * Example TSSI bounds  0xF0 0xD0 0xB5 0xA0 0x88 0x45 0x25 0x15 0x00
+	 */
+	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG1, &eeprom);
+		tssi_bounds[0] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG1_MINUS4);
+		tssi_bounds[1] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG1_MINUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG2, &eeprom);
+		tssi_bounds[2] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG2_MINUS2);
+		tssi_bounds[3] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG2_MINUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG3, &eeprom);
+		tssi_bounds[4] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG3_REF);
+		tssi_bounds[5] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG3_PLUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG4, &eeprom);
+		tssi_bounds[6] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG4_PLUS2);
+		tssi_bounds[7] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG4_PLUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG5, &eeprom);
+		tssi_bounds[8] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG5_PLUS4);
+
+		step = rt2x00_get_field16(eeprom,
+					  EEPROM_TSSI_BOUND_BG5_AGC_STEP);
+	} else {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A1, &eeprom);
+		tssi_bounds[0] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A1_MINUS4);
+		tssi_bounds[1] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A1_MINUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A2, &eeprom);
+		tssi_bounds[2] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A2_MINUS2);
+		tssi_bounds[3] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A2_MINUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A3, &eeprom);
+		tssi_bounds[4] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A3_REF);
+		tssi_bounds[5] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A3_PLUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A4, &eeprom);
+		tssi_bounds[6] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A4_PLUS2);
+		tssi_bounds[7] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A4_PLUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A5, &eeprom);
+		tssi_bounds[8] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A5_PLUS4);
+
+		step = rt2x00_get_field16(eeprom,
+					  EEPROM_TSSI_BOUND_A5_AGC_STEP);
+	}
+
+	/*
+	 * Check if temperature compensation is supported.
+	 */
+	if (tssi_bounds[4] == 0xff)
+		return 0;
+
+	/*
+	 * Read current TSSI (BBP 49).
+	 */
+	rt2800_bbp_read(rt2x00dev, 49, &current_tssi);
+
+	/*
+	 * Compare TSSI value (BBP49) with the compensation boundaries
+	 * from the EEPROM and increase or decrease tx power.
+	 */
+	for (i = 0; i <= 3; i++) {
+		if (current_tssi > tssi_bounds[i])
+			break;
+	}
+
+	if (i == 4) {
+		for (i = 8; i >= 5; i--) {
+			if (current_tssi < tssi_bounds[i])
+				break;
+		}
+	}
+
+	return (i - 4) * step;
+}
+
 static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 				      enum ieee80211_band band)
 {
 	u16 eeprom;
 	u8 comp_en;
 	u8 comp_type;
-	int comp_value;
+	int comp_value = 0;
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_DELTA, &eeprom);
 
-	if (eeprom == 0xffff)
+	/*
+	 * HT40 compensation not required.
+	 */
+	if (eeprom == 0xffff ||
+	    !test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
 		return 0;
 
 	if (band == IEEE80211_BAND_2GHZ) {
@@ -1853,11 +1970,9 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	return comp_value;
 }
 
-static u8 rt2800_compesate_txpower(struct rt2x00_dev *rt2x00dev,
-				     int is_rate_b,
-				     enum ieee80211_band band,
-				     int power_level,
-				     u8 txpower)
+static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
+				   enum ieee80211_band band, int power_level,
+				   u8 txpower, int delta)
 {
 	u32 reg;
 	u16 eeprom;
@@ -1865,13 +1980,9 @@ static u8 rt2800_compesate_txpower(struct rt2x00_dev *rt2x00dev,
 	u8 eirp_txpower;
 	u8 eirp_txpower_criterion;
 	u8 reg_limit;
-	int bw_comp = 0;
 
 	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
 		return txpower;
-
-	if (test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
-		bw_comp = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	if (test_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags)) {
 		/*
@@ -1895,18 +2006,19 @@ static u8 rt2800_compesate_txpower(struct rt2x00_dev *rt2x00dev,
 						 EEPROM_EIRP_MAX_TX_POWER_5GHZ);
 
 		eirp_txpower = eirp_txpower_criterion + (txpower - criterion) +
-				       (is_rate_b ? 4 : 0) + bw_comp;
+			       (is_rate_b ? 4 : 0) + delta;
 
 		reg_limit = (eirp_txpower > power_level) ?
 					(eirp_txpower - power_level) : 0;
 	} else
 		reg_limit = 0;
 
-	return txpower + bw_comp - reg_limit;
+	return txpower + delta - reg_limit;
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  struct ieee80211_conf *conf)
+				  enum ieee80211_band band,
+				  int power_level)
 {
 	u8 txpower;
 	u16 eeprom;
@@ -1914,8 +2026,17 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 	u8 r1;
 	u32 offset;
-	enum ieee80211_band band = conf->channel->band;
-	int power_level = conf->power_level;
+	int delta;
+
+	/*
+	 * Calculate HT40 compensation delta
+	 */
+	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
+
+	/*
+	 * calculate temperature compensation delta
+	 */
+	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
 	 * set to normal bbp tx power control mode: +/- 0dBm
@@ -1944,8 +2065,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE0);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE0, txpower);
 
 		/*
@@ -1955,8 +2076,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE1);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE1, txpower);
 
 		/*
@@ -1966,8 +2087,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE2);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE2, txpower);
 
 		/*
@@ -1977,8 +2098,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE3);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE3, txpower);
 
 		/* read the next four txpower values */
@@ -1993,8 +2114,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE0);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE4, txpower);
 
 		/*
@@ -2004,8 +2125,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE1);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE5, txpower);
 
 		/*
@@ -2015,8 +2136,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE2);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE6, txpower);
 
 		/*
@@ -2026,8 +2147,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE3);
-		txpower = rt2800_compesate_txpower(rt2x00dev, is_rate_b, band,
-					     power_level, txpower);
+		txpower = rt2800_compensate_txpower(rt2x00dev, is_rate_b, band,
+					     power_level, txpower, delta);
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE7, txpower);
 
 		rt2800_register_write(rt2x00dev, offset, reg);
@@ -2036,6 +2157,13 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		offset += 4;
 	}
 }
+
+void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev)
+{
+	rt2800_config_txpower(rt2x00dev, rt2x00dev->curr_band,
+			      rt2x00dev->tx_power);
+}
+EXPORT_SYMBOL_GPL(rt2800_gain_calibration);
 
 static void rt2800_config_retry_limit(struct rt2x00_dev *rt2x00dev,
 				      struct rt2x00lib_conf *libconf)
@@ -2090,10 +2218,12 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 	if (flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rt2800_config_channel(rt2x00dev, libconf->conf,
 				      &libconf->rf, &libconf->channel);
-		rt2800_config_txpower(rt2x00dev, libconf->conf);
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+				      libconf->conf->power_level);
 	}
 	if (flags & IEEE80211_CONF_CHANGE_POWER)
-		rt2800_config_txpower(rt2x00dev, libconf->conf);
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+				      libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2800_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_PS)

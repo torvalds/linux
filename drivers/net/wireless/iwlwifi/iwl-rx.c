@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -239,16 +239,16 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
 
+	priv->device_pointers.log_event_table =
+		le32_to_cpu(palive->log_event_table_ptr);
+	priv->device_pointers.error_event_table =
+		le32_to_cpu(palive->error_event_table_ptr);
+
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
 		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-		memcpy(&priv->card_alive_init,
-		       &pkt->u.alive_frame,
-		       sizeof(struct iwl_init_alive_resp));
 		pwork = &priv->init_alive_start;
 	} else {
 		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-		memcpy(&priv->card_alive, &pkt->u.alive_frame,
-		       sizeof(struct iwl_alive_resp));
 		pwork = &priv->alive_start;
 	}
 
@@ -898,7 +898,6 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);
-	priv->alloc_rxb_page--;
 	rxb->page = NULL;
 }
 

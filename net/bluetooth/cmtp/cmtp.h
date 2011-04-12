@@ -37,7 +37,7 @@
 #define CMTP_LOOPBACK	0
 
 struct cmtp_connadd_req {
-	int   sock;	// Connected socket
+	int   sock;	/* Connected socket */
 	__u32 flags;
 };
 
@@ -81,7 +81,7 @@ struct cmtp_session {
 
 	char name[BTNAMSIZ];
 
-	atomic_t terminate;
+	struct task_struct *task;
 
 	wait_queue_head_t wait;
 
@@ -120,13 +120,6 @@ int  cmtp_attach_device(struct cmtp_session *session);
 void cmtp_detach_device(struct cmtp_session *session);
 
 void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb);
-
-static inline void cmtp_schedule(struct cmtp_session *session)
-{
-	struct sock *sk = session->sock->sk;
-
-	wake_up_interruptible(sk_sleep(sk));
-}
 
 /* CMTP init defines */
 int cmtp_init_sockets(void);

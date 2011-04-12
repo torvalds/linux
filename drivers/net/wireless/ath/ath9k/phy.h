@@ -38,24 +38,10 @@
 #define AR_PHY_CLC_Q0        0x0000ffd0
 #define AR_PHY_CLC_Q0_S      5
 
-#define REG_WRITE_RF_ARRAY(iniarray, regData, regWr) do {               \
-		int r;							\
-		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
-			REG_WRITE(ah, INI_RA((iniarray), r, 0), (regData)[r]); \
-			DO_DELAY(regWr);				\
-		}							\
-	} while (0)
-
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050
 #define REDUCE_CHAIN_1 0x00000051
 #define AR_PHY_CHIP_ID 0x9818
-
-#define RF_BANK_SETUP(_bank, _iniarray, _col) do {			\
-		int i;							\
-		for (i = 0; i < (_iniarray)->ia_rows; i++)		\
-			(_bank)[i] = INI_RA((_iniarray), i, _col);;	\
-	} while (0)
 
 #define	AR_PHY_TIMING11_SPUR_FREQ_SD		0x3FF00000
 #define	AR_PHY_TIMING11_SPUR_FREQ_SD_S		20

@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -1572,12 +1572,10 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 	int pos = 0;
 	char buf[200];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	if (!priv->bt_enable_flag) {
 		pos += scnprintf(buf + pos, bufsz - pos, "BT coex disabled\n");
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-		return ret;
+		return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "BT enable flag: 0x%x\n",
 		priv->bt_enable_flag);
@@ -1608,8 +1606,7 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 		break;
 	}
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,

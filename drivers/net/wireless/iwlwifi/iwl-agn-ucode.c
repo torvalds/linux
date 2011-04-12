@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -311,14 +311,14 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 	/* initialize uCode was loaded... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
 	 * "initialize" alive if code weren't properly loaded.  */
-	if (iwl_verify_ucode(priv)) {
+	if (iwl_verify_ucode(priv, &priv->ucode_init)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
 		IWL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
 		goto restart;
 	}
 
-	ret = priv->cfg->ops->lib->alive_notify(priv);
+	ret = iwlagn_alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
 			"Could not complete ALIVE transition: %d\n", ret);
@@ -432,6 +432,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	unsigned long flags;
 	int i, chan;
 	u32 reg_val;
+	int ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -527,12 +528,15 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwlagn_send_wimax_coex(priv);
+	ret = iwlagn_send_wimax_coex(priv);
+	if (ret)
+		return ret;
 
-	iwlagn_set_Xtal_calib(priv);
-	iwl_send_calib_results(priv);
+	ret = iwlagn_set_Xtal_calib(priv);
+	if (ret)
+		return ret;
 
-	return 0;
+	return iwl_send_calib_results(priv);
 }
 
 
@@ -541,11 +545,12 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
+static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
+				      struct fw_desc *fw_desc)
 {
+	__le32 *image = (__le32 *)fw_desc->v_addr;
+	u32 len = fw_desc->len;
 	u32 val;
-	int ret = 0;
-	u32 errcnt = 0;
 	u32 i;
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
@@ -556,104 +561,55 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		 * if IWL_DL_IO is set */
 		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			i + IWLAGN_RTC_INST_LOWER_BOUND);
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (val != le32_to_cpu(*image)) {
-			ret = -EIO;
-			errcnt++;
-			if (errcnt >= 3)
-				break;
-		}
+		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		if (val != le32_to_cpu(*image))
+			return -EIO;
 	}
 
-	return ret;
+	return 0;
 }
 
-/**
- * iwlcore_verify_inst_full - verify runtime uCode image in card vs. host,
- *     looking at all data.
- */
-static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
-				 u32 len)
+static void iwl_print_mismatch_inst(struct iwl_priv *priv,
+				    struct fw_desc *fw_desc)
 {
+	__le32 *image = (__le32 *)fw_desc->v_addr;
+	u32 len = fw_desc->len;
 	u32 val;
-	u32 save_len = len;
-	int ret = 0;
-	u32 errcnt;
+	u32 offs;
+	int errors = 0;
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
 
 	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			   IWLAGN_RTC_INST_LOWER_BOUND);
 
-	errcnt = 0;
-	for (; len > 0; len -= sizeof(u32), image++) {
+	for (offs = 0;
+	     offs < len && errors < 20;
+	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
-		 * if IWL_DL_IO is set */
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERR(priv, "uCode INST section is invalid at "
-				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
-				  save_len - len, val, le32_to_cpu(*image));
-			ret = -EIO;
-			errcnt++;
-			if (errcnt >= 20)
-				break;
+			IWL_ERR(priv, "uCode INST section at "
+				"offset 0x%x, is 0x%x, s/b 0x%x\n",
+				offs, val, le32_to_cpu(*image));
+			errors++;
 		}
 	}
-
-	if (!errcnt)
-		IWL_DEBUG_INFO(priv,
-		    "ucode image in INSTRUCTION memory is good\n");
-
-	return ret;
 }
 
 /**
  * iwl_verify_ucode - determine which instruction image is in SRAM,
  *    and verify its contents
  */
-int iwl_verify_ucode(struct iwl_priv *priv)
+int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc)
 {
-	__le32 *image;
-	u32 len;
-	int ret;
-
-	/* Try bootstrap */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Bootstrap uCode is good in inst SRAM\n");
+	if (!iwlcore_verify_inst_sparse(priv, fw_desc)) {
+		IWL_DEBUG_INFO(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
-	/* Try initialize */
-	image = (__le32 *)priv->ucode_init.v_addr;
-	len = priv->ucode_init.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Initialize uCode is good in inst SRAM\n");
-		return 0;
-	}
+	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	/* Try runtime/protocol */
-	image = (__le32 *)priv->ucode_code.v_addr;
-	len = priv->ucode_code.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Runtime uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
-
-	/* Since nothing seems to match, show first several data entries in
-	 * instruction SRAM, so maybe visual inspection will give a clue.
-	 * Selection of bootstrap image (vs. other images) is arbitrary. */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	ret = iwl_verify_inst_full(priv, image, len);
-
-	return ret;
+	iwl_print_mismatch_inst(priv, fw_desc);
+	return -EIO;
 }

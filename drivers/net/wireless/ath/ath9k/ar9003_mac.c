@@ -485,17 +485,6 @@ static void ar9003_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
 
 }
 
-static void ar9003_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
-					     u32 vmf)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	if (vmf)
-		ads->ctl11 |=  AR_VirtMoreFrag;
-	else
-		ads->ctl11 &= ~AR_VirtMoreFrag;
-}
-
 void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains)
 {
 	struct ar9003_txc *ads = ds;
@@ -521,7 +510,6 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->set11n_aggr_last = ar9003_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9003_hw_clr11n_aggr;
 	ops->set11n_burstduration = ar9003_hw_set11n_burstduration;
-	ops->set11n_virtualmorefrag = ar9003_hw_set11n_virtualmorefrag;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

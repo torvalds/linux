@@ -122,12 +122,6 @@ static inline void ath9k_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set11n_burstduration(ah, ds, burstDuration);
 }
 
-static inline void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
-						   u32 vmf)
-{
-	ath9k_hw_ops(ah)->set11n_virtualmorefrag(ah, ds, vmf);
-}
-
 /* Private hardware call ops */
 
 /* PHY ops */

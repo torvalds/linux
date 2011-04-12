@@ -564,7 +564,6 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags);
 
 	/*
@@ -630,6 +629,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
+	.gain_calibration	= rt2800_gain_calibration,
 	.watchdog		= rt2800usb_watchdog,
 	.start_queue		= rt2800usb_start_queue,
 	.kick_queue		= rt2x00usb_kick_queue,
@@ -882,6 +882,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x5a57, 0x5257), USB_DEVICE_DATA(&rt2800usb_ops) },
 	/* Zyxel */
 	{ USB_DEVICE(0x0586, 0x3416), USB_DEVICE_DATA(&rt2800usb_ops) },
+	{ USB_DEVICE(0x0586, 0x3418), USB_DEVICE_DATA(&rt2800usb_ops) },
 #ifdef CONFIG_RT2800USB_RT33XX
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x3370), USB_DEVICE_DATA(&rt2800usb_ops) },

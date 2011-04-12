@@ -661,7 +661,6 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 					struct sk_buff *req)
 {
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(req);
 	struct ieee80211_mgmt *mgmt = (void *)req->data;
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
@@ -685,7 +684,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	       mgmt->bssid, tx_last_beacon);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
-	if (!tx_last_beacon && !(rx_status->rx_flags & IEEE80211_RX_RA_MATCH))
+	if (!tx_last_beacon && is_multicast_ether_addr(mgmt->da))
 		return;
 
 	if (memcmp(mgmt->bssid, ifibss->bssid, ETH_ALEN) != 0 &&

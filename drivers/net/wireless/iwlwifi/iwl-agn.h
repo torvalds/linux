@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,6 @@
 #include "iwl-dev.h"
 
 /* configuration for the _agn devices */
-extern struct iwl_cfg iwl4965_agn_cfg;
 extern struct iwl_cfg iwl5300_agn_cfg;
 extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;
@@ -114,7 +113,6 @@ extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
-extern struct ieee80211_ops iwl4965_hw_ops;
 
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
@@ -133,10 +131,6 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 				    u16 byte_cnt);
 void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 				   struct iwl_tx_queue *txq);
-int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
-			  int tx_fifo, int sta_id, int tid, u16 ssn_idx);
-int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);
@@ -158,7 +152,7 @@ void iwlagn_rx_calib_complete(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb);
 void iwlagn_init_alive_start(struct iwl_priv *priv);
 int iwlagn_alive_notify(struct iwl_priv *priv);
-int iwl_verify_ucode(struct iwl_priv *priv);
+int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc);
 void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 
@@ -206,6 +200,9 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
+void iwlagn_txq_agg_queue_setup(struct iwl_priv *priv,
+				struct ieee80211_sta *sta,
+				int tid, int frame_limit);
 int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			   int sta_id, u8 tid, int txq_id);
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
@@ -311,7 +308,7 @@ static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 
 static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
 {
-	return le32_to_cpu(rate_n_flags) & 0xFF;
+	return le32_to_cpu(rate_n_flags) & RATE_MCS_RATE_MSK;
 }
 
 static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
@@ -339,33 +336,5 @@ iwlagn_wait_notification(struct iwl_priv *priv,
 void __releases(wait_entry)
 iwlagn_remove_notification(struct iwl_priv *priv,
 			   struct iwl_notification_wait *wait_entry);
-
-/* mac80211 handlers (for 4965) */
-void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
-int iwlagn_mac_start(struct ieee80211_hw *hw);
-void iwlagn_mac_stop(struct ieee80211_hw *hw);
-void iwlagn_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags,
-			     u64 multicast);
-int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		       struct ieee80211_key_conf *key);
-void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_key_conf *keyconf,
-				struct ieee80211_sta *sta,
-				u32 iv32, u16 *phase1key);
-int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
-			    struct ieee80211_vif *vif,
-			    enum ieee80211_ampdu_mlme_action action,
-			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			    u8 buf_size);
-int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
-			       struct ieee80211_channel_switch *ch_switch);
-void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop);
 
 #endif /* __iwl_agn_h__ */

@@ -60,14 +60,15 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 
-void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
+bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
 	struct skb_frame_desc *skbdesc;
+	int max_rx = 16;
 
-	while (1) {
+	while (--max_rx) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX);
 		entry_priv = entry->priv_data;
 
@@ -93,6 +94,8 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		 */
 		rt2x00lib_rxdone(entry);
 	}
+
+	return !max_rx;
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
 

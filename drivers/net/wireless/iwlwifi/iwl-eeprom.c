@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -188,18 +188,16 @@ static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
-static int iwlcore_get_nvm_type(struct iwl_priv *priv)
+static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
 {
 	u32 otpgp;
 	int nvm_type;
 
 	/* OTP only valid for CP/PP and after */
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	switch (hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_NONE:
 		IWL_ERR(priv, "Unknown hardware type\n");
 		return -ENOENT;
-	case CSR_HW_REV_TYPE_3945:
-	case CSR_HW_REV_TYPE_4965:
 	case CSR_HW_REV_TYPE_5300:
 	case CSR_HW_REV_TYPE_5350:
 	case CSR_HW_REV_TYPE_5100:
@@ -228,15 +226,15 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 	int ret;
 
 	/* Enable 40MHz radio clock */
-	_iwl_write32(priv, CSR_GP_CNTRL,
-		     _iwl_read32(priv, CSR_GP_CNTRL) |
-		     CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_write32(priv, CSR_GP_CNTRL,
+		    iwl_read32(priv, CSR_GP_CNTRL) |
+		    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock to be ready */
 	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
-				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				  25000);
+				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				 25000);
 	if (ret < 0)
 		IWL_ERR(priv, "Time out access OTP\n");
 	else {
@@ -263,17 +261,17 @@ static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, __le16 *eeprom_dat
 	u32 r;
 	u32 otpgp;
 
-	_iwl_write32(priv, CSR_EEPROM_REG,
-		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	iwl_write32(priv, CSR_EEPROM_REG,
+		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 	ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
-				  CSR_EEPROM_REG_READ_VALID_MSK,
-				  CSR_EEPROM_REG_READ_VALID_MSK,
-				  IWL_EEPROM_ACCESS_TIMEOUT);
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret < 0) {
 		IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
 		return ret;
 	}
-	r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+	r = iwl_read32(priv, CSR_EEPROM_REG);
 	/* check for ECC errors: */
 	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
@@ -396,7 +394,7 @@ u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
  *
  * NOTE:  This routine uses the non-debug IO access functions.
  */
-int iwl_eeprom_init(struct iwl_priv *priv)
+int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 {
 	__le16 *e;
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
@@ -406,7 +404,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
+	priv->nvm_device_type = iwlcore_get_nvm_type(priv, hw_rev);
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
@@ -444,9 +442,9 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			ret = -ENOENT;
 			goto done;
 		}
-		_iwl_write32(priv, CSR_EEPROM_GP,
-			     iwl_read32(priv, CSR_EEPROM_GP) &
-			     ~CSR_EEPROM_GP_IF_OWNER_MSK);
+		iwl_write32(priv, CSR_EEPROM_GP,
+			    iwl_read32(priv, CSR_EEPROM_GP) &
+			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
 		iwl_set_bit(priv, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
@@ -473,8 +471,8 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			_iwl_write32(priv, CSR_EEPROM_REG,
-				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+			iwl_write32(priv, CSR_EEPROM_REG,
+				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
 			ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
@@ -484,7 +482,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 				IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 				goto done;
 			}
-			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+			r = iwl_read32(priv, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}

@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/log2.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
@@ -70,6 +71,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
+	rt2x00link_start_agc(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
@@ -92,6 +94,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all queues
 	 */
+	rt2x00link_stop_agc(rt2x00dev);
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
 	rt2x00queue_flush_queues(rt2x00dev, true);
@@ -350,10 +353,14 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * which would allow the rc algorithm to better decide on
 	 * which rates are suitable.
 	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
+	if (test_bit(TXDONE_AMPDU, &txdesc->flags) ||
+	    tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 		tx_info->status.ampdu_len = 1;
 		tx_info->status.ampdu_ack_len = success ? 1 : 0;
+
+		if (!success)
+			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 	}
 
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
@@ -511,8 +518,6 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 		 (rxdesc.size > header_length) &&
 		 (rxdesc.dev_flags & RXDONE_L2PAD))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
-	else
-		rt2x00queue_align_payload(entry->skb, header_length);
 
 	/* Trim buffer to correct size */
 	skb_trim(entry->skb, rxdesc.size);
@@ -811,13 +816,18 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
 		/*
-		 * Allocate txstatus fifo and tasklet, we use a size of 512
-		 * for the kfifo which is big enough to store 512/4=128 tx
-		 * status reports. In the worst case (tx status for all tx
-		 * queues gets reported before we've got a chance to handle
-		 * them) 24*4=384 tx status reports need to be cached.
+		 * Allocate the txstatus fifo. In the worst case the tx
+		 * status fifo has to hold the tx status of all entries
+		 * in all tx queues. Hence, calculate the kfifo size as
+		 * tx_queues * entry_num and round up to the nearest
+		 * power of 2.
 		 */
-		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, 512,
+		int kfifo_size =
+			roundup_pow_of_two(rt2x00dev->ops->tx_queues *
+					   rt2x00dev->ops->tx->entry_num *
+					   sizeof(u32));
+
+		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, kfifo_size,
 				     GFP_KERNEL);
 		if (status)
 			return status;

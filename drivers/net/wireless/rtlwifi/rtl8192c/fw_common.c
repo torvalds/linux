@@ -171,7 +171,6 @@ static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 static int _rtl92c_fw_free_to_go(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	int err = -EIO;
 	u32 counter = 0;
 	u32 value32;
 
@@ -184,7 +183,7 @@ static int _rtl92c_fw_free_to_go(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 ("chksum report faill ! REG_MCUFWDL:0x%08x .\n",
 			  value32));
-		goto exit;
+		return -EIO;
 	}
 
 	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
@@ -204,8 +203,7 @@ static int _rtl92c_fw_free_to_go(struct ieee80211_hw *hw)
 				 ("Polling FW ready success!!"
 				 " REG_MCUFWDL:0x%08x .\n",
 				 value32));
-			err = 0;
-			goto exit;
+			return 0;
 		}
 
 		mdelay(FW_8192C_POLLING_DELAY);
@@ -214,9 +212,7 @@ static int _rtl92c_fw_free_to_go(struct ieee80211_hw *hw)
 
 	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 		 ("Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n", value32));
-
-exit:
-	return err;
+	return -EIO;
 }
 
 int rtl92c_download_fw(struct ieee80211_hw *hw)
@@ -226,16 +222,14 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	struct rtl92c_firmware_header *pfwheader;
 	u8 *pfwdata;
 	u32 fwsize;
-	int err;
 	enum version_8192c version = rtlhal->version;
 	const struct firmware *firmware;
 
-	printk(KERN_INFO "rtl8192cu: Loading firmware file %s\n",
+	printk(KERN_INFO "rtl8192c: Loading firmware file %s\n",
 	       rtlpriv->cfg->fw_name);
-	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
-			       rtlpriv->io.dev);
-	if (err) {
-		printk(KERN_ERR "rtl8192cu: Firmware loading failed\n");
+	if (request_firmware(&firmware, rtlpriv->cfg->fw_name,
+			    rtlpriv->io.dev)) {
+		printk(KERN_ERR "rtl8192c: Firmware loading failed\n");
 		return 1;
 	}
 
@@ -267,8 +261,7 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	_rtl92c_write_fw(hw, version, pfwdata, fwsize);
 	_rtl92c_enable_fw_download(hw, false);
 
-	err = _rtl92c_fw_free_to_go(hw);
-	if (err) {
+	if (_rtl92c_fw_free_to_go(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 ("Firmware is not ready to run!\n"));
 	} else {
@@ -303,7 +296,6 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 	u16 box_reg, box_extreg;
 	u8 u1b_tmp;
 	bool isfw_read = false;
-	u8 buf_index = 0;
 	bool bwrite_sucess = false;
 	u8 wait_h2c_limmit = 100;
 	u8 wait_writeh2c_limmit = 100;
@@ -414,7 +406,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 		case 1:
 			boxcontent[0] &= ~(BIT(7));
 			memcpy((u8 *) (boxcontent) + 1,
-			       p_cmdbuffer + buf_index, 1);
+			       p_cmdbuffer, 1);
 
 			for (idx = 0; idx < 4; idx++) {
 				rtl_write_byte(rtlpriv, box_reg + idx,
@@ -424,7 +416,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 		case 2:
 			boxcontent[0] &= ~(BIT(7));
 			memcpy((u8 *) (boxcontent) + 1,
-			       p_cmdbuffer + buf_index, 2);
+			       p_cmdbuffer, 2);
 
 			for (idx = 0; idx < 4; idx++) {
 				rtl_write_byte(rtlpriv, box_reg + idx,
@@ -434,7 +426,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 		case 3:
 			boxcontent[0] &= ~(BIT(7));
 			memcpy((u8 *) (boxcontent) + 1,
-			       p_cmdbuffer + buf_index, 3);
+			       p_cmdbuffer, 3);
 
 			for (idx = 0; idx < 4; idx++) {
 				rtl_write_byte(rtlpriv, box_reg + idx,
@@ -444,9 +436,9 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 		case 4:
 			boxcontent[0] |= (BIT(7));
 			memcpy((u8 *) (boxextcontent),
-			       p_cmdbuffer + buf_index, 2);
+			       p_cmdbuffer, 2);
 			memcpy((u8 *) (boxcontent) + 1,
-			       p_cmdbuffer + buf_index + 2, 2);
+			       p_cmdbuffer + 2, 2);
 
 			for (idx = 0; idx < 2; idx++) {
 				rtl_write_byte(rtlpriv, box_extreg + idx,
@@ -461,9 +453,9 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 		case 5:
 			boxcontent[0] |= (BIT(7));
 			memcpy((u8 *) (boxextcontent),
-			       p_cmdbuffer + buf_index, 2);
+			       p_cmdbuffer, 2);
 			memcpy((u8 *) (boxcontent) + 1,
-			       p_cmdbuffer + buf_index + 2, 3);
+			       p_cmdbuffer + 2, 3);
 
 			for (idx = 0; idx < 2; idx++) {
 				rtl_write_byte(rtlpriv, box_extreg + idx,

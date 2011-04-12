@@ -328,7 +328,7 @@ struct ath9k_debug {
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #define ATH_LED_PIN_DEF             1
-#define ATH_LED_PIN_9287            8
+#define ATH_LED_PIN_9287            10
 #define ATH_LED_PIN_9271            15
 #define ATH_LED_PIN_7010            12
 #define ATH_LED_ON_DURATION_IDLE    350	/* in msecs */
