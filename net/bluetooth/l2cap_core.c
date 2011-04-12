@@ -847,7 +847,7 @@ static struct sock *l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src)
 	return node ? sk : sk1;
 }
 
-int l2cap_do_connect(struct l2cap_chan *chan)
+int l2cap_chan_connect(struct l2cap_chan *chan)
 {
 	struct sock *sk = chan->sk;
 	bdaddr_t *src = &bt_sk(sk)->src;

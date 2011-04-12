@@ -229,7 +229,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	l2cap_pi(sk)->psm = la.l2_psm;
 	l2cap_pi(sk)->dcid = la.l2_cid;
 
-	err = l2cap_do_connect(l2cap_pi(sk)->chan);
+	err = l2cap_chan_connect(l2cap_pi(sk)->chan);
 	if (err)
 		goto done;
 
