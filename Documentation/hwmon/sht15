@@ -5,6 +5,7 @@ Authors:
   * Wouter Horre
   * Jonathan Cameron
   * Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+  * Jerome Oufella <jerome.oufella@savoirfairelinux.com>
 
 Supported chips:
   * Sensirion SHT10
@@ -44,11 +45,17 @@ measurement and decrease power consumption, while loosing on precision.
 Some options may be set directly in the sht15_platform_data structure
 or via sysfs attributes.
 
-Note: The regulator supply name is set to "vcc".
+Notes:
+  * The regulator supply name is set to "vcc".
+  * If a CRC validation fails, a soft reset command is sent, which resets
+    status register to its hardware default value, but the driver will try to
+    restore the previous device configuration.
 
 Platform data
 -------------
 
+* checksum:
+  set it to true to enable CRC validation of the readings (default to false).
 * no_otp_reload:
   flag to indicate not to reload from OTP (default to false).
 * low_resolution:
