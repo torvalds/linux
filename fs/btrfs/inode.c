@@ -1769,9 +1769,12 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	add_pending_csums(trans, inode, ordered_extent->file_offset,
 			  &ordered_extent->list);
 
-	btrfs_ordered_update_i_size(inode, 0, ordered_extent);
-	ret = btrfs_update_inode(trans, root, inode);
-	BUG_ON(ret);
+	ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
+	if (!ret) {
+		ret = btrfs_update_inode(trans, root, inode);
+		BUG_ON(ret);
+	}
+	ret = 0;
 out:
 	if (nolock) {
 		if (trans)
@@ -2589,6 +2592,13 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_inode_item *item,
 			    struct inode *inode)
 {
+	if (!leaf->map_token)
+		map_private_extent_buffer(leaf, (unsigned long)item,
+					  sizeof(struct btrfs_inode_item),
+					  &leaf->map_token, &leaf->kaddr,
+					  &leaf->map_start, &leaf->map_len,
+					  KM_USER1);
+
 	btrfs_set_inode_uid(leaf, item, inode->i_uid);
 	btrfs_set_inode_gid(leaf, item, inode->i_gid);
 	btrfs_set_inode_size(leaf, item, BTRFS_I(inode)->disk_i_size);
@@ -2617,6 +2627,11 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
 	btrfs_set_inode_block_group(leaf, item, BTRFS_I(inode)->block_group);
+
+	if (leaf->map_token) {
+		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+		leaf->map_token = NULL;
+	}
 }
 
 /*
@@ -5433,17 +5448,30 @@ out:
 }
 
 static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
+						  struct extent_map *em,
 						  u64 start, u64 len)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct btrfs_key ins;
 	u64 alloc_hint;
 	int ret;
+	bool insert = false;
 
-	btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
+	/*
+	 * Ok if the extent map we looked up is a hole and is for the exact
+	 * range we want, there is no reason to allocate a new one, however if
+	 * it is not right then we need to free this one and drop the cache for
+	 * our range.
+	 */
+	if (em->block_start != EXTENT_MAP_HOLE || em->start != start ||
+	    em->len != len) {
+		free_extent_map(em);
+		em = NULL;
+		insert = true;
+		btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
+	}
 
 	trans = btrfs_join_transaction(root, 0);
 	if (IS_ERR(trans))
@@ -5459,10 +5487,12 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 		goto out;
 	}
 
-	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
-		em = ERR_PTR(-ENOMEM);
-		goto out;
+		em = alloc_extent_map(GFP_NOFS);
+		if (!em) {
+			em = ERR_PTR(-ENOMEM);
+			goto out;
+		}
 	}
 
 	em->start = start;
@@ -5472,9 +5502,15 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	em->block_start = ins.objectid;
 	em->block_len = ins.offset;
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
+
+	/*
+	 * We need to do this because if we're using the original em we searched
+	 * for, we could have EXTENT_FLAG_VACANCY set, and we don't want that.
+	 */
+	em->flags = 0;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
-	while (1) {
+	while (insert) {
 		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
@@ -5692,8 +5728,7 @@ must_cow:
 	 * it above
 	 */
 	len = bh_result->b_size;
-	free_extent_map(em);
-	em = btrfs_new_extent_direct(inode, start, len);
+	em = btrfs_new_extent_direct(inode, em, start, len);
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 	len = min(len, em->len - (start - em->start));
@@ -5856,8 +5891,10 @@ again:
 	}
 
 	add_pending_csums(trans, inode, ordered->file_offset, &ordered->list);
-	btrfs_ordered_update_i_size(inode, 0, ordered);
-	btrfs_update_inode(trans, root, inode);
+	ret = btrfs_ordered_update_i_size(inode, 0, ordered);
+	if (!ret)
+		btrfs_update_inode(trans, root, inode);
+	ret = 0;
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, ordered->file_offset,
 			     ordered->file_offset + ordered->len - 1,
@@ -5943,7 +5980,7 @@ static struct bio *btrfs_dio_bio_alloc(struct block_device *bdev,
 
 static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 					 int rw, u64 file_offset, int skip_sum,
-					 u32 *csums)
+					 u32 *csums, int async_submit)
 {
 	int write = rw & REQ_WRITE;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -5954,13 +5991,24 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	if (ret)
 		goto err;
 
-	if (write && !skip_sum) {
+	if (skip_sum)
+		goto map;
+
+	if (write && async_submit) {
 		ret = btrfs_wq_submit_bio(root->fs_info,
 				   inode, rw, bio, 0, 0,
 				   file_offset,
 				   __btrfs_submit_bio_start_direct_io,
 				   __btrfs_submit_bio_done);
 		goto err;
+	} else if (write) {
+		/*
+		 * If we aren't doing async submit, calculate the csum of the
+		 * bio now.
+		 */
+		ret = btrfs_csum_one_bio(root, inode, bio, file_offset, 1);
+		if (ret)
+			goto err;
 	} else if (!skip_sum) {
 		ret = btrfs_lookup_bio_sums_dio(root, inode, bio,
 					  file_offset, csums);
@@ -5968,7 +6016,8 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 			goto err;
 	}
 
-	ret = btrfs_map_bio(root, rw, bio, 0, 1);
+map:
+	ret = btrfs_map_bio(root, rw, bio, 0, async_submit);
 err:
 	bio_put(bio);
 	return ret;
@@ -5990,14 +6039,8 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int nr_pages = 0;
 	u32 *csums = dip->csums;
 	int ret = 0;
+	int async_submit = 0;
 	int write = rw & REQ_WRITE;
-
-	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
-	if (!bio)
-		return -ENOMEM;
-	bio->bi_private = dip;
-	bio->bi_end_io = btrfs_end_dio_bio;
-	atomic_inc(&dip->pending_bios);
 
 	map_length = orig_bio->bi_size;
 	ret = btrfs_map_block(map_tree, READ, start_sector << 9,
@@ -6006,6 +6049,19 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		bio_put(bio);
 		return -EIO;
 	}
+
+	if (map_length >= orig_bio->bi_size) {
+		bio = orig_bio;
+		goto submit;
+	}
+
+	async_submit = 1;
+	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
+	if (!bio)
+		return -ENOMEM;
+	bio->bi_private = dip;
+	bio->bi_end_io = btrfs_end_dio_bio;
+	atomic_inc(&dip->pending_bios);
 
 	while (bvec <= (orig_bio->bi_io_vec + orig_bio->bi_vcnt - 1)) {
 		if (unlikely(map_length < submit_len + bvec->bv_len ||
@@ -6020,7 +6076,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			atomic_inc(&dip->pending_bios);
 			ret = __btrfs_submit_dio_bio(bio, inode, rw,
 						     file_offset, skip_sum,
-						     csums);
+						     csums, async_submit);
 			if (ret) {
 				bio_put(bio);
 				atomic_dec(&dip->pending_bios);
@@ -6057,8 +6113,9 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		}
 	}
 
+submit:
 	ret = __btrfs_submit_dio_bio(bio, inode, rw, file_offset, skip_sum,
-				     csums);
+				     csums, async_submit);
 	if (!ret)
 		return 0;
 
