@@ -240,7 +240,6 @@ nvc0_fifo_load_context(struct nouveau_channel *chan)
 int
 nvc0_fifo_unload_context(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int i;
 
 	for (i = 0; i < 128; i++) {
@@ -325,6 +324,7 @@ nvc0_fifo_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_channel *chan;
 	struct nvc0_fifo_priv *priv;
 	int ret, i;
 
@@ -367,6 +367,19 @@ nvc0_fifo_init(struct drm_device *dev)
 	nv_wr32(dev, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(dev, 0x002100, 0xffffffff);
 	nv_wr32(dev, 0x002140, 0xbfffffff);
+
+	/* restore PFIFO context table */
+	for (i = 0; i < 128; i++) {
+		chan = dev_priv->channels.ptr[i];
+		if (!chan || !chan->fifo_priv)
+			continue;
+
+		nv_wr32(dev, 0x003000 + (i * 8), 0xc0000000 |
+						 (chan->ramin->vinst >> 12));
+		nv_wr32(dev, 0x003004 + (i * 8), 0x001f0001);
+	}
+	nvc0_fifo_playlist_update(dev);
+
 	return 0;
 }
 
