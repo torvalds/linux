@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <getopt.h>
 #include <elf.h>
 #include <fcntl.h>
 #include <setjmp.h>
@@ -39,6 +40,7 @@ static char gpfx;	/* prefix for global symbol name (sometimes '_') */
 static struct stat sb;	/* Remember .st_size, etc. */
 static jmp_buf jmpenv;	/* setjmp/longjmp per-file error escape */
 static const char *altmcount;	/* alternate mcount symbol name */
+static int warn_on_notrace_sect; /* warn when section has mcount not being recorded */
 
 /* setjmp() return values */
 enum {
@@ -397,19 +399,33 @@ do_file(char const *const fname)
 }
 
 int
-main(int argc, char const *argv[])
+main(int argc, char *argv[])
 {
 	const char ftrace[] = "/ftrace.o";
 	int ftrace_size = sizeof(ftrace) - 1;
 	int n_error = 0;  /* gcc-4.3.0 false positive complaint */
+	int c;
+	int i;
 
-	if (argc <= 1) {
-		fprintf(stderr, "usage: recordmcount file.o...\n");
+	while ((c = getopt(argc, argv, "w")) >= 0) {
+		switch (c) {
+		case 'w':
+			warn_on_notrace_sect = 1;
+			break;
+		default:
+			fprintf(stderr, "usage: recordmcount [-w] file.o...\n");
+			return 0;
+		}
+	}
+
+	if ((argc - optind) < 1) {
+		fprintf(stderr, "usage: recordmcount [-w] file.o...\n");
 		return 0;
 	}
 
 	/* Process each file in turn, allowing deep failure. */
-	for (--argc, ++argv; argc > 0; --argc, ++argv) {
+	for (i = optind; i < argc; i++) {
+		char *file = argv[i];
 		int const sjval = setjmp(jmpenv);
 		int len;
 
@@ -418,14 +434,14 @@ main(int argc, char const *argv[])
 		 * function but does not call it. Since ftrace.o should
 		 * not be traced anyway, we just skip it.
 		 */
-		len = strlen(argv[0]);
+		len = strlen(file);
 		if (len >= ftrace_size &&
-		    strcmp(argv[0] + (len - ftrace_size), ftrace) == 0)
+		    strcmp(file + (len - ftrace_size), ftrace) == 0)
 			continue;
 
 		switch (sjval) {
 		default:
-			fprintf(stderr, "internal error: %s\n", argv[0]);
+			fprintf(stderr, "internal error: %s\n", file);
 			exit(1);
 			break;
 		case SJ_SETJMP:    /* normal sequence */
@@ -433,7 +449,7 @@ main(int argc, char const *argv[])
 			fd_map = -1;
 			ehdr_curr = NULL;
 			mmap_failed = 1;
-			do_file(argv[0]);
+			do_file(file);
 			break;
 		case SJ_FAIL:    /* error in do_file or below */
 			++n_error;
