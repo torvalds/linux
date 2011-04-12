@@ -292,10 +292,10 @@ static int caam_reset_hw_jr(struct device *dev)
 	unsigned int timeout = 100000;
 
 	/*
-	 * FIXME: disabling IRQs here inhibits proper job completion
-	 * and error propagation
+	 * mask interrupts since we are going to poll
+	 * for reset completion status
 	 */
-	disable_irq(jrp->irq);
+	setbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
 
 	/* initiate flush (required prior to reset) */
 	wr_reg32(&jrp->rregs->jrcommand, JRCR_RESET);
@@ -320,7 +320,8 @@ static int caam_reset_hw_jr(struct device *dev)
 		return -EIO;
 	}
 
-	enable_irq(jrp->irq);
+	/* unmask interrupts */
+	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
 
 	return 0;
 }
@@ -335,6 +336,21 @@ static int caam_jr_init(struct device *dev)
 	int i, error;
 
 	jrp = dev_get_drvdata(dev);
+
+	/* Connect job ring interrupt handler. */
+	for_each_possible_cpu(i)
+		tasklet_init(&jrp->irqtask[i], caam_jr_dequeue,
+			     (unsigned long)dev);
+
+	error = request_irq(jrp->irq, caam_jr_interrupt, IRQF_SHARED,
+			    "caam-jobr", dev);
+	if (error) {
+		dev_err(dev, "can't connect JobR %d interrupt (%d)\n",
+			jrp->ridx, jrp->irq);
+		irq_dispose_mapping(jrp->irq);
+		jrp->irq = 0;
+		return -EINVAL;
+	}
 
 	error = caam_reset_hw_jr(dev);
 	if (error)
@@ -403,28 +419,6 @@ static int caam_jr_init(struct device *dev)
 	setbits32(&jrp->rregs->rconfig_lo, JOBR_INTC |
 		  (JOBR_INTC_COUNT_THLD << JRCFG_ICDCT_SHIFT) |
 		  (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
-
-	/* Connect job ring interrupt handler. */
-	for_each_possible_cpu(i)
-		tasklet_init(&jrp->irqtask[i], caam_jr_dequeue,
-			     (unsigned long)dev);
-
-	error = request_irq(jrp->irq, caam_jr_interrupt, 0,
-			    "caam-jobr", dev);
-	if (error) {
-		dev_err(dev, "can't connect JobR %d interrupt (%d)\n",
-			jrp->ridx, jrp->irq);
-		irq_dispose_mapping(jrp->irq);
-		jrp->irq = 0;
-		dma_unmap_single(dev, inpbusaddr, sizeof(u32 *) * JOBR_DEPTH,
-				 DMA_BIDIRECTIONAL);
-		dma_unmap_single(dev, outbusaddr, sizeof(u32 *) * JOBR_DEPTH,
-				 DMA_BIDIRECTIONAL);
-		kfree(jrp->inpring);
-		kfree(jrp->outring);
-		kfree(jrp->entinfo);
-		return -EINVAL;
-	}
 
 	jrp->assign = JOBR_UNASSIGNED;
 	return 0;
