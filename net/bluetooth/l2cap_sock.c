@@ -51,7 +51,7 @@ static void l2cap_sock_timeout(unsigned long arg)
 	if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONFIG)
 		reason = ECONNREFUSED;
 	else if (sk->sk_state == BT_CONNECT &&
-				l2cap_pi(sk)->sec_level != BT_SECURITY_SDP)
+			l2cap_pi(sk)->chan->sec_level != BT_SECURITY_SDP)
 		reason = ECONNREFUSED;
 	else
 		reason = ETIMEDOUT;
@@ -91,6 +91,7 @@ found:
 static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct sockaddr_l2 la;
 	int len, err = 0;
 
@@ -142,7 +143,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 
 		if (__le16_to_cpu(la.l2_psm) == 0x0001 ||
 					__le16_to_cpu(la.l2_psm) == 0x0003)
-			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
+			chan->sec_level = BT_SECURITY_SDP;
 	}
 
 	if (la.l2_cid)
@@ -382,6 +383,7 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct l2cap_options opts;
 	struct l2cap_conninfo cinfo;
 	int len, err = 0;
@@ -412,7 +414,7 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 		break;
 
 	case L2CAP_LM:
-		switch (l2cap_pi(sk)->sec_level) {
+		switch (chan->sec_level) {
 		case BT_SECURITY_LOW:
 			opt = L2CAP_LM_AUTH;
 			break;
@@ -428,10 +430,10 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
-		if (l2cap_pi(sk)->role_switch)
+		if (chan->role_switch)
 			opt |= L2CAP_LM_MASTER;
 
-		if (l2cap_pi(sk)->force_reliable)
+		if (chan->force_reliable)
 			opt |= L2CAP_LM_RELIABLE;
 
 		if (put_user(opt, (u32 __user *) optval))
@@ -467,6 +469,7 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
 	int len, err = 0;
 
@@ -491,7 +494,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 			break;
 		}
 
-		sec.level = l2cap_pi(sk)->sec_level;
+		sec.level = chan->sec_level;
 
 		len = min_t(unsigned int, len, sizeof(sec));
 		if (copy_to_user(optval, (char *) &sec, len))
@@ -511,7 +514,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		break;
 
 	case BT_FLUSHABLE:
-		if (put_user(l2cap_pi(sk)->flushable, (u32 __user *) optval))
+		if (put_user(chan->flushable, (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
@@ -592,14 +595,14 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		}
 
 		if (opt & L2CAP_LM_AUTH)
-			l2cap_pi(sk)->sec_level = BT_SECURITY_LOW;
+			chan->sec_level = BT_SECURITY_LOW;
 		if (opt & L2CAP_LM_ENCRYPT)
-			l2cap_pi(sk)->sec_level = BT_SECURITY_MEDIUM;
+			chan->sec_level = BT_SECURITY_MEDIUM;
 		if (opt & L2CAP_LM_SECURE)
-			l2cap_pi(sk)->sec_level = BT_SECURITY_HIGH;
+			chan->sec_level = BT_SECURITY_HIGH;
 
-		l2cap_pi(sk)->role_switch    = (opt & L2CAP_LM_MASTER);
-		l2cap_pi(sk)->force_reliable = (opt & L2CAP_LM_RELIABLE);
+		chan->role_switch    = (opt & L2CAP_LM_MASTER);
+		chan->force_reliable = (opt & L2CAP_LM_RELIABLE);
 		break;
 
 	default:
@@ -614,6 +617,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
 	int len, err = 0;
 	u32 opt;
@@ -650,7 +654,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			break;
 		}
 
-		l2cap_pi(sk)->sec_level = sec.level;
+		chan->sec_level = sec.level;
 		break;
 
 	case BT_DEFER_SETUP:
@@ -688,7 +692,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			}
 		}
 
-		l2cap_pi(sk)->flushable = opt;
+		chan->flushable = opt;
 		break;
 
 	default:
@@ -730,7 +734,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
 		} else {
-			l2cap_do_send(sk, skb);
+			l2cap_do_send(pi->chan, skb);
 			err = len;
 		}
 		goto done;
@@ -751,7 +755,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 			goto done;
 		}
 
-		l2cap_do_send(sk, skb);
+		l2cap_do_send(pi->chan, skb);
 		err = len;
 		break;
 
@@ -997,10 +1001,10 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->fcs  = l2cap_pi(parent)->fcs;
 		pi->max_tx = l2cap_pi(parent)->max_tx;
 		pi->tx_win = l2cap_pi(parent)->tx_win;
-		pi->sec_level = l2cap_pi(parent)->sec_level;
-		pi->role_switch = l2cap_pi(parent)->role_switch;
-		pi->force_reliable = l2cap_pi(parent)->force_reliable;
-		pi->flushable = l2cap_pi(parent)->flushable;
+		chan->sec_level = pchan->sec_level;
+		chan->role_switch = pchan->role_switch;
+		chan->force_reliable = pchan->force_reliable;
+		chan->flushable = pchan->flushable;
 	} else {
 		pi->imtu = L2CAP_DEFAULT_MTU;
 		pi->omtu = 0;
@@ -1013,10 +1017,10 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->max_tx = L2CAP_DEFAULT_MAX_TX;
 		pi->fcs  = L2CAP_FCS_CRC16;
 		pi->tx_win = L2CAP_DEFAULT_TX_WINDOW;
-		pi->sec_level = BT_SECURITY_LOW;
-		pi->role_switch = 0;
-		pi->force_reliable = 0;
-		pi->flushable = BT_FLUSHABLE_OFF;
+		chan->sec_level = BT_SECURITY_LOW;
+		chan->role_switch = 0;
+		chan->force_reliable = 0;
+		chan->flushable = BT_FLUSHABLE_OFF;
 	}
 
 	/* Default config options */

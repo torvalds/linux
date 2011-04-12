@@ -284,6 +284,12 @@ struct srej_list {
 
 struct l2cap_chan {
 	struct sock *sk;
+
+	__u8		sec_level;
+	__u8		role_switch;
+	__u8		force_reliable;
+	__u8		flushable;
+
 	__u8		ident;
 
 	__u8		conf_req[64];
@@ -371,10 +377,6 @@ struct l2cap_pinfo {
 	__u8		mode;
 
 	__u8		fcs;
-	__u8		sec_level;
-	__u8		role_switch;
-	__u8		force_reliable;
-	__u8		flushable;
 
 	__u8		tx_win;
 	__u8		max_tx;
@@ -452,7 +454,7 @@ struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, s
 struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len);
 struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
 int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
-void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
+void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);
 void l2cap_streaming_send(struct l2cap_chan *chan);
 int l2cap_ertm_send(struct l2cap_chan *chan);
 
