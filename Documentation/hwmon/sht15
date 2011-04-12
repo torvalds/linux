@@ -4,6 +4,7 @@ Kernel driver sht15
 Authors:
   * Wouter Horre
   * Jonathan Cameron
+  * Vivien Didelot <vivien.didelot@savoirfairelinux.com>
 
 Supported chips:
   * Sensirion SHT10
@@ -30,13 +31,37 @@ Description
 The SHT10, SHT11, SHT15, SHT71, and SHT75 are humidity and temperature
 sensors.
 
-The devices communicate using two GPIO lines and use the default
-resolution settings of 14 bits for temperature and 12 bits for humidity.
+The devices communicate using two GPIO lines.
+
+Supported resolutions for the measurements are 14 bits for temperature and 12
+bits for humidity, or 12 bits for temperature and 8 bits for humidity.
+
+The humidity calibration coefficients are programmed into an OTP memory on the
+chip. These coefficients are used to internally calibrate the signals from the
+sensors. Disabling the reload of those coefficients allows saving 10ms for each
+measurement and decrease power consumption, while loosing on precision.
+
+Some options may be set directly in the sht15_platform_data structure
+or via sysfs attributes.
 
 Note: The regulator supply name is set to "vcc".
+
+Platform data
+-------------
+
+* no_otp_reload:
+  flag to indicate not to reload from OTP (default to false).
+* low_resolution:
+  flag to indicate the temp/humidity resolution to use (default to false).
 
 Sysfs interface
 ---------------
 
 * temp1_input:     temperature input
 * humidity1_input: humidity input
+* heater_enable:   write 1 in this attribute to enable the on-chip heater,
+                   0 to disable it. Be careful not to enable the heater
+                   for too long.
+* temp1_fault:     if 1, this means that the voltage is low (below 2.47V) and
+                   measurement may be invalid.
+* humidity1_fault: same as temp1_fault.
