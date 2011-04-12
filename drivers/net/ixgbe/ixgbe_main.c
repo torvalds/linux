@@ -4566,8 +4566,8 @@ static inline bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCB
 
 /* ixgbe_get_first_reg_idx - Return first register index associated with ring */
-void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
-			     unsigned int *tx, unsigned int *rx)
+static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
+				    unsigned int *tx, unsigned int *rx)
 {
 	struct net_device *dev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;

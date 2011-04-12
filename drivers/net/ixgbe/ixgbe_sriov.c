@@ -110,7 +110,7 @@ static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
 }
 
-void ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf)
+static void ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int new_mtu = msgbuf[1];
