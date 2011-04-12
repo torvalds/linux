@@ -266,6 +266,14 @@ static struct zl10353_config anysee_zl10353_config = {
 	.parallel_ts = 1,
 };
 
+static struct zl10353_config anysee_zl10353_tda18212_config2 = {
+	.demod_address = (0x1e >> 1),
+	.parallel_ts = 1,
+	.disable_i2c_gate_ctrl = 1,
+	.no_tuner = 1,
+	.if2 = 41500,
+};
+
 static struct zl10353_config anysee_zl10353_tda18212_config = {
 	.demod_address = (0x18 >> 1),
 	.parallel_ts = 1,
@@ -466,7 +474,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			if (tmp == 0xc7) {
 				/* TDA18212 config */
 				adap->fe = dvb_attach(zl10353_attach,
-					&anysee_zl10353_tda18212_config,
+					&anysee_zl10353_tda18212_config2,
 					&adap->dev->i2c_adap);
 			} else {
 				/* PLL config */
