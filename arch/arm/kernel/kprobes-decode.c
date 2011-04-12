@@ -1416,6 +1416,10 @@ space_cccc_01xx(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	/* STRB  : cccc 01xx x1x0 xxxx xxxx xxxx xxxx xxxx */
 	/* STRBT : cccc 01x0 x110 xxxx xxxx xxxx xxxx xxxx */
 	/* STRT  : cccc 01x0 x010 xxxx xxxx xxxx xxxx xxxx */
+
+	if ((insn & 0x00500000) == 0x00500000 && is_r15(insn, 12))
+		return INSN_REJECTED;	/* LDRB into PC */
+
 	return prep_emulate_ldr_str(insn, asi);
 }
 
