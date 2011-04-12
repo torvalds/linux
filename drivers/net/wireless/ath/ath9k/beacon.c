@@ -744,7 +744,6 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 		cur_conf->dtim_period = 1;
 
 	ath_set_beacon(sc);
-	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 }
 
 void ath_set_beacon(struct ath_softc *sc)
@@ -762,6 +761,12 @@ void ath_set_beacon(struct ath_softc *sc)
 		break;
 	case NL80211_IFTYPE_STATION:
 		ath_beacon_config_sta(sc, cur_conf);
+		/*
+		 * Request a re-configuration of Beacon related timers
+		 * on the receipt of the first Beacon frame (i.e.,
+		 * after time sync with the AP).
+		 */
+		sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 		break;
 	default:
 		ath_dbg(common, ATH_DBG_CONFIG,
