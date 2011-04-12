@@ -306,37 +306,41 @@ static struct tda18212_config anysee_tda18212_config = {
  *
  * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
  * PCB: ?
- * parts: MT352, DTT7579(?), DNOS404ZH102A NIM
+ * parts: DNOS404ZH102A(MT352, DTT7579(?))
  *
  * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
  * PCB: ?
- * parts: ZL10353, DTT7579(?), DNOS404ZH103A NIM
+ * parts: DNOS404ZH103A(ZL10353, DTT7579(?))
  *
  * E30 Plus VID=04b4 PID=861f HW=6 FW=1.0 "anysee"
  * PCB: 507CD (rev1.1)
- * parts: ZL10353, DTT7579(?), CST56I01, DNOS404ZH103A NIM
+ * parts: DNOS404ZH103A(ZL10353, DTT7579(?)), CST56I01
  * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
+ * IOA=4f IOB=ff IOC=00 IOD=06 IOF=01
  * IOD[0] ZL10353 1=enabled
  * IOA[7] TS 0=enabled
  * tuner is not behind ZL10353 I2C-gate (no care if gate disabled or not)
  *
  * E30 C Plus VID=04b4 PID=861f HW=10 FW=1.0 "anysee-DC(LP)"
  * PCB: 507DC (rev0.2)
- * parts: TDA10023, CST56I01, DTOS403IH102B TM
+ * parts: TDA10023, DTOS403IH102B TM, CST56I01
  * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
+ * IOA=4f IOB=ff IOC=00 IOD=26 IOF=01
  * IOD[0] TDA10023 1=enabled
  *
  * E30 C Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
  * PCB: 507FA (rev0.4)
- * parts: TDA10023, TDA8024, DTOS403IH102B TM
+ * parts: TDA10023, DTOS403IH102B TM, TDA8024
  * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
+ * IOA=4d IOB=ff IOC=00 IOD=00 IOF=c0
  * IOD[5] TDA10023 1=enabled
  * IOE[0] tuner 1=enabled
  *
  * E30 Combo Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
  * PCB: 507FA (rev1.1)
- * parts: ZL10353, TDA10023, TDA8024, DTOS403IH102B TM
+ * parts: ZL10353, TDA10023, DTOS403IH102B TM, TDA8024
  * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
+ * IOA=4d IOB=ff IOC=00 IOD=00 IOF=c0
  * DVB-C:
  * IOD[5] TDA10023 1=enabled
  * IOE[0] tuner 1=enabled
@@ -344,6 +348,22 @@ static struct tda18212_config anysee_tda18212_config = {
  * IOD[0] ZL10353 1=enabled
  * IOE[0] tuner 0=enabled
  * tuner is behind ZL10353 I2C-gate
+ *
+ * E7 TC VID=1c73 PID=861f HW=18 FW=0.7 AMTCI=0.5 "anysee-E7TC(LP)"
+ * PCB: 508TC (rev0.6)
+ * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEF=ff
+ * IOA=4d IOB=00 IOC=cc IOD=48 IOF=e4
+ * IOA[7] TS 1=enabled
+ * IOE[4] TDA18212 1=enabled
+ * DVB-C:
+ * IOD[6] ZL10353 0=disabled
+ * IOD[5] TDA10023 1=enabled
+ * IOE[0] IF 1=enabled
+ * DVB-T:
+ * IOD[5] TDA10023 0=disabled
+ * IOD[6] ZL10353 1=enabled
+ * IOE[0] IF 0=enabled
  */
 
 static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
