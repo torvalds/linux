@@ -142,9 +142,9 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
 		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus == CifsGood), 10 * HZ);
+			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
 
-		/* is TCP session is reestablished now ?*/
+		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
 			break;
 
@@ -729,7 +729,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 		return rc;
 
 	/* set up echo request */
-	smb->hdr.Tid = cpu_to_le16(0xffff);
+	smb->hdr.Tid = 0xffff;
 	smb->hdr.WordCount = 1;
 	put_unaligned_le16(1, &smb->EchoCount);
 	put_bcc_le(1, &smb->hdr);
@@ -1884,10 +1884,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 					__constant_cpu_to_le16(CIFS_WRLCK))
 				pLockData->fl_type = F_WRLCK;
 
-			pLockData->fl_start = parm_data->start;
-			pLockData->fl_end = parm_data->start +
-						parm_data->length - 1;
-			pLockData->fl_pid = parm_data->pid;
+			pLockData->fl_start = le64_to_cpu(parm_data->start);
+			pLockData->fl_end = pLockData->fl_start +
+					le64_to_cpu(parm_data->length) - 1;
+			pLockData->fl_pid = le32_to_cpu(parm_data->pid);
 		}
 	}
 
