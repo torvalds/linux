@@ -37,6 +37,9 @@ module_param(debug, int, 0644);
 #define call_qop(q, op, args...)					\
 	(((q)->ops->op) ? ((q)->ops->op(args)) : 0)
 
+#define V4L2_BUFFER_STATE_FLAGS	(V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | \
+				 V4L2_BUF_FLAG_DONE | V4L2_BUF_FLAG_ERROR)
+
 /**
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
  */
@@ -284,7 +287,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	struct vb2_queue *q = vb->vb2_queue;
 	int ret = 0;
 
-	/* Copy back data such as timestamp, input, etc. */
+	/* Copy back data such as timestamp, flags, input, etc. */
 	memcpy(b, &vb->v4l2_buf, offsetof(struct v4l2_buffer, m));
 	b->input = vb->v4l2_buf.input;
 	b->reserved = vb->v4l2_buf.reserved;
@@ -313,7 +316,10 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 			b->m.userptr = vb->v4l2_planes[0].m.userptr;
 	}
 
-	b->flags = 0;
+	/*
+	 * Clear any buffer state related flags.
+	 */
+	b->flags &= ~V4L2_BUFFER_STATE_FLAGS;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_QUEUED:
@@ -715,6 +721,8 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b,
 
 	vb->v4l2_buf.field = b->field;
 	vb->v4l2_buf.timestamp = b->timestamp;
+	vb->v4l2_buf.input = b->input;
+	vb->v4l2_buf.flags = b->flags & ~V4L2_BUFFER_STATE_FLAGS;
 
 	return 0;
 }
