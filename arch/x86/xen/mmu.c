@@ -1616,7 +1616,7 @@ static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 	 * it is RO.
 	 */
 	if (((!is_early_ioremap_ptep(ptep) &&
-			pfn >= pgt_buf_start && pfn < pgt_buf_end)) ||
+			pfn >= pgt_buf_start && pfn < pgt_buf_top)) ||
 			(is_early_ioremap_ptep(ptep) && pfn != (pgt_buf_end - 1)))
 		pte = pte_wrprotect(pte);
 
