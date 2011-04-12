@@ -5203,9 +5203,9 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 	}
 
 	/* TSO requires that SG is present as well. */
-	if ((features & NETIF_F_TSO) && !(features & NETIF_F_SG)) {
-		netdev_info(dev, "Dropping NETIF_F_TSO since no SG feature.\n");
-		features &= ~NETIF_F_TSO;
+	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
+		netdev_info(dev, "Dropping TSO features since no SG feature.\n");
+		features &= ~NETIF_F_ALL_TSO;
 	}
 
 	/* Software GSO depends on SG. */
