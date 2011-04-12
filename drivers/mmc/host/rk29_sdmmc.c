@@ -1322,8 +1322,8 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 	smp_rmb();
 	if (test_bit(RK29_SDMMC_SHUTDOWN, &host->flags))
 		return;	
-
-	rk28_send_wakeup_key();
+	if(rk29_sdmmc_get_cd(host->mmc))
+		rk28_send_wakeup_key();
 	
 	spin_lock(&host->lock);		
 	/* Clean up queue if present */
@@ -1435,16 +1435,11 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	struct rk29_sdmmc		*host;
 	struct resource			*regs;
 	struct rk29_sdmmc_platform_data *pdata;
-	int				irq;
 	int				ret = 0;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENXIO;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
 	mmc = mmc_alloc_host(sizeof(struct rk29_sdmmc), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;	
@@ -1457,6 +1452,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_freehost;
 	}
+	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq < 0)
+		return host->irq;
 	host->gpio_det = pdata->detect_irq;
 	if(pdata->io_init)
 		pdata->io_init();
@@ -1504,7 +1502,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	rk29_sdmmc_write(host->regs, SDMMC_CLKSRC,0);
 	rk29_sdmmc_write(host->regs, SDMMC_PWREN, 1);
 	tasklet_init(&host->tasklet, rk29_sdmmc_tasklet_func, (unsigned long)host);
-	ret = request_irq(irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
+	ret = request_irq(host->irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
 	    goto err_dmaunmap;
        
@@ -1573,7 +1571,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL,SDMMC_CTRL_INT_ENABLE); // enable mci interrupt
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,1);
-	dev_info(&pdev->dev, "RK29 SDMMC controller at irq %d\n", irq);
+	dev_info(&pdev->dev, "RK29 SDMMC controller at irq %d\n", host->irq);
 	return 0;
 err_dmaunmap:
 	if(host->use_dma){
@@ -1636,6 +1634,7 @@ static irqreturn_t det_keys_isr(int irq, void *dev_id)
 static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
 {
 	int ret = 0;
+	disable_irq_nosync(host->irq);
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
 	gpio_request(RK29_PIN2_PA2, "sd_detect");
 	gpio_direction_input(RK29_PIN2_PA2);
@@ -1656,6 +1655,7 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	free_irq(host->gpio_irq,host);
 	gpio_free(RK29_PIN2_PA2);
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+	enable_irq(host->irq);
 }
 
 static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
