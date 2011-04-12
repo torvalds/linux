@@ -6,8 +6,8 @@ ath9k-y +=	beacon.o \
 		xmit.o \
 
 ath9k-$(CONFIG_ATH9K_RATE_CONTROL) += rc.o
-ath9k-$(CONFIG_PCI) += pci.o
-ath9k-$(CONFIG_ATHEROS_AR71XX) += ahb.o
+ath9k-$(CONFIG_ATH9K_PCI) += pci.o
+ath9k-$(CONFIG_ATH9K_AHB) += ahb.o
 ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
 
 obj-$(CONFIG_ATH9K) += ath9k.o
