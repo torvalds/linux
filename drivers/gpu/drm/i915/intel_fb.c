@@ -264,19 +264,3 @@ void intel_fb_output_poll_changed(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
-
-void intel_fb_restore_mode(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret, i;
-
-	if (!dev_priv->fbdev)
-		return;
-
-	for (i = 0; i < dev_priv->fbdev->helper.crtc_count; i++) {
-		struct drm_mode_set *mode_set = &dev_priv->fbdev->helper.crtc_info[i].mode_set;
-		ret = drm_crtc_helper_set_config(mode_set);
-		if (ret)
-			DRM_DEBUG("failed to restore crtc mode\n");
-	}
-}
