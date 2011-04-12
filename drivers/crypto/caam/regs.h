@@ -131,7 +131,7 @@ struct caam_perfmon {
 	/* CAAM Hardware Instantiation Parameters		fa0-fbf */
 	u64 cha_rev;		/* CRNR - CHA Revision Number		*/
 #define CTPR_QI_SHIFT		57
-#define CTPR_QI_MASK		(0x1ull << CHA_NUM_DECONUM_SHIFT)
+#define CTPR_QI_MASK		(0x1ull << CTPR_QI_SHIFT)
 	u64 comp_parms;	/* CTPR - Compile Parameters Register	*/
 	u64 rsvd1[2];
 
