@@ -538,6 +538,9 @@ void radeon_pm_resume(struct radeon_device *rdev)
 		if (rdev->pm.default_vddc)
 			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
 						SET_VOLTAGE_TYPE_ASIC_VDDC);
+		if (rdev->pm.default_vddci)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+						SET_VOLTAGE_TYPE_ASIC_VDDCI);
 		if (rdev->pm.default_sclk)
 			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
 		if (rdev->pm.default_mclk)
@@ -550,6 +553,7 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	rdev->pm.current_sclk = rdev->pm.default_sclk;
 	rdev->pm.current_mclk = rdev->pm.default_mclk;
 	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
+	rdev->pm.current_vddci = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.vddci;
 	if (rdev->pm.pm_method == PM_METHOD_DYNPM
 	    && rdev->pm.dynpm_state == DYNPM_STATE_SUSPENDED) {
 		rdev->pm.dynpm_state = DYNPM_STATE_ACTIVE;
