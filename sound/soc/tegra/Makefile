@@ -10,6 +10,6 @@ obj-$(CONFIG_SND_TEGRA_SOC) += snd-soc-tegra-pcm.o
 obj-$(CONFIG_SND_TEGRA_SOC_I2S) += snd-soc-tegra-i2s.o
 
 # Tegra machine Support
-snd-soc-tegra-harmony-objs := harmony.o
+snd-soc-tegra-wm8903-objs := tegra_wm8903.o
 
-obj-$(CONFIG_SND_TEGRA_SOC_HARMONY) += snd-soc-tegra-harmony.o
+obj-$(CONFIG_SND_TEGRA_SOC_WM8903) += snd-soc-tegra-wm8903.o

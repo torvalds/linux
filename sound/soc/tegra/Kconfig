@@ -14,13 +14,14 @@ config SND_TEGRA_SOC_I2S
 	  Tegra I2S interface. You will also need to select the individual
 	  machine drivers to support below.
 
-config SND_TEGRA_SOC_HARMONY
-	tristate "SoC Audio support for Tegra Harmony reference board"
+config SND_TEGRA_SOC_WM8903
+	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
 	depends on SND_TEGRA_SOC && MACH_HARMONY && I2C
 	default m
 	select SND_TEGRA_SOC_I2S
 	select SND_SOC_WM8903
 	help
-	  Say Y or M here if you want to add support for SoC audio on the
-	  Tegra Harmony reference board.
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8093 codec. Currently, the only supported board
+	  is Harmony.
 

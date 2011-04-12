@@ -1,5 +1,5 @@
 /*
- * harmony.c - Harmony machine ASoC driver
+ * tegra_wm8903.c - Tegra machine ASoC driver for boards using WM8903 codec.
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2010-2011 - NVIDIA, Inc.
@@ -56,13 +56,13 @@
 #define GPIO_INT_MIC_EN BIT(1)
 #define GPIO_EXT_MIC_EN BIT(2)
 
-struct tegra_harmony {
+struct tegra_wm8903 {
 	struct tegra_asoc_utils_data util_data;
 	struct tegra_wm8903_platform_data *pdata;
 	int gpio_requested;
 };
 
-static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
+static int tegra_wm8903_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -70,7 +70,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = codec->card;
-	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	int srate, mclk, mclk_change;
 	int err;
 
@@ -89,7 +89,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	while (mclk < 6000000)
 		mclk *= 2;
 
-	err = tegra_asoc_utils_set_rate(&harmony->util_data, srate, mclk,
+	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk,
 					&mclk_change);
 	if (err < 0) {
 		dev_err(card->dev, "Can't configure clocks\n");
@@ -126,20 +126,20 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops harmony_asoc_ops = {
-	.hw_params = harmony_asoc_hw_params,
+static struct snd_soc_ops tegra_wm8903_ops = {
+	.hw_params = tegra_wm8903_hw_params,
 };
 
-static struct snd_soc_jack harmony_hp_jack;
+static struct snd_soc_jack tegra_wm8903_hp_jack;
 
-static struct snd_soc_jack_pin harmony_hp_jack_pins[] = {
+static struct snd_soc_jack_pin tegra_wm8903_hp_jack_pins[] = {
 	{
 		.pin = "Headphone Jack",
 		.mask = SND_JACK_HEADPHONE,
 	},
 };
 
-static struct snd_soc_jack_gpio harmony_hp_jack_gpios[] = {
+static struct snd_soc_jack_gpio tegra_wm8903_hp_jack_gpios[] = {
 	{
 		.name = "headphone detect",
 		.report = SND_JACK_HEADPHONE,
@@ -148,22 +148,22 @@ static struct snd_soc_jack_gpio harmony_hp_jack_gpios[] = {
 	}
 };
 
-static struct snd_soc_jack harmony_mic_jack;
+static struct snd_soc_jack tegra_wm8903_mic_jack;
 
-static struct snd_soc_jack_pin harmony_mic_jack_pins[] = {
+static struct snd_soc_jack_pin tegra_wm8903_mic_jack_pins[] = {
 	{
 		.pin = "Mic Jack",
 		.mask = SND_JACK_MICROPHONE,
 	},
 };
 
-static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
+static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct snd_soc_card *card = codec->card;
-	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
+	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
 	gpio_set_value_cansleep(pdata->gpio_spkr_en,
 				SND_SOC_DAPM_EVENT_ON(event));
@@ -171,8 +171,8 @@ static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget harmony_dapm_widgets[] = {
-	SND_SOC_DAPM_SPK("Int Spk", harmony_event_int_spk),
+static const struct snd_soc_dapm_widget tegra_wm8903_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Int Spk", tegra_wm8903_event_int_spk),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 };
@@ -188,17 +188,17 @@ static const struct snd_soc_dapm_route harmony_audio_map[] = {
 	{"IN1L", NULL, "Mic Bias"},
 };
 
-static const struct snd_kcontrol_new harmony_controls[] = {
+static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Int Spk"),
 };
 
-static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
+static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = codec->card;
-	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
+	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 	int ret;
 
 	ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
@@ -206,7 +206,7 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "cannot get spkr_en gpio\n");
 		return ret;
 	}
-	harmony->gpio_requested |= GPIO_SPKR_EN;
+	machine->gpio_requested |= GPIO_SPKR_EN;
 
 	gpio_direction_output(pdata->gpio_spkr_en, 0);
 
@@ -215,7 +215,7 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "cannot get int_mic_en gpio\n");
 		return ret;
 	}
-	harmony->gpio_requested |= GPIO_INT_MIC_EN;
+	machine->gpio_requested |= GPIO_INT_MIC_EN;
 
 	/* Disable int mic; enable signal is active-high */
 	gpio_direction_output(pdata->gpio_int_mic_en, 0);
@@ -225,38 +225,39 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "cannot get ext_mic_en gpio\n");
 		return ret;
 	}
-	harmony->gpio_requested |= GPIO_EXT_MIC_EN;
+	machine->gpio_requested |= GPIO_EXT_MIC_EN;
 
 	/* Enable ext mic; enable signal is active-low */
 	gpio_direction_output(pdata->gpio_ext_mic_en, 0);
 
-	ret = snd_soc_add_controls(codec, harmony_controls,
-				   ARRAY_SIZE(harmony_controls));
+	ret = snd_soc_add_controls(codec, tegra_wm8903_controls,
+				   ARRAY_SIZE(tegra_wm8903_controls));
 	if (ret < 0)
 		return ret;
 
-	snd_soc_dapm_new_controls(dapm, harmony_dapm_widgets,
-					ARRAY_SIZE(harmony_dapm_widgets));
+	snd_soc_dapm_new_controls(dapm, tegra_wm8903_dapm_widgets,
+					ARRAY_SIZE(tegra_wm8903_dapm_widgets));
 
 	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
 				ARRAY_SIZE(harmony_audio_map));
 
-	harmony_hp_jack_gpios[0].gpio = pdata->gpio_hp_det;
+	tegra_wm8903_hp_jack_gpios[0].gpio = pdata->gpio_hp_det;
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-			 &harmony_hp_jack);
-	snd_soc_jack_add_pins(&harmony_hp_jack,
-			      ARRAY_SIZE(harmony_hp_jack_pins),
-			      harmony_hp_jack_pins);
-	snd_soc_jack_add_gpios(&harmony_hp_jack,
-			       ARRAY_SIZE(harmony_hp_jack_gpios),
-			       harmony_hp_jack_gpios);
+			 &tegra_wm8903_hp_jack);
+	snd_soc_jack_add_pins(&tegra_wm8903_hp_jack,
+			      ARRAY_SIZE(tegra_wm8903_hp_jack_pins),
+			      tegra_wm8903_hp_jack_pins);
+	snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
+			       ARRAY_SIZE(tegra_wm8903_hp_jack_gpios),
+			       tegra_wm8903_hp_jack_gpios);
 
 	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
-			 &harmony_mic_jack);
-	snd_soc_jack_add_pins(&harmony_mic_jack,
-			      ARRAY_SIZE(harmony_mic_jack_pins),
-			      harmony_mic_jack_pins);
-	wm8903_mic_detect(codec, &harmony_mic_jack, SND_JACK_MICROPHONE, 0);
+			 &tegra_wm8903_mic_jack);
+	snd_soc_jack_add_pins(&tegra_wm8903_mic_jack,
+			      ARRAY_SIZE(tegra_wm8903_mic_jack_pins),
+			      tegra_wm8903_mic_jack_pins);
+	wm8903_mic_detect(codec, &tegra_wm8903_mic_jack, SND_JACK_MICROPHONE,
+				0);
 
 	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
 
@@ -270,27 +271,27 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_dai_link harmony_wm8903_dai = {
+static struct snd_soc_dai_link tegra_wm8903_dai = {
 	.name = "WM8903",
 	.stream_name = "WM8903 PCM",
 	.codec_name = "wm8903.0-001a",
 	.platform_name = "tegra-pcm-audio",
 	.cpu_dai_name = "tegra-i2s.0",
 	.codec_dai_name = "wm8903-hifi",
-	.init = harmony_asoc_init,
-	.ops = &harmony_asoc_ops,
+	.init = tegra_wm8903_init,
+	.ops = &tegra_wm8903_ops,
 };
 
-static struct snd_soc_card snd_soc_harmony = {
-	.name = "tegra-harmony",
-	.dai_link = &harmony_wm8903_dai,
+static struct snd_soc_card snd_soc_tegra_wm8903 = {
+	.name = "tegra-wm8903",
+	.dai_link = &tegra_wm8903_dai,
 	.num_links = 1,
 };
 
-static __devinit int tegra_snd_harmony_probe(struct platform_device *pdev)
+static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &snd_soc_harmony;
-	struct tegra_harmony *harmony;
+	struct snd_soc_card *card = &snd_soc_tegra_wm8903;
+	struct tegra_wm8903 *machine;
 	struct tegra_wm8903_platform_data *pdata;
 	int ret;
 
@@ -305,21 +306,21 @@ static __devinit int tegra_snd_harmony_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	harmony = kzalloc(sizeof(struct tegra_harmony), GFP_KERNEL);
-	if (!harmony) {
-		dev_err(&pdev->dev, "Can't allocate tegra_harmony\n");
+	machine = kzalloc(sizeof(struct tegra_wm8903), GFP_KERNEL);
+	if (!machine) {
+		dev_err(&pdev->dev, "Can't allocate tegra_wm8903 struct\n");
 		return -ENOMEM;
 	}
 
-	harmony->pdata = pdata;
+	machine->pdata = pdata;
 
-	ret = tegra_asoc_utils_init(&harmony->util_data, &pdev->dev);
+	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
-		goto err_free_harmony;
+		goto err_free_machine;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
-	snd_soc_card_set_drvdata(card, harmony);
+	snd_soc_card_set_drvdata(card, machine);
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -334,17 +335,17 @@ err_clear_drvdata:
 	snd_soc_card_set_drvdata(card, NULL);
 	platform_set_drvdata(pdev, NULL);
 	card->dev = NULL;
-	tegra_asoc_utils_fini(&harmony->util_data);
-err_free_harmony:
-	kfree(harmony);
+	tegra_asoc_utils_fini(&machine->util_data);
+err_free_machine:
+	kfree(machine);
 	return ret;
 }
 
-static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
+static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
+	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
 	snd_soc_unregister_card(card);
 
@@ -352,43 +353,43 @@ static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	card->dev = NULL;
 
-	tegra_asoc_utils_fini(&harmony->util_data);
+	tegra_asoc_utils_fini(&machine->util_data);
 
-	if (harmony->gpio_requested & GPIO_EXT_MIC_EN)
+	if (machine->gpio_requested & GPIO_EXT_MIC_EN)
 		gpio_free(pdata->gpio_ext_mic_en);
-	if (harmony->gpio_requested & GPIO_INT_MIC_EN)
+	if (machine->gpio_requested & GPIO_INT_MIC_EN)
 		gpio_free(pdata->gpio_int_mic_en);
-	if (harmony->gpio_requested & GPIO_SPKR_EN)
+	if (machine->gpio_requested & GPIO_SPKR_EN)
 		gpio_free(pdata->gpio_spkr_en);
 
-	kfree(harmony);
+	kfree(machine);
 
 	return 0;
 }
 
-static struct platform_driver tegra_snd_harmony_driver = {
+static struct platform_driver tegra_wm8903_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
-	.probe = tegra_snd_harmony_probe,
-	.remove = __devexit_p(tegra_snd_harmony_remove),
+	.probe = tegra_wm8903_driver_probe,
+	.remove = __devexit_p(tegra_wm8903_driver_remove),
 };
 
-static int __init snd_tegra_harmony_init(void)
+static int __init tegra_wm8903_modinit(void)
 {
-	return platform_driver_register(&tegra_snd_harmony_driver);
+	return platform_driver_register(&tegra_wm8903_driver);
 }
-module_init(snd_tegra_harmony_init);
+module_init(tegra_wm8903_modinit);
 
-static void __exit snd_tegra_harmony_exit(void)
+static void __exit tegra_wm8903_modexit(void)
 {
-	platform_driver_unregister(&tegra_snd_harmony_driver);
+	platform_driver_unregister(&tegra_wm8903_driver);
 }
-module_exit(snd_tegra_harmony_exit);
+module_exit(tegra_wm8903_modexit);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
-MODULE_DESCRIPTION("Harmony machine ASoC driver");
+MODULE_DESCRIPTION("Tegra+WM8903 machine ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
