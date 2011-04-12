@@ -694,10 +694,8 @@ static void uncache_state(struct extent_state **cached_ptr)
 {
 	if (cached_ptr && (*cached_ptr)) {
 		struct extent_state *state = *cached_ptr;
-		if (state->state & (EXTENT_IOBITS | EXTENT_BOUNDARY)) {
-			*cached_ptr = NULL;
-			free_extent_state(state);
-		}
+		*cached_ptr = NULL;
+		free_extent_state(state);
 	}
 }
 
@@ -1764,7 +1762,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 
 		spin_lock(&tree->lock);
 		state = find_first_extent_bit_state(tree, start, 0);
-		if (state) {
+		if (state && state->start == start) {
 			/*
 			 * take a reference on the state, unlock will drop
 			 * the ref
