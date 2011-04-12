@@ -939,8 +939,8 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	/* Write registers 0x08 and 0x09 (MSB, LSB) */
 	dac33_write16(codec, DAC33_INT_OSC_FREQ_RAT_A, oscset);
 
-	/* calib time: 128 is a nice number ;) */
-	dac33_write(codec, DAC33_CALIB_TIME, 128);
+	/* OSC calibration time */
+	dac33_write(codec, DAC33_CALIB_TIME, 96);
 
 	/* adjustment treshold & step */
 	dac33_write(codec, DAC33_INT_OSC_CTRL_B, DAC33_ADJTHRSHLD(2) |
