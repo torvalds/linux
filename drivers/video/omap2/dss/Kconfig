@@ -90,14 +90,6 @@ config OMAP2_DSS_DSI
 
 	  See http://www.mipi.org/ for DSI spesifications.
 
-config OMAP2_DSS_USE_DSI_PLL
-	bool "Use DSI PLL for PCLK (EXPERIMENTAL)"
-	default n
-	depends on OMAP2_DSS_DSI
-	help
-	  Use DSI PLL to generate pixel clock.  Currently only for DPI output.
-	  DSI PLL can be used to generate higher and more precise pixel clocks.
-
 config OMAP2_DSS_FAKE_VSYNC
 	bool "Fake VSYNC irq from manual update displays"
 	default n
