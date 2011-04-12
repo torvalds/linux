@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-tegra/include/mach/harmony_audio.h
+ * arch/arm/mach-tegra/include/mach/tegra_wm8903_pdata.h
  *
  * Copyright 2011 NVIDIA, Inc.
  *
@@ -14,7 +14,7 @@
  *
  */
 
-struct harmony_audio_platform_data {
+struct tegra_wm8903_platform_data {
 	int gpio_spkr_en;
 	int gpio_hp_det;
 	int gpio_int_mic_en;

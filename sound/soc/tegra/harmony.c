@@ -35,7 +35,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 
-#include <mach/harmony_audio.h>
+#include <mach/tegra_wm8903_pdata.h>
 
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -58,7 +58,7 @@
 
 struct tegra_harmony {
 	struct tegra_asoc_utils_data util_data;
-	struct harmony_audio_platform_data *pdata;
+	struct tegra_wm8903_platform_data *pdata;
 	int gpio_requested;
 };
 
@@ -163,7 +163,7 @@ static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct harmony_audio_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
 
 	gpio_set_value_cansleep(pdata->gpio_spkr_en,
 				SND_SOC_DAPM_EVENT_ON(event));
@@ -198,7 +198,7 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct harmony_audio_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
 	int ret;
 
 	ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
@@ -291,7 +291,7 @@ static __devinit int tegra_snd_harmony_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_harmony;
 	struct tegra_harmony *harmony;
-	struct harmony_audio_platform_data *pdata;
+	struct tegra_wm8903_platform_data *pdata;
 	int ret;
 
 	if (!machine_is_harmony()) {
@@ -344,7 +344,7 @@ static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
-	struct harmony_audio_platform_data *pdata = harmony->pdata;
+	struct tegra_wm8903_platform_data *pdata = harmony->pdata;
 
 	snd_soc_unregister_card(card);
 
