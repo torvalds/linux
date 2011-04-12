@@ -144,6 +144,7 @@ struct btrfs_device_info {
 	struct btrfs_device *dev;
 	u64 dev_offset;
 	u64 max_avail;
+	u64 total_avail;
 };
 
 struct map_lookup {
