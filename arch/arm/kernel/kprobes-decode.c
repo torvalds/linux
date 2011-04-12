@@ -1390,18 +1390,28 @@ space_cccc_0110__1(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 		return prep_emulate_rd12rn16rm0_wflags(insn, asi);
 
 	/* SXTAB16   : cccc 0110 1000 xxxx xxxx xxxx 0111 xxxx :   */
-	/* SXTB      : cccc 0110 1010 xxxx xxxx xxxx 0111 xxxx :   */
+	/* SXTB16    : cccc 0110 1000 1111 xxxx xxxx 0111 xxxx :   */
 	/* ???       : cccc 0110 1001 xxxx xxxx xxxx 0111 xxxx :   */
 	/* SXTAB     : cccc 0110 1010 xxxx xxxx xxxx 0111 xxxx :   */
+	/* SXTB      : cccc 0110 1010 1111 xxxx xxxx 0111 xxxx :   */
 	/* SXTAH     : cccc 0110 1011 xxxx xxxx xxxx 0111 xxxx :   */
+	/* SXTH      : cccc 0110 1011 1111 xxxx xxxx 0111 xxxx :   */
 	/* UXTAB16   : cccc 0110 1100 xxxx xxxx xxxx 0111 xxxx :   */
+	/* UXTB16    : cccc 0110 1100 1111 xxxx xxxx 0111 xxxx :   */
 	/* ???       : cccc 0110 1101 xxxx xxxx xxxx 0111 xxxx :   */
 	/* UXTAB     : cccc 0110 1110 xxxx xxxx xxxx 0111 xxxx :   */
+	/* UXTB      : cccc 0110 1110 1111 xxxx xxxx 0111 xxxx :   */
 	/* UXTAH     : cccc 0110 1111 xxxx xxxx xxxx 0111 xxxx :   */
+	/* UXTH      : cccc 0110 1111 1111 xxxx xxxx 0111 xxxx :   */
 	if ((insn & 0x0f8000f0) == 0x06800070) {
 		if ((insn & 0x00300000) == 0x00100000)
 			return INSN_REJECTED;	/* Unallocated space */
-		return prep_emulate_rd12rn16rm0_wflags(insn, asi);
+
+		if ((insn & 0x000f0000) == 0x000f0000) {
+			return prep_emulate_rd12rm0(insn, asi);
+		} else {
+			return prep_emulate_rd12rn16rm0_wflags(insn, asi);
+		}
 	}
 
 	/* Other instruction encodings aren't yet defined */
