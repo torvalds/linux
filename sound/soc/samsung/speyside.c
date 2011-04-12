@@ -13,6 +13,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/wm8915.h"
+#include "../codecs/wm9081.h"
 
 static int speyside_set_bias_level(struct snd_soc_card *card,
 				   enum snd_soc_bias_level level)
@@ -98,6 +99,30 @@ static struct snd_soc_dai_link speyside_dai[] = {
 	},
 };
 
+static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
+{
+	snd_soc_dapm_nc_pin(dapm, "LINEOUT");
+
+	/* At any time the WM9081 is active it will have this clock */
+	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK,
+					48000 * 256, 0);
+}
+
+static struct snd_soc_aux_dev speyside_aux_dev[] = {
+	{
+		.name = "wm9081",
+		.codec_name = "wm9081.1-006c",
+		.init = speyside_wm9081_init,
+	},
+};
+
+static struct snd_soc_codec_conf speyside_codec_conf[] = {
+	{
+		.dev_name = "wm9081.1-006c",
+		.name_prefix = "Sub",
+	},
+};
+
 static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 
@@ -118,6 +143,11 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUT1L" },
 	{ "Headphone", NULL, "HPOUT1R" },
 
+	{ "Sub IN1", NULL, "HPOUT2L" },
+	{ "Sub IN2", NULL, "HPOUT2R" },
+
+	{ "Main Speaker", NULL, "Sub SPKN" },
+	{ "Main Speaker", NULL, "Sub SPKP" },
 	{ "Main Speaker", NULL, "SPKDAT" },
 };
 
@@ -125,6 +155,10 @@ static struct snd_soc_card speyside = {
 	.name = "Speyside",
 	.dai_link = speyside_dai,
 	.num_links = ARRAY_SIZE(speyside_dai),
+	.aux_dev = speyside_aux_dev,
+	.num_aux_devs = ARRAY_SIZE(speyside_aux_dev),
+	.codec_conf = speyside_codec_conf,
+	.num_configs = ARRAY_SIZE(speyside_codec_conf),
 
 	.set_bias_level = speyside_set_bias_level,
 
