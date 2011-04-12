@@ -1006,13 +1006,12 @@ static void ar_context_run(struct ar_context *ctx)
 
 static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
 {
-	int b, key;
+	__le16 branch;
 
-	b   = (le16_to_cpu(d->control) & DESCRIPTOR_BRANCH_ALWAYS) >> 2;
-	key = (le16_to_cpu(d->control) & DESCRIPTOR_KEY_IMMEDIATE) >> 8;
+	branch = d->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS);
 
 	/* figure out which descriptor the branch address goes in */
-	if (z == 2 && (b == 3 || key == 2))
+	if (z == 2 && branch == cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))
 		return d;
 	else
 		return d + z - 1;
