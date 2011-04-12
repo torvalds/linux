@@ -313,7 +313,8 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
  * into nops.
  */
 static void nop_mcount(Elf_Shdr const *const relhdr,
-		       Elf_Ehdr const *const ehdr)
+		       Elf_Ehdr const *const ehdr,
+		       const char *const txtname)
 {
 	Elf_Shdr *const shdr0 = (Elf_Shdr *)(_w(ehdr->e_shoff)
 		+ (void *)ehdr);
@@ -336,6 +337,7 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 
 	unsigned mcountsym = 0;
 	unsigned t;
+	int once = 0;
 
 	for (t = nrel; t; --t) {
 		int ret = -1;
@@ -353,8 +355,18 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 				mcountsym = Elf_r_sym(relp);
 		}
 
-		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp))
-			ret = make_nop((void *)ehdr, shdr->sh_offset + relp->r_offset);
+		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
+			if (make_nop)
+				ret = make_nop((void *)ehdr, shdr->sh_offset + relp->r_offset);
+			if (warn_on_notrace_sect && !once) {
+				printf("Section %s has mcount callers being ignored\n",
+				       txtname);
+				once = 1;
+				/* just warn? */
+				if (!make_nop)
+					return;
+			}
+		}
 
 		/*
 		 * If we successfully removed the mcount, mark the relocation
@@ -501,12 +513,12 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 			mlocp = sift_rel_mcount(mlocp,
 				(void *)mlocp - (void *)mloc0, &mrelp,
 				relhdr, ehdr, recsym, recval, reltype);
-		} else if (make_nop && txtname) {
+		} else if (txtname && (warn_on_notrace_sect || make_nop)) {
 			/*
 			 * This section is ignored by ftrace, but still
 			 * has mcount calls. Convert them to nops now.
 			 */
-			nop_mcount(relhdr, ehdr);
+			nop_mcount(relhdr, ehdr, txtname);
 		}
 	}
 	if (mloc0 != mlocp) {
