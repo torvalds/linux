@@ -5576,7 +5576,8 @@ static int complete_mmio(struct kvm_vcpu *vcpu)
 	if (vcpu->mmio_needed) {
 		vcpu->mmio_needed = 0;
 		if (!vcpu->mmio_is_write)
-			memcpy(vcpu->mmio_data, run->mmio.data, 8);
+			memcpy(vcpu->mmio_data + vcpu->mmio_index,
+			       run->mmio.data, 8);
 		vcpu->mmio_index += 8;
 		if (vcpu->mmio_index < vcpu->mmio_size) {
 			run->exit_reason = KVM_EXIT_MMIO;
