@@ -1997,10 +1997,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8915_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
+static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	unsigned long timeout;
@@ -2776,6 +2775,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8915 = {
 	.num_dapm_widgets = ARRAY_SIZE(wm8915_dapm_widgets),
 	.dapm_routes = wm8915_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(wm8915_dapm_routes),
+	.set_pll = wm8915_set_fll,
 };
 
 #define WM8915_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
@@ -2788,7 +2788,6 @@ static struct snd_soc_dai_ops wm8915_dai_ops = {
 	.set_fmt = wm8915_set_fmt,
 	.hw_params = wm8915_hw_params,
 	.set_sysclk = wm8915_set_sysclk,
-	.set_pll = wm8915_set_fll,
 };
 
 static struct snd_soc_dai_driver wm8915_dai[] = {
