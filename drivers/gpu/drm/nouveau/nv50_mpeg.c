@@ -30,6 +30,19 @@ struct nv50_mpeg_engine {
 	struct nouveau_exec_engine base;
 };
 
+static inline u32
+CTX_PTR(struct drm_device *dev, u32 offset)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset == 0x50)
+		offset += 0x0260;
+	else
+		offset += 0x0060;
+
+	return offset;
+}
+
 static int
 nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 {
@@ -46,12 +59,12 @@ nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 	if (ret)
 		return ret;
 
-	nv_wo32(ramin, 0x60, 0x80190002);
-	nv_wo32(ramin, 0x64, ctx->vinst + ctx->size - 1);
-	nv_wo32(ramin, 0x68, ctx->vinst);
-	nv_wo32(ramin, 0x6c, 0);
-	nv_wo32(ramin, 0x70, 0);
-	nv_wo32(ramin, 0x74, 0x00010000);
+	nv_wo32(ramin, CTX_PTR(dev, 0x00), 0x80190002);
+	nv_wo32(ramin, CTX_PTR(dev, 0x04), ctx->vinst + ctx->size - 1);
+	nv_wo32(ramin, CTX_PTR(dev, 0x08), ctx->vinst);
+	nv_wo32(ramin, CTX_PTR(dev, 0x0c), 0);
+	nv_wo32(ramin, CTX_PTR(dev, 0x10), 0);
+	nv_wo32(ramin, CTX_PTR(dev, 0x14), 0x00010000);
 
 	nv_wo32(ctx, 0x70, 0x00801ec1);
 	nv_wo32(ctx, 0x7c, 0x0000037c);
@@ -83,8 +96,8 @@ nv50_mpeg_context_del(struct nouveau_channel *chan, int engine)
 	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
-	for (i = 0x60; i <= 0x74; i += 4)
-		nv_wo32(chan->ramin, i, 0x00000000);
+	for (i = 0x00; i <= 0x14; i += 4)
+		nv_wo32(chan->ramin, CTX_PTR(dev, i), 0x00000000);
 	nouveau_gpuobj_ref(NULL, &ctx);
 	chan->engctx[engine] = NULL;
 }
@@ -183,6 +196,19 @@ nv50_mpeg_isr(struct drm_device *dev)
 }
 
 static void
+nv50_vpe_isr(struct drm_device *dev)
+{
+	if (nv_rd32(dev, 0x00b100))
+		nv50_mpeg_isr(dev);
+
+	if (nv_rd32(dev, 0x00b800)) {
+		u32 stat = nv_rd32(dev, 0x00b800);
+		NV_INFO(dev, "PMSRCH: 0x%08x\n", stat);
+		nv_wr32(dev, 0xb800, stat);
+	}
+}
+
+static void
 nv50_mpeg_destroy(struct drm_device *dev, int engine)
 {
 	struct nv50_mpeg_engine *pmpeg = nv_engine(dev, engine);
@@ -196,6 +222,7 @@ nv50_mpeg_destroy(struct drm_device *dev, int engine)
 int
 nv50_mpeg_create(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_mpeg_engine *pmpeg;
 
 	pmpeg = kzalloc(sizeof(*pmpeg), GFP_KERNEL);
@@ -210,10 +237,20 @@ nv50_mpeg_create(struct drm_device *dev)
 	pmpeg->base.object_new = nv50_mpeg_object_new;
 	pmpeg->base.tlb_flush = nv50_mpeg_tlb_flush;
 
-	nouveau_irq_register(dev, 0, nv50_mpeg_isr);
+	if (dev_priv->chipset == 0x50) {
+		nouveau_irq_register(dev, 0, nv50_vpe_isr);
+		NVOBJ_ENGINE_ADD(dev, MPEG, &pmpeg->base);
+		NVOBJ_CLASS(dev, 0x3174, MPEG);
+#if 0
+		NVOBJ_ENGINE_ADD(dev, ME, &pme->base);
+		NVOBJ_CLASS(dev, 0x4075, ME);
+#endif
+	} else {
+		nouveau_irq_register(dev, 0, nv50_mpeg_isr);
+		NVOBJ_ENGINE_ADD(dev, MPEG, &pmpeg->base);
+		NVOBJ_CLASS(dev, 0x8274, MPEG);
+	}
 
-	NVOBJ_ENGINE_ADD(dev, MPEG, &pmpeg->base);
-	NVOBJ_CLASS(dev, 0x8274, MPEG);
 	return 0;
 
 }

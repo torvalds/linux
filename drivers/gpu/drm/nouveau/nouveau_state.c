@@ -620,7 +620,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (dev_priv->card_type == NV_40)
 		nv40_mpeg_create(dev);
 	else
-	if (dev_priv->card_type == NV_50 && dev_priv->chipset > 0x50 &&
+	if (dev_priv->card_type == NV_50 &&
 	    (dev_priv->chipset < 0x98 || dev_priv->chipset == 0xa0))
 		nv50_mpeg_create(dev);
 
