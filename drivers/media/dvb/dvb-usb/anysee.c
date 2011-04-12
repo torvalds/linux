@@ -612,6 +612,20 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 Combo Plus */
 		/* E30 C Plus */
 
+		if (dvb_usb_anysee_delsys) {
+			/* enable DVB-T tuner on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 0),
+				0x01);
+			if (ret)
+				goto error;
+		} else {
+			/* enable DVB-C tuner on IOE[0] */
+			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 0),
+				0x01);
+			if (ret)
+				goto error;
+		}
+
 		/* Try first attach TDA18212 silicon tuner on IOE[4], if that
 		 * fails attach old simple PLL. */
 
@@ -630,20 +644,6 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 4), 0x10);
 		if (ret)
 			goto error;
-
-		if (dvb_usb_anysee_delsys) {
-			/* enable DVB-T tuner on IOE[0] */
-			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 0),
-				0x01);
-			if (ret)
-				goto error;
-		} else {
-			/* enable DVB-C tuner on IOE[0] */
-			ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 0),
-				0x01);
-			if (ret)
-				goto error;
-		}
 
 		/* attach tuner */
 		dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
