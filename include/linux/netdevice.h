@@ -1035,7 +1035,7 @@ struct net_device {
 	u32			hw_features;
 	/* user-requested features */
 	u32			wanted_features;
-	/* VLAN feature mask */
+	/* mask of features inheritable by VLAN devices */
 	u32			vlan_features;
 
 	/* Net device feature bits; if you change something,
