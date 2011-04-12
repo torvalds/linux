@@ -850,13 +850,13 @@ static void blk_add_trace_plug(void *ignore, struct request_queue *q)
 		__blk_add_trace(bt, 0, 0, 0, BLK_TA_PLUG, 0, 0, NULL);
 }
 
-static void blk_add_trace_unplug_io(void *ignore, struct request_queue *q)
+static void blk_add_trace_unplug_io(void *ignore, struct request_queue *q,
+				    unsigned int depth)
 {
 	struct blk_trace *bt = q->blk_trace;
 
 	if (bt) {
-		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
-		__be64 rpdu = cpu_to_be64(pdu);
+		__be64 rpdu = cpu_to_be64(depth);
 
 		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_IO, 0,
 				sizeof(rpdu), &rpdu);

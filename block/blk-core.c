@@ -2668,12 +2668,19 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return !(rqa->q <= rqb->q);
 }
 
+static void queue_unplugged(struct request_queue *q, unsigned int depth)
+{
+	trace_block_unplug_io(q, depth);
+	__blk_run_queue(q, false);
+}
+
 static void flush_plug_list(struct blk_plug *plug)
 {
 	struct request_queue *q;
 	unsigned long flags;
 	struct request *rq;
 	LIST_HEAD(list);
+	unsigned int depth;
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
@@ -2688,6 +2695,7 @@ static void flush_plug_list(struct blk_plug *plug)
 	}
 
 	q = NULL;
+	depth = 0;
 	local_irq_save(flags);
 	while (!list_empty(&list)) {
 		rq = list_entry_rq(list.next);
@@ -2696,10 +2704,11 @@ static void flush_plug_list(struct blk_plug *plug)
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
 			if (q) {
-				__blk_run_queue(q, false);
+				queue_unplugged(q, depth);
 				spin_unlock(q->queue_lock);
 			}
 			q = rq->q;
+			depth = 0;
 			spin_lock(q->queue_lock);
 		}
 		rq->cmd_flags &= ~REQ_ON_PLUG;
@@ -2711,10 +2720,12 @@ static void flush_plug_list(struct blk_plug *plug)
 			__elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);
 		else
 			__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);
+
+		depth++;
 	}
 
 	if (q) {
-		__blk_run_queue(q, false);
+		queue_unplugged(q, depth);
 		spin_unlock(q->queue_lock);
 	}
 
