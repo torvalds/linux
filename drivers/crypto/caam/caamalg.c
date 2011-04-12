@@ -418,7 +418,6 @@ static void ipsec_esp_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	if (err) {
 		char tmp[256];
 
-		dev_err(jrdev, "%s\n", caam_jr_strstatus(tmp, err));
 		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
 	}
 
