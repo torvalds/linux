@@ -358,7 +358,6 @@ struct kvm_vcpu_arch {
 	struct fpu guest_fpu;
 	u64 xcr0;
 
-	gva_t mmio_fault_cr2;
 	struct kvm_pio_request pio;
 	void *pio_data;
 

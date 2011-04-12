@@ -4561,7 +4561,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	bool writeback = true;
 
 	kvm_clear_exception_queue(vcpu);
-	vcpu->arch.mmio_fault_cr2 = cr2;
+
 	/*
 	 * TODO: fix emulate.c to use guest_read/write_register
 	 * instead of direct ->regs accesses, can save hundred cycles
