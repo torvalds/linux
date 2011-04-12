@@ -740,8 +740,10 @@ struct btrfs_space_info {
 	 */
 	unsigned long reservation_progress;
 
-	int full;		/* indicates that we cannot allocate any more
+	int full:1;		/* indicates that we cannot allocate any more
 				   chunks for this space */
+	int chunk_alloc:1;	/* set if we are allocating a chunk */
+
 	int force_alloc;	/* set if we need to force a chunk alloc for
 				   this space */
 

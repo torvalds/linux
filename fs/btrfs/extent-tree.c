@@ -3039,6 +3039,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_may_use = 0;
 	found->full = 0;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
+	found->chunk_alloc = 0;
 	*space_info = found;
 	list_add_rcu(&found->list, &info->space_info);
 	atomic_set(&found->caching_threads, 0);
@@ -3318,9 +3319,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_space_info *space_info;
 	struct btrfs_fs_info *fs_info = extent_root->fs_info;
+	int wait_for_alloc = 0;
 	int ret = 0;
-
-	mutex_lock(&fs_info->chunk_mutex);
 
 	flags = btrfs_reduce_alloc_profile(extent_root, flags);
 
@@ -3332,20 +3332,39 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	}
 	BUG_ON(!space_info);
 
+again:
 	spin_lock(&space_info->lock);
 	if (space_info->force_alloc)
 		force = space_info->force_alloc;
 	if (space_info->full) {
 		spin_unlock(&space_info->lock);
-		goto out;
+		return 0;
 	}
 
 	if (!should_alloc_chunk(extent_root, space_info, alloc_bytes, force)) {
 		spin_unlock(&space_info->lock);
-		goto out;
+		return 0;
+	} else if (space_info->chunk_alloc) {
+		wait_for_alloc = 1;
+	} else {
+		space_info->chunk_alloc = 1;
 	}
 
 	spin_unlock(&space_info->lock);
+
+	mutex_lock(&fs_info->chunk_mutex);
+
+	/*
+	 * The chunk_mutex is held throughout the entirety of a chunk
+	 * allocation, so once we've acquired the chunk_mutex we know that the
+	 * other guy is done and we need to recheck and see if we should
+	 * allocate.
+	 */
+	if (wait_for_alloc) {
+		mutex_unlock(&fs_info->chunk_mutex);
+		wait_for_alloc = 0;
+		goto again;
+	}
 
 	/*
 	 * If we have mixed data/metadata chunks we want to make sure we keep
@@ -3372,9 +3391,10 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 		space_info->full = 1;
 	else
 		ret = 1;
+
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
+	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
-out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
 }
