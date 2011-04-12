@@ -1436,18 +1436,26 @@ space_cccc_0111__1(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 		return prep_emulate_rdhi16rdlo12rs8rm0_wflags(insn, asi);
 
 	/* SMLAD  : cccc 0111 0000 xxxx xxxx xxxx 00x1 xxxx :Q */
+	/* SMUAD  : cccc 0111 0000 xxxx 1111 xxxx 00x1 xxxx :Q */
 	/* SMLSD  : cccc 0111 0000 xxxx xxxx xxxx 01x1 xxxx :Q */
+	/* SMUSD  : cccc 0111 0000 xxxx 1111 xxxx 01x1 xxxx :  */
 	/* SMMLA  : cccc 0111 0101 xxxx xxxx xxxx 00x1 xxxx :  */
-	/* SMMLS  : cccc 0111 0101 xxxx xxxx xxxx 11x1 xxxx :  */
+	/* SMMUL  : cccc 0111 0101 xxxx 1111 xxxx 00x1 xxxx :  */
 	if ((insn & 0x0ff00090) == 0x07000010 ||
-	    (insn & 0x0ff000d0) == 0x07500010 ||
-	    (insn & 0x0ff000d0) == 0x075000d0)
+	    (insn & 0x0ff000d0) == 0x07500010) {
+
+		if ((insn & 0x0000f000) == 0x0000f000) {
+			return prep_emulate_rd16rs8rm0_wflags(insn, asi);
+		} else {
+			return prep_emulate_rd16rn12rs8rm0_wflags(insn, asi);
+		}
+	}
+
+	/* SMMLS  : cccc 0111 0101 xxxx xxxx xxxx 11x1 xxxx :  */
+	if ((insn & 0x0ff000d0) == 0x075000d0)
 		return prep_emulate_rd16rn12rs8rm0_wflags(insn, asi);
 
-	/* SMUSD  : cccc 0111 0000 xxxx xxxx xxxx 01x1 xxxx :  */
-	/* SMUAD  : cccc 0111 0000 xxxx 1111 xxxx 00x1 xxxx :Q */
-	/* SMMUL  : cccc 0111 0101 xxxx 1111 xxxx 00x1 xxxx :  */
-	return prep_emulate_rd16rs8rm0_wflags(insn, asi);
+	return INSN_REJECTED;
 }
 
 static enum kprobe_insn __kprobes
