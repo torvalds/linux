@@ -790,6 +790,22 @@ void blk_queue_flush(struct request_queue *q, unsigned int flush)
 }
 EXPORT_SYMBOL_GPL(blk_queue_flush);
 
+/**
+ * blk_queue_unplugged - register a callback for an unplug event
+ * @q:		the request queue for the device
+ * @fn:		the function to call
+ *
+ * Some stacked drivers may need to know when IO is dispatched on an
+ * unplug event. By registrering a callback here, they will be notified
+ * when someone flushes their on-stack queue plug. The function will be
+ * called with the queue lock held.
+ */
+void blk_queue_unplugged(struct request_queue *q, unplugged_fn *fn)
+{
+	q->unplugged_fn = fn;
+}
+EXPORT_SYMBOL(blk_queue_unplugged);
+
 static int __init blk_settings_init(void)
 {
 	blk_max_low_pfn = max_low_pfn - 1;
