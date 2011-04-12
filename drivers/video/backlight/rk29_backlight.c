@@ -106,55 +106,6 @@ static struct backlight_ops rk29_bl_ops = {
 	.get_brightness = rk29_bl_get_brightness,
 };
 
-#ifdef CONFIG_CPU_FREQ
-static int rk29_bl_change_clk(struct notifier_block *nb, unsigned long val, void *data)
-{
-    struct rk29_bl_info *rk29_bl_info;
-    u32 id;
-    u32 divl, divh, tmp;
-    u32 div_total;
-	int is_suspended = suspend_flag;
-
-	if (!rk29_bl) {
-		DBG(KERN_CRIT "%s: backlight device does not exist\n", __func__);
-		return -ENODEV;		
-    }
-    
-	switch (val) {
-    case CPUFREQ_PRECHANGE:        
-         break;
-    case CPUFREQ_POSTCHANGE:
-		if (clk_get_rate(pwm_clk) == pwm_clk_rate)
-			break;
-		pwm_clk_rate = clk_get_rate(pwm_clk);
-         rk29_bl_info = rk29_bl->dev.parent->platform_data;
-         id = rk29_bl_info->pwm_id;
-     
-
-         
-         divl = read_pwm_reg(id, PWM_REG_LRC);
-         divh = read_pwm_reg(id, PWM_REG_HRC);
-     
-		tmp = pwm_clk_rate / PWM_APB_PRE_DIV;
-         tmp >>= (1 + (PWM_DIV >> 9));
-
-         
-         div_total = (tmp) ? tmp : 1;
-         tmp = div_total*divh/divl;
-         
-		if (!is_suspended)
-			clk_disable(pwm_clk);
-         write_pwm_reg(id, PWM_REG_LRC, div_total);
-         write_pwm_reg(id, PWM_REG_HRC, tmp);    
-         write_pwm_reg(id, PWM_REG_CNTR, 0);  
-		if (!is_suspended)
-			clk_enable(pwm_clk);
-         break;
-    }
-   
-    return 0;
-}   
-#endif
 static void rk29_delaybacklight_timer(unsigned long data)
 {
 	struct rk29_bl_info *rk29_bl_info = (struct rk29_bl_info *)data;
@@ -284,11 +235,6 @@ static int rk29_backlight_probe(struct platform_device *pdev)
     /*init timer to dispose workqueue */
     setup_timer(&rk29_bl_info->timer, rk29_delaybacklight_timer, (unsigned long)rk29_bl_info);
 
-#ifdef CONFIG_CPU_FREQ
-    rk29_bl_info->freq_transition.notifier_call = rk29_bl_change_clk;   
-    cpufreq_register_notifier(&rk29_bl_info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
-        
     clk_enable(pwm_clk);
     write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_RESET);
     write_pwm_reg(id, PWM_REG_LRC, div_total);
@@ -321,9 +267,6 @@ static int rk29_backlight_remove(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
         unregister_early_suspend(&bl_early_suspend);
 #endif       
-#ifdef CONFIG_CPU_FREQ
-        cpufreq_unregister_notifier(&rk29_bl_info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 		clk_disable(pwm_clk);
 		clk_put(pwm_clk);
         if (rk29_bl_info && rk29_bl_info->io_deinit) {
