@@ -14,6 +14,33 @@
 
 #include "../codecs/wm8915.h"
 
+static int speyside_set_bias_level(struct snd_soc_card *card,
+				   enum snd_soc_bias_level level)
+{
+	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	int ret;
+
+	switch (level) {
+	case SND_SOC_BIAS_STANDBY:
+		ret = snd_soc_dai_set_sysclk(codec_dai, WM8915_SYSCLK_MCLK1,
+					     32768, SND_SOC_CLOCK_IN);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_dai_set_pll(codec_dai, WM8915_FLL_MCLK1,
+					  0, 0, 0);
+		if (ret < 0) {
+			pr_err("Failed to stop FLL\n");
+			return ret;
+		}
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int speyside_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
@@ -51,6 +78,13 @@ static struct snd_soc_ops speyside_ops = {
 	.hw_params = speyside_hw_params,
 };
 
+static int speyside_wm8915_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *dai = rtd->codec_dai;
+
+	return snd_soc_dai_set_sysclk(dai, WM8915_SYSCLK_MCLK1, 32768, 0);
+}
+
 static struct snd_soc_dai_link speyside_dai[] = {
 	{
 		.name = "CPU",
@@ -59,6 +93,7 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.codec_dai_name = "wm8915-aif1",
 		.platform_name = "samsung-audio",
 		.codec_name = "wm8915.1-001a",
+		.init = speyside_wm8915_init,
 		.ops = &speyside_ops,
 	},
 };
@@ -90,6 +125,8 @@ static struct snd_soc_card speyside = {
 	.name = "Speyside",
 	.dai_link = speyside_dai,
 	.num_links = ARRAY_SIZE(speyside_dai),
+
+	.set_bias_level = speyside_set_bias_level,
 
 	.dapm_widgets = widgets,
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
