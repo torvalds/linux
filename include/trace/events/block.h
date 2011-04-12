@@ -419,20 +419,6 @@ DECLARE_EVENT_CLASS(block_unplug,
 );
 
 /**
- * block_unplug_timer - timed release of operations requests in queue to device driver
- * @q: request queue to unplug
- *
- * Unplug the request queue @q because a timer expired and allow block
- * operation requests to be sent to the device driver.
- */
-DEFINE_EVENT(block_unplug, block_unplug_timer,
-
-	TP_PROTO(struct request_queue *q),
-
-	TP_ARGS(q)
-);
-
-/**
  * block_unplug_io - release of operations requests in request queue
  * @q: request queue to unplug
  *

@@ -863,19 +863,6 @@ static void blk_add_trace_unplug_io(void *ignore, struct request_queue *q)
 	}
 }
 
-static void blk_add_trace_unplug_timer(void *ignore, struct request_queue *q)
-{
-	struct blk_trace *bt = q->blk_trace;
-
-	if (bt) {
-		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
-		__be64 rpdu = cpu_to_be64(pdu);
-
-		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_TIMER, 0,
-				sizeof(rpdu), &rpdu);
-	}
-}
-
 static void blk_add_trace_split(void *ignore,
 				struct request_queue *q, struct bio *bio,
 				unsigned int pdu)
@@ -1015,8 +1002,6 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_plug(blk_add_trace_plug, NULL);
 	WARN_ON(ret);
-	ret = register_trace_block_unplug_timer(blk_add_trace_unplug_timer, NULL);
-	WARN_ON(ret);
 	ret = register_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
 	WARN_ON(ret);
 	ret = register_trace_block_split(blk_add_trace_split, NULL);
@@ -1033,7 +1018,6 @@ static void blk_unregister_tracepoints(void)
 	unregister_trace_block_bio_remap(blk_add_trace_bio_remap, NULL);
 	unregister_trace_block_split(blk_add_trace_split, NULL);
 	unregister_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
-	unregister_trace_block_unplug_timer(blk_add_trace_unplug_timer, NULL);
 	unregister_trace_block_plug(blk_add_trace_plug, NULL);
 	unregister_trace_block_sleeprq(blk_add_trace_sleeprq, NULL);
 	unregister_trace_block_getrq(blk_add_trace_getrq, NULL);
@@ -1348,7 +1332,6 @@ static const struct {
 	[__BLK_TA_COMPLETE]	= {{  "C", "complete" },   blk_log_with_error },
 	[__BLK_TA_PLUG]		= {{  "P", "plug" },	   blk_log_plug },
 	[__BLK_TA_UNPLUG_IO]	= {{  "U", "unplug_io" },  blk_log_unplug },
-	[__BLK_TA_UNPLUG_TIMER]	= {{ "UT", "unplug_timer" }, blk_log_unplug },
 	[__BLK_TA_INSERT]	= {{  "I", "insert" },	   blk_log_generic },
 	[__BLK_TA_SPLIT]	= {{  "X", "split" },	   blk_log_split },
 	[__BLK_TA_BOUNCE]	= {{  "B", "bounce" },	   blk_log_generic },
