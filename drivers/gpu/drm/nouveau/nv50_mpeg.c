@@ -26,12 +26,12 @@
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
 
-struct nv84_mpeg_engine {
+struct nv50_mpeg_engine {
 	struct nouveau_exec_engine base;
 };
 
 static int
-nv84_mpeg_context_new(struct nouveau_channel *chan, int engine)
+nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -62,7 +62,7 @@ nv84_mpeg_context_new(struct nouveau_channel *chan, int engine)
 }
 
 static void
-nv84_mpeg_context_del(struct nouveau_channel *chan, int engine)
+nv50_mpeg_context_del(struct nouveau_channel *chan, int engine)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_gpuobj *ctx = chan->engctx[engine];
@@ -90,7 +90,7 @@ nv84_mpeg_context_del(struct nouveau_channel *chan, int engine)
 }
 
 static int
-nv84_mpeg_object_new(struct nouveau_channel *chan, int engine,
+nv50_mpeg_object_new(struct nouveau_channel *chan, int engine,
 		     u32 handle, u16 class)
 {
 	struct drm_device *dev = chan->dev;
@@ -116,13 +116,13 @@ nv84_mpeg_object_new(struct nouveau_channel *chan, int engine,
 }
 
 static void
-nv84_mpeg_tlb_flush(struct drm_device *dev, int engine)
+nv50_mpeg_tlb_flush(struct drm_device *dev, int engine)
 {
 	nv50_vm_flush_engine(dev, 0x08);
 }
 
 static int
-nv84_mpeg_init(struct drm_device *dev, int engine)
+nv50_mpeg_init(struct drm_device *dev, int engine)
 {
 	nv_wr32(dev, 0x00b32c, 0x00000000);
 	nv_wr32(dev, 0x00b314, 0x00000100);
@@ -147,7 +147,7 @@ nv84_mpeg_init(struct drm_device *dev, int engine)
 }
 
 static int
-nv84_mpeg_fini(struct drm_device *dev, int engine)
+nv50_mpeg_fini(struct drm_device *dev, int engine)
 {
 	/*XXX: context save for s/r */
 	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
@@ -156,7 +156,7 @@ nv84_mpeg_fini(struct drm_device *dev, int engine)
 }
 
 static void
-nv84_mpeg_isr(struct drm_device *dev)
+nv50_mpeg_isr(struct drm_device *dev)
 {
 	u32 stat = nv_rd32(dev, 0x00b100);
 	u32 type = nv_rd32(dev, 0x00b230);
@@ -183,9 +183,9 @@ nv84_mpeg_isr(struct drm_device *dev)
 }
 
 static void
-nv84_mpeg_destroy(struct drm_device *dev, int engine)
+nv50_mpeg_destroy(struct drm_device *dev, int engine)
 {
-	struct nv84_mpeg_engine *pmpeg = nv_engine(dev, engine);
+	struct nv50_mpeg_engine *pmpeg = nv_engine(dev, engine);
 
 	nouveau_irq_unregister(dev, 0);
 
@@ -194,23 +194,23 @@ nv84_mpeg_destroy(struct drm_device *dev, int engine)
 }
 
 int
-nv84_mpeg_create(struct drm_device *dev)
+nv50_mpeg_create(struct drm_device *dev)
 {
-	struct nv84_mpeg_engine *pmpeg;
+	struct nv50_mpeg_engine *pmpeg;
 
 	pmpeg = kzalloc(sizeof(*pmpeg), GFP_KERNEL);
 	if (!pmpeg)
 		return -ENOMEM;
 
-	pmpeg->base.destroy = nv84_mpeg_destroy;
-	pmpeg->base.init = nv84_mpeg_init;
-	pmpeg->base.fini = nv84_mpeg_fini;
-	pmpeg->base.context_new = nv84_mpeg_context_new;
-	pmpeg->base.context_del = nv84_mpeg_context_del;
-	pmpeg->base.object_new = nv84_mpeg_object_new;
-	pmpeg->base.tlb_flush = nv84_mpeg_tlb_flush;
+	pmpeg->base.destroy = nv50_mpeg_destroy;
+	pmpeg->base.init = nv50_mpeg_init;
+	pmpeg->base.fini = nv50_mpeg_fini;
+	pmpeg->base.context_new = nv50_mpeg_context_new;
+	pmpeg->base.context_del = nv50_mpeg_context_del;
+	pmpeg->base.object_new = nv50_mpeg_object_new;
+	pmpeg->base.tlb_flush = nv50_mpeg_tlb_flush;
 
-	nouveau_irq_register(dev, 0, nv84_mpeg_isr);
+	nouveau_irq_register(dev, 0, nv50_mpeg_isr);
 
 	NVOBJ_ENGINE_ADD(dev, MPEG, &pmpeg->base);
 	NVOBJ_CLASS(dev, 0x8274, MPEG);

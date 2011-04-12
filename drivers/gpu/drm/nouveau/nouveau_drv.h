@@ -1158,8 +1158,8 @@ extern int  nvc0_copy_create(struct drm_device *dev, int engine);
 /* nv40_mpeg.c */
 extern int  nv40_mpeg_create(struct drm_device *dev);
 
-/* nv84_mpeg.c */
-extern int  nv84_mpeg_create(struct drm_device *dev);
+/* nv50_mpeg.c */
+extern int  nv50_mpeg_create(struct drm_device *dev);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
