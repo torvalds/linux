@@ -3671,6 +3671,7 @@ special_insn:
 		break;
 	case 0x38 ... 0x3d:
 	      cmp:		/* cmp */
+		c->dst.type = OP_NONE; /* Disable writeback. */
 		emulate_2op_SrcV("cmp", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x40 ... 0x47: /* inc r16/r32 */
@@ -3797,7 +3798,6 @@ special_insn:
 		rc = emulate_popf(ctxt, ops, &c->dst.val, c->op_bytes);
 		break;
 	case 0xa6 ... 0xa7:	/* cmps */
-		c->dst.type = OP_NONE; /* Disable writeback. */
 		goto cmp;
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
