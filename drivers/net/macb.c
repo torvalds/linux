@@ -576,6 +576,11 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		 * add that if/when we get our hands on a full-blown MII PHY.
 		 */
 
+		if (status & MACB_BIT(ISR_ROVR)) {
+			/* We missed at least one packet */
+			bp->hw_stats.rx_overruns++;
+		}
+
 		if (status & MACB_BIT(HRESP)) {
 			/*
 			 * TODO: Reset the hardware, and maybe move the printk
@@ -1024,7 +1029,8 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 				   hwstat->rx_jabbers +
 				   hwstat->rx_undersize_pkts +
 				   hwstat->rx_length_mismatch);
-	nstat->rx_over_errors = hwstat->rx_resource_errors;
+	nstat->rx_over_errors = hwstat->rx_resource_errors +
+				   hwstat->rx_overruns;
 	nstat->rx_crc_errors = hwstat->rx_fcs_errors;
 	nstat->rx_frame_errors = hwstat->rx_align_errors;
 	nstat->rx_fifo_errors = hwstat->rx_overruns;
