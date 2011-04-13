@@ -1283,11 +1283,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", dcache_invld_count[cpu_num]);
+	seq_printf(m, "dcache flushes\t: %lu\n", dcache_invld_count[cpu_num]);
 #endif
 #ifdef __ARCH_SYNC_CORE_ICACHE
-	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", icache_invld_count[cpu_num]);
+	seq_printf(m, "icache flushes\t: %lu\n", icache_invld_count[cpu_num]);
 #endif
+
+	seq_printf(m, "\n");
 
 	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
@@ -1312,13 +1314,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			      " in data cache\n");
 	}
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
-	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
-		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
-	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",
+	seq_printf(m, "board memory\t: %ld kB (0x%08lx -> 0x%08lx)\n",
+		physical_mem_end >> 10, 0ul, physical_mem_end);
+	seq_printf(m, "kernel memory\t: %d kB (0x%08lx -> 0x%08lx)\n",
 		((int)memory_end - (int)_rambase) >> 10,
-		(void *)_rambase,
-		(void *)memory_end);
-	seq_printf(m, "\n");
+		_rambase, memory_end);
 
 	return 0;
 }
