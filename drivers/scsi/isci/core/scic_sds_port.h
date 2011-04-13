@@ -59,7 +59,6 @@
 #include <linux/kernel.h>
 #include "sci_controller_constants.h"
 #include "intel_sas.h"
-#include "sci_base_phy.h"
 #include "scu_registers.h"
 
 #define SCIC_SDS_DUMMY_PORT   0xFF
@@ -260,12 +259,10 @@ struct scic_sds_port {
 
 };
 
-struct sci_base_phy;
-
 typedef enum sci_status (*scic_sds_port_handler_t)(struct scic_sds_port *);
 
 typedef enum sci_status (*scic_sds_port_phy_handler_t)(struct scic_sds_port *,
-						       struct sci_base_phy *);
+						       struct scic_sds_phy *);
 
 typedef enum sci_status (*scic_sds_port_reset_handler_t)(struct scic_sds_port *,
 							 u32 timeout);

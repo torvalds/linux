@@ -56,17 +56,10 @@
 #ifndef _SCIC_SDS_PHY_H_
 #define _SCIC_SDS_PHY_H_
 
-/**
- * This file contains the structures, constants and prototypes for the
- *    struct scic_sds_phy object.
- *
- *
- */
-
 #include "intel_sata.h"
 #include "intel_sas.h"
-#include "sci_base_phy.h"
 #include "scu_registers.h"
+#include "sci_base_state_machine.h"
 
 struct scic_sds_port;
 /**
@@ -90,6 +83,53 @@ struct scic_sds_port;
  * machine.
  */
 #define SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT  250
+
+enum scic_sds_phy_states {
+	/**
+	 * Simply the initial state for the base domain state machine.
+	 */
+	SCI_BASE_PHY_STATE_INITIAL,
+
+	/**
+	 * This state indicates that the phy has successfully been stopped.
+	 * In this state no new IO operations are permitted on this phy.
+	 * This state is entered from the INITIAL state.
+	 * This state is entered from the STARTING state.
+	 * This state is entered from the READY state.
+	 * This state is entered from the RESETTING state.
+	 */
+	SCI_BASE_PHY_STATE_STOPPED,
+
+	/**
+	 * This state indicates that the phy is in the process of becomming
+	 * ready.  In this state no new IO operations are permitted on this phy.
+	 * This state is entered from the STOPPED state.
+	 * This state is entered from the READY state.
+	 * This state is entered from the RESETTING state.
+	 */
+	SCI_BASE_PHY_STATE_STARTING,
+
+	/**
+	 * This state indicates the the phy is now ready.  Thus, the user
+	 * is able to perform IO operations utilizing this phy as long as it
+	 * is currently part of a valid port.
+	 * This state is entered from the STARTING state.
+	 */
+	SCI_BASE_PHY_STATE_READY,
+
+	/**
+	 * This state indicates that the phy is in the process of being reset.
+	 * In this state no new IO operations are permitted on this phy.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_PHY_STATE_RESETTING,
+
+	/**
+	 * Simply the final state for the base phy state machine.
+	 */
+	SCI_BASE_PHY_STATE_FINAL,
+};
+
 
 /**
  * enum scic_sds_phy_starting_substates -
@@ -184,7 +224,15 @@ enum scic_sds_phy_protocol {
  *
  */
 struct scic_sds_phy {
-	struct sci_base_phy parent;
+	/**
+	 * This field depicts the parent object (struct sci_base_object) for the phy.
+	 */
+	struct sci_base_object parent;
+
+	/**
+	 * This field contains the information for the base phy state machine.
+	 */
+	struct sci_base_state_machine state_machine;
 
 	/**
 	 * This field specifies the port object that owns/contains this phy.
@@ -260,7 +308,7 @@ struct scic_sds_phy {
 
 };
 
-
+typedef enum sci_status (*scic_sds_phy_handler_t)(struct scic_sds_phy *);
 typedef enum sci_status (*scic_sds_phy_event_handler_t)(struct scic_sds_phy *, u32);
 typedef enum sci_status (*scic_sds_phy_frame_handler_t)(struct scic_sds_phy *, u32);
 typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
@@ -272,9 +320,28 @@ typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
  */
 struct scic_sds_phy_state_handler {
 	/**
-	 * This is the struct sci_base_phy object state handlers.
+	 * The start_handler specifies the method invoked when there is an
+	 * attempt to start a phy.
 	 */
-	struct sci_base_phy_state_handler parent;
+	scic_sds_phy_handler_t start_handler;
+
+	/**
+	 * The stop_handler specifies the method invoked when there is an
+	 * attempt to stop a phy.
+	 */
+	scic_sds_phy_handler_t stop_handler;
+
+	/**
+	 * The reset_handler specifies the method invoked when there is an
+	 * attempt to reset a phy.
+	 */
+	scic_sds_phy_handler_t reset_handler;
+
+	/**
+	 * The destruct_handler specifies the method invoked when attempting to
+	 * destruct a phy.
+	 */
+	scic_sds_phy_handler_t destruct_handler;
 
 	/**
 	 * The state handler for unsolicited frames received from the SCU hardware.

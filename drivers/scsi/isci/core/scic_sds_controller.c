@@ -679,7 +679,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
 			sci_phy = &scic->phy_table[index];
-			state = sci_phy->parent.state_machine.current_state_id;
+			state = sci_phy->state_machine.current_state_id;
 
 			if (!scic_sds_phy_get_port(sci_phy))
 				continue;

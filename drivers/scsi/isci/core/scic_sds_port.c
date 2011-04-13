@@ -316,7 +316,7 @@ enum sci_status scic_sds_port_add_phy(
 	struct scic_sds_phy *the_phy)
 {
 	return this_port->state_handlers->add_phy_handler(
-		       this_port, &the_phy->parent);
+		       this_port, the_phy);
 }
 
 
@@ -334,7 +334,7 @@ enum sci_status scic_sds_port_remove_phy(
 	struct scic_sds_phy *the_phy)
 {
 	return this_port->state_handlers->remove_phy_handler(
-		       this_port, &the_phy->parent);
+		       this_port, the_phy);
 }
 
 /**
@@ -1084,15 +1084,14 @@ static enum sci_status scic_sds_port_ready_substate_complete_io_handler(
 
 static enum sci_status scic_sds_port_ready_substate_add_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
 	enum sci_status status;
 
-	status = scic_sds_port_set_phy(port, this_phy);
+	status = scic_sds_port_set_phy(port, phy);
 
 	if (status == SCI_SUCCESS) {
-		scic_sds_port_general_link_up_handler(port, this_phy, true);
+		scic_sds_port_general_link_up_handler(port, phy, true);
 
 		port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 
@@ -1108,15 +1107,14 @@ static enum sci_status scic_sds_port_ready_substate_add_phy_handler(
 
 static enum sci_status scic_sds_port_ready_substate_remove_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
 	enum sci_status status;
 
-	status = scic_sds_port_clear_phy(port, this_phy);
+	status = scic_sds_port_clear_phy(port, phy);
 
 	if (status == SCI_SUCCESS) {
-		scic_sds_port_deactivate_phy(port, this_phy, true);
+		scic_sds_port_deactivate_phy(port, phy, true);
 
 		port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 
@@ -1293,15 +1291,14 @@ static enum sci_status scic_sds_port_ready_operational_substate_start_io_handler
  */
 static enum sci_status scic_sds_port_ready_configuring_substate_add_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
 	enum sci_status status;
 
-	status = scic_sds_port_set_phy(port, this_phy);
+	status = scic_sds_port_set_phy(port, phy);
 
 	if (status == SCI_SUCCESS) {
-		scic_sds_port_general_link_up_handler(port, this_phy, true);
+		scic_sds_port_general_link_up_handler(port, phy, true);
 
 		/*
 		 * Re-enter the configuring state since this may be the last phy in
@@ -1321,15 +1318,14 @@ static enum sci_status scic_sds_port_ready_configuring_substate_add_phy_handler(
  */
 static enum sci_status scic_sds_port_ready_configuring_substate_remove_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
 	enum sci_status status;
 
-	status = scic_sds_port_clear_phy(port, this_phy);
+	status = scic_sds_port_clear_phy(port, phy);
 
 	if (status == SCI_SUCCESS) {
-		scic_sds_port_deactivate_phy(port, this_phy, true);
+		scic_sds_port_deactivate_phy(port, phy, true);
 
 		/*
 		 * Re-enter the configuring state since this may be the last phy in
@@ -1406,14 +1402,14 @@ scic_sds_port_default_reset_handler(struct scic_sds_port *sci_port,
 
 static enum sci_status
 scic_sds_port_default_add_phy_handler(struct scic_sds_port *sci_port,
-				      struct sci_base_phy *base_phy)
+				      struct scic_sds_phy *base_phy)
 {
 	return default_port_handler(sci_port, __func__);
 }
 
 static enum sci_status
 scic_sds_port_default_remove_phy_handler(struct scic_sds_port *sci_port,
-					 struct sci_base_phy *base_phy)
+					 struct scic_sds_phy *base_phy)
 {
 	return default_port_handler(sci_port, __func__);
 }
@@ -1939,9 +1935,8 @@ static enum sci_status scic_sds_port_stopped_state_destruct_handler(
  */
 static enum sci_status scic_sds_port_stopped_state_add_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
 	struct sci_sas_address port_sas_address;
 
 	/* Read the port assigned SAS Address if there is one */
@@ -1953,7 +1948,7 @@ static enum sci_status scic_sds_port_stopped_state_add_phy_handler(
 		/*
 		 * Make sure that the PHY SAS Address matches the SAS Address
 		 * for this port. */
-		scic_sds_phy_get_sas_address(this_phy, &phy_sas_address);
+		scic_sds_phy_get_sas_address(phy, &phy_sas_address);
 
 		if (
 			(port_sas_address.high != phy_sas_address.high)
@@ -1963,9 +1958,8 @@ static enum sci_status scic_sds_port_stopped_state_add_phy_handler(
 		}
 	}
 
-	return scic_sds_port_set_phy(port, this_phy);
+	return scic_sds_port_set_phy(port, phy);
 }
-
 
 /*
  * This method takes the struct scic_sds_port that is in a stopped state and handles
@@ -1976,11 +1970,9 @@ static enum sci_status scic_sds_port_stopped_state_add_phy_handler(
  */
 static enum sci_status scic_sds_port_stopped_state_remove_phy_handler(
 	struct scic_sds_port *port,
-	struct sci_base_phy *phy)
+	struct scic_sds_phy *phy)
 {
-	struct scic_sds_phy *this_phy  = (struct scic_sds_phy *)phy;
-
-	return scic_sds_port_clear_phy(port, this_phy);
+	return scic_sds_port_clear_phy(port, phy);
 }
 
 /*
