@@ -184,6 +184,11 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
+
+	/*
+	 * Use local variables for these to reduce load/store access on
+	 * uncached memory
+	 */
 	u32 txctl0 = 0, txctl1 = 0, txctl2 = 0, txctl3 = 0;
 
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
@@ -209,7 +214,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (tx_power > AR5K_TUNE_MAX_TXPOWER)
 		tx_power = AR5K_TUNE_MAX_TXPOWER;
 
-	/* Clear descriptor */
+	/* Clear descriptor status area */
 	memset(&desc->ud.ds_tx5212.tx_stat, 0,
 	       sizeof(desc->ud.ds_tx5212.tx_stat));
 
