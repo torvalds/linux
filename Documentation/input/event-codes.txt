@@ -85,6 +85,12 @@ sent in the evdev event stream.
   - Used to synchronize and separate touch events. See the
     multi-touch-protocol.txt document for more information.
 
+* SYN_DROPPED:
+  - Used to indicate buffer overrun in the evdev client's event queue.
+    Client should ignore all events up to and including next SYN_REPORT
+    event and query the device (using EVIOCG* ioctls) to obtain its
+    current state.
+
 EV_KEY:
 ----------
 EV_KEY events take the form KEY_<name> or BTN_<name>. For example, KEY_A is used
