@@ -1155,6 +1155,12 @@ struct ath5k_hw {
 		struct ath5k_rx_status *);
 };
 
+struct ath_bus_ops {
+	enum ath_bus_type ath_bus_type;
+	void (*read_cachesize)(struct ath_common *common, int *csz);
+	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+};
+
 /*
  * Prototypes
  */
