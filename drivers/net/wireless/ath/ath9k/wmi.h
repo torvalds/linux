@@ -41,6 +41,44 @@ struct wmi_event_swba {
 	__be64 tsf;
 	u8 beacon_pending;
 };
+
+/*
+ * 64 - HTC header - WMI header - 1 / txstatus
+ * And some other hdr. space is also accounted for.
+ * 13 seems to be the magic number.
+ */
+#define HTC_MAX_TX_STATUS 13
+
+#define ATH9K_HTC_TXSTAT_ACK        BIT(0)
+#define ATH9K_HTC_TXSTAT_FILT       BIT(1)
+#define ATH9K_HTC_TXSTAT_RTC_CTS    BIT(2)
+#define ATH9K_HTC_TXSTAT_MCS        BIT(3)
+#define ATH9K_HTC_TXSTAT_CW40       BIT(4)
+#define ATH9K_HTC_TXSTAT_SGI        BIT(5)
+
+/*
+ * Legacy rates are indicated as indices.
+ * HT rates are indicated as dot11 numbers.
+ * This allows us to resrict the rate field
+ * to 4 bits.
+ */
+#define ATH9K_HTC_TXSTAT_RATE       0x0f
+#define ATH9K_HTC_TXSTAT_RATE_S     0
+
+#define ATH9K_HTC_TXSTAT_EPID       0xf0
+#define ATH9K_HTC_TXSTAT_EPID_S     4
+
+struct __wmi_event_txstatus {
+	u8 cookie;
+	u8 ts_rate; /* Also holds EP ID */
+	u8 ts_flags;
+};
+
+struct wmi_event_txstatus {
+	u8 cnt;
+	struct __wmi_event_txstatus txstatus[HTC_MAX_TX_STATUS];
+} __packed;
+
 enum wmi_cmd_id {
 	WMI_ECHO_CMDID = 0x0001,
 	WMI_ACCESS_MEMORY_CMDID,
@@ -82,6 +120,7 @@ enum wmi_event_id {
 	WMI_BMISS_EVENTID,
 	WMI_DELBA_EVENTID,
 	WMI_TXRATE_EVENTID,
+	WMI_TXSTATUS_EVENTID,
 };
 
 #define MAX_CMD_NUMBER 62
