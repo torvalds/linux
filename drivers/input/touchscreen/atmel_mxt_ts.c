@@ -814,10 +814,6 @@ static int mxt_initialize(struct mxt_data *data)
 	if (error)
 		return error;
 
-	error = mxt_make_highchg(data);
-	if (error)
-		return error;
-
 	mxt_handle_pdata(data);
 
 	/* Backup to memory */
@@ -1005,6 +1001,10 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 
 	enable_irq(data->irq);
 
+	error = mxt_make_highchg(data);
+	if (error)
+		return error;
+
 	return count;
 }
 
@@ -1114,6 +1114,10 @@ static int __devinit mxt_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to register interrupt\n");
 		goto err_free_object;
 	}
+
+	error = mxt_make_highchg(data);
+	if (error)
+		goto err_free_irq;
 
 	error = input_register_device(input_dev);
 	if (error)
