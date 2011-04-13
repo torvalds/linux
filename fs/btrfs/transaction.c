@@ -184,6 +184,15 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 
 	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
 		return ERR_PTR(-EROFS);
+
+	if (current->journal_info) {
+		WARN_ON(type != TRANS_JOIN && type != TRANS_JOIN_NOLOCK);
+		h = current->journal_info;
+		h->use_count++;
+		h->orig_rsv = h->block_rsv;
+		h->block_rsv = NULL;
+		goto got_it;
+	}
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	if (!h)
@@ -213,7 +222,9 @@ again:
 	h->block_group = 0;
 	h->bytes_reserved = 0;
 	h->delayed_ref_updates = 0;
+	h->use_count = 1;
 	h->block_rsv = NULL;
+	h->orig_rsv = NULL;
 
 	smp_mb();
 	if (cur_trans->blocked && may_wait_transaction(root, type)) {
@@ -241,6 +252,7 @@ again:
 		}
 	}
 
+got_it:
 	if (type != TRANS_JOIN_NOLOCK)
 		mutex_lock(&root->fs_info->trans_mutex);
 	record_root_in_trans(h, root);
@@ -427,6 +439,11 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
 	int count = 0;
+
+	if (--trans->use_count) {
+		trans->block_rsv = trans->orig_rsv;
+		return 0;
+	}
 
 	while (count < 4) {
 		unsigned long cur = trans->delayed_ref_updates;

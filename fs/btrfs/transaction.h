@@ -47,11 +47,13 @@ struct btrfs_trans_handle {
 	u64 transid;
 	u64 block_group;
 	u64 bytes_reserved;
+	unsigned long use_count;
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
 	unsigned long delayed_ref_updates;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
+	struct btrfs_block_rsv *orig_rsv;
 };
 
 struct btrfs_pending_snapshot {
