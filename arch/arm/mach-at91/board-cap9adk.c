@@ -44,6 +44,7 @@
 #include <mach/gpio.h>
 #include <mach/at91cap9_matrix.h>
 #include <mach/at91sam9_smc.h>
+#include <mach/system_rev.h>
 
 #include "sam9_smc.h"
 #include "generic.h"
@@ -187,11 +188,6 @@ static struct atmel_nand_data __initdata cap9adk_nand_data = {
 //	.rdy_pin	= ... not connected
 	.enable_pin	= AT91_PIN_PD15,
 	.partition_info	= nand_partitions,
-#if defined(CONFIG_MTD_NAND_ATMEL_BUSWIDTH_16)
-	.bus_width_16	= 1,
-#else
-	.bus_width_16	= 0,
-#endif
 };
 
 static struct sam9_smc_config __initdata cap9adk_nand_smc_config = {
@@ -219,6 +215,7 @@ static void __init cap9adk_add_device_nand(void)
 	csa = at91_sys_read(AT91_MATRIX_EBICSA);
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_VDDIOMSEL_3_3V);
 
+	cap9adk_nand_data.bus_width_16 = !board_have_nand_8bit();
 	/* setup bus-width (8 or 16) */
 	if (cap9adk_nand_data.bus_width_16)
 		cap9adk_nand_smc_config.mode |= AT91_SMC_DBW_16;
