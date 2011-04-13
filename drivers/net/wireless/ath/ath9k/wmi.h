@@ -45,9 +45,9 @@ struct wmi_event_swba {
 /*
  * 64 - HTC header - WMI header - 1 / txstatus
  * And some other hdr. space is also accounted for.
- * 13 seems to be the magic number.
+ * 12 seems to be the magic number.
  */
-#define HTC_MAX_TX_STATUS 13
+#define HTC_MAX_TX_STATUS 12
 
 #define ATH9K_HTC_TXSTAT_ACK        BIT(0)
 #define ATH9K_HTC_TXSTAT_FILT       BIT(1)

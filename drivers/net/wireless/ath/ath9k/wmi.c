@@ -163,6 +163,16 @@ void ath9k_wmi_event_tasklet(unsigned long data)
 			wmi->drv_priv->debug.txrate = be32_to_cpu(txrate);
 #endif
 			break;
+		case WMI_TXSTATUS_EVENTID:
+			spin_lock_bh(&priv->tx.tx_lock);
+			if (priv->tx.flags & ATH9K_HTC_OP_TX_DRAIN) {
+				spin_unlock_bh(&priv->tx.tx_lock);
+				break;
+			}
+			spin_unlock_bh(&priv->tx.tx_lock);
+
+			ath9k_htc_txstatus(priv, wmi_event);
+			break;
 		default:
 			break;
 		}

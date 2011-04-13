@@ -266,11 +266,17 @@ struct ath9k_htc_rx {
 #define ATH9K_HTC_TX_THRESHOLD (MAX_TX_BUF_NUM - ATH9K_HTC_TX_RESERVE)
 
 #define ATH9K_HTC_OP_TX_QUEUES_STOP BIT(0)
+#define ATH9K_HTC_OP_TX_DRAIN       BIT(1)
 
 struct ath9k_htc_tx {
 	u8 flags;
 	int queued_cnt;
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head mgmt_ep_queue;
+	struct sk_buff_head cab_ep_queue;
+	struct sk_buff_head data_be_queue;
+	struct sk_buff_head data_bk_queue;
+	struct sk_buff_head data_vi_queue;
+	struct sk_buff_head data_vo_queue;
 	struct sk_buff_head tx_failed;
 	DECLARE_BITMAP(tx_slot, MAX_TX_BUF_NUM);
 	spinlock_t tx_lock;
@@ -465,8 +471,8 @@ struct ath9k_htc_priv {
 
 	struct tasklet_struct swba_tasklet;
 	struct tasklet_struct rx_tasklet;
-	struct tasklet_struct tx_tasklet;
 	struct delayed_work ani_work;
+	struct tasklet_struct tx_failed_tasklet;
 	struct work_struct ps_work;
 	struct work_struct fatal_work;
 
@@ -533,7 +539,6 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
-void ath9k_tx_tasklet(unsigned long data);
 int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		       struct sk_buff *skb, u8 slot, bool is_cab);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
@@ -547,6 +552,9 @@ void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv);
 int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv);
 void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot);
 void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
+void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
+void ath9k_htc_tx_failed(struct ath9k_htc_priv *priv);
+void ath9k_tx_failed_tasklet(unsigned long data);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);
