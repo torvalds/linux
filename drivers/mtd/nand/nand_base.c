@@ -976,9 +976,6 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
@@ -1046,9 +1043,6 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = __nand_unlock(mtd, ofs, len, 0x1);
 
 out:
-	/* de-select the NAND device */
-	chip->select_chip(mtd, -1);
-
 	nand_release_device(mtd);
 
 	return ret;
