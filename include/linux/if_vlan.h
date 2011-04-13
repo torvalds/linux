@@ -174,7 +174,7 @@ static inline bool vlan_do_receive(struct sk_buff **skb)
 	return false;
 }
 
-inline struct sk_buff *vlan_untag(struct sk_buff *skb)
+static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 {
 	return skb;
 }
