@@ -85,7 +85,8 @@ struct tx_frame_hdr {
 	__be32 flags; /* ATH9K_HTC_TX_* */
 	u8 key_type;
 	u8 keyix;
-	u8 reserved[26];
+	u8 cookie;
+	u8 pad;
 } __packed;
 
 struct tx_mgmt_hdr {
@@ -95,7 +96,8 @@ struct tx_mgmt_hdr {
 	u8 flags;
 	u8 key_type;
 	u8 keyix;
-	u16 reserved;
+	u8 cookie;
+	u8 pad;
 } __packed;
 
 struct tx_beacon_header {
