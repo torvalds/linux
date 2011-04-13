@@ -196,7 +196,9 @@ nv40_graph_object_new(struct nouveau_channel *chan, int engine,
 
 	nv_wo32(obj, 0x00, class);
 	nv_wo32(obj, 0x04, 0x00000000);
-#ifdef __BIG_ENDIAN
+#ifndef __BIG_ENDIAN
+	nv_wo32(obj, 0x08, 0x00000000);
+#else
 	nv_wo32(obj, 0x08, 0x01000000);
 #endif
 	nv_wo32(obj, 0x0c, 0x00000000);
