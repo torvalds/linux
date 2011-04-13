@@ -573,6 +573,7 @@ static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long 
 
 			if (i >= modedb.modedb_len)
 				break;
+			memset(&var, 0x0, sizeof(var));
 			fb_videomode_to_var(&var, &modelist->mode);
 
 			if (copy_to_user((void __user *)&modedb.modedb[i],
@@ -657,6 +658,8 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 		fb_info->info->mode = (struct fb_videomode *)
 			fb_find_best_display(specs, &fb_info->info->modelist);
 
+		memset(&fb_info->info->var, 0x0,
+		       sizeof(fb_info->info->var));
 		fb_videomode_to_var(&fb_info->info->var, fb_info->info->mode);
 		tegra_fb_set_par(fb_info->info);
 	}
