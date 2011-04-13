@@ -2603,6 +2603,16 @@ static int __init rk29fb_probe (struct platform_device *pdev)
         }
     }
 
+#if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
+    fb0_set_par(inf->fb0);
+    if (fb_prepare_logo(inf->fb0, FB_ROTATE_UR)) {
+        /* Start display and show logo on boot */
+        fb_set_cmap(&inf->fb0->cmap, inf->fb0);
+        fb_show_logo(inf->fb0, FB_ROTATE_UR);
+        fb0_blank(FB_BLANK_UNBLANK, inf->fb0);
+    }
+#endif
+
     printk(" %s ok\n", __FUNCTION__);
     return ret;
 
