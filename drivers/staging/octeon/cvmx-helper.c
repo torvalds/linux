@@ -691,7 +691,7 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 
 		if (!retry_cnt)
 			cvmx_dprintf("WARNING: FIX_IPD_PTR_ALIGNMENT "
-				     "get_work() timeout occured.\n");
+				     "get_work() timeout occurred.\n");
 
 		/* Free packet */
 		if (work)

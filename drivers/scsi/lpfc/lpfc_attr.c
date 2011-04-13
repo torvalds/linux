@@ -4515,7 +4515,7 @@ static FC_RPORT_ATTR(field, S_IRUGO, lpfc_show_rport_##field, NULL)
  * Description:
  * This function is called by the transport after the @fc_vport's symbolic name
  * has been changed. This function re-registers the symbolic name with the
- * switch to propogate the change into the fabric if the vport is active.
+ * switch to propagate the change into the fabric if the vport is active.
  **/
 static void
 lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)

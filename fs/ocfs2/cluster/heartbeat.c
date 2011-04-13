@@ -2275,7 +2275,7 @@ void o2hb_free_hb_set(struct config_group *group)
 	kfree(hs);
 }
 
-/* hb callback registration and issueing */
+/* hb callback registration and issuing */
 
 static struct o2hb_callback *hbcall_from_type(enum o2hb_callback_type type)
 {

@@ -364,7 +364,7 @@ struct prov_record {
 
 #define ISR_EMPTY			(u8)0x00 	 // no bits set in ISR
 
-#define ISR_DOORBELL_ACK	(u8)0x01		 //  the doorbell i sent has been recieved.
+#define ISR_DOORBELL_ACK	(u8)0x01		 //  the doorbell i sent has been received.
 
 #define ISR_DOORBELL_PEND	(u8)0x02 	 //  doorbell for me
 

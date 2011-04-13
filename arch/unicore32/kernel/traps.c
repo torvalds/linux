@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/init.h>
-#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/unistd.h>
 

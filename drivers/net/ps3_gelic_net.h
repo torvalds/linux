@@ -117,7 +117,7 @@ enum gelic_descr_rx_error {
 	GELIC_DESCR_RXDATAERR	= 0x00020000, /* IP packet format error */
 	GELIC_DESCR_RXCALERR	= 0x00010000, /* cariier extension length
 					      * error */
-	GELIC_DESCR_RXCREXERR	= 0x00008000, /* carrier extention error */
+	GELIC_DESCR_RXCREXERR	= 0x00008000, /* carrier extension error */
 	GELIC_DESCR_RXMLTCST	= 0x00004000, /* multicast address frame */
 	/* bit 13..0 reserved */
 };

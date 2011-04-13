@@ -355,7 +355,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 /*
  * This chip always returns (at least?) as much data as you ask for.
  * I'm unsure what happens if you ask for less than a block. This should be
- * looked into to ensure that a funny length read doesnt hose the controller.
+ * looked into to ensure that a funny length read doesn't hose the controller.
  */
 static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 {

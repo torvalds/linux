@@ -1915,7 +1915,7 @@ void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw)
 
 	phy_bw_clkbits = wlc_phy_clk_bwbits(wlc_hw->band->pi);
 
-	/* Specfic reset sequence required for NPHY rev 3 and 4 */
+	/* Specific reset sequence required for NPHY rev 3 and 4 */
 	if (WLCISNPHY(wlc_hw->band) && NREV_GE(wlc_hw->band->phyrev, 3) &&
 	    NREV_LE(wlc_hw->band->phyrev, 4)) {
 		/* Set the PHY bandwidth */

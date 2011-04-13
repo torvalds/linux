@@ -1030,7 +1030,7 @@ int iwl_legacy_apm_init(struct iwl_priv *priv)
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
-	 * NOTE:  This is no-op for 3945 (non-existant bit)
+	 * NOTE:  This is no-op for 3945 (non-existent bit)
 	 */
 	iwl_legacy_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
@@ -1805,6 +1805,15 @@ iwl_legacy_mac_change_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (!ctx->vif || !iwl_legacy_is_ready_rf(priv)) {
+		/*
+		 * Huh? But wait ... this can maybe happen when
+		 * we're in the middle of a firmware restart!
+		 */
+		err = -EBUSY;
+		goto out;
+	}
+
 	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
 
 	if (!(interface_modes & BIT(newtype))) {
@@ -1832,6 +1841,7 @@ iwl_legacy_mac_change_interface(struct ieee80211_hw *hw,
 	/* success */
 	iwl_legacy_teardown_interface(priv, vif, true);
 	vif->type = newtype;
+	vif->p2p = newp2p;
 	err = iwl_legacy_setup_interface(priv, ctx);
 	WARN_ON(err);
 	/*

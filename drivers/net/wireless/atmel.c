@@ -439,7 +439,7 @@ static u8 mac_reader[] = {
 };
 
 struct atmel_private {
-	void *card; /* Bus dependent stucture varies for PCcard */
+	void *card; /* Bus dependent structure varies for PCcard */
 	int (*present_callback)(void *); /* And callback which uses it */
 	char firmware_id[32];
 	AtmelFWType firmware_type;
@@ -3895,7 +3895,7 @@ static int reset_atmel_card(struct net_device *dev)
 
 	   This routine is also responsible for initialising some
 	   hardware-specific fields in the atmel_private structure,
-	   including a copy of the firmware's hostinfo stucture
+	   including a copy of the firmware's hostinfo structure
 	   which is the route into the rest of the firmware datastructures. */
 
 	struct atmel_private *priv = netdev_priv(dev);

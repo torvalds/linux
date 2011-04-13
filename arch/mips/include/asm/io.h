@@ -242,7 +242,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
  * This version of ioremap ensures that the memory is marked uncachable
  * on the CPU as well as honouring existing caching rules from things like
  * the PCI bus. Note that there are other caches and buffers on many
- * busses. In paticular driver authors should read up on PCI writes
+ * busses. In particular driver authors should read up on PCI writes
  *
  * It's useful if some control registers are in such an area and
  * write combining or read caching is not desirable:

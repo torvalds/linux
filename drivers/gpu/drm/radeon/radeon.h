@@ -679,11 +679,11 @@ struct radeon_wb {
  * @sideport_bandwidth: sideport bandwidth the gpu has (MByte/s) (IGP)
  * @ht_bandwidth:       ht bandwidth the gpu has (MByte/s) (IGP)
  * @core_bandwidth:     core GPU bandwidth the gpu has (MByte/s) (IGP)
- * @sclk:          	GPU clock Mhz (core bandwith depends of this clock)
+ * @sclk:          	GPU clock Mhz (core bandwidth depends of this clock)
  * @needed_bandwidth:   current bandwidth needs
  *
  * It keeps track of various data needed to take powermanagement decision.
- * Bandwith need is used to determine minimun clock of the GPU and memory.
+ * Bandwidth need is used to determine minimun clock of the GPU and memory.
  * Equation between gpu/memory clock and available bandwidth is hw dependent
  * (type of memory, bus size, efficiency, ...)
  */

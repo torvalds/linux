@@ -240,7 +240,7 @@ solution for a couple of reasons:
   the user application using the common CAN filter mechanisms. Inside
   this filter definition the (interested) type of errors may be
   selected. The reception of error frames is disabled by default.
-  The format of the CAN error frame is briefly decribed in the Linux
+  The format of the CAN error frame is briefly described in the Linux
   header file "include/linux/can/error.h".
 
 4. How to use Socket CAN

@@ -204,7 +204,7 @@ struct irlap_cb {
 
 	notify_t notify; /* Callbacks to IrLMP */
 
-	int    mtt_required;  /* Minumum turnaround time required */
+	int    mtt_required;  /* Minimum turnaround time required */
 	int    xbofs_delay;   /* Nr of XBOF's used to MTT */
 	int    bofs_count;    /* Negotiated extra BOFs */
 	int    next_bofs;     /* Negotiated extra BOFs after next frame */

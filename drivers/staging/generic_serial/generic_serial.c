@@ -113,7 +113,7 @@ int gs_write(struct tty_struct * tty,
 
 		c = count;
  
-		/* This is safe because we "OWN" the "head". Noone else can 
+		/* This is safe because we "OWN" the "head". No one else can 
 		   change the "head": we own the port_write_mutex. */
 		/* Don't overrun the end of the buffer */
 		t = SERIAL_XMIT_SIZE - port->xmit_head;

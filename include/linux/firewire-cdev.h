@@ -900,7 +900,7 @@ struct fw_cdev_get_cycle_timer2 {
 
 /**
  * struct fw_cdev_allocate_iso_resource - (De)allocate a channel or bandwidth
- * @closure:	Passed back to userspace in correponding iso resource events
+ * @closure:	Passed back to userspace in corresponding iso resource events
  * @channels:	Isochronous channels of which one is to be (de)allocated
  * @bandwidth:	Isochronous bandwidth units to be (de)allocated
  * @handle:	Handle to the allocation, written by the kernel (only valid in

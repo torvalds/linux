@@ -381,7 +381,7 @@ xfs_aio_write_isize_update(
 
 /*
  * If this was a direct or synchronous I/O that failed (such as ENOSPC) then
- * part of the I/O may have been written to disk before the error occured.  In
+ * part of the I/O may have been written to disk before the error occurred.  In
  * this case the on-disk file size may have been adjusted beyond the in-memory
  * file size and now needs to be truncated back.
  */

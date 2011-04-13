@@ -180,7 +180,7 @@ typedef enum {
 
 #define chipcHw_XTAL_FREQ_Hz                    25000000	/* Reference clock frequency in Hz */
 
-/* Programable pin defines */
+/* Programmable pin defines */
 #define chipcHw_PIN_GPIO(n)                     ((((n) >= 0) && ((n) < (chipcHw_GPIO_COUNT))) ? (n) : 0xFFFFFFFF)
 									     /* GPIO pin 0 - 60 */
 #define chipcHw_PIN_UARTTXD                     (chipcHw_GPIO_COUNT + 0)	/* UART Transmit */

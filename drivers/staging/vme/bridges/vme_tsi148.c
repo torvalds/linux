@@ -928,7 +928,7 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 	spin_lock(&image->lock);
 
 	/* Let's allocate the resource here rather than further up the stack as
-	 * it avoids pushing loads of bus dependant stuff up the stack. If size
+	 * it avoids pushing loads of bus dependent stuff up the stack. If size
 	 * is zero, any existing resource will be freed.
 	 */
 	retval = tsi148_alloc_resource(image, size);
@@ -1320,7 +1320,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 
 	/*
 	 * Writes are posted. We need to do a read on the VME bus to flush out
-	 * all of the writes before we check for errors. We can't guarentee
+	 * all of the writes before we check for errors. We can't guarantee
 	 * that reading the data we have just written is safe. It is believed
 	 * that there isn't any read, write re-ordering, so we can read any
 	 * location in VME space, so lets read the Device ID from the tsi148's

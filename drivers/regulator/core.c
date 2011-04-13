@@ -1313,7 +1313,7 @@ static int _regulator_enable(struct regulator_dev *rdev)
 				return -EINVAL;
 
 			/* Query before enabling in case configuration
-			 * dependant.  */
+			 * dependent.  */
 			ret = _regulator_get_enable_time(rdev);
 			if (ret >= 0) {
 				delay = ret;

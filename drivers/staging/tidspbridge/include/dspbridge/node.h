@@ -44,7 +44,7 @@
  *      -ESPIPE:        iAlg functions not found for a DAIS node.
  *      -EDOM:         attr_in != NULL and attr_in->prio out of
  *                          range.
- *      -EPERM:          A failure occured, unable to allocate node.
+ *      -EPERM:          A failure occurred, unable to allocate node.
  *      -EBADR:    Proccessor is not in the running state.
  *  Requires:
  *      node_init(void) called.

@@ -91,7 +91,7 @@
  *
  *  Mar. 10, 2005 : 1.2
  *	- Add basic support for Xserve G5
- *	- Retreive pumps min/max from EEPROM image in device-tree (broken)
+ *	- Retrieve pumps min/max from EEPROM image in device-tree (broken)
  *	- Use min/max macros here or there
  *	- Latest darwin updated U3H min fan speed to 20% PWM
  *
@@ -375,7 +375,7 @@ static int read_smon_adc(struct cpu_pid_state *state, int chan)
 		rc = i2c_master_send(state->monitor, buf, 2);
 		if (rc <= 0)
 			goto error;
-		/* Wait for convertion */
+		/* Wait for conversion */
 		msleep(1);
 		/* Switch to data register */
 		buf[0] = 4;
@@ -1192,7 +1192,7 @@ static int init_processor_state(struct cpu_pid_state *state, int index)
 		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_intake_fan_rpm);
 	}
 	if (err)
-		printk(KERN_WARNING "Failed to create some of the atribute"
+		printk(KERN_WARNING "Failed to create some of the attribute"
 			"files for CPU %d\n", index);
 
 	return 0;

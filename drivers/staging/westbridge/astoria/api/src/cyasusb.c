@@ -739,7 +739,7 @@ cy_as_usb_start(cy_as_device_handle handle,
 		cy_as_usb_reset_e_p0_state(dev_p);
 
 		/*
-		* we register here becuase the start request may cause
+		* we register here because the start request may cause
 		* events to occur before the response to the start request.
 		*/
 		cy_as_ll_register_request_callback(dev_p,
@@ -867,7 +867,7 @@ my_handle_response_usb_stop(cy_as_device *dev_p,
 		goto destroy;
 
 	/*
-	 * we sucessfully shutdown the stack, so
+	 * we successfully shutdown the stack, so
 	 * decrement to make the count zero.
 	 */
 	cy_as_usb_cleanup(dev_p);

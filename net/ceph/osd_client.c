@@ -917,7 +917,7 @@ EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 /*
  * Pick an osd (the first 'up' osd in the pg), allocate the osd struct
  * (as needed), and set the request r_osd appropriately.  If there is
- * no up osd, set r_osd to NULL.  Move the request to the appropiate list
+ * no up osd, set r_osd to NULL.  Move the request to the appropriate list
  * (unsent, homeless) or leave on in-flight lru.
  *
  * Return 0 if unchanged, 1 if changed, or negative on error.

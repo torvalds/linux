@@ -32,7 +32,7 @@ struct user_data {
     /* BASE + 0x000: user data memory */
     volatile unsigned char      udata_bd_ucode[0x400]; /*user data bd's Ucode*/
     volatile unsigned char      udata_bd[0x200];       /*user data Ucode     */
-    volatile unsigned char      ucode_ext[0x100];      /*Ucode Extention ram */
+    volatile unsigned char      ucode_ext[0x100];      /*Ucode Extension ram */
     volatile unsigned char      RESERVED1[0x500];      /* Reserved area      */
 };
 #else

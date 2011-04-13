@@ -2219,13 +2219,9 @@ bfa_nw_ioc_get_mac(struct bfa_ioc *ioc)
 static void
 bfa_ioc_recover(struct bfa_ioc *ioc)
 {
-	u16 bdf;
-
-	bdf = (ioc->pcidev.pci_slot << 8 | ioc->pcidev.pci_func << 3 |
-					ioc->pcidev.device_id);
-
-	pr_crit("Firmware heartbeat failure at %d", bdf);
-	BUG_ON(1);
+	pr_crit("Heart Beat of IOC has failed\n");
+	bfa_ioc_stats(ioc, ioc_hbfails);
+	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
 }
 
 static void

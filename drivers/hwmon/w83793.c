@@ -1921,7 +1921,7 @@ static void w83793_update_nonvolatile(struct device *dev)
 	struct w83793_data *data = i2c_get_clientdata(client);
 	int i, j;
 	/*
-	   They are somewhat "stable" registers, and to update them everytime
+	   They are somewhat "stable" registers, and to update them every time
 	   takes so much time, it's just not worthy. Update them in a long
 	   interval to avoid exception.
 	 */

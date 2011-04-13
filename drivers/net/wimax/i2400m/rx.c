@@ -349,7 +349,7 @@ error_no_waiter:
  *
  * For reports: We can't clone the original skb where the data is
  * because we need to send this up via netlink; netlink has to add
- * headers and we can't overwrite what's preceeding the payload...as
+ * headers and we can't overwrite what's preceding the payload...as
  * it is another message. So we just dup them.
  */
 static
@@ -425,7 +425,7 @@ error_check:
  *
  * As in i2400m_rx_ctl(), we can't clone the original skb where the
  * data is because we need to send this up via netlink; netlink has to
- * add headers and we can't overwrite what's preceeding the
+ * add headers and we can't overwrite what's preceding the
  * payload...as it is another message. So we just dup them.
  */
 static

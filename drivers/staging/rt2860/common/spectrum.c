@@ -1058,8 +1058,8 @@ static void InsertMeasureReqIE(struct rt_rtmp_adapter *pAd,
 		3. Measure Token.
 		4. Measure Request Mode.
 		5. Measure Request Type.
-		6. Length of Report Infomation
-		7. Pointer of Report Infomation Buffer.
+		6. Length of Report Information
+		7. Pointer of Report Information Buffer.
 
 	Return	: None.
 	==========================================================================
@@ -1400,7 +1400,7 @@ static void StartDFSProcedure(struct rt_rtmp_adapter *pAd,
 	Parametrs:
 		1. MLME message containing the received frame
 		2. message length.
-		3. Channel switch announcement infomation buffer.
+		3. Channel switch announcement information buffer.
 
 	Return	: None.
 	==========================================================================
@@ -1465,7 +1465,7 @@ static BOOLEAN PeerChSwAnnSanity(struct rt_rtmp_adapter *pAd,
 	Parametrs:
 		1. MLME message containing the received frame
 		2. message length.
-		3. Measurement request infomation buffer.
+		3. Measurement request information buffer.
 
 	Return	: None.
 	==========================================================================
@@ -1538,8 +1538,8 @@ static BOOLEAN PeerMeasureReqSanity(struct rt_rtmp_adapter *pAd,
 	Parametrs:
 		1. MLME message containing the received frame
 		2. message length.
-		3. Measurement report infomation buffer.
-		4. basic report infomation buffer.
+		3. Measurement report information buffer.
+		4. basic report information buffer.
 
 	Return	: None.
 	==========================================================================

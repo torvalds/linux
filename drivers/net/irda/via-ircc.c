@@ -29,7 +29,7 @@ F02 Oct/28/02: Add SB device ID for 3147 and 3177.
 
 2004-02-16: <sda@bdit.de>
 - Removed unneeded 'legacy' pci stuff.
-- Make sure SIR mode is set (hw_init()) before calling mode-dependant stuff.
+- Make sure SIR mode is set (hw_init()) before calling mode-dependent stuff.
 - On speed change from core, don't send SIR frame with new speed. 
   Use current speed and change speeds later.
 - Make module-param dongle_id actually work.
@@ -334,7 +334,7 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
 	self->io.dongle_id = dongle_id;
 
 	/* The only value we must override it the baudrate */
-	/* Maximum speeds and capabilities are dongle-dependant. */
+	/* Maximum speeds and capabilities are dongle-dependent. */
 	switch( self->io.dongle_id ){
 	case 0x0d:
 		self->qos.baud_rate.bits =

@@ -12,7 +12,7 @@
 #undef MATROXFB_DEBUG
 
 /* heavy debugging: */
-/* -- logs putc[s], so everytime a char is displayed, it's logged */
+/* -- logs putc[s], so every time a char is displayed, it's logged */
 #undef MATROXFB_DEBUG_HEAVY
 
 /* This one _could_ cause infinite loops */

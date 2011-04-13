@@ -276,7 +276,7 @@ static void ecryptfs_init_mount_crypt_stat(
 /**
  * ecryptfs_parse_options
  * @sb: The ecryptfs super block
- * @options: The options pased to the kernel
+ * @options: The options passed to the kernel
  *
  * Parse mount options:
  * debug=N 	   - ecryptfs_verbosity level for debug output
@@ -840,7 +840,7 @@ static int __init ecryptfs_init(void)
 	}
 	rc = ecryptfs_init_messaging();
 	if (rc) {
-		printk(KERN_ERR "Failure occured while attempting to "
+		printk(KERN_ERR "Failure occurred while attempting to "
 				"initialize the communications channel to "
 				"ecryptfsd\n");
 		goto out_destroy_kthread;

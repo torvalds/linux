@@ -751,7 +751,7 @@ static void resizer_print_status(struct isp_res_device *res)
  * ratio will thus result in a resizing factor slightly larger than the
  * requested value.
  *
- * To accomodate that, and make sure the TRM equations are satisfied exactly, we
+ * To accommodate that, and make sure the TRM equations are satisfied exactly, we
  * compute the input crop rectangle as the last step.
  *
  * As if the situation wasn't complex enough, the maximum output width depends
@@ -1386,7 +1386,7 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
  * @sd    : pointer to v4l2 subdev structure
  * @fh    : V4L2 subdev file handle
  * @fmt   : pointer to v4l2 subdev format structure
- * return -EINVAL or zero on sucess
+ * return -EINVAL or zero on success
  */
 static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			      struct v4l2_subdev_format *fmt)

@@ -157,7 +157,7 @@ enum cvmx_l2c_tad_event {
 
 /**
  * Configure one of the four L2 Cache performance counters to capture event
- * occurences.
+ * occurrences.
  *
  * @counter:        The counter to configure. Range 0..3.
  * @event:          The type of L2 Cache event occurrence to count.

@@ -3661,7 +3661,7 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
  * with the proper parameters for set up.
  * ops.cleanup should be called in hw_free for clean up of streams.
  *
- * This function returns 0 if successfull, or a negative error code.
+ * This function returns 0 if successful, or a negative error code.
  */
 int __devinit snd_hda_build_pcms(struct hda_bus *bus)
 {
@@ -4851,7 +4851,7 @@ EXPORT_SYMBOL_HDA(snd_hda_suspend);
  *
  * Returns 0 if successful.
  *
- * This fucntion is defined only when POWER_SAVE isn't set.
+ * This function is defined only when POWER_SAVE isn't set.
  * In the power-save mode, the codec is resumed dynamically.
  */
 int snd_hda_resume(struct hda_bus *bus)

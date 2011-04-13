@@ -694,7 +694,7 @@ config ARCH_S3C2410
 	  the Samsung SMDK2410 development board (and derivatives).
 
 	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no seperate machine
+	  the same SoC ID code. This means that there is no separate machine
 	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX

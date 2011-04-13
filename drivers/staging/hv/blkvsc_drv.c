@@ -894,7 +894,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 
 /*
  * We break the request into 1 or more blkvsc_requests and submit
- * them.  If we cant submit them all, we put them on the
+ * them.  If we can't submit them all, we put them on the
  * pending_list. The blkvsc_request() will work on the pending_list.
  */
 static int blkvsc_do_request(struct block_device_context *blkdev,

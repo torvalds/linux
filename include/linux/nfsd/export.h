@@ -80,7 +80,7 @@ struct nfsd4_fs_locations {
 
 /*
  * We keep an array of pseudoflavors with the export, in order from most
- * to least preferred.  For the forseeable future, we don't expect more
+ * to least preferred.  For the foreseeable future, we don't expect more
  * than the eight pseudoflavors null, unix, krb5, krb5i, krb5p, skpm3,
  * spkm3i, and spkm3p (and using all 8 at once should be rare).
  */

@@ -9,7 +9,7 @@
  * struct.
  *
  * The same note as with the movli.l/movco.l pair applies here, as long
- * as the load is gauranteed to be inlined, nothing else will hook in to
+ * as the load is guaranteed to be inlined, nothing else will hook in to
  * r0 and we get the return value for free.
  *
  * NOTE: Due to the fact we require r0 encoding, care should be taken to

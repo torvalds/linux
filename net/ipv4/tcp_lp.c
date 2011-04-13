@@ -12,7 +12,7 @@
  *     within cong_avoid.
  *   o Error correcting in remote HZ, therefore remote HZ will be keeped
  *     on checking and updating.
- *   o Handling calculation of One-Way-Delay (OWD) within rtt_sample, sicne
+ *   o Handling calculation of One-Way-Delay (OWD) within rtt_sample, since
  *     OWD have a similar meaning as RTT. Also correct the buggy formular.
  *   o Handle reaction for Early Congestion Indication (ECI) within
  *     pkts_acked, as mentioned within pseudo code.

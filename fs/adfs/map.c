@@ -51,7 +51,7 @@ static DEFINE_RWLOCK(adfs_map_lock);
 
 /*
  * This is fun.  We need to load up to 19 bits from the map at an
- * arbitary bit alignment.  (We're limited to 19 bits by F+ version 2).
+ * arbitrary bit alignment.  (We're limited to 19 bits by F+ version 2).
  */
 #define GET_FRAG_ID(_map,_start,_idmask)				\
 	({								\

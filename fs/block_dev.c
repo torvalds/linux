@@ -653,7 +653,7 @@ void bd_forget(struct inode *inode)
  * @whole: whole block device containing @bdev, may equal @bdev
  * @holder: holder trying to claim @bdev
  *
- * Test whther @bdev can be claimed by @holder.
+ * Test whether @bdev can be claimed by @holder.
  *
  * CONTEXT:
  * spin_lock(&bdev_lock).
