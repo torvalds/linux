@@ -214,6 +214,3 @@ void ft1000CleanupProc(struct net_device *dev)
 	remove_proc_entry(FT1000_PROC, init_net.proc_net);
 	unregister_netdevice_notifier(&ft1000_netdev_notifier);
 }
-
-EXPORT_SYMBOL(ft1000InitProc);
-EXPORT_SYMBOL(ft1000CleanupProc);
