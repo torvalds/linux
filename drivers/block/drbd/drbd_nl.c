@@ -1905,7 +1905,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	new_my_addr = (struct sockaddr *)&new_conf->my_addr;
 	new_peer_addr = (struct sockaddr *)&new_conf->peer_addr;
 
-	/* No need to take drbd_cfg_mutex here.  All reconfiguration is
+	/* No need to take drbd_cfg_rwsem here.  All reconfiguration is
 	 * strictly serialized on genl_lock(). We are protected against
 	 * concurrent reconfiguration/addition/deletion */
 	list_for_each_entry(oconn, &drbd_tconns, all_tconn) {
@@ -2581,7 +2581,7 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	 */
 
 	/* synchronize with drbd_new_tconn/drbd_free_tconn */
-	mutex_lock(&drbd_cfg_mutex);
+	down_read(&drbd_cfg_rwsem);
 next_tconn:
 	/* revalidate iterator position */
 	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
@@ -2642,7 +2642,7 @@ next_tconn:
         }
 
 out:
-	mutex_unlock(&drbd_cfg_mutex);
+	up_read(&drbd_cfg_rwsem);
 	/* where to start the next iteration */
         cb->args[0] = (long)pos;
         cb->args[1] = (pos == tconn) ? volume + 1 : 0;
@@ -2894,9 +2894,9 @@ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto out;
 
-	mutex_lock(&drbd_cfg_mutex);
+	down_write(&drbd_cfg_rwsem);
 	retcode = adm_delete_minor(adm_ctx.mdev);
-	mutex_unlock(&drbd_cfg_mutex);
+	up_write(&drbd_cfg_rwsem);
 	/* if this was the last volume of this connection,
 	 * this will terminate all threads */
 	if (retcode == NO_ERROR)
@@ -2924,7 +2924,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	mutex_lock(&drbd_cfg_mutex);
+	down_read(&drbd_cfg_rwsem);
 	/* demote */
 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
 		retcode = drbd_set_role(mdev, R_SECONDARY, 0);
@@ -2951,14 +2951,17 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 			goto out_unlock;
 		}
 	}
+	up_read(&drbd_cfg_rwsem);
 
 	/* delete volumes */
+	down_write(&drbd_cfg_rwsem);
 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
 		retcode = adm_delete_minor(mdev);
 		if (retcode != NO_ERROR) {
 			/* "can not happen" */
 			drbd_msg_put_info("failed to delete volume");
-			goto out_unlock;
+			up_write(&drbd_cfg_rwsem);
+			goto out;
 		}
 	}
 
@@ -2973,10 +2976,12 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		/* "can not happen" */
 		retcode = ERR_CONN_IN_USE;
 		drbd_msg_put_info("failed to delete connection");
-		goto out_unlock;
 	}
+
+	up_write(&drbd_cfg_rwsem);
+	goto out;
 out_unlock:
-	mutex_unlock(&drbd_cfg_mutex);
+	up_read(&drbd_cfg_rwsem);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
@@ -2992,14 +2997,14 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto out;
 
-	mutex_lock(&drbd_cfg_mutex);
+	down_write(&drbd_cfg_rwsem);
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
 		drbd_free_tconn(adm_ctx.tconn);
 		retcode = NO_ERROR;
 	} else {
 		retcode = ERR_CONN_IN_USE;
 	}
-	mutex_unlock(&drbd_cfg_mutex);
+	up_write(&drbd_cfg_rwsem);
 
 out:
 	drbd_adm_finish(info, retcode);
