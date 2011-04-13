@@ -196,12 +196,12 @@ struct slave {
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
 	       inactive:1; /* indicates inactive slave */
+	u8     duplex;
 	u32    original_mtu;
 	u32    link_failure_count;
-	u8     perm_hwaddr[ETH_ALEN];
-	u16    speed;
-	u8     duplex;
+	u32    speed;
 	u16    queue_id;
+	u8     perm_hwaddr[ETH_ALEN];
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
