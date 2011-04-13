@@ -56,21 +56,18 @@
 #ifndef _SCIC_SDS_PORT_H_
 #define _SCIC_SDS_PORT_H_
 
-/**
- * This file contains the structures, constants and prototypes for the
- *    struct scic_sds_port object.
- *
- *
- */
-
 #include <linux/kernel.h>
 #include "sci_controller_constants.h"
 #include "intel_sas.h"
-#include "sci_base_port.h"
 #include "sci_base_phy.h"
 #include "scu_registers.h"
 
 #define SCIC_SDS_DUMMY_PORT   0xFF
+
+struct scic_sds_controller;
+struct scic_sds_phy;
+struct scic_sds_remote_device;
+struct scic_sds_request;
 
 /**
  * This constant defines the value utilized by SCI Components to indicate
@@ -107,10 +104,53 @@ enum scic_sds_port_ready_substates {
 	SCIC_SDS_PORT_READY_MAX_SUBSTATES
 };
 
-struct scic_sds_controller;
-struct scic_sds_phy;
-struct scic_sds_remote_device;
-struct scic_sds_request;
+/**
+ * enum scic_sds_port_states - This enumeration depicts all the states for the
+ *    common port state machine.
+ *
+ *
+ */
+enum scic_sds_port_states {
+	/**
+	 * This state indicates that the port has successfully been stopped.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the STOPPING state.
+	 */
+	SCI_BASE_PORT_STATE_STOPPED,
+
+	/**
+	 * This state indicates that the port is in the process of stopping.
+	 * In this state no new IO operations are permitted, but existing IO
+	 * operations are allowed to complete.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_PORT_STATE_STOPPING,
+
+	/**
+	 * This state indicates the port is now ready.  Thus, the user is
+	 * able to perform IO operations on this port.
+	 * This state is entered from the STARTING state.
+	 */
+	SCI_BASE_PORT_STATE_READY,
+
+	/**
+	 * This state indicates the port is in the process of performing a hard
+	 * reset.  Thus, the user is unable to perform IO operations on this
+	 * port.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_PORT_STATE_RESETTING,
+
+	/**
+	 * This state indicates the port has failed a reset request.  This state
+	 * is entered when a port reset request times out.
+	 * This state is entered from the RESETTING state.
+	 */
+	SCI_BASE_PORT_STATE_FAILED,
+
+	SCI_BASE_PORT_MAX_STATES
+
+};
 
 /**
  * struct scic_sds_port -
@@ -119,9 +159,15 @@ struct scic_sds_request;
  */
 struct scic_sds_port {
 	/**
-	 * This field is the oommon base port object.
+	 * The field specifies that the parent object for the base controller
+	 * is the base object itself.
 	 */
-	struct sci_base_port parent;
+	struct sci_base_object parent;
+
+	/**
+	 * This field contains the information for the base port state machine.
+	 */
+	struct sci_base_state_machine state_machine;
 
 	/**
 	 * This field is the port index that is reported to the SCI USER.
@@ -214,6 +260,15 @@ struct scic_sds_port {
 
 };
 
+struct sci_base_phy;
+
+typedef enum sci_status (*scic_sds_port_handler_t)(struct scic_sds_port *);
+
+typedef enum sci_status (*scic_sds_port_phy_handler_t)(struct scic_sds_port *,
+						       struct sci_base_phy *);
+
+typedef enum sci_status (*scic_sds_port_reset_handler_t)(struct scic_sds_port *,
+							 u32 timeout);
 
 typedef enum sci_status (*scic_sds_port_event_handler_t)(struct scic_sds_port *, u32);
 
@@ -221,13 +276,46 @@ typedef enum sci_status (*scic_sds_port_frame_handler_t)(struct scic_sds_port *,
 
 typedef void (*scic_sds_port_link_handler_t)(struct scic_sds_port *, struct scic_sds_phy *);
 
-typedef enum sci_status (*scic_sds_port_io_request_handler_t)(
-	struct scic_sds_port *,
-	struct scic_sds_remote_device *,
-	struct scic_sds_request *);
+typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_port *,
+							      struct scic_sds_remote_device *,
+							      struct scic_sds_request *);
 
 struct scic_sds_port_state_handler {
-	struct sci_base_port_state_handler parent;
+	/**
+	 * The start_handler specifies the method invoked when a user
+	 * attempts to start a port.
+	 */
+	scic_sds_port_handler_t start_handler;
+
+	/**
+	 * The stop_handler specifies the method invoked when a user
+	 * attempts to stop a port.
+	 */
+	scic_sds_port_handler_t stop_handler;
+
+	/**
+	 * The destruct_handler specifies the method invoked when attempting to
+	 * destruct a port.
+	 */
+	scic_sds_port_handler_t destruct_handler;
+
+	/**
+	 * The reset_handler specifies the method invoked when a user
+	 * attempts to hard reset a port.
+	 */
+	scic_sds_port_reset_handler_t reset_handler;
+
+	/**
+	 * The add_phy_handler specifies the method invoked when a user
+	 * attempts to add another phy into the port.
+	 */
+	scic_sds_port_phy_handler_t add_phy_handler;
+
+	/**
+	 * The remove_phy_handler specifies the method invoked when a user
+	 * attempts to remove a phy from the port.
+	 */
+	scic_sds_port_phy_handler_t remove_phy_handler;
 
 	scic_sds_port_frame_handler_t frame_handler;
 	scic_sds_port_event_handler_t event_handler;
@@ -292,15 +380,6 @@ static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *s
 #define scic_sds_port_active_phy(port, phy) \
 	(((port)->active_phy_mask & (1 << (phy)->phy_index)) != 0)
 
-/* --------------------------------------------------------------------------- */
-
-
-
-
-/* --------------------------------------------------------------------------- */
-
-/* --------------------------------------------------------------------------- */
-
 void scic_sds_port_construct(
 	struct scic_sds_port *this_port,
 	u8 port_index,
@@ -311,8 +390,6 @@ enum sci_status scic_sds_port_initialize(
 	void __iomem *port_task_scheduler_registers,
 	void __iomem *port_configuration_regsiter,
 	void __iomem *viit_registers);
-
-/* --------------------------------------------------------------------------- */
 
 enum sci_status scic_sds_port_add_phy(
 	struct scic_sds_port *this_port,
@@ -332,9 +409,6 @@ void scic_sds_port_deactivate_phy(
 	struct scic_sds_phy *phy,
 	bool do_notify_user);
 
-
-
-
 bool scic_sds_port_link_detected(
 	struct scic_sds_port *this_port,
 	struct scic_sds_phy *phy);
@@ -347,11 +421,6 @@ void scic_sds_port_link_down(
 	struct scic_sds_port *this_port,
 	struct scic_sds_phy *phy);
 
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
 enum sci_status scic_sds_port_start_io(
 	struct scic_sds_port *this_port,
 	struct scic_sds_remote_device *the_device,
@@ -361,23 +430,6 @@ enum sci_status scic_sds_port_complete_io(
 	struct scic_sds_port *this_port,
 	struct scic_sds_remote_device *the_device,
 	struct scic_sds_request *the_io_request);
-
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
-
-
-
-
-
-
-
-
-
-
-
 
 enum sci_sas_link_rate scic_sds_port_get_max_allowed_speed(
 	struct scic_sds_port *this_port);
@@ -390,8 +442,6 @@ bool scic_sds_port_is_valid_phy_assignment(
 	struct scic_sds_port *this_port,
 	u32 phy_index);
 
-
-
 void scic_sds_port_get_sas_address(
 	struct scic_sds_port *this_port,
 	struct sci_sas_address *sas_address);
@@ -403,9 +453,5 @@ void scic_sds_port_get_attached_sas_address(
 void scic_sds_port_get_attached_protocols(
 	struct scic_sds_port *this_port,
 	struct sci_sas_identify_address_frame_protocols *protocols);
-
-
-
-
 
 #endif /* _SCIC_SDS_PORT_H_ */

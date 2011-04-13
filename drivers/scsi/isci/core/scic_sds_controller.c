@@ -616,10 +616,10 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 
 	for (index = 0; index < scic->logical_port_entries; index++) {
 		struct scic_sds_port *sci_port = &scic->port_table[index];
-		sci_base_port_handler_t stop;
+		scic_sds_port_handler_t stop;
 
-		stop = sci_port->state_handlers->parent.stop_handler;
-		port_status = stop(&sci_port->parent);
+		stop = sci_port->state_handlers->stop_handler;
+		port_status = stop(sci_port);
 
 		if ((port_status != SCI_SUCCESS) &&
 		    (port_status != SCI_FAILURE_INVALID_STATE)) {
@@ -2860,8 +2860,8 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	for (index = 0; index < scic->logical_port_entries; index++) {
 		struct scic_sds_port *sci_port = &scic->port_table[index];
 
-		result = sci_port->state_handlers->parent.start_handler(
-				&sci_port->parent);
+		result = sci_port->state_handlers->start_handler(
+				sci_port);
 		if (result)
 			return result;
 	}
