@@ -3771,8 +3771,11 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !crtc->enabled)
+	if (crtc->fb == NULL || !crtc->enabled) {
+		*cursor_wm = cursor->guard_size;
+		*plane_wm = display->guard_size;
 		return false;
+	}
 
 	htotal = crtc->mode.htotal;
 	hdisplay = crtc->mode.hdisplay;
