@@ -104,9 +104,12 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 
 	wmi->drv_priv = priv;
 	wmi->stopped = false;
+	skb_queue_head_init(&wmi->wmi_event_queue);
 	mutex_init(&wmi->op_mutex);
 	mutex_init(&wmi->multi_write_mutex);
 	init_completion(&wmi->cmd_wait);
+	tasklet_init(&wmi->wmi_event_tasklet, ath9k_wmi_event_tasklet,
+		     (unsigned long)wmi);
 
 	return wmi;
 }
@@ -122,11 +125,64 @@ void ath9k_deinit_wmi(struct ath9k_htc_priv *priv)
 	kfree(priv->wmi);
 }
 
-void ath9k_swba_tasklet(unsigned long data)
+void ath9k_wmi_event_drain(struct ath9k_htc_priv *priv)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	unsigned long flags;
 
-	ath9k_htc_swba(priv);
+	tasklet_kill(&priv->wmi->wmi_event_tasklet);
+	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
+	__skb_queue_purge(&priv->wmi->wmi_event_queue);
+	spin_unlock_irqrestore(&priv->wmi->wmi_lock, flags);
+}
+
+void ath9k_wmi_event_tasklet(unsigned long data)
+{
+	struct wmi *wmi = (struct wmi *)data;
+	struct ath9k_htc_priv *priv = wmi->drv_priv;
+	struct wmi_cmd_hdr *hdr;
+	void *wmi_event;
+	struct wmi_event_swba *swba;
+	struct sk_buff *skb = NULL;
+	unsigned long flags;
+	u16 cmd_id;
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+	__be32 txrate;
+#endif
+
+	do {
+		spin_lock_irqsave(&wmi->wmi_lock, flags);
+		skb = __skb_dequeue(&wmi->wmi_event_queue);
+		if (!skb) {
+			spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+			return;
+		}
+		spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+
+		hdr = (struct wmi_cmd_hdr *) skb->data;
+		cmd_id = be16_to_cpu(hdr->command_id);
+		wmi_event = skb_pull(skb, sizeof(struct wmi_cmd_hdr));
+
+		switch (cmd_id) {
+		case WMI_SWBA_EVENTID:
+			swba = (struct wmi_event_swba *) wmi_event;
+			ath9k_htc_swba(priv, swba);
+			break;
+		case WMI_FATAL_EVENTID:
+			ieee80211_queue_work(wmi->drv_priv->hw,
+					     &wmi->drv_priv->fatal_work);
+			break;
+		case WMI_TXRATE_EVENTID:
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+			txrate = ((struct wmi_event_txrate *)wmi_event)->txrate;
+			wmi->drv_priv->debug.txrate = be32_to_cpu(txrate);
+#endif
+			break;
+		default:
+			break;
+		}
+
+		kfree_skb(skb);
+	} while (1);
 }
 
 void ath9k_fatal_work(struct work_struct *work)
@@ -155,11 +211,6 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	struct wmi *wmi = (struct wmi *) priv;
 	struct wmi_cmd_hdr *hdr;
 	u16 cmd_id;
-	void *wmi_event;
-	struct wmi_event_swba *swba;
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	__be32 txrate;
-#endif
 
 	if (unlikely(wmi->stopped))
 		goto free_skb;
@@ -168,32 +219,10 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	cmd_id = be16_to_cpu(hdr->command_id);
 
 	if (cmd_id & 0x1000) {
-		wmi_event = skb_pull(skb, sizeof(struct wmi_cmd_hdr));
-		switch (cmd_id) {
-		case WMI_SWBA_EVENTID:
-			swba = (struct wmi_event_swba *) wmi_event;
-
-			spin_lock(&wmi->wmi_lock);
-			wmi->tsf = be64_to_cpu(swba->tsf);
-			wmi->beacon_pending = swba->beacon_pending;
-			spin_unlock(&wmi->wmi_lock);
-
-			tasklet_schedule(&wmi->drv_priv->swba_tasklet);
-			break;
-		case WMI_FATAL_EVENTID:
-			ieee80211_queue_work(wmi->drv_priv->hw,
-					     &wmi->drv_priv->fatal_work);
-			break;
-		case WMI_TXRATE_EVENTID:
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-			txrate = ((struct wmi_event_txrate *)wmi_event)->txrate;
-			wmi->drv_priv->debug.txrate = be32_to_cpu(txrate);
-#endif
-			break;
-		default:
-			break;
-		}
-		kfree_skb(skb);
+		spin_lock(&wmi->wmi_lock);
+		__skb_queue_tail(&wmi->wmi_event_queue, skb);
+		spin_unlock(&wmi->wmi_lock);
+		tasklet_schedule(&wmi->wmi_event_tasklet);
 		return;
 	}
 

@@ -106,13 +106,13 @@ struct wmi {
 	struct mutex op_mutex;
 	struct completion cmd_wait;
 	enum wmi_cmd_id last_cmd_id;
+	struct sk_buff_head wmi_event_queue;
+	struct tasklet_struct wmi_event_tasklet;
 	u16 tx_seq_id;
 	u8 *cmd_rsp_buf;
 	u32 cmd_rsp_len;
 	bool stopped;
 
-	u64 tsf;
-	u8 beacon_pending;
 	spinlock_t wmi_lock;
 
 	atomic_t mwrite_cnt;
@@ -129,8 +129,9 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 		  u8 *cmd_buf, u32 cmd_len,
 		  u8 *rsp_buf, u32 rsp_len,
 		  u32 timeout);
-void ath9k_swba_tasklet(unsigned long data);
+void ath9k_wmi_event_tasklet(unsigned long data);
 void ath9k_fatal_work(struct work_struct *work);
+void ath9k_wmi_event_drain(struct ath9k_htc_priv *priv);
 
 #define WMI_CMD(_wmi_cmd)						\
 	do {								\

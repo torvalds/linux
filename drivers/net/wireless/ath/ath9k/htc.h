@@ -497,7 +497,8 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
 void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv);
-void ath9k_htc_swba(struct ath9k_htc_priv *priv);
+void ath9k_htc_swba(struct ath9k_htc_priv *priv,
+		    struct wmi_event_swba *swba);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id);

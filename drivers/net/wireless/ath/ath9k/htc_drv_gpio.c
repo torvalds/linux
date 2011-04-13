@@ -436,6 +436,9 @@ void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 	/* Stop RX */
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
+	/* Clear the WMI event queue */
+	ath9k_wmi_event_drain(priv);
+
 	/*
 	 * The MIB counters have to be disabled here,
 	 * since the target doesn't do it.

@@ -401,10 +401,10 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	spin_unlock_bh(&priv->beacon_lock);
 }
 
-static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv)
+static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv,
+				  struct wmi_event_swba *swba)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	unsigned long flags;
 	u64 tsf;
 	u32 tsftu;
 	u16 intval;
@@ -412,10 +412,7 @@ static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv)
 
 	intval = priv->cur_beacon_conf.beacon_interval & ATH9K_BEACON_PERIOD;
 
-	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
-	tsf = priv->wmi->tsf;
-	spin_unlock_irqrestore(&priv->wmi->wmi_lock, flags);
-
+	tsf = be64_to_cpu(swba->tsf);
 	tsftu = TSF_TO_TU(tsf >> 32, tsf);
 	slot = ((tsftu % intval) * ATH9K_HTC_MAX_BCN_VIF) / intval;
 	slot = ATH9K_HTC_MAX_BCN_VIF - slot - 1;
@@ -427,33 +424,31 @@ static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv)
 	return slot;
 }
 
-void ath9k_htc_swba(struct ath9k_htc_priv *priv)
+void ath9k_htc_swba(struct ath9k_htc_priv *priv,
+		    struct wmi_event_swba *swba)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	unsigned long flags;
 	int slot;
 
-	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
-	if (priv->wmi->beacon_pending != 0) {
-		spin_unlock_irqrestore(&priv->wmi->wmi_lock, flags);
+	if (swba->beacon_pending != 0) {
 		priv->cur_beacon_conf.bmiss_cnt++;
 		if (priv->cur_beacon_conf.bmiss_cnt > BSTUCK_THRESHOLD) {
-			ath_dbg(common, ATH_DBG_BEACON,
+			ath_dbg(common, ATH_DBG_BSTUCK,
 				"Beacon stuck, HW reset\n");
-			ath9k_htc_reset(priv);
+			ieee80211_queue_work(priv->hw,
+					     &priv->fatal_work);
 		}
 		return;
 	}
-	spin_unlock_irqrestore(&priv->wmi->wmi_lock, flags);
 
 	if (priv->cur_beacon_conf.bmiss_cnt) {
-		ath_dbg(common, ATH_DBG_BEACON,
+		ath_dbg(common, ATH_DBG_BSTUCK,
 			"Resuming beacon xmit after %u misses\n",
 			priv->cur_beacon_conf.bmiss_cnt);
 		priv->cur_beacon_conf.bmiss_cnt = 0;
 	}
 
-	slot = ath9k_htc_choose_bslot(priv);
+	slot = ath9k_htc_choose_bslot(priv, swba);
 	spin_lock_bh(&priv->beacon_lock);
 	if (priv->cur_beacon_conf.bslot[slot] == NULL) {
 		spin_unlock_bh(&priv->beacon_lock);
