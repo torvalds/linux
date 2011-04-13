@@ -46,6 +46,7 @@
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/nfs_mount.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/module.h>
@@ -2234,7 +2235,7 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
 	int status = nfs4_lookup_root(server, fhandle, info);
-	if (status == -EPERM)
+	if ((status == -EPERM) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
 		status = nfs4_find_root_sec(server, fhandle, info);
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);

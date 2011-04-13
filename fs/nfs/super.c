@@ -1004,6 +1004,7 @@ static int nfs_parse_security_flavors(char *value,
 		return 0;
 	}
 
+	mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 	mnt->auth_flavor_len = 1;
 	return 1;
 }
