@@ -302,6 +302,14 @@ config USB_OHCI_HCD_OMAP3
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
 
+config USB_OHCI_ATH79
+	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs"
+	depends on USB_OHCI_HCD && (SOC_AR71XX || SOC_AR724X)
+	default y
+	help
+	  Enables support for the built-in OHCI controller present on the
+	  Atheros AR71XX/AR7240 SoCs.
+
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
 	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)

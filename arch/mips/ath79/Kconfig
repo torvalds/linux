@@ -27,10 +27,12 @@ endmenu
 
 config SOC_AR71XX
 	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
 	def_bool n
 
 config SOC_AR724X
 	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
 	def_bool n
 
 config SOC_AR913X
