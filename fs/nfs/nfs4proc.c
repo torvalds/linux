@@ -2224,8 +2224,9 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	for (i = 0; i < len; i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
-		if (status != -EPERM)
-			break;
+		if (status == -EPERM || status == -EACCES)
+			continue;
+		break;
 	}
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
