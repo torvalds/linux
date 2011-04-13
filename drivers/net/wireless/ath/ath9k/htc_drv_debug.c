@@ -123,27 +123,118 @@ static const struct file_operations fops_xmit = {
 	.llseek = default_llseek,
 };
 
+void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
+			   struct ath_htc_rx_status *rxs)
+{
+#define RX_PHY_ERR_INC(c) priv->debug.rx_stats.err_phy_stats[c]++
+
+	if (rxs->rs_status & ATH9K_RXERR_CRC)
+		priv->debug.rx_stats.err_crc++;
+	if (rxs->rs_status & ATH9K_RXERR_DECRYPT)
+		priv->debug.rx_stats.err_decrypt_crc++;
+	if (rxs->rs_status & ATH9K_RXERR_MIC)
+		priv->debug.rx_stats.err_mic++;
+	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
+		priv->debug.rx_stats.err_pre_delim++;
+	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_POST)
+		priv->debug.rx_stats.err_post_delim++;
+	if (rxs->rs_status & ATH9K_RX_DECRYPT_BUSY)
+		priv->debug.rx_stats.err_decrypt_busy++;
+
+	if (rxs->rs_status & ATH9K_RXERR_PHY) {
+		priv->debug.rx_stats.err_phy++;
+		if (rxs->rs_phyerr < ATH9K_PHYERR_MAX)
+			RX_PHY_ERR_INC(rxs->rs_phyerr);
+	}
+
+#undef RX_PHY_ERR_INC
+}
+
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
-	struct ath9k_htc_priv *priv = file->private_data;
-	char buf[512];
-	unsigned int len = 0;
+#define PHY_ERR(s, p)							\
+	len += snprintf(buf + len, size - len, "%20s : %10u\n", s,	\
+			priv->debug.rx_stats.err_phy_stats[p]);
 
-	len += snprintf(buf + len, sizeof(buf) - len,
+	struct ath9k_htc_priv *priv = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 1500;
+	ssize_t retval = 0;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	len += snprintf(buf + len, size - len,
 			"%20s : %10u\n", "SKBs allocated",
 			priv->debug.rx_stats.skb_allocated);
-	len += snprintf(buf + len, sizeof(buf) - len,
+	len += snprintf(buf + len, size - len,
 			"%20s : %10u\n", "SKBs completed",
 			priv->debug.rx_stats.skb_completed);
-	len += snprintf(buf + len, sizeof(buf) - len,
+	len += snprintf(buf + len, size - len,
 			"%20s : %10u\n", "SKBs Dropped",
 			priv->debug.rx_stats.skb_dropped);
 
-	if (len > sizeof(buf))
-		len = sizeof(buf);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "CRC ERR",
+			priv->debug.rx_stats.err_crc);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "DECRYPT CRC ERR",
+			priv->debug.rx_stats.err_decrypt_crc);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "MIC ERR",
+			priv->debug.rx_stats.err_mic);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "PRE-DELIM CRC ERR",
+			priv->debug.rx_stats.err_pre_delim);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "POST-DELIM CRC ERR",
+			priv->debug.rx_stats.err_post_delim);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "DECRYPT BUSY ERR",
+			priv->debug.rx_stats.err_decrypt_busy);
+	len += snprintf(buf + len, size - len,
+			"%20s : %10u\n", "TOTAL PHY ERR",
+			priv->debug.rx_stats.err_phy);
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
+	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
+	PHY_ERR("PARITY", ATH9K_PHYERR_PARITY);
+	PHY_ERR("RATE", ATH9K_PHYERR_RATE);
+	PHY_ERR("LENGTH", ATH9K_PHYERR_LENGTH);
+	PHY_ERR("RADAR", ATH9K_PHYERR_RADAR);
+	PHY_ERR("SERVICE", ATH9K_PHYERR_SERVICE);
+	PHY_ERR("TOR", ATH9K_PHYERR_TOR);
+	PHY_ERR("OFDM-TIMING", ATH9K_PHYERR_OFDM_TIMING);
+	PHY_ERR("OFDM-SIGNAL-PARITY", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
+	PHY_ERR("OFDM-RATE", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
+	PHY_ERR("OFDM-LENGTH", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
+	PHY_ERR("OFDM-POWER-DROP", ATH9K_PHYERR_OFDM_POWER_DROP);
+	PHY_ERR("OFDM-SERVICE", ATH9K_PHYERR_OFDM_SERVICE);
+	PHY_ERR("OFDM-RESTART", ATH9K_PHYERR_OFDM_RESTART);
+	PHY_ERR("FALSE-RADAR-EXT", ATH9K_PHYERR_FALSE_RADAR_EXT);
+	PHY_ERR("CCK-TIMING", ATH9K_PHYERR_CCK_TIMING);
+	PHY_ERR("CCK-HEADER-CRC", ATH9K_PHYERR_CCK_HEADER_CRC);
+	PHY_ERR("CCK-RATE", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
+	PHY_ERR("CCK-SERVICE", ATH9K_PHYERR_CCK_SERVICE);
+	PHY_ERR("CCK-RESTART", ATH9K_PHYERR_CCK_RESTART);
+	PHY_ERR("CCK-LENGTH", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
+	PHY_ERR("CCK-POWER-DROP", ATH9K_PHYERR_CCK_POWER_DROP);
+	PHY_ERR("HT-CRC", ATH9K_PHYERR_HT_CRC_ERROR);
+	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
+	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+
+#undef PHY_ERR
 }
 
 static const struct file_operations fops_recv = {

@@ -540,6 +540,8 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 		goto rx_next;
 	}
 
+	ath9k_htc_err_stat_rx(priv, rxstatus);
+
 	/* Get the RX status information */
 	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
 	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);

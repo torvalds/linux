@@ -296,6 +296,9 @@ struct ath9k_htc_tx_ctl {
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
 
+void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
+			   struct ath_htc_rx_status *rxs);
+
 struct ath_tx_stats {
 	u32 buf_queued;
 	u32 buf_completed;
@@ -310,6 +313,14 @@ struct ath_rx_stats {
 	u32 skb_allocated;
 	u32 skb_completed;
 	u32 skb_dropped;
+	u32 err_crc;
+	u32 err_decrypt_crc;
+	u32 err_mic;
+	u32 err_pre_delim;
+	u32 err_post_delim;
+	u32 err_decrypt_busy;
+	u32 err_phy;
+	u32 err_phy_stats[ATH9K_PHYERR_MAX];
 };
 
 struct ath9k_debug {
@@ -329,6 +340,11 @@ struct ath9k_debug {
 #define CAB_STAT_INC   do { } while (0)
 
 #define TX_QSTAT_INC(c) do { } while (0)
+
+static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
+					 struct ath_htc_rx_status *rxs)
+{
+}
 
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
