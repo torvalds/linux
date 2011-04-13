@@ -343,7 +343,7 @@ iwlagn_init_notification_wait(struct iwl_priv *priv,
 					 struct iwl_rx_packet *pkt,
 					 void *data),
 			      void *fn_data);
-signed long __releases(wait_entry)
+int __must_check __releases(wait_entry)
 iwlagn_wait_notification(struct iwl_priv *priv,
 			 struct iwl_notification_wait *wait_entry,
 			 unsigned long timeout);

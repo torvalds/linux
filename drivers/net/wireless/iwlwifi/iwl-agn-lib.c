@@ -2272,9 +2272,9 @@ void iwlagn_init_notification_wait(struct iwl_priv *priv,
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
 }
 
-signed long iwlagn_wait_notification(struct iwl_priv *priv,
-				     struct iwl_notification_wait *wait_entry,
-				     unsigned long timeout)
+int iwlagn_wait_notification(struct iwl_priv *priv,
+			     struct iwl_notification_wait *wait_entry,
+			     unsigned long timeout)
 {
 	int ret;
 
@@ -2286,7 +2286,10 @@ signed long iwlagn_wait_notification(struct iwl_priv *priv,
 	list_del(&wait_entry->list);
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
 
-	return ret;
+	/* return value is always >= 0 */
+	if (ret <= 0)
+		return -ETIMEDOUT;
+	return 0;
 }
 
 void iwlagn_remove_notification(struct iwl_priv *priv,

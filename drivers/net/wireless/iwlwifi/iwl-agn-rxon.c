@@ -73,13 +73,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
 		iwlagn_remove_notification(priv, &disable_wait);
 	} else {
-		signed long wait_res;
-
-		wait_res = iwlagn_wait_notification(priv, &disable_wait, HZ);
-		if (wait_res == 0) {
+		ret = iwlagn_wait_notification(priv, &disable_wait, HZ);
+		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
-			ret = -EIO;
-		}
 	}
 
 	return ret;
