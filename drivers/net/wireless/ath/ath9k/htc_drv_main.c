@@ -349,7 +349,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
 
-	hvif.opmode = cpu_to_be32(HTC_M_MONITOR);
+	hvif.opmode = HTC_M_MONITOR;
 	hvif.index = ffz(priv->vif_slot);
 
 	WMI_CMD_BUF(WMI_VAP_CREATE_CMDID, &hvif);
@@ -1039,13 +1039,13 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		hvif.opmode = cpu_to_be32(HTC_M_STA);
+		hvif.opmode = HTC_M_STA;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		hvif.opmode = cpu_to_be32(HTC_M_IBSS);
+		hvif.opmode = HTC_M_IBSS;
 		break;
 	case NL80211_IFTYPE_AP:
-		hvif.opmode = cpu_to_be32(HTC_M_HOSTAP);
+		hvif.opmode = HTC_M_HOSTAP;
 		break;
 	default:
 		ath_err(common,

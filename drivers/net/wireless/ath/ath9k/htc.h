@@ -117,17 +117,11 @@ struct ath9k_htc_cap_target {
 
 struct ath9k_htc_target_vif {
 	u8 index;
-	u8 des_bssid[ETH_ALEN];
-	__be32 opmode;
+	u8 opmode;
 	u8 myaddr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
-	u32 flags;
-	u32 flags_ext;
-	u16 ps_sta;
-	__be16 rtsthreshold;
 	u8 ath_cap;
-	u8 node;
-	s8 mcast_rate;
+	__be16 rtsthreshold;
+	u8 pad;
 } __packed;
 
 #define ATH_HTC_STA_AUTH  0x0001
