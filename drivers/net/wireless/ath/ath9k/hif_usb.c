@@ -17,8 +17,8 @@
 #include "htc.h"
 
 /* identify firmware images */
-#define FIRMWARE_AR7010_1_1	"ar7010_1_1.fw"
-#define FIRMWARE_AR9271		"ar9271.fw"
+#define FIRMWARE_AR7010_1_1     "htc_7010.fw"
+#define FIRMWARE_AR9271         "htc_9271.fw"
 
 MODULE_FIRMWARE(FIRMWARE_AR7010_1_1);
 MODULE_FIRMWARE(FIRMWARE_AR9271);
