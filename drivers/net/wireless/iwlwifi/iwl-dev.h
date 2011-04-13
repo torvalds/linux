@@ -1105,7 +1105,9 @@ struct iwl_force_reset {
 struct iwl_notification_wait {
 	struct list_head list;
 
-	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt);
+	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
+		   void *data);
+	void *fn_data;
 
 	u8 cmd;
 	bool triggered;

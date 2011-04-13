@@ -2256,11 +2256,14 @@ int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
 /* notification wait support */
 void iwlagn_init_notification_wait(struct iwl_priv *priv,
 				   struct iwl_notification_wait *wait_entry,
+				   u8 cmd,
 				   void (*fn)(struct iwl_priv *priv,
-					      struct iwl_rx_packet *pkt),
-				   u8 cmd)
+					      struct iwl_rx_packet *pkt,
+					      void *data),
+				   void *fn_data)
 {
 	wait_entry->fn = fn;
+	wait_entry->fn_data = fn_data;
 	wait_entry->cmd = cmd;
 	wait_entry->triggered = false;
 

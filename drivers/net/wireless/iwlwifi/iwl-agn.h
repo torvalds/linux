@@ -338,9 +338,11 @@ void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 void __acquires(wait_entry)
 iwlagn_init_notification_wait(struct iwl_priv *priv,
 			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
 			      void (*fn)(struct iwl_priv *priv,
-					 struct iwl_rx_packet *pkt),
-			      u8 cmd);
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
 signed long __releases(wait_entry)
 iwlagn_wait_notification(struct iwl_priv *priv,
 			 struct iwl_notification_wait *wait_entry,

@@ -58,8 +58,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	u8 old_dev_type = send->dev_type;
 	int ret;
 
-	iwlagn_init_notification_wait(priv, &disable_wait, NULL,
-				      REPLY_WIPAN_DEACTIVATION_COMPLETE);
+	iwlagn_init_notification_wait(priv, &disable_wait,
+				      REPLY_WIPAN_DEACTIVATION_COMPLETE,
+				      NULL, NULL);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;

@@ -769,7 +769,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 				if (w->cmd == pkt->hdr.cmd) {
 					w->triggered = true;
 					if (w->fn)
-						w->fn(priv, pkt);
+						w->fn(priv, pkt, w->fn_data);
 				}
 			}
 			spin_unlock(&priv->_agn.notif_wait_lock);
