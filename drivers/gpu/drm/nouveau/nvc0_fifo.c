@@ -37,7 +37,7 @@ struct nvc0_fifo_priv {
 };
 
 struct nvc0_fifo_chan {
-	struct nouveau_bo *user;
+	struct nouveau_gpuobj *user;
 	struct nouveau_gpuobj *ramfc;
 };
 
@@ -106,7 +106,7 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nvc0_fifo_priv *priv = pfifo->priv;
 	struct nvc0_fifo_chan *fifoch;
-	u64 ib_virt, user_vinst;
+	u64 ib_virt = chan->pushbuf_base + chan->dma.ib_base * 4;
 	int ret;
 
 	chan->fifo_priv = kzalloc(sizeof(*fifoch), GFP_KERNEL);
@@ -115,28 +115,13 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	fifoch = chan->fifo_priv;
 
 	/* allocate vram for control regs, map into polling area */
-	ret = nouveau_bo_new(dev, NULL, 0x1000, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, &fifoch->user);
+	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 0x1000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &fifoch->user);
 	if (ret)
 		goto error;
 
-	ret = nouveau_bo_pin(fifoch->user, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		nouveau_bo_ref(NULL, &fifoch->user);
-		goto error;
-	}
-
-	user_vinst = fifoch->user->bo.mem.start << PAGE_SHIFT;
-
-	ret = nouveau_bo_map(fifoch->user);
-	if (ret) {
-		nouveau_bo_unpin(fifoch->user);
-		nouveau_bo_ref(NULL, &fifoch->user);
-		goto error;
-	}
-
 	nouveau_vm_map_at(&priv->user_vma, chan->id * 0x1000,
-			  fifoch->user->bo.mem.mm_node);
+			  *(struct nouveau_mem **)fifoch->user->node);
 
 	chan->user = ioremap_wc(pci_resource_start(dev->pdev, 1) +
 				priv->user_vma.offset + (chan->id * 0x1000),
@@ -146,20 +131,6 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 		goto error;
 	}
 
-	ib_virt = chan->pushbuf_base + chan->dma.ib_base * 4;
-
-	/* zero channel regs */
-	nouveau_bo_wr32(fifoch->user, 0x0040/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0044/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0048/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x004c/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0050/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0058/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x005c/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0060/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0088/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x008c/4, 0);
-
 	/* ramfc */
 	ret = nouveau_gpuobj_new_fake(dev, chan->ramin->pinst,
 				      chan->ramin->vinst, 0x100,
@@ -167,8 +138,8 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		goto error;
 
-	nv_wo32(fifoch->ramfc, 0x08, lower_32_bits(user_vinst));
-	nv_wo32(fifoch->ramfc, 0x0c, upper_32_bits(user_vinst));
+	nv_wo32(fifoch->ramfc, 0x08, lower_32_bits(fifoch->user->vinst));
+	nv_wo32(fifoch->ramfc, 0x0c, upper_32_bits(fifoch->user->vinst));
 	nv_wo32(fifoch->ramfc, 0x10, 0x0000face);
 	nv_wo32(fifoch->ramfc, 0x30, 0xfffff902);
 	nv_wo32(fifoch->ramfc, 0x48, lower_32_bits(ib_virt));
@@ -223,11 +194,7 @@ nvc0_fifo_destroy_context(struct nouveau_channel *chan)
 		return;
 
 	nouveau_gpuobj_ref(NULL, &fifoch->ramfc);
-	if (fifoch->user) {
-		nouveau_bo_unmap(fifoch->user);
-		nouveau_bo_unpin(fifoch->user);
-		nouveau_bo_ref(NULL, &fifoch->user);
-	}
+	nouveau_gpuobj_ref(NULL, &fifoch->user);
 	kfree(fifoch);
 }
 
