@@ -416,6 +416,7 @@ void bond_destroy_debugfs(void);
 void bond_debug_register(struct bonding *bond);
 void bond_debug_unregister(struct bonding *bond);
 void bond_debug_reregister(struct bonding *bond);
+const char *bond_mode_name(int mode);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
