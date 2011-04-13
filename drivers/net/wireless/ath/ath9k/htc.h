@@ -338,6 +338,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_tgt_stats;
 	struct dentry *debugfs_xmit;
 	struct dentry *debugfs_recv;
+	struct dentry *debugfs_slot;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
 	u32 txrate;

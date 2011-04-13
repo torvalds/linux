@@ -244,6 +244,41 @@ static const struct file_operations fops_recv = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_slot(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	char buf[512];
+	unsigned int len = 0;
+
+	spin_lock_bh(&priv->tx.tx_lock);
+
+	len += snprintf(buf + len, sizeof(buf) - len, "TX slot bitmap : ");
+
+	len += bitmap_scnprintf(buf + len, sizeof(buf) - len,
+			       priv->tx.tx_slot, MAX_TX_BUF_NUM);
+
+	len += snprintf(buf + len, sizeof(buf) - len, "\n");
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"Used slots     : %d\n",
+			bitmap_weight(priv->tx.tx_slot, MAX_TX_BUF_NUM));
+
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_slot = {
+	.read = read_file_slot,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath9k_htc_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -276,6 +311,12 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	if (!priv->debug.debugfs_recv)
 		goto err;
 
+	priv->debug.debugfs_slot = debugfs_create_file("slot", S_IRUSR,
+						       priv->debug.debugfs_phy,
+						       priv, &fops_slot);
+	if (!priv->debug.debugfs_slot)
+		goto err;
+
 	return 0;
 
 err:
@@ -288,6 +329,7 @@ void ath9k_htc_exit_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 
+	debugfs_remove(priv->debug.debugfs_slot);
 	debugfs_remove(priv->debug.debugfs_recv);
 	debugfs_remove(priv->debug.debugfs_xmit);
 	debugfs_remove(priv->debug.debugfs_tgt_stats);
