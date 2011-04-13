@@ -318,7 +318,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
 
 	if (srev >= AR5K_SREV_AR5212_V4 &&
-	    (ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+	    (ee->ee_version < AR5K_EEPROM_VERSION_5_0 ||
 	    !AR5K_EEPROM_AES_DIS(ee->ee_misc5)))
 		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 
