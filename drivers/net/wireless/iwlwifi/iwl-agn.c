@@ -846,14 +846,6 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		iwlagn_rx_queue_restock(priv);
 }
 
-/* call this function to flush any scheduled tasklet */
-static inline void iwl_synchronize_irq(struct iwl_priv *priv)
-{
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->pci_dev->irq);
-	tasklet_kill(&priv->irq_tasklet);
-}
-
 /* tasklet for iwlagn interrupt */
 static void iwl_irq_tasklet(struct iwl_priv *priv)
 {
@@ -2338,7 +2330,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv);
 
 static void __iwl_down(struct iwl_priv *priv)
 {
-	unsigned long flags;
 	int exit_pending;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
@@ -2370,15 +2361,6 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (!exit_pending)
 		clear_bit(STATUS_EXIT_PENDING, &priv->status);
 
-	/* stop and reset the on-board processor */
-	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
-
-	/* tell the device to stop sending interrupts */
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-	iwl_synchronize_irq(priv);
-
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
@@ -2392,21 +2374,7 @@ static void __iwl_down(struct iwl_priv *priv)
 		       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
 
-	/* device going down, Stop using ICT table */
-	iwl_disable_ict(priv);
-
-	iwlagn_txq_ctx_stop(priv);
-	iwlagn_rxq_stop(priv);
-
-	/* Power-down device's busmaster DMA clocks */
-	iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
-	udelay(5);
-
-	/* Make sure (redundant) we've released our request to stay awake */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
-	/* Stop the device, and put it in low power state */
-	iwl_apm_stop(priv);
+	iwlagn_stop_device(priv);
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
