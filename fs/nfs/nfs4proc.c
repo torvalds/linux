@@ -2215,7 +2215,7 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
 	int i, len, status = 0;
-	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS + 2];
+	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
 
 	flav_array[0] = RPC_AUTH_UNIX;
 	len = gss_mech_list_pseudoflavors(&flav_array[1]);
