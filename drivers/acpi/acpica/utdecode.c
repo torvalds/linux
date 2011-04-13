@@ -170,8 +170,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"SMBus",
 	"SystemCMOS",
 	"PCIBARTarget",
-	"IPMI",
-	"DataTable"
+	"IPMI"
 };
 
 char *acpi_ut_get_region_name(u8 space_id)
@@ -179,6 +178,8 @@ char *acpi_ut_get_region_name(u8 space_id)
 
 	if (space_id >= ACPI_USER_REGION_BEGIN) {
 		return ("UserDefinedRegion");
+	} else if (space_id == ACPI_ADR_SPACE_DATA_TABLE) {
+		return ("DataTable");
 	} else if (space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
 		return ("FunctionalFixedHW");
 	} else if (space_id >= ACPI_NUM_PREDEFINED_REGIONS) {
