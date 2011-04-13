@@ -82,6 +82,7 @@ nouveau_perf_init(struct drm_device *dev)
 	u8 version, headerlen, recordlen, entries;
 	u8 *perf, *entry;
 	int vid, i;
+	u8 ramcfg = (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x3c) >> 2;
 
 	if (bios->type == NVBIOS_BIT) {
 		if (bit_table(dev, 'P', &P))
@@ -123,6 +124,8 @@ nouveau_perf_init(struct drm_device *dev)
 	entry = perf + headerlen;
 	for (i = 0; i < entries; i++) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];
+
+		perflvl->timing = NULL;
 
 		if (entry[0] == 0xff) {
 			entry += recordlen;
@@ -188,6 +191,22 @@ nouveau_perf_init(struct drm_device *dev)
 				entry += recordlen;
 				continue;
 			}
+		}
+
+		/* get the corresponding memory timings */
+		if (pm->memtimings.supported) {
+			u8  timing_id = 0xff;
+			u16 extra_data;
+
+			if (version > 0x15 && version < 0x40 &&
+			    ramcfg < perf[4]) {
+				extra_data = perf[3] + (ramcfg * perf[5]);
+				timing_id  = entry[extra_data + 1];
+			}
+
+			if (pm->memtimings.nr_timing > timing_id)
+				perflvl->timing =
+					&pm->memtimings.timing[timing_id];
 		}
 
 		snprintf(perflvl->name, sizeof(perflvl->name),

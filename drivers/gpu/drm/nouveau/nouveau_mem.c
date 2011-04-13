@@ -704,6 +704,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 
 			/* XXX: reg_100240? */
 		}
+		timing->id = i;
 
 		NV_DEBUG(dev, "Entry %d: 220: %08x %08x %08x %08x\n", i,
 			 timing->reg_100220, timing->reg_100224,
@@ -715,7 +716,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 	}
 
 	memtimings->nr_timing = entries;
-	memtimings->supported = true;
+	memtimings->supported = (dev_priv->chipset <= 0x98);
 }
 
 void

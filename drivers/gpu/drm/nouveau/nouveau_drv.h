@@ -410,6 +410,19 @@ struct nouveau_pm_voltage {
 	int nr_level;
 };
 
+struct nouveau_pm_memtiming {
+	int id;
+	u32 reg_100220;
+	u32 reg_100224;
+	u32 reg_100228;
+	u32 reg_10022c;
+	u32 reg_100230;
+	u32 reg_100234;
+	u32 reg_100238;
+	u32 reg_10023c;
+	u32 reg_100240;
+};
+
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
 	struct device_attribute dev_attr;
@@ -425,6 +438,7 @@ struct nouveau_pm_level {
 	u8 fanspeed;
 
 	u16 memscript;
+	struct nouveau_pm_memtiming *timing;
 };
 
 struct nouveau_pm_temp_sensor_constants {
@@ -439,18 +453,6 @@ struct nouveau_pm_threshold_temp {
 	s16 critical;
 	s16 down_clock;
 	s16 fan_boost;
-};
-
-struct nouveau_pm_memtiming {
-	u32 reg_100220;
-	u32 reg_100224;
-	u32 reg_100228;
-	u32 reg_10022c;
-	u32 reg_100230;
-	u32 reg_100234;
-	u32 reg_100238;
-	u32 reg_10023c;
-	u32 reg_100240;
 };
 
 struct nouveau_pm_memtimings {
