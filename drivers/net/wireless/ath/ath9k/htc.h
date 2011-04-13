@@ -113,6 +113,7 @@ struct ath9k_htc_cap_target {
 	u8 tx_chainmask_legacy;
 	u8 rtscts_ratecode;
 	u8 protmode;
+	u8 pad;
 } __packed;
 
 struct ath9k_htc_target_vif {
