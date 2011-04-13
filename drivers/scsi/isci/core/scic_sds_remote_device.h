@@ -56,22 +56,74 @@
 #ifndef _SCIC_SDS_REMOTE_DEVICE_H_
 #define _SCIC_SDS_REMOTE_DEVICE_H_
 
-/**
- * This file contains the structures, constants, and prototypes for the
- *    struct scic_sds_remote_device object.
- *
- *
- */
-
 #include "intel_sas.h"
-#include "sci_base_remote_device.h"
 #include "scu_remote_node_context.h"
 #include "scic_sds_remote_node_context.h"
 
-struct scic_sds_controller;
-struct scic_sds_port;
-struct scic_sds_request;
-struct scic_sds_remote_device_state_handler;
+/**
+ * enum scic_sds_remote_device_states - This enumeration depicts all the states
+ *    for the common remote device state machine.
+ *
+ *
+ */
+enum scic_sds_remote_device_states {
+	/**
+	 * Simply the initial state for the base remote device state machine.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_INITIAL,
+
+	/**
+	 * This state indicates that the remote device has successfully been
+	 * stopped.  In this state no new IO operations are permitted.
+	 * This state is entered from the INITIAL state.
+	 * This state is entered from the STOPPING state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_STOPPED,
+
+	/**
+	 * This state indicates the the remote device is in the process of
+	 * becoming ready (i.e. starting).  In this state no new IO operations
+	 * are permitted.
+	 * This state is entered from the STOPPED state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_STARTING,
+
+	/**
+	 * This state indicates the remote device is now ready.  Thus, the user
+	 * is able to perform IO operations on the remote device.
+	 * This state is entered from the STARTING state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_READY,
+
+	/**
+	 * This state indicates that the remote device is in the process of
+	 * stopping.  In this state no new IO operations are permitted, but
+	 * existing IO operations are allowed to complete.
+	 * This state is entered from the READY state.
+	 * This state is entered from the FAILED state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_STOPPING,
+
+	/**
+	 * This state indicates that the remote device has failed.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the INITIALIZING state.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_FAILED,
+
+	/**
+	 * This state indicates the device is being reset.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_RESETTING,
+
+	/**
+	 * Simply the final state for the base remote device state machine.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_FINAL,
+};
 
 /**
  * enum scic_sds_ssp_remote_device_ready_substates -
@@ -186,14 +238,21 @@ enum scic_sds_smp_remote_device_ready_substates {
  */
 struct scic_sds_remote_device {
 	/**
-	 * This field is the common base for all remote device objects.
+	 * The field specifies that the parent object for the base remote
+	 * device is the base object itself.
 	 */
-	struct sci_base_remote_device parent;
+	struct sci_base_object parent;
 
 	/**
-	 * This field is the programmed device port width.  This value is written to
-	 * the RCN data structure to tell the SCU how many open connections this
-	 * device can have.
+	 * This field contains the information for the base remote device state
+	 * machine.
+	 */
+	struct sci_base_state_machine state_machine;
+
+	/**
+	 * This field is the programmed device port width.  This value is
+	 * written to the RCN data structure to tell the SCU how many open
+	 * connections this device can have.
 	 */
 	u32 device_port_width;
 
@@ -279,6 +338,16 @@ struct scic_sds_remote_device {
 	const struct scic_sds_remote_device_state_handler *state_handlers;
 };
 
+typedef enum sci_status (*scic_sds_remote_device_request_handler_t)(
+	struct scic_sds_remote_device *device,
+	struct scic_sds_request *request);
+
+typedef enum sci_status (*scic_sds_remote_device_high_priority_request_complete_handler_t)(
+	struct scic_sds_remote_device *device,
+	struct scic_sds_request *request,
+	void *,
+	enum sci_io_status);
+
 typedef enum sci_status (*scic_sds_remote_device_handler_t)(
 	struct scic_sds_remote_device *this_device);
 
@@ -308,7 +377,74 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  *
  */
 struct scic_sds_remote_device_state_handler {
-	struct sci_base_remote_device_state_handler parent;
+	/**
+	 * The start_handler specifies the method invoked when a user
+	 * attempts to start a remote device.
+	 */
+	scic_sds_remote_device_handler_t start_handler;
+
+	/**
+	 * The stop_handler specifies the method invoked when a user attempts to
+	 * stop a remote device.
+	 */
+	scic_sds_remote_device_handler_t stop_handler;
+
+	/**
+	 * The fail_handler specifies the method invoked when a remote device
+	 * failure has occurred.  A failure may be due to an inability to
+	 * initialize/configure the device.
+	 */
+	scic_sds_remote_device_handler_t fail_handler;
+
+	/**
+	 * The destruct_handler specifies the method invoked when attempting to
+	 * destruct a remote device.
+	 */
+	scic_sds_remote_device_handler_t destruct_handler;
+
+	/**
+	 * The reset handler specifies the method invloked when requesting to
+	 * reset a remote device.
+	 */
+	scic_sds_remote_device_handler_t reset_handler;
+
+	/**
+	 * The reset complete handler specifies the method invloked when
+	 * reporting that a reset has completed to the remote device.
+	 */
+	scic_sds_remote_device_handler_t reset_complete_handler;
+
+	/**
+	 * The start_io_handler specifies the method invoked when a user
+	 * attempts to start an IO request for a remote device.
+	 */
+	scic_sds_remote_device_request_handler_t start_io_handler;
+
+	/**
+	 * The complete_io_handler specifies the method invoked when a user
+	 * attempts to complete an IO request for a remote device.
+	 */
+	scic_sds_remote_device_request_handler_t complete_io_handler;
+
+	/**
+	 * The continue_io_handler specifies the method invoked when a user
+	 * attempts to continue an IO request for a remote device.
+	 */
+	scic_sds_remote_device_request_handler_t continue_io_handler;
+
+	/**
+	 * The start_task_handler specifies the method invoked when a user
+	 * attempts to start a task management request for a remote device.
+	 */
+	scic_sds_remote_device_request_handler_t start_task_handler;
+
+	/**
+	 * The complete_task_handler specifies the method invoked when a user
+	 * attempts to complete a task management request for a remote device.
+	 */
+	scic_sds_remote_device_request_handler_t complete_task_handler;
+
+
 	scic_sds_remote_device_suspend_handler_t suspend_handler;
 	scic_sds_remote_device_resume_handler_t resume_handler;
 	scic_sds_remote_device_event_handler_t event_handler;
@@ -490,30 +626,30 @@ void scic_sds_remote_device_start_request(
 void scic_sds_remote_device_continue_request(void *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_start_handler(
-	struct sci_base_remote_device *this_device);
+	struct scic_sds_remote_device *this_device);
 
 enum sci_status scic_sds_remote_device_default_fail_handler(
-	struct sci_base_remote_device *this_device);
+	struct scic_sds_remote_device *this_device);
 
 enum sci_status scic_sds_remote_device_default_destruct_handler(
-	struct sci_base_remote_device *this_device);
+	struct scic_sds_remote_device *this_device);
 
 enum sci_status scic_sds_remote_device_default_reset_handler(
-	struct sci_base_remote_device *device);
+	struct scic_sds_remote_device *device);
 
 enum sci_status scic_sds_remote_device_default_reset_complete_handler(
-	struct sci_base_remote_device *device);
+	struct scic_sds_remote_device *device);
 
 enum sci_status scic_sds_remote_device_default_start_request_handler(
-	struct sci_base_remote_device *device,
+	struct scic_sds_remote_device *device,
 	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_complete_request_handler(
-	struct sci_base_remote_device *device,
+	struct scic_sds_remote_device *device,
 	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_continue_request_handler(
-	struct sci_base_remote_device *device,
+	struct scic_sds_remote_device *device,
 	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_suspend_handler(
@@ -529,10 +665,10 @@ enum sci_status scic_sds_remote_device_default_frame_handler(
 	u32 frame_index);
 
 enum sci_status scic_sds_remote_device_ready_state_stop_handler(
-	struct sci_base_remote_device *device);
+	struct scic_sds_remote_device *device);
 
 enum sci_status scic_sds_remote_device_ready_state_reset_handler(
-	struct sci_base_remote_device *device);
+	struct scic_sds_remote_device *device);
 
 enum sci_status scic_sds_remote_device_general_frame_handler(
 	struct scic_sds_remote_device *this_device,

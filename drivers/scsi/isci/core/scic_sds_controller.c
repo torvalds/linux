@@ -1500,13 +1500,13 @@ void scic_sds_controller_link_down(struct scic_sds_controller *scic,
  *
  */
 static bool scic_sds_controller_has_remote_devices_stopping(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *controller)
 {
 	u32 index;
 
-	for (index = 0; index < this_controller->remote_node_entries; index++) {
-		if ((this_controller->device_table[index] != NULL) &&
-		   (this_controller->device_table[index]->parent.state_machine.current_state_id
+	for (index = 0; index < controller->remote_node_entries; index++) {
+		if ((controller->device_table[index] != NULL) &&
+		   (controller->device_table[index]->state_machine.current_state_id
 		    == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING))
 			return true;
 	}
