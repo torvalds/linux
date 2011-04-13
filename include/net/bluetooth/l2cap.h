@@ -284,6 +284,9 @@ struct srej_list {
 
 struct l2cap_chan {
 	struct sock *sk;
+	__le16		psm;
+	__u16		dcid;
+	__u16		scid;
 
 	__u16		imtu;
 	__u16		omtu;
@@ -382,9 +385,6 @@ struct l2cap_conn {
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
-	__le16		psm;
-	__u16		dcid;
-	__u16		scid;
 
 	struct l2cap_conn	*conn;
 	struct l2cap_chan	*chan;
@@ -450,8 +450,8 @@ void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *d
 void __l2cap_connect_rsp_defer(struct sock *sk);
 int __l2cap_wait_ack(struct sock *sk);
 
-struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);
-struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
 int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);

@@ -141,7 +141,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	} else {
 		/* Save source address */
 		bacpy(&bt_sk(sk)->src, &la.l2_bdaddr);
-		l2cap_pi(sk)->psm   = la.l2_psm;
+		chan->psm   = la.l2_psm;
 		chan->sport = la.l2_psm;
 		sk->sk_state = BT_BOUND;
 
@@ -151,7 +151,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	}
 
 	if (la.l2_cid)
-		l2cap_pi(sk)->scid = la.l2_cid;
+		chan->scid = la.l2_cid;
 
 	write_unlock_bh(&l2cap_sk_list.lock);
 
@@ -232,8 +232,8 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	/* Set destination address and psm */
 	bacpy(&bt_sk(sk)->dst, &la.l2_bdaddr);
-	l2cap_pi(sk)->psm = la.l2_psm;
-	l2cap_pi(sk)->dcid = la.l2_cid;
+	chan->psm = la.l2_psm;
+	chan->dcid = la.l2_cid;
 
 	err = l2cap_chan_connect(l2cap_pi(sk)->chan);
 	if (err)
@@ -276,7 +276,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->scid) {
+	if (!chan->psm && !chan->scid) {
 		bdaddr_t *src = &bt_sk(sk)->src;
 		u16 psm;
 
@@ -286,7 +286,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 
 		for (psm = 0x1001; psm < 0x1100; psm += 2)
 			if (!__l2cap_get_sock_by_addr(cpu_to_le16(psm), src)) {
-				l2cap_pi(sk)->psm   = cpu_to_le16(psm);
+				chan->psm   = cpu_to_le16(psm);
 				chan->sport = cpu_to_le16(psm);
 				err = 0;
 				break;
@@ -375,13 +375,13 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 	*len = sizeof(struct sockaddr_l2);
 
 	if (peer) {
-		la->l2_psm = l2cap_pi(sk)->psm;
+		la->l2_psm = chan->psm;
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->dst);
-		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->dcid);
+		la->l2_cid = cpu_to_le16(chan->dcid);
 	} else {
 		la->l2_psm = chan->sport;
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->src);
-		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->scid);
+		la->l2_cid = cpu_to_le16(chan->scid);
 	}
 
 	return 0;
@@ -737,7 +737,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	/* Connectionless channel */
 	if (sk->sk_type == SOCK_DGRAM) {
-		skb = l2cap_create_connless_pdu(sk, msg, len);
+		skb = l2cap_create_connless_pdu(chan, msg, len);
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
 		} else {
@@ -756,7 +756,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		}
 
 		/* Create a basic PDU */
-		skb = l2cap_create_basic_pdu(sk, msg, len);
+		skb = l2cap_create_basic_pdu(chan, msg, len);
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
 			goto done;
@@ -911,8 +911,8 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			else
 				result = L2CAP_CR_BAD_PSM;
 
-			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
-			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+			rsp.scid   = cpu_to_le16(chan->dcid);
+			rsp.dcid   = cpu_to_le16(chan->scid);
 			rsp.result = cpu_to_le16(result);
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
