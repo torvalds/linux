@@ -165,11 +165,6 @@
 
 #define TG3_RAW_IP_ALIGN 2
 
-/* number of ETHTOOL_GSTATS u64's */
-#define TG3_NUM_STATS		(sizeof(struct tg3_ethtool_stats)/sizeof(u64))
-
-#define TG3_NUM_TEST		6
-
 #define TG3_FW_UPDATE_TIMEOUT_SEC	5
 
 #define FIRMWARE_TG3		"tigon/tg3.bin"
@@ -279,7 +274,7 @@ MODULE_DEVICE_TABLE(pci, tg3_pci_tbl);
 
 static const struct {
 	const char string[ETH_GSTRING_LEN];
-} ethtool_stats_keys[TG3_NUM_STATS] = {
+} ethtool_stats_keys[] = {
 	{ "rx_octets" },
 	{ "rx_fragments" },
 	{ "rx_ucast_packets" },
@@ -358,9 +353,12 @@ static const struct {
 	{ "nic_tx_threshold_hit" }
 };
 
+#define TG3_NUM_STATS	ARRAY_SIZE(ethtool_stats_keys)
+
+
 static const struct {
 	const char string[ETH_GSTRING_LEN];
-} ethtool_test_keys[TG3_NUM_TEST] = {
+} ethtool_test_keys[] = {
 	{ "nvram test     (online) " },
 	{ "link test      (online) " },
 	{ "register test  (offline)" },
@@ -368,6 +366,9 @@ static const struct {
 	{ "loopback test  (offline)" },
 	{ "interrupt test (offline)" },
 };
+
+#define TG3_NUM_TEST	ARRAY_SIZE(ethtool_test_keys)
+
 
 static void tg3_write32(struct tg3 *tp, u32 off, u32 val)
 {
