@@ -3340,7 +3340,7 @@ static int bond_slave_netdev_event(unsigned long event,
 			slave = bond_get_slave_by_dev(bond, slave_dev);
 			if (slave) {
 				u16 old_speed = slave->speed;
-				u16 old_duplex = slave->duplex;
+				u8  old_duplex = slave->duplex;
 
 				bond_update_speed_duplex(slave);
 
