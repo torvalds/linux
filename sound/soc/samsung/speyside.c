@@ -153,6 +153,19 @@ static int speyside_wm8915_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int speyside_late_probe(struct snd_soc_card *card)
+{
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Main AMIC");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Main DMIC");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Output");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Input");
+
+	return 0;
+}
+
 static struct snd_soc_dai_link speyside_dai[] = {
 	{
 		.name = "CPU",
@@ -172,6 +185,7 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.codec_name = "wm1250-ev1.1-0027",
 		.platform_name = "samsung-audio",
 		.ops = &speyside_ops,
+		.ignore_suspend = 1,
 	},
 };
 
@@ -261,6 +275,8 @@ static struct snd_soc_card speyside = {
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
 	.dapm_routes = audio_paths,
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+
+	.late_probe = speyside_late_probe,
 };
 
 static __devinit int speyside_probe(struct platform_device *pdev)
