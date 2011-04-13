@@ -18,6 +18,50 @@
 
 #define FUDGE 2
 
+void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath9k_tx_queue_info qi, qi_be;
+
+	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
+	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
+
+	ath9k_hw_get_txq_props(ah, priv->beaconq, &qi);
+
+	if (priv->ah->opmode == NL80211_IFTYPE_AP) {
+		qi.tqi_aifs = 1;
+		qi.tqi_cwmin = 0;
+		qi.tqi_cwmax = 0;
+	} else if (priv->ah->opmode == NL80211_IFTYPE_ADHOC) {
+		int qnum = priv->hwq_map[WME_AC_BE];
+
+		ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+
+		qi.tqi_aifs = qi_be.tqi_aifs;
+
+		/*
+		 * For WIFI Beacon Distribution
+		 * Long slot time  : 2x cwmin
+		 * Short slot time : 4x cwmin
+		 */
+		if (ah->slottime == ATH9K_SLOT_TIME_20)
+			qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
+		else
+			qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+
+		qi.tqi_cwmax = qi_be.tqi_cwmax;
+
+	}
+
+	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update beacon queue %u!\n", priv->beaconq);
+	} else {
+		ath9k_hw_resettxqueue(ah, priv->beaconq);
+	}
+}
+
+
 static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 					struct htc_beacon_config *bss_conf)
 {
@@ -175,6 +219,8 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		"AP Beacon config, intval: %d, nexttbtt: %u "
 		"imask: 0x%x\n",
 		bss_conf->beacon_interval, nexttbtt, imask);
+
+	ath9k_htc_beaconq_config(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
@@ -345,37 +391,6 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv)
 	spin_unlock_bh(&priv->beacon_lock);
 
 	ath9k_htc_send_beacon(priv, slot);
-}
-
-/* Currently, only for IBSS */
-void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
-{
-	struct ath_hw *ah = priv->ah;
-	struct ath9k_tx_queue_info qi, qi_be;
-	int qnum = priv->hwq_map[WME_AC_BE];
-
-	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
-	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
-
-	ath9k_hw_get_txq_props(ah, qnum, &qi_be);
-
-	qi.tqi_aifs = qi_be.tqi_aifs;
-	/* For WIFI Beacon Distribution
-	 * Long slot time  : 2x cwmin
-	 * Short slot time : 4x cwmin
-	 */
-	if (ah->slottime == ATH9K_SLOT_TIME_20)
-		qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
-	else
-		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
-	qi.tqi_cwmax = qi_be.tqi_cwmax;
-
-	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
-		ath_err(ath9k_hw_common(ah),
-			"Unable to update beacon queue %u!\n", qnum);
-	} else {
-		ath9k_hw_resettxqueue(ah, priv->beaconq);
-	}
 }
 
 void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
