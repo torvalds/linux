@@ -156,6 +156,7 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	struct wmi_cmd_hdr *hdr;
 	u16 cmd_id;
 	void *wmi_event;
+	struct wmi_event_swba *swba;
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 	__be32 txrate;
 #endif
@@ -170,7 +171,11 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 		wmi_event = skb_pull(skb, sizeof(struct wmi_cmd_hdr));
 		switch (cmd_id) {
 		case WMI_SWBA_EVENTID:
-			wmi->beacon_pending = *(u8 *)wmi_event;
+			swba = (struct wmi_event_swba *) wmi_event;
+
+			wmi->tsf = be64_to_cpu(swba->tsf);
+			wmi->beacon_pending = swba->beacon_pending;
+
 			tasklet_schedule(&wmi->drv_priv->swba_tasklet);
 			break;
 		case WMI_FATAL_EVENTID:

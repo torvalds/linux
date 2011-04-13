@@ -36,6 +36,11 @@ struct wmi_fw_version {
 	__be16 minor;
 
 } __packed;
+
+struct wmi_event_swba {
+	__be64 tsf;
+	u8 beacon_pending;
+};
 enum wmi_cmd_id {
 	WMI_ECHO_CMDID = 0x0001,
 	WMI_ACCESS_MEMORY_CMDID,
@@ -106,6 +111,7 @@ struct wmi {
 	u32 cmd_rsp_len;
 	bool stopped;
 
+	u64 tsf;
 	u8 beacon_pending;
 	spinlock_t wmi_lock;
 

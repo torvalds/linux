@@ -96,8 +96,8 @@ struct tx_mgmt_hdr {
 } __packed;
 
 struct tx_beacon_header {
-	u8 len_changed;
 	u8 vif_index;
+	u8 len_changed;
 	u16 rev;
 } __packed;
 
