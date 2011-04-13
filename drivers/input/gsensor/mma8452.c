@@ -40,7 +40,8 @@
 static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
 #define MMA8452_SPEED		200 * 1000
-#define MMA8452_DEVID		0x1a
+#define MMA8451_DEVID		0x1a
+#define MMA8452_DEVID		0x2a
 /* Addresses to scan -- protected by sense_data_mutex */
 //static char sense_data[RBUFF_SIZE + 1];
 static struct i2c_client *this_client;
@@ -600,6 +601,7 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	struct mma8452_data *mma8452;
 	struct mma8452_platform_data *pdata = pdata = client->dev.platform_data;
 	int err;
+	char devid;
 
 	mmaprintk("%s enter\n",__FUNCTION__);
 
@@ -625,7 +627,8 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto exit_request_gpio_irq_failed;
 	}
 
-	if (MMA8452_DEVID != mma8452_get_devid(this_client)) {
+	devid = mma8452_get_devid(this_client);
+	if ((MMA8452_DEVID != devid) && (MMA8451_DEVID != devid)) {
 		pr_info("mma8452: invalid devid\n");
 		goto exit_invalid_devid;
 	}
