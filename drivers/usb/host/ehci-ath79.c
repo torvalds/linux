@@ -54,6 +54,8 @@ static int ehci_ath79_init(struct usb_hcd *hcd)
 
 	switch (id->driver_data) {
 	case EHCI_ATH79_IP_V1:
+		ehci->has_synopsys_hc_bug = 1;
+
 		ehci->caps = hcd->regs;
 		ehci->regs = hcd->regs +
 			HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
