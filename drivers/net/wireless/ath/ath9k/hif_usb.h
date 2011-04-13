@@ -31,7 +31,7 @@
 
 /* FIXME: Verify these numbers (with Windows) */
 #define MAX_TX_URB_NUM  8
-#define MAX_TX_BUF_NUM  1024
+#define MAX_TX_BUF_NUM  256
 #define MAX_TX_BUF_SIZE 32768
 #define MAX_TX_AGGR_NUM 20
 
