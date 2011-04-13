@@ -73,10 +73,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 		DRM_IO(DRM_PSB_KMS_OFF + DRM_COMMAND_BASE)
 #define DRM_IOCTL_PSB_KMS_ON	\
 		DRM_IO(DRM_PSB_KMS_ON + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_VT_LEAVE	\
-		DRM_IO(DRM_PSB_VT_LEAVE + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_VT_ENTER	\
-		DRM_IO(DRM_PSB_VT_ENTER + DRM_COMMAND_BASE)
 #define DRM_IOCTL_PSB_SIZES	\
 		DRM_IOR(DRM_PSB_SIZES + DRM_COMMAND_BASE, \
 			struct drm_psb_sizes_arg)
@@ -96,15 +92,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_REGISTER_RW	\
 		DRM_IOWR(DRM_PSB_REGISTER_RW + DRM_COMMAND_BASE, \
 			 struct drm_psb_register_rw_arg)
-#define DRM_IOCTL_PSB_GTT_MAP	\
-		DRM_IOWR(DRM_PSB_GTT_MAP + DRM_COMMAND_BASE, \
-			 struct psb_gtt_mapping_arg)
-#define DRM_IOCTL_PSB_GTT_UNMAP	\
-		DRM_IOW(DRM_PSB_GTT_UNMAP + DRM_COMMAND_BASE, \
-			struct psb_gtt_mapping_arg)
-#define DRM_IOCTL_PSB_UPDATE_GUARD	\
-		DRM_IOWR(DRM_PSB_UPDATE_GUARD + DRM_COMMAND_BASE, \
-			 uint32_t)
 #define DRM_IOCTL_PSB_DPST	\
 		DRM_IOWR(DRM_PSB_DPST + DRM_COMMAND_BASE, \
 			 uint32_t)
@@ -118,13 +105,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 		DRM_IOWR(DRM_PSB_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
 			 struct drm_psb_get_pipe_from_crtc_id_arg)
 
-#define DRM_IOCTL_PSB_KMS_OFF	  DRM_IO(DRM_PSB_KMS_OFF + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_KMS_ON	  DRM_IO(DRM_PSB_KMS_ON + DRM_COMMAND_BASE)
-
-static int psb_vt_leave_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-static int psb_vt_enter_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
@@ -153,11 +133,6 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_KMS_ON,
 			psbfb_kms_on_ioctl,
 			DRM_ROOT_ONLY),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_VT_LEAVE, psb_vt_leave_ioctl,
-		      DRM_ROOT_ONLY),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_VT_ENTER,
-			psb_vt_enter_ioctl,
-			DRM_ROOT_ONLY),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_SIZES, psb_sizes_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DC_STATE, psb_dc_state_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_ADB, psb_adb_ioctl, DRM_AUTH),
@@ -167,12 +142,6 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 		      DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_REGISTER_RW, psb_register_rw_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GTT_MAP,
-			psb_gtt_map_meminfo_ioctl,
-			DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GTT_UNMAP,
-			psb_gtt_unmap_meminfo_ioctl,
-			DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST, psb_dpst_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GAMMA, psb_gamma_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
@@ -495,7 +464,6 @@ static int psb_do_init(struct drm_device *dev)
 	psb_spank(dev_priv);
 
 	/* mmu_gatt ?? */
-	printk(KERN_INFO "TWOD base %08lX\n", (u32) pg->gatt_start);
       	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
 	return 0;
@@ -721,18 +689,6 @@ int psb_driver_device_is_agp(struct drm_device *dev)
 }
 
 
-static int psb_vt_leave_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	return 0;
-}
-
-static int psb_vt_enter_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	return 0;
-}
-
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
@@ -840,7 +796,7 @@ static int psb_dpst_ioctl(struct drm_device *dev, void *data,
 	uint32_t reg;
 
 	if (!gma_power_begin(dev, 0))
-		return 0;
+		return -EIO;
 
 	reg = PSB_RVDC32(PIPEASRC);
 
@@ -1368,28 +1324,13 @@ static unsigned int psb_poll(struct file *filp,
 	return POLLIN | POLLRDNORM;
 }
 
-/* Not sure what we will need yet - in the PVR driver this disappears into
-   a tangle of abstracted handlers and per process crap */
-
-struct psb_priv {
-	int dummy;
-};
-
 static int psb_driver_open(struct drm_device *dev, struct drm_file *priv)
 {
-	struct psb_priv *psb = kzalloc(sizeof(struct psb_priv), GFP_KERNEL);
-	if (psb == NULL)
-		return -ENOMEM;
-	priv->driver_priv = psb;
-	DRM_DEBUG("\n");
-	/*return PVRSRVOpen(dev, priv);*/
 	return 0;
 }
 
 static void psb_driver_close(struct drm_device *dev, struct drm_file *priv)
 {
-	kfree(priv->driver_priv);
-	priv->driver_priv = NULL;
 }
 
 static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
