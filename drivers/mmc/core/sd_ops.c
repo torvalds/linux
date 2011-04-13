@@ -201,6 +201,8 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	static const u8 test_pattern = 0xAA;
 	u8 result_pattern;
 
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
 	/*
 	 * To support SD 2.0 cards, we must always invoke SD_SEND_IF_COND
 	 * before SD_APP_OP_COND. This command will harmlessly fail for
