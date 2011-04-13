@@ -1971,7 +1971,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		 * This should only fail upon a hung GPU, in which case we
 		 * can safely continue.
 		 */
-		ret = i915_gem_object_flush_gpu(obj);
+		ret = i915_gem_object_finish_gpu(obj);
 		(void) ret;
 	}
 
