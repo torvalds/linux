@@ -130,6 +130,12 @@ struct register_write {
 	__be32 val;
 };
 
+struct ath9k_htc_tx_event {
+	int count;
+	struct __wmi_event_txstatus txs;
+	struct list_head list;
+};
+
 struct wmi {
 	struct ath9k_htc_priv *drv_priv;
 	struct htc_target *htc;
@@ -143,6 +149,9 @@ struct wmi {
 	u8 *cmd_rsp_buf;
 	u32 cmd_rsp_len;
 	bool stopped;
+
+	struct list_head pending_tx_events;
+	spinlock_t event_lock;
 
 	spinlock_t wmi_lock;
 

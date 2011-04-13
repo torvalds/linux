@@ -262,7 +262,10 @@ struct ath9k_htc_rx {
 	spinlock_t rxbuflock;
 };
 
-#define ATH9K_HTC_TX_RESERVE   10
+#define ATH9K_HTC_TX_CLEANUP_INTERVAL 50 /* ms */
+#define ATH9K_HTC_TX_TIMEOUT_INTERVAL 2500 /* ms */
+#define ATH9K_HTC_TX_RESERVE 10
+#define ATH9K_HTC_TX_TIMEOUT_COUNT 20
 #define ATH9K_HTC_TX_THRESHOLD (MAX_TX_BUF_NUM - ATH9K_HTC_TX_RESERVE)
 
 #define ATH9K_HTC_OP_TX_QUEUES_STOP BIT(0)
@@ -279,6 +282,7 @@ struct ath9k_htc_tx {
 	struct sk_buff_head data_vo_queue;
 	struct sk_buff_head tx_failed;
 	DECLARE_BITMAP(tx_slot, MAX_TX_BUF_NUM);
+	struct timer_list cleanup_timer;
 	spinlock_t tx_lock;
 };
 
@@ -287,6 +291,7 @@ struct ath9k_htc_tx_ctl {
 	u8 epid;
 	u8 txok;
 	u8 sta_idx;
+	unsigned long timestamp;
 };
 
 static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
@@ -557,6 +562,7 @@ void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
 void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
 void ath9k_htc_tx_failed(struct ath9k_htc_priv *priv);
 void ath9k_tx_failed_tasklet(unsigned long data);
+void ath9k_htc_tx_cleanup_timer(unsigned long data);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);

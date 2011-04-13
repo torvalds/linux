@@ -671,7 +671,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
 
-	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx.tx_lock);
 	mutex_init(&priv->mutex);
@@ -683,6 +682,8 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	INIT_DELAYED_WORK(&priv->ani_work, ath9k_htc_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 	INIT_WORK(&priv->fatal_work, ath9k_fatal_work);
+	setup_timer(&priv->tx.cleanup_timer, ath9k_htc_tx_cleanup_timer,
+		    (unsigned long)priv);
 
 	/*
 	 * Cache line size is used to size and align various

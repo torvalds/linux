@@ -91,9 +91,12 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 	wmi->drv_priv = priv;
 	wmi->stopped = false;
 	skb_queue_head_init(&wmi->wmi_event_queue);
+	spin_lock_init(&wmi->wmi_lock);
+	spin_lock_init(&wmi->event_lock);
 	mutex_init(&wmi->op_mutex);
 	mutex_init(&wmi->multi_write_mutex);
 	init_completion(&wmi->cmd_wait);
+	INIT_LIST_HEAD(&wmi->pending_tx_events);
 	tasklet_init(&wmi->wmi_event_tasklet, ath9k_wmi_event_tasklet,
 		     (unsigned long)wmi);
 

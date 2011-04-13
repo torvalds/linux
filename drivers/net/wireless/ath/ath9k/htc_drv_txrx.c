@@ -495,6 +495,8 @@ static inline void ath9k_htc_tx_drainq(struct ath9k_htc_priv *priv,
 
 void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv)
 {
+	struct ath9k_htc_tx_event *event, *tmp;
+
 	spin_lock_bh(&priv->tx.tx_lock);
 	priv->tx.flags |= ATH9K_HTC_OP_TX_DRAIN;
 	spin_unlock_bh(&priv->tx.tx_lock);
@@ -514,6 +516,16 @@ void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv)
 	ath9k_htc_tx_drainq(priv, &priv->tx.data_vi_queue);
 	ath9k_htc_tx_drainq(priv, &priv->tx.data_vo_queue);
 	ath9k_htc_tx_drainq(priv, &priv->tx.tx_failed);
+
+	/*
+	 * The TX cleanup timer has already been killed.
+	 */
+	spin_lock_bh(&priv->wmi->event_lock);
+	list_for_each_entry_safe(event, tmp, &priv->wmi->pending_tx_events, list) {
+		list_del(&event->list);
+		kfree(event);
+	}
+	spin_unlock_bh(&priv->wmi->event_lock);
 
 	spin_lock_bh(&priv->tx.tx_lock);
 	priv->tx.flags &= ~ATH9K_HTC_OP_TX_DRAIN;
@@ -595,6 +607,7 @@ void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event)
 	struct wmi_event_txstatus *txs = (struct wmi_event_txstatus *)wmi_event;
 	struct __wmi_event_txstatus *__txs;
 	struct sk_buff *skb;
+	struct ath9k_htc_tx_event *tx_pend;
 	int i;
 
 	for (i = 0; i < txs->cnt; i++) {
@@ -603,8 +616,26 @@ void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event)
 		__txs = &txs->txstatus[i];
 
 		skb = ath9k_htc_tx_get_packet(priv, __txs);
-		if (!skb)
+		if (!skb) {
+			/*
+			 * Store this event, so that the TX cleanup
+			 * routine can check later for the needed packet.
+			 */
+			tx_pend = kzalloc(sizeof(struct ath9k_htc_tx_event),
+					  GFP_ATOMIC);
+			if (!tx_pend)
+				continue;
+
+			memcpy(&tx_pend->txs, __txs,
+			       sizeof(struct __wmi_event_txstatus));
+
+			spin_lock(&priv->wmi->event_lock);
+			list_add_tail(&tx_pend->list,
+				      &priv->wmi->pending_tx_events);
+			spin_unlock(&priv->wmi->event_lock);
+
 			continue;
+		}
 
 		ath9k_htc_tx_process(priv, skb, __txs);
 	}
@@ -622,6 +653,7 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 
 	tx_ctl = HTC_SKB_CB(skb);
 	tx_ctl->txok = txok;
+	tx_ctl->timestamp = jiffies;
 
 	if (!txok) {
 		skb_queue_tail(&priv->tx.tx_failed, skb);
@@ -636,6 +668,99 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 	}
 
 	skb_queue_tail(epid_queue, skb);
+}
+
+static inline bool check_packet(struct ath9k_htc_priv *priv, struct sk_buff *skb)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_tx_ctl *tx_ctl;
+
+	tx_ctl = HTC_SKB_CB(skb);
+
+	if (time_after(jiffies,
+		       tx_ctl->timestamp +
+		       msecs_to_jiffies(ATH9K_HTC_TX_TIMEOUT_INTERVAL))) {
+		ath_dbg(common, ATH_DBG_XMIT,
+			"Dropping a packet due to TX timeout\n");
+		return true;
+	}
+
+	return false;
+}
+
+static void ath9k_htc_tx_cleanup_queue(struct ath9k_htc_priv *priv,
+				       struct sk_buff_head *epid_queue)
+{
+	bool process = false;
+	unsigned long flags;
+	struct sk_buff *skb, *tmp;
+	struct sk_buff_head queue;
+
+	skb_queue_head_init(&queue);
+
+	spin_lock_irqsave(&epid_queue->lock, flags);
+	skb_queue_walk_safe(epid_queue, skb, tmp) {
+		if (check_packet(priv, skb)) {
+			__skb_unlink(skb, epid_queue);
+			__skb_queue_tail(&queue, skb);
+			process = true;
+		}
+	}
+	spin_unlock_irqrestore(&epid_queue->lock, flags);
+
+	if (process) {
+		skb_queue_walk_safe(&queue, skb, tmp) {
+			__skb_unlink(skb, &queue);
+			ath9k_htc_tx_process(priv, skb, NULL);
+		}
+	}
+}
+
+void ath9k_htc_tx_cleanup_timer(unsigned long data)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_tx_event *event, *tmp;
+	struct sk_buff *skb;
+
+	spin_lock(&priv->wmi->event_lock);
+	list_for_each_entry_safe(event, tmp, &priv->wmi->pending_tx_events, list) {
+
+		skb = ath9k_htc_tx_get_packet(priv, &event->txs);
+		if (skb) {
+			ath_dbg(common, ATH_DBG_XMIT,
+				"Found packet for cookie: %d, epid: %d\n",
+				event->txs.cookie,
+				MS(event->txs.ts_rate, ATH9K_HTC_TXSTAT_EPID));
+
+			ath9k_htc_tx_process(priv, skb, &event->txs);
+			list_del(&event->list);
+			kfree(event);
+			continue;
+		}
+
+		if (++event->count >= ATH9K_HTC_TX_TIMEOUT_COUNT) {
+			list_del(&event->list);
+			kfree(event);
+		}
+	}
+	spin_unlock(&priv->wmi->event_lock);
+
+	/*
+	 * Check if status-pending packets have to be cleaned up.
+	 */
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.mgmt_ep_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.cab_ep_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_be_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_bk_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_vi_queue);
+	ath9k_htc_tx_cleanup_queue(priv, &priv->tx.data_vo_queue);
+
+	/* Wake TX queues if needed */
+	ath9k_htc_check_wake_queues(priv);
+
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 }
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv)

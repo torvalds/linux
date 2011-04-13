@@ -194,6 +194,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	ath9k_htc_stop_ani(priv);
 	ieee80211_stop_queues(priv->hw);
 
+	del_timer_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -225,6 +226,9 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	ath9k_htc_vif_reconfig(priv);
 	ieee80211_wake_queues(priv->hw);
 
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
+
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 }
@@ -251,6 +255,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	ath9k_htc_ps_wakeup(priv);
 
+	del_timer_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -300,6 +305,9 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	if (!(priv->op_flags & OP_SCANNING) &&
 	    !(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		ath9k_htc_vif_reconfig(priv);
+
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
 err:
 	ath9k_htc_ps_restore(priv);
@@ -937,6 +945,9 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
+
 	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE) {
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
 					   AR_STOMP_LOW_WLAN_WGHT);
@@ -972,6 +983,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	tasklet_kill(&priv->rx_tasklet);
 
+	del_timer_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 	ath9k_wmi_event_drain(priv);
 
