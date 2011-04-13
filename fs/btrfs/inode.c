@@ -619,6 +619,7 @@ retry:
 
 		trans = btrfs_join_transaction(root, 1);
 		BUG_ON(IS_ERR(trans));
+		trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 		ret = btrfs_reserve_extent(trans, root,
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
@@ -1060,6 +1061,7 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 		trans = btrfs_join_transaction(root, 1);
 	}
 	BUG_ON(IS_ERR(trans));
+	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 	cow_start = (u64)-1;
 	cur_offset = start;
