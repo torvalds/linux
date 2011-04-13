@@ -5259,6 +5259,40 @@ tx_recovery:
 	return work_done;
 }
 
+static void tg3_process_error(struct tg3 *tp)
+{
+	u32 val;
+	bool real_error = false;
+
+	if (tp->tg3_flags & TG3_FLAG_ERROR_PROCESSED)
+		return;
+
+	/* Check Flow Attention register */
+	val = tr32(HOSTCC_FLOW_ATTN);
+	if (val & ~HOSTCC_FLOW_ATTN_MBUF_LWM) {
+		netdev_err(tp->dev, "FLOW Attention error.  Resetting chip.\n");
+		real_error = true;
+	}
+
+	if (tr32(MSGINT_STATUS) & ~MSGINT_STATUS_MSI_REQ) {
+		netdev_err(tp->dev, "MSI Status error.  Resetting chip.\n");
+		real_error = true;
+	}
+
+	if (tr32(RDMAC_STATUS) || tr32(WDMAC_STATUS)) {
+		netdev_err(tp->dev, "DMA Status error.  Resetting chip.\n");
+		real_error = true;
+	}
+
+	if (!real_error)
+		return;
+
+	tg3_dump_state(tp);
+
+	tp->tg3_flags |= TG3_FLAG_ERROR_PROCESSED;
+	schedule_work(&tp->reset_task);
+}
+
 static int tg3_poll(struct napi_struct *napi, int budget)
 {
 	struct tg3_napi *tnapi = container_of(napi, struct tg3_napi, napi);
@@ -5267,6 +5301,9 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 	struct tg3_hw_status *sblk = tnapi->hw_status;
 
 	while (1) {
+		if (sblk->status & SD_STATUS_ERROR)
+			tg3_process_error(tp);
+
 		tg3_poll_link(tp);
 
 		work_done = tg3_poll_work(tnapi, work_done, budget);
@@ -7316,7 +7353,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_restore_pci_state(tp);
 
-	tp->tg3_flags &= ~TG3_FLAG_CHIP_RESETTING;
+	tp->tg3_flags &= ~(TG3_FLAG_CHIP_RESETTING |
+			   TG3_FLAG_ERROR_PROCESSED);
 
 	val = 0;
 	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
