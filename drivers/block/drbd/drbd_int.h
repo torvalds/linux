@@ -327,6 +327,8 @@ extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
 #define DP_FUA               16 /* equals REQ_FUA     */
 #define DP_FLUSH             32 /* equals REQ_FLUSH   */
 #define DP_DISCARD           64 /* equals REQ_DISCARD */
+#define DP_SEND_RECEIVE_ACK 128 /* This is a proto B write request */
+#define DP_SEND_WRITE_ACK   256 /* This is a proto C write request */
 
 struct p_data {
 	u64	    sector;    /* 64 bits sector number */
@@ -656,6 +658,9 @@ enum {
 
 	/* Conflicting local requests need to be restarted after this request */
 	__EE_RESTART_REQUESTS,
+
+	/* The peer wants a write ACK for this (wire proto C) */
+	__EE_SEND_WRITE_ACK,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
@@ -663,6 +668,7 @@ enum {
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 #define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
+#define EE_SEND_WRITE_ACK	(1<<__EE_SEND_WRITE_ACK)
 
 /* flag bits per mdev */
 enum {

@@ -1681,6 +1681,12 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	if (mdev->state.conn >= C_SYNC_SOURCE &&
 	    mdev->state.conn <= C_PAUSED_SYNC_T)
 		dp_flags |= DP_MAY_SET_IN_SYNC;
+	if (mdev->tconn->agreed_pro_version >= 100) {
+		if (req->rq_state & RQ_EXP_RECEIVE_ACK)
+			dp_flags |= DP_SEND_RECEIVE_ACK;
+		if (req->rq_state & RQ_EXP_WRITE_ACK)
+			dp_flags |= DP_SEND_WRITE_ACK;
+	}
 	p->dp_flags = cpu_to_be32(dp_flags);
 	if (dgs)
 		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, p + 1);
@@ -1697,7 +1703,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		 * out ok after sending on this side, but does not fit on the
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
-		if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A || dgs)
+		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || dgs)
 			err = _drbd_send_bio(mdev, req->master_bio);
 		else
 			err = _drbd_send_zc_bio(mdev, req->master_bio);

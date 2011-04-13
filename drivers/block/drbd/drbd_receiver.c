@@ -1697,7 +1697,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	sector_t sector = peer_req->i.sector;
 	int err = 0, pcmd;
 
-	if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C) {
+	if (peer_req->flags & EE_SEND_WRITE_ACK) {
 		if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
 			pcmd = (mdev->state.conn >= C_SYNC_SOURCE &&
 				mdev->state.conn <= C_PAUSED_SYNC_T &&
@@ -2074,20 +2074,28 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	list_add(&peer_req->w.list, &mdev->active_ee);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	switch (mdev->tconn->net_conf->wire_protocol) {
-	case DRBD_PROT_C:
+	if (mdev->tconn->agreed_pro_version < 100) {
+		switch (mdev->tconn->net_conf->wire_protocol) {
+		case DRBD_PROT_C:
+			dp_flags |= DP_SEND_WRITE_ACK;
+			break;
+		case DRBD_PROT_B:
+			dp_flags |= DP_SEND_RECEIVE_ACK;
+			break;
+		}
+	}
+
+	if (dp_flags & DP_SEND_WRITE_ACK) {
+		peer_req->flags |= EE_SEND_WRITE_ACK;
 		inc_unacked(mdev);
 		/* corresponding dec_unacked() in e_end_block()
 		 * respective _drbd_clear_done_ee */
-		break;
-	case DRBD_PROT_B:
+	}
+
+	if (dp_flags & DP_SEND_RECEIVE_ACK) {
 		/* I really don't like it that the receiver thread
 		 * sends on the msock, but anyways */
 		drbd_send_ack(mdev, P_RECV_ACK, peer_req);
-		break;
-	case DRBD_PROT_A:
-		/* nothing to do */
-		break;
 	}
 
 	if (mdev->state.pdsk < D_INCONSISTENT) {
@@ -2932,7 +2940,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (cf & CF_DRY_RUN)
 		set_bit(CONN_DRY_RUN, &tconn->flags);
 
-	if (p_proto != tconn->net_conf->wire_protocol) {
+	if (p_proto != tconn->net_conf->wire_protocol && tconn->agreed_pro_version < 100) {
 		conn_err(tconn, "incompatible communication protocols\n");
 		goto disconnect;
 	}
@@ -4622,23 +4630,18 @@ static int got_BlockAck(struct drbd_tconn *tconn, struct packet_info *pi)
 	}
 	switch (pi->cmd) {
 	case P_RS_WRITE_ACK:
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 		what = WRITE_ACKED_BY_PEER_AND_SIS;
 		break;
 	case P_WRITE_ACK:
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 		what = WRITE_ACKED_BY_PEER;
 		break;
 	case P_RECV_ACK:
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_B);
 		what = RECV_ACKED_BY_PEER;
 		break;
 	case P_DISCARD_WRITE:
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 		what = DISCARD_WRITE;
 		break;
 	case P_RETRY_WRITE:
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 		what = POSTPONE_WRITE;
 		break;
 	default:
@@ -4656,8 +4659,6 @@ static int got_NegAck(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct p_block_ack *p = pi->data;
 	sector_t sector = be64_to_cpu(p->sector);
 	int size = be32_to_cpu(p->blksize);
-	bool missing_ok = tconn->net_conf->wire_protocol == DRBD_PROT_A ||
-			  tconn->net_conf->wire_protocol == DRBD_PROT_B;
 	int err;
 
 	mdev = vnr_to_mdev(tconn, pi->vnr);
@@ -4674,15 +4675,13 @@ static int got_NegAck(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	err = validate_req_change_req_state(mdev, p->block_id, sector,
 					    &mdev->write_requests, __func__,
-					    NEG_ACKED, missing_ok);
+					    NEG_ACKED, true);
 	if (err) {
 		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
 		   The master bio might already be completed, therefore the
 		   request is no longer in the collision hash. */
 		/* In Protocol B we might already have got a P_RECV_ACK
 		   but then get a P_NEG_ACK afterwards. */
-		if (!missing_ok)
-			return err;
 		drbd_set_out_of_sync(mdev, sector, size);
 	}
 	return 0;

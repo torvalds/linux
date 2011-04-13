@@ -323,7 +323,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m)
 {
 	struct drbd_conf *mdev = req->w.mdev;
-	int rv = 0;
+	int p, rv = 0;
 
 	if (m)
 		m->bio = NULL;
@@ -344,6 +344,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * and from w_read_retry_remote */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 		req->rq_state |= RQ_NET_PENDING;
+		p = mdev->tconn->net_conf->wire_protocol;
+		req->rq_state |=
+			p == DRBD_PROT_C ? RQ_EXP_WRITE_ACK :
+			p == DRBD_PROT_B ? RQ_EXP_RECEIVE_ACK : 0;
 		inc_ap_pending(mdev);
 		break;
 
@@ -500,7 +504,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			atomic_add(req->i.size >> 9, &mdev->ap_in_flight);
 
 		if (bio_data_dir(req->master_bio) == WRITE &&
-		    mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A) {
+		    !(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK))) {
 			/* this is what is dangerous about protocol A:
 			 * pretend it was successfully written on the peer. */
 			if (req->rq_state & RQ_NET_PENDING) {
@@ -550,6 +554,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
 	case WRITE_ACKED_BY_PEER:
+		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
 		/* protocol C; successfully written on peer.
 		 * Nothing to do here.
 		 * We want to keep the tl in place for all protocols, to cater
@@ -560,11 +565,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * request could set NET_DONE right here, and not wait for the
 		 * P_BARRIER_ACK, but that is an unnecessary optimization. */
 
+		goto ack_common;
 		/* this makes it effectively the same as for: */
 	case RECV_ACKED_BY_PEER:
+		D_ASSERT(req->rq_state & RQ_EXP_RECEIVE_ACK);
 		/* protocol B; pretends to be successfully written on peer.
 		 * see also notes above in HANDED_OVER_TO_NETWORK about
 		 * protocol != C */
+	ack_common:
 		req->rq_state |= RQ_NET_OK;
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		dec_ap_pending(mdev);
@@ -574,8 +582,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case POSTPONE_WRITE:
-		/*
-		 * If this node has already detected the write conflict, the
+		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+		/* If this node has already detected the write conflict, the
 		 * worker will be waiting on misc_wait.  Wake it up once this
 		 * request has completed locally.
 		 */
@@ -646,7 +654,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		}
 		if ((req->rq_state & RQ_NET_MASK) != 0) {
 			req->rq_state |= RQ_NET_DONE;
-			if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A)
+			if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)))
 				atomic_sub(req->i.size>>9, &mdev->ap_in_flight);
 		}
 		_req_may_be_done(req, m); /* Allowed while state.susp */
