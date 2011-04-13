@@ -80,9 +80,13 @@ static struct sock *__l2cap_get_sock_by_addr(__le16 psm, bdaddr_t *src)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	sk_for_each(sk, node, &l2cap_sk_list.head)
-		if (l2cap_pi(sk)->sport == psm && !bacmp(&bt_sk(sk)->src, src))
+	sk_for_each(sk, node, &l2cap_sk_list.head) {
+		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+
+		if (chan->sport == psm && !bacmp(&bt_sk(sk)->src, src))
 			goto found;
+	}
+
 	sk = NULL;
 found:
 	return sk;
@@ -138,7 +142,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		/* Save source address */
 		bacpy(&bt_sk(sk)->src, &la.l2_bdaddr);
 		l2cap_pi(sk)->psm   = la.l2_psm;
-		l2cap_pi(sk)->sport = la.l2_psm;
+		chan->sport = la.l2_psm;
 		sk->sk_state = BT_BOUND;
 
 		if (__le16_to_cpu(la.l2_psm) == 0x0001 ||
@@ -159,6 +163,7 @@ done:
 static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct sockaddr_l2 la;
 	int len, err = 0;
 
@@ -183,7 +188,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 		goto done;
 	}
 
-	switch (l2cap_pi(sk)->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		break;
 	case L2CAP_MODE_ERTM:
@@ -245,6 +250,7 @@ done:
 static int l2cap_sock_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	int err = 0;
 
 	BT_DBG("sk %p backlog %d", sk, backlog);
@@ -257,7 +263,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	switch (l2cap_pi(sk)->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		break;
 	case L2CAP_MODE_ERTM:
@@ -281,7 +287,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		for (psm = 0x1001; psm < 0x1100; psm += 2)
 			if (!__l2cap_get_sock_by_addr(cpu_to_le16(psm), src)) {
 				l2cap_pi(sk)->psm   = cpu_to_le16(psm);
-				l2cap_pi(sk)->sport = cpu_to_le16(psm);
+				chan->sport = cpu_to_le16(psm);
 				err = 0;
 				break;
 			}
@@ -361,6 +367,7 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 {
 	struct sockaddr_l2 *la = (struct sockaddr_l2 *) addr;
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -372,7 +379,7 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->dst);
 		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->dcid);
 	} else {
-		la->l2_psm = l2cap_pi(sk)->sport;
+		la->l2_psm = chan->sport;
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->src);
 		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->scid);
 	}
@@ -399,10 +406,10 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 	switch (optname) {
 	case L2CAP_OPTIONS:
 		memset(&opts, 0, sizeof(opts));
-		opts.imtu     = l2cap_pi(sk)->imtu;
-		opts.omtu     = l2cap_pi(sk)->omtu;
-		opts.flush_to = l2cap_pi(sk)->flush_to;
-		opts.mode     = l2cap_pi(sk)->mode;
+		opts.imtu     = chan->imtu;
+		opts.omtu     = chan->omtu;
+		opts.flush_to = chan->flush_to;
+		opts.mode     = chan->mode;
 		opts.fcs      = chan->fcs;
 		opts.max_tx   = chan->max_tx;
 		opts.txwin_size = (__u16)chan->tx_win;
@@ -547,10 +554,10 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
-		opts.imtu     = l2cap_pi(sk)->imtu;
-		opts.omtu     = l2cap_pi(sk)->omtu;
-		opts.flush_to = l2cap_pi(sk)->flush_to;
-		opts.mode     = l2cap_pi(sk)->mode;
+		opts.imtu     = chan->imtu;
+		opts.omtu     = chan->omtu;
+		opts.flush_to = chan->flush_to;
+		opts.mode     = chan->mode;
 		opts.fcs      = chan->fcs;
 		opts.max_tx   = chan->max_tx;
 		opts.txwin_size = (__u16)chan->tx_win;
@@ -566,8 +573,8 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
-		l2cap_pi(sk)->mode = opts.mode;
-		switch (l2cap_pi(sk)->mode) {
+		chan->mode = opts.mode;
+		switch (chan->mode) {
 		case L2CAP_MODE_BASIC:
 			chan->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
 			break;
@@ -581,8 +588,8 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
-		l2cap_pi(sk)->imtu = opts.imtu;
-		l2cap_pi(sk)->omtu = opts.omtu;
+		chan->imtu = opts.imtu;
+		chan->omtu = opts.omtu;
 		chan->fcs  = opts.fcs;
 		chan->max_tx = opts.max_tx;
 		chan->tx_win = (__u8)opts.txwin_size;
@@ -707,7 +714,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct sk_buff *skb;
 	u16 control;
 	int err;
@@ -734,16 +741,16 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
 		} else {
-			l2cap_do_send(pi->chan, skb);
+			l2cap_do_send(chan, skb);
 			err = len;
 		}
 		goto done;
 	}
 
-	switch (pi->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		/* Check outgoing MTU */
-		if (len > pi->omtu) {
+		if (len > chan->omtu) {
 			err = -EMSGSIZE;
 			goto done;
 		}
@@ -755,52 +762,52 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 			goto done;
 		}
 
-		l2cap_do_send(pi->chan, skb);
+		l2cap_do_send(chan, skb);
 		err = len;
 		break;
 
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
 		/* Entire SDU fits into one PDU */
-		if (len <= pi->chan->remote_mps) {
+		if (len <= chan->remote_mps) {
 			control = L2CAP_SDU_UNSEGMENTED;
-			skb = l2cap_create_iframe_pdu(pi->chan, msg, len,
-								control, 0);
+			skb = l2cap_create_iframe_pdu(chan, msg, len, control,
+									0);
 			if (IS_ERR(skb)) {
 				err = PTR_ERR(skb);
 				goto done;
 			}
-			__skb_queue_tail(&pi->chan->tx_q, skb);
+			__skb_queue_tail(&chan->tx_q, skb);
 
-			if (pi->chan->tx_send_head == NULL)
-				pi->chan->tx_send_head = skb;
+			if (chan->tx_send_head == NULL)
+				chan->tx_send_head = skb;
 
 		} else {
 		/* Segment SDU into multiples PDUs */
-			err = l2cap_sar_segment_sdu(pi->chan, msg, len);
+			err = l2cap_sar_segment_sdu(chan, msg, len);
 			if (err < 0)
 				goto done;
 		}
 
-		if (pi->mode == L2CAP_MODE_STREAMING) {
-			l2cap_streaming_send(pi->chan);
+		if (chan->mode == L2CAP_MODE_STREAMING) {
+			l2cap_streaming_send(chan);
 			err = len;
 			break;
 		}
 
-		if ((pi->chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
-				(pi->chan->conn_state & L2CAP_CONN_WAIT_F)) {
+		if ((chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+				(chan->conn_state & L2CAP_CONN_WAIT_F)) {
 			err = len;
 			break;
 		}
-		err = l2cap_ertm_send(pi->chan);
+		err = l2cap_ertm_send(chan);
 
 		if (err >= 0)
 			err = len;
 		break;
 
 	default:
-		BT_DBG("bad state %1.1x", pi->mode);
+		BT_DBG("bad state %1.1x", chan->mode);
 		err = -EBADFD;
 	}
 
@@ -929,6 +936,7 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 static int l2cap_sock_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	int err = 0;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
@@ -938,7 +946,7 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 
 	lock_sock(sk);
 	if (!sk->sk_shutdown) {
-		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
+		if (chan->mode == L2CAP_MODE_ERTM)
 			err = __l2cap_wait_ack(sk);
 
 		sk->sk_shutdown = SHUTDOWN_MASK;
@@ -995,10 +1003,10 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		sk->sk_type = parent->sk_type;
 		bt_sk(sk)->defer_setup = bt_sk(parent)->defer_setup;
 
-		pi->imtu = l2cap_pi(parent)->imtu;
-		pi->omtu = l2cap_pi(parent)->omtu;
+		chan->imtu = pchan->imtu;
+		chan->omtu = pchan->omtu;
 		chan->conf_state = pchan->conf_state;
-		pi->mode = l2cap_pi(parent)->mode;
+		chan->mode = pchan->mode;
 		chan->fcs  = pchan->fcs;
 		chan->max_tx = pchan->max_tx;
 		chan->tx_win = pchan->tx_win;
@@ -1007,13 +1015,13 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->force_reliable = pchan->force_reliable;
 		chan->flushable = pchan->flushable;
 	} else {
-		pi->imtu = L2CAP_DEFAULT_MTU;
-		pi->omtu = 0;
+		chan->imtu = L2CAP_DEFAULT_MTU;
+		chan->omtu = 0;
 		if (!disable_ertm && sk->sk_type == SOCK_STREAM) {
-			pi->mode = L2CAP_MODE_ERTM;
+			chan->mode = L2CAP_MODE_ERTM;
 			chan->conf_state |= L2CAP_CONF_STATE2_DEVICE;
 		} else {
-			pi->mode = L2CAP_MODE_BASIC;
+			chan->mode = L2CAP_MODE_BASIC;
 		}
 		chan->max_tx = L2CAP_DEFAULT_MAX_TX;
 		chan->fcs  = L2CAP_FCS_CRC16;
@@ -1025,7 +1033,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	}
 
 	/* Default config options */
-	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 }
 
 static struct proto l2cap_proto = {

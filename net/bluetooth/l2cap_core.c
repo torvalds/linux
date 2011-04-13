@@ -176,24 +176,24 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	if (sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM) {
 		if (conn->hcon->type == LE_LINK) {
 			/* LE connection */
-			l2cap_pi(sk)->omtu = L2CAP_LE_DEFAULT_MTU;
+			chan->omtu = L2CAP_LE_DEFAULT_MTU;
 			l2cap_pi(sk)->scid = L2CAP_CID_LE_DATA;
 			l2cap_pi(sk)->dcid = L2CAP_CID_LE_DATA;
 		} else {
 			/* Alloc CID for connection-oriented socket */
 			l2cap_pi(sk)->scid = l2cap_alloc_cid(conn);
-			l2cap_pi(sk)->omtu = L2CAP_DEFAULT_MTU;
+			chan->omtu = L2CAP_DEFAULT_MTU;
 		}
 	} else if (sk->sk_type == SOCK_DGRAM) {
 		/* Connectionless socket */
 		l2cap_pi(sk)->scid = L2CAP_CID_CONN_LESS;
 		l2cap_pi(sk)->dcid = L2CAP_CID_CONN_LESS;
-		l2cap_pi(sk)->omtu = L2CAP_DEFAULT_MTU;
+		chan->omtu = L2CAP_DEFAULT_MTU;
 	} else {
 		/* Raw socket can send/recv signalling messages only */
 		l2cap_pi(sk)->scid = L2CAP_CID_SIGNALING;
 		l2cap_pi(sk)->dcid = L2CAP_CID_SIGNALING;
-		l2cap_pi(sk)->omtu = L2CAP_DEFAULT_MTU;
+		chan->omtu = L2CAP_DEFAULT_MTU;
 	}
 
 	sock_hold(sk);
@@ -242,7 +242,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	skb_queue_purge(&chan->tx_q);
 
-	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
+	if (chan->mode == L2CAP_MODE_ERTM) {
 		struct srej_list *l, *tmp;
 
 		del_timer(&chan->retrans_timer);
@@ -479,7 +479,7 @@ void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, in
 
 	sk = chan->sk;
 
-	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
+	if (chan->mode == L2CAP_MODE_ERTM) {
 		del_timer(&chan->retrans_timer);
 		del_timer(&chan->monitor_timer);
 		del_timer(&chan->ack_timer);
@@ -523,7 +523,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 				continue;
 			}
 
-			if (!l2cap_mode_supported(l2cap_pi(sk)->mode,
+			if (!l2cap_mode_supported(chan->mode,
 					conn->feat_mask)
 					&& chan->conf_state &
 					L2CAP_CONF_STATE2_DEVICE) {
@@ -1609,7 +1609,7 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
 	struct l2cap_conf_req *req = data;
-	struct l2cap_conf_rfc rfc = { .mode = pi->mode };
+	struct l2cap_conf_rfc rfc = { .mode = chan->mode };
 	void *ptr = req->data;
 
 	BT_DBG("chan %p", chan);
@@ -1617,7 +1617,7 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 	if (chan->num_conf_req || chan->num_conf_rsp)
 		goto done;
 
-	switch (pi->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
 		if (chan->conf_state & L2CAP_CONF_STATE2_DEVICE)
@@ -1625,15 +1625,15 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 
 		/* fall through */
 	default:
-		pi->mode = l2cap_select_mode(rfc.mode, pi->conn->feat_mask);
+		chan->mode = l2cap_select_mode(rfc.mode, pi->conn->feat_mask);
 		break;
 	}
 
 done:
-	if (pi->imtu != L2CAP_DEFAULT_MTU)
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->imtu);
+	if (chan->imtu != L2CAP_DEFAULT_MTU)
+		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->imtu);
 
-	switch (pi->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		if (!(pi->conn->feat_mask & L2CAP_FEAT_ERTM) &&
 				!(pi->conn->feat_mask & L2CAP_FEAT_STREAMING))
@@ -1730,7 +1730,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 			break;
 
 		case L2CAP_CONF_FLUSH_TO:
-			pi->flush_to = val;
+			chan->flush_to = val;
 			break;
 
 		case L2CAP_CONF_QOS:
@@ -1760,25 +1760,25 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 	if (chan->num_conf_rsp || chan->num_conf_req > 1)
 		goto done;
 
-	switch (pi->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
 		if (!(chan->conf_state & L2CAP_CONF_STATE2_DEVICE)) {
-			pi->mode = l2cap_select_mode(rfc.mode,
+			chan->mode = l2cap_select_mode(rfc.mode,
 					pi->conn->feat_mask);
 			break;
 		}
 
-		if (pi->mode != rfc.mode)
+		if (chan->mode != rfc.mode)
 			return -ECONNREFUSED;
 
 		break;
 	}
 
 done:
-	if (pi->mode != rfc.mode) {
+	if (chan->mode != rfc.mode) {
 		result = L2CAP_CONF_UNACCEPT;
-		rfc.mode = pi->mode;
+		rfc.mode = chan->mode;
 
 		if (chan->num_conf_rsp == 1)
 			return -ECONNREFUSED;
@@ -1795,10 +1795,10 @@ done:
 		if (mtu < L2CAP_DEFAULT_MIN_MTU)
 			result = L2CAP_CONF_UNACCEPT;
 		else {
-			pi->omtu = mtu;
+			chan->omtu = mtu;
 			chan->conf_state |= L2CAP_CONF_MTU_DONE;
 		}
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->omtu);
 
 		switch (rfc.mode) {
 		case L2CAP_MODE_BASIC:
@@ -1844,7 +1844,7 @@ done:
 			result = L2CAP_CONF_UNACCEPT;
 
 			memset(&rfc, 0, sizeof(rfc));
-			rfc.mode = pi->mode;
+			rfc.mode = chan->mode;
 		}
 
 		if (result == L2CAP_CONF_SUCCESS)
@@ -1876,16 +1876,16 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 		case L2CAP_CONF_MTU:
 			if (val < L2CAP_DEFAULT_MIN_MTU) {
 				*result = L2CAP_CONF_UNACCEPT;
-				pi->imtu = L2CAP_DEFAULT_MIN_MTU;
+				chan->imtu = L2CAP_DEFAULT_MIN_MTU;
 			} else
-				pi->imtu = val;
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->imtu);
+				chan->imtu = val;
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->imtu);
 			break;
 
 		case L2CAP_CONF_FLUSH_TO:
-			pi->flush_to = val;
+			chan->flush_to = val;
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FLUSH_TO,
-							2, pi->flush_to);
+							2, chan->flush_to);
 			break;
 
 		case L2CAP_CONF_RFC:
@@ -1893,7 +1893,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 				memcpy(&rfc, (void *)val, olen);
 
 			if ((chan->conf_state & L2CAP_CONF_STATE2_DEVICE) &&
-							rfc.mode != pi->mode)
+							rfc.mode != chan->mode)
 				return -ECONNREFUSED;
 
 			chan->fcs = 0;
@@ -1904,10 +1904,10 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 		}
 	}
 
-	if (pi->mode == L2CAP_MODE_BASIC && pi->mode != rfc.mode)
+	if (chan->mode == L2CAP_MODE_BASIC && chan->mode != rfc.mode)
 		return -ECONNREFUSED;
 
-	pi->mode = rfc.mode;
+	chan->mode = rfc.mode;
 
 	if (*result == L2CAP_CONF_SUCCESS) {
 		switch (rfc.mode) {
@@ -1968,14 +1968,13 @@ void __l2cap_connect_rsp_defer(struct sock *sk)
 
 static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
 	int type, olen;
 	unsigned long val;
 	struct l2cap_conf_rfc rfc;
 
 	BT_DBG("chan %p, rsp %p, len %d", chan, rsp, len);
 
-	if ((pi->mode != L2CAP_MODE_ERTM) && (pi->mode != L2CAP_MODE_STREAMING))
+	if ((chan->mode != L2CAP_MODE_ERTM) && (chan->mode != L2CAP_MODE_STREAMING))
 		return;
 
 	while (len >= L2CAP_CONF_OPT_SIZE) {
@@ -2232,7 +2231,7 @@ static inline void set_default_fcs(struct l2cap_chan *chan)
 	/* FCS is enabled only in ERTM or streaming mode, if one or both
 	 * sides request it.
 	 */
-	if (pi->mode != L2CAP_MODE_ERTM && pi->mode != L2CAP_MODE_STREAMING)
+	if (chan->mode != L2CAP_MODE_ERTM && chan->mode != L2CAP_MODE_STREAMING)
 		chan->fcs = L2CAP_FCS_NONE;
 	else if (!(pi->chan->conf_state & L2CAP_CONF_NO_FCS_RECV))
 		chan->fcs = L2CAP_FCS_CRC16;
@@ -2312,7 +2311,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		chan->next_tx_seq = 0;
 		chan->expected_tx_seq = 0;
 		skb_queue_head_init(&chan->tx_q);
-		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
+		if (chan->mode == L2CAP_MODE_ERTM)
 			l2cap_ertm_init(chan);
 
 		l2cap_chan_ready(sk);
@@ -2403,7 +2402,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		chan->next_tx_seq = 0;
 		chan->expected_tx_seq = 0;
 		skb_queue_head_init(&chan->tx_q);
-		if (l2cap_pi(sk)->mode ==  L2CAP_MODE_ERTM)
+		if (chan->mode ==  L2CAP_MODE_ERTM)
 			l2cap_ertm_init(chan);
 
 		l2cap_chan_ready(sk);
@@ -2876,7 +2875,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 
 		chan->sdu_len = get_unaligned_le16(skb->data);
 
-		if (chan->sdu_len > pi->imtu)
+		if (chan->sdu_len > chan->imtu)
 			goto disconnect;
 
 		chan->sdu = bt_skb_alloc(chan->sdu_len, GFP_ATOMIC);
@@ -2919,7 +2918,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (!(chan->conn_state & L2CAP_CONN_SAR_RETRY)) {
 			chan->partial_sdu_len += skb->len;
 
-			if (chan->partial_sdu_len > pi->imtu)
+			if (chan->partial_sdu_len > chan->imtu)
 				goto drop;
 
 			if (chan->partial_sdu_len != chan->sdu_len)
@@ -3087,7 +3086,6 @@ static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 c
 
 static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
 	struct sk_buff *_skb;
 	int err = -EINVAL;
 
@@ -3118,7 +3116,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 		chan->sdu_len = get_unaligned_le16(skb->data);
 		skb_pull(skb, 2);
 
-		if (chan->sdu_len > pi->imtu) {
+		if (chan->sdu_len > chan->imtu) {
 			err = -EMSGSIZE;
 			break;
 		}
@@ -3159,7 +3157,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 		chan->conn_state &= ~L2CAP_CONN_SAR_SDU;
 		chan->partial_sdu_len += skb->len;
 
-		if (chan->partial_sdu_len > pi->imtu)
+		if (chan->partial_sdu_len > chan->imtu)
 			goto drop;
 
 		if (chan->partial_sdu_len == chan->sdu_len) {
@@ -3625,14 +3623,14 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	if (sk->sk_state != BT_CONNECTED)
 		goto drop;
 
-	switch (pi->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		/* If socket recv buffers overflows we drop data here
 		 * which is *bad* because L2CAP has to be reliable.
 		 * But we don't have any other choice. L2CAP doesn't
 		 * provide flow control mechanism. */
 
-		if (pi->imtu < skb->len)
+		if (chan->imtu < skb->len)
 			goto drop;
 
 		if (!sock_queue_rcv_skb(sk, skb))
@@ -3678,7 +3676,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		goto done;
 
 	default:
-		BT_DBG("chan %p: bad mode 0x%2.2x", chan, pi->mode);
+		BT_DBG("chan %p: bad mode 0x%2.2x", chan, chan->mode);
 		break;
 	}
 
@@ -3707,7 +3705,7 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 	if (sk->sk_state != BT_BOUND && sk->sk_state != BT_CONNECTED)
 		goto drop;
 
-	if (l2cap_pi(sk)->imtu < skb->len)
+	if (l2cap_pi(sk)->chan->imtu < skb->len)
 		goto drop;
 
 	if (!sock_queue_rcv_skb(sk, skb))
@@ -3737,7 +3735,7 @@ static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct 
 	if (sk->sk_state != BT_BOUND && sk->sk_state != BT_CONNECTED)
 		goto drop;
 
-	if (l2cap_pi(sk)->imtu < skb->len)
+	if (l2cap_pi(sk)->chan->imtu < skb->len)
 		goto drop;
 
 	if (!sock_queue_rcv_skb(sk, skb))
@@ -4020,10 +4018,10 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 		if (chan && chan->sk) {
 			struct sock *sk = chan->sk;
 
-			if (l2cap_pi(sk)->imtu < len - L2CAP_HDR_SIZE) {
+			if (chan->imtu < len - L2CAP_HDR_SIZE) {
 				BT_ERR("Frame exceeding recv MTU (len %d, "
 							"MTU %d)", len,
-							l2cap_pi(sk)->imtu);
+							chan->imtu);
 				bh_unlock_sock(sk);
 				l2cap_conn_unreliable(conn, ECOMM);
 				goto drop;
@@ -4083,14 +4081,15 @@ static int l2cap_debugfs_show(struct seq_file *f, void *p)
 
 	sk_for_each(sk, node, &l2cap_sk_list.head) {
 		struct l2cap_pinfo *pi = l2cap_pi(sk);
+		struct l2cap_chan *chan = pi->chan;
 
 		seq_printf(f, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d %d %d\n",
 					batostr(&bt_sk(sk)->src),
 					batostr(&bt_sk(sk)->dst),
 					sk->sk_state, __le16_to_cpu(pi->psm),
 					pi->scid, pi->dcid,
-					pi->imtu, pi->omtu, pi->chan->sec_level,
-					pi->mode);
+					chan->imtu, chan->omtu, chan->sec_level,
+					chan->mode);
 	}
 
 	read_unlock_bh(&l2cap_sk_list.lock);

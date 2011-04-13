@@ -285,6 +285,13 @@ struct srej_list {
 struct l2cap_chan {
 	struct sock *sk;
 
+	__u16		imtu;
+	__u16		omtu;
+	__u16		flush_to;
+	__u8		mode;
+
+	__le16		sport;
+
 	__u8		sec_level;
 	__u8		role_switch;
 	__u8		force_reliable;
@@ -378,13 +385,6 @@ struct l2cap_pinfo {
 	__le16		psm;
 	__u16		dcid;
 	__u16		scid;
-
-	__u16		imtu;
-	__u16		omtu;
-	__u16		flush_to;
-	__u8		mode;
-
-	__le16		sport;
 
 	struct l2cap_conn	*conn;
 	struct l2cap_chan	*chan;

@@ -710,10 +710,10 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = l2cap_mtu;
+	l2cap_pi(sk)->chan->imtu = l2cap_mtu;
 	l2cap_pi(sk)->chan->sec_level = sec_level;
 	if (l2cap_ertm)
-		l2cap_pi(sk)->mode = L2CAP_MODE_ERTM;
+		l2cap_pi(sk)->chan->mode = L2CAP_MODE_ERTM;
 	release_sock(sk);
 
 	s = rfcomm_session_add(sock, BT_BOUND);
@@ -1890,7 +1890,8 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 
 		/* We should adjust MTU on incoming sessions.
 		 * L2CAP MTU minus UIH header and FCS. */
-		s->mtu = min(l2cap_pi(nsock->sk)->omtu, l2cap_pi(nsock->sk)->imtu) - 5;
+		s->mtu = min(l2cap_pi(nsock->sk)->chan->omtu,
+				l2cap_pi(nsock->sk)->chan->imtu) - 5;
 
 		rfcomm_schedule();
 	} else
@@ -1909,7 +1910,7 @@ static inline void rfcomm_check_connection(struct rfcomm_session *s)
 
 		/* We can adjust MTU on outgoing sessions.
 		 * L2CAP MTU minus UIH header and FCS. */
-		s->mtu = min(l2cap_pi(sk)->omtu, l2cap_pi(sk)->imtu) - 5;
+		s->mtu = min(l2cap_pi(sk)->chan->omtu, l2cap_pi(sk)->chan->imtu) - 5;
 
 		rfcomm_send_sabm(s, 0);
 		break;
@@ -1992,7 +1993,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = l2cap_mtu;
+	l2cap_pi(sk)->chan->imtu = l2cap_mtu;
 	release_sock(sk);
 
 	/* Start listening on the socket */
