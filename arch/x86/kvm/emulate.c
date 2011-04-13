@@ -637,9 +637,12 @@ static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 	int size, cur_size;
 
 	if (eip == fc->end) {
+		unsigned long linear = eip + ctxt->cs_base;
+		if (ctxt->mode != X86EMUL_MODE_PROT64)
+			linear &= (u32)-1;
 		cur_size = fc->end - fc->start;
 		size = min(15UL - cur_size, PAGE_SIZE - offset_in_page(eip));
-		rc = ops->fetch(ctxt->cs_base + eip, fc->data + cur_size,
+		rc = ops->fetch(linear, fc->data + cur_size,
 				size, ctxt->vcpu, &ctxt->exception);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
