@@ -498,7 +498,6 @@ int blk_register_queue(struct gendisk *disk)
 {
 	int ret;
 	struct device *dev = disk_to_dev(disk);
-
 	struct request_queue *q = disk->queue;
 
 	if (WARN_ON(!q))
@@ -521,7 +520,7 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret) {
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
-		blk_trace_remove_sysfs(disk_to_dev(disk));
+		blk_trace_remove_sysfs(dev);
 		kobject_put(&dev->kobj);
 		return ret;
 	}
