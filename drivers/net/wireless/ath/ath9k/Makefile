@@ -48,4 +48,6 @@ ath9k_htc-y +=	htc_hst.o \
 		htc_drv_init.o \
 		htc_drv_gpio.o
 
+ath9k_htc-$(CONFIG_ATH9K_HTC_DEBUGFS) += htc_drv_debug.o
+
 obj-$(CONFIG_ATH9K_HTC) += ath9k_htc.o
