@@ -1725,8 +1725,8 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	u8 tidno;
 
 	spin_lock_bh(&txctl->txq->axq_lock);
-
-	if (ieee80211_is_data_qos(hdr->frame_control) && txctl->an) {
+	if ((sc->sc_flags & SC_OP_TXAGGR) && txctl->an &&
+		ieee80211_is_data_qos(hdr->frame_control)) {
 		tidno = ieee80211_get_qos_ctl(hdr)[0] &
 			IEEE80211_QOS_CTL_TID_MASK;
 		tid = ATH_AN_2_TID(txctl->an, tidno);

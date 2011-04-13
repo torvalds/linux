@@ -503,3 +503,73 @@ struct platform_device tegra_uarte_device = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
+static struct resource i2s_resource1[] = {
+	[0] = {
+		.start	= INT_I2S1,
+		.end	= INT_I2S1,
+		.flags	= IORESOURCE_IRQ
+	},
+	[1] = {
+		.start	= TEGRA_DMA_REQ_SEL_I2S_1,
+		.end	= TEGRA_DMA_REQ_SEL_I2S_1,
+		.flags	= IORESOURCE_DMA
+	},
+	[2] = {
+		.start	= TEGRA_I2S1_BASE,
+		.end	= TEGRA_I2S1_BASE + TEGRA_I2S1_SIZE - 1,
+		.flags	= IORESOURCE_MEM
+	}
+};
+
+static struct resource i2s_resource2[] = {
+	[0] = {
+		.start	= INT_I2S2,
+		.end	= INT_I2S2,
+		.flags	= IORESOURCE_IRQ
+	},
+	[1] = {
+		.start	= TEGRA_DMA_REQ_SEL_I2S2_1,
+		.end	= TEGRA_DMA_REQ_SEL_I2S2_1,
+		.flags	= IORESOURCE_DMA
+	},
+	[2] = {
+		.start	= TEGRA_I2S2_BASE,
+		.end	= TEGRA_I2S2_BASE + TEGRA_I2S2_SIZE - 1,
+		.flags	= IORESOURCE_MEM
+	}
+};
+
+struct platform_device tegra_i2s_device1 = {
+	.name		= "tegra-i2s",
+	.id		= 0,
+	.resource	= i2s_resource1,
+	.num_resources	= ARRAY_SIZE(i2s_resource1),
+};
+
+struct platform_device tegra_i2s_device2 = {
+	.name		= "tegra-i2s",
+	.id		= 1,
+	.resource	= i2s_resource2,
+	.num_resources	= ARRAY_SIZE(i2s_resource2),
+};
+
+static struct resource tegra_das_resources[] = {
+	[0] = {
+		.start = TEGRA_APB_MISC_DAS_BASE,
+		.end = TEGRA_APB_MISC_DAS_BASE + TEGRA_APB_MISC_DAS_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device tegra_das_device = {
+	.name		= "tegra-das",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(tegra_das_resources),
+	.resource	= tegra_das_resources,
+};
+
+struct platform_device tegra_pcm_device = {
+	.name = "tegra-pcm-audio",
+	.id = -1,
+};

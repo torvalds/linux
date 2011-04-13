@@ -10,25 +10,25 @@
 #include <linux/amba/clcd.h>
 #include <linux/clkdev.h>
 
-#include <asm/pgtable.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
-#include <asm/mach-types.h>
 #include <asm/pmu.h>
+#include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 
 #include <mach/ct-ca9x4.h>
 
 #include <asm/hardware/timer-sp.h>
 
-#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
 #include "core.h"
 
 #include <mach/motherboard.h>
+
+#include <plat/clcd.h>
 
 #define V2M_PA_CS7	0x10000000
 
@@ -56,7 +56,7 @@ static void __init ct_ca9x4_map_io(void)
 #ifdef CONFIG_LOCAL_TIMERS
 	twd_base = MMIO_P2V(A9_MPCORE_TWD);
 #endif
-	v2m_map_io(ct_ca9x4_io_desc, ARRAY_SIZE(ct_ca9x4_io_desc));
+	iotable_init(ct_ca9x4_io_desc, ARRAY_SIZE(ct_ca9x4_io_desc));
 }
 
 static void __init ct_ca9x4_init_irq(void)
@@ -80,29 +80,6 @@ static struct sys_timer ct_ca9x4_timer = {
 };
 #endif
 
-static struct clcd_panel xvga_panel = {
-	.mode		= {
-		.name		= "XVGA",
-		.refresh	= 60,
-		.xres		= 1024,
-		.yres		= 768,
-		.pixclock	= 15384,
-		.left_margin	= 168,
-		.right_margin	= 8,
-		.upper_margin	= 29,
-		.lower_margin	= 3,
-		.hsync_len	= 144,
-		.vsync_len	= 6,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_BGR | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-};
-
 static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
 {
 	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE_DB1, 0);
@@ -112,42 +89,23 @@ static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
 static int ct_ca9x4_clcd_setup(struct clcd_fb *fb)
 {
 	unsigned long framesize = 1024 * 768 * 2;
-	dma_addr_t dma;
 
-	fb->panel = &xvga_panel;
+	fb->panel = versatile_clcd_get_panel("XVGA");
+	if (!fb->panel)
+		return -EINVAL;
 
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-				&dma, GFP_KERNEL);
-	if (!fb->fb.screen_base) {
-		printk(KERN_ERR "CLCD: unable to map frame buffer\n");
-		return -ENOMEM;
-	}
-	fb->fb.fix.smem_start = dma;
-	fb->fb.fix.smem_len = framesize;
-
-	return 0;
-}
-
-static int ct_ca9x4_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
-{
-	return dma_mmap_writecombine(&fb->dev->dev, vma, fb->fb.screen_base,
-		fb->fb.fix.smem_start, fb->fb.fix.smem_len);
-}
-
-static void ct_ca9x4_clcd_remove(struct clcd_fb *fb)
-{
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-		fb->fb.screen_base, fb->fb.fix.smem_start);
+	return versatile_clcd_setup_dma(fb, framesize);
 }
 
 static struct clcd_board ct_ca9x4_clcd_data = {
 	.name		= "CT-CA9X4",
+	.caps		= CLCD_CAP_5551 | CLCD_CAP_565,
 	.check		= clcdfb_check,
 	.decode		= clcdfb_decode,
 	.enable		= ct_ca9x4_clcd_enable,
 	.setup		= ct_ca9x4_clcd_setup,
-	.mmap		= ct_ca9x4_clcd_mmap,
-	.remove		= ct_ca9x4_clcd_remove,
+	.mmap		= versatile_clcd_mmap_dma,
+	.remove		= versatile_clcd_remove_dma,
 };
 
 static AMBA_DEVICE(clcd, "ct:clcd", CT_CA9X4_CLCDC, &ct_ca9x4_clcd_data);
@@ -220,6 +178,11 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
+static void __init ct_ca9x4_init_early(void)
+{
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+}
+
 static void __init ct_ca9x4_init(void)
 {
 	int i;
@@ -234,22 +197,40 @@ static void __init ct_ca9x4_init(void)
 	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
 
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
-
 	for (i = 0; i < ARRAY_SIZE(ct_ca9x4_amba_devs); i++)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
 
 	platform_device_register(&pmu_device);
 }
 
-MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
-	.map_io		= ct_ca9x4_map_io,
-	.init_irq	= ct_ca9x4_init_irq,
-#if 0
-	.timer		= &ct_ca9x4_timer,
-#else
-	.timer		= &v2m_timer,
+#ifdef CONFIG_SMP
+static void ct_ca9x4_init_cpu_map(void)
+{
+	int i, ncores = scu_get_core_count(MMIO_P2V(A9_MPCORE_SCU));
+
+	for (i = 0; i < ncores; ++i)
+		set_cpu_possible(i, true);
+}
+
+static void ct_ca9x4_smp_enable(unsigned int max_cpus)
+{
+	int i;
+	for (i = 0; i < max_cpus; i++)
+		set_cpu_present(i, true);
+
+	scu_enable(MMIO_P2V(A9_MPCORE_SCU));
+}
 #endif
-	.init_machine	= ct_ca9x4_init,
-MACHINE_END
+
+struct ct_desc ct_ca9x4_desc __initdata = {
+	.id		= V2M_CT_ID_CA9,
+	.name		= "CA9x4",
+	.map_io		= ct_ca9x4_map_io,
+	.init_early	= ct_ca9x4_init_early,
+	.init_irq	= ct_ca9x4_init_irq,
+	.init_tile	= ct_ca9x4_init,
+#ifdef CONFIG_SMP
+	.init_cpu_map	= ct_ca9x4_init_cpu_map,
+	.smp_enable	= ct_ca9x4_smp_enable,
+#endif
+};

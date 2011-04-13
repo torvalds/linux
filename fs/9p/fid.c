@@ -134,7 +134,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *old_fid = NULL;
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
 	fid = v9fs_fid_find(dentry, uid, any);
 	if (fid)
@@ -237,7 +237,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	int  any, access;
 	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
 	switch (access) {
 	case V9FS_ACCESS_SINGLE:
@@ -286,9 +286,11 @@ static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, uid_t uid)
 
 struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 {
-	int err;
+	int err, flags;
 	struct p9_fid *fid;
+	struct v9fs_session_info *v9ses;
 
+	v9ses = v9fs_dentry2v9ses(dentry);
 	fid = v9fs_fid_clone_with_uid(dentry, 0);
 	if (IS_ERR(fid))
 		goto error_out;
@@ -297,8 +299,17 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	 * dirty pages. We always request for the open fid in read-write
 	 * mode so that a partial page write which result in page
 	 * read can work.
+	 *
+	 * we don't have a tsyncfs operation for older version
+	 * of protocol. So make sure the write back fid is
+	 * opened in O_SYNC mode.
 	 */
-	err = p9_client_open(fid, O_RDWR);
+	if (!v9fs_proto_dotl(v9ses))
+		flags = O_RDWR | O_SYNC;
+	else
+		flags = O_RDWR;
+
+	err = p9_client_open(fid, flags);
 	if (err < 0) {
 		p9_client_clunk(fid);
 		fid = ERR_PTR(err);

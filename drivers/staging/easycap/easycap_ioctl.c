@@ -1391,8 +1391,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		break;
 	}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-	case VIDIOC_S_CTRL:
-	{
+	case VIDIOC_S_CTRL: {
 		struct v4l2_control v4l2_control;
 
 		JOM(8, "VIDIOC_S_CTRL\n");

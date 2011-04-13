@@ -440,6 +440,7 @@ void do_ide_request(struct request_queue *q)
 	struct ide_host *host = hwif->host;
 	struct request	*rq = NULL;
 	ide_startstop_t	startstop;
+	unsigned long queue_run_ms = 3; /* old plug delay */
 
 	spin_unlock_irq(q->queue_lock);
 
@@ -459,6 +460,9 @@ repeat:
 		prev_port = hwif->host->cur_port;
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING &&
 		    time_after(drive->sleep, jiffies)) {
+			unsigned long left = jiffies - drive->sleep;
+
+			queue_run_ms = jiffies_to_msecs(left + 1);
 			ide_unlock_port(hwif);
 			goto plug_device;
 		}
@@ -547,10 +551,10 @@ plug_device:
 plug_device_2:
 	spin_lock_irq(q->queue_lock);
 
-	if (rq)
+	if (rq) {
 		blk_requeue_request(q, rq);
-	if (!elv_queue_empty(q))
-		blk_plug_device(q);
+		blk_delay_queue(q, queue_run_ms);
+	}
 }
 
 void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
@@ -562,10 +566,12 @@ void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 
 	if (rq)
 		blk_requeue_request(q, rq);
-	if (!elv_queue_empty(q))
-		blk_plug_device(q);
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	/* Use 3ms as that was the old plug delay */
+	if (rq)
+		blk_delay_queue(q, 3);
 }
 
 static int drive_is_ready(ide_drive_t *drive)

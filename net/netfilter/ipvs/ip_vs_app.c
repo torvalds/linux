@@ -43,6 +43,8 @@ EXPORT_SYMBOL(register_ip_vs_app);
 EXPORT_SYMBOL(unregister_ip_vs_app);
 EXPORT_SYMBOL(register_ip_vs_app_inc);
 
+static DEFINE_MUTEX(__ip_vs_app_mutex);
+
 /*
  *	Get an ip_vs_app object
  */
@@ -167,14 +169,13 @@ int
 register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
 		       __u16 port)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	int result;
 
-	mutex_lock(&ipvs->app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	result = ip_vs_app_inc_new(net, app, proto, port);
 
-	mutex_unlock(&ipvs->app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	return result;
 }
@@ -189,11 +190,11 @@ int register_ip_vs_app(struct net *net, struct ip_vs_app *app)
 	/* increase the module use count */
 	ip_vs_use_count_inc();
 
-	mutex_lock(&ipvs->app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	list_add(&app->a_list, &ipvs->app_list);
 
-	mutex_unlock(&ipvs->app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	return 0;
 }
@@ -205,10 +206,9 @@ int register_ip_vs_app(struct net *net, struct ip_vs_app *app)
  */
 void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_app *inc, *nxt;
 
-	mutex_lock(&ipvs->app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	list_for_each_entry_safe(inc, nxt, &app->incs_list, a_list) {
 		ip_vs_app_inc_release(net, inc);
@@ -216,7 +216,7 @@ void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
 
 	list_del(&app->a_list);
 
-	mutex_unlock(&ipvs->app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -501,7 +501,7 @@ static void *ip_vs_app_seq_start(struct seq_file *seq, loff_t *pos)
 	struct net *net = seq_file_net(seq);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	mutex_lock(&ipvs->app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	return *pos ? ip_vs_app_idx(ipvs, *pos - 1) : SEQ_START_TOKEN;
 }
@@ -535,9 +535,7 @@ static void *ip_vs_app_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void ip_vs_app_seq_stop(struct seq_file *seq, void *v)
 {
-	struct netns_ipvs *ipvs = net_ipvs(seq_file_net(seq));
-
-	mutex_unlock(&ipvs->app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 }
 
 static int ip_vs_app_seq_show(struct seq_file *seq, void *v)
@@ -583,7 +581,6 @@ static int __net_init __ip_vs_app_init(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	INIT_LIST_HEAD(&ipvs->app_list);
-	__mutex_init(&ipvs->app_mutex, "ipvs->app_mutex", &ipvs->app_key);
 	proc_net_fops_create(net, "ip_vs_app", 0, &ip_vs_app_fops);
 	return 0;
 }

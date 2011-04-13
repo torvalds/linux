@@ -3114,11 +3114,16 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
 	CLK(NULL,	"dsp_fck",			&dsp_fck,	CK_443X),
-	CLK(NULL,	"dss_sys_clk",			&dss_sys_clk,	CK_443X),
-	CLK(NULL,	"dss_tv_clk",			&dss_tv_clk,	CK_443X),
-	CLK(NULL,	"dss_dss_clk",			&dss_dss_clk,	CK_443X),
-	CLK(NULL,	"dss_48mhz_clk",		&dss_48mhz_clk,	CK_443X),
-	CLK(NULL,	"dss_fck",			&dss_fck,	CK_443X),
+	CLK("omapdss_dss",	"sys_clk",			&dss_sys_clk,	CK_443X),
+	CLK("omapdss_dss",	"tv_clk",			&dss_tv_clk,	CK_443X),
+	CLK("omapdss_dss",	"dss_clk",			&dss_dss_clk,	CK_443X),
+	CLK("omapdss_dss",	"video_clk",			&dss_48mhz_clk,	CK_443X),
+	CLK("omapdss_dss",	"fck",				&dss_fck,	CK_443X),
+	/*
+	 * On OMAP4, DSS ick is a dummy clock; this is needed for compatibility
+	 * with OMAP2/3.
+	 */
+	CLK("omapdss_dss",	"ick",				&dummy_ck,	CK_443X),
 	CLK(NULL,	"efuse_ctrl_cust_fck",		&efuse_ctrl_cust_fck,	CK_443X),
 	CLK(NULL,	"emif1_fck",			&emif1_fck,	CK_443X),
 	CLK(NULL,	"emif2_fck",			&emif2_fck,	CK_443X),

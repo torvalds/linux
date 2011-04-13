@@ -64,6 +64,7 @@ extern int copy_mount_string(const void __user *, char **);
 
 extern unsigned int mnt_get_count(struct vfsmount *mnt);
 extern struct vfsmount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
+extern struct vfsmount *lookup_mnt(struct path *);
 extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 				struct vfsmount *);
 extern void release_mounts(struct list_head *);
@@ -124,6 +125,13 @@ extern long do_handle_open(int mountdirfd,
 /*
  * inode.c
  */
+extern spinlock_t inode_sb_list_lock;
+
+/*
+ * fs-writeback.c
+ */
+extern void inode_wb_list_del(struct inode *inode);
+
 extern int get_nr_dirty_inodes(void);
 extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);

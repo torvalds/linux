@@ -3616,7 +3616,7 @@ void __devinit bttv_init_tuner(struct bttv *btv)
 				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
 
-		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.mode_mask = T_ANALOG_TV;
 		tun_setup.type = btv->tuner_type;
 		tun_setup.addr = addr;
 

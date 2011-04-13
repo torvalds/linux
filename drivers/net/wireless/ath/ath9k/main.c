@@ -1048,6 +1048,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		"Starting driver with initial channel: %d MHz\n",
 		curchan->center_freq);
 
+	ath9k_ps_wakeup(sc);
+
 	mutex_lock(&sc->mutex);
 
 	/* setup initial channel */
@@ -1142,6 +1144,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
+
+	ath9k_ps_restore(sc);
 
 	return r;
 }
@@ -2159,6 +2163,8 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 
 	if (!ath_drain_all_txq(sc, false))
 		ath_reset(sc, false);
+
+	ieee80211_wake_queues(hw);
 
 out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);

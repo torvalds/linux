@@ -42,9 +42,9 @@ static const char *sym_hist_filter;
 
 static int perf_evlist__add_sample(struct perf_evlist *evlist,
 				   struct perf_sample *sample,
+				   struct perf_evsel *evsel,
 				   struct addr_location *al)
 {
-	struct perf_evsel *evsel;
 	struct hist_entry *he;
 	int ret;
 
@@ -57,18 +57,6 @@ static int perf_evlist__add_sample(struct perf_evlist *evlist,
 			symbol__delete(al->sym);
 		}
 		return 0;
-	}
-
-	evsel = perf_evlist__id2evsel(evlist, sample->id);
-	if (evsel == NULL) {
-		/*
-		 * FIXME: Propagate this back, but at least we're in a builtin,
-		 * where exit() is allowed. ;-)
-		 */
-		ui__warning("Invalid %s file, contains samples with id not in "
-			    "its header!\n", input_name);
-		exit_browser(0);
-		exit(1);
 	}
 
 	he = __hists__add_entry(&evsel->hists, al, NULL, 1);
@@ -92,6 +80,7 @@ static int perf_evlist__add_sample(struct perf_evlist *evlist,
 
 static int process_sample_event(union perf_event *event,
 				struct perf_sample *sample,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct addr_location al;
@@ -103,7 +92,8 @@ static int process_sample_event(union perf_event *event,
 		return -1;
 	}
 
-	if (!al.filtered && perf_evlist__add_sample(session->evlist, sample, &al)) {
+	if (!al.filtered &&
+	    perf_evlist__add_sample(session->evlist, sample, evsel, &al)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;

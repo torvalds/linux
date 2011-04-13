@@ -276,7 +276,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_PARTITIONS
-	select MTD_CONCAT
 	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
@@ -297,8 +296,7 @@ config ETRAX_RTC
 choice
 	prompt "RTC chip"
 	depends on ETRAX_RTC
-	default ETRAX_PCF8563 if ETRAX_ARCH_V32
-	default ETRAX_DS1302 if ETRAX_ARCH_V10
+	default ETRAX_DS1302
 
 config ETRAX_DS1302
 	depends on ETRAX_ARCH_V10

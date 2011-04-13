@@ -1245,7 +1245,6 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			if (fa->fa_info->fib_priority != fi->fib_priority)
 				break;
 			if (fa->fa_type == cfg->fc_type &&
-			    fa->fa_scope == cfg->fc_scope &&
 			    fa->fa_info == fi) {
 				fa_match = fa;
 				break;
@@ -1271,7 +1270,6 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			new_fa->fa_tos = fa->fa_tos;
 			new_fa->fa_info = fi;
 			new_fa->fa_type = cfg->fc_type;
-			new_fa->fa_scope = cfg->fc_scope;
 			state = fa->fa_state;
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 
@@ -1308,7 +1306,6 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
 	new_fa->fa_type = cfg->fc_type;
-	new_fa->fa_scope = cfg->fc_scope;
 	new_fa->fa_state = 0;
 	/*
 	 * Insert new entry to the list.
@@ -1362,15 +1359,15 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 
 			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 				continue;
-			if (fa->fa_scope < flp->flowi4_scope)
+			if (fa->fa_info->fib_scope < flp->flowi4_scope)
 				continue;
 			fib_alias_accessed(fa);
 			err = fib_props[fa->fa_type].error;
 			if (err) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-				t->stats.semantic_match_miss++;
+				t->stats.semantic_match_passed++;
 #endif
-				return 1;
+				return err;
 			}
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;
@@ -1388,7 +1385,7 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 				res->prefixlen = plen;
 				res->nh_sel = nhsel;
 				res->type = fa->fa_type;
-				res->scope = fa->fa_scope;
+				res->scope = fa->fa_info->fib_scope;
 				res->fi = fi;
 				res->table = tb;
 				res->fa_head = &li->falh;
@@ -1664,7 +1661,9 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 
 		if ((!cfg->fc_type || fa->fa_type == cfg->fc_type) &&
 		    (cfg->fc_scope == RT_SCOPE_NOWHERE ||
-		     fa->fa_scope == cfg->fc_scope) &&
+		     fa->fa_info->fib_scope == cfg->fc_scope) &&
+		    (!cfg->fc_prefsrc ||
+		     fi->fib_prefsrc == cfg->fc_prefsrc) &&
 		    (!cfg->fc_protocol ||
 		     fi->fib_protocol == cfg->fc_protocol) &&
 		    fib_nh_match(cfg, fi) == 0) {
@@ -1861,7 +1860,6 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah,
 				  RTM_NEWROUTE,
 				  tb->tb_id,
 				  fa->fa_type,
-				  fa->fa_scope,
 				  xkey,
 				  plen,
 				  fa->fa_tos,
@@ -2382,7 +2380,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 				seq_indent(seq, iter->depth+1);
 				seq_printf(seq, "  /%d %s %s", li->plen,
 					   rtn_scope(buf1, sizeof(buf1),
-						     fa->fa_scope),
+						     fa->fa_info->fib_scope),
 					   rtn_type(buf2, sizeof(buf2),
 						    fa->fa_type));
 				if (fa->fa_tos)

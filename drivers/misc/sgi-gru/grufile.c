@@ -373,7 +373,7 @@ static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
 
 	if (gru_irq_count[chiplet] == 0) {
 		gru_chip[chiplet].name = irq_name;
-		ret = set_irq_chip(irq, &gru_chip[chiplet]);
+		ret = irq_set_chip(irq, &gru_chip[chiplet]);
 		if (ret) {
 			printk(KERN_ERR "%s: set_irq_chip failed, errno=%d\n",
 			       GRU_DRIVER_ID_STR, -ret);

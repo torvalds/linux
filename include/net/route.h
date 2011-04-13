@@ -207,6 +207,7 @@ extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
 
 struct in_ifaddr;
 extern void fib_add_ifaddr(struct in_ifaddr *);
+extern void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 
 static inline void ip_rt_put(struct rtable * rt)
 {
@@ -269,8 +270,8 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 		struct flowi4 fl4 = {
 			.flowi4_oif = rt->rt_oif,
 			.flowi4_mark = rt->rt_mark,
-			.daddr = rt->rt_key_dst,
-			.saddr = rt->rt_key_src,
+			.daddr = rt->rt_dst,
+			.saddr = rt->rt_src,
 			.flowi4_tos = rt->rt_tos,
 			.flowi4_proto = protocol,
 			.fl4_sport = sport,

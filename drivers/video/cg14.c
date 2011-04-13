@@ -565,6 +565,7 @@ out_dealloc_cmap:
 
 out_unmap_regs:
 	cg14_unmap_regs(op, info, par);
+	framebuffer_release(info);
 
 out_err:
 	return err;

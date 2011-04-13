@@ -1,0 +1,31 @@
+What:		/config/pcie-gadget
+Date:		Feb 2011
+KernelVersion:	2.6.37
+Contact:	Pratyush Anand <pratyush.anand@st.com>
+Description:
+
+	Interface is used to configure selected dual mode PCIe controller
+	as device and then program its various registers to configure it
+	as a particular device type.
+	This interfaces can be used to show spear's PCIe device capability.
+
+	Nodes are only visible when configfs is mounted. To mount configfs
+	in /config directory use:
+	# mount -t configfs none /config/
+
+	For nth PCIe Device Controller
+	/config/pcie-gadget.n/
+		link ... used to enable ltssm and read its status.
+		int_type ...used to configure and read type of supported
+			interrupt
+		no_of_msi ... used to configure number of MSI vector needed and
+			to read no of MSI granted.
+		inta ... write 1 to assert INTA and 0 to de-assert.
+		send_msi ... write MSI vector to be sent.
+		vendor_id ... used to write and read vendor id (hex)
+		device_id ... used to write and read device id (hex)
+		bar0_size ... used to write and read bar0_size
+		bar0_address ... used to write and read bar0 mapped area in hex.
+		bar0_rw_offset ... used to write and read offset of bar0 where
+			bar0_data will be written or read.
+		bar0_data ... used to write and read data at bar0_rw_offset.

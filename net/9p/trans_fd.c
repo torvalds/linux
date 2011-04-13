@@ -350,7 +350,7 @@ static void p9_read_work(struct work_struct *work)
 
 		if (m->req->rc == NULL) {
 			m->req->rc = kmalloc(sizeof(struct p9_fcall) +
-						m->client->msize, GFP_KERNEL);
+						m->client->msize, GFP_NOFS);
 			if (!m->req->rc) {
 				m->req = NULL;
 				err = -ENOMEM;

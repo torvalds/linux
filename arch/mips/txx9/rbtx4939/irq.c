@@ -19,16 +19,16 @@
  * RBTX4939 IOC controller definition
  */
 
-static void rbtx4939_ioc_irq_unmask(unsigned int irq)
+static void rbtx4939_ioc_irq_unmask(struct irq_data *d)
 {
-	int ioc_nr = irq - RBTX4939_IRQ_IOC;
+	int ioc_nr = d->irq - RBTX4939_IRQ_IOC;
 
 	writeb(readb(rbtx4939_ien_addr) | (1 << ioc_nr), rbtx4939_ien_addr);
 }
 
-static void rbtx4939_ioc_irq_mask(unsigned int irq)
+static void rbtx4939_ioc_irq_mask(struct irq_data *d)
 {
-	int ioc_nr = irq - RBTX4939_IRQ_IOC;
+	int ioc_nr = d->irq - RBTX4939_IRQ_IOC;
 
 	writeb(readb(rbtx4939_ien_addr) & ~(1 << ioc_nr), rbtx4939_ien_addr);
 	mmiowb();
@@ -36,10 +36,8 @@ static void rbtx4939_ioc_irq_mask(unsigned int irq)
 
 static struct irq_chip rbtx4939_ioc_irq_chip = {
 	.name		= "IOC",
-	.ack		= rbtx4939_ioc_irq_mask,
-	.mask		= rbtx4939_ioc_irq_mask,
-	.mask_ack	= rbtx4939_ioc_irq_mask,
-	.unmask		= rbtx4939_ioc_irq_unmask,
+	.irq_mask	= rbtx4939_ioc_irq_mask,
+	.irq_unmask	= rbtx4939_ioc_irq_unmask,
 };
 
 
@@ -90,8 +88,8 @@ void __init rbtx4939_irq_setup(void)
 	tx4939_irq_init();
 	for (i = RBTX4939_IRQ_IOC;
 	     i < RBTX4939_IRQ_IOC + RBTX4939_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &rbtx4939_ioc_irq_chip,
+		irq_set_chip_and_handler(i, &rbtx4939_ioc_irq_chip,
 					 handle_level_irq);
 
-	set_irq_chained_handler(RBTX4939_IRQ_IOCINT, handle_simple_irq);
+	irq_set_chained_handler(RBTX4939_IRQ_IOCINT, handle_simple_irq);
 }

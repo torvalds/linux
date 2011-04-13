@@ -17,6 +17,9 @@
 #ifndef _MACH_TEGRA_BOARD_TRIMSLICE_H
 #define _MACH_TEGRA_BOARD_TRIMSLICE_H
 
+#define TRIMSLICE_GPIO_SD4_CD	TEGRA_GPIO_PP1	/* mmc4 cd */
+#define TRIMSLICE_GPIO_SD4_WP	TEGRA_GPIO_PP2	/* mmc4 wp */
+
 void trimslice_pinmux_init(void);
 
 #endif

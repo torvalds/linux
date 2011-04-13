@@ -563,7 +563,7 @@ xfs_trans_ail_delete_bulk(
 
 			spin_unlock(&ailp->xa_lock);
 			if (!XFS_FORCED_SHUTDOWN(mp)) {
-				xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
+				xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
 		"%s: attempting to delete a log item that is not in the AIL",
 						__func__);
 				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);

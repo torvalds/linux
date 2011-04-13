@@ -835,17 +835,8 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 
 	validate_creds(cred);
 
-	/*
-	 * We must always pass in a valid mount pointer.   Historically
-	 * callers got away with not passing it, but we must enforce this at
-	 * the earliest possible point now to avoid strange problems deep in the
-	 * filesystem stack.
-	 */
-	if (!mnt) {
-		printk(KERN_WARNING "%s called with NULL vfsmount\n", __func__);
-		dump_stack();
-		return ERR_PTR(-EINVAL);
-	}
+	/* We must always pass in a valid mount pointer. */
+	BUG_ON(!mnt);
 
 	error = -ENFILE;
 	f = get_empty_filp();

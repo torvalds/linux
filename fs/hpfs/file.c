@@ -119,7 +119,6 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations hpfs_aops = {
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = hpfs_write_begin,
 	.write_end = generic_write_end,
 	.bmap = _hpfs_bmap

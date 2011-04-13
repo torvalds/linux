@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 #include "adfs.h"
 #include "dir_fplus.h"
 
@@ -22,30 +23,53 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 
 	dir->nr_buffers = 0;
 
+	/* start off using fixed bh set - only alloc for big dirs */
+	dir->bh_fplus = &dir->bh[0];
+
 	block = __adfs_block_map(sb, id, 0);
 	if (!block) {
 		adfs_error(sb, "dir object %X has a hole at offset 0", id);
 		goto out;
 	}
 
-	dir->bh[0] = sb_bread(sb, block);
-	if (!dir->bh[0])
+	dir->bh_fplus[0] = sb_bread(sb, block);
+	if (!dir->bh_fplus[0])
 		goto out;
 	dir->nr_buffers += 1;
 
-	h = (struct adfs_bigdirheader *)dir->bh[0]->b_data;
+	h = (struct adfs_bigdirheader *)dir->bh_fplus[0]->b_data;
 	size = le32_to_cpu(h->bigdirsize);
 	if (size != sz) {
-		printk(KERN_WARNING "adfs: adfs_fplus_read: directory header size\n"
-				" does not match directory size\n");
+		printk(KERN_WARNING "adfs: adfs_fplus_read:"
+					" directory header size %X\n"
+					" does not match directory size %X\n",
+					size, sz);
 	}
 
 	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
 	    h->bigdirversion[2] != 0 || size & 2047 ||
-	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME))
+	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME)) {
+		printk(KERN_WARNING "adfs: dir object %X has"
+					" malformed dir header\n", id);
 		goto out;
+	}
 
 	size >>= sb->s_blocksize_bits;
+	if (size > sizeof(dir->bh)/sizeof(dir->bh[0])) {
+		/* this directory is too big for fixed bh set, must allocate */
+		struct buffer_head **bh_fplus =
+			kzalloc(size * sizeof(struct buffer_head *),
+				GFP_KERNEL);
+		if (!bh_fplus) {
+			adfs_error(sb, "not enough memory for"
+					" dir object %X (%d blocks)", id, size);
+			goto out;
+		}
+		dir->bh_fplus = bh_fplus;
+		/* copy over the pointer to the block that we've already read */
+		dir->bh_fplus[0] = dir->bh[0];
+	}
+
 	for (blk = 1; blk < size; blk++) {
 		block = __adfs_block_map(sb, id, blk);
 		if (!block) {
@@ -53,25 +77,44 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 			goto out;
 		}
 
-		dir->bh[blk] = sb_bread(sb, block);
-		if (!dir->bh[blk])
+		dir->bh_fplus[blk] = sb_bread(sb, block);
+		if (!dir->bh_fplus[blk]) {
+			adfs_error(sb,	"dir object %X failed read for"
+					" offset %d, mapped block %X",
+					id, blk, block);
 			goto out;
-		dir->nr_buffers = blk;
+		}
+
+		dir->nr_buffers += 1;
 	}
 
-	t = (struct adfs_bigdirtail *)(dir->bh[size - 1]->b_data + (sb->s_blocksize - 8));
+	t = (struct adfs_bigdirtail *)
+		(dir->bh_fplus[size - 1]->b_data + (sb->s_blocksize - 8));
 
 	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
 	    t->bigdirendmasseq != h->startmasseq ||
-	    t->reserved[0] != 0 || t->reserved[1] != 0)
+	    t->reserved[0] != 0 || t->reserved[1] != 0) {
+		printk(KERN_WARNING "adfs: dir object %X has "
+					"malformed dir end\n", id);
 		goto out;
+	}
 
 	dir->parent_id = le32_to_cpu(h->bigdirparent);
 	dir->sb = sb;
 	return 0;
+
 out:
-	for (i = 0; i < dir->nr_buffers; i++)
-		brelse(dir->bh[i]);
+	if (dir->bh_fplus) {
+		for (i = 0; i < dir->nr_buffers; i++)
+			brelse(dir->bh_fplus[i]);
+
+		if (&dir->bh[0] != dir->bh_fplus)
+			kfree(dir->bh_fplus);
+
+		dir->bh_fplus = NULL;
+	}
+
+	dir->nr_buffers = 0;
 	dir->sb = NULL;
 	return ret;
 }
@@ -79,7 +122,8 @@ out:
 static int
 adfs_fplus_setpos(struct adfs_dir *dir, unsigned int fpos)
 {
-	struct adfs_bigdirheader *h = (struct adfs_bigdirheader *)dir->bh[0]->b_data;
+	struct adfs_bigdirheader *h =
+		(struct adfs_bigdirheader *) dir->bh_fplus[0]->b_data;
 	int ret = -ENOENT;
 
 	if (fpos <= le32_to_cpu(h->bigdirentries)) {
@@ -102,21 +146,27 @@ dir_memcpy(struct adfs_dir *dir, unsigned int offset, void *to, int len)
 	partial = sb->s_blocksize - offset;
 
 	if (partial >= len)
-		memcpy(to, dir->bh[buffer]->b_data + offset, len);
+		memcpy(to, dir->bh_fplus[buffer]->b_data + offset, len);
 	else {
 		char *c = (char *)to;
 
 		remainder = len - partial;
 
-		memcpy(c, dir->bh[buffer]->b_data + offset, partial);
-		memcpy(c + partial, dir->bh[buffer + 1]->b_data, remainder);
+		memcpy(c,
+			dir->bh_fplus[buffer]->b_data + offset,
+			partial);
+
+		memcpy(c + partial,
+			dir->bh_fplus[buffer + 1]->b_data,
+			remainder);
 	}
 }
 
 static int
 adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 {
-	struct adfs_bigdirheader *h = (struct adfs_bigdirheader *)dir->bh[0]->b_data;
+	struct adfs_bigdirheader *h =
+		(struct adfs_bigdirheader *) dir->bh_fplus[0]->b_data;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
 	int i, ret = -ENOENT;
@@ -147,6 +197,24 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 		if (obj->name[i] == '/')
 			obj->name[i] = '.';
 
+	obj->filetype = -1;
+
+	/*
+	 * object is a file and is filetyped and timestamped?
+	 * RISC OS 12-bit filetype is stored in load_address[19:8]
+	 */
+	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
+		(0xfff00000 == (0xfff00000 & obj->loadaddr))) {
+		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
+
+		/* optionally append the ,xyz hex filetype suffix */
+		if (ADFS_SB(dir->sb)->s_ftsuffix)
+			obj->name_len +=
+				append_filetype_suffix(
+					&obj->name[obj->name_len],
+					obj->filetype);
+	}
+
 	dir->pos += 1;
 	ret = 0;
 out:
@@ -160,7 +228,7 @@ adfs_fplus_sync(struct adfs_dir *dir)
 	int i;
 
 	for (i = dir->nr_buffers - 1; i >= 0; i--) {
-		struct buffer_head *bh = dir->bh[i];
+		struct buffer_head *bh = dir->bh_fplus[i];
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh))
 			err = -EIO;
@@ -174,8 +242,17 @@ adfs_fplus_free(struct adfs_dir *dir)
 {
 	int i;
 
-	for (i = 0; i < dir->nr_buffers; i++)
-		brelse(dir->bh[i]);
+	if (dir->bh_fplus) {
+		for (i = 0; i < dir->nr_buffers; i++)
+			brelse(dir->bh_fplus[i]);
+
+		if (&dir->bh[0] != dir->bh_fplus)
+			kfree(dir->bh_fplus);
+
+		dir->bh_fplus = NULL;
+	}
+
+	dir->nr_buffers = 0;
 	dir->sb = NULL;
 }
 

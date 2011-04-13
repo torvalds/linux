@@ -88,7 +88,7 @@ void __init tsp2_pci_preinit(void)
 	pin = TSP2_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "tsp2_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);

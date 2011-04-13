@@ -5,7 +5,7 @@
  * and destination.
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- * Pawel Osciak, <p.osciak@samsung.com>
+ * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 #ifndef _MEDIA_V4L2_MEM2MEM_H
 #define _MEDIA_V4L2_MEM2MEM_H
 
-#include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 
 /**
  * struct v4l2_m2m_ops - mem-to-mem device driver callbacks
@@ -45,17 +45,20 @@ struct v4l2_m2m_ops {
 	void (*device_run)(void *priv);
 	int (*job_ready)(void *priv);
 	void (*job_abort)(void *priv);
+	void (*lock)(void *priv);
+	void (*unlock)(void *priv);
 };
 
 struct v4l2_m2m_dev;
 
 struct v4l2_m2m_queue_ctx {
 /* private: internal use only */
-	struct videobuf_queue	q;
+	struct vb2_queue	q;
 
 	/* Queue for buffers ready to be processed as soon as this
 	 * instance receives access to the device */
 	struct list_head	rdy_queue;
+	spinlock_t		rdy_spinlock;
 	u8			num_rdy;
 };
 
@@ -72,18 +75,30 @@ struct v4l2_m2m_ctx {
 	/* For device job queue */
 	struct list_head		queue;
 	unsigned long			job_flags;
+	wait_queue_head_t		finished;
 
 	/* Instance private data */
 	void				*priv;
 };
 
+struct v4l2_m2m_buffer {
+	struct vb2_buffer	vb;
+	struct list_head	list;
+};
+
 void *v4l2_m2m_get_curr_priv(struct v4l2_m2m_dev *m2m_dev);
 
-struct videobuf_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
+struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 				       enum v4l2_buf_type type);
 
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
+
+static inline void
+v4l2_m2m_buf_done(struct vb2_buffer *buf, enum vb2_buffer_state state)
+{
+	vb2_buffer_done(buf, state);
+}
 
 int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs);
@@ -110,13 +125,13 @@ int v4l2_m2m_mmap(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 struct v4l2_m2m_dev *v4l2_m2m_init(struct v4l2_m2m_ops *m2m_ops);
 void v4l2_m2m_release(struct v4l2_m2m_dev *m2m_dev);
 
-struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(void *priv, struct v4l2_m2m_dev *m2m_dev,
-			void (*vq_init)(void *priv, struct videobuf_queue *,
-					enum v4l2_buf_type));
+struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
+		void *drv_priv,
+		int (*queue_init)(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq));
+
 void v4l2_m2m_ctx_release(struct v4l2_m2m_ctx *m2m_ctx);
 
-void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct videobuf_queue *vq,
-			struct videobuf_buffer *vb);
+void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb);
 
 /**
  * v4l2_m2m_num_src_bufs_ready() - return the number of source buffers ready for
@@ -138,7 +153,7 @@ unsigned int v4l2_m2m_num_dst_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 	return m2m_ctx->out_q_ctx.num_rdy;
 }
 
-void *v4l2_m2m_next_buf(struct v4l2_m2m_ctx *m2m_ctx, enum v4l2_buf_type type);
+void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_next_src_buf() - return next source buffer from the list of ready
@@ -146,7 +161,7 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_ctx *m2m_ctx, enum v4l2_buf_type type);
  */
 static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_next_buf(m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	return v4l2_m2m_next_buf(&m2m_ctx->out_q_ctx);
 }
 
 /**
@@ -155,29 +170,28 @@ static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
  */
 static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_next_buf(m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	return v4l2_m2m_next_buf(&m2m_ctx->cap_q_ctx);
 }
 
 /**
- * v4l2_m2m_get_src_vq() - return videobuf_queue for source buffers
+ * v4l2_m2m_get_src_vq() - return vb2_queue for source buffers
  */
 static inline
-struct videobuf_queue *v4l2_m2m_get_src_vq(struct v4l2_m2m_ctx *m2m_ctx)
+struct vb2_queue *v4l2_m2m_get_src_vq(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_get_vq(m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	return &m2m_ctx->out_q_ctx.q;
 }
 
 /**
- * v4l2_m2m_get_dst_vq() - return videobuf_queue for destination buffers
+ * v4l2_m2m_get_dst_vq() - return vb2_queue for destination buffers
  */
 static inline
-struct videobuf_queue *v4l2_m2m_get_dst_vq(struct v4l2_m2m_ctx *m2m_ctx)
+struct vb2_queue *v4l2_m2m_get_dst_vq(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_get_vq(m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	return &m2m_ctx->cap_q_ctx.q;
 }
 
-void *v4l2_m2m_buf_remove(struct v4l2_m2m_ctx *m2m_ctx,
-			  enum v4l2_buf_type type);
+void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_src_buf_remove() - take off a source buffer from the list of ready
@@ -185,7 +199,7 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_ctx *m2m_ctx,
  */
 static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_buf_remove(m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	return v4l2_m2m_buf_remove(&m2m_ctx->out_q_ctx);
 }
 
 /**
@@ -194,7 +208,7 @@ static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
  */
 static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return v4l2_m2m_buf_remove(m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	return v4l2_m2m_buf_remove(&m2m_ctx->cap_q_ctx);
 }
 
 #endif /* _MEDIA_V4L2_MEM2MEM_H */

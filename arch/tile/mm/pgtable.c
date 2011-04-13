@@ -41,7 +41,7 @@
  * The normal show_free_areas() is too verbose on Tile, with dozens
  * of processors and often four NUMA zones each with high and lowmem.
  */
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	struct zone *zone;
 

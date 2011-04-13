@@ -261,6 +261,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
 		.norm = V4L2_STD_PAL,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.has_417 = 1,
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -357,19 +360,19 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
 			.amux = CX231XX_AMUX_VIDEO,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
 	},
 	[CX231XX_BOARD_HAUPPAUGE_USBLIVE2] = {
@@ -382,18 +385,20 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
 	},
 	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
@@ -420,20 +425,49 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
 			.amux = CX231XX_AMUX_VIDEO,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
+	},
+	[CX231XX_BOARD_PV_XCAPTURE_USB] = {
+		.name = "Pixelview Xcapture USB",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+
+		.input = {{
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
 	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
@@ -464,6 +498,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
 	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
 	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
+	{USB_DEVICE(USB_VID_PIXELVIEW, 0x5014),
+	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{},
 };
 
@@ -772,7 +808,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	/* Reset other chips required if they are tied up with GPIO pins */
 	cx231xx_add_into_devlist(dev);
 
-	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+	if (dev->board.has_417) {
 		printk(KERN_INFO "attach 417 %d\n", dev->model);
 		if (cx231xx_417_register(dev) < 0) {
 			printk(KERN_ERR
@@ -844,110 +880,110 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	if (ifnum == 1) {
-		/*
-		 * Interface number 0 - IR interface
-		 */
-		/* Check to see next free device and mark as used */
-		nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
-		cx231xx_devused |= 1 << nr;
+	/*
+	 * Interface number 0 - IR interface (handled by mceusb driver)
+	 * Interface number 1 - AV interface (handled by this driver)
+	 */
+	if (ifnum != 1)
+		return -ENODEV;
 
-		if (nr >= CX231XX_MAXBOARDS) {
-			cx231xx_err(DRIVER_NAME
+	/* Check to see next free device and mark as used */
+	nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
+	cx231xx_devused |= 1 << nr;
+
+	if (nr >= CX231XX_MAXBOARDS) {
+		cx231xx_err(DRIVER_NAME
 		 ": Supports only %i cx231xx boards.\n", CX231XX_MAXBOARDS);
-			cx231xx_devused &= ~(1 << nr);
-			return -ENOMEM;
-		}
+		cx231xx_devused &= ~(1 << nr);
+		return -ENOMEM;
+	}
 
-		/* allocate memory for our device state and initialize it */
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-		if (dev == NULL) {
-			cx231xx_err(DRIVER_NAME ": out of memory!\n");
-			cx231xx_devused &= ~(1 << nr);
-			return -ENOMEM;
-		}
+	/* allocate memory for our device state and initialize it */
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL) {
+		cx231xx_err(DRIVER_NAME ": out of memory!\n");
+		cx231xx_devused &= ~(1 << nr);
+		return -ENOMEM;
+	}
 
-		snprintf(dev->name, 29, "cx231xx #%d", nr);
-		dev->devno = nr;
-		dev->model = id->driver_info;
-		dev->video_mode.alt = -1;
-		dev->interface_count++;
+	snprintf(dev->name, 29, "cx231xx #%d", nr);
+	dev->devno = nr;
+	dev->model = id->driver_info;
+	dev->video_mode.alt = -1;
 
-		/* reset gpio dir and value */
-		dev->gpio_dir = 0;
-		dev->gpio_val = 0;
-		dev->xc_fw_load_done = 0;
-		dev->has_alsa_audio = 1;
-		dev->power_mode = -1;
-		atomic_set(&dev->devlist_count, 0);
+	dev->interface_count++;
+	/* reset gpio dir and value */
+	dev->gpio_dir = 0;
+	dev->gpio_val = 0;
+	dev->xc_fw_load_done = 0;
+	dev->has_alsa_audio = 1;
+	dev->power_mode = -1;
+	atomic_set(&dev->devlist_count, 0);
 
-		/* 0 - vbi ; 1 -sliced cc mode */
-		dev->vbi_or_sliced_cc_mode = 0;
+	/* 0 - vbi ; 1 -sliced cc mode */
+	dev->vbi_or_sliced_cc_mode = 0;
 
-		/* get maximum no.of IAD interfaces */
-		assoc_desc = udev->actconfig->intf_assoc[0];
-		dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
+	/* get maximum no.of IAD interfaces */
+	assoc_desc = udev->actconfig->intf_assoc[0];
+	dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
 
-		/* init CIR module TBD */
+	/* init CIR module TBD */
 
-		/* store the current interface */
-		lif = interface;
+	/* store the current interface */
+	lif = interface;
 
-		/*mode_tv: digital=1 or analog=0*/
-		dev->mode_tv = 0;
+	/*mode_tv: digital=1 or analog=0*/
+	dev->mode_tv = 0;
 
-		dev->USE_ISO = transfer_mode;
+	dev->USE_ISO = transfer_mode;
 
-		switch (udev->speed) {
-		case USB_SPEED_LOW:
-			speed = "1.5";
-			break;
-		case USB_SPEED_UNKNOWN:
-		case USB_SPEED_FULL:
-			speed = "12";
-			break;
-		case USB_SPEED_HIGH:
-			speed = "480";
-			break;
-		default:
-			speed = "unknown";
-		}
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+		speed = "1.5";
+		break;
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_FULL:
+		speed = "12";
+		break;
+	case USB_SPEED_HIGH:
+		speed = "480";
+		break;
+	default:
+		speed = "unknown";
+	}
 
-		if (udev->manufacturer)
-			strlcpy(descr, udev->manufacturer, sizeof(descr));
+	if (udev->manufacturer)
+		strlcpy(descr, udev->manufacturer, sizeof(descr));
 
-		if (udev->product) {
-			if (*descr)
-				strlcat(descr, " ", sizeof(descr));
-			strlcat(descr, udev->product, sizeof(descr));
-		}
+	if (udev->product) {
 		if (*descr)
 			strlcat(descr, " ", sizeof(descr));
+		strlcat(descr, udev->product, sizeof(descr));
+	}
+	if (*descr)
+		strlcat(descr, " ", sizeof(descr));
 
-		cx231xx_info("New device %s@ %s Mbps "
-		     "(%04x:%04x) with %d interfaces\n",
-		     descr,
-		     speed,
-		     le16_to_cpu(udev->descriptor.idVendor),
-		     le16_to_cpu(udev->descriptor.idProduct),
-		     dev->max_iad_interface_count);
+	cx231xx_info("New device %s@ %s Mbps "
+	     "(%04x:%04x) with %d interfaces\n",
+	     descr,
+	     speed,
+	     le16_to_cpu(udev->descriptor.idVendor),
+	     le16_to_cpu(udev->descriptor.idProduct),
+	     dev->max_iad_interface_count);
 
-		/* store the interface 0 back */
-		lif = udev->actconfig->interface[0];
+	/* store the interface 0 back */
+	lif = udev->actconfig->interface[0];
 
-		/* increment interface count */
-		dev->interface_count++;
+	/* increment interface count */
+	dev->interface_count++;
 
-		/* get device number */
-		nr = dev->devno;
+	/* get device number */
+	nr = dev->devno;
 
-		assoc_desc = udev->actconfig->intf_assoc[0];
-		if (assoc_desc->bFirstInterface != ifnum) {
-			cx231xx_err(DRIVER_NAME ": Not found "
-				    "matching IAD interface\n");
-			return -ENODEV;
-		}
-	} else {
+	assoc_desc = udev->actconfig->intf_assoc[0];
+	if (assoc_desc->bFirstInterface != ifnum) {
+		cx231xx_err(DRIVER_NAME ": Not found "
+			    "matching IAD interface\n");
 		return -ENODEV;
 	}
 

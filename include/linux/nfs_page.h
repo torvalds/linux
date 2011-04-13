@@ -33,11 +33,15 @@ enum {
 	PG_CLEAN,
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,
+	PG_PNFS_COMMIT,
 };
 
 struct nfs_inode;
 struct nfs_page {
-	struct list_head	wb_list;	/* Defines state of page: */
+	union {
+		struct list_head	wb_list;	/* Defines state of page: */
+		struct pnfs_layout_segment *wb_commit_lseg; /* Used when PG_PNFS_COMMIT set */
+	};
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
@@ -57,6 +61,7 @@ struct nfs_pageio_descriptor {
 	size_t			pg_count;
 	size_t			pg_bsize;
 	unsigned int		pg_base;
+	char			pg_moreio;
 
 	struct inode		*pg_inode;
 	int			(*pg_doio)(struct nfs_pageio_descriptor *);
@@ -73,7 +78,6 @@ extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
 					    struct page *page,
 					    unsigned int offset,
 					    unsigned int count);
-extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 

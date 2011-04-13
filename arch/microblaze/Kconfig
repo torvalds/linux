@@ -18,6 +18,7 @@ config MICROBLAZE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
 
 config SWAP
 	def_bool n
@@ -35,6 +36,9 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config GENERIC_FIND_NEXT_BIT
+	def_bool y
+
+config GENERIC_FIND_BIT_LE
 	def_bool y
 
 config GENERIC_HWEIGHT

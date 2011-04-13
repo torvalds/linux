@@ -294,30 +294,11 @@ static void __init init_gbpages(void)
 	else
 		direct_gbpages = 0;
 }
-
-static void __init cleanup_highmap_brk_end(void)
-{
-	pud_t *pud;
-	pmd_t *pmd;
-
-	mmu_cr4_features = read_cr4();
-
-	/*
-	 * _brk_end cannot change anymore, but it and _end may be
-	 * located on different 2M pages. cleanup_highmap(), however,
-	 * can only consider _end when it runs, so destroy any
-	 * mappings beyond _brk_end here.
-	 */
-	pud = pud_offset(pgd_offset_k(_brk_end), _brk_end);
-	pmd = pmd_offset(pud, _brk_end - 1);
-	while (++pmd <= pmd_offset(pud, (unsigned long)_end - 1))
-		pmd_clear(pmd);
-}
 #else
 static inline void init_gbpages(void)
 {
 }
-static inline void cleanup_highmap_brk_end(void)
+static void __init cleanup_highmap(void)
 {
 }
 #endif
@@ -330,8 +311,6 @@ static void __init reserve_brk(void)
 	/* Mark brk area as locked down and no longer taking any
 	   new allocations */
 	_brk_start = 0;
-
-	cleanup_highmap_brk_end();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -640,28 +619,6 @@ void __init reserve_standard_io_resources(void)
 
 }
 
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
-
-#ifdef CONFIG_CRASH_DUMP
-/* elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel. This option will be passed
- * by kexec loader to the capture kernel.
- */
-static int __init setup_elfcorehdr(char *arg)
-{
-	char *end;
-	if (!arg)
-		return -EINVAL;
-	elfcorehdr_addr = memparse(arg, &end);
-	return end > arg ? 0 : -EINVAL;
-}
-early_param("elfcorehdr", setup_elfcorehdr);
-#endif
-
 static __init void reserve_ibft_region(void)
 {
 	unsigned long addr, size = 0;
@@ -949,6 +906,8 @@ void __init setup_arch(char **cmdline_p)
 	 *  brk area.
 	 */
 	reserve_brk();
+
+	cleanup_highmap();
 
 	memblock.current_limit = get_max_mapped();
 	memblock_x86_fill();

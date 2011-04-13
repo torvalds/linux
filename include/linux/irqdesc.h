@@ -35,32 +35,7 @@ struct timer_rand_state;
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
-
-#ifdef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
 	struct irq_data		irq_data;
-#else
-	/*
-	 * This union will go away, once we fixed the direct access to
-	 * irq_desc all over the place. The direct fields are a 1:1
-	 * overlay of irq_data.
-	 */
-	union {
-		struct irq_data		irq_data;
-		struct {
-			unsigned int		irq;
-			unsigned int		node;
-			unsigned int		pad_do_not_even_think_about_it;
-			struct irq_chip		*chip;
-			void			*handler_data;
-			void			*chip_data;
-			struct msi_desc		*msi_desc;
-#ifdef CONFIG_SMP
-			cpumask_var_t		affinity;
-#endif
-		};
-	};
-#endif
-
 	struct timer_rand_state *timer_rand_state;
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
@@ -68,11 +43,7 @@ struct irq_desc {
 	irq_preflow_handler_t	preflow_handler;
 #endif
 	struct irqaction	*action;	/* IRQ action list */
-#ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
 	unsigned int		status_use_accessors;
-#else
-	unsigned int		status;		/* IRQ status */
-#endif
 	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
@@ -99,13 +70,6 @@ struct irq_desc {
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
-
-/* Will be removed once the last users in power and sh are gone */
-extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
-static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
-{
-	return desc;
-}
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
@@ -134,27 +98,6 @@ static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
 	return desc->irq_data.msi_desc;
 }
 
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-static inline struct irq_chip *get_irq_desc_chip(struct irq_desc *desc)
-{
-	return irq_desc_get_chip(desc);
-}
-static inline void *get_irq_desc_data(struct irq_desc *desc)
-{
-	return irq_desc_get_handler_data(desc);
-}
-
-static inline void *get_irq_desc_chip_data(struct irq_desc *desc)
-{
-	return irq_desc_get_chip_data(desc);
-}
-
-static inline struct msi_desc *get_irq_desc_msi(struct irq_desc *desc)
-{
-	return irq_desc_get_msi_desc(desc);
-}
-#endif
-
 /*
  * Architectures call this to let the generic IRQ layer
  * handle an interrupt. If the descriptor is attached to an
@@ -178,24 +121,44 @@ static inline int irq_has_action(unsigned int irq)
 	return desc->action != NULL;
 }
 
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-static inline int irq_balancing_disabled(unsigned int irq)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-	return desc->status & IRQ_NO_BALANCING_MASK;
-}
-#endif
-
 /* caller has locked the irq_desc and both params are valid */
-static inline void __set_irq_handler_unlocked(int irq,
-					      irq_flow_handler_t handler)
+static inline void __irq_set_handler_locked(unsigned int irq,
+					    irq_flow_handler_t handler)
 {
 	struct irq_desc *desc;
 
 	desc = irq_to_desc(irq);
 	desc->handle_irq = handler;
+}
+
+/* caller has locked the irq_desc and both params are valid */
+static inline void
+__irq_set_chip_handler_name_locked(unsigned int irq, struct irq_chip *chip,
+				   irq_flow_handler_t handler, const char *name)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	irq_desc_get_irq_data(desc)->chip = chip;
+	desc->handle_irq = handler;
+	desc->name = name;
+}
+
+static inline int irq_balancing_disabled(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	return desc->status_use_accessors & IRQ_NO_BALANCING_MASK;
+}
+
+static inline void
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (desc)
+		lockdep_set_class(&desc->lock, class);
 }
 
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI

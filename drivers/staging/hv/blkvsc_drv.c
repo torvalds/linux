@@ -124,7 +124,8 @@ static void blkvsc_shutdown(struct device *device);
 
 static int blkvsc_open(struct block_device *bdev,  fmode_t mode);
 static int blkvsc_release(struct gendisk *disk, fmode_t mode);
-static int blkvsc_media_changed(struct gendisk *gd);
+static unsigned int blkvsc_check_events(struct gendisk *gd,
+					unsigned int clearing);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
 static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
@@ -155,7 +156,7 @@ static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
 	.open = blkvsc_open,
 	.release = blkvsc_release,
-	.media_changed = blkvsc_media_changed,
+	.check_events = blkvsc_check_events,
 	.revalidate_disk = blkvsc_revalidate_disk,
 	.getgeo = blkvsc_getgeo,
 	.ioctl  = blkvsc_ioctl,
@@ -357,6 +358,7 @@ static int blkvsc_probe(struct device *device)
 	else
 		blkdev->gd->first_minor = 0;
 	blkdev->gd->fops = &block_ops;
+	blkdev->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	blkdev->gd->private_data = blkdev;
 	blkdev->gd->driverfs_dev = &(blkdev->device_ctx->device);
 	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + devnum);
@@ -1337,10 +1339,11 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static int blkvsc_media_changed(struct gendisk *gd)
+static unsigned int blkvsc_check_events(struct gendisk *gd,
+					unsigned int clearing)
 {
 	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
-	return 1;
+	return DISK_EVENT_MEDIA_CHANGE;
 }
 
 static int blkvsc_revalidate_disk(struct gendisk *gd)

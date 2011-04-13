@@ -77,14 +77,11 @@ static struct irq_chip s3c_irq_timer = {
 void __init s3c_init_vic_timer_irq(unsigned int parent_irq,
 				   unsigned int timer_irq)
 {
-	struct irq_desc *desc = irq_to_desc(parent_irq);
 
-	set_irq_chained_handler(parent_irq, s3c_irq_demux_vic_timer);
+	irq_set_chained_handler(parent_irq, s3c_irq_demux_vic_timer);
+	irq_set_handler_data(parent_irq, (void *)timer_irq);
 
-	set_irq_chip(timer_irq, &s3c_irq_timer);
-	set_irq_chip_data(timer_irq, (void *)(1 << (timer_irq - IRQ_TIMER0)));
-	set_irq_handler(timer_irq, handle_level_irq);
+	irq_set_chip_and_handler(timer_irq, &s3c_irq_timer, handle_level_irq);
+	irq_set_chip_data(timer_irq, (void *)(1 << (timer_irq - IRQ_TIMER0)));
 	set_irq_flags(timer_irq, IRQF_VALID);
-
-	desc->irq_data.handler_data = (void *)timer_irq;
 }

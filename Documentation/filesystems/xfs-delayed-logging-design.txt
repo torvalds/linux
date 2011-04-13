@@ -791,10 +791,3 @@ mount option. Fundamentally, there is no reason why the log manager would not
 be able to swap methods automatically and transparently depending on load
 characteristics, but this should not be necessary if delayed logging works as
 designed.
-
-Roadmap:
-
-2.6.39 Switch default mount option to use delayed logging
-	=> should be roughly 12 months after initial merge
-	=> enough time to shake out remaining problems before next round of
-	   enterprise distro kernel rebases

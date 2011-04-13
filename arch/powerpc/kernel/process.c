@@ -1218,11 +1218,11 @@ void __ppc64_runlatch_off(void)
 
 static struct kmem_cache *thread_info_cache;
 
-struct thread_info *alloc_thread_info(struct task_struct *tsk)
+struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
 {
 	struct thread_info *ti;
 
-	ti = kmem_cache_alloc(thread_info_cache, GFP_KERNEL);
+	ti = kmem_cache_alloc_node(thread_info_cache, GFP_KERNEL, node);
 	if (unlikely(ti == NULL))
 		return NULL;
 #ifdef CONFIG_DEBUG_STACK_USAGE

@@ -29,6 +29,7 @@
 #include <linux/crc32c.h>
 #include <linux/slab.h>
 #include <linux/migrate.h>
+#include <asm/unaligned.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -198,7 +199,7 @@ u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len)
 
 void btrfs_csum_final(u32 crc, char *result)
 {
-	*(__le32 *)result = ~cpu_to_le32(crc);
+	put_unaligned_le32(~crc, result);
 }
 
 /*
@@ -323,12 +324,21 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	int num_copies = 0;
 	int mirror_num = 0;
 
+	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 	while (1) {
 		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
 					       btree_get_extent, mirror_num);
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
+			return ret;
+
+		/*
+		 * This buffer's crc is fine, but its contents are corrupted, so
+		 * there is no reason to read the other copies, they won't be
+		 * any less wrong.
+		 */
+		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags))
 			return ret;
 
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
@@ -419,6 +429,73 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 	return ret;
 }
 
+#define CORRUPT(reason, eb, root, slot)				\
+	printk(KERN_CRIT "btrfs: corrupt leaf, %s: block=%llu,"	\
+	       "root=%llu, slot=%d\n", reason,			\
+	       (unsigned long long)btrfs_header_bytenr(eb),	\
+	       (unsigned long long)root->objectid, slot)
+
+static noinline int check_leaf(struct btrfs_root *root,
+			       struct extent_buffer *leaf)
+{
+	struct btrfs_key key;
+	struct btrfs_key leaf_key;
+	u32 nritems = btrfs_header_nritems(leaf);
+	int slot;
+
+	if (nritems == 0)
+		return 0;
+
+	/* Check the 0 item */
+	if (btrfs_item_offset_nr(leaf, 0) + btrfs_item_size_nr(leaf, 0) !=
+	    BTRFS_LEAF_DATA_SIZE(root)) {
+		CORRUPT("invalid item offset size pair", leaf, root, 0);
+		return -EIO;
+	}
+
+	/*
+	 * Check to make sure each items keys are in the correct order and their
+	 * offsets make sense.  We only have to loop through nritems-1 because
+	 * we check the current slot against the next slot, which verifies the
+	 * next slot's offset+size makes sense and that the current's slot
+	 * offset is correct.
+	 */
+	for (slot = 0; slot < nritems - 1; slot++) {
+		btrfs_item_key_to_cpu(leaf, &leaf_key, slot);
+		btrfs_item_key_to_cpu(leaf, &key, slot + 1);
+
+		/* Make sure the keys are in the right order */
+		if (btrfs_comp_cpu_keys(&leaf_key, &key) >= 0) {
+			CORRUPT("bad key order", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Make sure the offset and ends are right, remember that the
+		 * item data starts at the end of the leaf and grows towards the
+		 * front.
+		 */
+		if (btrfs_item_offset_nr(leaf, slot) !=
+			btrfs_item_end_nr(leaf, slot + 1)) {
+			CORRUPT("slot offset bad", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Check to make sure that we don't point outside of the leaf,
+		 * just incase all the items are consistent to eachother, but
+		 * all point outside of the leaf.
+		 */
+		if (btrfs_item_end_nr(leaf, slot) >
+		    BTRFS_LEAF_DATA_SIZE(root)) {
+			CORRUPT("slot end outside of leaf", leaf, root, slot);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level)
 {
@@ -485,8 +562,20 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	btrfs_set_buffer_lockdep_class(eb, found_level);
 
 	ret = csum_tree_block(root, eb, 1);
-	if (ret)
+	if (ret) {
 		ret = -EIO;
+		goto err;
+	}
+
+	/*
+	 * If this is a leaf block and it is corrupt, set the corrupt bit so
+	 * that we don't try and read the other copies of this block, just
+	 * return -EIO.
+	 */
+	if (found_level == 0 && check_leaf(root, eb)) {
+		set_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
+		ret = -EIO;
+	}
 
 	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
 	end = eb->start + end - 1;
@@ -847,7 +936,6 @@ static const struct address_space_operations btree_aops = {
 	.writepages	= btree_writepages,
 	.releasepage	= btree_releasepage,
 	.invalidatepage = btree_invalidatepage,
-	.sync_page	= block_sync_page,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= btree_migratepage,
 #endif
@@ -1160,7 +1248,10 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 		     root, fs_info, location->objectid);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path) {
+		kfree(root);
+		return ERR_PTR(-ENOMEM);
+	}
 	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
 	if (ret == 0) {
 		l = path->nodes[0];
@@ -1331,82 +1422,6 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 }
 
 /*
- * this unplugs every device on the box, and it is only used when page
- * is null
- */
-static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
-{
-	struct btrfs_device *device;
-	struct btrfs_fs_info *info;
-
-	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
-	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
-		if (!device->bdev)
-			continue;
-
-		bdi = blk_get_backing_dev_info(device->bdev);
-		if (bdi->unplug_io_fn)
-			bdi->unplug_io_fn(bdi, page);
-	}
-}
-
-static void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
-{
-	struct inode *inode;
-	struct extent_map_tree *em_tree;
-	struct extent_map *em;
-	struct address_space *mapping;
-	u64 offset;
-
-	/* the generic O_DIRECT read code does this */
-	if (1 || !page) {
-		__unplug_io_fn(bdi, page);
-		return;
-	}
-
-	/*
-	 * page->mapping may change at any time.  Get a consistent copy
-	 * and use that for everything below
-	 */
-	smp_mb();
-	mapping = page->mapping;
-	if (!mapping)
-		return;
-
-	inode = mapping->host;
-
-	/*
-	 * don't do the expensive searching for a small number of
-	 * devices
-	 */
-	if (BTRFS_I(inode)->root->fs_info->fs_devices->open_devices <= 2) {
-		__unplug_io_fn(bdi, page);
-		return;
-	}
-
-	offset = page_offset(page);
-
-	em_tree = &BTRFS_I(inode)->extent_tree;
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, offset, PAGE_CACHE_SIZE);
-	read_unlock(&em_tree->lock);
-	if (!em) {
-		__unplug_io_fn(bdi, page);
-		return;
-	}
-
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		free_extent_map(em);
-		__unplug_io_fn(bdi, page);
-		return;
-	}
-	offset = offset - em->start;
-	btrfs_unplug_page(&BTRFS_I(inode)->root->fs_info->mapping_tree,
-			  em->block_start + offset, page);
-	free_extent_map(em);
-}
-
-/*
  * If this fails, caller must call bdi_destroy() to get rid of the
  * bdi again.
  */
@@ -1420,8 +1435,6 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 		return err;
 
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
-	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
-	bdi->unplug_io_data	= info;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	return 0;
@@ -1632,6 +1645,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_bdi;
 	}
 
+	fs_info->btree_inode->i_mapping->flags &= ~__GFP_FS;
+
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
@@ -1761,6 +1776,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->fs_state |= btrfs_super_flags(disk_super);
 
 	btrfs_check_super_valid(fs_info, sb->s_flags & MS_RDONLY);
+
+	/*
+	 * In the long term, we'll store the compression type in the super
+	 * block, and it'll be used for per file compression control.
+	 */
+	fs_info->compress_type = BTRFS_COMPRESS_ZLIB;
 
 	ret = btrfs_parse_options(tree_root, options);
 	if (ret) {
@@ -1967,6 +1988,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->metadata_alloc_profile = (u64)-1;
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 
+	ret = btrfs_init_space_info(fs_info);
+	if (ret) {
+		printk(KERN_ERR "Failed to initial space info: %d\n", ret);
+		goto fail_block_groups;
+	}
+
 	ret = btrfs_read_block_groups(extent_root);
 	if (ret) {
 		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
@@ -2058,9 +2085,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_read(&fs_info->cleanup_work_sem);
-		btrfs_orphan_cleanup(fs_info->fs_root);
-		btrfs_orphan_cleanup(fs_info->tree_root);
+		err = btrfs_orphan_cleanup(fs_info->fs_root);
+		if (!err)
+			err = btrfs_orphan_cleanup(fs_info->tree_root);
 		up_read(&fs_info->cleanup_work_sem);
+		if (err) {
+			close_ctree(tree_root);
+			return ERR_PTR(err);
+		}
 	}
 
 	return tree_root;
@@ -2435,8 +2467,12 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 
 		root_objectid = gang[ret - 1]->root_key.objectid + 1;
 		for (i = 0; i < ret; i++) {
+			int err;
+
 			root_objectid = gang[i]->root_key.objectid;
-			btrfs_orphan_cleanup(gang[i]);
+			err = btrfs_orphan_cleanup(gang[i]);
+			if (err)
+				return err;
 		}
 		root_objectid++;
 	}
@@ -2947,7 +2983,10 @@ static int btrfs_destroy_pinned_extent(struct btrfs_root *root,
 			break;
 
 		/* opt_discard */
-		ret = btrfs_error_discard_extent(root, start, end + 1 - start);
+		if (btrfs_test_opt(root, DISCARD))
+			ret = btrfs_error_discard_extent(root, start,
+							 end + 1 - start,
+							 NULL);
 
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
 		btrfs_error_unpin_extent_range(root, start, end);

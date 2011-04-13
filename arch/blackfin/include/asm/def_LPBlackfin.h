@@ -58,14 +58,26 @@
     ({ BUG(); 0; }); \
 })
 #define bfin_write(addr, val) \
-({ \
+do { \
 	switch (sizeof(*(addr))) { \
 	case 1: bfin_write8(addr, val);  break; \
 	case 2: bfin_write16(addr, val); break; \
 	case 4: bfin_write32(addr, val); break; \
 	default: BUG(); \
 	} \
-})
+} while (0)
+
+#define bfin_write_or(addr, bits) \
+do { \
+	void *__addr = (void *)(addr); \
+	bfin_write(__addr, bfin_read(__addr) | (bits)); \
+} while (0)
+
+#define bfin_write_and(addr, bits) \
+do { \
+	void *__addr = (void *)(addr); \
+	bfin_write(__addr, bfin_read(__addr) & (bits)); \
+} while (0)
 
 #endif /* __ASSEMBLY__ */
 

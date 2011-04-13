@@ -714,10 +714,6 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 		*nr_m_spare += 1;
 	}
 }
-#else /* CONFIG_X86_IO_APIC */
-static
-inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
-#endif /* CONFIG_X86_IO_APIC */
 
 static int
 check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
@@ -731,6 +727,10 @@ check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 
 	return ret;
 }
+#else /* CONFIG_X86_IO_APIC */
+static
+inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
+#endif /* CONFIG_X86_IO_APIC */
 
 static int  __init replace_intsrc_all(struct mpc_table *mpc,
 					unsigned long mpc_new_phys,

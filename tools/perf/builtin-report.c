@@ -50,30 +50,18 @@ static symbol_filter_t	annotate_init;
 
 static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
-					struct perf_sample *sample)
+					struct perf_sample *sample,
+					struct perf_evsel *evsel)
 {
 	struct symbol *parent = NULL;
 	int err = 0;
 	struct hist_entry *he;
-	struct perf_evsel *evsel;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
 		err = perf_session__resolve_callchain(session, al->thread,
 						      sample->callchain, &parent);
 		if (err)
 			return err;
-	}
-
-	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
-	if (evsel == NULL) {
-		/*
-		 * FIXME: Propagate this back, but at least we're in a builtin,
-		 * where exit() is allowed. ;-)
-		 */
-		ui__warning("Invalid %s file, contains samples with id %" PRIu64 " not in "
-			    "its header!\n", input_name, sample->id);
-		exit_browser(0);
-		exit(1);
 	}
 
 	he = __hists__add_entry(&evsel->hists, al, parent, sample->period);
@@ -113,6 +101,7 @@ out:
 
 static int process_sample_event(union perf_event *event,
 				struct perf_sample *sample,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct addr_location al;
@@ -127,7 +116,7 @@ static int process_sample_event(union perf_event *event,
 	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
-	if (perf_session__add_hist_entry(session, &al, sample)) {
+	if (perf_session__add_hist_entry(session, &al, sample, evsel)) {
 		pr_debug("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}

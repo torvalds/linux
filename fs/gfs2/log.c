@@ -121,7 +121,7 @@ __acquires(&sdp->sd_ail_lock)
 			lock_buffer(bh);
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
-				submit_bh(WRITE_SYNC_PLUG, bh);
+				submit_bh(WRITE_SYNC, bh);
 			} else {
 				unlock_buffer(bh);
 				brelse(bh);
@@ -647,7 +647,7 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 		lock_buffer(bh);
 		if (buffer_mapped(bh) && test_clear_buffer_dirty(bh)) {
 			bh->b_end_io = end_buffer_write_sync;
-			submit_bh(WRITE_SYNC_PLUG, bh);
+			submit_bh(WRITE_SYNC, bh);
 		} else {
 			unlock_buffer(bh);
 			brelse(bh);

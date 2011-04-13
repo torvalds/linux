@@ -1875,7 +1875,7 @@ static void wait_for_dump_helpers(struct file *file)
 
 
 /*
- * uhm_pipe_setup
+ * umh_pipe_setup
  * helper function to customize the process used
  * to collect the core in userspace.  Specifically
  * it sets up a pipe and installs it as fd 0 (stdin)

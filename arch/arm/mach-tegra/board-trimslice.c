@@ -29,9 +29,12 @@
 #include <asm/setup.h>
 
 #include <mach/iomap.h>
+#include <mach/sdhci.h>
 
 #include "board.h"
 #include "clock.h"
+#include "devices.h"
+#include "gpio-names.h"
 
 #include "board-trimslice.h"
 
@@ -56,9 +59,22 @@ static struct platform_device debug_uart = {
 		.platform_data	= debug_uart_platform_data,
 	},
 };
+static struct tegra_sdhci_platform_data sdhci_pdata1 = {
+	.cd_gpio	= -1,
+	.wp_gpio	= -1,
+	.power_gpio	= -1,
+};
+
+static struct tegra_sdhci_platform_data sdhci_pdata4 = {
+	.cd_gpio	= TRIMSLICE_GPIO_SD4_CD,
+	.wp_gpio	= TRIMSLICE_GPIO_SD4_WP,
+	.power_gpio	= -1,
+};
 
 static struct platform_device *trimslice_devices[] __initdata = {
 	&debug_uart,
+	&tegra_sdhci_device1,
+	&tegra_sdhci_device4,
 };
 
 static void __init tegra_trimslice_fixup(struct machine_desc *desc,
@@ -91,6 +107,9 @@ static void __init tegra_trimslice_init(void)
 	tegra_clk_init_from_table(trimslice_clk_init_table);
 
 	trimslice_pinmux_init();
+
+	tegra_sdhci_device1.dev.platform_data = &sdhci_pdata1;
+	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(trimslice_devices, ARRAY_SIZE(trimslice_devices));
 }

@@ -324,6 +324,7 @@ struct vendor_data {
 	bool unidir;
 	bool extended_cr;
 	bool pl023;
+	bool loopback;
 };
 
 /**
@@ -1983,7 +1984,7 @@ static int pl022_setup(struct spi_device *spi)
 
 	SSP_WRITE_BITS(chip->cr0, clk_freq.scr, SSP_CR0_MASK_SCR, 8);
 	/* Loopback is available on all versions except PL023 */
-	if (!pl022->vendor->pl023) {
+	if (pl022->vendor->loopback) {
 		if (spi->mode & SPI_LOOP)
 			tmp = LOOPBACK_ENABLED;
 		else
@@ -2233,6 +2234,7 @@ static struct vendor_data vendor_arm = {
 	.unidir = false,
 	.extended_cr = false,
 	.pl023 = false,
+	.loopback = true,
 };
 
 
@@ -2242,6 +2244,7 @@ static struct vendor_data vendor_st = {
 	.unidir = false,
 	.extended_cr = true,
 	.pl023 = false,
+	.loopback = true,
 };
 
 static struct vendor_data vendor_st_pl023 = {
@@ -2250,6 +2253,16 @@ static struct vendor_data vendor_st_pl023 = {
 	.unidir = false,
 	.extended_cr = true,
 	.pl023 = true,
+	.loopback = false,
+};
+
+static struct vendor_data vendor_db5500_pl023 = {
+	.fifodepth = 32,
+	.max_bpw = 32,
+	.unidir = false,
+	.extended_cr = true,
+	.pl023 = true,
+	.loopback = true,
 };
 
 static struct amba_id pl022_ids[] = {
@@ -2282,6 +2295,11 @@ static struct amba_id pl022_ids[] = {
 		.id     = 0x00080023,
 		.mask   = 0xffffffff,
 		.data   = &vendor_st_pl023,
+	},
+	{
+		.id	= 0x10080023,
+		.mask	= 0xffffffff,
+		.data	= &vendor_db5500_pl023,
 	},
 	{ 0, 0 },
 };

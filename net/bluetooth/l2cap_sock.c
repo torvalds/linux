@@ -923,8 +923,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
-		} else
-			l2cap_chan_del(sk, reason);
+		}
+
+		l2cap_chan_del(sk, reason);
 		break;
 
 	case BT_CONNECT:

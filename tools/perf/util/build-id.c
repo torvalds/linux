@@ -16,6 +16,7 @@
 
 static int build_id__mark_dso_hit(union perf_event *event,
 				  struct perf_sample *sample __used,
+				  struct perf_evsel *evsel __used,
 				  struct perf_session *session)
 {
 	struct addr_location al;
