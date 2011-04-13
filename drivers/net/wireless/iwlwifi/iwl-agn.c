@@ -2382,20 +2382,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
-	/* If we have not previously called iwl_init() then
-	 * clear all bits but the RF Kill bit and return */
-	if (!iwl_is_init(priv)) {
-		priv->status = test_bit(STATUS_RF_KILL_HW, &priv->status) <<
-					STATUS_RF_KILL_HW |
-			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
-					STATUS_GEO_CONFIGURED |
-			       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
-					STATUS_EXIT_PENDING;
-		goto exit;
-	}
-
-	/* ...otherwise clear out all the status bits but the RF Kill
-	 * bit and continue taking the NIC down. */
+	/* Clear out all status bits but a few that are stable across reset */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
 			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
@@ -2421,7 +2408,6 @@ static void __iwl_down(struct iwl_priv *priv)
 	/* Stop the device, and put it in low power state */
 	iwl_apm_stop(priv);
 
- exit:
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
 
@@ -4072,17 +4058,9 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
 		priv->mac80211_registered = 0;
-	} else {
-		iwl_down(priv);
 	}
 
-	/*
-	 * Make sure device is reset to low power before unloading driver.
-	 * This may be redundant with iwl_down(), but there are paths to
-	 * run iwl_down() without calling apm_ops.stop(), and there are
-	 * paths to avoid running iwl_down() at all before leaving driver.
-	 * This (inexpensive) call *makes sure* device is reset.
-	 */
+	/* Reset to low power before unloading driver. */
 	iwl_apm_stop(priv);
 
 	iwl_tt_exit(priv);
