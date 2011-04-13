@@ -325,8 +325,8 @@ send:
 	return htc_send(priv->htc, skb);
 }
 
-static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
-				    struct ath9k_htc_sta *ista, u8 tid)
+static inline bool __ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
+					     struct ath9k_htc_sta *ista, u8 tid)
 {
 	bool ret = false;
 
@@ -338,89 +338,98 @@ static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
 	return ret;
 }
 
-void ath9k_tx_tasklet(unsigned long data)
+static void ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
+				    struct ieee80211_vif *vif,
+				    struct sk_buff *skb)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
-	struct ath9k_htc_tx_ctl *tx_ctl;
-	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
-	struct ieee80211_tx_info *tx_info;
-	struct sk_buff *skb = NULL;
 	__le16 fc;
+
+	hdr = (struct ieee80211_hdr *) skb->data;
+	fc = hdr->frame_control;
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta(vif, hdr->addr1);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+
+	if (sta && conf_is_ht(&priv->hw->conf) &&
+	    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
+		if (ieee80211_is_data_qos(fc)) {
+			u8 *qc, tid;
+			struct ath9k_htc_sta *ista;
+
+			qc = ieee80211_get_qos_ctl(hdr);
+			tid = qc[0] & 0xf;
+			ista = (struct ath9k_htc_sta *)sta->drv_priv;
+			if (__ath9k_htc_check_tx_aggr(priv, ista, tid)) {
+				ieee80211_start_tx_ba_session(sta, tid, 0);
+				spin_lock_bh(&priv->tx.tx_lock);
+				ista->tid_state[tid] = AGGR_PROGRESS;
+				spin_unlock_bh(&priv->tx.tx_lock);
+			}
+		}
+	}
+
+	rcu_read_unlock();
+}
+
+static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
+				 struct sk_buff *skb)
+{
+	struct ieee80211_vif *vif;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	struct ieee80211_tx_info *tx_info;
 	bool txok;
 	int slot;
 
+	slot = strip_drv_header(priv, skb);
+	if (slot < 0) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	tx_ctl = HTC_SKB_CB(skb);
+	txok = tx_ctl->txok;
+	tx_info = IEEE80211_SKB_CB(skb);
+	vif = tx_info->control.vif;
+
+	memset(&tx_info->status, 0, sizeof(tx_info->status));
+
+	/*
+	 * URB submission failed for this frame, it never reached
+	 * the target.
+	 */
+	if (!txok || !vif)
+		goto send_mac80211;
+
+	tx_info->flags |= IEEE80211_TX_STAT_ACK;
+
+	ath9k_htc_check_tx_aggr(priv, vif, skb);
+
+send_mac80211:
+	spin_lock_bh(&priv->tx.tx_lock);
+	if (WARN_ON(--priv->tx.queued_cnt < 0))
+		priv->tx.queued_cnt = 0;
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	ath9k_htc_tx_clear_slot(priv, slot);
+
+	/* Send status to mac80211 */
+	ieee80211_tx_status(priv->hw, skb);
+}
+
+void ath9k_tx_tasklet(unsigned long data)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct sk_buff *skb = NULL;
+
 	while ((skb = skb_dequeue(&priv->tx.tx_queue)) != NULL) {
-
-		slot = strip_drv_header(priv, skb);
-		if (slot < 0) {
-			dev_kfree_skb_any(skb);
-			continue;
-		}
-
-		tx_ctl = HTC_SKB_CB(skb);
-		hdr = (struct ieee80211_hdr *) skb->data;
-		fc = hdr->frame_control;
-		tx_info = IEEE80211_SKB_CB(skb);
-		vif = tx_info->control.vif;
-		txok = tx_ctl->txok;
-
-		memset(&tx_info->status, 0, sizeof(tx_info->status));
-
-		/*
-		 * URB submission failed for this frame, it never reached
-		 * the target.
-		 */
-		if (!txok)
-			goto send_mac80211;
-
-		tx_info->flags |= IEEE80211_TX_STAT_ACK;
-
-		if (!vif)
-			goto send_mac80211;
-
-		rcu_read_lock();
-
-		sta = ieee80211_find_sta(vif, hdr->addr1);
-		if (!sta) {
-			rcu_read_unlock();
-			goto send_mac80211;
-		}
-
-		/* Check if we need to start aggregation */
-
-		if (sta && conf_is_ht(&priv->hw->conf) &&
-		    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
-			if (ieee80211_is_data_qos(fc)) {
-				u8 *qc, tid;
-				struct ath9k_htc_sta *ista;
-
-				qc = ieee80211_get_qos_ctl(hdr);
-				tid = qc[0] & 0xf;
-				ista = (struct ath9k_htc_sta *)sta->drv_priv;
-
-				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
-					ieee80211_start_tx_ba_session(sta, tid, 0);
-					spin_lock_bh(&priv->tx.tx_lock);
-					ista->tid_state[tid] = AGGR_PROGRESS;
-					spin_unlock_bh(&priv->tx.tx_lock);
-				}
-			}
-		}
-
-		rcu_read_unlock();
-
-	send_mac80211:
-		spin_lock_bh(&priv->tx.tx_lock);
-		if (WARN_ON(--priv->tx.queued_cnt < 0))
-			priv->tx.queued_cnt = 0;
-		spin_unlock_bh(&priv->tx.tx_lock);
-
-		ath9k_htc_tx_clear_slot(priv, slot);
-
-		/* Send status to mac80211 */
-		ieee80211_tx_status(priv->hw, skb);
+		ath9k_htc_tx_process(priv, skb);
 	}
 
 	/* Wake TX queues if needed */
