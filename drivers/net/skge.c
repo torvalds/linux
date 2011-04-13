@@ -753,7 +753,7 @@ static int skge_set_phys_id(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		return -EINVAL;
+		return 2;	/* cycle on/off twice per second */
 
 	case ETHTOOL_ID_ON:
 		skge_led(skge, LED_MODE_TST);

@@ -7473,7 +7473,7 @@ bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 
 		bp->leds_save = REG_RD(bp, BNX2_MISC_CFG);
 		REG_WR(bp, BNX2_MISC_CFG, BNX2_MISC_CFG_LEDMODE_MAC);
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
 		REG_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE |

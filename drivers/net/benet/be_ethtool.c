@@ -516,7 +516,7 @@ be_set_phys_id(struct net_device *netdev,
 	case ETHTOOL_ID_ACTIVE:
 		be_cmd_get_beacon_state(adapter, adapter->hba_port_num,
 					&adapter->beacon_state);
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
 		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,

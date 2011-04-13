@@ -2025,7 +2025,7 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,

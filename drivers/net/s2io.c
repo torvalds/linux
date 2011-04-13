@@ -5541,7 +5541,7 @@ static int s2io_ethtool_set_led(struct net_device *dev,
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
 		sp->adapt_ctrl_org = readq(&bar0->gpio_control);
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
 		s2io_set_led(sp, true);

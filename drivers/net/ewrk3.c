@@ -1618,7 +1618,7 @@ static int ewrk3_set_phys_id(struct net_device *dev,
 		/* Prevent ISR from twiddling the LED */
 		lp->led_mask = 0;
 		spin_unlock_irq(&lp->hw_lock);
-		return -EINVAL;
+		return 2;	/* cycle on/off twice per second */
 
 	case ETHTOOL_ID_ON:
 		cr = inb(EWRK3_CR);

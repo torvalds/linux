@@ -798,8 +798,10 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  *	attached to it.  The implementation may update the indicator
  *	asynchronously or synchronously, but in either case it must return
  *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
- *	and must either activate asynchronous updates or return -%EINVAL.
- *	If it returns -%EINVAL then it will be called again at intervals with
+ *	and must either activate asynchronous updates and return zero, return
+ *	a negative error or return a positive frequency for synchronous
+ *	indication (e.g. 1 for one on/off cycle per second).  If it returns
+ *	a frequency then it will be called again at intervals with the
  *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
  *	the indicator accordingly.  Finally, it is called with the argument
  *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a

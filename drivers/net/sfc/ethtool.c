@@ -182,7 +182,7 @@ static int efx_ethtool_phys_id(struct net_device *net_dev,
 			       enum ethtool_phys_id_state state)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_led_mode mode;
+	enum efx_led_mode mode = EFX_LED_DEFAULT;
 
 	switch (state) {
 	case ETHTOOL_ID_ON:
@@ -194,8 +194,8 @@ static int efx_ethtool_phys_id(struct net_device *net_dev,
 	case ETHTOOL_ID_INACTIVE:
 		mode = EFX_LED_DEFAULT;
 		break;
-	default:
-		return -EINVAL;
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
 	}
 
 	efx->type->set_id_led(efx, mode);

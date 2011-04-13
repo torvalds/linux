@@ -3813,7 +3813,7 @@ static int sky2_set_phys_id(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 	case ETHTOOL_ID_INACTIVE:
 		sky2_led(sky2, MO_LED_NORM);
 		break;

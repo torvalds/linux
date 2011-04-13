@@ -7896,7 +7896,7 @@ static int niu_set_phys_id(struct net_device *dev,
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
 		np->orig_led_state = niu_led_state_save(np);
-		return -EINVAL;
+		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
 		niu_force_led(np, 1);
