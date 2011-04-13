@@ -128,7 +128,9 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
+int iwl_prepare_card_hw(struct iwl_priv *priv);
 
+int iwlagn_start_device(struct iwl_priv *priv);
 void iwlagn_stop_device(struct iwl_priv *priv);
 
 /* tx queue */
