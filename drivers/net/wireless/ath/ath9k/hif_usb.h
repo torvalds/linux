@@ -93,6 +93,7 @@ struct hif_device_usb {
 	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
 	struct usb_anchor reg_in_submitted;
+	struct usb_anchor mgmt_submitted;
 	struct sk_buff *remain_skb;
 	const char *fw_name;
 	int rx_remain_len;
