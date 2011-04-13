@@ -29,6 +29,8 @@ static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 	BUG_ON(!host);
 	BUG_ON(card && (card->host != host));
 
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
 	cmd.opcode = MMC_APP_CMD;
 
 	if (card) {
