@@ -89,12 +89,15 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
 	struct ath9k_htc_vif *avp = NULL;
-	struct ath9k_htc_tx_ctl tx_ctl;
+	struct ath9k_htc_tx_ctl *tx_ctl;
 	enum htc_endpoint_id epid;
 	u16 qnum;
 	__le16 fc;
 	u8 *tx_fhdr;
 	u8 sta_idx, vif_idx;
+
+	tx_ctl = HTC_SKB_CB(skb);
+	memset(tx_ctl, 0, sizeof(*tx_ctl));
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
@@ -126,8 +129,6 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		sta_idx = priv->vif_sta_pos[vif_idx];
 	}
 
-	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
-
 	if (ieee80211_is_data(fc)) {
 		struct tx_frame_hdr tx_hdr;
 		u32 flags = 0;
@@ -139,10 +140,10 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		tx_hdr.vif_idx = vif_idx;
 
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-			tx_ctl.type = ATH9K_HTC_AMPDU;
+			tx_ctl->type = ATH9K_HTC_AMPDU;
 			tx_hdr.data_type = ATH9K_HTC_AMPDU;
 		} else {
-			tx_ctl.type = ATH9K_HTC_NORMAL;
+			tx_ctl->type = ATH9K_HTC_NORMAL;
 			tx_hdr.data_type = ATH9K_HTC_NORMAL;
 		}
 
@@ -212,7 +213,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 			mgmt->u.probe_resp.timestamp = avp->tsfadjust;
 		}
 
-		tx_ctl.type = ATH9K_HTC_NORMAL;
+		tx_ctl->type = ATH9K_HTC_MGMT;
 
 		mgmt_hdr.node_idx = sta_idx;
 		mgmt_hdr.vif_idx = vif_idx;
@@ -230,7 +231,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		epid = priv->mgmt_ep;
 	}
 send:
-	return htc_send(priv->htc, skb, epid, &tx_ctl);
+	return htc_send(priv->htc, skb, epid);
 }
 
 static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,

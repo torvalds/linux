@@ -67,8 +67,11 @@ enum htc_opmode {
 };
 
 #define ATH9K_HTC_HDRSPACE sizeof(struct htc_frame_hdr)
-#define ATH9K_HTC_AMPDU	1
+
+#define ATH9K_HTC_AMPDU  1
 #define ATH9K_HTC_NORMAL 2
+#define ATH9K_HTC_BEACON 3
+#define ATH9K_HTC_MGMT   4
 
 #define ATH9K_HTC_TX_CTSONLY      0x1
 #define ATH9K_HTC_TX_RTSCTS       0x2
@@ -287,6 +290,15 @@ struct ath9k_htc_rx {
 struct ath9k_htc_tx_ctl {
 	u8 type; /* ATH9K_HTC_* */
 };
+
+static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+
+	BUILD_BUG_ON(sizeof(struct ath9k_htc_tx_ctl) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	return (struct ath9k_htc_tx_ctl *) &tx_info->driver_data;
+}
 
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 

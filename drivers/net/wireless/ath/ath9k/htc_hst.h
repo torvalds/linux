@@ -35,8 +35,7 @@ struct ath9k_htc_hif {
 
 	void (*start) (void *hif_handle, u8 pipe);
 	void (*stop) (void *hif_handle, u8 pipe);
-	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf,
-		     struct ath9k_htc_tx_ctl *tx_ctl);
+	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf);
 };
 
 enum htc_endpoint_id {
@@ -206,7 +205,7 @@ int htc_connect_service(struct htc_target *target,
 			  struct htc_service_connreq *service_connreq,
 			  enum htc_endpoint_id *conn_rsp_eid);
 int htc_send(struct htc_target *target, struct sk_buff *skb,
-	     enum htc_endpoint_id eid, struct ath9k_htc_tx_ctl *tx_ctl);
+	     enum htc_endpoint_id eid);
 void htc_stop(struct htc_target *target);
 void htc_start(struct htc_target *target);
 

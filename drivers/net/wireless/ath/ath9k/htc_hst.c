@@ -17,8 +17,8 @@
 #include "htc.h"
 
 static int htc_issue_send(struct htc_target *target, struct sk_buff* skb,
-			  u16 len, u8 flags, u8 epid,
-			  struct ath9k_htc_tx_ctl *tx_ctl)
+			  u16 len, u8 flags, u8 epid)
+
 {
 	struct htc_frame_hdr *hdr;
 	struct htc_endpoint *endpoint = &target->endpoint[epid];
@@ -30,8 +30,8 @@ static int htc_issue_send(struct htc_target *target, struct sk_buff* skb,
 	hdr->flags = flags;
 	hdr->payload_len = cpu_to_be16(len);
 
-	status = target->hif->send(target->hif_dev, endpoint->ul_pipeid, skb,
-				   tx_ctl);
+	status = target->hif->send(target->hif_dev, endpoint->ul_pipeid, skb);
+
 	return status;
 }
 
@@ -162,7 +162,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 
 	target->htc_flags |= HTC_OP_CONFIG_PIPE_CREDITS;
 
-	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0, NULL);
+	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0);
 	if (ret)
 		goto err;
 
@@ -197,7 +197,7 @@ static int htc_setup_complete(struct htc_target *target)
 
 	target->htc_flags |= HTC_OP_START_WAIT;
 
-	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0, NULL);
+	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0);
 	if (ret)
 		goto err;
 
@@ -268,7 +268,7 @@ int htc_connect_service(struct htc_target *target,
 	conn_msg->dl_pipeid = endpoint->dl_pipeid;
 	conn_msg->ul_pipeid = endpoint->ul_pipeid;
 
-	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0, NULL);
+	ret = htc_issue_send(target, skb, skb->len, 0, ENDPOINT0);
 	if (ret)
 		goto err;
 
@@ -287,9 +287,9 @@ err:
 }
 
 int htc_send(struct htc_target *target, struct sk_buff *skb,
-	     enum htc_endpoint_id epid, struct ath9k_htc_tx_ctl *tx_ctl)
+	     enum htc_endpoint_id epid)
 {
-	return htc_issue_send(target, skb, skb->len, 0, epid, tx_ctl);
+	return htc_issue_send(target, skb, skb->len, 0, epid);
 }
 
 void htc_stop(struct htc_target *target)

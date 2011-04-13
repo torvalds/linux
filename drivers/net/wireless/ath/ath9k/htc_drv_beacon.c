@@ -341,7 +341,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	struct ieee80211_vif *vif;
 	struct ath9k_htc_vif *avp;
 	struct tx_beacon_header beacon_hdr;
-	struct ath9k_htc_tx_ctl tx_ctl;
+	struct ath9k_htc_tx_ctl *tx_ctl;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *beacon;
@@ -349,7 +349,6 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	int ret;
 
 	memset(&beacon_hdr, 0, sizeof(struct tx_beacon_header));
-	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
 
 	spin_lock_bh(&priv->beacon_lock);
 
@@ -384,12 +383,16 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
 	}
 
-	tx_ctl.type = ATH9K_HTC_NORMAL;
+	tx_ctl = HTC_SKB_CB(beacon);
+	memset(tx_ctl, 0, sizeof(*tx_ctl));
+
+	tx_ctl->type = ATH9K_HTC_BEACON;
+
 	beacon_hdr.vif_index = avp->index;
 	tx_fhdr = skb_push(beacon, sizeof(beacon_hdr));
 	memcpy(tx_fhdr, (u8 *) &beacon_hdr, sizeof(beacon_hdr));
 
-	ret = htc_send(priv->htc, beacon, priv->beacon_ep, &tx_ctl);
+	ret = htc_send(priv->htc, beacon, priv->beacon_ep);
 	if (ret != 0) {
 		if (ret == -ENOMEM) {
 			ath_dbg(common, ATH_DBG_BSTUCK,

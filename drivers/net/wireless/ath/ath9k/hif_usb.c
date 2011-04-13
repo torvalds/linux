@@ -284,9 +284,9 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev)
 	return ret;
 }
 
-static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb,
-			   struct ath9k_htc_tx_ctl *tx_ctl)
+static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 {
+	struct ath9k_htc_tx_ctl *tx_ctl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
@@ -305,12 +305,14 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb,
 	__skb_queue_tail(&hif_dev->tx.tx_skb_queue, skb);
 	hif_dev->tx.tx_skb_cnt++;
 
-	/* Send normal frames immediately */
-	if (!tx_ctl || (tx_ctl && (tx_ctl->type == ATH9K_HTC_NORMAL)))
+	tx_ctl = HTC_SKB_CB(skb);
+
+	/* Send normal/mgmt/beacon frames immediately */
+	if (tx_ctl->type != ATH9K_HTC_AMPDU)
 		__hif_usb_tx(hif_dev);
 
 	/* Check if AMPDUs have to be sent immediately */
-	if (tx_ctl && (tx_ctl->type == ATH9K_HTC_AMPDU) &&
+	if ((tx_ctl->type == ATH9K_HTC_AMPDU) &&
 	    (hif_dev->tx.tx_buf_cnt == MAX_TX_URB_NUM) &&
 	    (hif_dev->tx.tx_skb_cnt < 2)) {
 		__hif_usb_tx(hif_dev);
@@ -352,15 +354,14 @@ static void hif_usb_stop(void *hif_handle, u8 pipe_id)
 	}
 }
 
-static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb,
-			struct ath9k_htc_tx_ctl *tx_ctl)
+static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb)
 {
 	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
 	int ret = 0;
 
 	switch (pipe_id) {
 	case USB_WLAN_TX_PIPE:
-		ret = hif_usb_send_tx(hif_dev, skb, tx_ctl);
+		ret = hif_usb_send_tx(hif_dev, skb);
 		break;
 	case USB_REG_OUT_PIPE:
 		ret = hif_usb_send_regout(hif_dev, skb);
