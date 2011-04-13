@@ -594,7 +594,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
  */
 static struct sock *l2cap_get_sock_by_scid(int state, __le16 cid, bdaddr_t *src)
 {
-	struct sock *s, *sk = NULL, *sk1 = NULL;
+	struct sock *sk = NULL, *sk1 = NULL;
 	struct hlist_node *node;
 
 	read_lock(&l2cap_sk_list.lock);
@@ -613,12 +613,10 @@ static struct sock *l2cap_get_sock_by_scid(int state, __le16 cid, bdaddr_t *src)
 				sk1 = sk;
 		}
 	}
-	s = node ? sk : sk1;
-	if (s)
-		bh_lock_sock(s);
+
 	read_unlock(&l2cap_sk_list.lock);
 
-	return s;
+	return node ? sk : sk1;
 }
 
 static void l2cap_le_conn_ready(struct l2cap_conn *conn)
