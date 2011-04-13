@@ -318,7 +318,7 @@ static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
 
-	ixgbe_release_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM);
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 	return status;
 }
 

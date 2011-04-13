@@ -110,7 +110,6 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 		ret_val = ixgbe_get_sfp_init_sequence_offsets(hw, &list_offset,
 		                                              &data_offset);
-
 		if (ret_val != 0)
 			goto setup_sfp_out;
 
@@ -130,7 +129,7 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		}
 
 		/* Release the semaphore */
-		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 		/*
 		 * Delay obtaining semaphore again to allow FW access,
 		 * semaphore_delay is in ms usleep_range needs us.
