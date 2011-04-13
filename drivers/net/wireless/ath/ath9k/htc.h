@@ -271,6 +271,7 @@ struct ath9k_htc_tx {
 	u8 flags;
 	int queued_cnt;
 	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_failed;
 	DECLARE_BITMAP(tx_slot, MAX_TX_BUF_NUM);
 	spinlock_t tx_lock;
 };
@@ -305,8 +306,8 @@ struct ath_tx_stats {
 	u32 buf_queued;
 	u32 buf_completed;
 	u32 skb_queued;
-	u32 skb_completed;
-	u32 skb_dropped;
+	u32 skb_success;
+	u32 skb_failed;
 	u32 cab_queued;
 	u32 queue_stats[WME_NUM_AC];
 };
@@ -544,6 +545,7 @@ void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv);
 void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv);
 int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv);
 void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot);
+void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);

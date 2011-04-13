@@ -193,7 +193,9 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 
 	ath9k_htc_stop_ani(priv);
 	ieee80211_stop_queues(priv->hw);
-	htc_stop(priv->htc);
+
+	ath9k_htc_tx_drain(priv);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
@@ -248,7 +250,9 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	fastcc = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
 
 	ath9k_htc_ps_wakeup(priv);
-	htc_stop(priv->htc);
+
+	ath9k_htc_tx_drain(priv);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
@@ -263,6 +267,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	if (!fastcc)
 		caldata = &priv->caldata;
+
 	ret = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (ret) {
 		ath_err(common,
@@ -960,16 +965,14 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	}
 
 	ath9k_htc_ps_wakeup(priv);
-	htc_stop(priv->htc);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
 	tasklet_kill(&priv->rx_tasklet);
-	tasklet_kill(&priv->tx_tasklet);
 
-	skb_queue_purge(&priv->tx.tx_queue);
-
+	ath9k_htc_tx_drain(priv);
 	ath9k_wmi_event_drain(priv);
 
 	mutex_unlock(&priv->mutex);

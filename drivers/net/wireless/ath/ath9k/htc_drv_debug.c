@@ -88,11 +88,11 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			"%20s : %10u\n", "SKBs queued",
 			priv->debug.tx_stats.skb_queued);
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs completed",
-			priv->debug.tx_stats.skb_completed);
+			"%20s : %10u\n", "SKBs success",
+			priv->debug.tx_stats.skb_success);
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs dropped",
-			priv->debug.tx_stats.skb_dropped);
+			"%20s : %10u\n", "SKBs failed",
+			priv->debug.tx_stats.skb_failed);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "CAB queued",
 			priv->debug.tx_stats.cab_queued);

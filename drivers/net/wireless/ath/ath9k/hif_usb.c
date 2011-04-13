@@ -131,7 +131,19 @@ static inline void ath9k_skb_queue_purge(struct hif_device_usb *hif_dev,
 
 	while ((skb = __skb_dequeue(list)) != NULL) {
 		dev_kfree_skb_any(skb);
-		TX_STAT_INC(skb_dropped);
+	}
+}
+
+static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
+					    struct sk_buff_head *queue,
+					    bool txok)
+{
+	struct sk_buff *skb;
+
+	while ((skb = __skb_dequeue(queue)) != NULL) {
+		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
+					  skb, txok);
+		(txok) ? TX_STAT_INC(skb_success) : TX_STAT_INC(skb_failed);
 	}
 }
 
@@ -139,7 +151,7 @@ static void hif_usb_tx_cb(struct urb *urb)
 {
 	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
 	struct hif_device_usb *hif_dev;
-	struct sk_buff *skb;
+	bool txok = true;
 
 	if (!tx_buf || !tx_buf->hif_dev)
 		return;
@@ -153,10 +165,7 @@ static void hif_usb_tx_cb(struct urb *urb)
 	case -ECONNRESET:
 	case -ENODEV:
 	case -ESHUTDOWN:
-		/*
-		 * The URB has been killed, free the SKBs.
-		 */
-		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
+		txok = false;
 
 		/*
 		 * If the URBs are being flushed, no need to add this
@@ -165,41 +174,19 @@ static void hif_usb_tx_cb(struct urb *urb)
 		spin_lock(&hif_dev->tx.tx_lock);
 		if (hif_dev->tx.flags & HIF_USB_TX_FLUSH) {
 			spin_unlock(&hif_dev->tx.tx_lock);
+			ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
 			return;
 		}
 		spin_unlock(&hif_dev->tx.tx_lock);
 
-		/*
-		 * In the stop() case, this URB has to be added to
-		 * the free list.
-		 */
-		goto add_free;
+		break;
 	default:
+		txok = false;
 		break;
 	}
 
-	/*
-	 * Check if TX has been stopped, this is needed because
-	 * this CB could have been invoked just after the TX lock
-	 * was released in hif_stop() and kill_urb() hasn't been
-	 * called yet.
-	 */
-	spin_lock(&hif_dev->tx.tx_lock);
-	if (hif_dev->tx.flags & HIF_USB_TX_STOP) {
-		spin_unlock(&hif_dev->tx.tx_lock);
-		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
-		goto add_free;
-	}
-	spin_unlock(&hif_dev->tx.tx_lock);
+	ath9k_skb_queue_complete(hif_dev, &tx_buf->skb_queue, txok);
 
-	/* Complete the queued SKBs. */
-	while ((skb = __skb_dequeue(&tx_buf->skb_queue)) != NULL) {
-		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
-					  skb, 1);
-		TX_STAT_INC(skb_completed);
-	}
-
-add_free:
 	/* Re-initialize the SKB queue */
 	tx_buf->len = tx_buf->offset = 0;
 	__skb_queue_head_init(&tx_buf->skb_queue);
@@ -272,7 +259,7 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev)
 	ret = usb_submit_urb(tx_buf->urb, GFP_ATOMIC);
 	if (ret) {
 		tx_buf->len = tx_buf->offset = 0;
-		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
+		ath9k_skb_queue_complete(hif_dev, &tx_buf->skb_queue, false);
 		__skb_queue_head_init(&tx_buf->skb_queue);
 		list_move_tail(&tx_buf->list, &hif_dev->tx.tx_buf);
 		hif_dev->tx.tx_buf_cnt++;
@@ -342,7 +329,7 @@ static void hif_usb_stop(void *hif_handle, u8 pipe_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
-	ath9k_skb_queue_purge(hif_dev, &hif_dev->tx.tx_skb_queue);
+	ath9k_skb_queue_complete(hif_dev, &hif_dev->tx.tx_skb_queue, false);
 	hif_dev->tx.tx_skb_cnt = 0;
 	hif_dev->tx.flags |= HIF_USB_TX_STOP;
 	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);

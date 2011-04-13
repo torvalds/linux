@@ -423,12 +423,36 @@ send_mac80211:
 	ieee80211_tx_status(priv->hw, skb);
 }
 
+void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv)
+{
+	struct sk_buff *skb = NULL;
+
+	/*
+	 * Ensure that all pending TX frames are flushed,
+	 * and that the TX completion tasklet is killed.
+	 */
+	htc_stop(priv->htc);
+	tasklet_kill(&priv->tx_tasklet);
+
+	while ((skb = skb_dequeue(&priv->tx.tx_queue)) != NULL) {
+		ath9k_htc_tx_process(priv, skb);
+	}
+
+	while ((skb = skb_dequeue(&priv->tx.tx_failed)) != NULL) {
+		ath9k_htc_tx_process(priv, skb);
+	}
+}
+
 void ath9k_tx_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 	struct sk_buff *skb = NULL;
 
 	while ((skb = skb_dequeue(&priv->tx.tx_queue)) != NULL) {
+		ath9k_htc_tx_process(priv, skb);
+	}
+
+	while ((skb = skb_dequeue(&priv->tx.tx_failed)) != NULL) {
 		ath9k_htc_tx_process(priv, skb);
 	}
 
@@ -445,13 +469,18 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 	tx_ctl = HTC_SKB_CB(skb);
 	tx_ctl->txok = txok;
 
-	skb_queue_tail(&priv->tx.tx_queue, skb);
+	if (txok)
+		skb_queue_tail(&priv->tx.tx_queue, skb);
+	else
+		skb_queue_tail(&priv->tx.tx_failed, skb);
+
 	tasklet_schedule(&priv->tx_tasklet);
 }
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv)
 {
 	skb_queue_head_init(&priv->tx.tx_queue);
+	skb_queue_head_init(&priv->tx.tx_failed);
 	return 0;
 }
 

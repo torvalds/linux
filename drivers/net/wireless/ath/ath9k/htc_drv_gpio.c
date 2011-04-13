@@ -429,9 +429,8 @@ void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 
 	/* Stop TX */
 	ieee80211_stop_queues(hw);
-	htc_stop(priv->htc);
+	ath9k_htc_tx_drain(priv);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
-	skb_queue_purge(&priv->tx.tx_queue);
 
 	/* Stop RX */
 	WMI_CMD(WMI_STOP_RECV_CMDID);
