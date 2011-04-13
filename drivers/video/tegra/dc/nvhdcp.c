@@ -45,8 +45,6 @@
 #define BSTATUS_MAX_DEVS_EXCEEDED	(1 << 7)
 #define BSTATUS_MAX_CASCADE_EXCEEDED	(1 << 11)
 
-#define VERBOSE_DEBUG
-
 #ifdef VERBOSE_DEBUG
 #define nvhdcp_vdbg(...)	\
 		printk("nvhdcp: " __VA_ARGS__)
