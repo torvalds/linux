@@ -2266,6 +2266,7 @@ void iwlagn_init_notification_wait(struct iwl_priv *priv,
 	wait_entry->fn_data = fn_data;
 	wait_entry->cmd = cmd;
 	wait_entry->triggered = false;
+	wait_entry->aborted = false;
 
 	spin_lock_bh(&priv->_agn.notif_wait_lock);
 	list_add(&wait_entry->list, &priv->_agn.notif_waits);
@@ -2279,12 +2280,15 @@ int iwlagn_wait_notification(struct iwl_priv *priv,
 	int ret;
 
 	ret = wait_event_timeout(priv->_agn.notif_waitq,
-				 wait_entry->triggered,
+				 wait_entry->triggered || wait_entry->aborted,
 				 timeout);
 
 	spin_lock_bh(&priv->_agn.notif_wait_lock);
 	list_del(&wait_entry->list);
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+
+	if (wait_entry->aborted)
+		return -EIO;
 
 	/* return value is always >= 0 */
 	if (ret <= 0)

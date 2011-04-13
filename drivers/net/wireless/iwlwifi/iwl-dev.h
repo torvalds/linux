@@ -1110,7 +1110,7 @@ struct iwl_notification_wait {
 	void *fn_data;
 
 	u8 cmd;
-	bool triggered;
+	bool triggered, aborted;
 };
 
 enum iwl_rxon_context_id {
