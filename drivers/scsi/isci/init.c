@@ -362,8 +362,6 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 		else
 			isr = isci_msix_isr;
 
-		BUG_ON(!isci_host);
-
 		err = devm_request_irq(&pdev->dev, msix->vector, isr, 0,
 				       DRV_NAME"-msix", isci_host);
 		if (!err)
@@ -379,13 +377,11 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 		pci_disable_msix(pdev);
 		goto intx;
 	}
-
 	return 0;
 
  intx:
 	err = devm_request_irq(&pdev->dev, pdev->irq, isci_intx_isr,
 			       IRQF_SHARED, DRV_NAME"-intx", pdev);
-
 	return err;
 }
 

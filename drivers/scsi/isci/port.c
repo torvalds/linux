@@ -178,6 +178,7 @@ void isci_port_link_up(
 	unsigned long success = true;
 
 	BUG_ON(isci_phy->isci_port != NULL);
+
 	isci_phy->isci_port = isci_port;
 
 	dev_dbg(&isci_host->pdev->dev,

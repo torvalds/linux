@@ -472,7 +472,6 @@ int isci_request_execute(
 
  out:
 	if (status != SCI_SUCCESS) {
-
 		/* release dma memory on failure. */
 		isci_request_free(isci_host, request);
 		request = NULL;

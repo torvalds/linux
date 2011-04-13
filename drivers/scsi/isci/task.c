@@ -272,7 +272,7 @@ static enum sci_status isci_task_request_build(
 {
 	struct scic_sds_remote_device *sci_device;
 	enum sci_status status = SCI_FAILURE;
-	struct isci_request *request;
+	struct isci_request *request = NULL;
 	struct isci_remote_device *isci_device;
 /*	struct sci_sas_identify_address_frame_protocols dev_protocols; */
 	struct smp_discover_response_protocols dev_protocols;
@@ -371,8 +371,6 @@ static void isci_tmf_timeout_cb(void *tmf_request_arg)
 	struct isci_request *request = (struct isci_request *)tmf_request_arg;
 	struct isci_tmf *tmf = isci_request_access_tmf(request);
 	enum sci_status status;
-
-	BUG_ON(request->ttype != tmf_task);
 
 	/* This task management request has timed-out.  Terminate the request
 	 * so that the request eventually completes to the requestor in the
@@ -1121,8 +1119,11 @@ static void isci_abort_task_process_cb(
 		 * request state was already set to "aborted" by the abort
 		 * task function.
 		 */
-		BUG_ON((old_request->status != aborted)
-			&& (old_request->status != completed));
+		if ((old_request->status != aborted)
+			&& (old_request->status != completed))
+			dev_err(&old_request->isci_host->pdev->dev,
+				"%s: Bad request status (%d): tmf=%p, old_request=%p\n",
+				__func__, old_request->status, tmf, old_request);
 		break;
 
 	case isci_tmf_timed_out:

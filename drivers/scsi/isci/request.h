@@ -193,8 +193,6 @@ static inline enum isci_request_status isci_request_change_started_to_newstate(
 	enum isci_request_status old_state;
 	unsigned long flags;
 
-	BUG_ON(isci_request == NULL);
-
 	spin_lock_irqsave(&isci_request->state_lock, flags);
 
 	old_state = isci_request->status;
@@ -243,7 +241,8 @@ static inline void isci_request_free(
 	struct isci_host *isci_host,
 	struct isci_request *isci_request)
 {
-	BUG_ON(isci_request == NULL);
+	if (!isci_request)
+		return;
 
 	/* release the dma memory if we fail. */
 	dma_pool_free(isci_host->dma_pool, isci_request,

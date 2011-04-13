@@ -202,8 +202,6 @@ static enum sci_status isci_remote_device_construct(
 
 	sci_object_set_association(to_sci_dev(isci_device), isci_device);
 
-	BUG_ON(port->isci_host == NULL);
-
 	/* start the device. */
 	status = scic_remote_device_start(to_sci_dev(isci_device),
 					  ISCI_REMOTE_DEVICE_START_TIMEOUT);
@@ -257,8 +255,12 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 		return NULL;
 	}
 
-	BUG_ON(!list_empty(&idev->reqs_in_process));
-	BUG_ON(!list_empty(&idev->node));
+	if (WARN_ONCE(!list_empty(&idev->reqs_in_process), "found requests in process\n"))
+		return NULL;
+
+	if (WARN_ONCE(!list_empty(&idev->node), "found non-idle remote device\n"))
+		return NULL;
+
 	isci_remote_device_change_state(idev, isci_freed);
 
 	return idev;

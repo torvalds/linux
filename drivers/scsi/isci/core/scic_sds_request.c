@@ -1635,7 +1635,6 @@ static void scic_sds_request_completed_state_enter(
 	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_request *ireq = sci_object_get_association(sci_req);
 
-
 	SET_STATE_HANDLER(sci_req,
 			  scic_sds_request_state_handler_table,
 			  SCI_BASE_REQUEST_STATE_COMPLETED);
