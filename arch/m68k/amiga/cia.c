@@ -121,11 +121,10 @@ static void cia_disable_irq(unsigned int irq)
 		cia_able_irq(&ciaa_base, 1 << (irq - IRQ_AMIGA_CIAA));
 }
 
-static struct irq_controller cia_irq_controller = {
+static struct irq_chip cia_irq_chip = {
 	.name		= "cia",
-	.lock		= __SPIN_LOCK_UNLOCKED(cia_irq_controller.lock),
-	.enable		= cia_enable_irq,
-	.disable	= cia_disable_irq,
+	.irq_enable	= cia_enable_irq,
+	.irq_disable	= cia_disable_irq,
 };
 
 /*
@@ -158,23 +157,22 @@ static void auto_disable_irq(unsigned int irq)
 	}
 }
 
-static struct irq_controller auto_irq_controller = {
+static struct irq_chip auto_irq_chip = {
 	.name		= "auto",
-	.lock		= __SPIN_LOCK_UNLOCKED(auto_irq_controller.lock),
-	.enable		= auto_enable_irq,
-	.disable	= auto_disable_irq,
+	.irq_enable	= auto_enable_irq,
+	.irq_disable	= auto_disable_irq,
 };
 
 void __init cia_init_IRQ(struct ciabase *base)
 {
-	m68k_setup_irq_controller(&cia_irq_controller, base->cia_irq, CIA_IRQS);
+	m68k_setup_irq_chip(&cia_irq_chip, base->cia_irq, CIA_IRQS);
 
 	/* clear any pending interrupt and turn off all interrupts */
 	cia_set_irq(base, CIA_ICR_ALL);
 	cia_able_irq(base, CIA_ICR_ALL);
 
 	/* override auto int and install CIA handler */
-	m68k_setup_irq_controller(&auto_irq_controller, base->handler_irq, 1);
+	m68k_setup_irq_chip(&auto_irq_chip, base->handler_irq, 1);
 	m68k_irq_startup(base->handler_irq);
 	if (request_irq(base->handler_irq, cia_handler, IRQF_SHARED,
 			base->name, base))

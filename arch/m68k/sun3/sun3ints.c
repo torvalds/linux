@@ -86,13 +86,12 @@ static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 	__m68k_handle_int(irq, fp);
 }
 
-static struct irq_controller sun3_irq_controller = {
+static struct irq_chip sun3_irq_chip = {
 	.name		= "sun3",
-	.lock		= __SPIN_LOCK_UNLOCKED(sun3_irq_controller.lock),
-	.startup	= m68k_irq_startup,
-	.shutdown	= m68k_irq_shutdown,
-	.enable		= sun3_enable_irq,
-	.disable	= sun3_disable_irq,
+	.irq_startup	= m68k_irq_startup,
+	.irq_shutdown	= m68k_irq_shutdown,
+	.irq_enable	= sun3_enable_irq,
+	.irq_disable	= sun3_disable_irq,
 };
 
 void __init sun3_init_IRQ(void)
@@ -100,7 +99,7 @@ void __init sun3_init_IRQ(void)
 	*sun3_intreg = 1;
 
 	m68k_setup_auto_interrupt(sun3_inthandle);
-	m68k_setup_irq_controller(&sun3_irq_controller, IRQ_AUTO_1, 7);
+	m68k_setup_irq_chip(&sun3_irq_chip, IRQ_AUTO_1, 7);
 	m68k_setup_user_interrupt(VEC_USER, 128, NULL);
 
 	if (request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL))

@@ -41,14 +41,14 @@ static void q40_disable_irq(unsigned int);
 unsigned short q40_ablecount[35];
 unsigned short q40_state[35];
 
-static int q40_irq_startup(unsigned int irq)
+static unsigned int q40_irq_startup(unsigned int irq)
 {
 	/* test for ISA ints not implemented by HW */
 	switch (irq) {
 	case 1: case 2: case 8: case 9:
 	case 11: case 12: case 13:
 		printk("%s: ISA IRQ %d not implemented by HW\n", __func__, irq);
-		return -ENXIO;
+		/* FIXME return -ENXIO; */
 	}
 	return 0;
 }
@@ -57,13 +57,12 @@ static void q40_irq_shutdown(unsigned int irq)
 {
 }
 
-static struct irq_controller q40_irq_controller = {
+static struct irq_chip q40_irq_chip = {
 	.name		= "q40",
-	.lock		= __SPIN_LOCK_UNLOCKED(q40_irq_controller.lock),
-	.startup	= q40_irq_startup,
-	.shutdown	= q40_irq_shutdown,
-	.enable		= q40_enable_irq,
-	.disable	= q40_disable_irq,
+	.irq_startup	= q40_irq_startup,
+	.irq_shutdown	= q40_irq_shutdown,
+	.irq_enable	= q40_enable_irq,
+	.irq_disable	= q40_disable_irq,
 };
 
 /*
@@ -81,7 +80,7 @@ static int disabled;
 
 void __init q40_init_IRQ(void)
 {
-	m68k_setup_irq_controller(&q40_irq_controller, 1, Q40_IRQ_MAX);
+	m68k_setup_irq_chip(&q40_irq_chip, 1, Q40_IRQ_MAX);
 
 	/* setup handler for ISA ints */
 	m68k_setup_auto_interrupt(q40_irq_handler);

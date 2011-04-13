@@ -52,23 +52,21 @@ extern u16 user_irqvec_fixup[];
 
 /* table for system interrupt handlers */
 static struct irq_node *irq_list[NR_IRQS];
-static struct irq_controller *irq_controller[NR_IRQS];
+static struct irq_chip *irq_chip[NR_IRQS];
 static int irq_depth[NR_IRQS];
 
 static int m68k_first_user_vec;
 
-static struct irq_controller auto_irq_controller = {
+static struct irq_chip auto_irq_chip = {
 	.name		= "auto",
-	.lock		= __SPIN_LOCK_UNLOCKED(auto_irq_controller.lock),
-	.startup	= m68k_irq_startup,
-	.shutdown	= m68k_irq_shutdown,
+	.irq_startup	= m68k_irq_startup,
+	.irq_shutdown	= m68k_irq_shutdown,
 };
 
-static struct irq_controller user_irq_controller = {
+static struct irq_chip user_irq_chip = {
 	.name		= "user",
-	.lock		= __SPIN_LOCK_UNLOCKED(user_irq_controller.lock),
-	.startup	= m68k_irq_startup,
-	.shutdown	= m68k_irq_shutdown,
+	.irq_startup	= m68k_irq_startup,
+	.irq_shutdown	= m68k_irq_shutdown,
 };
 
 #define NUM_IRQ_NODES 100
@@ -96,7 +94,7 @@ void __init init_IRQ(void)
 	}
 
 	for (i = IRQ_AUTO_1; i <= IRQ_AUTO_7; i++)
-		irq_controller[i] = &auto_irq_controller;
+		irq_chip[i] = &auto_irq_chip;
 
 	mach_init_IRQ();
 }
@@ -136,7 +134,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 	BUG_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
-		irq_controller[IRQ_USER + i] = &user_irq_controller;
+		irq_chip[IRQ_USER + i] = &user_irq_chip;
 	*user_irqvec_fixup = vec - IRQ_USER;
 	if (handler)
 		*user_irqhandler_fixup = (u32)handler;
@@ -144,7 +142,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 }
 
 /**
- * m68k_setup_irq_controller
+ * m68k_setup_irq_chip
  * @contr: irq controller which controls specified irq
  * @irq: first irq to be managed by the controller
  *
@@ -153,13 +151,13 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
  * be changed as well, but the controller probably should use m68k_irq_startup/
  * m68k_irq_shutdown.
  */
-void m68k_setup_irq_controller(struct irq_controller *contr, unsigned int irq,
+void m68k_setup_irq_chip(struct irq_chip *contr, unsigned int irq,
 			       unsigned int cnt)
 {
 	int i;
 
 	for (i = 0; i < cnt; i++)
-		irq_controller[irq + i] = contr;
+		irq_chip[irq + i] = contr;
 }
 
 irq_node_t *new_irq_node(void)
@@ -180,23 +178,23 @@ irq_node_t *new_irq_node(void)
 
 int setup_irq(unsigned int irq, struct irq_node *node)
 {
-	struct irq_controller *contr;
+	struct irq_chip *contr;
 	struct irq_node **prev;
 	unsigned long flags;
 
-	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
+	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
 		printk("%s: Incorrect IRQ %d from %s\n",
 		       __func__, irq, node->devname);
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&contr->lock, flags);
+	local_irq_save(flags);
 
 	prev = irq_list + irq;
 	if (*prev) {
 		/* Can't share interrupts unless both agree to */
 		if (!((*prev)->flags & node->flags & IRQF_SHARED)) {
-			spin_unlock_irqrestore(&contr->lock, flags);
+			local_irq_restore(flags);
 			return -EBUSY;
 		}
 		while (*prev)
@@ -204,15 +202,15 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 	}
 
 	if (!irq_list[irq]) {
-		if (contr->startup)
-			contr->startup(irq);
+		if (contr->irq_startup)
+			contr->irq_startup(irq);
 		else
-			contr->enable(irq);
+			contr->irq_enable(irq);
 	}
 	node->next = NULL;
 	*prev = node;
 
-	spin_unlock_irqrestore(&contr->lock, flags);
+	local_irq_restore(flags);
 
 	return 0;
 }
@@ -244,16 +242,16 @@ EXPORT_SYMBOL(request_irq);
 
 void free_irq(unsigned int irq, void *dev_id)
 {
-	struct irq_controller *contr;
+	struct irq_chip *contr;
 	struct irq_node **p, *node;
 	unsigned long flags;
 
-	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
+	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
 		printk("%s: Incorrect IRQ %d\n", __func__, irq);
 		return;
 	}
 
-	spin_lock_irqsave(&contr->lock, flags);
+	local_irq_save(flags);
 
 	p = irq_list + irq;
 	while ((node = *p)) {
@@ -270,58 +268,58 @@ void free_irq(unsigned int irq, void *dev_id)
 		       __func__, irq);
 
 	if (!irq_list[irq]) {
-		if (contr->shutdown)
-			contr->shutdown(irq);
+		if (contr->irq_shutdown)
+			contr->irq_shutdown(irq);
 		else
-			contr->disable(irq);
+			contr->irq_disable(irq);
 	}
 
-	spin_unlock_irqrestore(&contr->lock, flags);
+	local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(free_irq);
 
 void enable_irq(unsigned int irq)
 {
-	struct irq_controller *contr;
+	struct irq_chip *contr;
 	unsigned long flags;
 
-	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
+	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
 		printk("%s: Incorrect IRQ %d\n",
 		       __func__, irq);
 		return;
 	}
 
-	spin_lock_irqsave(&contr->lock, flags);
+	local_irq_save(flags);
 	if (irq_depth[irq]) {
 		if (!--irq_depth[irq]) {
-			if (contr->enable)
-				contr->enable(irq);
+			if (contr->irq_enable)
+				contr->irq_enable(irq);
 		}
 	} else
 		WARN_ON(1);
-	spin_unlock_irqrestore(&contr->lock, flags);
+	local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(enable_irq);
 
 void disable_irq(unsigned int irq)
 {
-	struct irq_controller *contr;
+	struct irq_chip *contr;
 	unsigned long flags;
 
-	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
+	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
 		printk("%s: Incorrect IRQ %d\n",
 		       __func__, irq);
 		return;
 	}
 
-	spin_lock_irqsave(&contr->lock, flags);
+	local_irq_save(flags);
 	if (!irq_depth[irq]++) {
-		if (contr->disable)
-			contr->disable(irq);
+		if (contr->irq_disable)
+			contr->irq_disable(irq);
 	}
-	spin_unlock_irqrestore(&contr->lock, flags);
+	local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(disable_irq);
@@ -330,7 +328,7 @@ void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
 
 EXPORT_SYMBOL(disable_irq_nosync);
 
-int m68k_irq_startup(unsigned int irq)
+unsigned int m68k_irq_startup(unsigned int irq)
 {
 	if (irq <= IRQ_AUTO_7)
 		vectors[VEC_SPUR + irq] = auto_inthandler;
@@ -413,13 +411,13 @@ asmlinkage void handle_badint(struct pt_regs *regs)
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	struct irq_controller *contr;
+	struct irq_chip *contr;
 	struct irq_node *node;
 	int i = *(loff_t *) v;
 
 	/* autovector interrupts */
 	if (irq_list[i]) {
-		contr = irq_controller[i];
+		contr = irq_chip[i];
 		node = irq_list[i];
 		seq_printf(p, "%-8s %3u: %10u %s", contr->name, i, kstat_cpu(0).irqs[i], node->devname);
 		while ((node = node->next))

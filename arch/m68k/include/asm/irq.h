@@ -93,16 +93,15 @@ struct irq_handler {
 	const char	*devname;
 };
 
-struct irq_controller {
+struct irq_chip {
 	const char *name;
-	spinlock_t lock;
-	int (*startup)(unsigned int irq);
-	void (*shutdown)(unsigned int irq);
-	void (*enable)(unsigned int irq);
-	void (*disable)(unsigned int irq);
+	unsigned int (*irq_startup)(unsigned int irq);
+	void (*irq_shutdown)(unsigned int irq);
+	void (*irq_enable)(unsigned int irq);
+	void (*irq_disable)(unsigned int irq);
 };
 
-extern int m68k_irq_startup(unsigned int);
+extern unsigned int m68k_irq_startup(unsigned int);
 extern void m68k_irq_shutdown(unsigned int);
 
 /*
@@ -113,7 +112,7 @@ extern irq_node_t *new_irq_node(void);
 extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *));
 extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 				      void (*handler)(unsigned int, struct pt_regs *));
-extern void m68k_setup_irq_controller(struct irq_controller *, unsigned int, unsigned int);
+extern void m68k_setup_irq_chip(struct irq_chip *, unsigned int, unsigned int);
 
 asmlinkage void m68k_handle_int(unsigned int);
 asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);

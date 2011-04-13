@@ -320,7 +320,7 @@ extern void atari_microwire_cmd(int cmd);
 
 extern int atari_SCC_reset_done;
 
-static int atari_startup_irq(unsigned int irq)
+static unsigned int atari_startup_irq(unsigned int irq)
 {
 	m68k_irq_startup(irq);
 	atari_turnon_irq(irq);
@@ -338,13 +338,12 @@ static void atari_shutdown_irq(unsigned int irq)
 	    vectors[VEC_INT4] = falcon_hblhandler;
 }
 
-static struct irq_controller atari_irq_controller = {
+static struct irq_chip atari_irq_chip = {
 	.name		= "atari",
-	.lock		= __SPIN_LOCK_UNLOCKED(atari_irq_controller.lock),
-	.startup	= atari_startup_irq,
-	.shutdown	= atari_shutdown_irq,
-	.enable		= atari_enable_irq,
-	.disable	= atari_disable_irq,
+	.irq_startup	= atari_startup_irq,
+	.irq_shutdown	= atari_shutdown_irq,
+	.irq_enable	= atari_enable_irq,
+	.irq_disable	= atari_disable_irq,
 };
 
 /*
@@ -361,7 +360,7 @@ static struct irq_controller atari_irq_controller = {
 void __init atari_init_IRQ(void)
 {
 	m68k_setup_user_interrupt(VEC_USER, NUM_ATARI_SOURCES - IRQ_USER, NULL);
-	m68k_setup_irq_controller(&atari_irq_controller, 1, NUM_ATARI_SOURCES - 1);
+	m68k_setup_irq_chip(&atari_irq_chip, 1, NUM_ATARI_SOURCES - 1);
 
 	/* Initialize the MFP(s) */
 

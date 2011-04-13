@@ -193,11 +193,10 @@ irqreturn_t mac_debug_handler(int, void *);
 void mac_enable_irq(unsigned int irq);
 void mac_disable_irq(unsigned int irq);
 
-static struct irq_controller mac_irq_controller = {
+static struct irq_chip mac_irq_chip = {
 	.name		= "mac",
-	.lock		= __SPIN_LOCK_UNLOCKED(mac_irq_controller.lock),
-	.enable		= mac_enable_irq,
-	.disable	= mac_disable_irq,
+	.irq_enable	= mac_enable_irq,
+	.irq_disable	= mac_disable_irq,
 };
 
 void __init mac_init_IRQ(void)
@@ -205,7 +204,7 @@ void __init mac_init_IRQ(void)
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Setting things up...\n");
 #endif
-	m68k_setup_irq_controller(&mac_irq_controller, IRQ_USER,
+	m68k_setup_irq_chip(&mac_irq_chip, IRQ_USER,
 				  NUM_MAC_SOURCES - IRQ_USER);
 	/* Make sure the SONIC interrupt is cleared or things get ugly */
 #ifdef SHUTUP_SONIC
