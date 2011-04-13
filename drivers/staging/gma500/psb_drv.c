@@ -1425,12 +1425,8 @@ static struct drm_driver driver = {
 	.lastclose = psb_lastclose,
 	.open = psb_driver_open,
 	.postclose = psb_driver_close,
-#if 0	/* ACFIXME */
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
-	.proc_init = psb_proc_init,
-	.proc_cleanup = psb_proc_cleanup,
-#endif
+	.reclaim_buffers = drm_core_reclaim_buffers,
+
 	.preclose = psb_driver_preclose,
 	.fops = {
 		 .owner = THIS_MODULE,
