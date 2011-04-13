@@ -1291,8 +1291,10 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	ath9k_htc_set_opmode(priv);
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-	    !(priv->op_flags & OP_ANI_RUNNING))
+	    !(priv->op_flags & OP_ANI_RUNNING)) {
+		ath9k_hw_set_tsfadjust(priv->ah, 1);
 		ath9k_htc_start_ani(priv);
+	}
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
@@ -1652,6 +1654,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon) {
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Beacon enabled for BSS: %pM\n", bss_conf->bssid);
+		ath9k_htc_set_tsfadjust(priv, vif);
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
 	}

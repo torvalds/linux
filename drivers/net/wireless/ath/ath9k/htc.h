@@ -245,6 +245,7 @@ struct ath9k_htc_vif {
 	u16 seq_no;
 	bool beacon_configured;
 	int bslot;
+	__le64 tsfadjust;
 };
 
 struct ath9k_vif_iter_data {
@@ -480,6 +481,8 @@ void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
 			    struct ieee80211_vif *vif);
 void ath9k_htc_remove_bslot(struct ath9k_htc_priv *priv,
 			    struct ieee80211_vif *vif);
+void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
+			     struct ieee80211_vif *vif);
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
