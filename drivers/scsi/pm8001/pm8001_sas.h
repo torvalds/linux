@@ -445,7 +445,7 @@ struct fw_control_info {
 struct fw_control_ex {
 	struct fw_control_info *fw_control;
 	void			*buffer;/* keep buffer pointer to be
-	freed when the responce comes*/
+	freed when the response comes*/
 	void			*virtAddr;/* keep virtual address of the data */
 	void			*usrAddr;/* keep virtual address of the
 	user data */

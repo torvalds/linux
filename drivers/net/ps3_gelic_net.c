@@ -632,7 +632,7 @@ static inline void gelic_card_enable_rxdmac(struct gelic_card *card)
  * @card: card structure
  *
  * gelic_card_disable_rxdmac terminates processing on the DMA controller by
- * turing off DMA and issueing a force end
+ * turing off DMA and issuing a force end
  */
 static inline void gelic_card_disable_rxdmac(struct gelic_card *card)
 {
@@ -650,7 +650,7 @@ static inline void gelic_card_disable_rxdmac(struct gelic_card *card)
  * @card: card structure
  *
  * gelic_card_disable_txdmac terminates processing on the DMA controller by
- * turing off DMA and issueing a force end
+ * turing off DMA and issuing a force end
  */
 static inline void gelic_card_disable_txdmac(struct gelic_card *card)
 {

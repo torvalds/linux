@@ -99,11 +99,6 @@ static struct resource puv3_unigfx_resources[] = {
 		.end	= io_v2p(PKUNITY_UNIGFX_BASE) + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
-		.start	= PKUNITY_UNIGFX_MMAP_BASE,
-		.end	= PKUNITY_UNIGFX_MMAP_BASE + PKUNITY_UNIGFX_MMAP_SIZE,
-		.flags	= IORESOURCE_MEM,
-	},
 };
 
 static struct resource puv3_rtc_resources[] = {

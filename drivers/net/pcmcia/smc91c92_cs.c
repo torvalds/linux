@@ -1264,7 +1264,7 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 
 /*======================================================================
 
-    Handle a Tx anomolous event.  Entered while in Window 2.
+    Handle a Tx anomalous event.  Entered while in Window 2.
 
 ======================================================================*/
 

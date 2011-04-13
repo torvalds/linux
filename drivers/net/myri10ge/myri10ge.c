@@ -3702,7 +3702,7 @@ abort:
 
 /*
  * This function determines the number of slices supported.
- * The number slices is the minumum of the number of CPUS,
+ * The number slices is the minimum of the number of CPUS,
  * the number of MSI-X irqs supported, the number of slices
  * supported by the firmware
  */

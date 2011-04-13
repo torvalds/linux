@@ -229,7 +229,7 @@ int twl6030_mmc_card_detect_config(void)
 	twl6030_interrupt_unmask(TWL6030_MMCDETECT_INT_MASK,
 						REG_INT_MSK_STS_B);
 	/*
-	 * Intially Configuring MMC_CTRL for receving interrupts &
+	 * Initially Configuring MMC_CTRL for receiving interrupts &
 	 * Card status on TWL6030 for MMC1
 	 */
 	ret = twl_i2c_read_u8(TWL6030_MODULE_ID0, &reg_val, TWL6030_MMCCTRL);
@@ -275,7 +275,7 @@ int twl6030_mmc_card_detect(struct device *dev, int slot)
 		/* TWL6030 provide's Card detect support for
 		 * only MMC1 controller.
 		 */
-		pr_err("Unkown MMC controller %d in %s\n", pdev->id, __func__);
+		pr_err("Unknown MMC controller %d in %s\n", pdev->id, __func__);
 		return ret;
 	}
 	/*

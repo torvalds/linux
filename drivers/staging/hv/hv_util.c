@@ -79,7 +79,7 @@ static void shutdown_onchannelcallback(void *context)
 				execute_shutdown = true;
 
 				pr_info("Shutdown request received -"
-					    " gracefull shutdown initiated\n");
+					    " graceful shutdown initiated\n");
 				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;

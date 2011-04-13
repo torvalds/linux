@@ -126,7 +126,7 @@
 #endif
 
 #if !defined(_CACHE) && !defined(MULTI_CACHE)
-#error Unknown cache maintainence model
+#error Unknown cache maintenance model
 #endif
 
 #ifndef MULTI_CACHE

@@ -162,7 +162,7 @@ MODULE_PARM_DESC(bitflips,       "Maximum number of random bit flips per page (z
 MODULE_PARM_DESC(gravepages,     "Pages that lose data [: maximum reads (defaults to 3)]"
 				 " separated by commas e.g. 1401:2 means page 1401"
 				 " can be read only twice before failing");
-MODULE_PARM_DESC(rptwear,        "Number of erases inbetween reporting wear, if not zero");
+MODULE_PARM_DESC(rptwear,        "Number of erases between reporting wear, if not zero");
 MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the ID bytes. "
 				 "The size is specified in erase blocks and as the exponent of a power of two"
 				 " e.g. 5 means a size of 32 erase blocks");

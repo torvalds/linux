@@ -403,7 +403,7 @@ found out the following values do work as a form of coarse pwm:
 
 0x80 - seems to turn fans off after some time(1-2 minutes)... might be
 some form of auto-fan-control based on temp? hmm (Qfan? this mobo is an
-old ASUS, it isn't marketed as Qfan. Maybe some beta pre-attemp at Qfan
+old ASUS, it isn't marketed as Qfan. Maybe some beta pre-attempt at Qfan
 that was dropped at the BIOS)
 0x81 - off
 0x82 - slightly "on-ner" than off, but my fans do not get to move. I can

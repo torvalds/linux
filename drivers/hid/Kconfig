@@ -185,7 +185,7 @@ config HID_EZKEY
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_KEYTOUCH
-	tristate "Keyoutch HID devices"
+	tristate "Keytouch HID devices"
 	depends on USB_HID
 	---help---
 	Support for Keytouch HID devices not fully compliant with
@@ -340,10 +340,17 @@ config HID_NTRIG
 	Support for N-Trig touch screen.
 
 config HID_ORTEK
-	tristate "Ortek PKB-1700/WKB-2000 wireless keyboard and mouse trackpad"
+	tristate "Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad"
 	depends on USB_HID
 	---help---
-	Support for Ortek PKB-1700/WKB-2000 wireless keyboard + mouse trackpad.
+	There are certain devices which have LogicalMaximum wrong in the keyboard
+	usage page of their report descriptor. The most prevailing ones so far
+	are manufactured by Ortek, thus the name of the driver. Currently
+	supported devices by this driver are
+
+	   - Ortek PKB-1700
+	   - Ortek WKB-2000
+	   - Skycable wireless presenter
 
 config HID_PANTHERLORD
 	tristate "Pantherlord/GreenAsia game controller"

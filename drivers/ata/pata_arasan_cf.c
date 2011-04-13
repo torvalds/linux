@@ -385,7 +385,7 @@ static inline int wait4buf(struct arasan_cf_dev *acdev)
 		return -ETIMEDOUT;
 	}
 
-	/* Check if PIO Error interrupt has occured */
+	/* Check if PIO Error interrupt has occurred */
 	if (acdev->dma_status & ATA_DMA_ERR)
 		return -EAGAIN;
 
@@ -450,7 +450,7 @@ static int sg_xfer(struct arasan_cf_dev *acdev, struct scatterlist *sg)
 	/*
 	 * For each sg:
 	 * MAX_XFER_COUNT data will be transferred before we get transfer
-	 * complete interrupt. Inbetween after FIFO_SIZE data
+	 * complete interrupt. Between after FIFO_SIZE data
 	 * buffer available interrupt will be generated. At this time we will
 	 * fill FIFO again: max FIFO_SIZE data.
 	 */
@@ -463,7 +463,7 @@ static int sg_xfer(struct arasan_cf_dev *acdev, struct scatterlist *sg)
 				acdev->vbase + XFER_CTR);
 		spin_unlock_irqrestore(&acdev->host->lock, flags);
 
-		/* continue dma xfers untill current sg is completed */
+		/* continue dma xfers until current sg is completed */
 		while (xfer_cnt) {
 			/* wait for read to complete */
 			if (!write) {
@@ -563,7 +563,7 @@ static void data_xfer(struct work_struct *work)
 
 chan_request_fail:
 	spin_lock_irqsave(&acdev->host->lock, flags);
-	/* error when transfering data to/from memory */
+	/* error when transferring data to/from memory */
 	qc->err_mask |= AC_ERR_HOST_BUS;
 	qc->ap->hsm_task_state = HSM_ST_ERR;
 

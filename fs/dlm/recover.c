@@ -304,7 +304,7 @@ static void set_master_lkbs(struct dlm_rsb *r)
 }
 
 /*
- * Propogate the new master nodeid to locks
+ * Propagate the new master nodeid to locks
  * The NEW_MASTER flag tells dlm_recover_locks() which rsb's to consider.
  * The NEW_MASTER2 flag tells recover_lvb() and set_locks_purged() which
  * rsb's to consider.

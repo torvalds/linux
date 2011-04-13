@@ -2134,7 +2134,7 @@ done:
  *	actually has driver level meaning and triggers a VC resize.
  *
  *	Locking:
- *		Driver dependant. The default do_resize method takes the
+ *		Driver dependent. The default do_resize method takes the
  *	tty termios mutex and ctrl_lock. The console takes its own lock
  *	then calls into the default method.
  */
@@ -2155,7 +2155,7 @@ static int tiocswinsz(struct tty_struct *tty, struct winsize __user *arg)
  *	tioccons	-	allow admin to move logical console
  *	@file: the file to become console
  *
- *	Allow the adminstrator to move the redirected console device
+ *	Allow the administrator to move the redirected console device
  *
  *	Locking: uses redirect_lock to guard the redirect information
  */
@@ -2290,7 +2290,7 @@ EXPORT_SYMBOL_GPL(tty_get_pgrp);
 /**
  *	tiocgpgrp		-	get process group
  *	@tty: tty passed by user
- *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+ *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: returned pid
  *
  *	Obtain the process group of the tty. If there is no process group
@@ -2367,7 +2367,7 @@ out_unlock:
 /**
  *	tiocgsid		-	get session id
  *	@tty: tty passed by user
- *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+ *	@real_tty: tty side of the tty passed by the user if a pty else the tty
  *	@p: pointer to returned session id
  *
  *	Obtain the session id of the tty. If there is no session

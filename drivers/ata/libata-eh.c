@@ -771,7 +771,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		/* process port suspend request */
 		ata_eh_handle_port_suspend(ap);
 
-		/* Exception might have happend after ->error_handler
+		/* Exception might have happened after ->error_handler
 		 * recovered the port but before this point.  Repeat
 		 * EH in such case.
 		 */
@@ -1742,7 +1742,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
  *
  *	Analyze taskfile of @qc and further determine cause of
  *	failure.  This function also requests ATAPI sense data if
- *	avaliable.
+ *	available.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
@@ -1893,7 +1893,7 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
  *	   occurred during last 5 mins, NCQ_OFF.
  *
  *	3. If more than 8 ATA_BUS, TOUT_HSM or UNK_DEV errors
- *	   ocurred during last 5 mins, FALLBACK_TO_PIO
+ *	   occurred during last 5 mins, FALLBACK_TO_PIO
  *
  *	4. If more than 3 TOUT_HSM or UNK_DEV errors occurred
  *	   during last 10 mins, NCQ_OFF.
@@ -2577,7 +2577,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (link->flags & ATA_LFLAG_NO_SRST)
 		softreset = NULL;
 
-	/* make sure each reset attemp is at least COOL_DOWN apart */
+	/* make sure each reset attempt is at least COOL_DOWN apart */
 	if (ehc->i.flags & ATA_EHI_DID_RESET) {
 		now = jiffies;
 		WARN_ON(time_after(ehc->last_reset, now));
@@ -2736,7 +2736,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			if (!reset) {
 				ata_link_printk(link, KERN_ERR,
 						"follow-up softreset required "
-						"but no softreset avaliable\n");
+						"but no softreset available\n");
 				failed_link = link;
 				rc = -EINVAL;
 				goto fail;

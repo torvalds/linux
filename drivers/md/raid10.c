@@ -5,7 +5,7 @@
  *
  * RAID-10 support for md.
  *
- * Base on code in raid1.c.  See raid1.c for futher copyright information.
+ * Base on code in raid1.c.  See raid1.c for further copyright information.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -340,14 +340,14 @@ static void raid10_end_write_request(struct bio *bio, int error)
 
 /*
  * RAID10 layout manager
- * Aswell as the chunksize and raid_disks count, there are two
+ * As well as the chunksize and raid_disks count, there are two
  * parameters: near_copies and far_copies.
  * near_copies * far_copies must be <= raid_disks.
  * Normally one of these will be 1.
  * If both are 1, we get raid0.
  * If near_copies == raid_disks, we get raid1.
  *
- * Chunks are layed out in raid0 style with near_copies copies of the
+ * Chunks are laid out in raid0 style with near_copies copies of the
  * first chunk, followed by near_copies copies of the next chunk and
  * so on.
  * If far_copies > 1, then after 1/far_copies of the array has been assigned

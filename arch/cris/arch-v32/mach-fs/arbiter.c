@@ -395,7 +395,7 @@ static irqreturn_t crisv32_arbiter_irq(int irq, void *dev_id)
 	REG_WR(marb_bp, watch->instance, rw_ack, ack);
 	REG_WR(marb, regi_marb, rw_ack_intr, ack_intr);
 
-	printk(KERN_INFO "IRQ occured at %lX\n", get_irq_regs()->erp);
+	printk(KERN_INFO "IRQ occurred at %lX\n", get_irq_regs()->erp);
 
 	if (watch->cb)
 		watch->cb();

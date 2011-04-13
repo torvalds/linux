@@ -17,7 +17,7 @@
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
  *
- * See http://ftdi-usb-sio.sourceforge.net for upto date testing info
+ * See http://ftdi-usb-sio.sourceforge.net for up to date testing info
  *	and extra documentation
  *
  * Change entries from 2004 and earlier can be found in versions of this

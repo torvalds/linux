@@ -4519,7 +4519,7 @@ set_tail_append:
 }
 
 /*
- * Helper function called at the begining of an insert.
+ * Helper function called at the beginning of an insert.
  *
  * This computes a few things that are commonly used in the process of
  * inserting into the btree:

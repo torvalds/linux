@@ -31,7 +31,7 @@
  * GPIOs in a single control area, others have some GPIOs implemented in
  * different modules.
  *
- * This implementation attempts accomodate the differences while presenting
+ * This implementation attempts accommodate the differences while presenting
  * a generic interface that will optimize to as few instructions as possible.
  */
 #if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \

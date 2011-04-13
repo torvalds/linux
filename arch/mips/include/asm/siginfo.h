@@ -101,7 +101,7 @@ typedef struct siginfo {
 
 /*
  * si_code values
- * Again these have been choosen to be IRIX compatible.
+ * Again these have been chosen to be IRIX compatible.
  */
 #undef SI_ASYNCIO
 #undef SI_TIMER

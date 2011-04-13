@@ -35,7 +35,7 @@
  * struct adis16080_state - device instance specific data
  * @us:			actual spi_device to write data
  * @indio_dev:		industrial I/O device structure
- * @buf:		transmit or recieve buffer
+ * @buf:		transmit or receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16080_state {

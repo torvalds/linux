@@ -39,13 +39,13 @@ Note: for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
       Interface and Linux Device Driver" Application Note.
 
 
-FILES, CONFIGS AND COMPATABILITY
+FILES, CONFIGS AND COMPATIBILITY
 --------------------------------
 
 Two files are introduced:
 
   a) 'arch/mips/include/asm/mach-au1x00/au1xxx_ide.h'
-     containes : struct _auide_hwif
+     contains : struct _auide_hwif
                  timing parameters for PIO mode 0/1/2/3/4
                  timing parameters for MWDMA 0/1/2
 

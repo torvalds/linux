@@ -131,7 +131,7 @@ $pgt_fill_loop:
 	ldo             THREAD_SZ_ALGN(%r6),%sp
 
 #ifdef CONFIG_SMP
-	/* Set the smp rendevous address into page zero.
+	/* Set the smp rendezvous address into page zero.
 	** It would be safer to do this in init_smp_config() but
 	** it's just way easier to deal with here because
 	** of 64-bit function ptrs and the address is local to this file.

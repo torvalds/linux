@@ -433,4 +433,19 @@ config USB_SIERRA_NET
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra_net.
 
+config USB_VL600
+	tristate "LG VL600 modem dongle"
+	depends on USB_NET_CDCETHER
+	select USB_ACM
+	help
+	  Select this if you want to use an LG Electronics 4G/LTE usb modem
+	  called VL600.  This driver only handles the ethernet
+	  interface exposed by the modem firmware.  To establish a connection
+	  you will first need a userspace program that sends the right
+	  command to the modem through its CDC ACM port, and most
+	  likely also a DHCP client.  See this thread about using the
+	  4G modem from Verizon:
+
+	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
+
 endmenu

@@ -567,7 +567,7 @@ BEGIN_CRITICAL;
 	shr	SELOID, 4, SCB_SCSIID;
 	/*
 	 * If we want to send a message to the device, ensure
-	 * we are selecting with atn irregardless of our packetized
+	 * we are selecting with atn regardless of our packetized
 	 * agreement.  Since SPI4 only allows target reset or PPR
 	 * messages if this is a packetized connection, the change
 	 * to our negotiation table entry for this selection will
@@ -960,7 +960,7 @@ p_status_okay:
  * This is done to allow the host to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
  * on an SCB that might not be for the current nexus. (For example, a
- * BDR message in responce to a bad reselection would leave us pointed to
+ * BDR message in response to a bad reselection would leave us pointed to
  * an SCB that doesn't have anything to do with the current target).
  *
  * Otherwise, treat MSG_OUT as a 1 byte message to send (abort, abort tag,
@@ -1507,7 +1507,7 @@ service_fifo:
 		 * If the other FIFO needs loading, then it
 		 * must not have claimed the S/G cache yet
 		 * (SG_CACHE_AVAIL would have been cleared in
-		 * the orginal FIFO mode and we test this above).
+		 * the original FIFO mode and we test this above).
 		 * Return to the idle loop so we can process the
 		 * FIFO not currently on the bus first.
 		 */
@@ -1521,7 +1521,7 @@ idle_sgfetch_okay:
 idle_sgfetch_start:
 	/*
 	 * We fetch a "cacheline aligned" and sized amount of data
-	 * so we don't end up referencing a non-existant page.
+	 * so we don't end up referencing a non-existent page.
 	 * Cacheline aligned is in quotes because the kernel will
 	 * set the prefetch amount to a reasonable level if the
 	 * cacheline size is unknown.
@@ -1551,7 +1551,7 @@ idle_sg_avail:
 	test	DFSTATUS, PRELOAD_AVAIL jz return;
 	/*
 	 * On the A, preloading a segment before HDMAENACK
-	 * comes true can clobber the shaddow address of the
+	 * comes true can clobber the shadow address of the
 	 * first segment in the S/G FIFO.  Wait until it is
 	 * safe to proceed.
 	 */
@@ -2004,10 +2004,10 @@ pkt_handle_xfer:
 	 * Defer handling of this NONPACKREQ until we
 	 * can be sure it pertains to this FIFO.  SAVEPTRS
 	 * will not be asserted if the NONPACKREQ is for us,
-	 * so we must simulate it if shaddow is valid.  If
-	 * shaddow is not valid, keep running this FIFO until we
+	 * so we must simulate it if shadow is valid.  If
+	 * shadow is not valid, keep running this FIFO until we
 	 * have satisfied the transfer by loading segments and
-	 * waiting for either shaddow valid or last_seg_done.
+	 * waiting for either shadow valid or last_seg_done.
 	 */
 	test	MDFFSTAT, SHVALID jnz pkt_saveptrs;
 pkt_service_fifo:
@@ -2171,7 +2171,7 @@ pkt_status_check_nonpackreq:
 	/*
 	 * The unexpected nonpkt phase handler assumes that any
 	 * data channel use will have a FIFO reference count.  It
-	 * turns out that the status handler doesn't need a refernce
+	 * turns out that the status handler doesn't need a references
 	 * count since the status received flag, and thus completion
 	 * processing, cannot be set until the handler is finished.
 	 * We increment the count here to make the nonpkt handler

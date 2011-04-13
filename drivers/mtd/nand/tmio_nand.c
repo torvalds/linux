@@ -4,7 +4,7 @@
  * Slightly murky pre-git history of the driver:
  *
  * Copyright (c) Ian Molton 2004, 2005, 2008
- *    Original work, independant of sharps code. Included hardware ECC support.
+ *    Original work, independent of sharps code. Included hardware ECC support.
  *    Hard ECC did not work for writes in the early revisions.
  * Copyright (c) Dirk Opfer 2005.
  *    Modifications developed from sharps code but

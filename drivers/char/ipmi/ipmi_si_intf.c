@@ -339,7 +339,7 @@ static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 		cCode = IPMI_ERR_UNSPECIFIED;
 	/* else use it as is */
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = cCode;
@@ -2927,7 +2927,7 @@ static void return_hosed_msg_badsize(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg = smi_info->curr_msg;
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = CANNOT_RETURN_REQUESTED_LENGTH;

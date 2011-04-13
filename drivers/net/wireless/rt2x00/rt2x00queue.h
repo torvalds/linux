@@ -344,8 +344,8 @@ struct txentry_desc {
  *	only be touched after the device has signaled it is done with it.
  * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
  *	for the signal to start sending.
- * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
- *	while transfering the data to the hardware. No TX status report will
+ * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occurred
+ *	while transferring the data to the hardware. No TX status report will
  *	be expected from the hardware.
  * @ENTRY_DATA_STATUS_PENDING: The entry has been send to the device and
  *	returned. It is now waiting for the status reporting before the
@@ -365,7 +365,7 @@ enum queue_entry_flags {
  * @flags: Entry flags, see &enum queue_entry_flags.
  * @queue: The data queue (&struct data_queue) to which this entry belongs.
  * @skb: The buffer which is currently being transmitted (for TX queue),
- *	or used to directly recieve data in (for RX queue).
+ *	or used to directly receive data in (for RX queue).
  * @entry_idx: The entry index number.
  * @priv_data: Private data belonging to this queue entry. The pointer
  *	points to data specific to a particular driver and queue type.
@@ -388,7 +388,7 @@ struct queue_entry {
  * @Q_INDEX: Index pointer to the current entry in the queue, if this entry is
  *	owned by the hardware then the queue is considered to be full.
  * @Q_INDEX_DMA_DONE: Index pointer for the next entry which will have been
- *	transfered to the hardware.
+ *	transferred to the hardware.
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
  *	entry is not owned by the hardware the queue is considered to be empty.
@@ -627,7 +627,7 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_status_timeout - Check if a timeout occured for STATUS reports
+ * rt2x00queue_status_timeout - Check if a timeout occurred for STATUS reports
  * @queue: Queue to check.
  */
 static inline int rt2x00queue_status_timeout(struct data_queue *queue)
@@ -637,7 +637,7 @@ static inline int rt2x00queue_status_timeout(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for DMA transfers
+ * rt2x00queue_timeout - Check if a timeout occurred for DMA transfers
  * @queue: Queue to check.
  */
 static inline int rt2x00queue_dma_timeout(struct data_queue *queue)

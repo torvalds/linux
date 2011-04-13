@@ -621,7 +621,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		var->yoffset = var->yres_virtual - var->yres;
 
 	if (bpp == 16 && var->green.length == 5) {
-		bpp--; /* an artifical value - 15 */
+		bpp--; /* an artificial value - 15 */
 	}
 
 	for (rgbt = table; rgbt->bpp < bpp; rgbt++);

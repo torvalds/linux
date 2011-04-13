@@ -17,7 +17,8 @@
 #ifndef SPI_ADIS16400_H_
 #define SPI_ADIS16400_H_
 
-#define ADIS16400_STARTUP_DELAY	220 /* ms */
+#define ADIS16400_STARTUP_DELAY	290 /* ms */
+#define ADIS16400_MTEST_DELAY 90 /* ms */
 
 #define ADIS16400_READ_REG(a)    a
 #define ADIS16400_WRITE_REG(a) ((a) | 0x80)
@@ -131,7 +132,7 @@
  * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16400_state {

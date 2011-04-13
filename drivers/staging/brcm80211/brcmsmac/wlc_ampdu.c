@@ -89,7 +89,7 @@ u32 wl_ampdu_dbg =
 /* structure to hold tx fifo information and pre-loading state
  * counters specific to tx underflows of ampdus
  * some counters might be redundant with the ones in wlc or ampdu structures.
- * This allows to maintain a specific state independantly of
+ * This allows to maintain a specific state independently of
  * how often and/or when the wlc counters are updated.
  */
 typedef struct wlc_fifo_info {
@@ -265,7 +265,7 @@ static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
 
 	scb_ampdu->max_pdu = (u8) ampdu->wlc->pub->tunables->ampdunummpdu;
 
-	/* go back to legacy size if some preloading is occuring */
+	/* go back to legacy size if some preloading is occurring */
 	for (i = 0; i < NUM_FFPLD_FIFO; i++) {
 		if (ampdu->fifo_tb[i].ampdu_pld_size > FFPLD_PLD_INCR)
 			scb_ampdu->max_pdu = AMPDU_NUM_MPDU_LEGACY;

@@ -1111,7 +1111,7 @@ void vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh)
  * vxge_hw_channel_dtr_count
  * @channel: Channel handle. Obtained via vxge_hw_channel_open().
  *
- * Retreive number of DTRs available. This function can not be called
+ * Retrieve number of DTRs available. This function can not be called
  * from data path. ring_initial_replenishi() is the only user.
  */
 int vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel)
@@ -2060,7 +2060,7 @@ enum vxge_hw_status vxge_hw_vpath_promisc_enable(
 
 	vpath = vp->vpath;
 
-	/* Enable promiscous mode for function 0 only */
+	/* Enable promiscuous mode for function 0 only */
 	if (!(vpath->hldev->access_rights &
 		VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM))
 		return VXGE_HW_OK;

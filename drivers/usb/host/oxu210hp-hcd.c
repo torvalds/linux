@@ -2879,7 +2879,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	/* Ok, we have more job to do! :) */
 
 	for (i = 0; i < num - 1; i++) {
-		/* Get free micro URB poll till a free urb is recieved */
+		/* Get free micro URB poll till a free urb is received */
 
 		do {
 			murb = (struct urb *) oxu_murb_alloc(oxu);
@@ -2911,7 +2911,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Last urb requires special handling  */
 
-	/* Get free micro URB poll till a free urb is recieved */
+	/* Get free micro URB poll till a free urb is received */
 	do {
 		murb = (struct urb *) oxu_murb_alloc(oxu);
 		if (!murb)

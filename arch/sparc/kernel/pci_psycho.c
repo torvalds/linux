@@ -592,7 +592,7 @@ out_err:
 	return err;
 }
 
-static struct of_device_id __initdata psycho_match[] = {
+static const struct of_device_id psycho_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pci108e,8000",

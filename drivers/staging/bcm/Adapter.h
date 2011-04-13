@@ -412,7 +412,7 @@ struct _MINI_ADAPTER
 
 	// this to keep track of the Tx and Rx MailBox Registers.
 	atomic_t		    CurrNumFreeTxDesc;
-	// to keep track the no of byte recieved
+	// to keep track the no of byte received
 	USHORT				PrevNumRecvDescs;
 	USHORT				CurrNumRecvDescs;
 	UINT				u32TotalDSD;
@@ -527,7 +527,7 @@ struct _MINI_ADAPTER
 	BOOLEAN			bStatusWrite;
 	UINT			uiNVMDSDSize;
 	UINT			uiVendorExtnFlag;
-	 //it will always represent choosed DSD at any point of time.
+	 //it will always represent chosen DSD at any point of time.
 	 // Generally it is Active DSD but in case of NVM RD/WR it might be different.
 	UINT			ulFlashCalStart;
 	ULONG                   ulFlashControlSectionStart;
@@ -546,10 +546,10 @@ struct _MINI_ADAPTER
 	PFLASH_CS_INFO psFlashCSInfo ;
 	PFLASH2X_VENDORSPECIFIC_INFO psFlash2xVendorInfo;
 	UINT uiFlashBaseAdd; //Flash start address
-	UINT uiActiveISOOffset; //Active ISO offset choosen before f/w download
+	UINT uiActiveISOOffset; //Active ISO offset chosen before f/w download
 	FLASH2X_SECTION_VAL eActiveISO; //Active ISO section val
-	FLASH2X_SECTION_VAL eActiveDSD;	//Active DSD val choosen before f/w download
-	UINT uiActiveDSDOffsetAtFwDld;  //For accessing Active DSD choosen before f/w download
+	FLASH2X_SECTION_VAL eActiveDSD;	//Active DSD val chosen before f/w download
+	UINT uiActiveDSDOffsetAtFwDld;  //For accessing Active DSD chosen before f/w download
 	UINT uiFlashLayoutMajorVersion ;
 	UINT uiFlashLayoutMinorVersion;
 	BOOLEAN bAllDSDWriteAllow ;

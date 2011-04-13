@@ -29,7 +29,7 @@
 						 *  single-tone*/
 #define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000 /* pending in cont, tx
 					* background due to out of skb*/
-#define	WIFI_MP_CTX_CCK_HW	0x00100000	/* in continous tx*/
+#define	WIFI_MP_CTX_CCK_HW	0x00100000	/* in continuous tx*/
 #define	WIFI_MP_CTX_CCK_CS	0x00200000	/* in cont, tx with carrier
 						 * suppression*/
 #define   WIFI_MP_LPBK_STATE	0x00400000

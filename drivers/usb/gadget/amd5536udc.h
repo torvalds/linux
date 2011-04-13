@@ -584,7 +584,7 @@ union udc_setup_data {
  * SET and GET bitfields in u32 values
  * via constants for mask/offset:
  * <bit_field_stub_name> is the text between
- * UDC_ and _MASK|_OFS of appropiate
+ * UDC_ and _MASK|_OFS of appropriate
  * constant
  *
  * set bitfield value in u32 u32Val

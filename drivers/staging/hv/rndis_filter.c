@@ -581,7 +581,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 		dev_err(&dev->net_dev->dev->device,
 			"timeout before we got a set response...\n");
 		/*
-		 * We cant deallocate the request since we may still receive a
+		 * We can't deallocate the request since we may still receive a
 		 * send completion for it.
 		 */
 		goto Exit;

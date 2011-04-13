@@ -1976,7 +1976,7 @@ static wlandevice_t *create_wlan(void)
 
 	wlandev->nsdcaps = P80211_NSDCAP_HWFRAGMENT | P80211_NSDCAP_AUTOJOIN;
 
-	/* Initialize the device private data stucture. */
+	/* Initialize the device private data structure. */
 	hw->dot11_desired_bss_type = 1;
 
 	return wlandev;
