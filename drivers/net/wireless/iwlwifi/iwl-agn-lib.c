@@ -2306,8 +2306,7 @@ int iwlagn_start_device(struct iwl_priv *priv)
 {
 	int ret;
 
-	iwl_prepare_card_hw(priv);
-	if (!priv->hw_ready) {
+	if (iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}

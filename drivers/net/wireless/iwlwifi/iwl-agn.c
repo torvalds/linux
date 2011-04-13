@@ -2367,9 +2367,10 @@ static void iwl_down(struct iwl_priv *priv)
 
 #define HW_READY_TIMEOUT (50)
 
+/* Note: returns poll_bit return value, which is >= 0 if success */
 static int iwl_set_hw_ready(struct iwl_priv *priv)
 {
-	int ret = 0;
+	int ret;
 
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 		CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
@@ -2379,25 +2380,21 @@ static int iwl_set_hw_ready(struct iwl_priv *priv)
 				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
 				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
 				HW_READY_TIMEOUT);
-	if (ret != -ETIMEDOUT)
-		priv->hw_ready = true;
-	else
-		priv->hw_ready = false;
 
-	IWL_DEBUG_INFO(priv, "hardware %s\n",
-		      (priv->hw_ready == 1) ? "ready" : "not ready");
+	IWL_DEBUG_INFO(priv, "hardware%s ready\n", ret < 0 ? " not" : "");
 	return ret;
 }
 
+/* Note: returns standard 0/-ERROR code */
 int iwl_prepare_card_hw(struct iwl_priv *priv)
 {
-	int ret = 0;
+	int ret;
 
 	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
 
 	ret = iwl_set_hw_ready(priv);
-	if (priv->hw_ready)
-		return ret;
+	if (ret >= 0)
+		return 0;
 
 	/* If HW is not ready, prepare the conditions to check again */
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
@@ -2407,10 +2404,13 @@ int iwl_prepare_card_hw(struct iwl_priv *priv)
 			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
 			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
 
-	/* HW should be ready by now, check again. */
-	if (ret != -ETIMEDOUT)
-		iwl_set_hw_ready(priv);
+	if (ret < 0)
+		return ret;
 
+	/* HW should be ready by now, check again. */
+	ret = iwl_set_hw_ready(priv);
+	if (ret >= 0)
+		return 0;
 	return ret;
 }
 
@@ -3741,8 +3741,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	iwl_prepare_card_hw(priv);
-	if (!priv->hw_ready) {
+	if (iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Failed, HW not ready\n");
 		goto out_iounmap;
 	}

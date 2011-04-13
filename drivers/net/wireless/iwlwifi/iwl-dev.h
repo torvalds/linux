@@ -1503,7 +1503,6 @@ struct iwl_priv {
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
 	struct timer_list watchdog;
-	bool hw_ready;
 
 	struct iwl_event_log event_log;
 
