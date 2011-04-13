@@ -21,6 +21,7 @@
 #define _PSB_DRV_H_
 
 #include <linux/version.h>
+#include <linux/kref.h>
 
 #include <drm/drmP.h>
 #include "drm_global.h"
@@ -228,6 +229,7 @@ struct psb_intel_opregion {
 	int enabled;
 };
 
+
 struct drm_psb_private {
 	struct drm_device *dev;
 
@@ -235,19 +237,29 @@ struct drm_psb_private {
 
 	struct psb_gtt *pg;
 
-	/*GTT Memory manager*/
+	/* GTT Memory manager */
 	struct psb_gtt_mm *gtt_mm;
 	struct page *scratch_page;
 
+	struct mutex gtt_mutex;
+	struct resource *gtt_mem;	/* Our PCI resource */
+	struct gtt_range *gtt_handles[GTT_MAX];
+
+	struct gtt_range *fb;		/* System frame buffer */
+
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
+
+	/*
+	 * Register base
+	 */
 
 	uint8_t *sgx_reg;
 	uint8_t *vdc_reg;
 	uint32_t gatt_free_offset;
 
 	/*
-	 *Fencing / irq.
+	 * Fencing / irq.
 	 */
 
 	uint32_t vdc_irq_mask;

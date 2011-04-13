@@ -80,11 +80,33 @@ extern int psb_gtt_map_meminfo(struct drm_device *dev,
 				uint32_t *offset);
 extern int psb_gtt_unmap_meminfo(struct drm_device *dev,
 				 void * hKernelMemInfo);
-extern int psb_gtt_map_meminfo_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv);
-extern int psb_gtt_unmap_meminfo_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv);
 extern int psb_gtt_mm_init(struct psb_gtt *pg);
 extern void psb_gtt_mm_takedown(void);
+
+/* Each gtt_range describes an allocation in the GTT area */
+struct gtt_range {
+	struct resource resource;
+	u32 offset;
+	int handle;
+	struct kref kref;
+};
+
+/* Most GTT handles we allow allocation of - for now five is fine: we need
+   - Two framebuffers
+   - Maybe an upload area
+   - One cursor (eventually)
+   - One fence page (possibly)
+*/
+
+#define	GTT_MAX		5
+
+extern int psb_gtt_alloc_handle(struct drm_device *dev, struct gtt_range *gt);
+extern int psb_gtt_release_handle(struct drm_device *dev, struct gtt_range *gt);
+extern struct gtt_range *psb_gtt_lookup_handle(struct drm_device *dev,
+							int handle);
+extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
+							const char *name);
+extern void psb_gtt_kref_put(struct gtt_range *gt);
+extern void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt);
 
 #endif
