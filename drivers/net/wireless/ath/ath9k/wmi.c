@@ -126,7 +126,7 @@ void ath9k_swba_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 
-	ath9k_htc_swba(priv, priv->wmi->beacon_pending);
+	ath9k_htc_swba(priv);
 }
 
 void ath9k_fatal_work(struct work_struct *work)
@@ -173,8 +173,10 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 		case WMI_SWBA_EVENTID:
 			swba = (struct wmi_event_swba *) wmi_event;
 
+			spin_lock(&wmi->wmi_lock);
 			wmi->tsf = be64_to_cpu(swba->tsf);
 			wmi->beacon_pending = swba->beacon_pending;
+			spin_unlock(&wmi->wmi_lock);
 
 			tasklet_schedule(&wmi->drv_priv->swba_tasklet);
 			break;

@@ -244,6 +244,7 @@ struct ath9k_htc_vif {
 	u8 index;
 	u16 seq_no;
 	bool beacon_configured;
+	int bslot;
 };
 
 struct ath9k_vif_iter_data {
@@ -351,10 +352,14 @@ struct ath_led {
 	int brightness;
 };
 
+#define BSTUCK_THRESHOLD 10
+
 struct htc_beacon_config {
+	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
 	u16 beacon_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
+	u32 bmiss_cnt;
 };
 
 struct ath_btcoex {
@@ -414,7 +419,6 @@ struct ath9k_htc_priv {
 	u16 txpowlimit;
 	u16 nvifs;
 	u16 nstations;
-	u32 bmiss_cnt;
 	bool rearm_ani;
 	bool reconfig_beacon;
 
@@ -425,7 +429,6 @@ struct ath9k_htc_priv {
 	bool tx_queues_stop;
 	spinlock_t tx_lock;
 
-	struct ieee80211_vif *vif;
 	struct htc_beacon_config cur_beacon_conf;
 	unsigned int rxfilter;
 	struct tasklet_struct swba_tasklet;
@@ -473,11 +476,15 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 
 void ath9k_htc_reset(struct ath9k_htc_priv *priv);
 
+void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif);
+void ath9k_htc_remove_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif);
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
 void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv);
-void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
+void ath9k_htc_swba(struct ath9k_htc_priv *priv);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id);

@@ -643,7 +643,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 {
 	struct ath_hw *ah = NULL;
 	struct ath_common *common;
-	int ret = 0, csz = 0;
+	int i, ret = 0, csz = 0;
 
 	priv->op_flags |= OP_INVALID;
 
@@ -710,6 +710,9 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	ret = ath9k_init_queues(priv);
 	if (ret)
 		goto err_queues;
+
+	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
+		priv->cur_beacon_conf.bslot[i] = NULL;
 
 	ath9k_init_crypto(priv);
 	ath9k_init_channels_rates(priv);

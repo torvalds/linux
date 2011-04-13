@@ -1281,9 +1281,13 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	priv->vif_slot |= (1 << avp->index);
 	priv->nvifs++;
-	priv->vif = vif;
 
 	INC_VIF(priv, vif->type);
+
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_ADHOC))
+		ath9k_htc_assign_bslot(priv, vif);
+
 	ath9k_htc_set_opmode(priv);
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
@@ -1321,9 +1325,13 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	priv->vif_slot &= ~(1 << avp->index);
 
 	ath9k_htc_remove_station(priv, vif, NULL);
-	priv->vif = NULL;
 
 	DEC_VIF(priv, vif->type);
+
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_ADHOC))
+		ath9k_htc_remove_bslot(priv, vif);
+
 	ath9k_htc_set_opmode(priv);
 
 	/*
