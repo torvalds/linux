@@ -1879,7 +1879,7 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
-	board_usb_detect_init(RK29_PIN0_PA0, IRQF_TRIGGER_FALLING);
+	board_usb_detect_init(RK29_PIN0_PA0);
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

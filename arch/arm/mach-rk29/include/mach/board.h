@@ -252,9 +252,9 @@ enum periph_pll{
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET
-int board_usb_detect_init(unsigned gpio, unsigned long flags);
+int board_usb_detect_init(unsigned gpio);
 #else
-static int inline board_usb_detect_init(unsigned gpio, unsigned long flags) { return 0; }
+static int inline board_usb_detect_init(unsigned gpio) { return 0; }
 #endif
 
 /* for wakeup Android */
