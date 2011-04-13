@@ -2489,6 +2489,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART2_RK29
 	&rk29_device_uart2,
 #endif
+#ifdef CONFIG_UART3_RK29
+	&rk29_device_uart3,
+#endif
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
