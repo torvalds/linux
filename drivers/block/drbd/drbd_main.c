@@ -2266,8 +2266,10 @@ static void drbd_cleanup(void)
 
 	drbd_genl_unregister();
 
+	down_write(&drbd_cfg_rwsem);
 	idr_for_each_entry(&minors, mdev, i)
 		drbd_delete_device(mdev);
+	up_write(&drbd_cfg_rwsem);
 
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");

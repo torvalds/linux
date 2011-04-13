@@ -227,6 +227,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	 oos .. known out-of-sync kB
 	*/
 
+	down_read(&drbd_cfg_rwsem);
 	idr_for_each_entry(&minors, mdev, i) {
 		if (prev_i != i - 1)
 			seq_printf(seq, "\n");
@@ -293,6 +294,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			}
 		}
 	}
+	up_read(&drbd_cfg_rwsem);
 
 	return 0;
 }

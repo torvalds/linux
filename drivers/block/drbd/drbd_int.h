@@ -172,7 +172,7 @@ extern struct ratelimit_state drbd_ratelimit_state;
 extern struct idr minors;
 extern struct list_head drbd_tconns;
 extern struct rw_semaphore drbd_cfg_rwsem;
-/* drbd_cfg_rwsem protects: drbd_tconns list,
+/* drbd_cfg_rwsem protects: drbd_tconns list, minors idr, tconn->volumes idr 
    note: non sleeping iterations over the idrs are protoected by RCU */
 
 /* on the wire */

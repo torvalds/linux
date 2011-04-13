@@ -964,7 +964,10 @@ retry:
 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
 
-	return !idr_for_each(&tconn->volumes, drbd_connected, tconn);
+	down_read(&drbd_cfg_rwsem);
+	h = !idr_for_each(&tconn->volumes, drbd_connected, tconn);
+	up_read(&drbd_cfg_rwsem);
+	return h;
 
 out_release_sockets:
 	if (tconn->data.socket) {
@@ -4084,7 +4087,9 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 	drbd_thread_stop(&tconn->asender);
 	drbd_free_sock(tconn);
 
+	down_read(&drbd_cfg_rwsem);
 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
+	up_read(&drbd_cfg_rwsem);
 	conn_info(tconn, "Connection closed\n");
 
 	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
@@ -4821,10 +4826,14 @@ static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
 	do {
 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
 		flush_signals(current);
+		down_read(&drbd_cfg_rwsem);
 		idr_for_each_entry(&tconn->volumes, mdev, i) {
-			if (drbd_finish_peer_reqs(mdev))
+			if (drbd_finish_peer_reqs(mdev)) {
+				up_read(&drbd_cfg_rwsem);
 				return 1; /* error */
+			}
 		}
+		up_read(&drbd_cfg_rwsem);
 		set_bit(SIGNAL_ASENDER, &tconn->flags);
 
 		spin_lock_irq(&tconn->req_lock);

@@ -328,8 +328,10 @@ static void conn_md_sync(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	int vnr;
 
+	down_read(&drbd_cfg_rwsem);
 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		drbd_md_sync(mdev);
+	up_read(&drbd_cfg_rwsem);
 }
 
 int conn_khelper(struct drbd_tconn *tconn, char *cmd)
@@ -2865,7 +2867,9 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	down_write(&drbd_cfg_rwsem);
 	retcode = conn_new_minor(adm_ctx.tconn, dh->minor, adm_ctx.volume);
+	up_write(&drbd_cfg_rwsem);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
