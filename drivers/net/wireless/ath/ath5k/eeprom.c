@@ -1732,35 +1732,6 @@ ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
 	return ret;
 }
 
-/*
- * Read the MAC address from eeprom
- */
-int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
-{
-	u8 mac_d[ETH_ALEN] = {};
-	u32 total, offset;
-	u16 data;
-	int octet;
-
-	AR5K_EEPROM_READ(0x20, data);
-
-	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
-		AR5K_EEPROM_READ(offset, data);
-
-		total += data;
-		mac_d[octet + 1] = data & 0xff;
-		mac_d[octet] = data >> 8;
-		octet += 2;
-	}
-
-	if (!total || total == 3 * 0xffff)
-		return -EINVAL;
-
-	memcpy(mac, mac_d, ETH_ALEN);
-
-	return 0;
-}
-
 
 /***********************\
 * Init/Detach functions *

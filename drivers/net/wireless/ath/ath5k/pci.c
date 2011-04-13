@@ -17,6 +17,7 @@
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
+#include <linux/etherdevice.h>
 #include "../ath.h"
 #include "ath5k.h"
 #include "debug.h"
@@ -108,11 +109,42 @@ int ath5k_hw_read_srev(struct ath5k_hw *ah)
 	return 0;
 }
 
+/*
+ * Read the MAC address from eeprom or platform_data
+ */
+static int ath5k_pci_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+{
+	u8 mac_d[ETH_ALEN] = {};
+	u32 total, offset;
+	u16 data;
+	int octet;
+
+	AR5K_EEPROM_READ(0x20, data);
+
+	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
+		AR5K_EEPROM_READ(offset, data);
+
+		total += data;
+		mac_d[octet + 1] = data & 0xff;
+		mac_d[octet] = data >> 8;
+		octet += 2;
+	}
+
+	if (!total || total == 3 * 0xffff)
+		return -EINVAL;
+
+	memcpy(mac, mac_d, ETH_ALEN);
+
+	return 0;
+}
+
+
 /* Common ath_bus_opts structure */
 static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath5k_pci_read_cachesize,
 	.eeprom_read = ath5k_pci_eeprom_read,
+	.eeprom_read_mac = ath5k_pci_eeprom_read_mac,
 };
 
 /********************\

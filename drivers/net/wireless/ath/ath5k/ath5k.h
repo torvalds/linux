@@ -1159,6 +1159,7 @@ struct ath_bus_ops {
 	enum ath_bus_type ath_bus_type;
 	void (*read_cachesize)(struct ath_common *common, int *csz);
 	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+	int (*eeprom_read_mac)(struct ath5k_hw *ah, u8 *mac);
 };
 
 /*
@@ -1244,7 +1245,6 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah);
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
 void ath5k_eeprom_detach(struct ath5k_hw *ah);
-int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
 
 
 /* Protocol Control Unit Functions */
