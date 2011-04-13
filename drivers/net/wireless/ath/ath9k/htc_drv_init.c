@@ -782,6 +782,32 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
+static int ath9k_init_firmware_version(struct ath9k_htc_priv *priv)
+{
+	struct ieee80211_hw *hw = priv->hw;
+	struct wmi_fw_version cmd_rsp;
+	int ret;
+
+	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+	WMI_CMD(WMI_GET_FW_VERSION);
+	if (ret)
+		return -EINVAL;
+
+	priv->fw_version_major = be16_to_cpu(cmd_rsp.major);
+	priv->fw_version_minor = be16_to_cpu(cmd_rsp.minor);
+
+	snprintf(hw->wiphy->fw_version, ETHTOOL_BUSINFO_LEN, "%d.%d",
+		 priv->fw_version_major,
+		 priv->fw_version_minor);
+
+	dev_info(priv->dev, "ath9k_htc: FW Version: %d.%d\n",
+		 priv->fw_version_major,
+		 priv->fw_version_minor);
+
+	return 0;
+}
+
 static int ath9k_init_device(struct ath9k_htc_priv *priv,
 			     u16 devid, char *product, u32 drv_info)
 {
@@ -800,6 +826,10 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	ah = priv->ah;
 	common = ath9k_hw_common(ah);
 	ath9k_set_hw_capab(priv, hw);
+
+	error = ath9k_init_firmware_version(priv);
+	if (error != 0)
+		goto err_fw;
 
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, priv->hw->wiphy,
@@ -861,6 +891,8 @@ err_rx:
 err_tx:
 	/* Nothing */
 err_regd:
+	/* Nothing */
+err_fw:
 	ath9k_deinit_priv(priv);
 err_init:
 	return error;

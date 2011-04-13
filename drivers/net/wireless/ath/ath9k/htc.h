@@ -388,6 +388,9 @@ struct ath9k_htc_priv {
 	struct htc_target *htc;
 	struct wmi *wmi;
 
+	u16 fw_version_major;
+	u16 fw_version_minor;
+
 	enum htc_endpoint_id wmi_cmd_ep;
 	enum htc_endpoint_id beacon_ep;
 	enum htc_endpoint_id cab_ep;

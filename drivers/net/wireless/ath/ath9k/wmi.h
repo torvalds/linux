@@ -31,11 +31,17 @@ struct wmi_cmd_hdr {
 	__be16 seq_no;
 } __packed;
 
+struct wmi_fw_version {
+	__be16 major;
+	__be16 minor;
+
+} __packed;
 enum wmi_cmd_id {
 	WMI_ECHO_CMDID = 0x0001,
 	WMI_ACCESS_MEMORY_CMDID,
 
 	/* Commands to Target */
+	WMI_GET_FW_VERSION,
 	WMI_DISABLE_INTR_CMDID,
 	WMI_ENABLE_INTR_CMDID,
 	WMI_RX_LINK_CMDID,

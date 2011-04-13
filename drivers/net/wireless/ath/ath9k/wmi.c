@@ -23,6 +23,8 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_ECHO_CMDID";
 	case WMI_ACCESS_MEMORY_CMDID:
 		return "WMI_ACCESS_MEMORY_CMDID";
+	case WMI_GET_FW_VERSION:
+		return "WMI_GET_FW_VERSION";
 	case WMI_DISABLE_INTR_CMDID:
 		return "WMI_DISABLE_INTR_CMDID";
 	case WMI_ENABLE_INTR_CMDID:
