@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/vmalloc.h>
 
 #include "rtsx.h"
 #include "rtsx_transport.h"
