@@ -1395,8 +1395,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	call_rcu(&device->rcu, free_device);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
-	num_devices = btrfs_super_num_devices(&root->fs_info->super_copy) - 1;
-	btrfs_set_super_num_devices(&root->fs_info->super_copy, num_devices);
+	num_devices = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
+	btrfs_set_super_num_devices(root->fs_info->super_copy, num_devices);
 
 	if (cur_devices->open_devices == 0) {
 		struct btrfs_fs_devices *fs_devices;
@@ -1458,7 +1458,7 @@ static int btrfs_prepare_sprout(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 	struct btrfs_fs_devices *old_devices;
 	struct btrfs_fs_devices *seed_devices;
-	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
+	struct btrfs_super_block *disk_super = root->fs_info->super_copy;
 	struct btrfs_device *device;
 	u64 super_flags;
 
@@ -1706,12 +1706,12 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if (!blk_queue_nonrot(bdev_get_queue(bdev)))
 		root->fs_info->fs_devices->rotating = 1;
 
-	total_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
-	btrfs_set_super_total_bytes(&root->fs_info->super_copy,
+	total_bytes = btrfs_super_total_bytes(root->fs_info->super_copy);
+	btrfs_set_super_total_bytes(root->fs_info->super_copy,
 				    total_bytes + device->total_bytes);
 
-	total_bytes = btrfs_super_num_devices(&root->fs_info->super_copy);
-	btrfs_set_super_num_devices(&root->fs_info->super_copy,
+	total_bytes = btrfs_super_num_devices(root->fs_info->super_copy);
+	btrfs_set_super_num_devices(root->fs_info->super_copy,
 				    total_bytes + 1);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
@@ -1802,7 +1802,7 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size)
 {
 	struct btrfs_super_block *super_copy =
-		&device->dev_root->fs_info->super_copy;
+		device->dev_root->fs_info->super_copy;
 	u64 old_total = btrfs_super_total_bytes(super_copy);
 	u64 diff = new_size - device->total_bytes;
 
@@ -1861,7 +1861,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 static int btrfs_del_sys_chunk(struct btrfs_root *root, u64 chunk_objectid, u64
 			chunk_offset)
 {
-	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
+	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
 	struct btrfs_disk_key *disk_key;
 	struct btrfs_chunk *chunk;
 	u8 *ptr;
@@ -2187,7 +2187,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	bool retried = false;
 	struct extent_buffer *l;
 	struct btrfs_key key;
-	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
+	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
 	u64 old_total = btrfs_super_total_bytes(super_copy);
 	u64 old_size = device->total_bytes;
 	u64 diff = device->total_bytes - new_size;
@@ -2311,7 +2311,7 @@ static int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
 			   struct btrfs_key *key,
 			   struct btrfs_chunk *chunk, int item_size)
 {
-	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
+	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
 	struct btrfs_disk_key disk_key;
 	u32 array_size;
 	u8 *ptr;
@@ -3653,7 +3653,7 @@ static int read_one_dev(struct btrfs_root *root,
 
 int btrfs_read_sys_array(struct btrfs_root *root)
 {
-	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
+	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
 	struct extent_buffer *sb;
 	struct btrfs_disk_key *disk_key;
 	struct btrfs_chunk *chunk;

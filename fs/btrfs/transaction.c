@@ -991,7 +991,7 @@ static void update_super_roots(struct btrfs_root *root)
 	struct btrfs_root_item *root_item;
 	struct btrfs_super_block *super;
 
-	super = &root->fs_info->super_copy;
+	super = root->fs_info->super_copy;
 
 	root_item = &root->fs_info->chunk_root->root_item;
 	super->chunk_root = root_item->bytenr;
@@ -1301,12 +1301,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	update_super_roots(root);
 
 	if (!root->fs_info->log_root_recovering) {
-		btrfs_set_super_log_root(&root->fs_info->super_copy, 0);
-		btrfs_set_super_log_root_level(&root->fs_info->super_copy, 0);
+		btrfs_set_super_log_root(root->fs_info->super_copy, 0);
+		btrfs_set_super_log_root_level(root->fs_info->super_copy, 0);
 	}
 
-	memcpy(&root->fs_info->super_for_commit, &root->fs_info->super_copy,
-	       sizeof(root->fs_info->super_copy));
+	memcpy(root->fs_info->super_for_commit, root->fs_info->super_copy,
+	       sizeof(*root->fs_info->super_copy));
 
 	trans->transaction->blocked = 0;
 	spin_lock(&root->fs_info->trans_lock);

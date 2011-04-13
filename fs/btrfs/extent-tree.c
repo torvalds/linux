@@ -3209,7 +3209,7 @@ static int should_alloc_chunk(struct btrfs_root *root,
 	 * about 1% of the FS size.
 	 */
 	if (force == CHUNK_ALLOC_LIMITED) {
-		thresh = btrfs_super_total_bytes(&root->fs_info->super_copy);
+		thresh = btrfs_super_total_bytes(root->fs_info->super_copy);
 		thresh = max_t(u64, 64 * 1024 * 1024,
 			       div_factor_fine(thresh, 1));
 
@@ -3231,7 +3231,7 @@ static int should_alloc_chunk(struct btrfs_root *root,
 	if (num_allocated + alloc_bytes < div_factor(num_bytes, 8))
 		return 0;
 
-	thresh = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	thresh = btrfs_super_total_bytes(root->fs_info->super_copy);
 
 	/* 256MB or 5% of the FS */
 	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 5));
@@ -3843,7 +3843,7 @@ static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
 	u64 num_bytes;
 	u64 meta_used;
 	u64 data_used;
-	int csum_size = btrfs_super_csum_size(&fs_info->super_copy);
+	int csum_size = btrfs_super_csum_size(fs_info->super_copy);
 
 	sinfo = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
 	spin_lock(&sinfo->lock);
@@ -4222,12 +4222,12 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 
 	/* block accounting for super block */
 	spin_lock(&info->delalloc_lock);
-	old_val = btrfs_super_bytes_used(&info->super_copy);
+	old_val = btrfs_super_bytes_used(info->super_copy);
 	if (alloc)
 		old_val += num_bytes;
 	else
 		old_val -= num_bytes;
-	btrfs_set_super_bytes_used(&info->super_copy, old_val);
+	btrfs_set_super_bytes_used(info->super_copy, old_val);
 	spin_unlock(&info->delalloc_lock);
 
 	while (total) {
@@ -7127,9 +7127,9 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		return -ENOMEM;
 	path->reada = 1;
 
-	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
+	cache_gen = btrfs_super_cache_generation(root->fs_info->super_copy);
 	if (btrfs_test_opt(root, SPACE_CACHE) &&
-	    btrfs_super_generation(&root->fs_info->super_copy) != cache_gen)
+	    btrfs_super_generation(root->fs_info->super_copy) != cache_gen)
 		need_clear = 1;
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		need_clear = 1;
@@ -7458,7 +7458,7 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 	int mixed = 0;
 	int ret;
 
-	disk_super = &fs_info->super_copy;
+	disk_super = fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
 		return 1;
 

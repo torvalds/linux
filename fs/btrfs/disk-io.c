@@ -256,8 +256,7 @@ void btrfs_csum_final(u32 crc, char *result)
 static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			   int verify)
 {
-	u16 csum_size =
-		btrfs_super_csum_size(&root->fs_info->super_copy);
+	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
 	char *result = NULL;
 	unsigned long len;
 	unsigned long cur_len;
@@ -1766,14 +1765,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_alloc;
 	}
 
-	memcpy(&fs_info->super_copy, bh->b_data, sizeof(fs_info->super_copy));
-	memcpy(&fs_info->super_for_commit, &fs_info->super_copy,
-	       sizeof(fs_info->super_for_commit));
+	memcpy(fs_info->super_copy, bh->b_data, sizeof(*fs_info->super_copy));
+	memcpy(fs_info->super_for_commit, fs_info->super_copy,
+	       sizeof(*fs_info->super_for_commit));
 	brelse(bh);
 
-	memcpy(fs_info->fsid, fs_info->super_copy.fsid, BTRFS_FSID_SIZE);
+	memcpy(fs_info->fsid, fs_info->super_copy->fsid, BTRFS_FSID_SIZE);
 
-	disk_super = &fs_info->super_copy;
+	disk_super = fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
 		goto fail_alloc;
 
@@ -2152,7 +2151,6 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_stop_workers(&fs_info->caching_workers);
 fail_alloc:
-	kfree(fs_info->delayed_root);
 fail_iput:
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
@@ -2164,12 +2162,7 @@ fail_bdi:
 fail_srcu:
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
-	kfree(extent_root);
-	kfree(tree_root);
-	kfree(fs_info);
-	kfree(chunk_root);
-	kfree(dev_root);
-	kfree(csum_root);
+	free_fs_info(fs_info);
 	return ERR_PTR(err);
 }
 
@@ -2338,10 +2331,10 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	int total_errors = 0;
 	u64 flags;
 
-	max_errors = btrfs_super_num_devices(&root->fs_info->super_copy) - 1;
+	max_errors = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
 	do_barriers = !btrfs_test_opt(root, NOBARRIER);
 
-	sb = &root->fs_info->super_for_commit;
+	sb = root->fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
 
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
@@ -2603,7 +2596,6 @@ int close_ctree(struct btrfs_root *root)
 	del_fs_roots(fs_info);
 
 	iput(fs_info->btree_inode);
-	kfree(fs_info->delayed_root);
 
 	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_stop_workers(&fs_info->fixup_workers);
@@ -2624,12 +2616,7 @@ int close_ctree(struct btrfs_root *root)
 	bdi_destroy(&fs_info->bdi);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
-	kfree(fs_info->extent_root);
-	kfree(fs_info->tree_root);
-	kfree(fs_info->chunk_root);
-	kfree(fs_info->dev_root);
-	kfree(fs_info->csum_root);
-	kfree(fs_info);
+	free_fs_info(fs_info);
 
 	return 0;
 }
