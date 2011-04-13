@@ -104,17 +104,6 @@ struct tx_beacon_header {
 	u16 rev;
 } __packed;
 
-struct ath9k_htc_target_hw {
-	u32 flags;
-	u32 flags_ext;
-	u32 ampdu_limit;
-	u8 ampdu_subframes;
-	u8 tx_chainmask;
-	u8 tx_chainmask_legacy;
-	u8 rtscts_ratecode;
-	u8 protmode;
-} __packed;
-
 struct ath9k_htc_cap_target {
 	u32 flags;
 	u32 flags_ext;
@@ -146,27 +135,16 @@ struct ath9k_htc_target_vif {
 #define ATH_HTC_STA_ERP   0x0004
 #define ATH_HTC_STA_HT    0x0008
 
-/* FIXME: UAPSD variables */
 struct ath9k_htc_target_sta {
-	u16 associd;
-	u16 txpower;
-	u32 ucastkey;
 	u8 macaddr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 sta_index;
 	u8 vif_index;
-	u8 vif_sta;
-	__be16 flags; /* ATH_HTC_STA_* */
-	u16 htcap;
-	u8 valid;
-	u16 capinfo;
-	struct ath9k_htc_target_hw *hw;
-	struct ath9k_htc_target_vif *vif;
-	u16 txseqmgmt;
 	u8 is_vif_sta;
-	u16 maxampdu;
-	u16 iv16;
-	u32 iv32;
+	__be16 flags; /* ATH_HTC_STA_* */
+	__be16 htcap;
+	__be16 maxampdu;
+	u8 pad;
 } __packed;
 
 struct ath9k_htc_target_aggr {

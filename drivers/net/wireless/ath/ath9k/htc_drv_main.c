@@ -382,7 +382,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	tsta.is_vif_sta = 1;
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = hvif.index;
-	tsta.maxampdu = 0xffff;
+	tsta.maxampdu = cpu_to_be16(0xffff);
 
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
@@ -463,9 +463,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		memcpy(&tsta.macaddr, sta->addr, ETH_ALEN);
 		memcpy(&tsta.bssid, common->curbssid, ETH_ALEN);
-		tsta.associd = common->curaid;
 		tsta.is_vif_sta = 0;
-		tsta.valid = true;
 		ista->index = sta_idx;
 	} else {
 		memcpy(&tsta.macaddr, vif->addr, ETH_ALEN);
@@ -474,7 +472,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-	tsta.maxampdu = 0xffff;
+	tsta.maxampdu = cpu_to_be16(0xffff);
 	if (sta && sta->ht_cap.ht_supported)
 		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
 
