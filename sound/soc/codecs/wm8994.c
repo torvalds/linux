@@ -140,7 +140,6 @@ enum VoiceDeviceSwitch
 };
 
 #ifdef WM8994_PROC
-char wm8994_current_route = SPEAKER_NORMAL;
 char debug_write_read = 0;
 #endif
 
@@ -204,7 +203,7 @@ struct wm8994_priv {
 
 bool wm8994_set_status(void)
 {
-        return isWM8994SetChannel;
+	return isWM8994SetChannel;
 }
 
 EXPORT_SYMBOL_GPL(wm8994_set_status);
@@ -2619,9 +2618,9 @@ void wm8994_set_channel_vol(void)
 		if(vol<=0){
 			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);
 		}else if(vol <= 9){
-		//	wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
+			wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
 		}else{
-		//	wm8994_write(0x25,  0x003F);
+			wm8994_write(0x25,  0x003F);
 		}
 		break;
 
@@ -2819,9 +2818,6 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	char route = kcontrol->private_value & 0xff;
 
-#ifdef WM8994_PROC
-	wm8994_current_route = route;
-#endif
 	isWM8994SetChannel = true;
 	switch(route)
 	{
@@ -2925,10 +2921,11 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	}
 	return 0;
 }
+
+#if 1
 /*
  * WM8994 Controls
  */
-
 static const char *bass_boost_txt[] = {"Linear Control", "Adaptive Boost"};
 static const struct soc_enum bass_boost =
 	SOC_ENUM_SINGLE(WM8994_BASS, 7, 2, bass_boost_txt);
@@ -3262,7 +3259,6 @@ static const struct _coeff_div coeff_div[] = {
 	{12000000, 96000, 125, 0xe, 0x1},
 };
 
-
 static inline int get_coeff(int mclk, int rate)
 {
 	int i;
@@ -3408,7 +3404,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	codec->bias_level = level;
 	return 0;
 }
-
+#endif
 #define WM8994_RATES SNDRV_PCM_RATE_48000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -3529,11 +3525,6 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 	int reg;
 	int value;
 	
-	char procadd = 0;
-	unsigned short eqvol;
-	unsigned char wm8994_proc_mode;
-	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
-	
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 
 	{
@@ -3547,398 +3538,6 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 	
 	switch(cookie_pot[0])
 	{
-	case 'n':
-	case 'N':
-		if(*(cookie_pot+1)=='+'){
-			procadd = 3;
-		}else if(*(cookie_pot+1)=='-'){
-			procadd = -3;
-		}else{
-			printk("Please press '+' or '-' follow 'n'!\n");
-			return -1;
-		}
-		switch(wm8994_current_route){
-		case HEADSET_NORMAL:
-			if(procadd == 3)
-				headset_normal_vol += 3;
-			else
-				headset_normal_vol -= 3;
-
-			if(headset_normal_vol > 6)
-				headset_normal_vol = 6;
-			else if(headset_normal_vol < -57)
-				headset_normal_vol = -57;
-
-			printk("headset_normal_vol = %ddB \n",headset_normal_vol);
-			break;
-
-		case SPEAKER_NORMAL:
-		case EARPIECE_NORMAL:
-		case SPEAKER_RINGTONE:
-		case EARPIECE_RINGTONE:
-		case BLUETOOTH_SCO_INCALL:
-			if(procadd == 3)
-				speaker_normal_vol += 3;
-			else
-				speaker_normal_vol -= 3;
-
-			if(speaker_normal_vol > 6)
-				speaker_normal_vol = 6;
-			else if(speaker_normal_vol < -57)
-				speaker_normal_vol = -57;
-
-			printk("speaker_normal_vol = %ddB \n",speaker_normal_vol);
-			break;
-
-		case HEADSET_RINGTONE:
-			if(procadd == 3){
-				headset_normal_vol += 3;
-				speaker_normal_vol += 3;
-			}else{
-				headset_normal_vol -= 3;
-				speaker_normal_vol -= 3;
-			}
-
-			if(speaker_normal_vol > 6)
-				speaker_normal_vol = 6;
-			else if(speaker_normal_vol < -57)
-				speaker_normal_vol = -57;
-			if(headset_normal_vol > 6)
-				headset_normal_vol = 6;
-			else if(headset_normal_vol < -57)
-				headset_normal_vol = -57;
-
-			printk("headset_normal_vol = %ddB \n",headset_normal_vol);
-			printk("speaker_normal_vol = %ddB \n",speaker_normal_vol);
-			break;
-
-		default:
-			printk("Current channel does not match to normal mode!\n");
-			return -1;
-		}
-		break;
-	case 'i':
-	case 'I':
-		if(*(cookie_pot+1)=='+'){
-			procadd = 3;
-		}else if(*(cookie_pot+1)=='-'){
-			procadd = -3;
-		}else{
-			printk("Please press '+' or '-' follow 'i'!\n");
-			return -1;
-		}
-
-		switch(wm8994_current_route){
-		case HEADSET_INCALL:
-			if(procadd == 3)
-				headset_incall_vol += 3;
-			else
-				headset_incall_vol -= 3;
-
-			if(headset_incall_vol > 6)
-				headset_incall_vol = 6;
-			else if(headset_incall_vol < -12)
-				headset_incall_vol = -12;
-
-			printk("headset_incall_vol = %ddB \n",headset_incall_vol);
-			break;
-
-		case EARPIECE_INCALL:
-			if(procadd == 3)
-				earpiece_incall_vol += 3;
-			else
-				earpiece_incall_vol -= 3;
-
-			if(earpiece_incall_vol>6)
-				earpiece_incall_vol = 6;
-			else if(earpiece_incall_vol<-21)
-				earpiece_incall_vol = -21;
-
-			printk("earpiece_incall_vol = %ddB \n",earpiece_incall_vol);
-			break;
-
-		case SPEAKER_INCALL:
-			if(procadd == 3)
-				speaker_incall_vol += 3;
-			else
-				speaker_incall_vol -= 3;
-
-			if(speaker_incall_vol > 12)
-				speaker_incall_vol = 12;
-			else if(speaker_incall_vol < -21)
-				speaker_incall_vol = -21;
-
-			printk("speaker_incall_vol = %ddB \n",speaker_incall_vol);
-			break;
-
-		case BLUETOOTH_SCO_INCALL:
-			if(procadd == 3)
-				BT_incall_vol += 3;
-			else
-				BT_incall_vol -= 3;
-
-			if(BT_incall_vol > 30)
-				BT_incall_vol = 30;
-			else if(BT_incall_vol < -16)
-				BT_incall_vol = -16;
-
-			printk("BT_incall_vol = %ddB \n",BT_incall_vol);
-			break;
-
-		default:
-			printk("Current channel does not match to incall mode!\n");
-			return -1;
-		}
-		break;
-	case 'm':
-	case 'M':
-		if(*(cookie_pot+1)=='+'){
-			procadd = 3;
-		}else if(*(cookie_pot+1)=='-'){
-			procadd = -3;
-		}else{
-			printk("Please press '+' or '-' follow 'm'!\n");
-			return -1;
-		}
-		switch(wm8994_current_route){
-		case HEADSET_INCALL:
-			if(procadd == 3)
-				headset_incall_mic_vol += 3;
-			else
-				headset_incall_mic_vol -= 3;
-
-			if(speaker_incall_mic_vol > 30)
-				speaker_incall_mic_vol = 30;
-			else if(speaker_incall_mic_vol < -22)
-				speaker_incall_mic_vol = -22;
-
-			printk("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-			break;
-
-		case EARPIECE_INCALL:
-			if(procadd == 3)
-				speaker_incall_mic_vol += 3;
-			else
-				speaker_incall_mic_vol -= 3;
-
-			if(speaker_incall_mic_vol > 30)
-				speaker_incall_mic_vol = 30;
-			else if(speaker_incall_mic_vol < -22)
-				speaker_incall_mic_vol = -22;
-
-			printk("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-			break;
-
-		case SPEAKER_INCALL:
-			if(procadd == 3)
-				speaker_incall_mic_vol += 3;
-			else
-				speaker_incall_mic_vol -= 3;
-
-			if(speaker_incall_mic_vol > 30)
-				speaker_incall_mic_vol = 30;
-			else if(speaker_incall_mic_vol < -22)
-				speaker_incall_mic_vol = -22;
-
-			printk("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-			break;
-
-		case BLUETOOTH_SCO_INCALL:
-			if(procadd == 3)
-				BT_incall_mic_vol += 3;
-			else
-				BT_incall_mic_vol -= 3;
-
-			if(BT_incall_mic_vol > 6)
-				BT_incall_mic_vol = 6;
-			else if(BT_incall_mic_vol < -57)
-				BT_incall_mic_vol = -57;
-
-			printk("BT_incall_mic_vol = %ddB \n",BT_incall_mic_vol);
-			break;
-
-		case MIC_CAPTURE:
-			if(procadd == 3)
-				recorder_vol += 3;
-			else
-				recorder_vol -= 3;
-
-			if(recorder_vol > 60)
-				recorder_vol = 60;
-			else if(recorder_vol < -16)
-				recorder_vol = -16;
-
-			printk("recorder_vol = %ddB \n",recorder_vol);
-			break;
-
-		default:
-			printk("Current channel does not match to mic mode!\n");
-			return -1;
-		}
-		break;
-	case 'l':
-	case 'L':
-		{
-		printk("headset_normal_vol = %ddB \n",headset_normal_vol);
-		printk("speaker_normal_vol = %ddB \n",speaker_normal_vol);
-		printk("headset_incall_vol = %ddB \n",headset_incall_vol);
-		printk("earpiece_incall_vol = %ddB \n",earpiece_incall_vol);
-		printk("speaker_incall_vol = %ddB \n",speaker_incall_vol);
-		printk("BT_incall_vol = %ddB \n",BT_incall_vol);
-		printk("headset_incall_mic_vol = %ddB \n",headset_incall_mic_vol);
-		printk("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-		printk("BT_incall_mic_vol = %ddB \n",BT_incall_mic_vol);
-		printk("recorder_vol = %ddB \n",recorder_vol);
-		printk("bank_vol[1] = %ddB \n",bank_vol[1]);
-		printk("bank_vol[2] = %ddB \n",bank_vol[2]);
-		printk("bank_vol[3] = %ddB \n",bank_vol[3]);
-		printk("bank_vol[4] = %ddB \n",bank_vol[4]);
-		printk("bank_vol[5] = %ddB \n",bank_vol[5]);
-		}
-		return 0;
-		break;
-	case 'c':
-	case 'C':
-		if(((*(cookie_pot+1) == 't') || (*(cookie_pot+1) == 'T')) &&
-		((*(cookie_pot+2) == 'a') || (*(cookie_pot+2) == 'A'))){
-			if(earpiece_vol_table[5] == 0x013D){
-				earpiece_vol_table[0] = 0x0127;//for cta
-				earpiece_vol_table[1] = 0x012D;
-				earpiece_vol_table[2] = 0x0130;
-				earpiece_vol_table[3] = 0x0135;
-				earpiece_vol_table[4] = 0x0137;
-				earpiece_vol_table[5] = 0x0135;
-				printk("CTA on,earpiece table value is:0x0127,0x012D,0x0130,0x0135,0x0137,0x0135\n");
-			}
-			return 0;
-			break;
-		}
-		isWM8994SetChannel = true;
-		if(*(cookie_pot+1) == '+'){
-			wm8994_proc_mode = wm8994_current_mode+1;
-
-			if(wm8994_proc_mode > wm8994_BT_baseband)
-				wm8994_proc_mode = wm8994_AP_to_headset;
-		}else if(*(cookie_pot+1) == '-'){
-			wm8994_proc_mode = wm8994_current_mode-1;
-
-			if(wm8994_proc_mode == null || wm8994_proc_mode > wm8994_BT_baseband)
-				wm8994_proc_mode = wm8994_BT_baseband;
-		}else{
-			wm8994_proc_mode = wm8994_current_mode;
-			wm8994_current_mode = null;
-		}
-
-		wm8994_fnc_ptr += wm8994_proc_mode;
-		(*wm8994_fnc_ptr)();
-		isWM8994SetChannel = false;
-		return 0;
-		break;
-	case 'e':
-	case 'E':
-		if(*(cookie_pot+1)=='+'){
-			procadd = 3;
-		}else if(*(cookie_pot+1)=='-'){
-			procadd = -3;
-		}else if(*(cookie_pot+1)=='c'){
-			wm8994_write(0x0480, 0x0000);
-			return 0;
-		}else if(*(cookie_pot+1)=='o'){
-			wm8994_write(0x0480, 0x0001|((bank_vol[1]+12)<<11)|
-			((bank_vol[2]+12)<<6)|((bank_vol[3]+12)<<1));
-			wm8994_write(0x0481, 0x0000|((bank_vol[4]+12)<<11)|
-			((bank_vol[5]+12)<<6));
-			return 0;
-		}else{
-			printk("Please press '+' '-' 'o' 'c' follow 'e'!\n");
-			return -1;
-		}
-
-		switch(*(cookie_pot+2)){
-		case '1':
-			if(procadd == 3)
-				bank_vol[1] += 3;
-			else
-				bank_vol[1] -= 3;
-
-			if(bank_vol[1] > 12)bank_vol[1] = 12;
-			if(bank_vol[1] < -12)bank_vol[1] = -12;
-
-			wm8994_read(0x0480, &eqvol);
-			wm8994_write(0x0480, (eqvol&0x07FF)|((bank_vol[1]+12)<<11)); 
-
-			printk("bank_vol[1] = %ddB \n",bank_vol[1]);
-			break;
-
-		case '2':
-			if(procadd == 3)
-				bank_vol[2] += 3;
-			else
-				bank_vol[2] -= 3;
-
-			if(bank_vol[2] > 12)bank_vol[2] = 12;
-			if(bank_vol[2] < -12)bank_vol[2] = -12;
-
-			wm8994_read(0x0480, &eqvol);
-			wm8994_write(0x0480, (eqvol&0xF83F)|((bank_vol[2]+12)<<6));
- 
-			printk("bank_vol[2] = %ddB \n",bank_vol[2]);
-			break;
-
-		case '3':
-			if(procadd == 3)
-				bank_vol[3] += 3;
-			else
-				bank_vol[3] -= 3;
-
-			if(bank_vol[3] > 12)bank_vol[3] = 12;
-			if(bank_vol[3] < -12)bank_vol[3] = -12;
-
-			wm8994_read(0x0480, &eqvol);
-			wm8994_write(0x0480, (eqvol&0xFFC1)|((bank_vol[3]+12)<<1)); 
-
-			printk("bank_vol[3] = %ddB \n",bank_vol[3]);
-			break;
-
-		case '4':
-			if(procadd == 3)
-				bank_vol[4] += 3;
-			else
-				bank_vol[4] -= 3;
-
-			if(bank_vol[4] > 12)bank_vol[4] = 12;
-			if(bank_vol[4] < -12)bank_vol[4] = -12;
-
-			wm8994_read(0x0481, &eqvol);
-			wm8994_write(0x0481, (eqvol&0x07FF)|((bank_vol[4]+12)<<11)); 
-
-			printk("bank_vol[4] = %ddB \n",bank_vol[4]);
-			break;
-
-		case '5':
-			if(procadd == 3)
-				bank_vol[5] += 3;
-			else
-				bank_vol[5] -= 3;
-
-			if(bank_vol[5] > 12)bank_vol[5] = 12;
-			if(bank_vol[5] < -12)bank_vol[5] = -12;
-
-			wm8994_read(0x0481, &eqvol);
-			wm8994_write(0x0481, (eqvol&0xF83F)|((bank_vol[5]+12)<<6)); 
-
-			printk("bank_vol[5] = %ddB \n",bank_vol[5]);
-			break;
-
-		default:
-			printk("Please press bank '1' to '5' follow 'e+' or 'e-'!\n");
-			return -1;
-		}
-		return 0;
-		break;
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
 	case 'd':
 	case 'D':
 		debug_write_read ++;
@@ -4005,7 +3604,6 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		break;
 	}
 
-	wm8994_set_channel_vol();	
 	return len;
 }
 
@@ -4039,6 +3637,7 @@ static int wm8994_proc_init(void){
 }
 
 #endif
+
 static int wm8994_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
