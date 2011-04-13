@@ -248,6 +248,14 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		tx_hdr.vif_idx = vif_idx;
 		tx_hdr.cookie = slot;
 
+		/*
+		 * This is a bit redundant but it helps to get
+		 * the per-packet index quickly when draining the
+		 * TX queue in the HIF layer. Otherwise we would
+		 * have to parse the packet contents ...
+		 */
+		tx_ctl->sta_idx = sta_idx;
+
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 			tx_ctl->type = ATH9K_HTC_AMPDU;
 			tx_hdr.data_type = ATH9K_HTC_AMPDU;

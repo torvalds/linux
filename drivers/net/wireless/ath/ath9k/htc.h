@@ -280,6 +280,7 @@ struct ath9k_htc_tx_ctl {
 	u8 type; /* ATH9K_HTC_* */
 	u8 epid;
 	u8 txok;
+	u8 sta_idx;
 };
 
 static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)

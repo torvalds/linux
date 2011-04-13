@@ -35,6 +35,7 @@ struct ath9k_htc_hif {
 
 	void (*start) (void *hif_handle);
 	void (*stop) (void *hif_handle);
+	void (*sta_drain) (void *hif_handle, u8 idx);
 	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf);
 };
 
@@ -209,6 +210,7 @@ int htc_send_epid(struct htc_target *target, struct sk_buff *skb,
 		  enum htc_endpoint_id epid);
 void htc_stop(struct htc_target *target);
 void htc_start(struct htc_target *target);
+void htc_sta_drain(struct htc_target *target, u8 idx);
 
 void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 		      struct sk_buff *skb, u32 len, u8 pipe_id);

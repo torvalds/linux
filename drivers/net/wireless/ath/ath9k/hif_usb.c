@@ -363,6 +363,40 @@ static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb)
 	return ret;
 }
 
+static inline bool check_index(struct sk_buff *skb, u8 idx)
+{
+	struct ath9k_htc_tx_ctl *tx_ctl;
+
+	tx_ctl = HTC_SKB_CB(skb);
+
+	if ((tx_ctl->type == ATH9K_HTC_AMPDU) &&
+	    (tx_ctl->sta_idx == idx))
+		return true;
+
+	return false;
+}
+
+static void hif_usb_sta_drain(void *hif_handle, u8 idx)
+{
+	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct sk_buff *skb, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
+
+	skb_queue_walk_safe(&hif_dev->tx.tx_skb_queue, skb, tmp) {
+		if (check_index(skb, idx)) {
+			__skb_unlink(skb, &hif_dev->tx.tx_skb_queue);
+			ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
+						  skb, false);
+			hif_dev->tx.tx_skb_cnt--;
+			TX_STAT_INC(skb_failed);
+		}
+	}
+
+	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
+}
+
 static struct ath9k_htc_hif hif_usb = {
 	.transport = ATH9K_HIF_USB,
 	.name = "ath9k_hif_usb",
@@ -372,6 +406,7 @@ static struct ath9k_htc_hif hif_usb = {
 
 	.start = hif_usb_start,
 	.stop = hif_usb_stop,
+	.sta_drain = hif_usb_sta_drain,
 	.send = hif_usb_send,
 };
 

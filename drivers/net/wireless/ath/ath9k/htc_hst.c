@@ -310,6 +310,11 @@ void htc_start(struct htc_target *target)
 	target->hif->start(target->hif_dev);
 }
 
+void htc_sta_drain(struct htc_target *target, u8 idx)
+{
+	target->hif->sta_drain(target->hif_dev, idx);
+}
+
 void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 			       struct sk_buff *skb, bool txok)
 {

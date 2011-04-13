@@ -1303,10 +1303,13 @@ static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath9k_htc_sta *ista;
 	int ret;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
+	ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	htc_sta_drain(priv->htc, ista->index);
 	ret = ath9k_htc_remove_station(priv, vif, sta);
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
