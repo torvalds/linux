@@ -98,7 +98,7 @@ enum sci_status scic_controller_stop(
 enum sci_status scic_controller_reset(
 	struct scic_sds_controller *controller);
 
-enum sci_io_status scic_controller_start_io(
+enum sci_status scic_controller_start_io(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *remote_device,
 	struct scic_sds_request *io_request,

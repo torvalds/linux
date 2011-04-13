@@ -429,7 +429,7 @@ int isci_task_execute_tmf(
 	unsigned long timeout_ms)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	enum sci_status status = SCI_FAILURE;
+	enum sci_task_status status = SCI_TASK_FAILURE;
 	struct scic_sds_remote_device *sci_device;
 	struct isci_remote_device *isci_device = tmf->device;
 	struct isci_request *request;
@@ -488,7 +488,7 @@ int isci_task_execute_tmf(
 		SCI_CONTROLLER_INVALID_IO_TAG
 		);
 
-	if (status != SCI_SUCCESS) {
+	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
 			 "%s: start_io failed - status = 0x%x, request = %p\n",
 			 __func__,

@@ -513,15 +513,13 @@ bool isci_device_is_reset_pending(
 			__func__, isci_device, isci_request);
 
 		if (isci_request->ttype == io_task) {
-
-			unsigned long flags;
 			struct sas_task *task = isci_request_access_task(
 				isci_request);
 
-			spin_lock_irqsave(&task->task_state_lock, flags);
+			spin_lock(&task->task_state_lock);
 			if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET)
 				reset_is_pending = true;
-			spin_unlock_irqrestore(&task->task_state_lock, flags);
+			spin_unlock(&task->task_state_lock);
 		}
 	}
 

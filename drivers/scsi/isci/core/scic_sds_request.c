@@ -850,19 +850,20 @@ void *scic_io_request_get_response_iu_address(
 u32 scic_io_request_get_number_of_bytes_transferred(
 	struct scic_sds_request *scic_sds_request)
 {
+	struct scic_sds_controller *scic = scic_sds_request->owning_controller;
 	u32 ret_val = 0;
 
-	if (readl(&scic_sds_request->owning_controller->smu_registers->address_modifier) == 0) {
+	if (readl(&scic->smu_registers->address_modifier) == 0) {
+		void __iomem *scu_reg_base = scic->scu_registers;
 		/*
 		 * get the bytes of data from the Address == BAR1 + 20002Ch + (256*TCi) where
 		 *   BAR1 is the scu_registers
 		 *   0x20002C = 0x200000 + 0x2c
 		 *            = start of task context SRAM + offset of (type.ssp.data_offset)
 		 *   TCi is the io_tag of struct scic_sds_request */
-		ret_val = readl((u8 *)scic_sds_request->owning_controller->scu_registers +
-				(SCU_TASK_CONTEXT_SRAM + SCI_FIELD_OFFSET(struct scu_task_context, type.ssp.data_offset)) +
-				((sizeof(struct scu_task_context)) * scic_sds_io_tag_get_index(scic_sds_request->io_tag))
-			);
+		ret_val = readl(scu_reg_base +
+				(SCU_TASK_CONTEXT_SRAM + offsetof(struct scu_task_context, type.ssp.data_offset)) +
+				((sizeof(struct scu_task_context)) * scic_sds_io_tag_get_index(scic_sds_request->io_tag)));
 	}
 
 	return ret_val;

@@ -250,7 +250,7 @@ struct scic_sds_port {
 	 * task scheduler group PE configuration registers.
 	 * It is used to assign PEs to a port.
 	 */
-	u32 *port_pe_configuration_register;
+	u32 __iomem *port_pe_configuration_register;
 
 	/**
 	 * This field is the VIIT register space for ths port object.

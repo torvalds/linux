@@ -1967,10 +1967,10 @@ enum sci_status scic_controller_reset(
  * requirement for the user to call scic_stp_io_set_ncq_tag() prior to invoking
  * the scic_controller_start_io() method. scic_controller_allocate_tag() for
  * more information on allocating a tag. Indicate if the controller
- * successfully started the IO request. SCI_IO_SUCCESS if the IO request was
+ * successfully started the IO request. SCI_SUCCESS if the IO request was
  * successfully started. Determine the failure situations and return values.
  */
-enum sci_io_status scic_controller_start_io(
+enum sci_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *rdev,
 	struct scic_sds_request *req,
@@ -2723,8 +2723,8 @@ enum sci_status scic_controller_initialize(
 		 * logical ports
 		 */
 		for (index = 0; index < max_supported_ports; index++) {
-			struct scu_port_task_scheduler_group_registers *ptsg =
-				&scic->scu_registers->peg0.ptsg;
+			struct scu_port_task_scheduler_group_registers __iomem
+				*ptsg = &scic->scu_registers->peg0.ptsg;
 
 			writel(index, &ptsg->protocol_engine[index]);
 		}
