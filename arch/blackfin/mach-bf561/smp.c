@@ -62,9 +62,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	bfin_write_SICB_IWR1(IWR_DISABLE_ALL);
 	SSYNC();
 
-	/* Store CPU-private information to the cpu_data array. */
-	bfin_setup_cpudata(cpu);
-
 	/* We are done with local CPU inits, unblock the boot CPU. */
 	set_cpu_online(cpu, true);
 	spin_lock(&boot_lock);

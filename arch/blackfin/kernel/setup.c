@@ -105,6 +105,8 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 	bfin_dcache_init(dcplb_tbl[cpu]);
 #endif
 
+	bfin_setup_cpudata(cpu);
+
 	/*
 	 * In cache coherence emulation mode, we need to have the
 	 * D-cache enabled before running any atomic operation which
@@ -1036,8 +1038,6 @@ void __init setup_arch(char **cmdline_p)
 static int __init topology_init(void)
 {
 	unsigned int cpu;
-	/* Record CPU-private information for the boot processor. */
-	bfin_setup_cpudata(0);
 
 	for_each_possible_cpu(cpu) {
 		register_cpu(&per_cpu(cpu_data, cpu).cpu, cpu);
