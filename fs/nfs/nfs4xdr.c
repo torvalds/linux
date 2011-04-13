@@ -4838,17 +4838,19 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 	struct nfs4_secinfo_flavor *sec_flavor;
 	int status;
 	__be32 *p;
-	int i;
+	int i, num_flavors;
 
 	status = decode_op_hdr(xdr, OP_SECINFO);
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
-	res->flavors->num_flavors = be32_to_cpup(p);
 
-	for (i = 0; i < res->flavors->num_flavors; i++) {
+	res->flavors->num_flavors = 0;
+	num_flavors = be32_to_cpup(p);
+
+	for (i = 0; i < num_flavors; i++) {
 		sec_flavor = &res->flavors->flavors[i];
-		if ((char *)&sec_flavor[1] - (char *)res > PAGE_SIZE)
+		if ((char *)&sec_flavor[1] - (char *)res->flavors > PAGE_SIZE)
 			break;
 
 		p = xdr_inline_decode(xdr, 4);
@@ -4860,6 +4862,7 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 			if (decode_secinfo_gss(xdr, sec_flavor))
 				break;
 		}
+		res->flavors->num_flavors++;
 	}
 
 	return 0;
