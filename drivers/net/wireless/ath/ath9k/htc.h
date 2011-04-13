@@ -260,6 +260,13 @@ struct ath9k_htc_rx {
 	spinlock_t rxbuflock;
 };
 
+struct ath9k_htc_tx {
+	bool tx_queues_stop;
+	spinlock_t tx_lock;
+
+	struct sk_buff_head tx_queue;
+};
+
 struct ath9k_htc_tx_ctl {
 	u8 type; /* ATH9K_HTC_* */
 };
@@ -433,22 +440,20 @@ struct ath9k_htc_priv {
 	u16 nstations;
 	bool rearm_ani;
 	bool reconfig_beacon;
+	unsigned int rxfilter;
 
 	struct ath9k_hw_cal_data caldata;
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	spinlock_t beacon_lock;
-
-	bool tx_queues_stop;
-	spinlock_t tx_lock;
-
 	struct htc_beacon_config cur_beacon_conf;
-	unsigned int rxfilter;
+
+	struct ath9k_htc_rx rx;
+	struct ath9k_htc_tx tx;
+
 	struct tasklet_struct swba_tasklet;
 	struct tasklet_struct rx_tasklet;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
-	struct ath9k_htc_rx rx;
 	struct tasklet_struct tx_tasklet;
-	struct sk_buff_head tx_queue;
 	struct delayed_work ani_work;
 	struct work_struct ps_work;
 	struct work_struct fatal_work;

@@ -707,9 +707,9 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 			(aggr.aggr_enable) ? "Starting" : "Stopping",
 			sta->addr, tid);
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
 	ista->tid_state[tid] = (aggr.aggr_enable && !ret) ? AGGR_START : AGGR_STOP;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	return ret;
 }
@@ -853,9 +853,9 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
 				"Stopping TX queues\n");
 			ieee80211_stop_queues(hw);
-			spin_lock_bh(&priv->tx_lock);
-			priv->tx_queues_stop = true;
-			spin_unlock_bh(&priv->tx_lock);
+			spin_lock_bh(&priv->tx.tx_lock);
+			priv->tx.tx_queues_stop = true;
+			spin_unlock_bh(&priv->tx.tx_lock);
 		} else {
 			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
 				"Tx failed\n");
@@ -923,9 +923,9 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	priv->op_flags &= ~OP_INVALID;
 	htc_start(priv->htc);
 
-	spin_lock_bh(&priv->tx_lock);
-	priv->tx_queues_stop = false;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.tx_queues_stop = false;
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	ieee80211_wake_queues(hw);
 
@@ -965,7 +965,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	tasklet_kill(&priv->rx_tasklet);
 	tasklet_kill(&priv->tx_tasklet);
 
-	skb_queue_purge(&priv->tx_queue);
+	skb_queue_purge(&priv->tx.tx_queue);
 
 	ath9k_wmi_event_drain(priv);
 
@@ -1563,9 +1563,9 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
-		spin_lock_bh(&priv->tx_lock);
+		spin_lock_bh(&priv->tx.tx_lock);
 		ista->tid_state[tid] = AGGR_OPERATIONAL;
-		spin_unlock_bh(&priv->tx_lock);
+		spin_unlock_bh(&priv->tx.tx_lock);
 		break;
 	default:
 		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");

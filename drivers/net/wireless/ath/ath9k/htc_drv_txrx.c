@@ -239,10 +239,10 @@ static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
 {
 	bool ret = false;
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
 	if ((tid < ATH9K_HTC_MAX_TID) && (ista->tid_state[tid] == AGGR_STOP))
 		ret = true;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	return ret;
 }
@@ -257,7 +257,7 @@ void ath9k_tx_tasklet(unsigned long data)
 	struct sk_buff *skb = NULL;
 	__le16 fc;
 
-	while ((skb = skb_dequeue(&priv->tx_queue)) != NULL) {
+	while ((skb = skb_dequeue(&priv->tx.tx_queue)) != NULL) {
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
@@ -292,9 +292,9 @@ void ath9k_tx_tasklet(unsigned long data)
 
 				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
 					ieee80211_start_tx_ba_session(sta, tid, 0);
-					spin_lock_bh(&priv->tx_lock);
+					spin_lock_bh(&priv->tx.tx_lock);
 					ista->tid_state[tid] = AGGR_PROGRESS;
-					spin_unlock_bh(&priv->tx_lock);
+					spin_unlock_bh(&priv->tx.tx_lock);
 				}
 			}
 		}
@@ -307,16 +307,16 @@ void ath9k_tx_tasklet(unsigned long data)
 	}
 
 	/* Wake TX queues if needed */
-	spin_lock_bh(&priv->tx_lock);
-	if (priv->tx_queues_stop) {
-		priv->tx_queues_stop = false;
-		spin_unlock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
+	if (priv->tx.tx_queues_stop) {
+		priv->tx.tx_queues_stop = false;
+		spin_unlock_bh(&priv->tx.tx_lock);
 		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
 			"Waking up TX queues\n");
 		ieee80211_wake_queues(priv->hw);
 		return;
 	}
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->tx.tx_lock);
 }
 
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
@@ -348,13 +348,13 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 	if (txok)
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
 
-	skb_queue_tail(&priv->tx_queue, skb);
+	skb_queue_tail(&priv->tx.tx_queue, skb);
 	tasklet_schedule(&priv->tx_tasklet);
 }
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv)
 {
-	skb_queue_head_init(&priv->tx_queue);
+	skb_queue_head_init(&priv->tx.tx_queue);
 	return 0;
 }
 
