@@ -292,6 +292,7 @@ struct ath9k_htc_tx_ctl {
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
+#define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
 
@@ -301,6 +302,7 @@ struct ath_tx_stats {
 	u32 skb_queued;
 	u32 skb_completed;
 	u32 skb_dropped;
+	u32 cab_queued;
 	u32 queue_stats[WME_NUM_AC];
 };
 
@@ -324,6 +326,7 @@ struct ath9k_debug {
 
 #define TX_STAT_INC(c) do { } while (0)
 #define RX_STAT_INC(c) do { } while (0)
+#define CAB_STAT_INC   do { } while (0)
 
 #define TX_QSTAT_INC(c) do { } while (0)
 
@@ -505,7 +508,8 @@ void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);
-int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb);
+int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
+		       struct sk_buff *skb, bool is_cab);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype);
 int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);

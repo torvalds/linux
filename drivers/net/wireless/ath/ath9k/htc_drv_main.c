@@ -797,6 +797,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "SKBs dropped",
 			priv->debug.tx_stats.skb_dropped);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "CAB queued",
+			priv->debug.tx_stats.cab_queued);
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "BE queued",
@@ -1054,7 +1057,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	ret = ath9k_htc_tx_start(priv, skb);
+	ret = ath9k_htc_tx_start(priv, skb, false);
 	if (ret != 0) {
 		if (ret == -ENOMEM) {
 			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,

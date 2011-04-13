@@ -79,7 +79,8 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 	return error;
 }
 
-int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
+int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
+		       struct sk_buff *skb, bool is_cab)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_mgmt *mgmt;
@@ -170,6 +171,12 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		tx_fhdr = skb_push(skb, sizeof(tx_hdr));
 		memcpy(tx_fhdr, (u8 *) &tx_hdr, sizeof(tx_hdr));
 
+		if (is_cab) {
+			CAB_STAT_INC;
+			epid = priv->cab_ep;
+			goto send;
+		}
+
 		qnum = skb_get_queue_mapping(skb);
 
 		switch (qnum) {
@@ -222,7 +229,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		memcpy(tx_fhdr, (u8 *) &mgmt_hdr, sizeof(mgmt_hdr));
 		epid = priv->mgmt_ep;
 	}
-
+send:
 	return htc_send(priv->htc, skb, epid, &tx_ctl);
 }
 
@@ -326,7 +333,8 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 	} else if ((ep_id == priv->data_bk_ep) ||
 		   (ep_id == priv->data_be_ep) ||
 		   (ep_id == priv->data_vi_ep) ||
-		   (ep_id == priv->data_vo_ep)) {
+		   (ep_id == priv->data_vo_ep) ||
+		   (ep_id == priv->cab_ep)) {
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
 	} else {
 		ath_err(common, "Unsupported TX EPID: %d\n", ep_id);

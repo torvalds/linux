@@ -272,6 +272,48 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 	dev_kfree_skb_any(skb);
 }
 
+static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
+				    int slot)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ieee80211_vif *vif;
+	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+	int padpos, padsize, ret;
+
+	spin_lock_bh(&priv->beacon_lock);
+
+	vif = priv->cur_beacon_conf.bslot[slot];
+
+	skb = ieee80211_get_buffered_bc(priv->hw, vif);
+
+	while(skb) {
+		hdr = (struct ieee80211_hdr *) skb->data;
+
+		padpos = ath9k_cmn_padpos(hdr->frame_control);
+		padsize = padpos & 3;
+		if (padsize && skb->len > padpos) {
+			if (skb_headroom(skb) < padsize) {
+				dev_kfree_skb_any(skb);
+				goto next;
+			}
+			skb_push(skb, padsize);
+			memmove(skb->data, skb->data + padsize, padpos);
+		}
+
+		ret = ath9k_htc_tx_start(priv, skb, true);
+		if (ret != 0) {
+			ath_dbg(common, ATH_DBG_FATAL,
+				"Failed to send CAB frame\n");
+			dev_kfree_skb_any(skb);
+		}
+	next:
+		skb = ieee80211_get_buffered_bc(priv->hw, vif);
+	}
+
+	spin_unlock_bh(&priv->beacon_lock);
+}
+
 static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 				  int slot)
 {
@@ -390,6 +432,7 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv)
 	}
 	spin_unlock_bh(&priv->beacon_lock);
 
+	ath9k_htc_send_buffered(priv, slot);
 	ath9k_htc_send_beacon(priv, slot);
 }
 
