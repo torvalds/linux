@@ -4846,9 +4846,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (inode->i_nlink == ~0U)
 		return -EMLINK;
 
-	btrfs_inc_nlink(inode);
-	inode->i_ctime = CURRENT_TIME;
-
 	err = btrfs_set_inode_index(dir, &index);
 	if (err)
 		goto fail;
@@ -4863,6 +4860,9 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		err = PTR_ERR(trans);
 		goto fail;
 	}
+
+	btrfs_inc_nlink(inode);
+	inode->i_ctime = CURRENT_TIME;
 
 	btrfs_set_trans_block_group(trans, dir);
 	ihold(inode);
