@@ -1878,6 +1878,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	u32 desc, time, count, base, data1;
 	u32 blink1, blink2, ilink1, ilink2;
 	u32 pc, hcmd;
+	struct iwl_error_event_table table;
 
 	base = priv->device_pointers.error_event_table;
 	if (priv->ucode_type == UCODE_INIT) {
@@ -1895,7 +1896,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		return;
 	}
 
-	count = iwl_read_targ_mem(priv, base);
+	iwl_read_targ_mem_words(priv, base, &table, sizeof(table));
+
+	count = table.valid;
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
@@ -1903,18 +1906,18 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 			priv->status, count);
 	}
 
-	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
+	desc = table.error_id;
 	priv->isr_stats.err_code = desc;
-	pc = iwl_read_targ_mem(priv, base + 2 * sizeof(u32));
-	blink1 = iwl_read_targ_mem(priv, base + 3 * sizeof(u32));
-	blink2 = iwl_read_targ_mem(priv, base + 4 * sizeof(u32));
-	ilink1 = iwl_read_targ_mem(priv, base + 5 * sizeof(u32));
-	ilink2 = iwl_read_targ_mem(priv, base + 6 * sizeof(u32));
-	data1 = iwl_read_targ_mem(priv, base + 7 * sizeof(u32));
-	data2 = iwl_read_targ_mem(priv, base + 8 * sizeof(u32));
-	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
-	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
-	hcmd = iwl_read_targ_mem(priv, base + 22 * sizeof(u32));
+	pc = table.pc;
+	blink1 = table.blink1;
+	blink2 = table.blink2;
+	ilink1 = table.ilink1;
+	ilink2 = table.ilink2;
+	data1 = table.data1;
+	data2 = table.data2;
+	line = table.line;
+	time = table.tsf_low;
+	hcmd = table.hcmd;
 
 	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
 				      blink1, blink2, ilink1, ilink2);

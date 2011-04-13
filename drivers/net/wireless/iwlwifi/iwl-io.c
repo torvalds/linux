@@ -242,20 +242,32 @@ void iwl_clear_bits_prph(struct iwl_priv *priv, u32 reg, u32 mask)
 	spin_unlock_irqrestore(&priv->reg_lock, flags);
 }
 
-u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
+void _iwl_read_targ_mem_words(struct iwl_priv *priv, u32 addr,
+			      void *buf, int words)
 {
 	unsigned long flags;
-	u32 value;
+	int offs;
+	u32 *vals = buf;
 
 	spin_lock_irqsave(&priv->reg_lock, flags);
 	iwl_grab_nic_access(priv);
 
 	iwl_write32(priv, HBUS_TARG_MEM_RADDR, addr);
 	rmb();
-	value = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+
+	for (offs = 0; offs < words; offs++)
+		vals[offs] = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->reg_lock, flags);
+}
+
+u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
+{
+	u32 value;
+
+	_iwl_read_targ_mem_words(priv, addr, &value, 1);
+
 	return value;
 }
 
