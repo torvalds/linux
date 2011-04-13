@@ -403,9 +403,9 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 		opts.omtu     = l2cap_pi(sk)->omtu;
 		opts.flush_to = l2cap_pi(sk)->flush_to;
 		opts.mode     = l2cap_pi(sk)->mode;
-		opts.fcs      = l2cap_pi(sk)->fcs;
-		opts.max_tx   = l2cap_pi(sk)->max_tx;
-		opts.txwin_size = (__u16)l2cap_pi(sk)->tx_win;
+		opts.fcs      = chan->fcs;
+		opts.max_tx   = chan->max_tx;
+		opts.txwin_size = (__u16)chan->tx_win;
 
 		len = min_t(unsigned int, len, sizeof(opts));
 		if (copy_to_user(optval, (char *) &opts, len))
@@ -551,9 +551,9 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		opts.omtu     = l2cap_pi(sk)->omtu;
 		opts.flush_to = l2cap_pi(sk)->flush_to;
 		opts.mode     = l2cap_pi(sk)->mode;
-		opts.fcs      = l2cap_pi(sk)->fcs;
-		opts.max_tx   = l2cap_pi(sk)->max_tx;
-		opts.txwin_size = (__u16)l2cap_pi(sk)->tx_win;
+		opts.fcs      = chan->fcs;
+		opts.max_tx   = chan->max_tx;
+		opts.txwin_size = (__u16)chan->tx_win;
 
 		len = min_t(unsigned int, sizeof(opts), optlen);
 		if (copy_from_user((char *) &opts, optval, len)) {
@@ -583,9 +583,9 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 
 		l2cap_pi(sk)->imtu = opts.imtu;
 		l2cap_pi(sk)->omtu = opts.omtu;
-		l2cap_pi(sk)->fcs  = opts.fcs;
-		l2cap_pi(sk)->max_tx = opts.max_tx;
-		l2cap_pi(sk)->tx_win = (__u8)opts.txwin_size;
+		chan->fcs  = opts.fcs;
+		chan->max_tx = opts.max_tx;
+		chan->tx_win = (__u8)opts.txwin_size;
 		break;
 
 	case L2CAP_LM:
@@ -764,7 +764,8 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		/* Entire SDU fits into one PDU */
 		if (len <= pi->chan->remote_mps) {
 			control = L2CAP_SDU_UNSEGMENTED;
-			skb = l2cap_create_iframe_pdu(sk, msg, len, control, 0);
+			skb = l2cap_create_iframe_pdu(pi->chan, msg, len,
+								control, 0);
 			if (IS_ERR(skb)) {
 				err = PTR_ERR(skb);
 				goto done;
@@ -998,9 +999,9 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->omtu = l2cap_pi(parent)->omtu;
 		chan->conf_state = pchan->conf_state;
 		pi->mode = l2cap_pi(parent)->mode;
-		pi->fcs  = l2cap_pi(parent)->fcs;
-		pi->max_tx = l2cap_pi(parent)->max_tx;
-		pi->tx_win = l2cap_pi(parent)->tx_win;
+		chan->fcs  = pchan->fcs;
+		chan->max_tx = pchan->max_tx;
+		chan->tx_win = pchan->tx_win;
 		chan->sec_level = pchan->sec_level;
 		chan->role_switch = pchan->role_switch;
 		chan->force_reliable = pchan->force_reliable;
@@ -1014,9 +1015,9 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		} else {
 			pi->mode = L2CAP_MODE_BASIC;
 		}
-		pi->max_tx = L2CAP_DEFAULT_MAX_TX;
-		pi->fcs  = L2CAP_FCS_CRC16;
-		pi->tx_win = L2CAP_DEFAULT_TX_WINDOW;
+		chan->max_tx = L2CAP_DEFAULT_MAX_TX;
+		chan->fcs  = L2CAP_FCS_CRC16;
+		chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
 		chan->sec_level = BT_SECURITY_LOW;
 		chan->role_switch = 0;
 		chan->force_reliable = 0;

@@ -711,7 +711,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	sk = sock->sk;
 	lock_sock(sk);
 	l2cap_pi(sk)->imtu = l2cap_mtu;
-	l2cap_pi(sk)->sec_level = sec_level;
+	l2cap_pi(sk)->chan->sec_level = sec_level;
 	if (l2cap_ertm)
 		l2cap_pi(sk)->mode = L2CAP_MODE_ERTM;
 	release_sock(sk);
