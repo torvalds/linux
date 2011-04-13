@@ -286,8 +286,16 @@ err:
 	return ret;
 }
 
-int htc_send(struct htc_target *target, struct sk_buff *skb,
-	     enum htc_endpoint_id epid)
+int htc_send(struct htc_target *target, struct sk_buff *skb)
+{
+	struct ath9k_htc_tx_ctl *tx_ctl;
+
+	tx_ctl = HTC_SKB_CB(skb);
+	return htc_issue_send(target, skb, skb->len, 0, tx_ctl->epid);
+}
+
+int htc_send_epid(struct htc_target *target, struct sk_buff *skb,
+		  enum htc_endpoint_id epid)
 {
 	return htc_issue_send(target, skb, skb->len, 0, epid);
 }

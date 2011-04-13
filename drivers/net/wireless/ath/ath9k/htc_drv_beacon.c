@@ -391,12 +391,13 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	memset(tx_ctl, 0, sizeof(*tx_ctl));
 
 	tx_ctl->type = ATH9K_HTC_BEACON;
+	tx_ctl->epid = priv->beacon_ep;
 
 	beacon_hdr.vif_index = avp->index;
 	tx_fhdr = skb_push(beacon, sizeof(beacon_hdr));
 	memcpy(tx_fhdr, (u8 *) &beacon_hdr, sizeof(beacon_hdr));
 
-	ret = htc_send(priv->htc, beacon, priv->beacon_ep);
+	ret = htc_send(priv->htc, beacon);
 	if (ret != 0) {
 		if (ret == -ENOMEM) {
 			ath_dbg(common, ATH_DBG_BSTUCK,

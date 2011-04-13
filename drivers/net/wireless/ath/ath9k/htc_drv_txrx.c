@@ -76,6 +76,34 @@ void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv)
 	spin_unlock_bh(&priv->tx.tx_lock);
 }
 
+static enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
+					 u16 qnum)
+{
+	enum htc_endpoint_id epid;
+
+	switch (qnum) {
+	case 0:
+		TX_QSTAT_INC(WME_AC_VO);
+		epid = priv->data_vo_ep;
+		break;
+	case 1:
+		TX_QSTAT_INC(WME_AC_VI);
+		epid = priv->data_vi_ep;
+		break;
+	case 2:
+		TX_QSTAT_INC(WME_AC_BE);
+		epid = priv->data_be_ep;
+		break;
+	case 3:
+	default:
+		TX_QSTAT_INC(WME_AC_BK);
+		epid = priv->data_bk_ep;
+		break;
+	}
+
+	return epid;
+}
+
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo)
 {
@@ -113,7 +141,6 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 	struct ath9k_htc_sta *ista;
 	struct ath9k_htc_vif *avp = NULL;
 	struct ath9k_htc_tx_ctl *tx_ctl;
-	enum htc_endpoint_id epid;
 	u16 qnum;
 	__le16 fc;
 	u8 *tx_fhdr;
@@ -197,31 +224,12 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 
 		if (is_cab) {
 			CAB_STAT_INC;
-			epid = priv->cab_ep;
+			tx_ctl->epid = priv->cab_ep;
 			goto send;
 		}
 
 		qnum = skb_get_queue_mapping(skb);
-
-		switch (qnum) {
-		case 0:
-			TX_QSTAT_INC(WME_AC_VO);
-			epid = priv->data_vo_ep;
-			break;
-		case 1:
-			TX_QSTAT_INC(WME_AC_VI);
-			epid = priv->data_vi_ep;
-			break;
-		case 2:
-			TX_QSTAT_INC(WME_AC_BE);
-			epid = priv->data_be_ep;
-			break;
-		case 3:
-		default:
-			TX_QSTAT_INC(WME_AC_BK);
-			epid = priv->data_bk_ep;
-			break;
-		}
+		tx_ctl->epid = get_htc_epid(priv, qnum);
 	} else {
 		struct tx_mgmt_hdr mgmt_hdr;
 
@@ -251,10 +259,10 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 
 		tx_fhdr = skb_push(skb, sizeof(mgmt_hdr));
 		memcpy(tx_fhdr, (u8 *) &mgmt_hdr, sizeof(mgmt_hdr));
-		epid = priv->mgmt_ep;
+		tx_ctl->epid = priv->mgmt_ep;
 	}
 send:
-	return htc_send(priv->htc, skb, epid);
+	return htc_send(priv->htc, skb);
 }
 
 static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
