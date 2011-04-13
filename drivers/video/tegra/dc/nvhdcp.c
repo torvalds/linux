@@ -980,11 +980,11 @@ static void nvhdcp_downstream_worker(struct work_struct *work)
 	nvhdcp_info("link verified!\n");
 
 	while (1) {
-		if (nvhdcp->state != STATE_LINK_VERIFY)
-			goto failure;
-
 		if (!nvhdcp_is_plugged(nvhdcp))
 			goto lost_hdmi;
+
+		if (nvhdcp->state != STATE_LINK_VERIFY)
+			goto failure;
 
 		e = verify_link(nvhdcp, true);
 		if (e) {
