@@ -24,39 +24,44 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
+static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
 {
 	struct ath9k_htc_priv *priv = file->private_data;
-	struct ath9k_htc_target_stats cmd_rsp;
+	struct ath9k_htc_target_int_stats cmd_rsp;
 	char buf[512];
 	unsigned int len = 0;
 	int ret = 0;
 
 	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
 
-	WMI_CMD(WMI_TGT_STATS_CMDID);
+	WMI_CMD(WMI_INT_STATS_CMDID);
 	if (ret)
 		return -EINVAL;
 
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "RX",
+			be32_to_cpu(cmd_rsp.rx));
 
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Short Retries",
-			be32_to_cpu(cmd_rsp.tx_shortretry));
+			"%20s : %10u\n", "RXORN",
+			be32_to_cpu(cmd_rsp.rxorn));
+
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Long Retries",
-			be32_to_cpu(cmd_rsp.tx_longretry));
+			"%20s : %10u\n", "RXEOL",
+			be32_to_cpu(cmd_rsp.rxeol));
+
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Xretries",
-			be32_to_cpu(cmd_rsp.tx_xretries));
+			"%20s : %10u\n", "TXURN",
+			be32_to_cpu(cmd_rsp.txurn));
+
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Unaggr. Xretries",
-			be32_to_cpu(cmd_rsp.ht_txunaggr_xretry));
+			"%20s : %10u\n", "TXTO",
+			be32_to_cpu(cmd_rsp.txto));
+
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Xretries (HT)",
-			be32_to_cpu(cmd_rsp.ht_tx_xretries));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Rate", priv->debug.txrate);
+			"%20s : %10u\n", "CST",
+			be32_to_cpu(cmd_rsp.cst));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -64,8 +69,112 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static const struct file_operations fops_tgt_stats = {
-	.read = read_file_tgt_stats,
+static const struct file_operations fops_tgt_int_stats = {
+	.read = read_file_tgt_int_stats,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath9k_htc_target_tx_stats cmd_rsp;
+	char buf[512];
+	unsigned int len = 0;
+	int ret = 0;
+
+	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+	WMI_CMD(WMI_TX_STATS_CMDID);
+	if (ret)
+		return -EINVAL;
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "Xretries",
+			be32_to_cpu(cmd_rsp.xretries));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "FifoErr",
+			be32_to_cpu(cmd_rsp.fifoerr));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "Filtered",
+			be32_to_cpu(cmd_rsp.filtered));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "TimerExp",
+			be32_to_cpu(cmd_rsp.timer_exp));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "ShortRetries",
+			be32_to_cpu(cmd_rsp.shortretries));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "LongRetries",
+			be32_to_cpu(cmd_rsp.longretries));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "QueueNull",
+			be32_to_cpu(cmd_rsp.qnull));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "EncapFail",
+			be32_to_cpu(cmd_rsp.encap_fail));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "NoBuf",
+			be32_to_cpu(cmd_rsp.nobuf));
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_tgt_tx_stats = {
+	.read = read_file_tgt_tx_stats,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath9k_htc_target_rx_stats cmd_rsp;
+	char buf[512];
+	unsigned int len = 0;
+	int ret = 0;
+
+	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+	WMI_CMD(WMI_RX_STATS_CMDID);
+	if (ret)
+		return -EINVAL;
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "NoBuf",
+			be32_to_cpu(cmd_rsp.nobuf));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "HostSend",
+			be32_to_cpu(cmd_rsp.host_send));
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "HostDone",
+			be32_to_cpu(cmd_rsp.host_done));
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_tgt_rx_stats = {
+	.read = read_file_tgt_rx_stats,
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -286,29 +395,29 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 	char buf[512];
 	unsigned int len = 0;
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Mgmt endpoint", skb_queue_len(&priv->tx.mgmt_ep_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Cab endpoint", skb_queue_len(&priv->tx.cab_ep_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Data BE endpoint", skb_queue_len(&priv->tx.data_be_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Data BK endpoint", skb_queue_len(&priv->tx.data_bk_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Data VI endpoint", skb_queue_len(&priv->tx.data_vi_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Data VO endpoint", skb_queue_len(&priv->tx.data_vo_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Failed queue", skb_queue_len(&priv->tx.tx_failed));
 
 	spin_lock_bh(&priv->tx.tx_lock);
-	len += snprintf(buf + len, sizeof(buf) - len, "%16s : %3d\n",
+	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
 			"Queued count", priv->tx.queued_cnt);
 	spin_unlock_bh(&priv->tx.tx_lock);
 
@@ -339,12 +448,26 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	if (!priv->debug.debugfs_phy)
 		goto err;
 
-	priv->debug.debugfs_tgt_stats = debugfs_create_file("tgt_stats", S_IRUSR,
-						    priv->debug.debugfs_phy,
-						    priv, &fops_tgt_stats);
-	if (!priv->debug.debugfs_tgt_stats)
+	priv->debug.debugfs_tgt_int_stats = debugfs_create_file("tgt_int_stats",
+							S_IRUSR,
+							priv->debug.debugfs_phy,
+							priv, &fops_tgt_int_stats);
+	if (!priv->debug.debugfs_tgt_int_stats)
 		goto err;
 
+	priv->debug.debugfs_tgt_tx_stats = debugfs_create_file("tgt_tx_stats",
+						       S_IRUSR,
+						       priv->debug.debugfs_phy,
+						       priv, &fops_tgt_tx_stats);
+	if (!priv->debug.debugfs_tgt_tx_stats)
+		goto err;
+
+	priv->debug.debugfs_tgt_rx_stats = debugfs_create_file("tgt_rx_stats",
+						       S_IRUSR,
+						       priv->debug.debugfs_phy,
+						       priv, &fops_tgt_rx_stats);
+	if (!priv->debug.debugfs_tgt_rx_stats)
+		goto err;
 
 	priv->debug.debugfs_xmit = debugfs_create_file("xmit", S_IRUSR,
 						       priv->debug.debugfs_phy,
@@ -386,7 +509,9 @@ void ath9k_htc_exit_debug(struct ath_hw *ah)
 	debugfs_remove(priv->debug.debugfs_slot);
 	debugfs_remove(priv->debug.debugfs_recv);
 	debugfs_remove(priv->debug.debugfs_xmit);
-	debugfs_remove(priv->debug.debugfs_tgt_stats);
+	debugfs_remove(priv->debug.debugfs_tgt_int_stats);
+	debugfs_remove(priv->debug.debugfs_tgt_tx_stats);
+	debugfs_remove(priv->debug.debugfs_tgt_rx_stats);
 	debugfs_remove(priv->debug.debugfs_phy);
 }
 

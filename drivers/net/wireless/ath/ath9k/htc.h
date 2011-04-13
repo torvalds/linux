@@ -175,12 +175,31 @@ struct ath9k_htc_target_rate {
 	struct ath9k_htc_rate rates;
 };
 
-struct ath9k_htc_target_stats {
-	__be32 tx_shortretry;
-	__be32 tx_longretry;
-	__be32 tx_xretries;
-	__be32 ht_txunaggr_xretry;
-	__be32 ht_tx_xretries;
+struct ath9k_htc_target_int_stats {
+	__be32 rx;
+	__be32 rxorn;
+	__be32 rxeol;
+	__be32 txurn;
+	__be32 txto;
+	__be32 cst;
+} __packed;
+
+struct ath9k_htc_target_tx_stats {
+	__be32 xretries;
+	__be32 fifoerr;
+	__be32 filtered;
+	__be32 timer_exp;
+	__be32 shortretries;
+	__be32 longretries;
+	__be32 qnull;
+	__be32 encap_fail;
+	__be32 nobuf;
+} __packed;
+
+struct ath9k_htc_target_rx_stats {
+	__be32 nobuf;
+	__be32 host_send;
+	__be32 host_done;
 } __packed;
 
 #define ATH9K_HTC_MAX_VIF 2
@@ -340,14 +359,15 @@ struct ath_rx_stats {
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
-	struct dentry *debugfs_tgt_stats;
+	struct dentry *debugfs_tgt_int_stats;
+	struct dentry *debugfs_tgt_tx_stats;
+	struct dentry *debugfs_tgt_rx_stats;
 	struct dentry *debugfs_xmit;
 	struct dentry *debugfs_recv;
 	struct dentry *debugfs_slot;
 	struct dentry *debugfs_queue;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
-	u32 txrate;
 };
 
 #else

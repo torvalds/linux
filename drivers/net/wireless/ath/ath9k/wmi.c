@@ -67,12 +67,18 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_RC_RATE_UPDATE_CMDID";
 	case WMI_TARGET_IC_UPDATE_CMDID:
 		return "WMI_TARGET_IC_UPDATE_CMDID";
-	case WMI_TGT_STATS_CMDID:
-		return "WMI_TGT_STATS_CMDID";
 	case WMI_TX_AGGR_ENABLE_CMDID:
 		return "WMI_TX_AGGR_ENABLE_CMDID";
 	case WMI_TGT_DETACH_CMDID:
 		return "WMI_TGT_DETACH_CMDID";
+	case WMI_NODE_UPDATE_CMDID:
+		return "WMI_NODE_UPDATE_CMDID";
+	case WMI_INT_STATS_CMDID:
+		return "WMI_INT_STATS_CMDID";
+	case WMI_TX_STATS_CMDID:
+		return "WMI_TX_STATS_CMDID";
+	case WMI_RX_STATS_CMDID:
+		return "WMI_RX_STATS_CMDID";
 	case WMI_AGGR_LIMIT_CMD:
 		return "WMI_AGGR_LIMIT_CMD";
 	}
@@ -134,9 +140,6 @@ void ath9k_wmi_event_tasklet(unsigned long data)
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
 	u16 cmd_id;
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	__be32 txrate;
-#endif
 
 	do {
 		spin_lock_irqsave(&wmi->wmi_lock, flags);
@@ -159,12 +162,6 @@ void ath9k_wmi_event_tasklet(unsigned long data)
 		case WMI_FATAL_EVENTID:
 			ieee80211_queue_work(wmi->drv_priv->hw,
 					     &wmi->drv_priv->fatal_work);
-			break;
-		case WMI_TXRATE_EVENTID:
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-			txrate = ((struct wmi_event_txrate *)wmi_event)->txrate;
-			wmi->drv_priv->debug.txrate = be32_to_cpu(txrate);
-#endif
 			break;
 		case WMI_TXSTATUS_EVENTID:
 			spin_lock_bh(&priv->tx.tx_lock);
