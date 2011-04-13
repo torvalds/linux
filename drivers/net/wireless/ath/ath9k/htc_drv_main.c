@@ -834,7 +834,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	int padpos, padsize, ret;
+	int padpos, padsize, ret, slot;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
@@ -850,16 +850,24 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	ret = ath9k_htc_tx_start(priv, skb, false);
+	slot = ath9k_htc_tx_get_slot(priv);
+	if (slot < 0) {
+		ath_dbg(common, ATH_DBG_XMIT, "No free TX slot\n");
+		goto fail_tx;
+	}
+
+	ret = ath9k_htc_tx_start(priv, skb, slot, false);
 	if (ret != 0) {
 		ath_dbg(common, ATH_DBG_XMIT, "Tx failed\n");
-		goto fail_tx;
+		goto clear_slot;
 	}
 
 	ath9k_htc_check_stop_queues(priv);
 
 	return;
 
+clear_slot:
+	ath9k_htc_tx_clear_slot(priv, slot);
 fail_tx:
 	dev_kfree_skb_any(skb);
 }

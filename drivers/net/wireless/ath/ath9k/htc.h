@@ -271,6 +271,7 @@ struct ath9k_htc_tx {
 	u8 flags;
 	int queued_cnt;
 	struct sk_buff_head tx_queue;
+	DECLARE_BITMAP(tx_slot, MAX_TX_BUF_NUM);
 	spinlock_t tx_lock;
 };
 
@@ -532,7 +533,7 @@ void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);
 int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
-		       struct sk_buff *skb, bool is_cab);
+		       struct sk_buff *skb, u8 slot, bool is_cab);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype);
 int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
@@ -541,6 +542,8 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo);
 void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv);
 void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv);
+int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv);
+void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);

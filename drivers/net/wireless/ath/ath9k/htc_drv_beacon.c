@@ -299,7 +299,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 	struct ieee80211_vif *vif;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
-	int padpos, padsize, ret;
+	int padpos, padsize, ret, tx_slot;
 
 	spin_lock_bh(&priv->beacon_lock);
 
@@ -321,11 +321,20 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 			memmove(skb->data, skb->data + padsize, padpos);
 		}
 
-		ret = ath9k_htc_tx_start(priv, skb, true);
-		if (ret != 0) {
-			ath_dbg(common, ATH_DBG_FATAL,
-				"Failed to send CAB frame\n");
+		tx_slot = ath9k_htc_tx_get_slot(priv);
+		if (tx_slot != 0) {
+			ath_dbg(common, ATH_DBG_XMIT, "No free CAB slot\n");
 			dev_kfree_skb_any(skb);
+			goto next;
+		}
+
+		ret = ath9k_htc_tx_start(priv, skb, tx_slot, true);
+		if (ret != 0) {
+			ath9k_htc_tx_clear_slot(priv, tx_slot);
+			dev_kfree_skb_any(skb);
+
+			ath_dbg(common, ATH_DBG_XMIT,
+				"Failed to send CAB frame\n");
 		} else {
 			spin_lock_bh(&priv->tx.tx_lock);
 			priv->tx.queued_cnt++;

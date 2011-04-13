@@ -76,6 +76,29 @@ void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv)
 	spin_unlock_bh(&priv->tx.tx_lock);
 }
 
+int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv)
+{
+	int slot;
+
+	spin_lock_bh(&priv->tx.tx_lock);
+	slot = find_first_zero_bit(priv->tx.tx_slot, MAX_TX_BUF_NUM);
+	if (slot >= MAX_TX_BUF_NUM) {
+		spin_unlock_bh(&priv->tx.tx_lock);
+		return -ENOBUFS;
+	}
+	__set_bit(slot, priv->tx.tx_slot);
+	spin_unlock_bh(&priv->tx.tx_lock);
+
+	return slot;
+}
+
+void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	__clear_bit(slot, priv->tx.tx_slot);
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
 static enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
 					 u16 qnum)
 {
@@ -104,28 +127,38 @@ static enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
 	return epid;
 }
 
+/*
+ * Removes the driver header and returns the TX slot number
+ */
 static inline int strip_drv_header(struct ath9k_htc_priv *priv,
 				   struct sk_buff *skb)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_tx_ctl *tx_ctl;
+	int slot;
 
 	tx_ctl = HTC_SKB_CB(skb);
 
 	if (tx_ctl->epid == priv->mgmt_ep) {
+		struct tx_mgmt_hdr *tx_mhdr =
+			(struct tx_mgmt_hdr *)skb->data;
+		slot = tx_mhdr->cookie;
 		skb_pull(skb, sizeof(struct tx_mgmt_hdr));
 	} else if ((tx_ctl->epid == priv->data_bk_ep) ||
 		   (tx_ctl->epid == priv->data_be_ep) ||
 		   (tx_ctl->epid == priv->data_vi_ep) ||
 		   (tx_ctl->epid == priv->data_vo_ep) ||
 		   (tx_ctl->epid == priv->cab_ep)) {
+		struct tx_frame_hdr *tx_fhdr =
+			(struct tx_frame_hdr *)skb->data;
+		slot = tx_fhdr->cookie;
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
 	} else {
 		ath_err(common, "Unsupported EPID: %d\n", tx_ctl->epid);
-		return -EINVAL;
+		slot = -EINVAL;
 	}
 
-	return 0;
+	return slot;
 }
 
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
@@ -155,7 +188,8 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 }
 
 int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
-		       struct sk_buff *skb, bool is_cab)
+		       struct sk_buff *skb,
+		       u8 slot, bool is_cab)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_mgmt *mgmt;
@@ -212,6 +246,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 
 		tx_hdr.node_idx = sta_idx;
 		tx_hdr.vif_idx = vif_idx;
+		tx_hdr.cookie = slot;
 
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 			tx_ctl->type = ATH9K_HTC_AMPDU;
@@ -274,6 +309,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		mgmt_hdr.vif_idx = vif_idx;
 		mgmt_hdr.tidno = 0;
 		mgmt_hdr.flags = 0;
+		mgmt_hdr.cookie = slot;
 
 		mgmt_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
 		if (mgmt_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
@@ -313,10 +349,12 @@ void ath9k_tx_tasklet(unsigned long data)
 	struct sk_buff *skb = NULL;
 	__le16 fc;
 	bool txok;
+	int slot;
 
 	while ((skb = skb_dequeue(&priv->tx.tx_queue)) != NULL) {
 
-		if (strip_drv_header(priv, skb) < 0) {
+		slot = strip_drv_header(priv, skb);
+		if (slot < 0) {
 			dev_kfree_skb_any(skb);
 			continue;
 		}
@@ -347,8 +385,7 @@ void ath9k_tx_tasklet(unsigned long data)
 		sta = ieee80211_find_sta(vif, hdr->addr1);
 		if (!sta) {
 			rcu_read_unlock();
-			ieee80211_tx_status(priv->hw, skb);
-			continue;
+			goto send_mac80211;
 		}
 
 		/* Check if we need to start aggregation */
@@ -379,6 +416,8 @@ void ath9k_tx_tasklet(unsigned long data)
 		if (WARN_ON(--priv->tx.queued_cnt < 0))
 			priv->tx.queued_cnt = 0;
 		spin_unlock_bh(&priv->tx.tx_lock);
+
+		ath9k_htc_tx_clear_slot(priv, slot);
 
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
