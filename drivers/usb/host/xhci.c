@@ -771,7 +771,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 	/* If restore operation fails, re-initialize the HC during resume */
 	if ((temp & STS_SRE) || hibernated) {
-		usb_root_hub_lost_power(hcd->self.root_hub);
+		/* Let the USB core know _both_ roothubs lost power. */
+		usb_root_hub_lost_power(xhci->main_hcd->self.root_hub);
+		usb_root_hub_lost_power(xhci->shared_hcd->self.root_hub);
 
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
