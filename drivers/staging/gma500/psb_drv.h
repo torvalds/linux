@@ -245,8 +245,6 @@ struct drm_psb_private {
 	struct resource *gtt_mem;	/* Our PCI resource */
 	struct gtt_range *gtt_handles[GTT_MAX];
 
-	struct gtt_range *fb;		/* System frame buffer */
-
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
 

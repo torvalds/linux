@@ -466,6 +466,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct device *device = &dev->pdev->dev;
 	int size, aligned_size;
 	int ret;
+	struct gtt_range *backing;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -479,13 +480,12 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT */
-	/* FIXME: this cannot live in dev_priv once we go multi head */
-	dev_priv->fb = psb_gtt_alloc_range(dev, aligned_size, "fb");
-	if (dev_priv->fb == NULL)
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb");
+	if (backing == NULL)
 	        return -ENOMEM;
 
 	mutex_lock(&dev->struct_mutex);
-	fb = psb_framebuffer_create(dev, &mode_cmd, dev_priv->fb);
+	fb = psb_framebuffer_create(dev, &mode_cmd, backing);
 	if (!fb) {
 		DRM_ERROR("failed to allocate fb.\n");
 		ret = -ENOMEM;
@@ -518,7 +518,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	/* Accessed via stolen memory directly, This only works for stolem
 	   memory however. Need to address this once we start using gtt
 	   pages we allocate */
-	info->screen_base = (char *)pg->vram_addr + dev_priv->fb->offset;
+	info->screen_base = (char *)pg->vram_addr + backing->offset;
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
 
@@ -548,8 +548,7 @@ out_err0:
 	fb->funcs->destroy(fb);
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
-	psb_gtt_free_range(dev, dev_priv->fb);
-	dev_priv->fb = NULL;
+	psb_gtt_free_range(dev, backing);
 	return ret;
 }
 
