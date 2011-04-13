@@ -57,8 +57,18 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 
+/* Firmware releated */
 u32	bfi_image_ct_fc_size, bfi_image_ct_cna_size, bfi_image_cb_fc_size;
 u32     *bfi_image_ct_fc, *bfi_image_ct_cna, *bfi_image_cb_fc;
+
+#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
+#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
+#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
+
+static u32 *bfad_load_fwimg(struct pci_dev *pdev);
+static void bfad_free_fwimg(void);
+static void bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
+		u32 *bfi_image_size, char *fw_name);
 
 static const char *msix_name_ct[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
@@ -1550,7 +1560,7 @@ bfad_exit(void)
 }
 
 /* Firmware handling */
-u32 *
+static void
 bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 		u32 *bfi_image_size, char *fw_name)
 {
@@ -1558,27 +1568,25 @@ bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 
 	if (request_firmware(&fw, fw_name, &pdev->dev)) {
 		printk(KERN_ALERT "Can't locate firmware %s\n", fw_name);
-		goto error;
+		*bfi_image = NULL;
+		goto out;
 	}
 
 	*bfi_image = vmalloc(fw->size);
 	if (NULL == *bfi_image) {
 		printk(KERN_ALERT "Fail to allocate buffer for fw image "
 			"size=%x!\n", (u32) fw->size);
-		goto error;
+		goto out;
 	}
 
 	memcpy(*bfi_image, fw->data, fw->size);
 	*bfi_image_size = fw->size/sizeof(u32);
-
-	return *bfi_image;
-
-error:
-	return NULL;
+out:
+	release_firmware(fw);
 }
 
-u32 *
-bfad_get_firmware_buf(struct pci_dev *pdev)
+static u32 *
+bfad_load_fwimg(struct pci_dev *pdev)
 {
 	if (pdev->device == BFA_PCI_DEVICE_ID_CT_FC) {
 		if (bfi_image_ct_fc_size == 0)
@@ -1596,6 +1604,17 @@ bfad_get_firmware_buf(struct pci_dev *pdev)
 				&bfi_image_cb_fc_size, BFAD_FW_FILE_CB_FC);
 		return bfi_image_cb_fc;
 	}
+}
+
+static void
+bfad_free_fwimg(void)
+{
+	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
+		vfree(bfi_image_ct_fc);
+	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
+		vfree(bfi_image_ct_cna);
+	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
+		vfree(bfi_image_cb_fc);
 }
 
 module_init(bfad_init);
