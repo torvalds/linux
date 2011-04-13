@@ -17,11 +17,9 @@
 #include "htc.h"
 
 /* identify firmware images */
-#define FIRMWARE_AR7010		"ar7010.fw"
 #define FIRMWARE_AR7010_1_1	"ar7010_1_1.fw"
 #define FIRMWARE_AR9271		"ar9271.fw"
 
-MODULE_FIRMWARE(FIRMWARE_AR7010);
 MODULE_FIRMWARE(FIRMWARE_AR7010_1_1);
 MODULE_FIRMWARE(FIRMWARE_AR9271);
 
@@ -1026,10 +1024,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	/* Find out which firmware to load */
 
 	if (IS_AR7010_DEVICE(id->driver_info))
-		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
-			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
-		else
-			hif_dev->fw_name = FIRMWARE_AR7010;
+		hif_dev->fw_name = FIRMWARE_AR7010_1_1;
 	else
 		hif_dev->fw_name = FIRMWARE_AR9271;
 
