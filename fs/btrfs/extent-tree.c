@@ -3174,7 +3174,7 @@ again:
 			spin_unlock(&data_sinfo->lock);
 alloc:
 			alloc_target = btrfs_get_alloc_profile(root, 1);
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 
@@ -3202,7 +3202,7 @@ alloc:
 commit_trans:
 		if (!committed && !root->fs_info->open_ioctl_trans) {
 			committed = 1;
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 			ret = btrfs_commit_transaction(trans, root);
@@ -3589,7 +3589,7 @@ again:
 		goto out;
 
 	ret = -ENOSPC;
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto out;
 	ret = btrfs_commit_transaction(trans, root);
@@ -3816,7 +3816,7 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 		if (trans)
 			return -EAGAIN;
 
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
 		return 0;
@@ -7649,7 +7649,7 @@ int btrfs_drop_dead_reloc_roots(struct btrfs_root *root)
 
 		BUG_ON(reloc_root->commit_root != NULL);
 		while (1) {
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 			BUG_ON(IS_ERR(trans));
 
 			mutex_lock(&root->fs_info->drop_mutex);
@@ -8176,7 +8176,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 
 	BUG_ON(cache->ro);
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 
 	alloc_flags = update_block_group_flags(root, cache->flags);

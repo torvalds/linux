@@ -2149,7 +2149,7 @@ again:
 			err = ret;
 	}
 
-	trans = btrfs_join_transaction(rc->extent_root, 1);
+	trans = btrfs_join_transaction(rc->extent_root);
 	if (IS_ERR(trans)) {
 		if (!err)
 			btrfs_block_rsv_release(rc->extent_root,
@@ -3233,7 +3233,7 @@ truncate:
 		goto out;
 	}
 
-	trans = btrfs_join_transaction(root, 0);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans)) {
 		btrfs_free_path(path);
 		ret = PTR_ERR(trans);
@@ -3642,7 +3642,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 	rc->create_reloc_tree = 1;
 	set_reloc_control(rc);
 
-	trans = btrfs_join_transaction(rc->extent_root, 1);
+	trans = btrfs_join_transaction(rc->extent_root);
 	BUG_ON(IS_ERR(trans));
 	btrfs_commit_transaction(trans, rc->extent_root);
 	return 0;
@@ -3831,7 +3831,7 @@ restart:
 	btrfs_block_rsv_release(rc->extent_root, rc->block_rsv, (u64)-1);
 
 	/* get rid of pinned extents */
-	trans = btrfs_join_transaction(rc->extent_root, 1);
+	trans = btrfs_join_transaction(rc->extent_root);
 	if (IS_ERR(trans))
 		err = PTR_ERR(trans);
 	else
@@ -4156,7 +4156,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 
 	set_reloc_control(rc);
 
-	trans = btrfs_join_transaction(rc->extent_root, 1);
+	trans = btrfs_join_transaction(rc->extent_root);
 	if (IS_ERR(trans)) {
 		unset_reloc_control(rc);
 		err = PTR_ERR(trans);
@@ -4190,7 +4190,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 
 	unset_reloc_control(rc);
 
-	trans = btrfs_join_transaction(rc->extent_root, 1);
+	trans = btrfs_join_transaction(rc->extent_root);
 	if (IS_ERR(trans))
 		err = PTR_ERR(trans);
 	else

@@ -420,7 +420,7 @@ again:
 		}
 	}
 	if (start == 0) {
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		btrfs_set_trans_block_group(trans, inode);
 		trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -617,7 +617,7 @@ retry:
 			    async_extent->start + async_extent->ram_size - 1,
 			    GFP_NOFS);
 
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 		ret = btrfs_reserve_extent(trans, root,
@@ -779,7 +779,7 @@ static noinline int cow_file_range(struct inode *inode,
 	int ret = 0;
 
 	BUG_ON(root == root->fs_info->tree_root);
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -1056,9 +1056,9 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 	BUG_ON(!path);
 	if (root == root->fs_info->tree_root) {
 		nolock = true;
-		trans = btrfs_join_transaction_nolock(root, 1);
+		trans = btrfs_join_transaction_nolock(root);
 	} else {
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 	}
 	BUG_ON(IS_ERR(trans));
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -1718,9 +1718,9 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 		ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
 		if (!ret) {
 			if (nolock)
-				trans = btrfs_join_transaction_nolock(root, 1);
+				trans = btrfs_join_transaction_nolock(root);
 			else
-				trans = btrfs_join_transaction(root, 1);
+				trans = btrfs_join_transaction(root);
 			BUG_ON(IS_ERR(trans));
 			btrfs_set_trans_block_group(trans, inode);
 			trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -1735,9 +1735,9 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 			 0, &cached_state, GFP_NOFS);
 
 	if (nolock)
-		trans = btrfs_join_transaction_nolock(root, 1);
+		trans = btrfs_join_transaction_nolock(root);
 	else
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -2415,7 +2415,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 					(u64)-1);
 
 	if (root->orphan_block_rsv || root->orphan_item_inserted) {
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		if (!IS_ERR(trans))
 			btrfs_end_transaction(trans, root);
 	}
@@ -4378,9 +4378,9 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {
 		if (nolock)
-			trans = btrfs_join_transaction_nolock(root, 1);
+			trans = btrfs_join_transaction_nolock(root);
 		else
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
 		btrfs_set_trans_block_group(trans, inode);
@@ -4407,7 +4407,7 @@ void btrfs_dirty_inode(struct inode *inode)
 	if (BTRFS_I(inode)->dummy_inode)
 		return;
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 	btrfs_set_trans_block_group(trans, inode);
 
@@ -5226,7 +5226,7 @@ again:
 				free_extent_map(em);
 				em = NULL;
 				btrfs_release_path(root, path);
-				trans = btrfs_join_transaction(root, 1);
+				trans = btrfs_join_transaction(root);
 				if (IS_ERR(trans))
 					return ERR_CAST(trans);
 				goto again;
@@ -5470,7 +5470,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 		btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
 	}
 
-	trans = btrfs_join_transaction(root, 0);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return ERR_CAST(trans);
 
@@ -5703,7 +5703,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		 * to make sure the current transaction stays open
 		 * while we look for nocow cross refs
 		 */
-		trans = btrfs_join_transaction(root, 0);
+		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			goto must_cow;
 
@@ -5841,7 +5841,7 @@ again:
 
 	BUG_ON(!ordered);
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans)) {
 		err = -ENOMEM;
 		goto out;

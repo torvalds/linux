@@ -257,22 +257,19 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 {
 	return start_transaction(root, num_items, TRANS_START);
 }
-struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
-						   int num_blocks)
+struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_JOIN);
 }
 
-struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root,
-							  int num_blocks)
+struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_JOIN_NOLOCK);
 }
 
-struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
-							 int num_blocks)
+struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root)
 {
-	return start_transaction(r, 0, TRANS_USERSPACE);
+	return start_transaction(root, 0, TRANS_USERSPACE);
 }
 
 /* wait for a transaction commit to be fully complete */
@@ -1171,7 +1168,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 
 	INIT_DELAYED_WORK(&ac->work, do_async_commit);
 	ac->root = root;
-	ac->newtrans = btrfs_join_transaction(root, 0);
+	ac->newtrans = btrfs_join_transaction(root);
 	if (IS_ERR(ac->newtrans)) {
 		int err = PTR_ERR(ac->newtrans);
 		kfree(ac);
