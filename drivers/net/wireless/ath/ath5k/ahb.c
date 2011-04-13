@@ -160,6 +160,16 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		else
 			reg |= AR5K_AR5312_ENABLE_WLAN1;
 		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+
+		/*
+		 * On a dual-band AR5312, the multiband radio is only
+		 * used as pass-through. Disable 2 GHz support in the
+		 * driver for it
+		 */
+		if (to_platform_device(sc->dev)->id == 0 &&
+		    (bcfg->config->flags & (BD_WLAN0|BD_WLAN1)) ==
+		     (BD_WLAN1|BD_WLAN0))
+			__set_bit(ATH_STAT_2G_DISABLED, sc->status);
 	}
 
 	ret = ath5k_init_softc(sc, &ath_ahb_bus_ops);
