@@ -310,7 +310,7 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 	return 0;
 }
 
-static void hif_usb_start(void *hif_handle, u8 pipe_id)
+static void hif_usb_start(void *hif_handle)
 {
 	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
 	unsigned long flags;
@@ -322,7 +322,7 @@ static void hif_usb_start(void *hif_handle, u8 pipe_id)
 	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 }
 
-static void hif_usb_stop(void *hif_handle, u8 pipe_id)
+static void hif_usb_stop(void *hif_handle)
 {
 	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
 	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;

@@ -302,27 +302,12 @@ int htc_send_epid(struct htc_target *target, struct sk_buff *skb,
 
 void htc_stop(struct htc_target *target)
 {
-	enum htc_endpoint_id epid;
-	struct htc_endpoint *endpoint;
-
-	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
-		endpoint = &target->endpoint[epid];
-		if (endpoint->service_id != 0)
-			target->hif->stop(target->hif_dev, endpoint->ul_pipeid);
-	}
+	target->hif->stop(target->hif_dev);
 }
 
 void htc_start(struct htc_target *target)
 {
-	enum htc_endpoint_id epid;
-	struct htc_endpoint *endpoint;
-
-	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
-		endpoint = &target->endpoint[epid];
-		if (endpoint->service_id != 0)
-			target->hif->start(target->hif_dev,
-					   endpoint->ul_pipeid);
-	}
+	target->hif->start(target->hif_dev);
 }
 
 void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,

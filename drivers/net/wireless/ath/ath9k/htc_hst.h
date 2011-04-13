@@ -33,8 +33,8 @@ struct ath9k_htc_hif {
 	u8 control_dl_pipe;
 	u8 control_ul_pipe;
 
-	void (*start) (void *hif_handle, u8 pipe);
-	void (*stop) (void *hif_handle, u8 pipe);
+	void (*start) (void *hif_handle);
+	void (*stop) (void *hif_handle);
 	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf);
 };
 
