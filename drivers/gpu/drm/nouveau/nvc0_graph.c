@@ -250,12 +250,6 @@ nvc0_graph_object_new(struct nouveau_channel *chan, int engine,
 static int
 nvc0_graph_fini(struct drm_device *dev, int engine)
 {
-	u32 inst = nv_rd32(dev, 0x409b00);
-	if (inst & 0x80000000) {
-		inst &= 0x0fffffff;
-		nvc0_graph_unload_context_to(dev, (u64)inst << 12);
-	}
-
 	return 0;
 }
 
