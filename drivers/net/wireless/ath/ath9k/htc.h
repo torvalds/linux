@@ -262,11 +262,16 @@ struct ath9k_htc_rx {
 	spinlock_t rxbuflock;
 };
 
-struct ath9k_htc_tx {
-	bool tx_queues_stop;
-	spinlock_t tx_lock;
+#define ATH9K_HTC_TX_RESERVE   10
+#define ATH9K_HTC_TX_THRESHOLD (MAX_TX_BUF_NUM - ATH9K_HTC_TX_RESERVE)
 
+#define ATH9K_HTC_OP_TX_QUEUES_STOP BIT(0)
+
+struct ath9k_htc_tx {
+	u8 flags;
+	int queued_cnt;
 	struct sk_buff_head tx_queue;
+	spinlock_t tx_lock;
 };
 
 struct ath9k_htc_tx_ctl {
@@ -532,6 +537,8 @@ int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
 int get_hw_qnum(u16 queue, int *hwq_map);
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo);
+void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv);
+void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);

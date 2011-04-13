@@ -326,6 +326,10 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 			ath_dbg(common, ATH_DBG_FATAL,
 				"Failed to send CAB frame\n");
 			dev_kfree_skb_any(skb);
+		} else {
+			spin_lock_bh(&priv->tx.tx_lock);
+			priv->tx.queued_cnt++;
+			spin_unlock_bh(&priv->tx.tx_lock);
 		}
 	next:
 		skb = ieee80211_get_buffered_bc(priv->hw, vif);

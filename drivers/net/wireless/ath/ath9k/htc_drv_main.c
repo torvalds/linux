@@ -833,6 +833,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	int padpos, padsize, ret;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
@@ -841,27 +842,21 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	padpos = ath9k_cmn_padpos(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
-		if (skb_headroom(skb) < padsize)
+		if (skb_headroom(skb) < padsize) {
+			ath_dbg(common, ATH_DBG_XMIT, "No room for padding\n");
 			goto fail_tx;
+		}
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
 	ret = ath9k_htc_tx_start(priv, skb, false);
 	if (ret != 0) {
-		if (ret == -ENOMEM) {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-				"Stopping TX queues\n");
-			ieee80211_stop_queues(hw);
-			spin_lock_bh(&priv->tx.tx_lock);
-			priv->tx.tx_queues_stop = true;
-			spin_unlock_bh(&priv->tx.tx_lock);
-		} else {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-				"Tx failed\n");
-		}
+		ath_dbg(common, ATH_DBG_XMIT, "Tx failed\n");
 		goto fail_tx;
 	}
+
+	ath9k_htc_check_stop_queues(priv);
 
 	return;
 
@@ -924,7 +919,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	htc_start(priv->htc);
 
 	spin_lock_bh(&priv->tx.tx_lock);
-	priv->tx.tx_queues_stop = false;
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
 	spin_unlock_bh(&priv->tx.tx_lock);
 
 	ieee80211_wake_queues(hw);

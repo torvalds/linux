@@ -399,7 +399,7 @@ void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 	/* Start TX */
 	htc_start(priv->htc);
 	spin_lock_bh(&priv->tx.tx_lock);
-	priv->tx.tx_queues_stop = false;
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
 	spin_unlock_bh(&priv->tx.tx_lock);
 	ieee80211_wake_queues(hw);
 

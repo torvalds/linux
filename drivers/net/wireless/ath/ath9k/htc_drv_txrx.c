@@ -53,6 +53,29 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 	}
 }
 
+void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.queued_cnt++;
+	if ((priv->tx.queued_cnt >= ATH9K_HTC_TX_THRESHOLD) &&
+	    !(priv->tx.flags & ATH9K_HTC_OP_TX_QUEUES_STOP)) {
+		priv->tx.flags |= ATH9K_HTC_OP_TX_QUEUES_STOP;
+		ieee80211_stop_queues(priv->hw);
+	}
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
+void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv)
+{
+	spin_lock_bh(&priv->tx.tx_lock);
+	if ((priv->tx.queued_cnt < ATH9K_HTC_TX_THRESHOLD) &&
+	    (priv->tx.flags & ATH9K_HTC_OP_TX_QUEUES_STOP)) {
+		priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
+		ieee80211_wake_queues(priv->hw);
+	}
+	spin_unlock_bh(&priv->tx.tx_lock);
+}
+
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo)
 {
@@ -302,21 +325,17 @@ void ath9k_tx_tasklet(unsigned long data)
 		rcu_read_unlock();
 
 	send_mac80211:
+		spin_lock_bh(&priv->tx.tx_lock);
+		if (WARN_ON(--priv->tx.queued_cnt < 0))
+			priv->tx.queued_cnt = 0;
+		spin_unlock_bh(&priv->tx.tx_lock);
+
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
 
 	/* Wake TX queues if needed */
-	spin_lock_bh(&priv->tx.tx_lock);
-	if (priv->tx.tx_queues_stop) {
-		priv->tx.tx_queues_stop = false;
-		spin_unlock_bh(&priv->tx.tx_lock);
-		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-			"Waking up TX queues\n");
-		ieee80211_wake_queues(priv->hw);
-		return;
-	}
-	spin_unlock_bh(&priv->tx.tx_lock);
+	ath9k_htc_check_wake_queues(priv);
 }
 
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
