@@ -525,8 +525,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
 
-	if (skb->len <= HTC_RX_FRAME_HEADER_SIZE) {
-		ath_err(common, "Corrupted RX frame, dropping\n");
+	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
+		ath_err(common, "Corrupted RX frame, dropping (len: %d)\n",
+			skb->len);
 		goto rx_next;
 	}
 
