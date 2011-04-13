@@ -455,8 +455,8 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
-		cinfo.hci_handle = l2cap_pi(sk)->conn->hcon->handle;
-		memcpy(cinfo.dev_class, l2cap_pi(sk)->conn->hcon->dev_class, 3);
+		cinfo.hci_handle = chan->conn->hcon->handle;
+		memcpy(cinfo.dev_class, chan->conn->hcon->dev_class, 3);
 
 		len = min_t(unsigned int, len, sizeof(cinfo));
 		if (copy_to_user(optval, (char *) &cinfo, len))
@@ -690,7 +690,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		if (opt == BT_FLUSHABLE_OFF) {
-			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+			struct l2cap_conn *conn = chan->conn;
 			/* proceed futher only when we have l2cap_conn and
 			   No Flush support in the LM */
 			if (!conn || !lmp_no_flush_capable(conn->hcon->hdev)) {
@@ -823,7 +823,9 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	lock_sock(sk);
 
 	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
-		__l2cap_connect_rsp_defer(sk);
+		sk->sk_state = BT_CONFIG;
+
+		__l2cap_connect_rsp_defer(l2cap_pi(sk)->chan);
 		release_sock(sk);
 		return 0;
 	}
@@ -878,8 +880,8 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 
 void __l2cap_sock_close(struct sock *sk, int reason)
 {
-	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+	struct l2cap_conn *conn = chan->conn;
 
 	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
 

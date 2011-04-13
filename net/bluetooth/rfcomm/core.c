@@ -232,6 +232,8 @@ static int rfcomm_l2sock_create(struct socket **sock)
 static inline int rfcomm_check_security(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
+	struct l2cap_conn *conn = l2cap_pi(sk)->chan->conn;
+
 	__u8 auth_type;
 
 	switch (d->sec_level) {
@@ -246,8 +248,7 @@ static inline int rfcomm_check_security(struct rfcomm_dlc *d)
 		break;
 	}
 
-	return hci_conn_security(l2cap_pi(sk)->conn->hcon, d->sec_level,
-								auth_type);
+	return hci_conn_security(conn->hcon, d->sec_level, auth_type);
 }
 
 static void rfcomm_session_timeout(unsigned long arg)
@@ -1241,6 +1242,7 @@ static int rfcomm_recv_disc(struct rfcomm_session *s, u8 dlci)
 void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
+	struct l2cap_conn *conn = l2cap_pi(sk)->chan->conn;
 
 	BT_DBG("dlc %p", d);
 
@@ -1254,7 +1256,7 @@ void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 	rfcomm_dlc_unlock(d);
 
 	if (d->role_switch)
-		hci_conn_switch_role(l2cap_pi(sk)->conn->hcon, 0x00);
+		hci_conn_switch_role(conn->hcon, 0x00);
 
 	rfcomm_send_msc(d->session, 1, d->dlci, d->v24_sig);
 }

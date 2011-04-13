@@ -284,6 +284,9 @@ struct srej_list {
 
 struct l2cap_chan {
 	struct sock *sk;
+
+	struct l2cap_conn	*conn;
+
 	__le16		psm;
 	__u16		dcid;
 	__u16		scid;
@@ -385,8 +388,6 @@ struct l2cap_conn {
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
-
-	struct l2cap_conn	*conn;
 	struct l2cap_chan	*chan;
 };
 
@@ -447,7 +448,7 @@ int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 
 void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
-void __l2cap_connect_rsp_defer(struct sock *sk);
+void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 int __l2cap_wait_ack(struct sock *sk);
 
 struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
