@@ -2149,6 +2149,30 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
+{
+	u32 old_write_domain, old_read_domains;
+
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0)
+		return;
+
+	/* Act a barrier for all accesses through the GTT */
+	mb();
+
+	/* Force a pagefault for domain tracking on next user access */
+	i915_gem_release_mmap(obj);
+
+	old_read_domains = obj->base.read_domains;
+	old_write_domain = obj->base.write_domain;
+
+	obj->base.read_domains &= ~I915_GEM_DOMAIN_GTT;
+	obj->base.write_domain &= ~I915_GEM_DOMAIN_GTT;
+
+	trace_i915_gem_object_change_domain(obj,
+					    old_read_domains,
+					    old_write_domain);
+}
+
 /**
  * Unbinds an object from the GTT aperture.
  */
@@ -2173,8 +2197,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	 * cause memory corruption through use-after-free.
 	 */
 
-	/* blow away mappings if mapped through GTT */
-	i915_gem_release_mmap(obj);
+	i915_gem_object_finish_gtt(obj);
 
 	/* Move the object to the CPU domain to ensure that
 	 * any possible CPU writes while it's not in the GTT
