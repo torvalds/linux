@@ -40,7 +40,7 @@
 #define MAX_PKT_NUM_IN_TRANSFER 10
 
 #define MAX_REG_OUT_URB_NUM  1
-#define MAX_REG_OUT_BUF_NUM  8
+#define MAX_REG_IN_URB_NUM   64
 
 #define MAX_REG_IN_BUF_SIZE 64
 
@@ -90,9 +90,9 @@ struct hif_device_usb {
 	const struct firmware *firmware;
 	struct htc_target *htc_handle;
 	struct hif_usb_tx tx;
-	struct urb *reg_in_urb;
 	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
+	struct usb_anchor reg_in_submitted;
 	struct sk_buff *remain_skb;
 	const char *fw_name;
 	int rx_remain_len;
