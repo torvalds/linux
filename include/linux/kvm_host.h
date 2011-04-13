@@ -296,9 +296,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 }
 
 #define kvm_for_each_vcpu(idx, vcpup, kvm) \
-	for (idx = 0, vcpup = kvm_get_vcpu(kvm, idx); \
-	     idx < atomic_read(&kvm->online_vcpus) && vcpup; \
-	     vcpup = kvm_get_vcpu(kvm, ++idx))
+	for (idx = 0; \
+	     idx < atomic_read(&kvm->online_vcpus) && \
+	     (vcpup = kvm_get_vcpu(kvm, idx)) != NULL; \
+	     idx++)
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
