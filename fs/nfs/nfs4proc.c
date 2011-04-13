@@ -2208,19 +2208,15 @@ out:
 	return ret;
 }
 
-/*
- * get the file handle for the "/" directory on the server
- */
-static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
+static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
 	int i, len, status = 0;
 	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
 
-	flav_array[0] = RPC_AUTH_UNIX;
-	len = gss_mech_list_pseudoflavors(&flav_array[1]);
-	flav_array[1+len] = RPC_AUTH_NULL;
-	len += 2;
+	len = gss_mech_list_pseudoflavors(&flav_array[0]);
+	flav_array[len] = RPC_AUTH_NULL;
+	len += 1;
 
 	for (i = 0; i < len; i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
@@ -2228,6 +2224,18 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			continue;
 		break;
 	}
+	return status;
+}
+
+/*
+ * get the file handle for the "/" directory on the server
+ */
+static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
+			      struct nfs_fsinfo *info)
+{
+	int status = nfs4_lookup_root(server, fhandle, info);
+	if (status == -EPERM)
+		status = nfs4_find_root_sec(server, fhandle, info);
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
