@@ -61,7 +61,7 @@ static void xen_post_suspend(int cancelled)
 	xen_mm_unpin_all();
 }
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 static int xen_suspend(void *data)
 {
 	struct suspend_info *si = data;
@@ -173,7 +173,7 @@ out:
 #endif
 	shutting_down = SHUTDOWN_INVALID;
 }
-#endif	/* CONFIG_HIBERNATION */
+#endif	/* CONFIG_HIBERNATE_CALLBACKS */
 
 struct shutdown_handler {
 	const char *command;
@@ -202,7 +202,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		{ "poweroff",	do_poweroff },
 		{ "halt",	do_poweroff },
 		{ "reboot",	do_reboot   },
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 		{ "suspend",	do_suspend  },
 #endif
 		{NULL, NULL},
