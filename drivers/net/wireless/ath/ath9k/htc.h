@@ -358,6 +358,13 @@ struct ath_led {
 
 #define BSTUCK_THRESHOLD 10
 
+/*
+ * Adjust these when the max. no of beaconing interfaces is
+ * increased.
+ */
+#define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
+#define MIN_SWBA_RESPONSE     10 /* in TUs */
+
 struct htc_beacon_config {
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
 	u16 beacon_interval;
