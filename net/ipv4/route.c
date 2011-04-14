@@ -2615,7 +2615,9 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		fib_select_multipath(&res);
 	else
 #endif
-	if (!res.prefixlen && res.type == RTN_UNICAST && !fl4.flowi4_oif)
+	if (!res.prefixlen &&
+	    res.table->tb_num_default > 1 &&
+	    res.type == RTN_UNICAST && !fl4.flowi4_oif)
 		fib_select_default(&res);
 
 	if (!fl4.saddr)

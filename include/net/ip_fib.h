@@ -160,7 +160,8 @@ struct fib_table {
 	struct hlist_node tb_hlist;
 	u32		tb_id;
 	int		tb_default;
-	unsigned char	tb_data[0];
+	int		tb_num_default;
+	unsigned long	tb_data[0];
 };
 
 extern int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
