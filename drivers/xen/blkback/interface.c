@@ -86,7 +86,8 @@ static void unmap_frontend_page(struct blkif_st *blkif)
 		BUG();
 }
 
-int blkif_map(struct blkif_st *blkif, unsigned long shared_page, unsigned int evtchn)
+int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
+	      unsigned int evtchn)
 {
 	int err;
 
@@ -94,7 +95,8 @@ int blkif_map(struct blkif_st *blkif, unsigned long shared_page, unsigned int ev
 	if (blkif->irq)
 		return 0;
 
-	if ( (blkif->blk_ring_area = alloc_vm_area(PAGE_SIZE)) == NULL )
+	blkif->blk_ring_area = alloc_vm_area(PAGE_SIZE);
+	if (!blkif->blk_ring_area)
 		return -ENOMEM;
 
 	err = map_frontend_page(blkif, shared_page);
@@ -131,8 +133,7 @@ int blkif_map(struct blkif_st *blkif, unsigned long shared_page, unsigned int ev
 
 	err = bind_interdomain_evtchn_to_irqhandler(
 		blkif->domid, evtchn, blkif_be_int, 0, "blkif-backend", blkif);
-	if (err < 0)
-	{
+	if (err < 0) {
 		unmap_frontend_page(blkif);
 		free_vm_area(blkif->blk_ring_area);
 		blkif->blk_rings.common.sring = NULL;
