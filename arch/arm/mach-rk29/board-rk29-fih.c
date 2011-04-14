@@ -1907,6 +1907,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART2_RK29
 	&rk29_device_uart2,
 #endif
+#ifdef CONFIG_UART3_RK29
+	&rk29_device_uart3,
+#endif
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
@@ -2309,7 +2312,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_288mhz);
+	rk29_clock_init(periph_pll_300mhz);
 	rk29_iomux_init();
 }
 

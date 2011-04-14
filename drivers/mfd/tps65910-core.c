@@ -728,14 +728,43 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 {
     struct regulator *vldo;
 	
-	vldo = regulator_get(NULL, "vmmc");
-	if (vldo > NULL)
+	vldo = regulator_get(NULL, "vaux1");
+	if (!IS_ERR(vldo))
 	{		
-		seq_printf(s, "Disable VMMC.\n");
+		seq_printf(s, "Disable VAUX1.\n");
+		regulator_disable(vldo);
+	}
+
+	vldo = regulator_get(NULL, "vdig1");
+	if (!IS_ERR(vldo))
+	{		
+		seq_printf(s, "Disable VDIG1.\n");
+		regulator_disable(vldo);
+	}
+
+	vldo = regulator_get(NULL, "vdig2");
+	if (!IS_ERR(vldo))
+	{		
+		seq_printf(s, "Disable VDIG2.\n");
+		regulator_disable(vldo);
+	}
+
+	vldo = regulator_get(NULL, "vdac");
+	if (!IS_ERR(vldo))
+	{		
+		seq_printf(s, "Disable VDAC.\n");
+		regulator_disable(vldo);
+	}
+
+	vldo = regulator_get(NULL, "vaux2");
+	if (!IS_ERR(vldo))
+	{		
+		seq_printf(s, "Disable VAUX2.\n");
 		regulator_disable(vldo);
 	}
 }
 #endif
+
 	return 0;
 }
 
