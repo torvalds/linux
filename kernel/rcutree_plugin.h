@@ -1212,17 +1212,19 @@ static void rcu_initiate_boost(struct rcu_node *rnp)
 	}
 }
 
+/*
+ * Set the affinity of the boost kthread.  The CPU-hotplug locks are
+ * held, so no one should be messing with the existence of the boost
+ * kthread.
+ */
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
 					  cpumask_var_t cm)
 {
-	unsigned long flags;
 	struct task_struct *t;
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
 	t = rnp->boost_kthread_task;
 	if (t != NULL)
 		set_cpus_allowed_ptr(rnp->boost_kthread_task, cm);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 #define RCU_BOOST_DELAY_JIFFIES DIV_ROUND_UP(CONFIG_RCU_BOOST_DELAY * HZ, 1000)

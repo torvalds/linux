@@ -95,7 +95,7 @@ static DEFINE_PER_CPU(wait_queue_head_t, rcu_cpu_wq);
 static DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
 
-static void rcu_node_kthread_setaffinity(struct rcu_node *rnp);
+static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_cpu_kthread(void);
 
 #define RCU_KTHREAD_PRIO 1	/* RT priority for per-CPU kthreads. */
@@ -1099,7 +1099,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 		kthread_stop(t);
 		rcu_stop_boost_kthread(rnp);
 	} else
-		rcu_node_kthread_setaffinity(rnp);
+		rcu_node_kthread_setaffinity(rnp, -1);
 }
 
 /*
@@ -1644,8 +1644,12 @@ static int rcu_node_kthread(void *arg)
  * Set the per-rcu_node kthread's affinity to cover all CPUs that are
  * served by the rcu_node in question.  The CPU hotplug lock is still
  * held, so the value of rnp->qsmaskinit will be stable.
+ *
+ * We don't include outgoingcpu in the affinity set, use -1 if there is
+ * no outgoing CPU.  If there are no CPUs left in the affinity set,
+ * this function allows the kthread to execute on any CPU.
  */
-static void rcu_node_kthread_setaffinity(struct rcu_node *rnp)
+static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 {
 	cpumask_var_t cm;
 	int cpu;
@@ -1657,8 +1661,14 @@ static void rcu_node_kthread_setaffinity(struct rcu_node *rnp)
 		return;
 	cpumask_clear(cm);
 	for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask >>= 1)
-		if (mask & 0x1)
+		if ((mask & 0x1) && cpu != outgoingcpu)
 			cpumask_set_cpu(cpu, cm);
+	if (cpumask_weight(cm) == 0) {
+		cpumask_setall(cm);
+		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++)
+			cpumask_clear_cpu(cpu, cm);
+		WARN_ON_ONCE(cpumask_weight(cm) == 0);
+	}
 	set_cpus_allowed_ptr(rnp->node_kthread_task, cm);
 	rcu_boost_kthread_setaffinity(rnp, cm);
 	free_cpumask_var(cm);
@@ -2154,7 +2164,11 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		rcu_online_kthreads(cpu);
 		break;
 	case CPU_ONLINE:
-		rcu_node_kthread_setaffinity(rnp);
+	case CPU_DOWN_FAILED:
+		rcu_node_kthread_setaffinity(rnp, -1);
+		break;
+	case CPU_DOWN_PREPARE:
+		rcu_node_kthread_setaffinity(rnp, cpu);
 		break;
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
