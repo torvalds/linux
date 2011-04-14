@@ -331,11 +331,13 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 
 static int xics_host_match(struct irq_host *h, struct device_node *node)
 {
-	/* IBM machines have interrupt parents of various funky types for things
-	 * like vdevices, events, etc... The trick we use here is to match
-	 * everything here except the legacy 8259 which is compatible "chrp,iic"
-	 */
-	return !of_device_is_compatible(node, "chrp,iic");
+	struct ics *ics;
+
+	list_for_each_entry(ics, &ics_list, link)
+		if (ics->host_match(ics, node))
+			return 1;
+
+	return 0;
 }
 
 /* Dummies */

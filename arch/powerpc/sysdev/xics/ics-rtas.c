@@ -26,12 +26,14 @@ static int ibm_int_off;
 static int ics_rtas_map(struct ics *ics, unsigned int virq);
 static void ics_rtas_mask_unknown(struct ics *ics, unsigned long vec);
 static long ics_rtas_get_server(struct ics *ics, unsigned long vec);
+static int ics_rtas_host_match(struct ics *ics, struct device_node *node);
 
 /* Only one global & state struct ics */
 static struct ics ics_rtas = {
 	.map		= ics_rtas_map,
 	.mask_unknown	= ics_rtas_mask_unknown,
 	.get_server	= ics_rtas_get_server,
+	.host_match	= ics_rtas_host_match,
 };
 
 static void ics_rtas_unmask_irq(struct irq_data *d)
@@ -200,6 +202,15 @@ static long ics_rtas_get_server(struct ics *ics, unsigned long vec)
 	if (rc)
 		return -1;
 	return status[0];
+}
+
+static int ics_rtas_host_match(struct ics *ics, struct device_node *node)
+{
+	/* IBM machines have interrupt parents of various funky types for things
+	 * like vdevices, events, etc... The trick we use here is to match
+	 * everything here except the legacy 8259 which is compatible "chrp,iic"
+	 */
+	return !of_device_is_compatible(node, "chrp,iic");
 }
 
 int ics_rtas_init(void)

@@ -59,6 +59,7 @@ struct ics {
 	int (*map)(struct ics *ics, unsigned int virq);
 	void (*mask_unknown)(struct ics *ics, unsigned long vec);
 	long (*get_server)(struct ics *ics, unsigned long vec);
+	int (*host_match)(struct ics *ics, struct device_node *node);
 	char data[];
 };
 
