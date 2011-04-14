@@ -30,8 +30,9 @@
 
 #include "common.h"
 
-#define vbd_sz(_v)   ((_v)->bdev->bd_part ?				\
-		      (_v)->bdev->bd_part->nr_sects : get_capacity((_v)->bdev->bd_disk))
+#define vbd_sz(_v)	((_v)->bdev->bd_part ? \
+			 (_v)->bdev->bd_part->nr_sects : \
+			  get_capacity((_v)->bdev->bd_disk))
 
 unsigned long long vbd_size(struct vbd *vbd)
 {
@@ -40,7 +41,7 @@ unsigned long long vbd_size(struct vbd *vbd)
 
 unsigned int vbd_info(struct vbd *vbd)
 {
-	return vbd->type | (vbd->readonly?VDISK_READONLY:0);
+	return vbd->type | (vbd->readonly ? VDISK_READONLY : 0);
 }
 
 unsigned long vbd_secsize(struct vbd *vbd)
@@ -126,7 +127,7 @@ void vbd_resize(struct blkif_st *blkif)
 
 	printk(KERN_INFO "VBD Resize: Domid: %d, Device: (%d, %d)\n",
 		blkif->domid, MAJOR(vbd->pdevice), MINOR(vbd->pdevice));
-	printk(KERN_INFO "VBD Resize: new size %Lu\n", new_size);
+	printk(KERN_INFO "VBD Resize: new size %llu\n", new_size);
 	vbd->size = new_size;
 again:
 	err = xenbus_transaction_start(&xbt);
@@ -134,7 +135,7 @@ again:
 		printk(KERN_WARNING "Error starting transaction");
 		return;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "sectors", "%Lu",
+	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    vbd_size(vbd));
 	if (err) {
 		printk(KERN_WARNING "Error writing new size");
