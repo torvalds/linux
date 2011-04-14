@@ -921,7 +921,7 @@ static void _rtl92cu_init_chipT_queue_priority(struct ieee80211_hw *hw,
 					       u8 out_ep_num,
 					       u8 queue_sel)
 {
-	u8	hq_sele;
+	u8 hq_sele = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	switch (out_ep_num) {
