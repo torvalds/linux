@@ -1030,6 +1030,8 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 			req.wValue = cpu_to_le16((USB_DT_DEVICE << 8) | 0);
 			/* device descriptor size == 18 bytes */
 			len = udev->descriptor.bMaxPacketSize0;
+			if (udev->speed == USB_SPEED_SUPER)
+				len = 512;
 			switch (len) {
 			case 8:
 				len = 24;
