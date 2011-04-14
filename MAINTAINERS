@@ -1069,7 +1069,7 @@ F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
 
 ARM/TELECHIPS ARM ARCHITECTURE
-M:	"Hans J. Koch" <hjk@linutronix.de>
+M:	"Hans J. Koch" <hjk@hansjkoch.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/plat-tcc/
@@ -4082,7 +4082,7 @@ F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
-M:	"Hans J. Koch" <hjk@linutronix.de>
+M:	"Hans J. Koch" <hjk@hansjkoch.de>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6650
@@ -6622,7 +6622,7 @@ F:	fs/hostfs/
 F:	fs/hppfs/
 
 USERSPACE I/O (UIO)
-M:	"Hans J. Koch" <hjk@linutronix.de>
+M:	"Hans J. Koch" <hjk@hansjkoch.de>
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 S:	Maintained
 F:	Documentation/DocBook/uio-howto.tmpl
