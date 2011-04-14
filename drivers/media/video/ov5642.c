@@ -4448,10 +4448,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			if (sensor->info_priv.snap2preview == true) {
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
+
+                #if CONFIG_SENSOR_Focus
+    			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
+    				sensor_af_const(client);
+    		    #endif
 			}
 			sensor->info_priv.video2preview = false;
 			sensor->info_priv.snap2preview = false;
 		}
+		
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }
     else
@@ -5241,8 +5247,12 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 		case V4L2_CID_FOCUS_AUTO:
 			{
 				if (ext_ctrl->value == 1) {
-					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0)
+					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0) {
+						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
+							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+						}
 						return -EINVAL;
+					}
 					sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
 				} else if (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus){
 					if (ext_ctrl->value == 0)
@@ -5254,8 +5264,12 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 			{
 				if (SENSOR_AF_MODE_CONTINUOUS != sensor->info_priv.auto_focus) {
 					if (ext_ctrl->value == 1) {
-						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS) != 0)
+						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS) != 0) {
+							if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
+								sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
+							}
 							return -EINVAL;
+						}
 						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
 					}
 				} else {
