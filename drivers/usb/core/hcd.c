@@ -2407,6 +2407,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		rhdev->speed = USB_SPEED_SUPER;
 		break;
 	default:
+		retval = -EINVAL;
 		goto err_set_rh_speed;
 	}
 
