@@ -236,6 +236,7 @@ struct gfs2_glock {
 
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
+	atomic_t gl_revokes;
 	struct delayed_work gl_work;
 	struct work_struct gl_delete;
 	struct rcu_head gl_rcu;

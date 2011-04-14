@@ -320,12 +320,16 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 
 static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
+	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
+	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_trans *tr;
 
 	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
 	sdp->sd_log_num_revoke++;
+	atomic_inc(&gl->gl_revokes);
+	set_bit(GLF_LFLUSH, &gl->gl_flags);
 	list_add(&le->le_list, &sdp->sd_log_le_revoke);
 }
 
@@ -348,9 +352,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	ld->ld_data1 = cpu_to_be32(sdp->sd_log_num_revoke);
 	offset = sizeof(struct gfs2_log_descriptor);
 
-	while (!list_empty(head)) {
-		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
-		list_del_init(&bd->bd_le.le_list);
+	list_for_each_entry(bd, head, bd_le.le_list) {
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
@@ -365,13 +367,27 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 
 		*(__be64 *)(bh->b_data + offset) = cpu_to_be64(bd->bd_blkno);
-		kmem_cache_free(gfs2_bufdata_cachep, bd);
-
 		offset += sizeof(u64);
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 
 	submit_bh(WRITE_SYNC, bh);
+}
+
+static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+{
+	struct list_head *head = &sdp->sd_log_le_revoke;
+	struct gfs2_bufdata *bd;
+	struct gfs2_glock *gl;
+
+	while (!list_empty(head)) {
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
+		list_del_init(&bd->bd_le.le_list);
+		gl = bd->bd_gl;
+		atomic_dec(&gl->gl_revokes);
+		clear_bit(GLF_LFLUSH, &gl->gl_flags);
+		kmem_cache_free(gfs2_bufdata_cachep, bd);
+	}
 }
 
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
@@ -747,6 +763,7 @@ const struct gfs2_log_operations gfs2_buf_lops = {
 const struct gfs2_log_operations gfs2_revoke_lops = {
 	.lo_add = revoke_lo_add,
 	.lo_before_commit = revoke_lo_before_commit,
+	.lo_after_commit = revoke_lo_after_commit,
 	.lo_before_scan = revoke_lo_before_scan,
 	.lo_scan_elements = revoke_lo_scan_elements,
 	.lo_after_scan = revoke_lo_after_scan,
