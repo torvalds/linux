@@ -15,3 +15,10 @@ config PPC_MSI_BITMAP
 
 source "arch/powerpc/sysdev/xics/Kconfig"
 
+config PPC_SCOM
+	bool
+
+config SCOM_DEBUGFS
+	bool "Expose SCOM controllers via debugfs"
+	depends on PPC_SCOM
+	default n
