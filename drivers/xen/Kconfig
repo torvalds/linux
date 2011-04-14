@@ -37,6 +37,14 @@ config XEN_BACKEND
 	  Support for backend device drivers that provide I/O services
 	  to other virtual machines.
 
+config XEN_BLKDEV_BACKEND
+	tristate "Block-device backend driver"
+	depends on XEN_BACKEND && BLOCK
+	help
+	  The block-device backend driver allows the kernel to export its
+	  block devices to other guests via a high-performance shared-memory
+	  interface.
+
 config XENFS
 	tristate "Xen filesystem"
 	default y
