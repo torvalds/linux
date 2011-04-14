@@ -353,7 +353,7 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *other_mode)
 {
-	u32 tmp = 0;
+	u32 tmp;
 	/*
 	 * Line Buffer Setup
 	 * There are 3 line buffers, each one shared by 2 display controllers.
@@ -363,64 +363,63 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	 * first display controller
 	 *  0 - first half of lb (3840 * 2)
 	 *  1 - first 3/4 of lb (5760 * 2)
-	 *  2 - whole lb (7680 * 2)
+	 *  2 - whole lb (7680 * 2), other crtc must be disabled
 	 *  3 - first 1/4 of lb (1920 * 2)
 	 * second display controller
 	 *  4 - second half of lb (3840 * 2)
 	 *  5 - second 3/4 of lb (5760 * 2)
-	 *  6 - whole lb (7680 * 2)
+	 *  6 - whole lb (7680 * 2), other crtc must be disabled
 	 *  7 - last 1/4 of lb (1920 * 2)
 	 */
-	if (mode && other_mode) {
-		if (mode->hdisplay > other_mode->hdisplay) {
-			if (mode->hdisplay > 2560)
-				tmp = 1; /* 3/4 */
-			else
-				tmp = 0; /* 1/2 */
-		} else if (other_mode->hdisplay > mode->hdisplay) {
-			if (other_mode->hdisplay > 2560)
-				tmp = 3; /* 1/4 */
-			else
-				tmp = 0; /* 1/2 */
-		} else
+	/* this can get tricky if we have two large displays on a paired group
+	 * of crtcs.  Ideally for multiple large displays we'd assign them to
+	 * non-linked crtcs for maximum line buffer allocation.
+	 */
+	if (radeon_crtc->base.enabled && mode) {
+		if (other_mode)
 			tmp = 0; /* 1/2 */
-	} else if (mode)
-		tmp = 2; /* whole */
-	else if (other_mode)
-		tmp = 3; /* 1/4 */
+		else
+			tmp = 2; /* whole */
+	} else
+		tmp = 0;
 
 	/* second controller of the pair uses second half of the lb */
 	if (radeon_crtc->crtc_id % 2)
 		tmp += 4;
 	WREG32(DC_LB_MEMORY_SPLIT + radeon_crtc->crtc_offset, tmp);
 
-	switch (tmp) {
-	case 0:
-	case 4:
-	default:
-		if (ASIC_IS_DCE5(rdev))
-			return 4096 * 2;
-		else
-			return 3840 * 2;
-	case 1:
-	case 5:
-		if (ASIC_IS_DCE5(rdev))
-			return 6144 * 2;
-		else
-			return 5760 * 2;
-	case 2:
-	case 6:
-		if (ASIC_IS_DCE5(rdev))
-			return 8192 * 2;
-		else
-			return 7680 * 2;
-	case 3:
-	case 7:
-		if (ASIC_IS_DCE5(rdev))
-			return 2048 * 2;
-		else
-			return 1920 * 2;
+	if (radeon_crtc->base.enabled && mode) {
+		switch (tmp) {
+		case 0:
+		case 4:
+		default:
+			if (ASIC_IS_DCE5(rdev))
+				return 4096 * 2;
+			else
+				return 3840 * 2;
+		case 1:
+		case 5:
+			if (ASIC_IS_DCE5(rdev))
+				return 6144 * 2;
+			else
+				return 5760 * 2;
+		case 2:
+		case 6:
+			if (ASIC_IS_DCE5(rdev))
+				return 8192 * 2;
+			else
+				return 7680 * 2;
+		case 3:
+		case 7:
+			if (ASIC_IS_DCE5(rdev))
+				return 2048 * 2;
+			else
+				return 1920 * 2;
+		}
 	}
+
+	/* controller not enabled, so no lb used */
+	return 0;
 }
 
 static u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev)
