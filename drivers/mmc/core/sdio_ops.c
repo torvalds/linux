@@ -123,7 +123,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 {
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 
 	BUG_ON(!card);
@@ -137,7 +137,6 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 		return -EINVAL;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;

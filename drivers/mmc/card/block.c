@@ -261,7 +261,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	unsigned int timeout_us;
 
 	struct scatterlist sg;
@@ -281,8 +281,6 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	cmd.opcode = SD_APP_SEND_NUM_WR_BLKS;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	data.timeout_ns = card->csd.tacc_ns * 100;
 	data.timeout_clks = card->csd.tacc_clks * 100;

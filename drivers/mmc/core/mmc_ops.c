@@ -235,7 +235,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 {
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 	void *data_buf;
 
@@ -247,7 +247,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		return -ENOMEM;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -459,7 +458,7 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 {
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 	u8 *data_buf;
 	u8 *test_buf;
@@ -489,7 +488,6 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		memcpy(data_buf, test_buf, len);
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;

@@ -245,7 +245,7 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 	int err;
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 	void *data_buf;
 
@@ -267,7 +267,6 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 		return -ENOMEM;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -307,7 +306,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 {
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 
 	BUG_ON(!card);
@@ -319,7 +318,6 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	value &= 0xF;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -355,7 +353,7 @@ int mmc_app_sd_status(struct mmc_card *card, void *ssr)
 	int err;
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 	struct scatterlist sg;
 
 	BUG_ON(!card);
@@ -369,7 +367,6 @@ int mmc_app_sd_status(struct mmc_card *card, void *ssr)
 		return err;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;

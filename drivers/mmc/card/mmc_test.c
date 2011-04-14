@@ -249,12 +249,11 @@ static int mmc_test_buffer_transfer(struct mmc_test_card *test,
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
 	struct mmc_command stop = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 
 	struct scatterlist sg;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -732,10 +731,9 @@ static int mmc_test_simple_transfer(struct mmc_test_card *test,
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
 	struct mmc_command stop = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -760,12 +758,11 @@ static int mmc_test_broken_transfer(struct mmc_test_card *test,
 	struct mmc_request mrq;
 	struct mmc_command cmd = {0};
 	struct mmc_command stop = {0};
-	struct mmc_data data;
+	struct mmc_data data = {0};
 
 	struct scatterlist sg;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
