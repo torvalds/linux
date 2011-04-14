@@ -565,7 +565,7 @@ static struct i2c_driver mma8452_driver = {
 static int mma8452_init_client(struct i2c_client *client)
 {
 	struct mma8452_data *mma8452;
-	int ret;
+	int ret,irq;
 	mma8452 = i2c_get_clientdata(client);
 	mmaprintk("gpio_to_irq(%d) is %d\n",client->irq,gpio_to_irq(client->irq));
 	if ( !gpio_is_valid(client->irq)) {
@@ -580,16 +580,19 @@ static int mma8452_init_client(struct i2c_client *client)
     ret = gpio_direction_input(client->irq);
     if (ret) {
         mmaprintk("failed to set mma7990_trig GPIO gpio input\n");
+		gpio_free(client->irq);
 		return ret;
     }
 	gpio_pull_updown(client->irq, GPIOPullUp);
-	client->irq = gpio_to_irq(client->irq);
-	ret = request_irq(client->irq, mma8452_interrupt, IRQF_TRIGGER_LOW, client->dev.driver->name, mma8452);
-	mmaprintk("request irq is %d,ret is  0x%x\n",client->irq,ret);
+	irq = gpio_to_irq(client->irq);
+	ret = request_irq(irq, mma8452_interrupt, IRQF_TRIGGER_LOW, client->dev.driver->name, mma8452);
+	mmaprintk("request irq is %d,ret is  0x%x\n",irq,ret);
 	if (ret ) {
+		gpio_free(client->irq);
 		mmaprintk(KERN_ERR "mma8452_init_client: request irq failed,ret is %d\n",ret);
         return ret;
 	}
+	client->irq = irq;
 	disable_irq(client->irq);
 	init_waitqueue_head(&data_ready_wq);
  
@@ -620,17 +623,17 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 
 	this_client = client;
 
+	devid = mma8452_get_devid(this_client);
+	if ((MMA8452_DEVID != devid) && (MMA8451_DEVID != devid)) {
+		pr_info("mma8452: invalid devid\n");
+		goto exit_invalid_devid;
+	}
+
 	err = mma8452_init_client(client);
 	if (err < 0) {
 		mmaprintk(KERN_ERR
 		       "mma8452_probe: mma8452_init_client failed\n");
 		goto exit_request_gpio_irq_failed;
-	}
-
-	devid = mma8452_get_devid(this_client);
-	if ((MMA8452_DEVID != devid) && (MMA8451_DEVID != devid)) {
-		pr_info("mma8452: invalid devid\n");
-		goto exit_invalid_devid;
 	}
 
 	mma8452->input_dev = input_allocate_device();
@@ -699,9 +702,11 @@ exit_misc_device_register_mma8452_device_failed:
 exit_input_register_device_failed:
 	input_free_device(mma8452->input_dev);
 exit_input_allocate_device_failed:
-exit_invalid_devid:
-    free_irq(client->irq, mma8452);
+	free_irq(client->irq, mma8452);
 exit_request_gpio_irq_failed:
+	cancel_delayed_work_sync(&mma8452->delaywork);
+	cancel_work_sync(&mma8452->work);
+exit_invalid_devid:
 	kfree(mma8452);	
 exit_alloc_data_failed:
     ;
