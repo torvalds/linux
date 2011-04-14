@@ -82,6 +82,16 @@ static struct {
 				  PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
 	},
+
+	[PERF_TYPE_RAW] = {
+		.user_set = false,
+
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+		.invalid_fields = PERF_OUTPUT_TRACE,
+	},
 };
 
 static bool output_set_by_user(void)
@@ -502,6 +512,8 @@ static int parse_output_fields(const struct option *opt __used,
 			type = PERF_TYPE_SOFTWARE;
 		else if (!strcmp(str, "trace"))
 			type = PERF_TYPE_TRACEPOINT;
+		else if (!strcmp(str, "raw"))
+			type = PERF_TYPE_RAW;
 		else {
 			fprintf(stderr, "Invalid event type in field string.\n");
 			return -EINVAL;
@@ -902,7 +914,7 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace. Fields: comm,tid,pid,time,cpu,event,trace,sym",
+		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,sym",
 		     parse_output_fields),
 
 	OPT_END()
