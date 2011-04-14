@@ -329,7 +329,7 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns)
 {
 	struct snd_array *array = &codec->conn_lists;
-	int i, j, len, old_used;
+	int i, len, old_used;
 	hda_nid_t list[HDA_MAX_CONNECTIONS];
 
 	/* look up the cached results */
