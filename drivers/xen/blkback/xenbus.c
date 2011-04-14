@@ -25,10 +25,9 @@
 #undef DPRINTK
 #define DPRINTK(fmt, args...)				\
 	pr_debug("blkback/xenbus (%s:%d) " fmt ".\n",	\
-		 __FUNCTION__, __LINE__, ##args)
+		 __func__, __LINE__, ##args)
 
-struct backend_info
-{
+struct backend_info {
 	struct xenbus_device *dev;
 	struct blkif_st *blkif;
 	struct xenbus_watch backend_watch;
@@ -56,7 +55,8 @@ static int blkback_name(struct blkif_st *blkif, char *buf)
 	if (IS_ERR(devpath))
 		return PTR_ERR(devpath);
 
-	if ((devname = strstr(devpath, "/dev/")) != NULL)
+	devname = strstr(devpath, "/dev/");
+	if (devname != NULL)
 		devname += strlen("/dev/");
 	else
 		devname  = devpath;
@@ -153,7 +153,7 @@ int xenvbd_sysfs_addif(struct xenbus_device *dev)
 	int error;
 
 	error = device_create_file(&dev->dev, &dev_attr_physical_device);
- 	if (error)
+	if (error)
 		goto fail1;
 
 	error = device_create_file(&dev->dev, &dev_attr_mode);
@@ -327,7 +327,10 @@ static void backend_changed(struct xenbus_watch *watch,
 		/* Front end dir is a number, which is used as the handle. */
 
 		char *p = strrchr(dev->otherend, '/') + 1;
-		long handle = simple_strtoul(p, NULL, 0);
+		long handle;
+		err = strict_strtoul(p, 0, &handle);
+		if (err)
+			return;
 
 		be->major = major;
 		be->minor = minor;
@@ -369,7 +372,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
 			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
-			       __FUNCTION__, dev->nodename);
+			       __func__, dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -494,8 +497,8 @@ static int connect_ring(struct backend_info *be)
 
 	DPRINTK("%s", dev->otherend);
 
-	err = xenbus_gather(XBT_NIL, dev->otherend, "ring-ref", "%lu", &ring_ref,
-			    "event-channel", "%u", &evtchn, NULL);
+	err = xenbus_gather(XBT_NIL, dev->otherend, "ring-ref", "%lu",
+			    &ring_ref, "event-channel", "%u", &evtchn, NULL);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
 				 "reading %s/ring-ref and event-channel",
