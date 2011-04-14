@@ -982,6 +982,14 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	startindex = (vout->vid == OMAP_VIDEO1) ?
 		video1_numbuffers : video2_numbuffers;
 
+	/* Check the size of the buffer */
+	if (*size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+				"buffer allocation mismatch [%u] [%u]\n",
+				*size, vout->buffer_size);
+		return -ENOMEM;
+	}
+
 	for (i = startindex; i < *count; i++) {
 		vout->buffer_size = *size;
 
@@ -1228,6 +1236,14 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 				(vma->vm_pgoff << PAGE_SHIFT));
 		return -EINVAL;
 	}
+	/* Check the size of the buffer */
+	if (size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+				"insufficient memory [%lu] [%u]\n",
+				size, vout->buffer_size);
+		return -ENOMEM;
+	}
+
 	q->bufs[i]->baddr = vma->vm_start;
 
 	vma->vm_flags |= VM_RESERVED;
