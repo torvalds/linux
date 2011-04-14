@@ -864,8 +864,9 @@ have_hes:
 	 * that will have to be made dependent on whether we are running under
 	 * a hypervisor I suppose.
 	 */
-	ori	r3,r3,MAS0_HES | MAS0_WQ_ALLWAYS
-	mtspr	SPRN_MAS0,r3
+	ori	r11,r3,MAS0_WQ_ALLWAYS
+	oris	r11,r11,MAS0_ESEL(3)@h /* Use way 3: workaround A2 erratum 376 */
+	mtspr	SPRN_MAS0,r11
 	lis	r3,(MAS1_VALID | MAS1_IPROT)@h
 	ori	r3,r3,BOOK3E_PAGESZ_1GB << MAS1_TSIZE_SHIFT
 	mtspr	SPRN_MAS1,r3
