@@ -859,8 +859,6 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 		adapter->int_status |= sdio_ireg;
 		spin_unlock_irqrestore(&adapter->int_lock, flags);
 	}
-
-	return;
 }
 
 /*
@@ -891,8 +889,6 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 
 	mwifiex_interrupt_status(adapter);
 	queue_work(adapter->workqueue, &adapter->main_work);
-
-	return;
 }
 
 /*

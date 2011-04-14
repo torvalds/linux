@@ -735,8 +735,6 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
-
-	return;
 }
 
 /*
@@ -749,7 +747,6 @@ mwifiex_dev_debugfs_remove(struct mwifiex_private *priv)
 		return;
 
 	debugfs_remove_recursive(priv->dfs_dev_dir);
-	return;
 }
 
 /*

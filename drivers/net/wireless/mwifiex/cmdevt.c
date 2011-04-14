@@ -94,8 +94,6 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 		mwifiex_recv_complete(adapter, cmd_node->resp_skb, 0);
 		cmd_node->resp_skb = NULL;
 	}
-
-	return;
 }
 
 /*
@@ -536,7 +534,7 @@ mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 {
 	unsigned long flags;
 
-	if (cmd_node == NULL)
+	if (!cmd_node)
 		return;
 
 	if (cmd_node->wait_q_enabled)
@@ -548,8 +546,6 @@ mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
 	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
 	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
-
-	return;
 }
 
 /*
@@ -594,8 +590,6 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
 	dev_dbg(adapter->dev, "cmd: QUEUE_CMD: cmd=%#x is queued\n", command);
-
-	return;
 }
 
 /*
@@ -871,8 +865,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
 		mwifiex_init_fw_complete(adapter);
-
-	return;
 }
 
 /*
@@ -989,8 +981,6 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 	}
 	adapter->cmd_wait_q.status = -1;
 	mwifiex_complete_cmd(adapter);
-
-	return;
 }
 
 /*
@@ -1094,7 +1084,6 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 	adapter->is_hs_configured = false;
 	mwifiex_hs_activated_event(mwifiex_get_priv(adapter,
 				   MWIFIEX_BSS_ROLE_ANY), false);
-	return;
 }
 
 /*

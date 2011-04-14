@@ -543,8 +543,6 @@ mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 	if (curr_tx_buf_size != tx_buf)
 		mwifiex_send_cmd_async(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
 				       HostCmd_ACT_GEN_SET, 0, &tx_buf);
-
-	return;
 }
 
 /*
@@ -582,8 +580,6 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 	list_del(&tx_ba_tsr_tbl->list);
 
 	kfree(tx_ba_tsr_tbl);
-
-	return;
 }
 
 /*
@@ -662,8 +658,6 @@ void mwifiex_11n_create_tx_ba_stream_tbl(struct mwifiex_private *priv,
 		list_add_tail(&new_node->list, &priv->tx_ba_stream_tbl_ptr);
 		spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
 	}
-
-	return;
 }
 
 /*

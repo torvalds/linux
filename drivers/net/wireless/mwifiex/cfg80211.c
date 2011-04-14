@@ -1428,6 +1428,4 @@ done:
 		memset(priv->cfg_bssid, 0, ETH_ALEN);
 		priv->disconnect = 0;
 	}
-
-	return;
 }

@@ -103,8 +103,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = NULL;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-
-	return;
 }
 
 /*

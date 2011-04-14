@@ -505,7 +505,6 @@ mwifiex_fill_buffer(struct sk_buff *skb)
 	 */
 	do_gettimeofday(&tv);
 	skb->tstamp = timeval_to_ktime(tv);
-	return;
 }
 
 /*
@@ -820,8 +819,6 @@ mwifiex_remove_interface(struct mwifiex_adapter *adapter, u8 bss_index)
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);
 	kfree(priv->wdev);
-
-	return;
 }
 
 /*

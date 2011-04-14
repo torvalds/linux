@@ -1232,6 +1232,4 @@ mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter)
 		if (mwifiex_dequeue_tx_packet(adapter))
 			break;
 	} while (true);
-
-	return;
 }

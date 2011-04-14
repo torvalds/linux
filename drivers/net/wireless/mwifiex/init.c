@@ -299,8 +299,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->adhoc_awake_period = 0;
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
-
-	return;
 }
 
 /*
@@ -339,8 +337,6 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 	adapter->if_ops.cleanup_if(adapter);
 
 	dev_kfree_skb_any(adapter->sleep_cfm);
-
-	return;
 }
 
 /*
@@ -428,8 +424,6 @@ void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 			list_del(&priv->rx_reorder_tbl_ptr);
 		}
 	}
-
-	return;
 }
 
 /*
