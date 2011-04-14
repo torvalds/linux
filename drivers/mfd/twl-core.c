@@ -229,6 +229,9 @@
 /* is driver active, bound to a chip? */
 static bool inuse;
 
+/* TWL IDCODE Register value */
+static u32 twl_idcode;
+
 static unsigned int twl_id;
 unsigned int twl_rev(void)
 {
@@ -486,6 +489,58 @@ int twl_i2c_read_u8(u8 mod_no, u8 *value, u8 reg)
 EXPORT_SYMBOL(twl_i2c_read_u8);
 
 /*----------------------------------------------------------------------*/
+
+/**
+ * twl_read_idcode_register - API to read the IDCODE register.
+ *
+ * Unlocks the IDCODE register and read the 32 bit value.
+ */
+static int twl_read_idcode_register(void)
+{
+	int err;
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_INTBR, TWL_EEPROM_R_UNLOCK,
+						REG_UNLOCK_TEST_REG);
+	if (err) {
+		pr_err("TWL4030 Unable to unlock IDCODE registers -%d\n", err);
+		goto fail;
+	}
+
+	err = twl_i2c_read(TWL4030_MODULE_INTBR, (u8 *)(&twl_idcode),
+						REG_IDCODE_7_0, 4);
+	if (err) {
+		pr_err("TWL4030: unable to read IDCODE -%d\n", err);
+		goto fail;
+	}
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_INTBR, 0x0, REG_UNLOCK_TEST_REG);
+	if (err)
+		pr_err("TWL4030 Unable to relock IDCODE registers -%d\n", err);
+fail:
+	return err;
+}
+
+/**
+ * twl_get_type - API to get TWL Si type.
+ *
+ * Api to get the TWL Si type from IDCODE value.
+ */
+int twl_get_type(void)
+{
+	return TWL_SIL_TYPE(twl_idcode);
+}
+EXPORT_SYMBOL_GPL(twl_get_type);
+
+/**
+ * twl_get_version - API to get TWL Si version.
+ *
+ * Api to get the TWL Si version from IDCODE value.
+ */
+int twl_get_version(void)
+{
+	return TWL_SIL_REV(twl_idcode);
+}
+EXPORT_SYMBOL_GPL(twl_get_version);
 
 static struct device *
 add_numbered_child(unsigned chip, const char *name, int num,
@@ -1014,6 +1069,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	unsigned			i;
 	struct twl4030_platform_data	*pdata = client->dev.platform_data;
 	u8 temp;
+	int ret = 0;
 
 	if (!pdata) {
 		dev_dbg(&client->dev, "no platform data?\n");
@@ -1059,6 +1115,12 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* setup clock framework */
 	clocks_init(&client->dev, pdata->clock);
+
+	/* read TWL IDCODE Register */
+	if (twl_id == TWL4030_CLASS_ID) {
+		ret = twl_read_idcode_register();
+		WARN(ret < 0, "Error: reading twl_idcode register value\n");
+	}
 
 	/* load power event scripts */
 	if (twl_has_power() && pdata->power)

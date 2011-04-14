@@ -150,7 +150,12 @@
 #define MMC_PU				(0x1 << 3)
 #define MMC_PD				(0x1 << 2)
 
-
+#define TWL_SIL_TYPE(rev)		((rev) & 0x00FFFFFF)
+#define TWL_SIL_REV(rev)		((rev) >> 24)
+#define TWL_SIL_5030			0x09002F
+#define TWL5030_REV_1_0			0x00
+#define TWL5030_REV_1_1			0x10
+#define TWL5030_REV_1_2			0x30
 
 #define TWL4030_CLASS_ID 		0x4030
 #define TWL6030_CLASS_ID 		0x6030
@@ -179,6 +184,9 @@ int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+
+int twl_get_type(void);
+int twl_get_version(void);
 
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset);
 int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
@@ -279,7 +287,12 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
  *(Use TWL_4030_MODULE_INTBR)
  */
 
+#define REG_IDCODE_7_0			0x00
+#define REG_IDCODE_15_8			0x01
+#define REG_IDCODE_16_23		0x02
+#define REG_IDCODE_31_24		0x03
 #define REG_GPPUPDCTR1			0x0F
+#define REG_UNLOCK_TEST_REG		0x12
 
 /*I2C1 and I2C4(SR) SDA/SCL pull-up control bits */
 
@@ -287,6 +300,8 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 #define I2C_SDA_CTRL_PU			BIT(2)
 #define SR_I2C_SCL_CTRL_PU		BIT(4)
 #define SR_I2C_SDA_CTRL_PU		BIT(6)
+
+#define TWL_EEPROM_R_UNLOCK		0x49
 
 /*----------------------------------------------------------------------*/
 
