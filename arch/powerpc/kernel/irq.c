@@ -397,24 +397,28 @@ struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void exc_lvl_ctx_init(void)
 {
 	struct thread_info *tp;
-	int i, hw_cpu;
+	int i, cpu_nr;
 
 	for_each_possible_cpu(i) {
-		hw_cpu = get_hard_smp_processor_id(i);
-		memset((void *)critirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = critirq_ctx[hw_cpu];
-		tp->cpu = i;
+#ifdef CONFIG_PPC64
+		cpu_nr = i;
+#else
+		cpu_nr = get_hard_smp_processor_id(i);
+#endif
+		memset((void *)critirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = critirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = 0;
 
 #ifdef CONFIG_BOOKE
-		memset((void *)dbgirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = dbgirq_ctx[hw_cpu];
-		tp->cpu = i;
+		memset((void *)dbgirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = 0;
 
-		memset((void *)mcheckirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = mcheckirq_ctx[hw_cpu];
-		tp->cpu = i;
+		memset((void *)mcheckirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = HARDIRQ_OFFSET;
 #endif
 	}
