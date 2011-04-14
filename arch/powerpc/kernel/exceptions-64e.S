@@ -886,8 +886,51 @@ have_hes:
 	bctr
 
 1:	/* We are now running at PAGE_OFFSET, clean the TLB of everything
-	 * else (XXX we should scan for bolted crap from the firmware too)
+	 * else (including IPROTed things left by firmware)
+	 * r4 = TLBnCFG
+	 * r3 = current address (more or less)
 	 */
+
+	li	r5,0
+	mtspr	SPRN_MAS6,r5
+	tlbsx	0,r3
+
+	rlwinm	r9,r4,0,TLBnCFG_N_ENTRY
+	rlwinm	r10,r4,8,0xff
+	addi	r10,r10,-1	/* Get inner loop mask */
+
+	li	r3,1
+
+	mfspr	r5,SPRN_MAS1
+	rlwinm	r5,r5,0,(~(MAS1_VALID|MAS1_IPROT))
+
+	mfspr	r6,SPRN_MAS2
+	rldicr	r6,r6,0,51		/* Extract EPN */
+
+	mfspr	r7,SPRN_MAS0
+	rlwinm	r7,r7,0,0xffff0fff	/* Clear HES and WQ */
+
+	rlwinm	r8,r7,16,0xfff		/* Extract ESEL */
+
+2:	add	r4,r3,r8
+	and	r4,r4,r10
+
+	rlwimi	r7,r4,16,MAS0_ESEL_MASK
+
+	mtspr	SPRN_MAS0,r7
+	mtspr	SPRN_MAS1,r5
+	mtspr	SPRN_MAS2,r6
+	tlbwe
+
+	addi	r3,r3,1
+	and.	r4,r3,r10
+
+	bne	3f
+	addis	r6,r6,(1<<30)@h
+3:
+	cmpw	r3,r9
+	blt	2b
+
 	PPC_TLBILX(0,0,0)
 	sync
 	isync
