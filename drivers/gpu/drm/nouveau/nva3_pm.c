@@ -27,10 +27,10 @@
 #include "nouveau_bios.h"
 #include "nouveau_pm.h"
 
-/*XXX: boards using limits 0x40 need fixing, the register layout
- *     is correct here, but, there's some other funny magic
- *     that modifies things, so it's not likely we'll set/read
- *     the correct timings yet..  working on it...
+/* This is actually a lot more complex than it appears here, but hopefully
+ * this should be able to deal with what the VBIOS leaves for us..
+ *
+ * If not, well, I'll jump off that bridge when I come to it.
  */
 
 struct nva3_pm_state {
@@ -38,21 +38,57 @@ struct nva3_pm_state {
 	int N, M, P;
 };
 
+static int
+nva3_pm_pll_offset(u32 id)
+{
+	static const u32 pll_map[] = {
+		0x00, PLL_CORE,
+		0x01, PLL_SHADER,
+		0x02, PLL_MEMORY,
+		0x00, 0x00
+	};
+	const u32 *map = pll_map;
+
+	while (map[1]) {
+		if (id == map[1])
+			return map[0];
+		map += 2;
+	}
+
+	return -ENOENT;
+}
+
 int
 nva3_pm_clock_get(struct drm_device *dev, u32 id)
 {
+	u32 src0, src1, ctrl, coef;
 	struct pll_lims pll;
-	int P, N, M, ret;
-	u32 reg;
+	int ret, off;
+	int P, N, M;
 
 	ret = get_pll_limits(dev, id, &pll);
 	if (ret)
 		return ret;
 
-	reg = nv_rd32(dev, pll.reg + 4);
-	P = (reg & 0x003f0000) >> 16;
-	N = (reg & 0x0000ff00) >> 8;
-	M = (reg & 0x000000ff);
+	off = nva3_pm_pll_offset(id);
+	if (off < 0)
+		return off;
+
+	src0 = nv_rd32(dev, 0x4120 + (off * 4));
+	src1 = nv_rd32(dev, 0x4160 + (off * 4));
+	ctrl = nv_rd32(dev, pll.reg + 0);
+	coef = nv_rd32(dev, pll.reg + 4);
+	NV_DEBUG(dev, "PLL %02x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		      id, src0, src1, ctrl, coef);
+
+	if (ctrl & 0x00000008) {
+		u32 div = ((src1 & 0x003c0000) >> 18) + 1;
+		return (pll.refclk * 2) / div;
+	}
+
+	P = (coef & 0x003f0000) >> 16;
+	N = (coef & 0x0000ff00) >> 8;
+	M = (coef & 0x000000ff);
 	return pll.refclk * N / M / P;
 }
 
