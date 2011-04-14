@@ -35,9 +35,9 @@
 
 static struct kmem_cache *blkif_cachep;
 
-blkif_t *blkif_alloc(domid_t domid)
+struct blkif_st *blkif_alloc(domid_t domid)
 {
-	blkif_t *blkif;
+	struct blkif_st *blkif;
 
 	blkif = kmem_cache_alloc(blkif_cachep, GFP_KERNEL);
 	if (!blkif)
@@ -54,7 +54,7 @@ blkif_t *blkif_alloc(domid_t domid)
 	return blkif;
 }
 
-static int map_frontend_page(blkif_t *blkif, unsigned long shared_page)
+static int map_frontend_page(struct blkif_st *blkif, unsigned long shared_page)
 {
 	struct gnttab_map_grant_ref op;
 
@@ -75,7 +75,7 @@ static int map_frontend_page(blkif_t *blkif, unsigned long shared_page)
 	return 0;
 }
 
-static void unmap_frontend_page(blkif_t *blkif)
+static void unmap_frontend_page(struct blkif_st *blkif)
 {
 	struct gnttab_unmap_grant_ref op;
 
@@ -86,7 +86,7 @@ static void unmap_frontend_page(blkif_t *blkif)
 		BUG();
 }
 
-int blkif_map(blkif_t *blkif, unsigned long shared_page, unsigned int evtchn)
+int blkif_map(struct blkif_st *blkif, unsigned long shared_page, unsigned int evtchn)
 {
 	int err;
 
@@ -143,7 +143,7 @@ int blkif_map(blkif_t *blkif, unsigned long shared_page, unsigned int evtchn)
 	return 0;
 }
 
-void blkif_disconnect(blkif_t *blkif)
+void blkif_disconnect(struct blkif_st *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
@@ -166,7 +166,7 @@ void blkif_disconnect(blkif_t *blkif)
 	}
 }
 
-void blkif_free(blkif_t *blkif)
+void blkif_free(struct blkif_st *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
@@ -175,7 +175,7 @@ void blkif_free(blkif_t *blkif)
 
 int __init blkif_interface_init(void)
 {
-	blkif_cachep = kmem_cache_create("blkif_cache", sizeof(blkif_t),
+	blkif_cachep = kmem_cache_create("blkif_cache", sizeof(struct blkif_st),
 					 0, 0, NULL);
 	if (!blkif_cachep)
 		return -ENOMEM;

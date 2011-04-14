@@ -75,7 +75,7 @@ module_param(debug_lvl, int, 0644);
  * response queued for it, with the saved 'id' passed back.
  */
 typedef struct {
-	blkif_t       *blkif;
+	struct blkif_st       *blkif;
 	u64            id;
 	int            nr_pages;
 	atomic_t       pendcnt;
@@ -123,11 +123,11 @@ static inline unsigned long vaddr(pending_req_t *req, int seg)
 	(blkbk->pending_grant_handles[vaddr_pagenr(_req, _seg)])
 
 
-static int do_block_io_op(blkif_t *blkif);
-static void dispatch_rw_block_io(blkif_t *blkif,
+static int do_block_io_op(struct blkif_st *blkif);
+static void dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
 				 pending_req_t *pending_req);
-static void make_response(blkif_t *blkif, u64 id,
+static void make_response(struct blkif_st *blkif, u64 id,
 			  unsigned short op, int st);
 
 /*
@@ -169,7 +169,7 @@ static void free_req(pending_req_t *req)
  * It is OK to make multiple calls in this function as it
  * resets the plug to NULL when it is done on the first call.
  */
-static void unplug_queue(blkif_t *blkif)
+static void unplug_queue(struct blkif_st *blkif)
 {
 	if (blkif->plug == NULL)
 		return;
@@ -185,7 +185,7 @@ static void unplug_queue(blkif_t *blkif)
  * not to double reference. We also give back a reference count
  * if it corresponds to another queue.
  */
-static void plug_queue(blkif_t *blkif, struct block_device *bdev)
+static void plug_queue(struct blkif_st *blkif, struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 
@@ -237,7 +237,7 @@ static void fast_flush_area(pending_req_t *req)
  * SCHEDULER FUNCTIONS
  */
 
-static void print_stats(blkif_t *blkif)
+static void print_stats(struct blkif_st *blkif)
 {
 	printk(KERN_DEBUG "%s: oo %3d  |  rd %4d  |  wr %4d  |  br %4d\n",
 	       current->comm, blkif->st_oo_req,
@@ -250,7 +250,7 @@ static void print_stats(blkif_t *blkif)
 
 int blkif_schedule(void *arg)
 {
-	blkif_t *blkif = arg;
+	struct blkif_st *blkif = arg;
 	struct vbd *vbd = &blkif->vbd;
 
 	blkif_get(blkif);
@@ -337,7 +337,7 @@ static void end_block_io_op(struct bio *bio, int error)
  * Notification from the guest OS.
  */
 
-static void blkif_notify_work(blkif_t *blkif)
+static void blkif_notify_work(struct blkif_st *blkif)
 {
 	blkif->waiting_reqs = 1;
 	wake_up(&blkif->wq);
@@ -356,7 +356,7 @@ irqreturn_t blkif_be_int(int irq, void *dev_id)
  * (which has the sectors we want, number of them, grant references, etc),
  * and transmute  it to the block API to hand it over to the proper block disk.
  */
-static int do_block_io_op(blkif_t *blkif)
+static int do_block_io_op(struct blkif_st *blkif)
 {
 	union blkif_back_rings *blk_rings = &blkif->blk_rings;
 	struct blkif_request req;
@@ -438,7 +438,7 @@ static int do_block_io_op(blkif_t *blkif)
  * Transumation of the 'struct blkif_request' to a proper 'struct bio'
  * and call the 'submit_bio' to pass it to the underlaying storage.
  */
-static void dispatch_rw_block_io(blkif_t *blkif,
+static void dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
 				 pending_req_t *pending_req)
 {
@@ -633,7 +633,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 /*
  * Put a response on the ring on how the operation fared.
  */
-static void make_response(blkif_t *blkif, u64 id,
+static void make_response(struct blkif_st *blkif, u64 id,
 			  unsigned short op, int st)
 {
 	struct blkif_response  resp;

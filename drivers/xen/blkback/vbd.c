@@ -48,7 +48,7 @@ unsigned long vbd_secsize(struct vbd *vbd)
 	return bdev_logical_block_size(vbd->bdev);
 }
 
-int vbd_create(blkif_t *blkif, blkif_vdev_t handle, unsigned major,
+int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle, unsigned major,
 	       unsigned minor, int readonly, int cdrom)
 {
 	struct vbd *vbd;
@@ -97,7 +97,7 @@ void vbd_free(struct vbd *vbd)
 	vbd->bdev = NULL;
 }
 
-int vbd_translate(struct phys_req *req, blkif_t *blkif, int operation)
+int vbd_translate(struct phys_req *req, struct blkif_st *blkif, int operation)
 {
 	struct vbd *vbd = &blkif->vbd;
 	int rc = -EACCES;
@@ -116,7 +116,7 @@ int vbd_translate(struct phys_req *req, blkif_t *blkif, int operation)
 	return rc;
 }
 
-void vbd_resize(blkif_t *blkif)
+void vbd_resize(struct blkif_st *blkif)
 {
 	struct vbd *vbd = &blkif->vbd;
 	struct xenbus_transaction xbt;

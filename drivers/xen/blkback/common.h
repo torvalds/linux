@@ -34,7 +34,7 @@
 #include <linux/blkdev.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/setup.h>
 #include <asm/pgalloc.h>
 #include <asm/hypervisor.h>
@@ -44,7 +44,7 @@
 
 #define DPRINTK(_f, _a...)			\
 	pr_debug("(file=%s, line=%d) " _f,	\
-		 __FILE__ , __LINE__ , ## _a )
+		 __FILE__ , __LINE__ , ## _a)
 
 struct vbd {
 	blkif_vdev_t   handle;      /* what the domain refers to this vbd as */
@@ -57,7 +57,7 @@ struct vbd {
 
 struct backend_info;
 
-typedef struct blkif_st {
+struct blkif_st {
 	/* Unique identifier for this interface. */
 	domid_t           domid;
 	unsigned int      handle;
@@ -94,13 +94,14 @@ typedef struct blkif_st {
 
 	grant_handle_t shmem_handle;
 	grant_ref_t    shmem_ref;
-} blkif_t;
+};
 
-blkif_t *blkif_alloc(domid_t domid);
-void blkif_disconnect(blkif_t *blkif);
-void blkif_free(blkif_t *blkif);
-int blkif_map(blkif_t *blkif, unsigned long shared_page, unsigned int evtchn);
-void vbd_resize(blkif_t *blkif);
+struct blkif_st *blkif_alloc(domid_t domid);
+void blkif_disconnect(struct blkif_st *blkif);
+void blkif_free(struct blkif_st *blkif);
+int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
+	      unsigned int evtchn);
+void vbd_resize(struct blkif_st *blkif);
 
 #define blkif_get(_b) (atomic_inc(&(_b)->refcnt))
 #define blkif_put(_b)					\
@@ -110,7 +111,7 @@ void vbd_resize(blkif_t *blkif);
 	} while (0)
 
 /* Create a vbd. */
-int vbd_create(blkif_t *blkif, blkif_vdev_t vdevice, unsigned major,
+int vbd_create(struct blkif_st *blkif, blkif_vdev_t vdevice, unsigned major,
 	       unsigned minor, int readonly, int cdrom);
 void vbd_free(struct vbd *vbd);
 
@@ -125,7 +126,7 @@ struct phys_req {
 	blkif_sector_t       sector_number;
 };
 
-int vbd_translate(struct phys_req *req, blkif_t *blkif, int operation);
+int vbd_translate(struct phys_req *req, struct blkif_st *blkif, int operation);
 
 int blkif_interface_init(void);
 

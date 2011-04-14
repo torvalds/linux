@@ -30,7 +30,7 @@
 struct backend_info
 {
 	struct xenbus_device *dev;
-	blkif_t *blkif;
+	struct blkif_st *blkif;
 	struct xenbus_watch backend_watch;
 	unsigned major;
 	unsigned minor;
@@ -47,7 +47,7 @@ struct xenbus_device *blkback_xenbus(struct backend_info *be)
 	return be->dev;
 }
 
-static int blkback_name(blkif_t *blkif, char *buf)
+static int blkback_name(struct blkif_st *blkif, char *buf)
 {
 	char *devpath, *devname;
 	struct xenbus_device *dev = blkif->be->dev;
@@ -67,7 +67,7 @@ static int blkback_name(blkif_t *blkif, char *buf)
 	return 0;
 }
 
-static void update_blkif_status(blkif_t *blkif)
+static void update_blkif_status(struct blkif_st *blkif)
 {
 	int err;
 	char name[TASK_COMM_LEN];
