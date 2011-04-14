@@ -477,8 +477,6 @@ void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, in
 
 	sk = chan->sk;
 
-	skb_queue_purge(&chan->tx_q);
-
 	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
 		del_timer(&chan->retrans_timer);
 		del_timer(&chan->monitor_timer);
