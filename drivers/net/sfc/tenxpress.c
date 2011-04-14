@@ -478,7 +478,7 @@ static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
 			  advertising & ADVERTISED_10000baseT_Full);
 }
 
-struct efx_phy_operations falcon_sfx7101_phy_ops = {
+const struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.probe		  = tenxpress_phy_probe,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,

@@ -2245,7 +2245,7 @@ static bool efx_port_dummy_op_poll(struct efx_nic *efx)
 	return false;
 }
 
-static struct efx_phy_operations efx_dummy_phy_operations = {
+static const struct efx_phy_operations efx_dummy_phy_operations = {
 	.init		 = efx_port_dummy_op_int,
 	.reconfigure	 = efx_port_dummy_op_int,
 	.poll		 = efx_port_dummy_op_poll,
@@ -2261,7 +2261,7 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 /* This zeroes out and then fills in the invariants in a struct
  * efx_nic (including all sub-structures).
  */
-static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
+static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 			   struct pci_dev *pci_dev, struct net_device *net_dev)
 {
 	int i;
@@ -2451,7 +2451,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 				   const struct pci_device_id *entry)
 {
-	struct efx_nic_type *type = (struct efx_nic_type *) entry->driver_data;
+	const struct efx_nic_type *type = (const struct efx_nic_type *) entry->driver_data;
 	struct net_device *net_dev;
 	struct efx_nic *efx;
 	int i, rc;
