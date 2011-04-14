@@ -421,9 +421,6 @@ static unsigned long fsidiv_recalc(struct clk *clk)
 
 	value = __raw_readl(clk->mapping->base);
 
-	if ((value & 0x3) != 0x3)
-		return 0;
-
 	value >>= 16;
 	if (value < 2)
 		return 0;
