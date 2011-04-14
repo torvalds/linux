@@ -501,7 +501,7 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 #define RES_32KCLKOUT           26
 #define RES_RESET               27
 /* Power Reference */
-#define RES_Main_Ref            28
+#define RES_MAIN_REF            28
 
 #define TOTAL_RESOURCES		28
 /*
