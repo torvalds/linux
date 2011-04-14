@@ -353,7 +353,7 @@ static int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
 		return -ENOMEM;
 
 	hcd->rsrc_start = dev->resource[0].start;
-	hcd->rsrc_len   = dev->resource[0].end - dev->resource[0].start + 1;
+	hcd->rsrc_len	= resource_size(&dev->resource[0]);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_err(&dev->dev, "request_mem_region failed\n");
