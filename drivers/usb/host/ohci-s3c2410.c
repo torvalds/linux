@@ -473,12 +473,12 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 
 /* device driver */
 
-static int ohci_hcd_s3c2410_drv_probe(struct platform_device *pdev)
+static int __devinit ohci_hcd_s3c2410_drv_probe(struct platform_device *pdev)
 {
 	return usb_hcd_s3c2410_probe(&ohci_s3c2410_hc_driver, pdev);
 }
 
-static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
+static int __devexit ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
@@ -488,7 +488,7 @@ static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
-	.remove		= ohci_hcd_s3c2410_drv_remove,
+	.remove		= __devexit_p(ohci_hcd_s3c2410_drv_remove),
 	.shutdown	= usb_hcd_platform_shutdown,
 	/*.suspend	= ohci_hcd_s3c2410_drv_suspend, */
 	/*.resume	= ohci_hcd_s3c2410_drv_resume, */
