@@ -59,6 +59,14 @@
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
 
+/* A2 specific instructions */
+#define PPC_INST_ERATWE			0x7c0001a6
+#define PPC_INST_ERATRE			0x7c000166
+#define PPC_INST_ERATILX		0x7c000066
+#define PPC_INST_ERATIVAX		0x7c000666
+#define PPC_INST_ERATSX			0x7c000126
+#define PPC_INST_ERATSX_DOT		0x7c000127
+
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
@@ -70,6 +78,8 @@
 #define __PPC_XT(s)	__PPC_XS(s)
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
+#define __PPC_WS(w)	(((w) & 0x1f) << 11)
+
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
  * larx with EH set as an illegal instruction.
@@ -115,6 +125,21 @@
 					__PPC_RA(a) | __PPC_RB(b))
 #define PPC_TLBIVAX(a,b)	stringify_in_c(.long PPC_INST_TLBIVAX | \
 					__PPC_RA(a) | __PPC_RB(b))
+
+#define PPC_ERATWE(s, a, w)	stringify_in_c(.long PPC_INST_ERATWE | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_ERATRE(s, a, w)	stringify_in_c(.long PPC_INST_ERATRE | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_ERATILX(t, a, b)	stringify_in_c(.long PPC_INST_ERATILX | \
+					__PPC_T_TLB(t) | __PPC_RA(a) | \
+					__PPC_RB(b))
+#define PPC_ERATIVAX(s, a, b)	stringify_in_c(.long PPC_INST_ERATIVAX | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_ERATSX(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX | \
+					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_ERATSX_DOT(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX_DOT | \
+					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add
