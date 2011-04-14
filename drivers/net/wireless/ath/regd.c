@@ -334,6 +334,7 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 	case 0x63:
 	case 0x66:
 	case 0x67:
+	case 0x6C:
 		ath_reg_apply_beaconing_flags(wiphy, initiator);
 		break;
 	case 0x68:
