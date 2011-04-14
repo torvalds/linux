@@ -227,7 +227,10 @@ static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
 	while ((skb = __skb_dequeue(queue)) != NULL) {
 		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
 					  skb, txok);
-		(txok) ? TX_STAT_INC(skb_success) : TX_STAT_INC(skb_failed);
+		if (txok)
+			TX_STAT_INC(skb_success);
+		else
+			TX_STAT_INC(skb_failed);
 	}
 }
 
