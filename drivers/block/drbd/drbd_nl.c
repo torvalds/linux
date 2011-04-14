@@ -1671,6 +1671,11 @@ check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
 	struct drbd_conf *mdev;
 	int i;
 
+	if (tconn->net_conf && tconn->agreed_pro_version < 100 &&
+	    tconn->cstate == C_WF_REPORT_PARAMS &&
+	    new_conf->wire_protocol != tconn->net_conf->wire_protocol)
+		return ERR_NEED_APV_100;
+
 	if (new_conf->two_primaries &&
 	    (new_conf->wire_protocol != DRBD_PROT_C))
 		return ERR_NOT_PROTO_C;

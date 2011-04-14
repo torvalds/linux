@@ -160,6 +160,7 @@ enum drbd_ret_code {
 	ERR_MINOR_CONFIGURED    = 160,
 	ERR_MINOR_EXISTS	= 161,
 	ERR_INVALID_REQUEST	= 162,
+	ERR_NEED_APV_100	= 163,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
