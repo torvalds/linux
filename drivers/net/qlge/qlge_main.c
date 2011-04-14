@@ -4412,12 +4412,12 @@ error:
 	rtnl_unlock();
 }
 
-static struct nic_operations qla8012_nic_ops = {
+static const struct nic_operations qla8012_nic_ops = {
 	.get_flash		= ql_get_8012_flash_params,
 	.port_initialize	= ql_8012_port_initialize,
 };
 
-static struct nic_operations qla8000_nic_ops = {
+static const struct nic_operations qla8000_nic_ops = {
 	.get_flash		= ql_get_8000_flash_params,
 	.port_initialize	= ql_8000_port_initialize,
 };
