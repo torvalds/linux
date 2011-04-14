@@ -632,6 +632,8 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	if (!parent)
 		return;
 
+	bh_lock_sock(parent);
+
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(parent)) {
 		BT_DBG("backlog full %d", parent->sk_ack_backlog);
