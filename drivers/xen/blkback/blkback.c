@@ -63,8 +63,8 @@ module_param_named(reqs, blkif_reqs, int, 0);
 MODULE_PARM_DESC(reqs, "Number of blkback requests to allocate");
 
 /* Run-time switchable: /sys/module/blkback/parameters/ */
-static unsigned int log_stats = 0;
-static unsigned int debug_lvl = 0;
+static unsigned int log_stats;
+static unsigned int debug_lvl;
 module_param(log_stats, int, 0644);
 module_param(debug_lvl, int, 0644);
 
@@ -74,7 +74,7 @@ module_param(debug_lvl, int, 0644);
  * the pendcnt towards zero. When it hits zero, the specified domain has a
  * response queued for it, with the saved 'id' passed back.
  */
-typedef struct {
+struct pending_req {
 	struct blkif_st       *blkif;
 	u64            id;
 	int            nr_pages;
@@ -82,12 +82,12 @@ typedef struct {
 	unsigned short operation;
 	int            status;
 	struct list_head free_list;
-} pending_req_t;
+};
 
 #define BLKBACK_INVALID_HANDLE (~0)
 
 struct xen_blkbk {
-	pending_req_t		*pending_reqs;
+	struct pending_req	*pending_reqs;
 	/* List of all 'pending_req' available */
 	struct list_head	pending_free;
 	/* And its spinlock. */
@@ -106,14 +106,15 @@ static struct xen_blkbk *blkbk;
  * pending_pages[..]. For each 'pending_req' we have have up to
  * BLKIF_MAX_SEGMENTS_PER_REQUEST (11) pages. The seg would be from 0 through
  * 10 and would index in the pending_pages[..]. */
-static inline int vaddr_pagenr(pending_req_t *req, int seg)
+static inline int vaddr_pagenr(struct pending_req *req, int seg)
 {
-	return (req - blkbk->pending_reqs) * BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
+	return (req - blkbk->pending_reqs) *
+		BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
 }
 
 #define pending_page(req, seg) pending_pages[vaddr_pagenr(req, seg)]
 
-static inline unsigned long vaddr(pending_req_t *req, int seg)
+static inline unsigned long vaddr(struct pending_req *req, int seg)
 {
 	unsigned long pfn = page_to_pfn(blkbk->pending_page(req, seg));
 	return (unsigned long)pfn_to_kaddr(pfn);
@@ -126,21 +127,22 @@ static inline unsigned long vaddr(pending_req_t *req, int seg)
 static int do_block_io_op(struct blkif_st *blkif);
 static void dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
-				 pending_req_t *pending_req);
+				 struct pending_req *pending_req);
 static void make_response(struct blkif_st *blkif, u64 id,
 			  unsigned short op, int st);
 
 /*
  * Retrieve from the 'pending_reqs' a free pending_req structure to be used.
  */
-static pending_req_t* alloc_req(void)
+static struct pending_req *alloc_req(void)
 {
-	pending_req_t *req = NULL;
+	struct pending_req *req = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&blkbk->pending_free_lock, flags);
 	if (!list_empty(&blkbk->pending_free)) {
-		req = list_entry(blkbk->pending_free.next, pending_req_t, free_list);
+		req = list_entry(blkbk->pending_free.next, struct pending_req,
+				 free_list);
 		list_del(&req->free_list);
 	}
 	spin_unlock_irqrestore(&blkbk->pending_free_lock, flags);
@@ -151,7 +153,7 @@ static pending_req_t* alloc_req(void)
  * Return the 'pending_req' structure back to the freepool. We also
  * wake up the thread if it was waiting for a free page.
  */
-static void free_req(pending_req_t *req)
+static void free_req(struct pending_req *req)
 {
 	unsigned long flags;
 	int was_empty;
@@ -200,7 +202,7 @@ static void plug_queue(struct blkif_st *blkif, struct block_device *bdev)
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
 */
-static void fast_flush_area(pending_req_t *req)
+static void fast_flush_area(struct pending_req *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
@@ -221,7 +223,8 @@ static void fast_flush_area(pending_req_t *req)
 		GNTTABOP_unmap_grant_ref, unmap, invcount);
 	BUG_ON(ret);
 	/* Note, we use invcount, so nr->pages, so we can't index
-	 * using vaddr(req, i). */
+	 * using vaddr(req, i).
+	 */
 	for (i = 0; i < invcount; i++) {
 		ret = m2p_remove_override(
 			virt_to_page(unmap[i].host_addr), false);
@@ -233,7 +236,7 @@ static void fast_flush_area(pending_req_t *req)
 	}
 }
 
-/******************************************************************
+/*
  * SCHEDULER FUNCTIONS
  */
 
@@ -269,7 +272,8 @@ int blkif_schedule(void *arg)
 			blkif->waiting_reqs || kthread_should_stop());
 		wait_event_interruptible(
 			blkbk->pending_free_wq,
-			!list_empty(&blkbk->pending_free) || kthread_should_stop());
+			!list_empty(&blkbk->pending_free) ||
+			kthread_should_stop());
 
 		blkif->waiting_reqs = 0;
 		smp_mb(); /* clear flag *before* checking for work */
@@ -297,7 +301,7 @@ int blkif_schedule(void *arg)
  * Completion callback on the bio's. Called as bh->b_end_io()
  */
 
-static void __end_block_io_op(pending_req_t *pending_req, int error)
+static void __end_block_io_op(struct pending_req *pending_req, int error)
 {
 	/* An error fails the entire request. */
 	if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
@@ -313,7 +317,8 @@ static void __end_block_io_op(pending_req_t *pending_req, int error)
 
 	/* If all of the bio's have completed it is time to unmap
 	 * the grant references associated with 'request' and provide
-	 * the proper response on the ring. */
+	 * the proper response on the ring.
+	 */
 	if (atomic_dec_and_test(&pending_req->pendcnt)) {
 		fast_flush_area(pending_req);
 		make_response(pending_req->blkif, pending_req->id,
@@ -360,7 +365,7 @@ static int do_block_io_op(struct blkif_st *blkif)
 {
 	union blkif_back_rings *blk_rings = &blkif->blk_rings;
 	struct blkif_request req;
-	pending_req_t *pending_req;
+	struct pending_req *pending_req;
 	RING_IDX rc, rp;
 	int more_to_do = 0;
 
@@ -440,7 +445,7 @@ static int do_block_io_op(struct blkif_st *blkif)
  */
 static void dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
-				 pending_req_t *pending_req)
+				 struct pending_req *pending_req)
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct phys_req preq;
@@ -487,7 +492,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	/* Fill out preq.nr_sects with proper amount of sectors, and setup
 	 * assign map[..] with the PFN of the page in our domain with the
-	 * corresponding grant reference for each page.*/
+	 * corresponding grant reference for each page.
+	 */
 	for (i = 0; i < nseg; i++) {
 		uint32_t flags;
 
@@ -509,8 +515,9 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	BUG_ON(ret);
 
 	/* Now swizzel the MFN in our domain with the MFN from the other domain
-	 * so that when we access vaddr(pending_req,i) it has the contents of the
-	 * page from the other domain. */
+	 * so that when we access vaddr(pending_req,i) it has the contents of
+	 * the page from the other domain.
+	 */
 	for (i = 0; i < nseg; i++) {
 		if (unlikely(map[i].status != 0)) {
 			DPRINTK("invalid buffer -- could not remap it\n");
@@ -522,12 +529,13 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 		if (ret)
 			continue;
-		
+
 		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
 			blkbk->pending_page(pending_req, i), false);
 		if (ret) {
 			printk(KERN_ALERT "Failed to install M2P override for"\
-				" %lx (ret: %d)\n", (unsigned long)map[i].dev_bus_addr, ret);
+				" %lx (ret: %d)\n", (unsigned long)
+				map[i].dev_bus_addr, ret);
 			/* We could switch over to GNTTABOP_copy */
 			continue;
 		}
@@ -536,9 +544,11 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 			(req->u.rw.seg[i].first_sect << 9);
 	}
 
-	/* If we have failed at this point, we need to undo the M2P override, set
-	 * gnttab_set_unmap_op on all of the grant references and perform the
-	 * hypercall to unmap the grants - that is all done in fast_flush_area. */
+	/* If we have failed at this point, we need to undo the M2P override,
+	 * set gnttab_set_unmap_op on all of the grant references and perform
+	 * the hypercall to unmap the grants - that is all done in
+	 * fast_flush_area.
+	 */
 	if (ret)
 		goto fail_flush;
 
@@ -554,7 +564,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	plug_queue(blkif, preq.bdev);
 
 	/* We set it one so that the last submit_bio does not have to call
-	 * atomic_inc. */
+	 * atomic_inc.
+	 */
 	atomic_set(&pending_req->pendcnt, 1);
 	blkif_get(blkif);
 
@@ -575,7 +586,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 				atomic_inc(&pending_req->pendcnt);
 				submit_bio(operation, bio);
 			}
-                        
+
 			bio = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
 				goto fail_put_bio;
@@ -694,7 +705,7 @@ static int __init blkif_init(void)
 	if (!xen_pv_domain())
 		return -ENODEV;
 
-	blkbk = (struct xen_blkbk *)kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
+	blkbk = kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
 	if (!blkbk) {
 		printk(KERN_ALERT "%s: out of memory!\n", __func__);
 		return -ENOMEM;
@@ -709,7 +720,8 @@ static int __init blkif_init(void)
 	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
 					mmap_pages, GFP_KERNEL);
 
-	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles || !blkbk->pending_pages) {
+	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles ||
+	    !blkbk->pending_pages) {
 		rc = -ENOMEM;
 		goto out_of_memory;
 	}
@@ -733,7 +745,8 @@ static int __init blkif_init(void)
 	init_waitqueue_head(&blkbk->pending_free_wq);
 
 	for (i = 0; i < blkif_reqs; i++)
-		list_add_tail(&blkbk->pending_reqs[i].free_list, &blkbk->pending_free);
+		list_add_tail(&blkbk->pending_reqs[i].free_list,
+			      &blkbk->pending_free);
 
 	rc = blkif_xenbus_init();
 	if (rc)
