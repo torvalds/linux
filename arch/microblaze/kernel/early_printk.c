@@ -127,45 +127,41 @@ void early_printk(const char *fmt, ...)
 
 int __init setup_early_printk(char *opt)
 {
+	int version = 0;
+
 	if (early_console_initialized)
 		return 1;
 
+	base_addr = of_early_console(&version);
+	if (base_addr) {
+#ifdef CONFIG_MMU
+		early_console_reg_tlb_alloc(base_addr);
+#endif
+		switch (version) {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
-	base_addr = early_uartlite_console();
-	if (base_addr) {
-		early_console_initialized = 1;
-#ifdef CONFIG_MMU
-		early_console_reg_tlb_alloc(base_addr);
+		case UARTLITE:
+			printk(KERN_INFO "Early console on uartlite "
+						"at 0x%08x\n", base_addr);
+			early_console = &early_serial_uartlite_console;
+			break;
 #endif
-		early_console = &early_serial_uartlite_console;
-		early_printk("early_printk_console is enabled at 0x%08x\n",
-							base_addr);
-
-		register_console(early_console);
-
-		return 0;
-	}
-#endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
-
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-	base_addr = early_uart16550_console();
-	base_addr &= ~3; /* clear register offset */
-	if (base_addr) {
-		early_console_initialized = 1;
-#ifdef CONFIG_MMU
-		early_console_reg_tlb_alloc(base_addr);
+		case UART16550:
+			printk(KERN_INFO "Early console on uart16650 "
+						"at 0x%08x\n", base_addr);
+			early_console = &early_serial_uart16550_console;
+			break;
 #endif
-		early_console = &early_serial_uart16550_console;
-
-		early_printk("early_printk_console is enabled at 0x%08x\n",
-							base_addr);
+		default:
+			printk(KERN_INFO  "Unsupported early console %d\n",
+								version);
+			return 1;
+		}
 
 		register_console(early_console);
-
+		early_console_initialized = 1;
 		return 0;
 	}
-#endif /* CONFIG_SERIAL_8250_CONSOLE */
-
 	return 1;
 }
 

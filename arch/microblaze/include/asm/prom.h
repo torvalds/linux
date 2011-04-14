@@ -26,8 +26,12 @@
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
 /* Other Prototypes */
-extern int early_uartlite_console(void);
-extern int early_uart16550_console(void);
+enum early_consoles {
+	UARTLITE = 1,
+	UART16550 = 2,
+};
+
+extern int of_early_console(void *version);
 
 #ifdef CONFIG_PCI
 /*
