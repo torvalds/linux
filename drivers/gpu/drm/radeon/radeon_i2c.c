@@ -1096,6 +1096,9 @@ void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->router.ddc_valid)
 		return;
 
+	if (!radeon_connector->router_bus)
+		return;
+
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, &val);
@@ -1119,6 +1122,9 @@ void radeon_router_select_cd_port(struct radeon_connector *radeon_connector)
 	u8 val;
 
 	if (!radeon_connector->router.cd_valid)
+		return;
+
+	if (!radeon_connector->router_bus)
 		return;
 
 	radeon_i2c_get_byte(radeon_connector->router_bus,
