@@ -108,8 +108,6 @@ struct pt_regs {
 extern void show_regs(struct pt_regs *);
 
 #define arch_has_single_step()	(1)
-extern void user_enable_single_step(struct task_struct *child);
-extern void user_disable_single_step(struct task_struct *child);
 /* common code demands this function */
 #define ptrace_disable(child) user_disable_single_step(child)
 
