@@ -233,7 +233,7 @@ static int
 mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		u32 opcode, void *buf, unsigned len)
 {
-	struct mmc_request mrq;
+	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
@@ -245,8 +245,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	data_buf = kmalloc(len, GFP_KERNEL);
 	if (data_buf == NULL)
 		return -ENOMEM;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -456,7 +454,7 @@ static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		  u8 len)
 {
-	struct mmc_request mrq;
+	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
@@ -486,8 +484,6 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 
 	if (opcode == MMC_BUS_TEST_W)
 		memcpy(data_buf, test_buf, len);
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;

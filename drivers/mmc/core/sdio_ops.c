@@ -121,7 +121,7 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	unsigned addr, int incr_addr, u8 *buf, unsigned blocks, unsigned blksz)
 {
-	struct mmc_request mrq;
+	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
@@ -135,8 +135,6 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	/* sanity check */
 	if (addr & ~0x1FFFF)
 		return -EINVAL;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
