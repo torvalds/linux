@@ -232,6 +232,9 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		if ((bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
 			bfa_sm_send_event(bfad, BFAD_E_INIT_SUCCESS);
 		} else {
+			printk(KERN_WARNING
+				"bfa %s: bfa init failed\n",
+				bfad->pci_name);
 			bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
 			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 		}
@@ -1001,10 +1004,6 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_lport_role role)
 		bfad->pport.roles |= BFA_LPORT_ROLE_FCP_IM;
 	}
 
-	/* Setup the debugfs node for this scsi_host */
-	if (bfa_debugfs_enable)
-		bfad_debugfs_init(&bfad->pport);
-
 	bfad->bfad_flags |= BFAD_CFG_PPORT_DONE;
 
 out:
@@ -1014,10 +1013,6 @@ out:
 void
 bfad_uncfg_pport(struct bfad_s *bfad)
 {
-	/* Remove the debugfs node for this scsi_host */
-	kfree(bfad->regdata);
-	bfad_debugfs_exit(&bfad->pport);
-
 	if ((supported_fc4s & BFA_LPORT_ROLE_FCP_IM) &&
 	    (bfad->pport.roles & BFA_LPORT_ROLE_FCP_IM)) {
 		bfad_im_scsi_host_free(bfad, bfad->pport.im_port);
@@ -1399,6 +1394,10 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfad->pport.bfad = bfad;
 	INIT_LIST_HEAD(&bfad->pbc_vport_list);
 
+	/* Setup the debugfs node for this bfad */
+	if (bfa_debugfs_enable)
+		bfad_debugfs_init(&bfad->pport);
+
 	retval = bfad_drv_init(bfad);
 	if (retval != BFA_STATUS_OK)
 		goto out_drv_init_failure;
@@ -1414,6 +1413,9 @@ out_bfad_sm_failure:
 	bfa_detach(&bfad->bfa);
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
+	/* Remove the debugfs node for this bfad */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
 	mutex_lock(&bfad_mutex);
 	bfad_inst--;
 	list_del(&bfad->list_entry);
@@ -1454,6 +1456,10 @@ bfad_pci_remove(struct pci_dev *pdev)
 	bfa_detach(&bfad->bfa);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfad_hal_mem_release(bfad);
+
+	/* Remove the debugfs node for this bfad */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
 
 	/* Cleaning the BFAD instance */
 	mutex_lock(&bfad_mutex);
