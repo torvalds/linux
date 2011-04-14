@@ -545,18 +545,10 @@ static int gfs2_close(struct inode *inode, struct file *file)
 /**
  * gfs2_fsync - sync the dirty data for a file (across the cluster)
  * @file: the file that points to the dentry (we ignore this)
- * @dentry: the dentry that points to the inode to sync
+ * @datasync: set if we can ignore timestamp changes
  *
- * The VFS will flush "normal" data for us. We only need to worry
- * about metadata here. For journaled data, we just do a log flush
- * as we can't avoid it. Otherwise we can just bale out if datasync
- * is set. For stuffed inodes we must flush the log in order to
- * ensure that all data is on disk.
- *
- * The call to write_inode_now() is there to write back metadata and
- * the inode itself. It does also try and write the data, but thats
- * (hopefully) a no-op due to the VFS having already called filemap_fdatawrite()
- * for us.
+ * The VFS will flush data for us. We only need to worry
+ * about metadata here.
  *
  * Returns: errno
  */
@@ -565,22 +557,20 @@ static int gfs2_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
-	int ret = 0;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	int ret;
 
-	if (gfs2_is_jdata(GFS2_I(inode))) {
-		gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
-		return 0;
+	if (datasync)
+		sync_state &= ~I_DIRTY_SYNC;
+
+	if (sync_state) {
+		ret = sync_inode_metadata(inode, 1);
+		if (ret)
+			return ret;
+		gfs2_ail_flush(ip->i_gl);
 	}
 
-	if (sync_state != 0) {
-		if (!datasync)
-			ret = write_inode_now(inode, 0);
-
-		if (gfs2_is_stuffed(GFS2_I(inode)))
-			gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
-	}
-
-	return ret;
+	return 0;
 }
 
 /**
