@@ -1186,7 +1186,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		   mwifiex_send_single_packet() */
 	} else {
 		if (mwifiex_is_ampdu_allowed(priv, tid)) {
-			if (mwifiex_is_ba_stream_avail(adapter)) {
+			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_11n_create_tx_ba_stream_tbl(priv,
 						ptr->ra, tid,
 						BA_STREAM_SETUP_INPROGRESS);

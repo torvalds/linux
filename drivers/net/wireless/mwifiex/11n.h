@@ -92,9 +92,10 @@ mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
 }
 
 /*
- * This function checks whether a BA stream is available or not.
+ * This function checks whether a space is available for new BA stream or not.
  */
-static inline u8 mwifiex_is_ba_stream_avail(struct mwifiex_adapter *adapter)
+static inline u8 mwifiex_space_avail_for_new_ba_stream(
+					struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	u8 i;
