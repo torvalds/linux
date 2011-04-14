@@ -115,6 +115,8 @@ int __init mmio_nvram_init(void)
 	int ret;
 
 	nvram_node = of_find_node_by_type(NULL, "nvram");
+	if (!nvram_node)
+		nvram_node = of_find_compatible_node(NULL, NULL, "nvram");
 	if (!nvram_node) {
 		printk(KERN_WARNING "nvram: no node found in device-tree\n");
 		return -ENODEV;
