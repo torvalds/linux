@@ -30,19 +30,20 @@
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
-#define OUT_CLK			23000000
+#define OUT_CLK			26000000
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��
 
 /* Timing */
-#define H_PW			1
-#define H_BP			120
-#define H_VD			800
-#define H_FP			20
+#define H_PW		  8
+#define H_BP			6
+#define H_VD			480
+#define H_FP			60
 
-#define V_PW			1
-#define V_BP			20
-#define V_VD			480
+#define V_PW		  2
+#define V_BP			12
+#define V_VD			800
 #define V_FP			4
+
 
 #define LCD_WIDTH       800    //need modify
 #define LCD_HEIGHT      480
@@ -60,7 +61,7 @@
     #define TXD_PORT        gLcd_info->txd_pin
 	#define CLK_PORT        gLcd_info->clk_pin
 	#define CS_PORT         gLcd_info->cs_pin
-	#define LCD_RST_PORT    1
+	#define LCD_RST_PORT    RK29_PIN6_PC6     
 
 	#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 	#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
@@ -74,13 +75,13 @@
     #define LCD_RST_OUT()  gpio_direction_output(LCD_RST_PORT, 0)
     #define LCD_RST(i)      gpio_set_value(LCD_RST_PORT, i)
 
-	#define bits_9 1
+//	#define bits_9
 	#ifdef bits_9  //9bits
 	#define LCDSPI_InitCMD(cmd)    spi_write_9bit(0, cmd)
 	#define LCDSPI_InitDAT(dat)    spi_write_9bit(1, dat)
 	#else  //16bits
-	#define LCDSPI_InitCMD(cmd)
-	#define LCDSPI_InitDAT(dat)
+	#define LCDSPI_InitCMD(cmd)    spi_write_16bit(0, cmd)
+	#define LCDSPI_InitDAT(dat)    spi_write_16bit(1, dat)
 	#endif
 	#define Lcd_EnvidOnOff(i)
 
@@ -167,10 +168,64 @@ int spi_write_9bit(u32 type, u32 value)
 }
 
 
+/* spi write a data frame,type mean command or data */
+int spi_write_16bit(u32 type, u32 value)
+{
+    u32 i = 0;
+    u32 data = 0;
+	
+    if(type != 0 && type != 1)
+    {
+    	return -1;
+    }
+    /*make a data frame of 16 bits,the 8th bit  0:mean command,1:mean data*/
+    data = (type << 8)|value; 
+
+    TXD_OUT();
+    CLK_OUT();
+    CS_OUT();
+    DRVDelayUs(2);
+    DRVDelayUs(2);
+
+    CS_SET();
+    TXD_SET();
+    CLK_SET();
+    DRVDelayUs(2);
+
+	CS_CLR();
+	for(i = 0; i < 16; i++)  //reg
+	{
+		if(data & (1 << (15-i)))
+        {
+			TXD_SET();
+		}
+        else
+        {
+			TXD_CLR();
+        }
+
+		CLK_CLR();
+		DRVDelayUs(2);
+		CLK_SET();
+		DRVDelayUs(2);
+	}
+
+	CS_SET();
+	CLK_CLR();
+	TXD_CLR();
+	DRVDelayUs(2);
+    return 0;
+}
 int lcd_init(void)
 {
     if(gLcd_info)
         gLcd_info->io_init();
+    printk("lcd_init...\n");
+/* reset lcd to start init lcd by software if there is no hardware reset circuit for the lcd */
+#ifdef LCD_RST_PORT
+	gpio_request(LCD_RST_PORT, NULL);
+#endif
+
 #if 1
     TXD_OUT();
     CLK_OUT();
