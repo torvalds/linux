@@ -62,10 +62,12 @@ extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_a2(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
 extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_power7(void);
+extern void __restore_cpu_a2(void);
 #endif /* CONFIG_PPC64 */
 #if defined(CONFIG_E500)
 extern void __setup_cpu_e5500(unsigned long offset, struct cpu_spec* spec);
@@ -2011,7 +2013,26 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif /* CONFIG_PPC32 */
 #endif /* CONFIG_E500 */
 
-#ifdef CONFIG_PPC_BOOK3E_64
+#ifdef CONFIG_PPC_A2
+	{	/* Standard A2 (>= DD2) + FPU core */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00480000,
+		.cpu_name		= "A2 (>= DD2)",
+		.cpu_features		= CPU_FTRS_A2,
+		.cpu_user_features	= COMMON_USER_PPC64,
+		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
+					  MMU_FTR_USE_TLBIVAX_BCAST |
+					  MMU_FTR_LOCK_BCAST_INVAL |
+					  MMU_FTR_USE_TLBRSRV |
+					  MMU_FTR_USE_PAIRED_MAS,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 0,
+		.cpu_setup		= __setup_cpu_a2,
+		.cpu_restore		= __restore_cpu_a2,
+		.machine_check		= machine_check_generic,
+		.platform		= "ppca2",
+	},
 	{	/* This is a default entry to get going, to be replaced by
 		 * a real one at some stage
 		 */
@@ -2032,7 +2053,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "power6",
 	},
-#endif
+#endif /* CONFIG_PPC_A2 */
 };
 
 static struct cpu_spec the_cpu_spec;
