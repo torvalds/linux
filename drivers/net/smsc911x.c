@@ -71,6 +71,17 @@ static int debug = 3;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
+struct smsc911x_data;
+
+struct smsc911x_ops {
+	u32 (*reg_read)(struct smsc911x_data *pdata, u32 reg);
+	void (*reg_write)(struct smsc911x_data *pdata, u32 reg, u32 val);
+	void (*rx_readfifo)(struct smsc911x_data *pdata,
+				unsigned int *buf, unsigned int wordcount);
+	void (*tx_writefifo)(struct smsc911x_data *pdata,
+				unsigned int *buf, unsigned int wordcount);
+};
+
 struct smsc911x_data {
 	void __iomem *ioaddr;
 
@@ -118,7 +129,13 @@ struct smsc911x_data {
 	unsigned int clear_bits_mask;
 	unsigned int hashhi;
 	unsigned int hashlo;
+
+	/* register access functions */
+	const struct smsc911x_ops *ops;
 };
+
+/* Easy access to information */
+#define __smsc_shift(pdata, reg) ((reg) << ((pdata)->config.shift))
 
 static inline u32 __smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 {
@@ -133,13 +150,29 @@ static inline u32 __smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 	return 0;
 }
 
+static inline u32
+__smsc911x_reg_read_shift(struct smsc911x_data *pdata, u32 reg)
+{
+	if (pdata->config.flags & SMSC911X_USE_32BIT)
+		return readl(pdata->ioaddr + __smsc_shift(pdata, reg));
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT)
+		return (readw(pdata->ioaddr +
+				__smsc_shift(pdata, reg)) & 0xFFFF) |
+			((readw(pdata->ioaddr +
+			__smsc_shift(pdata, reg + 2)) & 0xFFFF) << 16);
+
+	BUG();
+	return 0;
+}
+
 static inline u32 smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 {
 	u32 data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdata->dev_lock, flags);
-	data = __smsc911x_reg_read(pdata, reg);
+	data = pdata->ops->reg_read(pdata, reg);
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 
 	return data;
@@ -162,13 +195,32 @@ static inline void __smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
 	BUG();
 }
 
+static inline void
+__smsc911x_reg_write_shift(struct smsc911x_data *pdata, u32 reg, u32 val)
+{
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		writel(val, pdata->ioaddr + __smsc_shift(pdata, reg));
+		return;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		writew(val & 0xFFFF,
+			pdata->ioaddr + __smsc_shift(pdata, reg));
+		writew((val >> 16) & 0xFFFF,
+			pdata->ioaddr + __smsc_shift(pdata, reg + 2));
+		return;
+	}
+
+	BUG();
+}
+
 static inline void smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
 				      u32 val)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdata->dev_lock, flags);
-	__smsc911x_reg_write(pdata, reg, val);
+	pdata->ops->reg_write(pdata, reg, val);
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
 
@@ -204,6 +256,40 @@ out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
 
+/* Writes a packet to the TX_DATA_FIFO - shifted version */
+static inline void
+smsc911x_tx_writefifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
+		      unsigned int wordcount)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->dev_lock, flags);
+
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			__smsc911x_reg_write_shift(pdata, TX_DATA_FIFO,
+					     swab32(*buf++));
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		writesl(pdata->ioaddr + __smsc_shift(pdata,
+						TX_DATA_FIFO), buf, wordcount);
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		while (wordcount--)
+			__smsc911x_reg_write_shift(pdata,
+						 TX_DATA_FIFO, *buf++);
+		goto out;
+	}
+
+	BUG();
+out:
+	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+}
+
 /* Reads a packet out of the RX_DATA_FIFO */
 static inline void
 smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
@@ -228,6 +314,40 @@ smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 	if (pdata->config.flags & SMSC911X_USE_16BIT) {
 		while (wordcount--)
 			*buf++ = __smsc911x_reg_read(pdata, RX_DATA_FIFO);
+		goto out;
+	}
+
+	BUG();
+out:
+	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+}
+
+/* Reads a packet out of the RX_DATA_FIFO - shifted version */
+static inline void
+smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
+		     unsigned int wordcount)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->dev_lock, flags);
+
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			*buf++ = swab32(__smsc911x_reg_read_shift(pdata,
+							    RX_DATA_FIFO));
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_32BIT) {
+		readsl(pdata->ioaddr + __smsc_shift(pdata,
+						RX_DATA_FIFO), buf, wordcount);
+		goto out;
+	}
+
+	if (pdata->config.flags & SMSC911X_USE_16BIT) {
+		while (wordcount--)
+			*buf++ = __smsc911x_reg_read_shift(pdata,
+								RX_DATA_FIFO);
 		goto out;
 	}
 
@@ -500,7 +620,7 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		wrsz += (u32)((ulong)pdata->loopback_tx_pkt & 0x3);
 		wrsz >>= 2;
 
-		smsc911x_tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
+		pdata->ops->tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 
 		/* Wait till transmit is done */
 		i = 60;
@@ -544,7 +664,7 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 		rdsz += (u32)((ulong)pdata->loopback_rx_pkt & 0x3);
 		rdsz >>= 2;
 
-		smsc911x_rx_readfifo(pdata, (unsigned int *)bufp, rdsz);
+		pdata->ops->rx_readfifo(pdata, (unsigned int *)bufp, rdsz);
 
 		if (pktlength != (MIN_PACKET_SIZE + 4)) {
 			SMSC_WARN(pdata, hw, "Unexpected packet size "
@@ -1046,8 +1166,8 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 		/* Align IP on 16B boundary */
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pktlength - 4);
-		smsc911x_rx_readfifo(pdata, (unsigned int *)skb->head,
-				     pktwords);
+		pdata->ops->rx_readfifo(pdata,
+				 (unsigned int *)skb->head, pktwords);
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_checksum_none_assert(skb);
 		netif_receive_skb(skb);
@@ -1351,7 +1471,7 @@ static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wrsz += (u32)((ulong)skb->data & 0x3);
 	wrsz >>= 2;
 
-	smsc911x_tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
+	pdata->ops->tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 	freespace -= (skb->len + 32);
 	dev_kfree_skb(skb);
 
@@ -1957,6 +2077,22 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* standard register acces */
+static const struct smsc911x_ops standard_smsc911x_ops = {
+	.reg_read = __smsc911x_reg_read,
+	.reg_write = __smsc911x_reg_write,
+	.rx_readfifo = smsc911x_rx_readfifo,
+	.tx_writefifo = smsc911x_tx_writefifo,
+};
+
+/* shifted register access */
+static const struct smsc911x_ops shifted_smsc911x_ops = {
+	.reg_read = __smsc911x_reg_read_shift,
+	.reg_write = __smsc911x_reg_write_shift,
+	.rx_readfifo = smsc911x_rx_readfifo_shift,
+	.tx_writefifo = smsc911x_tx_writefifo_shift,
+};
+
 static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
@@ -2025,6 +2161,12 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto out_free_netdev_2;
 	}
+
+	/* assume standard, non-shifted, access to HW registers */
+	pdata->ops = &standard_smsc911x_ops;
+	/* apply the right access if shifting is needed */
+	if (config->shift)
+		pdata->ops = &shifted_smsc911x_ops;
 
 	retval = smsc911x_init(dev);
 	if (retval < 0)
