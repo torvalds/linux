@@ -49,7 +49,19 @@
 #define UART_UCV 	0x00F8			/* [0x3330_372a] UART Component Version */
 #define UART_CTR 	0x00FC			/* [0x4457_0110] Component Type Register */
 
-#define  UART_FCR_FIFO_ENABLE  (1<<0) 
+//#define UART_FCR            0x08
+#define  UART_FCR_FIFO_ENABLE	(1<<0) 
+#define  UART_FCR_CLEAR_RCVR	(1<<1) 	/* Clear the RCVR FIFO */
+#define  UART_FCR_CLEAR_XMIT		(1<<2)	/* Clear the XMIT FIFO */
+#define  UART_FCR_DMA_SELECT	(1<<3)	 /* For DMA applications */
+#define  UART_FCR_R_TRIG_00	0x00
+#define  UART_FCR_R_TRIG_01	0x40
+#define  UART_FCR_R_TRIG_10	0x80
+#define  UART_FCR_R_TRIG_11	0xc0
+#define  UART_FCR_T_TRIG_00	0x00
+#define  UART_FCR_T_TRIG_01	0x10
+#define  UART_FCR_T_TRIG_10	0x20
+#define  UART_FCR_T_TRIG_11	0x30
 
 //#define UART_LCR            0x0c
 #define  LCR_DLA_EN                         (1<<7)

@@ -37,8 +37,8 @@
 #include "rk2818_serial.h"
 
 #define DBG_PORT    0
-#if 0
-#define DBG     printk
+#if 1
+#define DBG(msg...)	printk(msg);
 #else
 #define DBG(...)
 #endif
@@ -86,7 +86,10 @@ static int rk29_set_baud_rate(struct uart_port *port, unsigned int baud)
  */
 static u_int rk29_serial_tx_empty(struct uart_port *port)
 {
+    int timeout = 10000000;
     while(!(rk29_uart_read(port,UART_USR)&UART_TRANSMIT_FIFO_EMPTY))
+        if(timeout-- ==0)
+            break;
         cpu_relax();
 	if(rk29_uart_read(port,UART_USR)&UART_TRANSMIT_FIFO_EMPTY)
 	{
@@ -257,10 +260,12 @@ static void rk29_rx_chars(struct uart_port *port)
 			if (uart_handle_break(port))
 				continue;
 		}
+#if 0
 		if (uart_handle_sysrq_char(port, ch))
 		{
 			continue;
 		} 
+#endif
 		uart_insert_char(port, 0, 0, ch, flag);
         
         if(DBG_PORT == port->line) {
@@ -282,12 +287,14 @@ static irqreturn_t rk29_uart_interrupt(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned int status, pending;
 	
+	spin_lock(&port->lock);
 	status = rk29_uart_read(port,UART_IIR); 
 	pending = status & 0x0f;
     if((pending == UART_IIR_RECV_AVAILABLE) || (pending == UART_IIR_CHAR_TIMEOUT))
 		rk29_rx_chars(port);
 	if(pending == UART_IIR_THR_EMPTY)
 		rk29_serial_start_tx(port);		
+	spin_unlock(&port->lock);
 	return IRQ_HANDLED;	
 }
 
@@ -298,6 +305,9 @@ static void rk29_serial_shutdown(struct uart_port *port)
 {
    struct rk29_port *rk29_port = UART_TO_RK29(port);
    rk29_uart_write(port,0x00,UART_IER);
+	rk29_uart_write(port, UART_FCR_FIFO_ENABLE |
+			UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT, UART_FCR);
+	rk29_uart_write(port, 0, UART_FCR);
    clk_disable(rk29_port->clk);
    free_irq(port->irq, port);
 }
@@ -309,20 +319,19 @@ static int rk29_serial_startup(struct uart_port *port)
 	struct rk29_port *rk29_port = UART_TO_RK29(port);
 	struct tty_struct *tty = port->state->port.tty;	
 	int retval;	
+	DBG("%s\n",__FUNCTION__);
 
-    if(2 == port->line) {
-        rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_UART2_SOUT);
-        rk29_mux_api_set(GPIO2B0_UART2SIN_NAME, GPIO2L_UART2_SIN);
-        rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
-        rk29_mux_api_set(GPIO2A6_UART2CTSN_NAME, GPIO2L_UART2_CTS_N);
-    }
-    else if(0 == port->line) {
-        rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
-        rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
-        rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
-        rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
-    }
-    
+	if(2 == port->line) 
+	{
+		rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_UART2_SOUT);
+		rk29_mux_api_set(GPIO2B0_UART2SIN_NAME, GPIO2L_UART2_SIN);
+	}
+	else if(0 == port->line) 
+	{
+		rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+		rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
+	}
+
 	retval = request_irq(port->irq,rk29_uart_interrupt,IRQF_SHARED,
 		     tty ? tty->name : "rk29_serial",port);
 	if(retval)
@@ -332,9 +341,37 @@ static int rk29_serial_startup(struct uart_port *port)
 		return 	retval;
 	}	
 	clk_enable(rk29_port->clk);
-	rk29_uart_write(port,0xf1,UART_FCR);
-	rk29_uart_write(port,0x01,UART_SFE);///enable fifo
-    rk29_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
+#if 0
+	if(port->irq == IRQ_NR_UART0)
+	rk29_uart_write(port,0xf7,UART_FCR);	//enable and clear fifo if busy while starting
+	else
+	rk29_uart_write(port,0xf1,UART_FCR);	//enable fifo
+	rk29_uart_write(port,0x01,UART_SFE);
+	rk29_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
+#else
+	//lw modify on 110309
+	/*
+	 * Clear the FIFO buffers and disable them.
+	 */
+	rk29_uart_write(port, UART_FCR_FIFO_ENABLE, UART_FCR);
+	rk29_uart_write(port, UART_FCR_FIFO_ENABLE |
+			UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT, UART_FCR);
+	rk29_uart_write(port, 0, UART_FCR);
+	
+	/*
+	 * Clear the interrupt registers.
+	 */
+	(void) rk29_uart_read(port, UART_LSR);
+	(void) rk29_uart_read(port, UART_RBR);
+	(void) rk29_uart_read(port, UART_IIR);
+	(void) rk29_uart_read(port, UART_MSR);
+
+	/*
+	 * And clear the user registers.
+	 */
+	(void) rk29_uart_read(port, UART_USR);
+	
+#endif
 	return 0;
 }
 
@@ -347,6 +384,7 @@ static void rk29_serial_set_termios(struct uart_port *port, struct ktermios *ter
     unsigned long flags;
     unsigned int mode, baud;
 	unsigned int umcon,fcr;
+	spin_lock_irqsave(&port->lock, flags);
     /* Get current mode register */
     mode = rk29_uart_read(port,UART_LCR) & (BREAK_CONTROL_BIT | EVEN_PARITY_SELECT | PARITY_ENABLED
                        | ONE_HALF_OR_TWO_BIT | UART_DATABIT_MASK);  
@@ -381,34 +419,58 @@ static void rk29_serial_set_termios(struct uart_port *port, struct ktermios *ter
         else
             mode |= EVEN_PARITY;
     }
-    spin_lock_irqsave(&port->lock, flags);
+
+	int timeout = 10000000;
+	while(rk29_uart_read(port,UART_USR)&UART_USR_BUSY){
+	if(timeout-- == 0){
+	printk("rk29_serial_set_termios uart timeout,irq=%d,ret=0x%x\n",port->irq,rk29_uart_read(port,UART_USR));
+	break;
+	}
+	cpu_relax(); 
+	}	
+    
+	rk29_uart_write(port,mode,UART_LCR);
+	baud = rk29_set_baud_rate(port, baud);
+	uart_update_timeout(port, termios->c_cflag, baud);
+
+	/*
+	 * enable FIFO and interrupt
+	 */
 	if(termios->c_cflag & CRTSCTS)                               
 	{        
-			/*开启uart0硬件流控*/
-		printk("start CRTSCTS control and baudrate is %d\n",baud);
+		/*开启uart0硬件流控*/
+		printk("start CRTSCTS control and baudrate is %d,irq=%d\n",baud,port->irq);
+		if(2 == port->line) 
+		{
+			rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+			rk29_mux_api_set(GPIO2A6_UART2CTSN_NAME, GPIO2L_UART2_CTS_N);
+		}
+		else if(0 == port->line) 
+		{
+			rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+			rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
+		}
+
 		umcon=rk29_uart_read(port,UART_MCR);
-		printk("UART_GET_MCR umcon=0x%x\n",umcon);
 		umcon |= UART_MCR_AFCEN;
 		umcon |= UART_MCR_URRTS;
 		umcon &=~UART_SIR_ENABLE;
 		rk29_uart_write(port,umcon,UART_MCR);
 		printk("UART_GET_MCR umcon=0x%x\n",umcon);
-		fcr=rk29_uart_read(port,UART_FCR);
-		printk("UART_GET_MCR fcr=0x%x\n",fcr);
-		fcr |= UART_FCR_FIFO_ENABLE;
-		rk29_uart_write(port,fcr,UART_FCR);		
-		printk("UART_GET_MCR fcr=0x%x\n",fcr);
 	}
-    mode = mode | LCR_DLA_EN;
-    {
-        int timeout = 10000000;
-        while ((rk29_uart_read(port,UART_USR)&UART_USR_BUSY) && timeout--)
-           cpu_relax();
-    }
-    rk29_uart_write(port,mode,UART_LCR);
-    baud = rk29_set_baud_rate(port, baud);
-    uart_update_timeout(port, termios->c_cflag, baud);
-    spin_unlock_irqrestore(&port->lock, flags);
+	mode = mode | LCR_DLA_EN;
+
+#if 1
+	//lw modify on 110309
+	fcr = UART_FCR_FIFO_ENABLE | UART_FCR_R_TRIG_10 | UART_FCR_T_TRIG_10;
+	rk29_uart_write(port,  fcr,  UART_FCR);	
+	rk29_uart_write(port,0x01,UART_SFE);
+	rk29_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
+	printk("%s:fcr=0x%x,irq=%d\n",__FUNCTION__,fcr,port->irq);
+#endif
+
+	spin_unlock_irqrestore(&port->lock, flags);
+	
 }
 
 
