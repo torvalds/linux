@@ -1195,6 +1195,104 @@ static int unlink_simple(struct usbtest_dev *dev, int pipe, int len)
 
 /*-------------------------------------------------------------------------*/
 
+struct queued_ctx {
+	struct completion	complete;
+	atomic_t		pending;
+	unsigned		num;
+	int			status;
+	struct urb		**urbs;
+};
+
+static void unlink_queued_callback(struct urb *urb)
+{
+	int			status = urb->status;
+	struct queued_ctx	*ctx = urb->context;
+
+	if (ctx->status)
+		goto done;
+	if (urb == ctx->urbs[ctx->num - 4] || urb == ctx->urbs[ctx->num - 2]) {
+		if (status == -ECONNRESET)
+			goto done;
+		/* What error should we report if the URB completed normally? */
+	}
+	if (status != 0)
+		ctx->status = status;
+
+ done:
+	if (atomic_dec_and_test(&ctx->pending))
+		complete(&ctx->complete);
+}
+
+static int unlink_queued(struct usbtest_dev *dev, int pipe, unsigned num,
+		unsigned size)
+{
+	struct queued_ctx	ctx;
+	struct usb_device	*udev = testdev_to_usbdev(dev);
+	void			*buf;
+	dma_addr_t		buf_dma;
+	int			i;
+	int			retval = -ENOMEM;
+
+	init_completion(&ctx.complete);
+	atomic_set(&ctx.pending, 1);	/* One more than the actual value */
+	ctx.num = num;
+	ctx.status = 0;
+
+	buf = usb_alloc_coherent(udev, size, GFP_KERNEL, &buf_dma);
+	if (!buf)
+		return retval;
+	memset(buf, 0, size);
+
+	/* Allocate and init the urbs we'll queue */
+	ctx.urbs = kcalloc(num, sizeof(struct urb *), GFP_KERNEL);
+	if (!ctx.urbs)
+		goto free_buf;
+	for (i = 0; i < num; i++) {
+		ctx.urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!ctx.urbs[i])
+			goto free_urbs;
+		usb_fill_bulk_urb(ctx.urbs[i], udev, pipe, buf, size,
+				unlink_queued_callback, &ctx);
+		ctx.urbs[i]->transfer_dma = buf_dma;
+		ctx.urbs[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+	}
+
+	/* Submit all the URBs and then unlink URBs num - 4 and num - 2. */
+	for (i = 0; i < num; i++) {
+		atomic_inc(&ctx.pending);
+		retval = usb_submit_urb(ctx.urbs[i], GFP_KERNEL);
+		if (retval != 0) {
+			dev_err(&dev->intf->dev, "submit urbs[%d] fail %d\n",
+					i, retval);
+			atomic_dec(&ctx.pending);
+			ctx.status = retval;
+			break;
+		}
+	}
+	if (i == num) {
+		usb_unlink_urb(ctx.urbs[num - 4]);
+		usb_unlink_urb(ctx.urbs[num - 2]);
+	} else {
+		while (--i >= 0)
+			usb_unlink_urb(ctx.urbs[i]);
+	}
+
+	if (atomic_dec_and_test(&ctx.pending))		/* The extra count */
+		complete(&ctx.complete);
+	wait_for_completion(&ctx.complete);
+	retval = ctx.status;
+
+ free_urbs:
+	for (i = 0; i < num; i++)
+		usb_free_urb(ctx.urbs[i]);
+	kfree(ctx.urbs);
+ free_buf:
+	usb_free_coherent(udev, size, buf, buf_dma);
+	return retval;
+}
+
+/*-------------------------------------------------------------------------*/
+
 static int verify_not_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 {
 	int	retval;
@@ -1970,8 +2068,6 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 				dev->in_iso_pipe, dev->iso_in, 0);
 		break;
 
-	/* FIXME unlink from queue (ring with N urbs) */
-
 	/* FIXME scatterlist cancel (needs helper thread) */
 
 	/* Tests for bulk I/O using DMA mapping by core and odd address */
@@ -2062,6 +2158,26 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 				param->sglen, param->length);
 		retval = test_iso_queue(dev, param,
 				dev->in_iso_pipe, dev->iso_in, 1);
+		break;
+
+	/* unlink URBs from a bulk-OUT queue */
+	case 24:
+		if (dev->out_pipe == 0 || !param->length || param->sglen < 4)
+			break;
+		retval = 0;
+		dev_info(&intf->dev, "TEST 17:  unlink from %d queues of "
+				"%d %d-byte writes\n",
+				param->iterations, param->sglen, param->length);
+		for (i = param->iterations; retval == 0 && i > 0; --i) {
+			retval = unlink_queued(dev, dev->out_pipe,
+						param->sglen, param->length);
+			if (retval) {
+				dev_err(&intf->dev,
+					"unlink queued writes failed %d, "
+					"iterations left %d\n", retval, i);
+				break;
+			}
+		}
 		break;
 
 	}
