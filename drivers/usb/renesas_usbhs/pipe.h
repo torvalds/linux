@@ -93,8 +93,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv);
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe);
 void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe);
 
-#define usbhs_pipe_number(p)	(((u32)(p) - (u32)(p)->priv->pipe_info.pipe) / \
-				 sizeof(struct usbhs_pipe))
+#define usbhs_pipe_number(p)	(int)((p) - (p)->priv->pipe_info.pipe)
 
 /*
  * dcp control
