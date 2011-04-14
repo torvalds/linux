@@ -1952,14 +1952,6 @@ static int dsi_complexio_init(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	if (dss_has_feature(FEAT_DSI_LDO_STATUS)) {
-		if (wait_for_bit_change(DSI_COMPLEXIO_CFG1, 21, 1) != 1) {
-			DSSERR("ComplexIO LDO power down.\n");
-			r = -ENODEV;
-			goto err;
-		}
-	}
-
 	dsi_complexio_timings();
 
 	/*

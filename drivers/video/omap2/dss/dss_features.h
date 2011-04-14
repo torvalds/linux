@@ -43,9 +43,8 @@ enum dss_feat_id {
 	/* DSI-PLL power command 0x3 is not working */
 	FEAT_DSI_PLL_PWR_BUG		= 1 << 13,
 	FEAT_DSI_PLL_FREQSEL		= 1 << 14,
-	FEAT_DSI_LDO_STATUS		= 1 << 15,
-	FEAT_DSI_DCS_CMD_CONFIG_VC	= 1 << 16,
-	FEAT_DSI_VC_OCP_WIDTH		= 1 << 17,
+	FEAT_DSI_DCS_CMD_CONFIG_VC	= 1 << 15,
+	FEAT_DSI_VC_OCP_WIDTH		= 1 << 16,
 };
 
 /* DSS register field id */
