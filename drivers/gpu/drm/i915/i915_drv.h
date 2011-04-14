@@ -1209,7 +1209,8 @@ int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				  bool write);
 int __must_check
-i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
+i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
+				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,

@@ -1812,13 +1812,9 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	}
 
 	dev_priv->mm.interruptible = false;
-	ret = i915_gem_object_pin(obj, alignment, true);
+	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined);
 	if (ret)
 		goto err_interruptible;
-
-	ret = i915_gem_object_set_to_display_plane(obj, pipelined);
-	if (ret)
-		goto err_unpin;
 
 	/* Install a fence for tiled scan-out. Pre-i965 always needs a
 	 * fence, whereas 965+ only requires a fence if using
@@ -5434,21 +5430,15 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			goto fail_locked;
 		}
 
-		ret = i915_gem_object_pin(obj, PAGE_SIZE, true);
-		if (ret) {
-			DRM_ERROR("failed to pin cursor bo\n");
-			goto fail_locked;
-		}
-
-		ret = i915_gem_object_set_to_display_plane(obj, NULL);
+		ret = i915_gem_object_pin_to_display_plane(obj, 0, NULL);
 		if (ret) {
 			DRM_ERROR("failed to move cursor bo into the GTT\n");
-			goto fail_unpin;
+			goto fail_locked;
 		}
 
 		ret = i915_gem_object_put_fence(obj);
 		if (ret) {
-			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			DRM_ERROR("failed to release fence for cursor");
 			goto fail_unpin;
 		}
 
