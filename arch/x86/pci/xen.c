@@ -108,7 +108,8 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		}
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq, 0,
 					       (type == PCI_CAP_ID_MSIX) ?
-					       "msi-x" : "msi");
+					       "msi-x" : "msi",
+					       DOMID_SELF);
 		if (irq < 0)
 			goto error;
 		dev_dbg(&dev->dev,
@@ -148,7 +149,8 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i], 0,
 					       (type == PCI_CAP_ID_MSIX) ?
 					       "pcifront-msi-x" :
-					       "pcifront-msi");
+					       "pcifront-msi",
+						DOMID_SELF);
 		if (irq < 0)
 			goto free;
 		i++;
@@ -190,9 +192,16 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		struct physdev_map_pirq map_irq;
+		domid_t domid;
+
+		domid = ret = xen_find_device_domain_owner(dev);
+		/* N.B. Casting int's -ENODEV to uint16_t results in 0xFFED,
+		 * hence check ret value for < 0. */
+		if (ret < 0)
+			domid = DOMID_SELF;
 
 		memset(&map_irq, 0, sizeof(map_irq));
-		map_irq.domid = DOMID_SELF;
+		map_irq.domid = domid;
 		map_irq.type = MAP_PIRQ_TYPE_MSI;
 		map_irq.index = -1;
 		map_irq.pirq = -1;
@@ -215,14 +224,16 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 		ret = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
 		if (ret) {
-			dev_warn(&dev->dev, "xen map irq failed %d\n", ret);
+			dev_warn(&dev->dev, "xen map irq failed %d for %d domain\n",
+				 ret, domid);
 			goto out;
 		}
 
 		ret = xen_bind_pirq_msi_to_irq(dev, msidesc,
 					       map_irq.pirq, map_irq.index,
 					       (type == PCI_CAP_ID_MSIX) ?
-					       "msi-x" : "msi");
+					       "msi-x" : "msi",
+						domid);
 		if (ret < 0)
 			goto out;
 	}
