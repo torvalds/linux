@@ -295,6 +295,8 @@ struct ecryptfs_crypt_stat {
 struct ecryptfs_inode_info {
 	struct inode vfs_inode;
 	struct inode *wii_inode;
+	struct mutex lower_file_mutex;
+	atomic_t lower_file_count;
 	struct file *lower_file;
 	struct ecryptfs_crypt_stat crypt_stat;
 };
@@ -757,7 +759,8 @@ int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt,
 			     const struct cred *cred);
-int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry);
+int ecryptfs_get_lower_file(struct dentry *ecryptfs_dentry);
+void ecryptfs_put_lower_file(struct inode *inode);
 int
 ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 			     size_t *packet_size,

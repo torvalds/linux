@@ -96,7 +96,7 @@ void __ecryptfs_printk(const char *fmt, ...)
 }
 
 /**
- * ecryptfs_init_persistent_file
+ * ecryptfs_init_lower_file
  * @ecryptfs_dentry: Fully initialized eCryptfs dentry object, with
  *                   the lower dentry and the lower mount set
  *
@@ -104,40 +104,68 @@ void __ecryptfs_printk(const char *fmt, ...)
  * inode. All I/O operations to the lower inode occur through that
  * file. When the first eCryptfs dentry that interposes with the first
  * lower dentry for that inode is created, this function creates the
- * persistent file struct and associates it with the eCryptfs
- * inode. When the eCryptfs inode is destroyed, the file is closed.
+ * lower file struct and associates it with the eCryptfs
+ * inode. When all eCryptfs files associated with the inode are released, the
+ * file is closed.
  *
- * The persistent file will be opened with read/write permissions, if
+ * The lower file will be opened with read/write permissions, if
  * possible. Otherwise, it is opened read-only.
  *
- * This function does nothing if a lower persistent file is already
+ * This function does nothing if a lower file is already
  * associated with the eCryptfs inode.
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
+static int ecryptfs_init_lower_file(struct dentry *dentry,
+				    struct file **lower_file)
 {
 	const struct cred *cred = current_cred();
-	struct ecryptfs_inode_info *inode_info =
-		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
-	int rc = 0;
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	struct vfsmount *lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
+	int rc;
 
-	if (!inode_info->lower_file) {
-		struct dentry *lower_dentry;
-		struct vfsmount *lower_mnt =
-			ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
-
-		lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
-		rc = ecryptfs_privileged_open(&inode_info->lower_file,
-					      lower_dentry, lower_mnt, cred);
-		if (rc) {
-			printk(KERN_ERR "Error opening lower persistent file "
-			       "for lower_dentry [0x%p] and lower_mnt [0x%p]; "
-			       "rc = [%d]\n", lower_dentry, lower_mnt, rc);
-			inode_info->lower_file = NULL;
-		}
+	rc = ecryptfs_privileged_open(lower_file, lower_dentry, lower_mnt,
+				      cred);
+	if (rc) {
+		printk(KERN_ERR "Error opening lower file "
+		       "for lower_dentry [0x%p] and lower_mnt [0x%p]; "
+		       "rc = [%d]\n", lower_dentry, lower_mnt, rc);
+		(*lower_file) = NULL;
 	}
 	return rc;
+}
+
+int ecryptfs_get_lower_file(struct dentry *dentry)
+{
+	struct ecryptfs_inode_info *inode_info =
+		ecryptfs_inode_to_private(dentry->d_inode);
+	int count, rc = 0;
+
+	mutex_lock(&inode_info->lower_file_mutex);
+	count = atomic_inc_return(&inode_info->lower_file_count);
+	if (WARN_ON_ONCE(count < 1))
+		rc = -EINVAL;
+	else if (count == 1) {
+		rc = ecryptfs_init_lower_file(dentry,
+					      &inode_info->lower_file);
+		if (rc)
+			atomic_set(&inode_info->lower_file_count, 0);
+	}
+	mutex_unlock(&inode_info->lower_file_mutex);
+	return rc;
+}
+
+void ecryptfs_put_lower_file(struct inode *inode)
+{
+	struct ecryptfs_inode_info *inode_info;
+
+	inode_info = ecryptfs_inode_to_private(inode);
+	if (atomic_dec_and_mutex_lock(&inode_info->lower_file_count,
+				      &inode_info->lower_file_mutex)) {
+		fput(inode_info->lower_file);
+		inode_info->lower_file = NULL;
+		mutex_unlock(&inode_info->lower_file_mutex);
+	}
 }
 
 static struct inode *ecryptfs_get_inode(struct inode *lower_inode,
