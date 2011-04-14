@@ -107,7 +107,7 @@ static void update_blkif_status(blkif_t *blkif)
 }
 
 
-/****************************************************************
+/*
  *  sysfs interface for VBD I/O requests
  */
 

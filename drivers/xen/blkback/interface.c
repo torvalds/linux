@@ -1,6 +1,4 @@
 /******************************************************************************
- * arch/xen/drivers/blkif/backend/interface.c
- *
  * Block-device interface management.
  *
  * Copyright (c) 2004, Keir Fraser

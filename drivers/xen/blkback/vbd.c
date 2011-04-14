@@ -1,6 +1,4 @@
 /******************************************************************************
- * blkback/vbd.c
- *
  * Routines for managing virtual block devices (VBDs).
  *
  * Copyright (c) 2003-2005, Keir Fraser & Steve Hand

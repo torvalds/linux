@@ -76,6 +76,7 @@ typedef struct blkif_st {
 	atomic_t         refcnt;
 
 	wait_queue_head_t   wq;
+	/* One thread per one blkif. */
 	struct task_struct  *xenblkd;
 	unsigned int        waiting_reqs;
 	struct request_queue     *plug;

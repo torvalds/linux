@@ -1,11 +1,10 @@
 /******************************************************************************
- * arch/xen/drivers/blkif/backend/main.c
  *
  * Back-end of the driver for virtual block devices. This portion of the
  * driver exports a 'unified' block-device interface that can be accessed
  * by any operating system that implements a compatible front end. A
  * reference front-end implementation can be found in:
- *  arch/xen/drivers/blkif/frontend
+ *  drivers/block/xen-blkfront.c
  *
  * Copyright (c) 2003-2004, Keir Fraser & Steve Hand
  * Copyright (c) 2005, Christopher Clark
@@ -88,16 +87,25 @@ typedef struct {
 #define BLKBACK_INVALID_HANDLE (~0)
 
 struct xen_blkbk {
-	pending_req_t	*pending_reqs;
+	pending_req_t		*pending_reqs;
+	/* List of all 'pending_req' available */
 	struct list_head	pending_free;
+	/* And its spinlock. */
 	spinlock_t		pending_free_lock;
 	wait_queue_head_t	pending_free_wq;
+	/* The list of all pages that are available. */
 	struct page		**pending_pages;
+	/* And the grant handles that are available. */
 	grant_handle_t		*pending_grant_handles;
 };
 
 static struct xen_blkbk *blkbk;
 
+/*
+ * Little helpful macro to figure out the index and virtual address of the
+ * pending_pages[..]. For each 'pending_req' we have have up to
+ * BLKIF_MAX_SEGMENTS_PER_REQUEST (11) pages. The seg would be from 0 through
+ * 10 and would index in the pending_pages[..]. */
 static inline int vaddr_pagenr(pending_req_t *req, int seg)
 {
 	return (req - blkbk->pending_reqs) * BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
@@ -122,8 +130,8 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 static void make_response(blkif_t *blkif, u64 id,
 			  unsigned short op, int st);
 
-/******************************************************************
- * misc small helpers
+/*
+ * Retrieve from the 'pending_reqs' a free pending_req structure to be used.
  */
 static pending_req_t* alloc_req(void)
 {
@@ -139,6 +147,10 @@ static pending_req_t* alloc_req(void)
 	return req;
 }
 
+/*
+ * Return the 'pending_req' structure back to the freepool. We also
+ * wake up the thread if it was waiting for a free page.
+ */
 static void free_req(pending_req_t *req)
 {
 	unsigned long flags;
@@ -152,6 +164,11 @@ static void free_req(pending_req_t *req)
 		wake_up(&blkbk->pending_free_wq);
 }
 
+/*
+ * Give back a reference count on the underlaying storage.
+ * It is OK to make multiple calls in this function as it
+ * resets the plug to NULL when it is done on the first call.
+ */
 static void unplug_queue(blkif_t *blkif)
 {
 	if (blkif->plug == NULL)
@@ -162,6 +179,12 @@ static void unplug_queue(blkif_t *blkif)
 	blkif->plug = NULL;
 }
 
+/*
+ * Take a reference count on the underlaying storage.
+ * It is OK to call this multiple times as we check to make sure
+ * not to double reference. We also give back a reference count
+ * if it corresponds to another queue.
+ */
 static void plug_queue(blkif_t *blkif, struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
@@ -173,6 +196,10 @@ static void plug_queue(blkif_t *blkif, struct block_device *bdev)
 	blkif->plug = q;
 }
 
+/*
+ * Unmap the grant references, and also remove the M2P over-rides
+ * used in the 'pending_req'.
+*/
 static void fast_flush_area(pending_req_t *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -266,8 +293,8 @@ int blkif_schedule(void *arg)
 	return 0;
 }
 
-/******************************************************************
- * COMPLETION CALLBACK -- Called as bh->b_end_io()
+/*
+ * Completion callback on the bio's. Called as bh->b_end_io()
  */
 
 static void __end_block_io_op(pending_req_t *pending_req, int error)
@@ -284,6 +311,9 @@ static void __end_block_io_op(pending_req_t *pending_req, int error)
 		pending_req->status = BLKIF_RSP_ERROR;
 	}
 
+	/* If all of the bio's have completed it is time to unmap
+	 * the grant references associated with 'request' and provide
+	 * the proper response on the ring. */
 	if (atomic_dec_and_test(&pending_req->pendcnt)) {
 		fast_flush_area(pending_req);
 		make_response(pending_req->blkif, pending_req->id,
@@ -293,6 +323,9 @@ static void __end_block_io_op(pending_req_t *pending_req, int error)
 	}
 }
 
+/*
+ * bio callback.
+ */
 static void end_block_io_op(struct bio *bio, int error)
 {
 	__end_block_io_op(bio->bi_private, error);
@@ -300,8 +333,8 @@ static void end_block_io_op(struct bio *bio, int error)
 }
 
 
-/******************************************************************************
- * NOTIFICATION FROM GUEST OS.
+/*
+ * Notification from the guest OS.
  */
 
 static void blkif_notify_work(blkif_t *blkif)
@@ -318,10 +351,11 @@ irqreturn_t blkif_be_int(int irq, void *dev_id)
 
 
 
-/******************************************************************
- * DOWNWARD CALLS -- These interface with the block-device layer proper.
+/*
+ * Function to copy the from the ring buffer the 'struct blkif_request'
+ * (which has the sectors we want, number of them, grant references, etc),
+ * and transmute  it to the block API to hand it over to the proper block disk.
  */
-
 static int do_block_io_op(blkif_t *blkif)
 {
 	union blkif_back_rings *blk_rings = &blkif->blk_rings;
@@ -400,6 +434,10 @@ static int do_block_io_op(blkif_t *blkif)
 	return more_to_do;
 }
 
+/*
+ * Transumation of the 'struct blkif_request' to a proper 'struct bio'
+ * and call the 'submit_bio' to pass it to the underlaying storage.
+ */
 static void dispatch_rw_block_io(blkif_t *blkif,
 				 struct blkif_request *req,
 				 pending_req_t *pending_req)
@@ -429,7 +467,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		BUG();
 	}
 
-	/* Check that number of segments is sane. */
+	/* Check that the number of segments is sane. */
 	nseg = req->nr_segments;
 	if (unlikely(nseg == 0 && operation != WRITE_BARRIER) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
@@ -447,12 +485,14 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
 
+	/* Fill out preq.nr_sects with proper amount of sectors, and setup
+	 * assign map[..] with the PFN of the page in our domain with the
+	 * corresponding grant reference for each page.*/
 	for (i = 0; i < nseg; i++) {
 		uint32_t flags;
 
 		seg[i].nsec = req->u.rw.seg[i].last_sect -
 			req->u.rw.seg[i].first_sect + 1;
-
 		if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
 		    (req->u.rw.seg[i].last_sect < req->u.rw.seg[i].first_sect))
 			goto fail_response;
@@ -468,6 +508,9 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
 	BUG_ON(ret);
 
+	/* Now swizzel the MFN in our domain with the MFN from the other domain
+	 * so that when we access vaddr(pending_req,i) it has the contents of the
+	 * page from the other domain. */
 	for (i = 0; i < nseg; i++) {
 		if (unlikely(map[i].status != 0)) {
 			DPRINTK("invalid buffer -- could not remap it\n");
@@ -485,6 +528,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		if (ret) {
 			printk(KERN_ALERT "Failed to install M2P override for"\
 				" %lx (ret: %d)\n", (unsigned long)map[i].dev_bus_addr, ret);
+			/* We could switch over to GNTTABOP_copy */
 			continue;
 		}
 
@@ -492,6 +536,9 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 			(req->u.rw.seg[i].first_sect << 9);
 	}
 
+	/* If we have failed at this point, we need to undo the M2P override, set
+	 * gnttab_set_unmap_op on all of the grant references and perform the
+	 * hypercall to unmap the grants - that is all done in fast_flush_area. */
 	if (ret)
 		goto fail_flush;
 
@@ -503,7 +550,11 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		goto fail_flush;
 	}
 
+	/* Get a reference count for the disk queue and start sending I/O */
 	plug_queue(blkif, preq.bdev);
+
+	/* We set it one so that the last submit_bio does not have to call
+	 * atomic_inc. */
 	atomic_set(&pending_req->pendcnt, 1);
 	blkif_get(blkif);
 
@@ -524,7 +575,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 				atomic_inc(&pending_req->pendcnt);
 				submit_bio(operation, bio);
 			}
-
+                        
 			bio = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
 				goto fail_put_bio;
@@ -538,6 +589,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		preq.sector_number += seg[i].nsec;
 	}
 
+	/* This will be hit if the operation was a barrier. */
 	if (!bio) {
 		BUG_ON(operation != WRITE_BARRIER);
 		bio = bio_alloc(GFP_KERNEL, 0);
@@ -578,11 +630,9 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 
 
-/******************************************************************
- * MISCELLANEOUS SETUP / TEARDOWN / DEBUGGING
+/*
+ * Put a response on the ring on how the operation fared.
  */
-
-
 static void make_response(blkif_t *blkif, u64 id,
 			  unsigned short op, int st)
 {
