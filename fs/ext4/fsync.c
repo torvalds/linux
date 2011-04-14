@@ -125,9 +125,11 @@ extern int ext4_flush_completed_IO(struct inode *inode)
  * the parent directory's parent as well, and so on recursively, if
  * they are also freshly created.
  */
-static void ext4_sync_parent(struct inode *inode)
+static int ext4_sync_parent(struct inode *inode)
 {
+	struct writeback_control wbc;
 	struct dentry *dentry = NULL;
+	int ret = 0;
 
 	while (inode && ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
@@ -136,8 +138,17 @@ static void ext4_sync_parent(struct inode *inode)
 		if (!dentry || !dentry->d_parent || !dentry->d_parent->d_inode)
 			break;
 		inode = dentry->d_parent->d_inode;
-		sync_mapping_buffers(inode->i_mapping);
+		ret = sync_mapping_buffers(inode->i_mapping);
+		if (ret)
+			break;
+		memset(&wbc, 0, sizeof(wbc));
+		wbc.sync_mode = WB_SYNC_ALL;
+		wbc.nr_to_write = 0;         /* only write out the inode */
+		ret = sync_inode(inode, &wbc);
+		if (ret)
+			break;
 	}
+	return ret;
 }
 
 /*
@@ -176,7 +187,7 @@ int ext4_sync_file(struct file *file, int datasync)
 	if (!journal) {
 		ret = generic_file_fsync(file, datasync);
 		if (!ret && !list_empty(&inode->i_dentry))
-			ext4_sync_parent(inode);
+			ret = ext4_sync_parent(inode);
 		goto out;
 	}
 

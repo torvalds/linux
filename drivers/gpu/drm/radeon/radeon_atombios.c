@@ -2176,24 +2176,27 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 	}
 }
 
-static u16 radeon_atombios_get_default_vddc(struct radeon_device *rdev)
+static void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
+						 u16 *vddc, u16 *vddci)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
 	u8 frev, crev;
 	u16 data_offset;
 	union firmware_info *firmware_info;
-	u16 vddc = 0;
+
+	*vddc = 0;
+	*vddci = 0;
 
 	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset)) {
 		firmware_info =
 			(union firmware_info *)(mode_info->atom_context->bios +
 						data_offset);
-		vddc = le16_to_cpu(firmware_info->info_14.usBootUpVDDCVoltage);
+		*vddc = le16_to_cpu(firmware_info->info_14.usBootUpVDDCVoltage);
+		if ((frev == 2) && (crev >= 2))
+			*vddci = le16_to_cpu(firmware_info->info_22.usBootUpVDDCIVoltage);
 	}
-
-	return vddc;
 }
 
 static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rdev,
@@ -2203,7 +2206,9 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 	int j;
 	u32 misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
 	u32 misc2 = le16_to_cpu(non_clock_info->usClassification);
-	u16 vddc = radeon_atombios_get_default_vddc(rdev);
+	u16 vddc, vddci;
+
+	radeon_atombios_get_default_voltages(rdev, &vddc, &vddci);
 
 	rdev->pm.power_state[state_index].misc = misc;
 	rdev->pm.power_state[state_index].misc2 = misc2;
@@ -2244,6 +2249,7 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
 			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
 			rdev->pm.default_vddc = rdev->pm.power_state[state_index].clock_info[0].voltage.voltage;
+			rdev->pm.default_vddci = rdev->pm.power_state[state_index].clock_info[0].voltage.vddci;
 		} else {
 			/* patch the table values with the default slck/mclk from firmware info */
 			for (j = 0; j < mode_index; j++) {
@@ -2286,6 +2292,8 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			VOLTAGE_SW;
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
 			le16_to_cpu(clock_info->evergreen.usVDDC);
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.vddci =
+			le16_to_cpu(clock_info->evergreen.usVDDCI);
 	} else {
 		sclk = le16_to_cpu(clock_info->r600.usEngineClockLow);
 		sclk |= clock_info->r600.ucEngineClockHigh << 16;
@@ -2577,25 +2585,25 @@ union set_voltage {
 	struct _SET_VOLTAGE_PARAMETERS_V2 v2;
 };
 
-void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level)
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type)
 {
 	union set_voltage args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
-	u8 frev, crev, volt_index = level;
+	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
 	switch (crev) {
 	case 1:
-		args.v1.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v1.ucVoltageType = voltage_type;
 		args.v1.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_ALL_SOURCE;
 		args.v1.ucVoltageIndex = volt_index;
 		break;
 	case 2:
-		args.v2.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v2.ucVoltageType = voltage_type;
 		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_SET_VOLTAGE;
-		args.v2.usVoltageLevel = cpu_to_le16(level);
+		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
 		break;
 	default:
 		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);

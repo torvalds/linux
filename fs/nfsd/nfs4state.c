@@ -397,10 +397,13 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_stateid *stp)
 {
-	int oflag = nfs4_access_bmap_to_omode(stp);
+	int oflag;
 
-	nfs4_file_put_access(stp->st_file, oflag);
-	put_nfs4_file(stp->st_file);
+	if (stp->st_access_bmap) {
+		oflag = nfs4_access_bmap_to_omode(stp);
+		nfs4_file_put_access(stp->st_file, oflag);
+		put_nfs4_file(stp->st_file);
+	}
 	kmem_cache_free(stateid_slab, stp);
 }
 

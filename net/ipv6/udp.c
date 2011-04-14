@@ -505,6 +505,9 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	int rc;
 	int is_udplite = IS_UDPLITE(sk);
 
+	if (!ipv6_addr_any(&inet6_sk(sk)->daddr))
+		sock_rps_save_rxhash(sk, skb->rxhash);
+
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
 

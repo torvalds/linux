@@ -120,11 +120,16 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
-	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
-		if (voltage->voltage != rdev->pm.current_vddc) {
-			radeon_atom_set_voltage(rdev, voltage->voltage);
+	if (voltage->type == VOLTAGE_SW) {
+		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
+			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
-			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+			DRM_DEBUG("Setting: vddc: %d\n", voltage->voltage);
+		}
+		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
+			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
+			rdev->pm.current_vddci = voltage->vddci;
+			DRM_DEBUG("Setting: vddci: %d\n", voltage->vddci);
 		}
 	}
 }
@@ -3036,9 +3041,6 @@ int evergreen_init(struct radeon_device *rdev)
 {
 	int r;
 
-	r = radeon_dummy_page_init(rdev);
-	if (r)
-		return r;
 	/* This don't do much */
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -3150,7 +3152,6 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
-	radeon_dummy_page_fini(rdev);
 }
 
 static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
