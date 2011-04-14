@@ -864,6 +864,20 @@ have_hes:
 	 * that will have to be made dependent on whether we are running under
 	 * a hypervisor I suppose.
 	 */
+
+	/* BEWARE, MAGIC
+	 * This code is called as an ordinary function on the boot CPU. But to
+	 * avoid duplication, this code is also used in SCOM bringup of
+	 * secondary CPUs. We read the code between the initial_tlb_code_start
+	 * and initial_tlb_code_end labels one instruction at a time and RAM it
+	 * into the new core via SCOM. That doesn't process branches, so there
+	 * must be none between those two labels. It also means if this code
+	 * ever takes any parameters, the SCOM code must also be updated to
+	 * provide them.
+	 */
+	.globl a2_tlbinit_code_start
+a2_tlbinit_code_start:
+
 	ori	r11,r3,MAS0_WQ_ALLWAYS
 	oris	r11,r11,MAS0_ESEL(3)@h /* Use way 3: workaround A2 erratum 376 */
 	mtspr	SPRN_MAS0,r11
@@ -879,6 +893,9 @@ have_hes:
 
 	/* Write the TLB entry */
 	tlbwe
+
+	.globl a2_tlbinit_after_linear_map
+a2_tlbinit_after_linear_map:
 
 	/* Now we branch the new virtual address mapped by this entry */
 	LOAD_REG_IMMEDIATE(r3,1f)
@@ -931,9 +948,15 @@ have_hes:
 	cmpw	r3,r9
 	blt	2b
 
+	.globl  a2_tlbinit_after_iprot_flush
+a2_tlbinit_after_iprot_flush:
+
 	PPC_TLBILX(0,0,0)
 	sync
 	isync
+
+	.globl a2_tlbinit_code_end
+a2_tlbinit_code_end:
 
 	/* We translate LR and return */
 	mflr	r3
