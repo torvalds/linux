@@ -167,38 +167,6 @@ static void free_req(struct pending_req *req)
 }
 
 /*
- * Give back a reference count on the underlaying storage.
- * It is OK to make multiple calls in this function as it
- * resets the plug to NULL when it is done on the first call.
- */
-static void unplug_queue(struct blkif_st *blkif)
-{
-	if (blkif->plug == NULL)
-		return;
-	if (blkif->plug->unplug_fn)
-		blkif->plug->unplug_fn(blkif->plug);
-	blk_put_queue(blkif->plug);
-	blkif->plug = NULL;
-}
-
-/*
- * Take a reference count on the underlaying storage.
- * It is OK to call this multiple times as we check to make sure
- * not to double reference. We also give back a reference count
- * if it corresponds to another queue.
- */
-static void plug_queue(struct blkif_st *blkif, struct block_device *bdev)
-{
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q == blkif->plug)
-		return;
-	unplug_queue(blkif);
-	blk_get_queue(q);
-	blkif->plug = q;
-}
-
-/*
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
 */
@@ -280,7 +248,6 @@ int blkif_schedule(void *arg)
 
 		if (do_block_io_op(blkif))
 			blkif->waiting_reqs = 1;
-		unplug_queue(blkif);
 
 		if (log_stats && time_after(jiffies, blkif->st_print))
 			print_stats(blkif);
@@ -456,6 +423,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	struct bio *bio = NULL;
 	int ret, i;
 	int operation;
+	struct blk_plug plug;
+	struct request_queue *q;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -561,7 +530,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	}
 
 	/* Get a reference count for the disk queue and start sending I/O */
-	plug_queue(blkif, preq.bdev);
+	blk_get_queue(q);
+	blk_start_plug(&plug);
 
 	/* We set it one so that the last submit_bio does not have to call
 	 * atomic_inc.
@@ -620,11 +590,14 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	else if (operation == WRITE || operation == WRITE_BARRIER)
 		blkif->st_wr_sect += preq.nr_sects;
 
+	blk_finish_plug(&plug);
+	blk_put_queue(q);
 	return;
 
  fail_flush:
 	fast_flush_area(pending_req);
  fail_response:
+	/* Haven't submitted any bio's yet. */
 	make_response(blkif, req->id, req->operation, BLKIF_RSP_ERROR);
 	free_req(pending_req);
 	msleep(1); /* back off a bit */
@@ -634,7 +607,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	__end_block_io_op(pending_req, -EINVAL);
 	if (bio)
 		bio_put(bio);
-	unplug_queue(blkif);
+	blk_finish_plug(&plug);
+	blk_put_queue(q);
 	msleep(1); /* back off a bit */
 	return;
 }

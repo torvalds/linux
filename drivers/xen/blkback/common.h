@@ -79,7 +79,6 @@ struct blkif_st {
 	/* One thread per one blkif. */
 	struct task_struct  *xenblkd;
 	unsigned int        waiting_reqs;
-	struct request_queue     *plug;
 
 	/* statistics */
 	unsigned long       st_print;
