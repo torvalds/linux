@@ -51,7 +51,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	if (!skb->len) {
 		dev_err(adapter->dev, "Tx: bad packet length: %d\n",
 		       skb->len);
-		tx_info->status_code = MWIFIEX_ERROR_PKT_SIZE_INVALID;
+		tx_info->status_code = -1;
 		return skb->data;
 	}
 

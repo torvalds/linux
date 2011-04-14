@@ -61,23 +61,6 @@
 
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
 
-enum mwifiex_error_code {
-	MWIFIEX_ERROR_NO_ERROR = 0,
-	MWIFIEX_ERROR_FW_NOT_READY = 0x00000001,
-	MWIFIEX_ERROR_FW_BUSY,
-	MWIFIEX_ERROR_FW_CMDRESP,
-	MWIFIEX_ERROR_PKT_SIZE_INVALID = 0x80000001,
-	MWIFIEX_ERROR_PKT_TIMEOUT,
-	MWIFIEX_ERROR_CMD_INVALID,
-	MWIFIEX_ERROR_CMD_TIMEOUT,
-	MWIFIEX_ERROR_CMD_DNLD_FAIL,
-	MWIFIEX_ERROR_CMD_CANCEL,
-	MWIFIEX_ERROR_CMD_RESP_FAIL,
-	MWIFIEX_ERROR_ASSOC_FAIL,
-	MWIFIEX_ERROR_EVENT_UNKNOWN,
-	MWIFIEX_ERROR_INVALID_PARAMETER,
-};
-
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
@@ -112,12 +95,9 @@ struct mwifiex_802_11_ssid {
 };
 
 struct mwifiex_wait_queue {
-	u32 bss_index;
-	wait_queue_head_t *wait;
-	u16 *condition;
-	u32 start_time;
+	wait_queue_head_t wait;
+	u16 condition;
 	int status;
-	u32 enabled;
 };
 
 struct mwifiex_rxinfo {

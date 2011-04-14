@@ -590,11 +590,10 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
  * an association success (0) or failure (non-zero).
  */
 int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
-			     struct host_cmd_ds_command *resp, void *wq_buf)
+			     struct host_cmd_ds_command *resp)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
-	struct mwifiex_wait_queue *wait_queue =
-		(struct mwifiex_wait_queue *) wq_buf;
 	struct ieee_types_assoc_rsp *assoc_rsp;
 	struct mwifiex_bssdescriptor *bss_desc;
 	u8 enable_data = true;
@@ -718,16 +717,11 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 
 done:
 	/* Need to indicate IOCTL complete */
-	if (wait_queue) {
-		if (ret) {
-			if (assoc_rsp->status_code)
-				wait_queue->status =
-					le16_to_cpu(assoc_rsp->status_code);
-			else
-				wait_queue->status = MWIFIEX_ERROR_ASSOC_FAIL;
-		} else {
-			wait_queue->status = MWIFIEX_ERROR_NO_ERROR;
-		}
+	if (adapter->curr_cmd->wait_q_enabled) {
+		if (ret)
+			adapter->cmd_wait_q.status = -1;
+		else
+			adapter->cmd_wait_q.status = 0;
 	}
 
 	return ret;
@@ -885,9 +879,9 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	mwifiex_get_active_data_rates(priv, adhoc_start->DataRate);
 	if ((adapter->adhoc_start_band & BAND_G) &&
 	    (priv->curr_pkt_filter & HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON)) {
-		ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_MAC_CONTROL,
-					  HostCmd_ACT_GEN_SET,
-					  0, NULL, &priv->curr_pkt_filter);
+		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_MAC_CONTROL,
+					     HostCmd_ACT_GEN_SET, 0,
+					     &priv->curr_pkt_filter);
 
 		if (ret) {
 			dev_err(adapter->dev,
@@ -1066,9 +1060,9 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 			priv->
 			curr_pkt_filter | HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON;
 
-		ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_MAC_CONTROL,
-					  HostCmd_ACT_GEN_SET, 0, NULL,
-					  &curr_pkt_filter);
+		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_MAC_CONTROL,
+					     HostCmd_ACT_GEN_SET, 0,
+					     &curr_pkt_filter);
 		if (ret) {
 			dev_err(priv->adapter->dev,
 			       "ADHOC_J_CMD: G Protection config failed\n");
@@ -1192,11 +1186,10 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
  * saves the beacon buffer.
  */
 int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
-			      struct host_cmd_ds_command *resp, void *wq_buf)
+			      struct host_cmd_ds_command *resp)
 {
 	int ret = 0;
-	struct mwifiex_wait_queue *wait_queue =
-		(struct mwifiex_wait_queue *) wq_buf;
+	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_ad_hoc_result *adhoc_result;
 	struct mwifiex_bssdescriptor *bss_desc;
 	u16 command = le16_to_cpu(resp->command);
@@ -1264,11 +1257,11 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 
 done:
 	/* Need to indicate IOCTL complete */
-	if (wait_queue) {
+	if (adapter->curr_cmd->wait_q_enabled) {
 		if (ret)
-			wait_queue->status = MWIFIEX_ERROR_ASSOC_FAIL;
+			adapter->cmd_wait_q.status = -1;
 		else
-			wait_queue->status = MWIFIEX_ERROR_NO_ERROR;
+			adapter->cmd_wait_q.status = 0;
 
 	}
 
@@ -1283,7 +1276,7 @@ done:
  * command to firmware.
  */
 int mwifiex_associate(struct mwifiex_private *priv,
-		      void *wait_queue, struct mwifiex_bssdescriptor *bss_desc)
+		      struct mwifiex_bssdescriptor *bss_desc)
 {
 	int ret = 0;
 	u8 current_bssid[ETH_ALEN];
@@ -1301,9 +1294,8 @@ int mwifiex_associate(struct mwifiex_private *priv,
 	   retrieval */
 	priv->assoc_rsp_size = 0;
 
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11_ASSOCIATE,
-				  HostCmd_ACT_GEN_SET, 0, wait_queue,
-				  bss_desc);
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_ASSOCIATE,
+				    HostCmd_ACT_GEN_SET, 0, bss_desc);
 
 	return ret;
 }
@@ -1315,7 +1307,7 @@ int mwifiex_associate(struct mwifiex_private *priv,
  */
 int
 mwifiex_adhoc_start(struct mwifiex_private *priv,
-		    void *wait_queue, struct mwifiex_802_11_ssid *adhoc_ssid)
+		    struct mwifiex_802_11_ssid *adhoc_ssid)
 {
 	int ret = 0;
 
@@ -1326,9 +1318,8 @@ mwifiex_adhoc_start(struct mwifiex_private *priv,
 	dev_dbg(priv->adapter->dev, "info: curr_bss_params.band = %d\n",
 	       priv->curr_bss_params.band);
 
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11_AD_HOC_START,
-				  HostCmd_ACT_GEN_SET, 0, wait_queue,
-				  adhoc_ssid);
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_AD_HOC_START,
+				    HostCmd_ACT_GEN_SET, 0, adhoc_ssid);
 
 	return ret;
 }
@@ -1340,7 +1331,7 @@ mwifiex_adhoc_start(struct mwifiex_private *priv,
  * if already not connected to the requested SSID.
  */
 int mwifiex_adhoc_join(struct mwifiex_private *priv,
-		       void *wait_queue, struct mwifiex_bssdescriptor *bss_desc)
+		       struct mwifiex_bssdescriptor *bss_desc)
 {
 	int ret = 0;
 
@@ -1369,9 +1360,8 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 	dev_dbg(priv->adapter->dev, "info: curr_bss_params.band = %c\n",
 	       priv->curr_bss_params.band);
 
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11_AD_HOC_JOIN,
-				  HostCmd_ACT_GEN_SET, 0, wait_queue,
-				  bss_desc);
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_AD_HOC_JOIN,
+				    HostCmd_ACT_GEN_SET, 0, bss_desc);
 
 	return ret;
 }
@@ -1380,9 +1370,7 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
  * This function deauthenticates/disconnects from infra network by sending
  * deauthentication request.
  */
-static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv,
-					struct mwifiex_wait_queue *wait,
-					u8 *mac)
+static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
 {
 	u8 mac_address[ETH_ALEN];
 	int ret = 0;
@@ -1400,11 +1388,8 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv,
 		       bss_descriptor.mac_address, ETH_ALEN);
 	}
 
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
-				  HostCmd_ACT_GEN_SET, 0, wait, &mac_address);
-
-	if (!ret && wait)
-		ret = -EINPROGRESS;
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
+				    HostCmd_ACT_GEN_SET, 0, &mac_address);
 
 	return ret;
 }
@@ -1415,26 +1400,23 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv,
  * In case of infra made, it sends deauthentication request, and
  * in case of ad-hoc mode, a stop network request is sent to the firmware.
  */
-int mwifiex_deauthenticate(struct mwifiex_private *priv,
-			   struct mwifiex_wait_queue *wait, u8 *mac)
+int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 {
 	int ret = 0;
 
 	if (priv->media_connected) {
 		if (priv->bss_mode == NL80211_IFTYPE_STATION) {
-			ret = mwifiex_deauthenticate_infra(priv, wait, mac);
+			ret = mwifiex_deauthenticate_infra(priv, mac);
 		} else if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-			ret = mwifiex_prepare_cmd(priv,
-					HostCmd_CMD_802_11_AD_HOC_STOP,
-					HostCmd_ACT_GEN_SET, 0, wait, NULL);
-
-			if (!ret && wait)
-				ret = -EINPROGRESS;
+			ret = mwifiex_send_cmd_sync(priv,
+						HostCmd_CMD_802_11_AD_HOC_STOP,
+						HostCmd_ACT_GEN_SET, 0, NULL);
 		}
 	}
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mwifiex_deauthenticate);
 
 /*
  * This function converts band to radio type used in channel TLV.

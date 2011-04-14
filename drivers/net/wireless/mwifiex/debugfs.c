@@ -129,8 +129,8 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(event_received), 1},
 
 	/* variables defined in struct mwifiex_adapter */
-	{"ioctl_pending", adapter_item_size(ioctl_pending),
-	 adapter_item_addr(ioctl_pending), 1},
+	{"cmd_pending", adapter_item_size(cmd_pending),
+	 adapter_item_addr(cmd_pending), 1},
 	{"tx_pending", adapter_item_size(tx_pending),
 	 adapter_item_addr(tx_pending), 1},
 	{"rx_pending", adapter_item_size(rx_pending),

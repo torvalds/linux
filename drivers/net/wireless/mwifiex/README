@@ -157,7 +157,7 @@ info
 	mp_wr_bitmap = <SDIO multi-port write bitmap>
 	cmd_resp_received = <0/1, no cmd response to process/response received and yet to process>
 	event_received = <0/1, no event to process/event received and yet to process>
-	ioctl_pending = <number of ioctl pending>
+	cmd_pending = <number of cmd pending>
 	tx_pending = <number of Tx packet pending>
 	rx_pending = <number of Rx packet pending>
 

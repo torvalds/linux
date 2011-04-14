@@ -597,16 +597,23 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sockaddr *hw_addr = (struct sockaddr *) addr;
+	int ret = 0;
 
 	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
 
-	if (mwifiex_request_set_mac_address(priv)) {
-		dev_err(priv->adapter->dev, "set MAC address failed\n");
-		return -EFAULT;
-	}
+	/* Send request to firmware */
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_MAC_ADDRESS,
+				    HostCmd_ACT_GEN_SET, 0, NULL);
+
+	if (!ret)
+		memcpy(priv->netdev->dev_addr, priv->curr_addr, ETH_ALEN);
+	else
+		dev_err(priv->adapter->dev, "set mac address failed: ret=%d"
+					    "\n", ret);
+
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -615,7 +622,20 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 static void mwifiex_set_multicast_list(struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	mwifiex_request_set_multicast_list(priv, dev);
+	struct mwifiex_multicast_list mcast_list;
+
+	if (dev->flags & IFF_PROMISC) {
+		mcast_list.mode = MWIFIEX_PROMISC_MODE;
+	} else if (dev->flags & IFF_ALLMULTI ||
+		   netdev_mc_count(dev) > MWIFIEX_MAX_MULTICAST_LIST_SIZE) {
+		mcast_list.mode = MWIFIEX_ALL_MULTI_MODE;
+	} else {
+		mcast_list.mode = MWIFIEX_MULTICAST_MODE;
+		if (netdev_mc_count(dev))
+			mcast_list.num_multicast_addr =
+				mwifiex_copy_mcast_addr(&mcast_list, dev);
+	}
+	mwifiex_request_set_multicast_list(priv, &mcast_list);
 }
 
 /*
@@ -677,9 +697,6 @@ mwifiex_init_priv_params(struct mwifiex_private *priv, struct net_device *dev)
 {
 	dev->netdev_ops = &mwifiex_netdev_ops;
 	/* Initialize private structure */
-	init_waitqueue_head(&priv->ioctl_wait_q);
-	init_waitqueue_head(&priv->cmd_wait_q);
-	init_waitqueue_head(&priv->w_stats_wait_q);
 	priv->current_key_index = 0;
 	priv->media_connected = false;
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
@@ -808,32 +825,6 @@ mwifiex_remove_interface(struct mwifiex_adapter *adapter, u8 bss_index)
 }
 
 /*
- * Sends IOCTL request to shutdown firmware.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- */
-int mwifiex_shutdown_fw(struct mwifiex_private *priv, u8 wait_option)
-{
-	struct mwifiex_wait_queue *wait = NULL;
-	int status = 0;
-
-	/* Allocate an IOCTL request buffer */
-	wait = mwifiex_alloc_fill_wait_queue(priv, wait_option);
-	if (!wait)
-		return -ENOMEM;
-
-	status = mwifiex_misc_ioctl_init_shutdown(priv->adapter, wait,
-						  MWIFIEX_FUNC_SHUTDOWN);
-
-	status = mwifiex_request_ioctl(priv, wait, status, wait_option);
-
-	kfree(wait);
-	return status;
-}
-EXPORT_SYMBOL_GPL(mwifiex_shutdown_fw);
-
-/*
  * This function check if command is pending.
  */
 int is_command_pending(struct mwifiex_adapter *adapter)
@@ -927,6 +918,10 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	adapter->is_suspended = false;
 	adapter->hs_activated = false;
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
+	adapter->cmd_wait_q_required = false;
+	init_waitqueue_head(&adapter->cmd_wait_q.wait);
+	adapter->cmd_wait_q.condition = false;
+	adapter->cmd_wait_q.status = 0;
 
 	/* Create workqueue */
 	adapter->workqueue = create_workqueue("MWIFIEX_WORK_QUEUE");
@@ -1038,12 +1033,12 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	dev_dbg(adapter->dev, "cmd: mwifiex_shutdown_drv done\n");
 	if (atomic_read(&adapter->rx_pending) ||
 	    atomic_read(&adapter->tx_pending) ||
-	    atomic_read(&adapter->ioctl_pending)) {
+	    atomic_read(&adapter->cmd_pending)) {
 		dev_err(adapter->dev, "rx_pending=%d, tx_pending=%d, "
-		       "ioctl_pending=%d\n",
+		       "cmd_pending=%d\n",
 		       atomic_read(&adapter->rx_pending),
 		       atomic_read(&adapter->tx_pending),
-		       atomic_read(&adapter->ioctl_pending));
+		       atomic_read(&adapter->cmd_pending));
 	}
 
 	/* Remove interface */

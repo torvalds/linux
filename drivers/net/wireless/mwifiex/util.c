@@ -55,17 +55,12 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter)
 }
 
 /*
- * IOCTL request handler to send function init/shutdown command
+ * This function sends init/shutdown command
  * to firmware.
- *
- * This function prepares the correct firmware command and
- * issues it.
  */
-int mwifiex_misc_ioctl_init_shutdown(struct mwifiex_adapter *adapter,
-				     struct mwifiex_wait_queue *wait,
-				     u32 func_init_shutdown)
+int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
+			     u32 func_init_shutdown)
 {
-	struct mwifiex_private *priv = adapter->priv[wait->bss_index];
 	int ret;
 	u16 cmd;
 
@@ -74,19 +69,16 @@ int mwifiex_misc_ioctl_init_shutdown(struct mwifiex_adapter *adapter,
 	} else if (func_init_shutdown == MWIFIEX_FUNC_SHUTDOWN) {
 		cmd = HostCmd_CMD_FUNC_SHUTDOWN;
 	} else {
-		dev_err(adapter->dev, "unsupported parameter\n");
+		dev_err(priv->adapter->dev, "unsupported parameter\n");
 		return -1;
 	}
 
 	/* Send command to firmware */
-	ret = mwifiex_prepare_cmd(priv, cmd, HostCmd_ACT_GEN_SET,
-				  0, wait, NULL);
-
-	if (!ret)
-		ret = -EINPROGRESS;
+	ret = mwifiex_send_cmd_sync(priv, cmd, HostCmd_ACT_GEN_SET, 0, NULL);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mwifiex_init_shutdown_fw);
 
 /*
  * IOCTL request handler to set/get debug information.
@@ -222,31 +214,18 @@ int mwifiex_recv_complete(struct mwifiex_adapter *adapter,
  * corresponding waiting function. Otherwise, it processes the
  * IOCTL response and frees the response buffer.
  */
-int mwifiex_ioctl_complete(struct mwifiex_adapter *adapter,
-			   struct mwifiex_wait_queue *wait_queue,
-			   int status)
+int mwifiex_complete_cmd(struct mwifiex_adapter *adapter)
 {
-	enum mwifiex_error_code status_code =
-		(enum mwifiex_error_code) wait_queue->status;
+	atomic_dec(&adapter->cmd_pending);
+	dev_dbg(adapter->dev, "cmd completed: status=%d\n",
+					adapter->cmd_wait_q.status);
 
-	atomic_dec(&adapter->ioctl_pending);
+	adapter->cmd_wait_q.condition = true;
 
-	dev_dbg(adapter->dev, "cmd: IOCTL completed: status=%d,"
-			" status_code=%#x\n", status, status_code);
-
-	if (wait_queue->enabled) {
-		*wait_queue->condition = true;
-		wait_queue->status = status;
-		if (status && (status_code == MWIFIEX_ERROR_CMD_TIMEOUT))
-			dev_err(adapter->dev, "cmd timeout\n");
-		else
-			wake_up_interruptible(wait_queue->wait);
-	} else {
-		if (status)
-			dev_err(adapter->dev, "cmd failed: status_code=%#x\n",
-			       status_code);
-		kfree(wait_queue);
-	}
+	if (adapter->cmd_wait_q.status == -ETIMEDOUT)
+		dev_err(adapter->dev, "cmd timeout\n");
+	else
+		wake_up_interruptible(&adapter->cmd_wait_q.wait);
 
 	return 0;
 }

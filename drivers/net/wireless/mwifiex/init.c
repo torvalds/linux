@@ -35,7 +35,6 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_node *bss_prio;
-	int status = 0;
 	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
@@ -59,7 +58,7 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	spin_unlock_irqrestore(&adapter->bss_prio_tbl[priv->bss_priority]
 			.bss_prio_lock, flags);
 
-	return status;
+	return 0;
 }
 
 /*

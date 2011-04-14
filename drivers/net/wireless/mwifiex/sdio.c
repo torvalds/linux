@@ -208,7 +208,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 	/* Disable Host Sleep */
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
-			      MWIFIEX_NO_WAIT);
+			  MWIFIEX_ASYNC_CMD);
 
 	return 0;
 }
@@ -1745,13 +1745,12 @@ mwifiex_sdio_cleanup_module(void)
 	for (i = 0; i < adapter->priv_num; i++)
 		if ((GET_BSS_ROLE(adapter->priv[i]) == MWIFIEX_BSS_ROLE_STA) &&
 		    adapter->priv[i]->media_connected)
-			mwifiex_disconnect(adapter->priv[i], MWIFIEX_CMD_WAIT,
-					   NULL);
+			mwifiex_deauthenticate(adapter->priv[i], NULL);
 
 	if (!adapter->surprise_removed)
-		mwifiex_shutdown_fw(mwifiex_get_priv
-				    (adapter, MWIFIEX_BSS_ROLE_ANY),
-				    MWIFIEX_CMD_WAIT);
+		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
+							  MWIFIEX_BSS_ROLE_ANY),
+					 MWIFIEX_FUNC_SHUTDOWN);
 
 exit:
 	up(&add_remove_card_sem);

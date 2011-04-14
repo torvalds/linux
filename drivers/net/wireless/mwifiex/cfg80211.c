@@ -139,8 +139,16 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 {
 	int ret = 0;
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_power_cfg power_cfg;
 
-	ret = mwifiex_set_tx_power(priv, type, dbm);
+	if (type == NL80211_TX_POWER_FIXED) {
+		power_cfg.is_power_auto = 0;
+		power_cfg.power_level = dbm;
+	} else {
+		power_cfg.is_power_auto = 1;
+	}
+
+	ret = mwifiex_set_tx_power(priv, &power_cfg);
 
 	return ret;
 }
@@ -157,13 +165,15 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 {
 	int ret = 0;
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	u32 ps_mode;
 
 	if (timeout)
 		wiphy_dbg(wiphy,
 			"info: ignoring the timeout value"
 			" for IEEE power save\n");
 
-	ret = mwifiex_drv_set_power(priv, enabled);
+	ps_mode = enabled;
+	ret = mwifiex_drv_set_power(priv, &ps_mode);
 
 	return ret;
 }
@@ -291,8 +301,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 
 	domain_info->no_of_triplet = no_of_triplet;
 	/* Send cmd to FW to set domain info */
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
-				  HostCmd_ACT_GEN_SET, 0, NULL, NULL);
+	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
+				     HostCmd_ACT_GEN_SET, 0, NULL);
 	if (ret)
 		wiphy_err(wiphy, "11D: setting domain info in FW\n");
 
@@ -347,7 +357,6 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 {
 	struct mwifiex_chan_freq_power cfp;
 	int ret = 0;
-	int status = 0;
 	struct mwifiex_ds_band_cfg band_cfg;
 	u32 config_bands = 0;
 	struct wiphy *wiphy = priv->wdev->wiphy;
@@ -370,10 +379,9 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		band_cfg.sec_chan_offset =
 			mwifiex_cfg80211_channel_type_to_mwifiex_channels
 			(channel_type);
-		status = mwifiex_radio_ioctl_band_cfg(priv, HostCmd_ACT_GEN_SET,
-						      &band_cfg);
+		ret = mwifiex_set_radio_band_cfg(priv, &band_cfg);
 
-		if (status)
+		if (ret)
 			return -EFAULT;
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
@@ -389,8 +397,8 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 	/* Convert frequency to channel */
 	cfp.channel = ieee80211_frequency_to_channel(chan->center_freq);
 
-	status = mwifiex_bss_ioctl_channel(priv, HostCmd_ACT_GEN_SET, &cfp);
-	if (status)
+	ret = mwifiex_bss_set_channel(priv, &cfp);
+	if (ret)
 		return -EFAULT;
 
 	ret = mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
@@ -422,66 +430,45 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 /*
  * This function sets the fragmentation threshold.
  *
- * This function creates an IOCTL request, populates it accordingly
- * and issues an IOCTL.
- *
- * The fragmentation threshold value must lies between MWIFIEX_FRAG_MIN_VALUE
+ * The fragmentation threshold value must lie between MWIFIEX_FRAG_MIN_VALUE
  * and MWIFIEX_FRAG_MAX_VALUE.
  */
 static int
 mwifiex_set_frag(struct mwifiex_private *priv, u32 frag_thr)
 {
 	int ret = 0;
-	int status = 0;
-	struct mwifiex_wait_queue *wait = NULL;
-	u8 wait_option = MWIFIEX_IOCTL_WAIT;
 
 	if (frag_thr < MWIFIEX_FRAG_MIN_VALUE
 	    || frag_thr > MWIFIEX_FRAG_MAX_VALUE)
 		return -EINVAL;
 
-	wait = mwifiex_alloc_fill_wait_queue(priv, wait_option);
-	if (!wait)
-		return -ENOMEM;
+	/* Send request to firmware */
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				    HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
+				    &frag_thr);
 
-	status = mwifiex_snmp_mib_ioctl(priv, wait, FRAG_THRESH_I,
-					HostCmd_ACT_GEN_SET, &frag_thr);
-
-	if (mwifiex_request_ioctl(priv, wait, status, wait_option))
-		ret = -EFAULT;
-
-	kfree(wait);
 	return ret;
 }
 
 /*
  * This function sets the RTS threshold.
- *
- * This function creates an IOCTL request, populates it accordingly
- * and issues an IOCTL.
+
+ * The rts value must lie between MWIFIEX_RTS_MIN_VALUE
+ * and MWIFIEX_RTS_MAX_VALUE.
  */
 static int
 mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
 {
 	int ret = 0;
-	struct mwifiex_wait_queue *wait = NULL;
-	int status = 0;
-	u8 wait_option = MWIFIEX_IOCTL_WAIT;
 
 	if (rts_thr < MWIFIEX_RTS_MIN_VALUE || rts_thr > MWIFIEX_RTS_MAX_VALUE)
 		rts_thr = MWIFIEX_RTS_MAX_VALUE;
 
-	wait = mwifiex_alloc_fill_wait_queue(priv, wait_option);
-	if (!wait)
-		return -ENOMEM;
+	/* Send request to firmware */
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				    HostCmd_ACT_GEN_SET, RTS_THRESH_I,
+				    &rts_thr);
 
-	status = mwifiex_snmp_mib_ioctl(priv, wait, RTS_THRESH_I,
-					HostCmd_ACT_GEN_SET, &rts_thr);
-
-	if (mwifiex_request_ioctl(priv, wait, status, wait_option))
-		ret = -EFAULT;
-
-	kfree(wait);
 	return ret;
 }
 
@@ -518,7 +505,6 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 {
 	int ret = 0;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct mwifiex_wait_queue *wait = NULL;
 
 	if (priv->bss_mode == type) {
 		wiphy_warn(wiphy, "already set to required type\n");
@@ -545,24 +531,13 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	wait = mwifiex_alloc_fill_wait_queue(priv, MWIFIEX_IOCTL_WAIT);
-	if (!wait)
-		return -ENOMEM;
-
-	mwifiex_deauthenticate(priv, wait, NULL);
+	mwifiex_deauthenticate(priv, NULL);
 
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
 
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
-				  HostCmd_ACT_GEN_SET, 0, wait, NULL);
-	if (!ret)
-		ret = -EINPROGRESS;
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_SET_BSS_MODE,
+				    HostCmd_ACT_GEN_SET, 0, NULL);
 
-	ret = mwifiex_request_ioctl(priv, wait, ret, MWIFIEX_IOCTL_WAIT);
-	if (ret)
-		ret = -EFAULT;
-
-	kfree(wait);
 	return ret;
 }
 
@@ -592,7 +567,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 
 	/* Get signal information from the firmware */
 	memset(&signal, 0, sizeof(struct mwifiex_ds_get_signal));
-	if (mwifiex_get_signal_info(priv, MWIFIEX_IOCTL_WAIT, &signal)) {
+	if (mwifiex_get_signal_info(priv, &signal)) {
 		dev_err(priv->adapter->dev, "getting signal information\n");
 		ret = -EFAULT;
 	}
@@ -750,7 +725,7 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return -EBUSY;
 
 	priv->disconnect = 1;
-	if (mwifiex_disconnect(priv, MWIFIEX_IOCTL_WAIT, NULL))
+	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
 	wiphy_dbg(wiphy, "info: successfully disconnected from %pM:"
@@ -838,8 +813,8 @@ static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
 	u8 element_id, element_len;
 
 	memset(&scan_resp, 0, sizeof(scan_resp));
-	if (mwifiex_get_scan_table(priv, MWIFIEX_IOCTL_WAIT, &scan_resp))
-		return -EFAULT;
+	scan_resp.scan_table = (u8 *) priv->adapter->scan_table;
+	scan_resp.num_in_scan_table = priv->adapter->num_in_scan_table;
 
 #define MAX_IE_BUF	2048
 	ie_buf = kzalloc(MAX_IE_BUF, GFP_KERNEL);
@@ -986,7 +961,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	}
 
 	/* disconnect before try to associate */
-	mwifiex_disconnect(priv, MWIFIEX_IOCTL_WAIT, NULL);
+	mwifiex_deauthenticate(priv, NULL);
 
 	if (channel)
 		ret = mwifiex_set_rf_channel(priv, channel,
@@ -1046,7 +1021,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	}
 done:
 	/* Do specific SSID scanning */
-	if (mwifiex_request_scan(priv, MWIFIEX_IOCTL_WAIT, &req_ssid)) {
+	if (mwifiex_request_scan(priv, &req_ssid)) {
 		dev_err(priv->adapter->dev, "scan error\n");
 		return -EFAULT;
 	}
@@ -1055,8 +1030,7 @@ done:
 	memcpy(&ssid_bssid.ssid, &req_ssid, sizeof(struct mwifiex_802_11_ssid));
 
 	if (mode != NL80211_IFTYPE_ADHOC) {
-		if (mwifiex_find_best_bss(priv, MWIFIEX_IOCTL_WAIT,
-					  &ssid_bssid))
+		if (mwifiex_find_best_bss(priv, &ssid_bssid))
 			return -EFAULT;
 		/* Inform the BSS information to kernel, otherwise
 		 * kernel will give a panic after successful assoc */
@@ -1072,7 +1046,10 @@ done:
 	/* Connect to BSS by ESSID */
 	memset(&ssid_bssid.bssid, 0, ETH_ALEN);
 
-	if (mwifiex_bss_start(priv, MWIFIEX_IOCTL_WAIT, &ssid_bssid))
+	if (!netif_queue_stopped(priv->netdev))
+		netif_stop_queue(priv->netdev);
+
+	if (mwifiex_bss_start(priv, &ssid_bssid))
 		return -EFAULT;
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -1176,7 +1153,7 @@ mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 
 	wiphy_dbg(wiphy, "info: disconnecting from essid %pM\n",
 			priv->cfg_bssid);
-	if (mwifiex_disconnect(priv, MWIFIEX_IOCTL_WAIT, NULL))
+	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
 	queue_work(priv->workqueue, &priv->cfg_workqueue);
