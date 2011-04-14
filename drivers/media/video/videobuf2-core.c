@@ -525,6 +525,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	num_buffers = min_t(unsigned int, req->count, VIDEO_MAX_FRAME);
 	memset(plane_sizes, 0, sizeof(plane_sizes));
 	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
+	q->memory = req->memory;
 
 	/*
 	 * Ask the driver how many buffers and planes per buffer it requires.
@@ -565,8 +566,6 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 		 */
 		ret = num_buffers;
 	}
-
-	q->memory = req->memory;
 
 	/*
 	 * Return the number of successfully allocated buffers
