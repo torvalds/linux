@@ -52,8 +52,8 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
 #define MAJ 3
-#define MIN 2
-#define BUILD 9
+#define MIN 3
+#define BUILD 8
 #define KFIX 2
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 	__stringify(BUILD) "-k" __stringify(KFIX)
