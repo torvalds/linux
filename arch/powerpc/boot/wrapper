@@ -247,6 +247,10 @@ gamecube|wii)
 treeboot-iss4xx-mpic)
     platformo="$object/treeboot-iss4xx.o"
     ;;
+epapr)
+    link_address='0x20000000'
+    pie=-pie
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
