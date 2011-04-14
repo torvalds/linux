@@ -212,7 +212,7 @@ static int mmc_test_busy(struct mmc_command *cmd)
 static int mmc_test_wait_busy(struct mmc_test_card *test)
 {
 	int ret, busy;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	busy = 0;
 	do {
@@ -247,16 +247,14 @@ static int mmc_test_buffer_transfer(struct mmc_test_card *test,
 	int ret;
 
 	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_command stop;
+	struct mmc_command cmd = {0};
+	struct mmc_command stop = {0};
 	struct mmc_data data;
 
 	struct scatterlist sg;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
-	memset(&stop, 0, sizeof(struct mmc_command));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -732,14 +730,12 @@ static int mmc_test_simple_transfer(struct mmc_test_card *test,
 	unsigned blocks, unsigned blksz, int write)
 {
 	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_command stop;
+	struct mmc_command cmd = {0};
+	struct mmc_command stop = {0};
 	struct mmc_data data;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
-	memset(&stop, 0, sizeof(struct mmc_command));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -762,16 +758,14 @@ static int mmc_test_broken_transfer(struct mmc_test_card *test,
 	unsigned blocks, unsigned blksz, int write)
 {
 	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_command stop;
+	struct mmc_command cmd = {0};
+	struct mmc_command stop = {0};
 	struct mmc_data data;
 
 	struct scatterlist sg;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
-	memset(&stop, 0, sizeof(struct mmc_command));
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
