@@ -319,8 +319,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
  *      - Setting add BA request buffer
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_addba_req(struct mwifiex_private *priv,
-			      struct host_cmd_ds_command *cmd, void *data_buf)
+int mwifiex_cmd_11n_addba_req(struct host_cmd_ds_command *cmd, void *data_buf)
 {
 	struct host_cmd_ds_11n_addba_req *add_ba_req =
 		(struct host_cmd_ds_11n_addba_req *)
@@ -391,8 +390,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
  *      - Setting del BA request buffer
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_delba(struct mwifiex_private *priv,
-			  struct host_cmd_ds_command *cmd, void *data_buf)
+int mwifiex_cmd_11n_delba(struct host_cmd_ds_command *cmd, void *data_buf)
 {
 	struct host_cmd_ds_11n_delba *del_ba = (struct host_cmd_ds_11n_delba *)
 		&cmd->params.del_ba;

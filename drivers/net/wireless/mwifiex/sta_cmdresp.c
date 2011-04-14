@@ -280,7 +280,6 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				   struct host_cmd_ds_command *resp,
 				   void *data_buf)
 {
-	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_rate_cfg *ds_rate = NULL;
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
@@ -336,9 +335,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			if (priv->is_data_rate_auto) {
 				ds_rate->is_rate_auto = 1;
 			} else {
-				ds_rate->rate =
-					mwifiex_get_rate_index(adapter,
-							       priv->
+				ds_rate->rate = mwifiex_get_rate_index(priv->
 							       bitmap_rates,
 							       sizeof(priv->
 							       bitmap_rates));
@@ -514,13 +511,11 @@ static int mwifiex_ret_mac_multicast_adr(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_tx_rate_query(struct mwifiex_private *priv,
 					    struct host_cmd_ds_command *resp)
 {
-	struct mwifiex_adapter *adapter = priv->adapter;
-
 	priv->tx_rate = resp->params.tx_rate.tx_rate;
 	priv->tx_htinfo = resp->params.tx_rate.ht_info;
 	if (!priv->is_data_rate_auto)
 		priv->data_rate =
-			mwifiex_index_to_data_rate(adapter, priv->tx_rate,
+			mwifiex_index_to_data_rate(priv->tx_rate,
 						   priv->tx_htinfo);
 
 	return 0;
@@ -946,7 +941,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 						mp_end_port));
 		break;
 	case HostCmd_CMD_AMSDU_AGGR_CTRL:
-		ret = mwifiex_ret_amsdu_aggr_ctrl(priv, resp, data_buf);
+		ret = mwifiex_ret_amsdu_aggr_ctrl(resp, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		ret = mwifiex_ret_wmm_get_status(priv, resp);
@@ -965,7 +960,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 	case HostCmd_CMD_SET_BSS_MODE:
 		break;
 	case HostCmd_CMD_11N_CFG:
-		ret = mwifiex_ret_11n_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_11n_cfg(resp, data_buf);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

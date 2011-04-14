@@ -2364,8 +2364,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
  *      - Setting command ID, and proper size
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_802_11_scan(struct mwifiex_private *priv,
-			    struct host_cmd_ds_command *cmd, void *data_buf)
+int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd, void *data_buf)
 {
 	struct host_cmd_ds_802_11_scan *scan_cmd = &cmd->params.scan;
 	struct mwifiex_scan_cmd_config *scan_cfg;
@@ -2658,9 +2657,7 @@ done:
  *      - Setting background scan flush parameter
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_802_11_bg_scan_query(struct mwifiex_private *priv,
-				     struct host_cmd_ds_command *cmd,
-				     void *data_buf)
+int mwifiex_cmd_802_11_bg_scan_query(struct host_cmd_ds_command *cmd)
 {
 	struct host_cmd_ds_802_11_bg_scan_query *bg_query =
 		&cmd->params.bg_scan_query;

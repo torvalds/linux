@@ -242,9 +242,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
  *
  * Handling includes changing the header fields into CPU format.
  */
-int mwifiex_ret_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *resp,
-			void *data_buf)
+int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp, void *data_buf)
 {
 	struct mwifiex_ds_11n_tx_cfg *tx_cfg = NULL;
 	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
@@ -298,8 +296,7 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
  *      - Setting AMSDU control parameters (for SET only)
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 				int cmd_action, void *data_buf)
 {
 	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
@@ -331,8 +328,7 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct mwifiex_private *priv,
  *
  * Handling includes changing the header fields into CPU format.
  */
-int mwifiex_ret_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *resp,
+int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
 				void *data_buf)
 {
 	struct mwifiex_ds_11n_amsdu_aggr_ctrl *amsdu_aggr_ctrl = NULL;
@@ -357,8 +353,7 @@ int mwifiex_ret_amsdu_aggr_ctrl(struct mwifiex_private *priv,
  *      - Setting HT Tx capability and HT Tx information fields
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd,
 			u16 cmd_action, void *data_buf)
 {
 	struct host_cmd_ds_11n_cfg *htcfg = &cmd->params.htcfg;

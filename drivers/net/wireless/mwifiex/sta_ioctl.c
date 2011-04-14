@@ -812,8 +812,7 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 		}
 		memset(bitmap_rates, 0, sizeof(bitmap_rates));
 
-		rate_index =
-			mwifiex_data_rate_to_index(adapter, rate_cfg->rate);
+		rate_index = mwifiex_data_rate_to_index(rate_cfg->rate);
 
 		/* Only allow b/g rates to be set */
 		if (rate_index >= MWIFIEX_RATE_INDEX_HRDSSS0 &&
@@ -874,8 +873,8 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 
 	if (!ret) {
 		if (rate && rate->is_rate_auto)
-			rate->rate = mwifiex_index_to_data_rate(priv->adapter,
-					priv->tx_rate, priv->tx_htinfo);
+			rate->rate = mwifiex_index_to_data_rate(priv->tx_rate,
+							priv->tx_htinfo);
 		else if (rate)
 			rate->rate = priv->data_rate;
 	} else {

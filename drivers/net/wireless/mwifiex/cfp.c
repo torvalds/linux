@@ -75,8 +75,7 @@ u8 supported_rates_n[N_SUPPORTED_RATES] = { 0x02, 0x04, 0 };
  * This function maps an index in supported rates table into
  * the corresponding data rate.
  */
-u32 mwifiex_index_to_data_rate(struct mwifiex_adapter *adapter, u8 index,
-			       u8 ht_info)
+u32 mwifiex_index_to_data_rate(u8 index, u8 ht_info)
 {
 	u16 mcs_rate[4][8] = {
 		{0x1b, 0x36, 0x51, 0x6c, 0xa2, 0xd8, 0xf3, 0x10e}
@@ -126,7 +125,7 @@ u32 mwifiex_index_to_data_rate(struct mwifiex_adapter *adapter, u8 index,
  * This function maps a data rate value into corresponding index in supported
  * rates table.
  */
-u8 mwifiex_data_rate_to_index(struct mwifiex_adapter *adapter, u32 rate)
+u8 mwifiex_data_rate_to_index(u32 rate)
 {
 	u16 *ptr;
 
@@ -265,9 +264,7 @@ mwifiex_is_rate_auto(struct mwifiex_private *priv)
 /*
  * This function converts rate bitmap into rate index.
  */
-int
-mwifiex_get_rate_index(struct mwifiex_adapter *adapter, u16 *rate_bitmap,
-		       int size)
+int mwifiex_get_rate_index(u16 *rate_bitmap, int size)
 {
 	int i;
 

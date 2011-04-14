@@ -28,15 +28,9 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 			  struct host_cmd_ds_command *resp);
 int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
-int mwifiex_ret_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *resp,
+int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp,
 			void *data_buf);
-int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *cmd,
-			u16 cmd_action, void *data_buf);
-
-int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd,
 			u16 cmd_action, void *data_buf);
 
 int mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
@@ -67,24 +61,19 @@ int mwifiex_get_rx_reorder_tbl(struct mwifiex_private *priv,
 			      struct mwifiex_ds_rx_reorder_tbl *buf);
 int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 			       struct mwifiex_ds_tx_ba_stream_tbl *buf);
-int mwifiex_ret_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command
-				*resp,
+int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
 				void *data_buf);
 int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 			     struct host_cmd_ds_command *cmd,
 			     int cmd_action, void *data_buf);
-int mwifiex_cmd_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
-				int cmd_action,
-				void *data_buf);
+int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
+				int cmd_action, void *data_buf);
 
 /*
  * This function checks whether AMPDU is allowed or not for a particular TID.
  */
 static inline u8
-mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
-			 struct mwifiex_ra_list_tbl *ptr, int tid)
+mwifiex_is_ampdu_allowed(struct mwifiex_private *priv, int tid)
 {
 	return ((priv->aggr_prio_tbl[tid].ampdu_ap != BA_STREAM_NOT_ALLOWED)
 		? true : false);
@@ -94,8 +83,7 @@ mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
  * This function checks whether AMSDU is allowed or not for a particular TID.
  */
 static inline u8
-mwifiex_is_amsdu_allowed(struct mwifiex_private *priv,
-			 struct mwifiex_ra_list_tbl *ptr, int tid)
+mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
 {
 	return (((priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED)
 			&& ((priv->is_data_rate_auto)
@@ -106,21 +94,18 @@ mwifiex_is_amsdu_allowed(struct mwifiex_private *priv,
 /*
  * This function checks whether a BA stream is available or not.
  */
-static inline u8
-mwifiex_is_ba_stream_avail(struct mwifiex_private *priv)
+static inline u8 mwifiex_is_ba_stream_avail(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_private *pmpriv = NULL;
-	u8 i = 0;
+	struct mwifiex_private *priv;
+	u8 i;
 	u32 ba_stream_num = 0;
 
-	for (i = 0; i < priv->adapter->priv_num; i++) {
-		pmpriv = priv->adapter->priv[i];
-		if (pmpriv)
-			ba_stream_num +=
-				mwifiex_wmm_list_len(priv->adapter,
-						     (struct list_head
-						      *) &pmpriv->
-						     tx_ba_stream_tbl_ptr);
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (priv)
+			ba_stream_num += mwifiex_wmm_list_len(
+						(struct list_head *)
+						&priv->tx_ba_stream_tbl_ptr);
 	}
 
 	return ((ba_stream_num <
@@ -133,8 +118,7 @@ mwifiex_is_ba_stream_avail(struct mwifiex_private *priv)
  * Upon successfully locating, both the TID and the RA are returned.
  */
 static inline u8
-mwifiex_find_stream_to_delete(struct mwifiex_private *priv,
-			      struct mwifiex_ra_list_tbl *ptr, int ptr_tid,
+mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 			      int *ptid, u8 *ra)
 {
 	int tid;

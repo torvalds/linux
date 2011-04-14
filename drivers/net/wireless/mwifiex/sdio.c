@@ -282,7 +282,7 @@ mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u32 *data)
  */
 static int
 mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
-			u8 *buffer, u32 pkt_len, u32 port, u32 timeout)
+			u8 *buffer, u32 pkt_len, u32 port)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -314,9 +314,8 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 /*
  * This function reads multiple data from SDIO card memory.
  */
-static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter,
-				  u8 *buffer, u32 len,
-		       u32 port, u32 timeout, u8 claim)
+static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
+				  u32 len, u32 port, u8 claim)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -430,8 +429,7 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
 	int ret = 0;
 
 	do {
-		ret = mwifiex_write_data_sync(adapter, payload, pkt_len,
-								port, 0);
+		ret = mwifiex_write_data_sync(adapter, payload, pkt_len, port);
 		if (ret) {
 			i++;
 			dev_err(adapter->dev, "host_to_card, write iomem"
@@ -630,7 +628,7 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
-	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 0, 1);
+	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 1);
 
 	if (ret) {
 		dev_err(adapter->dev, "%s: read iomem failed: %d\n", __func__,
@@ -769,7 +767,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 		ret = mwifiex_write_data_sync(adapter, fwbuf, tx_blocks *
 					      MWIFIEX_SDIO_BLOCK_SIZE,
-					      adapter->ioport, 0);
+					      adapter->ioport);
 		if (ret) {
 			dev_err(adapter->dev, "FW download, write iomem (%d)"
 					" failed @ %d\n", i, offset);
@@ -842,7 +840,7 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 	unsigned long flags;
 
 	if (mwifiex_read_data_sync(adapter, card->mp_regs, MAX_MP_REGS,
-				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK, 0,
+				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK,
 				   0)) {
 		dev_err(adapter->dev, "read mp_regs failed\n");
 		return;
@@ -1050,7 +1048,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					   card->mpa_rx.buf_len,
 					   (adapter->ioport | 0x1000 |
 					    (card->mpa_rx.ports << 4)) +
-					   card->mpa_rx.start_port, 0, 1))
+					   card->mpa_rx.start_port, 1))
 			return -1;
 
 		curr_ptr = card->mpa_rx.buf;

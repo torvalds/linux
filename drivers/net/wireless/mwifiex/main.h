@@ -767,8 +767,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
 int mwifiex_scan_networks(struct mwifiex_private *priv,
 			  const struct mwifiex_user_scan_cfg *user_scan_in);
-int mwifiex_cmd_802_11_scan(struct mwifiex_private *priv,
-			    struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
 			    void *data_buf);
 void mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
 			    struct cmd_ctrl_node *cmd_node);
@@ -806,9 +805,7 @@ int mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 				   void *data_buf);
 int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
-int mwifiex_cmd_802_11_bg_scan_query(struct mwifiex_private *priv,
-				     struct host_cmd_ds_command *cmd,
-				     void *data_buf);
+int mwifiex_cmd_802_11_bg_scan_query(struct host_cmd_ds_command *cmd);
 struct mwifiex_chan_freq_power *
 			mwifiex_get_cfp_by_band_and_channel_from_cfg80211(
 						struct mwifiex_private *priv,
@@ -816,20 +813,16 @@ struct mwifiex_chan_freq_power *
 struct mwifiex_chan_freq_power *mwifiex_get_cfp_by_band_and_freq_from_cfg80211(
 						struct mwifiex_private *priv,
 						u8 band, u32 freq);
-u32 mwifiex_index_to_data_rate(struct mwifiex_adapter *adapter, u8 index,
-				 u8 ht_info);
+u32 mwifiex_index_to_data_rate(u8 index, u8 ht_info);
 u32 mwifiex_find_freq_from_band_chan(u8, u8);
 int mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv, u16 vsie_mask,
 				u8 **buffer);
-u32 mwifiex_index_to_data_rate(struct mwifiex_adapter *adapter, u8 index,
-				 u8 ht_info);
 u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv,
 				    u8 *rates);
 u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates);
-u8 mwifiex_data_rate_to_index(struct mwifiex_adapter *adapter, u32 rate);
+u8 mwifiex_data_rate_to_index(u32 rate);
 u8 mwifiex_is_rate_auto(struct mwifiex_private *priv);
-int mwifiex_get_rate_index(struct mwifiex_adapter *adapter,
-			   u16 *rateBitmap, int size);
+int mwifiex_get_rate_index(u16 *rateBitmap, int size);
 extern u16 region_code_index[MWIFIEX_MAX_REGION_CODE];
 void mwifiex_save_curr_bcn(struct mwifiex_private *priv);
 void mwifiex_free_curr_bcn(struct mwifiex_private *priv);
