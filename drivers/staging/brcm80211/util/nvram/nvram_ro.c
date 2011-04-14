@@ -22,7 +22,6 @@
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmsrom.h>
-#include <bcmotp.h>
 #include <bcmdevs.h>
 #include <hndsoc.h>
 
