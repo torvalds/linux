@@ -606,7 +606,7 @@ static struct crt_mode_table CRTM1200x720[] = {
 /* 1200x900 (DCON) */
 static struct crt_mode_table DCON1200x900[] = {
 	/* r_rate,               hsp,               vsp   */
-	{REFRESH_60, M1200X900_R60_HSP, M1200X900_R60_VSP,
+	{REFRESH_50, M1200X900_R60_HSP, M1200X900_R60_VSP,
 	/* The correct htotal is 1240, but this doesn't raster on VX855. */
 	/* Via suggested changing to a multiple of 16, hence 1264.       */
 	/*  HT,   HA,  HBS, HBE,  HSS, HSE,  VT,  VA, VBS, VBE, VSS, VSE */
