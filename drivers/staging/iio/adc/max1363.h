@@ -174,7 +174,6 @@ struct max1363_chip_info {
 
 /**
  * struct max1363_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @client:		i2c_client
  * @setupbyte:		cache of current device setup byte
  * @configbyte:		cache of current device config byte
@@ -194,7 +193,6 @@ struct max1363_chip_info {
  * @thresh_work:	bh work structure for event handling
  */
 struct max1363_state {
-	struct iio_dev			*indio_dev;
 	struct i2c_client		*client;
 	u8				setupbyte;
 	u8				configbyte;
