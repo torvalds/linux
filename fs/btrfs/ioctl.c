@@ -144,14 +144,11 @@ static int check_flags(unsigned int flags)
 	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
 		      FS_NOATIME_FL | FS_NODUMP_FL | \
 		      FS_SYNC_FL | FS_DIRSYNC_FL | \
-		      FS_NOCOMP_FL | FS_COMPR_FL | \
-		      FS_NOCOW_FL | FS_COW_FL))
+		      FS_NOCOMP_FL | FS_COMPR_FL |
+		      FS_NOCOW_FL))
 		return -EOPNOTSUPP;
 
 	if ((flags & FS_NOCOMP_FL) && (flags & FS_COMPR_FL))
-		return -EINVAL;
-
-	if ((flags & FS_NOCOW_FL) && (flags & FS_COW_FL))
 		return -EINVAL;
 
 	return 0;
@@ -218,6 +215,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		ip->flags |= BTRFS_INODE_DIRSYNC;
 	else
 		ip->flags &= ~BTRFS_INODE_DIRSYNC;
+	if (flags & FS_NOCOW_FL)
+		ip->flags |= BTRFS_INODE_NODATACOW;
+	else
+		ip->flags &= ~BTRFS_INODE_NODATACOW;
 
 	/*
 	 * The COMPRESS flag can only be changed by users, while the NOCOMPRESS
@@ -231,10 +232,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		ip->flags |= BTRFS_INODE_COMPRESS;
 		ip->flags &= ~BTRFS_INODE_NOCOMPRESS;
 	}
-	if (flags & FS_NOCOW_FL)
-		ip->flags |= BTRFS_INODE_NODATACOW;
-	else if (flags & FS_COW_FL)
-		ip->flags &= ~BTRFS_INODE_NODATACOW;
 
 	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(IS_ERR(trans));
