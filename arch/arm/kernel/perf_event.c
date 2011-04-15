@@ -90,7 +90,7 @@ struct arm_pmu {
 };
 
 /* Set at runtime when we know what CPU type we are. */
-static const struct arm_pmu *armpmu;
+static struct arm_pmu *armpmu;
 
 enum arm_perf_pmu_ids
 armpmu_get_pmu_id(void)
