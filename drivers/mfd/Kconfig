@@ -469,6 +469,20 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
+config PCF50633_ADC
+	tristate "Support for NXP PCF50633 ADC"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support for ADC in the
+	 NXP PCF50633 chip.
+
+config PCF50633_GPIO
+	tristate "Support for NXP PCF50633 GPIO"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support GPIO for pins on
+	 the PCF50633 chip.
+
 config MFD_MC13783
 	tristate
 
@@ -483,20 +497,6 @@ config MFD_MC13XXX
 	  This driver provides common support for accessing  the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
-
-config PCF50633_ADC
-	tristate "Support for NXP PCF50633 ADC"
-	depends on MFD_PCF50633
-	help
-	 Say yes here if you want to include support for ADC in the
-	 NXP PCF50633 chip.
-
-config PCF50633_GPIO
-	tristate "Support for NXP PCF50633 GPIO"
-	depends on MFD_PCF50633
-	help
-	 Say yes here if you want to include support GPIO for pins on
-	 the PCF50633 chip.
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
