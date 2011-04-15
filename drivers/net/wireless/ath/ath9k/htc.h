@@ -366,6 +366,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_recv;
 	struct dentry *debugfs_slot;
 	struct dentry *debugfs_queue;
+	struct dentry *debugfs_debug;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
 };

@@ -435,6 +435,47 @@ static const struct file_operations fops_queue = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_debug(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "0x%08x\n", common->debug_mask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	unsigned long mask;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	common->debug_mask = mask;
+	return count;
+}
+
+static const struct file_operations fops_debug = {
+	.read = read_file_debug,
+	.write = write_file_debug,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath9k_htc_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -493,6 +534,13 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	if (!priv->debug.debugfs_queue)
 		goto err;
 
+	priv->debug.debugfs_debug = debugfs_create_file("debug",
+							S_IRUSR | S_IWUSR,
+							priv->debug.debugfs_phy,
+							priv, &fops_debug);
+	if (!priv->debug.debugfs_debug)
+		goto err;
+
 	return 0;
 
 err:
@@ -512,6 +560,7 @@ void ath9k_htc_exit_debug(struct ath_hw *ah)
 	debugfs_remove(priv->debug.debugfs_tgt_int_stats);
 	debugfs_remove(priv->debug.debugfs_tgt_tx_stats);
 	debugfs_remove(priv->debug.debugfs_tgt_rx_stats);
+	debugfs_remove(priv->debug.debugfs_debug);
 	debugfs_remove(priv->debug.debugfs_phy);
 }
 
