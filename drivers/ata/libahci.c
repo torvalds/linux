@@ -410,51 +410,46 @@ void ahci_save_initial_config(struct device *dev,
 
 	/* some chips have errata preventing 64bit use */
 	if ((cap & HOST_CAP_64) && (hpriv->flags & AHCI_HFLAG_32BIT_ONLY)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can't do 64bit DMA, forcing 32bit\n");
+		dev_info(dev, "controller can't do 64bit DMA, forcing 32bit\n");
 		cap &= ~HOST_CAP_64;
 	}
 
 	if ((cap & HOST_CAP_NCQ) && (hpriv->flags & AHCI_HFLAG_NO_NCQ)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can't do NCQ, turning off CAP_NCQ\n");
+		dev_info(dev, "controller can't do NCQ, turning off CAP_NCQ\n");
 		cap &= ~HOST_CAP_NCQ;
 	}
 
 	if (!(cap & HOST_CAP_NCQ) && (hpriv->flags & AHCI_HFLAG_YES_NCQ)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can do NCQ, turning on CAP_NCQ\n");
+		dev_info(dev, "controller can do NCQ, turning on CAP_NCQ\n");
 		cap |= HOST_CAP_NCQ;
 	}
 
 	if ((cap & HOST_CAP_PMP) && (hpriv->flags & AHCI_HFLAG_NO_PMP)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can't do PMP, turning off CAP_PMP\n");
+		dev_info(dev, "controller can't do PMP, turning off CAP_PMP\n");
 		cap &= ~HOST_CAP_PMP;
 	}
 
 	if ((cap & HOST_CAP_SNTF) && (hpriv->flags & AHCI_HFLAG_NO_SNTF)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can't do SNTF, turning off CAP_SNTF\n");
+		dev_info(dev,
+			 "controller can't do SNTF, turning off CAP_SNTF\n");
 		cap &= ~HOST_CAP_SNTF;
 	}
 
 	if (!(cap & HOST_CAP_FBS) && (hpriv->flags & AHCI_HFLAG_YES_FBS)) {
-		dev_printk(KERN_INFO, dev,
-			   "controller can do FBS, turning on CAP_FBS\n");
+		dev_info(dev, "controller can do FBS, turning on CAP_FBS\n");
 		cap |= HOST_CAP_FBS;
 	}
 
 	if (force_port_map && port_map != force_port_map) {
-		dev_printk(KERN_INFO, dev, "forcing port_map 0x%x -> 0x%x\n",
-			   port_map, force_port_map);
+		dev_info(dev, "forcing port_map 0x%x -> 0x%x\n",
+			 port_map, force_port_map);
 		port_map = force_port_map;
 	}
 
 	if (mask_port_map) {
-		dev_printk(KERN_WARNING, dev, "masking port_map 0x%x -> 0x%x\n",
-			   port_map,
-			   port_map & mask_port_map);
+		dev_warn(dev, "masking port_map 0x%x -> 0x%x\n",
+			port_map,
+			port_map & mask_port_map);
 		port_map &= mask_port_map;
 	}
 
@@ -470,10 +465,9 @@ void ahci_save_initial_config(struct device *dev,
 		 * port_map and let it be generated from n_ports.
 		 */
 		if (map_ports > ahci_nr_ports(cap)) {
-			dev_printk(KERN_WARNING, dev,
-				   "implemented port map (0x%x) contains more "
-				   "ports than nr_ports (%u), using nr_ports\n",
-				   port_map, ahci_nr_ports(cap));
+			dev_warn(dev,
+				 "implemented port map (0x%x) contains more ports than nr_ports (%u), using nr_ports\n",
+				 port_map, ahci_nr_ports(cap));
 			port_map = 0;
 		}
 	}
@@ -481,8 +475,7 @@ void ahci_save_initial_config(struct device *dev,
 	/* fabricate port_map from cap.nr_ports */
 	if (!port_map) {
 		port_map = (1 << ahci_nr_ports(cap)) - 1;
-		dev_printk(KERN_WARNING, dev,
-			   "forcing PORTS_IMPL to 0x%x\n", port_map);
+		dev_warn(dev, "forcing PORTS_IMPL to 0x%x\n", port_map);
 
 		/* write the fixed up value to the PI register */
 		hpriv->saved_port_map = port_map;
@@ -822,8 +815,8 @@ int ahci_reset_controller(struct ata_host *host)
 					HOST_RESET, 10, 1000);
 
 		if (tmp & HOST_RESET) {
-			dev_printk(KERN_ERR, host->dev,
-				   "controller reset failed (0x%x)\n", tmp);
+			dev_err(host->dev, "controller reset failed (0x%x)\n",
+				tmp);
 			return -EIO;
 		}
 
@@ -835,8 +828,7 @@ int ahci_reset_controller(struct ata_host *host)
 		 */
 		ahci_restore_initial_config(host);
 	} else
-		dev_printk(KERN_INFO, host->dev,
-			   "skipping global host reset\n");
+		dev_info(host->dev, "skipping global host reset\n");
 
 	return 0;
 }
@@ -1474,8 +1466,7 @@ static void ahci_fbs_dec_intr(struct ata_port *ap)
 	}
 
 	if (fbs & PORT_FBS_DEC)
-		dev_printk(KERN_ERR, ap->host->dev,
-			   "failed to clear device error\n");
+		dev_err(ap->host->dev, "failed to clear device error\n");
 }
 
 static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
@@ -1713,8 +1704,8 @@ irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
 			if (ata_ratelimit())
-				dev_printk(KERN_WARNING, host->dev,
-					"interrupt on disabled port %u\n", i);
+				dev_warn(host->dev,
+					 "interrupt on disabled port %u\n", i);
 		}
 
 		handled = 1;
@@ -1865,11 +1856,11 @@ static void ahci_enable_fbs(struct ata_port *ap)
 	writel(fbs | PORT_FBS_EN, port_mmio + PORT_FBS);
 	fbs = readl(port_mmio + PORT_FBS);
 	if (fbs & PORT_FBS_EN) {
-		dev_printk(KERN_INFO, ap->host->dev, "FBS is enabled.\n");
+		dev_info(ap->host->dev, "FBS is enabled\n");
 		pp->fbs_enabled = true;
 		pp->fbs_last_dev = -1; /* initialization */
 	} else
-		dev_printk(KERN_ERR, ap->host->dev, "Failed to enable FBS\n");
+		dev_err(ap->host->dev, "Failed to enable FBS\n");
 
 	ahci_start_engine(ap);
 }
@@ -1897,9 +1888,9 @@ static void ahci_disable_fbs(struct ata_port *ap)
 	writel(fbs & ~PORT_FBS_EN, port_mmio + PORT_FBS);
 	fbs = readl(port_mmio + PORT_FBS);
 	if (fbs & PORT_FBS_EN)
-		dev_printk(KERN_ERR, ap->host->dev, "Failed to disable FBS\n");
+		dev_err(ap->host->dev, "Failed to disable FBS\n");
 	else {
-		dev_printk(KERN_INFO, ap->host->dev, "FBS is disabled.\n");
+		dev_info(ap->host->dev, "FBS is disabled\n");
 		pp->fbs_enabled = false;
 	}
 
@@ -2003,14 +1994,12 @@ static int ahci_port_start(struct ata_port *ap)
 		if (cmd & PORT_CMD_FBSCP)
 			pp->fbs_supported = true;
 		else if (hpriv->flags & AHCI_HFLAG_YES_FBS) {
-			dev_printk(KERN_INFO, dev,
-				   "port %d can do FBS, forcing FBSCP\n",
-				   ap->port_no);
+			dev_info(dev, "port %d can do FBS, forcing FBSCP\n",
+				 ap->port_no);
 			pp->fbs_supported = true;
 		} else
-			dev_printk(KERN_WARNING, dev,
-				   "port %d is not capable of FBS\n",
-				   ap->port_no);
+			dev_warn(dev, "port %d is not capable of FBS\n",
+				 ap->port_no);
 	}
 
 	if (pp->fbs_supported) {

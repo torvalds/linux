@@ -563,21 +563,20 @@ static int qs_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (rc) {
-				dev_printk(KERN_ERR, &pdev->dev,
-					   "64-bit DMA enable failed\n");
+				dev_err(&pdev->dev,
+					"64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				"32-bit DMA enable failed\n");
+			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 				"32-bit consistent DMA enable failed\n");
 			return rc;
 		}

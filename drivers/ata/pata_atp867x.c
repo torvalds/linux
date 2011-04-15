@@ -470,7 +470,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 	}
 
 	if (!mask) {
-		dev_printk(KERN_ERR, gdev, "no available native port\n");
+		dev_err(gdev, "no available native port\n");
 		return -ENODEV;
 	}
 
@@ -500,7 +500,7 @@ static int atp867x_init_one(struct pci_dev *pdev,
 	int rc;
 
 	if (!printed_version++)
-		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
+		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -511,15 +511,14 @@ static int atp867x_init_one(struct pci_dev *pdev,
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, ATP867X_NUM_PORTS);
 	if (!host) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			"failed to allocate ATA host\n");
+		dev_err(&pdev->dev, "failed to allocate ATA host\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
 
 	rc = atp867x_ata_pci_sff_init_host(host);
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to init host\n");
+		dev_err(&pdev->dev, "failed to init host\n");
 		goto err_out;
 	}
 
@@ -528,7 +527,7 @@ static int atp867x_init_one(struct pci_dev *pdev,
 	rc = ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				IRQF_SHARED, &atp867x_sht);
 	if (rc)
-		dev_printk(KERN_ERR, &pdev->dev, "failed to activate host\n");
+		dev_err(&pdev->dev, "failed to activate host\n");
 
 err_out:
 	return rc;

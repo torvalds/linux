@@ -2316,9 +2316,9 @@ int ata_pci_sff_init_host(struct ata_host *host)
 		rc = pcim_iomap_regions(pdev, 0x3 << base,
 					dev_driver_string(gdev));
 		if (rc) {
-			dev_printk(KERN_WARNING, gdev,
-				   "failed to request/iomap BARs for port %d "
-				   "(errno=%d)\n", i, rc);
+			dev_warn(gdev,
+				 "failed to request/iomap BARs for port %d (errno=%d)\n",
+				 i, rc);
 			if (rc == -EBUSY)
 				pcim_pin_device(pdev);
 			ap->ops = &ata_dummy_port_ops;
@@ -2340,7 +2340,7 @@ int ata_pci_sff_init_host(struct ata_host *host)
 	}
 
 	if (!mask) {
-		dev_printk(KERN_ERR, gdev, "no available native port\n");
+		dev_err(gdev, "no available native port\n");
 		return -ENODEV;
 	}
 
@@ -2375,8 +2375,7 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "failed to allocate ATA host\n");
+		dev_err(&pdev->dev, "failed to allocate ATA host\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -2542,8 +2541,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "no valid port_info specified\n");
+		dev_err(&pdev->dev, "no valid port_info specified\n");
 		return -EINVAL;
 	}
 
@@ -3164,8 +3162,7 @@ static void ata_bmdma_nodma(struct ata_host *host, const char *reason)
 {
 	int i;
 
-	dev_printk(KERN_ERR, host->dev, "BMDMA: %s, falling back to PIO\n",
-		   reason);
+	dev_err(host->dev, "BMDMA: %s, falling back to PIO\n", reason);
 
 	for (i = 0; i < 2; i++) {
 		host->ports[i]->mwdma_mask = 0;
@@ -3297,8 +3294,7 @@ int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "no valid port_info specified\n");
+		dev_err(&pdev->dev, "no valid port_info specified\n");
 		return -EINVAL;
 	}
 

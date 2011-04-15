@@ -273,9 +273,8 @@ static irqreturn_t vsc_sata_interrupt(int irq, void *dev_instance)
 
 	if (unlikely(status == 0xffffffff || status == 0)) {
 		if (status)
-			dev_printk(KERN_ERR, host->dev,
-				": IRQ status == 0xffffffff, "
-				"PCI fault or device removal?\n");
+			dev_err(host->dev,
+				": IRQ status == 0xffffffff, PCI fault or device removal?\n");
 		goto out;
 	}
 

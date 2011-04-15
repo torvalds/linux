@@ -772,8 +772,9 @@ static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 		pci_restore_state(priv->pdev);
 		rc = pcim_enable_device(priv->pdev);
 		if (rc)
-			dev_printk(KERN_ERR, &priv->pdev->dev,
-				   "Failed to enable device after resume (%d)\n", rc);
+			dev_err(&priv->pdev->dev,
+				"Failed to enable device after resume (%d)\n",
+				rc);
 		else
 			pci_set_master(priv->pdev);
 	}

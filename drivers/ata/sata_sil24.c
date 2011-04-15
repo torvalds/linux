@@ -1256,8 +1256,8 @@ static void sil24_init_controller(struct ata_host *host)
 						PORT_CS_PORT_RST,
 						PORT_CS_PORT_RST, 10, 100);
 			if (tmp & PORT_CS_PORT_RST)
-				dev_printk(KERN_ERR, host->dev,
-					   "failed to clear port RST\n");
+				dev_err(host->dev,
+					"failed to clear port RST\n");
 		}
 
 		/* configure port */
@@ -1302,9 +1302,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pi.flags & SIL24_FLAG_PCIX_IRQ_WOC) {
 		tmp = readl(iomap[SIL24_HOST_BAR] + HOST_CTRL);
 		if (tmp & (HOST_CTRL_TRDY | HOST_CTRL_STOP | HOST_CTRL_DEVSEL))
-			dev_printk(KERN_INFO, &pdev->dev,
-				   "Applying completion IRQ loss on PCI-X "
-				   "errata fix\n");
+			dev_info(&pdev->dev,
+				 "Applying completion IRQ loss on PCI-X errata fix\n");
 		else
 			pi.flags &= ~SIL24_FLAG_PCIX_IRQ_WOC;
 	}
@@ -1322,22 +1321,21 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (rc) {
-				dev_printk(KERN_ERR, &pdev->dev,
-					   "64-bit DMA enable failed\n");
+				dev_err(&pdev->dev,
+					"64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				   "32-bit DMA enable failed\n");
+			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				   "32-bit consistent DMA enable failed\n");
+			dev_err(&pdev->dev,
+				"32-bit consistent DMA enable failed\n");
 			return rc;
 		}
 	}
@@ -1350,7 +1348,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sil24_init_controller(host);
 
 	if (sata_sil24_msi && !pci_enable_msi(pdev)) {
-		dev_printk(KERN_INFO, &pdev->dev, "Using MSI\n");
+		dev_info(&pdev->dev, "Using MSI\n");
 		pci_intx(pdev, 0);
 	}
 

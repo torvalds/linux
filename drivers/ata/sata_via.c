@@ -469,7 +469,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 
 	rc = pcim_iomap_regions(pdev, 1 << 5, DRV_NAME);
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to iomap PCI BAR 5\n");
+		dev_err(&pdev->dev, "failed to iomap PCI BAR 5\n");
 		return rc;
 	}
 
@@ -488,14 +488,14 @@ static int vt6421_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 
 	*r_host = host = ata_host_alloc_pinfo(&pdev->dev, ppi, ARRAY_SIZE(ppi));
 	if (!host) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to allocate host\n");
+		dev_err(&pdev->dev, "failed to allocate host\n");
 		return -ENOMEM;
 	}
 
 	rc = pcim_iomap_regions(pdev, 0x3f, DRV_NAME);
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to request/iomap "
-			   "PCI BARs (errno=%d)\n", rc);
+		dev_err(&pdev->dev, "failed to request/iomap PCI BARs (errno=%d)\n",
+			rc);
 		return rc;
 	}
 	host->iomap = pcim_iomap_table(pdev);
@@ -526,7 +526,7 @@ static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 
 	rc = pcim_iomap_regions(pdev, 1 << 5, DRV_NAME);
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to iomap PCI BAR 5\n");
+		dev_err(&pdev->dev, "failed to iomap PCI BAR 5\n");
 		return rc;
 	}
 
@@ -542,8 +542,8 @@ static void svia_configure(struct pci_dev *pdev, int board_id)
 	u8 tmp8;
 
 	pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &tmp8);
-	dev_printk(KERN_INFO, &pdev->dev, "routed to hard irq line %d\n",
-	       (int) (tmp8 & 0xf0) == 0xf0 ? 0 : tmp8 & 0x0f);
+	dev_info(&pdev->dev, "routed to hard irq line %d\n",
+		 (int) (tmp8 & 0xf0) == 0xf0 ? 0 : tmp8 & 0x0f);
 
 	/* make sure SATA channels are enabled */
 	pci_read_config_byte(pdev, SATA_CHAN_ENAB, &tmp8);
@@ -628,7 +628,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < ARRAY_SIZE(svia_bar_sizes); i++)
 		if ((pci_resource_start(pdev, i) == 0) ||
 		    (pci_resource_len(pdev, i) < bar_sizes[i])) {
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 				"invalid PCI BAR %u (sz 0x%llx, val 0x%llx)\n",
 				i,
 				(unsigned long long)pci_resource_start(pdev, i),

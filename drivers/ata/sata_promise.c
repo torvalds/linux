@@ -1217,7 +1217,7 @@ static int pdc_ata_init_one(struct pci_dev *pdev,
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host) {
-		dev_printk(KERN_ERR, &pdev->dev, "failed to allocate host\n");
+		dev_err(&pdev->dev, "failed to allocate host\n");
 		return -ENOMEM;
 	}
 	host->iomap = pcim_iomap_table(pdev);

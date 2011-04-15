@@ -661,8 +661,7 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	sata_fsl_scr_write(&ap->link, SCR_CONTROL, temp);
 
 	sata_fsl_scr_read(&ap->link, SCR_CONTROL, &temp);
-	dev_printk(KERN_WARNING, dev, "scr_control, speed limited to %x\n",
-			temp);
+	dev_warn(dev, "scr_control, speed limited to %x\n", temp);
 #endif
 
 	return 0;
@@ -1202,8 +1201,7 @@ static irqreturn_t sata_fsl_interrupt(int irq, void *dev_instance)
 	if (ap) {
 		sata_fsl_host_intr(ap);
 	} else {
-		dev_printk(KERN_WARNING, host->dev,
-			   "interrupt on disabled port 0\n");
+		dev_warn(host->dev, "interrupt on disabled port 0\n");
 	}
 
 	iowrite32(interrupt_enables, hcr_base + HSTATUS);
@@ -1317,8 +1315,7 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	struct ata_port_info pi = sata_fsl_port_info[0];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 
-	dev_printk(KERN_INFO, &ofdev->dev,
-		   "Sata FSL Platform/CSB Driver init\n");
+	dev_info(&ofdev->dev, "Sata FSL Platform/CSB Driver init\n");
 
 	hcr_base = of_iomap(ofdev->dev.of_node, 0);
 	if (!hcr_base)
@@ -1347,7 +1344,7 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 
 	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (irq < 0) {
-		dev_printk(KERN_ERR, &ofdev->dev, "invalid irq from platform\n");
+		dev_err(&ofdev->dev, "invalid irq from platform\n");
 		goto error_exit_with_cleanup;
 	}
 	host_priv->irq = irq;
@@ -1422,8 +1419,7 @@ static int sata_fsl_resume(struct platform_device *op)
 
 	ret = sata_fsl_init_controller(host);
 	if (ret) {
-		dev_printk(KERN_ERR, &op->dev,
-			"Error initialize hardware\n");
+		dev_err(&op->dev, "Error initializing hardware\n");
 		return ret;
 	}
 

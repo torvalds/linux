@@ -2930,8 +2930,7 @@ static int mv_pci_error(struct ata_host *host, void __iomem *mmio)
 
 	err_cause = readl(mmio + hpriv->irq_cause_offset);
 
-	dev_printk(KERN_ERR, host->dev, "PCI ERROR; PCI IRQ cause=0x%08x\n",
-		   err_cause);
+	dev_err(host->dev, "PCI ERROR; PCI IRQ cause=0x%08x\n", err_cause);
 
 	DPRINTK("All regs @ PCI error\n");
 	mv_dump_all_regs(mmio, -1, to_pci_dev(host->dev));
@@ -3760,8 +3759,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_ERRATA_50XXB2;
 			break;
 		default:
-			dev_printk(KERN_WARNING, &pdev->dev,
-			   "Applying 50XXB2 workarounds to unknown rev\n");
+			dev_warn(&pdev->dev,
+				 "Applying 50XXB2 workarounds to unknown rev\n");
 			hp_flags |= MV_HP_ERRATA_50XXB2;
 			break;
 		}
@@ -3780,8 +3779,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_ERRATA_50XXB2;
 			break;
 		default:
-			dev_printk(KERN_WARNING, &pdev->dev,
-			   "Applying B2 workarounds to unknown rev\n");
+			dev_warn(&pdev->dev,
+				 "Applying B2 workarounds to unknown rev\n");
 			hp_flags |= MV_HP_ERRATA_50XXB2;
 			break;
 		}
@@ -3801,8 +3800,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		default:
-			dev_printk(KERN_WARNING, &pdev->dev,
-				   "Applying B2 workarounds to unknown rev\n");
+			dev_warn(&pdev->dev,
+				 "Applying B2 workarounds to unknown rev\n");
 			hp_flags |= MV_HP_ERRATA_60X1B2;
 			break;
 		}
@@ -3851,8 +3850,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		default:
-			dev_printk(KERN_WARNING, &pdev->dev,
-			   "Applying 60X1C0 workarounds to unknown rev\n");
+			dev_warn(&pdev->dev,
+				 "Applying 60X1C0 workarounds to unknown rev\n");
 			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		}
@@ -3867,8 +3866,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 
 	default:
-		dev_printk(KERN_ERR, host->dev,
-			   "BUG: invalid board index %u\n", board_idx);
+		dev_err(host->dev, "BUG: invalid board index %u\n", board_idx);
 		return 1;
 	}
 
@@ -4033,7 +4031,7 @@ static int mv_platform_probe(struct platform_device *pdev)
 	int n_ports, rc;
 
 	if (!printed_version++)
-		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
+		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
 
 	/*
 	 * Simple resource validation ..
@@ -4091,9 +4089,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 	if (rc)
 		goto err;
 
-	dev_printk(KERN_INFO, &pdev->dev,
-		   "slots %u ports %d\n", (unsigned)MV_MAX_Q_DEPTH,
-		   host->n_ports);
+	dev_info(&pdev->dev, "slots %u ports %d\n",
+		 (unsigned)MV_MAX_Q_DEPTH, host->n_ports);
 
 	return ata_host_activate(host, platform_get_irq(pdev, 0), mv_interrupt,
 				 IRQF_SHARED, &mv6_sht);
@@ -4217,22 +4214,21 @@ static int pci_go_64(struct pci_dev *pdev)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (rc) {
-				dev_printk(KERN_ERR, &pdev->dev,
-					   "64-bit DMA enable failed\n");
+				dev_err(&pdev->dev,
+					"64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				   "32-bit DMA enable failed\n");
+			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				   "32-bit consistent DMA enable failed\n");
+			dev_err(&pdev->dev,
+				"32-bit consistent DMA enable failed\n");
 			return rc;
 		}
 	}
@@ -4276,10 +4272,9 @@ static void mv_print_info(struct ata_host *host)
 	else
 		gen = "?";
 
-	dev_printk(KERN_INFO, &pdev->dev,
-	       "Gen-%s %u slots %u ports %s mode IRQ via %s\n",
-	       gen, (unsigned)MV_MAX_Q_DEPTH, host->n_ports,
-	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
+	dev_info(&pdev->dev, "Gen-%s %u slots %u ports %s mode IRQ via %s\n",
+		 gen, (unsigned)MV_MAX_Q_DEPTH, host->n_ports,
+		 scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
 /**
@@ -4301,7 +4296,7 @@ static int mv_pci_init_one(struct pci_dev *pdev,
 	int n_ports, port, rc;
 
 	if (!printed_version++)
-		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
+		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
 
 	/* allocate host */
 	n_ports = mv_get_hc_count(ppi[0]->flags) * MV_PORTS_PER_HC;

@@ -655,7 +655,7 @@ static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 	 */
 	pll_clock = pdc_detect_pll_input_clock(host);
 
-	dev_printk(KERN_INFO, host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
+	dev_info(host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
 
 	/* Adjust PLL control register */
 	pdc_adjust_pll(host, pll_clock, board_idx);

@@ -676,8 +676,8 @@ static void sil_init_controller(struct ata_host *host)
 			writew(cls << 8 | cls,
 			       mmio_base + sil_port[i].fifo_cfg);
 	} else
-		dev_printk(KERN_WARNING, &pdev->dev,
-			   "cache line size not set.  Driver may not function\n");
+		dev_warn(&pdev->dev,
+			 "cache line size not set.  Driver may not function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
 	if (host->ports[0]->flags & SIL_FLAG_RERR_ON_DMA_ACT) {
@@ -688,9 +688,8 @@ static void sil_init_controller(struct ata_host *host)
 			if ((tmp & 0x3) != 0x01)
 				continue;
 			if (!cnt)
-				dev_printk(KERN_INFO, &pdev->dev,
-					   "Applying R_ERR on DMA activate "
-					   "FIS errata fix\n");
+				dev_info(&pdev->dev,
+					 "Applying R_ERR on DMA activate FIS errata fix\n");
 			writel(tmp & ~0x3, mmio_base + sil_port[i].sfis_cfg);
 			cnt++;
 		}

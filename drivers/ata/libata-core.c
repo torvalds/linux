@@ -5847,9 +5847,9 @@ int ata_host_start(struct ata_host *host)
 			rc = ap->ops->port_start(ap);
 			if (rc) {
 				if (rc != -ENODEV)
-					dev_printk(KERN_ERR, host->dev,
-						"failed to start port %d "
-						"(errno=%d)\n", i, rc);
+					dev_err(host->dev,
+						"failed to start port %d (errno=%d)\n",
+						i, rc);
 				goto err_out;
 			}
 		}
@@ -5971,8 +5971,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 
 	/* host must have been started */
 	if (!(host->flags & ATA_HOST_STARTED)) {
-		dev_printk(KERN_ERR, host->dev,
-			   "BUG: trying to register unstarted host\n");
+		dev_err(host->dev, "BUG: trying to register unstarted host\n");
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -6242,8 +6241,8 @@ int ata_pci_device_do_resume(struct pci_dev *pdev)
 
 	rc = pcim_enable_device(pdev);
 	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "failed to enable device after resume (%d)\n", rc);
+		dev_err(&pdev->dev,
+			"failed to enable device after resume (%d)\n", rc);
 		return rc;
 	}
 
