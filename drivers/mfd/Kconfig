@@ -157,6 +157,20 @@ config TPS6507X
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6507x.
 
+config MFD_TPS6586X
+	bool "TPS6586x Power Management chips"
+	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  If you say yes here you get support for the TPS6586X series of
+	  Power Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6586x.
+
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
 	depends on I2C=y && ARCH_OMAP2
@@ -648,20 +662,6 @@ config MFD_JZ4740_ADC
 	help
 	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
 	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
-
-config MFD_TPS6586X
-	bool "TPS6586x Power Management chips"
-	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
-	select MFD_CORE
-	help
-	  If you say yes here you get support for the TPS6586X series of
-	  Power Management chips.
-	  This driver provides common support for accessing the device,
-	  additional drivers must be enabled in order to use the
-	  functionality of the device.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called tps6586x.
 
 config MFD_VX855
 	tristate "Support for VIA VX855/VX875 integrated south bridge"
