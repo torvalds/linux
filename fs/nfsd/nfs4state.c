@@ -258,6 +258,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	if (atomic_dec_and_test(&fp->fi_delegees)) {
 		vfs_setlease(fp->fi_deleg_file, F_UNLCK, &fp->fi_lease);
 		fp->fi_lease = NULL;
+		fput(fp->fi_deleg_file);
 		fp->fi_deleg_file = NULL;
 	}
 }
