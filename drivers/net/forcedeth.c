@@ -774,7 +774,6 @@ struct fe_priv {
 	u32 driver_data;
 	u32 device_id;
 	u32 register_size;
-	int rx_csum;
 	u32 mac_in_use;
 	int mgmt_version;
 	int mgmt_sema;
@@ -4480,58 +4479,36 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	return 0;
 }
 
-static u32 nv_get_rx_csum(struct net_device *dev)
+static u32 nv_fix_features(struct net_device *dev, u32 features)
 {
-	struct fe_priv *np = netdev_priv(dev);
-	return np->rx_csum != 0;
+	/* vlan is dependent on rx checksum offload */
+	if (features & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+		features |= NETIF_F_RXCSUM;
+
+	return features;
 }
 
-static int nv_set_rx_csum(struct net_device *dev, u32 data)
+static int nv_set_features(struct net_device *dev, u32 features)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int retcode = 0;
+	u32 changed = dev->features ^ features;
 
-	if (np->driver_data & DEV_HAS_CHECKSUM) {
-		if (data) {
-			np->rx_csum = 1;
+	if (changed & NETIF_F_RXCSUM) {
+		spin_lock_irq(&np->lock);
+
+		if (features & NETIF_F_RXCSUM)
 			np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
-		} else {
-			np->rx_csum = 0;
-			/* vlan is dependent on rx checksum offload */
-			if (!(np->vlanctl_bits & NVREG_VLANCONTROL_ENABLE))
-				np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
-		}
-		if (netif_running(dev)) {
-			spin_lock_irq(&np->lock);
+		else
+			np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
+
+		if (netif_running(dev))
 			writel(np->txrxctl_bits, base + NvRegTxRxControl);
-			spin_unlock_irq(&np->lock);
-		}
-	} else {
-		return -EINVAL;
+
+		spin_unlock_irq(&np->lock);
 	}
 
-	return retcode;
-}
-
-static int nv_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_CHECKSUM)
-		return ethtool_op_set_tx_csum(dev, data);
-	else
-		return -EOPNOTSUPP;
-}
-
-static int nv_set_sg(struct net_device *dev, u32 data)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_CHECKSUM)
-		return ethtool_op_set_sg(dev, data);
-	else
-		return -EOPNOTSUPP;
+	return 0;
 }
 
 static int nv_get_sset_count(struct net_device *dev, int sset)
@@ -4896,15 +4873,10 @@ static const struct ethtool_ops ops = {
 	.get_regs_len = nv_get_regs_len,
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
-	.set_tso = nv_set_tso,
 	.get_ringparam = nv_get_ringparam,
 	.set_ringparam = nv_set_ringparam,
 	.get_pauseparam = nv_get_pauseparam,
 	.set_pauseparam = nv_set_pauseparam,
-	.get_rx_csum = nv_get_rx_csum,
-	.set_rx_csum = nv_set_rx_csum,
-	.set_tx_csum = nv_set_tx_csum,
-	.set_sg = nv_set_sg,
 	.get_strings = nv_get_strings,
 	.get_ethtool_stats = nv_get_ethtool_stats,
 	.get_sset_count = nv_get_sset_count,
@@ -5235,6 +5207,8 @@ static const struct net_device_ops nv_netdev_ops = {
 	.ndo_start_xmit		= nv_start_xmit,
 	.ndo_tx_timeout		= nv_tx_timeout,
 	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_fix_features	= nv_fix_features,
+	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
 	.ndo_set_multicast_list	= nv_set_multicast,
@@ -5251,6 +5225,8 @@ static const struct net_device_ops nv_netdev_ops_optimized = {
 	.ndo_start_xmit		= nv_start_xmit_optimized,
 	.ndo_tx_timeout		= nv_tx_timeout,
 	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_fix_features	= nv_fix_features,
+	.ndo_set_features	= nv_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= nv_set_mac_address,
 	.ndo_set_multicast_list	= nv_set_multicast,
@@ -5364,11 +5340,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->pkt_limit = NV_PKTLIMIT_2;
 
 	if (id->driver_data & DEV_HAS_CHECKSUM) {
-		np->rx_csum = 1;
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		dev->features |= NETIF_F_TSO;
-		dev->features |= NETIF_F_GRO;
+		dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_TSO | NETIF_F_RXCSUM;
+		dev->features |= dev->hw_features;
 	}
 
 	np->vlanctl_bits = 0;
@@ -5383,7 +5358,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	    (id->driver_data & DEV_HAS_PAUSEFRAME_TX_V3)) {
 		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE | NV_PAUSEFRAME_TX_REQ;
 	}
-
 
 	err = -ENOMEM;
 	np->base = ioremap(addr, np->register_size);
