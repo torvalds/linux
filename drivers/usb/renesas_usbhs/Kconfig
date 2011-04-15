@@ -4,6 +4,7 @@
 
 config USB_RENESAS_USBHS
 	tristate 'Renesas USBHS controller'
+	depends on SUPERH || ARCH_SHMOBILE
 	default n
 	help
 	   Renesas USBHS is a discrete USB host and peripheral controller chip
