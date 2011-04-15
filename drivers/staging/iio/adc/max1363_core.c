@@ -72,6 +72,9 @@ static MAX1363_SCAN_EL_D(7, 6, 21);
 static MAX1363_SCAN_EL_D(9, 8, 22);
 static MAX1363_SCAN_EL_D(11, 10, 23);
 
+static IIO_SCAN_EL_TIMESTAMP(24);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
+
 static const struct max1363_mode max1363_mode_table[] = {
 	/* All of the single channel options first */
 	MAX1363_MODE_SINGLE(0, 1 << 0),
@@ -402,6 +405,9 @@ static struct attribute *max1363_scan_el_attrs[] = {
 	&iio_const_attr_in1min0_index.dev_attr.attr,
 	&iio_scan_el_in3min2.dev_attr.attr,	&dev_attr_in3min2_type.attr,
 	&iio_const_attr_in3min2_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
@@ -515,6 +521,9 @@ static struct attribute *max1238_scan_el_attrs[] = {
 	&iio_const_attr_in9min8_index.dev_attr.attr,
 	&iio_scan_el_in11min10.dev_attr.attr,	&dev_attr_in11min10_type.attr,
 	&iio_const_attr_in11min10_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
@@ -601,6 +610,9 @@ static struct attribute *max11608_scan_el_attrs[] = {
 	&iio_const_attr_in5min4_index.dev_attr.attr,
 	&iio_scan_el_in7min6.dev_attr.attr,	&dev_attr_in7min6_type.attr,
 	&iio_const_attr_in7min6_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL
 };
 

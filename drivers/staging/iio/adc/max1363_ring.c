@@ -76,7 +76,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	size_t d_size;
+	size_t d_size = 0;
 	unsigned long numvals;
 
 	/*
@@ -92,11 +92,13 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 
 	numvals = hweight_long(st->current_mode->modemask);
 	if (ring->access.set_bytes_per_datum) {
+		if (ring->scan_timestamp)
+			d_size += sizeof(s64);
 		if (st->chip_info->bits != 8)
-			d_size = numvals*2 + sizeof(s64);
+			d_size += numvals*2;
 		else
-			d_size = numvals + sizeof(s64);
-		if (d_size % 8)
+			d_size += numvals;
+		if (ring->scan_timestamp && (d_size % 8))
 			d_size += 8 - (d_size % 8);
 		ring->access.set_bytes_per_datum(ring, d_size);
 	}
