@@ -246,5 +246,6 @@ otg_unregister_notifier(struct otg_transceiver *otg, struct notifier_block *nb)
 
 /* for OTG controller drivers (and maybe other stuff) */
 extern int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num);
+extern const char *otg_state_string(enum usb_otg_state state);
 
 #endif /* __LINUX_USB_OTG_H */
