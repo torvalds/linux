@@ -606,7 +606,7 @@ static void __devinit ich6_lpc_acpi_gpio(struct pci_dev *dev)
 	}
 
 	pci_read_config_byte(dev, ICH6_GPIO_CNTL, &enable);
-	if (enable & ICH4_GPIO_EN) {
+	if (enable & ICH6_GPIO_EN) {
 		pci_read_config_dword(dev, ICH6_GPIOBASE, &region);
 		region &= PCI_BASE_ADDRESS_IO_MASK;
 		if (region >= PCIBIOS_MIN_IO)
