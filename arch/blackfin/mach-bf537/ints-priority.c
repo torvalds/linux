@@ -10,6 +10,12 @@
 #include <linux/irq.h>
 #include <asm/blackfin.h>
 
+#include <asm/irq_handler.h>
+#include <asm/bfin5xx_spi.h>
+#include <asm/bfin_sport.h>
+#include <asm/bfin_can.h>
+#include <asm/dpmc.h>
+
 void __init program_IAR(void)
 {
 	/* Program the IAR0 Register with the configured priority */
@@ -50,4 +56,122 @@ void __init program_IAR(void)
 			    ((CONFIG_IRQ_WATCH - 7) << IRQ_WATCH_POS));
 
 	SSYNC();
+}
+
+#define SPI_ERR_MASK   (BIT_STAT_TXCOL | BIT_STAT_RBSY | BIT_STAT_MODF | BIT_STAT_TXE)	/* SPI_STAT */
+#define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORT_STAT */
+#define PPI_ERR_MASK   (0xFFFF & ~FLD)	/* PPI_STATUS */
+#define EMAC_ERR_MASK  (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
+#define UART_ERR_MASK  (0x6)	/* UART_IIR */
+#define CAN_ERR_MASK   (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
+
+static int error_int_mask;
+
+static void bf537_generic_error_mask_irq(struct irq_data *d)
+{
+	error_int_mask &= ~(1L << (d->irq - IRQ_PPI_ERROR));
+	if (!error_int_mask)
+		bfin_internal_mask_irq(IRQ_GENERIC_ERROR);
+}
+
+static void bf537_generic_error_unmask_irq(struct irq_data *d)
+{
+	bfin_internal_unmask_irq(IRQ_GENERIC_ERROR);
+	error_int_mask |= 1L << (d->irq - IRQ_PPI_ERROR);
+}
+
+static struct irq_chip bf537_generic_error_irqchip = {
+	.name = "ERROR",
+	.irq_ack = bfin_ack_noop,
+	.irq_mask_ack = bf537_generic_error_mask_irq,
+	.irq_mask = bf537_generic_error_mask_irq,
+	.irq_unmask = bf537_generic_error_unmask_irq,
+};
+
+static void bf537_demux_error_irq(unsigned int int_err_irq,
+				  struct irq_desc *inta_desc)
+{
+	int irq = 0;
+
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
+	if (bfin_read_EMAC_SYSTAT() & EMAC_ERR_MASK)
+		irq = IRQ_MAC_ERROR;
+	else
+#endif
+	if (bfin_read_SPORT0_STAT() & SPORT_ERR_MASK)
+		irq = IRQ_SPORT0_ERROR;
+	else if (bfin_read_SPORT1_STAT() & SPORT_ERR_MASK)
+		irq = IRQ_SPORT1_ERROR;
+	else if (bfin_read_PPI_STATUS() & PPI_ERR_MASK)
+		irq = IRQ_PPI_ERROR;
+	else if (bfin_read_CAN_GIF() & CAN_ERR_MASK)
+		irq = IRQ_CAN_ERROR;
+	else if (bfin_read_SPI_STAT() & SPI_ERR_MASK)
+		irq = IRQ_SPI_ERROR;
+	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
+		irq = IRQ_UART0_ERROR;
+	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
+		irq = IRQ_UART1_ERROR;
+
+	if (irq) {
+		if (error_int_mask & (1L << (irq - IRQ_PPI_ERROR)))
+			bfin_handle_irq(irq);
+		else {
+
+			switch (irq) {
+			case IRQ_PPI_ERROR:
+				bfin_write_PPI_STATUS(PPI_ERR_MASK);
+				break;
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
+			case IRQ_MAC_ERROR:
+				bfin_write_EMAC_SYSTAT(EMAC_ERR_MASK);
+				break;
+#endif
+			case IRQ_SPORT0_ERROR:
+				bfin_write_SPORT0_STAT(SPORT_ERR_MASK);
+				break;
+
+			case IRQ_SPORT1_ERROR:
+				bfin_write_SPORT1_STAT(SPORT_ERR_MASK);
+				break;
+
+			case IRQ_CAN_ERROR:
+				bfin_write_CAN_GIS(CAN_ERR_MASK);
+				break;
+
+			case IRQ_SPI_ERROR:
+				bfin_write_SPI_STAT(SPI_ERR_MASK);
+				break;
+
+			default:
+				break;
+			}
+
+			pr_debug("IRQ %d:"
+				 " MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
+				 irq);
+		}
+	} else
+		pr_err("%s: IRQ ?: PERIPHERAL ERROR INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
+		       __func__);
+
+}
+
+void __init init_mach_irq(void)
+{
+	int irq;
+
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536)
+	/* Clear EMAC Interrupt Status bits so we can demux it later */
+	bfin_write_EMAC_SYSTAT(-1);
+#endif
+
+	irq_set_chained_handler(IRQ_GENERIC_ERROR, bf537_demux_error_irq);
+	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++)
+		irq_set_chip_and_handler(irq, &bf537_generic_error_irqchip,
+					 handle_level_irq);
+
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	irq_set_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
+#endif
 }

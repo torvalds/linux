@@ -14,6 +14,11 @@
 extern int __init init_arch_irq(void);
 extern void init_exception_vectors(void);
 extern void __init program_IAR(void);
+#ifdef init_mach_irq
+extern void __init init_mach_irq(void);
+#else
+# define init_mach_irq()
+#endif
 
 /* BASE LEVEL interrupt handler routines */
 asmlinkage void evt_exception(void);
@@ -46,5 +51,14 @@ extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
 extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 extern int bfin_internal_set_wake(unsigned int irq, unsigned int state);
+
+struct irq_data;
+extern void bfin_handle_irq(unsigned irq);
+extern void bfin_ack_noop(struct irq_data *);
+extern void bfin_internal_mask_irq(unsigned int irq);
+extern void bfin_internal_unmask_irq(unsigned int irq);
+
+struct irq_desc;
+extern void bfin_demux_mac_status_irq(unsigned int, struct irq_desc *);
 
 #endif

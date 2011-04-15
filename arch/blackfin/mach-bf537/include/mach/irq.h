@@ -160,4 +160,6 @@
 #define IRQ_MEM_DMA1_POS	24
 #define IRQ_WATCH_POS		28
 
+#define init_mach_irq init_mach_irq
+
 #endif
