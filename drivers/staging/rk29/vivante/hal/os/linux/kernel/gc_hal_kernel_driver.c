@@ -703,11 +703,11 @@ static void drv_exit(void)
 
     shutdown = 1;
 
-    msleep(50); 
+    mdelay(50); 
     gckGALDEVICE_Stop(galDevice);
-    msleep(50); 
+    mdelay(50); 
     gckGALDEVICE_Destroy(galDevice);
-    msleep(50); 
+    mdelay(50); 
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 
@@ -723,16 +723,16 @@ static void drv_exit(void)
     clk_gpu = clk_get(NULL, "gpu");
     if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
     printk("done!\n");
-    msleep(10);
+    mdelay(10);
 
     printk("%s : gpu power off... ", __func__);
     pmu_set_power_domain(PD_GPU, false);
     printk("done!\n");
-    msleep(10);
+    mdelay(10);
 
     // disable ram clock gate
     writel(readl(RK29_GRF_BASE+0xc0) | 0x100000, RK29_GRF_BASE+0xc0);
-    msleep(10);
+    mdelay(10);
 
 #endif
 }
@@ -878,8 +878,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
-    pm_message_t state = {0};
-    gpu_suspend(dev, state);
+    drv_exit();
 }
 
 
