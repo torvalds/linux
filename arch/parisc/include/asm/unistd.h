@@ -814,8 +814,10 @@
 #define __NR_recvmmsg		(__NR_Linux + 319)
 #define __NR_accept4		(__NR_Linux + 320)
 #define __NR_prlimit64		(__NR_Linux + 321)
+#define __NR_fanotify_init	(__NR_Linux + 322)
+#define __NR_fanotify_mark	(__NR_Linux + 323)
 
-#define __NR_Linux_syscalls	(__NR_prlimit64 + 1)
+#define __NR_Linux_syscalls	(__NR_fanotify_mark + 1)
 
 
 #define __IGNORE_select		/* newselect */
