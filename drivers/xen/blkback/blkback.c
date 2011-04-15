@@ -249,7 +249,7 @@ struct seg_buf {
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
 */
-static void fast_flush_area(struct pending_req *req)
+static void xen_blkbk_unmap(struct pending_req *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
@@ -282,8 +282,8 @@ static void fast_flush_area(struct pending_req *req)
 		}
 	}
 }
-static int xen_blk_map_buf(struct blkif_request *req, struct pending_req *pending_req,
-			   struct seg_buf seg[])
+static int xen_blkbk_map(struct blkif_request *req, struct pending_req *pending_req,
+			 struct seg_buf seg[])
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	int i;
@@ -361,7 +361,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	 * the proper response on the ring.
 	 */
 	if (atomic_dec_and_test(&pending_req->pendcnt)) {
-		fast_flush_area(pending_req);
+		xen_blkbk_unmap(pending_req);
 		make_response(pending_req->blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
 		blkif_put(pending_req->blkif);
@@ -540,9 +540,9 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	/* If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
 	 * the hypercall to unmap the grants - that is all done in
-	 * fast_flush_area.
+	 * xen_blkbk_unmap.
 	 */
-	if (xen_blk_map_buf(req, pending_req, seg))
+	if (xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
 	/* This corresponding blkif_put is done in __end_block_io_op */
@@ -606,7 +606,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	return;
 
  fail_flush:
-	fast_flush_area(pending_req);
+	xen_blkbk_unmap(pending_req);
  fail_response:
 	/* Haven't submitted any bio's yet. */
 	make_response(blkif, req->id, req->operation, BLKIF_RSP_ERROR);
