@@ -198,6 +198,7 @@ struct drm_display_info {
 	unsigned int min_vfreq, max_vfreq;
 	unsigned int min_hfreq, max_hfreq;
 	unsigned int pixel_clock;
+	unsigned int bpc;
 
 	enum subpixel_order subpixel_order;
 
