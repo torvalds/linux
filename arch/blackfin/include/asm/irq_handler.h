@@ -10,6 +10,11 @@
 #include <linux/types.h>
 #include <linux/linkage.h>
 
+/* init functions only */
+extern int __init init_arch_irq(void);
+extern void init_exception_vectors(void);
+extern void __init program_IAR(void);
+
 /* BASE LEVEL interrupt handler routines */
 asmlinkage void evt_exception(void);
 asmlinkage void trap(void);
@@ -36,5 +41,10 @@ extern void return_from_exception(void);
 
 extern int bfin_request_exception(unsigned int exception, void (*handler)(void));
 extern int bfin_free_exception(unsigned int exception, void (*handler)(void));
+
+extern asmlinkage void lower_to_irq14(void);
+extern asmlinkage void bfin_return_from_exception(void);
+extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
+extern int bfin_internal_set_wake(unsigned int irq, unsigned int state);
 
 #endif

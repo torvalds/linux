@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
+#include <asm/irq_handler.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>

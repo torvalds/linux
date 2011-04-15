@@ -14,6 +14,7 @@
 #include <asm/gpio.h>
 #include <asm/portmux.h>
 #include <linux/irq.h>
+#include <asm/irq_handler.h>
 
 #if ANOMALY_05000311 || ANOMALY_05000323
 enum {

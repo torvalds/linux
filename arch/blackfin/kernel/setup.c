@@ -29,6 +29,7 @@
 #include <asm/cpu.h>
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
+#include <asm/irq_handler.h>
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
