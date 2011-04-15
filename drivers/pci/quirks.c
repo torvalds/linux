@@ -681,7 +681,7 @@ static void __devinit ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
 /* ICH7-10 has the same common LPC generic IO decode registers */
 static void __devinit quirk_ich7_lpc(struct pci_dev *dev)
 {
-	/* We share the common ACPI/DPIO decode with ICH6 */
+	/* We share the common ACPI/GPIO decode with ICH6 */
 	ich6_lpc_acpi_gpio(dev);
 
 	/* And have 4 ICH7+ generic decodes */
