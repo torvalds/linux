@@ -167,41 +167,18 @@ static void free_req(struct pending_req *req)
 }
 
 /*
- * Unmap the grant references, and also remove the M2P over-rides
- * used in the 'pending_req'.
-*/
-static void fast_flush_area(struct pending_req *req)
+ * Notification from the guest OS.
+ */
+static void blkif_notify_work(struct blkif_st *blkif)
 {
-	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	unsigned int i, invcount = 0;
-	grant_handle_t handle;
-	int ret;
+	blkif->waiting_reqs = 1;
+	wake_up(&blkif->wq);
+}
 
-	for (i = 0; i < req->nr_pages; i++) {
-		handle = pending_handle(req, i);
-		if (handle == BLKBACK_INVALID_HANDLE)
-			continue;
-		gnttab_set_unmap_op(&unmap[invcount], vaddr(req, i),
-				    GNTMAP_host_map, handle);
-		pending_handle(req, i) = BLKBACK_INVALID_HANDLE;
-		invcount++;
-	}
-
-	ret = HYPERVISOR_grant_table_op(
-		GNTTABOP_unmap_grant_ref, unmap, invcount);
-	BUG_ON(ret);
-	/* Note, we use invcount, so nr->pages, so we can't index
-	 * using vaddr(req, i).
-	 */
-	for (i = 0; i < invcount; i++) {
-		ret = m2p_remove_override(
-			virt_to_page(unmap[i].host_addr), false);
-		if (ret) {
-			printk(KERN_ALERT "Failed to remove M2P override for " \
-				"%lx\n", (unsigned long)unmap[i].host_addr);
-			continue;
-		}
-	}
+irqreturn_t blkif_be_int(int irq, void *dev_id)
+{
+	blkif_notify_work(dev_id);
+	return IRQ_HANDLED;
 }
 
 /*
@@ -265,6 +242,43 @@ int blkif_schedule(void *arg)
 }
 
 /*
+ * Unmap the grant references, and also remove the M2P over-rides
+ * used in the 'pending_req'.
+*/
+static void fast_flush_area(struct pending_req *req)
+{
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	unsigned int i, invcount = 0;
+	grant_handle_t handle;
+	int ret;
+
+	for (i = 0; i < req->nr_pages; i++) {
+		handle = pending_handle(req, i);
+		if (handle == BLKBACK_INVALID_HANDLE)
+			continue;
+		gnttab_set_unmap_op(&unmap[invcount], vaddr(req, i),
+				    GNTMAP_host_map, handle);
+		pending_handle(req, i) = BLKBACK_INVALID_HANDLE;
+		invcount++;
+	}
+
+	ret = HYPERVISOR_grant_table_op(
+		GNTTABOP_unmap_grant_ref, unmap, invcount);
+	BUG_ON(ret);
+	/* Note, we use invcount, so nr->pages, so we can't index
+	 * using vaddr(req, i).
+	 */
+	for (i = 0; i < invcount; i++) {
+		ret = m2p_remove_override(
+			virt_to_page(unmap[i].host_addr), false);
+		if (ret) {
+			printk(KERN_ALERT "Failed to remove M2P override for " \
+				"%lx\n", (unsigned long)unmap[i].host_addr);
+			continue;
+		}
+	}
+}
+/*
  * Completion callback on the bio's. Called as bh->b_end_io()
  */
 
@@ -302,23 +316,6 @@ static void end_block_io_op(struct bio *bio, int error)
 {
 	__end_block_io_op(bio->bi_private, error);
 	bio_put(bio);
-}
-
-
-/*
- * Notification from the guest OS.
- */
-
-static void blkif_notify_work(struct blkif_st *blkif)
-{
-	blkif->waiting_reqs = 1;
-	wake_up(&blkif->wq);
-}
-
-irqreturn_t blkif_be_int(int irq, void *dev_id)
-{
-	blkif_notify_work(dev_id);
-	return IRQ_HANDLED;
 }
 
 
