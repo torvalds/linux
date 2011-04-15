@@ -1429,6 +1429,7 @@ static void drm_add_display_info(struct edid *edid,
 
 	/* driver figures it out in this case */
 	info->bpc = 0;
+	info->color_formats = 0;
 
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
@@ -1461,6 +1462,12 @@ static void drm_add_display_info(struct edid *edid,
 		info->bpc = 0;
 		break;
 	}
+
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB444)
+		info->color_formats = DRM_COLOR_FORMAT_YCRCB444;
+	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB422)
+		info->color_formats = DRM_COLOR_FORMAT_YCRCB422;
 }
 
 /**

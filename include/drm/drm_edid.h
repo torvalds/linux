@@ -175,7 +175,15 @@ struct detailed_timing {
 #define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
 #define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
+/* If analog */
 #define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
+/* If digital */
+#define DRM_EDID_FEATURE_COLOR_MASK	  (3 << 3)
+#define DRM_EDID_FEATURE_RGB		  (0 << 3)
+#define DRM_EDID_FEATURE_RGB_YCRCB444	  (1 << 3)
+#define DRM_EDID_FEATURE_RGB_YCRCB422	  (2 << 3)
+#define DRM_EDID_FEATURE_RGB_YCRCB	  (3 << 3) /* both 4:4:4 and 4:2:2 */
+
 #define DRM_EDID_FEATURE_PM_ACTIVE_OFF    (1 << 5)
 #define DRM_EDID_FEATURE_PM_SUSPEND       (1 << 6)
 #define DRM_EDID_FEATURE_PM_STANDBY       (1 << 7)
