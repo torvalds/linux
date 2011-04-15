@@ -1487,7 +1487,7 @@ static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
 
 	page = get_partial_node(get_node(s, searchnode));
-	if (page || node != -1)
+	if (page || node != NUMA_NO_NODE)
 		return page;
 
 	return get_any_partial(s, flags);
