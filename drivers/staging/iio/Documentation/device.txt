@@ -8,7 +8,7 @@ The crucial structure for device drivers in iio is iio_dev.
 
 First allocate one using:
 
-struct iio_dev *indio_dev = iio_allocate_device();
+struct iio_dev *indio_dev = iio_allocate_device(0);
 
 Then fill in the following:
 

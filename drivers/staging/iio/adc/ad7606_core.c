@@ -447,7 +447,7 @@ struct ad7606_state *ad7606_probe(struct device *dev, int irq,
 
 	atomic_set(&st->protect_ring, 0);
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;

@@ -805,7 +805,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->help.indio_dev = iio_allocate_device();
+	st->help.indio_dev = iio_allocate_device(0);
 	if (st->help.indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;

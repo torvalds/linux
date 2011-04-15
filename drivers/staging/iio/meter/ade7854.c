@@ -568,7 +568,7 @@ int ade7854_probe(struct ade7854_state *st, struct device *dev)
 	}
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;

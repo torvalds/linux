@@ -181,7 +181,7 @@ static int __devinit ad9951_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 	st->sdev = spi;
 
-	st->idev = iio_allocate_device();
+	st->idev = iio_allocate_device(0);
 	if (st->idev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;

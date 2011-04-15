@@ -847,7 +847,7 @@ static int __devinit taos_probe(struct i2c_client *clientp,
 		goto fail1;
 	}
 
-	chip->iio_dev = iio_allocate_device();
+	chip->iio_dev = iio_allocate_device(0);
 	if (!chip->iio_dev) {
 		ret = -ENOMEM;
 		dev_err(&clientp->dev, "iio allocation failed\n");

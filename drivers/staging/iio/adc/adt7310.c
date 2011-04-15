@@ -794,7 +794,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	chip->spi_dev = spi_dev;
 	chip->name = spi_dev->modalias;
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_chip;

@@ -801,7 +801,7 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	}
 	st->client = client;
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;

@@ -492,7 +492,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	if (err)
 		goto exit_free;
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (!chip->indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		goto exit_free;

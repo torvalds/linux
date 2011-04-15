@@ -1339,7 +1339,7 @@ static int __devinit __sca3000_probe(struct spi_device *spi,
 	mutex_init(&st->lock);
 	st->info = &sca3000_spi_chip_info_tbl[variant];
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_rx;

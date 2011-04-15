@@ -264,10 +264,25 @@ static inline void *iio_dev_get_devdata(struct iio_dev *d)
 	return d->dev_data;
 }
 
+
+/* Can we make this smaller? */
+#define IIO_ALIGN L1_CACHE_BYTES
 /**
  * iio_allocate_device() - allocate an iio_dev from a driver
+ * @sizeof_priv: Space to allocate for private structure.
  **/
-struct iio_dev *iio_allocate_device(void);
+struct iio_dev *iio_allocate_device(int sizeof_priv);
+
+static inline void *iio_priv(const struct iio_dev *dev)
+{
+	return (char *)dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
+}
+
+static inline struct iio_dev *iio_priv_to_dev(void *priv)
+{
+	return (struct iio_dev *)((char *)priv -
+				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
+}
 
 /**
  * iio_free_device() - free an iio_dev from a driver

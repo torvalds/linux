@@ -533,7 +533,7 @@ static int __devinit ad7152_probe(struct i2c_client *client,
 	chip->client = client;
 	chip->name = id->name;
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_chip;

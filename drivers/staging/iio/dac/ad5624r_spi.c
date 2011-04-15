@@ -260,7 +260,7 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 		st->vref_mv = st->chip_info->int_vref_mv;
 
 	st->us = spi;
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;

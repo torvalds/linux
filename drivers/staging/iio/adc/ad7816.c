@@ -418,7 +418,7 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 	}
 	gpio_direction_input(chip->busy_pin);
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_gpio;

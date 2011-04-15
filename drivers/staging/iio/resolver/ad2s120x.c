@@ -240,7 +240,7 @@ static int __devinit ad2s120x_probe(struct spi_device *spi)
 	st->sample = pins[0];
 	st->rdvel = pins[1];
 
-	st->idev = iio_allocate_device();
+	st->idev = iio_allocate_device(0);
 	if (st->idev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;

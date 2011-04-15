@@ -552,7 +552,7 @@ static int hmc5843_probe(struct i2c_client *client,
 	/* Initialize the HMC5843 chip */
 	hmc5843_init_client(client);
 
-	data->indio_dev = iio_allocate_device();
+	data->indio_dev = iio_allocate_device(0);
 	if (!data->indio_dev) {
 		err = -ENOMEM;
 		goto exit_free1;

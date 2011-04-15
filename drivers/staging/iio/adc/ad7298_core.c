@@ -173,7 +173,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	atomic_set(&st->protect_ring, 0);
 	st->spi = spi;
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;

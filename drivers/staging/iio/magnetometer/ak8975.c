@@ -526,7 +526,7 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	/* Register with IIO */
-	data->indio_dev = iio_allocate_device();
+	data->indio_dev = iio_allocate_device(0);
 	if (data->indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit_gpio;

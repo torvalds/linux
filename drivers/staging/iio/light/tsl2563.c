@@ -857,7 +857,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (!chip->indio_dev)
 		goto fail1;
 	chip->indio_dev->attrs = &tsl2563_group;

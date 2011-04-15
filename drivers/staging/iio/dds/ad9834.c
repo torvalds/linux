@@ -349,7 +349,7 @@ static int __devinit ad9834_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->devid = spi_get_device_id(spi)->driver_data;
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;

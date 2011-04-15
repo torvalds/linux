@@ -800,7 +800,7 @@ static int __devinit ad2s1210_probe(struct spi_device *spi)
 	st->res0 = pins[3];
 	st->res1 = pins[4];
 
-	st->idev = iio_allocate_device();
+	st->idev = iio_allocate_device(0);
 	if (st->idev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
