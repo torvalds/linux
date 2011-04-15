@@ -1203,6 +1203,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			break;
 		/* fall through */
 	case NETDEV_NOTIFY_PEERS:
+	case NETDEV_BONDING_FAILOVER:
 		/* Send gratuitous ARP to notify of link change */
 		inetdev_send_gratuitous_arp(dev, in_dev);
 		break;

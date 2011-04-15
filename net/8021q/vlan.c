@@ -501,13 +501,14 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		return NOTIFY_BAD;
 
 	case NETDEV_NOTIFY_PEERS:
+	case NETDEV_BONDING_FAILOVER:
 		/* Propagate to vlan devices */
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 
-			call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, vlandev);
+			call_netdevice_notifiers(event, vlandev);
 		}
 		break;
 	}
