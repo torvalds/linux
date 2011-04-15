@@ -134,14 +134,8 @@ EXPORT_SYMBOL(iio_trigger_register);
 
 void iio_trigger_unregister(struct iio_trigger *trig_info)
 {
-	struct iio_trigger *cursor;
-
 	mutex_lock(&iio_trigger_list_lock);
-	list_for_each_entry(cursor, &iio_trigger_list, list)
-		if (cursor == trig_info) {
-			list_del(&cursor->list);
-			break;
-		}
+	list_del(&trig_info->list);
 	mutex_unlock(&iio_trigger_list_lock);
 
 	iio_trigger_unregister_sysfs(trig_info);
