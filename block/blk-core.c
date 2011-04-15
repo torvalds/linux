@@ -2662,16 +2662,17 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return !(rqa->q <= rqb->q);
 }
 
-static void queue_unplugged(struct request_queue *q, unsigned int depth)
+static void queue_unplugged(struct request_queue *q, unsigned int depth,
+			    bool force_kblockd)
 {
 	trace_block_unplug_io(q, depth);
-	__blk_run_queue(q, true);
+	__blk_run_queue(q, force_kblockd);
 
 	if (q->unplugged_fn)
 		q->unplugged_fn(q);
 }
 
-void blk_flush_plug_list(struct blk_plug *plug)
+void blk_flush_plug_list(struct blk_plug *plug, bool force_kblockd)
 {
 	struct request_queue *q;
 	unsigned long flags;
@@ -2706,7 +2707,7 @@ void blk_flush_plug_list(struct blk_plug *plug)
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
 			if (q) {
-				queue_unplugged(q, depth);
+				queue_unplugged(q, depth, force_kblockd);
 				spin_unlock(q->queue_lock);
 			}
 			q = rq->q;
@@ -2727,7 +2728,7 @@ void blk_flush_plug_list(struct blk_plug *plug)
 	}
 
 	if (q) {
-		queue_unplugged(q, depth);
+		queue_unplugged(q, depth, force_kblockd);
 		spin_unlock(q->queue_lock);
 	}
 
@@ -2737,7 +2738,7 @@ EXPORT_SYMBOL(blk_flush_plug_list);
 
 void blk_finish_plug(struct blk_plug *plug)
 {
-	blk_flush_plug_list(plug);
+	blk_flush_plug_list(plug, false);
 
 	if (plug == current->plug)
 		current->plug = NULL;

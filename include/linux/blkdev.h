@@ -865,14 +865,14 @@ struct blk_plug {
 
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
-extern void blk_flush_plug_list(struct blk_plug *);
+extern void blk_flush_plug_list(struct blk_plug *, bool);
 
 static inline void blk_flush_plug(struct task_struct *tsk)
 {
 	struct blk_plug *plug = tsk->plug;
 
 	if (plug)
-		blk_flush_plug_list(plug);
+		blk_flush_plug_list(plug, true);
 }
 
 static inline bool blk_needs_flush_plug(struct task_struct *tsk)
