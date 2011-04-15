@@ -423,6 +423,8 @@
 	ENTRY_SAME(fanotify_init)
 	ENTRY_COMP(fanotify_mark)
 	ENTRY_COMP(clock_adjtime)
+	ENTRY_SAME(name_to_handle_at)	/* 325 */
+	ENTRY_COMP(open_by_handle_at)
 
 	/* Nothing yet */
 
