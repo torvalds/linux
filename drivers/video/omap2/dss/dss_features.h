@@ -45,6 +45,7 @@ enum dss_feat_id {
 	FEAT_DSI_PLL_FREQSEL		= 1 << 14,
 	FEAT_DSI_DCS_CMD_CONFIG_VC	= 1 << 15,
 	FEAT_DSI_VC_OCP_WIDTH		= 1 << 16,
+	FEAT_DSI_REVERSE_TXCLKESC	= 1 << 17,
 };
 
 /* DSS register field id */
