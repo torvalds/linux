@@ -29,7 +29,7 @@ extern void rknand_buffer_shutdown(void);
 extern void rknand_buffer_sync(void);
 
 #define DRIVER_NAME	"rk29xxnand"
-const char rknand_base_version[] = "rknand_base.c version: 4.20 20110127";
+const char rknand_base_version[] = "rknand_base.c version: 4.22 20110414";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
@@ -175,6 +175,11 @@ static void rk28nand_create_procfs(void)
     } 
 }
 
+void rknand_schedule_enable(int en)
+{
+    gpNandInfo->rknand.rknand_schedule_enable = en;
+}
+
 void rkNand_cond_resched(void)
 {
     if(gpNandInfo->rknand.rknand_schedule_enable == 1)
@@ -182,6 +187,17 @@ void rkNand_cond_resched(void)
         //msleep(1);
         //mdelay(1);
         cond_resched();
+    }
+}
+
+void printk_write_log(long lba,int len, const u_char *pbuf)
+{
+    char debug_buf[100];
+    int i;
+    for(i=0;i<len;i++)
+    {
+        sprintf(debug_buf,"%lx :",lba+i);
+        print_hex_dump(KERN_WARNING, debug_buf, DUMP_PREFIX_NONE, 16,4, &pbuf[512*i], 8, 0);
     }
 }
 
@@ -209,6 +225,7 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	int LBA = (int)(from>>9);
 	//printk("*");
     //printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)from,len);
+    //printk_write_log(LBA,sector,buf);
 	if(sector)// cmy
 	{
 		if(LBA < SysImageWriteEndAdd)//0x4E000)
