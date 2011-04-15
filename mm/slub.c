@@ -271,10 +271,6 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 	for (__p = (__addr); __p < (__addr) + (__objects) * (__s)->size;\
 			__p += (__s)->size)
 
-/* Scan freelist */
-#define for_each_free_object(__p, __s, __free) \
-	for (__p = (__free); __p; __p = get_freepointer((__s), __p))
-
 /* Determine object index from a given position */
 static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
 {
@@ -328,6 +324,21 @@ static inline int oo_order(struct kmem_cache_order_objects x)
 static inline int oo_objects(struct kmem_cache_order_objects x)
 {
 	return x.x & OO_MASK;
+}
+
+/*
+ * Determine a map of object in use on a page.
+ *
+ * Slab lock or node listlock must be held to guarantee that the page does
+ * not vanish from under us.
+ */
+static void get_map(struct kmem_cache *s, struct page *page, unsigned long *map)
+{
+	void *p;
+	void *addr = page_address(page);
+
+	for (p = page->freelist; p; p = get_freepointer(s, p))
+		set_bit(slab_index(p, s, addr), map);
 }
 
 #ifdef CONFIG_SLUB_DEBUG
@@ -2673,9 +2684,8 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 		return;
 	slab_err(s, page, "%s", text);
 	slab_lock(page);
-	for_each_free_object(p, s, page->freelist)
-		set_bit(slab_index(p, s, addr), map);
 
+	get_map(s, page, map);
 	for_each_object(p, s, addr, page->objects) {
 
 		if (!test_bit(slab_index(p, s, addr), map)) {
@@ -3610,10 +3620,11 @@ static int validate_slab(struct kmem_cache *s, struct page *page,
 	/* Now we know that a valid freelist exists */
 	bitmap_zero(map, page->objects);
 
-	for_each_free_object(p, s, page->freelist) {
-		set_bit(slab_index(p, s, addr), map);
-		if (!check_object(s, page, p, SLUB_RED_INACTIVE))
-			return 0;
+	get_map(s, page, map);
+	for_each_object(p, s, addr, page->objects) {
+		if (test_bit(slab_index(p, s, addr), map))
+			if (!check_object(s, page, p, SLUB_RED_INACTIVE))
+				return 0;
 	}
 
 	for_each_object(p, s, addr, page->objects)
@@ -3821,8 +3832,7 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 	void *p;
 
 	bitmap_zero(map, page->objects);
-	for_each_free_object(p, s, page->freelist)
-		set_bit(slab_index(p, s, addr), map);
+	get_map(s, page, map);
 
 	for_each_object(p, s, addr, page->objects)
 		if (!test_bit(slab_index(p, s, addr), map))
