@@ -819,8 +819,9 @@
 #define __NR_clock_adjtime	(__NR_Linux + 324)
 #define __NR_name_to_handle_at	(__NR_Linux + 325)
 #define __NR_open_by_handle_at	(__NR_Linux + 326)
+#define __NR_syncfs		(__NR_Linux + 327)
 
-#define __NR_Linux_syscalls	(__NR_open_by_handle_at + 1)
+#define __NR_Linux_syscalls	(__NR_syncfs + 1)
 
 
 #define __IGNORE_select		/* newselect */
