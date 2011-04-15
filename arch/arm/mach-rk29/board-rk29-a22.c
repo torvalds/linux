@@ -2154,23 +2154,37 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 
 #if defined(CONFIG_MTK23D)
+static int mtk23d_io_init(void)
+{
+         return 0;
+}
+
+static int mtk23d_io_deinit(void)
+{
+ 
+         return 0;
+}
+ 
 struct rk2818_23d_data rk2818_23d_info = {
-	.bp_power = RK29_PIN0_PA0,
-	.bp_reset = RK29_PIN0_PA1,
-	.bp_statue = RK29_PIN0_PA3,//input  high bp sleep;
-	.ap_statue = RK29_PIN0_PA2,//output high ap sleep;
-	.ap_bp_wakeup = RK29_PIN0_PA4, //output AP wake up BP used rising edge;
-	//.bp_ap_wakeup = RK2818_PIN_PE0,//input BP wake up AP
+        .io_init = mtk23d_io_init,
+        .io_deinit = mtk23d_io_deinit,
+        .bp_power = RK29_PIN6_PB0,
+        .bp_power_active_low = 0,
+        .bp_reset = RK29_PIN6_PB1,
+        .bp_reset_active_low = 0,
+        .bp_statue = RK29_PIN0_PA2,//input  high bp sleep;
+        .ap_statue = RK29_PIN0_PA3,//output high ap sleep;
+        .ap_bp_wakeup = RK29_PIN0_PA0, //output AP wake up BP used rising edge;
+        //.bp_ap_wakeup = RK2818_PIN_PA4,//input BP wake up AP
 };
-struct platform_device rk2818_device_mtk23d = {	
-        .name = "mtk23d",	
-    	.id = -1,	
-	.dev		= {
-		.platform_data = &rk2818_23d_info,
-	}    	
+struct platform_device rk2818_device_mtk23d = {
+        .name = "mtk23d",
+        .id = -1,
+        .dev            = {
+                .platform_data = &rk2818_23d_info,
+        }
     };
 #endif
-
 
 /*****************************************************************************************
  * SDMMC devices
@@ -2904,7 +2918,7 @@ static struct kobj_attribute rk29xx_virtual_keys_attr = {
         .name = "virtualkeys.hx8520-touchscreen",
 #elif defined(CONFIG_TOUCHSCREEN_GT801_IIC)
 		.name = "virtualkeys.gt801-touchscreen",
-#elif defined(CONFIG_TOUCHSCREEN_GT801_IIC)
+#elif defined(CONFIG_TOUCHSCREEN_ILI2102_IIC)
 		.name = "virtualkeys.ili2102-touchscreen",
 #endif
 
@@ -3000,7 +3014,7 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
-	//rk29xx_virtual_keys_init();
+	rk29xx_virtual_keys_init();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

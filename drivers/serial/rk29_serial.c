@@ -37,7 +37,7 @@
 #include "rk2818_serial.h"
 
 #define DBG_PORT    0
-#if 1
+#if 0
 #define DBG(msg...)	printk(msg);
 #else
 #define DBG(...)

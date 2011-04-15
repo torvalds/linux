@@ -11,8 +11,12 @@ struct modem_dev
 
 /* 耳机数据结构体 */
 struct rk2818_23d_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
 	unsigned int bp_power;
+	unsigned int bp_power_active_low;
 	unsigned int bp_reset;
+	unsigned int bp_reset_active_low;
 	unsigned int bp_statue;
 	unsigned int ap_statue;
 	unsigned int ap_bp_wakeup;
