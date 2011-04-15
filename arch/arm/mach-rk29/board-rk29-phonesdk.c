@@ -1231,41 +1231,42 @@ struct wm831x_pdata wm831x_platdata = {
 #define 	RK29_GPS_POWER_PIN 		RK29_PIN6_PB2
 #define 	RK29_GPS_RESET_PIN	  	RK29_PIN6_PC1
 
-static int gps_open =0;
-
 int rk29_gps_power_up(void)
 {	
-	gps_open = 1;	
 	printk("%s \n", __FUNCTION__);  
-       gpio_request(RK29_GPS_POWER_PIN, NULL);    
+
+    gpio_request(RK29_GPS_POWER_PIN, NULL);    
 	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_HIGH);	
-	gpio_request(RK29_GPS_RESET_PIN, NULL);        
-	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_LOW);	  
-	rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
-	rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN); 	
-	mdelay(100);	
-	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_HIGH);		
+
 	return 0;
 }
 
 int rk29_gps_power_down(void)
 {	
-	gps_open =0;	
 	printk("%s \n", __FUNCTION__);	
+
 	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_LOW);		
-	mdelay(100);	  
-	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_LOW);	//uart1	
+
 	return 0;
 }
 
+int rk29_gps_reset_set(int level)
+{
+	gpio_request(RK29_GPS_RESET_PIN, NULL);
+	if (level)
+		gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_HIGH);
+	else
+		gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_LOW);
+
+	return 0;
+}
 
 struct rk29_gps_data rk29_gps_info = {	
 	.power_up = rk29_gps_power_up,	
 	.power_down = rk29_gps_power_down,	
+	.reset = rk29_gps_reset_set,
 	.uart_id = 3,
-	.powerpin = RK29_GPS_POWER_PIN,
-	.powerflag = 1,
-	};
+};
 
 struct platform_device rk29_device_gps = {
 	.name = "rk29_gps",
@@ -1392,7 +1393,7 @@ struct wm8994_pdata wm8994_platdata = {
 #define HEADSET_GPIO RK29_PIN4_PD2
 struct rk2818_headset_data rk2818_headset_info = {
 	.gpio		= HEADSET_GPIO,
-	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ÉÏÉýÑØ	IRQF_TRIGGER_FALLING -- ÏÂ½µÑØ
+	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ??????	IRQF_TRIGGER_FALLING -- ?Â½???
 	.headset_in_type= HEADSET_IN_HIGH,
 };
 
@@ -2614,6 +2615,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_HEADSET_DET
     &rk28_device_headset,
 #endif
+#ifdef CONFIG_RK29_GPS
+	&rk29_device_gps,
+#endif
 };
 
 #ifdef CONFIG_RK29_VMAC
@@ -2772,7 +2776,7 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
  * author: hhb@rock-chips.com
  *****************************************************************************************/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //ä¸­æ–­è„?#define DEBOUNCE_REPTIME  3
+#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //ä¸­æ–­???#define DEBOUNCE_REPTIME  3
 
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
