@@ -666,9 +666,10 @@ static int lme2510_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	else {
 		deb_info(1, "STM Steam Off");
 		/* mutex is here only to avoid collision with I2C */
-		ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+		if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
+			return -EAGAIN;
 
-		ret |= lme2510_usb_talk(adap->dev, clear_reg_3,
+		ret = lme2510_usb_talk(adap->dev, clear_reg_3,
 				sizeof(clear_reg_3), rbuf, rlen);
 		st->stream_on = 0;
 		st->i2c_talk_onoff = 1;
@@ -1099,12 +1100,13 @@ static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
 	static u8 rbuf[1];
 	int ret, len = 3, rlen = 1;
 
-	ret = mutex_lock_interruptible(&d->i2c_mutex);
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
 
 	if (onoff)
-		ret |= lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
+		ret = lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
 	else
-		ret |= lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
+		ret = lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
 
 	st->i2c_talk_onoff = 1;
 
