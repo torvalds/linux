@@ -800,7 +800,6 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 
 static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	const struct ata_port_info *ppi[] = { &inic_port_info, NULL };
 	struct ata_host *host;
 	struct inic_host_priv *hpriv;
@@ -808,8 +807,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int mmio_bar;
 	int i, rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* alloc host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, NR_PORTS);

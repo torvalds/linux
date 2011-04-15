@@ -732,7 +732,6 @@ static bool sil_broken_system_poweroff(struct pci_dev *pdev)
 
 static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	int board_id = ent->driver_data;
 	struct ata_port_info pi = sil_port_info[board_id];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
@@ -741,8 +740,7 @@ static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int n_ports, rc;
 	unsigned int i;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* allocate host */
 	n_ports = 2;

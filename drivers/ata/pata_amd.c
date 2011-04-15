@@ -530,14 +530,12 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	};
 	const struct ata_port_info *ppi[] = { NULL, NULL };
-	static int printed_version;
 	int type = id->driver_data;
 	void *hpriv = NULL;
 	u8 fifo;
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)

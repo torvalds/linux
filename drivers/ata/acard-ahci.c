@@ -403,7 +403,6 @@ static int acard_ahci_port_start(struct ata_port *ap)
 
 static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	unsigned int board_id = ent->driver_data;
 	struct ata_port_info pi = acard_ahci_port_info[board_id];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
@@ -416,8 +415,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 	WARN_ON((int)ATA_MAX_QUEUE > AHCI_MAX_CMDS);
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* acquire resources */
 	rc = pcim_enable_device(pdev);

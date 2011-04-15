@@ -2353,7 +2353,6 @@ static irqreturn_t nv_swncq_interrupt(int irq, void *dev_instance)
 
 static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct nv_pi_priv *ipriv;
 	struct ata_host *host;
@@ -2370,8 +2369,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (pci_resource_start(pdev, bar) == 0)
 			return -ENODEV;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)

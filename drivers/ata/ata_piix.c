@@ -1562,7 +1562,6 @@ static bool piix_broken_system_poweroff(struct pci_dev *pdev)
 static int __devinit piix_init_one(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
-	static int printed_version;
 	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];
 	const struct ata_port_info *ppi[] = { &port_info[0], &port_info[1] };
@@ -1572,9 +1571,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 	struct piix_host_priv *hpriv;
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			   "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* no hotplugging support for later devices (FIXME) */
 	if (!in_module_init && ent->driver_data >= ich5_sata)

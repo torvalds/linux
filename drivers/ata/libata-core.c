@@ -6647,6 +6647,12 @@ int ata_dev_printk(const struct ata_device *dev, const char *level,
 }
 EXPORT_SYMBOL(ata_dev_printk);
 
+void ata_print_version(const struct device *dev, const char *version)
+{
+	dev_printk(KERN_DEBUG, dev, "version %s\n", version);
+}
+EXPORT_SYMBOL(ata_print_version);
+
 /*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is

@@ -74,6 +74,16 @@
 
 #define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 
+#define ata_print_version_once(dev, version)			\
+({								\
+	static bool __print_once;				\
+								\
+	if (!__print_once) {					\
+		__print_once = true;				\
+		ata_print_version(dev, version);		\
+	}							\
+})
+
 /* NEW: debug levels */
 #define HAVE_LIBATA_MSG 1
 
@@ -1286,6 +1296,8 @@ int ata_dev_printk(const struct ata_device *dev, const char *level,
 	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_DEBUG, fmt, ##__VA_ARGS__)
+
+void ata_print_version(const struct device *dev, const char *version);
 
 /*
  * ata_eh_info helpers

@@ -4018,7 +4018,6 @@ static void mv_conf_mbus_windows(struct mv_host_priv *hpriv,
  */
 static int mv_platform_probe(struct platform_device *pdev)
 {
-	static int printed_version;
 	const struct mv_sata_platform_data *mv_platform_data;
 	const struct ata_port_info *ppi[] =
 	    { &mv_port_info[chip_soc], NULL };
@@ -4027,8 +4026,7 @@ static int mv_platform_probe(struct platform_device *pdev)
 	struct resource *res;
 	int n_ports, rc;
 
-	if (!printed_version++)
-		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/*
 	 * Simple resource validation ..
@@ -4285,15 +4283,13 @@ static void mv_print_info(struct ata_host *host)
 static int mv_pci_init_one(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
-	static int printed_version;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
 	const struct ata_port_info *ppi[] = { &mv_port_info[board_idx], NULL };
 	struct ata_host *host;
 	struct mv_host_priv *hpriv;
 	int n_ports, port, rc;
 
-	if (!printed_version++)
-		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* allocate host */
 	n_ports = mv_get_hc_count(ppi[0]->flags) * MV_PORTS_PER_HC;

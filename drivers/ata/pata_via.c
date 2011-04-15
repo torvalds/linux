@@ -551,14 +551,12 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct pci_dev *isa;
 	const struct via_isa_bridge *config;
-	static int printed_version;
 	u8 enable;
 	u32 timing;
 	unsigned long flags = id->driver_data;
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)

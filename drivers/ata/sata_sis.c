@@ -193,7 +193,6 @@ static int sis_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 
 static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	struct ata_port_info pi = sis_port_info;
 	const struct ata_port_info *ppi[] = { &pi, &pi };
 	struct ata_host *host;
@@ -202,8 +201,7 @@ static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 port2_start = 0x20;
 	int i, rc;
 
-	if (!printed_version++)
-		dev_info(&pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
