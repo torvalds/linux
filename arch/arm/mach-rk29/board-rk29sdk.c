@@ -1210,7 +1210,8 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK29_PIN2_PA2 // INVALID_GPIO
+	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
+	.enable_sd_wakeup = 0,
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
