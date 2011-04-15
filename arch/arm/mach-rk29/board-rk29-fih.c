@@ -793,8 +793,20 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		return -EIO;
 	}
 
-#if 0
 	printk(KERN_INFO "TPS65910 Set default voltage.\n");
+#if 1
+	/* VGIG1 Set the default voltage: 2700 mV */
+	val = 0x01;
+	val |= (0x03 << 2);
+	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDIG1);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDIG1);
+		return -EIO;
+	}
+#endif
+
+#if 0
 	/* VDD1 Set the default voltage: 1150 mV(47)*/
 	val = 47;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1_OP);
@@ -1913,6 +1925,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART3_RK29
 	&rk29_device_uart3,
 #endif
+
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
 #endif
