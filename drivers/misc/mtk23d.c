@@ -115,7 +115,7 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 
 	int ret = 0;
 
-	gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+	//gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH); // phc
 	
 	gpio_direction_input(pdata->bp_statue);
 	
@@ -129,11 +129,19 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	
+	mdelay(10);
+	gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
 	mdelay(2000);
 	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
 	
 	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
+	
+	#if 1 // phc
+	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN); 
+	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N); 	
+	#endif
 	
 	//INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
 	device_init_wakeup(&pdev, 1);
@@ -177,6 +185,24 @@ static int mtk23d_probe(struct platform_device *pdev)
 	
 	MODEMDBG("mtk23d_probe\n");
 
+#if 1	
+	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_GPIO1B7); 			
+	gpio_request(RK29_PIN1_PB7, NULL);
+	gpio_direction_output(RK29_PIN1_PB7,GPIO_LOW);
+	
+	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_GPIO1B6); 		
+	gpio_request(RK29_PIN1_PB6, NULL);
+	gpio_direction_output(RK29_PIN1_PB6,GPIO_LOW);	
+	
+	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1); 			
+	gpio_request(RK29_PIN1_PC1, NULL);
+	gpio_direction_output(RK29_PIN1_PC1,GPIO_LOW);
+	
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0); 		
+	gpio_request(RK29_PIN1_PC0, NULL);
+	gpio_direction_output(RK29_PIN1_PC0,GPIO_LOW);		
+#endif
+
 	mt6223d_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(NULL == mt6223d_data)
 	{
@@ -215,8 +241,17 @@ static int mtk23d_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	
-#if 0
-	gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+#if 1 // phc
+	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
+	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
+	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
+	mdelay(100);
+	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
+#endif	
+	
+#if 0 
+	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
 	
 	gpio_direction_input(pdata->bp_statue);
 	
