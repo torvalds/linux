@@ -1083,7 +1083,7 @@ struct gfar_private {
 	struct device_node *phy_node;
 	struct device_node *tbi_node;
 	u32 device_flags;
-	unsigned char rx_csum_enable:1,
+	unsigned char
 		extended_hash:1,
 		bd_stash_en:1,
 		rx_filer_enable:1,
@@ -1153,6 +1153,7 @@ extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 extern void gfar_configure_coalescing(struct gfar_private *priv,
 		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
+int gfar_set_features(struct net_device *dev, u32 features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 
