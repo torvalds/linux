@@ -1465,7 +1465,7 @@ static struct platform_device rk29_device_camera = {
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
 #define PWM_GPIO RK29_PIN1_PB5
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 //#define LCD_DISP_ON_PIN
 
@@ -1622,6 +1622,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+	.detect_irq = RK29_PIN2_PA2 // INVALID_GPIO
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -1725,18 +1726,20 @@ static int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
-                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+                gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
                 if (!rk29sdk_bt_power_state){
-                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
                         mdelay(100);
                         pr_info("wifi shut off power\n");
                 }else
                 {
                         pr_info("wifi shouldn't shut off power, bt is using it!\n");
                 }
+                gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
 
         }
 
@@ -1910,7 +1913,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART3_RK29
 	&rk29_device_uart3,
 #endif
-
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
 #endif
