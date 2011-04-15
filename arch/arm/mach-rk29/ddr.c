@@ -1121,7 +1121,7 @@ static int __init ddr_probe(void)
                  ((capability<<value)>>20));
 
     value = ddr_change_freq(DDR_FREQ);
-    ddr_print("init success!!! freq=%dMHz\n", value);
+    ddr_print("init success!!! freq=%dMHz\n", DDR_FREQ);
     ddr_print("CSR:0x%x, RSLR0:0x%x, RSLR1:0x%x, RDGR0:0x%x, RDGR1:0x%x\n", 
                         pDDR_Reg->CSR, 
                         pDDR_Reg->RSLR[0], pDDR_Reg->RSLR[1], 
