@@ -428,7 +428,7 @@ enum sci_status scic_sds_port_complete_io(
 	struct scic_sds_remote_device *the_device,
 	struct scic_sds_request *the_io_request);
 
-enum sci_sas_link_rate scic_sds_port_get_max_allowed_speed(
+enum sas_linkrate scic_sds_port_get_max_allowed_speed(
 	struct scic_sds_port *this_port);
 
 void scic_sds_port_broadcast_change_received(

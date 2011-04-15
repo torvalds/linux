@@ -256,7 +256,7 @@ enum sci_status scic_remote_device_reset_complete(
 }
 
 
-enum sci_sas_link_rate scic_remote_device_get_connection_rate(
+enum sas_linkrate scic_remote_device_get_connection_rate(
 	struct scic_sds_remote_device *sci_dev)
 {
 	return sci_dev->connection_rate;

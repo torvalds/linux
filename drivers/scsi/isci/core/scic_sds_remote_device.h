@@ -59,6 +59,7 @@
 #include "intel_sas.h"
 #include "scu_remote_node_context.h"
 #include "scic_sds_remote_node_context.h"
+#include <scsi/libsas.h>
 
 /**
  * enum scic_sds_remote_device_states - This enumeration depicts all the states
@@ -260,7 +261,7 @@ struct scic_sds_remote_device {
 	 * This field is the programmed connection rate for this remote device.  It is
 	 * used to program the TC with the maximum allowed connection rate.
 	 */
-	enum sci_sas_link_rate connection_rate;
+	enum sas_linkrate connection_rate;
 
 	/**
 	 * This field contains the allowed target protocols for this remote device.

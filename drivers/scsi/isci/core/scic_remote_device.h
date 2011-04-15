@@ -254,7 +254,7 @@ enum sci_status scic_remote_device_reset_complete(
  *
  * Return the link rate at which we transfer for the supplied remote device.
  */
-enum sci_sas_link_rate scic_remote_device_get_connection_rate(
+enum sas_linkrate scic_remote_device_get_connection_rate(
 	struct scic_sds_remote_device *remote_device);
 
 /**

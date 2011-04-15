@@ -180,20 +180,6 @@ struct sas_capabilities {
 };
 
 /**
- * enum _SCI_SAS_LINK_RATE - This enumeration depicts the SAS specification
- *    defined link speeds.
- *
- *
- */
-enum sci_sas_link_rate {
-	SCI_SAS_NO_LINK_RATE = 0,
-	SCI_SATA_SPINUP_HOLD = 0x3,
-	SCI_SAS_150_GB = 0x8,
-	SCI_SAS_300_GB = 0x9,
-	SCI_SAS_600_GB = 0xA
-};
-
-/**
  * enum _SCI_SAS_TASK_ATTRIBUTE - This enumeration depicts the SAM/SAS
  *    specification defined task attribute values for a command information
  *    unit.

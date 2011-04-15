@@ -684,7 +684,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 
 	sci_port->active_phy_mask &= ~(1 << sci_phy->phy_index);
 
-	sci_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
+	sci_phy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 
 	/* Re-assign the phy back to the LP as if it were a narrow port */
 	writel(sci_phy->phy_index,
@@ -977,12 +977,12 @@ static void scic_sds_port_update_viit_entry(struct scic_sds_port *this_port)
  * This method returns the maximum negotiated speed of the slowest phy in the
  * port.
  */
-enum sci_sas_link_rate scic_sds_port_get_max_allowed_speed(
+enum sas_linkrate scic_sds_port_get_max_allowed_speed(
 	struct scic_sds_port *this_port)
 {
-	u16 index             = 0;
-	enum sci_sas_link_rate max_allowed_speed = SCI_SAS_600_GB;
-	struct scic_sds_phy *phy               = NULL;
+	u16 index;
+	enum sas_linkrate max_allowed_speed = SAS_LINK_RATE_6_0_GBPS;
+	struct scic_sds_phy *phy = NULL;
 
 	/*
 	 * Loop through all of the phys in this port and find the phy with the

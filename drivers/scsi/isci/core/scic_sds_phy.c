@@ -696,7 +696,7 @@ static void scic_sds_phy_start_sata_link_training(
  */
 static void scic_sds_phy_complete_link_training(
 	struct scic_sds_phy *sci_phy,
-	enum sci_sas_link_rate max_link_rate,
+	enum sas_linkrate max_link_rate,
 	u32 next_state)
 {
 	sci_phy->max_negotiated_speed = max_link_rate;
@@ -808,21 +808,21 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_phy_speed_event_
 	case SCU_EVENT_SAS_15:
 	case SCU_EVENT_SAS_15_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SCI_SAS_150_GB, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
+			this_phy, SAS_LINK_RATE_1_5_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
 			);
 		break;
 
 	case SCU_EVENT_SAS_30:
 	case SCU_EVENT_SAS_30_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SCI_SAS_300_GB, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
+			this_phy, SAS_LINK_RATE_3_0_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
 			);
 		break;
 
 	case SCU_EVENT_SAS_60:
 	case SCU_EVENT_SAS_60_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SCI_SAS_600_GB, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
+			this_phy, SAS_LINK_RATE_6_0_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
 			);
 		break;
 
@@ -1082,7 +1082,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
 	case SCU_EVENT_SATA_15_SSC:
 		scic_sds_phy_complete_link_training(
 			this_phy,
-			SCI_SAS_150_GB,
+			SAS_LINK_RATE_1_5_GBPS,
 			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
 			);
 		break;
@@ -1091,7 +1091,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
 	case SCU_EVENT_SATA_30_SSC:
 		scic_sds_phy_complete_link_training(
 			this_phy,
-			SCI_SAS_300_GB,
+			SAS_LINK_RATE_3_0_GBPS,
 			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
 			);
 		break;
@@ -1100,7 +1100,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
 	case SCU_EVENT_SATA_60_SSC:
 		scic_sds_phy_complete_link_training(
 			this_phy,
-			SCI_SAS_600_GB,
+			SAS_LINK_RATE_6_0_GBPS,
 			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
 			);
 		break;
@@ -2439,7 +2439,7 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 	sci_phy->bcn_received_while_port_unassigned = false;
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
 	sci_phy->link_layer_registers = NULL;
-	sci_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
+	sci_phy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 	sci_phy->sata_timeout_timer = NULL;
 
 	/* Clear out the identification buffer data */

@@ -60,6 +60,7 @@
 #include "intel_sas.h"
 #include "scu_registers.h"
 #include "sci_base_state_machine.h"
+#include <scsi/libsas.h>
 
 struct scic_sds_port;
 /**
@@ -243,7 +244,7 @@ struct scic_sds_phy {
 	 * This field indicates whether the phy supports 1.5 Gb/s, 3.0 Gb/s,
 	 * or 6.0 Gb/s operation.
 	 */
-	enum sci_sas_link_rate max_negotiated_speed;
+	enum sas_linkrate max_negotiated_speed;
 
 	/**
 	 * This member specifies the protocol being utilized on this phy.  This

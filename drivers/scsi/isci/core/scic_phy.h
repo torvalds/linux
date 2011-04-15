@@ -68,6 +68,7 @@
 
 #include "intel_sata.h"
 #include "intel_sas.h"
+#include <scsi/libsas.h>
 
 struct scic_sds_phy;
 struct scic_sds_port;
@@ -93,7 +94,7 @@ struct scic_phy_properties {
 	 * This field specifies the link rate at which the phy is
 	 * currently operating.
 	 */
-	enum sci_sas_link_rate negotiated_link_rate;
+	enum sas_linkrate negotiated_link_rate;
 
 	/**
 	 * This field indicates the protocols supported by the phy.
