@@ -108,7 +108,7 @@ static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
 	result.tm_year -= 70;
 	result.tm_mday -= 1;
 	res = scnprintf(buf, sizeof(buf),
-		"years  - %d\nmonths - %d\ndays   - %d\nclock  - %d:%d:%d\n\n",
+		"years  - %ld\nmonths - %d\ndays   - %d\nclock  - %d:%d:%d\n\n",
 			result.tm_year, result.tm_mon, result.tm_mday,
 			result.tm_hour, result.tm_min, result.tm_sec);
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
