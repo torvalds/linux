@@ -40,6 +40,8 @@ enum dss_feat_id {
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV	= 1 << 11,
 	FEAT_LCD_CLK_SRC	= 1 << 12,
+	/* DSI-PLL power command 0x3 is not working */
+	FEAT_DSI_PLL_PWR_BUG	= 1 << 13,
 };
 
 /* DSS register field id */

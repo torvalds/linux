@@ -1059,6 +1059,11 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 {
 	int t = 0;
 
+	/* DSI-PLL power command 0x3 is not working */
+	if (dss_has_feature(FEAT_DSI_PLL_PWR_BUG) &&
+			state == DSI_PLL_POWER_ON_DIV)
+		state = DSI_PLL_POWER_ON_ALL;
+
 	REG_FLD_MOD(DSI_CLK_CTRL, state, 31, 30);	/* PLL_PWR_CMD */
 
 	/* PLL_PWR_STATUS */
