@@ -280,6 +280,9 @@ static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
  * @irq_bus_sync_unlock:function to sync and unlock slow bus (i2c) chips
  * @irq_cpu_online:	configure an interrupt source for a secondary CPU
  * @irq_cpu_offline:	un-configure an interrupt source for a secondary CPU
+ * @irq_suspend:	function called from core code on suspend once per chip
+ * @irq_resume:		function called from core code on resume once per chip
+ * @irq_pm_shutdown:	function called from core code on shutdown once per chip
  * @irq_print_chip:	optional to print special chip info in show_interrupts
  * @flags:		chip specific flags
  *
@@ -308,6 +311,10 @@ struct irq_chip {
 
 	void		(*irq_cpu_online)(struct irq_data *data);
 	void		(*irq_cpu_offline)(struct irq_data *data);
+
+	void		(*irq_suspend)(struct irq_data *data);
+	void		(*irq_resume)(struct irq_data *data);
+	void		(*irq_pm_shutdown)(struct irq_data *data);
 
 	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
 
@@ -626,6 +633,7 @@ struct irq_chip_type {
  * @wake_active:	Interrupt is marked as an wakeup from suspend source
  * @num_ct:		Number of available irq_chip_type instances (usually 1)
  * @private:		Private data for non generic chip callbacks
+ * @list:		List head for keeping track of instances
  * @chip_types:		Array of interrupt irq_chip_types
  *
  * Note, that irq_chip_generic can have multiple irq_chip_type
@@ -646,6 +654,7 @@ struct irq_chip_generic {
 	u32			wake_active;
 	unsigned int		num_ct;
 	void			*private;
+	struct list_head	list;
 	struct irq_chip_type	chip_types[0];
 };
 
@@ -680,6 +689,8 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			    enum irq_gc_flags flags, unsigned int clr,
 			    unsigned int set);
 int irq_setup_alt_chip(struct irq_data *d, unsigned int type);
+void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
+			     unsigned int clr, unsigned int set);
 
 static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
 {

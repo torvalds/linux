@@ -8,8 +8,12 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
+#include <linux/syscore_ops.h>
 
 #include "internals.h"
+
+static LIST_HEAD(gc_list);
+static DEFINE_RAW_SPINLOCK(gc_lock);
 
 static inline struct irq_chip_regs *cur_regs(struct irq_data *d)
 {
@@ -219,6 +223,10 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 	struct irq_chip_type *ct = gc->chip_types;
 	unsigned int i;
 
+	raw_spin_lock(&gc_lock);
+	list_add_tail(&gc->list, &gc_list);
+	raw_spin_unlock(&gc_lock);
+
 	/* Init mask cache ? */
 	if (flags & IRQ_GC_INIT_MASK_CACHE)
 		gc->mask_cache = irq_reg_readl(gc->reg_base + ct->regs.mask);
@@ -259,3 +267,88 @@ int irq_setup_alt_chip(struct irq_data *d, unsigned int type)
 	}
 	return -EINVAL;
 }
+
+/**
+ * irq_remove_generic_chip - Remove a chip
+ * @gc:		Generic irq chip holding all data
+ * @msk:	Bitmask holding the irqs to initialize relative to gc->irq_base
+ * @clr:	IRQ_* bits to clear
+ * @set:	IRQ_* bits to set
+ *
+ * Remove up to 32 interrupts starting from gc->irq_base.
+ */
+void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
+			     unsigned int clr, unsigned int set)
+{
+	unsigned int i = gc->irq_base;
+
+	raw_spin_lock(&gc_lock);
+	list_del(&gc->list);
+	raw_spin_unlock(&gc_lock);
+
+	for (; msk; msk >>= 1, i++) {
+		if (!msk & 0x01)
+			continue;
+
+		/* Remove handler first. That will mask the irq line */
+		irq_set_handler(i, NULL);
+		irq_set_chip(i, &no_irq_chip);
+		irq_set_chip_data(i, NULL);
+		irq_modify_status(i, clr, set);
+	}
+}
+
+#ifdef CONFIG_PM
+static int irq_gc_suspend(void)
+{
+	struct irq_chip_generic *gc;
+
+	list_for_each_entry(gc, &gc_list, list) {
+		struct irq_chip_type *ct = gc->chip_types;
+
+		if (ct->chip.irq_suspend)
+			ct->chip.irq_suspend(irq_get_irq_data(gc->irq_base));
+	}
+	return 0;
+}
+
+static void irq_gc_resume(void)
+{
+	struct irq_chip_generic *gc;
+
+	list_for_each_entry(gc, &gc_list, list) {
+		struct irq_chip_type *ct = gc->chip_types;
+
+		if (ct->chip.irq_resume)
+			ct->chip.irq_resume(irq_get_irq_data(gc->irq_base));
+	}
+}
+#else
+#define irq_gc_suspend NULL
+#define irq_gc_resume NULL
+#endif
+
+static void irq_gc_shutdown(void)
+{
+	struct irq_chip_generic *gc;
+
+	list_for_each_entry(gc, &gc_list, list) {
+		struct irq_chip_type *ct = gc->chip_types;
+
+		if (ct->chip.irq_pm_shutdown)
+			ct->chip.irq_pm_shutdown(irq_get_irq_data(gc->irq_base));
+	}
+}
+
+static struct syscore_ops irq_gc_syscore_ops = {
+	.suspend = irq_gc_suspend,
+	.resume = irq_gc_resume,
+	.shutdown = irq_gc_shutdown,
+};
+
+static int __init irq_gc_init_ops(void)
+{
+	register_syscore_ops(&irq_gc_syscore_ops);
+	return 0;
+}
+device_initcall(irq_gc_init_ops);
