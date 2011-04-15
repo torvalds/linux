@@ -238,6 +238,8 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	} else if (flags & FS_COMPR_FL) {
 		ip->flags |= BTRFS_INODE_COMPRESS;
 		ip->flags &= ~BTRFS_INODE_NOCOMPRESS;
+	} else {
+		ip->flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
 	}
 
 	trans = btrfs_join_transaction(root, 1);
