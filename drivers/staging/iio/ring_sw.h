@@ -93,17 +93,17 @@ int iio_read_last_from_sw_rb(struct iio_ring_buffer *r, u8 *data);
 int iio_store_to_sw_rb(struct iio_ring_buffer *r, u8 *data, s64 timestamp);
 
 /**
- * iio_rip_sw_rb() - attempt to read data from the ring buffer
+ * iio_read_first_n_sw_rb() - attempt to read data from the ring buffer
  * @r:			ring buffer instance
- * @count:		number of datum's to try and read
+ * @n:			number of datum's to try and read
  * @buf:		userspace buffer into which data is copied
  * @dead_offset:	how much of the stored data was possibly invalidated by
  *			the end of the copy.
  **/
-int iio_rip_sw_rb(struct iio_ring_buffer *r,
-		  size_t count,
-		  char __user *buf,
-		  int *dead_offset);
+int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
+			   size_t n,
+			   char __user *buf,
+			   int *dead_offset);
 
 /**
  * iio_request_update_sw_rb() - update params if update needed
@@ -161,7 +161,7 @@ static inline void iio_ring_sw_register_funcs(struct iio_ring_access_funcs *ra)
 
 	ra->store_to = &iio_store_to_sw_rb;
 	ra->read_last = &iio_read_last_from_sw_rb;
-	ra->rip_lots = &iio_rip_sw_rb;
+	ra->read_first_n = &iio_read_first_n_sw_rb;
 
 	ra->mark_param_change = &iio_mark_update_needed_sw_rb;
 	ra->request_update = &iio_request_update_sw_rb;

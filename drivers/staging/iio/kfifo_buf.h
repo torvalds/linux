@@ -21,10 +21,10 @@ void iio_mark_kfifo_in_use(struct iio_ring_buffer *r);
 void iio_unmark_kfifo_in_use(struct iio_ring_buffer *r);
 
 int iio_store_to_kfifo(struct iio_ring_buffer *r, u8 *data, s64 timestamp);
-int iio_rip_kfifo(struct iio_ring_buffer *r,
-		size_t count,
-		char __user *buf,
-		int *dead_offset);
+int iio_read_first_n_kfifo(struct iio_ring_buffer *r,
+			   size_t n,
+			   char __user *buf,
+			   int *dead_offset);
 
 int iio_request_update_kfifo(struct iio_ring_buffer *r);
 int iio_mark_update_needed_kfifo(struct iio_ring_buffer *r);
@@ -40,7 +40,7 @@ static inline void iio_kfifo_register_funcs(struct iio_ring_access_funcs *ra)
 	ra->unmark_in_use = &iio_unmark_kfifo_in_use;
 
 	ra->store_to = &iio_store_to_kfifo;
-	ra->rip_lots = &iio_rip_kfifo;
+	ra->read_first_n = &iio_read_first_n_kfifo;
 
 	ra->mark_param_change = &iio_mark_update_needed_kfifo;
 	ra->request_update = &iio_request_update_kfifo;

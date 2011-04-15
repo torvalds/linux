@@ -35,7 +35,7 @@
  */
 
 /**
- * sca3000_rip_hw_rb() - main ring access function, pulls data from ring
+ * sca3000_read_first_n_hw_rb() - main ring access, pulls data from ring
  * @r:			the ring
  * @count:		number of samples to try and pull
  * @data:		output the actual samples pulled from the hw ring
@@ -46,8 +46,8 @@
  * can only be inferred approximately from ring buffer events such as 50% full
  * and knowledge of when buffer was last emptied.  This is left to userspace.
  **/
-static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,
-			     size_t count, u8 **data, int *dead_offset)
+static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
+				      size_t count, u8 **data, int *dead_offset)
 {
 	struct iio_hw_ring_buffer *hw_ring = iio_to_hw_ring_buf(r);
 	struct iio_dev *indio_dev = hw_ring->private;
@@ -283,7 +283,7 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
 
 	indio_dev->ring->scan_el_attrs = &sca3000_scan_el_group;
-	indio_dev->ring->access.rip_lots = &sca3000_rip_hw_rb;
+	indio_dev->ring->access.read_first_n = &sca3000_read_first_n_hw_rb;
 	indio_dev->ring->access.get_length = &sca3000_ring_get_length;
 	indio_dev->ring->access.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum;
 

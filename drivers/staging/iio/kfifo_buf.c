@@ -181,16 +181,16 @@ int iio_store_to_kfifo(struct iio_ring_buffer *r, u8 *data, s64 timestamp)
 }
 EXPORT_SYMBOL(iio_store_to_kfifo);
 
-int iio_rip_kfifo(struct iio_ring_buffer *r,
-		size_t count, char __user *buf, int *deadoffset)
+int iio_read_first_n_kfifo(struct iio_ring_buffer *r,
+			   size_t n, char __user *buf, int *deadoffset)
 {
 	int ret, copied;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
 
 	*deadoffset = 0;
-	ret = kfifo_to_user(&kf->kf, buf, r->bytes_per_datum*count, &copied);
+	ret = kfifo_to_user(&kf->kf, buf, r->bytes_per_datum*n, &copied);
 
 	return copied;
 }
-EXPORT_SYMBOL(iio_rip_kfifo);
+EXPORT_SYMBOL(iio_read_first_n_kfifo);
 MODULE_LICENSE("GPL");

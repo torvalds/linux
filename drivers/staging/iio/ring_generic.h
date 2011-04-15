@@ -44,7 +44,7 @@ int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
  * @unmark_in_use:	reduce reference count when no longer using ring buffer
  * @store_to:		actually store stuff to the ring buffer
  * @read_last:		get the last element stored
- * @rip_lots:		try to get a specified number of elements (must exist)
+ * @read_first_n:	try to get a specified number of elements (must exist)
  * @mark_param_change:	notify ring that some relevant parameter has changed
  *			Often this means the underlying storage may need to
  *			change.
@@ -71,10 +71,10 @@ struct iio_ring_access_funcs {
 
 	int (*store_to)(struct iio_ring_buffer *ring, u8 *data, s64 timestamp);
 	int (*read_last)(struct iio_ring_buffer *ring, u8 *data);
-	int (*rip_lots)(struct iio_ring_buffer *ring,
-			size_t count,
-			char __user *buf,
-			int *dead_offset);
+	int (*read_first_n)(struct iio_ring_buffer *ring,
+			    size_t n,
+			    char __user *buf,
+			    int *dead_offset);
 
 	int (*mark_param_change)(struct iio_ring_buffer *ring);
 	int (*request_update)(struct iio_ring_buffer *ring);

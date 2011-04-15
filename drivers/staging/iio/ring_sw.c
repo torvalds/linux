@@ -152,8 +152,8 @@ error_ret:
 	return ret;
 }
 
-int iio_rip_sw_rb(struct iio_ring_buffer *r,
-		  size_t count, char __user *buf, int *dead_offset)
+int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
+			   size_t n, char __user *buf, int *dead_offset)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
@@ -166,15 +166,16 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	 *  read something that is not a whole number of bpds.
 	 * Return an error.
 	 */
-	if (count % ring->buf.bytes_per_datum) {
+	if (n % ring->buf.bytes_per_datum) {
 		ret = -EINVAL;
 		printk(KERN_INFO "Ring buffer read request not whole number of"
 		       "samples: Request bytes %zd, Current bytes per datum %d\n",
-		       count, ring->buf.bytes_per_datum);
+		       n, ring->buf.bytes_per_datum);
 		goto error_ret;
 	}
 	/* Limit size to whole of ring buffer */
-	bytes_to_rip = min((size_t)(ring->buf.bytes_per_datum*ring->buf.length), count);
+	bytes_to_rip = min((size_t)(ring->buf.bytes_per_datum*ring->buf.length),
+			   n);
 
 	data = kmalloc(bytes_to_rip, GFP_KERNEL);
 	if (data == NULL) {
@@ -278,7 +279,7 @@ error_ret:
 
 	return ret;
 }
-EXPORT_SYMBOL(iio_rip_sw_rb);
+EXPORT_SYMBOL(iio_read_first_n_sw_rb);
 
 int iio_store_to_sw_rb(struct iio_ring_buffer *r, u8 *data, s64 timestamp)
 {

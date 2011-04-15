@@ -88,27 +88,27 @@ static int iio_ring_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * iio_ring_rip_outer() - chrdev read for ring buffer access
+ * iio_ring_read_first_n_outer() - chrdev read for ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring _bufer as their first element.
  **/
-static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
-				  size_t count, loff_t *f_ps)
+static ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
+				  size_t n, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
 	int ret, dead_offset;
 
 	/* rip lots must exist. */
-	if (!rb->access.rip_lots)
+	if (!rb->access.read_first_n)
 		return -EINVAL;
-	ret = rb->access.rip_lots(rb, count, buf, &dead_offset);
+	ret = rb->access.read_first_n(rb, n, buf, &dead_offset);
 
 	return ret;
 }
 
 static const struct file_operations iio_ring_fileops = {
-	.read = iio_ring_rip_outer,
+	.read = iio_ring_read_first_n_outer,
 	.release = iio_ring_release,
 	.open = iio_ring_open,
 	.owner = THIS_MODULE,
