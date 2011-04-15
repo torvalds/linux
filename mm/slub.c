@@ -1790,7 +1790,7 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 			  unsigned long addr, struct kmem_cache_cpu *c)
 {
 	void **object;
-	struct page *new;
+	struct page *page;
 #ifdef CONFIG_CMPXCHG_LOCAL
 	unsigned long flags;
 
@@ -1808,28 +1808,30 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 	/* We handle __GFP_ZERO in the caller */
 	gfpflags &= ~__GFP_ZERO;
 
-	if (!c->page)
+	page = c->page;
+	if (!page)
 		goto new_slab;
 
-	slab_lock(c->page);
+	slab_lock(page);
 	if (unlikely(!node_match(c, node)))
 		goto another_slab;
 
 	stat(s, ALLOC_REFILL);
 
 load_freelist:
-	object = c->page->freelist;
+	object = page->freelist;
 	if (unlikely(!object))
 		goto another_slab;
 	if (kmem_cache_debug(s))
 		goto debug;
 
 	c->freelist = get_freepointer(s, object);
-	c->page->inuse = c->page->objects;
-	c->page->freelist = NULL;
-	c->node = page_to_nid(c->page);
+	page->inuse = page->objects;
+	page->freelist = NULL;
+	c->node = page_to_nid(page);
+
 unlock_out:
-	slab_unlock(c->page);
+	slab_unlock(page);
 #ifdef CONFIG_CMPXCHG_LOCAL
 	c->tid = next_tid(c->tid);
 	local_irq_restore(flags);
@@ -1841,9 +1843,9 @@ another_slab:
 	deactivate_slab(s, c);
 
 new_slab:
-	new = get_partial(s, gfpflags, node);
-	if (new) {
-		c->page = new;
+	page = get_partial(s, gfpflags, node);
+	if (page) {
+		c->page = page;
 		stat(s, ALLOC_FROM_PARTIAL);
 		goto load_freelist;
 	}
@@ -1852,19 +1854,20 @@ new_slab:
 	if (gfpflags & __GFP_WAIT)
 		local_irq_enable();
 
-	new = new_slab(s, gfpflags, node);
+	page = new_slab(s, gfpflags, node);
 
 	if (gfpflags & __GFP_WAIT)
 		local_irq_disable();
 
-	if (new) {
+	if (page) {
 		c = __this_cpu_ptr(s->cpu_slab);
 		stat(s, ALLOC_SLAB);
 		if (c->page)
 			flush_slab(s, c);
-		slab_lock(new);
-		__SetPageSlubFrozen(new);
-		c->page = new;
+
+		slab_lock(page);
+		__SetPageSlubFrozen(page);
+		c->page = page;
 		goto load_freelist;
 	}
 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
@@ -1874,11 +1877,11 @@ new_slab:
 #endif
 	return NULL;
 debug:
-	if (!alloc_debug_processing(s, c->page, object, addr))
+	if (!alloc_debug_processing(s, page, object, addr))
 		goto another_slab;
 
-	c->page->inuse++;
-	c->page->freelist = get_freepointer(s, object);
+	page->inuse++;
+	page->freelist = get_freepointer(s, object);
 	c->node = NUMA_NO_NODE;
 	goto unlock_out;
 }
