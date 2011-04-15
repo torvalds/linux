@@ -151,26 +151,21 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
 
-struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
+static struct iio_trigger *iio_trigger_find_by_name(const char *name,
+						    size_t len)
 {
-	struct iio_trigger *trig;
-	bool found = false;
-
-	if (len && name[len - 1] == '\n')
-		len--;
+	struct iio_trigger *trig = NULL, *iter;
 
 	mutex_lock(&iio_trigger_list_lock);
-	list_for_each_entry(trig, &iio_trigger_list, list) {
-		if (strncmp(trig->name, name, len) == 0) {
-			found = true;
+	list_for_each_entry(iter, &iio_trigger_list, list)
+		if (sysfs_streq(iter->name, name)) {
+			trig = iter;
 			break;
 		}
-	}
 	mutex_unlock(&iio_trigger_list_lock);
 
-	return found ? trig : NULL;
+	return trig;
 }
-EXPORT_SYMBOL(iio_trigger_find_by_name);
 
 void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {

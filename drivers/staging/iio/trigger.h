@@ -77,13 +77,6 @@ ssize_t iio_trigger_read_name(struct device *dev,
 					  NULL);
 
 /**
- * iio_trigger_find_by_name() - search global trigger list
- * @name: trigger name to search for
- * @len: trigger name string length to compare
- **/
-struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len);
-
-/**
  * iio_trigger_register() - register a trigger with the IIO core
  * @trig_info:	trigger to be registered
  **/
