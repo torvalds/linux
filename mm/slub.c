@@ -1828,7 +1828,6 @@ load_freelist:
 	c->freelist = get_freepointer(s, object);
 	page->inuse = page->objects;
 	page->freelist = NULL;
-	c->node = page_to_nid(page);
 
 unlock_out:
 	slab_unlock(page);
@@ -1845,8 +1844,10 @@ another_slab:
 new_slab:
 	page = get_partial(s, gfpflags, node);
 	if (page) {
-		c->page = page;
 		stat(s, ALLOC_FROM_PARTIAL);
+load_from_page:
+		c->node = page_to_nid(page);
+		c->page = page;
 		goto load_freelist;
 	}
 
@@ -1867,8 +1868,8 @@ new_slab:
 
 		slab_lock(page);
 		__SetPageSlubFrozen(page);
-		c->page = page;
-		goto load_freelist;
+
+		goto load_from_page;
 	}
 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
 		slab_out_of_memory(s, gfpflags, node);
