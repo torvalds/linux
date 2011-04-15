@@ -241,6 +241,10 @@ int blkif_schedule(void *arg)
 	return 0;
 }
 
+struct seg_buf {
+	unsigned long buf;
+	unsigned int nsec;
+};
 /*
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
@@ -278,6 +282,62 @@ static void fast_flush_area(struct pending_req *req)
 		}
 	}
 }
+static int xen_blk_map_buf(struct blkif_request *req, struct pending_req *pending_req,
+			   struct seg_buf seg[])
+{
+	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	int i;
+	int nseg = req->nr_segments;
+	int ret = 0;
+	/* Fill out preq.nr_sects with proper amount of sectors, and setup
+	 * assign map[..] with the PFN of the page in our domain with the
+	 * corresponding grant reference for each page.
+	 */
+	for (i = 0; i < nseg; i++) {
+		uint32_t flags;
+
+		flags = GNTMAP_host_map;
+		if (pending_req->operation != BLKIF_OP_READ)
+			flags |= GNTMAP_readonly;
+		gnttab_set_map_op(&map[i], vaddr(pending_req, i), flags,
+				  req->u.rw.seg[i].gref, pending_req->blkif->domid);
+	}
+
+	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
+	BUG_ON(ret);
+
+	/* Now swizzel the MFN in our domain with the MFN from the other domain
+	 * so that when we access vaddr(pending_req,i) it has the contents of
+	 * the page from the other domain.
+	 */
+	for (i = 0; i < nseg; i++) {
+		if (unlikely(map[i].status != 0)) {
+			DPRINTK("invalid buffer -- could not remap it\n");
+			map[i].handle = BLKBACK_INVALID_HANDLE;
+			ret |= 1;
+		}
+
+		pending_handle(pending_req, i) = map[i].handle;
+
+		if (ret)
+			continue;
+
+		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
+			blkbk->pending_page(pending_req, i), false);
+		if (ret) {
+			printk(KERN_ALERT "Failed to install M2P override for"\
+				" %lx (ret: %d)\n", (unsigned long)
+				map[i].dev_bus_addr, ret);
+			/* We could switch over to GNTTABOP_copy */
+			continue;
+		}
+
+		seg[i].buf  = map[i].dev_bus_addr |
+			(req->u.rw.seg[i].first_sect << 9);
+	}
+	return ret;
+}
+
 /*
  * Completion callback on the bio's. Called as bh->b_end_io()
  */
@@ -411,15 +471,12 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
 				 struct pending_req *pending_req)
 {
-	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct phys_req preq;
-	struct {
-		unsigned long buf; unsigned int nsec;
-	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct seg_buf seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int nseg;
 	struct bio *bio = NULL;
 	struct bio *biolist[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	int ret, i, nbio = 0;
+	int i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
 	struct request_queue *q;
@@ -444,6 +501,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	if (unlikely(nseg == 0 && operation != WRITE_BARRIER) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		DPRINTK("Bad number of segments in request (%d)\n", nseg);
+		/* Haven't submitted any bio's yet. */
 		goto fail_response;
 	}
 
@@ -456,76 +514,29 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	pending_req->operation = req->operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
-
-	/* Fill out preq.nr_sects with proper amount of sectors, and setup
-	 * assign map[..] with the PFN of the page in our domain with the
-	 * corresponding grant reference for each page.
-	 */
 	for (i = 0; i < nseg; i++) {
-		uint32_t flags;
-
 		seg[i].nsec = req->u.rw.seg[i].last_sect -
 			req->u.rw.seg[i].first_sect + 1;
 		if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
 		    (req->u.rw.seg[i].last_sect < req->u.rw.seg[i].first_sect))
 			goto fail_response;
 		preq.nr_sects += seg[i].nsec;
-
-		flags = GNTMAP_host_map;
-		if (operation != READ)
-			flags |= GNTMAP_readonly;
-		gnttab_set_map_op(&map[i], vaddr(pending_req, i), flags,
-				  req->u.rw.seg[i].gref, blkif->domid);
 	}
-
-	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
-	BUG_ON(ret);
-
-	/* Now swizzel the MFN in our domain with the MFN from the other domain
-	 * so that when we access vaddr(pending_req,i) it has the contents of
-	 * the page from the other domain.
-	 */
-	for (i = 0; i < nseg; i++) {
-		if (unlikely(map[i].status != 0)) {
-			DPRINTK("invalid buffer -- could not remap it\n");
-			map[i].handle = BLKBACK_INVALID_HANDLE;
-			ret |= 1;
-		}
-
-		pending_handle(pending_req, i) = map[i].handle;
-
-		if (ret)
-			continue;
-
-		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
-			blkbk->pending_page(pending_req, i), false);
-		if (ret) {
-			printk(KERN_ALERT "Failed to install M2P override for"\
-				" %lx (ret: %d)\n", (unsigned long)
-				map[i].dev_bus_addr, ret);
-			/* We could switch over to GNTTABOP_copy */
-			continue;
-		}
-
-		seg[i].buf  = map[i].dev_bus_addr |
-			(req->u.rw.seg[i].first_sect << 9);
-	}
-
-	/* If we have failed at this point, we need to undo the M2P override,
-	 * set gnttab_set_unmap_op on all of the grant references and perform
-	 * the hypercall to unmap the grants - that is all done in
-	 * fast_flush_area.
-	 */
-	if (ret)
-		goto fail_flush;
 
 	if (vbd_translate(&preq, blkif, operation) != 0) {
 		DPRINTK("access denied: %s of [%llu,%llu] on dev=%04x\n",
 			operation == READ ? "read" : "write",
 			preq.sector_number,
 			preq.sector_number + preq.nr_sects, preq.dev);
-		goto fail_flush;
+		goto fail_response;
 	}
+	/* If we have failed at this point, we need to undo the M2P override,
+	 * set gnttab_set_unmap_op on all of the grant references and perform
+	 * the hypercall to unmap the grants - that is all done in
+	 * fast_flush_area.
+	 */
+	if (xen_blk_map_buf(req, pending_req, seg))
+		goto fail_flush;
 
 	/* This corresponding blkif_put is done in __end_block_io_op */
 	blkif_get(blkif);
