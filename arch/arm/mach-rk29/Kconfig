@@ -56,12 +56,7 @@ choice DDR_TYPE
 config DDR_TYPE_DDRII
 	bool "DDRII"
 	help
-	  Support for DDRII memory
-
-config DDR_TYPE_LPDDR
-	bool "mobile DDR"
-	help
-	  Support for mobile DDR, MCP device
+	  Spport for DDRII memory
 
 config DDR_TYPE_DDR3_800D
 	bool "DDR3-800 5-5-5"
@@ -127,7 +122,7 @@ config DDR_TYPE_DDR3_2133N
 	bool "DDR3-2133 14-14-14"
 
 config DDR_TYPE_DDR3_DEFAULT
-	bool "DDR3 (Type unknow)"
+	bool "DDR3 Type unknow"
 
 endchoice
 
