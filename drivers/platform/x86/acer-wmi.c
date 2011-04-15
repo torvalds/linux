@@ -961,10 +961,12 @@ static void __init acer_commandline_init(void)
 	 * These will all fail silently if the value given is invalid, or the
 	 * capability isn't available on the given interface
 	 */
-	set_u32(mailled, ACER_CAP_MAILLED);
-	if (!has_type_aa)
+	if (mailled >= 0)
+		set_u32(mailled, ACER_CAP_MAILLED);
+	if (!has_type_aa && threeg >= 0)
 		set_u32(threeg, ACER_CAP_THREEG);
-	set_u32(brightness, ACER_CAP_BRIGHTNESS);
+	if (brightness >= 0)
+		set_u32(brightness, ACER_CAP_BRIGHTNESS);
 }
 
 /*
