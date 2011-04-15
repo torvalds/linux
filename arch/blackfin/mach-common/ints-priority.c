@@ -582,22 +582,20 @@ static void bfin_demux_gpio_block(unsigned int irq)
 	}
 }
 
-static void bfin_demux_gpio_irq(unsigned int inta_irq,
-				struct irq_desc *desc)
+void bfin_demux_gpio_irq(unsigned int inta_irq,
+			 struct irq_desc *desc)
 {
 	unsigned int irq;
 
 	switch (inta_irq) {
 #if defined(BF537_FAMILY)
-	case IRQ_PROG_INTA:
+	case IRQ_PF_INTA_PG_INTA:
 		bfin_demux_gpio_block(IRQ_PF0);
 		irq = IRQ_PG0;
 		break;
-# if !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
-	case IRQ_MAC_RX:
+	case IRQ_PH_INTA_MAC_RX:
 		irq = IRQ_PH0;
 		break;
-# endif
 #elif defined(BF533_FAMILY)
 	case IRQ_PROG_INTA:
 		irq = IRQ_PF0;
@@ -881,8 +879,8 @@ static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 # define bfin_gpio_set_wake NULL
 #endif
 
-static void bfin_demux_gpio_irq(unsigned int inta_irq,
-				struct irq_desc *desc)
+void bfin_demux_gpio_irq(unsigned int inta_irq,
+			 struct irq_desc *desc)
 {
 	u32 bank, pint_val;
 	u32 request, irq;
@@ -1001,11 +999,11 @@ int __init init_arch_irq(void)
 			irq_set_chip(irq, &bfin_internal_irqchip);
 
 		switch (irq) {
-#if defined(CONFIG_BF53x)
+#if defined(BF537_FAMILY)
+		case IRQ_PH_INTA_MAC_RX:
+		case IRQ_PF_INTA_PG_INTA:
+#elif defined(BF533_FAMILY)
 		case IRQ_PROG_INTA:
-# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
-		case IRQ_MAC_RX:
-# endif
 #elif defined(CONFIG_BF54x)
 		case IRQ_PINT0:
 		case IRQ_PINT1:

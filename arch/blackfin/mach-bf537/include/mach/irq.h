@@ -28,8 +28,8 @@
 #define IRQ_UART1_TX		BFIN_IRQ(14)	/* DMA11 Interrupt (UART1 TX) */
 #define IRQ_CAN_RX		BFIN_IRQ(15)	/* CAN Receive Interrupt */
 #define IRQ_CAN_TX		BFIN_IRQ(16)	/* CAN Transmit Interrupt */
-#define IRQ_MAC_RX		BFIN_IRQ(17)	/* DMA1 (Ethernet RX) Interrupt */
-#define IRQ_MAC_TX		BFIN_IRQ(18)	/* DMA2 (Ethernet TX) Interrupt */
+#define IRQ_PH_INTA_MAC_RX	BFIN_IRQ(17)	/* Port H Interrupt A & DMA1 Interrupt (Ethernet RX) */
+#define IRQ_PH_INTB_MAC_TX	BFIN_IRQ(18)	/* Port H Interrupt B & DMA2 Interrupt (Ethernet TX) */
 #define IRQ_TIMER0		BFIN_IRQ(19)	/* Timer 0 */
 #define IRQ_TIMER1		BFIN_IRQ(20)	/* Timer 1 */
 #define IRQ_TIMER2		BFIN_IRQ(21)	/* Timer 2 */
@@ -38,12 +38,11 @@
 #define IRQ_TIMER5		BFIN_IRQ(24)	/* Timer 5 */
 #define IRQ_TIMER6		BFIN_IRQ(25)	/* Timer 6 */
 #define IRQ_TIMER7		BFIN_IRQ(26)	/* Timer 7 */
-#define IRQ_PROG_INTA		BFIN_IRQ(27)	/* PF Ports F&G (PF15:0) Interrupt A */
-#define IRQ_PORTG_INTB		BFIN_IRQ(28)	/* PF Port G (PF15:0) Interrupt B */
+#define IRQ_PF_INTA_PG_INTA	BFIN_IRQ(27)	/* Ports F&G Interrupt A */
+#define IRQ_PORTG_INTB		BFIN_IRQ(28)	/* Port G Interrupt B */
 #define IRQ_MEM_DMA0		BFIN_IRQ(29)	/* (Memory DMA Stream 0) */
 #define IRQ_MEM_DMA1		BFIN_IRQ(30)	/* (Memory DMA Stream 1) */
-#define IRQ_PROG_INTB		BFIN_IRQ(31)	/* PF Ports F (PF15:0) Interrupt B */
-#define IRQ_WATCH		BFIN_IRQ(32)	/* Watch Dog Timer */
+#define IRQ_PF_INTB_WATCH	BFIN_IRQ(31)	/* Watchdog & Port F Interrupt B */
 
 #define SYS_IRQS		39
 
@@ -118,7 +117,27 @@
 #define IRQ_MAC_TXDMAERR	104	/* TX DMA Direction Error Interrupt */
 #define IRQ_MAC_STMDONE		105	/* Station Mgt. Transfer Done Interrupt */
 
-#define NR_MACH_IRQS		(IRQ_MAC_STMDONE + 1)
+#define IRQ_MAC_RX		106	/* DMA1 Interrupt (Ethernet RX) */
+#define IRQ_PORTH_INTA		107	/* Port H Interrupt A */
+
+#if 0 /* No Interrupt B support (yet) */
+#define IRQ_MAC_TX		108	/* DMA2 Interrupt (Ethernet TX) */
+#define IRQ_PORTH_INTB		109	/* Port H Interrupt B */
+#else
+#define IRQ_MAC_TX		IRQ_PH_INTB_MAC_TX
+#endif
+
+#define IRQ_PORTF_INTA		110	/* Port F Interrupt A */
+#define IRQ_PORTG_INTA		111	/* Port G Interrupt A */
+
+#if 0 /* No Interrupt B support (yet) */
+#define IRQ_WATCH		112	/* Watchdog Timer */
+#define IRQ_PORTF_INTB		113	/* Port F Interrupt B */
+#else
+#define IRQ_WATCH		IRQ_PF_INTB_WATCH
+#endif
+
+#define NR_MACH_IRQS		(113 + 1)
 
 /* IAR0 BIT FIELDS */
 #define IRQ_PLL_WAKEUP_POS	0

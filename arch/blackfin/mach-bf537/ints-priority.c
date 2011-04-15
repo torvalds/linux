@@ -14,6 +14,7 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/bfin_sport.h>
 #include <asm/bfin_can.h>
+#include <asm/bfin_dma.h>
 #include <asm/dpmc.h>
 
 void __init program_IAR(void)
@@ -157,6 +158,40 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 
 }
 
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+static int mac_rx_int_mask;
+
+static void bf537_mac_rx_mask_irq(struct irq_data *d)
+{
+	mac_rx_int_mask &= ~(1L << (d->irq - IRQ_MAC_RX));
+	if (!mac_rx_int_mask)
+		bfin_internal_mask_irq(IRQ_PH_INTA_MAC_RX);
+}
+
+static void bf537_mac_rx_unmask_irq(struct irq_data *d)
+{
+	bfin_internal_unmask_irq(IRQ_PH_INTA_MAC_RX);
+	mac_rx_int_mask |= 1L << (d->irq - IRQ_MAC_RX);
+}
+
+static struct irq_chip bf537_mac_rx_irqchip = {
+	.name = "ERROR",
+	.irq_ack = bfin_ack_noop,
+	.irq_mask_ack = bf537_mac_rx_mask_irq,
+	.irq_mask = bf537_mac_rx_mask_irq,
+	.irq_unmask = bf537_mac_rx_unmask_irq,
+};
+
+static void bf537_demux_mac_rx_irq(unsigned int int_irq,
+				   struct irq_desc *desc)
+{
+	if (bfin_read_DMA1_IRQ_STATUS() & (DMA_DONE | DMA_ERR))
+		bfin_handle_irq(IRQ_MAC_RX);
+	else
+		bfin_demux_gpio_irq(int_irq, desc);
+}
+#endif
+
 void __init init_mach_irq(void)
 {
 	int irq;
@@ -172,6 +207,10 @@ void __init init_mach_irq(void)
 					 handle_level_irq);
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	irq_set_chained_handler(IRQ_PH_INTA_MAC_RX, bf537_demux_mac_rx_irq);
+	irq_set_chip_and_handler(IRQ_MAC_RX, &bf537_mac_rx_irqchip, handle_level_irq);
+	irq_set_chip_and_handler(IRQ_PORTH_INTA, &bf537_mac_rx_irqchip, handle_level_irq);
+
 	irq_set_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
 #endif
 }

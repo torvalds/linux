@@ -535,7 +535,7 @@ static const unsigned int sic_iwr_irqs[] = {
 #if defined(BF533_FAMILY)
 	IRQ_PROG_INTB
 #elif defined(BF537_FAMILY)
-	IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX
+	IRQ_PF_INTB_WATCH, IRQ_PORTG_INTB, IRQ_PH_INTB_MAC_TX
 #elif defined(BF538_FAMILY)
 	IRQ_PORTF_INTB
 #elif defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
