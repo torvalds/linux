@@ -813,7 +813,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 		blk_queue_update_dma_pad(sdev->request_queue, 31);
 
 		/* Tell the world about it */
-		ata_dev_printk(dev, KERN_INFO, "OHare alignment limits applied\n");
+		ata_dev_info(dev, "OHare alignment limits applied\n");
 		return 0;
 	}
 
@@ -839,8 +839,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 				      cmd | PCI_COMMAND_INVALIDATE);
 
 		/* Tell the world about it */
-		ata_dev_printk(dev, KERN_INFO,
-			       "K2/Shasta alignment limits applied\n");
+		ata_dev_info(dev, "K2/Shasta alignment limits applied\n");
 	}
 
 	return 0;

@@ -643,8 +643,8 @@ static void sil_dev_config(struct ata_device *dev)
 	    ((ap->flags & SIL_FLAG_MOD15WRITE) &&
 	     (quirks & SIL_QUIRK_MOD15WRITE))) {
 		if (print_info)
-			ata_dev_printk(dev, KERN_INFO, "applying Seagate "
-				       "errata fix (mod15write workaround)\n");
+			ata_dev_info(dev,
+		"applying Seagate errata fix (mod15write workaround)\n");
 		dev->max_sectors = 15;
 		return;
 	}
@@ -652,8 +652,8 @@ static void sil_dev_config(struct ata_device *dev)
 	/* limit to udma5 */
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
 		if (print_info)
-			ata_dev_printk(dev, KERN_INFO, "applying Maxtor "
-				       "errata fix %s\n", model_num);
+			ata_dev_info(dev, "applying Maxtor errata fix %s\n",
+				     model_num);
 		dev->udma_mask &= ATA_UDMA5;
 		return;
 	}

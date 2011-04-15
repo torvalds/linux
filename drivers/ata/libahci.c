@@ -286,10 +286,10 @@ static ssize_t ahci_read_em_buffer(struct device *dev,
 	/* the count should not be larger than PAGE_SIZE */
 	if (count > PAGE_SIZE) {
 		if (printk_ratelimit())
-			ata_port_printk(ap, KERN_WARNING,
-					"EM read buffer size too large: "
-					"buffer size %u, page size %lu\n",
-					hpriv->em_buf_sz, PAGE_SIZE);
+			ata_port_warn(ap,
+				      "EM read buffer size too large: "
+				      "buffer size %u, page size %lu\n",
+				      hpriv->em_buf_sz, PAGE_SIZE);
 		count = PAGE_SIZE;
 	}
 
@@ -1124,8 +1124,8 @@ static void ahci_dev_config(struct ata_device *dev)
 
 	if (hpriv->flags & AHCI_HFLAG_SECT255) {
 		dev->max_sectors = 255;
-		ata_dev_printk(dev, KERN_INFO,
-			       "SB600 AHCI: limiting to 255 sectors per cmd\n");
+		ata_dev_info(dev,
+			     "SB600 AHCI: limiting to 255 sectors per cmd\n");
 	}
 }
 
@@ -1249,8 +1249,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	/* prepare for SRST (AHCI-1.1 10.4.1) */
 	rc = ahci_kick_engine(ap);
 	if (rc && rc != -EOPNOTSUPP)
-		ata_link_printk(link, KERN_WARNING,
-				"failed to reset engine (errno=%d)\n", rc);
+		ata_link_warn(link, "failed to reset engine (errno=%d)\n", rc);
 
 	ata_tf_init(link->device, &tf);
 
@@ -1283,8 +1282,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 		 * be trusted.  Treat device readiness timeout as link
 		 * offline.
 		 */
-		ata_link_printk(link, KERN_INFO,
-				"device not ready, treating as offline\n");
+		ata_link_info(link, "device not ready, treating as offline\n");
 		*class = ATA_DEV_NONE;
 	} else if (rc) {
 		/* link occupied, -ENODEV too is an error */
@@ -1297,7 +1295,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	return 0;
 
  fail:
-	ata_link_printk(link, KERN_ERR, "softreset failed (%s)\n", reason);
+	ata_link_err(link, "softreset failed (%s)\n", reason);
 	return rc;
 }
 
@@ -1966,7 +1964,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 	if (rc == 0)
 		ahci_power_down(ap);
 	else {
-		ata_port_printk(ap, KERN_ERR, "%s (%d)\n", emsg, rc);
+		ata_port_err(ap, "%s (%d)\n", emsg, rc);
 		ahci_start_port(ap);
 	}
 
@@ -2061,7 +2059,7 @@ static void ahci_port_stop(struct ata_port *ap)
 	/* de-initialize port */
 	rc = ahci_deinit_port(ap, &emsg);
 	if (rc)
-		ata_port_printk(ap, KERN_WARNING, "%s (%d)\n", emsg, rc);
+		ata_port_warn(ap, "%s (%d)\n", emsg, rc);
 }
 
 void ahci_print_info(struct ata_host *host, const char *scc_s)
