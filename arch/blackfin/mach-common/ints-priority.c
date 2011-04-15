@@ -567,22 +567,41 @@ static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 # define bfin_gpio_set_wake NULL
 #endif
 
+static void bfin_demux_gpio_block(unsigned int irq)
+{
+	unsigned int gpio, mask;
+
+	gpio = irq_to_gpio(irq);
+	mask = get_gpiop_data(gpio) & get_gpiop_maska(gpio);
+
+	while (mask) {
+		if (mask & 1)
+			bfin_handle_irq(irq);
+		irq++;
+		mask >>= 1;
+	}
+}
+
 static void bfin_demux_gpio_irq(unsigned int inta_irq,
 				struct irq_desc *desc)
 {
-	unsigned int i, gpio, mask, irq, search = 0;
+	unsigned int irq;
 
 	switch (inta_irq) {
-#if defined(CONFIG_BF53x)
+#if defined(BF537_FAMILY)
 	case IRQ_PROG_INTA:
-		irq = IRQ_PF0;
-		search = 1;
+		bfin_demux_gpio_block(IRQ_PF0);
+		irq = IRQ_PG0;
 		break;
-# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
+# if !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
 	case IRQ_MAC_RX:
 		irq = IRQ_PH0;
 		break;
 # endif
+#elif defined(BF533_FAMILY)
+	case IRQ_PROG_INTA:
+		irq = IRQ_PF0;
+		break;
 #elif defined(BF538_FAMILY)
 	case IRQ_PORTF_INTA:
 		irq = IRQ_PF0;
@@ -613,31 +632,7 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 		return;
 	}
 
-	if (search) {
-		for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
-			irq += i;
-
-			mask = get_gpiop_data(i) & get_gpiop_maska(i);
-
-			while (mask) {
-				if (mask & 1)
-					bfin_handle_irq(irq);
-				irq++;
-				mask >>= 1;
-			}
-		}
-	} else {
-			gpio = irq_to_gpio(irq);
-			mask = get_gpiop_data(gpio) & get_gpiop_maska(gpio);
-
-			do {
-				if (mask & 1)
-					bfin_handle_irq(irq);
-				irq++;
-				mask >>= 1;
-			} while (mask);
-	}
-
+	bfin_demux_gpio_block(irq);
 }
 
 #else				/* CONFIG_BF54x */
