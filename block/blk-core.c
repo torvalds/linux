@@ -2671,7 +2671,7 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth)
 		q->unplugged_fn(q);
 }
 
-static void flush_plug_list(struct blk_plug *plug)
+void blk_flush_plug_list(struct blk_plug *plug)
 {
 	struct request_queue *q;
 	unsigned long flags;
@@ -2733,28 +2733,16 @@ static void flush_plug_list(struct blk_plug *plug)
 
 	local_irq_restore(flags);
 }
-
-static void __blk_finish_plug(struct task_struct *tsk, struct blk_plug *plug)
-{
-	flush_plug_list(plug);
-
-	if (plug == tsk->plug)
-		tsk->plug = NULL;
-}
+EXPORT_SYMBOL(blk_flush_plug_list);
 
 void blk_finish_plug(struct blk_plug *plug)
 {
-	if (plug)
-		__blk_finish_plug(current, plug);
+	blk_flush_plug_list(plug);
+
+	if (plug == current->plug)
+		current->plug = NULL;
 }
 EXPORT_SYMBOL(blk_finish_plug);
-
-void __blk_flush_plug(struct task_struct *tsk, struct blk_plug *plug)
-{
-	__blk_finish_plug(tsk, plug);
-	tsk->plug = plug;
-}
-EXPORT_SYMBOL(__blk_flush_plug);
 
 int __init blk_dev_init(void)
 {
