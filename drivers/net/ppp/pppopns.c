@@ -16,11 +16,14 @@
 
 /* This driver handles PPTP data packets between a RAW socket and a PPP channel.
  * The socket is created in the kernel space and connected to the same address
- * of the control socket. To keep things simple, packets are always sent with
- * sequence but without acknowledgement. This driver should work on both IPv4
- * and IPv6. */
+ * of the control socket. Outgoing packets are always sent with sequences but
+ * without acknowledgements. Incoming packets with sequences are reordered
+ * within a sliding window of one second. Currently reordering only happens when
+ * a packet is received. It is done for simplicity since no additional locks or
+ * threads are required. This driver should work on both IPv4 and IPv6. */
 
 #include <linux/module.h>
+#include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
@@ -52,21 +55,35 @@ struct header {
 	__u32	sequence;
 } __attribute__((packed));
 
+struct meta {
+	__u32 sequence;
+	__u32 timestamp;
+};
+
+static inline struct meta *skb_meta(struct sk_buff *skb)
+{
+	return (struct meta *)skb->cb;
+}
+
+/******************************************************************************/
+
 static int pppopns_recv_core(struct sock *sk_raw, struct sk_buff *skb)
 {
 	struct sock *sk = (struct sock *)sk_raw->sk_user_data;
 	struct pppopns_opt *opt = &pppox_sk(sk)->proto.pns;
+	struct meta *meta = skb_meta(skb);
+	__u32 now = jiffies;
 	struct header *hdr;
 
 	/* Skip transport header */
 	skb_pull(skb, skb_transport_header(skb) - skb->data);
 
-	/* Drop the packet if it is too short. */
+	/* Drop the packet if GRE header is missing. */
 	if (skb->len < GRE_HEADER_SIZE)
 		goto drop;
+	hdr = (struct header *)skb->data;
 
 	/* Check the header. */
-	hdr = (struct header *)skb->data;
 	if (hdr->type != PPTP_GRE_TYPE || hdr->call != opt->local ||
 			(hdr->bits & PPTP_GRE_BITS_MASK) != PPTP_GRE_BITS)
 		goto drop;
@@ -81,6 +98,13 @@ static int pppopns_recv_core(struct sock *sk_raw, struct sk_buff *skb)
 	if (skb->len != ntohs(hdr->length))
 		goto drop;
 
+	/* Check the sequence if it is present. */
+	if (hdr->bits & PPTP_GRE_SEQ_BIT) {
+		meta->sequence = ntohl(hdr->sequence);
+		if ((__s32)(meta->sequence - opt->recv_sequence) < 0)
+			goto drop;
+	}
+
 	/* Skip PPP address and control if they are present. */
 	if (skb->len >= 2 && skb->data[0] == PPP_ADDR &&
 			skb->data[1] == PPP_CTRL)
@@ -90,7 +114,53 @@ static int pppopns_recv_core(struct sock *sk_raw, struct sk_buff *skb)
 	if (skb->len >= 1 && skb->data[0] & 1)
 		skb_push(skb, 1)[0] = 0;
 
-	/* Finally, deliver the packet to PPP channel. */
+	/* Drop the packet if PPP protocol is missing. */
+	if (skb->len < 2)
+		goto drop;
+
+	/* Perform reordering if sequencing is enabled. */
+	if (hdr->bits & PPTP_GRE_SEQ_BIT) {
+		struct sk_buff *skb1;
+
+		/* Insert the packet into receive queue in order. */
+		skb_set_owner_r(skb, sk);
+		skb_queue_walk(&sk->sk_receive_queue, skb1) {
+			struct meta *meta1 = skb_meta(skb1);
+			__s32 order = meta->sequence - meta1->sequence;
+			if (order == 0)
+				goto drop;
+			if (order < 0) {
+				meta->timestamp = meta1->timestamp;
+				skb_insert(skb1, skb, &sk->sk_receive_queue);
+				skb = NULL;
+				break;
+			}
+		}
+		if (skb) {
+			meta->timestamp = now;
+			skb_queue_tail(&sk->sk_receive_queue, skb);
+		}
+
+		/* Remove packets from receive queue as long as
+		 * 1. the receive buffer is full,
+		 * 2. they are queued longer than one second, or
+		 * 3. there are no missing packets before them. */
+		skb_queue_walk_safe(&sk->sk_receive_queue, skb, skb1) {
+			meta = skb_meta(skb);
+			if (atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf &&
+					now - meta->timestamp < HZ &&
+					meta->sequence != opt->recv_sequence)
+				break;
+			skb_unlink(skb, &sk->sk_receive_queue);
+			opt->recv_sequence = meta->sequence + 1;
+			skb_orphan(skb);
+			ppp_input(&pppox_sk(sk)->chan, skb);
+		}
+		return NET_RX_SUCCESS;
+	}
+
+	/* Flush receive queue if sequencing is disabled. */
+	skb_queue_purge(&sk->sk_receive_queue);
 	skb_orphan(skb);
 	ppp_input(&pppox_sk(sk)->chan, skb);
 	return NET_RX_SUCCESS;
@@ -151,8 +221,8 @@ static int pppopns_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	hdr->type = PPTP_GRE_TYPE;
 	hdr->length = htons(length);
 	hdr->call = opt->remote;
-	hdr->sequence = htonl(opt->sequence);
-	opt->sequence++;
+	hdr->sequence = htonl(opt->xmit_sequence);
+	opt->xmit_sequence++;
 
 	/* Now send the packet via the delivery queue. */
 	skb_set_owner_w(skb, sk_raw);
@@ -261,6 +331,7 @@ static int pppopns_release(struct socket *sock)
 	if (sk->sk_state != PPPOX_NONE) {
 		struct sock *sk_raw = (struct sock *)pppox_sk(sk)->chan.private;
 		lock_sock(sk_raw);
+		skb_queue_purge(&sk->sk_receive_queue);
 		pppox_unbind_sock(sk);
 		sk_raw->sk_data_ready = pppox_sk(sk)->proto.pns.data_ready;
 		sk_raw->sk_backlog_rcv = pppox_sk(sk)->proto.pns.backlog_rcv;
