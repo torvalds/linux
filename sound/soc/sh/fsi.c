@@ -1321,3 +1321,4 @@ module_exit(fsi_mobile_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip FSI audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_ALIAS("platform:fsi-pcm-audio");
