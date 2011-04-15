@@ -814,12 +814,6 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  *	the indicator accordingly.  Finally, it is called with the argument
  *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
  *	negative error code or zero.
- * @phys_id: Deprecated in favour of @set_phys_id.
- *	Identify the physical device, e.g. by flashing an LED
- *	attached to it until interrupted by a signal or the given time
- *	(in seconds) elapses.  If the given time is zero, use a default
- *	time limit.  Returns a negative error code or zero.  Being
- *	interrupted by a signal is not an error.
  * @get_ethtool_stats: Return extended statistics about the device.
  *	This is only useful if the device maintains statistics not
  *	included in &struct rtnl_link_stats64.
@@ -908,7 +902,6 @@ struct ethtool_ops {
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
 	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
-	int	(*phys_id)(struct net_device *, u32);
 	void	(*get_ethtool_stats)(struct net_device *,
 				     struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);
