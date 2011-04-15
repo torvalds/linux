@@ -198,19 +198,6 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 }
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
-/*
- * Make sure that plugs that were pending when this function was entered,
- * are now complete and requests pushed to the queue.
-*/
-static inline void queue_sync_plugs(struct request_queue *q)
-{
-	/*
-	 * If the current process is plugged and has barriers submitted,
-	 * we will livelock if we don't unplug first.
-	 */
-	blk_flush_plug(current);
-}
-
 static void blk_delay_work(struct work_struct *work)
 {
 	struct request_queue *q;
@@ -298,7 +285,6 @@ void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->timeout);
 	cancel_delayed_work_sync(&q->delay_work);
-	queue_sync_plugs(q);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -1311,7 +1297,15 @@ get_rq:
 
 	plug = current->plug;
 	if (plug) {
-		if (!plug->should_sort && !list_empty(&plug->list)) {
+		/*
+		 * If this is the first request added after a plug, fire
+		 * of a plug trace. If others have been added before, check
+		 * if we have multiple devices in this plug. If so, make a
+		 * note to sort the list before dispatch.
+		 */
+		if (list_empty(&plug->list))
+			trace_block_plug(q);
+		else if (!plug->should_sort) {
 			struct request *__rq;
 
 			__rq = list_entry_rq(plug->list.prev);
@@ -2668,33 +2662,56 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return !(rqa->q <= rqb->q);
 }
 
-static void flush_plug_list(struct blk_plug *plug)
+static void queue_unplugged(struct request_queue *q, unsigned int depth,
+			    bool force_kblockd)
+{
+	trace_block_unplug_io(q, depth);
+	__blk_run_queue(q, force_kblockd);
+
+	if (q->unplugged_fn)
+		q->unplugged_fn(q);
+}
+
+void blk_flush_plug_list(struct blk_plug *plug, bool force_kblockd)
 {
 	struct request_queue *q;
 	unsigned long flags;
 	struct request *rq;
+	LIST_HEAD(list);
+	unsigned int depth;
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
 	if (list_empty(&plug->list))
 		return;
 
-	if (plug->should_sort)
-		list_sort(NULL, &plug->list, plug_rq_cmp);
+	list_splice_init(&plug->list, &list);
+
+	if (plug->should_sort) {
+		list_sort(NULL, &list, plug_rq_cmp);
+		plug->should_sort = 0;
+	}
 
 	q = NULL;
+	depth = 0;
+
+	/*
+	 * Save and disable interrupts here, to avoid doing it for every
+	 * queue lock we have to take.
+	 */
 	local_irq_save(flags);
-	while (!list_empty(&plug->list)) {
-		rq = list_entry_rq(plug->list.next);
+	while (!list_empty(&list)) {
+		rq = list_entry_rq(list.next);
 		list_del_init(&rq->queuelist);
 		BUG_ON(!(rq->cmd_flags & REQ_ON_PLUG));
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
 			if (q) {
-				__blk_run_queue(q, false);
+				queue_unplugged(q, depth, force_kblockd);
 				spin_unlock(q->queue_lock);
 			}
 			q = rq->q;
+			depth = 0;
 			spin_lock(q->queue_lock);
 		}
 		rq->cmd_flags &= ~REQ_ON_PLUG;
@@ -2706,38 +2723,27 @@ static void flush_plug_list(struct blk_plug *plug)
 			__elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);
 		else
 			__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);
+
+		depth++;
 	}
 
 	if (q) {
-		__blk_run_queue(q, false);
+		queue_unplugged(q, depth, force_kblockd);
 		spin_unlock(q->queue_lock);
 	}
 
-	BUG_ON(!list_empty(&plug->list));
 	local_irq_restore(flags);
 }
-
-static void __blk_finish_plug(struct task_struct *tsk, struct blk_plug *plug)
-{
-	flush_plug_list(plug);
-
-	if (plug == tsk->plug)
-		tsk->plug = NULL;
-}
+EXPORT_SYMBOL(blk_flush_plug_list);
 
 void blk_finish_plug(struct blk_plug *plug)
 {
-	if (plug)
-		__blk_finish_plug(current, plug);
+	blk_flush_plug_list(plug, false);
+
+	if (plug == current->plug)
+		current->plug = NULL;
 }
 EXPORT_SYMBOL(blk_finish_plug);
-
-void __blk_flush_plug(struct task_struct *tsk, struct blk_plug *plug)
-{
-	__blk_finish_plug(tsk, plug);
-	tsk->plug = plug;
-}
-EXPORT_SYMBOL(__blk_flush_plug);
 
 int __init blk_dev_init(void)
 {
