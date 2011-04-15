@@ -521,6 +521,13 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		    (req->u.rw.seg[i].last_sect < req->u.rw.seg[i].first_sect))
 			goto fail_response;
 		preq.nr_sects += seg[i].nsec;
+
+		if (((int)preq.sector_number|(int)seg[i].nsec) &
+		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
+			DPRINTK("Misaligned I/O request from domain %d",
+				blkif->domid);
+			goto fail_response;
+		}
 	}
 
 	if (vbd_translate(&preq, blkif, operation) != 0) {
@@ -542,13 +549,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
-		if (((int)preq.sector_number|(int)seg[i].nsec) &
-		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
-			DPRINTK("Misaligned I/O request from domain %d",
-				blkif->domid);
-			goto fail_put_bio;
-		}
-
 		while ((bio == NULL) ||
 		       (bio_add_page(bio,
 				     blkbk->pending_page(pending_req, i),
