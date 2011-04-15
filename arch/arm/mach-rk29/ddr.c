@@ -21,34 +21,352 @@
 #include <linux/earlysuspend.h>
 #include <linux/random.h> 
 #include <linux/crc32.h>
-#include <linux/clk.h>
 
 #include <mach/rk29_iomap.h>
 #include <mach/memory.h>
 #include <mach/sram.h>
-#include <mach/ddr.h>
+#include <linux/clk.h>
 
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+
+
 #include <asm/io.h>
-
-#ifdef CONFIG_DDR_SDRAM_FREQ
-#define DDR_FREQ          (CONFIG_DDR_SDRAM_FREQ)
-#else
-#define DDR_FREQ 400
-#endif
-
-#ifdef CONFIG_DDR_TYPE
-#define DDR3_TYPE CONFIG_DDR_TYPE
-#else
-#define DDR3_TYPE   DDR3_DEFAULT
-#endif
 
 #define ddr_print(x...) printk( "DDR DEBUG: " x )
 
-// controller base address
-#define pDDR_Reg 	    ((pDDR_REG_T)RK29_DDRC_BASE)
+// save_sp  must be static global variable  
+
+static unsigned long save_sp;
+
+
+//CCR;                    //Controller Configuration Register                            
+#define ECCEN                           	(1)
+#define NOMRWR                          	(1<<1)
+#define HOSTEN                          	(1<<2)
+#define RRB                             		(1<<13)
+#define DQSCFG                          	(1<<14)
+#define DFTLM_NO                        (0<<15)
+#define DFTLM_90                        (1<<15)
+#define DFTLM_180                       (2<<15)
+#define DFTLM_270                       (3<<15)
+#define DFTCMP                          	(1<<17)
+#define FLUSH                           	(1<<27)
+#define ITMRST                          	(1<<28)
+#define IB                              		(1<<29)
+#define DTT                             		(1<<30)
+#define IT                              		(1<<31)
+//DCR;                    //DRAM Configuration Register                                  
+#define DDRII                           		(0)
+#define DDR3                            		(1)
+#define Mobile_DDR                      	(2)
+                                        
+#define DIO_8                           	(1<<2)
+#define DIO_16                          	(2<<2)
+#define DIO_32                          	(3<<2)
+                                        
+#define DSIZE_64Mb                      	(0<<4)
+#define DSIZE_128Mb                     	(1<<4)
+#define DSIZE_256Mb                     	(2<<4)
+#define DSIZE_512Mb                     	(3<<4)
+#define DSIZE_1Gb                       	(4<<4)
+#define DSIZE_2Gb                       	(5<<4)
+#define DSIZE_4Gb                       	(6<<4)
+#define DSIZE_8Gb                       	(7<<4)
+                                        
+#define SIO(n)                          (((n)-1)<<7)
+#define PIO                             		(1<<10)
+#define RANKS(n)                        ((((n)-1)&0x3)<<11)
+#define RNKALL                          	(1<<13)
+                                        
+#define AMAP_RBRC                       	(0<<14)  //rank,bank,row,column
+#define AMAP_RRBC                       	(1<<14)  //rank,row,bank,column
+#define AMAP_BRRC                       	(2<<14)  //bank,row,rank,column
+#define AMAP_FIX                        	(3<<14)  //Fixed address
+
+#define PDQ(n)                          (((n)&0x7)<<16)
+#define MPRDQ                           	(1<<19)
+#define MVAR                            		(1<<20)
+#define RDIMM                           	(1<<21)
+#define DO_INIT                         	(1<<24)
+#define EXE_RANK(n)                     (((n)&3)<<25)
+
+#define CMD_NOP                         	(0<<27)
+#define CMD_ClockStop                   	(1<<27)
+#define CMD_SelfRefresh                	(2<<27)
+#define CMD_Refresh                     	(3<<27)
+#define CMD_DDR3_Reset                (4<<27)
+#define CMD_PrechargeAll              	(5<<27)
+#define CMD_DeepPowerDown               			(6<<27)
+#define CMD_SDRAM_Mode_Exit             		(7<<27)
+#define CMD_SDRAM_ZQ_Calibration_Short  	(0xB<<27)
+#define CMD_SDRAM_ZQ_Calibration_Long   	(0xC<<27)
+#define CMD_PowerDown                   			(0xE<<27)
+#define CMD_SDRAM_NOP                   			(0xF<<27)
+
+#define EXE                             		(1<<31)
+
+//IOCR;                   //IO Configuration Register   
+#define DQ_ODT                          	(1)
+#define DQS_ODT                         	(1<<1)
+#define TESTEN                          	(1<<2)
+#define DQ_RTT_DIS                      	(0<<3)
+#define DQ_RTT_150                      	(1<<3)
+#define DQ_RTT_75                       	(2<<3)
+#define DQ_RTT_50                       	(3<<3)
+#define DQS_RTT_DIS                     	(0<<5)
+#define DQS_RTT_150                     	(1<<5)
+#define DQS_RTT_75                      	(2<<5)
+#define DQS_RTT_50                      	(3<<5)
+#define DQ_DS_FULL                      	(1<<7)
+#define DQ_DS_REDUCE                   (0<<7)
+#define DQS_DS_FULL                     	(1<<8)
+#define DQS_DS_REDUCE                	(0<<8)
+#define ADD_DS_FULL                     	(1<<9)
+#define ADD_DS_REDUCE                	(0<<9)
+#define CK_DS_FULL                      	(1<<10)
+#define CK_DS_REDUCE                   	(0<<10)
+
+#define AUTO_CMD_IOPD(n)                (((n)&0x3)<<18)
+#define AUTO_DATA_IOPD(n)               (((n)&0x3)<<22)
+#define RTTOH(n)                        (((n)&0x7)<<26)
+#define RTTOE                           	(1<<29)
+#define DQRTT                           	(1<<30)
+#define DQSRTT                         	(1<<31)
+
+//CSR;                    //Controller Status Register   
+#define DFTERR                          	(1<<18)
+#define ECCERR                          	(1<<19)
+#define DTERR                           	(1<<20)
+#define DTIERR                          	(1<<21)
+#define ECCSEC                          	(1<<22)
+#define TQ                              		(1<<23)
+
+//DRR;                    //DRAM Refresh Register       
+#define TRFC(n)                         ((n)&0xFF)
+#define TRFPRD(n)                       (((n)&0xFFFF)<<8)
+#define RFBURST(n)                      ((((n)-1)&0xF)<<24)
+#define RD                              		(1<<31)
+
+//TPR[3];                 //SDRAM Timing Parameters Registers   
+//TPR0
+#define TMRD(n)                         ((n)&0x3)
+#define TRTP(n)                         (((n)&0x7)<<2)
+#define TWTR(n)                         (((n)&0x7)<<5)
+#define TRP(n)                          (((n)&0xF)<<8)
+#define TRCD(n)                         (((n)&0xF)<<12)
+#define TRAS(n)                         (((n)&0x1F)<<16)
+#define TRRD(n)                         (((n)&0xF)<<21)
+#define TRC(n)                          (((n)&0x3F)<<25)
+#define TCCD                            		(1<<31)
+//TPR1                                  
+#define TAOND_2                         	(0)
+#define TAOND_3                         	(1)
+#define TAOND_4                         	(2)
+#define TAOND_5                         	(3)
+#define TRTW                            	(1<<2)
+#define TFAW(n)                         (((n)&0x3F)<<3)
+#define TMOD(n)                         (((n)&0x3)<<9)
+#define TRTODT                          (1<<11)
+#define TRNKRTR(n)                      ((((n)-1)&0x3)<<12)
+#define TRNKWTW(n)                      (((n)&0x3)<<14)
+//TPR2                                  
+#define TXS(n)                          ((n)&0x3FF)
+#define TXP(n)                          (((n)&0x1F)<<10)
+#define TCKE(n)                         (((n)&0xF)<<15)
+
+//DLLCR;                  //Global DLL Control  Register                                 
+//DLLCR09[10];            //DDR Control  Register 0-9                                    
+#define DD                              		(1<<31)
+
+//RSLR[4];                //Rank System Latency  Register 0-3                            
+#define SL(n,value)                     (((value)&0x7)<<((n)*3))
+
+//RDGR[4];                //Rank DQS Gating  Register 0-3                                
+#define DQSSEL(n, value)                (((value)&0x3)<<((n)*2))
+
+//DQTR[9];                //DQ Timing  Register 0-8    
+#define DQDLY_DQS(n, value)             (((value)&0x3)<<((n)*4))
+#define DQDLY_DQSb(n, value)            (((value)&0x3)<<(((n)*4)+2))
+
+//DQSTR;                  //DQS Timing  Register                                         
+//DQSBTR;                 //DQS_b Timing  Register                                       
+#define DQSDLY(n, value)                (((value)&0x7)<<((n)*3))
+
+//ODTCR;                  //ODT Configuration  Register                                  
+#define RDODT(rank, value)              (((value)&0xF)<<((rank)*4))
+#define WRODT(rank, value)              (((value)&0xF)<<(((rank)*4)+16))
+
+//DTR[2];                 //Data Training Register 0-1                                   
+//DTAR;                   //Data Training Address  Register                              
+#define DTCOL(col)                      ((col)&0xFFF)
+#define DTROW(row)                      (((row)&0xFFFF)<<12)
+#define DTBANK(bank)                    (((bank)&0x7)<<28)
+#define DTMPR                           	(1<<31)
+
+//ZQCR[3];                //SDRAM ZQ Control Register and SDRAM ZQCS Control Register 0-2
+//ZQCR0
+#define ZQDATA(n)                       ((n)&0xFFFFF)
+#define ZPROG_OUT(n)                    (((n)&0xF)<<20)
+#define ZPROG_ODT(n)                    (((n)&0xF)<<24)
+#define ZQDEN                           	(1<<28)
+#define ZQCLK                           	(1<<29)
+#define NOICAL                          	(1<<30)
+#define ZQCAL                           	(1<<31)
+//ZQCR1                                 
+#define ZQ_CALPRD(n)                    ((n)&0x7FFF)
+#define ZQ_CAL_EN                       	(1<<31)
+//ZQCR2                                 
+#define ZQCS_CALPRD(n)                  ((n)&0x7FFF)
+#define ZQCS_CAL_EN                     	(1<<31)
+
+//ZQSR;                   //SDRAM ZQ Status Register                                     
+//TPR3;                   //SDRAM Timing Parameters Register 3                           
+#define BL2                             		(0)
+#define BL4                             		(1)
+#define BL8                             		(2)
+#define BL16                            		(3)
+#define BLOTF_EN                        	(1<<2)
+#define CL(n)                           (((n)&0xF)<<3)
+#define CWL(n)                          (((n)&0xF)<<7)
+#define WR(n)                           (((n)&0xF)<<11)
+#define AL(n)                           (((n)&0xF)<<15)
+
+//ALPMR;                  //Automatic Low Power Mode Register                            
+#define LPPERIOD_CLK_STOP(n)            ((n)&0xFF)
+#define LPPERIOD_POWER_DOWN(n)          (((n)&0xFF)<<8)
+#define AUTOCS                          	(1<<25)
+#define AUTOPD                          	(1<<26)
+
+//Reserved[0x7c-0x30];                                                                   
+//MR;                     //Mode Register                                                
+#define DDR_BL4           			(2)
+#define DDR_BL8           			(3)
+#define DDR_CL(n)         (((n)&0x7)<<4)
+#define DDR2_WR(n)        ((((n)-1)&0x7)<<9)
+
+//mr0 for ddr3
+#define DDR3_BL8          (0)
+#define DDR3_BC4_8        (1)
+#define DDR3_BC4          (2)
+#define DDR3_BL(n)        (n)
+#define DDR3_CL(n)        ((((n-4)&0x7)<<4)|(((n-4)&0x8)>>1))
+#define DDR3_MR0_CL(n)    ((((n-4)&0x7)<<4)|(((n-4)&0x8)>>1))
+#define DDR3_MR0_WR(n)    (((n)&0x7)<<9)
+#define DDR3_MR0_DLL_RESET    (1<<8)
+#define DDR3_MR0_DLL_NOR   (0<<8)
+
+//mr1 for ddr3
+#define DDR3_MR1_AL(n)  ((n&0x7)<<3)
+#define DDR3_MR1_DIC(n) (((n&1)<<1)|((n&2)<<4))
+#define DDR3_MR1_RTT_NOM(n) (((n&1)<<2)|((n&2)<<5)|((n&4)<<7))
+
+//mr2 for ddr3
+#define DDR3_MR2_CWL(n) (((n-5)&0x7)<<3)
+
+//EMR;                    //Extended Mode Register      
+#define DDR2_STR_FULL     		(0)
+#define DDR2_STR_REDUCE   		(1<<1)
+#define DDR2_AL(n)        (((n)&0x7)<<3)
+#define DDR2_ODT_DIS      		(0)
+#define DDR2_ODT_150      		(0x40)
+#define DDR2_ODT_75       		(0x4)
+#define DDR2_ODT_50       		(0x44)
+
+//EMR2;                   //Extended Mode Register 2                                     
+//EMR3;                   //Extended Mode Register 3                                     
+//y Management Unit Registers                                                            
+//HPCR[32];               //Host Port Configuration Register 0-31                        
+#define HPBL(n)                         ((n)&0xFF)
+#define HCBP                            		(1<<8)
+#define HNPC                            		(1<<9)
+
+//PQCR[8];                //Priority Queue Configuration Register 0-7                    
+#define TOUT(n)                         ((n)&0xFF)
+#define TOUT_MUL_1                      	(0<<8)
+#define TOUT_MUL_16                     (1<<8)
+#define TOUT_MUL_64                     (2<<8)
+#define TOUT_MUL_256                   (3<<8)
+#define LPQS(n)                         (((n)&0x3)<<10)
+#define PQBL(n)                         (((n)&0xFF)<<12)
+#define SWAIT(n)                        (((n)&0x1F)<<20)
+#define INTRPT(n)                       (((n)&0x7)<<25)
+#define APQS                            		(1<<28)
+
+#define PLL_CLKR(i)	((((i) - 1) & 0x1f) << 10)
+
+#define PLL_CLKF(i)	((((i) - 1) & 0x7f) << 3)
+
+#define PLL_CLKOD(i)	(((i) & 0x03) << 1)
+
+//MMGCR;                  //Memory Manager General Configuration Register                
+#define PORT0_NORMAL_PRIO        	(0)
+#define PORT0_HIGH_PRIO             	(2)
+
+#define DDR3_800D   (0)     // 5-5-5
+#define DDR3_800E   (1)     // 6-6-6
+#define DDR3_1066E  (2)     // 6-6-6
+#define DDR3_1066F  (3)     // 7-7-7
+#define DDR3_1066G  (4)     // 8-8-8
+#define DDR3_1333F  (5)     // 7-7-7
+#define DDR3_1333G  (6)     // 8-8-8
+#define DDR3_1333H  (7)     // 9-9-9
+#define DDR3_1333J  (8)     // 10-10-10
+#define DDR3_1600G  (9)     // 8-8-8
+#define DDR3_1600H  (10)    // 9-9-9
+#define DDR3_1600J  (11)    // 10-10-10
+#define DDR3_1600K  (12)    // 11-11-11
+#define DDR3_1866J  (13)    // 10-10-10
+#define DDR3_1866K  (14)    // 11-11-11
+#define DDR3_1866L  (15)    // 12-12-12
+#define DDR3_1866M  (16)    // 13-13-13
+#define DDR3_2133K  (17)    // 11-11-11
+#define DDR3_2133L  (18)    // 12-12-12
+#define DDR3_2133M  (19)    // 13-13-13
+#define DDR3_2133N  (20)    // 14-14-14
+#define DDR3_DEFAULT (21)
+#define DDR3_NONE   (22)
+
+#ifdef CONFIG_RK29_DDR3_TYPE
+#define DDR3_TYPE CONFIG_RK29_DDR3_TYPE
+#else
+#define DDR3_TYPE   DDR3_DEFAULT//DDR3_NONE
+#endif
+/* DDR Controller register struct */
+typedef volatile struct DDR_REG_Tag
+{
+    volatile unsigned int CCR;                    //Controller Configuration Register
+    volatile unsigned int DCR;                    //DRAM Configuration Register
+    volatile unsigned int IOCR;                   //IO Configuration Register
+    volatile unsigned int CSR;                    //Controller Status Register
+    volatile unsigned int DRR;                    //DRAM Refresh Register
+    volatile unsigned int TPR[3];                 //SDRAM Timing Parameters Registers
+    volatile unsigned int DLLCR;                  //Global DLL Control  Register
+    volatile unsigned int DLLCR09[10];            //DDR Control  Register 0-9
+    volatile unsigned int RSLR[4];                //Rank System Latency  Register 0-3
+    volatile unsigned int RDGR[4];                //Rank DQS Gating  Register 0-3
+    volatile unsigned int DQTR[9];                //DQ Timing  Register 0-8
+    volatile unsigned int DQSTR;                  //DQS Timing  Register
+    volatile unsigned int DQSBTR;                 //DQS_b Timing  Register
+    volatile unsigned int ODTCR;                  //ODT Configuration  Register
+    volatile unsigned int DTR[2];                 //Data Training Register 0-1
+    volatile unsigned int DTAR;                   //Data Training Address  Register
+    volatile unsigned int ZQCR[3];                //SDRAM ZQ Control Register and SDRAM ZQCS Control Register 0-2
+    volatile unsigned int ZQSR;                   //SDRAM ZQ Status Register
+    volatile unsigned int TPR3;                   //SDRAM Timing Parameters Register 3
+    volatile unsigned int ALPMR;                  //Automatic Low Power Mode Register
+    volatile unsigned int Reserved[0x7c-0x30];    
+    volatile unsigned int MR;                     //Mode Register
+    volatile unsigned int EMR;                    //Extended Mode Register
+    volatile unsigned int EMR2;                   //Extended Mode Register 2
+    volatile unsigned int EMR3;                   //Extended Mode Register 3
+    //Memory Management Unit Registers
+    volatile unsigned int HPCR[32];               //Host Port Configuration Register 0-31
+    volatile unsigned int PQCR[8];                //Priority Queue Configuration Register 0-7
+    volatile unsigned int MMGCR;                  //Memory Manager General Configuration Register
+}DDR_REG_T, *pDDR_REG_T;
+
 typedef struct tagGPIO_IOMUX
 {
     volatile unsigned int GPIOL_IOMUX;
@@ -85,14 +403,19 @@ typedef volatile struct tagCRU_REG
     volatile unsigned int CRU_CLKGATE_CON[4];
     volatile unsigned int CRU_SOFTRST_CON[3];
 } CRU_REG, *pCRU_REG;
+
+// controller base address
+#define pDDR_Reg 	    ((pDDR_REG_T)RK29_DDRC_BASE)
 #define pGRF_Reg        ((pREG_FILE)RK29_GRF_BASE)
 #define pSCU_Reg        ((pCRU_REG)RK29_CRU_BASE)
 
-
-// save_sp  must be static global variable  
-
-static unsigned long save_sp;
-
+typedef struct DDR_CONFIG_Tag
+{
+    u32 row;
+    u32 bank;
+    u32 col;
+    u32 config;
+}DDR_CONFIG_T;
 
 uint32_t ddrDataTraining[16];
 
@@ -122,11 +445,11 @@ DDR_CONFIG_T    ddrConfig[3][10] = {
         {13, 8, 10, (DIO_16 | DSIZE_1Gb)},
         {12, 8, 10, (DIO_16 | DSIZE_512Mb)},
         // x8
-        {16, 8, 11, (DIO_8 | DSIZE_8Gb)},
-        {16, 8, 10, (DIO_8 | DSIZE_4Gb)},
-        {15, 8, 10, (DIO_8 | DSIZE_2Gb)},
-        {14, 8, 10, (DIO_8 | DSIZE_1Gb)},
-        {13, 8, 10, (DIO_8 | DSIZE_512Mb)},
+        {16, 8, 11, (DIO_16 | DSIZE_8Gb)},
+        {16, 8, 10, (DIO_16 | DSIZE_4Gb)},
+        {15, 8, 10, (DIO_16 | DSIZE_2Gb)},
+        {14, 8, 10, (DIO_16 | DSIZE_1Gb)},
+        {13, 8, 10, (DIO_16 | DSIZE_512Mb)},
     },
     {
     		//mobile DDR
@@ -232,7 +555,6 @@ static __sramdata uint32_t cl;
 static __sramdata uint32_t cwl;
 
 static __sramdata uint32_t cpu_freq;
-static __sramdata uint32_t ddr_freq;
 
 
 
@@ -258,7 +580,6 @@ void __sramlocalfunc delayus(uint32_t us)
 static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
 {
     uint32_t tmp;
-    uint32_t tmp1;
     uint32_t ret = 0;
     if(nMHz>533)
     {
@@ -267,6 +588,11 @@ static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
     }
     if(mem_type == DDR3)
     {
+        if(DDR3_TYPE == DDR3_NONE)
+        {
+            ret = -2;
+            goto out;
+        }
         /* 
          * tREFI, average periodic refresh interval, 7.8us max
          */
@@ -396,15 +722,11 @@ static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
         {
             tmp = (128*nMHz/1000) + ((((128*nMHz)%1000) > 0) ? 1:0);
         }
-        else if(capability <= 0x10000000)  // 2Gb
-        {
-        		tmp = (195*nMHz/1000) + ((((195*nMHz)%1000) > 0) ? 1:0);
-        }
         else  // 4Gb
         {
             tmp = (328*nMHz/1000) + ((((328*nMHz)%1000) > 0) ? 1:0);
         }
-        //tRFC = 75ns(256Mb)/105ns(512Mb)/127.5ns(1Gb)/195ns(2Gb)/327.5ns(4Gb)
+        //tRFC = 75ns(256Mb)/105ns(512Mb)/127.5ns(1Gb)/327.5ns(4Gb)
         tmp = (tmp > 0xFF) ? 0xFF : tmp;
         tRFC = tmp;
         // tRTP = 7.5ns
@@ -480,125 +802,6 @@ static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
     }
     else
     {
-        /*
-         * mobile DDR timing USE 3-3-3
-         */
-        
-        /* 
-         * tREFI, average periodic refresh interval, 7.8us max
-         */
-        tRFPRD = ((59*nMHz) >> 3) & 0x3FFF;  // 62/8 = 7.75us
-
-        /*
-         *tRFC = 80ns(128Mb,256Mb)
-         *       110ns(512Mb)
-         *       140ns(1Gb,2Gb)
-         */
-        if(capability <= 0x2000000)  // 256Mb
-        {
-            tmp = (80*nMHz/1000) + ((((80*nMHz)%1000) > 0) ? 1:0);
-        }
-        else if(capability <= 0x4000000) // 512Mb
-        {
-            tmp = (110*nMHz/1000) + ((((110*nMHz)%1000) > 0) ? 1:0);
-        }
-        else  // 1Gb,2Gb
-        {
-            tmp = (140*nMHz/1000) + ((((140*nMHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 0xFF) ? 0xFF : tmp;
-        tRFC = tmp;
-        /* 
-         * tWTR = 1 tCK(100MHz,133MHz)
-         *        2 tCK(166MHz,185MHz)
-         */
-        if(nMHz < 133)
-        {
-            tWTR = 1;
-        }
-        else
-        {
-            tWTR = 2;
-        }
-        /* 
-         * tRAS = 50ns(100MHz)
-         *        45ns(133MHz)
-         *        42ns(166MHz)
-         *        42ns(185MHz)
-         *        40ns(200MHz)
-         */
-        if(nMHz<100)
-        {
-            tmp = (50*nMHz/1000) + ((((50*nMHz)%1000) > 0) ? 1:0);
-        }
-        else if(nMHz<133)
-        {
-            tmp = (45*nMHz/1000) + ((((45*nMHz)%1000) > 0) ? 1:0);
-        }
-        else if(nMHz<185)
-        {
-            tmp = (42*nMHz/1000) + ((((42*nMHz)%1000) > 0) ? 1:0);
-        }
-        else
-        {
-            tmp = (40*nMHz/1000) + ((((40*nMHz)%1000) > 0) ? 1:0);
-        }
-        tmp1 = tmp;
-        tmp = (tmp > 31) ? 31 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRAS = tmp;
-        /*
-         * tRC = tRAS + tRP
-         */
-        tmp1 += 3;
-        tmp1 = (tmp1 > 42) ? 42 : tmp1;
-        tmp1 = (tmp1 < 2) ? 2 : tmp1;
-        tRC = tmp1;
-        /* 
-         * tRRD = 15ns(100MHz)
-         *        15ns(133MHz)
-         *        12ns(166MHz)
-         *        10.8ns(185MHz)
-         *        10ns(200MHz)
-         */
-        if(nMHz<133)
-        {
-            tmp = (15*nMHz/1000) + ((((15*nMHz)%1000) > 0) ? 1:0);
-        }
-        else if(nMHz<166)
-        {
-            tmp = (12*nMHz/1000) + ((((12*nMHz)%1000) > 0) ? 1:0);
-        }
-        else if(nMHz<185)
-        {
-            tmp = (11*nMHz/1000) + ((((11*nMHz)%1000) > 0) ? 1:0);
-        }
-        else
-        {
-            tmp = (10*nMHz/1000) + ((((10*nMHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 8) ? 8 : tmp;
-        tmp = (tmp < 1) ? 1 : tmp;
-        tRRD = tmp;
-        /*
-         * tXS = tXSR = 200ns
-         */
-        tmp = (200*nMHz/1000) + ((((200*nMHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 0x3FF) ? 0x3FF : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tXS = tmp;
-        /*
-         * tXP = 25ns
-         */
-        tmp = (25*nMHz/1000) + ((((25*nMHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 0x1F) ? 0x1F : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tXP = tmp;
-        
-        /*
-         * mobile DDR CL always = 3
-         */
-        cl = 3;
     }
 out:
     return ret;
@@ -606,10 +809,9 @@ out:
 static uint32_t __sramlocalfunc ddr_update_timing(void)
 {
     uint32_t value;
-
-    pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
     if(mem_type == DDR3)
     {
+        pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
         value = pDDR_Reg->TPR[0];
         value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
         pDDR_Reg->TPR[0] = value | TRTP(tRTP) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
@@ -622,6 +824,7 @@ static uint32_t __sramlocalfunc ddr_update_timing(void)
     }
     else if(mem_type == DDRII)
     {
+	      pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
         value = pDDR_Reg->TPR[0];
         value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
         pDDR_Reg->TPR[0] = value | TRTP(tRTP) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
@@ -631,16 +834,6 @@ static uint32_t __sramlocalfunc ddr_update_timing(void)
         value = pDDR_Reg->TPR[2];
         value &= ~(0x1F<<10);
         pDDR_Reg->TPR[2] = value | TXP(tXP);
-    }
-    else
-    {
-        /*
-         * mobile DDR timing USE 3-3-3
-         */
-        value = pDDR_Reg->TPR[0];
-        value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
-        pDDR_Reg->TPR[0] = value | TRTP(2) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
-        pDDR_Reg->TPR[2] = TXS(tXS) | TXP(tXP) | TCKE(2);
     }
     return 0;
 }
@@ -669,12 +862,6 @@ static uint32_t __sramlocalfunc ddr_update_mr(void)
         value &= ~((0x7<<4)|(0x7<<9));
         pDDR_Reg->MR = value | DDR_CL(cl) | DDR2_WR(cl);       
     }
-    else
-    {
-        /*
-         * mobile DDR CL always = 3
-         */
-    }
     return 0;
 }
 static __sramdata uint32_t clkr;
@@ -686,6 +873,7 @@ static uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
     uint32_t ret = 0;
     uint32_t temp;
     
+   // ddr_print("%s \n", __func__);
     if(nMHz == 24)
     {
         ret = 24;
@@ -771,14 +959,14 @@ void __sramlocalfunc ddr_selfrefresh_enter(void)
        7. Clears the self-clearing bit DCR.EXE and waits for Mode Exit command
      */
     
+    //ddr_print("%s \n", __func__);
     pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
-    //pDDR_Reg->CCR |= FLUSH;    //flush
-    delayus(1);
+    pDDR_Reg->CCR |= FLUSH;    //flush
+    delayus(10);
     pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x2<<27) | (0x1<<31));  //enter Self Refresh
-    delayus(10); 
+    delayus(1000); //wait for exit self refresh dll lock
     pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1F<<19);  //reset DLL
-    pDDR_Reg->CCR |= ITMRST;   //ITM reset
-    delayus(1);
+    delayus(10);
 }
 void __sramlocalfunc ddr_selfrefresh_exit(void)
 {
@@ -789,24 +977,27 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
        5. Clears the self-clearing bit DCR.EXE
        6. Re-enables all host ports
      */
-    delayus(10); 
     pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1F<<19);
-    pDDR_Reg->CCR &= ~ITMRST;   //ITM reset
-    delayus(500); 
+    delayus(10); //wait for exit self refresh dll lock
     pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit    
     delayus(10);
     ddr_update_mr();
-    delayus(1);
+    delayus(10);
+
+    // SDRAM ZQ Calibration Short
+   // pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0xb<<27) | (0x1<<31)); 
+    //delayus(10); 
 
 refresh:
     pDDR_Reg->DRR |= RD;
     delayus(1);
     pDDR_Reg->CCR |= DTT;
     delayus(15);
+    //pDDR_Reg->DRR &= ~RD;
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(8);
     delayus(10);
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
-    delayus(1);
+    delayus(10);
     if(pDDR_Reg->CSR & 0x100000)
     {
         pDDR_Reg->CSR &= ~0x100000;
@@ -822,6 +1013,8 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     unsigned long flags;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
 
+    local_irq_save(flags);
+    //ddr_print("%s enter\n", __func__);
     if((pSCU_Reg->CRU_MODE_CON & 0x03) == 0x03)
         cpu_freq = 24;
     else 
@@ -829,9 +1022,9 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     
     ret = ddr_set_pll(nMHz, 0);
     ddr_get_parameter(ret);
+    //while(test);
     /** 1. Make sure there is no host access */
 #if 1
-    local_irq_save(flags);
     flush_cache_all();
     __cpuc_flush_kern_all();
     __cpuc_flush_user_all();
@@ -851,39 +1044,9 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
     ddr_selfrefresh_enter();
-    delayus(10);
+    delayus(100);
     /** 3. change frequence  */
     ddr_set_pll(ret, 1);
-    ddr_freq = ret;
-    #if 1
-    if(nMHz<100)
-    {
-        pDDR_Reg->DLLCR09[0] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[1] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[2] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[3] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[9] |= (0x1<<31);
-        pDDR_Reg->DLLCR &= ~(0x1<<23);
-    }
-    else if(nMHz<=200)
-    {
-        pDDR_Reg->DLLCR09[0] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[1] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[2] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[3] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[9] |= (0x1<<31);
-        pDDR_Reg->DLLCR |= (0x1<<23);
-    }
-    else
-    {
-        pDDR_Reg->DLLCR09[0] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[1] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[2] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[3] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[9] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR &= ~(0x1<<23);
-    }
-    #endif
 
     /** 4. update timing&parameter  */
     ddr_update_timing();
@@ -895,14 +1058,18 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     DDR_RESTORE_SP(save_sp);
     local_irq_restore(flags);
     return ret;
+    //ddr_print("%s exit\n", __func__);
 }
 void __sramfunc ddr_suspend(void)
 {
     uint32_t n;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
 
+    //cpu_freq = clk_get_rate(clk_get(NULL,"core"));
+    //cpu_freq = cpu_freq/1000000;
     cpu_freq = 24;
 	
+    //while(test);
     /** 1. Make sure there is no host access */
     flush_cache_all();
     __cpuc_flush_kern_all();
@@ -922,78 +1089,30 @@ void __sramfunc ddr_suspend(void)
 
     ddr_selfrefresh_enter();
 
-    pSCU_Reg->CRU_CLKGATE_CON[3] |= (0x1<<16)   //close DDR GPU AXI clock
-                                    | (0x1<<13) //close DDR VDPU AXI clock
-                                    | (0x1<<11) //close DDR VEPU AXI clock
-                                    | (0x1<<1); //close DDR LCDC AXI clock
-    pSCU_Reg->CRU_CLKGATE_CON[1] |= (0x1<<6);   //close DDR PERIPH AXI clock
-    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock
-    
-    delayus(1);
+    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
+    delayus(10);
     // ddr slow
     pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    delayus(1);	
+    delayus(10);	
     pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15);  //power down DPLL
-    delayus(1);  //delay at least 500ns
-    
-    pDDR_Reg->DLLCR09[0] |= (0x1<<31);
-    pDDR_Reg->DLLCR09[1] |= (0x1<<31);
-    pDDR_Reg->DLLCR09[2] |= (0x1<<31);
-    pDDR_Reg->DLLCR09[3] |= (0x1<<31);
-    pDDR_Reg->DLLCR09[9] |= (0x1<<31);
-    pDDR_Reg->DLLCR &= ~(0x1<<23);
-    
+    delayus(10);  //delay at least 500ns
+
 }
 void __sramfunc ddr_resume(void)
 {
     uint32_t value;
- 
-    if(ddr_freq<100)
-    {
-        pDDR_Reg->DLLCR09[0] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[1] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[2] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[3] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[9] |= (0x1<<31);
-        pDDR_Reg->DLLCR &= ~(0x1<<23);
-    }
-    else if(ddr_freq<=200)
-    {
-        pDDR_Reg->DLLCR09[0] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[1] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[2] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[3] |= (0x1<<31);
-        pDDR_Reg->DLLCR09[9] |= (0x1<<31);
-        pDDR_Reg->DLLCR |= (0x1<<23);
-    }
-    else
-    {
-        pDDR_Reg->DLLCR09[0] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[1] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[2] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[3] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR09[9] &= ~(0x1<<31);
-        pDDR_Reg->DLLCR &= ~(0x1<<23);
-    }
-    delayus(1);
-    
 #if 1
      pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
     //   while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));
-     delayus(500); // 7.2us*140=1.008ms // Ëø¶¨pll
+     delayus(200); // 7.2us*140=1.008ms // Ëø¶¨pll
     // ddr pll normal
     value = pSCU_Reg->CRU_MODE_CON;
     value &=~(0x3<<6);
     value |= 0x1<<6;
     pSCU_Reg->CRU_MODE_CON = value;
-    delayus(1);    
-    pSCU_Reg->CRU_CLKGATE_CON[3] &= ~((0x1<<16)     //close DDR GPU AXI clock
-                                    | (0x1<<13)     //close DDR VDPU AXI clock
-                                    | (0x1<<11)     //close DDR VEPU AXI clock
-                                    | (0x1<<1));    //close DDR LCDC AXI clock
-    pSCU_Reg->CRU_CLKGATE_CON[1] &= ~(0x1<<6);      //close DDR PERIPH AXI clock
-    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);     //enable DDR PHY clock
-    delayus(1);   
+    delayus(10);	
+    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
+    delayus(10);    
 #endif
 
     ddr_selfrefresh_exit();
@@ -1015,20 +1134,22 @@ static void inline ddr_change_host_priority(void)
     */
     pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | ((2<<0)|(1<<2)|(0<<4)|(1<<6)|(2<<8));
 }
-
 static int __init ddr_probe(void)
 {
     volatile uint32_t value = 0;
 	uint32_t          addr;
+    uint32_t          MHz;
+    unsigned long Hz;
     uint32_t          bw;
     uint32_t          col = 0;
     uint32_t          row = 0;
     uint32_t          bank = 0;
     uint32_t          n;
 
-    ddr_print("version 1.00 20110407 \n");
+    ddr_print("%s \n", __func__);
 
     mem_type = (pDDR_Reg->DCR & 0x3);
+//    ddr_debug = 0;
 
     // caculate aglined physical address 
     addr =  __pa((unsigned long)ddrDataTraining);
@@ -1100,32 +1221,16 @@ static int __init ddr_probe(void)
         pDDR_Reg->ALPMR = LPPERIOD_CLK_STOP(0xFF) | LPPERIOD_POWER_DOWN(0xFF) | AUTOCS | AUTOPD;
     }
     ddr_change_host_priority();
-    //get capability per chip, not total size, used for calculate tRFC
-    capability = 0x800000 << ((pDDR_Reg->DCR >> 4) & 0x7);
-    value = ((((pDDR_Reg->DCR >> 7) & 0x7)+1) >> ((pDDR_Reg->DCR >> 2) & 0x3))+((pDDR_Reg->DCR >> 11) & 0x3);
-    if(mem_type == DDR3)
-    {
-        ddr_print("DDR3 Device\n");
-    }
-    else if(mem_type == DDRII)
-    {
-        ddr_print("DDR2 Device\n");
-    }
-    else
-    {
-        ddr_print("LPDDR Device\n");
-    }
-    ddr_print("%d CS, ROW=%d, Bank=%d, COL=%d, Total Capability=%dMB\n", 
-                (((pDDR_Reg->DCR >> 11) & 0x3) + 1), \
-                 row, (0x1<<bank), col, \
-                 ((capability<<value)>>20));
+    value = (((pDDR_Reg->DCR >> 7) & 0x7)+1) >> ((pDDR_Reg->DCR >> 2) & 0x3);
+    capability = 0x800000 << (((pDDR_Reg->DCR >> 4) & 0x7) + value + ((pDDR_Reg->DCR >> 11) & 0x3));
 
-    value = ddr_change_freq(DDR_FREQ);
-    ddr_print("init success!!! freq=%dMHz\n", DDR_FREQ);
-    ddr_print("CSR:0x%x, RSLR0:0x%x, RSLR1:0x%x, RDGR0:0x%x, RDGR1:0x%x\n", 
-                        pDDR_Reg->CSR, 
-                        pDDR_Reg->RSLR[0], pDDR_Reg->RSLR[1], 
-                        pDDR_Reg->RDGR[0], pDDR_Reg->RDGR[1]);
+    Hz = clk_get_rate(clk_get(NULL,"ddr"));
+    MHz = Hz/1000000;
+#if defined(CONFIG_MACH_RK29_A22)	//a22 should not change freq
+#else
+   value = ddr_change_freq(MHz);
+#endif
+    ddr_print("init success!!! freq=%dMHz\n", value);
     return 0;
 }
 core_initcall_sync(ddr_probe);
