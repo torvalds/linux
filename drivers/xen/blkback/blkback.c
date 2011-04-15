@@ -421,7 +421,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int nseg;
 	struct bio *bio = NULL;
-	int ret, i;
+	struct bio *biolist[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	int ret, i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
 	struct request_queue *q;
@@ -529,14 +530,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		goto fail_flush;
 	}
 
-	/* Get a reference count for the disk queue and start sending I/O */
-	blk_get_queue(q);
-	blk_start_plug(&plug);
-
-	/* We set it one so that the last submit_bio does not have to call
-	 * atomic_inc.
-	 */
-	atomic_set(&pending_req->pendcnt, 1);
+	/* This corresponding blkif_put is done in __end_block_io_op */
 	blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
@@ -552,12 +546,8 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 				     blkbk->pending_page(pending_req, i),
 				     seg[i].nsec << 9,
 				     seg[i].buf & ~PAGE_MASK) == 0)) {
-			if (bio) {
-				atomic_inc(&pending_req->pendcnt);
-				submit_bio(operation, bio);
-			}
 
-			bio = bio_alloc(GFP_KERNEL, nseg-i);
+			bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
 				goto fail_put_bio;
 
@@ -573,7 +563,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	/* This will be hit if the operation was a barrier. */
 	if (!bio) {
 		BUG_ON(operation != WRITE_BARRIER);
-		bio = bio_alloc(GFP_KERNEL, 0);
+		bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, 0);
 		if (unlikely(bio == NULL))
 			goto fail_put_bio;
 
@@ -583,15 +573,28 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		bio->bi_sector  = -1;
 	}
 
-	submit_bio(operation, bio);
+
+	/* We set it one so that the last submit_bio does not have to call
+	 * atomic_inc.
+	 */
+	atomic_set(&pending_req->pendcnt, nbio);
+
+	/* Get a reference count for the disk queue and start sending I/O */
+	blk_get_queue(q);
+	blk_start_plug(&plug);
+
+	for (i = 0; i < nbio; i++)
+		submit_bio(operation, biolist[i]);
+
+	blk_finish_plug(&plug);
+	/* Let the I/Os go.. */
+	blk_put_queue(q);
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
 	else if (operation == WRITE || operation == WRITE_BARRIER)
 		blkif->st_wr_sect += preq.nr_sects;
 
-	blk_finish_plug(&plug);
-	blk_put_queue(q);
 	return;
 
  fail_flush:
@@ -604,11 +607,9 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	return;
 
  fail_put_bio:
+	for (i = 0; i < (nbio-1); i++)
+		bio_put(biolist[i]);
 	__end_block_io_op(pending_req, -EINVAL);
-	if (bio)
-		bio_put(bio);
-	blk_finish_plug(&plug);
-	blk_put_queue(q);
 	msleep(1); /* back off a bit */
 	return;
 }
