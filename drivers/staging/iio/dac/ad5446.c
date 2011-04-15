@@ -245,6 +245,12 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.left_shift = 0,
 		.store_sample = ad5446_store_sample,
 	},
+	[ID_AD5541A] = {
+		.bits = 16,
+		.storagebits = 16,
+		.left_shift = 0,
+		.store_sample = ad5542_store_sample,
+	},
 	[ID_AD5542A] = {
 		.bits = 16,
 		.storagebits = 16,
@@ -442,6 +448,7 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5444", ID_AD5444},
 	{"ad5446", ID_AD5446},
 	{"ad5512a", ID_AD5512A},
+	{"ad5541a", ID_AD5541A},
 	{"ad5542a", ID_AD5542A},
 	{"ad5543", ID_AD5543},
 	{"ad5553", ID_AD5553},
