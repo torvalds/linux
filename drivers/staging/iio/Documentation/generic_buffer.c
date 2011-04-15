@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 
 	int datardytrigger = 1;
 	char *data;
-	size_t read_size;
+	ssize_t read_size;
 	struct iio_event_data dat;
 	int dev_num, trig_num;
 	char *buffer_access, *buffer_event;
