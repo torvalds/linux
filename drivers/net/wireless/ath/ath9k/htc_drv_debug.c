@@ -16,8 +16,6 @@
 
 #include "htc.h"
 
-static struct dentry *ath9k_debugfs_root;
-
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -481,100 +479,27 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	priv->debug.debugfs_phy = debugfs_create_dir(wiphy_name(priv->hw->wiphy),
-						     ath9k_debugfs_root);
+	priv->debug.debugfs_phy = debugfs_create_dir(KBUILD_MODNAME,
+					     priv->hw->wiphy->debugfsdir);
 	if (!priv->debug.debugfs_phy)
-		goto err;
+		return -ENOMEM;
 
-	priv->debug.debugfs_tgt_int_stats = debugfs_create_file("tgt_int_stats",
-							S_IRUSR,
-							priv->debug.debugfs_phy,
-							priv, &fops_tgt_int_stats);
-	if (!priv->debug.debugfs_tgt_int_stats)
-		goto err;
-
-	priv->debug.debugfs_tgt_tx_stats = debugfs_create_file("tgt_tx_stats",
-						       S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_tgt_tx_stats);
-	if (!priv->debug.debugfs_tgt_tx_stats)
-		goto err;
-
-	priv->debug.debugfs_tgt_rx_stats = debugfs_create_file("tgt_rx_stats",
-						       S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_tgt_rx_stats);
-	if (!priv->debug.debugfs_tgt_rx_stats)
-		goto err;
-
-	priv->debug.debugfs_xmit = debugfs_create_file("xmit", S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_xmit);
-	if (!priv->debug.debugfs_xmit)
-		goto err;
-
-	priv->debug.debugfs_recv = debugfs_create_file("recv", S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_recv);
-	if (!priv->debug.debugfs_recv)
-		goto err;
-
-	priv->debug.debugfs_slot = debugfs_create_file("slot", S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_slot);
-	if (!priv->debug.debugfs_slot)
-		goto err;
-
-	priv->debug.debugfs_queue = debugfs_create_file("queue", S_IRUSR,
-							priv->debug.debugfs_phy,
-							priv, &fops_queue);
-	if (!priv->debug.debugfs_queue)
-		goto err;
-
-	priv->debug.debugfs_debug = debugfs_create_file("debug",
-							S_IRUSR | S_IWUSR,
-							priv->debug.debugfs_phy,
-							priv, &fops_debug);
-	if (!priv->debug.debugfs_debug)
-		goto err;
+	debugfs_create_file("tgt_int_stats", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_tgt_int_stats);
+	debugfs_create_file("tgt_tx_stats", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_tgt_tx_stats);
+	debugfs_create_file("tgt_rx_stats", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_tgt_rx_stats);
+	debugfs_create_file("xmit", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_xmit);
+	debugfs_create_file("recv", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_recv);
+	debugfs_create_file("slot", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_slot);
+	debugfs_create_file("queue", S_IRUSR, priv->debug.debugfs_phy,
+				priv, &fops_queue);
+	debugfs_create_file("debug", S_IRUSR | S_IWUSR, priv->debug.debugfs_phy,
+				priv, &fops_debug);
 
 	return 0;
-
-err:
-	ath9k_htc_exit_debug(ah);
-	return -ENOMEM;
-}
-
-void ath9k_htc_exit_debug(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-
-	debugfs_remove(priv->debug.debugfs_queue);
-	debugfs_remove(priv->debug.debugfs_slot);
-	debugfs_remove(priv->debug.debugfs_recv);
-	debugfs_remove(priv->debug.debugfs_xmit);
-	debugfs_remove(priv->debug.debugfs_tgt_int_stats);
-	debugfs_remove(priv->debug.debugfs_tgt_tx_stats);
-	debugfs_remove(priv->debug.debugfs_tgt_rx_stats);
-	debugfs_remove(priv->debug.debugfs_debug);
-	debugfs_remove(priv->debug.debugfs_phy);
-}
-
-int ath9k_htc_debug_create_root(void)
-{
-	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	return 0;
-}
-
-void ath9k_htc_debug_remove_root(void)
-{
-	debugfs_remove(ath9k_debugfs_root);
-	ath9k_debugfs_root = NULL;
 }

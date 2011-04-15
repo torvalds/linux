@@ -359,14 +359,6 @@ struct ath_rx_stats {
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
-	struct dentry *debugfs_tgt_int_stats;
-	struct dentry *debugfs_tgt_tx_stats;
-	struct dentry *debugfs_tgt_rx_stats;
-	struct dentry *debugfs_xmit;
-	struct dentry *debugfs_recv;
-	struct dentry *debugfs_slot;
-	struct dentry *debugfs_queue;
-	struct dentry *debugfs_debug;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
 };
@@ -613,15 +605,9 @@ void ath9k_htc_suspend(struct htc_target *htc_handle);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
-int ath9k_htc_debug_create_root(void);
-void ath9k_htc_debug_remove_root(void);
 int ath9k_htc_init_debug(struct ath_hw *ah);
-void ath9k_htc_exit_debug(struct ath_hw *ah);
 #else
-static inline int ath9k_htc_debug_create_root(void) { return 0; };
-static inline void ath9k_htc_debug_remove_root(void) {};
 static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
-static inline void ath9k_htc_exit_debug(struct ath_hw *ah) {};
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */

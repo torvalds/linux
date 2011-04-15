@@ -140,7 +140,6 @@ static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 
 static void ath9k_deinit_priv(struct ath9k_htc_priv *priv)
 {
-	ath9k_htc_exit_debug(priv->ah);
 	ath9k_hw_deinit(priv->ah);
 	kfree(priv->ah);
 	priv->ah = NULL;
@@ -700,12 +699,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		goto err_hw;
 	}
 
-	ret = ath9k_htc_init_debug(ah);
-	if (ret) {
-		ath_err(common, "Unable to create debugfs files\n");
-		goto err_debug;
-	}
-
 	ret = ath9k_init_queues(priv);
 	if (ret)
 		goto err_queues;
@@ -725,8 +718,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	return 0;
 
 err_queues:
-	ath9k_htc_exit_debug(ah);
-err_debug:
 	ath9k_hw_deinit(ah);
 err_hw:
 
@@ -867,6 +858,12 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 			goto err_world;
 	}
 
+	error = ath9k_htc_init_debug(priv->ah);
+	if (error) {
+		ath_err(common, "Unable to create debugfs files\n");
+		goto err_world;
+	}
+
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"WMI:%d, BCN:%d, CAB:%d, UAPSD:%d, MGMT:%d, "
 		"BE:%d, BK:%d, VI:%d, VO:%d\n",
@@ -987,38 +984,20 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 
 static int __init ath9k_htc_init(void)
 {
-	int error;
-
-	error = ath9k_htc_debug_create_root();
-	if (error < 0) {
-		printk(KERN_ERR
-			"ath9k_htc: Unable to create debugfs root: %d\n",
-			error);
-		goto err_dbg;
-	}
-
-	error = ath9k_hif_usb_init();
-	if (error < 0) {
+	if (ath9k_hif_usb_init() < 0) {
 		printk(KERN_ERR
 			"ath9k_htc: No USB devices found,"
 			" driver not installed.\n");
-		error = -ENODEV;
-		goto err_usb;
+		return -ENODEV;
 	}
 
 	return 0;
-
-err_usb:
-	ath9k_htc_debug_remove_root();
-err_dbg:
-	return error;
 }
 module_init(ath9k_htc_init);
 
 static void __exit ath9k_htc_exit(void)
 {
 	ath9k_hif_usb_exit();
-	ath9k_htc_debug_remove_root();
 	printk(KERN_INFO "ath9k_htc: Driver unloaded\n");
 }
 module_exit(ath9k_htc_exit);
