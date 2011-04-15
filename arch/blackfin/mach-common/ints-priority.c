@@ -559,7 +559,7 @@ static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 }
 
 #ifdef CONFIG_PM
-int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
+static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 {
 	return gpio_pm_wakeup_ctrl(irq_to_gpio(d->irq), state);
 }
@@ -855,15 +855,11 @@ static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 }
 
 #ifdef CONFIG_PM
-u32 pint_saved_masks[NR_PINT_SYS_IRQS];
-u32 pint_wakeup_masks[NR_PINT_SYS_IRQS];
-
-int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
+static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 {
 	u32 pint_irq;
 	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 bank = PINT_2_BANK(pint_val);
-	u32 pintbit = PINT_BIT(pint_val);
 
 	switch (bank) {
 	case 0:
@@ -884,41 +880,7 @@ int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 
 	bfin_internal_set_wake(pint_irq, state);
 
-	if (state)
-		pint_wakeup_masks[bank] |= pintbit;
-	else
-		pint_wakeup_masks[bank] &= ~pintbit;
-
 	return 0;
-}
-
-u32 bfin_pm_setup(void)
-{
-	u32 val, i;
-
-	for (i = 0; i < NR_PINT_SYS_IRQS; i++) {
-		val = pint[i]->mask_clear;
-		pint_saved_masks[i] = val;
-		if (val ^ pint_wakeup_masks[i]) {
-			pint[i]->mask_clear = val;
-			pint[i]->mask_set = pint_wakeup_masks[i];
-		}
-	}
-
-	return 0;
-}
-
-void bfin_pm_restore(void)
-{
-	u32 i, val;
-
-	for (i = 0; i < NR_PINT_SYS_IRQS; i++) {
-		val = pint_saved_masks[i];
-		if (val ^ pint_wakeup_masks[i]) {
-			pint[i]->mask_clear = pint[i]->mask_clear;
-			pint[i]->mask_set = val;
-		}
-	}
 }
 #else
 # define bfin_gpio_set_wake NULL
