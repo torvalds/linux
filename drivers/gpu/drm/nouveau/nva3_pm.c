@@ -34,8 +34,14 @@
  */
 
 struct nva3_pm_state {
-	struct pll_lims pll;
-	int N, M, P;
+	enum pll_types type;
+	u32 src0;
+	u32 src1;
+	u32 ctrl;
+	u32 coef;
+	u32 old_pnm;
+	u32 new_pnm;
+	u32 new_div;
 };
 
 static int
@@ -96,36 +102,103 @@ void *
 nva3_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		  u32 id, int khz)
 {
-	struct nva3_pm_state *state;
-	int dummy, ret;
+	struct nva3_pm_state *pll;
+	struct pll_lims limits;
+	int N, fN, M, P, diff;
+	int ret, off;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return ERR_PTR(-ENOMEM);
-
-	ret = get_pll_limits(dev, id, &state->pll);
-	if (ret < 0) {
-		kfree(state);
+	ret = get_pll_limits(dev, id, &limits);
+	if (ret < 0)
 		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
+
+	off = nva3_pm_pll_offset(id);
+	if (id < 0)
+		return ERR_PTR(-EINVAL);
+
+
+	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	if (!pll)
+		return ERR_PTR(-ENOMEM);
+	pll->type = id;
+	pll->src0 = 0x004120 + (off * 4);
+	pll->src1 = 0x004160 + (off * 4);
+	pll->ctrl = limits.reg + 0;
+	pll->coef = limits.reg + 4;
+
+	/* If target clock is within [-2, 3) MHz of a divisor, we'll
+	 * use that instead of calculating MNP values
+	 */
+	pll->new_div = ((limits.refclk * 2) / (khz - 2999)) & 0x0f;
+	if (pll->new_div) {
+		diff = khz - ((limits.refclk * 2) / pll->new_div);
+		if (diff < -2000 || diff >= 3000)
+			pll->new_div = 0;
 	}
 
-	ret = nv50_calc_pll2(dev, &state->pll, khz, &state->N, &dummy,
-			     &state->M, &state->P);
-	if (ret < 0) {
-		kfree(state);
-		return ERR_PTR(ret);
+	if (!pll->new_div) {
+		ret = nv50_calc_pll2(dev, &limits, khz, &N, &fN, &M, &P);
+		if (ret < 0)
+			return ERR_PTR(ret);
+
+		pll->new_pnm = (P << 16) | (N << 8) | M;
+		pll->new_div = 2 - 1;
+	} else {
+		pll->new_pnm = 0;
+		pll->new_div--;
 	}
 
-	return state;
+	if ((nv_rd32(dev, pll->src1) & 0x00000101) != 0x00000101)
+		pll->old_pnm = nv_rd32(dev, pll->coef);
+	return pll;
 }
 
 void
 nva3_pm_clock_set(struct drm_device *dev, void *pre_state)
 {
-	struct nva3_pm_state *state = pre_state;
-	u32 reg = state->pll.reg;
+	struct nva3_pm_state *pll = pre_state;
+	u32 ctrl = 0;
 
-	nv_wr32(dev, reg + 4, (state->P << 16) | (state->N << 8) | state->M);
-	kfree(state);
+	/* For the memory clock, NVIDIA will build a "script" describing
+	 * the reclocking process and ask PDAEMON to execute it.
+	 */
+	if (pll->type == PLL_MEMORY) {
+		nv_wr32(dev, 0x100210, 0);
+		nv_wr32(dev, 0x1002dc, 1);
+		nv_wr32(dev, 0x004018, 0x00001000);
+		ctrl = 0x18000100;
+	}
+
+	if (pll->old_pnm || !pll->new_pnm) {
+		nv_mask(dev, pll->src1, 0x003c0101, 0x00000101 |
+						    (pll->new_div << 18));
+		nv_wr32(dev, pll->ctrl, 0x0001001d | ctrl);
+		nv_mask(dev, pll->ctrl, 0x00000001, 0x00000000);
+	}
+
+	if (pll->new_pnm) {
+		nv_mask(dev, pll->src0, 0x00000101, 0x00000101);
+		nv_wr32(dev, pll->coef, pll->new_pnm);
+		nv_wr32(dev, pll->ctrl, 0x0001001d | ctrl);
+		nv_mask(dev, pll->ctrl, 0x00000010, 0x00000000);
+		nv_mask(dev, pll->ctrl, 0x00020010, 0x00020010);
+		nv_wr32(dev, pll->ctrl, 0x00010015 | ctrl);
+		nv_mask(dev, pll->src1, 0x00000100, 0x00000000);
+		nv_mask(dev, pll->src1, 0x00000001, 0x00000000);
+		if (pll->type == PLL_MEMORY)
+			nv_wr32(dev, 0x4018, 0x10005000);
+	} else {
+		nv_mask(dev, pll->ctrl, 0x00000001, 0x00000000);
+		nv_mask(dev, pll->src0, 0x00000100, 0x00000000);
+		nv_mask(dev, pll->src0, 0x00000001, 0x00000000);
+		if (pll->type == PLL_MEMORY)
+			nv_wr32(dev, 0x4018, 0x1000d000);
+	}
+
+	if (pll->type == PLL_MEMORY) {
+		nv_wr32(dev, 0x1002dc, 0);
+		nv_wr32(dev, 0x100210, 0x80000000);
+	}
+
+	kfree(pll);
 }
 
