@@ -4118,7 +4118,7 @@ need_resched:
 			 */
 			if (blk_needs_flush_plug(prev)) {
 				raw_spin_unlock(&rq->lock);
-				blk_flush_plug(prev);
+				blk_schedule_flush_plug(prev);
 				raw_spin_lock(&rq->lock);
 			}
 		}
