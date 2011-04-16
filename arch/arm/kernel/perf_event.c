@@ -221,7 +221,7 @@ again:
 	prev_raw_count &= armpmu->max_period;
 
 	if (overflow)
-		delta = armpmu->max_period - prev_raw_count + new_raw_count;
+		delta = armpmu->max_period - prev_raw_count + new_raw_count + 1;
 	else
 		delta = new_raw_count - prev_raw_count;
 

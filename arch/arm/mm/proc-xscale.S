@@ -518,7 +518,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 .globl	cpu_xscale_suspend_size
 .equ	cpu_xscale_suspend_size, 4 * 7
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_xscale_do_suspend)
 	stmfd	sp!, {r4 - r10, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
