@@ -115,7 +115,7 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv,
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
 	/* Clear RD responder bit */
-	RESETHT_EXTCAP_RDG(ht_ext_cap);
+	ht_ext_cap &= ~IEEE80211_HT_EXT_CAP_RD_RESPONDER;
 
 	ht_cap->ht_cap.cap_info = cpu_to_le16(ht_cap_info);
 	ht_cap->ht_cap.extended_ht_cap_info = cpu_to_le16(ht_ext_cap);

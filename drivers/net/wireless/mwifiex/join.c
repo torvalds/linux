@@ -995,7 +995,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 					IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 			}
 			ht_info->ht_info.operation_mode =
-				cpu_to_le16(NON_GREENFIELD_STAS);
+			     cpu_to_le16(IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 			ht_info->ht_info.basic_set[0] = 0xff;
 			pos += sizeof(struct mwifiex_ie_types_htinfo);
 			cmd_append_size +=

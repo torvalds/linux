@@ -268,14 +268,13 @@ struct mwifiex_debug_info {
 };
 
 #define MWIFIEX_KEY_INDEX_UNICAST	0x40000000
-#define MWIFIEX_MAX_KEY_LENGTH		32
 #define WAPI_RXPN_LEN			16
 
 struct mwifiex_ds_encrypt_key {
 	u32 key_disable;
 	u32 key_index;
 	u32 key_len;
-	u8 key_material[MWIFIEX_MAX_KEY_LENGTH];
+	u8 key_material[WLAN_MAX_KEY_LEN];
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
 	u8 wapi_rxpn[WAPI_RXPN_LEN];

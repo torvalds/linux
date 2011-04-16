@@ -1147,7 +1147,7 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 	struct host_cmd_ds_802_11_key_material *ibss_key;
 
 	/* Current driver only supports key length of up to 32 bytes */
-	if (encrypt_key->key_len > MWIFIEX_MAX_KEY_LENGTH) {
+	if (encrypt_key->key_len > WLAN_MAX_KEY_LEN) {
 		dev_err(priv->adapter->dev, "key length too long\n");
 		return -1;
 	}
