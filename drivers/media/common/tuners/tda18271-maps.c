@@ -229,8 +229,7 @@ static struct tda18271_map tda18271c2_km[] = {
 static struct tda18271_map tda18271_rf_band[] = {
 	{ .rfmax =  47900, .val = 0x00 },
 	{ .rfmax =  61100, .val = 0x01 },
-/*	{ .rfmax = 152600, .val = 0x02 }, */
-	{ .rfmax = 121200, .val = 0x02 },
+	{ .rfmax = 152600, .val = 0x02 },
 	{ .rfmax = 164700, .val = 0x03 },
 	{ .rfmax = 203500, .val = 0x04 },
 	{ .rfmax = 457800, .val = 0x05 },
