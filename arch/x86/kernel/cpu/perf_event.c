@@ -31,6 +31,7 @@
 #include <asm/nmi.h>
 #include <asm/compat.h>
 #include <asm/smp.h>
+#include <asm/alternative.h>
 
 #if 0
 #undef wrmsrl
@@ -363,12 +364,18 @@ again:
 	return new_raw_count;
 }
 
-/* using X86_FEATURE_PERFCTR_CORE to later implement ALTERNATIVE() here */
 static inline int x86_pmu_addr_offset(int index)
 {
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
-		return index << 1;
-	return index;
+	int offset;
+
+	/* offset = X86_FEATURE_PERFCTR_CORE ? index << 1 : index */
+	alternative_io(ASM_NOP2,
+		       "shll $1, %%eax",
+		       X86_FEATURE_PERFCTR_CORE,
+		       "=a" (offset),
+		       "a"  (index));
+
+	return offset;
 }
 
 static inline unsigned int x86_pmu_config_addr(int index)
