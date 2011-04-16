@@ -872,7 +872,7 @@ mwifiex_copy_rates(u8 *dest, u32 pos, u8 *src, int len)
  */
 static inline struct mwifiex_private *
 mwifiex_get_priv_by_id(struct mwifiex_adapter *adapter,
-		       u32 bss_num, u32 bss_type)
+		       u8 bss_num, u8 bss_type)
 {
 	int i;
 

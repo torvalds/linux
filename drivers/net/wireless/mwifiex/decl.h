@@ -113,11 +113,11 @@ struct mwifiex_txinfo {
 };
 
 struct mwifiex_bss_attr {
-	u32 bss_type;
-	u32 frame_type;
-	u32 active;
-	u32 bss_priority;
-	u32 bss_num;
+	u8 bss_type;
+	u8 frame_type;
+	u8 active;
+	u8 bss_priority;
+	u8 bss_num;
 };
 
 enum mwifiex_wmm_ac_e {
@@ -126,8 +126,4 @@ enum mwifiex_wmm_ac_e {
 	WMM_AC_VI,
 	WMM_AC_VO
 } __packed;
-
-struct mwifiex_device {
-	struct mwifiex_bss_attr bss_attr[MWIFIEX_MAX_BSS_NUM];
-};
 #endif /* !_MWIFIEX_DECL_H_ */
