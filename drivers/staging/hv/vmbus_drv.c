@@ -578,10 +578,8 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	hv_bus.bus.name = driver_name;
 
 	/* Initialize the bus context */
-	tasklet_init(&hv_bus.msg_dpc, vmbus_on_msg_dpc,
-		     (unsigned long)NULL);
-	tasklet_init(&hv_bus.event_dpc, vmbus_on_event,
-		     (unsigned long)NULL);
+	tasklet_init(&hv_bus.msg_dpc, vmbus_on_msg_dpc, 0);
+	tasklet_init(&hv_bus.event_dpc, vmbus_on_event, 0);
 
 	/* Now, register the bus  with LDM */
 	ret = bus_register(&hv_bus.bus);
