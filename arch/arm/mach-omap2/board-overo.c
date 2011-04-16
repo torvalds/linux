@@ -146,106 +146,28 @@ static inline void __init overo_ads7846_init(void) { return; }
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
+#include <plat/gpmc-smsc911x.h>
 
-static struct resource overo_smsc911x_resources[] = {
-	{
-		.name	= "smsc911x-memory",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct resource overo_smsc911x2_resources[] = {
-	{
-		.name	= "smsc911x2-memory",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct smsc911x_platform_config overo_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT ,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct platform_device overo_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
-	.resource	= overo_smsc911x_resources,
-	.dev		= {
-		.platform_data = &overo_smsc911x_config,
-	},
+	.cs             = OVERO_SMSC911X_CS,
+	.gpio_irq       = OVERO_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct platform_device overo_smsc911x2_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data smsc911x2_cfg = {
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(overo_smsc911x2_resources),
-	.resource	= overo_smsc911x2_resources,
-	.dev		= {
-		.platform_data = &overo_smsc911x_config,
-	},
+	.cs             = OVERO_SMSC911X2_CS,
+	.gpio_irq       = OVERO_SMSC911X2_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct platform_device *smsc911x_devices[] = {
-	&overo_smsc911x_device,
-	&overo_smsc911x2_device,
-};
-
-static inline void __init overo_init_smsc911x(void)
+static void __init overo_init_smsc911x(void)
 {
-	unsigned long cs_mem_base, cs_mem_base2;
-
-	/* set up first smsc911x chip */
-
-	if (gpmc_cs_request(OVERO_SMSC911X_CS, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed request for GPMC mem for smsc911x\n");
-		return;
-	}
-
-	overo_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	overo_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-
-	if ((gpio_request(OVERO_SMSC911X_GPIO, "SMSC911X IRQ") == 0) &&
-	    (gpio_direction_input(OVERO_SMSC911X_GPIO) == 0)) {
-		gpio_export(OVERO_SMSC911X_GPIO, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for SMSC911X IRQ\n");
-		return;
-	}
-
-	overo_smsc911x_resources[1].start = OMAP_GPIO_IRQ(OVERO_SMSC911X_GPIO);
-	overo_smsc911x_resources[1].end	  = 0;
-
-	/* set up second smsc911x chip */
-
-	if (gpmc_cs_request(OVERO_SMSC911X2_CS, SZ_16M, &cs_mem_base2) < 0) {
-		printk(KERN_ERR "Failed request for GPMC mem for smsc911x2\n");
-		return;
-	}
-
-	overo_smsc911x2_resources[0].start = cs_mem_base2 + 0x0;
-	overo_smsc911x2_resources[0].end   = cs_mem_base2 + 0xff;
-
-	if ((gpio_request(OVERO_SMSC911X2_GPIO, "SMSC911X2 IRQ") == 0) &&
-	    (gpio_direction_input(OVERO_SMSC911X2_GPIO) == 0)) {
-		gpio_export(OVERO_SMSC911X2_GPIO, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for SMSC911X2 IRQ\n");
-		return;
-	}
-
-	overo_smsc911x2_resources[1].start = OMAP_GPIO_IRQ(OVERO_SMSC911X2_GPIO);
-	overo_smsc911x2_resources[1].end   = 0;
-
-	platform_add_devices(smsc911x_devices, ARRAY_SIZE(smsc911x_devices));
+	gpmc_smsc911x_init(&smsc911x_cfg);
+	gpmc_smsc911x_init(&smsc911x2_cfg);
 }
 
 #else

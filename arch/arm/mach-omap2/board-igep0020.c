@@ -192,57 +192,18 @@ static void __init igep2_flash_init(void) {}
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
+#include <plat/gpmc-smsc911x.h>
 
-static struct smsc911x_platform_config igep2_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS  ,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct resource igep2_smsc911x_resources[] = {
-	{
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP_GPIO_IRQ(IGEP2_SMSC911X_GPIO),
-		.end	= OMAP_GPIO_IRQ(IGEP2_SMSC911X_GPIO),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct platform_device igep2_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(igep2_smsc911x_resources),
-	.resource	= igep2_smsc911x_resources,
-	.dev		= {
-		.platform_data = &igep2_smsc911x_config,
-	},
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = IGEP2_SMSC911X_CS,
+	.gpio_irq       = IGEP2_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
 
 static inline void __init igep2_init_smsc911x(void)
 {
-	unsigned long cs_mem_base;
-
-	if (gpmc_cs_request(IGEP2_SMSC911X_CS, SZ_16M, &cs_mem_base) < 0) {
-		pr_err("IGEP v2: Failed request for GPMC mem for smsc911x\n");
-		gpmc_cs_free(IGEP2_SMSC911X_CS);
-		return;
-	}
-
-	igep2_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	igep2_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-
-	if ((gpio_request(IGEP2_SMSC911X_GPIO, "SMSC911X IRQ") == 0) &&
-	    (gpio_direction_input(IGEP2_SMSC911X_GPIO) == 0)) {
-		gpio_export(IGEP2_SMSC911X_GPIO, 0);
-	} else {
-		pr_err("IGEP v2: Could not obtain gpio for for SMSC911X IRQ\n");
-		return;
-	}
-
-	platform_device_register(&igep2_smsc911x_device);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 #else

@@ -41,16 +41,6 @@ static struct smsc911x_platform_config gpmc_smsc911x_config = {
 	.flags		= SMSC911X_USE_16BIT,
 };
 
-static struct platform_device gpmc_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(gpmc_smsc911x_resources),
-	.resource	= gpmc_smsc911x_resources,
-	.dev		= {
-		.platform_data = &gpmc_smsc911x_config,
-	},
-};
-
 /*
  * Initialize smsc911x device connected to the GPMC. Note that we
  * assume that pin multiplexing is done in the board-*.c file,
@@ -58,6 +48,7 @@ static struct platform_device gpmc_smsc911x_device = {
  */
 void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 {
+	struct platform_device *pdev;
 	unsigned long cs_mem_base;
 	int ret;
 
@@ -97,7 +88,10 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 	if (gpmc_cfg->flags)
 		gpmc_smsc911x_config.flags = gpmc_cfg->flags;
 
-	if (platform_device_register(&gpmc_smsc911x_device) < 0) {
+	pdev = platform_device_register_resndata(NULL, "smsc911x", gpmc_cfg->id,
+		 gpmc_smsc911x_resources, ARRAY_SIZE(gpmc_smsc911x_resources),
+		 &gpmc_smsc911x_config, sizeof(gpmc_smsc911x_config));
+	if (!pdev) {
 		printk(KERN_ERR "Unable to register smsc911x device\n");
 		gpio_free(gpmc_cfg->gpio_reset);
 		goto free2;

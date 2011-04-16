@@ -56,49 +56,24 @@
 #include "timer-gp.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
+#include <plat/gpmc-smsc911x.h>
+
 #define OMAP3STALKER_ETHR_START	0x2c000000
 #define OMAP3STALKER_ETHR_SIZE	1024
 #define OMAP3STALKER_ETHR_GPIO_IRQ	19
 #define OMAP3STALKER_SMC911X_CS	5
 
-static struct resource omap3stalker_smsc911x_resources[] = {
-	[0] = {
-	       .start	= OMAP3STALKER_ETHR_START,
-	       .end	=
-	       (OMAP3STALKER_ETHR_START + OMAP3STALKER_ETHR_SIZE - 1),
-	       .flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-	       .start	= OMAP_GPIO_IRQ(OMAP3STALKER_ETHR_GPIO_IRQ),
-	       .end	= OMAP_GPIO_IRQ(OMAP3STALKER_ETHR_GPIO_IRQ),
-	       .flags	= (IORESOURCE_IRQ | IRQF_TRIGGER_LOW),
-	},
-};
-
-static struct smsc911x_platform_config smsc911x_config = {
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = OMAP3STALKER_SMC911X_CS,
+	.gpio_irq       = OMAP3STALKER_ETHR_GPIO_IRQ,
+	.gpio_reset     = -EINVAL,
 	.flags		= (SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS),
-};
-
-static struct platform_device omap3stalker_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap3stalker_smsc911x_resources),
-	.resource	= &omap3stalker_smsc911x_resources[0],
-	.dev		= {
-		.platform_data	= &smsc911x_config,
-	},
 };
 
 static inline void __init omap3stalker_init_eth(void)
 {
-	int eth_cs;
 	struct clk *l3ck;
 	unsigned int rate;
-
-	eth_cs = OMAP3STALKER_SMC911X_CS;
 
 	l3ck = clk_get(NULL, "l3_ck");
 	if (IS_ERR(l3ck))
@@ -107,16 +82,7 @@ static inline void __init omap3stalker_init_eth(void)
 		rate = clk_get_rate(l3ck);
 
 	omap_mux_init_gpio(19, OMAP_PIN_INPUT_PULLUP);
-	if (gpio_request(OMAP3STALKER_ETHR_GPIO_IRQ, "SMC911x irq") < 0) {
-		printk(KERN_ERR
-		       "Failed to request GPIO%d for smc911x IRQ\n",
-		       OMAP3STALKER_ETHR_GPIO_IRQ);
-		return;
-	}
-
-	gpio_direction_input(OMAP3STALKER_ETHR_GPIO_IRQ);
-
-	platform_device_register(&omap3stalker_smsc911x_device);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 #else

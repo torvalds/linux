@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 
 #include <plat/gpmc.h>
+#include <plat/gpmc-smsc911x.h>
 
 #include <mach/board-zoom.h>
 
@@ -26,60 +27,16 @@
 #define DEBUG_BASE		0x08000000
 #define ZOOM_ETHR_START	DEBUG_BASE
 
-static struct resource zoom_smsc911x_resources[] = {
-	[0] = {
-		.start	= ZOOM_ETHR_START,
-		.end	= ZOOM_ETHR_START + SZ_4K,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct smsc911x_platform_config zoom_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+static struct omap_smsc911x_platform_data zoom_smsc911x_cfg = {
+	.cs             = ZOOM_SMSC911X_CS,
+	.gpio_irq       = ZOOM_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
 	.flags		= SMSC911X_USE_32BIT,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct platform_device zoom_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(zoom_smsc911x_resources),
-	.resource	= zoom_smsc911x_resources,
-	.dev		= {
-		.platform_data = &zoom_smsc911x_config,
-	},
 };
 
 static inline void __init zoom_init_smsc911x(void)
 {
-	int eth_cs;
-	unsigned long cs_mem_base;
-	int eth_gpio = 0;
-
-	eth_cs = ZOOM_SMSC911X_CS;
-
-	if (gpmc_cs_request(eth_cs, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed to request GPMC mem for smsc911x\n");
-		return;
-	}
-
-	zoom_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	zoom_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-
-	eth_gpio = ZOOM_SMSC911X_GPIO;
-
-	zoom_smsc911x_resources[1].start = OMAP_GPIO_IRQ(eth_gpio);
-
-	if (gpio_request(eth_gpio, "smsc911x irq") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smsc911x IRQ\n",
-				eth_gpio);
-		return;
-	}
-	gpio_direction_input(eth_gpio);
+	gpmc_smsc911x_init(&zoom_smsc911x_cfg);
 }
 
 static struct plat_serial8250_port serial_platform_data[] = {
@@ -150,7 +107,6 @@ static inline int omap_zoom_debugboard_detect(void)
 }
 
 static struct platform_device *zoom_devices[] __initdata = {
-	&zoom_smsc911x_device,
 	&zoom_debugboard_serial_device,
 };
 

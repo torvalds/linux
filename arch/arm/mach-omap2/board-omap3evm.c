@@ -101,48 +101,19 @@ static void __init omap3_evm_get_revision(void)
 }
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
-static struct resource omap3evm_smsc911x_resources[] = {
-	[0] =	{
-		.start	= OMAP3EVM_ETHR_START,
-		.end	= (OMAP3EVM_ETHR_START + OMAP3EVM_ETHR_SIZE - 1),
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] =	{
-		.start	= OMAP_GPIO_IRQ(OMAP3EVM_ETHR_GPIO_IRQ),
-		.end	= OMAP_GPIO_IRQ(OMAP3EVM_ETHR_GPIO_IRQ),
-		.flags	= (IORESOURCE_IRQ | IRQF_TRIGGER_LOW),
-	},
-};
+#include <plat/gpmc-smsc911x.h>
 
-static struct smsc911x_platform_config smsc911x_config = {
-	.phy_interface  = PHY_INTERFACE_MODE_MII,
-	.irq_polarity   = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type       = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags          = (SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS),
-};
-
-static struct platform_device omap3evm_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap3evm_smsc911x_resources),
-	.resource	= &omap3evm_smsc911x_resources[0],
-	.dev		= {
-		.platform_data = &smsc911x_config,
-	},
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = OMAP3EVM_SMSC911X_CS,
+	.gpio_irq       = OMAP3EVM_ETHR_GPIO_IRQ,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
 
 static inline void __init omap3evm_init_smsc911x(void)
 {
-	int eth_cs, eth_rst;
 	struct clk *l3ck;
 	unsigned int rate;
-
-	if (get_omap3_evm_rev() == OMAP3EVM_BOARD_GEN_1)
-		eth_rst = OMAP3EVM_GEN1_ETHR_GPIO_RST;
-	else
-		eth_rst = OMAP3EVM_GEN2_ETHR_GPIO_RST;
-
-	eth_cs = OMAP3EVM_SMSC911X_CS;
 
 	l3ck = clk_get(NULL, "l3_ck");
 	if (IS_ERR(l3ck))
@@ -152,33 +123,13 @@ static inline void __init omap3evm_init_smsc911x(void)
 
 	/* Configure ethernet controller reset gpio */
 	if (cpu_is_omap3430()) {
-		if (gpio_request(eth_rst, "SMSC911x gpio") < 0) {
-			pr_err(KERN_ERR "Failed to request %d for smsc911x\n",
-					eth_rst);
-			return;
-		}
-
-		if (gpio_direction_output(eth_rst, 1) < 0) {
-			pr_err(KERN_ERR "Failed to set direction of %d for" \
-					" smsc911x\n", eth_rst);
-			return;
-		}
-		/* reset pulse to ethernet controller*/
-		usleep_range(150, 220);
-		gpio_set_value(eth_rst, 0);
-		usleep_range(150, 220);
-		gpio_set_value(eth_rst, 1);
-		usleep_range(1, 2);
+		if (get_omap3_evm_rev() == OMAP3EVM_BOARD_GEN_1)
+			smsc911x_cfg.gpio_reset = OMAP3EVM_GEN1_ETHR_GPIO_RST;
+		else
+			smsc911x_cfg.gpio_reset = OMAP3EVM_GEN2_ETHR_GPIO_RST;
 	}
 
-	if (gpio_request(OMAP3EVM_ETHR_GPIO_IRQ, "SMSC911x irq") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smsc911x IRQ\n",
-			OMAP3EVM_ETHR_GPIO_IRQ);
-		return;
-	}
-
-	gpio_direction_input(OMAP3EVM_ETHR_GPIO_IRQ);
-	platform_device_register(&omap3evm_smsc911x_device);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 #else

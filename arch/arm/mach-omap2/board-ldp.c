@@ -43,6 +43,7 @@
 
 #include <asm/delay.h>
 #include <plat/usb.h>
+#include <plat/gpmc-smsc911x.h>
 
 #include "board-flash.h"
 #include "mux.h"
@@ -53,36 +54,6 @@
 #define LDP_SMSC911X_GPIO	152
 #define DEBUG_BASE		0x08000000
 #define LDP_ETHR_START		DEBUG_BASE
-
-static struct resource ldp_smsc911x_resources[] = {
-	[0] = {
-		.start	= LDP_ETHR_START,
-		.end	= LDP_ETHR_START + SZ_4K,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0,
-		.end	= 0,
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct smsc911x_platform_config ldp_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct platform_device ldp_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ldp_smsc911x_resources),
-	.resource	= ldp_smsc911x_resources,
-	.dev		= {
-		.platform_data = &ldp_smsc911x_config,
-	},
-};
 
 static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
@@ -246,33 +217,16 @@ static struct spi_board_info ldp_spi_board_info[] __initdata = {
 	},
 };
 
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = LDP_SMSC911X_CS,
+	.gpio_irq       = LDP_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
+};
+
 static inline void __init ldp_init_smsc911x(void)
 {
-	int eth_cs;
-	unsigned long cs_mem_base;
-	int eth_gpio = 0;
-
-	eth_cs = LDP_SMSC911X_CS;
-
-	if (gpmc_cs_request(eth_cs, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed to request GPMC mem for smsc911x\n");
-		return;
-	}
-
-	ldp_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	ldp_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-	udelay(100);
-
-	eth_gpio = LDP_SMSC911X_GPIO;
-
-	ldp_smsc911x_resources[1].start = OMAP_GPIO_IRQ(eth_gpio);
-
-	if (gpio_request(eth_gpio, "smsc911x irq") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smsc911x IRQ\n",
-				eth_gpio);
-		return;
-	}
-	gpio_direction_input(eth_gpio);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 static struct platform_device ldp_lcd_device = {
@@ -389,7 +343,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 };
 
 static struct platform_device *ldp_devices[] __initdata = {
-	&ldp_smsc911x_device,
 	&ldp_lcd_device,
 	&ldp_gpio_keys_device,
 };

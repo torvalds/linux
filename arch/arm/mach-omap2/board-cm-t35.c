@@ -66,86 +66,28 @@
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <linux/smsc911x.h>
+#include <plat/gpmc-smsc911x.h>
 
-static struct smsc911x_platform_config cm_t35_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct resource cm_t35_smsc911x_resources[] = {
-	{
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP_GPIO_IRQ(CM_T35_SMSC911X_GPIO),
-		.end	= OMAP_GPIO_IRQ(CM_T35_SMSC911X_GPIO),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct platform_device cm_t35_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data cm_t35_smsc911x_cfg = {
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(cm_t35_smsc911x_resources),
-	.resource	= cm_t35_smsc911x_resources,
-	.dev		= {
-		.platform_data = &cm_t35_smsc911x_config,
-	},
+	.cs             = CM_T35_SMSC911X_CS,
+	.gpio_irq       = CM_T35_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
 
-static struct resource sb_t35_smsc911x_resources[] = {
-	{
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP_GPIO_IRQ(SB_T35_SMSC911X_GPIO),
-		.end	= OMAP_GPIO_IRQ(SB_T35_SMSC911X_GPIO),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct platform_device sb_t35_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data sb_t35_smsc911x_cfg = {
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(sb_t35_smsc911x_resources),
-	.resource	= sb_t35_smsc911x_resources,
-	.dev		= {
-		.platform_data = &cm_t35_smsc911x_config,
-	},
+	.cs             = SB_T35_SMSC911X_CS,
+	.gpio_irq       = SB_T35_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
-
-static void __init cm_t35_init_smsc911x(struct platform_device *dev,
-					int cs, int irq_gpio)
-{
-	unsigned long cs_mem_base;
-
-	if (gpmc_cs_request(cs, SZ_16M, &cs_mem_base) < 0) {
-		pr_err("CM-T35: Failed request for GPMC mem for smsc911x\n");
-		return;
-	}
-
-	dev->resource[0].start = cs_mem_base + 0x0;
-	dev->resource[0].end   = cs_mem_base + 0xff;
-
-	if ((gpio_request(irq_gpio, "ETH IRQ") == 0) &&
-	    (gpio_direction_input(irq_gpio) == 0)) {
-		gpio_export(irq_gpio, 0);
-	} else {
-		pr_err("CM-T35: could not obtain gpio for SMSC911X IRQ\n");
-		return;
-	}
-
-	platform_device_register(dev);
-}
 
 static void __init cm_t35_init_ethernet(void)
 {
-	cm_t35_init_smsc911x(&cm_t35_smsc911x_device,
-			     CM_T35_SMSC911X_CS, CM_T35_SMSC911X_GPIO);
-	cm_t35_init_smsc911x(&sb_t35_smsc911x_device,
-			     SB_T35_SMSC911X_CS, SB_T35_SMSC911X_GPIO);
+	gpmc_smsc911x_init(&cm_t35_smsc911x_cfg);
+	gpmc_smsc911x_init(&sb_t35_smsc911x_cfg);
 }
 #else
 static inline void __init cm_t35_init_ethernet(void) { return; }
