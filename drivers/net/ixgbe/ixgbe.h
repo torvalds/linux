@@ -461,6 +461,7 @@ struct ixgbe_adapter {
 	u16 eeprom_version;
 
 	int node;
+	u32 led_reg;
 	struct work_struct check_overtemp_task;
 	u32 interrupt_event;
 	char lsc_int_name[IFNAMSIZ + 9];
