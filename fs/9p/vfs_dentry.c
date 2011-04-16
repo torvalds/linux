@@ -126,7 +126,9 @@ static int v9fs_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
 			retval = v9fs_refresh_inode_dotl(fid, inode);
 		else
 			retval = v9fs_refresh_inode(fid, inode);
-		if (retval <= 0)
+		if (retval == -ENOENT)
+			return 0;
+		if (retval < 0)
 			return retval;
 	}
 out_valid:
