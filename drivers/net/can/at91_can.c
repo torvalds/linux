@@ -375,7 +375,7 @@ static void at91_chip_stop(struct net_device *dev, enum can_state state)
  * mailbox, but without the offset AT91_MB_TX_FIRST. The lower bits
  * encode the mailbox number, the upper 4 bits the mailbox priority:
  *
- * priv->tx_next = (prio << AT91_NEXT_PRIO_SHIFT) ||
+ * priv->tx_next = (prio << AT91_NEXT_PRIO_SHIFT) |
  *                 (mb - AT91_MB_TX_FIRST);
  *
  */
