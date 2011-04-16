@@ -61,7 +61,6 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter)
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown)
 {
-	int ret;
 	u16 cmd;
 
 	if (func_init_shutdown == MWIFIEX_FUNC_INIT) {
@@ -73,10 +72,7 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 		return -1;
 	}
 
-	/* Send command to firmware */
-	ret = mwifiex_send_cmd_sync(priv, cmd, HostCmd_ACT_GEN_SET, 0, NULL);
-
-	return ret;
+	return mwifiex_send_cmd_sync(priv, cmd, HostCmd_ACT_GEN_SET, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(mwifiex_init_shutdown_fw);
 

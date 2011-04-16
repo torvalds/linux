@@ -68,7 +68,6 @@ static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
 static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 			    struct mwifiex_device *mdevice, void **padapter)
 {
-	int ret = 0;
 	struct mwifiex_adapter *adapter = NULL;
 	u8 i = 0;
 
@@ -84,8 +83,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
 
 	/* card specific initialization has been deferred until now .. */
-	ret = adapter->if_ops.init_if(adapter);
-	if (ret)
+	if (adapter->if_ops.init_if(adapter))
 		goto error;
 
 	adapter->priv_num = 0;
@@ -893,7 +891,6 @@ int
 mwifiex_add_card(void *card, struct semaphore *sem,
 		 struct mwifiex_if_ops *if_ops)
 {
-	int status = 0;
 	int i;
 	struct mwifiex_adapter *adapter = NULL;
 	struct mwifiex_drv_mode *drv_mode_info = &mwifiex_drv_mode_tbl[0];
@@ -943,12 +940,9 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	for (i = 0; i < drv_mode_info->intf_num; i++) {
 		if (!mwifiex_add_interface(adapter, i,
 				adapter->drv_mode->bss_attr[i].bss_type)) {
-			status = -1;
-			break;
+			goto err_add_intf;
 		}
 	}
-	if (status)
-		goto err_add_intf;
 
 	up(sem);
 
@@ -969,8 +963,8 @@ err_kmalloc:
 	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
-		status = mwifiex_shutdown_drv(adapter);
-		if (status == -EINPROGRESS)
+
+		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
 			wait_event_interruptible(adapter->init_wait_q,
 						 adapter->init_wait_q_woken);
 	}
@@ -999,7 +993,6 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
 int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 {
 	struct mwifiex_private *priv = NULL;
-	int status;
 	int i;
 
 	if (down_interruptible(sem))
@@ -1023,8 +1016,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	dev_dbg(adapter->dev, "cmd: calling mwifiex_shutdown_drv...\n");
 	adapter->init_wait_q_woken = false;
-	status = mwifiex_shutdown_drv(adapter);
-	if (status == -EINPROGRESS)
+
+	if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
 		wait_event_interruptible(adapter->init_wait_q,
 					 adapter->init_wait_q_woken);
 	dev_dbg(adapter->dev, "cmd: mwifiex_shutdown_drv done\n");

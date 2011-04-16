@@ -71,7 +71,6 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 static int mwifiex_init_priv(struct mwifiex_private *priv)
 {
 	u32 i;
-	int ret = 0;
 
 	priv->media_connected = false;
 	memset(priv->curr_addr, 0xff, ETH_ALEN);
@@ -139,9 +138,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->scan_block = false;
 
-	ret = mwifiex_add_bss_prio_tbl(priv);
-
-	return ret;
+	return mwifiex_add_bss_prio_tbl(priv);
 }
 
 /*

@@ -145,16 +145,12 @@ u8 mwifiex_data_rate_to_index(u32 rate)
  */
 u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv, u8 *rates)
 {
-	u32 k;
-
 	if (!priv->media_connected)
-		k = mwifiex_get_supported_rates(priv, rates);
+		return mwifiex_get_supported_rates(priv, rates);
 	else
-		k = mwifiex_copy_rates(rates, 0,
+		return mwifiex_copy_rates(rates, 0,
 				       priv->curr_bss_params.data_rates,
 				       priv->curr_bss_params.num_of_rates);
-
-	return k;
 }
 
 /*

@@ -36,7 +36,6 @@
 int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 			     struct sk_buff *skb)
 {
-	int ret = 0;
 	struct mwifiex_private *priv =
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	struct rxpd *local_rx_pd;
@@ -50,9 +49,8 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
 	rx_info->bss_index = priv->bss_index;
-	ret = mwifiex_process_sta_rx_packet(adapter, skb);
 
-	return ret;
+	return mwifiex_process_sta_rx_packet(adapter, skb);
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 

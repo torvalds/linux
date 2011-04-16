@@ -34,22 +34,17 @@ static int
 mwifiex_cfg80211_channel_type_to_mwifiex_channels(enum nl80211_channel_type
 						  channel_type)
 {
-	int channel;
 	switch (channel_type) {
 	case NL80211_CHAN_NO_HT:
 	case NL80211_CHAN_HT20:
-		channel = NO_SEC_CHANNEL;
-		break;
+		return NO_SEC_CHANNEL;
 	case NL80211_CHAN_HT40PLUS:
-		channel = SEC_CHANNEL_ABOVE;
-		break;
+		return SEC_CHANNEL_ABOVE;
 	case NL80211_CHAN_HT40MINUS:
-		channel = SEC_CHANNEL_BELOW;
-		break;
+		return SEC_CHANNEL_BELOW;
 	default:
-		channel = NO_SEC_CHANNEL;
+		return NO_SEC_CHANNEL;
 	}
-	return channel;
 }
 
 /*
@@ -64,21 +59,16 @@ mwifiex_cfg80211_channel_type_to_mwifiex_channels(enum nl80211_channel_type
 static enum nl80211_channel_type
 mwifiex_channels_to_cfg80211_channel_type(int channel_type)
 {
-	int channel;
 	switch (channel_type) {
 	case NO_SEC_CHANNEL:
-		channel = NL80211_CHAN_HT20;
-		break;
+		return NL80211_CHAN_HT20;
 	case SEC_CHANNEL_ABOVE:
-		channel = NL80211_CHAN_HT40PLUS;
-		break;
+		return NL80211_CHAN_HT40PLUS;
 	case SEC_CHANNEL_BELOW:
-		channel = NL80211_CHAN_HT40MINUS;
-		break;
+		return NL80211_CHAN_HT40MINUS;
 	default:
-		channel = NL80211_CHAN_HT20;
+		return NL80211_CHAN_HT20;
 	}
-	return channel;
 }
 
 /*
@@ -117,10 +107,8 @@ mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	int ret = 0;
 
-	ret = mwifiex_set_encode(priv, NULL, 0, key_index, 1);
-	if (ret) {
+	if (mwifiex_set_encode(priv, NULL, 0, key_index, 1)) {
 		wiphy_err(wiphy, "deleting the crypto keys\n");
 		return -EFAULT;
 	}
@@ -137,7 +125,6 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 			      enum nl80211_tx_power_setting type,
 			      int dbm)
 {
-	int ret = 0;
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	struct mwifiex_power_cfg power_cfg;
 
@@ -148,9 +135,7 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 		power_cfg.is_power_auto = 1;
 	}
 
-	ret = mwifiex_set_tx_power(priv, &power_cfg);
-
-	return ret;
+	return mwifiex_set_tx_power(priv, &power_cfg);
 }
 
 /*
@@ -163,7 +148,6 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				struct net_device *dev,
 				bool enabled, int timeout)
 {
-	int ret = 0;
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	u32 ps_mode;
 
@@ -173,9 +157,8 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 			" for IEEE power save\n");
 
 	ps_mode = enabled;
-	ret = mwifiex_drv_set_power(priv, &ps_mode);
 
-	return ret;
+	return mwifiex_drv_set_power(priv, &ps_mode);
 }
 
 /*
@@ -187,18 +170,15 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 				 bool multicast)
 {
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	int ret;
 
 	/* Return if WEP key not configured */
 	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED)
 		return 0;
 
-	ret = mwifiex_set_encode(priv, NULL, 0, key_index, 0);
-
-	wiphy_dbg(wiphy, "info: set default Tx key index\n");
-
-	if (ret)
+	if (mwifiex_set_encode(priv, NULL, 0, key_index, 0)) {
+		wiphy_err(wiphy, "set default Tx key index\n");
 		return -EFAULT;
+	}
 
 	return 0;
 }
@@ -212,15 +192,12 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 struct key_params *params)
 {
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	int ret = 0;
 
-	ret = mwifiex_set_encode(priv, params->key, params->key_len,
-								key_index, 0);
-
-	wiphy_dbg(wiphy, "info: crypto keys added\n");
-
-	if (ret)
+	if (mwifiex_set_encode(priv, params->key, params->key_len,
+							key_index, 0)) {
+		wiphy_err(wiphy, "crypto keys added\n");
 		return -EFAULT;
+	}
 
 	return 0;
 }
@@ -245,7 +222,6 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_802_11d_domain_reg *domain_info = &adapter->domain_reg;
-	int ret = 0;
 
 	/* Set country code */
 	domain_info->country_code[0] = priv->country_code[0];
@@ -300,13 +276,14 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 	}
 
 	domain_info->no_of_triplet = no_of_triplet;
-	/* Send cmd to FW to set domain info */
-	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
-				     HostCmd_ACT_GEN_SET, 0, NULL);
-	if (ret)
-		wiphy_err(wiphy, "11D: setting domain info in FW\n");
 
-	return ret;
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
+				     HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "11D: setting domain info in FW\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -356,7 +333,6 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		       enum nl80211_channel_type channel_type)
 {
 	struct mwifiex_chan_freq_power cfp;
-	int ret = 0;
 	struct mwifiex_ds_band_cfg band_cfg;
 	u32 config_bands = 0;
 	struct wiphy *wiphy = priv->wdev->wiphy;
@@ -375,14 +351,14 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 			band_cfg.config_bands = config_bands;
 			band_cfg.adhoc_start_band = config_bands;
 		}
-		/* Set channel offset */
+
 		band_cfg.sec_chan_offset =
 			mwifiex_cfg80211_channel_type_to_mwifiex_channels
 			(channel_type);
-		ret = mwifiex_set_radio_band_cfg(priv, &band_cfg);
 
-		if (ret)
+		if (mwifiex_set_radio_band_cfg(priv, &band_cfg))
 			return -EFAULT;
+
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
 
@@ -390,20 +366,16 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		"mode %d\n", config_bands, band_cfg.sec_chan_offset,
 		priv->bss_mode);
 	if (!chan)
-		return ret;
+		return 0;
 
 	memset(&cfp, 0, sizeof(cfp));
 	cfp.freq = chan->center_freq;
-	/* Convert frequency to channel */
 	cfp.channel = ieee80211_frequency_to_channel(chan->center_freq);
 
-	ret = mwifiex_bss_set_channel(priv, &cfp);
-	if (ret)
+	if (mwifiex_bss_set_channel(priv, &cfp))
 		return -EFAULT;
 
-	ret = mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
-
-	return ret;
+	return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
 }
 
 /*
@@ -459,17 +431,12 @@ mwifiex_set_frag(struct mwifiex_private *priv, u32 frag_thr)
 static int
 mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
 {
-	int ret = 0;
-
 	if (rts_thr < MWIFIEX_RTS_MIN_VALUE || rts_thr > MWIFIEX_RTS_MAX_VALUE)
 		rts_thr = MWIFIEX_RTS_MAX_VALUE;
 
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
 				    HostCmd_ACT_GEN_SET, RTS_THRESH_I,
 				    &rts_thr);
-
-	return ret;
 }
 
 /*
@@ -485,8 +452,11 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 	int ret = 0;
 
-	if (changed & WIPHY_PARAM_RTS_THRESHOLD)
+	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
 		ret = mwifiex_set_rts(priv, wiphy->rts_threshold);
+		if (ret)
+			return ret;
+	}
 
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
 		ret = mwifiex_set_frag(priv, wiphy->frag_threshold);
@@ -598,7 +568,6 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			     u8 *mac, struct station_info *sinfo)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	int ret = 0;
 
 	mwifiex_dump_station_info(priv, sinfo);
 
@@ -607,10 +576,7 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (memcmp(mac, priv->cfg_bssid, ETH_ALEN))
 		return -ENOENT;
 
-
-	ret = mwifiex_dump_station_info(priv, sinfo);
-
-	return ret;
+	return mwifiex_dump_station_info(priv, sinfo);
 }
 
 /* Supported rates to be advertised to the cfg80211 */
@@ -749,15 +715,13 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
  */
 static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 {
-	int ret = 0;
 	struct ieee80211_channel *chan;
 	struct mwifiex_bss_info bss_info;
 	int ie_len = 0;
 	u8 ie_buf[IEEE80211_MAX_SSID_LEN + sizeof(struct ieee_types_header)];
 
-	ret = mwifiex_get_bss_info(priv, &bss_info);
-	if (ret)
-		return ret;
+	if (mwifiex_get_bss_info(priv, &bss_info))
+		return -1;
 
 	ie_buf[0] = WLAN_EID_SSID;
 	ie_buf[1] = bss_info.ssid.ssid_len;
@@ -776,7 +740,7 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 		0, ie_buf, ie_len, 0, GFP_KERNEL);
 	memcpy(priv->cfg_bssid, bss_info.bssid, ETH_ALEN);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -805,9 +769,8 @@ static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
 	struct mwifiex_bssdescriptor *scan_table;
 	int i, j;
 	struct ieee80211_channel *chan;
-	u8 *ie, *tmp, *ie_buf;
+	u8 *ie, *ie_buf;
 	u32 ie_len;
-	u64 ts = 0;
 	u8 *beacon;
 	int beacon_size;
 	u8 element_id, element_len;
@@ -889,9 +852,9 @@ static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
 			case WLAN_EID_BSS_AC_ACCESS_DELAY:
 				ie[0] = element_id;
 				ie[1] = element_len;
-				tmp = (u8 *) beacon;
 				memcpy(&ie[sizeof(struct ieee_types_header)],
-				       tmp + sizeof(struct ieee_types_header),
+				       (u8 *) beacon
+				       + sizeof(struct ieee_types_header),
 				       element_len);
 				ie_len += ie[1] +
 					sizeof(struct ieee_types_header);
@@ -908,7 +871,7 @@ static int mwifiex_inform_bss_from_scan_result(struct mwifiex_private *priv,
 						scan_table[i].freq);
 		cfg80211_inform_bss(priv->wdev->wiphy, chan,
 					scan_table[i].mac_address,
-					ts, scan_table[i].cap_info_bitmap,
+					0, scan_table[i].cap_info_bitmap,
 					scan_table[i].beacon_period,
 					ie_buf, ie_len,
 					scan_table[i].rssi, GFP_KERNEL);
@@ -941,9 +904,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct mwifiex_802_11_ssid req_ssid;
 	struct mwifiex_ssid_bssid ssid_bssid;
 	int ret = 0;
-	int auth_type = 0, pairwise_encrypt_mode = 0;
-	int group_encrypt_mode = 0;
-	int alg_is_wep = 0;
+	int auth_type = 0;
 
 	memset(&req_ssid, 0, sizeof(struct mwifiex_802_11_ssid));
 	memset(&ssid_bssid, 0, sizeof(struct mwifiex_ssid_bssid));
@@ -1009,9 +970,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		ret = mwifiex_set_gen_ie(priv, sme->ie, sme->ie_len);
 
 	if (sme->key) {
-		alg_is_wep = mwifiex_is_alg_wep(pairwise_encrypt_mode)
-			| mwifiex_is_alg_wep(group_encrypt_mode);
-		if (alg_is_wep) {
+		if (mwifiex_is_alg_wep(0) | mwifiex_is_alg_wep(0)) {
 			dev_dbg(priv->adapter->dev,
 				"info: setting wep encryption"
 				" with key len %d\n", sme->key_len);

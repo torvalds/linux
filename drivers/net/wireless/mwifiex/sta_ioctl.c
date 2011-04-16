@@ -216,7 +216,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv,
 			ret = mwifiex_adhoc_join(priv, &adapter->scan_table[i]);
 			if (ret)
 				return ret;
-		} else {	/* i >= 0 */
+		} else {
 			dev_dbg(adapter->dev, "info: Network not found in "
 				"the list, creating adhoc with ssid = %s\n",
 			       ssid_bssid->ssid.ssid);
@@ -320,16 +320,13 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
  */
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type)
 {
-	int ret = 0;
 	struct mwifiex_ds_hs_cfg hscfg;
 
-	/* Cancel Host Sleep */
 	hscfg.conditions = HOST_SLEEP_CFG_CANCEL;
 	hscfg.is_invoke_hostcmd = true;
-	ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
-				    cmd_type, &hscfg);
 
-	return ret;
+	return mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
+				    cmd_type, &hscfg);
 }
 EXPORT_SYMBOL_GPL(mwifiex_cancel_hs);
 
@@ -348,7 +345,6 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 		return true;
 	}
 
-	/* Enable Host Sleep */
 	adapter->hs_activate_wait_q_woken = false;
 
 	memset(&hscfg, 0, sizeof(struct mwifiex_hs_config_param));
@@ -385,23 +381,17 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 	if (!info)
 		return -1;
 
-	/* Get current BSS info */
 	bss_desc = &priv->curr_bss_params.bss_descriptor;
 
-	/* BSS mode */
 	info->bss_mode = priv->bss_mode;
 
-	/* SSID */
 	memcpy(&info->ssid, &bss_desc->ssid,
 	       sizeof(struct mwifiex_802_11_ssid));
 
-	/* BSSID */
 	memcpy(&info->bssid, &bss_desc->mac_address, ETH_ALEN);
 
-	/* Channel */
 	info->bss_chan = bss_desc->channel;
 
-	/* Region code */
 	info->region_code = adapter->region_code;
 
 	/* Scan table index if connected */
@@ -415,20 +405,15 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 			info->scan_table_idx = tbl_idx;
 	}
 
-	/* Connection status */
 	info->media_connected = priv->media_connected;
 
-	/* Tx power information */
 	info->max_power_level = priv->max_tx_power_level;
 	info->min_power_level = priv->min_tx_power_level;
 
-	/* AdHoc state */
 	info->adhoc_state = priv->adhoc_state;
 
-	/* Last beacon NF */
 	info->bcn_nf_last = priv->bcn_nf_last;
 
-	/* wep status */
 	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
 		info->wep_status = true;
 	else
@@ -574,22 +559,17 @@ int mwifiex_bss_set_channel(struct mwifiex_private *priv,
 static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
 					  u16 action, u16 *channel)
 {
-	int ret = 0;
-
 	if (action == HostCmd_ACT_GEN_GET) {
 		if (!priv->media_connected) {
 			*channel = priv->adhoc_channel;
-			return ret;
+			return 0;
 		}
 	} else {
 		priv->adhoc_channel = (u8) *channel;
 	}
 
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_RF_CHANNEL,
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_RF_CHANNEL,
 				    action, 0, channel);
-
-	return ret;
 }
 
 /*
@@ -602,7 +582,6 @@ int mwifiex_bss_ioctl_find_bss(struct mwifiex_private *priv,
 			       struct mwifiex_ssid_bssid *ssid_bssid)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
 	struct mwifiex_bssdescriptor *bss_desc;
 	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 	u8 mac[ETH_ALEN];
@@ -631,10 +610,10 @@ int mwifiex_bss_ioctl_find_bss(struct mwifiex_private *priv,
 		bss_desc = &adapter->scan_table[i];
 		memcpy(ssid_bssid->bssid, bss_desc->mac_address, ETH_ALEN);
 	} else {
-		ret = mwifiex_find_best_network(priv, ssid_bssid);
+		return mwifiex_find_best_network(priv, ssid_bssid);
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -718,7 +697,6 @@ static int mwifiex_rate_ioctl_get_rate_value(struct mwifiex_private *priv,
 					     struct mwifiex_rate_cfg *rate_cfg)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
 
 	rate_cfg->is_rate_auto = priv->is_data_rate_auto;
 	if (!priv->media_connected) {
@@ -757,13 +735,12 @@ static int mwifiex_rate_ioctl_get_rate_value(struct mwifiex_private *priv,
 			break;
 		}
 	} else {
-		/* Send request to firmware */
-		ret = mwifiex_send_cmd_sync(priv,
+		return mwifiex_send_cmd_sync(priv,
 					    HostCmd_CMD_802_11_TX_RATE_QUERY,
 					    HostCmd_ACT_GEN_GET, 0, NULL);
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -827,7 +804,6 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 		}
 	}
 
-	/* Send request to firmware */
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
 				    HostCmd_ACT_GEN_SET, 0, bitmap_rates);
 
@@ -969,7 +945,6 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 		pg->power_max = (s8) dbm;
 		pg->ht_bandwidth = HT_BW_40;
 	}
-	/* Send request to firmware */
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_TXPWR_CFG,
 				    HostCmd_ACT_GEN_SET, 0, buf);
 
@@ -1088,13 +1063,10 @@ static int mwifiex_set_wapi_ie(struct mwifiex_private *priv,
 static int mwifiex_sec_ioctl_set_wapi_key(struct mwifiex_private *priv,
 			       struct mwifiex_ds_encrypt_key *encrypt_key)
 {
-	int ret = 0;
 
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_KEY_MATERIAL,
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_KEY_MATERIAL,
 				    HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
 				    encrypt_key);
-
-	return ret;
 }
 
 /*
@@ -1128,7 +1100,6 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
 	} else {
 		wep_key = &priv->wep_key[index];
-		/* Cleanup */
 		memset(wep_key, 0, sizeof(struct mwifiex_wep_key));
 		/* Copy the key in the driver */
 		memcpy(wep_key->key_material,
@@ -1151,7 +1122,6 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 	else
 		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
 
-	/* Send request to firmware */
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_MAC_CONTROL,
 				    HostCmd_ACT_GEN_SET, 0,
 				    &priv->curr_pkt_filter);
@@ -1216,13 +1186,11 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 		encrypt_key->key_index = MWIFIEX_KEY_INDEX_UNICAST;
 
 	if (remove_key)
-		/* Send request to firmware */
 		ret = mwifiex_send_cmd_sync(priv,
 				       HostCmd_CMD_802_11_KEY_MATERIAL,
 				       HostCmd_ACT_GEN_SET, !(KEY_INFO_ENABLED),
 				       encrypt_key);
 	else
-		/* Send request to firmware */
 		ret = mwifiex_send_cmd_sync(priv,
 					HostCmd_CMD_802_11_KEY_MATERIAL,
 					HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
@@ -1297,7 +1265,6 @@ int mwifiex_get_signal_info(struct mwifiex_private *priv,
 		return -1;
 	}
 
-	/* Send request to firmware */
 	status = mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
 				       HostCmd_ACT_GEN_GET, 0, signal);
 
@@ -1324,7 +1291,6 @@ int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 			int key_len, u8 key_index, int disable)
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
-	int ret = 0;
 
 	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
 	encrypt_key.key_len = key_len;
@@ -1336,9 +1302,7 @@ int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 		encrypt_key.key_disable = true;
 	}
 
-	ret = mwifiex_sec_ioctl_encrypt_key(priv, &encrypt_key);
-
-	return ret;
+	return mwifiex_sec_ioctl_encrypt_key(priv, &encrypt_key);
 }
 
 /*
@@ -1351,18 +1315,13 @@ int
 mwifiex_get_ver_ext(struct mwifiex_private *priv)
 {
 	struct mwifiex_ver_ext ver_ext;
-	int ret = 0;
 
-	/* get fw version */
 	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_VERSION_EXT,
-				    HostCmd_ACT_GEN_GET, 0, &ver_ext);
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_VERSION_EXT,
+				    HostCmd_ACT_GEN_GET, 0, &ver_ext))
+		return -1;
 
-	if (ret)
-		ret = -1;
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -1379,7 +1338,6 @@ mwifiex_get_stats_info(struct mwifiex_private *priv,
 	struct mwifiex_ds_get_stats get_log;
 
 	memset(&get_log, 0, sizeof(struct mwifiex_ds_get_stats));
-	/* Send request to firmware */
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_GET_LOG,
 				    HostCmd_ACT_GEN_GET, 0, &get_log);
 
@@ -1412,7 +1370,6 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 					struct mwifiex_ds_reg_rw *reg_rw,
 					u16 action)
 {
-	int ret = 0;
 	u16 cmd_no;
 
 	switch (le32_to_cpu(reg_rw->type)) {
@@ -1435,10 +1392,8 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 		return -1;
 	}
 
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, cmd_no, action, 0, reg_rw);
+	return mwifiex_send_cmd_sync(priv, cmd_no, action, 0, reg_rw);
 
-	return ret;
 }
 
 /*
@@ -1451,15 +1406,13 @@ int
 mwifiex_reg_write(struct mwifiex_private *priv, u32 reg_type,
 		  u32 reg_offset, u32 reg_value)
 {
-	int ret = 0;
 	struct mwifiex_ds_reg_rw reg_rw;
 
 	reg_rw.type = cpu_to_le32(reg_type);
 	reg_rw.offset = cpu_to_le32(reg_offset);
 	reg_rw.value = cpu_to_le32(reg_value);
-	ret = mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_SET);
 
-	return ret;
+	return mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_SET);
 }
 
 /*
@@ -1638,7 +1591,6 @@ int
 mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len)
 {
 	struct mwifiex_ds_misc_gen_ie gen_ie;
-	int status = 0;
 
 	if (ie_len > IW_CUSTOM_MAX)
 		return -EFAULT;
@@ -1646,8 +1598,7 @@ mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len)
 	gen_ie.type = MWIFIEX_IE_TYPE_GEN_IE;
 	gen_ie.len = ie_len;
 	memcpy(gen_ie.ie_data, ie, ie_len);
-	status = mwifiex_misc_ioctl_gen_ie(priv, &gen_ie, HostCmd_ACT_GEN_SET);
-	if (status)
+	if (mwifiex_misc_ioctl_gen_ie(priv, &gen_ie, HostCmd_ACT_GEN_SET))
 		return -EFAULT;
 
 	return 0;

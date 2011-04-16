@@ -27,19 +27,6 @@
 #include "11n_rxreorder.h"
 
 /*
- * This function processes a received packet and forwards
- * it to the kernel/upper layer.
- */
-static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
-{
-	int ret = 0;
-	struct mwifiex_adapter *adapter = priv->adapter;
-
-	ret = mwifiex_process_rx_packet(adapter, (struct sk_buff *) payload);
-	return ret;
-}
-
-/*
  * This function dispatches all packets in the Rx reorder table.
  *
  * There could be holes in the buffer, which are skipped by the function.
@@ -51,7 +38,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 					 struct mwifiex_rx_reorder_tbl
 					 *rx_reor_tbl_ptr, int start_win)
 {
-	int no_pkt_to_send, i, xchg;
+	int no_pkt_to_send, i;
 	void *rx_tmp_ptr = NULL;
 	unsigned long flags;
 
@@ -68,7 +55,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
 		if (rx_tmp_ptr)
-			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
+			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -76,8 +63,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
 	 */
-	xchg = rx_reor_tbl_ptr->win_size - no_pkt_to_send;
-	for (i = 0; i < xchg; ++i) {
+	for (i = 0; i < rx_reor_tbl_ptr->win_size - no_pkt_to_send; ++i) {
 		rx_reor_tbl_ptr->rx_reorder_ptr[i] =
 			rx_reor_tbl_ptr->rx_reorder_ptr[no_pkt_to_send + i];
 		rx_reor_tbl_ptr->rx_reorder_ptr[no_pkt_to_send + i] = NULL;
@@ -114,7 +100,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = rx_reor_tbl_ptr->rx_reorder_ptr[i];
 		rx_reor_tbl_ptr->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
+		mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -429,7 +415,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 						tid, ta);
 	if (!rx_reor_tbl_ptr) {
 		if (pkt_type != PKT_TYPE_BAR)
-			mwifiex_11n_dispatch_pkt(priv, payload);
+			mwifiex_process_rx_packet(priv->adapter, payload);
 		return 0;
 	}
 	start_win = rx_reor_tbl_ptr->start_win;

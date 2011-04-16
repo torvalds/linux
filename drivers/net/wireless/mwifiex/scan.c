@@ -181,7 +181,6 @@ int mwifiex_find_best_bss(struct mwifiex_private *priv,
 			  struct mwifiex_ssid_bssid *ssid_bssid)
 {
 	struct mwifiex_ssid_bssid tmp_ssid_bssid;
-	int ret = 0;
 	u8 *mac = NULL;
 
 	if (!ssid_bssid)
@@ -189,17 +188,17 @@ int mwifiex_find_best_bss(struct mwifiex_private *priv,
 
 	memcpy(&tmp_ssid_bssid, ssid_bssid,
 	       sizeof(struct mwifiex_ssid_bssid));
-	ret = mwifiex_bss_ioctl_find_bss(priv, &tmp_ssid_bssid);
 
-	if (!ret) {
+	if (!mwifiex_bss_ioctl_find_bss(priv, &tmp_ssid_bssid)) {
 		memcpy(ssid_bssid, &tmp_ssid_bssid,
 		       sizeof(struct mwifiex_ssid_bssid));
 		mac = (u8 *) &ssid_bssid->bssid;
 		dev_dbg(priv->adapter->dev, "cmd: found network: ssid=%s,"
 				" %pM\n", ssid_bssid->ssid.ssid, mac);
+		return 0;
 	}
 
-	return ret;
+	return -1;
 }
 
 /*
@@ -2061,19 +2060,13 @@ mwifiex_process_scan_results(struct mwifiex_private *priv)
 static u8
 mwifiex_radio_type_to_band(u8 radio_type)
 {
-	u8 ret_band;
-
 	switch (radio_type) {
 	case HostCmd_SCAN_RADIO_TYPE_A:
-		ret_band = BAND_A;
-		break;
+		return BAND_A;
 	case HostCmd_SCAN_RADIO_TYPE_BG:
 	default:
-		ret_band = BAND_G;
-		break;
+		return BAND_G;
 	}
-
-	return ret_band;
 }
 
 /*
@@ -2226,8 +2219,7 @@ static int
 mwifiex_scan_delete_ssid_table_entry(struct mwifiex_private *priv,
 				     struct mwifiex_802_11_ssid *del_ssid)
 {
-	int ret = -1;
-	s32 table_idx;
+	s32 table_idx = -1;
 
 	dev_dbg(priv->adapter->dev, "info: scan: delete ssid entry: %-32s\n",
 			del_ssid->ssid);
@@ -2240,11 +2232,10 @@ mwifiex_scan_delete_ssid_table_entry(struct mwifiex_private *priv,
 		dev_dbg(priv->adapter->dev,
 			"info: Scan: Delete SSID Entry: Found Idx = %d\n",
 		       table_idx);
-		ret = 0;
 		mwifiex_scan_delete_table_entry(priv, table_idx);
 	}
 
-	return ret;
+	return table_idx == -1 ? -1 : 0;
 }
 
 /*

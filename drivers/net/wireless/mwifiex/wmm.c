@@ -973,7 +973,6 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	struct sk_buff *skb, *skb_next;
 	struct mwifiex_tx_param tx_param;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int status = 0;
 	struct mwifiex_txinfo *tx_info;
 
 	if (skb_queue_empty(&ptr->skb_head)) {
@@ -1000,9 +999,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	tx_param.next_pkt_len = ((skb_next) ? skb_next->len +
 				sizeof(struct txpd) : 0);
 
-	status = mwifiex_process_tx(priv, skb, &tx_param);
-
-	if (status == -EBUSY) {
+	if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {
 		/* Queue the packet back at the head */
 		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
 

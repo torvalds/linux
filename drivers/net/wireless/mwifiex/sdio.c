@@ -347,12 +347,9 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
  */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "event: wakeup device...\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 }
 
 /*
@@ -362,12 +359,9 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "cmd: wakeup device completed\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 }
 
 /*
@@ -1703,13 +1697,9 @@ static struct mwifiex_if_ops sdio_ops = {
 static int
 mwifiex_sdio_init_module(void)
 {
-	int ret;
-
 	sema_init(&add_remove_card_sem, 1);
 
-	ret = sdio_register_driver(&mwifiex_sdio);
-
-	return ret;
+	return sdio_register_driver(&mwifiex_sdio);
 }
 
 /*

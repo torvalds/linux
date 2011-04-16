@@ -180,15 +180,11 @@ mwifiex_check_last_packet_indication(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u8 ret = false;
-	u8 prop_ps = true;
 
 	if (!adapter->sleep_period.period)
 		return ret;
-	if (mwifiex_wmm_lists_empty(adapter)) {
-		if ((priv->curr_bss_params.wmm_uapsd_enabled &&
-		     priv->wmm_qosinfo) || prop_ps)
+	if (mwifiex_wmm_lists_empty(adapter))
 			ret = true;
-	}
 
 	if (ret && !adapter->cmd_sent && !adapter->curr_cmd
 	    && !is_command_pending(adapter)) {
