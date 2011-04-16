@@ -1531,24 +1531,6 @@ static int set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static u32 get_rx_csum(struct net_device *dev)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	return p->rx_offload & RX_CSO;
-}
-
-static int set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	if (data)
-		p->rx_offload |= RX_CSO;
-	else
-		p->rx_offload &= ~RX_CSO;
-	return 0;
-}
-
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
 	const struct port_info *pi = netdev_priv(dev);
@@ -1870,36 +1852,20 @@ static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return err;
 }
 
-#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
-
-static int set_tso(struct net_device *dev, u32 value)
+static int cxgb_set_features(struct net_device *dev, u32 features)
 {
-	if (value)
-		dev->features |= TSO_FLAGS;
-	else
-		dev->features &= ~TSO_FLAGS;
-	return 0;
-}
-
-static int set_flags(struct net_device *dev, u32 flags)
-{
+	const struct port_info *pi = netdev_priv(dev);
+	u32 changed = dev->features ^ features;
 	int err;
-	unsigned long old_feat = dev->features;
 
-	err = ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH |
-				   ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
-	if (err)
-		return err;
+	if (!(changed & NETIF_F_HW_VLAN_RX))
+		return 0;
 
-	if ((old_feat ^ dev->features) & NETIF_F_HW_VLAN_RX) {
-		const struct port_info *pi = netdev_priv(dev);
-
-		err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
-				    -1, -1, -1, !!(flags & ETH_FLAG_RXVLAN),
-				    true);
-		if (err)
-			dev->features = old_feat;
-	}
+	err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
+			    -1, -1, -1,
+			    !!(features & NETIF_F_HW_VLAN_RX), true);
+	if (unlikely(err))
+		dev->features = features ^ NETIF_F_HW_VLAN_RX;
 	return err;
 }
 
@@ -2010,10 +1976,6 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.set_eeprom        = set_eeprom,
 	.get_pauseparam    = get_pauseparam,
 	.set_pauseparam    = set_pauseparam,
-	.get_rx_csum       = get_rx_csum,
-	.set_rx_csum       = set_rx_csum,
-	.set_tx_csum       = ethtool_op_set_tx_ipv6_csum,
-	.set_sg            = ethtool_op_set_sg,
 	.get_link          = ethtool_op_get_link,
 	.get_strings       = get_strings,
 	.set_phys_id       = identify_port,
@@ -2024,8 +1986,6 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs          = get_regs,
 	.get_wol           = get_wol,
 	.set_wol           = set_wol,
-	.set_tso           = set_tso,
-	.set_flags         = set_flags,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir    = get_rss_table,
 	.set_rxfh_indir    = set_rss_table,
@@ -2882,6 +2842,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_get_stats64      = cxgb_get_stats,
 	.ndo_set_rx_mode      = cxgb_set_rxmode,
 	.ndo_set_mac_address  = cxgb_set_mac_addr,
+	.ndo_set_features     = cxgb_set_features,
 	.ndo_validate_addr    = eth_validate_addr,
 	.ndo_do_ioctl         = cxgb_ioctl,
 	.ndo_change_mtu       = cxgb_change_mtu,
@@ -3564,6 +3525,7 @@ static void free_some_resources(struct adapter *adapter)
 		t4_fw_bye(adapter, adapter->fn);
 }
 
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
@@ -3665,14 +3627,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi = netdev_priv(netdev);
 		pi->adapter = adapter;
 		pi->xact_addr_filt = -1;
-		pi->rx_offload = RX_CSO;
 		pi->port_id = i;
 		netdev->irq = pdev->irq;
 
-		netdev->features |= NETIF_F_SG | TSO_FLAGS;
-		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->features |= NETIF_F_GRO | NETIF_F_RXHASH | highdma;
-		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_RXCSUM | NETIF_F_RXHASH |
+			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		netdev->features |= netdev->hw_features | highdma;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;

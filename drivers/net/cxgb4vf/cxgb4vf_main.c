@@ -1326,30 +1326,6 @@ static void cxgb4vf_get_pauseparam(struct net_device *dev,
 }
 
 /*
- * Return whether RX Checksum Offloading is currently enabled for the device.
- */
-static u32 cxgb4vf_get_rx_csum(struct net_device *dev)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	return (pi->rx_offload & RX_CSO) != 0;
-}
-
-/*
- * Turn RX Checksum Offloading on or off for the device.
- */
-static int cxgb4vf_set_rx_csum(struct net_device *dev, u32 csum)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	if (csum)
-		pi->rx_offload |= RX_CSO;
-	else
-		pi->rx_offload &= ~RX_CSO;
-	return 0;
-}
-
-/*
  * Identify the port by blinking the port's LED.
  */
 static int cxgb4vf_phys_id(struct net_device *dev,
@@ -1569,18 +1545,6 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
-/*
- * Set TCP Segmentation Offloading feature capabilities.
- */
-static int cxgb4vf_set_tso(struct net_device *dev, u32 tso)
-{
-	if (tso)
-		dev->features |= TSO_FLAGS;
-	else
-		dev->features &= ~TSO_FLAGS;
-	return 0;
-}
-
 static struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_settings		= cxgb4vf_get_settings,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
@@ -1591,10 +1555,6 @@ static struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_coalesce		= cxgb4vf_get_coalesce,
 	.set_coalesce		= cxgb4vf_set_coalesce,
 	.get_pauseparam		= cxgb4vf_get_pauseparam,
-	.get_rx_csum		= cxgb4vf_get_rx_csum,
-	.set_rx_csum		= cxgb4vf_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_ipv6_csum,
-	.set_sg			= ethtool_op_set_sg,
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= cxgb4vf_get_strings,
 	.set_phys_id		= cxgb4vf_phys_id,
@@ -1603,7 +1563,6 @@ static struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_regs_len		= cxgb4vf_get_regs_len,
 	.get_regs		= cxgb4vf_get_regs,
 	.get_wol		= cxgb4vf_get_wol,
-	.set_tso		= cxgb4vf_set_tso,
 };
 
 /*
@@ -2638,19 +2597,19 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		 * it.
 		 */
 		pi->xact_addr_filt = -1;
-		pi->rx_offload = RX_CSO;
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features = (NETIF_F_SG | TSO_FLAGS |
-				    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				    NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-				    NETIF_F_GRO);
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
+		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_HIGHDMA;
+		netdev->features = netdev->hw_features |
+			NETIF_F_HW_VLAN_RX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features =
-			(netdev->features &
-			 ~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX));
 
 #ifdef HAVE_NET_DEVICE_OPS
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
