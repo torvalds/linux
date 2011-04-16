@@ -5018,10 +5018,11 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		lpfc_reg_fcfi(phba, mboxq);
 		mboxq->vport = phba->pport;
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-		if (rc == MBX_SUCCESS)
-			rc = 0;
-		else
+		if (rc != MBX_SUCCESS)
 			goto out_unset_queue;
+		rc = 0;
+		phba->fcf.fcfi = bf_get(lpfc_reg_fcfi_fcfi,
+					&mboxq->u.mqe.un.reg_fcfi);
 	}
 	/*
 	 * The port is ready, set the host's link state to LINK_DOWN

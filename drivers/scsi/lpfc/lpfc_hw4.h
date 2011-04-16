@@ -2108,6 +2108,8 @@ struct lpfc_mbx_pc_sli4_params {
 #define sgl_pp_align_WORD			word12
 	uint32_t rsvd_13_63[51];
 };
+#define SLI4_PAGE_ALIGN(addr) (((addr)+((SLI4_PAGE_SIZE)-1)) \
+			       &(~((SLI4_PAGE_SIZE)-1)))
 
 struct lpfc_sli4_parameters {
 	uint32_t word0;
@@ -2524,7 +2526,7 @@ struct wqe_common {
 #define wqe_wqes_WORD         word10
 /* Note that this field overlaps above fields */
 #define wqe_wqid_SHIFT        1
-#define wqe_wqid_MASK         0x0000007f
+#define wqe_wqid_MASK         0x00007fff
 #define wqe_wqid_WORD         word10
 #define wqe_pri_SHIFT         16
 #define wqe_pri_MASK          0x00000007

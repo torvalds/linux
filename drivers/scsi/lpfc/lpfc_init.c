@@ -4906,6 +4906,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	uint16_t rpi_limit, curr_rpi_range;
 	struct lpfc_dmabuf *dmabuf;
 	struct lpfc_rpi_hdr *rpi_hdr;
+	uint32_t rpi_count;
 
 	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
 		    phba->sli4_hba.max_cfg_param.max_rpi - 1;
@@ -4920,7 +4921,9 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * and to allow the full max_rpi range per port.
 	 */
 	if ((curr_rpi_range + (LPFC_RPI_HDR_COUNT - 1)) > rpi_limit)
-		return NULL;
+		rpi_count = rpi_limit - curr_rpi_range;
+	else
+		rpi_count = LPFC_RPI_HDR_COUNT;
 
 	/*
 	 * First allocate the protocol header region for the port.  The
@@ -4961,7 +4964,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * The next_rpi stores the next module-64 rpi value to post
 	 * in any subsequent rpi memory region postings.
 	 */
-	phba->sli4_hba.next_rpi += LPFC_RPI_HDR_COUNT;
+	phba->sli4_hba.next_rpi += rpi_count;
 	spin_unlock_irq(&phba->hbalock);
 	return rpi_hdr;
 

@@ -1736,7 +1736,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	}
 
 	/* Setup for the none-embedded mbox command */
-	pcount = (PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
+	pcount = (SLI4_PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
 	/* Allocate record for keeping SGE virtual addresses */
