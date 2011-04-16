@@ -322,7 +322,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 		}
 
 		tx_slot = ath9k_htc_tx_get_slot(priv);
-		if (tx_slot != 0) {
+		if (tx_slot < 0) {
 			ath_dbg(common, ATH_DBG_XMIT, "No free CAB slot\n");
 			dev_kfree_skb_any(skb);
 			goto next;
