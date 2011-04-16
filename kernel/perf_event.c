@@ -364,6 +364,7 @@ void perf_cgroup_switch(struct task_struct *task, int mode)
 			}
 
 			if (mode & PERF_CGROUP_SWIN) {
+				WARN_ON_ONCE(cpuctx->cgrp);
 				/* set cgrp before ctxsw in to
 				 * allow event_filter_match() to not
 				 * have to pass task around
@@ -2423,6 +2424,14 @@ static void perf_event_enable_on_exec(struct perf_event_context *ctx)
 	if (!ctx || !ctx->nr_events)
 		goto out;
 
+	/*
+	 * We must ctxsw out cgroup events to avoid conflict
+	 * when invoking perf_task_event_sched_in() later on
+	 * in this function. Otherwise we end up trying to
+	 * ctxswin cgroup events which are already scheduled
+	 * in.
+	 */
+	perf_cgroup_sched_out(current);
 	task_ctx_sched_out(ctx, EVENT_ALL);
 
 	raw_spin_lock(&ctx->lock);
@@ -2447,6 +2456,9 @@ static void perf_event_enable_on_exec(struct perf_event_context *ctx)
 
 	raw_spin_unlock(&ctx->lock);
 
+	/*
+	 * Also calls ctxswin for cgroup events, if any:
+	 */
 	perf_event_context_sched_in(ctx, ctx->task);
 out:
 	local_irq_restore(flags);
