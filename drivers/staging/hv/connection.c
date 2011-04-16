@@ -287,30 +287,23 @@ void vmbus_on_event(unsigned long data)
 	u32 *recv_int_page = vmbus_connection.recv_int_page;
 
 	/* Check events */
-	if (recv_int_page) {
-		for (dword = 0; dword < maxdword; dword++) {
-			if (recv_int_page[dword]) {
-				for (bit = 0; bit < 32; bit++) {
-					if (sync_test_and_clear_bit(bit,
-						(unsigned long *)
-						&recv_int_page[dword])) {
-						relid = (dword << 5) + bit;
+	if (!recv_int_page)
+		return;
+	for (dword = 0; dword < maxdword; dword++) {
+		if (!recv_int_page[dword])
+			continue;
+		for (bit = 0; bit < 32; bit++) {
+			if (sync_test_and_clear_bit(bit, (unsigned long *)&recv_int_page[dword])) {
+				relid = (dword << 5) + bit;
 
-						if (relid == 0) {
-							/* special case - vmbus channel protocol msg */
-							continue;
-						} else {
-							/* QueueWorkItem(VmbusProcessEvent, (void*)relid); */
-							/* ret = WorkQueueQueueWorkItem(gVmbusConnection.workQueue, VmbusProcessChannelEvent, (void*)relid); */
-						process_chn_event((void *)
-						(unsigned long)relid);
-						}
-					}
+				if (relid == 0) {
+					/* special case - vmbus channel protocol msg */
+					continue;
 				}
+				process_chn_event((void *) (unsigned long)relid);
 			}
-		 }
+		}
 	}
-	return;
 }
 
 /*
