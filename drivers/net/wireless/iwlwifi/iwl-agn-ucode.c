@@ -161,17 +161,16 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 }
 
 static int iwlagn_load_given_ucode(struct iwl_priv *priv,
-				   struct fw_desc *inst_image,
-				   struct fw_desc *data_image)
+				   struct fw_img *image)
 {
 	int ret = 0;
 
-	ret = iwlagn_load_section(priv, "INST", inst_image,
+	ret = iwlagn_load_section(priv, "INST", &image->code,
 				   IWLAGN_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
-	return iwlagn_load_section(priv, "DATA", data_image,
+	return iwlagn_load_section(priv, "DATA", &image->data,
 				    IWLAGN_RTC_DATA_LOWER_BOUND);
 }
 
@@ -557,16 +556,16 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
  * iwl_verify_ucode - determine which instruction image is in SRAM,
  *    and verify its contents
  */
-static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc)
+static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_img *img)
 {
-	if (!iwlcore_verify_inst_sparse(priv, fw_desc)) {
+	if (!iwlcore_verify_inst_sparse(priv, &img->code)) {
 		IWL_DEBUG_INFO(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
 	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(priv, fw_desc);
+	iwl_print_mismatch_inst(priv, &img->code);
 	return -EIO;
 }
 
@@ -602,8 +601,7 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 #define UCODE_CALIB_TIMEOUT	(2*HZ)
 
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 struct fw_desc *inst_image,
-				 struct fw_desc *data_image,
+				 struct fw_img *image,
 				 int subtype, int alternate_subtype)
 {
 	struct iwl_notification_wait alive_wait;
@@ -621,7 +619,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	old_type = priv->ucode_type;
 	priv->ucode_type = subtype;
 
-	ret = iwlagn_load_given_ucode(priv, inst_image, data_image);
+	ret = iwlagn_load_given_ucode(priv, image);
 	if (ret) {
 		priv->ucode_type = old_type;
 		iwlagn_remove_notification(priv, &alive_wait);
@@ -656,7 +654,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return -EIO;
 	}
 
-	ret = iwl_verify_ucode(priv, inst_image);
+	ret = iwl_verify_ucode(priv, image);
 	if (ret) {
 		priv->ucode_type = old_type;
 		return ret;
@@ -684,7 +682,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!priv->ucode_init.len)
+	if (!priv->ucode_init.code.len)
 		return 0;
 
 	if (priv->ucode_type != UCODE_SUBTYPE_NONE_LOADED)
@@ -696,7 +694,6 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 
 	/* Will also start the device */
 	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   &priv->ucode_init_data,
 					   UCODE_SUBTYPE_INIT, -1);
 	if (ret)
 		goto error;

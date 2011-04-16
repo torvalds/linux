@@ -1173,12 +1173,42 @@ static struct attribute_group iwl_attribute_group = {
  *
  ******************************************************************************/
 
+static void iwl_free_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
+{
+	if (desc->v_addr)
+		dma_free_coherent(&pci_dev->dev, desc->len,
+				  desc->v_addr, desc->p_addr);
+	desc->v_addr = NULL;
+	desc->len = 0;
+}
+
+static void iwl_free_fw_img(struct pci_dev *pci_dev, struct fw_img *img)
+{
+	iwl_free_fw_desc(pci_dev, &img->code);
+	iwl_free_fw_desc(pci_dev, &img->data);
+}
+
+static int iwl_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc,
+			     const void *data, size_t len)
+{
+	if (!len) {
+		desc->v_addr = NULL;
+		return -EINVAL;
+	}
+
+	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, len,
+					  &desc->p_addr, GFP_KERNEL);
+	if (!desc->v_addr)
+		return -ENOMEM;
+	desc->len = len;
+	memcpy(desc->v_addr, data, len);
+	return 0;
+}
+
 static void iwl_dealloc_ucode_pci(struct iwl_priv *priv)
 {
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_code);
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data);
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init);
-	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init_data);
+	iwl_free_fw_img(priv->pci_dev, &priv->ucode_rt);
+	iwl_free_fw_img(priv->pci_dev, &priv->ucode_init);
 }
 
 struct iwlagn_ucode_capabilities {
@@ -1647,24 +1677,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	priv->ucode_code.len = pieces.inst_size;
-	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_code);
-
-	priv->ucode_data.len = pieces.data_size;
-	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data);
-
-	if (!priv->ucode_code.v_addr || !priv->ucode_data.v_addr)
+	if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_rt.code,
+			      pieces.inst, pieces.inst_size))
+		goto err_pci_alloc;
+	if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_rt.data,
+			      pieces.data, pieces.data_size))
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
 	if (pieces.init_size && pieces.init_data_size) {
-		priv->ucode_init.len = pieces.init_size;
-		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init);
-
-		priv->ucode_init_data.len = pieces.init_data_size;
-		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init_data);
-
-		if (!priv->ucode_init.v_addr || !priv->ucode_init_data.v_addr)
+		if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init.code,
+				      pieces.init, pieces.init_size))
+			goto err_pci_alloc;
+		if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init.data,
+				      pieces.init_data, pieces.init_data_size))
 			goto err_pci_alloc;
 	}
 
@@ -1700,39 +1726,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	else
 		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-
-	/* Copy images into buffers for card's bus-master reads ... */
-
-	/* Runtime instructions (first block of data in file) */
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode instr len %Zd\n",
-			pieces.inst_size);
-	memcpy(priv->ucode_code.v_addr, pieces.inst, pieces.inst_size);
-
-	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
-		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
-
-	/*
-	 * Runtime data
-	 * NOTE:  Copy into backup buffer will be done in iwl_up()
-	 */
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode data len %Zd\n",
-			pieces.data_size);
-	memcpy(priv->ucode_data.v_addr, pieces.data, pieces.data_size);
-
-	/* Initialization instructions */
-	if (pieces.init_size) {
-		IWL_DEBUG_INFO(priv, "Copying (but not loading) init instr len %Zd\n",
-				pieces.init_size);
-		memcpy(priv->ucode_init.v_addr, pieces.init, pieces.init_size);
-	}
-
-	/* Initialization data */
-	if (pieces.init_data_size) {
-		IWL_DEBUG_INFO(priv, "Copying (but not loading) init data len %Zd\n",
-			       pieces.init_data_size);
-		memcpy(priv->ucode_init_data.v_addr, pieces.init_data,
-		       pieces.init_data_size);
-	}
 
 	/*
 	 * figure out the offset of chain noise reset and gain commands
@@ -2450,8 +2443,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	}
 
 	ret = iwlagn_load_ucode_wait_alive(priv,
-					   &priv->ucode_code,
-					   &priv->ucode_data,
+					   &priv->ucode_rt,
 					   UCODE_SUBTYPE_REGULAR,
 					   UCODE_SUBTYPE_REGULAR_NEW);
 	if (ret) {
