@@ -872,6 +872,14 @@ static inline void blk_flush_plug(struct task_struct *tsk)
 	struct blk_plug *plug = tsk->plug;
 
 	if (plug)
+		blk_flush_plug_list(plug, false);
+}
+
+static inline void blk_schedule_flush_plug(struct task_struct *tsk)
+{
+	struct blk_plug *plug = tsk->plug;
+
+	if (plug)
 		blk_flush_plug_list(plug, true);
 }
 
@@ -1316,6 +1324,11 @@ static inline void blk_finish_plug(struct blk_plug *plug)
 static inline void blk_flush_plug(struct task_struct *task)
 {
 }
+
+static inline void blk_schedule_flush_plug(struct task_struct *task)
+{
+}
+
 
 static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {

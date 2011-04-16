@@ -401,9 +401,9 @@ TRACE_EVENT(block_plug,
 
 DECLARE_EVENT_CLASS(block_unplug,
 
-	TP_PROTO(struct request_queue *q, unsigned int depth),
+	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q, depth),
+	TP_ARGS(q, depth, explicit),
 
 	TP_STRUCT__entry(
 		__field( int,		nr_rq			)
@@ -419,18 +419,19 @@ DECLARE_EVENT_CLASS(block_unplug,
 );
 
 /**
- * block_unplug_io - release of operations requests in request queue
+ * block_unplug - release of operations requests in request queue
  * @q: request queue to unplug
  * @depth: number of requests just added to the queue
+ * @explicit: whether this was an explicit unplug, or one from schedule()
  *
  * Unplug request queue @q because device driver is scheduled to work
  * on elements in the request queue.
  */
-DEFINE_EVENT(block_unplug, block_unplug_io,
+DEFINE_EVENT(block_unplug, block_unplug,
 
-	TP_PROTO(struct request_queue *q, unsigned int depth),
+	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q, depth)
+	TP_ARGS(q, depth, explicit)
 );
 
 /**

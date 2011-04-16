@@ -2662,17 +2662,23 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return !(rqa->q <= rqb->q);
 }
 
+/*
+ * If 'from_schedule' is true, then postpone the dispatch of requests
+ * until a safe kblockd context. We due this to avoid accidental big
+ * additional stack usage in driver dispatch, in places where the originally
+ * plugger did not intend it.
+ */
 static void queue_unplugged(struct request_queue *q, unsigned int depth,
-			    bool force_kblockd)
+			    bool from_schedule)
 {
-	trace_block_unplug_io(q, depth);
-	__blk_run_queue(q, force_kblockd);
+	trace_block_unplug(q, depth, !from_schedule);
+	__blk_run_queue(q, from_schedule);
 
 	if (q->unplugged_fn)
 		q->unplugged_fn(q);
 }
 
-void blk_flush_plug_list(struct blk_plug *plug, bool force_kblockd)
+void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
 	struct request_queue *q;
 	unsigned long flags;
@@ -2707,7 +2713,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool force_kblockd)
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
 			if (q) {
-				queue_unplugged(q, depth, force_kblockd);
+				queue_unplugged(q, depth, from_schedule);
 				spin_unlock(q->queue_lock);
 			}
 			q = rq->q;
@@ -2728,7 +2734,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool force_kblockd)
 	}
 
 	if (q) {
-		queue_unplugged(q, depth, force_kblockd);
+		queue_unplugged(q, depth, from_schedule);
 		spin_unlock(q->queue_lock);
 	}
 

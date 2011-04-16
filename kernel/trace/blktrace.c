@@ -850,16 +850,21 @@ static void blk_add_trace_plug(void *ignore, struct request_queue *q)
 		__blk_add_trace(bt, 0, 0, 0, BLK_TA_PLUG, 0, 0, NULL);
 }
 
-static void blk_add_trace_unplug_io(void *ignore, struct request_queue *q,
-				    unsigned int depth)
+static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
+				    unsigned int depth, bool explicit)
 {
 	struct blk_trace *bt = q->blk_trace;
 
 	if (bt) {
 		__be64 rpdu = cpu_to_be64(depth);
+		u32 what;
 
-		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_IO, 0,
-				sizeof(rpdu), &rpdu);
+		if (explicit)
+			what = BLK_TA_UNPLUG_IO;
+		else
+			what = BLK_TA_UNPLUG_TIMER;
+
+		__blk_add_trace(bt, 0, 0, 0, what, 0, sizeof(rpdu), &rpdu);
 	}
 }
 
@@ -1002,7 +1007,7 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_plug(blk_add_trace_plug, NULL);
 	WARN_ON(ret);
-	ret = register_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
+	ret = register_trace_block_unplug(blk_add_trace_unplug, NULL);
 	WARN_ON(ret);
 	ret = register_trace_block_split(blk_add_trace_split, NULL);
 	WARN_ON(ret);
@@ -1017,7 +1022,7 @@ static void blk_unregister_tracepoints(void)
 	unregister_trace_block_rq_remap(blk_add_trace_rq_remap, NULL);
 	unregister_trace_block_bio_remap(blk_add_trace_bio_remap, NULL);
 	unregister_trace_block_split(blk_add_trace_split, NULL);
-	unregister_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
+	unregister_trace_block_unplug(blk_add_trace_unplug, NULL);
 	unregister_trace_block_plug(blk_add_trace_plug, NULL);
 	unregister_trace_block_sleeprq(blk_add_trace_sleeprq, NULL);
 	unregister_trace_block_getrq(blk_add_trace_getrq, NULL);
@@ -1332,6 +1337,7 @@ static const struct {
 	[__BLK_TA_COMPLETE]	= {{  "C", "complete" },   blk_log_with_error },
 	[__BLK_TA_PLUG]		= {{  "P", "plug" },	   blk_log_plug },
 	[__BLK_TA_UNPLUG_IO]	= {{  "U", "unplug_io" },  blk_log_unplug },
+	[__BLK_TA_UNPLUG_TIMER]	= {{ "UT", "unplug_timer" }, blk_log_unplug },
 	[__BLK_TA_INSERT]	= {{  "I", "insert" },	   blk_log_generic },
 	[__BLK_TA_SPLIT]	= {{  "X", "split" },	   blk_log_split },
 	[__BLK_TA_BOUNCE]	= {{  "B", "bounce" },	   blk_log_generic },
