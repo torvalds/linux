@@ -1761,7 +1761,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			prefetchw(&bvec->bv_page->flags);
 
 		spin_lock(&tree->lock);
-		state = find_first_extent_bit_state(tree, start, 0);
+		state = find_first_extent_bit_state(tree, start, EXTENT_LOCKED);
 		if (state && state->start == start) {
 			/*
 			 * take a reference on the state, unlock will drop
