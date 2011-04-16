@@ -917,12 +917,14 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_BMIPS32_REV8:
 		c->cputype = CPU_BMIPS32;
 		__cpu_name[cpu] = "Broadcom BMIPS32";
+		set_elf_platform(cpu, "bmips32");
 		break;
 	case PRID_IMP_BMIPS3300:
 	case PRID_IMP_BMIPS3300_ALT:
 	case PRID_IMP_BMIPS3300_BUG:
 		c->cputype = CPU_BMIPS3300;
 		__cpu_name[cpu] = "Broadcom BMIPS3300";
+		set_elf_platform(cpu, "bmips3300");
 		break;
 	case PRID_IMP_BMIPS43XX: {
 		int rev = c->processor_id & 0xff;
@@ -931,15 +933,18 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 				rev <= PRID_REV_BMIPS4380_HI) {
 			c->cputype = CPU_BMIPS4380;
 			__cpu_name[cpu] = "Broadcom BMIPS4380";
+			set_elf_platform(cpu, "bmips4380");
 		} else {
 			c->cputype = CPU_BMIPS4350;
 			__cpu_name[cpu] = "Broadcom BMIPS4350";
+			set_elf_platform(cpu, "bmips4350");
 		}
 		break;
 	}
 	case PRID_IMP_BMIPS5000:
 		c->cputype = CPU_BMIPS5000;
 		__cpu_name[cpu] = "Broadcom BMIPS5000";
+		set_elf_platform(cpu, "bmips5000");
 		c->options |= MIPS_CPU_ULRI;
 		break;
 	}
