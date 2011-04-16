@@ -1310,13 +1310,10 @@ int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	}
 
 	/* get routing information */
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
 
 	if (!orig_node)
-		goto unlock;
-
-	rcu_read_unlock();
+		goto out;
 
 	/* find_router() increases neigh_nodes refcount if found. */
 	neigh_node = find_router(bat_priv, orig_node, recv_if);
@@ -1362,10 +1359,7 @@ int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	/* route it */
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = NET_RX_SUCCESS;
-	goto out;
 
-unlock:
-	rcu_read_unlock();
 out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
@@ -1464,13 +1458,10 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (bcast_packet->ttl < 2)
 		goto out;
 
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, bcast_packet->orig);
 
 	if (!orig_node)
-		goto rcu_unlock;
-
-	rcu_read_unlock();
+		goto out;
 
 	spin_lock_bh(&orig_node->bcast_seqno_lock);
 
@@ -1501,9 +1492,6 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	ret = NET_RX_SUCCESS;
 	goto out;
 
-rcu_unlock:
-	rcu_read_unlock();
-	goto out;
 spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 out:
