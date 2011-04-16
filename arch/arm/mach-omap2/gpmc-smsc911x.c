@@ -30,7 +30,7 @@ static struct resource gpmc_smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= IORESOURCE_IRQ,
+		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 
@@ -79,8 +79,6 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 
 	gpio_direction_input(gpmc_cfg->gpio_irq);
 	gpmc_smsc911x_resources[1].start = gpio_to_irq(gpmc_cfg->gpio_irq);
-	gpmc_smsc911x_resources[1].flags |=
-					(gpmc_cfg->flags & IRQF_TRIGGER_MASK);
 
 	if (gpio_is_valid(gpmc_cfg->gpio_reset)) {
 		ret = gpio_request(gpmc_cfg->gpio_reset, "smsc911x reset");
@@ -95,6 +93,9 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 		msleep(100);
 		gpio_set_value(gpmc_cfg->gpio_reset, 1);
 	}
+
+	if (gpmc_cfg->flags)
+		gpmc_smsc911x_config.flags = gpmc_cfg->flags;
 
 	if (platform_device_register(&gpmc_smsc911x_device) < 0) {
 		printk(KERN_ERR "Unable to register smsc911x device\n");

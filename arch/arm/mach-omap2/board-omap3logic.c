@@ -147,7 +147,6 @@ static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {
 	.cs             = OMAP3LOGIC_SMSC911X_CS,
 	.gpio_irq       = -EINVAL,
 	.gpio_reset     = -EINVAL,
-	.flags          = IORESOURCE_IRQ_LOWLEVEL,
 };
 
 /* TODO/FIXME (comment by Peter Barada, LogicPD):
