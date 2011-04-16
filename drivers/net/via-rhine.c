@@ -838,13 +838,15 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->perm_addr)) {
-		rc = -EIO;
-		dev_err(&pdev->dev, "Invalid MAC address\n");
-		goto err_out_unmap;
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		/* Report it and use a random ethernet address instead */
+		netdev_err(dev, "Invalid MAC address: %pM\n", dev->dev_addr);
+		random_ether_addr(dev->dev_addr);
+		netdev_info(dev, "Using random MAC address: %pM\n",
+			    dev->dev_addr);
 	}
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* For Rhine-I/II, phy_id is loaded from EEPROM */
 	if (!phy_id)
