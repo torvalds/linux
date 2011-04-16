@@ -250,10 +250,9 @@ struct vmbus_channel *relid2channel(u32 relid)
 /*
  * process_chn_event - Process a channel event notification
  */
-static void process_chn_event(void *context)
+static void process_chn_event(u32 relid)
 {
 	struct vmbus_channel *channel;
-	u32 relid = (u32)(unsigned long)context;
 
 	/* ASSERT(relId > 0); */
 
@@ -271,7 +270,7 @@ static void process_chn_event(void *context)
 		 *			  (void*)channel);
 		 */
 	} else {
-		pr_err("channel not found for relid - %d\n", relid);
+		pr_err("channel not found for relid - %u\n", relid);
 	}
 }
 
@@ -280,10 +279,10 @@ static void process_chn_event(void *context)
  */
 void vmbus_on_event(unsigned long data)
 {
-	int dword;
-	int maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
+	u32 dword;
+	u32 maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
 	int bit;
-	int relid;
+	u32 relid;
 	u32 *recv_int_page = vmbus_connection.recv_int_page;
 
 	/* Check events */
@@ -300,7 +299,7 @@ void vmbus_on_event(unsigned long data)
 					/* special case - vmbus channel protocol msg */
 					continue;
 				}
-				process_chn_event((void *) (unsigned long)relid);
+				process_chn_event(relid);
 			}
 		}
 	}
