@@ -6579,8 +6579,10 @@ intel_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb)
+	if (!intel_fb) {
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
 	if (ret) {
