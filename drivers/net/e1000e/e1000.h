@@ -391,13 +391,10 @@ struct e1000_adapter {
 
 	bool fc_autoneg;
 
-	unsigned long led_status;
-
 	unsigned int flags;
 	unsigned int flags2;
 	struct work_struct downshift_task;
 	struct work_struct update_phy_task;
-	struct work_struct led_blink_task;
 	struct work_struct print_hang_task;
 
 	bool idle_check;
@@ -487,7 +484,6 @@ extern const char e1000e_driver_version[];
 
 extern void e1000e_check_options(struct e1000_adapter *adapter);
 extern void e1000e_set_ethtool_ops(struct net_device *netdev);
-extern void e1000e_led_blink_task(struct work_struct *work);
 
 extern int e1000e_up(struct e1000_adapter *adapter);
 extern void e1000e_down(struct e1000_adapter *adapter);
@@ -575,7 +571,7 @@ extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
 extern void e1000e_config_collision_dist(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
-extern s32 e1000e_blink_led(struct e1000_hw *hw);
+extern s32 e1000e_blink_led_generic(struct e1000_hw *hw);
 extern void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
 extern s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 extern void e1000e_reset_adaptive(struct e1000_hw *hw);

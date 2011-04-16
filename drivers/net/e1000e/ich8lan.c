@@ -564,6 +564,8 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 		mac->ops.check_mng_mode = e1000_check_mng_mode_ich8lan;
 		/* ID LED init */
 		mac->ops.id_led_init = e1000e_id_led_init;
+		/* blink LED */
+		mac->ops.blink_led = e1000e_blink_led_generic;
 		/* setup LED */
 		mac->ops.setup_led = e1000e_setup_led_generic;
 		/* cleanup LED */
@@ -767,6 +769,8 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	     (!(er32(CTRL_EXT) & E1000_CTRL_EXT_LSECCK)))) {
 		adapter->flags &= ~FLAG_HAS_JUMBO_FRAMES;
 		adapter->max_hw_frame_size = ETH_FRAME_LEN + ETH_FCS_LEN;
+
+		hw->mac.ops.blink_led = NULL;
 	}
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) &&

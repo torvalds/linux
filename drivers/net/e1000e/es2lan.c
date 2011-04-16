@@ -1434,6 +1434,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 static struct e1000_mac_operations es2_mac_ops = {
 	.read_mac_addr		= e1000_read_mac_addr_80003es2lan,
 	.id_led_init		= e1000e_id_led_init,
+	.blink_led		= e1000e_blink_led_generic,
 	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */
 	.cleanup_led		= e1000e_cleanup_led_generic,
