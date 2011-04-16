@@ -3209,9 +3209,9 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli4_hba.link_state.logical_speed =
 			bf_get(lpfc_acqe_logical_link_speed, acqe_link);
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"2900 Async FCoE Link event - Speed:%dGBit duplex:x%x "
-			"LA Type:x%x Port Type:%d Port Number:%d Logical "
-			"speed:%dMbps Fault:%d\n",
+			"2900 Async FC/FCoE Link event - Speed:%dGBit "
+			"duplex:x%x LA Type:x%x Port Type:%d Port Number:%d "
+			"Logical speed:%dMbps Fault:%d\n",
 			phba->sli4_hba.link_state.speed,
 			phba->sli4_hba.link_state.topology,
 			phba->sli4_hba.link_state.status,
@@ -7007,7 +7007,8 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	}
 
-	if (pci_resource_start(pdev, 2)) {
+	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
+	    (pci_resource_start(pdev, 2))) {
 		/*
 		 * Map SLI4 if type 0 HBA Control Register base to a kernel
 		 * virtual address and setup the registers.
@@ -7024,7 +7025,8 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		lpfc_sli4_bar1_register_memmap(phba);
 	}
 
-	if (pci_resource_start(pdev, 4)) {
+	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
+	    (pci_resource_start(pdev, 4))) {
 		/*
 		 * Map SLI4 if type 0 HBA Doorbell Register base to a kernel
 		 * virtual address and setup the registers.

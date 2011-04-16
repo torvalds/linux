@@ -1059,6 +1059,11 @@ struct rq_context {
 #define lpfc_rq_context_rqe_size_SHIFT	8		/* Version 1 Only */
 #define lpfc_rq_context_rqe_size_MASK	0x0000000F
 #define lpfc_rq_context_rqe_size_WORD	word0
+#define LPFC_RQE_SIZE_8		2
+#define LPFC_RQE_SIZE_16	3
+#define LPFC_RQE_SIZE_32	4
+#define LPFC_RQE_SIZE_64	5
+#define LPFC_RQE_SIZE_128	6
 #define lpfc_rq_context_page_size_SHIFT	0		/* Version 1 Only */
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
@@ -2493,6 +2498,9 @@ struct wqe_common {
 #define wqe_reqtag_SHIFT      0
 #define wqe_reqtag_MASK       0x0000FFFF
 #define wqe_reqtag_WORD       word9
+#define wqe_temp_rpi_SHIFT    16
+#define wqe_temp_rpi_MASK     0x0000FFFF
+#define wqe_temp_rpi_WORD     word9
 #define wqe_rcvoxid_SHIFT     16
 #define wqe_rcvoxid_MASK      0x0000FFFF
 #define wqe_rcvoxid_WORD      word9
@@ -2623,7 +2631,11 @@ struct xmit_els_rsp64_wqe {
 	uint32_t rsvd4;
 	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t word12;
+#define wqe_rsp_temp_rpi_SHIFT    0
+#define wqe_rsp_temp_rpi_MASK     0x0000FFFF
+#define wqe_rsp_temp_rpi_WORD     word12
+	uint32_t rsvd_13_15[3];
 };
 
 struct xmit_bls_rsp64_wqe {

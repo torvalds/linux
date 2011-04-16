@@ -1086,14 +1086,15 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
-	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	      LPFC_SLI_INTF_IF_TYPE_0)) {
-		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
-		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
-		/* FLOGI needs to be 3 for WQE FCFI */
-		/* Set the fcfi to the fcfi we registered with */
-		elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+	if  (phba->sli_rev == LPFC_SLI_REV4) {
+		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_IF_TYPE_0) {
+			elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
+			elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
+			/* FLOGI needs to be 3 for WQE FCFI */
+			/* Set the fcfi to the fcfi we registered with */
+			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+		}
 	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 		sp->cmn.request_multiple_Nport = 1;
 		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
