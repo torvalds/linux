@@ -2227,6 +2227,18 @@ static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
 #define IEEE80211_TX_STATUS_HEADROOM	13
 
 /**
+ * ieee80211_sta_set_tim - set the TIM bit for a sleeping station
+ *
+ * If a driver buffers frames for a powersave station instead of passing
+ * them back to mac80211 for retransmission, the station needs to be told
+ * to wake up using the TIM bitmap in the beacon.
+ *
+ * This function sets the station's TIM bit - it will be cleared when the
+ * station wakes up.
+ */
+void ieee80211_sta_set_tim(struct ieee80211_sta *sta);
+
+/**
  * ieee80211_tx_status - transmit status callback
  *
  * Call this function for all transmitted frames after they have been

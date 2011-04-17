@@ -612,7 +612,8 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 #endif
 		dev_kfree_skb(skb);
 
-		if (skb_queue_empty(&sta->ps_tx_buf))
+		if (skb_queue_empty(&sta->ps_tx_buf) &&
+		    !test_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF))
 			sta_info_clear_tim_bit(sta);
 	}
 
@@ -896,6 +897,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	int sent, buffered;
 
+	clear_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
@@ -988,3 +990,12 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
+
+void ieee80211_sta_set_tim(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	set_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
+	sta_info_set_tim_bit(sta);
+}
+EXPORT_SYMBOL(ieee80211_sta_set_tim);
