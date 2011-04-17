@@ -607,14 +607,11 @@ void __init init_IRQ(void)
 		break;
 
 	case sun4m:
-#ifdef CONFIG_PCI
 		pcic_probe();
-		if (pcic_present()) {
+		if (pcic_present())
 			sun4m_pci_init_IRQ();
-			break;
-		}
-#endif
-		sun4m_init_IRQ();
+		else
+			sun4m_init_IRQ();
 		break;
 
 	case sun4d:
