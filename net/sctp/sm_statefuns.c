@@ -5077,6 +5077,30 @@ sctp_disposition_t sctp_sf_ignore_primitive(
  ***************************************************************************/
 
 /*
+ * When the SCTP stack has no more user data to send or retransmit, this
+ * notification is given to the user. Also, at the time when a user app
+ * subscribes to this event, if there is no data to be sent or
+ * retransmit, the stack will immediately send up this notification.
+ */
+sctp_disposition_t sctp_sf_do_no_pending_tsn(
+	const struct sctp_endpoint *ep,
+	const struct sctp_association *asoc,
+	const sctp_subtype_t type,
+	void *arg,
+	sctp_cmd_seq_t *commands)
+{
+	struct sctp_ulpevent *event;
+
+	event = sctp_ulpevent_make_sender_dry_event(asoc, GFP_ATOMIC);
+	if (!event)
+		return SCTP_DISPOSITION_NOMEM;
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(event));
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
+/*
  * Start the shutdown negotiation.
  *
  * From Section 9.2:
