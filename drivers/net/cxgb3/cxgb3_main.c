@@ -644,26 +644,6 @@ static void enable_all_napi(struct adapter *adap)
 }
 
 /**
- *	set_qset_lro - Turn a queue set's LRO capability on and off
- *	@dev: the device the qset is attached to
- *	@qset_idx: the queue set index
- *	@val: the LRO switch
- *
- *	Sets LRO on or off for a particular queue set.
- *	the device's features flag is updated to reflect the LRO
- *	capability when all queues belonging to the device are
- *	in the same state.
- */
-static void set_qset_lro(struct net_device *dev, int qset_idx, int val)
-{
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
-
-	adapter->params.sge.qset[qset_idx].lro = !!val;
-	adapter->sge.qs[qset_idx].lro_enabled = !!val;
-}
-
-/**
  *	setup_sge_qsets - configure SGE Tx/Rx/response queues
  *	@adap: the adapter
  *
@@ -685,7 +665,6 @@ static int setup_sge_qsets(struct adapter *adap)
 
 		pi->qs = &adap->sge.qs[pi->first_qset];
 		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
-			set_qset_lro(dev, qset_idx, pi->rx_offload & T3_LRO);
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
@@ -1910,29 +1889,6 @@ static int set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static u32 get_rx_csum(struct net_device *dev)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	return p->rx_offload & T3_RX_CSUM;
-}
-
-static int set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	if (data) {
-		p->rx_offload |= T3_RX_CSUM;
-	} else {
-		int i;
-
-		p->rx_offload &= ~(T3_RX_CSUM | T3_LRO);
-		for (i = p->first_qset; i < p->first_qset + p->nqsets; i++)
-			set_qset_lro(dev, i, 0);
-	}
-	return 0;
-}
-
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
 	struct port_info *pi = netdev_priv(dev);
@@ -2104,10 +2060,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_eeprom = set_eeprom,
 	.get_pauseparam = get_pauseparam,
 	.set_pauseparam = set_pauseparam,
-	.get_rx_csum = get_rx_csum,
-	.set_rx_csum = set_rx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
 	.get_strings = get_strings,
 	.set_phys_id = set_phys_id,
@@ -2117,7 +2069,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs_len = get_regs_len,
 	.get_regs = get_regs,
 	.get_wol = get_wol,
-	.set_tso = ethtool_op_set_tso,
 };
 
 static int in_range(int val, int lo, int hi)
@@ -2164,15 +2115,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		    !in_range(t.rspq_size, MIN_RSPQ_ENTRIES,
 			      MAX_RSPQ_ENTRIES))
 			return -EINVAL;
-
-		if ((adapter->flags & FULL_INIT_DONE) && t.lro > 0)
-			for_each_port(adapter, i) {
-				pi = adap2pinfo(adapter, i);
-				if (t.qset_idx >= pi->first_qset &&
-				    t.qset_idx < pi->first_qset + pi->nqsets &&
-				    !(pi->rx_offload & T3_RX_CSUM))
-					return -EINVAL;
-			}
 
 		if ((adapter->flags & FULL_INIT_DONE) &&
 			(t.rspq_size >= 0 || t.fl_size[0] >= 0 ||
@@ -2234,8 +2176,14 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 				}
 			}
 		}
-		if (t.lro >= 0)
-			set_qset_lro(dev, t.qset_idx, t.lro);
+
+		if (t.lro >= 0) {
+			if (t.lro)
+				dev->wanted_features |= NETIF_F_GRO;
+			else
+				dev->wanted_features &= ~NETIF_F_GRO;
+			netdev_update_features(dev);
+		}
 
 		break;
 	}
@@ -2269,7 +2217,7 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		t.fl_size[0] = q->fl_size;
 		t.fl_size[1] = q->jumbo_size;
 		t.polling = q->polling;
-		t.lro = q->lro;
+		t.lro = !!(dev->features & NETIF_F_GRO);
 		t.intr_lat = q->coalesce_usecs;
 		t.cong_thres = q->cong_thres;
 		t.qnum = q1;
@@ -3307,18 +3255,18 @@ static int __devinit init_one(struct pci_dev *pdev,
 		adapter->port[i] = netdev;
 		pi = netdev_priv(netdev);
 		pi->adapter = adapter;
-		pi->rx_offload = T3_RX_CSUM | T3_LRO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;
-		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-		netdev->features |= NETIF_F_GRO;
+		netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+			NETIF_F_TSO | NETIF_F_RXCSUM;
+		netdev->features |= netdev->hw_features |
+			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
-		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->netdev_ops = &cxgb_netdev_ops;
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}
