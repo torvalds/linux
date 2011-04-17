@@ -129,12 +129,10 @@ static int elsa_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 static int __devinit elsa_cs_config(struct pcmcia_device *link)
 {
-    local_info_t *dev;
     int i;
     IsdnCard_t icard;
 
     dev_dbg(&link->dev, "elsa_config(0x%p)\n", link);
-    dev = link->priv;
 
     link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
