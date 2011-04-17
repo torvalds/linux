@@ -81,7 +81,7 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 		end, pgt_buf_start << PAGE_SHIFT, pgt_buf_top << PAGE_SHIFT);
 }
 
-void native_pagetable_reserve(u64 start, u64 end)
+void __init native_pagetable_reserve(u64 start, u64 end)
 {
 	memblock_x86_reserve_range(start, end, "PGTABLE");
 }
