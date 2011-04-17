@@ -2074,9 +2074,6 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 	cmb_tpd_next_to_clean = le16_to_cpu(adapter->cmb.cmb->tpd_cons_idx);
 
 	while (cmb_tpd_next_to_clean != sw_tpd_next_to_clean) {
-		struct tx_packet_desc *tpd;
-
-		tpd = ATL1_TPD_DESC(tpd_ring, sw_tpd_next_to_clean);
 		buffer_info = &tpd_ring->buffer_info[sw_tpd_next_to_clean];
 		if (buffer_info->dma) {
 			pci_unmap_page(adapter->pdev, buffer_info->dma,
