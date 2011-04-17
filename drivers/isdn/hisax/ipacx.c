@@ -96,7 +96,7 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 {
 	struct IsdnCardState *cs = (struct IsdnCardState *) st->l1.hardware;
 	struct sk_buff *skb = arg;
-  u_char cda1_cr, cda2_cr;
+	u_char cda1_cr;
 
 	switch (pr) {
 		case (PH_DATA |REQUEST):
@@ -163,7 +163,7 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
       cs->writeisac(cs, IPACX_CDA_TSDP10, 0x80); // Timeslot 0 is B1
       cs->writeisac(cs, IPACX_CDA_TSDP11, 0x81); // Timeslot 0 is B1
       cda1_cr = cs->readisac(cs, IPACX_CDA1_CR);
-      cda2_cr = cs->readisac(cs, IPACX_CDA2_CR);
+      (void) cs->readisac(cs, IPACX_CDA2_CR);
 			if ((long)arg &1) { // loop B1
         cs->writeisac(cs, IPACX_CDA1_CR, cda1_cr |0x0a); 
       }
