@@ -25,6 +25,8 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-tegra.h>
+#include <linux/platform_data/tegra_usb.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -32,6 +34,8 @@
 
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
+#include <mach/usb_phy.h>
+#include <mach/gpio.h>
 
 #include "board.h"
 #include "clock.h"
@@ -123,6 +127,41 @@ static void trimslice_i2c_init(void)
 				ARRAY_SIZE(trimslice_i2c3_board_info));
 }
 
+struct tegra_ulpi_config ehci2_phy_config = {
+	.reset_gpio = TRIMSLICE_GPIO_USB2_RST,
+	.clk = "cdev2",
+};
+
+static struct tegra_ehci_platform_data ehci_ulpi_data = {
+	.operating_mode = TEGRA_USB_HOST,
+	.phy_config = &ehci2_phy_config,
+};
+
+static struct tegra_ehci_platform_data ehci_utmi_data = {
+	.operating_mode = TEGRA_USB_HOST,
+};
+
+static void trimslice_usb_init(void)
+{
+	int err;
+
+	tegra_ehci3_device.dev.platform_data = &ehci_utmi_data;
+	platform_device_register(&tegra_ehci3_device);
+
+	tegra_ehci2_device.dev.platform_data = &ehci_ulpi_data;
+	platform_device_register(&tegra_ehci2_device);
+
+	err = gpio_request_one(TRIMSLICE_GPIO_USB1_MODE, GPIOF_OUT_INIT_HIGH,
+			       "usb1mode");
+	if (err) {
+		pr_err("TrimSlice: failed to obtain USB1 mode gpio: %d\n", err);
+		return;
+	}
+
+	tegra_ehci1_device.dev.platform_data = &ehci_utmi_data;
+	platform_device_register(&tegra_ehci1_device);
+}
+
 static void __init tegra_trimslice_fixup(struct machine_desc *desc,
 	struct tag *tags, char **cmdline, struct meminfo *mi)
 {
@@ -164,6 +203,7 @@ static void __init tegra_trimslice_init(void)
 	platform_add_devices(trimslice_devices, ARRAY_SIZE(trimslice_devices));
 
 	trimslice_i2c_init();
+	trimslice_usb_init();
 }
 
 MACHINE_START(TRIMSLICE, "trimslice")
