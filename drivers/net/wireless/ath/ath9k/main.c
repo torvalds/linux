@@ -1749,6 +1749,27 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void ath9k_sta_notify(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 enum sta_notify_cmd cmd,
+			 struct ieee80211_sta *sta)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+
+	switch (cmd) {
+	case STA_NOTIFY_SLEEP:
+		an->sleeping = true;
+		if (ath_tx_aggr_sleep(sc, an))
+			ieee80211_sta_set_tim(sta);
+		break;
+	case STA_NOTIFY_AWAKE:
+		an->sleeping = false;
+		ath_tx_aggr_wakeup(sc, an);
+		break;
+	}
+}
+
 static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
@@ -2230,6 +2251,7 @@ struct ieee80211_ops ath9k_ops = {
 	.configure_filter   = ath9k_configure_filter,
 	.sta_add	    = ath9k_sta_add,
 	.sta_remove	    = ath9k_sta_remove,
+	.sta_notify         = ath9k_sta_notify,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,

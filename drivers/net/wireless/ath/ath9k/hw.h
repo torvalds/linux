@@ -626,6 +626,7 @@ struct ath_hw_ops {
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
 	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
 				     u32 burstDuration);
+	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
 };
 
 struct ath_nf_limits {
