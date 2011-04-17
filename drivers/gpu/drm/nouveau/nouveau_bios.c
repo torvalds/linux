@@ -6031,6 +6031,7 @@ parse_dcb_connector_table(struct nvbios *bios)
 		case DCB_CONNECTOR_DVI_I:
 		case DCB_CONNECTOR_DVI_D:
 		case DCB_CONNECTOR_LVDS:
+		case DCB_CONNECTOR_LVDS_SPWG:
 		case DCB_CONNECTOR_DP:
 		case DCB_CONNECTOR_eDP:
 		case DCB_CONNECTOR_HDMI_0:
