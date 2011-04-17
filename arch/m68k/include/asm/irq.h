@@ -96,14 +96,15 @@ struct irq_handler {
 
 struct irq_chip {
 	const char *name;
-	unsigned int (*irq_startup)(unsigned int irq);
-	void (*irq_shutdown)(unsigned int irq);
-	void (*irq_enable)(unsigned int irq);
-	void (*irq_disable)(unsigned int irq);
+	unsigned int (*irq_startup)(struct irq_data *data);
+	void (*irq_shutdown)(struct irq_data *data);
+	void (*irq_enable)(struct irq_data *data);
+	void (*irq_disable)(struct irq_data *data);
 };
 
-extern unsigned int m68k_irq_startup(unsigned int);
-extern void m68k_irq_shutdown(unsigned int);
+extern unsigned int m68k_irq_startup(struct irq_data *data);
+extern unsigned int m68k_irq_startup_irq(unsigned int irq);
+extern void m68k_irq_shutdown(struct irq_data *data);
 
 /*
  * This function returns a new struct irq_data

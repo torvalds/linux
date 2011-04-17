@@ -35,14 +35,16 @@
 */
 
 static void q40_irq_handler(unsigned int, struct pt_regs *fp);
-static void q40_enable_irq(unsigned int);
-static void q40_disable_irq(unsigned int);
+static void q40_irq_enable(struct irq_data *data);
+static void q40_irq_disable(struct irq_data *data);
 
 unsigned short q40_ablecount[35];
 unsigned short q40_state[35];
 
-static unsigned int q40_irq_startup(unsigned int irq)
+static unsigned int q40_irq_startup(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	/* test for ISA ints not implemented by HW */
 	switch (irq) {
 	case 1: case 2: case 8: case 9:
@@ -53,7 +55,7 @@ static unsigned int q40_irq_startup(unsigned int irq)
 	return 0;
 }
 
-static void q40_irq_shutdown(unsigned int irq)
+static void q40_irq_shutdown(struct irq_data *data)
 {
 }
 
@@ -61,8 +63,8 @@ static struct irq_chip q40_irq_chip = {
 	.name		= "q40",
 	.irq_startup	= q40_irq_startup,
 	.irq_shutdown	= q40_irq_shutdown,
-	.irq_enable	= q40_enable_irq,
-	.irq_disable	= q40_disable_irq,
+	.irq_enable	= q40_irq_enable,
+	.irq_disable	= q40_irq_disable,
 };
 
 /*
@@ -85,8 +87,8 @@ void __init q40_init_IRQ(void)
 	/* setup handler for ISA ints */
 	m68k_setup_auto_interrupt(q40_irq_handler);
 
-	m68k_irq_startup(IRQ_AUTO_2);
-	m68k_irq_startup(IRQ_AUTO_4);
+	m68k_irq_startup_irq(IRQ_AUTO_2);
+	m68k_irq_startup_irq(IRQ_AUTO_4);
 
 	/* now enable some ints.. */
 	master_outb(1, EXT_ENABLE_REG);  /* ISA IRQ 5-15 */
@@ -292,20 +294,24 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	return;
 }
 
-void q40_enable_irq(unsigned int irq)
+void q40_irq_enable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	if (irq >= 5 && irq <= 15) {
 		mext_disabled--;
 		if (mext_disabled > 0)
-			printk("q40_enable_irq : nested disable/enable\n");
+			printk("q40_irq_enable : nested disable/enable\n");
 		if (mext_disabled == 0)
 			master_outb(1, EXT_ENABLE_REG);
 	}
 }
 
 
-void q40_disable_irq(unsigned int irq)
+void q40_irq_disable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	/* disable ISA iqs : only do something if the driver has been
 	 * verified to be Q40 "compatible" - right now IDE, NE2K
 	 * Any driver should not attempt to sleep across disable_irq !!

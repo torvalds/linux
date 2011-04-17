@@ -98,8 +98,9 @@ static irqreturn_t cia_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void cia_enable_irq(unsigned int irq)
+static void cia_irq_enable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned char mask;
 
 	if (irq >= IRQ_AMIGA_CIAB) {
@@ -113,8 +114,10 @@ static void cia_enable_irq(unsigned int irq)
 	}
 }
 
-static void cia_disable_irq(unsigned int irq)
+static void cia_irq_disable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	if (irq >= IRQ_AMIGA_CIAB)
 		cia_able_irq(&ciab_base, 1 << (irq - IRQ_AMIGA_CIAB));
 	else
@@ -123,8 +126,8 @@ static void cia_disable_irq(unsigned int irq)
 
 static struct irq_chip cia_irq_chip = {
 	.name		= "cia",
-	.irq_enable	= cia_enable_irq,
-	.irq_disable	= cia_disable_irq,
+	.irq_enable	= cia_irq_enable,
+	.irq_disable	= cia_irq_disable,
 };
 
 /*
@@ -133,9 +136,9 @@ static struct irq_chip cia_irq_chip = {
  * into this chain.
  */
 
-static void auto_enable_irq(unsigned int irq)
+static void auto_irq_enable(struct irq_data *data)
 {
-	switch (irq) {
+	switch (data->irq) {
 	case IRQ_AUTO_2:
 		amiga_custom.intena = IF_SETCLR | IF_PORTS;
 		break;
@@ -145,9 +148,9 @@ static void auto_enable_irq(unsigned int irq)
 	}
 }
 
-static void auto_disable_irq(unsigned int irq)
+static void auto_irq_disable(struct irq_data *data)
 {
-	switch (irq) {
+	switch (data->irq) {
 	case IRQ_AUTO_2:
 		amiga_custom.intena = IF_PORTS;
 		break;
@@ -159,8 +162,8 @@ static void auto_disable_irq(unsigned int irq)
 
 static struct irq_chip auto_irq_chip = {
 	.name		= "auto",
-	.irq_enable	= auto_enable_irq,
-	.irq_disable	= auto_disable_irq,
+	.irq_enable	= auto_irq_enable,
+	.irq_disable	= auto_irq_disable,
 };
 
 void __init cia_init_IRQ(struct ciabase *base)
@@ -173,7 +176,7 @@ void __init cia_init_IRQ(struct ciabase *base)
 
 	/* override auto int and install CIA handler */
 	m68k_setup_irq_chip(&auto_irq_chip, base->handler_irq, 1);
-	m68k_irq_startup(base->handler_irq);
+	m68k_irq_startup_irq(base->handler_irq);
 	if (request_irq(base->handler_irq, cia_handler, IRQF_SHARED,
 			base->name, base))
 		pr_err("Couldn't register %s interrupt\n", base->name);

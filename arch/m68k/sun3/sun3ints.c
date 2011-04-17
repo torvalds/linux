@@ -86,12 +86,22 @@ static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 	__m68k_handle_int(irq, fp);
 }
 
+static void sun3_irq_enable(struct irq_data *data)
+{
+    sun3_enable_irq(data->irq);
+};
+
+static void sun3_irq_disable(struct irq_data *data)
+{
+    sun3_disable_irq(data->irq);
+};
+
 static struct irq_chip sun3_irq_chip = {
 	.name		= "sun3",
 	.irq_startup	= m68k_irq_startup,
 	.irq_shutdown	= m68k_irq_shutdown,
-	.irq_enable	= sun3_enable_irq,
-	.irq_disable	= sun3_disable_irq,
+	.irq_enable	= sun3_irq_enable,
+	.irq_disable	= sun3_irq_disable,
 };
 
 void __init sun3_init_IRQ(void)

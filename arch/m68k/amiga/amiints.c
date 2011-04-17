@@ -45,8 +45,8 @@
 #include <asm/amigaints.h>
 #include <asm/amipcmcia.h>
 
-static void amiga_enable_irq(unsigned int irq);
-static void amiga_disable_irq(unsigned int irq);
+static void amiga_irq_enable(struct irq_data *data);
+static void amiga_irq_disable(struct irq_data *data);
 static irqreturn_t ami_int1(int irq, void *dev_id);
 static irqreturn_t ami_int3(int irq, void *dev_id);
 static irqreturn_t ami_int4(int irq, void *dev_id);
@@ -54,8 +54,8 @@ static irqreturn_t ami_int5(int irq, void *dev_id);
 
 static struct irq_chip amiga_irq_chip = {
 	.name		= "amiga",
-	.irq_enable	= amiga_enable_irq,
-	.irq_disable	= amiga_disable_irq,
+	.irq_enable	= amiga_irq_enable,
+	.irq_disable	= amiga_irq_disable,
 };
 
 /*
@@ -102,14 +102,14 @@ void __init amiga_init_IRQ(void)
  * internal data, that may not be changed by the interrupt at the same time.
  */
 
-static void amiga_enable_irq(unsigned int irq)
+static void amiga_irq_enable(struct irq_data *data)
 {
-	amiga_custom.intena = IF_SETCLR | (1 << (irq - IRQ_USER));
+	amiga_custom.intena = IF_SETCLR | (1 << (data->irq - IRQ_USER));
 }
 
-static void amiga_disable_irq(unsigned int irq)
+static void amiga_irq_disable(struct irq_data *data)
 {
-	amiga_custom.intena = 1 << (irq - IRQ_USER);
+	amiga_custom.intena = 1 << (data->irq - IRQ_USER);
 }
 
 /*

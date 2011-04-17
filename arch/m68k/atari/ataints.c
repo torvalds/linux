@@ -320,30 +320,44 @@ extern void atari_microwire_cmd(int cmd);
 
 extern int atari_SCC_reset_done;
 
-static unsigned int atari_startup_irq(unsigned int irq)
+static unsigned int atari_irq_startup(struct irq_data *data)
 {
-	m68k_irq_startup(irq);
+	unsigned int irq = data->irq;
+
+	m68k_irq_startup(data);
 	atari_turnon_irq(irq);
 	atari_enable_irq(irq);
 	return 0;
 }
 
-static void atari_shutdown_irq(unsigned int irq)
+static void atari_irq_shutdown(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	atari_disable_irq(irq);
 	atari_turnoff_irq(irq);
-	m68k_irq_shutdown(irq);
+	m68k_irq_shutdown(data);
 
 	if (irq == IRQ_AUTO_4)
 	    vectors[VEC_INT4] = falcon_hblhandler;
 }
 
+static void atari_irq_enable(struct irq_data *data)
+{
+	atari_enable_irq(data->irq);
+}
+
+static void atari_irq_disable(struct irq_data *data)
+{
+	atari_disable_irq(data->irq);
+}
+
 static struct irq_chip atari_irq_chip = {
 	.name		= "atari",
-	.irq_startup	= atari_startup_irq,
-	.irq_shutdown	= atari_shutdown_irq,
-	.irq_enable	= atari_enable_irq,
-	.irq_disable	= atari_disable_irq,
+	.irq_startup	= atari_irq_startup,
+	.irq_shutdown	= atari_irq_shutdown,
+	.irq_enable	= atari_irq_enable,
+	.irq_disable	= atari_irq_disable,
 };
 
 /*

@@ -193,10 +193,20 @@ irqreturn_t mac_debug_handler(int, void *);
 void mac_enable_irq(unsigned int irq);
 void mac_disable_irq(unsigned int irq);
 
+static void mac_irq_enable(struct irq_data *data)
+{
+	mac_enable_irq(data->irq);
+}
+
+static void mac_irq_disable(struct irq_data *data)
+{
+	mac_disable_irq(data->irq);
+}
+
 static struct irq_chip mac_irq_chip = {
 	.name		= "mac",
-	.irq_enable	= mac_enable_irq,
-	.irq_disable	= mac_disable_irq,
+	.irq_enable	= mac_irq_enable,
+	.irq_disable	= mac_irq_disable,
 };
 
 void __init mac_init_IRQ(void)

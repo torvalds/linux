@@ -12,8 +12,10 @@ void dn_process_int(unsigned int irq, struct pt_regs *fp)
 	*(volatile unsigned char *)(picb)=0x20;
 }
 
-unsigned int apollo_irq_startup(unsigned int irq)
+unsigned int apollo_irq_startup(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	if (irq < 8)
 		*(volatile unsigned char *)(pica+1) &= ~(1 << irq);
 	else
@@ -21,8 +23,10 @@ unsigned int apollo_irq_startup(unsigned int irq)
 	return 0;
 }
 
-void apollo_irq_shutdown(unsigned int irq)
+void apollo_irq_shutdown(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	if (irq < 8)
 		*(volatile unsigned char *)(pica+1) |= (1 << irq);
 	else

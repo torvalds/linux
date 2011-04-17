@@ -203,9 +203,9 @@ int setup_irq(unsigned int irq, struct irq_data *node)
 
 	if (!irq_list[irq]) {
 		if (contr->irq_startup)
-			contr->irq_startup(irq);
+			contr->irq_startup(node);
 		else
-			contr->irq_enable(irq);
+			contr->irq_enable(node);
 	}
 	node->next = NULL;
 	*prev = node;
@@ -270,9 +270,9 @@ void free_irq(unsigned int irq, void *dev_id)
 
 	if (!irq_list[irq]) {
 		if (contr->irq_shutdown)
-			contr->irq_shutdown(irq);
+			contr->irq_shutdown(node);
 		else
-			contr->irq_disable(irq);
+			contr->irq_disable(node);
 	}
 
 	local_irq_restore(flags);
@@ -295,7 +295,7 @@ void enable_irq(unsigned int irq)
 	if (irq_depth[irq]) {
 		if (!--irq_depth[irq]) {
 			if (contr->irq_enable)
-				contr->irq_enable(irq);
+				contr->irq_enable(irq_list[irq]);
 		}
 	} else
 		WARN_ON(1);
@@ -318,7 +318,7 @@ void disable_irq(unsigned int irq)
 	local_irq_save(flags);
 	if (!irq_depth[irq]++) {
 		if (contr->irq_disable)
-			contr->irq_disable(irq);
+			contr->irq_disable(irq_list[irq]);
 	}
 	local_irq_restore(flags);
 }
@@ -329,7 +329,7 @@ void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
 
 EXPORT_SYMBOL(disable_irq_nosync);
 
-unsigned int m68k_irq_startup(unsigned int irq)
+unsigned int m68k_irq_startup_irq(unsigned int irq)
 {
 	if (irq <= IRQ_AUTO_7)
 		vectors[VEC_SPUR + irq] = auto_inthandler;
@@ -338,8 +338,15 @@ unsigned int m68k_irq_startup(unsigned int irq)
 	return 0;
 }
 
-void m68k_irq_shutdown(unsigned int irq)
+unsigned int m68k_irq_startup(struct irq_data *data)
 {
+	return m68k_irq_startup_irq(data->irq);
+}
+
+void m68k_irq_shutdown(struct irq_data *data)
+{
+	unsigned int irq = data->irq;
+
 	if (irq <= IRQ_AUTO_7)
 		vectors[VEC_SPUR + irq] = bad_inthandler;
 	else
