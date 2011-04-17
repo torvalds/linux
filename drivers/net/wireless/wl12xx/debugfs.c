@@ -291,6 +291,136 @@ static const struct file_operations gpio_power_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t dtim_interval_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	u8 value;
+
+	if (wl->conf.conn.wake_up_event == CONF_WAKE_UP_EVENT_DTIM ||
+	    wl->conf.conn.wake_up_event == CONF_WAKE_UP_EVENT_N_DTIM)
+		value = wl->conf.conn.listen_interval;
+	else
+		value = 0;
+
+	return wl1271_format_buffer(user_buf, count, ppos, "%d\n", value);
+}
+
+static ssize_t dtim_interval_write(struct file *file,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = strict_strtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value for dtim_interval");
+		return -EINVAL;
+	}
+
+	if (value < 1 || value > 10) {
+		wl1271_warning("dtim value is not in valid range");
+		return -ERANGE;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	wl->conf.conn.listen_interval = value;
+	/* for some reason there are different event types for 1 and >1 */
+	if (value == 1)
+		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_DTIM;
+	else
+		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_DTIM;
+
+	/*
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * take effect on the next time we enter psm.
+	 */
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations dtim_interval_ops = {
+	.read = dtim_interval_read,
+	.write = dtim_interval_write,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
+static ssize_t beacon_interval_read(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	u8 value;
+
+	if (wl->conf.conn.wake_up_event == CONF_WAKE_UP_EVENT_BEACON ||
+	    wl->conf.conn.wake_up_event == CONF_WAKE_UP_EVENT_N_BEACONS)
+		value = wl->conf.conn.listen_interval;
+	else
+		value = 0;
+
+	return wl1271_format_buffer(user_buf, count, ppos, "%d\n", value);
+}
+
+static ssize_t beacon_interval_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = strict_strtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value for beacon_interval");
+		return -EINVAL;
+	}
+
+	if (value < 1 || value > 255) {
+		wl1271_warning("beacon interval value is not in valid range");
+		return -ERANGE;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	wl->conf.conn.listen_interval = value;
+	/* for some reason there are different event types for 1 and >1 */
+	if (value == 1)
+		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_BEACON;
+	else
+		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_BEACONS;
+
+	/*
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * take effect on the next time we enter psm.
+	 */
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations beacon_interval_ops = {
+	.read = beacon_interval_read,
+	.write = beacon_interval_write,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
 static int wl1271_debugfs_add_files(struct wl1271 *wl,
 				     struct dentry *rootdir)
 {
@@ -399,6 +529,8 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(excessive_retries, rootdir);
 
 	DEBUGFS_ADD(gpio_power, rootdir);
+	DEBUGFS_ADD(dtim_interval, rootdir);
+	DEBUGFS_ADD(beacon_interval, rootdir);
 
 	return 0;
 
