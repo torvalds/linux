@@ -2514,7 +2514,6 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 {
 	struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
 	int err = 0;
-	struct iphdr *iph;
 
 	if (!x)
 		return 0;
@@ -2524,7 +2523,6 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 		return 0;
 
 	spin_lock(&x->lock);
-	iph = ip_hdr(skb);
 
 	err = x->outer_mode->output(x, skb);
 	if (err)
