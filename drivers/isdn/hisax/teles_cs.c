@@ -111,12 +111,10 @@ static int teles_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 static int __devinit teles_cs_config(struct pcmcia_device *link)
 {
-    local_info_t *dev;
     int i;
     IsdnCard_t icard;
 
     dev_dbg(&link->dev, "teles_config(0x%p)\n", link);
-    dev = link->priv;
 
     i = pcmcia_loop_config(link, teles_cs_configcheck, NULL);
     if (i != 0)
