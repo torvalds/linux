@@ -133,9 +133,7 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 static int modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 {
 	struct caif_device_entry *caifd;
-	struct caif_dev_common *caifdev;
 	caifd = container_of(layr, struct caif_device_entry, layer);
-	caifdev = netdev_priv(caifd->netdev);
 	if (ctrl == _CAIF_MODEMCMD_PHYIF_USEFULL) {
 		atomic_set(&caifd->in_use, 1);
 		wake_up_interruptible(&caifd->event);
@@ -154,10 +152,8 @@ static int modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 static int receive(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pkttype, struct net_device *orig_dev)
 {
-	struct net *net;
 	struct cfpkt *pkt;
 	struct caif_device_entry *caifd;
-	net = dev_net(dev);
 	pkt = cfpkt_fromnative(CAIF_DIR_IN, skb);
 	caifd = caif_get(dev);
 	if (!caifd || !caifd->layer.up || !caifd->layer.up->receive)
@@ -195,7 +191,6 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
 	enum cfcnfg_phy_preference pref;
-	int res = -EINVAL;
 	enum cfcnfg_phy_type phy_type;
 
 	if (dev->type != ARPHRD_CAIF)
@@ -210,7 +205,6 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifdev = netdev_priv(dev);
 		caifdev->flowctrl = dev_flowctrl;
 		atomic_set(&caifd->state, what);
-		res = 0;
 		break;
 
 	case NETDEV_UP:
@@ -274,7 +268,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 					 _CAIF_CTRLCMD_PHYIF_DOWN_IND,
 					 caifd->layer.id);
 		might_sleep();
-		res = wait_event_interruptible_timeout(caifd->event,
+		wait_event_interruptible_timeout(caifd->event,
 					atomic_read(&caifd->in_use) == 0,
 					TIMEOUT);
 		break;
@@ -344,12 +338,11 @@ static int caif_init_net(struct net *net)
 static void caif_exit_net(struct net *net)
 {
 	struct net_device *dev;
-	int res;
 	rtnl_lock();
 	for_each_netdev(net, dev) {
 		if (dev->type != ARPHRD_CAIF)
 			continue;
-		res = dev_close(dev);
+		dev_close(dev);
 		caif_device_destroy(dev);
 	}
 	rtnl_unlock();
