@@ -147,7 +147,7 @@ struct bat_priv {
 	atomic_t batman_queue_left;
 	char num_ifaces;
 	struct hlist_head softif_neigh_list;
-	struct softif_neigh *softif_neigh;
+	struct softif_neigh __rcu *softif_neigh;
 	struct debug_log *debug_log;
 	struct hard_iface *primary_if;
 	struct kobject *mesh_obj;
