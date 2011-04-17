@@ -324,6 +324,8 @@ static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count
 		vpd->busy = true;
 		vpd->flag = 0;
 		ret = pci_vpd_pci22_wait(dev);
+		if (ret < 0)
+			break;
 
 		pos += sizeof(u32);
 	}
