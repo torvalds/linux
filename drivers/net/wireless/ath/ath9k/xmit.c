@@ -1526,7 +1526,7 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr;
 	struct ath_frame_info *fi = get_frame_info(skb);
-	struct ath_node *an;
+	struct ath_node *an = NULL;
 	struct ath_atx_tid *tid;
 	enum ath9k_key_type keytype;
 	u16 seqno = 0;
@@ -1534,11 +1534,13 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
 
+	if (sta)
+		an = (struct ath_node *) sta->drv_priv;
+
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (sta && ieee80211_is_data_qos(hdr->frame_control) &&
+	if (an && ieee80211_is_data_qos(hdr->frame_control) &&
 		conf_is_ht(&hw->conf) && (sc->sc_flags & SC_OP_TXAGGR)) {
 
-		an = (struct ath_node *) sta->drv_priv;
 		tidno = ieee80211_get_qos_ctl(hdr)[0] & IEEE80211_QOS_CTL_TID_MASK;
 
 		/*
@@ -1554,6 +1556,8 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 	memset(fi, 0, sizeof(*fi));
 	if (hw_key)
 		fi->keyix = hw_key->hw_key_idx;
+	else if (an && ieee80211_is_data(hdr->frame_control) && an->ps_key > 0)
+		fi->keyix = an->ps_key;
 	else
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
 	fi->keytype = keytype;

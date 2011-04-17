@@ -256,6 +256,8 @@ struct ath_node {
 #endif
 	struct ath_atx_tid tid[WME_NUM_TID];
 	struct ath_atx_ac ac[WME_NUM_AC];
+	int ps_key;
+
 	u16 maxampdu;
 	u8 mpdudensity;
 
