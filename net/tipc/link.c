@@ -1276,7 +1276,7 @@ reject:
 	/* Append whole chain to send queue: */
 
 	buf = buf_chain;
-	l_ptr->long_msg_seq_no = mod(l_ptr->long_msg_seq_no + 1);
+	l_ptr->long_msg_seq_no++;
 	if (!l_ptr->next_out)
 		l_ptr->next_out = buf_chain;
 	l_ptr->stats.sent_fragmented++;
@@ -2426,7 +2426,7 @@ static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 
 	tipc_msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
 		 INT_H_SIZE, destaddr);
-	msg_set_long_msgno(&fragm_hdr, mod(l_ptr->long_msg_seq_no++));
+	msg_set_long_msgno(&fragm_hdr, l_ptr->long_msg_seq_no++);
 	msg_set_fragm_no(&fragm_hdr, fragm_no);
 	l_ptr->stats.sent_fragmented++;
 
