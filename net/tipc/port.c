@@ -91,6 +91,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 
 	hdr = &oport->phdr;
 	msg_set_type(hdr, TIPC_MCAST_MSG);
+	msg_set_lookup_scope(hdr, TIPC_CLUSTER_SCOPE);
 	msg_set_nametype(hdr, seq->type);
 	msg_set_namelower(hdr, seq->lower);
 	msg_set_nameupper(hdr, seq->upper);
@@ -1065,6 +1066,7 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	msg_set_orignode(msg, tipc_own_addr);
 	msg_set_origport(msg, p_ptr->ref);
 	msg_set_type(msg, TIPC_CONN_MSG);
+	msg_set_lookup_scope(msg, 0);
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
 	p_ptr->probing_interval = PROBING_INTERVAL;
@@ -1276,6 +1278,7 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 
 	msg = &p_ptr->phdr;
 	msg_set_type(msg, TIPC_DIRECT_MSG);
+	msg_set_lookup_scope(msg, 0);
 	msg_set_orignode(msg, tipc_own_addr);
 	msg_set_origport(msg, ref);
 	msg_set_destnode(msg, dest->node);
