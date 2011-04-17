@@ -746,6 +746,25 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	ath_set_beacon(sc);
 }
 
+static bool ath_has_valid_bslot(struct ath_softc *sc)
+{
+	struct ath_vif *avp;
+	int slot;
+	bool found = false;
+
+	for (slot = 0; slot < ATH_BCBUF; slot++) {
+		if (sc->beacon.bslot[slot]) {
+			avp = (void *)sc->beacon.bslot[slot]->drv_priv;
+			if (avp->is_bslot_active) {
+				found = true;
+				break;
+			}
+		}
+	}
+	return found;
+}
+
+
 void ath_set_beacon(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -753,7 +772,8 @@ void ath_set_beacon(struct ath_softc *sc)
 
 	switch (sc->sc_ah->opmode) {
 	case NL80211_IFTYPE_AP:
-		ath_beacon_config_ap(sc, cur_conf);
+		if (ath_has_valid_bslot(sc))
+			ath_beacon_config_ap(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
@@ -780,20 +800,8 @@ void ath_set_beacon(struct ath_softc *sc)
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_vif *avp;
-	int slot;
-	bool found = false;
 
-	for (slot = 0; slot < ATH_BCBUF; slot++) {
-		if (sc->beacon.bslot[slot]) {
-			avp = (void *)sc->beacon.bslot[slot]->drv_priv;
-			if (avp->is_bslot_active) {
-				found = true;
-				break;
-			}
-		}
-	}
-	if (!found)
+	if (!ath_has_valid_bslot(sc))
 		return;
 
 	ath9k_ps_wakeup(sc);
