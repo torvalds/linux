@@ -901,7 +901,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 
 				skb_put(skb, pkt_len);
 
-				if (greth->flags & GRETH_FLAG_RX_CSUM && hw_checksummed(status))
+				if (dev->features & NETIF_F_RXCSUM && hw_checksummed(status))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
 					skb_checksum_none_assert(skb);
@@ -1142,41 +1142,6 @@ static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, vo
 		buff[i] = greth_read_bd(&greth_regs[i]);
 }
 
-static u32 greth_get_rx_csum(struct net_device *dev)
-{
-	struct greth_private *greth = netdev_priv(dev);
-	return (greth->flags & GRETH_FLAG_RX_CSUM) != 0;
-}
-
-static int greth_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct greth_private *greth = netdev_priv(dev);
-
-	spin_lock_bh(&greth->devlock);
-
-	if (data)
-		greth->flags |= GRETH_FLAG_RX_CSUM;
-	else
-		greth->flags &= ~GRETH_FLAG_RX_CSUM;
-
-	spin_unlock_bh(&greth->devlock);
-
-	return 0;
-}
-
-static u32 greth_get_tx_csum(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_IP_CSUM) != 0;
-}
-
-static int greth_set_tx_csum(struct net_device *dev, u32 data)
-{
-	netif_tx_lock_bh(dev);
-	ethtool_op_set_tx_csum(dev, data);
-	netif_tx_unlock_bh(dev);
-	return 0;
-}
-
 static const struct ethtool_ops greth_ethtool_ops = {
 	.get_msglevel		= greth_get_msglevel,
 	.set_msglevel		= greth_set_msglevel,
@@ -1185,10 +1150,6 @@ static const struct ethtool_ops greth_ethtool_ops = {
 	.get_drvinfo		= greth_get_drvinfo,
 	.get_regs_len           = greth_get_regs_len,
 	.get_regs               = greth_get_regs,
-	.get_rx_csum		= greth_get_rx_csum,
-	.set_rx_csum		= greth_set_rx_csum,
-	.get_tx_csum		= greth_get_tx_csum,
-	.set_tx_csum		= greth_set_tx_csum,
 	.get_link		= ethtool_op_get_link,
 };
 
@@ -1570,9 +1531,10 @@ static int __devinit greth_of_probe(struct platform_device *ofdev)
 	GRETH_REGSAVE(regs->status, 0xFF);
 
 	if (greth->gbit_mac) {
-		dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_HIGHDMA;
+		dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+			NETIF_F_RXCSUM;
+		dev->features = dev->hw_features | NETIF_F_HIGHDMA;
 		greth_netdev_ops.ndo_start_xmit = greth_start_xmit_gbit;
-		greth->flags = GRETH_FLAG_RX_CSUM;
 	}
 
 	if (greth->multicast) {
