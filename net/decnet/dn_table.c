@@ -124,11 +124,10 @@ static inline void dn_rebuild_zone(struct dn_zone *dz,
 				   int old_divisor)
 {
 	int i;
-	struct dn_fib_node *f, **fp, *next;
+	struct dn_fib_node *f, **fp;
 
 	for(i = 0; i < old_divisor; i++) {
 		for(f = old_ht[i]; f; f = f->fn_next) {
-			next = f->fn_next;
 			for(fp = dn_chain_p(f->fn_key, dz);
 				*fp && dn_key_leq((*fp)->fn_key, f->fn_key);
 				fp = &(*fp)->fn_next)
