@@ -2763,7 +2763,6 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 {
 	struct slave *slave = bond->curr_active_slave;
 	struct vlan_entry *vlan;
-	struct net_device *vlan_dev;
 
 	pr_debug("bond_send_grat_arp: bond %s slave %s\n",
 		 bond->dev->name, slave ? slave->dev->name : "NULL");
@@ -2783,7 +2782,6 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 		return;
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 		if (vlan->vlan_ip) {
 			bond_arp_send(slave->dev, ARPOP_REPLY, vlan->vlan_ip,
 				      vlan->vlan_ip, vlan->vlan_id);
