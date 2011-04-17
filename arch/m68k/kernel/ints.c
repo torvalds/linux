@@ -70,7 +70,7 @@ static struct irq_chip user_irq_chip = {
 };
 
 #define NUM_IRQ_NODES 100
-static irq_node_t nodes[NUM_IRQ_NODES];
+static struct irq_node nodes[NUM_IRQ_NODES];
 
 /*
  * void init_IRQ(void)
@@ -160,9 +160,9 @@ void m68k_setup_irq_chip(struct irq_chip *contr, unsigned int irq,
 		irq_chip[irq + i] = contr;
 }
 
-irq_node_t *new_irq_node(void)
+struct irq_node *new_irq_node(void)
 {
-	irq_node_t *node;
+	struct irq_node *node;
 	short i;
 
 	for (node = nodes, i = NUM_IRQ_NODES-1; i >= 0; node++, i--) {

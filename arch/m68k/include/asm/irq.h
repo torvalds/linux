@@ -75,13 +75,13 @@ struct pt_regs;
  * This structure is used to chain together the ISRs for a particular
  * interrupt source (if it supports chaining).
  */
-typedef struct irq_node {
+struct irq_node {
 	irqreturn_t	(*handler)(int, void *);
 	void		*dev_id;
 	struct irq_node *next;
 	unsigned long	flags;
 	const char	*devname;
-} irq_node_t;
+};
 
 /*
  * This structure has only 4 elements for speed reasons
@@ -105,9 +105,9 @@ extern unsigned int m68k_irq_startup(unsigned int);
 extern void m68k_irq_shutdown(unsigned int);
 
 /*
- * This function returns a new irq_node_t
+ * This function returns a new struct irq_node
  */
-extern irq_node_t *new_irq_node(void);
+extern struct irq_node *new_irq_node(void);
 
 extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *));
 extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
