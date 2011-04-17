@@ -26,9 +26,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 		if (adap->props.streaming_ctrl != NULL) {
 			ret = adap->props.streaming_ctrl(adap, 0);
-			err("error while stopping stream.");
-			if (ret < 0)
+			if (ret < 0) {
+				err("error while stopping stream.");
 				return ret;
+			}
 		}
 	}
 
