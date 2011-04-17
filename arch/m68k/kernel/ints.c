@@ -51,7 +51,7 @@ extern u32 user_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];
 
 /* table for system interrupt handlers */
-static struct irq_node *irq_list[NR_IRQS];
+static struct irq_data *irq_list[NR_IRQS];
 static struct irq_chip *irq_chip[NR_IRQS];
 static int irq_depth[NR_IRQS];
 
@@ -70,7 +70,7 @@ static struct irq_chip user_irq_chip = {
 };
 
 #define NUM_IRQ_NODES 100
-static struct irq_node nodes[NUM_IRQ_NODES];
+static struct irq_data nodes[NUM_IRQ_NODES];
 
 /*
  * void init_IRQ(void)
@@ -160,9 +160,9 @@ void m68k_setup_irq_chip(struct irq_chip *contr, unsigned int irq,
 		irq_chip[irq + i] = contr;
 }
 
-struct irq_node *new_irq_node(void)
+struct irq_data *new_irq_node(void)
 {
-	struct irq_node *node;
+	struct irq_data *node;
 	short i;
 
 	for (node = nodes, i = NUM_IRQ_NODES-1; i >= 0; node++, i--) {
@@ -176,10 +176,10 @@ struct irq_node *new_irq_node(void)
 	return NULL;
 }
 
-int setup_irq(unsigned int irq, struct irq_node *node)
+int setup_irq(unsigned int irq, struct irq_data *node)
 {
 	struct irq_chip *contr;
-	struct irq_node **prev;
+	struct irq_data **prev;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
@@ -219,13 +219,14 @@ int request_irq(unsigned int irq,
 		irq_handler_t handler,
 		unsigned long flags, const char *devname, void *dev_id)
 {
-	struct irq_node *node;
+	struct irq_data *node;
 	int res;
 
 	node = new_irq_node();
 	if (!node)
 		return -ENOMEM;
 
+	node->irq     = irq;
 	node->handler = handler;
 	node->flags   = flags;
 	node->dev_id  = dev_id;
@@ -243,7 +244,7 @@ EXPORT_SYMBOL(request_irq);
 void free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_chip *contr;
-	struct irq_node **p, *node;
+	struct irq_data **p, *node;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
@@ -386,7 +387,7 @@ EXPORT_SYMBOL(irq_canonicalize);
 
 asmlinkage void m68k_handle_int(unsigned int irq)
 {
-	struct irq_node *node;
+	struct irq_data *node;
 	kstat_cpu(0).irqs[irq]++;
 	node = irq_list[irq];
 	do {
@@ -412,7 +413,7 @@ asmlinkage void handle_badint(struct pt_regs *regs)
 int show_interrupts(struct seq_file *p, void *v)
 {
 	struct irq_chip *contr;
-	struct irq_node *node;
+	struct irq_data *node;
 	int i = *(loff_t *) v;
 
 	/* autovector interrupts */
