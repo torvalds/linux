@@ -584,6 +584,7 @@ static void interface_setup(struct net_device *dev)
 	dev->hard_start_xmit = interface_tx;
 #endif
 	dev->destructor = free_netdev;
+	dev->tx_queue_len = 0;
 
 	/**
 	 * can't call min_mtu, because the needed variables
