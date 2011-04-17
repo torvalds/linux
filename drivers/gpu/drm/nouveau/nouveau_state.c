@@ -498,7 +498,7 @@ nouveau_card_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine;
-	int ret, e;
+	int ret, e = 0;
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
