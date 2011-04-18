@@ -1936,7 +1936,7 @@ static void XGIfb_post_setmode(void)
 		reg |= 0x80;
 	xgifb_reg_set(XGICR, 0x17, reg);
 
-	andXGIIDXREG(XGISR, IND_XGI_RAMDAC_CONTROL, ~0x04);
+	xgifb_reg_and(XGISR, IND_XGI_RAMDAC_CONTROL, ~0x04);
 
 	if ((xgi_video_info.disp_state & DISPTYPE_TV) && (xgi_video_info.hasVB
 			== HASVB_301)) {
@@ -1967,11 +1967,11 @@ static void XGIfb_post_setmode(void)
 
 			if (xgi_video_info.TV_type == TVMODE_NTSC) {
 
-				andXGIIDXREG(XGIPART2, 0x3a, 0x1f);
+				xgifb_reg_and(XGIPART2, 0x3a, 0x1f);
 
 				if (xgi_video_info.TV_plug == TVPLUG_SVIDEO) {
 
-					andXGIIDXREG(XGIPART2, 0x30, 0xdf);
+					xgifb_reg_and(XGIPART2, 0x30, 0xdf);
 
 				} else if (xgi_video_info.TV_plug
 						== TVPLUG_COMPOSITE) {
@@ -2002,11 +2002,11 @@ static void XGIfb_post_setmode(void)
 
 			} else if (xgi_video_info.TV_type == TVMODE_PAL) {
 
-				andXGIIDXREG(XGIPART2, 0x3A, 0x1F);
+				xgifb_reg_and(XGIPART2, 0x3A, 0x1F);
 
 				if (xgi_video_info.TV_plug == TVPLUG_SVIDEO) {
 
-					andXGIIDXREG(XGIPART2, 0x30, 0xDF);
+					xgifb_reg_and(XGIPART2, 0x30, 0xDF);
 
 				} else if (xgi_video_info.TV_plug
 						== TVPLUG_COMPOSITE) {
