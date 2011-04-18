@@ -651,24 +651,6 @@ static unsigned char filter_tb;
 
 /* ---------------------- Routine prototypes ------------------------- */
 
-/* Interface used by the world */
-#ifndef MODULE
-XGIINITSTATIC int __init XGIfb_setup(char *options);
-#endif
-
-/* Interface to the low level console driver */
-
-
-
-/* fbdev routines */
-XGIINITSTATIC int __init xgifb_init(void);
-static int      XGIfb_set_par(struct fb_info *info);
-static int      XGIfb_blank(int blank,
-                            struct fb_info *info);
-/*static int 	XGIfb_mmap(struct fb_info *info, struct file *file,
-		           struct vm_area_struct *vma);
-*/
-
 /*
 extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
 			      struct xgi_hw_device_info *HwDeviceExtension,
@@ -683,29 +665,6 @@ extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_d
 extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				unsigned short *ModeIdIndex,
 				struct vb_device_info *);
-static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
-			      struct fb_info *info);
-
-/* Internal general routines */
-static void     XGIfb_search_mode(const char *name);
-static int      XGIfb_validate_mode(int modeindex);
-static u8       XGIfb_search_refresh_rate(unsigned int rate);
-static int      XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-			unsigned blue, unsigned transp,
-			struct fb_info *fb_info);
-static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
-		      	struct fb_info *info);
-static void     XGIfb_pre_setmode(void);
-static void     XGIfb_post_setmode(void);
-
-/* Chipset-dependent internal routines */
-
-
-static int      XGIfb_get_dram_size(void);
-static void     XGIfb_detect_VB(void);
-static void     XGIfb_get_VB_type(void);
-static int      XGIfb_has_VB(void);
-
 
 /* Internal routines to access PCI configuration space */
 unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
