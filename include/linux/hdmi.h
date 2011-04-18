@@ -15,7 +15,6 @@
 #include <linux/completion.h>
 
 
-
 #ifdef CONFIG_HDMI_DEBUG
 #define hdmi_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
@@ -83,5 +82,7 @@ extern int hdmi_switch_fb(struct hdmi *hdmi, int type);
 extern int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on);
 
 extern struct hdmi *get_hdmi_struct(int nr);
+
+extern int hdmi_get_default_resolution(void *screen);
 
 #endif

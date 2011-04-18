@@ -1,9 +1,9 @@
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/hdmi.h>
-#include <linux/completion.h>
 
+#include <linux/completion.h>
 #include "../display/screen/screen.h"
+#include <linux/hdmi.h>
 #include "../rk29_fb.h"
 
 
@@ -281,4 +281,15 @@ int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
 	}*/
 	return ret;
 }
+
+int hdmi_get_default_resolution(void *screen)
+{
+    struct rk29fb_screen hdmi_info[4];
+
+	hdmi_set_info(&hdmi_info[0]);
+    memcpy((struct rk29fb_screen*)screen, &hdmi_info[HDMI_DEFAULT_RESOLUTION], sizeof(struct rk29fb_screen));
+    return 0;  
+}
+
+
 EXPORT_SYMBOL(hdmi_resolution_changed);

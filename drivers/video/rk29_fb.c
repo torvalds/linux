@@ -2321,7 +2321,11 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     mach_info = pdev->dev.platform_data;
     /* Fill screen info and set current screen */
     fbprintk(">> Fill screen info and set current screen \n");
+   #ifdef CONFIG_DEFAULT_OUT_HDMI  // set hdmi for default output 
+    hdmi_get_default_resolution(&inf->panel1_info);
+   #else
     set_lcd_info(&inf->panel1_info, mach_info->lcd_info);
+   #endif
     inf->cur_screen = &inf->panel1_info;
     screen = inf->cur_screen;
     if(SCREEN_NULL==screen->type)

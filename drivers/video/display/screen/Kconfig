@@ -43,10 +43,11 @@ config LCD_IPS1P5680_V1_E
     bool "MCU IPS1P5680_V1_E"
 config LCD_MCU_TFT480800_25_E
     bool "MCU TFT480800_25_E"
-config LCD_ANX7150_720P
-	bool "anx7150 720p for default panel"
+config DEFAULT_OUT_HDMI
+	bool "HDMI for default panel"
+	depends on HDMI
 	---help---
-	if you want set anx7150(720p 50hz) for default panel, android UI size is 1280x720.
+	if you want set HDMI for default panel, android UI size is HDMI default resolution.
 config LCD_AT070TNA2
 	bool "RGB AT070TNA2"
 endchoice
