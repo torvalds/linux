@@ -71,39 +71,44 @@ static struct v4l2_pix_format jlj_mode[] = {
  */
 
 /* All commands are two bytes only */
-static int jlj_write2(struct gspca_dev *gspca_dev, unsigned char *command)
+static void jlj_write2(struct gspca_dev *gspca_dev, unsigned char *command)
 {
 	int retval;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	memcpy(gspca_dev->usb_buf, command, 2);
 	retval = usb_bulk_msg(gspca_dev->dev,
 			usb_sndbulkpipe(gspca_dev->dev, 3),
 			gspca_dev->usb_buf, 2, NULL, 500);
-	if (retval < 0)
+	if (retval < 0) {
 		err("command write [%02x] error %d",
 				gspca_dev->usb_buf[0], retval);
-	return retval;
+		gspca_dev->usb_err = retval;
+	}
 }
 
 /* Responses are one byte only */
-static int jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
+static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
 {
 	int retval;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	retval = usb_bulk_msg(gspca_dev->dev,
 	usb_rcvbulkpipe(gspca_dev->dev, 0x84),
 				gspca_dev->usb_buf, 1, NULL, 500);
 	response = gspca_dev->usb_buf[0];
-	if (retval < 0)
+	if (retval < 0) {
 		err("read command [%02x] error %d",
 				gspca_dev->usb_buf[0], retval);
-	return retval;
+		gspca_dev->usb_err = retval;
+	}
 }
 
 static int jlj_start(struct gspca_dev *gspca_dev)
 {
 	int i;
-	int retval = -1;
 	u8 response = 0xff;
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct jlj_command start_commands[] = {
@@ -138,16 +143,13 @@ static int jlj_start(struct gspca_dev *gspca_dev)
 
 	sd->blocks_left = 0;
 	for (i = 0; i < ARRAY_SIZE(start_commands); i++) {
-		retval = jlj_write2(gspca_dev, start_commands[i].instruction);
-		if (retval < 0)
-			return retval;
+		jlj_write2(gspca_dev, start_commands[i].instruction);
 		if (start_commands[i].ack_wanted)
-			retval = jlj_read1(gspca_dev, response);
-		if (retval < 0)
-			return retval;
+			jlj_read1(gspca_dev, response);
 	}
-	PDEBUG(D_ERR, "jlj_start retval is %d", retval);
-	return retval;
+	if (gspca_dev->usb_err < 0)
+		PDEBUG(D_ERR, "Start streaming command failed");
+	return gspca_dev->usb_err;
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -250,26 +252,21 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 /* Set up for getting frames. */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *dev = (struct sd *) gspca_dev;
-	int ret;
 
 	/* create the JPEG header */
 	jpeg_define(dev->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);          /* JPEG 422 */
 	jpeg_set_qual(dev->jpeg_hdr, dev->quality);
 	PDEBUG(D_STREAM, "Start streaming at 320x240");
-	ret = jlj_start(gspca_dev);
-	if (ret < 0) {
-		PDEBUG(D_ERR, "Start streaming command failed");
-		return ret;
-	}
-	return 0;
+	jlj_start(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 /* Table of supported USB devices */
