@@ -1399,7 +1399,7 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	if (!paddr) {
 		DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
-		r = omap_vram_alloc(OMAP_VRAM_MEMTYPE_SDRAM, size, &paddr);
+		r = omap_vram_alloc(size, &paddr);
 	} else {
 		DBG("reserving %lu bytes at %lx for fb %d\n", size, paddr,
 				ofbi->id);
@@ -1669,7 +1669,7 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 	int old_type = rg->type;
 	int r;
 
-	if (type > OMAPFB_MEMTYPE_MAX)
+	if (type != OMAPFB_MEMTYPE_SDRAM)
 		return -EINVAL;
 
 	size = PAGE_ALIGN(size);
