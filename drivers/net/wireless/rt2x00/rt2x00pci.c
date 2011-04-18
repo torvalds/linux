@@ -99,6 +99,15 @@ bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
 
+void rt2x00pci_flush_queue(struct data_queue *queue, bool drop)
+{
+	unsigned int i;
+
+	for (i = 0; !rt2x00queue_empty(queue) && i < 10; i++)
+		msleep(10);
+}
+EXPORT_SYMBOL_GPL(rt2x00pci_flush_queue);
+
 /*
  * Device initialization handlers.
  */

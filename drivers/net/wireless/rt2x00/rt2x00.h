@@ -571,7 +571,7 @@ struct rt2x00lib_ops {
 	void (*start_queue) (struct data_queue *queue);
 	void (*kick_queue) (struct data_queue *queue);
 	void (*stop_queue) (struct data_queue *queue);
-	void (*flush_queue) (struct data_queue *queue);
+	void (*flush_queue) (struct data_queue *queue, bool drop);
 	void (*tx_dma_done) (struct queue_entry *entry);
 
 	/*

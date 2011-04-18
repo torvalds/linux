@@ -107,6 +107,16 @@ struct queue_entry_priv_pci {
  */
 bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
 
+/**
+ * rt2x00pci_flush_queue - Flush data queue
+ * @queue: Data queue to stop
+ * @drop: True to drop all pending frames.
+ *
+ * This will wait for a maximum of 100ms, waiting for the queues
+ * to become empty.
+ */
+void rt2x00pci_flush_queue(struct data_queue *queue, bool drop);
+
 /*
  * Device initialization handlers.
  */

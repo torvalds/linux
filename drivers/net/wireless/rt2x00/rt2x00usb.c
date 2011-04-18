@@ -458,13 +458,14 @@ static bool rt2x00usb_flush_entry(struct queue_entry *entry, void* data)
 	return false;
 }
 
-void rt2x00usb_flush_queue(struct data_queue *queue)
+void rt2x00usb_flush_queue(struct data_queue *queue, bool drop)
 {
 	struct work_struct *completion;
 	unsigned int i;
 
-	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX, NULL,
-				   rt2x00usb_flush_entry);
+	if (drop)
+		rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX, NULL,
+					   rt2x00usb_flush_entry);
 
 	/*
 	 * Obtain the queue completion handler
@@ -483,7 +484,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue)
 		return;
 	}
 
-	for (i = 0; i < 20; i++) {
+	for (i = 0; i < 10; i++) {
 		/*
 		 * Check if the driver is already done, otherwise we
 		 * have to sleep a little while to give the driver/hw

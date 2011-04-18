@@ -849,7 +849,6 @@ EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
 
 void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 {
-	unsigned int i;
 	bool started;
 	bool tx_queue =
 		(queue->qid == QID_AC_VO) ||
@@ -884,20 +883,12 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	}
 
 	/*
-	 * Check if driver supports flushing, we can only guarentee
-	 * full support for flushing if the driver is able
-	 * to cancel all pending frames (drop = true).
+	 * Check if driver supports flushing, if that is the case we can
+	 * defer the flushing to the driver. Otherwise we must use the
+	 * alternative which just waits for the queue to become empty.
 	 */
-	if (drop && queue->rt2x00dev->ops->lib->flush_queue)
-		queue->rt2x00dev->ops->lib->flush_queue(queue);
-
-	/*
-	 * When we don't want to drop any frames, or when
-	 * the driver doesn't fully flush the queue correcly,
-	 * we must wait for the queue to become empty.
-	 */
-	for (i = 0; !rt2x00queue_empty(queue) && i < 100; i++)
-		msleep(10);
+	if (likely(queue->rt2x00dev->ops->lib->flush_queue))
+		queue->rt2x00dev->ops->lib->flush_queue(queue, drop);
 
 	/*
 	 * The queue flush has failed...

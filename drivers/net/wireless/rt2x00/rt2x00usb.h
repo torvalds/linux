@@ -404,11 +404,13 @@ void rt2x00usb_kick_queue(struct data_queue *queue);
 /**
  * rt2x00usb_flush_queue - Flush data queue
  * @queue: Data queue to stop
+ * @drop: True to drop all pending frames.
  *
- * This will walk through all entries of the queue and kill all
- * URB's which were send to the device.
+ * This will walk through all entries of the queue and will optionally
+ * kill all URB's which were send to the device, or at least wait until
+ * they have been returned from the device..
  */
-void rt2x00usb_flush_queue(struct data_queue *queue);
+void rt2x00usb_flush_queue(struct data_queue *queue, bool drop);
 
 /**
  * rt2x00usb_watchdog - Watchdog for USB communication
