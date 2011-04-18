@@ -853,6 +853,7 @@ void __init native_machine_early_platform_add_devices(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	u32 mmr;
 	unsigned long sclk, cclk;
 
 	native_machine_early_platform_add_devices();
@@ -923,17 +924,14 @@ void __init setup_arch(char **cmdline_p)
 		bfin_read_IMDMA_D1_IRQ_STATUS();
 	}
 #endif
-	printk(KERN_INFO "Hardware Trace ");
-	if (bfin_read_TBUFCTL() & 0x1)
-		printk(KERN_CONT "Active ");
-	else
-		printk(KERN_CONT "Off ");
-	if (bfin_read_TBUFCTL() & 0x2)
-		printk(KERN_CONT "and Enabled\n");
-	else
-		printk(KERN_CONT "and Disabled\n");
 
-	printk(KERN_INFO "Boot Mode: %i\n", bfin_read_SYSCR() & 0xF);
+	mmr = bfin_read_TBUFCTL();
+	printk(KERN_INFO "Hardware Trace %s and %sabled\n",
+		(mmr & 0x1) ? "active" : "off",
+		(mmr & 0x2) ? "en" : "dis");
+
+	mmr = bfin_read_SYSCR();
+	printk(KERN_INFO "Boot Mode: %i\n", mmr & 0xF);
 
 	/* Newer parts mirror SWRST bits in SYSCR */
 #if defined(CONFIG_BF53x) || defined(CONFIG_BF561) || \
@@ -941,7 +939,7 @@ void __init setup_arch(char **cmdline_p)
 	_bfin_swrst = bfin_read_SWRST();
 #else
 	/* Clear boot mode field */
-	_bfin_swrst = bfin_read_SYSCR() & ~0xf;
+	_bfin_swrst = mmr & ~0xf;
 #endif
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
