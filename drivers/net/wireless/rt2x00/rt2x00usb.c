@@ -165,6 +165,56 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_regbusy_read);
 
+
+struct rt2x00_async_read_data {
+	__le32 reg;
+	struct usb_ctrlrequest cr;
+	struct rt2x00_dev *rt2x00dev;
+	void (*callback)(struct rt2x00_dev *,int,u32);
+};
+
+static void rt2x00usb_register_read_async_cb(struct urb *urb)
+{
+	struct rt2x00_async_read_data *rd = urb->context;
+	rd->callback(rd->rt2x00dev, urb->status, le32_to_cpu(rd->reg));
+	kfree(urb->context);
+}
+
+void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
+				   const unsigned int offset,
+				   void (*callback)(struct rt2x00_dev*,int,u32))
+{
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
+	struct urb *urb;
+	struct rt2x00_async_read_data *rd;
+
+	rd = kmalloc(sizeof(*rd), GFP_ATOMIC);
+	if (!rd)
+		return;
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb) {
+		kfree(rd);
+		return;
+	}
+
+	rd->rt2x00dev = rt2x00dev;
+	rd->callback = callback;
+	rd->cr.bRequestType = USB_VENDOR_REQUEST_IN;
+	rd->cr.bRequest = USB_MULTI_READ;
+	rd->cr.wValue = 0;
+	rd->cr.wIndex = cpu_to_le16(offset);
+	rd->cr.wLength = cpu_to_le16(sizeof(u32));
+
+	usb_fill_control_urb(urb, usb_dev, usb_rcvctrlpipe(usb_dev, 0),
+			     (unsigned char *)(&rd->cr), &rd->reg, sizeof(rd->reg),
+			     rt2x00usb_register_read_async_cb, rd);
+	if (usb_submit_urb(urb, GFP_ATOMIC) < 0)
+		kfree(rd);
+	usb_free_urb(urb);
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_register_read_async);
+
 /*
  * TX data handlers.
  */
@@ -211,6 +261,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 
 	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
+
+	if (rt2x00dev->ops->lib->tx_dma_done)
+		rt2x00dev->ops->lib->tx_dma_done(entry);
 
 	/*
 	 * Report the frame as DMA done

@@ -98,6 +98,35 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 	}
 }
 
+static void rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
+						 int urb_status, u32 tx_status)
+{
+	if (urb_status) {
+		WARNING(rt2x00dev, "rt2x00usb_register_read_async failed: %d\n", urb_status);
+		return;
+	}
+
+	/* try to read all TX_STA_FIFO entries before scheduling txdone_work */
+	if (rt2x00_get_field32(tx_status, TX_STA_FIFO_VALID)) {
+		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status)) {
+			WARNING(rt2x00dev, "TX status FIFO overrun, "
+				"drop tx status report.\n");
+			queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+		} else
+			rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
+						      rt2800usb_tx_sta_fifo_read_completed);
+	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo))
+		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+}
+
+static void rt2800usb_tx_dma_done(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+
+	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
+				      rt2800usb_tx_sta_fifo_read_completed);
+}
+
 /*
  * Firmware functions
  */
@@ -565,6 +594,7 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
@@ -635,6 +665,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.kick_queue		= rt2x00usb_kick_queue,
 	.stop_queue		= rt2800usb_stop_queue,
 	.flush_queue		= rt2x00usb_flush_queue,
+	.tx_dma_done		= rt2800usb_tx_dma_done,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800usb_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,

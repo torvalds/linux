@@ -345,6 +345,21 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const struct rt2x00_field32 field,
 			   u32 *reg);
 
+/**
+ * rt2x00usb_register_read_async - Asynchronously read 32bit register word
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @callback: Functon to call when read completes.
+ *
+ * Submit a control URB to read a 32bit register. This safe to
+ * be called from atomic context.  The callback will be called
+ * when the URB completes. Otherwise the function is similar
+ * to rt2x00usb_register_read().
+ */
+void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
+				   const unsigned int offset,
+				   void (*callback)(struct rt2x00_dev*,int,u32));
+
 /*
  * Radio handlers
  */

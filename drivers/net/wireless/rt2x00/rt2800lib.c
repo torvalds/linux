@@ -730,34 +730,20 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	struct queue_entry *entry;
 	u32 reg;
-	u8 pid;
-	int i;
+	u8 qid;
 
-	/*
-	 * TX_STA_FIFO is a stack of X entries, hence read TX_STA_FIFO
-	 * at most X times and also stop processing once the TX_STA_FIFO_VALID
-	 * flag is not set anymore.
-	 *
-	 * The legacy drivers use X=TX_RING_SIZE but state in a comment
-	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
-	 * tx ring size for now.
-	 */
-	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
-		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &reg);
-		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
-			break;
+	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
 
-		/*
-		 * Skip this entry when it contains an invalid
-		 * queue identication number.
+		/* TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus
+		 * qid is guaranteed to be one of the TX QIDs
 		 */
-		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
-		if (pid >= QID_RX)
+		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
+		if (unlikely(!queue)) {
+			WARNING(rt2x00dev, "Got TX status for an unavailable "
+					   "queue %u, dropping\n", qid);
 			continue;
-
-		queue = rt2x00queue_get_tx_queue(rt2x00dev, pid);
-		if (unlikely(!queue))
-			continue;
+		}
 
 		/*
 		 * Inside each queue, we process each entry in a chronological
