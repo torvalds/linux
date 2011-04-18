@@ -188,9 +188,10 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 			table = range_0;
 	}
 
-	BUG_ON(lvl < 0 || lvl >= IWL_POWER_NUM);
-
-	*cmd = table[lvl].cmd;
+	if (WARN_ON(lvl < 0 || lvl >= IWL_POWER_NUM))
+		memset(cmd, 0, sizeof(*cmd));
+	else
+		*cmd = table[lvl].cmd;
 
 	if (period == 0) {
 		skip = 0;

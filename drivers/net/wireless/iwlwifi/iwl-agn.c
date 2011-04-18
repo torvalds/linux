@@ -394,7 +394,9 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 		return -EINVAL;
 	}
 
-	BUG_ON(addr & ~DMA_BIT_MASK(36));
+	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
+		return -EINVAL;
+
 	if (unlikely(addr & ~IWL_TX_DMA_MASK))
 		IWL_ERR(priv, "Unaligned address = %llx\n",
 			  (unsigned long long)addr);
@@ -718,7 +720,10 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		/* If an RXB doesn't have a Rx queue slot associated with it,
 		 * then a bug has been introduced in the queue refilling
 		 * routines -- catch it here */
-		BUG_ON(rxb == NULL);
+		if (WARN_ON(rxb == NULL)) {
+			i = (i + 1) & RX_QUEUE_MASK;
+			continue;
+		}
 
 		rxq->queue[i] = NULL;
 

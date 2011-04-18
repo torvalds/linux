@@ -263,11 +263,13 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 
 	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
 	 * and iwl_queue_dec_wrap are broken. */
-	BUG_ON(!is_power_of_2(count));
+	if (WARN_ON(!is_power_of_2(count)))
+		return -EINVAL;
 
 	/* slots_num must be power-of-two size, otherwise
 	 * get_cmd_index is broken. */
-	BUG_ON(!is_power_of_2(slots_num));
+	if (WARN_ON(!is_power_of_2(slots_num)))
+		return -EINVAL;
 
 	q->low_mark = q->n_window / 4;
 	if (q->low_mark < 4)
@@ -384,7 +386,9 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	ret = iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	if (ret)
+		return ret;
 
 	/* Tell device where to find queue */
 	priv->cfg->ops->lib->txq_init(priv, txq);
@@ -446,14 +450,19 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 
-	/* If any of the command structures end up being larger than
+	/*
+	 * If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
 	 * we will need to increase the size of the TFD entries
 	 * Also, check to see if command buffer should not exceed the size
-	 * of device_cmd and max_cmd_size. */
-	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
-	       !(cmd->flags & CMD_SIZE_HUGE));
-	BUG_ON(fix_size > IWL_MAX_CMD_SIZE);
+	 * of device_cmd and max_cmd_size.
+	 */
+	if (WARN_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
+		    !(cmd->flags & CMD_SIZE_HUGE)))
+		return -EINVAL;
+
+	if (WARN_ON(fix_size > IWL_MAX_CMD_SIZE))
+		return -EINVAL;
 
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
