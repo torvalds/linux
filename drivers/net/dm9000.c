@@ -768,7 +768,7 @@ dm9000_init_dm9000(struct net_device *dev)
 
 	/* Checksum mode */
 	if (dev->hw_features & NETIF_F_RXCSUM)
-		iow(dm, DM9000_RCSR,
+		iow(db, DM9000_RCSR,
 			(dev->features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
