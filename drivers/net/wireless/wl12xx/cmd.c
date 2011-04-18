@@ -76,7 +76,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
 			ret = -ETIMEDOUT;
-			goto out;
+			goto fail;
 		}
 
 		poll_count++;
@@ -96,14 +96,17 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
 		wl1271_error("command execute failure %d", status);
-		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 		ret = -EIO;
+		goto fail;
 	}
 
 	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
 		       WL1271_ACX_INTR_CMD_COMPLETE);
+	return 0;
 
-out:
+fail:
+	WARN_ON(1);
+	ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	return ret;
 }
 
