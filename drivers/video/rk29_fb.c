@@ -2066,11 +2066,6 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     fb0_set_par(inf->fb0);
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
-	if(enable){
-		rk29_set_cursor_en(inf, enable);
-	}else{
-		rk29_set_cursor_en(inf, enable);
-	}
     return 0;
 }
 
