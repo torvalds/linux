@@ -1365,7 +1365,7 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	dev_info(host->dev, "Enter rk29_sdmmc_suspend\n");
 	if(host->mmc && !host->is_sdio){
 		ret = mmc_suspend_host(host->mmc, state);
-		if(host->enable_sd_warkup)
+		if(!host->enable_sd_warkup)
 			free_irq(host->gpio_irq, host);
 	}
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
@@ -1384,7 +1384,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 	clk_enable(host->clk);
     rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
 	if(host->mmc && !host->is_sdio){
-		if(host->enable_sd_warkup)
+		if(!host->enable_sd_warkup)
 			ret = request_irq(host->gpio_irq,
                 		  rk29_sdmmc_detect_change_isr,
                 		  rk29_sdmmc_get_cd(host->mmc)?IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING,
