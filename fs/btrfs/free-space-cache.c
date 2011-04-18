@@ -732,7 +732,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 			out_of_space = true;
 			break;
 		}
-		page = find_get_page(inode->i_mapping, index);
+		page = pages[index];
 
 		addr = kmap(page);
 		memcpy(addr, entry->bitmap, PAGE_CACHE_SIZE);
