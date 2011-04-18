@@ -517,13 +517,25 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 			if (bios->fp.if_is_24bit)
 				script |= 0x0200;
 		} else {
+			/* determine number of lvds links */
+			if (nv_connector && nv_connector->edid &&
+			    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG) {
+				/* http://www.spwg.org */
+				if (((u8 *)nv_connector->edid)[121] == 2)
+					script |= 0x0100;
+			} else
 			if (pxclk >= bios->fp.duallink_transition_clk) {
 				script |= 0x0100;
+			}
+
+			/* determine panel depth */
+			if (script & 0x0100) {
 				if (bios->fp.strapless_is_24bit & 2)
 					script |= 0x0200;
-			} else
-			if (bios->fp.strapless_is_24bit & 1)
-				script |= 0x0200;
+			} else {
+				if (bios->fp.strapless_is_24bit & 1)
+					script |= 0x0200;
+			}
 
 			if (nv_connector && nv_connector->edid &&
 			    (nv_connector->edid->revision >= 4) &&
