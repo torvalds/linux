@@ -1314,8 +1314,7 @@ EXPORT_SYMBOL_GPL(put_device);
 EXPORT_SYMBOL_GPL(device_create_file);
 EXPORT_SYMBOL_GPL(device_remove_file);
 
-struct root_device
-{
+struct root_device {
 	struct device dev;
 	struct module *owner;
 };
