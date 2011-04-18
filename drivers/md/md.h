@@ -179,6 +179,9 @@ struct mddev_s
 	int				delta_disks, new_level, new_layout;
 	int				new_chunk_sectors;
 
+	atomic_t			plug_cnt;	/* If device is expecting
+							 * more bios soon.
+							 */
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* last block scheduled */
@@ -508,4 +511,5 @@ extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
 				   mddev_t *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   mddev_t *mddev);
+extern int mddev_check_plugged(mddev_t *mddev);
 #endif /* _MD_MD_H */
