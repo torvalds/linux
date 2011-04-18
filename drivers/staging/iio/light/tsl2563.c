@@ -92,7 +92,7 @@ struct tsl2563_gainlevel_coeff {
 	u16 max;
 };
 
-static struct tsl2563_gainlevel_coeff tsl2563_gainlevel_table[] = {
+static const struct tsl2563_gainlevel_coeff tsl2563_gainlevel_table[] = {
 	{
 		.gaintime	= TSL2563_TIMING_400MS | TSL2563_TIMING_GAIN16,
 		.min		= 0,
@@ -122,7 +122,7 @@ struct tsl2563_chip {
 	/* Remember state for suspend and resume functions */
 	pm_message_t		state;
 
-	struct tsl2563_gainlevel_coeff *gainlevel;
+	struct tsl2563_gainlevel_coeff const *gainlevel;
 
 	u16			low_thres;
 	u16			high_thres;
