@@ -175,11 +175,13 @@ currX_crit		Critical maximum current.
 			From IIN_OC_FAULT_LIMIT or IOUT_OC_FAULT_LIMIT register.
 currX_alarm		Current high alarm.
 			From IIN_OC_WARNING or IOUT_OC_WARNING status.
+currX_max_alarm		Current high alarm.
+			From IIN_OC_WARN_LIMIT or IOUT_OC_WARN_LIMIT status.
 currX_lcrit_alarm	Output current critical low alarm.
 			From IOUT_UC_FAULT status.
 currX_crit_alarm	Current critical high alarm.
 			From IIN_OC_FAULT or IOUT_OC_FAULT status.
-currX_label		"iin" or "vinY"
+currX_label		"iin" or "ioutY"
 
 powerX_input		Measured power. From READ_PIN or READ_POUT register.
 powerX_cap		Output power cap. From POUT_MAX register.
@@ -193,13 +195,13 @@ powerX_crit_alarm	Output power critical high alarm.
 			From POUT_OP_FAULT status.
 powerX_label		"pin" or "poutY"
 
-tempX_input		Measured tempererature.
+tempX_input		Measured temperature.
 			From READ_TEMPERATURE_X register.
-tempX_min		Mimimum tempererature. From UT_WARN_LIMIT register.
-tempX_max		Maximum tempererature. From OT_WARN_LIMIT register.
-tempX_lcrit		Critical low tempererature.
+tempX_min		Mimimum temperature. From UT_WARN_LIMIT register.
+tempX_max		Maximum temperature. From OT_WARN_LIMIT register.
+tempX_lcrit		Critical low temperature.
 			From UT_FAULT_LIMIT register.
-tempX_crit		Critical high tempererature.
+tempX_crit		Critical high temperature.
 			From OT_FAULT_LIMIT register.
 tempX_min_alarm		Chip temperature low alarm. Set by comparing
 			READ_TEMPERATURE_X with UT_WARN_LIMIT if
