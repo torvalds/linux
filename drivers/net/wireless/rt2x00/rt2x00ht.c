@@ -92,14 +92,15 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * Determine IFS values
-	 * - Use TXOP_BACKOFF for management frames
+	 * - Use TXOP_BACKOFF for management frames except beacons
 	 * - Use TXOP_SIFS for fragment bursts
 	 * - Use TXOP_HTTXOP for everything else
 	 *
 	 * Note: rt2800 devices won't use CTS protection (if used)
 	 * for frames not transmitted with TXOP_HTTXOP
 	 */
-	if (ieee80211_is_mgmt(hdr->frame_control))
+	if (ieee80211_is_mgmt(hdr->frame_control) &&
+	    !ieee80211_is_beacon(hdr->frame_control))
 		txdesc->u.ht.txop = TXOP_BACKOFF;
 	else if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
 		txdesc->u.ht.txop = TXOP_SIFS;
