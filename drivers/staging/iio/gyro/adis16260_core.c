@@ -507,14 +507,6 @@ static IIO_DEVICE_ATTR(sampling_frequency_available,
 
 static IIO_CONST_ATTR_NAME("adis16260");
 
-static struct attribute *adis16260_event_attributes[] = {
-	NULL
-};
-
-static struct attribute_group adis16260_event_attribute_group = {
-	.attrs = adis16260_event_attributes,
-};
-
 #define ADIS16260_GYRO_ATTR_SET(axis)					\
 	IIO_DEV_ATTR_GYRO##axis(adis16260_read_14bit_signed,		\
 				ADIS16260_GYRO_OUT);			\
@@ -603,8 +595,6 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &adis16260_event_attribute_group;
 	if (pd && pd->direction)
 		switch (pd->direction) {
 		case 'x':
@@ -642,17 +632,9 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_RISING,
-				"adis16260");
-		if (ret)
-			goto error_uninitialize_ring;
-
 		ret = adis16260_probe_trigger(st->indio_dev);
 		if (ret)
-			goto error_unregister_line;
+			goto error_uninitialize_ring;
 	}
 
 	/* Get the device into a sane initial state */
@@ -663,9 +645,6 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 
 error_remove_trigger:
 	adis16260_remove_trigger(st->indio_dev);
-error_unregister_line:
-	if (spi->irq)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
 error_uninitialize_ring:
 	iio_ring_buffer_unregister(st->indio_dev->ring);
 error_unreg_ring_funcs:
@@ -698,8 +677,6 @@ static int adis16260_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	adis16260_remove_trigger(indio_dev);
-	if (spi->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
 
 	iio_ring_buffer_unregister(st->indio_dev->ring);
 	iio_device_unregister(indio_dev);
