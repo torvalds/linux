@@ -352,7 +352,8 @@ static struct conf_drv_settings default_conf = {
 	.hci_io_ds = HCI_IO_DS_6MA,
 };
 
-static void __wl1271_op_remove_interface(struct wl1271 *wl);
+static void __wl1271_op_remove_interface(struct wl1271 *wl,
+					 bool reset_tx_queues);
 static void wl1271_free_ap_keys(struct wl1271 *wl);
 
 
@@ -972,9 +973,18 @@ static void wl1271_recovery_work(struct work_struct *work)
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		ieee80211_connection_loss(wl->vif);
 
+	/* Prevent spurious TX during FW restart */
+	ieee80211_stop_queues(wl->hw);
+
 	/* reboot the chipset */
-	__wl1271_op_remove_interface(wl);
+	__wl1271_op_remove_interface(wl, false);
 	ieee80211_restart_hw(wl->hw);
+
+	/*
+	 * Its safe to enable TX now - the queues are stopped after a request
+	 * to restart the HW.
+	 */
+	ieee80211_wake_queues(wl->hw);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -1479,7 +1489,8 @@ out:
 	return ret;
 }
 
-static void __wl1271_op_remove_interface(struct wl1271 *wl)
+static void __wl1271_op_remove_interface(struct wl1271 *wl,
+					 bool reset_tx_queues)
 {
 	int i;
 
@@ -1525,7 +1536,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl1271_tx_reset(wl);
+	wl1271_tx_reset(wl, reset_tx_queues);
 	wl1271_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -1586,7 +1597,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if (wl->vif) {
 		WARN_ON(wl->vif != vif);
-		__wl1271_op_remove_interface(wl);
+		__wl1271_op_remove_interface(wl, true);
 	}
 
 	mutex_unlock(&wl->mutex);

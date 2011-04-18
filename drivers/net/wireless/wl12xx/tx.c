@@ -769,8 +769,8 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 	wl1271_handle_tx_low_watermark(wl);
 }
 
-/* caller must hold wl->mutex */
-void wl1271_tx_reset(struct wl1271 *wl)
+/* caller must hold wl->mutex and TX must be stopped */
+void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 {
 	int i;
 	struct sk_buff *skb;
@@ -806,8 +806,10 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	/*
 	 * Make sure the driver is at a consistent state, in case this
 	 * function is called from a context other than interface removal.
+	 * This call will always wake the TX queues.
 	 */
-	wl1271_handle_tx_low_watermark(wl);
+	if (reset_tx_queues)
+		wl1271_handle_tx_low_watermark(wl);
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++) {
 		if (wl->tx_frames[i] == NULL)
