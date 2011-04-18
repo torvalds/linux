@@ -2598,7 +2598,7 @@ out:
 	return 0;
 }
 
-int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
+int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct drbd_conf *mdev;
 	struct drbd_genlmsghdr *dh;
@@ -2616,6 +2616,9 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	 * where tconn is cb->args[0];
 	 * and i is cb->args[1];
 	 *
+	 * cb->args[2] indicates if we shall loop over all resources,
+	 * or just dump all volumes of a single resource.
+	 *
 	 * This may miss entries inserted after this dump started,
 	 * or entries deleted before they are reached.
 	 *
@@ -2626,7 +2629,6 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 	/* synchronize with drbd_new_tconn/drbd_free_tconn */
 	down_read(&drbd_cfg_rwsem);
-next_tconn:
 	/* revalidate iterator position */
 	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
 		if (pos == NULL) {
@@ -2641,16 +2643,22 @@ next_tconn:
 		}
 	}
 	if (tconn) {
+next_tconn:
 		mdev = idr_get_next(&tconn->volumes, &volume);
 		if (!mdev) {
 			/* No more volumes to dump on this tconn.
 			 * Advance tconn iterator. */
 			pos = list_entry(tconn->all_tconn.next,
 					struct drbd_tconn, all_tconn);
-			/* But, did we dump any volume on this tconn yet? */
+			/* Did we dump any volume on this tconn yet? */
 			if (volume != 0) {
-				tconn = NULL;
+				/* If we reached the end of the list,
+				 * or only a single resource dump was requested,
+				 * we are done. */
+				if (&pos->all_tconn == &drbd_tconns || cb->args[2])
+					goto out;
 				volume = 0;
+				tconn = pos;
 				goto next_tconn;
 			}
 		}
@@ -2694,6 +2702,60 @@ out:
 	/* No more tconns/volumes/minors found results in an empty skb.
 	 * Which will terminate the dump. */
         return skb->len;
+}
+
+/*
+ * Request status of all resources, or of all volumes within a single resource.
+ *
+ * This is a dump, as the answer may not fit in a single reply skb otherwise.
+ * Which means we cannot use the family->attrbuf or other such members, because
+ * dump is NOT protected by the genl_lock().  During dump, we only have access
+ * to the incoming skb, and need to opencode "parsing" of the nlattr payload.
+ *
+ * Once things are setup properly, we call into get_one_status().
+ */
+int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	const unsigned hdrlen = GENL_HDRLEN + GENL_MAGIC_FAMILY_HDRSZ;
+	struct nlattr *nla;
+	const char *conn_name;
+	struct drbd_tconn *tconn;
+
+	/* Is this a followup call? */
+	if (cb->args[0]) {
+		/* ... of a single resource dump,
+		 * and the resource iterator has been advanced already? */
+		if (cb->args[2] && cb->args[2] != cb->args[0])
+			return 0; /* DONE. */
+		goto dump;
+	}
+
+	/* First call (from netlink_dump_start).  We need to figure out
+	 * which resource(s) the user wants us to dump. */
+	nla = nla_find(nlmsg_attrdata(cb->nlh, hdrlen),
+			nlmsg_attrlen(cb->nlh, hdrlen),
+			DRBD_NLA_CFG_CONTEXT);
+
+	/* No explicit context given.  Dump all. */
+	if (!nla)
+		goto dump;
+	nla = nla_find_nested(nla, __nla_type(T_ctx_conn_name));
+	/* context given, but no name present? */
+	if (!nla)
+		return -EINVAL;
+	conn_name = nla_data(nla);
+	tconn = conn_by_name(conn_name);
+	if (!tconn)
+		return -ENODEV;
+
+	/* prime iterators, and set "filter" mode mark:
+	 * only dump this tconn. */
+	cb->args[0] = (long)tconn;
+	/* cb->args[1] = 0; passed in this way. */
+	cb->args[2] = (long)tconn;
+
+dump:
+	return get_one_status(skb, cb);
 }
 
 int drbd_adm_get_timeout_type(struct sk_buff *skb, struct genl_info *info)
