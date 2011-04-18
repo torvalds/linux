@@ -186,10 +186,6 @@ struct iwl_lib_ops {
 	struct iwl_debugfs_ops debugfs_ops;
 };
 
-struct iwl_led_ops {
-	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
-};
-
 /* NIC specific ops */
 struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
