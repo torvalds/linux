@@ -458,6 +458,10 @@ void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);
 void l2cap_streaming_send(struct l2cap_chan *chan);
 int l2cap_ertm_send(struct l2cap_chan *chan);
 
+struct sock *__l2cap_get_sock_by_addr(__le16 psm, bdaddr_t *src);
+int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
+int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
+
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
 void __l2cap_sock_close(struct sock *sk, int reason);

@@ -135,6 +135,50 @@ static inline struct l2cap_chan *l2cap_get_chan_by_ident(struct l2cap_conn *conn
 	return c;
 }
 
+struct sock *__l2cap_get_sock_by_addr(__le16 psm, bdaddr_t *src)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+	sk_for_each(sk, node, &l2cap_sk_list.head) {
+		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+
+		if (chan->sport == psm && !bacmp(&bt_sk(sk)->src, src))
+			goto found;
+	}
+
+	sk = NULL;
+found:
+	return sk;
+}
+
+int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
+{
+	write_lock_bh(&l2cap_sk_list.lock);
+
+	if (__l2cap_get_sock_by_addr(psm, src)) {
+		write_unlock_bh(&l2cap_sk_list.lock);
+		return -EADDRINUSE;
+	}
+
+	chan->psm = psm;
+	chan->sport = psm;
+
+	write_unlock_bh(&l2cap_sk_list.lock);
+
+	return 0;
+}
+
+int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid)
+{
+	write_lock_bh(&l2cap_sk_list.lock);
+
+	chan->scid = scid;
+
+	write_unlock_bh(&l2cap_sk_list.lock);
+
+	return 0;
+}
+
 static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 {
 	u16 cid = L2CAP_CID_DYN_START;
