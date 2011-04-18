@@ -126,6 +126,9 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 				const char *prefix,
 				const char *function_name,
 				const char *format, ...);
+extern __attribute__((format (printf, 2, 3)))
+int drm_err(const char *func, const char *format, ...);
+
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
@@ -181,21 +184,11 @@ extern void drm_ut_debug_printk(unsigned int request_level,
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#define DRM_ERROR(fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* " fmt , __func__ , ##arg)
+#define DRM_ERROR(fmt, ...)				\
+	drm_err(__func__, fmt, ##__VA_ARGS__)
 
-/**
- * Memory error output.
- *
- * \param area memory area where the error occurred.
- * \param fmt printf() like format string.
- * \param arg arguments
- */
-#define DRM_MEM_ERROR(area, fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s:%s] *ERROR* " fmt , __func__, \
-	       drm_mem_stats[area].name , ##arg)
-
-#define DRM_INFO(fmt, arg...)  printk(KERN_INFO "[" DRM_NAME "] " fmt , ##arg)
+#define DRM_INFO(fmt, ...)				\
+	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
 /**
  * Debug output.
