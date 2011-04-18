@@ -580,8 +580,8 @@ static void rk29_sdmmc_set_timeout(struct rk29_sdmmc *host,struct mmc_data *data
 	else
 		clock = (host->bus_hz / host->div) >> 1;
 	timeout = ns_to_clocks(clock, data->timeout_ns) + data->timeout_clks;
-	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
-	//rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
+	//rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
+	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
 }
 static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
 				 struct mmc_command *cmd)
@@ -681,8 +681,8 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 	    cmdflags |= SDMMC_CMD_INIT; 
 	}
 	if(cmd->opcode == 0 &&
-		((rk29_sdmmc_read(host, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY)||
-		(rk29_sdmmc_read(host, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY)))
+		((rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY)||
+		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY)))
 		cmdflags |= SDMMC_CMD_STOP;
 	if (mrq->data) {
 		rk29_sdmmc_set_mrq_status(host, MRQ_HAS_DATA);
