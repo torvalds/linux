@@ -66,7 +66,7 @@ static inline void gart_set_size_and_enable(struct pci_dev *dev, u32 order)
 	 * Don't enable translation but enable GART IO and CPU accesses.
 	 * Also, set DISTLBWALKPRB since GART tables memory is UC.
 	 */
-	ctl = DISTLBWALKPRB | order << 1;
+	ctl = order << 1;
 
 	pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
 }
@@ -83,7 +83,7 @@ static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
 
 	/* Enable GART translation for this hammer. */
 	pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
-	ctl |= GARTEN;
+	ctl |= GARTEN | DISTLBWALKPRB;
 	ctl &= ~(DISGARTCPU | DISGARTIO);
 	pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
 }
