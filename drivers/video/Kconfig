@@ -1463,6 +1463,14 @@ config FB_S3
 	---help---
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
+config FB_S3_DDC
+	bool "DDC for S3 support"
+	depends on FB_S3
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC support for your S3 graphics card.
+
 config FB_SAVAGE
 	tristate "S3 Savage support"
 	depends on FB && PCI && EXPERIMENTAL
