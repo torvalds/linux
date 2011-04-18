@@ -205,9 +205,9 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	struct be_rx_obj *rxo;
 	struct be_eq_obj *rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	u32 tx_max, tx_min, tx_cur;
 	u32 rx_max, rx_min, rx_cur;
 	int status = 0, i;
+	u32 tx_cur;
 
 	if (coalesce->use_adaptive_tx_coalesce == 1)
 		return -EINVAL;
@@ -246,8 +246,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 		}
 	}
 
-	tx_max = coalesce->tx_coalesce_usecs_high;
-	tx_min = coalesce->tx_coalesce_usecs_low;
 	tx_cur = coalesce->tx_coalesce_usecs;
 
 	if (tx_cur > BE_MAX_EQD)
@@ -664,11 +662,9 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	char file_name[ETHTOOL_FLASH_MAX_FILENAME];
-	u32 region;
 
 	file_name[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
 	strcpy(file_name, efl->data);
-	region = efl->region;
 
 	return be_load_fw(adapter, file_name);
 }
