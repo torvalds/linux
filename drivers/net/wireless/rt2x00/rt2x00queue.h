@@ -364,6 +364,7 @@ enum queue_entry_flags {
  * struct queue_entry: Entry inside the &struct data_queue
  *
  * @flags: Entry flags, see &enum queue_entry_flags.
+ * @last_action: Timestamp of last change.
  * @queue: The data queue (&struct data_queue) to which this entry belongs.
  * @skb: The buffer which is currently being transmitted (for TX queue),
  *	or used to directly recieve data in (for RX queue).
@@ -373,6 +374,7 @@ enum queue_entry_flags {
  */
 struct queue_entry {
 	unsigned long flags;
+	unsigned long last_action;
 
 	struct data_queue *queue;
 
@@ -463,7 +465,6 @@ struct data_queue {
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
-	unsigned long last_action[Q_INDEX_MAX];
 
 	unsigned short txop;
 	unsigned short aifs;
@@ -635,22 +636,24 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 
 /**
  * rt2x00queue_status_timeout - Check if a timeout occured for STATUS reports
- * @queue: Queue to check.
+ * @entry: Queue entry to check.
  */
-static inline int rt2x00queue_status_timeout(struct data_queue *queue)
+static inline int rt2x00queue_status_timeout(struct queue_entry *entry)
 {
-	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
-			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));
+	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+		return false;
+	return time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for DMA transfers
- * @queue: Queue to check.
+ * rt2x00queuedma__timeout - Check if a timeout occured for DMA transfers
+ * @entry: Queue entry to check.
  */
-static inline int rt2x00queue_dma_timeout(struct data_queue *queue)
+static inline int rt2x00queue_dma_timeout(struct queue_entry *entry)
 {
-	return time_after(queue->last_action[Q_INDEX],
-			  queue->last_action[Q_INDEX_DMA_DONE] + (HZ / 10));
+	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		return false;
+	return time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
 }
 
 /**

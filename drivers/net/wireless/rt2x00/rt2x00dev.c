@@ -225,7 +225,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 void rt2x00lib_dmastart(struct queue_entry *entry)
 {
 	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	rt2x00queue_index_inc(entry, Q_INDEX);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmastart);
 
@@ -233,7 +233,7 @@ void rt2x00lib_dmadone(struct queue_entry *entry)
 {
 	set_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags);
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DMA_DONE);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);
 
@@ -392,7 +392,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 
 	rt2x00dev->ops->lib->clear_entry(entry);
 
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
 
 	/*
 	 * If the data queue was below the threshold before the txdone
@@ -559,7 +559,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 
 submit_entry:
 	entry->flags = 0;
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
 	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->clear_entry(entry);

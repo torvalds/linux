@@ -561,7 +561,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
-	rt2x00queue_index_inc(queue, Q_INDEX);
+	rt2x00queue_index_inc(entry, Q_INDEX);
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 	rt2x00queue_kick_tx_queue(queue, &txdesc);
 
@@ -727,8 +727,9 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_get_entry);
 
-void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
+void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 {
+	struct data_queue *queue = entry->queue;
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
@@ -743,7 +744,7 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 	if (queue->index[index] >= queue->limit)
 		queue->index[index] = 0;
 
-	queue->last_action[index] = jiffies;
+	entry->last_action = jiffies;
 
 	if (index == Q_INDEX) {
 		queue->length++;
@@ -969,10 +970,8 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	queue->count = 0;
 	queue->length = 0;
 
-	for (i = 0; i < Q_INDEX_MAX; i++) {
+	for (i = 0; i < Q_INDEX_MAX; i++)
 		queue->index[i] = 0;
-		queue->last_action[i] = jiffies;
-	}
 
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }

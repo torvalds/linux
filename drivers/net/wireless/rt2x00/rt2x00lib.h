@@ -175,14 +175,14 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 
 /**
  * rt2x00queue_index_inc - Index incrementation function
- * @queue: Queue (&struct data_queue) to perform the action on.
+ * @entry: Queue entry (&struct queue_entry) to perform the action on.
  * @index: Index type (&enum queue_index) to perform the action on.
  *
- * This function will increase the requested index on the queue,
+ * This function will increase the requested index on the entry's queue,
  * it will grab the appropriate locks and handle queue overflow events by
  * resetting the index to the start of the queue.
  */
-void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
+void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index);
 
 /**
  * rt2x00queue_init_queues - Initialize all data queues

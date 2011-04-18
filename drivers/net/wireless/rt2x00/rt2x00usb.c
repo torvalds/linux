@@ -521,15 +521,31 @@ static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
 	queue_work(queue->rt2x00dev->workqueue, &queue->rt2x00dev->txdone_work);
 }
 
+static int rt2x00usb_status_timeout(struct data_queue *queue)
+{
+	struct queue_entry *entry;
+
+	entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+	return rt2x00queue_status_timeout(entry);
+}
+
+static int rt2x00usb_dma_timeout(struct data_queue *queue)
+{
+	struct queue_entry *entry;
+
+	entry = rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE);
+	return rt2x00queue_dma_timeout(entry);
+}
+
 void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 
 	tx_queue_for_each(rt2x00dev, queue) {
 		if (!rt2x00queue_empty(queue)) {
-			if (rt2x00queue_dma_timeout(queue))
+			if (rt2x00usb_dma_timeout(queue))
 				rt2x00usb_watchdog_tx_dma(queue);
-			if (rt2x00queue_status_timeout(queue))
+			if (rt2x00usb_status_timeout(queue))
 				rt2x00usb_watchdog_tx_status(queue);
 		}
 	}
