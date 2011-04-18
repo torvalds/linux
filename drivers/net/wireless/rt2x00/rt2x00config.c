@@ -109,15 +109,6 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
 }
 
-static inline
-enum antenna rt2x00lib_config_antenna_check(enum antenna current_ant,
-					    enum antenna default_ant)
-{
-	if (current_ant != ANTENNA_SW_DIVERSITY)
-		return current_ant;
-	return (default_ant != ANTENNA_SW_DIVERSITY) ? default_ant : ANTENNA_B;
-}
-
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      struct antenna_setup config)
 {
@@ -126,19 +117,35 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
 
 	/*
-	 * Failsafe: Make sure we are not sending the
-	 * ANTENNA_SW_DIVERSITY state to the driver.
-	 * If that happens, fallback to hardware defaults,
-	 * or our own default.
+	 * When the caller tries to send the SW diversity,
+	 * we must update the ANTENNA_RX_DIVERSITY flag to
+	 * enable the antenna diversity in the link tuner.
+	 *
+	 * Secondly, we must guarentee we never send the
+	 * software antenna diversity command to the driver.
 	 */
-	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
-		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else if (config.rx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_RX_DIVERSITY)) {
+		if (config.rx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_RX_DIVERSITY;
+
+			if (def->rx == ANTENNA_SW_DIVERSITY)
+				config.rx = ANTENNA_B;
+			else
+				config.rx = def->rx;
+		}
+	} else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
-	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
-		config.tx = rt2x00lib_config_antenna_check(config.tx, def->tx);
-	else if (config.tx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_TX_DIVERSITY)) {
+		if (config.tx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_TX_DIVERSITY;
+
+			if (def->tx == ANTENNA_SW_DIVERSITY)
+				config.tx = ANTENNA_B;
+			else
+				config.tx = def->tx;
+		}
+	} else if (config.tx == ANTENNA_SW_DIVERSITY)
 		config.tx = active->tx;
 
 	/*

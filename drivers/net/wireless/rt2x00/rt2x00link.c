@@ -192,17 +192,7 @@ static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Determine if software diversity is enabled for
 	 * either the TX or RX antenna (or both).
-	 * Always perform this check since within the link
-	 * tuner interval the configuration might have changed.
 	 */
-	ant->flags &= ~ANTENNA_RX_DIVERSITY;
-	ant->flags &= ~ANTENNA_TX_DIVERSITY;
-
-	if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
-		ant->flags |= ANTENNA_RX_DIVERSITY;
-	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-		ant->flags |= ANTENNA_TX_DIVERSITY;
-
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY) &&
 	    !(ant->flags & ANTENNA_TX_DIVERSITY)) {
 		ant->flags = 0;

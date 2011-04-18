@@ -1823,6 +1823,8 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.flush			= rt2x00mac_flush,
+	.set_antenna		= rt2x00mac_set_antenna,
+	.get_antenna		= rt2x00mac_get_antenna,
 	.get_ringparam		= rt2x00mac_get_ringparam,
 };
 

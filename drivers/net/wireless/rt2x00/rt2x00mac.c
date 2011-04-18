@@ -738,6 +738,71 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
 
+int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct link_ant *ant = &rt2x00dev->link.ant;
+	struct antenna_setup *def = &rt2x00dev->default_ant;
+	struct antenna_setup setup;
+
+	// The antenna value is not supposed to be 0,
+	// or exceed the maximum number of antenna's.
+	if (!tx_ant || (tx_ant & ~3) || !rx_ant || (rx_ant & ~3))
+		return -EINVAL;
+
+	// When the client tried to configure the antenna to or from
+	// diversity mode, we must reset the default antenna as well
+	// as that controls the diversity switch.
+	if (ant->flags & ANTENNA_TX_DIVERSITY && tx_ant != 3)
+		ant->flags &= ~ANTENNA_TX_DIVERSITY;
+	if (ant->flags & ANTENNA_RX_DIVERSITY && rx_ant != 3)
+		ant->flags &= ~ANTENNA_RX_DIVERSITY;
+
+	// If diversity is being enabled, check if we need hardware
+	// or software diversity. In the latter case, reset the value,
+	// and make sure we update the antenna flags to have the
+	// link tuner pick up the diversity tuning.
+	if (tx_ant == 3 && def->tx == ANTENNA_SW_DIVERSITY) {
+		tx_ant = ANTENNA_SW_DIVERSITY;
+		ant->flags |= ANTENNA_TX_DIVERSITY;
+	}
+
+	if (rx_ant == 3 && def->rx == ANTENNA_SW_DIVERSITY) {
+		rx_ant = ANTENNA_SW_DIVERSITY;
+		ant->flags |= ANTENNA_RX_DIVERSITY;
+	}
+
+	setup.tx = tx_ant;
+	setup.rx = rx_ant;
+
+	rt2x00lib_config_antenna(rt2x00dev, setup);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_set_antenna);
+
+int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct link_ant *ant = &rt2x00dev->link.ant;
+	struct antenna_setup *active = &rt2x00dev->link.ant.active;
+
+	// When software diversity is active, we must report this to the
+	// client and not the current active antenna state.
+	if (ant->flags & ANTENNA_TX_DIVERSITY)
+		*tx_ant = ANTENNA_HW_DIVERSITY;
+	else
+		*tx_ant = active->tx;
+
+	if (ant->flags & ANTENNA_RX_DIVERSITY)
+		*rx_ant = ANTENNA_HW_DIVERSITY;
+	else
+		*rx_ant = active->rx;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_get_antenna);
+
 void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
 			     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
 {
