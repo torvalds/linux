@@ -1640,9 +1640,11 @@ static void raid10d(mddev_t *mddev)
 	conf_t *conf = mddev->private;
 	struct list_head *head = &conf->retry_list;
 	mdk_rdev_t *rdev;
+	struct blk_plug plug;
 
 	md_check_recovery(mddev);
 
+	blk_start_plug(&plug);
 	for (;;) {
 		char b[BDEVNAME_SIZE];
 
@@ -1716,6 +1718,7 @@ static void raid10d(mddev_t *mddev)
 		}
 		cond_resched();
 	}
+	blk_finish_plug(&plug);
 }
 
 
