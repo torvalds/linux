@@ -265,7 +265,6 @@ struct x86_emulate_ctxt {
 	unsigned long eip; /* eip before instruction emulation */
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
-	u32 cs_base;
 
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
