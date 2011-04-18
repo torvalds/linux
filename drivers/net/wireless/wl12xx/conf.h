@@ -540,6 +540,12 @@ struct conf_rx_settings {
 	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
 	CONF_HW_BIT_RATE_54MBPS)
 
+#define CONF_TX_OFDM_RATES (CONF_HW_BIT_RATE_6MBPS |             \
+	CONF_HW_BIT_RATE_12MBPS | CONF_HW_BIT_RATE_24MBPS |      \
+	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
+	CONF_HW_BIT_RATE_54MBPS)
+
+
 /*
  * Default rates for management traffic when operating in AP mode. This
  * should be configured according to the basic rate set of the AP
@@ -703,22 +709,6 @@ struct conf_tx_settings {
 	 */
 	u8 ac_conf_count;
 	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
-
-	/*
-	 * Configuration for rate classes in AP-mode. These rate classes
-	 * are for the AC TX queues
-	 */
-	struct conf_tx_rate_class ap_rc_conf[CONF_TX_MAX_AC_COUNT];
-
-	/*
-	 * Management TX rate class for AP-mode.
-	 */
-	struct conf_tx_rate_class ap_mgmt_conf;
-
-	/*
-	 * Broadcast TX rate class for AP-mode.
-	 */
-	struct conf_tx_rate_class ap_bcst_conf;
 
 	/*
 	 * Allow this number of TX retries to a connected station/AP before an

@@ -841,7 +841,8 @@ int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
 	struct acx_ap_rate_policy *acx;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx ap rate policy");
+	wl1271_debug(DEBUG_ACX, "acx ap rate policy %d rates 0x%x",
+		     idx, c->enabled_rates);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {

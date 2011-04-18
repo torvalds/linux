@@ -209,44 +209,6 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
-		.ap_rc_conf                  = {
-			[0] = {
-				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
-				.short_retry_limit = 10,
-				.long_retry_limit = 10,
-				.aflags      = 0,
-			},
-			[1] = {
-				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
-				.short_retry_limit = 10,
-				.long_retry_limit = 10,
-				.aflags      = 0,
-			},
-			[2] = {
-				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
-				.short_retry_limit = 10,
-				.long_retry_limit = 10,
-				.aflags      = 0,
-			},
-			[3] = {
-				.enabled_rates = CONF_TX_AP_ENABLED_RATES,
-				.short_retry_limit = 10,
-				.long_retry_limit = 10,
-				.aflags      = 0,
-			},
-		},
-		.ap_mgmt_conf = {
-			.enabled_rates       = CONF_TX_AP_DEFAULT_MGMT_RATES,
-			.short_retry_limit   = 10,
-			.long_retry_limit    = 10,
-			.aflags              = 0,
-		},
-		.ap_bcst_conf = {
-			.enabled_rates       = CONF_HW_BIT_RATE_1MBPS,
-			.short_retry_limit   = 10,
-			.long_retry_limit    = 10,
-			.aflags              = 0,
-		},
 		.max_tx_retries = 100,
 		.ap_aging_period = 300,
 		.tid_conf_count = 4,
@@ -2532,22 +2494,13 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 
 	if ((changed & BSS_CHANGED_BASIC_RATES)) {
 		u32 rates = bss_conf->basic_rates;
-		struct conf_tx_rate_class mgmt_rc;
 
 		wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates);
 		wl->basic_rate = wl1271_tx_min_rate_get(wl);
-		wl1271_debug(DEBUG_AP, "basic rates: 0x%x",
-			     wl->basic_rate_set);
 
-		/* update the AP management rate policy with the new rates */
-		mgmt_rc.enabled_rates = wl->basic_rate_set;
-		mgmt_rc.long_retry_limit = 10;
-		mgmt_rc.short_retry_limit = 10;
-		mgmt_rc.aflags = 0;
-		ret = wl1271_acx_ap_rate_policy(wl, &mgmt_rc,
-						ACX_TX_AP_MODE_MGMT_RATE);
+		ret = wl1271_init_ap_rates(wl);
 		if (ret < 0) {
-			wl1271_error("AP mgmt policy change failed %d", ret);
+			wl1271_error("AP rate policy change failed %d", ret);
 			goto out;
 		}
 	}
