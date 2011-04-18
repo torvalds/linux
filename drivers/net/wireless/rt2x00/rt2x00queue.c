@@ -302,6 +302,85 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	}
 }
 
+static void rt2x00queue_create_tx_descriptor_ht(struct queue_entry *entry,
+						struct txentry_desc *txdesc,
+						const struct rt2x00_rate *hwrate)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+
+	if (tx_info->control.sta)
+		txdesc->u.ht.mpdu_density =
+		    tx_info->control.sta->ht_cap.ampdu_density;
+
+	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
+
+	/*
+	 * Only one STBC stream is supported for now.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
+		txdesc->u.ht.stbc = 1;
+
+	/*
+	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
+	 * mcs rate to be used
+	 */
+	if (txrate->flags & IEEE80211_TX_RC_MCS) {
+		txdesc->u.ht.mcs = txrate->idx;
+
+		/*
+		 * MIMO PS should be set to 1 for STA's using dynamic SM PS
+		 * when using more then one tx stream (>MCS7).
+		 */
+		if (tx_info->control.sta && txdesc->u.ht.mcs > 7 &&
+		    ((tx_info->control.sta->ht_cap.cap &
+		      IEEE80211_HT_CAP_SM_PS) >>
+		     IEEE80211_HT_CAP_SM_PS_SHIFT) ==
+		    WLAN_HT_CAP_SM_PS_DYNAMIC)
+			__set_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags);
+	} else {
+		txdesc->u.ht.mcs = rt2x00_get_rate_mcs(hwrate->mcs);
+		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			txdesc->u.ht.mcs |= 0x08;
+	}
+
+	/*
+	 * This frame is eligible for an AMPDU, however, don't aggregate
+	 * frames that are intended to probe a specific tx rate.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU &&
+	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
+		__set_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags);
+
+	/*
+	 * Set 40Mhz mode if necessary (for legacy rates this will
+	 * duplicate the frame to both channels).
+	 */
+	if (txrate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH ||
+	    txrate->flags & IEEE80211_TX_RC_DUP_DATA)
+		__set_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags);
+	if (txrate->flags & IEEE80211_TX_RC_SHORT_GI)
+		__set_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags);
+
+	/*
+	 * Determine IFS values
+	 * - Use TXOP_BACKOFF for management frames except beacons
+	 * - Use TXOP_SIFS for fragment bursts
+	 * - Use TXOP_HTTXOP for everything else
+	 *
+	 * Note: rt2800 devices won't use CTS protection (if used)
+	 * for frames not transmitted with TXOP_HTTXOP
+	 */
+	if (ieee80211_is_mgmt(hdr->frame_control) &&
+	    !ieee80211_is_beacon(hdr->frame_control))
+		txdesc->u.ht.txop = TXOP_BACKOFF;
+	else if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
+		txdesc->u.ht.txop = TXOP_SIFS;
+	else
+		txdesc->u.ht.txop = TXOP_HTTXOP;
+}
+
 static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 					     struct txentry_desc *txdesc)
 {
@@ -397,7 +476,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
 
 	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
-		rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
+		rt2x00queue_create_tx_descriptor_ht(entry, txdesc, hwrate);
 	else
 		rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
 }

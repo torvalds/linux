@@ -59,7 +59,6 @@ config RT2800PCI
 	select RT2800_LIB
 	select RT2X00_LIB_PCI if PCI
 	select RT2X00_LIB_SOC if RALINK_RT288X || RALINK_RT305X
-	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -133,7 +132,6 @@ config RT2800USB
 	depends on USB
 	select RT2800_LIB
 	select RT2X00_LIB_USB
-	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -195,9 +193,6 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
-
-config RT2X00_LIB_HT
-	boolean
 
 config RT2X00_LIB_FIRMWARE
 	boolean

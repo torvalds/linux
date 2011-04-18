@@ -163,6 +163,34 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00queue_start_queue(rt2x00dev->rx);
 }
 
+static u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
+				   struct ieee80211_conf *conf)
+{
+	struct hw_mode_spec *spec = &rt2x00dev->spec;
+	int center_channel;
+	u16 i;
+
+	/*
+	 * Initialize center channel to current channel.
+	 */
+	center_channel = spec->channels[conf->channel->hw_value].channel;
+
+	/*
+	 * Adjust center channel to HT40+ and HT40- operation.
+	 */
+	if (conf_is_ht40_plus(conf))
+		center_channel += 2;
+	else if (conf_is_ht40_minus(conf))
+		center_channel -= (center_channel == 14) ? 1 : 2;
+
+	for (i = 0; i < spec->num_channels; i++)
+		if (spec->channels[i].channel == center_channel)
+			return i;
+
+	WARN_ON(1);
+	return conf->channel->hw_value;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf,
 		      unsigned int ieee80211_flags)
