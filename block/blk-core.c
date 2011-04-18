@@ -220,7 +220,8 @@ static void blk_delay_work(struct work_struct *work)
  */
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
-	schedule_delayed_work(&q->delay_work, msecs_to_jiffies(msecs));
+	queue_delayed_work(kblockd_workqueue, &q->delay_work,
+				msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_delay_queue);
 
