@@ -59,16 +59,16 @@ static void rt2800usb_start_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
-		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		rt2x00usb_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 		break;
 	default:
 		break;
@@ -82,16 +82,16 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
-		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		rt2x00usb_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 		break;
 	default:
 		break;
@@ -185,11 +185,11 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
-				   data + offset, length);
+	rt2x00usb_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+				      data + offset, length);
 
-	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
-	rt2800_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
+	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
+	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
 
 	/*
 	 * Send firmware request to device to load firmware,
@@ -204,7 +204,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	msleep(10);
-	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
 
 	return 0;
 }
@@ -222,22 +222,22 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
 
-	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
+	rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	rt2x00usb_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
 
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
+	rt2x00usb_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+	rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 
-	rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
+	rt2x00usb_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
 				    USB_MODE_RESET, REGISTER_TIMEOUT);
 
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
+	rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
 
 	return 0;
 }
@@ -249,7 +249,7 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev)))
 		return -EIO;
 
-	rt2800_register_read(rt2x00dev, USB_DMA_CFG, &reg);
+	rt2x00usb_register_read(rt2x00dev, USB_DMA_CFG, &reg);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_PHY_CLEAR, 0);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_EN, 0);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_TIMEOUT, 128);
@@ -262,7 +262,7 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 			    / 1024) - 3);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_EN, 1);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_TX_BULK_EN, 1);
-	rt2800_register_write(rt2x00dev, USB_DMA_CFG, reg);
+	rt2x00usb_register_write(rt2x00dev, USB_DMA_CFG, reg);
 
 	return rt2800_enable_radio(rt2x00dev);
 }
@@ -338,12 +338,12 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 	unsigned int i;
 	u32 reg;
 
-	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
 		WARNING(rt2x00dev, "TX HW queue 0 timed out,"
 			" invoke forced kick\n");
 
-		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40012);
+		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40012);
 
 		for (i = 0; i < 10; i++) {
 			udelay(10);
@@ -351,15 +351,15 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 				break;
 		}
 
-		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
 	}
 
-	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
 		WARNING(rt2x00dev, "TX HW queue 1 timed out,"
 			" invoke forced kick\n");
 
-		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
+		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
 
 		for (i = 0; i < 10; i++) {
 			udelay(10);
@@ -367,7 +367,7 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 				break;
 		}
 
-		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
 	}
 
 	rt2x00usb_watchdog(rt2x00dev);
