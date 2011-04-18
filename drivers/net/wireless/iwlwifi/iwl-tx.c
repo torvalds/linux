@@ -484,10 +484,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 
 		IWL_ERR(priv, "No space in command queue\n");
-		if (priv->cfg->ops->lib->tt_ops.ct_kill_check) {
-			is_ct_kill =
-				priv->cfg->ops->lib->tt_ops.ct_kill_check(priv);
-		}
+		is_ct_kill = iwl_check_for_ct_kill(priv);
 		if (!is_ct_kill) {
 			IWL_ERR(priv, "Restarting adapter due to queue full\n");
 			iwlagn_fw_error(priv, false);

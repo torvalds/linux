@@ -139,12 +139,6 @@ struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-struct iwl_tt_ops {
-	bool (*lower_power_detection)(struct iwl_priv *priv);
-	u8 (*tt_power_mode)(struct iwl_priv *priv);
-	bool (*ct_kill_check)(struct iwl_priv *priv);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -190,9 +184,6 @@ struct iwl_lib_ops {
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
 	struct iwl_debugfs_ops debugfs_ops;
-
-	/* thermal throttling */
-	struct iwl_tt_ops tt_ops;
 };
 
 struct iwl_led_ops {

@@ -323,11 +323,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static struct iwl_lib_ops iwl6030_lib = {
@@ -377,11 +372,6 @@ static struct iwl_lib_ops iwl6030_lib = {
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static struct iwl_nic_ops iwl6050_nic_ops = {
