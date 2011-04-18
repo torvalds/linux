@@ -23,7 +23,7 @@
 #include "meter.h"
 #include "ade7758.h"
 
-int ade7758_spi_write_reg_8(struct device *dev,
+static int ade7758_spi_write_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 val)
 {
@@ -292,7 +292,7 @@ error_ret:
 	return ret ? ret : len;
 }
 
-int ade7758_reset(struct device *dev)
+static int ade7758_reset(struct device *dev)
 {
 	int ret;
 	u8 val;
@@ -652,14 +652,6 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26000 13000 65000 33000");
 
 static IIO_CONST_ATTR(name, "ade7758");
 
-static struct attribute *ade7758_event_attributes[] = {
-	NULL
-};
-
-static struct attribute_group ade7758_event_attribute_group = {
-	.attrs = ade7758_event_attributes,
-};
-
 static struct attribute *ade7758_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
@@ -744,8 +736,6 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &ade7758_event_attribute_group;
 	st->indio_dev->attrs = &ade7758_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
@@ -767,17 +757,9 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_FALLING,
-				"ade7758");
-		if (ret)
-			goto error_uninitialize_ring;
-
 		ret = ade7758_probe_trigger(st->indio_dev);
 		if (ret)
-			goto error_unregister_line;
+			goto error_uninitialize_ring;
 	}
 
 	/* Get the device into a sane initial state */
@@ -789,9 +771,6 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 error_remove_trigger:
 	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
 		ade7758_remove_trigger(st->indio_dev);
-error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
 error_uninitialize_ring:
 	ade7758_uninitialize_ring(st->indio_dev->ring);
 error_unreg_ring_funcs:
@@ -824,9 +803,6 @@ static int ade7758_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	ade7758_remove_trigger(indio_dev);
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
 	ade7758_uninitialize_ring(indio_dev->ring);
 	iio_device_unregister(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);

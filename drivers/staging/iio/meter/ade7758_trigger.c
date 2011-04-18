@@ -15,20 +15,12 @@
 /**
  * ade7758_data_rdy_trig_poll() the event handler for the data rdy trig
  **/
-static int ade7758_data_rdy_trig_poll(struct iio_dev *dev_info,
-				       int index,
-				       s64 timestamp,
-				       int no_test)
+static irqreturn_t ade7758_data_rdy_trig_poll(int irq, void *private)
 {
-	struct ade7758_state *st = iio_dev_get_devdata(dev_info);
-	struct iio_trigger *trig = st->trig;
-
-	iio_trigger_poll(trig, timestamp);
-
+	disable_irq_nosync(irq);
+	iio_trigger_poll(private, iio_get_time_ns());
 	return IRQ_HANDLED;
 }
-
-IIO_EVENT_SH(data_rdy_trig, &ade7758_data_rdy_trig_poll);
 
 static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
 
@@ -49,22 +41,9 @@ static int ade7758_data_rdy_trigger_set_state(struct iio_trigger *trig,
 {
 	struct ade7758_state *st = trig->private_data;
 	struct iio_dev *indio_dev = st->indio_dev;
-	int ret = 0;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	ret = ade7758_set_irq(&st->indio_dev->dev, state);
-	if (state == false) {
-		iio_remove_event_from_list(&iio_event_data_rdy_trig,
-					   &indio_dev->interrupts[0]
-					   ->ev_list);
-		/* possible quirk with handler currently worked around
-		   by ensuring the work queue is empty */
-		flush_scheduled_work();
-	} else {
-		iio_add_event_to_list(&iio_event_data_rdy_trig,
-				      &indio_dev->interrupts[0]->ev_list);
-	}
-	return ret;
+	return ade7758_set_irq(&indio_dev->dev, state);
 }
 
 /**
@@ -84,13 +63,25 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 	struct ade7758_state *st = indio_dev->dev_data;
 
+
 	st->trig = iio_allocate_trigger();
+	if (st->trig == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	ret = request_irq(st->us->irq,
+			  ade7758_data_rdy_trig_poll,
+			  IRQF_TRIGGER_FALLING, "ade7758",
+			  st->trig);
+	if (ret)
+		goto error_free_trig;
+
 	st->trig->name = kasprintf(GFP_KERNEL,
 				"ade7758-dev%d",
 				indio_dev->id);
 	if (!st->trig->name) {
 		ret = -ENOMEM;
-		goto error_free_trig;
+		goto error_free_irq;
 	}
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
@@ -109,9 +100,11 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 
 error_free_trig_name:
 	kfree(st->trig->name);
+error_free_irq:
+	free_irq(st->us->irq, st->trig);
 error_free_trig:
 	iio_free_trigger(st->trig);
-
+error_ret:
 	return ret;
 }
 
@@ -121,5 +114,6 @@ void ade7758_remove_trigger(struct iio_dev *indio_dev)
 
 	iio_trigger_unregister(state->trig);
 	kfree(state->trig->name);
+	free_irq(state->us->irq, state->trig);
 	iio_free_trigger(state->trig);
 }
