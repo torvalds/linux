@@ -388,7 +388,7 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 /* ------------ Interface for init & mode switching code ------------- */
 
-unsigned char XGIfb_query_VGA_config_space(
+static unsigned char XGIfb_query_VGA_config_space(
 		struct xgi_hw_device_info *pXGIhw_ext, unsigned long offset,
 		unsigned long set, unsigned long *value)
 {
@@ -426,7 +426,7 @@ unsigned char XGIfb_query_VGA_config_space(
 
 /* ------------------ Internal helper routines ----------------- */
 
-int XGIfb_GetXG21DefaultLVDSModeIdx(void)
+static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 {
 
 	int found_mode = 0;
