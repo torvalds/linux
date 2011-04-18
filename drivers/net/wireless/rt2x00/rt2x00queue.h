@@ -580,16 +580,22 @@ struct data_queue_desc {
  * @queue: Pointer to @data_queue
  * @start: &enum queue_index Pointer to start index
  * @end: &enum queue_index Pointer to end index
+ * @data: Data to pass to the callback function
  * @fn: The function to call for each &struct queue_entry
  *
  * This will walk through all entries in the queue, in chronological
  * order. This means it will start at the current @start pointer
  * and will walk through the queue until it reaches the @end pointer.
+ *
+ * If fn returns true for an entry rt2x00queue_for_each_entry will stop
+ * processing and return true as well.
  */
-void rt2x00queue_for_each_entry(struct data_queue *queue,
+bool rt2x00queue_for_each_entry(struct data_queue *queue,
 				enum queue_index start,
 				enum queue_index end,
-				void (*fn)(struct queue_entry *entry));
+				void *data,
+				bool (*fn)(struct queue_entry *entry,
+					   void *data));
 
 /**
  * rt2x00queue_empty - Check if the queue is empty.

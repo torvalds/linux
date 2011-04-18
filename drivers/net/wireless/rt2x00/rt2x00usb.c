@@ -230,7 +230,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 }
 
-static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
+static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void* data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
@@ -240,7 +240,7 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 
 	if (!test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags) ||
 	    test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return;
+		return true;
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -261,6 +261,8 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
 	}
+
+	return false;
 }
 
 /*
@@ -323,7 +325,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	queue_work(rt2x00dev->workqueue, &rt2x00dev->rxdone_work);
 }
 
-static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
+static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void* data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
@@ -332,7 +334,7 @@ static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
 
 	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
 	    test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return;
+		return true;
 
 	rt2x00lib_dmastart(entry);
 
@@ -348,6 +350,8 @@ static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
 	}
+
+	return false;
 }
 
 void rt2x00usb_kick_queue(struct data_queue *queue)
@@ -358,12 +362,18 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 	case QID_AC_BE:
 	case QID_AC_BK:
 		if (!rt2x00queue_empty(queue))
-			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+			rt2x00queue_for_each_entry(queue,
+						   Q_INDEX_DONE,
+						   Q_INDEX,
+						   NULL,
 						   rt2x00usb_kick_tx_entry);
 		break;
 	case QID_RX:
 		if (!rt2x00queue_full(queue))
-			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+			rt2x00queue_for_each_entry(queue,
+						   Q_INDEX_DONE,
+						   Q_INDEX,
+						   NULL,
 						   rt2x00usb_kick_rx_entry);
 		break;
 	default:
@@ -372,14 +382,14 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
 
-static void rt2x00usb_flush_entry(struct queue_entry *entry)
+static bool rt2x00usb_flush_entry(struct queue_entry *entry, void* data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 
 	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
-		return;
+		return true;
 
 	usb_kill_urb(entry_priv->urb);
 
@@ -389,6 +399,8 @@ static void rt2x00usb_flush_entry(struct queue_entry *entry)
 	if ((entry->queue->qid == QID_BEACON) &&
 	    (test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags)))
 		usb_kill_urb(bcn_priv->guardian_urb);
+
+	return false;
 }
 
 void rt2x00usb_flush_queue(struct data_queue *queue)
@@ -396,7 +408,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue)
 	struct work_struct *completion;
 	unsigned int i;
 
-	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX, NULL,
 				   rt2x00usb_flush_entry);
 
 	/*
@@ -489,7 +501,7 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	entry->flags = 0;
 
 	if (entry->queue->qid == QID_RX)
-		rt2x00usb_kick_rx_entry(entry);
+		rt2x00usb_kick_rx_entry(entry, NULL);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
 

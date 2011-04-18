@@ -650,10 +650,12 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	return ret;
 }
 
-void rt2x00queue_for_each_entry(struct data_queue *queue,
+bool rt2x00queue_for_each_entry(struct data_queue *queue,
 				enum queue_index start,
 				enum queue_index end,
-				void (*fn)(struct queue_entry *entry))
+				void *data,
+				bool (*fn)(struct queue_entry *entry,
+					   void *data))
 {
 	unsigned long irqflags;
 	unsigned int index_start;
@@ -664,7 +666,7 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 		ERROR(queue->rt2x00dev,
 		      "Entry requested from invalid index range (%d - %d)\n",
 		      start, end);
-		return;
+		return true;
 	}
 
 	/*
@@ -683,15 +685,23 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 	 * send out all frames in the correct order.
 	 */
 	if (index_start < index_end) {
-		for (i = index_start; i < index_end; i++)
-			fn(&queue->entries[i]);
+		for (i = index_start; i < index_end; i++) {
+			if (fn(&queue->entries[i], data))
+				return true;
+		}
 	} else {
-		for (i = index_start; i < queue->limit; i++)
-			fn(&queue->entries[i]);
+		for (i = index_start; i < queue->limit; i++) {
+			if (fn(&queue->entries[i], data))
+				return true;
+		}
 
-		for (i = 0; i < index_end; i++)
-			fn(&queue->entries[i]);
+		for (i = 0; i < index_end; i++) {
+			if (fn(&queue->entries[i], data))
+				return true;
+		}
 	}
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
 
