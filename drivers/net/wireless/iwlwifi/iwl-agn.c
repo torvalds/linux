@@ -3728,6 +3728,28 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 	7, 6, 5, 4,
 };
 
+/* This function both allocates and initializes hw and priv. */
+static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
+{
+	struct iwl_priv *priv;
+	/* mac80211 allocates memory for this device instance, including
+	 *   space for this driver's private structure */
+	struct ieee80211_hw *hw;
+
+	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv), &iwlagn_hw_ops);
+	if (hw == NULL) {
+		pr_err("%s: Can not allocate network device\n",
+		       cfg->name);
+		goto out;
+	}
+
+	priv = hw->priv;
+	priv->hw = hw;
+
+out:
+	return hw;
+}
+
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err = 0, i;
