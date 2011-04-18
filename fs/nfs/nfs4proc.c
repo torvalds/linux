@@ -2186,9 +2186,14 @@ static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_lookup_root(server, fhandle, info),
-				&exception);
+		err = _nfs4_lookup_root(server, fhandle, info);
+		switch (err) {
+		case 0:
+		case -NFS4ERR_WRONGSEC:
+			break;
+		default:
+			err = nfs4_handle_exception(server, err, &exception);
+		}
 	} while (exception.retry);
 	return err;
 }
@@ -2221,10 +2226,19 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	for (i = 0; i < len; i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
-		if (status == -EPERM || status == -EACCES)
+		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 			continue;
 		break;
 	}
+	/*
+	 * -EACCESS could mean that the user doesn't have correct permissions
+	 * to access the mount.  It could also mean that we tried to mount
+	 * with a gss auth flavor, but rpc.gssd isn't running.  Either way,
+	 * existing mount programs don't handle -EACCES very well so it should
+	 * be mapped to -EPERM instead.
+	 */
+	if (status == -EACCES)
+		status = -EPERM;
 	return status;
 }
 
@@ -2235,7 +2249,11 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
 	int status = nfs4_lookup_root(server, fhandle, info);
-	if ((status == -EPERM) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
+	if ((status == -NFS4ERR_WRONGSEC) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
+		/*
+		 * A status of -NFS4ERR_WRONGSEC will be mapped to -EPERM
+		 * by nfs4_map_errors() as this function exits.
+		 */
 		status = nfs4_find_root_sec(server, fhandle, info);
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
