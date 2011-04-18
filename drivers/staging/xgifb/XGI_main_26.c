@@ -41,7 +41,9 @@
 #include "XGIfb.h"
 #include "vgatypes.h"
 #include "XGI_main.h"
+#include "vb_init.h"
 #include "vb_util.h"
+#include "vb_setmode.h"
 
 #define Index_CR_GPIO_Reg1 0x48
 #define Index_CR_GPIO_Reg2 0x49
