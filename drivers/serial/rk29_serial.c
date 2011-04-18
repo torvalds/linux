@@ -260,7 +260,7 @@ static void rk29_rx_chars(struct uart_port *port)
 			if (uart_handle_break(port))
 				continue;
 		}
-#if 0
+#if 1
 		if (uart_handle_sysrq_char(port, ch))
 		{
 			continue;
@@ -303,13 +303,13 @@ static irqreturn_t rk29_uart_interrupt(int irq, void *dev_id)
  */
 static void rk29_serial_shutdown(struct uart_port *port)
 {
-   struct rk29_port *rk29_port = UART_TO_RK29(port);
-   rk29_uart_write(port,0x00,UART_IER);
+	struct rk29_port *rk29_port = UART_TO_RK29(port);
+	rk29_uart_write(port,0x00,UART_IER);
 	rk29_uart_write(port, UART_FCR_FIFO_ENABLE |
-			UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT, UART_FCR);
-	rk29_uart_write(port, 0, UART_FCR);
-   clk_disable(rk29_port->clk);
-   free_irq(port->irq, port);
+		UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT, UART_FCR);
+	//rk29_uart_write(port, 0, UART_FCR);
+	clk_disable(rk29_port->clk);
+	free_irq(port->irq, port);
 }
 /*
  * Perform initialization and enable port for reception
