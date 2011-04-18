@@ -531,6 +531,12 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
 			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
+
+		if ((rdev->family == CHIP_R600) ||
+		    (rdev->family == CHIP_RV610) ||
+		    (rdev->family == CHIP_RV630) ||
+		    (rdev->family == CHIP_RV670))
+			pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 	} else {
 		pll->flags |= RADEON_PLL_LEGACY;
 

@@ -565,13 +565,13 @@ pte_t xen_make_pte_debug(pteval_t pte)
 	if (io_page &&
 	    (xen_initial_domain() || addr >= ISA_END_ADDRESS)) {
 		other_addr = pfn_to_mfn(addr >> PAGE_SHIFT) << PAGE_SHIFT;
-		WARN(addr != other_addr,
+		WARN_ONCE(addr != other_addr,
 			"0x%lx is using VM_IO, but it is 0x%lx!\n",
 			(unsigned long)addr, (unsigned long)other_addr);
 	} else {
 		pteval_t iomap_set = (_pte.pte & PTE_FLAGS_MASK) & _PAGE_IOMAP;
 		other_addr = (_pte.pte & PTE_PFN_MASK);
-		WARN((addr == other_addr) && (!io_page) && (!iomap_set),
+		WARN_ONCE((addr == other_addr) && (!io_page) && (!iomap_set),
 			"0x%lx is missing VM_IO (and wasn't fixed)!\n",
 			(unsigned long)addr);
 	}

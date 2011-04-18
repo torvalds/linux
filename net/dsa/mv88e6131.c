@@ -14,6 +14,13 @@
 #include "dsa_priv.h"
 #include "mv88e6xxx.h"
 
+/*
+ * Switch product IDs
+ */
+#define ID_6085		0x04a0
+#define ID_6095		0x0950
+#define ID_6131		0x1060
+
 static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
 {
 	int ret;
@@ -21,9 +28,11 @@ static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
 		ret &= 0xfff0;
-		if (ret == 0x0950)
+		if (ret == ID_6085)
+			return "Marvell 88E6085";
+		if (ret == ID_6095)
 			return "Marvell 88E6095/88E6095F";
-		if (ret == 0x1060)
+		if (ret == ID_6131)
 			return "Marvell 88E6131";
 	}
 
@@ -164,6 +173,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 {
+	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
 	int addr = REG_PORT(p);
 	u16 val;
 
@@ -171,10 +181,13 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * MAC Forcing register: don't force link, speed, duplex
 	 * or flow control state to any particular values on physical
 	 * ports, but force the CPU port and all DSA ports to 1000 Mb/s
-	 * full duplex.
+	 * (100 Mb/s on 6085) full duplex.
 	 */
 	if (dsa_is_cpu_port(ds, p) || ds->dsa_port_mask & (1 << p))
-		REG_WRITE(addr, 0x01, 0x003e);
+		if (ps->id == ID_6085)
+			REG_WRITE(addr, 0x01, 0x003d); /* 100 Mb/s */
+		else
+			REG_WRITE(addr, 0x01, 0x003e); /* 1000 Mb/s */
 	else
 		REG_WRITE(addr, 0x01, 0x0003);
 
@@ -285,6 +298,8 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	mutex_init(&ps->smi_mutex);
 	mv88e6xxx_ppu_state_init(ds);
 	mutex_init(&ps->stats_mutex);
+
+	ps->id = REG_READ(REG_PORT(0), 0x03) & 0xfff0;
 
 	ret = mv88e6131_switch_reset(ds);
 	if (ret < 0)
