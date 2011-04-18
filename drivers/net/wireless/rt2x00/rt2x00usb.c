@@ -280,7 +280,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
 	 */
-	queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+	if (!test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags) ||
+	    !kfifo_is_empty(&rt2x00dev->txstatus_fifo))
+		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 }
 
 static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void* data)
@@ -816,6 +818,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 
 	INIT_WORK(&rt2x00dev->rxdone_work, rt2x00usb_work_rxdone);
 	INIT_WORK(&rt2x00dev->txdone_work, rt2x00usb_work_txdone);
+	init_timer(&rt2x00dev->txstatus_timer);
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)

@@ -37,6 +37,7 @@
 #include <linux/etherdevice.h>
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
+#include <linux/timer.h>
 
 #include <net/mac80211.h>
 
@@ -922,6 +923,11 @@ struct rt2x00_dev {
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
+
+	/*
+	 * Timer to ensure tx status reports are read (rt2800usb).
+	 */
+	struct timer_list txstatus_timer;
 
 	/*
 	 * Tasklet for processing tx status reports (rt2800pci).

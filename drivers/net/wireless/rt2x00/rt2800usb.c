@@ -98,6 +98,22 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 	}
 }
 
+/*
+ * test if there is an entry in any TX queue for which DMA is done
+ * but the TX status has not been returned yet
+ */
+static bool rt2800usb_txstatus_pending(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		if (rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE) !=
+		    rt2x00queue_get_entry(queue, Q_INDEX_DONE))
+			return true;
+	}
+	return false;
+}
+
 static void rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 						 int urb_status, u32 tx_status)
 {
@@ -115,13 +131,24 @@ static void rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 		} else
 			rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
 						      rt2800usb_tx_sta_fifo_read_completed);
-	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo))
+	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
+		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(20));
+	}
 }
 
 static void rt2800usb_tx_dma_done(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+
+	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
+				      rt2800usb_tx_sta_fifo_read_completed);
+}
+
+static void rt2800usb_tx_sta_fifo_timeout(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 
 	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
 				      rt2800usb_tx_sta_fifo_read_completed);
@@ -459,6 +486,14 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 				break;
 		}
 	}
+
+	/*
+	 * The hw may delay sending the packet after DMA complete
+	 * if the medium is busy, thus the TX_STA_FIFO entry is
+	 * also delayed -> use a timer to retrieve it.
+	 */
+	if (rt2800usb_txstatus_pending(rt2x00dev))
+		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(20));
 }
 
 /*
@@ -598,6 +633,10 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
+
+	setup_timer(&rt2x00dev->txstatus_timer,
+		    rt2800usb_tx_sta_fifo_timeout,
+		    (unsigned long) rt2x00dev);
 
 	/*
 	 * Set the rssi offset.
