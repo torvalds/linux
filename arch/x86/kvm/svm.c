@@ -2799,6 +2799,9 @@ static int cr_interception(struct vcpu_svm *svm)
 		case 0:
 			if (!check_selective_cr0_intercepted(svm, val))
 				err = kvm_set_cr0(&svm->vcpu, val);
+			else
+				return 1;
+
 			break;
 		case 3:
 			err = kvm_set_cr3(&svm->vcpu, val);
