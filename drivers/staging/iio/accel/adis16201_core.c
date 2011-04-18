@@ -479,14 +479,6 @@ static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16201_write_reset, 0);
 
 static IIO_CONST_ATTR(name, "adis16201");
 
-static struct attribute *adis16201_event_attributes[] = {
-	NULL
-};
-
-static struct attribute_group adis16201_event_attribute_group = {
-	.attrs = adis16201_event_attributes,
-};
-
 static struct attribute *adis16201_attributes[] = {
 	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
 	&iio_const_attr_in0_supply_scale.dev_attr.attr,
@@ -546,8 +538,6 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &adis16201_event_attribute_group;
 	st->indio_dev->attrs = &adis16201_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
@@ -569,17 +559,9 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_RISING,
-				"adis16201");
-		if (ret)
-			goto error_uninitialize_ring;
-
 		ret = adis16201_probe_trigger(st->indio_dev);
 		if (ret)
-			goto error_unregister_line;
+			goto error_uninitialize_ring;
 	}
 
 	/* Get the device into a sane initial state */
@@ -590,9 +572,6 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 
 error_remove_trigger:
 	adis16201_remove_trigger(st->indio_dev);
-error_unregister_line:
-	if (spi->irq)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
 error_uninitialize_ring:
 	adis16201_uninitialize_ring(st->indio_dev->ring);
 error_unreg_ring_funcs:
@@ -620,9 +599,6 @@ static int adis16201_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	adis16201_remove_trigger(indio_dev);
-	if (spi->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
 	adis16201_uninitialize_ring(indio_dev->ring);
 	iio_device_unregister(indio_dev);
 	adis16201_unconfigure_ring(indio_dev);
