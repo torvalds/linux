@@ -216,42 +216,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define SR_BUFFER_SIZE            5
 #define CR_BUFFER_SIZE            5
 
-/* Useful macros */
-#define inXGIREG(base)          inb(base)
-#define outXGIREG(base,val)     outb(val,base)
-#define orXGIREG(base,val)      do { \
-                                  unsigned char __Temp = inb(base); \
-                                  outXGIREG(base, __Temp | (val)); \
-                                } while (0)
-#define andXGIREG(base,val)     do { \
-                                  unsigned char __Temp = inb(base); \
-                                  outXGIREG(base, __Temp & (val)); \
-                                } while (0)
-#define inXGIIDXREG(base,idx,var)   do { \
-                                      outb(idx,base); var=inb((base)+1); \
-                                    } while (0)
-#define outXGIIDXREG(base,idx,val)  do { \
-                                      outb(idx,base); outb((val),(base)+1); \
-                                    } while (0)
-#define orXGIIDXREG(base,idx,val)   do { \
-                                      unsigned char __Temp; \
-                                      outb(idx,base);   \
-                                      __Temp = inb((base)+1)|(val); \
-                                      outXGIIDXREG(base,idx,__Temp); \
-                                    } while (0)
-#define andXGIIDXREG(base,idx,and)  do { \
-                                      unsigned char __Temp; \
-                                      outb(idx,base);   \
-                                      __Temp = inb((base)+1)&(and); \
-                                      outXGIIDXREG(base,idx,__Temp); \
-                                    } while (0)
-#define setXGIIDXREG(base,idx,and,or)   do { \
-                                          unsigned char __Temp; \
-                                          outb(idx,base);   \
-                                          __Temp = (inb((base)+1)&(and))|(or); \
-                                          outXGIIDXREG(base,idx,__Temp); \
-                                        } while (0)
-
 /* ------------------- Global Variables ----------------------------- */
 
 /* Fbcon variables */
