@@ -698,10 +698,6 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
 
-/* Internal hardware access routines */
-void            XGIfb_set_reg4(u16 port, unsigned long data);
-u32             XGIfb_get_reg3(u16 port);
-
 /* Chipset-dependent internal routines */
 
 

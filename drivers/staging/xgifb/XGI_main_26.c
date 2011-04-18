@@ -385,19 +385,6 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 }
 
-void XGIfb_set_reg4(u16 port, unsigned long data)
-{
-	outl((u32)(data & 0xffffffff), port);
-}
-
-u32 XGIfb_get_reg3(u16 port)
-{
-	u32 data;
-
-	data = inl(port);
-	return data;
-}
-
 /* ------------ Interface for init & mode switching code ------------- */
 
 unsigned char XGIfb_query_VGA_config_space(
