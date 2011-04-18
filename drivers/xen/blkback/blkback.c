@@ -479,7 +479,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	int i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
-	struct request_queue *q;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -542,9 +541,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 			goto fail_response;
 		}
 	}
-	q = bdev_get_queue(preq.bdev);
-	if (!q)
-		goto fail_response;
 	/* If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
 	 * the hypercall to unmap the grants - that is all done in
@@ -596,7 +592,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	atomic_set(&pending_req->pendcnt, nbio);
 
 	/* Get a reference count for the disk queue and start sending I/O */
-	blk_get_queue(q);
 	blk_start_plug(&plug);
 
 	for (i = 0; i < nbio; i++)
@@ -604,7 +599,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	blk_finish_plug(&plug);
 	/* Let the I/Os go.. */
-	blk_put_queue(q);
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
