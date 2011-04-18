@@ -768,7 +768,7 @@ static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
     
-	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
+	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -865,7 +865,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 	device = platform_get_drvdata(dev);
 
-	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE);
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
 	{
