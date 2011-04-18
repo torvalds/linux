@@ -998,7 +998,6 @@ isdn_tty_change_speed(modem_info * info)
 {
 	uint cflag,
 	 cval,
-	 fcr,
 	 quot;
 	int i;
 
@@ -1037,7 +1036,6 @@ isdn_tty_change_speed(modem_info * info)
 		cval |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-	fcr = 0;
 
 	/* CTS flow control flag and modem status interrupts */
 	if (cflag & CRTSCTS) {
