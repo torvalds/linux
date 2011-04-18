@@ -164,6 +164,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 	/* Deliver a copy of message to each destination port */
 
 	if (dp->count != 0) {
+		msg_set_destnode(msg, tipc_own_addr);
 		if (dp->count == 1) {
 			msg_set_destport(msg, dp->ports[0]);
 			tipc_port_recv_msg(buf);
