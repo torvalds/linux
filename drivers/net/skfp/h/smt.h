@@ -793,7 +793,7 @@ struct smt_rdf {
 } ;
 
 /*
- * SBA Request Allocation Responce Frame
+ * SBA Request Allocation Response Frame
  */
 struct smt_sba_alc_res {
 	struct smt_header	smt ;		/* generic header */

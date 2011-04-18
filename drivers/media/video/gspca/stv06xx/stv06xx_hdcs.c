@@ -569,7 +569,7 @@ static int hdcs_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	/* Enable continous frame capture, bit 2: stop when frame complete */
+	/* Enable continuous frame capture, bit 2: stop when frame complete */
 	err = stv06xx_write_sensor(sd, HDCS_REG_CONFIG(sd), BIT(3));
 	if (err < 0)
 		return err;

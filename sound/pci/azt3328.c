@@ -140,7 +140,7 @@
  *  Possible remedies:
  *  - use speaker (amplifier) output instead of headphone output
  *    (in case crackling is due to overloaded output clipping)
- *  - plug card into a different PCI slot, preferrably one that isn't shared
+ *  - plug card into a different PCI slot, preferably one that isn't shared
  *    too much (this helps a lot, but not completely!)
  *  - get rid of PCI VGA card, use AGP instead
  *  - upgrade or downgrade BIOS

@@ -98,7 +98,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @next:	pointer to the next irqaction for shared interrupts
  * @irq:	interrupt number
  * @dir:	pointer to the proc/irq/NN/name entry
- * @thread_fn:	interupt handler function for threaded interrupts
+ * @thread_fn:	interrupt handler function for threaded interrupts
  * @thread:	thread pointer for threaded interrupts
  * @thread_flags:	flags related to @thread
  * @thread_mask:	bitmask for keeping track of @thread activity
@@ -338,14 +338,6 @@ static inline void enable_irq_lockdep_irqrestore(unsigned int irq, unsigned long
 /* IRQ wakeup (PM) control: */
 extern int irq_set_irq_wake(unsigned int irq, unsigned int on);
 
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-/* Please do not use: Use the replacement functions instead */
-static inline int set_irq_wake(unsigned int irq, unsigned int on)
-{
-	return irq_set_irq_wake(irq, on);
-}
-#endif
-
 static inline int enable_irq_wake(unsigned int irq)
 {
 	return irq_set_irq_wake(irq, 1);
@@ -492,7 +484,7 @@ extern void __send_remote_softirq(struct call_single_data *cp, int cpu,
    Properties:
    * If tasklet_schedule() is called, then tasklet is guaranteed
      to be executed on some cpu at least once after this.
-   * If the tasklet is already scheduled, but its excecution is still not
+   * If the tasklet is already scheduled, but its execution is still not
      started, it will be executed only once.
    * If this tasklet is already running on another CPU (or schedule is called
      from tasklet itself), it is rescheduled for later.

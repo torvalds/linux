@@ -787,7 +787,7 @@ int dev_notify_clients(struct dev_object *dev_obj, u32 ret)
 
 	/*
 	 * FIXME: this code needs struct proc_object to have a list_head
-	 * at the begining. If not, this can go horribly wrong.
+	 * at the beginning. If not, this can go horribly wrong.
 	 */
 	list_for_each(curr, &dev_obj->proc_list)
 		proc_notify_clients((void *)curr, ret);
@@ -810,7 +810,7 @@ int dev_remove_device(struct cfg_devnode *dev_node_obj)
 	if (!dev_node_obj)
 		status = -EFAULT;
 
-	/* Retrieve the device object handle originaly stored with
+	/* Retrieve the device object handle originally stored with
 	 * the dev_node: */
 	if (!status) {
 		/* check the device string and then store dev object */
@@ -986,7 +986,7 @@ int dev_insert_proc_object(struct dev_object *hdev_obj,
 	/* Add DevObject to tail. */
 	/*
 	 * FIXME: this code needs struct proc_object to have a list_head
-	 * at the begining. If not, this can go horribly wrong.
+	 * at the beginning. If not, this can go horribly wrong.
 	 */
 	list_add_tail((struct list_head *)proc_obj, &dev_obj->proc_list);
 

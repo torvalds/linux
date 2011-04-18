@@ -290,7 +290,7 @@ static int handle_page_fault(struct pt_regs *regs,
 	/*
 	 * Early on, we need to check for migrating PTE entries;
 	 * see homecache.c.  If we find a migrating PTE, we wait until
-	 * the backing page claims to be done migrating, then we procede.
+	 * the backing page claims to be done migrating, then we proceed.
 	 * For kernel PTEs, we rewrite the PTE and return and retry.
 	 * Otherwise, we treat the fault like a normal "no PTE" fault,
 	 * rather than trying to patch up the existing PTE.

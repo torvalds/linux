@@ -29,7 +29,7 @@
 */
 
 /* Summary
-   The function completed sucessfully
+   The function completed successfully
 */
 #define CY_AS_ERROR_SUCCESS	 (0)
 
@@ -796,7 +796,7 @@
    Description
    This error is returned when an operation is attempted that cannot be
    completed while the USB stack is connected to a USB host.  In order
-   to sucessfully complete the desired operation, CyAsUsbDisconnect()
+   to successfully complete the desired operation, CyAsUsbDisconnect()
    must be called to disconnect from the host.
 */
 #define CY_AS_ERROR_USB_CONNECTED (53)

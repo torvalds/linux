@@ -391,7 +391,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be STATUS2 register */
 	status = inb(dev->iobase + DAS800_STATUS2) & STATUS2_HCEN;
-	/* don't release spinlock yet since we want to make sure noone else disables hardware conversions */
+	/* don't release spinlock yet since we want to make sure no one else disables hardware conversions */
 	if (status == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_HANDLED;

@@ -240,7 +240,7 @@ Functions capi_cmsg2message() and capi_message2cmsg() are provided to convert
 messages between their transport encoding described in the CAPI 2.0 standard
 and their _cmsg structure representation. Note that capi_cmsg2message() does
 not know or check the size of its destination buffer. The caller must make
-sure it is big enough to accomodate the resulting CAPI message.
+sure it is big enough to accommodate the resulting CAPI message.
 
 
 5. Lower Layer Interface Functions

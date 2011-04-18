@@ -271,7 +271,7 @@ bool psb_intel_init_bios(struct drm_device *dev)
 }
 
 /**
- * Destory and free VBT data
+ * Destroy and free VBT data
  */
 void psb_intel_destroy_bios(struct drm_device *dev)
 {

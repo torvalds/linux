@@ -296,7 +296,7 @@ static struct pxafb_mach_info cm_x300_lcd = {
 
 static void __init cm_x300_init_lcd(void)
 {
-	set_pxa_fb_info(&cm_x300_lcd);
+	pxa_set_fb_info(NULL, &cm_x300_lcd);
 }
 #else
 static inline void cm_x300_init_lcd(void) {}

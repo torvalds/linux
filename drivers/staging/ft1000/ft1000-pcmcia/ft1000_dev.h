@@ -30,7 +30,7 @@
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_reg
-// Descripton: This function will read the value of a given ASIC register.
+// Description: This function will read the value of a given ASIC register.
 // Input:
 //     dev    - device structure
 //     offset - ASIC register offset
@@ -49,7 +49,7 @@ static inline u16 ft1000_read_reg (struct net_device *dev, u16 offset) {
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_write_reg
-// Descripton: This function will set the value for a given ASIC register.
+// Description: This function will set the value for a given ASIC register.
 // Input:
 //     dev    - device structure
 //     offset - ASIC register offset

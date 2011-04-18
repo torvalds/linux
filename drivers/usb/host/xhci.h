@@ -873,7 +873,7 @@ struct xhci_transfer_event {
 #define COMP_CMD_ABORT	25
 /* Stopped - transfer was terminated by a stop endpoint command */
 #define COMP_STOP	26
-/* Same as COMP_EP_STOPPED, but the transfered length in the event is invalid */
+/* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
 #define COMP_STOP_INVAL	27
 /* Control Abort Error - Debug Capability - control pipe aborted */
 #define COMP_DBG_ABORT	28

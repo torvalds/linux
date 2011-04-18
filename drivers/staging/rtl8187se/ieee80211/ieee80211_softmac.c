@@ -1954,7 +1954,7 @@ associate_complete:
 
 
 
-/* following are for a simplier TX queue management.
+/* following are for a simpler TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
  * will uses these two function (plus a reset one), that
  * will internally uses the kernel netif_* and takes

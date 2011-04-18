@@ -24,7 +24,7 @@
  * context needs to be associated with the osd write during writeback.
  *
  * Similarly, struct ceph_inode_info maintains a set of counters to
- * count dirty pages on the inode.  In the absense of snapshots,
+ * count dirty pages on the inode.  In the absence of snapshots,
  * i_wrbuffer_ref == i_wrbuffer_ref_head == the dirty page count.
  *
  * When a snapshot is taken (that is, when the client receives

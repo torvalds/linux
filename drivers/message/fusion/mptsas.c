@@ -307,7 +307,7 @@ mptsas_requeue_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
-/* free memory assoicated to a sas firmware event */
+/* free memory associated to a sas firmware event */
 static void
 mptsas_free_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event)
 {
@@ -1094,7 +1094,7 @@ mptsas_block_io_starget(struct scsi_target *starget)
 /**
  * mptsas_target_reset_queue
  *
- * Receive request for TARGET_RESET after recieving an firmware
+ * Receive request for TARGET_RESET after receiving an firmware
  * event NOT_RESPONDING_EVENT, then put command in link list
  * and queue if task_queue already in use.
  *
@@ -1403,7 +1403,7 @@ mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 /**
  *	mptsas_add_end_device - report a new end device to sas transport layer
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@phy_info: decribes attached device
+ *	@phy_info: describes attached device
  *
  *	return (0) success (1) failure
  *
@@ -1481,7 +1481,7 @@ mptsas_add_end_device(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info)
 /**
  *	mptsas_del_end_device - report a deleted end device to sas transport layer
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@phy_info: decribes attached device
+ *	@phy_info: describes attached device
  *
  **/
 static void

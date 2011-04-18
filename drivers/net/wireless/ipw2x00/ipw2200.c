@@ -1181,7 +1181,7 @@ static void ipw_led_shutdown(struct ipw_priv *priv)
 /*
  * The following adds a new attribute to the sysfs representation
  * of this device driver (i.e. a new file in /sys/bus/pci/drivers/ipw/)
- * used for controling the debug level.
+ * used for controlling the debug level.
  *
  * See the level definitions in ipw for details.
  */
@@ -3763,7 +3763,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 
 	q->txb = kmalloc(sizeof(q->txb[0]) * count, GFP_KERNEL);
 	if (!q->txb) {
-		IPW_ERROR("vmalloc for auxilary BD structures failed\n");
+		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
 		return -ENOMEM;
 	}
 
@@ -5581,7 +5581,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	/* Verify privacy compatability */
+	/* Verify privacy compatibility */
 	if (((priv->capability & CAP_PRIVACY_ON) ? 1 : 0) !=
 	    ((network->capability & WLAN_CAPABILITY_PRIVACY) ? 1 : 0)) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
@@ -5808,7 +5808,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	/* Verify privacy compatability */
+	/* Verify privacy compatibility */
 	if (((priv->capability & CAP_PRIVACY_ON) ? 1 : 0) !=
 	    ((network->capability & WLAN_CAPABILITY_PRIVACY) ? 1 : 0)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
@@ -8184,7 +8184,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 static int is_network_packet(struct ipw_priv *priv,
 				    struct libipw_hdr_4addr *header)
 {
-	/* Filter incoming packets to determine if they are targetted toward
+	/* Filter incoming packets to determine if they are targeted toward
 	 * this network, discarding packets coming from ourselves */
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:	/* Header: Dest. | Source    | BSSID */
@@ -8340,9 +8340,9 @@ static void ipw_handle_mgmt_packet(struct ipw_priv *priv,
 }
 
 /*
- * Main entry function for recieving a packet with 80211 headers.  This
+ * Main entry function for receiving a packet with 80211 headers.  This
  * should be called when ever the FW has notified us that there is a new
- * skb in the recieve queue.
+ * skb in the receive queue.
  */
 static void ipw_rx(struct ipw_priv *priv)
 {
@@ -8683,7 +8683,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
  * functions defined in ipw_main to provide the HW interaction.
  *
  * The exception to this is the use of the ipw_get_ordinal()
- * function used to poll the hardware vs. making unecessary calls.
+ * function used to poll the hardware vs. making unnecessary calls.
  *
  */
 
@@ -10419,7 +10419,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 
 	memset(&dummystats, 0, sizeof(dummystats));
 
-	/* Filtering of fragment chains is done agains the first fragment */
+	/* Filtering of fragment chains is done against the first fragment */
 	hdr = (void *)txb->fragments[0]->data;
 	if (libipw_is_management(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_MGMT)

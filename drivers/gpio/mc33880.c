@@ -45,7 +45,7 @@
  * To save time we cache them here in memory
  */
 struct mc33880 {
-	struct mutex	lock;	/* protect from simultanous accesses */
+	struct mutex	lock;	/* protect from simultaneous accesses */
 	u8		port_config;
 	struct gpio_chip chip;
 	struct spi_device *spi;

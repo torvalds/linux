@@ -1366,7 +1366,7 @@ error:
 /* The values below are based on the OnStream frame payload size of 32K == 2**15,
  * that is, OSST_FRAME_SHIFT + OSST_SECTOR_SHIFT must be 15. With a minimum block
  * size of 512 bytes, we need to be able to resolve 32K/512 == 64 == 2**6 positions
- * inside each frame. Finaly, OSST_SECTOR_MASK == 2**OSST_FRAME_SHIFT - 1.
+ * inside each frame. Finally, OSST_SECTOR_MASK == 2**OSST_FRAME_SHIFT - 1.
  */
 #define OSST_FRAME_SHIFT  6
 #define OSST_SECTOR_SHIFT 9
@@ -3131,7 +3131,7 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 		}
 #if DEBUG
 		if (debugging)
-			printk(OSST_DEB_MSG "%s:D: Flushing %d bytes, Transfering %d bytes in %d lblocks.\n",
+			printk(OSST_DEB_MSG "%s:D: Flushing %d bytes, Transferring %d bytes in %d lblocks.\n",
 			  			 name, offset, transfer, blks);
 #endif
 
@@ -3811,7 +3811,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 			if (transfer == 0) {
 				printk(KERN_WARNING
-				  "%s:W: Nothing can be transfered, requested %Zd, tape block size (%d%c).\n",
+				  "%s:W: Nothing can be transferred, requested %Zd, tape block size (%d%c).\n",
 			   		name, count, STp->block_size < 1024?
 					STp->block_size:STp->block_size/1024,
 				       	STp->block_size<1024?'b':'k');

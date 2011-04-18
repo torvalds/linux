@@ -290,7 +290,7 @@ struct acpi_table_fadt {
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)	/* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
 #define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local x_aPICs must use physical dest mode (ACPI 3.0) */
 
-/* Values for preferred_profile (Prefered Power Management Profiles) */
+/* Values for preferred_profile (Preferred Power Management Profiles) */
 
 enum acpi_prefered_pm_profiles {
 	PM_UNSPECIFIED = 0,

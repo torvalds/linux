@@ -125,6 +125,14 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
 static DECLARE_RWSEM(iprune_sem);
 
 /*
+ * Empty aops. Can be used for the cases where the user does not
+ * define any of the address_space operations.
+ */
+const struct address_space_operations empty_aops = {
+};
+EXPORT_SYMBOL(empty_aops);
+
+/*
  * Statistics gathering..
  */
 struct inodes_stat_t inodes_stat;
@@ -176,7 +184,6 @@ int proc_nr_inodes(ctl_table *table, int write,
  */
 int inode_init_always(struct super_block *sb, struct inode *inode)
 {
-	static const struct address_space_operations empty_aops;
 	static const struct inode_operations empty_iops;
 	static const struct file_operations empty_fops;
 	struct address_space *const mapping = &inode->i_data;

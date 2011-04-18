@@ -28,53 +28,47 @@
 /*
  * XFS logging functions
  */
-static int
+static void
 __xfs_printk(
 	const char		*level,
 	const struct xfs_mount	*mp,
 	struct va_format	*vaf)
 {
 	if (mp && mp->m_fsname)
-		return printk("%sXFS (%s): %pV\n", level, mp->m_fsname, vaf);
-	return printk("%sXFS: %pV\n", level, vaf);
+		printk("%sXFS (%s): %pV\n", level, mp->m_fsname, vaf);
+	printk("%sXFS: %pV\n", level, vaf);
 }
 
-int xfs_printk(
+void xfs_printk(
 	const char		*level,
 	const struct xfs_mount	*mp,
 	const char		*fmt, ...)
 {
 	struct va_format	vaf;
 	va_list			args;
-	int			 r;
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	r = __xfs_printk(level, mp, &vaf);
+	__xfs_printk(level, mp, &vaf);
 	va_end(args);
-
-	return r;
 }
 
 #define define_xfs_printk_level(func, kern_level)		\
-int func(const struct xfs_mount *mp, const char *fmt, ...)	\
+void func(const struct xfs_mount *mp, const char *fmt, ...)	\
 {								\
 	struct va_format	vaf;				\
 	va_list			args;				\
-	int			r;				\
 								\
 	va_start(args, fmt);					\
 								\
 	vaf.fmt = fmt;						\
 	vaf.va = &args;						\
 								\
-	r = __xfs_printk(kern_level, mp, &vaf);			\
+	__xfs_printk(kern_level, mp, &vaf);			\
 	va_end(args);						\
-								\
-	return r;						\
 }								\
 
 define_xfs_printk_level(xfs_emerg, KERN_EMERG);
@@ -88,7 +82,7 @@ define_xfs_printk_level(xfs_info, KERN_INFO);
 define_xfs_printk_level(xfs_debug, KERN_DEBUG);
 #endif
 
-int
+void
 xfs_alert_tag(
 	const struct xfs_mount	*mp,
 	int			panic_tag,
@@ -97,7 +91,6 @@ xfs_alert_tag(
 	struct va_format	vaf;
 	va_list			args;
 	int			do_panic = 0;
-	int			r;
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
 		xfs_printk(KERN_ALERT, mp,
@@ -110,12 +103,10 @@ xfs_alert_tag(
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	r = __xfs_printk(KERN_ALERT, mp, &vaf);
+	__xfs_printk(KERN_ALERT, mp, &vaf);
 	va_end(args);
 
 	BUG_ON(do_panic);
-
-	return r;
 }
 
 void

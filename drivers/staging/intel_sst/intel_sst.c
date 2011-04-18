@@ -263,7 +263,7 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 	/* Init the device */
 	ret = pci_enable_device(pci);
 	if (ret) {
-		pr_err("device cant be enabled\n");
+		pr_err("device can't be enabled\n");
 		goto do_free_mem;
 	}
 	sst_drv_ctx->pci = pci_dev_get(pci);
@@ -453,7 +453,7 @@ int intel_sst_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	ret = pci_enable_device(pci);
 	if (ret)
-		pr_err("device cant be enabled\n");
+		pr_err("device can't be enabled\n");
 
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;

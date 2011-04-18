@@ -1629,7 +1629,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 			    up->port.iotype == UPIO_DWAPB32) &&
 			  (iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 			/* The DesignWare APB UART has an Busy Detect (0x07)
-			 * interrupt meaning an LCR write attempt occured while the
+			 * interrupt meaning an LCR write attempt occurred while the
 			 * UART was busy. The interrupt must be cleared by reading
 			 * the UART status register (USR) and the LCR re-written. */
 			unsigned int status;

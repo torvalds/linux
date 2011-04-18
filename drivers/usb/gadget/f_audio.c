@@ -742,7 +742,7 @@ int __init control_selector_init(struct f_audio *audio)
 }
 
 /**
- * audio_bind_config - add USB audio fucntion to a configuration
+ * audio_bind_config - add USB audio function to a configuration
  * @c: the configuration to supcard the USB audio function
  * Context: single threaded during gadget setup
  *

@@ -641,7 +641,7 @@ typedef struct drm_radeon_vertex2 {
 } drm_radeon_vertex2_t;
 
 /* v1.3 - obsoletes drm_radeon_vertex2
- *      - allows arbitarily large cliprect list
+ *      - allows arbitrarily large cliprect list
  *      - allows updating of tcl packet, vector and scalar state
  *      - allows memory-efficient description of state updates
  *      - allows state to be emitted without a primitive

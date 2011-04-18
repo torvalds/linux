@@ -106,7 +106,7 @@ enum {
 /* MXL5005 Tuner Register Struct */
 struct TunerReg {
 	u16 Reg_Num;	/* Tuner Register Address */
-	u16 Reg_Val;	/* Current sw programmed value waiting to be writen */
+	u16 Reg_Val;	/* Current sw programmed value waiting to be written */
 };
 
 enum {

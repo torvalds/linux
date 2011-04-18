@@ -56,7 +56,7 @@ struct drm_mm_node {
 };
 
 struct drm_mm {
-	/* List of all memory nodes that immediatly preceed a free hole. */
+	/* List of all memory nodes that immediately precede a free hole. */
 	struct list_head hole_stack;
 	/* head_node.node_list is the list of all memory nodes, ordered
 	 * according to the (increasing) start address of the memory node. */

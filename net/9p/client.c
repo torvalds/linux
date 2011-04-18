@@ -178,7 +178,7 @@ free_and_return:
  * @tag: numeric id for transaction
  *
  * this is a simple array lookup, but will grow the
- * request_slots as necessary to accomodate transaction
+ * request_slots as necessary to accommodate transaction
  * ids which did not previously have a slot.
  *
  * this code relies on the client spinlock to manage locks, its

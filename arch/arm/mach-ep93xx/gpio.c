@@ -101,7 +101,7 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	/*
-	 * map discontiguous hw irq range to continous sw irq range:
+	 * map discontiguous hw irq range to continuous sw irq range:
 	 *
 	 *  IRQ_EP93XX_GPIO{0..7}MUX -> gpio_to_irq(EP93XX_GPIO_LINE_F({0..7})
 	 */

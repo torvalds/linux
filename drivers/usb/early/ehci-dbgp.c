@@ -648,7 +648,7 @@ static int ehci_reset_port(int port)
 		if (!(portsc & PORT_CONNECT))
 			return -ENOTCONN;
 
-		/* bomb out completely if something weird happend */
+		/* bomb out completely if something weird happened */
 		if ((portsc & PORT_CSC))
 			return -EINVAL;
 

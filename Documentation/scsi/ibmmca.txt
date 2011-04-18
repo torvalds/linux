@@ -303,7 +303,7 @@
    (scb) and calls a local function issue_cmd(), which writes a scb 
    command into subsystem I/O ports. Once the scb command is carried out, 
    the interrupt_handler() is invoked. If a device is determined to be 
-   existant and it has not assigned any ldn, it gets one dynamically.
+   existent and it has not assigned any ldn, it gets one dynamically.
    For this, the whole stuff is done in ibmmca_queuecommand().
 
    2.6 Abort & Reset Commands
@@ -741,7 +741,7 @@
       some error appeared, else it is undefined. Now, this is fixed. Before
       any SCB command gets queued, the tsb.dev_status is set to 0, so the 
       cmd->result won't screw up Linux higher level drivers.
-   2) The reset-function has slightly improved. This is still planed for 
+   2) The reset-function has slightly improved. This is still planned for 
       abort. During the abort and the reset function, no interrupts are 
       allowed. This is however quite hard to cope with, so the INT-status
       register is read. When the interrupt gets queued, one can find its

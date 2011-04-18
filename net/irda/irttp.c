@@ -1193,7 +1193,7 @@ EXPORT_SYMBOL(irttp_connect_request);
 /*
  * Function irttp_connect_confirm (handle, qos, skb)
  *
- *    Sevice user confirms TSAP connection with peer.
+ *    Service user confirms TSAP connection with peer.
  *
  */
 static void irttp_connect_confirm(void *instance, void *sap,

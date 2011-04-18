@@ -963,7 +963,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_mmio;
 
-	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
+	/* Map PRAMIN BAR, or on older cards, the aperture within BAR0 */
 	if (dev_priv->card_type >= NV_40) {
 		int ramin_bar = 2;
 		if (pci_resource_len(dev->pdev, ramin_bar) == 0)

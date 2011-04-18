@@ -76,7 +76,7 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 	.pullup_pin	= AT91_PIN_PD9,
 };
 
-/* FIXME: user dependant */
+/* FIXME: user dependent */
 // static struct at91_cf_data __initdata carmeva_cf_data = {
 //	.det_pin	= AT91_PIN_PB0,
 //	.rst_pin	= AT91_PIN_PC5,

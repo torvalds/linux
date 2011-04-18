@@ -259,7 +259,7 @@ struct card_info {
 	struct vfe_polarity vfe_pol;
 	u8 gpio_pol[ZR_GPIO_MAX];
 
-	/* is the /GWS line conected? */
+	/* is the /GWS line connected? */
 	u8 gws_not_connected;
 
 	/* avs6eyes mux setting */

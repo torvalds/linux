@@ -644,7 +644,7 @@ void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *tx_ring,
  * @adapter: driver private struct
  * @index: reg idx of queue to query (0-127)
  *
- * Helper function to determine the traffic index for a paticular
+ * Helper function to determine the traffic index for a particular
  * register index.
  *
  * Returns : a tc index for use in range 0-7, or 0-3
@@ -3556,7 +3556,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		} else {
 			/*
 			 * Write addresses to the MTA, if the attempt fails
-			 * then we should just turn on promiscous mode so
+			 * then we should just turn on promiscuous mode so
 			 * that we can at least receive multicast traffic
 			 */
 			hw->mac.ops.update_mc_addr_list(hw, netdev);
@@ -3567,7 +3567,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		/*
 		 * Write addresses to available RAR registers, if there is not
 		 * sufficient space to store all the addresses then enable
-		 * unicast promiscous mode
+		 * unicast promiscuous mode
 		 */
 		count = ixgbe_write_uc_addr_list(netdev);
 		if (count < 0) {
@@ -4443,7 +4443,7 @@ static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 }
 
 /*
- * ixgbe_set_num_queues: Allocate queues for device, feature dependant
+ * ixgbe_set_num_queues: Allocate queues for device, feature dependent
  * @adapter: board private structure to initialize
  *
  * This is the top level queue allocation routine.  The order here is very

@@ -62,7 +62,7 @@ image file and then arrange all these packets back to back in to one single
 file.
 This file is then copied to /sys/class/firmware/dell_rbu/data.
 Once this file gets to the driver, the driver extracts packet_size data from
-the file and spreads it accross the physical memory in contiguous packet_sized
+the file and spreads it across the physical memory in contiguous packet_sized
 space.
 This method makes sure that all the packets get to the driver in a single operation.
 

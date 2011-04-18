@@ -704,7 +704,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	 */
 
 	/*
-	 *	Check the other end isnt violating RFC 1122. Some routers send
+	 *	Check the other end isn't violating RFC 1122. Some routers send
 	 *	bogus responses to broadcast frames. If you see this message
 	 *	first check your netmask matches at both ends, if it does then
 	 *	get the other vendor to fix their kit.

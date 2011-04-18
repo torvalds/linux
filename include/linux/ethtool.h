@@ -614,7 +614,7 @@ struct ethtool_sfeatures {
  * values of corresponding bits in features[].requested. Bits in .requested
  * not set in .valid or not changeable are ignored.
  *
- * Returns %EINVAL when .valid contains undefined or never-changable bits
+ * Returns %EINVAL when .valid contains undefined or never-changeable bits
  * or size is not equal to required number of features words (32-bit blocks).
  * Returns >= 0 if request was completed; bits set in the value mean:
  *   %ETHTOOL_F_UNSUPPORTED - there were bits set in .valid that are not

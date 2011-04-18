@@ -174,7 +174,7 @@ ENTRY(__start)
 	sp.l = lo(KERNEL_CLOCK_STACK);
 	sp.h = hi(KERNEL_CLOCK_STACK);
 	call _init_clocks;
-	sp = usp;	/* usp hasnt been touched, so restore from there */
+	sp = usp;	/* usp hasn't been touched, so restore from there */
 #endif
 
 	/* This section keeps the processor in supervisor mode

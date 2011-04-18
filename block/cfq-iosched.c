@@ -888,7 +888,7 @@ cfq_group_notify_queue_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	/*
 	 * Currently put the group at the end. Later implement something
 	 * so that groups get lesser vtime based on their weights, so that
-	 * if group does not loose all if it was not continously backlogged.
+	 * if group does not loose all if it was not continuously backlogged.
 	 */
 	n = rb_last(&st->rb);
 	if (n) {

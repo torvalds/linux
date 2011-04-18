@@ -94,7 +94,7 @@ struct mdk_rdev_s
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
 #define	AutoDetected	7		/* added by auto-detect */
-#define Blocked		8		/* An error occured on an externally
+#define Blocked		8		/* An error occurred on an externally
 					 * managed array, don't allow writes
 					 * until it is cleared */
 	wait_queue_head_t blocked_wait;
