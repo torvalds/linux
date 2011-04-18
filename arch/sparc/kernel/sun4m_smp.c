@@ -150,20 +150,6 @@ void __init smp4m_smp_done(void)
 	/* Ok, they are spinning and ready to go. */
 }
 
-/* At each hardware IRQ, we get this called to forward IRQ reception
- * to the next processor.  The caller must disable the IRQ level being
- * serviced globally so that there are no double interrupts received.
- *
- * XXX See sparc64 irq.c.
- */
-void smp4m_irq_rotate(int cpu)
-{
-	int next = cpu_data(cpu).next;
-
-	if (next != cpu)
-		set_irq_udt(next);
-}
-
 static struct smp_funcall {
 	smpfunc_t func;
 	unsigned long arg1;
@@ -277,7 +263,7 @@ static void __cpuinit smp_setup_percpu_timer(void)
 	load_profile_irq(cpu, lvl14_resolution);
 
 	if (cpu == boot_cpu_id)
-		enable_pil_irq(14);
+		sun4m_unmask_profile_irq();
 }
 
 static void __init smp4m_blackbox_id(unsigned *addr)

@@ -65,62 +65,94 @@
  */
 unsigned char __iomem *interrupt_enable;
 
-static void sun4c_disable_irq(unsigned int irq_nr)
+static void sun4c_mask_irq(struct irq_data *data)
 {
-	unsigned long flags;
-	unsigned char current_mask, new_mask;
+	unsigned long mask = (unsigned long)data->chip_data;
 
-	local_irq_save(flags);
-	irq_nr &= (NR_IRQS - 1);
-	current_mask = sbus_readb(interrupt_enable);
-	switch (irq_nr) {
-	case 1:
-		new_mask = ((current_mask) & (~(SUN4C_INT_E1)));
-		break;
-	case 8:
-		new_mask = ((current_mask) & (~(SUN4C_INT_E8)));
-		break;
-	case 10:
-		new_mask = ((current_mask) & (~(SUN4C_INT_E10)));
-		break;
-	case 14:
-		new_mask = ((current_mask) & (~(SUN4C_INT_E14)));
-		break;
-	default:
+	if (mask) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		mask = sbus_readb(interrupt_enable) & ~mask;
+		sbus_writeb(mask, interrupt_enable);
 		local_irq_restore(flags);
-		return;
 	}
-	sbus_writeb(new_mask, interrupt_enable);
-	local_irq_restore(flags);
 }
 
-static void sun4c_enable_irq(unsigned int irq_nr)
+static void sun4c_unmask_irq(struct irq_data *data)
 {
-	unsigned long flags;
-	unsigned char current_mask, new_mask;
+	unsigned long mask = (unsigned long)data->chip_data;
 
-	local_irq_save(flags);
-	irq_nr &= (NR_IRQS - 1);
-	current_mask = sbus_readb(interrupt_enable);
-	switch (irq_nr) {
-	case 1:
-		new_mask = ((current_mask) | SUN4C_INT_E1);
-		break;
-	case 8:
-		new_mask = ((current_mask) | SUN4C_INT_E8);
-		break;
-	case 10:
-		new_mask = ((current_mask) | SUN4C_INT_E10);
-		break;
-	case 14:
-		new_mask = ((current_mask) | SUN4C_INT_E14);
-		break;
-	default:
+	if (mask) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		mask = sbus_readb(interrupt_enable) | mask;
+		sbus_writeb(mask, interrupt_enable);
 		local_irq_restore(flags);
-		return;
 	}
-	sbus_writeb(new_mask, interrupt_enable);
-	local_irq_restore(flags);
+}
+
+static unsigned int sun4c_startup_irq(struct irq_data *data)
+{
+	irq_link(data->irq);
+	sun4c_unmask_irq(data);
+
+	return 0;
+}
+
+static void sun4c_shutdown_irq(struct irq_data *data)
+{
+	sun4c_mask_irq(data);
+	irq_unlink(data->irq);
+}
+
+static struct irq_chip sun4c_irq = {
+	.name		= "sun4c",
+	.irq_startup	= sun4c_startup_irq,
+	.irq_shutdown	= sun4c_shutdown_irq,
+	.irq_mask	= sun4c_mask_irq,
+	.irq_unmask	= sun4c_unmask_irq,
+};
+
+static unsigned int sun4c_build_device_irq(struct platform_device *op,
+					   unsigned int real_irq)
+{
+	 unsigned int irq;
+
+	if (real_irq >= 16) {
+		prom_printf("Bogus sun4c IRQ %u\n", real_irq);
+		prom_halt();
+	}
+
+	irq = irq_alloc(real_irq, real_irq);
+	if (irq) {
+		unsigned long mask = 0UL;
+
+		switch (real_irq) {
+		case 1:
+			mask = SUN4C_INT_E1;
+			break;
+		case 8:
+			mask = SUN4C_INT_E8;
+			break;
+		case 10:
+			mask = SUN4C_INT_E10;
+			break;
+		case 14:
+			mask = SUN4C_INT_E14;
+			break;
+		default:
+			/* All the rest are either always enabled,
+			 * or are for signalling software interrupts.
+			 */
+			break;
+		}
+		irq_set_chip_and_handler_name(irq, &sun4c_irq,
+		                              handle_level_irq, "level");
+		irq_set_chip_data(irq, (void *)mask);
+	}
+	return irq;
 }
 
 struct sun4c_timer_info {
@@ -144,8 +176,9 @@ static void sun4c_load_profile_irq(int cpu, unsigned int limit)
 
 static void __init sun4c_init_timers(irq_handler_t counter_fn)
 {
-	const struct linux_prom_irqs *irq;
+	const struct linux_prom_irqs *prom_irqs;
 	struct device_node *dp;
+	unsigned int irq;
 	const u32 *addr;
 	int err;
 
@@ -163,9 +196,9 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 
 	sun4c_timers = (void __iomem *) (unsigned long) addr[0];
 
-	irq = of_get_property(dp, "intr", NULL);
+	prom_irqs = of_get_property(dp, "intr", NULL);
 	of_node_put(dp);
-	if (!irq) {
+	if (!prom_irqs) {
 		prom_printf("sun4c_init_timers: No intr property\n");
 		prom_halt();
 	}
@@ -178,15 +211,15 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 
 	master_l10_counter = &sun4c_timers->l10_count;
 
-	err = request_irq(irq[0].pri, counter_fn,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC),
-			  "timer", NULL);
+	irq = sun4c_build_device_irq(NULL, prom_irqs[0].pri);
+	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("sun4c_init_timers: request_irq() fails with %d\n", err);
 		prom_halt();
 	}
 
-	sun4c_disable_irq(irq[1].pri);
+	/* disable timer interrupt */
+	sun4c_mask_irq(irq_get_irq_data(irq));
 }
 
 #ifdef CONFIG_SMP
@@ -215,14 +248,11 @@ void __init sun4c_init_IRQ(void)
 
 	interrupt_enable = (void __iomem *) (unsigned long) addr[0];
 
-	BTFIXUPSET_CALL(enable_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(enable_pil_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_pil_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, sun4c_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, sun4c_load_profile_irq, BTFIXUPCALL_NOP);
 
-	sparc_irq_config.init_timers = sun4c_init_timers;
+	sparc_irq_config.init_timers      = sun4c_init_timers;
+	sparc_irq_config.build_device_irq = sun4c_build_device_irq;
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4c_nop, BTFIXUPCALL_NOP);

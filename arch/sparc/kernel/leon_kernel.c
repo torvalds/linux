@@ -83,25 +83,71 @@ static inline unsigned long get_irqmask(unsigned int irq)
 	return mask;
 }
 
-static void leon_enable_irq(unsigned int irq_nr)
+static void leon_unmask_irq(struct irq_data *data)
 {
 	unsigned long mask, flags;
-	mask = get_irqmask(irq_nr);
+
+	mask = (unsigned long)data->chip_data;
 	local_irq_save(flags);
 	LEON3_BYPASS_STORE_PA(LEON_IMASK,
 			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) | (mask)));
 	local_irq_restore(flags);
 }
 
-static void leon_disable_irq(unsigned int irq_nr)
+static void leon_mask_irq(struct irq_data *data)
 {
 	unsigned long mask, flags;
-	mask = get_irqmask(irq_nr);
+
+	mask = (unsigned long)data->chip_data;
 	local_irq_save(flags);
 	LEON3_BYPASS_STORE_PA(LEON_IMASK,
 			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) & ~(mask)));
 	local_irq_restore(flags);
 
+}
+
+static unsigned int leon_startup_irq(struct irq_data *data)
+{
+	irq_link(data->irq);
+	leon_unmask_irq(data);
+	return 0;
+}
+
+static void leon_shutdown_irq(struct irq_data *data)
+{
+	leon_mask_irq(data);
+	irq_unlink(data->irq);
+}
+
+static struct irq_chip leon_irq = {
+	.name		= "leon",
+	.irq_startup	= leon_startup_irq,
+	.irq_shutdown	= leon_shutdown_irq,
+	.irq_mask	= leon_mask_irq,
+	.irq_unmask	= leon_unmask_irq,
+};
+
+static unsigned int leon_build_device_irq(struct platform_device *op,
+                                          unsigned int real_irq)
+{
+	unsigned int irq;
+	unsigned long mask;
+
+	irq = 0;
+	mask = get_irqmask(real_irq);
+	if (mask == 0)
+		goto out;
+
+	irq = irq_alloc(real_irq, real_irq);
+	if (irq == 0)
+		goto out;
+
+	irq_set_chip_and_handler_name(irq, &leon_irq,
+				      handle_simple_irq, "edge");
+	irq_set_chip_data(irq, (void *)mask);
+
+out:
+	return irq;
 }
 
 void __init leon_init_timers(irq_handler_t counter_fn)
@@ -112,6 +158,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	int len;
 	int cpu, icsel;
 	int ampopts;
+	int err;
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
@@ -219,11 +266,10 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		goto bad;
 	}
 
-	irq = request_irq(leon3_gptimer_irq+leon3_gptimer_idx,
-			  counter_fn,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
+	irq = leon_build_device_irq(NULL, leon3_gptimer_irq + leon3_gptimer_idx);
+	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
 
-	if (irq) {
+	if (err) {
 		printk(KERN_ERR "leon_time_init: unable to attach IRQ%d\n",
 		       LEON_INTERRUPT_TIMER1);
 		prom_halt();
@@ -347,12 +393,8 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 
 void __init leon_init_IRQ(void)
 {
-	sparc_irq_config.init_timers = leon_init_timers;
-
-	BTFIXUPSET_CALL(enable_irq, leon_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_irq, leon_disable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(enable_pil_irq, leon_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_pil_irq, leon_disable_irq, BTFIXUPCALL_NORM);
+	sparc_irq_config.init_timers      = leon_init_timers;
+	sparc_irq_config.build_device_irq = leon_build_device_irq;
 
 	BTFIXUPSET_CALL(clear_clock_irq, leon_clear_clock_irq,
 			BTFIXUPCALL_NORM);
