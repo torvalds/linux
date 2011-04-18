@@ -187,8 +187,6 @@ static int therm_throt_process(bool new_event, int event, int level)
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package",
 				state->count);
-
-		add_taint(TAINT_MACHINE_CHECK);
 		return 1;
 	}
 	if (old_event) {
@@ -393,7 +391,6 @@ static void unexpected_thermal_interrupt(void)
 {
 	printk(KERN_ERR "CPU%d: Unexpected LVT thermal interrupt!\n",
 			smp_processor_id());
-	add_taint(TAINT_MACHINE_CHECK);
 }
 
 static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
