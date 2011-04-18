@@ -6618,25 +6618,6 @@ static int s2io_ethtool_get_regs_len(struct net_device *dev)
 }
 
 
-static u32 s2io_ethtool_get_rx_csum(struct net_device *dev)
-{
-	struct s2io_nic *sp = netdev_priv(dev);
-
-	return sp->rx_csum;
-}
-
-static int s2io_ethtool_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct s2io_nic *sp = netdev_priv(dev);
-
-	if (data)
-		sp->rx_csum = 1;
-	else
-		sp->rx_csum = 0;
-
-	return 0;
-}
-
 static int s2io_get_eeprom_len(struct net_device *dev)
 {
 	return XENA_EEPROM_SPACE;
@@ -6688,61 +6669,27 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 	}
 }
 
-static int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
-	else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	return 0;
-}
-
-static u32 s2io_ethtool_op_get_tso(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_TSO) != 0;
-}
-
-static int s2io_ethtool_op_set_tso(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
-static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
+static int s2io_set_features(struct net_device *dev, u32 features)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	int rc = 0;
-	int changed = 0;
-
-	if (ethtool_invalid_flags(dev, data, ETH_FLAG_LRO))
-		return -EINVAL;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(dev->features & NETIF_F_LRO)) {
-			dev->features |= NETIF_F_LRO;
-			changed = 1;
-		}
-	} else if (dev->features & NETIF_F_LRO) {
-		dev->features &= ~NETIF_F_LRO;
-		changed = 1;
-	}
+	u32 changed = (features ^ dev->features) & NETIF_F_LRO;
 
 	if (changed && netif_running(dev)) {
+		int rc;
+
 		s2io_stop_all_tx_queue(sp);
 		s2io_card_down(sp);
+		dev->features = features;
 		rc = s2io_card_up(sp);
 		if (rc)
 			s2io_reset(sp);
 		else
 			s2io_start_all_tx_queue(sp);
+
+		return rc ? rc : 1;
 	}
 
-	return rc;
+	return 0;
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
@@ -6758,15 +6705,6 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_ringparam = s2io_ethtool_gringparam,
 	.get_pauseparam = s2io_ethtool_getpause_data,
 	.set_pauseparam = s2io_ethtool_setpause_data,
-	.get_rx_csum = s2io_ethtool_get_rx_csum,
-	.set_rx_csum = s2io_ethtool_set_rx_csum,
-	.set_tx_csum = s2io_ethtool_op_set_tx_csum,
-	.set_flags = s2io_ethtool_set_flags,
-	.get_flags = ethtool_op_get_flags,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = s2io_ethtool_op_get_tso,
-	.set_tso = s2io_ethtool_op_set_tso,
-	.set_ufo = ethtool_op_set_ufo,
 	.self_test = s2io_ethtool_test,
 	.get_strings = s2io_ethtool_get_strings,
 	.set_phys_id = s2io_ethtool_set_led,
@@ -7538,7 +7476,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 	if ((rxdp->Control_1 & TCP_OR_UDP_FRAME) &&
 	    ((!ring_data->lro) ||
 	     (ring_data->lro && (!(rxdp->Control_1 & RXD_FRAME_IP_FRAG)))) &&
-	    (sp->rx_csum)) {
+	    (dev->features & NETIF_F_RXCSUM)) {
 		l3_csum = RXD_GET_L3_CKSUM(rxdp->Control_1);
 		l4_csum = RXD_GET_L4_CKSUM(rxdp->Control_1);
 		if ((l3_csum == L3_CKSUM_OK) && (l4_csum == L4_CKSUM_OK)) {
@@ -7799,6 +7737,7 @@ static const struct net_device_ops s2io_netdev_ops = {
 	.ndo_do_ioctl	   	= s2io_ioctl,
 	.ndo_set_mac_address    = s2io_set_mac_addr,
 	.ndo_change_mtu	   	= s2io_change_mtu,
+	.ndo_set_features	= s2io_set_features,
 	.ndo_vlan_rx_register   = s2io_vlan_rx_register,
 	.ndo_vlan_rx_kill_vid   = s2io_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= s2io_tx_watchdog,
@@ -8040,17 +7979,18 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/*  Driver entry points */
 	dev->netdev_ops = &s2io_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->features |= NETIF_F_LRO;
-	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_RXCSUM | NETIF_F_LRO;
+	dev->features |= dev->hw_features |
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	if (sp->device_type & XFRAME_II_DEVICE) {
+		dev->hw_features |= NETIF_F_UFO;
+		if (ufo)
+			dev->features |= NETIF_F_UFO;
+	}
 	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
-	dev->features |= NETIF_F_TSO;
-	dev->features |= NETIF_F_TSO6;
-	if ((sp->device_type & XFRAME_II_DEVICE) && (ufo))  {
-		dev->features |= NETIF_F_UFO;
-		dev->features |= NETIF_F_HW_CSUM;
-	}
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
 	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);
 	INIT_WORK(&sp->set_link_task, s2io_set_link);
