@@ -77,12 +77,64 @@ fsl_ep0_desc = {
 static void fsl_ep_fifo_flush(struct usb_ep *_ep);
 
 #ifdef CONFIG_PPC32
-#define fsl_readl(addr)		in_le32(addr)
-#define fsl_writel(val32, addr) out_le32(addr, val32)
-#else
+/*
+ * On some SoCs, the USB controller registers can be big or little endian,
+ * depending on the version of the chip. In order to be able to run the
+ * same kernel binary on 2 different versions of an SoC, the BE/LE decision
+ * must be made at run time. _fsl_readl and fsl_writel are pointers to the
+ * BE or LE readl() and writel() functions, and fsl_readl() and fsl_writel()
+ * call through those pointers. Platform code for SoCs that have BE USB
+ * registers should set pdata->big_endian_mmio flag.
+ *
+ * This also applies to controller-to-cpu accessors for the USB descriptors,
+ * since their endianness is also SoC dependant. Platform code for SoCs that
+ * have BE USB descriptors should set pdata->big_endian_desc flag.
+ */
+static u32 _fsl_readl_be(const unsigned __iomem *p)
+{
+	return in_be32(p);
+}
+
+static u32 _fsl_readl_le(const unsigned __iomem *p)
+{
+	return in_le32(p);
+}
+
+static void _fsl_writel_be(u32 v, unsigned __iomem *p)
+{
+	out_be32(p, v);
+}
+
+static void _fsl_writel_le(u32 v, unsigned __iomem *p)
+{
+	out_le32(p, v);
+}
+
+static u32 (*_fsl_readl)(const unsigned __iomem *p);
+static void (*_fsl_writel)(u32 v, unsigned __iomem *p);
+
+#define fsl_readl(p)		(*_fsl_readl)((p))
+#define fsl_writel(v, p)	(*_fsl_writel)((v), (p))
+
+static inline u32 cpu_to_hc32(const u32 x)
+{
+	return udc_controller->pdata->big_endian_desc
+		? (__force u32)cpu_to_be32(x)
+		: (__force u32)cpu_to_le32(x);
+}
+
+static inline u32 hc32_to_cpu(const u32 x)
+{
+	return udc_controller->pdata->big_endian_desc
+		? be32_to_cpu((__force __be32)x)
+		: le32_to_cpu((__force __le32)x);
+}
+#else /* !CONFIG_PPC32 */
 #define fsl_readl(addr)		readl(addr)
 #define fsl_writel(val32, addr) writel(val32, addr)
-#endif
+#define cpu_to_hc32(x)		cpu_to_le32(x)
+#define hc32_to_cpu(x)		le32_to_cpu(x)
+#endif /* CONFIG_PPC32 */
 
 /********************************************************************
  *	Internal Used Function
@@ -409,7 +461,7 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 	if (zlt)
 		tmp |= EP_QUEUE_HEAD_ZLT_SEL;
 
-	p_QH->max_pkt_length = cpu_to_le32(tmp);
+	p_QH->max_pkt_length = cpu_to_hc32(tmp);
 	p_QH->next_dtd_ptr = 1;
 	p_QH->size_ioc_int_sts = 0;
 }
@@ -616,7 +668,7 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		struct fsl_req *lastreq;
 		lastreq = list_entry(ep->queue.prev, struct fsl_req, queue);
 		lastreq->tail->next_td_ptr =
-			cpu_to_le32(req->head->td_dma & DTD_ADDR_MASK);
+			cpu_to_hc32(req->head->td_dma & DTD_ADDR_MASK);
 		/* Read prime bit, if 1 goto done */
 		if (fsl_readl(&dr_regs->endpointprime) & bitmask)
 			goto out;
@@ -641,10 +693,10 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 
 	/* Write dQH next pointer and terminate bit to 0 */
 	temp = req->head->td_dma & EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-	dQH->next_dtd_ptr = cpu_to_le32(temp);
+	dQH->next_dtd_ptr = cpu_to_hc32(temp);
 
 	/* Clear active and halt bit */
-	temp = cpu_to_le32(~(EP_QUEUE_HEAD_STATUS_ACTIVE
+	temp = cpu_to_hc32(~(EP_QUEUE_HEAD_STATUS_ACTIVE
 			| EP_QUEUE_HEAD_STATUS_HALT));
 	dQH->size_ioc_int_sts &= temp;
 
@@ -682,17 +734,17 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 
 	dtd->td_dma = *dma;
 	/* Clear reserved field */
-	swap_temp = cpu_to_le32(dtd->size_ioc_sts);
+	swap_temp = hc32_to_cpu(dtd->size_ioc_sts);
 	swap_temp &= ~DTD_RESERVED_FIELDS;
-	dtd->size_ioc_sts = cpu_to_le32(swap_temp);
+	dtd->size_ioc_sts = cpu_to_hc32(swap_temp);
 
 	/* Init all of buffer page pointers */
 	swap_temp = (u32) (req->req.dma + req->req.actual);
-	dtd->buff_ptr0 = cpu_to_le32(swap_temp);
-	dtd->buff_ptr1 = cpu_to_le32(swap_temp + 0x1000);
-	dtd->buff_ptr2 = cpu_to_le32(swap_temp + 0x2000);
-	dtd->buff_ptr3 = cpu_to_le32(swap_temp + 0x3000);
-	dtd->buff_ptr4 = cpu_to_le32(swap_temp + 0x4000);
+	dtd->buff_ptr0 = cpu_to_hc32(swap_temp);
+	dtd->buff_ptr1 = cpu_to_hc32(swap_temp + 0x1000);
+	dtd->buff_ptr2 = cpu_to_hc32(swap_temp + 0x2000);
+	dtd->buff_ptr3 = cpu_to_hc32(swap_temp + 0x3000);
+	dtd->buff_ptr4 = cpu_to_hc32(swap_temp + 0x4000);
 
 	req->req.actual += *length;
 
@@ -716,7 +768,7 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 	if (*is_last && !req->req.no_interrupt)
 		swap_temp |= DTD_IOC;
 
-	dtd->size_ioc_sts = cpu_to_le32(swap_temp);
+	dtd->size_ioc_sts = cpu_to_hc32(swap_temp);
 
 	mb();
 
@@ -743,7 +795,7 @@ static int fsl_req_to_dtd(struct fsl_req *req)
 			is_first = 0;
 			req->head = dtd;
 		} else {
-			last_dtd->next_td_ptr = cpu_to_le32(dma);
+			last_dtd->next_td_ptr = cpu_to_hc32(dma);
 			last_dtd->next_td_virt = dtd;
 		}
 		last_dtd = dtd;
@@ -751,7 +803,7 @@ static int fsl_req_to_dtd(struct fsl_req *req)
 		req->dtd_count++;
 	} while (!is_last);
 
-	dtd->next_td_ptr = cpu_to_le32(DTD_NEXT_TERMINATE);
+	dtd->next_td_ptr = cpu_to_hc32(DTD_NEXT_TERMINATE);
 
 	req->tail = dtd;
 
@@ -1394,6 +1446,7 @@ static void tripwire_handler(struct fsl_udc *udc, u8 ep_num, u8 *buffer_ptr)
 {
 	u32 temp;
 	struct ep_queue_head *qh;
+	struct fsl_usb2_platform_data *pdata = udc->pdata;
 
 	qh = &udc->ep_qh[ep_num * 2 + EP_DIR_OUT];
 
@@ -1408,7 +1461,16 @@ static void tripwire_handler(struct fsl_udc *udc, u8 ep_num, u8 *buffer_ptr)
 		fsl_writel(temp | USB_CMD_SUTW, &dr_regs->usbcmd);
 
 		/* Copy the setup packet to local buffer */
-		memcpy(buffer_ptr, (u8 *) qh->setup_buffer, 8);
+		if (pdata->le_setup_buf) {
+			u32 *p = (u32 *)buffer_ptr;
+			u32 *s = (u32 *)qh->setup_buffer;
+
+			/* Convert little endian setup buffer to CPU endian */
+			*p++ = le32_to_cpu(*s++);
+			*p = le32_to_cpu(*s);
+		} else {
+			memcpy(buffer_ptr, (u8 *) qh->setup_buffer, 8);
+		}
 	} while (!(fsl_readl(&dr_regs->usbcmd) & USB_CMD_SUTW));
 
 	/* Clear Setup Tripwire */
@@ -1432,19 +1494,19 @@ static int process_ep_req(struct fsl_udc *udc, int pipe,
 	actual = curr_req->req.length;
 
 	for (j = 0; j < curr_req->dtd_count; j++) {
-		remaining_length = (le32_to_cpu(curr_td->size_ioc_sts)
+		remaining_length = (hc32_to_cpu(curr_td->size_ioc_sts)
 					& DTD_PACKET_SIZE)
 				>> DTD_LENGTH_BIT_POS;
 		actual -= remaining_length;
 
-		if ((errors = le32_to_cpu(curr_td->size_ioc_sts) &
-						DTD_ERROR_MASK)) {
+		errors = hc32_to_cpu(curr_td->size_ioc_sts);
+		if (errors & DTD_ERROR_MASK) {
 			if (errors & DTD_STATUS_HALTED) {
 				ERR("dTD error %08x QH=%d\n", errors, pipe);
 				/* Clear the errors and Halt condition */
-				tmp = le32_to_cpu(curr_qh->size_ioc_int_sts);
+				tmp = hc32_to_cpu(curr_qh->size_ioc_int_sts);
 				tmp &= ~errors;
-				curr_qh->size_ioc_int_sts = cpu_to_le32(tmp);
+				curr_qh->size_ioc_int_sts = cpu_to_hc32(tmp);
 				status = -EPIPE;
 				/* FIXME: continue with next queued TD? */
 
@@ -1462,7 +1524,7 @@ static int process_ep_req(struct fsl_udc *udc, int pipe,
 				ERR("Unknown error has occurred (0x%x)!\n",
 					errors);
 
-		} else if (le32_to_cpu(curr_td->size_ioc_sts)
+		} else if (hc32_to_cpu(curr_td->size_ioc_sts)
 				& DTD_STATUS_ACTIVE) {
 			VDBG("Request not complete");
 			status = REQ_UNCOMPLETE;
@@ -2233,6 +2295,7 @@ static int __init struct_ep_setup(struct fsl_udc *udc, unsigned char index,
  */
 static int __init fsl_udc_probe(struct platform_device *pdev)
 {
+	struct fsl_usb2_platform_data *pdata;
 	struct resource *res;
 	int ret = -ENODEV;
 	unsigned int i;
@@ -2249,6 +2312,8 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	pdata = pdev->dev.platform_data;
+	udc_controller->pdata = pdata;
 	spin_lock_init(&udc_controller->lock);
 	udc_controller->stopped = 1;
 
@@ -2269,6 +2334,14 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	if (!dr_regs) {
 		ret = -ENOMEM;
 		goto err_release_mem_region;
+	}
+
+	if (pdata->big_endian_mmio) {
+		_fsl_readl = _fsl_readl_be;
+		_fsl_writel = _fsl_writel_be;
+	} else {
+		_fsl_readl = _fsl_readl_le;
+		_fsl_writel = _fsl_writel_le;
 	}
 
 #ifndef CONFIG_ARCH_MXC
