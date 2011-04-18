@@ -325,12 +325,19 @@ out:
 	return ret;
 }
 
-int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold)
+int wl1271_acx_rts_threshold(struct wl1271 *wl, u32 rts_threshold)
 {
 	struct acx_rts_threshold *rts;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx rts threshold");
+	/*
+	 * If the RTS threshold is not configured or out of range, use the
+	 * default value.
+	 */
+	if (rts_threshold > IEEE80211_MAX_RTS_THRESHOLD)
+		rts_threshold = wl->conf.rx.rts_threshold;
+
+	wl1271_debug(DEBUG_ACX, "acx rts threshold: %d", rts_threshold);
 
 	rts = kzalloc(sizeof(*rts), GFP_KERNEL);
 	if (!rts) {
@@ -338,7 +345,7 @@ int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold)
 		goto out;
 	}
 
-	rts->threshold = cpu_to_le16(rts_threshold);
+	rts->threshold = cpu_to_le16((u16)rts_threshold);
 
 	ret = wl1271_cmd_configure(wl, DOT11_RTS_THRESHOLD, rts, sizeof(*rts));
 	if (ret < 0) {
@@ -928,12 +935,19 @@ out:
 	return ret;
 }
 
-int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u32 frag_threshold)
 {
 	struct acx_frag_threshold *acx;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx frag threshold");
+	/*
+	 * If the fragmentation is not configured or out of range, use the
+	 * default value.
+	 */
+	if (frag_threshold > IEEE80211_MAX_FRAG_THRESHOLD)
+		frag_threshold = wl->conf.tx.frag_threshold;
+
+	wl1271_debug(DEBUG_ACX, "acx frag threshold: %d", frag_threshold);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 
@@ -942,7 +956,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
 		goto out;
 	}
 
-	acx->frag_threshold = cpu_to_le16(frag_threshold);
+	acx->frag_threshold = cpu_to_le16((u16)frag_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);

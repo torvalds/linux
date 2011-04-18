@@ -258,7 +258,7 @@ int wl1271_init_phy_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_rts_threshold(wl, wl->conf.rx.rts_threshold);
+	ret = wl1271_acx_rts_threshold(wl, wl->hw->wiphy->rts_threshold);
 	if (ret < 0)
 		return ret;
 
@@ -614,7 +614,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Default fragmentation threshold */
-	ret = wl1271_acx_frag_threshold(wl, wl->conf.tx.frag_threshold);
+	ret = wl1271_acx_frag_threshold(wl, wl->hw->wiphy->frag_threshold);
 	if (ret < 0)
 		goto out_free_memmap;
 

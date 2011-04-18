@@ -163,7 +163,7 @@ static struct conf_drv_settings default_conf = {
 		.packet_detection_threshold  = 0,
 		.ps_poll_timeout             = 15,
 		.upsd_timeout                = 15,
-		.rts_threshold               = 2347,
+		.rts_threshold               = IEEE80211_MAX_RTS_THRESHOLD,
 		.rx_cca_threshold            = 0,
 		.irq_blk_threshold           = 0xFFFF,
 		.irq_pkt_threshold           = 0,
@@ -2360,7 +2360,7 @@ static int wl1271_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_frag_threshold(wl, (u16)value);
+	ret = wl1271_acx_frag_threshold(wl, value);
 	if (ret < 0)
 		wl1271_warning("wl1271_op_set_frag_threshold failed: %d", ret);
 
@@ -2388,7 +2388,7 @@ static int wl1271_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_rts_threshold(wl, (u16) value);
+	ret = wl1271_acx_rts_threshold(wl, value);
 	if (ret < 0)
 		wl1271_warning("wl1271_op_set_rts_threshold failed: %d", ret);
 
