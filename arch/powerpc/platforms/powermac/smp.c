@@ -842,6 +842,7 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 	mpic_setup_this_cpu();
 }
 
+#ifdef CONFIG_PPC64
 #ifdef CONFIG_HOTPLUG_CPU
 static int smp_core99_cpu_notify(struct notifier_block *self,
 				 unsigned long action, void *hcpu)
@@ -879,7 +880,6 @@ static struct notifier_block __cpuinitdata smp_core99_cpu_nb = {
 
 static void __init smp_core99_bringup_done(void)
 {
-#ifdef CONFIG_PPC64
 	extern void g5_phy_disable_cpu1(void);
 
 	/* Close i2c bus if it was used for tb sync */
@@ -894,14 +894,14 @@ static void __init smp_core99_bringup_done(void)
 		set_cpu_present(1, false);
 		g5_phy_disable_cpu1();
 	}
-#endif /* CONFIG_PPC64 */
-
 #ifdef CONFIG_HOTPLUG_CPU
 	register_cpu_notifier(&smp_core99_cpu_nb);
 #endif
+
 	if (ppc_md.progress)
 		ppc_md.progress("smp_core99_bringup_done", 0x349);
 }
+#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -975,7 +975,9 @@ static void pmac_cpu_die(void)
 struct smp_ops_t core99_smp_ops = {
 	.message_pass	= smp_mpic_message_pass,
 	.probe		= smp_core99_probe,
+#ifdef CONFIG_PPC64
 	.bringup_done	= smp_core99_bringup_done,
+#endif
 	.kick_cpu	= smp_core99_kick_cpu,
 	.setup_cpu	= smp_core99_setup_cpu,
 	.give_timebase	= smp_core99_give_timebase,
