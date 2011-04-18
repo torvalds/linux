@@ -158,7 +158,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return;
 
  exit_fail:
-	ieee80211_stop_queue(rt2x00dev->hw, qid);
+	rt2x00queue_pause_queue(queue);
 	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_tx);
