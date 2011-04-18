@@ -23,6 +23,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
+#include <linux/backing-dev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -714,6 +715,7 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
+	struct backing_dev_info *bdi = metamapping->backing_dev_info;
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
 	struct timespec atime;
@@ -747,6 +749,8 @@ do_flush:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
 	filemap_fdatawrite(metamapping);
+	if (bdi->dirty_exceeded)
+		gfs2_ail1_flush(sdp, wbc);
 	if (!ret && (wbc->sync_mode == WB_SYNC_ALL))
 		ret = filemap_fdatawait(metamapping);
 	if (ret)
@@ -1366,7 +1370,8 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_rindex_relse;
 
-	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA, 1);
+	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA,
+				 sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_rg_gunlock;
 

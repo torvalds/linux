@@ -74,14 +74,14 @@ static int iget_set(struct inode *inode, void *opaque)
 	return 0;
 }
 
-struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr)
+struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int non_block)
 {
 	unsigned long hash = (unsigned long)no_addr;
 	struct gfs2_skip_data data;
 
 	data.no_addr = no_addr;
 	data.skipped = 0;
-	data.non_block = 0;
+	data.non_block = non_block;
 	return ilookup5(sb, hash, iget_test, &data);
 }
 
