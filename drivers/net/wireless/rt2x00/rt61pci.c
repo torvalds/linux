@@ -2260,8 +2260,8 @@ static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt61pci_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
-static void rt61pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
-				     struct rt2x00_field32 irq_field)
+static inline void rt61pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+					    struct rt2x00_field32 irq_field)
 {
 	u32 reg;
 

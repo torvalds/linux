@@ -1446,8 +1446,8 @@ static void rt2500pci_txdone(struct rt2x00_dev *rt2x00dev,
 	}
 }
 
-static void rt2500pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
-				       struct rt2x00_field32 irq_field)
+static inline void rt2500pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+					      struct rt2x00_field32 irq_field)
 {
 	u32 reg;
 

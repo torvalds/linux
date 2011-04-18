@@ -768,8 +768,8 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 	return !max_tx_done;
 }
 
-static void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
-				       struct rt2x00_field32 irq_field)
+static inline void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+					      struct rt2x00_field32 irq_field)
 {
 	u32 reg;
 
