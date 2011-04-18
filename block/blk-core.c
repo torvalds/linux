@@ -295,7 +295,8 @@ EXPORT_SYMBOL(blk_sync_queue);
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
- *    held and interrupts disabled.
+ *    held and interrupts disabled. If force_kblockd is true, then it is
+ *    safe to call this without holding the queue lock.
  *
  */
 void __blk_run_queue(struct request_queue *q, bool force_kblockd)
@@ -2671,9 +2672,23 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
  */
 static void queue_unplugged(struct request_queue *q, unsigned int depth,
 			    bool from_schedule)
+	__releases(q->queue_lock)
 {
 	trace_block_unplug(q, depth, !from_schedule);
-	__blk_run_queue(q, from_schedule);
+
+	/*
+	 * If we are punting this to kblockd, then we can safely drop
+	 * the queue_lock before waking kblockd (which needs to take
+	 * this lock).
+	 */
+	if (from_schedule) {
+		spin_unlock(q->queue_lock);
+		__blk_run_queue(q, true);
+	} else {
+		__blk_run_queue(q, false);
+		spin_unlock(q->queue_lock);
+	}
+
 }
 
 static void flush_plug_callbacks(struct blk_plug *plug)
@@ -2729,10 +2744,11 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		BUG_ON(!(rq->cmd_flags & REQ_ON_PLUG));
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
-			if (q) {
+			/*
+			 * This drops the queue lock
+			 */
+			if (q)
 				queue_unplugged(q, depth, from_schedule);
-				spin_unlock(q->queue_lock);
-			}
 			q = rq->q;
 			depth = 0;
 			spin_lock(q->queue_lock);
@@ -2750,10 +2766,11 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		depth++;
 	}
 
-	if (q) {
+	/*
+	 * This drops the queue lock
+	 */
+	if (q)
 		queue_unplugged(q, depth, from_schedule);
-		spin_unlock(q->queue_lock);
-	}
 
 	local_irq_restore(flags);
 }
