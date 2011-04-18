@@ -127,6 +127,7 @@ struct rpc_task_setup {
 #define RPC_TASK_KILLED		0x0100		/* task was killed */
 #define RPC_TASK_SOFT		0x0200		/* Use soft timeouts */
 #define RPC_TASK_SOFTCONN	0x0400		/* Fail if can't connect */
+#define RPC_TASK_SENT		0x0800		/* message was sent */
 
 #define RPC_IS_ASYNC(t)		((t)->tk_flags & RPC_TASK_ASYNC)
 #define RPC_IS_SWAPPER(t)	((t)->tk_flags & RPC_TASK_SWAPPER)
@@ -134,6 +135,7 @@ struct rpc_task_setup {
 #define RPC_ASSASSINATED(t)	((t)->tk_flags & RPC_TASK_KILLED)
 #define RPC_IS_SOFT(t)		((t)->tk_flags & RPC_TASK_SOFT)
 #define RPC_IS_SOFTCONN(t)	((t)->tk_flags & RPC_TASK_SOFTCONN)
+#define RPC_WAS_SENT(t)		((t)->tk_flags & RPC_TASK_SENT)
 
 #define RPC_TASK_RUNNING	0
 #define RPC_TASK_QUEUED		1

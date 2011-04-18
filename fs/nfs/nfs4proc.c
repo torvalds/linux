@@ -444,8 +444,8 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 	if (res->sr_status == 1)
 		res->sr_status = NFS_OK;
 
-	/* -ERESTARTSYS can result in skipping nfs41_sequence_setup */
-	if (!res->sr_slot)
+	/* don't increment the sequence number if the task wasn't sent */
+	if (!RPC_WAS_SENT(task))
 		goto out;
 
 	/* Check the SEQUENCE operation status */
