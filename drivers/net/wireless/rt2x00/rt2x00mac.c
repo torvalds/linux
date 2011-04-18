@@ -737,3 +737,19 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 		rt2x00queue_flush_queue(queue, drop);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
+
+void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
+			     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		*tx += queue->length;
+		*tx_max += queue->limit;
+	}
+
+	*rx = rt2x00dev->rx->length;
+	*rx_max = rt2x00dev->rx->limit;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_get_ringparam);

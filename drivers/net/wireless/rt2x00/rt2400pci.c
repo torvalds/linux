@@ -1720,6 +1720,7 @@ static const struct ieee80211_ops rt2400pci_mac80211_ops = {
 	.tx_last_beacon		= rt2400pci_tx_last_beacon,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.flush			= rt2x00mac_flush,
+	.get_ringparam		= rt2x00mac_get_ringparam,
 };
 
 static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
