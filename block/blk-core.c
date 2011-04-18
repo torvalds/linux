@@ -2674,9 +2674,6 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 {
 	trace_block_unplug(q, depth, !from_schedule);
 	__blk_run_queue(q, from_schedule);
-
-	if (q->unplugged_fn)
-		q->unplugged_fn(q);
 }
 
 static void flush_plug_callbacks(struct blk_plug *plug)
