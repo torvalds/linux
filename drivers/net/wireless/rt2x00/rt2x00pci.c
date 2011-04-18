@@ -251,9 +251,8 @@ exit:
 	return -ENOMEM;
 }
 
-int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
+int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 {
-	struct rt2x00_ops *ops = (struct rt2x00_ops *)id->driver_data;
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;

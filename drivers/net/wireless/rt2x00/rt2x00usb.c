@@ -791,10 +791,9 @@ exit:
 }
 
 int rt2x00usb_probe(struct usb_interface *usb_intf,
-		    const struct usb_device_id *id)
+		    const struct rt2x00_ops *ops)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
-	struct rt2x00_ops *ops = (struct rt2x00_ops *)id->driver_info;
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;

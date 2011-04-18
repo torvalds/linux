@@ -126,7 +126,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev);
 /*
  * PCI driver handlers.
  */
-int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id);
+int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops);
 void rt2x00pci_remove(struct pci_dev *pci_dev);
 #ifdef CONFIG_PM
 int rt2x00pci_suspend(struct pci_dev *pci_dev, pm_message_t state);

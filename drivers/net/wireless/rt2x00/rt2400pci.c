@@ -1802,9 +1802,10 @@ static const struct rt2x00_ops rt2400pci_ops = {
  * RT2400pci module information.
  */
 static DEFINE_PCI_DEVICE_TABLE(rt2400pci_device_table) = {
-	{ PCI_DEVICE(0x1814, 0x0101), PCI_DEVICE_DATA(&rt2400pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0101) },
 	{ 0, }
 };
+
 
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
@@ -1813,10 +1814,16 @@ MODULE_SUPPORTED_DEVICE("Ralink RT2460 PCI & PCMCIA chipset based cards");
 MODULE_DEVICE_TABLE(pci, rt2400pci_device_table);
 MODULE_LICENSE("GPL");
 
+static int rt2400pci_probe(struct pci_dev *pci_dev,
+			   const struct pci_device_id *id)
+{
+	return rt2x00pci_probe(pci_dev, &rt2400pci_ops);
+}
+
 static struct pci_driver rt2400pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2400pci_device_table,
-	.probe		= rt2x00pci_probe,
+	.probe		= rt2400pci_probe,
 	.remove		= __devexit_p(rt2x00pci_remove),
 	.suspend	= rt2x00pci_suspend,
 	.resume		= rt2x00pci_resume,

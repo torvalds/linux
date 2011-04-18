@@ -35,12 +35,6 @@
 })
 
 /*
- * This variable should be used with the
- * usb_driver structure initialization.
- */
-#define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
-
-/*
  * For USB vendor requests we need to pass a timeout
  * time in ms, for this we use the REGISTER_TIMEOUT,
  * however when loading firmware a higher value is
@@ -433,7 +427,7 @@ void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
  * USB driver handlers.
  */
 int rt2x00usb_probe(struct usb_interface *usb_intf,
-		    const struct usb_device_id *id);
+		    const struct rt2x00_ops *ops);
 void rt2x00usb_disconnect(struct usb_interface *usb_intf);
 #ifdef CONFIG_PM
 int rt2x00usb_suspend(struct usb_interface *usb_intf, pm_message_t state);

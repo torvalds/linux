@@ -3061,11 +3061,11 @@ static const struct rt2x00_ops rt61pci_ops = {
  */
 static DEFINE_PCI_DEVICE_TABLE(rt61pci_device_table) = {
 	/* RT2561s */
-	{ PCI_DEVICE(0x1814, 0x0301), PCI_DEVICE_DATA(&rt61pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0301) },
 	/* RT2561 v2 */
-	{ PCI_DEVICE(0x1814, 0x0302), PCI_DEVICE_DATA(&rt61pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0302) },
 	/* RT2661 */
-	{ PCI_DEVICE(0x1814, 0x0401), PCI_DEVICE_DATA(&rt61pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0401) },
 	{ 0, }
 };
 
@@ -3080,10 +3080,16 @@ MODULE_FIRMWARE(FIRMWARE_RT2561s);
 MODULE_FIRMWARE(FIRMWARE_RT2661);
 MODULE_LICENSE("GPL");
 
+static int rt61pci_probe(struct pci_dev *pci_dev,
+			 const struct pci_device_id *id)
+{
+	return rt2x00pci_probe(pci_dev, &rt61pci_ops);
+}
+
 static struct pci_driver rt61pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt61pci_device_table,
-	.probe		= rt2x00pci_probe,
+	.probe		= rt61pci_probe,
 	.remove		= __devexit_p(rt2x00pci_remove),
 	.suspend	= rt2x00pci_suspend,
 	.resume		= rt2x00pci_resume,

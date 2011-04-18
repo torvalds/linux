@@ -1904,54 +1904,54 @@ static const struct rt2x00_ops rt2500usb_ops = {
  */
 static struct usb_device_id rt2500usb_device_table[] = {
 	/* ASUS */
-	{ USB_DEVICE(0x0b05, 0x1706), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0b05, 0x1707), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0b05, 0x1706) },
+	{ USB_DEVICE(0x0b05, 0x1707) },
 	/* Belkin */
-	{ USB_DEVICE(0x050d, 0x7050), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x050d, 0x7051), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x050d, 0x7050) },
+	{ USB_DEVICE(0x050d, 0x7051) },
 	/* Cisco Systems */
-	{ USB_DEVICE(0x13b1, 0x000d), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x0011), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x001a), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x13b1, 0x000d) },
+	{ USB_DEVICE(0x13b1, 0x0011) },
+	{ USB_DEVICE(0x13b1, 0x001a) },
 	/* Conceptronic */
-	{ USB_DEVICE(0x14b2, 0x3c02), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x14b2, 0x3c02) },
 	/* D-LINK */
-	{ USB_DEVICE(0x2001, 0x3c00), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x2001, 0x3c00) },
 	/* Gigabyte */
-	{ USB_DEVICE(0x1044, 0x8001), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x1044, 0x8007), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x1044, 0x8001) },
+	{ USB_DEVICE(0x1044, 0x8007) },
 	/* Hercules */
-	{ USB_DEVICE(0x06f8, 0xe000), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x06f8, 0xe000) },
 	/* Melco */
-	{ USB_DEVICE(0x0411, 0x005e), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0066), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0067), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x008b), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0097), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0411, 0x005e) },
+	{ USB_DEVICE(0x0411, 0x0066) },
+	{ USB_DEVICE(0x0411, 0x0067) },
+	{ USB_DEVICE(0x0411, 0x008b) },
+	{ USB_DEVICE(0x0411, 0x0097) },
 	/* MSI */
-	{ USB_DEVICE(0x0db0, 0x6861), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6865), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6869), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0db0, 0x6861) },
+	{ USB_DEVICE(0x0db0, 0x6865) },
+	{ USB_DEVICE(0x0db0, 0x6869) },
 	/* Ralink */
-	{ USB_DEVICE(0x148f, 0x1706), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x148f, 0x2570), USB_DEVICE_DATA(&rt2500usb_ops) },
-	{ USB_DEVICE(0x148f, 0x9020), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x148f, 0x1706) },
+	{ USB_DEVICE(0x148f, 0x2570) },
+	{ USB_DEVICE(0x148f, 0x9020) },
 	/* Sagem */
-	{ USB_DEVICE(0x079b, 0x004b), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x079b, 0x004b) },
 	/* Siemens */
-	{ USB_DEVICE(0x0681, 0x3c06), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0681, 0x3c06) },
 	/* SMC */
-	{ USB_DEVICE(0x0707, 0xee13), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0707, 0xee13) },
 	/* Spairon */
-	{ USB_DEVICE(0x114b, 0x0110), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x114b, 0x0110) },
 	/* SURECOM */
-	{ USB_DEVICE(0x0769, 0x11f3), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0769, 0x11f3) },
 	/* Trust */
-	{ USB_DEVICE(0x0eb0, 0x9020), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0eb0, 0x9020) },
 	/* VTech */
-	{ USB_DEVICE(0x0f88, 0x3012), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x0f88, 0x3012) },
 	/* Zinwell */
-	{ USB_DEVICE(0x5a57, 0x0260), USB_DEVICE_DATA(&rt2500usb_ops) },
+	{ USB_DEVICE(0x5a57, 0x0260) },
 	{ 0, }
 };
 
@@ -1962,10 +1962,16 @@ MODULE_SUPPORTED_DEVICE("Ralink RT2570 USB chipset based cards");
 MODULE_DEVICE_TABLE(usb, rt2500usb_device_table);
 MODULE_LICENSE("GPL");
 
+static int rt2500usb_probe(struct usb_interface *usb_intf,
+			   const struct usb_device_id *id)
+{
+	return rt2x00usb_probe(usb_intf, &rt2500usb_ops);
+}
+
 static struct usb_driver rt2500usb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2500usb_device_table,
-	.probe		= rt2x00usb_probe,
+	.probe		= rt2500usb_probe,
 	.disconnect	= rt2x00usb_disconnect,
 	.suspend	= rt2x00usb_suspend,
 	.resume		= rt2x00usb_resume,
