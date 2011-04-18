@@ -275,7 +275,9 @@ struct usb_sys_interface {
 #define  USB_MODE_CTRL_MODE_IDLE              0x00000000
 #define  USB_MODE_CTRL_MODE_DEVICE            0x00000002
 #define  USB_MODE_CTRL_MODE_HOST              0x00000003
+#define  USB_MODE_CTRL_MODE_MASK              0x00000003
 #define  USB_MODE_CTRL_MODE_RSV               0x00000001
+#define  USB_MODE_ES                          0x00000004 /* Endian Select */
 #define  USB_MODE_SETUP_LOCK_OFF              0x00000008
 #define  USB_MODE_STREAM_DISABLE              0x00000010
 /* Endpoint Flush Register */
