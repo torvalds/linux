@@ -655,32 +655,6 @@ static int ql_set_pauseparam(struct net_device *netdev,
 	return status;
 }
 
-static u32 ql_get_rx_csum(struct net_device *netdev)
-{
-	struct ql_adapter *qdev = netdev_priv(netdev);
-	return qdev->rx_csum;
-}
-
-static int ql_set_rx_csum(struct net_device *netdev, uint32_t data)
-{
-	struct ql_adapter *qdev = netdev_priv(netdev);
-	qdev->rx_csum = data;
-	return 0;
-}
-
-static int ql_set_tso(struct net_device *ndev, uint32_t data)
-{
-
-	if (data) {
-		ndev->features |= NETIF_F_TSO;
-		ndev->features |= NETIF_F_TSO6;
-	} else {
-		ndev->features &= ~NETIF_F_TSO;
-		ndev->features &= ~NETIF_F_TSO6;
-	}
-	return 0;
-}
-
 static u32 ql_get_msglevel(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
@@ -707,14 +681,6 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.self_test		 = ql_self_test,
 	.get_pauseparam		 = ql_get_pauseparam,
 	.set_pauseparam		 = ql_set_pauseparam,
-	.get_rx_csum = ql_get_rx_csum,
-	.set_rx_csum = ql_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ql_set_tso,
 	.get_coalesce = ql_get_coalesce,
 	.set_coalesce = ql_set_coalesce,
 	.get_sset_count = ql_get_sset_count,
