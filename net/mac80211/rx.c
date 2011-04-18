@@ -143,7 +143,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	if (status->flag & RX_FLAG_HT) {
 		/*
 		 * MCS information is a separate field in radiotap,
-		 * added below.
+		 * added below. The byte here is needed as padding
+		 * for the channel though, so initialise it to 0.
 		 */
 		*pos = 0;
 	} else {
