@@ -549,7 +549,7 @@ static int alc_ch_mode_put(struct snd_kcontrol *kcontrol,
 
 /*
  * Control the mode of pin widget settings via the mixer.  "pc" is used
- * instead of "%" to avoid consequences of accidently treating the % as
+ * instead of "%" to avoid consequences of accidentally treating the % as
  * being part of a format specifier.  Maximum allowed length of a value is
  * 63 characters plus NULL terminator.
  *
@@ -9836,7 +9836,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 
 	SND_PCI_QUIRK(0x1028, 0x020d, "Dell Inspiron 530", ALC888_6ST_DELL),
 
-	SND_PCI_QUIRK(0x103c, 0x2a3d, "HP Pavillion", ALC883_6ST_DIG),
+	SND_PCI_QUIRK(0x103c, 0x2a3d, "HP Pavilion", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x103c, 0x2a4f, "HP Samba", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
@@ -14124,7 +14124,7 @@ static hda_nid_t alc269vb_capsrc_nids[1] = {
 };
 
 static hda_nid_t alc269_adc_candidates[] = {
-	0x08, 0x09, 0x07,
+	0x08, 0x09, 0x07, 0x11,
 };
 
 #define alc269_modes		alc260_modes

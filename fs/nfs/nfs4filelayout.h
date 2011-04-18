@@ -33,7 +33,7 @@
 #include "pnfs.h"
 
 /*
- * Field testing shows we need to support upto 4096 stripe indices.
+ * Field testing shows we need to support up to 4096 stripe indices.
  * We store each index as a u8 (u32 on the wire) to keep the memory footprint
  * reasonable. This in turn means we support a maximum of 256
  * RFC 5661 multipath_list4 structures.

@@ -1555,7 +1555,7 @@ struct rtl_priv {
 
 
 /***************************************
-    Bluetooth Co-existance Related
+    Bluetooth Co-existence Related
 ****************************************/
 
 enum bt_ant_num {

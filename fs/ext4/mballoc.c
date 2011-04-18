@@ -92,7 +92,7 @@
  * between CPUs. It is possible to get scheduled at this point.
  *
  * The locality group prealloc space is used looking at whether we have
- * enough free space (pa_free) withing the prealloc space.
+ * enough free space (pa_free) within the prealloc space.
  *
  * If we can't allocate blocks via inode prealloc or/and locality group
  * prealloc then we look at the buddy cache. The buddy cache is represented

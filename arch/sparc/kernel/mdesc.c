@@ -107,7 +107,7 @@ static struct mdesc_handle * __init mdesc_memblock_alloc(unsigned int mdesc_size
 	return hp;
 }
 
-static void mdesc_memblock_free(struct mdesc_handle *hp)
+static void __init mdesc_memblock_free(struct mdesc_handle *hp)
 {
 	unsigned int alloc_size;
 	unsigned long start;

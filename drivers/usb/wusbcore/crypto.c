@@ -180,7 +180,7 @@ static void bytewise_xor(void *_bo, const void *_bi1, const void *_bi2,
  *     using the 14 bytes of @a to fill up
  *     b1.{mac_header,e0,security_reserved,padding}.
  *
- * NOTE: The definiton of l(a) in WUSB1.0[6.5] vs the definition of
+ * NOTE: The definition of l(a) in WUSB1.0[6.5] vs the definition of
  *       l(m) is orthogonal, they bear no relationship, so it is not
  *       in conflict with the parameter's relation that
  *       WUSB1.0[6.4.2]) defines.
@@ -272,7 +272,7 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 
 	/* Now we crypt the MIC Tag (*iv) with Ax -- values per WUSB1.0[6.5]
 	 * The procedure is to AES crypt the A0 block and XOR the MIC
-	 * Tag agains it; we only do the first 8 bytes and place it
+	 * Tag against it; we only do the first 8 bytes and place it
 	 * directly in the destination buffer.
 	 *
 	 * POS Crypto API: size is assumed to be AES's block size.

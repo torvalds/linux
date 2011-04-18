@@ -122,7 +122,7 @@ static void demux_tasklet(unsigned long data)
 						Cur->ngeneBuffer.SR.Flags &=
 							~0x40;
 						break;
-						/* Stop proccessing stream */
+						/* Stop processing stream */
 					}
 				} else {
 					/* We got a valid buffer,
@@ -133,7 +133,7 @@ static void demux_tasklet(unsigned long data)
 				printk(KERN_ERR DEVICE_NAME ": OOPS\n");
 				if (chan->HWState == HWSTATE_RUN) {
 					Cur->ngeneBuffer.SR.Flags &= ~0x40;
-					break;	/* Stop proccessing stream */
+					break;	/* Stop processing stream */
 				}
 			}
 			if (chan->AudioDTOUpdated) {

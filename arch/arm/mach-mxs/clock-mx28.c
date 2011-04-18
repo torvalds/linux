@@ -618,6 +618,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("pll2", NULL, pll2_clk)
 	_REGISTER_CLOCK("mxs-dma-apbh", NULL, hbus_clk)
 	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
+	_REGISTER_CLOCK("mxs-mmc.0", NULL, ssp0_clk)
+	_REGISTER_CLOCK("mxs-mmc.1", NULL, ssp1_clk)
 	_REGISTER_CLOCK("flexcan.0", NULL, can0_clk)
 	_REGISTER_CLOCK("flexcan.1", NULL, can1_clk)
 	_REGISTER_CLOCK(NULL, "usb0", usb0_clk)
@@ -737,12 +739,28 @@ static int clk_misc_init(void)
 	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
 
+	/*
+	 * 480 MHz seems too high to be ssp clock source directly,
+	 * so set frac0 to get a 288 MHz ref_io0.
+	 */
+	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC0);
+	reg &= ~BM_CLKCTRL_FRAC0_IO0FRAC;
+	reg |= 30 << BP_CLKCTRL_FRAC0_IO0FRAC;
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC0);
+
 	return 0;
 }
 
 int __init mx28_clocks_init(void)
 {
 	clk_misc_init();
+
+	/*
+	 * source ssp clock from ref_io0 than ref_xtal,
+	 * as ref_xtal only provides 24 MHz as maximum.
+	 */
+	clk_set_parent(&ssp0_clk, &ref_io0_clk);
+	clk_set_parent(&ssp1_clk, &ref_io0_clk);
 
 	clk_enable(&cpu_clk);
 	clk_enable(&hbus_clk);

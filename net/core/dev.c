@@ -1454,6 +1454,27 @@ static inline void net_timestamp_check(struct sk_buff *skb)
 		__net_timestamp(skb);
 }
 
+static inline bool is_skb_forwardable(struct net_device *dev,
+				      struct sk_buff *skb)
+{
+	unsigned int len;
+
+	if (!(dev->flags & IFF_UP))
+		return false;
+
+	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
+	if (skb->len <= len)
+		return true;
+
+	/* if TSO is enabled, we don't care about the length as the packet
+	 * could be forwarded without being segmented before
+	 */
+	if (skb_is_gso(skb))
+		return true;
+
+	return false;
+}
+
 /**
  * dev_forward_skb - loopback an skb to another netif
  *
@@ -1477,8 +1498,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	skb_orphan(skb);
 	nf_reset(skb);
 
-	if (unlikely(!(dev->flags & IFF_UP) ||
-		     (skb->len > (dev->mtu + dev->hard_header_len + VLAN_HLEN)))) {
+	if (unlikely(!is_skb_forwardable(dev, skb))) {
 		atomic_long_inc(&dev->rx_dropped);
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -2071,7 +2091,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		u32 features;
 
 		/*
-		 * If device doesnt need skb->dst, release it right now while
+		 * If device doesn't need skb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
@@ -2131,7 +2151,7 @@ gso:
 		nskb->next = NULL;
 
 		/*
-		 * If device doesnt need nskb->dst, release it right now while
+		 * If device doesn't need nskb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
@@ -2950,8 +2970,8 @@ EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
  * when CONFIG_NET_CLS_ACT is? otherwise some useless instructions
  * a compare and 2 stores extra right now if we dont have it on
  * but have CONFIG_NET_CLS_ACT
- * NOTE: This doesnt stop any functionality; if you dont have
- * the ingress scheduler, you just cant add policies on ingress.
+ * NOTE: This doesn't stop any functionality; if you dont have
+ * the ingress scheduler, you just can't add policies on ingress.
  *
  */
 static int ing_filter(struct sk_buff *skb, struct netdev_queue *rxq)
@@ -3780,7 +3800,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * with netpoll's poll_napi().  Only the entity which
 		 * obtains the lock and sees NAPI_STATE_SCHED set will
 		 * actually make the ->poll() call.  Therefore we avoid
-		 * accidently calling ->poll() when NAPI is not scheduled.
+		 * accidentally calling ->poll() when NAPI is not scheduled.
 		 */
 		work = 0;
 		if (test_bit(NAPI_STATE_SCHED, &n->state)) {
@@ -6316,7 +6336,7 @@ static void __net_exit default_device_exit(struct net *net)
 		if (dev->rtnl_link_ops)
 			continue;
 
-		/* Push remaing network devices to init_net */
+		/* Push remaining network devices to init_net */
 		snprintf(fb_name, IFNAMSIZ, "dev%d", dev->ifindex);
 		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {

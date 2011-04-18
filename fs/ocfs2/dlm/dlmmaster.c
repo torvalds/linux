@@ -808,7 +808,7 @@ lookup:
 				dlm_mle_detach_hb_events(dlm, mle);
 			dlm_put_mle(mle);
 			mle = NULL;
-			/* this is lame, but we cant wait on either
+			/* this is lame, but we can't wait on either
 			 * the mle or lockres waitqueue here */
 			if (mig)
 				msleep(100);
@@ -843,7 +843,7 @@ lookup:
 
 	/* finally add the lockres to its hash bucket */
 	__dlm_insert_lockres(dlm, res);
-	/* since this lockres is new it doesnt not require the spinlock */
+	/* since this lockres is new it doesn't not require the spinlock */
 	dlm_lockres_grab_inflight_ref_new(dlm, res);
 
 	/* if this node does not become the master make sure to drop

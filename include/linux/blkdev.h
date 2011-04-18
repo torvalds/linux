@@ -1206,6 +1206,7 @@ struct blk_integrity {
 	struct kobject		kobj;
 };
 
+extern bool blk_integrity_is_initialized(struct gendisk *);
 extern int blk_integrity_register(struct gendisk *, struct blk_integrity *);
 extern void blk_integrity_unregister(struct gendisk *);
 extern int blk_integrity_compare(struct gendisk *, struct gendisk *);
@@ -1262,6 +1263,7 @@ queue_max_integrity_segments(struct request_queue *q)
 #define queue_max_integrity_segments(a)		(0)
 #define blk_integrity_merge_rq(a, b, c)		(0)
 #define blk_integrity_merge_bio(a, b, c)	(0)
+#define blk_integrity_is_initialized(a)		(0)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 

@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	cache.c -- general ColdFire Cache maintainence code
+ *	cache.c -- general ColdFire Cache maintenance code
  *
  *	Copyright (C) 2010, Greg Ungerer (gerg@snapgear.com)
  */

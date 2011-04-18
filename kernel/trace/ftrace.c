@@ -1268,7 +1268,7 @@ static int ftrace_update_code(struct module *mod)
 		p->flags = 0L;
 
 		/*
-		 * Do the initial record convertion from mcount jump
+		 * Do the initial record conversion from mcount jump
 		 * to the NOP instructions.
 		 */
 		if (!ftrace_code_disable(mod, p)) {
@@ -3425,7 +3425,7 @@ graph_init_task(struct task_struct *t, struct ftrace_ret_stack *ret_stack)
 	atomic_set(&t->tracing_graph_pause, 0);
 	atomic_set(&t->trace_overrun, 0);
 	t->ftrace_timestamp = 0;
-	/* make curr_ret_stack visable before we add the ret_stack */
+	/* make curr_ret_stack visible before we add the ret_stack */
 	smp_wmb();
 	t->ret_stack = ret_stack;
 }

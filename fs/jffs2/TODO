@@ -11,7 +11,7 @@
  - checkpointing (do we need this? scan is quite fast)
  - make the scan code populate real inodes so read_inode just after 
 	mount doesn't have to read the flash twice for large files.
-	Make this a per-inode option, changable with chattr, so you can
+	Make this a per-inode option, changeable with chattr, so you can
 	decide which inodes should be in-core immediately after mount.
  - test, test, test
 

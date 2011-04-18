@@ -10,7 +10,7 @@
  *      Please DO contact io8-linux@specialix.co.uk if you require
  *      support.
  *
- *      This driver was developped in the BitWizard linux device
+ *      This driver was developed in the BitWizard linux device
  *      driver service. If you require a linux device driver for your
  *      product, please contact devices@BitWizard.nl for a quote.
  *
@@ -79,7 +79,7 @@ more than a few  PCI versions of the card. */
 
 #define SPECIALIX_MAGIC		0x0907
 
-#define SX_CCR_TIMEOUT 10000   /* CCR timeout. You may need to wait upto
+#define SX_CCR_TIMEOUT 10000   /* CCR timeout. You may need to wait up to
                                   10 milliseconds before the internal
                                   processor is available again after
                                   you give it a command */

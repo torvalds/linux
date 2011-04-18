@@ -9,7 +9,7 @@ config FB_OLPC_DCON
 
 config FB_OLPC_DCON_1
 	bool "OLPC XO-1 DCON support"
-	depends on FB_OLPC_DCON
+	depends on FB_OLPC_DCON && GPIO_CS5535
 	default y
 	---help---
 	  Enable support for the DCON in XO-1 model laptops.  The kernel

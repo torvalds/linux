@@ -221,9 +221,10 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 	return csum;
 }
 
-static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
+static int nf_ip_route(struct net *net, struct dst_entry **dst,
+		       struct flowi *fl, bool strict __always_unused)
 {
-	struct rtable *rt = ip_route_output_key(&init_net, &fl->u.ip4);
+	struct rtable *rt = ip_route_output_key(net, &fl->u.ip4);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 	*dst = &rt->dst;

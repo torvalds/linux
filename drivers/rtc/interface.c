@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
  * @rtc: pointer to the rtc device
  *
  * This function is called when an AIE, UIE or PIE mode interrupt
- * has occured (or been emulated).
+ * has occurred (or been emulated).
  *
  * Triggers the registered irq_task function callback.
  */

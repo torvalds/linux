@@ -622,7 +622,7 @@ DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
 /* one bitmap packet, including the p_header,
  * should fit within one _architecture independend_ page.
  * so we need to use the fixed size 4KiB page size
- * most architechtures have used for a long time.
+ * most architectures have used for a long time.
  */
 #define BM_PACKET_PAYLOAD_BYTES (4096 - sizeof(struct p_header80))
 #define BM_PACKET_WORDS (BM_PACKET_PAYLOAD_BYTES/sizeof(long))
@@ -810,7 +810,7 @@ enum {
 
 /* global flag bits */
 enum {
-	CREATE_BARRIER,		/* next P_DATA is preceeded by a P_BARRIER */
+	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	SEND_PING,		/* whether asender should send a ping asap */
 
@@ -1126,7 +1126,7 @@ struct drbd_conf {
 	int c_sync_rate; /* current resync rate after syncer throttle magic */
 	struct fifo_buffer rs_plan_s; /* correction values of resync planer */
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
-	int rs_planed;    /* resync sectors already planed */
+	int rs_planed;    /* resync sectors already planned */
 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
 };
 
@@ -1144,7 +1144,7 @@ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
 	return mdev->minor;
 }
 
-/* returns 1 if it was successfull,
+/* returns 1 if it was successful,
  * returns 0 if there was no data socket.
  * so wherever you are going to use the data.socket, e.g. do
  * if (!drbd_get_data_sock(mdev))
@@ -2079,7 +2079,7 @@ static inline void inc_ap_pending(struct drbd_conf *mdev)
 /* counts how many resync-related answers we still expect from the peer
  *		     increase			decrease
  * C_SYNC_TARGET sends P_RS_DATA_REQUEST (and expects P_RS_DATA_REPLY)
- * C_SYNC_SOURCE sends P_RS_DATA_REPLY   (and expects P_WRITE_ACK whith ID_SYNCER)
+ * C_SYNC_SOURCE sends P_RS_DATA_REPLY   (and expects P_WRITE_ACK with ID_SYNCER)
  *					   (or P_NEG_ACK with ID_SYNCER)
  */
 static inline void inc_rs_pending(struct drbd_conf *mdev)

@@ -58,7 +58,7 @@
 #define U8500_GPIO2_BASE	(U8500_PER2_BASE + 0xE000)
 #define U8500_GPIO3_BASE	(U8500_PER5_BASE + 0x1E000)
 
-/* per7 base addressess */
+/* per7 base addresses */
 #define U8500_CR_BASE_ED	(U8500_PER7_BASE_ED + 0x8000)
 #define U8500_MTU0_BASE_ED	(U8500_PER7_BASE_ED + 0xa000)
 #define U8500_MTU1_BASE_ED	(U8500_PER7_BASE_ED + 0xb000)
@@ -68,7 +68,7 @@
 #define U8500_UART0_BASE	(U8500_PER1_BASE + 0x0000)
 #define U8500_UART1_BASE	(U8500_PER1_BASE + 0x1000)
 
-/* per6 base addressess */
+/* per6 base addresses */
 #define U8500_RNG_BASE		(U8500_PER6_BASE + 0x0000)
 #define U8500_PKA_BASE		(U8500_PER6_BASE + 0x1000)
 #define U8500_PKAM_BASE		(U8500_PER6_BASE + 0x2000)
@@ -79,11 +79,11 @@
 #define U8500_CRYPTO1_BASE	(U8500_PER6_BASE + 0xb000)
 #define U8500_CLKRST6_BASE	(U8500_PER6_BASE + 0xf000)
 
-/* per5 base addressess */
+/* per5 base addresses */
 #define U8500_USBOTG_BASE	(U8500_PER5_BASE + 0x00000)
 #define U8500_CLKRST5_BASE	(U8500_PER5_BASE + 0x1f000)
 
-/* per4 base addressess */
+/* per4 base addresses */
 #define U8500_BACKUPRAM0_BASE	(U8500_PER4_BASE + 0x00000)
 #define U8500_BACKUPRAM1_BASE	(U8500_PER4_BASE + 0x01000)
 #define U8500_RTT0_BASE		(U8500_PER4_BASE + 0x02000)
@@ -106,7 +106,7 @@
 #define U8500_SDI5_BASE		(U8500_PER3_BASE + 0x8000)
 #define U8500_CLKRST3_BASE	(U8500_PER3_BASE + 0xf000)
 
-/* per2 base addressess */
+/* per2 base addresses */
 #define U8500_I2C3_BASE		(U8500_PER2_BASE + 0x0000)
 #define U8500_SPI2_BASE		(U8500_PER2_BASE + 0x1000)
 #define U8500_SPI1_BASE		(U8500_PER2_BASE + 0x2000)

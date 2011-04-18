@@ -1135,7 +1135,7 @@ config CPU_LOONGSON2E
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
 
-	  It has an internal FPGA northbridge, which is compatiable to
+	  It has an internal FPGA northbridge, which is compatible to
 	  bonito64.
 
 config CPU_LOONGSON2F

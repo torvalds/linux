@@ -540,7 +540,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
 *
 *.CONDITIONS
 * Except for hcf_action with HCF_ACT_INT_FORCE_ON or HCF_ACT_INT_OFF as parameter or hcf_connect with an I/O
-* address (i.e. not HCF_DISCONNECT), all hcf-function calls MUST be preceeded by a call of hcf_action with
+* address (i.e. not HCF_DISCONNECT), all hcf-function calls MUST be preceded by a call of hcf_action with
 * HCF_ACT_INT_OFF as parameter.
 * Note that hcf_connect defaults to NIC interrupt disabled mode, i.e. as if hcf_action( HCF_ACT_INT_OFF )
 * was called.
@@ -843,7 +843,7 @@ hcf_16	i;
 *.MODULE		int hcf_cntl( IFBP ifbp, hcf_16 cmd )
 *.PURPOSE		Connect or disconnect a specific port to a specific network.
 *!!  ;???????????????? continue needs more explanation
-*				recovers by means of "continue" when the connect proces in CCX mode fails
+*				recovers by means of "continue" when the connect process in CCX mode fails
 *				Enables or disables data transmission and reception for the NIC.
 *				Activates static NIC configuration for a specific port at connect.
 *				Activates static configuration for all ports at enable.
@@ -1170,12 +1170,12 @@ LTV_STRCT	x;
 		io_addr = io_base;
 	}
 
-#if 0 //;? if a subsequent hcf_connect is preceeded by an hcf_disconnect the wakeup is not needed !!
+#if 0 //;? if a subsequent hcf_connect is preceded by an hcf_disconnect the wakeup is not needed !!
 #if HCF_SLEEP
     OUT_PORT_WORD( .....+HREG_IO, HREG_IO_WAKEUP_ASYNC ); 	    //OPW not yet useable
 	MSF_WAIT(800);								// MSF-defined function to wait n microseconds.
 	note that MSF_WAIT uses not yet defined!!!! IFB_IOBase and IFB_TickIni (via PROT_CNT_INI)
-	so be carefull if this code is restored
+	so be careful if this code is restored
 #endif // HCF_SLEEP
 #endif // 0
 
@@ -1563,7 +1563,7 @@ DESC_STRCT *p = descp->next_desc_addr;	//pointer to 2nd descriptor of frame
 * This function is called by the MSF to supply the HCF with new/more buffers for receive purposes.
 * The HCF can be used in 2 fashions: with and without encapsulation for data transfer.
 * This is controlled at compile time by the HCF_ENC bit of the HCF_ENCAP system constant.
-* As a consequence, some additional constaints apply to the number of descriptor and the buffers associated
+* As a consequence, some additional constraints apply to the number of descriptor and the buffers associated
 * with the first 2 descriptors. Independent of the encapsulation feature, the COUNT fields are ignored.
 * A special case is the supplying of the DELWA descriptor, which must be supplied as the first descriptor.
 *
@@ -1735,7 +1735,7 @@ DESC_STRCT *descp;	// pointer to start of FrameList
 * - in case encapsulation by the HCF is selected:
 *	  -	The FrameList does not consists of at least 2 Descriptors.
 *	  -	The first databuffer does not contain exactly the (space for) the 802.11 header (== 28 words)
-*	  -	The first databuffer does not have a size to additionally accomodate the 802.3 header and the
+*	  -	The first databuffer does not have a size to additionally accommodate the 802.3 header and the
 *		SNAP header of the frame after encapsulation (== 39 words).
 *	  -	The second databuffer does not contain at least DA, SA and 'type/length' (==14 bytes or 7 words)
 *!! The 2nd part of the list of asserts should be kept in sync with put_frame_lst, in order to get
@@ -1762,14 +1762,14 @@ DESC_STRCT *descp;	// pointer to start of FrameList
 *	- Copy DA/SA fields from the 2nd buffer
 *   - Calculate total length of the message (snap-header + type-field + the length of all buffer fragments
 *     associated with the 802.3 frame (i.e all descriptors except the first), but not the DestinationAddress,
-*     SourceAddress and lenght-field)
+*     SourceAddress and length-field)
 *     Assert the message length
 *	  Write length. Note that the message is in BE format, hence on LE platforms the length must be converted
 *	  ;? THIS IS NOT WHAT CURRENTLY IS IMPLEMENTED
 *	- Write snap header. Note that the last byte of the snap header is NOT copied, that byte is already in
 *	  place as result of the call to hcf_encap.
 *	Note that there are many ways to skin a cat. To express the offsets in the 1st buffer while writing
-*	the snap header, HFS_TYPE is choosen as a reference point to make it easier to grasp that the snap header
+*	the snap header, HFS_TYPE is chosen as a reference point to make it easier to grasp that the snap header
 *	and encapsualtion type are at least relative in the right.
 *8:	modify 1st descriptor to reflect moved part of the 802.3 header + Snap-header
 *	modify 2nd descriptor to skip the moved part of the 802.3 header (DA/SA
@@ -1933,7 +1933,7 @@ hcf_16	t = (hcf_16)(*type<<8) + *(type+1);																/* 2 */
 *	HCF_SUCCESS			Success
 *!!	via cmd_exe ( type >= CFG_RID_FW_MIN )
 *	HCF_ERR_NO_NIC		NIC removed during retrieval
-*	HCF_ERR_TIME_OUT	Expected Hermes event did not occure in expected time
+*	HCF_ERR_TIME_OUT	Expected Hermes event did not occur in expected time
 *!!	via cmd_exe and setup_bap (type >= CFG_RID_FW_MIN )
 *	HCF_ERR_DEFUNCT_...	HCF is in defunct mode (bits 0x7F reflect cause)
 *
@@ -2958,7 +2958,7 @@ or
 *	hcf_service_nic is also skipped in those cases.
 *	To prevent that hcf_service_nic reports bogus information to the MSF with all - possibly difficult to
 *	debug - undesirable side effects, it is paramount to check the NIC presence. In former days the presence
-*	test was based on the Hermes register HREG_SW_0. Since in HCF_ACT_INT_OFF is choosen for strategy based on
+*	test was based on the Hermes register HREG_SW_0. Since in HCF_ACT_INT_OFF is chosen for strategy based on
 *	HREG_EV_STAT, this is now also used in hcf_service_nic. The motivation to change strategy is partly
 *	due to inconsistent F/W implementations with respect to HREG_SW_0 manipulation around reset and download.
 *	Note that in polled environments Card Removal is not detected by INT_OFF which makes the check in
@@ -4048,7 +4048,7 @@ hcf_32 FAR	*p4; //prevent side effects from macro
 	HCFASSERT( word_len == 0 || word_len == 2 || word_len == 4, word_len )
 	HCFASSERT( word_len == 0 || ((hcf_32)bufp & 1 ) == 0, (hcf_32)bufp )
 	HCFASSERT( word_len <= len, MERGE2( word_len, len ) )
-	//see put_frag for an alternative implementation, but be carefull about what are int's and what are
+	//see put_frag for an alternative implementation, but be careful about what are int's and what are
 	//hcf_16's
 	if ( word_len ) {								//.  if there is anything to convert
 hcf_8 c;
@@ -4712,7 +4712,7 @@ int rc = HCF_SUCCESS;
 *	Note that len is unsigned, so even MSF I/F violation works out O.K.
 *	The '2' in the expression "len+2" is used because 1 word is needed for L itself and 1 word is needed
 *	for the zero-sentinel
-*8:	update MailBox Info length report to MSF with "oldest" MB Info Block size. Be carefull here, if you get
+*8:	update MailBox Info length report to MSF with "oldest" MB Info Block size. Be careful here, if you get
 *	here before the MailBox is registered, you can't read from the buffer addressed by IFB_MBp (it is the
 *	Null buffer) so don't move this code till the end of this routine but keep it where there is garuanteed
 *	a buffer.

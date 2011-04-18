@@ -20,9 +20,9 @@
  * write would be discarded and things quickly fall apart.
  *
  * To keep this delay from significantly degrading performance (we, in theory,
- * would have to sleep for up to 1 second everytime we wanted to write a
+ * would have to sleep for up to 1 second every time we wanted to write a
  * register), we only check the write pending status before we start to issue
- * a new write.  We bank on the idea that it doesnt matter when the sync
+ * a new write.  We bank on the idea that it doesn't matter when the sync
  * happens so long as we don't attempt another write before it does.  The only
  * time userspace would take this penalty is when they try and do multiple
  * operations right after another ... but in this case, they need to take the

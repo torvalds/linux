@@ -77,7 +77,7 @@ struct throtl_grp {
 	unsigned long slice_end[2];
 
 	/* Some throttle limits got updated for the group */
-	bool limits_changed;
+	int limits_changed;
 };
 
 struct throtl_data
@@ -102,7 +102,7 @@ struct throtl_data
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
 
-	bool limits_changed;
+	int limits_changed;
 };
 
 enum tg_state_flags {
@@ -916,7 +916,7 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 /*
  * For all update functions, key should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn key is valid. queue exit path can not race becuase
+ * valid and in turn key is valid. queue exit path can not race because
  * of blkcg_lock
  *
  * Can not take queue lock in update functions as queue lock under blkcg_lock

@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/fb.h>
@@ -531,7 +530,7 @@ static int unifb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	writel(PKUNITY_UNIGFX_MMAP_BASE, UDE_FSA);
+	writel(info->fix.smem_start, UDE_FSA);
 	writel(info->var.yres, UDE_LS);
 	writel(get_line_length(info->var.xres,
 			info->var.bits_per_pixel) >> 3, UDE_PS);
@@ -680,13 +679,27 @@ static int unifb_probe(struct platform_device *dev)
 	struct fb_info *info;
 	u32 unifb_regs[UNIFB_REGS_NUM];
 	int retval = -ENOMEM;
-	struct resource *iomem, *mapmem;
+	struct resource *iomem;
+	void *videomemory;
+
+	videomemory = (void *)__get_free_pages(GFP_KERNEL | __GFP_COMP,
+				get_order(UNIFB_MEMSIZE));
+	if (!videomemory)
+		goto err;
+
+	memset(videomemory, 0, UNIFB_MEMSIZE);
+
+	unifb_fix.smem_start = virt_to_phys(videomemory);
+	unifb_fix.smem_len = UNIFB_MEMSIZE;
+
+	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	unifb_fix.mmio_start = iomem->start;
 
 	info = framebuffer_alloc(sizeof(u32)*256, &dev->dev);
 	if (!info)
 		goto err;
 
-	info->screen_base = (char __iomem *)KUSER_UNIGFX_BASE;
+	info->screen_base = (char __iomem *)videomemory;
 	info->fbops = &unifb_ops;
 
 	retval = fb_find_mode(&info->var, info, NULL,
@@ -694,13 +707,6 @@ static int unifb_probe(struct platform_device *dev)
 
 	if (!retval || (retval == 4))
 		info->var = unifb_default;
-
-	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	unifb_fix.mmio_start = iomem->start;
-
-	mapmem = platform_get_resource(dev, IORESOURCE_MEM, 1);
-	unifb_fix.smem_start = mapmem->start;
-	unifb_fix.smem_len = UNIFB_MEMSIZE;
 
 	info->fix = unifb_fix;
 	info->pseudo_palette = info->par;

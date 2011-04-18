@@ -98,7 +98,7 @@ static unsigned int get_mrst_stream_id(void)
 		if (sst_drv_ctx->streams[i].status == STREAM_UN_INIT)
 			return i;
 	}
-	pr_debug("Didnt find empty stream for mrst\n");
+	pr_debug("Didn't find empty stream for mrst\n");
 	return -EBUSY;
 }
 

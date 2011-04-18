@@ -130,7 +130,7 @@ enum chips {
    these macros are called: arguments may be evaluated more than once.
  */
 
-/* IN are scaled acording to built-in resistors */
+/* IN are scaled according to built-in resistors */
 static const int lm85_scaling[] = {  /* .001 Volts */
 	2500, 2250, 3300, 5000, 12000,
 	3300, 1500, 1800 /*EMC6D100*/

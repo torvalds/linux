@@ -1184,7 +1184,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 
 /*
  * Attempts to merge with the plugged list in the current process. Returns
- * true if merge was succesful, otherwise false.
+ * true if merge was successful, otherwise false.
  */
 static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
 			       struct bio *bio)
@@ -2163,7 +2163,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	 * size, something has gone terribly wrong.
 	 */
 	if (blk_rq_bytes(req) < blk_rq_cur_bytes(req)) {
-		printk(KERN_ERR "blk: request botched\n");
+		blk_dump_rq_flags(req, "request botched");
 		req->__data_len = blk_rq_cur_bytes(req);
 	}
 
@@ -2665,7 +2665,7 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	struct request *rqa = container_of(a, struct request, queuelist);
 	struct request *rqb = container_of(b, struct request, queuelist);
 
-	return !(rqa->q == rqb->q);
+	return !(rqa->q <= rqb->q);
 }
 
 static void flush_plug_list(struct blk_plug *plug)

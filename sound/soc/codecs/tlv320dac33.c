@@ -1027,7 +1027,7 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		/*
 		 * For FIFO bypass mode:
 		 * Enable the FIFO bypass (Disable the FIFO use)
-		 * Set the BCLK as continous
+		 * Set the BCLK as continuous
 		 */
 		fifoctrl_a |= DAC33_FBYPAS;
 		aictrl_b |= DAC33_BCLKON;

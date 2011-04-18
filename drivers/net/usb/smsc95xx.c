@@ -1313,6 +1313,21 @@ static const struct usb_device_id products[] = {
 		USB_DEVICE(0x0424, 0x9909),
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
+	{
+		/* SMSC LAN9530 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9530),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC LAN9730 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9730),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC LAN89530 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9E08),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
 	{ },		/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);

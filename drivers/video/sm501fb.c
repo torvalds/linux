@@ -265,7 +265,7 @@ static unsigned long sm501fb_ps_to_hz(unsigned long psvalue)
 	return (unsigned long)numerator;
 }
 
-/* sm501fb_hz_to_ps is identical to the oposite transform */
+/* sm501fb_hz_to_ps is identical to the opposite transform */
 
 #define sm501fb_hz_to_ps(x) sm501fb_ps_to_hz(x)
 
@@ -1719,7 +1719,7 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	       (head == HEAD_CRT) ? &sm501fb_ops_crt : &sm501fb_ops_pnl,
 	       sizeof(struct fb_ops));
 
-	/* update ops dependant on what we've been passed */
+	/* update ops dependent on what we've been passed */
 
 	if ((pd->flags & SM501FB_FLAG_USE_HWCURSOR) == 0)
 		par->ops.fb_cursor = NULL;

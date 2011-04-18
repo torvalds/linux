@@ -194,6 +194,13 @@ extern void warn_slowpath_null(const char *file, const int line);
 #ifdef CONFIG_SMP
 # define WARN_ON_SMP(x)			WARN_ON(x)
 #else
+/*
+ * Use of ({0;}) because WARN_ON_SMP(x) may be used either as
+ * a stand alone line statement or as a condition in an if ()
+ * statement.
+ * A simple "0" would cause gcc to give a "statement has no effect"
+ * warning.
+ */
 # define WARN_ON_SMP(x)			({0;})
 #endif
 

@@ -1559,7 +1559,7 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 			 * I2CHS IP's do not follow the usual pattern.
 			 * prcm_reg_id alone cannot be used to program
 			 * the iclk and fclk. Needs to be handled using
-			 * additonal flags when clk handling is moved
+			 * additional flags when clk handling is moved
 			 * to hwmod framework.
 			 */
 			.module_offs = CORE_MOD,

@@ -1663,7 +1663,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 			      (struct ndis_wlan_bssid_ex *)pdev_network);
 }
 
-/*the fucntion is at passive_level*/
+/*the function is at passive_level*/
 void r8712_joinbss_reset(struct _adapter *padapter)
 {
 	int i;
@@ -1726,7 +1726,7 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 	return phtpriv->ht_option;
 }
 
-/* the fucntion is > passive_level (in critical_section) */
+/* the function is > passive_level (in critical_section) */
 static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 {
 	u8 *p, max_ampdu_sz;
@@ -1803,7 +1803,7 @@ void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority)
 	}
 }
 
-/*the fucntion is >= passive_level*/
+/*the function is >= passive_level*/
 unsigned int r8712_add_ht_addt_info(struct _adapter *padapter,
 			      u8 *in_ie, u8 *out_ie,
 			      uint in_len, uint *pout_len)

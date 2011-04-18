@@ -220,7 +220,7 @@ static struct mm_struct *__check_mem_permission(struct task_struct *task)
 	}
 
 	/*
-	 * Noone else is allowed.
+	 * No one else is allowed.
 	 */
 	mmput(mm);
 	return ERR_PTR(-EPERM);

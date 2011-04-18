@@ -1123,7 +1123,7 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
  * @number: the lock number
  * @glops: the glock operations for the type of glock
  * @state: the state to acquire the glock in
- * @flags: modifier flags for the aquisition
+ * @flags: modifier flags for the acquisition
  * @gh: the struct gfs2_holder
  *
  * Returns: errno

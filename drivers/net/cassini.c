@@ -51,7 +51,7 @@
  * TX has 4 queues. currently these queues are used in a round-robin
  * fashion for load balancing. They can also be used for QoS. for that
  * to work, however, QoS information needs to be exposed down to the driver
- * level so that subqueues get targetted to particular transmit rings.
+ * level so that subqueues get targeted to particular transmit rings.
  * alternatively, the queues can be configured via use of the all-purpose
  * ioctl.
  *
@@ -5165,7 +5165,7 @@ err_out_free_res:
 	pci_release_regions(pdev);
 
 err_write_cacheline:
-	/* Try to restore it in case the error occured after we
+	/* Try to restore it in case the error occurred after we
 	 * set it.
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, orig_cacheline_size);

@@ -1291,7 +1291,7 @@ __acquires(&gcwq->lock)
 			return true;
 		spin_unlock_irq(&gcwq->lock);
 
-		/* CPU has come up inbetween, retry migration */
+		/* CPU has come up in between, retry migration */
 		cpu_relax();
 	}
 }
