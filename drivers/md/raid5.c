@@ -27,12 +27,12 @@
  *
  * We group bitmap updates into batches.  Each batch has a number.
  * We may write out several batches at once, but that isn't very important.
- * conf->bm_write is the number of the last batch successfully written.
- * conf->bm_flush is the number of the last batch that was closed to
+ * conf->seq_write is the number of the last batch successfully written.
+ * conf->seq_flush is the number of the last batch that was closed to
  *    new additions.
  * When we discover that we will need to write to any block in a stripe
  * (in add_stripe_bio) we update the in-memory bitmap and record in sh->bm_seq
- * the number of the batch it will be in. This is bm_flush+1.
+ * the number of the batch it will be in. This is seq_flush+1.
  * When we are ready to do a write, if that batch hasn't been written yet,
  *   we plug the array and queue the stripe for later.
  * When an unplug happens, we increment bm_flush, thus closing the current
@@ -459,7 +459,7 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    md_wakeup_thread(conf->mddev->thread));
+						    );
 				conf->inactive_blocked = 0;
 			} else
 				init_stripe(sh, sector, previous);
@@ -3927,6 +3927,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
 	int remaining;
+	int plugged;
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bi);
@@ -3945,6 +3946,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
 
+	plugged = mddev_check_plugged(mddev);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
 		int disks, data_disks;
@@ -4059,6 +4061,9 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 		}
 			
 	}
+	if (!plugged)
+		md_wakeup_thread(mddev->thread);
+
 	spin_lock_irq(&conf->device_lock);
 	remaining = raid5_dec_bi_phys_segments(bi);
 	spin_unlock_irq(&conf->device_lock);
@@ -4472,14 +4477,18 @@ static void raid5d(mddev_t *mddev)
 	while (1) {
 		struct bio *bio;
 
-		if (conf->seq_flush != conf->seq_write) {
-			int seq = conf->seq_flush;
+		if (atomic_read(&mddev->plug_cnt) == 0 &&
+		    !list_empty(&conf->bitmap_list)) {
+			/* Now is a good time to flush some bitmap updates */
+			conf->seq_flush++;
 			spin_unlock_irq(&conf->device_lock);
 			bitmap_unplug(mddev->bitmap);
 			spin_lock_irq(&conf->device_lock);
-			conf->seq_write = seq;
+			conf->seq_write = conf->seq_flush;
 			activate_bit_delay(conf);
 		}
+		if (atomic_read(&mddev->plug_cnt) == 0)
+			raid5_activate_delayed(conf);
 
 		while ((bio = remove_bio_from_retry(conf))) {
 			int ok;
