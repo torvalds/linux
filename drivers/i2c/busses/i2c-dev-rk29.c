@@ -20,7 +20,7 @@
 #define I2C_DEV_SCL_RATE	100 * 1000
 
 struct completion		i2c_dev_complete = {
-	.done = -1;
+	.done = -1,
 };
 struct i2c_dump_info	g_dump;
 
