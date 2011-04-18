@@ -308,6 +308,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 			     struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct neigh_node *router;
 	unsigned char in_tq, in_ttl, tq_avg = 0;
 	unsigned long send_time;
 
@@ -315,6 +316,8 @@ void schedule_forward_packet(struct orig_node *orig_node,
 		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
 		return;
 	}
+
+	router = orig_node_get_router(orig_node);
 
 	in_tq = batman_packet->tq;
 	in_ttl = batman_packet->ttl;
@@ -324,19 +327,21 @@ void schedule_forward_packet(struct orig_node *orig_node,
 
 	/* rebroadcast tq of our best ranking neighbor to ensure the rebroadcast
 	 * of our best tq value */
-	if ((orig_node->router) && (orig_node->router->tq_avg != 0)) {
+	if (router && router->tq_avg != 0) {
 
 		/* rebroadcast ogm of best ranking neighbor as is */
-		if (!compare_eth(orig_node->router->addr, ethhdr->h_source)) {
-			batman_packet->tq = orig_node->router->tq_avg;
+		if (!compare_eth(router->addr, ethhdr->h_source)) {
+			batman_packet->tq = router->tq_avg;
 
-			if (orig_node->router->last_ttl)
-				batman_packet->ttl = orig_node->router->last_ttl
-							- 1;
+			if (router->last_ttl)
+				batman_packet->ttl = router->last_ttl - 1;
 		}
 
-		tq_avg = orig_node->router->tq_avg;
+		tq_avg = router->tq_avg;
 	}
+
+	if (router)
+		neigh_node_free_ref(router);
 
 	/* apply hop penalty */
 	batman_packet->tq = hop_penalty(batman_packet->tq, bat_priv);

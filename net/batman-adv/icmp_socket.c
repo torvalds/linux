@@ -218,23 +218,13 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dst_unreach;
 
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, icmp_packet->dst);
-
 	if (!orig_node)
-		goto unlock;
+		goto dst_unreach;
 
-	neigh_node = orig_node->router;
-
+	neigh_node = orig_node_get_router(orig_node);
 	if (!neigh_node)
-		goto unlock;
-
-	if (!atomic_inc_not_zero(&neigh_node->refcount)) {
-		neigh_node = NULL;
-		goto unlock;
-	}
-
-	rcu_read_unlock();
+		goto dst_unreach;
 
 	if (!neigh_node->if_incoming)
 		goto dst_unreach;
@@ -252,8 +242,6 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	goto out;
 
-unlock:
-	rcu_read_unlock();
 dst_unreach:
 	icmp_packet->msg_type = DESTINATION_UNREACHABLE;
 	bat_socket_add_packet(socket_client, icmp_packet, packet_len);

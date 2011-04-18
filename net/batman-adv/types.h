@@ -67,7 +67,7 @@ struct hard_iface {
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
-	struct neigh_node *router;
+	struct neigh_node __rcu *router; /* rcu protected pointer */
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
 	unsigned long last_valid;
@@ -83,7 +83,7 @@ struct orig_node {
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
-	spinlock_t neigh_list_lock; /* protects neighbor list */
+	spinlock_t neigh_list_lock; /* protects neigh_list and router */
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct hlist_node hash_entry;
@@ -125,6 +125,7 @@ struct neigh_node {
 	struct rcu_head rcu;
 	struct orig_node *orig_node;
 	struct hard_iface *if_incoming;
+	spinlock_t tq_lock;	/* protects: tq_recv, tq_index */
 };
 
 
@@ -146,7 +147,7 @@ struct bat_priv {
 	atomic_t batman_queue_left;
 	char num_ifaces;
 	struct hlist_head softif_neigh_list;
-	struct softif_neigh *softif_neigh;
+	struct softif_neigh __rcu *softif_neigh;
 	struct debug_log *debug_log;
 	struct hard_iface *primary_if;
 	struct kobject *mesh_obj;

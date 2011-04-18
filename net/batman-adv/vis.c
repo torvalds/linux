@@ -558,6 +558,7 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 				struct vis_info *info)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct neigh_node *router;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
@@ -571,13 +572,17 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			if ((orig_node) && (orig_node->router) &&
-			    (orig_node->flags & VIS_SERVER) &&
-			    (orig_node->router->tq_avg > best_tq)) {
-				best_tq = orig_node->router->tq_avg;
+			router = orig_node_get_router(orig_node);
+			if (!router)
+				continue;
+
+			if ((orig_node->flags & VIS_SERVER) &&
+			    (router->tq_avg > best_tq)) {
+				best_tq = router->tq_avg;
 				memcpy(packet->target_orig, orig_node->orig,
 				       ETH_ALEN);
 			}
+			neigh_node_free_ref(router);
 		}
 		rcu_read_unlock();
 	}
@@ -605,7 +610,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
-	struct neigh_node *neigh_node;
+	struct neigh_node *router;
 	struct vis_info *info = (struct vis_info *)bat_priv->my_vis_info;
 	struct vis_packet *packet = (struct vis_packet *)info->skb_packet->data;
 	struct vis_info_entry *entry;
@@ -633,29 +638,31 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			neigh_node = orig_node->router;
-
-			if (!neigh_node)
+			router = orig_node_get_router(orig_node);
+			if (!router)
 				continue;
 
-			if (!compare_eth(neigh_node->addr, orig_node->orig))
-				continue;
+			if (!compare_eth(router->addr, orig_node->orig))
+				goto next;
 
-			if (neigh_node->if_incoming->if_status != IF_ACTIVE)
-				continue;
+			if (router->if_incoming->if_status != IF_ACTIVE)
+				goto next;
 
-			if (neigh_node->tq_avg < 1)
-				continue;
+			if (router->tq_avg < 1)
+				goto next;
 
 			/* fill one entry into buffer. */
 			entry = (struct vis_info_entry *)
 				      skb_put(info->skb_packet, sizeof(*entry));
 			memcpy(entry->src,
-			       neigh_node->if_incoming->net_dev->dev_addr,
+			       router->if_incoming->net_dev->dev_addr,
 			       ETH_ALEN);
 			memcpy(entry->dest, orig_node->orig, ETH_ALEN);
-			entry->quality = neigh_node->tq_avg;
+			entry->quality = router->tq_avg;
 			packet->entries++;
+
+next:
+			neigh_node_free_ref(router);
 
 			if (vis_packet_full(info))
 				goto unlock;
@@ -725,6 +732,7 @@ static void purge_vis_packets(struct bat_priv *bat_priv)
 static void broadcast_vis_packet(struct bat_priv *bat_priv,
 				 struct vis_info *info)
 {
+	struct neigh_node *router;
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -745,19 +753,26 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			/* if it's a vis server and reachable, send it. */
-			if ((!orig_node) || (!orig_node->router))
-				continue;
 			if (!(orig_node->flags & VIS_SERVER))
 				continue;
-			/* don't send it if we already received the packet from
-			* this node. */
-			if (recv_list_is_in(bat_priv, &info->recv_list,
-					    orig_node->orig))
+
+			router = orig_node_get_router(orig_node);
+			if (!router)
 				continue;
 
+			/* don't send it if we already received the packet from
+			 * this node. */
+			if (recv_list_is_in(bat_priv, &info->recv_list,
+					    orig_node->orig)) {
+				neigh_node_free_ref(router);
+				continue;
+			}
+
 			memcpy(packet->target_orig, orig_node->orig, ETH_ALEN);
-			hard_iface = orig_node->router->if_incoming;
-			memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+			hard_iface = router->if_incoming;
+			memcpy(dstaddr, router->addr, ETH_ALEN);
+
+			neigh_node_free_ref(router);
 
 			skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 			if (skb)
@@ -772,45 +787,29 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 			       struct vis_info *info)
 {
 	struct orig_node *orig_node;
-	struct neigh_node *neigh_node = NULL;
+	struct neigh_node *router = NULL;
 	struct sk_buff *skb;
 	struct vis_packet *packet;
 
 	packet = (struct vis_packet *)info->skb_packet->data;
 
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, packet->target_orig);
-
 	if (!orig_node)
-		goto unlock;
+		goto out;
 
-	neigh_node = orig_node->router;
-
-	if (!neigh_node)
-		goto unlock;
-
-	if (!atomic_inc_not_zero(&neigh_node->refcount)) {
-		neigh_node = NULL;
-		goto unlock;
-	}
-
-	rcu_read_unlock();
+	router = orig_node_get_router(orig_node);
+	if (!router)
+		goto out;
 
 	skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 	if (skb)
-		send_skb_packet(skb, neigh_node->if_incoming,
-				neigh_node->addr);
+		send_skb_packet(skb, router->if_incoming, router->addr);
 
-	goto out;
-
-unlock:
-	rcu_read_unlock();
 out:
-	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+	if (router)
+		neigh_node_free_ref(router);
 	if (orig_node)
 		orig_node_free_ref(orig_node);
-	return;
 }
 
 /* only send one vis packet. called from send_vis_packets() */
