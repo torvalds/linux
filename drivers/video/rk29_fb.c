@@ -1549,9 +1549,11 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	    break;
 	case FBIOPUT_FBPHYADD:
         return info->fix.smem_start;
-   case FBIOGET_OVERLAY_STATE:
+    case FBIOGET_OVERLAY_STATE:
         return inf->video_mode;
-
+    case FBIOGET_SCREEN_STATE:
+        return inf->cur_screen->type;
+        
 	case FBIOPUT_SET_CURSOR_EN:
 		{
 			int en;
