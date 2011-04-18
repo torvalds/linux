@@ -75,17 +75,17 @@ static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
 {
 	u32 tmp, ctl;
 
-        /* address of the mappings table */
-        addr >>= 12;
-        tmp = (u32) addr<<4;
-        tmp &= ~0xf;
-        pci_write_config_dword(dev, AMD64_GARTTABLEBASE, tmp);
+	/* address of the mappings table */
+	addr >>= 12;
+	tmp = (u32) addr<<4;
+	tmp &= ~0xf;
+	pci_write_config_dword(dev, AMD64_GARTTABLEBASE, tmp);
 
-        /* Enable GART translation for this hammer. */
-        pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
-        ctl |= GARTEN;
-        ctl &= ~(DISGARTCPU | DISGARTIO);
-        pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
+	/* Enable GART translation for this hammer. */
+	pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
+	ctl |= GARTEN;
+	ctl &= ~(DISGARTCPU | DISGARTIO);
+	pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
 }
 
 static inline int aperture_valid(u64 aper_base, u32 aper_size, u32 min_size)
