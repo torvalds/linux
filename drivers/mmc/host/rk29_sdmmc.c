@@ -1392,6 +1392,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
                 		  host);
 		if(ret < 0)
 		dev_err(host->dev, "gpio request_irq error\n");
+		mmc_detect_change(host->mmc, 0);
 		ret = mmc_resume_host(host->mmc);
 	}
 #endif

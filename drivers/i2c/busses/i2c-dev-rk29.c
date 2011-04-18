@@ -19,7 +19,9 @@
 
 #define I2C_DEV_SCL_RATE	100 * 1000
 
-struct completion		i2c_dev_complete;
+struct completion		i2c_dev_complete = {
+	.done = -1;
+};
 struct i2c_dump_info	g_dump;
 
 static void i2c_dev_get_list(struct i2c_list_info *list)
@@ -99,7 +101,8 @@ void i2c_dev_dump_stop(struct i2c_adapter *adap, struct i2c_msg *msgs, int num, 
 				g_dump.get_value[j] = msgs[i].buf[j];
 		}
 	}
-	complete(&i2c_dev_complete);
+	if(i2c_dev_complete.done == 0)
+		complete(&i2c_dev_complete);
 	return;
 }
 EXPORT_SYMBOL(i2c_dev_dump_stop);
