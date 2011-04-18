@@ -443,7 +443,7 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl)
+int wl1271_ap_init_templates(struct wl1271 *wl)
 {
 	int ret;
 
@@ -468,6 +468,11 @@ static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl)
 		return ret;
 
 	return 0;
+}
+
+static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl)
+{
+	return wl1271_ap_init_templates(wl);
 }
 
 int wl1271_init_ap_rates(struct wl1271 *wl)

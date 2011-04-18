@@ -34,5 +34,6 @@ int wl1271_init_energy_detection(struct wl1271 *wl);
 int wl1271_chip_specific_init(struct wl1271 *wl);
 int wl1271_hw_init(struct wl1271 *wl);
 int wl1271_init_ap_rates(struct wl1271 *wl);
+int wl1271_ap_init_templates(struct wl1271 *wl);
 
 #endif

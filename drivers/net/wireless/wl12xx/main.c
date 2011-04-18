@@ -2503,6 +2503,10 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 			wl1271_error("AP rate policy change failed %d", ret);
 			goto out;
 		}
+
+		ret = wl1271_ap_init_templates(wl);
+		if (ret < 0)
+			goto out;
 	}
 
 	ret = wl1271_bss_beacon_info_changed(wl, vif, bss_conf, changed);
