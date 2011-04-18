@@ -595,7 +595,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
-		temp = !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags)
+		temp = !test_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags)
 		       && (rt2x00dev->curr_band != IEEE80211_BAND_5GHZ);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, temp);
 		break;
@@ -636,7 +636,7 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
+			  !test_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags));
 
 	/*
 	 * Configure the RX antenna.
@@ -709,10 +709,10 @@ static void rt73usb_config_ant(struct rt2x00_dev *rt2x00dev,
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		sel = antenna_sel_a;
-		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
+		lna = test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
 	} else {
 		sel = antenna_sel_bg;
-		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		lna = test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
@@ -740,7 +740,7 @@ static void rt73usb_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	short lna_gain = 0;
 
 	if (libconf->conf->channel->band == IEEE80211_BAND_2GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags))
 			lna_gain += 14;
 
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
@@ -930,7 +930,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 		low_bound = 0x28;
 		up_bound = 0x48;
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags)) {
 			low_bound += 0x10;
 			up_bound += 0x10;
 		}
@@ -946,7 +946,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 			up_bound = 0x1c;
 		}
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags)) {
 			low_bound += 0x14;
 			up_bound += 0x10;
 		}
@@ -1661,7 +1661,7 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 	}
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags)) {
 			if (lna == 3 || lna == 2)
 				offset += 10;
 		} else {
@@ -1899,13 +1899,13 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Read the Frame type.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_FRAME_TYPE))
-		__set_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags);
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Read frequency offset.
@@ -1919,8 +1919,8 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
 
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA)) {
-		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 	}
 
 	/*
@@ -2200,15 +2200,15 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device has multiple filters for control frames,
 	 * but has no a separate filter for PS Poll frames.
 	 */
-	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
+	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
 
 	/*
 	 * This device requires firmware.
 	 */
-	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
+	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
 	if (!modparam_nohwcrypt)
-		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.

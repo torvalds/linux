@@ -176,10 +176,10 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		if (conf_is_ht40(conf)) {
-			__set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = rt2x00ht_center_channel(rt2x00dev, conf);
 		} else {
-			__clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = conf->channel->hw_value;
 		}
 

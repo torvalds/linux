@@ -1536,13 +1536,13 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Check if the BBP tuning should be enabled.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RX_AGCVGC_TUNING))
-		__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 
 	return 0;
 }
@@ -1640,9 +1640,9 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires the atim queue and DMA-mapped skbs.
 	 */
-	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
+	__set_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.

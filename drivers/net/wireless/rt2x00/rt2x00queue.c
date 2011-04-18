@@ -60,7 +60,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	 * at least 8 bytes bytes available in headroom for IV/EIV
 	 * and 8 bytes for ICV data as tailroon.
 	 */
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
+	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags)) {
 		head_size += 8;
 		tail_size += 8;
 	}
@@ -86,7 +86,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
 
-	if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags)) {
+	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags)) {
 		skbdesc->skb_dma = dma_map_single(rt2x00dev->dev,
 						  skb->data,
 						  skb->len,
@@ -213,7 +213,7 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(DRIVER_REQUIRE_SW_SEQNO, &entry->queue->rt2x00dev->flags))
+	if (!test_bit(REQUIRE_SW_SEQNO, &entry->queue->rt2x00dev->cap_flags))
 		return;
 
 	/*
@@ -396,7 +396,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	rt2x00crypto_create_tx_descriptor(entry, txdesc);
 	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
 
-	if (test_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags))
+	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
 		rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
 	else
 		rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
@@ -436,7 +436,7 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Map the skb to DMA.
 	 */
-	if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags))
+	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags))
 		rt2x00queue_map_txskb(entry);
 
 	return 0;
@@ -529,7 +529,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
-		if (test_bit(DRIVER_REQUIRE_COPY_IV, &queue->rt2x00dev->flags))
+		if (test_bit(REQUIRE_COPY_IV, &queue->rt2x00dev->cap_flags))
 			rt2x00crypto_tx_copy_iv(skb, &txdesc);
 		else
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
@@ -543,9 +543,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * PCI and USB devices, while header alignment only is valid
 	 * for PCI devices.
 	 */
-	if (test_bit(DRIVER_REQUIRE_L2PAD, &queue->rt2x00dev->flags))
+	if (test_bit(REQUIRE_L2PAD, &queue->rt2x00dev->cap_flags))
 		rt2x00queue_insert_l2pad(entry->skb, txdesc.header_length);
-	else if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+	else if (test_bit(REQUIRE_DMA, &queue->rt2x00dev->cap_flags))
 		rt2x00queue_align_frame(entry->skb);
 
 	/*
@@ -1069,7 +1069,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status)
 		goto exit;
 
-	if (test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags)) {
+	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
 		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
 						   rt2x00dev->ops->atim);
 		if (status)
@@ -1121,7 +1121,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	enum data_queue_qid qid;
 	unsigned int req_atim =
-	    !!test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
+	    !!test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
 
 	/*
 	 * We need the following queues:

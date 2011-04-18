@@ -416,13 +416,13 @@ static inline u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
  */
 static inline void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags))
 		wiphy_rfkill_start_polling(rt2x00dev->hw->wiphy);
 }
 
 static inline void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags))
 		wiphy_rfkill_stop_polling(rt2x00dev->hw->wiphy);
 }
 

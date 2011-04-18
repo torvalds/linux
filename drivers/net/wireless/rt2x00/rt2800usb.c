@@ -553,18 +553,18 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device has multiple filters for control frames
 	 * and has a separate filter for PS Poll frames.
 	 */
-	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags);
+	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags);
 
 	/*
 	 * This device requires firmware.
 	 */
-	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
+	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags);
 	if (!modparam_nohwcrypt)
-		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.

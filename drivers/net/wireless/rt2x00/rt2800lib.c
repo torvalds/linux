@@ -1763,8 +1763,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	if (rf->channel <= 14) {
 		if (!rt2x00_rt(rt2x00dev, RT5390)) {
-			if (test_bit(CONFIG_EXTERNAL_LNA_BG,
-				     &rt2x00dev->flags)) {
+			if (test_bit(CAPABILITY_EXTERNAL_LNA_BG,
+				     &rt2x00dev->cap_flags)) {
 				rt2800_bbp_write(rt2x00dev, 82, 0x62);
 				rt2800_bbp_write(rt2x00dev, 75, 0x46);
 			} else {
@@ -1775,7 +1775,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	} else {
 		rt2800_bbp_write(rt2x00dev, 82, 0xf2);
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags))
 			rt2800_bbp_write(rt2x00dev, 75, 0x46);
 		else
 			rt2800_bbp_write(rt2x00dev, 75, 0x50);
@@ -2008,7 +2008,7 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
 		return txpower;
 
-	if (test_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags)) {
+	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
 		/*
 		 * Check if eirp txpower exceed txpower_limit.
 		 * We use OFDM 6M as criterion and its eirp txpower
@@ -3309,8 +3309,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E)) {
-			if (!test_bit(CONFIG_EXTERNAL_LNA_BG,
-				      &rt2x00dev->flags))
+			if (!test_bit(CAPABILITY_EXTERNAL_LNA_BG,
+				      &rt2x00dev->cap_flags))
 				rt2x00_set_field8(&rfcsr, RFCSR17_R, 1);
 		}
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXMIXER_GAIN_BG, &eeprom);
@@ -3733,15 +3733,15 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
 
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_5G))
-		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_2G))
-		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_HW_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Store led settings, for correct led behaviour.
@@ -3761,7 +3761,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_get_field16(eeprom, EEPROM_EIRP_MAX_TX_POWER_2GHZ) <
 					EIRP_MAX_TX_POWER_LIMIT)
-		__set_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags);
 
 	return 0;
 }

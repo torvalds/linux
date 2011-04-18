@@ -119,7 +119,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
-	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
+	    test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags))
 		qid = QID_ATIM;
 
 	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
@@ -411,11 +411,11 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * of different types, but has no a separate filter for PS Poll frames,
 	 * FIF_CONTROL flag implies FIF_PSPOLL.
 	 */
-	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags)) {
+	if (!test_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags)) {
 		if (*total_flags & FIF_CONTROL || *total_flags & FIF_PSPOLL)
 			*total_flags |= FIF_CONTROL | FIF_PSPOLL;
 	}
-	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags)) {
+	if (!test_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags)) {
 		if (*total_flags & FIF_CONTROL)
 			*total_flags |= FIF_PSPOLL;
 	}
@@ -496,7 +496,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
-	else if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+	else if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
 		return -EOPNOTSUPP;
 	else if (key->keylen > 32)
 		return -ENOSPC;
@@ -562,7 +562,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	__set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
 	rt2x00link_stop_tuner(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
@@ -570,7 +570,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
 void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	__clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
 	rt2x00link_start_tuner(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_complete);

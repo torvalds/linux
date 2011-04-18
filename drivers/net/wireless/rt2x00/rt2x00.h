@@ -643,11 +643,11 @@ struct rt2x00_ops {
 };
 
 /*
- * rt2x00 device flags
+ * rt2x00 state flags
  */
-enum rt2x00_flags {
+enum rt2x00_state_flags {
 	/*
-	 * Device state flags
+	 * Device flags
 	 */
 	DEVICE_STATE_PRESENT,
 	DEVICE_STATE_REGISTERED_HW,
@@ -657,39 +657,44 @@ enum rt2x00_flags {
 	DEVICE_STATE_SCANNING,
 
 	/*
-	 * Driver requirements
-	 */
-	DRIVER_REQUIRE_FIRMWARE,
-	DRIVER_REQUIRE_BEACON_GUARD,
-	DRIVER_REQUIRE_ATIM_QUEUE,
-	DRIVER_REQUIRE_DMA,
-	DRIVER_REQUIRE_COPY_IV,
-	DRIVER_REQUIRE_L2PAD,
-	DRIVER_REQUIRE_TXSTATUS_FIFO,
-	DRIVER_REQUIRE_TASKLET_CONTEXT,
-	DRIVER_REQUIRE_SW_SEQNO,
-	DRIVER_REQUIRE_HT_TX_DESC,
-
-	/*
-	 * Driver features
-	 */
-	CONFIG_SUPPORT_HW_BUTTON,
-	CONFIG_SUPPORT_HW_CRYPTO,
-	CONFIG_SUPPORT_POWER_LIMIT,
-	DRIVER_SUPPORT_CONTROL_FILTERS,
-	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
-	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
-	DRIVER_SUPPORT_LINK_TUNING,
-
-	/*
 	 * Driver configuration
 	 */
-	CONFIG_FRAME_TYPE,
-	CONFIG_RF_SEQUENCE,
-	CONFIG_EXTERNAL_LNA_A,
-	CONFIG_EXTERNAL_LNA_BG,
-	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_CHANNEL_HT40,
+};
+
+/*
+ * rt2x00 capability flags
+ */
+enum rt2x00_capability_flags {
+	/*
+	 * Requirements
+	 */
+	REQUIRE_FIRMWARE,
+	REQUIRE_BEACON_GUARD,
+	REQUIRE_ATIM_QUEUE,
+	REQUIRE_DMA,
+	REQUIRE_COPY_IV,
+	REQUIRE_L2PAD,
+	REQUIRE_TXSTATUS_FIFO,
+	REQUIRE_TASKLET_CONTEXT,
+	REQUIRE_SW_SEQNO,
+	REQUIRE_HT_TX_DESC,
+
+	/*
+	 * Capabilities
+	 */
+	CAPABILITY_HW_BUTTON,
+	CAPABILITY_HW_CRYPTO,
+	CAPABILITY_POWER_LIMIT,
+	CAPABILITY_CONTROL_FILTERS,
+	CAPABILITY_CONTROL_FILTER_PSPOLL,
+	CAPABILITY_PRE_TBTT_INTERRUPT,
+	CAPABILITY_LINK_TUNING,
+	CAPABILITY_FRAME_TYPE,
+	CAPABILITY_RF_SEQUENCE,
+	CAPABILITY_EXTERNAL_LNA_A,
+	CAPABILITY_EXTERNAL_LNA_BG,
+	CAPABILITY_DOUBLE_ANTENNA,
 };
 
 /*
@@ -738,11 +743,18 @@ struct rt2x00_dev {
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
-	 * Device flags.
-	 * In these flags the current status and some
-	 * of the device capabilities are stored.
+	 * Device state flags.
+	 * In these flags the current status is stored.
+	 * Access to these flags should occur atomically.
 	 */
 	unsigned long flags;
+
+	/*
+	 * Device capabiltiy flags.
+	 * In these flags the device/driver capabilities are stored.
+	 * Access to these flags should occur non-atomically.
+	 */
+	unsigned long cap_flags;
 
 	/*
 	 * Device information, Bus IRQ and name (PCI, SoC)

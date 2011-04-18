@@ -387,7 +387,7 @@ static void rt2x00usb_flush_entry(struct queue_entry *entry)
 	 * Kill guardian urb (if required by driver).
 	 */
 	if ((entry->queue->qid == QID_BEACON) &&
-	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
+	    (test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags)))
 		usb_kill_urb(bcn_priv->guardian_urb);
 }
 
@@ -583,7 +583,7 @@ static int rt2x00usb_alloc_entries(struct data_queue *queue)
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
-	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
+	    !test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags))
 		return 0;
 
 	for (i = 0; i < queue->limit; i++) {
@@ -618,7 +618,7 @@ static void rt2x00usb_free_entries(struct data_queue *queue)
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
-	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
+	    !test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags))
 		return;
 
 	for (i = 0; i < queue->limit; i++) {

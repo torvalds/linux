@@ -1519,7 +1519,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Read the RSSI <-> dBm offset information.
@@ -1790,13 +1790,13 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires the atim queue
 	 */
-	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
+	__set_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags);
 	if (!modparam_nohwcrypt) {
-		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+		__set_bit(REQUIRE_COPY_IV, &rt2x00dev->cap_flags);
 	}
-	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
+	__set_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
