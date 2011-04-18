@@ -542,6 +542,9 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 			goto fail_response;
 		}
 	}
+	q = bdev_get_queue(preq.bdev);
+	if (!q)
+		goto fail_response;
 	/* If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
 	 * the hypercall to unmap the grants - that is all done in
