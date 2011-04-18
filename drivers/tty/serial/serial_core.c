@@ -1242,17 +1242,6 @@ static void uart_set_termios(struct tty_struct *tty,
 		}
 		spin_unlock_irqrestore(&state->uart_port->lock, flags);
 	}
-#if 0
-	/*
-	 * No need to wake up processes in open wait, since they
-	 * sample the CLOCAL flag once, and don't recheck it.
-	 * XXX  It's not clear whether the current behavior is correct
-	 * or not.  Hence, this may change.....
-	 */
-	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios->c_cflag & CLOCAL))
-		wake_up_interruptible(&state->uart_port.open_wait);
-#endif
 }
 
 /*
