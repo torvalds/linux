@@ -2292,6 +2292,17 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb);
 
 /**
+ * ieee80211_report_low_ack - report non-responding station
+ *
+ * When operating in AP-mode, call this function to report a non-responding
+ * connected STA.
+ *
+ * @sta: the non-responding connected sta
+ * @num_packets: number of packets sent to @sta without a response
+ */
+void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
+
+/**
  * ieee80211_beacon_get_tim - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
