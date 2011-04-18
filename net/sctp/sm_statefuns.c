@@ -4343,8 +4343,9 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 
 /*
  * Handle a protocol violation when the parameter length is invalid.
- * "Invalid" length is identified as smaller than the minimal length a
- * given parameter can be.
+ * If the length is smaller than the minimum length of a given parameter,
+ * or accumulated length in multi parameters exceeds the end of the chunk,
+ * the length is considered as invalid.
  */
 static sctp_disposition_t sctp_sf_violation_paramlen(
 				     const struct sctp_endpoint *ep,
