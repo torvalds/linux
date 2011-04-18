@@ -353,6 +353,19 @@ static void dr_controller_stop(struct fsl_udc *udc)
 {
 	unsigned int tmp;
 
+	pr_debug("%s\n", __func__);
+
+	/* if we're in OTG mode, and the Host is currently using the port,
+	 * stop now and don't rip the controller out from under the
+	 * ehci driver
+	 */
+	if (udc->gadget.is_otg) {
+		if (!(fsl_readl(&dr_regs->otgsc) & OTGSC_STS_USB_ID)) {
+			pr_debug("udc: Leaving early\n");
+			return;
+		}
+	}
+
 	/* disable all INTR */
 	fsl_writel(0, &dr_regs->usbintr);
 
@@ -1668,6 +1681,9 @@ static void port_change_irq(struct fsl_udc *udc)
 {
 	u32 speed;
 
+	if (udc->bus_reset)
+		udc->bus_reset = 0;
+
 	/* Bus resetting is finished */
 	if (!(fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET)) {
 		/* Get the speed */
@@ -1775,6 +1791,8 @@ static void reset_irq(struct fsl_udc *udc)
 
 	if (fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET) {
 		VDBG("Bus reset");
+		/* Bus is reseting */
+		udc->bus_reset = 1;
 		/* Reset all the queues, include XD, dTD, EP queue
 		 * head and TR Queue */
 		reset_queues(udc);
@@ -1852,6 +1870,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 
 	/* Reset Received */
 	if (irq_src & USB_STS_RESET) {
+		VDBG("reset int");
 		reset_irq(udc);
 		status = IRQ_HANDLED;
 	}
@@ -1909,11 +1928,30 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		goto out;
 	}
 
-	/* Enable DR IRQ reg and Set usbcmd reg  Run bit */
-	dr_controller_run(udc_controller);
-	udc_controller->usb_state = USB_STATE_ATTACHED;
-	udc_controller->ep0_state = WAIT_FOR_SETUP;
-	udc_controller->ep0_dir = 0;
+	if (udc_controller->transceiver) {
+		/* Suspend the controller until OTG enable it */
+		udc_controller->stopped = 1;
+		printk(KERN_INFO "Suspend udc for OTG auto detect\n");
+
+		/* connect to bus through transceiver */
+		if (udc_controller->transceiver) {
+			retval = otg_set_peripheral(udc_controller->transceiver,
+						    &udc_controller->gadget);
+			if (retval < 0) {
+				ERR("can't bind to transceiver\n");
+				driver->unbind(&udc_controller->gadget);
+				udc_controller->gadget.dev.driver = 0;
+				udc_controller->driver = 0;
+				return retval;
+			}
+		}
+	} else {
+		/* Enable DR IRQ reg and set USBCMD reg Run bit */
+		dr_controller_run(udc_controller);
+		udc_controller->usb_state = USB_STATE_ATTACHED;
+		udc_controller->ep0_state = WAIT_FOR_SETUP;
+		udc_controller->ep0_dir = 0;
+	}
 	printk(KERN_INFO "%s: bind to driver %s\n",
 			udc_controller->gadget.name, driver->driver.name);
 
@@ -2374,17 +2412,30 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	spin_lock_init(&udc_controller->lock);
 	udc_controller->stopped = 1;
 
+#ifdef CONFIG_USB_OTG
+	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
+		udc_controller->transceiver = otg_get_transceiver();
+		if (!udc_controller->transceiver) {
+			ERR("Can't find OTG driver!\n");
+			ret = -ENODEV;
+			goto err_kfree;
+		}
+	}
+#endif
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENXIO;
 		goto err_kfree;
 	}
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
-				driver_name)) {
-		ERR("request mem region for %s failed\n", pdev->name);
-		ret = -EBUSY;
-		goto err_kfree;
+	if (pdata->operating_mode == FSL_USB2_DR_DEVICE) {
+		if (!request_mem_region(res->start, res->end - res->start + 1,
+					driver_name)) {
+			ERR("request mem region for %s failed\n", pdev->name);
+			ret = -EBUSY;
+			goto err_kfree;
+		}
 	}
 
 	dr_regs = ioremap(res->start, resource_size(res));
@@ -2455,9 +2506,11 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	/* initialize usb hw reg except for regs for EP,
-	 * leave usbintr reg untouched */
-	dr_controller_setup(udc_controller);
+	if (!udc_controller->transceiver) {
+		/* initialize usb hw reg except for regs for EP,
+		 * leave usbintr reg untouched */
+		dr_controller_setup(udc_controller);
+	}
 
 	fsl_udc_clk_finalize(pdev);
 
@@ -2476,6 +2529,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	ret = device_register(&udc_controller->gadget.dev);
 	if (ret < 0)
 		goto err_free_irq;
+
+	if (udc_controller->transceiver)
+		udc_controller->gadget.is_otg = 1;
 
 	/* setup QH and epctrl for ep0 */
 	ep0_setup(udc_controller);
@@ -2521,7 +2577,8 @@ err_iounmap:
 err_iounmap_noclk:
 	iounmap(dr_regs);
 err_release_mem_region:
-	release_mem_region(res->start, res->end - res->start + 1);
+	if (pdata->operating_mode == FSL_USB2_DR_DEVICE)
+		release_mem_region(res->start, res->end - res->start + 1);
 err_kfree:
 	kfree(udc_controller);
 	udc_controller = NULL;
@@ -2555,7 +2612,8 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	dma_pool_destroy(udc_controller->td_pool);
 	free_irq(udc_controller->irq, udc_controller);
 	iounmap(dr_regs);
-	release_mem_region(res->start, res->end - res->start + 1);
+	if (pdata->operating_mode == FSL_USB2_DR_DEVICE)
+		release_mem_region(res->start, res->end - res->start + 1);
 
 	device_unregister(&udc_controller->gadget.dev);
 	/* free udc --wait for the release() finished */
@@ -2598,6 +2656,62 @@ static int fsl_udc_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static int fsl_udc_otg_suspend(struct device *dev, pm_message_t state)
+{
+	struct fsl_udc *udc = udc_controller;
+	u32 mode, usbcmd;
+
+	mode = fsl_readl(&dr_regs->usbmode) & USB_MODE_CTRL_MODE_MASK;
+
+	pr_debug("%s(): mode 0x%x stopped %d\n", __func__, mode, udc->stopped);
+
+	/*
+	 * If the controller is already stopped, then this must be a
+	 * PM suspend.  Remember this fact, so that we will leave the
+	 * controller stopped at PM resume time.
+	 */
+	if (udc->stopped) {
+		pr_debug("gadget already stopped, leaving early\n");
+		udc->already_stopped = 1;
+		return 0;
+	}
+
+	if (mode != USB_MODE_CTRL_MODE_DEVICE) {
+		pr_debug("gadget not in device mode, leaving early\n");
+		return 0;
+	}
+
+	/* stop the controller */
+	usbcmd = fsl_readl(&dr_regs->usbcmd) & ~USB_CMD_RUN_STOP;
+	fsl_writel(usbcmd, &dr_regs->usbcmd);
+
+	udc->stopped = 1;
+
+	pr_info("USB Gadget suspended\n");
+
+	return 0;
+}
+
+static int fsl_udc_otg_resume(struct device *dev)
+{
+	pr_debug("%s(): stopped %d  already_stopped %d\n", __func__,
+		 udc_controller->stopped, udc_controller->already_stopped);
+
+	/*
+	 * If the controller was stopped at suspend time, then
+	 * don't resume it now.
+	 */
+	if (udc_controller->already_stopped) {
+		udc_controller->already_stopped = 0;
+		pr_debug("gadget was already stopped, leaving early\n");
+		return 0;
+	}
+
+	pr_info("USB Gadget resume\n");
+
+	return fsl_udc_resume(NULL);
+}
+
 /*-------------------------------------------------------------------------
 	Register entry point for the peripheral controller driver
 --------------------------------------------------------------------------*/
@@ -2610,6 +2724,9 @@ static struct platform_driver udc_driver = {
 	.driver  = {
 		.name = (char *)driver_name,
 		.owner = THIS_MODULE,
+		/* udc suspend/resume called from OTG driver */
+		.suspend = fsl_udc_otg_suspend,
+		.resume  = fsl_udc_otg_resume,
 	},
 };
 

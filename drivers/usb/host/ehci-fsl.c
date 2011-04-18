@@ -117,6 +117,9 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 
 	pdata->regs = hcd->regs;
 
+	if (pdata->power_budget)
+		hcd->power_budget = pdata->power_budget;
+
 	/*
 	 * do platform specific init: check the clock, grab/config pins, etc.
 	 */
@@ -134,6 +137,30 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
+
+#ifdef CONFIG_USB_OTG
+	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
+		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+		ehci->transceiver = otg_get_transceiver();
+		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, transceiver=0x%p\n",
+			hcd, ehci, ehci->transceiver);
+
+		if (ehci->transceiver) {
+			retval = otg_set_host(ehci->transceiver,
+					      &ehci_to_hcd(ehci)->self);
+			if (retval) {
+				if (ehci->transceiver)
+					put_device(ehci->transceiver->dev);
+				goto err4;
+			}
+		} else {
+			dev_err(&pdev->dev, "can't find transceiver\n");
+			retval = -ENODEV;
+			goto err4;
+		}
+	}
+#endif
 	return retval;
 
       err4:
@@ -164,6 +191,12 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 			       struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+	if (ehci->transceiver) {
+		otg_set_host(ehci->transceiver, NULL);
+		put_device(ehci->transceiver->dev);
+	}
 
 	usb_remove_hcd(hcd);
 
@@ -544,6 +577,38 @@ static struct dev_pm_ops ehci_fsl_pm_ops = {
 #define EHCI_FSL_PM_OPS		NULL
 #endif /* CONFIG_PM */
 
+#ifdef CONFIG_USB_OTG
+static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 status;
+
+	if (!port)
+		return -EINVAL;
+
+	port--;
+
+	/* start port reset before HNP protocol time out */
+	status = readl(&ehci->regs->port_status[port]);
+	if (!(status & PORT_CONNECT))
+		return -ENODEV;
+
+	/* khubd will finish the reset later */
+	if (ehci_is_TDI(ehci)) {
+		writel(PORT_RESET |
+		       (status & ~(PORT_CSC | PORT_PEC | PORT_OCC)),
+		       &ehci->regs->port_status[port]);
+	} else {
+		writel(PORT_RESET, &ehci->regs->port_status[port]);
+	}
+
+	return 0;
+}
+#else
+#define ehci_start_port_reset	NULL
+#endif /* CONFIG_USB_OTG */
+
+
 static const struct hc_driver ehci_fsl_hc_driver = {
 	.description = hcd_name,
 	.product_desc = "Freescale On-Chip EHCI Host Controller",
@@ -583,6 +648,7 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	.hub_control = ehci_hub_control,
 	.bus_suspend = ehci_bus_suspend,
 	.bus_resume = ehci_bus_resume,
+	.start_port_reset = ehci_start_port_reset,
 	.relinquish_port = ehci_relinquish_port,
 	.port_handed_over = ehci_port_handed_over,
 

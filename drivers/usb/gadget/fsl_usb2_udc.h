@@ -476,6 +476,7 @@ struct fsl_udc {
 	unsigned vbus_active:1;
 	unsigned stopped:1;
 	unsigned remote_wakeup:1;
+	unsigned already_stopped:1;
 	unsigned big_endian_desc:1;
 
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
@@ -487,6 +488,7 @@ struct fsl_udc {
 	dma_addr_t ep_qh_dma;		/* dma address of QH */
 
 	u32 max_pipes;          /* Device max pipes */
+	u32 bus_reset;		/* Device is bus resetting */
 	u32 resume_state;	/* USB state to resume */
 	u32 usb_state;		/* USB current state */
 	u32 ep0_state;		/* Endpoint zero state */

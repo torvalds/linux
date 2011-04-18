@@ -72,6 +72,7 @@ struct fsl_usb2_platform_data {
 	void		(*exit)(struct platform_device *);
 	void __iomem	*regs;		/* ioremap'd register base */
 	struct clk	*clk;
+	unsigned	power_budget;	/* hcd->power_budget */
 	unsigned	big_endian_mmio:1;
 	unsigned	big_endian_desc:1;
 	unsigned	es:1;		/* need USBMODE:ES */
