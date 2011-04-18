@@ -949,25 +949,49 @@ static void rt2800_brightness_set(struct led_classdev *led_cdev,
 	unsigned int ledmode =
 		rt2x00_get_field16(led->rt2x00dev->led_mcu_reg,
 				   EEPROM_FREQ_LED_MODE);
+	u32 reg;
 
-	if (led->type == LED_TYPE_RADIO) {
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
-				      enabled ? 0x20 : 0);
-	} else if (led->type == LED_TYPE_ASSOC) {
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
-				      enabled ? (bg_mode ? 0x60 : 0xa0) : 0x20);
-	} else if (led->type == LED_TYPE_QUALITY) {
-		/*
-		 * The brightness is divided into 6 levels (0 - 5),
-		 * The specs tell us the following levels:
-		 *	0, 1 ,3, 7, 15, 31
-		 * to determine the level in a simple way we can simply
-		 * work with bitshifting:
-		 *	(1 << level) - 1
-		 */
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
-				      (1 << brightness / (LED_FULL / 6)) - 1,
-				      polarity);
+	/* Check for SoC (SOC devices don't support MCU requests) */
+	if (rt2x00_is_soc(led->rt2x00dev)) {
+		rt2800_register_read(led->rt2x00dev, LED_CFG, &reg);
+
+		/* Set LED Polarity */
+		rt2x00_set_field32(&reg, LED_CFG_LED_POLAR, polarity);
+
+		/* Set LED Mode */
+		if (led->type == LED_TYPE_RADIO) {
+			rt2x00_set_field32(&reg, LED_CFG_G_LED_MODE,
+					   enabled ? 3 : 0);
+		} else if (led->type == LED_TYPE_ASSOC) {
+			rt2x00_set_field32(&reg, LED_CFG_Y_LED_MODE,
+					   enabled ? 3 : 0);
+		} else if (led->type == LED_TYPE_QUALITY) {
+			rt2x00_set_field32(&reg, LED_CFG_R_LED_MODE,
+					   enabled ? 3 : 0);
+		}
+
+		rt2800_register_write(led->rt2x00dev, LED_CFG, reg);
+
+	} else {
+		if (led->type == LED_TYPE_RADIO) {
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+					      enabled ? 0x20 : 0);
+		} else if (led->type == LED_TYPE_ASSOC) {
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+					      enabled ? (bg_mode ? 0x60 : 0xa0) : 0x20);
+		} else if (led->type == LED_TYPE_QUALITY) {
+			/*
+			 * The brightness is divided into 6 levels (0 - 5),
+			 * The specs tell us the following levels:
+			 *	0, 1 ,3, 7, 15, 31
+			 * to determine the level in a simple way we can simply
+			 * work with bitshifting:
+			 *	(1 << level) - 1
+			 */
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
+					      (1 << brightness / (LED_FULL / 6)) - 1,
+					      polarity);
+		}
 	}
 }
 
