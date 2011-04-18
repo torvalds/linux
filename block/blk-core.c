@@ -2638,6 +2638,7 @@ void blk_start_plug(struct blk_plug *plug)
 
 	plug->magic = PLUG_MAGIC;
 	INIT_LIST_HEAD(&plug->list);
+	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
 
 	/*
@@ -2678,6 +2679,24 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 		q->unplugged_fn(q);
 }
 
+static void flush_plug_callbacks(struct blk_plug *plug)
+{
+	LIST_HEAD(callbacks);
+
+	if (list_empty(&plug->cb_list))
+		return;
+
+	list_splice_init(&plug->cb_list, &callbacks);
+
+	while (!list_empty(&callbacks)) {
+		struct blk_plug_cb *cb = list_first_entry(&callbacks,
+							  struct blk_plug_cb,
+							  list);
+		list_del(&cb->list);
+		cb->callback(cb);
+	}
+}
+
 void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
 	struct request_queue *q;
@@ -2688,6 +2707,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
+	flush_plug_callbacks(plug);
 	if (list_empty(&plug->list))
 		return;
 

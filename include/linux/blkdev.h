@@ -860,7 +860,12 @@ extern void blk_put_queue(struct request_queue *);
 struct blk_plug {
 	unsigned long magic;
 	struct list_head list;
+	struct list_head cb_list;
 	unsigned int should_sort;
+};
+struct blk_plug_cb {
+	struct list_head list;
+	void (*callback)(struct blk_plug_cb *);
 };
 
 extern void blk_start_plug(struct blk_plug *);
@@ -887,7 +892,7 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {
 	struct blk_plug *plug = tsk->plug;
 
-	return plug && !list_empty(&plug->list);
+	return plug && (!list_empty(&plug->list) || !list_empty(&plug->cb_list));
 }
 
 /*
