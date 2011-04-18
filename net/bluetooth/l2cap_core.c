@@ -135,7 +135,7 @@ static inline struct l2cap_chan *l2cap_get_chan_by_ident(struct l2cap_conn *conn
 	return c;
 }
 
-struct sock *__l2cap_get_sock_by_addr(__le16 psm, bdaddr_t *src)
+static struct sock *__l2cap_get_sock_by_addr(__le16 psm, bdaddr_t *src)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -153,19 +153,35 @@ found:
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
 {
+	int err;
+
 	write_lock_bh(&l2cap_sk_list.lock);
 
-	if (__l2cap_get_sock_by_addr(psm, src)) {
-		write_unlock_bh(&l2cap_sk_list.lock);
-		return -EADDRINUSE;
+	if (psm && __l2cap_get_sock_by_addr(psm, src)) {
+		err = -EADDRINUSE;
+		goto done;
 	}
 
-	chan->psm = psm;
-	chan->sport = psm;
+	if (psm) {
+		chan->psm = psm;
+		chan->sport = psm;
+		err = 0;
+	} else {
+		u16 p;
 
+		err = -EINVAL;
+		for (p = 0x1001; p < 0x1100; p += 2)
+			if (!__l2cap_get_sock_by_addr(cpu_to_le16(p), src)) {
+				chan->psm   = cpu_to_le16(p);
+				chan->sport = cpu_to_le16(p);
+				err = 0;
+				break;
+			}
+	}
+
+done:
 	write_unlock_bh(&l2cap_sk_list.lock);
-
-	return 0;
+	return err;
 }
 
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid)
