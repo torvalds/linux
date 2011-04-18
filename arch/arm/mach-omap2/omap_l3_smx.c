@@ -155,7 +155,7 @@ static irqreturn_t omap3_l3_block_irq(struct omap3_l3 *l3,
 	u8                      multi = error & L3_ERROR_LOG_MULTI;
 	u32			address = omap3_l3_decode_addr(error_addr);
 
-	WARN(true, "%s Error seen by %s %s at address %x\n",
+	WARN(true, "%s seen by %s %s at address %x\n",
 				 omap3_l3_code_string(code),
 			  omap3_l3_initiator_string(initid),
 			     multi ? "Multiple Errors" : "",
@@ -167,21 +167,15 @@ static irqreturn_t omap3_l3_block_irq(struct omap3_l3 *l3,
 static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 {
 	struct omap3_l3         *l3 = _l3;
-
 	u64                     status, clear;
 	u64                     error;
 	u64			error_addr;
 	u64			err_source = 0;
 	void			__iomem *base;
 	int			int_type;
-
 	irqreturn_t             ret = IRQ_NONE;
 
-	if (irq == l3->app_irq)
-		int_type = L3_APPLICATION_ERROR;
-	else
-		int_type = L3_DEBUG_ERROR;
-
+	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 	if (!int_type) {
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_0);
 		/*
@@ -202,7 +196,6 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	for (err_source = 0; !(status & (1 << err_source)); err_source++)
 									;
 	error = omap3_l3_readll(base, L3_ERROR_LOG);
-
 	if (error) {
 		error_addr = omap3_l3_readll(base, L3_ERROR_LOG_ADDR);
 
@@ -210,9 +203,8 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	}
 
 	/* Clear the status register */
-	clear = ((L3_AGENT_STATUS_CLEAR_IA << int_type) |
-		 (L3_AGENT_STATUS_CLEAR_TA));
-
+	clear = (L3_AGENT_STATUS_CLEAR_IA << int_type) |
+		L3_AGENT_STATUS_CLEAR_TA;
 	omap3_l3_writell(base, L3_AGENT_STATUS, clear);
 
 	/* clear the error log register */
@@ -240,7 +232,7 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 		goto err0;
 	}
 	l3->rt = ioremap(res->start, resource_size(res));
-	if (!(l3->rt)) {
+	if (!l3->rt) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err0;
@@ -259,7 +251,6 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 	ret = request_irq(l3->app_irq, omap3_l3_app_irq,
 		IRQF_DISABLED | IRQF_TRIGGER_RISING,
 		"l3-app-irq", l3);
-
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't request app irq\n");
 		goto err2;

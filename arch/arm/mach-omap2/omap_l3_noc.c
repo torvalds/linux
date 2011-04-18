@@ -63,10 +63,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	char *source_name;
 
 	/* Get the Type of interrupt */
-	if (irq == l3->app_irq)
-		inttype = L3_APPLICATION_ERROR;
-	else
-		inttype = L3_DEBUG_ERROR;
+	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 
 	for (i = 0; i < L3_MODULES; i++) {
 		/*
@@ -84,10 +81,10 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 			err_src = j;
 			/* Read the stderrlog_main_source from clk domain */
-			std_err_main_addr = base + (*(l3_targ[i] + err_src));
-			std_err_main =  readl(std_err_main_addr);
+			std_err_main_addr = base + *(l3_targ[i] + err_src);
+			std_err_main = readl(std_err_main_addr);
 
-			switch ((std_err_main & CUSTOM_ERROR)) {
+			switch (std_err_main & CUSTOM_ERROR) {
 			case STANDARD_ERROR:
 				source_name =
 				l3_targ_stderrlog_main_name[i][err_src];
@@ -143,7 +140,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	}
 
 	l3->l3_base[0] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[0])) {
+	if (!l3->l3_base[0]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err0;
@@ -157,7 +154,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	}
 
 	l3->l3_base[1] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[1])) {
+	if (!l3->l3_base[1]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err1;
@@ -171,7 +168,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	}
 
 	l3->l3_base[2] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[2])) {
+	if (!l3->l3_base[2]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err2;
