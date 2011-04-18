@@ -1363,7 +1363,7 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
 
 	dev_info(host->dev, "Enter rk29_sdmmc_suspend\n");
-	if(host->mmc && !host->is_sdio){
+	if(host->mmc && !host->is_sdio && host->gpio_det != INVALID_GPIO){
 		ret = mmc_suspend_host(host->mmc, state);
 		if(!host->enable_sd_warkup)
 			free_irq(host->gpio_irq, host);
@@ -1383,7 +1383,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 	dev_info(host->dev, "Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
     rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
-	if(host->mmc && !host->is_sdio){
+	if(host->mmc && !host->is_sdio && host->gpio_det != INVALID_GPIO){
 		if(!host->enable_sd_warkup)
 			ret = request_irq(host->gpio_irq,
                 		  rk29_sdmmc_detect_change_isr,
