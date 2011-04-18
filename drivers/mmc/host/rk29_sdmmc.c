@@ -592,7 +592,7 @@ static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
 	cmd->error = -EINPROGRESS;
 	cmdr = cmd->opcode;
 
-	if(cmdr == 12 || cmdr == 0) 
+	if(cmdr == 12) 
 		cmdr |= SDMMC_CMD_STOP;
 	else if(cmdr == 13) 
 		cmdr &= ~SDMMC_CMD_PRV_DAT_WAIT;
@@ -680,6 +680,10 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 		host->is_init = 0;
 	    cmdflags |= SDMMC_CMD_INIT; 
 	}
+	if(cmd->opcode == 0 &&
+		((rk29_sdmmc_read(host, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY)||
+		(rk29_sdmmc_read(host, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY)))
+		cmdflags |= SDMMC_CMD_STOP;
 	if (mrq->data) {
 		rk29_sdmmc_set_mrq_status(host, MRQ_HAS_DATA);
 		ret = rk29_sdmmc_submit_data(host, mrq->data);
@@ -1281,12 +1285,11 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		INIT_WORK(&host->work, rk29_sdmmc_detect_change_work);
 		ret = gpio_request(host->gpio_det, "sd_detect");
 		if(ret < 0) {
-			dev_err(&pdev->dev, "mmc_alloc_host error\n");
+			dev_err(&pdev->dev, "gpio_request error\n");
 			goto err_mmc_remove_host;
 		}
 		gpio_direction_input(host->gpio_det);
 		host->gpio_irq = gpio_to_irq(host->gpio_det);
-		enable_irq_wake(host->gpio_irq);
 
 		ret = request_irq(host->gpio_irq,
                 		  rk29_sdmmc_detect_change_isr,
@@ -1360,8 +1363,11 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
 
 	dev_info(host->dev, "Enter rk29_sdmmc_suspend\n");
-	if(host->mmc && !host->is_sdio)
+	if(host->mmc && !host->is_sdio){
 		ret = mmc_suspend_host(host->mmc, state);
+		if(host->enable_sd_warkup)
+			free_irq(host->gpio_irq, host);
+	}
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	clk_disable(host->clk);
 #endif
@@ -1377,8 +1383,17 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 	dev_info(host->dev, "Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
     rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
-	if(host->mmc && !host->is_sdio)
+	if(host->mmc && !host->is_sdio){
+		if(host->enable_sd_warkup)
+			ret = request_irq(host->gpio_irq,
+                		  rk29_sdmmc_detect_change_isr,
+                		  rk29_sdmmc_get_cd(host->mmc)?IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING,
+                		  "sd_detect",
+                		  host);
+		if(ret < 0)
+		dev_err(host->dev, "gpio request_irq error\n");
 		ret = mmc_resume_host(host->mmc);
+	}
 #endif
 	return ret;
 }
