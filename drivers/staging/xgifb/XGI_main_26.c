@@ -1235,15 +1235,15 @@ static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		outXGIREG(XGIDACA, regno);
-		outXGIREG(XGIDACD, (red >> 10));
-		outXGIREG(XGIDACD, (green >> 10));
-		outXGIREG(XGIDACD, (blue >> 10));
+		outb(regno, XGIDACA);
+		outb((red >> 10), XGIDACD);
+		outb((green >> 10), XGIDACD);
+		outb((blue >> 10), XGIDACD);
 		if (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-			outXGIREG(XGIDAC2A, regno);
-			outXGIREG(XGIDAC2D, (red >> 8));
-			outXGIREG(XGIDAC2D, (green >> 8));
-			outXGIREG(XGIDAC2D, (blue >> 8));
+			outb(regno, XGIDAC2A);
+			outb((red >> 8), XGIDAC2D);
+			outb((green >> 8), XGIDAC2D);
+			outb((blue >> 8), XGIDAC2D);
 		}
 		break;
 	case 16:
