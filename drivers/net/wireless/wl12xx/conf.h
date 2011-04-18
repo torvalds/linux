@@ -396,12 +396,43 @@ enum {
 	CONF_SG_TEMP_PARAM_3,
 	CONF_SG_TEMP_PARAM_4,
 	CONF_SG_TEMP_PARAM_5,
-	CONF_SG_PARAMS_MAX,
+
+	/*
+	 * AP beacon miss
+	 *
+	 * Range: 0 - 255
+	 */
+	CONF_SG_AP_BEACON_MISS_TX,
+
+	/*
+	 * AP RX window length
+	 *
+	 * Range: 0 - 50
+	 */
+	CONF_SG_RX_WINDOW_LENGTH,
+
+	/*
+	 * AP connection protection time
+	 *
+	 * Range: 0 - 5000
+	 */
+	CONF_SG_AP_CONNECTION_PROTECTION_TIME,
+
+	CONF_SG_TEMP_PARAM_6,
+	CONF_SG_TEMP_PARAM_7,
+	CONF_SG_TEMP_PARAM_8,
+	CONF_SG_TEMP_PARAM_9,
+	CONF_SG_TEMP_PARAM_10,
+
+	CONF_SG_STA_PARAMS_MAX = CONF_SG_TEMP_PARAM_5 + 1,
+	CONF_SG_AP_PARAMS_MAX = CONF_SG_TEMP_PARAM_10 + 1,
+
 	CONF_SG_PARAMS_ALL = 0xff
 };
 
 struct conf_sg_settings {
-	u32 params[CONF_SG_PARAMS_MAX];
+	u32 sta_params[CONF_SG_STA_PARAMS_MAX];
+	u32 ap_params[CONF_SG_AP_PARAMS_MAX];
 	u8 state;
 };
 

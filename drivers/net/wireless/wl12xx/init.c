@@ -285,7 +285,10 @@ int wl1271_init_pta(struct wl1271 *wl)
 {
 	int ret;
 
-	ret = wl1271_acx_sg_cfg(wl);
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		ret = wl1271_acx_ap_sg_cfg(wl);
+	else
+		ret = wl1271_acx_sta_sg_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -348,11 +351,6 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 
 	/* Beacon filtering */
 	ret = wl1271_init_beacon_filter(wl);
-	if (ret < 0)
-		return ret;
-
-	/* Bluetooth WLAN coexistence */
-	ret = wl1271_init_pta(wl);
 	if (ret < 0)
 		return ret;
 
@@ -569,6 +567,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 	else
 		ret = wl1271_sta_hw_init(wl);
 
+	if (ret < 0)
+		return ret;
+
+	/* Bluetooth WLAN coexistence */
+	ret = wl1271_init_pta(wl);
 	if (ret < 0)
 		return ret;
 
