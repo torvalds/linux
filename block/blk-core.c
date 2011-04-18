@@ -204,7 +204,7 @@ static void blk_delay_work(struct work_struct *work)
 
 	q = container_of(work, struct request_queue, delay_work.work);
 	spin_lock_irq(q->queue_lock);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irq(q->queue_lock);
 }
 
@@ -239,7 +239,7 @@ void blk_start_queue(struct request_queue *q)
 	WARN_ON(!irqs_disabled());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 }
 EXPORT_SYMBOL(blk_start_queue);
 
@@ -296,11 +296,9 @@ EXPORT_SYMBOL(blk_sync_queue);
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
- *    held and interrupts disabled. If force_kblockd is true, then it is
- *    safe to call this without holding the queue lock.
- *
+ *    held and interrupts disabled.
  */
-void __blk_run_queue(struct request_queue *q, bool force_kblockd)
+void __blk_run_queue(struct request_queue *q)
 {
 	if (unlikely(blk_queue_stopped(q)))
 		return;
@@ -309,13 +307,27 @@ void __blk_run_queue(struct request_queue *q, bool force_kblockd)
 	 * Only recurse once to avoid overrunning the stack, let the unplug
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
-	if (!force_kblockd && !queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
+	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
 		q->request_fn(q);
 		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else
 		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
 }
 EXPORT_SYMBOL(__blk_run_queue);
+
+/**
+ * blk_run_queue_async - run a single device queue in workqueue context
+ * @q:	The queue to run
+ *
+ * Description:
+ *    Tells kblockd to perform the equivalent of @blk_run_queue on behalf
+ *    of us.
+ */
+void blk_run_queue_async(struct request_queue *q)
+{
+	if (likely(!blk_queue_stopped(q)))
+		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
+}
 
 /**
  * blk_run_queue - run a single device queue
@@ -330,7 +342,7 @@ void blk_run_queue(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -979,7 +991,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 		blk_queue_end_tag(q, rq);
 
 	add_acct_request(q, rq, where);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_insert_request);
@@ -1323,7 +1335,7 @@ get_rq:
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
-		__blk_run_queue(q, false);
+		__blk_run_queue(q);
 out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
@@ -2684,9 +2696,9 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 	 */
 	if (from_schedule) {
 		spin_unlock(q->queue_lock);
-		__blk_run_queue(q, true);
+		blk_run_queue_async(q);
 	} else {
-		__blk_run_queue(q, false);
+		__blk_run_queue(q);
 		spin_unlock(q->queue_lock);
 	}
 

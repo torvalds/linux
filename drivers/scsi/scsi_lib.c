@@ -443,7 +443,7 @@ static void scsi_run_queue(struct request_queue *q)
 					&sdev->request_queue->queue_flags);
 		if (flagset)
 			queue_flag_set(QUEUE_FLAG_REENTER, sdev->request_queue);
-		__blk_run_queue(sdev->request_queue, false);
+		__blk_run_queue(sdev->request_queue);
 		if (flagset)
 			queue_flag_clear(QUEUE_FLAG_REENTER, sdev->request_queue);
 		spin_unlock(sdev->request_queue->queue_lock);
