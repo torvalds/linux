@@ -895,12 +895,12 @@ static int ibmlana_irq;
 static int ibmlana_io;
 static int startslot;		/* counts through slots when probing multiple devices */
 
-static short ibmlana_adapter_ids[] __initdata = {
+static const short ibmlana_adapter_ids[] __devinitconst = {
 	IBM_LANA_ID,
 	0x0000
 };
 
-static char *ibmlana_adapter_names[] __devinitdata = {
+static const char *const ibmlana_adapter_names[] __devinitconst = {
 	"IBM LAN Adapter/A",
 	NULL
 };

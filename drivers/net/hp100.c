@@ -188,14 +188,14 @@ struct hp100_private {
  *  variables
  */
 #ifdef CONFIG_ISA
-static const char *hp100_isa_tbl[] = {
+static const char *const hp100_isa_tbl[] __devinitconst = {
 	"HWPF150", /* HP J2573 rev A */
 	"HWP1950", /* HP J2573 */
 };
 #endif
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id hp100_eisa_tbl[] = {
+static const struct eisa_device_id hp100_eisa_tbl[] __devinitconst = {
 	{ "HWPF180" }, /* HP J2577 rev A */
 	{ "HWP1920" }, /* HP 27248B */
 	{ "HWP1940" }, /* HP J2577 */
@@ -336,7 +336,7 @@ static __devinit const char *hp100_read_id(int ioaddr)
 }
 
 #ifdef CONFIG_ISA
-static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
+static __devinit int hp100_isa_probe1(struct net_device *dev, int ioaddr)
 {
 	const char *sig;
 	int i;
@@ -372,7 +372,7 @@ static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
  * EISA and PCI are handled by device infrastructure.
  */
 
-static int  __init hp100_isa_probe(struct net_device *dev, int addr)
+static int  __devinit hp100_isa_probe(struct net_device *dev, int addr)
 {
 	int err = -ENODEV;
 
@@ -396,7 +396,7 @@ static int  __init hp100_isa_probe(struct net_device *dev, int addr)
 #endif /* CONFIG_ISA */
 
 #if !defined(MODULE) && defined(CONFIG_ISA)
-struct net_device * __init hp100_probe(int unit)
+struct net_device * __devinit hp100_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
 	int err;
@@ -2843,7 +2843,7 @@ static void cleanup_dev(struct net_device *d)
 }
 
 #ifdef CONFIG_EISA
-static int __init hp100_eisa_probe (struct device *gendev)
+static int __devinit hp100_eisa_probe (struct device *gendev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
 	struct eisa_device *edev = to_eisa_device(gendev);
