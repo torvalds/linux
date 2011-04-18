@@ -1464,6 +1464,30 @@ static void invoke_rcu_node_kthread(struct rcu_node *rnp)
 }
 
 /*
+ * Set the specified CPU's kthread to run RT or not, as specified by
+ * the to_rt argument.  The CPU-hotplug locks are held, so the task
+ * is not going away.
+ */
+static void rcu_cpu_kthread_setrt(int cpu, int to_rt)
+{
+	int policy;
+	struct sched_param sp;
+	struct task_struct *t;
+
+	t = per_cpu(rcu_cpu_kthread_task, cpu);
+	if (t == NULL)
+		return;
+	if (to_rt) {
+		policy = SCHED_FIFO;
+		sp.sched_priority = RCU_KTHREAD_PRIO;
+	} else {
+		policy = SCHED_NORMAL;
+		sp.sched_priority = 0;
+	}
+	sched_setscheduler_nocheck(t, policy, &sp);
+}
+
+/*
  * Timer handler to initiate the waking up of per-CPU kthreads that
  * have yielded the CPU due to excess numbers of RCU callbacks.
  * We wake up the per-rcu_node kthread, which in turn will wake up
@@ -2166,9 +2190,11 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
 		rcu_node_kthread_setaffinity(rnp, -1);
+		rcu_cpu_kthread_setrt(cpu, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 		rcu_node_kthread_setaffinity(rnp, cpu);
+		rcu_cpu_kthread_setrt(cpu, 0);
 		break;
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
