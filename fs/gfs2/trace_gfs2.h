@@ -10,6 +10,7 @@
 #include <linux/buffer_head.h>
 #include <linux/dlmconstants.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/writeback.h>
 #include "incore.h"
 #include "glock.h"
 
@@ -318,6 +319,33 @@ TRACE_EVENT(gfs2_log_blocks,
 
 	TP_printk("%u,%u log reserve %d", MAJOR(__entry->dev),
 		  MINOR(__entry->dev), __entry->blocks)
+);
+
+/* Writing back the AIL */
+TRACE_EVENT(gfs2_ail_flush,
+
+	TP_PROTO(const struct gfs2_sbd *sdp, const struct writeback_control *wbc, int start),
+
+	TP_ARGS(sdp, wbc, start),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int, start			)
+		__field(	int, sync_mode			)
+		__field(	long, nr_to_write		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sdp->sd_vfs->s_dev;
+		__entry->start		= start;
+		__entry->sync_mode	= wbc->sync_mode;
+		__entry->nr_to_write	= wbc->nr_to_write;
+	),
+
+	TP_printk("%u,%u ail flush %s %s %ld", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->start ? "start" : "end",
+		  __entry->sync_mode == WB_SYNC_ALL ? "all" : "none",
+		  __entry->nr_to_write)
 );
 
 /* Section 3 - bmap

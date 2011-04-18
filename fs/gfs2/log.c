@@ -144,6 +144,7 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct list_head *head = &sdp->sd_ail1_list;
 	struct gfs2_ail *ai;
 
+	trace_gfs2_ail_flush(sdp, wbc, 1);
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_reverse(ai, head, ai_list) {
 		if (wbc->nr_to_write <= 0)
@@ -151,6 +152,7 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 		gfs2_ail1_start_one(sdp, wbc, ai); /* This may drop ail lock */
 	}
 	spin_unlock(&sdp->sd_ail_lock);
+	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
 
 /**
