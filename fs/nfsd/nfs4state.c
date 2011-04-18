@@ -403,8 +403,8 @@ static void free_generic_stateid(struct nfs4_stateid *stp)
 	if (stp->st_access_bmap) {
 		oflag = nfs4_access_bmap_to_omode(stp);
 		nfs4_file_put_access(stp->st_file, oflag);
-		put_nfs4_file(stp->st_file);
 	}
+	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
 }
 
