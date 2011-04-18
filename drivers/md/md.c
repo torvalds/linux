@@ -445,50 +445,6 @@ void md_flush_request(mddev_t *mddev, struct bio *bio)
 }
 EXPORT_SYMBOL(md_flush_request);
 
-/* Support for plugging.
- * This mirrors the plugging support in request_queue, but does not
- * require having a whole queue
- */
-static void plugger_work(struct work_struct *work)
-{
-	struct plug_handle *plug =
-		container_of(work, struct plug_handle, unplug_work);
-	plug->unplug_fn(plug);
-}
-static void plugger_timeout(unsigned long data)
-{
-	struct plug_handle *plug = (void *)data;
-	kblockd_schedule_work(NULL, &plug->unplug_work);
-}
-void plugger_init(struct plug_handle *plug,
-		  void (*unplug_fn)(struct plug_handle *))
-{
-	plug->unplug_flag = 0;
-	plug->unplug_fn = unplug_fn;
-	init_timer(&plug->unplug_timer);
-	plug->unplug_timer.function = plugger_timeout;
-	plug->unplug_timer.data = (unsigned long)plug;
-	INIT_WORK(&plug->unplug_work, plugger_work);
-}
-EXPORT_SYMBOL_GPL(plugger_init);
-
-void plugger_set_plug(struct plug_handle *plug)
-{
-	if (!test_and_set_bit(PLUGGED_FLAG, &plug->unplug_flag))
-		mod_timer(&plug->unplug_timer, jiffies + msecs_to_jiffies(3)+1);
-}
-EXPORT_SYMBOL_GPL(plugger_set_plug);
-
-int plugger_remove_plug(struct plug_handle *plug)
-{
-	if (test_and_clear_bit(PLUGGED_FLAG, &plug->unplug_flag)) {
-		del_timer(&plug->unplug_timer);
-		return 1;
-	} else
-		return 0;
-}
-EXPORT_SYMBOL_GPL(plugger_remove_plug);
-
 
 static inline mddev_t *mddev_get(mddev_t *mddev)
 {
@@ -4723,7 +4679,6 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.chunksize = 0;
 	mddev->bitmap_info.daemon_sleep = 0;
 	mddev->bitmap_info.max_write_behind = 0;
-	mddev->plug = NULL;
 }
 
 static void __md_stop_writes(mddev_t *mddev)
@@ -6687,12 +6642,6 @@ int md_allow_write(mddev_t *mddev)
 		return 0;
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
-
-void md_unplug(mddev_t *mddev)
-{
-	if (mddev->plug)
-		mddev->plug->unplug_fn(mddev->plug);
-}
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)

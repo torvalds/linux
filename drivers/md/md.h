@@ -29,26 +29,6 @@
 typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
 
-/* generic plugging support - like that provided with request_queue,
- * but does not require a request_queue
- */
-struct plug_handle {
-	void			(*unplug_fn)(struct plug_handle *);
-	struct timer_list	unplug_timer;
-	struct work_struct	unplug_work;
-	unsigned long		unplug_flag;
-};
-#define	PLUGGED_FLAG 1
-void plugger_init(struct plug_handle *plug,
-		  void (*unplug_fn)(struct plug_handle *));
-void plugger_set_plug(struct plug_handle *plug);
-int plugger_remove_plug(struct plug_handle *plug);
-static inline void plugger_flush(struct plug_handle *plug)
-{
-	del_timer_sync(&plug->unplug_timer);
-	cancel_work_sync(&plug->unplug_work);
-}
-
 /*
  * MD's 'extended' device
  */
@@ -336,7 +316,6 @@ struct mddev_s
 	struct list_head		all_mddevs;
 
 	struct attribute_group		*to_remove;
-	struct plug_handle		*plug; /* if used by personality */
 
 	struct bio_set			*bio_set;
 
@@ -516,7 +495,6 @@ extern int md_integrity_register(mddev_t *mddev);
 extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 extern void restore_bitmap_write_access(struct file *file);
-extern void md_unplug(mddev_t *mddev);
 
 extern void mddev_init(mddev_t *mddev);
 extern int md_run(mddev_t *mddev);
