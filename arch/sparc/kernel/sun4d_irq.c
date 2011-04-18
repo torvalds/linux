@@ -51,7 +51,11 @@ static struct sun4d_timer_regs __iomem *sun4d_timers;
 #define TIMER_IRQ	10
 
 #define MAX_STATIC_ALLOC	4
-static unsigned char sbus_tid[32];
+
+/* Specify which cpu handle interrupts from which board.
+ * Index is board - value is cpu.
+ */
+static unsigned char board_to_cpu[32];
 
 static struct irqaction *irq_action[NR_IRQS];
 
@@ -363,7 +367,7 @@ out:
 
 static void sun4d_disable_irq(unsigned int irq)
 {
-	int tid = sbus_tid[(irq >> 5) - 1];
+	int tid = board_to_cpu[(irq >> 5) - 1];
 	unsigned long flags;
 
 	if (irq < NR_IRQS)
@@ -376,7 +380,7 @@ static void sun4d_disable_irq(unsigned int irq)
 
 static void sun4d_enable_irq(unsigned int irq)
 {
-	int tid = sbus_tid[(irq >> 5) - 1];
+	int tid = board_to_cpu[(irq >> 5) - 1];
 	unsigned long flags;
 
 	if (irq < NR_IRQS)
@@ -413,7 +417,7 @@ void __init sun4d_distribute_irqs(void)
 	for_each_node_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
-		sbus_tid[board] = cpuid;
+		board_to_cpu[board] = cpuid;
 		set_sbi_tid(devid, cpuid << 3);
 	}
 	printk(KERN_ERR "All sbus IRQs directed to CPU%d\n", cpuid);
@@ -587,7 +591,7 @@ void __init sun4d_init_sbi_irq(void)
 		unsigned int mask;
 
 		set_sbi_tid(devid, target_cpu << 3);
-		sbus_tid[board] = target_cpu;
+		board_to_cpu[board] = target_cpu;
 
 		/* Get rid of pending irqs from PROM */
 		mask = acquire_sbi(devid, 0xffffffff);
