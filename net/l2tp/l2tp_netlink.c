@@ -795,11 +795,12 @@ int l2tp_nl_register_ops(enum l2tp_pwtype pw_type, const struct l2tp_nl_cmd_ops 
 		goto out;
 
 	l2tp_nl_cmd_ops[pw_type] = ops;
+	ret = 0;
 
 out:
 	genl_unlock();
 err:
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(l2tp_nl_register_ops);
 
