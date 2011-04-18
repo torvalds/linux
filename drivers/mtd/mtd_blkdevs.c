@@ -221,12 +221,30 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	kref_get(&dev->ref);
 	__module_get(dev->tr->owner);
 
-	if (dev->mtd) {
-		ret = dev->tr->open ? dev->tr->open(dev) : 0;
-		__get_mtd_device(dev->mtd);
+	if (!dev->mtd)
+		goto unlock;
+
+	if (dev->tr->open) {
+		ret = dev->tr->open(dev);
+		if (ret)
+			goto error_put;
 	}
 
+	ret = __get_mtd_device(dev->mtd);
+	if (ret)
+		goto error_release;
+
 unlock:
+	mutex_unlock(&dev->lock);
+	blktrans_dev_put(dev);
+	return ret;
+
+error_release:
+	if (dev->tr->release)
+		dev->tr->release(dev);
+error_put:
+	module_put(dev->tr->owner);
+	kref_put(&dev->ref, blktrans_dev_release);
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
 	return ret;
