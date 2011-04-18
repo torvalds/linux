@@ -65,6 +65,9 @@ static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 {
 	if (__test_and_clear_bit(id, wl->tx_frames_map)) {
+		if (unlikely(wl->tx_frames_cnt == ACX_TX_DESCRIPTORS))
+			clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
+
 		wl->tx_frames[id] = NULL;
 		wl->tx_frames_cnt--;
 	}
