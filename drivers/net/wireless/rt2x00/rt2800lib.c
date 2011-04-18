@@ -1245,6 +1245,25 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_SYNC, conf->sync);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+		if (conf->sync == TSF_SYNC_AP_NONE) {
+			/*
+			 * Tune beacon queue transmit parameters for AP mode
+			 */
+			rt2800_register_read(rt2x00dev, TBTT_SYNC_CFG, &reg);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_CWMIN, 0);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_AIFSN, 1);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_EXP_WIN, 32);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_TBTT_ADJUST, 0);
+			rt2800_register_write(rt2x00dev, TBTT_SYNC_CFG, reg);
+		} else {
+			rt2800_register_read(rt2x00dev, TBTT_SYNC_CFG, &reg);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_CWMIN, 4);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_AIFSN, 2);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_EXP_WIN, 32);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_TBTT_ADJUST, 16);
+			rt2800_register_write(rt2x00dev, TBTT_SYNC_CFG, reg);
+		}
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
