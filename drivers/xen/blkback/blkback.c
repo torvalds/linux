@@ -514,6 +514,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	pending_req->operation = req->operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
+
 	for (i = 0; i < nseg; i++) {
 		seg[i].nsec = req->u.rw.seg[i].last_sect -
 			req->u.rw.seg[i].first_sect + 1;
@@ -522,12 +523,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 			goto fail_response;
 		preq.nr_sects += seg[i].nsec;
 
-		if (((int)preq.sector_number|(int)seg[i].nsec) &
-		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
-			DPRINTK("Misaligned I/O request from domain %d",
-				blkif->domid);
-			goto fail_response;
-		}
 	}
 
 	if (vbd_translate(&preq, blkif, operation) != 0) {
@@ -536,6 +531,16 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 			preq.sector_number,
 			preq.sector_number + preq.nr_sects, preq.dev);
 		goto fail_response;
+	}
+	/* This check _MUST_ be done after vbd_translate as the preq.bdev
+	 * is set there. */
+	for (i = 0; i < nseg; i++) {
+		if (((int)preq.sector_number|(int)seg[i].nsec) &
+		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
+			DPRINTK("Misaligned I/O request from domain %d",
+				blkif->domid);
+			goto fail_response;
+		}
 	}
 	/* If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
