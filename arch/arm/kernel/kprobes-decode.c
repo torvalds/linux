@@ -956,11 +956,6 @@ space_1111(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	}
 
 	/* SETEND : 1111 0001 0000 0001 xxxx xxxx 0000 xxxx */
-	if ((insn & 0xffff00f0) == 0xf1010000) {
-		asi->insn[0] = insn;
-		asi->insn_handler = emulate_none;
-		return INSN_GOOD;
-	}
 
 	/* Coprocessor instructions... */
 	/* MCRR2 : 1111 1100 0100 xxxx xxxx xxxx xxxx xxxx : (Rd != Rn) */
