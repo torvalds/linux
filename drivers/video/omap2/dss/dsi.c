@@ -1059,6 +1059,11 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 {
 	int t = 0;
 
+	/* DSI-PLL power command 0x3 is not working */
+	if (dss_has_feature(FEAT_DSI_PLL_PWR_BUG) &&
+			state == DSI_PLL_POWER_ON_DIV)
+		state = DSI_PLL_POWER_ON_ALL;
+
 	REG_FLD_MOD(DSI_CLK_CTRL, state, 31, 30);	/* PLL_PWR_CMD */
 
 	/* PLL_PWR_STATUS */
@@ -1276,6 +1281,9 @@ int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 
 	DSSDBGF();
 
+	dsi.current_cinfo.use_sys_clk = cinfo->use_sys_clk;
+	dsi.current_cinfo.highfreq = cinfo->highfreq;
+
 	dsi.current_cinfo.fint = cinfo->fint;
 	dsi.current_cinfo.clkin4ddr = cinfo->clkin4ddr;
 	dsi.current_cinfo.dsi_pll_hsdiv_dispc_clk =
@@ -1488,7 +1496,6 @@ void dsi_pll_uninit(void)
 
 void dsi_dump_clocks(struct seq_file *s)
 {
-	int clksel;
 	struct dsi_clock_info *cinfo = &dsi.current_cinfo;
 	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 
@@ -1497,13 +1504,10 @@ void dsi_dump_clocks(struct seq_file *s)
 
 	enable_clocks(1);
 
-	clksel = REG_GET(DSI_PLL_CONFIGURATION2, 11, 11);
-
 	seq_printf(s,	"- DSI PLL -\n");
 
 	seq_printf(s,	"dsi pll source = %s\n",
-			clksel == 0 ?
-			"dss_sys_clk" : "pclkfree");
+			cinfo->use_sys_clk ? "dss_sys_clk" : "pclkfree");
 
 	seq_printf(s,	"Fint\t\t%-16luregn %u\n", cinfo->fint, cinfo->regn);
 

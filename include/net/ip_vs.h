@@ -52,7 +52,7 @@ static inline struct net *skb_net(const struct sk_buff *skb)
 	 */
 	if (likely(skb->dev && skb->dev->nd_net))
 		return dev_net(skb->dev);
-	if (skb_dst(skb)->dev)
+	if (skb_dst(skb) && skb_dst(skb)->dev)
 		return dev_net(skb_dst(skb)->dev);
 	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
 		      __func__, __LINE__);
