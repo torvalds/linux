@@ -34,7 +34,7 @@
 #include <asm/mach/time.h>
 #include <asm/setup.h>
 
-#include <mach/harmony_audio.h>
+#include <mach/tegra_wm8903_pdata.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
@@ -67,15 +67,16 @@ static struct platform_device debug_uart = {
 	},
 };
 
-static struct harmony_audio_platform_data harmony_audio_pdata = {
+static struct tegra_wm8903_platform_data harmony_audio_pdata = {
 	.gpio_spkr_en		= TEGRA_GPIO_SPKR_EN,
 	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
+	.gpio_hp_mute		= -1,
 	.gpio_int_mic_en	= TEGRA_GPIO_INT_MIC_EN,
 	.gpio_ext_mic_en	= TEGRA_GPIO_EXT_MIC_EN,
 };
 
 static struct platform_device harmony_audio_device = {
-	.name	= "tegra-snd-harmony",
+	.name	= "tegra-snd-wm8903",
 	.id	= 0,
 	.dev	= {
 		.platform_data  = &harmony_audio_pdata,
