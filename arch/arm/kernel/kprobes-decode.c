@@ -657,14 +657,8 @@ static void __kprobes emulate_none(struct kprobe *p, struct pt_regs *regs)
 	insnslot_0arg_rflags(regs->ARM_cpsr, i_fn);
 }
 
-static void __kprobes emulate_rn16(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes emulate_nop(struct kprobe *p, struct pt_regs *regs)
 {
-	insn_1arg_fn_t *i_fn = (insn_1arg_fn_t *)&p->ainsn.insn[0];
-	kprobe_opcode_t insn = p->opcode;
-	int rn = (insn >> 16) & 0xf;
-	long rnv = regs->uregs[rn];
-
-	insnslot_1arg_rflags(rnv, regs->ARM_cpsr, i_fn);
 }
 
 static void __kprobes emulate_rd12rm0(struct kprobe *p, struct pt_regs *regs)
@@ -941,12 +935,13 @@ space_1111(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	    (insn & 0xfe5f0f00) == 0xf84d0500)
 		return INSN_REJECTED;
 
-	/* PLD : 1111 01x1 x101 xxxx xxxx xxxx xxxx xxxx : */
-	if ((insn & 0xfd700000) == 0xf4500000) {
-		insn &= 0xfff0ffff;	/* Rn = r0 */
-		asi->insn[0] = insn;
-		asi->insn_handler = emulate_rn16;
-		return INSN_GOOD;
+	/* memory hint : 1111 0100 x001 xxxx xxxx xxxx xxxx xxxx : */
+	/* PLDI        : 1111 0100 x101 xxxx xxxx xxxx xxxx xxxx : */
+	/* PLDW        : 1111 0101 x001 xxxx xxxx xxxx xxxx xxxx : */
+	/* PLD         : 1111 0101 x101 xxxx xxxx xxxx xxxx xxxx : */
+	if ((insn & 0xfe300000) == 0xf4100000) {
+		asi->insn_handler = emulate_nop;
+		return INSN_GOOD_NO_SLOT;
 	}
 
 	/* BLX(1) : 1111 101x xxxx xxxx xxxx xxxx xxxx xxxx : */
