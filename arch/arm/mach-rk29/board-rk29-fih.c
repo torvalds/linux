@@ -985,14 +985,6 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
-#if 0//defined (CONFIG_SENSORS_AK8975)
-	{
-		.type    		= "ak8975",
-		.addr           = 0x0d,
-		.flags			= 0,
-		.irq			= RK29_PIN0_PA4,
-	},
-#endif
 /*mpu3050*/
 #if defined (CONFIG_SENSORS_MPU3050) 
 	{
@@ -1608,7 +1600,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 #if 0
@@ -1634,7 +1626,8 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK29_PIN2_PA2 // INVALID_GPIO
+	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
+	.enable_sd_wakeup = 0,
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
