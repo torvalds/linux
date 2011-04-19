@@ -185,17 +185,19 @@ static void ar9003_hw_iqcal_collect(struct ath_hw *ah)
 
 	/* Accumulate IQ cal measures for active chains */
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-		ah->totalPowerMeasI[i] +=
-			REG_READ(ah, AR_PHY_CAL_MEAS_0(i));
-		ah->totalPowerMeasQ[i] +=
-			REG_READ(ah, AR_PHY_CAL_MEAS_1(i));
-		ah->totalIqCorrMeas[i] +=
-			(int32_t) REG_READ(ah, AR_PHY_CAL_MEAS_2(i));
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
-			"%d: Chn %d pmi=0x%08x;pmq=0x%08x;iqcm=0x%08x;\n",
-			ah->cal_samples, i, ah->totalPowerMeasI[i],
-			ah->totalPowerMeasQ[i],
-			ah->totalIqCorrMeas[i]);
+		if (ah->txchainmask & BIT(i)) {
+			ah->totalPowerMeasI[i] +=
+				REG_READ(ah, AR_PHY_CAL_MEAS_0(i));
+			ah->totalPowerMeasQ[i] +=
+				REG_READ(ah, AR_PHY_CAL_MEAS_1(i));
+			ah->totalIqCorrMeas[i] +=
+				(int32_t) REG_READ(ah, AR_PHY_CAL_MEAS_2(i));
+			ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+				"%d: Chn %d pmi=0x%08x;pmq=0x%08x;iqcm=0x%08x;\n",
+				ah->cal_samples, i, ah->totalPowerMeasI[i],
+				ah->totalPowerMeasQ[i],
+				ah->totalIqCorrMeas[i]);
+		}
 	}
 }
 
