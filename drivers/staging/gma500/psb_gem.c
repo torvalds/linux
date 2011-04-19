@@ -39,6 +39,8 @@ int psb_gem_init_object(struct drm_gem_object *obj)
 
 void psb_gem_free_object(struct drm_gem_object *obj)
 {
+	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
+	psb_gtt_free_range(obj->dev, gtt);
 	drm_gem_object_release(obj);
 }
 

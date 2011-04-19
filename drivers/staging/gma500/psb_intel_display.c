@@ -361,7 +361,13 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
+	/* We are displaying this buffer, make sure it is actually loaded
+	   into the GTT */
+	ret = psb_gtt_pin(dev, psbfb->gtt);
+	if (ret < 0)
+		goto psb_intel_pipe_set_base_exit;
 	start = psbfb->gtt->offset;
+
 	offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
 
 	REG_WRITE(dspstride, crtc->fb->pitch);
@@ -386,9 +392,11 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	default:
 		DRM_ERROR("Unknown color depth\n");
 		ret = -EINVAL;
+		psb_gtt_unpin(dev, psbfb->gtt);
 		goto psb_intel_pipe_set_base_exit;
 	}
 	REG_WRITE(dspcntr_reg, dspcntr);
+
 
 	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", start, offset, x, y);
 	if (0 /* FIXMEAC - check what PSB needs */) {
@@ -401,10 +409,12 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 		REG_READ(dspbase);
 	}
 
+	/* If there was a previous display we can now unpin it */
+	if (old_fb)
+		psb_gtt_unpin(dev, to_psb_fb(old_fb)->gtt);
+
 psb_intel_pipe_set_base_exit:
-
 	gma_power_end(dev);
-
 	return ret;
 }
 
@@ -1037,7 +1047,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		/* turn off the cursor */
 		temp = CURSOR_MODE_DISABLE;
 
-        	if (gma_power_begin(dev, false)) {
+		if (gma_power_begin(dev, false)) {
 			REG_WRITE(control, temp);
 			REG_WRITE(base, 0);
 			gma_power_end(dev);
@@ -1045,8 +1055,8 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 		/* Unpin the old GEM object */
 		if (psb_intel_crtc->cursor_obj) {
-                	gt = container_of(psb_intel_crtc->cursor_obj,
-                	                        struct gtt_range, gem);
+			gt = container_of(psb_intel_crtc->cursor_obj,
+							struct gtt_range, gem);
 			psb_gtt_unpin(crtc->dev, gt);
 			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 			psb_intel_crtc->cursor_obj = NULL;
@@ -1089,7 +1099,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	temp |= (pipe << 28);
 	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
 
-       	if (gma_power_begin(dev, false)) {
+	if (gma_power_begin(dev, false)) {
 		REG_WRITE(control, temp);
 		REG_WRITE(base, addr);
 		gma_power_end(dev);
@@ -1097,8 +1107,8 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* unpin the old bo */
 	if (psb_intel_crtc->cursor_obj && psb_intel_crtc->cursor_obj != obj) {
-               	gt = container_of(psb_intel_crtc->cursor_obj,
-               	                        struct gtt_range, gem);
+		gt = container_of(psb_intel_crtc->cursor_obj,
+							struct gtt_range, gem);
 		psb_gtt_unpin(crtc->dev, gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = obj;
@@ -1130,7 +1140,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	addr = psb_intel_crtc->cursor_addr;
 
-       	if (gma_power_begin(dev, false)) {
+	if (gma_power_begin(dev, false)) {
 		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
 		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, addr);
 		gma_power_end(dev);
@@ -1183,7 +1193,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 	bool is_lvds;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-       	if (gma_power_begin(dev, false)) {
+	if (gma_power_begin(dev, false)) {
 		dpll = REG_READ((pipe == 0) ? DPLL_A : DPLL_B);
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
 			fp = REG_READ((pipe == 0) ? FPA0 : FPB0);
@@ -1262,7 +1272,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	int vsync;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-       	if (gma_power_begin(dev, false)) {
+	if (gma_power_begin(dev, false)) {
 		htot = REG_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
 		hsync = REG_READ((pipe == 0) ? HSYNC_A : HSYNC_B);
 		vtot = REG_READ((pipe == 0) ? VTOTAL_A : VTOTAL_B);
@@ -1387,10 +1397,10 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->cursor_addr = 0;
 
 	if (IS_MRST(dev))
-        	drm_crtc_helper_add(&psb_intel_crtc->base,
+		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &mrst_helper_funcs);
 	else
-        	drm_crtc_helper_add(&psb_intel_crtc->base,
+		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &psb_intel_helper_funcs);
 
 	/* Setup the array of drm_connector pointer array */

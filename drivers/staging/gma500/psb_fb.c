@@ -336,6 +336,38 @@ err:
 }
 
 /**
+ *	psbfb_alloc		-	allocate frame buffer memory
+ *	@dev: the DRM device
+ *	@aligned_size: space needed
+ *
+ *	Allocate the frame buffer. In the usual case we get a GTT range that
+ *	is stolen memory backed and life is simple. If there isn't sufficient
+ *	stolen memory or the system has no stolen memory we allocate a range
+ *	and back it with a GEM object.
+ *
+ *	In this case the GEM object has no handle. 
+ */
+static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
+{
+	struct gtt_range *backing;
+	/* Begin by trying to use stolen memory backing */
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
+	if (backing)
+		return backing;
+	/* Next try using GEM host memory */
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb(gem)", 0);
+	if (backing == NULL)
+		return NULL;
+
+	/* Now back it with an object */
+	if (drm_gem_object_init(dev, &backing->gem, aligned_size) != 0) {
+		psb_gtt_free_range(dev, backing);
+		return NULL;
+	}
+	return backing;
+}
+	
+/**
  *	psbfb_create		-	create a framebuffer
  *	@fbdev: the framebuffer device
  *	@sizes: specification of the layout
@@ -368,7 +400,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT with stolen page backing */
-	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
+	backing = psbfb_alloc(dev, aligned_size);
 	if (backing == NULL)
 	        return -ENOMEM;
 
@@ -523,7 +555,13 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
-		psb_gtt_free_range(dev, psbfb->gtt);
+		/* FIXME: this is a bit more inside knowledge than I'd like
+		   but I don't see how to make a fake GEM object of the
+		   stolen space nicely */
+		if (psbfb->gtt->stolen)
+			psb_gtt_free_range(dev, psbfb->gtt);
+		else
+			drm_gem_object_unreference(&psbfb->gtt->gem);
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		framebuffer_release(info);
@@ -570,7 +608,6 @@ void psb_fbdev_fini(struct drm_device *dev)
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
 }
-
 
 static void psbfb_output_poll_changed(struct drm_device *dev)
 {
