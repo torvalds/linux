@@ -1782,7 +1782,7 @@ static struct omap_hwmod_irq_info omap2420_dma_system_irqs[] = {
 static struct omap_hwmod_addr_space omap2420_dma_system_addrs[] = {
 	{
 		.pa_start	= 0x48056000,
-		.pa_end		= 0x4a0560ff,
+		.pa_end		= 0x48056fff,
 		.flags		= ADDR_TYPE_RT
 	},
 };
