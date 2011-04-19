@@ -825,7 +825,7 @@ int rk29_set_cursor_img_transform(char *data)
 			} else {
 				dmsk <<= 1;
 			}
-			op = (dmsk & 0x80) ? 1 : 3;
+			op = (dmsk & 0x80) ? 2 : 3;
 			shift = (x*2)%8;
 			offset = x/4;
 			RK29_CURSOR_WRITE_BIT((dst+offset),(3<<shift),(op<<shift));
