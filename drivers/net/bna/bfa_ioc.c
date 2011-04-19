@@ -82,7 +82,6 @@ static void bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc);
 static void bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type,
 			 u32 boot_param);
 static u32 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr);
-static u32 bfa_ioc_smem_pgoff(struct bfa_ioc *ioc, u32 fmaddr);
 static void bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc,
 						char *serial_num);
 static void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc *ioc,
@@ -1921,12 +1920,6 @@ static u32
 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr)
 {
 	return PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, fmaddr);
-}
-
-static u32
-bfa_ioc_smem_pgoff(struct bfa_ioc *ioc, u32 fmaddr)
-{
-	return PSS_SMEM_PGOFF(fmaddr);
 }
 
 /**
