@@ -176,7 +176,7 @@ struct irq_data *new_irq_node(void)
 	return NULL;
 }
 
-int setup_irq(unsigned int irq, struct irq_data *node)
+static int m68k_setup_irq(unsigned int irq, struct irq_data *node)
 {
 	struct irq_chip *contr;
 	struct irq_data **prev;
@@ -232,7 +232,7 @@ int request_irq(unsigned int irq,
 	node->dev_id  = dev_id;
 	node->devname = devname;
 
-	res = setup_irq(irq, node);
+	res = m68k_setup_irq(irq, node);
 	if (res)
 		node->handler = NULL;
 
