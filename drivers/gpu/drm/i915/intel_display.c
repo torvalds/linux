@@ -5481,10 +5481,10 @@ static struct drm_display_mode load_detect_mode = {
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
 
-struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-					    struct drm_connector *connector,
-					    struct drm_display_mode *mode,
-					    int *dpms_mode)
+bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				int *dpms_mode)
 {
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *possible_crtc;
@@ -5517,7 +5517,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 			encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 		}
-		return crtc;
+		return true;
 	}
 
 	/* Find an unused one (if possible) */
@@ -5537,7 +5537,8 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	 * If we didn't find an unused CRTC, don't use any.
 	 */
 	if (!crtc) {
-		return NULL;
+		DRM_DEBUG_KMS("no pipe available for load-detect\n");
+		return false;
 	}
 
 	encoder->crtc = crtc;
@@ -5561,10 +5562,11 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 		encoder_funcs->mode_set(encoder, &crtc->mode, &crtc->mode);
 		encoder_funcs->commit(encoder);
 	}
+
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	return crtc;
+	return true;
 }
 
 void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
