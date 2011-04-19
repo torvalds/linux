@@ -479,8 +479,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	size = mode_cmd.pitch * mode_cmd.height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
-	/* Allocate the framebuffer in the GTT */
-	backing = psb_gtt_alloc_range(dev, aligned_size, "fb");
+	/* Allocate the framebuffer in the GTT with stolen page backing */
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
 	if (backing == NULL)
 	        return -ENOMEM;
 

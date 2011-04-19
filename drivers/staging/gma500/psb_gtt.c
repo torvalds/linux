@@ -972,6 +972,7 @@ struct gtt_range *psb_gtt_lookup_handle(struct drm_device *dev, int handle)
  *	@dev: Our DRM device
  *	@len: length (bytes) of address space required
  *	@name: resource name
+ *	@backed: resource should be backed by stolen pages
  *
  *	Ask the kernel core to find us a suitable range of addresses
  *	to use for a GTT mapping.
@@ -981,12 +982,23 @@ struct gtt_range *psb_gtt_lookup_handle(struct drm_device *dev, int handle)
  *	as in use.
  */
 struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-							const char *name)
+						const char *name, int backed)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gtt_range *gt;
 	struct resource *r = dev_priv->gtt_mem;
 	int ret;
+	unsigned long start, end;
+	
+	if (backed) {
+	        /* The start of the GTT is the stolen pages */
+	        start = r->start;
+	        end = r->start + dev_priv->pg->stolen_size - 1;
+        } else {
+                /* The rest we will use for GEM backed objects */
+                start = r->start + dev_priv->pg->stolen_size;
+                end = -1;
+        }
 
 	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
 	if (gt == NULL)
@@ -996,8 +1008,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	kref_init(&gt->kref);
 
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
-				len, 0, -1, /*r->start, r->end - 1, */
-				PAGE_SIZE, NULL, NULL);
+				len, start, end, PAGE_SIZE, NULL, NULL);
 	if (ret == 0) {
 	        gt->offset = gt->resource.start - r->start;
 		return gt;
