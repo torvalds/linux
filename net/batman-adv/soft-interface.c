@@ -43,8 +43,6 @@ static void bat_get_drvinfo(struct net_device *dev,
 static u32 bat_get_msglevel(struct net_device *dev);
 static void bat_set_msglevel(struct net_device *dev, u32 value);
 static u32 bat_get_link(struct net_device *dev);
-static u32 bat_get_rx_csum(struct net_device *dev);
-static int bat_set_rx_csum(struct net_device *dev, u32 data);
 
 static const struct ethtool_ops bat_ethtool_ops = {
 	.get_settings = bat_get_settings,
@@ -52,8 +50,6 @@ static const struct ethtool_ops bat_ethtool_ops = {
 	.get_msglevel = bat_get_msglevel,
 	.set_msglevel = bat_set_msglevel,
 	.get_link = bat_get_link,
-	.get_rx_csum = bat_get_rx_csum,
-	.set_rx_csum = bat_set_rx_csum
 };
 
 int my_skb_head_push(struct sk_buff *skb, unsigned int len)
@@ -736,12 +732,3 @@ static u32 bat_get_link(struct net_device *dev)
 	return 1;
 }
 
-static u32 bat_get_rx_csum(struct net_device *dev)
-{
-	return 0;
-}
-
-static int bat_set_rx_csum(struct net_device *dev, u32 data)
-{
-	return -EOPNOTSUPP;
-}
