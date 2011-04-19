@@ -29,8 +29,21 @@ enum kprobe_insn {
 	INSN_GOOD_NO_SLOT
 };
 
+typedef enum kprobe_insn (kprobe_decode_insn_t)(kprobe_opcode_t,
+						struct arch_specific_insn *);
+
+#ifdef CONFIG_THUMB2_KERNEL
+
+enum kprobe_insn thumb16_kprobe_decode_insn(kprobe_opcode_t,
+						struct arch_specific_insn *);
+enum kprobe_insn thumb32_kprobe_decode_insn(kprobe_opcode_t,
+						struct arch_specific_insn *);
+
+#else /* !CONFIG_THUMB2_KERNEL */
+
 enum kprobe_insn arm_kprobe_decode_insn(kprobe_opcode_t,
 					struct arch_specific_insn *);
+#endif
 
 void __init arm_kprobe_decode_init(void);
 
