@@ -335,6 +335,7 @@ static int num_controllers(struct pci_dev *pdev)
 static int isci_setup_interrupts(struct pci_dev *pdev)
 {
 	int err, i, num_msix;
+	struct isci_host *ihost;
 	struct isci_pci_info *pci_info = to_pci_info(pdev);
 
 	/*
@@ -353,9 +354,9 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	for (i = 0; i < num_msix; i++) {
 		int id = i / SCI_NUM_MSI_X_INT;
 		struct msix_entry *msix = &pci_info->msix_entries[i];
-		struct isci_host *isci_host = pci_info->hosts[id];
 		irq_handler_t isr;
 
+		ihost = pci_info->hosts[id];
 		/* odd numbered vectors are error interrupts */
 		if (i & 1)
 			isr = isci_error_isr;
@@ -363,16 +364,16 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 			isr = isci_msix_isr;
 
 		err = devm_request_irq(&pdev->dev, msix->vector, isr, 0,
-				       DRV_NAME"-msix", isci_host);
+				       DRV_NAME"-msix", ihost);
 		if (!err)
 			continue;
 
 		dev_info(&pdev->dev, "msix setup failed falling back to intx\n");
 		while (i--) {
 			id = i / SCI_NUM_MSI_X_INT;
-			isci_host = pci_info->hosts[id];
+			ihost = pci_info->hosts[id];
 			msix = &pci_info->msix_entries[i];
-			devm_free_irq(&pdev->dev, msix->vector, isci_host);
+			devm_free_irq(&pdev->dev, msix->vector, ihost);
 		}
 		pci_disable_msix(pdev);
 		goto intx;
@@ -380,8 +381,12 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	return 0;
 
  intx:
-	err = devm_request_irq(&pdev->dev, pdev->irq, isci_intx_isr,
-			       IRQF_SHARED, DRV_NAME"-intx", pdev);
+	for_each_isci_host(i, ihost, pdev) {
+		err = devm_request_irq(&pdev->dev, pdev->irq, isci_intx_isr,
+				       IRQF_SHARED, DRV_NAME"-intx", ihost);
+		if (err)
+			break;
+	}
 	return err;
 }
 

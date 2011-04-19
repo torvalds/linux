@@ -77,23 +77,19 @@ irqreturn_t isci_msix_isr(int vec, void *data)
 
 irqreturn_t isci_intx_isr(int vec, void *data)
 {
-	struct pci_dev *pdev = data;
-	struct isci_host *ihost;
 	irqreturn_t ret = IRQ_NONE;
-	int i;
+	struct isci_host *ihost = data;
+	struct scic_sds_controller *scic = ihost->core_controller;
 
-	for_each_isci_host(i, ihost, pdev) {
-		struct scic_sds_controller *scic = ihost->core_controller;
-
-		if (scic_sds_controller_isr(scic)) {
-			tasklet_schedule(&ihost->completion_tasklet);
-			ret = IRQ_HANDLED;
-		} else if (scic_sds_controller_error_isr(scic)) {
-			spin_lock(&ihost->scic_lock);
-			scic_sds_controller_error_handler(scic);
-			spin_unlock(&ihost->scic_lock);
-			ret = IRQ_HANDLED;
-		}
+	if (scic_sds_controller_isr(scic)) {
+		writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
+		tasklet_schedule(&ihost->completion_tasklet);
+		ret = IRQ_HANDLED;
+	} else if (scic_sds_controller_error_isr(scic)) {
+		spin_lock(&ihost->scic_lock);
+		scic_sds_controller_error_handler(scic);
+		spin_unlock(&ihost->scic_lock);
+		ret = IRQ_HANDLED;
 	}
 
 	return ret;
