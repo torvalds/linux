@@ -5564,7 +5564,7 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 		}
 
 		/* Add this connector to the crtc */
-		encoder_funcs->mode_set(encoder, &crtc->mode, &crtc->mode);
+		encoder_funcs->mode_set(encoder, &crtc->mode, &crtc->hwmode);
 		encoder_funcs->commit(encoder);
 	}
 
