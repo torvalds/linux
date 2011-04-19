@@ -862,34 +862,50 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc, *_desc;
 	unsigned long		flags;
+	u32			cfglo;
 	LIST_HEAD(list);
 
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
+	if (cmd == DMA_PAUSE) {
+		spin_lock_irqsave(&dwc->lock, flags);
+
+		cfglo = channel_readl(dwc, CFG_LO);
+		channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
+		while (!(channel_readl(dwc, CFG_LO) & DWC_CFGL_FIFO_EMPTY))
+			cpu_relax();
+
+		dwc->paused = true;
+		spin_unlock_irqrestore(&dwc->lock, flags);
+	} else if (cmd == DMA_RESUME) {
+		if (!dwc->paused)
+			return 0;
+
+		spin_lock_irqsave(&dwc->lock, flags);
+
+		cfglo = channel_readl(dwc, CFG_LO);
+		channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
+		dwc->paused = false;
+
+		spin_unlock_irqrestore(&dwc->lock, flags);
+	} else if (cmd == DMA_TERMINATE_ALL) {
+		spin_lock_irqsave(&dwc->lock, flags);
+
+		channel_clear_bit(dw, CH_EN, dwc->mask);
+		while (dma_readl(dw, CH_EN) & dwc->mask)
+			cpu_relax();
+
+		dwc->paused = false;
+
+		/* active_list entries will end up before queued entries */
+		list_splice_init(&dwc->queue, &list);
+		list_splice_init(&dwc->active_list, &list);
+
+		spin_unlock_irqrestore(&dwc->lock, flags);
+
+		/* Flush all pending and queued descriptors */
+		list_for_each_entry_safe(desc, _desc, &list, desc_node)
+			dwc_descriptor_complete(dwc, desc, false);
+	} else
 		return -ENXIO;
-
-	/*
-	 * This is only called when something went wrong elsewhere, so
-	 * we don't really care about the data. Just disable the
-	 * channel. We still have to poll the channel enable bit due
-	 * to AHB/HSB limitations.
-	 */
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	channel_clear_bit(dw, CH_EN, dwc->mask);
-
-	while (dma_readl(dw, CH_EN) & dwc->mask)
-		cpu_relax();
-
-	/* active_list entries will end up before queued entries */
-	list_splice_init(&dwc->queue, &list);
-	list_splice_init(&dwc->active_list, &list);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	/* Flush all pending and queued descriptors */
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
-		dwc_descriptor_complete(dwc, desc, false);
 
 	return 0;
 }
@@ -922,6 +938,9 @@ dwc_tx_status(struct dma_chan *chan,
 				dwc_first_active(dwc)->len);
 	else
 		dma_set_tx_state(txstate, last_complete, last_used, 0);
+
+	if (dwc->paused)
+		return DMA_PAUSED;
 
 	return ret;
 }
