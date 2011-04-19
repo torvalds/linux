@@ -32,13 +32,6 @@
 #include "psb_powermgmt.h"
 #include <linux/pm_runtime.h>
 
-/* MRST defines start */
-uint8_t blc_freq;
-uint8_t blc_minbrightness;
-uint8_t blc_i2caddr;
-uint8_t blc_brightnesscmd;
-int lvds_backlight;		/* restore backlight to this value */
-
 u32 CoreClock;
 u32 PWMControlRegFreq;
 
@@ -97,8 +90,11 @@ static u32 psb_intel_lvds_get_max_backlight(struct drm_device *dev)
 	return retVal;
 }
 
-/**
+/*
  * Set LVDS backlight level by I2C command
+ *
+ * FIXME: at some point we need to both track this for PM and also
+ * disable runtime pm on MRST if the brightness is nil (ie blanked)
  */
 static int psb_lvds_i2c_set_brightness(struct drm_device *dev,
 					unsigned int level)
@@ -131,7 +127,7 @@ static int psb_lvds_i2c_set_brightness(struct drm_device *dev,
 
 	if (i2c_transfer(&lvds_i2c_bus->adapter, msgs, 1) == 1) {
 		DRM_DEBUG("I2C set brightness.(command, value) (%d, %d)\n",
-			blc_brightnesscmd,
+			dev_priv->lvds_bl->brightnesscmd,
 			blc_i2c_brightness);
 		return 0;
 	}
