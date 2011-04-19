@@ -846,6 +846,8 @@ struct ath_hw {
 
 	/* Enterprise mode cap */
 	u32 ent_mode;
+
+	bool is_clk_25mhz;
 };
 
 struct ath_bus_ops {
