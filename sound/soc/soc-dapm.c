@@ -2403,6 +2403,12 @@ int snd_soc_dapm_get_pin_status(struct snd_soc_dapm_context *dapm,
 			return w->connected;
 	}
 
+	/* Try again in other contexts */
+	list_for_each_entry(w, &dapm->card->widgets, list) {
+		if (!strcmp(w->name, pin))
+			return w->connected;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
