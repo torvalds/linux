@@ -86,14 +86,31 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = (freq * 4) / 120;
 			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
 			channelSel = (channelSel << 17) | chan_frac;
+		} else if (AR_SREV_9340(ah)) {
+			if (ah->is_clk_25mhz) {
+				u32 chan_frac;
+
+				channelSel = (freq * 2) / 75;
+				chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
+				channelSel = (channelSel << 17) | chan_frac;
+			} else
+				channelSel = CHANSEL_2G(freq) >> 1;
 		} else
 			channelSel = CHANSEL_2G(freq);
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
-		channelSel = CHANSEL_5G(freq);
-		/* Doubler is ON, so, divide channelSel by 2. */
-		channelSel >>= 1;
+		if (AR_SREV_9340(ah) && ah->is_clk_25mhz) {
+			u32 chan_frac;
+
+			channelSel = (freq * 2) / 75;
+			chan_frac = ((freq % 75) * 0x20000) / 75;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else {
+			channelSel = CHANSEL_5G(freq);
+			/* Doubler is ON, so, divide channelSel by 2. */
+			channelSel >>= 1;
+		}
 		/* Set to 5G mode */
 		bMode = 0;
 	}
