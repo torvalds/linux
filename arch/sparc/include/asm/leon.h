@@ -183,7 +183,6 @@ static inline void leon_srmmu_enabletlb(void)
 /* macro access for leon_readnobuffer_reg() */
 #define LEON_BYPASSCACHE_LOAD_VA(x) leon_readnobuffer_reg((unsigned long)(x))
 
-extern void sparc_leon_eirq_register(int eirq);
 extern void leon_init(void);
 extern void leon_switch_mm(void);
 extern void leon_init_IRQ(void);
@@ -339,9 +338,9 @@ struct leon2_cacheregs {
 #include <linux/interrupt.h>
 
 struct device_node;
-extern int sparc_leon_eirq_get(int eirq, int cpu);
-extern irqreturn_t sparc_leon_eirq_isr(int dummy, void *dev_id);
-extern void sparc_leon_eirq_register(int eirq);
+extern unsigned int leon_build_device_irq(unsigned int real_irq,
+					   irq_flow_handler_t flow_handler,
+					   const char *name, int do_ack);
 extern void leon_clear_clock_irq(void);
 extern void leon_load_profile_irq(int cpu, unsigned int limit);
 extern void leon_init_timers(irq_handler_t counter_fn);
