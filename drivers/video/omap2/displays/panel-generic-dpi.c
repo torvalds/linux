@@ -254,6 +254,27 @@ static struct panel_config generic_dpi_panels[] = {
 						OMAP_DSS_LCD_IHS,
 		.name			= "nec_nl2432dr22-11b",
 	},
+
+	/* Unknown panel used in OMAP H4 */
+	{
+		{
+			.x_res		= 240,
+			.y_res		= 320,
+
+			.pixel_clock	= 6250,
+
+			.hsw		= 15,
+			.hfp		= 15,
+			.hbp		= 60,
+
+			.vsw		= 1,
+			.vfp		= 1,
+			.vbp		= 1,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+
+		.name			= "h4",
+	},
 };
 
 struct panel_drv_data {
