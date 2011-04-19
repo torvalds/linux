@@ -91,6 +91,8 @@ config CRYPTO_SHA1_S390
 	  This is the s390 hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
+	  It is available as of z990.
+
 config CRYPTO_SHA256_S390
 	tristate "SHA256 digest algorithm"
 	depends on S390
@@ -99,8 +101,7 @@ config CRYPTO_SHA256_S390
 	  This is the s390 hardware accelerated implementation of the
 	  SHA256 secure hash standard (DFIPS 180-2).
 
-	  This version of SHA implements a 256 bit hash with 128 bits of
-	  security against collision attacks.
+	  It is available as of z9.
 
 config CRYPTO_SHA512_S390
 	tristate "SHA384 and SHA512 digest algorithm"
@@ -110,10 +111,7 @@ config CRYPTO_SHA512_S390
 	  This is the s390 hardware accelerated implementation of the
 	  SHA512 secure hash standard.
 
-	  This version of SHA implements a 512 bit hash with 256 bits of
-	  security against collision attacks. The code also includes SHA-384,
-	  a 384 bit hash with 192 bits of security against collision attacks.
-
+	  It is available as of z10.
 
 config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms"
@@ -148,8 +146,10 @@ config S390_PRNG
 	  Select this option if you want to use the s390 pseudo random number
 	  generator. The PRNG is part of the cryptographic processor functions
 	  and uses triple-DES to generate secure random numbers like the
-	  ANSI X9.17 standard. The PRNG is usable via the char device
-	  /dev/prandom.
+	  ANSI X9.17 standard. User-space programs access the
+	  pseudo-random-number device through the char device /dev/prandom.
+
+	  It is available as of z9.
 
 config CRYPTO_GHASH_S390
 	tristate "GHASH digest algorithm"
