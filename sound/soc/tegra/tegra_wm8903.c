@@ -417,15 +417,12 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto err_clear_drvdata;
+		goto err_fini_utils;
 	}
 
 	return 0;
 
-err_clear_drvdata:
-	snd_soc_card_set_drvdata(card, NULL);
-	platform_set_drvdata(pdev, NULL);
-	card->dev = NULL;
+err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
 err_free_machine:
 	kfree(machine);
@@ -439,10 +436,6 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
 	snd_soc_unregister_card(card);
-
-	snd_soc_card_set_drvdata(card, NULL);
-	platform_set_drvdata(pdev, NULL);
-	card->dev = NULL;
 
 	tegra_asoc_utils_fini(&machine->util_data);
 
