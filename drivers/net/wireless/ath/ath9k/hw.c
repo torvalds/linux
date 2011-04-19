@@ -552,6 +552,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9271:
 	case AR_SREV_VERSION_9300:
 	case AR_SREV_VERSION_9485:
+	case AR_SREV_VERSION_9340:
 		break;
 	default:
 		ath_err(common,
@@ -629,6 +630,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR2427_DEVID_PCIE:
 	case AR9300_DEVID_PCIE:
 	case AR9300_DEVID_AR9485_PCIE:
+	case AR9300_DEVID_AR9340:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
