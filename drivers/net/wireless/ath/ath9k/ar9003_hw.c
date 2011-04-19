@@ -18,6 +18,7 @@
 #include "ar9003_mac.h"
 #include "ar9003_2p2_initvals.h"
 #include "ar9485_initvals.h"
+#include "ar9340_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */
 
@@ -28,7 +29,63 @@
  */
 static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 {
-	if (AR_SREV_9485_11(ah)) {
+	if (AR_SREV_9340(ah)) {
+		/* mac */
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
+				ar9340_1p0_mac_core,
+				ARRAY_SIZE(ar9340_1p0_mac_core), 2);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
+				ar9340_1p0_mac_postamble,
+				ARRAY_SIZE(ar9340_1p0_mac_postamble), 5);
+
+		/* bb */
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+				ar9340_1p0_baseband_core,
+				ARRAY_SIZE(ar9340_1p0_baseband_core), 2);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+				ar9340_1p0_baseband_postamble,
+				ARRAY_SIZE(ar9340_1p0_baseband_postamble), 5);
+
+		/* radio */
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_PRE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
+				ar9340_1p0_radio_core,
+				ARRAY_SIZE(ar9340_1p0_radio_core), 2);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],
+				ar9340_1p0_radio_postamble,
+				ARRAY_SIZE(ar9340_1p0_radio_postamble), 5);
+
+		/* soc */
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_PRE],
+				ar9340_1p0_soc_preamble,
+				ARRAY_SIZE(ar9340_1p0_soc_preamble), 2);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_CORE], NULL, 0, 0);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
+				ar9340_1p0_soc_postamble,
+				ARRAY_SIZE(ar9340_1p0_soc_postamble), 5);
+
+		/* rx/tx gain */
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+				ar9340Common_wo_xlna_rx_gain_table_1p0,
+				ARRAY_SIZE(ar9340Common_wo_xlna_rx_gain_table_1p0),
+				5);
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+				ar9340Modes_high_ob_db_tx_gain_table_1p0,
+				ARRAY_SIZE(ar9340Modes_high_ob_db_tx_gain_table_1p0),
+				5);
+
+		INIT_INI_ARRAY(&ah->iniModesAdditional,
+				ar9340Modes_fast_clock_1p0,
+				ARRAY_SIZE(ar9340Modes_fast_clock_1p0),
+				3);
+
+		INIT_INI_ARRAY(&ah->iniModesAdditional_40M,
+				ar9340_1p0_radio_core_40M,
+				ARRAY_SIZE(ar9340_1p0_radio_core_40M),
+				2);
+	} else if (AR_SREV_9485_11(ah)) {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
