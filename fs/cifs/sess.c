@@ -656,7 +656,7 @@ ssetup_ntlmssp_authenticate:
 		 * to use challenge/response method (i.e. Password bit is 1).
 		 */
 
-		calc_lanman_hash(ses->password, ses->server->cryptkey,
+		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
 				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 

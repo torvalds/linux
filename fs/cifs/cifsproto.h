@@ -384,7 +384,7 @@ extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifsSesInfo *);
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-extern void calc_lanman_hash(const char *password, const char *cryptkey,
+extern int calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
 #ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
@@ -430,9 +430,6 @@ extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		struct cifs_sb_info *cifs_sb, int xid);
 extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
-extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-			unsigned char *p24);
-extern void E_P16(unsigned char *p14, unsigned char *p16);
-extern void E_P24(unsigned char *p21, const unsigned char *c8,
+extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 #endif			/* _CIFSPROTO_H */

@@ -268,10 +268,11 @@ int setup_ntlm_response(struct cifsSesInfo *ses)
 }
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
+int calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 			char *lnm_session_key)
 {
 	int i;
+	int rc;
 	char password_with_pad[CIFS_ENCPWD_SIZE];
 
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
@@ -282,7 +283,7 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 		memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
 		memcpy(lnm_session_key, password_with_pad,
 			CIFS_ENCPWD_SIZE);
-		return;
+		return 0;
 	}
 
 	/* calculate old style session key */
@@ -299,10 +300,9 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 	for (i = 0; i < CIFS_ENCPWD_SIZE; i++)
 		password_with_pad[i] = toupper(password_with_pad[i]);
 
-	SMBencrypt(password_with_pad, cryptkey, lnm_session_key);
+	rc = SMBencrypt(password_with_pad, cryptkey, lnm_session_key);
 
-	/* clear password before we return/free memory */
-	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+	return rc;
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
