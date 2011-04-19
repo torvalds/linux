@@ -78,7 +78,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	}
 
 	if (compl_status == MCC_STATUS_SUCCESS) {
-		if (compl->tag0 == OPCODE_ETH_GET_STATISTICS) {
+		if ((compl->tag0 == OPCODE_ETH_GET_STATISTICS) &&
+			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
 			struct be_cmd_resp_get_stats *resp =
 						adapter->stats_cmd.va;
 			be_dws_le_to_cpu(&resp->hw_stats,
@@ -1096,6 +1097,7 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_GET_STATISTICS, sizeof(*req));
+	wrb->tag1 = CMD_SUBSYSTEM_ETH;
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
 	sge->len = cpu_to_le32(nonemb_cmd->size);
