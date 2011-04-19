@@ -87,23 +87,12 @@ extern void psb_gtt_mm_takedown(void);
 struct gtt_range {
 	struct resource resource;
 	u32 offset;
-	int handle;
 	struct kref kref;
+        struct drm_gem_object gem;	/* GEM high level stuff */
+        int in_gart;			/* Currently in the GART */
+        int stolen;			/* Backed from stolen RAM */
 };
 
-/* Most GTT handles we allow allocation of - for now five is fine: we need
-   - Two framebuffers
-   - Maybe an upload area
-   - One cursor (eventually)
-   - One fence page (possibly)
-*/
-
-#define	GTT_MAX		5
-
-extern int psb_gtt_alloc_handle(struct drm_device *dev, struct gtt_range *gt);
-extern int psb_gtt_release_handle(struct drm_device *dev, struct gtt_range *gt);
-extern struct gtt_range *psb_gtt_lookup_handle(struct drm_device *dev,
-							int handle);
 extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 						const char *name, int backed);
 extern void psb_gtt_kref_put(struct gtt_range *gt);

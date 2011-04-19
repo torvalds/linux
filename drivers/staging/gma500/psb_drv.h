@@ -243,7 +243,6 @@ struct drm_psb_private {
 
 	struct mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */
-	struct gtt_range *gtt_handles[GTT_MAX];
 
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
@@ -627,9 +626,22 @@ extern const struct drm_connector_helper_funcs
 					psb_intel_lvds_connector_helper_funcs;
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
+/* psb_gem.c */
+extern int psb_gem_init_object(struct drm_gem_object *obj);
+extern void psb_gem_free_object(struct drm_gem_object *obj);
+extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
+				struct drm_file *file);
+extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
+			struct drm_mode_create_dumb *args);
+extern int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
+			uint32_t handle);
+extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
+			 uint32_t handle, uint64_t *offset);
+extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+
 
 /*
- *Debug print bits setting
+ * Debug print bits setting
  */
 #define PSB_D_GENERAL (1 << 0)
 #define PSB_D_INIT    (1 << 1)

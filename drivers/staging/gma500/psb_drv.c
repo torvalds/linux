@@ -1405,9 +1405,15 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_idle = psb_runtime_idle,
 };
 
+static struct vm_operations_struct psb_gem_vm_ops = {
+	.fault = psb_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
-			   DRIVER_IRQ_VBL | DRIVER_MODESET,
+			   DRIVER_IRQ_VBL | DRIVER_MODESET| DRIVER_GEM ,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 
@@ -1421,13 +1427,19 @@ static struct drm_driver driver = {
 	.enable_vblank = psb_enable_vblank,
 	.disable_vblank = psb_disable_vblank,
 	.get_vblank_counter = psb_get_vblank_counter,
-	.firstopen = NULL,
 	.lastclose = psb_lastclose,
 	.open = psb_driver_open,
+	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 
-	.preclose = psb_driver_preclose,
+	.gem_init_object = psb_gem_init_object,
+	.gem_free_object = psb_gem_free_object,
+	.gem_vm_ops = &psb_gem_vm_ops,
+	.dumb_create = psb_gem_dumb_create,
+	.dumb_map_offset = psb_gem_dumb_map_gtt,
+	.dumb_destroy = psb_gem_dumb_destroy,
+
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = psb_open,

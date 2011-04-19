@@ -887,85 +887,8 @@ int psb_gtt_unmap_meminfo(struct drm_device *dev, void * hKernelMemInfo)
 }
 
 /*
- *	GTT resource allocator
+ *	GTT resource allocator - allocate and manage GTT address space
  */
-
-/**
- *	psb_gtt_alloc_handle	-	allocate a handle to a GTT map
- *	@dev: our DRM device
- *	@gt: Our GTT range
- *
- *	Assign a handle to a gtt range object. For the moment we use a very
- *	simplistic interface.
- */
-int psb_gtt_alloc_handle(struct drm_device *dev, struct gtt_range *gt)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	int h;
-
-	mutex_lock(&dev_priv->gtt_mutex);
-	for (h = 0; h < GTT_MAX; h++) {
-		if (dev_priv->gtt_handles[h] == NULL) {
-			dev_priv->gtt_handles[h] = gt;
-			gt->handle = h;
-			kref_get(&gt->kref);
-			mutex_unlock(&dev_priv->gtt_mutex);
-			return h;
-		}
-	}
-	mutex_unlock(&dev_priv->gtt_mutex);
-	return -ENOSPC;
-}
-
-/**
- *	psb_gtt_release_handle	-	release a handle to a GTT map
- *	@dev: our DRM device
- *	@gt: Our GTT range
- *
- *	Remove the handle from a gtt range object
- */
-int psb_gtt_release_handle(struct drm_device *dev, struct gtt_range *gt)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (gt->handle < 0 || gt->handle >= GTT_MAX) {
-		gt->handle = -1;
-		WARN_ON(1);
-		return -EINVAL;
-	}
-	mutex_lock(&dev_priv->gtt_mutex);
-	dev_priv->gtt_handles[gt->handle] = NULL;
-	gt->handle = -1;
-	mutex_unlock(&dev_priv->gtt_mutex);
-	psb_gtt_kref_put(gt);
-	return 0;
-}
-
-/**
- *	psb_gtt_lookup_handle	-	look up a GTT handle
- *	@dev: our DRM device
- *	@handle: our handle
- *
- *	Look up a gtt handle and return the gtt or NULL. The object returned
- *	has a reference held so the caller must drop this when finished.
- */
-struct gtt_range *psb_gtt_lookup_handle(struct drm_device *dev, int handle)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct gtt_range *gt;
-
-	if (handle < 0 || handle > GTT_MAX)
-		return ERR_PTR(-EINVAL);
-
-	mutex_lock(&dev_priv->gtt_mutex);
-	gt = dev_priv->gtt_handles[handle];
-	kref_get(&gt->kref);
-	mutex_unlock(&dev_priv->gtt_mutex);
-
-	if (gt == NULL)
-		return ERR_PTR(-ENOENT);
-	return gt;
-}
 
 /**
  *	psb_gtt_alloc_range	-	allocate GTT address space
@@ -1003,8 +926,9 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
 	if (gt == NULL)
 		return NULL;
-        gt->handle = -1;
         gt->resource.name = name;
+        gt->stolen = backed;
+        gt->in_gart = backed;
 	kref_init(&gt->kref);
 
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
@@ -1020,6 +944,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 static void psb_gtt_destroy(struct kref *kref)
 {
 	struct gtt_range *gt = container_of(kref, struct gtt_range, kref);
+	WARN_ON(gt->in_gart && !gt->stolen);
 	release_resource(&gt->resource);
 	kfree(gt);
 }
@@ -1044,7 +969,5 @@ void psb_gtt_kref_put(struct gtt_range *gt)
  */
 void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 {
-	if (gt->handle != -1)
-		psb_gtt_release_handle(dev, gt);
 	psb_gtt_kref_put(gt);
 }
