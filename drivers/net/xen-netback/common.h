@@ -73,9 +73,6 @@ struct xenvif {
 	struct vm_struct *tx_comms_area;
 	struct vm_struct *rx_comms_area;
 
-	/* Flags that must not be set in dev->features */
-	u32 features_disabled;
-
 	/* Frontend feature information. */
 	u8 can_sg:1;
 	u8 gso:1;
