@@ -121,6 +121,54 @@ static int iwlagn_update_beacon(struct iwl_priv *priv,
 	return iwlagn_send_beacon_cmd(priv);
 }
 
+static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
+			   struct iwl_rxon_context *ctx)
+{
+	int ret = 0;
+	struct iwl5000_rxon_assoc_cmd rxon_assoc;
+	const struct iwl_rxon_cmd *rxon1 = &ctx->staging;
+	const struct iwl_rxon_cmd *rxon2 = &ctx->active;
+
+	if ((rxon1->flags == rxon2->flags) &&
+	    (rxon1->filter_flags == rxon2->filter_flags) &&
+	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
+	    (rxon1->ofdm_ht_single_stream_basic_rates ==
+	     rxon2->ofdm_ht_single_stream_basic_rates) &&
+	    (rxon1->ofdm_ht_dual_stream_basic_rates ==
+	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
+	    (rxon1->ofdm_ht_triple_stream_basic_rates ==
+	     rxon2->ofdm_ht_triple_stream_basic_rates) &&
+	    (rxon1->acquisition_data == rxon2->acquisition_data) &&
+	    (rxon1->rx_chain == rxon2->rx_chain) &&
+	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
+		return 0;
+	}
+
+	rxon_assoc.flags = ctx->staging.flags;
+	rxon_assoc.filter_flags = ctx->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
+	rxon_assoc.reserved1 = 0;
+	rxon_assoc.reserved2 = 0;
+	rxon_assoc.reserved3 = 0;
+	rxon_assoc.ofdm_ht_single_stream_basic_rates =
+	    ctx->staging.ofdm_ht_single_stream_basic_rates;
+	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
+	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
+	rxon_assoc.ofdm_ht_triple_stream_basic_rates =
+		 ctx->staging.ofdm_ht_triple_stream_basic_rates;
+	rxon_assoc.acquisition_data = ctx->staging.acquisition_data;
+
+	ret = iwl_send_cmd_pdu_async(priv, ctx->rxon_assoc_cmd,
+				     sizeof(rxon_assoc), &rxon_assoc, NULL);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 /**
  * iwlagn_commit_rxon - commit staging_rxon to hardware
  *
@@ -200,7 +248,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * and other flags for the current radio configuration.
 	 */
 	if (!iwl_full_rxon_required(priv, ctx)) {
-		ret = iwl_send_rxon_assoc(priv, ctx);
+		ret = iwlagn_send_rxon_assoc(priv, ctx);
 		if (ret) {
 			IWL_ERR(priv, "Error setting RXON_ASSOC (%d)\n", ret);
 			return ret;

@@ -256,8 +256,6 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
 
 /* hcmd */
-int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx);
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 
