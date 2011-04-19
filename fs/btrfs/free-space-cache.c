@@ -1910,8 +1910,6 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 	while(1) {
 		if (entry->bytes < bytes ||
 		    (!entry->bitmap && entry->offset < min_start)) {
-			struct rb_node *node;
-
 			node = rb_next(&entry->offset_index);
 			if (!node)
 				break;
@@ -1925,7 +1923,6 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 						      cluster, entry, bytes,
 						      min_start);
 			if (ret == 0) {
-				struct rb_node *node;
 				node = rb_next(&entry->offset_index);
 				if (!node)
 					break;

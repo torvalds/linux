@@ -3647,7 +3647,6 @@ setup_items_for_insert(struct btrfs_trans_handle *trans,
 
 	ret = 0;
 	if (slot == 0) {
-		struct btrfs_disk_key disk_key;
 		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
 		ret = fixup_low_keys(trans, root, path, &disk_key, 1);
 	}
