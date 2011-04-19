@@ -18,10 +18,13 @@
 #define _ARM_KERNEL_KPROBES_H
 
 /*
- * This undefined instruction must be unique and
+ * These undefined instructions must be unique and
  * reserved solely for kprobes' use.
  */
-#define KPROBE_BREAKPOINT_INSTRUCTION	0xe7f001f8
+#define KPROBE_ARM_BREAKPOINT_INSTRUCTION	0xe7f001f8
+#define KPROBE_THUMB16_BREAKPOINT_INSTRUCTION	0xde18
+#define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION	0xf7f0a018
+
 
 enum kprobe_insn {
 	INSN_REJECTED,
