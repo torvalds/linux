@@ -5481,6 +5481,92 @@ static struct drm_display_mode load_detect_mode = {
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
 
+static struct drm_framebuffer *
+intel_framebuffer_create(struct drm_device *dev,
+			 struct drm_mode_fb_cmd *mode_cmd,
+			 struct drm_i915_gem_object *obj)
+{
+	struct intel_framebuffer *intel_fb;
+	int ret;
+
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	if (!intel_fb) {
+		drm_gem_object_unreference_unlocked(&obj->base);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(&obj->base);
+		kfree(intel_fb);
+		return ERR_PTR(ret);
+	}
+
+	return &intel_fb->base;
+}
+
+static u32
+intel_framebuffer_pitch_for_width(int width, int bpp)
+{
+	u32 pitch = DIV_ROUND_UP(width * bpp, 8);
+	return ALIGN(pitch, 64);
+}
+
+static u32
+intel_framebuffer_size_for_mode(struct drm_display_mode *mode, int bpp)
+{
+	u32 pitch = intel_framebuffer_pitch_for_width(mode->hdisplay, bpp);
+	return ALIGN(pitch * mode->vdisplay, PAGE_SIZE);
+}
+
+static struct drm_framebuffer *
+intel_framebuffer_create_for_mode(struct drm_device *dev,
+				  struct drm_display_mode *mode,
+				  int depth, int bpp)
+{
+	struct drm_i915_gem_object *obj;
+	struct drm_mode_fb_cmd mode_cmd;
+
+	obj = i915_gem_alloc_object(dev,
+				    intel_framebuffer_size_for_mode(mode, bpp));
+	if (obj == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	mode_cmd.width = mode->hdisplay;
+	mode_cmd.height = mode->vdisplay;
+	mode_cmd.depth = depth;
+	mode_cmd.bpp = bpp;
+	mode_cmd.pitch = intel_framebuffer_pitch_for_width(mode_cmd.width, bpp);
+
+	return intel_framebuffer_create(dev, &mode_cmd, obj);
+}
+
+static struct drm_framebuffer *
+mode_fits_in_fbdev(struct drm_device *dev,
+		   struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	struct drm_framebuffer *fb;
+
+	if (dev_priv->fbdev == NULL)
+		return NULL;
+
+	obj = dev_priv->fbdev->ifb.obj;
+	if (obj == NULL)
+		return NULL;
+
+	fb = &dev_priv->fbdev->ifb.base;
+	if (fb->pitch < intel_framebuffer_pitch_for_width(mode->hdisplay,
+							  fb->bits_per_pixel))
+		return NULL;
+
+	if (obj->base.size < mode->vdisplay * fb->pitch)
+		return NULL;
+
+	return fb;
+}
+
 bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 				struct drm_connector *connector,
 				struct drm_display_mode *mode,
@@ -5491,7 +5577,12 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
+	struct drm_framebuffer *old_fb;
 	int i = -1;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector),
+		      encoder->base.id, drm_get_encoder_name(encoder));
 
 	/*
 	 * Algorithm gets a little messy:
@@ -5551,12 +5642,38 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	intel_crtc = to_intel_crtc(crtc);
 	old->dpms_mode = intel_crtc->dpms_mode;
 	old->load_detect_temp = true;
+	old->release_fb = NULL;
 
 	if (!mode)
 		mode = &load_detect_mode;
 
-	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb)) {
+	old_fb = crtc->fb;
+
+	/* We need a framebuffer large enough to accommodate all accesses
+	 * that the plane may generate whilst we perform load detection.
+	 * We can not rely on the fbcon either being present (we get called
+	 * during its initialisation to detect all boot displays, or it may
+	 * not even exist) or that it is large enough to satisfy the
+	 * requested mode.
+	 */
+	crtc->fb = mode_fits_in_fbdev(dev, mode);
+	if (crtc->fb == NULL) {
+		DRM_DEBUG_KMS("creating tmp fb for load-detection\n");
+		crtc->fb = intel_framebuffer_create_for_mode(dev, mode, 24, 32);
+		old->release_fb = crtc->fb;
+	} else
+		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
+	if (IS_ERR(crtc->fb)) {
+		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
+		crtc->fb = old_fb;
+		return false;
+	}
+
+	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, old_fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
+		if (old->release_fb)
+			old->release_fb->funcs->destroy(old->release_fb);
+		crtc->fb = old_fb;
 		return false;
 	}
 
@@ -5576,9 +5693,17 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector),
+		      encoder->base.id, drm_get_encoder_name(encoder));
+
 	if (old->load_detect_temp) {
 		connector->encoder = NULL;
 		drm_helper_disable_unused_functions(dev);
+
+		if (old->release_fb)
+			old->release_fb->funcs->destroy(old->release_fb);
+
 		return;
 	}
 
@@ -6566,27 +6691,12 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_mode_fb_cmd *mode_cmd)
 {
 	struct drm_i915_gem_object *obj;
-	struct intel_framebuffer *intel_fb;
-	int ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, filp, mode_cmd->handle));
 	if (&obj->base == NULL)
 		return ERR_PTR(-ENOENT);
 
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb) {
-		drm_gem_object_unreference_unlocked(&obj->base);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(&obj->base);
-		kfree(intel_fb);
-		return ERR_PTR(ret);
-	}
-
-	return &intel_fb->base;
+	return intel_framebuffer_create(dev, mode_cmd, obj);
 }
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {

@@ -292,6 +292,7 @@ extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
 
 struct intel_load_detect_pipe {
+	struct drm_framebuffer *release_fb;
 	bool load_detect_temp;
 	int dpms_mode;
 };
