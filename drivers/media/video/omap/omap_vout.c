@@ -1041,10 +1041,7 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 			struct v4l2_fmtdesc *fmt)
 {
 	int index = fmt->index;
-	enum v4l2_buf_type type = fmt->type;
 
-	fmt->index = index;
-	fmt->type = type;
 	if (index >= NUM_OUTPUT_FORMATS)
 		return -EINVAL;
 
@@ -1213,10 +1210,7 @@ static int vidioc_enum_fmt_vid_overlay(struct file *file, void *fh,
 			struct v4l2_fmtdesc *fmt)
 {
 	int index = fmt->index;
-	enum v4l2_buf_type type = fmt->type;
 
-	fmt->index = index;
-	fmt->type = type;
 	if (index >= NUM_OUTPUT_FORMATS)
 		return -EINVAL;
 
