@@ -941,18 +941,9 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 {
 	struct sctp_transport *transport = (struct sctp_transport *) arg;
 	struct sctp_chunk *reply;
-	sctp_sender_hb_info_t hbinfo;
-	size_t paylen = 0;
-
-	hbinfo.param_hdr.type = SCTP_PARAM_HEARTBEAT_INFO;
-	hbinfo.param_hdr.length = htons(sizeof(sctp_sender_hb_info_t));
-	hbinfo.daddr = transport->ipaddr;
-	hbinfo.sent_at = jiffies;
-	hbinfo.hb_nonce = transport->hb_nonce;
 
 	/* Send a heartbeat to our peer.  */
-	paylen = sizeof(sctp_sender_hb_info_t);
-	reply = sctp_make_heartbeat(asoc, transport, &hbinfo, paylen);
+	reply = sctp_make_heartbeat(asoc, transport);
 	if (!reply)
 		return SCTP_DISPOSITION_NOMEM;
 
