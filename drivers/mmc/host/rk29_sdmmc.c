@@ -680,9 +680,9 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 		host->is_init = 0;
 	    cmdflags |= SDMMC_CMD_INIT; 
 	}
-	if(cmd->opcode == 0 &&
+	if(cmd->opcode == 0/* &&
 		((rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY)||
-		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY)))
+		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY))*/)
 		cmdflags |= SDMMC_CMD_STOP;
 	if (mrq->data) {
 		rk29_sdmmc_set_mrq_status(host, MRQ_HAS_DATA);
@@ -746,6 +746,8 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mrq->cmd->error = -EINPROGRESS;
 		dev_info(host->dev, "rk29_sdmmc_set_clock timeout\n");
 		rk29_sdmmc_request_done(host, mrq);
+		rk29_sdmmc_reset_ctrl(host);
+		rk29_sdmmc_show_info(host);
 		return;
 	}
 		
@@ -753,6 +755,8 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		dev_info(host->dev, "rk29_sdmmc_start_request timeout\n");
 		mrq->cmd->error = -EINPROGRESS;
 		rk29_sdmmc_request_done(host, mrq);
+		rk29_sdmmc_reset_ctrl(host);
+		rk29_sdmmc_show_info(host);
 	}
 	return;
 }
@@ -887,21 +891,24 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 						EVENT_CMD_COMPLETE))
 				break;
 			rk29_sdmmc_set_completed(host, EVENT_CMD_COMPLETE);
-
-			rk29_sdmmc_command_complete(host, host->mrq->cmd);
-			if(!host->mrq)
+			if(!host->mrq){
+				dev_info(host->dev, "sending cmd, host->mrq = NULL\n");
 				rk29_sdmmc_show_info(host);
-			if (!host->mrq->data || (host->mrq->cmd->error)) {
-				rk29_sdmmc_request_end(host);
-				goto unlock;
-			}
+			}else{
+				rk29_sdmmc_command_complete(host, host->mrq->cmd);
+				if (!host->mrq->data || (host->mrq->cmd->error)) {
+					rk29_sdmmc_request_end(host);
+					goto unlock;
+				}
 			prev_state = state = STATE_SENDING_DATA;
-
+			}
 		case STATE_SENDING_DATA:
 			if (rk29_sdmmc_test_and_clear_pending(host,
 						EVENT_DATA_ERROR)) {
-				if(!host->mrq)
-				rk29_sdmmc_show_info(host);
+				if(!host->mrq){
+					dev_info(host->dev, "sending data, host->mrq = NULL\n");
+					rk29_sdmmc_show_info(host);
+				}
 				rk29_sdmmc_stop_dma(host);
 				if (host->mrq->data->stop)
 					send_stop_cmd(host);
@@ -1047,7 +1054,10 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 static void rk29_sdmmc_detect_change(struct rk29_sdmmc *host)
 {
 	spin_lock(&host->lock);	
-
+	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, ~SDMMC_INT_SDIO);
+	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,
+		rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & 
+		~(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS));
 	if (host->mrq) {
 		switch (host->state) {
 		case STATE_IDLE:
@@ -1310,7 +1320,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL,SDMMC_CTRL_INT_ENABLE);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,1);
-	
+
 	dev_info(host->dev, "RK29 SDMMC controller at irq %d\n", host->irq);
 	return 0;
 	free_irq(host->gpio_irq, host);
