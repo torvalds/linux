@@ -426,6 +426,8 @@ full_duplex_only:
 void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
+	struct net_device *dev = adapter->netdev;
+	int val;
 
 	{ /* Transmit Descriptor Count */
 		static const struct pch_gbe_option opt = {
@@ -466,9 +468,10 @@ void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 			.err  = "defaulting to Enabled",
 			.def  = PCH_GBE_DEFAULT_RX_CSUM
 		};
-		adapter->rx_csum = XsumRX;
-		pch_gbe_validate_option((int *)(&adapter->rx_csum),
-					&opt, adapter);
+		val = XsumRX;
+		pch_gbe_validate_option(&val, &opt, adapter);
+		if (!val)
+			dev->features &= ~NETIF_F_RXCSUM;
 	}
 	{ /* Checksum Offload Enable/Disable */
 		static const struct pch_gbe_option opt = {
@@ -477,9 +480,10 @@ void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 			.err  = "defaulting to Enabled",
 			.def  = PCH_GBE_DEFAULT_TX_CSUM
 		};
-		adapter->tx_csum = XsumTX;
-		pch_gbe_validate_option((int *)(&adapter->tx_csum),
-						&opt, adapter);
+		val = XsumTX;
+		pch_gbe_validate_option(&val, &opt, adapter);
+		if (!val)
+			dev->features &= ~NETIF_F_ALL_CSUM;
 	}
 	{ /* Flow Control */
 		static const struct pch_gbe_option opt = {

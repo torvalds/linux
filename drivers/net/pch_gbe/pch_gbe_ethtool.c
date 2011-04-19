@@ -434,57 +434,6 @@ static int pch_gbe_set_pauseparam(struct net_device *netdev,
 }
 
 /**
- * pch_gbe_get_rx_csum - Report whether receive checksums are turned on or off
- * @netdev:  Network interface device structure
- * Returns
- *	true(1):  Checksum On
- *	false(0): Checksum Off
- */
-static u32 pch_gbe_get_rx_csum(struct net_device *netdev)
-{
-	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-
-	return adapter->rx_csum;
-}
-
-/**
- * pch_gbe_set_rx_csum - Turn receive checksum on or off
- * @netdev:  Network interface device structure
- * @data:    Checksum On[true] or Off[false]
- * Returns
- *	0:			Successful.
- *	Negative value:		Failed.
- */
-static int pch_gbe_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-
-	adapter->rx_csum = data;
-	if ((netif_running(netdev)))
-		pch_gbe_reinit_locked(adapter);
-	else
-		pch_gbe_reset(adapter);
-
-	return 0;
-}
-
-/**
- * pch_gbe_set_tx_csum - Turn transmit checksums on or off
- * @netdev: Network interface device structure
- * @data:   Checksum on[true] or off[false]
- * Returns
- *	0:			Successful.
- *	Negative value:		Failed.
- */
-static int pch_gbe_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-
-	adapter->tx_csum = data;
-	return ethtool_op_set_tx_ipv6_csum(netdev, data);
-}
-
-/**
  * pch_gbe_get_strings - Return a set of strings that describe the requested
  *			 objects
  * @netdev:    Network interface device structure
@@ -554,9 +503,6 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 	.set_ringparam = pch_gbe_set_ringparam,
 	.get_pauseparam = pch_gbe_get_pauseparam,
 	.set_pauseparam = pch_gbe_set_pauseparam,
-	.get_rx_csum = pch_gbe_get_rx_csum,
-	.set_rx_csum = pch_gbe_set_rx_csum,
-	.set_tx_csum = pch_gbe_set_tx_csum,
 	.get_strings = pch_gbe_get_strings,
 	.get_ethtool_stats = pch_gbe_get_ethtool_stats,
 	.get_sset_count = pch_gbe_get_sset_count,
