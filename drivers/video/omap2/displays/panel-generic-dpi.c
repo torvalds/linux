@@ -233,6 +233,27 @@ static struct panel_config generic_dpi_panels[] = {
 		.power_off_delay	= 0,
 		.name			= "innolux_at070tn83",
 	},
+
+	/* NEC NL2432DR22-11B */
+	{
+		{
+			.x_res		= 240,
+			.y_res		= 320,
+
+			.pixel_clock	= 5400,
+
+			.hsw		= 3,
+			.hfp		= 3,
+			.hbp		= 39,
+
+			.vsw		= 1,
+			.vfp		= 2,
+			.vbp		= 7,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+						OMAP_DSS_LCD_IHS,
+		.name			= "nec_nl2432dr22-11b",
+	},
 };
 
 struct panel_drv_data {
