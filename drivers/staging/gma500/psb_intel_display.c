@@ -341,7 +341,6 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	/* struct drm_i915_master_private *master_priv; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	struct psb_intel_mode_device *mode_dev = psb_intel_crtc->mode_dev;
 	int pipe = psb_intel_crtc->pipe;
 	unsigned long start, offset;
 	int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
@@ -1020,8 +1019,6 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv =
-				(struct drm_psb_private *)dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
@@ -1048,6 +1045,9 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 		/* Unpin the old GEM object */
 		if (psb_intel_crtc->cursor_obj) {
+                	gt = container_of(psb_intel_crtc->cursor_obj,
+                	                        struct gtt_range, gem);
+			psb_gtt_unpin(crtc->dev, gt);
 			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 			psb_intel_crtc->cursor_obj = NULL;
 		}
@@ -1070,19 +1070,17 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return -ENOMEM;
 	}
 
-	/*insert this bo into gtt*/
-	DRM_DEBUG("%s: map meminfo for hw cursor. handle %x\n",
-						__func__, handle);
-
-/* Pin : FIXME
-	if (ret) {
-		DRM_ERROR("Can not map meminfo to GTT. handle 0x%x\n", handle);
-		return ret;
-	}
-*/
 	gt = container_of(obj, struct gtt_range, gem);
 
-	addr = gt->resource.start;
+	/* Pin the memory into the GTT */
+	ret = psb_gtt_pin(crtc->dev, gt);
+	if (ret) {
+		DRM_ERROR("Can not pin down handle 0x%x\n", handle);
+		return ret;
+	}
+
+
+	addr = gt->offset;	/* Or resource.start ??? */
 
 	psb_intel_crtc->cursor_addr = addr;
 
@@ -1099,6 +1097,9 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* unpin the old bo */
 	if (psb_intel_crtc->cursor_obj && psb_intel_crtc->cursor_obj != obj) {
+               	gt = container_of(psb_intel_crtc->cursor_obj,
+               	                        struct gtt_range, gem);
+		psb_gtt_unpin(crtc->dev, gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = obj;
 	}
@@ -1301,8 +1302,16 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gtt_range *gt;
 
-	/* FIXME: do we need to put the final GEM cursor ? */
+	/* Unpin the old GEM object */
+	if (psb_intel_crtc->cursor_obj) {
+		gt = container_of(psb_intel_crtc->cursor_obj,
+						struct gtt_range, gem);
+		psb_gtt_unpin(crtc->dev, gt);
+		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+		psb_intel_crtc->cursor_obj = NULL;
+	}
 	kfree(psb_intel_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(psb_intel_crtc);

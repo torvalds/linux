@@ -66,7 +66,6 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 	return dev_priv->gtt_map + (offset >> PAGE_SHIFT);
 }
 
-
 /**
  *	psb_gtt_insert	-	put an object into the GART
  *	@dev: our DRM device
@@ -77,21 +76,19 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *
  *	FIXME: gtt lock ?
  */
-int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
+static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
 	u32 *gtt_slot, pte;
 	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	struct page **pages;
 	int i;
 
-	if (r->stolen)
-		return 0;
 	if (r->pages == NULL) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
-	WARN_ON(r->in_gart);	/* refcount these maybe ? */
+	WARN_ON(r->stolen);	/* refcount these maybe ? */
 
 	gtt_slot = psb_gtt_entry(dev, r);
 	pages = r->pages;
@@ -118,16 +115,14 @@ int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
  *	page table entries with the dummy page
  */
 
-void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 *gtt_slot, pte;
 	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	int i;
 
-	if (r->stolen)
-		return;
-	WARN_ON(!r->in_gart);
+	WARN_ON(r->stolen);
 
 	gtt_slot = psb_gtt_entry(dev, r);
 	pte = psb_gtt_mask_pte(page_to_pfn(dev_priv->scratch_page), 0);;
@@ -146,7 +141,7 @@ void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
  *	Pin and build an in kernel list of the pages that back our GEM object.
  *	While we hold this the pages cannot be swapped out
  */
-int psb_gtt_attach_pages(struct gtt_range *gt)
+static int psb_gtt_attach_pages(struct gtt_range *gt)
 {
 	struct inode *inode;
 	struct address_space *mapping;
@@ -189,12 +184,10 @@ err:
  *	must have been removed from the GART as they could now be paged out
  *	and move bus address.
  */
-void psb_gtt_detach_pages(struct gtt_range *gt)
+static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
 	int i;
 	int pages = (gt->resource.end + 1 - gt->resource.start) >> PAGE_SHIFT;
-
-	WARN_ON(gt->in_gart);
 
 	for (i = 0; i < pages; i++) {
 		/* FIXME: do we need to force dirty */
@@ -206,6 +199,50 @@ void psb_gtt_detach_pages(struct gtt_range *gt)
 	gt->pages = NULL;
 }
 
+/*
+ *	Manage pinning of resources into the GART
+ */
+
+int psb_gtt_pin(struct drm_device *dev, struct gtt_range *gt)
+{
+	int ret;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	if (gt->in_gart == 0 && gt->stolen == 0) {
+		ret = psb_gtt_attach_pages(gt);
+		if (ret < 0)
+			goto out;
+		ret = psb_gtt_insert(dev, gt);
+		if (ret < 0) {
+			psb_gtt_detach_pages(gt);
+			goto out;
+		}
+	}
+	gt->in_gart++;
+out:
+	mutex_unlock(&dev_priv->gtt_mutex);
+	return ret;
+}
+
+void psb_gtt_unpin(struct drm_device *dev, struct gtt_range *gt)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	WARN_ON(!gt->in_gart);
+
+	gt->in_gart--;
+	if (gt->in_gart == 0 && gt->stolen == 0) {
+		psb_gtt_remove(dev, gt);
+		psb_gtt_detach_pages(gt);
+	}
+
+	mutex_unlock(&dev_priv->gtt_mutex);
+}
+	
 /*
  *	GTT resource allocator - allocate and manage GTT address space
  */
@@ -265,10 +302,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 static void psb_gtt_destroy(struct kref *kref)
 {
 	struct gtt_range *gt = container_of(kref, struct gtt_range, kref);
-	if (gt->in_gart && !gt->stolen)
-		psb_gtt_remove(gt->gem.dev, gt);
-	if (gt->pages)
-		psb_gtt_detach_pages(gt);
+	WARN_ON(gt->in_gart && !gt->stolen);
 	release_resource(&gt->resource);
 	kfree(gt);
 }
@@ -344,6 +378,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	int ret = 0;
 	uint32_t pte;
+
+	mutex_init(&dev_priv->gtt_mutex);
 
 	dev_priv->pg = pg = psb_gtt_alloc(dev);
 	if (pg == NULL)
