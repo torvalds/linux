@@ -129,7 +129,6 @@ struct alb_bond_info {
 	int			lp_counter;
 	/* -------- rlb parameters -------- */
 	int rlb_enabled;
-	struct packet_type	rlb_pkt_type;
 	struct rlb_client_info	*rx_hashtbl;	/* Receive hash table */
 	spinlock_t		rx_hashtbl_lock;
 	u32			rx_hashtbl_head;

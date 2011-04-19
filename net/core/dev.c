@@ -3077,25 +3077,6 @@ void netdev_rx_handler_unregister(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
 
-static void vlan_on_bond_hook(struct sk_buff *skb)
-{
-	/*
-	 * Make sure ARP frames received on VLAN interfaces stacked on
-	 * bonding interfaces still make their way to any base bonding
-	 * device that may have registered for a specific ptype.
-	 */
-	if (skb->dev->priv_flags & IFF_802_1Q_VLAN &&
-	    vlan_dev_real_dev(skb->dev)->priv_flags & IFF_BONDING &&
-	    skb->protocol == htons(ETH_P_ARP)) {
-		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
-
-		if (!skb2)
-			return;
-		skb2->dev = vlan_dev_real_dev(skb->dev);
-		netif_rx(skb2);
-	}
-}
-
 static int __netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
@@ -3190,8 +3171,6 @@ ncls:
 		} else if (unlikely(!skb))
 			goto out;
 	}
-
-	vlan_on_bond_hook(skb);
 
 	/* deliver only exact match when indicated */
 	null_or_dev = deliver_exact ? skb->dev : NULL;

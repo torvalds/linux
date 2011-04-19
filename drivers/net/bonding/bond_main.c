@@ -1439,27 +1439,17 @@ static void bond_setup_by_slave(struct net_device *bond_dev,
 }
 
 /* On bonding slaves other than the currently active slave, suppress
- * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
- * ARP on active-backup slaves with arp_validate enabled.
+ * duplicates except for alb non-mcast/bcast.
  */
 static bool bond_should_deliver_exact_match(struct sk_buff *skb,
 					    struct slave *slave,
 					    struct bonding *bond)
 {
 	if (bond_is_slave_inactive(slave)) {
-		if (slave_do_arp_validate(bond, slave) &&
-		    skb->protocol == __cpu_to_be16(ETH_P_ARP))
-			return false;
-
 		if (bond->params.mode == BOND_MODE_ALB &&
 		    skb->pkt_type != PACKET_BROADCAST &&
 		    skb->pkt_type != PACKET_MULTICAST)
-				return false;
-
-		if (bond->params.mode == BOND_MODE_8023AD &&
-		    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
 			return false;
-
 		return true;
 	}
 	return false;
@@ -1482,6 +1472,15 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 
 	if (bond->params.arp_interval)
 		slave->dev->last_rx = jiffies;
+
+	if (bond->recv_probe) {
+		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
+
+		if (likely(nskb)) {
+			bond->recv_probe(nskb, bond, slave);
+			dev_kfree_skb(nskb);
+		}
+	}
 
 	if (bond_should_deliver_exact_match(skb, slave, bond)) {
 		return RX_HANDLER_EXACT;
@@ -2743,48 +2742,26 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	}
 }
 
-static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
+			 struct slave *slave)
 {
 	struct arphdr *arp;
-	struct slave *slave;
-	struct bonding *bond;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
-		/*
-		 * When using VLANS and bonding, dev and oriv_dev may be
-		 * incorrect if the physical interface supports VLAN
-		 * acceleration.  With this change ARP validation now
-		 * works for hosts only reachable on the VLAN interface.
-		 */
-		dev = vlan_dev_real_dev(dev);
-		orig_dev = dev_get_by_index_rcu(dev_net(skb->dev),skb->skb_iif);
-	}
+	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
+		return;
 
-	if (!(dev->priv_flags & IFF_BONDING) || !(dev->flags & IFF_MASTER))
-		goto out;
-
-	bond = netdev_priv(dev);
 	read_lock(&bond->lock);
 
-	pr_debug("bond_arp_rcv: bond %s skb->dev %s orig_dev %s\n",
-		 bond->dev->name, skb->dev ? skb->dev->name : "NULL",
-		 orig_dev ? orig_dev->name : "NULL");
+	pr_debug("bond_arp_rcv: bond %s skb->dev %s\n",
+		 bond->dev->name, skb->dev->name);
 
-	slave = bond_get_slave_by_dev(bond, orig_dev);
-	if (!slave || !slave_do_arp_validate(bond, slave))
-		goto out_unlock;
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out_unlock;
-
-	if (!pskb_may_pull(skb, arp_hdr_len(dev)))
+	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
 		goto out_unlock;
 
 	arp = arp_hdr(skb);
-	if (arp->ar_hln != dev->addr_len ||
+	if (arp->ar_hln != bond->dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
 	    arp->ar_hrd != htons(ARPHRD_ETHER) ||
@@ -2793,9 +2770,9 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 		goto out_unlock;
 
 	arp_ptr = (unsigned char *)(arp + 1);
-	arp_ptr += dev->addr_len;
+	arp_ptr += bond->dev->addr_len;
 	memcpy(&sip, arp_ptr, 4);
-	arp_ptr += 4 + dev->addr_len;
+	arp_ptr += 4 + bond->dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
 	pr_debug("bond_arp_rcv: %s %s/%d av %d sv %d sip %pI4 tip %pI4\n",
@@ -2818,9 +2795,6 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 
 out_unlock:
 	read_unlock(&bond->lock);
-out:
-	dev_kfree_skb(skb);
-	return NET_RX_SUCCESS;
 }
 
 /*
@@ -3407,48 +3381,6 @@ static struct notifier_block bond_inetaddr_notifier = {
 	.notifier_call = bond_inetaddr_event,
 };
 
-/*-------------------------- Packet type handling ---------------------------*/
-
-/* register to receive lacpdus on a bond */
-static void bond_register_lacpdu(struct bonding *bond)
-{
-	struct packet_type *pk_type = &(BOND_AD_INFO(bond).ad_pkt_type);
-
-	/* initialize packet type */
-	pk_type->type = PKT_TYPE_LACPDU;
-	pk_type->dev = bond->dev;
-	pk_type->func = bond_3ad_lacpdu_recv;
-
-	dev_add_pack(pk_type);
-}
-
-/* unregister to receive lacpdus on a bond */
-static void bond_unregister_lacpdu(struct bonding *bond)
-{
-	dev_remove_pack(&(BOND_AD_INFO(bond).ad_pkt_type));
-}
-
-void bond_register_arp(struct bonding *bond)
-{
-	struct packet_type *pt = &bond->arp_mon_pt;
-
-	if (pt->type)
-		return;
-
-	pt->type = htons(ETH_P_ARP);
-	pt->dev = bond->dev;
-	pt->func = bond_arp_rcv;
-	dev_add_pack(pt);
-}
-
-void bond_unregister_arp(struct bonding *bond)
-{
-	struct packet_type *pt = &bond->arp_mon_pt;
-
-	dev_remove_pack(pt);
-	pt->type = 0;
-}
-
 /*---------------------------- Hashing Policies -----------------------------*/
 
 /*
@@ -3542,14 +3474,14 @@ static int bond_open(struct net_device *bond_dev)
 
 		queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		if (bond->params.arp_validate)
-			bond_register_arp(bond);
+			bond->recv_probe = bond_arp_rcv;
 	}
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		INIT_DELAYED_WORK(&bond->ad_work, bond_3ad_state_machine_handler);
 		queue_delayed_work(bond->wq, &bond->ad_work, 0);
 		/* register to receive LACPDUs */
-		bond_register_lacpdu(bond);
+		bond->recv_probe = bond_3ad_lacpdu_recv;
 		bond_3ad_initiate_agg_selection(bond, 1);
 	}
 
@@ -3559,14 +3491,6 @@ static int bond_open(struct net_device *bond_dev)
 static int bond_close(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-
-	if (bond->params.mode == BOND_MODE_8023AD) {
-		/* Unregister the receive of LACPDUs */
-		bond_unregister_lacpdu(bond);
-	}
-
-	if (bond->params.arp_validate)
-		bond_unregister_arp(bond);
 
 	write_lock_bh(&bond->lock);
 
@@ -3604,6 +3528,7 @@ static int bond_close(struct net_device *bond_dev)
 		 */
 		bond_alb_deinitialize(bond);
 	}
+	bond->recv_probe = NULL;
 
 	return 0;
 }

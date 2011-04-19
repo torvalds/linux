@@ -226,6 +226,8 @@ struct bonding {
 	struct   slave *primary_slave;
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
+	void     (*recv_probe)(struct sk_buff *, struct bonding *,
+			       struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
@@ -399,8 +401,6 @@ void bond_set_mode_ops(struct bonding *bond, int mode);
 int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
-void bond_register_arp(struct bonding *);
-void bond_unregister_arp(struct bonding *);
 void bond_create_debugfs(void);
 void bond_destroy_debugfs(void);
 void bond_debug_register(struct bonding *bond);
