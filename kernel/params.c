@@ -297,21 +297,15 @@ EXPORT_SYMBOL(param_ops_charp);
 int param_set_bool(const char *val, const struct kernel_param *kp)
 {
 	bool v;
+	int ret;
 
 	/* No equals means "set"... */
 	if (!val) val = "1";
 
 	/* One of =[yYnN01] */
-	switch (val[0]) {
-	case 'y': case 'Y': case '1':
-		v = true;
-		break;
-	case 'n': case 'N': case '0':
-		v = false;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = strtobool(val, &v);
+	if (ret)
+		return ret;
 
 	if (kp->flags & KPARAM_ISBOOL)
 		*(bool *)kp->arg = v;
