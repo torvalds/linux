@@ -2056,7 +2056,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		}
 		em = get_extent(inode, page, pg_offset, cur,
 				end - cur + 1, 0);
-		if (IS_ERR(em) || !em) {
+		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
 			unlock_extent(tree, cur, end, GFP_NOFS);
 			break;
@@ -2341,7 +2341,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		}
 		em = epd->get_extent(inode, page, pg_offset, cur,
 				     end - cur + 1, 1);
-		if (IS_ERR(em) || !em) {
+		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
 			break;
 		}
@@ -2769,7 +2769,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 	while (block_start <= block_end) {
 		em = get_extent(inode, page, pg_offset, block_start,
 				block_end - block_start + 1, 1);
-		if (IS_ERR(em) || !em)
+		if (IS_ERR_OR_NULL(em))
 			goto err;
 
 		cur_end = min(block_end, extent_map_end(em) - 1);
@@ -2899,7 +2899,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			len = end - start + 1;
 			write_lock(&map->lock);
 			em = lookup_extent_mapping(map, start, len);
-			if (!em || IS_ERR(em)) {
+			if (IS_ERR_OR_NULL(em)) {
 				write_unlock(&map->lock);
 				break;
 			}
@@ -2942,7 +2942,7 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 	em = get_extent(inode, NULL, 0, start, blksize, 0);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start,
 			     start + blksize - 1, &cached_state, GFP_NOFS);
-	if (!em || IS_ERR(em))
+	if (IS_ERR_OR_NULL(em))
 		return 0;
 
 	if (em->block_start > EXTENT_MAP_LAST_BYTE)
@@ -2976,7 +2976,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 			break;
 		len = (len + sectorsize - 1) & ~(sectorsize - 1);
 		em = get_extent(inode, NULL, 0, offset, len, 0);
-		if (!em || IS_ERR(em))
+		if (IS_ERR_OR_NULL(em))
 			return em;
 
 		/* if this isn't a hole return it */

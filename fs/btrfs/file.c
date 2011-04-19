@@ -1375,7 +1375,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
-		BUG_ON(IS_ERR(em) || !em);
+		BUG_ON(IS_ERR_OR_NULL(em));
 		last_byte = min(extent_map_end(em), alloc_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (em->block_start == EXTENT_MAP_HOLE ||

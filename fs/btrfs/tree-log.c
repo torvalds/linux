@@ -1205,7 +1205,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	} else {
 		BUG();
 	}
-	if (!dst_di || IS_ERR(dst_di)) {
+	if (IS_ERR_OR_NULL(dst_di)) {
 		/* we need a sequence number to insert, so we only
 		 * do inserts for the BTRFS_DIR_INDEX_KEY types
 		 */
@@ -1426,7 +1426,7 @@ again:
 						     dir_key->offset,
 						     name, name_len, 0);
 		}
-		if (!log_di || IS_ERR(log_di)) {
+		if (IS_ERR_OR_NULL(log_di)) {
 			btrfs_dir_item_key_to_cpu(eb, di, &location);
 			btrfs_release_path(root, path);
 			btrfs_release_path(log, log_path);

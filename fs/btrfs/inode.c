@@ -1855,7 +1855,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 		}
 		read_unlock(&em_tree->lock);
 
-		if (!em || IS_ERR(em)) {
+		if (IS_ERR_OR_NULL(em)) {
 			kfree(failrec);
 			return -EIO;
 		}
@@ -3006,7 +3006,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
 				   name, name_len, -1);
-	BUG_ON(!di || IS_ERR(di));
+	BUG_ON(IS_ERR_OR_NULL(di));
 
 	leaf = path->nodes[0];
 	btrfs_dir_item_key_to_cpu(leaf, di, &key);
@@ -3022,7 +3022,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		BUG_ON(ret != -ENOENT);
 		di = btrfs_search_dir_index_item(root, path, dir->i_ino,
 						 name, name_len);
-		BUG_ON(!di || IS_ERR(di));
+		BUG_ON(IS_ERR_OR_NULL(di));
 
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
@@ -3032,7 +3032,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
 					 index, name, name_len, -1);
-	BUG_ON(!di || IS_ERR(di));
+	BUG_ON(IS_ERR_OR_NULL(di));
 
 	leaf = path->nodes[0];
 	btrfs_dir_item_key_to_cpu(leaf, di, &key);
@@ -3635,7 +3635,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				block_end - cur_offset, 0);
-		BUG_ON(IS_ERR(em) || !em);
+		BUG_ON(IS_ERR_OR_NULL(em));
 		last_byte = min(extent_map_end(em), block_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
@@ -3841,7 +3841,7 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(di))
 		ret = PTR_ERR(di);
 
-	if (!di || IS_ERR(di))
+	if (IS_ERR_OR_NULL(di))
 		goto out_err;
 
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, location);
