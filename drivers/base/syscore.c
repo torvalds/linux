@@ -73,6 +73,7 @@ int syscore_suspend(void)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(syscore_suspend);
 
 /**
  * syscore_resume - Execute all the registered system core resume callbacks.
@@ -95,6 +96,7 @@ void syscore_resume(void)
 				"Interrupts enabled after %pF\n", ops->resume);
 		}
 }
+EXPORT_SYMBOL_GPL(syscore_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 /**
