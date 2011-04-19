@@ -995,6 +995,8 @@ void iwl_apm_stop(struct iwl_priv *priv)
 {
 	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
 
+	clear_bit(STATUS_DEVICE_ENABLED, &priv->status);
+
 	/* Stop device's DMA activity */
 	iwl_apm_stop_master(priv);
 
@@ -1108,6 +1110,8 @@ int iwl_apm_init(struct iwl_priv *priv)
 	/* Disable L1-Active */
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+
+	set_bit(STATUS_DEVICE_ENABLED, &priv->status);
 
 out:
 	return ret;
