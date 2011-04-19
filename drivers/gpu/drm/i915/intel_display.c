@@ -5488,7 +5488,6 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 {
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *possible_crtc;
-	struct drm_crtc *supported_crtc =NULL;
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
@@ -5498,12 +5497,12 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 
 	/*
 	 * Algorithm gets a little messy:
+	 *
 	 *   - if the connector already has an assigned crtc, use it (but make
 	 *     sure it's on first)
+	 *
 	 *   - try to find the first unused crtc that can drive this connector,
 	 *     and use that if we find one
-	 *   - if there are no unused crtcs available, try to use the first
-	 *     one we found that supports the connector
 	 */
 
 	/* See if we already have a CRTC for this connector */
@@ -5533,8 +5532,6 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 			crtc = possible_crtc;
 			break;
 		}
-		if (!supported_crtc)
-			supported_crtc = possible_crtc;
 	}
 
 	/*
