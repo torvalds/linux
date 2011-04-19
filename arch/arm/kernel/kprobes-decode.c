@@ -661,6 +661,17 @@ static void __kprobes emulate_nop(struct kprobe *p, struct pt_regs *regs)
 {
 }
 
+static void __kprobes
+emulate_rd12_modify(struct kprobe *p, struct pt_regs *regs)
+{
+	insn_1arg_fn_t *i_fn = (insn_1arg_fn_t *)&p->ainsn.insn[0];
+	kprobe_opcode_t insn = p->opcode;
+	int rd = (insn >> 12) & 0xf;
+	long rdv = regs->uregs[rd];
+
+	regs->uregs[rd] = insnslot_1arg_rflags(rdv, regs->ARM_cpsr, i_fn);
+}
+
 static void __kprobes emulate_rd12rm0(struct kprobe *p, struct pt_regs *regs)
 {
 	insn_1arg_fn_t *i_fn = (insn_1arg_fn_t *)&p->ainsn.insn[0];
@@ -843,6 +854,18 @@ prep_emulate_ldr_str(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	}
 	asi->insn[0] = insn;
 	asi->insn_handler = (insn & (1 << 20)) ? emulate_ldr : emulate_str;
+	return INSN_GOOD;
+}
+
+static enum kprobe_insn __kprobes
+prep_emulate_rd12_modify(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+{
+	if (is_r15(insn, 12))
+		return INSN_REJECTED;	/* Rd is PC */
+
+	insn &= 0xffff0fff;	/* Rd = r0 */
+	asi->insn[0] = insn;
+	asi->insn_handler = emulate_rd12_modify;
 	return INSN_GOOD;
 }
 
@@ -1170,14 +1193,17 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 static enum kprobe_insn __kprobes
 space_cccc_001x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
+	/* MOVW  : cccc 0011 0000 xxxx xxxx xxxx xxxx xxxx */
+	/* MOVT  : cccc 0011 0100 xxxx xxxx xxxx xxxx xxxx */
+	if ((insn & 0x0fb00000) == 0x03000000)
+		return prep_emulate_rd12_modify(insn, asi);
+
 	/*
 	 * MSR   : cccc 0011 0x10 xxxx xxxx xxxx xxxx xxxx
-	 * Undef : cccc 0011 0100 xxxx xxxx xxxx xxxx xxxx
 	 * ALU op with S bit and Rd == 15 :
 	 *	   cccc 001x xxx1 xxxx 1111 xxxx xxxx xxxx
 	 */
 	if ((insn & 0x0fb00000) == 0x03200000 ||	/* MSR */
-	    (insn & 0x0ff00000) == 0x03400000 ||	/* Undef */
 	    (insn & 0x0e10f000) == 0x0210f000)		/* ALU s-bit, R15  */
 		return INSN_REJECTED;
 
