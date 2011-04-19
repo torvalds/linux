@@ -1103,7 +1103,9 @@ void tegra_dc_disable(struct tegra_dc *dc)
 
 	if (dc->enabled) {
 		dc->enabled = false;
-		_tegra_dc_disable(dc);
+
+		if (!dc->suspended)
+			_tegra_dc_disable(dc);
 	}
 
 	mutex_unlock(&dc->lock);
@@ -1335,6 +1337,8 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 	if (dc->enabled) {
 		tegra_fb_suspend(dc->fb);
 		_tegra_dc_disable(dc);
+
+		dc->suspended = true;
 	}
 	mutex_unlock(&dc->lock);
 
@@ -1348,6 +1352,8 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 	dev_info(&ndev->dev, "resume\n");
 
 	mutex_lock(&dc->lock);
+	dc->suspended = false;
+
 	if (dc->enabled)
 		_tegra_dc_enable(dc);
 
