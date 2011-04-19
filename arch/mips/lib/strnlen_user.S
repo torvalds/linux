@@ -17,7 +17,7 @@
 	.previous
 
 /*
- * Return the size of a string including the ending NUL character upto a
+ * Return the size of a string including the ending NUL character up to a
  * maximum of a1 or 0 in case of error.
  *
  * Note: for performance reasons we deliberately accept that a user may

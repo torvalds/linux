@@ -283,7 +283,7 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	/**
 	 * While scanning, link tuning is disabled. By default
 	 * the most sensitive settings will be used to make sure
-	 * that all beacons and probe responses will be recieved
+	 * that all beacons and probe responses will be received
 	 * during the scan.
 	 */
 	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))

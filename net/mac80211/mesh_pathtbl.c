@@ -628,7 +628,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
  *
  * @mpath: mesh path whose queue has to be freed
  *
- * Locking: the function must me called withing a rcu_read_lock region
+ * Locking: the function must me called within a rcu_read_lock region
  */
 void mesh_path_flush_pending(struct mesh_path *mpath)
 {

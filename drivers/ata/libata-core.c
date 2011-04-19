@@ -5340,7 +5340,7 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
  *
  *	Resume @host.  Actual operation is performed by EH.  This
  *	function requests EH to perform PM operations and returns.
- *	Note that all resume operations are performed parallely.
+ *	Note that all resume operations are performed parallelly.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).

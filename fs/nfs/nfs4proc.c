@@ -2204,8 +2204,6 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 		goto out;
 	}
 	ret = nfs4_lookup_root(server, fhandle, info);
-	if (ret < 0)
-		ret = -EAGAIN;
 out:
 	return ret;
 }
@@ -2226,7 +2224,7 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	for (i = 0; i < len; i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
-		if (status == 0)
+		if (status != -EPERM)
 			break;
 	}
 	if (status == 0)

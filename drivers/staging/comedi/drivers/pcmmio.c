@@ -733,7 +733,7 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_DIO_QUERY:
-		/* retreive from shadow register */
+		/* retrieve from shadow register */
 		data[1] =
 		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
@@ -1279,7 +1279,7 @@ static int wait_dac_ready(unsigned long iobase)
 	   "no busy waiting" policy. The fact is that the hardware is
 	   normally so fast that we usually only need one time through the loop
 	   anyway. The longer timeout is for rare occasions and for detecting
-	   non-existant hardware.  */
+	   non-existent hardware.  */
 
 	while (retry--) {
 		if (inb(iobase + 3) & 0x80)

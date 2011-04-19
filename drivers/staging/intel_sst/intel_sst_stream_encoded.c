@@ -914,7 +914,7 @@ static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 		(void *) ((unsigned long) rar_buffers.bus_address);
 		pr_debug("RAR buf addr in DnR (input buffer function)0x%lu",
 				 (unsigned long) str_info->decode_ibuf);
-		pr_debug("rar in DnR decode funtion/output b_add rar =0x%lu",
+		pr_debug("rar in DnR decode function/output b_add rar =0x%lu",
 				(unsigned long) rar_buffers.bus_address);
 		*input_index = i + 1;
 		str_info->decode_isize = dbufs->ibufs->buff_entry[i].size;

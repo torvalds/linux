@@ -4010,7 +4010,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 
-	/* Start maintainance work */
+	/* Start maintenance work */
 	b43_periodic_tasks_setup(dev);
 
 	b43_leds_init(dev);

@@ -850,7 +850,7 @@ static void edac_remove_mci_instance_attributes(struct mem_ctl_info *mci,
 
 	/*
 	 * loop if there are attributes and until we hit a NULL entry
-	 * Remove first all the atributes
+	 * Remove first all the attributes
 	 */
 	while (sysfs_attrib) {
 		debugf4("%s() sysfs_attrib = %p\n",__func__, sysfs_attrib);

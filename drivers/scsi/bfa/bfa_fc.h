@@ -315,7 +315,7 @@ struct fc_plogi_csp_s {
 			query_dbc:1,
 			hg_supp:1;
 #endif
-	__be16		rxsz;		/* recieve data_field size */
+	__be16		rxsz;		/* receive data_field size */
 	__be16		conseq;
 	__be16		ro_bitmap;
 	__be32		e_d_tov;

@@ -1518,7 +1518,7 @@ static void rt2800_config_channel_rf2xxx(struct rt2x00_dev *rt2x00dev,
 	if (rf->channel > 14) {
 		/*
 		 * When TX power is below 0, we should increase it by 7 to
-		 * make it a positive value (Minumum value is -7).
+		 * make it a positive value (Minimum value is -7).
 		 * However this means that values between 0 and 7 have
 		 * double meaning, and we should set a 7DBm boost flag.
 		 */

@@ -215,7 +215,7 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 		/* WARNING: This only kicks off a single
 		 * checkpoint. If someone races you and adds more
 		 * metadata to the journal, you won't know, and will
-		 * wind up waiting *alot* longer than necessary. Right
+		 * wind up waiting *a lot* longer than necessary. Right
 		 * now we only use this in clear_inode so that's
 		 * OK. */
 		ocfs2_start_checkpoint(osb);

@@ -64,12 +64,6 @@ static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
  */
 static struct resource mem_res[] = {
 	{
-		.name = "Video RAM",
-		.start = 0,
-		.end = 0,
-		.flags = IORESOURCE_MEM
-	},
-	{
 		.name = "Kernel text",
 		.start = 0,
 		.end = 0,
@@ -83,9 +77,8 @@ static struct resource mem_res[] = {
 	}
 };
 
-#define video_ram   mem_res[0]
-#define kernel_code mem_res[1]
-#define kernel_data mem_res[2]
+#define kernel_code mem_res[0]
+#define kernel_data mem_res[1]
 
 /*
  * These functions re-use the assembly code in head.S, which
@@ -224,10 +217,6 @@ request_standard_resources(struct meminfo *mi)
 		    kernel_data.end <= res->end)
 			request_resource(res, &kernel_data);
 	}
-
-	video_ram.start = PKUNITY_UNIGFX_MMAP_BASE;
-	video_ram.end   = PKUNITY_UNIGFX_MMAP_BASE + PKUNITY_UNIGFX_MMAP_SIZE;
-	request_resource(&iomem_resource, &video_ram);
 }
 
 static void (*init_machine)(void) __initdata;

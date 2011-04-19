@@ -863,7 +863,7 @@ int RIOUnUse(unsigned long iPortP, struct CmdBlk *CmdBlkP)
 	 ** being transferred from the write queue into the transmit packets
 	 ** (add_transmit) and no furthur transmit interrupt will be sent for that
 	 ** data. The next interrupt will occur up to 500ms later (RIOIntr is called
-	 ** twice a second as a saftey measure). This was the case when kermit was
+	 ** twice a second as a safety measure). This was the case when kermit was
 	 ** used to send data into a RIO port. After each packet was sent, TCFLSH
 	 ** was called to flush the read queue preemptively. PortP->InUse was
 	 ** incremented, thereby blocking the 6 byte acknowledgement packet

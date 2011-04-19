@@ -595,7 +595,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 			atomic_inc(&dest->inactconns);
 	} else {
 		/* It is a persistent connection/template, so increase
-		   the peristent connection counter */
+		   the persistent connection counter */
 		atomic_inc(&dest->persistconns);
 	}
 
@@ -657,7 +657,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 		}
 	} else {
 		/* It is a persistent connection/template, so decrease
-		   the peristent connection counter */
+		   the persistent connection counter */
 		atomic_dec(&dest->persistconns);
 	}
 

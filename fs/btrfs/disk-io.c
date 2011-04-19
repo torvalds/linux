@@ -1275,8 +1275,10 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	root->commit_root = btrfs_root_node(root);
 	BUG_ON(!root->node);
 out:
-	if (location->objectid != BTRFS_TREE_LOG_OBJECTID)
+	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
 		root->ref_cows = 1;
+		btrfs_check_and_init_root_item(&root->root_item);
+	}
 
 	return root;
 }
@@ -3055,7 +3057,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 		btrfs_destroy_pinned_extent(root,
 					    root->fs_info->pinned_extents);
 
-		t->use_count = 0;
+		atomic_set(&t->use_count, 0);
 		list_del_init(&t->list);
 		memset(t, 0, sizeof(*t));
 		kmem_cache_free(btrfs_transaction_cachep, t);

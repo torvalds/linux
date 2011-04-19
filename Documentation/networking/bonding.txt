@@ -368,7 +368,7 @@ fail_over_mac
 		gratuitous ARP is lost, communication may be
 		disrupted.
 
-		When this policy is used in conjuction with the mii
+		When this policy is used in conjunction with the mii
 		monitor, devices which assert link up prior to being
 		able to actually transmit and receive are particularly
 		susceptible to loss of the gratuitous ARP, and an

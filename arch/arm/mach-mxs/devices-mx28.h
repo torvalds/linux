@@ -37,6 +37,10 @@ extern const struct mxs_flexcan_data mx28_flexcan_data[] __initconst;
 extern const struct mxs_i2c_data mx28_mxs_i2c_data[] __initconst;
 #define mx28_add_mxs_i2c(id)		mxs_add_mxs_i2c(&mx28_mxs_i2c_data[id])
 
+extern const struct mxs_mxs_mmc_data mx28_mxs_mmc_data[] __initconst;
+#define mx28_add_mxs_mmc(id, pdata) \
+	mxs_add_mxs_mmc(&mx28_mxs_mmc_data[id], pdata)
+
 #define mx28_add_mxs_pwm(id)		mxs_add_mxs_pwm(MX28_PWM_BASE_ADDR, id)
 
 struct platform_device *__init mx28_add_mxsfb(

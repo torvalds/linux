@@ -696,7 +696,7 @@ static void __init igep2_init(void)
 	igep2_init_smsc911x();
 
 	/*
-	 * WLAN-BT combo module from MuRata wich has a Marvell WLAN
+	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
 	 * (88W8686) + CSR Bluetooth chipset. Uses SDIO interface.
 	 */
 	igep2_wlan_bt_init();

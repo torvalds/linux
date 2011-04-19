@@ -1719,7 +1719,7 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 	}
 
 Search_Finish:
-	RTSX_DEBUGP("Final choosen phase: %d\n", final_phase);
+	RTSX_DEBUGP("Final chosen phase: %d\n", final_phase);
 	return final_phase;
 }
 

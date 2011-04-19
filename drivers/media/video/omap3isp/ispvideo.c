@@ -494,12 +494,12 @@ static const struct isp_video_queue_operations isp_video_queue_ops = {
 /*
  * omap3isp_video_buffer_next - Complete the current buffer and return the next
  * @video: ISP video object
- * @error: Whether an error occured during capture
+ * @error: Whether an error occurred during capture
  *
  * Remove the current video buffer from the DMA queue and fill its timestamp,
  * field count and state fields before waking up its completion handler.
  *
- * The buffer state is set to VIDEOBUF_DONE if no error occured (@error is 0)
+ * The buffer state is set to VIDEOBUF_DONE if no error occurred (@error is 0)
  * or VIDEOBUF_ERROR otherwise (@error is non-zero).
  *
  * The DMA queue is expected to contain at least one buffer.
@@ -578,7 +578,7 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video,
 /*
  * omap3isp_video_resume - Perform resume operation on the buffers
  * @video: ISP video object
- * @continuous: Pipeline is in single shot mode if 0 or continous mode otherwise
+ * @continuous: Pipeline is in single shot mode if 0 or continuous mode otherwise
  *
  * This function is intended to be used on suspend/resume scenario. It
  * requests video queue layer to discard buffers marked as DONE if it's in

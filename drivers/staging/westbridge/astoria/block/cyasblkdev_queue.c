@@ -222,7 +222,7 @@ static int cyasblkdev_queue_thread(void *d)
 			continue;
 		}
 
-		/* new req recieved, issue it to the driver  */
+		/* new req received, issue it to the driver  */
 		set_current_state(TASK_RUNNING);
 
 		#ifndef WESTBRIDGE_NDEBUG

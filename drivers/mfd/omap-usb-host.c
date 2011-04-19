@@ -332,7 +332,7 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 	int				i;
 
 	if (!pdata) {
-		dev_err(dev, "Missing platfrom data\n");
+		dev_err(dev, "Missing platform data\n");
 		ret = -ENOMEM;
 		goto end_probe;
 	}

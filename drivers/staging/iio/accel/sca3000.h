@@ -185,7 +185,7 @@ struct sca3000_state {
 };
 
 /**
- * struct sca3000_chip_info - model dependant parameters
+ * struct sca3000_chip_info - model dependent parameters
  * @name: 			model identification
  * @scale:			string containing floating point scale factor
  * @temp_output:		some devices have temperature sensors.
@@ -213,7 +213,7 @@ struct sca3000_chip_info {
  * sca3000_read_data() read a series of values from the device
  * @dev:		device
  * @reg_address_high:	start address (decremented read)
- * @rx:			pointer where recieved data is placed. Callee
+ * @rx:			pointer where received data is placed. Callee
  *			responsible for freeing this.
  * @len:		number of bytes to read
  *

@@ -691,7 +691,7 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 		/*
 		 * those are either single or dual slot CB with additional functions
 		 * like 1394, smartcard reader, etc. check the TIEALL flag for them
-		 * the TIEALL flag binds the IRQ of all functions toghether.
+		 * the TIEALL flag binds the IRQ of all functions together.
 		 * we catch the single slot variants later.
 		 */
 		sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);

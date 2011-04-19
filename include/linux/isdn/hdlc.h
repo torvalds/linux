@@ -2,7 +2,7 @@
  * hdlc.h  --  General purpose ISDN HDLC decoder.
  *
  * Implementation of a HDLC decoder/encoder in software.
- * Neccessary because some ISDN devices don't have HDLC
+ * Necessary because some ISDN devices don't have HDLC
  * controllers.
  *
  * Copyright (C)

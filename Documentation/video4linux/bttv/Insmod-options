@@ -1,5 +1,5 @@
 
-Note: "modinfo <module>" prints various informations about a kernel
+Note: "modinfo <module>" prints various information about a kernel
 module, among them a complete and up-to-date list of insmod options.
 This list tends to be outdated because it is updated manually ...
 

@@ -772,7 +772,7 @@ static int wm8580_set_bias_level(struct snd_soc_codec *codec,
 			reg &= ~(WM8580_PWRDN1_PWDN | WM8580_PWRDN1_ALLDACPD);
 			snd_soc_write(codec, WM8580_PWRDN1, reg);
 
-			/* Make VMID high impedence */
+			/* Make VMID high impedance */
 			reg = snd_soc_read(codec,  WM8580_ADC_CONTROL1);
 			reg &= ~0x100;
 			snd_soc_write(codec, WM8580_ADC_CONTROL1, reg);

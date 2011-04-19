@@ -1680,7 +1680,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 			 * Prevent counter from being wrapped after
 			 * hanging years in that interrupt.
 			 */
-			plc->ebuf_cont++ ;	/* Ebuf continous error */
+			plc->ebuf_cont++ ;	/* Ebuf continuous error */
 		}
 
 #ifdef	SUPERNET_3
@@ -1717,8 +1717,8 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		}
 #endif	/* SUPERNET_3 */
 	} else {
-		/* Reset the continous error variable */
-		plc->ebuf_cont = 0 ;	/* reset Ebuf continous error */
+		/* Reset the continuous error variable */
+		plc->ebuf_cont = 0 ;	/* reset Ebuf continuous error */
 	}
 	if (cmd & PL_PHYINV) {		/* physical layer invalid signal */
 		plc->phyinv++ ;

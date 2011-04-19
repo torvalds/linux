@@ -218,7 +218,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 	 * request_fn may confuse the driver.  Always use kblockd.
 	 */
 	if (queued)
-		__blk_run_queue(q, true);
+		blk_run_queue_async(q);
 }
 
 /**
@@ -261,7 +261,7 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_rq.end_io = flush_end_io;
 
 	q->flush_pending_idx ^= 1;
-	elv_insert(q, &q->flush_rq, ELEVATOR_INSERT_REQUEUE);
+	list_add_tail(&q->flush_rq.queuelist, &q->queue_head);
 	return true;
 }
 
@@ -274,14 +274,14 @@ static void flush_data_end_io(struct request *rq, int error)
 	 * the comment in flush_end_io().
 	 */
 	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error))
-		__blk_run_queue(q, true);
+		blk_run_queue_async(q);
 }
 
 /**
  * blk_insert_flush - insert a new FLUSH/FUA request
  * @rq: request to insert
  *
- * To be called from elv_insert() for %ELEVATOR_INSERT_FLUSH insertions.
+ * To be called from __elv_add_request() for %ELEVATOR_INSERT_FLUSH insertions.
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
  *
@@ -312,7 +312,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		list_add(&rq->queuelist, &q->queue_head);
+		list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
 

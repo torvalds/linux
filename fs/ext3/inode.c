@@ -2055,7 +2055,7 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *
  *	When we do truncate() we may have to clean the ends of several
  *	indirect blocks but leave the blocks themselves alive. Block is
- *	partially truncated if some data below the new i_size is refered
+ *	partially truncated if some data below the new i_size is referred
  *	from it (and it is on the path to the first completely truncated
  *	data block, indeed).  We have to free the top of that path along
  *	with everything to the right of the path. Since no allocation
@@ -2184,7 +2184,7 @@ static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
  * @first:	array of block numbers
  * @last:	points immediately past the end of array
  *
- * We are freeing all blocks refered from that array (numbers are stored as
+ * We are freeing all blocks referred from that array (numbers are stored as
  * little-endian 32-bit) and updating @inode->i_blocks appropriately.
  *
  * We accumulate contiguous runs of blocks to free.  Conveniently, if these
@@ -2272,7 +2272,7 @@ static void ext3_free_data(handle_t *handle, struct inode *inode,
  *	@last:	pointer immediately past the end of array
  *	@depth:	depth of the branches to free
  *
- *	We are freeing all blocks refered from these branches (numbers are
+ *	We are freeing all blocks referred from these branches (numbers are
  *	stored as little-endian 32-bit) and updating @inode->i_blocks
  *	appropriately.
  */
@@ -3291,7 +3291,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 	if (ext3_should_journal_data(inode))
 		ret = 3 * (bpp + indirects) + 2;
 	else
-		ret = 2 * (bpp + indirects) + 2;
+		ret = 2 * (bpp + indirects) + indirects + 2;
 
 #ifdef CONFIG_QUOTA
 	/* We know that structure was already allocated during dquot_initialize so

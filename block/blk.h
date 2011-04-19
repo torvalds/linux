@@ -22,6 +22,7 @@ void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
 void __generic_unplug_device(struct request_queue *);
+void blk_run_queue_async(struct request_queue *q);
 
 /*
  * Internal atomic flags for request handling
@@ -32,7 +33,7 @@ enum rq_atomic_flags {
 
 /*
  * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them suceeds
+ * sure that only one of them succeeds
  */
 static inline int blk_mark_rq_complete(struct request *rq)
 {

@@ -512,7 +512,7 @@ void __init mpc52xx_init_irq(void)
 /**
  * mpc52xx_get_irq - Get pending interrupt number hook function
  *
- * Called by the interupt handler to determine what IRQ handler needs to be
+ * Called by the interrupt handler to determine what IRQ handler needs to be
  * executed.
  *
  * Status of pending interrupts is determined by reading the encoded status

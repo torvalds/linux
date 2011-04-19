@@ -159,7 +159,7 @@ enum {
 	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
-	Opt_enospc_debug, Opt_err,
+	Opt_enospc_debug, Opt_subvolrootid, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -189,6 +189,7 @@ static match_table_t tokens = {
 	{Opt_clear_cache, "clear_cache"},
 	{Opt_user_subvol_rm_allowed, "user_subvol_rm_allowed"},
 	{Opt_enospc_debug, "enospc_debug"},
+	{Opt_subvolrootid, "subvolrootid=%d"},
 	{Opt_err, NULL},
 };
 
@@ -232,6 +233,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_subvol:
 		case Opt_subvolid:
+		case Opt_subvolrootid:
 		case Opt_device:
 			/*
 			 * These are parsed by btrfs_parse_early_options
@@ -388,7 +390,7 @@ out:
  */
 static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		void *holder, char **subvol_name, u64 *subvol_objectid,
-		struct btrfs_fs_devices **fs_devices)
+		u64 *subvol_rootid, struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *opts, *orig, *p;
@@ -427,6 +429,18 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 						BTRFS_FS_TREE_OBJECTID;
 				else
 					*subvol_objectid = intarg;
+			}
+			break;
+		case Opt_subvolrootid:
+			intarg = 0;
+			error = match_int(&args[0], &intarg);
+			if (!error) {
+				/* we want the original fs_tree */
+				if (!intarg)
+					*subvol_rootid =
+						BTRFS_FS_TREE_OBJECTID;
+				else
+					*subvol_rootid = intarg;
 			}
 			break;
 		case Opt_device:
@@ -644,6 +658,7 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct btrfs_root *root = btrfs_sb(vfs->mnt_sb);
 	struct btrfs_fs_info *info = root->fs_info;
+	char *compress_type;
 
 	if (btrfs_test_opt(root, DEGRADED))
 		seq_puts(seq, ",degraded");
@@ -662,8 +677,16 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (info->thread_pool_size !=  min_t(unsigned long,
 					     num_online_cpus() + 2, 8))
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
-	if (btrfs_test_opt(root, COMPRESS))
-		seq_puts(seq, ",compress");
+	if (btrfs_test_opt(root, COMPRESS)) {
+		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
+			compress_type = "zlib";
+		else
+			compress_type = "lzo";
+		if (btrfs_test_opt(root, FORCE_COMPRESS))
+			seq_printf(seq, ",compress-force=%s", compress_type);
+		else
+			seq_printf(seq, ",compress=%s", compress_type);
+	}
 	if (btrfs_test_opt(root, NOSSD))
 		seq_puts(seq, ",nossd");
 	if (btrfs_test_opt(root, SSD_SPREAD))
@@ -678,6 +701,12 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",discard");
 	if (!(root->fs_info->sb->s_flags & MS_POSIXACL))
 		seq_puts(seq, ",noacl");
+	if (btrfs_test_opt(root, SPACE_CACHE))
+		seq_puts(seq, ",space_cache");
+	if (btrfs_test_opt(root, CLEAR_CACHE))
+		seq_puts(seq, ",clear_cache");
+	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
+		seq_puts(seq, ",user_subvol_rm_allowed");
 	return 0;
 }
 
@@ -721,6 +750,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
+	u64 subvol_rootid = 0;
 	int error = 0;
 
 	if (!(flags & MS_RDONLY))
@@ -728,7 +758,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &subvol_objectid,
-					  &fs_devices);
+					  &subvol_rootid, &fs_devices);
 	if (error)
 		return ERR_PTR(error);
 
@@ -792,15 +822,17 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	root = get_default_root(s, subvol_objectid);
-	if (IS_ERR(root)) {
-		error = PTR_ERR(root);
-		deactivate_locked_super(s);
-		goto error_free_subvol_name;
-	}
 	/* if they gave us a subvolume name bind mount into that */
 	if (strcmp(subvol_name, ".")) {
 		struct dentry *new_root;
+
+		root = get_default_root(s, subvol_rootid);
+		if (IS_ERR(root)) {
+			error = PTR_ERR(root);
+			deactivate_locked_super(s);
+			goto error_free_subvol_name;
+		}
+
 		mutex_lock(&root->d_inode->i_mutex);
 		new_root = lookup_one_len(subvol_name, root,
 				      strlen(subvol_name));
@@ -821,6 +853,13 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		}
 		dput(root);
 		root = new_root;
+	} else {
+		root = get_default_root(s, subvol_objectid);
+		if (IS_ERR(root)) {
+			error = PTR_ERR(root);
+			deactivate_locked_super(s);
+			goto error_free_subvol_name;
+		}
 	}
 
 	kfree(subvol_name);

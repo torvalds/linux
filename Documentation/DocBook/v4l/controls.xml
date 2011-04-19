@@ -1243,7 +1243,7 @@ values are:</entry>
 	      </row><row><entry spanname="descr">Mutes the audio when
 capturing. This is not done by muting audio hardware, which can still
 produce a slight hiss, but in the encoder itself, guaranteeing a fixed
-and reproducable audio bitstream. 0 = unmuted, 1 = muted.</entry>
+and reproducible audio bitstream. 0 = unmuted, 1 = muted.</entry>
 	      </row>
 	      <row><entry></entry></row>
 	      <row id="v4l2-mpeg-video-encoding">

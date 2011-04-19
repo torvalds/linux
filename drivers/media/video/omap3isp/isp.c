@@ -715,7 +715,7 @@ static int isp_pipeline_link_notify(struct media_pad *source,
  * Walk the entities chain starting at the pipeline output video node and start
  * all modules in the chain in the given mode.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 static int isp_pipeline_enable(struct isp_pipeline *pipe,
@@ -883,7 +883,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
  * Set the pipeline to the given stream state. Pipelines can be started in
  * single-shot or continuous mode.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
@@ -1283,7 +1283,7 @@ static void __isp_subclk_update(struct isp_device *isp)
 		clk |= ISPCTRL_RSZ_CLK_EN;
 
 	/* NOTE: For CCDC & Preview submodules, we need to affect internal
-	 *       RAM aswell.
+	 *       RAM as well.
 	 */
 	if (isp->subclk_resources & OMAP3_ISP_SUBCLK_CCDC)
 		clk |= ISPCTRL_CCDC_CLK_EN | ISPCTRL_CCDC_RAM_EN;
@@ -1431,7 +1431,7 @@ static int isp_get_clocks(struct isp_device *isp)
  * Increment the reference count on the ISP. If the first reference is taken,
  * enable clocks and power-up all submodules.
  *
- * Return a pointer to the ISP device structure, or NULL if an error occured.
+ * Return a pointer to the ISP device structure, or NULL if an error occurred.
  */
 struct isp_device *omap3isp_get(struct isp_device *isp)
 {

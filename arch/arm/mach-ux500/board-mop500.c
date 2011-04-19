@@ -52,7 +52,7 @@ static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
 	 * on value present in GpioSel1 to GpioSel6 and AlternatFunction
 	 * register. This is the array of 7 configuration settings.
 	 * One has to compile time decide these settings. Below is the
-	 * explaination of these setting
+	 * explanation of these setting
 	 * GpioSel1 = 0x00 => Pins GPIO1 to GPIO8 are not used as GPIO
 	 * GpioSel2 = 0x1E => Pins GPIO10 to GPIO13 are configured as GPIO
 	 * GpioSel3 = 0x80 => Pin GPIO24 is configured as GPIO

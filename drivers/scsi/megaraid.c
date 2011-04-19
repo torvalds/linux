@@ -284,7 +284,7 @@ mega_query_adapter(adapter_t *adapter)
 
 	adapter->host->max_id = 16;	/* max targets per channel */
 
-	adapter->host->max_lun = 7;	/* Upto 7 luns for non disk devices */
+	adapter->host->max_lun = 7;	/* Up to 7 luns for non disk devices */
 
 	adapter->host->cmd_per_lun = max_cmd_per_lun;
 
@@ -3734,7 +3734,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 	 * check is the application conforms to NIT. We do not have to do much
 	 * in that case.
 	 * We exploit the fact that the signature is stored in the very
-	 * begining of the structure.
+	 * beginning of the structure.
 	 */
 
 	if( copy_from_user(signature, arg, 7) )
