@@ -104,15 +104,6 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct platform_device omap3_touchbook_lcd_device = {
-	.name		= "omap3touchbook_lcd",
-	.id		= -1,
-};
-
-static struct omap_lcd_config omap3_touchbook_lcd_config __initdata = {
-	.ctrl_name	= "internal",
-};
-
 static struct regulator_consumer_supply touchbook_vmmc1_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -165,14 +156,12 @@ static struct twl4030_gpio_platform_data touchbook_gpio_data = {
 static struct regulator_consumer_supply touchbook_vdac_supply[] = {
 {
 	.supply		= "vdac",
-	.dev		= &omap3_touchbook_lcd_device.dev,
 },
 };
 
 static struct regulator_consumer_supply touchbook_vdvi_supply[] = {
 {
 	.supply		= "vdvi",
-	.dev		= &omap3_touchbook_lcd_device.dev,
 },
 };
 
@@ -316,10 +305,6 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-static struct omap_board_config_kernel omap3_touchbook_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3_touchbook_lcd_config },
-};
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -339,7 +324,6 @@ static void __init omap3_touchbook_init_irq(void)
 }
 
 static struct platform_device *omap3_touchbook_devices[] __initdata = {
-	&omap3_touchbook_lcd_device,
 	&leds_gpio,
 	&keys_gpio,
 };
@@ -376,8 +360,6 @@ early_param("tbr", early_touchbook_revision);
 static void __init omap3_touchbook_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_board_config = omap3_touchbook_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_touchbook_config);
 
 	pm_power_off = omap3_touchbook_poweroff;
 
