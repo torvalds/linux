@@ -413,7 +413,7 @@ void __init sni_rm200_i8259_irqs(void)
 	sni_rm200_init_8259A();
 
 	for (i = RM200_I8259A_IRQ_BASE; i < RM200_I8259A_IRQ_BASE + 16; i++)
-		set_irq_chip_and_handler(i, &sni_rm200_i8259A_chip,
+		irq_set_chip_and_handler(i, &sni_rm200_i8259A_chip,
 					 handle_level_irq);
 
 	setup_irq(RM200_I8259A_IRQ_BASE + PIC_CASCADE_IR, &sni_rm200_irq2);
@@ -477,7 +477,7 @@ void __init sni_rm200_irq_init(void)
 	mips_cpu_irq_init();
 	/* Actually we've got more interrupts to handle ...  */
 	for (i = SNI_RM200_INT_START; i <= SNI_RM200_INT_END; i++)
-		set_irq_chip_and_handler(i, &rm200_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &rm200_irq_type, handle_level_irq);
 	sni_hwint = sni_rm200_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
 	setup_irq(SNI_RM200_INT_START + 0, &sni_rm200_i8259A_irq);

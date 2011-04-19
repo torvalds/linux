@@ -149,7 +149,7 @@ static void mxs_i2c_pioq_setup_write(struct mxs_i2c_dev *i2c,
 	 * We have to copy the slave address (u8) and buffer (arbitrary number
 	 * of u8) into the data register (u32). To achieve that, the u8 are put
 	 * into the MSBs of 'data' which is then shifted for the next u8. When
-	 * apropriate, 'data' is written to MXS_I2C_DATA. So, the first u32
+	 * appropriate, 'data' is written to MXS_I2C_DATA. So, the first u32
 	 * looks like this:
 	 *
 	 *  3          2          1          0

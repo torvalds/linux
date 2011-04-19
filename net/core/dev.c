@@ -1140,9 +1140,6 @@ static int __dev_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	/*
-	 *	Is it even present?
-	 */
 	if (!netif_device_present(dev))
 		return -ENODEV;
 
@@ -1151,9 +1148,6 @@ static int __dev_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	/*
-	 *	Call device private open method
-	 */
 	set_bit(__LINK_STATE_START, &dev->state);
 
 	if (ops->ndo_validate_addr)
@@ -1162,31 +1156,12 @@ static int __dev_open(struct net_device *dev)
 	if (!ret && ops->ndo_open)
 		ret = ops->ndo_open(dev);
 
-	/*
-	 *	If it went open OK then:
-	 */
-
 	if (ret)
 		clear_bit(__LINK_STATE_START, &dev->state);
 	else {
-		/*
-		 *	Set the flags.
-		 */
 		dev->flags |= IFF_UP;
-
-		/*
-		 *	Enable NET_DMA
-		 */
 		net_dmaengine_get();
-
-		/*
-		 *	Initialize multicasting status
-		 */
 		dev_set_rx_mode(dev);
-
-		/*
-		 *	Wakeup transmit queue engine
-		 */
 		dev_activate(dev);
 	}
 
@@ -1209,22 +1184,13 @@ int dev_open(struct net_device *dev)
 {
 	int ret;
 
-	/*
-	 *	Is it already up?
-	 */
 	if (dev->flags & IFF_UP)
 		return 0;
 
-	/*
-	 *	Open device
-	 */
 	ret = __dev_open(dev);
 	if (ret < 0)
 		return ret;
 
-	/*
-	 *	... and announce new interface.
-	 */
 	rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
 	call_netdevice_notifiers(NETDEV_UP, dev);
 
@@ -1240,10 +1206,6 @@ static int __dev_close_many(struct list_head *head)
 	might_sleep();
 
 	list_for_each_entry(dev, head, unreg_list) {
-		/*
-		 *	Tell people we are going down, so that they can
-		 *	prepare to death, when device is still operating.
-		 */
 		call_netdevice_notifiers(NETDEV_GOING_DOWN, dev);
 
 		clear_bit(__LINK_STATE_START, &dev->state);
@@ -1272,15 +1234,7 @@ static int __dev_close_many(struct list_head *head)
 		if (ops->ndo_stop)
 			ops->ndo_stop(dev);
 
-		/*
-		 *	Device is now down.
-		 */
-
 		dev->flags &= ~IFF_UP;
-
-		/*
-		 *	Shutdown NET_DMA
-		 */
 		net_dmaengine_put();
 	}
 
@@ -1309,9 +1263,6 @@ static int dev_close_many(struct list_head *head)
 
 	__dev_close_many(head);
 
-	/*
-	 * Tell people we are down
-	 */
 	list_for_each_entry(dev, head, unreg_list) {
 		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
 		call_netdevice_notifiers(NETDEV_DOWN, dev);
@@ -1370,11 +1321,6 @@ EXPORT_SYMBOL(dev_disable_lro);
 
 
 static int dev_boot_phase = 1;
-
-/*
- *	Device change register/unregister. These are not inline or static
- *	as we export them to the world.
- */
 
 /**
  *	register_netdevice_notifier - register a network notifier block
@@ -1477,6 +1423,7 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 	ASSERT_RTNL();
 	return raw_notifier_call_chain(&netdev_chain, val, dev);
 }
+EXPORT_SYMBOL(call_netdevice_notifiers);
 
 /* When > 0 there are consumers of rx skb time stamps */
 static atomic_t netstamp_needed = ATOMIC_INIT(0);
@@ -1507,6 +1454,27 @@ static inline void net_timestamp_check(struct sk_buff *skb)
 		__net_timestamp(skb);
 }
 
+static inline bool is_skb_forwardable(struct net_device *dev,
+				      struct sk_buff *skb)
+{
+	unsigned int len;
+
+	if (!(dev->flags & IFF_UP))
+		return false;
+
+	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
+	if (skb->len <= len)
+		return true;
+
+	/* if TSO is enabled, we don't care about the length as the packet
+	 * could be forwarded without being segmented before
+	 */
+	if (skb_is_gso(skb))
+		return true;
+
+	return false;
+}
+
 /**
  * dev_forward_skb - loopback an skb to another netif
  *
@@ -1530,8 +1498,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	skb_orphan(skb);
 	nf_reset(skb);
 
-	if (unlikely(!(dev->flags & IFF_UP) ||
-		     (skb->len > (dev->mtu + dev->hard_header_len + VLAN_HLEN)))) {
+	if (unlikely(!is_skb_forwardable(dev, skb))) {
 		atomic_long_inc(&dev->rx_dropped);
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -2124,7 +2091,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		u32 features;
 
 		/*
-		 * If device doesnt need skb->dst, release it right now while
+		 * If device doesn't need skb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
@@ -2184,7 +2151,7 @@ gso:
 		nskb->next = NULL;
 
 		/*
-		 * If device doesnt need nskb->dst, release it right now while
+		 * If device doesn't need nskb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
@@ -3003,8 +2970,8 @@ EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
  * when CONFIG_NET_CLS_ACT is? otherwise some useless instructions
  * a compare and 2 stores extra right now if we dont have it on
  * but have CONFIG_NET_CLS_ACT
- * NOTE: This doesnt stop any functionality; if you dont have
- * the ingress scheduler, you just cant add policies on ingress.
+ * NOTE: This doesn't stop any functionality; if you dont have
+ * the ingress scheduler, you just can't add policies on ingress.
  *
  */
 static int ing_filter(struct sk_buff *skb, struct netdev_queue *rxq)
@@ -3833,7 +3800,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * with netpoll's poll_napi().  Only the entity which
 		 * obtains the lock and sees NAPI_STATE_SCHED set will
 		 * actually make the ->poll() call.  Therefore we avoid
-		 * accidently calling ->poll() when NAPI is not scheduled.
+		 * accidentally calling ->poll() when NAPI is not scheduled.
 		 */
 		work = 0;
 		if (test_bit(NAPI_STATE_SCHED, &n->state)) {
@@ -6369,7 +6336,7 @@ static void __net_exit default_device_exit(struct net *net)
 		if (dev->rtnl_link_ops)
 			continue;
 
-		/* Push remaing network devices to init_net */
+		/* Push remaining network devices to init_net */
 		snprintf(fb_name, IFNAMSIZ, "dev%d", dev->ifindex);
 		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {

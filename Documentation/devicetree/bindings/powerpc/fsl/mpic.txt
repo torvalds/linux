@@ -199,7 +199,7 @@ EXAMPLE 4
 
 EXAMPLE 5
 	/*
-	 * Definition of an error interrupt (interupt type 1).
+	 * Definition of an error interrupt (interrupt type 1).
 	 * SoC interrupt number is 16 and the specific error
          * interrupt bit in the error interrupt summary register
 	 * is 23.

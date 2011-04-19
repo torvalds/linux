@@ -906,7 +906,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	unsigned long last_index;
 	size_t num_written = 0;
 	int nrptrs;
-	int ret;
+	int ret = 0;
 
 	nrptrs = min((iov_iter_count(i) + PAGE_CACHE_SIZE - 1) /
 		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /

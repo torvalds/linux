@@ -35,7 +35,7 @@ config NTP_PPS
 	depends on PPS && !NO_HZ
 	help
 	  This option adds support for direct in-kernel time
-	  syncronization using an external PPS signal.
+	  synchronization using an external PPS signal.
 
 	  It doesn't work on tickless systems at the moment.
 

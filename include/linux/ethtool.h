@@ -614,7 +614,7 @@ struct ethtool_sfeatures {
  * values of corresponding bits in features[].requested. Bits in .requested
  * not set in .valid or not changeable are ignored.
  *
- * Returns %EINVAL when .valid contains undefined or never-changable bits
+ * Returns %EINVAL when .valid contains undefined or never-changeable bits
  * or size is not equal to required number of features words (32-bit blocks).
  * Returns >= 0 if request was completed; bits set in the value mean:
  *   %ETHTOOL_F_UNSUPPORTED - there were bits set in .valid that are not
@@ -680,6 +680,7 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
 int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported);
 void ethtool_ntuple_flush(struct net_device *dev);
+bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
 
 /**
  * &ethtool_ops - Alter and report network device settings

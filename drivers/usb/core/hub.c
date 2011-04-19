@@ -1649,7 +1649,7 @@ void usb_disconnect(struct usb_device **pdev)
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
-	 * this quiesces everyting except pending urbs.
+	 * this quiesces everything except pending urbs.
 	 */
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",

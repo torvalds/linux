@@ -57,7 +57,7 @@ extern WORD  WriteBlock;
 #define ODD                     1             // Odd Page for 256byte/page
 
 
-//SmartMedia Redundant buffer data Controll Subroutine
+//SmartMedia Redundant buffer data Control Subroutine
 //----- Check_D_DataBlank() --------------------------------------------
 int Check_D_DataBlank(BYTE *redundant)
 {
@@ -1367,7 +1367,7 @@ BYTE _Check_D_DevCode(BYTE dcode)
     }
 }
 /*
-////SmartMedia Power Controll Subroutine
+////SmartMedia Power Control Subroutine
 ////----- Cnt_D_Reset() ----------------------------------------------
 //void Cnt_D_Reset(void)
 //{
@@ -1478,7 +1478,7 @@ BYTE _Check_D_DevCode(BYTE dcode)
 //}
 //
 */
-//SmartMedia ECC Controll Subroutine
+//SmartMedia ECC Control Subroutine
 //----- Check_D_ReadError() ----------------------------------------------
 int Check_D_ReadError(BYTE *redundant)
 {

@@ -105,8 +105,8 @@ common_init_irq(void (*srm_dev_int)(unsigned long v))
 		outb(0xff, 0x806);
 
 		for (i = 16; i < 35; ++i) {
-			set_irq_chip_and_handler(i, &cabriolet_irq_type,
-				handle_level_irq);
+			irq_set_chip_and_handler(i, &cabriolet_irq_type,
+						 handle_level_irq);
 			irq_set_status_flags(i, IRQ_LEVEL);
 		}
 	}

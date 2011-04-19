@@ -197,6 +197,7 @@ again:
 
 	ret = join_transaction(root);
 	if (ret < 0) {
+		kmem_cache_free(btrfs_trans_handle_cachep, h);
 		if (type != TRANS_JOIN_NOLOCK)
 			mutex_unlock(&root->fs_info->trans_mutex);
 		return ERR_PTR(ret);
@@ -975,6 +976,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
+	btrfs_check_and_init_root_item(new_root_item);
 
 	root_flags = btrfs_root_flags(new_root_item);
 	if (pending->readonly)

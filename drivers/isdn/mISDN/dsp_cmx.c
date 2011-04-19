@@ -1513,7 +1513,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 	/* -> if echo is NOT enabled */
 	if (!dsp->echo.software) {
 		/*
-		 * -> substract rx-data from conf-data,
+		 * -> subtract rx-data from conf-data,
 		 * if tx-data is available, mix
 		 */
 		while (r != rr && t != tt) {
@@ -1572,7 +1572,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 send_packet:
 	/*
 	 * send tx-data if enabled - don't filter,
-	 * becuase we want what we send, not what we filtered
+	 * because we want what we send, not what we filtered
 	 */
 	if (dsp->tx_data) {
 		if (tx_data_only) {

@@ -4,7 +4,7 @@
 
 #include <linux/kallsyms.h>
 
-#define P(f) if (desc->status & f) printk("%14s set\n", #f)
+#define P(f) if (desc->status_use_accessors & f) printk("%14s set\n", #f)
 #define PS(f) if (desc->istate & f) printk("%14s set\n", #f)
 /* FIXME */
 #define PD(f) do { } while (0)

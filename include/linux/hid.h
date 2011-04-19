@@ -799,7 +799,7 @@ static inline int __must_check hid_parse(struct hid_device *hdev)
  *
  * Call this in probe function *after* hid_parse. This will setup HW buffers
  * and start the device (if not deffered to device open). hid_hw_stop must be
- * called if this was successfull.
+ * called if this was successful.
  */
 static inline int __must_check hid_hw_start(struct hid_device *hdev,
 		unsigned int connect_mask)

@@ -545,7 +545,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 		return;
 	}
 
-	/* Second write, data transfered. Release the module */
+	/* Second write, data transferred. Release the module */
 	if (hdq_data->init_trans > 1) {
 		omap_hdq_put(hdq_data);
 		ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);

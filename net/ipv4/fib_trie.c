@@ -12,7 +12,7 @@
  *
  *   Hans Liss <hans.liss@its.uu.se>  Uppsala Universitet
  *
- * This work is based on the LPC-trie which is originally descibed in:
+ * This work is based on the LPC-trie which is originally described in:
  *
  * An experimental study of compression methods for dynamic tries
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
@@ -1365,9 +1365,9 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 			err = fib_props[fa->fa_type].error;
 			if (err) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-				t->stats.semantic_match_miss++;
+				t->stats.semantic_match_passed++;
 #endif
-				return 1;
+				return err;
 			}
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;

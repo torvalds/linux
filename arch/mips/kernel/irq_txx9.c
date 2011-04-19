@@ -154,8 +154,8 @@ void __init txx9_irq_init(unsigned long baseaddr)
 	for (i = 0; i < TXx9_MAX_IR; i++) {
 		txx9irq[i].level = 4; /* middle level */
 		txx9irq[i].mode = TXx9_IRCR_LOW;
-		set_irq_chip_and_handler(TXX9_IRQ_BASE + i,
-					 &txx9_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(TXX9_IRQ_BASE + i, &txx9_irq_chip,
+					 handle_level_irq);
 	}
 
 	/* mask all IRC interrupts */

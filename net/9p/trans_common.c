@@ -36,7 +36,7 @@ p9_release_req_pages(struct trans_rpage_info *rpinfo)
 EXPORT_SYMBOL(p9_release_req_pages);
 
 /**
- * p9_nr_pages - Return number of pages needed to accomodate the payload.
+ * p9_nr_pages - Return number of pages needed to accommodate the payload.
  */
 int
 p9_nr_pages(struct p9_req_t *req)
@@ -55,7 +55,7 @@ EXPORT_SYMBOL(p9_nr_pages);
  * @req: Request to be sent to server.
  * @pdata_off: data offset into the first page after translation (gup).
  * @pdata_len: Total length of the IO. gup may not return requested # of pages.
- * @nr_pages: number of pages to accomodate the payload
+ * @nr_pages: number of pages to accommodate the payload
  * @rw: Indicates if the pages are for read or write.
  */
 int

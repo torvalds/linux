@@ -1206,7 +1206,7 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 		iommu_disable_translation(iommu);
 
 	if (iommu->irq) {
-		set_irq_data(iommu->irq, NULL);
+		irq_set_handler_data(iommu->irq, NULL);
 		/* This will mask the irq */
 		free_irq(iommu->irq, iommu);
 		destroy_irq(iommu->irq);
@@ -2265,7 +2265,7 @@ int __init init_dmars(void)
 		/*
 		 * TBD:
 		 * we could share the same root & context tables
-		 * amoung all IOMMU's. Need to Split it later.
+		 * among all IOMMU's. Need to Split it later.
 		 */
 		ret = iommu_alloc_root_entry(iommu);
 		if (ret) {

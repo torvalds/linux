@@ -208,7 +208,7 @@ static void print_rx_state(struct net_device *dev)
  *	passing/getting the next value from the nic. As with all requests
  *	on this nic it has to be done in two stages, a) tell the nic which
  *	memory address you want to access and b) pass/get the value from the nic.
- *	With the EEProm, you have to wait before and inbetween access a) and b).
+ *	With the EEProm, you have to wait before and between access a) and b).
  *	As this is only read at initialization time and the wait period is very 
  *	small we shouldn't have to worry about scheduling issues.
  */

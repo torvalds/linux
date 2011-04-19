@@ -42,7 +42,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <asm/mach-types.h>
 
 #include "devices-imx51.h"
 #include "devices.h"

@@ -2244,8 +2244,8 @@ struct tvcard bttv_tvcards[] = {
 	},
 	[BTTV_BOARD_PICOLO_TETRA_CHIP] = {
 		/*Eric DEBIEF <debief@telemsa.com>*/
-		/*EURESYS Picolo Tetra : 4 Conexant Fusion 878A, no audio, video input set with analog multiplexers GPIO controled*/
-		/* adds picolo_tetra_muxsel(), picolo_tetra_init(), the folowing declaration strucure, and #define BTTV_BOARD_PICOLO_TETRA_CHIP*/
+		/*EURESYS Picolo Tetra : 4 Conexant Fusion 878A, no audio, video input set with analog multiplexers GPIO controlled*/
+		/* adds picolo_tetra_muxsel(), picolo_tetra_init(), the following declaration strucure, and #define BTTV_BOARD_PICOLO_TETRA_CHIP*/
 		/*0x79 in bttv.h*/
 		.name           = "Euresys Picolo Tetra",
 		.video_inputs   = 4,
@@ -4567,7 +4567,7 @@ static void picolo_tetra_muxsel (struct bttv* btv, unsigned int input)
  * at one input while the monitor is looking at another.
  *
  * Since I've couldn't be bothered figuring out how to add an
- * independant muxsel for the monitor bus, I've just set it to
+ * independent muxsel for the monitor bus, I've just set it to
  * whatever the card is looking at.
  *
  *  OUT0 of the TDA8540's is connected to MUX0         (0x03)

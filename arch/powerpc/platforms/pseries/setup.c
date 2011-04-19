@@ -114,7 +114,7 @@ static void __init fwnmi_init(void)
 
 static void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
@@ -169,7 +169,7 @@ static void __init pseries_setup_i8259_cascade(void)
 		printk(KERN_DEBUG "pic: PCI 8259 intack at 0x%016lx\n", intack);
 	i8259_init(found, intack);
 	of_node_put(found);
-	set_irq_chained_handler(cascade, pseries_8259_cascade);
+	irq_set_chained_handler(cascade, pseries_8259_cascade);
 }
 
 static void __init pseries_mpic_init_IRQ(void)
@@ -378,7 +378,7 @@ static int __init pSeries_init_panel(void)
 
 	return 0;
 }
-arch_initcall(pSeries_init_panel);
+machine_arch_initcall(pseries, pSeries_init_panel);
 
 static int pseries_set_dabr(unsigned long dabr)
 {

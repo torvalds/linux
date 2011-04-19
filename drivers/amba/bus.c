@@ -760,7 +760,7 @@ int amba_request_regions(struct amba_device *dev, const char *name)
 }
 
 /**
- *	amba_release_regions - release mem regions assoicated with device
+ *	amba_release_regions - release mem regions associated with device
  *	@dev: amba_device structure for device
  *
  *	Release regions claimed by a successful call to amba_request_regions.

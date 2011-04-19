@@ -257,9 +257,11 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < 8; i++) {
-		set_irq_chip_and_handler_name(i + pg->irq_base, &pmic_irqchip,
-					handle_simple_irq, "demux");
-		set_irq_chip_data(i + pg->irq_base, pg);
+		irq_set_chip_and_handler_name(i + pg->irq_base,
+					      &pmic_irqchip,
+					      handle_simple_irq,
+					      "demux");
+		irq_set_chip_data(i + pg->irq_base, pg);
 	}
 	return 0;
 err:

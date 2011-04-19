@@ -905,7 +905,7 @@ struct aic_dev_data {
  * problems with architectures I can't test on (because I don't have one,
  * such as the Alpha based systems) which happen to give faults for
  * non-aligned memory accesses, care was taken to align this structure
- * in a way that gauranteed all accesses larger than 8 bits were aligned
+ * in a way that guaranteed all accesses larger than 8 bits were aligned
  * on the appropriate boundary.  It's also organized to try and be more
  * cache line efficient.  Be careful when changing this lest you might hurt
  * overall performance and bring down the wrath of the masses.
@@ -1180,7 +1180,7 @@ static int aic7xxx_pci_parity = 0;
  * the card's registers in a hex dump format tailored to each model of
  * controller.
  * 
- * NOTE: THE CONTROLLER IS LEFT IN AN UNUSEABLE STATE BY THIS OPTION.
+ * NOTE: THE CONTROLLER IS LEFT IN AN UNUSABLE STATE BY THIS OPTION.
  *       YOU CANNOT BOOT UP WITH THIS OPTION, IT IS FOR DEBUGGING PURPOSES
  *       ONLY
  */
@@ -3467,7 +3467,7 @@ aic7xxx_reset_current_bus(struct aic7xxx_host *p)
   /* Turn off the bus' current operations, after all, we shouldn't have any
    * valid commands left to cause a RSELI and SELO once we've tossed the
    * bus away with this reset, so we might as well shut down the sequencer
-   * until the bus is restarted as oppossed to saving the current settings
+   * until the bus is restarted as opposed to saving the current settings
    * and restoring them (which makes no sense to me). */
 
   /* Turn on the bus reset. */
@@ -4070,7 +4070,7 @@ aic7xxx_handle_seqint(struct aic7xxx_host *p, unsigned char intstat)
             aic_dev->max_q_depth = aic_dev->temp_q_depth = 1;
             /*
              * We set this command up as a bus device reset.  However, we have
-             * to clear the tag type as it's causing us problems.  We shouldnt
+             * to clear the tag type as it's causing us problems.  We shouldn't
              * have to worry about any other commands being active, since if
              * the device is refusing tagged commands, this should be the
              * first tagged command sent to the device, however, we do have
@@ -9748,7 +9748,7 @@ skip_pci_controller:
     }
 
     /*
-     * We are commited now, everything has been checked and this card
+     * We are committed now, everything has been checked and this card
      * has been found, now we just set it up
      */
 
@@ -9906,7 +9906,7 @@ skip_pci_controller:
    *  2: All PCI controllers with BIOS_ENABLED next, according to BIOS
    *     address, going from lowest to highest.
    *  3: Remaining VLB/EISA controllers going in slot order.
-   *  4: Remaining PCI controllers, going in PCI device order (reversable)
+   *  4: Remaining PCI controllers, going in PCI device order (reversible)
    */
 
   {

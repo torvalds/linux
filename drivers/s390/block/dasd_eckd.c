@@ -2858,7 +2858,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	/*
 	 * struct PFX_eckd_data has up to 2 byte as extended parameter
 	 * this is needed for write full track and has to be mentioned
-	 * seperately
+	 * separately
 	 * add 8 instead of 2 to keep 8 byte boundary
 	 */
 	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;

@@ -247,7 +247,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 							       priv->port);
 			if (err)
 				en_err(priv, "Failed enabling "
-					     "promiscous mode\n");
+					     "promiscuous mode\n");
 
 			/* Disable port multicast filter (unconditionally) */
 			err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
@@ -276,7 +276,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 	}
 
 	/*
-	 * Not in promiscous mode
+	 * Not in promiscuous mode
 	 */
 
 	if (priv->flags & MLX4_EN_FLAG_PROMISC) {
@@ -292,14 +292,14 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			err = mlx4_unicast_promisc_remove(mdev->dev, priv->base_qpn,
 							  priv->port);
 		if (err)
-			en_err(priv, "Failed disabling promiscous mode\n");
+			en_err(priv, "Failed disabling promiscuous mode\n");
 
 		/* Disable Multicast promisc */
 		if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
 			err = mlx4_multicast_promisc_remove(mdev->dev, priv->base_qpn,
 							    priv->port);
 			if (err)
-				en_err(priv, "Failed disabling multicast promiscous mode\n");
+				en_err(priv, "Failed disabling multicast promiscuous mode\n");
 			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
 		}
 
@@ -331,7 +331,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			err = mlx4_multicast_promisc_remove(mdev->dev, priv->base_qpn,
 							    priv->port);
 			if (err)
-				en_err(priv, "Failed disabling multicast promiscous mode\n");
+				en_err(priv, "Failed disabling multicast promiscuous mode\n");
 			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
 		}
 
@@ -741,6 +741,9 @@ int mlx4_en_start_port(struct net_device *dev)
 	if (mlx4_multicast_attach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
 				  0, MLX4_PROT_ETH))
 		mlx4_warn(mdev, "Failed Attaching Broadcast\n");
+
+	/* Must redo promiscuous mode setup. */
+	priv->flags &= ~(MLX4_EN_FLAG_PROMISC | MLX4_EN_FLAG_MC_PROMISC);
 
 	/* Schedule multicast task to populate multicast list */
 	queue_work(mdev->workqueue, &priv->mcast_task);

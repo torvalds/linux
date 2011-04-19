@@ -95,7 +95,7 @@ struct drm_device;
  * drm_core, drm_driver, drm_kms
  * drm_core level can be used in the generic drm code. For example:
  * 	drm_ioctl, drm_mm, drm_memory
- * The macro definiton of DRM_DEBUG is used.
+ * The macro definition of DRM_DEBUG is used.
  * 	DRM_DEBUG(fmt, args...)
  * 	The debug info by using the DRM_DEBUG can be obtained by adding
  * 	the boot option of "drm.debug=1".
@@ -808,7 +808,7 @@ struct drm_driver {
 	 *
 	 * \return Flags, or'ed together as follows:
 	 *
-	 * DRM_SCANOUTPOS_VALID = Query successfull.
+	 * DRM_SCANOUTPOS_VALID = Query successful.
 	 * DRM_SCANOUTPOS_INVBL = Inside vblank.
 	 * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
 	 * this flag means that returned position may be offset by a constant

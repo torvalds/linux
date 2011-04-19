@@ -679,7 +679,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 		if (opt == BT_FLUSHABLE_OFF) {
 			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
-			/* proceed futher only when we have l2cap_conn and
+			/* proceed further only when we have l2cap_conn and
 			   No Flush support in the LM */
 			if (!conn || !lmp_no_flush_capable(conn->hcon->hdev)) {
 				err = -EINVAL;
@@ -923,8 +923,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
-		} else
-			l2cap_chan_del(sk, reason);
+		}
+
+		l2cap_chan_del(sk, reason);
 		break;
 
 	case BT_CONNECT:

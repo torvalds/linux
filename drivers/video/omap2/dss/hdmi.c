@@ -587,7 +587,7 @@ static void get_edid_timing_data(u8 *edid)
 	struct hdmi_cm cm;
 	struct omap_video_timings edid_timings;
 
-	/* seach block 0, there are 4 DTDs arranged in priority order */
+	/* search block 0, there are 4 DTDs arranged in priority order */
 	for (count = 0; count < EDID_SIZE_BLOCK0_TIMING_DESCRIPTOR; count++) {
 		current_descriptor_addrs =
 			EDID_DESCRIPTOR_BLOCK0_ADDRESS +

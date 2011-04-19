@@ -708,7 +708,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 		goto done;
 	}
 
-	/* BE was previously in promiscous mode; disable it */
+	/* BE was previously in promiscuous mode; disable it */
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
 		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);

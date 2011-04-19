@@ -93,7 +93,7 @@ struct config_request{
  * @mpi_reply: reply message frame
  * Context: none.
  *
- * Function for displaying debug info helpfull when debugging issues
+ * Function for displaying debug info helpful when debugging issues
  * in this module.
  */
 static void

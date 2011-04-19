@@ -41,7 +41,7 @@
  * Linux has a controller-independent x86 interrupt architecture.
  * every controller has a 'controller-template', that is used
  * by the main code to do the right thing. Each driver-visible
- * interrupt source is transparently wired to the apropriate
+ * interrupt source is transparently wired to the appropriate
  * controller. Thus drivers need not be aware of the
  * interrupt-controller.
  *
@@ -337,7 +337,7 @@ static struct irq_chip bridge_irq_type = {
 
 void __devinit register_bridge_irq(unsigned int irq)
 {
-	set_irq_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
 }
 
 int __devinit request_bridge_irq(struct bridge_controller *bc)

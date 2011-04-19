@@ -1045,7 +1045,7 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	unsigned lcnt0, lcnt1, ljmp0, ljmp1;
 	struct _arg_LPEND lpend;
 
-	/* Max iterations possibile in DMALP is 256 */
+	/* Max iterations possible in DMALP is 256 */
 	if (*bursts >= 256*256) {
 		lcnt1 = 256;
 		lcnt0 = 256;
@@ -1446,7 +1446,7 @@ int pl330_update(const struct pl330_info *pi)
 	}
 
 	for (ev = 0; ev < pi->pcfg.num_events; ev++) {
-		if (val & (1 << ev)) { /* Event occured */
+		if (val & (1 << ev)) { /* Event occurred */
 			struct pl330_thread *thrd;
 			u32 inten = readl(regs + INTEN);
 			int active;

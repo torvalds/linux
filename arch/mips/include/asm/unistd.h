@@ -1005,7 +1005,7 @@
 #define __NR_name_to_handle_at		(__NR_Linux + 303)
 #define __NR_open_by_handle_at		(__NR_Linux + 304)
 #define __NR_clock_adjtime		(__NR_Linux + 305)
-#define __NR_clock_adjtime		(__NR_Linux + 306)
+#define __NR_syncfs			(__NR_Linux + 306)
 
 /*
  * Offset of the last N32 flavoured syscall

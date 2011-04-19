@@ -37,7 +37,7 @@ unsigned char mcf_irq2imr[NR_IRQS];
 /*
  * In the early version 2 core ColdFire parts the IMR register was 16 bits
  * in size. Version 3 (and later version 2) core parts have a 32 bit
- * sized IMR register. Provide some size independant methods to access the
+ * sized IMR register. Provide some size independent methods to access the
  * IMR register.
  */
 #ifdef MCFSIM_IMR_IS_16BITS
@@ -143,9 +143,9 @@ void __init init_IRQ(void)
 	mcf_maskimr(0xffffffff);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
-		set_irq_chip(irq, &intc_irq_chip);
-		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &intc_irq_chip);
+		irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+		irq_set_handler(irq, handle_level_irq);
 	}
 }
 

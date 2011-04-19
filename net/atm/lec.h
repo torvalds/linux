@@ -35,7 +35,7 @@ struct lecdatahdr_8025 {
  * Operations that LANE2 capable device can do. Two first functions
  * are used to make the device do things. See spec 3.1.3 and 3.1.4.
  *
- * The third function is intented for the MPOA component sitting on
+ * The third function is intended for the MPOA component sitting on
  * top of the LANE device. The MPOA component assigns it's own function
  * to (*associate_indicator)() and the LANE device will use that
  * function to tell about TLVs it sees floating through.

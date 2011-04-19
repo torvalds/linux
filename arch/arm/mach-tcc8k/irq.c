@@ -102,10 +102,10 @@ void __init tcc8k_init_irq(void)
 
 	for (irqno = 0; irqno < NR_IRQS; irqno++) {
 		if (irqno < 32)
-			set_irq_chip(irqno, &tcc8000_irq_chip0);
+			irq_set_chip(irqno, &tcc8000_irq_chip0);
 		else
-			set_irq_chip(irqno, &tcc8000_irq_chip1);
-		set_irq_handler(irqno, handle_level_irq);
+			irq_set_chip(irqno, &tcc8000_irq_chip1);
+		irq_set_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 }

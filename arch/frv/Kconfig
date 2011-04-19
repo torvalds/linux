@@ -6,6 +6,7 @@ config FRV
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 
 config ZONE_DMA
 	bool
@@ -361,7 +362,6 @@ menu "Power management options"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !SMP
 
 source kernel/power/Kconfig
 endmenu

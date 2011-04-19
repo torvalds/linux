@@ -1455,7 +1455,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
             /*
              * If the descriptor has not recovered, then leaving the EMPTY
              * entry set will not signal to the MUSYCC that this descriptor
-             * has been serviced. The Interrupt Queue can then start loosing
+             * has been serviced. The Interrupt Queue can then start losing
              * available descriptors and MUSYCC eventually encounters and
              * reports the INTFULL condition.  Per manual, changing any bit
              * marks descriptor as available, thus the use of different

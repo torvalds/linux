@@ -55,7 +55,7 @@ MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 
 /* Register values to initialise the demod */
 static const u8 init_tab[] = {
-	0x00, 0x00, /* Stop aquisition */
+	0x00, 0x00, /* Stop acquisition */
 	0x0B, 0x06,
 	0x09, 0x01,
 	0x0D, 0x41,
@@ -310,7 +310,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 			& 0xfc);
 		cx22702_writereg(state, 0x0C,
 			(cx22702_readreg(state, 0x0C) & 0xBF) | 0x40);
-		cx22702_writereg(state, 0x00, 0x01); /* Begin aquisition */
+		cx22702_writereg(state, 0x00, 0x01); /* Begin acquisition */
 		dprintk("%s: Autodetecting\n", __func__);
 		return 0;
 	}
@@ -424,7 +424,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	cx22702_writereg(state, 0x0C,
 		(cx22702_readreg(state, 0x0C) & 0xBF) | 0x40);
 
-	/* Begin channel aquisition */
+	/* Begin channel acquisition */
 	cx22702_writereg(state, 0x00, 0x01);
 
 	return 0;

@@ -1790,7 +1790,7 @@ static bool DAC960_V2_ReadControllerConfiguration(DAC960_Controller_T
   unsigned short LogicalDeviceNumber = 0;
   int ModelNameLength;
 
-  /* Get data into dma-able area, then copy into permanant location */
+  /* Get data into dma-able area, then copy into permanent location */
   if (!DAC960_V2_NewControllerInfo(Controller))
     return DAC960_Failure(Controller, "GET CONTROLLER INFO");
   memcpy(ControllerInfo, Controller->V2.NewControllerInformation,

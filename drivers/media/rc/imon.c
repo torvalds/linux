@@ -1293,7 +1293,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 	 * contain a position coordinate (x,y), with each component ranging
 	 * from -14 to 14. We want to down-sample this to only 4 discrete values
 	 * for up/down/left/right arrow keys. Also, when you get too close to
-	 * diagonals, it has a tendancy to jump back and forth, so lets try to
+	 * diagonals, it has a tendency to jump back and forth, so lets try to
 	 * ignore when they get too close.
 	 */
 	if (ictx->product != 0xffdc) {

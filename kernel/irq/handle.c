@@ -175,9 +175,7 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	struct irqaction *action = desc->action;
 	irqreturn_t ret;
 
-	irq_compat_clr_pending(desc);
 	desc->istate &= ~IRQS_PENDING;
-	irq_compat_set_progress(desc);
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock(&desc->lock);
 
@@ -185,6 +183,5 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 
 	raw_spin_lock(&desc->lock);
 	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
-	irq_compat_clr_progress(desc);
 	return ret;
 }

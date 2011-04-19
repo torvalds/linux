@@ -44,7 +44,7 @@
 
 static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int cascade_irq;
 
 	while ((cascade_irq = cpm2_get_irq()) >= 0)
@@ -100,7 +100,7 @@ static void __init tqm85xx_pic_init(void)
 
 	cpm2_pic_init(np);
 	of_node_put(np);
-	set_irq_chained_handler(irq, cpm2_cascade);
+	irq_set_chained_handler(irq, cpm2_cascade);
 #endif
 }
 

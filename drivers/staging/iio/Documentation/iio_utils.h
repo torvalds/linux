@@ -556,7 +556,7 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 		if (strcmp(temp, val) != 0) {
 			printf("Possible failure in string write of %s "
 				"Should be %s "
-				"writen to %s\%s\n",
+				"written to %s\%s\n",
 				temp,
 				val,
 				basedir,

@@ -865,6 +865,13 @@ static struct clk aips_tz2_clk = {
 	.disable = _clk_ccgr_disable_inwait,
 };
 
+static struct clk gpc_dvfs_clk = {
+	.enable_reg = MXC_CCM_CCGR5,
+	.enable_shift = MXC_CCM_CCGRx_CG12_OFFSET,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+};
+
 static struct clk gpt_32k_clk = {
 	.id = 0,
 	.parent = &ckil_clk,
@@ -1448,6 +1455,7 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ipuv3", NULL, ipu_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
 	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
+	_REGISTER_CLOCK(NULL, "gpc_dvfs", gpc_dvfs_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
@@ -1511,6 +1519,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx51_revision();
 	clk_disable(&iim_clk);
+	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);

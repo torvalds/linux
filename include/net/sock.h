@@ -1749,7 +1749,7 @@ void sock_net_set(struct sock *sk, struct net *net)
 
 /*
  * Kernel sockets, f.e. rtnl or icmp_socket, are a part of a namespace.
- * They should not hold a referrence to a namespace in order to allow
+ * They should not hold a reference to a namespace in order to allow
  * to stop it.
  * Sockets after sk_change_net should be released using sk_release_kernel
  */
