@@ -151,6 +151,16 @@ config S390_PRNG
 	  ANSI X9.17 standard. The PRNG is usable via the char device
 	  /dev/prandom.
 
+config CRYPTO_GHASH_S390
+	tristate "GHASH digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  GHASH message digest algorithm for GCM (Galois/Counter Mode).
+
+	  It is available as of z196.
+
 config CRYPTO_DEV_MV_CESA
 	tristate "Marvell's Cryptographic Engine"
 	depends on PLAT_ORION

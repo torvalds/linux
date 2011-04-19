@@ -91,6 +91,7 @@ enum crypt_s390_kimd_func {
 	KIMD_SHA_1   = CRYPT_S390_KIMD | 1,
 	KIMD_SHA_256 = CRYPT_S390_KIMD | 2,
 	KIMD_SHA_512 = CRYPT_S390_KIMD | 3,
+	KIMD_GHASH   = CRYPT_S390_KIMD | 65,
 };
 
 /*
