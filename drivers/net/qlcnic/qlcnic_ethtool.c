@@ -764,73 +764,6 @@ qlcnic_get_ethtool_stats(struct net_device *dev,
 	qlcnic_fill_device_stats(&index, data, &port_stats.tx);
 }
 
-static int qlcnic_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
-		return -EOPNOTSUPP;
-	if (data)
-		dev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	else
-		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-
-	return 0;
-
-}
-static u32 qlcnic_get_tx_csum(struct net_device *dev)
-{
-	return dev->features & NETIF_F_IP_CSUM;
-}
-
-static u32 qlcnic_get_rx_csum(struct net_device *dev)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	return adapter->rx_csum;
-}
-
-static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
-		return -EOPNOTSUPP;
-	if (!!data) {
-		adapter->rx_csum = !!data;
-		return 0;
-	}
-
-	if (dev->features & NETIF_F_LRO) {
-		if (qlcnic_config_hw_lro(adapter, QLCNIC_LRO_DISABLED))
-			return -EIO;
-
-		dev->features &= ~NETIF_F_LRO;
-		qlcnic_send_lro_cleanup(adapter);
-		dev_info(&adapter->pdev->dev,
-					"disabling LRO as rx_csum is off\n");
-	}
-	adapter->rx_csum = !!data;
-	return 0;
-}
-
-static u32 qlcnic_get_tso(struct net_device *dev)
-{
-	return (dev->features & (NETIF_F_TSO | NETIF_F_TSO6)) != 0;
-}
-
-static int qlcnic_set_tso(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO))
-		return -EOPNOTSUPP;
-	if (data)
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
 static int qlcnic_set_led(struct net_device *dev,
 			  enum ethtool_phys_id_state state)
 {
@@ -993,50 +926,6 @@ static int qlcnic_get_intr_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int qlcnic_set_flags(struct net_device *netdev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int hw_lro;
-
-	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
-		return -EINVAL;
-
-	if (data & ETH_FLAG_LRO) {
-
-		if (netdev->features & NETIF_F_LRO)
-			return 0;
-
-		if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
-			return -EINVAL;
-
-		if (!adapter->rx_csum) {
-			dev_info(&adapter->pdev->dev, "rx csum is off, "
-				"cannot toggle lro\n");
-			return -EINVAL;
-		}
-
-		hw_lro = QLCNIC_LRO_ENABLED;
-		netdev->features |= NETIF_F_LRO;
-
-	} else {
-
-		if (!(netdev->features & NETIF_F_LRO))
-			return 0;
-
-		hw_lro = 0;
-		netdev->features &= ~NETIF_F_LRO;
-	}
-
-	if (qlcnic_config_hw_lro(adapter, hw_lro))
-		return -EIO;
-
-	if ((hw_lro == 0) && qlcnic_send_lro_cleanup(adapter))
-		return -EIO;
-
-
-	return 0;
-}
-
 static u32 qlcnic_get_msglevel(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
@@ -1064,23 +953,14 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_ringparam = qlcnic_set_ringparam,
 	.get_pauseparam = qlcnic_get_pauseparam,
 	.set_pauseparam = qlcnic_set_pauseparam,
-	.get_tx_csum = qlcnic_get_tx_csum,
-	.set_tx_csum = qlcnic_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = qlcnic_get_tso,
-	.set_tso = qlcnic_set_tso,
 	.get_wol = qlcnic_get_wol,
 	.set_wol = qlcnic_set_wol,
 	.self_test = qlcnic_diag_test,
 	.get_strings = qlcnic_get_strings,
 	.get_ethtool_stats = qlcnic_get_ethtool_stats,
 	.get_sset_count = qlcnic_get_sset_count,
-	.get_rx_csum = qlcnic_get_rx_csum,
-	.set_rx_csum = qlcnic_set_rx_csum,
 	.get_coalesce = qlcnic_get_intr_coalesce,
 	.set_coalesce = qlcnic_set_intr_coalesce,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = qlcnic_set_flags,
 	.set_phys_id = qlcnic_set_led,
 	.set_msglevel = qlcnic_set_msglevel,
 	.get_msglevel = qlcnic_get_msglevel,

@@ -926,7 +926,6 @@ struct qlcnic_adapter {
 	u8 max_rds_rings;
 	u8 max_sds_rings;
 	u8 msix_supported;
-	u8 rx_csum;
 	u8 portnum;
 	u8 physical_port;
 	u8 reset_context;
@@ -1247,6 +1246,8 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
 int qlcnic_change_mtu(struct net_device *netdev, int new_mtu);
+u32 qlcnic_fix_features(struct net_device *netdev, u32 features);
+int qlcnic_set_features(struct net_device *netdev, u32 features);
 int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable);
 int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);

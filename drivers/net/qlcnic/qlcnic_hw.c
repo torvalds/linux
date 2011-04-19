@@ -758,6 +758,43 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
+
+u32 qlcnic_fix_features(struct net_device *netdev, u32 features)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		u32 changed = features ^ netdev->features;
+		features ^= changed & (NETIF_F_ALL_CSUM | NETIF_F_RXCSUM);
+	}
+
+	if (!(features & NETIF_F_RXCSUM))
+		features &= ~NETIF_F_LRO;
+
+	return features;
+}
+
+
+int qlcnic_set_features(struct net_device *netdev, u32 features)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	u32 changed = netdev->features ^ features;
+	int hw_lro = (features & NETIF_F_LRO) ? QLCNIC_LRO_ENABLED : 0;
+
+	if (!(changed & NETIF_F_LRO))
+		return 0;
+
+	netdev->features = features ^ NETIF_F_LRO;
+
+	if (qlcnic_config_hw_lro(adapter, hw_lro))
+		return -EIO;
+
+	if ((hw_lro == 0) && qlcnic_send_lro_cleanup(adapter))
+		return -EIO;
+
+	return 0;
+}
+
 /*
  * Changes the CRB window to the specified window.
  */
