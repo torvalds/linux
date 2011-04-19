@@ -24,7 +24,7 @@
 
 # Set the following to `true' to make a unstripped, unoptimized
 # binary. Leave this set to `false' for production use.
-DEBUG ?=	true
+DEBUG ?=	false
 
 # make the build silent. Set this to something else to make it noisy again.
 V ?=		false
@@ -145,12 +145,13 @@ endif
 CFLAGS += $(WARNINGS)
 
 ifeq ($(strip $(V)),false)
-	QUIET=@$(PWD)/build/ccdv
-	HOST_PROGS=build/ccdv
+	QUIET=@
+	ECHO=@echo
 else
 	QUIET=
-	HOST_PROGS=
+	ECHO=@\#
 endif
+export QUIET ECHO
 
 # if DEBUG is enabled, then we do not strip or optimize
 ifeq ($(strip $(DEBUG)),true)
@@ -165,17 +166,14 @@ endif
 
 # the actual make rules
 
-all: ccdv libcpufreq cpupower $(COMPILE_NLS) $(COMPILE_BENCH)
+all: libcpufreq cpupower $(COMPILE_NLS) $(COMPILE_BENCH)
 
-ccdv: build/ccdv
-build/ccdv: build/ccdv.c
-	@echo "Building ccdv"
-	@$(HOSTCC) -O1 $< -o $@
-
-lib/%.o: $(LIB_SRC) $(LIB_HEADERS) build/ccdv
+lib/%.o: $(LIB_SRC) $(LIB_HEADERS)
+	$(ECHO) "  CC      " $@
 	$(QUIET) $(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -o $@ -c lib/$*.c
 
 libcpufreq.so.$(LIB_MAJ): $(LIB_OBJS)
+	$(ECHO) "  LD      " $@
 	$(QUIET) $(CC) -shared $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
 		-Wl,-soname,libcpufreq.so.$(LIB_MIN) $(LIB_OBJS)
 	@ln -sf $@ libcpufreq.so
@@ -188,11 +186,13 @@ libcpufreq: libcpufreq.so.$(LIB_MAJ)
 $(UTIL_OBJS): $(UTIL_HEADERS)
 
 .c.o:
+	$(ECHO) "  CC      " $@
 	$(QUIET) $(CC) $(CFLAGS) $(CPPFLAGS) -I./lib -I ./utils -o $@ -c $*.c
 
-cpupower: $(UTIL_OBJS) libcpufreq
+cpupower: $(UTIL_OBJS) libcpufreq.so.$(LIB_MAJ)
+	$(ECHO) "  CC      " $@
 	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) -lcpufreq -lrt -lpci -L. -o $@ $(UTIL_OBJS)
-	$(STRIPCMD) $@
+	$(QUIET) $(STRIPCMD) $@
 
 po/$(PACKAGE).pot: $(UTIL_SRC)
 	@xgettext --default-domain=$(PACKAGE) --add-comments \
@@ -223,7 +223,6 @@ clean:
 	-rm -f $(IDLE_OBJS)
 	-rm -f cpupower
 	-rm -f libcpufreq.so*
-	-rm -f build/ccdv
 	-rm -rf po/*.gmo po/*.pot
 	$(MAKE) -C bench clean
 
@@ -256,7 +255,7 @@ install-gmo:
 install-bench:
 	@#DESTDIR must be set from outside to survive
 	@sbindir=$(sbindir) bindir=$(bindir) docdir=$(docdir) confdir=$(confdir) $(MAKE) -C bench install
-       
+
 install: all install-lib install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
 
 uninstall:
@@ -269,5 +268,5 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
 	  done;
 
-.PHONY: all utils libcpufreq ccdv update-po update-gmo install-lib install-tools install-man install-gmo install uninstall \
+.PHONY: all utils libcpufreq update-po update-gmo install-lib install-tools install-man install-gmo install uninstall \
 	clean 

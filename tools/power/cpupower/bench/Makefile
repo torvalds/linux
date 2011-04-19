@@ -3,14 +3,13 @@ LIBS = -L../ -lm -lcpufreq
 OBJS = main.o parse.o system.o benchmark.o
 CFLAGS += -D_GNU_SOURCE -I../lib -DDEFAULT_CONFIG_FILE=\"$(confdir)/cpufreq-bench.conf\"
 
-ifeq ($(strip $(V)),false)
-	CC=@../build/ccdv gcc
-else
-	CC=gcc
-endif
+%.o : %.c
+	$(ECHO) "  CC      " $@
+	$(QUIET) $(CC) -c $(CFLAGS) $< -o $@
 
 cpufreq-bench: $(OBJS)
-	$(CC) -o $@ $(CFLAGS) $(OBJS) $(LIBS)
+	$(ECHO) "  CC      " $@
+	$(QUIET) $(CC) -o $@ $(CFLAGS) $(OBJS) $(LIBS)
 
 all: cpufreq-bench
 
