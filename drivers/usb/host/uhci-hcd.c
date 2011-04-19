@@ -139,10 +139,7 @@ static void finish_reset(struct uhci_hcd *uhci)
 	uhci->port_c_suspend = uhci->resuming_ports = 0;
 	uhci->rh_state = UHCI_RH_RESET;
 	uhci->is_stopped = UHCI_IS_STOPPED;
-	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
 	clear_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
-
-	uhci->dead = 0;		/* Full reset resurrects the controller */
 }
 
 /*
@@ -187,10 +184,6 @@ static void configure_hc(struct uhci_hcd *uhci)
 	/* Set the current frame number */
 	outw(uhci->frame_number & UHCI_MAX_SOF_NUMBER,
 			uhci->io_addr + USBFRNUM);
-
-	/* Mark controller as not halted before we enable interrupts */
-	uhci_to_hcd(uhci)->state = HC_STATE_SUSPENDED;
-	mb();
 
 	/* Enable PIRQ */
 	pci_write_config_word(pdev, USBLEGSUP, USBLEGSUP_DEFAULT);
@@ -360,7 +353,6 @@ __acquires(uhci->lock)
 
 static void start_rh(struct uhci_hcd *uhci)
 {
-	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
 	uhci->is_stopped = 0;
 
 	/* Mark it configured and running with a 64-byte max packet.
@@ -449,6 +441,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 					lprintk(errbuf);
 				}
 				uhci_hc_died(uhci);
+				usb_hc_died(hcd);
 
 				/* Force a callback in case there are
 				 * pending unlinks */
@@ -842,16 +835,17 @@ static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	spin_lock_irq(&uhci->lock);
 
 	/* Make sure resume from hibernation re-enumerates everything */
-	if (hibernated)
-		uhci_hc_died(uhci);
+	if (hibernated) {
+		uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+		finish_reset(uhci);
+	}
 
-	/* The firmware or a boot kernel may have changed the controller
-	 * settings during a system wakeup.  Check it and reconfigure
-	 * to avoid problems.
+	/* The firmware may have changed the controller settings during
+	 * a system wakeup.  Check it and reconfigure to avoid problems.
 	 */
-	check_and_reset_hc(uhci);
-
-	/* If the controller was dead before, it's back alive now */
+	else {
+		check_and_reset_hc(uhci);
+	}
 	configure_hc(uhci);
 
 	/* Tell the core if the controller had to be reset */
