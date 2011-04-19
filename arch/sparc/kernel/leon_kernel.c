@@ -31,6 +31,7 @@ int leondebug_irq_disable;
 int leon_debug_irqout;
 static int dummy_master_l10_counter;
 unsigned long amba_system_id;
+static DEFINE_SPINLOCK(leon_irq_lock);
 
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
@@ -88,10 +89,10 @@ static void leon_unmask_irq(struct irq_data *data)
 	unsigned long mask, flags;
 
 	mask = (unsigned long)data->chip_data;
-	local_irq_save(flags);
+	spin_lock_irqsave(&leon_irq_lock, flags);
 	LEON3_BYPASS_STORE_PA(LEON_IMASK,
 			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) | (mask)));
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
 }
 
 static void leon_mask_irq(struct irq_data *data)
@@ -99,11 +100,10 @@ static void leon_mask_irq(struct irq_data *data)
 	unsigned long mask, flags;
 
 	mask = (unsigned long)data->chip_data;
-	local_irq_save(flags);
+	spin_lock_irqsave(&leon_irq_lock, flags);
 	LEON3_BYPASS_STORE_PA(LEON_IMASK,
 			      (LEON3_BYPASS_LOAD_PA(LEON_IMASK) & ~(mask)));
-	local_irq_restore(flags);
-
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
 }
 
 static unsigned int leon_startup_irq(struct irq_data *data)
@@ -383,10 +383,10 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 {
 	unsigned long mask, flags, *addr;
 	mask = get_irqmask(irq_nr);
-	local_irq_save(flags);
+	spin_lock_irqsave(&leon_irq_lock, flags);
 	addr = (unsigned long *)&(leon3_irqctrl_regs->mask[cpu]);
 	LEON3_BYPASS_STORE_PA(addr, (LEON3_BYPASS_LOAD_PA(addr) | (mask)));
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&leon_irq_lock, flags);
 }
 
 #endif
