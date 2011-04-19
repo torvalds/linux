@@ -26,8 +26,6 @@ unsigned int __machine_arch_type;
 #include <linux/linkage.h>
 #include <asm/string.h>
 
-#include <asm/unaligned.h>
-
 
 static void putstr(const char *ptr);
 extern void error(char *x);
@@ -149,13 +147,12 @@ void *memcpy(void *__dest, __const void *__src, size_t __n)
 }
 
 /*
- * gzip delarations
+ * gzip declarations
  */
 extern char input_data[];
 extern char input_data_end[];
 
 unsigned char *output_data;
-unsigned long output_ptr;
 
 unsigned long free_mem_ptr;
 unsigned long free_mem_end_ptr;
@@ -183,13 +180,11 @@ asmlinkage void __div0(void)
 extern void do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
 
 
-unsigned long
+void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		unsigned long free_mem_ptr_end_p,
 		int arch_id)
 {
-	unsigned char *tmp;
-
 	output_data		= (unsigned char *)output_start;
 	free_mem_ptr		= free_mem_ptr_p;
 	free_mem_end_ptr	= free_mem_ptr_end_p;
@@ -197,12 +192,8 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 
 	arch_decomp_setup();
 
-	tmp = (unsigned char *) (((unsigned long)input_data_end) - 4);
-	output_ptr = get_unaligned_le32(tmp);
-
 	putstr("Uncompressing Linux...");
 	do_decompress(input_data, input_data_end - input_data,
 			output_data, error);
 	putstr(" done, booting the kernel.\n");
-	return output_ptr;
 }
