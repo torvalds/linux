@@ -156,8 +156,8 @@ static struct snd_soc_jack_pin tegra_wm8903_mic_jack_pins[] = {
 static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
@@ -173,8 +173,8 @@ static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 static int tegra_wm8903_event_hp(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 
