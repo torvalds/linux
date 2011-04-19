@@ -292,7 +292,6 @@ EXPORT_SYMBOL(blk_sync_queue);
 /**
  * __blk_run_queue - run a single device queue
  * @q:	The queue to run
- * @force_kblockd: Don't run @q->request_fn directly.  Use kblockd.
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
