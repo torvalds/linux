@@ -42,6 +42,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
+	select SND_SOC_alc5621 if I2C
+	select SND_SOC_alc5631 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8940 if I2C
 	select SND_SOC_WM8960 if I2C
@@ -66,11 +68,13 @@ config SND_SOC_ALL_CODECS
 	  be selected separately.
 
           If unsure select "N".
-
+select SND_SOC_ALC5623_RT if I2C
+config SND_SOC_ALC5623
+        tristate
 config SND_SOC_WM_HUBS
 	tristate
-	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
-	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
+	default y if SND_SOC_WM8993=y
+	default m if SND_SOC_WM8993=m
 
 config SND_SOC_AC97_CODEC
 	tristate
@@ -179,6 +183,12 @@ config SND_SOC_WM8776
 config SND_SOC_WM8900
 	tristate
 
+config SND_SOC_alc5621
+	tristate
+
+config SND_SOC_alc5631
+	tristate
+	
 config SND_SOC_WM8903
 	tristate
 

@@ -123,86 +123,93 @@ static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in[MAX_I2S] = {
 /* 
  *Turn on or off the transmission path. 
  */
+ 
+static int flag_i2s_tx = 0;
+static int flag_i2s_rx = 0;
 static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 {
-        u32 opr,xfer,fifosts;
-        int  xor=0;
+    u32 opr,xfer,fifosts;
+
+    opr  = readl(&(pheadi2s->I2S_DMACR));
+    xfer = readl(&(pheadi2s->I2S_XFER));
+
+    opr  &= ~I2S_TRAN_DMA_ENABLE;
+    xfer &= ~I2S_RX_TRAN_START;
+    xfer &= ~I2S_TX_TRAN_START;
     
-        opr  = readl(&(pheadi2s->I2S_DMACR));
-        xfer = readl(&(pheadi2s->I2S_XFER));
-
-        if(xfer & I2S_RX_TRAN_START) {
-                xor = 1;
-        }
+    if (on) 
+    {         
+        I2S_DBG("rockchip_snd_txctrl: on\n");
         
-        opr  &= ~I2S_TRAN_DMA_ENABLE;
-        xfer &= ~I2S_TX_TRAN_START;     
+        //stop tx
+        if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+            writel(xfer, &(pheadi2s->I2S_XFER));
+        writel(opr, &(pheadi2s->I2S_DMACR));
+
+        //start tx
+        opr  |= I2S_TRAN_DMA_ENABLE;
+	    xfer |= I2S_TX_TRAN_START;
+	    xfer |= I2S_RX_TRAN_START;
+        writel(opr, &(pheadi2s->I2S_DMACR));         
+        writel(xfer, &(pheadi2s->I2S_XFER));
+
+        flag_i2s_tx = 1;
+    }
+    else
+    {
+        //stop tx
+        flag_i2s_tx = 0;
         
-        if (on) 
-        {                
-                if(xor) {
-                        xfer &= ~I2S_RX_TRAN_START;
-                }
-                writel(0, &(pheadi2s->I2S_XFER));
-                writel(opr, &(pheadi2s->I2S_DMACR));
+        if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+            writel(xfer, &(pheadi2s->I2S_XFER));
+        udelay(5);                
+        writel(opr, &(pheadi2s->I2S_DMACR));  
 
-                opr  |= I2S_TRAN_DMA_ENABLE;
-                xfer |= I2S_TX_TRAN_START;
-                if(xor) {
-                        xfer |= I2S_RX_TRAN_START;
-                }
-                
-                writel(opr, &(pheadi2s->I2S_DMACR));         
-                writel(xfer, &(pheadi2s->I2S_XFER));
-        }
-        else
-        {
-                writel(xfer, &(pheadi2s->I2S_XFER));
-                udelay(5);                
-                writel(opr, &(pheadi2s->I2S_DMACR));  
-
-        } 
-        I2S_DBG("Enter %s, %d, opr=0x%08X, xfer=0x%08X\n", __func__, __LINE__, opr, xfer);
+        I2S_DBG("rockchip_snd_txctrl: off\n");
+    } 
 }
 
 static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 {
-        u32 opr,xfer,fifosts;
-        int  xor=0;
-        
-        opr  = readl(&(pheadi2s->I2S_DMACR));
-        xfer = readl(&(pheadi2s->I2S_XFER));
+	u32 opr,xfer,fifosts;
+	  
 
-        if(xfer & I2S_TX_TRAN_START){
-                xor = 1;
-        }
+	opr  = readl(&(pheadi2s->I2S_DMACR));
+	xfer = readl(&(pheadi2s->I2S_XFER));
+
+	opr  &= ~I2S_RECE_DMA_ENABLE;
+	xfer &= ~I2S_RX_TRAN_START;
+	xfer &= ~I2S_TX_TRAN_START;
+	if (on) 
+	{				 
+	    I2S_DBG("rockchip_snd_rxctrl: on\n");
+	    
+		//stop rx
+		if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+	        writel(xfer, &(pheadi2s->I2S_XFER));
+		writel(opr, &(pheadi2s->I2S_DMACR));
+
+		//start rx
+		opr  |= I2S_RECE_DMA_ENABLE;
+	    xfer |= I2S_TX_TRAN_START;
+	    xfer |= I2S_RX_TRAN_START;
+		writel(opr, &(pheadi2s->I2S_DMACR));
+		writel(xfer, &(pheadi2s->I2S_XFER));
+
+        flag_i2s_rx = 1;
+	}
+	else
+	{
+		//stop rx
+        flag_i2s_rx = 0;
         
-        opr  &= ~I2S_RECE_DMA_ENABLE;
-        xfer &= ~I2S_RX_TRAN_START;
-        
-        if (on) 
-        {        
-                if(xor) {
-                        xfer &= ~I2S_TX_TRAN_START;
-                }
-                writel(0, &(pheadi2s->I2S_XFER));
-                writel(opr, &(pheadi2s->I2S_DMACR));  
-                
-                opr  |= I2S_RECE_DMA_ENABLE;
-                xfer |= I2S_RX_TRAN_START;
-                if(xor) {
-                        xfer |= I2S_TX_TRAN_START;
-                }
-                writel(opr, &(pheadi2s->I2S_DMACR));
-                writel(xfer, &(pheadi2s->I2S_XFER));
-        }
-        else
-        {
-                writel(xfer, &(pheadi2s->I2S_XFER));
-                udelay(5);
-                writel(opr, &(pheadi2s->I2S_DMACR));     
-        }  
-        I2S_DBG("Enter %s, %d, opr=0x%08X, xfer=0x%08X\n", __func__, __LINE__, opr, xfer);
+        if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+            writel(xfer, &(pheadi2s->I2S_XFER));
+        udelay(5);
+	    writel(opr, &(pheadi2s->I2S_DMACR));
+	    
+	    I2S_DBG("rockchip_snd_rxctrl: off\n");
+	}
 }
 
 /*
@@ -569,8 +576,6 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 {
         struct rk29_i2s_info *i2s;
         struct snd_soc_dai *dai;
-		struct clk *general_pll;
-		unsigned long i2smclk;
         int    ret;
 
         I2S_DBG("Enter %s, %d pdev->id = %d >>>>>>>>>>>\n", __func__, __LINE__, pdev->id);
@@ -633,21 +638,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(i2s->iis_clk);
-	general_pll=clk_get(NULL, "general_pll");
-	if(clk_get_rate(general_pll)>260000000)
-	{
-		i2smclk=11289600;
-	}
-	else if(clk_get_rate(general_pll)>130000000)
-	{
-		i2smclk=11289600/2;
-	}
-	else
-	{
-		i2smclk=11289600/4;
-	}
-	I2S_DBG("func is %s,general pll=%ld,mclk=%ld\n",__FUNCTION__,clk_get_rate(general_pll),i2smclk);
-	clk_set_rate(i2s->iis_clk, i2smclk);
+        clk_set_rate(i2s->iis_clk, 11289600);
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;
