@@ -5154,8 +5154,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
-	if (!HAS_PCH_SPLIT(dev))
-		intel_enable_plane(dev_priv, plane, pipe);
 
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
