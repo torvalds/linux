@@ -43,33 +43,6 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *,
 static int __qeth_l3_set_online(struct ccwgroup_device *, int);
 static int __qeth_l3_set_offline(struct ccwgroup_device *, int);
 
-int qeth_l3_set_large_send(struct qeth_card *card,
-		enum qeth_large_send_types type)
-{
-	int rc = 0;
-
-	card->options.large_send = type;
-	if (card->dev == NULL)
-		return 0;
-
-	if (card->options.large_send == QETH_LARGE_SEND_TSO) {
-		if (qeth_is_supported(card, IPA_OUTBOUND_TSO)) {
-			card->dev->features |= NETIF_F_TSO | NETIF_F_SG |
-					NETIF_F_IP_CSUM;
-		} else {
-			card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
-					NETIF_F_IP_CSUM);
-			card->options.large_send = QETH_LARGE_SEND_NO;
-			rc = -EOPNOTSUPP;
-		}
-	} else {
-		card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
-					NETIF_F_IP_CSUM);
-		card->options.large_send = QETH_LARGE_SEND_NO;
-	}
-	return rc;
-}
-
 static int qeth_l3_isxdigit(char *buf)
 {
 	while (*buf) {
@@ -1485,6 +1458,7 @@ int qeth_l3_set_rx_csum(struct qeth_card *card,
 			if (rc)
 				return -EIO;
 		}
+		card->dev->features |= NETIF_F_RXCSUM;
 	} else {
 		if (csum_type == HW_CHECKSUMMING) {
 			if (card->state != CARD_STATE_DOWN) {
@@ -1496,6 +1470,7 @@ int qeth_l3_set_rx_csum(struct qeth_card *card,
 					return -EIO;
 			}
 		}
+		card->dev->features &= ~NETIF_F_RXCSUM;
 	}
 	card->options.checksum_type = csum_type;
 	return rc;
@@ -1580,10 +1555,8 @@ static int qeth_l3_start_ipa_tso(struct qeth_card *card)
 			dev_info(&card->gdev->dev,
 				"Outbound TSO enabled\n");
 	}
-	if (rc && (card->options.large_send == QETH_LARGE_SEND_TSO)) {
-		card->options.large_send = QETH_LARGE_SEND_NO;
-		card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG);
-	}
+	if (rc)
+		card->dev->features &= ~NETIF_F_TSO;
 	return rc;
 }
 
@@ -3024,7 +2997,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 	int tx_bytes = skb->len;
-	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
+	bool large_send;
 	int data_offset = -1;
 	int nr_frags;
 
@@ -3046,8 +3019,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		card->perf_stats.outbound_start_time = qeth_get_micros();
 	}
 
-	if (skb_is_gso(skb))
-		large_send = card->options.large_send;
+	large_send = skb_is_gso(skb);
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) && (!large_send) &&
 	    (skb_shinfo(skb)->nr_frags == 0)) {
@@ -3096,7 +3068,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* fix hardware limitation: as long as we do not have sbal
 	 * chaining we can not send long frag lists
 	 */
-	if (large_send == QETH_LARGE_SEND_TSO) {
+	if (large_send) {
 		if (qeth_l3_tso_elements(new_skb) + 1 > 16) {
 			if (skb_linearize(new_skb))
 				goto tx_drop;
@@ -3105,8 +3077,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if ((large_send == QETH_LARGE_SEND_TSO) &&
-	    (cast_type == RTN_UNSPEC)) {
+	if (large_send && (cast_type == RTN_UNSPEC)) {
 		hdr = (struct qeth_hdr *)skb_push(new_skb,
 						sizeof(struct qeth_hdr_tso));
 		memset(hdr, 0, sizeof(struct qeth_hdr_tso));
@@ -3141,7 +3112,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (card->info.type != QETH_CARD_TYPE_IQD) {
 		int len;
-		if (large_send == QETH_LARGE_SEND_TSO)
+		if (large_send)
 			len = ((unsigned long)tcp_hdr(new_skb) +
 				tcp_hdr(new_skb)->doff * 4) -
 				(unsigned long)new_skb->data;
@@ -3162,7 +3133,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
 		if (card->options.performance_stats) {
-			if (large_send != QETH_LARGE_SEND_NO) {
+			if (large_send) {
 				card->perf_stats.large_send_bytes += tx_bytes;
 				card->perf_stats.large_send_cnt++;
 			}
@@ -3248,65 +3219,40 @@ static int qeth_l3_stop(struct net_device *dev)
 	return 0;
 }
 
-static u32 qeth_l3_ethtool_get_rx_csum(struct net_device *dev)
+static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	return (card->options.checksum_type == HW_CHECKSUMMING);
+	if (!qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+		features &= ~NETIF_F_IP_CSUM;
+	if (!qeth_is_supported(card, IPA_OUTBOUND_TSO))
+		features &= ~NETIF_F_TSO;
+	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+		features &= ~NETIF_F_RXCSUM;
+
+	return features;
 }
 
-static int qeth_l3_ethtool_set_rx_csum(struct net_device *dev, u32 data)
+static int qeth_l3_set_features(struct net_device *dev, u32 features)
 {
-	struct qeth_card *card = dev->ml_priv;
 	enum qeth_checksum_types csum_type;
+	struct qeth_card *card = dev->ml_priv;
+	u32 changed = dev->features ^ features;
 
-	if (data)
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
+
+	if (features & NETIF_F_RXCSUM)
 		csum_type = HW_CHECKSUMMING;
 	else
 		csum_type = SW_CHECKSUMMING;
 
+	dev->features = features ^ NETIF_F_RXCSUM;
 	return qeth_l3_set_rx_csum(card, csum_type);
-}
-
-static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
-{
-	struct qeth_card *card = dev->ml_priv;
-	int rc = 0;
-
-	if (data) {
-		rc = qeth_l3_set_large_send(card, QETH_LARGE_SEND_TSO);
-	} else {
-		dev->features &= ~NETIF_F_TSO;
-		card->options.large_send = QETH_LARGE_SEND_NO;
-	}
-	return rc;
-}
-
-static int qeth_l3_ethtool_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	if (data) {
-		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
-			dev->features |= NETIF_F_IP_CSUM;
-		else
-			return -EPERM;
-	} else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	return 0;
 }
 
 static const struct ethtool_ops qeth_l3_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = qeth_l3_ethtool_set_tx_csum,
-	.get_rx_csum = qeth_l3_ethtool_get_rx_csum,
-	.set_rx_csum = qeth_l3_ethtool_set_rx_csum,
-	.get_sg      = ethtool_op_get_sg,
-	.set_sg      = ethtool_op_set_sg,
-	.get_tso     = ethtool_op_get_tso,
-	.set_tso     = qeth_l3_ethtool_set_tso,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_sset_count = qeth_core_get_sset_count,
@@ -3347,6 +3293,8 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_set_multicast_list = qeth_l3_set_multicast_list,
 	.ndo_do_ioctl	   	= qeth_l3_do_ioctl,
 	.ndo_change_mtu	   	= qeth_change_mtu,
+	.ndo_fix_features   	= qeth_l3_fix_features,
+	.ndo_set_features   	= qeth_l3_set_features,
 	.ndo_vlan_rx_register	= qeth_l3_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
@@ -3362,6 +3310,8 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_set_multicast_list = qeth_l3_set_multicast_list,
 	.ndo_do_ioctl	   	= qeth_l3_do_ioctl,
 	.ndo_change_mtu	   	= qeth_change_mtu,
+	.ndo_fix_features   	= qeth_l3_fix_features,
+	.ndo_set_features   	= qeth_l3_set_features,
 	.ndo_vlan_rx_register	= qeth_l3_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
@@ -3392,8 +3342,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 				card->dev->dev_id = card->info.unique_id &
 							 0xffff;
-			if (!card->info.guestlan)
-				card->dev->features |= NETIF_F_GRO;
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
 		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
@@ -3409,6 +3357,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	SET_ETHTOOL_OPS(card->dev, &qeth_l3_ethtool_ops);
+	card->dev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
+		NETIF_F_IP_CSUM | NETIF_F_TSO;
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_HW_VLAN_FILTER;
@@ -3516,7 +3466,6 @@ contin:
 		rc = qeth_l3_start_ipassists(card);
 		if (rc)
 			QETH_DBF_TEXT_(SETUP, 2, "3err%d", rc);
-		qeth_l3_set_large_send(card, card->options.large_send);
 		rc = qeth_l3_setrouting_v4(card);
 		if (rc)
 			QETH_DBF_TEXT_(SETUP, 2, "4err%d", rc);

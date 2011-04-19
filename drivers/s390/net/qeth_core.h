@@ -407,12 +407,6 @@ struct qeth_qdio_q {
 	int next_buf_to_init;
 } __attribute__ ((aligned(256)));
 
-/* possible types of qeth large_send support */
-enum qeth_large_send_types {
-	QETH_LARGE_SEND_NO,
-	QETH_LARGE_SEND_TSO,
-};
-
 struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
 	atomic_t state;
@@ -651,7 +645,6 @@ struct qeth_card_options {
 	int fake_broadcast;
 	int add_hhlen;
 	int layer2;
-	enum qeth_large_send_types large_send;
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;

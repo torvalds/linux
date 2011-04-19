@@ -410,39 +410,42 @@ static ssize_t qeth_l3_dev_large_send_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	switch (card->options.large_send) {
-	case QETH_LARGE_SEND_NO:
+	if (!(card->dev->features & NETIF_F_TSO))
 		return sprintf(buf, "%s\n", "no");
-	case QETH_LARGE_SEND_TSO:
+	else
 		return sprintf(buf, "%s\n", "TSO");
-	default:
-		return sprintf(buf, "%s\n", "N/A");
-	}
 }
 
 static ssize_t qeth_l3_dev_large_send_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct qeth_card *card = dev_get_drvdata(dev);
-	enum qeth_large_send_types type;
-	int rc = 0;
+	struct qeth_card *card;
 	char *tmp;
+	int enable;
 
 	if (!card)
 		return -EINVAL;
 	tmp = strsep((char **) &buf, "\n");
 	if (!strcmp(tmp, "no"))
-		type = QETH_LARGE_SEND_NO;
+		enable = 0;
 	else if (!strcmp(tmp, "TSO"))
-		type = QETH_LARGE_SEND_TSO;
+		enable = 1;
 	else
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-	if (card->options.large_send != type)
-		rc = qeth_l3_set_large_send(card, type);
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
+	rtnl_lock();
+
+	card = dev_get_drvdata(dev);
+
+	if (enable)
+		card->dev->wanted_features |= NETIF_F_TSO;
+	else
+		card->dev->wanted_features &= ~NETIF_F_TSO;
+	netdev_update_features(card->dev);
+
+	rtnl_unlock();
+
+	return count;
 }
 
 static DEVICE_ATTR(large_send, 0644, qeth_l3_dev_large_send_show,
