@@ -407,9 +407,7 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 	spin_lock_bh(&bc_lock);
 
 	res = tipc_link_send_buf(bcl, buf);
-	if (unlikely(res == -ELINKCONG))
-		buf_discard(buf);
-	else
+	if (likely(res > 0))
 		bclink_set_last_sent();
 
 	bcl->stats.queue_sz_counts++;

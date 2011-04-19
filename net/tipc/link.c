@@ -864,8 +864,9 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 
 	if (unlikely(queue_size >= queue_limit)) {
 		if (imp <= TIPC_CRITICAL_IMPORTANCE) {
-			return link_schedule_port(l_ptr, msg_origport(msg),
-						  size);
+			link_schedule_port(l_ptr, msg_origport(msg), size);
+			buf_discard(buf);
+			return -ELINKCONG;
 		}
 		buf_discard(buf);
 		if (imp > CONN_MANAGER) {
@@ -1069,8 +1070,6 @@ again:
 			if (likely(buf)) {
 				res = link_send_buf_fast(l_ptr, buf,
 							 &sender->max_pkt);
-				if (unlikely(res < 0))
-					buf_discard(buf);
 exit:
 				tipc_node_unlock(node);
 				read_unlock_bh(&tipc_net_lock);
