@@ -507,6 +507,7 @@ int32_t dwc_otg_handle_disconnect_intr( dwc_otg_core_if_t *_core_if)
                 }
         }
 #endif
+    hcd_disconnect( _core_if );
 	gintsts.d32 = 0;
 	gintsts.b.disconnect = 1;
 	dwc_write_reg32 (&_core_if->core_global_regs->gintsts, gintsts.d32);

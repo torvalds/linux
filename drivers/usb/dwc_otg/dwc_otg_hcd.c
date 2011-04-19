@@ -403,7 +403,7 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *_hcd, struct list_head *_qh_list
 		}
 	}
 }
-#if 0
+
 /**
  * Responds with an error status of ETIMEDOUT to all URBs in the non-periodic
  * and periodic schedules. The QTD associated with each URB is removed from
@@ -419,7 +419,7 @@ static void kill_all_urbs(dwc_otg_hcd_t *_hcd)
 	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_assigned);
 	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_queued);
 }
-#endif 
+
 /**
  * HCD Callback function for disconnect of the HCD.
  *
@@ -470,8 +470,7 @@ static int32_t dwc_otg_hcd_disconnect_cb( void *_p )
         }
                 
 	/* Respond with an error status to all URBs in the schedule. */
-	// yk@20101227 handle kernel panic bug when disconnect
-	//kill_all_urbs(dwc_otg_hcd);
+	kill_all_urbs(dwc_otg_hcd);
 
 	if (dwc_otg_is_host_mode(dwc_otg_hcd->core_if)) {
 		/* Clean up any host channels that were in use. */
@@ -1502,13 +1501,14 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 	dwc_otg_hcd_t * dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
 	dwc_otg_qtd_t * qtd;
 	unsigned long flags;
-
+#if 0
 	retval = usb_hcd_link_urb_to_ep(_hcd, _urb);
 	if (retval)
 	{
 		DWC_PRINT("%s, usb_hcd_link_urb_to_ep error\n", __func__);
 		return retval;
 	}
+#endif
 	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 #if 1
 	/*
@@ -1570,11 +1570,13 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	}
 	qh = (dwc_otg_qh_t *) _ep->hcpriv;
 	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
+	#if 0
 	retval = usb_hcd_check_unlink_urb(_hcd, _urb, _status);
 	if (retval) {
 		spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 		return retval;
 	}
+	#endif
 	if(urb_qtd == NULL)
 	{
 		DWC_PRINT("%s,urb_qtd is null\n",__func__);
@@ -1626,7 +1628,7 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 urb_qtd_null:
 	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 	_urb->hcpriv = NULL;
-	usb_hcd_unlink_urb_from_ep(_hcd, _urb);
+	//usb_hcd_unlink_urb_from_ep(_hcd, _urb);
     /* Higher layer software sets URB status. */
 	usb_hcd_giveback_urb(_hcd, _urb, _status);
 	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
@@ -3246,7 +3248,7 @@ __acquires(_hcd->lock)
 
 
 	_urb->hcpriv = NULL;
-	usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(_hcd), _urb);
+	//usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(_hcd), _urb);
 	spin_unlock(&_hcd->lock);
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(_hcd), _urb, _status);
 	spin_lock(&_hcd->lock);
