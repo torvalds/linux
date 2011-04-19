@@ -95,6 +95,8 @@ HOSTCC = gcc
 # set up PWD so that older versions of make will work with our build.
 PWD = $(shell pwd)
 
+GMO_FILES = ${shell for HLANG in ${LANGUAGES}; do echo po/$$HLANG.gmo; done;}
+
 export CROSS CC AR STRIP RANLIB CFLAGS LDFLAGS LIB_OBJS
 
 # check if compiler option is supported
@@ -134,7 +136,7 @@ CFLAGS +=	-pipe
 
 ifeq ($(strip $(NLS)),true)
 	INSTALL_NLS += install-gmo
-	COMPILE_NLS += update-gmo
+	COMPILE_NLS += create-gmo
 endif
 
 ifeq ($(strip $(CPUFRQ_BENCH)),true)
@@ -195,14 +197,22 @@ cpupower: $(UTIL_OBJS) libcpufreq.so.$(LIB_MAJ)
 	$(QUIET) $(STRIPCMD) $@
 
 po/$(PACKAGE).pot: $(UTIL_SRC)
-	@xgettext --default-domain=$(PACKAGE) --add-comments \
+	$(ECHO) "  GETTEXT " $@
+	$(QUIET) xgettext --default-domain=$(PACKAGE) --add-comments \
 		--keyword=_ --keyword=N_ $(UTIL_SRC) && \
 	test -f $(PACKAGE).po && \
 	mv -f $(PACKAGE).po po/$(PACKAGE).pot
 
-update-gmo: po/$(PACKAGE).pot
-	 @for HLANG in $(LANGUAGES); do \
-		echo -n "Translating $$HLANG "; \
+po/%.gmo: po/%.po
+	$(ECHO) "  MSGFMT  " $@
+	$(QUIET) msgfmt -o $@ po/$*.po
+
+create-gmo: ${GMO_FILES}
+
+update-po: po/$(PACKAGE).pot
+	$(ECHO) "  MSGMRG  " $@
+	$(QUIET) @for HLANG in $(LANGUAGES); do \
+		echo -n "Updating $$HLANG "; \
 		if msgmerge po/$$HLANG.po po/$(PACKAGE).pot -o \
 		   po/$$HLANG.new.po; then \
 			mv -f po/$$HLANG.new.po po/$$HLANG.po; \
@@ -210,7 +220,6 @@ update-gmo: po/$(PACKAGE).pot
 			echo "msgmerge for $$HLANG failed!"; \
 			rm -f po/$$HLANG.new.po; \
 		fi; \
-		msgfmt --statistics -o po/$$HLANG.gmo po/$$HLANG.po; \
 	done;
 
 compile-bench: libcpufreq.so.$(LIB_MAJ)
@@ -268,5 +277,5 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
 	  done;
 
-.PHONY: all utils libcpufreq update-po update-gmo install-lib install-tools install-man install-gmo install uninstall \
+.PHONY: all utils libcpufreq update-po create-gmo install-lib install-tools install-man install-gmo install uninstall \
 	clean 
