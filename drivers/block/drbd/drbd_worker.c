@@ -1619,10 +1619,16 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			 * detect connection loss, then waiting for a ping
 			 * response (implicit in drbd_resync_finished) reduces
 			 * the race considerably, but does not solve it. */
-			if (side == C_SYNC_SOURCE)
-				schedule_timeout_interruptible(
-					mdev->tconn->net_conf->ping_int * HZ +
-					mdev->tconn->net_conf->ping_timeo*HZ/9);
+			if (side == C_SYNC_SOURCE) {
+				struct net_conf *nc;
+				int timeo;
+
+				rcu_read_lock();
+				nc = rcu_dereference(mdev->tconn->net_conf);
+				timeo = nc->ping_int * HZ + nc->ping_timeo * HZ / 9;
+				rcu_read_unlock();
+				schedule_timeout_interruptible(timeo);
+			}
 			drbd_resync_finished(mdev);
 		}
 
@@ -1645,22 +1651,30 @@ int drbd_worker(struct drbd_thread *thi)
 	struct drbd_tconn *tconn = thi->tconn;
 	struct drbd_work *w = NULL;
 	struct drbd_conf *mdev;
+	struct net_conf *nc;
 	LIST_HEAD(work_list);
 	int vnr, intr = 0;
+	int cork;
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 
 		if (down_trylock(&tconn->data.work.s)) {
 			mutex_lock(&tconn->data.mutex);
-			if (tconn->data.socket && !tconn->net_conf->no_cork)
+
+			rcu_read_lock();
+			nc = rcu_dereference(tconn->net_conf);
+			cork = nc ? !nc->no_cork : 0;
+			rcu_read_unlock();
+
+			if (tconn->data.socket && cork)
 				drbd_tcp_uncork(tconn->data.socket);
 			mutex_unlock(&tconn->data.mutex);
 
 			intr = down_interruptible(&tconn->data.work.s);
 
 			mutex_lock(&tconn->data.mutex);
-			if (tconn->data.socket  && !tconn->net_conf->no_cork)
+			if (tconn->data.socket  && cork)
 				drbd_tcp_cork(tconn->data.socket);
 			mutex_unlock(&tconn->data.mutex);
 		}

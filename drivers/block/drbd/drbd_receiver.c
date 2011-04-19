@@ -244,11 +244,18 @@ struct page *drbd_alloc_pages(struct drbd_conf *mdev, unsigned int number,
 			      bool retry)
 {
 	struct page *page = NULL;
+	struct net_conf *nc;
 	DEFINE_WAIT(wait);
+	int mxb;
 
 	/* Yes, we may run up to @number over max_buffers. If we
 	 * follow it strictly, the admin will get it wrong anyways. */
-	if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers)
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+	mxb = nc ? nc->max_buffers : 1000000;
+	rcu_read_unlock();
+
+	if (atomic_read(&mdev->pp_in_use) < mxb)
 		page = __drbd_alloc_pages(mdev, number);
 
 	while (page == NULL) {
@@ -256,7 +263,7 @@ struct page *drbd_alloc_pages(struct drbd_conf *mdev, unsigned int number,
 
 		drbd_kick_lo_and_reclaim_net(mdev);
 
-		if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers) {
+		if (atomic_read(&mdev->pp_in_use) < mxb) {
 			page = __drbd_alloc_pages(mdev, number);
 			if (page)
 				break;
@@ -607,24 +614,47 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 	const char *what;
 	struct socket *sock;
 	struct sockaddr_in6 src_in6;
-	int err;
+	struct sockaddr_in6 peer_in6;
+	struct net_conf *nc;
+	int err, peer_addr_len, my_addr_len;
+	int sndbuf_size, rcvbuf_size, try_connect_int;
 	int disconnect_on_error = 1;
 
-	if (!get_net_conf(tconn))
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+	if (!nc) {
+		rcu_read_unlock();
 		return NULL;
+	}
+
+	sndbuf_size = nc->sndbuf_size;
+	rcvbuf_size = nc->rcvbuf_size;
+	try_connect_int = nc->try_connect_int;
+
+	my_addr_len = min_t(int, nc->my_addr_len, sizeof(src_in6));
+	memcpy(&src_in6, nc->my_addr, my_addr_len);
+
+	if (((struct sockaddr *)nc->my_addr)->sa_family == AF_INET6)
+		src_in6.sin6_port = 0;
+	else
+		((struct sockaddr_in *)&src_in6)->sin_port = 0; /* AF_INET & AF_SCI */
+
+	peer_addr_len = min_t(int, nc->peer_addr_len, sizeof(src_in6));
+	memcpy(&peer_in6, nc->peer_addr, peer_addr_len);
+
+	rcu_read_unlock();
 
 	what = "sock_create_kern";
-	err = sock_create_kern(((struct sockaddr *)tconn->net_conf->my_addr)->sa_family,
-		SOCK_STREAM, IPPROTO_TCP, &sock);
+	err = sock_create_kern(((struct sockaddr *)&src_in6)->sa_family,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (err < 0) {
 		sock = NULL;
 		goto out;
 	}
 
 	sock->sk->sk_rcvtimeo =
-	sock->sk->sk_sndtimeo =  tconn->net_conf->try_connect_int*HZ;
-	drbd_setbufsize(sock, tconn->net_conf->sndbuf_size,
-			tconn->net_conf->rcvbuf_size);
+	sock->sk->sk_sndtimeo = try_connect_int * HZ;
+	drbd_setbufsize(sock, sndbuf_size, rcvbuf_size);
 
        /* explicitly bind to the configured IP as source IP
 	*  for the outgoing connections.
@@ -633,17 +663,8 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 	* Make sure to use 0 as port number, so linux selects
 	*  a free one dynamically.
 	*/
-	memcpy(&src_in6, tconn->net_conf->my_addr,
-	       min_t(int, tconn->net_conf->my_addr_len, sizeof(src_in6)));
-	if (((struct sockaddr *)tconn->net_conf->my_addr)->sa_family == AF_INET6)
-		src_in6.sin6_port = 0;
-	else
-		((struct sockaddr_in *)&src_in6)->sin_port = 0; /* AF_INET & AF_SCI */
-
 	what = "bind before connect";
-	err = sock->ops->bind(sock,
-			      (struct sockaddr *) &src_in6,
-			      tconn->net_conf->my_addr_len);
+	err = sock->ops->bind(sock, (struct sockaddr *) &src_in6, my_addr_len);
 	if (err < 0)
 		goto out;
 
@@ -651,9 +672,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 	 * stay C_WF_CONNECTION, don't go Disconnecting! */
 	disconnect_on_error = 0;
 	what = "connect";
-	err = sock->ops->connect(sock,
-				 (struct sockaddr *)tconn->net_conf->peer_addr,
-				 tconn->net_conf->peer_addr_len, 0);
+	err = sock->ops->connect(sock, (struct sockaddr *) &peer_in6, peer_addr_len, 0);
 
 out:
 	if (err < 0) {
@@ -676,40 +695,52 @@ out:
 		if (disconnect_on_error)
 			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	}
-	put_net_conf(tconn);
+
 	return sock;
 }
 
 static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 {
-	int timeo, err;
+	int timeo, err, my_addr_len;
+	int sndbuf_size, rcvbuf_size, try_connect_int;
 	struct socket *s_estab = NULL, *s_listen;
+	struct sockaddr_in6 my_addr;
+	struct net_conf *nc;
 	const char *what;
 
-	if (!get_net_conf(tconn))
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+	if (!nc) {
+		rcu_read_unlock();
 		return NULL;
+	}
+
+	sndbuf_size = nc->sndbuf_size;
+	rcvbuf_size = nc->rcvbuf_size;
+	try_connect_int = nc->try_connect_int;
+
+	my_addr_len = min_t(int, nc->my_addr_len, sizeof(struct sockaddr_in6));
+	memcpy(&my_addr, nc->my_addr, my_addr_len);
+	rcu_read_unlock();
 
 	what = "sock_create_kern";
-	err = sock_create_kern(((struct sockaddr *)tconn->net_conf->my_addr)->sa_family,
+	err = sock_create_kern(((struct sockaddr *)&my_addr)->sa_family,
 		SOCK_STREAM, IPPROTO_TCP, &s_listen);
 	if (err) {
 		s_listen = NULL;
 		goto out;
 	}
 
-	timeo = tconn->net_conf->try_connect_int * HZ;
+	timeo = try_connect_int * HZ;
 	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
 
 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
 	s_listen->sk->sk_rcvtimeo = timeo;
 	s_listen->sk->sk_sndtimeo = timeo;
-	drbd_setbufsize(s_listen, tconn->net_conf->sndbuf_size,
-			tconn->net_conf->rcvbuf_size);
+	drbd_setbufsize(s_listen, sndbuf_size, rcvbuf_size);
 
 	what = "bind before listen";
-	err = s_listen->ops->bind(s_listen,
-			      (struct sockaddr *) tconn->net_conf->my_addr,
-			      tconn->net_conf->my_addr_len);
+	err = s_listen->ops->bind(s_listen, (struct sockaddr *)&my_addr, my_addr_len);
 	if (err < 0)
 		goto out;
 
@@ -724,7 +755,6 @@ out:
 			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		}
 	}
-	put_net_conf(tconn);
 
 	return s_estab;
 }
@@ -817,7 +847,8 @@ int drbd_connected(int vnr, void *p, void *data)
 static int drbd_connect(struct drbd_tconn *tconn)
 {
 	struct socket *sock, *msock;
-	int try, h, ok;
+	struct net_conf *nc;
+	int timeout, try, h, ok;
 
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
@@ -924,11 +955,17 @@ retry:
 	 * sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 	 * first set it to the P_CONNECTION_FEATURES timeout,
 	 * which we set to 4x the configured ping_timeout. */
-	sock->sk->sk_sndtimeo =
-	sock->sk->sk_rcvtimeo = tconn->net_conf->ping_timeo*4*HZ/10;
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
 
-	msock->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
-	msock->sk->sk_rcvtimeo = tconn->net_conf->ping_int*HZ;
+	sock->sk->sk_sndtimeo =
+	sock->sk->sk_rcvtimeo = nc->ping_timeo*4*HZ/10;
+
+	msock->sk->sk_rcvtimeo = nc->ping_int*HZ;
+	timeout = nc->timeout * HZ / 10;
+	rcu_read_unlock();
+
+	msock->sk->sk_sndtimeo = timeout;
 
 	/* we don't want delays.
 	 * we use TCP_CORK where appropriate, though */
@@ -956,7 +993,7 @@ retry:
 	if (conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE) < SS_SUCCESS)
 		return 0;
 
-	sock->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
+	sock->sk->sk_sndtimeo = timeout;
 	sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 
 	drbd_thread_start(&tconn->asender);
@@ -1842,7 +1879,9 @@ static int wait_for_and_update_peer_seq(struct drbd_conf *mdev, const u32 peer_s
 		}
 		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock(&mdev->peer_seq_lock);
-		timeout = mdev->tconn->net_conf->ping_timeo*HZ/10;
+		rcu_read_lock();
+		timeout = rcu_dereference(mdev->tconn->net_conf)->ping_timeo*HZ/10;
+		rcu_read_unlock();
 		timeout = schedule_timeout(timeout);
 		spin_lock(&mdev->peer_seq_lock);
 		if (!timeout) {
@@ -2075,7 +2114,8 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (mdev->tconn->agreed_pro_version < 100) {
-		switch (mdev->tconn->net_conf->wire_protocol) {
+		rcu_read_lock();
+		switch (rcu_dereference(mdev->tconn->net_conf)->wire_protocol) {
 		case DRBD_PROT_C:
 			dp_flags |= DP_SEND_WRITE_ACK;
 			break;
@@ -2083,6 +2123,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 			dp_flags |= DP_SEND_RECEIVE_ACK;
 			break;
 		}
+		rcu_read_unlock();
 	}
 
 	if (dp_flags & DP_SEND_WRITE_ACK) {
@@ -2385,6 +2426,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 {
 	int self, peer, rv = -100;
 	unsigned long ch_self, ch_peer;
+	enum drbd_after_sb_p after_sb_0p;
 
 	self = mdev->ldev->md.uuid[UI_BITMAP] & 1;
 	peer = mdev->p_uuid[UI_BITMAP] & 1;
@@ -2392,10 +2434,14 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 	ch_peer = mdev->p_uuid[UI_SIZE];
 	ch_self = mdev->comm_bm_set;
 
-	switch (mdev->tconn->net_conf->after_sb_0p) {
+	rcu_read_lock();
+	after_sb_0p = rcu_dereference(mdev->tconn->net_conf)->after_sb_0p;
+	rcu_read_unlock();
+	switch (after_sb_0p) {
 	case ASB_CONSENSUS:
 	case ASB_DISCARD_SECONDARY:
 	case ASB_CALL_HELPER:
+	case ASB_VIOLENTLY:
 		dev_err(DEV, "Configuration error.\n");
 		break;
 	case ASB_DISCONNECT:
@@ -2431,7 +2477,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			if (ch_peer == 0) { rv =  1; break; }
 			if (ch_self == 0) { rv = -1; break; }
 		}
-		if (mdev->tconn->net_conf->after_sb_0p == ASB_DISCARD_ZERO_CHG)
+		if (after_sb_0p == ASB_DISCARD_ZERO_CHG)
 			break;
 	case ASB_DISCARD_LEAST_CHG:
 		if	(ch_self < ch_peer)
@@ -2456,13 +2502,18 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 {
 	int hg, rv = -100;
+	enum drbd_after_sb_p after_sb_1p;
 
-	switch (mdev->tconn->net_conf->after_sb_1p) {
+	rcu_read_lock();
+	after_sb_1p = rcu_dereference(mdev->tconn->net_conf)->after_sb_1p;
+	rcu_read_unlock();
+	switch (after_sb_1p) {
 	case ASB_DISCARD_YOUNGER_PRI:
 	case ASB_DISCARD_OLDER_PRI:
 	case ASB_DISCARD_LEAST_CHG:
 	case ASB_DISCARD_LOCAL:
 	case ASB_DISCARD_REMOTE:
+	case ASB_DISCARD_ZERO_CHG:
 		dev_err(DEV, "Configuration error.\n");
 		break;
 	case ASB_DISCONNECT:
@@ -2505,8 +2556,12 @@ static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 static int drbd_asb_recover_2p(struct drbd_conf *mdev) __must_hold(local)
 {
 	int hg, rv = -100;
+	enum drbd_after_sb_p after_sb_2p;
 
-	switch (mdev->tconn->net_conf->after_sb_2p) {
+	rcu_read_lock();
+	after_sb_2p = rcu_dereference(mdev->tconn->net_conf)->after_sb_2p;
+	rcu_read_unlock();
+	switch (after_sb_2p) {
 	case ASB_DISCARD_YOUNGER_PRI:
 	case ASB_DISCARD_OLDER_PRI:
 	case ASB_DISCARD_LEAST_CHG:
@@ -2514,6 +2569,7 @@ static int drbd_asb_recover_2p(struct drbd_conf *mdev) __must_hold(local)
 	case ASB_DISCARD_REMOTE:
 	case ASB_CONSENSUS:
 	case ASB_DISCARD_SECONDARY:
+	case ASB_DISCARD_ZERO_CHG:
 		dev_err(DEV, "Configuration error.\n");
 		break;
 	case ASB_VIOLENTLY:
@@ -2758,9 +2814,10 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_role peer_role,
 					   enum drbd_disk_state peer_disk) __must_hold(local)
 {
-	int hg, rule_nr;
 	enum drbd_conns rv = C_MASK;
 	enum drbd_disk_state mydisk;
+	struct net_conf *nc;
+	int hg, rule_nr, rr_conflict, dry_run;
 
 	mydisk = mdev->state.disk;
 	if (mydisk == D_NEGOTIATING)
@@ -2797,7 +2854,10 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	if (abs(hg) == 100)
 		drbd_khelper(mdev, "initial-split-brain");
 
-	if (hg == 100 || (hg == -100 && mdev->tconn->net_conf->always_asbp)) {
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+
+	if (hg == 100 || (hg == -100 && nc->always_asbp)) {
 		int pcount = (mdev->state.role == R_PRIMARY)
 			   + (peer_role == R_PRIMARY);
 		int forced = (hg == -100);
@@ -2826,9 +2886,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
-		if (mdev->tconn->net_conf->want_lose && !(mdev->p_uuid[UI_FLAGS]&1))
+		if (nc->want_lose && !(mdev->p_uuid[UI_FLAGS]&1))
 			hg = -1;
-		if (!mdev->tconn->net_conf->want_lose && (mdev->p_uuid[UI_FLAGS]&1))
+		if (!nc->want_lose && (mdev->p_uuid[UI_FLAGS]&1))
 			hg = 1;
 
 		if (abs(hg) < 100)
@@ -2836,6 +2896,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 			     "Sync from %s node\n",
 			     (hg < 0) ? "peer" : "this");
 	}
+	rr_conflict = nc->rr_conflict;
+	dry_run = nc->dry_run;
+	rcu_read_unlock();
 
 	if (hg == -100) {
 		/* FIXME this log message is not correct if we end up here
@@ -2854,7 +2917,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 
 	if (hg < 0 && /* by intention we do not use mydisk here. */
 	    mdev->state.role == R_PRIMARY && mdev->state.disk >= D_CONSISTENT) {
-		switch (mdev->tconn->net_conf->rr_conflict) {
+		switch (rr_conflict) {
 		case ASB_CALL_HELPER:
 			drbd_khelper(mdev, "pri-lost");
 			/* fall through */
@@ -2867,7 +2930,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		}
 	}
 
-	if (mdev->tconn->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
+	if (dry_run || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
 		if (hg == 0)
 			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
 		else
@@ -2926,6 +2989,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
 	int p_want_lose, p_two_primaries, cf;
 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
+	unsigned char *my_alg;
+	struct net_conf *nc;
 
 	p_proto		= be32_to_cpu(p->protocol);
 	p_after_sb_0p	= be32_to_cpu(p->after_sb_0p);
@@ -2940,38 +3005,43 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (cf & CF_DRY_RUN)
 		set_bit(CONN_DRY_RUN, &tconn->flags);
 
-	if (p_proto != tconn->net_conf->wire_protocol && tconn->agreed_pro_version < 100) {
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+
+	if (p_proto != nc->wire_protocol && tconn->agreed_pro_version < 100) {
 		conn_err(tconn, "incompatible communication protocols\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_0p, tconn->net_conf->after_sb_0p)) {
+	if (cmp_after_sb(p_after_sb_0p, nc->after_sb_0p)) {
 		conn_err(tconn, "incompatible after-sb-0pri settings\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_1p, tconn->net_conf->after_sb_1p)) {
+	if (cmp_after_sb(p_after_sb_1p, nc->after_sb_1p)) {
 		conn_err(tconn, "incompatible after-sb-1pri settings\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_2p, tconn->net_conf->after_sb_2p)) {
+	if (cmp_after_sb(p_after_sb_2p, nc->after_sb_2p)) {
 		conn_err(tconn, "incompatible after-sb-2pri settings\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
 
-	if (p_want_lose && tconn->net_conf->want_lose) {
+	if (p_want_lose && nc->want_lose) {
 		conn_err(tconn, "both sides have the 'want_lose' flag set\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
 
-	if (p_two_primaries != tconn->net_conf->two_primaries) {
+	if (p_two_primaries != nc->two_primaries) {
 		conn_err(tconn, "incompatible setting of the two-primaries options\n");
-		goto disconnect;
+		goto disconnect_rcu_unlock;
 	}
+
+	my_alg = nc->integrity_alg;
+	rcu_read_unlock();
 
 	if (tconn->agreed_pro_version >= 87) {
-		unsigned char *my_alg = tconn->net_conf->integrity_alg;
 		int err;
 
 		err = drbd_recv_all(tconn, p_integrity_alg, pi->size);
@@ -2989,6 +3059,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	return 0;
 
+disconnect_rcu_unlock:
+	rcu_read_unlock();
 disconnect:
 	conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	return -EIO;
@@ -4322,19 +4394,26 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	char *response = NULL;
 	char *right_response = NULL;
 	char *peers_ch = NULL;
-	unsigned int key_len = strlen(tconn->net_conf->shared_secret);
+	unsigned int key_len;
+	char secret[SHARED_SECRET_MAX]; /* 64 byte */
 	unsigned int resp_size;
 	struct hash_desc desc;
 	struct packet_info pi;
+	struct net_conf *nc;
 	int err, rv;
 
 	/* FIXME: Put the challenge/response into the preallocated socket buffer.  */
 
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+	key_len = strlen(nc->shared_secret);
+	memcpy(secret, nc->shared_secret, key_len);
+	rcu_read_unlock();
+
 	desc.tfm = tconn->cram_hmac_tfm;
 	desc.flags = 0;
 
-	rv = crypto_hash_setkey(tconn->cram_hmac_tfm,
-				(u8 *)tconn->net_conf->shared_secret, key_len);
+	rv = crypto_hash_setkey(tconn->cram_hmac_tfm, (u8 *)secret, key_len);
 	if (rv) {
 		conn_err(tconn, "crypto_hash_setkey() failed with %d\n", rv);
 		rv = -1;
@@ -4456,8 +4535,8 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	rv = !memcmp(response, right_response, resp_size);
 
 	if (rv)
-		conn_info(tconn, "Peer authenticated using %d bytes of '%s' HMAC\n",
-		     resp_size, tconn->net_conf->cram_hmac_alg);
+		conn_info(tconn, "Peer authenticated using %d bytes HMAC\n",
+		     resp_size);
 	else
 		rv = -1;
 
@@ -4884,33 +4963,42 @@ int drbd_asender(struct drbd_thread *thi)
 	int received = 0;
 	unsigned int header_size = drbd_header_size(tconn);
 	int expect   = header_size;
-	int ping_timeout_active = 0;
+	bool ping_timeout_active = false;
+	struct net_conf *nc;
+	int ping_timeo, no_cork, ping_int;
 
 	current->policy = SCHED_RR;  /* Make this a realtime task! */
 	current->rt_priority = 2;    /* more important than all other tasks */
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
+
+		rcu_read_lock();
+		nc = rcu_dereference(tconn->net_conf);
+		ping_timeo = nc->ping_timeo;
+		no_cork = nc->no_cork;
+		ping_int = nc->ping_int;
+		rcu_read_unlock();
+
 		if (test_and_clear_bit(SEND_PING, &tconn->flags)) {
 			if (drbd_send_ping(tconn)) {
 				conn_err(tconn, "drbd_send_ping has failed\n");
 				goto reconnect;
 			}
-			tconn->meta.socket->sk->sk_rcvtimeo =
-				tconn->net_conf->ping_timeo*HZ/10;
-			ping_timeout_active = 1;
+			tconn->meta.socket->sk->sk_rcvtimeo = ping_timeo * HZ / 10;
+			ping_timeout_active = true;
 		}
 
 		/* TODO: conditionally cork; it may hurt latency if we cork without
 		   much to send */
-		if (!tconn->net_conf->no_cork)
+		if (!no_cork)
 			drbd_tcp_cork(tconn->meta.socket);
 		if (tconn_finish_peer_reqs(tconn)) {
 			conn_err(tconn, "tconn_finish_peer_reqs() failed\n");
 			goto reconnect;
 		}
 		/* but unconditionally uncork unless disabled */
-		if (!tconn->net_conf->no_cork)
+		if (!no_cork)
 			drbd_tcp_uncork(tconn->meta.socket);
 
 		/* short circuit, recv_msg would return EINTR anyways. */
@@ -4984,10 +5072,11 @@ int drbd_asender(struct drbd_thread *thi)
 
 			tconn->last_received = jiffies;
 
-			/* the idle_timeout (ping-int)
-			 * has been restored in got_PingAck() */
-			if (cmd == &asender_tbl[P_PING_ACK])
-				ping_timeout_active = 0;
+			if (cmd == &asender_tbl[P_PING_ACK]) {
+				/* restore idle timeout */
+				tconn->meta.socket->sk->sk_rcvtimeo = ping_int * HZ;
+				ping_timeout_active = false;
+			}
 
 			buf	 = tconn->meta.rbuf;
 			received = 0;

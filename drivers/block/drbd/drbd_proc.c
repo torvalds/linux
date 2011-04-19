@@ -197,6 +197,8 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	int i, prev_i = -1;
 	const char *sn;
 	struct drbd_conf *mdev;
+	struct net_conf *nc;
+	char wp;
 
 	static char write_ordering_chars[] = {
 		[WO_none] = 'n',
@@ -240,6 +242,10 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    mdev->state.role == R_SECONDARY) {
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
+			rcu_read_lock();
+			nc = rcu_dereference(mdev->tconn->net_conf);
+			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
+			rcu_read_unlock();
 			seq_printf(seq,
 			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
@@ -249,8 +255,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   drbd_role_str(mdev->state.peer),
 			   drbd_disk_str(mdev->state.disk),
 			   drbd_disk_str(mdev->state.pdsk),
-			   (mdev->tconn->net_conf == NULL ? ' ' :
-			    (mdev->tconn->net_conf->wire_protocol - DRBD_PROT_A+'A')),
+			   wp,
 			   drbd_suspended(mdev) ? 's' : 'r',
 			   mdev->state.aftr_isp ? 'a' : '-',
 			   mdev->state.peer_isp ? 'p' : '-',

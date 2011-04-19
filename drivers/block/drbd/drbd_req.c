@@ -323,6 +323,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m)
 {
 	struct drbd_conf *mdev = req->w.mdev;
+	struct net_conf *nc;
 	int p, rv = 0;
 
 	if (m)
@@ -344,7 +345,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * and from w_read_retry_remote */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 		req->rq_state |= RQ_NET_PENDING;
-		p = mdev->tconn->net_conf->wire_protocol;
+		rcu_read_lock();
+		nc = rcu_dereference(mdev->tconn->net_conf);
+		p = nc->wire_protocol;
+		rcu_read_unlock();
 		req->rq_state |=
 			p == DRBD_PROT_C ? RQ_EXP_WRITE_ACK :
 			p == DRBD_PROT_B ? RQ_EXP_RECEIVE_ACK : 0;
@@ -474,7 +478,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 
 		/* close the epoch, in case it outgrew the limit */
-		if (mdev->tconn->newest_tle->n_writes >= mdev->tconn->net_conf->max_epoch_size)
+		rcu_read_lock();
+		nc = rcu_dereference(mdev->tconn->net_conf);
+		p = nc->max_epoch_size;
+		rcu_read_unlock();
+		if (mdev->tconn->newest_tle->n_writes >= p)
 			queue_barrier(mdev);
 
 		break;
@@ -729,6 +737,7 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	const sector_t sector = bio->bi_sector;
 	struct drbd_tl_epoch *b = NULL;
 	struct drbd_request *req;
+	struct net_conf *nc;
 	int local, remote, send_oos = 0;
 	int err;
 	int ret = 0;
@@ -935,17 +944,19 @@ allocate_barrier:
 	if (send_oos && drbd_set_out_of_sync(mdev, sector, size))
 		_req_mod(req, QUEUE_FOR_SEND_OOS);
 
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
 	if (remote &&
-	    mdev->tconn->net_conf->on_congestion != OC_BLOCK && mdev->tconn->agreed_pro_version >= 96) {
+	    nc->on_congestion != OC_BLOCK && mdev->tconn->agreed_pro_version >= 96) {
 		int congested = 0;
 
-		if (mdev->tconn->net_conf->cong_fill &&
-		    atomic_read(&mdev->ap_in_flight) >= mdev->tconn->net_conf->cong_fill) {
+		if (nc->cong_fill &&
+		    atomic_read(&mdev->ap_in_flight) >= nc->cong_fill) {
 			dev_info(DEV, "Congestion-fill threshold reached\n");
 			congested = 1;
 		}
 
-		if (mdev->act_log->used >= mdev->tconn->net_conf->cong_extents) {
+		if (mdev->act_log->used >= nc->cong_extents) {
 			dev_info(DEV, "Congestion-extents threshold reached\n");
 			congested = 1;
 		}
@@ -953,12 +964,13 @@ allocate_barrier:
 		if (congested) {
 			queue_barrier(mdev); /* last barrier, after mirrored writes */
 
-			if (mdev->tconn->net_conf->on_congestion == OC_PULL_AHEAD)
+			if (nc->on_congestion == OC_PULL_AHEAD)
 				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
-			else  /*mdev->tconn->net_conf->on_congestion == OC_DISCONNECT */
+			else  /*nc->on_congestion == OC_DISCONNECT */
 				_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
 		}
 	}
+	rcu_read_unlock();
 
 	spin_unlock_irq(&mdev->tconn->req_lock);
 	kfree(b); /* if someone else has beaten us to it... */
@@ -1058,12 +1070,14 @@ void request_timer_fn(unsigned long data)
 	struct drbd_tconn *tconn = mdev->tconn;
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
-	unsigned long et = 0; /* effective timeout = ko_count * timeout */
+	struct net_conf *nc;
+	unsigned long et; /* effective timeout = ko_count * timeout */
 
-	if (get_net_conf(tconn)) {
-		et = tconn->net_conf->timeout*HZ/10 * tconn->net_conf->ko_count;
-		put_net_conf(tconn);
-	}
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+	et = nc ? nc->timeout * HZ/10 * nc->ko_count : 0;
+	rcu_read_unlock();
+
 	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
 		return; /* Recurring timer stopped */
 

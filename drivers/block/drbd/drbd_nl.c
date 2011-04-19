@@ -257,27 +257,30 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
 static void setup_khelper_env(struct drbd_tconn *tconn, char **envp)
 {
 	char *afs;
+	struct net_conf *nc;
 
-	if (get_net_conf(tconn)) {
-		switch (((struct sockaddr *)tconn->net_conf->peer_addr)->sa_family) {
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+	if (nc) {
+		switch (((struct sockaddr *)nc->peer_addr)->sa_family) {
 		case AF_INET6:
 			afs = "ipv6";
 			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI6",
-				 &((struct sockaddr_in6 *)tconn->net_conf->peer_addr)->sin6_addr);
+				 &((struct sockaddr_in6 *)nc->peer_addr)->sin6_addr);
 			break;
 		case AF_INET:
 			afs = "ipv4";
 			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)tconn->net_conf->peer_addr)->sin_addr);
+				 &((struct sockaddr_in *)nc->peer_addr)->sin_addr);
 			break;
 		default:
 			afs = "ssocks";
 			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)tconn->net_conf->peer_addr)->sin_addr);
+				 &((struct sockaddr_in *)nc->peer_addr)->sin_addr);
 		}
 		snprintf(envp[3], 20, "DRBD_PEER_AF=%s", afs);
-		put_net_conf(tconn);
 	}
+	rcu_read_unlock();
 }
 
 int drbd_khelper(struct drbd_conf *mdev, char *cmd)
@@ -493,6 +496,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 {
 	const int max_tries = 4;
 	enum drbd_state_rv rv = SS_UNKNOWN_ERROR;
+	struct net_conf *nc;
 	int try = 0;
 	int forced = 0;
 	union drbd_state mask, val;
@@ -550,7 +554,12 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		if (rv == SS_TWO_PRIMARIES) {
 			/* Maybe the peer is detected as dead very soon...
 			   retry at most once more in this case. */
-			schedule_timeout_interruptible((mdev->tconn->net_conf->ping_timeo+1)*HZ/10);
+			int timeo;
+			rcu_read_lock();
+			nc = rcu_dereference(mdev->tconn->net_conf);
+			timeo = nc ? (nc->ping_timeo + 1) * HZ / 10 : 1;
+			rcu_read_unlock();
+			schedule_timeout_interruptible(timeo);
 			if (try < max_tries)
 				try = max_tries - 1;
 			continue;
@@ -580,10 +589,11 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			put_ldev(mdev);
 		}
 	} else {
-		if (get_net_conf(mdev->tconn)) {
-			mdev->tconn->net_conf->want_lose = 0;
-			put_net_conf(mdev->tconn);
-		}
+		rcu_read_lock();
+		nc = rcu_dereference(mdev->tconn->net_conf);
+		if (nc)
+			nc->want_lose = 0;
+		rcu_read_unlock();
 		set_disk_ro(mdev->vdisk, false);
 		if (get_ldev(mdev)) {
 			if (((mdev->state.conn < C_CONNECTED ||
@@ -1193,6 +1203,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
 	enum drbd_state_rv rv;
+	struct net_conf *nc;
 	int cp_discovered = 0;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
@@ -1256,14 +1267,16 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	if (get_net_conf(mdev->tconn)) {
-		int prot = mdev->tconn->net_conf->wire_protocol;
-		put_net_conf(mdev->tconn);
-		if (nbc->dc.fencing == FP_STONITH && prot == DRBD_PROT_A) {
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+	if (nc) {
+		if (nbc->dc.fencing == FP_STONITH && nc->wire_protocol == DRBD_PROT_A) {
+			rcu_read_unlock();
 			retcode = ERR_STONITH_AND_PROT_A;
 			goto fail;
 		}
 	}
+	rcu_read_unlock();
 
 	bdev = blkdev_get_by_path(nbc->dc.backing_dev,
 				  FMODE_READ | FMODE_WRITE | FMODE_EXCL, mdev);
@@ -1666,42 +1679,30 @@ static bool conn_ov_running(struct drbd_tconn *tconn)
 }
 
 static enum drbd_ret_code
-check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
+_check_net_options(struct drbd_tconn *tconn, struct net_conf *old_conf, struct net_conf *new_conf)
 {
 	struct drbd_conf *mdev;
 	int i;
 
-	if (tconn->net_conf && tconn->agreed_pro_version < 100 &&
+	if (old_conf && tconn->agreed_pro_version < 100 &&
 	    tconn->cstate == C_WF_REPORT_PARAMS &&
-	    new_conf->wire_protocol != tconn->net_conf->wire_protocol)
+	    new_conf->wire_protocol != old_conf->wire_protocol)
 		return ERR_NEED_APV_100;
 
 	if (new_conf->two_primaries &&
 	    (new_conf->wire_protocol != DRBD_PROT_C))
 		return ERR_NOT_PROTO_C;
 
-	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {
 		if (get_ldev(mdev)) {
 			enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
 			put_ldev(mdev);
-			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
-				rcu_read_unlock();
+			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH)
 				return ERR_STONITH_AND_PROT_A;
-			}
 		}
-		if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
-			rcu_read_unlock();
+		if (mdev->state.role == R_PRIMARY && new_conf->want_lose)
 			return ERR_DISCARD;
-		}
-		if (!mdev->bitmap) {
-			if(drbd_bm_init(mdev)) {
-				rcu_read_unlock();
-				return ERR_NOMEM;
-			}
-		}
 	}
-	rcu_read_unlock();
 
 	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A)
 		return ERR_CONG_NOT_PROTO_A;
@@ -1709,11 +1710,33 @@ check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
 	return NO_ERROR;
 }
 
+static enum drbd_ret_code
+check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
+{
+	static enum drbd_ret_code rv;
+	struct drbd_conf *mdev;
+	int i;
+
+	rcu_read_lock();
+	rv = _check_net_options(tconn, rcu_dereference(tconn->net_conf), new_conf);
+	rcu_read_unlock();
+
+	/* tconn->volumes protected by genl_lock() here */
+	idr_for_each_entry(&tconn->volumes, mdev, i) {
+		if (!mdev->bitmap) {
+			if(drbd_bm_init(mdev))
+				return ERR_NOMEM;
+		}
+	}
+
+	return rv;
+}
+
 int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
 	struct drbd_tconn *tconn;
-	struct net_conf *new_conf = NULL;
+	struct net_conf *old_conf, *new_conf = NULL;
 	int err;
 	int ovr; /* online verify running */
 	int rsr; /* re-sync running */
@@ -1735,17 +1758,20 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	/* we also need a net config
-	 * to change the options on */
-	if (!get_net_conf(tconn)) {
-		drbd_msg_put_info("net conf missing, try connect");
-		retcode = ERR_INVALID_REQUEST;
-		goto out;
-	}
-
 	conn_reconfig_start(tconn);
 
-	memcpy(new_conf, tconn->net_conf, sizeof(*new_conf));
+	rcu_read_lock();
+	old_conf = rcu_dereference(tconn->net_conf);
+
+	if (!old_conf) {
+		drbd_msg_put_info("net conf missing, try connect");
+		retcode = ERR_INVALID_REQUEST;
+		goto fail_rcu_unlock;
+	}
+
+	*new_conf = *old_conf;
+	rcu_read_unlock();
+
 	err = net_conf_from_attrs_for_change(new_conf, info);
 	if (err) {
 		retcode = ERR_MANDATORY_TAG;
@@ -1759,10 +1785,13 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 
 	/* re-sync running */
 	rsr = conn_resync_running(tconn);
-	if (rsr && strcmp(new_conf->csums_alg, tconn->net_conf->csums_alg)) {
+	rcu_read_lock();
+	old_conf = rcu_dereference(tconn->net_conf);
+	if (rsr && old_conf && strcmp(new_conf->csums_alg, old_conf->csums_alg)) {
 		retcode = ERR_CSUMS_RESYNC_RUNNING;
-		goto fail;
+		goto fail_rcu_unlock;
 	}
+	rcu_read_unlock();
 
 	if (!rsr && new_conf->csums_alg[0]) {
 		csums_tfm = crypto_alloc_hash(new_conf->csums_alg, 0, CRYPTO_ALG_ASYNC);
@@ -1780,12 +1809,15 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 
 	/* online verify running */
 	ovr = conn_ov_running(tconn);
-	if (ovr) {
-		if (strcmp(new_conf->verify_alg, tconn->net_conf->verify_alg)) {
+	rcu_read_lock();
+	old_conf = rcu_dereference(tconn->net_conf);
+	if (ovr && old_conf) {
+		if (strcmp(new_conf->verify_alg, old_conf->verify_alg)) {
 			retcode = ERR_VERIFY_RUNNING;
-			goto fail;
+			goto fail_rcu_unlock;
 		}
 	}
+	rcu_read_unlock();
 
 	if (!ovr && new_conf->verify_alg[0]) {
 		verify_tfm = crypto_alloc_hash(new_conf->verify_alg, 0, CRYPTO_ALG_ASYNC);
@@ -1801,16 +1833,9 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-
-	/* For now, use struct assignment, not pointer assignment.
-	 * We don't have any means to determine who might still
-	 * keep a local alias into the struct,
-	 * so we cannot just free it and hope for the best :(
-	 * FIXME
-	 * To avoid someone looking at a half-updated struct, we probably
-	 * should have a rw-semaphor on net_conf and disk_conf.
-	 */
-	*tconn->net_conf = *new_conf;
+	rcu_assign_pointer(tconn->net_conf, new_conf);
+	synchronize_rcu();
+	kfree(old_conf);
 
 	if (!rsr) {
 		crypto_free_hash(tconn->csums_tfm);
@@ -1826,11 +1851,12 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	if (tconn->cstate >= C_WF_REPORT_PARAMS)
 		drbd_send_sync_param(minor_to_mdev(conn_lowest_minor(tconn)));
 
+ fail_rcu_unlock:
+	rcu_read_unlock();
  fail:
 	crypto_free_hash(csums_tfm);
 	crypto_free_hash(verify_tfm);
 	kfree(new_conf);
-	put_net_conf(tconn);
 	conn_reconfig_done(tconn);
  out:
 	drbd_adm_finish(info, retcode);
@@ -1841,7 +1867,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 {
 	char hmac_name[CRYPTO_MAX_ALG_NAME];
 	struct drbd_conf *mdev;
-	struct net_conf *new_conf = NULL;
+	struct net_conf *old_conf, *new_conf = NULL;
 	struct crypto_hash *tfm = NULL;
 	struct crypto_hash *integrity_w_tfm = NULL;
 	struct crypto_hash *integrity_r_tfm = NULL;
@@ -1929,23 +1955,26 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	 * strictly serialized on genl_lock(). We are protected against
 	 * concurrent reconfiguration/addition/deletion */
 	list_for_each_entry(oconn, &drbd_tconns, all_tconn) {
+		struct net_conf *nc;
 		if (oconn == tconn)
 			continue;
-		if (get_net_conf(oconn)) {
-			taken_addr = (struct sockaddr *)&oconn->net_conf->my_addr;
-			if (new_conf->my_addr_len == oconn->net_conf->my_addr_len &&
+
+		rcu_read_lock();
+		nc = rcu_dereference(oconn->net_conf);
+		if (nc) {
+			taken_addr = (struct sockaddr *)&nc->my_addr;
+			if (new_conf->my_addr_len == nc->my_addr_len &&
 			    !memcmp(new_my_addr, taken_addr, new_conf->my_addr_len))
 				retcode = ERR_LOCAL_ADDR;
 
-			taken_addr = (struct sockaddr *)&oconn->net_conf->peer_addr;
-			if (new_conf->peer_addr_len == oconn->net_conf->peer_addr_len &&
+			taken_addr = (struct sockaddr *)&nc->peer_addr;
+			if (new_conf->peer_addr_len == nc->peer_addr_len &&
 			    !memcmp(new_peer_addr, taken_addr, new_conf->peer_addr_len))
 				retcode = ERR_PEER_ADDR;
-
-			put_net_conf(oconn);
-			if (retcode != NO_ERROR)
-				goto fail;
 		}
+		rcu_read_unlock();
+		if (retcode != NO_ERROR)
+			goto fail;
 	}
 
 	if (new_conf->cram_hmac_alg[0] != 0) {
@@ -2004,12 +2033,15 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	conn_flush_workqueue(tconn);
 	spin_lock_irq(&tconn->req_lock);
-	if (tconn->net_conf != NULL) {
+	rcu_read_lock();
+	old_conf = rcu_dereference(tconn->net_conf);
+	if (old_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
+		rcu_read_unlock();
 		spin_unlock_irq(&tconn->req_lock);
 		goto fail;
 	}
-	tconn->net_conf = new_conf;
+	rcu_assign_pointer(tconn->net_conf, new_conf);
 
 	crypto_free_hash(tconn->cram_hmac_tfm);
 	tconn->cram_hmac_tfm = tfm;
@@ -2464,9 +2496,9 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		const struct sib_info *sib)
 {
 	struct state_info *si = NULL; /* for sizeof(si->member); */
+	struct net_conf *nc;
 	struct nlattr *nla;
 	int got_ldev;
-	int got_net;
 	int err = 0;
 	int exclude_sensitive;
 
@@ -2484,7 +2516,6 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 	exclude_sensitive = sib || !capable(CAP_SYS_ADMIN);
 
 	got_ldev = get_ldev(mdev);
-	got_net = get_net_conf(mdev->tconn);
 
 	/* We need to add connection name and volume number information still.
 	 * Minor number is in drbd_genlmsghdr. */
@@ -2497,9 +2528,14 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 	if (got_ldev)
 		if (disk_conf_to_skb(skb, &mdev->ldev->dc, exclude_sensitive))
 			goto nla_put_failure;
-	if (got_net)
-		if (net_conf_to_skb(skb, mdev->tconn->net_conf, exclude_sensitive))
-			goto nla_put_failure;
+
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+	if (nc)
+		err = net_conf_to_skb(skb, nc, exclude_sensitive);
+	rcu_read_unlock();
+	if (err)
+		goto nla_put_failure;
 
 	nla = nla_nest_start(skb, DRBD_NLA_STATE_INFO);
 	if (!nla)
@@ -2546,8 +2582,6 @@ nla_put_failure:
 		err = -EMSGSIZE;
 	if (got_ldev)
 		put_ldev(mdev);
-	if (got_net)
-		put_net_conf(mdev->tconn);
 	return err;
 }
 

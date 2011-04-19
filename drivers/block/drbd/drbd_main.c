@@ -843,15 +843,19 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	int size;
 	const int apv = mdev->tconn->agreed_pro_version;
 	enum drbd_packet cmd;
+	struct net_conf *nc;
 
 	sock = &mdev->tconn->data;
 	p = drbd_prepare_command(mdev, sock);
 	if (!p)
 		return -EIO;
 
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+
 	size = apv <= 87 ? sizeof(struct p_rs_param)
 		: apv == 88 ? sizeof(struct p_rs_param)
-			+ strlen(mdev->tconn->net_conf->verify_alg) + 1
+			+ strlen(nc->verify_alg) + 1
 		: apv <= 94 ? sizeof(struct p_rs_param_89)
 		: /* apv >= 95 */ sizeof(struct p_rs_param_95);
 
@@ -876,9 +880,10 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	}
 
 	if (apv >= 88)
-		strcpy(p->verify_alg, mdev->tconn->net_conf->verify_alg);
+		strcpy(p->verify_alg, nc->verify_alg);
 	if (apv >= 89)
-		strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
+		strcpy(p->csums_alg, nc->csums_alg);
+	rcu_read_unlock();
 
 	return drbd_send_command(mdev, sock, cmd, size, NULL, 0);
 }
@@ -887,36 +892,44 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 {
 	struct drbd_socket *sock;
 	struct p_protocol *p;
+	struct net_conf *nc;
 	int size, cf;
-
-	if (tconn->net_conf->dry_run && tconn->agreed_pro_version < 92) {
-		conn_err(tconn, "--dry-run is not supported by peer");
-		return -EOPNOTSUPP;
-	}
 
 	sock = &tconn->data;
 	p = conn_prepare_command(tconn, sock);
 	if (!p)
 		return -EIO;
 
+	rcu_read_lock();
+	nc = rcu_dereference(tconn->net_conf);
+
+	if (nc->dry_run && tconn->agreed_pro_version < 92) {
+		rcu_read_unlock();
+		mutex_unlock(&sock->mutex);
+		conn_err(tconn, "--dry-run is not supported by peer");
+		return -EOPNOTSUPP;
+	}
+
 	size = sizeof(*p);
 	if (tconn->agreed_pro_version >= 87)
-		size += strlen(tconn->net_conf->integrity_alg) + 1;
+		size += strlen(nc->integrity_alg) + 1;
 
-	p->protocol      = cpu_to_be32(tconn->net_conf->wire_protocol);
-	p->after_sb_0p   = cpu_to_be32(tconn->net_conf->after_sb_0p);
-	p->after_sb_1p   = cpu_to_be32(tconn->net_conf->after_sb_1p);
-	p->after_sb_2p   = cpu_to_be32(tconn->net_conf->after_sb_2p);
-	p->two_primaries = cpu_to_be32(tconn->net_conf->two_primaries);
+	p->protocol      = cpu_to_be32(nc->wire_protocol);
+	p->after_sb_0p   = cpu_to_be32(nc->after_sb_0p);
+	p->after_sb_1p   = cpu_to_be32(nc->after_sb_1p);
+	p->after_sb_2p   = cpu_to_be32(nc->after_sb_2p);
+	p->two_primaries = cpu_to_be32(nc->two_primaries);
 	cf = 0;
-	if (tconn->net_conf->want_lose)
+	if (nc->want_lose)
 		cf |= CF_WANT_LOSE;
-	if (tconn->net_conf->dry_run)
+	if (nc->dry_run)
 		cf |= CF_DRY_RUN;
 	p->conn_flags    = cpu_to_be32(cf);
 
 	if (tconn->agreed_pro_version >= 87)
-		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
+		strcpy(p->integrity_alg, nc->integrity_alg);
+	rcu_read_unlock();
+
 	return conn_send_command(tconn, sock, P_PROTOCOL, size, NULL, 0);
 }
 
@@ -940,7 +953,9 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
 	p->uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
-	uuid_flags |= mdev->tconn->net_conf->want_lose ? 1 : 0;
+	rcu_read_lock();
+	uuid_flags |= rcu_dereference(mdev->tconn->net_conf)->want_lose ? 1 : 0;
+	rcu_read_unlock();
 	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
 	uuid_flags |= mdev->new_state_tmp.disk == D_INCONSISTENT ? 4 : 0;
 	p->uuid[UI_FLAGS] = cpu_to_be64(uuid_flags);
@@ -1136,12 +1151,14 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 	unsigned long rl;
 	unsigned len;
 	unsigned toggle;
-	int bits;
+	int bits, use_rle;
 
 	/* may we use this feature? */
-	if ((mdev->tconn->net_conf->use_rle == 0) ||
-		(mdev->tconn->agreed_pro_version < 90))
-			return 0;
+	rcu_read_lock();
+	use_rle = rcu_dereference(mdev->tconn->net_conf)->use_rle;
+	rcu_read_unlock();
+	if (!use_rle || mdev->tconn->agreed_pro_version < 90)
+		return 0;
 
 	if (c->bit_offset >= c->bm_bits)
 		return 0; /* nothing to do. */
@@ -1812,7 +1829,9 @@ int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
 	if (sock == tconn->data.socket) {
-		tconn->ko_count = tconn->net_conf->ko_count;
+		rcu_read_lock();
+		tconn->ko_count = rcu_dereference(tconn->net_conf)->ko_count;
+		rcu_read_unlock();
 		drbd_update_congested(tconn);
 	}
 	do {
@@ -3235,15 +3254,18 @@ const char *cmdname(enum drbd_packet cmd)
  */
 int drbd_wait_misc(struct drbd_conf *mdev, struct drbd_interval *i)
 {
-	struct net_conf *net_conf = mdev->tconn->net_conf;
+	struct net_conf *nc;
 	DEFINE_WAIT(wait);
 	long timeout;
 
-	if (!net_conf)
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+	if (!nc) {
+		rcu_read_unlock();
 		return -ETIMEDOUT;
-	timeout = MAX_SCHEDULE_TIMEOUT;
-	if (net_conf->ko_count)
-		timeout = net_conf->timeout * HZ / 10 * net_conf->ko_count;
+	}
+	timeout = nc->ko_count ? nc->timeout * HZ / 10 * nc->ko_count : MAX_SCHEDULE_TIMEOUT;
+	rcu_read_unlock();
 
 	/* Indicate to wake up mdev->misc_wait on progress.  */
 	i->waiting = true;

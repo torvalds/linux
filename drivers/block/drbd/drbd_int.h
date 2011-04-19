@@ -832,7 +832,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct mutex cstate_mutex;	/* Protects graceful disconnects */
 
 	unsigned long flags;
-	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+	struct net_conf *net_conf;	/* content protected by rcu */
 	atomic_t net_cnt;		/* Users of net_conf */
 	wait_queue_head_t net_cnt_wait;
 	wait_queue_head_t ping_wait;		/* Woken upon reception of a ping, and a state change */
@@ -2059,11 +2059,14 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
  * maybe re-implement using semaphores? */
 static inline int drbd_get_max_buffers(struct drbd_conf *mdev)
 {
-	int mxb = 1000000; /* arbitrary limit on open requests */
-	if (get_net_conf(mdev->tconn)) {
-		mxb = mdev->tconn->net_conf->max_buffers;
-		put_net_conf(mdev->tconn);
-	}
+	struct net_conf *nc;
+	int mxb;
+
+	rcu_read_lock();
+	nc = rcu_dereference(mdev->tconn->net_conf);
+	mxb = nc ? nc->max_buffers : 1000000;  /* arbitrary limit on open requests */
+	rcu_read_unlock();
+
 	return mxb;
 }
 
