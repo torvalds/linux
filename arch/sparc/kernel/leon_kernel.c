@@ -316,7 +316,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 
 	if (err) {
 		printk(KERN_ERR "leon_time_init: unable to attach IRQ%d\n",
-		       LEON_INTERRUPT_TIMER1);
+		       irq);
 		prom_halt();
 	}
 

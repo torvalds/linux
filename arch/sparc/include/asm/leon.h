@@ -52,29 +52,6 @@
 #define LEON_DIAGF_VALID	0x2000
 #define LEON_DIAGF_VALID_SHIFT	13
 
-/*
- *  Interrupt Sources
- *
- *  The interrupt source numbers directly map to the trap type and to
- *  the bits used in the Interrupt Clear, Interrupt Force, Interrupt Mask,
- *  and the Interrupt Pending Registers.
- */
-#define LEON_INTERRUPT_CORRECTABLE_MEMORY_ERROR	1
-#define LEON_INTERRUPT_UART_1_RX_TX		2
-#define LEON_INTERRUPT_UART_0_RX_TX		3
-#define LEON_INTERRUPT_EXTERNAL_0		4
-#define LEON_INTERRUPT_EXTERNAL_1		5
-#define LEON_INTERRUPT_EXTERNAL_2		6
-#define LEON_INTERRUPT_EXTERNAL_3		7
-#define LEON_INTERRUPT_TIMER1			8
-#define LEON_INTERRUPT_TIMER2			9
-#define LEON_INTERRUPT_EMPTY1			10
-#define LEON_INTERRUPT_EMPTY2			11
-#define LEON_INTERRUPT_OPEN_ETH			12
-#define LEON_INTERRUPT_EMPTY4			13
-#define LEON_INTERRUPT_EMPTY5			14
-#define LEON_INTERRUPT_EMPTY6			15
-
 /* irq masks */
 #define LEON_HARD_INT(x)	(1 << (x))	/* irq 0-15 */
 #define LEON_IRQMASK_R		0x0000fffe	/* bit 15- 1 of lregs.irqmask */
