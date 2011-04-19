@@ -26,7 +26,6 @@
 
 struct leon3_irqctrl_regs_map *leon3_irqctrl_regs; /* interrupt controller base address */
 struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base address */
-struct amba_apb_device leon_percpu_timer_dev[16];
 
 int leondebug_irq_disable;
 int leon_debug_irqout;
@@ -36,6 +35,7 @@ static DEFINE_SPINLOCK(leon_irq_lock);
 
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
+int leon3_ticker_irq; /* Timer ticker IRQ */
 unsigned int sparc_leon_eirq;
 #define LEON_IMASK (&leon3_irqctrl_regs->mask[0])
 #define LEON_IACK (&leon3_irqctrl_regs->iclear)
@@ -271,9 +271,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 			&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl, 0);
 
 #ifdef CONFIG_SMP
-		leon_percpu_timer_dev[0].start = (int)leon3_gptimer_regs;
-		leon_percpu_timer_dev[0].irq = leon3_gptimer_irq + 1 +
-					       leon3_gptimer_idx;
+		leon3_ticker_irq = leon3_gptimer_irq + 1 + leon3_gptimer_idx;
 
 		if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
 		      (1<<LEON3_GPTIMER_SEPIRQ))) {
@@ -322,27 +320,6 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		prom_halt();
 	}
 
-# ifdef CONFIG_SMP
-	{
-		unsigned long flags;
-		struct tt_entry *trap_table = &sparc_ttable[SP_TRAP_IRQ1 + (leon_percpu_timer_dev[0].irq - 1)];
-
-		/* For SMP we use the level 14 ticker, however the bootup code
-		 * has copied the firmwares level 14 vector into boot cpu's
-		 * trap table, we must fix this now or we get squashed.
-		 */
-		local_irq_save(flags);
-
-		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
-
-		/* Adjust so that we jump directly to smpleon_ticker */
-		trap_table->inst_three += smpleon_ticker - real_irq_entry;
-
-		local_flush_cache_all();
-		local_irq_restore(flags);
-	}
-# endif
-
 	if (leon3_gptimer_regs) {
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
 				      LEON3_GPTIMER_EN |
@@ -350,6 +327,18 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 				      LEON3_GPTIMER_LD | LEON3_GPTIMER_IRQEN);
 
 #ifdef CONFIG_SMP
+		/* Install per-cpu IRQ handler for broadcasted ticker */
+		irq = leon_build_device_irq(leon3_ticker_irq,
+						handle_percpu_irq, "per-cpu",
+						0);
+		err = request_irq(irq, leon_percpu_timer_interrupt,
+					IRQF_PERCPU | IRQF_TIMER, "ticker",
+					NULL);
+		if (err) {
+			printk(KERN_ERR "unable to attach ticker IRQ%d\n", irq);
+			prom_halt();
+		}
+
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
 				      LEON3_GPTIMER_EN |
 				      LEON3_GPTIMER_RL |

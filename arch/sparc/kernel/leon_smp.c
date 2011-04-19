@@ -386,27 +386,23 @@ void leon_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
-void leon_percpu_timer_interrupt(struct pt_regs *regs)
+irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused)
 {
-	struct pt_regs *old_regs;
 	int cpu = smp_processor_id();
-
-	old_regs = set_irq_regs(regs);
 
 	leon_clear_profile_irq(cpu);
 
 	profile_tick(CPU_PROFILING);
 
 	if (!--prof_counter(cpu)) {
-		int user = user_mode(regs);
+		int user = user_mode(get_irq_regs());
 
-		irq_enter();
 		update_process_times(user);
-		irq_exit();
 
 		prof_counter(cpu) = prof_multiplier(cpu);
 	}
-	set_irq_regs(old_regs);
+
+	return IRQ_HANDLED;
 }
 
 static void __init smp_setup_percpu_timer(void)
