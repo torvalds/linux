@@ -35,6 +35,8 @@ struct nvme_bar {
 	__u64			acq;	/* Admin CQ Base Address */
 };
 
+#define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
+
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
 	NVME_CC_CSS_NVM		= 0 << 4,

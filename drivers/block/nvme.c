@@ -893,6 +893,8 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
 	u32 aqa;
+	u64 cap;
+	unsigned long timeout;
 	struct nvme_queue *nvmeq;
 
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
@@ -915,10 +917,18 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
 	writel(dev->ctrl_config, &dev->bar->cc);
 
+	cap = readq(&dev->bar->cap);
+	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
+
 	while (!(readl(&dev->bar->csts) & NVME_CSTS_RDY)) {
 		msleep(100);
 		if (fatal_signal_pending(current))
 			return -EINTR;
+		if (time_after(jiffies, timeout)) {
+			dev_err(&dev->pci_dev->dev,
+				"Device not ready; aborting initialisation\n");
+			return -ENODEV;
+		}
 	}
 
 	result = queue_request_irq(dev, nvmeq, "nvme admin");
