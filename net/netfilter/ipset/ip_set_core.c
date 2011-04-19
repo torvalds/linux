@@ -1022,8 +1022,9 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 	if (cb->args[1] >= ip_set_max)
 		goto out;
 
-	pr_debug("args[0]: %ld args[1]: %ld\n", cb->args[0], cb->args[1]);
 	max = cb->args[0] == DUMP_ONE ? cb->args[1] + 1 : ip_set_max;
+dump_last:
+	pr_debug("args[0]: %ld args[1]: %ld\n", cb->args[0], cb->args[1]);
 	for (; cb->args[1] < max; cb->args[1]++) {
 		index = (ip_set_id_t) cb->args[1];
 		set = ip_set_list[index];
@@ -1038,8 +1039,8 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 		 * so that lists (unions of sets) are dumped last.
 		 */
 		if (cb->args[0] != DUMP_ONE &&
-		    !((cb->args[0] == DUMP_ALL) ^
-		      (set->type->features & IPSET_DUMP_LAST)))
+		    ((cb->args[0] == DUMP_ALL) ==
+		     !!(set->type->features & IPSET_DUMP_LAST)))
 			continue;
 		pr_debug("List set: %s\n", set->name);
 		if (!cb->args[2]) {
@@ -1083,6 +1084,12 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 			goto release_refcount;
 		}
 	}
+	/* If we dump all sets, continue with dumping last ones */
+	if (cb->args[0] == DUMP_ALL) {
+		cb->args[0] = DUMP_LAST;
+		cb->args[1] = 0;
+		goto dump_last;
+	}
 	goto out;
 
 nla_put_failure:
@@ -1093,11 +1100,6 @@ release_refcount:
 		pr_debug("release set %s\n", ip_set_list[index]->name);
 		ip_set_put_byindex(index);
 	}
-
-	/* If we dump all sets, continue with dumping last ones */
-	if (cb->args[0] == DUMP_ALL && cb->args[1] >= max && !cb->args[2])
-		cb->args[0] = DUMP_LAST;
-
 out:
 	if (nlh) {
 		nlmsg_end(skb, nlh);
