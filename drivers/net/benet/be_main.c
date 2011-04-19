@@ -3082,9 +3082,22 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 
 	if (be_physfn(adapter) && adapter->sriov_enabled) {
+		u8 mac_speed;
+		bool link_up;
+		u16 vf, lnk_speed;
+
 		status = be_vf_eth_addr_config(adapter);
 		if (status)
 			goto unreg_netdev;
+
+		for (vf = 0; vf < num_vfs; vf++) {
+			status = be_cmd_link_status_query(adapter, &link_up,
+					&mac_speed, &lnk_speed, vf + 1);
+			if (!status)
+				adapter->vf_cfg[vf].vf_tx_rate = lnk_speed * 10;
+			else
+				goto unreg_netdev;
+		}
 	}
 
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
