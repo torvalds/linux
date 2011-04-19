@@ -22,17 +22,17 @@
 /* returns -1 on failure, 0 on success */
 int sysfs_topology_read_file(unsigned int cpu, const char *fname)
 {
- 	unsigned long value;
+	unsigned long value;
 	char linebuf[MAX_LINE_LEN];
 	char *endp;
 	char path[SYSFS_PATH_MAX];
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/topology/%s",
 			 cpu, fname);
-	if (sysfs_read_file(path, linebuf, MAX_LINE_LEN) == 0 )
+	if (sysfs_read_file(path, linebuf, MAX_LINE_LEN) == 0)
 		return -1;
 	value = strtoul(linebuf, &endp, 0);
-	if ( endp == linebuf || errno == ERANGE )
+	if (endp == linebuf || errno == ERANGE)
 		return -1;
 	return value;
 }

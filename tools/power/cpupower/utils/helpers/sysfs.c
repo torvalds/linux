@@ -19,14 +19,14 @@
 unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 {
 	int fd;
-	size_t numread;
+	ssize_t numread;
 
-	if ( ( fd = open(path, O_RDONLY) ) == -1 )
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
 		return 0;
 
 	numread = read(fd, buf, buflen - 1);
-	if ( numread < 1 )
-	{
+	if (numread < 1) {
 		close(fd);
 		return 0;
 	}
@@ -34,26 +34,26 @@ unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 	buf[numread] = '\0';
 	close(fd);
 
-	return numread;
+	return (unsigned int) numread;
 }
 
 static unsigned int sysfs_write_file(const char *path,
 				     const char *value, size_t len)
 {
 	int fd;
-	size_t numwrite;
+	ssize_t numwrite;
 
-	if ( ( fd = open(path, O_WRONLY) ) == -1 )
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
 		return 0;
 
 	numwrite = write(fd, value, len);
-	if ( numwrite < 1 )
-	{
+	if (numwrite < 1) {
 		close(fd);
 		return 0;
 	}
 	close(fd);
-	return numwrite;
+	return (unsigned int) numwrite;
 }
 
 /* CPUidle idlestate specific /sys/devices/system/cpu/cpuX/cpuidle/ access */
@@ -69,17 +69,17 @@ unsigned int sysfs_idlestate_read_file(unsigned int cpu, unsigned int idlestate,
 {
 	char path[SYSFS_PATH_MAX];
 	int fd;
-	size_t numread;
+	ssize_t numread;
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/cpuidle/state%u/%s",
 		 cpu, idlestate, fname);
 
-	if ( ( fd = open(path, O_RDONLY) ) == -1 )
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
 		return 0;
 
 	numread = read(fd, buf, buflen - 1);
-	if ( numread < 1 )
-	{
+	if (numread < 1) {
 		close(fd);
 		return 0;
 	}
@@ -87,7 +87,7 @@ unsigned int sysfs_idlestate_read_file(unsigned int cpu, unsigned int idlestate,
 	buf[numread] = '\0';
 	close(fd);
 
-	return numread;
+	return (unsigned int) numread;
 }
 
 /* read access to files which contain one numeric value */
@@ -116,19 +116,18 @@ static unsigned long long sysfs_idlestate_get_one_value(unsigned int cpu,
 	char linebuf[MAX_LINE_LEN];
 	char *endp;
 
-	if ( which >= MAX_IDLESTATE_VALUE_FILES )
+	if (which >= MAX_IDLESTATE_VALUE_FILES)
 		return 0;
 
-	if ( ( len = sysfs_idlestate_read_file(cpu, idlestate,
-					    idlestate_value_files[which],
-					    linebuf, sizeof(linebuf))) == 0 )
-	{
+	len = sysfs_idlestate_read_file(cpu, idlestate,
+					idlestate_value_files[which],
+					linebuf, sizeof(linebuf));
+	if (len == 0)
 		return 0;
-	}
 
 	value = strtoull(linebuf, &endp, 0);
 
-	if ( endp == linebuf || errno == ERANGE )
+	if (endp == linebuf || errno == ERANGE)
 		return 0;
 
 	return value;
@@ -148,9 +147,9 @@ static const char *idlestate_string_files[MAX_IDLESTATE_STRING_FILES] = {
 };
 
 
-static char * sysfs_idlestate_get_one_string(unsigned int cpu,
-					  unsigned int idlestate,
-					  enum idlestate_string which)
+static char *sysfs_idlestate_get_one_string(unsigned int cpu,
+					unsigned int idlestate,
+					enum idlestate_string which)
 {
 	char linebuf[MAX_LINE_LEN];
 	char *result;
@@ -159,12 +158,14 @@ static char * sysfs_idlestate_get_one_string(unsigned int cpu,
 	if (which >= MAX_IDLESTATE_STRING_FILES)
 		return NULL;
 
-	if ( ( len = sysfs_idlestate_read_file(cpu, idlestate,
-					    idlestate_string_files[which],
-					    linebuf, sizeof(linebuf))) == 0 )
+	len = sysfs_idlestate_read_file(cpu, idlestate,
+					idlestate_string_files[which],
+					linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
 
-	if ( ( result = strdup(linebuf) ) == NULL )
+	result = strdup(linebuf);
+	if (result == NULL)
 		return NULL;
 
 	if (result[strlen(result) - 1] == '\n')
@@ -173,27 +174,30 @@ static char * sysfs_idlestate_get_one_string(unsigned int cpu,
 	return result;
 }
 
-unsigned long sysfs_get_idlestate_latency(unsigned int cpu, unsigned int idlestate)
+unsigned long sysfs_get_idlestate_latency(unsigned int cpu,
+					unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_value(cpu, idlestate, IDLESTATE_LATENCY);
 }
 
-unsigned long sysfs_get_idlestate_usage(unsigned int cpu, unsigned int idlestate)
+unsigned long sysfs_get_idlestate_usage(unsigned int cpu,
+					unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_value(cpu, idlestate, IDLESTATE_USAGE);
 }
 
-unsigned long long sysfs_get_idlestate_time(unsigned int cpu, unsigned int idlestate)
+unsigned long long sysfs_get_idlestate_time(unsigned int cpu,
+					unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_value(cpu, idlestate, IDLESTATE_TIME);
 }
 
-char * sysfs_get_idlestate_name(unsigned int cpu, unsigned int idlestate)
+char *sysfs_get_idlestate_name(unsigned int cpu, unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_string(cpu, idlestate, IDLESTATE_NAME);
 }
 
-char * sysfs_get_idlestate_desc(unsigned int cpu, unsigned int idlestate)
+char *sysfs_get_idlestate_desc(unsigned int cpu, unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_string(cpu, idlestate, IDLESTATE_DESC);
 }
@@ -211,14 +215,14 @@ int sysfs_get_idlestate_count(unsigned int cpu)
 
 
 	snprintf(file, SYSFS_PATH_MAX, PATH_TO_CPU "cpuidle");
-	if ( stat(file, &statbuf) != 0 || !S_ISDIR(statbuf.st_mode))
+	if (stat(file, &statbuf) != 0 || !S_ISDIR(statbuf.st_mode))
 		return -ENODEV;
 
 	snprintf(file, SYSFS_PATH_MAX, PATH_TO_CPU "cpu%u/cpuidle/state0", cpu);
-	if ( stat(file, &statbuf) != 0 || !S_ISDIR(statbuf.st_mode))
+	if (stat(file, &statbuf) != 0 || !S_ISDIR(statbuf.st_mode))
 		return 0;
 
-	while(stat(file, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) {
+	while (stat(file, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) {
 		snprintf(file, SYSFS_PATH_MAX, PATH_TO_CPU
 			 "cpu%u/cpuidle/state%d", cpu, idlestates);
 		idlestates++;
@@ -261,7 +265,7 @@ static const char *cpuidle_string_files[MAX_CPUIDLE_STRING_FILES] = {
 };
 
 
-static char * sysfs_cpuidle_get_one_string(enum cpuidle_string which)
+static char *sysfs_cpuidle_get_one_string(enum cpuidle_string which)
 {
 	char linebuf[MAX_LINE_LEN];
 	char *result;
@@ -270,11 +274,13 @@ static char * sysfs_cpuidle_get_one_string(enum cpuidle_string which)
 	if (which >= MAX_CPUIDLE_STRING_FILES)
 		return NULL;
 
-	if ( ( len = sysfs_cpuidle_read_file(cpuidle_string_files[which],
-					    linebuf, sizeof(linebuf))) == 0 )
+	len = sysfs_cpuidle_read_file(cpuidle_string_files[which],
+				linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
 
-	if ( ( result = strdup(linebuf) ) == NULL )
+	result = strdup(linebuf);
+	if (result == NULL)
 		return NULL;
 
 	if (result[strlen(result) - 1] == '\n')
@@ -283,7 +289,7 @@ static char * sysfs_cpuidle_get_one_string(enum cpuidle_string which)
 	return result;
 }
 
-char * sysfs_get_cpuidle_governor(void)
+char *sysfs_get_cpuidle_governor(void)
 {
 	char *tmp = sysfs_cpuidle_get_one_string(CPUIDLE_GOVERNOR_RO);
 	if (!tmp)
@@ -292,7 +298,7 @@ char * sysfs_get_cpuidle_governor(void)
 		return tmp;
 }
 
-char * sysfs_get_cpuidle_driver(void)
+char *sysfs_get_cpuidle_driver(void)
 {
 	return sysfs_cpuidle_get_one_string(CPUIDLE_DRIVER);
 }
@@ -304,9 +310,9 @@ char * sysfs_get_cpuidle_driver(void)
  *
  * Returns negative value on failure
  */
-int sysfs_get_sched(const char* smt_mc)
+int sysfs_get_sched(const char *smt_mc)
 {
- 	unsigned long value;
+	unsigned long value;
 	char linebuf[MAX_LINE_LEN];
 	char *endp;
 	char path[SYSFS_PATH_MAX];
@@ -314,11 +320,12 @@ int sysfs_get_sched(const char* smt_mc)
 	if (strcmp("mc", smt_mc) && strcmp("smt", smt_mc))
 		return -EINVAL;
 
-	snprintf(path, sizeof(path), PATH_TO_CPU "sched_%s_power_savings", smt_mc);
-	if (sysfs_read_file(path, linebuf, MAX_LINE_LEN) == 0 )
+	snprintf(path, sizeof(path),
+		PATH_TO_CPU "sched_%s_power_savings", smt_mc);
+	if (sysfs_read_file(path, linebuf, MAX_LINE_LEN) == 0)
 		return -1;
 	value = strtoul(linebuf, &endp, 0);
-	if ( endp == linebuf || errno == ERANGE )
+	if (endp == linebuf || errno == ERANGE)
 		return -1;
 	return value;
 }
@@ -329,7 +336,7 @@ int sysfs_get_sched(const char* smt_mc)
  *
  * Returns negative value on failure
  */
-int sysfs_set_sched(const char* smt_mc, int val)
+int sysfs_set_sched(const char *smt_mc, int val)
 {
 	char linebuf[MAX_LINE_LEN];
 	char path[SYSFS_PATH_MAX];
@@ -338,13 +345,14 @@ int sysfs_set_sched(const char* smt_mc, int val)
 	if (strcmp("mc", smt_mc) && strcmp("smt", smt_mc))
 		return -EINVAL;
 
-	snprintf(path, sizeof(path), PATH_TO_CPU "sched_%s_power_savings", smt_mc);
+	snprintf(path, sizeof(path),
+		PATH_TO_CPU "sched_%s_power_savings", smt_mc);
 	sprintf(linebuf, "%d", val);
 
-	if ( stat(path, &statbuf) != 0 )
+	if (stat(path, &statbuf) != 0)
 		return -ENODEV;
 
-	if (sysfs_write_file(path, linebuf, MAX_LINE_LEN) == 0 )
+	if (sysfs_write_file(path, linebuf, MAX_LINE_LEN) == 0)
 		return -1;
 	return 0;
 }

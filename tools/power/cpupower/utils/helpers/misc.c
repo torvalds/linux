@@ -2,7 +2,8 @@
 
 #include "helpers/helpers.h"
 
-int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active, int * states)
+int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
+			int *states)
 {
 	struct cpupower_cpu_info cpu_info;
 	int ret;

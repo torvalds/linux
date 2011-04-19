@@ -20,7 +20,7 @@
 #ifndef gettext_noop
 #define gettext_noop(String) String
 #endif
-#define N_(String) gettext_noop (String)
+#define N_(String) gettext_noop(String)
 /* Internationalization ****************************/
 
 extern int run_as_root;
@@ -39,11 +39,11 @@ extern int be_verbose;
 #define dprint(fmt, ...) {					\
 		if (be_verbose) {				\
 			fprintf(stderr, "%s: " fmt,		\
-				__FUNCTION__, ##__VA_ARGS__);	\
+				__func__, ##__VA_ARGS__);	\
 		}						\
 	}
 #else
-static inline void dprint(const char *fmt, ...) { }	 
+static inline void dprint(const char *fmt, ...) { }
 #endif
 extern int be_verbose;
 /* Global verbose (-v) stuff *********************************/

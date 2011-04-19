@@ -8,12 +8,12 @@
 #define bitsperlong (8 * sizeof(unsigned long))
 
 /* howmany(a,b) : how many elements of size b needed to hold all of a */
-#define howmany(x,y) (((x)+((y)-1))/(y))
+#define howmany(x, y) (((x)+((y)-1))/(y))
 
 /* How many longs in mask of n bits */
 #define longsperbits(n) howmany(n, bitsperlong)
 
-#define max(a,b) ((a) > (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 
 /*
  * Allocate and free `struct bitmask *`
@@ -73,7 +73,8 @@ static void _setbit(struct bitmask *bmp, unsigned int n, unsigned int v)
 		if (v)
 			bmp->maskp[n/bitsperlong] |= 1UL << (n % bitsperlong);
 		else
-			bmp->maskp[n/bitsperlong] &= ~(1UL << (n % bitsperlong));
+			bmp->maskp[n/bitsperlong] &=
+				~(1UL << (n % bitsperlong));
 	}
 }
 
@@ -185,7 +186,7 @@ unsigned int bitmask_next(const struct bitmask *bmp, unsigned int i)
  *	0-3		0,1,2,3
  *	0-7:2		0,2,4,6
  *	1,3,5-7		1,3,5,6,7
- *	0-3:2,8-15:4	0,2,8,12	
+ *	0-3:2,8-15:4	0,2,8,12
  */
 int bitmask_parselist(const char *buf, struct bitmask *bmp)
 {
@@ -251,7 +252,8 @@ static inline int emit(char *buf, int buflen, int rbot, int rtop, int len)
 	if (rbot == rtop)
 		len += snprintf(buf + len, max(buflen - len, 0), "%d", rbot);
 	else
-		len += snprintf(buf + len, max(buflen - len, 0), "%d-%d", rbot, rtop);
+		len += snprintf(buf + len, max(buflen - len, 0), "%d-%d",
+				rbot, rtop);
 	return len;
 }
 

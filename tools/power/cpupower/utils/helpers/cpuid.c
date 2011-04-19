@@ -67,28 +67,26 @@ int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info)
 			continue;
 		value[63 - 1] = '\0';
 
-		if (!strncmp(value, "processor\t: ", 12)) {
+		if (!strncmp(value, "processor\t: ", 12))
 			sscanf(value, "processor\t: %u", &proc);
-		}
+
 		if (proc != cpu)
 			continue;
 
 		/* Get CPU vendor */
-		if (!strncmp(value, "vendor_id", 9))
+		if (!strncmp(value, "vendor_id", 9)) {
 			for (x = 1; x < X86_VENDOR_MAX; x++) {
 				if (strstr(value, cpu_vendor_table[x]))
 					cpu_info->vendor = x;
 			}
 		/* Get CPU family, etc. */
-		else if (!strncmp(value, "cpu family\t: ", 13)) {
+		} else if (!strncmp(value, "cpu family\t: ", 13)) {
 			sscanf(value, "cpu family\t: %u",
 			       &cpu_info->family);
-		}
-		else if (!strncmp(value, "model\t\t: ", 9)) {
+		} else if (!strncmp(value, "model\t\t: ", 9)) {
 			sscanf(value, "model\t\t: %u",
 			       &cpu_info->model);
-		}
-		else if (!strncmp(value, "stepping\t: ", 10)) {
+		} else if (!strncmp(value, "stepping\t: ", 10)) {
 			sscanf(value, "stepping\t: %u",
 			       &cpu_info->stepping);
 

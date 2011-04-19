@@ -33,7 +33,7 @@ struct pci_dev *pci_acc_init(struct pci_access **pacc, int vendor_id,
 
 	for (i = 0; dev_ids[i] != 0; i++) {
 		filter_nb_link.device = dev_ids[i];
-		for (device=(*pacc)->devices; device; device = device->next) {
+		for (device = (*pacc)->devices; device; device = device->next) {
 			if (pci_filter_match(&filter_nb_link, device))
 				return device;
 		}

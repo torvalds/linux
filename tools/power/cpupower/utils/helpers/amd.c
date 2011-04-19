@@ -53,8 +53,8 @@ static int get_cof(int family, union msr_pstate pstate)
 	if (family == 0x11)
 		t = 0x8;
 
-	return ((100 * (fid + t)) >> did);
- }
+	return (100 * (fid + t)) >> did;
+}
 
 /* Needs:
  * cpu          -> the cpu that gets evaluated
@@ -74,7 +74,7 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 {
 	int i, psmax, pscur;
 	union msr_pstate pstate;
-        unsigned long long val;
+	unsigned long long val;
 
 	/* Only read out frequencies from HW when CPU might be boostable
 	   to keep the code as short and clean as possible.
@@ -95,7 +95,7 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 
 	pscur += boost_states;
 	psmax += boost_states;
-	for (i=0; i<=psmax; i++) {
+	for (i = 0; i <= psmax; i++) {
 		if (i >= MAX_HW_PSTATES) {
 			fprintf(stderr, "HW pstates [%d] exceeding max [%d]\n",
 				psmax, MAX_HW_PSTATES);
