@@ -1611,7 +1611,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	struct btrfs_root *csum_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = btrfs_sb(sb);
-	struct btrfs_fs_info *fs_info = tree_root->fs_info;
+	struct btrfs_fs_info *fs_info = NULL;
 	struct btrfs_root *chunk_root = kzalloc(sizeof(struct btrfs_root),
 						GFP_NOFS);
 	struct btrfs_root *dev_root = kzalloc(sizeof(struct btrfs_root),
@@ -1623,11 +1623,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	struct btrfs_super_block *disk_super;
 
-	if (!extent_root || !tree_root || !fs_info ||
+	if (!extent_root || !tree_root || !tree_root->fs_info ||
 	    !chunk_root || !dev_root || !csum_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
+	fs_info = tree_root->fs_info;
 
 	ret = init_srcu_struct(&fs_info->subvol_srcu);
 	if (ret) {
