@@ -187,6 +187,9 @@ source "drivers/input/gsensor/Kconfig"
 
 source "drivers/input/jogball/Kconfig"
 
+source "drivers/input/lightsensor/Kconfig"
+
+
 endif
 
 menu "Hardware I/O ports"

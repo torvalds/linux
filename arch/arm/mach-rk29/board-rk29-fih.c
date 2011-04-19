@@ -45,6 +45,7 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
+#include <mach/rk29_lightsensor.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -1069,7 +1070,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_MT9P111         /* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x78
+#define SENSOR_IIC_ADDR_0 	    0x78 
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
@@ -1895,6 +1896,17 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+/*****************************************************************************************
+ * mc3202 light sensor
+ * author: sevenxuemin@sina.com
+ *****************************************************************************************/
+#ifdef CONFIG_CM3202
+static struct platform_device rk29_device_lsr = {
+	.name		= "rk29-lsr",
+	.id			= -1,
+};
+
+#endif
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -1918,7 +1930,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART3_RK29
 	&rk29_device_uart3,
 #endif
-
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
 #endif
@@ -2020,6 +2031,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
+#endif
+#ifdef CONFIG_CM3202
+	&rk29_device_lsr,
 #endif
 };
 
