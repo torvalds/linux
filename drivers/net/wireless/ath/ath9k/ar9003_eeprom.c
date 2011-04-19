@@ -3448,9 +3448,13 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPABIASLVL_MSB,
-			      bias >> 2);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPASHORT2GND, 1);
+		if (!AR_SREV_9340(ah)) {
+			REG_RMW_FIELD(ah, AR_CH0_THERM,
+				      AR_CH0_THERM_XPABIASLVL_MSB,
+				      bias >> 2);
+			REG_RMW_FIELD(ah, AR_CH0_THERM,
+				      AR_CH0_THERM_XPASHORT2GND, 1);
+		}
 	}
 }
 
