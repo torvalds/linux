@@ -118,6 +118,7 @@ config CHARGER_PCF50633
 
 config BATTERY_STC3100
 	tristate "STC3100 battery driver"
+	select I2C_DEV_RK29
 	depends on I2C && ARCH_RK29
 	help
 	  Say Y here to enable support for batteries with STC3100(I2C) chip.
