@@ -247,6 +247,17 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 {
 	u32 val;
 
+	switch (ah->hw_version.devid) {
+	case AR5416_AR9100_DEVID:
+		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
+		break;
+	case AR9300_DEVID_AR9340:
+		ah->hw_version.macVersion = AR_SREV_VERSION_9340;
+		val = REG_READ(ah, AR_SREV);
+		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
+		return;
+	}
+
 	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
 
 	if (val == 0xFF) {
@@ -483,9 +494,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
-
-	if (ah->hw_version.devid == AR5416_AR9100_DEVID)
-		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
 
 	ath9k_hw_read_revisions(ah);
 
