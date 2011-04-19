@@ -35,8 +35,6 @@
 /*Append new drm mode definition here, align with libdrm definition*/
 #define DRM_MODE_SCALE_NO_SCALE   2
 
-extern struct ttm_bo_driver psb_ttm_bo_driver;
-
 enum {
 	CHIP_PSB_8108 = 0,
 	CHIP_PSB_8109 = 1,

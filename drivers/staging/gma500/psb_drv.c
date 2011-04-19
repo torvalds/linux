@@ -870,11 +870,11 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		psb_fb = to_psb_fb(drm_fb);
 
 		if (gma_power_begin(dev, 0)) {
-			REG_WRITE(DSPASURF, psb_fb->offset);
+			REG_WRITE(DSPASURF, psb_fb->gtt->offset);
 			REG_READ(DSPASURF);
 			gma_power_end(dev);
 		} else {
-			dev_priv->saveDSPASURF = psb_fb->offset;
+			dev_priv->saveDSPASURF = psb_fb->gtt->offset;
 		}
 
 		return 0;

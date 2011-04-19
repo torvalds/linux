@@ -32,10 +32,7 @@ struct psb_framebuffer {
 	struct drm_framebuffer base;
 	struct address_space *addr_space;
 	struct fb_info *fbdev;
-	struct gtt_range *mem;
-	void * hKernelMemInfo;
-	uint32_t size;
-	uint32_t offset;
+	struct gtt_range *gtt;
 };
 
 struct psb_fbdev {

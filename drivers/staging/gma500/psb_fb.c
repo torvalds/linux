@@ -310,7 +310,7 @@ static struct fb_ops psbfb_ops = {
 
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev, struct drm_mode_fb_cmd *r,
-			 void *mm_private)
+			 struct gtt_range *gt)
 {
 	struct psb_framebuffer *fb;
 	int ret;
@@ -326,7 +326,7 @@ static struct drm_framebuffer *psb_framebuffer_create
 
 	drm_helper_mode_fill_fb_struct(&fb->base, r);
 
-	fb->mem = mm_private;
+	fb->gtt = gt;
 
 	return &fb->base;
 
@@ -380,7 +380,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		goto out_err1;
 	}
 	psbfb = to_psb_fb(fb);
-	psbfb->size = size;
 
 	info = framebuffer_alloc(sizeof(struct psb_fbdev), device);
 	if (!info) {
@@ -524,7 +523,7 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
-		psb_gtt_free_range(dev, psbfb->mem);
+		psb_gtt_free_range(dev, psbfb->gtt);
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		framebuffer_release(info);
@@ -611,7 +610,7 @@ static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 					      unsigned int *handle)
 {
         struct psb_framebuffer *psbfb = to_psb_fb(fb);
-        struct gtt_range *r = psbfb->mem;
+        struct gtt_range *r = psbfb->gtt;
         return drm_gem_handle_create(file_priv, &r->gem, handle);
 }
 
@@ -626,7 +625,7 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	struct gtt_range *r = psbfb->mem;
+	struct gtt_range *r = psbfb->gtt;
 
 	if (psbfb->fbdev)
 		psbfb_remove(dev, fb);
@@ -732,17 +731,6 @@ static void psb_setup_outputs(struct drm_device *dev)
 	}
 }
 
-/* FIXME: rewrite this in terms of the gtt_range and GEM objects
-   rather than faking them as we do now */
-
-static size_t psb_bo_offset(struct drm_device *dev, void *obj)
-{
-	struct psb_framebuffer *psbfb
-		= (struct psb_framebuffer *)obj;
-
-	return (size_t)psbfb->offset;
-}
-
 void psb_modeset_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv =
@@ -751,8 +739,6 @@ void psb_modeset_init(struct drm_device *dev)
 	int i;
 
 	PSB_DEBUG_ENTRY("\n");
-	/* Init mm functions */
-	mode_dev->bo_offset = psb_bo_offset;
 
 	drm_mode_config_init(dev);
 

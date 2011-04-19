@@ -219,17 +219,6 @@ struct drm_psb_register_rw_arg {
 	u32 subpicture_disable_mask;
 };
 
-struct psb_gtt_mapping_arg {
-	void *hKernelMemInfo;
-	u32 offset_pages;
-};
-
-struct drm_psb_getpageaddrs_arg {
-	u32 handle;
-	unsigned long *page_addrs;
-	unsigned long gtt_offset;
-};
-
 /* Controlling the kernel modesetting buffers */
 
 #define DRM_PSB_KMS_OFF		0x00

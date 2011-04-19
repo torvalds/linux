@@ -160,7 +160,7 @@ static void psbfb_fillrect_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
-	offset = psbfb->offset;
+	offset = psbfb->gtt->offset;
 	stride = fb->pitch;
 
 	switch (fb->depth) {
@@ -303,7 +303,7 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
-	offset = psbfb->offset;
+	offset = psbfb->gtt->offset;
 	stride = fb->pitch;
 
 	switch (fb->depth) {
