@@ -150,7 +150,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_h
 	if (status != SCI_SUCCESS)
 		return status;
 
-	status = scic_sds_remote_node_context_start_task(device->rnc, request);
+	status = scic_sds_remote_node_context_start_task(&device->rnc, request);
 	if (status != SCI_SUCCESS)
 		goto out;
 
@@ -173,9 +173,9 @@ static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_h
 	 * remote node context state machine will take the correct action when
 	 * the remote node context is suspended and later resumed.
 	 */
-	scic_sds_remote_node_context_suspend(device->rnc,
+	scic_sds_remote_node_context_suspend(&device->rnc,
 			SCI_SOFTWARE_SUSPENSION, NULL, NULL);
-	scic_sds_remote_node_context_resume(device->rnc,
+	scic_sds_remote_node_context_resume(&device->rnc,
 			scic_sds_remote_device_continue_request,
 			device);
 
@@ -220,7 +220,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_start_io_h
 	if (status != SCI_SUCCESS)
 		return status;
 
-	status = scic_sds_remote_node_context_start_io(sci_dev->rnc, request);
+	status = scic_sds_remote_node_context_start_io(&sci_dev->rnc, request);
 	if (status != SCI_SUCCESS)
 		goto out;
 
@@ -263,7 +263,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_hand
 		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX
 		    || scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX) {
 			status = scic_sds_remote_node_context_resume(
-				sci_dev->rnc, NULL, NULL);
+				&sci_dev->rnc, NULL, NULL);
 		}
 	}
 
@@ -289,19 +289,16 @@ static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_start_io_ha
 				sci_dev->owning_port,
 				sci_dev,
 				request);
+		if (status != SCI_SUCCESS)
+			return status;
 
-		if (status == SCI_SUCCESS) {
-			status = scic_sds_remote_node_context_start_io(
-					sci_dev->rnc,
-					request);
+		status = scic_sds_remote_node_context_start_io(&sci_dev->rnc, request);
+		if (status != SCI_SUCCESS)
+			return status;
 
-			if (status == SCI_SUCCESS)
-				status = request->state_handlers->start_handler(request);
+		status = request->state_handlers->start_handler(request);
 
-			scic_sds_remote_device_start_request(sci_dev,
-							     request,
-							     status);
-		}
+		scic_sds_remote_device_start_request(sci_dev, request, status);
 	} else
 		status = SCI_FAILURE_INVALID_STATE;
 
@@ -398,9 +395,8 @@ static enum sci_status scic_sds_stp_remote_device_ready_cmd_substate_suspend_han
 {
 	enum sci_status status;
 
-	status = scic_sds_remote_node_context_suspend(
-		sci_dev->rnc, suspend_type, NULL, NULL
-		);
+	status = scic_sds_remote_node_context_suspend(&sci_dev->rnc,
+						      suspend_type, NULL, NULL);
 
 	return status;
 }
@@ -685,7 +681,7 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(
 
 	sci_dev->working_request = NULL;
 
-	if (scic_sds_remote_node_context_is_ready(sci_dev->rnc)) {
+	if (scic_sds_remote_node_context_is_ready(&sci_dev->rnc)) {
 		/*
 		 * Since the RNC is ready, it's alright to finish completion
 		 * processing (e.g. signal the remote device is ready). */
@@ -694,10 +690,9 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(
 			);
 	} else {
 		scic_sds_remote_node_context_resume(
-			sci_dev->rnc,
+			&sci_dev->rnc,
 			scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler,
-			sci_dev
-			);
+			sci_dev);
 	}
 }
 

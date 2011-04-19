@@ -173,7 +173,7 @@ static void scu_smp_request_construct_task_context(
 {
 	dma_addr_t dma_addr;
 	struct scic_sds_controller *controller;
-	struct scic_sds_remote_device *target_device;
+	struct scic_sds_remote_device *sci_dev;
 	struct scic_sds_port *target_port;
 	struct scu_task_context *task_context;
 
@@ -185,7 +185,7 @@ static void scu_smp_request_construct_task_context(
 	task_context = scic_sds_request_get_task_context(sds_request);
 
 	controller = scic_sds_request_get_controller(sds_request);
-	target_device = scic_sds_request_get_device(sds_request);
+	sci_dev = scic_sds_request_get_device(sds_request);
 	target_port = scic_sds_request_get_port(sds_request);
 
 	/*
@@ -195,7 +195,7 @@ static void scu_smp_request_construct_task_context(
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
 	task_context->connection_rate =
-		scic_remote_device_get_connection_rate(target_device);
+		scic_remote_device_get_connection_rate(sci_dev);
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
@@ -206,8 +206,7 @@ static void scu_smp_request_construct_task_context(
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	/* 04h */
-	task_context->remote_node_index =
-		sds_request->target_device->rnc->remote_node_index;
+	task_context->remote_node_index = sci_dev->rnc.remote_node_index;
 	task_context->command_code = 0;
 	task_context->task_type = SCU_TASK_TYPE_SMP_REQUEST;
 

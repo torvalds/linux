@@ -297,7 +297,7 @@ struct scic_sds_remote_device {
 	 * This field contains the SCU silicon remote node context specific
 	 * information.
 	 */
-	struct scic_sds_remote_node_context *rnc;
+	struct scic_sds_remote_node_context rnc;
 
 	/**
 	 * This field contains the stated request count for the remote device.  The
@@ -523,7 +523,7 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
 #define scic_sds_remote_device_get_sequence(sci_dev) \
 	(\
 		scic_sds_remote_device_get_controller(sci_dev)-> \
-		remote_device_sequence[(sci_dev)->rnc->remote_node_index] \
+		remote_device_sequence[(sci_dev)->rnc.remote_node_index] \
 	)
 
 /**
@@ -554,7 +554,7 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  * This macro returns the remote node index for this device object
  */
 #define scic_sds_remote_device_get_index(sci_dev) \
-	((sci_dev)->rnc->remote_node_index)
+	((sci_dev)->rnc.remote_node_index)
 
 /**
  * scic_sds_remote_device_build_command_context() -

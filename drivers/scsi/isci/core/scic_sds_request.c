@@ -1766,7 +1766,7 @@ enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
 	scic_sds_general_request_construct(scic, sci_dev, io_tag,
 					   user_io_request_object, sci_req);
 
-	if (sci_dev->rnc->remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+	if (sci_dev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
 	scic_remote_device_get_protocols(sci_dev, &device_protocol);

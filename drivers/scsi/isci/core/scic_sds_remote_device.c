@@ -83,8 +83,7 @@
 
 u32 scic_remote_device_get_object_size(void)
 {
-	return sizeof(struct scic_sds_remote_device)
-	       + sizeof(struct scic_sds_remote_node_context);
+	return sizeof (struct scic_sds_remote_device);
 }
 
 enum sci_status scic_remote_device_da_construct(
@@ -111,7 +110,7 @@ enum sci_status scic_remote_device_da_construct(
 		&remote_node_index);
 
 	if (status == SCI_SUCCESS) {
-		sci_dev->rnc->remote_node_index = remote_node_index;
+		sci_dev->rnc.remote_node_index = remote_node_index;
 
 		scic_sds_port_get_attached_sas_address(
 			sci_dev->owning_port, &sci_dev->device_address);
@@ -176,7 +175,7 @@ enum sci_status scic_remote_device_ea_construct(
 		sci_dev, discover_response);
 
 	status = scic_sds_controller_allocate_remote_node_context(
-		scic, sci_dev, &sci_dev->rnc->remote_node_index);
+		scic, sci_dev, &sci_dev->rnc.remote_node_index);
 
 	if (status == SCI_SUCCESS) {
 		if (sci_dev->target_protocols.u.bits.attached_ssp_target) {
@@ -694,7 +693,7 @@ static enum sci_status  scic_sds_remote_device_core_event_handler(
 	case SCU_EVENT_TYPE_RNC_OPS_MISC:
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
-		status = scic_sds_remote_node_context_event_handler(sci_dev->rnc, event_code);
+		status = scic_sds_remote_node_context_event_handler(&sci_dev->rnc, event_code);
 		break;
 	case SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT:
 
@@ -702,7 +701,7 @@ static enum sci_status  scic_sds_remote_device_core_event_handler(
 			status = SCI_SUCCESS;
 
 			/* Suspend the associated RNC */
-			scic_sds_remote_node_context_suspend(sci_dev->rnc,
+			scic_sds_remote_node_context_suspend(&sci_dev->rnc,
 							      SCI_SOFTWARE_SUSPENSION,
 							      NULL, NULL);
 
@@ -889,7 +888,7 @@ static enum sci_status scic_sds_remote_device_stopped_state_start_handler(
 {
 	enum sci_status status;
 
-	status = scic_sds_remote_node_context_resume(sci_dev->rnc,
+	status = scic_sds_remote_node_context_resume(&sci_dev->rnc,
 			scic_sds_remote_device_resume_complete_handler, sci_dev);
 
 	if (status == SCI_SUCCESS)
@@ -923,8 +922,8 @@ static enum sci_status scic_sds_remote_device_stopped_state_destruct_handler(
 
 	scic = scic_sds_remote_device_get_controller(sci_dev);
 	scic_sds_controller_free_remote_node_context(scic, sci_dev,
-						     sci_dev->rnc->remote_node_index);
-	sci_dev->rnc->remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
+						     sci_dev->rnc.remote_node_index);
+	sci_dev->rnc.remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
 
 	sci_base_state_machine_change_state(&sci_dev->state_machine,
 					    SCI_BASE_REMOTE_DEVICE_STATE_FINAL);
@@ -948,7 +947,7 @@ static enum sci_status scic_sds_remote_device_starting_state_stop_handler(
 	/*
 	 * Destroy the remote node context
 	 */
-	scic_sds_remote_node_context_destruct(sci_dev->rnc,
+	scic_sds_remote_node_context_destruct(&sci_dev->rnc,
 		scic_sds_cb_remote_device_rnc_destruct_complete, sci_dev);
 
 	/*
@@ -971,7 +970,7 @@ enum sci_status scic_sds_remote_device_ready_state_stop_handler(
 					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
 
 	if (sci_dev->started_request_count == 0) {
-		scic_sds_remote_node_context_destruct(sci_dev->rnc,
+		scic_sds_remote_node_context_destruct(&sci_dev->rnc,
 			scic_sds_cb_remote_device_rnc_destruct_complete,
 			sci_dev);
 	} else
@@ -1016,8 +1015,8 @@ static enum sci_status scic_sds_remote_device_ready_state_start_task_handler(
 		scic_sds_remote_device_get_port(sci_dev), sci_dev, request);
 
 	if (result == SCI_SUCCESS) {
-		result = scic_sds_remote_node_context_start_task(
-			sci_dev->rnc, request);
+		result = scic_sds_remote_node_context_start_task(&sci_dev->rnc,
+								 request);
 		if (result == SCI_SUCCESS)
 			result = scic_sds_request_start(request);
 
@@ -1046,8 +1045,7 @@ static enum sci_status scic_sds_remote_device_ready_state_start_io_handler(
 		scic_sds_remote_device_get_port(sci_dev), sci_dev, request);
 
 	if (result == SCI_SUCCESS) {
-		result = scic_sds_remote_node_context_start_io(
-			sci_dev->rnc, request);
+		result = scic_sds_remote_node_context_start_io(&sci_dev->rnc, request);
 		if (result == SCI_SUCCESS)
 			result = scic_sds_request_start(request);
 
@@ -1144,7 +1142,7 @@ static enum sci_status scic_sds_remote_device_stopping_state_complete_request_ha
 	scic_sds_remote_device_decrement_request_count(sci_dev);
 
 	if (scic_sds_remote_device_get_request_count(sci_dev) == 0)
-		scic_sds_remote_node_context_destruct(sci_dev->rnc,
+		scic_sds_remote_node_context_destruct(&sci_dev->rnc,
 						      scic_sds_cb_remote_device_rnc_destruct_complete,
 						      sci_dev);
 	return SCI_SUCCESS;
@@ -1491,7 +1489,7 @@ static void scic_sds_remote_device_ready_state_enter(struct sci_base_object *obj
 			  scic_sds_remote_device_state_handler_table,
 			  SCI_BASE_REMOTE_DEVICE_STATE_READY);
 
-	scic->remote_device_sequence[sci_dev->rnc->remote_node_index]++;
+	scic->remote_device_sequence[sci_dev->rnc.remote_node_index]++;
 
 	if (sci_dev->has_ready_substate_machine)
 		sci_base_state_machine_start(&sci_dev->ready_substate_machine);
@@ -1585,7 +1583,7 @@ static void scic_sds_remote_device_resetting_state_enter(
 		);
 
 	scic_sds_remote_node_context_suspend(
-		sci_dev->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
+		&sci_dev->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
 }
 
 /**
@@ -1601,7 +1599,7 @@ static void scic_sds_remote_device_resetting_state_exit(
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
-	scic_sds_remote_node_context_resume(sci_dev->rnc, NULL, NULL);
+	scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
 }
 
 /**
@@ -1661,7 +1659,6 @@ void scic_remote_device_construct(struct scic_sds_port *sci_port,
 {
 	sci_dev->owning_port = sci_port;
 	sci_dev->started_request_count = 0;
-	sci_dev->rnc = (struct scic_sds_remote_node_context *) &sci_dev[1];
 	sci_dev->parent.private = NULL;
 
 	sci_base_state_machine_construct(
@@ -1677,9 +1674,9 @@ void scic_remote_device_construct(struct scic_sds_port *sci_port,
 
 	scic_sds_remote_node_context_construct(
 		sci_dev,
-		sci_dev->rnc,
+		&sci_dev->rnc,
 		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
 		);
 
-	sci_object_set_association(sci_dev->rnc, sci_dev);
+	sci_object_set_association(&sci_dev->rnc, sci_dev);
 }

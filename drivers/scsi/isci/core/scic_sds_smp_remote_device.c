@@ -87,8 +87,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_idle_substate_start_io_h
 			device->owning_port, device, request);
 
 	if (status == SCI_SUCCESS) {
-		status = scic_sds_remote_node_context_start_io(
-				device->rnc, request);
+		status = scic_sds_remote_node_context_start_io(&device->rnc, request);
 
 		if (status == SCI_SUCCESS)
 			status = scic_sds_request_start(request);
