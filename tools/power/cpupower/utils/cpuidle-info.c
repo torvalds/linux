@@ -31,8 +31,7 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	if (idlestates == 0) {
 		printf(_("CPU %u: No idle states\n"), cpu);
 		return;
-	}
-	else if (idlestates <= 0) {
+	} else if (idlestates <= 0) {
 		printf(_("CPU %u: Can't read idle state info\n"), cpu);
 		return;
 	}
@@ -92,7 +91,7 @@ static void cpuidle_general_output(void)
 	}
 
 	printf(_("CPUidle driver: %s\n"), tmp);
-	free (tmp);
+	free(tmp);
 
 	tmp = sysfs_get_cpuidle_governor();
 	if (!tmp) {
@@ -101,7 +100,7 @@ static void cpuidle_general_output(void)
 	}
 
 	printf(_("CPUidle governor: %s\n"), tmp);
-	free (tmp);
+	free(tmp);
 }
 
 static void proc_cpuidle_cpu_output(unsigned int cpu)
@@ -117,8 +116,7 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 		 *	printf(_("CPU %u: No C-states available\n"), cpu);
 		 *	return;
 		 */
-	}
-	else if (cstates <= 0) {
+	} else if (cstates <= 0) {
 		printf(_("CPU %u: Can't read C-state info\n"), cpu);
 		return;
 	}
@@ -143,7 +141,8 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 
 /* --freq / -f */
 
-void idle_info_help(void) {
+void idle_info_help(void)
+{
 	printf(_ ("Usage: cpupower idleinfo [options]\n"));
 	printf(_ ("Options:\n"));
 	printf(_ ("  -s, --silent         Only show general C-state information\n"));
@@ -155,9 +154,9 @@ void idle_info_help(void) {
 }
 
 static struct option info_opts[] = {
-	{ .name="silent",	.has_arg=no_argument,		.flag=NULL,	.val='s'},
-	{ .name="proc",		.has_arg=no_argument,		.flag=NULL,	.val='o'},
-	{ .name="help",		.has_arg=no_argument,		.flag=NULL,	.val='h'},
+	{ .name = "silent",	.has_arg = no_argument,	.flag = NULL,	.val = 's'},
+	{ .name = "proc",	.has_arg = no_argument,	.flag = NULL,	.val = 'o'},
+	{ .name = "help",	.has_arg = no_argument,	.flag = NULL,	.val = 'h'},
 	{ },
 };
 
@@ -202,7 +201,7 @@ int cmd_idle_info(int argc, char **argv)
 			output_param = ret;
 			break;
 		}
-	} while(cont);
+	} while (cont);
 
 	switch (output_param) {
 	case -1:
@@ -219,10 +218,10 @@ int cmd_idle_info(int argc, char **argv)
 	/* Default is: show output of CPU 0 only */
 	if (bitmask_isallclear(cpus_chosen))
 		bitmask_setbit(cpus_chosen, 0);
-		
+
 	if (output_param == 0)
 		cpuidle_general_output();
-			
+
 	for (cpu = bitmask_first(cpus_chosen);
 	     cpu <= bitmask_last(cpus_chosen); cpu++) {
 
@@ -241,5 +240,5 @@ int cmd_idle_info(int argc, char **argv)
 			break;
 		}
 	}
-	return (EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }

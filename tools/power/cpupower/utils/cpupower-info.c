@@ -30,10 +30,10 @@ void info_help(void)
 }
 
 static struct option set_opts[] = {
-	{ .name="perf-bias",	.has_arg=optional_argument,	.flag=NULL,	.val='b'},
-	{ .name="sched-mc",	.has_arg=optional_argument,	.flag=NULL,	.val='m'},
-	{ .name="sched-smt",	.has_arg=optional_argument,	.flag=NULL,	.val='s'},
-	{ .name="help",		.has_arg=no_argument,		.flag=NULL,	.val='h'},
+	{ .name = "perf-bias",	.has_arg = optional_argument,	.flag = NULL,	.val = 'b'},
+	{ .name = "sched-mc",	.has_arg = optional_argument,	.flag = NULL,	.val = 'm'},
+	{ .name = "sched-smt",	.has_arg = optional_argument,	.flag = NULL,	.val = 's'},
+	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ },
 };
 
@@ -57,12 +57,11 @@ int cmd_info(int argc, char **argv)
 			int perf_bias:1;
 		};
 		int params;
-			
 	} params = {};
 	int ret = 0;
 
 	setlocale(LC_ALL, "");
-	textdomain (PACKAGE);
+	textdomain(PACKAGE);
 
 	/* parameter parsing */
 	while ((ret = getopt_long(argc, argv, "msbh", set_opts, NULL)) != -1) {
@@ -105,7 +104,7 @@ int cmd_info(int argc, char **argv)
 			printf(_("not supported\n"));
 		else
 			printf("%d\n", ret);
-	}			
+	}
 	if (params.sched_smt) {
 		ret = sysfs_get_sched("smt");
 		printf(_("System's thread sibling scheduler setting: "));
@@ -123,7 +122,7 @@ int cmd_info(int argc, char **argv)
 	if (params.perf_bias) {
 		if (!run_as_root) {
 			params.perf_bias = 0;
-			printf (_("Intel's performance bias setting needs root privileges\n"));
+			printf(_("Intel's performance bias setting needs root privileges\n"));
 		} else if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_PERF_BIAS)) {
 			printf(_("System does not support Intel's performance"
 				 " bias setting\n"));
@@ -134,7 +133,7 @@ int cmd_info(int argc, char **argv)
 	/* loop over CPUs */
 	for (cpu = bitmask_first(cpus_chosen);
 	     cpu <= bitmask_last(cpus_chosen); cpu++) {
-		
+
 		if (!bitmask_isbitset(cpus_chosen, cpu) ||
 		    cpufreq_cpu_exists(cpu))
 			continue;

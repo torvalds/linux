@@ -43,12 +43,12 @@ void freq_set_help(void)
 }
 
 static struct option set_opts[] = {
-	{ .name="min",		.has_arg=required_argument,	.flag=NULL,	.val='d'},
-	{ .name="max",		.has_arg=required_argument,	.flag=NULL,	.val='u'},
-	{ .name="governor",	.has_arg=required_argument,	.flag=NULL,	.val='g'},
-	{ .name="freq",		.has_arg=required_argument,	.flag=NULL,	.val='f'},
-	{ .name="help",		.has_arg=no_argument,		.flag=NULL,	.val='h'},
-	{ .name="related",	.has_arg=no_argument,		.flag=NULL,	.val='r'},
+	{ .name = "min",	.has_arg = required_argument,	.flag = NULL,	.val = 'd'},
+	{ .name = "max",	.has_arg = required_argument,	.flag = NULL,	.val = 'u'},
+	{ .name = "governor",	.has_arg = required_argument,	.flag = NULL,	.val = 'g'},
+	{ .name = "freq",	.has_arg = required_argument,	.flag = NULL,	.val = 'f'},
+	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
+	{ .name = "related",	.has_arg = no_argument,		.flag = NULL,	.val='r'},
 	{ },
 };
 
@@ -64,7 +64,7 @@ static void print_error(void)
 };
 
 struct freq_units {
-	char*		str_unit;
+	char		*str_unit;
 	int		power_of_ten;
 };
 
@@ -204,7 +204,8 @@ static int do_one_cpu(unsigned int cpu, struct cpufreq_policy *new_pol,
 		else if (new_pol->max)
 			return cpufreq_modify_policy_max(cpu, new_pol->max);
 		else if (new_pol->governor)
-			return cpufreq_modify_policy_governor(cpu, new_pol->governor);
+			return cpufreq_modify_policy_governor(cpu,
+							new_pol->governor);
 
 	default:
 		/* slow path */
@@ -282,15 +283,15 @@ int cmd_freq_set(int argc, char **argv)
 			if ((strlen(optarg) < 3) || (strlen(optarg) > 18)) {
 				print_unknown_arg();
 				return -EINVAL;
-                        }
+			}
 			if ((sscanf(optarg, "%s", gov)) != 1) {
 				print_unknown_arg();
 				return -EINVAL;
-                        }
+			}
 			new_pol.governor = gov;
 			break;
 		}
-	} while(cont);
+	} while (cont);
 
 	/* parameter checking */
 	if (double_parm) {
@@ -339,7 +340,7 @@ int cmd_freq_set(int argc, char **argv)
 	/* loop over CPUs */
 	for (cpu = bitmask_first(cpus_chosen);
 	     cpu <= bitmask_last(cpus_chosen); cpu++) {
-		
+
 		if (!bitmask_isbitset(cpus_chosen, cpu) ||
 		    cpufreq_cpu_exists(cpu))
 			continue;

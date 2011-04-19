@@ -30,10 +30,10 @@ void set_help(void)
 }
 
 static struct option set_opts[] = {
-	{ .name="perf-bias",	.has_arg=optional_argument,	.flag=NULL,	.val='b'},
-	{ .name="sched-mc",	.has_arg=optional_argument,	.flag=NULL,	.val='m'},
-	{ .name="sched-smt",	.has_arg=optional_argument,	.flag=NULL,	.val='s'},
-	{ .name="help",		.has_arg=no_argument,		.flag=NULL,	.val='h'},
+	{ .name = "perf-bias",	.has_arg = optional_argument,	.flag = NULL,	.val = 'b'},
+	{ .name = "sched-mc",	.has_arg = optional_argument,	.flag = NULL,	.val = 'm'},
+	{ .name = "sched-smt",	.has_arg = optional_argument,	.flag = NULL,	.val = 's'},
+	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ },
 };
 
@@ -57,17 +57,17 @@ int cmd_set(int argc, char **argv)
 			int perf_bias:1;
 		};
 		int params;
-			
 	} params;
 	int sched_mc = 0, sched_smt = 0, perf_bias = 0;
 	int ret = 0;
 
 	setlocale(LC_ALL, "");
-	textdomain (PACKAGE);
+	textdomain(PACKAGE);
 
 	params.params = 0;
 	/* parameter parsing */
-	while ((ret = getopt_long(argc, argv, "m:s:b:h", set_opts, NULL)) != -1) {
+	while ((ret = getopt_long(argc, argv, "m:s:b:h",
+						set_opts, NULL)) != -1) {
 		switch (ret) {
 		case 'h':
 			set_help();
@@ -135,7 +135,7 @@ int cmd_set(int argc, char **argv)
 	/* loop over CPUs */
 	for (cpu = bitmask_first(cpus_chosen);
 	     cpu <= bitmask_last(cpus_chosen); cpu++) {
-		
+
 		if (!bitmask_isbitset(cpus_chosen, cpu) ||
 		    cpufreq_cpu_exists(cpu))
 			continue;

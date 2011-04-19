@@ -27,7 +27,7 @@ static unsigned int count_cpus(void)
 	unsigned int cpunr = 0;
 
 	fp = fopen("/proc/stat", "r");
-	if(!fp) {
+	if (!fp) {
 		printf(_("Couldn't count the number of CPUs (%s: %s), assuming 1\n"), "/proc/stat", strerror(errno));
 		return 1;
 	}
@@ -48,7 +48,7 @@ static unsigned int count_cpus(void)
 	fclose(fp);
 
 	/* cpu count starts from 0, on error return 1 (UP) */
-	return (ret+1);
+	return ret + 1;
 }
 
 
@@ -63,7 +63,7 @@ static void proc_cpufreq_output(void)
 	printf(_("          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"));
 
 	nr_cpus = count_cpus();
-	for (cpu=0; cpu < nr_cpus; cpu++) {
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		policy = cpufreq_get_policy(cpu);
 		if (!policy)
 			continue;
@@ -75,7 +75,8 @@ static void proc_cpufreq_output(void)
 			max_pctg = (policy->max * 100) / max;
 		}
 		printf("CPU%3d    %9lu kHz (%3d %%)  -  %9lu kHz (%3d %%)  -  %s\n",
-		       cpu , policy->min, max ? min_pctg : 0, policy->max, max ? max_pctg : 0, policy->governor);
+			cpu , policy->min, max ? min_pctg : 0, policy->max,
+			max ? max_pctg : 0, policy->governor);
 
 		cpufreq_put_policy(policy);
 	}
@@ -89,21 +90,21 @@ static void print_speed(unsigned long speed)
 		tmp = speed % 10000;
 		if (tmp >= 5000)
 			speed += 10000;
-		printf ("%u.%02u GHz", ((unsigned int) speed/1000000),
+		printf("%u.%02u GHz", ((unsigned int) speed/1000000),
 			((unsigned int) (speed%1000000)/10000));
 	} else if (speed > 100000) {
 		tmp = speed % 1000;
 		if (tmp >= 500)
 			speed += 1000;
-		printf ("%u MHz", ((unsigned int) speed / 1000));
+		printf("%u MHz", ((unsigned int) speed / 1000));
 	} else if (speed > 1000) {
 		tmp = speed % 100;
 		if (tmp >= 50)
 			speed += 100;
-		printf ("%u.%01u MHz", ((unsigned int) speed/1000),
+		printf("%u.%01u MHz", ((unsigned int) speed/1000),
 			((unsigned int) (speed%1000)/100));
 	} else
-		printf ("%lu kHz", speed);
+		printf("%lu kHz", speed);
 
 	return;
 }
@@ -116,28 +117,29 @@ static void print_duration(unsigned long duration)
 		tmp = duration % 10000;
 		if (tmp >= 5000)
 			duration += 10000;
-		printf ("%u.%02u ms", ((unsigned int) duration/1000000),
+		printf("%u.%02u ms", ((unsigned int) duration/1000000),
 			((unsigned int) (duration%1000000)/10000));
 	} else if (duration > 100000) {
 		tmp = duration % 1000;
 		if (tmp >= 500)
 			duration += 1000;
-		printf ("%u us", ((unsigned int) duration / 1000));
+		printf("%u us", ((unsigned int) duration / 1000));
 	} else if (duration > 1000) {
 		tmp = duration % 100;
 		if (tmp >= 50)
 			duration += 100;
-		printf ("%u.%01u us", ((unsigned int) duration/1000),
+		printf("%u.%01u us", ((unsigned int) duration/1000),
 			((unsigned int) (duration%1000)/100));
 	} else
-		printf ("%lu ns", duration);
+		printf("%lu ns", duration);
 
 	return;
 }
 
 /* --boost / -b */
 
-static int get_boost_mode(unsigned int cpu) {
+static int get_boost_mode(unsigned int cpu)
+{
 	int support, active, b_states = 0, ret, pstate_no, i;
 	/* ToDo: Make this more global */
 	unsigned long pstates[MAX_HW_PSTATES] = {0,};
@@ -158,13 +160,13 @@ static int get_boost_mode(unsigned int cpu) {
 	   && (cpuid_edx(0x80000007) & (1 << 7)))
 	*/
 
-	printf(_("  boost state support: \n"));
+	printf(_("  boost state support:\n"));
 
 	printf(_("    Supported: %s\n"), support ? _("yes") : _("no"));
 	printf(_("    Active: %s\n"), active ? _("yes") : _("no"));
 
 	/* ToDo: Only works for AMD for now... */
-	
+
 	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
 	    cpupower_cpu_info.family >= 0x10) {
 		ret = decode_pstates(cpu, cpupower_cpu_info.family, b_states,
@@ -196,12 +198,11 @@ static void debug_output_one(unsigned int cpu)
 	unsigned long total_trans, latency;
 	unsigned long long total_time;
 	struct cpufreq_policy *policy;
-	struct cpufreq_available_governors * governors;
+	struct cpufreq_available_governors *governors;
 	struct cpufreq_stats *stats;
 
-	if (cpufreq_cpu_exists(cpu)) {
+	if (cpufreq_cpu_exists(cpu))
 		return;
-	}
 
 	freq_kernel = cpufreq_get_freq_kernel(cpu);
 	freq_hardware = cpufreq_get_freq_hardware(cpu);
@@ -294,8 +295,7 @@ static void debug_output_one(unsigned int cpu)
 		if (freq_hardware) {
 			print_speed(freq_hardware);
 			printf(_(" (asserted by call to hardware)"));
-		}
-		else
+		} else
 			print_speed(freq_kernel);
 		printf(".\n");
 	}
@@ -322,7 +322,8 @@ static void debug_output_one(unsigned int cpu)
 
 /* --freq / -f */
 
-static int get_freq_kernel(unsigned int cpu, unsigned int human) {
+static int get_freq_kernel(unsigned int cpu, unsigned int human)
+{
 	unsigned long freq = cpufreq_get_freq_kernel(cpu);
 	if (!freq)
 		return -EINVAL;
@@ -337,7 +338,8 @@ static int get_freq_kernel(unsigned int cpu, unsigned int human) {
 
 /* --hwfreq / -w */
 
-static int get_freq_hardware(unsigned int cpu, unsigned int human) {
+static int get_freq_hardware(unsigned int cpu, unsigned int human)
+{
 	unsigned long freq = cpufreq_get_freq_hardware(cpu);
 	if (!freq)
 		return -EINVAL;
@@ -351,7 +353,8 @@ static int get_freq_hardware(unsigned int cpu, unsigned int human) {
 
 /* --hwlimits / -l */
 
-static int get_hardware_limits(unsigned int cpu) {
+static int get_hardware_limits(unsigned int cpu)
+{
 	unsigned long min, max;
 	if (cpufreq_get_hardware_limits(cpu, &min, &max))
 		return -EINVAL;
@@ -361,7 +364,8 @@ static int get_hardware_limits(unsigned int cpu) {
 
 /* --driver / -d */
 
-static int get_driver(unsigned int cpu) {
+static int get_driver(unsigned int cpu)
+{
 	char *driver = cpufreq_get_driver(cpu);
 	if (!driver)
 		return -EINVAL;
@@ -372,7 +376,8 @@ static int get_driver(unsigned int cpu) {
 
 /* --policy / -p */
 
-static int get_policy(unsigned int cpu) {
+static int get_policy(unsigned int cpu)
+{
 	struct cpufreq_policy *policy = cpufreq_get_policy(cpu);
 	if (!policy)
 		return -EINVAL;
@@ -383,8 +388,10 @@ static int get_policy(unsigned int cpu) {
 
 /* --governors / -g */
 
-static int get_available_governors(unsigned int cpu) {
-	struct cpufreq_available_governors *governors = cpufreq_get_available_governors(cpu);
+static int get_available_governors(unsigned int cpu)
+{
+	struct cpufreq_available_governors *governors =
+		cpufreq_get_available_governors(cpu);
 	if (!governors)
 		return -EINVAL;
 
@@ -400,7 +407,8 @@ static int get_available_governors(unsigned int cpu) {
 
 /* --affected-cpus  / -a */
 
-static int get_affected_cpus(unsigned int cpu) {
+static int get_affected_cpus(unsigned int cpu)
+{
 	struct cpufreq_affected_cpus *cpus = cpufreq_get_affected_cpus(cpu);
 	if (!cpus)
 		return -EINVAL;
@@ -416,7 +424,8 @@ static int get_affected_cpus(unsigned int cpu) {
 
 /* --related-cpus  / -r */
 
-static int get_related_cpus(unsigned int cpu) {
+static int get_related_cpus(unsigned int cpu)
+{
 	struct cpufreq_affected_cpus *cpus = cpufreq_get_related_cpus(cpu);
 	if (!cpus)
 		return -EINVAL;
@@ -432,17 +441,19 @@ static int get_related_cpus(unsigned int cpu) {
 
 /* --stats / -s */
 
-static int get_freq_stats(unsigned int cpu, unsigned int human) {
+static int get_freq_stats(unsigned int cpu, unsigned int human)
+{
 	unsigned long total_trans = cpufreq_get_transitions(cpu);
 	unsigned long long total_time;
 	struct cpufreq_stats *stats = cpufreq_get_stats(cpu, &total_time);
 	while (stats) {
 		if (human) {
 			print_speed(stats->frequency);
-			printf(":%.2f%%", (100.0 * stats->time_in_state) / total_time);
-		}
-		else
-			printf("%lu:%llu", stats->frequency, stats->time_in_state);
+			printf(":%.2f%%",
+				(100.0 * stats->time_in_state) / total_time);
+		} else
+			printf("%lu:%llu",
+				stats->frequency, stats->time_in_state);
 		stats = stats->next;
 		if (stats)
 			printf(", ");
@@ -455,7 +466,8 @@ static int get_freq_stats(unsigned int cpu, unsigned int human) {
 
 /* --latency / -y */
 
-static int get_latency(unsigned int cpu, unsigned int human) {
+static int get_latency(unsigned int cpu, unsigned int human)
+{
 	unsigned long latency = cpufreq_get_transition_latency(cpu);
 	if (!latency)
 		return -EINVAL;
@@ -468,7 +480,8 @@ static int get_latency(unsigned int cpu, unsigned int human) {
 	return 0;
 }
 
-void freq_info_help(void) {
+void freq_info_help(void)
+{
 	printf(_("Usage: cpupower freqinfo [options]\n"));
 	printf(_("Options:\n"));
 	printf(_("  -e, --debug          Prints out debug information [default]\n"));
@@ -494,26 +507,26 @@ void freq_info_help(void) {
 	printf("\n");
 	printf(_("If no argument is given, full output about\n"
 	       "cpufreq is printed which is useful e.g. for reporting bugs.\n\n"));
-	printf(_("By default info of CPU 0 is shown which can be overridden \n"
+	printf(_("By default info of CPU 0 is shown which can be overridden\n"
 		 "with the cpupower --cpu main command option.\n"));
 }
 
 static struct option info_opts[] = {
-	{ .name="debug",	.has_arg=no_argument,		.flag=NULL,	.val='e'},
-	{ .name="boost",	.has_arg=no_argument,		.flag=NULL,	.val='b'},
-	{ .name="freq",		.has_arg=no_argument,		.flag=NULL,	.val='f'},
-	{ .name="hwfreq",	.has_arg=no_argument,		.flag=NULL,	.val='w'},
-	{ .name="hwlimits",	.has_arg=no_argument,		.flag=NULL,	.val='l'},
-	{ .name="driver",	.has_arg=no_argument,		.flag=NULL,	.val='d'},
-	{ .name="policy",	.has_arg=no_argument,		.flag=NULL,	.val='p'},
-	{ .name="governors",	.has_arg=no_argument,		.flag=NULL,	.val='g'},
-	{ .name="related-cpus", .has_arg=no_argument,		.flag=NULL,	.val='r'},
-	{ .name="affected-cpus",.has_arg=no_argument,		.flag=NULL,	.val='a'},
-	{ .name="stats",	.has_arg=no_argument,		.flag=NULL,	.val='s'},
-	{ .name="latency",	.has_arg=no_argument,		.flag=NULL,	.val='y'},
-	{ .name="proc",		.has_arg=no_argument,		.flag=NULL,	.val='o'},
-	{ .name="human",	.has_arg=no_argument,		.flag=NULL,	.val='m'},
-	{ .name="help",		.has_arg=no_argument,		.flag=NULL,	.val='h'},
+	{ .name = "debug",	.has_arg = no_argument,		.flag = NULL,	.val = 'e'},
+	{ .name = "boost",	.has_arg = no_argument,		.flag = NULL,	.val = 'b'},
+	{ .name = "freq",	.has_arg = no_argument,		.flag = NULL,	.val = 'f'},
+	{ .name = "hwfreq",	.has_arg = no_argument,		.flag = NULL,	.val = 'w'},
+	{ .name = "hwlimits",	.has_arg = no_argument,		.flag = NULL,	.val = 'l'},
+	{ .name = "driver",	.has_arg = no_argument,		.flag = NULL,	.val = 'd'},
+	{ .name = "policy",	.has_arg = no_argument,		.flag = NULL,	.val = 'p'},
+	{ .name = "governors",	.has_arg = no_argument,		.flag = NULL,	.val = 'g'},
+	{ .name = "related-cpus", .has_arg = no_argument,	.flag = NULL,	.val = 'r'},
+	{ .name = "affected-cpus",.has_arg = no_argument,	.flag = NULL,	.val = 'a'},
+	{ .name = "stats",	.has_arg = no_argument,		.flag = NULL,	.val = 's'},
+	{ .name = "latency",	.has_arg = no_argument,		.flag = NULL,	.val = 'y'},
+	{ .name = "proc",	.has_arg = no_argument,		.flag = NULL,	.val = 'o'},
+	{ .name = "human",	.has_arg = no_argument,		.flag = NULL,	.val = 'm'},
+	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ },
 };
 
@@ -572,7 +585,7 @@ int cmd_freq_info(int argc, char **argv)
 			fprintf(stderr, "invalid or unknown argument\n");
 			return EXIT_FAILURE;
 		}
-	} while(cont);
+	} while (cont);
 
 	switch (output_param) {
 	case 'o':
@@ -591,7 +604,7 @@ int cmd_freq_info(int argc, char **argv)
 	/* Default is: show output of CPU 0 only */
 	if (bitmask_isallclear(cpus_chosen))
 		bitmask_setbit(cpus_chosen, 0);
-		
+
 	switch (output_param) {
 	case -1:
 		printf(_("You can't specify more than one --cpu parameter and/or\n"
@@ -659,7 +672,7 @@ int cmd_freq_info(int argc, char **argv)
 			break;
 		}
 		if (ret)
-			return (ret);
+			return ret;
 	}
 	return ret;
 }

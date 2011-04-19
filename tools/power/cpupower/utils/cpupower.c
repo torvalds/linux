@@ -50,8 +50,8 @@ static struct cmd_struct commands[] = {
 	{ "set",		cmd_set,	set_help,	1	},
 	{ "info",		cmd_info,	info_help,	0	},
 	{ "monitor",		cmd_monitor,	monitor_help,	0	},
-	{ "help",		cmd_help,	print_help,		0	},
-	//	{ "bench",	cmd_bench,	NULL,		1	},
+	{ "help",		cmd_help,	print_help,	0	},
+	/*	{ "bench",	cmd_bench,	NULL,		1	}, */
 };
 
 int cmd_help(int argc, const char **argv)
@@ -95,8 +95,9 @@ static void print_help(void)
 	printf(_("\nUse cpupower help subcommand for getting help for above subcommands.\n"));
 }
 
-static void print_version(void) {
-        printf(PACKAGE " " VERSION "\n");
+static void print_version(void)
+{
+	printf(PACKAGE " " VERSION "\n");
 	printf(_("Report errors and bugs to %s, please.\n"), PACKAGE_BUGREPORT);
 }
 
@@ -109,10 +110,10 @@ static void handle_options(int *argc, const char ***argv)
 
 	for (x = 0;  x < *argc && ((*argv)[x])[0] == '-'; x++) {
 		const char *param = (*argv)[x];
-		if (!strcmp(param, "-h") || !strcmp(param, "--help")){
+		if (!strcmp(param, "-h") || !strcmp(param, "--help")) {
 			print_help();
 			exit(EXIT_SUCCESS);
-		} else if (!strcmp(param, "-c") || !strcmp(param, "--cpu")){
+		} else if (!strcmp(param, "-c") || !strcmp(param, "--cpu")) {
 			if (*argc < 2) {
 				print_help();
 				exit(EXIT_FAILURE);
@@ -132,13 +133,14 @@ static void handle_options(int *argc, const char ***argv)
 			/* Cut out param: cpupower -c 1 info -> cpupower info */
 			new_argc += 2;
 			continue;
-		} else if (!strcmp(param, "-v") || !strcmp(param, "--version")){
+		} else if (!strcmp(param, "-v") ||
+			!strcmp(param, "--version")) {
 			print_version();
 			exit(EXIT_SUCCESS);
 #ifdef DEBUG
-		} else if (!strcmp(param, "-d") || !strcmp(param, "--debug")){
+		} else if (!strcmp(param, "-d") || !strcmp(param, "--debug")) {
 			be_verbose = 1;
-			new_argc ++;
+			new_argc++;
 			continue;
 #endif
 		} else {
@@ -171,7 +173,7 @@ int main(int argc, const char *argv[])
 	}
 
 	setlocale(LC_ALL, "");
-	textdomain (PACKAGE);
+	textdomain(PACKAGE);
 
 	/* Turn "perf cmd --help" into "perf help cmd" */
 	if (argc > 1 && !strcmp(argv[1], "--help")) {
