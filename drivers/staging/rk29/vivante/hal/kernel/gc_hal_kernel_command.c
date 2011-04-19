@@ -1408,7 +1408,7 @@ gckCOMMAND_Reserve(
     gceSTATUS status;
     gctSIZE_T requiredBytes, bytes;
     gctBOOL acquired = gcvFALSE;
-    gctBOOL semaAcquired = gcvTRUE;
+    gctBOOL semaAcquired = gcvFALSE; // This value must be gcvFALSE
     gckHARDWARE hardware = gcvNULL;
     gctINT32 atomValue;
     gctBOOL atomIncremented = gcvFALSE;
