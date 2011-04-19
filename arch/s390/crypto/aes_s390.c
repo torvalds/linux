@@ -508,11 +508,11 @@ static int __init aes_s390_init(void)
 {
 	int ret;
 
-	if (crypt_s390_func_available(KM_AES_128_ENCRYPT))
+	if (crypt_s390_func_available(KM_AES_128_ENCRYPT, CRYPT_S390_MSA))
 		keylen_flag |= AES_KEYLEN_128;
-	if (crypt_s390_func_available(KM_AES_192_ENCRYPT))
+	if (crypt_s390_func_available(KM_AES_192_ENCRYPT, CRYPT_S390_MSA))
 		keylen_flag |= AES_KEYLEN_192;
-	if (crypt_s390_func_available(KM_AES_256_ENCRYPT))
+	if (crypt_s390_func_available(KM_AES_256_ENCRYPT, CRYPT_S390_MSA))
 		keylen_flag |= AES_KEYLEN_256;
 
 	if (!keylen_flag)

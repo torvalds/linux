@@ -24,6 +24,10 @@
 #define CRYPT_S390_PRIORITY 300
 #define CRYPT_S390_COMPOSITE_PRIORITY 400
 
+#define CRYPT_S390_MSA	0x1
+#define CRYPT_S390_MSA3	0x2
+#define CRYPT_S390_MSA4	0x4
+
 /* s390 cryptographic operations */
 enum crypt_s390_operations {
 	CRYPT_S390_KM   = 0x0100,
@@ -291,13 +295,17 @@ static inline int crypt_s390_kmac(long func, void *param,
  *
  * Returns 1 if func available; 0 if func or op in general not available
  */
-static inline int crypt_s390_func_available(int func)
+static inline int crypt_s390_func_available(int func,
+					    unsigned int facility_mask)
 {
 	unsigned char status[16];
 	int ret;
 
-	/* check if CPACF facility (bit 17) is available */
-	if (!test_facility(17))
+	if (facility_mask & CRYPT_S390_MSA && !test_facility(17))
+		return 0;
+	if (facility_mask & CRYPT_S390_MSA3 && !test_facility(76))
+		return 0;
+	if (facility_mask & CRYPT_S390_MSA4 && !test_facility(77))
 		return 0;
 
 	switch (func & CRYPT_S390_OP_MASK) {

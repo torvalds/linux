@@ -381,8 +381,8 @@ static int des_s390_init(void)
 {
 	int ret;
 
-	if (!crypt_s390_func_available(KM_DEA_ENCRYPT) ||
-	    !crypt_s390_func_available(KM_TDEA_192_ENCRYPT))
+	if (!crypt_s390_func_available(KM_DEA_ENCRYPT, CRYPT_S390_MSA) ||
+	    !crypt_s390_func_available(KM_TDEA_192_ENCRYPT, CRYPT_S390_MSA))
 		return -EOPNOTSUPP;
 
 	ret = crypto_register_alg(&des_alg);

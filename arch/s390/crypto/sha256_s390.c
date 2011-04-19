@@ -86,7 +86,7 @@ static struct shash_alg alg = {
 
 static int sha256_s390_init(void)
 {
-	if (!crypt_s390_func_available(KIMD_SHA_256))
+	if (!crypt_s390_func_available(KIMD_SHA_256, CRYPT_S390_MSA))
 		return -EOPNOTSUPP;
 
 	return crypto_register_shash(&alg);
