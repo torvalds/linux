@@ -137,7 +137,7 @@ static const char *btrfs_eb_name[BTRFS_MAX_LEVEL + 1] = {
  * that covers the entire device
  */
 static struct extent_map *btree_get_extent(struct inode *inode,
-		struct page *page, size_t page_offset, u64 start, u64 len,
+		struct page *page, size_t pg_offset, u64 start, u64 len,
 		int create)
 {
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;

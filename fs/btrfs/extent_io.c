@@ -2007,7 +2007,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 	struct btrfs_ordered_extent *ordered;
 	int ret;
 	int nr = 0;
-	size_t page_offset = 0;
+	size_t pg_offset = 0;
 	size_t iosize;
 	size_t disk_io_size;
 	size_t blocksize = inode->i_sb->s_blocksize;
@@ -2043,9 +2043,9 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			char *userpage;
 			struct extent_state *cached = NULL;
 
-			iosize = PAGE_CACHE_SIZE - page_offset;
+			iosize = PAGE_CACHE_SIZE - pg_offset;
 			userpage = kmap_atomic(page, KM_USER0);
-			memset(userpage + page_offset, 0, iosize);
+			memset(userpage + pg_offset, 0, iosize);
 			flush_dcache_page(page);
 			kunmap_atomic(userpage, KM_USER0);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
@@ -2054,7 +2054,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 					     &cached, GFP_NOFS);
 			break;
 		}
-		em = get_extent(inode, page, page_offset, cur,
+		em = get_extent(inode, page, pg_offset, cur,
 				end - cur + 1, 0);
 		if (IS_ERR(em) || !em) {
 			SetPageError(page);
@@ -2094,7 +2094,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			struct extent_state *cached = NULL;
 
 			userpage = kmap_atomic(page, KM_USER0);
-			memset(userpage + page_offset, 0, iosize);
+			memset(userpage + pg_offset, 0, iosize);
 			flush_dcache_page(page);
 			kunmap_atomic(userpage, KM_USER0);
 
@@ -2103,7 +2103,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			unlock_extent_cached(tree, cur, cur + iosize - 1,
 			                     &cached, GFP_NOFS);
 			cur = cur + iosize;
-			page_offset += iosize;
+			pg_offset += iosize;
 			continue;
 		}
 		/* the get_extent function already copied into the page */
@@ -2112,7 +2112,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			check_page_uptodate(tree, page);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
 			cur = cur + iosize;
-			page_offset += iosize;
+			pg_offset += iosize;
 			continue;
 		}
 		/* we have an inline extent but it didn't get marked up
@@ -2122,7 +2122,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			SetPageError(page);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
 			cur = cur + iosize;
-			page_offset += iosize;
+			pg_offset += iosize;
 			continue;
 		}
 
@@ -2135,7 +2135,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			unsigned long pnr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
 			pnr -= page->index;
 			ret = submit_extent_page(READ, tree, page,
-					 sector, disk_io_size, page_offset,
+					 sector, disk_io_size, pg_offset,
 					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
@@ -2146,7 +2146,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		if (ret)
 			SetPageError(page);
 		cur = cur + iosize;
-		page_offset += iosize;
+		pg_offset += iosize;
 	}
 	if (!nr) {
 		if (!PageError(page))
@@ -2751,7 +2751,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 	u64 cur_end;
 	struct extent_map *em;
 	unsigned blocksize = 1 << inode->i_blkbits;
-	size_t page_offset = 0;
+	size_t pg_offset = 0;
 	size_t block_off_start;
 	size_t block_off_end;
 	int err = 0;
@@ -2767,7 +2767,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 
 	lock_extent(tree, page_start, page_end, GFP_NOFS);
 	while (block_start <= block_end) {
-		em = get_extent(inode, page, page_offset, block_start,
+		em = get_extent(inode, page, pg_offset, block_start,
 				block_end - block_start + 1, 1);
 		if (IS_ERR(em) || !em)
 			goto err;
@@ -2811,7 +2811,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 				       block_start + iosize - 1,
 				       EXTENT_LOCKED, 0, NULL, NULL, GFP_NOFS);
 			ret = submit_extent_page(READ, tree, page,
-					 sector, iosize, page_offset, em->bdev,
+					 sector, iosize, pg_offset, em->bdev,
 					 NULL, 1,
 					 end_bio_extent_preparewrite, 0,
 					 0, 0);
@@ -2828,7 +2828,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 					     &cached, GFP_NOFS);
 			block_start = cur_end + 1;
 		}
-		page_offset = block_start & (PAGE_CACHE_SIZE - 1);
+		pg_offset = block_start & (PAGE_CACHE_SIZE - 1);
 		free_extent_map(em);
 	}
 	if (iocount) {

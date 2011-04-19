@@ -2534,7 +2534,7 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 int btrfs_commit_write(struct file *file, struct page *page,
 		       unsigned from, unsigned to);
 struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
-				    size_t page_offset, u64 start, u64 end,
+				    size_t pg_offset, u64 start, u64 end,
 				    int create);
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,

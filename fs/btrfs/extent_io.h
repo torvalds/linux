@@ -164,7 +164,7 @@ static inline struct extent_state *extent_state_next(struct extent_state *state)
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
 					  struct page *page,
-					  size_t page_offset,
+					  size_t pg_offset,
 					  u64 start, u64 len,
 					  int create);
 

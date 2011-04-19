@@ -6985,7 +6985,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(old_dir)->root;
 	struct btrfs_root *dest = BTRFS_I(new_dir)->root;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *newinode = new_dentry->d_inode;
 	struct inode *old_inode = old_dentry->d_inode;
 	struct timespec ctime = CURRENT_TIME;
 	u64 index = 0;
@@ -7000,18 +7000,18 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return -EXDEV;
 
 	if (old_inode->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID ||
-	    (new_inode && new_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID))
+	    (newinode && newinode->i_ino == BTRFS_FIRST_FREE_OBJECTID))
 		return -ENOTEMPTY;
 
-	if (S_ISDIR(old_inode->i_mode) && new_inode &&
-	    new_inode->i_size > BTRFS_EMPTY_DIR_SIZE)
+	if (S_ISDIR(old_inode->i_mode) && newinode &&
+	    newinode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
 	/*
 	 * we're using rename to replace one file with another.
 	 * and the replacement file is large.  Start IO on it now so
 	 * we don't add too much work to the end of the transaction
 	 */
-	if (new_inode && S_ISREG(old_inode->i_mode) && new_inode->i_size &&
+	if (newinode && S_ISREG(old_inode->i_mode) && newinode->i_size &&
 	    old_inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 		filemap_flush(old_inode->i_mapping);
 
@@ -7065,7 +7065,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * make sure the inode gets flushed if it is replacing
 	 * something.
 	 */
-	if (new_inode && new_inode->i_size &&
+	if (newinode && newinode->i_size &&
 	    old_inode && S_ISREG(old_inode->i_mode)) {
 		btrfs_add_ordered_operation(trans, root, old_inode);
 	}
@@ -7092,16 +7092,16 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 	BUG_ON(ret);
 
-	if (new_inode) {
-		new_inode->i_ctime = CURRENT_TIME;
-		if (unlikely(new_inode->i_ino ==
+	if (newinode) {
+		newinode->i_ctime = CURRENT_TIME;
+		if (unlikely(newinode->i_ino ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
-			root_objectid = BTRFS_I(new_inode)->location.objectid;
+			root_objectid = BTRFS_I(newinode)->location.objectid;
 			ret = btrfs_unlink_subvol(trans, dest, new_dir,
 						root_objectid,
 						new_dentry->d_name.name,
 						new_dentry->d_name.len);
-			BUG_ON(new_inode->i_nlink == 0);
+			BUG_ON(newinode->i_nlink == 0);
 		} else {
 			ret = btrfs_unlink_inode(trans, dest, new_dir,
 						 new_dentry->d_inode,
@@ -7109,7 +7109,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						 new_dentry->d_name.len);
 		}
 		BUG_ON(ret);
-		if (new_inode->i_nlink == 0) {
+		if (newinode->i_nlink == 0) {
 			ret = btrfs_orphan_add(trans, new_dentry->d_inode);
 			BUG_ON(ret);
 		}
