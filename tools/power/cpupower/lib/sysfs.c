@@ -24,14 +24,14 @@
 static unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 {
 	int fd;
-	size_t numread;
+	ssize_t numread;
 
-	if ( ( fd = open(path, O_RDONLY) ) == -1 )
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
 		return 0;
 
 	numread = read(fd, buf, buflen - 1);
-	if ( numread < 1 )
-	{
+	if (numread < 1) {
 		close(fd);
 		return 0;
 	}
@@ -39,7 +39,7 @@ static unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 	buf[numread] = '\0';
 	close(fd);
 
-	return numread;
+	return (unsigned int) numread;
 }
 
 
@@ -65,24 +65,24 @@ static unsigned int sysfs_cpufreq_write_file(unsigned int cpu,
 {
 	char path[SYSFS_PATH_MAX];
 	int fd;
-	size_t numwrite;
+	ssize_t numwrite;
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/cpufreq/%s",
 			 cpu, fname);
 
-	if ( ( fd = open(path, O_WRONLY) ) == -1 )
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
 		return 0;
 
 	numwrite = write(fd, value, len);
-	if ( numwrite < 1 )
-	{
+	if (numwrite < 1) {
 		close(fd);
 		return 0;
 	}
 
 	close(fd);
 
-	return numwrite;
+	return (unsigned int) numwrite;
 }
 
 /* read access to files which contain one numeric value */
@@ -114,21 +114,23 @@ static const char *cpufreq_value_files[MAX_CPUFREQ_VALUE_READ_FILES] = {
 static unsigned long sysfs_cpufreq_get_one_value(unsigned int cpu,
 						 enum cpufreq_value which)
 {
- 	unsigned long value;
+	unsigned long value;
 	unsigned int len;
 	char linebuf[MAX_LINE_LEN];
 	char *endp;
 
-	if ( which >= MAX_CPUFREQ_VALUE_READ_FILES )
+	if (which >= MAX_CPUFREQ_VALUE_READ_FILES)
 		return 0;
 
-	if ( ( len = sysfs_cpufreq_read_file(cpu, cpufreq_value_files[which],
-					     linebuf, sizeof(linebuf))) == 0 )
+	len = sysfs_cpufreq_read_file(cpu, cpufreq_value_files[which],
+				linebuf, sizeof(linebuf));
+
+	if (len == 0)
 		return 0;
 
 	value = strtoul(linebuf, &endp, 0);
 
-	if ( endp == linebuf || errno == ERANGE )
+	if (endp == linebuf || errno == ERANGE)
 		return 0;
 
 	return value;
@@ -148,7 +150,7 @@ static const char *cpufreq_string_files[MAX_CPUFREQ_STRING_FILES] = {
 };
 
 
-static char * sysfs_cpufreq_get_one_string(unsigned int cpu,
+static char *sysfs_cpufreq_get_one_string(unsigned int cpu,
 					   enum cpufreq_string which)
 {
 	char linebuf[MAX_LINE_LEN];
@@ -158,11 +160,13 @@ static char * sysfs_cpufreq_get_one_string(unsigned int cpu,
 	if (which >= MAX_CPUFREQ_STRING_FILES)
 		return NULL;
 
-	if ( ( len = sysfs_cpufreq_read_file(cpu, cpufreq_string_files[which],
-					     linebuf, sizeof(linebuf))) == 0 )
+	len = sysfs_cpufreq_read_file(cpu, cpufreq_string_files[which],
+				linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
 
-	if ( ( result = strdup(linebuf) ) == NULL )
+	result = strdup(linebuf);
+	if (result == NULL)
 		return NULL;
 
 	if (result[strlen(result) - 1] == '\n')
@@ -195,8 +199,8 @@ static int sysfs_cpufreq_write_one_value(unsigned int cpu,
 	if (which >= MAX_CPUFREQ_WRITE_FILES)
 		return 0;
 
-	if ( sysfs_cpufreq_write_file(cpu, cpufreq_write_files[which],
-			      new_value, len) != len )
+	if (sysfs_cpufreq_write_file(cpu, cpufreq_write_files[which],
+					new_value, len) != len)
 		return -ENODEV;
 
 	return 0;
@@ -235,11 +239,13 @@ int sysfs_get_freq_hardware_limits(unsigned int cpu,
 	return 0;
 }
 
-char * sysfs_get_freq_driver(unsigned int cpu) {
+char *sysfs_get_freq_driver(unsigned int cpu)
+{
 	return sysfs_cpufreq_get_one_string(cpu, SCALING_DRIVER);
 }
 
-struct cpufreq_policy * sysfs_get_freq_policy(unsigned int cpu) {
+struct cpufreq_policy *sysfs_get_freq_policy(unsigned int cpu)
+{
 	struct cpufreq_policy *policy;
 
 	policy = malloc(sizeof(struct cpufreq_policy));
@@ -270,27 +276,24 @@ sysfs_get_freq_available_governors(unsigned int cpu) {
 	unsigned int pos, i;
 	unsigned int len;
 
-	if ( ( len = sysfs_cpufreq_read_file(cpu, "scaling_available_governors",
-					     linebuf, sizeof(linebuf))) == 0 )
-	{
+	len = sysfs_cpufreq_read_file(cpu, "scaling_available_governors",
+				linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
-	}
 
 	pos = 0;
-	for ( i = 0; i < len; i++ )
-	{
-		if ( linebuf[i] == ' ' || linebuf[i] == '\n' )
-		{
-			if ( i - pos < 2 )
+	for (i = 0; i < len; i++) {
+		if (linebuf[i] == ' ' || linebuf[i] == '\n') {
+			if (i - pos < 2)
 				continue;
-			if ( current ) {
-				current->next = malloc(sizeof *current );
-				if ( ! current->next )
+			if (current) {
+				current->next = malloc(sizeof(*current));
+				if (!current->next)
 					goto error_out;
 				current = current->next;
 			} else {
-				first = malloc( sizeof *first );
-				if ( ! first )
+				first = malloc(sizeof(*first));
+				if (!first)
 					goto error_out;
 				current = first;
 			}
@@ -298,10 +301,10 @@ sysfs_get_freq_available_governors(unsigned int cpu) {
 			current->next = NULL;
 
 			current->governor = malloc(i - pos + 1);
-			if ( ! current->governor )
+			if (!current->governor)
 				goto error_out;
 
-			memcpy( current->governor, linebuf + pos, i - pos);
+			memcpy(current->governor, linebuf + pos, i - pos);
 			current->governor[i - pos] = '\0';
 			pos = i + 1;
 		}
@@ -310,11 +313,11 @@ sysfs_get_freq_available_governors(unsigned int cpu) {
 	return first;
 
  error_out:
-	while ( first ) {
+	while (first) {
 		current = first->next;
-		if ( first->governor )
-			free( first->governor );
-		free( first );
+		if (first->governor)
+			free(first->governor);
+		free(first);
 		first = current;
 	}
 	return NULL;
@@ -330,30 +333,26 @@ sysfs_get_available_frequencies(unsigned int cpu) {
 	unsigned int pos, i;
 	unsigned int len;
 
-	if ( ( len = sysfs_cpufreq_read_file(cpu,
-					     "scaling_available_frequencies",
-					     linebuf, sizeof(linebuf))) == 0 )
-	{
+	len = sysfs_cpufreq_read_file(cpu, "scaling_available_frequencies",
+				linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
-	}
 
 	pos = 0;
-	for ( i = 0; i < len; i++ )
-	{
-		if ( linebuf[i] == ' ' || linebuf[i] == '\n' )
-		{
-			if ( i - pos < 2 )
+	for (i = 0; i < len; i++) {
+		if (linebuf[i] == ' ' || linebuf[i] == '\n') {
+			if (i - pos < 2)
 				continue;
-			if ( i - pos >= SYSFS_PATH_MAX )
+			if (i - pos >= SYSFS_PATH_MAX)
 				goto error_out;
-			if ( current ) {
-				current->next = malloc(sizeof *current );
-				if ( ! current->next )
+			if (current) {
+				current->next = malloc(sizeof(*current));
+				if (!current->next)
 					goto error_out;
 				current = current->next;
 			} else {
-				first = malloc(sizeof *first );
-				if ( ! first )
+				first = malloc(sizeof(*first));
+				if (!first)
 					goto error_out;
 				current = first;
 			}
@@ -362,66 +361,7 @@ sysfs_get_available_frequencies(unsigned int cpu) {
 
 			memcpy(one_value, linebuf + pos, i - pos);
 			one_value[i - pos] = '\0';
-			if ( sscanf(one_value, "%lu", &current->frequency) != 1 )
-				goto error_out;
-
-			pos = i + 1;
-		}
-	}
-
-	return first;
-
- error_out:
-	while ( first ) {
-		current = first->next;
-		free(first);
-		first = current;
-	}
-	return NULL;
-}
-
-static struct cpufreq_affected_cpus * sysfs_get_cpu_list(unsigned int cpu,
-							 const char *file) {
-	struct cpufreq_affected_cpus *first = NULL;
-	struct cpufreq_affected_cpus *current = NULL;
-	char one_value[SYSFS_PATH_MAX];
-	char linebuf[MAX_LINE_LEN];
-	unsigned int pos, i;
-	unsigned int len;
-
-	if ( ( len = sysfs_cpufreq_read_file(cpu, file, linebuf,
-					     sizeof(linebuf))) == 0 )
-	{
-		return NULL;
-	}
-
-	pos = 0;
-	for ( i = 0; i < len; i++ )
-	{
-		if ( i == len || linebuf[i] == ' ' || linebuf[i] == '\n' )
-		{
-			if ( i - pos  < 1 )
-				continue;
-			if ( i - pos >= SYSFS_PATH_MAX )
-				goto error_out;
-			if ( current ) {
-				current->next = malloc(sizeof *current);
-				if ( ! current->next )
-					goto error_out;
-				current = current->next;
-			} else {
-				first = malloc(sizeof *first);
-				if ( ! first )
-					goto error_out;
-				current = first;
-			}
-			current->first = first;
-			current->next = NULL;
-
-			memcpy(one_value, linebuf + pos, i - pos);
-			one_value[i - pos] = '\0';
-
-			if ( sscanf(one_value, "%u", &current->cpu) != 1 )
+			if (sscanf(one_value, "%lu", &current->frequency) != 1)
 				goto error_out;
 
 			pos = i + 1;
@@ -439,44 +379,35 @@ static struct cpufreq_affected_cpus * sysfs_get_cpu_list(unsigned int cpu,
 	return NULL;
 }
 
-struct cpufreq_affected_cpus * sysfs_get_freq_affected_cpus(unsigned int cpu) {
-	return sysfs_get_cpu_list(cpu, "affected_cpus");
-}
-
-struct cpufreq_affected_cpus * sysfs_get_freq_related_cpus(unsigned int cpu) {
-	return sysfs_get_cpu_list(cpu, "related_cpus");
-}
-
-struct cpufreq_stats * sysfs_get_freq_stats(unsigned int cpu, unsigned long long *total_time) {
-	struct cpufreq_stats *first = NULL;
-	struct cpufreq_stats *current = NULL;
+static struct cpufreq_affected_cpus *sysfs_get_cpu_list(unsigned int cpu,
+							const char *file)
+{
+	struct cpufreq_affected_cpus *first = NULL;
+	struct cpufreq_affected_cpus *current = NULL;
 	char one_value[SYSFS_PATH_MAX];
 	char linebuf[MAX_LINE_LEN];
 	unsigned int pos, i;
 	unsigned int len;
 
-	if ( ( len = sysfs_cpufreq_read_file(cpu, "stats/time_in_state",
-					     linebuf, sizeof(linebuf))) == 0 )
+	len = sysfs_cpufreq_read_file(cpu, file, linebuf, sizeof(linebuf));
+	if (len == 0)
 		return NULL;
 
-	*total_time = 0;
 	pos = 0;
-	for ( i = 0; i < len; i++ )
-	{
-		if ( i == strlen(linebuf) || linebuf[i] == '\n' )
-		{
-			if ( i - pos < 2 )
+	for (i = 0; i < len; i++) {
+		if (i == len || linebuf[i] == ' ' || linebuf[i] == '\n') {
+			if (i - pos  < 1)
 				continue;
-			if ( (i - pos) >= SYSFS_PATH_MAX )
+			if (i - pos >= SYSFS_PATH_MAX)
 				goto error_out;
-			if ( current ) {
-				current->next = malloc(sizeof *current );
-				if ( ! current->next )
+			if (current) {
+				current->next = malloc(sizeof(*current));
+				if (!current->next)
 					goto error_out;
 				current = current->next;
 			} else {
-				first = malloc(sizeof *first );
-				if ( ! first )
+				first = malloc(sizeof(*first));
+				if (!first)
 					goto error_out;
 				current = first;
 			}
@@ -485,7 +416,76 @@ struct cpufreq_stats * sysfs_get_freq_stats(unsigned int cpu, unsigned long long
 
 			memcpy(one_value, linebuf + pos, i - pos);
 			one_value[i - pos] = '\0';
-			if ( sscanf(one_value, "%lu %llu", &current->frequency, &current->time_in_state) != 2 )
+
+			if (sscanf(one_value, "%u", &current->cpu) != 1)
+				goto error_out;
+
+			pos = i + 1;
+		}
+	}
+
+	return first;
+
+ error_out:
+	while (first) {
+		current = first->next;
+		free(first);
+		first = current;
+	}
+	return NULL;
+}
+
+struct cpufreq_affected_cpus *sysfs_get_freq_affected_cpus(unsigned int cpu)
+{
+	return sysfs_get_cpu_list(cpu, "affected_cpus");
+}
+
+struct cpufreq_affected_cpus *sysfs_get_freq_related_cpus(unsigned int cpu)
+{
+	return sysfs_get_cpu_list(cpu, "related_cpus");
+}
+
+struct cpufreq_stats *sysfs_get_freq_stats(unsigned int cpu,
+					unsigned long long *total_time) {
+	struct cpufreq_stats *first = NULL;
+	struct cpufreq_stats *current = NULL;
+	char one_value[SYSFS_PATH_MAX];
+	char linebuf[MAX_LINE_LEN];
+	unsigned int pos, i;
+	unsigned int len;
+
+	len = sysfs_cpufreq_read_file(cpu, "stats/time_in_state",
+				linebuf, sizeof(linebuf));
+	if (len == 0)
+		return NULL;
+
+	*total_time = 0;
+	pos = 0;
+	for (i = 0; i < len; i++) {
+		if (i == strlen(linebuf) || linebuf[i] == '\n')	{
+			if (i - pos < 2)
+				continue;
+			if ((i - pos) >= SYSFS_PATH_MAX)
+				goto error_out;
+			if (current) {
+				current->next = malloc(sizeof(*current));
+				if (!current->next)
+					goto error_out;
+				current = current->next;
+			} else {
+				first = malloc(sizeof(*first));
+				if (!first)
+					goto error_out;
+				current = first;
+			}
+			current->first = first;
+			current->next = NULL;
+
+			memcpy(one_value, linebuf + pos, i - pos);
+			one_value[i - pos] = '\0';
+			if (sscanf(one_value, "%lu %llu",
+					&current->frequency,
+					&current->time_in_state) != 2)
 				goto error_out;
 
 			*total_time = *total_time + current->time_in_state;
@@ -496,7 +496,7 @@ struct cpufreq_stats * sysfs_get_freq_stats(unsigned int cpu, unsigned long long
 	return first;
 
  error_out:
-	while ( first ) {
+	while (first) {
 		current = first->next;
 		free(first);
 		first = current;
@@ -511,29 +511,29 @@ unsigned long sysfs_get_freq_transitions(unsigned int cpu)
 
 static int verify_gov(char *new_gov, char *passed_gov)
 {
-	unsigned int i, j=0;
+	unsigned int i, j = 0;
 
 	if (!passed_gov || (strlen(passed_gov) > 19))
 		return -EINVAL;
 
 	strncpy(new_gov, passed_gov, 20);
-	for (i=0;i<20;i++) {
+	for (i = 0; i < 20; i++) {
 		if (j) {
 			new_gov[i] = '\0';
 			continue;
 		}
-		if ((new_gov[i] >= 'a') && (new_gov[i] <= 'z')) {
+		if ((new_gov[i] >= 'a') && (new_gov[i] <= 'z'))
 			continue;
-		}
-		if ((new_gov[i] >= 'A') && (new_gov[i] <= 'Z')) {
+
+		if ((new_gov[i] >= 'A') && (new_gov[i] <= 'Z'))
 			continue;
-		}
-		if (new_gov[i] == '-') {
+
+		if (new_gov[i] == '-')
 			continue;
-		}
-		if (new_gov[i] == '_') {
+
+		if (new_gov[i] == '_')
 			continue;
-		}
+
 		if (new_gov[i] == '\0') {
 			j = 1;
 			continue;
@@ -627,7 +627,8 @@ int sysfs_set_freq_policy(unsigned int cpu, struct cpufreq_policy *policy)
 					     gov, strlen(gov));
 }
 
-int sysfs_set_frequency(unsigned int cpu, unsigned long target_frequency) {
+int sysfs_set_frequency(unsigned int cpu, unsigned long target_frequency)
+{
 	struct cpufreq_policy *pol = sysfs_get_freq_policy(cpu);
 	char userspace_gov[] = "userspace";
 	char freq[SYSFS_PATH_MAX];
@@ -640,7 +641,7 @@ int sysfs_set_frequency(unsigned int cpu, unsigned long target_frequency) {
 		ret = sysfs_modify_freq_policy_governor(cpu, userspace_gov);
 		if (ret) {
 			cpufreq_put_policy(pol);
-			return (ret);
+			return ret;
 		}
 	}
 
@@ -662,7 +663,7 @@ int sysfs_cpu_exists(unsigned int cpu)
 
 	snprintf(file, SYSFS_PATH_MAX, PATH_TO_CPU "cpu%u/", cpu);
 
-	if ( stat(file, &statbuf) != 0 )
+	if (stat(file, &statbuf) != 0)
 		return -ENOSYS;
 
 	return S_ISDIR(statbuf.st_mode) ? 0 : -ENOSYS;
