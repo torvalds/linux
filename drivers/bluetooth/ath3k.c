@@ -138,9 +138,6 @@ static int ath3k_load_firmware(struct usb_device *udev,
 		count -= size;
 	}
 
-	kfree(send_buf);
-	return 0;
-
 error:
 	kfree(send_buf);
 	return err;
