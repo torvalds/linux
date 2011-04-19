@@ -1014,8 +1014,6 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
 
-#if 0
-/* FIXME */
 static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 struct drm_file *file_priv,
 				 uint32_t handle,
@@ -1024,17 +1022,14 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv =
 				(struct drm_psb_private *)dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct psb_intel_mode_device *mode_dev = psb_intel_crtc->mode_dev;
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp;
 	size_t addr = 0;
-	uint32_t page_offset;
-	size_t size;
-	void *bo;
+	struct gtt_range *gt;
+	struct drm_gem_object *obj;
 	int ret;
 
 	DRM_DEBUG("\n");
@@ -1043,8 +1038,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!handle) {
 		DRM_DEBUG("cursor off\n");
 		/* turn off the cursor */
-		temp = 0;
-		temp |= CURSOR_MODE_DISABLE;
+		temp = CURSOR_MODE_DISABLE;
 
         	if (gma_power_begin(dev, false)) {
 			REG_WRITE(control, temp);
@@ -1052,12 +1046,10 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 			gma_power_end(dev);
 		}
 
-		/* unpin the old bo */
-		if (psb_intel_crtc->cursor_bo) {
-			mode_dev->bo_unpin_for_scanout(dev,
-						       psb_intel_crtc->
-						       cursor_bo);
-			psb_intel_crtc->cursor_bo = NULL;
+		/* Unpin the old GEM object */
+		if (psb_intel_crtc->cursor_obj) {
+			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+			psb_intel_crtc->cursor_obj = NULL;
 		}
 
 		return 0;
@@ -1069,15 +1061,11 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	bo = mode_dev->bo_from_handle(dev, file_priv, handle);
-	if (!bo)
+	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	if (!obj)
 		return -ENOENT;
 
-	ret = mode_dev->bo_pin_for_scanout(dev, bo);
-	if (ret)
-		return ret;
-	size = mode_dev->bo_size(dev, bo);
-	if (size < width * height * 4) {
+	if (obj->size < width * height * 4) {
 		DRM_ERROR("buffer is to small\n");
 		return -ENOMEM;
 	}
@@ -1086,15 +1074,15 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	DRM_DEBUG("%s: map meminfo for hw cursor. handle %x\n",
 						__func__, handle);
 
-	ret = psb_gtt_map_meminfo(dev, (void *)handle, &page_offset);
+/* Pin : FIXME
 	if (ret) {
 		DRM_ERROR("Can not map meminfo to GTT. handle 0x%x\n", handle);
 		return ret;
 	}
+*/
+	gt = container_of(obj, struct gtt_range, gem);
 
-	addr = page_offset << PAGE_SHIFT;
-
-	addr += dev_priv->stolen_base;
+	addr = gt->resource.start;
 
 	psb_intel_crtc->cursor_addr = addr;
 
@@ -1110,9 +1098,9 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* unpin the old bo */
-	if (psb_intel_crtc->cursor_bo && psb_intel_crtc->cursor_bo != bo) {
-		mode_dev->bo_unpin_for_scanout(dev, psb_intel_crtc->cursor_bo);
-		psb_intel_crtc->cursor_bo = bo;
+	if (psb_intel_crtc->cursor_obj && psb_intel_crtc->cursor_obj != obj) {
+		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+		psb_intel_crtc->cursor_obj = obj;
 	}
 
 	return 0;
@@ -1124,7 +1112,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t temp = 0;
-	uint32_t adder;
+	uint32_t addr;
 
 
 	if (x < 0) {
@@ -1139,16 +1127,15 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
 	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-	adder = psb_intel_crtc->cursor_addr;
+	addr = psb_intel_crtc->cursor_addr;
 
        	if (gma_power_begin(dev, false)) {
 		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
-		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
+		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, addr);
 		gma_power_end(dev);
 	}
 	return 0;
 }
-#endif
 
 static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
@@ -1315,6 +1302,7 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 
+	/* FIXME: do we need to put the final GEM cursor ? */
 	kfree(psb_intel_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(psb_intel_crtc);
@@ -1332,10 +1320,8 @@ static const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.save = psb_intel_crtc_save,
 	.restore = psb_intel_crtc_restore,
-/* FIXME 
 	.cursor_set = psb_intel_crtc_cursor_set,
 	.cursor_move = psb_intel_crtc_cursor_move,
-*/	
 	.gamma_set = psb_intel_crtc_gamma_set,
 	.set_config = psb_crtc_set_config,
 	.destroy = psb_intel_crtc_destroy,

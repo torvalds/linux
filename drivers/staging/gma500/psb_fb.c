@@ -732,37 +732,15 @@ static void psb_setup_outputs(struct drm_device *dev)
 	}
 }
 
-/* FIXME: rewrite these in terms of the gtt_range and GEM objects
+/* FIXME: rewrite this in terms of the gtt_range and GEM objects
    rather than faking them as we do now */
 
-static void *psb_bo_from_handle(struct drm_device *dev,
-				struct drm_file *file_priv,
-				unsigned int handle)
-{
-	return NULL;
-}
-
-static size_t psb_bo_size(struct drm_device *dev, void *bof)
-{
-	return 0;
-}
-
-static size_t psb_bo_offset(struct drm_device *dev, void *bof)
+static size_t psb_bo_offset(struct drm_device *dev, void *obj)
 {
 	struct psb_framebuffer *psbfb
-		= (struct psb_framebuffer *)bof;
+		= (struct psb_framebuffer *)obj;
 
 	return (size_t)psbfb->offset;
-}
-
-static int psb_bo_pin_for_scanout(struct drm_device *dev, void *bo)
-{
-	 return 0;
-}
-
-static int psb_bo_unpin_for_scanout(struct drm_device *dev, void *bo)
-{
-	return 0;
 }
 
 void psb_modeset_init(struct drm_device *dev)
@@ -774,11 +752,7 @@ void psb_modeset_init(struct drm_device *dev)
 
 	PSB_DEBUG_ENTRY("\n");
 	/* Init mm functions */
-	mode_dev->bo_from_handle = psb_bo_from_handle;
-	mode_dev->bo_size = psb_bo_size;
 	mode_dev->bo_offset = psb_bo_offset;
-	mode_dev->bo_pin_for_scanout = psb_bo_pin_for_scanout;
-	mode_dev->bo_unpin_for_scanout = psb_bo_unpin_for_scanout;
 
 	drm_mode_config_init(dev);
 
