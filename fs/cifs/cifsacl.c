@@ -688,7 +688,7 @@ out:
 }
 
 /* Set an ACL on the server */
-static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 				struct inode *inode, const char *path)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
