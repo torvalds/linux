@@ -5484,7 +5484,7 @@ static struct drm_display_mode load_detect_mode = {
 bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 				struct drm_connector *connector,
 				struct drm_display_mode *mode,
-				int *dpms_mode)
+				struct intel_load_detect_pipe *old)
 {
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *possible_crtc;
@@ -5509,14 +5509,18 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	/* See if we already have a CRTC for this connector */
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
-		/* Make sure the crtc and connector are running */
+
 		intel_crtc = to_intel_crtc(crtc);
-		*dpms_mode = intel_crtc->dpms_mode;
+		old->dpms_mode = intel_crtc->dpms_mode;
+		old->load_detect_temp = false;
+
+		/* Make sure the crtc and connector are running */
 		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
 			crtc_funcs = crtc->helper_private;
 			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 			encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 		}
+
 		return true;
 	}
 
@@ -5543,10 +5547,10 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 
 	encoder->crtc = crtc;
 	connector->encoder = encoder;
-	intel_encoder->load_detect_temp = true;
 
 	intel_crtc = to_intel_crtc(crtc);
-	*dpms_mode = intel_crtc->dpms_mode;
+	old->dpms_mode = intel_crtc->dpms_mode;
+	old->load_detect_temp = true;
 
 	if (!crtc->enabled) {
 		if (!mode)
@@ -5574,7 +5578,8 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 }
 
 void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
-				    struct drm_connector *connector, int dpms_mode)
+				    struct drm_connector *connector,
+				    struct intel_load_detect_pipe *old)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
@@ -5582,19 +5587,18 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
-	if (intel_encoder->load_detect_temp) {
+	if (old->load_detect_temp) {
 		encoder->crtc = NULL;
 		connector->encoder = NULL;
-		intel_encoder->load_detect_temp = false;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		drm_helper_disable_unused_functions(dev);
 	}
 
 	/* Switch crtc and encoder back off if necessary */
-	if (crtc->enabled && dpms_mode != DRM_MODE_DPMS_ON) {
+	if (crtc->enabled && old->dpms_mode != DRM_MODE_DPMS_ON) {
 		if (encoder->crtc == crtc)
-			encoder_funcs->dpms(encoder, dpms_mode);
-		crtc_funcs->dpms(crtc, dpms_mode);
+			encoder_funcs->dpms(encoder, old->dpms_mode);
+		crtc_funcs->dpms(crtc, old->dpms_mode);
 	}
 }
 
