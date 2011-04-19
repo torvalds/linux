@@ -777,7 +777,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		if (t1 != t2)
 			xhci_writel(xhci, t2, port_array[port_index]);
 
-		if (DEV_HIGHSPEED(t1)) {
+		if (hcd->speed != HCD_USB3) {
 			/* enable remote wake up for USB 2.0 */
 			u32 __iomem *addr;
 			u32 tmp;
@@ -866,6 +866,21 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				temp |= PORT_LINK_STROBE | XDEV_U0;
 				xhci_writel(xhci, temp, port_array[port_index]);
 			}
+			/* wait for the port to enter U0 and report port link
+			 * state change.
+			 */
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			msleep(20);
+			spin_lock_irqsave(&xhci->lock, flags);
+
+			/* Clear PLC */
+			temp = xhci_readl(xhci, port_array[port_index]);
+			if (temp & PORT_PLC) {
+				temp = xhci_port_state_to_neutral(temp);
+				temp |= PORT_PLC;
+				xhci_writel(xhci, temp, port_array[port_index]);
+			}
+
 			slot_id = xhci_find_slot_id_by_port(hcd,
 					xhci, port_index + 1);
 			if (slot_id)
@@ -873,7 +888,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 		} else
 			xhci_writel(xhci, temp, port_array[port_index]);
 
-		if (DEV_HIGHSPEED(temp)) {
+		if (hcd->speed != HCD_USB3) {
 			/* disable remote wake up for USB 2.0 */
 			u32 __iomem *addr;
 			u32 tmp;
