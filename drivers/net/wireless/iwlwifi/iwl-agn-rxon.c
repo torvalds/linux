@@ -125,7 +125,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 			   struct iwl_rxon_context *ctx)
 {
 	int ret = 0;
-	struct iwl5000_rxon_assoc_cmd rxon_assoc;
+	struct iwl_rxon_assoc_cmd rxon_assoc;
 	const struct iwl_rxon_cmd *rxon1 = &ctx->staging;
 	const struct iwl_rxon_cmd *rxon2 = &ctx->active;
 
