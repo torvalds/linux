@@ -31,7 +31,7 @@
 #include "system.h"
 
 /**
- * returns time since epoch in µs
+ * returns time since epoch in Âµs
  *
  * @retval time
  **/
@@ -87,7 +87,7 @@ int set_cpufreq_governor(char *governor, unsigned int cpu)
 int set_cpu_affinity(unsigned int cpu)
 {
 	cpu_set_t cpuset;
-	
+
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 
@@ -129,7 +129,7 @@ int set_process_priority(int priority)
 }
 
 /**
- * notifys the user that the benchmark may run some time 
+ * notifies the user that the benchmark may run some time
  *
  * @param config benchmark config values
  *
@@ -142,8 +142,11 @@ void prepare_user(const struct config *config)
 	unsigned int round;
 
 	for (round = 0; round < config->rounds; round++) {
-		sleep_time +=  2 * config->cycles * (config->sleep + config->sleep_step * round);
-		load_time += 2 * config->cycles * (config->load + config->load_step * round) + (config->load + config->load_step * round * 4);
+		sleep_time +=  2 * config->cycles *
+			(config->sleep + config->sleep_step * round);
+		load_time += 2 * config->cycles *
+			(config->load + config->load_step * round) +
+			(config->load + config->load_step * round * 4);
 	}
 
 	if (config->verbose || config->output != stdout)

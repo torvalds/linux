@@ -38,7 +38,7 @@ NLS ?=		true
 CPUFRQ_BENCH ?= true
 
 # Prefix to the directories we're installing to
-DESTDIR ?=	
+DESTDIR ?=
 
 # --- CONFIGURATION END ---
 
@@ -277,5 +277,4 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
 	  done;
 
-.PHONY: all utils libcpufreq update-po create-gmo install-lib install-tools install-man install-gmo install uninstall \
-	clean 
+.PHONY: all utils libcpufreq update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean

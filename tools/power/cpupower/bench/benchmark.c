@@ -37,7 +37,7 @@ if (config->output != stdout) {				\
  * compute how many rounds of calculation we should do
  * to get the given load time
  *
- * @param load aimed load time in µs
+ * @param load aimed load time in Âµs
  *
  * @retval rounds of calculation
  **/
@@ -61,9 +61,8 @@ unsigned int calculate_timespace(long load, struct config *config)
 	timed = (unsigned int)(then - now);
 
 	/* approximation of the wanted load time by comparing with the
-	 * initial calculation time */ 
-	for (i= 0; i < 4; i++)
-	{
+	 * initial calculation time */
+	for (i = 0; i < 4; i++) {
 		rounds = (unsigned int)(load * estimated / timed);
 		dprintf("calibrating with %u rounds\n", rounds);
 		now = get_time();
@@ -102,11 +101,11 @@ void start_benchmark(struct config *config)
 	load_time = config->load;
 
 	/* For the progress bar */
-	for (_round=1; _round <= config->rounds; _round++)
+	for (_round = 1; _round <= config->rounds; _round++)
 		total_time += _round * (config->sleep + config->load);
 	total_time *= 2; /* powersave and performance cycles */
 
-	for (_round=0; _round < config->rounds; _round++) {
+	for (_round = 0; _round < config->rounds; _round++) {
 		performance_time = 0LL;
 		powersave_time = 0LL;
 
@@ -130,9 +129,10 @@ void start_benchmark(struct config *config)
 		fprintf(config->output, "%u %li %li ",
 			_round, load_time, sleep_time);
 
-		if (config->verbose) {
-			printf("avarage: %lius, rps:%li\n", load_time / calculations, 1000000 * calculations / load_time);
-		}
+		if (config->verbose)
+			printf("avarage: %lius, rps:%li\n",
+				load_time / calculations,
+				1000000 * calculations / load_time);
 
 		/* do some sleep/load cycles with the performance governor */
 		for (cycle = 0; cycle < config->cycles; cycle++) {
@@ -142,10 +142,14 @@ void start_benchmark(struct config *config)
 			then = get_time();
 			performance_time += then - now - sleep_time;
 			if (config->verbose)
-				printf("performance cycle took %lius, sleep: %lius, load: %lius, rounds: %u\n",
-					(long)(then - now), sleep_time, load_time, calculations);
+				printf("performance cycle took %lius, "
+					"sleep: %lius, "
+					"load: %lius, rounds: %u\n",
+					(long)(then - now), sleep_time,
+					load_time, calculations);
 		}
-		fprintf(config->output, "%li ", performance_time / config->cycles);
+		fprintf(config->output, "%li ",
+			performance_time / config->cycles);
 
 		progress_time += sleep_time + load_time;
 		show_progress(total_time, progress_time);
@@ -155,7 +159,8 @@ void start_benchmark(struct config *config)
 		if (set_cpufreq_governor(config->governor, config->cpu) != 0)
 			return;
 
-		/* again, do some sleep/load cycles with the powersave governor */
+		/* again, do some sleep/load cycles with the
+		 * powersave governor */
 		for (cycle = 0; cycle < config->cycles; cycle++) {
 			now = get_time();
 			usleep(sleep_time);
@@ -163,22 +168,27 @@ void start_benchmark(struct config *config)
 			then = get_time();
 			powersave_time += then - now - sleep_time;
 			if (config->verbose)
-				printf("powersave cycle took %lius, sleep: %lius, load: %lius, rounds: %u\n",
-					(long)(then - now), sleep_time, load_time, calculations);
+				printf("powersave cycle took %lius, "
+					"sleep: %lius, "
+					"load: %lius, rounds: %u\n",
+					(long)(then - now), sleep_time,
+					load_time, calculations);
 		}
 
 		progress_time += sleep_time + load_time;
 
 		/* compare the avarage sleep/load cycles  */
-		fprintf(config->output, "%li ", powersave_time / config->cycles);
-		fprintf(config->output, "%.3f\n", performance_time * 100.0 / powersave_time);
+		fprintf(config->output, "%li ",
+			powersave_time / config->cycles);
+		fprintf(config->output, "%.3f\n",
+			performance_time * 100.0 / powersave_time);
 		fflush(config->output);
 
 		if (config->verbose)
-			printf("performance is at %.2f%%\n", performance_time * 100.0 / powersave_time);
+			printf("performance is at %.2f%%\n",
+				performance_time * 100.0 / powersave_time);
 
 		sleep_time += config->sleep_step;
 		load_time += config->load_step;
 	}
 }
-

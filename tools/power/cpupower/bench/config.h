@@ -31,6 +31,6 @@
 #ifdef DEBUG
 #define dprintf printf
 #else
-#define dprintf( ... ) while(0) { }
+#define dprintf(...) do { } while (0)
 #endif
 

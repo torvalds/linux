@@ -28,8 +28,7 @@
 #include "system.h"
 #include "benchmark.h"
 
-static struct option long_options[] =
-{
+static struct option long_options[] = {
 	{"output",	1,	0,	'o'},
 	{"sleep",	1,	0,	's'},
 	{"load",	1,	0,	'l'},
@@ -50,7 +49,7 @@ static struct option long_options[] =
  usage
 *******************************************************************/
 
-void usage() 
+void usage()
 {
 	printf("usage: ./bench\n");
 	printf("Options:\n");
@@ -67,7 +66,7 @@ void usage()
 	printf(" -o, --output=<dir>\t\t\toutput path. Filename will be OUTPUTPATH/benchmark_TIMESTAMP.log\n");
 	printf(" -v, --verbose\t\t\t\tverbose output on/off\n");
 	printf(" -h, --help\t\t\t\tPrint this help screen\n");
-	exit (1);
+	exit(1);
 }
 
 /*******************************************************************

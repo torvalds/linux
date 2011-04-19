@@ -20,19 +20,22 @@
 /* struct that holds the required config parameters */
 struct config
 {
-	long sleep;		/* sleep time in µs */
-	long load;		/* load time in µs */
+	long sleep;		/* sleep time in Âµs */
+	long load;		/* load time in Âµs */
 	long sleep_step;	/* time value which changes the
-				 * sleep time after every round in µs */
+				 * sleep time after every round in Âµs */
 	long load_step;		/* time value which changes the
-				 * load time after every round in µs */
+				 * load time after every round in Âµs */
 	unsigned int cycles;	/* calculation cycles with the same sleep/load time */
 	unsigned int rounds;	/* calculation rounds with iterated sleep/load time */
 	unsigned int cpu;	/* cpu for which the affinity is set */
 	char governor[15];	/* cpufreq governor */
 	enum sched_prio		/* possible scheduler priorities */
 	{
-		SCHED_ERR=-1,SCHED_HIGH, SCHED_DEFAULT, SCHED_LOW
+		SCHED_ERR = -1,
+		SCHED_HIGH,
+		SCHED_DEFAULT,
+		SCHED_LOW
 	} prio;
 
 	unsigned int verbose;	/* verbose output */
