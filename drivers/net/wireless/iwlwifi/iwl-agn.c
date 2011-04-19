@@ -2493,6 +2493,42 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
+static void iwlagn_prepare_restart(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx;
+	bool bt_full_concurrent;
+	u8 bt_ci_compliance;
+	u8 bt_load;
+	u8 bt_status;
+
+	lockdep_assert_held(&priv->mutex);
+
+	for_each_context(priv, ctx)
+		ctx->vif = NULL;
+	priv->is_open = 0;
+
+	/*
+	 * __iwl_down() will clear the BT status variables,
+	 * which is correct, but when we restart we really
+	 * want to keep them so restore them afterwards.
+	 *
+	 * The restart process will later pick them up and
+	 * re-configure the hw when we reconfigure the BT
+	 * command.
+	 */
+	bt_full_concurrent = priv->bt_full_concurrent;
+	bt_ci_compliance = priv->bt_ci_compliance;
+	bt_load = priv->bt_traffic_load;
+	bt_status = priv->bt_status;
+
+	__iwl_down(priv);
+
+	priv->bt_full_concurrent = bt_full_concurrent;
+	priv->bt_ci_compliance = bt_ci_compliance;
+	priv->bt_traffic_load = bt_load;
+	priv->bt_status = bt_status;
+}
+
 static void iwl_bg_restart(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, restart);
@@ -2501,38 +2537,8 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
-		struct iwl_rxon_context *ctx;
-		bool bt_full_concurrent;
-		u8 bt_ci_compliance;
-		u8 bt_load;
-		u8 bt_status;
-
 		mutex_lock(&priv->mutex);
-		for_each_context(priv, ctx)
-			ctx->vif = NULL;
-		priv->is_open = 0;
-
-		/*
-		 * __iwl_down() will clear the BT status variables,
-		 * which is correct, but when we restart we really
-		 * want to keep them so restore them afterwards.
-		 *
-		 * The restart process will later pick them up and
-		 * re-configure the hw when we reconfigure the BT
-		 * command.
-		 */
-		bt_full_concurrent = priv->bt_full_concurrent;
-		bt_ci_compliance = priv->bt_ci_compliance;
-		bt_load = priv->bt_traffic_load;
-		bt_status = priv->bt_status;
-
-		__iwl_down(priv);
-
-		priv->bt_full_concurrent = bt_full_concurrent;
-		priv->bt_ci_compliance = bt_ci_compliance;
-		priv->bt_traffic_load = bt_load;
-		priv->bt_status = bt_status;
-
+		iwlagn_prepare_restart(priv);
 		mutex_unlock(&priv->mutex);
 		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);
