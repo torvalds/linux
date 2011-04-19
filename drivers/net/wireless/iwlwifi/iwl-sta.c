@@ -494,7 +494,8 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 
 	priv->num_stations--;
 
-	BUG_ON(priv->num_stations < 0);
+	if (WARN_ON(priv->num_stations < 0))
+		priv->num_stations = 0;
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
@@ -679,7 +680,8 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 
 		priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
 		priv->num_stations--;
-		BUG_ON(priv->num_stations < 0);
+		if (WARN_ON(priv->num_stations < 0))
+			priv->num_stations = 0;
 		kfree(priv->stations[i].lq);
 		priv->stations[i].lq = NULL;
 	}
@@ -775,7 +777,8 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
 	iwl_dump_lq_cmd(priv, lq);
-	BUG_ON(init && (cmd.flags & CMD_ASYNC));
+	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))
+		return -EINVAL;
 
 	if (is_lq_table_valid(priv, ctx, lq))
 		ret = iwl_send_cmd(priv, &cmd);

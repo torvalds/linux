@@ -139,12 +139,6 @@ struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-struct iwl_tt_ops {
-	bool (*lower_power_detection)(struct iwl_priv *priv);
-	u8 (*tt_power_mode)(struct iwl_priv *priv);
-	bool (*ct_kill_check)(struct iwl_priv *priv);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -190,13 +184,6 @@ struct iwl_lib_ops {
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
 	struct iwl_debugfs_ops debugfs_ops;
-
-	/* thermal throttling */
-	struct iwl_tt_ops tt_ops;
-};
-
-struct iwl_led_ops {
-	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
 };
 
 /* NIC specific ops */
@@ -204,23 +191,11 @@ struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
 };
 
-struct iwl_legacy_ops {
-	void (*post_associate)(struct iwl_priv *priv);
-	void (*config_ap)(struct iwl_priv *priv);
-	/* station management */
-	int (*update_bcast_stations)(struct iwl_priv *priv);
-	int (*manage_ibss_station)(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif, bool add);
-};
-
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
-	const struct iwl_legacy_ops *legacy;
-	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct iwl_mod_params {
@@ -250,7 +225,6 @@ struct iwl_mod_params {
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @ucode_tracing: support ucode continuous tracing
  * @shadow_reg_enable: HW shadhow register bit
  */
 struct iwl_base_params {
@@ -272,7 +246,6 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
-	const bool ucode_tracing;
 	const bool shadow_reg_enable;
 };
 /*
@@ -376,7 +349,6 @@ struct iwl_cfg {
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);

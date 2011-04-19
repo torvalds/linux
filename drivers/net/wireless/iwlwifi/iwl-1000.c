@@ -45,7 +45,6 @@
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-agn-led.h"
 #include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
@@ -196,7 +195,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REG_BAND_4_CHANNELS,
 			EEPROM_REG_BAND_5_CHANNELS,
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
@@ -215,19 +214,12 @@ static struct iwl_lib_ops iwl1000_lib = {
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static const struct iwl_ops iwl1000_ops = {
 	.lib = &iwl1000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl1000_base_params = {
@@ -244,7 +236,6 @@ static struct iwl_base_params iwl1000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 128,
-	.ucode_tracing = true,
 };
 static struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,

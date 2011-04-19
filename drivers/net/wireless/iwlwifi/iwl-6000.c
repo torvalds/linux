@@ -46,7 +46,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
-#include "iwl-agn-led.h"
 #include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
@@ -324,11 +323,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static struct iwl_lib_ops iwl6030_lib = {
@@ -378,11 +372,6 @@ static struct iwl_lib_ops iwl6030_lib = {
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static struct iwl_nic_ops iwl6050_nic_ops = {
@@ -397,34 +386,26 @@ static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6050_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.nic = &iwl6050_nic_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6150_ops = {
 	.lib = &iwl6000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
 	.nic = &iwl6150_nic_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6030_ops = {
 	.lib = &iwl6030_lib,
 	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl6000_base_params = {
@@ -442,7 +423,6 @@ static struct iwl_base_params iwl6000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 
@@ -461,7 +441,6 @@ static struct iwl_base_params iwl6050_base_params = {
 	.chain_noise_scale = 1500,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 static struct iwl_base_params iwl6000_g2_base_params = {
@@ -479,7 +458,6 @@ static struct iwl_base_params iwl6000_g2_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.ucode_tracing = true,
 	.shadow_reg_enable = true,
 };
 

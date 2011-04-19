@@ -215,12 +215,6 @@ static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
 	return  nvm_type;
 }
 
-const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
-{
-	BUG_ON(offset >= priv->cfg->base_params->eeprom_size);
-	return &priv->eeprom[offset];
-}
-
 static int iwl_init_otp_access(struct iwl_priv *priv)
 {
 	int ret;
