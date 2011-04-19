@@ -384,11 +384,20 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->speed = link_speed*10;
 		} else {
 			switch (mac_speed) {
+			case PHY_LINK_SPEED_10MBPS:
+				ecmd->speed = SPEED_10;
+				break;
+			case PHY_LINK_SPEED_100MBPS:
+				ecmd->speed = SPEED_100;
+				break;
 			case PHY_LINK_SPEED_1GBPS:
 				ecmd->speed = SPEED_1000;
 				break;
 			case PHY_LINK_SPEED_10GBPS:
 				ecmd->speed = SPEED_10000;
+				break;
+			case PHY_LINK_SPEED_ZERO:
+				ecmd->speed = 0;
 				break;
 			}
 		}
