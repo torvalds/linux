@@ -2171,7 +2171,7 @@ static int be_open(struct net_device *netdev)
 	be_async_mcc_enable(adapter);
 
 	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
-			&link_speed);
+			&link_speed, 0);
 	if (status)
 		goto err;
 	be_link_status_update(adapter, link_up);
