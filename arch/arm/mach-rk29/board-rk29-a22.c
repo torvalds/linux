@@ -62,6 +62,7 @@
 #endif
 
 #include "../../../drivers/headset_observe/rk_headset.h"
+#include "../../../drivers/staging/android/timed_gpio.h"
 /*set touchscreen different type header*/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
@@ -2487,8 +2488,37 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+#if CONFIG_ANDROID_TIMED_GPIO
+static struct timed_gpio timed_gpios[] = {
+	{
+		.name = "vibrator",
+		.gpio = RK29_PIN1_PB5,
+		.max_timeout = 1000,
+		.active_low = 0,
+		.adjust_time =20,      //adjust for diff product
+	},
+};
+
+struct timed_gpio_platform_data rk29_vibrator_info = {
+	.num_gpios = 1,
+	.gpios = timed_gpios,
+};
+
+struct platform_device rk29_device_vibrator ={
+	.name = "timed-gpio",
+	.id = -1,
+	.dev = {
+		.platform_data = &rk29_vibrator_info,
+		},
+
+};
+#endif 
+
 static void __init rk29_board_iomux_init(void)
 {
+	#if CONFIG_ANDROID_TIMED_GPIO
+	rk29_mux_api_set(GPIO1B5_PWM0_NAME, GPIO1L_GPIO1B5);//for timed gpio
+	#endif
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
 	#endif
@@ -2617,6 +2647,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_GPS
 	&rk29_device_gps,
+#endif
+#ifdef CONFIG_ANDROID_TIMED_GPIO
+	&rk29_device_vibrator,
 #endif
 };
 
