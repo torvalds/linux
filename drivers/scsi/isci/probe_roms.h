@@ -123,7 +123,7 @@ struct sci_bios_oem_param_block_hdr {
 	uint8_t version;
 	uint8_t preboot_source;
 	uint8_t num_elements;
-	uint8_t element_length;
+	uint16_t element_length;
 	uint8_t reserved[8];
 } __attribute__ ((packed));
 
