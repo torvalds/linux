@@ -40,7 +40,7 @@ arch/arm/configs/rk29_Winaccord_defconfig
 arch/arm/mach-rk29/board-rk29-a22*
 arch/arm/configs/rk29_a22_defconfig
 
-arch/arm/mach-rk29/board-rk29-fih.c
+arch/arm/mach-rk29/board-rk29-fih*
 arch/arm/configs/rk29_FIH_defconfig
 
 arch/arm/mach-rk29/board-rk29-phonesdk*
@@ -109,7 +109,7 @@ for d in ${DIRS[@]}; do
 	done
 done
 
-make clean >/dev/null 2>&1
+make distclean >/dev/null 2>&1
 
 popd >/dev/null
 
