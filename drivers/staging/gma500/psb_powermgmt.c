@@ -269,7 +269,6 @@ static void gma_resume_display(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 
 	if (dev_priv->suspended == false)
 		return;
@@ -277,9 +276,9 @@ static void gma_resume_display(struct pci_dev *pdev)
 	/* turn on the display power island */
 	power_up(dev);
 
-	PSB_WVDC32(pg->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
+	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
 	pci_write_config_word(pdev, PSB_GMCH_CTRL,
-			pg->gmch_ctrl | _PSB_GMCH_ENABLED);
+			dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
 
 	/* Don't reinitialize the GTT as it is unnecessary.  The gtt is
 	 * stored in memory so it will automatically be restored.  All

@@ -1014,6 +1014,8 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
 
+#if 0
+/* FIXME */
 static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 struct drm_file *file_priv,
 				 uint32_t handle,
@@ -1092,7 +1094,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	addr = page_offset << PAGE_SHIFT;
 
-	addr += pg->stolen_base;
+	addr += dev_priv->stolen_base;
 
 	psb_intel_crtc->cursor_addr = addr;
 
@@ -1146,6 +1148,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	}
 	return 0;
 }
+#endif
 
 static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
@@ -1329,8 +1332,10 @@ static const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.save = psb_intel_crtc_save,
 	.restore = psb_intel_crtc_restore,
+/* FIXME 
 	.cursor_set = psb_intel_crtc_cursor_set,
 	.cursor_move = psb_intel_crtc_cursor_move,
+*/	
 	.gamma_set = psb_intel_crtc_gamma_set,
 	.set_config = psb_crtc_set_config,
 	.destroy = psb_intel_crtc_destroy,

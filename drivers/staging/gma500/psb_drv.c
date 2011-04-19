@@ -499,15 +499,15 @@ static int psb_driver_unload(struct drm_device *dev)
 
 			down_read(&pg->sem);
 			psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->mmu_gatt_start,
-					pg->vram_stolen_size >> PAGE_SHIFT);
+				psb_mmu_get_default_pd
+				(dev_priv->mmu),
+				pg->mmu_gatt_start,
+				dev_priv->vram_stolen_size >> PAGE_SHIFT);
 			up_read(&pg->sem);
 			psb_mmu_driver_takedown(dev_priv->mmu);
 			dev_priv->mmu = NULL;
 		}
-		psb_gtt_takedown(dev_priv->pg, 1);
+		psb_gtt_takedown(dev);
 		if (dev_priv->scratch_page) {
 			__free_page(dev_priv->scratch_page);
 			dev_priv->scratch_page = NULL;
@@ -592,15 +592,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	set_pages_uc(dev_priv->scratch_page, 1);
 
-	dev_priv->pg = psb_gtt_alloc(dev);
-	if (!dev_priv->pg)
-		goto out_err;
-
-	ret = psb_gtt_init(dev_priv->pg, 0);
-	if (ret)
-		goto out_err;
-
-	ret = psb_gtt_mm_init(dev_priv->pg);
+	ret = psb_gtt_init(dev, 0);
 	if (ret)
 		goto out_err;
 
@@ -955,8 +947,8 @@ static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	struct drm_psb_stolen_memory_arg *arg = data;
 
-	arg->base = dev_priv->pg->stolen_base;
-	arg->size = dev_priv->pg->vram_stolen_size;
+	arg->base = dev_priv->stolen_base;
+	arg->size = dev_priv->vram_stolen_size;
 
 	return 0;
 }

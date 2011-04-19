@@ -240,6 +240,13 @@ struct drm_psb_private {
 	/* GTT Memory manager */
 	struct psb_gtt_mm *gtt_mm;
 	struct page *scratch_page;
+	u32 *gtt_map;
+	uint32_t stolen_base;
+	void *vram_addr;
+	unsigned long vram_stolen_size;
+	int gtt_initialized;
+	u16 gmch_ctrl;		/* Saved GTT setup */
+	u32 pge_ctl;
 
 	struct mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */

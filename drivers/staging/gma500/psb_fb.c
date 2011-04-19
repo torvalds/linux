@@ -37,7 +37,6 @@
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
 #include "psb_fb.h"
-#include "psb_pvr_glue.h"
 
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
 static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
@@ -191,8 +190,7 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
-	unsigned long phys_addr = (unsigned long)pg->stolen_base;
+	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base;
 
 	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
@@ -241,7 +239,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	char *fb_screen_base = NULL;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -254,10 +251,11 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	fb_screen_base = (char *)info->screen_base;
 
 	DRM_DEBUG("vm_pgoff 0x%lx, screen base %p vram_addr %p\n",
-				vma->vm_pgoff, fb_screen_base, pg->vram_addr);
+				vma->vm_pgoff, fb_screen_base,
+                                dev_priv->vram_addr);
 
         /* FIXME: ultimately this needs to become 'if entirely stolen memory' */
-	if (1 || fb_screen_base == pg->vram_addr) {
+	if (1 || fb_screen_base == dev_priv->vram_addr) {
 		vma->vm_ops = &psbfb_vm_ops;
 		vma->vm_private_data = (void *)psbfb;
 		vma->vm_flags |= VM_RESERVED | VM_IO |
@@ -349,7 +347,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 {
 	struct drm_device *dev = fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct psb_framebuffer *psbfb;
@@ -409,7 +406,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	/* Accessed via stolen memory directly, This only works for stolem
 	   memory however. Need to address this once we start using gtt
 	   pages we allocate */
-	info->screen_base = (char *)pg->vram_addr + backing->offset;
+	info->screen_base = (char *)dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
 
@@ -735,32 +732,19 @@ static void psb_setup_outputs(struct drm_device *dev)
 	}
 }
 
+/* FIXME: rewrite these in terms of the gtt_range and GEM objects
+   rather than faking them as we do now */
+
 static void *psb_bo_from_handle(struct drm_device *dev,
 				struct drm_file *file_priv,
 				unsigned int handle)
 {
-	void *psKernelMemInfo = NULL;
-	void * hKernelMemInfo = (void *)handle;
-	int ret;
-
-	ret = psb_get_meminfo_by_handle(hKernelMemInfo, &psKernelMemInfo);
-	if (ret) {
-		DRM_ERROR("Cannot get meminfo for handle 0x%x\n",
-			  (u32)hKernelMemInfo);
-		return NULL;
-	}
-
-	return (void *)psKernelMemInfo;
+	return NULL;
 }
 
 static size_t psb_bo_size(struct drm_device *dev, void *bof)
 {
-#if 0
-	void *psKernelMemInfo	= (void *)bof;
-	return (size_t)psKernelMemInfo->ui32AllocSize;
-#else
 	return 0;
-#endif
 }
 
 static size_t psb_bo_offset(struct drm_device *dev, void *bof)
