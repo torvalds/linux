@@ -134,47 +134,52 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_33 = 0x21, // 8168E
 };
 
-#define _R(NAME,MAC,MASK) \
-	{ .name = NAME, .mac_version = MAC, .RxConfigMask = MASK }
+enum rtl_tx_desc_version {
+	RTL_TD_0	= 0,
+	RTL_TD_1	= 1,
+};
+
+#define _R(NAME,MAC,TD) \
+	{ .name = NAME, .mac_version = MAC, .txd_version = TD }
 
 static const struct {
 	const char *name;
 	u8 mac_version;
-	u32 RxConfigMask;	/* Clears the bits supported by this chip */
+	enum rtl_tx_desc_version txd_version;
 } rtl_chip_info[] = {
-	_R("RTL8169",		RTL_GIGA_MAC_VER_01, 0xff7e1880), // 8169
-	_R("RTL8169s",		RTL_GIGA_MAC_VER_02, 0xff7e1880), // 8169S
-	_R("RTL8110s",		RTL_GIGA_MAC_VER_03, 0xff7e1880), // 8110S
-	_R("RTL8169sb/8110sb",	RTL_GIGA_MAC_VER_04, 0xff7e1880), // 8169SB
-	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_05, 0xff7e1880), // 8110SCd
-	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_06, 0xff7e1880), // 8110SCe
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_07, 0xff7e1880), // PCI-E
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_08, 0xff7e1880), // PCI-E
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_09, 0xff7e1880), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_10, 0xff7e1880), // PCI-E
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_11, 0xff7e1880), // PCI-E
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_12, 0xff7e1880), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_13, 0xff7e1880), // PCI-E 8139
-	_R("RTL8100e",		RTL_GIGA_MAC_VER_14, 0xff7e1880), // PCI-E 8139
-	_R("RTL8100e",		RTL_GIGA_MAC_VER_15, 0xff7e1880), // PCI-E 8139
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_17, 0xff7e1880), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_16, 0xff7e1880), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_18, 0xff7e1880), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_19, 0xff7e1880), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_20, 0xff7e1880), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_21, 0xff7e1880), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_22, 0xff7e1880), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_23, 0xff7e1880), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_24, 0xff7e1880), // PCI-E
-	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_25, 0xff7e1880), // PCI-E
-	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_26, 0xff7e1880), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_27, 0xff7e1880), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_28, 0xff7e1880), // PCI-E
-	_R("RTL8105e",		RTL_GIGA_MAC_VER_29, 0xff7e1880), // PCI-E
-	_R("RTL8105e",		RTL_GIGA_MAC_VER_30, 0xff7e1880), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_31, 0xff7e1880), // PCI-E
-	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_32, 0xff7e1880), // PCI-E
-	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_33, 0xff7e1880)  // PCI-E
+	_R("RTL8169",		RTL_GIGA_MAC_VER_01, RTL_TD_0), // 8169
+	_R("RTL8169s",		RTL_GIGA_MAC_VER_02, RTL_TD_0), // 8169S
+	_R("RTL8110s",		RTL_GIGA_MAC_VER_03, RTL_TD_0), // 8110S
+	_R("RTL8169sb/8110sb",	RTL_GIGA_MAC_VER_04, RTL_TD_0), // 8169SB
+	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_05, RTL_TD_0), // 8110SCd
+	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_06, RTL_TD_0), // 8110SCe
+	_R("RTL8102e",		RTL_GIGA_MAC_VER_07, RTL_TD_1), // PCI-E
+	_R("RTL8102e",		RTL_GIGA_MAC_VER_08, RTL_TD_1), // PCI-E
+	_R("RTL8102e",		RTL_GIGA_MAC_VER_09, RTL_TD_1), // PCI-E
+	_R("RTL8101e",		RTL_GIGA_MAC_VER_10, RTL_TD_0), // PCI-E
+	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_11, RTL_TD_0), // PCI-E
+	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_12, RTL_TD_0), // PCI-E
+	_R("RTL8101e",		RTL_GIGA_MAC_VER_13, RTL_TD_0), // PCI-E 8139
+	_R("RTL8100e",		RTL_GIGA_MAC_VER_14, RTL_TD_0), // PCI-E 8139
+	_R("RTL8100e",		RTL_GIGA_MAC_VER_15, RTL_TD_0), // PCI-E 8139
+	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_17, RTL_TD_0), // PCI-E
+	_R("RTL8101e",		RTL_GIGA_MAC_VER_16, RTL_TD_0), // PCI-E
+	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_18, RTL_TD_1), // PCI-E
+	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_19, RTL_TD_1), // PCI-E
+	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_20, RTL_TD_1), // PCI-E
+	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_21, RTL_TD_1), // PCI-E
+	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_22, RTL_TD_1), // PCI-E
+	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_23, RTL_TD_1), // PCI-E
+	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_24, RTL_TD_1), // PCI-E
+	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_25, RTL_TD_1), // PCI-E
+	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_26, RTL_TD_1), // PCI-E
+	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_27, RTL_TD_1), // PCI-E
+	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_28, RTL_TD_1), // PCI-E
+	_R("RTL8105e",		RTL_GIGA_MAC_VER_29, RTL_TD_1), // PCI-E
+	_R("RTL8105e",		RTL_GIGA_MAC_VER_30, RTL_TD_1), // PCI-E
+	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_31, RTL_TD_1), // PCI-E
+	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_32, RTL_TD_1), // PCI-E
+	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_33, RTL_TD_1)  // PCI-E
 };
 #undef _R
 
@@ -230,6 +235,9 @@ enum rtl_registers {
 	IntrStatus	= 0x3e,
 	TxConfig	= 0x40,
 	RxConfig	= 0x44,
+
+#define RTL_RX_CONFIG_MASK		0xff7e1880u
+
 	RxMissed	= 0x4c,
 	Cfg9346		= 0x50,
 	Config0		= 0x51,
@@ -452,21 +460,69 @@ enum rtl_register_content {
 	CounterDump	= 0x8,
 };
 
-enum desc_status_bit {
+enum rtl_desc_bit {
+	/* First doubleword. */
 	DescOwn		= (1 << 31), /* Descriptor is owned by NIC */
 	RingEnd		= (1 << 30), /* End of descriptor ring */
 	FirstFrag	= (1 << 29), /* First segment of a packet */
 	LastFrag	= (1 << 28), /* Final segment of a packet */
+};
 
-	/* Tx private */
-	LargeSend	= (1 << 27), /* TCP Large Send Offload (TSO) */
-	MSSShift	= 16,        /* MSS value position */
-	MSSMask		= 0xfff,     /* MSS value + LargeSend bit: 12 bits */
-	IPCS		= (1 << 18), /* Calculate IP checksum */
-	UDPCS		= (1 << 17), /* Calculate UDP/IP checksum */
-	TCPCS		= (1 << 16), /* Calculate TCP/IP checksum */
-	TxVlanTag	= (1 << 17), /* Add VLAN tag */
+/* Generic case. */
+enum rtl_tx_desc_bit {
+	/* First doubleword. */
+	TD_LSO		= (1 << 27),		/* Large Send Offload */
+#define TD_MSS_MAX			0x07ffu	/* MSS value */
 
+	/* Second doubleword. */
+	TxVlanTag	= (1 << 17),		/* Add VLAN tag */
+};
+
+/* 8169, 8168b and 810x except 8102e. */
+enum rtl_tx_desc_bit_0 {
+	/* First doubleword. */
+#define TD0_MSS_SHIFT			16	/* MSS position (11 bits) */
+	TD0_TCP_CS	= (1 << 16),		/* Calculate TCP/IP checksum */
+	TD0_UDP_CS	= (1 << 17),		/* Calculate UDP/IP checksum */
+	TD0_IP_CS	= (1 << 18),		/* Calculate IP checksum */
+};
+
+/* 8102e, 8168c and beyond. */
+enum rtl_tx_desc_bit_1 {
+	/* Second doubleword. */
+#define TD1_MSS_SHIFT			18	/* MSS position (11 bits) */
+	TD1_IP_CS	= (1 << 29),		/* Calculate IP checksum */
+	TD1_TCP_CS	= (1 << 30),		/* Calculate TCP/IP checksum */
+	TD1_UDP_CS	= (1 << 31),		/* Calculate UDP/IP checksum */
+};
+
+static const struct rtl_tx_desc_info {
+	struct {
+		u32 udp;
+		u32 tcp;
+	} checksum;
+	u16 mss_shift;
+	u16 opts_offset;
+} tx_desc_info [] = {
+	[RTL_TD_0] = {
+		.checksum = {
+			.udp	= TD0_IP_CS | TD0_UDP_CS,
+			.tcp	= TD0_IP_CS | TD0_TCP_CS
+		},
+		.mss_shift	= TD0_MSS_SHIFT,
+		.opts_offset	= 0
+	},
+	[RTL_TD_1] = {
+		.checksum = {
+			.udp	= TD1_IP_CS | TD1_UDP_CS,
+			.tcp	= TD1_IP_CS | TD1_TCP_CS
+		},
+		.mss_shift	= TD1_MSS_SHIFT,
+		.opts_offset	= 1
+	}
+};
+
+enum rtl_rx_desc_bit {
 	/* Rx private */
 	PID1		= (1 << 18), /* Protocol ID bit 1/2 */
 	PID0		= (1 << 17), /* Protocol ID bit 2/2 */
@@ -531,8 +587,8 @@ struct rtl8169_private {
 	struct napi_struct napi;
 	spinlock_t lock;		/* spin lock flag */
 	u32 msg_enable;
-	int chipset;
-	int mac_version;
+	u16 txd_version;
+	u16 mac_version;
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
 	u32 dirty_rx;
@@ -1288,7 +1344,7 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
 {
-	if (dev->mtu > MSSMask)
+	if (dev->mtu > TD_MSS_MAX)
 		features &= ~NETIF_F_ALL_TSO;
 
 	return features;
@@ -3194,7 +3250,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct mii_if_info *mii;
 	struct net_device *dev;
 	void __iomem *ioaddr;
-	unsigned int i;
+	int chipset, i;
 	int rc;
 
 	if (netif_msg_drv(&debug)) {
@@ -3336,7 +3392,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"driver bug, MAC version not found in rtl_chip_info\n");
 		goto err_out_msi_4;
 	}
-	tp->chipset = i;
+	chipset = i;
+	tp->txd_version = rtl_chip_info[chipset].txd_version;
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
@@ -3413,8 +3470,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	netif_info(tp, probe, dev, "%s at 0x%lx, %pM, XID %08x IRQ %d\n",
-		   rtl_chip_info[tp->chipset].name,
-		   dev->base_addr, dev->dev_addr,
+		   rtl_chip_info[chipset].name, dev->base_addr, dev->dev_addr,
 		   (u32)(RTL_R32(TxConfig) & 0x9cf0f8ff), dev->irq);
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_27) ||
@@ -3572,7 +3628,7 @@ static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
 	void __iomem *ioaddr = tp->mmio_addr;
 	u32 cfg = rtl8169_rx_config;
 
-	cfg |= (RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
+	cfg |= (RTL_R32(RxConfig) & RTL_RX_CONFIG_MASK);
 	RTL_W32(RxConfig, cfg);
 
 	/* Set DMA burst size and Interframe Gap Time */
@@ -4564,7 +4620,7 @@ static void rtl8169_tx_timeout(struct net_device *dev)
 }
 
 static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
-			      u32 opts1)
+			      u32 *opts)
 {
 	struct skb_shared_info *info = skb_shinfo(skb);
 	unsigned int cur_frag, entry;
@@ -4592,9 +4648,11 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		}
 
 		/* anti gcc 2.95.3 bugware (sic) */
-		status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
+		status = opts[0] | len |
+			(RingEnd * !((entry + 1) % NUM_TX_DESC));
 
 		txd->opts1 = cpu_to_le32(status);
+		txd->opts2 = cpu_to_le32(opts[1]);
 		txd->addr = cpu_to_le64(mapping);
 
 		tp->tx_skb[entry].len = len;
@@ -4612,23 +4670,26 @@ err_out:
 	return -EIO;
 }
 
-static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
+static inline void rtl8169_tso_csum(struct rtl8169_private *tp,
+				    struct sk_buff *skb, u32 *opts)
 {
+	const struct rtl_tx_desc_info *info = tx_desc_info + tp->txd_version;
 	u32 mss = skb_shinfo(skb)->gso_size;
+	int offset = info->opts_offset;
 
-	if (mss)
-		return LargeSend | ((mss & MSSMask) << MSSShift);
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+	if (mss) {
+		opts[0] |= TD_LSO;
+		opts[offset] |= min(mss, TD_MSS_MAX) << info->mss_shift;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
 
 		if (ip->protocol == IPPROTO_TCP)
-			return IPCS | TCPCS;
+			opts[offset] |= info->checksum.tcp;
 		else if (ip->protocol == IPPROTO_UDP)
-			return IPCS | UDPCS;
-		WARN_ON(1);	/* we need a WARN() */
+			opts[offset] |= info->checksum.udp;
+		else
+			WARN_ON_ONCE(1);
 	}
-	return 0;
 }
 
 static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
@@ -4641,7 +4702,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	struct device *d = &tp->pci_dev->dev;
 	dma_addr_t mapping;
 	u32 status, len;
-	u32 opts1;
+	u32 opts[2];
 	int frags;
 
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
@@ -4662,24 +4723,28 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	tp->tx_skb[entry].len = len;
 	txd->addr = cpu_to_le64(mapping);
-	txd->opts2 = cpu_to_le32(rtl8169_tx_vlan_tag(tp, skb));
 
-	opts1 = DescOwn | rtl8169_tso_csum(skb, dev);
+	opts[1] = cpu_to_le32(rtl8169_tx_vlan_tag(tp, skb));
+	opts[0] = DescOwn;
 
-	frags = rtl8169_xmit_frags(tp, skb, opts1);
+	rtl8169_tso_csum(tp, skb, opts);
+
+	frags = rtl8169_xmit_frags(tp, skb, opts);
 	if (frags < 0)
 		goto err_dma_1;
 	else if (frags)
-		opts1 |= FirstFrag;
+		opts[0] |= FirstFrag;
 	else {
-		opts1 |= FirstFrag | LastFrag;
+		opts[0] |= FirstFrag | LastFrag;
 		tp->tx_skb[entry].skb = skb;
 	}
+
+	txd->opts2 = cpu_to_le32(opts[1]);
 
 	wmb();
 
 	/* anti gcc 2.95.3 bugware (sic) */
-	status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
+	status = opts[0] | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
 	txd->opts1 = cpu_to_le32(status);
 
 	tp->cur_tx += frags + 1;
@@ -5167,7 +5232,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	spin_lock_irqsave(&tp->lock, flags);
 
 	tmp = rtl8169_rx_config | rx_mode |
-	      (RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
+	      (RTL_R32(RxConfig) & RTL_RX_CONFIG_MASK);
 
 	if (tp->mac_version > RTL_GIGA_MAC_VER_06) {
 		u32 data = mc_filter[0];
