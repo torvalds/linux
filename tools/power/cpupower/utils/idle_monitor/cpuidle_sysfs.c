@@ -36,10 +36,10 @@ static int cpuidle_get_count_percent(unsigned int id, double *percent,
 		*percent = 0.0;
 	else
 		*percent = ((100.0 * statediff) / timediff);
-	
+
 	dprint("%s: - timediff: %llu - statediff: %llu - percent: %f (%u)\n",
 	       cpuidle_cstates[id].name, timediff, statediff, *percent, cpu);
-	
+
 	return 0;
 }
 
@@ -55,7 +55,6 @@ static int cpuidle_start(void)
 			dprint("CPU %d - State: %d - Val: %llu\n",
 			       cpu, state, previous_count[cpu][state]);
 		}
-		
 	};
 	return 0;
 }
@@ -83,40 +82,51 @@ void fix_up_intel_idle_driver_name(char *tmp, int num)
 {
 	/* fix up cpuidle name for intel idle driver */
 	if (!strncmp(tmp, "NHM-", 4)) {
-		switch(num) {
-		case 1: strcpy(tmp, "C1");
+		switch (num) {
+		case 1:
+			strcpy(tmp, "C1");
 			break;
-		case 2: strcpy(tmp, "C3");
+		case 2:
+			strcpy(tmp, "C3");
 			break;
-		case 3: strcpy(tmp, "C6");
+		case 3:
+			strcpy(tmp, "C6");
 			break;
 		}
 	} else if (!strncmp(tmp, "SNB-", 4)) {
-		switch(num) {
-		case 1: strcpy(tmp, "C1");
+		switch (num) {
+		case 1:
+			strcpy(tmp, "C1");
 			break;
-		case 2: strcpy(tmp, "C3");
+		case 2:
+			strcpy(tmp, "C3");
 			break;
-		case 3: strcpy(tmp, "C6");
+		case 3:
+			strcpy(tmp, "C6");
 			break;
-		case 4: strcpy(tmp, "C7");
+		case 4:
+			strcpy(tmp, "C7");
 			break;
 		}
 	} else if (!strncmp(tmp, "ATM-", 4)) {
-		switch(num) {
-		case 1: strcpy(tmp, "C1");
+		switch (num) {
+		case 1:
+			strcpy(tmp, "C1");
 			break;
-		case 2: strcpy(tmp, "C2");
+		case 2:
+			strcpy(tmp, "C2");
 			break;
-		case 3: strcpy(tmp, "C4");
+		case 3:
+			strcpy(tmp, "C4");
 			break;
-		case 4: strcpy(tmp, "C6");
+		case 4:
+			strcpy(tmp, "C6");
 			break;
 		}
 	}
 }
 
-static struct cpuidle_monitor* cpuidle_register(void)
+static struct cpuidle_monitor *cpuidle_register(void)
 {
 	int num;
 	char *tmp;
@@ -127,7 +137,7 @@ static struct cpuidle_monitor* cpuidle_register(void)
 	if (cpuidle_sysfs_monitor.hw_states_num == 0)
 		return NULL;
 
-	for (num = 0; num < cpuidle_sysfs_monitor.hw_states_num; num ++) {
+	for (num = 0; num < cpuidle_sysfs_monitor.hw_states_num; num++) {
 		tmp = sysfs_get_idlestate_name(0, num);
 		if (tmp == NULL)
 			continue;
@@ -144,17 +154,18 @@ static struct cpuidle_monitor* cpuidle_register(void)
 
 		cpuidle_cstates[num].range = RANGE_THREAD;
 		cpuidle_cstates[num].id = num;
-		cpuidle_cstates[num].get_count_percent = cpuidle_get_count_percent;
- 	};
+		cpuidle_cstates[num].get_count_percent =
+			cpuidle_get_count_percent;
+	};
 
 	/* Free this at program termination */
-	previous_count = malloc(sizeof (long long*) * cpu_count);
-	current_count = malloc(sizeof (long long*) * cpu_count);
+	previous_count = malloc(sizeof(long long *) * cpu_count);
+	current_count = malloc(sizeof(long long *) * cpu_count);
 	for (num = 0; num < cpu_count; num++) {
-		previous_count[num] = malloc (sizeof(long long) *
-					      cpuidle_sysfs_monitor.hw_states_num);
-		current_count[num] = malloc (sizeof(long long) *
-					     cpuidle_sysfs_monitor.hw_states_num);
+		previous_count[num] = malloc(sizeof(long long) *
+					cpuidle_sysfs_monitor.hw_states_num);
+		current_count[num] = malloc(sizeof(long long) *
+					cpuidle_sysfs_monitor.hw_states_num);
 	}
 
 	cpuidle_sysfs_monitor.name_len = strlen(cpuidle_sysfs_monitor.name);

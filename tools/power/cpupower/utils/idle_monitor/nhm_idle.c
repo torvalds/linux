@@ -69,11 +69,12 @@ static unsigned long long *current_count[NHM_CSTATE_COUNT];
 /* valid flag for all CPUs. If a MSR read failed it will be zero */
 static int *is_valid;
 
-static int nhm_get_count(enum intel_nhm_id id, unsigned long long *val, unsigned int cpu)
+static int nhm_get_count(enum intel_nhm_id id, unsigned long long *val,
+			unsigned int cpu)
 {
 	int msr;
 
-	switch(id) {
+	switch (id) {
 	case C3:
 		msr = MSR_CORE_C3_RESIDENCY;
 		break;
@@ -106,12 +107,13 @@ static int nhm_get_count_percent(unsigned int id, double *percent,
 	if (!is_valid[cpu])
 		return -1;
 
-	*percent = (100.0 * (current_count[id][cpu] - previous_count[id][cpu])) /
+	*percent = (100.0 *
+		(current_count[id][cpu] - previous_count[id][cpu])) /
 		(tsc_at_measure_end - tsc_at_measure_start);
 
-	dprint("%s: previous: %llu - current: %llu - (%u)\n", nhm_cstates[id].name,
-	       previous_count[id][cpu], current_count[id][cpu],
-	       cpu);
+	dprint("%s: previous: %llu - current: %llu - (%u)\n",
+		nhm_cstates[id].name, previous_count[id][cpu],
+		current_count[id][cpu], cpu);
 
 	dprint("%s: tsc_diff: %llu - count_diff: %llu - percent: %2.f (%u)\n",
 	       nhm_cstates[id].name,
@@ -162,7 +164,8 @@ static int nhm_stop(void)
 
 struct cpuidle_monitor intel_nhm_monitor;
 
-struct cpuidle_monitor* intel_nhm_register(void) {
+struct cpuidle_monitor *intel_nhm_register(void)
+{
 	int num;
 
 	if (cpupower_cpu_info.vendor != X86_VENDOR_INTEL)
@@ -175,19 +178,20 @@ struct cpuidle_monitor* intel_nhm_register(void) {
 		return NULL;
 
 	/* Free this at program termination */
-	is_valid = calloc(cpu_count, sizeof (int));
+	is_valid = calloc(cpu_count, sizeof(int));
 	for (num = 0; num < NHM_CSTATE_COUNT; num++) {
-		previous_count[num] = calloc (cpu_count,
-					      sizeof(unsigned long long));
-		current_count[num]  = calloc (cpu_count,
-					      sizeof(unsigned long long));
+		previous_count[num] = calloc(cpu_count,
+					sizeof(unsigned long long));
+		current_count[num]  = calloc(cpu_count,
+					sizeof(unsigned long long));
 	}
 
 	intel_nhm_monitor.name_len = strlen(intel_nhm_monitor.name);
 	return &intel_nhm_monitor;
 }
 
-void intel_nhm_unregister(void) {
+void intel_nhm_unregister(void)
+{
 	int num;
 
 	for (num = 0; num < NHM_CSTATE_COUNT; num++) {

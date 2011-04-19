@@ -58,11 +58,12 @@ static unsigned long long *current_count[SNB_CSTATE_COUNT];
 /* valid flag for all CPUs. If a MSR read failed it will be zero */
 static int *is_valid;
 
-static int snb_get_count(enum intel_snb_id id, unsigned long long *val, unsigned int cpu)
+static int snb_get_count(enum intel_snb_id id, unsigned long long *val,
+			unsigned int cpu)
 {
 	int msr;
 
-	switch(id) {
+	switch (id) {
 	case C7:
 		msr = MSR_CORE_C7_RESIDENCY;
 		break;
@@ -91,18 +92,18 @@ static int snb_get_count_percent(unsigned int id, double *percent,
 	if (!is_valid[cpu])
 		return -1;
 
-	*percent = (100.0 * (current_count[id][cpu] - previous_count[id][cpu])) /
+	*percent = (100.0 *
+		(current_count[id][cpu] - previous_count[id][cpu])) /
 		(tsc_at_measure_end - tsc_at_measure_start);
 
-	dprint("%s: previous: %llu - current: %llu - (%u)\n", snb_cstates[id].name,
-	       previous_count[id][cpu], current_count[id][cpu],
-	       cpu);
+	dprint("%s: previous: %llu - current: %llu - (%u)\n",
+		snb_cstates[id].name, previous_count[id][cpu],
+		current_count[id][cpu], cpu);
 
 	dprint("%s: tsc_diff: %llu - count_diff: %llu - percent: %2.f (%u)\n",
 	       snb_cstates[id].name,
 	       (unsigned long long) tsc_at_measure_end - tsc_at_measure_start,
-	       current_count[id][cpu]
-	       - previous_count[id][cpu],
+	       current_count[id][cpu] - previous_count[id][cpu],
 	       *percent, cpu);
 
 	return 0;
@@ -141,8 +142,8 @@ static int snb_stop(void)
 
 struct cpuidle_monitor intel_snb_monitor;
 
-static struct cpuidle_monitor* snb_register(void) {
-
+static struct cpuidle_monitor *snb_register(void)
+{
 	int num;
 
 	if (cpupower_cpu_info.vendor != X86_VENDOR_INTEL
@@ -153,12 +154,12 @@ static struct cpuidle_monitor* snb_register(void) {
 	    && cpupower_cpu_info.model != 0x2D)
 		return NULL;
 
-	is_valid = calloc(cpu_count, sizeof (int));
+	is_valid = calloc(cpu_count, sizeof(int));
 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {
-		previous_count[num] = calloc (cpu_count,
-					      sizeof(unsigned long long));
-		current_count[num]  = calloc (cpu_count,
-					      sizeof(unsigned long long));
+		previous_count[num] = calloc(cpu_count,
+					sizeof(unsigned long long));
+		current_count[num]  = calloc(cpu_count,
+					sizeof(unsigned long long));
 	}
 	intel_snb_monitor.name_len = strlen(intel_snb_monitor.name);
 	return &intel_snb_monitor;

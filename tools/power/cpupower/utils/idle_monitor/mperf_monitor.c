@@ -79,7 +79,7 @@ static int mperf_init_stats(unsigned int cpu)
 	ret |= read_msr(cpu, MSR_MPERF, &val);
 	mperf_previous_count[cpu] = val;
 	is_valid[cpu] = !ret;
-	
+
 	return 0;
 }
 
@@ -93,7 +93,7 @@ static int mperf_measure_stats(unsigned int cpu)
 	ret |= read_msr(cpu, MSR_MPERF, &val);
 	mperf_current_count[cpu] = val;
 	is_valid[cpu] = !ret;
-	
+
 	return 0;
 }
 
@@ -145,14 +145,14 @@ static int mperf_get_count_percent(unsigned int id, double *percent,
 	if (id == Cx)
 		*percent = 100.0 - *percent;
 
-	dprint("%s: previous: %llu - current: %llu - (%u)\n", mperf_cstates[id].name,
-	       mperf_diff, aperf_diff, cpu);
+	dprint("%s: previous: %llu - current: %llu - (%u)\n",
+		mperf_cstates[id].name, mperf_diff, aperf_diff, cpu);
 	dprint("%s: %f\n", mperf_cstates[id].name, *percent);
 	return 0;
 }
 
 static int mperf_get_count_freq(unsigned int id, unsigned long long *count,
-			      unsigned int cpu)
+				unsigned int cpu)
 {
 	unsigned long long aperf_diff, mperf_diff;
 
@@ -206,8 +206,8 @@ static int mperf_stop(void)
 
 struct cpuidle_monitor mperf_monitor;
 
-struct cpuidle_monitor* mperf_register(void) {
-
+struct cpuidle_monitor *mperf_register(void)
+{
 	unsigned long min;
 
 	if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_APERF))
@@ -221,21 +221,18 @@ struct cpuidle_monitor* mperf_register(void) {
 	}
 
 	/* Free this at program termination */
-	is_valid = calloc(cpu_count, sizeof (int));
-	mperf_previous_count = calloc (cpu_count,
-				       sizeof(unsigned long long));
-	aperf_previous_count = calloc (cpu_count,
-				       sizeof(unsigned long long));
-	mperf_current_count = calloc (cpu_count,
-				      sizeof(unsigned long long));
-	aperf_current_count = calloc (cpu_count,
-				      sizeof(unsigned long long));
-	
+	is_valid = calloc(cpu_count, sizeof(int));
+	mperf_previous_count = calloc(cpu_count, sizeof(unsigned long long));
+	aperf_previous_count = calloc(cpu_count, sizeof(unsigned long long));
+	mperf_current_count = calloc(cpu_count, sizeof(unsigned long long));
+	aperf_current_count = calloc(cpu_count, sizeof(unsigned long long));
+
 	mperf_monitor.name_len = strlen(mperf_monitor.name);
 	return &mperf_monitor;
 }
 
-void mperf_unregister(void) {
+void mperf_unregister(void)
+{
 	free(mperf_previous_count);
 	free(aperf_previous_count);
 	free(mperf_current_count);

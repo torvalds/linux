@@ -24,7 +24,7 @@
 
 /* Define pointers to all monitors.  */
 #define DEF(x) & x ## _monitor ,
-struct cpuidle_monitor * all_monitors[] = {
+struct cpuidle_monitor *all_monitors[] = {
 #include "idle_monitors.def"
 0
 };
@@ -76,19 +76,19 @@ void print_n_spaces(int n)
 	int x;
 	for (x = 0; x < n; x++)
 		printf(" ");
-}	
+}
 
 /* size of s must be at least n + 1 */
 int fill_string_with_spaces(char *s, int n)
 {
-        int len = strlen(s);
+	int len = strlen(s);
 	if (len > n)
 		return -1;
-        for (; len < n; len++)
-                s[len] = ' ';
-        s[len] = '\0';
+	for (; len < n; len++)
+		s[len] = ' ';
+	s[len] = '\0';
 	return 0;
-} 
+}
 
 void print_header(int topology_depth)
 {
@@ -107,7 +107,7 @@ void print_header(int topology_depth)
 			- 1;
 		if (mon != 0) {
 			printf("|| ");
-			need_len --;
+			need_len--;
 		}
 		sprintf(buf, "%s", monitors[mon]->name);
 		fill_string_with_spaces(buf, need_len);
@@ -169,26 +169,24 @@ void print_results(int topology_depth, int cpu)
 			if (s.get_count_percent) {
 				ret = s.get_count_percent(s.id, &percent,
 						  cpu_top.core_info[cpu].cpu);
-				if (ret) {
+				if (ret)
 					printf("******");
-				} else if (percent >= 100.0)
+				else if (percent >= 100.0)
 					printf("%6.1f", percent);
 				else
 					printf("%6.2f", percent);
-			}
-			else if (s.get_count) {
+			} else if (s.get_count) {
 				ret = s.get_count(s.id, &result,
 						  cpu_top.core_info[cpu].cpu);
-				if (ret) {
+				if (ret)
 					printf("******");
-				} else
+				else
 					printf("%6llu", result);
-			}
-			else {
+			} else {
 				printf(_("Monitor %s, Counter %s has no count "
 					 "function. Implementation error\n"),
 				       monitors[mon]->name, s.name);
-				exit (EXIT_FAILURE);
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
@@ -211,7 +209,7 @@ void print_results(int topology_depth, int cpu)
  * Monitors get sorted in the same order the user passes them
 */
 
-static void parse_monitor_param(char* param)
+static void parse_monitor_param(char *param)
 {
 	unsigned int num;
 	int mon, hits = 0;
@@ -219,7 +217,7 @@ static void parse_monitor_param(char* param)
 	struct cpuidle_monitor *tmp_mons[MONITORS_MAX];
 
 
-	for (mon = 0; mon < MONITORS_MAX;mon++, tmp = NULL) {
+	for (mon = 0; mon < MONITORS_MAX; mon++, tmp = NULL) {
 		token = strtok(tmp, ",");
 		if (token == NULL)
 			break;
@@ -235,7 +233,7 @@ static void parse_monitor_param(char* param)
 				tmp_mons[hits] = monitors[num];
 				hits++;
 			}
-		}	
+		}
 	}
 	if (hits == 0) {
 		printf(_("No matching monitor found in %s, "
@@ -244,20 +242,23 @@ static void parse_monitor_param(char* param)
 		exit(EXIT_FAILURE);
 	}
 	/* Override detected/registerd monitors array with requested one */
-	memcpy(monitors, tmp_mons, sizeof(struct cpuidle_monitor*) * MONITORS_MAX);
+	memcpy(monitors, tmp_mons,
+		sizeof(struct cpuidle_monitor *) * MONITORS_MAX);
 	avail_monitors = hits;
 }
 
-void list_monitors(void) {
+void list_monitors(void)
+{
 	unsigned int mon;
 	int state;
 	cstate_t s;
 
 	for (mon = 0; mon < avail_monitors; mon++) {
 		printf(_("Monitor \"%s\" (%d states) - Might overflow after %u "
-			 "s\n"), monitors[mon]->name, monitors[mon]->hw_states_num,
-		       monitors[mon]->overflow_s);
-		       
+			 "s\n"),
+			monitors[mon]->name, monitors[mon]->hw_states_num,
+			monitors[mon]->overflow_s);
+
 		for (state = 0; state < monitors[mon]->hw_states_num; state++) {
 			s = monitors[mon]->hw_states[state];
 			/*
@@ -308,7 +309,8 @@ int fork_it(char **argv)
 	timediff = timespec_diff_us(start, end);
 	if (WIFEXITED(status))
 		printf(_("%s took %.5f seconds and exited with status %d\n"),
-		       argv[0], timediff / (1000.0 * 1000), WEXITSTATUS(status));
+			argv[0], timediff / (1000.0 * 1000),
+			WEXITSTATUS(status));
 	return 0;
 }
 
@@ -322,9 +324,9 @@ int do_interval_measure(int i)
 		monitors[num]->start();
 	}
 	sleep(i);
-	for (num = 0; num < avail_monitors; num++) {
+	for (num = 0; num < avail_monitors; num++)
 		monitors[num]->stop();
-	}
+
 	return 0;
 }
 
@@ -384,7 +386,7 @@ int cmd_monitor(int argc, char **argv)
 	}
 
 	dprint("System has up to %d CPU cores\n", cpu_count);
-	
+
 	for (num = 0; all_monitors[num]; num++) {
 		dprint("Try to register: %s\n", all_monitors[num]->name);
 		test_mon = all_monitors[num]->do_register();
@@ -438,9 +440,9 @@ int cmd_monitor(int argc, char **argv)
 			print_results(1, cpu);
 	}
 
-	for (num = 0; num < avail_monitors; num++) {
+	for (num = 0; num < avail_monitors; num++)
 		monitors[num]->unregister();
-	}
+
 	cpu_topology_release(cpu_top);
 	return 0;
 }

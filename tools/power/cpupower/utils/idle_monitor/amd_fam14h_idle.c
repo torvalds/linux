@@ -104,7 +104,7 @@ static int amd_fam14h_get_pci_info(struct cstate *state,
 				   unsigned int *enable_bit,
 				   unsigned int cpu)
 {
-	switch(state->id) {
+	switch (state->id) {
 	case NON_PC0:
 		*enable_bit = PCI_NON_PC0_ENABLE_BIT;
 		*pci_offset = PCI_NON_PC0_OFFSET;
@@ -177,7 +177,7 @@ static int amd_fam14h_disable(cstate_t *state, unsigned int cpu)
 		/* was the bit whether NBP1 got entered set? */
 		nbp1_entered = (val & (1 << PCI_NBP1_ACTIVE_BIT)) |
 			(val & (1 << PCI_NBP1_ENTERED_BIT));
-			
+
 		dprint("NBP1 was %sentered - 0x%x - enable_bit: "
 		       "%d - pci_offset: 0x%x\n",
 		       nbp1_entered ? "" : "not ",
@@ -214,7 +214,7 @@ static int fam14h_get_count_percent(unsigned int id, double *percent,
 				    unsigned int cpu)
 {
 	unsigned long diff;
-	
+
 	if (id >= AMD_FAM14H_STATE_NUM)
 		return -1;
 	/* residency count in 80ns -> divide through 12.5 to get us residency */
@@ -236,9 +236,8 @@ static int amd_fam14h_start(void)
 	int num, cpu;
 	clock_gettime(CLOCK_REALTIME, &start_time);
 	for (num = 0; num < AMD_FAM14H_STATE_NUM; num++) {
-		for (cpu = 0; cpu < cpu_count; cpu++) {
+		for (cpu = 0; cpu < cpu_count; cpu++)
 			amd_fam14h_init(&amd_fam14h_cstates[num], cpu);
-		}
 	}
 #ifdef DEBUG
 	clock_gettime(CLOCK_REALTIME, &dbg_time);
@@ -257,9 +256,8 @@ static int amd_fam14h_stop(void)
 	clock_gettime(CLOCK_REALTIME, &end_time);
 
 	for (num = 0; num < AMD_FAM14H_STATE_NUM; num++) {
-		for (cpu = 0; cpu < cpu_count; cpu++) {
+		for (cpu = 0; cpu < cpu_count; cpu++)
 			amd_fam14h_disable(&amd_fam14h_cstates[num], cpu);
-		}
 	}
 #ifdef DEBUG
 	clock_gettime(CLOCK_REALTIME, &dbg_time);
@@ -281,8 +279,8 @@ static int is_nbp1_capable(void)
 	return val & (1 << 31);
 }
 
-struct cpuidle_monitor* amd_fam14h_register(void) {
-
+struct cpuidle_monitor *amd_fam14h_register(void)
+{
 	int num;
 
 	if (cpupower_cpu_info.vendor != X86_VENDOR_AMD)
@@ -299,9 +297,9 @@ struct cpuidle_monitor* amd_fam14h_register(void) {
 
 	/* We do not alloc for nbp1 machine wide counter */
 	for (num = 0; num < AMD_FAM14H_STATE_NUM - 1; num++) {
-		previous_count[num] = calloc (cpu_count,
+		previous_count[num] = calloc(cpu_count,
 					      sizeof(unsigned long long));
-		current_count[num]  = calloc (cpu_count,
+		current_count[num]  = calloc(cpu_count,
 					      sizeof(unsigned long long));
 	}
 
