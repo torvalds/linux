@@ -42,32 +42,6 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
 }
 
-static u32 ipoib_get_rx_csum(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	return test_bit(IPOIB_FLAG_CSUM, &priv->flags) &&
-		!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
-}
-
-static int ipoib_set_tso(struct net_device *dev, u32 data)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	if (data) {
-		if (!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags) &&
-		    (dev->features & NETIF_F_SG) &&
-		    (priv->hca_caps & IB_DEVICE_UD_TSO)) {
-			dev->features |= NETIF_F_TSO;
-		} else {
-			ipoib_warn(priv, "can't set TSO on\n");
-			return -EOPNOTSUPP;
-		}
-	} else
-		dev->features &= ~NETIF_F_TSO;
-
-	return 0;
-}
-
 static int ipoib_get_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
@@ -108,8 +82,6 @@ static int ipoib_set_coalesce(struct net_device *dev,
 
 static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_drvinfo		= ipoib_get_drvinfo,
-	.get_rx_csum		= ipoib_get_rx_csum,
-	.set_tso		= ipoib_set_tso,
 	.get_coalesce		= ipoib_get_coalesce,
 	.set_coalesce		= ipoib_set_coalesce,
 };
