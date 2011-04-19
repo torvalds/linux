@@ -1400,7 +1400,7 @@ int sctp_has_association(const union sctp_addr *laddr,
 int sctp_verify_init(const struct sctp_association *asoc, sctp_cid_t,
 		     sctp_init_chunk_t *peer_init, struct sctp_chunk *chunk,
 		     struct sctp_chunk **err_chunk);
-int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
+int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
 		      const union sctp_addr *peer,
 		      sctp_init_chunk_t *init, gfp_t gfp);
 __u32 sctp_generate_tag(const struct sctp_endpoint *);

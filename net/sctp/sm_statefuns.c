@@ -393,8 +393,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 		goto nomem_init;
 
 	/* The call, sctp_process_init(), can fail on memory allocation.  */
-	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       sctp_source(chunk),
+	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
 			       (sctp_init_chunk_t *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
 		goto nomem_init;
@@ -725,7 +724,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	 */
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
 
-	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
+	if (!sctp_process_init(new_asoc, chunk,
 			       &chunk->subh.cookie_hdr->c.peer_addr,
 			       peer_init, GFP_ATOMIC))
 		goto nomem_init;
@@ -1464,8 +1463,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	 * Verification Tag and Peers Verification tag into a reserved
 	 * place (local tie-tag and per tie-tag) within the state cookie.
 	 */
-	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       sctp_source(chunk),
+	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
 			       (sctp_init_chunk_t *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
 		goto nomem;
@@ -1694,8 +1692,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_a(const struct sctp_endpoint *ep,
 	 */
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
 
-	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       sctp_source(chunk), peer_init,
+	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk), peer_init,
 			       GFP_ATOMIC))
 		goto nomem;
 
@@ -1780,8 +1777,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_b(const struct sctp_endpoint *ep,
 	 * side effects--it is safe to run them here.
 	 */
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
-	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       sctp_source(chunk), peer_init,
+	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk), peer_init,
 			       GFP_ATOMIC))
 		goto nomem;
 
