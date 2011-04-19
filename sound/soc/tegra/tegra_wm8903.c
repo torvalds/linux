@@ -294,28 +294,6 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		gpio_direction_output(pdata->gpio_ext_mic_en, 0);
 	}
 
-	ret = snd_soc_add_controls(codec, tegra_wm8903_controls,
-				   ARRAY_SIZE(tegra_wm8903_controls));
-	if (ret < 0)
-		return ret;
-
-	snd_soc_dapm_new_controls(dapm, tegra_wm8903_dapm_widgets,
-					ARRAY_SIZE(tegra_wm8903_dapm_widgets));
-
-	if (machine_is_harmony() || machine_is_ventana()) {
-		snd_soc_dapm_add_routes(dapm, harmony_audio_map,
-					ARRAY_SIZE(harmony_audio_map));
-	} else if (machine_is_seaboard()) {
-		snd_soc_dapm_add_routes(dapm, seaboard_audio_map,
-					ARRAY_SIZE(seaboard_audio_map));
-	} else if (machine_is_kaen()) {
-		snd_soc_dapm_add_routes(dapm, kaen_audio_map,
-					ARRAY_SIZE(kaen_audio_map));
-	} else {
-		snd_soc_dapm_add_routes(dapm, aebl_audio_map,
-					ARRAY_SIZE(aebl_audio_map));
-	}
-
 	if (gpio_is_valid(pdata->gpio_hp_det)) {
 		tegra_wm8903_hp_jack_gpio.gpio = pdata->gpio_hp_det;
 		snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
@@ -379,6 +357,11 @@ static struct snd_soc_card snd_soc_tegra_wm8903 = {
 	.name = "tegra-wm8903",
 	.dai_link = &tegra_wm8903_dai,
 	.num_links = 1,
+
+	.controls = tegra_wm8903_controls,
+	.num_controls = ARRAY_SIZE(tegra_wm8903_controls),
+	.dapm_widgets = tegra_wm8903_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(tegra_wm8903_dapm_widgets),
 };
 
 static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
@@ -409,6 +392,20 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
+
+	if (machine_is_harmony() || machine_is_ventana()) {
+		card->dapm_routes = harmony_audio_map;
+		card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
+	} else if (machine_is_seaboard()) {
+		card->dapm_routes = seaboard_audio_map;
+		card->num_dapm_routes = ARRAY_SIZE(seaboard_audio_map);
+	} else if (machine_is_kaen()) {
+		card->dapm_routes = kaen_audio_map;
+		card->num_dapm_routes = ARRAY_SIZE(kaen_audio_map);
+	} else {
+		card->dapm_routes = aebl_audio_map;
+		card->num_dapm_routes = ARRAY_SIZE(aebl_audio_map);
+	}
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
