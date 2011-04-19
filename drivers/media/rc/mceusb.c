@@ -150,6 +150,7 @@ enum mceusb_model_type {
 	CX_HYBRID_TV,
 	MULTIFUNCTION,
 	TIVO_KIT,
+	MCE_GEN2_NO_TX,
 };
 
 struct mceusb_model {
@@ -172,6 +173,10 @@ static const struct mceusb_model mceusb_model[] = {
 	},
 	[MCE_GEN2] = {
 		.mce_gen2 = 1,
+	},
+	[MCE_GEN2_NO_TX] = {
+		.mce_gen2 = 1,
+		.no_tx = 1,
 	},
 	[MCE_GEN2_TX_INV] = {
 		.mce_gen2 = 1,
@@ -284,7 +289,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Formosa21 / eHome Infrared Receiver */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe016) },
 	/* Formosa aim / Trust MCE Infrared Receiver */
-	{ USB_DEVICE(VENDOR_FORMOSA, 0xe017) },
+	{ USB_DEVICE(VENDOR_FORMOSA, 0xe017),
+	  .driver_info = MCE_GEN2_NO_TX },
 	/* Formosa Industrial Computing / Beanbag Emulation Device */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe018) },
 	/* Formosa21 / eHome Infrared Receiver */
