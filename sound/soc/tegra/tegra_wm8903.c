@@ -391,13 +391,6 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	struct tegra_wm8903_platform_data *pdata;
 	int ret;
 
-	if (!machine_is_harmony() && !machine_is_ventana() &&
-	    !machine_is_seaboard() && !machine_is_kaen() &&
-	    !machine_is_aebl()) {
-		dev_err(&pdev->dev, "Not running on a supported board!\n");
-		return -ENODEV;
-	}
-
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
