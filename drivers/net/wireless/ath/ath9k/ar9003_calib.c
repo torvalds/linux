@@ -940,21 +940,18 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int val;
 
 	val = REG_READ(ah, AR_ENT_OTP);
 	ath_dbg(common, ATH_DBG_CALIBRATE, "ath9k: AR_ENT_OTP 0x%x\n", val);
 
-	if (AR_SREV_9485(ah))
-		ar9003_hw_set_chain_masks(ah, 0x1, 0x1);
-	else if (val & AR_ENT_OTP_CHAIN2_DISABLE)
+	/* Configure rx/tx chains before running AGC/TxiQ cals */
+	if (val & AR_ENT_OTP_CHAIN2_DISABLE)
 		ar9003_hw_set_chain_masks(ah, 0x3, 0x3);
 	else
-		/*
-		 * 0x7 = 0b111 , AR9003 needs to be configured for 3-chain
-		 * mode before running AGC/TxIQ cals
-		 */
-		ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
+		ar9003_hw_set_chain_masks(ah, pCap->rx_chainmask,
+					  pCap->tx_chainmask);
 
 	/* Do Tx IQ Calibration */
 	if (AR_SREV_9485(ah))
