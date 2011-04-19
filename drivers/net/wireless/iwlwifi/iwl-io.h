@@ -62,6 +62,7 @@ int iwl_poll_bit(struct iwl_priv *priv, u32 addr,
 int iwl_poll_direct_bit(struct iwl_priv *priv, u32 addr, u32 mask,
 			int timeout);
 
+int iwl_grab_nic_access_silent(struct iwl_priv *priv);
 int iwl_grab_nic_access(struct iwl_priv *priv);
 void iwl_release_nic_access(struct iwl_priv *priv);
 
