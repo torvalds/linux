@@ -161,7 +161,9 @@ be_get_reg_len(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 log_size = 0;
 
-	be_cmd_get_reg_len(adapter, &log_size);
+	if (be_physfn(adapter))
+		be_cmd_get_reg_len(adapter, &log_size);
+
 	return log_size;
 }
 
@@ -170,8 +172,10 @@ be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	memset(buf, 0, regs->len);
-	be_cmd_get_regs(adapter, regs->len, buf);
+	if (be_physfn(adapter)) {
+		memset(buf, 0, regs->len);
+		be_cmd_get_regs(adapter, regs->len, buf);
+	}
 }
 
 static int
