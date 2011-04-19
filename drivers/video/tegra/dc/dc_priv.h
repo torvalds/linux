@@ -63,6 +63,7 @@ struct tegra_dc {
 	struct clk			*emc_clk;
 
 	bool				enabled;
+	bool				suspended;
 
 	struct tegra_dc_out		*out;
 	struct tegra_dc_out_ops		*out_ops;
