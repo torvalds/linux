@@ -325,6 +325,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	struct sctp_transport **transport)
 {
 	struct sctp_association *asoc = NULL;
+	struct sctp_association *tmp;
 	struct sctp_transport *t = NULL;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
@@ -333,25 +334,32 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	int rport;
 
 	*transport = NULL;
+
+	/* If the local port is not set, there can't be any associations
+	 * on this endpoint.
+	 */
+	if (!ep->base.bind_addr.port)
+		goto out;
+
 	rport = ntohs(paddr->v4.sin_port);
 
 	hash = sctp_assoc_hashfn(ep->base.bind_addr.port, rport);
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, node, &head->chain) {
-		asoc = sctp_assoc(epb);
-		if (asoc->ep != ep || rport != asoc->peer.port)
-			goto next;
+		tmp = sctp_assoc(epb);
+		if (tmp->ep != ep || rport != tmp->peer.port)
+			continue;
 
-		t = sctp_assoc_lookup_paddr(asoc, paddr);
+		t = sctp_assoc_lookup_paddr(tmp, paddr);
 		if (t) {
+			asoc = tmp;
 			*transport = t;
 			break;
 		}
-next:
-		asoc = NULL;
 	}
 	read_unlock(&head->lock);
+out:
 	return asoc;
 }
 
