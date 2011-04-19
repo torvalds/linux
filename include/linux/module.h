@@ -477,8 +477,9 @@ const struct kernel_symbol *find_symbol(const char *name,
 					bool warn);
 
 /* Walk the exported symbol table */
-bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
-			    unsigned int symnum, void *data), void *data);
+bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
+				    struct module *owner,
+				    void *data), void *data);
 
 /* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
    symnum out of range. */

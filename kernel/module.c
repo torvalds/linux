@@ -240,23 +240,24 @@ static bool each_symbol_in_section(const struct symsearch *arr,
 				   struct module *owner,
 				   bool (*fn)(const struct symsearch *syms,
 					      struct module *owner,
-					      unsigned int symnum, void *data),
+					      void *data),
 				   void *data)
 {
-	unsigned int i, j;
+	unsigned int j;
 
 	for (j = 0; j < arrsize; j++) {
-		for (i = 0; i < arr[j].stop - arr[j].start; i++)
-			if (fn(&arr[j], owner, i, data))
-				return true;
+		if (fn(&arr[j], owner, data))
+			return true;
 	}
 
 	return false;
 }
 
 /* Returns true as soon as fn returns true, otherwise false. */
-bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
-			    unsigned int symnum, void *data), void *data)
+bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
+				    struct module *owner,
+				    void *data),
+			 void *data)
 {
 	struct module *mod;
 	static const struct symsearch arr[] = {
@@ -309,7 +310,7 @@ bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
 	}
 	return false;
 }
-EXPORT_SYMBOL_GPL(each_symbol);
+EXPORT_SYMBOL_GPL(each_symbol_section);
 
 struct find_symbol_arg {
 	/* Input */
@@ -323,14 +324,11 @@ struct find_symbol_arg {
 	const struct kernel_symbol *sym;
 };
 
-static bool find_symbol_in_section(const struct symsearch *syms,
-				   struct module *owner,
-				   unsigned int symnum, void *data)
+static bool check_symbol(const struct symsearch *syms,
+				 struct module *owner,
+				 unsigned int symnum, void *data)
 {
 	struct find_symbol_arg *fsa = data;
-
-	if (strcmp(syms->start[symnum].name, fsa->name) != 0)
-		return false;
 
 	if (!fsa->gplok) {
 		if (syms->licence == GPL_ONLY)
@@ -365,6 +363,20 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 	return true;
 }
 
+static bool find_symbol_in_section(const struct symsearch *syms,
+				   struct module *owner,
+				   void *data)
+{
+	struct find_symbol_arg *fsa = data;
+	unsigned int i;
+
+	for (i = 0; i < syms->stop - syms->start; i++) {
+		if (strcmp(syms->start[i].name, fsa->name) == 0)
+			return check_symbol(syms, owner, i, data);
+	}
+	return false;
+}
+
 /* Find a symbol and return it, along with, (optional) crc and
  * (optional) module which owns it.  Needs preempt disabled or module_mutex. */
 const struct kernel_symbol *find_symbol(const char *name,
@@ -379,7 +391,7 @@ const struct kernel_symbol *find_symbol(const char *name,
 	fsa.gplok = gplok;
 	fsa.warn = warn;
 
-	if (each_symbol(find_symbol_in_section, &fsa)) {
+	if (each_symbol_section(find_symbol_in_section, &fsa)) {
 		if (owner)
 			*owner = fsa.owner;
 		if (crc)
