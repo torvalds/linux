@@ -375,6 +375,32 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);
 
+/* Called once per device from rtc_device_register */
+int rtc_initialize_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
+{
+	int err;
+
+	err = rtc_valid_tm(&alarm->time);
+	if (err != 0)
+		return err;
+
+	err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+	rtc->aie_timer.node.expires = rtc_tm_to_ktime(alarm->time);
+	rtc->aie_timer.period = ktime_set(0, 0);
+	if (alarm->enabled) {
+		rtc->aie_timer.enabled = 1;
+		timerqueue_add(&rtc->timerqueue, &rtc->aie_timer.node);
+	}
+	mutex_unlock(&rtc->ops_lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_initialize_alarm);
+
+
+
 int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 {
 	int err = mutex_lock_interruptible(&rtc->ops_lock);

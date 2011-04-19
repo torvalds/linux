@@ -3176,7 +3176,7 @@ static __init_refok int __build_all_zonelists(void *data)
  * Called with zonelists_mutex held always
  * unless system_state == SYSTEM_BOOTING.
  */
-void build_all_zonelists(void *data)
+void __ref build_all_zonelists(void *data)
 {
 	set_zonelist_order();
 

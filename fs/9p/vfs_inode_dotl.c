@@ -811,7 +811,7 @@ v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid)) {
 		__putname(link);
-		link = ERR_PTR(PTR_ERR(fid));
+		link = ERR_CAST(fid);
 		goto ndset;
 	}
 	retval = p9_client_readlink(fid, &target);

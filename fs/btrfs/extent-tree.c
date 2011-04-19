@@ -33,6 +33,25 @@
 #include "locking.h"
 #include "free-space-cache.h"
 
+/* control flags for do_chunk_alloc's force field
+ * CHUNK_ALLOC_NO_FORCE means to only allocate a chunk
+ * if we really need one.
+ *
+ * CHUNK_ALLOC_FORCE means it must try to allocate one
+ *
+ * CHUNK_ALLOC_LIMITED means to only try and allocate one
+ * if we have very few chunks already allocated.  This is
+ * used as part of the clustering code to help make sure
+ * we have a good pool of storage to cluster in, without
+ * filling the FS with empty chunks
+ *
+ */
+enum {
+	CHUNK_ALLOC_NO_FORCE = 0,
+	CHUNK_ALLOC_FORCE = 1,
+	CHUNK_ALLOC_LIMITED = 2,
+};
+
 static int update_block_group(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      u64 bytenr, u64 num_bytes, int alloc);
@@ -3019,7 +3038,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_readonly = 0;
 	found->bytes_may_use = 0;
 	found->full = 0;
-	found->force_alloc = 0;
+	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
+	found->chunk_alloc = 0;
 	*space_info = found;
 	list_add_rcu(&found->list, &info->space_info);
 	atomic_set(&found->caching_threads, 0);
@@ -3150,7 +3170,7 @@ again:
 		if (!data_sinfo->full && alloc_chunk) {
 			u64 alloc_target;
 
-			data_sinfo->force_alloc = 1;
+			data_sinfo->force_alloc = CHUNK_ALLOC_FORCE;
 			spin_unlock(&data_sinfo->lock);
 alloc:
 			alloc_target = btrfs_get_alloc_profile(root, 1);
@@ -3160,7 +3180,8 @@ alloc:
 
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
 					     bytes + 2 * 1024 * 1024,
-					     alloc_target, 0);
+					     alloc_target,
+					     CHUNK_ALLOC_NO_FORCE);
 			btrfs_end_transaction(trans, root);
 			if (ret < 0) {
 				if (ret != -ENOSPC)
@@ -3239,31 +3260,56 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_METADATA)
-			found->force_alloc = 1;
+			found->force_alloc = CHUNK_ALLOC_FORCE;
 	}
 	rcu_read_unlock();
 }
 
 static int should_alloc_chunk(struct btrfs_root *root,
-			      struct btrfs_space_info *sinfo, u64 alloc_bytes)
+			      struct btrfs_space_info *sinfo, u64 alloc_bytes,
+			      int force)
 {
 	u64 num_bytes = sinfo->total_bytes - sinfo->bytes_readonly;
+	u64 num_allocated = sinfo->bytes_used + sinfo->bytes_reserved;
 	u64 thresh;
 
-	if (sinfo->bytes_used + sinfo->bytes_reserved +
-	    alloc_bytes + 256 * 1024 * 1024 < num_bytes)
+	if (force == CHUNK_ALLOC_FORCE)
+		return 1;
+
+	/*
+	 * in limited mode, we want to have some free space up to
+	 * about 1% of the FS size.
+	 */
+	if (force == CHUNK_ALLOC_LIMITED) {
+		thresh = btrfs_super_total_bytes(&root->fs_info->super_copy);
+		thresh = max_t(u64, 64 * 1024 * 1024,
+			       div_factor_fine(thresh, 1));
+
+		if (num_bytes - num_allocated < thresh)
+			return 1;
+	}
+
+	/*
+	 * we have two similar checks here, one based on percentage
+	 * and once based on a hard number of 256MB.  The idea
+	 * is that if we have a good amount of free
+	 * room, don't allocate a chunk.  A good mount is
+	 * less than 80% utilized of the chunks we have allocated,
+	 * or more than 256MB free
+	 */
+	if (num_allocated + alloc_bytes + 256 * 1024 * 1024 < num_bytes)
 		return 0;
 
-	if (sinfo->bytes_used + sinfo->bytes_reserved +
-	    alloc_bytes < div_factor(num_bytes, 8))
+	if (num_allocated + alloc_bytes < div_factor(num_bytes, 8))
 		return 0;
 
 	thresh = btrfs_super_total_bytes(&root->fs_info->super_copy);
+
+	/* 256MB or 5% of the FS */
 	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 5));
 
 	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 3))
 		return 0;
-
 	return 1;
 }
 
@@ -3273,9 +3319,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_space_info *space_info;
 	struct btrfs_fs_info *fs_info = extent_root->fs_info;
+	int wait_for_alloc = 0;
 	int ret = 0;
-
-	mutex_lock(&fs_info->chunk_mutex);
 
 	flags = btrfs_reduce_alloc_profile(extent_root, flags);
 
@@ -3287,20 +3332,39 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	}
 	BUG_ON(!space_info);
 
+again:
 	spin_lock(&space_info->lock);
 	if (space_info->force_alloc)
-		force = 1;
+		force = space_info->force_alloc;
 	if (space_info->full) {
 		spin_unlock(&space_info->lock);
-		goto out;
+		return 0;
 	}
 
-	if (!force && !should_alloc_chunk(extent_root, space_info,
-					  alloc_bytes)) {
+	if (!should_alloc_chunk(extent_root, space_info, alloc_bytes, force)) {
 		spin_unlock(&space_info->lock);
-		goto out;
+		return 0;
+	} else if (space_info->chunk_alloc) {
+		wait_for_alloc = 1;
+	} else {
+		space_info->chunk_alloc = 1;
 	}
+
 	spin_unlock(&space_info->lock);
+
+	mutex_lock(&fs_info->chunk_mutex);
+
+	/*
+	 * The chunk_mutex is held throughout the entirety of a chunk
+	 * allocation, so once we've acquired the chunk_mutex we know that the
+	 * other guy is done and we need to recheck and see if we should
+	 * allocate.
+	 */
+	if (wait_for_alloc) {
+		mutex_unlock(&fs_info->chunk_mutex);
+		wait_for_alloc = 0;
+		goto again;
+	}
 
 	/*
 	 * If we have mixed data/metadata chunks we want to make sure we keep
@@ -3327,9 +3391,10 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 		space_info->full = 1;
 	else
 		ret = 1;
-	space_info->force_alloc = 0;
+
+	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
+	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
-out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
 }
@@ -5303,11 +5368,13 @@ loop:
 
 		if (allowed_chunk_alloc) {
 			ret = do_chunk_alloc(trans, root, num_bytes +
-					     2 * 1024 * 1024, data, 1);
+					     2 * 1024 * 1024, data,
+					     CHUNK_ALLOC_LIMITED);
 			allowed_chunk_alloc = 0;
 			done_chunk_alloc = 1;
-		} else if (!done_chunk_alloc) {
-			space_info->force_alloc = 1;
+		} else if (!done_chunk_alloc &&
+			   space_info->force_alloc == CHUNK_ALLOC_NO_FORCE) {
+			space_info->force_alloc = CHUNK_ALLOC_LIMITED;
 		}
 
 		if (loop < LOOP_NO_EMPTY_SIZE) {
@@ -5393,7 +5460,8 @@ again:
 	 */
 	if (empty_size || root->ref_cows)
 		ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-				     num_bytes + 2 * 1024 * 1024, data, 0);
+				     num_bytes + 2 * 1024 * 1024, data,
+				     CHUNK_ALLOC_NO_FORCE);
 
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(trans, root, num_bytes, empty_size,
@@ -5405,7 +5473,7 @@ again:
 		num_bytes = num_bytes & ~(root->sectorsize - 1);
 		num_bytes = max(num_bytes, min_alloc_size);
 		do_chunk_alloc(trans, root->fs_info->extent_root,
-			       num_bytes, data, 1);
+			       num_bytes, data, CHUNK_ALLOC_FORCE);
 		goto again;
 	}
 	if (ret == -ENOSPC && btrfs_test_opt(root, ENOSPC_DEBUG)) {
@@ -8109,13 +8177,15 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 
 	alloc_flags = update_block_group_flags(root, cache->flags);
 	if (alloc_flags != cache->flags)
-		do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags, 1);
+		do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags,
+			       CHUNK_ALLOC_FORCE);
 
 	ret = set_block_group_ro(cache);
 	if (!ret)
 		goto out;
 	alloc_flags = get_alloc_profile(root, cache->space_info->flags);
-	ret = do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags, 1);
+	ret = do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags,
+			     CHUNK_ALLOC_FORCE);
 	if (ret < 0)
 		goto out;
 	ret = set_block_group_ro(cache);
@@ -8128,7 +8198,8 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root, u64 type)
 {
 	u64 alloc_flags = get_alloc_profile(root, type);
-	return do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags, 1);
+	return do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags,
+			      CHUNK_ALLOC_FORCE);
 }
 
 /*

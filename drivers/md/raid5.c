@@ -27,12 +27,12 @@
  *
  * We group bitmap updates into batches.  Each batch has a number.
  * We may write out several batches at once, but that isn't very important.
- * conf->bm_write is the number of the last batch successfully written.
- * conf->bm_flush is the number of the last batch that was closed to
+ * conf->seq_write is the number of the last batch successfully written.
+ * conf->seq_flush is the number of the last batch that was closed to
  *    new additions.
  * When we discover that we will need to write to any block in a stripe
  * (in add_stripe_bio) we update the in-memory bitmap and record in sh->bm_seq
- * the number of the batch it will be in. This is bm_flush+1.
+ * the number of the batch it will be in. This is seq_flush+1.
  * When we are ready to do a write, if that batch hasn't been written yet,
  *   we plug the array and queue the stripe for later.
  * When an unplug happens, we increment bm_flush, thus closing the current
@@ -199,14 +199,12 @@ static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 		BUG_ON(!list_empty(&sh->lru));
 		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
-			if (test_bit(STRIPE_DELAYED, &sh->state)) {
+			if (test_bit(STRIPE_DELAYED, &sh->state))
 				list_add_tail(&sh->lru, &conf->delayed_list);
-				plugger_set_plug(&conf->plug);
-			} else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
-				   sh->bm_seq - conf->seq_write > 0) {
+			else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
+				   sh->bm_seq - conf->seq_write > 0)
 				list_add_tail(&sh->lru, &conf->bitmap_list);
-				plugger_set_plug(&conf->plug);
-			} else {
+			else {
 				clear_bit(STRIPE_BIT_DELAY, &sh->state);
 				list_add_tail(&sh->lru, &conf->handle_list);
 			}
@@ -461,7 +459,7 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    md_raid5_kick_device(conf));
+						    );
 				conf->inactive_blocked = 0;
 			} else
 				init_stripe(sh, sector, previous);
@@ -1470,7 +1468,7 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    !list_empty(&conf->inactive_list),
 				    conf->device_lock,
-				    blk_flush_plug(current));
+				    );
 		osh = get_free_stripe(conf);
 		spin_unlock_irq(&conf->device_lock);
 		atomic_set(&nsh->count, 1);
@@ -3623,8 +3621,7 @@ static void raid5_activate_delayed(raid5_conf_t *conf)
 				atomic_inc(&conf->preread_active_stripes);
 			list_add_tail(&sh->lru, &conf->hold_list);
 		}
-	} else
-		plugger_set_plug(&conf->plug);
+	}
 }
 
 static void activate_bit_delay(raid5_conf_t *conf)
@@ -3639,21 +3636,6 @@ static void activate_bit_delay(raid5_conf_t *conf)
 		atomic_inc(&sh->count);
 		__release_stripe(conf, sh);
 	}
-}
-
-void md_raid5_kick_device(raid5_conf_t *conf)
-{
-	blk_flush_plug(current);
-	raid5_activate_delayed(conf);
-	md_wakeup_thread(conf->mddev->thread);
-}
-EXPORT_SYMBOL_GPL(md_raid5_kick_device);
-
-static void raid5_unplug(struct plug_handle *plug)
-{
-	raid5_conf_t *conf = container_of(plug, raid5_conf_t, plug);
-
-	md_raid5_kick_device(conf);
 }
 
 int md_raid5_congested(mddev_t *mddev, int bits)
@@ -3945,6 +3927,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
 	int remaining;
+	int plugged;
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bi);
@@ -3963,6 +3946,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
 
+	plugged = mddev_check_plugged(mddev);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
 		int disks, data_disks;
@@ -4057,7 +4041,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 				 * add failed due to overlap.  Flush everything
 				 * and wait a while
 				 */
-				md_raid5_kick_device(conf);
+				md_wakeup_thread(mddev->thread);
 				release_stripe(sh);
 				schedule();
 				goto retry;
@@ -4077,6 +4061,9 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 		}
 			
 	}
+	if (!plugged)
+		md_wakeup_thread(mddev->thread);
+
 	spin_lock_irq(&conf->device_lock);
 	remaining = raid5_dec_bi_phys_segments(bi);
 	spin_unlock_irq(&conf->device_lock);
@@ -4478,24 +4465,30 @@ static void raid5d(mddev_t *mddev)
 	struct stripe_head *sh;
 	raid5_conf_t *conf = mddev->private;
 	int handled;
+	struct blk_plug plug;
 
 	pr_debug("+++ raid5d active\n");
 
 	md_check_recovery(mddev);
 
+	blk_start_plug(&plug);
 	handled = 0;
 	spin_lock_irq(&conf->device_lock);
 	while (1) {
 		struct bio *bio;
 
-		if (conf->seq_flush != conf->seq_write) {
-			int seq = conf->seq_flush;
+		if (atomic_read(&mddev->plug_cnt) == 0 &&
+		    !list_empty(&conf->bitmap_list)) {
+			/* Now is a good time to flush some bitmap updates */
+			conf->seq_flush++;
 			spin_unlock_irq(&conf->device_lock);
 			bitmap_unplug(mddev->bitmap);
 			spin_lock_irq(&conf->device_lock);
-			conf->seq_write = seq;
+			conf->seq_write = conf->seq_flush;
 			activate_bit_delay(conf);
 		}
+		if (atomic_read(&mddev->plug_cnt) == 0)
+			raid5_activate_delayed(conf);
 
 		while ((bio = remove_bio_from_retry(conf))) {
 			int ok;
@@ -4525,6 +4518,7 @@ static void raid5d(mddev_t *mddev)
 	spin_unlock_irq(&conf->device_lock);
 
 	async_tx_issue_pending_all();
+	blk_finish_plug(&plug);
 
 	pr_debug("--- raid5d inactive\n");
 }
@@ -5141,8 +5135,6 @@ static int run(mddev_t *mddev)
 		       mdname(mddev));
 	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
-	plugger_init(&conf->plug, raid5_unplug);
-	mddev->plug = &conf->plug;
 	if (mddev->queue) {
 		int chunk_size;
 		/* read-ahead size must cover two whole stripes, which
@@ -5192,7 +5184,6 @@ static int stop(mddev_t *mddev)
 	mddev->thread = NULL;
 	if (mddev->queue)
 		mddev->queue->backing_dev_info.congested_fn = NULL;
-	plugger_flush(&conf->plug); /* the unplug fn references 'conf'*/
 	free_conf(conf);
 	mddev->private = NULL;
 	mddev->to_remove = &raid5_attrs_group;

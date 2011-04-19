@@ -104,7 +104,7 @@ static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 /*
  * unlocks pages after btrfs_file_write is done with them
  */
-static noinline void btrfs_drop_pages(struct page **pages, size_t num_pages)
+void btrfs_drop_pages(struct page **pages, size_t num_pages)
 {
 	size_t i;
 	for (i = 0; i < num_pages; i++) {
@@ -127,16 +127,13 @@ static noinline void btrfs_drop_pages(struct page **pages, size_t num_pages)
  * this also makes the decision about creating an inline extent vs
  * doing real data extents, marking pages dirty and delalloc as required.
  */
-static noinline int dirty_and_release_pages(struct btrfs_root *root,
-					    struct file *file,
-					    struct page **pages,
-					    size_t num_pages,
-					    loff_t pos,
-					    size_t write_bytes)
+int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
+		      struct page **pages, size_t num_pages,
+		      loff_t pos, size_t write_bytes,
+		      struct extent_state **cached)
 {
 	int err = 0;
 	int i;
-	struct inode *inode = fdentry(file)->d_inode;
 	u64 num_bytes;
 	u64 start_pos;
 	u64 end_of_last_block;
@@ -149,7 +146,7 @@ static noinline int dirty_and_release_pages(struct btrfs_root *root,
 
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
-					NULL);
+					cached);
 	if (err)
 		return err;
 
@@ -992,9 +989,9 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		}
 
 		if (copied > 0) {
-			ret = dirty_and_release_pages(root, file, pages,
-						      dirty_pages, pos,
-						      copied);
+			ret = btrfs_dirty_pages(root, inode, pages,
+						dirty_pages, pos, copied,
+						NULL);
 			if (ret) {
 				btrfs_delalloc_release_space(inode,
 					dirty_pages << PAGE_CACHE_SHIFT);

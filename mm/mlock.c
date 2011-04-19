@@ -135,13 +135,6 @@ void munlock_vma_page(struct page *page)
 	}
 }
 
-static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
-{
-	return (vma->vm_flags & VM_GROWSDOWN) &&
-		(vma->vm_start == addr) &&
-		!vma_stack_continue(vma->vm_prev, addr);
-}
-
 /**
  * __mlock_vma_pages_range() -  mlock a range of pages in the vma.
  * @vma:   target vma
@@ -187,12 +180,6 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 
 	if (vma->vm_flags & VM_LOCKED)
 		gup_flags |= FOLL_MLOCK;
-
-	/* We don't try to access the guard page of a stack vma */
-	if (stack_guard_page(vma, start)) {
-		addr += PAGE_SIZE;
-		nr_pages--;
-	}
 
 	return __get_user_pages(current, mm, addr, nr_pages, gup_flags,
 				NULL, NULL, nonblocking);

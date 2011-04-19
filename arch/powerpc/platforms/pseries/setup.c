@@ -287,14 +287,22 @@ static int alloc_dispatch_logs(void)
 	int cpu, ret;
 	struct paca_struct *pp;
 	struct dtl_entry *dtl;
+	struct kmem_cache *dtl_cache;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
+	dtl_cache = kmem_cache_create("dtl", DISPATCH_LOG_BYTES,
+						DISPATCH_LOG_BYTES, 0, NULL);
+	if (!dtl_cache) {
+		pr_warn("Failed to create dispatch trace log buffer cache\n");
+		pr_warn("Stolen time statistics will be unreliable\n");
+		return 0;
+	}
+
 	for_each_possible_cpu(cpu) {
 		pp = &paca[cpu];
-		dtl = kmalloc_node(DISPATCH_LOG_BYTES, GFP_KERNEL,
-				   cpu_to_node(cpu));
+		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
 		if (!dtl) {
 			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
 				cpu);

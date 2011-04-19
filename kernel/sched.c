@@ -4111,18 +4111,18 @@ need_resched:
 					try_to_wake_up_local(to_wakeup);
 			}
 			deactivate_task(rq, prev, DEQUEUE_SLEEP);
+
+			/*
+			 * If we are going to sleep and we have plugged IO queued, make
+			 * sure to submit it to avoid deadlocks.
+			 */
+			if (blk_needs_flush_plug(prev)) {
+				raw_spin_unlock(&rq->lock);
+				blk_schedule_flush_plug(prev);
+				raw_spin_lock(&rq->lock);
+			}
 		}
 		switch_count = &prev->nvcsw;
-	}
-
-	/*
-	 * If we are going to sleep and we have plugged IO queued, make
-	 * sure to submit it to avoid deadlocks.
-	 */
-	if (prev->state != TASK_RUNNING && blk_needs_flush_plug(prev)) {
-		raw_spin_unlock(&rq->lock);
-		blk_flush_plug(prev);
-		raw_spin_lock(&rq->lock);
 	}
 
 	pre_schedule(rq, prev);

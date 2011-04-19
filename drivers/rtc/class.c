@@ -171,7 +171,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	err = __rtc_read_alarm(rtc, &alrm);
 
 	if (!err && !rtc_valid_tm(&alrm.time))
-		rtc_set_alarm(rtc, &alrm);
+		rtc_initialize_alarm(rtc, &alrm);
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);

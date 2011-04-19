@@ -163,7 +163,7 @@ static void crash_kexec_prepare_cpus(int cpu)
 }
 
 /* wait for all the CPUs to hit real mode but timeout if they don't come in */
-#if defined(CONFIG_PPC_STD_MMU_64) && defined(CONFIG_SMP)
+#ifdef CONFIG_PPC_STD_MMU_64
 static void crash_kexec_wait_realmode(int cpu)
 {
 	unsigned int msecs;
@@ -188,9 +188,7 @@ static void crash_kexec_wait_realmode(int cpu)
 	}
 	mb();
 }
-#else
-static inline void crash_kexec_wait_realmode(int cpu) {}
-#endif
+#endif	/* CONFIG_PPC_STD_MMU_64 */
 
 /*
  * This function will be called by secondary cpus or by kexec cpu
@@ -235,7 +233,9 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	crash_ipi_callback(regs);
 }
 
-#else
+#else	/* ! CONFIG_SMP */
+static inline void crash_kexec_wait_realmode(int cpu) {}
+
 static void crash_kexec_prepare_cpus(int cpu)
 {
 	/*
@@ -255,7 +255,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 {
 	cpus_in_sr = CPU_MASK_NONE;
 }
-#endif
+#endif	/* CONFIG_SMP */
 
 /*
  * Register a function to be called on shutdown.  Only use this if you

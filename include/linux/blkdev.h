@@ -697,7 +697,7 @@ extern void blk_start_queue(struct request_queue *q);
 extern void blk_stop_queue(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 extern void __blk_stop_queue(struct request_queue *q);
-extern void __blk_run_queue(struct request_queue *q, bool force_kblockd);
+extern void __blk_run_queue(struct request_queue *q);
 extern void blk_run_queue(struct request_queue *);
 extern int blk_rq_map_user(struct request_queue *, struct request *,
 			   struct rq_map_data *, void __user *, unsigned long,
@@ -857,26 +857,39 @@ extern void blk_put_queue(struct request_queue *);
 struct blk_plug {
 	unsigned long magic;
 	struct list_head list;
+	struct list_head cb_list;
 	unsigned int should_sort;
+};
+struct blk_plug_cb {
+	struct list_head list;
+	void (*callback)(struct blk_plug_cb *);
 };
 
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
-extern void __blk_flush_plug(struct task_struct *, struct blk_plug *);
+extern void blk_flush_plug_list(struct blk_plug *, bool);
 
 static inline void blk_flush_plug(struct task_struct *tsk)
 {
 	struct blk_plug *plug = tsk->plug;
 
-	if (unlikely(plug))
-		__blk_flush_plug(tsk, plug);
+	if (plug)
+		blk_flush_plug_list(plug, false);
+}
+
+static inline void blk_schedule_flush_plug(struct task_struct *tsk)
+{
+	struct blk_plug *plug = tsk->plug;
+
+	if (plug)
+		blk_flush_plug_list(plug, true);
 }
 
 static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {
 	struct blk_plug *plug = tsk->plug;
 
-	return plug && !list_empty(&plug->list);
+	return plug && (!list_empty(&plug->list) || !list_empty(&plug->cb_list));
 }
 
 /*
@@ -1313,6 +1326,11 @@ static inline void blk_finish_plug(struct blk_plug *plug)
 static inline void blk_flush_plug(struct task_struct *task)
 {
 }
+
+static inline void blk_schedule_flush_plug(struct task_struct *task)
+{
+}
+
 
 static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {

@@ -447,48 +447,59 @@ EXPORT_SYMBOL(md_flush_request);
 
 /* Support for plugging.
  * This mirrors the plugging support in request_queue, but does not
- * require having a whole queue
+ * require having a whole queue or request structures.
+ * We allocate an md_plug_cb for each md device and each thread it gets
+ * plugged on.  This links tot the private plug_handle structure in the
+ * personality data where we keep a count of the number of outstanding
+ * plugs so other code can see if a plug is active.
  */
-static void plugger_work(struct work_struct *work)
-{
-	struct plug_handle *plug =
-		container_of(work, struct plug_handle, unplug_work);
-	plug->unplug_fn(plug);
-}
-static void plugger_timeout(unsigned long data)
-{
-	struct plug_handle *plug = (void *)data;
-	kblockd_schedule_work(NULL, &plug->unplug_work);
-}
-void plugger_init(struct plug_handle *plug,
-		  void (*unplug_fn)(struct plug_handle *))
-{
-	plug->unplug_flag = 0;
-	plug->unplug_fn = unplug_fn;
-	init_timer(&plug->unplug_timer);
-	plug->unplug_timer.function = plugger_timeout;
-	plug->unplug_timer.data = (unsigned long)plug;
-	INIT_WORK(&plug->unplug_work, plugger_work);
-}
-EXPORT_SYMBOL_GPL(plugger_init);
+struct md_plug_cb {
+	struct blk_plug_cb cb;
+	mddev_t *mddev;
+};
 
-void plugger_set_plug(struct plug_handle *plug)
+static void plugger_unplug(struct blk_plug_cb *cb)
 {
-	if (!test_and_set_bit(PLUGGED_FLAG, &plug->unplug_flag))
-		mod_timer(&plug->unplug_timer, jiffies + msecs_to_jiffies(3)+1);
+	struct md_plug_cb *mdcb = container_of(cb, struct md_plug_cb, cb);
+	if (atomic_dec_and_test(&mdcb->mddev->plug_cnt))
+		md_wakeup_thread(mdcb->mddev->thread);
+	kfree(mdcb);
 }
-EXPORT_SYMBOL_GPL(plugger_set_plug);
 
-int plugger_remove_plug(struct plug_handle *plug)
+/* Check that an unplug wakeup will come shortly.
+ * If not, wakeup the md thread immediately
+ */
+int mddev_check_plugged(mddev_t *mddev)
 {
-	if (test_and_clear_bit(PLUGGED_FLAG, &plug->unplug_flag)) {
-		del_timer(&plug->unplug_timer);
-		return 1;
-	} else
+	struct blk_plug *plug = current->plug;
+	struct md_plug_cb *mdcb;
+
+	if (!plug)
 		return 0;
-}
-EXPORT_SYMBOL_GPL(plugger_remove_plug);
 
+	list_for_each_entry(mdcb, &plug->cb_list, cb.list) {
+		if (mdcb->cb.callback == plugger_unplug &&
+		    mdcb->mddev == mddev) {
+			/* Already on the list, move to top */
+			if (mdcb != list_first_entry(&plug->cb_list,
+						    struct md_plug_cb,
+						    cb.list))
+				list_move(&mdcb->cb.list, &plug->cb_list);
+			return 1;
+		}
+	}
+	/* Not currently on the callback list */
+	mdcb = kmalloc(sizeof(*mdcb), GFP_ATOMIC);
+	if (!mdcb)
+		return 0;
+
+	mdcb->mddev = mddev;
+	mdcb->cb.callback = plugger_unplug;
+	atomic_inc(&mddev->plug_cnt);
+	list_add(&mdcb->cb.list, &plug->cb_list);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(mddev_check_plugged);
 
 static inline mddev_t *mddev_get(mddev_t *mddev)
 {
@@ -538,6 +549,7 @@ void mddev_init(mddev_t *mddev)
 	atomic_set(&mddev->active, 1);
 	atomic_set(&mddev->openers, 0);
 	atomic_set(&mddev->active_io, 0);
+	atomic_set(&mddev->plug_cnt, 0);
 	spin_lock_init(&mddev->write_lock);
 	atomic_set(&mddev->flush_pending, 0);
 	init_waitqueue_head(&mddev->sb_wait);
@@ -4723,7 +4735,6 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.chunksize = 0;
 	mddev->bitmap_info.daemon_sleep = 0;
 	mddev->bitmap_info.max_write_behind = 0;
-	mddev->plug = NULL;
 }
 
 static void __md_stop_writes(mddev_t *mddev)
@@ -6687,12 +6698,6 @@ int md_allow_write(mddev_t *mddev)
 		return 0;
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
-
-void md_unplug(mddev_t *mddev)
-{
-	if (mddev->plug)
-		mddev->plug->unplug_fn(mddev->plug);
-}
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
