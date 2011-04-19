@@ -860,6 +860,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		prev_eedata = eedata;
 	}
 
+	/* Store MAC Address in perm_addr */
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
+
 	dev->base_addr = (unsigned long __force) ioaddr;
 	dev->irq = irq;
 
