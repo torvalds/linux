@@ -4263,16 +4263,6 @@ static int nv_nway_reset(struct net_device *dev)
 	return ret;
 }
 
-static int nv_set_tso(struct net_device *dev, u32 value)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if ((np->driver_data & DEV_HAS_CHECKSUM))
-		return ethtool_op_set_tso(dev, value);
-	else
-		return -EOPNOTSUPP;
-}
-
 static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
 {
 	struct fe_priv *np = netdev_priv(dev);
