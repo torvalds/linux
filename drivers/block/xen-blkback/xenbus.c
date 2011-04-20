@@ -35,13 +35,13 @@ struct backend_info {
 	char *mode;
 };
 
-static struct kmem_cache *blkif_cachep;
+static struct kmem_cache *xen_blkif_cachep;
 static void connect(struct backend_info *);
 static int connect_ring(struct backend_info *);
 static void backend_changed(struct xenbus_watch *, const char **,
 			    unsigned int);
 
-struct xenbus_device *blkback_xenbus(struct backend_info *be)
+struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be)
 {
 	return be->dev;
 }
@@ -67,7 +67,7 @@ static int blkback_name(struct blkif_st *blkif, char *buf)
 	return 0;
 }
 
-static void update_blkif_status(struct blkif_st *blkif)
+static void xen_update_blkif_status(struct blkif_st *blkif)
 {
 	int err;
 	char name[TASK_COMM_LEN];
@@ -98,7 +98,7 @@ static void update_blkif_status(struct blkif_st *blkif)
 	}
 	invalidate_inode_pages2(blkif->vbd.bdev->bd_inode->i_mapping);
 
-	blkif->xenblkd = kthread_run(blkif_schedule, blkif, name);
+	blkif->xenblkd = kthread_run(xen_blkif_schedule, blkif, name);
 	if (IS_ERR(blkif->xenblkd)) {
 		err = PTR_ERR(blkif->xenblkd);
 		blkif->xenblkd = NULL;
@@ -106,11 +106,11 @@ static void update_blkif_status(struct blkif_st *blkif)
 	}
 }
 
-struct blkif_st *blkif_alloc(domid_t domid)
+static struct blkif_st *xen_blkif_alloc(domid_t domid)
 {
 	struct blkif_st *blkif;
 
-	blkif = kmem_cache_alloc(blkif_cachep, GFP_KERNEL);
+	blkif = kmem_cache_alloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
 		return ERR_PTR(-ENOMEM);
 
@@ -157,8 +157,8 @@ static void unmap_frontend_page(struct blkif_st *blkif)
 		BUG();
 }
 
-int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
-	      unsigned int evtchn)
+static int xen_blkif_map(struct blkif_st *blkif, unsigned long shared_page,
+			 unsigned int evtchn)
 {
 	int err;
 
@@ -202,8 +202,9 @@ int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
 		BUG();
 	}
 
-	err = bind_interdomain_evtchn_to_irqhandler(
-		blkif->domid, evtchn, blkif_be_int, 0, "blkif-backend", blkif);
+	err = bind_interdomain_evtchn_to_irqhandler(blkif->domid, evtchn,
+						    xen_blkif_be_int, 0,
+						    "blkif-backend", blkif);
 	if (err < 0) {
 		unmap_frontend_page(blkif);
 		free_vm_area(blkif->blk_ring_area);
@@ -215,7 +216,7 @@ int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
 	return 0;
 }
 
-void blkif_disconnect(struct blkif_st *blkif)
+static void xen_blkif_disconnect(struct blkif_st *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
@@ -238,18 +239,19 @@ void blkif_disconnect(struct blkif_st *blkif)
 	}
 }
 
-void blkif_free(struct blkif_st *blkif)
+void xen_blkif_free(struct blkif_st *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
-	kmem_cache_free(blkif_cachep, blkif);
+	kmem_cache_free(xen_blkif_cachep, blkif);
 }
 
-int __init blkif_interface_init(void)
+int __init xen_blkif_interface_init(void)
 {
-	blkif_cachep = kmem_cache_create("blkif_cache", sizeof(struct blkif_st),
-					 0, 0, NULL);
-	if (!blkif_cachep)
+	xen_blkif_cachep = kmem_cache_create("blkif_cache",
+					     sizeof(struct blkif_st),
+					     0, 0, NULL);
+	if (!xen_blkif_cachep)
 		return -ENOMEM;
 
 	return 0;
@@ -377,7 +379,7 @@ static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
 		handle, blkif->domid);
 	return 0;
 }
-static int blkback_remove(struct xenbus_device *dev)
+static int xen_blkbk_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
@@ -393,9 +395,9 @@ static int blkback_remove(struct xenbus_device *dev)
 	}
 
 	if (be->blkif) {
-		blkif_disconnect(be->blkif);
+		xen_blkif_disconnect(be->blkif);
 		vbd_free(&be->blkif->vbd);
-		blkif_free(be->blkif);
+		xen_blkif_free(be->blkif);
 		be->blkif = NULL;
 	}
 
@@ -404,8 +406,8 @@ static int blkback_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-int blkback_barrier(struct xenbus_transaction xbt,
-		    struct backend_info *be, int state)
+int xen_blkbk_barrier(struct xenbus_transaction xbt,
+		      struct backend_info *be, int state)
 {
 	struct xenbus_device *dev = be->dev;
 	int err;
@@ -423,8 +425,8 @@ int blkback_barrier(struct xenbus_transaction xbt,
  * structures, and watch the store waiting for the hotplug scripts to tell us
  * the device's physical major and minor numbers.  Switch to InitWait.
  */
-static int blkback_probe(struct xenbus_device *dev,
-			 const struct xenbus_device_id *id)
+static int xen_blkbk_probe(struct xenbus_device *dev,
+			   const struct xenbus_device_id *id)
 {
 	int err;
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
@@ -437,7 +439,7 @@ static int blkback_probe(struct xenbus_device *dev,
 	be->dev = dev;
 	dev_set_drvdata(&dev->dev, be);
 
-	be->blkif = blkif_alloc(dev->otherend_id);
+	be->blkif = xen_blkif_alloc(dev->otherend_id);
 	if (IS_ERR(be->blkif)) {
 		err = PTR_ERR(be->blkif);
 		be->blkif = NULL;
@@ -461,7 +463,7 @@ static int blkback_probe(struct xenbus_device *dev,
 
 fail:
 	DPRINTK("failed");
-	blkback_remove(dev);
+	xen_blkbk_remove(dev);
 	return err;
 }
 
@@ -550,7 +552,7 @@ static void backend_changed(struct xenbus_watch *watch,
 		}
 
 		/* We're potentially connected now */
-		update_blkif_status(be->blkif);
+		xen_update_blkif_status(be->blkif);
 	}
 }
 
@@ -586,16 +588,16 @@ static void frontend_changed(struct xenbus_device *dev,
 		/* Enforce precondition before potential leak point.
 		 * blkif_disconnect() is idempotent.
 		 */
-		blkif_disconnect(be->blkif);
+		xen_blkif_disconnect(be->blkif);
 
 		err = connect_ring(be);
 		if (err)
 			break;
-		update_blkif_status(be->blkif);
+		xen_update_blkif_status(be->blkif);
 		break;
 
 	case XenbusStateClosing:
-		blkif_disconnect(be->blkif);
+		xen_blkif_disconnect(be->blkif);
 		xenbus_switch_state(dev, XenbusStateClosing);
 		break;
 
@@ -640,7 +642,7 @@ again:
 		return;
 	}
 
-	err = blkback_barrier(xbt, be, 1);
+	err = xen_blkbk_barrier(xbt, be, 1);
 	if (err)
 		goto abort;
 
@@ -726,7 +728,7 @@ static int connect_ring(struct backend_info *be)
 	       ring_ref, evtchn, be->blkif->blk_protocol, protocol);
 
 	/* Map the shared frame, irq etc. */
-	err = blkif_map(be->blkif, ring_ref, evtchn);
+	err = xen_blkif_map(be->blkif, ring_ref, evtchn);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "mapping ring-ref %lu port %u",
 				 ring_ref, evtchn);
@@ -740,23 +742,23 @@ static int connect_ring(struct backend_info *be)
 /* ** Driver Registration ** */
 
 
-static const struct xenbus_device_id blkback_ids[] = {
+static const struct xenbus_device_id xen_blkbk_ids[] = {
 	{ "vbd" },
 	{ "" }
 };
 
 
-static struct xenbus_driver blkback = {
+static struct xenbus_driver xen_blkbk = {
 	.name = "vbd",
 	.owner = THIS_MODULE,
-	.ids = blkback_ids,
-	.probe = blkback_probe,
-	.remove = blkback_remove,
+	.ids = xen_blkbk_ids,
+	.probe = xen_blkbk_probe,
+	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
 };
 
 
-int blkif_xenbus_init(void)
+int xen_blkif_xenbus_init(void)
 {
-	return xenbus_register_backend(&blkback);
+	return xenbus_register_backend(&xen_blkbk);
 }

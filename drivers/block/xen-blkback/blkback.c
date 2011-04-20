@@ -53,13 +53,13 @@
  * pulled from a communication ring are quite likely to end up being part of
  * the same scatter/gather request at the disc.
  *
- * ** TRY INCREASING 'blkif_reqs' IF WRITE SPEEDS SEEM TOO LOW **
+ * ** TRY INCREASING 'xen_blkif_reqs' IF WRITE SPEEDS SEEM TOO LOW **
  *
  * This will increase the chances of being able to write whole tracks.
  * 64 should be enough to keep us competitive with Linux.
  */
-static int blkif_reqs = 64;
-module_param_named(reqs, blkif_reqs, int, 0);
+static int xen_blkif_reqs = 64;
+module_param_named(reqs, xen_blkif_reqs, int, 0);
 MODULE_PARM_DESC(reqs, "Number of blkback requests to allocate");
 
 /* Run-time switchable: /sys/module/blkback/parameters/ */
@@ -196,7 +196,7 @@ static void vbd_resize(struct blkif_st *blkif)
 	struct vbd *vbd = &blkif->vbd;
 	struct xenbus_transaction xbt;
 	int err;
-	struct xenbus_device *dev = blkback_xenbus(blkif->be);
+	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be);
 	unsigned long long new_size = vbd_sz(vbd);
 
 	printk(KERN_INFO "VBD Resize: Domid: %d, Device: (%d, %d)\n",
@@ -244,7 +244,7 @@ static void blkif_notify_work(struct blkif_st *blkif)
 	wake_up(&blkif->wq);
 }
 
-irqreturn_t blkif_be_int(int irq, void *dev_id)
+irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 {
 	blkif_notify_work(dev_id);
 	return IRQ_HANDLED;
@@ -265,12 +265,12 @@ static void print_stats(struct blkif_st *blkif)
 	blkif->st_oo_req = 0;
 }
 
-int blkif_schedule(void *arg)
+int xen_blkif_schedule(void *arg)
 {
 	struct blkif_st *blkif = arg;
 	struct vbd *vbd = &blkif->vbd;
 
-	blkif_get(blkif);
+	xen_blkif_get(blkif);
 
 	if (debug_lvl)
 		printk(KERN_DEBUG "%s: started\n", current->comm);
@@ -305,7 +305,7 @@ int blkif_schedule(void *arg)
 		printk(KERN_DEBUG "%s: exiting\n", current->comm);
 
 	blkif->xenblkd = NULL;
-	blkif_put(blkif);
+	xen_blkif_put(blkif);
 
 	return 0;
 }
@@ -417,7 +417,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
 	    (error == -EOPNOTSUPP)) {
 		DPRINTK("blkback: write barrier op failed, not supported\n");
-		blkback_barrier(XBT_NIL, pending_req->blkif->be, 0);
+		xen_blkbk_barrier(XBT_NIL, pending_req->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
 	} else if (error) {
 		DPRINTK("Buffer not up-to-date at end of operation, "
@@ -433,7 +433,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 		xen_blkbk_unmap(pending_req);
 		make_response(pending_req->blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
-		blkif_put(pending_req->blkif);
+		xen_blkif_put(pending_req->blkif);
 		free_req(pending_req);
 	}
 }
@@ -619,7 +619,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		goto fail_flush;
 
 	/* This corresponding blkif_put is done in __end_block_io_op */
-	blkif_get(blkif);
+	xen_blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
 		while ((bio == NULL) ||
@@ -751,7 +751,7 @@ static void make_response(struct blkif_st *blkif, u64 id,
 		notify_remote_via_irq(blkif->irq);
 }
 
-static int __init blkif_init(void)
+static int __init xen_blkif_init(void)
 {
 	int i, mmap_pages;
 	int rc = 0;
@@ -765,10 +765,10 @@ static int __init blkif_init(void)
 		return -ENOMEM;
 	}
 
-	mmap_pages = blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	mmap_pages = xen_blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
 	blkbk->pending_reqs          = kmalloc(sizeof(blkbk->pending_reqs[0]) *
-					blkif_reqs, GFP_KERNEL);
+					xen_blkif_reqs, GFP_KERNEL);
 	blkbk->pending_grant_handles = kzalloc(sizeof(blkbk->pending_grant_handles[0]) *
 					mmap_pages, GFP_KERNEL);
 	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
@@ -788,7 +788,7 @@ static int __init blkif_init(void)
 			goto out_of_memory;
 		}
 	}
-	rc = blkif_interface_init();
+	rc = xen_blkif_interface_init();
 	if (rc)
 		goto failed_init;
 
@@ -798,11 +798,11 @@ static int __init blkif_init(void)
 	spin_lock_init(&blkbk->pending_free_lock);
 	init_waitqueue_head(&blkbk->pending_free_wq);
 
-	for (i = 0; i < blkif_reqs; i++)
+	for (i = 0; i < xen_blkif_reqs; i++)
 		list_add_tail(&blkbk->pending_reqs[i].free_list,
 			      &blkbk->pending_free);
 
-	rc = blkif_xenbus_init();
+	rc = xen_blkif_xenbus_init();
 	if (rc)
 		goto failed_init;
 
@@ -823,6 +823,6 @@ static int __init blkif_init(void)
 	return rc;
 }
 
-module_init(blkif_init);
+module_init(xen_blkif_init);
 
 MODULE_LICENSE("Dual BSD/GPL");

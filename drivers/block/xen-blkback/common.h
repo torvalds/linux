@@ -100,8 +100,8 @@ struct blkif_st {
 			 (_v)->bdev->bd_part->nr_sects : \
 			  get_capacity((_v)->bdev->bd_disk))
 
-#define blkif_get(_b) (atomic_inc(&(_b)->refcnt))
-#define blkif_put(_b)					\
+#define xen_blkif_get(_b) (atomic_inc(&(_b)->refcnt))
+#define xen_blkif_put(_b)				\
 	do {						\
 		if (atomic_dec_and_test(&(_b)->refcnt))	\
 			wake_up(&(_b)->waiting_to_free);\
@@ -113,16 +113,16 @@ struct phys_req {
 	struct block_device *bdev;
 	blkif_sector_t       sector_number;
 };
-int blkif_interface_init(void);
+int xen_blkif_interface_init(void);
 
-int blkif_xenbus_init(void);
+int xen_blkif_xenbus_init(void);
 
-irqreturn_t blkif_be_int(int irq, void *dev_id);
-int blkif_schedule(void *arg);
+irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
+int xen_blkif_schedule(void *arg);
 
-int blkback_barrier(struct xenbus_transaction xbt,
-		    struct backend_info *be, int state);
+int xen_blkbk_barrier(struct xenbus_transaction xbt,
+			struct backend_info *be, int state);
 
-struct xenbus_device *blkback_xenbus(struct backend_info *be);
+struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
 
 #endif /* __BLKIF__BACKEND__COMMON_H__ */
