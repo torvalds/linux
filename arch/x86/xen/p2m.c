@@ -682,7 +682,7 @@ int m2p_add_override(unsigned long mfn, struct page *page, bool clear_pte)
 
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(m2p_add_override);
 int m2p_remove_override(struct page *page, bool clear_pte)
 {
 	unsigned long flags;
@@ -719,6 +719,7 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(m2p_remove_override);
 
 struct page *m2p_find_override(unsigned long mfn)
 {
