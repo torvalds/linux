@@ -236,9 +236,19 @@ nouveau_perf_init(struct drm_device *dev)
 #define subent(n) entry[perf[2] + ((n) * perf[3])]
 			perflvl->fanspeed = 0; /*XXX*/
 			perflvl->voltage = entry[2];
-			perflvl->core = (ROM16(subent(0)) & 0xfff) * 1000;
-			perflvl->shader = (ROM16(subent(1)) & 0xfff) * 1000;
-			perflvl->memory = (ROM16(subent(2)) & 0xfff) * 1000;
+			if (dev_priv->card_type == NV_50) {
+				perflvl->core = ROM16(subent(0)) & 0xfff;
+				perflvl->shader = ROM16(subent(1)) & 0xfff;
+				perflvl->memory = ROM16(subent(2)) & 0xfff;
+			} else {
+				perflvl->shader = ROM16(subent(3)) & 0xfff;
+				perflvl->core   = perflvl->shader / 2;
+				perflvl->memory = ROM16(subent(5)) & 0xfff;
+			}
+
+			perflvl->core *= 1000;
+			perflvl->shader *= 1000;
+			perflvl->memory *= 1000;
 			break;
 		}
 
