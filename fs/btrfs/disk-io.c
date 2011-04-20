@@ -1080,7 +1080,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->log_transid = 0;
 	root->last_log_commit = 0;
 	extent_io_tree_init(&root->dirty_log_pages,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+			     fs_info->btree_inode->i_mapping);
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
@@ -1712,8 +1712,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	RB_CLEAR_NODE(&BTRFS_I(fs_info->btree_inode)->rb_node);
 	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,
-			     fs_info->btree_inode->i_mapping,
-			     GFP_NOFS);
+			     fs_info->btree_inode->i_mapping);
 	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
 			     GFP_NOFS);
 
@@ -1729,9 +1728,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->block_group_cache_tree = RB_ROOT;
 
 	extent_io_tree_init(&fs_info->freed_extents[0],
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+			     fs_info->btree_inode->i_mapping);
 	extent_io_tree_init(&fs_info->freed_extents[1],
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+			     fs_info->btree_inode->i_mapping);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	fs_info->do_barriers = 1;
 

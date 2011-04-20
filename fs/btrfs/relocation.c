@@ -3935,7 +3935,7 @@ static struct reloc_control *alloc_reloc_control(void)
 	INIT_LIST_HEAD(&rc->reloc_roots);
 	backref_cache_init(&rc->backref_cache);
 	mapping_tree_init(&rc->reloc_root_tree);
-	extent_io_tree_init(&rc->processed_blocks, NULL, GFP_NOFS);
+	extent_io_tree_init(&rc->processed_blocks, NULL);
 	return rc;
 }
 

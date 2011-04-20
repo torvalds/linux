@@ -6786,8 +6786,8 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 
 	inode = &ei->vfs_inode;
 	extent_map_tree_init(&ei->extent_tree, GFP_NOFS);
-	extent_io_tree_init(&ei->io_tree, &inode->i_data, GFP_NOFS);
-	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data, GFP_NOFS);
+	extent_io_tree_init(&ei->io_tree, &inode->i_data);
+	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data);
 	mutex_init(&ei->log_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->i_orphan);

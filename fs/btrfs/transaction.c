@@ -80,8 +80,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		extent_io_tree_init(&cur_trans->dirty_pages,
-				     root->fs_info->btree_inode->i_mapping,
-				     GFP_NOFS);
+				     root->fs_info->btree_inode->i_mapping);
 		spin_lock(&root->fs_info->new_trans_lock);
 		root->fs_info->running_transaction = cur_trans;
 		spin_unlock(&root->fs_info->new_trans_lock);

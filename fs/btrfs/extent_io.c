@@ -101,7 +101,7 @@ void extent_io_exit(void)
 }
 
 void extent_io_tree_init(struct extent_io_tree *tree,
-			  struct address_space *mapping, gfp_t mask)
+			 struct address_space *mapping)
 {
 	tree->state = RB_ROOT;
 	INIT_RADIX_TREE(&tree->buffer, GFP_ATOMIC);

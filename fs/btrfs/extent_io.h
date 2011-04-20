@@ -169,7 +169,7 @@ typedef struct extent_map *(get_extent_t)(struct inode *inode,
 					  int create);
 
 void extent_io_tree_init(struct extent_io_tree *tree,
-			  struct address_space *mapping, gfp_t mask);
+			 struct address_space *mapping);
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
