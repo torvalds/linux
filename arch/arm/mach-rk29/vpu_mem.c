@@ -28,14 +28,11 @@
 
 #include <mach/vpu_mem.h>
 
-#define VPU_MEM_MAX_ORDER               128
 #define VPU_MEM_MIN_ALLOC               PAGE_SIZE
+#define VPU_MEM_IS_PAGE_ALIGNED(addr)   (!((addr) & (~PAGE_MASK)))
 
 #define VPU_MEM_DEBUG                   0
 #define VPU_MEM_DEBUG_MSGS              0
-
-#define VPU_MEM_SPLIT_ALLOC             0
-#define VPU_MEM_SPLIT_LINK              1
 
 #if VPU_MEM_DEBUG_MSGS
 #define DLOG(fmt,args...) \
@@ -45,13 +42,6 @@
 #else
 #define DLOG(x...) do {} while (0)
 #endif
-
-typedef enum vpu_mem_status {
-    VDM_FREE,
-    VDM_USED,
-    VDM_POST,
-    VDM_BUTT,
-} vdm_st;
 
 /**
  * struct for process session which connect to vpu_mem
@@ -93,6 +83,9 @@ typedef struct vpu_mem_link_info {
     int pfn;
 } vdm_link;
 
+/**
+ * struct for global vpu memory info
+ */
 typedef struct vpu_mem_info {
 	struct miscdevice dev;
 	/* physical start address of the remaped vpu_mem space */
@@ -130,6 +123,12 @@ static int vpu_mem_over = 0;
 #define vdm_rwsem               (vpu_mem.rw_sem)
 #define is_free_region(x)       ((0 == (x)->used) && (0 == (x)->post))
 
+/**
+ * vpu memory info dump: 
+ * first dump global info, then dump each session info 
+ * 
+ * @author ChenHengming (2011-4-20)
+ */
 static void dump_status(void)
 {
     vdm_link    *link, *tmp_link;
@@ -280,7 +279,14 @@ static int _insert_region_index(vdm_region *region)
     return -1;
 }
 
-static void _insert_region_status_free(vdm_link *link)
+/**
+ * insert a link into vdm_free list, indexed by vdm_link->index
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ */
+static void _insert_link_status_free(vdm_link *link)
 {
     int index = link->index;
     int last = -1;
@@ -472,7 +478,7 @@ static void put_free_link(vdm_link *link)
 {
     list_del_init(&link->session_link);
     list_del_init(&link->status_link);
-    _insert_region_status_free(link);
+    _insert_link_status_free(link);
 }
 
 static void put_used_link(vdm_link *link, vdm_session *session)
@@ -491,6 +497,17 @@ static void put_post_link(vdm_link *link, vdm_session *session)
     _insert_link_session_post(link, session);
 }
 
+/**
+ * Create a link and a region by index and pfn at a same time, 
+ * and connect the link with the region 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param index 
+ * @param pfn 
+ * 
+ * @return vdm_link* 
+ */
 static vdm_link *new_link_by_index(int index, int pfn)
 {
     vdm_region *region = (vdm_region *)kmalloc(sizeof(vdm_region), GFP_KERNEL);
@@ -525,6 +542,16 @@ static vdm_link *new_link_by_index(int index, int pfn)
     return link;
 }
 
+/**
+ * Create a link from a already exist region and connect to the 
+ * region 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param region 
+ * 
+ * @return vdm_link* 
+ */
 static vdm_link *new_link_by_region(vdm_region *region)
 {
     vdm_link *link = (vdm_link *)kmalloc(sizeof(vdm_link), GFP_KERNEL);
@@ -544,6 +571,13 @@ static vdm_link *new_link_by_region(vdm_region *region)
     return link;
 }
 
+/**
+ * Delete a link completely
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ */
 static void link_del(vdm_link *link)
 {
     list_del_init(&link->session_link);
@@ -551,6 +585,18 @@ static void link_del(vdm_link *link)
     kfree(link);
 }
 
+/**
+ * Called by malloc, check whether a free link can by used for a 
+ * len of pfn, if can then put a used link to status link 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ * @param session 
+ * @param pfn 
+ * 
+ * @return vdm_link* 
+ */
 static vdm_link *get_used_link_from_free_link(vdm_link *link, vdm_session *session, int pfn)
 {
     if (pfn > link->pfn) {
@@ -591,8 +637,6 @@ static vdm_link *get_used_link_from_free_link(vdm_link *link, vdm_session *sessi
     }
 }
 
-#define VPU_MEM_IS_PAGE_ALIGNED(addr) (!((addr) & (~PAGE_MASK)))
-
 static int vpu_mem_release(struct inode *, struct file *);
 static int vpu_mem_mmap(struct file *, struct vm_area_struct *);
 static int vpu_mem_open(struct inode *, struct file *);
@@ -630,11 +674,12 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
         /* find match free buffer use it first */
         vdm_link *used = get_used_link_from_free_link(free, session, pfn);
         DLOG("search free buffer at index %d pfn %d for len %d\n", free->index, free->pfn, pfn);
-        DLOG("found buffer at index %d pfn %d for ptr %x\n", used->index, used->pfn, used);
-        if (NULL == used)
+        if (NULL == used) {
             continue;
-        else
+        } else {
+            DLOG("found buffer at index %d pfn %d for ptr %x\n", used->index, used->pfn, used);
             return used->index;
+        }
     }
 
 	if (!vpu_mem_over) {
@@ -1017,41 +1062,24 @@ static ssize_t debug_open(struct inode *inode, struct file *file)
 static ssize_t debug_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
-#if 0
-	struct list_head *elt, *elt2;
-	struct vpu_mem_info *data;
+	vdm_region *region, *tmp_region;
 	const int debug_bufmax = 4096;
 	static char buffer[4096];
 	int n = 0;
 
 	DLOG("debug open\n");
 	n = scnprintf(buffer, debug_bufmax,
-		      "pid #: mapped regions (offset, len) (offset,len)...\n");
+		      "pid #: mapped regions (offset, len, used, post) ...\n");
 	down_read(&vdm_rwsem);
-	list_for_each(elt, &vpu_mem.data_list) {
-		data = list_entry(elt, struct vpu_mem_info, list);
-		down_read(&data->sem);
-		n += scnprintf(buffer + n, debug_bufmax - n, "pid %u:",
-				data->pid);
-		list_for_each(elt2, &data->region_list) {
-			region_node = list_entry(elt2, struct vpu_mem_region_node,
-				      list);
-			n += scnprintf(buffer + n, debug_bufmax - n,
-					"(%d,%d) ",
-					region_node->region.index,
-					region_node->region.ref_count);
-		}
-		n += scnprintf(buffer + n, debug_bufmax - n, "\n");
-		up_read(&data->sem);
+    list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
+        n += scnprintf(buffer + n, debug_bufmax - n,
+                "(%d,%d,%d,%d) ",
+                region->index, region->pfn, region->used, region->post);
 	}
-
 	up_read(&vdm_rwsem);
 	n++;
 	buffer[n] = 0;
 	return simple_read_from_buffer(buf, count, ppos, buffer, n);
-#else
-    return 0;
-#endif
 }
 
 static struct file_operations debug_fops = {
