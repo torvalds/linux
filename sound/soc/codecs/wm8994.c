@@ -324,14 +324,14 @@ static void wm8994_set_level_volume(void)
 	
 }
 
-void PA_ctrl(unsigned char ctrl)
+static void PA_ctrl(unsigned char ctrl)
 {
 	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	
-	if(pdata->PA_control == 1 )
+	if(pdata->PA_control == 1)
 	{
-		if(ctrl == 1)
+		if(ctrl == GPIO_HIGH)
 		{
 			DBG("enable PA_control\n");
 			gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
@@ -555,7 +555,6 @@ void recorder_and_AP_to_headset(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
-	PA_ctrl(0);	
 	wm8994_reset();
 	msleep(WM8994_DELAY);
 
@@ -2814,8 +2813,6 @@ int snd_soc_get_route(struct snd_kcontrol *kcontrol,
 int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;
 	char route = kcontrol->private_value & 0xff;
 
 	isWM8994SetChannel = true;
@@ -2824,18 +2821,22 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		/* Speaker*/
 		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
 			recorder_and_AP_to_speakers();
+			PA_ctrl(GPIO_HIGH);
 			break;
 
 		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
 			mainMIC_to_baseband_to_speakers();
+			PA_ctrl(GPIO_HIGH);
 			break;		
 			
 		/* Headset */	
 		case HEADSET_NORMAL:	//AP-> 8994Codec -> Headset
+			PA_ctrl(GPIO_LOW);
 			recorder_and_AP_to_headset();
 			break;
 		case HEADSET_INCALL:	//AP-> 8994Codec -> Headset
 		//	if(isHSKey_MIC())
+				PA_ctrl(GPIO_LOW);
 				handsetMIC_to_baseband_to_headset();
 		//	else
 		//		mainMIC_to_baseband_to_headset();
@@ -2847,30 +2848,40 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 //#ifdef CONFIG_SND_NO_EARPIECE
 //			mainMIC_to_baseband_to_speakers();
 //#else
+			PA_ctrl(GPIO_LOW);
 			mainMIC_to_baseband_to_earpiece();
 //#endif
 			break;
 
 		case EARPIECE_NORMAL:	//:BB-> 8994Codec -> EARPIECE
 			if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset||
-			wm8994_mainMIC_to_baseband_to_headset)
+				wm8994_current_mode==wm8994_mainMIC_to_baseband_to_headset)
+			{
+				PA_ctrl(GPIO_LOW);
 				recorder_and_AP_to_headset();
+			}	
 			else if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers||
 				wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)
+			{
 				recorder_and_AP_to_speakers();
+				PA_ctrl(GPIO_HIGH);
+			}	
 			else if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers||
 				wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)
 				break;
-			else{
+			else
+			{
 				recorder_and_AP_to_speakers();
+				PA_ctrl(GPIO_HIGH);
 				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
 			}	
 			break;
 
 
 		/* BLUETOOTH_SCO*/		    	
-		case BLUETOOTH_SCO_INCALL:	//BB-> 8994Codec -> BLUETOOTH_SCO  
+		case BLUETOOTH_SCO_INCALL:	//BB-> 8994Codec -> BLUETOOTH_SCO 
 			BT_baseband();
+			PA_ctrl(GPIO_HIGH);
 			break;
 
 		/* BLUETOOTH_A2DP*/			    
@@ -2879,27 +2890,38 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		    
 		case MIC_CAPTURE:
 			if(wm8994_current_mode==wm8994_AP_to_headset)
+			{
+				PA_ctrl(GPIO_LOW);
 				recorder_and_AP_to_headset();
+			}	
 			else if(wm8994_current_mode==wm8994_AP_to_speakers)
+			{
 				recorder_and_AP_to_speakers();
+				PA_ctrl(GPIO_HIGH);
+			}	
 			else if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers||
 				wm8994_current_mode==wm8994_recorder_and_AP_to_headset)
 				break;
-			else{
+			else
+			{
 				recorder_and_AP_to_speakers();
+				PA_ctrl(GPIO_HIGH);
 				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
 			}
 			break;
 
 		case EARPIECE_RINGTONE:
 			recorder_and_AP_to_speakers();
+			PA_ctrl(GPIO_HIGH);
 			break;
 
 		case HEADSET_RINGTONE:
+			PA_ctrl(GPIO_LOW);
 			AP_to_speakers_and_headset();
 			break;
 
 		case SPEAKER_RINGTONE:
+			PA_ctrl(GPIO_HIGH);
 			recorder_and_AP_to_speakers();
 			break;
 
@@ -2911,14 +2933,6 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 
 	isWM8994SetChannel = false;
 	
-	if(pdata->PA_control == 1 &&
-	wm8994_current_mode !=wm8994_recorder_and_AP_to_headset)
-	{
-		DBG("enable PA_control\n");
-		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-		gpio_free(RK29_PIN6_PD3);
-	}
 	return 0;
 }
 
@@ -3473,8 +3487,6 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;	
 	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
 	unsigned char wm8994_resume_mode = wm8994_current_mode;
 	wm8994_current_mode = null;
@@ -3506,13 +3518,6 @@ static int wm8994_resume(struct platform_device *pdev)
 
 	isWM8994SetChannel = false;
 	
-	if(pdata ->PA_control == 1)
-	{
-		DBG("wm8994_resume enable PA_control\n");
-		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-		gpio_free(RK29_PIN6_PD3);
-	}
 	return 0;
 }
 
