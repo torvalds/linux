@@ -121,10 +121,10 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
@@ -249,7 +249,6 @@ static struct iwl_ht_params iwl1000_ht_params = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.ops = &iwl1000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -271,7 +270,6 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.ops = &iwl1000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true

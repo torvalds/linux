@@ -41,6 +41,7 @@
 #include "iwl-power.h"
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
 
 
 /*
@@ -94,7 +95,7 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 		max_bit_rate = MAX_BIT_RATE_40_MHZ;
 	}
 
-	if (priv->cfg->mod_params->amsdu_size_8K)
+	if (iwlagn_mod_params.amsdu_size_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
@@ -926,7 +927,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		if (priv->cfg->mod_params->restart_fw) {
+		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 				  "Restarting adapter due to uCode error.\n");
 			queue_work(priv->workqueue, &priv->restart);
@@ -1747,7 +1748,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 		 * detect failure), then fw_restart module parameter
 		 * need to be check before performing firmware reload
 		 */
-		if (!external && !priv->cfg->mod_params->restart_fw) {
+		if (!external && !iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
 				       "module parameter setting\n");
 			break;

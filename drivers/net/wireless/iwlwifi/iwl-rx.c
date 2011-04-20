@@ -433,7 +433,6 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 					struct statistics_tx *tx,
 					unsigned long stamp)
 {
-	const struct iwl_mod_params *mod_params = priv->cfg->mod_params;
 	unsigned int msecs;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -449,13 +448,13 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (mod_params->ack_check && !iwl_good_ack_health(priv, tx)) {
+	if (iwlagn_mod_params.ack_check && !iwl_good_ack_health(priv, tx)) {
 		IWL_ERR(priv, "low ack count detected, restart firmware\n");
 		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
 			return;
 	}
 
-	if (mod_params->plcp_check &&
+	if (iwlagn_mod_params.plcp_check &&
 	    !iwl_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_reset(priv, IWL_RF_RESET, false);
 }
@@ -846,7 +845,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	}
 
 	/* In case of HW accelerated crypto and bad decryption, drop */
-	if (!priv->cfg->mod_params->sw_crypto &&
+	if (!iwlagn_mod_params.sw_crypto &&
 	    iwl_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 

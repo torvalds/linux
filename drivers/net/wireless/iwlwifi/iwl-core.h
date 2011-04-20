@@ -325,8 +325,6 @@ struct iwl_cfg {
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
-	/* module based parameters which can be set from modprobe cmd */
-	const struct iwl_mod_params *mod_params;
 	/* params not likely to change within a device family */
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */

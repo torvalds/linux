@@ -665,7 +665,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 
 	rb_timeout = RX_RB_TIMEOUT;
 
-	if (priv->cfg->mod_params->amsdu_size_8K)
+	if (iwlagn_mod_params.amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;

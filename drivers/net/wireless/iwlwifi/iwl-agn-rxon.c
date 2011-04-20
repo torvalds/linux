@@ -372,7 +372,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			return ret;
 	}
 
-	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
+	iwl_set_rxon_hwcrypto(priv, ctx, !iwlagn_mod_params.sw_crypto);
 
 	IWL_DEBUG_INFO(priv,
 		       "Going to commit RXON\n"

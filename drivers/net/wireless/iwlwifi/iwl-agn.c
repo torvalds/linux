@@ -2834,7 +2834,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (priv->cfg->mod_params->sw_crypto) {
+	if (iwlagn_mod_params.sw_crypto) {
 		IWL_DEBUG_MAC80211(priv, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -3522,14 +3522,14 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	if (priv->cfg->mod_params->amsdu_size_8K)
+	if (iwlagn_mod_params.amsdu_size_8K)
 		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_8K);
 	else
 		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_4K);
 
 	priv->hw_params.max_beacon_itrvl = IWL_MAX_UCODE_BEACON_INTERVAL;
 
-	if (priv->cfg->mod_params->disable_11n)
+	if (iwlagn_mod_params.disable_11n)
 		priv->cfg->sku &= ~IWL_SKU_N;
 
 	/* Device-specific setup */

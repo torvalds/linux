@@ -154,10 +154,10 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 
 static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
@@ -482,7 +482,6 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
 	.ops = &iwl6000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl6000_g2_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -511,7 +510,6 @@ struct iwl_cfg iwl6005_2bg_cfg = {
 	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.ops = &iwl6030_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
 	.need_dc_calib = true,					\
@@ -593,7 +591,6 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.ops = &iwl6000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl6000_base_params,			\
 	.pa_type = IWL_PA_INTERNAL,				\
 	.led_mode = IWL_LED_BLINK
@@ -623,7 +620,6 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.ops = &iwl6050_ops,					\
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl6050_base_params,			\
 	.need_dc_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\
@@ -648,7 +644,6 @@ struct iwl_cfg iwl6150_bgn_cfg = {
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,
 	.ops = &iwl6150_ops,
-	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6050_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
@@ -664,7 +659,6 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,

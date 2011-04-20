@@ -128,10 +128,10 @@ static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 
 static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
@@ -383,7 +383,6 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl2000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -409,7 +408,6 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl2030_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
@@ -436,7 +434,6 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl105_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -462,7 +459,6 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl135_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
