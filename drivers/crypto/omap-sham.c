@@ -835,7 +835,7 @@ static int omap_sham_finup(struct ahash_request *req)
 	ctx->flags |= FLAGS_FINUP;
 
 	err1 = omap_sham_update(req);
-	if (err1 == -EINPROGRESS)
+	if (err1 == -EINPROGRESS || err1 == -EBUSY)
 		return err1;
 	/*
 	 * final() has to be always called to cleanup resources
