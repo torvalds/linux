@@ -108,17 +108,19 @@ int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
-	if(!pdata)
+	if(!pdata) {
+		printk("%s: pdata = NULL ...... \n", __func__);
 		return -1;
+	}
 		
 	if(pdata->power_flag == 1)
 	{
-		pdata->suspend = 1;
-		queue_work(pdata->wq, &pdata->work);
+		rk29_gps_uart_to_gpio(pdata->uart_id);
+		pdata->power_down();	
+		pdata->reset(GPIO_LOW);
 	}
 	
 	printk("%s\n",__FUNCTION__);
-
 	return 0;	
 }
 
@@ -126,48 +128,39 @@ int rk29_gps_resume(struct platform_device *pdev)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
-	if(!pdata)
+	if(!pdata) {
+		printk("%s: pdata = NULL ...... \n", __func__);
 		return -1;
+	}
 	
 	if(pdata->power_flag == 1)
 	{
-		pdata->suspend = 0;
 		queue_work(pdata->wq, &pdata->work);
 	}
 	
 	printk("%s\n",__FUNCTION__);
-
 	return 0;
 }
 
 static void rk29_gps_delay_power_downup(struct work_struct *work)
 {
-	//int ret;
 	struct rk29_gps_data *pdata = container_of(work, struct rk29_gps_data, work);
 	if (pdata == NULL) {
 		printk("%s: pdata = NULL\n", __func__);
 		return;
 	}
 
+	DBG("%s: suspend=%d\n", __func__, pdata->suspend);
+
 	down(&pdata->power_sem);
-	//if (ret < 0) {
-	//	printk("%s: down power_sem error ret = %d\n", __func__, ret);
-	//	return ;
-	//}
 	
-    if (pdata->suspend) {
-		rk29_gps_uart_to_gpio(pdata->uart_id);
-		pdata->power_down();	
-		pdata->reset(GPIO_LOW);
-	}
-	else {
-		pdata->reset(GPIO_LOW);
-		mdelay(10);
-		pdata->power_up();
-		mdelay(500);
-		pdata->reset(GPIO_HIGH);
-		rk29_gps_gpio_to_uart(pdata->uart_id);
-	}
+	pdata->reset(GPIO_LOW);
+	mdelay(5);
+	pdata->power_up();
+	msleep(500);
+	pdata->reset(GPIO_HIGH);
+	rk29_gps_gpio_to_uart(pdata->uart_id);
+
 	up(&pdata->power_sem);
 }
 
@@ -182,8 +175,11 @@ ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *
 {
 	if (ptr == NULL)
 		printk("%s: user space address is NULL\n", __func__);
-	if (pgps == NULL)
+
+	if (pgps == NULL) {
 		printk("%s: pgps addr is NULL\n", __func__);
+		return -1;
+	}
 
 	put_user(pgps->uart_id, ptr);
 	
@@ -206,9 +202,9 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 	switch (cmd){
 		case ENABLE:
 			pdata->reset(GPIO_LOW);
-			mdelay(10);
+			mdelay(5);
 			pdata->power_up();
-			mdelay(10);
+			mdelay(5);
 			rk29_gps_gpio_to_uart(pdata->uart_id);
 			mdelay(500);
 			pdata->reset(GPIO_HIGH);
@@ -237,7 +233,7 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 
 int rk29_gps_release(struct inode *inode, struct file *filp)
 {
-    	DBG("rk29_gps_release\n");
+    DBG("rk29_gps_release\n");
     
 	return 0;
 }
@@ -274,7 +270,6 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	pdata->wq = create_freezeable_workqueue("rk29_gps");
 	INIT_WORK(&pdata->work, rk29_gps_delay_power_downup);
 	pdata->power_flag = 0;
-	pdata->suspend = 0;
 
 	pgps = pdata;
 
