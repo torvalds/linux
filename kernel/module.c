@@ -57,6 +57,7 @@
 #include <linux/kmemleak.h>
 #include <linux/jump_label.h>
 #include <linux/pfn.h>
+#include <linux/bsearch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
@@ -363,17 +364,27 @@ static bool check_symbol(const struct symsearch *syms,
 	return true;
 }
 
+static int cmp_name(const void *va, const void *vb)
+{
+	const char *a;
+	const struct kernel_symbol *b;
+	a = va; b = vb;
+	return strcmp(a, b->name);
+}
+
 static bool find_symbol_in_section(const struct symsearch *syms,
 				   struct module *owner,
 				   void *data)
 {
 	struct find_symbol_arg *fsa = data;
-	unsigned int i;
+	struct kernel_symbol *sym;
 
-	for (i = 0; i < syms->stop - syms->start; i++) {
-		if (strcmp(syms->start[i].name, fsa->name) == 0)
-			return check_symbol(syms, owner, i, data);
-	}
+	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
+			sizeof(struct kernel_symbol), cmp_name);
+
+	if (sym != NULL && check_symbol(syms, owner, sym - syms->start, data))
+		return true;
+
 	return false;
 }
 
