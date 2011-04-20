@@ -166,6 +166,15 @@ static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 	return container_of(inode, struct btrfs_inode, vfs_inode);
 }
 
+static inline u64 btrfs_ino(struct inode *inode)
+{
+	u64 ino = BTRFS_I(inode)->location.objectid;
+
+	if (ino <= BTRFS_FIRST_FREE_OBJECTID)
+		ino = inode->i_ino;
+	return ino;
+}
+
 static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 {
 	i_size_write(inode, size);

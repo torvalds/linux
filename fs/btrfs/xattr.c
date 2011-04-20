@@ -44,7 +44,7 @@ ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 		return -ENOMEM;
 
 	/* lookup the xattr by name */
-	di = btrfs_lookup_xattr(NULL, root, path, inode->i_ino, name,
+	di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode), name,
 				strlen(name), 0);
 	if (!di) {
 		ret = -ENODATA;
@@ -103,7 +103,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	/* first lets see if we already have this xattr */
-	di = btrfs_lookup_xattr(trans, root, path, inode->i_ino, name,
+	di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode), name,
 				strlen(name), -1);
 	if (IS_ERR(di)) {
 		ret = PTR_ERR(di);
@@ -136,7 +136,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	}
 
 	/* ok we have to create a completely new xattr */
-	ret = btrfs_insert_xattr_item(trans, root, path, inode->i_ino,
+	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
 				      name, name_len, value, size);
 	BUG_ON(ret);
 out:
@@ -190,7 +190,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	 * NOTE: we set key.offset = 0; because we want to start with the
 	 * first xattr that we find and walk forward
 	 */
-	key.objectid = inode->i_ino;
+	key.objectid = btrfs_ino(inode);
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
 	key.offset = 0;
 

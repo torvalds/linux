@@ -416,7 +416,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	BUG_ON(ret);
 
 	ret = btrfs_insert_dir_item(trans, root,
-				    name, namelen, dir->i_ino, &key,
+				    name, namelen, btrfs_ino(dir), &key,
 				    BTRFS_FT_DIR, index);
 	if (ret)
 		goto fail;
@@ -427,7 +427,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
 				 objectid, root->root_key.objectid,
-				 dir->i_ino, index, name, namelen);
+				 btrfs_ino(dir), index, name, namelen);
 
 	BUG_ON(ret);
 
@@ -1123,7 +1123,7 @@ static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
 	int ret = 0;
 	u64 flags = 0;
 
-	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID)
+	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID)
 		return -EINVAL;
 
 	down_read(&root->fs_info->subvol_sem);
@@ -1150,7 +1150,7 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
-	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID)
+	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID)
 		return -EINVAL;
 
 	if (copy_from_user(&flags, arg, sizeof(flags)))
@@ -1633,7 +1633,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			goto out_dput;
 	}
 
-	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
 		err = -EINVAL;
 		goto out_dput;
 	}
@@ -1919,7 +1919,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	}
 
 	/* clone data */
-	key.objectid = src->i_ino;
+	key.objectid = btrfs_ino(src);
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
 
@@ -1946,7 +1946,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY ||
-		    key.objectid != src->i_ino)
+		    key.objectid != btrfs_ino(src))
 			break;
 
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
@@ -1989,7 +1989,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				goto next;
 
 			memcpy(&new_key, &key, sizeof(new_key));
-			new_key.objectid = inode->i_ino;
+			new_key.objectid = btrfs_ino(inode);
 			if (off <= key.offset)
 				new_key.offset = key.offset + destoff - off;
 			else
@@ -2043,7 +2043,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					ret = btrfs_inc_extent_ref(trans, root,
 							disko, diskl, 0,
 							root->root_key.objectid,
-							inode->i_ino,
+							btrfs_ino(inode),
 							new_key.offset - datao);
 					BUG_ON(ret);
 				}

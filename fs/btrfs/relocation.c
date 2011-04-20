@@ -1410,9 +1410,9 @@ again:
 		prev = node;
 		entry = rb_entry(node, struct btrfs_inode, rb_node);
 
-		if (objectid < entry->vfs_inode.i_ino)
+		if (objectid < btrfs_ino(&entry->vfs_inode))
 			node = node->rb_left;
-		else if (objectid > entry->vfs_inode.i_ino)
+		else if (objectid > btrfs_ino(&entry->vfs_inode))
 			node = node->rb_right;
 		else
 			break;
@@ -1420,7 +1420,7 @@ again:
 	if (!node) {
 		while (prev) {
 			entry = rb_entry(prev, struct btrfs_inode, rb_node);
-			if (objectid <= entry->vfs_inode.i_ino) {
+			if (objectid <= btrfs_ino(&entry->vfs_inode)) {
 				node = prev;
 				break;
 			}
@@ -1435,7 +1435,7 @@ again:
 			return inode;
 		}
 
-		objectid = entry->vfs_inode.i_ino + 1;
+		objectid = btrfs_ino(&entry->vfs_inode) + 1;
 		if (cond_resched_lock(&root->inode_lock))
 			goto again;
 
@@ -1471,7 +1471,7 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 		return -ENOMEM;
 
 	bytenr -= BTRFS_I(reloc_inode)->index_cnt;
-	ret = btrfs_lookup_file_extent(NULL, root, path, reloc_inode->i_ino,
+	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(reloc_inode),
 				       bytenr, 0);
 	if (ret < 0)
 		goto out;
@@ -1559,11 +1559,11 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			if (first) {
 				inode = find_next_inode(root, key.objectid);
 				first = 0;
-			} else if (inode && inode->i_ino < key.objectid) {
+			} else if (inode && btrfs_ino(inode) < key.objectid) {
 				btrfs_add_delayed_iput(inode);
 				inode = find_next_inode(root, key.objectid);
 			}
-			if (inode && inode->i_ino == key.objectid) {
+			if (inode && btrfs_ino(inode) == key.objectid) {
 				end = key.offset +
 				      btrfs_file_extent_num_bytes(leaf, fi);
 				WARN_ON(!IS_ALIGNED(key.offset,
@@ -1894,6 +1894,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 	struct inode *inode = NULL;
 	u64 objectid;
 	u64 start, end;
+	u64 ino;
 
 	objectid = min_key->objectid;
 	while (1) {
@@ -1906,17 +1907,18 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 		inode = find_next_inode(root, objectid);
 		if (!inode)
 			break;
+		ino = btrfs_ino(inode);
 
-		if (inode->i_ino > max_key->objectid) {
+		if (ino > max_key->objectid) {
 			iput(inode);
 			break;
 		}
 
-		objectid = inode->i_ino + 1;
+		objectid = ino + 1;
 		if (!S_ISREG(inode->i_mode))
 			continue;
 
-		if (unlikely(min_key->objectid == inode->i_ino)) {
+		if (unlikely(min_key->objectid == ino)) {
 			if (min_key->type > BTRFS_EXTENT_DATA_KEY)
 				continue;
 			if (min_key->type < BTRFS_EXTENT_DATA_KEY)
@@ -1929,7 +1931,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 			start = 0;
 		}
 
-		if (unlikely(max_key->objectid == inode->i_ino)) {
+		if (unlikely(max_key->objectid == ino)) {
 			if (max_key->type < BTRFS_EXTENT_DATA_KEY)
 				continue;
 			if (max_key->type > BTRFS_EXTENT_DATA_KEY) {
