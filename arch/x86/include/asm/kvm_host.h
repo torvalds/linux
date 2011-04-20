@@ -681,9 +681,6 @@ static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
 }
 
-void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
-void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
-
 void kvm_enable_efer_bits(u64);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *data);
 int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);

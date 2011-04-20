@@ -176,6 +176,8 @@ struct x86_emulate_ops {
 						 int seg);
 	void (*get_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
 	void (*get_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*set_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*set_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
 	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
 	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
 	int (*cpl)(struct x86_emulate_ctxt *ctxt);

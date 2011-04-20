@@ -3494,6 +3494,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = c->dst.type;
 	int irq; /* Used for int 3, int, and into */
+	struct desc_ptr desc_ptr;
 
 	ctxt->decode.mem_read.pos = 0;
 
@@ -4005,9 +4006,6 @@ twobyte_insn:
 	switch (c->b) {
 	case 0x01: /* lgdt, lidt, lmsw */
 		switch (c->modrm_reg) {
-			u16 size;
-			unsigned long address;
-
 		case 0: /* vmcall */
 			if (c->modrm_mod != 3 || c->modrm_rm != 1)
 				goto cannot_emulate;
@@ -4023,10 +4021,11 @@ twobyte_insn:
 			break;
 		case 2: /* lgdt */
 			rc = read_descriptor(ctxt, ops, c->src.addr.mem,
-					     &size, &address, c->op_bytes);
+					     &desc_ptr.size, &desc_ptr.address,
+					     c->op_bytes);
 			if (rc != X86EMUL_CONTINUE)
 				goto done;
-			realmode_lgdt(ctxt->vcpu, size, address);
+			ctxt->ops->set_gdt(ctxt, &desc_ptr);
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;
 			break;
@@ -4041,11 +4040,12 @@ twobyte_insn:
 				}
 			} else {
 				rc = read_descriptor(ctxt, ops, c->src.addr.mem,
-						     &size, &address,
+						     &desc_ptr.size,
+						     &desc_ptr.address,
 						     c->op_bytes);
 				if (rc != X86EMUL_CONTINUE)
 					goto done;
-				realmode_lidt(ctxt->vcpu, size, address);
+				ctxt->ops->set_idt(ctxt, &desc_ptr);
 			}
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;

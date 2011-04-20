@@ -4249,6 +4249,16 @@ static void emulator_get_idt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
 	kvm_x86_ops->get_idt(emul_to_vcpu(ctxt), dt);
 }
 
+static void emulator_set_gdt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
+{
+	kvm_x86_ops->set_gdt(emul_to_vcpu(ctxt), dt);
+}
+
+static void emulator_set_idt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
+{
+	kvm_x86_ops->set_idt(emul_to_vcpu(ctxt), dt);
+}
+
 static unsigned long emulator_get_cached_segment_base(
 	struct x86_emulate_ctxt *ctxt, int seg)
 {
@@ -4388,6 +4398,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.get_cached_segment_base = emulator_get_cached_segment_base,
 	.get_gdt             = emulator_get_gdt,
 	.get_idt	     = emulator_get_idt,
+	.set_gdt             = emulator_set_gdt,
+	.set_idt	     = emulator_set_idt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
 	.cpl                 = emulator_get_cpl,
@@ -5047,20 +5059,6 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu)
 
 	return emulator_write_emulated(&vcpu->arch.emulate_ctxt,
 				       rip, instruction, 3, NULL);
-}
-
-void realmode_lgdt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
-{
-	struct desc_ptr dt = { limit, base };
-
-	kvm_x86_ops->set_gdt(vcpu, &dt);
-}
-
-void realmode_lidt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
-{
-	struct desc_ptr dt = { limit, base };
-
-	kvm_x86_ops->set_idt(vcpu, &dt);
 }
 
 static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
