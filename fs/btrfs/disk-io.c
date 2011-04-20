@@ -963,7 +963,7 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
 	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				bytenr, blocksize, GFP_NOFS);
+				bytenr, blocksize);
 	return eb;
 }
 
@@ -2696,7 +2696,7 @@ int btree_lock_page_hook(struct page *page)
 		goto out;
 
 	len = page->private >> 2;
-	eb = find_extent_buffer(io_tree, bytenr, len, GFP_NOFS);
+	eb = find_extent_buffer(io_tree, bytenr, len);
 	if (!eb)
 		goto out;
 

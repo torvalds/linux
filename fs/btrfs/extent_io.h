@@ -263,8 +263,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  struct page *page0,
 					  gfp_t mask);
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 u64 start, unsigned long len,
-					  gfp_t mask);
+					 u64 start, unsigned long len);
 void free_extent_buffer(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb, u64 start, int wait,

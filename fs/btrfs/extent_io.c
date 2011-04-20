@@ -3377,8 +3377,7 @@ free_eb:
 }
 
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 u64 start, unsigned long len,
-					  gfp_t mask)
+					 u64 start, unsigned long len)
 {
 	struct extent_buffer *eb;
 
