@@ -244,6 +244,7 @@ static void rebuild_batman_packet(struct bat_priv *bat_priv,
 void schedule_own_packet(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct hard_iface *primary_if;
 	unsigned long send_time;
 	struct batman_packet *batman_packet;
 	int vis_server;
@@ -253,6 +254,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 		return;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
+	primary_if = primary_if_get_selected(bat_priv);
 
 	/**
 	 * the interface gets activated here to avoid race conditions between
@@ -266,7 +268,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 
 	/* if local hna has changed and interface is a primary interface */
 	if ((atomic_read(&bat_priv->hna_local_changed)) &&
-	    (hard_iface == bat_priv->primary_if))
+	    (hard_iface == primary_if))
 		rebuild_batman_packet(bat_priv, hard_iface);
 
 	/**
@@ -284,7 +286,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 	else
 		batman_packet->flags &= ~VIS_SERVER;
 
-	if ((hard_iface == bat_priv->primary_if) &&
+	if ((hard_iface == primary_if) &&
 	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER))
 		batman_packet->gw_flags =
 				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
@@ -299,6 +301,9 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 			       hard_iface->packet_buff,
 			       hard_iface->packet_len,
 			       hard_iface, 1, send_time);
+
+	if (primary_if)
+		hardif_free_ref(primary_if);
 }
 
 void schedule_forward_packet(struct orig_node *orig_node,
@@ -403,6 +408,7 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  * skb is freed. */
 int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 {
+	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
 	struct bcast_packet *bcast_packet;
 
@@ -411,7 +417,8 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (!bat_priv->primary_if)
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
 		goto out;
 
 	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
@@ -430,7 +437,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 	skb_reset_mac_header(skb);
 
 	forw_packet->skb = skb;
-	forw_packet->if_incoming = bat_priv->primary_if;
+	forw_packet->if_incoming = primary_if;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
@@ -443,6 +450,8 @@ packet_free:
 out_and_inc:
 	atomic_inc(&bat_priv->bcast_queue_left);
 out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	return NETDEV_TX_BUSY;
 }
 

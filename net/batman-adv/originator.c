@@ -405,29 +405,34 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
+	struct hard_iface *primary_if;
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node, *neigh_node_tmp;
 	int batman_count = 0;
 	int last_seen_secs;
 	int last_seen_msecs;
-	int i;
+	int i, ret = 0;
 
-	if ((!bat_priv->primary_if) ||
-	    (bat_priv->primary_if->if_status != IF_ACTIVE)) {
-		if (!bat_priv->primary_if)
-			return seq_printf(seq, "BATMAN mesh %s disabled - "
-				     "please specify interfaces to enable it\n",
-				     net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
 
-		return seq_printf(seq, "BATMAN mesh %s "
-				  "disabled - primary interface not active\n",
-				  net_dev->name);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "please specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s "
+				 "disabled - primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
 		   SOURCE_VERSION, REVISION_VERSION_STR,
-		   bat_priv->primary_if->net_dev->name,
-		   bat_priv->primary_if->net_dev->dev_addr, net_dev->name);
+		   primary_if->net_dev->name,
+		   primary_if->net_dev->dev_addr, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", "Potential nexthops");
@@ -474,7 +479,10 @@ next:
 	if (batman_count == 0)
 		seq_printf(seq, "No batman nodes in range ...\n");
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)

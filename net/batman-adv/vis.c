@@ -204,6 +204,7 @@ static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 
 int vis_seq_print_text(struct seq_file *seq, void *offset)
 {
+	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct vis_info *info;
@@ -215,15 +216,18 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 	HLIST_HEAD(vis_if_list);
 	struct if_list_entry *entry;
 	struct hlist_node *pos, *n;
-	int i, j;
+	int i, j, ret = 0;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
 	size_t buff_pos, buf_size;
 	char *buff;
 	int compare;
 
-	if ((!bat_priv->primary_if) ||
-	    (vis_server == VIS_TYPE_CLIENT_UPDATE))
-		return 0;
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	if (vis_server == VIS_TYPE_CLIENT_UPDATE)
+		goto out;
 
 	buf_size = 1;
 	/* Estimate length */
@@ -270,7 +274,8 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 	buff = kmalloc(buf_size, GFP_ATOMIC);
 	if (!buff) {
 		spin_unlock_bh(&bat_priv->vis_hash_lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	buff[0] = '\0';
 	buff_pos = 0;
@@ -328,7 +333,10 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq, "%s", buff);
 	kfree(buff);
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 /* add the info packet to the send list, if it was not
@@ -815,16 +823,20 @@ out:
 /* only send one vis packet. called from send_vis_packets() */
 static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 {
+	struct hard_iface *primary_if;
 	struct vis_packet *packet;
+
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
 
 	packet = (struct vis_packet *)info->skb_packet->data;
 	if (packet->ttl < 2) {
 		pr_debug("Error - can't send vis packet: ttl exceeded\n");
-		return;
+		goto out;
 	}
 
-	memcpy(packet->sender_orig, bat_priv->primary_if->net_dev->dev_addr,
-	       ETH_ALEN);
+	memcpy(packet->sender_orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	packet->ttl--;
 
 	if (is_broadcast_ether_addr(packet->target_orig))
@@ -832,6 +844,10 @@ static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 	else
 		unicast_vis_packet(bat_priv, info);
 	packet->ttl++; /* restore TTL */
+
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 }
 
 /* called from timer; send (and maybe generate) vis packet. */
@@ -858,8 +874,7 @@ static void send_vis_packets(struct work_struct *work)
 		kref_get(&info->refcount);
 		spin_unlock_bh(&bat_priv->vis_hash_lock);
 
-		if (bat_priv->primary_if)
-			send_vis_packet(bat_priv, info);
+		send_vis_packet(bat_priv, info);
 
 		spin_lock_bh(&bat_priv->vis_hash_lock);
 		send_list_del(info);
