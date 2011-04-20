@@ -175,4 +175,6 @@ static inline int compare_eth(void *data1, void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+#define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */
