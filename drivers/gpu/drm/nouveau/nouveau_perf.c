@@ -253,7 +253,7 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-		if (pm->memtimings.supported && version > 0x15) {
+		if (version > 0x15) {
 			/* last 3 args are for < 0x40, ignored for >= 0x40 */
 			perflvl->timing =
 				nouveau_perf_timing(dev, &P,
