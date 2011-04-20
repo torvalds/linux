@@ -1337,11 +1337,18 @@ out_nfserr:
 }
 
 #ifdef CONFIG_NFSD_V3
+
+static inline int nfsd_create_is_exclusive(int createmode)
+{
+	return createmode == NFS3_CREATE_EXCLUSIVE
+	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
+}
+
 /*
- * NFSv3 version of nfsd_create
+ * NFSv3 and NFSv4 version of nfsd_create
  */
 __be32
-nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
+do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		char *fname, int flen, struct iattr *iap,
 		struct svc_fh *resfhp, int createmode, u32 *verifier,
 	        int *truncp, int *created)
@@ -1386,7 +1393,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		goto out;
 
-	if (createmode == NFS3_CREATE_EXCLUSIVE) {
+	if (nfsd_create_is_exclusive(createmode)) {
 		/* solaris7 gets confused (bugid 4218508) if these have
 		 * the high bit set, so just clear the high bits. If this is
 		 * ever changed to use different attrs for storing the
@@ -1427,6 +1434,11 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
 			    && dchild->d_inode->i_size  == 0 )
 				break;
+		case NFS4_CREATE_EXCLUSIVE4_1:
+			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
+			    && dchild->d_inode->i_atime.tv_sec == v_atime
+			    && dchild->d_inode->i_size  == 0 )
+				goto set_attr;
 			 /* fallthru */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
@@ -1445,7 +1457,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	nfsd_check_ignore_resizing(iap);
 
-	if (createmode == NFS3_CREATE_EXCLUSIVE) {
+	if (nfsd_create_is_exclusive(createmode)) {
 		/* Cram the verifier into atime/mtime */
 		iap->ia_valid = ATTR_MTIME|ATTR_ATIME
 			| ATTR_MTIME_SET|ATTR_ATIME_SET;

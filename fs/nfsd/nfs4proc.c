@@ -196,9 +196,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 
 		/*
 		 * Note: create modes (UNCHECKED,GUARDED...) are the same
-		 * in NFSv4 as in v3.
+		 * in NFSv4 as in v3 except EXCLUSIVE4_1.
 		 */
-		status = nfsd_create_v3(rqstp, current_fh, open->op_fname.data,
+		status = do_nfsd_create(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
