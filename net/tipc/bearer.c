@@ -493,8 +493,15 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
 	}
-	if (!tipc_addr_domain_valid(disc_domain) ||
-	    !tipc_in_scope(disc_domain, tipc_own_addr)) {
+	if (tipc_addr_domain_valid(disc_domain) &&
+	    (disc_domain != tipc_own_addr)) {
+		if (tipc_in_scope(disc_domain, tipc_own_addr)) {
+			disc_domain = tipc_own_addr & TIPC_CLUSTER_MASK;
+			res = 0;   /* accept any node in own cluster */
+		} else if (in_own_cluster(disc_domain))
+			res = 0;   /* accept specified node in own cluster */
+	}
+	if (res) {
 		warn("Bearer <%s> rejected, illegal discovery domain\n", name);
 		return -EINVAL;
 	}

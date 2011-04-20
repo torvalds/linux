@@ -52,6 +52,7 @@
  * struct link_req - information about an ongoing link setup request
  * @bearer: bearer issuing requests
  * @dest: destination address for request messages
+ * @domain: network domain to which links can be established
  * @buf: request message to be (repeatedly) sent
  * @timer: timer governing period between requests
  * @timer_intv: current interval between requests (in ms)
@@ -59,6 +60,7 @@
 struct link_req {
 	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
+	u32 domain;
 	struct sk_buff *buf;
 	struct timer_list timer;
 	unsigned int timer_intv;
@@ -147,7 +149,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (!in_own_cluster(orig))
+	if (!tipc_in_scope(b_ptr->link_req->domain, orig))
 		return;
 
 	/* Locate structure corresponding to requesting node */
@@ -287,7 +289,7 @@ static void disc_timeout(struct link_req *req)
  * tipc_disc_init_link_req - start sending periodic link setup requests
  * @b_ptr: ptr to bearer issuing requests
  * @dest: destination address for request messages
- * @dest_domain: network domain of node(s) which should respond to message
+ * @dest_domain: network domain to which links can be established
  *
  * Returns pointer to link request structure, or NULL if unable to create.
  */
@@ -310,6 +312,7 @@ struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
 
 	memcpy(&req->dest, dest, sizeof(*dest));
 	req->bearer = b_ptr;
+	req->domain = dest_domain;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
