@@ -1202,14 +1202,15 @@ static int moxa_write(struct tty_struct *tty,
 		      const unsigned char *buf, int count)
 {
 	struct moxa_port *ch = tty->driver_data;
+	unsigned long flags;
 	int len;
 
 	if (ch == NULL)
 		return 0;
 
-	spin_lock_bh(&moxa_lock);
+	spin_lock_irqsave(&moxa_lock, flags);
 	len = MoxaPortWriteData(tty, buf, count);
-	spin_unlock_bh(&moxa_lock);
+	spin_unlock_irqrestore(&moxa_lock, flags);
 
 	set_bit(LOWWAIT, &ch->statusflags);
 	return len;
