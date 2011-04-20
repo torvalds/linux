@@ -1530,15 +1530,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	pr_debug("uart_open(%d) called\n", line);
 
 	/*
-	 * tty->driver->num won't change, so we won't fail here with
-	 * tty->driver_data set to something non-NULL (and therefore
-	 * we won't get caught by uart_close()).
-	 */
-	retval = -ENODEV;
-	if (line >= tty->driver->num)
-		goto fail;
-
-	/*
 	 * We take the semaphore inside uart_get to guarantee that we won't
 	 * be re-entered while allocating the state structure, or while we
 	 * request any IRQs that the driver may need.  This also has the nice
