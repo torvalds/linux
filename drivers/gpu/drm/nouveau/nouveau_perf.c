@@ -72,6 +72,66 @@ legacy_perf_init(struct drm_device *dev)
 	pm->nr_perflvl = 1;
 }
 
+static struct nouveau_pm_memtiming *
+nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
+		    u16 memclk, u8 *entry, u8 recordlen, u8 entries)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 ramcfg;
+	int i;
+
+	/* perf v2 has a separate "timing map" table, we have to match
+	 * the target memory clock to a specific entry, *then* use
+	 * ramcfg to select the correct subentry
+	 */
+	if (P->version == 2) {
+		u8 *tmap = ROMPTR(bios, P->data[4]);
+		if (!tmap) {
+			NV_DEBUG(dev, "no timing map pointer\n");
+			return NULL;
+		}
+
+		if (tmap[0] != 0x10) {
+			NV_WARN(dev, "timing map 0x%02x unknown\n", tmap[0]);
+			return NULL;
+		}
+
+		entry = tmap + tmap[1];
+		recordlen = tmap[2] + (tmap[4] * tmap[3]);
+		for (i = 0; i < tmap[5]; i++, entry += recordlen) {
+			if (memclk >= ROM16(entry[0]) &&
+			    memclk <= ROM16(entry[2]))
+				break;
+		}
+
+		if (i == tmap[5]) {
+			NV_WARN(dev, "no match in timing map table\n");
+			return NULL;
+		}
+
+		entry += tmap[2];
+		recordlen = tmap[3];
+		entries   = tmap[4];
+	}
+
+	ramcfg = nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x0000003c;
+	ramcfg >>= 2;
+	if (ramcfg >= entries) {
+		NV_WARN(dev, "ramcfg strap out of bounds!\n");
+		return NULL;
+	}
+
+	entry += ramcfg * recordlen;
+	if (entry[1] >= pm->memtimings.nr_timing) {
+		NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
+		return NULL;
+	}
+
+	return &pm->memtimings.timing[entry[1]];
+}
+
 void
 nouveau_perf_init(struct drm_device *dev)
 {
@@ -82,7 +142,6 @@ nouveau_perf_init(struct drm_device *dev)
 	u8 version, headerlen, recordlen, entries;
 	u8 *perf, *entry;
 	int vid, i;
-	u8 ramcfg = (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x3c) >> 2;
 
 	if (bios->type == NVBIOS_BIT) {
 		if (bit_table(dev, 'P', &P))
@@ -194,19 +253,13 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-		if (pm->memtimings.supported) {
-			u8  timing_id = 0xff;
-			u16 extra_data;
-
-			if (version > 0x15 && version < 0x40 &&
-			    ramcfg < perf[4]) {
-				extra_data = perf[3] + (ramcfg * perf[5]);
-				timing_id  = entry[extra_data + 1];
-			}
-
-			if (pm->memtimings.nr_timing > timing_id)
-				perflvl->timing =
-					&pm->memtimings.timing[timing_id];
+		if (pm->memtimings.supported && version > 0x15) {
+			/* last 3 args are for < 0x40, ignored for >= 0x40 */
+			perflvl->timing =
+				nouveau_perf_timing(dev, &P,
+						    perflvl->memory / 1000,
+						    entry + perf[3],
+						    perf[5], perf[4]);
 		}
 
 		snprintf(perflvl->name, sizeof(perflvl->name),
