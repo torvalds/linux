@@ -1690,11 +1690,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 
 	mutex_lock(&port->tty_sem);
 
-	if (unlikely(!port->port.count)) {
-		DBG1(" ");
-		goto exit;
-	}
-
 	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
 	/* notify card */
@@ -1740,8 +1735,7 @@ static int ntty_write_room(struct tty_struct *tty)
 
 	if (dc) {
 		mutex_lock(&port->tty_sem);
-		if (port->port.count)
-			room = kfifo_avail(&port->fifo_ul);
+		room = kfifo_avail(&port->fifo_ul);
 		mutex_unlock(&port->tty_sem);
 	}
 	return room;
@@ -1886,11 +1880,6 @@ static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 	s32 rval = 0;
 
 	if (unlikely(!dc || !port)) {
-		goto exit_in_buffer;
-	}
-
-	if (unlikely(!port->port.count)) {
-		dev_err(&dc->pdev->dev, "No tty open?\n");
 		goto exit_in_buffer;
 	}
 
