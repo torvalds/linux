@@ -2385,6 +2385,20 @@ static void drbd_free_socket(struct drbd_socket *socket)
 	free_page((unsigned long) socket->rbuf);
 }
 
+void conn_free_crypto(struct drbd_tconn *tconn)
+{
+	crypto_free_hash(tconn->cram_hmac_tfm);
+	crypto_free_hash(tconn->integrity_w_tfm);
+	crypto_free_hash(tconn->integrity_r_tfm);
+	kfree(tconn->int_dig_in);
+	kfree(tconn->int_dig_vv);
+	tconn->cram_hmac_tfm = NULL;
+	tconn->integrity_w_tfm = NULL;
+	tconn->integrity_r_tfm = NULL;
+	tconn->int_dig_in = NULL;
+	tconn->int_dig_vv = NULL;
+}
+
 struct drbd_tconn *drbd_new_tconn(const char *name)
 {
 	struct drbd_tconn *tconn;
@@ -2411,8 +2425,7 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
 	tconn->cstate = C_STANDALONE;
 	mutex_init(&tconn->cstate_mutex);
 	spin_lock_init(&tconn->req_lock);
-	atomic_set(&tconn->net_cnt, 0);
-	init_waitqueue_head(&tconn->net_cnt_wait);
+	mutex_init(&tconn->net_conf_update);
 	init_waitqueue_head(&tconn->ping_wait);
 	idr_init(&tconn->volumes);
 

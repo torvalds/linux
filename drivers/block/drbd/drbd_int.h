@@ -833,9 +833,8 @@ struct drbd_tconn {			/* is a resource from the config file */
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* content protected by rcu */
-	atomic_t net_cnt;		/* Users of net_conf */
-	wait_queue_head_t net_cnt_wait;
-	wait_queue_head_t ping_wait;		/* Woken upon reception of a ping, and a state change */
+	struct mutex net_conf_update;	/* mutex for ready-copy-update of net_conf */
+	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
 	struct res_opts res_opts;
 
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
@@ -1379,6 +1378,7 @@ extern void drbd_delete_device(struct drbd_conf *mdev);
 struct drbd_tconn *drbd_new_tconn(const char *name);
 extern void drbd_free_tconn(struct drbd_tconn *tconn);
 struct drbd_tconn *conn_by_name(const char *name);
+extern void conn_free_crypto(struct drbd_tconn *tconn);
 
 extern int proc_details;
 
@@ -1933,29 +1933,6 @@ static inline void _sub_unacked(struct drbd_conf *mdev, int n, const char *func,
 {
 	atomic_sub(n, &mdev->unacked_cnt);
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
-}
-
-static inline void put_net_conf(struct drbd_tconn *tconn)
-{
-	if (atomic_dec_and_test(&tconn->net_cnt))
-		wake_up(&tconn->net_cnt_wait);
-}
-
-/**
- * get_net_conf() - Increase ref count on mdev->tconn->net_conf; Returns 0 if nothing there
- * @mdev:	DRBD device.
- *
- * You have to call put_net_conf() when finished working with mdev->tconn->net_conf.
- */
-static inline int get_net_conf(struct drbd_tconn *tconn)
-{
-	int have_net_conf;
-
-	atomic_inc(&tconn->net_cnt);
-	have_net_conf = tconn->cstate >= C_UNCONNECTED;
-	if (!have_net_conf)
-		put_net_conf(tconn);
-	return have_net_conf;
 }
 
 /**

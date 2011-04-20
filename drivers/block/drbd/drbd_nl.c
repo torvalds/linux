@@ -589,11 +589,12 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			put_ldev(mdev);
 		}
 	} else {
-		rcu_read_lock();
-		nc = rcu_dereference(mdev->tconn->net_conf);
+		mutex_lock(&mdev->tconn->net_conf_update);
+		nc = mdev->tconn->net_conf;
 		if (nc)
-			nc->want_lose = 0;
-		rcu_read_unlock();
+			nc->want_lose = 0; /* without copy; single bit op is atomic */
+		mutex_unlock(&mdev->tconn->net_conf_update);
+
 		set_disk_ro(mdev->vdisk, false);
 		if (get_ldev(mdev)) {
 			if (((mdev->state.conn < C_CONNECTED ||
@@ -1760,17 +1761,16 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 
 	conn_reconfig_start(tconn);
 
-	rcu_read_lock();
-	old_conf = rcu_dereference(tconn->net_conf);
+	mutex_lock(&tconn->net_conf_update);
+	old_conf = tconn->net_conf;
 
 	if (!old_conf) {
 		drbd_msg_put_info("net conf missing, try connect");
 		retcode = ERR_INVALID_REQUEST;
-		goto fail_rcu_unlock;
+		goto fail;
 	}
 
 	*new_conf = *old_conf;
-	rcu_read_unlock();
 
 	err = net_conf_from_attrs_for_change(new_conf, info);
 	if (err) {
@@ -1785,13 +1785,10 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 
 	/* re-sync running */
 	rsr = conn_resync_running(tconn);
-	rcu_read_lock();
-	old_conf = rcu_dereference(tconn->net_conf);
 	if (rsr && old_conf && strcmp(new_conf->csums_alg, old_conf->csums_alg)) {
 		retcode = ERR_CSUMS_RESYNC_RUNNING;
-		goto fail_rcu_unlock;
+		goto fail;
 	}
-	rcu_read_unlock();
 
 	if (!rsr && new_conf->csums_alg[0]) {
 		csums_tfm = crypto_alloc_hash(new_conf->csums_alg, 0, CRYPTO_ALG_ASYNC);
@@ -1809,15 +1806,12 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 
 	/* online verify running */
 	ovr = conn_ov_running(tconn);
-	rcu_read_lock();
-	old_conf = rcu_dereference(tconn->net_conf);
-	if (ovr && old_conf) {
+	if (ovr) {
 		if (strcmp(new_conf->verify_alg, old_conf->verify_alg)) {
 			retcode = ERR_VERIFY_RUNNING;
-			goto fail_rcu_unlock;
+			goto fail;
 		}
 	}
-	rcu_read_unlock();
 
 	if (!ovr && new_conf->verify_alg[0]) {
 		verify_tfm = crypto_alloc_hash(new_conf->verify_alg, 0, CRYPTO_ALG_ASYNC);
@@ -1834,8 +1828,6 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rcu_assign_pointer(tconn->net_conf, new_conf);
-	synchronize_rcu();
-	kfree(old_conf);
 
 	if (!rsr) {
 		crypto_free_hash(tconn->csums_tfm);
@@ -1848,15 +1840,21 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 		verify_tfm = NULL;
 	}
 
+	mutex_unlock(&tconn->net_conf_update);
+	synchronize_rcu();
+	kfree(old_conf);
+
 	if (tconn->cstate >= C_WF_REPORT_PARAMS)
 		drbd_send_sync_param(minor_to_mdev(conn_lowest_minor(tconn)));
 
- fail_rcu_unlock:
-	rcu_read_unlock();
+	goto done;
+
  fail:
+	mutex_unlock(&tconn->net_conf_update);
 	crypto_free_hash(csums_tfm);
 	crypto_free_hash(verify_tfm);
 	kfree(new_conf);
+ done:
 	conn_reconfig_done(tconn);
  out:
 	drbd_adm_finish(info, retcode);
@@ -2032,32 +2030,26 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	conn_flush_workqueue(tconn);
-	spin_lock_irq(&tconn->req_lock);
-	rcu_read_lock();
-	old_conf = rcu_dereference(tconn->net_conf);
-	if (old_conf != NULL) {
+
+	mutex_lock(&tconn->net_conf_update);
+	old_conf = tconn->net_conf;
+	if (old_conf) {
 		retcode = ERR_NET_CONFIGURED;
-		rcu_read_unlock();
-		spin_unlock_irq(&tconn->req_lock);
+		mutex_unlock(&tconn->net_conf_update);
 		goto fail;
 	}
 	rcu_assign_pointer(tconn->net_conf, new_conf);
 
-	crypto_free_hash(tconn->cram_hmac_tfm);
+	conn_free_crypto(tconn);
 	tconn->cram_hmac_tfm = tfm;
-
-	crypto_free_hash(tconn->integrity_w_tfm);
 	tconn->integrity_w_tfm = integrity_w_tfm;
-
-	crypto_free_hash(tconn->integrity_r_tfm);
 	tconn->integrity_r_tfm = integrity_r_tfm;
+	tconn->int_dig_in = int_dig_in;
+	tconn->int_dig_vv = int_dig_vv;
 
-	kfree(tconn->int_dig_in);
-	kfree(tconn->int_dig_vv);
-	tconn->int_dig_in=int_dig_in;
-	tconn->int_dig_vv=int_dig_vv;
-	retcode = _conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
-	spin_unlock_irq(&tconn->req_lock);
+	mutex_unlock(&tconn->net_conf_update);
+
+	retcode = conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {
