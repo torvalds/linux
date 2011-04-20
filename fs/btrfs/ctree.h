@@ -105,6 +105,12 @@ struct btrfs_ordered_sum;
 /* For storing free space cache */
 #define BTRFS_FREE_SPACE_OBJECTID -11ULL
 
+/*
+ * The inode number assigned to the special inode for sotring
+ * free ino cache
+ */
+#define BTRFS_FREE_INO_OBJECTID -12ULL
+
 /* dummy objectid represents multiple objectids */
 #define BTRFS_MULTIPLE_OBJECTIDS -255ULL
 
@@ -1110,6 +1116,7 @@ struct btrfs_root {
 	wait_queue_head_t cache_wait;
 	struct btrfs_free_space_ctl *free_ino_pinned;
 	u64 cache_progress;
+	struct inode *cache_inode;
 
 	struct mutex log_mutex;
 	wait_queue_head_t log_writer_wait;

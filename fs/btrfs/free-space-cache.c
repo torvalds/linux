@@ -209,7 +209,8 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 		return ret;
 	}
 
-	return btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, inode);
+	return ret;
 }
 
 static int readahead_cache(struct inode *inode)
@@ -525,6 +526,7 @@ out:
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
 		spin_unlock(&block_group->lock);
+		ret = 0;
 
 		printk(KERN_ERR "btrfs: failed to load free space cache "
 		       "for block group %llu\n", block_group->key.objectid);
@@ -893,6 +895,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_ERROR;
 		spin_unlock(&block_group->lock);
+		ret = 0;
 
 		printk(KERN_ERR "btrfs: failed to write free space cace "
 		       "for block group %llu\n", block_group->key.objectid);
@@ -2457,4 +2460,96 @@ out:
 	spin_unlock(&ctl->tree_lock);
 
 	return ino;
+}
+
+struct inode *lookup_free_ino_inode(struct btrfs_root *root,
+				    struct btrfs_path *path)
+{
+	struct inode *inode = NULL;
+
+	spin_lock(&root->cache_lock);
+	if (root->cache_inode)
+		inode = igrab(root->cache_inode);
+	spin_unlock(&root->cache_lock);
+	if (inode)
+		return inode;
+
+	inode = __lookup_free_space_inode(root, path, 0);
+	if (IS_ERR(inode))
+		return inode;
+
+	spin_lock(&root->cache_lock);
+	if (!root->fs_info->closing)
+		root->cache_inode = igrab(inode);
+	spin_unlock(&root->cache_lock);
+
+	return inode;
+}
+
+int create_free_ino_inode(struct btrfs_root *root,
+			  struct btrfs_trans_handle *trans,
+			  struct btrfs_path *path)
+{
+	return __create_free_space_inode(root, trans, path,
+					 BTRFS_FREE_INO_OBJECTID, 0);
+}
+
+int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
+{
+	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct btrfs_path *path;
+	struct inode *inode;
+	int ret = 0;
+	u64 root_gen = btrfs_root_generation(&root->root_item);
+
+	/*
+	 * If we're unmounting then just return, since this does a search on the
+	 * normal root and not the commit root and we could deadlock.
+	 */
+	smp_mb();
+	if (fs_info->closing)
+		return 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return 0;
+
+	inode = lookup_free_ino_inode(root, path);
+	if (IS_ERR(inode))
+		goto out;
+
+	if (root_gen != BTRFS_I(inode)->generation)
+		goto out_put;
+
+	ret = __load_free_space_cache(root, inode, ctl, path, 0);
+
+	if (ret < 0)
+		printk(KERN_ERR "btrfs: failed to load free ino cache for "
+		       "root %llu\n", root->root_key.objectid);
+out_put:
+	iput(inode);
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
+int btrfs_write_out_ino_cache(struct btrfs_root *root,
+			      struct btrfs_trans_handle *trans,
+			      struct btrfs_path *path)
+{
+	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct inode *inode;
+	int ret;
+
+	inode = lookup_free_ino_inode(root, path);
+	if (IS_ERR(inode))
+		return 0;
+
+	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, trans, path, 0);
+	if (ret < 0)
+		printk(KERN_ERR "btrfs: failed to write free ino cache "
+		       "for root %llu\n", root->root_key.objectid);
+
+	iput(inode);
+	return ret;
 }

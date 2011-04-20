@@ -2505,6 +2505,7 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 
 static void free_fs_root(struct btrfs_root *root)
 {
+	iput(root->cache_inode);
 	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
 	if (root->anon_super.s_dev) {
 		down_write(&root->anon_super.s_umount);

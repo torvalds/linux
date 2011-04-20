@@ -761,6 +761,8 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_update_reloc_root(trans, root);
 			btrfs_orphan_commit_root(trans, root);
 
+			btrfs_save_ino_cache(root, trans);
+
 			if (root->commit_root != root->node) {
 				mutex_lock(&root->fs_commit_mutex);
 				switch_commit_root(root);

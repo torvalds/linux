@@ -137,6 +137,7 @@ out:
 static void start_caching(struct btrfs_root *root)
 {
 	struct task_struct *tsk;
+	int ret;
 
 	spin_lock(&root->cache_lock);
 	if (root->cached != BTRFS_CACHE_NO) {
@@ -146,6 +147,14 @@ static void start_caching(struct btrfs_root *root)
 
 	root->cached = BTRFS_CACHE_STARTED;
 	spin_unlock(&root->cache_lock);
+
+	ret = load_free_ino_cache(root->fs_info, root);
+	if (ret == 1) {
+		spin_lock(&root->cache_lock);
+		root->cached = BTRFS_CACHE_FINISHED;
+		spin_unlock(&root->cache_lock);
+		return;
+	}
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
 			  root->root_key.objectid);
@@ -350,6 +359,84 @@ void btrfs_init_free_ino_ctl(struct btrfs_root *root)
 	pinned->private = NULL;
 	pinned->extents_thresh = 0;
 	pinned->op = &pinned_free_ino_op;
+}
+
+int btrfs_save_ino_cache(struct btrfs_root *root,
+			 struct btrfs_trans_handle *trans)
+{
+	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct btrfs_path *path;
+	struct inode *inode;
+	u64 alloc_hint = 0;
+	int ret;
+	int prealloc;
+	bool retry = false;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+again:
+	inode = lookup_free_ino_inode(root, path);
+	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
+		ret = PTR_ERR(inode);
+		goto out;
+	}
+
+	if (IS_ERR(inode)) {
+		BUG_ON(retry);
+		retry = true;
+
+		ret = create_free_ino_inode(root, trans, path);
+		if (ret)
+			goto out;
+		goto again;
+	}
+
+	BTRFS_I(inode)->generation = 0;
+	ret = btrfs_update_inode(trans, root, inode);
+	WARN_ON(ret);
+
+	if (i_size_read(inode) > 0) {
+		ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
+		if (ret)
+			goto out_put;
+	}
+
+	spin_lock(&root->cache_lock);
+	if (root->cached != BTRFS_CACHE_FINISHED) {
+		ret = -1;
+		spin_unlock(&root->cache_lock);
+		goto out_put;
+	}
+	spin_unlock(&root->cache_lock);
+
+	spin_lock(&ctl->tree_lock);
+	prealloc = sizeof(struct btrfs_free_space) * ctl->free_extents;
+	prealloc = ALIGN(prealloc, PAGE_CACHE_SIZE);
+	prealloc += ctl->total_bitmaps * PAGE_CACHE_SIZE;
+	spin_unlock(&ctl->tree_lock);
+
+	/* Just to make sure we have enough space */
+	prealloc += 8 * PAGE_CACHE_SIZE;
+
+	ret = btrfs_check_data_free_space(inode, prealloc);
+	if (ret)
+		goto out_put;
+
+	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
+					      prealloc, prealloc, &alloc_hint);
+	if (ret)
+		goto out_put;
+	btrfs_free_reserved_data_space(inode, prealloc);
+
+out_put:
+	iput(inode);
+out:
+	if (ret == 0)
+		ret = btrfs_write_out_ino_cache(root, trans, path);
+
+	btrfs_free_path(path);
+	return ret;
 }
 
 static int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
