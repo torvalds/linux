@@ -327,6 +327,56 @@ void xenvbd_sysfs_delif(struct xenbus_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_physical_device);
 }
 
+
+static void vbd_free(struct vbd *vbd)
+{
+	if (vbd->bdev)
+		blkdev_put(vbd->bdev, vbd->readonly ? FMODE_READ : FMODE_WRITE);
+	vbd->bdev = NULL;
+}
+
+static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
+		      unsigned major, unsigned minor, int readonly,
+		      int cdrom)
+{
+	struct vbd *vbd;
+	struct block_device *bdev;
+
+	vbd = &blkif->vbd;
+	vbd->handle   = handle;
+	vbd->readonly = readonly;
+	vbd->type     = 0;
+
+	vbd->pdevice  = MKDEV(major, minor);
+
+	bdev = blkdev_get_by_dev(vbd->pdevice, vbd->readonly ?
+				 FMODE_READ : FMODE_WRITE, NULL);
+
+	if (IS_ERR(bdev)) {
+		DPRINTK("vbd_creat: device %08x could not be opened.\n",
+			vbd->pdevice);
+		return -ENOENT;
+	}
+
+	vbd->bdev = bdev;
+	vbd->size = vbd_sz(vbd);
+
+	if (vbd->bdev->bd_disk == NULL) {
+		DPRINTK("vbd_creat: device %08x doesn't exist.\n",
+			vbd->pdevice);
+		vbd_free(vbd);
+		return -ENOENT;
+	}
+
+	if (vbd->bdev->bd_disk->flags & GENHD_FL_CD || cdrom)
+		vbd->type |= VDISK_CDROM;
+	if (vbd->bdev->bd_disk->flags & GENHD_FL_REMOVABLE)
+		vbd->type |= VDISK_REMOVABLE;
+
+	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
+		handle, blkif->domid);
+	return 0;
+}
 static int blkback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
@@ -595,7 +645,7 @@ again:
 		goto abort;
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
-			    vbd_size(&be->blkif->vbd));
+			    (unsigned long long)vbd_sz(&be->blkif->vbd));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/sectors",
 				 dev->nodename);
@@ -604,14 +654,16 @@ again:
 
 	/* FIXME: use a typename instead */
 	err = xenbus_printf(xbt, dev->nodename, "info", "%u",
-			    vbd_info(&be->blkif->vbd));
+			    be->blkif->vbd.type |
+			    (be->blkif->vbd.readonly ? VDISK_READONLY : 0));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/info",
 				 dev->nodename);
 		goto abort;
 	}
 	err = xenbus_printf(xbt, dev->nodename, "sector-size", "%lu",
-			    vbd_secsize(&be->blkif->vbd));
+			    (unsigned long)
+			    bdev_logical_block_size(be->blkif->vbd.bdev));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/sector-size",
 				 dev->nodename);

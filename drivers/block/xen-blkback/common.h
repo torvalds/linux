@@ -95,12 +95,10 @@ struct blkif_st {
 	grant_ref_t    shmem_ref;
 };
 
-struct blkif_st *blkif_alloc(domid_t domid);
-void blkif_disconnect(struct blkif_st *blkif);
-void blkif_free(struct blkif_st *blkif);
-int blkif_map(struct blkif_st *blkif, unsigned long shared_page,
-	      unsigned int evtchn);
-void vbd_resize(struct blkif_st *blkif);
+
+#define vbd_sz(_v)	((_v)->bdev->bd_part ? \
+			 (_v)->bdev->bd_part->nr_sects : \
+			  get_capacity((_v)->bdev->bd_disk))
 
 #define blkif_get(_b) (atomic_inc(&(_b)->refcnt))
 #define blkif_put(_b)					\
@@ -109,24 +107,12 @@ void vbd_resize(struct blkif_st *blkif);
 			wake_up(&(_b)->waiting_to_free);\
 	} while (0)
 
-/* Create a vbd. */
-int vbd_create(struct blkif_st *blkif, blkif_vdev_t vdevice, unsigned major,
-	       unsigned minor, int readonly, int cdrom);
-void vbd_free(struct vbd *vbd);
-
-unsigned long long vbd_size(struct vbd *vbd);
-unsigned int vbd_info(struct vbd *vbd);
-unsigned long vbd_secsize(struct vbd *vbd);
-
 struct phys_req {
 	unsigned short       dev;
 	unsigned short       nr_sects;
 	struct block_device *bdev;
 	blkif_sector_t       sector_number;
 };
-
-int vbd_translate(struct phys_req *req, struct blkif_st *blkif, int operation);
-
 int blkif_interface_init(void);
 
 int blkif_xenbus_init(void);
