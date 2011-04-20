@@ -1291,7 +1291,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 
 	if (device->writeable) {
+		lock_chunks(root);
 		list_del_init(&device->dev_alloc_list);
+		unlock_chunks(root);
 		root->fs_info->fs_devices->rw_devices--;
 	}
 
@@ -1345,7 +1347,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		}
 		fs_devices->seed = device->fs_devices->seed;
 		device->fs_devices->seed = NULL;
+		lock_chunks(root);
 		__btrfs_close_devices(device->fs_devices);
+		unlock_chunks(root);
 		free_fs_devices(device->fs_devices);
 	}
 
@@ -1377,8 +1381,10 @@ out:
 	return ret;
 error_undo:
 	if (device->writeable) {
+		lock_chunks(root);
 		list_add(&device->dev_alloc_list,
 			 &root->fs_info->fs_devices->alloc_list);
+		unlock_chunks(root);
 		root->fs_info->fs_devices->rw_devices++;
 	}
 	goto error_brelse;
