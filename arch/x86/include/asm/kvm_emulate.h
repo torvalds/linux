@@ -163,15 +163,19 @@ struct x86_emulate_ops {
 				int size, unsigned short port, const void *val,
 				unsigned int count);
 
-	bool (*get_cached_descriptor)(struct desc_struct *desc, u32 *base3,
-				      int seg, struct kvm_vcpu *vcpu);
-	void (*set_cached_descriptor)(struct desc_struct *desc, u32 base3,
-				      int seg, struct kvm_vcpu *vcpu);
-	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
-	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
-	unsigned long (*get_cached_segment_base)(int seg, struct kvm_vcpu *vcpu);
-	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
-	void (*get_idt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
+	bool (*get_cached_descriptor)(struct x86_emulate_ctxt *ctxt,
+				      struct desc_struct *desc, u32 *base3,
+				      int seg);
+	void (*set_cached_descriptor)(struct x86_emulate_ctxt *ctxt,
+				      struct desc_struct *desc, u32 base3,
+				      int seg);
+	u16 (*get_segment_selector)(struct x86_emulate_ctxt *ctxt, int seg);
+	void (*set_segment_selector)(struct x86_emulate_ctxt *ctxt,
+				     u16 sel, int seg);
+	unsigned long (*get_cached_segment_base)(struct x86_emulate_ctxt *ctxt,
+						 int seg);
+	void (*get_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
+	void (*get_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
 	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
 	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);

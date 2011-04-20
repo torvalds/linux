@@ -4237,28 +4237,29 @@ static int emulator_get_cpl(struct kvm_vcpu *vcpu)
 	return kvm_x86_ops->get_cpl(vcpu);
 }
 
-static void emulator_get_gdt(struct desc_ptr *dt, struct kvm_vcpu *vcpu)
+static void emulator_get_gdt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
 {
-	kvm_x86_ops->get_gdt(vcpu, dt);
+	kvm_x86_ops->get_gdt(emul_to_vcpu(ctxt), dt);
 }
 
-static void emulator_get_idt(struct desc_ptr *dt, struct kvm_vcpu *vcpu)
+static void emulator_get_idt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
 {
-	kvm_x86_ops->get_idt(vcpu, dt);
+	kvm_x86_ops->get_idt(emul_to_vcpu(ctxt), dt);
 }
 
-static unsigned long emulator_get_cached_segment_base(int seg,
-						      struct kvm_vcpu *vcpu)
+static unsigned long emulator_get_cached_segment_base(
+	struct x86_emulate_ctxt *ctxt, int seg)
 {
-	return get_segment_base(vcpu, seg);
+	return get_segment_base(emul_to_vcpu(ctxt), seg);
 }
 
-static bool emulator_get_cached_descriptor(struct desc_struct *desc, u32 *base3,
-					   int seg, struct kvm_vcpu *vcpu)
+static bool emulator_get_cached_descriptor(struct x86_emulate_ctxt *ctxt,
+					   struct desc_struct *desc, u32 *base3,
+					   int seg)
 {
 	struct kvm_segment var;
 
-	kvm_get_segment(vcpu, &var, seg);
+	kvm_get_segment(emul_to_vcpu(ctxt), &var, seg);
 
 	if (var.unusable)
 		return false;
@@ -4283,9 +4284,11 @@ static bool emulator_get_cached_descriptor(struct desc_struct *desc, u32 *base3,
 	return true;
 }
 
-static void emulator_set_cached_descriptor(struct desc_struct *desc, u32 base3,
-					   int seg, struct kvm_vcpu *vcpu)
+static void emulator_set_cached_descriptor(struct x86_emulate_ctxt *ctxt,
+					   struct desc_struct *desc, u32 base3,
+					   int seg)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	struct kvm_segment var;
 
 	/* needed to preserve selector */
@@ -4314,22 +4317,22 @@ static void emulator_set_cached_descriptor(struct desc_struct *desc, u32 base3,
 	return;
 }
 
-static u16 emulator_get_segment_selector(int seg, struct kvm_vcpu *vcpu)
+static u16 emulator_get_segment_selector(struct x86_emulate_ctxt *ctxt, int seg)
 {
 	struct kvm_segment kvm_seg;
 
-	kvm_get_segment(vcpu, &kvm_seg, seg);
+	kvm_get_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
 	return kvm_seg.selector;
 }
 
-static void emulator_set_segment_selector(u16 sel, int seg,
-					  struct kvm_vcpu *vcpu)
+static void emulator_set_segment_selector(struct x86_emulate_ctxt *ctxt,
+					  u16 sel, int seg)
 {
 	struct kvm_segment kvm_seg;
 
-	kvm_get_segment(vcpu, &kvm_seg, seg);
+	kvm_get_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
 	kvm_seg.selector = sel;
-	kvm_set_segment(vcpu, &kvm_seg, seg);
+	kvm_set_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
 }
 
 static void emulator_get_fpu(struct x86_emulate_ctxt *ctxt)

@@ -495,7 +495,7 @@ static unsigned long seg_base(struct x86_emulate_ctxt *ctxt,
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && seg < VCPU_SREG_FS)
 		return 0;
 
-	return ops->get_cached_segment_base(seg, ctxt->vcpu);
+	return ops->get_cached_segment_base(ctxt, seg);
 }
 
 static unsigned seg_override(struct x86_emulate_ctxt *ctxt,
@@ -573,8 +573,8 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 			return emulate_gp(ctxt, 0);
 		break;
 	default:
-		usable = ctxt->ops->get_cached_descriptor(&desc, NULL, addr.seg,
-							  ctxt->vcpu);
+		usable = ctxt->ops->get_cached_descriptor(ctxt, &desc, NULL,
+							  addr.seg);
 		if (!usable)
 			goto bad;
 		/* code segment or read-only data segment */
@@ -597,7 +597,7 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 				goto bad;
 		}
 		cpl = ctxt->ops->cpl(ctxt->vcpu);
-		rpl = ctxt->ops->get_segment_selector(addr.seg, ctxt->vcpu) & 3;
+		rpl = ctxt->ops->get_segment_selector(ctxt, addr.seg) & 3;
 		cpl = max(cpl, rpl);
 		if (!(desc.type & 8)) {
 			/* data segment */
@@ -1142,14 +1142,14 @@ static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 	if (selector & 1 << 2) {
 		struct desc_struct desc;
 		memset (dt, 0, sizeof *dt);
-		if (!ops->get_cached_descriptor(&desc, NULL, VCPU_SREG_LDTR,
-						ctxt->vcpu))
+		if (!ops->get_cached_descriptor(ctxt, &desc, NULL,
+						VCPU_SREG_LDTR))
 			return;
 
 		dt->size = desc_limit_scaled(&desc); /* what if limit > 65535? */
 		dt->address = get_desc_base(&desc);
 	} else
-		ops->get_gdt(dt, ctxt->vcpu);
+		ops->get_gdt(ctxt, dt);
 }
 
 /* allowed just for 8 bytes segments */
@@ -1304,8 +1304,8 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 			return ret;
 	}
 load:
-	ops->set_segment_selector(selector, seg, ctxt->vcpu);
-	ops->set_cached_descriptor(&seg_desc, 0, seg, ctxt->vcpu);
+	ops->set_segment_selector(ctxt, selector, seg);
+	ops->set_cached_descriptor(ctxt, &seg_desc, 0, seg);
 	return X86EMUL_CONTINUE;
 exception:
 	emulate_exception(ctxt, err_vec, err_code, true);
@@ -1446,7 +1446,7 @@ static int emulate_push_sreg(struct x86_emulate_ctxt *ctxt,
 {
 	struct decode_cache *c = &ctxt->decode;
 
-	c->src.val = ops->get_segment_selector(seg, ctxt->vcpu);
+	c->src.val = ops->get_segment_selector(ctxt, seg);
 
 	return em_push(ctxt);
 }
@@ -1527,7 +1527,7 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 
 	ctxt->eflags &= ~(EFLG_IF | EFLG_TF | EFLG_AC);
 
-	c->src.val = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	c->src.val = ops->get_segment_selector(ctxt, VCPU_SREG_CS);
 	rc = em_push(ctxt);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
@@ -1537,7 +1537,7 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	ops->get_idt(&dt, ctxt->vcpu);
+	ops->get_idt(ctxt, &dt);
 
 	eip_addr = dt.address + (irq << 2);
 	cs_addr = dt.address + (irq << 2) + 2;
@@ -1814,7 +1814,7 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct desc_struct *ss)
 {
 	memset(cs, 0, sizeof(struct desc_struct));
-	ops->get_cached_descriptor(cs, NULL, VCPU_SREG_CS, ctxt->vcpu);
+	ops->get_cached_descriptor(ctxt, cs, NULL, VCPU_SREG_CS);
 	memset(ss, 0, sizeof(struct desc_struct));
 
 	cs->l = 0;		/* will be adjusted later */
@@ -1861,10 +1861,10 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		cs.d = 0;
 		cs.l = 1;
 	}
-	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
-	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(ctxt, &cs, 0, VCPU_SREG_CS);
+	ops->set_segment_selector(ctxt, cs_sel, VCPU_SREG_CS);
+	ops->set_cached_descriptor(ctxt, &ss, 0, VCPU_SREG_SS);
+	ops->set_segment_selector(ctxt, ss_sel, VCPU_SREG_SS);
 
 	c->regs[VCPU_REGS_RCX] = c->eip;
 	if (is_long_mode(ctxt->vcpu)) {
@@ -1933,10 +1933,10 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		cs.l = 1;
 	}
 
-	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
-	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(ctxt, &cs, 0, VCPU_SREG_CS);
+	ops->set_segment_selector(ctxt, cs_sel, VCPU_SREG_CS);
+	ops->set_cached_descriptor(ctxt, &ss, 0, VCPU_SREG_SS);
+	ops->set_segment_selector(ctxt, ss_sel, VCPU_SREG_SS);
 
 	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
 	c->eip = msr_data;
@@ -1990,10 +1990,10 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	cs_sel |= SELECTOR_RPL_MASK;
 	ss_sel |= SELECTOR_RPL_MASK;
 
-	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
-	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(ctxt, &cs, 0, VCPU_SREG_CS);
+	ops->set_segment_selector(ctxt, cs_sel, VCPU_SREG_CS);
+	ops->set_cached_descriptor(ctxt, &ss, 0, VCPU_SREG_SS);
+	ops->set_segment_selector(ctxt, ss_sel, VCPU_SREG_SS);
 
 	c->eip = c->regs[VCPU_REGS_RDX];
 	c->regs[VCPU_REGS_RSP] = c->regs[VCPU_REGS_RCX];
@@ -2024,7 +2024,7 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 	unsigned mask = (1 << len) - 1;
 	unsigned long base;
 
-	ops->get_cached_descriptor(&tr_seg, &base3, VCPU_SREG_TR, ctxt->vcpu);
+	ops->get_cached_descriptor(ctxt, &tr_seg, &base3, VCPU_SREG_TR);
 	if (!tr_seg.p)
 		return false;
 	if (desc_limit_scaled(&tr_seg) < 103)
@@ -2079,11 +2079,11 @@ static void save_state_to_tss16(struct x86_emulate_ctxt *ctxt,
 	tss->si = c->regs[VCPU_REGS_RSI];
 	tss->di = c->regs[VCPU_REGS_RDI];
 
-	tss->es = ops->get_segment_selector(VCPU_SREG_ES, ctxt->vcpu);
-	tss->cs = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
-	tss->ss = ops->get_segment_selector(VCPU_SREG_SS, ctxt->vcpu);
-	tss->ds = ops->get_segment_selector(VCPU_SREG_DS, ctxt->vcpu);
-	tss->ldt = ops->get_segment_selector(VCPU_SREG_LDTR, ctxt->vcpu);
+	tss->es = ops->get_segment_selector(ctxt, VCPU_SREG_ES);
+	tss->cs = ops->get_segment_selector(ctxt, VCPU_SREG_CS);
+	tss->ss = ops->get_segment_selector(ctxt, VCPU_SREG_SS);
+	tss->ds = ops->get_segment_selector(ctxt, VCPU_SREG_DS);
+	tss->ldt = ops->get_segment_selector(ctxt, VCPU_SREG_LDTR);
 }
 
 static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
@@ -2108,11 +2108,11 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 	 * SDM says that segment selectors are loaded before segment
 	 * descriptors
 	 */
-	ops->set_segment_selector(tss->ldt, VCPU_SREG_LDTR, ctxt->vcpu);
-	ops->set_segment_selector(tss->es, VCPU_SREG_ES, ctxt->vcpu);
-	ops->set_segment_selector(tss->cs, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_segment_selector(tss->ss, VCPU_SREG_SS, ctxt->vcpu);
-	ops->set_segment_selector(tss->ds, VCPU_SREG_DS, ctxt->vcpu);
+	ops->set_segment_selector(ctxt, tss->ldt, VCPU_SREG_LDTR);
+	ops->set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
+	ops->set_segment_selector(ctxt, tss->cs, VCPU_SREG_CS);
+	ops->set_segment_selector(ctxt, tss->ss, VCPU_SREG_SS);
+	ops->set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage
@@ -2199,13 +2199,13 @@ static void save_state_to_tss32(struct x86_emulate_ctxt *ctxt,
 	tss->esi = c->regs[VCPU_REGS_RSI];
 	tss->edi = c->regs[VCPU_REGS_RDI];
 
-	tss->es = ops->get_segment_selector(VCPU_SREG_ES, ctxt->vcpu);
-	tss->cs = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
-	tss->ss = ops->get_segment_selector(VCPU_SREG_SS, ctxt->vcpu);
-	tss->ds = ops->get_segment_selector(VCPU_SREG_DS, ctxt->vcpu);
-	tss->fs = ops->get_segment_selector(VCPU_SREG_FS, ctxt->vcpu);
-	tss->gs = ops->get_segment_selector(VCPU_SREG_GS, ctxt->vcpu);
-	tss->ldt_selector = ops->get_segment_selector(VCPU_SREG_LDTR, ctxt->vcpu);
+	tss->es = ops->get_segment_selector(ctxt, VCPU_SREG_ES);
+	tss->cs = ops->get_segment_selector(ctxt, VCPU_SREG_CS);
+	tss->ss = ops->get_segment_selector(ctxt, VCPU_SREG_SS);
+	tss->ds = ops->get_segment_selector(ctxt, VCPU_SREG_DS);
+	tss->fs = ops->get_segment_selector(ctxt, VCPU_SREG_FS);
+	tss->gs = ops->get_segment_selector(ctxt, VCPU_SREG_GS);
+	tss->ldt_selector = ops->get_segment_selector(ctxt, VCPU_SREG_LDTR);
 }
 
 static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
@@ -2232,13 +2232,13 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	 * SDM says that segment selectors are loaded before segment
 	 * descriptors
 	 */
-	ops->set_segment_selector(tss->ldt_selector, VCPU_SREG_LDTR, ctxt->vcpu);
-	ops->set_segment_selector(tss->es, VCPU_SREG_ES, ctxt->vcpu);
-	ops->set_segment_selector(tss->cs, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_segment_selector(tss->ss, VCPU_SREG_SS, ctxt->vcpu);
-	ops->set_segment_selector(tss->ds, VCPU_SREG_DS, ctxt->vcpu);
-	ops->set_segment_selector(tss->fs, VCPU_SREG_FS, ctxt->vcpu);
-	ops->set_segment_selector(tss->gs, VCPU_SREG_GS, ctxt->vcpu);
+	ops->set_segment_selector(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
+	ops->set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
+	ops->set_segment_selector(ctxt, tss->cs, VCPU_SREG_CS);
+	ops->set_segment_selector(ctxt, tss->ss, VCPU_SREG_SS);
+	ops->set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
+	ops->set_segment_selector(ctxt, tss->fs, VCPU_SREG_FS);
+	ops->set_segment_selector(ctxt, tss->gs, VCPU_SREG_GS);
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage
@@ -2320,9 +2320,9 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 {
 	struct desc_struct curr_tss_desc, next_tss_desc;
 	int ret;
-	u16 old_tss_sel = ops->get_segment_selector(VCPU_SREG_TR, ctxt->vcpu);
+	u16 old_tss_sel = ops->get_segment_selector(ctxt, VCPU_SREG_TR);
 	ulong old_tss_base =
-		ops->get_cached_segment_base(VCPU_SREG_TR, ctxt->vcpu);
+		ops->get_cached_segment_base(ctxt, VCPU_SREG_TR);
 	u32 desc_limit;
 
 	/* FIXME: old_tss_base == ~0 ? */
@@ -2383,8 +2383,8 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	}
 
 	ops->set_cr(0,  ops->get_cr(0, ctxt->vcpu) | X86_CR0_TS, ctxt->vcpu);
-	ops->set_cached_descriptor(&next_tss_desc, 0, VCPU_SREG_TR, ctxt->vcpu);
-	ops->set_segment_selector(tss_selector, VCPU_SREG_TR, ctxt->vcpu);
+	ops->set_cached_descriptor(ctxt, &next_tss_desc, 0, VCPU_SREG_TR);
+	ops->set_segment_selector(ctxt, tss_selector, VCPU_SREG_TR);
 
 	if (has_error_code) {
 		struct decode_cache *c = &ctxt->decode;
@@ -2475,7 +2475,7 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	ulong old_eip;
 	int rc;
 
-	old_cs = ctxt->ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	old_cs = ctxt->ops->get_segment_selector(ctxt, VCPU_SREG_CS);
 	old_eip = c->eip;
 
 	memcpy(&sel, c->src.valptr + c->op_bytes, 2);
@@ -3743,7 +3743,7 @@ special_insn:
 			rc = emulate_ud(ctxt);
 			goto done;
 		}
-		c->dst.val = ops->get_segment_selector(c->modrm_reg, ctxt->vcpu);
+		c->dst.val = ops->get_segment_selector(ctxt, c->modrm_reg);
 		break;
 	case 0x8d: /* lea r16/r32, m */
 		c->dst.val = c->src.addr.mem.ea;
