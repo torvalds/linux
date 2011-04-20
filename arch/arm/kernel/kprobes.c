@@ -28,6 +28,8 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 
+#include "kprobes.h"
+
 #define MIN_STACK_SIZE(addr) 				\
 	min((unsigned long)MAX_STACK_SIZE,		\
 	    (unsigned long)current_thread_info() + THREAD_START_SP - (addr))
