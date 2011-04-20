@@ -61,7 +61,7 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret > 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -70,7 +70,7 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 				struct btrfs_free_space_header);
 	btrfs_free_space_key(leaf, header, &disk_key);
 	btrfs_disk_key_to_cpu(&location, &disk_key);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	inode = btrfs_iget(root->fs_info->sb, &location, root, NULL);
 	if (!inode)
@@ -134,7 +134,7 @@ int create_free_space_inode(struct btrfs_root *root,
 	btrfs_set_inode_block_group(leaf, inode_item,
 				    block_group->key.objectid);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.offset = block_group->key.objectid;
@@ -143,7 +143,7 @@ int create_free_space_inode(struct btrfs_root *root,
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      sizeof(struct btrfs_free_space_header));
 	if (ret < 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		return ret;
 	}
 	leaf = path->nodes[0];
@@ -152,7 +152,7 @@ int create_free_space_inode(struct btrfs_root *root,
 	memset_extent_buffer(leaf, 0, (unsigned long)header, sizeof(*header));
 	btrfs_set_free_space_key(leaf, header, &disk_key);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	return 0;
 }
@@ -822,7 +822,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 					 EXTENT_DIRTY | EXTENT_DELALLOC |
 					 EXTENT_DO_ACCOUNTING, 0, 0, NULL,
 					 GFP_NOFS);
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto out_free;
 		}
 	}
@@ -832,7 +832,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 	btrfs_set_free_space_bitmaps(leaf, header, bitmaps);
 	btrfs_set_free_space_generation(leaf, header, trans->transid);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = 1;
 

@@ -1164,7 +1164,7 @@ out_check:
 			goto next_slot;
 		}
 
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		if (cow_start != (u64)-1) {
 			ret = cow_file_range(inode, locked_page, cow_start,
 					found_key.offset - 1, page_started,
@@ -1222,7 +1222,7 @@ out_check:
 		if (cur_offset > end)
 			break;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (cur_offset <= end && cow_start == (u64)-1)
 		cow_start = cur_offset;
@@ -2346,7 +2346,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			break;
 
 		/* release the path since we're done with it */
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		/*
 		 * this is where we are basically btrfs_lookup, without the
@@ -2712,7 +2712,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	if (ret)
 		goto err;
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_del_inode_ref(trans, root, name, name_len,
 				  inode->i_ino,
@@ -2735,7 +2735,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len,
 					 inode, dir->i_ino);
@@ -2862,7 +2862,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	} else {
 		check_link = 0;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_lookup_inode(trans, root, path,
 				&BTRFS_I(inode)->location, 0);
@@ -2876,7 +2876,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	} else {
 		check_link = 0;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (ret == 0 && S_ISREG(inode->i_mode)) {
 		ret = btrfs_lookup_file_extent(trans, root, path,
@@ -2888,7 +2888,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 		BUG_ON(ret == 0);
 		if (check_path_shared(root, path))
 			goto out;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 	}
 
 	if (!check_link) {
@@ -2909,7 +2909,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 		err = 0;
 		goto out;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ref = btrfs_lookup_inode_ref(trans, root, path,
 				dentry->d_name.name, dentry->d_name.len,
@@ -2922,7 +2922,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	if (check_path_shared(root, path))
 		goto out;
 	index = btrfs_inode_ref_index(path->nodes[0], ref);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino, index,
 				dentry->d_name.name, dentry->d_name.len, 0);
@@ -3013,7 +3013,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	WARN_ON(key.type != BTRFS_ROOT_ITEM_KEY || key.objectid != objectid);
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	BUG_ON(ret);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_del_root_ref(trans, root->fs_info->tree_root,
 				 objectid, root->root_key.objectid,
@@ -3026,7 +3026,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		index = key.offset;
 	}
 
@@ -3039,7 +3039,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	WARN_ON(key.type != BTRFS_ROOT_ITEM_KEY || key.objectid != objectid);
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	BUG_ON(ret);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
@@ -3477,7 +3477,7 @@ delete:
 				BUG_ON(ret);
 				pending_del_nr = 0;
 			}
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto search_again;
 		} else {
 			path->slots[0]--;
@@ -3899,7 +3899,7 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	if (ret)
 		goto out;
 
-	btrfs_release_path(root->fs_info->tree_root, path);
+	btrfs_release_path(path);
 
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, location);
 	if (IS_ERR(new_root)) {
@@ -5223,7 +5223,7 @@ again:
 				kunmap(page);
 				free_extent_map(em);
 				em = NULL;
-				btrfs_release_path(root, path);
+				btrfs_release_path(path);
 				trans = btrfs_join_transaction(root, 1);
 				if (IS_ERR(trans))
 					return ERR_CAST(trans);
@@ -5249,7 +5249,7 @@ not_found_em:
 	em->block_start = EXTENT_MAP_HOLE;
 	set_bit(EXTENT_FLAG_VACANCY, &em->flags);
 insert:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	if (em->start > start || extent_map_end(em) <= start) {
 		printk(KERN_ERR "Btrfs: bad extent! em: [%llu %llu] passed "
 		       "[%llu %llu]\n", (unsigned long long)em->start,
