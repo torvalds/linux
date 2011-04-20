@@ -279,6 +279,8 @@ enum sci_status scic_oem_parameters_set(
 	struct scic_sds_controller *controller,
 	union scic_oem_parameters *oem_parameters);
 
+int scic_oem_parameters_validate(struct scic_sds_oem_params *oem);
+
 /**
  * scic_oem_parameters_get() - This method allows the user to retreive the OEM
  *    parameters utilized by the controller.

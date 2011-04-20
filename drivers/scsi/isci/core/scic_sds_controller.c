@@ -2455,52 +2455,51 @@ enum sci_status scic_user_parameters_set(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-enum sci_status scic_oem_parameters_set(
-	struct scic_sds_controller *scic,
-	union scic_oem_parameters *scic_parms)
+int scic_oem_parameters_validate(struct scic_sds_oem_params *oem)
+{
+	int i;
+
+	for (i = 0; i < SCI_MAX_PORTS; i++)
+		if (oem->ports[i].phy_mask > SCIC_SDS_PARM_PHY_MASK_MAX)
+			return -EINVAL;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++)
+		if (oem->phys[i].sas_address.high == 0 &&
+		    oem->phys[i].sas_address.low == 0)
+			return -EINVAL;
+
+	if (oem->controller.mode_type == SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE) {
+		for (i = 0; i < SCI_MAX_PHYS; i++)
+			if (oem->ports[i].phy_mask != 0)
+				return -EINVAL;
+	} else if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
+		u8 phy_mask = 0;
+
+		for (i = 0; i < SCI_MAX_PHYS; i++)
+			phy_mask |= oem->ports[i].phy_mask;
+
+		if (phy_mask == 0)
+			return -EINVAL;
+	} else
+		return -EINVAL;
+
+	if (oem->controller.max_concurrent_dev_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+		return -EINVAL;
+
+	return 0;
+}
+
+enum sci_status scic_oem_parameters_set(struct scic_sds_controller *scic,
+					union scic_oem_parameters *scic_parms)
 {
 	u32 state = scic->state_machine.current_state_id;
 
 	if (state == SCI_BASE_CONTROLLER_STATE_RESET ||
 	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZING ||
 	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
-		u16 index;
-		u8  combined_phy_mask = 0;
 
-		/*
-		 * Validate the oem parameters.  If they are not legal, then
-		 * return a failure. */
-		for (index = 0; index < SCI_MAX_PORTS; index++) {
-			if (scic_parms->sds1.ports[index].phy_mask > SCIC_SDS_PARM_PHY_MASK_MAX)
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		}
-
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			if ((scic_parms->sds1.phys[index].sas_address.high == 0) &&
-			    (scic_parms->sds1.phys[index].sas_address.low == 0))
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		}
-
-		if (scic_parms->sds1.controller.mode_type ==
-				SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE) {
-			for (index = 0; index < SCI_MAX_PHYS; index++) {
-				if (scic_parms->sds1.ports[index].phy_mask != 0)
-					return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-			}
-		} else if (scic_parms->sds1.controller.mode_type ==
-				SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-			for (index = 0; index < SCI_MAX_PHYS; index++)
-				combined_phy_mask |= scic_parms->sds1.ports[index].phy_mask;
-
-			if (combined_phy_mask == 0)
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		} else
+		if (scic_oem_parameters_validate(&scic_parms->sds1))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-
-		if (scic_parms->sds1.controller.max_concurrent_dev_spin_up >
-				MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-
 		scic->oem_parameters.sds1 = scic_parms->sds1;
 
 		return SCI_SUCCESS;
