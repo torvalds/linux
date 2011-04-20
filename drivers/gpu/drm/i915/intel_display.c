@@ -5491,8 +5491,6 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-	struct drm_crtc_helper_funcs *crtc_funcs;
 	int i = -1;
 
 	/*
@@ -5515,8 +5513,13 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 
 		/* Make sure the crtc and connector are running */
 		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
+			struct drm_encoder_helper_funcs *encoder_funcs;
+			struct drm_crtc_helper_funcs *crtc_funcs;
+
 			crtc_funcs = crtc->helper_private;
 			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+
+			encoder_funcs = encoder->helper_private;
 			encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 		}
 
@@ -5549,23 +5552,12 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	old->dpms_mode = intel_crtc->dpms_mode;
 	old->load_detect_temp = true;
 
-	if (!crtc->enabled) {
-		if (!mode)
-			mode = &load_detect_mode;
+	if (!mode)
+		mode = &load_detect_mode;
 
-		if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb)) {
-			DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
-			return false;
-		}
-	} else {
-		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
-			crtc_funcs = crtc->helper_private;
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-		}
-
-		/* Add this connector to the crtc */
-		encoder_funcs->mode_set(encoder, &crtc->mode, &crtc->hwmode);
-		encoder_funcs->commit(encoder);
+	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb)) {
+		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
+		return false;
 	}
 
 	/* let the connector get through one full cycle before testing */
