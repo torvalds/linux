@@ -4153,13 +4153,6 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wbinvd);
 
-int emulate_clts(struct kvm_vcpu *vcpu)
-{
-	kvm_x86_ops->set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
-	kvm_x86_ops->fpu_activate(vcpu);
-	return X86EMUL_CONTINUE;
-}
-
 int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 {
 	return _kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
