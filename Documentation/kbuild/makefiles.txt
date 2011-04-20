@@ -955,6 +955,11 @@ When kbuild executes, the following steps are followed (roughly):
 	used when linking modules. This is often a linker script.
 	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
+    KBUILD_ARFLAGS   Options for $(AR) when creating archives
+
+	$(KBUILD_ARFLAGS) set by the top level Makefile to "D" (deterministic
+	mode) if this option is supported by $(AR).
+
 --- 6.2 Add prerequisites to archprepare:
 
 	The archprepare: rule is used to list prerequisites that need to be
