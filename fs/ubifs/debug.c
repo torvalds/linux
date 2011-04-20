@@ -2650,7 +2650,7 @@ int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 		 int len, int check)
 {
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	return ubi_leb_read(desc, lnum, buf, offset, len, check);
 }
 
@@ -2660,7 +2660,7 @@ int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	int err, failing;
 
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	failing = do_fail(desc, lnum, 1);
 	if (failing)
 		cut_data(buf, len);
@@ -2668,7 +2668,7 @@ int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (err)
 		return err;
 	if (failing)
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2678,12 +2678,12 @@ int dbg_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	int err;
 
 	if (do_fail(desc, lnum, 1))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_change(desc, lnum, buf, len, dtype);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 1))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2692,12 +2692,12 @@ int dbg_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_erase(desc, lnum);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
@@ -2706,19 +2706,19 @@ int dbg_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_unmap(desc, lnum);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
 int dbg_is_mapped(struct ubi_volume_desc *desc, int lnum)
 {
 	if (in_failure_mode(desc))
-		return -EIO;
+		return -EROFS;
 	return ubi_is_mapped(desc, lnum);
 }
 
@@ -2727,12 +2727,12 @@ int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	int err;
 
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	err = ubi_leb_map(desc, lnum, dtype);
 	if (err)
 		return err;
 	if (do_fail(desc, lnum, 0))
-		return -EIO;
+		return -EROFS;
 	return 0;
 }
 
