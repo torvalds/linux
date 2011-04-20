@@ -380,7 +380,7 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 
-	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
+	eb = alloc_extent_buffer(tree, start, len, page);
 	if (eb == NULL) {
 		WARN_ON(1);
 		goto out;
@@ -525,7 +525,7 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 
-	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
+	eb = alloc_extent_buffer(tree, start, len, page);
 	if (eb == NULL) {
 		ret = -EIO;
 		goto out;
@@ -974,7 +974,7 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 	struct extent_buffer *eb;
 
 	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				 bytenr, blocksize, NULL, GFP_NOFS);
+				 bytenr, blocksize, NULL);
 	return eb;
 }
 

@@ -3266,8 +3266,7 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  u64 start, unsigned long len,
-					  struct page *page0,
-					  gfp_t mask)
+					  struct page *page0)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
@@ -3288,7 +3287,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	}
 	rcu_read_unlock();
 
-	eb = __alloc_extent_buffer(tree, start, len, mask);
+	eb = __alloc_extent_buffer(tree, start, len, GFP_NOFS);
 	if (!eb)
 		return NULL;
 
@@ -3305,7 +3304,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		i = 0;
 	}
 	for (; i < num_pages; i++, index++) {
-		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
+		p = find_or_create_page(mapping, index, GFP_NOFS | __GFP_HIGHMEM);
 		if (!p) {
 			WARN_ON(1);
 			goto free_eb;
