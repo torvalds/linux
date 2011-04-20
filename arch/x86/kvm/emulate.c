@@ -596,7 +596,7 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
 				goto bad;
 		}
-		cpl = ctxt->ops->cpl(ctxt->vcpu);
+		cpl = ctxt->ops->cpl(ctxt);
 		rpl = ctxt->ops->get_segment_selector(ctxt, addr.seg) & 3;
 		cpl = max(cpl, rpl);
 		if (!(desc.type & 8)) {
@@ -1248,7 +1248,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	rpl = selector & 3;
 	dpl = seg_desc.dpl;
-	cpl = ops->cpl(ctxt->vcpu);
+	cpl = ops->cpl(ctxt);
 
 	switch (seg) {
 	case VCPU_SREG_SS:
@@ -1407,7 +1407,7 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	int rc;
 	unsigned long val, change_mask;
 	int iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
-	int cpl = ops->cpl(ctxt->vcpu);
+	int cpl = ops->cpl(ctxt);
 
 	rc = emulate_pop(ctxt, ops, &val, len);
 	if (rc != X86EMUL_CONTINUE)
@@ -1852,7 +1852,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
-	ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+	ops->get_msr(ctxt, MSR_STAR, &msr_data);
 	msr_data >>= 32;
 	cs_sel = (u16)(msr_data & 0xfffc);
 	ss_sel = (u16)(msr_data + 8);
@@ -1871,17 +1871,17 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 #ifdef CONFIG_X86_64
 		c->regs[VCPU_REGS_R11] = ctxt->eflags & ~EFLG_RF;
 
-		ops->get_msr(ctxt->vcpu,
+		ops->get_msr(ctxt,
 			     ctxt->mode == X86EMUL_MODE_PROT64 ?
 			     MSR_LSTAR : MSR_CSTAR, &msr_data);
 		c->eip = msr_data;
 
-		ops->get_msr(ctxt->vcpu, MSR_SYSCALL_MASK, &msr_data);
+		ops->get_msr(ctxt, MSR_SYSCALL_MASK, &msr_data);
 		ctxt->eflags &= ~(msr_data | EFLG_RF);
 #endif
 	} else {
 		/* legacy mode */
-		ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+		ops->get_msr(ctxt, MSR_STAR, &msr_data);
 		c->eip = (u32)msr_data;
 
 		ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
@@ -1910,7 +1910,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
-	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	ops->get_msr(ctxt, MSR_IA32_SYSENTER_CS, &msr_data);
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT32:
 		if ((msr_data & 0xfffc) == 0x0)
@@ -1938,10 +1938,10 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	ops->set_cached_descriptor(ctxt, &ss, 0, VCPU_SREG_SS);
 	ops->set_segment_selector(ctxt, ss_sel, VCPU_SREG_SS);
 
-	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
+	ops->get_msr(ctxt, MSR_IA32_SYSENTER_EIP, &msr_data);
 	c->eip = msr_data;
 
-	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_ESP, &msr_data);
+	ops->get_msr(ctxt, MSR_IA32_SYSENTER_ESP, &msr_data);
 	c->regs[VCPU_REGS_RSP] = msr_data;
 
 	return X86EMUL_CONTINUE;
@@ -1970,7 +1970,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	cs.dpl = 3;
 	ss.dpl = 3;
-	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	ops->get_msr(ctxt, MSR_IA32_SYSENTER_CS, &msr_data);
 	switch (usermode) {
 	case X86EMUL_MODE_PROT32:
 		cs_sel = (u16)(msr_data + 16);
@@ -2010,7 +2010,7 @@ static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt,
 	if (ctxt->mode == X86EMUL_MODE_VM86)
 		return true;
 	iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
-	return ops->cpl(ctxt->vcpu) > iopl;
+	return ops->cpl(ctxt) > iopl;
 }
 
 static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
@@ -2187,7 +2187,7 @@ static void save_state_to_tss32(struct x86_emulate_ctxt *ctxt,
 {
 	struct decode_cache *c = &ctxt->decode;
 
-	tss->cr3 = ops->get_cr(3, ctxt->vcpu);
+	tss->cr3 = ops->get_cr(ctxt, 3);
 	tss->eip = c->eip;
 	tss->eflags = ctxt->eflags;
 	tss->eax = c->regs[VCPU_REGS_RAX];
@@ -2215,7 +2215,7 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
-	if (ops->set_cr(3, tss->cr3, ctxt->vcpu))
+	if (ops->set_cr(ctxt, 3, tss->cr3))
 		return emulate_gp(ctxt, 0);
 	c->eip = tss->eip;
 	ctxt->eflags = tss->eflags | 2;
@@ -2338,7 +2338,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 
 	if (reason != TASK_SWITCH_IRET) {
 		if ((tss_selector & 3) > next_tss_desc.dpl ||
-		    ops->cpl(ctxt->vcpu) > next_tss_desc.dpl)
+		    ops->cpl(ctxt) > next_tss_desc.dpl)
 			return emulate_gp(ctxt, 0);
 	}
 
@@ -2382,7 +2382,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 					 &next_tss_desc);
 	}
 
-	ops->set_cr(0,  ops->get_cr(0, ctxt->vcpu) | X86_CR0_TS, ctxt->vcpu);
+	ops->set_cr(ctxt, 0,  ops->get_cr(ctxt, 0) | X86_CR0_TS);
 	ops->set_cached_descriptor(ctxt, &next_tss_desc, 0, VCPU_SREG_TR);
 	ops->set_segment_selector(ctxt, tss_selector, VCPU_SREG_TR);
 
@@ -2542,7 +2542,7 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	u64 tsc = 0;
 
-	ctxt->ops->get_msr(ctxt->vcpu, MSR_IA32_TSC, &tsc);
+	ctxt->ops->get_msr(ctxt, MSR_IA32_TSC, &tsc);
 	c->regs[VCPU_REGS_RAX] = (u32)tsc;
 	c->regs[VCPU_REGS_RDX] = tsc >> 32;
 	return X86EMUL_CONTINUE;
@@ -2625,8 +2625,8 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		    ((new_val & X86_CR0_NW) && !(new_val & X86_CR0_CD)))
 			return emulate_gp(ctxt, 0);
 
-		cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
-		ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+		cr4 = ctxt->ops->get_cr(ctxt, 4);
+		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 
 		if ((new_val & X86_CR0_PG) && (efer & EFER_LME) &&
 		    !(cr4 & X86_CR4_PAE))
@@ -2652,8 +2652,8 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 	case 4: {
 		u64 cr4, efer;
 
-		cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
-		ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+		cr4 = ctxt->ops->get_cr(ctxt, 4);
+		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 
 		if ((efer & EFER_LMA) && !(new_val & X86_CR4_PAE))
 			return emulate_gp(ctxt, 0);
@@ -2669,7 +2669,7 @@ static int check_dr7_gd(struct x86_emulate_ctxt *ctxt)
 {
 	unsigned long dr7;
 
-	ctxt->ops->get_dr(7, &dr7, ctxt->vcpu);
+	ctxt->ops->get_dr(ctxt, 7, &dr7);
 
 	/* Check if DR7.Global_Enable is set */
 	return dr7 & (1 << 13);
@@ -2684,7 +2684,7 @@ static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 	if (dr > 7)
 		return emulate_ud(ctxt);
 
-	cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+	cr4 = ctxt->ops->get_cr(ctxt, 4);
 	if ((cr4 & X86_CR4_DE) && (dr == 4 || dr == 5))
 		return emulate_ud(ctxt);
 
@@ -2710,7 +2710,7 @@ static int check_svme(struct x86_emulate_ctxt *ctxt)
 {
 	u64 efer;
 
-	ctxt->ops->get_msr(ctxt->vcpu, MSR_EFER, &efer);
+	ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 
 	if (!(efer & EFER_SVME))
 		return emulate_ud(ctxt);
@@ -2731,9 +2731,9 @@ static int check_svme_pa(struct x86_emulate_ctxt *ctxt)
 
 static int check_rdtsc(struct x86_emulate_ctxt *ctxt)
 {
-	u64 cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+	u64 cr4 = ctxt->ops->get_cr(ctxt, 4);
 
-	if (cr4 & X86_CR4_TSD && ctxt->ops->cpl(ctxt->vcpu))
+	if (cr4 & X86_CR4_TSD && ctxt->ops->cpl(ctxt))
 		return emulate_ud(ctxt);
 
 	return X86EMUL_CONTINUE;
@@ -2741,10 +2741,10 @@ static int check_rdtsc(struct x86_emulate_ctxt *ctxt)
 
 static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 {
-	u64 cr4 = ctxt->ops->get_cr(4, ctxt->vcpu);
+	u64 cr4 = ctxt->ops->get_cr(ctxt, 4);
 	u64 rcx = kvm_register_read(ctxt->vcpu, VCPU_REGS_RCX);
 
-	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt->vcpu)) ||
+	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt)) ||
 	    (rcx > 3))
 		return emulate_gp(ctxt, 0);
 
@@ -3514,13 +3514,13 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if ((c->d & Sse)
-	    && ((ops->get_cr(0, ctxt->vcpu) & X86_CR0_EM)
-		|| !(ops->get_cr(4, ctxt->vcpu) & X86_CR4_OSFXSR))) {
+	    && ((ops->get_cr(ctxt, 0) & X86_CR0_EM)
+		|| !(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}
 
-	if ((c->d & Sse) && (ops->get_cr(0, ctxt->vcpu) & X86_CR0_TS)) {
+	if ((c->d & Sse) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
 		rc = emulate_nm(ctxt);
 		goto done;
 	}
@@ -3533,7 +3533,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
-	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
+	if ((c->d & Priv) && ops->cpl(ctxt)) {
 		rc = emulate_gp(ctxt, 0);
 		goto done;
 	}
@@ -4052,11 +4052,11 @@ twobyte_insn:
 			break;
 		case 4: /* smsw */
 			c->dst.bytes = 2;
-			c->dst.val = ops->get_cr(0, ctxt->vcpu);
+			c->dst.val = ops->get_cr(ctxt, 0);
 			break;
 		case 6: /* lmsw */
-			ops->set_cr(0, (ops->get_cr(0, ctxt->vcpu) & ~0x0eul) |
-				    (c->src.val & 0x0f), ctxt->vcpu);
+			ops->set_cr(ctxt, 0, (ops->get_cr(ctxt, 0) & ~0x0eul) |
+				    (c->src.val & 0x0f));
 			c->dst.type = OP_NONE;
 			break;
 		case 5: /* not defined */
@@ -4084,13 +4084,13 @@ twobyte_insn:
 	case 0x18:		/* Grp16 (prefetch/nop) */
 		break;
 	case 0x20: /* mov cr, reg */
-		c->dst.val = ops->get_cr(c->modrm_reg, ctxt->vcpu);
+		c->dst.val = ops->get_cr(ctxt, c->modrm_reg);
 		break;
 	case 0x21: /* mov from dr to reg */
-		ops->get_dr(c->modrm_reg, &c->dst.val, ctxt->vcpu);
+		ops->get_dr(ctxt, c->modrm_reg, &c->dst.val);
 		break;
 	case 0x22: /* mov reg, cr */
-		if (ops->set_cr(c->modrm_reg, c->src.val, ctxt->vcpu)) {
+		if (ops->set_cr(ctxt, c->modrm_reg, c->src.val)) {
 			emulate_gp(ctxt, 0);
 			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
@@ -4098,9 +4098,9 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
-		if (ops->set_dr(c->modrm_reg, c->src.val &
+		if (ops->set_dr(ctxt, c->modrm_reg, c->src.val &
 				((ctxt->mode == X86EMUL_MODE_PROT64) ?
-				 ~0ULL : ~0U), ctxt->vcpu) < 0) {
+				 ~0ULL : ~0U)) < 0) {
 			/* #UD condition is already handled by the code above */
 			emulate_gp(ctxt, 0);
 			rc = X86EMUL_PROPAGATE_FAULT;
@@ -4113,7 +4113,7 @@ twobyte_insn:
 		/* wrmsr */
 		msr_data = (u32)c->regs[VCPU_REGS_RAX]
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
-		if (ops->set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
+		if (ops->set_msr(ctxt, c->regs[VCPU_REGS_RCX], msr_data)) {
 			emulate_gp(ctxt, 0);
 			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
@@ -4122,7 +4122,7 @@ twobyte_insn:
 		break;
 	case 0x32:
 		/* rdmsr */
-		if (ops->get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
+		if (ops->get_msr(ctxt, c->regs[VCPU_REGS_RCX], &msr_data)) {
 			emulate_gp(ctxt, 0);
 			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;

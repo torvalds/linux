@@ -176,13 +176,13 @@ struct x86_emulate_ops {
 						 int seg);
 	void (*get_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
 	void (*get_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
-	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
-	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
-	int (*cpl)(struct kvm_vcpu *vcpu);
-	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);
-	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
-	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
-	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
+	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
+	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
+	int (*cpl)(struct x86_emulate_ctxt *ctxt);
+	int (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
+	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
+	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
+	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
 	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
 	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
 	int (*intercept)(struct kvm_vcpu *vcpu,

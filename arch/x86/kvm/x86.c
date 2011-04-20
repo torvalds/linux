@@ -4160,15 +4160,15 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 	return X86EMUL_CONTINUE;
 }
 
-int emulator_get_dr(int dr, unsigned long *dest, struct kvm_vcpu *vcpu)
+int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 {
-	return _kvm_get_dr(vcpu, dr, dest);
+	return _kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
 }
 
-int emulator_set_dr(int dr, unsigned long value, struct kvm_vcpu *vcpu)
+int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long value)
 {
 
-	return __kvm_set_dr(vcpu, dr, value);
+	return __kvm_set_dr(emul_to_vcpu(ctxt), dr, value);
 }
 
 static u64 mk_cr_64(u64 curr_cr, u32 new_val)
@@ -4176,8 +4176,9 @@ static u64 mk_cr_64(u64 curr_cr, u32 new_val)
 	return (curr_cr & ~((1ULL << 32) - 1)) | new_val;
 }
 
-static unsigned long emulator_get_cr(int cr, struct kvm_vcpu *vcpu)
+static unsigned long emulator_get_cr(struct x86_emulate_ctxt *ctxt, int cr)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	unsigned long value;
 
 	switch (cr) {
@@ -4204,8 +4205,9 @@ static unsigned long emulator_get_cr(int cr, struct kvm_vcpu *vcpu)
 	return value;
 }
 
-static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
+static int emulator_set_cr(struct x86_emulate_ctxt *ctxt, int cr, ulong val)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	int res = 0;
 
 	switch (cr) {
@@ -4232,9 +4234,9 @@ static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 	return res;
 }
 
-static int emulator_get_cpl(struct kvm_vcpu *vcpu)
+static int emulator_get_cpl(struct x86_emulate_ctxt *ctxt)
 {
-	return kvm_x86_ops->get_cpl(vcpu);
+	return kvm_x86_ops->get_cpl(emul_to_vcpu(ctxt));
 }
 
 static void emulator_get_gdt(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt)
@@ -4335,6 +4337,18 @@ static void emulator_set_segment_selector(struct x86_emulate_ctxt *ctxt,
 	kvm_set_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
 }
 
+static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
+			    u32 msr_index, u64 *pdata)
+{
+	return kvm_get_msr(emul_to_vcpu(ctxt), msr_index, pdata);
+}
+
+static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
+			    u32 msr_index, u64 data)
+{
+	return kvm_set_msr(emul_to_vcpu(ctxt), msr_index, data);
+}
+
 static void emulator_get_fpu(struct x86_emulate_ctxt *ctxt)
 {
 	preempt_disable();
@@ -4379,8 +4393,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.cpl                 = emulator_get_cpl,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
-	.set_msr             = kvm_set_msr,
-	.get_msr             = kvm_get_msr,
+	.set_msr             = emulator_set_msr,
+	.get_msr             = emulator_get_msr,
 	.get_fpu             = emulator_get_fpu,
 	.put_fpu             = emulator_put_fpu,
 	.intercept           = emulator_intercept,
