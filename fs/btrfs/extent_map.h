@@ -56,7 +56,7 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em);
 int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
 
-struct extent_map *alloc_extent_map(gfp_t mask);
+struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);
 int __init extent_map_init(void);
 void extent_map_exit(void);

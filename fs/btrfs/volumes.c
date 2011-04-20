@@ -2609,7 +2609,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	trace_btrfs_chunk_alloc(info->chunk_root, map, start, *num_bytes);
 
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em) {
 		ret = -ENOMEM;
 		goto error;
@@ -3499,7 +3499,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		free_extent_map(em);
 	}
 
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em)
 		return -ENOMEM;
 	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);

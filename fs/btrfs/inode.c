@@ -649,7 +649,7 @@ retry:
 					async_extent->start +
 					async_extent->ram_size - 1, 0);
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		BUG_ON(!em);
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
@@ -826,7 +826,7 @@ static noinline int cow_file_range(struct inode *inode,
 					   (u64)-1, &ins, 1);
 		BUG_ON(ret);
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		BUG_ON(!em);
 		em->start = start;
 		em->orig_start = em->start;
@@ -1177,7 +1177,7 @@ out_check:
 			struct extent_map *em;
 			struct extent_map_tree *em_tree;
 			em_tree = &BTRFS_I(inode)->extent_tree;
-			em = alloc_extent_map(GFP_NOFS);
+			em = alloc_extent_map();
 			BUG_ON(!em);
 			em->start = cur_offset;
 			em->orig_start = em->start;
@@ -5069,7 +5069,7 @@ again:
 		else
 			goto out;
 	}
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em) {
 		err = -ENOMEM;
 		goto out;
@@ -5382,7 +5382,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 		u64 hole_start = start;
 		u64 hole_len = len;
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		if (!em) {
 			err = -ENOMEM;
 			goto out;
@@ -5483,7 +5483,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	}
 
 	if (!em) {
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		if (!em) {
 			em = ERR_PTR(-ENOMEM);
 			goto out;

@@ -154,7 +154,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	}
 	read_unlock(&em_tree->lock);
 
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em) {
 		em = ERR_PTR(-ENOMEM);
 		goto out;
