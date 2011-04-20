@@ -1125,7 +1125,7 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 		if (n == 0)
 			n = 1;
 		rc->pos = rc->end = 0;
-		if (!ops->pio_in_emulated(size, port, rc->data, n, ctxt->vcpu))
+		if (!ops->pio_in_emulated(ctxt, size, port, rc->data, n))
 			return 0;
 		rc->end = n * size;
 	}
@@ -3892,8 +3892,8 @@ special_insn:
 	case 0xef: /* out dx,(e/r)ax */
 		c->dst.val = c->regs[VCPU_REGS_RDX];
 	do_io_out:
-		ops->pio_out_emulated(c->src.bytes, c->dst.val,
-				      &c->src.val, 1, ctxt->vcpu);
+		ops->pio_out_emulated(ctxt, c->src.bytes, c->dst.val,
+				      &c->src.val, 1);
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */

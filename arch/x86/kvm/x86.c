@@ -4060,9 +4060,12 @@ static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
 }
 
 
-static int emulator_pio_in_emulated(int size, unsigned short port, void *val,
-			     unsigned int count, struct kvm_vcpu *vcpu)
+static int emulator_pio_in_emulated(struct x86_emulate_ctxt *ctxt,
+				    int size, unsigned short port, void *val,
+				    unsigned int count)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
 	if (vcpu->arch.pio.count)
 		goto data_avail;
 
@@ -4090,10 +4093,12 @@ static int emulator_pio_in_emulated(int size, unsigned short port, void *val,
 	return 0;
 }
 
-static int emulator_pio_out_emulated(int size, unsigned short port,
-			      const void *val, unsigned int count,
-			      struct kvm_vcpu *vcpu)
+static int emulator_pio_out_emulated(struct x86_emulate_ctxt *ctxt,
+				     int size, unsigned short port,
+				     const void *val, unsigned int count)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
 	trace_kvm_pio(1, port, size, count);
 
 	vcpu->arch.pio.port = port;
@@ -4614,7 +4619,8 @@ EXPORT_SYMBOL_GPL(x86_emulate_instruction);
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
 {
 	unsigned long val = kvm_register_read(vcpu, VCPU_REGS_RAX);
-	int ret = emulator_pio_out_emulated(size, port, &val, 1, vcpu);
+	int ret = emulator_pio_out_emulated(&vcpu->arch.emulate_ctxt,
+					    size, port, &val, 1);
 	/* do not return to emulator after return from userspace */
 	vcpu->arch.pio.count = 0;
 	return ret;

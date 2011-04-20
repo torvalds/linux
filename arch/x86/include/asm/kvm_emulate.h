@@ -155,11 +155,13 @@ struct x86_emulate_ops {
 				unsigned int bytes,
 				struct x86_exception *fault);
 
-	int (*pio_in_emulated)(int size, unsigned short port, void *val,
-			       unsigned int count, struct kvm_vcpu *vcpu);
+	int (*pio_in_emulated)(struct x86_emulate_ctxt *ctxt,
+			       int size, unsigned short port, void *val,
+			       unsigned int count);
 
-	int (*pio_out_emulated)(int size, unsigned short port, const void *val,
-				unsigned int count, struct kvm_vcpu *vcpu);
+	int (*pio_out_emulated)(struct x86_emulate_ctxt *ctxt,
+				int size, unsigned short port, const void *val,
+				unsigned int count);
 
 	bool (*get_cached_descriptor)(struct desc_struct *desc, u32 *base3,
 				      int seg, struct kvm_vcpu *vcpu);
