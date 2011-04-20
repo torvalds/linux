@@ -3144,6 +3144,42 @@ static unsigned int xhci_get_burst_count(struct xhci_hcd *xhci,
 	return roundup(total_packet_count, max_burst + 1) - 1;
 }
 
+/*
+ * Returns the number of packets in the last "burst" of packets.  This field is
+ * valid for all speeds of devices.  USB 2.0 devices can only do one "burst", so
+ * the last burst packet count is equal to the total number of packets in the
+ * TD.  SuperSpeed endpoints can have up to 3 bursts.  All but the last burst
+ * must contain (bMaxBurst + 1) number of packets, but the last burst can
+ * contain 1 to (bMaxBurst + 1) packets.
+ */
+static unsigned int xhci_get_last_burst_packet_count(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct urb *urb, unsigned int total_packet_count)
+{
+	unsigned int max_burst;
+	unsigned int residue;
+
+	if (xhci->hci_version < 0x100)
+		return 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_SUPER:
+		/* bMaxBurst is zero based: 0 means 1 packet per burst */
+		max_burst = urb->ep->ss_ep_comp.bMaxBurst;
+		residue = total_packet_count % (max_burst + 1);
+		/* If residue is zero, the last burst contains (max_burst + 1)
+		 * number of packets, but the TLBPC field is zero-based.
+		 */
+		if (residue == 0)
+			return max_burst;
+		return residue - 1;
+	default:
+		if (total_packet_count == 0)
+			return 0;
+		return total_packet_count - 1;
+	}
+}
+
 /* This is for isoc transfer */
 static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
@@ -3186,6 +3222,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	for (i = 0; i < num_tds; i++) {
 		unsigned int total_packet_count;
 		unsigned int burst_count;
+		unsigned int residue;
 
 		first_trb = true;
 		running_total = 0;
@@ -3197,6 +3234,8 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				le16_to_cpu(urb->ep->desc.wMaxPacketSize));
 		burst_count = xhci_get_burst_count(xhci, urb->dev, urb,
 				total_packet_count);
+		residue = xhci_get_last_burst_packet_count(xhci,
+				urb->dev, urb, total_packet_count);
 
 		trbs_per_td = count_isoc_trbs_needed(xhci, urb, i);
 
@@ -3210,7 +3249,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 		for (j = 0; j < trbs_per_td; j++) {
 			u32 remainder = 0;
-			field = TRB_TBC(burst_count);
+			field = TRB_TBC(burst_count) | TRB_TLBPC(residue);
 
 			if (first_trb) {
 				/* Queue the isoc TRB */
