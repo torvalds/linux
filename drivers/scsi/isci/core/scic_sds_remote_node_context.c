@@ -108,27 +108,24 @@ static void scic_sds_remote_node_context_construct_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
 	union scu_remote_node_context *rnc;
+	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
 	struct scic_sds_controller *scic;
 
-	scic = scic_sds_remote_device_get_controller(sci_rnc->device);
+	scic = scic_sds_remote_device_get_controller(sci_dev);
 
 	rnc = scic_sds_controller_get_remote_node_context_buffer(
 		scic, sci_rnc->remote_node_index);
 
-	memset(
-		rnc,
-		0x00,
-		sizeof(union scu_remote_node_context)
-		* scic_sds_remote_device_node_count(sci_rnc->device)
-		);
+	memset(rnc, 0, sizeof(union scu_remote_node_context)
+		* scic_sds_remote_device_node_count(sci_dev));
 
 	rnc->ssp.remote_node_index = sci_rnc->remote_node_index;
-	rnc->ssp.remote_node_port_width = sci_rnc->device->device_port_width;
+	rnc->ssp.remote_node_port_width = sci_dev->device_port_width;
 	rnc->ssp.logical_port_index =
-		scic_sds_remote_device_get_port_index(sci_rnc->device);
+		scic_sds_remote_device_get_port_index(sci_dev);
 
-	rnc->ssp.remote_sas_address_hi = SCIC_SWAP_DWORD(sci_rnc->device->device_address.high);
-	rnc->ssp.remote_sas_address_lo = SCIC_SWAP_DWORD(sci_rnc->device->device_address.low);
+	rnc->ssp.remote_sas_address_hi = SCIC_SWAP_DWORD(sci_dev->device_address.high);
+	rnc->ssp.remote_sas_address_lo = SCIC_SWAP_DWORD(sci_dev->device_address.low);
 
 	rnc->ssp.nexus_loss_timer_enable = true;
 	rnc->ssp.check_bit               = false;
@@ -140,8 +137,8 @@ static void scic_sds_remote_node_context_construct_buffer(
 
 
 	if (
-		sci_rnc->device->target_protocols.u.bits.attached_sata_device
-		|| sci_rnc->device->target_protocols.u.bits.attached_stp_target
+		sci_dev->target_protocols.u.bits.attached_sata_device
+		|| sci_dev->target_protocols.u.bits.attached_stp_target
 		) {
 		rnc->ssp.connection_occupancy_timeout =
 			scic->user_parameters.sds1.stp_max_occupancy_timeout;
@@ -157,7 +154,7 @@ static void scic_sds_remote_node_context_construct_buffer(
 	rnc->ssp.initial_arbitration_wait_time = 0;
 
 	/* Open Address Frame Parameters */
-	rnc->ssp.oaf_connection_rate = sci_rnc->device->connection_rate;
+	rnc->ssp.oaf_connection_rate = sci_dev->connection_rate;
 	rnc->ssp.oaf_features = 0;
 	rnc->ssp.oaf_source_zone_group = 0;
 	rnc->ssp.oaf_more_compatibility_features = 0;
@@ -234,7 +231,7 @@ static enum sci_status scic_sds_remote_node_context_default_destruct_handler(
 	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to stop while "
 		 "in unexpected state %d\n",
 		 __func__,
@@ -253,7 +250,7 @@ static enum sci_status scic_sds_remote_node_context_default_suspend_handler(
 	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to suspend "
 		 "while in wrong state %d\n",
 		 __func__,
@@ -268,7 +265,7 @@ static enum sci_status scic_sds_remote_node_context_default_resume_handler(
 	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to resume "
 		 "while in wrong state %d\n",
 		 __func__,
@@ -282,7 +279,7 @@ static enum sci_status scic_sds_remote_node_context_default_start_io_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	struct scic_sds_request *sci_req)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to start io "
 		 "0x%p while in wrong state %d\n",
 		 __func__,
@@ -297,7 +294,7 @@ static enum sci_status scic_sds_remote_node_context_default_start_task_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	struct scic_sds_request *sci_req)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to start "
 		 "task 0x%p while in wrong state %d\n",
 		 __func__,
@@ -312,7 +309,7 @@ static enum sci_status scic_sds_remote_node_context_default_event_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	u32 event_code)
 {
-	dev_warn(scirdev_to_dev(sci_rnc->device),
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 		 "%s: SCIC Remote Node Context 0x%p requested to process "
 		 "event 0x%x while in wrong state %d\n",
 		 __func__,
@@ -412,7 +409,7 @@ static enum sci_status scic_sds_remote_node_context_posting_state_event_handler(
 
 	default:
 		status = SCI_FAILURE;
-		dev_warn(scirdev_to_dev(sci_rnc->device),
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			 "%s: SCIC Remote Node Context 0x%p requested to "
 			 "process unexpected event 0x%x while in posting "
 			 "state\n",
@@ -466,7 +463,7 @@ static enum sci_status scic_sds_remote_node_context_invalidating_state_event_han
 			/*
 			 * We really dont care if the hardware is going to suspend
 			 * the device since it's being invalidated anyway */
-			dev_dbg(scirdev_to_dev(sci_rnc->device),
+			dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 				"%s: SCIC Remote Node Context 0x%p was "
 				"suspeneded by hardware while being "
 				"invalidated.\n",
@@ -476,7 +473,7 @@ static enum sci_status scic_sds_remote_node_context_invalidating_state_event_han
 			break;
 
 		default:
-			dev_warn(scirdev_to_dev(sci_rnc->device),
+			dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 				 "%s: SCIC Remote Node Context 0x%p "
 				 "requested to process event 0x%x while "
 				 "in state %d.\n",
@@ -516,7 +513,7 @@ static enum sci_status scic_sds_remote_node_context_resuming_state_event_handler
 			/*
 			 * We really dont care if the hardware is going to suspend
 			 * the device since it's being resumed anyway */
-			dev_dbg(scirdev_to_dev(sci_rnc->device),
+			dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 				"%s: SCIC Remote Node Context 0x%p was "
 				"suspeneded by hardware while being resumed.\n",
 				__func__,
@@ -525,7 +522,7 @@ static enum sci_status scic_sds_remote_node_context_resuming_state_event_handler
 			break;
 
 		default:
-			dev_warn(scirdev_to_dev(sci_rnc->device),
+			dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 				 "%s: SCIC Remote Node Context 0x%p requested "
 				 "to process event 0x%x while in state %d.\n",
 				 __func__,
@@ -563,10 +560,8 @@ static enum sci_status scic_sds_remote_node_context_ready_state_suspend_handler(
 	sci_rnc->suspension_code = suspend_type;
 
 	if (suspend_type == SCI_SOFTWARE_SUSPENSION) {
-		scic_sds_remote_device_post_request(
-			sci_rnc->device,
-			SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX
-			);
+		scic_sds_remote_device_post_request(rnc_to_dev(sci_rnc),
+						    SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX);
 	}
 
 	sci_base_state_machine_change_state(
@@ -622,7 +617,7 @@ static enum sci_status scic_sds_remote_node_context_ready_state_event_handler(
 		break;
 
 	default:
-		dev_warn(scirdev_to_dev(sci_rnc->device),
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			"%s: SCIC Remote Node Context 0x%p requested to "
 			"process event 0x%x while in state %d.\n",
 			__func__,
@@ -654,7 +649,7 @@ static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_ha
 
 	/* TODO: consider adding a resume action of NONE, INVALIDATE, WRITE_TLCR */
 
-	scic_remote_device_get_protocols(sci_rnc->device, &protocols);
+	scic_remote_device_get_protocols(rnc_to_dev(sci_rnc), &protocols);
 
 	if (
 		(protocols.u.bits.attached_ssp_target == 1)
@@ -667,7 +662,7 @@ static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_ha
 
 		status = SCI_SUCCESS;
 	} else if (protocols.u.bits.attached_stp_target == 1) {
-		if (sci_rnc->device->is_direct_attached) {
+		if (rnc_to_dev(sci_rnc)->is_direct_attached) {
 			/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
 			sci_base_state_machine_change_state(
 				&sci_rnc->state_machine,
@@ -792,7 +787,7 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_event
 		break;
 
 	default:
-		dev_warn(scirdev_to_dev(sci_rnc->device),
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			 "%s: SCIC Remote Node Context 0x%p requested to "
 			 "process event 0x%x while in state %d.\n",
 			 __func__,
@@ -937,34 +932,26 @@ static void scic_sds_remote_node_context_continue_state_transitions(
 static void scic_sds_remote_node_context_validate_context_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
+	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
 	union scu_remote_node_context *rnc_buffer;
 
 	rnc_buffer = scic_sds_controller_get_remote_node_context_buffer(
-		scic_sds_remote_device_get_controller(sci_rnc->device),
+		scic_sds_remote_device_get_controller(sci_dev),
 		sci_rnc->remote_node_index
 		);
 
 	rnc_buffer->ssp.is_valid = true;
 
-	if (
-		!sci_rnc->device->is_direct_attached
-		&& sci_rnc->device->target_protocols.u.bits.attached_stp_target
-		) {
-		scic_sds_remote_device_post_request(
-			sci_rnc->device,
-			SCU_CONTEXT_COMMAND_POST_RNC_96
-			);
+	if (!sci_dev->is_direct_attached &&
+	    sci_dev->target_protocols.u.bits.attached_stp_target) {
+		scic_sds_remote_device_post_request(sci_dev,
+						    SCU_CONTEXT_COMMAND_POST_RNC_96);
 	} else {
-		scic_sds_remote_device_post_request(
-			sci_rnc->device,
-			SCU_CONTEXT_COMMAND_POST_RNC_32
-			);
+		scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_32);
 
-		if (sci_rnc->device->is_direct_attached) {
-			scic_sds_port_setup_transports(
-				sci_rnc->device->owning_port,
-				sci_rnc->remote_node_index
-				);
+		if (sci_dev->is_direct_attached) {
+			scic_sds_port_setup_transports(sci_dev->owning_port,
+						       sci_rnc->remote_node_index);
 		}
 	}
 }
@@ -981,16 +968,13 @@ static void scic_sds_remote_node_context_invalidate_context_buffer(
 	union scu_remote_node_context *rnc_buffer;
 
 	rnc_buffer = scic_sds_controller_get_remote_node_context_buffer(
-		scic_sds_remote_device_get_controller(sci_rnc->device),
-		sci_rnc->remote_node_index
-		);
+		scic_sds_remote_device_get_controller(rnc_to_dev(sci_rnc)),
+		sci_rnc->remote_node_index);
 
 	rnc_buffer->ssp.is_valid = false;
 
-	scic_sds_remote_device_post_request(
-		sci_rnc->device,
-		SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE
-		);
+	scic_sds_remote_device_post_request(rnc_to_dev(sci_rnc),
+					    SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE);
 }
 
 /*
@@ -1081,8 +1065,10 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 {
 	struct scic_sds_remote_node_context *rnc;
 	struct smp_discover_response_protocols protocols;
+	struct scic_sds_remote_device *sci_dev;
 
 	rnc = (struct scic_sds_remote_node_context *)object;
+	sci_dev = rnc_to_dev(rnc);
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1096,18 +1082,15 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 	 * resume because of a target reset we also need to update
 	 * the STPTLDARNI register with the RNi of the device
 	 */
-	scic_remote_device_get_protocols(rnc->device, &protocols);
+	scic_remote_device_get_protocols(sci_dev, &protocols);
 
-	if ((protocols.u.bits.attached_stp_target == 1) &&
-	    (rnc->device->is_direct_attached)) {
-		scic_sds_port_setup_transports(
-			rnc->device->owning_port, rnc->remote_node_index);
+	if (protocols.u.bits.attached_stp_target == 1 &&
+	    sci_dev->is_direct_attached) {
+		scic_sds_port_setup_transports(sci_dev->owning_port,
+					       rnc->remote_node_index);
 	}
 
-	scic_sds_remote_device_post_request(
-		rnc->device,
-		SCU_CONTEXT_COMMAND_POST_RNC_RESUME
-		);
+	scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }
 
 /**
@@ -1225,15 +1208,12 @@ static const struct sci_base_state scic_sds_remote_node_context_state_table[] = 
 	},
 };
 
-void scic_sds_remote_node_context_construct(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_remote_node_context *rnc,
-	u16 remote_node_index)
+void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context *rnc,
+					    u16 remote_node_index)
 {
 	memset(rnc, 0, sizeof(struct scic_sds_remote_node_context));
 
 	rnc->remote_node_index = remote_node_index;
-	rnc->device            = device;
 	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
 
 	sci_base_state_machine_construct(

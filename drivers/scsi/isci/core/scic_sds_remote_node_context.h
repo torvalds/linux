@@ -232,15 +232,6 @@ struct scic_sds_remote_node_context {
 	struct sci_base_object parent;
 
 	/**
-	 * This pointer simply points to the remote device object containing
-	 * this RNC.
-	 *
-	 * @todo Consider making the device pointer the associated object of the
-	 *       the parent object.
-	 */
-	struct scic_sds_remote_device *device;
-
-	/**
 	 * This field indicates the remote node index (RNI) associated with
 	 * this RNC.
 	 */
@@ -279,10 +270,8 @@ struct scic_sds_remote_node_context {
 	struct scic_sds_remote_node_context_handlers *state_handlers;
 };
 
-void scic_sds_remote_node_context_construct(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_remote_node_context *rnc,
-	u16 remote_node_index);
+void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context *rnc,
+					    u16 remote_node_index);
 
 
 bool scic_sds_remote_node_context_is_ready(

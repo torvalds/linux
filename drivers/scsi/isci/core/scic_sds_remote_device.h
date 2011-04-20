@@ -339,6 +339,15 @@ struct scic_sds_remote_device {
 	const struct scic_sds_remote_device_state_handler *state_handlers;
 };
 
+static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_node_context *rnc)
+{
+	struct scic_sds_remote_device *sci_dev;
+
+	sci_dev = container_of(rnc, typeof(*sci_dev), rnc);
+
+	return sci_dev;
+}
+
 typedef enum sci_status (*scic_sds_remote_device_request_handler_t)(
 	struct scic_sds_remote_device *device,
 	struct scic_sds_request *request);
