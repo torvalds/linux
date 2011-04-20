@@ -4002,9 +4002,6 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 /*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
- *
- * It also gets called by the fork code, when changing the parent's
- * timeslices.
  */
 void scheduler_tick(void)
 {
