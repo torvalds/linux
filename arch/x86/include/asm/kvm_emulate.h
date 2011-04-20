@@ -92,8 +92,9 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu,
+	int (*read_std)(struct x86_emulate_ctxt *ctxt,
+			unsigned long addr, void *val,
+			unsigned int bytes,
 			struct x86_exception *fault);
 
 	/*
@@ -103,8 +104,8 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
-	int (*write_std)(unsigned long addr, void *val,
-			 unsigned int bytes, struct kvm_vcpu *vcpu,
+	int (*write_std)(struct x86_emulate_ctxt *ctxt,
+			 unsigned long addr, void *val, unsigned int bytes,
 			 struct x86_exception *fault);
 	/*
 	 * fetch: Read bytes of standard (non-emulated/special) memory.
@@ -113,8 +114,8 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*fetch)(unsigned long addr, void *val,
-		     unsigned int bytes, struct kvm_vcpu *vcpu,
+	int (*fetch)(struct x86_emulate_ctxt *ctxt,
+		     unsigned long addr, void *val, unsigned int bytes,
 		     struct x86_exception *fault);
 
 	/*
@@ -123,11 +124,9 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*read_emulated)(unsigned long addr,
-			     void *val,
-			     unsigned int bytes,
-			     struct x86_exception *fault,
-			     struct kvm_vcpu *vcpu);
+	int (*read_emulated)(struct x86_emulate_ctxt *ctxt,
+			     unsigned long addr, void *val, unsigned int bytes,
+			     struct x86_exception *fault);
 
 	/*
 	 * write_emulated: Write bytes to emulated/special memory area.
@@ -136,11 +135,10 @@ struct x86_emulate_ops {
 	 *                required).
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
-	int (*write_emulated)(unsigned long addr,
-			      const void *val,
+	int (*write_emulated)(struct x86_emulate_ctxt *ctxt,
+			      unsigned long addr, const void *val,
 			      unsigned int bytes,
-			      struct x86_exception *fault,
-			      struct kvm_vcpu *vcpu);
+			      struct x86_exception *fault);
 
 	/*
 	 * cmpxchg_emulated: Emulate an atomic (LOCKed) CMPXCHG operation on an
@@ -150,12 +148,12 @@ struct x86_emulate_ops {
 	 *  @new:   [IN ] Value to write to @addr.
 	 *  @bytes: [IN ] Number of bytes to access using CMPXCHG.
 	 */
-	int (*cmpxchg_emulated)(unsigned long addr,
+	int (*cmpxchg_emulated)(struct x86_emulate_ctxt *ctxt,
+				unsigned long addr,
 				const void *old,
 				const void *new,
 				unsigned int bytes,
-				struct x86_exception *fault,
-				struct kvm_vcpu *vcpu);
+				struct x86_exception *fault);
 
 	int (*pio_in_emulated)(int size, unsigned short port, void *val,
 			       unsigned int count, struct kvm_vcpu *vcpu);

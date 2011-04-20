@@ -645,8 +645,7 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 	rc = linearize(ctxt, addr, size, false, &linear);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	return ctxt->ops->read_std(linear, data, size, ctxt->vcpu,
-				   &ctxt->exception);
+	return ctxt->ops->read_std(ctxt, linear, data, size, &ctxt->exception);
 }
 
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
@@ -665,8 +664,8 @@ static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 		rc = __linearize(ctxt, addr, size, false, true, &linear);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
-		rc = ops->fetch(linear, fc->data + cur_size,
-				size, ctxt->vcpu, &ctxt->exception);
+		rc = ops->fetch(ctxt, linear, fc->data + cur_size,
+				size, &ctxt->exception);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		fc->end += size;
@@ -1047,8 +1046,8 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 		if (mc->pos < mc->end)
 			goto read_cached;
 
-		rc = ops->read_emulated(addr, mc->data + mc->end, n,
-					&ctxt->exception, ctxt->vcpu);
+		rc = ops->read_emulated(ctxt, addr, mc->data + mc->end, n,
+					&ctxt->exception);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		mc->end += n;
@@ -1087,8 +1086,8 @@ static int segmented_write(struct x86_emulate_ctxt *ctxt,
 	rc = linearize(ctxt, addr, size, true, &linear);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	return ctxt->ops->write_emulated(linear, data, size,
-					 &ctxt->exception, ctxt->vcpu);
+	return ctxt->ops->write_emulated(ctxt, linear, data, size,
+					 &ctxt->exception);
 }
 
 static int segmented_cmpxchg(struct x86_emulate_ctxt *ctxt,
@@ -1102,8 +1101,8 @@ static int segmented_cmpxchg(struct x86_emulate_ctxt *ctxt,
 	rc = linearize(ctxt, addr, size, true, &linear);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	return ctxt->ops->cmpxchg_emulated(linear, orig_data, data,
-					   size, &ctxt->exception, ctxt->vcpu);
+	return ctxt->ops->cmpxchg_emulated(ctxt, linear, orig_data, data,
+					   size, &ctxt->exception);
 }
 
 static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
@@ -1168,8 +1167,7 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (dt.size < index * 8 + 7)
 		return emulate_gp(ctxt, selector & 0xfffc);
 	addr = dt.address + index * 8;
-	ret = ops->read_std(addr, desc, sizeof *desc, ctxt->vcpu,
-			    &ctxt->exception);
+	ret = ops->read_std(ctxt, addr, desc, sizeof *desc, &ctxt->exception);
 
        return ret;
 }
@@ -1190,8 +1188,7 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		return emulate_gp(ctxt, selector & 0xfffc);
 
 	addr = dt.address + index * 8;
-	ret = ops->write_std(addr, desc, sizeof *desc, ctxt->vcpu,
-			     &ctxt->exception);
+	ret = ops->write_std(ctxt, addr, desc, sizeof *desc, &ctxt->exception);
 
 	return ret;
 }
@@ -1545,11 +1542,11 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 	eip_addr = dt.address + (irq << 2);
 	cs_addr = dt.address + (irq << 2) + 2;
 
-	rc = ops->read_std(cs_addr, &cs, 2, ctxt->vcpu, &ctxt->exception);
+	rc = ops->read_std(ctxt, cs_addr, &cs, 2, &ctxt->exception);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	rc = ops->read_std(eip_addr, &eip, 2, ctxt->vcpu, &ctxt->exception);
+	rc = ops->read_std(ctxt, eip_addr, &eip, 2, &ctxt->exception);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -2036,13 +2033,12 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 #ifdef CONFIG_X86_64
 	base |= ((u64)base3) << 32;
 #endif
-	r = ops->read_std(base + 102, &io_bitmap_ptr, 2, ctxt->vcpu, NULL);
+	r = ops->read_std(ctxt, base + 102, &io_bitmap_ptr, 2, NULL);
 	if (r != X86EMUL_CONTINUE)
 		return false;
 	if (io_bitmap_ptr + port/8 > desc_limit_scaled(&tr_seg))
 		return false;
-	r = ops->read_std(base + io_bitmap_ptr + port/8, &perm, 2, ctxt->vcpu,
-			  NULL);
+	r = ops->read_std(ctxt, base + io_bitmap_ptr + port/8, &perm, 2, NULL);
 	if (r != X86EMUL_CONTINUE)
 		return false;
 	if ((perm >> bit_idx) & mask)
@@ -2150,7 +2146,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
 
-	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->read_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
@@ -2158,13 +2154,13 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 
 	save_state_to_tss16(ctxt, ops, &tss_seg);
 
-	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->write_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			     &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
-	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->read_std(ctxt, new_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
@@ -2173,10 +2169,10 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 	if (old_tss_sel != 0xffff) {
 		tss_seg.prev_task_link = old_tss_sel;
 
-		ret = ops->write_std(new_tss_base,
+		ret = ops->write_std(ctxt, new_tss_base,
 				     &tss_seg.prev_task_link,
 				     sizeof tss_seg.prev_task_link,
-				     ctxt->vcpu, &ctxt->exception);
+				     &ctxt->exception);
 		if (ret != X86EMUL_CONTINUE)
 			/* FIXME: need to provide precise fault address */
 			return ret;
@@ -2282,7 +2278,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
 
-	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->read_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
@@ -2290,13 +2286,13 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 
 	save_state_to_tss32(ctxt, ops, &tss_seg);
 
-	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->write_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			     &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
-	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+	ret = ops->read_std(ctxt, new_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
@@ -2305,10 +2301,10 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 	if (old_tss_sel != 0xffff) {
 		tss_seg.prev_task_link = old_tss_sel;
 
-		ret = ops->write_std(new_tss_base,
+		ret = ops->write_std(ctxt, new_tss_base,
 				     &tss_seg.prev_task_link,
 				     sizeof tss_seg.prev_task_link,
-				     ctxt->vcpu, &ctxt->exception);
+				     &ctxt->exception);
 		if (ret != X86EMUL_CONTINUE)
 			/* FIXME: need to provide precise fault address */
 			return ret;

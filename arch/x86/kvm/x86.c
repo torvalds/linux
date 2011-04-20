@@ -63,6 +63,9 @@
 #define KVM_MAX_MCE_BANKS 32
 #define KVM_MCE_CAP_SUPPORTED (MCG_CTL_P | MCG_SER_P)
 
+#define emul_to_vcpu(ctxt) \
+	container_of(ctxt, struct kvm_vcpu, arch.emulate_ctxt)
+
 /* EFER defaults:
  * - enable syscall per default because its emulated by KVM
  * - enable LME and LMA per default on 64 bit KVM
@@ -3760,37 +3763,43 @@ out:
 }
 
 /* used for instruction fetching */
-static int kvm_fetch_guest_virt(gva_t addr, void *val, unsigned int bytes,
-				struct kvm_vcpu *vcpu,
+static int kvm_fetch_guest_virt(struct x86_emulate_ctxt *ctxt,
+				gva_t addr, void *val, unsigned int bytes,
 				struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu,
 					  access | PFERR_FETCH_MASK,
 					  exception);
 }
 
-static int kvm_read_guest_virt(gva_t addr, void *val, unsigned int bytes,
-			       struct kvm_vcpu *vcpu,
+static int kvm_read_guest_virt(struct x86_emulate_ctxt *ctxt,
+			       gva_t addr, void *val, unsigned int bytes,
 			       struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, access,
 					  exception);
 }
 
-static int kvm_read_guest_virt_system(gva_t addr, void *val, unsigned int bytes,
-				      struct kvm_vcpu *vcpu,
+static int kvm_read_guest_virt_system(struct x86_emulate_ctxt *ctxt,
+				      gva_t addr, void *val, unsigned int bytes,
 				      struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, exception);
 }
 
-static int kvm_write_guest_virt_system(gva_t addr, void *val,
+static int kvm_write_guest_virt_system(struct x86_emulate_ctxt *ctxt,
+				       gva_t addr, void *val,
 				       unsigned int bytes,
-				       struct kvm_vcpu *vcpu,
 				       struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
@@ -3818,12 +3827,13 @@ out:
 	return r;
 }
 
-static int emulator_read_emulated(unsigned long addr,
+static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
+				  unsigned long addr,
 				  void *val,
 				  unsigned int bytes,
-				  struct x86_exception *exception,
-				  struct kvm_vcpu *vcpu)
+				  struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	gpa_t                 gpa;
 	int handled;
 
@@ -3844,7 +3854,7 @@ static int emulator_read_emulated(unsigned long addr,
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
 		goto mmio;
 
-	if (kvm_read_guest_virt(addr, val, bytes, vcpu, exception)
+	if (kvm_read_guest_virt(ctxt, addr, val, bytes, exception)
 	    == X86EMUL_CONTINUE)
 		return X86EMUL_CONTINUE;
 
@@ -3933,12 +3943,14 @@ mmio:
 	return X86EMUL_CONTINUE;
 }
 
-int emulator_write_emulated(unsigned long addr,
+int emulator_write_emulated(struct x86_emulate_ctxt *ctxt,
+			    unsigned long addr,
 			    const void *val,
 			    unsigned int bytes,
-			    struct x86_exception *exception,
-			    struct kvm_vcpu *vcpu)
+			    struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
 	/* Crossing a page boundary? */
 	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
 		int rc, now;
@@ -3966,13 +3978,14 @@ int emulator_write_emulated(unsigned long addr,
 	(cmpxchg64((u64 *)(ptr), *(u64 *)(old), *(u64 *)(new)) == *(u64 *)(old))
 #endif
 
-static int emulator_cmpxchg_emulated(unsigned long addr,
+static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
+				     unsigned long addr,
 				     const void *old,
 				     const void *new,
 				     unsigned int bytes,
-				     struct x86_exception *exception,
-				     struct kvm_vcpu *vcpu)
+				     struct x86_exception *exception)
 {
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	gpa_t gpa;
 	struct page *page;
 	char *kaddr;
@@ -4028,7 +4041,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 emul_write:
 	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
 
-	return emulator_write_emulated(addr, new, bytes, exception, vcpu);
+	return emulator_write_emulated(ctxt, addr, new, bytes, exception);
 }
 
 static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
@@ -5009,7 +5022,8 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu)
 
 	kvm_x86_ops->patch_hypercall(vcpu, instruction);
 
-	return emulator_write_emulated(rip, instruction, 3, NULL, vcpu);
+	return emulator_write_emulated(&vcpu->arch.emulate_ctxt,
+				       rip, instruction, 3, NULL);
 }
 
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
