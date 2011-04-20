@@ -33,9 +33,15 @@ static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 
 	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
 
+	ath9k_htc_ps_wakeup(priv);
+
 	WMI_CMD(WMI_INT_STATS_CMDID);
-	if (ret)
+	if (ret) {
+		ath9k_htc_ps_restore(priv);
 		return -EINVAL;
+	}
+
+	ath9k_htc_ps_restore(priv);
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "RX",
@@ -85,9 +91,15 @@ static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
 
 	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
 
+	ath9k_htc_ps_wakeup(priv);
+
 	WMI_CMD(WMI_TX_STATS_CMDID);
-	if (ret)
+	if (ret) {
+		ath9k_htc_ps_restore(priv);
 		return -EINVAL;
+	}
+
+	ath9k_htc_ps_restore(priv);
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "Xretries",
@@ -149,9 +161,15 @@ static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
 
 	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
 
+	ath9k_htc_ps_wakeup(priv);
+
 	WMI_CMD(WMI_RX_STATS_CMDID);
-	if (ret)
+	if (ret) {
+		ath9k_htc_ps_restore(priv);
 		return -EINVAL;
+	}
+
+	ath9k_htc_ps_restore(priv);
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "NoBuf",
