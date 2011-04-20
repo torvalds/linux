@@ -433,6 +433,7 @@ struct nouveau_pm_level {
 	u32 memory;
 	u32 shader;
 	u32 unk05;
+	u32 unk0a;
 
 	u8 voltage;
 	u8 fanspeed;

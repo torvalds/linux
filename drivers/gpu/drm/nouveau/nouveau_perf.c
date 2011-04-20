@@ -243,12 +243,14 @@ nouveau_perf_init(struct drm_device *dev)
 			} else {
 				perflvl->shader = ROM16(subent(3)) & 0xfff;
 				perflvl->core   = perflvl->shader / 2;
+				perflvl->unk0a  = ROM16(subent(4)) & 0xfff;
 				perflvl->memory = ROM16(subent(5)) & 0xfff;
 			}
 
 			perflvl->core *= 1000;
 			perflvl->shader *= 1000;
 			perflvl->memory *= 1000;
+			perflvl->unk0a *= 1000;
 			break;
 		}
 
