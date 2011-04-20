@@ -2720,7 +2720,7 @@ static int check_svme(struct x86_emulate_ctxt *ctxt)
 
 static int check_svme_pa(struct x86_emulate_ctxt *ctxt)
 {
-	u64 rax = kvm_register_read(ctxt->vcpu, VCPU_REGS_RAX);
+	u64 rax = ctxt->decode.regs[VCPU_REGS_RAX];
 
 	/* Valid physical address? */
 	if (rax & 0xffff000000000000)
@@ -2742,7 +2742,7 @@ static int check_rdtsc(struct x86_emulate_ctxt *ctxt)
 static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 {
 	u64 cr4 = ctxt->ops->get_cr(ctxt, 4);
-	u64 rcx = kvm_register_read(ctxt->vcpu, VCPU_REGS_RCX);
+	u64 rcx = ctxt->decode.regs[VCPU_REGS_RCX];
 
 	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt)) ||
 	    (rcx > 3))
