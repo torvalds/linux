@@ -1597,7 +1597,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	}
 
 	/* connect dynamic paths */
-	switch(wsink->id) {
+	switch (wsink->id) {
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_dac:
 	case snd_soc_dapm_pga:
