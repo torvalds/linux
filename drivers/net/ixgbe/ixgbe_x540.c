@@ -304,17 +304,45 @@ static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_read_eerd_X540 - Read EEPROM word using EERD
- * @hw: pointer to hardware structure
- * @offset: offset of word in the EEPROM to read
- * @data: word read from the EERPOM
+ *  ixgbe_read_eerd_X540- Read EEPROM word using EERD
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @data: word read from the EEPROM
+ *
+ *  Reads a 16 bit word from the EEPROM using the EERD register.
  **/
 static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
-	s32 status;
+	s32 status = 0;
 
-	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0)
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) ==
+	    0)
 		status = ixgbe_read_eerd_generic(hw, offset, data);
+	else
+		status = IXGBE_ERR_SWFW_SYNC;
+
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	return status;
+}
+
+/**
+ *  ixgbe_read_eerd_buffer_X540 - Read EEPROM word(s) using EERD
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @words: number of words
+ *  @data: word(s) read from the EEPROM
+ *
+ *  Reads a 16 bit word(s) from the EEPROM using the EERD register.
+ **/
+static s32 ixgbe_read_eerd_buffer_X540(struct ixgbe_hw *hw,
+				       u16 offset, u16 words, u16 *data)
+{
+	s32 status = 0;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) ==
+	    0)
+		status = ixgbe_read_eerd_buffer_generic(hw, offset,
+							words, data);
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
 
@@ -336,6 +364,31 @@ static s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
 
 	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0)
 		status = ixgbe_write_eewr_generic(hw, offset, data);
+	else
+		status = IXGBE_ERR_SWFW_SYNC;
+
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	return status;
+}
+
+/**
+ *  ixgbe_write_eewr_buffer_X540 - Write EEPROM word(s) using EEWR
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to write
+ *  @words: number of words
+ *  @data: word(s) write to the EEPROM
+ *
+ *  Write a 16 bit word(s) to the EEPROM using the EEWR register.
+ **/
+static s32 ixgbe_write_eewr_buffer_X540(struct ixgbe_hw *hw,
+					u16 offset, u16 words, u16 *data)
+{
+	s32 status = 0;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) ==
+	    0)
+		status = ixgbe_write_eewr_buffer_generic(hw, offset,
+							 words, data);
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
 
@@ -851,7 +904,9 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.init_params            = &ixgbe_init_eeprom_params_X540,
 	.read                   = &ixgbe_read_eerd_X540,
+	.read_buffer		= &ixgbe_read_eerd_buffer_X540,
 	.write                  = &ixgbe_write_eewr_X540,
+	.write_buffer		= &ixgbe_write_eewr_buffer_X540,
 	.calc_checksum		= &ixgbe_calc_eeprom_checksum_X540,
 	.validate_checksum      = &ixgbe_validate_eeprom_checksum_X540,
 	.update_checksum        = &ixgbe_update_eeprom_checksum_X540,

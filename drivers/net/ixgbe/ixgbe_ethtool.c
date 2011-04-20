@@ -847,11 +847,8 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	for (i = 0; i < eeprom_len; i++) {
-		if ((ret_val = hw->eeprom.ops.read(hw, first_word + i,
-		    &eeprom_buff[i])))
-			break;
-	}
+	ret_val = hw->eeprom.ops.read_buffer(hw, first_word, eeprom_len,
+					     eeprom_buff);
 
 	/* Device's eeprom is always little-endian, word addressable */
 	for (i = 0; i < eeprom_len; i++)
