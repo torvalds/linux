@@ -51,6 +51,7 @@
 #include "compression.h"
 #include "locking.h"
 #include "free-space-cache.h"
+#include "inode-map.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -3809,6 +3810,10 @@ void btrfs_evict_inode(struct inode *inode)
 		BUG_ON(ret);
 	}
 
+	if (!(root == root->fs_info->tree_root ||
+	      root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID))
+		btrfs_return_ino(root, inode->i_ino);
+
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
@@ -4538,6 +4543,12 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	/*
+	 * we have to initialize this early, so we can reclaim the inode
+	 * number if we fail afterwards in this function.
+	 */
+	inode->i_ino = objectid;
+
 	if (dir) {
 		trace_btrfs_inode_request(dir);
 
@@ -4583,7 +4594,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		goto fail;
 
 	inode_init_owner(inode, dir, mode);
-	inode->i_ino = objectid;
 	inode_set_bytes(inode, 0);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
@@ -4712,10 +4722,6 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	err = btrfs_find_free_objectid(NULL, root, dir->i_ino, &objectid);
-	if (err)
-		return err;
-
 	/*
 	 * 2 for inode item and ref
 	 * 2 for dir items
@@ -4726,6 +4732,10 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(trans);
 
 	btrfs_set_trans_block_group(trans, dir);
+
+	err = btrfs_find_free_ino(root, &objectid);
+	if (err)
+		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
@@ -4774,9 +4784,6 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	u64 objectid;
 	u64 index = 0;
 
-	err = btrfs_find_free_objectid(NULL, root, dir->i_ino, &objectid);
-	if (err)
-		return err;
 	/*
 	 * 2 for inode item and ref
 	 * 2 for dir items
@@ -4787,6 +4794,10 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(trans);
 
 	btrfs_set_trans_block_group(trans, dir);
+
+	err = btrfs_find_free_ino(root, &objectid);
+	if (err)
+		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
@@ -4902,10 +4913,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	u64 index = 0;
 	unsigned long nr = 1;
 
-	err = btrfs_find_free_objectid(NULL, root, dir->i_ino, &objectid);
-	if (err)
-		return err;
-
 	/*
 	 * 2 items for inode and ref
 	 * 2 items for dir items
@@ -4915,6 +4922,10 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	btrfs_set_trans_block_group(trans, dir);
+
+	err = btrfs_find_free_ino(root, &objectid);
+	if (err)
+		goto out_fail;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
@@ -7257,9 +7268,6 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
 		return -ENAMETOOLONG;
 
-	err = btrfs_find_free_objectid(NULL, root, dir->i_ino, &objectid);
-	if (err)
-		return err;
 	/*
 	 * 2 items for inode item and ref
 	 * 2 items for dir items
@@ -7270,6 +7278,10 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(trans);
 
 	btrfs_set_trans_block_group(trans, dir);
+
+	err = btrfs_find_free_ino(root, &objectid);
+	if (err)
+		goto out_unlock;
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,

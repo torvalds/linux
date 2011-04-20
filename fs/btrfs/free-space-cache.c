@@ -25,6 +25,7 @@
 #include "transaction.h"
 #include "disk-io.h"
 #include "extent_io.h"
+#include "inode-map.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
 #define MAX_CACHE_BYTES_PER_GIG	(32 * 1024)
@@ -105,7 +106,7 @@ int create_free_space_inode(struct btrfs_root *root,
 	u64 objectid;
 	int ret;
 
-	ret = btrfs_find_free_objectid(trans, root, 0, &objectid);
+	ret = btrfs_find_free_objectid(root, &objectid);
 	if (ret < 0)
 		return ret;
 
@@ -1496,10 +1497,9 @@ bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
 	return merged;
 }
 
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 offset, u64 bytes)
+int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
+			   u64 offset, u64 bytes)
 {
-	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *info;
 	int ret = 0;
 
@@ -1751,11 +1751,29 @@ out:
 	return 0;
 }
 
+void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
+{
+	struct btrfs_free_space *info;
+	struct rb_node *node;
+
+	spin_lock(&ctl->tree_lock);
+	while ((node = rb_last(&ctl->free_space_offset)) != NULL) {
+		info = rb_entry(node, struct btrfs_free_space, offset_index);
+		unlink_free_space(ctl, info);
+		kfree(info->bitmap);
+		kmem_cache_free(btrfs_free_space_cachep, info);
+		if (need_resched()) {
+			spin_unlock(&ctl->tree_lock);
+			cond_resched();
+			spin_lock(&ctl->tree_lock);
+		}
+	}
+	spin_unlock(&ctl->tree_lock);
+}
+
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	struct btrfs_free_space *info;
-	struct rb_node *node;
 	struct btrfs_free_cluster *cluster;
 	struct list_head *head;
 
@@ -1773,21 +1791,9 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 			spin_lock(&ctl->tree_lock);
 		}
 	}
-
-	while ((node = rb_last(&ctl->free_space_offset)) != NULL) {
-		info = rb_entry(node, struct btrfs_free_space, offset_index);
-		unlink_free_space(ctl, info);
-		if (info->bitmap)
-			kfree(info->bitmap);
-		kmem_cache_free(btrfs_free_space_cachep, info);
-		if (need_resched()) {
-			spin_unlock(&ctl->tree_lock);
-			cond_resched();
-			spin_lock(&ctl->tree_lock);
-		}
-	}
-
 	spin_unlock(&ctl->tree_lock);
+
+	__btrfs_remove_free_space_cache(ctl);
 }
 
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
@@ -2351,4 +2357,54 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 	}
 
 	return ret;
+}
+
+/*
+ * Find the left-most item in the cache tree, and then return the
+ * smallest inode number in the item.
+ *
+ * Note: the returned inode number may not be the smallest one in
+ * the tree, if the left-most item is a bitmap.
+ */
+u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root)
+{
+	struct btrfs_free_space_ctl *ctl = fs_root->free_ino_ctl;
+	struct btrfs_free_space *entry = NULL;
+	u64 ino = 0;
+
+	spin_lock(&ctl->tree_lock);
+
+	if (RB_EMPTY_ROOT(&ctl->free_space_offset))
+		goto out;
+
+	entry = rb_entry(rb_first(&ctl->free_space_offset),
+			 struct btrfs_free_space, offset_index);
+
+	if (!entry->bitmap) {
+		ino = entry->offset;
+
+		unlink_free_space(ctl, entry);
+		entry->offset++;
+		entry->bytes--;
+		if (!entry->bytes)
+			kmem_cache_free(btrfs_free_space_cachep, entry);
+		else
+			link_free_space(ctl, entry);
+	} else {
+		u64 offset = 0;
+		u64 count = 1;
+		int ret;
+
+		ret = search_bitmap(ctl, entry, &offset, &count);
+		BUG_ON(ret);
+
+		ino = offset;
+		bitmap_clear_bits(ctl, entry, offset, 1);
+		if (entry->bytes == 0)
+			free_bitmap(ctl, entry);
+	}
+out:
+	spin_unlock(&ctl->tree_lock);
+
+	return ino;
 }

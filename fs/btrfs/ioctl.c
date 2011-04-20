@@ -50,6 +50,7 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "locking.h"
+#include "inode-map.h"
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
@@ -323,8 +324,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
 	u64 index = 0;
 
-	ret = btrfs_find_free_objectid(NULL, root->fs_info->tree_root,
-				       0, &objectid);
+	ret = btrfs_find_free_objectid(root->fs_info->tree_root, &objectid);
 	if (ret) {
 		dput(parent);
 		return ret;

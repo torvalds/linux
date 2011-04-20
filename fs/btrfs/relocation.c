@@ -30,6 +30,7 @@
 #include "btrfs_inode.h"
 #include "async-thread.h"
 #include "free-space-cache.h"
+#include "inode-map.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this
@@ -3897,7 +3898,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(trans))
 		return ERR_CAST(trans);
 
-	err = btrfs_find_free_objectid(trans, root, objectid, &objectid);
+	err = btrfs_find_free_objectid(root, &objectid);
 	if (err)
 		goto out;
 

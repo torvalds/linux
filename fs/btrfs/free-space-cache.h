@@ -64,15 +64,25 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path);
+
 void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group);
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 bytenr, u64 size);
+int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
+			   u64 bytenr, u64 size);
+static inline int
+btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+		     u64 bytenr, u64 size)
+{
+	return __btrfs_add_free_space(block_group->free_space_ctl,
+				      bytenr, size);
+}
 int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 			    u64 bytenr, u64 size);
+void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl);
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
-				   *block_group);
+				     *block_group);
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 			       u64 offset, u64 bytes, u64 empty_size);
+u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root);
 void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 			   u64 bytes);
 int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,

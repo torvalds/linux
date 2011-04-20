@@ -27,6 +27,7 @@
 #include "transaction.h"
 #include "locking.h"
 #include "tree-log.h"
+#include "inode-map.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -761,7 +762,11 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_orphan_commit_root(trans, root);
 
 			if (root->commit_root != root->node) {
+				mutex_lock(&root->fs_commit_mutex);
 				switch_commit_root(root);
+				btrfs_unpin_free_ino(root);
+				mutex_unlock(&root->fs_commit_mutex);
+
 				btrfs_set_root_node(&root->root_item,
 						    root->node);
 			}
@@ -930,7 +935,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	ret = btrfs_find_free_objectid(trans, tree_root, 0, &objectid);
+	ret = btrfs_find_free_objectid(tree_root, &objectid);
 	if (ret) {
 		pending->error = ret;
 		goto fail;

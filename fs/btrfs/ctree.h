@@ -1102,6 +1102,15 @@ struct btrfs_root {
 	spinlock_t accounting_lock;
 	struct btrfs_block_rsv *block_rsv;
 
+	/* free ino cache stuff */
+	struct mutex fs_commit_mutex;
+	struct btrfs_free_space_ctl *free_ino_ctl;
+	enum btrfs_caching_type cached;
+	spinlock_t cache_lock;
+	wait_queue_head_t cache_wait;
+	struct btrfs_free_space_ctl *free_ino_pinned;
+	u64 cache_progress;
+
 	struct mutex log_mutex;
 	wait_queue_head_t log_writer_wait;
 	wait_queue_head_t log_commit_wait[2];
@@ -2407,12 +2416,6 @@ int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
 int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, u64 offset);
 int btrfs_find_orphan_item(struct btrfs_root *root, u64 offset);
-
-/* inode-map.c */
-int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *fs_root,
-			     u64 dirid, u64 *objectid);
-int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid);
 
 /* inode-item.c */
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
