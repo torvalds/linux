@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/usb/android_composite.h>
 
 #include "u_serial.h"
 #include "gadget_chips.h"
@@ -788,55 +787,3 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 		kfree(acm);
 	return status;
 }
-
-#ifdef CONFIG_USB_ANDROID_ACM
-#include <linux/platform_device.h>
-
-static struct acm_platform_data *acm_pdata;
-
-static int acm_probe(struct platform_device *pdev)
-{
-	acm_pdata = pdev->dev.platform_data;
-	return 0;
-}
-
-static struct platform_driver acm_platform_driver = {
-	.driver = { .name = "acm", },
-	.probe = acm_probe,
-};
-
-int acm_function_bind_config(struct usb_configuration *c)
-{
-	int i;
-	u8 num_inst = acm_pdata ? acm_pdata->num_inst : 1;
-	int ret = gserial_setup(c->cdev->gadget, num_inst);
-
-	if (ret)
-		return ret;
-
-	for (i = 0; i < num_inst; i++) {
-		ret = acm_bind_config(c, i);
-		if (ret) {
-			pr_err("Could not bind acm%u config\n", i);
-			break;
-		}
-	}
-
-	return ret;
-}
-
-static struct android_usb_function acm_function = {
-	.name = "acm",
-	.bind_config = acm_function_bind_config,
-};
-
-static int __init init(void)
-{
-	printk(KERN_INFO "f_acm init\n");
-	platform_driver_register(&acm_platform_driver);
-	android_register_function(&acm_function);
-	return 0;
-}
-module_init(init);
-
-#endif /* CONFIG_USB_ANDROID_ACM */
