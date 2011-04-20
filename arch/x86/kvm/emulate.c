@@ -1844,12 +1844,14 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	u16 cs_sel, ss_sel;
+	u64 efer = 0;
 
 	/* syscall is not available in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
 	    ctxt->mode == X86EMUL_MODE_VM86)
 		return emulate_ud(ctxt);
 
+	ops->get_msr(ctxt, MSR_EFER, &efer);
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
 	ops->get_msr(ctxt, MSR_STAR, &msr_data);
@@ -1857,7 +1859,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	cs_sel = (u16)(msr_data & 0xfffc);
 	ss_sel = (u16)(msr_data + 8);
 
-	if (is_long_mode(ctxt->vcpu)) {
+	if (efer & EFER_LMA) {
 		cs.d = 0;
 		cs.l = 1;
 	}
@@ -1867,7 +1869,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	ops->set_segment_selector(ctxt, ss_sel, VCPU_SREG_SS);
 
 	c->regs[VCPU_REGS_RCX] = c->eip;
-	if (is_long_mode(ctxt->vcpu)) {
+	if (efer & EFER_LMA) {
 #ifdef CONFIG_X86_64
 		c->regs[VCPU_REGS_R11] = ctxt->eflags & ~EFLG_RF;
 
@@ -1897,7 +1899,9 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	u16 cs_sel, ss_sel;
+	u64 efer = 0;
 
+	ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL)
 		return emulate_gp(ctxt, 0);
@@ -1927,8 +1931,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	cs_sel &= ~SELECTOR_RPL_MASK;
 	ss_sel = cs_sel + 8;
 	ss_sel &= ~SELECTOR_RPL_MASK;
-	if (ctxt->mode == X86EMUL_MODE_PROT64
-		|| is_long_mode(ctxt->vcpu)) {
+	if (ctxt->mode == X86EMUL_MODE_PROT64 || (efer & EFER_LMA)) {
 		cs.d = 0;
 		cs.l = 1;
 	}
@@ -2603,6 +2606,7 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	u64 new_val = c->src.val64;
 	int cr = c->modrm_reg;
+	u64 efer = 0;
 
 	static u64 cr_reserved_bits[] = {
 		0xffffffff00000000ULL,
@@ -2620,7 +2624,7 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 
 	switch (cr) {
 	case 0: {
-		u64 cr4, efer;
+		u64 cr4;
 		if (((new_val & X86_CR0_PG) && !(new_val & X86_CR0_PE)) ||
 		    ((new_val & X86_CR0_NW) && !(new_val & X86_CR0_CD)))
 			return emulate_gp(ctxt, 0);
@@ -2637,7 +2641,8 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 	case 3: {
 		u64 rsvd = 0;
 
-		if (is_long_mode(ctxt->vcpu))
+		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
+		if (efer & EFER_LMA)
 			rsvd = CR3_L_MODE_RESERVED_BITS;
 		else if (is_pae(ctxt->vcpu))
 			rsvd = CR3_PAE_RESERVED_BITS;
@@ -2650,7 +2655,7 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		break;
 		}
 	case 4: {
-		u64 cr4, efer;
+		u64 cr4;
 
 		cr4 = ctxt->ops->get_cr(ctxt, 4);
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
