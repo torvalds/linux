@@ -1664,6 +1664,9 @@ static int __rbd_update_snaps(struct rbd_device *rbd_dev)
 	if (ret < 0)
 		return ret;
 
+	/* resized? */
+	set_capacity(rbd_dev->disk, h.image_size / 512ULL);
+
 	down_write(&rbd_dev->header.snap_rwsem);
 
 	snap_seq = rbd_dev->header.snapc->seq;
