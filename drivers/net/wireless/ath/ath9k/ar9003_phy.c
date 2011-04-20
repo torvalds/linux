@@ -616,29 +616,25 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	unsigned int regWrites = 0, i;
 	struct ieee80211_channel *channel = chan->chan;
-	u32 modesIndex, freqIndex;
+	u32 modesIndex;
 
 	switch (chan->chanmode) {
 	case CHANNEL_A:
 	case CHANNEL_A_HT20:
 		modesIndex = 1;
-		freqIndex = 1;
 		break;
 	case CHANNEL_A_HT40PLUS:
 	case CHANNEL_A_HT40MINUS:
 		modesIndex = 2;
-		freqIndex = 1;
 		break;
 	case CHANNEL_G:
 	case CHANNEL_G_HT20:
 	case CHANNEL_B:
 		modesIndex = 4;
-		freqIndex = 2;
 		break;
 	case CHANNEL_G_HT40PLUS:
 	case CHANNEL_G_HT40MINUS:
 		modesIndex = 3;
-		freqIndex = 2;
 		break;
 
 	default:

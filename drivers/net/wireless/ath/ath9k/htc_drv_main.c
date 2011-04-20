@@ -332,6 +332,11 @@ static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
 	hvif.index = priv->mon_vif_idx;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove monitor interface at idx: %d\n",
+			priv->mon_vif_idx);
+	}
+
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << priv->mon_vif_idx);
 }
@@ -964,7 +969,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int ret = 0;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
 	mutex_lock(&priv->mutex);
@@ -1135,6 +1140,10 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
 	hvif.index = avp->index;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove interface at idx: %d\n",
+			avp->index);
+	}
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << avp->index);
 

@@ -74,6 +74,10 @@ static void ath_btcoex_period_work(struct work_struct *work)
 	aggr = priv->op_flags & OP_BT_PRIORITY_DETECTED;
 
 	WMI_CMD_BUF(WMI_AGGR_LIMIT_CMD, &aggr);
+	if (ret) {
+		ath_err(common, "Unable to set BTCOEX parameters\n");
+		return;
+	}
 
 	ath9k_cmn_btcoex_bt_stomp(common, is_btscan ? ATH_BTCOEX_STOMP_ALL :
 			btcoex->bt_stomp_type);

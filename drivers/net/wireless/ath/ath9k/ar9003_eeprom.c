@@ -3217,7 +3217,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 				    u8 *word, int length, int mdata_size)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u8 *dptr;
 	const struct ar9300_eeprom *eep = NULL;
 
 	switch (code) {
@@ -3235,7 +3234,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 		break;
 	case _CompressBlock:
 		if (reference == 0) {
-			dptr = mptr;
 		} else {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
