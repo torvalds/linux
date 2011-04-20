@@ -128,7 +128,7 @@ nva3_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	/* If target clock is within [-2, 3) MHz of a divisor, we'll
 	 * use that instead of calculating MNP values
 	 */
-	pll->new_div = ((limits.refclk * 2) / (khz - 2999)) & 0x0f;
+	pll->new_div = min((limits.refclk * 2) / (khz - 2999), 16);
 	if (pll->new_div) {
 		diff = khz - ((limits.refclk * 2) / pll->new_div);
 		if (diff < -2000 || diff >= 3000)
