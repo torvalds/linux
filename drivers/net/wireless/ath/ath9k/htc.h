@@ -66,8 +66,6 @@ enum htc_opmode {
 	HTC_M_WDS	= 2
 };
 
-#define ATH9K_HTC_HDRSPACE sizeof(struct htc_frame_hdr)
-
 #define ATH9K_HTC_AMPDU  1
 #define ATH9K_HTC_NORMAL 2
 #define ATH9K_HTC_BEACON 3
@@ -75,7 +73,6 @@ enum htc_opmode {
 
 #define ATH9K_HTC_TX_CTSONLY      0x1
 #define ATH9K_HTC_TX_RTSCTS       0x2
-#define ATH9K_HTC_TX_USE_MIN_RATE 0x100
 
 struct tx_frame_hdr {
 	u8 data_type;
