@@ -597,6 +597,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 			list_add(&device->dev_alloc_list,
 				 &fs_devices->alloc_list);
 		}
+		brelse(bh);
 		continue;
 
 error_brelse:
