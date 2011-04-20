@@ -3913,7 +3913,7 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */
-		ctxt->vcpu->arch.halt_request = 1;
+		ctxt->ops->halt(ctxt);
 		break;
 	case 0xf5:	/* cmc */
 		/* complement carry flag from eflags reg */
