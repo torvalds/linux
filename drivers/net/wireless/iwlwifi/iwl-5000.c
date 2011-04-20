@@ -366,9 +366,6 @@ static struct iwl_lib_ops iwl5000_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
 	},
 	.temp_ops = {
@@ -413,9 +410,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
 	},
 	.temp_ops = {
