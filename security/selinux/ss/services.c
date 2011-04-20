@@ -3189,7 +3189,7 @@ out:
  * @len: length of data in bytes
  *
  */
-int security_read_policy(void **data, ssize_t *len)
+int security_read_policy(void **data, size_t *len)
 {
 	int rc;
 	struct policy_file fp;
