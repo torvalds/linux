@@ -1360,6 +1360,11 @@ static void tg3_link_report(struct tg3 *tp)
 			    "on" : "off",
 			    (tp->link_config.active_flowctrl & FLOW_CTRL_RX) ?
 			    "on" : "off");
+
+		if (tp->phy_flags & TG3_PHYFLG_EEE_CAP)
+			netdev_info(tp->dev, "EEE is %s\n",
+				    tp->setlpicnt ? "enabled" : "disabled");
+
 		tg3_ump_link_report(tp);
 	}
 }
@@ -15278,8 +15283,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 			ethtype = "10/100/1000Base-T";
 
 		netdev_info(dev, "attached PHY is %s (%s Ethernet) "
-			    "(WireSpeed[%d])\n", tg3_phy_string(tp), ethtype,
-			  (tp->phy_flags & TG3_PHYFLG_NO_ETH_WIRE_SPEED) == 0);
+			    "(WireSpeed[%d], EEE[%d])\n",
+			    tg3_phy_string(tp), ethtype,
+			    (tp->phy_flags & TG3_PHYFLG_NO_ETH_WIRE_SPEED) == 0,
+			    (tp->phy_flags & TG3_PHYFLG_EEE_CAP) != 0);
 	}
 
 	netdev_info(dev, "RXcsums[%d] LinkChgREG[%d] MIirq[%d] ASF[%d] TSOcap[%d]\n",
