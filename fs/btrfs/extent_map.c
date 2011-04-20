@@ -28,12 +28,11 @@ void extent_map_exit(void)
 /**
  * extent_map_tree_init - initialize extent map tree
  * @tree:		tree to initialize
- * @mask:		flags for memory allocations during tree operations
  *
  * Initialize the extent tree @tree.  Should be called for each new inode
  * or other user of the extent_map interface.
  */
-void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
+void extent_map_tree_init(struct extent_map_tree *tree)
 {
 	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);

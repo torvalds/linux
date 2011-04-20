@@ -6785,7 +6785,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->force_compress = BTRFS_COMPRESS_NONE;
 
 	inode = &ei->vfs_inode;
-	extent_map_tree_init(&ei->extent_tree, GFP_NOFS);
+	extent_map_tree_init(&ei->extent_tree);
 	extent_io_tree_init(&ei->io_tree, &inode->i_data);
 	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data);
 	mutex_init(&ei->log_mutex);

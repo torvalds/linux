@@ -1713,8 +1713,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	RB_CLEAR_NODE(&BTRFS_I(fs_info->btree_inode)->rb_node);
 	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,
 			     fs_info->btree_inode->i_mapping);
-	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
-			     GFP_NOFS);
+	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree);
 
 	BTRFS_I(fs_info->btree_inode)->io_tree.ops = &btree_extent_io_ops;
 
