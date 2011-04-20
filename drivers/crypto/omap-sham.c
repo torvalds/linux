@@ -1295,7 +1295,8 @@ static int __init omap_sham_mod_init(void)
 	pr_info("loading %s driver\n", "omap-sham");
 
 	if (!cpu_class_is_omap2() ||
-		omap_type() != OMAP2_DEVICE_TYPE_SEC) {
+		(omap_type() != OMAP2_DEVICE_TYPE_SEC &&
+			omap_type() != OMAP2_DEVICE_TYPE_EMU)) {
 		pr_err("Unsupported cpu\n");
 		return -ENODEV;
 	}
