@@ -438,7 +438,7 @@ static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 		.next_rip   = ctxt->eip,
 	};
 
-	return ctxt->ops->intercept(ctxt->vcpu, &info, stage);
+	return ctxt->ops->intercept(ctxt, &info, stage);
 }
 
 static inline unsigned long ad_mask(struct decode_cache *c)
