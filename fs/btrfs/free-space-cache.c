@@ -1455,8 +1455,8 @@ out:
 	return ret;
 }
 
-bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
-			  struct btrfs_free_space *info, bool update_stat)
+static bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
+				 struct btrfs_free_space *info, bool update_stat)
 {
 	struct btrfs_free_space *left_info;
 	struct btrfs_free_space *right_info;

@@ -94,7 +94,7 @@ static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
 	return (cache->flags & bits) == bits;
 }
 
-void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
+static void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
 {
 	atomic_inc(&cache->count);
 }
@@ -3651,8 +3651,8 @@ static void block_rsv_add_bytes(struct btrfs_block_rsv *block_rsv,
 	spin_unlock(&block_rsv->lock);
 }
 
-void block_rsv_release_bytes(struct btrfs_block_rsv *block_rsv,
-			     struct btrfs_block_rsv *dest, u64 num_bytes)
+static void block_rsv_release_bytes(struct btrfs_block_rsv *block_rsv,
+				    struct btrfs_block_rsv *dest, u64 num_bytes)
 {
 	struct btrfs_space_info *space_info = block_rsv->space_info;
 

@@ -74,8 +74,8 @@ noinline void btrfs_set_path_blocking(struct btrfs_path *p)
  * retake all the spinlocks in the path.  You can safely use NULL
  * for held
  */
-noinline void btrfs_clear_path_blocking(struct btrfs_path *p,
-					struct extent_buffer *held)
+static noinline void btrfs_clear_path_blocking(struct btrfs_path *p,
+					       struct extent_buffer *held)
 {
 	int i;
 
