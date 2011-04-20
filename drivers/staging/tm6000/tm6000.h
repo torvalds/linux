@@ -167,6 +167,8 @@ struct tm6000_core {
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
 	enum tm6000_devtype		dev_type;	/* type of device */
+	unsigned char			eedata[256];	/* Eeprom data */
+	unsigned			eedata_size;	/* Size of the eeprom info */
 
 	v4l2_std_id                     norm;           /* Current norm */
 	int				width, height;	/* Selected resolution */

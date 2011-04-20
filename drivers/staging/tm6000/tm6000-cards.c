@@ -54,6 +54,11 @@
 #define TM6010_BOARD_BEHOLD_VOYAGER_LITE	15
 #define TM5600_BOARD_TERRATEC_GRABSTER		16
 
+#define is_generic(model) ((model == TM6000_BOARD_UNKNOWN) || \
+			   (model == TM5600_BOARD_GENERIC) || \
+			   (model == TM6000_BOARD_GENERIC) || \
+			   (model == TM6010_BOARD_GENERIC))
+
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
 
@@ -64,6 +69,9 @@ static unsigned long tm6000_devused;
 
 struct tm6000_board {
 	char            *name;
+	char		eename[16];		/* EEPROM name */
+	unsigned	eename_size;		/* size of EEPROM name */
+	unsigned	eename_pos;		/* Position where it appears at ROM */
 
 	struct tm6000_capabilities caps;
 	enum            tm6000_inaudio aradio;
@@ -139,6 +147,9 @@ struct tm6000_board tm6000_boards[] = {
 	[TM5600_BOARD_10MOONS_UT821] = {
 		.name         = "10Moons UT 821",
 		.tuner_type   = TUNER_XC2028,
+		.eename       = { '1', '0', 'M', 'O', 'O', 'N', 'S', '5', '6', '0', '0', 0xff, 0x45, 0x5b},
+		.eename_size  = 14,
+		.eename_pos   = 0x14,
 		.type         = TM5600,
 		.tuner_addr   = 0xc2 >> 1,
 		.caps = {
@@ -205,6 +216,9 @@ struct tm6000_board tm6000_boards[] = {
 	},
 	[TM6010_BOARD_HAUPPAUGE_900H] = {
 		.name         = "Hauppauge WinTV HVR-900H / WinTV USB2-Stick",
+		.eename       = { 'H', 0, 'V', 0, 'R', 0, '9', 0, '0', 0, '0', 0, 'H', 0 },
+		.eename_size  = 14,
+		.eename_pos   = 0x42,
 		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
@@ -370,7 +384,7 @@ struct tm6000_board tm6000_boards[] = {
 
 /* table of devices that work with this driver */
 struct usb_device_id tm6000_id_table[] = {
-	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_10MOONS_UT821 },
+	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_GENERIC },
 	{ USB_DEVICE(0x6000, 0x0002), .driver_info = TM6010_BOARD_GENERIC },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
 	{ USB_DEVICE(0x14aa, 0x0620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
@@ -729,16 +743,10 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 	}
 }
 
-static int tm6000_init_dev(struct tm6000_core *dev)
+static int fill_board_specific_data(struct tm6000_core *dev)
 {
-	struct v4l2_frequency f;
-	int rc = 0;
+	int rc;
 
-	mutex_init(&dev->lock);
-
-	mutex_lock(&dev->lock);
-
-	/* Initializa board-specific data */
 	dev->dev_type   = tm6000_boards[dev->model].type;
 	dev->tuner_type = tm6000_boards[dev->model].tuner_type;
 	dev->tuner_addr = tm6000_boards[dev->model].tuner_addr;
@@ -756,16 +764,80 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	/* initialize hardware */
 	rc = tm6000_init(dev);
 	if (rc < 0)
-		goto err;
+		return rc;
 
 	rc = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
 	if (rc < 0)
-		goto err;
+		return rc;
 
-	/* register i2c bus */
-	rc = tm6000_i2c_register(dev);
-	if (rc < 0)
-		goto err;
+	/* initialize hardware */
+	rc = tm6000_init(dev);
+
+	return rc;
+}
+
+
+static void use_alternative_detection_method(struct tm6000_core *dev)
+{
+	int i, model = -1;
+
+	if (!dev->eedata_size)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(tm6000_boards); i++) {
+		if (!tm6000_boards[i].eename_size)
+			continue;
+		if (dev->eedata_size < tm6000_boards[i].eename_pos +
+				       tm6000_boards[i].eename_size)
+			continue;
+
+		if (!memcmp(&dev->eedata[tm6000_boards[i].eename_pos],
+			    tm6000_boards[i].eename,
+			    tm6000_boards[i].eename_size)) {
+			model = i;
+			break;
+		}
+	}
+	if (model < 0) {
+		printk(KERN_INFO "Device has eeprom but is currently unknown\n");
+		return;
+	}
+
+	dev->model = model;
+
+	printk(KERN_INFO "Device identified via eeprom as %s (type = %d)\n",
+	       tm6000_boards[model].name, model);
+}
+
+static int tm6000_init_dev(struct tm6000_core *dev)
+{
+	struct v4l2_frequency f;
+	int rc = 0;
+
+	mutex_init(&dev->lock);
+	mutex_lock(&dev->lock);
+
+	if (!is_generic(dev->model)) {
+		rc = fill_board_specific_data(dev);
+		if (rc < 0)
+			goto err;
+
+		/* register i2c bus */
+		rc = tm6000_i2c_register(dev);
+		if (rc < 0)
+			goto err;
+	} else {
+		/* register i2c bus */
+		rc = tm6000_i2c_register(dev);
+		if (rc < 0)
+			goto err;
+
+		use_alternative_detection_method(dev);
+
+		rc = fill_board_specific_data(dev);
+		if (rc < 0)
+			goto err;
+	}
 
 	/* Default values for STD and resolutions */
 	dev->width = 720;
