@@ -1431,8 +1431,8 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	}
 
 	for (i = PORT_MDM; i < MAX_PORT; i++) {
-		if (kfifo_alloc(&dc->port[i].fifo_ul,
-		      FIFO_BUFFER_SIZE_UL, GFP_ATOMIC)) {
+		if (kfifo_alloc(&dc->port[i].fifo_ul, FIFO_BUFFER_SIZE_UL,
+					GFP_KERNEL)) {
 			dev_err(&pdev->dev,
 					"Could not allocate kfifo buffer\n");
 			ret = -ENOMEM;
