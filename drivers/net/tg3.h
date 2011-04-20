@@ -147,6 +147,7 @@
 #define  CHIPREV_ID_5717_A0		 0x05717000
 #define  CHIPREV_ID_57765_A0		 0x57785000
 #define  CHIPREV_ID_5719_A0		 0x05719000
+#define  CHIPREV_ID_5720_A0		 0x05720000
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -2602,6 +2603,7 @@ struct tg3_hw_stats {
 	tg3_stat64_t			dma_write_prioq_full;
 	tg3_stat64_t			rxbds_empty;
 	tg3_stat64_t			rx_discards;
+	tg3_stat64_t			mbuf_lwm_thresh_hit;
 	tg3_stat64_t			rx_errors;
 	tg3_stat64_t			rx_threshold_hit;
 

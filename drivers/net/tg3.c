@@ -339,6 +339,7 @@ static const struct {
 	{ "dma_write_prioq_full" },
 	{ "rxbds_empty" },
 	{ "rx_discards" },
+	{ "mbuf_lwm_thresh_hit" },
 	{ "rx_errors" },
 	{ "rx_threshold_hit" },
 
@@ -8207,6 +8208,10 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	val = BUFMGR_MODE_ENABLE | BUFMGR_MODE_ATTN_ENABLE;
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
 		val |= BUFMGR_MODE_NO_TX_UNDERRUN;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5720_A0)
+		val |= BUFMGR_MODE_MBLOW_ATTN_ENAB;
 	tw32(BUFMGR_MODE, val);
 	for (i = 0; i < 2000; i++) {
 		if (tr32(BUFMGR_MODE) & BUFMGR_MODE_ENABLE)
@@ -8870,7 +8875,19 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 	TG3_STAT_ADD32(&sp->rx_undersize_packets, MAC_RX_STATS_UNDERSIZE);
 
 	TG3_STAT_ADD32(&sp->rxbds_empty, RCVLPC_NO_RCV_BD_CNT);
-	TG3_STAT_ADD32(&sp->rx_discards, RCVLPC_IN_DISCARDS_CNT);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5717) {
+		TG3_STAT_ADD32(&sp->rx_discards, RCVLPC_IN_DISCARDS_CNT);
+	} else {
+		u32 val = tr32(HOSTCC_FLOW_ATTN);
+		val = (val & HOSTCC_FLOW_ATTN_MBUF_LWM) ? 1 : 0;
+		if (val) {
+			tw32(HOSTCC_FLOW_ATTN, HOSTCC_FLOW_ATTN_MBUF_LWM);
+			sp->rx_discards.low += val;
+			if (sp->rx_discards.low < val)
+				sp->rx_discards.high += 1;
+		}
+		sp->mbuf_lwm_thresh_hit = sp->rx_discards;
+	}
 	TG3_STAT_ADD32(&sp->rx_errors, RCVLPC_IN_ERRORS_CNT);
 }
 
@@ -13972,6 +13989,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_AX &&
 	    GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_BX)
 		tp->coalesce_mode |= HOSTCC_MODE_32BYTE;
+
+	/* Set these bits to enable statistics workaround. */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5720_A0) {
+		tp->coalesce_mode |= HOSTCC_MODE_ATTN;
+		tp->grc_mode |= GRC_MODE_IRQ_ON_FLOW_ATTN;
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
