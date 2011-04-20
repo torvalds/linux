@@ -154,6 +154,7 @@ struct x86_emulate_ops {
 				const void *new,
 				unsigned int bytes,
 				struct x86_exception *fault);
+	void (*invlpg)(struct x86_emulate_ctxt *ctxt, ulong addr);
 
 	int (*pio_in_emulated)(struct x86_emulate_ctxt *ctxt,
 			       int size, unsigned short port, void *val,

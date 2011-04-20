@@ -690,7 +690,6 @@ struct x86_emulate_ctxt;
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
-int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);

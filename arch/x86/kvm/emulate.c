@@ -2573,7 +2573,7 @@ static int em_invlpg(struct x86_emulate_ctxt *ctxt)
 
 	rc = linearize(ctxt, c->src.addr.mem, 1, false, &linear);
 	if (rc == X86EMUL_CONTINUE)
-		emulate_invlpg(ctxt->vcpu, linear);
+		ctxt->ops->invlpg(ctxt, linear);
 	/* Disable writeback. */
 	c->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;

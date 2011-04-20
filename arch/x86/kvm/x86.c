@@ -4128,10 +4128,9 @@ static unsigned long get_segment_base(struct kvm_vcpu *vcpu, int seg)
 	return kvm_x86_ops->get_segment_base(vcpu, seg);
 }
 
-int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
+static void emulator_invlpg(struct x86_emulate_ctxt *ctxt, ulong address)
 {
-	kvm_mmu_invlpg(vcpu, address);
-	return X86EMUL_CONTINUE;
+	kvm_mmu_invlpg(emul_to_vcpu(ctxt), address);
 }
 
 int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
@@ -4382,6 +4381,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
+	.invlpg              = emulator_invlpg,
 	.pio_in_emulated     = emulator_pio_in_emulated,
 	.pio_out_emulated    = emulator_pio_out_emulated,
 	.get_cached_descriptor = emulator_get_cached_descriptor,
