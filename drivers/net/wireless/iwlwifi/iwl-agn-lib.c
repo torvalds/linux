@@ -1294,9 +1294,17 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	 * mean we never reach it, but at the same time work around
 	 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
 	 * here instead of IWL_GOOD_CRC_TH_DISABLED.
+	 *
+	 * This was fixed in later versions along with some other
+	 * scan changes, and the threshold behaves as a flag in those
+	 * versions.
 	 */
-	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-					IWL_GOOD_CRC_TH_NEVER;
+	if (priv->new_scan_threshold_behaviour)
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_DISABLED;
+	else
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_NEVER;
 
 	band = priv->scan_band;
 

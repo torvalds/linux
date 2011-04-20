@@ -547,12 +547,13 @@ enum iwl_ucode_tlv_type {
  * enum iwl_ucode_tlv_flag - ucode API flags
  * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
  *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_RESERVED_1: reserved
+ * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
+ *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_RESERVED_1	= BIT(1),
+	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
 	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
 };
 
@@ -1262,6 +1263,8 @@ struct iwl_priv {
 
 	/* max number of station keys */
 	u8 sta_key_max_num;
+
+	bool new_scan_threshold_behaviour;
 
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];

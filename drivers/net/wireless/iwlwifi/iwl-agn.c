@@ -1716,6 +1716,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			priv->cfg->base_params->max_event_log_size;
 	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
 
+	priv->new_scan_threshold_behaviour =
+		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+
 	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
