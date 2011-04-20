@@ -116,8 +116,10 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 		entries   = tmap[4];
 	}
 
-	ramcfg = nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x0000003c;
-	ramcfg >>= 2;
+	ramcfg = (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x0000003c) >> 2;
+	if (bios->ram_restrict_tbl_ptr)
+		ramcfg = bios->data[bios->ram_restrict_tbl_ptr + ramcfg];
+
 	if (ramcfg >= entries) {
 		NV_WARN(dev, "ramcfg strap out of bounds!\n");
 		return NULL;
