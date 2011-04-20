@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_driver.h"
@@ -147,6 +148,22 @@ void gputimer_callback(unsigned long arg)
     }
     
     printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+}
+#endif
+
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+struct delayed_work suspend_work;
+void real_suspend(struct work_struct *work)
+{
+    gceSTATUS status;
+
+    status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
+
+    if (gcmIS_ERROR(status))
+    {
+        printk("%s fail!\n", __func__);
+        return;
+    }
 }
 #endif
 
@@ -753,6 +770,9 @@ module_exit(drv_exit);
 #if CONFIG_HAS_EARLYSUSPEND
 static void gpu_early_suspend(struct early_suspend *h)
 {
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    schedule_delayed_work(&suspend_work, 5*HZ);
+#else
 	gceSTATUS status;
 
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
@@ -762,12 +782,16 @@ static void gpu_early_suspend(struct early_suspend *h)
 	    printk("%s fail!\n", __func__);
 		return;
 	}
+#endif
 }
 
 static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
-    
+
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
@@ -822,6 +846,10 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     register_early_suspend(&gpu_early_suspend_info);
 #endif
 
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    INIT_DELAYED_WORK(&suspend_work, real_suspend);
+#endif
+
 	ret = drv_init();
 	if(!ret) {
 		platform_set_drvdata(pdev,galDevice);
@@ -835,8 +863,10 @@ gpu_probe_fail:
 
 static int __devinit gpu_remove(struct platform_device *pdev)
 {
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	drv_exit();
-
 	return 0;
 }
 
@@ -844,7 +874,10 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
-
+    
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	device = platform_get_drvdata(dev);
 
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
@@ -878,6 +911,9 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
+#if gcdENABLE_DELAY_EARLY_SUSPEND
+    cancel_delayed_work_sync(&suspend_work);
+#endif
     drv_exit();
 }
 

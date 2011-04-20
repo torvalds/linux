@@ -274,5 +274,13 @@
 */
 #define gcdENABLE_MEM_CACHE                 2
 
+/*
+    gcdENABLE_DELAY_EARLY_SUSPEND
+
+    在gpu_early_suspend中使用延时工作队列来执行suspend,
+    避免gpu_early_suspend过早执行导致用户线程的事情还处理干净
+*/
+#define gcdENABLE_DELAY_EARLY_SUSPEND       0
+
 #endif /* __gc_hal_options_h_ */
 
