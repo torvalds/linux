@@ -404,23 +404,25 @@ void
 nv50_instmem_flush(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&dev_priv->ramin_lock);
+	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	nv_wr32(dev, 0x00330c, 0x00000001);
 	if (!nv_wait(dev, 0x00330c, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
-	spin_unlock(&dev_priv->ramin_lock);
+	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }
 
 void
 nv84_instmem_flush(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&dev_priv->ramin_lock);
+	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	nv_wr32(dev, 0x070000, 0x00000001);
 	if (!nv_wait(dev, 0x070000, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
-	spin_unlock(&dev_priv->ramin_lock);
+	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }
 

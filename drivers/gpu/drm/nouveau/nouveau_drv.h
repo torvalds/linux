@@ -682,6 +682,9 @@ struct drm_nouveau_private {
 	/* For PFIFO and PGRAPH. */
 	spinlock_t context_switch_lock;
 
+	/* VM/PRAMIN flush, legacy PRAMIN aperture */
+	spinlock_t vm_lock;
+
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
 	struct nouveau_ramht  *ramht;
 	struct nouveau_gpuobj *ramfc;
