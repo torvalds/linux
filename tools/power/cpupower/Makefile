@@ -47,7 +47,7 @@ DESTDIR ?=
 # Package-related definitions. Distributions can modify the version
 # and _should_ modify the PACKAGE_BUGREPORT definition
 
-VERSION =			009p1
+VERSION=			$(shell ./utils/version-gen.sh)
 LIB_MAJ=			0.0.0
 LIB_MIN=			0
 
@@ -110,7 +110,7 @@ WARNINGS += $(call cc-supports,-Wno-pointer-sign)
 WARNINGS += $(call cc-supports,-Wdeclaration-after-statement)
 WARNINGS += -Wshadow
 
-CPPFLAGS += -DVERSION=\"$(VERSION)\" -DPACKAGE=\"$(PACKAGE)\" \
+CFLAGS += -DVERSION=\"$(VERSION)\" -DPACKAGE=\"$(PACKAGE)\" \
 		-DPACKAGE_BUGREPORT=\"$(PACKAGE_BUGREPORT)\" -D_GNU_SOURCE
 
 UTIL_OBJS =  utils/helpers/amd.o utils/helpers/topology.o utils/helpers/msr.o \
@@ -157,8 +157,7 @@ export QUIET ECHO
 
 # if DEBUG is enabled, then we do not strip or optimize
 ifeq ($(strip $(DEBUG)),true)
-	CFLAGS += -O1 -g
-	CPPFLAGS += -DDEBUG
+	CFLAGS += -O1 -g -DDEBUG
 	STRIPCMD = /bin/true -Since_we_are_debugging
 else
 	CFLAGS += $(OPTIMIZATION) -fomit-frame-pointer
@@ -172,11 +171,11 @@ all: libcpufreq cpupower $(COMPILE_NLS) $(COMPILE_BENCH)
 
 lib/%.o: $(LIB_SRC) $(LIB_HEADERS)
 	$(ECHO) "  CC      " $@
-	$(QUIET) $(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -o $@ -c lib/$*.c
+	$(QUIET) $(CC) $(CFLAGS) -fPIC -o $@ -c lib/$*.c
 
 libcpufreq.so.$(LIB_MAJ): $(LIB_OBJS)
 	$(ECHO) "  LD      " $@
-	$(QUIET) $(CC) -shared $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+	$(QUIET) $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ \
 		-Wl,-soname,libcpufreq.so.$(LIB_MIN) $(LIB_OBJS)
 	@ln -sf $@ libcpufreq.so
 	@ln -sf $@ libcpufreq.so.$(LIB_MIN)
@@ -189,7 +188,7 @@ $(UTIL_OBJS): $(UTIL_HEADERS)
 
 .c.o:
 	$(ECHO) "  CC      " $@
-	$(QUIET) $(CC) $(CFLAGS) $(CPPFLAGS) -I./lib -I ./utils -o $@ -c $*.c
+	$(QUIET) $(CC) $(CFLAGS) -I./lib -I ./utils -o $@ -c $*.c
 
 cpupower: $(UTIL_OBJS) libcpufreq.so.$(LIB_MAJ)
 	$(ECHO) "  CC      " $@
