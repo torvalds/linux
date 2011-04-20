@@ -187,6 +187,7 @@ struct x86_emulate_ops {
 	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
 	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
 	void (*halt)(struct x86_emulate_ctxt *ctxt);
+	void (*wbinvd)(struct x86_emulate_ctxt *ctxt);
 	int (*fix_hypercall)(struct x86_emulate_ctxt *ctxt);
 	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
 	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */

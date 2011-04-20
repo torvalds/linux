@@ -4154,6 +4154,11 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wbinvd);
 
+static void emulator_wbinvd(struct x86_emulate_ctxt *ctxt)
+{
+	kvm_emulate_wbinvd(emul_to_vcpu(ctxt));
+}
+
 int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 {
 	return _kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
@@ -4408,6 +4413,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_msr             = emulator_set_msr,
 	.get_msr             = emulator_get_msr,
 	.halt                = emulator_halt,
+	.wbinvd              = emulator_wbinvd,
 	.fix_hypercall       = emulator_fix_hypercall,
 	.get_fpu             = emulator_get_fpu,
 	.put_fpu             = emulator_put_fpu,
