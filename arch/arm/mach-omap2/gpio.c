@@ -61,13 +61,29 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	pdata->dbck_flag = dev_attr->dbck_flag;
 	pdata->virtual_irq_start = IH_GPIO_BASE + 32 * (id - 1);
 
+	pdata->regs = kzalloc(sizeof(struct omap_gpio_reg_offs), GFP_KERNEL);
+	if (!pdata) {
+		pr_err("gpio%d: Memory allocation failed\n", id);
+		return -ENOMEM;
+	}
+
 	switch (oh->class->rev) {
 	case 0:
 	case 1:
 		pdata->bank_type = METHOD_GPIO_24XX;
+		pdata->regs->direction = OMAP24XX_GPIO_OE;
+		pdata->regs->datain = OMAP24XX_GPIO_DATAIN;
+		pdata->regs->dataout = OMAP24XX_GPIO_DATAOUT;
+		pdata->regs->set_dataout = OMAP24XX_GPIO_SETDATAOUT;
+		pdata->regs->clr_dataout = OMAP24XX_GPIO_CLEARDATAOUT;
 		break;
 	case 2:
 		pdata->bank_type = METHOD_GPIO_44XX;
+		pdata->regs->direction = OMAP4_GPIO_OE;
+		pdata->regs->datain = OMAP4_GPIO_DATAIN;
+		pdata->regs->dataout = OMAP4_GPIO_DATAOUT;
+		pdata->regs->set_dataout = OMAP4_GPIO_SETDATAOUT;
+		pdata->regs->clr_dataout = OMAP4_GPIO_CLEARDATAOUT;
 		break;
 	default:
 		WARN(1, "Invalid gpio bank_type\n");

@@ -55,6 +55,10 @@ struct gpio_bank {
 	bool dbck_flag;
 	int stride;
 	u32 width;
+
+	void (*set_dataout)(struct gpio_bank *bank, int gpio, int enable);
+
+	struct omap_gpio_reg_offs *regs;
 };
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -125,41 +129,7 @@ static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 	void __iomem *reg = bank->base;
 	u32 l;
 
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_IO_CNTL / bank->stride;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_DIR_CONTROL;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		reg += OMAP1610_GPIO_DIRECTION;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_DIR_CONTROL;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		reg += OMAP24XX_GPIO_OE;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP4)
-	case METHOD_GPIO_44XX:
-		reg += OMAP4_GPIO_OE;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		return;
-	}
+	reg += bank->regs->direction;
 	l = __raw_readl(reg);
 	if (is_input)
 		l |= 1 << gpio;
@@ -168,163 +138,52 @@ static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 	__raw_writel(l, reg);
 }
 
-static void _set_gpio_dataout(struct gpio_bank *bank, int gpio, int enable)
+
+/* set data out value using dedicate set/clear register */
+static void _set_gpio_dataout_reg(struct gpio_bank *bank, int gpio, int enable)
 {
 	void __iomem *reg = bank->base;
-	u32 l = 0;
+	u32 l = GPIO_BIT(bank, gpio);
 
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_OUTPUT / bank->stride;
-		l = __raw_readl(reg);
-		if (enable)
-			l |= 1 << gpio;
-		else
-			l &= ~(1 << gpio);
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_DATA_OUTPUT;
-		l = __raw_readl(reg);
-		if (enable)
-			l |= 1 << gpio;
-		else
-			l &= ~(1 << gpio);
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		if (enable)
-			reg += OMAP1610_GPIO_SET_DATAOUT;
-		else
-			reg += OMAP1610_GPIO_CLEAR_DATAOUT;
-		l = 1 << gpio;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_DATA_OUTPUT;
-		l = __raw_readl(reg);
-		if (enable)
-			l |= 1 << gpio;
-		else
-			l &= ~(1 << gpio);
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		if (enable)
-			reg += OMAP24XX_GPIO_SETDATAOUT;
-		else
-			reg += OMAP24XX_GPIO_CLEARDATAOUT;
-		l = 1 << gpio;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_44XX:
-		if (enable)
-			reg += OMAP4_GPIO_SETDATAOUT;
-		else
-			reg += OMAP4_GPIO_CLEARDATAOUT;
-		l = 1 << gpio;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		return;
-	}
+	if (enable)
+		reg += bank->regs->set_dataout;
+	else
+		reg += bank->regs->clr_dataout;
+
+	__raw_writel(l, reg);
+}
+
+/* set data out value using mask register */
+static void _set_gpio_dataout_mask(struct gpio_bank *bank, int gpio, int enable)
+{
+	void __iomem *reg = bank->base + bank->regs->dataout;
+	u32 gpio_bit = GPIO_BIT(bank, gpio);
+	u32 l;
+
+	l = __raw_readl(reg);
+	if (enable)
+		l |= gpio_bit;
+	else
+		l &= ~gpio_bit;
 	__raw_writel(l, reg);
 }
 
 static int _get_gpio_datain(struct gpio_bank *bank, int gpio)
 {
-	void __iomem *reg;
+	void __iomem *reg = bank->base + bank->regs->datain;
 
 	if (check_gpio(gpio) < 0)
 		return -EINVAL;
-	reg = bank->base;
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_INPUT_LATCH / bank->stride;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_DATA_INPUT;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		reg += OMAP1610_GPIO_DATAIN;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_DATA_INPUT;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		reg += OMAP24XX_GPIO_DATAIN;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_44XX:
-		reg += OMAP4_GPIO_DATAIN;
-		break;
-#endif
-	default:
-		return -EINVAL;
-	}
-	return (__raw_readl(reg)
-			& (GPIO_BIT(bank, gpio))) != 0;
+
+	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
 }
 
 static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 {
-	void __iomem *reg;
+	void __iomem *reg = bank->base + bank->regs->dataout;
 
 	if (check_gpio(gpio) < 0)
 		return -EINVAL;
-	reg = bank->base;
-
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_OUTPUT / bank->stride;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_DATA_OUTPUT;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		reg += OMAP1610_GPIO_DATAOUT;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_DATA_OUTPUT;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		reg += OMAP24XX_GPIO_DATAOUT;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_44XX:
-		reg += OMAP4_GPIO_DATAOUT;
-		break;
-#endif
-	default:
-		return -EINVAL;
-	}
 
 	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
 }
@@ -1281,31 +1140,8 @@ static int gpio_input(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_is_input(struct gpio_bank *bank, int mask)
 {
-	void __iomem *reg = bank->base;
+	void __iomem *reg = bank->base + bank->regs->direction;
 
-	switch (bank->method) {
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_IO_CNTL / bank->stride;
-		break;
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_DIR_CONTROL;
-		break;
-	case METHOD_GPIO_1610:
-		reg += OMAP1610_GPIO_DIRECTION;
-		break;
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_DIR_CONTROL;
-		break;
-	case METHOD_GPIO_24XX:
-		reg += OMAP24XX_GPIO_OE;
-		break;
-	case METHOD_GPIO_44XX:
-		reg += OMAP4_GPIO_OE;
-		break;
-	default:
-		WARN_ONCE(1, "gpio_is_input: incorrect OMAP GPIO method");
-		return -EINVAL;
-	}
 	return __raw_readl(reg) & mask;
 }
 
@@ -1334,7 +1170,7 @@ static int gpio_output(struct gpio_chip *chip, unsigned offset, int value)
 
 	bank = container_of(chip, struct gpio_bank, chip);
 	spin_lock_irqsave(&bank->lock, flags);
-	_set_gpio_dataout(bank, offset, value);
+	bank->set_dataout(bank, offset, value);
 	_set_gpio_direction(bank, offset, 0);
 	spin_unlock_irqrestore(&bank->lock, flags);
 	return 0;
@@ -1368,7 +1204,7 @@ static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	bank = container_of(chip, struct gpio_bank, chip);
 	spin_lock_irqsave(&bank->lock, flags);
-	_set_gpio_dataout(bank, offset, value);
+	bank->set_dataout(bank, offset, value);
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
@@ -1563,6 +1399,13 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;
 	bank->width = pdata->bank_width;
+
+	bank->regs = pdata->regs;
+
+	if (bank->regs->set_dataout && bank->regs->clr_dataout)
+		bank->set_dataout = _set_gpio_dataout_reg;
+	else
+		bank->set_dataout = _set_gpio_dataout_mask;
 
 	spin_lock_init(&bank->lock);
 

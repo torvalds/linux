@@ -39,11 +39,18 @@ static struct __initdata resource omap7xx_mpu_gpio_resources[] = {
 	},
 };
 
+static struct omap_gpio_reg_offs omap7xx_mpuio_regs = {
+	.direction	= OMAP_MPUIO_IO_CNTL / 2,
+	.datain		= OMAP_MPUIO_INPUT_LATCH / 2,
+	.dataout	= OMAP_MPUIO_OUTPUT / 2,
+};
+
 static struct __initdata omap_gpio_platform_data omap7xx_mpu_gpio_config = {
 	.virtual_irq_start	= IH_MPUIO_BASE,
 	.bank_type		= METHOD_MPUIO,
 	.bank_width		= 32,
 	.bank_stride		= 2,
+	.regs                   = &omap7xx_mpuio_regs,
 };
 
 static struct __initdata platform_device omap7xx_mpu_gpio = {
@@ -69,10 +76,17 @@ static struct __initdata resource omap7xx_gpio1_resources[] = {
 	},
 };
 
+static struct omap_gpio_reg_offs omap7xx_gpio_regs = {
+	.direction	= OMAP7XX_GPIO_DIR_CONTROL,
+	.datain		= OMAP7XX_GPIO_DATA_INPUT,
+	.dataout	= OMAP7XX_GPIO_DATA_OUTPUT,
+};
+
 static struct __initdata omap_gpio_platform_data omap7xx_gpio1_config = {
 	.virtual_irq_start	= IH_GPIO_BASE,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio1 = {
@@ -102,6 +116,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio2_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 32,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio2 = {
@@ -131,6 +146,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio3_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 64,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio3 = {
@@ -160,6 +176,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio4_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 96,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio4 = {
@@ -189,6 +206,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio5_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 128,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio5 = {
@@ -218,6 +236,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_gpio6_config = {
 	.virtual_irq_start	= IH_GPIO_BASE + 160,
 	.bank_type		= METHOD_GPIO_7XX,
 	.bank_width		= 32,
+	.regs			= &omap7xx_gpio_regs,
 };
 
 static struct __initdata platform_device omap7xx_gpio6 = {
