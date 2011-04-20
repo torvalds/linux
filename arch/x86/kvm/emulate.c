@@ -2644,9 +2644,9 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 		if (efer & EFER_LMA)
 			rsvd = CR3_L_MODE_RESERVED_BITS;
-		else if (is_pae(ctxt->vcpu))
+		else if (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_PAE)
 			rsvd = CR3_PAE_RESERVED_BITS;
-		else if (is_paging(ctxt->vcpu))
+		else if (ctxt->ops->get_cr(ctxt, 0) & X86_CR0_PG)
 			rsvd = CR3_NONPAE_RESERVED_BITS;
 
 		if (new_val & rsvd)
