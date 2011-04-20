@@ -1180,6 +1180,7 @@ enum {
 #define AR_RTC_PLL_REFDIV_5     0x000000c0
 #define AR_RTC_PLL_CLKSEL       0x00000300
 #define AR_RTC_PLL_CLKSEL_S     8
+#define AR_RTC_PLL_BYPASS	0x00010000
 
 #define PLL3 0x16188
 #define PLL3_DO_MEAS_MASK 0x40000000
@@ -1226,7 +1227,8 @@ enum {
 
 /* RTC_DERIVED_* - only for AR9100 */
 
-#define AR_RTC_DERIVED_CLK           (AR_RTC_BASE + 0x0038)
+#define AR_RTC_DERIVED_CLK \
+	(AR_SREV_9100(ah) ? (AR_RTC_BASE + 0x0038) : 0x7038)
 #define AR_RTC_DERIVED_CLK_PERIOD    0x0000fffe
 #define AR_RTC_DERIVED_CLK_PERIOD_S  1
 
