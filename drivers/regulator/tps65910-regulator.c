@@ -754,7 +754,7 @@ static int __init tps65910_regulator_init(void)
 {
 	return platform_driver_register(&tps65910_regulator_driver);
 }
-module_init(tps65910_regulator_init);
+rootfs_initcall(tps65910_regulator_init);
 
 static void __exit tps65910_regulator_exit(void)
 {
