@@ -211,8 +211,6 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 
 	scrubval = scrubval & 0x001F;
 
-	amd64_debug("pci-read, sdram scrub control value: %d\n", scrubval);
-
 	for (i = 0; i < ARRAY_SIZE(scrubrates); i++) {
 		if (scrubrates[i].scrubval == scrubval) {
 			retval = scrubrates[i].bandwidth;
