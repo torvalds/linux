@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.25 2011/02/11 21:16:02 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.25 2011-02-11 21:16:02 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1219,6 +1219,82 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		__FUNCTION__, arp_enable));
 }
 #endif
+
+
+void dhd_arp_cleanup(dhd_pub_t *dhd)
+{
+#ifdef ARP_OFFLOAD_SUPPORT
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	dhd_os_proto_block(dhd);
+
+	iov_len = bcm_mkiovar("arp_hostip_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len)) < 0)
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+
+	iov_len = bcm_mkiovar("arp_table_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len)) < 0)
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+
+	dhd_os_proto_unblock(dhd);
+
+#endif /* ARP_OFFLOAD_SUPPORT */
+}
+
+void dhd_arp_offload_add_ip(dhd_pub_t *dhd, u32 ipaddr)
+{
+#ifdef ARP_OFFLOAD_SUPPORT
+	int iov_len = 0;
+	char iovbuf[32];
+	int retcode;
+
+	dhd_os_proto_block(dhd);
+
+	iov_len = bcm_mkiovar("arp_hostip", (char *)&ipaddr, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len);
+
+	dhd_os_proto_unblock(dhd);
+
+	if (retcode)
+		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
+		__FUNCTION__, retcode));
+	else
+		DHD_TRACE(("%s: ARP ipaddr entry added\n",
+		__FUNCTION__));
+#endif /* ARP_OFFLOAD_SUPPORT */
+}
+
+
+int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
+{
+#ifdef ARP_OFFLOAD_SUPPORT
+	int retcode;
+	int iov_len = 0;
+
+	if (!buf)
+		return -1;
+
+	dhd_os_proto_block(dhd);
+
+	iov_len = bcm_mkiovar("arp_hostip", 0, 0, buf, buflen);
+	retcode = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, buflen);
+
+	dhd_os_proto_unblock(dhd);
+
+	if (retcode) {
+		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
+		__FUNCTION__, retcode));
+
+		return -1;
+	}
+#endif /* ARP_OFFLOAD_SUPPORT */
+	return 0;
+}
+
 
 int
 dhd_preinit_ioctls(dhd_pub_t *dhd)

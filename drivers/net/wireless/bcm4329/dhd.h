@@ -448,4 +448,9 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
 
+/* dhd_commn arp offload wrapers */
+extern void dhd_arp_cleanup(dhd_pub_t *dhd);
+int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen);
+void dhd_arp_offload_add_ip(dhd_pub_t *dhd, u32 ipaddr);
+
 #endif /* _dhd_h_ */
