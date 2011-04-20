@@ -1369,12 +1369,11 @@ err_enable_device:
 static void __devexit s3_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
+	struct s3fb_info __maybe_unused *par = info->par;
 
 	if (info) {
 
 #ifdef CONFIG_MTRR
-		struct s3fb_info *par = info->par;
-
 		if (par->mtrr_reg >= 0) {
 			mtrr_del(par->mtrr_reg, 0, 0);
 			par->mtrr_reg = -1;
