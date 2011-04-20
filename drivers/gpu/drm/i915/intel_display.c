@@ -5551,7 +5551,11 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	if (!crtc->enabled) {
 		if (!mode)
 			mode = &load_detect_mode;
-		drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb);
+
+		if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb)) {
+			DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
+			return false;
+		}
 	} else {
 		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
 			crtc_funcs = crtc->helper_private;
