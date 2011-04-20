@@ -563,7 +563,8 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	return 0;
 }
 
-int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
+				u8 enable_coex)
 {
 	struct ath9k_htc_cap_target tcap;
 	int ret;
@@ -571,13 +572,9 @@ int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 
 	memset(&tcap, 0, sizeof(struct ath9k_htc_cap_target));
 
-	/* FIXME: Values are hardcoded */
-	tcap.flags = 0x240c40;
-	tcap.flags_ext = 0x80601000;
-	tcap.ampdu_limit = 0xffff0000;
-	tcap.ampdu_subframes = 20;
-	tcap.tx_chainmask_legacy = priv->ah->caps.tx_chainmask;
-	tcap.protmode = 1;
+	tcap.ampdu_limit = cpu_to_be32(0xffff);
+	tcap.ampdu_subframes = priv->hw->max_tx_aggregation_subframes;
+	tcap.enable_coex = enable_coex;
 	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
 	WMI_CMD_BUF(WMI_TARGET_IC_UPDATE_CMDID, &tcap);
@@ -936,7 +933,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ath9k_host_rx_init(priv);
 
-	ret = ath9k_htc_update_cap_target(priv);
+	ret = ath9k_htc_update_cap_target(priv, 0);
 	if (ret)
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Failed to update capability in target\n");

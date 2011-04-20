@@ -65,15 +65,13 @@ static void ath_btcoex_period_work(struct work_struct *work)
 	u32 timer_period;
 	bool is_btscan;
 	int ret;
-	u8 cmd_rsp, aggr;
 
 	ath_detect_bt_priority(priv);
 
 	is_btscan = !!(priv->op_flags & OP_BT_SCAN);
 
-	aggr = priv->op_flags & OP_BT_PRIORITY_DETECTED;
-
-	WMI_CMD_BUF(WMI_AGGR_LIMIT_CMD, &aggr);
+	ret = ath9k_htc_update_cap_target(priv,
+				  !!(priv->op_flags & OP_BT_PRIORITY_DETECTED));
 	if (ret) {
 		ath_err(common, "Unable to set BTCOEX parameters\n");
 		return;

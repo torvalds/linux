@@ -106,15 +106,14 @@ struct tx_beacon_header {
 	u16 rev;
 } __packed;
 
+#define MAX_TX_AMPDU_SUBFRAMES_9271 17
+#define MAX_TX_AMPDU_SUBFRAMES_7010 22
+
 struct ath9k_htc_cap_target {
-	u32 flags;
-	u32 flags_ext;
-	u32 ampdu_limit;
+	__be32 ampdu_limit;
 	u8 ampdu_subframes;
+	u8 enable_coex;
 	u8 tx_chainmask;
-	u8 tx_chainmask_legacy;
-	u8 rtscts_ratecode;
-	u8 protmode;
 	u8 pad;
 } __packed;
 
@@ -551,7 +550,8 @@ void ath9k_htc_txep(void *priv, struct sk_buff *skb, enum htc_endpoint_id ep_id,
 void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 			enum htc_endpoint_id ep_id, bool txok);
 
-int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv);
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
+				u8 enable_coex);
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
 void ath9k_htc_ani_work(struct work_struct *work);

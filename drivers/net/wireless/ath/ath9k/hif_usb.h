@@ -17,6 +17,9 @@
 #ifndef HTC_USB_H
 #define HTC_USB_H
 
+#define MAJOR_VERSION_REQ 1
+#define MINOR_VERSION_REQ 1
+
 #define IS_AR7010_DEVICE(_v) (((_v) == AR9280_USB) || ((_v) == AR9287_USB))
 
 #define AR9271_FIRMWARE       0x501000
