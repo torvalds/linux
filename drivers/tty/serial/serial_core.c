@@ -1414,7 +1414,6 @@ static void __uart_wait_until_sent(struct uart_port *port, int timeout)
 		if (time_after(jiffies, expire))
 			break;
 	}
-	set_current_state(TASK_RUNNING); /* might not be needed */
 }
 
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
