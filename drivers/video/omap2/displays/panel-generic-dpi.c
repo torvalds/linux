@@ -275,6 +275,28 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "h4",
 	},
+
+	/* Unknown panel used in Samsung OMAP2 Apollon */
+	{
+		{
+			.x_res		= 480,
+			.y_res		= 272,
+
+			.pixel_clock	= 6250,
+
+			.hsw		= 41,
+			.hfp		= 2,
+			.hbp		= 2,
+
+			.vsw		= 10,
+			.vfp		= 2,
+			.vbp		= 2,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+						OMAP_DSS_LCD_IHS,
+
+		.name			= "apollon",
+	},
 };
 
 struct panel_drv_data {
