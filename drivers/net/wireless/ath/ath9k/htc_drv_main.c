@@ -467,6 +467,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	struct ath9k_htc_sta *ista;
 	int ret, sta_idx;
 	u8 cmd_rsp;
+	u16 maxampdu;
 
 	if (priv->nstations >= ATH9K_HTC_MAX_STA)
 		return -ENOBUFS;
@@ -490,7 +491,15 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-	tsta.maxampdu = cpu_to_be16(0xffff);
+
+	if (!sta) {
+		tsta.maxampdu = cpu_to_be16(0xffff);
+	} else {
+		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				 sta->ht_cap.ampdu_factor);
+		tsta.maxampdu = cpu_to_be16(maxampdu);
+	}
+
 	if (sta && sta->ht_cap.ht_supported)
 		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
 
