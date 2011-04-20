@@ -250,6 +250,8 @@
 /* M98095_088_CFG_LEVEL */
 	#define M98095_VSEN                     (1<<6)
 	#define M98095_ZDEN                     (1<<5)
+	#define M98095_BQ2EN                    (1<<3)
+	#define M98095_BQ1EN                    (1<<2)
 	#define M98095_EQ2EN                    (1<<1)
 	#define M98095_EQ1EN                    (1<<0)
 
@@ -280,5 +282,18 @@
 	#define M98095_HPPLYBACK                (1<<2)
 	#define M98095_PWRSV8K                  (1<<1)
 	#define M98095_PWRSV                    (1<<0)
+
+#define M98095_COEFS_PER_BAND            5
+
+#define M98095_BYTE1(w) ((w >> 8) & 0xff)
+#define M98095_BYTE0(w) (w & 0xff)
+
+/* Equalizer filter coefficients */
+#define M98095_110_DAI1_EQ_BASE             0x10
+#define M98095_142_DAI2_EQ_BASE             0x42
+
+/* Biquad filter coefficients */
+#define M98095_174_DAI1_BQ_BASE             0x74
+#define M98095_17E_DAI2_BQ_BASE             0x7E
 
 #endif
