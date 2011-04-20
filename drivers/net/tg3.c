@@ -962,6 +962,14 @@ static int tg3_phy_auxctl_read(struct tg3 *tp, int reg, u32 *val)
 	return err;
 }
 
+static int tg3_phy_auxctl_write(struct tg3 *tp, int reg, u32 set)
+{
+	if (reg == MII_TG3_AUXCTL_SHDWSEL_MISC)
+		set |= MII_TG3_AUXCTL_MISC_WREN;
+
+	return tg3_writephy(tp, MII_TG3_AUX_CTRL, set | reg);
+}
+
 static int tg3_bmcr_reset(struct tg3 *tp)
 {
 	u32 phy_control;
@@ -1701,8 +1709,8 @@ static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
 				phy |= MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
 			else
 				phy &= ~MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
-			phy |= MII_TG3_AUXCTL_MISC_WREN;
-			tg3_writephy(tp, MII_TG3_AUX_CTRL, phy);
+			tg3_phy_auxctl_write(tp,
+					     MII_TG3_AUXCTL_SHDWSEL_MISC, phy);
 		}
 	}
 }
@@ -1717,8 +1725,8 @@ static void tg3_phy_set_wirespeed(struct tg3 *tp)
 
 	ret = tg3_phy_auxctl_read(tp, MII_TG3_AUXCTL_SHDWSEL_MISC, &val);
 	if (!ret)
-		tg3_writephy(tp, MII_TG3_AUX_CTRL,
-			     (val | (1 << 15) | (1 << 4)));
+		tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_MISC,
+				     val | MII_TG3_AUXCTL_MISC_WIRESPD_EN);
 }
 
 static void tg3_phy_apply_otp(struct tg3 *tp)
@@ -2104,13 +2112,14 @@ out:
 	/* support jumbo frames */
 	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
 		/* Cannot do read-modify-write on 5401 */
-		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4c20);
+		tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_AUXCTL, 0x4c20);
 	} else if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
 		/* Set bit 14 with read-modify-write to preserve other bits */
 		err = tg3_phy_auxctl_read(tp,
 					  MII_TG3_AUXCTL_SHDWSEL_AUXCTL, &val);
 		if (!err)
-			tg3_writephy(tp, MII_TG3_AUX_CTRL, val | 0x4000);
+			tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_AUXCTL,
+					   val | MII_TG3_AUXCTL_ACTL_EXTPKTLEN);
 	}
 
 	/* Set phy register 0x10 bit 0 to high fifo elasticity to support
@@ -2319,11 +2328,10 @@ static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 
-		tg3_writephy(tp, MII_TG3_AUX_CTRL,
-			     MII_TG3_AUXCTL_SHDWSEL_PWRCTL |
-			     MII_TG3_AUXCTL_PCTL_100TX_LPWR |
-			     MII_TG3_AUXCTL_PCTL_SPR_ISOLATE |
-			     MII_TG3_AUXCTL_PCTL_VREG_11V);
+		val = MII_TG3_AUXCTL_PCTL_100TX_LPWR |
+		      MII_TG3_AUXCTL_PCTL_SPR_ISOLATE |
+		      MII_TG3_AUXCTL_PCTL_VREG_11V;
+		tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_PWRCTL, val);
 	}
 
 	/* The PHY should not be powered down on some chips because
@@ -2717,8 +2725,13 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 		u32 mac_mode;
 
 		if (!(tp->phy_flags & TG3_PHYFLG_PHY_SERDES)) {
-			if (do_low_power) {
-				tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x5a);
+			if (do_low_power &&
+			    !(tp->phy_flags & TG3_PHYFLG_IS_FET)) {
+				tg3_phy_auxctl_write(tp,
+					       MII_TG3_AUXCTL_SHDWSEL_PWRCTL,
+					       MII_TG3_AUXCTL_PCTL_WOL_EN |
+					       MII_TG3_AUXCTL_PCTL_100TX_LPWR |
+					       MII_TG3_AUXCTL_PCTL_CL_AB_TXDAC);
 				udelay(40);
 			}
 
@@ -3092,7 +3105,7 @@ static int tg3_init_5401phy_dsp(struct tg3 *tp)
 
 	/* Turn off tap power management. */
 	/* Set Extended packet length bit */
-	err  = tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4c20);
+	err = tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_AUXCTL, 0x4c20);
 
 	err |= tg3_phydsp_write(tp, 0x0012, 0x1804);
 	err |= tg3_phydsp_write(tp, 0x0013, 0x1204);
@@ -3198,7 +3211,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		udelay(80);
 	}
 
-	tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x02);
+	tg3_phy_auxctl_write(tp, MII_TG3_AUXCTL_SHDWSEL_PWRCTL, 0);
 
 	/* Some third-party PHYs need to be reset on link going
 	 * down.
@@ -3283,8 +3296,9 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 					  MII_TG3_AUXCTL_SHDWSEL_MISCTEST,
 					  &val);
 		if (!err && !(val & (1 << 10))) {
-			val |= (1 << 10);
-			tg3_writephy(tp, MII_TG3_AUX_CTRL, val);
+			tg3_phy_auxctl_write(tp,
+					     MII_TG3_AUXCTL_SHDWSEL_MISCTEST,
+					     val | (1 << 10));
 			goto relink;
 		}
 	}
