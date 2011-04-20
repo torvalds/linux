@@ -7952,6 +7952,48 @@ static void tg3_rings_reset(struct tg3 *tp)
 	}
 }
 
+static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
+{
+	u32 val, bdcache_maxcnt, host_rep_thresh, nic_rep_thresh;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5750_PLUS) ||
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+		bdcache_maxcnt = TG3_SRAM_RX_STD_BDCACHE_SIZE_5700;
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		 GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		bdcache_maxcnt = TG3_SRAM_RX_STD_BDCACHE_SIZE_5755;
+	else
+		bdcache_maxcnt = TG3_SRAM_RX_STD_BDCACHE_SIZE_5906;
+
+	nic_rep_thresh = min(bdcache_maxcnt / 2, tp->rx_std_max_post);
+	host_rep_thresh = max_t(u32, tp->rx_pending / 8, 1);
+
+	val = min(nic_rep_thresh, host_rep_thresh);
+	tw32(RCVBDI_STD_THRESH, val);
+
+	if (tp->tg3_flags3 & TG3_FLG3_57765_PLUS)
+		tw32(STD_REPLENISH_LWM, bdcache_maxcnt);
+
+	if (!(tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) ||
+		(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
+		return;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+		bdcache_maxcnt = TG3_SRAM_RX_JMB_BDCACHE_SIZE_5700;
+	else
+		bdcache_maxcnt = TG3_SRAM_RX_JMB_BDCACHE_SIZE_5717;
+
+	host_rep_thresh = max_t(u32, tp->rx_jumbo_pending / 8, 1);
+
+	val = min(bdcache_maxcnt / 2, host_rep_thresh);
+	tw32(RCVBDI_JUMBO_THRESH, val);
+
+	if (tp->tg3_flags3 & TG3_FLG3_57765_PLUS)
+		tw32(JMB_REPLENISH_LWM, bdcache_maxcnt);
+}
+
 /* tp->lock is held. */
 static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 {
@@ -8223,21 +8265,10 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		return -ENODEV;
 	}
 
-	/* Setup replenish threshold. */
-	val = tp->rx_pending / 8;
-	if (val == 0)
-		val = 1;
-	else if (val > tp->rx_std_max_post)
-		val = tp->rx_std_max_post;
-	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		if (tp->pci_chip_rev_id == CHIPREV_ID_5906_A1)
-			tw32(ISO_PKT_TX, (tr32(ISO_PKT_TX) & ~0x3) | 0x2);
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5906_A1)
+		tw32(ISO_PKT_TX, (tr32(ISO_PKT_TX) & ~0x3) | 0x2);
 
-		if (val > (TG3_RX_INTERNAL_RING_SZ_5906 / 2))
-			val = TG3_RX_INTERNAL_RING_SZ_5906 / 2;
-	}
-
-	tw32(RCVBDI_STD_THRESH, val);
+	tg3_setup_rxbd_thresholds(tp);
 
 	/* Initialize TG3_BDINFO's at:
 	 *  RCVDBDI_STD_BD:	standard eth size rx ring
@@ -8275,8 +8306,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	    ((tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) &&
 	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))) {
-		/* Setup replenish threshold. */
-		tw32(RCVBDI_JUMBO_THRESH, tp->rx_jumbo_pending / 8);
 
 		if (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) {
 			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_HOST_ADDR + TG3_64BIT_REG_HIGH,
@@ -8316,11 +8345,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tpr->rx_jmb_prod_idx = (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) ?
 			  tp->rx_jumbo_pending : 0;
 	tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG, tpr->rx_jmb_prod_idx);
-
-	if (tp->tg3_flags3 & TG3_FLG3_57765_PLUS) {
-		tw32(STD_REPLENISH_LWM, 32);
-		tw32(JMB_REPLENISH_LWM, 16);
-	}
 
 	tg3_rings_reset(tp);
 
@@ -13598,6 +13622,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    (tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
 	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
+
 
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
 	    (tp->tg3_flags2 & TG3_FLG2_5750_PLUS))
