@@ -1406,6 +1406,38 @@ struct platform_device rk28_device_headset = {
 };
 #endif
 
+#if defined(CONFIG_GS_L3G4200D)
+
+#include <linux/l3g4200d.h>
+#define L3G4200D_INT_PIN  RK29_PIN5_PA3
+
+static int l3g4200d_init_platform_hw(void)
+{
+	if (gpio_request(L3G4200D_INT_PIN, NULL) != 0) {
+		gpio_free(L3G4200D_INT_PIN);
+		printk("%s: request l3g4200d int pin error\n", __func__);
+		return -EIO;
+	}
+	gpio_pull_updown(L3G4200D_INT_PIN, 1);
+	return 0;
+}
+
+static struct l3g4200d_platform_data l3g4200d_info = {
+	.fs_range = 1,
+	
+	.axis_map_x = 0,
+	.axis_map_y = 1,
+	.axis_map_z = 2,
+
+	.negate_x = 1,
+	.negate_y = 1,
+	.negate_z = 0,
+
+	.init = l3g4200d_init_platform_hw,
+};
+
+#endif
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -1568,6 +1600,15 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
         .flags          = 0,
         .irq            = RK29_PIN2_PA3,
     },
+#endif
+#if defined (CONFIG_GS_L3G4200D)
+	{
+		.type           = "gs_l3g4200d",
+		.addr           = 0x69,
+		.flags          = 0,
+		.irq            = L3G4200D_INT_PIN,
+		.platform_data  = &l3g4200d_info,
+	},
 #endif
 };
 #endif
