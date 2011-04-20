@@ -364,8 +364,6 @@ struct port {
 	u8 toggle_ul;
 	u16 token_dl;
 
-	/* mutex to ensure one access patch to this port */
-	struct mutex tty_sem;
 	wait_queue_head_t tty_wait;
 	struct async_icount tty_icount;
 
@@ -1474,7 +1472,6 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		struct device *tty_dev;
 		struct port *port = &dc->port[i];
 		port->dc = dc;
-		mutex_init(&port->tty_sem);
 		tty_port_init(&port->port);
 		port->port.ops = &noz_tty_port_ops;
 		tty_dev = tty_register_device(ntty_driver, dc->index_start + i,
@@ -1688,8 +1685,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	if (!dc || !port)
 		return -ENODEV;
 
-	mutex_lock(&port->tty_sem);
-
 	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
 	/* notify card */
@@ -1714,7 +1709,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 
 exit:
-	mutex_unlock(&port->tty_sem);
 	return rval;
 }
 
@@ -1733,11 +1727,9 @@ static int ntty_write_room(struct tty_struct *tty)
 	int room = 4096;
 	const struct nozomi *dc = get_dc_by_tty(tty);
 
-	if (dc) {
-		mutex_lock(&port->tty_sem);
+	if (dc)
 		room = kfifo_avail(&port->fifo_ul);
-		mutex_unlock(&port->tty_sem);
-	}
+
 	return room;
 }
 
