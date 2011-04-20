@@ -269,8 +269,6 @@ struct x86_emulate_ctxt {
 	struct x86_emulate_ops *ops;
 
 	/* Register state before/after emulation. */
-	struct kvm_vcpu *vcpu;
-
 	unsigned long eflags;
 	unsigned long eip; /* eip before instruction emulation */
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */

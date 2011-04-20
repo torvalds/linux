@@ -4463,7 +4463,6 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
-	vcpu->arch.emulate_ctxt.vcpu = vcpu;
 	vcpu->arch.emulate_ctxt.eflags = kvm_get_rflags(vcpu);
 	vcpu->arch.emulate_ctxt.eip = kvm_rip_read(vcpu);
 	vcpu->arch.emulate_ctxt.mode =
