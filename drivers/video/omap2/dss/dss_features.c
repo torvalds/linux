@@ -52,7 +52,7 @@ struct omap_dss_features {
 };
 
 /* This struct is assigned to one of the below during initialization */
-static struct omap_dss_features *omap_current_dss_features;
+static const struct omap_dss_features *omap_current_dss_features;
 
 static const struct dss_reg_field omap2_dss_reg_fields[] = {
 	[FEAT_REG_FIRHINC]			= { 11, 0 },
@@ -226,7 +226,7 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 };
 
 /* OMAP2 DSS Features */
-static struct omap_dss_features omap2_dss_features = {
+static const struct omap_dss_features omap2_dss_features = {
 	.reg_fields = omap2_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap2_dss_reg_fields),
 
@@ -244,7 +244,7 @@ static struct omap_dss_features omap2_dss_features = {
 };
 
 /* OMAP3 DSS Features */
-static struct omap_dss_features omap3430_dss_features = {
+static const struct omap_dss_features omap3430_dss_features = {
 	.reg_fields = omap3_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
@@ -263,7 +263,7 @@ static struct omap_dss_features omap3430_dss_features = {
 	.dss_params = omap3_dss_param_range,
 };
 
-static struct omap_dss_features omap3630_dss_features = {
+static const struct omap_dss_features omap3630_dss_features = {
 	.reg_fields = omap3_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
@@ -284,7 +284,7 @@ static struct omap_dss_features omap3630_dss_features = {
 };
 
 /* OMAP4 DSS Features */
-static struct omap_dss_features omap4_dss_features = {
+static const struct omap_dss_features omap4_dss_features = {
 	.reg_fields = omap4_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
 
