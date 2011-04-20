@@ -949,6 +949,19 @@ static int tg3_phydsp_write(struct tg3 *tp, u32 reg, u32 val)
 	return err;
 }
 
+static int tg3_phy_auxctl_read(struct tg3 *tp, int reg, u32 *val)
+{
+	int err;
+
+	err = tg3_writephy(tp, MII_TG3_AUX_CTRL,
+			   (reg << MII_TG3_AUXCTL_MISC_RDSEL_SHIFT) |
+			   MII_TG3_AUXCTL_SHDWSEL_MISC);
+	if (!err)
+		err = tg3_readphy(tp, MII_TG3_AUX_CTRL, val);
+
+	return err;
+}
+
 static int tg3_bmcr_reset(struct tg3 *tp)
 {
 	u32 phy_control;
@@ -1679,10 +1692,11 @@ static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
 			tg3_writephy(tp, MII_TG3_FET_TEST, ephy);
 		}
 	} else {
-		phy = MII_TG3_AUXCTL_MISC_RDSEL_MISC |
-		      MII_TG3_AUXCTL_SHDWSEL_MISC;
-		if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, phy) &&
-		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &phy)) {
+		int ret;
+
+		ret = tg3_phy_auxctl_read(tp,
+					  MII_TG3_AUXCTL_SHDWSEL_MISC, &phy);
+		if (!ret) {
 			if (enable)
 				phy |= MII_TG3_AUXCTL_MISC_FORCE_AMDIX;
 			else
@@ -1695,13 +1709,14 @@ static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
 
 static void tg3_phy_set_wirespeed(struct tg3 *tp)
 {
+	int ret;
 	u32 val;
 
 	if (tp->phy_flags & TG3_PHYFLG_NO_ETH_WIRE_SPEED)
 		return;
 
-	if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x7007) &&
-	    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &val))
+	ret = tg3_phy_auxctl_read(tp, MII_TG3_AUXCTL_SHDWSEL_MISC, &val);
+	if (!ret)
 		tg3_writephy(tp, MII_TG3_AUX_CTRL,
 			     (val | (1 << 15) | (1 << 4)));
 }
@@ -2092,8 +2107,9 @@ out:
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4c20);
 	} else if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
 		/* Set bit 14 with read-modify-write to preserve other bits */
-		if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0007) &&
-		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &val))
+		err = tg3_phy_auxctl_read(tp,
+					  MII_TG3_AUXCTL_SHDWSEL_AUXCTL, &val);
+		if (!err)
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, val | 0x4000);
 	}
 
@@ -3263,9 +3279,10 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	current_duplex = DUPLEX_INVALID;
 
 	if (tp->phy_flags & TG3_PHYFLG_CAPACITIVE_COUPLING) {
-		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4007);
-		tg3_readphy(tp, MII_TG3_AUX_CTRL, &val);
-		if (!(val & (1 << 10))) {
+		err = tg3_phy_auxctl_read(tp,
+					  MII_TG3_AUXCTL_SHDWSEL_MISCTEST,
+					  &val);
+		if (!err && !(val & (1 << 10))) {
 			val |= (1 << 10);
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, val);
 			goto relink;
