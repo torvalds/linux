@@ -3475,7 +3475,7 @@ int snd_soc_register_dai(struct device *dev,
 
 	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
 	if (dai == NULL)
-			return -ENOMEM;
+		return -ENOMEM;
 
 	/* create DAI component name */
 	dai->name = fmt_single_name(dev, &dai->id);
@@ -3614,7 +3614,7 @@ int snd_soc_register_platform(struct device *dev,
 
 	platform = kzalloc(sizeof(struct snd_soc_platform), GFP_KERNEL);
 	if (platform == NULL)
-			return -ENOMEM;
+		return -ENOMEM;
 
 	/* create platform component name */
 	platform->name = fmt_single_name(dev, &platform->id);
