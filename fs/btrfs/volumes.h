@@ -86,6 +86,8 @@ struct btrfs_device {
 	u8 uuid[BTRFS_UUID_SIZE];
 
 	struct btrfs_work work;
+	struct rcu_head rcu;
+	struct work_struct rcu_work;
 };
 
 struct btrfs_fs_devices {
