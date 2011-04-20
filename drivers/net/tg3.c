@@ -11269,6 +11269,15 @@ static int tg3_test_loopback(struct tg3 *tp)
 		goto done;
 	}
 
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) {
+		int i;
+
+		/* Reroute all rx packets to the 1st queue */
+		for (i = MAC_RSS_INDIR_TBL_0;
+		     i < MAC_RSS_INDIR_TBL_0 + TG3_RSS_INDIR_TBL_SIZE; i += 4)
+			tw32(i, 0x0);
+	}
+
 	/* Turn off gphy autopowerdown. */
 	if (tp->phy_flags & TG3_PHYFLG_ENABLE_APD)
 		tg3_phy_toggle_apd(tp, false);
