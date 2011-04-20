@@ -4025,7 +4025,7 @@ twobyte_insn:
 			if (c->modrm_mod != 3 || c->modrm_rm != 1)
 				goto cannot_emulate;
 
-			rc = kvm_fix_hypercall(ctxt->vcpu);
+			rc = ctxt->ops->fix_hypercall(ctxt);
 			if (rc != X86EMUL_CONTINUE)
 				goto done;
 
@@ -4048,7 +4048,7 @@ twobyte_insn:
 			if (c->modrm_mod == 3) {
 				switch (c->modrm_rm) {
 				case 1:
-					rc = kvm_fix_hypercall(ctxt->vcpu);
+					rc = ctxt->ops->fix_hypercall(ctxt);
 					break;
 				default:
 					goto cannot_emulate;
