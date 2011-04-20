@@ -481,6 +481,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 	if (--fs_devices->opened > 0)
 		return 0;
 
+	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev) {
 			blkdev_put(device->bdev, device->mode);
@@ -495,6 +496,8 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		device->writeable = 0;
 		device->in_fs_metadata = 0;
 	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
 	WARN_ON(fs_devices->open_devices);
 	WARN_ON(fs_devices->rw_devices);
 	fs_devices->opened = 0;
@@ -1415,7 +1418,11 @@ static int btrfs_prepare_sprout(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&seed_devices->devices);
 	INIT_LIST_HEAD(&seed_devices->alloc_list);
 	mutex_init(&seed_devices->device_list_mutex);
+
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	list_splice_init(&fs_devices->devices, &seed_devices->devices);
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+
 	list_splice_init(&fs_devices->alloc_list, &seed_devices->alloc_list);
 	list_for_each_entry(device, &seed_devices->devices, dev_list) {
 		device->fs_devices = seed_devices;

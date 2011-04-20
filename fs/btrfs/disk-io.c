@@ -1410,6 +1410,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
 
+	mutex_lock(&info->fs_devices->device_list_mutex);
 	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
@@ -1419,6 +1420,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 			break;
 		}
 	}
+	mutex_unlock(&info->fs_devices->device_list_mutex);
 	return ret;
 }
 
