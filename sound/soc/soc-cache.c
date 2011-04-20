@@ -484,7 +484,6 @@ static struct {
  * snd_soc_codec_set_cache_io: Set up standard I/O functions.
  *
  * @codec: CODEC to configure.
- * @type: Type of cache.
  * @addr_bits: Number of bits of register address data.
  * @data_bits: Number of bits of data per register.
  * @control: Control bus used.
