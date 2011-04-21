@@ -119,6 +119,35 @@ struct usbhsg_recip_handle {
 #define usbhsg_status_has(gp, b) (gp->status &   b)
 
 /*
+ *		usbhsg_trylock
+ *
+ * This driver don't use spin_try_lock
+ * to avoid warning of CONFIG_DEBUG_SPINLOCK
+ */
+static spinlock_t *usbhsg_trylock(struct usbhsg_gpriv *gpriv,
+				  unsigned long *flags)
+{
+	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+
+	/* check spin lock status
+	 * to avoid deadlock/nest */
+	if (spin_is_locked(lock))
+		return NULL;
+
+	spin_lock_irqsave(lock, *flags);
+
+	return lock;
+}
+
+static void usbhsg_unlock(spinlock_t *lock, unsigned long *flags)
+{
+	if (!lock)
+		return;
+
+	spin_unlock_irqrestore(lock, *flags);
+}
+
+/*
  *		list push/pop
  */
 static void usbhsg_queue_push(struct usbhsg_uep *uep,
@@ -159,9 +188,8 @@ static int __usbhsg_queue_handler(struct usbhsg_uep *uep, int prepare)
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usbhsg_request *ureq;
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
-	int is_locked;
 	int ret = 0;
 
 	if (!uep->handler) {
@@ -179,7 +207,7 @@ static int __usbhsg_queue_handler(struct usbhsg_uep *uep, int prepare)
 	 *   - usb_request :: complete
 	 *
 	 * But the caller of this function need not care about spinlock.
-	 * This function is using spin_trylock_irqsave for it.
+	 * This function is using usbhsg_trylock for it.
 	 * if "is_locked" is 1, this mean this function lock it.
 	 * but if it is 0, this mean it is already under spin lock.
 	 * see also
@@ -188,7 +216,8 @@ static int __usbhsg_queue_handler(struct usbhsg_uep *uep, int prepare)
 	 */
 
 	/******************  spin try lock *******************/
-	is_locked = spin_trylock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
+
 	ureq = usbhsg_queue_get(uep);
 	if (ureq) {
 		if (prepare)
@@ -196,8 +225,7 @@ static int __usbhsg_queue_handler(struct usbhsg_uep *uep, int prepare)
 		else
 			ret = uep->handler->try_run(uep, ureq);
 	}
-	if (is_locked)
-		spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	return ret;
@@ -228,7 +256,7 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 	 * It mean "usb_ep_ops :: queue" which is using spinlock is called
 	 * under spinlock.
 	 *
-	 * To avoid dead-lock, this driver is using spin_trylock.
+	 * To avoid dead-lock, this driver is using usbhsg_trylock.
 	 *   CAUTION [*endpoint queue*]
 	 *   CAUTION [*queue handler*]
 	 */
@@ -811,7 +839,7 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 	struct usbhs_pipe *pipe;
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 	int ret = -EIO;
 
@@ -823,7 +851,7 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		return 0;
 
 	/********************  spin lock ********************/
-	spin_lock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 
 	pipe = usbhs_pipe_malloc(priv, desc);
 	if (pipe) {
@@ -838,7 +866,8 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 
 		ret = 0;
 	}
-	spin_unlock_irqrestore(lock, flags);
+
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	return ret;
@@ -848,14 +877,16 @@ static int usbhsg_ep_disable(struct usb_ep *ep)
 {
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 	int ret;
 
 	/********************  spin lock ********************/
-	spin_lock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
+
 	ret = usbhsg_pipe_disable(uep);
-	spin_unlock_irqrestore(lock, flags);
+
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	return ret;
@@ -890,10 +921,9 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 	int ret = 0;
-	int is_locked;
 
 	/*
 	 * CAUTION [*endpoint queue*]
@@ -904,7 +934,7 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	 * it is already under spinlock on this driver.
 	 * but it is called frm usb driver, this function should call spinlock.
 	 *
-	 * This function is using spin_trylock_irqsave to solve this issue.
+	 * This function is using usbshg_trylock to solve this issue.
 	 * if "is_locked" is 1, this mean this function lock it.
 	 * but if it is 0, this mean it is already under spin lock.
 	 * see also
@@ -913,7 +943,7 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	 */
 
 	/********************  spin lock ********************/
-	is_locked = spin_trylock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 
 	/* param check */
 	if (usbhsg_is_not_connected(gpriv)	||
@@ -923,8 +953,7 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	else
 		usbhsg_queue_push(uep, ureq);
 
-	if (is_locked)
-		spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	usbhsg_queue_prepare(uep);
@@ -937,9 +966,8 @@ static int usbhsg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
-	int is_locked;
 
 	/*
 	 * see
@@ -949,12 +977,11 @@ static int usbhsg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	 */
 
 	/********************  spin lock ********************/
-	is_locked = spin_trylock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 
 	usbhsg_queue_pop(uep, ureq, -ECONNRESET);
 
-	if (is_locked)
-		spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	return 0;
@@ -966,10 +993,9 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 	int ret = -EAGAIN;
-	int is_locked;
 
 	/*
 	 * see
@@ -979,7 +1005,7 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 	 */
 
 	/********************  spin lock ********************/
-	is_locked = spin_trylock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 	if (!usbhsg_queue_get(uep)) {
 
 		dev_dbg(dev, "set halt %d (pipe %d)\n",
@@ -998,8 +1024,7 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 		ret = 0;
 	}
 
-	if (is_locked)
-		spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ******************/
 
 	return ret;
@@ -1038,11 +1063,11 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	struct usbhsg_uep *dcp = usbhsg_gpriv_to_dcp(gpriv);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 
 	/********************  spin lock ********************/
-	spin_lock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 
 	/*
 	 * enable interrupt and systems if ready
@@ -1083,7 +1108,7 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	usbhs_irq_callback_update(priv, mod);
 
 usbhsg_try_start_unlock:
-	spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ********************/
 
 	return 0;
@@ -1095,11 +1120,11 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhsg_uep *dcp = usbhsg_gpriv_to_dcp(gpriv);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
+	spinlock_t *lock;
 	unsigned long flags;
 
 	/********************  spin lock ********************/
-	spin_lock_irqsave(lock, flags);
+	lock = usbhsg_trylock(gpriv, &flags);
 
 	/*
 	 * disable interrupt and systems if 1st try
@@ -1127,7 +1152,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	usbhs_sys_function_ctrl(priv, 0);
 	usbhs_sys_usb_ctrl(priv, 0);
 
-	spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 	/********************  spin unlock ********************/
 
 	if (gpriv->driver &&
@@ -1139,7 +1164,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	return 0;
 
 usbhsg_try_stop_unlock:
-	spin_unlock_irqrestore(lock, flags);
+	usbhsg_unlock(lock, &flags);
 
 	return 0;
 }
