@@ -13,26 +13,6 @@ Supported chips:
     Prefix: 'ltc2978'
     Addresses scanned: -
     Datasheet: http://cds.linear.com/docs/Datasheet/2978fa.pdf
-  * Maxim MAX16064
-    Quad Power-Supply Controller
-    Prefix: 'max16064'
-    Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX16064.pdf
-  * Maxim MAX34440
-    PMBus 6-Channel Power-Supply Manager
-    Prefixes: 'max34440'
-    Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34440.pdf
-  * Maxim MAX34441
-    PMBus 5-Channel Power-Supply Manager and Intelligent Fan Controller
-    Prefixes: 'max34441'
-    Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34441.pdf
-  * Maxim MAX8688
-    Digital Power-Supply Controller/Monitor
-    Prefix: 'max8688'
-    Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX8688.pdf
   * Generic PMBus devices
     Prefix: 'pmbus'
     Addresses scanned: -
@@ -175,11 +155,13 @@ currX_crit		Critical maximum current.
 			From IIN_OC_FAULT_LIMIT or IOUT_OC_FAULT_LIMIT register.
 currX_alarm		Current high alarm.
 			From IIN_OC_WARNING or IOUT_OC_WARNING status.
+currX_max_alarm		Current high alarm.
+			From IIN_OC_WARN_LIMIT or IOUT_OC_WARN_LIMIT status.
 currX_lcrit_alarm	Output current critical low alarm.
 			From IOUT_UC_FAULT status.
 currX_crit_alarm	Current critical high alarm.
 			From IIN_OC_FAULT or IOUT_OC_FAULT status.
-currX_label		"iin" or "vinY"
+currX_label		"iin" or "ioutY"
 
 powerX_input		Measured power. From READ_PIN or READ_POUT register.
 powerX_cap		Output power cap. From POUT_MAX register.
@@ -193,13 +175,13 @@ powerX_crit_alarm	Output power critical high alarm.
 			From POUT_OP_FAULT status.
 powerX_label		"pin" or "poutY"
 
-tempX_input		Measured tempererature.
+tempX_input		Measured temperature.
 			From READ_TEMPERATURE_X register.
-tempX_min		Mimimum tempererature. From UT_WARN_LIMIT register.
-tempX_max		Maximum tempererature. From OT_WARN_LIMIT register.
-tempX_lcrit		Critical low tempererature.
+tempX_min		Mimimum temperature. From UT_WARN_LIMIT register.
+tempX_max		Maximum temperature. From OT_WARN_LIMIT register.
+tempX_lcrit		Critical low temperature.
 			From UT_FAULT_LIMIT register.
-tempX_crit		Critical high tempererature.
+tempX_crit		Critical high temperature.
 			From OT_FAULT_LIMIT register.
 tempX_min_alarm		Chip temperature low alarm. Set by comparing
 			READ_TEMPERATURE_X with UT_WARN_LIMIT if
