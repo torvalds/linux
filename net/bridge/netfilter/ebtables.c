@@ -1766,7 +1766,7 @@ static int compat_table_info(const struct ebt_table_info *info,
 
 	newinfo->entries_size = size;
 
-	xt_compat_init_offsets(AF_INET, info->nentries);
+	xt_compat_init_offsets(NFPROTO_BRIDGE, info->nentries);
 	return EBT_ENTRY_ITERATE(entries, size, compat_calc_entry, info,
 							entries, newinfo);
 }
@@ -2240,6 +2240,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 
 	xt_compat_lock(NFPROTO_BRIDGE);
 
+	xt_compat_init_offsets(NFPROTO_BRIDGE, tmp.nentries);
 	ret = compat_copy_entries(entries_tmp, tmp.entries_size, &state);
 	if (ret < 0)
 		goto out_unlock;
