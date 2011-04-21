@@ -180,6 +180,8 @@ struct omap_gpio_reg_offs {
 	u16 dataout;
 	u16 set_dataout;
 	u16 clr_dataout;
+	u16 irqstatus;
+	u16 irqstatus2;
 };
 
 struct omap_gpio_platform_data {

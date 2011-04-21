@@ -41,6 +41,7 @@ static struct omap_gpio_reg_offs omap16xx_mpuio_regs = {
 	.direction	= OMAP_MPUIO_IO_CNTL,
 	.datain		= OMAP_MPUIO_INPUT_LATCH,
 	.dataout	= OMAP_MPUIO_OUTPUT,
+	.irqstatus	= OMAP_MPUIO_GPIO_INT,
 };
 
 static struct __initdata omap_gpio_platform_data omap16xx_mpu_gpio_config = {
@@ -80,6 +81,7 @@ static struct omap_gpio_reg_offs omap16xx_gpio_regs = {
 	.clr_dataout	= OMAP1610_GPIO_CLEAR_DATAOUT,
 	.datain		= OMAP1610_GPIO_DATAIN,
 	.dataout	= OMAP1610_GPIO_DATAOUT,
+	.irqstatus	= OMAP1610_GPIO_IRQSTATUS1,
 };
 
 static struct __initdata omap_gpio_platform_data omap16xx_gpio1_config = {
