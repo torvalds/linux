@@ -546,12 +546,12 @@ int __ethtool_set_flags(struct net_device *dev, u32 data)
 	}
 
 	/* allow changing only bits set in hw_features */
-	changed = (data ^ dev->wanted_features) & flags_dup_features;
+	changed = (data ^ dev->features) & flags_dup_features;
 	if (changed & ~dev->hw_features)
 		return (changed & dev->hw_features) ? -EINVAL : -EOPNOTSUPP;
 
 	dev->wanted_features =
-		(dev->wanted_features & ~changed) | data;
+		(dev->wanted_features & ~changed) | (data & dev->hw_features);
 
 	__netdev_update_features(dev);
 
