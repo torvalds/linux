@@ -31,6 +31,7 @@ extern u32 auto_irqhandler_fixup[];
 extern u32 user_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 /* table for system interrupt handlers */
 static struct irq_data *irq_list[NR_IRQS];
 static struct irq_chip *irq_chip[NR_IRQS];
@@ -41,6 +42,8 @@ static inline int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 	irq_chip[irq] = chip;
 	return 0;
 }
+#define irq_set_chip_and_handler(irq, chip, dummy)	irq_set_chip(irq, chip)
+#endif /* !CONFIG_GENERIC_HARDIRQS */
 
 static int m68k_first_user_vec;
 
@@ -56,8 +59,10 @@ static struct irq_chip user_irq_chip = {
 	.irq_shutdown	= m68k_irq_shutdown,
 };
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 #define NUM_IRQ_NODES 100
 static struct irq_data nodes[NUM_IRQ_NODES];
+#endif /* !CONFIG_GENERIC_HARDIRQS */
 
 /*
  * void init_IRQ(void)
@@ -81,7 +86,7 @@ void __init init_IRQ(void)
 	}
 
 	for (i = IRQ_AUTO_1; i <= IRQ_AUTO_7; i++)
-		irq_set_chip(i, &auto_irq_chip);
+		irq_set_chip_and_handler(i, &auto_irq_chip, handle_simple_irq);
 
 	mach_init_IRQ();
 }
@@ -127,6 +132,35 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 		*user_irqhandler_fixup = (u32)handler;
 	flush_icache();
 }
+
+#ifdef CONFIG_GENERIC_HARDIRQS
+
+/**
+ * m68k_setup_irq_controller
+ * @chip: irq chip which controls specified irq
+ * @handle: flow handler which handles specified irq
+ * @irq: first irq to be managed by the controller
+ * @cnt: number of irqs to be managed by the controller
+ *
+ * Change the controller for the specified range of irq, which will be used to
+ * manage these irq. auto/user irq already have a default controller, which can
+ * be changed as well, but the controller probably should use m68k_irq_startup/
+ * m68k_irq_shutdown.
+ */
+void m68k_setup_irq_controller(struct irq_chip *chip,
+			       irq_flow_handler_t handle, unsigned int irq,
+			       unsigned int cnt)
+{
+	int i;
+
+	for (i = 0; i < cnt; i++) {
+		irq_set_chip(irq + i, chip);
+		if (handle)
+			irq_set_handler(irq + i, handle);
+	}
+}
+
+#else /* !CONFIG_GENERIC_HARDIRQS */
 
 /**
  * m68k_setup_irq_chip
@@ -316,6 +350,8 @@ void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
 
 EXPORT_SYMBOL(disable_irq_nosync);
 
+#endif /* !CONFIG_GENERIC_HARDIRQS */
+
 unsigned int m68k_irq_startup_irq(unsigned int irq)
 {
 	if (irq <= IRQ_AUTO_7)
@@ -340,6 +376,8 @@ void m68k_irq_shutdown(struct irq_data *data)
 		vectors[m68k_first_user_vec + irq - IRQ_USER] = bad_inthandler;
 }
 
+
+#ifndef CONFIG_GENERIC_HARDIRQS
 
 /*
  * Do we need these probe functions on the m68k?
@@ -367,6 +405,7 @@ int probe_irq_off (unsigned long irqs)
 }
 
 EXPORT_SYMBOL(probe_irq_off);
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 unsigned int irq_canonicalize(unsigned int irq)
 {
@@ -379,6 +418,7 @@ unsigned int irq_canonicalize(unsigned int irq)
 
 EXPORT_SYMBOL(irq_canonicalize);
 
+#ifndef CONFIG_GENERIC_HARDIRQS
 void generic_handle_irq(unsigned int irq)
 {
 	struct irq_data *node;
@@ -428,3 +468,13 @@ void init_irq_proc(void)
 	/* Insert /proc/irq driver here */
 }
 #endif
+
+#else /* CONFIG_GENERIC_HARDIRQS */
+
+asmlinkage void handle_badint(struct pt_regs *regs)
+{
+	atomic_inc(&irq_err_count);
+	pr_warn("unexpected interrupt from %u\n", regs->vector);
+}
+
+#endif /* CONFIG_GENERIC_HARDIRQS */
