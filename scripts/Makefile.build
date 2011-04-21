@@ -66,6 +66,7 @@ warning-1 += -Wmissing-format-attribute
 warning-1 += -Wmissing-prototypes
 warning-1 += -Wold-style-definition
 warning-1 += $(call cc-option, -Wmissing-include-dirs)
+warning-1 += $(call cc-option, -Wunused-but-set-variable)
 
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
