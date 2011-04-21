@@ -706,6 +706,7 @@ f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_audio		*audio = func_to_audio(f);
 
 	usb_free_descriptors(f->descriptors);
+	usb_free_descriptors(f->hs_descriptors);
 	kfree(audio);
 }
 

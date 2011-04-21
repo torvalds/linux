@@ -372,6 +372,8 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	if (clone_flags & CLONE_SETTLS)
 		thread->tp_value = regs->ARM_r3;
 
+	thread_notify(THREAD_NOTIFY_COPY, thread);
+
 	return 0;
 }
 
