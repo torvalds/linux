@@ -216,22 +216,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 }
 
 /**
- * tipc_disc_stop_link_req - stop sending periodic link setup requests
- * @req: ptr to link request structure
- */
-
-void tipc_disc_stop_link_req(struct link_req *req)
-{
-	if (!req)
-		return;
-
-	k_cancel_timer(&req->timer);
-	k_term_timer(&req->timer);
-	buf_discard(req->buf);
-	kfree(req);
-}
-
-/**
  * tipc_disc_update_link_req - update frequency of periodic link setup requests
  * @req: ptr to link request structure
  */
@@ -286,28 +270,27 @@ static void disc_timeout(struct link_req *req)
 }
 
 /**
- * tipc_disc_init_link_req - start sending periodic link setup requests
+ * tipc_disc_create - create object to send periodic link setup requests
  * @b_ptr: ptr to bearer issuing requests
  * @dest: destination address for request messages
  * @dest_domain: network domain to which links can be established
  *
- * Returns pointer to link request structure, or NULL if unable to create.
+ * Returns 0 if successful, otherwise -errno.
  */
 
-struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
-					 const struct tipc_media_addr *dest,
-					 u32 dest_domain)
+int tipc_disc_create(struct tipc_bearer *b_ptr,
+		     struct tipc_media_addr *dest, u32 dest_domain)
 {
 	struct link_req *req;
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
-		return NULL;
+		return -ENOMEM;
 
 	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, dest_domain, b_ptr);
 	if (!req->buf) {
 		kfree(req);
-		return NULL;
+		return -ENOMSG;
 	}
 
 	memcpy(&req->dest, dest, sizeof(*dest));
@@ -316,6 +299,20 @@ struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
-	return req;
+	b_ptr->link_req = req;
+	return 0;
+}
+
+/**
+ * tipc_disc_delete - destroy object sending periodic link setup requests
+ * @req: ptr to link request structure
+ */
+
+void tipc_disc_delete(struct link_req *req)
+{
+	k_cancel_timer(&req->timer);
+	k_term_timer(&req->timer);
+	buf_discard(req->buf);
+	kfree(req);
 }
 
