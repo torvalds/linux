@@ -843,6 +843,25 @@ static void link_add_to_outqueue(struct link *l_ptr,
 		l_ptr->stats.max_queue_sz = l_ptr->out_queue_size;
 }
 
+static void link_add_chain_to_outqueue(struct link *l_ptr,
+				       struct sk_buff *buf_chain,
+				       u32 long_msgno)
+{
+	struct sk_buff *buf;
+	struct tipc_msg *msg;
+
+	if (!l_ptr->next_out)
+		l_ptr->next_out = buf_chain;
+	while (buf_chain) {
+		buf = buf_chain;
+		buf_chain = buf_chain->next;
+
+		msg = buf_msg(buf);
+		msg_set_long_msgno(msg, long_msgno);
+		link_add_to_outqueue(l_ptr, buf, msg);
+	}
+}
+
 /*
  * tipc_link_send_buf() is the 'full path' for messages, called from
  * inside TIPC when the 'fast path' in tipc_send_buf
@@ -1276,25 +1295,12 @@ reject:
 						 total_len, TIPC_ERR_NO_NODE);
 	}
 
-	/* Append whole chain to send queue: */
+	/* Append chain of fragments to send queue & send them */
 
-	buf = buf_chain;
 	l_ptr->long_msg_seq_no++;
-	if (!l_ptr->next_out)
-		l_ptr->next_out = buf_chain;
+	link_add_chain_to_outqueue(l_ptr, buf_chain, l_ptr->long_msg_seq_no);
+	l_ptr->stats.sent_fragments += fragm_no;
 	l_ptr->stats.sent_fragmented++;
-	while (buf) {
-		struct sk_buff *next = buf->next;
-		struct tipc_msg *msg = buf_msg(buf);
-
-		l_ptr->stats.sent_fragments++;
-		msg_set_long_msgno(msg, l_ptr->long_msg_seq_no);
-		link_add_to_outqueue(l_ptr, buf, msg);
-		buf = next;
-	}
-
-	/* Send it, if possible: */
-
 	tipc_link_push_queue(l_ptr);
 	tipc_node_unlock(node);
 	return dsz;
