@@ -295,7 +295,7 @@ static int bsr_create_devs(struct device_node *bn)
 static int __init bsr_init(void)
 {
 	struct device_node *np;
-	dev_t bsr_dev = MKDEV(bsr_major, 0);
+	dev_t bsr_dev;
 	int ret = -ENODEV;
 	int result;
 
