@@ -496,6 +496,21 @@ static irqreturn_t egalax_i2c_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+
+void egalax_i2c_set_standby(struct i2c_client *client, int enable)
+{
+        struct eeti_egalax_platform_data *pdata = pdata = client->dev.platform_data;
+        unsigned lcd_standby = pdata->standby_pin;
+        int lcd_standby_pol = pdata->standby_value;
+        printk("%s : %s, enable = %d", __FILE__, __FUNCTION__,enable);
+        // set display_on
+        if(lcd_standby != INVALID_GPIO)
+        {
+            gpio_direction_output(lcd_standby, 0);
+            gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
+        }
+}
+
 #ifdef CONFIG_PM
 static int egalax_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -518,14 +533,14 @@ static int egalax_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 	{
 		printk(KERN_DEBUG "[egalax_i2c]: device_may_wakeup false\n");
 	}
-
+        egalax_i2c_set_standby(client, 1);
 	return 0;
 }
 
 static int egalax_i2c_resume(struct i2c_client *client)
 {
 	struct _egalax_i2c *egalax_i2c = i2c_get_clientdata(client);
-	
+        egalax_i2c_set_standby(client, 0);	
 	if(device_may_wakeup(&client->dev)) 
 	{
 		disable_irq_wake(p_egalax_i2c_dev->irq);

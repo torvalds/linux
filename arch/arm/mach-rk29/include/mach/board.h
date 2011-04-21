@@ -152,6 +152,9 @@ struct eeti_egalax_platform_data{
     int     (*eeti_egalax_platform_sleep)(void);
     int     (*eeti_egalax_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
+    int     standby_pin;
+    int     standby_value;
+ 
 };
 
 /*sintex touch*/
