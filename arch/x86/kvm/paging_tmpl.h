@@ -123,6 +123,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 				    gva_t addr, u32 access)
 {
 	pt_element_t pte;
+	pt_element_t __user *ptep_user;
 	gfn_t table_gfn;
 	unsigned index, pt_access, uninitialized_var(pte_access);
 	gpa_t pte_gpa;
@@ -158,6 +159,9 @@ walk:
 	pt_access = ACC_ALL;
 
 	for (;;) {
+		gfn_t real_gfn;
+		unsigned long host_addr;
+
 		index = PT_INDEX(addr, walker->level);
 
 		table_gfn = gpte_to_gfn(pte);
@@ -166,9 +170,22 @@ walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		if (kvm_read_guest_page_mmu(vcpu, mmu, table_gfn, &pte,
-					    offset, sizeof(pte),
-					    PFERR_USER_MASK|PFERR_WRITE_MASK)) {
+		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
+					      PFERR_USER_MASK|PFERR_WRITE_MASK);
+		if (real_gfn == UNMAPPED_GVA) {
+			present = false;
+			break;
+		}
+		real_gfn = gpa_to_gfn(real_gfn);
+
+		host_addr = gfn_to_hva(vcpu->kvm, real_gfn);
+		if (kvm_is_error_hva(host_addr)) {
+			present = false;
+			break;
+		}
+
+		ptep_user = (pt_element_t __user *)((void *)host_addr + offset);
+		if (get_user(pte, ptep_user)) {
 			present = false;
 			break;
 		}
