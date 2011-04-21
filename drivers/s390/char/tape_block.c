@@ -236,7 +236,6 @@ tapeblock_setup_device(struct tape_device * device)
 	disk->major = tapeblock_major;
 	disk->first_minor = device->first_minor;
 	disk->fops = &tapeblock_fops;
-	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = tape_get_device(device);
 	disk->queue = blkdat->request_queue;
 	set_capacity(disk, 0);
