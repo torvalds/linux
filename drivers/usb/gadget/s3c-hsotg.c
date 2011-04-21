@@ -679,6 +679,14 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 		__func__, readl(hsotg->regs + epctrl_reg), index,
 		hs_ep->dir_in ? "in" : "out");
 
+	/* If endpoint is stalled, we will restart request later */
+	ctrl = readl(hsotg->regs + epctrl_reg);
+
+	if (ctrl & S3C_DxEPCTL_Stall) {
+		dev_warn(hsotg->dev, "%s: ep%d is stalled\n", __func__, index);
+		return;
+	}
+
 	length = ureq->length - ureq->actual;
 
 	if (0)
@@ -730,18 +738,6 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 
 	/* write size / packets */
 	writel(epsize, hsotg->regs + epsize_reg);
-
-	ctrl = readl(hsotg->regs + epctrl_reg);
-
-	if (ctrl & S3C_DxEPCTL_Stall) {
-		dev_warn(hsotg->dev, "%s: ep%d is stalled\n", __func__, index);
-
-		/* not sure what we can do here, if it is EP0 then we should
-		 * get this cleared once the endpoint has transmitted the
-		 * STALL packet, otherwise it needs to be cleared by the
-		 * host.
-		 */
-	}
 
 	if (using_dma(hsotg)) {
 		unsigned int dma_reg;
@@ -1048,6 +1044,20 @@ static int s3c_hsotg_process_req_status(struct s3c_hsotg *hsotg,
 static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value);
 
 /**
+ * get_ep_head - return the first request on the endpoint
+ * @hs_ep: The controller endpoint to get
+ *
+ * Get the first request on the endpoint.
+ */
+static struct s3c_hsotg_req *get_ep_head(struct s3c_hsotg_ep *hs_ep)
+{
+	if (list_empty(&hs_ep->queue))
+		return NULL;
+
+	return list_first_entry(&hs_ep->queue, struct s3c_hsotg_req, queue);
+}
+
+/**
  * s3c_hsotg_process_req_featire - process request {SET,CLEAR}_FEATURE
  * @hsotg: The device state
  * @ctrl: USB control request
@@ -1056,6 +1066,8 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 					 struct usb_ctrlrequest *ctrl)
 {
 	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	struct s3c_hsotg_req *hs_req;
+	bool restart;
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	struct s3c_hsotg_ep *ep;
 	int ret;
@@ -1081,6 +1093,29 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 					"%s: failed to send reply\n", __func__);
 				return ret;
 			}
+
+			if (!set) {
+				/*
+				 * If we have request in progress,
+				 * then complete it
+				 */
+				if (ep->req) {
+					hs_req = ep->req;
+					ep->req = NULL;
+					list_del_init(&hs_req->queue);
+					hs_req->req.complete(&ep->ep,
+							     &hs_req->req);
+				}
+
+				/* If we have pending request, then start it */
+				restart = !list_empty(&ep->queue);
+				if (restart) {
+					hs_req = get_ep_head(ep);
+					s3c_hsotg_start_req(hsotg, ep,
+							    hs_req, false);
+				}
+			}
+
 			break;
 
 		default:
@@ -1245,20 +1280,6 @@ static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg)
 		/* Don't think there's much we can do other than watch the
 		 * driver fail. */
 	}
-}
-
-/**
- * get_ep_head - return the first request on the endpoint
- * @hs_ep: The controller endpoint to get
- *
- * Get the first request on the endpoint.
-*/
-static struct s3c_hsotg_req *get_ep_head(struct s3c_hsotg_ep *hs_ep)
-{
-	if (list_empty(&hs_ep->queue))
-		return NULL;
-
-	return list_first_entry(&hs_ep->queue, struct s3c_hsotg_req, queue);
 }
 
 /**
@@ -1684,6 +1705,37 @@ bad_mps:
 	dev_err(hsotg->dev, "ep%d: bad mps of %d\n", ep, mps);
 }
 
+/**
+ * s3c_hsotg_txfifo_flush - flush Tx FIFO
+ * @hsotg: The driver state
+ * @idx: The index for the endpoint (0..15)
+ */
+static void s3c_hsotg_txfifo_flush(struct s3c_hsotg *hsotg, unsigned int idx)
+{
+	int timeout;
+	int val;
+
+	writel(S3C_GRSTCTL_TxFNum(idx) | S3C_GRSTCTL_TxFFlsh,
+		hsotg->regs + S3C_GRSTCTL);
+
+	/* wait until the fifo is flushed */
+	timeout = 100;
+
+	while (1) {
+		val = readl(hsotg->regs + S3C_GRSTCTL);
+
+		if ((val & (S3C_GRSTCTL_TxFFlsh)) == 0)
+			break;
+
+		if (--timeout == 0) {
+			dev_err(hsotg->dev,
+				"%s: timeout flushing fifo (GRSTCTL=%08x)\n",
+				__func__, val);
+		}
+
+		udelay(1);
+	}
+}
 
 /**
  * s3c_hsotg_trytx - check to see if anything needs transmitting
@@ -1806,8 +1858,23 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 		}
 	}
 
-	if (ints & S3C_DxEPINT_EPDisbld)
+	if (ints & S3C_DxEPINT_EPDisbld) {
 		dev_dbg(hsotg->dev, "%s: EPDisbld\n", __func__);
+
+		if (dir_in) {
+			int epctl = readl(hsotg->regs + epctl_reg);
+
+			s3c_hsotg_txfifo_flush(hsotg, idx);
+
+			if ((epctl & S3C_DxEPCTL_Stall) &&
+				(epctl & S3C_DxEPCTL_EPType_Bulk)) {
+				int dctl = readl(hsotg->regs + S3C_DCTL);
+
+				dctl |= S3C_DCTL_CGNPInNAK;
+				writel(dctl, hsotg->regs + S3C_DCTL);
+			}
+		}
+	}
 
 	if (ints & S3C_DxEPINT_AHBErr)
 		dev_dbg(hsotg->dev, "%s: AHBErr\n", __func__);
@@ -2406,6 +2473,7 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 	unsigned long irqflags;
 	u32 epreg;
 	u32 epctl;
+	u32 xfertype;
 
 	dev_info(hs->dev, "%s(ep %p %s, %d)\n", __func__, ep, ep->name, value);
 
@@ -2416,10 +2484,17 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 	epreg = S3C_DIEPCTL(index);
 	epctl = readl(hs->regs + epreg);
 
-	if (value)
-		epctl |= S3C_DxEPCTL_Stall;
-	else
+	if (value) {
+		epctl |= S3C_DxEPCTL_Stall + S3C_DxEPCTL_SNAK;
+		if (epctl & S3C_DxEPCTL_EPEna)
+			epctl |= S3C_DxEPCTL_EPDis;
+	} else {
 		epctl &= ~S3C_DxEPCTL_Stall;
+		xfertype = epctl & S3C_DxEPCTL_EPType_MASK;
+		if (xfertype == S3C_DxEPCTL_EPType_Bulk ||
+			xfertype == S3C_DxEPCTL_EPType_Intterupt)
+				epctl |= S3C_DxEPCTL_SetD0PID;
+	}
 
 	writel(epctl, hs->regs + epreg);
 
@@ -2428,8 +2503,13 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	if (value)
 		epctl |= S3C_DxEPCTL_Stall;
-	else
+	else {
 		epctl &= ~S3C_DxEPCTL_Stall;
+		xfertype = epctl & S3C_DxEPCTL_EPType_MASK;
+		if (xfertype == S3C_DxEPCTL_EPType_Bulk ||
+			xfertype == S3C_DxEPCTL_EPType_Intterupt)
+				epctl |= S3C_DxEPCTL_SetD0PID;
+	}
 
 	writel(epctl, hs->regs + epreg);
 
