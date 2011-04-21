@@ -576,12 +576,14 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 					     &dest->addr.name.name,
 					     dest->addr.name.domain,
 					     m->msg_iovlen,
-					     m->msg_iov);
+					     m->msg_iov,
+					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_ID) {
 			res = tipc_send2port(tport->ref,
 					     &dest->addr.id,
 					     m->msg_iovlen,
-					     m->msg_iov);
+					     m->msg_iov,
+					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_MCAST) {
 			if (needs_conn) {
 				res = -EOPNOTSUPP;
@@ -593,7 +595,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
 					     m->msg_iovlen,
-					     m->msg_iov);
+					     m->msg_iov,
+					     total_len);
 		}
 		if (likely(res != -ELINKCONG)) {
 			if (needs_conn && (res >= 0))
@@ -659,7 +662,8 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 
-		res = tipc_send(tport->ref, m->msg_iovlen, m->msg_iov);
+		res = tipc_send(tport->ref, m->msg_iovlen, m->msg_iov,
+				total_len);
 		if (likely(res != -ELINKCONG))
 			break;
 		if (m->msg_flags & MSG_DONTWAIT) {
@@ -766,7 +770,7 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 				bytes_to_send = curr_left;
 			my_iov.iov_base = curr_start;
 			my_iov.iov_len = bytes_to_send;
-			res = send_packet(NULL, sock, &my_msg, 0);
+			res = send_packet(NULL, sock, &my_msg, bytes_to_send);
 			if (res < 0) {
 				if (bytes_sent)
 					res = bytes_sent;
