@@ -586,7 +586,8 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_RESVSP_32:
 	case XFS_IOC_UNRESVSP_32:
 	case XFS_IOC_RESVSP64_32:
-	case XFS_IOC_UNRESVSP64_32: {
+	case XFS_IOC_UNRESVSP64_32:
+	case XFS_IOC_ZERO_RANGE_32: {
 		struct xfs_flock64	bf;
 
 		if (xfs_compat_flock64_copyin(&bf, arg))
