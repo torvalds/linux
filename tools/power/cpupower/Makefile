@@ -167,20 +167,20 @@ endif
 
 # the actual make rules
 
-all: libcpufreq cpupower $(COMPILE_NLS) $(COMPILE_BENCH)
+all: libcpupower cpupower $(COMPILE_NLS) $(COMPILE_BENCH)
 
 lib/%.o: $(LIB_SRC) $(LIB_HEADERS)
 	$(ECHO) "  CC      " $@
 	$(QUIET) $(CC) $(CFLAGS) -fPIC -o $@ -c lib/$*.c
 
-libcpufreq.so.$(LIB_MAJ): $(LIB_OBJS)
+libcpupower.so.$(LIB_MAJ): $(LIB_OBJS)
 	$(ECHO) "  LD      " $@
 	$(QUIET) $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ \
-		-Wl,-soname,libcpufreq.so.$(LIB_MIN) $(LIB_OBJS)
-	@ln -sf $@ libcpufreq.so
-	@ln -sf $@ libcpufreq.so.$(LIB_MIN)
+		-Wl,-soname,libcpupower.so.$(LIB_MIN) $(LIB_OBJS)
+	@ln -sf $@ libcpupower.so
+	@ln -sf $@ libcpupower.so.$(LIB_MIN)
 
-libcpufreq: libcpufreq.so.$(LIB_MAJ)
+libcpupower: libcpupower.so.$(LIB_MAJ)
 
 # Let all .o files depend on its .c file and all headers
 # Might be worth to put this into utils/Makefile at some point of time
@@ -190,9 +190,9 @@ $(UTIL_OBJS): $(UTIL_HEADERS)
 	$(ECHO) "  CC      " $@
 	$(QUIET) $(CC) $(CFLAGS) -I./lib -I ./utils -o $@ -c $*.c
 
-cpupower: $(UTIL_OBJS) libcpufreq.so.$(LIB_MAJ)
+cpupower: $(UTIL_OBJS) libcpupower.so.$(LIB_MAJ)
 	$(ECHO) "  CC      " $@
-	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) -lcpufreq -lrt -lpci -L. -o $@ $(UTIL_OBJS)
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) -lcpupower -lrt -lpci -L. -o $@ $(UTIL_OBJS)
 	$(QUIET) $(STRIPCMD) $@
 
 po/$(PACKAGE).pot: $(UTIL_SRC)
@@ -221,7 +221,7 @@ update-po: po/$(PACKAGE).pot
 		fi; \
 	done;
 
-compile-bench: libcpufreq.so.$(LIB_MAJ)
+compile-bench: libcpupower.so.$(LIB_MAJ)
 	@V=$(V) confdir=$(confdir) $(MAKE) -C bench
 
 clean:
@@ -230,14 +230,14 @@ clean:
 	-rm -f $(UTIL_BINS)
 	-rm -f $(IDLE_OBJS)
 	-rm -f cpupower
-	-rm -f libcpufreq.so*
+	-rm -f libcpupower.so*
 	-rm -rf po/*.gmo po/*.pot
 	$(MAKE) -C bench clean
 
 
 install-lib:
 	$(INSTALL) -d $(DESTDIR)${libdir}
-	$(CP) libcpufreq.so* $(DESTDIR)${libdir}/
+	$(CP) libcpupower.so* $(DESTDIR)${libdir}/
 	$(INSTALL) -d $(DESTDIR)${includedir}
 	$(INSTALL_DATA) lib/cpufreq.h $(DESTDIR)${includedir}/cpufreq.h
 
@@ -267,7 +267,7 @@ install-bench:
 install: all install-lib install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
 
 uninstall:
-	- rm -f $(DESTDIR)${libdir}/libcpufreq.*
+	- rm -f $(DESTDIR)${libdir}/libcpupower.*
 	- rm -f $(DESTDIR)${includedir}/cpufreq.h
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
 	- rm -f $(DESTDIR)${mandir}/man1/cpufreq-set.1
@@ -276,4 +276,4 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
 	  done;
 
-.PHONY: all utils libcpufreq update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean
+.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean

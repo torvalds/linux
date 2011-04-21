@@ -1,7 +1,7 @@
 .libs
-libcpufreq.so
-libcpufreq.so.0
-libcpufreq.so.0.0.0
+libcpupower.so
+libcpupower.so.0
+libcpupower.so.0.0.0
 build/ccdv
 cpufreq-info
 cpufreq-set
@@ -13,7 +13,6 @@ lib/proc.lo
 lib/proc.o
 lib/sysfs.lo
 lib/sysfs.o
-libcpufreq.la
 po/cpupowerutils.pot
 po/*.gmo
 utils/cpufreq-info.o
