@@ -53,8 +53,6 @@ static int netvsc_init_recv_buf(struct hv_device *device);
 
 static int netvsc_destroy_send_buf(struct netvsc_device *net_device);
 
-static int netvsc_destroy_recv_buf(struct netvsc_device *net_device);
-
 static int netvsc_connect_vsp(struct hv_device *device);
 
 static void netvsc_send_completion(struct hv_device *device,
@@ -157,6 +155,75 @@ static struct netvsc_device *release_inbound_net_device(
 
 	device->ext = NULL;
 	return net_device;
+}
+
+static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
+{
+	struct nvsp_message *revoke_packet;
+	int ret = 0;
+
+	/*
+	 * If we got a section count, it means we received a
+	 * SendReceiveBufferComplete msg (ie sent
+	 * NvspMessage1TypeSendReceiveBuffer msg) therefore, we need
+	 * to send a revoke msg here
+	 */
+	if (net_device->recv_section_cnt) {
+		/* Send the revoke receive buffer */
+		revoke_packet = &net_device->revoke_packet;
+		memset(revoke_packet, 0, sizeof(struct nvsp_message));
+
+		revoke_packet->hdr.msg_type =
+			NVSP_MSG1_TYPE_REVOKE_RECV_BUF;
+		revoke_packet->msg.v1_msg.
+		revoke_recv_buf.id = NETVSC_RECEIVE_BUFFER_ID;
+
+		ret = vmbus_sendpacket(net_device->dev->channel,
+				       revoke_packet,
+				       sizeof(struct nvsp_message),
+				       (unsigned long)revoke_packet,
+				       VM_PKT_DATA_INBAND, 0);
+		/*
+		 * If we failed here, we might as well return and
+		 * have a leak rather than continue and a bugchk
+		 */
+		if (ret != 0) {
+			dev_err(&net_device->dev->device, "unable to send "
+				"revoke receive buffer to netvsp");
+			return -1;
+		}
+	}
+
+	/* Teardown the gpadl on the vsp end */
+	if (net_device->recv_buf_gpadl_handle) {
+		ret = vmbus_teardown_gpadl(net_device->dev->channel,
+			   net_device->recv_buf_gpadl_handle);
+
+		/* If we failed here, we might as well return and have a leak
+		 * rather than continue and a bugchk
+		 */
+		if (ret != 0) {
+			dev_err(&net_device->dev->device,
+				   "unable to teardown receive buffer's gpadl");
+			return -1;
+		}
+		net_device->recv_buf_gpadl_handle = 0;
+	}
+
+	if (net_device->recv_buf) {
+		/* Free up the receive buffer */
+		free_pages((unsigned long)net_device->recv_buf,
+			get_order(net_device->recv_buf_size));
+		net_device->recv_buf = NULL;
+	}
+
+	if (net_device->recv_section) {
+		net_device->recv_section_cnt = 0;
+		kfree(net_device->recv_section);
+		net_device->recv_section = NULL;
+	}
+
+	return ret;
 }
 
 static int netvsc_init_recv_buf(struct hv_device *device)
@@ -366,73 +433,6 @@ cleanup:
 
 exit:
 	put_net_device(device);
-	return ret;
-}
-
-static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
-{
-	struct nvsp_message *revoke_packet;
-	int ret = 0;
-
-	/*
-	 * If we got a section count, it means we received a
-	 * SendReceiveBufferComplete msg (ie sent
-	 * NvspMessage1TypeSendReceiveBuffer msg) therefore, we need
-	 * to send a revoke msg here
-	 */
-	if (net_device->recv_section_cnt) {
-		/* Send the revoke receive buffer */
-		revoke_packet = &net_device->revoke_packet;
-		memset(revoke_packet, 0, sizeof(struct nvsp_message));
-
-		revoke_packet->hdr.msg_type =
-			NVSP_MSG1_TYPE_REVOKE_RECV_BUF;
-		revoke_packet->msg.v1_msg.
-		revoke_recv_buf.id = NETVSC_RECEIVE_BUFFER_ID;
-
-		ret = vmbus_sendpacket(net_device->dev->channel,
-				       revoke_packet,
-				       sizeof(struct nvsp_message),
-				       (unsigned long)revoke_packet,
-				       VM_PKT_DATA_INBAND, 0);
-		/*
-		 * If we failed here, we might as well return and
-		 * have a leak rather than continue and a bugchk
-		 */
-		if (ret != 0) {
-			dev_err(&net_device->dev->device, "unable to send "
-				"revoke receive buffer to netvsp");
-			return -1;
-		}
-	}
-
-	/* Teardown the gpadl on the vsp end */
-	if (net_device->recv_buf_gpadl_handle) {
-		ret = vmbus_teardown_gpadl(net_device->dev->channel,
-			   net_device->recv_buf_gpadl_handle);
-
-		/* If we failed here, we might as well return and have a leak rather than continue and a bugchk */
-		if (ret != 0) {
-			dev_err(&net_device->dev->device,
-				   "unable to teardown receive buffer's gpadl");
-			return -1;
-		}
-		net_device->recv_buf_gpadl_handle = 0;
-	}
-
-	if (net_device->recv_buf) {
-		/* Free up the receive buffer */
-		free_pages((unsigned long)net_device->recv_buf,
-			get_order(net_device->recv_buf_size));
-		net_device->recv_buf = NULL;
-	}
-
-	if (net_device->recv_section) {
-		net_device->recv_section_cnt = 0;
-		kfree(net_device->recv_section);
-		net_device->recv_section = NULL;
-	}
-
 	return ret;
 }
 
