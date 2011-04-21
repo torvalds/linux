@@ -62,6 +62,8 @@ struct sd {
 	struct gspca_dev gspca_dev; /* !! must be the first item */
 	uint16_t cam_tag;           /* a sequence number for packets */
 	uint8_t stream_flag;        /* to identify different steram types */
+	uint8_t obuf[0x400];        /* output buffer for control commands */
+	uint8_t ibuf[0x200];        /* input buffer for control commands */
 };
 
 /* V4L2 controls supported by the driver */
@@ -133,8 +135,8 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *udev = gspca_dev->dev;
 	int res, actual_len;
-	uint8_t obuf[0x400];
-	uint8_t ibuf[0x200];
+	uint8_t *obuf = sd->obuf;
+	uint8_t *ibuf = sd->ibuf;
 	struct cam_hdr *chdr = (void *)obuf;
 	struct cam_hdr *rhdr = (void *)ibuf;
 
