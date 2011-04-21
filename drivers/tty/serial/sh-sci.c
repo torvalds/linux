@@ -1790,7 +1790,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	 *
 	 * For the muxed case there's nothing more to do.
 	 */
-	port->irq		= p->irqs[SCIx_TXI_IRQ];
+	port->irq		= p->irqs[SCIx_RXI_IRQ];
 
 	if (p->dma_dev)
 		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",
