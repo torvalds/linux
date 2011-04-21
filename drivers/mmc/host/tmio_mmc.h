@@ -19,6 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
 #include <linux/pagemap.h>
+#include <linux/spinlock.h>
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001

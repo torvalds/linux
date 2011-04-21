@@ -244,8 +244,12 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	spin_lock_irqsave(&host->lock, flags);
 	mrq = host->mrq;
 
-	/* request already finished */
-	if (!mrq
+	/*
+	 * is request already finished? Since we use a non-blocking
+	 * cancel_delayed_work(), it can happen, that a .set_ios() call preempts
+	 * us, so, have to check for IS_ERR(host->mrq)
+	 */
+	if (IS_ERR_OR_NULL(mrq)
 	    || time_is_after_jiffies(host->last_req_ts +
 		msecs_to_jiffies(2000))) {
 		spin_unlock_irqrestore(&host->lock, flags);
@@ -265,16 +269,19 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	host->cmd = NULL;
 	host->data = NULL;
-	host->mrq = NULL;
 	host->force_pio = false;
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	tmio_mmc_reset(host);
 
+	/* Ready for new calls */
+	host->mrq = NULL;
+
 	mmc_request_done(host->mmc, mrq);
 }
 
+/* called with host->lock held, interrupts disabled */
 static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 {
 	struct mmc_request *mrq = host->mrq;
@@ -282,13 +289,15 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (!mrq)
 		return;
 
-	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
 	host->force_pio = false;
 
 	cancel_delayed_work(&host->delayed_reset_work);
 
+	host->mrq = NULL;
+
+	/* FIXME: mmc_request_done() can schedule! */
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -686,14 +695,26 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+	unsigned long flags;
 	int ret;
 
-	if (host->mrq)
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->mrq) {
 		pr_debug("request not null\n");
+		if (IS_ERR(host->mrq)) {
+			spin_unlock_irqrestore(&host->lock, flags);
+			mrq->cmd->error = -EAGAIN;
+			mmc_request_done(mmc, mrq);
+			return;
+		}
+	}
 
 	host->last_req_ts = jiffies;
 	wmb();
 	host->mrq = mrq;
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (mrq->data) {
 		ret = tmio_mmc_start_data(host, mrq->data);
@@ -709,8 +730,8 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 fail:
-	host->mrq = NULL;
 	host->force_pio = false;
+	host->mrq = NULL;
 	mrq->cmd->error = ret;
 	mmc_request_done(mmc, mrq);
 }
@@ -724,6 +745,29 @@ fail:
 static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (host->mrq) {
+		if (IS_ERR(host->mrq)) {
+			dev_dbg(&host->pdev->dev,
+				"%s.%d: concurrent .set_ios(), clk %u, mode %u\n",
+				current->comm, task_pid_nr(current),
+				ios->clock, ios->power_mode);
+			host->mrq = ERR_PTR(-EINTR);
+		} else {
+			dev_dbg(&host->pdev->dev,
+				"%s.%d: CMD%u active since %lu, now %lu!\n",
+				current->comm, task_pid_nr(current),
+				host->mrq->cmd->opcode, host->last_req_ts, jiffies);
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	host->mrq = ERR_PTR(-EBUSY);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (ios->clock)
 		tmio_mmc_set_clock(host, ios->clock);
@@ -754,6 +798,12 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Let things settle. delay taken from winCE driver */
 	udelay(140);
+	if (PTR_ERR(host->mrq) == -EINTR)
+		dev_dbg(&host->pdev->dev,
+			"%s.%d: IOS interrupted: clk %u, mode %u",
+			current->comm, task_pid_nr(current),
+			ios->clock, ios->power_mode);
+	host->mrq = NULL;
 }
 
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
