@@ -2247,7 +2247,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	 * frames to RX queue #0, and include the pseudo-header when
 	 * calculating receive checksums.
 	 */
-	mv643xx_eth_set_features(dev, dev->features);
+	mv643xx_eth_set_features(mp->dev, mp->dev->features);
 
 	/*
 	 * Treat BPDUs as normal multicasts, and disable partition mode.
