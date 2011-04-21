@@ -627,6 +627,10 @@ ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason));
 
+    if (ar->scan_request) {
+	cfg80211_scan_done(ar->scan_request, true);
+        ar->scan_request = NULL;
+    }
     if((ADHOC_NETWORK & ar->arNetworkType)) {
         if(NL80211_IFTYPE_ADHOC != ar->wdev->iftype) {
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
