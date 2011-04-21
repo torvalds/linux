@@ -4127,9 +4127,6 @@ twobyte_insn:
 		case 6: /* lmsw */
 			rc = em_lmsw(ctxt);
 			break;
-		case 5: /* not defined */
-			rc = emulate_ud(ctxt);
-			break;
 		case 7: /* invlpg*/
 			rc = em_invlpg(ctxt);
 			break;
