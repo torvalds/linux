@@ -45,8 +45,6 @@ static const struct hv_guid netvsc_device_type = {
 	}
 };
 
-static void netvsc_channel_cb(void *context);
-
 static int netvsc_init_send_buf(struct hv_device *device);
 
 static int netvsc_init_recv_buf(struct hv_device *device);
@@ -592,93 +590,6 @@ static void NetVscDisconnectFromVsp(struct netvsc_device *net_device)
 }
 
 /*
- * netvsc_device_add - Callback when the device belonging to this
- * driver is added
- */
-static int netvsc_device_add(struct hv_device *device, void *additional_info)
-{
-	int ret = 0;
-	int i;
-	struct netvsc_device *net_device;
-	struct hv_netvsc_packet *packet, *pos;
-	struct netvsc_driver *net_driver =
-				(struct netvsc_driver *)device->drv;
-
-	net_device = alloc_net_device(device);
-	if (!net_device) {
-		ret = -1;
-		goto cleanup;
-	}
-
-	/* Initialize the NetVSC channel extension */
-	net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
-	spin_lock_init(&net_device->recv_pkt_list_lock);
-
-	net_device->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
-
-	INIT_LIST_HEAD(&net_device->recv_pkt_list);
-
-	for (i = 0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++) {
-		packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-				 (NETVSC_RECEIVE_SG_COUNT *
-				  sizeof(struct hv_page_buffer)), GFP_KERNEL);
-		if (!packet)
-			break;
-
-		list_add_tail(&packet->list_ent,
-			      &net_device->recv_pkt_list);
-	}
-	init_waitqueue_head(&net_device->channel_init_wait);
-
-	/* Open the channel */
-	ret = vmbus_open(device->channel, net_driver->ring_buf_size,
-			 net_driver->ring_buf_size, NULL, 0,
-			 netvsc_channel_cb, device);
-
-	if (ret != 0) {
-		dev_err(&device->device, "unable to open channel: %d", ret);
-		ret = -1;
-		goto cleanup;
-	}
-
-	/* Channel is opened */
-	pr_info("hv_netvsc channel opened successfully");
-
-	/* Connect with the NetVsp */
-	ret = netvsc_connect_vsp(device);
-	if (ret != 0) {
-		dev_err(&device->device,
-			"unable to connect to NetVSP - %d", ret);
-		ret = -1;
-		goto close;
-	}
-
-	return ret;
-
-close:
-	/* Now, we can close the channel safely */
-	vmbus_close(device->channel);
-
-cleanup:
-
-	if (net_device) {
-		list_for_each_entry_safe(packet, pos,
-					 &net_device->recv_pkt_list,
-					 list_ent) {
-			list_del(&packet->list_ent);
-			kfree(packet);
-		}
-
-		release_outbound_net_device(device);
-		release_inbound_net_device(device);
-
-		free_net_device(net_device);
-	}
-
-	return ret;
-}
-
-/*
  * netvsc_device_remove - Callback when the root bus device is removed
  */
 static int netvsc_device_remove(struct hv_device *device)
@@ -1190,6 +1101,93 @@ static void netvsc_channel_cb(void *context)
 out:
 	kfree(buffer);
 	return;
+}
+
+/*
+ * netvsc_device_add - Callback when the device belonging to this
+ * driver is added
+ */
+static int netvsc_device_add(struct hv_device *device, void *additional_info)
+{
+	int ret = 0;
+	int i;
+	struct netvsc_device *net_device;
+	struct hv_netvsc_packet *packet, *pos;
+	struct netvsc_driver *net_driver =
+				(struct netvsc_driver *)device->drv;
+
+	net_device = alloc_net_device(device);
+	if (!net_device) {
+		ret = -1;
+		goto cleanup;
+	}
+
+	/* Initialize the NetVSC channel extension */
+	net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
+	spin_lock_init(&net_device->recv_pkt_list_lock);
+
+	net_device->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
+
+	INIT_LIST_HEAD(&net_device->recv_pkt_list);
+
+	for (i = 0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++) {
+		packet = kzalloc(sizeof(struct hv_netvsc_packet) +
+				 (NETVSC_RECEIVE_SG_COUNT *
+				  sizeof(struct hv_page_buffer)), GFP_KERNEL);
+		if (!packet)
+			break;
+
+		list_add_tail(&packet->list_ent,
+			      &net_device->recv_pkt_list);
+	}
+	init_waitqueue_head(&net_device->channel_init_wait);
+
+	/* Open the channel */
+	ret = vmbus_open(device->channel, net_driver->ring_buf_size,
+			 net_driver->ring_buf_size, NULL, 0,
+			 netvsc_channel_cb, device);
+
+	if (ret != 0) {
+		dev_err(&device->device, "unable to open channel: %d", ret);
+		ret = -1;
+		goto cleanup;
+	}
+
+	/* Channel is opened */
+	pr_info("hv_netvsc channel opened successfully");
+
+	/* Connect with the NetVsp */
+	ret = netvsc_connect_vsp(device);
+	if (ret != 0) {
+		dev_err(&device->device,
+			"unable to connect to NetVSP - %d", ret);
+		ret = -1;
+		goto close;
+	}
+
+	return ret;
+
+close:
+	/* Now, we can close the channel safely */
+	vmbus_close(device->channel);
+
+cleanup:
+
+	if (net_device) {
+		list_for_each_entry_safe(packet, pos,
+					 &net_device->recv_pkt_list,
+					 list_ent) {
+			list_del(&packet->list_ent);
+			kfree(packet);
+		}
+
+		release_outbound_net_device(device);
+		release_inbound_net_device(device);
+
+		free_net_device(net_device);
+	}
+
+	return ret;
 }
 
 /*
