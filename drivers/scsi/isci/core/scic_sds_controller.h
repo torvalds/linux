@@ -542,12 +542,12 @@ void scic_sds_controller_copy_sata_response(
 
 enum sci_status scic_sds_controller_allocate_remote_node_context(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device,
+	struct scic_sds_remote_device *sci_dev,
 	u16 *node_id);
 
 void scic_sds_controller_free_remote_node_context(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device,
+	struct scic_sds_remote_device *sci_dev,
 	u16 node_id);
 
 union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffer(
@@ -565,25 +565,25 @@ struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 
 void scic_sds_controller_power_control_queue_insert(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_controller_power_control_queue_remove(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_controller_link_up(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_port *the_port,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_controller_link_down(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_port *the_port,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_controller_remote_device_stopped(
 	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device);
+	struct scic_sds_remote_device *sci_dev);
 
 void scic_sds_controller_copy_task_context(
 	struct scic_sds_controller *this_controller,

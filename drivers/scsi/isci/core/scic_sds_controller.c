@@ -290,7 +290,7 @@ int scic_controller_mem_init(struct scic_sds_controller *scic)
 
 /**
  * This method initializes the task context data for the controller.
- * @this_controller:
+ * @scic:
  *
  */
 static void
@@ -321,22 +321,22 @@ scic_sds_controller_assign_task_entries(struct scic_sds_controller *controller)
  *
  */
 static void scic_sds_controller_initialize_completion_queue(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *scic)
 {
 	u32 index;
 	u32 completion_queue_control_value;
 	u32 completion_queue_get_value;
 	u32 completion_queue_put_value;
 
-	this_controller->completion_queue_get = 0;
+	scic->completion_queue_get = 0;
 
 	completion_queue_control_value = (
-		SMU_CQC_QUEUE_LIMIT_SET(this_controller->completion_queue_entries - 1)
-		| SMU_CQC_EVENT_LIMIT_SET(this_controller->completion_event_entries - 1)
+		SMU_CQC_QUEUE_LIMIT_SET(scic->completion_queue_entries - 1)
+		| SMU_CQC_EVENT_LIMIT_SET(scic->completion_event_entries - 1)
 		);
 
 	writel(completion_queue_control_value,
-		&this_controller->smu_registers->completion_queue_control);
+	       &scic->smu_registers->completion_queue_control);
 
 
 	/* Set the completion queue get pointer and enable the queue */
@@ -348,7 +348,7 @@ static void scic_sds_controller_initialize_completion_queue(
 		);
 
 	writel(completion_queue_get_value,
-		&this_controller->smu_registers->completion_queue_get);
+	       &scic->smu_registers->completion_queue_get);
 
 	/* Set the completion queue put pointer */
 	completion_queue_put_value = (
@@ -357,16 +357,15 @@ static void scic_sds_controller_initialize_completion_queue(
 		);
 
 	writel(completion_queue_put_value,
-		&this_controller->smu_registers->completion_queue_put);
-
+	       &scic->smu_registers->completion_queue_put);
 
 	/* Initialize the cycle bit of the completion queue entries */
-	for (index = 0; index < this_controller->completion_queue_entries; index++) {
+	for (index = 0; index < scic->completion_queue_entries; index++) {
 		/*
 		 * If get.cycle_bit != completion_queue.cycle_bit
 		 * its not a valid completion queue entry
 		 * so at system start all entries are invalid */
-		this_controller->completion_queue[index] = 0x80000000;
+		scic->completion_queue[index] = 0x80000000;
 	}
 }
 
@@ -376,7 +375,7 @@ static void scic_sds_controller_initialize_completion_queue(
  *
  */
 static void scic_sds_controller_initialize_unsolicited_frame_queue(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *scic)
 {
 	u32 frame_queue_control_value;
 	u32 frame_queue_get_value;
@@ -384,10 +383,11 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(
 
 	/* Write the queue size */
 	frame_queue_control_value =
-		SCU_UFQC_GEN_VAL(QUEUE_SIZE, this_controller->uf_control.address_table.count);
+		SCU_UFQC_GEN_VAL(QUEUE_SIZE,
+				 scic->uf_control.address_table.count);
 
 	writel(frame_queue_control_value,
-		&this_controller->scu_registers->sdma.unsolicited_frame_queue_control);
+	       &scic->scu_registers->sdma.unsolicited_frame_queue_control);
 
 	/* Setup the get pointer for the unsolicited frame queue */
 	frame_queue_get_value = (
@@ -396,11 +396,11 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(
 		);
 
 	writel(frame_queue_get_value,
-		&this_controller->scu_registers->sdma.unsolicited_frame_get_pointer);
+	       &scic->scu_registers->sdma.unsolicited_frame_get_pointer);
 	/* Setup the put pointer for the unsolicited frame queue */
 	frame_queue_put_value = SCU_UFQPP_GEN_VAL(POINTER, 0);
 	writel(frame_queue_put_value,
-		&this_controller->scu_registers->sdma.unsolicited_frame_put_pointer);
+	       &scic->scu_registers->sdma.unsolicited_frame_put_pointer);
 }
 
 /**
@@ -409,16 +409,17 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(
  *
  */
 static void scic_sds_controller_enable_port_task_scheduler(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *scic)
 {
 	u32 port_task_scheduler_value;
 
 	port_task_scheduler_value =
-		readl(&this_controller->scu_registers->peg0.ptsg.control);
+		readl(&scic->scu_registers->peg0.ptsg.control);
 	port_task_scheduler_value |=
-		(SCU_PTSGCR_GEN_BIT(ETM_ENABLE) | SCU_PTSGCR_GEN_BIT(PTSG_ENABLE));
+		(SCU_PTSGCR_GEN_BIT(ETM_ENABLE) |
+		 SCU_PTSGCR_GEN_BIT(PTSG_ENABLE));
 	writel(port_task_scheduler_value,
-		&this_controller->scu_registers->peg0.ptsg.control);
+	       &scic->scu_registers->peg0.ptsg.control);
 }
 
 /**
@@ -564,7 +565,7 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
  * This method will attempt to transition into the ready state for the
  *    controller and indicate that the controller start operation has completed
  *    if all criteria are met.
- * @this_controller: This parameter indicates the controller object for which
+ * @scic: This parameter indicates the controller object for which
  *    to transition to ready.
  * @status: This parameter indicates the status value to be pass into the call
  *    to scic_cb_controller_start_complete().
@@ -858,30 +859,30 @@ static void scic_sds_controller_power_control_timer_restart(struct scic_sds_cont
 static void scic_sds_controller_power_control_timer_handler(
 	void *controller)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)controller;
+	scic = (struct scic_sds_controller *)controller;
 
-	this_controller->power_control.phys_granted_power = 0;
+	scic->power_control.phys_granted_power = 0;
 
-	if (this_controller->power_control.phys_waiting == 0) {
-		this_controller->power_control.timer_started = false;
+	if (scic->power_control.phys_waiting == 0) {
+		scic->power_control.timer_started = false;
 	} else {
-		struct scic_sds_phy *the_phy = NULL;
+		struct scic_sds_phy *sci_phy = NULL;
 		u8 i;
 
 		for (i = 0;
 		     (i < SCI_MAX_PHYS)
-		     && (this_controller->power_control.phys_waiting != 0);
+		     && (scic->power_control.phys_waiting != 0);
 		     i++) {
-			if (this_controller->power_control.requesters[i] != NULL) {
-				if (this_controller->power_control.phys_granted_power <
-				    this_controller->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
-					the_phy = this_controller->power_control.requesters[i];
-					this_controller->power_control.requesters[i] = NULL;
-					this_controller->power_control.phys_waiting--;
-					this_controller->power_control.phys_granted_power++;
-					scic_sds_phy_consume_power_handler(the_phy);
+			if (scic->power_control.requesters[i] != NULL) {
+				if (scic->power_control.phys_granted_power <
+				    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
+					sci_phy = scic->power_control.requesters[i];
+					scic->power_control.requesters[i] = NULL;
+					scic->power_control.phys_waiting--;
+					scic->power_control.phys_granted_power++;
+					scic_sds_phy_consume_power_handler(sci_phy);
 				} else {
 					break;
 				}
@@ -892,56 +893,56 @@ static void scic_sds_controller_power_control_timer_handler(
 		 * It doesn't matter if the power list is empty, we need to start the
 		 * timer in case another phy becomes ready.
 		 */
-		scic_sds_controller_power_control_timer_start(this_controller);
+		scic_sds_controller_power_control_timer_start(scic);
 	}
 }
 
 /**
  * This method inserts the phy in the stagger spinup control queue.
- * @this_controller:
+ * @scic:
  *
  *
  */
 void scic_sds_controller_power_control_queue_insert(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_phy *the_phy)
+	struct scic_sds_controller *scic,
+	struct scic_sds_phy *sci_phy)
 {
-	BUG_ON(the_phy == NULL);
+	BUG_ON(sci_phy == NULL);
 
-	if (this_controller->power_control.phys_granted_power <
-	    this_controller->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
-		this_controller->power_control.phys_granted_power++;
-		scic_sds_phy_consume_power_handler(the_phy);
+	if (scic->power_control.phys_granted_power <
+	    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
+		scic->power_control.phys_granted_power++;
+		scic_sds_phy_consume_power_handler(sci_phy);
 
 		/*
 		 * stop and start the power_control timer. When the timer fires, the
 		 * no_of_phys_granted_power will be set to 0
 		 */
-		scic_sds_controller_power_control_timer_restart(this_controller);
+		scic_sds_controller_power_control_timer_restart(scic);
 	} else {
 		/* Add the phy in the waiting list */
-		this_controller->power_control.requesters[the_phy->phy_index] = the_phy;
-		this_controller->power_control.phys_waiting++;
+		scic->power_control.requesters[sci_phy->phy_index] = sci_phy;
+		scic->power_control.phys_waiting++;
 	}
 }
 
 /**
  * This method removes the phy from the stagger spinup control queue.
- * @this_controller:
+ * @scic:
  *
  *
  */
 void scic_sds_controller_power_control_queue_remove(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_phy *the_phy)
+	struct scic_sds_controller *scic,
+	struct scic_sds_phy *sci_phy)
 {
-	BUG_ON(the_phy == NULL);
+	BUG_ON(sci_phy == NULL);
 
-	if (this_controller->power_control.requesters[the_phy->phy_index] != NULL) {
-		this_controller->power_control.phys_waiting--;
+	if (scic->power_control.requesters[sci_phy->phy_index] != NULL) {
+		scic->power_control.phys_waiting--;
 	}
 
-	this_controller->power_control.requesters[the_phy->phy_index] = NULL;
+	scic->power_control.requesters[sci_phy->phy_index] = NULL;
 }
 
 /*
@@ -952,23 +953,20 @@ void scic_sds_controller_power_control_queue_remove(
 /**
  * This method returns a true value if the completion queue has entries that
  *    can be processed
- * @this_controller:
+ * @scic:
  *
  * bool true if the completion queue has entries to process false if the
  * completion queue has no entries to process
  */
 static bool scic_sds_controller_completion_queue_has_entries(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *scic)
 {
-	u32 get_value = this_controller->completion_queue_get;
+	u32 get_value = scic->completion_queue_get;
 	u32 get_index = get_value & SMU_COMPLETION_QUEUE_GET_POINTER_MASK;
 
-	if (
-		NORMALIZE_GET_POINTER_CYCLE_BIT(get_value)
-		== COMPLETION_QUEUE_CYCLE_BIT(this_controller->completion_queue[get_index])
-		) {
+	if (NORMALIZE_GET_POINTER_CYCLE_BIT(get_value) ==
+	    COMPLETION_QUEUE_CYCLE_BIT(scic->completion_queue[get_index]))
 		return true;
-	}
 
 	return false;
 }
@@ -976,19 +974,19 @@ static bool scic_sds_controller_completion_queue_has_entries(
 /**
  * This method processes a task completion notification.  This is called from
  *    within the controller completion handler.
- * @this_controller:
+ * @scic:
  * @completion_entry:
  *
  */
 static void scic_sds_controller_task_completion(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 completion_entry)
 {
 	u32 index;
 	struct scic_sds_request *io_request;
 
 	index = SCU_GET_COMPLETION_INDEX(completion_entry);
-	io_request = this_controller->io_request_table[index];
+	io_request = scic->io_request_table[index];
 
 	/* Make sure that we really want to process this IO request */
 	if (
@@ -996,7 +994,7 @@ static void scic_sds_controller_task_completion(
 		&& (io_request->io_tag != SCI_CONTROLLER_INVALID_IO_TAG)
 		&& (
 			scic_sds_io_tag_get_sequence(io_request->io_tag)
-			== this_controller->io_request_sequence[index]
+			== scic->io_request_sequence[index]
 			)
 		) {
 		/* Yep this is a valid io request pass it along to the io request handler */
@@ -1007,12 +1005,12 @@ static void scic_sds_controller_task_completion(
 /**
  * This method processes an SDMA completion event.  This is called from within
  *    the controller completion handler.
- * @this_controller:
+ * @scic:
  * @completion_entry:
  *
  */
 static void scic_sds_controller_sdma_completion(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 completion_entry)
 {
 	u32 index;
@@ -1024,8 +1022,8 @@ static void scic_sds_controller_sdma_completion(
 	switch (scu_get_command_request_type(completion_entry)) {
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_TC:
-		io_request = this_controller->io_request_table[index];
-		dev_warn(scic_to_dev(this_controller),
+		io_request = scic->io_request_table[index];
+		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC SDS Completion type SDMA %x for io request "
 			 "%p\n",
 			 __func__,
@@ -1039,8 +1037,8 @@ static void scic_sds_controller_sdma_completion(
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_OTHER_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_RNC:
-		device = this_controller->device_table[index];
-		dev_warn(scic_to_dev(this_controller),
+		device = scic->device_table[index];
+		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC SDS Completion type SDMA %x for remote "
 			 "device %p\n",
 			 __func__,
@@ -1052,7 +1050,7 @@ static void scic_sds_controller_sdma_completion(
 		break;
 
 	default:
-		dev_warn(scic_to_dev(this_controller),
+		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC SDS Completion unknown SDMA completion "
 			 "type %x\n",
 			 __func__,
@@ -1064,14 +1062,14 @@ static void scic_sds_controller_sdma_completion(
 
 /**
  *
- * @this_controller:
+ * @scic:
  * @completion_entry:
  *
  * This method processes an unsolicited frame message.  This is called from
  * within the controller completion handler. none
  */
 static void scic_sds_controller_unsolicited_frame(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 completion_entry)
 {
 	u32 index;
@@ -1086,8 +1084,8 @@ static void scic_sds_controller_unsolicited_frame(
 	frame_index = SCU_GET_FRAME_INDEX(completion_entry);
 
 	frame_header
-		= this_controller->uf_control.buffers.array[frame_index].header;
-	this_controller->uf_control.buffers.array[frame_index].state
+		= scic->uf_control.buffers.array[frame_index].header;
+	scic->uf_control.buffers.array[frame_index].state
 		= UNSOLICITED_FRAME_IN_USE;
 
 	if (SCU_GET_FRAME_ERROR(completion_entry)) {
@@ -1095,13 +1093,13 @@ static void scic_sds_controller_unsolicited_frame(
 		 * / @todo If the IAF frame or SIGNATURE FIS frame has an error will
 		 * /       this cause a problem? We expect the phy initialization will
 		 * /       fail if there is an error in the frame. */
-		scic_sds_controller_release_frame(this_controller, frame_index);
+		scic_sds_controller_release_frame(scic, frame_index);
 		return;
 	}
 
 	if (frame_header->is_address_frame) {
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &this_controller->phy_table[index];
+		phy = &scic->phy_table[index];
 		if (phy != NULL) {
 			result = scic_sds_phy_frame_handler(phy, frame_index);
 		}
@@ -1115,18 +1113,18 @@ static void scic_sds_controller_unsolicited_frame(
 			 * device that has not yet been created.  In either case forwared
 			 * the frame to the PE and let it take care of the frame data. */
 			index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-			phy = &this_controller->phy_table[index];
+			phy = &scic->phy_table[index];
 			result = scic_sds_phy_frame_handler(phy, frame_index);
 		} else {
-			if (index < this_controller->remote_node_entries)
-				device = this_controller->device_table[index];
+			if (index < scic->remote_node_entries)
+				device = scic->device_table[index];
 			else
 				device = NULL;
 
 			if (device != NULL)
 				result = scic_sds_remote_device_frame_handler(device, frame_index);
 			else
-				scic_sds_controller_release_frame(this_controller, frame_index);
+				scic_sds_controller_release_frame(scic, frame_index);
 		}
 	}
 
@@ -1140,12 +1138,12 @@ static void scic_sds_controller_unsolicited_frame(
 /**
  * This method processes an event completion entry.  This is called from within
  *    the controller completion handler.
- * @this_controller:
+ * @scic:
  * @completion_entry:
  *
  */
 static void scic_sds_controller_event_completion(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 completion_entry)
 {
 	u32 index;
@@ -1158,11 +1156,11 @@ static void scic_sds_controller_event_completion(
 	switch (scu_get_event_type(completion_entry)) {
 	case SCU_EVENT_TYPE_SMU_COMMAND_ERROR:
 		/* / @todo The driver did something wrong and we need to fix the condtion. */
-		dev_err(scic_to_dev(this_controller),
+		dev_err(scic_to_dev(scic),
 			"%s: SCIC Controller 0x%p received SMU command error "
 			"0x%x\n",
 			__func__,
-			this_controller,
+			scic,
 			completion_entry);
 		break;
 
@@ -1172,16 +1170,16 @@ static void scic_sds_controller_event_completion(
 		/*
 		 * / @todo This is a hardware failure and its likely that we want to
 		 * /       reset the controller. */
-		dev_err(scic_to_dev(this_controller),
+		dev_err(scic_to_dev(scic),
 			"%s: SCIC Controller 0x%p received fatal controller "
 			"event  0x%x\n",
 			__func__,
-			this_controller,
+			scic,
 			completion_entry);
 		break;
 
 	case SCU_EVENT_TYPE_TRANSPORT_ERROR:
-		io_request = this_controller->io_request_table[index];
+		io_request = scic->io_request_table[index];
 		scic_sds_io_request_event_handler(io_request, completion_entry);
 		break;
 
@@ -1189,31 +1187,31 @@ static void scic_sds_controller_event_completion(
 		switch (scu_get_event_specifier(completion_entry)) {
 		case SCU_EVENT_SPECIFIC_SMP_RESPONSE_NO_PE:
 		case SCU_EVENT_SPECIFIC_TASK_TIMEOUT:
-			io_request = this_controller->io_request_table[index];
+			io_request = scic->io_request_table[index];
 			if (io_request != NULL)
 				scic_sds_io_request_event_handler(io_request, completion_entry);
 			else
-				dev_warn(scic_to_dev(this_controller),
+				dev_warn(scic_to_dev(scic),
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for io request object "
 					 "that doesnt exist.\n",
 					 __func__,
-					 this_controller,
+					 scic,
 					 completion_entry);
 
 			break;
 
 		case SCU_EVENT_SPECIFIC_IT_NEXUS_TIMEOUT:
-			device = this_controller->device_table[index];
+			device = scic->device_table[index];
 			if (device != NULL)
 				scic_sds_remote_device_event_handler(device, completion_entry);
 			else
-				dev_warn(scic_to_dev(this_controller),
+				dev_warn(scic_to_dev(scic),
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for remote device object "
 					 "that doesnt exist.\n",
 					 __func__,
-					 this_controller,
+					 scic,
 					 completion_entry);
 
 			break;
@@ -1230,32 +1228,32 @@ static void scic_sds_controller_event_completion(
 	 * we get the event notification.  This is a type 4 event. */
 	case SCU_EVENT_TYPE_OSSP_EVENT:
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &this_controller->phy_table[index];
+		phy = &scic->phy_table[index];
 		scic_sds_phy_event_handler(phy, completion_entry);
 		break;
 
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
 	case SCU_EVENT_TYPE_RNC_OPS_MISC:
-		if (index < this_controller->remote_node_entries) {
-			device = this_controller->device_table[index];
+		if (index < scic->remote_node_entries) {
+			device = scic->device_table[index];
 
 			if (device != NULL)
 				scic_sds_remote_device_event_handler(device, completion_entry);
 		} else
-			dev_err(scic_to_dev(this_controller),
+			dev_err(scic_to_dev(scic),
 				"%s: SCIC Controller 0x%p received event 0x%x "
 				"for remote device object 0x%0x that doesnt "
 				"exist.\n",
 				__func__,
-				this_controller,
+				scic,
 				completion_entry,
 				index);
 
 		break;
 
 	default:
-		dev_warn(scic_to_dev(this_controller),
+		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC Controller received unknown event code %x\n",
 			 __func__,
 			 completion_entry);
@@ -1265,11 +1263,11 @@ static void scic_sds_controller_event_completion(
 
 /**
  * This method is a private routine for processing the completion queue entries.
- * @this_controller:
+ * @scic:
  *
  */
 static void scic_sds_controller_process_completions(
-	struct scic_sds_controller *this_controller)
+	struct scic_sds_controller *scic)
 {
 	u32 completion_count = 0;
 	u32 completion_entry;
@@ -1278,60 +1276,60 @@ static void scic_sds_controller_process_completions(
 	u32 event_index;
 	u32 event_cycle;
 
-	dev_dbg(scic_to_dev(this_controller),
+	dev_dbg(scic_to_dev(scic),
 		"%s: completion queue begining get:0x%08x\n",
 		__func__,
-		this_controller->completion_queue_get);
+		scic->completion_queue_get);
 
 	/* Get the component parts of the completion queue */
-	get_index = NORMALIZE_GET_POINTER(this_controller->completion_queue_get);
-	get_cycle = SMU_CQGR_CYCLE_BIT & this_controller->completion_queue_get;
+	get_index = NORMALIZE_GET_POINTER(scic->completion_queue_get);
+	get_cycle = SMU_CQGR_CYCLE_BIT & scic->completion_queue_get;
 
-	event_index = NORMALIZE_EVENT_POINTER(this_controller->completion_queue_get);
-	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & this_controller->completion_queue_get;
+	event_index = NORMALIZE_EVENT_POINTER(scic->completion_queue_get);
+	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & scic->completion_queue_get;
 
 	while (
 		NORMALIZE_GET_POINTER_CYCLE_BIT(get_cycle)
-		== COMPLETION_QUEUE_CYCLE_BIT(this_controller->completion_queue[get_index])
+		== COMPLETION_QUEUE_CYCLE_BIT(scic->completion_queue[get_index])
 		) {
 		completion_count++;
 
-		completion_entry = this_controller->completion_queue[get_index];
-		INCREMENT_COMPLETION_QUEUE_GET(this_controller, get_index, get_cycle);
+		completion_entry = scic->completion_queue[get_index];
+		INCREMENT_COMPLETION_QUEUE_GET(scic, get_index, get_cycle);
 
-		dev_dbg(scic_to_dev(this_controller),
+		dev_dbg(scic_to_dev(scic),
 			"%s: completion queue entry:0x%08x\n",
 			__func__,
 			completion_entry);
 
 		switch (SCU_GET_COMPLETION_TYPE(completion_entry)) {
 		case SCU_COMPLETION_TYPE_TASK:
-			scic_sds_controller_task_completion(this_controller, completion_entry);
+			scic_sds_controller_task_completion(scic, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_SDMA:
-			scic_sds_controller_sdma_completion(this_controller, completion_entry);
+			scic_sds_controller_sdma_completion(scic, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_UFI:
-			scic_sds_controller_unsolicited_frame(this_controller, completion_entry);
+			scic_sds_controller_unsolicited_frame(scic, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_EVENT:
-			INCREMENT_EVENT_QUEUE_GET(this_controller, event_index, event_cycle);
-			scic_sds_controller_event_completion(this_controller, completion_entry);
+			INCREMENT_EVENT_QUEUE_GET(scic, event_index, event_cycle);
+			scic_sds_controller_event_completion(scic, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_NOTIFY:
 			/*
 			 * Presently we do the same thing with a notify event that we do with the
 			 * other event codes. */
-			INCREMENT_EVENT_QUEUE_GET(this_controller, event_index, event_cycle);
-			scic_sds_controller_event_completion(this_controller, completion_entry);
+			INCREMENT_EVENT_QUEUE_GET(scic, event_index, event_cycle);
+			scic_sds_controller_event_completion(scic, completion_entry);
 			break;
 
 		default:
-			dev_warn(scic_to_dev(this_controller),
+			dev_warn(scic_to_dev(scic),
 				 "%s: SCIC Controller received unknown "
 				 "completion type %x\n",
 				 __func__,
@@ -1342,21 +1340,23 @@ static void scic_sds_controller_process_completions(
 
 	/* Update the get register if we completed one or more entries */
 	if (completion_count > 0) {
-		this_controller->completion_queue_get =
-			SMU_CQGR_GEN_BIT(ENABLE)
-			| SMU_CQGR_GEN_BIT(EVENT_ENABLE)
-			| event_cycle | SMU_CQGR_GEN_VAL(EVENT_POINTER, event_index)
-			| get_cycle   | SMU_CQGR_GEN_VAL(POINTER, get_index);
+		scic->completion_queue_get =
+			SMU_CQGR_GEN_BIT(ENABLE) |
+			SMU_CQGR_GEN_BIT(EVENT_ENABLE) |
+			event_cycle |
+			SMU_CQGR_GEN_VAL(EVENT_POINTER, event_index) |
+			get_cycle |
+			SMU_CQGR_GEN_VAL(POINTER, get_index);
 
-		writel(this_controller->completion_queue_get,
-			&this_controller->smu_registers->completion_queue_get);
+		writel(scic->completion_queue_get,
+		       &scic->smu_registers->completion_queue_get);
 
 	}
 
-	dev_dbg(scic_to_dev(this_controller),
+	dev_dbg(scic_to_dev(scic),
 		"%s: completion queue ending get:0x%08x\n",
 		__func__,
-		this_controller->completion_queue_get);
+		scic->completion_queue_get);
 
 }
 
@@ -1540,29 +1540,29 @@ void scic_sds_controller_remote_device_stopped(struct scic_sds_controller *scic,
 /**
  * This method will write to the SCU PCP register the request value. The method
  *    is used to suspend/resume ports, devices, and phys.
- * @this_controller:
+ * @scic:
  *
  *
  */
 void scic_sds_controller_post_request(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 request)
 {
-	dev_dbg(scic_to_dev(this_controller),
+	dev_dbg(scic_to_dev(scic),
 		"%s: SCIC Controller 0x%p post request 0x%08x\n",
 		__func__,
-		this_controller,
+		scic,
 		request);
 
-	writel(request, &this_controller->smu_registers->post_context_port);
+	writel(request, &scic->smu_registers->post_context_port);
 }
 
 /**
  * This method will copy the soft copy of the task context into the physical
  *    memory accessible by the controller.
- * @this_controller: This parameter specifies the controller for which to copy
+ * @scic: This parameter specifies the controller for which to copy
  *    the task context.
- * @this_request: This parameter specifies the request for which the task
+ * @sci_req: This parameter specifies the request for which the task
  *    context is being copied.
  *
  * After this call is made the SCIC_SDS_IO_REQUEST object will always point to
@@ -1571,43 +1571,40 @@ void scic_sds_controller_post_request(
  * memory). none
  */
 void scic_sds_controller_copy_task_context(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_request *this_request)
+	struct scic_sds_controller *scic,
+	struct scic_sds_request *sci_req)
 {
 	struct scu_task_context *task_context_buffer;
 
 	task_context_buffer = scic_sds_controller_get_task_context_buffer(
-		this_controller, this_request->io_tag
-		);
+		scic, sci_req->io_tag);
 
-	memcpy(
-		task_context_buffer,
-		this_request->task_context_buffer,
-		SCI_FIELD_OFFSET(struct scu_task_context, sgl_snapshot_ac)
-		);
+	memcpy(task_context_buffer,
+	       sci_req->task_context_buffer,
+	       SCI_FIELD_OFFSET(struct scu_task_context, sgl_snapshot_ac));
 
 	/*
 	 * Now that the soft copy of the TC has been copied into the TC
 	 * table accessible by the silicon.  Thus, any further changes to
 	 * the TC (e.g. TC termination) occur in the appropriate location. */
-	this_request->task_context_buffer = task_context_buffer;
+	sci_req->task_context_buffer = task_context_buffer;
 }
 
 /**
  * This method returns the task context buffer for the given io tag.
- * @this_controller:
+ * @scic:
  * @io_tag:
  *
  * struct scu_task_context*
  */
 struct scu_task_context *scic_sds_controller_get_task_context_buffer(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u16 io_tag
 	) {
 	u16 task_index = scic_sds_io_tag_get_index(io_tag);
 
-	if (task_index < this_controller->task_context_entries) {
-		return &this_controller->task_context_table[task_index];
+	if (task_index < scic->task_context_entries) {
+		return &scic->task_context_table[task_index];
 	}
 
 	return NULL;
@@ -1615,7 +1612,7 @@ struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 
 /**
  * This method returnst the sequence value from the io tag value
- * @this_controller:
+ * @scic:
  * @io_tag:
  *
  * u16
@@ -1623,13 +1620,13 @@ struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 
 /**
  * This method returns the IO request associated with the tag value
- * @this_controller:
+ * @scic:
  * @io_tag:
  *
  * SCIC_SDS_IO_REQUEST_T* NULL if there is no valid IO request at the tag value
  */
 struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u16 io_tag
 	) {
 	u16 task_index;
@@ -1637,12 +1634,12 @@ struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
 
 	task_index = scic_sds_io_tag_get_index(io_tag);
 
-	if (task_index  < this_controller->task_context_entries) {
-		if (this_controller->io_request_table[task_index] != NULL) {
+	if (task_index  < scic->task_context_entries) {
+		if (scic->io_request_table[task_index] != NULL) {
 			task_sequence = scic_sds_io_tag_get_sequence(io_tag);
 
-			if (task_sequence == this_controller->io_request_sequence[task_index]) {
-				return this_controller->io_request_table[task_index];
+			if (task_sequence == scic->io_request_sequence[task_index]) {
+				return scic->io_request_table[task_index];
 			}
 		}
 	}
@@ -1654,9 +1651,9 @@ struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
  * This method allocates remote node index and the reserves the remote node
  *    context space for use. This method can fail if there are no more remote
  *    node index available.
- * @this_controller: This is the controller object which contains the set of
+ * @scic: This is the controller object which contains the set of
  *    free remote node ids
- * @the_devce: This is the device object which is requesting the a remote node
+ * @sci_dev: This is the device object which is requesting the a remote node
  *    id
  * @node_id: This is the remote node id that is assinged to the device if one
  *    is available
@@ -1665,19 +1662,19 @@ struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
  * node index available.
  */
 enum sci_status scic_sds_controller_allocate_remote_node_context(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device,
+	struct scic_sds_controller *scic,
+	struct scic_sds_remote_device *sci_dev,
 	u16 *node_id)
 {
 	u16 node_index;
-	u32 remote_node_count = scic_sds_remote_device_node_count(the_device);
+	u32 remote_node_count = scic_sds_remote_device_node_count(sci_dev);
 
 	node_index = scic_sds_remote_node_table_allocate_remote_node(
-		&this_controller->available_remote_nodes, remote_node_count
+		&scic->available_remote_nodes, remote_node_count
 		);
 
 	if (node_index != SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-		this_controller->device_table[node_index] = the_device;
+		scic->device_table[node_index] = sci_dev;
 
 		*node_id = node_index;
 
@@ -1691,23 +1688,23 @@ enum sci_status scic_sds_controller_allocate_remote_node_context(
  * This method frees the remote node index back to the available pool.  Once
  *    this is done the remote node context buffer is no longer valid and can
  *    not be used.
- * @this_controller:
- * @the_device:
+ * @scic:
+ * @sci_dev:
  * @node_id:
  *
  */
 void scic_sds_controller_free_remote_node_context(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device,
+	struct scic_sds_controller *scic,
+	struct scic_sds_remote_device *sci_dev,
 	u16 node_id)
 {
-	u32 remote_node_count = scic_sds_remote_device_node_count(the_device);
+	u32 remote_node_count = scic_sds_remote_device_node_count(sci_dev);
 
-	if (this_controller->device_table[node_id] == the_device) {
-		this_controller->device_table[node_id] = NULL;
+	if (scic->device_table[node_id] == sci_dev) {
+		scic->device_table[node_id] = NULL;
 
 		scic_sds_remote_node_table_release_remote_node_index(
-			&this_controller->available_remote_nodes, remote_node_count, node_id
+			&scic->available_remote_nodes, remote_node_count, node_id
 			);
 	}
 }
@@ -1715,20 +1712,20 @@ void scic_sds_controller_free_remote_node_context(
 /**
  * This method returns the union scu_remote_node_context for the specified remote
  *    node id.
- * @this_controller:
+ * @scic:
  * @node_id:
  *
  * union scu_remote_node_context*
  */
 union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffer(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u16 node_id
 	) {
 	if (
-		(node_id < this_controller->remote_node_entries)
-		&& (this_controller->device_table[node_id] != NULL)
+		(node_id < scic->remote_node_entries)
+		&& (scic->device_table[node_id] != NULL)
 		) {
-		return &this_controller->remote_node_context_table[node_id];
+		return &scic->remote_node_context_table[node_id];
 	}
 
 	return NULL;
@@ -1767,18 +1764,18 @@ void scic_sds_controller_copy_sata_response(
  *    re-use by the hardware.  The data contained in the frame header and frame
  *    buffer is no longer valid. The UF queue get pointer is only updated if UF
  *    control indicates this is appropriate.
- * @this_controller:
+ * @scic:
  * @frame_index:
  *
  */
 void scic_sds_controller_release_frame(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	u32 frame_index)
 {
 	if (scic_sds_unsolicited_frame_control_release_frame(
-		    &this_controller->uf_control, frame_index) == true)
-		writel(this_controller->uf_control.get,
-			&this_controller->scu_registers->sdma.unsolicited_frame_get_pointer);
+		    &scic->uf_control, frame_index) == true)
+		writel(scic->uf_control.get,
+			&scic->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
 /**
@@ -2888,11 +2885,11 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 static void scic_sds_controller_initial_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)object;
+	scic = (struct scic_sds_controller *)object;
 
-	sci_base_state_machine_change_state(&this_controller->state_machine,
+	sci_base_state_machine_change_state(&scic->state_machine,
 			SCI_BASE_CONTROLLER_STATE_RESET);
 }
 
@@ -2925,13 +2922,13 @@ static inline void scic_sds_controller_starting_state_exit(
 static void scic_sds_controller_ready_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)object;
+	scic = (struct scic_sds_controller *)object;
 
 	/* set the default interrupt coalescence number and timeout value. */
 	scic_controller_set_interrupt_coalescence(
-		this_controller, 0x10, 250);
+		scic, 0x10, 250);
 }
 
 /**
@@ -2945,12 +2942,12 @@ static void scic_sds_controller_ready_state_enter(
 static void scic_sds_controller_ready_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)object;
+	scic = (struct scic_sds_controller *)object;
 
 	/* disable interrupt coalescence. */
-	scic_controller_set_interrupt_coalescence(this_controller, 0, 0);
+	scic_controller_set_interrupt_coalescence(scic, 0, 0);
 }
 
 /**
@@ -2966,14 +2963,14 @@ static void scic_sds_controller_ready_state_exit(
 static void scic_sds_controller_stopping_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)object;
+	scic = (struct scic_sds_controller *)object;
 
 	/* Stop all of the components for this controller */
-	scic_sds_controller_stop_phys(this_controller);
-	scic_sds_controller_stop_ports(this_controller);
-	scic_sds_controller_stop_devices(this_controller);
+	scic_sds_controller_stop_phys(scic);
+	scic_sds_controller_stop_ports(scic);
+	scic_sds_controller_stop_devices(scic);
 }
 
 /**

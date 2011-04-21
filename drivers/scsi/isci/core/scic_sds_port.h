@@ -378,77 +378,77 @@ static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *s
 	(((port)->active_phy_mask & (1 << (phy)->phy_index)) != 0)
 
 void scic_sds_port_construct(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	u8 port_index,
-	struct scic_sds_controller *owning_controller);
+	struct scic_sds_controller *scic);
 
 enum sci_status scic_sds_port_initialize(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	void __iomem *port_task_scheduler_registers,
 	void __iomem *port_configuration_regsiter,
 	void __iomem *viit_registers);
 
 enum sci_status scic_sds_port_add_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 enum sci_status scic_sds_port_remove_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_port_setup_transports(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	u32 device_id);
 
 
 void scic_sds_port_deactivate_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy,
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy,
 	bool do_notify_user);
 
 bool scic_sds_port_link_detected(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_port_link_up(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 void scic_sds_port_link_down(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 enum sci_status scic_sds_port_start_io(
-	struct scic_sds_port *this_port,
-	struct scic_sds_remote_device *the_device,
-	struct scic_sds_request *the_io_request);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_remote_device *sci_dev,
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_port_complete_io(
-	struct scic_sds_port *this_port,
-	struct scic_sds_remote_device *the_device,
-	struct scic_sds_request *the_io_request);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_remote_device *sci_dev,
+	struct scic_sds_request *sci_req);
 
 enum sas_linkrate scic_sds_port_get_max_allowed_speed(
-	struct scic_sds_port *this_port);
+	struct scic_sds_port *sci_port);
 
 void scic_sds_port_broadcast_change_received(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *this_phy);
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy);
 
 bool scic_sds_port_is_valid_phy_assignment(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	u32 phy_index);
 
 void scic_sds_port_get_sas_address(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	struct sci_sas_address *sas_address);
 
 void scic_sds_port_get_attached_sas_address(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	struct sci_sas_address *sas_address);
 
 void scic_sds_port_get_attached_protocols(
-	struct scic_sds_port *this_port,
+	struct scic_sds_port *sci_port,
 	struct sci_sas_identify_address_frame_protocols *protocols);
 
 #endif /* _SCIC_SDS_PORT_H_ */

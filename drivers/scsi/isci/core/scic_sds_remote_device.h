@@ -350,25 +350,25 @@ typedef enum sci_status (*scic_sds_remote_device_high_priority_request_complete_
 	enum sci_io_status);
 
 typedef enum sci_status (*scic_sds_remote_device_handler_t)(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 typedef enum sci_status (*scic_sds_remote_device_suspend_handler_t)(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 suspend_type);
 
 typedef enum sci_status (*scic_sds_remote_device_resume_handler_t)(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 typedef enum sci_status (*scic_sds_remote_device_frame_handler_t)(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 frame_index);
 
 typedef enum sci_status (*scic_sds_remote_device_event_handler_t)(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 event_code);
 
 typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 /**
  * struct scic_sds_remote_device_state_handler - This structure conains the
@@ -461,8 +461,8 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  *
  * This macro incrments the request count for this device
  */
-#define scic_sds_remote_device_increment_request_count(this_device) \
-	((this_device)->started_request_count++)
+#define scic_sds_remote_device_increment_request_count(sci_dev) \
+	((sci_dev)->started_request_count++)
 
 /**
  * scic_sds_remote_device_decrement_request_count() -
@@ -470,33 +470,33 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  * This macro decrements the request count for this device.  This count will
  * never decrment past 0.
  */
-#define scic_sds_remote_device_decrement_request_count(this_device) \
-	((this_device)->started_request_count > 0 ? \
-	 (this_device)->started_request_count-- : 0)
+#define scic_sds_remote_device_decrement_request_count(sci_dev) \
+	((sci_dev)->started_request_count > 0 ? \
+	 (sci_dev)->started_request_count-- : 0)
 
 /**
  * scic_sds_remote_device_get_request_count() -
  *
  * This is a helper macro to return the current device request count.
  */
-#define scic_sds_remote_device_get_request_count(this_device) \
-	((this_device)->started_request_count)
+#define scic_sds_remote_device_get_request_count(sci_dev) \
+	((sci_dev)->started_request_count)
 
 /**
  * scic_sds_remote_device_get_port() -
  *
  * This macro returns the owning port of this remote device obejct.
  */
-#define scic_sds_remote_device_get_port(this_device) \
-	((this_device)->owning_port)
+#define scic_sds_remote_device_get_port(sci_dev) \
+	((sci_dev)->owning_port)
 
 /**
  * scic_sds_remote_device_get_controller() -
  *
  * This macro returns the controller object that contains this device object
  */
-#define scic_sds_remote_device_get_controller(this_device) \
-	scic_sds_port_get_controller(scic_sds_remote_device_get_port(this_device))
+#define scic_sds_remote_device_get_controller(sci_dev) \
+	scic_sds_port_get_controller(scic_sds_remote_device_get_port(sci_dev))
 
 /**
  * scic_sds_remote_device_set_state_handlers() -
@@ -504,26 +504,26 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  * This macro sets the remote device state handlers pointer and is set on entry
  * to each device state.
  */
-#define scic_sds_remote_device_set_state_handlers(this_device, handlers) \
-	((this_device)->state_handlers = (handlers))
+#define scic_sds_remote_device_set_state_handlers(sci_dev, handlers) \
+	((sci_dev)->state_handlers = (handlers))
 
 /**
  * scic_sds_remote_device_get_port() -
  *
  * This macro returns the owning port of this device
  */
-#define scic_sds_remote_device_get_port(this_device) \
-	((this_device)->owning_port)
+#define scic_sds_remote_device_get_port(sci_dev) \
+	((sci_dev)->owning_port)
 
 /**
  * scic_sds_remote_device_get_sequence() -
  *
  * This macro returns the remote device sequence value
  */
-#define scic_sds_remote_device_get_sequence(this_device) \
+#define scic_sds_remote_device_get_sequence(sci_dev) \
 	(\
-		scic_sds_remote_device_get_controller(this_device)-> \
-		remote_device_sequence[(this_device)->rnc->remote_node_index] \
+		scic_sds_remote_device_get_controller(sci_dev)-> \
+		remote_device_sequence[(sci_dev)->rnc->remote_node_index] \
 	)
 
 /**
@@ -531,11 +531,11 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  *
  * This macro returns the controllers protocol engine group
  */
-#define scic_sds_remote_device_get_controller_peg(this_device) \
+#define scic_sds_remote_device_get_controller_peg(sci_dev) \
 	(\
 		scic_sds_controller_get_protocol_engine_group(\
 			scic_sds_port_get_controller(\
-				scic_sds_remote_device_get_port(this_device) \
+				scic_sds_remote_device_get_port(sci_dev) \
 				) \
 			) \
 	)
@@ -545,16 +545,16 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
  *
  * This macro returns the port index for the devices owning port
  */
-#define scic_sds_remote_device_get_port_index(this_device) \
-	(scic_sds_port_get_index(scic_sds_remote_device_get_port(this_device)))
+#define scic_sds_remote_device_get_port_index(sci_dev) \
+	(scic_sds_port_get_index(scic_sds_remote_device_get_port(sci_dev)))
 
 /**
  * scic_sds_remote_device_get_index() -
  *
  * This macro returns the remote node index for this device object
  */
-#define scic_sds_remote_device_get_index(this_device) \
-	((this_device)->rnc->remote_node_index)
+#define scic_sds_remote_device_get_index(sci_dev) \
+	((sci_dev)->rnc->remote_node_index)
 
 /**
  * scic_sds_remote_device_build_command_context() -
@@ -579,61 +579,61 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
 	((device)->working_request = (request))
 
 enum sci_status scic_sds_remote_device_frame_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 frame_index);
 
 enum sci_status scic_sds_remote_device_event_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 event_code);
 
 enum sci_status scic_sds_remote_device_start_io(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *io_request);
 
 enum sci_status scic_sds_remote_device_complete_io(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *io_request);
 
 enum sci_status scic_sds_remote_device_resume(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 enum sci_status scic_sds_remote_device_suspend(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 suspend_type);
 
 enum sci_status scic_sds_remote_device_start_task(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *io_request);
 
 void scic_sds_remote_device_post_request(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 request);
 
 #if !defined(DISABLE_ATAPI)
 bool scic_sds_remote_device_is_atapi(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 #else /* !defined(DISABLE_ATAPI) */
-#define scic_sds_remote_device_is_atapi(this_device) false
+#define scic_sds_remote_device_is_atapi(sci_dev) false
 #endif /* !defined(DISABLE_ATAPI) */
 
 void scic_sds_remote_device_start_request(
-	struct scic_sds_remote_device *this_device,
-	struct scic_sds_request *the_request,
+	struct scic_sds_remote_device *sci_dev,
+	struct scic_sds_request *sci_req,
 	enum sci_status status);
 
 void scic_sds_remote_device_continue_request(void *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_start_handler(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_fail_handler(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_destruct_handler(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_reset_handler(
 	struct scic_sds_remote_device *device);
@@ -654,15 +654,15 @@ enum sci_status scic_sds_remote_device_default_continue_request_handler(
 	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_suspend_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 suspend_type);
 
 enum sci_status scic_sds_remote_device_default_resume_handler(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 
 enum sci_status scic_sds_remote_device_default_frame_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 frame_index);
 
 enum sci_status scic_sds_remote_device_ready_state_stop_handler(
@@ -672,14 +672,14 @@ enum sci_status scic_sds_remote_device_ready_state_reset_handler(
 	struct scic_sds_remote_device *device);
 
 enum sci_status scic_sds_remote_device_general_frame_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 frame_index);
 
 enum sci_status scic_sds_remote_device_general_event_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 event_code);
 
 enum sci_status scic_sds_ssp_remote_device_ready_suspended_substate_resume_handler(
-	struct scic_sds_remote_device *this_device);
+	struct scic_sds_remote_device *sci_dev);
 
 #endif /* _SCIC_SDS_REMOTE_DEVICE_H_ */

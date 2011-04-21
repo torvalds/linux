@@ -67,7 +67,7 @@
  *    determine if the RAW task management frame was sent successfully. If the
  *    raw frame was sent successfully, then the state for the task request
  *    transitions to waiting for a response frame.
- * @this_request: This parameter specifies the request for which the TC
+ * @sci_req: This parameter specifies the request for which the TC
  *    completion was received.
  * @completion_code: This parameter indicates the completion status information
  *    for the TC.
@@ -76,17 +76,17 @@
  * this method always returns success.
  */
 static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->started_substate_machine,
+			&sci_req->started_substate_machine,
 			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE
 			);
 		break;
@@ -97,15 +97,15 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 		 * timeout if the task IU wasn't received successfully.
 		 * There is a potential for receiving multiple task responses if we
 		 * decide to send the task IU again. */
-		dev_warn(scic_to_dev(this_request->owning_controller),
+		dev_warn(scic_to_dev(sci_req->owning_controller),
 			 "%s: TaskRequest:0x%p CompletionCode:%x - "
 			 "ACK/NAK timeout\n",
 			 __func__,
-			 this_request,
+			 sci_req,
 			 completion_code);
 
 		sci_base_state_machine_change_state(
-			&this_request->started_substate_machine,
+			&sci_req->started_substate_machine,
 			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE
 			);
 		break;
@@ -115,12 +115,12 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 		 * All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request. */
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
-		sci_base_state_machine_change_state(&this_request->state_machine,
+		sci_base_state_machine_change_state(&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
@@ -132,7 +132,7 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
  * This method is responsible for processing a terminate/abort request for this
  *    TC while the request is waiting for the task management response
  *    unsolicited frame.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    termination was requested.
  *
  * This method returns an indication as to whether the abort request was
@@ -155,7 +155,7 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_response_abort_handler
  *    waiting for a response frame.  It will copy the response data, release
  *    the unsolicited frame, and transition the request to the
  *    SCI_BASE_REQUEST_STATE_COMPLETED state.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -202,10 +202,10 @@ static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_
 static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_ssp_task_request_started_substate_handler_table,
 		SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
 		);
@@ -223,10 +223,10 @@ static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_e
 static void scic_sds_io_request_started_task_mgmt_await_task_response_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_ssp_task_request_started_substate_handler_table,
 		SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE
 		);

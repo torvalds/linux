@@ -67,7 +67,7 @@
 #include "scu_task_context.h"
 
 static void scu_smp_request_construct_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	struct smp_request *smp_request);
 
 /**
@@ -118,27 +118,27 @@ u32 scic_sds_smp_request_get_object_size(void)
 
 /**
  * This method build the remainder of the IO request object.
- * @this_request: This parameter specifies the request object being constructed.
+ * @sci_req: This parameter specifies the request object being constructed.
  *
  * The scic_sds_general_request_construct() must be called before this call is
  * valid. none
  */
 
 void scic_sds_smp_request_assign_buffers(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sci_req)
 {
 	/* Assign all of the buffer pointers */
-	this_request->command_buffer =
-		scic_sds_smp_request_get_command_buffer(this_request);
-	this_request->response_buffer =
-		scic_sds_smp_request_get_response_buffer(this_request);
-	this_request->sgl_element_pair_buffer = NULL;
+	sci_req->command_buffer =
+		scic_sds_smp_request_get_command_buffer(sci_req);
+	sci_req->response_buffer =
+		scic_sds_smp_request_get_response_buffer(sci_req);
+	sci_req->sgl_element_pair_buffer = NULL;
 
-	if (this_request->was_tag_assigned_by_user == false) {
-		this_request->task_context_buffer =
-			scic_sds_smp_request_get_task_context_buffer(this_request);
-		this_request->task_context_buffer =
-			PTR_ALIGN(this_request->task_context_buffer, SMP_CACHE_BYTES);
+	if (sci_req->was_tag_assigned_by_user == false) {
+		sci_req->task_context_buffer =
+			scic_sds_smp_request_get_task_context_buffer(sci_req);
+		sci_req->task_context_buffer =
+			PTR_ALIGN(sci_req->task_context_buffer, SMP_CACHE_BYTES);
 	}
 
 }
@@ -163,7 +163,7 @@ void scic_sds_smp_request_assign_buffers(
  *    (i.e. non-raw frame) is being utilized to perform task management. -#
  *    control_frame == 1.  This ensures that the proper endianess is set so
  *    that the bytes are transmitted in the right order for a smp request frame.
- * @this_request: This parameter specifies the smp request object being
+ * @sci_req: This parameter specifies the smp request object being
  *    constructed.
  *
  */
@@ -295,7 +295,7 @@ static void scu_smp_request_construct_task_context(
  *    for a response frame.  It will copy the response data, release the
  *    unsolicited frame, and transition the request to the
  *    SCI_BASE_REQUEST_STATE_COMPLETED state.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -305,16 +305,16 @@ static void scu_smp_request_construct_task_context(
  * indicates successful processing of the TC response.
  */
 static enum sci_status scic_sds_smp_request_await_response_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 frame_index)
 {
 	enum sci_status status;
 	void *frame_header;
-	struct smp_response_header *this_frame_header;
-	u8 *user_smp_buffer = this_request->response_buffer;
+	struct smp_response_header *rsp_hdr;
+	u8 *user_smp_buffer = sci_req->response_buffer;
 
 	status = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_request_get_controller(this_request)->uf_control),
+		&(scic_sds_request_get_controller(sci_req)->uf_control),
 		frame_index,
 		&frame_header
 		);
@@ -325,13 +325,13 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 		frame_header,
 		sizeof(struct smp_response_header) / sizeof(u32)
 		);
-	this_frame_header = (struct smp_response_header *)user_smp_buffer;
+	rsp_hdr = (struct smp_response_header *)user_smp_buffer;
 
-	if (this_frame_header->smp_frame_type == SMP_FRAME_TYPE_RESPONSE) {
+	if (rsp_hdr->smp_frame_type == SMP_FRAME_TYPE_RESPONSE) {
 		void *smp_response_buffer;
 
 		status = scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_request_get_controller(this_request)->uf_control),
+			&(scic_sds_request_get_controller(sci_req)->uf_control),
 			frame_index,
 			&smp_response_buffer
 			);
@@ -341,23 +341,23 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 			smp_response_buffer,
 			sizeof(union smp_response_body) / sizeof(u32)
 			);
-		if (this_frame_header->function == SMP_FUNCTION_DISCOVER) {
-			struct smp_response *this_smp_response;
+		if (rsp_hdr->function == SMP_FUNCTION_DISCOVER) {
+			struct smp_response *smp_resp;
 
-			this_smp_response = (struct smp_response *)user_smp_buffer;
+			smp_resp = (struct smp_response *)user_smp_buffer;
 
 			/*
 			 * Some expanders only report an attached SATA device, and
 			 * not an STP target.  Since the core depends on the STP
 			 * target attribute to correctly build I/O, set the bit now
 			 * if necessary. */
-			if (this_smp_response->response.discover.protocols.u.bits.attached_sata_device
-			    && !this_smp_response->response.discover.protocols.u.bits.attached_stp_target) {
-				this_smp_response->response.discover.protocols.u.bits.attached_stp_target = 1;
+			if (smp_resp->response.discover.protocols.u.bits.attached_sata_device
+			    && !smp_resp->response.discover.protocols.u.bits.attached_stp_target) {
+				smp_resp->response.discover.protocols.u.bits.attached_stp_target = 1;
 
-				dev_dbg(scic_to_dev(this_request->owning_controller),
+				dev_dbg(scic_to_dev(sci_req->owning_controller),
 					"%s: scic_sds_smp_request_await_response_frame_handler(0x%p) Found SATA dev, setting STP bit.\n",
-					__func__, this_request);
+					__func__, sci_req);
 			}
 		}
 
@@ -367,40 +367,40 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 
 		/*
 		 * copy the smp response to framework smp request's response buffer.
-		 * scic_sds_smp_request_copy_response(this_request); */
+		 * scic_sds_smp_request_copy_response(sci_req); */
 
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->started_substate_machine,
+			&sci_req->started_substate_machine,
 			SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION
 			);
 	} else {
 		/* This was not a response frame why did it get forwarded? */
-		dev_err(scic_to_dev(this_request->owning_controller),
+		dev_err(scic_to_dev(sci_req->owning_controller),
 			"%s: SCIC SMP Request 0x%p received unexpected frame "
 			"%d type 0x%02x\n",
 			__func__,
-			this_request,
+			sci_req,
 			frame_index,
-			this_frame_header->smp_frame_type);
+			rsp_hdr->smp_frame_type);
 
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED
 			);
 	}
 
 	scic_sds_controller_release_frame(
-		this_request->owning_controller, frame_index
+		sci_req->owning_controller, frame_index
 		);
 
 	return SCI_SUCCESS;
@@ -411,7 +411,7 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
  * This method processes an abnormal TC completion while the SMP request is
  *    waiting for a response frame.  It decides what happened to the IO based
  *    on TC completion status.
- * @this_request: This parameter specifies the request for which the TC
+ * @sci_req: This parameter specifies the request for which the TC
  *    completion was received.
  * @completion_code: This parameter indicates the completion status information
  *    for the TC.
@@ -420,7 +420,7 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
  * this method always returns success.
  */
 static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
@@ -429,11 +429,11 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 		 * In the AWAIT RESPONSE state, any TC completion is unexpected.
 		 * but if the TC has success status, we complete the IO anyway. */
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
@@ -447,11 +447,11 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 		 * break the connection and set TC completion with one of these SMP_XXX_XX_ERR
 		 * status. For these type of error, we ask scic user to retry the request. */
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_SMP_RESP_TO_ERR, SCI_FAILURE_RETRY_REQUIRED
+			sci_req, SCU_TASK_DONE_SMP_RESP_TO_ERR, SCI_FAILURE_RETRY_REQUIRED
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
@@ -460,13 +460,13 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 		 * All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request. */
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
@@ -480,7 +480,7 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
  *    determine if the SMP request was sent successfully. If the SMP request
  *    was sent successfully, then the state for the SMP request transits to
  *    waiting for a response frame.
- * @this_request: This parameter specifies the request for which the TC
+ * @sci_req: This parameter specifies the request for which the TC
  *    completion was received.
  * @completion_code: This parameter indicates the completion status information
  *    for the TC.
@@ -489,17 +489,17 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
  * this method always returns success.
  */
 static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
@@ -508,13 +508,13 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 		 * All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request. */
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->state_machine,
+			&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
@@ -547,10 +547,10 @@ static const struct scic_sds_io_request_state_handler scic_sds_smp_request_start
 static void scic_sds_smp_request_started_await_response_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_smp_request_started_substate_handler_table,
 		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE
 		);
@@ -568,10 +568,10 @@ static void scic_sds_smp_request_started_await_response_substate_enter(
 static void scic_sds_smp_request_started_await_tc_completion_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_smp_request_started_substate_handler_table,
 		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION
 		);

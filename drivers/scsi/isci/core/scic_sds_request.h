@@ -336,32 +336,32 @@ extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substat
  *
  * This macro will return the controller for this io request object
  */
-#define scic_sds_request_get_controller(this_request) \
-	((this_request)->owning_controller)
+#define scic_sds_request_get_controller(sci_req) \
+	((sci_req)->owning_controller)
 
 /**
  * scic_sds_request_get_device() -
  *
  * This macro will return the device for this io request object
  */
-#define scic_sds_request_get_device(this_request) \
-	((this_request)->target_device)
+#define scic_sds_request_get_device(sci_req) \
+	((sci_req)->target_device)
 
 /**
  * scic_sds_request_get_port() -
  *
  * This macro will return the port for this io request object
  */
-#define scic_sds_request_get_port(this_request)	\
-	scic_sds_remote_device_get_port(scic_sds_request_get_device(this_request))
+#define scic_sds_request_get_port(sci_req)	\
+	scic_sds_remote_device_get_port(scic_sds_request_get_device(sci_req))
 
 /**
  * scic_sds_request_get_post_context() -
  *
  * This macro returns the constructed post context result for the io request.
  */
-#define scic_sds_request_get_post_context(this_request)	\
-	((this_request)->post_context)
+#define scic_sds_request_get_post_context(sci_req)	\
+	((sci_req)->post_context)
 
 /**
  * scic_sds_request_get_task_context() -
@@ -433,41 +433,41 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
  * ***************************************************************************** */
 
 void scic_sds_request_build_sgl(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 
 
 void scic_sds_stp_request_assign_buffers(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 void scic_sds_smp_request_assign_buffers(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 /* --------------------------------------------------------------------------- */
 
 enum sci_status scic_sds_request_start(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_io_request_terminate(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_io_request_complete(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 void scic_sds_io_request_copy_response(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_io_request_event_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 event_code);
 
 enum sci_status scic_sds_io_request_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 frame_index);
 
 
 enum sci_status scic_sds_task_request_terminate(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 /*
  * *****************************************************************************
@@ -475,10 +475,10 @@ enum sci_status scic_sds_task_request_terminate(
  * ***************************************************************************** */
 
 enum sci_status scic_sds_request_started_state_abort_handler(
-	struct scic_sds_request *request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_request_started_state_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code);
 
 #endif /* _SCIC_SDS_IO_REQUEST_H_ */

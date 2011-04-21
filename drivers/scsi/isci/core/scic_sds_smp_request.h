@@ -62,8 +62,7 @@
 u32 scic_sds_smp_request_get_object_size(void);
 
 
-void scic_sds_smp_request_copy_response(
-	struct scic_sds_request *this_request);
+void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 
 #endif /* _SCIC_SDS_SMP_REQUEST_T_ */
 

@@ -86,25 +86,25 @@ struct scic_sds_remote_node_context;
 typedef void (*scics_sds_remote_node_context_callback)(void *);
 
 typedef enum sci_status (*scic_sds_remote_node_context_operation)(
-	struct scic_sds_remote_node_context *this_rnc,
-	scics_sds_remote_node_context_callback the_callback,
+	struct scic_sds_remote_node_context *sci_rnc,
+	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter
 	);
 
 typedef enum sci_status (*scic_sds_remote_node_context_suspend_operation)(
-	struct scic_sds_remote_node_context *this_rnc,
+	struct scic_sds_remote_node_context *sci_rnc,
 	u32 suspension_type,
-	scics_sds_remote_node_context_callback the_callback,
+	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter
 	);
 
 typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
-	struct scic_sds_remote_node_context *this_rnc,
-	struct scic_sds_request *the_request
+	struct scic_sds_remote_node_context *sci_rnc,
+	struct scic_sds_request *sci_req
 	);
 
 typedef enum sci_status (*scic_sds_remote_node_context_event_handler)(
-	struct scic_sds_remote_node_context *this_rnc,
+	struct scic_sds_remote_node_context *sci_rnc,
 	u32 event_code
 	);
 
@@ -286,7 +286,7 @@ void scic_sds_remote_node_context_construct(
 
 
 bool scic_sds_remote_node_context_is_ready(
-	struct scic_sds_remote_node_context *this_rnc);
+	struct scic_sds_remote_node_context *sci_rnc);
 
 #define scic_sds_remote_node_context_get_remote_node_index(rcn)	\
 	((rnc)->remote_node_index)

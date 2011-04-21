@@ -177,18 +177,18 @@ enum sci_status scic_sds_stp_pio_request_construct(
 	bool copy_rx_frame);
 
 enum sci_status scic_sds_stp_udma_request_construct(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 transfer_length,
 	enum dma_data_direction dir);
 
 enum sci_status scic_sds_stp_non_data_request_construct(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_stp_soft_reset_request_construct(
-	struct scic_sds_request *this_request);
+	struct scic_sds_request *sci_req);
 
 enum sci_status scic_sds_stp_ncq_request_construct(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 transfer_length,
 	enum dma_data_direction dir);
 

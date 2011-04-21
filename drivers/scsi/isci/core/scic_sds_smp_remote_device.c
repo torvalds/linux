@@ -142,15 +142,15 @@ scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler(
 	struct scic_sds_request *request)
 {
 	enum sci_status status;
-	struct scic_sds_request *the_request;
+	struct scic_sds_request *sci_req;
 
-	the_request = (struct scic_sds_request *)request;
+	sci_req = (struct scic_sds_request *)request;
 
-	status = scic_sds_io_request_complete(the_request);
+	status = scic_sds_io_request_complete(sci_req);
 
 	if (status == SCI_SUCCESS) {
 		status = scic_sds_port_complete_io(
-			device->owning_port, device, the_request);
+			device->owning_port, device, sci_req);
 
 		if (status == SCI_SUCCESS) {
 			scic_sds_remote_device_decrement_request_count(device);
@@ -165,7 +165,7 @@ scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler(
 				"failed with status %d.\n",
 				__func__,
 				device,
-				the_request,
+				sci_req,
 				device->owning_port,
 				status);
 	}
@@ -175,13 +175,13 @@ scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler(
 
 /**
  * This is frame handler for smp device ready cmd substate.
- * @this_device: This is the device object that is receiving the frame.
+ * @sci_dev: This is the device object that is receiving the frame.
  * @frame_index: The index for the frame received.
  *
  * enum sci_status
  */
 static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handler(
-	struct scic_sds_remote_device *this_device,
+	struct scic_sds_remote_device *sci_dev,
 	u32 frame_index)
 {
 	enum sci_status status;
@@ -191,7 +191,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 	 * / in this state.  All unsolicited frames are forwarded to the io request
 	 * / object. */
 	status = scic_sds_io_request_frame_handler(
-		this_device->working_request,
+		sci_dev->working_request,
 		frame_index
 		);
 

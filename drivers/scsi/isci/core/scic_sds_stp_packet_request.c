@@ -75,16 +75,16 @@
 /**
  * This method will fill in the SCU Task Context for a PACKET fis. And
  *    construct the request STARTED sub-state machine for Packet Protocol IO.
- * @this_request: This parameter specifies the stp packet request object being
+ * @sci_req: This parameter specifies the stp packet request object being
  *    constructed.
  *
  */
 enum sci_status scic_sds_stp_packet_request_construct(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sci_req)
 {
 	struct sata_fis_reg_h2d *h2d_fis =
 		scic_stp_io_request_get_h2d_reg_address(
-			this_request
+			sci_req
 			);
 
 	/*
@@ -92,17 +92,17 @@ enum sci_status scic_sds_stp_packet_request_construct(
 	 * need to make change to Packet Fis features field. */
 	h2d_fis->features = h2d_fis->features | ATA_PACKET_FEATURE_DMA;
 
-	scic_sds_stp_non_ncq_request_construct(this_request);
+	scic_sds_stp_non_ncq_request_construct(sci_req);
 
 	/* Build the Packet Fis task context structure */
 	scu_stp_raw_request_construct_task_context(
-		(struct scic_sds_stp_request *)this_request,
-		this_request->task_context_buffer
+		(struct scic_sds_stp_request *)sci_req,
+		sci_req->task_context_buffer
 		);
 
 	sci_base_state_machine_construct(
-		&this_request->started_substate_machine,
-		&this_request->parent.parent,
+		&sci_req->started_substate_machine,
+		&sci_req->parent.parent,
 		scic_sds_stp_packet_request_started_substate_table,
 		SCIC_SDS_STP_PACKET_REQUEST_STARTED_PACKET_PHASE_AWAIT_TC_COMPLETION_SUBSTATE
 		);
@@ -119,24 +119,24 @@ enum sci_status scic_sds_stp_packet_request_construct(
  *    utilized to perform task management. -# control_frame == 1.  This ensures
  *    that the proper endianess is set so that the bytes are transmitted in the
  *    right order for a smp request frame.
- * @this_request: This parameter specifies the smp request object being
+ * @sci_req: This parameter specifies the smp request object being
  *    constructed.
  * @task_context: The task_context to be reconstruct for packet request command
  *    phase.
  *
  */
 void scu_stp_packet_request_command_phase_construct_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	struct scu_task_context *task_context)
 {
 	void *atapi_cdb;
 	u32 atapi_cdb_length;
-	struct scic_sds_stp_request *stp_request = (struct scic_sds_stp_request *)this_request;
+	struct scic_sds_stp_request *stp_request = (struct scic_sds_stp_request *)sci_req;
 
 	/*
 	 * reference: SSTL 1.13.4.2
 	 * task_type, sata_direction */
-	if (scic_cb_io_request_get_data_direction(this_request->user_request)
+	if (scic_cb_io_request_get_data_direction(sci_req->user_request)
 	     == SCI_IO_REQUEST_DATA_OUT) {
 		task_context->task_type = SCU_TASK_TYPE_PACKET_DMA_OUT;
 		task_context->sata_direction = 0;
@@ -152,15 +152,15 @@ void scu_stp_packet_request_command_phase_construct_task_context(
 	/*
 	 * Copy in the command IU with CDB so that the commandIU address doesn't
 	 * change. */
-	memset(this_request->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
+	memset(sci_req->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
 
 	atapi_cdb =
-		scic_cb_stp_packet_io_request_get_cdb_address(this_request->user_request);
+		scic_cb_stp_packet_io_request_get_cdb_address(sci_req->user_request);
 
 	atapi_cdb_length =
-		scic_cb_stp_packet_io_request_get_cdb_length(this_request->user_request);
+		scic_cb_stp_packet_io_request_get_cdb_length(sci_req->user_request);
 
-	memcpy(((u8 *)this_request->command_buffer + sizeof(u32)), atapi_cdb, atapi_cdb_length);
+	memcpy(((u8 *)sci_req->command_buffer + sizeof(u32)), atapi_cdb, atapi_cdb_length);
 
 	atapi_cdb_length =
 		max(atapi_cdb_length, stp_request->type.packet.device_preferred_cdb_length);
@@ -175,18 +175,18 @@ void scu_stp_packet_request_command_phase_construct_task_context(
 	/* retry counter */
 	task_context->stp_retry_count = 0;
 
-	if (scic_cb_request_is_initial_construction(this_request->user_request)) {
+	if (scic_cb_request_is_initial_construction(sci_req->user_request)) {
 		/* data transfer size. */
 		task_context->transfer_length_bytes =
-			scic_cb_io_request_get_transfer_length(this_request->user_request);
+			scic_cb_io_request_get_transfer_length(sci_req->user_request);
 
 		/* setup sgl */
-		scic_sds_request_build_sgl(this_request);
+		scic_sds_request_build_sgl(sci_req);
 	} else {
 		/* data transfer size, need to be 4 bytes aligned. */
 		task_context->transfer_length_bytes = (SCSI_FIXED_SENSE_DATA_BASE_LENGTH + 2);
 
-		scic_sds_stp_packet_internal_request_sense_build_sgl(this_request);
+		scic_sds_stp_packet_internal_request_sense_build_sgl(sci_req);
 	}
 }
 
@@ -194,24 +194,24 @@ void scu_stp_packet_request_command_phase_construct_task_context(
  * This method will fill in the SCU Task Context for a DATA fis containing CDB
  *    in Raw Frame type. The TC for previous Packet fis was already there, we
  *    only need to change the H2D fis content.
- * @this_request: This parameter specifies the smp request object being
+ * @sci_req: This parameter specifies the smp request object being
  *    constructed.
  * @task_context: The task_context to be reconstruct for packet request command
  *    phase.
  *
  */
 void scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	struct scu_task_context *task_context)
 {
 	void *atapi_cdb =
-		scic_cb_stp_packet_io_request_get_cdb_address(this_request->user_request);
+		scic_cb_stp_packet_io_request_get_cdb_address(sci_req->user_request);
 
 	u32 atapi_cdb_length =
-		scic_cb_stp_packet_io_request_get_cdb_length(this_request->user_request);
+		scic_cb_stp_packet_io_request_get_cdb_length(sci_req->user_request);
 
-	memset(this_request->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
-	memcpy(((u8 *)this_request->command_buffer + sizeof(u32)), atapi_cdb, atapi_cdb_length);
+	memset(sci_req->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
+	memcpy(((u8 *)sci_req->command_buffer + sizeof(u32)), atapi_cdb, atapi_cdb_length);
 
 	memset(&(task_context->type.stp), 0, sizeof(struct stp_task_context));
 	task_context->type.stp.fis_type = SATA_FIS_TYPE_DATA;
@@ -227,12 +227,12 @@ void scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(
  * *@brief This methods decode the D2H status FIS and retrieve the sense data,
  *          then pass the sense data to user request.
  *
- ***@param[in] this_request The request receive D2H status FIS.
+ ***@param[in] sci_req The request receive D2H status FIS.
  ***@param[in] status_fis The D2H status fis to be processed.
  *
  */
 enum sci_status scic_sds_stp_packet_request_process_status_fis(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	struct sata_fis_reg_d2h *status_fis)
 {
 	enum sci_status status = SCI_SUCCESS;
@@ -249,7 +249,7 @@ enum sci_status scic_sds_stp_packet_request_process_status_fis(
  *          command using this request response buffer, only one sge is
  *          needed.
  *
- ***@param[in] this_request The request receive request sense data.
+ ***@param[in] sci_req The request receive request sense data.
  *
  */
 void scic_sds_stp_packet_internal_request_sense_build_sgl(
@@ -284,7 +284,7 @@ void scic_sds_stp_packet_internal_request_sense_build_sgl(
  *    determine if the Packet FIS was sent successfully. If the Packet FIS was
  *    sent successfully, then the state for the Packet request transits to
  *    waiting for a PIO SETUP frame.
- * @this_request: This parameter specifies the request for which the TC
+ * @sci_req: This parameter specifies the request for which the TC
  *    completion was received.
  * @completion_code: This parameter indicates the completion status information
  *    for the TC.
@@ -293,7 +293,7 @@ void scic_sds_stp_packet_internal_request_sense_build_sgl(
  * this method always returns success.
  */
 enum sci_status scic_sds_stp_packet_request_packet_phase_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
@@ -301,11 +301,11 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_tc_completion_tc_
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->started_substate_machine,
+			&sci_req->started_substate_machine,
 			SCIC_SDS_STP_PACKET_REQUEST_STARTED_PACKET_PHASE_AWAIT_PIO_SETUP_SUBSTATE
 			);
 		break;
@@ -315,13 +315,13 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_tc_completion_tc_
 		 * All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request. */
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
+			&sci_req->parent.state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED
 			);
 		break;
@@ -336,7 +336,7 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_tc_completion_tc_
  *    waiting for a PIO SETUP FIS.  It will release the unsolicited frame, and
  *    transition the request to the COMMAND_PHASE_AWAIT_TC_COMPLETION_SUBSTATE
  *    state.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -352,12 +352,12 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_pio_setup_frame_h
 	enum sci_status status;
 	struct sata_fis_header *frame_header;
 	u32 *frame_buffer;
-	struct scic_sds_stp_request *this_request;
+	struct scic_sds_stp_request *sci_req;
 
-	this_request = (struct scic_sds_stp_request *)request;
+	sci_req = (struct scic_sds_stp_request *)request;
 
 	status = scic_sds_unsolicited_frame_control_get_header(
-		&(this_request->parent.owning_controller->uf_control),
+		&(sci_req->parent.owning_controller->uf_control),
 		frame_index,
 		(void **)&frame_header
 		);
@@ -369,7 +369,7 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_pio_setup_frame_h
 		 * Get from the frame buffer the PIO Setup Data, although we don't need
 		 * any info from this pio setup fis. */
 		scic_sds_unsolicited_frame_control_get_buffer(
-			&(this_request->parent.owning_controller->uf_control),
+			&(sci_req->parent.owning_controller->uf_control),
 			frame_index,
 			(void **)&frame_buffer
 			);
@@ -378,23 +378,23 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_pio_setup_frame_h
 		 * Get the data from the PIO Setup
 		 * The SCU Hardware returns first word in the frame_header and the rest
 		 * of the data is in the frame buffer so we need to back up one dword */
-		this_request->type.packet.device_preferred_cdb_length =
+		sci_req->type.packet.device_preferred_cdb_length =
 			(u16)((struct sata_fis_pio_setup *)(&frame_buffer[-1]))->transfter_count;
 
 		/* Frame has been decoded return it to the controller */
 		scic_sds_controller_release_frame(
-			this_request->parent.owning_controller, frame_index
+			sci_req->parent.owning_controller, frame_index
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.started_substate_machine,
+			&sci_req->parent.started_substate_machine,
 			SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMMAND_PHASE_AWAIT_TC_COMPLETION_SUBSTATE
 			);
 	} else
 		dev_err(scic_to_dev(request->owning_controller),
 			"%s: SCIC IO Request 0x%p could not get frame header "
 			"for frame index %d, status %x\n",
-			__func__, this_request, frame_index, status);
+			__func__, sci_req, frame_index, status);
 
 	return status;
 }
@@ -406,7 +406,7 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_pio_setup_frame_h
  *    successfully, then the state for the packet request transits to COMPLETE
  *    state. If not successfuly, the request transits to
  *    COMMAND_PHASE_AWAIT_D2H_FIS_SUBSTATE.
- * @this_request: This parameter specifies the request for which the TC
+ * @sci_req: This parameter specifies the request for which the TC
  *    completion was received.
  * @completion_code: This parameter indicates the completion status information
  *    for the TC.
@@ -415,64 +415,64 @@ enum sci_status scic_sds_stp_packet_request_packet_phase_await_pio_setup_frame_h
  * this method always returns success.
  */
 enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 	u8 sat_packet_protocol =
-		scic_cb_request_get_sat_protocol(this_request->user_request);
+		scic_cb_request_get_sat_protocol(sci_req->user_request);
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case (SCU_TASK_DONE_GOOD << SCU_COMPLETION_TL_STATUS_SHIFT):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		if (sat_packet_protocol == SAT_PROTOCOL_PACKET_DMA_DATA_IN
 		     || sat_packet_protocol == SAT_PROTOCOL_PACKET_DMA_DATA_OUT
 		     )
 			sci_base_state_machine_change_state(
-				&this_request->parent.state_machine,
+				&sci_req->parent.state_machine,
 				SCI_BASE_REQUEST_STATE_COMPLETED
 				);
 		else
 			sci_base_state_machine_change_state(
-				&this_request->started_substate_machine,
+				&sci_req->started_substate_machine,
 				SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMMAND_PHASE_AWAIT_D2H_FIS_SUBSTATE
 				);
 		break;
 
 	case (SCU_TASK_DONE_UNEXP_FIS << SCU_COMPLETION_TL_STATUS_SHIFT):
-		if (scic_io_request_get_number_of_bytes_transferred(this_request) <
-		    scic_cb_io_request_get_transfer_length(this_request->user_request)) {
+		if (scic_io_request_get_number_of_bytes_transferred(sci_req) <
+		    scic_cb_io_request_get_transfer_length(sci_req->user_request)) {
 			scic_sds_request_set_status(
-				this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS_IO_DONE_EARLY
+				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS_IO_DONE_EARLY
 				);
 
 			sci_base_state_machine_change_state(
-				&this_request->parent.state_machine,
+				&sci_req->parent.state_machine,
 				SCI_BASE_REQUEST_STATE_COMPLETED
 				);
 
-			status = this_request->sci_status;
+			status = sci_req->sci_status;
 		}
 		break;
 
 	case (SCU_TASK_DONE_EXCESS_DATA << SCU_COMPLETION_TL_STATUS_SHIFT):
 		/* In this case, there is no UF coming after. compelte the IO now. */
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
+			&sci_req->parent.state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED
 			);
 
 		break;
 
 	default:
-		if (this_request->sci_status != SCI_SUCCESS) {  /* The io status was set already. This means an UF for the status
+		if (sci_req->sci_status != SCI_SUCCESS) {  /* The io status was set already. This means an UF for the status
 								 * fis was received already.
 								 */
 
@@ -480,28 +480,28 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_tc
 			 * A device suspension event is expected, we need to have the device
 			 * coming out of suspension, then complete the IO. */
 			sci_base_state_machine_change_state(
-				&this_request->started_substate_machine,
+				&sci_req->started_substate_machine,
 				SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMPLETION_DELAY_SUBSTATE
 				);
 
 			/* change the device state to ATAPI_ERROR. */
 			sci_base_state_machine_change_state(
-				&this_request->target_device->ready_substate_machine,
+				&sci_req->target_device->ready_substate_machine,
 				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_ATAPI_ERROR
 				);
 
-			status = this_request->sci_status;
+			status = sci_req->sci_status;
 		} else {  /* If receiving any non-sucess TC status, no UF received yet, then an UF for
 			   * the status fis is coming after.
 			   */
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_TASK_DONE_CHECK_RESPONSE,
 				SCI_FAILURE_IO_RESPONSE_VALID
 				);
 
 			sci_base_state_machine_change_state(
-				&this_request->started_substate_machine,
+				&sci_req->started_substate_machine,
 				SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMMAND_PHASE_AWAIT_D2H_FIS_SUBSTATE
 				);
 		}
@@ -514,7 +514,7 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_tc
 
 /**
  * This method processes an unsolicited frame.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -530,12 +530,12 @@ enum sci_status scic_sds_stp_packet_request_command_phase_common_frame_handler(
 	enum sci_status status;
 	struct sata_fis_header *frame_header;
 	u32 *frame_buffer;
-	struct scic_sds_stp_request *this_request;
+	struct scic_sds_stp_request *sci_req;
 
-	this_request = (struct scic_sds_stp_request *)request;
+	sci_req = (struct scic_sds_stp_request *)request;
 
 	status = scic_sds_unsolicited_frame_control_get_header(
-		&(this_request->parent.owning_controller->uf_control),
+		&(sci_req->parent.owning_controller->uf_control),
 		frame_index,
 		(void **)&frame_header
 		);
@@ -547,18 +547,18 @@ enum sci_status scic_sds_stp_packet_request_command_phase_common_frame_handler(
 		 * Get from the frame buffer the PIO Setup Data, although we don't need
 		 * any info from this pio setup fis. */
 		scic_sds_unsolicited_frame_control_get_buffer(
-			&(this_request->parent.owning_controller->uf_control),
+			&(sci_req->parent.owning_controller->uf_control),
 			frame_index,
 			(void **)&frame_buffer
 			);
 
 		scic_sds_controller_copy_sata_response(
-			&this_request->d2h_reg_fis, (u32 *)frame_header, frame_buffer
+			&sci_req->d2h_reg_fis, (u32 *)frame_header, frame_buffer
 			);
 
 		/* Frame has been decoded return it to the controller */
 		scic_sds_controller_release_frame(
-			this_request->parent.owning_controller, frame_index
+			sci_req->parent.owning_controller, frame_index
 			);
 	}
 
@@ -568,7 +568,7 @@ enum sci_status scic_sds_stp_packet_request_command_phase_common_frame_handler(
 /**
  * This method processes an unsolicited frame while the packet request is
  *    expecting TC completion. It will process the FIS and construct sense data.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -581,7 +581,7 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_fr
 	struct scic_sds_request *request,
 	u32 frame_index)
 {
-	struct scic_sds_stp_request *this_request = (struct scic_sds_stp_request *)request;
+	struct scic_sds_stp_request *sci_req = (struct scic_sds_stp_request *)request;
 
 	enum sci_status status =
 		scic_sds_stp_packet_request_command_phase_common_frame_handler(
@@ -590,17 +590,17 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_fr
 	if (status == SCI_SUCCESS) {
 		/* The command has completed with error status from target device. */
 		status = scic_sds_stp_packet_request_process_status_fis(
-			request, &this_request->d2h_reg_fis);
+			request, &sci_req->d2h_reg_fis);
 
 		if (status != SCI_SUCCESS) {
 			scic_sds_request_set_status(
-				&this_request->parent,
+				&sci_req->parent,
 				SCU_TASK_DONE_CHECK_RESPONSE,
 				status
 				);
 		} else
 			scic_sds_request_set_status(
-				&this_request->parent, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+				&sci_req->parent, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 				);
 	}
 
@@ -611,7 +611,7 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_tc_completion_fr
 /**
  * This method processes an unsolicited frame while the packet request is
  *    expecting TC completion. It will process the FIS and construct sense data.
- * @this_request: This parameter specifies the request for which the
+ * @sci_req: This parameter specifies the request for which the
  *    unsolicited frame was received.
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
@@ -628,12 +628,12 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_d2h_fis_frame_ha
 		scic_sds_stp_packet_request_command_phase_common_frame_handler(
 			request, frame_index);
 
-	struct scic_sds_stp_request *this_request = (struct scic_sds_stp_request *)request;
+	struct scic_sds_stp_request *sci_req = (struct scic_sds_stp_request *)request;
 
 	if (status == SCI_SUCCESS) {
 		/* The command has completed with error status from target device. */
 		status = scic_sds_stp_packet_request_process_status_fis(
-			request, &this_request->d2h_reg_fis);
+			request, &sci_req->d2h_reg_fis);
 
 		if (status != SCI_SUCCESS) {
 			scic_sds_request_set_status(
@@ -696,26 +696,26 @@ const struct scic_sds_io_request_state_handler scic_sds_stp_packet_request_start
 void scic_sds_stp_packet_request_started_packet_phase_await_tc_completion_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_stp_packet_request_started_substate_handler_table,
 		SCIC_SDS_STP_PACKET_REQUEST_STARTED_PACKET_PHASE_AWAIT_TC_COMPLETION_SUBSTATE
 		);
 
 	scic_sds_remote_device_set_working_request(
-		this_request->target_device, this_request
+		sci_req->target_device, sci_req
 		);
 }
 
 void scic_sds_stp_packet_request_started_packet_phase_await_pio_setup_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_stp_packet_request_started_substate_handler_table,
 		SCIC_SDS_STP_PACKET_REQUEST_STARTED_PACKET_PHASE_AWAIT_PIO_SETUP_SUBSTATE
 		);
@@ -724,9 +724,9 @@ void scic_sds_stp_packet_request_started_packet_phase_await_pio_setup_enter(
 void scic_sds_stp_packet_request_started_command_phase_await_tc_completion_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 	u8 sat_packet_protocol =
-		scic_cb_request_get_sat_protocol(this_request->user_request);
+		scic_cb_request_get_sat_protocol(sci_req->user_request);
 
 	struct scu_task_context *task_context;
 	enum sci_status status;
@@ -735,25 +735,25 @@ void scic_sds_stp_packet_request_started_command_phase_await_tc_completion_enter
 	 * Recycle the TC and reconstruct it for sending out data fis containing
 	 * CDB. */
 	task_context = scic_sds_controller_get_task_context_buffer(
-		this_request->owning_controller, this_request->io_tag);
+		sci_req->owning_controller, sci_req->io_tag);
 
 	if (sat_packet_protocol == SAT_PROTOCOL_PACKET_NON_DATA)
 		scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(
-			this_request, task_context);
+			sci_req, task_context);
 	else
 		scu_stp_packet_request_command_phase_construct_task_context(
-			this_request, task_context);
+			sci_req, task_context);
 
 	/* send the new TC out. */
-	status = this_request->owning_controller->state_handlers->parent.continue_io_handler(
-		&this_request->owning_controller->parent,
-		&this_request->target_device->parent,
-		&this_request->parent
+	status = sci_req->owning_controller->state_handlers->parent.continue_io_handler(
+		&sci_req->owning_controller->parent,
+		&sci_req->target_device->parent,
+		&sci_req->parent
 		);
 
 	if (status == SCI_SUCCESS)
 		SET_STATE_HANDLER(
-			this_request,
+			sci_req,
 			scic_sds_stp_packet_request_started_substate_handler_table,
 			SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMMAND_PHASE_AWAIT_TC_COMPLETION_SUBSTATE
 			);
@@ -762,10 +762,10 @@ void scic_sds_stp_packet_request_started_command_phase_await_tc_completion_enter
 void scic_sds_stp_packet_request_started_command_phase_await_d2h_fis_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_stp_packet_request_started_substate_handler_table,
 		SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMMAND_PHASE_AWAIT_D2H_FIS_SUBSTATE
 		);
@@ -774,10 +774,10 @@ void scic_sds_stp_packet_request_started_command_phase_await_d2h_fis_enter(
 void scic_sds_stp_packet_request_started_completion_delay_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_stp_packet_request_started_substate_handler_table,
 		SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMPLETION_DELAY_SUBSTATE
 		);

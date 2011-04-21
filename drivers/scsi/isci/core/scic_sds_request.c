@@ -226,7 +226,7 @@ static u32 scic_sds_ssp_request_get_object_size(void)
 
 /**
  * This method returns the sgl element pair for the specificed sgl_pair index.
- * @this_request: This parameter specifies the IO request for which to retrieve
+ * @sci_req: This parameter specifies the IO request for which to retrieve
  *    the Scatter-Gather List element pair.
  * @sgl_pair_index: This parameter specifies the index into the SGL element
  *    pair to be retrieved.
@@ -234,12 +234,12 @@ static u32 scic_sds_ssp_request_get_object_size(void)
  * This method returns a pointer to an struct scu_sgl_element_pair.
  */
 static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 sgl_pair_index
 	) {
 	struct scu_task_context *task_context;
 
-	task_context = (struct scu_task_context *)this_request->task_context_buffer;
+	task_context = (struct scu_task_context *)sci_req->task_context_buffer;
 
 	if (sgl_pair_index == 0) {
 		return &task_context->sgl_pair_ab;
@@ -247,12 +247,12 @@ static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
 		return &task_context->sgl_pair_cd;
 	}
 
-	return &this_request->sgl_element_pair_buffer[sgl_pair_index - 2];
+	return &sci_req->sgl_element_pair_buffer[sgl_pair_index - 2];
 }
 
 /**
  * This function will build the SGL list for an IO request.
- * @this_request: This parameter specifies the IO request for which to build
+ * @sci_req: This parameter specifies the IO request for which to build
  *    the Scatter-Gather List.
  *
  */
@@ -325,36 +325,36 @@ void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 
 /**
  * This method build the remainder of the IO request object.
- * @this_request: This parameter specifies the request object being constructed.
+ * @sci_req: This parameter specifies the request object being constructed.
  *
  * The scic_sds_general_request_construct() must be called before this call is
  * valid. none
  */
 static void scic_sds_ssp_io_request_assign_buffers(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sci_req)
 {
-	this_request->command_buffer =
-		scic_sds_ssp_request_get_command_buffer(this_request);
-	this_request->response_buffer =
-		scic_sds_ssp_request_get_response_buffer(this_request);
-	this_request->sgl_element_pair_buffer =
-		scic_sds_ssp_request_get_sgl_element_buffer(this_request);
-	this_request->sgl_element_pair_buffer =
-		PTR_ALIGN(this_request->sgl_element_pair_buffer,
+	sci_req->command_buffer =
+		scic_sds_ssp_request_get_command_buffer(sci_req);
+	sci_req->response_buffer =
+		scic_sds_ssp_request_get_response_buffer(sci_req);
+	sci_req->sgl_element_pair_buffer =
+		scic_sds_ssp_request_get_sgl_element_buffer(sci_req);
+	sci_req->sgl_element_pair_buffer =
+		PTR_ALIGN(sci_req->sgl_element_pair_buffer,
 			  sizeof(struct scu_sgl_element_pair));
 
-	if (this_request->was_tag_assigned_by_user == false) {
-		this_request->task_context_buffer =
-			scic_sds_ssp_request_get_task_context_buffer(this_request);
-		this_request->task_context_buffer =
-			PTR_ALIGN(this_request->task_context_buffer,
+	if (sci_req->was_tag_assigned_by_user == false) {
+		sci_req->task_context_buffer =
+			scic_sds_ssp_request_get_task_context_buffer(sci_req);
+		sci_req->task_context_buffer =
+			PTR_ALIGN(sci_req->task_context_buffer,
 				  SMP_CACHE_BYTES);
 	}
 }
 
 /**
  * This method constructs the SSP Command IU data for this io request object.
- * @this_request: This parameter specifies the request object for which the SSP
+ * @sci_req: This parameter specifies the request object for which the SSP
  *    command information unit is being built.
  *
  */
@@ -401,7 +401,7 @@ static void scic_sds_io_request_build_ssp_command_iu(
 
 /**
  * This method constructs the SSP Task IU data for this io request object.
- * @this_request:
+ * @sci_req:
  *
  */
 static void scic_sds_task_request_build_ssp_task_iu(
@@ -430,7 +430,7 @@ static void scic_sds_task_request_build_ssp_task_iu(
 
 /**
  * This method is will fill in the SCU Task Context for any type of SSP request.
- * @this_request:
+ * @sci_req:
  * @task_context:
  *
  */
@@ -474,7 +474,7 @@ static void scu_ssp_reqeust_construct_task_context(
 
 	task_context->address_modifier = 0;
 
-	/* task_context->type.ssp.tag = this_request->io_tag; */
+	/* task_context->type.ssp.tag = sci_req->io_tag; */
 	task_context->task_phase = 0x01;
 
 	if (sds_request->was_tag_assigned_by_user) {
@@ -530,7 +530,7 @@ static void scu_ssp_reqeust_construct_task_context(
 
 /**
  * This method is will fill in the SCU Task Context for a SSP IO request.
- * @this_request:
+ * @sci_req:
  *
  */
 static void scu_ssp_io_request_construct_task_context(
@@ -568,24 +568,24 @@ static void scu_ssp_io_request_construct_task_context(
 /**
  * This method will fill in the remainder of the io request object for SSP Task
  *    requests.
- * @this_request:
+ * @sci_req:
  *
  */
 static void scic_sds_ssp_task_request_assign_buffers(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sci_req)
 {
 	/* Assign all of the buffer pointers */
-	this_request->command_buffer =
-		scic_sds_ssp_task_request_get_command_buffer(this_request);
-	this_request->response_buffer =
-		scic_sds_ssp_task_request_get_response_buffer(this_request);
-	this_request->sgl_element_pair_buffer = NULL;
+	sci_req->command_buffer =
+		scic_sds_ssp_task_request_get_command_buffer(sci_req);
+	sci_req->response_buffer =
+		scic_sds_ssp_task_request_get_response_buffer(sci_req);
+	sci_req->sgl_element_pair_buffer = NULL;
 
-	if (this_request->was_tag_assigned_by_user == false) {
-		this_request->task_context_buffer =
-			scic_sds_ssp_task_request_get_task_context_buffer(this_request);
-		this_request->task_context_buffer =
-			PTR_ALIGN(this_request->task_context_buffer, SMP_CACHE_BYTES);
+	if (sci_req->was_tag_assigned_by_user == false) {
+		sci_req->task_context_buffer =
+			scic_sds_ssp_task_request_get_task_context_buffer(sci_req);
+		sci_req->task_context_buffer =
+			PTR_ALIGN(sci_req->task_context_buffer, SMP_CACHE_BYTES);
 	}
 }
 
@@ -598,18 +598,18 @@ static void scic_sds_ssp_task_request_assign_buffers(
  *    (i.e. non-raw frame) is being utilized to perform task management. -#
  *    control_frame == 1.  This ensures that the proper endianess is set so
  *    that the bytes are transmitted in the right order for a task frame.
- * @this_request: This parameter specifies the task request object being
+ * @sci_req: This parameter specifies the task request object being
  *    constructed.
  *
  */
 static void scu_ssp_task_request_construct_task_context(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sci_req)
 {
 	struct scu_task_context *task_context;
 
-	task_context = scic_sds_request_get_task_context(this_request);
+	task_context = scic_sds_request_get_task_context(sci_req);
 
-	scu_ssp_reqeust_construct_task_context(this_request, task_context);
+	scu_ssp_reqeust_construct_task_context(sci_req, task_context);
 
 	task_context->control_frame                = 1;
 	task_context->priority                     = SCU_TASK_PRIORITY_HIGH;
@@ -623,7 +623,7 @@ static void scu_ssp_task_request_construct_task_context(
 /**
  * This method constructs the SSP Command IU data for this ssp passthrough
  *    comand request object.
- * @this_request: This parameter specifies the request object for which the SSP
+ * @sci_req: This parameter specifies the request object for which the SSP
  *    command information unit is being built.
  *
  * enum sci_status, returns invalid parameter is cdb > 16
@@ -632,7 +632,7 @@ static void scu_ssp_task_request_construct_task_context(
 
 /**
  * This method constructs the SATA request object.
- * @this_request:
+ * @sci_req:
  * @sat_protocol:
  * @transfer_length:
  * @data_direction:
@@ -964,7 +964,7 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
 
 /**
  *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the start
+ * @sci_req: The SCIC_SDS_IO_REQUEST_T object for which the start
  *    operation is to be executed.
  * @frame_index: The frame index returned by the hardware for the reqeust
  *    object.
@@ -992,7 +992,7 @@ enum sci_status scic_sds_io_request_frame_handler(
 
 /**
  *
- * @this_request: The SCIC_SDS_IO_REQUEST_T object for which the task start
+ * @sci_req: The SCIC_SDS_IO_REQUEST_T object for which the task start
  *    operation is to be executed.
  *
  * This method invokes the core state task complete handler for the
@@ -1007,7 +1007,7 @@ enum sci_status scic_sds_io_request_frame_handler(
 /**
  * This method copies response data for requests returning response data
  *    instead of sense data.
- * @this_request: This parameter specifies the request object for which to copy
+ * @sci_req: This parameter specifies the request object for which to copy
  *    the response data.
  *
  */
@@ -1161,14 +1161,14 @@ enum sci_status scic_sds_request_started_state_abort_handler(
  *    TC (task context) completions for normal IO request (i.e. Task/Abort
  *    Completions of type 0).  This method will update the
  *    SCIC_SDS_IO_REQUEST_T::status field.
- * @this_request: This parameter specifies the request for which a completion
+ * @sci_req: This parameter specifies the request for which a completion
  *    occurred.
  * @completion_code: This parameter specifies the completion code received from
  *    the SCU.
  *
  */
 enum sci_status scic_sds_request_started_state_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	u8 data_present;
@@ -1181,7 +1181,7 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 			);
 		break;
 
@@ -1194,20 +1194,20 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 		 * response stats to see if this is truly a failed request or a good
 		 * request that just got completed early. */
 		struct sci_ssp_response_iu *response = (struct sci_ssp_response_iu *)
-						  this_request->response_buffer;
+						  sci_req->response_buffer;
 		scic_word_copy_with_swap(
-			this_request->response_buffer,
-			this_request->response_buffer,
+			sci_req->response_buffer,
+			sci_req->response_buffer,
 			sizeof(struct sci_ssp_response_iu) / sizeof(u32)
 			);
 
 		if (response->status == 0) {
 			scic_sds_request_set_status(
-				this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS_IO_DONE_EARLY
+				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS_IO_DONE_EARLY
 				);
 		} else {
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_TASK_DONE_CHECK_RESPONSE,
 				SCI_FAILURE_IO_RESPONSE_VALID
 				);
@@ -1217,13 +1217,13 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CHECK_RESPONSE):
 		scic_word_copy_with_swap(
-			this_request->response_buffer,
-			this_request->response_buffer,
+			sci_req->response_buffer,
+			sci_req->response_buffer,
 			sizeof(struct sci_ssp_response_iu) / sizeof(u32)
 			);
 
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_TASK_DONE_CHECK_RESPONSE,
 			SCI_FAILURE_IO_RESPONSE_VALID
 			);
@@ -1234,19 +1234,19 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 		 * / @todo With TASK_DONE_RESP_LEN_ERR is the response frame guaranteed
 		 * /       to be received before this completion status is posted? */
 		response_buffer =
-			(struct sci_ssp_response_iu *)this_request->response_buffer;
+			(struct sci_ssp_response_iu *)sci_req->response_buffer;
 		data_present =
 			response_buffer->data_present & SCI_SSP_RESPONSE_IU_DATA_PRESENT_MASK;
 
 		if ((data_present == 0x01) || (data_present == 0x02)) {
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_TASK_DONE_CHECK_RESPONSE,
 				SCI_FAILURE_IO_RESPONSE_VALID
 				);
 		} else {
 			scic_sds_request_set_status(
-				this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 				);
 		}
 		break;
@@ -1263,15 +1263,15 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_SDBFIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SDB_ERR):
-		if (this_request->protocol == SCIC_STP_PROTOCOL) {
+		if (sci_req->protocol == SCIC_STP_PROTOCOL) {
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_GET_COMPLETION_TL_STATUS(completion_code) >> SCU_COMPLETION_TL_STATUS_SHIFT,
 				SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED
 				);
 		} else {
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_GET_COMPLETION_TL_STATUS(completion_code) >> SCU_COMPLETION_TL_STATUS_SHIFT,
 				SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 				);
@@ -1290,7 +1290,7 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED):
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_GET_COMPLETION_TL_STATUS(completion_code) >> SCU_COMPLETION_TL_STATUS_SHIFT,
 			SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED
 			);
@@ -1314,7 +1314,7 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_RNCNV_OUTBOUND):
 	default:
 		scic_sds_request_set_status(
-			this_request,
+			sci_req,
 			SCU_GET_COMPLETION_TL_STATUS(completion_code) >> SCU_COMPLETION_TL_STATUS_SHIFT,
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
@@ -1326,7 +1326,7 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	 */
 
 	/* In all cases we will treat this as the completion of the IO request. */
-	sci_base_state_machine_change_state(&this_request->state_machine,
+	sci_base_state_machine_change_state(&sci_req->state_machine,
 		SCI_BASE_REQUEST_STATE_COMPLETED);
 	return SCI_SUCCESS;
 }
@@ -1340,7 +1340,7 @@ enum sci_status scic_sds_request_started_state_tc_completion_handler(
  * logged. enum sci_status SCI_SUCCESS SCI_FAILURE_INVALID_PARAMETER_VALUE
  */
 static enum sci_status scic_sds_request_started_state_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 frame_index)
 {
 	enum sci_status status;
@@ -1348,7 +1348,7 @@ static enum sci_status scic_sds_request_started_state_frame_handler(
 
 	/* / @todo If this is a response frame we must record that we received it */
 	status = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_request_get_controller(this_request)->uf_control),
+		&(scic_sds_request_get_controller(sci_req)->uf_control),
 		frame_index,
 		(void **)&frame_header
 		);
@@ -1357,37 +1357,37 @@ static enum sci_status scic_sds_request_started_state_frame_handler(
 		struct sci_ssp_response_iu *response_buffer;
 
 		status = scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_request_get_controller(this_request)->uf_control),
+			&(scic_sds_request_get_controller(sci_req)->uf_control),
 			frame_index,
 			(void **)&response_buffer
 			);
 
 		scic_word_copy_with_swap(
-			this_request->response_buffer,
+			sci_req->response_buffer,
 			(u32 *)response_buffer,
 			sizeof(struct sci_ssp_response_iu)
 			);
 
-		response_buffer = (struct sci_ssp_response_iu *)this_request->response_buffer;
+		response_buffer = (struct sci_ssp_response_iu *)sci_req->response_buffer;
 
 		if ((response_buffer->data_present == 0x01) ||
 		    (response_buffer->data_present == 0x02)) {
 			scic_sds_request_set_status(
-				this_request,
+				sci_req,
 				SCU_TASK_DONE_CHECK_RESPONSE,
 				SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 				);
 		} else
 			scic_sds_request_set_status(
-				this_request, SCU_TASK_DONE_GOOD, SCI_SUCCESS
+				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
 				);
 	} else
 		/* This was not a response frame why did it get forwarded? */
-		dev_err(scic_to_dev(this_request->owning_controller),
+		dev_err(scic_to_dev(sci_req->owning_controller),
 			"%s: SCIC IO Request 0x%p received unexpected "
 			"frame %d type 0x%02x\n",
 			__func__,
-			this_request,
+			sci_req,
 			frame_index,
 			frame_header->frame_type);
 
@@ -1395,7 +1395,7 @@ static enum sci_status scic_sds_request_started_state_frame_handler(
 	 * In any case we are done with this frame buffer return it to the
 	 * controller */
 	scic_sds_controller_release_frame(
-		this_request->owning_controller, frame_index
+		sci_req->owning_controller, frame_index
 		);
 
 	return SCI_SUCCESS;
@@ -1460,17 +1460,17 @@ static enum sci_status scic_sds_request_aborting_state_abort_handler(
  * transitions to the completed state. enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_request_aborting_state_tc_completion_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case (SCU_TASK_DONE_GOOD << SCU_COMPLETION_TL_STATUS_SHIFT):
 	case (SCU_TASK_DONE_TASK_ABORT << SCU_COMPLETION_TL_STATUS_SHIFT):
 		scic_sds_request_set_status(
-			this_request, SCU_TASK_DONE_TASK_ABORT, SCI_FAILURE_IO_TERMINATED
+			sci_req, SCU_TASK_DONE_TASK_ABORT, SCI_FAILURE_IO_TERMINATED
 			);
 
-		sci_base_state_machine_change_state(&this_request->state_machine,
+		sci_base_state_machine_change_state(&sci_req->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
@@ -1491,13 +1491,13 @@ static enum sci_status scic_sds_request_aborting_state_tc_completion_handler(
  * completion. enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_request_aborting_state_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sci_req,
 	u32 frame_index)
 {
 	/* TODO: Is it even possible to get an unsolicited frame in the aborting state? */
 
 	scic_sds_controller_release_frame(
-		this_request->owning_controller, frame_index);
+		sci_req->owning_controller, frame_index);
 
 	return SCI_SUCCESS;
 }
@@ -1539,10 +1539,10 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
 static void scic_sds_request_initial_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_request_state_handler_table,
 		SCI_BASE_REQUEST_STATE_INITIAL
 		);
@@ -1559,10 +1559,10 @@ static void scic_sds_request_initial_state_enter(
 static void scic_sds_request_constructed_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_request_state_handler_table,
 		SCI_BASE_REQUEST_STATE_CONSTRUCTED
 		);
@@ -1580,10 +1580,10 @@ static void scic_sds_request_constructed_state_enter(
 static void scic_sds_request_started_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_request_state_handler_table,
 		SCI_BASE_REQUEST_STATE_STARTED
 		);
@@ -1591,8 +1591,8 @@ static void scic_sds_request_started_state_enter(
 	/*
 	 * Most of the request state machines have a started substate machine so
 	 * start its execution on the entry to the started state. */
-	if (this_request->has_started_substate_machine == true)
-		sci_base_state_machine_start(&this_request->started_substate_machine);
+	if (sci_req->has_started_substate_machine == true)
+		sci_base_state_machine_start(&sci_req->started_substate_machine);
 }
 
 /**
@@ -1608,10 +1608,10 @@ static void scic_sds_request_started_state_enter(
 static void scic_sds_request_started_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
-	if (this_request->has_started_substate_machine == true)
-		sci_base_state_machine_stop(&this_request->started_substate_machine);
+	if (sci_req->has_started_substate_machine == true)
+		sci_base_state_machine_stop(&sci_req->started_substate_machine);
 }
 
 /**
@@ -1660,13 +1660,13 @@ static void scic_sds_request_completed_state_enter(
 static void scic_sds_request_aborting_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	/* Setting the abort bit in the Task Context is required by the silicon. */
-	this_request->task_context_buffer->abort = 1;
+	sci_req->task_context_buffer->abort = 1;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_request_state_handler_table,
 		SCI_BASE_REQUEST_STATE_ABORTING
 		);
@@ -1684,10 +1684,10 @@ static void scic_sds_request_aborting_state_enter(
 static void scic_sds_request_final_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
 	SET_STATE_HANDLER(
-		this_request,
+		sci_req,
 		scic_sds_request_state_handler_table,
 		SCI_BASE_REQUEST_STATE_FINAL
 		);

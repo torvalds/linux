@@ -84,26 +84,29 @@ enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy)
 
 /**
  * This method will initialize the phy transport layer registers
- * @this_phy:
+ * @sci_phy:
  * @transport_layer_registers
  *
  * enum sci_status
  */
 static enum sci_status scic_sds_phy_transport_layer_initialization(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	struct scu_transport_layer_registers __iomem *transport_layer_registers)
 {
 	u32 tl_control;
 
-	this_phy->transport_layer_registers = transport_layer_registers;
+	sci_phy->transport_layer_registers = transport_layer_registers;
 
 	writel(SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX,
-		&this_phy->transport_layer_registers->stp_rni);
+		&sci_phy->transport_layer_registers->stp_rni);
 
-	/* Hardware team recommends that we enable the STP prefetch for all transports */
-	tl_control = readl(&this_phy->transport_layer_registers->control);
+	/*
+	 * Hardware team recommends that we enable the STP prefetch for all
+	 * transports
+	 */
+	tl_control = readl(&sci_phy->transport_layer_registers->control);
 	tl_control |= SCU_TLCR_GEN_BIT(STP_WRITE_DATA_PREFETCH);
-	writel(tl_control, &this_phy->transport_layer_registers->control);
+	writel(tl_control, &sci_phy->transport_layer_registers->control);
 
 	return SCI_SUCCESS;
 }
@@ -284,7 +287,7 @@ static void scic_sds_phy_sata_timeout(void *phy)
  * This method returns the port currently containing this phy. If the phy is
  *    currently contained by the dummy port, then the phy is considered to not
  *    be part of a port.
- * @this_phy: This parameter specifies the phy for which to retrieve the
+ * @sci_phy: This parameter specifies the phy for which to retrieve the
  *    containing port.
  *
  * This method returns a handle to a port that contains the supplied phy.
@@ -293,30 +296,30 @@ static void scic_sds_phy_sata_timeout(void *phy)
  * values indicate a handle/pointer to the port containing the phy.
  */
 struct scic_sds_port *scic_sds_phy_get_port(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
-	if (scic_sds_port_get_index(this_phy->owning_port) == SCIC_SDS_DUMMY_PORT)
+	if (scic_sds_port_get_index(sci_phy->owning_port) == SCIC_SDS_DUMMY_PORT)
 		return NULL;
 
-	return this_phy->owning_port;
+	return sci_phy->owning_port;
 }
 
 /**
  * This method will assign a port to the phy object.
- * @out]: this_phy This parameter specifies the phy for which to assign a port
+ * @out]: sci_phy This parameter specifies the phy for which to assign a port
  *    object.
  *
  *
  */
 void scic_sds_phy_set_port(
-	struct scic_sds_phy *this_phy,
-	struct scic_sds_port *the_port)
+	struct scic_sds_phy *sci_phy,
+	struct scic_sds_port *sci_port)
 {
-	this_phy->owning_port = the_port;
+	sci_phy->owning_port = sci_port;
 
-	if (this_phy->bcn_received_while_port_unassigned) {
-		this_phy->bcn_received_while_port_unassigned = false;
-		scic_sds_port_broadcast_change_received(this_phy->owning_port, this_phy);
+	if (sci_phy->bcn_received_while_port_unassigned) {
+		sci_phy->bcn_received_while_port_unassigned = false;
+		scic_sds_port_broadcast_change_received(sci_phy->owning_port, sci_phy);
 	}
 }
 
@@ -362,123 +365,125 @@ enum sci_status scic_sds_phy_initialize(
 /**
  * This method assigns the direct attached device ID for this phy.
  *
- * @this_phy The phy for which the direct attached device id is to
+ * @sci_phy The phy for which the direct attached device id is to
  *       be assigned.
  * @device_id The direct attached device ID to assign to the phy.
  *       This will either be the RNi for the device or an invalid RNi if there
  *       is no current device assigned to the phy.
  */
 void scic_sds_phy_setup_transport(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 device_id)
 {
 	u32 tl_control;
 
-	writel(device_id, &this_phy->transport_layer_registers->stp_rni);
+	writel(device_id, &sci_phy->transport_layer_registers->stp_rni);
 
 	/*
 	 * The read should guarantee that the first write gets posted
 	 * before the next write
 	 */
-	tl_control = readl(&this_phy->transport_layer_registers->control);
+	tl_control = readl(&sci_phy->transport_layer_registers->control);
 	tl_control |= SCU_TLCR_GEN_BIT(CLEAR_TCI_NCQ_MAPPING_TABLE);
-	writel(tl_control, &this_phy->transport_layer_registers->control);
+	writel(tl_control, &sci_phy->transport_layer_registers->control);
 }
 
 /**
  *
- * @this_phy: The phy object to be suspended.
+ * @sci_phy: The phy object to be suspended.
  *
  * This function will perform the register reads/writes to suspend the SCU
  * hardware protocol engine. none
  */
 static void scic_sds_phy_suspend(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 
 	scu_sas_pcfg_value =
-		readl(&this_phy->link_layer_registers->phy_configuration);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE);
 	writel(scu_sas_pcfg_value,
-		&this_phy->link_layer_registers->phy_configuration);
+		&sci_phy->link_layer_registers->phy_configuration);
 
-	scic_sds_phy_setup_transport(this_phy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
+	scic_sds_phy_setup_transport(
+			sci_phy,
+			SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
 }
 
 /**
  *
- * @this_phy: The phy object to resume.
+ * @sci_phy: The phy object to resume.
  *
  * This function will perform the register reads/writes required to resume the
  * SCU hardware protocol engine. none
  */
 void scic_sds_phy_resume(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 
 	scu_sas_pcfg_value =
-		readl(&this_phy->link_layer_registers->phy_configuration);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE);
 	writel(scu_sas_pcfg_value,
-		&this_phy->link_layer_registers->phy_configuration);
+		&sci_phy->link_layer_registers->phy_configuration);
 }
 
 /**
  * This method returns the local sas address assigned to this phy.
- * @this_phy: This parameter specifies the phy for which to retrieve the local
+ * @sci_phy: This parameter specifies the phy for which to retrieve the local
  *    SAS address.
  * @sas_address: This parameter specifies the location into which to copy the
  *    local SAS address.
  *
  */
 void scic_sds_phy_get_sas_address(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	struct sci_sas_address *sas_address)
 {
-	sas_address->high = readl(&this_phy->link_layer_registers->source_sas_address_high);
-	sas_address->low = readl(&this_phy->link_layer_registers->source_sas_address_low);
+	sas_address->high = readl(&sci_phy->link_layer_registers->source_sas_address_high);
+	sas_address->low = readl(&sci_phy->link_layer_registers->source_sas_address_low);
 }
 
 /**
  * This method returns the remote end-point (i.e. attached) sas address
  *    assigned to this phy.
- * @this_phy: This parameter specifies the phy for which to retrieve the remote
+ * @sci_phy: This parameter specifies the phy for which to retrieve the remote
  *    end-point SAS address.
  * @sas_address: This parameter specifies the location into which to copy the
  *    remote end-point SAS address.
  *
  */
 void scic_sds_phy_get_attached_sas_address(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	struct sci_sas_address *sas_address)
 {
 	sas_address->high
-		= this_phy->phy_type.sas.identify_address_frame_buffer.sas_address.high;
+		= sci_phy->phy_type.sas.identify_address_frame_buffer.sas_address.high;
 	sas_address->low
-		= this_phy->phy_type.sas.identify_address_frame_buffer.sas_address.low;
+		= sci_phy->phy_type.sas.identify_address_frame_buffer.sas_address.low;
 }
 
 /**
  * This method returns the supported protocols assigned to this phy
- * @this_phy:
+ * @sci_phy:
  *
  *
  */
 void scic_sds_phy_get_protocols(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols)
 {
 	protocols->u.all =
-		(u16)(readl(&this_phy->
+		(u16)(readl(&sci_phy->
 			link_layer_registers->transmit_identification) &
 				0x0000FFFF);
 }
 
 /**
  *
- * @this_phy: The parameter is the phy object for which the attached phy
+ * @sci_phy: The parameter is the phy object for which the attached phy
  *    protcols are to be returned.
  *
  * This method returns the supported protocols for the attached phy.  If this
@@ -488,15 +493,15 @@ void scic_sds_phy_get_protocols(
  * value.
  */
 void scic_sds_phy_get_attached_phy_protocols(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols)
 {
 	protocols->u.all = 0;
 
-	if (this_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
 		protocols->u.all =
-			this_phy->phy_type.sas.identify_address_frame_buffer.protocols.u.all;
-	} else if (this_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
+			sci_phy->phy_type.sas.identify_address_frame_buffer.protocols.u.all;
+	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		protocols->u.bits.stp_target = 1;
 	}
 }
@@ -533,54 +538,54 @@ enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy)
 /**
  * This method will attempt to reset the phy.  This request is only valid when
  *    the phy is in an ready state
- * @this_phy:
+ * @sci_phy:
  *
  * enum sci_status
  */
 enum sci_status scic_sds_phy_reset(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
-	return this_phy->state_handlers->reset_handler(this_phy);
+	return sci_phy->state_handlers->reset_handler(sci_phy);
 }
 
 /**
  * This method will process the event code received.
- * @this_phy:
+ * @sci_phy:
  * @event_code:
  *
  * enum sci_status
  */
 enum sci_status scic_sds_phy_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
-	return this_phy->state_handlers->event_handler(this_phy, event_code);
+	return sci_phy->state_handlers->event_handler(sci_phy, event_code);
 }
 
 /**
  * This method will process the frame index received.
- * @this_phy:
+ * @sci_phy:
  * @frame_index:
  *
  * enum sci_status
  */
 enum sci_status scic_sds_phy_frame_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 frame_index)
 {
-	return this_phy->state_handlers->frame_handler(this_phy, frame_index);
+	return sci_phy->state_handlers->frame_handler(sci_phy, frame_index);
 }
 
 /**
  * This method will give the phy permission to consume power
- * @this_phy:
+ * @sci_phy:
  *
  * enum sci_status
  */
 enum sci_status scic_sds_phy_consume_power_handler(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
-	return this_phy->state_handlers->consume_power_handler(this_phy);
+	return sci_phy->state_handlers->consume_power_handler(sci_phy);
 }
 
 /*
@@ -638,7 +643,7 @@ enum sci_status scic_sata_phy_get_properties(
 
 /**
  *
- * @this_phy: The phy object that received SAS PHY DETECTED.
+ * @sci_phy: The phy object that received SAS PHY DETECTED.
  *
  * This method continues the link training for the phy as if it were a SAS PHY
  * instead of a SATA PHY. This is done because the completion queue had a SAS
@@ -646,41 +651,41 @@ enum sci_status scic_sata_phy_get_properties(
  * none
  */
 static void scic_sds_phy_start_sas_link_training(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 phy_control;
 
 	phy_control =
-		readl(&this_phy->link_layer_registers->phy_configuration);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	phy_control |= SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD);
 	writel(phy_control,
-		&this_phy->link_layer_registers->phy_configuration);
+		&sci_phy->link_layer_registers->phy_configuration);
 
 	sci_base_state_machine_change_state(
-		&this_phy->starting_substate_machine,
+		&sci_phy->starting_substate_machine,
 		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
 		);
 
-	this_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
 }
 
 /**
  *
- * @this_phy: The phy object that received a SATA SPINUP HOLD event
+ * @sci_phy: The phy object that received a SATA SPINUP HOLD event
  *
  * This method continues the link training for the phy as if it were a SATA PHY
  * instead of a SAS PHY.  This is done because the completion queue had a SATA
  * SPINUP HOLD event when the state machine was expecting a SAS PHY event. none
  */
 static void scic_sds_phy_start_sata_link_training(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	sci_base_state_machine_change_state(
-		&this_phy->starting_substate_machine,
+		&sci_phy->starting_substate_machine,
 		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
 		);
 
-	this_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
 }
 
 /**
@@ -748,24 +753,24 @@ static enum sci_status scic_sds_phy_starting_substate_general_stop_handler(
  * SCI_FAILURE on any unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_ossp_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
 
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_SAS_PHY_DETECTED:
-		scic_sds_phy_start_sas_link_training(this_phy);
-		this_phy->is_in_link_training = true;
+		scic_sds_phy_start_sas_link_training(sci_phy);
+		sci_phy->is_in_link_training = true;
 		break;
 
 	case SCU_EVENT_SATA_SPINUP_HOLD:
-		scic_sds_phy_start_sata_link_training(this_phy);
-		this_phy->is_in_link_training = true;
+		scic_sds_phy_start_sata_link_training(sci_phy);
+		sci_phy->is_in_link_training = true;
 		break;
 
 	default:
-		dev_dbg(sciphy_to_dev(this_phy),
+		dev_dbg(sciphy_to_dev(sci_phy),
 			"%s: PHY starting substate machine received "
 			"unexpected event_code %x\n",
 			__func__,
@@ -793,7 +798,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_ossp_event_handler(
  * event notification SCI_FAILURE on any unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sas_phy_speed_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
@@ -808,38 +813,41 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_phy_speed_event_
 	case SCU_EVENT_SAS_15:
 	case SCU_EVENT_SAS_15_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SAS_LINK_RATE_1_5_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
-			);
+			sci_phy,
+			SAS_LINK_RATE_1_5_GBPS,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
 		break;
 
 	case SCU_EVENT_SAS_30:
 	case SCU_EVENT_SAS_30_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SAS_LINK_RATE_3_0_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
-			);
+			sci_phy,
+			SAS_LINK_RATE_3_0_GBPS,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
 		break;
 
 	case SCU_EVENT_SAS_60:
 	case SCU_EVENT_SAS_60_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy, SAS_LINK_RATE_6_0_GBPS, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
-			);
+			sci_phy,
+			SAS_LINK_RATE_6_0_GBPS,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
 		break;
 
 	case SCU_EVENT_SATA_SPINUP_HOLD:
 		/*
 		 * We were doing SAS PHY link training and received a SATA PHY event
 		 * continue OOB/SN as if this were a SATA PHY */
-		scic_sds_phy_start_sata_link_training(this_phy);
+		scic_sds_phy_start_sata_link_training(sci_phy);
 		break;
 
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -867,7 +875,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_phy_speed_event_
  * unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
@@ -875,25 +883,25 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_event_handler
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_SAS_PHY_DETECTED:
 		/* Backup the state machine */
-		scic_sds_phy_start_sas_link_training(this_phy);
+		scic_sds_phy_start_sas_link_training(sci_phy);
 		break;
 
 	case SCU_EVENT_SATA_SPINUP_HOLD:
 		/*
 		 * We were doing SAS PHY link training and received a SATA PHY event
 		 * continue OOB/SN as if this were a SATA PHY */
-		scic_sds_phy_start_sata_link_training(this_phy);
+		scic_sds_phy_start_sata_link_training(sci_phy);
 		break;
 
 	case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
 	case SCU_EVENT_LINK_FAILURE:
 	case SCU_EVENT_HARD_RESET_RECEIVED:
 		/* Start the oob/sn state machine over again */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -919,7 +927,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_event_handler
  * notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sas_power_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
@@ -927,11 +935,11 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_power_event_hand
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			"%s: PHY starting substate machine received unexpected "
 			"event_code %x\n",
 			__func__,
@@ -957,7 +965,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_power_event_hand
  * on a link failure event SCI_FAILURE on any unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
@@ -965,7 +973,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_han
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	case SCU_EVENT_SATA_SPINUP_HOLD:
@@ -976,11 +984,11 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_han
 		/*
 		 * There has been a change in the phy type before OOB/SN for the
 		 * SATA finished start down the SAS link traning path. */
-		scic_sds_phy_start_sas_link_training(this_phy);
+		scic_sds_phy_start_sas_link_training(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -1066,7 +1074,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_phy_event_handl
  * valid event notification SCI_FAILURE on any unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
@@ -1081,44 +1089,41 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
 	case SCU_EVENT_SATA_15:
 	case SCU_EVENT_SATA_15_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy,
+			sci_phy,
 			SAS_LINK_RATE_1_5_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
-			);
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
 		break;
 
 	case SCU_EVENT_SATA_30:
 	case SCU_EVENT_SATA_30_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy,
+			sci_phy,
 			SAS_LINK_RATE_3_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
-			);
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
 		break;
 
 	case SCU_EVENT_SATA_60:
 	case SCU_EVENT_SATA_60_SSC:
 		scic_sds_phy_complete_link_training(
-			this_phy,
+			sci_phy,
 			SAS_LINK_RATE_6_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
-			);
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
 		break;
 
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	case SCU_EVENT_SAS_PHY_DETECTED:
 		/*
 		 * There has been a change in the phy type before OOB/SN for the
 		 * SATA finished start down the SAS link traning path. */
-		scic_sds_phy_start_sas_link_training(this_phy);
+		scic_sds_phy_start_sas_link_training(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -1583,12 +1588,12 @@ static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_object 
 static void scic_sds_phy_starting_await_ossp_en_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN
 		);
 }
 
@@ -1603,12 +1608,12 @@ static void scic_sds_phy_starting_await_ossp_en_substate_enter(
 static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
 		);
 }
 
@@ -1623,12 +1628,12 @@ static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
 static void scic_sds_phy_starting_await_iaf_uf_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
 		);
 }
 
@@ -1644,17 +1649,17 @@ static void scic_sds_phy_starting_await_iaf_uf_substate_enter(
 static void scic_sds_phy_starting_await_sas_power_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER
 		);
 
 	scic_sds_controller_power_control_queue_insert(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy
+		scic_sds_phy_get_controller(sci_phy),
+		sci_phy
 		);
 }
 
@@ -1669,12 +1674,12 @@ static void scic_sds_phy_starting_await_sas_power_substate_enter(
 static void scic_sds_phy_starting_await_sas_power_substate_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_controller_power_control_queue_remove(
-		scic_sds_phy_get_controller(this_phy), this_phy
+		scic_sds_phy_get_controller(sci_phy), sci_phy
 		);
 }
 
@@ -1690,17 +1695,17 @@ static void scic_sds_phy_starting_await_sas_power_substate_exit(
 static void scic_sds_phy_starting_await_sata_power_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
 		);
 
 	scic_sds_controller_power_control_queue_insert(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy
+		scic_sds_phy_get_controller(sci_phy),
+		sci_phy
 		);
 }
 
@@ -1715,13 +1720,13 @@ static void scic_sds_phy_starting_await_sata_power_substate_enter(
 static void scic_sds_phy_starting_await_sata_power_substate_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_controller_power_control_queue_remove(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy
+		scic_sds_phy_get_controller(sci_phy),
+		sci_phy
 		);
 }
 
@@ -2115,33 +2120,32 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 
 /**
  *
- * @this_phy: This is the struct scic_sds_phy object to stop.
+ * @sci_phy: This is the struct scic_sds_phy object to stop.
  *
  * This method will stop the struct scic_sds_phy object. This does not reset the
  * protocol engine it just suspends it and places it in a state where it will
  * not cause the end device to power up. none
  */
 static void scu_link_layer_stop_protocol_engine(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 	u32 enable_spinup_value;
 
 	/* Suspend the protocol engine and place it in a sata spinup hold state */
 	scu_sas_pcfg_value =
-		readl(&this_phy->link_layer_registers->phy_configuration);
-	scu_sas_pcfg_value |= (
-		SCU_SAS_PCFG_GEN_BIT(OOB_RESET)
-		| SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE)
-		| SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD)
-		);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
+	scu_sas_pcfg_value |=
+		(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
+		 SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE) |
+		 SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD));
 	writel(scu_sas_pcfg_value,
-		&this_phy->link_layer_registers->phy_configuration);
+	       &sci_phy->link_layer_registers->phy_configuration);
 
 	/* Disable the notify enable spinup primitives */
-	enable_spinup_value = readl(&this_phy->link_layer_registers->notify_enable_spinup_control);
+	enable_spinup_value = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
 	enable_spinup_value &= ~SCU_ENSPINUP_GEN_BIT(ENABLE);
-	writel(enable_spinup_value, &this_phy->link_layer_registers->notify_enable_spinup_control);
+	writel(enable_spinup_value, &sci_phy->link_layer_registers->notify_enable_spinup_control);
 }
 
 /**
@@ -2150,17 +2154,18 @@ static void scu_link_layer_stop_protocol_engine(
  * This method will start the OOB/SN state machine for this struct scic_sds_phy object.
  */
 static void scu_link_layer_start_oob(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 
 	scu_sas_pcfg_value =
-		readl(&this_phy->link_layer_registers->phy_configuration);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 	scu_sas_pcfg_value &=
-		~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) | SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
+		~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
+		SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
 	writel(scu_sas_pcfg_value,
-		&this_phy->link_layer_registers->phy_configuration);
+	       &sci_phy->link_layer_registers->phy_configuration);
 }
 
 /**
@@ -2172,7 +2177,7 @@ static void scu_link_layer_start_oob(
  * hard reset bit set.
  */
 static void scu_link_layer_tx_hard_reset(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 phy_configuration_value;
 
@@ -2180,17 +2185,18 @@ static void scu_link_layer_tx_hard_reset(
 	 * SAS Phys must wait for the HARD_RESET_TX event notification to transition
 	 * to the starting state. */
 	phy_configuration_value =
-		readl(&this_phy->link_layer_registers->phy_configuration);
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	phy_configuration_value |=
-		(SCU_SAS_PCFG_GEN_BIT(HARD_RESET) | SCU_SAS_PCFG_GEN_BIT(OOB_RESET));
+		(SCU_SAS_PCFG_GEN_BIT(HARD_RESET) |
+		 SCU_SAS_PCFG_GEN_BIT(OOB_RESET));
 	writel(phy_configuration_value,
-		&this_phy->link_layer_registers->phy_configuration);
+	       &sci_phy->link_layer_registers->phy_configuration);
 
 	/* Now take the OOB state machine out of reset */
 	phy_configuration_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 	phy_configuration_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
 	writel(phy_configuration_value,
-		&this_phy->link_layer_registers->phy_configuration);
+	       &sci_phy->link_layer_registers->phy_configuration);
 }
 
 /*
@@ -2209,11 +2215,11 @@ static void scu_link_layer_tx_hard_reset(
 static void scic_sds_phy_initial_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_set_base_state_handlers(this_phy, SCI_BASE_PHY_STATE_INITIAL);
+	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_INITIAL);
 }
 
 /**
@@ -2273,28 +2279,28 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 static void scic_sds_phy_starting_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_set_base_state_handlers(this_phy, SCI_BASE_PHY_STATE_STARTING);
+	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_STARTING);
 
-	scu_link_layer_stop_protocol_engine(this_phy);
-	scu_link_layer_start_oob(this_phy);
+	scu_link_layer_stop_protocol_engine(sci_phy);
+	scu_link_layer_start_oob(sci_phy);
 
 	/* We don't know what kind of phy we are going to be just yet */
-	this_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
-	this_phy->bcn_received_while_port_unassigned = false;
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
+	sci_phy->bcn_received_while_port_unassigned = false;
 
 	/* Change over to the starting substate machine to continue */
-	sci_base_state_machine_start(&this_phy->starting_substate_machine);
+	sci_base_state_machine_start(&sci_phy->starting_substate_machine);
 
-	if (this_phy->state_machine.previous_state_id
+	if (sci_phy->state_machine.previous_state_id
 	    == SCI_BASE_PHY_STATE_READY) {
 		scic_sds_controller_link_down(
-			scic_sds_phy_get_controller(this_phy),
-			scic_sds_phy_get_port(this_phy),
-			this_phy
+			scic_sds_phy_get_controller(sci_phy),
+			scic_sds_phy_get_port(sci_phy),
+			sci_phy
 			);
 	}
 }
@@ -2312,16 +2318,16 @@ static void scic_sds_phy_starting_state_enter(
 static void scic_sds_phy_ready_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_set_base_state_handlers(this_phy, SCI_BASE_PHY_STATE_READY);
+	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_READY);
 
 	scic_sds_controller_link_up(
-		scic_sds_phy_get_controller(this_phy),
-		scic_sds_phy_get_port(this_phy),
-		this_phy
+		scic_sds_phy_get_controller(sci_phy),
+		scic_sds_phy_get_port(sci_phy),
+		sci_phy
 		);
 }
 
@@ -2336,11 +2342,11 @@ static void scic_sds_phy_ready_state_enter(
 static void scic_sds_phy_ready_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_suspend(this_phy);
+	scic_sds_phy_suspend(sci_phy);
 }
 
 /**
@@ -2354,26 +2360,28 @@ static void scic_sds_phy_ready_state_exit(
 static void scic_sds_phy_resetting_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_set_base_state_handlers(this_phy, SCI_BASE_PHY_STATE_RESETTING);
+	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_RESETTING);
 
 	/*
 	 * The phy is being reset, therefore deactivate it from the port.
 	 * In the resetting state we don't notify the user regarding
 	 * link up and link down notifications. */
-	scic_sds_port_deactivate_phy(this_phy->owning_port, this_phy, false);
+	scic_sds_port_deactivate_phy(sci_phy->owning_port, sci_phy, false);
 
-	if (this_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
-		scu_link_layer_tx_hard_reset(this_phy);
+	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+		scu_link_layer_tx_hard_reset(sci_phy);
 	} else {
 		/*
-		 * The SCU does not need to have a discrete reset state so just go back to
-		 * the starting state. */
-		sci_base_state_machine_change_state(&this_phy->state_machine,
-						    SCI_BASE_PHY_STATE_STARTING);
+		 * The SCU does not need to have a discrete reset state so
+		 * just go back to the starting state.
+		 */
+		sci_base_state_machine_change_state(
+				&sci_phy->state_machine,
+				SCI_BASE_PHY_STATE_STARTING);
 	}
 }
 
@@ -2388,11 +2396,11 @@ static void scic_sds_phy_resetting_state_enter(
 static void scic_sds_phy_final_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	scic_sds_phy_set_base_state_handlers(this_phy, SCI_BASE_PHY_STATE_FINAL);
+	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_FINAL);
 
 	/* Nothing to do here */
 }
