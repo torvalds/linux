@@ -577,7 +577,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
-	char clk_name[8];
 	int size;
 	int ret;
 
@@ -587,10 +586,9 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return -ENOMEM;
 	}
 
-	snprintf(clk_name, sizeof(clk_name), "i2c%d", dev->id);
-	pd->clk = clk_get(&dev->dev, clk_name);
+	pd->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(pd->clk)) {
-		dev_err(&dev->dev, "cannot get clock \"%s\"\n", clk_name);
+		dev_err(&dev->dev, "cannot get clock\n");
 		ret = PTR_ERR(pd->clk);
 		goto err;
 	}
