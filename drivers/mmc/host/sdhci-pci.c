@@ -327,6 +327,11 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 		return ret;
 	}
 
+	/* quirk for unsable RO-detection on JM388 chips */
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
+		chip->quirks |= SDHCI_QUIRK_UNSTABLE_RO_DETECT;
+
 	return 0;
 }
 

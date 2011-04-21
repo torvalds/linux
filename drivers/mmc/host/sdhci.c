@@ -1256,13 +1256,10 @@ out:
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static int sdhci_get_ro(struct mmc_host *mmc)
+static int check_ro(struct sdhci_host *host)
 {
-	struct sdhci_host *host;
 	unsigned long flags;
 	int is_readonly;
-
-	host = mmc_priv(mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1279,6 +1276,29 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	/* This quirk needs to be replaced by a callback-function later */
 	return host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT ?
 		!is_readonly : is_readonly;
+}
+
+#define SAMPLE_COUNT	5
+
+static int sdhci_get_ro(struct mmc_host *mmc)
+{
+	struct sdhci_host *host;
+	int i, ro_count;
+
+	host = mmc_priv(mmc);
+
+	if (!(host->quirks & SDHCI_QUIRK_UNSTABLE_RO_DETECT))
+		return check_ro(host);
+
+	ro_count = 0;
+	for (i = 0; i < SAMPLE_COUNT; i++) {
+		if (check_ro(host)) {
+			if (++ro_count > SAMPLE_COUNT / 2)
+				return 1;
+		}
+		msleep(30);
+	}
+	return 0;
 }
 
 static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
