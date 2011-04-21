@@ -369,15 +369,7 @@ static int usbhsp_fifo_select(struct usbhs_pipe *pipe, int write)
 
 int usbhs_fifo_prepare_write(struct usbhs_pipe *pipe)
 {
-	int ret;
-
-	ret = usbhsp_fifo_select(pipe, 1);
-	if (ret < 0)
-		return ret;
-
-	usbhsp_fifo_clear(pipe);
-
-	return ret;
+	return usbhsp_fifo_select(pipe, 1);
 }
 
 int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len)
@@ -392,7 +384,7 @@ int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len)
 	if (ret < 0)
 		return ret;
 
-	ret = usbhs_fifo_prepare_write(pipe);
+	ret = usbhsp_fifo_select(pipe, 1);
 	if (ret < 0)
 		return ret;
 
@@ -750,6 +742,8 @@ void usbhs_pipe_init(struct usbhs_priv *priv)
 
 		usbhsp_flags_init(pipe);
 		pipe->mod_private = NULL;
+
+		usbhsp_fifo_clear(pipe);
 	}
 }
 
