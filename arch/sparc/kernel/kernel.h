@@ -6,11 +6,9 @@
 #include <asm/traps.h>
 
 /* cpu.c */
-extern const char *sparc_cpu_type;
 extern const char *sparc_pmu_type;
-extern const char *sparc_fpu_type;
-
 extern unsigned int fsr_storage;
+extern int ncpus_probed;
 
 #ifdef CONFIG_SPARC32
 /* cpu.c */
