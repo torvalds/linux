@@ -1775,9 +1775,11 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 	u32 epctl_reg = dir_in ? S3C_DIEPCTL(idx) : S3C_DOEPCTL(idx);
 	u32 epsiz_reg = dir_in ? S3C_DIEPTSIZ(idx) : S3C_DOEPTSIZ(idx);
 	u32 ints;
-	u32 clear = 0;
 
 	ints = readl(hsotg->regs + epint_reg);
+
+	/* Clear endpoint interrupts */
+	writel(ints, hsotg->regs + epint_reg);
 
 	dev_dbg(hsotg->dev, "%s: ep%d(%s) DxEPINT=0x%08x\n",
 		__func__, idx, dir_in ? "in" : "out", ints);
@@ -1801,19 +1803,13 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 
 			s3c_hsotg_handle_outdone(hsotg, idx, false);
 		}
-
-		clear |= S3C_DxEPINT_XferCompl;
 	}
 
-	if (ints & S3C_DxEPINT_EPDisbld) {
+	if (ints & S3C_DxEPINT_EPDisbld)
 		dev_dbg(hsotg->dev, "%s: EPDisbld\n", __func__);
-		clear |= S3C_DxEPINT_EPDisbld;
-	}
 
-	if (ints & S3C_DxEPINT_AHBErr) {
+	if (ints & S3C_DxEPINT_AHBErr)
 		dev_dbg(hsotg->dev, "%s: AHBErr\n", __func__);
-		clear |= S3C_DxEPINT_AHBErr;
-	}
 
 	if (ints & S3C_DxEPINT_Setup) {  /* Setup or Timeout */
 		dev_dbg(hsotg->dev, "%s: Setup/Timeout\n",  __func__);
@@ -1829,14 +1825,10 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 			else
 				s3c_hsotg_handle_outdone(hsotg, 0, true);
 		}
-
-		clear |= S3C_DxEPINT_Setup;
 	}
 
-	if (ints & S3C_DxEPINT_Back2BackSetup) {
+	if (ints & S3C_DxEPINT_Back2BackSetup)
 		dev_dbg(hsotg->dev, "%s: B2BSetup/INEPNakEff\n", __func__);
-		clear |= S3C_DxEPINT_Back2BackSetup;
-	}
 
 	if (dir_in) {
 		/* not sure if this is important, but we'll clear it anyway
@@ -1844,14 +1836,12 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 		if (ints & S3C_DIEPMSK_INTknTXFEmpMsk) {
 			dev_dbg(hsotg->dev, "%s: ep%d: INTknTXFEmpMsk\n",
 				__func__, idx);
-			clear |= S3C_DIEPMSK_INTknTXFEmpMsk;
 		}
 
 		/* this probably means something bad is happening */
 		if (ints & S3C_DIEPMSK_INTknEPMisMsk) {
 			dev_warn(hsotg->dev, "%s: ep%d: INTknEP\n",
 				 __func__, idx);
-			clear |= S3C_DIEPMSK_INTknEPMisMsk;
 		}
 
 		/* FIFO has space or is empty (see GAHBCFG) */
@@ -1860,11 +1850,8 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 			dev_dbg(hsotg->dev, "%s: ep%d: TxFIFOEmpty\n",
 				__func__, idx);
 			s3c_hsotg_trytx(hsotg, hs_ep);
-			clear |= S3C_DIEPMSK_TxFIFOEmpty;
 		}
 	}
-
-	writel(clear, hsotg->regs + epint_reg);
 }
 
 /**
@@ -2056,7 +2043,6 @@ irq_retry:
 		dev_info(hsotg->dev, "OTGInt: %08x\n", otgint);
 
 		writel(otgint, hsotg->regs + S3C_GOTGINT);
-		writel(S3C_GINTSTS_OTGInt, hsotg->regs + S3C_GINTSTS);
 	}
 
 	if (gintsts & S3C_GINTSTS_DisconnInt) {
@@ -2072,8 +2058,9 @@ irq_retry:
 	}
 
 	if (gintsts & S3C_GINTSTS_EnumDone) {
-		s3c_hsotg_irq_enumdone(hsotg);
 		writel(S3C_GINTSTS_EnumDone, hsotg->regs + S3C_GINTSTS);
+
+		s3c_hsotg_irq_enumdone(hsotg);
 	}
 
 	if (gintsts & S3C_GINTSTS_ConIDStsChng) {
@@ -2101,16 +2088,14 @@ irq_retry:
 			if (daint_in & 1)
 				s3c_hsotg_epint(hsotg, ep, 1);
 		}
-
-		writel(daint, hsotg->regs + S3C_DAINT);
-		writel(gintsts & (S3C_GINTSTS_OEPInt | S3C_GINTSTS_IEPInt),
-		       hsotg->regs + S3C_GINTSTS);
 	}
 
 	if (gintsts & S3C_GINTSTS_USBRst) {
 		dev_info(hsotg->dev, "%s: USBRst\n", __func__);
 		dev_dbg(hsotg->dev, "GNPTXSTS=%08x\n",
 			readl(hsotg->regs + S3C_GNPTXSTS));
+
+		writel(S3C_GINTSTS_USBRst, hsotg->regs + S3C_GINTSTS);
 
 		kill_all_requests(hsotg, &hsotg->eps[0], -ECONNRESET, true);
 
@@ -2123,8 +2108,6 @@ irq_retry:
 		s3c_hsotg_init_fifo(hsotg);
 
 		s3c_hsotg_enqueue_setup(hsotg);
-
-		writel(S3C_GINTSTS_USBRst, hsotg->regs + S3C_GINTSTS);
 	}
 
 	/* check both FIFOs */
@@ -2138,8 +2121,6 @@ irq_retry:
 
 		s3c_hsotg_disable_gsint(hsotg, S3C_GINTSTS_NPTxFEmp);
 		s3c_hsotg_irq_fifoempty(hsotg, false);
-
-		writel(S3C_GINTSTS_NPTxFEmp, hsotg->regs + S3C_GINTSTS);
 	}
 
 	if (gintsts & S3C_GINTSTS_PTxFEmp) {
@@ -2149,8 +2130,6 @@ irq_retry:
 
 		s3c_hsotg_disable_gsint(hsotg, S3C_GINTSTS_PTxFEmp);
 		s3c_hsotg_irq_fifoempty(hsotg, true);
-
-		writel(S3C_GINTSTS_PTxFEmp, hsotg->regs + S3C_GINTSTS);
 	}
 
 	if (gintsts & S3C_GINTSTS_RxFLvl) {
@@ -2159,7 +2138,6 @@ irq_retry:
 		 * set. */
 
 		s3c_hsotg_handle_rx(hsotg);
-		writel(S3C_GINTSTS_RxFLvl, hsotg->regs + S3C_GINTSTS);
 	}
 
 	if (gintsts & S3C_GINTSTS_ModeMis) {
@@ -2193,19 +2171,17 @@ irq_retry:
 	if (gintsts & S3C_GINTSTS_GOUTNakEff) {
 		dev_info(hsotg->dev, "GOUTNakEff triggered\n");
 
-		s3c_hsotg_dump(hsotg);
-
 		writel(S3C_DCTL_CGOUTNak, hsotg->regs + S3C_DCTL);
-		writel(S3C_GINTSTS_GOUTNakEff, hsotg->regs + S3C_GINTSTS);
+
+		s3c_hsotg_dump(hsotg);
 	}
 
 	if (gintsts & S3C_GINTSTS_GINNakEff) {
 		dev_info(hsotg->dev, "GINNakEff triggered\n");
 
-		s3c_hsotg_dump(hsotg);
-
 		writel(S3C_DCTL_CGNPInNAK, hsotg->regs + S3C_DCTL);
-		writel(S3C_GINTSTS_GINNakEff, hsotg->regs + S3C_GINTSTS);
+
+		s3c_hsotg_dump(hsotg);
 	}
 
 	/* if we've had fifo events, we should try and go around the
@@ -2584,6 +2560,12 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
 
 	writel(1 << 18 | S3C_DCFG_DevSpd_HS,  hsotg->regs + S3C_DCFG);
+
+	/* Clear any pending OTG interrupts */
+	writel(0xffffffff, hsotg->regs + S3C_GOTGINT);
+
+	/* Clear any pending interrupts */
+	writel(0xffffffff, hsotg->regs + S3C_GINTSTS);
 
 	writel(S3C_GINTSTS_DisconnInt | S3C_GINTSTS_SessReqInt |
 	       S3C_GINTSTS_ConIDStsChng | S3C_GINTSTS_USBRst |
