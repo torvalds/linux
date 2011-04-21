@@ -2589,6 +2589,95 @@ static int em_clts(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_vmcall(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	if (c->modrm_mod != 3 || c->modrm_rm != 1)
+		return X86EMUL_UNHANDLEABLE;
+
+	rc = ctxt->ops->fix_hypercall(ctxt);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	/* Let the processor re-execute the fixed hypercall */
+	c->eip = ctxt->eip;
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_lgdt(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct desc_ptr desc_ptr;
+	int rc;
+
+	rc = read_descriptor(ctxt, ctxt->ops, c->src.addr.mem,
+			     &desc_ptr.size, &desc_ptr.address,
+			     c->op_bytes);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	ctxt->ops->set_gdt(ctxt, &desc_ptr);
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_svm(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	switch (c->modrm_rm) {
+	case 1:
+		rc = ctxt->ops->fix_hypercall(ctxt);
+		break;
+	default:
+		return X86EMUL_UNHANDLEABLE;
+	}
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return rc;
+}
+
+static int em_lidt(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct desc_ptr desc_ptr;
+	int rc;
+
+	rc = read_descriptor(ctxt, ctxt->ops, c->src.addr.mem,
+			     &desc_ptr.size,
+			     &desc_ptr.address,
+			     c->op_bytes);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	ctxt->ops->set_idt(ctxt, &desc_ptr);
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_smsw(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.bytes = 2;
+	c->dst.val = ctxt->ops->get_cr(ctxt, 0);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_lmsw(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	ctxt->ops->set_cr(ctxt, 0, (ctxt->ops->get_cr(ctxt, 0) & ~0x0eul)
+			  | (c->src.val & 0x0f));
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3509,7 +3598,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = c->dst.type;
 	int irq; /* Used for int 3, int, and into */
-	struct desc_ptr desc_ptr;
 
 	ctxt->decode.mem_read.pos = 0;
 
@@ -4022,62 +4110,26 @@ twobyte_insn:
 	case 0x01: /* lgdt, lidt, lmsw */
 		switch (c->modrm_reg) {
 		case 0: /* vmcall */
-			if (c->modrm_mod != 3 || c->modrm_rm != 1)
-				goto cannot_emulate;
-
-			rc = ctxt->ops->fix_hypercall(ctxt);
-			if (rc != X86EMUL_CONTINUE)
-				goto done;
-
-			/* Let the processor re-execute the fixed hypercall */
-			c->eip = ctxt->eip;
-			/* Disable writeback. */
-			c->dst.type = OP_NONE;
+			rc = em_vmcall(ctxt);
 			break;
 		case 2: /* lgdt */
-			rc = read_descriptor(ctxt, ops, c->src.addr.mem,
-					     &desc_ptr.size, &desc_ptr.address,
-					     c->op_bytes);
-			if (rc != X86EMUL_CONTINUE)
-				goto done;
-			ctxt->ops->set_gdt(ctxt, &desc_ptr);
-			/* Disable writeback. */
-			c->dst.type = OP_NONE;
+			rc = em_lgdt(ctxt);
 			break;
 		case 3: /* lidt/vmmcall */
-			if (c->modrm_mod == 3) {
-				switch (c->modrm_rm) {
-				case 1:
-					rc = ctxt->ops->fix_hypercall(ctxt);
-					break;
-				default:
-					goto cannot_emulate;
-				}
-			} else {
-				rc = read_descriptor(ctxt, ops, c->src.addr.mem,
-						     &desc_ptr.size,
-						     &desc_ptr.address,
-						     c->op_bytes);
-				if (rc != X86EMUL_CONTINUE)
-					goto done;
-				ctxt->ops->set_idt(ctxt, &desc_ptr);
-			}
-			/* Disable writeback. */
-			c->dst.type = OP_NONE;
+			if (c->modrm_mod == 3)
+				return em_svm(ctxt);
+			else
+				return em_lidt(ctxt);
 			break;
 		case 4: /* smsw */
-			c->dst.bytes = 2;
-			c->dst.val = ops->get_cr(ctxt, 0);
+			rc = em_smsw(ctxt);
 			break;
 		case 6: /* lmsw */
-			ops->set_cr(ctxt, 0, (ops->get_cr(ctxt, 0) & ~0x0eul) |
-				    (c->src.val & 0x0f));
-			c->dst.type = OP_NONE;
+			rc = em_lmsw(ctxt);
 			break;
 		case 5: /* not defined */
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
+			rc = emulate_ud(ctxt);
+			break;
 		case 7: /* invlpg*/
 			rc = em_invlpg(ctxt);
 			break;
