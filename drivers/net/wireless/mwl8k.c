@@ -1818,6 +1818,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	u8 tid = 0;
 	struct mwl8k_ampdu_stream *stream = NULL;
 	bool start_ba_session = false;
+	bool mgmtframe = false;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	wh = (struct ieee80211_hdr *)skb->data;
@@ -1825,6 +1826,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		qos = le16_to_cpu(*((__le16 *)ieee80211_get_qos_ctl(wh)));
 	else
 		qos = 0;
+
+	if (ieee80211_is_mgmt(wh->frame_control))
+		mgmtframe = true;
 
 	if (priv->ap_fw)
 		mwl8k_encapsulate_tx_frame(skb);
@@ -1955,15 +1959,26 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txq = priv->txq + index;
 
-	if (txq->len >= MWL8K_TX_DESCS) {
-		if (start_ba_session) {
-			spin_lock(&priv->stream_lock);
-			mwl8k_remove_stream(hw, stream);
-			spin_unlock(&priv->stream_lock);
+	/* Mgmt frames that go out frequently are probe
+	 * responses. Other mgmt frames got out relatively
+	 * infrequently. Hence reserve 2 buffers so that
+	 * other mgmt frames do not get dropped due to an
+	 * already queued probe response in one of the
+	 * reserved buffers.
+	 */
+
+	if (txq->len >= MWL8K_TX_DESCS - 2) {
+		if (mgmtframe == false ||
+			txq->len == MWL8K_TX_DESCS) {
+			if (start_ba_session) {
+				spin_lock(&priv->stream_lock);
+				mwl8k_remove_stream(hw, stream);
+				spin_unlock(&priv->stream_lock);
+			}
+			spin_unlock_bh(&priv->tx_lock);
+			dev_kfree_skb(skb);
+			return;
 		}
-		spin_unlock_bh(&priv->tx_lock);
-		dev_kfree_skb(skb);
-		return;
 	}
 
 	BUG_ON(txq->skb[txq->tail] != NULL);
