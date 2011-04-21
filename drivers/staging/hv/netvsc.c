@@ -63,8 +63,6 @@ static void netvsc_send_completion(struct hv_device *device,
 static void netvsc_receive(struct hv_device *device,
 			    struct vmpacket_descriptor *packet);
 
-static void netvsc_receive_completion(void *context);
-
 static void netvsc_send_recv_completion(struct hv_device *device,
 					u64 transaction_id);
 
@@ -837,6 +835,56 @@ static int netvsc_send(struct hv_device *device,
 	return ret;
 }
 
+/* Send a receive completion packet to RNDIS device (ie NetVsp) */
+static void netvsc_receive_completion(void *context)
+{
+	struct hv_netvsc_packet *packet = context;
+	struct hv_device *device = (struct hv_device *)packet->device;
+	struct netvsc_device *net_device;
+	u64 transaction_id = 0;
+	bool fsend_receive_comp = false;
+	unsigned long flags;
+
+	/*
+	 * Even though it seems logical to do a GetOutboundNetDevice() here to
+	 * send out receive completion, we are using GetInboundNetDevice()
+	 * since we may have disable outbound traffic already.
+	 */
+	net_device = get_inbound_net_device(device);
+	if (!net_device) {
+		dev_err(&device->device, "unable to get net device..."
+			   "device being destroyed?");
+		return;
+	}
+
+	/* Overloading use of the lock. */
+	spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
+
+	packet->xfer_page_pkt->count--;
+
+	/*
+	 * Last one in the line that represent 1 xfer page packet.
+	 * Return the xfer page packet itself to the freelist
+	 */
+	if (packet->xfer_page_pkt->count == 0) {
+		fsend_receive_comp = true;
+		transaction_id = packet->completion.recv.recv_completion_tid;
+		list_add_tail(&packet->xfer_page_pkt->list_ent,
+			      &net_device->recv_pkt_list);
+
+	}
+
+	/* Put the packet back */
+	list_add_tail(&packet->list_ent, &net_device->recv_pkt_list);
+	spin_unlock_irqrestore(&net_device->recv_pkt_list_lock, flags);
+
+	/* Send a receive completion for the xfer page packet */
+	if (fsend_receive_comp)
+		netvsc_send_recv_completion(device, transaction_id);
+
+	put_net_device(device);
+}
+
 static void netvsc_receive(struct hv_device *device,
 			    struct vmpacket_descriptor *packet)
 {
@@ -1061,56 +1109,6 @@ retry_send_cmplt:
 		dev_err(&device->device, "unable to send receive "
 			"completion pkt - %llx", transaction_id);
 	}
-}
-
-/* Send a receive completion packet to RNDIS device (ie NetVsp) */
-static void netvsc_receive_completion(void *context)
-{
-	struct hv_netvsc_packet *packet = context;
-	struct hv_device *device = (struct hv_device *)packet->device;
-	struct netvsc_device *net_device;
-	u64 transaction_id = 0;
-	bool fsend_receive_comp = false;
-	unsigned long flags;
-
-	/*
-	 * Even though it seems logical to do a GetOutboundNetDevice() here to
-	 * send out receive completion, we are using GetInboundNetDevice()
-	 * since we may have disable outbound traffic already.
-	 */
-	net_device = get_inbound_net_device(device);
-	if (!net_device) {
-		dev_err(&device->device, "unable to get net device..."
-			   "device being destroyed?");
-		return;
-	}
-
-	/* Overloading use of the lock. */
-	spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
-
-	packet->xfer_page_pkt->count--;
-
-	/*
-	 * Last one in the line that represent 1 xfer page packet.
-	 * Return the xfer page packet itself to the freelist
-	 */
-	if (packet->xfer_page_pkt->count == 0) {
-		fsend_receive_comp = true;
-		transaction_id = packet->completion.recv.recv_completion_tid;
-		list_add_tail(&packet->xfer_page_pkt->list_ent,
-			      &net_device->recv_pkt_list);
-
-	}
-
-	/* Put the packet back */
-	list_add_tail(&packet->list_ent, &net_device->recv_pkt_list);
-	spin_unlock_irqrestore(&net_device->recv_pkt_list_lock, flags);
-
-	/* Send a receive completion for the xfer page packet */
-	if (fsend_receive_comp)
-		netvsc_send_recv_completion(device, transaction_id);
-
-	put_net_device(device);
 }
 
 static void netvsc_channel_cb(void *context)
