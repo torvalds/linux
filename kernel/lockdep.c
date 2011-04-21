@@ -1395,15 +1395,15 @@ print_shortest_lock_dependencies(struct lock_list *leaf,
 static void
 print_irq_lock_scenario(struct lock_list *safe_entry,
 			struct lock_list *unsafe_entry,
-			struct held_lock *prev,
-			struct held_lock *next)
+			struct lock_class *prev_class,
+			struct lock_class *next_class)
 {
 	struct lock_class *safe_class = safe_entry->class;
 	struct lock_class *unsafe_class = unsafe_entry->class;
-	struct lock_class *middle_class = hlock_class(prev);
+	struct lock_class *middle_class = prev_class;
 
 	if (middle_class == safe_class)
-		middle_class = hlock_class(next);
+		middle_class = next_class;
 
 	/*
 	 * A direct locking problem where unsafe_class lock is taken
@@ -1499,7 +1499,8 @@ print_bad_irq_dependency(struct task_struct *curr,
 	print_stack_trace(forwards_entry->class->usage_traces + bit2, 1);
 
 	printk("\nother info that might help us debug this:\n\n");
-	print_irq_lock_scenario(backwards_entry, forwards_entry, prev, next);
+	print_irq_lock_scenario(backwards_entry, forwards_entry,
+				hlock_class(prev), hlock_class(next));
 
 	lockdep_print_held_locks(curr);
 
@@ -2219,6 +2220,10 @@ print_irq_inversion_bug(struct task_struct *curr,
 			struct held_lock *this, int forwards,
 			const char *irqclass)
 {
+	struct lock_list *entry = other;
+	struct lock_list *middle = NULL;
+	int depth;
+
 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
@@ -2237,6 +2242,25 @@ print_irq_inversion_bug(struct task_struct *curr,
 	printk("\n\nand interrupts could create inverse lock ordering between them.\n\n");
 
 	printk("\nother info that might help us debug this:\n");
+
+	/* Find a middle lock (if one exists) */
+	depth = get_lock_depth(other);
+	do {
+		if (depth == 0 && (entry != root)) {
+			printk("lockdep:%s bad path found in chain graph\n", __func__);
+			break;
+		}
+		middle = entry;
+		entry = get_lock_parent(entry);
+		depth--;
+	} while (entry && entry != root && (depth >= 0));
+	if (forwards)
+		print_irq_lock_scenario(root, other,
+			middle ? middle->class : root->class, other->class);
+	else
+		print_irq_lock_scenario(other, root,
+			middle ? middle->class : other->class, root->class);
+
 	lockdep_print_held_locks(curr);
 
 	printk("\nthe shortest dependencies between 2nd lock and 1st lock:\n");
