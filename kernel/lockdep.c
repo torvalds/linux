@@ -1664,6 +1664,26 @@ static inline void inc_chains(void)
 
 #endif
 
+static void
+print_deadlock_scenario(struct held_lock *nxt,
+			     struct held_lock *prv)
+{
+	struct lock_class *next = hlock_class(nxt);
+	struct lock_class *prev = hlock_class(prv);
+
+	printk(" Possible unsafe locking scenario:\n\n");
+	printk("       CPU0\n");
+	printk("       ----\n");
+	printk("  lock(");
+	__print_lock_name(prev);
+	printk(");\n");
+	printk("  lock(");
+	__print_lock_name(next);
+	printk(");\n");
+	printk("\n *** DEADLOCK ***\n\n");
+	printk(" May be due to missing lock nesting notation\n\n");
+}
+
 static int
 print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 		   struct held_lock *next)
@@ -1682,6 +1702,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 	print_lock(prev);
 
 	printk("\nother info that might help us debug this:\n");
+	print_deadlock_scenario(next, prev);
 	lockdep_print_held_locks(curr);
 
 	printk("\nstack backtrace:\n");
