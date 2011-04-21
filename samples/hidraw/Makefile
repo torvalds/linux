@@ -6,3 +6,5 @@ hostprogs-y := hid-example
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
+
+HOSTCFLAGS_hid-example.o += -I$(objtree)/usr/include

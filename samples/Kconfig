@@ -62,8 +62,8 @@ config SAMPLE_KDB
 	  command to the kdb shell.
 
 config SAMPLE_HIDRAW
-	tristate "Build simple hidraw example"
-	depends on HIDRAW
+	bool "Build simple hidraw example"
+	depends on HIDRAW && HEADERS_CHECK
 	help
 	  Build an example of how to use hidraw from userspace.
 
