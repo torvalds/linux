@@ -416,72 +416,72 @@ void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
-	bool error = false;
+	u32 errors = 0;
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
 		if (rxon->flags & RXON_FLG_TGJ_NARROW_BAND_MSK) {
 			IWL_WARN(priv, "check 2.4G: wrong narrow\n");
-			error = true;
+			errors |= BIT(0);
 		}
 		if (rxon->flags & RXON_FLG_RADAR_DETECT_MSK) {
 			IWL_WARN(priv, "check 2.4G: wrong radar\n");
-			error = true;
+			errors |= BIT(1);
 		}
 	} else {
 		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
 			IWL_WARN(priv, "check 5.2G: not short slot!\n");
-			error = true;
+			errors |= BIT(2);
 		}
 		if (rxon->flags & RXON_FLG_CCK_MSK) {
 			IWL_WARN(priv, "check 5.2G: CCK!\n");
-			error = true;
+			errors |= BIT(3);
 		}
 	}
 	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
 		IWL_WARN(priv, "mac/bssid mcast!\n");
-		error = true;
+		errors |= BIT(4);
 	}
 
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
 	if ((rxon->ofdm_basic_rates & IWL_RATE_6M_MASK) == 0 &&
 	    (rxon->cck_basic_rates & IWL_RATE_1M_MASK) == 0) {
 		IWL_WARN(priv, "neither 1 nor 6 are basic\n");
-		error = true;
+		errors |= BIT(5);
 	}
 
 	if (le16_to_cpu(rxon->assoc_id) > 2007) {
 		IWL_WARN(priv, "aid > 2007\n");
-		error = true;
+		errors |= BIT(6);
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK)) {
 		IWL_WARN(priv, "CCK and short slot\n");
-		error = true;
+		errors |= BIT(7);
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
 		IWL_WARN(priv, "CCK and auto detect");
-		error = true;
+		errors |= BIT(8);
 	}
 
 	if ((rxon->flags & (RXON_FLG_AUTO_DETECT_MSK |
 			    RXON_FLG_TGG_PROTECT_MSK)) ==
 			    RXON_FLG_TGG_PROTECT_MSK) {
 		IWL_WARN(priv, "TGg but no auto-detect\n");
-		error = true;
+		errors |= BIT(9);
 	}
 
-	if (error)
-		IWL_WARN(priv, "Tuning to channel %d\n",
-			    le16_to_cpu(rxon->channel));
-
-	if (error) {
-		IWL_ERR(priv, "Invalid RXON\n");
-		return -EINVAL;
+	if (rxon->channel == 0) {
+		IWL_WARN(priv, "zero channel is invalid\n");
+		errors |= BIT(10);
 	}
-	return 0;
+
+	WARN(errors, "Invalid RXON (%#x), channel %d",
+	     errors, le16_to_cpu(rxon->channel));
+
+	return errors ? -EINVAL : 0;
 }
 
 /**
