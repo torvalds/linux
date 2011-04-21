@@ -241,6 +241,17 @@ void tipc_disc_update_link_req(struct link_req *req)
 }
 
 /**
+ * disc_send_msg - send link setup request message
+ * @req: ptr to link request structure
+ */
+
+static void disc_send_msg(struct link_req *req)
+{
+	if (!req->bearer->blocked)
+		tipc_bearer_send(req->bearer, req->buf, &req->dest);
+}
+
+/**
  * disc_timeout - send a periodic link setup request
  * @req: ptr to link request structure
  *
@@ -251,7 +262,7 @@ static void disc_timeout(struct link_req *req)
 {
 	spin_lock_bh(&req->bearer->lock);
 
-	req->bearer->media->send_msg(req->buf, req->bearer, &req->dest);
+	disc_send_msg(req);
 
 	if ((req->timer_intv == TIPC_LINK_REQ_SLOW) ||
 	    (req->timer_intv == TIPC_LINK_REQ_FAST)) {
@@ -300,6 +311,7 @@ int tipc_disc_create(struct tipc_bearer *b_ptr,
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
 	b_ptr->link_req = req;
+	disc_send_msg(req);
 	return 0;
 }
 
