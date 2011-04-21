@@ -163,7 +163,6 @@ EXPORT_SYMBOL(rfbi_bus_unlock);
 
 void omap_rfbi_write_command(const void *buf, u32 len)
 {
-	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -187,13 +186,11 @@ void omap_rfbi_write_command(const void *buf, u32 len)
 	default:
 		BUG();
 	}
-	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_command);
 
 void omap_rfbi_read_data(void *buf, u32 len)
 {
-	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -221,13 +218,11 @@ void omap_rfbi_read_data(void *buf, u32 len)
 	default:
 		BUG();
 	}
-	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_read_data);
 
 void omap_rfbi_write_data(const void *buf, u32 len)
 {
-	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -252,7 +247,6 @@ void omap_rfbi_write_data(const void *buf, u32 len)
 		BUG();
 
 	}
-	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_data);
 
@@ -263,8 +257,6 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 	int start_offset = scr_width * y + x;
 	int horiz_offset = scr_width - w;
 	int i;
-
-	rfbi_enable_clocks(1);
 
 	if (rfbi.datatype == OMAP_DSS_RFBI_DATATYPE_16 &&
 	   rfbi.parallelmode == OMAP_DSS_RFBI_PARALLELMODE_8) {
@@ -310,8 +302,6 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 	} else {
 		BUG();
 	}
-
-	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
@@ -332,8 +322,6 @@ void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
 
-	rfbi_enable_clocks(1);
-
 	rfbi_write_reg(RFBI_PIXEL_CNT, width * height);
 
 	l = rfbi_read_reg(RFBI_CONTROL);
@@ -351,8 +339,6 @@ static void framedone_callback(void *data, u32 mask)
 	DSSDBG("FRAMEDONE\n");
 
 	REG_FLD_MOD(RFBI_CONTROL, 0, 0, 0);
-
-	rfbi_enable_clocks(0);
 
 	callback = rfbi.framedone_callback;
 	rfbi.framedone_callback = NULL;
@@ -462,7 +448,6 @@ void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 
 	BUG_ON(!t->converted);
 
-	rfbi_enable_clocks(1);
 	rfbi_write_reg(RFBI_ONOFF_TIME(rfbi_module), t->tim[0]);
 	rfbi_write_reg(RFBI_CYCLE_TIME(rfbi_module), t->tim[1]);
 
@@ -471,7 +456,6 @@ void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 		    (t->tim[2] ? 1 : 0), 4, 4);
 
 	rfbi_print_timings();
-	rfbi_enable_clocks(0);
 }
 
 static int ps_to_rfbi_ticks(int time, int div)
@@ -659,7 +643,6 @@ int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
 	DSSDBG("setup_te: mode %d hs %d vs %d hs_inv %d vs_inv %d\n",
 		mode, hs, vs, hs_pol_inv, vs_pol_inv);
 
-	rfbi_enable_clocks(1);
 	rfbi_write_reg(RFBI_HSYNC_WIDTH, hs);
 	rfbi_write_reg(RFBI_VSYNC_WIDTH, vs);
 
@@ -672,7 +655,6 @@ int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
 		l &= ~(1 << 20);
 	else
 		l |= 1 << 20;
-	rfbi_enable_clocks(0);
 
 	return 0;
 }
@@ -687,7 +669,6 @@ int omap_rfbi_enable_te(bool enable, unsigned line)
 	if (line > (1 << 11) - 1)
 		return -EINVAL;
 
-	rfbi_enable_clocks(1);
 	l = rfbi_read_reg(RFBI_CONFIG(0));
 	l &= ~(0x3 << 2);
 	if (enable) {
@@ -697,7 +678,6 @@ int omap_rfbi_enable_te(bool enable, unsigned line)
 		rfbi.te_enabled = 0;
 	rfbi_write_reg(RFBI_CONFIG(0), l);
 	rfbi_write_reg(RFBI_LINE_NUMBER, line);
-	rfbi_enable_clocks(0);
 
 	return 0;
 }
@@ -836,8 +816,6 @@ int rfbi_configure(int rfbi_module, int bpp, int lines)
 		break;
 	}
 
-	rfbi_enable_clocks(1);
-
 	REG_FLD_MOD(RFBI_CONTROL, 0, 3, 2); /* clear CS */
 
 	l = 0;
@@ -870,8 +848,6 @@ int rfbi_configure(int rfbi_module, int bpp, int lines)
 
 	DSSDBG("RFBI config: bpp %d, lines %d, cycles: 0x%x 0x%x 0x%x\n",
 	       bpp, lines, cycle1, cycle2, cycle3);
-
-	rfbi_enable_clocks(0);
 
 	return 0;
 }
@@ -975,6 +951,8 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
+	rfbi_enable_clocks(1);
+
 	r = omap_dss_start_device(dssdev);
 	if (r) {
 		DSSERR("failed to start device\n");
@@ -1017,6 +995,8 @@ void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 	omap_dispc_unregister_isr(framedone_callback, NULL,
 			DISPC_IRQ_FRAMEDONE);
 	omap_dss_stop_device(dssdev);
+
+	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 
