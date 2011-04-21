@@ -146,14 +146,13 @@ struct bat_priv {
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
-	struct hlist_head softif_neigh_list;
-	struct softif_neigh __rcu *softif_neigh;
 	struct debug_log *debug_log;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
 	struct hlist_head gw_list;
+	struct hlist_head softif_neigh_vids;
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
 	struct hashtable_t *hna_local_hash;
@@ -167,6 +166,7 @@ struct bat_priv {
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
 	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
+	spinlock_t softif_neigh_vid_lock; /* protects soft-interface vid list */
 	int16_t num_local_hna;
 	atomic_t hna_local_changed;
 	struct delayed_work hna_work;
@@ -270,11 +270,20 @@ struct recvlist_node {
 	uint8_t mac[ETH_ALEN];
 };
 
+struct softif_neigh_vid {
+	struct hlist_node list;
+	struct bat_priv *bat_priv;
+	short vid;
+	atomic_t refcount;
+	struct softif_neigh __rcu *softif_neigh;
+	struct rcu_head rcu;
+	struct hlist_head softif_neigh_list;
+};
+
 struct softif_neigh {
 	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
-	short vid;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };

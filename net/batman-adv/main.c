@@ -87,11 +87,12 @@ int mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->vis_hash_lock);
 	spin_lock_init(&bat_priv->vis_list_lock);
 	spin_lock_init(&bat_priv->softif_neigh_lock);
+	spin_lock_init(&bat_priv->softif_neigh_vid_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw_list);
-	INIT_HLIST_HEAD(&bat_priv->softif_neigh_list);
+	INIT_HLIST_HEAD(&bat_priv->softif_neigh_vids);
 
 	if (originator_init(bat_priv) < 1)
 		goto err;
