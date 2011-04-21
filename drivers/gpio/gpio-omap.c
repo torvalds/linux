@@ -502,129 +502,60 @@ static inline void _clear_gpio_irqstatus(struct gpio_bank *bank, int gpio)
 static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
 {
 	void __iomem *reg = bank->base;
-	int inv = 0;
 	u32 l;
 	u32 mask = (1 << bank->width) - 1;
 
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_MASKIT / bank->stride;
-		inv = 1;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_INT_MASK;
-		inv = 1;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		reg += OMAP1610_GPIO_IRQENABLE1;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_INT_MASK;
-		inv = 1;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		reg += OMAP24XX_GPIO_IRQENABLE1;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP4)
-	case METHOD_GPIO_44XX:
-		reg += OMAP4_GPIO_IRQSTATUSSET0;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-
+	reg += bank->regs->irqenable;
 	l = __raw_readl(reg);
-	if (inv)
+	if (bank->regs->irqenable_inv)
 		l = ~l;
 	l &= mask;
 	return l;
 }
 
-static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enable)
+static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
 {
 	void __iomem *reg = bank->base;
 	u32 l;
 
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP1
-	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_MASKIT / bank->stride;
+	if (bank->regs->set_irqenable) {
+		reg += bank->regs->set_irqenable;
+		l = gpio_mask;
+	} else {
+		reg += bank->regs->irqenable;
 		l = __raw_readl(reg);
-		if (enable)
-			l &= ~(gpio_mask);
+		if (bank->regs->irqenable_inv)
+			l &= ~gpio_mask;
 		else
 			l |= gpio_mask;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	case METHOD_GPIO_1510:
-		reg += OMAP1510_GPIO_INT_MASK;
-		l = __raw_readl(reg);
-		if (enable)
-			l &= ~(gpio_mask);
-		else
-			l |= gpio_mask;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_GPIO_1610:
-		if (enable)
-			reg += OMAP1610_GPIO_SET_IRQENABLE1;
-		else
-			reg += OMAP1610_GPIO_CLEAR_IRQENABLE1;
-		l = gpio_mask;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	case METHOD_GPIO_7XX:
-		reg += OMAP7XX_GPIO_INT_MASK;
-		l = __raw_readl(reg);
-		if (enable)
-			l &= ~(gpio_mask);
-		else
-			l |= gpio_mask;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	case METHOD_GPIO_24XX:
-		if (enable)
-			reg += OMAP24XX_GPIO_SETIRQENABLE1;
-		else
-			reg += OMAP24XX_GPIO_CLEARIRQENABLE1;
-		l = gpio_mask;
-		break;
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_44XX:
-		if (enable)
-			reg += OMAP4_GPIO_IRQSTATUSSET0;
-		else
-			reg += OMAP4_GPIO_IRQSTATUSCLR0;
-		l = gpio_mask;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		return;
 	}
+
+	__raw_writel(l, reg);
+}
+
+static void _disable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
+{
+	void __iomem *reg = bank->base;
+	u32 l;
+
+	if (bank->regs->clr_irqenable) {
+		reg += bank->regs->clr_irqenable;
+		l = gpio_mask;
+	} else {
+		reg += bank->regs->irqenable;
+		l = __raw_readl(reg);
+		if (bank->regs->irqenable_inv)
+			l |= gpio_mask;
+		else
+			l &= ~gpio_mask;
+	}
+
 	__raw_writel(l, reg);
 }
 
 static inline void _set_gpio_irqenable(struct gpio_bank *bank, int gpio, int enable)
 {
-	_enable_gpio_irqbank(bank, GPIO_BIT(bank, gpio), enable);
+	_enable_gpio_irqbank(bank, GPIO_BIT(bank, gpio));
 }
 
 /*
@@ -831,9 +762,9 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		/* clear edge sensitive interrupts before handler(s) are
 		called so that we don't miss any interrupt occurred while
 		executing them */
-		_enable_gpio_irqbank(bank, isr_saved & ~level_mask, 0);
+		_disable_gpio_irqbank(bank, isr_saved & ~level_mask);
 		_clear_gpio_irqbank(bank, isr_saved & ~level_mask);
-		_enable_gpio_irqbank(bank, isr_saved & ~level_mask, 1);
+		_enable_gpio_irqbank(bank, isr_saved & ~level_mask);
 
 		/* if there is only edge sensitive GPIO pin interrupts
 		configured, we could unmask GPIO bank interrupt immediately */

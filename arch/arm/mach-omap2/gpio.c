@@ -78,6 +78,9 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		pdata->regs->clr_dataout = OMAP24XX_GPIO_CLEARDATAOUT;
 		pdata->regs->irqstatus = OMAP24XX_GPIO_IRQSTATUS1;
 		pdata->regs->irqstatus2 = OMAP24XX_GPIO_IRQSTATUS2;
+		pdata->regs->irqenable = OMAP24XX_GPIO_IRQENABLE1;
+		pdata->regs->set_irqenable = OMAP24XX_GPIO_SETIRQENABLE1;
+		pdata->regs->clr_irqenable = OMAP24XX_GPIO_CLEARIRQENABLE1;
 		break;
 	case 2:
 		pdata->bank_type = METHOD_GPIO_44XX;
@@ -88,6 +91,9 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		pdata->regs->clr_dataout = OMAP4_GPIO_CLEARDATAOUT;
 		pdata->regs->irqstatus = OMAP4_GPIO_IRQSTATUS0;
 		pdata->regs->irqstatus2 = OMAP4_GPIO_IRQSTATUS1;
+		pdata->regs->irqenable = OMAP4_GPIO_IRQSTATUSSET0;
+		pdata->regs->set_irqenable = OMAP4_GPIO_IRQSTATUSSET0;
+		pdata->regs->clr_irqenable = OMAP4_GPIO_IRQSTATUSCLR0;
 		break;
 	default:
 		WARN(1, "Invalid gpio bank_type\n");

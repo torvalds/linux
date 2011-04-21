@@ -44,6 +44,8 @@ static struct omap_gpio_reg_offs omap7xx_mpuio_regs = {
 	.datain		= OMAP_MPUIO_INPUT_LATCH / 2,
 	.dataout	= OMAP_MPUIO_OUTPUT / 2,
 	.irqstatus	= OMAP_MPUIO_GPIO_INT / 2,
+	.irqenable	= OMAP_MPUIO_GPIO_MASKIT / 2,
+	.irqenable_inv	= true,
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_mpu_gpio_config = {
@@ -82,6 +84,8 @@ static struct omap_gpio_reg_offs omap7xx_gpio_regs = {
 	.datain		= OMAP7XX_GPIO_DATA_INPUT,
 	.dataout	= OMAP7XX_GPIO_DATA_OUTPUT,
 	.irqstatus	= OMAP7XX_GPIO_INT_STATUS,
+	.irqenable	= OMAP7XX_GPIO_INT_MASK,
+	.irqenable_inv	= true,
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio1_config = {
