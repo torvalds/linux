@@ -2491,9 +2491,9 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 	timeout = 1000;
 	do {
 		grstctl = readl(hsotg->regs + S3C_GRSTCTL);
-	} while (!(grstctl & S3C_GRSTCTL_CSftRst) && timeout-- > 0);
+	} while ((grstctl & S3C_GRSTCTL_CSftRst) && timeout-- > 0);
 
-	if (!(grstctl & S3C_GRSTCTL_CSftRst)) {
+	if (grstctl & S3C_GRSTCTL_CSftRst) {
 		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
 		return -EINVAL;
 	}
@@ -2509,9 +2509,6 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 				 __func__, grstctl);
 			return -ETIMEDOUT;
 		}
-
-		if (grstctl & S3C_GRSTCTL_CSftRst)
-			continue;
 
 		if (!(grstctl & S3C_GRSTCTL_AHBIdle))
 			continue;
