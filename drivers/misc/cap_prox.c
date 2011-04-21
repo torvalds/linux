@@ -223,25 +223,24 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 			cap_prox_calibrate(cp);
 		break;
 	case CP_STATUS_KEY1_KEY3_EN_FORCE_DETECT:
-		if ((save_drift_diff < cp->pdata->save_drift_diff_thres) &&
-			 (key1_save_drift < cp->pdata->key1_save_drift_thres) &&
-			 (key3_save_drift < cp->pdata->key3_save_drift_thres)) {
-
-			/* Key1 sensor has failed, keep in force detect */
-			if ((key1_key2_signal_drift >
-				 cp->pdata->key1_failsafe_thres) &&
-				 (msg->signal2 > cp->pdata->key2_signal_thres))
-				break;
-
-			/* Key3 sensor has failed, keep in force detect */
-			if ((key3_key4_signal_drift >
-				 cp->pdata->key3_failsafe_thres) &&
-				 (msg->signal4 > cp->pdata->key4_signal_thres))
-				break;
-
-			status = msg->status & 0xF0;
-			cap_prox_write(cp,&status,1);
+		/* Key1 sensor has failed, keep in force detect */
+		if ((key1_key2_signal_drift >
+			 cp->pdata->key1_failsafe_thres) &&
+			 (msg->signal2 > cp->pdata->key2_signal_thres)) {
+			msg->status = CP_STATUS_NUM_KEYS_ENABLED;
+			break;
 		}
+
+		/* Key3 sensor has failed, keep in force detect */
+		if ((key3_key4_signal_drift >
+			 cp->pdata->key3_failsafe_thres) &&
+			 (msg->signal4 > cp->pdata->key4_signal_thres)) {
+			msg->status = CP_STATUS_NUM_KEYS_ENABLED;
+			break;
+		}
+
+		status = msg->status & 0xF0;
+		cap_prox_write(cp,&status,1);
 		break;
 	case CP_STATUS_KEY1_KEY3_IN_DETECT:
 		if ((key3_ref_drift < cp->pdata->key1_ref_drift_thres_h) &&
@@ -254,6 +253,7 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 			pr_info("%s: Cap-prox message 0x%x\n", __func__,
 				msg->status);
 		}
+		msg->status = CP_STATUS_NUM_KEYS_ENABLED;
 		break;
 	}
 	status = msg->status;
