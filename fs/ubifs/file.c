@@ -1312,7 +1312,11 @@ int ubifs_fsync(struct file *file, int datasync)
 
 	dbg_gen("syncing inode %lu", inode->i_ino);
 
-	if (inode->i_sb->s_flags & MS_RDONLY)
+	if (c->ro_mount)
+		/*
+		 * For some really strange reasons VFS does not filter out
+		 * 'fsync()' for R/O mounted file-systems as per 2.6.39.
+		 */
 		return 0;
 
 	/*
