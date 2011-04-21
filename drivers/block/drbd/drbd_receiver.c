@@ -1752,7 +1752,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	}
 	/* we delete from the conflict detection hash _after_ we sent out the
 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
-	if (mdev->tconn->net_conf->two_primaries) {
+	if (peer_req->flags & EE_IN_INTERVAL_TREE) {
 		spin_lock_irq(&mdev->tconn->req_lock);
 		D_ASSERT(!drbd_interval_empty(&peer_req->i));
 		drbd_remove_epoch_entry_interval(mdev, peer_req);
@@ -1811,14 +1811,19 @@ static u32 seq_max(u32 a, u32 b)
 static bool need_peer_seq(struct drbd_conf *mdev)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
+	int tp;
 
 	/*
 	 * We only need to keep track of the last packet_seq number of our peer
 	 * if we are in dual-primary mode and we have the discard flag set; see
 	 * handle_write_conflicts().
 	 */
-	return tconn->net_conf->two_primaries &&
-	       test_bit(DISCARD_CONCURRENT, &tconn->flags);
+
+	rcu_read_lock();
+	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
+	rcu_read_unlock();
+
+	return tp && test_bit(DISCARD_CONCURRENT, &tconn->flags);
 }
 
 static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
@@ -2049,7 +2054,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	u32 peer_seq = be32_to_cpu(p->seq_num);
 	int rw = WRITE;
 	u32 dp_flags;
-	int err;
+	int err, tp;
 
 	mdev = vnr_to_mdev(tconn, pi->vnr);
 	if (!mdev)
@@ -2094,7 +2099,11 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	atomic_inc(&peer_req->epoch->active);
 	spin_unlock(&mdev->epoch_lock);
 
-	if (mdev->tconn->net_conf->two_primaries) {
+	rcu_read_lock();
+	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
+	rcu_read_unlock();
+	if (tp) {
+		peer_req->flags |= EE_IN_INTERVAL_TREE;
 		err = wait_for_and_update_peer_seq(mdev, peer_seq);
 		if (err)
 			goto out_interrupted;

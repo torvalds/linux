@@ -661,6 +661,9 @@ enum {
 
 	/* The peer wants a write ACK for this (wire proto C) */
 	__EE_SEND_WRITE_ACK,
+
+	/* Is set when net_conf had two_primaries set while creating this peer_req */
+	__EE_IN_INTERVAL_TREE,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
@@ -669,6 +672,7 @@ enum {
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 #define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
 #define EE_SEND_WRITE_ACK	(1<<__EE_SEND_WRITE_ACK)
+#define EE_IN_INTERVAL_TREE	(1<<__EE_IN_INTERVAL_TREE)
 
 /* flag bits per mdev */
 enum {
