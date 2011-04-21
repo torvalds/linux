@@ -37,8 +37,6 @@
 #include "irq.h"
 
 volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
-unsigned char boot_cpu_id = 0;
-unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
 
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 

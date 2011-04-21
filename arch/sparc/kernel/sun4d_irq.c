@@ -14,6 +14,7 @@
 #include <asm/io.h>
 #include <asm/sbi.h>
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
 
 #include "kernel.h"
 #include "irq.h"
@@ -438,11 +439,9 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 void __init sun4d_init_sbi_irq(void)
 {
 	struct device_node *dp;
-	int target_cpu = 0;
+	int target_cpu;
 
-#ifdef CONFIG_SMP
 	target_cpu = boot_cpu_id;
-#endif
 	for_each_node_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
