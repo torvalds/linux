@@ -674,7 +674,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store(nvt->rdev, &rawir);
+			ir_raw_event_store_with_filter(nvt->rdev, &rawir);
 		}
 
 		/*
@@ -1104,18 +1104,20 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->tx_ir = nvt_tx_ir;
 	rdev->s_tx_carrier = nvt_set_tx_carrier;
 	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
+	rdev->input_phys = "nuvoton/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
 	rdev->input_id.product = nvt->chip_major;
 	rdev->input_id.version = nvt->chip_minor;
+	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
+	rdev->timeout = US_TO_NS(1000);
+	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
+	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
 #if 0
 	rdev->min_timeout = XYZ;
 	rdev->max_timeout = XYZ;
-	rdev->timeout = XYZ;
-	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	rdev->rx_resolution = XYZ;
 	/* tx bits */
 	rdev->tx_resolution = XYZ;
 #endif
@@ -1124,8 +1126,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	if (ret)
 		goto failure;
 
-	device_set_wakeup_capable(&pdev->dev, 1);
-	device_set_wakeup_enable(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 	nvt->rdev = rdev;
 	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 	if (debug) {
