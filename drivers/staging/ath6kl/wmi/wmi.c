@@ -509,7 +509,8 @@ wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, u8 msgType, bool bMoreData,
     }
 
     WMI_DATA_HDR_SET_META(dtHdr, metaVersion);
-    //dtHdr->rssi = 0;
+
+    dtHdr->info3 = 0;
 
     return (0);
 }
@@ -2986,6 +2987,7 @@ wmi_dataSync_send(struct wmi_t *wmip, void *osbuf, HTC_ENDPOINT_ID eid)
     dtHdr->info =
       (SYNC_MSGTYPE & WMI_DATA_HDR_MSG_TYPE_MASK) << WMI_DATA_HDR_MSG_TYPE_SHIFT;
 
+    dtHdr->info3 = 0;
     A_DPRINTF(DBG_WMI, (DBGFMT "Enter - eid %d\n", DBGARG, eid));
 
     return (A_WMI_CONTROL_TX(wmip->wmi_devt, osbuf, eid));

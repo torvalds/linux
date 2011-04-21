@@ -155,6 +155,16 @@ typedef enum {
 #define WMI_DATA_HDR_GET_META(h)        (((h)->info2 >> WMI_DATA_HDR_META_SHIFT) & WMI_DATA_HDR_META_MASK)
 #define WMI_DATA_HDR_SET_META(h, _v)    ((h)->info2 = ((h)->info2 & ~(WMI_DATA_HDR_META_MASK << WMI_DATA_HDR_META_SHIFT)) | ((_v) << WMI_DATA_HDR_META_SHIFT))
 
+/* Macros for operating on WMI_DATA_HDR (info3) field */
+#define WMI_DATA_HDR_DEVID_MASK      0xF
+#define WMI_DATA_HDR_DEVID_SHIFT     0
+#define GET_DEVID(_v)                ((_v) & WMI_DATA_HDR_DEVID_MASK)
+
+#define WMI_DATA_HDR_GET_DEVID(h) \
+	(((h)->info3 >> WMI_DATA_HDR_DEVID_SHIFT) & WMI_DATA_HDR_DEVID_MASK)
+#define WMI_DATA_HDR_SET_DEVID(h, _v) \
+	((h)->info3 = ((h)->info3 & ~(WMI_DATA_HDR_DEVID_MASK << WMI_DATA_HDR_DEVID_SHIFT)) | (GET_DEVID(_v) << WMI_DATA_HDR_DEVID_SHIFT))
+
 typedef PREPACK struct {
     s8 rssi;
     u8 info;               /* usage of 'info' field(8-bit):
@@ -171,7 +181,7 @@ typedef PREPACK struct {
                                      * b12          - A-MSDU?
                                      * b15:b13      - META_DATA_VERSION 0 - 7
                                      */
-    u16 reserved;
+    u16 info3;
 } POSTPACK WMI_DATA_HDR;
 
 /*
@@ -255,6 +265,17 @@ typedef PREPACK struct {
 
 
 #define WMI_GET_DEVICE_ID(info1) ((info1) & 0xF)
+/* Macros for operating on WMI_CMD_HDR (info1) field */
+#define WMI_CMD_HDR_DEVID_MASK      0xF
+#define WMI_CMD_HDR_DEVID_SHIFT     0
+#define GET_CMD_DEVID(_v)           ((_v) & WMI_CMD_HDR_DEVID_MASK)
+
+#define WMI_CMD_HDR_GET_DEVID(h) \
+	(((h)->info1 >> WMI_CMD_HDR_DEVID_SHIFT) & WMI_CMD_HDR_DEVID_MASK)
+#define WMI_CMD_HDR_SET_DEVID(h, _v) \
+	((h)->info1 = ((h)->info1 & \
+		~(WMI_CMD_HDR_DEVID_MASK << WMI_CMD_HDR_DEVID_SHIFT)) | \
+		 (GET_CMD_DEVID(_v) << WMI_CMD_HDR_DEVID_SHIFT))
 
 /*
  * Control Path
