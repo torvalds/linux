@@ -86,8 +86,8 @@ struct rk29_bl_info{
     int (*io_deinit)(void);
 	int (*pwm_suspend)(void);
 	int (*pwm_resume)(void);
-    struct timer_list timer;  
-    struct notifier_block freq_transition;
+	int min_brightness;	/* 0 ~ 255 */
+	unsigned int delay_ms;	/* in milliseconds */
 };
 
 struct wifi_platform_data {
