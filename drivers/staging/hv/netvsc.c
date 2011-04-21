@@ -45,12 +45,6 @@ static const struct hv_guid netvsc_device_type = {
 	}
 };
 
-static int netvsc_device_add(struct hv_device *device, void *additional_info);
-
-static int netvsc_device_remove(struct hv_device *device);
-
-static void netvsc_cleanup(struct hv_driver *driver);
-
 static void netvsc_channel_cb(void *context);
 
 static int netvsc_init_send_buf(struct hv_device *device);
@@ -65,9 +59,6 @@ static int netvsc_connect_vsp(struct hv_device *device);
 
 static void netvsc_send_completion(struct hv_device *device,
 				   struct vmpacket_descriptor *packet);
-
-static int netvsc_send(struct hv_device *device,
-			struct hv_netvsc_packet *packet);
 
 static void netvsc_receive(struct hv_device *device,
 			    struct vmpacket_descriptor *packet);
@@ -171,27 +162,6 @@ static struct netvsc_device *release_inbound_net_device(
 
 	device->ext = NULL;
 	return net_device;
-}
-
-/*
- * netvsc_initialize - Main entry point
- */
-int netvsc_initialize(struct hv_driver *drv)
-{
-	struct netvsc_driver *driver = (struct netvsc_driver *)drv;
-
-	drv->name = driver_name;
-	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
-
-	/* Setup the dispatch table */
-	driver->base.dev_add	= netvsc_device_add;
-	driver->base.dev_rm	= netvsc_device_remove;
-	driver->base.cleanup		= netvsc_cleanup;
-
-	driver->send			= netvsc_send;
-
-	rndis_filter_init(driver);
-	return 0;
 }
 
 static int netvsc_init_recv_buf(struct hv_device *device)
@@ -1227,4 +1197,25 @@ static void netvsc_channel_cb(void *context)
 out:
 	kfree(buffer);
 	return;
+}
+
+/*
+ * netvsc_initialize - Main entry point
+ */
+int netvsc_initialize(struct hv_driver *drv)
+{
+	struct netvsc_driver *driver = (struct netvsc_driver *)drv;
+
+	drv->name = driver_name;
+	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
+
+	/* Setup the dispatch table */
+	driver->base.dev_add	= netvsc_device_add;
+	driver->base.dev_rm	= netvsc_device_remove;
+	driver->base.cleanup		= netvsc_cleanup;
+
+	driver->send			= netvsc_send;
+
+	rndis_filter_init(driver);
+	return 0;
 }
