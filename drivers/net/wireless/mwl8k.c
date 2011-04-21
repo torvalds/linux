@@ -1666,10 +1666,6 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		processed++;
 	}
 
-	if (index < MWL8K_TX_WMM_QUEUES && processed && priv->radio_on &&
-	    !mutex_is_locked(&priv->fw_mutex))
-		ieee80211_wake_queue(hw, index);
-
 	return processed;
 }
 
@@ -1951,13 +1947,14 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txq = priv->txq + index;
 
-	if (index >= MWL8K_TX_WMM_QUEUES && txq->len >= MWL8K_TX_DESCS) {
-		/* This is the case in which the tx packet is destined for an
-		 * AMPDU queue and that AMPDU queue is full.  Because we don't
-		 * start and stop the AMPDU queues, we must drop these packets.
-		 */
-		dev_kfree_skb(skb);
+	if (txq->len >= MWL8K_TX_DESCS) {
+		if (start_ba_session) {
+			spin_lock(&priv->stream_lock);
+			mwl8k_remove_stream(hw, stream);
+			spin_unlock(&priv->stream_lock);
+		}
 		spin_unlock_bh(&priv->tx_lock);
+		dev_kfree_skb(skb);
 		return;
 	}
 
@@ -1984,9 +1981,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	txq->tail++;
 	if (txq->tail == MWL8K_TX_DESCS)
 		txq->tail = 0;
-
-	if (txq->head == txq->tail && index < MWL8K_TX_WMM_QUEUES)
-		ieee80211_stop_queue(hw, index);
 
 	mwl8k_tx_start(priv);
 
