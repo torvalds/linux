@@ -343,7 +343,6 @@ extern void leon_smp_done(void);
 extern void leon_boot_cpus(void);
 extern int leon_boot_one_cpu(int i);
 void leon_init_smp(void);
-extern void cpu_probe(void);
 extern void cpu_idle(void);
 extern void init_IRQ(void);
 extern void cpu_panic(void);

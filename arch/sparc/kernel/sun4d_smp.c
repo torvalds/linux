@@ -80,8 +80,6 @@ void __cpuinit smp4d_callin(void)
 	local_flush_cache_all();
 	local_flush_tlb_all();
 
-	cpu_probe();
-
 	while ((unsigned long)current_set[cpuid] < PAGE_OFFSET)
 		barrier();
 

@@ -258,7 +258,7 @@ static const char *sparc_fpu_type;
 const char *sparc_pmu_type;
 
 
-static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
+static void __init set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 {
 	const struct manufacturer_info *manuf;
 	int i;
@@ -434,7 +434,7 @@ const struct seq_operations cpuinfo_op = {
 };
 
 #ifdef CONFIG_SPARC32
-void __cpuinit cpu_probe(void)
+static int __init cpu_type_probe(void)
 {
 	int psr_impl, psr_vers, fpu_vers;
 	int psr;
@@ -453,8 +453,12 @@ void __cpuinit cpu_probe(void)
 	put_psr(psr);
 
 	set_cpu_and_fpu(psr_impl, psr_vers, fpu_vers);
+
+	return 0;
 }
-#else
+#endif /* CONFIG_SPARC32 */
+
+#ifdef CONFIG_SPARC64
 static void __init sun4v_cpu_probe(void)
 {
 	switch (sun4v_chip_type) {
@@ -495,6 +499,6 @@ static int __init cpu_type_probe(void)
 	}
 	return 0;
 }
+#endif /* CONFIG_SPARC64 */
 
 early_initcall(cpu_type_probe);
-#endif
