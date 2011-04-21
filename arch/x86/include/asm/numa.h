@@ -51,7 +51,7 @@ static inline void numa_remove_cpu(int cpu)		{ }
 #endif	/* CONFIG_NUMA */
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-struct cpumask __cpuinit *debug_cpumask_set_cpu(int cpu, int enable);
+void debug_cpumask_set_cpu(int cpu, int node, bool enable);
 #endif
 
 #endif	/* _ASM_X86_NUMA_H */
