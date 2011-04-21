@@ -312,26 +312,6 @@ void __cpuinit smp_store_cpu_info(int id)
 		identify_secondary_cpu(c);
 }
 
-static void __cpuinit check_cpu_siblings_on_same_node(int cpu1, int cpu2)
-{
-	int node1 = early_cpu_to_node(cpu1);
-	int node2 = early_cpu_to_node(cpu2);
-
-	/*
-	 * Our CPU scheduler assumes all logical cpus in the same physical cpu
-	 * share the same node. But, buggy ACPI or NUMA emulation might assign
-	 * them to different node. Fix it.
-	 */
-	if (node1 != node2) {
-		pr_warning("CPU %d in node %d and CPU %d in node %d are in the same physical CPU. forcing same node %d\n",
-			   cpu1, node1, cpu2, node2, node2);
-
-		numa_remove_cpu(cpu1);
-		numa_set_node(cpu1, node2);
-		numa_add_cpu(cpu1);
-	}
-}
-
 static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
 {
 	cpumask_set_cpu(cpu1, cpu_sibling_mask(cpu2));
@@ -340,7 +320,6 @@ static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
 	cpumask_set_cpu(cpu2, cpu_core_mask(cpu1));
 	cpumask_set_cpu(cpu1, cpu_llc_shared_mask(cpu2));
 	cpumask_set_cpu(cpu2, cpu_llc_shared_mask(cpu1));
-	check_cpu_siblings_on_same_node(cpu1, cpu2);
 }
 
 
@@ -382,12 +361,10 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
 			cpumask_set_cpu(i, cpu_llc_shared_mask(cpu));
 			cpumask_set_cpu(cpu, cpu_llc_shared_mask(i));
-			check_cpu_siblings_on_same_node(cpu, i);
 		}
 		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
 			cpumask_set_cpu(i, cpu_core_mask(cpu));
 			cpumask_set_cpu(cpu, cpu_core_mask(i));
-			check_cpu_siblings_on_same_node(cpu, i);
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
