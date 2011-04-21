@@ -710,46 +710,40 @@ static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
 	void __iomem *reg = bank->base;
 	int inv = 0;
 	u32 l;
-	u32 mask;
+	u32 mask = (1 << bank->width) - 1;
 
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_MASKIT / bank->stride;
-		mask = 0xffff;
 		inv = 1;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_MASK;
-		mask = 0xffff;
 		inv = 1;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	case METHOD_GPIO_1610:
 		reg += OMAP1610_GPIO_IRQENABLE1;
-		mask = 0xffff;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 	case METHOD_GPIO_7XX:
 		reg += OMAP7XX_GPIO_INT_MASK;
-		mask = 0xffffffff;
 		inv = 1;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_IRQENABLE1;
-		mask = 0xffffffff;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
 	case METHOD_GPIO_44XX:
 		reg += OMAP4_GPIO_IRQSTATUSSET0;
-		mask = 0xffffffff;
 		break;
 #endif
 	default:
