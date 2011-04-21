@@ -1831,6 +1831,7 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
 	int lfclk = 0;
+	int ratediv = 0;
 	int src;
 	int old;
 
@@ -1862,6 +1863,8 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 		snd_soc_update_bits(codec, WM8915_AIF_RATE,
 				    WM8915_SYSCLK_RATE, 0);
 		break;
+	case 24576000:
+		ratediv = WM8915_SYSCLK_DIV;
 	case 12288000:
 		snd_soc_update_bits(codec, WM8915_AIF_RATE,
 				    WM8915_SYSCLK_RATE, WM8915_SYSCLK_RATE);
@@ -1877,8 +1880,8 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
-			    WM8915_SYSCLK_SRC_MASK,
-			    src << WM8915_SYSCLK_SRC_SHIFT);
+			    WM8915_SYSCLK_SRC_MASK | WM8915_SYSCLK_DIV_MASK,
+			    src << WM8915_SYSCLK_SRC_SHIFT | ratediv);
 	snd_soc_update_bits(codec, WM8915_CLOCKING_1, WM8915_LFCLK_ENA, lfclk);
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, old);
