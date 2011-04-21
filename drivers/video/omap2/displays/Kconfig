@@ -62,4 +62,11 @@ config PANEL_ACX565AKM
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  This is the LCD panel used on Nokia N900
+
+config PANEL_N8X0
+	tristate "N8X0 Panel"
+	depends on OMAP2_DSS_RFBI && SPI
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  This is the LCD panel used on Nokia N8x0
 endmenu
