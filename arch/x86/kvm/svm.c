@@ -3959,19 +3959,15 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 }
 
 #define PRE_EX(exit)  { .exit_code = (exit), \
-			.stage = X86_ICPT_PRE_EXCEPT, \
-			.valid = true }
+			.stage = X86_ICPT_PRE_EXCEPT, }
 #define POST_EX(exit) { .exit_code = (exit), \
-			.stage = X86_ICPT_POST_EXCEPT, \
-			.valid = true }
+			.stage = X86_ICPT_POST_EXCEPT, }
 #define POST_MEM(exit) { .exit_code = (exit), \
-			 .stage = X86_ICPT_POST_MEMACCESS, \
-			 .valid = true }
+			.stage = X86_ICPT_POST_MEMACCESS, }
 
 static struct __x86_intercept {
 	u32 exit_code;
 	enum x86_intercept_stage stage;
-	bool valid;
 } x86_intercept_map[] = {
 	[x86_intercept_cr_read]		= POST_EX(SVM_EXIT_READ_CR0),
 	[x86_intercept_cr_write]	= POST_EX(SVM_EXIT_WRITE_CR0),
@@ -4039,7 +4035,7 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 
 	icpt_info = x86_intercept_map[info->intercept];
 
-	if (!icpt_info.valid || stage != icpt_info.stage)
+	if (stage != icpt_info.stage)
 		goto out;
 
 	switch (icpt_info.exit_code) {

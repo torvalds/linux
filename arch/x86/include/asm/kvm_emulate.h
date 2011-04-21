@@ -304,6 +304,7 @@ struct x86_emulate_ctxt {
 			       X86EMUL_MODE_PROT64)
 
 enum x86_intercept_stage {
+	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
 	X86_ICPT_PRE_EXCEPT,
 	X86_ICPT_POST_EXCEPT,
 	X86_ICPT_POST_MEMACCESS,
