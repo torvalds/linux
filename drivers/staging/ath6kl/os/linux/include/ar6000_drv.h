@@ -281,15 +281,37 @@ typedef enum _AR6K_BIN_FILE {
     } \
 } while (0)
 
+#define AR6K_DATASET_PATCH_ADDRESS(_param, _ver) do { \
+        if ((_ver) == AR6003_REV2_VERSION) { \
+                (_param) = AR6003_REV2_DATASET_PATCH_ADDRESS; \
+        } else if ((_ver) == AR6003_REV3_VERSION) { \
+                (_param) = AR6003_REV3_DATASET_PATCH_ADDRESS; \
+        } else { \
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown Version: %d\n", _ver)); \
+        A_ASSERT(0); \
+        } \
+} while (0)
+
+#define AR6K_APP_LOAD_ADDRESS(_param, _ver) do { \
+        if ((_ver) == AR6003_REV2_VERSION) { \
+                (_param) = AR6003_REV2_APP_LOAD_ADDRESS; \
+        } else if ((_ver) == AR6003_REV3_VERSION) { \
+                (_param) = AR6003_REV3_APP_LOAD_ADDRESS; \
+        } else { \
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown Version: %d\n", _ver)); \
+        A_ASSERT(0); \
+        } \
+} while (0)
+
 #define AR6K_APP_START_OVERRIDE_ADDRESS(_param, _ver) do { \
-    if ((_ver) == AR6003_REV1_VERSION) { \
-        (_param) = AR6003_REV1_APP_START_OVERRIDE; \
-    } else if ((_ver) == AR6003_REV2_VERSION) { \
-        (_param) = AR6003_REV2_APP_START_OVERRIDE; \
-    } else { \
-       AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown Version: %d\n", _ver)); \
-       A_ASSERT(0); \
-    } \
+        if ((_ver) == AR6003_REV2_VERSION) { \
+                (_param) = AR6003_REV2_APP_START_OVERRIDE; \
+        } else if ((_ver) == AR6003_REV3_VERSION) { \
+                (_param) = AR6003_REV3_APP_START_OVERRIDE; \
+        } else { \
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown Version: %d\n", _ver)); \
+        A_ASSERT(0); \
+        } \
 } while (0)
 
 /* AR6003 1.0 definitions */
@@ -331,6 +353,25 @@ typedef enum _AR6K_BIN_FILE {
 #else
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.CUSTOM.bin"
 #endif /* Board Data File */
+
+/* AR6003 3.0 definitions */
+#define AR6003_REV3_VERSION                 0x30000582
+#define AR6003_REV3_OTP_FILE                "ath6k/AR6003/hw2.1.1/otp.bin"
+#define AR6003_REV3_FIRMWARE_FILE           "ath6k/AR6003/hw2.1.1/athwlan.bin"
+#define AR6003_REV3_TCMD_FIRMWARE_FILE    "ath6k/AR6003/hw2.1.1/athtcmd_ram.bin"
+#define AR6003_REV3_ART_FIRMWARE_FILE       "ath6k/AR6003/hw2.1.1/device.bin"
+#define AR6003_REV3_PATCH_FILE            "ath6k/AR6003/hw2.1.1/data.patch.bin"
+#define AR6003_REV3_EPPING_FIRMWARE_FILE "ath6k/AR6003/hw2.1.1/endpointping.bin"
+#ifdef CONFIG_AR600x_SD31_XXX
+#define AR6003_REV3_BOARD_DATA_FILE       "ath6k/AR6003/hw2.1.1/bdata.SD31.bin"
+#elif defined(CONFIG_AR600x_SD32_XXX)
+#define AR6003_REV3_BOARD_DATA_FILE        "ath6k/AR6003/hw2.1.1/bdata.SD32.bin"
+#elif defined(CONFIG_AR600x_WB31_XXX)
+#define AR6003_REV3_BOARD_DATA_FILE        "ath6k/AR6003/hw2.1.1/bdata.WB31.bin"
+#else
+#define AR6003_REV3_BOARD_DATA_FILE      "ath6k/AR6003/hw2.1.1/bdata.CUSTOM.bin"
+#endif /* Board Data File */
+
 
 /* Power states */
 enum {

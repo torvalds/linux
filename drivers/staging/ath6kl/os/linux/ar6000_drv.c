@@ -131,6 +131,8 @@ unsigned int wlanNodeCaching = 1;
 unsigned int enableuartprint = ENABLEUARTPRINT_DEFAULT;
 unsigned int logWmiRawMsgs = 0;
 unsigned int enabletimerwar = 0;
+unsigned int num_device = 1;
+unsigned int regscanmode;
 unsigned int fwmode = 1;
 unsigned int mbox_yield_limit = 99;
 unsigned int enablerssicompensation = 0;
@@ -155,6 +157,8 @@ unsigned int hciuartstep = HCIUARTSTEP_DEFAULT;
 unsigned int csumOffload=0;
 unsigned int csumOffloadTest=0;
 unsigned int eppingtest=0;
+unsigned int mac_addr_method;
+unsigned int firmware_bridge;
 
 module_param_string(ifname, ifname, sizeof(ifname), 0644);
 module_param(wlaninitmode, int, 0644);
@@ -957,6 +961,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                 filename = AR6003_REV1_OTP_FILE;
             } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                 filename = AR6003_REV2_OTP_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_OTP_FILE;
             } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                 return A_ERROR;
@@ -968,6 +974,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                 filename = AR6003_REV1_FIRMWARE_FILE;
             } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                 filename = AR6003_REV2_FIRMWARE_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_FIRMWARE_FILE;
             } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                 return A_ERROR;
@@ -979,6 +987,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                     filename = AR6003_REV1_EPPING_FIRMWARE_FILE;
                 } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                     filename = AR6003_REV2_EPPING_FIRMWARE_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_EPPING_FIRMWARE_FILE;
                 } else {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("eppingtest : unsupported firmware revision: %d\n", 
                         ar->arVersion.target_ver));
@@ -993,6 +1003,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                     filename = AR6003_REV1_TCMD_FIRMWARE_FILE;
                 } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                     filename = AR6003_REV2_TCMD_FIRMWARE_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_TCMD_FIRMWARE_FILE;
                 } else {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                     return A_ERROR;
@@ -1020,6 +1032,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                 filename = AR6003_REV1_PATCH_FILE;
             } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                 filename = AR6003_REV2_PATCH_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_PATCH_FILE;
             } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                 return A_ERROR;
@@ -1031,6 +1045,8 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
                 filename = AR6003_REV1_BOARD_DATA_FILE;
             } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                 filename = AR6003_REV2_BOARD_DATA_FILE;
+                } else if (ar->arVersion.target_ver == AR6003_REV3_VERSION) {
+                        filename = AR6003_REV3_BOARD_DATA_FILE;
             } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                 return A_ERROR;
@@ -1085,8 +1101,10 @@ ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, 
             }
 
             /* Record the fact that extended board Data IS initialized */
-            param = 1;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data_initialized), (u8 *)&param, 4));
+            param = (board_ext_data_size << 16) | 1;
+            bmifn(BMIWriteMemory(ar->arHifDevice,
+            HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data_config),
+				       (unsigned char *)&param, 4));
         }
         fw_entry_size = board_data_size;
     }
@@ -1243,7 +1261,9 @@ ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode)
             bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data_initialized), (u8 *)&param, 4));
 
             /* Transfer One time Programmable data */
-            AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
+	    AR6K_APP_LOAD_ADDRESS(address, ar->arVersion.target_ver);
+	    if (ar->arVersion.target_ver == AR6003_REV3_VERSION)
+		  address = 0x1234;
             status = ar6000_transfer_bin_file(ar, AR6K_OTP_FILE, address, true);
             if (status == 0) {
                 /* Execute the OTP code */
@@ -1259,7 +1279,9 @@ ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode)
         }
 
         /* Download Target firmware */
-        AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
+        AR6K_APP_LOAD_ADDRESS(address, ar->arVersion.target_ver);
+        if (ar->arVersion.target_ver == AR6003_REV3_VERSION)
+                address = 0x1234;
         if ((ar6000_transfer_bin_file(ar, AR6K_FIRMWARE_FILE, address, true)) != 0) {
             return A_ERROR;
         }
@@ -1268,25 +1290,16 @@ ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode)
         AR6K_APP_START_OVERRIDE_ADDRESS(address, ar->arVersion.target_ver);
         bmifn(BMISetAppStart(ar->arHifDevice, address));
 
-        /* Apply the patches */
-        AR6K_PATCH_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-        if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE, address, false)) != 0) {
-            return A_ERROR;
-        }
-
-        param = address;
-        bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dset_list_head), (u8 *)&param, 4));
-
-        if (ar->arTargetType == TARGET_TYPE_AR6003) {
-            if (ar->arVersion.target_ver == AR6003_REV1_VERSION) {
-                /* Reserve 5.5K of RAM */
-                param = 5632;
-            } else { /* AR6003_REV2_VERSION */
-                /* Reserve 6.5K of RAM */
-                param = 6656;
-            }
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_end_RAM_reserve_sz), (u8 *)&param, 4));
-        }
+	if(ar->arTargetType == TARGET_TYPE_AR6003) {
+		AR6K_DATASET_PATCH_ADDRESS(address, ar->arVersion.target_ver);
+		if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE,
+					      address, false)) != 0)
+			return A_ERROR;
+		param = address;
+		bmifn(BMIWriteMemory(ar->arHifDevice,
+		HOST_INTEREST_ITEM_ADDRESS(ar, hi_dset_list_head),
+					   (unsigned char *)&param, 4));
+	}
 
         /* Restore system sleep */
         address = RTC_BASE_ADDRESS + SYSTEM_SLEEP_ADDRESS;
@@ -1418,7 +1431,11 @@ ar6000_configure_target(struct ar6_softc *ar)
             return A_ERROR;
         }
 
+        param |= (num_device << HI_OPTION_NUM_DEV_SHIFT);
         param |= (fwmode << HI_OPTION_FW_MODE_SHIFT);
+        param |= (mac_addr_method << HI_OPTION_MAC_ADDR_METHOD_SHIFT);
+        param |= (firmware_bridge << HI_OPTION_FW_BRIDGE_SHIFT);
+
 
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
@@ -1466,18 +1483,34 @@ ar6000_configure_target(struct ar6_softc *ar)
      * It is difficult to patch the firmware boot code,
      * but possible in theory.
      */
-    if (ar->arTargetType == TARGET_TYPE_AR6003) {
-        param = AR6003_BOARD_EXT_DATA_ADDRESS; 
-        if (BMIWriteMemory(ar->arHifDevice,
-            HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data),
-            (u8 *)&param,
-            4) != 0)
-        {
-            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for hi_board_ext_data failed \n"));
-            return A_ERROR;
-        }
-    }
 
+	if (ar->arTargetType == TARGET_TYPE_AR6003) {
+		A_UINT32 ramReservedSz;
+		if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
+			param = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
+			ramReservedSz =  AR6003_REV2_RAM_RESERVE_SIZE;
+                } else {
+			param = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
+			ramReservedSz =  AR6003_REV3_RAM_RESERVE_SIZE;
+		}
+		if (BMIWriteMemory(ar->arHifDevice,
+			HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data),
+						   (u8 *)&param, 4) != 0) {
+				AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+						("BMIWriteMemory for "
+						 "hi_board_ext_data failed\n"));
+				return A_ERROR;
+		}
+		if (BMIWriteMemory(ar->arHifDevice,
+				   HOST_INTEREST_ITEM_ADDRESS(ar,
+				   hi_end_RAM_reserve_sz),
+				   (u8 *)&ramReservedSz, 4) != 0) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERR ,
+					("BMIWriteMemory for "
+					 "hi_end_RAM_reserve_sz failed\n"));
+			return A_ERROR;
+		}
+	}
 
         /* since BMIInit is called in the driver layer, we have to set the block
          * size here for the target */
@@ -2640,6 +2673,38 @@ int ar6000_init(struct net_device *dev)
         ret = -EIO;
         goto ar6000_init_done;
     }
+
+	if (regscanmode) {
+		A_UINT32 param;
+
+		if (BMIReadMemory(ar->arHifDevice,
+				  HOST_INTEREST_ITEM_ADDRESS(ar,
+							     hi_option_flag),
+							     (u8 *)&param,
+							     4) != 0) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+					("BMIReadMemory forsetting "
+					 "regscanmode failed\n"));
+			return A_ERROR;
+		}
+
+		if (regscanmode == 1)
+			param |= HI_OPTION_SKIP_REG_SCAN;
+		else if (regscanmode == 2)
+			param |= HI_OPTION_INIT_REG_SCAN;
+
+		if (BMIWriteMemory(ar->arHifDevice,
+				   HOST_INTEREST_ITEM_ADDRESS(ar,
+							      hi_option_flag),
+							      (u8 *)&param,
+							      4) != 0) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+					("BMIWriteMemory forsetting "
+					"regscanmode failed\n"));
+			return A_ERROR;
+		}
+		AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("Regulatory scan mode set\n"));
+	}
 
     /*
      * give our connected endpoints some buffers
