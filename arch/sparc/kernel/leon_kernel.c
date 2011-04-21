@@ -345,6 +345,9 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	icsel = (icsel >> ((7 - (boot_cpu_id&0x7)) * 4)) & 0xf;
 	leon3_irqctrl_regs += icsel;
 
+	/* Mask all IRQs on boot-cpu IRQ controller */
+	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->mask[boot_cpu_id], 0);
+
 	/* Probe extended IRQ controller */
 	eirq = (LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->mpstatus)
 		>> 16) & 0xf;

@@ -217,6 +217,10 @@ int __cpuinit leon_boot_one_cpu(int i)
 	       (unsigned int)&leon3_irqctrl_regs->mpstatus);
 	local_flush_cache_all();
 
+	/* Make sure all IRQs are of from the start for this new CPU */
+	LEON_BYPASS_STORE_PA(&leon3_irqctrl_regs->mask[i], 0);
+
+	/* Wake one CPU */
 	LEON_BYPASS_STORE_PA(&(leon3_irqctrl_regs->mpstatus), 1 << i);
 
 	/* wheee... it's going... */
