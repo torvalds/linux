@@ -5678,7 +5678,7 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 static void *raid45_takeover_raid0(mddev_t *mddev, int level)
 {
 	struct raid0_private_data *raid0_priv = mddev->private;
-	unsigned long long sectors;
+	sector_t sectors;
 
 	/* for raid0 takeover only one zone is supported */
 	if (raid0_priv->nr_strip_zones > 1) {
