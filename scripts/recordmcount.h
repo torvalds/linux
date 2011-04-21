@@ -28,6 +28,7 @@
 #undef __has_rel_mcount
 #undef has_rel_mcount
 #undef tot_relsize
+#undef get_mcountsym
 #undef do_func
 #undef Elf_Addr
 #undef Elf_Ehdr
@@ -56,6 +57,7 @@
 # define has_rel_mcount		has64_rel_mcount
 # define tot_relsize		tot64_relsize
 # define do_func		do64
+# define get_mcountsym		get_mcountsym_64
 # define is_fake_mcount		is_fake_mcount64
 # define fn_is_fake_mcount	fn_is_fake_mcount64
 # define MIPS_is_fake_mcount	MIPS64_is_fake_mcount
@@ -85,6 +87,7 @@
 # define has_rel_mcount		has32_rel_mcount
 # define tot_relsize		tot32_relsize
 # define do_func		do32
+# define get_mcountsym		get_mcountsym_32
 # define is_fake_mcount		is_fake_mcount32
 # define fn_is_fake_mcount	fn_is_fake_mcount32
 # define MIPS_is_fake_mcount	MIPS32_is_fake_mcount
@@ -237,6 +240,26 @@ static void append_func(Elf_Ehdr *const ehdr,
 	uwrite(fd_map, ehdr, sizeof(*ehdr));
 }
 
+static unsigned get_mcountsym(Elf_Sym const *const sym0,
+			      Elf_Rel const *relp,
+			      char const *const str0)
+{
+	unsigned mcountsym = 0;
+
+	Elf_Sym const *const symp =
+		&sym0[Elf_r_sym(relp)];
+	char const *symname = &str0[w(symp->st_name)];
+	char const *mcount = gpfx == '_' ? "_mcount" : "mcount";
+
+	if (symname[0] == '.')
+		++symname;  /* ppc64 hack */
+	if (strcmp(mcount, symname) == 0 ||
+	    (altmcount && strcmp(altmcount, symname) == 0))
+		mcountsym = Elf_r_sym(relp);
+
+	return mcountsym;
+}
+
 /*
  * Look at the relocations in order to find the calls to mcount.
  * Accumulate the section offsets that are found, and their relocation info,
@@ -274,18 +297,8 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 	unsigned t;
 
 	for (t = nrel; t; --t) {
-		if (!mcountsym) {
-			Elf_Sym const *const symp =
-				&sym0[Elf_r_sym(relp)];
-			char const *symname = &str0[w(symp->st_name)];
-			char const *mcount = gpfx == '_' ? "_mcount" : "mcount";
-
-			if (symname[0] == '.')
-				++symname;  /* ppc64 hack */
-			if (strcmp(mcount, symname) == 0 ||
-			    (altmcount && strcmp(altmcount, symname) == 0))
-				mcountsym = Elf_r_sym(relp);
-		}
+		if (!mcountsym)
+			mcountsym = get_mcountsym(sym0, relp, str0);
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
 			uint_t const addend = _w(_w(relp->r_offset) - recval);
@@ -342,18 +355,8 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 	for (t = nrel; t; --t) {
 		int ret = -1;
 
-		if (!mcountsym) {
-			Elf_Sym const *const symp =
-				&sym0[Elf_r_sym(relp)];
-			char const *symname = &str0[w(symp->st_name)];
-			char const *mcount = gpfx == '_' ? "_mcount" : "mcount";
-
-			if (symname[0] == '.')
-				++symname;  /* ppc64 hack */
-			if (strcmp(mcount, symname) == 0 ||
-			    (altmcount && strcmp(altmcount, symname) == 0))
-				mcountsym = Elf_r_sym(relp);
-		}
+		if (!mcountsym)
+			mcountsym = get_mcountsym(sym0, relp, str0);
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
 			if (make_nop)
