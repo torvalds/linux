@@ -708,6 +708,27 @@ xfs_buf_get_empty(
 	return bp;
 }
 
+/*
+ * Return a buffer allocated as an empty buffer and associated to external
+ * memory via xfs_buf_associate_memory() back to it's empty state.
+ */
+void
+xfs_buf_set_empty(
+	struct xfs_buf		*bp,
+	size_t			len)
+{
+	if (bp->b_pages)
+		_xfs_buf_free_pages(bp);
+
+	bp->b_pages = NULL;
+	bp->b_page_count = 0;
+	bp->b_addr = NULL;
+	bp->b_file_offset = 0;
+	bp->b_buffer_length = bp->b_count_desired = len;
+	bp->b_bn = XFS_BUF_DADDR_NULL;
+	bp->b_flags &= ~XBF_MAPPED;
+}
+
 static inline struct page *
 mem_to_page(
 	void			*addr)

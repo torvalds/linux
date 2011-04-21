@@ -1449,6 +1449,13 @@ xlog_dealloc_log(xlog_t *log)
 
 	xlog_cil_destroy(log);
 
+	/*
+	 * always need to ensure that the extra buffer does not point to memory
+	 * owned by another log buffer before we free it.
+	 */
+	xfs_buf_set_empty(log->l_xbuf, log->l_iclog_size);
+	xfs_buf_free(log->l_xbuf);
+
 	iclog = log->l_iclog;
 	for (i=0; i<log->l_iclog_bufs; i++) {
 		xfs_buf_free(iclog->ic_bp);
@@ -1458,7 +1465,6 @@ xlog_dealloc_log(xlog_t *log)
 	}
 	spinlock_destroy(&log->l_icloglock);
 
-	xfs_buf_free(log->l_xbuf);
 	log->l_mp->m_log = NULL;
 	kmem_free(log);
 }	/* xlog_dealloc_log */
