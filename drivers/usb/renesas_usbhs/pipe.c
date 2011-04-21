@@ -758,8 +758,11 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	u16 pipecfg, pipebuf, pipemaxp;
 
 	pipe = usbhsp_get_pipe(priv, usb_endpoint_type(desc));
-	if (!pipe)
+	if (!pipe) {
+		dev_err(dev, "can't get pipe (%s)\n",
+			usbhsp_pipe_name[usb_endpoint_type(desc)]);
 		return NULL;
+	}
 
 	usbhs_fifo_disable(pipe);
 
