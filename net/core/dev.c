@@ -1315,7 +1315,8 @@ void dev_disable_lro(struct net_device *dev)
 		return;
 
 	__ethtool_set_flags(dev, flags & ~ETH_FLAG_LRO);
-	WARN_ON(dev->features & NETIF_F_LRO);
+	if (unlikely(dev->features & NETIF_F_LRO))
+		netdev_WARN(dev, "failed to disable LRO!\n");
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
