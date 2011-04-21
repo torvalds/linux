@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
-#include <linux/regulator/consumer.h>
 #include <plat/usb.h>
 
 #define USBHS_DRIVER_NAME	"usbhs-omap"
