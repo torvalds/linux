@@ -168,7 +168,7 @@ static int __devinit clock_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id __initdata clock_match[] = {
+static struct of_device_id clock_match[] = {
 	{
 		.name = "eeprom",
 	},
