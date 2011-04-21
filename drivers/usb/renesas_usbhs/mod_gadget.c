@@ -583,6 +583,10 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	char *msg;
 
 	uep = usbhsg_gpriv_to_nth_uep(gpriv, nth);
+	if (!usbhsg_uep_to_pipe(uep)) {
+		dev_err(dev, "wrong recip request\n");
+		return -EINVAL;
+	}
 
 	switch (recip) {
 	case USB_RECIP_DEVICE:
