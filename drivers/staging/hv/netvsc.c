@@ -571,7 +571,7 @@ cleanup:
 	return ret;
 }
 
-static void NetVscDisconnectFromVsp(struct netvsc_device *net_device)
+static void netvsc_disconnect_vsp(struct netvsc_device *net_device)
 {
 	netvsc_destroy_recv_buf(net_device);
 	netvsc_destroy_send_buf(net_device);
@@ -600,7 +600,7 @@ static int netvsc_device_remove(struct hv_device *device)
 		udelay(100);
 	}
 
-	NetVscDisconnectFromVsp(net_device);
+	netvsc_disconnect_vsp(net_device);
 
 	/* Stop inbound traffic ie receives and sends completions */
 	net_device = release_inbound_net_device(device);
