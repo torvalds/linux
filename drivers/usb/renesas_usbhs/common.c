@@ -352,8 +352,12 @@ probe_end_kfree:
 static int __devexit usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhsc_pdev_to_priv(pdev);
+	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
+	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 
 	dev_dbg(&pdev->dev, "usb remove\n");
+
+	dfunc->notify_hotplug = NULL;
 
 	pm_runtime_disable(&pdev->dev);
 

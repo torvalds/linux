@@ -143,7 +143,7 @@ struct renesas_usbhs_platform_info {
 	({								\
 		struct renesas_usbhs_driver_callback *dc;		\
 		dc = &(renesas_usbhs_get_info(pdev)->driver_callback);	\
-		if (dc)							\
+		if (dc && dc->notify_hotplug)				\
 			dc->notify_hotplug(pdev);			\
 	})
 #endif /* RENESAS_USB_H */
