@@ -2625,18 +2625,13 @@ static int em_lgdt(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_svm(struct x86_emulate_ctxt *ctxt)
+static int em_vmmcall(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	switch (c->modrm_rm) {
-	case 1:
-		rc = ctxt->ops->fix_hypercall(ctxt);
-		break;
-	default:
-		return X86EMUL_UNHANDLEABLE;
-	}
+	rc = ctxt->ops->fix_hypercall(ctxt);
+
 	/* Disable writeback. */
 	c->dst.type = OP_NONE;
 	return rc;
@@ -2909,7 +2904,7 @@ static struct opcode group7_rm1[] = {
 
 static struct opcode group7_rm3[] = {
 	DIP(SrcNone | ModRM | Prot | Priv, vmrun,   check_svme_pa),
-	DI(SrcNone | ModRM | Prot | VendorSpecific, vmmcall),
+	II(SrcNone | ModRM | Prot | VendorSpecific, em_vmmcall, vmmcall),
 	DIP(SrcNone | ModRM | Prot | Priv, vmload,  check_svme_pa),
 	DIP(SrcNone | ModRM | Prot | Priv, vmsave,  check_svme_pa),
 	DIP(SrcNone | ModRM | Prot | Priv, stgi,    check_svme),
@@ -2961,15 +2956,17 @@ static struct opcode group6[] = {
 static struct group_dual group7 = { {
 	DI(ModRM | Mov | DstMem | Priv, sgdt),
 	DI(ModRM | Mov | DstMem | Priv, sidt),
-	DI(ModRM | SrcMem | Priv, lgdt), DI(ModRM | SrcMem | Priv, lidt),
-	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
-	DI(SrcMem16 | ModRM | Mov | Priv, lmsw),
-	DI(SrcMem | ModRM | ByteOp | Priv | NoAccess, invlpg),
+	II(ModRM | SrcMem | Priv, em_lgdt, lgdt),
+	II(ModRM | SrcMem | Priv, em_lidt, lidt),
+	II(SrcNone | ModRM | DstMem | Mov, em_smsw, smsw), N,
+	II(SrcMem16 | ModRM | Mov | Priv, em_lmsw, lmsw),
+	II(SrcMem | ModRM | ByteOp | Priv | NoAccess, em_invlpg, invlpg),
 }, {
-	D(SrcNone | ModRM | Priv | VendorSpecific), EXT(0, group7_rm1),
+	I(SrcNone | ModRM | Priv | VendorSpecific, em_vmcall),
+	EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
-	DI(SrcNone | ModRM | DstMem | Mov, smsw), N,
-	DI(SrcMem16 | ModRM | Mov | Priv, lmsw), EXT(0, group7_rm7),
+	II(SrcNone | ModRM | DstMem | Mov, em_smsw, smsw), N,
+	II(SrcMem16 | ModRM | Mov | Priv, em_lmsw, lmsw), EXT(0, group7_rm7),
 } };
 
 static struct opcode group8[] = {
@@ -4107,33 +4104,6 @@ done:
 
 twobyte_insn:
 	switch (c->b) {
-	case 0x01: /* lgdt, lidt, lmsw */
-		switch (c->modrm_reg) {
-		case 0: /* vmcall */
-			rc = em_vmcall(ctxt);
-			break;
-		case 2: /* lgdt */
-			rc = em_lgdt(ctxt);
-			break;
-		case 3: /* lidt/vmmcall */
-			if (c->modrm_mod == 3)
-				return em_svm(ctxt);
-			else
-				return em_lidt(ctxt);
-			break;
-		case 4: /* smsw */
-			rc = em_smsw(ctxt);
-			break;
-		case 6: /* lmsw */
-			rc = em_lmsw(ctxt);
-			break;
-		case 7: /* invlpg*/
-			rc = em_invlpg(ctxt);
-			break;
-		default:
-			goto cannot_emulate;
-		}
-		break;
 	case 0x05: 		/* syscall */
 		rc = emulate_syscall(ctxt, ops);
 		break;
