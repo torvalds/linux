@@ -1,4 +1,4 @@
-# Makefile for cpupowerutils
+# Makefile for cpupower
 #
 # Copyright (C) 2005,2006 Dominik Brodowski <linux@dominikbrodowski.net>
 #
@@ -51,7 +51,7 @@ VERSION=			$(shell ./utils/version-gen.sh)
 LIB_MAJ=			0.0.0
 LIB_MIN=			0
 
-PACKAGE =			cpupowerutils
+PACKAGE =			cpupower
 PACKAGE_BUGREPORT =		cpufreq@vger.kernel.org
 LANGUAGES = 			de fr it cs pt
 
@@ -66,7 +66,7 @@ mandir ?=	/usr/man
 includedir ?=	/usr/include
 libdir ?=	/usr/lib
 localedir ?=	/usr/share/locale
-docdir ?=       /usr/share/doc/packages/cpupowerutils
+docdir ?=       /usr/share/doc/packages/cpupower
 confdir ?=      /etc/
 
 # Toolchain: what tools do we use, and what options do they need:
@@ -256,8 +256,8 @@ install-man:
 install-gmo:
 	$(INSTALL) -d $(DESTDIR)${localedir}
 	for HLANG in $(LANGUAGES); do \
-		echo '$(INSTALL_DATA) -D po/$$HLANG.gmo $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo'; \
-		$(INSTALL_DATA) -D po/$$HLANG.gmo $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
+		echo '$(INSTALL_DATA) -D po/$$HLANG.gmo $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo'; \
+		$(INSTALL_DATA) -D po/$$HLANG.gmo $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	done;
 
 install-bench:
@@ -273,7 +273,7 @@ uninstall:
 	- rm -f $(DESTDIR)${mandir}/man1/cpufreq-set.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpufreq-info.1
 	- for HLANG in $(LANGUAGES); do \
-		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupowerutils.mo; \
+		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	  done;
 
 .PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean
