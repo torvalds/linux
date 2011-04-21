@@ -57,9 +57,11 @@ enum timer_location {
 #if defined(CONFIG_ARCH_QSD8X50)
 #define DGT_HZ (19200000 / 4) /* 19.2 MHz / 4 by default */
 #define MSM_DGT_SHIFT (0)
-#elif defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60) || \
-				      defined(CONFIG_ARCH_MSM8960)
+#elif defined(CONFIG_ARCH_MSM7X30)
 #define DGT_HZ (24576000 / 4) /* 24.576 MHz (LPXO) / 4 by default */
+#define MSM_DGT_SHIFT (0)
+#elif defined(CONFIG_ARCH_MSM8X60) || defined(CONFIG_ARCH_MSM8960)
+#define DGT_HZ (27000000 / 4) /* 27 MHz (PXO) / 4 by default */
 #define MSM_DGT_SHIFT (0)
 #else
 #define DGT_HZ 19200000 /* 19.2 MHz or 600 KHz after shift */
