@@ -590,6 +590,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	del_timer_sync(&hdev->cmd_timer);
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
+		del_timer_sync(&hdev->cmd_timer);
 		hci_req_unlock(hdev);
 		return 0;
 	}
