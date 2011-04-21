@@ -2447,11 +2447,6 @@ static int s3c_hsotg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	dev_info(hs->dev, "ep_dequeue(%p,%p)\n", ep, req);
 
-	if (hs_req == hs_ep->req) {
-		dev_dbg(hs->dev, "%s: already in progress\n", __func__);
-		return -EINPROGRESS;
-	}
-
 	spin_lock_irqsave(&hs_ep->lock, flags);
 
 	if (!on_list(hs_ep, hs_req)) {
