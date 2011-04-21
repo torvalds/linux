@@ -61,7 +61,7 @@ struct cam_hdr {
 struct sd {
 	struct gspca_dev gspca_dev; /* !! must be the first item */
 	uint16_t cam_tag;           /* a sequence number for packets */
-	uint8_t stream_flag;        /* to identify different steram types */
+	uint8_t stream_flag;        /* to identify different stream types */
 	uint8_t obuf[0x400];        /* output buffer for control commands */
 	uint8_t ibuf[0x200];        /* input buffer for control commands */
 };
