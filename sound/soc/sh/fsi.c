@@ -153,6 +153,13 @@ struct fsi_priv {
 	int clk_master:1;
 
 	long rate;
+
+	/* for suspend/resume */
+	u32 saved_do_fmt;
+	u32 saved_di_fmt;
+	u32 saved_ckg1;
+	u32 saved_ckg2;
+	u32 saved_out_sel;
 };
 
 struct fsi_core {
@@ -173,6 +180,13 @@ struct fsi_master {
 	struct fsi_core *core;
 	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
+
+	/* for suspend/resume */
+	u32 saved_a_mclk;
+	u32 saved_b_mclk;
+	u32 saved_iemsk;
+	u32 saved_imsk;
+	u32 saved_clk_rst;
 };
 
 /*
@@ -1277,6 +1291,76 @@ static int fsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void __fsi_suspend(struct fsi_priv *fsi,
+			  struct device *dev,
+			  set_rate_func set_rate)
+{
+	fsi->saved_do_fmt	= fsi_reg_read(fsi, DO_FMT);
+	fsi->saved_di_fmt	= fsi_reg_read(fsi, DI_FMT);
+	fsi->saved_ckg1		= fsi_reg_read(fsi, CKG1);
+	fsi->saved_ckg2		= fsi_reg_read(fsi, CKG2);
+	fsi->saved_out_sel	= fsi_reg_read(fsi, OUT_SEL);
+
+	if (fsi_is_clk_master(fsi))
+		set_rate(dev, fsi_is_port_a(fsi), fsi->rate, 0);
+}
+
+static void __fsi_resume(struct fsi_priv *fsi,
+			 struct device *dev,
+			 set_rate_func set_rate)
+{
+	fsi_reg_write(fsi, DO_FMT,	fsi->saved_do_fmt);
+	fsi_reg_write(fsi, DI_FMT,	fsi->saved_di_fmt);
+	fsi_reg_write(fsi, CKG1,	fsi->saved_ckg1);
+	fsi_reg_write(fsi, CKG2,	fsi->saved_ckg2);
+	fsi_reg_write(fsi, OUT_SEL,	fsi->saved_out_sel);
+
+	if (fsi_is_clk_master(fsi))
+		set_rate(dev, fsi_is_port_a(fsi), fsi->rate, 1);
+}
+
+static int fsi_suspend(struct device *dev)
+{
+	struct fsi_master *master = dev_get_drvdata(dev);
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
+
+	pm_runtime_get_sync(dev);
+
+	__fsi_suspend(&master->fsia, dev, set_rate);
+	__fsi_suspend(&master->fsib, dev, set_rate);
+
+	master->saved_a_mclk	= fsi_core_read(master, a_mclk);
+	master->saved_b_mclk	= fsi_core_read(master, b_mclk);
+	master->saved_iemsk	= fsi_core_read(master, iemsk);
+	master->saved_imsk	= fsi_core_read(master, imsk);
+	master->saved_clk_rst	= fsi_master_read(master, CLK_RST);
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
+static int fsi_resume(struct device *dev)
+{
+	struct fsi_master *master = dev_get_drvdata(dev);
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
+
+	pm_runtime_get_sync(dev);
+
+	__fsi_resume(&master->fsia, dev, set_rate);
+	__fsi_resume(&master->fsib, dev, set_rate);
+
+	fsi_core_mask_set(master, a_mclk, 0xffff, master->saved_a_mclk);
+	fsi_core_mask_set(master, b_mclk, 0xffff, master->saved_b_mclk);
+	fsi_core_mask_set(master, iemsk, 0xffff, master->saved_iemsk);
+	fsi_core_mask_set(master, imsk, 0xffff, master->saved_imsk);
+	fsi_master_mask_set(master, CLK_RST, 0xffff, master->saved_clk_rst);
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
 static int fsi_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
@@ -1290,6 +1374,8 @@ static int fsi_runtime_nop(struct device *dev)
 }
 
 static struct dev_pm_ops fsi_pm_ops = {
+	.suspend		= fsi_suspend,
+	.resume			= fsi_resume,
 	.runtime_suspend	= fsi_runtime_nop,
 	.runtime_resume		= fsi_runtime_nop,
 };
