@@ -129,8 +129,6 @@ wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 static int
 wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
-static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 static int
@@ -1092,10 +1090,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SET_PARAMS_REPLY Event\n", DBGARG));
         status = wmi_set_params_event_rx(wmip, datap, len);
         break;
-    case (WMI_ACM_REJECT_EVENTID):
-        A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SET_PARAMS_REPLY Event\n", DBGARG));
-        status = wmi_acm_reject_event_rx(wmip, datap, len);
-        break;		
     case (WMI_ADDBA_REQ_EVENTID):
         status = wmi_addba_req_event_rx(wmip, datap, len);
         break;
@@ -5285,19 +5279,6 @@ wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
 
     }
 
-    return 0;
-}
-
-
-
-static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
-{
-    WMI_ACM_REJECT_EVENT *ev;
-
-    ev = (WMI_ACM_REJECT_EVENT *)datap;
-    wmip->wmi_traffic_class = ev->trafficClass;
-    printk("ACM REJECT %d\n",wmip->wmi_traffic_class);
     return 0;
 }
 
