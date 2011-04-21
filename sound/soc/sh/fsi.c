@@ -146,9 +146,11 @@ struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
 
-	int chan_num;
 	struct fsi_stream playback;
 	struct fsi_stream capture;
+
+	int chan_num:16;
+	int clk_master:1;
 
 	long rate;
 };
@@ -242,6 +244,11 @@ static void _fsi_master_mask_set(struct fsi_master *master,
 static struct fsi_master *fsi_get_master(struct fsi_priv *fsi)
 {
 	return fsi->master;
+}
+
+static int fsi_is_clk_master(struct fsi_priv *fsi)
+{
+	return fsi->clk_master;
 }
 
 static int fsi_is_port_a(struct fsi_priv *fsi)
@@ -793,14 +800,15 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	int is_play = fsi_is_play(substream);
 	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate;
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
 
 	fsi_irq_disable(fsi, is_play);
-	fsi_clk_ctrl(fsi, 0);
 
-	set_rate = fsi_get_info_set_rate(master);
-	if (set_rate && fsi->rate)
+	if (fsi_is_clk_master(fsi)) {
+		fsi_clk_ctrl(fsi, 0);
 		set_rate(dai->dev, fsi_is_port_a(fsi), fsi->rate, 0);
+	}
+
 	fsi->rate = 0;
 
 	pm_runtime_put_sync(dai->dev);
@@ -876,6 +884,8 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
+	struct fsi_master *master = fsi_get_master(fsi);
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 	int ret;
@@ -886,6 +896,7 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		data = DIMD | DOMD;
+		fsi->clk_master = 1;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
@@ -893,6 +904,13 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ret = -EINVAL;
 		goto set_fmt_exit;
 	}
+
+	if (fsi_is_clk_master(fsi) && !set_rate) {
+		dev_err(dai->dev, "platform doesn't have set_rate\n");
+		ret = -EINVAL;
+		goto set_fmt_exit;
+	}
+
 	fsi_reg_mask_set(fsi, CKG1, (DIMD | DOMD), data);
 
 	/* set format */
@@ -919,13 +937,12 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate;
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
 	int fsi_ver = master->core->ver;
 	long rate = params_rate(params);
 	int ret;
 
-	set_rate = fsi_get_info_set_rate(master);
-	if (!set_rate)
+	if (!fsi_is_clk_master(fsi))
 		return 0;
 
 	ret = set_rate(dai->dev, fsi_is_port_a(fsi), rate, 1);
