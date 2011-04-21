@@ -45,18 +45,6 @@ static const struct hv_guid netvsc_device_type = {
 	}
 };
 
-static int netvsc_init_send_buf(struct hv_device *device);
-
-static int netvsc_init_recv_buf(struct hv_device *device);
-
-static int netvsc_connect_vsp(struct hv_device *device);
-
-static void netvsc_send_completion(struct hv_device *device,
-				   struct vmpacket_descriptor *packet);
-
-static void netvsc_receive(struct hv_device *device,
-			    struct vmpacket_descriptor *packet);
-
 
 static struct netvsc_device *alloc_net_device(struct hv_device *device)
 {
