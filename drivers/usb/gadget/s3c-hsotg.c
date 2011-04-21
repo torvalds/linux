@@ -1055,8 +1055,10 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value);
 static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 					 struct usb_ctrlrequest *ctrl)
 {
+	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	struct s3c_hsotg_ep *ep;
+	int ret;
 
 	dev_dbg(hsotg->dev, "%s: %s_FEATURE\n",
 		__func__, set ? "SET" : "CLEAR");
@@ -1072,6 +1074,13 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 		switch (le16_to_cpu(ctrl->wValue)) {
 		case USB_ENDPOINT_HALT:
 			s3c_hsotg_ep_sethalt(&ep->ep, set);
+
+			ret = s3c_hsotg_send_reply(hsotg, ep0, NULL, 0);
+			if (ret) {
+				dev_err(hsotg->dev,
+					"%s: failed to send reply\n", __func__);
+				return ret;
+			}
 			break;
 
 		default:
@@ -1146,14 +1155,6 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 		ret = hsotg->driver->setup(&hsotg->gadget, ctrl);
 		if (ret < 0)
 			dev_dbg(hsotg->dev, "driver->setup() ret %d\n", ret);
-	}
-
-	if (ret > 0) {
-		if (!ep0->dir_in) {
-			/* need to generate zlp in reply or take data */
-			/* todo - deal with any data we might be sent? */
-			ret = s3c_hsotg_send_reply(hsotg, ep0, NULL, 0);
-		}
 	}
 
 	/* the request is either unhandlable, or is not formatted correctly
