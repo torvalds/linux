@@ -1299,7 +1299,7 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 static struct iova_domain reserved_iova_list;
 static struct lock_class_key reserved_rbtree_key;
 
-static void dmar_init_reserved_ranges(void)
+static int dmar_init_reserved_ranges(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct iova *iova;
@@ -1313,8 +1313,10 @@ static void dmar_init_reserved_ranges(void)
 	/* IOAPIC ranges shouldn't be accessed by DMA */
 	iova = reserve_iova(&reserved_iova_list, IOVA_PFN(IOAPIC_RANGE_START),
 		IOVA_PFN(IOAPIC_RANGE_END));
-	if (!iova)
+	if (!iova) {
 		printk(KERN_ERR "Reserve IOAPIC range failed\n");
+		return -ENODEV;
+	}
 
 	/* Reserve all PCI MMIO to avoid peer-to-peer access */
 	for_each_pci_dev(pdev) {
@@ -1327,11 +1329,13 @@ static void dmar_init_reserved_ranges(void)
 			iova = reserve_iova(&reserved_iova_list,
 					    IOVA_PFN(r->start),
 					    IOVA_PFN(r->end));
-			if (!iova)
+			if (!iova) {
 				printk(KERN_ERR "Reserve iova failed\n");
+				return -ENODEV;
+			}
 		}
 	}
-
+	return 0;
 }
 
 static void domain_reserve_special_ranges(struct dmar_domain *domain)
@@ -1835,7 +1839,7 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 
 	ret = iommu_attach_domain(domain, iommu);
 	if (ret) {
-		domain_exit(domain);
+		free_domain_mem(domain);
 		goto error;
 	}
 
@@ -2213,7 +2217,7 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 	return 0;
 }
 
-int __init init_dmars(void)
+static int __init init_dmars(int force_on)
 {
 	struct dmar_drhd_unit *drhd;
 	struct dmar_rmrr_unit *rmrr;
@@ -2393,8 +2397,15 @@ int __init init_dmars(void)
 	 *   enable translation
 	 */
 	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
+		if (drhd->ignored) {
+			/*
+			 * we always have to disable PMRs or DMA may fail on
+			 * this device
+			 */
+			if (force_on)
+				iommu_disable_protect_mem_regions(drhd->iommu);
 			continue;
+		}
 		iommu = drhd->iommu;
 
 		iommu_flush_write_buffer(iommu);
@@ -3240,8 +3251,14 @@ static int device_notifier(struct notifier_block *nb,
 	if (!domain)
 		return 0;
 
-	if (action == BUS_NOTIFY_UNBOUND_DRIVER && !iommu_pass_through)
+	if (action == BUS_NOTIFY_UNBOUND_DRIVER && !iommu_pass_through) {
 		domain_remove_one_dev_info(domain, pdev);
+
+		if (!(domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) &&
+		    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY) &&
+		    list_empty(&domain->devices))
+			domain_exit(domain);
+	}
 
 	return 0;
 }
@@ -3277,12 +3294,21 @@ int __init intel_iommu_init(void)
 	if (no_iommu || dmar_disabled)
 		return -ENODEV;
 
-	iommu_init_mempool();
-	dmar_init_reserved_ranges();
+	if (iommu_init_mempool()) {
+		if (force_on)
+			panic("tboot: Failed to initialize iommu memory\n");
+		return 	-ENODEV;
+	}
+
+	if (dmar_init_reserved_ranges()) {
+		if (force_on)
+			panic("tboot: Failed to reserve iommu ranges\n");
+		return 	-ENODEV;
+	}
 
 	init_no_remapping_devices();
 
-	ret = init_dmars();
+	ret = init_dmars(force_on);
 	if (ret) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMARs\n");
@@ -3391,6 +3417,11 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 		domain->iommu_count--;
 		domain_update_iommu_cap(domain);
 		spin_unlock_irqrestore(&domain->iommu_lock, tmp_flags);
+
+		spin_lock_irqsave(&iommu->lock, tmp_flags);
+		clear_bit(domain->id, iommu->domain_ids);
+		iommu->domains[domain->id] = NULL;
+		spin_unlock_irqrestore(&iommu->lock, tmp_flags);
 	}
 
 	spin_unlock_irqrestore(&device_domain_lock, flags);
@@ -3607,9 +3638,9 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 
 		pte = dmar_domain->pgd;
 		if (dma_pte_present(pte)) {
-			free_pgtable_page(dmar_domain->pgd);
 			dmar_domain->pgd = (struct dma_pte *)
 				phys_to_virt(dma_pte_addr(pte));
+			free_pgtable_page(pte);
 		}
 		dmar_domain->agaw--;
 	}
