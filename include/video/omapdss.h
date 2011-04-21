@@ -214,6 +214,8 @@ int omap_rfbi_enable_te(bool enable, unsigned line);
 int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
 			     unsigned hs_pulse_time, unsigned vs_pulse_time,
 			     int hs_pol_inv, int vs_pol_inv, int extif_div);
+void rfbi_bus_lock(void);
+void rfbi_bus_unlock(void);
 
 /* DSI */
 void dsi_bus_lock(struct omap_dss_device *dssdev);

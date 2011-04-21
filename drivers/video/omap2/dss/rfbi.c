@@ -32,6 +32,7 @@
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 #include <linux/seq_file.h>
+#include <linux/semaphore.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -119,6 +120,8 @@ static struct {
 	struct completion cmd_done;
 	atomic_t          cmd_fifo_full;
 	atomic_t          cmd_pending;
+
+	struct semaphore bus_lock;
 } rfbi;
 
 struct update_region {
@@ -145,6 +148,18 @@ static void rfbi_enable_clocks(bool enable)
 	else
 		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
+
+void rfbi_bus_lock(void)
+{
+	down(&rfbi.bus_lock);
+}
+EXPORT_SYMBOL(rfbi_bus_lock);
+
+void rfbi_bus_unlock(void)
+{
+	up(&rfbi.bus_lock);
+}
+EXPORT_SYMBOL(rfbi_bus_unlock);
 
 void omap_rfbi_write_command(const void *buf, u32 len)
 {
@@ -1022,6 +1037,7 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 	rfbi.pdev = pdev;
 
 	spin_lock_init(&rfbi.cmd_lock);
+	sema_init(&rfbi.bus_lock, 1);
 
 	init_completion(&rfbi.cmd_done);
 	atomic_set(&rfbi.cmd_fifo_full, 0);
