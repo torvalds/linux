@@ -5577,16 +5577,14 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
 	if (old->load_detect_temp) {
-		encoder->crtc = NULL;
 		connector->encoder = NULL;
-		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		drm_helper_disable_unused_functions(dev);
+		return;
 	}
 
 	/* Switch crtc and encoder back off if necessary */
-	if (crtc->enabled && old->dpms_mode != DRM_MODE_DPMS_ON) {
-		if (encoder->crtc == crtc)
-			encoder_funcs->dpms(encoder, old->dpms_mode);
+	if (old->dpms_mode != DRM_MODE_DPMS_ON) {
+		encoder_funcs->dpms(encoder, old->dpms_mode);
 		crtc_funcs->dpms(crtc, old->dpms_mode);
 	}
 }
