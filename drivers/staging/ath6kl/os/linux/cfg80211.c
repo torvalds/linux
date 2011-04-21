@@ -1209,10 +1209,10 @@ ar6k_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 
     if(pmgmt) {
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: Max Perf\n", __func__));
-        pwrMode.powerMode = MAX_PERF_POWER;
+        pwrMode.powerMode = REC_POWER;
     } else {
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: Rec Power\n", __func__));
-        pwrMode.powerMode = REC_POWER;
+        pwrMode.powerMode = MAX_PERF_POWER;
     }
 
     if(wmi_powermode_cmd(ar->arWmi, pwrMode.powerMode) != 0) {
