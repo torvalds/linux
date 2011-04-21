@@ -810,27 +810,24 @@ found_version:
 got_prop:
 #ifdef CONFIG_SPARC_LEON
 	        /* no cpu-type check is needed, it is a SPARC-LEON */
+
+		sethi	%hi(boot_cpu_id), %g2	! boot-cpu index
+
 #ifdef CONFIG_SMP
-		ba leon_smp_init
-		 nop
-
-		.global leon_smp_init
-leon_smp_init:
-		/* let boot_cpu_id default to 0 (master always 0) */
-
-		rd     %asr17,%g1
-		srl    %g1,28,%g1
-
-		cmp %g0,%g1
-		 beq sun4c_continue_boot         !continue with master
-		nop
-
-		ba leon_smp_cpu_startup
-		 nop
-#else
-		ba sun4c_continue_boot
+		ldub	[%g2 + %lo(boot_cpu_id)], %g1
+		cmp	%g1, 0xff		! unset means first CPU
+		bne	leon_smp_cpu_startup	! continue only with master
 		 nop
 #endif
+		/* Get CPU-ID from most significant 4-bit of ASR17 */
+		rd     %asr17, %g1
+		srl    %g1, 28, %g1
+
+		/* Update boot_cpu_id only on boot cpu */
+		stub	%g1, [%g2 + %lo(boot_cpu_id)]
+
+		ba sun4c_continue_boot
+		 nop
 #endif
 		set	cputypval, %o2
 		ldub	[%o2 + 0x4], %l1

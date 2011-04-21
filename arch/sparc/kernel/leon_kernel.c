@@ -20,6 +20,7 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
+#include <asm/setup.h>
 
 #include "prom.h"
 #include "irq.h"
@@ -53,7 +54,7 @@ static inline unsigned int leon_eirq_get(int cpu)
 static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int eirq;
-	int cpu = hard_smp_processor_id();
+	int cpu = sparc_leon3_cpuid();
 
 	eirq = leon_eirq_get(cpu);
 	if ((eirq & 0x10) && irq_map[eirq]->irq) /* bit4 tells if IRQ happened */
@@ -79,8 +80,8 @@ void leon_eirq_setup(unsigned int eirq)
 	 */
 	irq_link(veirq);
 	mask = 1 << eirq;
-	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(0));
-	LEON3_BYPASS_STORE_PA(LEON_IMASK(0), (oldmask | mask));
+	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(boot_cpu_id));
+	LEON3_BYPASS_STORE_PA(LEON_IMASK(boot_cpu_id), (oldmask | mask));
 	sparc_leon_eirq = eirq;
 }
 
@@ -106,12 +107,12 @@ static int irq_choose_cpu(const struct cpumask *affinity)
 
 	cpus_and(mask, cpu_online_map, *affinity);
 	if (cpus_equal(mask, cpu_online_map) || cpus_empty(mask))
-		return 0;
+		return boot_cpu_id;
 	else
 		return first_cpu(mask);
 }
 #else
-#define irq_choose_cpu(affinity) 0
+#define irq_choose_cpu(affinity) boot_cpu_id
 #endif
 
 static int leon_set_affinity(struct irq_data *data, const struct cpumask *dest,
@@ -241,7 +242,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	struct device_node *rootnp, *np, *nnp;
 	struct property *pp;
 	int len;
-	int cpu, icsel;
+	int icsel;
 	int ampopts;
 	int err;
 
@@ -340,9 +341,8 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	 * accessed anyway.
 	 * In AMP systems, Linux must run on CPU0 for the time being.
 	 */
-	cpu = sparc_leon3_cpuid();
-	icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[cpu/8]);
-	icsel = (icsel >> ((7 - (cpu&0x7)) * 4)) & 0xf;
+	icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[boot_cpu_id/8]);
+	icsel = (icsel >> ((7 - (boot_cpu_id&0x7)) * 4)) & 0xf;
 	leon3_irqctrl_regs += icsel;
 
 	/* Probe extended IRQ controller */
