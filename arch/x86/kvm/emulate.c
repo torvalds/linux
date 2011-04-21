@@ -4092,7 +4092,7 @@ twobyte_insn:
 		rc = em_clts(ctxt);
 		break;
 	case 0x09:		/* wbinvd */
-		ctxt->ops->wbinvd(ctxt);
+		(ctxt->ops->wbinvd)(ctxt);
 		break;
 	case 0x08:		/* invd */
 	case 0x0d:		/* GrpP (prefetch) */
