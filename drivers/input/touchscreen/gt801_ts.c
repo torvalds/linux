@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/earlysuspend.h>
@@ -210,7 +211,10 @@ static void gt801_ts_work_func(struct work_struct *work)
 			x = ((( ((unsigned short)buf[i+ptxh] )<< 8) ) | buf[i+ptxl]);
 			y = (((((unsigned short)buf[i+ptyh] )<< 8) )| buf[i+ptyl]);
 			/* adjust the x and y to proper value  added by hhb@rock-chips.com*/
-			x = 480-x;
+			if(x < 480){
+				x = 480-x;
+			}
+
 			if(y < 800){
 				y = 800-y;
 			}
@@ -260,11 +264,12 @@ static enum hrtimer_restart gt801_ts_timer_func(struct hrtimer *timer)
 static irqreturn_t gt801_ts_irq_handler(int irq, void *dev_id)
 {
     struct gt801_ts_data *ts = dev_id;
-	gt801printk("%s=%d,%d\n",__FUNCTION__,ts->client->irq,ts->use_irq);
+    gt801printk("%s=%d,%d\n",__FUNCTION__,ts->client->irq,ts->use_irq);
 	
-	//if (ts->use_irq)
+	if(ts->use_irq){
     	disable_irq_nosync(ts->client->irq);
-    queue_work(gt801_wq, &ts->work);
+	}
+	queue_work(gt801_wq, &ts->work);
     return IRQ_HANDLED;
 }
 static int __devinit setup_resetPin(struct i2c_client *client, struct gt801_ts_data *ts)
@@ -572,6 +577,17 @@ static int gt801_ts_suspend(struct i2c_client *client, pm_message_t mesg)
     return 0;
 }
 
+
+static void gt801_ts_resume_work_func(struct work_struct *work)
+{
+	struct gt801_ts_data *ts = container_of(work, struct gt801_ts_data, work);
+	msleep(50);    //touch panel will generate an interrupt when it sleeps out,so as to avoid tihs by delaying 50ms
+	enable_irq(ts->client->irq);
+	PREPARE_WORK(&ts->work, gt801_ts_work_func);
+	printk("enabling gt801_ts IRQ %d\n", ts->client->irq);
+}
+
+
 static int gt801_ts_resume(struct i2c_client *client)
 {
     struct gt801_ts_data *ts = i2c_get_clientdata(client);
@@ -581,13 +597,16 @@ static int gt801_ts_resume(struct i2c_client *client)
     printk("gt801 TS Resume\n");
 	
     gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	msleep(50);
+	
     if (ts->use_irq) {
-        printk("enabling IRQ %d\n", client->irq);
-        enable_irq(client->irq);
+        if(!work_pending(&ts->work)){
+        	PREPARE_WORK(&ts->work, gt801_ts_resume_work_func);
+        	queue_work(gt801_wq, &ts->work);
+        }
     }
-    else
+    else {
         hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+    }
 
     return 0;
 }
