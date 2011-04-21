@@ -877,44 +877,7 @@ static struct irq_chip gpio_irq_chip = {
 
 #ifdef CONFIG_ARCH_OMAP1
 
-/* MPUIO uses the always-on 32k clock */
-
-static void mpuio_ack_irq(struct irq_data *d)
-{
-	/* The ISR is reset automatically, so do nothing here. */
-}
-
-static void mpuio_mask_irq(struct irq_data *d)
-{
-	unsigned int gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-
-	_set_gpio_irqenable(bank, gpio, 0);
-}
-
-static void mpuio_unmask_irq(struct irq_data *d)
-{
-	unsigned int gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-
-	_set_gpio_irqenable(bank, gpio, 1);
-}
-
-static struct irq_chip mpuio_irq_chip = {
-	.name		= "MPUIO",
-	.irq_ack	= mpuio_ack_irq,
-	.irq_mask	= mpuio_mask_irq,
-	.irq_unmask	= mpuio_unmask_irq,
-	.irq_set_type	= gpio_irq_type,
-#ifdef CONFIG_ARCH_OMAP16XX
-	/* REVISIT: assuming only 16xx supports MPUIO wake events */
-	.irq_set_wake	= gpio_wake_enable,
-#endif
-};
-
-
 #define bank_is_mpuio(bank)	((bank)->method == METHOD_MPUIO)
-
 
 #ifdef CONFIG_ARCH_OMAP16XX
 
@@ -987,8 +950,6 @@ static inline void mpuio_init(void) {}
 #endif	/* 16xx */
 
 #else
-
-extern struct irq_chip mpuio_irq_chip;
 
 #define bank_is_mpuio(bank)	0
 static inline void mpuio_init(void) {}
@@ -1189,6 +1150,30 @@ static void omap_gpio_mod_init(struct gpio_bank *bank, int id)
 	}
 }
 
+static __init void
+omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
+		    unsigned int num)
+{
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+
+	gc = irq_alloc_generic_chip("MPUIO", 1, irq_start, bank->base,
+				    handle_simple_irq);
+	ct = gc->chip_types;
+
+	/* NOTE: No ack required, reading IRQ status clears it. */
+	ct->chip.irq_mask = irq_gc_mask_set_bit;
+	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
+	ct->chip.irq_set_type = gpio_irq_type;
+	/* REVISIT: assuming only 16xx supports MPUIO wake events */
+	if (cpu_is_omap16xx())
+		ct->chip.irq_set_wake = gpio_wake_enable,
+
+	ct->regs.mask = OMAP_MPUIO_GPIO_INT / bank->stride;
+	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+}
+
 static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
 {
 	int j;
@@ -1226,12 +1211,13 @@ static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
 		     j < bank->virtual_irq_start + bank->width; j++) {
 		irq_set_lockdep_class(j, &gpio_lock_class);
 		irq_set_chip_data(j, bank);
-		if (bank_is_mpuio(bank))
-			irq_set_chip(j, &mpuio_irq_chip);
-		else
+		if (bank_is_mpuio(bank)) {
+			omap_mpuio_alloc_gc(bank, j, bank->width);
+		} else {
 			irq_set_chip(j, &gpio_irq_chip);
-		irq_set_handler(j, handle_simple_irq);
-		set_irq_flags(j, IRQF_VALID);
+			irq_set_handler(j, handle_simple_irq);
+			set_irq_flags(j, IRQF_VALID);
+		}
 	}
 	irq_set_chained_handler(bank->irq, gpio_irq_handler);
 	irq_set_handler_data(bank->irq, bank);
