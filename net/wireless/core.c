@@ -46,6 +46,11 @@ static struct dentry *ieee80211_debugfs_dir;
 /* for the cleanup, scan and event works */
 struct workqueue_struct *cfg80211_wq;
 
+static bool cfg80211_disable_40mhz_24ghz;
+module_param(cfg80211_disable_40mhz_24ghz, bool, 0644);
+MODULE_PARM_DESC(cfg80211_disable_40mhz_24ghz,
+		 "Disable 40MHz support in the 2.4GHz band");
+
 /* requires cfg80211_mutex to be held! */
 struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 {
@@ -449,6 +454,18 @@ int wiphy_register(struct wiphy *wiphy)
 
 		if (WARN_ON(!sband->n_channels || !sband->n_bitrates))
 			return -EINVAL;
+
+		/*
+		 * Since cfg80211_disable_40mhz_24ghz is global, we can
+		 * modify the sband's ht data even if the driver uses a
+		 * global structure for that.
+		 */
+		if (cfg80211_disable_40mhz_24ghz &&
+		    band == IEEE80211_BAND_2GHZ &&
+		    sband->ht_cap.ht_supported) {
+			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+		}
 
 		/*
 		 * Since we use a u32 for rate bitmaps in
