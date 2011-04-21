@@ -1044,7 +1044,7 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 		dc->out->enable();
 
 	tegra_dc_setup_clk(dc, dc->clk);
-
+	tegra_periph_reset_assert(dc->clk);
 	clk_enable(dc->clk);
 	clk_enable(dc->emc_clk);
 	tegra_periph_reset_deassert(dc->clk);
@@ -1119,14 +1119,12 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	dev_warn(&dc->ndev->dev, "overlay stuck in underflow state.  resetting.\n");
 
 	mutex_lock(&dc->lock);
-	_tegra_dc_disable(dc);
+	if (dc->enabled && !dc->suspended) {
+		_tegra_dc_disable(dc);
 
-	msleep(100);
-	tegra_periph_reset_assert(dc->clk);
-
-	/* _tegra_dc_enable deasserts reset */
-	_tegra_dc_enable(dc);
-
+		/* _tegra_dc_enable deasserts reset */
+		_tegra_dc_enable(dc);
+	}
 	mutex_unlock(&dc->lock);
 }
 
