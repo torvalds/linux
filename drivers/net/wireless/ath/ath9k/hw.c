@@ -2430,11 +2430,11 @@ EXPORT_SYMBOL(ath_gen_timer_alloc);
 
 void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 			      struct ath_gen_timer *timer,
-			      u32 timer_next,
+			      u32 trig_timeout,
 			      u32 timer_period)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
-	u32 tsf;
+	u32 tsf, timer_next;
 
 	BUG_ON(!timer_period);
 
@@ -2442,16 +2442,11 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 
 	tsf = ath9k_hw_gettsf32(ah);
 
+	timer_next = tsf + trig_timeout;
+
 	ath_dbg(ath9k_hw_common(ah), ATH_DBG_HWTIMER,
 		"current tsf %x period %x timer_next %x\n",
 		tsf, timer_period, timer_next);
-
-	/*
-	 * Pull timer_next forward if the current TSF already passed it
-	 * because of software latency
-	 */
-	if (timer_next < tsf)
-		timer_next = tsf + timer_period;
 
 	/*
 	 * Program generic timer registers
