@@ -63,9 +63,6 @@ static void netvsc_send_completion(struct hv_device *device,
 static void netvsc_receive(struct hv_device *device,
 			    struct vmpacket_descriptor *packet);
 
-static void netvsc_send_recv_completion(struct hv_device *device,
-					u64 transaction_id);
-
 
 static struct netvsc_device *alloc_net_device(struct hv_device *device)
 {
@@ -835,6 +832,48 @@ static int netvsc_send(struct hv_device *device,
 	return ret;
 }
 
+static void netvsc_send_recv_completion(struct hv_device *device,
+					u64 transaction_id)
+{
+	struct nvsp_message recvcompMessage;
+	int retries = 0;
+	int ret;
+
+	recvcompMessage.hdr.msg_type =
+				NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE;
+
+	/* FIXME: Pass in the status */
+	recvcompMessage.msg.v1_msg.send_rndis_pkt_complete.status =
+		NVSP_STAT_SUCCESS;
+
+retry_send_cmplt:
+	/* Send the completion */
+	ret = vmbus_sendpacket(device->channel, &recvcompMessage,
+			       sizeof(struct nvsp_message), transaction_id,
+			       VM_PKT_COMP, 0);
+	if (ret == 0) {
+		/* success */
+		/* no-op */
+	} else if (ret == -1) {
+		/* no more room...wait a bit and attempt to retry 3 times */
+		retries++;
+		dev_err(&device->device, "unable to send receive completion pkt"
+			" (tid %llx)...retrying %d", transaction_id, retries);
+
+		if (retries < 4) {
+			udelay(100);
+			goto retry_send_cmplt;
+		} else {
+			dev_err(&device->device, "unable to send receive "
+				"completion pkt (tid %llx)...give up retrying",
+				transaction_id);
+		}
+	} else {
+		dev_err(&device->device, "unable to send receive "
+			"completion pkt - %llx", transaction_id);
+	}
+}
+
 /* Send a receive completion packet to RNDIS device (ie NetVsp) */
 static void netvsc_receive_completion(void *context)
 {
@@ -1067,48 +1106,6 @@ static void netvsc_receive(struct hv_device *device,
 	}
 
 	put_net_device(device);
-}
-
-static void netvsc_send_recv_completion(struct hv_device *device,
-					u64 transaction_id)
-{
-	struct nvsp_message recvcompMessage;
-	int retries = 0;
-	int ret;
-
-	recvcompMessage.hdr.msg_type =
-				NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE;
-
-	/* FIXME: Pass in the status */
-	recvcompMessage.msg.v1_msg.send_rndis_pkt_complete.status =
-		NVSP_STAT_SUCCESS;
-
-retry_send_cmplt:
-	/* Send the completion */
-	ret = vmbus_sendpacket(device->channel, &recvcompMessage,
-			       sizeof(struct nvsp_message), transaction_id,
-			       VM_PKT_COMP, 0);
-	if (ret == 0) {
-		/* success */
-		/* no-op */
-	} else if (ret == -1) {
-		/* no more room...wait a bit and attempt to retry 3 times */
-		retries++;
-		dev_err(&device->device, "unable to send receive completion pkt"
-			" (tid %llx)...retrying %d", transaction_id, retries);
-
-		if (retries < 4) {
-			udelay(100);
-			goto retry_send_cmplt;
-		} else {
-			dev_err(&device->device, "unable to send receive "
-				"completion pkt (tid %llx)...give up retrying",
-				transaction_id);
-		}
-	} else {
-		dev_err(&device->device, "unable to send receive "
-			"completion pkt - %llx", transaction_id);
-	}
 }
 
 static void netvsc_channel_cb(void *context)
