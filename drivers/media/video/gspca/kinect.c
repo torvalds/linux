@@ -233,7 +233,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->cam_tag = 0;
 
-	/* Only color camera is supported for now,
+	/* Only video stream is supported for now,
 	 * which has stream flag = 0x80 */
 	sd->stream_flag = 0x80;
 
@@ -243,7 +243,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(video_camera_mode);
 
 #if 0
-	/* Setting those values is not needed for color camera */
+	/* Setting those values is not needed for video stream */
 	cam->npkt = 15;
 	gspca_dev->pkt_size = 960 * 2;
 #endif
