@@ -21,7 +21,7 @@
 #include <linux/ath9k_platform.h>
 #include "ath9k.h"
 
-const struct platform_device_id ath9k_platform_id_table[] = {
+static const struct platform_device_id ath9k_platform_id_table[] = {
 	{
 		.name = "ath9k",
 		.driver_data = AR5416_AR9100_DEVID,
