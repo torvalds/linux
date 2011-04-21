@@ -57,7 +57,15 @@ struct ip_options {
 	unsigned char	__data[0];
 };
 
-#define optlength(opt) (sizeof(struct ip_options) + opt->optlen)
+struct ip_options_rcu {
+	struct rcu_head rcu;
+	struct ip_options opt;
+};
+
+struct ip_options_data {
+	struct ip_options_rcu	opt;
+	char			data[40];
+};
 
 struct inet_request_sock {
 	struct request_sock	req;
@@ -78,7 +86,7 @@ struct inet_request_sock {
 				acked	   : 1,
 				no_srccheck: 1;
 	kmemcheck_bitfield_end(flags);
-	struct ip_options	*opt;
+	struct ip_options_rcu	*opt;
 };
 
 static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
@@ -140,7 +148,7 @@ struct inet_sock {
 	__be16			inet_sport;
 	__u16			inet_id;
 
-	struct ip_options	*opt;
+	struct ip_options_rcu __rcu	*inet_opt;
 	__u8			tos;
 	__u8			min_ttl;
 	__u8			mc_ttl;

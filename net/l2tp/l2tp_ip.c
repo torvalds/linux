@@ -416,7 +416,6 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 	int rc;
 	struct l2tp_ip_sock *lsa = l2tp_ip_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options *opt = inet->opt;
 	struct rtable *rt = NULL;
 	int connected = 0;
 	__be32 daddr;
@@ -471,9 +470,14 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 		rt = (struct rtable *) __sk_dst_check(sk, 0);
 
 	if (rt == NULL) {
+		struct ip_options_rcu *inet_opt;
+
+		inet_opt = rcu_dereference_protected(inet->inet_opt,
+						     sock_owned_by_user(sk));
+
 		/* Use correct destination address if we have options. */
-		if (opt && opt->srr)
-			daddr = opt->faddr;
+		if (inet_opt && inet_opt->opt.srr)
+			daddr = inet_opt->opt.faddr;
 
 		/* If this fails, retransmit mechanism of transport layer will
 		 * keep trying until route appears or the connection times

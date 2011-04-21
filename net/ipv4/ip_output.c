@@ -140,14 +140,14 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst)
  *
  */
 int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
-			  __be32 saddr, __be32 daddr, struct ip_options *opt)
+			  __be32 saddr, __be32 daddr, struct ip_options_rcu *opt)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = skb_rtable(skb);
 	struct iphdr *iph;
 
 	/* Build the IP header. */
-	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->opt.optlen : 0));
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 	iph->version  = 4;
@@ -163,9 +163,9 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	iph->protocol = sk->sk_protocol;
 	ip_select_ident(iph, &rt->dst, sk);
 
-	if (opt && opt->optlen) {
-		iph->ihl += opt->optlen>>2;
-		ip_options_build(skb, opt, daddr, rt, 0);
+	if (opt && opt->opt.optlen) {
+		iph->ihl += opt->opt.optlen>>2;
+		ip_options_build(skb, &opt->opt, daddr, rt, 0);
 	}
 
 	skb->priority = sk->sk_priority;
@@ -316,7 +316,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options *opt = inet->opt;
+	struct ip_options_rcu *inet_opt;
 	struct rtable *rt;
 	struct iphdr *iph;
 	int res;
@@ -325,6 +325,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 	 * f.e. by something like SCTP.
 	 */
 	rcu_read_lock();
+	inet_opt = rcu_dereference(inet->inet_opt);
 	rt = skb_rtable(skb);
 	if (rt != NULL)
 		goto packet_routed;
@@ -336,8 +337,8 @@ int ip_queue_xmit(struct sk_buff *skb)
 
 		/* Use correct destination address if we have options. */
 		daddr = inet->inet_daddr;
-		if(opt && opt->srr)
-			daddr = opt->faddr;
+		if (inet_opt && inet_opt->opt.srr)
+			daddr = inet_opt->opt.faddr;
 
 		/* If this fails, retransmit mechanism of transport layer will
 		 * keep trying until route appears or the connection times
@@ -357,11 +358,11 @@ int ip_queue_xmit(struct sk_buff *skb)
 	skb_dst_set_noref(skb, &rt->dst);
 
 packet_routed:
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_dst != rt->rt_gateway)
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
-	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_push(skb, sizeof(struct iphdr) + (inet_opt ? inet_opt->opt.optlen : 0));
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
@@ -375,9 +376,9 @@ packet_routed:
 	iph->daddr    = rt->rt_dst;
 	/* Transport layer set skb->h.foo itself. */
 
-	if (opt && opt->optlen) {
-		iph->ihl += opt->optlen >> 2;
-		ip_options_build(skb, opt, inet->inet_daddr, rt, 0);
+	if (inet_opt && inet_opt->opt.optlen) {
+		iph->ihl += inet_opt->opt.optlen >> 2;
+		ip_options_build(skb, &inet_opt->opt, inet->inet_daddr, rt, 0);
 	}
 
 	ip_select_ident_more(iph, &rt->dst, sk,
@@ -1033,7 +1034,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			 struct ipcm_cookie *ipc, struct rtable **rtp)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options *opt;
+	struct ip_options_rcu *opt;
 	struct rtable *rt;
 
 	/*
@@ -1047,7 +1048,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			if (unlikely(cork->opt == NULL))
 				return -ENOBUFS;
 		}
-		memcpy(cork->opt, opt, sizeof(struct ip_options) + opt->optlen);
+		memcpy(cork->opt, &opt->opt, sizeof(struct ip_options) + opt->opt.optlen);
 		cork->flags |= IPCORK_OPT;
 		cork->addr = ipc->addr;
 	}
@@ -1451,26 +1452,23 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 		   unsigned int len)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct {
-		struct ip_options	opt;
-		char			data[40];
-	} replyopts;
+	struct ip_options_data replyopts;
 	struct ipcm_cookie ipc;
 	__be32 daddr;
 	struct rtable *rt = skb_rtable(skb);
 
-	if (ip_options_echo(&replyopts.opt, skb))
+	if (ip_options_echo(&replyopts.opt.opt, skb))
 		return;
 
 	daddr = ipc.addr = rt->rt_src;
 	ipc.opt = NULL;
 	ipc.tx_flags = 0;
 
-	if (replyopts.opt.optlen) {
+	if (replyopts.opt.opt.optlen) {
 		ipc.opt = &replyopts.opt;
 
-		if (ipc.opt->srr)
-			daddr = replyopts.opt.faddr;
+		if (replyopts.opt.opt.srr)
+			daddr = replyopts.opt.opt.faddr;
 	}
 
 	{
