@@ -109,10 +109,10 @@ prom_console_write(struct console *con, const char *s, unsigned n)
 	prom_write(s, n);
 }
 
-static struct console prom_debug_console = {
-	.name =		"debug",
+static struct console prom_early_console = {
+	.name =		"earlyprom",
 	.write =	prom_console_write,
-	.flags =	CON_PRINTBUFFER,
+	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
 
@@ -133,8 +133,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Use PROM debug console. */
-		register_console(&prom_debug_console);
+		/* Just ignore, this behavior is now the default.  */
 		break;
 	default:
 		printk("Unknown boot switch (-%c)\n", c);
@@ -215,6 +214,10 @@ void __init setup_arch(char **cmdline_p)
 	strcpy(boot_command_line, *cmdline_p);
 	parse_early_param();
 
+	boot_flags_init(*cmdline_p);
+
+	register_console(&prom_early_console);
+
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
 	if (!strcmp(&cputypval[0], "sun4 "))
@@ -265,7 +268,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
-	boot_flags_init(*cmdline_p);
 
 	idprom_init();
 	if (ARCH_SUN4C)
