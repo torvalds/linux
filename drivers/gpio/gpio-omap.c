@@ -525,42 +525,24 @@ static inline void _set_gpio_irqenable(struct gpio_bank *bank, int gpio, int ena
  */
 static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 {
-	unsigned long uninitialized_var(flags);
+	u32 gpio_bit = GPIO_BIT(bank, gpio);
+	unsigned long flags;
 
-	switch (bank->method) {
-#ifdef CONFIG_ARCH_OMAP16XX
-	case METHOD_MPUIO:
-	case METHOD_GPIO_1610:
-		spin_lock_irqsave(&bank->lock, flags);
-		if (enable)
-			bank->suspend_wakeup |= (1 << gpio);
-		else
-			bank->suspend_wakeup &= ~(1 << gpio);
-		spin_unlock_irqrestore(&bank->lock, flags);
-		return 0;
-#endif
-#ifdef CONFIG_ARCH_OMAP2PLUS
-	case METHOD_GPIO_24XX:
-	case METHOD_GPIO_44XX:
-		if (bank->non_wakeup_gpios & (1 << gpio)) {
-			printk(KERN_ERR "Unable to modify wakeup on "
-					"non-wakeup GPIO%d\n",
-			       (bank - gpio_bank) * bank->width + gpio);
-			return -EINVAL;
-		}
-		spin_lock_irqsave(&bank->lock, flags);
-		if (enable)
-			bank->suspend_wakeup |= (1 << gpio);
-		else
-			bank->suspend_wakeup &= ~(1 << gpio);
-		spin_unlock_irqrestore(&bank->lock, flags);
-		return 0;
-#endif
-	default:
-		printk(KERN_ERR "Can't enable GPIO wakeup for method %i\n",
-		       bank->method);
+	if (bank->non_wakeup_gpios & gpio_bit) {
+		dev_err(bank->dev, 
+			"Unable to modify wakeup on non-wakeup GPIO%d\n", gpio);
 		return -EINVAL;
 	}
+
+	spin_lock_irqsave(&bank->lock, flags);
+	if (enable)
+		bank->suspend_wakeup |= gpio_bit;
+	else
+		bank->suspend_wakeup &= ~gpio_bit;
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+
+	return 0;
 }
 
 static void _reset_gpio(struct gpio_bank *bank, int gpio)
@@ -579,7 +561,7 @@ static int gpio_wake_enable(struct irq_data *d, unsigned int enable)
 	int retval;
 
 	bank = irq_data_get_irq_chip_data(d);
-	retval = _set_gpio_wakeup(bank, GPIO_INDEX(bank, gpio), enable);
+	retval = _set_gpio_wakeup(bank, gpio, enable);
 
 	return retval;
 }
