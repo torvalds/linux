@@ -828,6 +828,7 @@ enum {
 struct drbd_tconn {			/* is a resource from the config file */
 	char *name;			/* Resource name */
 	struct list_head all_tconn;	/* linked on global drbd_tconns */
+	struct kref kref;
 	struct idr volumes;		/* <tconn, vnr> to mdev mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
 	unsigned susp:1;		/* IO suspended by user */
@@ -1378,8 +1379,8 @@ extern int conn_lowest_minor(struct drbd_tconn *tconn);
 enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
 extern void drbd_delete_device(struct drbd_conf *mdev);
 
-struct drbd_tconn *drbd_new_tconn(const char *name);
-extern void drbd_free_tconn(struct drbd_tconn *tconn);
+struct drbd_tconn *conn_create(const char *name);
+extern void conn_destroy(struct kref *kref);
 struct drbd_tconn *conn_by_name(const char *name);
 extern void conn_free_crypto(struct drbd_tconn *tconn);
 

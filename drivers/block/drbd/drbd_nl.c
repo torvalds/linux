@@ -479,6 +479,7 @@ static int _try_outdate_peer_async(void *data)
 
 	conn_try_outdate_peer(tconn);
 
+	kref_put(&tconn->kref, &conn_destroy);
 	return 0;
 }
 
@@ -486,9 +487,12 @@ void conn_try_outdate_peer_async(struct drbd_tconn *tconn)
 {
 	struct task_struct *opa;
 
+	kref_get(&tconn->kref);
 	opa = kthread_run(_try_outdate_peer_async, tconn, "drbd_async_h");
-	if (IS_ERR(opa))
+	if (IS_ERR(opa)) {
 		conn_err(tconn, "out of mem, failed to invoke fence-peer helper\n");
+		kref_put(&tconn->kref, &conn_destroy);
+	}
 }
 
 enum drbd_state_rv
@@ -2627,7 +2631,7 @@ int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
 	 * on each iteration.
 	 */
 
-	/* synchronize with drbd_new_tconn/drbd_free_tconn */
+	/* synchronize with conn_create()/conn_destroy() */
 	down_read(&drbd_cfg_rwsem);
 	/* revalidate iterator position */
 	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
@@ -2932,7 +2936,7 @@ int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (!drbd_new_tconn(adm_ctx.conn_name))
+	if (!conn_create(adm_ctx.conn_name))
 		retcode = ERR_NOMEM;
 out:
 	drbd_adm_finish(info, retcode);
@@ -3005,10 +3009,6 @@ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
 	down_write(&drbd_cfg_rwsem);
 	retcode = adm_delete_minor(adm_ctx.mdev);
 	up_write(&drbd_cfg_rwsem);
-	/* if this was the last volume of this connection,
-	 * this will terminate all threads */
-	if (retcode == NO_ERROR)
-		conn_reconfig_done(adm_ctx.tconn);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
@@ -3078,7 +3078,9 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 
 	/* delete connection */
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
-		drbd_free_tconn(adm_ctx.tconn);
+		list_del(&adm_ctx.tconn->all_tconn);
+		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
+
 		retcode = NO_ERROR;
 	} else {
 		/* "can not happen" */
@@ -3107,7 +3109,9 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
 
 	down_write(&drbd_cfg_rwsem);
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
-		drbd_free_tconn(adm_ctx.tconn);
+		list_del(&adm_ctx.tconn->all_tconn);
+		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
+
 		retcode = NO_ERROR;
 	} else {
 		retcode = ERR_CONN_IN_USE;

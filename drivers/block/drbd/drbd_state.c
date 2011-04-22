@@ -1460,6 +1460,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 
 	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
 	after_all_state_ch(tconn);
+	kref_put(&tconn->kref, &conn_destroy);
 
 	return 0;
 }
@@ -1686,6 +1687,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 		acscw->ns_max = ns_max;
 		acscw->flags = flags;
 		acscw->w.cb = w_after_conn_state_ch;
+		kref_get(&tconn->kref);
 		acscw->w.tconn = tconn;
 		drbd_queue_work(&tconn->data.work, &acscw->w);
 	} else {
