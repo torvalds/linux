@@ -24,7 +24,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/tps65910.h>
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
