@@ -1080,7 +1080,7 @@ struct net_device {
 
 	/* Features valid for ethtool to change */
 	/* = all defined minus driver/device-class-related */
-#define NETIF_F_NEVER_CHANGE	(NETIF_F_HIGHDMA | NETIF_F_VLAN_CHALLENGED | \
+#define NETIF_F_NEVER_CHANGE	(NETIF_F_VLAN_CHALLENGED | \
 				  NETIF_F_LLTX | NETIF_F_NETNS_LOCAL)
 #define NETIF_F_ETHTOOL_BITS	(0x7f3fffff & ~NETIF_F_NEVER_CHANGE)
 
@@ -1098,6 +1098,7 @@ struct net_device {
 
 #define NETIF_F_ALL_TX_OFFLOADS	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
 				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
+				 NETIF_F_HIGHDMA | \
 				 NETIF_F_SCTP_CSUM | NETIF_F_FCOE_CRC)
 
 	/*
