@@ -288,12 +288,6 @@ config HID_MICROSOFT
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
-config HID_MOSART
-	tristate "MosArt dual-touch panels"
-	depends on USB_HID
-	---help---
-	Support for MosArt dual-touch panels.
-
 config HID_MONTEREY
 	tristate "Monterey Genius KB29E keyboard" if EXPERT
 	depends on USB_HID
@@ -313,6 +307,7 @@ config HID_MULTITOUCH
 	  - Cypress TrueTouch panels
 	  - Hanvon dual touch panels
 	  - IrTouch Infrared USB panels
+	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
 	  - Pixcir dual touch panels
 	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
