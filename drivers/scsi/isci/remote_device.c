@@ -100,13 +100,6 @@ enum sas_linkrate scic_remote_device_get_connection_rate(
 }
 
 
-void scic_remote_device_get_protocols(
-	struct scic_sds_remote_device *sci_dev,
-	struct smp_discover_response_protocols *pr)
-{
-	pr->u.all = sci_dev->target_protocols.u.all;
-}
-
 #if !defined(DISABLE_ATAPI)
 bool scic_remote_device_is_atapi(struct scic_sds_remote_device *sci_dev)
 {
@@ -1490,7 +1483,7 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
 {
 	enum sci_status status;
 	u16 remote_node_index;
-	struct sci_sas_identify_address_frame_protocols protocols;
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 
 	scic_remote_device_construct(sci_port, sci_dev);
 
@@ -1498,53 +1491,46 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
 	 * This information is request to determine how many remote node context
 	 * entries will be needed to store the remote node.
 	 */
-	scic_sds_port_get_attached_protocols(sci_dev->owning_port, &protocols);
-	sci_dev->target_protocols.u.all = protocols.u.all;
 	sci_dev->is_direct_attached = true;
-#if !defined(DISABLE_ATAPI)
-	sci_dev->is_atapi = scic_sds_remote_device_is_atapi(sci_dev);
-#endif
+	status = scic_sds_controller_allocate_remote_node_context(sci_port->owning_controller,
+								  sci_dev,
+								  &remote_node_index);
 
-	status = scic_sds_controller_allocate_remote_node_context(
-		sci_dev->owning_port->owning_controller,
-		sci_dev,
-		&remote_node_index);
+	if (status != SCI_SUCCESS)
+		return status;
 
-	if (status == SCI_SUCCESS) {
-		sci_dev->rnc.remote_node_index = remote_node_index;
+	sci_dev->rnc.remote_node_index = remote_node_index;
 
-		scic_sds_port_get_attached_sas_address(
-			sci_dev->owning_port, &sci_dev->device_address);
+	scic_sds_port_get_attached_sas_address(sci_port, &sci_dev->device_address);
 
-		if (sci_dev->target_protocols.u.bits.attached_ssp_target) {
-			sci_dev->has_ready_substate_machine = false;
-		} else if (sci_dev->target_protocols.u.bits.attached_stp_target) {
-			sci_dev->has_ready_substate_machine = true;
+	if (dev->dev_type == SAS_END_DEV)
+		sci_dev->has_ready_substate_machine = false;
+	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+		sci_dev->has_ready_substate_machine = true;
 
-			sci_base_state_machine_construct(
+		sci_base_state_machine_construct(
 				&sci_dev->ready_substate_machine,
 				&sci_dev->parent,
 				scic_sds_stp_remote_device_ready_substate_table,
 				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-		} else if (sci_dev->target_protocols.u.bits.attached_smp_target) {
-			sci_dev->has_ready_substate_machine = true;
+	} else if (dev_is_expander(dev)) {
+		sci_dev->has_ready_substate_machine = true;
 
-			/* add the SMP ready substate machine construction here */
-			sci_base_state_machine_construct(
+		/* add the SMP ready substate machine construction here */
+		sci_base_state_machine_construct(
 				&sci_dev->ready_substate_machine,
 				&sci_dev->parent,
 				scic_sds_smp_remote_device_ready_substate_table,
 				SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-		}
+	} else
+		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
-		sci_dev->connection_rate = scic_sds_port_get_max_allowed_speed(
-			sci_dev->owning_port);
+	sci_dev->connection_rate = scic_sds_port_get_max_allowed_speed(sci_port);
 
-		/* / @todo Should I assign the port width by reading all of the phys on the port? */
-		sci_dev->device_port_width = 1;
-	}
+	/* / @todo Should I assign the port width by reading all of the phys on the port? */
+	sci_dev->device_port_width = 1;
 
-	return status;
+	return SCI_SUCCESS;
 }
 
 static void scic_sds_remote_device_get_info_from_smp_discover_response(
@@ -1557,8 +1543,6 @@ static void scic_sds_remote_device_get_info_from_smp_discover_response(
 
 	sci_dev->device_address.low =
 		discover_response->attached_sas_address.low;
-
-	sci_dev->target_protocols.u.all = discover_response->protocols.u.all;
 }
 
 /**
@@ -1579,6 +1563,7 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 						       struct smp_response_discover *discover_response)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status;
 
 	scic_remote_device_construct(sci_port, sci_dev);
@@ -1588,43 +1573,42 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 
 	status = scic_sds_controller_allocate_remote_node_context(
 		scic, sci_dev, &sci_dev->rnc.remote_node_index);
+	if (status != SCI_SUCCESS)
+		return status;
 
-	if (status == SCI_SUCCESS) {
-		if (sci_dev->target_protocols.u.bits.attached_ssp_target) {
-			sci_dev->has_ready_substate_machine = false;
-		} else if (sci_dev->target_protocols.u.bits.attached_smp_target) {
-			sci_dev->has_ready_substate_machine = true;
+	if (dev->dev_type == SAS_END_DEV)
+		sci_dev->has_ready_substate_machine = false;
+	else if (dev_is_expander(dev)) {
+		sci_dev->has_ready_substate_machine = true;
 
-			/* add the SMP ready substate machine construction here */
-			sci_base_state_machine_construct(
+		/* add the SMP ready substate machine construction here */
+		sci_base_state_machine_construct(
 				&sci_dev->ready_substate_machine,
 				&sci_dev->parent,
 				scic_sds_smp_remote_device_ready_substate_table,
 				SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-		} else if (sci_dev->target_protocols.u.bits.attached_stp_target) {
-			sci_dev->has_ready_substate_machine = true;
+	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+		sci_dev->has_ready_substate_machine = true;
 
-			sci_base_state_machine_construct(
+		sci_base_state_machine_construct(
 				&sci_dev->ready_substate_machine,
 				&sci_dev->parent,
 				scic_sds_stp_remote_device_ready_substate_table,
 				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-		}
+	}
 
-		/*
-		 * For SAS-2 the physical link rate is actually a logical link
-		 * rate that incorporates multiplexing.  The SCU doesn't
-		 * incorporate multiplexing and for the purposes of the
-		 * connection the logical link rate is that same as the
-		 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
-		 * one another, so this code works for both situations. */
-		sci_dev->connection_rate = min_t(u16,
-			scic_sds_port_get_max_allowed_speed(sci_port),
+	/*
+	 * For SAS-2 the physical link rate is actually a logical link
+	 * rate that incorporates multiplexing.  The SCU doesn't
+	 * incorporate multiplexing and for the purposes of the
+	 * connection the logical link rate is that same as the
+	 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
+	 * one another, so this code works for both situations. */
+	sci_dev->connection_rate = min_t(u16, scic_sds_port_get_max_allowed_speed(sci_port),
 			discover_response->u2.sas1_1.negotiated_physical_link_rate);
 
-		/* / @todo Should I assign the port width by reading all of the phys on the port? */
-		sci_dev->device_port_width = 1;
-	}
+	/* / @todo Should I assign the port width by reading all of the phys on the port? */
+	sci_dev->device_port_width = 1;
 
 	return status;
 }
@@ -1665,7 +1649,7 @@ static enum sci_status isci_remote_device_construct(
 	enum sci_status status = SCI_SUCCESS;
 
 	if (isci_device->domain_dev->parent &&
-	    (isci_device->domain_dev->parent->dev_type == EDGE_DEV)) {
+	    dev_is_expander(isci_device->domain_dev->parent)) {
 		int i;
 
 		/* struct smp_response_discover discover_response; */

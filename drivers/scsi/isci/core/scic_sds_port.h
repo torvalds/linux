@@ -447,8 +447,4 @@ void scic_sds_port_get_attached_sas_address(
 	struct scic_sds_port *sci_port,
 	struct sci_sas_address *sas_address);
 
-void scic_sds_port_get_attached_protocols(
-	struct scic_sds_port *sci_port,
-	struct sci_sas_identify_address_frame_protocols *protocols);
-
 #endif /* _SCIC_SDS_PORT_H_ */

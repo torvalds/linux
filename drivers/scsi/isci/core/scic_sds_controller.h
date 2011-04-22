@@ -74,9 +74,9 @@
 #include "scic_sds_port.h"
 #include "scic_sds_phy.h"
 #include "remote_node_table.h"
+#include "remote_device.h"
 #include "scu_registers.h"
 #include "scu_constants.h"
-#include "scu_remote_node_context.h"
 #include "scu_task_context.h"
 #include "scu_unsolicited_frame.h"
 #include "scic_sds_unsolicited_frame_control.h"
@@ -498,14 +498,16 @@ enum scic_sds_controller_states {
 #define scic_sds_io_sequence_increment(value) \
 	((value) = (((value) + 1) & 0x000F))
 
-#define scic_sds_remote_device_node_count(device) \
-	(\
-		(\
-			(device)->target_protocols.u.bits.attached_stp_target \
-			&& ((device)->is_direct_attached != true) \
-		) \
-		? SCU_STP_REMOTE_NODE_COUNT : SCU_SSP_REMOTE_NODE_COUNT	\
-	)
+/* expander attached sata devices require 3 rnc slots */
+static inline int scic_sds_remote_device_node_count(struct scic_sds_remote_device *sci_dev)
+{
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+
+	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
+	    !sci_dev->is_direct_attached)
+		return SCU_STP_REMOTE_NODE_COUNT;
+	return SCU_SSP_REMOTE_NODE_COUNT;
+}
 
 /**
  * scic_sds_controller_set_invalid_phy() -

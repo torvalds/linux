@@ -100,11 +100,6 @@ struct scic_sds_remote_device {
 	enum sas_linkrate connection_rate;
 
 	/**
-	 * This field contains the allowed target protocols for this remote device.
-	 */
-	struct smp_discover_response_protocols target_protocols;
-
-	/**
 	 * This field contains the device SAS address.
 	 */
 	struct sci_sas_address device_address;
@@ -263,23 +258,6 @@ enum sci_status scic_remote_device_reset_complete(
  */
 enum sas_linkrate scic_remote_device_get_connection_rate(
 	struct scic_sds_remote_device *remote_device);
-
-/**
- * scic_remote_device_get_protocols() - This method will indicate which
- *    protocols are supported by this remote device.
- * @remote_device: This parameter specifies the device for which to return the
- *    protocol.
- * @protocols: This parameter specifies the output values, from the remote
- *    device object, which indicate the protocols supported by the supplied
- *    remote_device.
- *
- * The type of protocols supported by this device.  The values are returned as
- * part of a bit mask in order to allow for multi-protocol support.
- */
-void scic_remote_device_get_protocols(
-	struct scic_sds_remote_device *remote_device,
-	struct smp_discover_response_protocols *protocols);
-
 
 #if !defined(DISABLE_ATAPI)
 /**
@@ -475,6 +453,18 @@ static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_n
 	sci_dev = container_of(rnc, typeof(*sci_dev), rnc);
 
 	return sci_dev;
+}
+
+static inline struct domain_device *sci_dev_to_domain(struct scic_sds_remote_device *sci_dev)
+{
+	struct isci_remote_device *idev = container_of(sci_dev, typeof(*idev), sci);
+
+	return idev->domain_dev;
+}
+
+static inline bool dev_is_expander(struct domain_device *dev)
+{
+	return dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV;
 }
 
 typedef enum sci_status (*scic_sds_remote_device_request_handler_t)(

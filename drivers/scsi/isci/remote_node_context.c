@@ -106,8 +106,9 @@ bool scic_sds_remote_node_context_is_ready(
 static void scic_sds_remote_node_context_construct_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
-	union scu_remote_node_context *rnc;
 	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	union scu_remote_node_context *rnc;
 	struct scic_sds_controller *scic;
 
 	scic = scic_sds_remote_device_get_controller(sci_dev);
@@ -134,11 +135,7 @@ static void scic_sds_remote_node_context_construct_buffer(
 
 	rnc->ssp.arbitration_wait_time = 0;
 
-
-	if (
-		sci_dev->target_protocols.u.bits.attached_sata_device
-		|| sci_dev->target_protocols.u.bits.attached_stp_target
-		) {
+	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		rnc->ssp.connection_occupancy_timeout =
 			scic->user_parameters.sds1.stp_max_occupancy_timeout;
 		rnc->ssp.connection_inactivity_timeout =
@@ -639,45 +636,30 @@ static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_ha
 	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter)
 {
-	enum sci_status status;
-	struct smp_discover_response_protocols protocols;
+	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	enum sci_status status = SCI_SUCCESS;
 
-	scic_sds_remote_node_context_setup_to_resume(
-		sci_rnc, callback, callback_parameter
-		);
+	scic_sds_remote_node_context_setup_to_resume(sci_rnc, callback,
+						     callback_parameter);
 
 	/* TODO: consider adding a resume action of NONE, INVALIDATE, WRITE_TLCR */
-
-	scic_remote_device_get_protocols(rnc_to_dev(sci_rnc), &protocols);
-
-	if (
-		(protocols.u.bits.attached_ssp_target == 1)
-		|| (protocols.u.bits.attached_smp_target == 1)
-		) {
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE
-			);
-
-		status = SCI_SUCCESS;
-	} else if (protocols.u.bits.attached_stp_target == 1) {
-		if (rnc_to_dev(sci_rnc)->is_direct_attached) {
+	if (dev->dev_type == SAS_END_DEV || dev_is_expander(dev))
+		sci_base_state_machine_change_state(&sci_rnc->state_machine,
+						    SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
+	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+		if (sci_dev->is_direct_attached) {
 			/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
 			sci_base_state_machine_change_state(
 				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE
-				);
+				SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
 		} else {
 			sci_base_state_machine_change_state(
 				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE
-				);
+				SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE);
 		}
-
-		status = SCI_SUCCESS;
-	} else {
+	} else
 		status = SCI_FAILURE;
-	}
 
 	return status;
 }
@@ -932,6 +914,7 @@ static void scic_sds_remote_node_context_validate_context_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
 	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	union scu_remote_node_context *rnc_buffer;
 
 	rnc_buffer = scic_sds_controller_get_remote_node_context_buffer(
@@ -942,7 +925,7 @@ static void scic_sds_remote_node_context_validate_context_buffer(
 	rnc_buffer->ssp.is_valid = true;
 
 	if (!sci_dev->is_direct_attached &&
-	    sci_dev->target_protocols.u.bits.attached_stp_target) {
+	    (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))) {
 		scic_sds_remote_device_post_request(sci_dev,
 						    SCU_CONTEXT_COMMAND_POST_RNC_96);
 	} else {
@@ -1063,11 +1046,12 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 	struct sci_base_object *object)
 {
 	struct scic_sds_remote_node_context *rnc;
-	struct smp_discover_response_protocols protocols;
 	struct scic_sds_remote_device *sci_dev;
+	struct domain_device *dev;
 
 	rnc = (struct scic_sds_remote_node_context *)object;
 	sci_dev = rnc_to_dev(rnc);
+	dev = sci_dev_to_domain(sci_dev);
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1081,13 +1065,10 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 	 * resume because of a target reset we also need to update
 	 * the STPTLDARNI register with the RNi of the device
 	 */
-	scic_remote_device_get_protocols(sci_dev, &protocols);
-
-	if (protocols.u.bits.attached_stp_target == 1 &&
-	    sci_dev->is_direct_attached) {
+	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
+	    sci_dev->is_direct_attached)
 		scic_sds_port_setup_transports(sci_dev->owning_port,
 					       rnc->remote_node_index);
-	}
 
 	scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }

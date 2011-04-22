@@ -273,15 +273,14 @@ static enum sci_status isci_task_request_build(
 	enum sci_status status = SCI_FAILURE;
 	struct isci_request *request = NULL;
 	struct isci_remote_device *isci_device;
-/*	struct sci_sas_identify_address_frame_protocols dev_protocols; */
-	struct smp_discover_response_protocols dev_protocols;
-
+	struct domain_device *dev;
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_tmf = %p\n", __func__, isci_tmf);
 
 	isci_device = isci_tmf->device;
 	sci_device = &isci_device->sci;
+	dev = isci_device->domain_dev;
 
 	/* do common allocation and init of request object. */
 	status = isci_request_alloc_tmf(
@@ -319,16 +318,8 @@ static enum sci_status isci_task_request_build(
 		request
 		);
 
-	scic_remote_device_get_protocols(
-		sci_device,
-		&dev_protocols
-		);
-
-	/* let the core do it's protocol
-	 * specific construction.
-	 */
-	if (dev_protocols.u.bits.attached_ssp_target) {
-
+	/* XXX convert to get this from task->tproto like other drivers */
+	if (dev->dev_type == SAS_END_DEV) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
 		status = scic_task_request_construct_ssp(
 			request->sci_request_handle
@@ -337,8 +328,7 @@ static enum sci_status isci_task_request_build(
 			goto errout;
 	}
 
-	if (dev_protocols.u.bits.attached_stp_target) {
-
+	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		isci_tmf->proto = SAS_PROTOCOL_SATA;
 		status = isci_sata_management_task_request_build(request);
 

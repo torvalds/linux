@@ -175,7 +175,6 @@ static enum sci_status isci_io_request_build(
 	struct isci_request *request,
 	struct isci_remote_device *isci_device)
 {
-	struct smp_discover_response_protocols dev_protocols;
 	enum sci_status status = SCI_SUCCESS;
 	struct sas_task *task = isci_request_access_task(request);
 	struct scic_sds_remote_device *sci_device = &isci_device->sci;
@@ -228,15 +227,19 @@ static enum sci_status isci_io_request_build(
 
 	sci_object_set_association(request->sci_request_handle, request);
 
-	/* Determine protocol and call the appropriate basic constructor */
-	scic_remote_device_get_protocols(sci_device, &dev_protocols);
-	if (dev_protocols.u.bits.attached_ssp_target)
-		status = isci_request_ssp_request_construct(request);
-	else if (dev_protocols.u.bits.attached_stp_target)
-		status = isci_request_stp_request_construct(request);
-	else if (dev_protocols.u.bits.attached_smp_target)
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SMP:
 		status = isci_smp_request_build(request);
-	else {
+		break;
+	case SAS_PROTOCOL_SSP:
+		status = isci_request_ssp_request_construct(request);
+		break;
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		status = isci_request_stp_request_construct(request);
+		break;
+	default:
 		dev_warn(&isci_host->pdev->dev,
 			 "%s: unknown protocol\n", __func__);
 		return SCI_FAILURE;

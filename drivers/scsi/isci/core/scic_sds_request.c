@@ -1758,8 +1758,8 @@ enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
 					  struct scic_sds_request *sci_req,
 					  struct scic_sds_request **new_scic_io_request_handle)
 {
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status = SCI_SUCCESS;
-	struct smp_discover_response_protocols device_protocol;
 
 	/* Build the common part of the request */
 	scic_sds_general_request_construct(scic, sci_dev, io_tag,
@@ -1768,19 +1768,16 @@ enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
 	if (sci_dev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
-	scic_remote_device_get_protocols(sci_dev, &device_protocol);
-
-	if (device_protocol.u.bits.attached_ssp_target) {
+	if (dev->dev_type == SAS_END_DEV) {
 		scic_sds_ssp_io_request_assign_buffers(sci_req);
-	} else if (device_protocol.u.bits.attached_stp_target) {
+	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		scic_sds_stp_request_assign_buffers(sci_req);
 		memset(sci_req->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
-	} else if (device_protocol.u.bits.attached_smp_target) {
+	} else if (dev_is_expander(dev)) {
 		scic_sds_smp_request_assign_buffers(sci_req);
 		memset(sci_req->command_buffer, 0, sizeof(struct smp_request));
-	} else {
+	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	}
 
 	if (status == SCI_SUCCESS) {
 		memset(sci_req->task_context_buffer, 0,
@@ -1798,17 +1795,15 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 					    struct scic_sds_request *sci_req,
 					    struct scic_sds_request **new_sci_req)
 {
+	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status = SCI_SUCCESS;
-	struct smp_discover_response_protocols device_protocol;
 
 	/* Build the common part of the request */
 	scic_sds_general_request_construct(scic, sci_dev, io_tag,
 					   user_io_request_object,
 					   sci_req);
 
-	scic_remote_device_get_protocols(sci_dev, &device_protocol);
-
-	if (device_protocol.u.bits.attached_ssp_target) {
+	if (dev->dev_type == SAS_END_DEV) {
 		scic_sds_ssp_task_request_assign_buffers(sci_req);
 
 		sci_req->has_started_substate_machine = true;
@@ -1820,11 +1815,10 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 			scic_sds_io_request_started_task_mgmt_substate_table,
 			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
 			);
-	} else if (device_protocol.u.bits.attached_stp_target) {
+	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
 		scic_sds_stp_request_assign_buffers(sci_req);
-	} else {
+	else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	}
 
 	if (status == SCI_SUCCESS) {
 		sci_req->is_task_management_request = true;

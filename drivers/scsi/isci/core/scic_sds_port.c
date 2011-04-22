@@ -434,7 +434,7 @@ void scic_sds_port_get_attached_sas_address(
  *    multi-protocol support.
  *
  */
-void scic_sds_port_get_attached_protocols(
+static void scic_sds_port_get_attached_protocols(
 	struct scic_sds_port *sci_port,
 	struct sci_sas_identify_address_frame_protocols *protocols)
 {
