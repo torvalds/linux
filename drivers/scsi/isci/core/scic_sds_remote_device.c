@@ -71,21 +71,6 @@
 
 #define SCIC_SDS_REMOTE_DEVICE_RESET_TIMEOUT  (1000)
 
-/*
- * *****************************************************************************
- * *  CORE REMOTE DEVICE PRIVATE METHODS
- * ***************************************************************************** */
-
-/*
- * *****************************************************************************
- * *  CORE REMOTE DEVICE PUBLIC METHODS
- * ***************************************************************************** */
-
-u32 scic_remote_device_get_object_size(void)
-{
-	return sizeof (struct scic_sds_remote_device);
-}
-
 enum sci_status scic_remote_device_da_construct(
 	struct scic_sds_remote_device *sci_dev)
 {

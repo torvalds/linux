@@ -179,7 +179,7 @@ static enum sci_status isci_io_request_build(
 	struct smp_discover_response_protocols dev_protocols;
 	enum sci_status status = SCI_SUCCESS;
 	struct sas_task *task = isci_request_access_task(request);
-	struct scic_sds_remote_device *sci_device = to_sci_dev(isci_device);
+	struct scic_sds_remote_device *sci_device = &isci_device->sci;
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device = 0x%p; request = %p, "
@@ -380,7 +380,7 @@ int isci_request_execute(
 	unsigned long flags;
 
 	isci_device = task->dev->lldd_dev;
-	sci_device = to_sci_dev(isci_device);
+	sci_device = &isci_device->sci;
 
 	/* do common allocation and init of request object. */
 	ret = isci_request_alloc_io(
@@ -1194,11 +1194,9 @@ void isci_request_io_request_complete(
 						  );
 
 	/* complete the io request to the core. */
-	scic_controller_complete_io(
-		isci_host->core_controller,
-		to_sci_dev(isci_device),
-		request->sci_request_handle
-		);
+	scic_controller_complete_io(isci_host->core_controller,
+				    &isci_device->sci,
+				    request->sci_request_handle);
 	/* NULL the request handle so it cannot be completed or
 	 * terminated again, and to cause any calls into abort
 	 * task to recognize the already completed case.

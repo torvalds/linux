@@ -110,17 +110,8 @@ struct isci_host {
 	struct list_head requests_to_errorback;
 	spinlock_t scic_lock;
 
-	/* careful only access this via idev_by_id */
-	struct isci_remote_device devices[0];
+	struct isci_remote_device devices[SCI_MAX_REMOTE_DEVICES];
 };
-
-static inline struct isci_remote_device *idev_by_id(struct isci_host *ihost, int i)
-{
-	void *p = ihost->devices;
-
-	return p + i * (sizeof(struct isci_remote_device) +
-			scic_remote_device_get_object_size());
-}
 
 /**
  * struct isci_pci_info - This class represents the pci function containing the

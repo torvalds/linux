@@ -87,7 +87,7 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 		BUG();
 	}
 
-	scic_remote_device_destruct(to_sci_dev(idev));
+	scic_remote_device_destruct(&idev->sci);
 	idev->domain_dev->lldd_dev = NULL;
 	idev->domain_dev = NULL;
 	idev->isci_port = NULL;
@@ -117,7 +117,7 @@ static enum sci_status isci_remote_device_construct(
 
 	/* let the core do it's common constuction. */
 	scic_remote_device_construct(port->sci_port_handle,
-				     to_sci_dev(isci_device));
+				     &isci_device->sci);
 
 	/* let the core do it's device specific constuction. */
 	if (isci_device->domain_dev->parent &&
@@ -183,11 +183,11 @@ static enum sci_status isci_remote_device_construct(
 			"%s: parent->dev_type = EDGE_DEV\n",
 			__func__);
 
-		status = scic_remote_device_ea_construct(to_sci_dev(isci_device),
+		status = scic_remote_device_ea_construct(&isci_device->sci,
 				(struct smp_response_discover *)&discover_response);
 
 	} else
-		status = scic_remote_device_da_construct(to_sci_dev(isci_device));
+		status = scic_remote_device_da_construct(&isci_device->sci);
 
 
 	if (status != SCI_SUCCESS) {
@@ -200,10 +200,11 @@ static enum sci_status isci_remote_device_construct(
 		return status;
 	}
 
-	sci_object_set_association(to_sci_dev(isci_device), isci_device);
+	/* XXX will be killed with sci_base_object removal */
+	sci_object_set_association(&isci_device->sci, isci_device);
 
 	/* start the device. */
-	status = scic_remote_device_start(to_sci_dev(isci_device),
+	status = scic_remote_device_start(&isci_device->sci,
 					  ISCI_REMOTE_DEVICE_START_TIMEOUT);
 
 	if (status != SCI_SUCCESS) {
@@ -245,7 +246,7 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 	int i;
 
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
-		idev = idev_by_id(ihost, i);
+		idev = &ihost->devices[i];
 		if (!test_and_set_bit(IDEV_ALLOCATED, &idev->flags))
 			break;
 	}
@@ -374,7 +375,7 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 	set_bit(IDEV_STOP_PENDING, &idev->flags);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = scic_remote_device_stop(to_sci_dev(idev), 50);
+	status = scic_remote_device_stop(&idev->sci, 50);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Wait for the stop complete callback. */

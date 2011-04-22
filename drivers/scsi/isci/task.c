@@ -282,7 +282,7 @@ static enum sci_status isci_task_request_build(
 		"%s: isci_tmf = %p\n", __func__, isci_tmf);
 
 	isci_device = isci_tmf->device;
-	sci_device = to_sci_dev(isci_device);
+	sci_device = &isci_device->sci;
 
 	/* do common allocation and init of request object. */
 	status = isci_request_alloc_tmf(
@@ -390,7 +390,7 @@ static void isci_tmf_timeout_cb(void *tmf_request_arg)
 		/* Terminate the TMF transmit request. */
 		status = scic_controller_terminate_request(
 			request->isci_host->core_controller,
-			to_sci_dev(request->isci_device),
+			&request->isci_device->sci,
 			request->sci_request_handle
 			);
 
@@ -448,7 +448,7 @@ int isci_task_execute_tmf(
 			"%s: isci_device = %p\n",
 			__func__, isci_device);
 
-	sci_device = to_sci_dev(isci_device);
+	sci_device = &isci_device->sci;
 
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
@@ -784,9 +784,8 @@ static void isci_terminate_request_core(
 		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
 			isci_host->core_controller,
-			to_sci_dev(isci_device),
-			isci_request->sci_request_handle
-			);
+			&isci_device->sci,
+			isci_request->sci_request_handle);
 	}
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
@@ -1483,9 +1482,8 @@ void isci_task_request_complete(
 
 	scic_controller_complete_io(
 		isci_host->core_controller,
-		to_sci_dev(isci_device),
-		request->sci_request_handle
-		);
+		&isci_device->sci,
+		request->sci_request_handle);
 	/* NULL the request handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
@@ -1611,7 +1609,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	status = scic_remote_device_reset(to_sci_dev(isci_dev));
+	status = scic_remote_device_reset(&isci_dev->sci);
 	if (status != SCI_SUCCESS) {
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
@@ -1645,7 +1643,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 
 	/* WHAT TO DO HERE IF sas_phy_reset FAILS? */
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	status = scic_remote_device_reset_complete(to_sci_dev(isci_dev));
+	status = scic_remote_device_reset_complete(&isci_dev->sci);
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 	if (status != SCI_SUCCESS) {

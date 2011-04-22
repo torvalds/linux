@@ -55,9 +55,9 @@
 
 #if !defined(_ISCI_REMOTE_DEVICE_H_)
 #define _ISCI_REMOTE_DEVICE_H_
+#include "scic_sds_remote_device.h"
 
 struct isci_host;
-struct scic_sds_remote_device;
 
 struct isci_remote_device {
 	enum isci_status status;
@@ -70,13 +70,8 @@ struct isci_remote_device {
 	struct list_head node;
 	struct list_head reqs_in_process;
 	spinlock_t state_lock;
+	struct scic_sds_remote_device sci;
 };
-
-static inline struct scic_sds_remote_device *to_sci_dev(struct isci_remote_device *idev)
-{
-	/* core data is an opaque buffer at the end of the idev */
-	return (struct scic_sds_remote_device *) &idev[1];
-}
 
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
 

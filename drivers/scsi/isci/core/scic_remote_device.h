@@ -87,18 +87,6 @@ enum scic_remote_device_not_ready_reason_code {
 };
 
 /**
- * scic_remote_device_get_object_size() - This method simply returns the
- *    maximum memory space needed to store a remote device object.
- *
- * a positive integer value indicating the size (in bytes) of the remote device
- * object.
- */
-u32 scic_remote_device_get_object_size(
-	void);
-
-struct scic_sds_port;
-struct scic_sds_remote_device;
-/**
  * scic_remote_device_construct() - This method will perform the construction
  *    common to all remote device objects.
  * @sci_port: SAS/SATA port through which this device is accessed.

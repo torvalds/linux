@@ -396,10 +396,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	struct Scsi_Host *shost;
 	int err;
 
-	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host) +
-				 SCI_MAX_REMOTE_DEVICES *
-				 (sizeof(struct isci_remote_device) +
-				  scic_remote_device_get_object_size()), GFP_KERNEL);
+	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host), GFP_KERNEL);
 	if (!isci_host)
 		return NULL;
 

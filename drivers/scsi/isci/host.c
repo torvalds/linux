@@ -467,7 +467,7 @@ int isci_host_init(struct isci_host *isci_host)
 		isci_phy_init(&isci_host->phys[i], isci_host, i);
 
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
-		struct isci_remote_device *idev = idev_by_id(isci_host, i);
+		struct isci_remote_device *idev = &isci_host->devices[i];
 
 		INIT_LIST_HEAD(&idev->reqs_in_process);
 		INIT_LIST_HEAD(&idev->node);
