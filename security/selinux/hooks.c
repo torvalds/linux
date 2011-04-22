@@ -2635,7 +2635,7 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(cred, NULL, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask)
+static int selinux_inode_permission(struct inode *inode, int mask, unsigned flags)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
@@ -2648,6 +2648,10 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	/* No permission to check.  Existence test. */
 	if (!mask)
 		return 0;
+
+	/* May be droppable after audit */
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	COMMON_AUDIT_DATA_INIT(&ad, FS);
 	ad.u.fs.inode = inode;
