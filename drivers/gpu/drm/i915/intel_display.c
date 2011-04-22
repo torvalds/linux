@@ -5603,9 +5603,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 	intel_clock_t clock;
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = FP0(pipe);
+		fp = I915_READ(FP0(pipe));
 	else
-		fp = FP1(pipe);
+		fp = I915_READ(FP1(pipe));
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
 	if (IS_PINEVIEW(dev)) {
