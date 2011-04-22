@@ -344,15 +344,15 @@ struct sk_buff *tipc_bearer_get_names(void)
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest)
 {
 	tipc_nmap_add(&b_ptr->nodes, dest);
-	tipc_disc_update_link_req(b_ptr->link_req);
 	tipc_bcbearer_sort();
+	tipc_disc_add_dest(b_ptr->link_req);
 }
 
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 {
 	tipc_nmap_remove(&b_ptr->nodes, dest);
-	tipc_disc_update_link_req(b_ptr->link_req);
 	tipc_bcbearer_sort();
+	tipc_disc_remove_dest(b_ptr->link_req);
 }
 
 /*

@@ -53,6 +53,7 @@
  * @bearer: bearer issuing requests
  * @dest: destination address for request messages
  * @domain: network domain to which links can be established
+ * @num_nodes: number of nodes currently discovered (i.e. with an active link)
  * @buf: request message to be (repeatedly) sent
  * @timer: timer governing period between requests
  * @timer_intv: current interval between requests (in ms)
@@ -61,6 +62,7 @@ struct link_req {
 	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
 	u32 domain;
+	int num_nodes;
 	struct sk_buff *buf;
 	struct timer_list timer;
 	unsigned int timer_intv;
@@ -216,15 +218,12 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 }
 
 /**
- * tipc_disc_update_link_req - update frequency of periodic link setup requests
+ * disc_update - update frequency of periodic link setup requests
  * @req: ptr to link request structure
  */
 
-void tipc_disc_update_link_req(struct link_req *req)
+static void disc_update(struct link_req *req)
 {
-	if (!req)
-		return;
-
 	if (req->timer_intv == TIPC_LINK_REQ_SLOW) {
 		if (!req->bearer->nodes.count) {
 			req->timer_intv = TIPC_LINK_REQ_FAST;
@@ -238,6 +237,28 @@ void tipc_disc_update_link_req(struct link_req *req)
 	} else {
 		/* leave timer "as is" if haven't yet reached a "normal" rate */
 	}
+}
+
+/**
+ * tipc_disc_add_dest - increment set of discovered nodes
+ * @req: ptr to link request structure
+ */
+
+void tipc_disc_add_dest(struct link_req *req)
+{
+	req->num_nodes++;
+	disc_update(req);
+}
+
+/**
+ * tipc_disc_remove_dest - decrement set of discovered nodes
+ * @req: ptr to link request structure
+ */
+
+void tipc_disc_remove_dest(struct link_req *req)
+{
+	req->num_nodes--;
+	disc_update(req);
 }
 
 /**
@@ -307,6 +328,7 @@ int tipc_disc_create(struct tipc_bearer *b_ptr,
 	memcpy(&req->dest, dest, sizeof(*dest));
 	req->bearer = b_ptr;
 	req->domain = dest_domain;
+	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
