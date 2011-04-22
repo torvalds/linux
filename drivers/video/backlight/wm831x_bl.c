@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/ktime.h>
 #define BL_SET   255
+#define BL_MISC_VALUE 20
 #define BL_INIT_VALUE 102
 struct wm831x_backlight_data {
 	struct wm831x *wm831x;
@@ -117,8 +118,11 @@ err:
 static int wm831x_backlight_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
-	if (brightness<=BL_INIT_VALUE) {
-		brightness = 111*brightness/51;
+	if (brightness<=BL_MISC_VALUE) {
+		brightness = 8*brightness;
+	}
+	else if (brightness<=BL_INIT_VALUE) {
+		brightness = 31*brightness/41 + 145;
 	}
 	else {
 		brightness = 33*brightness/153 + 200;

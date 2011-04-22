@@ -992,7 +992,7 @@ CONFIG_ADC=y
 # CONFIG_ADC_RK28 is not set
 CONFIG_ADC_RK29=y
 # CONFIG_SPI_FPGA is not set
-CONFIG_HEADSET_DET=y
+# CONFIG_HEADSET_DET is not set
 
 #
 # PPS support
