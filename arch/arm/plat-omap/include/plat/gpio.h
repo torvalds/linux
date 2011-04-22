@@ -175,6 +175,7 @@ struct omap_gpio_dev_attr {
 };
 
 struct omap_gpio_reg_offs {
+	u16 revision;
 	u16 direction;
 	u16 datain;
 	u16 dataout;

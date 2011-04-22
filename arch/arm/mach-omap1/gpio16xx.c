@@ -38,6 +38,7 @@ static struct __initdata resource omap16xx_mpu_gpio_resources[] = {
 };
 
 static struct omap_gpio_reg_offs omap16xx_mpuio_regs = {
+	.revision       = USHRT_MAX,
 	.direction	= OMAP_MPUIO_IO_CNTL,
 	.datain		= OMAP_MPUIO_INPUT_LATCH,
 	.dataout	= OMAP_MPUIO_OUTPUT,
@@ -78,6 +79,7 @@ static struct __initdata resource omap16xx_gpio1_resources[] = {
 };
 
 static struct omap_gpio_reg_offs omap16xx_gpio_regs = {
+	.revision       = OMAP1610_GPIO_REVISION,
 	.direction	= OMAP1610_GPIO_DIRECTION,
 	.set_dataout	= OMAP1610_GPIO_SET_DATAOUT,
 	.clr_dataout	= OMAP1610_GPIO_CLEAR_DATAOUT,

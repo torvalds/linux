@@ -984,19 +984,17 @@ static int gpio_2irq(struct gpio_chip *chip, unsigned offset)
 
 static void __init omap_gpio_show_rev(struct gpio_bank *bank)
 {
+	static bool called;
 	u32 rev;
 
-	if (cpu_is_omap16xx() && !(bank->method != METHOD_MPUIO))
-		rev = __raw_readw(bank->base + OMAP1610_GPIO_REVISION);
-	else if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		rev = __raw_readl(bank->base + OMAP24XX_GPIO_REVISION);
-	else if (cpu_is_omap44xx())
-		rev = __raw_readl(bank->base + OMAP4_GPIO_REVISION);
-	else
+	if (called || bank->regs->revision == USHRT_MAX)
 		return;
 
-	printk(KERN_INFO "OMAP GPIO hardware version %d.%d\n",
+	rev = __raw_readw(bank->base + bank->regs->revision);
+	pr_info("OMAP GPIO hardware version %d.%d\n",
 		(rev >> 4) & 0x0f, rev & 0x0f);
+
+	called = true;
 }
 
 /* This lock class tells lockdep that GPIO irqs are in a different
