@@ -455,11 +455,9 @@ struct ixgbe_adapter {
 	unsigned long link_check_timeout;
 
 	struct work_struct reset_task;
-	struct work_struct watchdog_task;
 	struct work_struct fdir_reinit_task;
 	struct work_struct check_overtemp_task;
 	struct work_struct service_task;
-	struct timer_list watchdog_timer;
 	struct timer_list service_timer;
 	u32 fdir_pballoc;
 	u32 atr_sample_rate;
