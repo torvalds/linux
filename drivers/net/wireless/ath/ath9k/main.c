@@ -1969,6 +1969,12 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 				"Bss Info ASSOC %d, bssid: %pM\n",
 				bss_conf->aid, common->curbssid);
 			ath_beacon_config(sc, vif);
+			/*
+			 * Request a re-configuration of Beacon related timers
+			 * on the receipt of the first Beacon frame (i.e.,
+			 * after time sync with the AP).
+			 */
+			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 			/* Reset rssi stats */
 			sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
