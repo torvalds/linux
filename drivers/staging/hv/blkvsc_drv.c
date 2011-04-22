@@ -671,9 +671,30 @@ static void blkvsc_shutdown(struct device *device)
 	spin_unlock_irqrestore(&blkdev->lock, flags);
 }
 
+static int blkvsc_release(struct gendisk *disk, fmode_t mode)
+{
+	struct block_device_context *blkdev = disk->private_data;
+
+	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
+		   blkdev->gd->disk_name);
+
+	mutex_lock(&blkvsc_mutex);
+	spin_lock(&blkdev->lock);
+	if (blkdev->users == 1) {
+		spin_unlock(&blkdev->lock);
+		blkvsc_do_flush(blkdev);
+		spin_lock(&blkdev->lock);
+	}
+
+	blkdev->users--;
+
+	spin_unlock(&blkdev->lock);
+	mutex_unlock(&blkvsc_mutex);
+	return 0;
+}
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
-static int blkvsc_release(struct gendisk *disk, fmode_t mode);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static void blkvsc_request(struct request_queue *queue);
 static void blkvsc_request_completion(struct hv_storvsc_request *request);
@@ -1481,28 +1502,6 @@ static void blkvsc_request(struct request_queue *queue)
 			break;
 		}
 	}
-}
-
-static int blkvsc_release(struct gendisk *disk, fmode_t mode)
-{
-	struct block_device_context *blkdev = disk->private_data;
-
-	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
-		   blkdev->gd->disk_name);
-
-	mutex_lock(&blkvsc_mutex);
-	spin_lock(&blkdev->lock);
-	if (blkdev->users == 1) {
-		spin_unlock(&blkdev->lock);
-		blkvsc_do_flush(blkdev);
-		spin_lock(&blkdev->lock);
-	}
-
-	blkdev->users--;
-
-	spin_unlock(&blkdev->lock);
-	mutex_unlock(&blkvsc_mutex);
-	return 0;
 }
 
 static int blkvsc_revalidate_disk(struct gendisk *gd)
