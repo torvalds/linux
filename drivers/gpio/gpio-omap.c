@@ -90,40 +90,6 @@ int gpio_bank_count;
 #define GPIO_INDEX(bank, gpio) (gpio % bank->width)
 #define GPIO_BIT(bank, gpio) (1 << GPIO_INDEX(bank, gpio))
 
-static inline int gpio_valid(int gpio)
-{
-	if (gpio < 0)
-		return -1;
-	if (cpu_class_is_omap1() && OMAP_GPIO_IS_MPUIO(gpio)) {
-		if (gpio >= OMAP_MAX_GPIO_LINES + 16)
-			return -1;
-		return 0;
-	}
-	if (cpu_is_omap15xx() && gpio < 16)
-		return 0;
-	if ((cpu_is_omap16xx()) && gpio < 64)
-		return 0;
-	if (cpu_is_omap7xx() && gpio < 192)
-		return 0;
-	if (cpu_is_omap2420() && gpio < 128)
-		return 0;
-	if (cpu_is_omap2430() && gpio < 160)
-		return 0;
-	if ((cpu_is_omap34xx() || cpu_is_omap44xx()) && gpio < 192)
-		return 0;
-	return -1;
-}
-
-static int check_gpio(int gpio)
-{
-	if (unlikely(gpio_valid(gpio) < 0)) {
-		printk(KERN_ERR "omap-gpio: invalid GPIO %d\n", gpio);
-		dump_stack();
-		return -1;
-	}
-	return 0;
-}
-
 static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 {
 	void __iomem *reg = bank->base;
@@ -172,18 +138,12 @@ static int _get_gpio_datain(struct gpio_bank *bank, int gpio)
 {
 	void __iomem *reg = bank->base + bank->regs->datain;
 
-	if (check_gpio(gpio) < 0)
-		return -EINVAL;
-
 	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
 }
 
 static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 {
 	void __iomem *reg = bank->base + bank->regs->dataout;
-
-	if (check_gpio(gpio) < 0)
-		return -EINVAL;
 
 	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
 }
@@ -453,9 +413,6 @@ static int gpio_irq_type(struct irq_data *d, unsigned type)
 	else
 		gpio = d->irq - IH_GPIO_BASE;
 
-	if (check_gpio(gpio) < 0)
-		return -EINVAL;
-
 	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
 
@@ -621,8 +578,6 @@ static int gpio_wake_enable(struct irq_data *d, unsigned int enable)
 	struct gpio_bank *bank;
 	int retval;
 
-	if (check_gpio(gpio) < 0)
-		return -ENODEV;
 	bank = irq_data_get_irq_chip_data(d);
 	retval = _set_gpio_wakeup(bank, GPIO_INDEX(bank, gpio), enable);
 
