@@ -968,11 +968,6 @@ static int blkvsc_probe(struct device *device)
 	static int ide1_registered;
 
 
-	if (!storvsc_drv_obj->base.dev_add) {
-		ret = -1;
-		goto Cleanup;
-	}
-
 	blkdev = kzalloc(sizeof(struct block_device_context), GFP_KERNEL);
 	if (!blkdev) {
 		ret = -ENOMEM;
