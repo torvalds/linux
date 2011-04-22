@@ -2198,18 +2198,19 @@ static struct platform_device rk29_device_pwm_regulator = {
 #if defined(CONFIG_MTK23D)
 static int mtk23d_io_init(void)
 {
-         return 0;
+	
+	return 0;
 }
 
 static int mtk23d_io_deinit(void)
 {
- 
-         return 0;
+	
+	return 0;
 }
  
 struct rk2818_23d_data rk2818_23d_info = {
 	.io_init = mtk23d_io_init,
-        .io_deinit = mtk23d_io_deinit,
+  .io_deinit = mtk23d_io_deinit,
 	.bp_power = RK29_PIN0_PA0,
 	.bp_power_active_low = 0,
 	.bp_reset = RK29_PIN0_PA1,
