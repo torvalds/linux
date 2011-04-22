@@ -953,11 +953,8 @@ static int blkvsc_probe(struct device *device)
 
 	struct block_device_context *blkdev = NULL;
 	struct storvsc_device_info device_info;
-	int major = 0;
-	int devnum = 0;
+	struct storvsc_major_info major_info;
 	int ret = 0;
-	static int ide0_registered;
-	static int ide1_registered;
 
 
 	blkdev = kzalloc(sizeof(struct block_device_context), GFP_KERNEL);
@@ -994,43 +991,23 @@ static int blkvsc_probe(struct device *device)
 
 	dev_set_drvdata(device, blkdev);
 
-	/* Calculate the major and device num */
-	if (blkdev->path == 0) {
-		major = IDE0_MAJOR;
-		devnum = blkdev->path + blkdev->target;		/* 0 or 1 */
+	ret = stor_vsc_get_major_info(&device_info, &major_info);
 
-		if (!ide0_registered) {
-			ret = register_blkdev(major, "ide");
-			if (ret != 0) {
-				DPRINT_ERR(BLKVSC_DRV,
-					   "register_blkdev() failed! ret %d",
-					   ret);
-				goto remove;
-			}
-
-			ide0_registered = 1;
-		}
-	} else if (blkdev->path == 1) {
-		major = IDE1_MAJOR;
-		devnum = blkdev->path + blkdev->target + 1; /* 2 or 3 */
-
-		if (!ide1_registered) {
-			ret = register_blkdev(major, "ide");
-			if (ret != 0) {
-				DPRINT_ERR(BLKVSC_DRV,
-					   "register_blkdev() failed! ret %d",
-					   ret);
-				goto remove;
-			}
-
-			ide1_registered = 1;
-		}
-	} else {
-		ret = -1;
+	if (ret)
 		goto cleanup;
+
+	if (major_info.do_register) {
+		ret = register_blkdev(major_info.major, major_info.devname);
+
+		if (ret != 0) {
+			DPRINT_ERR(BLKVSC_DRV,
+				   "register_blkdev() failed! ret %d", ret);
+			goto remove;
+		}
 	}
 
-	DPRINT_INFO(BLKVSC_DRV, "blkvsc registered for major %d!!", major);
+	DPRINT_INFO(BLKVSC_DRV, "blkvsc registered for major %d!!",
+			major_info.major);
 
 	blkdev->gd = alloc_disk(BLKVSC_MINORS);
 	if (!blkdev->gd) {
@@ -1046,8 +1023,8 @@ static int blkvsc_probe(struct device *device)
 	blk_queue_bounce_limit(blkdev->gd->queue, BLK_BOUNCE_ANY);
 	blk_queue_dma_alignment(blkdev->gd->queue, 511);
 
-	blkdev->gd->major = major;
-	if (devnum == 1 || devnum == 3)
+	blkdev->gd->major = major_info.major;
+	if (major_info.index == 1 || major_info.index == 3)
 		blkdev->gd->first_minor = BLKVSC_MINORS;
 	else
 		blkdev->gd->first_minor = 0;
@@ -1055,7 +1032,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	blkdev->gd->private_data = blkdev;
 	blkdev->gd->driverfs_dev = &(blkdev->device_ctx->device);
-	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + devnum);
+	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + major_info.index);
 
 	blkvsc_do_operation(blkdev, DO_INQUIRY);
 	blkvsc_do_operation(blkdev, DO_CAPACITY);

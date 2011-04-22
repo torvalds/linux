@@ -629,26 +629,26 @@ int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
 
 	if (device_info->path_id) {
 		major_info->major = 22;
-		if (!ide1_registered)
+		if (!ide1_registered) {
 			major_info->do_register = true;
-		else {
-			major_info->do_register = false;
 			ide1_registered = true;
-		}
+		} else
+			major_info->do_register = false;
+
 		if (device_info->target_id)
 			major_info->index = 3;
-		 else
+		else
 			major_info->index = 2;
 
 		return 0;
 	} else {
 		major_info->major = 3;
-		if (!ide0_registered)
+		if (!ide0_registered) {
 			major_info->do_register = true;
-		else {
-			major_info->do_register = false;
 			ide0_registered = true;
-		}
+		} else
+			major_info->do_register = false;
+
 		if (device_info->target_id)
 			major_info->index = 1;
 		else
