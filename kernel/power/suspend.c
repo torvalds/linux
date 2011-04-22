@@ -226,7 +226,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_test(TEST_DEVICES))
 		goto Recover_platform;
 
-	suspend_enter(state);
+	error = suspend_enter(state);
 
  Resume_devices:
 	suspend_test_start();
