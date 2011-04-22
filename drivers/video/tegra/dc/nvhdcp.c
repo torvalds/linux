@@ -108,8 +108,9 @@ static inline bool nvhdcp_is_plugged(struct tegra_nvhdcp *nvhdcp)
 
 static inline bool nvhdcp_set_plugged(struct tegra_nvhdcp *nvhdcp, bool plugged)
 {
-	return nvhdcp->plugged = plugged;
+	nvhdcp->plugged = plugged;
 	wmb();
+	return plugged;
 }
 
 static int nvhdcp_i2c_read(struct tegra_nvhdcp *nvhdcp, u8 reg,
