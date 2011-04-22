@@ -138,6 +138,8 @@ MODULE_PARM_DESC(kbd_backlight_timeout,
 		 "1 for 30 seconds, 2 for 60 seconds and 3 to disable timeout "
 		 "(default: 0)");
 
+static void sony_nc_kbd_backlight_resume(void);
+
 enum sony_nc_rfkill {
 	SONY_WIFI,
 	SONY_BLUETOOTH,
@@ -771,11 +773,6 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 	if (!handles)
 		return -ENOMEM;
 
-	sysfs_attr_init(&handles->devattr.attr);
-	handles->devattr.attr.name = "handles";
-	handles->devattr.attr.mode = S_IRUGO;
-	handles->devattr.show = sony_nc_handles_show;
-
 	for (i = 0; i < ARRAY_SIZE(handles->cap); i++) {
 		if (!acpi_callsetfunc(sony_nc_acpi_handle,
 					"SN00", i + 0x20, &result)) {
@@ -785,11 +782,18 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 		}
 	}
 
-	/* allow reading capabilities via sysfs */
-	if (device_create_file(&pd->dev, &handles->devattr)) {
-		kfree(handles);
-		handles = NULL;
-		return -1;
+	if (debug) {
+		sysfs_attr_init(&handles->devattr.attr);
+		handles->devattr.attr.name = "handles";
+		handles->devattr.attr.mode = S_IRUGO;
+		handles->devattr.show = sony_nc_handles_show;
+
+		/* allow reading capabilities via sysfs */
+		if (device_create_file(&pd->dev, &handles->devattr)) {
+			kfree(handles);
+			handles = NULL;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -798,7 +802,8 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 static int sony_nc_handles_cleanup(struct platform_device *pd)
 {
 	if (handles) {
-		device_remove_file(&pd->dev, &handles->devattr);
+		if (debug)
+			device_remove_file(&pd->dev, &handles->devattr);
 		kfree(handles);
 		handles = NULL;
 	}
@@ -808,6 +813,11 @@ static int sony_nc_handles_cleanup(struct platform_device *pd)
 static int sony_find_snc_handle(int handle)
 {
 	int i;
+
+	/* not initialized yet, return early */
+	if (!handles)
+		return -1;
+
 	for (i = 0; i < 0x10; i++) {
 		if (handles->cap[i] == handle) {
 			dprintk("found handle 0x%.4x (offset: 0x%.2x)\n",
@@ -1168,6 +1178,9 @@ static int sony_nc_resume(struct acpi_device *device)
 	/* re-read rfkill state */
 	sony_nc_rfkill_update();
 
+	/* restore kbd backlight states */
+	sony_nc_kbd_backlight_resume();
+
 	return 0;
 }
 
@@ -1355,6 +1368,7 @@ out_no_enum:
 #define KBDBL_HANDLER	0x137
 #define KBDBL_PRESENT	0xB00
 #define	SET_MODE	0xC00
+#define SET_STATE	0xD00
 #define SET_TIMEOUT	0xE00
 
 struct kbd_backlight {
@@ -1376,6 +1390,10 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 	if (sony_call_snc_handle(KBDBL_HANDLER,
 				(value << 0x10) | SET_MODE, &result))
 		return -EIO;
+
+	/* Try to turn the light on/off immediately */
+	sony_call_snc_handle(KBDBL_HANDLER, (value << 0x10) | SET_STATE,
+			&result);
 
 	kbdbl_handle->mode = value;
 
@@ -1458,7 +1476,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd)
 {
 	int result;
 
-	if (sony_call_snc_handle(0x137, KBDBL_PRESENT, &result))
+	if (sony_call_snc_handle(KBDBL_HANDLER, KBDBL_PRESENT, &result))
 		return 0;
 	if (!(result & 0x02))
 		return 0;
@@ -1501,11 +1519,34 @@ outkzalloc:
 static int sony_nc_kbd_backlight_cleanup(struct platform_device *pd)
 {
 	if (kbdbl_handle) {
+		int result;
+
 		device_remove_file(&pd->dev, &kbdbl_handle->mode_attr);
 		device_remove_file(&pd->dev, &kbdbl_handle->timeout_attr);
+
+		/* restore the default hw behaviour */
+		sony_call_snc_handle(KBDBL_HANDLER, 0x1000 | SET_MODE, &result);
+		sony_call_snc_handle(KBDBL_HANDLER, SET_TIMEOUT, &result);
+
 		kfree(kbdbl_handle);
 	}
 	return 0;
+}
+
+static void sony_nc_kbd_backlight_resume(void)
+{
+	int ignore = 0;
+
+	if (!kbdbl_handle)
+		return;
+
+	if (kbdbl_handle->mode == 0)
+		sony_call_snc_handle(KBDBL_HANDLER, SET_MODE, &ignore);
+
+	if (kbdbl_handle->timeout != 0)
+		sony_call_snc_handle(KBDBL_HANDLER,
+				(kbdbl_handle->timeout << 0x10) | SET_TIMEOUT,
+				&ignore);
 }
 
 static void sony_nc_backlight_setup(void)

@@ -199,8 +199,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	}
 	spin_unlock(&GlobalMid_Lock);
 
-	while ((server->tcpStatus != CifsExiting) &&
-	       (server->tcpStatus != CifsGood)) {
+	while (server->tcpStatus == CifsNeedReconnect) {
 		try_to_freeze();
 
 		/* we should try only the port we connected to before */
@@ -212,7 +211,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
 			if (server->tcpStatus != CifsExiting)
-				server->tcpStatus = CifsGood;
+				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
 		}
 	}
@@ -248,24 +247,24 @@ static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
 	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 	data_in_this_rsp = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
 
-	remaining = total_data_size - data_in_this_rsp;
-
-	if (remaining == 0)
+	if (total_data_size == data_in_this_rsp)
 		return 0;
-	else if (remaining < 0) {
+	else if (total_data_size < data_in_this_rsp) {
 		cFYI(1, "total data %d smaller than data in frame %d",
 			total_data_size, data_in_this_rsp);
 		return -EINVAL;
-	} else {
-		cFYI(1, "missing %d bytes from transact2, check next response",
-			remaining);
-		if (total_data_size > maxBufSize) {
-			cERROR(1, "TotalDataSize %d is over maximum buffer %d",
-				total_data_size, maxBufSize);
-			return -EINVAL;
-		}
-		return remaining;
 	}
+
+	remaining = total_data_size - data_in_this_rsp;
+
+	cFYI(1, "missing %d bytes from transact2, check next response",
+		remaining);
+	if (total_data_size > maxBufSize) {
+		cERROR(1, "TotalDataSize %d is over maximum buffer %d",
+			total_data_size, maxBufSize);
+		return -EINVAL;
+	}
+	return remaining;
 }
 
 static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
@@ -421,7 +420,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		pdu_length = 4; /* enough to get RFC1001 header */
 
 incomplete_rcv:
-		if (echo_retries > 0 &&
+		if (echo_retries > 0 && server->tcpStatus == CifsGood &&
 		    time_after(jiffies, server->lstrp +
 					(echo_retries * SMB_ECHO_INTERVAL))) {
 			cERROR(1, "Server %s has not responded in %d seconds. "
@@ -881,7 +880,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 				/* null user, ie anonymous, authentication */
 				vol->nullauth = 1;
 			}
-			if (strnlen(value, 200) < 200) {
+			if (strnlen(value, MAX_USERNAME_SIZE) <
+						MAX_USERNAME_SIZE) {
 				vol->username = value;
 			} else {
 				printk(KERN_WARNING "CIFS: username too long\n");
@@ -1472,7 +1472,7 @@ srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
 static bool
 match_port(struct TCP_Server_Info *server, struct sockaddr *addr)
 {
-	unsigned short int port, *sport;
+	__be16 port, *sport;
 
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -1765,6 +1765,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		module_put(THIS_MODULE);
 		goto out_err_crypto_release;
 	}
+	tcp_ses->tcpStatus = CifsNeedNegotiate;
 
 	/* thread spawned, put it on the list */
 	spin_lock(&cifs_tcp_ses_lock);
@@ -1808,7 +1809,9 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 			break;
 		default:
 			/* anything else takes username/password */
-			if (strncmp(ses->userName, vol->username,
+			if (ses->user_name == NULL)
+				continue;
+			if (strncmp(ses->user_name, vol->username,
 				    MAX_USERNAME_SIZE))
 				continue;
 			if (strlen(vol->username) != 0 &&
@@ -1850,6 +1853,8 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 	sesInfoFree(ses);
 	cifs_put_tcp_session(server);
 }
+
+static bool warned_on_ntlm;  /* globals init to false automatically */
 
 static struct cifsSesInfo *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
@@ -1906,9 +1911,11 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	else
 		sprintf(ses->serverName, "%pI4", &addr->sin_addr);
 
-	if (volume_info->username)
-		strncpy(ses->userName, volume_info->username,
-			MAX_USERNAME_SIZE);
+	if (volume_info->username) {
+		ses->user_name = kstrdup(volume_info->username, GFP_KERNEL);
+		if (!ses->user_name)
+			goto get_ses_fail;
+	}
 
 	/* volume_info->password freed at unmount */
 	if (volume_info->password) {
@@ -1923,6 +1930,15 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	}
 	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
+
+	/* ntlmv2 is much stronger than ntlm security, and has been broadly
+	supported for many years, time to update default security mechanism */
+	if ((volume_info->secFlg == 0) && warned_on_ntlm == false) {
+		warned_on_ntlm = true;
+		cERROR(1, "default security mechanism requested.  The default "
+			"security mechanism will be upgraded from ntlm to "
+			"ntlmv2 in kernel release 2.6.41");
+	}
 	ses->overrideSecFlg = volume_info->secFlg;
 
 	mutex_lock(&ses->session_mutex);
@@ -2276,7 +2292,7 @@ static int
 generic_ip_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	unsigned short int sport;
+	__be16 sport;
 	int slen, sfamily;
 	struct socket *socket = server->ssocket;
 	struct sockaddr *saddr;
@@ -2361,7 +2377,7 @@ generic_ip_connect(struct TCP_Server_Info *server)
 static int
 ip_connect(struct TCP_Server_Info *server)
 {
-	unsigned short int *sport;
+	__be16 *sport;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
 
@@ -2826,7 +2842,7 @@ try_mount_again:
 
 remote_path_check:
 	/* check if a whole path (including prepath) is not remote */
-	if (!rc && cifs_sb->prepathlen && tcon) {
+	if (!rc && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
 		full_path = cifs_build_path_to_root(cifs_sb, tcon);
 		if (full_path == NULL) {

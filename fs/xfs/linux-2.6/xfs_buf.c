@@ -293,7 +293,6 @@ xfs_buf_allocate_memory(
 	size_t			nbytes, offset;
 	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
-	pgoff_t			first;
 	xfs_off_t		end;
 	int			error;
 
@@ -333,7 +332,6 @@ use_alloc_page:
 		return error;
 
 	offset = bp->b_offset;
-	first = bp->b_file_offset >> PAGE_SHIFT;
 	bp->b_flags |= _XBF_PAGES;
 
 	for (i = 0; i < bp->b_page_count; i++) {
@@ -657,8 +655,6 @@ xfs_buf_readahead(
 	xfs_off_t		ioff,
 	size_t			isize)
 {
-	struct backing_dev_info *bdi;
-
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
@@ -919,8 +915,6 @@ xfs_buf_lock(
 
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
 		xfs_log_force(bp->b_target->bt_mount, 0);
-	if (atomic_read(&bp->b_io_remaining))
-		blk_flush_plug(current);
 	down(&bp->b_sema);
 	XB_SET_OWNER(bp);
 
@@ -1309,8 +1303,6 @@ xfs_buf_iowait(
 {
 	trace_xfs_buf_iowait(bp, _RET_IP_);
 
-	if (atomic_read(&bp->b_io_remaining))
-		blk_flush_plug(current);
 	wait_for_completion(&bp->b_iowait);
 
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
@@ -1747,8 +1739,8 @@ xfsbufd(
 	do {
 		long	age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
 		long	tout = xfs_buf_timer_centisecs * msecs_to_jiffies(10);
-		int	count = 0;
 		struct list_head tmp;
+		struct blk_plug plug;
 
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
@@ -1764,16 +1756,15 @@ xfsbufd(
 
 		xfs_buf_delwri_split(target, &tmp, age);
 		list_sort(NULL, &tmp, xfs_buf_cmp);
+
+		blk_start_plug(&plug);
 		while (!list_empty(&tmp)) {
 			struct xfs_buf *bp;
 			bp = list_first_entry(&tmp, struct xfs_buf, b_list);
 			list_del_init(&bp->b_list);
 			xfs_bdstrat_cb(bp);
-			count++;
 		}
-		if (count)
-			blk_flush_plug(current);
-
+		blk_finish_plug(&plug);
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -1793,6 +1784,7 @@ xfs_flush_buftarg(
 	int		pincount = 0;
 	LIST_HEAD(tmp_list);
 	LIST_HEAD(wait_list);
+	struct blk_plug plug;
 
 	xfs_buf_runall_queues(xfsconvertd_workqueue);
 	xfs_buf_runall_queues(xfsdatad_workqueue);
@@ -1807,6 +1799,8 @@ xfs_flush_buftarg(
 	 * we do that after issuing all the IO.
 	 */
 	list_sort(NULL, &tmp_list, xfs_buf_cmp);
+
+	blk_start_plug(&plug);
 	while (!list_empty(&tmp_list)) {
 		bp = list_first_entry(&tmp_list, struct xfs_buf, b_list);
 		ASSERT(target == bp->b_target);
@@ -1817,10 +1811,10 @@ xfs_flush_buftarg(
 		}
 		xfs_bdstrat_cb(bp);
 	}
+	blk_finish_plug(&plug);
 
 	if (wait) {
-		/* Expedite and wait for IO to complete. */
-		blk_flush_plug(current);
+		/* Wait for IO to complete. */
 		while (!list_empty(&wait_list)) {
 			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
 

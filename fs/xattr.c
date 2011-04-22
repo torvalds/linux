@@ -666,7 +666,7 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (!handler)
 		return -EOPNOTSUPP;
-	return handler->set(dentry, name, value, size, 0, handler->flags);
+	return handler->set(dentry, name, value, size, flags, handler->flags);
 }
 
 /*

@@ -387,26 +387,6 @@ Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
 
-What:	Support for lcd_switch and display_get in asus-laptop driver
-When:	March 2010
-Why:	These two features use non-standard interfaces. There are the
-	only features that really need multiple path to guess what's
-	the right method name on a specific laptop.
-
-	Removing them will allow to remove a lot of code an significantly
-	clean the drivers.
-
-	This will affect the backlight code which won't be able to know
-	if the backlight is on or off. The platform display file will also be
-	write only (like the one in eeepc-laptop).
-
-	This should'nt affect a lot of user because they usually know
-	when their display is on or off.
-
-Who:	Corentin Chary <corentin.chary@gmail.com>
-
-----------------------------
-
 What:	sysfs-class-rfkill state file
 When:	Feb 2014
 Files:	net/rfkill/core.c

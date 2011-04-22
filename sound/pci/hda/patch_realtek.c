@@ -14124,7 +14124,7 @@ static hda_nid_t alc269vb_capsrc_nids[1] = {
 };
 
 static hda_nid_t alc269_adc_candidates[] = {
-	0x08, 0x09, 0x07,
+	0x08, 0x09, 0x07, 0x11,
 };
 
 #define alc269_modes		alc260_modes

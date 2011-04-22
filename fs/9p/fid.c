@@ -286,11 +286,9 @@ static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, uid_t uid)
 
 struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 {
-	int err, flags;
+	int err;
 	struct p9_fid *fid;
-	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_dentry2v9ses(dentry);
 	fid = v9fs_fid_clone_with_uid(dentry, 0);
 	if (IS_ERR(fid))
 		goto error_out;
@@ -299,17 +297,8 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	 * dirty pages. We always request for the open fid in read-write
 	 * mode so that a partial page write which result in page
 	 * read can work.
-	 *
-	 * we don't have a tsyncfs operation for older version
-	 * of protocol. So make sure the write back fid is
-	 * opened in O_SYNC mode.
 	 */
-	if (!v9fs_proto_dotl(v9ses))
-		flags = O_RDWR | O_SYNC;
-	else
-		flags = O_RDWR;
-
-	err = p9_client_open(fid, flags);
+	err = p9_client_open(fid, O_RDWR);
 	if (err < 0) {
 		p9_client_clunk(fid);
 		fid = ERR_PTR(err);

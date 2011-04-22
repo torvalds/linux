@@ -94,6 +94,13 @@ struct tag_ethernet {
 
 #define ETH_INVALID_PHY	0xff
 
+/* board information */
+#define ATAG_BOARDINFO	0x54410008
+
+struct tag_boardinfo {
+	u32	board_number;
+};
+
 struct tag {
 	struct tag_header hdr;
 	union {
@@ -102,6 +109,7 @@ struct tag {
 		struct tag_cmdline cmdline;
 		struct tag_clock clock;
 		struct tag_ethernet ethernet;
+		struct tag_boardinfo boardinfo;
 	} u;
 };
 
@@ -128,6 +136,7 @@ extern struct tag *bootloader_tags;
 
 extern resource_size_t fbmem_start;
 extern resource_size_t fbmem_size;
+extern u32 board_number;
 
 void setup_processor(void);
 

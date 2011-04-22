@@ -66,7 +66,7 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 	uint32_t pdata_mapped_pages;
 	struct trans_rpage_info  *rpinfo;
 
-	*pdata_off = (size_t)req->tc->pubuf & (PAGE_SIZE-1);
+	*pdata_off = (__force size_t)req->tc->pubuf & (PAGE_SIZE-1);
 
 	if (*pdata_off)
 		first_page_bytes = min(((size_t)PAGE_SIZE - *pdata_off),

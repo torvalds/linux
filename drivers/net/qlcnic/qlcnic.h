@@ -99,6 +99,7 @@
 #define TX_UDPV6_PKT	0x0c
 
 /* Tx defines */
+#define QLCNIC_MAX_FRAGS_PER_TX	14
 #define MAX_TSO_HEADER_DESC	2
 #define MGMT_CMD_DESC_RESV	4
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \

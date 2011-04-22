@@ -945,7 +945,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 		/* rgblk_search can return a block < goal, so we need to
 		   keep it marching forward. */
 		no_addr = block + rgd->rd_data0;
-		goal++;
+		goal = max(block + 1, goal + 1);
 		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
 			continue;
 		if (no_addr == skip)
@@ -971,7 +971,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 			found++;
 
 		/* Limit reclaim to sensible number of tasks */
-		if (found > 2*NR_CPUS)
+		if (found > NR_CPUS)
 			return;
 	}
 

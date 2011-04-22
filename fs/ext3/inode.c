@@ -3291,7 +3291,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 	if (ext3_should_journal_data(inode))
 		ret = 3 * (bpp + indirects) + 2;
 	else
-		ret = 2 * (bpp + indirects) + 2;
+		ret = 2 * (bpp + indirects) + indirects + 2;
 
 #ifdef CONFIG_QUOTA
 	/* We know that structure was already allocated during dquot_initialize so

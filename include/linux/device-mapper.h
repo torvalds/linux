@@ -197,7 +197,6 @@ struct dm_target {
 struct dm_target_callbacks {
 	struct list_head list;
 	int (*congested_fn) (struct dm_target_callbacks *, int);
-	void (*unplug_fn)(struct dm_target_callbacks *);
 };
 
 int dm_register_target(struct target_type *t);
