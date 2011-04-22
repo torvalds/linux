@@ -673,7 +673,7 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
-unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
+u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 {
 	REG_CLR_BIT(ah, PLL3, PLL3_DO_MEAS_MASK);
 	udelay(100);

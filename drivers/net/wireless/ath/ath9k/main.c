@@ -624,23 +624,37 @@ out:
 	ath9k_ps_restore(sc);
 }
 
+static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
+{
+	static int count;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (pll_sqsum >= 0x40000) {
+		count++;
+		if (count == 3) {
+			/* Rx is hung for more than 500ms. Reset it */
+			ath_dbg(common, ATH_DBG_RESET,
+				"Possible RX hang, resetting");
+			ath_reset(sc, true);
+			count = 0;
+		}
+	} else
+		count = 0;
+}
+
 void ath_hw_pll_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
-	static int count;
+	u32 pll_sqsum;
 
 	if (AR_SREV_9485(sc->sc_ah)) {
-		if (ar9003_get_pll_sqsum_dvc(sc->sc_ah) >= 0x40000) {
-			count++;
 
-			if (count == 3) {
-				/* Rx is hung for more than 500ms. Reset it */
-				ath_reset(sc, true);
-				count = 0;
-			}
-		} else
-			count = 0;
+		ath9k_ps_wakeup(sc);
+		pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
+		ath9k_ps_restore(sc);
+
+		ath_hw_pll_rx_hang_check(sc, pll_sqsum);
 
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
 	}
