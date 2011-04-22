@@ -2211,9 +2211,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	int timeout = 200; /* ms */
 	int i, j;
 
-	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
-
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (drop)
@@ -2236,15 +2234,15 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		    goto out;
 	}
 
+	ath9k_ps_wakeup(sc);
 	if (!ath_drain_all_txq(sc, false))
 		ath_reset(sc, false);
-
+	ath9k_ps_restore(sc);
 	ieee80211_wake_queues(hw);
 
 out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
-	ath9k_ps_restore(sc);
 }
 
 static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
