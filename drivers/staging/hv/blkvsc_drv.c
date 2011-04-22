@@ -126,6 +126,9 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request);
 
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
 
+module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
+
 /*
  * There is a circular dependency involving blkvsc_probe()
  * and block_ops.
@@ -1213,9 +1216,6 @@ static void blkvsc_request(struct request_queue *queue)
 	}
 }
 
-
-module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
-MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
 
 /* The one and only one */
 static  struct storvsc_driver_object g_blkvsc_drv;
