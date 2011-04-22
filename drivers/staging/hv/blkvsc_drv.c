@@ -963,7 +963,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev = kzalloc(sizeof(struct block_device_context), GFP_KERNEL);
 	if (!blkdev) {
 		ret = -ENOMEM;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	INIT_LIST_HEAD(&blkdev->pending_list);
@@ -977,14 +977,14 @@ static int blkvsc_probe(struct device *device)
 					SLAB_HWCACHE_ALIGN, NULL);
 	if (!blkdev->request_pool) {
 		ret = -ENOMEM;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 
 	/* Call to the vsc driver to add the device */
 	ret = storvsc_drv_obj->base.dev_add(device_obj, &device_info);
 	if (ret != 0)
-		goto Cleanup;
+		goto cleanup;
 
 	blkdev->device_ctx = device_obj;
 	/* this identified the device 0 or 1 */
@@ -1027,7 +1027,7 @@ static int blkvsc_probe(struct device *device)
 		}
 	} else {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	DPRINT_INFO(BLKVSC_DRV, "blkvsc registered for major %d!!", major);
@@ -1035,7 +1035,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->gd = alloc_disk(BLKVSC_MINORS);
 	if (!blkdev->gd) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	blkdev->gd->queue = blk_init_queue(blkvsc_request, &blkdev->lock);
@@ -1074,7 +1074,7 @@ static int blkvsc_probe(struct device *device)
 Remove:
 	storvsc_drv_obj->base.dev_rm(device_obj);
 
-Cleanup:
+cleanup:
 	if (blkdev) {
 		if (blkdev->request_pool) {
 			kmem_cache_destroy(blkdev->request_pool);
