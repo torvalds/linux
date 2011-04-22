@@ -169,13 +169,13 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	}
 	buff = st->usb_buffer;
 
-	/* the read/write capped at 512 */
-	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
-
 	ret = mutex_lock_interruptible(&d->usb_mutex);
 
 	if (ret < 0)
 		return -EAGAIN;
+
+	/* the read/write capped at 512 */
+	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
 
 	ret |= usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, 0x01));
 
@@ -1247,7 +1247,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	}
 };
 
-void *lme2510_exit_int(struct dvb_usb_device *d)
+static void *lme2510_exit_int(struct dvb_usb_device *d)
 {
 	struct lme2510_state *st = d->priv;
 	struct dvb_usb_adapter *adap = &d->adapter[0];
@@ -1274,7 +1274,7 @@ void *lme2510_exit_int(struct dvb_usb_device *d)
 	return buffer;
 }
 
-void lme2510_exit(struct usb_interface *intf)
+static void lme2510_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	void *usb_buffer;
@@ -1316,5 +1316,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.84");
+MODULE_VERSION("1.85");
 MODULE_LICENSE("GPL");
