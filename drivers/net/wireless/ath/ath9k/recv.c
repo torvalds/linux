@@ -1742,7 +1742,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if ((sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					      PS_WAIT_FOR_CAB |
 					      PS_WAIT_FOR_PSPOLL_DATA)) ||
-					unlikely(ath9k_check_auto_sleep(sc)))
+						ath9k_check_auto_sleep(sc))
 			ath_rx_ps(sc, skb);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
