@@ -39,6 +39,15 @@
 #define ACCESS_ALLOWED	0
 #define ACCESS_DENIED	1
 
+#define SIDOWNER 1
+#define SIDGROUP 2
+#define SIDLEN 150 /* S- 1 revision- 6 authorities- max 5 sub authorities */
+
+#define SID_ID_MAPPED 0
+#define SID_ID_PENDING 1
+#define SID_MAP_EXPIRE (3600 * HZ) /* map entry expires after one hour */
+#define SID_MAP_RETRY (300 * HZ)   /* wait 5 minutes for next attempt to map */
+
 struct cifs_ntsd {
 	__le16 revision; /* revision level */
 	__le16 type;
@@ -73,6 +82,21 @@ struct cifs_wksid {
 	struct cifs_sid cifssid;
 	char sidname[SIDNAMELENGTH];
 } __attribute__((packed));
+
+struct cifs_sid_id {
+	unsigned int refcount; /* increment with spinlock, decrement without */
+	unsigned long id;
+	unsigned long time;
+	unsigned long state;
+	char *sidstr;
+	struct rb_node rbnode;
+	struct cifs_sid sid;
+};
+
+#ifdef __KERNEL__
+extern struct key_type cifs_idmap_key_type;
+extern const struct cred *root_cred;
+#endif /* KERNEL */
 
 extern int match_sid(struct cifs_sid *);
 extern int compare_sids(const struct cifs_sid *, const struct cifs_sid *);
