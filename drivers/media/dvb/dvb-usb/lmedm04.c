@@ -127,6 +127,7 @@ struct lme2510_state {
 	u8 i2c_tuner_gate_r;
 	u8 i2c_tuner_addr;
 	u8 stream_on;
+	u8 pid_size;
 	void *buffer;
 	struct urb *lme_urb;
 	void *usb_buffer;
@@ -224,28 +225,27 @@ static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
 	static u8 pid_buff[] = LME_ZERO_PID;
 	static u8 rbuf[1];
 	u8 pid_no = index * 2;
+	u8 pid_len = pid_no + 2;
 	int ret = 0;
 	deb_info(1, "PID Setting Pid %04x", pid_out);
+
+	if (st->pid_size == 0)
+		ret |= lme2510_stream_restart(d);
 
 	pid_buff[2] = pid_no;
 	pid_buff[3] = (u8)pid_out & 0xff;
 	pid_buff[4] = pid_no + 1;
 	pid_buff[5] = (u8)(pid_out >> 8);
 
-	/* wait for i2c mutex */
-	ret = mutex_lock_interruptible(&d->i2c_mutex);
-	if (ret < 0) {
-		ret = -EAGAIN;
-		return ret;
-	}
+	if (pid_len > st->pid_size)
+		st->pid_size = pid_len;
+	pid_buff[7] = 0x80 + st->pid_size;
 
 	ret |= lme2510_usb_talk(d, pid_buff ,
 		sizeof(pid_buff) , rbuf, sizeof(rbuf));
 
-	if (st->stream_on & 1)
+	if (st->stream_on)
 		ret |= lme2510_stream_restart(d);
-
-	mutex_unlock(&d->i2c_mutex);
 
 	return ret;
 }
@@ -362,17 +362,22 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 
 static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
+	struct lme2510_state *st = adap->dev->priv;
 	static u8 clear_pid_reg[] = LME_CLEAR_PID;
 	static u8 rbuf[1];
-	int ret = 0;
+	int ret;
 
 	deb_info(1, "PID Clearing Filter");
 
 	ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+	if (ret < 0)
+		return -EAGAIN;
 
 	if (!onoff)
 		ret |= lme2510_usb_talk(adap->dev, clear_pid_reg,
 			sizeof(clear_pid_reg), rbuf, sizeof(rbuf));
+
+	st->pid_size = 0;
 
 	mutex_unlock(&adap->dev->i2c_mutex);
 
@@ -388,8 +393,14 @@ static int lme2510_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 		pid, index, onoff);
 
 	if (onoff)
-		if (!pid_filter)
-			ret = lme2510_enable_pid(adap->dev, index, pid);
+		if (!pid_filter) {
+			ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+			if (ret < 0)
+				return -EAGAIN;
+			ret |= lme2510_enable_pid(adap->dev, index, pid);
+			mutex_unlock(&adap->dev->i2c_mutex);
+	}
+
 
 	return ret;
 }
@@ -1316,5 +1327,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.85");
+MODULE_VERSION("1.86");
 MODULE_LICENSE("GPL");
