@@ -296,9 +296,6 @@ static void print_cpu(struct seq_file *m, int cpu)
 	P(ttwu_count);
 	P(ttwu_local);
 
-	SEQ_printf(m, "  .%-30s: %d\n", "bkl_count",
-				rq->rq_sched_info.bkl_count);
-
 #undef P
 #undef P64
 #endif
@@ -441,7 +438,6 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.statistics.wait_count);
 	PN(se.statistics.iowait_sum);
 	P(se.statistics.iowait_count);
-	P(sched_info.bkl_count);
 	P(se.nr_migrations);
 	P(se.statistics.nr_migrations_cold);
 	P(se.statistics.nr_failed_migrations_affine);
