@@ -92,6 +92,14 @@ struct storvsc_device_info {
 	unsigned char target_id;
 };
 
+struct storvsc_major_info {
+	int major;
+	int index;
+	bool do_register;
+	char *devname;
+	char *diskname;
+};
+
 /* A storvsc device is a device object that contains a vmbus channel */
 struct storvsc_device {
 	struct hv_device *device;
@@ -155,5 +163,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 				struct hv_storvsc_request *request);
 void stor_vsc_on_cleanup(struct hv_driver *driver);
 
+int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
+				struct storvsc_major_info *major_info);
 
 #endif /* _STORVSC_API_H_ */

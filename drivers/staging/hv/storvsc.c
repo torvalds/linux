@@ -17,6 +17,8 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *
+ * 4/3/2011: K. Y. Srinivasan - Significant restructuring and cleanup.
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -590,6 +592,72 @@ int stor_vsc_on_io_request(struct hv_device *device,
 
 	put_stor_device(device);
 	return ret;
+}
+
+/*
+ * The channel properties uniquely specify how the device is to be
+ * presented to the guest. Map this information for use by the block
+ * driver. For Linux guests on Hyper-V, we emulate a scsi HBA in the guest
+ * (storvsc_drv) and so scsi devices in the guest  are handled by
+ * native upper level Linux drivers. Consequently, Hyper-V
+ * block driver, while being a generic block driver, presently does not
+ * deal with anything other than devices that would need to be presented
+ * to the guest as an IDE disk.
+ *
+ * This function maps the channel properties as embedded in the input
+ * parameter device_info onto information necessary to register the
+ * corresponding block device.
+ *
+ * Currently, there is no way to stop the emulation of the block device
+ * on the host side. And so, to prevent the native IDE drivers in Linux
+ * from taking over these devices (to be managedby Hyper-V block
+ * driver), we will take over if need be the major of the IDE controllers.
+ *
+ */
+
+int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
+			    struct storvsc_major_info *major_info)
+{
+	static bool ide0_registered;
+	static bool ide1_registered;
+
+	/*
+	 * For now we only support IDE disks.
+	 */
+	major_info->devname = "ide";
+	major_info->diskname = "hd";
+
+	if (device_info->path_id) {
+		major_info->major = 22;
+		if (!ide1_registered)
+			major_info->do_register = true;
+		else {
+			major_info->do_register = false;
+			ide1_registered = true;
+		}
+		if (device_info->target_id)
+			major_info->index = 3;
+		 else
+			major_info->index = 2;
+
+		return 0;
+	} else {
+		major_info->major = 3;
+		if (!ide0_registered)
+			major_info->do_register = true;
+		else {
+			major_info->do_register = false;
+			ide0_registered = true;
+		}
+		if (device_info->target_id)
+			major_info->index = 1;
+		else
+			major_info->index = 0;
+
+		return 0;
+	}
+
+	return -ENODEV;
 }
 
 /*
