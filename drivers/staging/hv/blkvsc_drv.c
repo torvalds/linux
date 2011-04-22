@@ -437,8 +437,6 @@ static int blkvsc_do_operation(struct block_device_context *blkdev,
 
 		if (device_type == 0x0)
 			blkdev->device_type = HARDDISK_TYPE;
-		 else if (device_type == 0x5)
-			blkdev->device_type = DVD_TYPE;
 		 else
 			blkdev->device_type = UNKNOWN_DEV_TYPE;
 
@@ -1076,12 +1074,7 @@ static int blkvsc_probe(struct device *device)
 	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + devnum);
 
 	blkvsc_do_operation(blkdev, DO_INQUIRY);
-	if (blkdev->device_type == DVD_TYPE) {
-		set_disk_ro(blkdev->gd, 1);
-		blkdev->gd->flags |= GENHD_FL_REMOVABLE;
-		blkvsc_do_operation(blkdev, DO_CAPACITY);
-	} else
-		blkvsc_do_operation(blkdev, DO_CAPACITY);
+	blkvsc_do_operation(blkdev, DO_CAPACITY);
 
 	set_capacity(blkdev->gd, blkdev->capacity * (blkdev->sector_size/512));
 	blk_queue_logical_block_size(blkdev->gd->queue, blkdev->sector_size);
