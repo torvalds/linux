@@ -637,10 +637,42 @@ static int blkvsc_remove(struct device *device)
 	return ret;
 }
 
+static void blkvsc_shutdown(struct device *device)
+{
+	struct block_device_context *blkdev = dev_get_drvdata(device);
+	unsigned long flags;
+
+	if (!blkdev)
+		return;
+
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_shutdown - users %d disk %s\n",
+		   blkdev->users, blkdev->gd->disk_name);
+
+	spin_lock_irqsave(&blkdev->lock, flags);
+
+	blkdev->shutting_down = 1;
+
+	blk_stop_queue(blkdev->gd->queue);
+
+	spin_unlock_irqrestore(&blkdev->lock, flags);
+
+	while (blkdev->num_outstanding_reqs) {
+		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
+			    blkdev->num_outstanding_reqs);
+		udelay(100);
+	}
+
+	blkvsc_do_flush(blkdev);
+
+	spin_lock_irqsave(&blkdev->lock, flags);
+
+	blkvsc_cancel_pending_reqs(blkdev);
+
+	spin_unlock_irqrestore(&blkdev->lock, flags);
+}
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
-static void blkvsc_shutdown(struct device *device);
-
 static int blkvsc_release(struct gendisk *disk, fmode_t mode);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static void blkvsc_request(struct request_queue *queue);
@@ -902,40 +934,6 @@ Cleanup:
 	}
 
 	return ret;
-}
-
-static void blkvsc_shutdown(struct device *device)
-{
-	struct block_device_context *blkdev = dev_get_drvdata(device);
-	unsigned long flags;
-
-	if (!blkdev)
-		return;
-
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_shutdown - users %d disk %s\n",
-		   blkdev->users, blkdev->gd->disk_name);
-
-	spin_lock_irqsave(&blkdev->lock, flags);
-
-	blkdev->shutting_down = 1;
-
-	blk_stop_queue(blkdev->gd->queue);
-
-	spin_unlock_irqrestore(&blkdev->lock, flags);
-
-	while (blkdev->num_outstanding_reqs) {
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
-			    blkdev->num_outstanding_reqs);
-		udelay(100);
-	}
-
-	blkvsc_do_flush(blkdev);
-
-	spin_lock_irqsave(&blkdev->lock, flags);
-
-	blkvsc_cancel_pending_reqs(blkdev);
-
-	spin_unlock_irqrestore(&blkdev->lock, flags);
 }
 
 /* Do a scsi INQUIRY cmd here to get the device type (ie disk or dvd) */
