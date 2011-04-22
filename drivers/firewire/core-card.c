@@ -258,8 +258,7 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 
 	if (!card->broadcast_channel_allocated) {
 		fw_iso_resource_manage(card, generation, 1ULL << 31,
-				       &channel, &bandwidth, true,
-				       card->bm_transaction_data);
+				       &channel, &bandwidth, true);
 		if (channel != 31) {
 			fw_notify("failed to allocate broadcast channel\n");
 			return;
@@ -294,6 +293,7 @@ static void bm_work(struct work_struct *work)
 	bool root_device_is_cmc;
 	bool irm_is_1394_1995_only;
 	bool keep_this_irm;
+	__be32 transaction_data[2];
 
 	spin_lock_irq(&card->lock);
 
@@ -355,21 +355,21 @@ static void bm_work(struct work_struct *work)
 			goto pick_me;
 		}
 
-		card->bm_transaction_data[0] = cpu_to_be32(0x3f);
-		card->bm_transaction_data[1] = cpu_to_be32(local_id);
+		transaction_data[0] = cpu_to_be32(0x3f);
+		transaction_data[1] = cpu_to_be32(local_id);
 
 		spin_unlock_irq(&card->lock);
 
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				card->bm_transaction_data, 8);
+				transaction_data, 8);
 
 		if (rcode == RCODE_GENERATION)
 			/* Another bus reset, BM work has been rescheduled. */
 			goto out;
 
-		bm_id = be32_to_cpu(card->bm_transaction_data[0]);
+		bm_id = be32_to_cpu(transaction_data[0]);
 
 		spin_lock_irq(&card->lock);
 		if (rcode == RCODE_COMPLETE && generation == card->generation)
@@ -490,11 +490,11 @@ static void bm_work(struct work_struct *work)
 		/*
 		 * Make sure that the cycle master sends cycle start packets.
 		 */
-		card->bm_transaction_data[0] = cpu_to_be32(CSR_STATE_BIT_CMSTR);
+		transaction_data[0] = cpu_to_be32(CSR_STATE_BIT_CMSTR);
 		rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
 				root_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_STATE_SET,
-				card->bm_transaction_data, 4);
+				transaction_data, 4);
 		if (rcode == RCODE_GENERATION)
 			goto out;
 	}

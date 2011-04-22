@@ -11,7 +11,6 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include "iso-resources.h"
 
@@ -25,10 +24,6 @@
  */
 int fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
 {
-	r->buffer = kmalloc(2 * 4, GFP_KERNEL);
-	if (!r->buffer)
-		return -ENOMEM;
-
 	r->channels_mask = ~0uLL;
 	r->unit = fw_unit_get(unit);
 	mutex_init(&r->mutex);
@@ -44,7 +39,6 @@ int fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
 void fw_iso_resources_destroy(struct fw_iso_resources *r)
 {
 	WARN_ON(r->allocated);
-	kfree(r->buffer);
 	mutex_destroy(&r->mutex);
 	fw_unit_put(r->unit);
 }
@@ -131,7 +125,7 @@ retry_after_bus_reset:
 
 	bandwidth = r->bandwidth + r->bandwidth_overhead;
 	fw_iso_resource_manage(card, r->generation, r->channels_mask,
-			       &channel, &bandwidth, true, r->buffer);
+			       &channel, &bandwidth, true);
 	if (channel == -EAGAIN) {
 		mutex_unlock(&r->mutex);
 		goto retry_after_bus_reset;
@@ -184,7 +178,7 @@ int fw_iso_resources_update(struct fw_iso_resources *r)
 	bandwidth = r->bandwidth + r->bandwidth_overhead;
 
 	fw_iso_resource_manage(card, r->generation, 1uLL << r->channel,
-			       &channel, &bandwidth, true, r->buffer);
+			       &channel, &bandwidth, true);
 	/*
 	 * When another bus reset happens, pretend that the allocation
 	 * succeeded; we will try again for the new generation later.
@@ -220,7 +214,7 @@ void fw_iso_resources_free(struct fw_iso_resources *r)
 	if (r->allocated) {
 		bandwidth = r->bandwidth + r->bandwidth_overhead;
 		fw_iso_resource_manage(card, r->generation, 1uLL << r->channel,
-				       &channel, &bandwidth, false, r->buffer);
+				       &channel, &bandwidth, false);
 		if (channel < 0)
 			dev_err(&r->unit->device,
 				"isochronous resource deallocation failed\n");

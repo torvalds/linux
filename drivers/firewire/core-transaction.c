@@ -326,8 +326,8 @@ static int allocate_tlabel(struct fw_card *card)
  * It will contain tag, channel, and sy data instead of a node ID then.
  *
  * The payload buffer at @data is going to be DMA-mapped except in case of
- * quadlet-sized payload or of local (loopback) requests.  Hence make sure that
- * the buffer complies with the restrictions for DMA-mapped memory.  The
+ * @length <= 8 or of local (loopback) requests.  Hence make sure that the
+ * buffer complies with the restrictions of the streaming DMA mapping API.
  * @payload must not be freed before the @callback is called.
  *
  * In case of request types without payload, @data is NULL and @length is 0.
@@ -411,7 +411,8 @@ static void transaction_callback(struct fw_card *card, int rcode,
  *
  * Returns the RCODE.  See fw_send_request() for parameter documentation.
  * Unlike fw_send_request(), @data points to the payload of the request or/and
- * to the payload of the response.
+ * to the payload of the response.  DMA mapping restrictions apply to outbound
+ * request payloads of >= 8 bytes but not to inbound response payloads.
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
