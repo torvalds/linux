@@ -483,8 +483,6 @@ void iwlagn_rx_handler_setup(struct iwl_priv *priv)
 	/* init calibration handlers */
 	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
 					iwlagn_rx_calib_result;
-	priv->rx_handlers[CALIBRATION_COMPLETE_NOTIFICATION] =
-					iwlagn_rx_calib_complete;
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */

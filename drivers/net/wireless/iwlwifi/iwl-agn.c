@@ -1181,12 +1181,6 @@ static void iwl_dealloc_ucode_pci(struct iwl_priv *priv)
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init_data);
 }
 
-static void iwl_nic_start(struct iwl_priv *priv)
-{
-	/* Remove all resets to allow NIC to operate */
-	iwl_write32(priv, CSR_RESET, 0);
-}
-
 struct iwlagn_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
@@ -1873,7 +1867,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	struct iwl_error_event_table table;
 
 	base = priv->device_pointers.error_event_table;
-	if (priv->ucode_type == UCODE_INIT) {
+	if (priv->ucode_type == UCODE_SUBTYPE_INIT) {
 		if (!base)
 			base = priv->_agn.init_errlog_ptr;
 	} else {
@@ -1884,7 +1878,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
-			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
+			base,
+			(priv->ucode_type == UCODE_SUBTYPE_INIT)
+					? "Init" : "RT");
 		return;
 	}
 
@@ -1944,7 +1940,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		return pos;
 
 	base = priv->device_pointers.log_event_table;
-	if (priv->ucode_type == UCODE_INIT) {
+	if (priv->ucode_type == UCODE_SUBTYPE_INIT) {
 		if (!base)
 			base = priv->_agn.init_evtlog_ptr;
 	} else {
@@ -2057,7 +2053,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	size_t bufsz = 0;
 
 	base = priv->device_pointers.log_event_table;
-	if (priv->ucode_type == UCODE_INIT) {
+	if (priv->ucode_type == UCODE_SUBTYPE_INIT) {
 		logsize = priv->_agn.init_evtlog_size;
 		if (!base)
 			base = priv->_agn.init_evtlog_ptr;
@@ -2070,7 +2066,9 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Invalid event log pointer 0x%08X for %s uCode\n",
-			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
+			base,
+			(priv->ucode_type == UCODE_SUBTYPE_INIT)
+					? "Init" : "RT");
 		return -EINVAL;
 	}
 
@@ -2217,30 +2215,14 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by iwl_init_alive_start()).
  */
-static void iwl_alive_start(struct iwl_priv *priv)
+static int iwl_alive_start(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
+	iwl_reset_ict(priv);
+
 	IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-
-	/* Initialize uCode has loaded Runtime uCode ... verify inst image.
-	 * This is a paranoid check, because we would not have gotten the
-	 * "runtime" alive if code weren't properly loaded.  */
-	if (iwl_verify_ucode(priv, &priv->ucode_code)) {
-		/* Runtime instruction load was bad;
-		 * take it all the way back down so we can try again */
-		IWL_DEBUG_INFO(priv, "Bad runtime uCode load.\n");
-		goto restart;
-	}
-
-	ret = iwlagn_alive_notify(priv);
-	if (ret) {
-		IWL_WARN(priv,
-			"Could not complete ALIVE transition [ntf]: %d\n", ret);
-		goto restart;
-	}
-
 
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
@@ -2249,7 +2231,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl_setup_watchdog(priv);
 
 	if (iwl_is_rfkill(priv))
-		return;
+		return -ERFKILL;
 
 	/* download priority table before any calibration request */
 	if (priv->cfg->bt_params &&
@@ -2263,10 +2245,14 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		iwlagn_send_prio_tbl(priv);
 
 		/* FIXME: w/a to force change uCode BT state machine */
-		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
-			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
-		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
-			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		if (ret)
+			return ret;
+		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
+					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		if (ret)
+			return ret;
 	}
 	if (priv->hw_params.calib_rt_cfg)
 		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
@@ -2308,22 +2294,16 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 
 	/* Configure the adapter for unassociated operation */
-	iwlcore_commit_rxon(priv, ctx);
+	ret = iwlcore_commit_rxon(priv, ctx);
+	if (ret)
+		return ret;
 
 	/* At this point, the NIC is initialized and operational */
 	iwl_rf_kill_ct_config(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
-	wake_up_interruptible(&priv->wait_command_queue);
 
-	iwl_power_update_mode(priv, true);
-	IWL_DEBUG_INFO(priv, "Updated power mode\n");
-
-
-	return;
-
- restart:
-	queue_work(priv->workqueue, &priv->restart);
+	return iwl_power_update_mode(priv, true);
 }
 
 static void iwl_cancel_deferred_work(struct iwl_priv *priv);
@@ -2446,8 +2426,9 @@ int iwl_prepare_card_hw(struct iwl_priv *priv)
 static int __iwl_up(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx;
-	int i;
 	int ret;
+
+	lockdep_assert_held(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -2462,39 +2443,34 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
-	ret = iwlagn_start_device(priv);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < MAX_HW_RESTARTS; i++) {
-
-		/* load bootstrap state machine,
-		 * load bootstrap program into processor's memory,
-		 * prepare to load the "initialize" uCode */
-		ret = iwlagn_load_ucode(priv);
-
-		if (ret) {
-			IWL_ERR(priv, "Unable to set up bootstrap uCode: %d\n",
-				ret);
-			continue;
-		}
-
-		/* start card; "initialize" will load runtime ucode */
-		iwl_nic_start(priv);
-
-		IWL_DEBUG_INFO(priv, DRV_NAME " is coming up\n");
-
-		return 0;
+	ret = iwlagn_run_init_ucode(priv);
+	if (ret) {
+		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
+		goto error;
 	}
 
+	ret = iwlagn_load_ucode_wait_alive(priv,
+					   &priv->ucode_code,
+					   &priv->ucode_data,
+					   UCODE_SUBTYPE_REGULAR,
+					   UCODE_SUBTYPE_REGULAR_NEW);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start RT ucode: %d\n", ret);
+		goto error;
+	}
+
+	ret = iwl_alive_start(priv);
+	if (ret)
+		goto error;
+	return 0;
+
+ error:
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 	__iwl_down(priv);
 	clear_bit(STATUS_EXIT_PENDING, &priv->status);
 
-	/* tried to restart and config the device for as long as our
-	 * patience could withstand */
-	IWL_ERR(priv, "Unable to initialize device after %d attempts.\n", i);
-	return -EIO;
+	IWL_ERR(priv, "Unable to initialize device.\n");
+	return ret;
 }
 
 
@@ -2503,39 +2479,6 @@ static int __iwl_up(struct iwl_priv *priv)
  * Workqueue callbacks
  *
  *****************************************************************************/
-
-static void iwl_bg_init_alive_start(struct work_struct *data)
-{
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, init_alive_start.work);
-
-	mutex_lock(&priv->mutex);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		mutex_unlock(&priv->mutex);
-		return;
-	}
-
-	iwlagn_init_alive_start(priv);
-	mutex_unlock(&priv->mutex);
-}
-
-static void iwl_bg_alive_start(struct work_struct *data)
-{
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, alive_start.work);
-
-	mutex_lock(&priv->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		goto unlock;
-
-	/* enable dram interrupt */
-	iwl_reset_ict(priv);
-
-	iwl_alive_start(priv);
-unlock:
-	mutex_unlock(&priv->mutex);
-}
 
 static void iwl_bg_run_time_calib_work(struct work_struct *work)
 {
@@ -2602,14 +2545,7 @@ static void iwl_bg_restart(struct work_struct *data)
 		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);
 	} else {
-		iwl_down(priv);
-
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return;
-
-		mutex_lock(&priv->mutex);
-		__iwl_up(priv);
-		mutex_unlock(&priv->mutex);
+		WARN_ON(1);
 	}
 }
 
@@ -2720,8 +2656,6 @@ unlock:
  *
  *****************************************************************************/
 
-#define UCODE_READY_TIMEOUT	(4 * HZ)
-
 /*
  * Not a mac80211 entry point function, but it fits in with all the
  * other mac80211 functions grouped here.
@@ -2814,31 +2748,17 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 	ret = __iwl_up(priv);
 	mutex_unlock(&priv->mutex);
-
 	if (ret)
 		return ret;
 
-	if (iwl_is_rfkill(priv))
-		goto out;
-
 	IWL_DEBUG_INFO(priv, "Start UP work done.\n");
 
-	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
-	 * mac80211 will not be run successfully. */
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-			test_bit(STATUS_READY, &priv->status),
-			UCODE_READY_TIMEOUT);
-	if (!ret) {
-		if (!test_bit(STATUS_READY, &priv->status)) {
-			IWL_ERR(priv, "START_ALIVE timeout after %dms.\n",
-				jiffies_to_msecs(UCODE_READY_TIMEOUT));
-			return -ETIMEDOUT;
-		}
-	}
+	/* Now we should be done, and the READY bit should be set. */
+	if (WARN_ON(!test_bit(STATUS_READY, &priv->status)))
+		ret = -EIO;
 
 	iwlagn_led_enable(priv);
 
-out:
 	priv->is_open = 1;
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;
@@ -3425,8 +3345,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
 	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
-	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
-	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->_agn.hw_roc_work, iwlagn_bg_roc_done);
 
 	iwl_setup_scan_deferred_work(priv);
@@ -3455,8 +3373,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	if (priv->cfg->ops->lib->cancel_deferred_work)
 		priv->cfg->ops->lib->cancel_deferred_work(priv);
 
-	cancel_delayed_work_sync(&priv->init_alive_start);
-	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
 
@@ -3690,6 +3606,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	priv = hw->priv;
 	/* At this point both hw and priv are allocated. */
+
+	priv->ucode_type = UCODE_SUBTYPE_NONE_LOADED;
 
 	/*
 	 * The default context is always valid,

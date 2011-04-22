@@ -158,16 +158,15 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 
 /* uCode */
-int iwlagn_load_ucode(struct iwl_priv *priv);
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_calib_complete(struct iwl_priv *priv,
-			   struct iwl_rx_mem_buffer *rxb);
-void iwlagn_init_alive_start(struct iwl_priv *priv);
-int iwlagn_alive_notify(struct iwl_priv *priv);
-int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc);
-void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
+int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
+int iwlagn_run_init_ucode(struct iwl_priv *priv);
+int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
+				 struct fw_desc *inst_image,
+				 struct fw_desc *data_image,
+				 int subtype, int alternate_subtype);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,

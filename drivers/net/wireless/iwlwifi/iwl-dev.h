@@ -794,12 +794,6 @@ struct iwl_calib_result {
 	size_t buf_len;
 };
 
-enum ucode_type {
-	UCODE_NONE = 0,
-	UCODE_INIT,
-	UCODE_RT
-};
-
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
@@ -1276,7 +1270,7 @@ struct iwl_priv {
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_init;	/* initialization inst */
 	struct fw_desc ucode_init_data;	/* initialization data */
-	enum ucode_type ucode_type;
+	enum iwlagn_ucode_subtype ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
@@ -1474,8 +1468,6 @@ struct iwl_priv {
 
 	struct tasklet_struct irq_tasklet;
 
-	struct delayed_work init_alive_start;
-	struct delayed_work alive_start;
 	struct delayed_work scan_check;
 
 	/* TX Power */
