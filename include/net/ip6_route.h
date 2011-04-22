@@ -86,7 +86,7 @@ extern int			ip6_del_rt(struct rt6_info *);
 
 extern int			ip6_route_get_saddr(struct net *net,
 						    struct rt6_info *rt,
-						    struct in6_addr *daddr,
+						    const struct in6_addr *daddr,
 						    unsigned int prefs,
 						    struct in6_addr *saddr);
 
@@ -112,9 +112,9 @@ extern int			ip6_dst_hoplimit(struct dst_entry *dst);
  *	support functions for ND
  *
  */
-extern struct rt6_info *	rt6_get_dflt_router(struct in6_addr *addr,
+extern struct rt6_info *	rt6_get_dflt_router(const struct in6_addr *addr,
 						    struct net_device *dev);
-extern struct rt6_info *	rt6_add_dflt_router(struct in6_addr *gwaddr,
+extern struct rt6_info *	rt6_add_dflt_router(const struct in6_addr *gwaddr,
 						    struct net_device *dev,
 						    unsigned int pref);
 
@@ -122,17 +122,17 @@ extern void			rt6_purge_dflt_routers(struct net *net);
 
 extern int			rt6_route_rcv(struct net_device *dev,
 					      u8 *opt, int len,
-					      struct in6_addr *gwaddr);
+					      const struct in6_addr *gwaddr);
 
-extern void			rt6_redirect(struct in6_addr *dest,
-					     struct in6_addr *src,
-					     struct in6_addr *saddr,
+extern void			rt6_redirect(const struct in6_addr *dest,
+					     const struct in6_addr *src,
+					     const struct in6_addr *saddr,
 					     struct neighbour *neigh,
 					     u8 *lladdr,
 					     int on_link);
 
-extern void			rt6_pmtu_discovery(struct in6_addr *daddr,
-						   struct in6_addr *saddr,
+extern void			rt6_pmtu_discovery(const struct in6_addr *daddr,
+						   const struct in6_addr *saddr,
 						   struct net_device *dev,
 						   u32 pmtu);
 

@@ -539,7 +539,7 @@ int __netpoll_rx(struct sk_buff *skb)
 {
 	int proto, len, ulen;
 	int hits = 0;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct udphdr *uh;
 	struct netpoll_info *npinfo = skb->dev->npinfo;
 	struct netpoll *np, *tmp;

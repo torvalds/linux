@@ -224,7 +224,7 @@ out:
 }
 
 static __inline__ struct frag_queue *
-fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst)
+fq_find(struct net *net, __be32 id, const struct in6_addr *src, const struct in6_addr *dst)
 {
 	struct inet_frag_queue *q;
 	struct ip6_create_arg arg;
@@ -535,7 +535,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 {
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
-	struct ipv6hdr *hdr = ipv6_hdr(skb);
+	const struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct net *net = dev_net(skb_dst(skb)->dev);
 
 	IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_REASMREQDS);

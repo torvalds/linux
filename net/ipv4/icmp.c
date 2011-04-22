@@ -373,7 +373,7 @@ out_unlock:
 }
 
 static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
-					struct iphdr *iph,
+					const struct iphdr *iph,
 					__be32 saddr, u8 tos,
 					int type, int code,
 					struct icmp_bxm *param)
@@ -637,7 +637,7 @@ EXPORT_SYMBOL(icmp_send);
 
 static void icmp_unreach(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct icmphdr *icmph;
 	int hash, protocol;
 	const struct net_protocol *ipprot;
@@ -656,7 +656,7 @@ static void icmp_unreach(struct sk_buff *skb)
 		goto out_err;
 
 	icmph = icmp_hdr(skb);
-	iph   = (struct iphdr *)skb->data;
+	iph   = (const struct iphdr *)skb->data;
 
 	if (iph->ihl < 5) /* Mangled header, drop. */
 		goto out_err;
@@ -729,7 +729,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, iph->ihl * 4 + 8))
 		goto out;
 
-	iph = (struct iphdr *)skb->data;
+	iph = (const struct iphdr *)skb->data;
 	protocol = iph->protocol;
 
 	/*
@@ -758,7 +758,7 @@ out_err:
 
 static void icmp_redirect(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 
 	if (skb->len < sizeof(struct iphdr))
 		goto out_err;
@@ -769,7 +769,7 @@ static void icmp_redirect(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto out;
 
-	iph = (struct iphdr *)skb->data;
+	iph = (const struct iphdr *)skb->data;
 
 	switch (icmp_hdr(skb)->code & 7) {
 	case ICMP_REDIR_NET:

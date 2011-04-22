@@ -565,7 +565,7 @@ void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
  */
 void sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
-	struct iphdr *iph = (struct iphdr *)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int ihlen = iph->ihl * 4;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;

@@ -376,8 +376,8 @@ enum ip6_defrag_users {
 struct ip6_create_arg {
 	__be32 id;
 	u32 user;
-	struct in6_addr *src;
-	struct in6_addr *dst;
+	const struct in6_addr *src;
+	const struct in6_addr *dst;
 };
 
 void ip6_frag_init(struct inet_frag_queue *q, void *a);

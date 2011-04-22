@@ -169,7 +169,7 @@ static unsigned int sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	}
 	case htons(ETH_P_IPV6):
 	{
-		struct ipv6hdr *iph;
+		const struct ipv6hdr *iph;
 		int poff;
 
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))

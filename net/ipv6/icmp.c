@@ -372,7 +372,7 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
 	struct ipv6_pinfo *np;
-	struct in6_addr *saddr = NULL;
+	const struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
 	struct icmp6hdr tmp_hdr;
 	struct flowi6 fl6;
@@ -521,7 +521,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct sock *sk;
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *np;
-	struct in6_addr *saddr = NULL;
+	const struct in6_addr *saddr = NULL;
 	struct icmp6hdr *icmph = icmp6_hdr(skb);
 	struct icmp6hdr tmp_hdr;
 	struct flowi6 fl6;
@@ -645,8 +645,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct inet6_dev *idev = __in6_dev_get(dev);
-	struct in6_addr *saddr, *daddr;
-	struct ipv6hdr *orig_hdr;
+	const struct in6_addr *saddr, *daddr;
+	const struct ipv6hdr *orig_hdr;
 	struct icmp6hdr *hdr;
 	u8 type;
 

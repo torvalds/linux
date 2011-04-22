@@ -531,7 +531,7 @@ static int sctp_v6_is_any(const union sctp_addr *addr)
 static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	int type;
-	struct in6_addr *in6 = (struct in6_addr *)&addr->v6.sin6_addr;
+	const struct in6_addr *in6 = (const struct in6_addr *)&addr->v6.sin6_addr;
 
 	type = ipv6_addr_type(in6);
 	if (IPV6_ADDR_ANY == type)

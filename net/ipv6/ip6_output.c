@@ -869,9 +869,9 @@ fail:
 	return err;
 }
 
-static inline int ip6_rt_check(struct rt6key *rt_key,
-			       struct in6_addr *fl_addr,
-			       struct in6_addr *addr_cache)
+static inline int ip6_rt_check(const struct rt6key *rt_key,
+			       const struct in6_addr *fl_addr,
+			       const struct in6_addr *addr_cache)
 {
 	return (rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
 		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache));
@@ -879,7 +879,7 @@ static inline int ip6_rt_check(struct rt6key *rt_key,
 
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 					  struct dst_entry *dst,
-					  struct flowi6 *fl6)
+					  const struct flowi6 *fl6)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct rt6_info *rt = (struct rt6_info *)dst;

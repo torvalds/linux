@@ -80,7 +80,7 @@ static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 	return inet_getpeer(&daddr, create);
 }
 
-static inline struct inet_peer *inet_getpeer_v6(struct in6_addr *v6daddr, int create)
+static inline struct inet_peer *inet_getpeer_v6(const struct in6_addr *v6daddr, int create)
 {
 	struct inetpeer_addr daddr;
 

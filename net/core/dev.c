@@ -2502,8 +2502,8 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 __u32 __skb_get_rxhash(struct sk_buff *skb)
 {
 	int nhoff, hash = 0, poff;
-	struct ipv6hdr *ip6;
-	struct iphdr *ip;
+	const struct ipv6hdr *ip6;
+	const struct iphdr *ip;
 	u8 ip_proto;
 	u32 addr1, addr2, ihl;
 	union {
@@ -2518,7 +2518,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(*ip) + nhoff))
 			goto done;
 
-		ip = (struct iphdr *) (skb->data + nhoff);
+		ip = (const struct iphdr *) (skb->data + nhoff);
 		if (ip->frag_off & htons(IP_MF | IP_OFFSET))
 			ip_proto = 0;
 		else
@@ -2531,7 +2531,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(*ip6) + nhoff))
 			goto done;
 
-		ip6 = (struct ipv6hdr *) (skb->data + nhoff);
+		ip6 = (const struct ipv6hdr *) (skb->data + nhoff);
 		ip_proto = ip6->nexthdr;
 		addr1 = (__force u32) ip6->saddr.s6_addr32[3];
 		addr2 = (__force u32) ip6->daddr.s6_addr32[3];

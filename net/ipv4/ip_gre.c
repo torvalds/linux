@@ -462,7 +462,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
    by themself???
  */
 
-	struct iphdr *iph = (struct iphdr *)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	__be16	     *p = (__be16*)(skb->data+(iph->ihl<<2));
 	int grehlen = (iph->ihl<<2) + 4;
 	const int type = icmp_hdr(skb)->type;
@@ -534,7 +534,7 @@ out:
 	rcu_read_unlock();
 }
 
-static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
+static inline void ipgre_ecn_decapsulate(const struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos)) {
 		if (skb->protocol == htons(ETH_P_IP)) {
@@ -546,19 +546,19 @@ static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 }
 
 static inline u8
-ipgre_ecn_encapsulate(u8 tos, struct iphdr *old_iph, struct sk_buff *skb)
+ipgre_ecn_encapsulate(u8 tos, const struct iphdr *old_iph, struct sk_buff *skb)
 {
 	u8 inner = 0;
 	if (skb->protocol == htons(ETH_P_IP))
 		inner = old_iph->tos;
 	else if (skb->protocol == htons(ETH_P_IPV6))
-		inner = ipv6_get_dsfield((struct ipv6hdr *)old_iph);
+		inner = ipv6_get_dsfield((const struct ipv6hdr *)old_iph);
 	return INET_ECN_encapsulate(tos, inner);
 }
 
 static int ipgre_rcv(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	u8     *h;
 	__be16    flags;
 	__sum16   csum = 0;
@@ -697,8 +697,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct pcpu_tstats *tstats;
-	struct iphdr  *old_iph = ip_hdr(skb);
-	struct iphdr  *tiph;
+	const struct iphdr  *old_iph = ip_hdr(skb);
+	const struct iphdr  *tiph;
 	u8     tos;
 	__be16 df;
 	struct rtable *rt;     			/* Route to the other host */
@@ -714,7 +714,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 	if (dev->header_ops && dev->type == ARPHRD_IPGRE) {
 		gre_hlen = 0;
-		tiph = (struct iphdr *)skb->data;
+		tiph = (const struct iphdr *)skb->data;
 	} else {
 		gre_hlen = tunnel->hlen;
 		tiph = &tunnel->parms.iph;
@@ -735,14 +735,14 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		else if (skb->protocol == htons(ETH_P_IPV6)) {
-			struct in6_addr *addr6;
+			const struct in6_addr *addr6;
 			int addr_type;
 			struct neighbour *neigh = skb_dst(skb)->neighbour;
 
 			if (neigh == NULL)
 				goto tx_error;
 
-			addr6 = (struct in6_addr *)&neigh->primary_key;
+			addr6 = (const struct in6_addr *)&neigh->primary_key;
 			addr_type = ipv6_addr_type(addr6);
 
 			if (addr_type == IPV6_ADDR_ANY) {
@@ -766,7 +766,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		if (skb->protocol == htons(ETH_P_IP))
 			tos = old_iph->tos;
 		else if (skb->protocol == htons(ETH_P_IPV6))
-			tos = ipv6_get_dsfield((struct ipv6hdr *)old_iph);
+			tos = ipv6_get_dsfield((const struct ipv6hdr *)old_iph);
 	}
 
 	rt = ip_route_output_gre(dev_net(dev), dst, tiph->saddr,
@@ -881,7 +881,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			iph->ttl = old_iph->ttl;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		else if (skb->protocol == htons(ETH_P_IPV6))
-			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
+			iph->ttl = ((const struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
 			iph->ttl = ip4_dst_hoplimit(&rt->dst);
@@ -927,7 +927,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 {
 	struct net_device *tdev = NULL;
 	struct ip_tunnel *tunnel;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	int hlen = LL_MAX_HEADER;
 	int mtu = ETH_DATA_LEN;
 	int addend = sizeof(struct iphdr) + 4;
@@ -1180,7 +1180,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 
 static int ipgre_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct iphdr *iph = (struct iphdr *) skb_mac_header(skb);
+	const struct iphdr *iph = (const struct iphdr *) skb_mac_header(skb);
 	memcpy(haddr, &iph->saddr, 4);
 	return 4;
 }

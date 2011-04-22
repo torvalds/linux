@@ -1186,7 +1186,7 @@ EXPORT_SYMBOL(inet_sk_rebuild_header);
 
 static int inet_gso_send_check(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	const struct net_protocol *ops;
 	int proto;
 	int ihl;
@@ -1293,7 +1293,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	const struct net_protocol *ops;
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	unsigned int hlen;
 	unsigned int off;
 	unsigned int id;

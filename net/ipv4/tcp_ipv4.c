@@ -279,7 +279,7 @@ EXPORT_SYMBOL(tcp_v4_connect);
 /*
  * This routine does path mtu discovery as defined in RFC1191.
  */
-static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
+static void do_pmtu_discovery(struct sock *sk, const struct iphdr *iph, u32 mtu)
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
@@ -341,7 +341,7 @@ static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
 
 void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 {
-	struct iphdr *iph = (struct iphdr *)icmp_skb->data;
+	const struct iphdr *iph = (const struct iphdr *)icmp_skb->data;
 	struct tcphdr *th = (struct tcphdr *)(icmp_skb->data + (iph->ihl << 2));
 	struct inet_connection_sock *icsk;
 	struct tcp_sock *tp;
@@ -2527,7 +2527,7 @@ void tcp4_proc_exit(void)
 
 struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
-	struct iphdr *iph = skb_gro_network_header(skb);
+	const struct iphdr *iph = skb_gro_network_header(skb);
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -2548,7 +2548,7 @@ struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 int tcp4_gro_complete(struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
 
 	th->check = ~tcp_v4_check(skb->len - skb_transport_offset(skb),

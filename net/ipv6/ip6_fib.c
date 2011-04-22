@@ -134,9 +134,9 @@ static __inline__ u32 fib6_new_sernum(void)
 # define BITOP_BE32_SWIZZLE	0
 #endif
 
-static __inline__ __be32 addr_bit_set(void *token, int fn_bit)
+static __inline__ __be32 addr_bit_set(const void *token, int fn_bit)
 {
-	__be32 *addr = token;
+	const __be32 *addr = token;
 	/*
 	 * Here,
 	 * 	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
@@ -822,7 +822,7 @@ st_failure:
 
 struct lookup_args {
 	int		offset;		/* key offset on rt6_info	*/
-	struct in6_addr	*addr;		/* search key			*/
+	const struct in6_addr	*addr;		/* search key			*/
 };
 
 static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
@@ -881,8 +881,8 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 	return NULL;
 }
 
-struct fib6_node * fib6_lookup(struct fib6_node *root, struct in6_addr *daddr,
-			       struct in6_addr *saddr)
+struct fib6_node * fib6_lookup(struct fib6_node *root, const struct in6_addr *daddr,
+			       const struct in6_addr *saddr)
 {
 	struct fib6_node *fn;
 	struct lookup_args args[] = {
@@ -916,7 +916,7 @@ struct fib6_node * fib6_lookup(struct fib6_node *root, struct in6_addr *daddr,
 
 
 static struct fib6_node * fib6_locate_1(struct fib6_node *root,
-					struct in6_addr *addr,
+					const struct in6_addr *addr,
 					int plen, int offset)
 {
 	struct fib6_node *fn;
@@ -946,8 +946,8 @@ static struct fib6_node * fib6_locate_1(struct fib6_node *root,
 }
 
 struct fib6_node * fib6_locate(struct fib6_node *root,
-			       struct in6_addr *daddr, int dst_len,
-			       struct in6_addr *saddr, int src_len)
+			       const struct in6_addr *daddr, int dst_len,
+			       const struct in6_addr *saddr, int src_len)
 {
 	struct fib6_node *fn;
 

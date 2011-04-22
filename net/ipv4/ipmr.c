@@ -1549,7 +1549,7 @@ static struct notifier_block ip_mr_notifier = {
 static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph;
-	struct iphdr *old_iph = ip_hdr(skb);
+	const struct iphdr *old_iph = ip_hdr(skb);
 
 	skb_push(skb, sizeof(struct iphdr));
 	skb->transport_header = skb->network_header;

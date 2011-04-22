@@ -44,7 +44,7 @@
 
 #include <net/checksum.h>
 
-static int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr);
+static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr);
 
 /* Big ac list lock for all the sockets */
 static DEFINE_RWLOCK(ipv6_sk_ac_lock);
@@ -54,7 +54,7 @@ static DEFINE_RWLOCK(ipv6_sk_ac_lock);
  *	socket join an anycast group
  */
 
-int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net_device *dev = NULL;
@@ -145,7 +145,7 @@ error:
 /*
  *	socket leave an anycast group
  */
-int ipv6_sock_ac_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net_device *dev;
@@ -252,7 +252,7 @@ static void aca_put(struct ifacaddr6 *ac)
 /*
  *	device anycast group inc (add if not found)
  */
-int ipv6_dev_ac_inc(struct net_device *dev, struct in6_addr *addr)
+int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca;
 	struct inet6_dev *idev;
@@ -324,7 +324,7 @@ out:
 /*
  *	device anycast group decrement
  */
-int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
+int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca, *prev_aca;
 
@@ -358,7 +358,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
 }
 
 /* called with rcu_read_lock() */
-static int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr)
+static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
@@ -371,7 +371,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr)
  *	check if the interface has this anycast address
  *	called with rcu_read_lock()
  */
-static int ipv6_chk_acast_dev(struct net_device *dev, struct in6_addr *addr)
+static int ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev;
 	struct ifacaddr6 *aca;
@@ -392,7 +392,7 @@ static int ipv6_chk_acast_dev(struct net_device *dev, struct in6_addr *addr)
  *	check if given interface (or any, if dev==0) has this anycast address
  */
 int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
-			struct in6_addr *addr)
+			const struct in6_addr *addr)
 {
 	int found = 0;
 

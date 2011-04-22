@@ -1283,7 +1283,7 @@ static int ipv6_count_addresses(struct inet6_dev *idev)
 	return cnt;
 }
 
-int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
+int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		  struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr *ifp;
@@ -1326,7 +1326,7 @@ static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 	return false;
 }
 
-int ipv6_chk_prefix(struct in6_addr *addr, struct net_device *dev)
+int ipv6_chk_prefix(const struct in6_addr *addr, struct net_device *dev)
 {
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa;
@@ -1457,7 +1457,7 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 
 /* Join to solicited addr multicast group. */
 
-void addrconf_join_solict(struct net_device *dev, struct in6_addr *addr)
+void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct in6_addr maddr;
 
@@ -1468,7 +1468,7 @@ void addrconf_join_solict(struct net_device *dev, struct in6_addr *addr)
 	ipv6_dev_mc_inc(dev, &maddr);
 }
 
-void addrconf_leave_solict(struct inet6_dev *idev, struct in6_addr *addr)
+void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct in6_addr maddr;
 
@@ -2113,7 +2113,7 @@ err_exit:
 /*
  *	Manual configuration of address on an interface
  */
-static int inet6_addr_add(struct net *net, int ifindex, struct in6_addr *pfx,
+static int inet6_addr_add(struct net *net, int ifindex, const struct in6_addr *pfx,
 			  unsigned int plen, __u8 ifa_flags, __u32 prefered_lft,
 			  __u32 valid_lft)
 {
@@ -2187,7 +2187,7 @@ static int inet6_addr_add(struct net *net, int ifindex, struct in6_addr *pfx,
 	return PTR_ERR(ifp);
 }
 
-static int inet6_addr_del(struct net *net, int ifindex, struct in6_addr *pfx,
+static int inet6_addr_del(struct net *net, int ifindex, const struct in6_addr *pfx,
 			  unsigned int plen)
 {
 	struct inet6_ifaddr *ifp;
@@ -2350,7 +2350,7 @@ static void init_loopback(struct net_device *dev)
 	add_addr(idev, &in6addr_loopback, 128, IFA_HOST);
 }
 
-static void addrconf_add_linklocal(struct inet6_dev *idev, struct in6_addr *addr)
+static void addrconf_add_linklocal(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct inet6_ifaddr * ifp;
 	u32 addr_flags = IFA_F_PERMANENT;
@@ -3121,7 +3121,7 @@ void if6_proc_exit(void)
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 /* Check if address is a home address configured on any interface. */
-int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
+int ipv6_chk_home_addr(struct net *net, const struct in6_addr *addr)
 {
 	int ret = 0;
 	struct inet6_ifaddr *ifp = NULL;

@@ -198,12 +198,12 @@ extern struct dst_entry         *fib6_rule_lookup(struct net *net,
 						  pol_lookup_t lookup);
 
 extern struct fib6_node		*fib6_lookup(struct fib6_node *root,
-					     struct in6_addr *daddr,
-					     struct in6_addr *saddr);
+					     const struct in6_addr *daddr,
+					     const struct in6_addr *saddr);
 
 struct fib6_node		*fib6_locate(struct fib6_node *root,
-					     struct in6_addr *daddr, int dst_len,
-					     struct in6_addr *saddr, int src_len);
+					     const struct in6_addr *daddr, int dst_len,
+					     const struct in6_addr *saddr, int src_len);
 
 extern void			fib6_clean_all(struct net *net,
 					       int (*func)(struct rt6_info *, void *arg),
