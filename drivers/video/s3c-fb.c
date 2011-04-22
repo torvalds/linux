@@ -1449,8 +1449,7 @@ err_ioremap:
 	iounmap(sfb->regs);
 
 err_req_region:
-	release_resource(sfb->regs_res);
-	kfree(sfb->regs_res);
+	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
 err_clk:
 	clk_disable(sfb->bus_clk);
@@ -1486,8 +1485,7 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	clk_disable(sfb->bus_clk);
 	clk_put(sfb->bus_clk);
 
-	release_resource(sfb->regs_res);
-	kfree(sfb->regs_res);
+	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
 	kfree(sfb);
 
