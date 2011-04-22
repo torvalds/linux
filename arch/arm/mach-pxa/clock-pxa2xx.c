@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/pxa2xx-regs.h>
 
@@ -33,32 +33,22 @@ const struct clkops clk_pxa2xx_cken_ops = {
 #ifdef CONFIG_PM
 static uint32_t saved_cken;
 
-static int pxa2xx_clock_suspend(struct sys_device *d, pm_message_t state)
+static int pxa2xx_clock_suspend(void)
 {
 	saved_cken = CKEN;
 	return 0;
 }
 
-static int pxa2xx_clock_resume(struct sys_device *d)
+static void pxa2xx_clock_resume(void)
 {
 	CKEN = saved_cken;
-	return 0;
 }
 #else
 #define pxa2xx_clock_suspend	NULL
 #define pxa2xx_clock_resume	NULL
 #endif
 
-struct sysdev_class pxa2xx_clock_sysclass = {
-	.name		= "pxa2xx-clock",
+struct syscore_ops pxa2xx_clock_syscore_ops = {
 	.suspend	= pxa2xx_clock_suspend,
 	.resume		= pxa2xx_clock_resume,
 };
-
-static int __init pxa2xx_clock_init(void)
-{
-	if (cpu_is_pxa2xx())
-		return sysdev_class_register(&pxa2xx_clock_sysclass);
-	return 0;
-}
-postcore_initcall(pxa2xx_clock_init);

@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
@@ -350,21 +350,9 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa_device_asoc_platform,
 };
 
-static struct sys_device pxa25x_sysdev[] = {
-	{
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.cls	= &pxa2xx_mfp_sysclass,
-	}, {
-		.cls	= &pxa_gpio_sysclass,
-	}, {
-		.cls	= &pxa2xx_clock_sysclass,
-	}
-};
-
 static int __init pxa25x_init(void)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	if (cpu_is_pxa25x()) {
 
@@ -377,11 +365,10 @@ static int __init pxa25x_init(void)
 
 		pxa25x_init_pm();
 
-		for (i = 0; i < ARRAY_SIZE(pxa25x_sysdev); i++) {
-			ret = sysdev_register(&pxa25x_sysdev[i]);
-			if (ret)
-				pr_err("failed to register sysdev[%d]\n", i);
-		}
+		register_syscore_ops(&pxa_irq_syscore_ops);
+		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
+		register_syscore_ops(&pxa_gpio_syscore_ops);
+		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
