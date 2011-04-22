@@ -255,20 +255,12 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 {
 	struct block_device_context *blkdev = bdev->bd_disk->private_data;
 
-
-	mutex_lock(&blkvsc_mutex);
 	spin_lock(&blkdev->lock);
-
-	if (!blkdev->users && blkdev->device_type == DVD_TYPE) {
-		spin_unlock(&blkdev->lock);
-		check_disk_change(bdev);
-		spin_lock(&blkdev->lock);
-	}
 
 	blkdev->users++;
 
 	spin_unlock(&blkdev->lock);
-	mutex_unlock(&blkvsc_mutex);
+
 	return 0;
 }
 
