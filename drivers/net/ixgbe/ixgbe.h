@@ -379,6 +379,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
 #define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
 #define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
+#define IXGBE_FLAG2_TEMP_SENSOR_EVENT           (u32)(1 << 3)
 #define IXGBE_FLAG2_SEARCH_FOR_SFP              (u32)(1 << 4)
 #define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
 #define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
@@ -456,7 +457,6 @@ struct ixgbe_adapter {
 	bool link_up;
 	unsigned long link_check_timeout;
 
-	struct work_struct check_overtemp_task;
 	struct work_struct service_task;
 	struct timer_list service_timer;
 	u32 fdir_pballoc;

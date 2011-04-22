@@ -1825,35 +1825,51 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 }
 
 /**
- * ixgbe_check_overtemp_task - worker thread to check over tempurature
- * @work: pointer to work_struct containing our data
+ * ixgbe_check_overtemp_subtask - check for over tempurature
+ * @adapter: pointer to adapter
  **/
-static void ixgbe_check_overtemp_task(struct work_struct *work)
+static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_adapter *adapter = container_of(work,
-						     struct ixgbe_adapter,
-						     check_overtemp_task);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr = adapter->interrupt_event;
 
-	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE))
+	if (test_bit(__IXGBE_DOWN, &adapter->state))
 		return;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+	    !(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_EVENT))
+		return;
+
+	adapter->flags2 &= ~IXGBE_FLAG2_TEMP_SENSOR_EVENT;
 
 	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82599_T3_LOM: {
-		u32 autoneg;
-		bool link_up = false;
+	case IXGBE_DEV_ID_82599_T3_LOM:
+		/*
+		 * Since the warning interrupt is for both ports
+		 * we don't have to check if:
+		 *  - This interrupt wasn't for our port.
+		 *  - We may have missed the interrupt so always have to
+		 *    check if we  got a LSC
+		 */
+		if (!(eicr & IXGBE_EICR_GPI_SDP0) &&
+		    !(eicr & IXGBE_EICR_LSC))
+			return;
 
-		if (hw->mac.ops.check_link)
+		if (!(eicr & IXGBE_EICR_LSC) && hw->mac.ops.check_link) {
+			u32 autoneg;
+			bool link_up = false;
+
 			hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
 
-		if (((eicr & IXGBE_EICR_GPI_SDP0) && (!link_up)) ||
-		    (eicr & IXGBE_EICR_LSC))
-			/* Check if this is due to overtemp */
-			if (hw->phy.ops.check_overtemp(hw) == IXGBE_ERR_OVERTEMP)
-				break;
-		return;
-	}
+			if (link_up)
+				return;
+		}
+
+		/* Check if this is not due to overtemp */
+		if (hw->phy.ops.check_overtemp(hw) != IXGBE_ERR_OVERTEMP)
+			return;
+
+		break;
 	default:
 		if (!(eicr & IXGBE_EICR_GPI_SDP0))
 			return;
@@ -1863,8 +1879,8 @@ static void ixgbe_check_overtemp_task(struct work_struct *work)
 	       "Network adapter has been stopped because it has over heated. "
 	       "Restart the computer. If the problem persists, "
 	       "power off the system and replace the adapter\n");
-	/* write to clear the interrupt */
-	IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP0);
+
+	adapter->interrupt_event = 0;
 }
 
 static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
@@ -1940,13 +1956,6 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
-		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			adapter->interrupt_event = eicr;
-			schedule_work(&adapter->check_overtemp_task);
-		}
-		/* now fallthrough to handle Flow Director */
 	case ixgbe_mac_X540:
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
@@ -1963,6 +1972,15 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 				IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_FLOW_DIR);
 				eicr &= ~IXGBE_EICR_FLOW_DIR;
 				adapter->flags2 |= IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
+				ixgbe_service_event_schedule(adapter);
+			}
+		}
+		ixgbe_check_sfp_event(adapter, eicr);
+		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
+			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
+				adapter->interrupt_event = eicr;
+				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
 				ixgbe_service_event_schedule(adapter);
 			}
 		}
@@ -2561,8 +2579,11 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 		ixgbe_check_sfp_event(adapter, eicr);
 		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
 		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			adapter->interrupt_event = eicr;
-			schedule_work(&adapter->check_overtemp_task);
+			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
+				adapter->interrupt_event = eicr;
+				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
+				ixgbe_service_event_schedule(adapter);
+			}
 		}
 		break;
 	default:
@@ -5974,7 +5995,7 @@ static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
 	if (ixgbe_reinit_fdir_tables_82599(hw) == 0) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			set_bit(__IXGBE_TX_FDIR_INIT_DONE,
-				&(adapter->tx_ring[i]->state));
+			        &(adapter->tx_ring[i]->state));
 		/* re-enable flow director interrupts */
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	} else {
@@ -6379,6 +6400,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_reset_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
 	ixgbe_sfp_link_config_subtask(adapter);
+	ixgbe_check_overtemp_subtask(adapter);
 	ixgbe_watchdog_subtask(adapter);
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
@@ -7648,9 +7670,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		INIT_WORK(&adapter->check_overtemp_task,
-			  ixgbe_check_overtemp_task);
 #ifdef CONFIG_IXGBE_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
@@ -7707,8 +7726,6 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
 
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		cancel_work_sync(&adapter->check_overtemp_task);
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
