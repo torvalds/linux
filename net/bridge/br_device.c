@@ -90,8 +90,7 @@ static int br_dev_open(struct net_device *dev)
 	struct net_bridge *br = netdev_priv(dev);
 
 	netif_carrier_off(dev);
-
-	br_features_recompute(br);
+	netdev_update_features(dev);
 	netif_start_queue(dev);
 	br_stp_enable_bridge(br);
 	br_multicast_open(br);
@@ -188,48 +187,11 @@ static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->bus_info, "N/A");
 }
 
-static int br_set_sg(struct net_device *dev, u32 data)
+static u32 br_fix_features(struct net_device *dev, u32 features)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	if (data)
-		br->feature_mask |= NETIF_F_SG;
-	else
-		br->feature_mask &= ~NETIF_F_SG;
-
-	br_features_recompute(br);
-	return 0;
-}
-
-static int br_set_tso(struct net_device *dev, u32 data)
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	if (data)
-		br->feature_mask |= NETIF_F_TSO;
-	else
-		br->feature_mask &= ~NETIF_F_TSO;
-
-	br_features_recompute(br);
-	return 0;
-}
-
-static int br_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	if (data)
-		br->feature_mask |= NETIF_F_NO_CSUM;
-	else
-		br->feature_mask &= ~NETIF_F_ALL_CSUM;
-
-	br_features_recompute(br);
-	return 0;
-}
-
-static int br_set_flags(struct net_device *netdev, u32 data)
-{
-	return ethtool_op_set_flags(netdev, data, ETH_FLAG_TXVLAN);
+	return br_features_recompute(br, features);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -330,16 +292,6 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
 static const struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo    = br_getinfo,
 	.get_link	= ethtool_op_get_link,
-	.get_tx_csum	= ethtool_op_get_tx_csum,
-	.set_tx_csum 	= br_set_tx_csum,
-	.get_sg		= ethtool_op_get_sg,
-	.set_sg		= br_set_sg,
-	.get_tso	= ethtool_op_get_tso,
-	.set_tso	= br_set_tso,
-	.get_ufo	= ethtool_op_get_ufo,
-	.set_ufo	= ethtool_op_set_ufo,
-	.get_flags	= ethtool_op_get_flags,
-	.set_flags	= br_set_flags,
 };
 
 static const struct net_device_ops br_netdev_ops = {
@@ -359,6 +311,7 @@ static const struct net_device_ops br_netdev_ops = {
 #endif
 	.ndo_add_slave		 = br_add_slave,
 	.ndo_del_slave		 = br_del_slave,
+	.ndo_fix_features        = br_fix_features,
 };
 
 static void br_dev_free(struct net_device *dev)
@@ -389,7 +342,10 @@ void br_dev_setup(struct net_device *dev)
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX |
-			NETIF_F_NETNS_LOCAL | NETIF_F_GSO | NETIF_F_HW_VLAN_TX;
+			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_TX;
+	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+			   NETIF_F_GSO_MASK | NETIF_F_NO_CSUM |
+			   NETIF_F_HW_VLAN_TX;
 
 	br->dev = dev;
 	spin_lock_init(&br->lock);
@@ -401,7 +357,6 @@ void br_dev_setup(struct net_device *dev)
 
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
-	br->feature_mask = dev->features;
 	br->stp_enabled = BR_NO_STP;
 	br->designated_root = br->bridge_id;
 	br->bridge_max_age = br->max_age = 20 * HZ;
