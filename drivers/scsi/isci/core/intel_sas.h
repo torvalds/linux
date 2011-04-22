@@ -151,7 +151,6 @@ struct sci_sas_identify_address_frame {
  */
 struct sas_capabilities {
 	union {
-#if defined (SCIC_SDS_4_ENABLED)
 		struct {
 			/**
 			 * The SAS specification indicates the start bit shall always be set to
@@ -172,7 +171,6 @@ struct sas_capabilities {
 			u32 reserved2:17;
 			u32 parity:1;
 		} bits;
-#endif          /* (SCIC_SDS_4_ENABLED) */
 
 		u32 all;
 	} u;

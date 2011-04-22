@@ -1,7 +1,3 @@
-#TODO kill SCIC_SDS_4_ENABLED it is always true for this
-#generation of silicon
-EXTRA_CFLAGS += -DSCIC_SDS_4_ENABLED
-
 EXTRA_CFLAGS += -Idrivers/scsi/isci/core/ -Idrivers/scsi/isci/
 obj-$(CONFIG_SCSI_ISCI) += isci.o
 isci-objs := init.o phy.o request.o sata.o \

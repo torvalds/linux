@@ -65,9 +65,6 @@
  *
  */
 
-
-#ifdef SCIC_SDS_4_ENABLED
-
 #ifndef SCI_MAX_PHYS
 /**
  *
@@ -187,12 +184,6 @@
  */
 #define SCI_MIN_SCATTER_GATHER_ELEMENTS 1
 #endif
-
-#else /* SCIC_SDS_4_ENABLED */
-
-#error "SCI Core configuration left unspecified (e.g. SCIC_SDS_4_ENABLED)"
-
-#endif /* SCIC_SDS_4_ENABLED */
 
 /**
  *
