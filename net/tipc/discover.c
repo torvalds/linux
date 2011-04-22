@@ -39,13 +39,9 @@
 #include "discover.h"
 
 #define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
-#define TIPC_LINK_REQ_FAST	2000	/* normal delay if bearer has no links */
-#define TIPC_LINK_REQ_SLOW	600000	/* normal delay if bearer has links */
-
-/*
- * TODO: Most of the inter-cluster setup stuff should be
- * rewritten, and be made conformant with specification.
- */
+#define TIPC_LINK_REQ_FAST	1000	/* max delay if bearer has no links */
+#define TIPC_LINK_REQ_SLOW	60000	/* max delay if bearer has links */
+#define TIPC_LINK_REQ_INACTIVE	0xffffffff /* indicates no timer in use */
 
 
 /**
@@ -220,22 +216,19 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 /**
  * disc_update - update frequency of periodic link setup requests
  * @req: ptr to link request structure
+ *
+ * Reinitiates discovery process if discovery object has no associated nodes
+ * and is either not currently searching or is searching at a slow rate
  */
 
 static void disc_update(struct link_req *req)
 {
-	if (req->timer_intv == TIPC_LINK_REQ_SLOW) {
-		if (!req->bearer->nodes.count) {
-			req->timer_intv = TIPC_LINK_REQ_FAST;
+	if (!req->num_nodes) {
+		if ((req->timer_intv == TIPC_LINK_REQ_INACTIVE) ||
+		    (req->timer_intv > TIPC_LINK_REQ_FAST)) {
+			req->timer_intv = TIPC_LINK_REQ_INIT;
 			k_start_timer(&req->timer, req->timer_intv);
 		}
-	} else if (req->timer_intv == TIPC_LINK_REQ_FAST) {
-		if (req->bearer->nodes.count) {
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
-			k_start_timer(&req->timer, req->timer_intv);
-		}
-	} else {
-		/* leave timer "as is" if haven't yet reached a "normal" rate */
 	}
 }
 
@@ -247,7 +240,6 @@ static void disc_update(struct link_req *req)
 void tipc_disc_add_dest(struct link_req *req)
 {
 	req->num_nodes++;
-	disc_update(req);
 }
 
 /**
@@ -281,23 +273,37 @@ static void disc_send_msg(struct link_req *req)
 
 static void disc_timeout(struct link_req *req)
 {
+	int max_delay;
+
 	spin_lock_bh(&req->bearer->lock);
+
+	/* Stop searching if only desired node has been found */
+
+	if (tipc_node(req->domain) && req->num_nodes) {
+		req->timer_intv = TIPC_LINK_REQ_INACTIVE;
+		goto exit;
+	}
+
+	/*
+	 * Send discovery message, then update discovery timer
+	 *
+	 * Keep doubling time between requests until limit is reached;
+	 * hold at fast polling rate if don't have any associated nodes,
+	 * otherwise hold at slow polling rate
+	 */
 
 	disc_send_msg(req);
 
-	if ((req->timer_intv == TIPC_LINK_REQ_SLOW) ||
-	    (req->timer_intv == TIPC_LINK_REQ_FAST)) {
-		/* leave timer interval "as is" if already at a "normal" rate */
-	} else {
-		req->timer_intv *= 2;
-		if (req->timer_intv > TIPC_LINK_REQ_FAST)
-			req->timer_intv = TIPC_LINK_REQ_FAST;
-		if ((req->timer_intv == TIPC_LINK_REQ_FAST) &&
-		    (req->bearer->nodes.count))
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
-	}
-	k_start_timer(&req->timer, req->timer_intv);
+	req->timer_intv *= 2;
+	if (req->num_nodes)
+		max_delay = TIPC_LINK_REQ_SLOW;
+	else
+		max_delay = TIPC_LINK_REQ_FAST;
+	if (req->timer_intv > max_delay)
+		req->timer_intv = max_delay;
 
+	k_start_timer(&req->timer, req->timer_intv);
+exit:
 	spin_unlock_bh(&req->bearer->lock);
 }
 
