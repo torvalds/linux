@@ -728,15 +728,24 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 	if (pdn->eeh_pe_config_addr)
 		config_addr = pdn->eeh_pe_config_addr;
 
-	rc = rtas_call(ibm_set_slot_reset,4,1, NULL,
+	rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid),
 	               state);
-	if (rc)
-		printk (KERN_WARNING "EEH: Unable to reset the failed slot,"
-		        " (%d) #RST=%d dn=%s\n",
-		        rc, state, pdn->node->full_name);
+
+	/* Fundamental-reset not supported on this PE, try hot-reset */
+	if (rc == -8 && state == 3) {
+		rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+			       config_addr,
+			       BUID_HI(pdn->phb->buid),
+			       BUID_LO(pdn->phb->buid), 1);
+		if (rc)
+			printk(KERN_WARNING
+				"EEH: Unable to reset the failed slot,"
+				" #RST=%d dn=%s\n",
+				rc, pdn->node->full_name);
+	}
 }
 
 /**
