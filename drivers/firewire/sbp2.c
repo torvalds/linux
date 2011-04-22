@@ -125,9 +125,6 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
-/* I don't know why the SCSI stack doesn't define something like this... */
-typedef void (*scsi_done_fn_t)(struct scsi_cmnd *);
-
 static const char sbp2_driver_name[] = "sbp2";
 
 /*
@@ -314,7 +311,6 @@ struct sbp2_command_orb {
 		u8 command_block[SBP2_MAX_CDB_SIZE];
 	} request;
 	struct scsi_cmnd *cmd;
-	scsi_done_fn_t done;
 	struct sbp2_logical_unit *lu;
 
 	struct sbp2_pointer page_table[SG_ALL] __attribute__((aligned(8)));
@@ -1398,7 +1394,7 @@ static void complete_command_orb(struct sbp2_orb *base_orb,
 	sbp2_unmap_scatterlist(device->card->device, orb);
 
 	orb->cmd->result = result;
-	orb->done(orb->cmd);
+	orb->cmd->scsi_done(orb->cmd);
 }
 
 static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
@@ -1463,7 +1459,8 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 /* SCSI stack integration */
 
-static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done)
+static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
+				  struct scsi_cmnd *cmd)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = target_device(lu->tgt);
@@ -1477,7 +1474,7 @@ static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done
 	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
 		fw_error("Can't handle DMA_BIDIRECTIONAL, rejecting command\n");
 		cmd->result = DID_ERROR << 16;
-		done(cmd);
+		cmd->scsi_done(cmd);
 		return 0;
 	}
 
@@ -1490,11 +1487,8 @@ static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done
 	/* Initialize rcode to something not RCODE_COMPLETE. */
 	orb->base.rcode = -1;
 	kref_init(&orb->base.kref);
-
-	orb->lu   = lu;
-	orb->done = done;
-	orb->cmd  = cmd;
-
+	orb->lu = lu;
+	orb->cmd = cmd;
 	orb->request.next.high = cpu_to_be32(SBP2_ORB_NULL);
 	orb->request.misc = cpu_to_be32(
 		COMMAND_ORB_MAX_PAYLOAD(lu->tgt->max_payload) |
@@ -1528,8 +1522,6 @@ static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done
 	kref_put(&orb->base.kref, free_orb);
 	return retval;
 }
-
-static DEF_SCSI_QCMD(sbp2_scsi_queuecommand)
 
 static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {
