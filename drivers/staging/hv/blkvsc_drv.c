@@ -331,7 +331,6 @@ static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
 
 	switch (cmd) {
 	case HDIO_GET_IDENTITY:
-		DPRINT_INFO(BLKVSC_DRV, "HDIO_GET_IDENTITY\n");
 		if (copy_to_user((void __user *)arg, blkdev->device_id,
 				 blkdev->device_id_len))
 			ret = -EFAULT;
@@ -1263,8 +1262,6 @@ static int __init blkvsc_init(void)
 	int ret;
 
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
-
-	DPRINT_INFO(BLKVSC_DRV, "Blkvsc initializing....");
 
 	ret = blkvsc_drv_init();
 
