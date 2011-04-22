@@ -1628,7 +1628,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.has_osd_c	= 1,
 		.osd_size_off	= 0x8,
 		.palette_sz	= 256,
-		.valid_bpp	= VALID_BPP1248 | VALID_BPP(16) | VALID_BPP(24),
+		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
+				   VALID_BPP(18) | VALID_BPP(24)),
 	},
 	[1] = {
 		.has_osd_c	= 1,
@@ -1638,7 +1639,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_sz	= 256,
 		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[2] = {
 		.has_osd_c	= 1,
@@ -1649,7 +1651,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[3] = {
 		.has_osd_c	= 1,
@@ -1658,7 +1661,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP124  | VALID_BPP(16) |
 				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(24) | VALID_BPP(25) |
+				   VALID_BPP(28)),
 	},
 	[4] = {
 		.has_osd_c	= 1,
@@ -1667,7 +1671,8 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 		.palette_16bpp	= 1,
 		.valid_bpp	= (VALID_BPP(1) | VALID_BPP(2) |
 				   VALID_BPP(16) | VALID_BPP(18) |
-				   VALID_BPP(24) | VALID_BPP(25)),
+				   VALID_BPP(19) | VALID_BPP(24) |
+				   VALID_BPP(25) | VALID_BPP(28)),
 	},
 };
 
