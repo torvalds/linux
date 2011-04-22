@@ -493,6 +493,85 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 }
 
 
+static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
+{
+	struct blkvsc_request *pend_req, *tmp;
+	struct blkvsc_request *comp_req, *tmp2;
+	struct vmscsi_request *vm_srb;
+
+	int ret = 0;
+
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs()");
+
+	/* Flush the pending list first */
+	list_for_each_entry_safe(pend_req, tmp, &blkdev->pending_list,
+				 pend_entry) {
+		/*
+		 * The pend_req could be part of a partially completed
+		 * request. If so, complete those req first until we
+		 * hit the pend_req
+		 */
+		list_for_each_entry_safe(comp_req, tmp2,
+					 &pend_req->group->blkvsc_req_list,
+					 req_entry) {
+			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
+				   "sect_start %lu sect_count %ld\n",
+				   comp_req,
+				   (unsigned long) comp_req->sector_start,
+				   comp_req->sector_count);
+
+			if (comp_req == pend_req)
+				break;
+
+			list_del(&comp_req->req_entry);
+
+			if (comp_req->req) {
+				vm_srb =
+				&comp_req->request.vstor_packet.
+				vm_srb;
+				ret = __blk_end_request(comp_req->req,
+					(!vm_srb->scsi_status ? 0 : -EIO),
+					comp_req->sector_count *
+					blkdev->sector_size);
+
+				/* FIXME: shouldn't this do more than return? */
+				if (ret)
+					goto out;
+			}
+
+			kmem_cache_free(blkdev->request_pool, comp_req);
+		}
+
+		DPRINT_DBG(BLKVSC_DRV, "cancelling pending request - %p\n",
+			   pend_req);
+
+		list_del(&pend_req->pend_entry);
+
+		list_del(&pend_req->req_entry);
+
+		if (comp_req->req) {
+			if (!__blk_end_request(pend_req->req, -EIO,
+					       pend_req->sector_count *
+					       blkdev->sector_size)) {
+				/*
+				 * All the sectors have been xferred ie the
+				 * request is done
+				 */
+				DPRINT_DBG(BLKVSC_DRV,
+					   "blkvsc_cancel_pending_reqs() - "
+					   "req %p COMPLETED\n", pend_req->req);
+				kmem_cache_free(blkdev->request_pool,
+						pend_req->group);
+			}
+		}
+
+		kmem_cache_free(blkdev->request_pool, pend_req);
+	}
+
+out:
+	return ret;
+}
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
 static int blkvsc_remove(struct device *device);
@@ -507,7 +586,6 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 static int blkvsc_do_inquiry(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity16(struct block_device_context *blkdev);
-static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev);
 static int blkvsc_do_pending_reqs(struct block_device_context *blkdev);
 
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
@@ -1341,85 +1419,6 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 	}
 
 	spin_unlock_irqrestore(&blkdev->lock, flags);
-}
-
-static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
-{
-	struct blkvsc_request *pend_req, *tmp;
-	struct blkvsc_request *comp_req, *tmp2;
-	struct vmscsi_request *vm_srb;
-
-	int ret = 0;
-
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs()");
-
-	/* Flush the pending list first */
-	list_for_each_entry_safe(pend_req, tmp, &blkdev->pending_list,
-				 pend_entry) {
-		/*
-		 * The pend_req could be part of a partially completed
-		 * request. If so, complete those req first until we
-		 * hit the pend_req
-		 */
-		list_for_each_entry_safe(comp_req, tmp2,
-					 &pend_req->group->blkvsc_req_list,
-					 req_entry) {
-			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
-				   "sect_start %lu sect_count %ld\n",
-				   comp_req,
-				   (unsigned long) comp_req->sector_start,
-				   comp_req->sector_count);
-
-			if (comp_req == pend_req)
-				break;
-
-			list_del(&comp_req->req_entry);
-
-			if (comp_req->req) {
-				vm_srb =
-				&comp_req->request.vstor_packet.
-				vm_srb;
-				ret = __blk_end_request(comp_req->req,
-					(!vm_srb->scsi_status ? 0 : -EIO),
-					comp_req->sector_count *
-					blkdev->sector_size);
-
-				/* FIXME: shouldn't this do more than return? */
-				if (ret)
-					goto out;
-			}
-
-			kmem_cache_free(blkdev->request_pool, comp_req);
-		}
-
-		DPRINT_DBG(BLKVSC_DRV, "cancelling pending request - %p\n",
-			   pend_req);
-
-		list_del(&pend_req->pend_entry);
-
-		list_del(&pend_req->req_entry);
-
-		if (comp_req->req) {
-			if (!__blk_end_request(pend_req->req, -EIO,
-					       pend_req->sector_count *
-					       blkdev->sector_size)) {
-				/*
-				 * All the sectors have been xferred ie the
-				 * request is done
-				 */
-				DPRINT_DBG(BLKVSC_DRV,
-					   "blkvsc_cancel_pending_reqs() - "
-					   "req %p COMPLETED\n", pend_req->req);
-				kmem_cache_free(blkdev->request_pool,
-						pend_req->group);
-			}
-		}
-
-		kmem_cache_free(blkdev->request_pool, pend_req);
-	}
-
-out:
-	return ret;
 }
 
 static int blkvsc_do_pending_reqs(struct block_device_context *blkdev)
