@@ -853,9 +853,23 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	return 0;
 }
 
+static int blkvsc_revalidate_disk(struct gendisk *gd)
+{
+	struct block_device_context *blkdev = gd->private_data;
+
+	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
+
+	if (blkdev->device_type == DVD_TYPE) {
+		blkvsc_do_read_capacity(blkdev);
+		set_capacity(blkdev->gd, blkdev->capacity *
+			    (blkdev->sector_size/512));
+		blk_queue_logical_block_size(gd->queue, blkdev->sector_size);
+	}
+	return 0;
+}
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
-static int blkvsc_revalidate_disk(struct gendisk *gd);
 static void blkvsc_request(struct request_queue *queue);
 static void blkvsc_request_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_request(struct block_device_context *blkdev,
@@ -1502,21 +1516,6 @@ static void blkvsc_request(struct request_queue *queue)
 			break;
 		}
 	}
-}
-
-static int blkvsc_revalidate_disk(struct gendisk *gd)
-{
-	struct block_device_context *blkdev = gd->private_data;
-
-	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
-
-	if (blkdev->device_type == DVD_TYPE) {
-		blkvsc_do_read_capacity(blkdev);
-		set_capacity(blkdev->gd, blkdev->capacity *
-			    (blkdev->sector_size/512));
-		blk_queue_logical_block_size(gd->queue, blkdev->sector_size);
-	}
-	return 0;
 }
 
 static int __init blkvsc_init(void)
