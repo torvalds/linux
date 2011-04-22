@@ -9,8 +9,6 @@
 
 struct backing_dev_info;
 
-extern spinlock_t inode_wb_list_lock;
-
 /*
  * fs/fs-writeback.c
  */

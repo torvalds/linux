@@ -45,6 +45,17 @@ static struct timer_list sync_supers_timer;
 static int bdi_sync_supers(void *);
 static void sync_supers_timer_fn(unsigned long);
 
+void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
+{
+	if (wb1 < wb2) {
+		spin_lock(&wb1->list_lock);
+		spin_lock_nested(&wb2->list_lock, 1);
+	} else {
+		spin_lock(&wb2->list_lock);
+		spin_lock_nested(&wb1->list_lock, 1);
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -67,14 +78,14 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	struct inode *inode;
 
 	nr_dirty = nr_io = nr_more_io = 0;
-	spin_lock(&inode_wb_list_lock);
+	spin_lock(&wb->list_lock);
 	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
 		nr_dirty++;
 	list_for_each_entry(inode, &wb->b_io, i_wb_list)
 		nr_io++;
 	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
 		nr_more_io++;
-	spin_unlock(&inode_wb_list_lock);
+	spin_unlock(&wb->list_lock);
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
 	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
@@ -628,6 +639,7 @@ static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&wb->b_dirty);
 	INIT_LIST_HEAD(&wb->b_io);
 	INIT_LIST_HEAD(&wb->b_more_io);
+	spin_lock_init(&wb->list_lock);
 	setup_timer(&wb->wakeup_timer, wakeup_timer_fn, (unsigned long)bdi);
 }
 
@@ -676,11 +688,12 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	if (bdi_has_dirty_io(bdi)) {
 		struct bdi_writeback *dst = &default_backing_dev_info.wb;
 
-		spin_lock(&inode_wb_list_lock);
+		bdi_lock_two(&bdi->wb, dst);
 		list_splice(&bdi->wb.b_dirty, &dst->b_dirty);
 		list_splice(&bdi->wb.b_io, &dst->b_io);
 		list_splice(&bdi->wb.b_more_io, &dst->b_more_io);
-		spin_unlock(&inode_wb_list_lock);
+		spin_unlock(&bdi->wb.list_lock);
+		spin_unlock(&dst->list_lock);
 	}
 
 	bdi_unregister(bdi);
