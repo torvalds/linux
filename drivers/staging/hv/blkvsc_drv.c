@@ -434,6 +434,30 @@ static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
 	return ret;
 }
 
+static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
+{
+	struct blkvsc_request *blkvsc_req =
+			(struct blkvsc_request *)request->context;
+	struct block_device_context *blkdev =
+			(struct block_device_context *)blkvsc_req->dev;
+	struct scsi_sense_hdr sense_hdr;
+	struct vmscsi_request *vm_srb;
+
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cmd_completion() - req %p\n",
+		   blkvsc_req);
+
+	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
+	blkdev->num_outstanding_reqs--;
+
+	if (vm_srb->scsi_status)
+		if (scsi_normalize_sense(blkvsc_req->sense_buffer,
+					 SCSI_SENSE_BUFFERSIZE, &sense_hdr))
+			scsi_print_sense_hdr("blkvsc", &sense_hdr);
+
+	complete(&blkvsc_req->request.wait_event);
+}
+
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
 static int blkvsc_remove(struct device *device);
@@ -445,7 +469,6 @@ static void blkvsc_request(struct request_queue *queue);
 static void blkvsc_request_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_request(struct block_device_context *blkdev,
 			     struct request *req);
-static void blkvsc_cmd_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_inquiry(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity16(struct block_device_context *blkdev);
@@ -1246,29 +1269,6 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 	}
 
 	return pending;
-}
-
-static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
-{
-	struct blkvsc_request *blkvsc_req =
-			(struct blkvsc_request *)request->context;
-	struct block_device_context *blkdev =
-			(struct block_device_context *)blkvsc_req->dev;
-	struct scsi_sense_hdr sense_hdr;
-	struct vmscsi_request *vm_srb;
-
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cmd_completion() - req %p\n",
-		   blkvsc_req);
-
-	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
-	blkdev->num_outstanding_reqs--;
-
-	if (vm_srb->scsi_status)
-		if (scsi_normalize_sense(blkvsc_req->sense_buffer,
-					 SCSI_SENSE_BUFFERSIZE, &sense_hdr))
-			scsi_print_sense_hdr("blkvsc", &sense_hdr);
-
-	complete(&blkvsc_req->request.wait_event);
 }
 
 static void blkvsc_request_completion(struct hv_storvsc_request *request)
