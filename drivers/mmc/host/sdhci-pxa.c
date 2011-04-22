@@ -174,7 +174,12 @@ static int __devinit sdhci_pxa_probe(struct platform_device *pdev)
 	host->hw_name = "MMC";
 	host->ops = &sdhci_pxa_ops;
 	host->irq = irq;
-	host->quirks = SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+	host->quirks = SDHCI_QUIRK_BROKEN_ADMA
+		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
+		| SDHCI_QUIRK_32BIT_DMA_ADDR
+		| SDHCI_QUIRK_32BIT_DMA_SIZE
+		| SDHCI_QUIRK_32BIT_ADMA_SIZE
+		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC;
 
 	if (pdata->quirks)
 		host->quirks |= pdata->quirks;
