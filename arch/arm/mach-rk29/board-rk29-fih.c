@@ -56,6 +56,8 @@
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
+/*Below : /sys/class/timed_output */
+#include "../../../drivers/staging/android/timed_gpio.h"
 
 /* Set memory size of pmem */
 #ifdef CONFIG_RK29_MEM_SIZE_M
@@ -421,7 +423,8 @@ static struct mma8452_platform_data mma8452_info = {
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
 		.int_config = 0x10,
-		.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
 		.level_shifter = 0,
 #if defined (CONFIG_SENSORS_KXTF9)
 		.accel = {
@@ -431,7 +434,8 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.irq = RK29_PIN0_PA3,
 				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
 				.address = 0x0f,
-				.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
 		},
 #endif
 #if defined (CONFIG_SENSORS_AK8975)
@@ -443,7 +447,8 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.irq = RK29_PIN0_PA4,
 				.bus = EXT_SLAVE_BUS_PRIMARY,
 				.address = 0x0d,
-				.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
 		},
 };
 #endif
@@ -1895,7 +1900,38 @@ static struct platform_device rk29_device_keys = {
 	},
 };
 #endif
+#if CONFIG_ANDROID_TIMED_GPIO
+static struct timed_gpio timed_gpios[] = {
+	{
+		.name = "vibrator",
+		.gpio = RK29_PIN6_PD3,
+		.max_timeout = 1000,
+		.active_low = 0,
+		.adjust_time =5,      //adjust for diff product
+	},
+	{
+		.name = "vibratorR",
+		.gpio =	RK29_PIN4_PD5,
+		.max_timeout = 1000,
+		.active_low = 0,
+		.adjust_time =5,      //adjust for diff product
 
+	},
+};
+struct timed_gpio_platform_data rk29_vibrator_info = {
+	.num_gpios = 2,
+	.gpios = timed_gpios,
+};
+
+struct platform_device rk29_device_vibrator ={
+	.name = "timed-gpio",
+	.id = -1,
+	.dev = {
+		.platform_data = &rk29_vibrator_info,
+		},
+
+};
+#endif
 /*****************************************************************************************
  * mc3202 light sensor
  * author: sevenxuemin@sina.com
@@ -2034,6 +2070,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_CM3202
 	&rk29_device_lsr,
+#endif
+#ifdef CONFIG_ANDROID_TIMED_GPIO
+	&rk29_device_vibrator,
 #endif
 };
 
