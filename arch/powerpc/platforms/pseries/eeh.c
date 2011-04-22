@@ -451,6 +451,39 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag)
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
 }
 
+void __eeh_set_pe_freset(struct device_node *parent, unsigned int *freset)
+{
+	struct device_node *dn;
+
+	for_each_child_of_node(parent, dn) {
+		if (PCI_DN(dn)) {
+
+			struct pci_dev *dev = PCI_DN(dn)->pcidev;
+
+			if (dev && dev->driver)
+				*freset |= dev->needs_freset;
+
+			__eeh_set_pe_freset(dn, freset);
+		}
+	}
+}
+
+void eeh_set_pe_freset(struct device_node *dn, unsigned int *freset)
+{
+	struct pci_dev *dev;
+	dn = find_device_pe(dn);
+
+	/* Back up one, since config addrs might be shared */
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
+		dn = dn->parent;
+
+	dev = PCI_DN(dn)->pcidev;
+	if (dev)
+		*freset |= dev->needs_freset;
+
+	__eeh_set_pe_freset(dn, freset);
+}
+
 /**
  * eeh_dn_check_failure - check if all 1's data is due to EEH slot freeze
  * @dn device node
@@ -739,18 +772,21 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 /**
  * rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
  * @pdn: pci device node to be reset.
- *
- *  Return 0 if success, else a non-zero value.
  */
 
 static void __rtas_set_slot_reset(struct pci_dn *pdn)
 {
-	struct pci_dev *dev = pdn->pcidev;
+	unsigned int freset = 0;
 
-	/* Determine type of EEH reset required by device,
-	 * default hot reset or fundamental reset
-	 */
-	if (dev && dev->needs_freset)
+	/* Determine type of EEH reset required for
+	 * Partitionable Endpoint, a hot-reset (1)
+	 * or a fundamental reset (3).
+	 * A fundamental reset required by any device under
+	 * Partitionable Endpoint trumps hot-reset.
+  	 */
+	eeh_set_pe_freset(pdn->node, &freset);
+
+	if (freset)
 		rtas_pci_slot_reset(pdn, 3);
 	else
 		rtas_pci_slot_reset(pdn, 1);
