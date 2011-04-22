@@ -1162,9 +1162,51 @@ static int blkvsc_do_pending_reqs(struct block_device_context *blkdev)
 	return ret;
 }
 
+
+static void blkvsc_request(struct request_queue *queue)
+{
+	struct block_device_context *blkdev = NULL;
+	struct request *req;
+	int ret = 0;
+
+	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
+	while ((req = blk_peek_request(queue)) != NULL) {
+		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
+
+		blkdev = req->rq_disk->private_data;
+		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS ||
+		    blkdev->media_not_present) {
+			__blk_end_request_cur(req, 0);
+			continue;
+		}
+
+		ret = blkvsc_do_pending_reqs(blkdev);
+
+		if (ret != 0) {
+			DPRINT_DBG(BLKVSC_DRV,
+				   "- stop queue - pending_list not empty\n");
+			blk_stop_queue(queue);
+			break;
+		}
+
+		blk_start_request(req);
+
+		ret = blkvsc_do_request(blkdev, req);
+		if (ret > 0) {
+			DPRINT_DBG(BLKVSC_DRV, "- stop queue - no room\n");
+			blk_stop_queue(queue);
+			break;
+		} else if (ret < 0) {
+			DPRINT_DBG(BLKVSC_DRV, "- stop queue - no mem\n");
+			blk_requeue_request(queue, req);
+			blk_stop_queue(queue);
+			break;
+		}
+	}
+}
+
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
-static void blkvsc_request(struct request_queue *queue);
 
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
 module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
@@ -1489,48 +1531,6 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 	}
 
 	spin_unlock_irqrestore(&blkdev->lock, flags);
-}
-
-static void blkvsc_request(struct request_queue *queue)
-{
-	struct block_device_context *blkdev = NULL;
-	struct request *req;
-	int ret = 0;
-
-	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
-	while ((req = blk_peek_request(queue)) != NULL) {
-		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
-
-		blkdev = req->rq_disk->private_data;
-		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS ||
-		    blkdev->media_not_present) {
-			__blk_end_request_cur(req, 0);
-			continue;
-		}
-
-		ret = blkvsc_do_pending_reqs(blkdev);
-
-		if (ret != 0) {
-			DPRINT_DBG(BLKVSC_DRV,
-				   "- stop queue - pending_list not empty\n");
-			blk_stop_queue(queue);
-			break;
-		}
-
-		blk_start_request(req);
-
-		ret = blkvsc_do_request(blkdev, req);
-		if (ret > 0) {
-			DPRINT_DBG(BLKVSC_DRV, "- stop queue - no room\n");
-			blk_stop_queue(queue);
-			break;
-		} else if (ret < 0) {
-			DPRINT_DBG(BLKVSC_DRV, "- stop queue - no mem\n");
-			blk_requeue_request(queue, req);
-			blk_stop_queue(queue);
-			break;
-		}
-	}
 }
 
 static int __init blkvsc_init(void)
