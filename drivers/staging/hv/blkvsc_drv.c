@@ -17,6 +17,8 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *
+ * 4/3/2011: K. Y. Srinivasan - Significant restructuring and cleanup.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -967,7 +969,6 @@ static int blkvsc_probe(struct device *device)
 
 
 	if (!storvsc_drv_obj->base.dev_add) {
-		DPRINT_ERR(BLKVSC_DRV, "OnDeviceAdd() not set");
 		ret = -1;
 		goto Cleanup;
 	}
@@ -995,10 +996,8 @@ static int blkvsc_probe(struct device *device)
 
 	/* Call to the vsc driver to add the device */
 	ret = storvsc_drv_obj->base.dev_add(device_obj, &device_info);
-	if (ret != 0) {
-		DPRINT_ERR(BLKVSC_DRV, "unable to add blkvsc device");
+	if (ret != 0)
 		goto Cleanup;
-	}
 
 	blkdev->device_ctx = device_obj;
 	/* this identified the device 0 or 1 */
@@ -1040,7 +1039,6 @@ static int blkvsc_probe(struct device *device)
 			ide1_registered = 1;
 		}
 	} else {
-		DPRINT_ERR(BLKVSC_DRV, "invalid pathid");
 		ret = -1;
 		goto Cleanup;
 	}
@@ -1049,7 +1047,6 @@ static int blkvsc_probe(struct device *device)
 
 	blkdev->gd = alloc_disk(BLKVSC_MINORS);
 	if (!blkdev->gd) {
-		DPRINT_ERR(BLKVSC_DRV, "register_blkdev() failed! ret %d", ret);
 		ret = -1;
 		goto Cleanup;
 	}
