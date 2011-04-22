@@ -216,9 +216,10 @@ restart:	adr	r0, LC0
  *   r9  = size of decompressed image
  *   r10 = end of this image, including  bss/stack/malloc space if non XIP
  * We basically want:
- *   r4 >= r10 -> OK
+ *   r4 - 16k page directory >= r10 -> OK
  *   r4 + image length <= current position (pc) -> OK
  */
+		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
 		add	r10, r4, r9
