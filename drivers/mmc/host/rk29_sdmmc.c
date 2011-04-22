@@ -478,7 +478,7 @@ static void rk29_sdmmc_request_done(struct rk29_sdmmc *host,struct mmc_request	*
 	host->state = STATE_IDLE;
 	rk29_sdmmc_set_mrq_status(host, MRQ_REQUEST_DONE);
 	mmc_request_done(host->mmc, mrq);
-
+	del_timer(&host->monitor_timer);
 	
 	spin_lock(&host->lock);
 }
@@ -748,9 +748,9 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if(!mrq->data)
-		timeout = 500;
+		timeout = 5000;
 	else
-		timeout = 500 + mrq->data->timeout_ns/1000000;
+		timeout = 5000 + mrq->data->timeout_ns/1000000;
 	mod_timer(&host->monitor_timer, jiffies + msecs_to_jiffies(timeout));
 	
 	if (!rk29_sdmmc_get_cd(mmc)) {
@@ -1069,6 +1069,8 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 static void rk29_sdmmc_detect_change(struct rk29_sdmmc *host)
 {
 	spin_lock(&host->lock);	
+
+	del_timer(&host->monitor_timer);
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, ~SDMMC_INT_SDIO);
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,
 		rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & 
