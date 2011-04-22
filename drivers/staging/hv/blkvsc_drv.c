@@ -103,7 +103,6 @@ struct block_device_context {
 	unsigned int device_id_len;
 	int num_outstanding_reqs;
 	int shutting_down;
-	int media_not_present;
 	unsigned int sector_size;
 	sector_t capacity;
 	unsigned int port;
@@ -446,7 +445,6 @@ static int blkvsc_do_operation(struct block_device_context *blkdev,
 	case DO_CAPACITY:
 		blkdev->sector_size = 0;
 		blkdev->capacity = 0;
-		blkdev->media_not_present = 0; /* assume a disk is present */
 
 		blkvsc_req->cmnd[0] = READ_CAPACITY;
 		blkvsc_req->cmd_len = 16;
@@ -472,10 +470,6 @@ static int blkvsc_do_operation(struct block_device_context *blkdev,
 	if (vm_srb->scsi_status) {
 		scsi_normalize_sense(blkvsc_req->sense_buffer,
 				     SCSI_SENSE_BUFFERSIZE, &sense_hdr);
-
-		if (sense_hdr.asc == 0x3A)
-			/* Medium not present */
-			blkdev->media_not_present = 1;
 
 		return 0;
 	}
@@ -964,8 +958,7 @@ static void blkvsc_request(struct request_queue *queue)
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
 		blkdev = req->rq_disk->private_data;
-		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS ||
-		    blkdev->media_not_present) {
+		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS) {
 			__blk_end_request_cur(req, 0);
 			continue;
 		}
