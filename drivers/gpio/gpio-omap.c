@@ -168,7 +168,7 @@ do {	\
 static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 		unsigned debounce)
 {
-	void __iomem		*reg = bank->base;
+	void __iomem		*reg;
 	u32			val;
 	u32			l;
 
@@ -184,19 +184,10 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 
 	l = GPIO_BIT(bank, gpio);
 
-	if (bank->method == METHOD_GPIO_44XX)
-		reg += OMAP4_GPIO_DEBOUNCINGTIME;
-	else
-		reg += OMAP24XX_GPIO_DEBOUNCE_VAL;
-
+	reg = bank->base + bank->regs->debounce;
 	__raw_writel(debounce, reg);
 
-	reg = bank->base;
-	if (bank->method == METHOD_GPIO_44XX)
-		reg += OMAP4_GPIO_DEBOUNCENABLE;
-	else
-		reg += OMAP24XX_GPIO_DEBOUNCE_EN;
-
+	reg = bank->base + bank->regs->debounce_en;
 	val = __raw_readl(reg);
 
 	if (debounce) {
