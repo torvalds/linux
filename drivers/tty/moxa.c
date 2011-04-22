@@ -371,7 +371,7 @@ static int moxa_ioctl(struct tty_struct *tty,
 					tmp.cflag = p->cflag;
 				else
 					tmp.cflag = ttyp->termios->c_cflag;
-				tty_kref_put(tty);
+				tty_kref_put(ttyp);
 copy:
 				if (copy_to_user(argm, &tmp, sizeof(tmp)))
 					return -EFAULT;
