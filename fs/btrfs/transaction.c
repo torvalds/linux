@@ -487,19 +487,40 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 0, 1);
+	int ret;
+
+	ret = __btrfs_end_transaction(trans, root, 0, 1);
+	if (ret)
+		return ret;
+	return 0;
 }
 
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 1, 1);
+	int ret;
+
+	ret = __btrfs_end_transaction(trans, root, 1, 1);
+	if (ret)
+		return ret;
+	return 0;
 }
 
 int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 0, 0);
+	int ret;
+
+	ret = __btrfs_end_transaction(trans, root, 0, 0);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root)
+{
+	return __btrfs_end_transaction(trans, root, 1, 1);
 }
 
 /*
@@ -967,7 +988,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	ret = btrfs_insert_dir_item(trans, parent_root,
 				dentry->d_name.name, dentry->d_name.len,
-				parent_inode->i_ino, &key,
+				parent_inode, &key,
 				BTRFS_FT_DIR, index);
 	BUG_ON(ret);
 
@@ -1037,6 +1058,14 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 	int ret;
 
 	list_for_each_entry(pending, head, list) {
+		/*
+		 * We must deal with the delayed items before creating
+		 * snapshots, or we will create a snapthot with inconsistent
+		 * information.
+		*/
+		ret = btrfs_run_delayed_items(trans, fs_info->fs_root);
+		BUG_ON(ret);
+
 		ret = create_pending_snapshot(trans, fs_info, pending);
 		BUG_ON(ret);
 	}
@@ -1290,6 +1319,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 		}
 
+		ret = btrfs_run_delayed_items(trans, root);
+		BUG_ON(ret);
+
 		/*
 		 * rename don't use btrfs_join_transaction, so, once we
 		 * set the transaction to blocked above, we aren't going
@@ -1314,6 +1346,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 (should_grow && cur_trans->num_joined != joined));
 
 	ret = create_pending_snapshots(trans, root->fs_info);
+	BUG_ON(ret);
+
+	ret = btrfs_run_delayed_items(trans, root);
 	BUG_ON(ret);
 
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
@@ -1431,6 +1466,8 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 	while (!list_empty(&list)) {
 		root = list_entry(list.next, struct btrfs_root, root_list);
 		list_del(&root->root_list);
+
+		btrfs_kill_all_delayed_nodes(root);
 
 		if (btrfs_header_backref_rev(root->node) <
 		    BTRFS_MIXED_BACKREF_REV)

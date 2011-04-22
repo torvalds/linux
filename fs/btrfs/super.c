@@ -40,6 +40,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include "compat.h"
+#include "delayed-inode.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -1206,9 +1207,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_extent_io;
 
-	err = btrfs_interface_init();
+	err = btrfs_delayed_inode_init();
 	if (err)
 		goto free_extent_map;
+
+	err = btrfs_interface_init();
+	if (err)
+		goto free_delayed_inode;
 
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
@@ -1219,6 +1224,8 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
+free_delayed_inode:
+	btrfs_delayed_inode_exit();
 free_extent_map:
 	extent_map_exit();
 free_extent_io:
@@ -1235,6 +1242,7 @@ free_sysfs:
 static void __exit exit_btrfs_fs(void)
 {
 	btrfs_destroy_cachep();
+	btrfs_delayed_inode_exit();
 	extent_map_exit();
 	extent_io_exit();
 	btrfs_interface_exit();

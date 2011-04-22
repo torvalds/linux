@@ -869,6 +869,7 @@ struct btrfs_block_group_cache {
 struct reloc_control;
 struct btrfs_device;
 struct btrfs_fs_devices;
+struct btrfs_delayed_root;
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
@@ -895,7 +896,10 @@ struct btrfs_fs_info {
 	/* logical->physical extent mapping */
 	struct btrfs_mapping_tree mapping_tree;
 
-	/* block reservation for extent, checksum and root tree */
+	/*
+	 * block reservation for extent, checksum, root tree and
+	 * delayed dir index item
+	 */
 	struct btrfs_block_rsv global_block_rsv;
 	/* block reservation for delay allocation */
 	struct btrfs_block_rsv delalloc_block_rsv;
@@ -1022,6 +1026,7 @@ struct btrfs_fs_info {
 	 * for the sys_munmap function call path
 	 */
 	struct btrfs_workers fixup_workers;
+	struct btrfs_workers delayed_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
@@ -1079,6 +1084,8 @@ struct btrfs_fs_info {
 
 	/* filesystem state */
 	u64 fs_state;
+
+	struct btrfs_delayed_root *delayed_root;
 };
 
 /*
@@ -1161,6 +1168,11 @@ struct btrfs_root {
 	/* red-black tree that keeps track of in-memory inodes */
 	struct rb_root inode_tree;
 
+	/*
+	 * radix tree that keeps track of delayed nodes of every inode,
+	 * protected by inode_lock
+	 */
+	struct radix_tree_root delayed_nodes_tree;
 	/*
 	 * right now this just gets used so that a root has its own devid
 	 * for stat.  It may be used for more later
@@ -2099,6 +2111,13 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 }
 
 /* extent-tree.c */
+static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
+						 int num_items)
+{
+	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
+		3 * num_items;
+}
+
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
@@ -2294,6 +2313,8 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
 void btrfs_set_path_blocking(struct btrfs_path *p);
+void btrfs_clear_path_blocking(struct btrfs_path *p,
+			       struct extent_buffer *held);
 void btrfs_unlock_up_safe(struct btrfs_path *p, int level);
 
 int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -2305,6 +2326,10 @@ static inline int btrfs_del_item(struct btrfs_trans_handle *trans,
 	return btrfs_del_items(trans, root, path, path->slots[0], 1);
 }
 
+int setup_items_for_insert(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root, struct btrfs_path *path,
+			   struct btrfs_key *cpu_key, u32 *data_size,
+			   u32 total_data, u32 total_size, int nr);
 int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, void *data, u32 data_size);
 int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
@@ -2368,7 +2393,7 @@ void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
 /* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, const char *name,
-			  int name_len, u64 dir,
+			  int name_len, struct inode *dir,
 			  struct btrfs_key *location, u8 type, u64 index);
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,

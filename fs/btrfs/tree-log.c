@@ -2773,6 +2773,13 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		max_key.type = (u8)-1;
 	max_key.offset = (u64)-1;
 
+	ret = btrfs_commit_inode_delayed_items(trans, inode);
+	if (ret) {
+		btrfs_free_path(path);
+		btrfs_free_path(dst_path);
+		return ret;
+	}
+
 	mutex_lock(&BTRFS_I(inode)->log_mutex);
 
 	/*

@@ -71,6 +71,7 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   u64 block_start,
 			   u64 num_blocks);
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
+void __btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
 int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root);
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 void btrfs_mark_buffer_dirty_nonblocking(struct extent_buffer *buf);

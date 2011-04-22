@@ -22,6 +22,7 @@
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
+#include "delayed-inode.h"
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -158,8 +159,12 @@ struct btrfs_inode {
 	 */
 	unsigned force_compress:4;
 
+	struct btrfs_delayed_node *delayed_node;
+
 	struct inode vfs_inode;
 };
+
+extern unsigned char btrfs_filetype_table[];
 
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {

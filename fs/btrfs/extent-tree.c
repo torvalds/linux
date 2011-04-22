@@ -3973,12 +3973,6 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 	WARN_ON(fs_info->chunk_block_rsv.reserved > 0);
 }
 
-static u64 calc_trans_metadata_size(struct btrfs_root *root, int num_items)
-{
-	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
-		3 * num_items;
-}
-
 int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 int num_items)
@@ -3989,7 +3983,7 @@ int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 	if (num_items == 0 || root->fs_info->chunk_root == root)
 		return 0;
 
-	num_bytes = calc_trans_metadata_size(root, num_items);
+	num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
 	ret = btrfs_block_rsv_add(trans, root, &root->fs_info->trans_block_rsv,
 				  num_bytes);
 	if (!ret) {
@@ -4028,14 +4022,14 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	 * If all of the metadata space is used, we can commit
 	 * transaction and use space it freed.
 	 */
-	u64 num_bytes = calc_trans_metadata_size(root, 4);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 4);
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
 void btrfs_orphan_release_metadata(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 num_bytes = calc_trans_metadata_size(root, 4);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 4);
 	btrfs_block_rsv_release(root, root->orphan_block_rsv, num_bytes);
 }
 
@@ -4049,7 +4043,7 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 	 * two for root back/forward refs, two for directory entries
 	 * and one for root of the snapshot.
 	 */
-	u64 num_bytes = calc_trans_metadata_size(root, 5);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 5);
 	dst_rsv->space_info = src_rsv->space_info;
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
@@ -4078,7 +4072,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	if (nr_extents > reserved_extents) {
 		nr_extents -= reserved_extents;
-		to_reserve = calc_trans_metadata_size(root, nr_extents);
+		to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
 	} else {
 		nr_extents = 0;
 		to_reserve = 0;
@@ -4132,7 +4126,7 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 
 	to_free = calc_csum_metadata_size(inode, num_bytes);
 	if (nr_extents > 0)
-		to_free += calc_trans_metadata_size(root, nr_extents);
+		to_free += btrfs_calc_trans_metadata_size(root, nr_extents);
 
 	btrfs_block_rsv_release(root, &root->fs_info->delalloc_block_rsv,
 				to_free);

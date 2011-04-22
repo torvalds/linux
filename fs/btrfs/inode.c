@@ -2647,11 +2647,26 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	int ret;
 
+	/*
+	 * If root is tree root, it means this inode is used to
+	 * store free space information. And these inodes are updated
+	 * when committing the transaction, so they needn't delaye to
+	 * be updated, or deadlock will occured.
+	 */
+	if (likely(root != root->fs_info->tree_root)) {
+		ret = btrfs_delayed_update_inode(trans, root, inode);
+		if (!ret)
+			btrfs_set_inode_last_trans(trans, inode);
+		return ret;
+	}
+
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	path->leave_spinning = 1;
-	ret = btrfs_lookup_inode(trans, root, path,
-				 &BTRFS_I(inode)->location, 1);
+	ret = btrfs_lookup_inode(trans, root, path, &BTRFS_I(inode)->location,
+				 1);
 	if (ret) {
 		if (ret > 0)
 			ret = -ENOENT;
@@ -2661,7 +2676,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	btrfs_unlock_up_safe(path, 1);
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
-				  struct btrfs_inode_item);
+				    struct btrfs_inode_item);
 
 	fill_inode_item(trans, leaf, inode_item, inode);
 	btrfs_mark_buffer_dirty(leaf);
@@ -2671,7 +2686,6 @@ failed:
 	btrfs_free_path(path);
 	return ret;
 }
-
 
 /*
  * unlink helper that gets used here in inode.c and in the tree logging
@@ -2724,18 +2738,9 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 
-	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
-					 index, name, name_len, -1);
-	if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
+	ret = btrfs_delete_delayed_dir_index(trans, root, dir, index);
+	if (ret)
 		goto err;
-	}
-	if (!di) {
-		ret = -ENOENT;
-		goto err;
-	}
-	ret = btrfs_delete_one_dir_name(trans, root, path, di);
-	btrfs_release_path(root, path);
 
 	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len,
 					 inode, dir->i_ino);
@@ -2924,6 +2929,14 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	index = btrfs_inode_ref_index(path->nodes[0], ref);
 	btrfs_release_path(root, path);
 
+	/*
+	 * This is a commit root search, if we can lookup inode item and other
+	 * relative items in the commit root, it means the transaction of
+	 * dir/file creation has been committed, and the dir index item that we
+	 * delay to insert has also been inserted into the commit root. So
+	 * we needn't worry about the delayed insertion of the dir index item
+	 * here.
+	 */
 	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino, index,
 				dentry->d_name.name, dentry->d_name.len, 0);
 	if (IS_ERR(di)) {
@@ -3029,24 +3042,16 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		btrfs_release_path(root, path);
 		index = key.offset;
 	}
-
-	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
-					 index, name, name_len, -1);
-	BUG_ON(!di || IS_ERR(di));
-
-	leaf = path->nodes[0];
-	btrfs_dir_item_key_to_cpu(leaf, di, &key);
-	WARN_ON(key.type != BTRFS_ROOT_ITEM_KEY || key.objectid != objectid);
-	ret = btrfs_delete_one_dir_name(trans, root, path, di);
-	BUG_ON(ret);
 	btrfs_release_path(root, path);
+
+	ret = btrfs_delete_delayed_dir_index(trans, root, dir, index);
+	BUG_ON(ret);
 
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, dir);
 	BUG_ON(ret);
 
-	btrfs_free_path(path);
 	return 0;
 }
 
@@ -3305,6 +3310,15 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 
 	if (root->ref_cows || root == root->fs_info->tree_root)
 		btrfs_drop_extent_cache(inode, new_size & (~mask), (u64)-1, 0);
+
+	/*
+	 * This function is also used to drop the items in the log tree before
+	 * we relog the inode, so if root != BTRFS_I(inode)->root, it means
+	 * it is used to drop the loged items. So we shouldn't kill the delayed
+	 * items.
+	 */
+	if (min_type == 0 && root == BTRFS_I(inode)->root)
+		btrfs_kill_delayed_inode_items(inode);
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -4208,7 +4222,7 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-static unsigned char btrfs_filetype_table[] = {
+unsigned char btrfs_filetype_table[] = {
 	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
 };
 
@@ -4222,6 +4236,8 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
+	struct list_head ins_list;
+	struct list_head del_list;
 	int ret;
 	struct extent_buffer *leaf;
 	int slot;
@@ -4234,6 +4250,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 	char tmp_name[32];
 	char *name_ptr;
 	int name_len;
+	int is_curr = 0;	/* filp->f_pos points to the current index? */
 
 	/* FIXME, use a real flag for deciding about the key type */
 	if (root->fs_info->tree_root == root)
@@ -4258,7 +4275,15 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 		filp->f_pos = 2;
 	}
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 	path->reada = 2;
+
+	if (key_type == BTRFS_DIR_INDEX_KEY) {
+		INIT_LIST_HEAD(&ins_list);
+		INIT_LIST_HEAD(&del_list);
+		btrfs_get_delayed_items(inode, &ins_list, &del_list);
+	}
 
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
@@ -4289,8 +4314,13 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			break;
 		if (found_key.offset < filp->f_pos)
 			goto next;
+		if (key_type == BTRFS_DIR_INDEX_KEY &&
+		    btrfs_should_delete_dir_index(&del_list,
+						  found_key.offset))
+			goto next;
 
 		filp->f_pos = found_key.offset;
+		is_curr = 1;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		di_cur = 0;
@@ -4345,6 +4375,15 @@ next:
 		path->slots[0]++;
 	}
 
+	if (key_type == BTRFS_DIR_INDEX_KEY) {
+		if (is_curr)
+			filp->f_pos++;
+		ret = btrfs_readdir_delayed_dir_index(filp, dirent, filldir,
+						      &ins_list);
+		if (ret)
+			goto nopos;
+	}
+
 	/* Reached end of directory/root. Bump pos past the last item. */
 	if (key_type == BTRFS_DIR_INDEX_KEY)
 		/*
@@ -4357,6 +4396,8 @@ next:
 nopos:
 	ret = 0;
 err:
+	if (key_type == BTRFS_DIR_INDEX_KEY)
+		btrfs_put_delayed_items(&ins_list, &del_list);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -4434,6 +4475,8 @@ void btrfs_dirty_inode(struct inode *inode)
 		}
 	}
 	btrfs_end_transaction(trans, root);
+	if (BTRFS_I(inode)->delayed_node)
+		btrfs_balance_delayed_items(root);
 }
 
 /*
@@ -4502,9 +4545,12 @@ int btrfs_set_inode_index(struct inode *dir, u64 *index)
 	int ret = 0;
 
 	if (BTRFS_I(dir)->index_cnt == (u64)-1) {
-		ret = btrfs_set_inode_index_count(dir);
-		if (ret)
-			return ret;
+		ret = btrfs_inode_delayed_dir_index_count(dir);
+		if (ret) {
+			ret = btrfs_set_inode_index_count(dir);
+			if (ret)
+				return ret;
+		}
 	}
 
 	*index = BTRFS_I(dir)->index_cnt;
@@ -4671,7 +4717,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 
 	if (ret == 0) {
 		ret = btrfs_insert_dir_item(trans, root, name, name_len,
-					    parent_inode->i_ino, &key,
+					    parent_inode, &key,
 					    btrfs_inode_type(inode), index);
 		BUG_ON(ret);
 
@@ -6784,6 +6830,8 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->dummy_inode = 0;
 	ei->force_compress = BTRFS_COMPRESS_NONE;
 
+	ei->delayed_node = NULL;
+
 	inode = &ei->vfs_inode;
 	extent_map_tree_init(&ei->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&ei->io_tree, &inode->i_data, GFP_NOFS);
@@ -6874,6 +6922,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	inode_tree_del(inode);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 free:
+	btrfs_remove_delayed_node(inode);
 	call_rcu(&inode->i_rcu, btrfs_i_callback);
 }
 
