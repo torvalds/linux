@@ -63,6 +63,7 @@
 
 #include "../../../drivers/headset_observe/rk_headset.h"
 #include "../../../drivers/staging/android/timed_gpio.h"
+#include "../../../drivers/input/magnetometer/mmc328x.h"
 /*set touchscreen different type header*/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
@@ -391,9 +392,9 @@ static struct ili2102_platform_data ili2102_info = {
 	.model			= 2102,
 	.swap_xy		= 0,
 	.x_min			= 0,
-	.x_max			= 480,
+	.x_max			= 481,
 	.y_min			= 0,
-	.y_max			= 800,
+	.y_max			= 801,
 	.gpio_reset     = GT801_GPIO_RESET,
 	.gpio_reset_active_low = 1,
 	.gpio_pendown		= GT801_GPIO_INT,
@@ -1537,7 +1538,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
       .platform_data  = &mma8452_info,
     },
 #endif
-#if defined (CONFIG_SENSORS_AK8973)
+#if defined (CONFIG_COMPASS_AK8973)
 	{
 		.type    		= "ak8973",
 		.addr           = 0x1d,
@@ -1545,12 +1546,21 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
-#if defined (CONFIG_SENSORS_AK8975)
+#if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type    		= "ak8975",
 		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN0_PA4,
+	},
+#endif
+#if defined (CONFIG_COMPASS_MMC328X)
+	{
+		.type    		= "mmc3280",
+		.addr           = 0x30,
+		.flags          = I2C_M_NEED_DELAY,
+		.udelay      = 100,
+		.platform_data  = NULL,
 	},
 #endif
 #if defined (CONFIG_INPUT_LPSENSOR_ISL29028)
@@ -1637,7 +1647,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
-#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV5642			/* back camera sensor */
+#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV3640			/* back camera sensor */
 #define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         INVALID_GPIO
@@ -1741,10 +1751,10 @@ static int rk29_sensor_io_init(void)
             if (ret)
 				goto sensor_io_int_loop_end;
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_POWERDNACTIVE_MASK;
-            gpio_set_value(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS));
-            gpio_direction_output(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS));
+            gpio_set_value(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_BITPOS)>>RK29_CAM_POWERDNACTIVE_BITPOS));
+            gpio_direction_output(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_BITPOS)>>RK29_CAM_POWERDNACTIVE_BITPOS));
 
-			//printk("\n%s....powerdown pin(%d) init success(0x%x) \n",__FUNCTION__,camera_powerdown,((camera_ioflag&RK29_CAM_POWERDNACTIVE_BITPOS)>>RK29_CAM_POWERDNACTIVE_BITPOS));
+			printk("\n%s....powerdown pin(%d) init success(0x%x) \n",__FUNCTION__,camera_powerdown,((camera_ioflag&RK29_CAM_POWERDNACTIVE_BITPOS)>>RK29_CAM_POWERDNACTIVE_BITPOS));
 
         }
 
