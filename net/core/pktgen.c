@@ -2622,6 +2622,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 	} else {
 		int frags = pkt_dev->nfrags;
 		int i, len;
+		int frag_len;
 
 
 		if (frags > MAX_SKB_FRAGS)
@@ -2633,6 +2634,8 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 		}
 
 		i = 0;
+		frag_len = (datalen/frags) < PAGE_SIZE ?
+			   (datalen/frags) : PAGE_SIZE;
 		while (datalen > 0) {
 			if (unlikely(!pkt_dev->page)) {
 				int node = numa_node_id();
@@ -2646,35 +2649,15 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 			skb_shinfo(skb)->frags[i].page = pkt_dev->page;
 			get_page(pkt_dev->page);
 			skb_shinfo(skb)->frags[i].page_offset = 0;
-			skb_shinfo(skb)->frags[i].size =
-			    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
+			/*last fragment, fill rest of data*/
+			if (i == (frags - 1))
+				skb_shinfo(skb)->frags[i].size =
+				    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
+			else
+				skb_shinfo(skb)->frags[i].size = frag_len;
 			datalen -= skb_shinfo(skb)->frags[i].size;
 			skb->len += skb_shinfo(skb)->frags[i].size;
 			skb->data_len += skb_shinfo(skb)->frags[i].size;
-			i++;
-			skb_shinfo(skb)->nr_frags = i;
-		}
-
-		while (i < frags) {
-			int rem;
-
-			if (i == 0)
-				break;
-
-			rem = skb_shinfo(skb)->frags[i - 1].size / 2;
-			if (rem == 0)
-				break;
-
-			skb_shinfo(skb)->frags[i - 1].size -= rem;
-
-			skb_shinfo(skb)->frags[i] =
-			    skb_shinfo(skb)->frags[i - 1];
-			get_page(skb_shinfo(skb)->frags[i].page);
-			skb_shinfo(skb)->frags[i].page =
-			    skb_shinfo(skb)->frags[i - 1].page;
-			skb_shinfo(skb)->frags[i].page_offset +=
-			    skb_shinfo(skb)->frags[i - 1].size;
-			skb_shinfo(skb)->frags[i].size = rem;
 			i++;
 			skb_shinfo(skb)->nr_frags = i;
 		}
