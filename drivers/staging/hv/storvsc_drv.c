@@ -404,7 +404,6 @@ static int storvsc_probe(struct device *device)
  */
 static int storvsc_remove(struct device *device)
 {
-	int ret;
 	struct hv_driver *drv =
 			drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
@@ -413,20 +412,11 @@ static int storvsc_remove(struct device *device)
 	struct host_device_context *host_device_ctx =
 			(struct host_device_context *)host->hostdata;
 
-
-	if (!storvsc_drv_obj->base.dev_rm)
-		return -1;
-
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = storvsc_drv_obj->base.dev_rm(device_obj);
-	if (ret != 0) {
-		/* TODO: */
-		DPRINT_ERR(STORVSC, "unable to remove vsc device (ret %d)",
-			   ret);
-	}
+	storvsc_drv_obj->base.dev_rm(device_obj);
 
 	if (host_device_ctx->request_pool) {
 		kmem_cache_destroy(host_device_ctx->request_pool);
@@ -438,7 +428,7 @@ static int storvsc_remove(struct device *device)
 
 	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
 	scsi_host_put(host);
-	return ret;
+	return 0;
 }
 
 /*
