@@ -801,7 +801,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 
 	printk(KERN_INFO "TPS65910 Set default voltage.\n");
 #if 1
-	/* VGIG1 Set the default voltage: 2700 mV */
+	/* VGIG1 Set the default voltage from 1800mV to 2700 mV for camera io */
 	val = 0x01;
 	val |= (0x03 << 2);
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDIG1);
@@ -813,7 +813,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 #endif
 
 #if 0
-	/* VDD1 Set the default voltage: 1150 mV(47)*/
+	/* VDD1 whitch suplies for core Set the default voltage: 1150 mV(47)*/
 	val = 47;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1_OP);
 	if (err) {
@@ -821,8 +821,10 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 				\n", TPS65910_REG_VDD1_OP);
 		return -EIO;
 	}
+#endif
 
-	/* VDD2 Set the default voltage: 1087 * 1.25mV(41)*/
+#if 0
+	/* VDD2 whitch suplies for ddr3 Set the default voltage: 1087 * 1.25mV(41)*/
 	val = 42;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
 	if (err) {
@@ -2373,7 +2375,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_300mhz);
+	rk29_clock_init(periph_pll_288mhz);
 	rk29_iomux_init();
 }
 
