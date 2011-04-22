@@ -457,6 +457,41 @@ static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 	complete(&blkvsc_req->request.wait_event);
 }
 
+static int blkvsc_do_flush(struct block_device_context *blkdev)
+{
+	struct blkvsc_request *blkvsc_req;
+
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_do_flush()\n");
+
+	if (blkdev->device_type != HARDDISK_TYPE)
+		return 0;
+
+	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
+	if (!blkvsc_req)
+		return -ENOMEM;
+
+	memset(blkvsc_req, 0, sizeof(struct blkvsc_request));
+	init_completion(&blkvsc_req->request.wait_event);
+	blkvsc_req->dev = blkdev;
+	blkvsc_req->req = NULL;
+	blkvsc_req->write = 0;
+
+	blkvsc_req->request.data_buffer.pfn_array[0] = 0;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 0;
+
+	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
+	blkvsc_req->cmd_len = 10;
+
+	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
+
+	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
+
+	kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
+
+	return 0;
+}
+
 
 /* Static decl */
 static int blkvsc_probe(struct device *dev);
@@ -472,7 +507,6 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 static int blkvsc_do_inquiry(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity16(struct block_device_context *blkdev);
-static int blkvsc_do_flush(struct block_device_context *blkdev);
 static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev);
 static int blkvsc_do_pending_reqs(struct block_device_context *blkdev);
 
@@ -760,41 +794,6 @@ static void blkvsc_shutdown(struct device *device)
 	blkvsc_cancel_pending_reqs(blkdev);
 
 	spin_unlock_irqrestore(&blkdev->lock, flags);
-}
-
-static int blkvsc_do_flush(struct block_device_context *blkdev)
-{
-	struct blkvsc_request *blkvsc_req;
-
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_do_flush()\n");
-
-	if (blkdev->device_type != HARDDISK_TYPE)
-		return 0;
-
-	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
-	if (!blkvsc_req)
-		return -ENOMEM;
-
-	memset(blkvsc_req, 0, sizeof(struct blkvsc_request));
-	init_completion(&blkvsc_req->request.wait_event);
-	blkvsc_req->dev = blkdev;
-	blkvsc_req->req = NULL;
-	blkvsc_req->write = 0;
-
-	blkvsc_req->request.data_buffer.pfn_array[0] = 0;
-	blkvsc_req->request.data_buffer.offset = 0;
-	blkvsc_req->request.data_buffer.len = 0;
-
-	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
-	blkvsc_req->cmd_len = 10;
-
-	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
-
-	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
-
-	kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
-
-	return 0;
 }
 
 /* Do a scsi INQUIRY cmd here to get the device type (ie disk or dvd) */
