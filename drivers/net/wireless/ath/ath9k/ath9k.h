@@ -423,6 +423,7 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
 
 void ath_hw_check(struct work_struct *work);
+void ath_hw_pll_work(struct work_struct *work);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
