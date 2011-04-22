@@ -1930,7 +1930,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned int len = skb->len;
 	unsigned char *data = skb->data;
 
-	unsigned int csum_start = skb->csum_start - skb_headroom(skb);
+	unsigned int csum_start = skb_checksum_start_offset(skb);
 
 	lepp_frag_t frags[LEPP_MAX_FRAGS];
 
