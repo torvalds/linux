@@ -2057,7 +2057,9 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 		drbd_bm_cleanup(mdev);
 	}
 
-	drbd_free_resources(mdev);
+	drbd_free_bc(mdev->ldev);
+	mdev->ldev = NULL;
+
 	clear_bit(AL_SUSPENDED, &mdev->flags);
 
 	D_ASSERT(list_empty(&mdev->active_ee));
@@ -2252,7 +2254,8 @@ void drbd_delete_device(struct drbd_conf *mdev)
 	if (mdev->this_bdev)
 		bdput(mdev->this_bdev);
 
-	drbd_free_resources(mdev);
+	drbd_free_bc(mdev->ldev);
+	mdev->ldev = NULL;
 
 	drbd_release_all_peer_reqs(mdev);
 
@@ -2387,11 +2390,18 @@ static void drbd_free_socket(struct drbd_socket *socket)
 
 void conn_free_crypto(struct drbd_tconn *tconn)
 {
+	drbd_free_sock(tconn);
+
+	crypto_free_hash(tconn->csums_tfm);
+	crypto_free_hash(tconn->verify_tfm);
 	crypto_free_hash(tconn->cram_hmac_tfm);
 	crypto_free_hash(tconn->integrity_w_tfm);
 	crypto_free_hash(tconn->integrity_r_tfm);
 	kfree(tconn->int_dig_in);
 	kfree(tconn->int_dig_vv);
+
+	tconn->csums_tfm = NULL;
+	tconn->verify_tfm = NULL;
 	tconn->cram_hmac_tfm = NULL;
 	tconn->integrity_w_tfm = NULL;
 	tconn->integrity_r_tfm = NULL;
@@ -2698,27 +2708,6 @@ void drbd_free_sock(struct drbd_tconn *tconn)
 		tconn->meta.socket = NULL;
 		mutex_unlock(&tconn->meta.mutex);
 	}
-}
-
-
-void drbd_free_resources(struct drbd_conf *mdev)
-{
-	crypto_free_hash(mdev->tconn->csums_tfm);
-	mdev->tconn->csums_tfm = NULL;
-	crypto_free_hash(mdev->tconn->verify_tfm);
-	mdev->tconn->verify_tfm = NULL;
-	crypto_free_hash(mdev->tconn->cram_hmac_tfm);
-	mdev->tconn->cram_hmac_tfm = NULL;
-	crypto_free_hash(mdev->tconn->integrity_w_tfm);
-	mdev->tconn->integrity_w_tfm = NULL;
-	crypto_free_hash(mdev->tconn->integrity_r_tfm);
-	mdev->tconn->integrity_r_tfm = NULL;
-
-	drbd_free_sock(mdev->tconn);
-
-	__no_warn(local,
-		  drbd_free_bc(mdev->ldev);
-		  mdev->ldev = NULL;);
 }
 
 /* meta data management */

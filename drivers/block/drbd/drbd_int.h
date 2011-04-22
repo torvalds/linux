@@ -1046,7 +1046,6 @@ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
 #define drbd_thread_current_set_cpu(A) ({})
 #define drbd_calc_cpu_mask(A) ({})
 #endif
-extern void drbd_free_resources(struct drbd_conf *mdev);
 extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(struct drbd_tconn *);
