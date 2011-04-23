@@ -1448,6 +1448,16 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static int em_popf(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.type = OP_REG;
+	c->dst.addr.reg = &ctxt->eflags;
+	c->dst.bytes = c->op_bytes;
+	return emulate_popf(ctxt, ctxt->ops, &c->dst.val, c->op_bytes);
+}
+
 static int emulate_push_sreg(struct x86_emulate_ctxt *ctxt,
 			     struct x86_emulate_ops *ops, int seg)
 {
@@ -1492,6 +1502,14 @@ static int em_pusha(struct x86_emulate_ctxt *ctxt)
 	}
 
 	return rc;
+}
+
+static int em_pushf(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->src.val =  (unsigned long)ctxt->eflags;
+	return em_push(ctxt);
 }
 
 static int em_popa(struct x86_emulate_ctxt *ctxt)
@@ -3126,7 +3144,8 @@ static struct opcode opcode_table[256] = {
 	/* 0x98 - 0x9F */
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
-	DI(ImplicitOps | Stack, pushf), DI(ImplicitOps | Stack, popf), N, N,
+	II(ImplicitOps | Stack, em_pushf, pushf),
+	II(ImplicitOps | Stack, em_popf, popf), N, N,
 	/* 0xA0 - 0xA7 */
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs, em_mov),
@@ -3899,16 +3918,6 @@ special_insn:
 		case 4: c->dst.val = (s16)c->dst.val; break;
 		case 8: c->dst.val = (s32)c->dst.val; break;
 		}
-		break;
-	case 0x9c: /* pushf */
-		c->src.val =  (unsigned long) ctxt->eflags;
-		rc = em_push(ctxt);
-		break;
-	case 0x9d: /* popf */
-		c->dst.type = OP_REG;
-		c->dst.addr.reg = &ctxt->eflags;
-		c->dst.bytes = c->op_bytes;
-		rc = emulate_popf(ctxt, ops, &c->dst.val, c->op_bytes);
 		break;
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
