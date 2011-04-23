@@ -57,7 +57,7 @@
 static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9261_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PA13, AT91_PIN_PA14);
@@ -621,7 +621,7 @@ MACHINE_START(AT91SAM9G10EK, "Atmel AT91SAM9G10-EK")
 #endif
 	/* Maintainer: Atmel */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9261_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= ek_init_early,
 	.init_irq	= ek_init_irq,
 	.init_machine	= ek_board_init,

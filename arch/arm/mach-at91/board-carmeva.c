@@ -43,7 +43,7 @@
 static void __init carmeva_init_early(void)
 {
 	/* Initialize processor: 20.000 MHz crystal */
-	at91rm9200_initialize(20000000);
+	at91_initialize(20000000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -163,7 +163,7 @@ static void __init carmeva_board_init(void)
 MACHINE_START(CARMEVA, "Carmeva")
 	/* Maintainer: Conitec Datasystems */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= carmeva_init_early,
 	.init_irq	= carmeva_init_irq,
 	.init_machine	= carmeva_board_init,

@@ -22,17 +22,9 @@
 #include <mach/at91_rstc.h>
 #include <mach/at91_shdwc.h>
 
+#include "soc.h"
 #include "generic.h"
 #include "clock.h"
-
-static struct map_desc at91sam9260_io_desc[] __initdata = {
-	{
-		.virtual	= AT91_VA_BASE_SYS,
-		.pfn		= __phys_to_pfn(AT91_BASE_SYS),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}
-};
 
 static struct map_desc at91sam9260_sram_desc[] __initdata = {
 	{
@@ -349,11 +341,8 @@ static void __init at91sam9xe_map_io(void)
 	iotable_init(at91sam9xe_sram_desc, ARRAY_SIZE(at91sam9xe_sram_desc));
 }
 
-void __init at91sam9260_map_io(void)
+static void __init at91sam9260_map_io(void)
 {
-	/* Map peripherals */
-	iotable_init(at91sam9260_io_desc, ARRAY_SIZE(at91sam9260_io_desc));
-
 	if (cpu_is_at91sam9xe())
 		at91sam9xe_map_io();
 	else if (cpu_is_at91sam9g20())
@@ -362,7 +351,7 @@ void __init at91sam9260_map_io(void)
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 }
 
-void __init at91sam9260_initialize(unsigned long main_clock)
+static void __init at91sam9260_initialize(unsigned long main_clock)
 {
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9260_poweroff;
@@ -432,3 +421,8 @@ void __init at91sam9260_init_interrupts(unsigned int priority[NR_AIC_IRQS])
 	/* Enable GPIO interrupts */
 	at91_gpio_irq_setup();
 }
+
+struct at91_soc __initdata at91sam9260_soc = {
+	.map_io = at91sam9260_map_io,
+	.init = at91sam9260_initialize,
+};

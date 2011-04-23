@@ -11,25 +11,12 @@
 #include <linux/clkdev.h>
 
  /* Map io */
-extern void __init at91rm9200_map_io(void);
-extern void __init at91sam9260_map_io(void);
-extern void __init at91sam9261_map_io(void);
-extern void __init at91sam9263_map_io(void);
-extern void __init at91sam9rl_map_io(void);
-extern void __init at91sam9g45_map_io(void);
-extern void __init at91x40_map_io(void);
-extern void __init at91cap9_map_io(void);
+extern void __init at91_map_io(void);
 
  /* Processors */
 extern void __init at91rm9200_set_type(int type);
-extern void __init at91rm9200_initialize(unsigned long main_clock);
-extern void __init at91sam9260_initialize(unsigned long main_clock);
-extern void __init at91sam9261_initialize(unsigned long main_clock);
-extern void __init at91sam9263_initialize(unsigned long main_clock);
-extern void __init at91sam9rl_initialize(unsigned long main_clock);
-extern void __init at91sam9g45_initialize(unsigned long main_clock);
+extern void __init at91_initialize(unsigned long main_clock);
 extern void __init at91x40_initialize(unsigned long main_clock);
-extern void __init at91cap9_initialize(unsigned long main_clock);
 
  /* Interrupts */
 extern void __init at91rm9200_init_interrupts(unsigned int priority[]);

@@ -49,7 +49,7 @@ static void __init ecb_at91init_early(void)
 	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
 
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PC7, AT91_PIN_PC7);
@@ -173,7 +173,7 @@ static void __init ecb_at91board_init(void)
 MACHINE_START(ECBAT91, "emQbit's ECB_AT91")
 	/* Maintainer: emQbit.com */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= ecb_at91init_early,
 	.init_irq	= ecb_at91init_irq,
 	.init_machine	= ecb_at91board_init,

@@ -577,7 +577,7 @@ static void __init gsia18s_board_init(void)
 
 MACHINE_START(GSIA18S, "GS_IA18_S")
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= gsia18s_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= gsia18s_board_init,

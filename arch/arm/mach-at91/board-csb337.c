@@ -46,7 +46,7 @@
 static void __init csb337_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
-	at91rm9200_initialize(3686400);
+	at91_initialize(3686400);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
@@ -258,7 +258,7 @@ static void __init csb337_board_init(void)
 MACHINE_START(CSB337, "Cogent CSB337")
 	/* Maintainer: Bill Gatliff */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= csb337_init_early,
 	.init_irq	= csb337_init_irq,
 	.init_machine	= csb337_board_init,

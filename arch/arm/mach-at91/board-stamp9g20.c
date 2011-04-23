@@ -35,7 +35,7 @@
 void __init stamp9g20_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* DGBU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -299,7 +299,7 @@ static void __init stamp9g20evb_board_init(void)
 MACHINE_START(PORTUXG20, "taskit PortuxG20")
 	/* Maintainer: taskit GmbH */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= portuxg20_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= portuxg20_board_init,
@@ -308,7 +308,7 @@ MACHINE_END
 MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	/* Maintainer: taskit GmbH */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= stamp9g20evb_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= stamp9g20evb_board_init,

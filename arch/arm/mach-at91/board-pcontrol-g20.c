@@ -223,7 +223,7 @@ static void __init pcontrol_g20_board_init(void)
 MACHINE_START(PCONTROL_G20, "PControl G20")
 	/* Maintainer: pgsellmann@portner-elektronik.at */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= pcontrol_g20_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= pcontrol_g20_board_init,

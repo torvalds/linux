@@ -22,16 +22,12 @@
 #include <mach/at91_shdwc.h>
 #include <mach/cpu.h>
 
+#include "soc.h"
 #include "generic.h"
 #include "clock.h"
 
-static struct map_desc at91sam9g45_io_desc[] __initdata = {
+static struct map_desc at91sam9g45_sram_desc[] __initdata = {
 	{
-		.virtual	= AT91_VA_BASE_SYS,
-		.pfn		= __phys_to_pfn(AT91_BASE_SYS),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9G45_SRAM_SIZE,
 		.pfn		= __phys_to_pfn(AT91SAM9G45_SRAM_BASE),
 		.length		= AT91SAM9G45_SRAM_SIZE,
@@ -329,13 +325,12 @@ static void at91sam9g45_poweroff(void)
  *  AT91SAM9G45 processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9g45_map_io(void)
+static void __init at91sam9g45_map_io(void)
 {
-	/* Map peripherals */
-	iotable_init(at91sam9g45_io_desc, ARRAY_SIZE(at91sam9g45_io_desc));
+	iotable_init(at91sam9g45_sram_desc, ARRAY_SIZE(at91sam9g45_sram_desc));
 }
 
-void __init at91sam9g45_initialize(unsigned long main_clock)
+static void __init at91sam9g45_initialize(unsigned long main_clock)
 {
 	at91_arch_reset = at91sam9g45_reset;
 	pm_power_off = at91sam9g45_poweroff;
@@ -404,3 +399,8 @@ void __init at91sam9g45_init_interrupts(unsigned int priority[NR_AIC_IRQS])
 	/* Enable GPIO interrupts */
 	at91_gpio_irq_setup();
 }
+
+struct at91_soc __initdata at91sam9g45_soc = {
+	.map_io = at91sam9g45_map_io,
+	.init = at91sam9g45_initialize,
+};
