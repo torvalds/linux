@@ -1473,7 +1473,7 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
-static int emulate_pusha(struct x86_emulate_ctxt *ctxt)
+static int em_pusha(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	unsigned long old_esp = c->regs[VCPU_REGS_RSP];
@@ -1494,8 +1494,7 @@ static int emulate_pusha(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static int emulate_popa(struct x86_emulate_ctxt *ctxt,
-			struct x86_emulate_ops *ops)
+static int em_popa(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
@@ -1508,7 +1507,7 @@ static int emulate_popa(struct x86_emulate_ctxt *ctxt,
 			--reg;
 		}
 
-		rc = emulate_pop(ctxt, ops, &c->regs[reg], c->op_bytes);
+		rc = emulate_pop(ctxt, ctxt->ops, &c->regs[reg], c->op_bytes);
 		if (rc != X86EMUL_CONTINUE)
 			break;
 		--reg;
@@ -3098,7 +3097,8 @@ static struct opcode opcode_table[256] = {
 	/* 0x58 - 0x5F */
 	X8(I(DstReg | Stack, em_pop)),
 	/* 0x60 - 0x67 */
-	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
+	I(ImplicitOps | Stack | No64, em_pusha),
+	I(ImplicitOps | Stack | No64, em_popa),
 	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
 	N, N, N, N,
 	/* 0x68 - 0x6F */
@@ -3822,12 +3822,6 @@ special_insn:
 		break;
 	case 0x48 ... 0x4f: /* dec r16/r32 */
 		emulate_1op("dec", c->dst, ctxt->eflags);
-		break;
-	case 0x60:	/* pusha */
-		rc = emulate_pusha(ctxt);
-		break;
-	case 0x61:	/* popa */
-		rc = emulate_popa(ctxt, ops);
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
