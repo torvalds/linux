@@ -1484,46 +1484,53 @@ static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
 	conn_flush_workqueue(mdev->tconn);
 }
 
-/* yes, there is kernel_setsockopt, but only since 2.6.18. we don't need to
- * mess with get_fs/set_fs, we know we are KERNEL_DS always. */
+/* Yes, there is kernel_setsockopt, but only since 2.6.18.
+ * So we have our own copy of it here. */
 static inline int drbd_setsockopt(struct socket *sock, int level, int optname,
-			char __user *optval, int optlen)
+				  char *optval, int optlen)
 {
+	mm_segment_t oldfs = get_fs();
+	char __user *uoptval;
 	int err;
+
+	uoptval = (char __user __force *)optval;
+
+	set_fs(KERNEL_DS);
 	if (level == SOL_SOCKET)
-		err = sock_setsockopt(sock, level, optname, optval, optlen);
+		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
 	else
-		err = sock->ops->setsockopt(sock, level, optname, optval,
+		err = sock->ops->setsockopt(sock, level, optname, uoptval,
 					    optlen);
+	set_fs(oldfs);
 	return err;
 }
 
 static inline void drbd_tcp_cork(struct socket *sock)
 {
-	int __user val = 1;
+	int val = 1;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
-			(char __user *)&val, sizeof(val));
+			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_uncork(struct socket *sock)
 {
-	int __user val = 0;
+	int val = 0;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
-			(char __user *)&val, sizeof(val));
+			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_nodelay(struct socket *sock)
 {
-	int __user val = 1;
+	int val = 1;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_NODELAY,
-			(char __user *)&val, sizeof(val));
+			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_quickack(struct socket *sock)
 {
-	int __user val = 2;
+	int val = 2;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
-			(char __user *)&val, sizeof(val));
+			(char*)&val, sizeof(val));
 }
 
 void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo);
