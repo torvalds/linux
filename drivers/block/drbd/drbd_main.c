@@ -3246,8 +3246,17 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_DELAY_PROBE]         = "DelayProbe",
 		[P_OUT_OF_SYNC]		= "OutOfSync",
 		[P_RETRY_WRITE]		= "RetryWrite",
+		[P_RS_CANCEL]		= "RSCancel",
+		[P_CONN_ST_CHG_REQ]	= "conn_st_chg_req",
+		[P_CONN_ST_CHG_REPLY]	= "conn_st_chg_reply",
+
+		/* enum drbd_packet, but not commands - obsoleted flags:
+		 *	P_MAY_IGNORE
+		 *	P_MAX_OPT_CMD
+		 */
 	};
 
+	/* too big for the array: 0xfffX */
 	if (cmd == P_INITIAL_META)
 		return "InitialMeta";
 	if (cmd == P_INITIAL_DATA)
