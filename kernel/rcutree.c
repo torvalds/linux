@@ -93,6 +93,7 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 DEFINE_PER_CPU(int, rcu_cpu_kthread_cpu);
+DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 static DEFINE_PER_CPU(wait_queue_head_t, rcu_cpu_wq);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
@@ -1625,6 +1626,7 @@ static int rcu_cpu_kthread(void *arg)
 			break;
 		}
 		*statusp = RCU_KTHREAD_RUNNING;
+		per_cpu(rcu_cpu_kthread_loops, cpu)++;
 		local_irq_save(flags);
 		work = *workp;
 		*workp = 0;
