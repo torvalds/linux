@@ -544,15 +544,6 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 			continue;
 		}
 
-		/*
-		 * Was this inode dirtied after sync_sb_inodes was called?
-		 * This keeps sync from extra jobs and livelock.
-		 */
-		if (inode_dirtied_after(inode, wbc->wb_start)) {
-			spin_unlock(&inode->i_lock);
-			return 1;
-		}
-
 		__iget(inode);
 
 		pages_skipped = wbc->pages_skipped;
@@ -584,9 +575,6 @@ static void __writeback_inodes_wb(struct bdi_writeback *wb,
 				  struct writeback_control *wbc)
 {
 	int ret = 0;
-
-	if (!wbc->wb_start)
-		wbc->wb_start = jiffies; /* livelock avoidance */
 
 	while (!list_empty(&wb->b_io)) {
 		struct inode *inode = wb_inode(wb->b_io.prev);
@@ -686,7 +674,9 @@ static long wb_writeback(struct bdi_writeback *wb,
 	if (wbc.sync_mode == WB_SYNC_ALL || wbc.tagged_writepages)
 		write_chunk = LONG_MAX;
 
-	wbc.wb_start = jiffies; /* livelock avoidance */
+	oldest_jif = jiffies;
+	wbc.older_than_this = &oldest_jif;
+
 	spin_lock(&wb->list_lock);
 	for (;;) {
 		/*
