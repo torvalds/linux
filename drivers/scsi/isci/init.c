@@ -62,7 +62,6 @@
 #include "isci.h"
 #include "task.h"
 #include "sci_controller_constants.h"
-#include "scic_remote_device.h"
 #include "sci_environment.h"
 #include "probe_roms.h"
 

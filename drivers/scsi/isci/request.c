@@ -54,7 +54,6 @@
  */
 
 #include "isci.h"
-#include "scic_remote_device.h"
 #include "scic_io_request.h"
 #include "scic_task_request.h"
 #include "scic_port.h"

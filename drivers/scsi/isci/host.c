@@ -55,14 +55,12 @@
 
 #include "isci.h"
 #include "scic_io_request.h"
-#include "scic_remote_device.h"
 #include "scic_port.h"
-
 #include "port.h"
 #include "request.h"
 #include "host.h"
 #include "probe_roms.h"
-#include "core/scic_sds_controller.h"
+#include "scic_sds_controller.h"
 
 irqreturn_t isci_msix_isr(int vec, void *data)
 {

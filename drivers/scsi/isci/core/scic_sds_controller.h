@@ -73,7 +73,7 @@
 #include "scic_config_parameters.h"
 #include "scic_sds_port.h"
 #include "scic_sds_phy.h"
-#include "scic_sds_remote_node_table.h"
+#include "remote_node_table.h"
 #include "scu_registers.h"
 #include "scu_constants.h"
 #include "scu_remote_node_context.h"

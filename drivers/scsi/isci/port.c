@@ -63,7 +63,6 @@
 #include <linux/workqueue.h>
 #include "isci.h"
 #include "scic_io_request.h"
-#include "scic_remote_device.h"
 #include "scic_phy.h"
 #include "scic_sds_phy.h"
 #include "scic_port.h"

@@ -61,8 +61,8 @@
  */
 #include "sci_util.h"
 #include "sci_environment.h"
-#include "scic_sds_remote_node_table.h"
-#include "scic_sds_remote_node_context.h"
+#include "remote_node_table.h"
+#include "remote_node_context.h"
 
 /**
  *

@@ -53,10 +53,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "scic_remote_device.h"
 #include "scic_sds_controller.h"
 #include "scic_sds_port.h"
-#include "scic_sds_remote_device.h"
+#include "remote_device.h"
 #include "scic_sds_request.h"
 #include "sci_environment.h"
 #include "sci_util.h"

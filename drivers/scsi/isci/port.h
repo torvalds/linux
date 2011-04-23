@@ -64,6 +64,7 @@
 
 struct isci_phy;
 struct isci_host;
+struct scic_sds_phy;
 
 
 enum isci_status {

@@ -56,10 +56,9 @@
 #include <linux/completion.h>
 #include <linux/irqflags.h>
 #include "scic_task_request.h"
-#include "scic_remote_device.h"
 #include "scic_io_request.h"
-#include "scic_sds_remote_device.h"
-#include "scic_sds_remote_node_context.h"
+#include "remote_device.h"
+#include "remote_node_context.h"
 #include "isci.h"
 #include "request.h"
 #include "sata.h"

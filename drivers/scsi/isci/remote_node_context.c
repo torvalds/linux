@@ -54,11 +54,10 @@
  */
 
 #include "sci_base_state_machine.h"
-#include "scic_remote_device.h"
 #include "scic_sds_controller.h"
 #include "scic_sds_port.h"
-#include "scic_sds_remote_device.h"
-#include "scic_sds_remote_node_context.h"
+#include "remote_device.h"
+#include "remote_node_context.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_event_codes.h"
