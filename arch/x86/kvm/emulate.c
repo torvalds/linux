@@ -1400,6 +1400,13 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static int em_pop(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	return emulate_pop(ctxt, ctxt->ops, &c->dst.val, c->op_bytes);
+}
+
 static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 		       struct x86_emulate_ops *ops,
 		       void *dest, int len)
@@ -3089,7 +3096,7 @@ static struct opcode opcode_table[256] = {
 	/* 0x50 - 0x57 */
 	X8(I(SrcReg | Stack, em_push)),
 	/* 0x58 - 0x5F */
-	X8(D(DstReg | Stack)),
+	X8(I(DstReg | Stack, em_pop)),
 	/* 0x60 - 0x67 */
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
@@ -3816,10 +3823,6 @@ special_insn:
 	case 0x48 ... 0x4f: /* dec r16/r32 */
 		emulate_1op("dec", c->dst, ctxt->eflags);
 		break;
-	case 0x58 ... 0x5f: /* pop reg */
-	pop_instruction:
-		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
-		break;
 	case 0x60:	/* pusha */
 		rc = emulate_pusha(ctxt);
 		break;
@@ -3922,7 +3925,8 @@ special_insn:
 		c->dst.type = OP_REG;
 		c->dst.addr.reg = &c->eip;
 		c->dst.bytes = c->op_bytes;
-		goto pop_instruction;
+		rc = em_pop(ctxt);
+		break;
 	case 0xc4:		/* les */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_ES);
 		break;
