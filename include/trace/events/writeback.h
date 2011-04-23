@@ -162,6 +162,31 @@ DEFINE_WBC_EVENT(wbc_balance_dirty_written);
 DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
 DEFINE_WBC_EVENT(wbc_writepage);
 
+TRACE_EVENT(writeback_queue_io,
+	TP_PROTO(struct bdi_writeback *wb,
+		 unsigned long *older_than_this,
+		 int moved),
+	TP_ARGS(wb, older_than_this, moved),
+	TP_STRUCT__entry(
+		__array(char,		name, 32)
+		__field(unsigned long,	older)
+		__field(long,		age)
+		__field(int,		moved)
+	),
+	TP_fast_assign(
+		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
+		__entry->older	= older_than_this ?  *older_than_this : 0;
+		__entry->age	= older_than_this ?
+				  (jiffies - *older_than_this) * 1000 / HZ : -1;
+		__entry->moved	= moved;
+	),
+	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d",
+		__entry->name,
+		__entry->older,	/* older_than_this in jiffies */
+		__entry->age,	/* older_than_this in relative milliseconds */
+		__entry->moved)
+);
+
 DECLARE_EVENT_CLASS(writeback_congest_waited_template,
 
 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),

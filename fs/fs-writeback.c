@@ -248,15 +248,16 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
 /*
  * Move expired dirty inodes from @delaying_queue to @dispatch_queue.
  */
-static void move_expired_inodes(struct list_head *delaying_queue,
+static int move_expired_inodes(struct list_head *delaying_queue,
 			       struct list_head *dispatch_queue,
-				unsigned long *older_than_this)
+			       unsigned long *older_than_this)
 {
 	LIST_HEAD(tmp);
 	struct list_head *pos, *node;
 	struct super_block *sb = NULL;
 	struct inode *inode;
 	int do_sb_sort = 0;
+	int moved = 0;
 
 	while (!list_empty(delaying_queue)) {
 		inode = wb_inode(delaying_queue->prev);
@@ -267,12 +268,13 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 			do_sb_sort = 1;
 		sb = inode->i_sb;
 		list_move(&inode->i_wb_list, &tmp);
+		moved++;
 	}
 
 	/* just one sb in list, splice to dispatch_queue and we're done */
 	if (!do_sb_sort) {
 		list_splice(&tmp, dispatch_queue);
-		return;
+		goto out;
 	}
 
 	/* Move inodes from one superblock together */
@@ -284,6 +286,8 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 				list_move(&inode->i_wb_list, dispatch_queue);
 		}
 	}
+out:
+	return moved;
 }
 
 /*
@@ -299,9 +303,11 @@ static void move_expired_inodes(struct list_head *delaying_queue,
  */
 static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
 {
+	int moved;
 	assert_spin_locked(&wb->list_lock);
 	list_splice_init(&wb->b_more_io, &wb->b_io);
-	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
+	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
+	trace_writeback_queue_io(wb, older_than_this, moved);
 }
 
 static int write_inode(struct inode *inode, struct writeback_control *wbc)
