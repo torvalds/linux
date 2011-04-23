@@ -64,11 +64,6 @@ static void __init ecb_at91init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init ecb_at91init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
 static struct at91_eth_data __initdata ecb_at91eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 0,
@@ -175,6 +170,6 @@ MACHINE_START(ECBAT91, "emQbit's ECB_AT91")
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
 	.init_early	= ecb_at91init_early,
-	.init_irq	= ecb_at91init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= ecb_at91board_init,
 MACHINE_END

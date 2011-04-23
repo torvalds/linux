@@ -66,12 +66,6 @@ static void __init neocore926_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init neocore926_init_irq(void)
-{
-	at91sam9263_init_interrupts(NULL);
-}
-
-
 /*
  * USB Host port
  */
@@ -390,6 +384,6 @@ MACHINE_START(NEOCORE926, "ADENEO NEOCORE 926")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= neocore926_init_early,
-	.init_irq	= neocore926_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= neocore926_board_init,
 MACHINE_END

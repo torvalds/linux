@@ -72,12 +72,6 @@ static void __init ek_init_early(void)
 
 }
 
-static void __init ek_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
-
 /*
  * USB Host port
  */
@@ -271,6 +265,6 @@ MACHINE_START(QIL_A9260, "CALAO QIL_A9260")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= ek_init_early,
-	.init_irq	= ek_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,
 MACHINE_END

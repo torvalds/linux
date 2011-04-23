@@ -49,11 +49,6 @@ static void __init flexibity_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init flexibity_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
 /* USB Host port */
 static struct at91_usbh_data __initdata flexibity_usbh_data = {
 	.ports		= 2,
@@ -157,6 +152,6 @@ MACHINE_START(FLEXIBITY, "Flexibity Connect")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= flexibity_init_early,
-	.init_irq	= flexibity_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= flexibity_board_init,
 MACHINE_END

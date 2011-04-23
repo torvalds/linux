@@ -79,12 +79,6 @@ static void __init yl9200_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init yl9200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
-
 /*
  * LEDs
  */
@@ -601,6 +595,6 @@ MACHINE_START(YL9200, "uCdragon YL-9200")
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
 	.init_early	= yl9200_init_early,
-	.init_irq	= yl9200_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= yl9200_board_init,
 MACHINE_END

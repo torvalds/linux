@@ -101,12 +101,6 @@ static void __init foxg20_init_early(void)
 
 }
 
-static void __init foxg20_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
-
 /*
  * USB Host port
  */
@@ -269,6 +263,6 @@ MACHINE_START(ACMENETUSFOXG20, "Acme Systems srl FOX Board G20")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= foxg20_init_early,
-	.init_irq	= foxg20_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= foxg20_board_init,
 MACHINE_END

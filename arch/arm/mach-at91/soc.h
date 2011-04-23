@@ -5,6 +5,7 @@
  */
 
 struct at91_soc {
+	unsigned int *default_irq_priority;
 	void (*map_io)(void);
 	void (*init)(unsigned long main_clock);
 };

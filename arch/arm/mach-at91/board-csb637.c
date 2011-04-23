@@ -52,11 +52,6 @@ static void __init csb637_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init csb637_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
 static struct at91_eth_data __initdata csb637_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC0,
 	.is_rmii	= 0,
@@ -141,6 +136,6 @@ MACHINE_START(CSB637, "Cogent CSB637")
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
 	.init_early	= csb637_init_early,
-	.init_irq	= csb637_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= csb637_board_init,
 MACHINE_END

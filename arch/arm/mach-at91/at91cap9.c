@@ -403,19 +403,8 @@ static unsigned int at91cap9_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller (IRQ1) */
 };
 
-void __init at91cap9_init_interrupts(unsigned int priority[NR_AIC_IRQS])
-{
-	if (!priority)
-		priority = at91cap9_default_irq_priority;
-
-	/* Initialize the AIC interrupt controller */
-	at91_aic_init(priority);
-
-	/* Enable GPIO interrupts */
-	at91_gpio_irq_setup();
-}
-
 struct at91_soc __initdata at91cap9_soc = {
 	.map_io = at91cap9_map_io,
+	.default_irq_priority = at91cap9_default_irq_priority,
 	.init = at91cap9_initialize,
 };

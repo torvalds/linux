@@ -57,12 +57,6 @@ static void __init cam60_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init cam60_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
-
 /*
  * USB Host
  */
@@ -201,6 +195,6 @@ MACHINE_START(CAM60, "KwikByte CAM60")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= cam60_init_early,
-	.init_irq	= cam60_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= cam60_board_init,
 MACHINE_END

@@ -76,12 +76,6 @@ static void __init portuxg20_init_early(void)
 	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
 }
 
-static void __init init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
-
 /*
  * NAND flash
  */
@@ -301,7 +295,7 @@ MACHINE_START(PORTUXG20, "taskit PortuxG20")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= portuxg20_init_early,
-	.init_irq	= init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= portuxg20_board_init,
 MACHINE_END
 
@@ -310,6 +304,6 @@ MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= stamp9g20evb_init_early,
-	.init_irq	= init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= stamp9g20evb_board_init,
 MACHINE_END

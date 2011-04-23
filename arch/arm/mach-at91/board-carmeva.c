@@ -57,11 +57,6 @@ static void __init carmeva_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init carmeva_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
 static struct at91_eth_data __initdata carmeva_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
@@ -165,6 +160,6 @@ MACHINE_START(CARMEVA, "Carmeva")
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
 	.init_early	= carmeva_init_early,
-	.init_irq	= carmeva_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= carmeva_board_init,
 MACHINE_END

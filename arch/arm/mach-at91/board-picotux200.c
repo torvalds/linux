@@ -60,11 +60,6 @@ static void __init picotux200_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static void __init picotux200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
 static struct at91_eth_data __initdata picotux200_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
@@ -126,6 +121,6 @@ MACHINE_START(PICOTUX2XX, "picotux 200")
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
 	.init_early	= picotux200_init_early,
-	.init_irq	= picotux200_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= picotux200_board_init,
 MACHINE_END
