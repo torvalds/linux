@@ -231,6 +231,10 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 				integer = swab32(pModal->antCtrlChain[i]);
 				pModal->antCtrlChain[i] = integer;
 			}
+			for (i = 0; i < 3; i++) {
+				word = swab16(pModal->xpaBiasLvlFreq[i]);
+				pModal->xpaBiasLvlFreq[i] = word;
+			}
 
 			for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 				word = swab16(pModal->spurChans[i].spurChan);
