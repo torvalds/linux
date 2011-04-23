@@ -30,8 +30,9 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
+	DEBUG_FORBID_SUSPEND = 1U << 5,
 };
-static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_FORBID_SUSPEND;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -206,26 +207,31 @@ static void expire_wake_lock(struct wake_lock *lock)
 }
 
 /* Caller must acquire the list_lock spinlock */
-static void print_active_locks(int type)
+static void print_active_locks_locked(int type)
 {
 	struct wake_lock *lock;
-	bool print_expired = true;
 
 	BUG_ON(type >= WAKE_LOCK_TYPE_COUNT);
 	list_for_each_entry(lock, &active_wake_locks[type], link) {
 		if (lock->flags & WAKE_LOCK_AUTO_EXPIRE) {
 			long timeout = lock->expires - jiffies;
-			if (timeout > 0)
-				pr_info("active wake lock %s, time left %ld\n",
-					lock->name, timeout);
-			else if (print_expired)
+			if (timeout <= 0)
 				pr_info("wake lock %s, expired\n", lock->name);
-		} else {
+			else
+				pr_info("active wake lock %s, time left %ld.%03lu\n",
+					lock->name, timeout / HZ,
+					(timeout % HZ) * MSEC_PER_SEC / HZ);
+		} else
 			pr_info("active wake lock %s\n", lock->name);
-			if (!debug_mask & DEBUG_EXPIRE)
-				print_expired = false;
-		}
 	}
+}
+
+void print_active_wake_locks(int type)
+{
+	unsigned long irqflags;
+	spin_lock_irqsave(&list_lock, irqflags);
+	print_active_locks_locked(type);
+	spin_unlock_irqrestore(&list_lock, irqflags);
 }
 
 static long has_wake_lock_locked(int type)
@@ -253,8 +259,6 @@ long has_wake_lock(int type)
 	unsigned long irqflags;
 	spin_lock_irqsave(&list_lock, irqflags);
 	ret = has_wake_lock_locked(type);
-	if (ret && (debug_mask & DEBUG_SUSPEND) && type == WAKE_LOCK_SUSPEND)
-		print_active_locks(type);
 	spin_unlock_irqrestore(&list_lock, irqflags);
 	return ret;
 }
@@ -265,8 +269,10 @@ static void suspend(struct work_struct *work)
 	int entry_event_num;
 
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
-		if (debug_mask & DEBUG_SUSPEND)
+		if (debug_mask & DEBUG_SUSPEND || debug_mask & DEBUG_FORBID_SUSPEND)
 			pr_info("suspend: abort suspend\n");
+		if (debug_mask & DEBUG_FORBID_SUSPEND)
+			print_active_wake_locks(WAKE_LOCK_SUSPEND);
 		return;
 	}
 
@@ -301,7 +307,7 @@ static void expire_wake_locks(unsigned long data)
 		pr_info("expire_wake_locks: start\n");
 	spin_lock_irqsave(&list_lock, irqflags);
 	if (debug_mask & DEBUG_SUSPEND)
-		print_active_locks(WAKE_LOCK_SUSPEND);
+		print_active_locks_locked(WAKE_LOCK_SUSPEND);
 	has_lock = has_wake_lock_locked(WAKE_LOCK_SUSPEND);
 	if (debug_mask & DEBUG_EXPIRE)
 		pr_info("expire_wake_locks: done, has_lock %ld\n", has_lock);
@@ -319,6 +325,8 @@ static int power_suspend_late(struct device *dev)
 #endif
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("power_suspend_late return %d\n", ret);
+	if (ret && (debug_mask & DEBUG_FORBID_SUSPEND))
+		print_active_wake_locks(WAKE_LOCK_SUSPEND);
 	return ret;
 }
 
@@ -341,6 +349,7 @@ void wake_lock_init(struct wake_lock *lock, int type, const char *name)
 	if (name)
 		lock->name = name;
 	BUG_ON(!lock->name);
+	BUG_ON(lock->flags & WAKE_LOCK_INITIALIZED);
 
 	if (debug_mask & DEBUG_WAKE_LOCK)
 		pr_info("wake_lock_init name=%s\n", lock->name);
@@ -507,7 +516,7 @@ void wake_unlock(struct wake_lock *lock)
 		}
 		if (lock == &main_wake_lock) {
 			if (debug_mask & DEBUG_SUSPEND)
-				print_active_locks(WAKE_LOCK_SUSPEND);
+				print_active_locks_locked(WAKE_LOCK_SUSPEND);
 #ifdef CONFIG_WAKELOCK_STAT
 			update_sleep_wait_stats_locked(0);
 #endif
