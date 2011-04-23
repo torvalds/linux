@@ -154,6 +154,8 @@ struct eeti_egalax_platform_data{
     void    (*exit_platform_hw)(void);
     int     standby_pin;
     int     standby_value;
+    int     disp_on_pin;
+    int     disp_on_value;
  
 };
 

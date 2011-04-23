@@ -145,6 +145,8 @@ struct rk29_nand_platform_data rk29_nand_data = {
 *****************************************************************************************/
 #define TOUCH_SCREEN_STANDBY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
+#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
 
 static int rk29_lcd_io_init(void)
 {
@@ -180,13 +182,27 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         }
         gpio_direction_input(FB_MCU_FMK_PIN);
     }
-    if(fb_setting->disp_on_en && (FB_DISPLAY_ON_PIN != INVALID_GPIO))
+    if(fb_setting->disp_on_en)
     {
-        ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
-        if(ret != 0)
+        if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
         {
-            gpio_free(FB_DISPLAY_ON_PIN);
-            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
+            if(ret != 0)
+            {
+                gpio_free(FB_DISPLAY_ON_PIN);
+                printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            }
+        }
+        else
+        {
+             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
+                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
+             }
+             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
+             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
         }
     }
 
@@ -410,6 +426,8 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .init_platform_hw= EETI_EGALAX_init_platform_hw,
   .standby_pin = TOUCH_SCREEN_STANDBY_PIN,
   .standby_value = TOUCH_SCREEN_STANDBY_VALUE,
+  .disp_on_pin = TOUCH_SCREEN_DISPLAY_PIN,
+  .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
 /*MMA8452 gsensor*/
