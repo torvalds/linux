@@ -101,6 +101,7 @@ config SND_USB_US122L
 config SND_USB_6FIRE
         tristate "TerraTec DMX 6Fire USB"
         select FW_LOADER
+        select BITREVERSE
         select SND_RAWMIDI
         select SND_PCM
         help
