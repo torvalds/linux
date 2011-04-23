@@ -20,6 +20,7 @@
  */
 
 #include <linux/via-core.h>
+#include <asm/olpc.h>
 #include "global.h"
 
 static struct pll_config cle266_pll_config[] = {
@@ -875,6 +876,10 @@ void viafb_set_iga_path(void)
 				viaparinfo->chip_info->
 				lvds_chip_info2.output_interface);
 	}
+
+	/* looks like the OLPC has its display wired to DVP1 and LVDS2 */
+	if (machine_is_olpc())
+		viaparinfo->shared->iga2_devices = VIA_DVP1 | VIA_LVDS2;
 }
 
 static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
