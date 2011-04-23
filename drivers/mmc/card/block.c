@@ -970,6 +970,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	add_disk(md->disk);
 	md->force_ro.show = force_ro_show;
 	md->force_ro.store = force_ro_store;
+	sysfs_attr_init(&md->force_ro.attr);
 	md->force_ro.attr.name = "force_ro";
 	md->force_ro.attr.mode = S_IRUGO | S_IWUSR;
 	ret = device_create_file(disk_to_dev(md->disk), &md->force_ro);
