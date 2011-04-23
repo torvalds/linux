@@ -2293,6 +2293,12 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	clock.set_primary_clock_source(VIA_CLKSRC_X1, true);
 	clock.set_secondary_clock_source(VIA_CLKSRC_X1, true);
 
+#ifdef CONFIG_FB_VIA_X_COMPATIBILITY
+	clock.set_primary_pll_state(VIA_STATE_ON);
+	clock.set_primary_clock_state(VIA_STATE_ON);
+	clock.set_secondary_pll_state(VIA_STATE_ON);
+	clock.set_secondary_clock_state(VIA_STATE_ON);
+#else
 	if (viaparinfo->shared->iga1_devices) {
 		clock.set_primary_pll_state(VIA_STATE_ON);
 		clock.set_primary_clock_state(VIA_STATE_ON);
@@ -2308,6 +2314,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		clock.set_secondary_pll_state(VIA_STATE_OFF);
 		clock.set_secondary_clock_state(VIA_STATE_OFF);
 	}
+#endif /*CONFIG_FB_VIA_X_COMPATIBILITY*/
 
 	via_set_state(devices, VIA_STATE_ON);
 	device_screen_on();
