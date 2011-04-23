@@ -64,8 +64,8 @@
 
 #define ISL_REG_PROX_LT       (0x03)
 #define ISL_REG_PROX_HT       (0x04)
-#define PROX_LT               (0xe0)
-#define PROX_HT               (0xf0)
+#define PROX_LT               (0x90)
+#define PROX_HT               (0xA0)
 
 #define ISL_REG_PROX_DATA     (0x08)
 #define ISL_REG_ALSIR_LDATA	  (0x09)
@@ -205,7 +205,7 @@ static int isl29028_psensor_enable(struct i2c_client *client)
 #endif
 	mutex_unlock(&isl->lock);
 
-	enable_irq(isl->irq);
+	//enable_irq(isl->irq);
 
 	return ret;
 }
@@ -214,9 +214,6 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 {
 	char ret, reg, reg2, value, value2;
 	struct isl29028_data *isl = (struct isl29028_data *)i2c_get_clientdata(client);
-
-	disable_irq(isl->irq);
-	cancel_delayed_work_sync(&isl->p_work);
 
 	mutex_lock(&isl->lock);
 
@@ -237,6 +234,10 @@ static int isl29028_psensor_disable(struct i2c_client *client)
 	D("%s: interrupt reg value %#x ...\n", __FUNCTION__, value2);	
 #endif
 	mutex_unlock(&isl->lock);
+
+	disable_irq(isl->irq);
+	cancel_delayed_work_sync(&isl->p_work);
+	enable_irq(isl->irq);
 
 	return ret;
 }
@@ -371,9 +372,6 @@ static int register_psensor_device(struct i2c_client *client, struct isl29028_da
 		dev_err(&client->dev,"request_irq failed for gpio %d (%d)\n", client->irq, rc);
 		goto err_free_gpio;
 	}
-
-	
-	disable_irq(isl->irq);
 	
 	return 0;
 
