@@ -2512,6 +2512,72 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_add(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("add", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_or(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("or", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_adc(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("adc", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_sbb(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("sbb", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_and(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("and", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_sub(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("sub", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_xor(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("xor", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_cmp(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("cmp", c->src, c->dst, ctxt->eflags);
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_imul(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -2892,9 +2958,9 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define D2bvIP(_f, _i, _p) DIP((_f) | ByteOp, _i, _p), DIP(_f, _i, _p)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
 
-#define D6ALU(_f) D2bv((_f) | DstMem | SrcReg | ModRM),			\
-		D2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock),		\
-		D2bv(((_f) & ~Lock) | DstAcc | SrcImm)
+#define I6ALU(_f, _e) I2bv((_f) | DstMem | SrcReg | ModRM, _e),		\
+		I2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
+		I2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
 static struct opcode group7_rm1[] = {
 	DI(SrcNone | ModRM | Priv, monitor),
@@ -2918,8 +2984,16 @@ static struct opcode group7_rm7[] = {
 	DIP(SrcNone | ModRM, rdtscp, check_rdtsc),
 	N, N, N, N, N, N,
 };
+
 static struct opcode group1[] = {
-	X7(D(Lock)), N
+	I(Lock, em_add),
+	I(Lock, em_or),
+	I(Lock, em_adc),
+	I(Lock, em_sbb),
+	I(Lock, em_and),
+	I(Lock, em_sub),
+	I(Lock, em_xor),
+	I(0, em_cmp),
 };
 
 static struct opcode group1A[] = {
@@ -2991,25 +3065,25 @@ static struct gprefix pfx_0f_6f_0f_7f = {
 
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
-	D6ALU(Lock),
+	I6ALU(Lock, em_add),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x08 - 0x0F */
-	D6ALU(Lock),
+	I6ALU(Lock, em_or),
 	D(ImplicitOps | Stack | No64), N,
 	/* 0x10 - 0x17 */
-	D6ALU(Lock),
+	I6ALU(Lock, em_adc),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x18 - 0x1F */
-	D6ALU(Lock),
+	I6ALU(Lock, em_sbb),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x20 - 0x27 */
-	D6ALU(Lock), N, N,
+	I6ALU(Lock, em_and), N, N,
 	/* 0x28 - 0x2F */
-	D6ALU(Lock), N, I(ByteOp | DstAcc | No64, em_das),
+	I6ALU(Lock, em_sub), N, I(ByteOp | DstAcc | No64, em_das),
 	/* 0x30 - 0x37 */
-	D6ALU(Lock), N, N,
+	I6ALU(Lock, em_xor), N, N,
 	/* 0x38 - 0x3F */
-	D6ALU(0), N, N,
+	I6ALU(0, em_cmp), N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg)),
 	/* 0x50 - 0x57 */
@@ -3050,12 +3124,12 @@ static struct opcode opcode_table[256] = {
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs, em_mov),
 	I2bv(SrcSI | DstDI | Mov | String, em_mov),
-	D2bv(SrcSI | DstDI | String),
+	I2bv(SrcSI | DstDI | String, em_cmp),
 	/* 0xA8 - 0xAF */
 	D2bv(DstAcc | SrcImm),
 	I2bv(SrcAcc | DstDI | Mov | String, em_mov),
 	I2bv(SrcSI | DstAcc | Mov | String, em_mov),
-	D2bv(SrcAcc | DstDI | String),
+	I2bv(SrcAcc | DstDI | String, em_cmp),
 	/* 0xB0 - 0xB7 */
 	X8(I(ByteOp | DstReg | SrcImm | Mov, em_mov)),
 	/* 0xB8 - 0xBF */
@@ -3179,7 +3253,7 @@ static struct opcode twobyte_table[256] = {
 #undef D2bv
 #undef D2bvIP
 #undef I2bv
-#undef D6ALU
+#undef I6ALU
 
 static unsigned imm_size(struct decode_cache *c)
 {
@@ -3715,26 +3789,14 @@ special_insn:
 		goto twobyte_insn;
 
 	switch (c->b) {
-	case 0x00 ... 0x05:
-	      add:		/* add */
-		emulate_2op_SrcV("add", c->src, c->dst, ctxt->eflags);
-		break;
 	case 0x06:		/* push es */
 		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_ES);
 		break;
 	case 0x07:		/* pop es */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_ES);
 		break;
-	case 0x08 ... 0x0d:
-	      or:		/* or */
-		emulate_2op_SrcV("or", c->src, c->dst, ctxt->eflags);
-		break;
 	case 0x0e:		/* push cs */
 		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_CS);
-		break;
-	case 0x10 ... 0x15:
-	      adc:		/* adc */
-		emulate_2op_SrcV("adc", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x16:		/* push ss */
 		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_SS);
@@ -3742,32 +3804,11 @@ special_insn:
 	case 0x17:		/* pop ss */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_SS);
 		break;
-	case 0x18 ... 0x1d:
-	      sbb:		/* sbb */
-		emulate_2op_SrcV("sbb", c->src, c->dst, ctxt->eflags);
-		break;
 	case 0x1e:		/* push ds */
 		rc = emulate_push_sreg(ctxt, ops, VCPU_SREG_DS);
 		break;
 	case 0x1f:		/* pop ds */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_DS);
-		break;
-	case 0x20 ... 0x25:
-	      and:		/* and */
-		emulate_2op_SrcV("and", c->src, c->dst, ctxt->eflags);
-		break;
-	case 0x28 ... 0x2d:
-	      sub:		/* sub */
-		emulate_2op_SrcV("sub", c->src, c->dst, ctxt->eflags);
-		break;
-	case 0x30 ... 0x35:
-	      xor:		/* xor */
-		emulate_2op_SrcV("xor", c->src, c->dst, ctxt->eflags);
-		break;
-	case 0x38 ... 0x3d:
-	      cmp:		/* cmp */
-		c->dst.type = OP_NONE; /* Disable writeback. */
-		emulate_2op_SrcV("cmp", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x40 ... 0x47: /* inc r16/r32 */
 		emulate_1op("inc", c->dst, ctxt->eflags);
@@ -3802,26 +3843,6 @@ special_insn:
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
-		break;
-	case 0x80 ... 0x83:	/* Grp1 */
-		switch (c->modrm_reg) {
-		case 0:
-			goto add;
-		case 1:
-			goto or;
-		case 2:
-			goto adc;
-		case 3:
-			goto sbb;
-		case 4:
-			goto and;
-		case 5:
-			goto sub;
-		case 6:
-			goto xor;
-		case 7:
-			goto cmp;
-		}
 		break;
 	case 0x84 ... 0x85:
 	test:
@@ -3892,12 +3913,8 @@ special_insn:
 		c->dst.bytes = c->op_bytes;
 		rc = emulate_popf(ctxt, ops, &c->dst.val, c->op_bytes);
 		break;
-	case 0xa6 ... 0xa7:	/* cmps */
-		goto cmp;
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
-	case 0xae ... 0xaf:	/* scas */
-		goto cmp;
 	case 0xc0 ... 0xc1:
 		emulate_grp2(ctxt);
 		break;
