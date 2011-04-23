@@ -2253,8 +2253,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	need_reset = (data & ETH_FLAG_RXVLAN) !=
 		     (netdev->features & NETIF_F_HW_VLAN_RX);
 
+	if ((data & ETH_FLAG_RXHASH) &&
+	    !(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		return -EOPNOTSUPP;
+
 	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_LRO | ETH_FLAG_NTUPLE |
-					ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
+				  ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN |
+				  ETH_FLAG_RXHASH);
 	if (rc)
 		return rc;
 
