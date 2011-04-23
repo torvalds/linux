@@ -7,6 +7,7 @@
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>
 #include <linux/string_helpers.h>
+#include <scsi/scsi_cmnd.h>
 
 #define PART_BITS 4
 
@@ -146,7 +147,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg + out);
 
 	if (vbr->req->cmd_type == REQ_TYPE_BLOCK_PC) {
-		sg_set_buf(&vblk->sg[num + out + in++], vbr->req->sense, 96);
+		sg_set_buf(&vblk->sg[num + out + in++], vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
 		sg_set_buf(&vblk->sg[num + out + in++], &vbr->in_hdr,
 			   sizeof(vbr->in_hdr));
 	}
