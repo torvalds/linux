@@ -290,6 +290,7 @@
 #define HW_LAYOUT_LCD_EXTERNAL_LCD2 0x10
 
 /* Definition Refresh Rate */
+#define REFRESH_49      49
 #define REFRESH_50      50
 #define REFRESH_60      60
 #define REFRESH_75      75

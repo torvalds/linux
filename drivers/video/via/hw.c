@@ -2605,7 +2605,7 @@ int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 
 	if (abs(best->refresh_rate - long_refresh) > 3) {
 		if (hres == 1200 && vres == 900)
-			return 50; /* OLPC DCON only supports 50 Hz */
+			return 49; /* OLPC DCON only supports 50 Hz */
 		else
 			return 60;
 	}
