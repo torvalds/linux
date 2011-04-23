@@ -26,10 +26,6 @@
  *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  */
 
-#ifndef __KERNEL__
-#define __KERNEL__
-#endif
-
 #include <linux/io.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -965,7 +961,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		goto failed;
 
 	smtcfb_setmode(sfb);
-	/* Primary display starting from 0 postion */
+	/* Primary display starting from 0 position */
 	hw.BaseAddressInVRAM = 0;
 	sfb->fb.par = &hw;
 
@@ -1019,6 +1015,7 @@ static void __devexit smtcfb_pci_remove(struct pci_dev *pdev)
 	smtc_free_fb_info(sfb);
 }
 
+#ifdef CONFIG_PM
 /* Jason (08/14/2009)
  * suspend function, called when the suspend event is triggered
  */
@@ -1055,7 +1052,7 @@ static int __maybe_unused smtcfb_suspend(struct pci_dev *pdev, pm_message_t msg)
 
 	pdev->dev.power.power_state = msg;
 
-	/* additionaly turn off all function blocks including internal PLLs */
+	/* additionally turn off all function blocks including internal PLLs */
 	smtc_seqw(0x21, 0xff);
 
 	return 0;
@@ -1111,6 +1108,7 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 /* Jason (08/13/2009)
  * pci_driver struct used to wrap the original driver

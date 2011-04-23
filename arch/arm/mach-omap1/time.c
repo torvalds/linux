@@ -44,7 +44,6 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
-#include <linux/sched.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>

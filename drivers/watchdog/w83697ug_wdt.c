@@ -87,10 +87,10 @@ static int w83697ug_select_wd_register(void)
 	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
 	outb_p(0x87, WDT_EFER); /* Again according to manual */
 
-	outb(0x20, WDT_EFER); 	/* check chip version	*/
+	outb(0x20, WDT_EFER);	/* check chip version	*/
 	version = inb(WDT_EFDR);
 
-	if (version == 0x68) {	/* W83697UG 		*/
+	if (version == 0x68) {	/* W83697UG		*/
 		printk(KERN_INFO PFX "Watchdog chip version 0x%02x = "
 			"W83697UG/UF found at 0x%04x\n", version, wdt_io);
 
@@ -109,7 +109,7 @@ static int w83697ug_select_wd_register(void)
 	outb_p(0x08, WDT_EFDR); /* select logical device 8 (GPIO2) */
 	outb_p(0x30, WDT_EFER); /* select CR30 */
 	c = inb_p(WDT_EFDR);
-	outb_p(c || 0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
+	outb_p(c | 0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
 
 	return 0;
 }

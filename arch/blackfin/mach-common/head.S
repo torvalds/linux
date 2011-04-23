@@ -31,6 +31,7 @@ ENDPROC(__init_clear_bss)
 ENTRY(__start)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
+
 	/* Enable Cycle Counter and Nesting Of Interrupts */
 #ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
 	R0 = SYSCFG_SNEN;
@@ -38,76 +39,49 @@ ENTRY(__start)
 	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
 #endif
 	SYSCFG = R0;
-	R0 = 0;
 
-	/* Clear Out All the data and pointer Registers */
-	R1 = R0;
-	R2 = R0;
-	R3 = R0;
-	R4 = R0;
-	R5 = R0;
-	R6 = R0;
+	/* Optimization register tricks: keep a base value in the
+	 * reserved P registers so we use the load/store with an
+	 * offset syntax.  R0 = [P5 + <constant>];
+	 *   P5 - core MMR base
+	 *   R6 - 0
+	 */
+	r6 = 0;
+	p5.l = 0;
+	p5.h = hi(COREMMR_BASE);
 
-	P0 = R0;
-	P1 = R0;
-	P2 = R0;
-	P3 = R0;
-	P4 = R0;
-	P5 = R0;
+	/* Zero out registers required by Blackfin ABI */
 
-	LC0 = r0;
-	LC1 = r0;
-	L0 = r0;
-	L1 = r0;
-	L2 = r0;
-	L3 = r0;
+	/* Disable circular buffers */
+	L0 = r6;
+	L1 = r6;
+	L2 = r6;
+	L3 = r6;
 
-	/* Clear Out All the DAG Registers */
-	B0 = r0;
-	B1 = r0;
-	B2 = r0;
-	B3 = r0;
-
-	I0 = r0;
-	I1 = r0;
-	I2 = r0;
-	I3 = r0;
-
-	M0 = r0;
-	M1 = r0;
-	M2 = r0;
-	M3 = r0;
+	/* Disable hardware loops in case we were started by 'go' */
+	LC0 = r6;
+	LC1 = r6;
 
 	/*
 	 * Clear ITEST_COMMAND and DTEST_COMMAND registers,
 	 * Leaving these as non-zero can confuse the emulator
 	 */
-	p0.L = LO(DTEST_COMMAND);
-	p0.H = HI(DTEST_COMMAND);
-	[p0] = R0;
-	[p0 + (ITEST_COMMAND - DTEST_COMMAND)] = R0;
+	[p5 + (DTEST_COMMAND - COREMMR_BASE)] = r6;
+	[p5 + (ITEST_COMMAND - COREMMR_BASE)] = r6;
 	CSYNC;
 
 	trace_buffer_init(p0,r0);
-	P0 = R1;
-	R0 = R1;
 
 	/* Turn off the icache */
-	p0.l = LO(IMEM_CONTROL);
-	p0.h = HI(IMEM_CONTROL);
-	R1 = [p0];
-	R0 = ~ENICPLB;
-	R0 = R0 & R1;
-	[p0] = R0;
+	r1 = [p5 + (IMEM_CONTROL - COREMMR_BASE)];
+	BITCLR (r1, ENICPLB_P);
+	[p5 + (IMEM_CONTROL - COREMMR_BASE)] = r1;
 	SSYNC;
 
 	/* Turn off the dcache */
-	p0.l = LO(DMEM_CONTROL);
-	p0.h = HI(DMEM_CONTROL);
-	R1 = [p0];
-	R0 = ~ENDCPLB;
-	R0 = R0 & R1;
-	[p0] = R0;
+	r1 = [p5 + (DMEM_CONTROL - COREMMR_BASE)];
+	BITCLR (r1, ENDCPLB_P);
+	[p5 + (DMEM_CONTROL - COREMMR_BASE)] = r1;
 	SSYNC;
 
 	/* in case of double faults, save a few things */
@@ -122,25 +96,25 @@ ENTRY(__start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r6 = [p0 + PDA_DF_RETX];
+	r5 = [p0 + PDA_DF_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
-	[p1] = r6;
+	[p1] = r5;
 
-	r6 = [p0 + PDA_DF_DCPLB];
+	r5 = [p0 + PDA_DF_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
-	[p1] = r6;
+	[p1] = r5;
 
-	r6 = [p0 + PDA_DF_ICPLB];
+	r5 = [p0 + PDA_DF_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
-	[p1] = r6;
+	[p1] = r5;
 
-	r6 = [p0 + PDA_DF_SEQSTAT];
+	r5 = [p0 + PDA_DF_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
-	[p1] = r6;
+	[p1] = r5;
 #endif
 
 	/* Initialize stack pointer */
@@ -155,7 +129,7 @@ ENTRY(__start)
 	sti r0;
 #endif
 
-	r0 = 0 (x);
+	r0 = r6;
 	/* Zero out all of the fun bss regions */
 #if L1_DATA_A_LENGTH > 0
 	r1.l = __sbss_l1;
@@ -200,7 +174,7 @@ ENTRY(__start)
 	sp.l = lo(KERNEL_CLOCK_STACK);
 	sp.h = hi(KERNEL_CLOCK_STACK);
 	call _init_clocks;
-	sp = usp;	/* usp hasnt been touched, so restore from there */
+	sp = usp;	/* usp hasn't been touched, so restore from there */
 #endif
 
 	/* This section keeps the processor in supervisor mode
@@ -210,11 +184,9 @@ ENTRY(__start)
 
 	/* EVT15 = _real_start */
 
-	p0.l = lo(EVT15);
-	p0.h = hi(EVT15);
 	p1.l = _real_start;
 	p1.h = _real_start;
-	[p0] = p1;
+	[p5 + (EVT15 - COREMMR_BASE)] = p1;
 	csync;
 
 #ifdef CONFIG_EARLY_PRINTK

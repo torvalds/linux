@@ -43,17 +43,6 @@ static void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 
 void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
-	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
-	u32 tmp;
-
-	/* make sure flip is at vb rather than hb */
-	tmp = RREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset);
-	tmp &= ~EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN;
-	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset, tmp);
-
-	/* set pageflip to happen anywhere in vblank interval */
-	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
-
 	/* enable the pflip int */
 	radeon_irq_kms_pflip_irq_get(rdev, crtc);
 }
@@ -97,26 +86,29 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 }
 
 /* get temperature in millidegrees */
-u32 evergreen_get_temp(struct radeon_device *rdev)
+int evergreen_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
 	u32 actual_temp = 0;
 
-	if ((temp >> 10) & 1)
-		actual_temp = 0;
-	else if ((temp >> 9) & 1)
+	if (temp & 0x400)
+		actual_temp = -256;
+	else if (temp & 0x200)
 		actual_temp = 255;
-	else
-		actual_temp = (temp >> 1) & 0xff;
+	else if (temp & 0x100) {
+		actual_temp = temp & 0x1ff;
+		actual_temp |= ~0x1ff;
+	} else
+		actual_temp = temp & 0xff;
 
-	return actual_temp * 1000;
+	return (actual_temp * 1000) / 2;
 }
 
-u32 sumo_get_temp(struct radeon_device *rdev)
+int sumo_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = RREG32(CG_THERMAL_STATUS) & 0xff;
-	u32 actual_temp = (temp >> 1) & 0xff;
+	int actual_temp = temp - 49;
 
 	return actual_temp * 1000;
 }
@@ -128,11 +120,16 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
-	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
-		if (voltage->voltage != rdev->pm.current_vddc) {
-			radeon_atom_set_voltage(rdev, voltage->voltage);
+	if (voltage->type == VOLTAGE_SW) {
+		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
+			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
-			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+			DRM_DEBUG("Setting: vddc: %d\n", voltage->voltage);
+		}
+		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
+			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
+			rdev->pm.current_vddci = voltage->vddci;
+			DRM_DEBUG("Setting: vddci: %d\n", voltage->vddci);
 		}
 	}
 }
@@ -801,7 +798,7 @@ void evergreen_bandwidth_update(struct radeon_device *rdev)
 	}
 }
 
-static int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
+int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	u32 tmp;
@@ -954,7 +951,7 @@ void evergreen_agp_enable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 }
 
-static void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
+void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
 {
 	save->vga_control[0] = RREG32(D1VGA_CONTROL);
 	save->vga_control[1] = RREG32(D2VGA_CONTROL);
@@ -1008,7 +1005,7 @@ static void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_sa
 	WREG32(EVERGREEN_D6VGA_CONTROL, 0);
 }
 
-static void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
+void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
 {
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + EVERGREEN_CRTC0_REGISTER_OFFSET,
 	       upper_32_bits(rdev->mc.vram_start));
@@ -1105,7 +1102,7 @@ static void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_
 	WREG32(VGA_RENDER_CONTROL, save->vga_render_control);
 }
 
-static void evergreen_mc_program(struct radeon_device *rdev)
+void evergreen_mc_program(struct radeon_device *rdev)
 {
 	struct evergreen_mc_save save;
 	u32 tmp;
@@ -1182,6 +1179,22 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 /*
  * CP.
  */
+void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+	/* FIXME: implement */
+	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (ib->gpu_addr & 0xFFFFFFFC));
+	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(rdev, ib->length_dw);
+}
+
 
 static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 {
@@ -1192,7 +1205,11 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 		return -EINVAL;
 
 	r700_cp_stop(rdev);
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (15 << 8) | (3 << 0));
+	WREG32(CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       BUF_SWAP_32BIT |
+#endif
+	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	fw_data = (const __be32 *)rdev->pfp_fw->data;
 	WREG32(CP_PFP_UCODE_ADDR, 0);
@@ -1233,7 +1250,7 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
 
-	r = radeon_ring_lock(rdev, evergreen_default_size + 15);
+	r = radeon_ring_lock(rdev, evergreen_default_size + 19);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -1265,6 +1282,11 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
+
+	radeon_ring_write(rdev, 0xc0026900);
+	radeon_ring_write(rdev, 0x00000316);
+	radeon_ring_write(rdev, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(rdev, 0x00000010); /*  */
 
 	radeon_ring_unlock_commit(rdev);
 
@@ -1306,7 +1328,11 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_WPTR, 0);
 
 	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB_RPTR_ADDR,
+#ifdef __BIG_ENDIAN
+	       RB_RPTR_SWAP(2) |
+#endif
+	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 
@@ -2072,6 +2098,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_CACHE_INVALIDATION, vgt_cache_invalidation);
 
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
+	WREG32(PA_SU_LINE_STIPPLE_VALUE, 0);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);
@@ -2161,7 +2188,6 @@ int evergreen_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	}
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
@@ -2544,7 +2570,7 @@ void evergreen_irq_disable(struct radeon_device *rdev)
 	evergreen_disable_interrupt_state(rdev);
 }
 
-static void evergreen_irq_suspend(struct radeon_device *rdev)
+void evergreen_irq_suspend(struct radeon_device *rdev)
 {
 	evergreen_irq_disable(rdev);
 	r600_rlc_stop(rdev);
@@ -2606,8 +2632,8 @@ restart_ih:
 	while (rptr != wptr) {
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
-		src_id =  rdev->ih.ring[ring_index] & 0xff;
-		src_data = rdev->ih.ring[ring_index + 1] & 0xfffffff;
+		src_id =  le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
+		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 
 		switch (src_id) {
 		case 1: /* D1 vblank/vline */
@@ -2867,7 +2893,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 				return r;
 			}
 		}
-		r = btc_mc_load_microcode(rdev);
+		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
@@ -2901,7 +2927,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* XXX: ontario has problems blitting to gart at the moment */
 	if (rdev->family == CHIP_PALM) {
 		rdev->asic->copy = NULL;
-		rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	}
 
 	/* allocate wb buffer */
@@ -2949,13 +2975,13 @@ int evergreen_resume(struct radeon_device *rdev)
 
 	r = evergreen_startup(rdev);
 	if (r) {
-		DRM_ERROR("r600 startup failed on resume\n");
+		DRM_ERROR("evergreen startup failed on resume\n");
 		return r;
 	}
 
 	r = r600_ib_test(rdev);
 	if (r) {
-		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
 	}
 
@@ -3015,9 +3041,6 @@ int evergreen_init(struct radeon_device *rdev)
 {
 	int r;
 
-	r = radeon_dummy_page_init(rdev);
-	if (r)
-		return r;
 	/* This don't do much */
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -3029,7 +3052,7 @@ int evergreen_init(struct radeon_device *rdev)
 	}
 	/* Must be an ATOMBIOS */
 	if (!rdev->is_atom_bios) {
-		dev_err(rdev->dev, "Expecting atombios for R600 GPU\n");
+		dev_err(rdev->dev, "Expecting atombios for evergreen GPU\n");
 		return -EINVAL;
 	}
 	r = radeon_atombios_init(rdev);
@@ -3129,7 +3152,6 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
-	radeon_dummy_page_fini(rdev);
 }
 
 static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)

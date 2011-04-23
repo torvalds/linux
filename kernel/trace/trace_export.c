@@ -161,13 +161,13 @@ struct ftrace_event_class event_class_ftrace_##call = {			\
 	.fields			= LIST_HEAD_INIT(event_class_ftrace_##call.fields),\
 };									\
 									\
-struct ftrace_event_call __used						\
-__attribute__((__aligned__(4)))						\
-__attribute__((section("_ftrace_events"))) event_##call = {		\
+struct ftrace_event_call __used event_##call = {			\
 	.name			= #call,				\
 	.event.type		= etype,				\
 	.class			= &event_class_ftrace_##call,		\
 	.print_fmt		= print,				\
 };									\
+struct ftrace_event_call __used						\
+__attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
 
 #include "trace_entries.h"

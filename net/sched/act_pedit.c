@@ -70,7 +70,7 @@ static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
 				     &pedit_idx_gen, &pedit_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 		p = to_pedit(pc);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
@@ -127,11 +127,9 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 	int i, munged = 0;
 	unsigned int off;
 
-	if (skb_cloned(skb)) {
-		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			return p->tcf_action;
-		}
-	}
+	if (skb_cloned(skb) &&
+	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		return p->tcf_action;
 
 	off = skb_network_offset(skb);
 
@@ -163,7 +161,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 			}
 			if (offset > 0 && offset > skb->len) {
 				pr_info("tc filter pedit"
-					" offset %d cant exceed pkt length %d\n",
+					" offset %d can't exceed pkt length %d\n",
 				       offset, skb->len);
 				goto bad;
 			}

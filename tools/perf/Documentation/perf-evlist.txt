@@ -1,0 +1,26 @@
+perf-evlist(1)
+==============
+
+NAME
+----
+perf-evlist - List the event names in a perf.data file
+
+SYNOPSIS
+--------
+[verse]
+'perf evlist <options>'
+
+DESCRIPTION
+-----------
+This command displays the names of events sampled in a perf.data file.
+
+OPTIONS
+-------
+-i::
+--input=::
+        Input file name. (default: perf.data)
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-list[1],
+linkperf:perf-report[1]

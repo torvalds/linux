@@ -378,10 +378,17 @@ static void __init print_filtered(const char *info)
 
 static void __init dmi_dump_ids(void)
 {
+	const char *board;	/* Board Name is optional */
+
 	printk(KERN_DEBUG "DMI: ");
-	print_filtered(dmi_get_system_info(DMI_BOARD_NAME));
-	printk(KERN_CONT "/");
+	print_filtered(dmi_get_system_info(DMI_SYS_VENDOR));
+	printk(KERN_CONT " ");
 	print_filtered(dmi_get_system_info(DMI_PRODUCT_NAME));
+	board = dmi_get_system_info(DMI_BOARD_NAME);
+	if (board) {
+		printk(KERN_CONT "/");
+		print_filtered(board);
+	}
 	printk(KERN_CONT ", BIOS ");
 	print_filtered(dmi_get_system_info(DMI_BIOS_VERSION));
 	printk(KERN_CONT " ");

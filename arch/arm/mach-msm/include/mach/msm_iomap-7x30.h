@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011 Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -39,16 +39,8 @@
 #define MSM_VIC_PHYS          0xC0080000
 #define MSM_VIC_SIZE          SZ_4K
 
-#define MSM_CSR_BASE          IOMEM(0xE0001000)
-#define MSM_CSR_PHYS          0xC0100000
-#define MSM_CSR_SIZE          SZ_4K
-
-#define MSM_TMR_PHYS          MSM_CSR_PHYS
-#define MSM_TMR_BASE          MSM_CSR_BASE
-#define MSM_TMR_SIZE          SZ_4K
-
-#define MSM_GPT_BASE 	      (MSM_TMR_BASE + 0x4)
-#define MSM_DGT_BASE 	      (MSM_TMR_BASE + 0x24)
+#define MSM7X30_CSR_PHYS      0xC0100000
+#define MSM7X30_CSR_SIZE      SZ_4K
 
 #define MSM_DMOV_BASE         IOMEM(0xE0002000)
 #define MSM_DMOV_PHYS         0xAC400000

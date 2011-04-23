@@ -18,13 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
-#include <osl.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
 #include <bcmotp.h>
@@ -79,7 +77,6 @@ typedef struct {
 	uint ccrev;		/* chipc revision */
 	otp_fn_t *fn;		/* OTP functions */
 	si_t *sih;		/* Saved sb handle */
-	struct osl_info *osh;
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
@@ -183,7 +180,7 @@ static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 	ASSERT(wn < oi->wsize);
 	ASSERT(cc != NULL);
 
-	return R_REG(oi->osh, &cc->sromotp[wn]);
+	return R_REG(&cc->sromotp[wn]);
 }
 
 static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
@@ -199,10 +196,10 @@ static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 	    ((OTPPOC_READ << OTPP_OC_SHIFT) & OTPP_OC_MASK) |
 	    ((row << OTPP_ROW_SHIFT) & OTPP_ROW_MASK) |
 	    ((col << OTPP_COL_SHIFT) & OTPP_COL_MASK);
-	W_REG(oi->osh, &cc->otpprog, otpp);
+	W_REG(&cc->otpprog, otpp);
 
 	for (k = 0;
-	     ((st = R_REG(oi->osh, &cc->otpprog)) & OTPP_START_BUSY)
+	     ((st = R_REG(&cc->otpprog)) & OTPP_START_BUSY)
 	     && (k < OTPP_TRIES); k++)
 		;
 	if (k >= OTPP_TRIES) {
@@ -216,7 +213,7 @@ static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 	return (int)st;
 }
 
-/* Calculate max HW/SW region byte size by substracting fuse region and checksum size,
+/* Calculate max HW/SW region byte size by subtracting fuse region and checksum size,
  * osizew is oi->wsize (OTP size - GU size) in words
  */
 static int ipxotp_max_rgnsz(si_t *sih, int osizew)
@@ -232,7 +229,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
 		break;
 	default:
-		ASSERT(0);	/* Don't konw about this chip */
+		ASSERT(0);	/* Don't know about this chip */
 	}
 
 	return ret;
@@ -261,9 +258,9 @@ static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
 	otpp =
 	    OTPP_START_BUSY | ((OTPPOC_INIT << OTPP_OC_SHIFT) & OTPP_OC_MASK);
 
-	W_REG(oi->osh, &cc->otpprog, otpp);
+	W_REG(&cc->otpprog, otpp);
 	for (k = 0;
-	     ((st = R_REG(oi->osh, &cc->otpprog)) & OTPP_START_BUSY)
+	     ((st = R_REG(&cc->otpprog)) & OTPP_START_BUSY)
 	     && (k < OTPP_TRIES); k++)
 		;
 	if (k >= OTPP_TRIES) {
@@ -271,7 +268,7 @@ static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
 	}
 
 	/* Read OTP lock bits and subregion programmed indication bits */
-	oi->status = R_REG(oi->osh, &cc->otpstatus);
+	oi->status = R_REG(&cc->otpstatus);
 
 	if ((oi->sih->chip == BCM43224_CHIP_ID)
 	    || (oi->sih->chip == BCM43225_CHIP_ID)) {
@@ -570,56 +567,49 @@ static int hndotp_size(void *oh)
 
 static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
+#ifdef BCMDBG
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	struct osl_info *osh;
+#endif
 	volatile u16 *ptr;
 
 	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
 	ASSERT(cc != NULL);
 
-	osh = si_osh(oi->sih);
-
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
-	return R_REG(osh, &ptr[wn]);
+	return R_REG(&ptr[wn]);
 }
 
 static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(woff >= (-((int)oi->size / 2)));
 	ASSERT(woff < OTP_LIM_OFF);
 	ASSERT(cc != NULL);
 
-	osh = si_osh(oi->sih);
-
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 
-	return R_REG(osh, &ptr[(oi->size / 2) + woff]);
+	return R_REG(&ptr[(oi->size / 2) + woff]);
 }
 
 static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
 	u32 otpp, st;
-	struct osl_info *osh;
 
-	osh = si_osh(oi->sih);
 	row = idx / 65;
 	col = idx % 65;
 
 	otpp = OTPP_START_BUSY | OTPP_READ |
 	    ((row << OTPP_ROW_SHIFT) & OTPP_ROW_MASK) | (col & OTPP_COL_MASK);
 
-	W_REG(osh, &cc->otpprog, otpp);
-	st = R_REG(osh, &cc->otpprog);
+	W_REG(&cc->otpprog, otpp);
+	st = R_REG(&cc->otpprog);
 	for (k = 0;
 	     ((st & OTPP_START_BUSY) == OTPP_START_BUSY) && (k < OTPP_TRIES);
 	     k++)
-		st = R_REG(osh, &cc->otpprog);
+		st = R_REG(&cc->otpprog);
 
 	if (k >= OTPP_TRIES) {
 		return 0xffff;
@@ -638,17 +628,15 @@ static void *hndotp_init(si_t *sih)
 	otpinfo_t *oi;
 	u32 cap = 0, clkdiv, otpdiv = 0;
 	void *ret = NULL;
-	struct osl_info *osh;
 
 	oi = &otpinfo;
 
 	idx = si_coreidx(sih);
-	osh = si_osh(oi->sih);
 
 	/* Check for otp */
 	cc = si_setcoreidx(sih, SI_CC_IDX);
 	if (cc != NULL) {
-		cap = R_REG(osh, &cc->capabilities);
+		cap = R_REG(&cc->capabilities);
 		if ((cap & CC_CAP_OTPSIZE) == 0) {
 			/* Nothing there */
 			goto out;
@@ -671,7 +659,7 @@ static void *hndotp_init(si_t *sih)
 		if (oi->ccrev >= 18)
 			oi->size -= ((OTP_RC0_OFF - OTP_BOUNDARY_OFF) * 2);
 
-		oi->hwprot = (int)(R_REG(osh, &cc->otpstatus) & OTPS_PROTECT);
+		oi->hwprot = (int)(R_REG(&cc->otpstatus) & OTPS_PROTECT);
 		oi->boundary = -1;
 
 		/* Check the region signature */
@@ -691,10 +679,10 @@ static void *hndotp_init(si_t *sih)
 			otpdiv = 12;
 
 		if (otpdiv) {
-			clkdiv = R_REG(osh, &cc->clkdiv);
+			clkdiv = R_REG(&cc->clkdiv);
 			clkdiv =
 			    (clkdiv & ~CLKD_OTP) | (otpdiv << CLKD_OTP_SHIFT);
-			W_REG(osh, &cc->clkdiv, clkdiv);
+			W_REG(&cc->clkdiv, clkdiv);
 		}
 		udelay(10);
 
@@ -818,7 +806,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 			if (offset + dsz >= *len) {
 				goto out;
 			}
-			bcopy((char *)&rawotp[i + 2], &data[offset], dsz);
+			memcpy(&data[offset], &rawotp[i + 2], dsz);
 			offset += dsz;
 			/* Remove extra null characters at the end */
 			while (offset > 1 &&
@@ -842,8 +830,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 	*len = offset;
 
  out:
-	if (rawotp)
-		kfree(rawotp);
+	kfree(rawotp);
 	si_setcoreidx(oi->sih, idx);
 
 	return rc;
@@ -921,7 +908,6 @@ void *otp_init(si_t *sih)
 	}
 
 	oi->sih = sih;
-	oi->osh = si_osh(oi->sih);
 
 	ret = (oi->fn->init) (sih);
 

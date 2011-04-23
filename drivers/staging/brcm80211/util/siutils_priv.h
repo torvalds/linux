@@ -25,8 +25,6 @@ extern uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		       uint val);
 extern bool sb_iscoreup(si_t *sih);
 void *sb_setcoreidx(si_t *sih, uint coreidx);
-extern u32 sb_base(u32 admatch);
 extern void sb_core_reset(si_t *sih, u32 bits, u32 resetbits);
 extern void sb_core_disable(si_t *sih, u32 bits);
-extern bool sb_taclear(si_t *sih, bool details);
 #endif				/* _siutils_priv_h_ */

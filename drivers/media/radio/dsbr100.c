@@ -129,7 +129,7 @@ devices, that would be 76 and 91.  */
 #define STARTED	0
 #define STOPPED	1
 
-#define videodev_to_radio(d) container_of(d, struct dsbr100_device, videodev)
+#define v4l2_dev_to_radio(d) container_of(d, struct dsbr100_device, v4l2_dev)
 
 static int usb_dsbr100_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
@@ -148,10 +148,9 @@ struct dsbr100_device {
 	struct v4l2_device v4l2_dev;
 
 	u8 *transfer_buffer;
-	struct mutex lock;	/* buffer locking */
+	struct mutex v4l2_lock;
 	int curfreq;
 	int stereo;
-	int removed;
 	int status;
 };
 
@@ -182,8 +181,6 @@ static int dsbr100_start(struct dsbr100_device *radio)
 	int retval;
 	int request;
 
-	mutex_lock(&radio->lock);
-
 	retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
 		USB_REQ_GET_STATUS,
@@ -207,11 +204,9 @@ static int dsbr100_start(struct dsbr100_device *radio)
 	}
 
 	radio->status = STARTED;
-	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
 
 usb_control_msg_failed:
-	mutex_unlock(&radio->lock);
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
@@ -224,8 +219,6 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 {
 	int retval;
 	int request;
-
-	mutex_lock(&radio->lock);
 
 	retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
@@ -250,11 +243,9 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 	}
 
 	radio->status = STOPPED;
-	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
 
 usb_control_msg_failed:
-	mutex_unlock(&radio->lock);
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
@@ -268,8 +259,6 @@ static int dsbr100_setfreq(struct dsbr100_device *radio)
 	int retval;
 	int request;
 	int freq = (radio->curfreq / 16 * 80) / 1000 + 856;
-
-	mutex_lock(&radio->lock);
 
 	retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
@@ -306,12 +295,10 @@ static int dsbr100_setfreq(struct dsbr100_device *radio)
 	}
 
 	radio->stereo = !((radio->transfer_buffer)[0] & 0x01);
-	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
 
 usb_control_msg_failed:
 	radio->stereo = -1;
-	mutex_unlock(&radio->lock);
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
 			__func__, retval, request);
@@ -323,8 +310,6 @@ sees a stereo signal or not.  Pity. */
 static void dsbr100_getstat(struct dsbr100_device *radio)
 {
 	int retval;
-
-	mutex_lock(&radio->lock);
 
 	retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
@@ -340,32 +325,7 @@ static void dsbr100_getstat(struct dsbr100_device *radio)
 	} else {
 		radio->stereo = !(radio->transfer_buffer[0] & 0x01);
 	}
-
-	mutex_unlock(&radio->lock);
 }
-
-/* USB subsystem interface begins here */
-
-/*
- * Handle unplugging of the device.
- * We call video_unregister_device in any case.
- * The last function called in this procedure is
- * usb_dsbr100_video_device_release
- */
-static void usb_dsbr100_disconnect(struct usb_interface *intf)
-{
-	struct dsbr100_device *radio = usb_get_intfdata(intf);
-
-	usb_set_intfdata (intf, NULL);
-
-	mutex_lock(&radio->lock);
-	radio->removed = 1;
-	mutex_unlock(&radio->lock);
-
-	video_unregister_device(&radio->videodev);
-	v4l2_device_disconnect(&radio->v4l2_dev);
-}
-
 
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)
@@ -384,10 +344,6 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
-
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -410,16 +366,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct dsbr100_device *radio = video_drvdata(file);
-
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
-
-	if (v->index > 0)
-		return -EINVAL;
-
-	return 0;
+	return v->index ? -EINVAL : 0;
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
@@ -428,13 +375,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	struct dsbr100_device *radio = video_drvdata(file);
 	int retval;
 
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
-
-	mutex_lock(&radio->lock);
 	radio->curfreq = f->frequency;
-	mutex_unlock(&radio->lock);
 
 	retval = dsbr100_setfreq(radio);
 	if (retval < 0)
@@ -446,10 +387,6 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
-
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
@@ -472,10 +409,6 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
-
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		ctrl->value = radio->status;
@@ -489,10 +422,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 	int retval;
-
-	/* safety check */
-	if (radio->removed)
-		return -EIO;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -535,18 +464,36 @@ static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
-	if (i != 0)
-		return -EINVAL;
-	return 0;
+	return i ? -EINVAL : 0;
 }
 
 static int vidioc_s_audio(struct file *file, void *priv,
 					struct v4l2_audio *a)
 {
-	if (a->index != 0)
-		return -EINVAL;
-	return 0;
+	return a->index ? -EINVAL : 0;
 }
+
+/* USB subsystem interface begins here */
+
+/*
+ * Handle unplugging of the device.
+ * We call video_unregister_device in any case.
+ * The last function called in this procedure is
+ * usb_dsbr100_video_device_release
+ */
+static void usb_dsbr100_disconnect(struct usb_interface *intf)
+{
+	struct dsbr100_device *radio = usb_get_intfdata(intf);
+
+	v4l2_device_get(&radio->v4l2_dev);
+	mutex_lock(&radio->v4l2_lock);
+	usb_set_intfdata(intf, NULL);
+	video_unregister_device(&radio->videodev);
+	v4l2_device_disconnect(&radio->v4l2_dev);
+	mutex_unlock(&radio->v4l2_lock);
+	v4l2_device_put(&radio->v4l2_dev);
+}
+
 
 /* Suspend device - stop device. */
 static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
@@ -554,6 +501,7 @@ static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
 	int retval;
 
+	mutex_lock(&radio->v4l2_lock);
 	if (radio->status == STARTED) {
 		retval = dsbr100_stop(radio);
 		if (retval < 0)
@@ -564,11 +512,9 @@ static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
 		 * we set status equal to STARTED.
 		 * On resume we will check status and run radio if needed.
 		 */
-
-		mutex_lock(&radio->lock);
 		radio->status = STARTED;
-		mutex_unlock(&radio->lock);
 	}
+	mutex_unlock(&radio->v4l2_lock);
 
 	dev_info(&intf->dev, "going into suspend..\n");
 
@@ -581,11 +527,13 @@ static int usb_dsbr100_resume(struct usb_interface *intf)
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
 	int retval;
 
+	mutex_lock(&radio->v4l2_lock);
 	if (radio->status == STARTED) {
 		retval = dsbr100_start(radio);
 		if (retval < 0)
 			dev_warn(&intf->dev, "dsbr100_start failed\n");
 	}
+	mutex_unlock(&radio->v4l2_lock);
 
 	dev_info(&intf->dev, "coming out of suspend..\n");
 
@@ -593,9 +541,9 @@ static int usb_dsbr100_resume(struct usb_interface *intf)
 }
 
 /* free data structures */
-static void usb_dsbr100_video_device_release(struct video_device *videodev)
+static void usb_dsbr100_release(struct v4l2_device *v4l2_dev)
 {
-	struct dsbr100_device *radio = videodev_to_radio(videodev);
+	struct dsbr100_device *radio = v4l2_dev_to_radio(v4l2_dev);
 
 	v4l2_device_unregister(&radio->v4l2_dev);
 	kfree(radio->transfer_buffer);
@@ -605,7 +553,7 @@ static void usb_dsbr100_video_device_release(struct video_device *videodev)
 /* File system interface */
 static const struct v4l2_file_operations usb_dsbr100_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops usb_dsbr100_ioctl_ops = {
@@ -644,6 +592,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	}
 
 	v4l2_dev = &radio->v4l2_dev;
+	v4l2_dev->release = usb_dsbr100_release;
 
 	retval = v4l2_device_register(&intf->dev, v4l2_dev);
 	if (retval < 0) {
@@ -653,15 +602,14 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 		return retval;
 	}
 
+	mutex_init(&radio->v4l2_lock);
 	strlcpy(radio->videodev.name, v4l2_dev->name, sizeof(radio->videodev.name));
 	radio->videodev.v4l2_dev = v4l2_dev;
 	radio->videodev.fops = &usb_dsbr100_fops;
 	radio->videodev.ioctl_ops = &usb_dsbr100_ioctl_ops;
-	radio->videodev.release = usb_dsbr100_video_device_release;
+	radio->videodev.release = video_device_release_empty;
+	radio->videodev.lock = &radio->v4l2_lock;
 
-	mutex_init(&radio->lock);
-
-	radio->removed = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;
 	radio->status = STOPPED;

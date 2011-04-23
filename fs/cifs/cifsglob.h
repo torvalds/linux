@@ -37,10 +37,9 @@
 
 #define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1)
 #define MAX_SERVER_SIZE 15
-#define MAX_SHARE_SIZE  64	/* used to be 20, this should still be enough */
-#define MAX_USERNAME_SIZE 32	/* 32 is to allow for 15 char names + null
-				   termination then *2 for unicode versions */
-#define MAX_PASSWORD_SIZE 512  /* max for windows seems to be 256 wide chars */
+#define MAX_SHARE_SIZE 80
+#define MAX_USERNAME_SIZE 256	/* reasonable maximum for current servers */
+#define MAX_PASSWORD_SIZE 512	/* max for windows seems to be 256 wide chars */
 
 #define CIFS_MIN_RCV_POOL 4
 
@@ -92,7 +91,8 @@ enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
 	CifsExiting,
-	CifsNeedReconnect
+	CifsNeedReconnect,
+	CifsNeedNegotiate
 };
 
 enum securityEnum {
@@ -188,6 +188,8 @@ struct TCP_Server_Info {
 	/* multiplexed reads or writes */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
+	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
+	/* when socket is setup (and during reconnect) before NegProt sent */
 	unsigned int max_rw;	/* maxRw specifies the maximum */
 	/* message size the server can send or receive for */
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
@@ -272,7 +274,7 @@ struct cifsSesInfo {
 	int capabilities;
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for
 				TCP names - will ipv6 and sctp addresses fit? */
-	char userName[MAX_USERNAME_SIZE + 1];
+	char *user_name;
 	char *domainName;
 	char *password;
 	struct session_key auth_key;
@@ -652,7 +654,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_REQUEST_SUBMITTED 2
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
-#define   MID_NO_RESP_NEEDED 0x10
+#define   MID_RESPONSE_MALFORMED 0x10
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
@@ -815,7 +817,6 @@ GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
 				have the uid/password or Kerberos credential
 				or equivalent for current user */
 GLOBAL_EXTERN unsigned int oplockEnabled;
-GLOBAL_EXTERN unsigned int experimEnabled;
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */

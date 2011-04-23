@@ -926,7 +926,7 @@ static const struct net_device_ops myri_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit myri_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit myri_sbus_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
@@ -1009,7 +1009,7 @@ static int __devinit myri_sbus_probe(struct platform_device *op, const struct of
 
 	/* Map in the MyriCOM register/localram set. */
 	if (mp->eeprom.cpuvers < CPUVERS_4_0) {
-		/* XXX Makes no sense, if control reg is non-existant this
+		/* XXX Makes no sense, if control reg is non-existent this
 		 * XXX driver cannot function at all... maybe pre-4.0 is
 		 * XXX only a valid version for PCI cards?  Ask feldy...
 		 */
@@ -1160,7 +1160,7 @@ static const struct of_device_id myri_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
-static struct of_platform_driver myri_sbus_driver = {
+static struct platform_driver myri_sbus_driver = {
 	.driver = {
 		.name = "myri",
 		.owner = THIS_MODULE,
@@ -1172,12 +1172,12 @@ static struct of_platform_driver myri_sbus_driver = {
 
 static int __init myri_sbus_init(void)
 {
-	return of_register_platform_driver(&myri_sbus_driver);
+	return platform_driver_register(&myri_sbus_driver);
 }
 
 static void __exit myri_sbus_exit(void)
 {
-	of_unregister_platform_driver(&myri_sbus_driver);
+	platform_driver_unregister(&myri_sbus_driver);
 }
 
 module_init(myri_sbus_init);

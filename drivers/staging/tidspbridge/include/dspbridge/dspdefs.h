@@ -32,16 +32,10 @@
 #include <dspbridge/brddefs.h>
 #include <dspbridge/cfgdefs.h>
 #include <dspbridge/chnlpriv.h>
-#include <dspbridge/dehdefs.h>
+#include <dspbridge/dspdeh.h>
 #include <dspbridge/devdefs.h>
-#include <dspbridge/iodefs.h>
+#include <dspbridge/io.h>
 #include <dspbridge/msgdefs.h>
-
-/*
- *  Any IOCTLS at or above this value are reserved for standard Bridge driver
- *  interfaces.
- */
-#define BRD_RESERVEDIOCTLBASE   0x8000
 
 /* Handle to Bridge driver's private device context. */
 struct bridge_dev_context;
@@ -58,7 +52,7 @@ struct bridge_dev_context;
  *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -97,7 +91,7 @@ typedef int(*fxn_brd_setstate) (struct bridge_dev_context
  *      dsp_addr:       DSP address at which to start execution.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -148,7 +142,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -211,7 +205,7 @@ typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
  *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -254,7 +248,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *      mem_type:       Memory space on DSP from which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -280,7 +274,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -306,7 +300,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      mgr_attrts->irq_shared:   TRUE if the IRQ is shareable.
  *      mgr_attrts->word_size: DSP Word size in equivalent PC bytes..
  *      mgr_attrts->shm_base:  Base physical address of shared memory, if any.
- *      mgr_attrts->usm_length: Bytes of shared memory block.
+ *      mgr_attrts->sm_length: Bytes of shared memory block.
  *  Returns:
  *      0:            Success;
  *      -ENOMEM:        Insufficient memory for requested resources.
@@ -607,7 +601,7 @@ typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
  *  Returns:
  *      0:            Success;
  *      -EFAULT:        Invalid chnl_obj.
- *      -ETIMEDOUT: Timeout occured before channel could be idled.
+ *      -ETIMEDOUT: Timeout occurred before channel could be idled.
  *  Requires:
  *  Ensures:
  */
@@ -981,51 +975,51 @@ typedef void (*fxn_msg_setqueueid) (struct msg_queue *msg_queue_obj,
 struct bridge_drv_interface {
 	u32 brd_api_major_version;	/* Set to BRD_API_MAJOR_VERSION. */
 	u32 brd_api_minor_version;	/* Set to BRD_API_MINOR_VERSION. */
-	fxn_dev_create pfn_dev_create;	/* Create device context */
-	fxn_dev_destroy pfn_dev_destroy;	/* Destroy device context */
-	fxn_dev_ctrl pfn_dev_cntrl;	/* Optional vendor interface */
-	fxn_brd_monitor pfn_brd_monitor;	/* Load and/or start monitor */
-	fxn_brd_start pfn_brd_start;	/* Start DSP program. */
-	fxn_brd_stop pfn_brd_stop;	/* Stop/reset board. */
-	fxn_brd_status pfn_brd_status;	/* Get current board status. */
-	fxn_brd_read pfn_brd_read;	/* Read board memory */
-	fxn_brd_write pfn_brd_write;	/* Write board memory. */
-	fxn_brd_setstate pfn_brd_set_state;	/* Sets the Board State */
-	fxn_brd_memcopy pfn_brd_mem_copy;	/* Copies DSP Memory */
-	fxn_brd_memwrite pfn_brd_mem_write;	/* Write DSP Memory w/o halt */
-	fxn_brd_memmap pfn_brd_mem_map;	/* Maps MPU mem to DSP mem */
-	fxn_brd_memunmap pfn_brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
-	fxn_chnl_create pfn_chnl_create;	/* Create channel manager. */
-	fxn_chnl_destroy pfn_chnl_destroy;	/* Destroy channel manager. */
-	fxn_chnl_open pfn_chnl_open;	/* Create a new channel. */
-	fxn_chnl_close pfn_chnl_close;	/* Close a channel. */
-	fxn_chnl_addioreq pfn_chnl_add_io_req;	/* Req I/O on a channel. */
-	fxn_chnl_getioc pfn_chnl_get_ioc;	/* Wait for I/O completion. */
-	fxn_chnl_cancelio pfn_chnl_cancel_io;	/* Cancl I/O on a channel. */
-	fxn_chnl_flushio pfn_chnl_flush_io;	/* Flush I/O. */
-	fxn_chnl_getinfo pfn_chnl_get_info;	/* Get channel specific info */
+	fxn_dev_create dev_create;	/* Create device context */
+	fxn_dev_destroy dev_destroy;	/* Destroy device context */
+	fxn_dev_ctrl dev_cntrl;	/* Optional vendor interface */
+	fxn_brd_monitor brd_monitor;	/* Load and/or start monitor */
+	fxn_brd_start brd_start;	/* Start DSP program. */
+	fxn_brd_stop brd_stop;	/* Stop/reset board. */
+	fxn_brd_status brd_status;	/* Get current board status. */
+	fxn_brd_read brd_read;	/* Read board memory */
+	fxn_brd_write brd_write;	/* Write board memory. */
+	fxn_brd_setstate brd_set_state;	/* Sets the Board State */
+	fxn_brd_memcopy brd_mem_copy;	/* Copies DSP Memory */
+	fxn_brd_memwrite brd_mem_write;	/* Write DSP Memory w/o halt */
+	fxn_brd_memmap brd_mem_map;	/* Maps MPU mem to DSP mem */
+	fxn_brd_memunmap brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
+	fxn_chnl_create chnl_create;	/* Create channel manager. */
+	fxn_chnl_destroy chnl_destroy;	/* Destroy channel manager. */
+	fxn_chnl_open chnl_open;	/* Create a new channel. */
+	fxn_chnl_close chnl_close;	/* Close a channel. */
+	fxn_chnl_addioreq chnl_add_io_req;	/* Req I/O on a channel. */
+	fxn_chnl_getioc chnl_get_ioc;	/* Wait for I/O completion. */
+	fxn_chnl_cancelio chnl_cancel_io;	/* Cancl I/O on a channel. */
+	fxn_chnl_flushio chnl_flush_io;	/* Flush I/O. */
+	fxn_chnl_getinfo chnl_get_info;	/* Get channel specific info */
 	/* Get channel manager info. */
-	fxn_chnl_getmgrinfo pfn_chnl_get_mgr_info;
-	fxn_chnl_idle pfn_chnl_idle;	/* Idle the channel */
+	fxn_chnl_getmgrinfo chnl_get_mgr_info;
+	fxn_chnl_idle chnl_idle;	/* Idle the channel */
 	/* Register for notif. */
-	fxn_chnl_registernotify pfn_chnl_register_notify;
-	fxn_io_create pfn_io_create;	/* Create IO manager */
-	fxn_io_destroy pfn_io_destroy;	/* Destroy IO manager */
-	fxn_io_onloaded pfn_io_on_loaded;	/* Notify of program loaded */
+	fxn_chnl_registernotify chnl_register_notify;
+	fxn_io_create io_create;	/* Create IO manager */
+	fxn_io_destroy io_destroy;	/* Destroy IO manager */
+	fxn_io_onloaded io_on_loaded;	/* Notify of program loaded */
 	/* Get Processor's current and predicted load */
-	fxn_io_getprocload pfn_io_get_proc_load;
-	fxn_msg_create pfn_msg_create;	/* Create message manager */
+	fxn_io_getprocload io_get_proc_load;
+	fxn_msg_create msg_create;	/* Create message manager */
 	/* Create message queue */
-	fxn_msg_createqueue pfn_msg_create_queue;
-	fxn_msg_delete pfn_msg_delete;	/* Delete message manager */
+	fxn_msg_createqueue msg_create_queue;
+	fxn_msg_delete msg_delete;	/* Delete message manager */
 	/* Delete message queue */
-	fxn_msg_deletequeue pfn_msg_delete_queue;
-	fxn_msg_get pfn_msg_get;	/* Get a message */
-	fxn_msg_put pfn_msg_put;	/* Send a message */
+	fxn_msg_deletequeue msg_delete_queue;
+	fxn_msg_get msg_get;	/* Get a message */
+	fxn_msg_put msg_put;	/* Send a message */
 	/* Register for notif. */
-	fxn_msg_registernotify pfn_msg_register_notify;
+	fxn_msg_registernotify msg_register_notify;
 	/* Set message queue id */
-	fxn_msg_setqueueid pfn_msg_set_queue_id;
+	fxn_msg_setqueueid msg_set_queue_id;
 };
 
 /*

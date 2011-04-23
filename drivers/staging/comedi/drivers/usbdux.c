@@ -285,7 +285,7 @@ struct usbduxsub {
 	short int ao_cmd_running;
 	/* pwm is running */
 	short int pwm_cmd_running;
-	/* continous aquisition */
+	/* continous acquisition */
 	short int ai_continous;
 	short int ao_continous;
 	/* number of samples to acquire */
@@ -500,7 +500,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 
 	/* test, if we transmit only a fixed number of samples */
 	if (!(this_usbduxsub->ai_continous)) {
-		/* not continous, fixed number of samples */
+		/* not continuous, fixed number of samples */
 		this_usbduxsub->ai_sample_count--;
 		/* all samples received? */
 		if (this_usbduxsub->ai_sample_count < 0) {
@@ -653,7 +653,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		/* timer zero */
 		this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
 
-		/* handle non continous aquisition */
+		/* handle non continous acquisition */
 		if (!(this_usbduxsub->ao_continous)) {
 			/* fixed number of samples */
 			this_usbduxsub->ao_sample_count--;
@@ -957,7 +957,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
-	/* scanning is continous */
+	/* scanning is continuous */
 	tmp = cmd->convert_src;
 	cmd->convert_src &= TRIG_NOW;
 	if (!cmd->convert_src || tmp != cmd->convert_src)
@@ -1222,7 +1222,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		up(&this_usbduxsub->sem);
 		return -EBUSY;
 	}
-	/* set current channel of the running aquisition to zero */
+	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 
 	this_usbduxsub->dux_commands[1] = cmd->chanlist_len;
@@ -1284,7 +1284,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		this_usbduxsub->ai_sample_count = cmd->stop_arg;
 		this_usbduxsub->ai_continous = 0;
 	} else {
-		/* continous aquisition */
+		/* continous acquisition */
 		this_usbduxsub->ai_continous = 1;
 		this_usbduxsub->ai_sample_count = 0;
 	}
@@ -1515,7 +1515,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	/* just now we scan also in the high speed mode every frame */
 	/* this is due to ehci driver limitations */
 	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* start immidiately a new scan */
+		/* start immediately a new scan */
 		/* the sampling rate is set by the coversion rate */
 		cmd->scan_begin_src &= TRIG_FOLLOW;
 	} else {
@@ -1525,7 +1525,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
-	/* scanning is continous */
+	/* scanning is continuous */
 	tmp = cmd->convert_src;
 	/* we always output at 1kHz just now all channels at once */
 	if (0) {		/* (this_usbduxsub->high_speed) */
@@ -1645,7 +1645,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi%d: %s\n", dev->minor, __func__);
 
-	/* set current channel of the running aquisition to zero */
+	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 	for (i = 0; i < cmd->chanlist_len; ++i) {
 		chan = CR_CHAN(cmd->chanlist[i]);
@@ -1694,7 +1694,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		/* not continous */
+		/* not continuous */
 		/* counter */
 		/* high speed also scans everything at once */
 		if (0) {	/* (this_usbduxsub->high_speed) */
@@ -1708,7 +1708,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 		this_usbduxsub->ao_continous = 0;
 	} else {
-		/* continous aquisition */
+		/* continous acquisition */
 		this_usbduxsub->ao_continous = 1;
 		this_usbduxsub->ao_sample_count = 0;
 	}
@@ -2265,12 +2265,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 			usbduxsub_unlink_OutURBs(usbduxsub_tmp);
 		}
 		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
-			if (usbduxsub_tmp->urbOut[i]->transfer_buffer) {
-				kfree(usbduxsub_tmp->
-				      urbOut[i]->transfer_buffer);
-				usbduxsub_tmp->urbOut[i]->transfer_buffer =
-				    NULL;
-			}
+			kfree(usbduxsub_tmp->urbOut[i]->transfer_buffer);
+			usbduxsub_tmp->urbOut[i]->transfer_buffer = NULL;
 			if (usbduxsub_tmp->urbOut[i]) {
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
 				usb_free_urb(usbduxsub_tmp->urbOut[i]);

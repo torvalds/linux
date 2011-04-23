@@ -58,7 +58,7 @@ static struct i2c_driver pca9532_driver = {
 	.id_table = pca9532_id,
 };
 
-/* We have two pwm/blinkers, but 16 possible leds to drive. Additionaly,
+/* We have two pwm/blinkers, but 16 possible leds to drive. Additionally,
  * the clever Thecus people are using one pwm to drive the beeper. So,
  * as a compromise we average one pwm to the values requested by all
  * leds that are not ON/OFF.

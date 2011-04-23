@@ -205,7 +205,7 @@ static int cb710_wait_while_busy(struct cb710_slot *slot, uint8_t mask)
 			"WAIT12: waited %d loops, mask %02X, entry val %08X, exit val %08X\n",
 			limit, mask, e, x);
 #endif
-	return 0;
+	return err;
 }
 
 static void cb710_mmc_set_transfer_size(struct cb710_slot *slot,

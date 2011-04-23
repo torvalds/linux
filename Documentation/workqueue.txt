@@ -190,9 +190,9 @@ resources, scheduled and executed.
 	* Long running CPU intensive workloads which can be better
 	  managed by the system scheduler.
 
-  WQ_FREEZEABLE
+  WQ_FREEZABLE
 
-	A freezeable wq participates in the freeze phase of the system
+	A freezable wq participates in the freeze phase of the system
 	suspend operations.  Work items on the wq are drained and no
 	new work item starts execution until thawed.
 

@@ -84,7 +84,7 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 {
 	int ret = SAA_OK, i = 0;
 	u32 timeout;
-	wait_queue_head_t *q = 0;
+	wait_queue_head_t *q = NULL;
 	u8 tmp[512];
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
 
@@ -137,7 +137,7 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 	int loop = 1;
 	int ret;
 	u32 timeout;
-	wait_queue_head_t *q = 0;
+	wait_queue_head_t *q = NULL;
 	u8 tmp[512];
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
 
@@ -257,11 +257,11 @@ out:
 }
 
 /* Wait for a signal event, without holding a mutex. Either return TIMEOUT if
- * the event never occured, or SAA_OK if it was signaled during the wait.
+ * the event never occurred, or SAA_OK if it was signaled during the wait.
  */
 int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 {
-	wait_queue_head_t *q = 0;
+	wait_queue_head_t *q = NULL;
 	int ret = SAA_BUS_TIMEOUT;
 	unsigned long stamp;
 	int r;
@@ -357,7 +357,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 		"sel = 0x%x)\n", __func__, saa7164_unitid_name(dev, id), id,
 		command, controlselector);
 
-	if ((size == 0) || (buf == 0)) {
+	if ((size == 0) || (buf == NULL)) {
 		printk(KERN_ERR "%s() Invalid param\n", __func__);
 		return SAA_ERR_BAD_PARAMETER;
 	}
@@ -538,7 +538,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 
 			/* Invalid */
 			dprintk(DBGLVL_CMD, "%s() Invalid\n", __func__);
-			ret = saa7164_bus_get(dev, presponse_t, 0, 0);
+			ret = saa7164_bus_get(dev, presponse_t, NULL, 0);
 			if (ret != SAA_OK) {
 				printk(KERN_ERR "get failed\n");
 				return ret;

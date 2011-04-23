@@ -48,20 +48,27 @@
 
 static int tuner_attach_stv6110(struct ngene_channel *chan)
 {
+	struct i2c_adapter *i2c;
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
 	struct stv6110x_config *tunerconf = (struct stv6110x_config *)
 		chan->dev->card_info->tuner_config[chan->number];
 	struct stv6110x_devctl *ctl;
 
-	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf,
-			 &chan->i2c_adapter);
+	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
+	if (chan->number < 2)
+		i2c = &chan->dev->channel[0].i2c_adapter;
+	else
+		i2c = &chan->dev->channel[1].i2c_adapter;
+
+	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
 		printk(KERN_ERR	DEVICE_NAME ": No STV6110X found!\n");
 		return -ENODEV;
 	}
 
 	feconf->tuner_init          = ctl->tuner_init;
+	feconf->tuner_sleep         = ctl->tuner_sleep;
 	feconf->tuner_set_mode      = ctl->tuner_set_mode;
 	feconf->tuner_set_frequency = ctl->tuner_set_frequency;
 	feconf->tuner_get_frequency = ctl->tuner_get_frequency;
@@ -78,28 +85,105 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 
 static int demod_attach_stv0900(struct ngene_channel *chan)
 {
+	struct i2c_adapter *i2c;
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
 
-	chan->fe = dvb_attach(stv090x_attach,
-			feconf,
-			&chan->i2c_adapter,
-			chan->number == 0 ? STV090x_DEMODULATOR_0 :
-					    STV090x_DEMODULATOR_1);
+	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
+	/* Note: Both adapters share the same i2c bus, but the demod     */
+	/*       driver requires that each demod has its own i2c adapter */
+	if (chan->number < 2)
+		i2c = &chan->dev->channel[0].i2c_adapter;
+	else
+		i2c = &chan->dev->channel[1].i2c_adapter;
+
+	chan->fe = dvb_attach(stv090x_attach, feconf, i2c,
+			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
+						: STV090x_DEMODULATOR_1);
 	if (chan->fe == NULL) {
 		printk(KERN_ERR	DEVICE_NAME ": No STV0900 found!\n");
 		return -ENODEV;
 	}
 
-	if (!dvb_attach(lnbh24_attach, chan->fe, &chan->i2c_adapter, 0,
+	/* store channel info */
+	if (feconf->tuner_i2c_lock)
+		chan->fe->analog_demod_priv = chan;
+
+	if (!dvb_attach(lnbh24_attach, chan->fe, i2c, 0,
 			0, chan->dev->card_info->lnb[chan->number])) {
 		printk(KERN_ERR DEVICE_NAME ": No LNBH24 found!\n");
 		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
 		return -ENODEV;
 	}
 
 	return 0;
 }
+
+static void cineS2_tuner_i2c_lock(struct dvb_frontend *fe, int lock)
+{
+	struct ngene_channel *chan = fe->analog_demod_priv;
+
+	if (lock)
+		down(&chan->dev->pll_mutex);
+	else
+		up(&chan->dev->pll_mutex);
+}
+
+static int cineS2_probe(struct ngene_channel *chan)
+{
+	struct i2c_adapter *i2c;
+	struct stv090x_config *fe_conf;
+	u8 buf[3];
+	struct i2c_msg i2c_msg = { .flags = 0, .buf = buf };
+	int rc;
+
+	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
+	if (chan->number < 2)
+		i2c = &chan->dev->channel[0].i2c_adapter;
+	else
+		i2c = &chan->dev->channel[1].i2c_adapter;
+
+	fe_conf = chan->dev->card_info->fe_config[chan->number];
+	i2c_msg.addr = fe_conf->address;
+
+	/* probe demod */
+	i2c_msg.len = 2;
+	buf[0] = 0xf1;
+	buf[1] = 0x00;
+	rc = i2c_transfer(i2c, &i2c_msg, 1);
+	if (rc != 1)
+		return -ENODEV;
+
+	/* demod found, attach it */
+	rc = demod_attach_stv0900(chan);
+	if (rc < 0 || chan->number < 2)
+		return rc;
+
+	/* demod #2: reprogram outputs DPN1 & DPN2 */
+	i2c_msg.len = 3;
+	buf[0] = 0xf1;
+	switch (chan->number) {
+	case 2:
+		buf[1] = 0x5c;
+		buf[2] = 0xc2;
+		break;
+	case 3:
+		buf[1] = 0x61;
+		buf[2] = 0xcc;
+		break;
+	default:
+		return -ENODEV;
+	}
+	rc = i2c_transfer(i2c, &i2c_msg, 1);
+	if (rc != 1) {
+		printk(KERN_ERR DEVICE_NAME ": could not setup DPNx\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 
 static struct lgdt330x_config aver_m780 = {
 	.demod_address = 0xb2 >> 1,
@@ -151,6 +235,29 @@ static struct stv090x_config fe_cineS2 = {
 	.adc2_range	= STV090x_ADC_1Vpp,
 
 	.diseqc_envelope_mode = true,
+
+	.tuner_i2c_lock = cineS2_tuner_i2c_lock,
+};
+
+static struct stv090x_config fe_cineS2_2 = {
+	.device         = STV0900,
+	.demod_mode     = STV090x_DUAL,
+	.clk_mode       = STV090x_CLK_EXT,
+
+	.xtal           = 27000000,
+	.address        = 0x69,
+
+	.ts1_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
+	.ts2_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
+
+	.repeater_level = STV090x_RPTLEVEL_16,
+
+	.adc1_range	= STV090x_ADC_1Vpp,
+	.adc2_range	= STV090x_ADC_1Vpp,
+
+	.diseqc_envelope_mode = true,
+
+	.tuner_i2c_lock = cineS2_tuner_i2c_lock,
 };
 
 static struct stv6110x_config tuner_cineS2_0 = {
@@ -175,7 +282,8 @@ static struct ngene_info ngene_info_cineS2 = {
 	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
-	.fw_version	= 15,
+	.fw_version	= 18,
+	.msi_supported	= true,
 };
 
 static struct ngene_info ngene_info_satixS2 = {
@@ -188,46 +296,54 @@ static struct ngene_info ngene_info_satixS2 = {
 	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
-	.fw_version	= 15,
+	.fw_version	= 18,
+	.msi_supported	= true,
 };
 
 static struct ngene_info ngene_info_satixS2v2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Mystique SaTiX-S2 Dual (v2)",
-	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
-	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
-	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
-	.fe_config	= {&fe_cineS2, &fe_cineS2},
-	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
-	.lnb		= {0x0a, 0x08},
+	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
+			   NGENE_IO_TSOUT},
+	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900, cineS2_probe, cineS2_probe},
+	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config	= {&fe_cineS2, &fe_cineS2, &fe_cineS2_2, &fe_cineS2_2},
+	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1, &tuner_cineS2_0, &tuner_cineS2_1},
+	.lnb		= {0x0a, 0x08, 0x0b, 0x09},
 	.tsf		= {3, 3},
-	.fw_version	= 15,
+	.fw_version	= 18,
+	.msi_supported	= true,
 };
 
 static struct ngene_info ngene_info_cineS2v5 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner (v5)",
-	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
-	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
-	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
-	.fe_config	= {&fe_cineS2, &fe_cineS2},
-	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
-	.lnb		= {0x0a, 0x08},
+	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
+			   NGENE_IO_TSOUT},
+	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900, cineS2_probe, cineS2_probe},
+	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config	= {&fe_cineS2, &fe_cineS2, &fe_cineS2_2, &fe_cineS2_2},
+	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1, &tuner_cineS2_0, &tuner_cineS2_1},
+	.lnb		= {0x0a, 0x08, 0x0b, 0x09},
 	.tsf		= {3, 3},
-	.fw_version	= 15,
+	.fw_version	= 18,
+	.msi_supported	= true,
 };
+
 
 static struct ngene_info ngene_info_duoFlexS2 = {
 	.type           = NGENE_SIDEWINDER,
 	.name           = "Digital Devices DuoFlex S2 miniPCIe",
-	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
-	.demod_attach   = {demod_attach_stv0900, demod_attach_stv0900},
-	.tuner_attach   = {tuner_attach_stv6110, tuner_attach_stv6110},
-	.fe_config      = {&fe_cineS2, &fe_cineS2},
-	.tuner_config   = {&tuner_cineS2_0, &tuner_cineS2_1},
-	.lnb            = {0x0a, 0x08},
+	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
+			   NGENE_IO_TSOUT},
+	.demod_attach   = {cineS2_probe, cineS2_probe, cineS2_probe, cineS2_probe},
+	.tuner_attach   = {tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config      = {&fe_cineS2, &fe_cineS2, &fe_cineS2_2, &fe_cineS2_2},
+	.tuner_config   = {&tuner_cineS2_0, &tuner_cineS2_1, &tuner_cineS2_0, &tuner_cineS2_1},
+	.lnb            = {0x0a, 0x08, 0x0b, 0x09},
 	.tsf            = {3, 3},
-	.fw_version     = 15,
+	.fw_version     = 18,
+	.msi_supported	= true,
 };
 
 static struct ngene_info ngene_info_m780 = {
@@ -321,6 +437,7 @@ static struct pci_driver ngene_pci_driver = {
 	.probe       = ngene_probe,
 	.remove      = __devexit_p(ngene_remove),
 	.err_handler = &ngene_errors,
+	.shutdown    = ngene_shutdown,
 };
 
 static __init int module_init_ngene(void)

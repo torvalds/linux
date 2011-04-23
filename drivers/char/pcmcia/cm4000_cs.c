@@ -806,7 +806,7 @@ static void monitor_card(unsigned long p)
 		dev->flags1 = 0x01;
 		xoutb(dev->flags1, REG_FLAGS1(iobase));
 
-		/* atr is present (which doesnt mean it's valid) */
+		/* atr is present (which doesn't mean it's valid) */
 		set_bit(IS_ATR_PRESENT, &dev->flags);
 		if (dev->atr[0] == 0x03)
 			str_invert_revert(dev->atr, dev->atr_len);
@@ -830,8 +830,7 @@ static void monitor_card(unsigned long p)
 			    test_bit(IS_ANY_T1, &dev->flags))) {
 				DEBUGP(4, dev, "Perform AUTOPPS\n");
 				set_bit(IS_AUTOPPS_ACT, &dev->flags);
-				ptsreq.protocol = ptsreq.protocol =
-				    (0x01 << dev->proto);
+				ptsreq.protocol = (0x01 << dev->proto);
 				ptsreq.flags = 0x01;
 				ptsreq.pts1 = 0x00;
 				ptsreq.pts2 = 0x00;

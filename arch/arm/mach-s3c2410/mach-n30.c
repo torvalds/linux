@@ -84,26 +84,10 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 	},
 };
 
-static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	switch (cmd) {
-	case S3C2410_UDC_P_ENABLE :
-		gpio_set_value(S3C2410_GPB(3), 1);
-		break;
-	case S3C2410_UDC_P_DISABLE :
-		gpio_set_value(S3C2410_GPB(3), 0);
-		break;
-	case S3C2410_UDC_P_RESET :
-		break;
-	default:
-		break;
-	}
-}
-
 static struct s3c2410_udc_mach_info n30_udc_cfg __initdata = {
-	.udc_command		= n30_udc_pullup,
 	.vbus_pin		= S3C2410_GPG(1),
 	.vbus_pin_inverted	= 0,
+	.pullup_pin		= S3C2410_GPB(3),
 };
 
 static struct gpio_keys_button n30_buttons[] = {
@@ -268,7 +252,7 @@ static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.def_trigger	= "",
 };
 
-/* This is the blue LED on the device. Originaly used to indicate GPS activity
+/* This is the blue LED on the device. Originally used to indicate GPS activity
  * by flashing. */
 static struct s3c24xx_led_platdata n35_blue_led_pdata = {
 	.name		= "blue_led",
@@ -596,9 +580,6 @@ static void __init n30_init(void)
 
 		platform_add_devices(n35_devices, ARRAY_SIZE(n35_devices));
 	}
-
-	WARN_ON(gpio_request(S3C2410_GPB(3), "udc pup"));
-	gpio_direction_output(S3C2410_GPB(3), 0);
 }
 
 MACHINE_START(N30, "Acer-N30")

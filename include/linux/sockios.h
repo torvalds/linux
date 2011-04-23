@@ -22,7 +22,7 @@
 
 /* Linux-specific socket ioctls */
 #define SIOCINQ		FIONREAD
-#define SIOCOUTQ	TIOCOUTQ
+#define SIOCOUTQ	TIOCOUTQ        /* output queue size (not sent + not acked) */
 
 /* Routing table calls. */
 #define SIOCADDRT	0x890B		/* add routing table entry	*/
@@ -82,6 +82,8 @@
 #define SIOCSMIIREG	0x8949		/* Write MII PHY register.	*/
 
 #define SIOCWANDEV	0x894A		/* get/set netdev parameters	*/
+
+#define SIOCOUTQNSD	0x894B		/* output queue size (not sent only) */
 
 /* ARP cache control calls. */
 		    /*  0x8950 - 0x8952  * obsolete calls, don't re-use */

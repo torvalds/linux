@@ -162,7 +162,7 @@ static struct edac_pci_ctl_info *i7300_pci;
 #define AMBPRESENT_0	0x64
 #define AMBPRESENT_1	0x66
 
-const static u16 mtr_regs[MAX_SLOTS] = {
+static const u16 mtr_regs[MAX_SLOTS] = {
 	0x80, 0x84, 0x88, 0x8c,
 	0x82, 0x86, 0x8a, 0x8e
 };
@@ -1065,7 +1065,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	 * actual number of slots/dimms per channel, we thus utilize the
 	 * resource as specified by the chipset. Thus, we might have
 	 * have more DIMMs per channel than actually on the mobo, but this
-	 * allows the driver to support upto the chipset max, without
+	 * allows the driver to support up to the chipset max, without
 	 * some fancy mobo determination.
 	 */
 	num_dimms_per_channel = MAX_SLOTS;

@@ -140,6 +140,11 @@
 #define I82579_LPI_CTRL			PHY_REG(772, 20)
 #define I82579_LPI_CTRL_ENABLE_MASK	0x6000
 
+/* EMI Registers */
+#define I82579_EMI_ADDR         0x10
+#define I82579_EMI_DATA         0x11
+#define I82579_LPI_UPDATE_TIMER 0x4805	/* in 40ns units + 40 ns base value */
+
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
 #define E1000_STRAP_SMBUS_ADDRESS_MASK  0x00FE0000
@@ -302,9 +307,9 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	 * the interconnect to PCIe mode.
 	 */
 	fwsm = er32(FWSM);
-	if (!(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+	if (!(fwsm & E1000_ICH_FWSM_FW_VALID) && !e1000_check_reset_block(hw)) {
 		ctrl = er32(CTRL);
-		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
+		ctrl |= E1000_CTRL_LANPHYPC_OVERRIDE;
 		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
 		ew32(CTRL, ctrl);
 		udelay(10);
@@ -331,7 +336,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		goto out;
 
 	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan)  &&
+	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
 		msleep(10);
 		e1000_gate_hw_phy_config_ich8lan(hw, false);
@@ -366,7 +371,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	case e1000_phy_82579:
 		phy->ops.check_polarity = e1000_check_polarity_82577;
 		phy->ops.force_speed_duplex =
-			e1000_phy_force_speed_duplex_82577;
+		    e1000_phy_force_speed_duplex_82577;
 		phy->ops.get_cable_length = e1000_get_cable_length_82577;
 		phy->ops.get_info = e1000_get_phy_info_82577;
 		phy->ops.commit = e1000e_phy_sw_reset;
@@ -753,7 +758,13 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	if (rc)
 		return rc;
 
-	if (adapter->hw.phy.type == e1000_phy_ife) {
+	/*
+	 * Disable Jumbo Frame support on parts with Intel 10/100 PHY or
+	 * on parts with MACsec enabled in NVM (reflected in CTRL_EXT).
+	 */
+	if ((adapter->hw.phy.type == e1000_phy_ife) ||
+	    ((adapter->hw.mac.type >= e1000_pch2lan) &&
+	     (!(er32(CTRL_EXT) & E1000_CTRL_EXT_LSECCK)))) {
 		adapter->flags &= ~FLAG_HAS_JUMBO_FRAMES;
 		adapter->max_hw_frame_size = ETH_FRAME_LEN + ETH_FCS_LEN;
 	}
@@ -1723,11 +1734,25 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	/* Configure the LCD with the OEM bits in NVM */
 	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
-	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan) &&
-	    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-		msleep(10);
-		e1000_gate_hw_phy_config_ich8lan(hw, false);
+	if (hw->mac.type == e1000_pch2lan) {
+		/* Ungate automatic PHY configuration on non-managed 82579 */
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			msleep(10);
+			e1000_gate_hw_phy_config_ich8lan(hw, false);
+		}
+
+		/* Set EEE LPI Update Timer to 200usec */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			goto out;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_ADDR,
+						       I82579_LPI_UPDATE_TIMER);
+		if (ret_val)
+			goto release;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_DATA,
+						       0x1387);
+release:
+		hw->phy.ops.release(hw);
 	}
 
 out:
@@ -2104,7 +2129,6 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 {
 	union ich8_hws_flash_status hsfsts;
 	s32 ret_val = -E1000_ERR_NVM;
-	s32 i = 0;
 
 	hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
 
@@ -2140,6 +2164,8 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		ew16flash(ICH_FLASH_HSFSTS, hsfsts.regval);
 		ret_val = 0;
 	} else {
+		s32 i = 0;
+
 		/*
 		 * Otherwise poll for sometime so the current
 		 * cycle has a chance to end before giving up.

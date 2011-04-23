@@ -46,7 +46,7 @@ static DEFINE_MUTEX(scm_lock);
  * @id: command to be executed
  * @buf: buffer returned from scm_get_command_buffer()
  *
- * An SCM command is layed out in memory as follows:
+ * An SCM command is laid out in memory as follows:
  *
  *	------------------- <--- struct scm_command
  *	| command header  |
@@ -174,15 +174,18 @@ static u32 smc(u32 cmd_addr)
 	register u32 r0 asm("r0") = 1;
 	register u32 r1 asm("r1") = (u32)&context_id;
 	register u32 r2 asm("r2") = cmd_addr;
-	asm(
-		__asmeq("%0", "r0")
-		__asmeq("%1", "r0")
-		__asmeq("%2", "r1")
-		__asmeq("%3", "r2")
-		"smc	#0	@ switch to secure world\n"
-		: "=r" (r0)
-		: "r" (r0), "r" (r1), "r" (r2)
-		: "r3");
+	do {
+		asm volatile(
+			__asmeq("%0", "r0")
+			__asmeq("%1", "r0")
+			__asmeq("%2", "r1")
+			__asmeq("%3", "r2")
+			"smc	#0	@ switch to secure world\n"
+			: "=r" (r0)
+			: "r" (r0), "r" (r1), "r" (r2)
+			: "r3");
+	} while (r0 == SCM_INTERRUPTED);
+
 	return r0;
 }
 
@@ -197,13 +200,9 @@ static int __scm_call(const struct scm_command *cmd)
 	 * side in the buffer.
 	 */
 	flush_cache_all();
-	do {
-		ret = smc(cmd_addr);
-		if (ret < 0) {
-			ret = scm_remap_error(ret);
-			break;
-		}
-	} while (ret == SCM_INTERRUPTED);
+	ret = smc(cmd_addr);
+	if (ret < 0)
+		ret = scm_remap_error(ret);
 
 	return ret;
 }
@@ -264,21 +263,28 @@ u32 scm_get_version(void)
 {
 	int context_id;
 	static u32 version = -1;
-	register u32 r0 asm("r0") = 0x1 << 8;
-	register u32 r1 asm("r1") = (u32)&context_id;
+	register u32 r0 asm("r0");
+	register u32 r1 asm("r1");
 
 	if (version != -1)
 		return version;
 
 	mutex_lock(&scm_lock);
-	asm(
-		__asmeq("%0", "r1")
-		__asmeq("%1", "r0")
-		__asmeq("%2", "r1")
-		"smc	#0	@ switch to secure world\n"
-		: "=r" (r1)
-		: "r" (r0), "r" (r1)
-		: "r2", "r3");
+
+	r0 = 0x1 << 8;
+	r1 = (u32)&context_id;
+	do {
+		asm volatile(
+			__asmeq("%0", "r0")
+			__asmeq("%1", "r1")
+			__asmeq("%2", "r0")
+			__asmeq("%3", "r1")
+			"smc	#0	@ switch to secure world\n"
+			: "=r" (r0), "=r" (r1)
+			: "r" (r0), "r" (r1)
+			: "r2", "r3");
+	} while (r0 == SCM_INTERRUPTED);
+
 	version = r1;
 	mutex_unlock(&scm_lock);
 

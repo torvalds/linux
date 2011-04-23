@@ -106,14 +106,14 @@ static int ti_write_room(struct tty_struct *tty);
 static int ti_chars_in_buffer(struct tty_struct *tty);
 static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+static int ti_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg);
 static int ti_get_icount(struct tty_struct *tty,
 		struct serial_icounter_struct *icount);
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
-static int ti_tiocmget(struct tty_struct *tty, struct file *file);
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
+static int ti_tiocmget(struct tty_struct *tty);
+static int ti_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear);
 static void ti_break(struct tty_struct *tty, int break_state);
 static void ti_interrupt_callback(struct urb *urb);
@@ -369,9 +369,9 @@ failed_1port:
 
 static void __exit ti_exit(void)
 {
+	usb_deregister(&ti_usb_driver);
 	usb_serial_deregister(&ti_1port_device);
 	usb_serial_deregister(&ti_2port_device);
-	usb_deregister(&ti_usb_driver);
 }
 
 
@@ -818,7 +818,7 @@ static int ti_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+static int ti_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1000,7 +1000,7 @@ static void ti_set_termios(struct tty_struct *tty,
 }
 
 
-static int ti_tiocmget(struct tty_struct *tty, struct file *file)
+static int ti_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
@@ -1033,8 +1033,8 @@ static int ti_tiocmget(struct tty_struct *tty, struct file *file)
 }
 
 
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int ti_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);

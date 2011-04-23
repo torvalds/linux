@@ -136,18 +136,15 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		}
 	}
 
-	if (ses->status == CifsExiting)
-		return -EIO;
-
 	/*
 	 * Give demultiplex thread up to 10 seconds to reconnect, should be
 	 * greater than cifs socket timeout which is 7 seconds
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
 		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus == CifsGood), 10 * HZ);
+			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
 
-		/* is TCP session is reestablished now ?*/
+		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
 			break;
 
@@ -156,7 +153,7 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		 * retrying until process is killed or server comes
 		 * back on-line
 		 */
-		if (!tcon->retry || ses->status == CifsExiting) {
+		if (!tcon->retry) {
 			cFYI(1, "gave up waiting on reconnect in smb_init");
 			return -EHOSTDOWN;
 		}
@@ -732,7 +729,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 		return rc;
 
 	/* set up echo request */
-	smb->hdr.Tid = cpu_to_le16(0xffff);
+	smb->hdr.Tid = 0xffff;
 	smb->hdr.WordCount = 1;
 	put_unaligned_le16(1, &smb->EchoCount);
 	put_bcc_le(1, &smb->hdr);
@@ -1887,10 +1884,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 					__constant_cpu_to_le16(CIFS_WRLCK))
 				pLockData->fl_type = F_WRLCK;
 
-			pLockData->fl_start = parm_data->start;
-			pLockData->fl_end = parm_data->start +
-						parm_data->length - 1;
-			pLockData->fl_pid = parm_data->pid;
+			pLockData->fl_start = le64_to_cpu(parm_data->start);
+			pLockData->fl_end = pLockData->fl_start +
+					le64_to_cpu(parm_data->length) - 1;
+			pLockData->fl_pid = le32_to_cpu(parm_data->pid);
 		}
 	}
 
@@ -4914,7 +4911,6 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 		   __u16 fid, __u32 pid_of_opener, bool SetAllocation)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
-	char *data_offset;
 	struct file_end_of_file_info *parm_data;
 	int rc = 0;
 	__u16 params, param_offset, offset, byte_count, count;
@@ -4937,8 +4933,6 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 	pSMB->Reserved2 = 0;
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
-
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 
 	count = sizeof(struct file_end_of_file_info);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
@@ -5253,7 +5247,7 @@ cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
 	 * Samba server ignores set of file size to zero due to bugs in some
 	 * older clients, but we should be precise - we use SetFileSize to
 	 * set file size and do not want to truncate file size to zero
-	 * accidently as happened on one Samba server beta by putting
+	 * accidentally as happened on one Samba server beta by putting
 	 * zero instead of -1 here
 	 */
 	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);

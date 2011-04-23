@@ -61,7 +61,7 @@
 /*
  * OSS Interrupt levels for various sub-systems
  *
- * This mapping is layed out with two things in mind: first, we try to keep
+ * This mapping is laid out with two things in mind: first, we try to keep
  * things on their own levels to avoid having to do double-dispatches. Second,
  * the levels match as closely as possible the alternate IRQ mapping mode (aka
  * "A/UX mode") available on some VIA machines.

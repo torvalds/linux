@@ -63,6 +63,10 @@ static struct regulatory_request *last_request;
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
 
+static struct device_type reg_device_type = {
+	.uevent = reg_device_uevent,
+};
+
 /*
  * Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
@@ -362,16 +366,11 @@ static inline void reg_regdb_query(const char *alpha2) {}
 
 /*
  * This lets us keep regulatory code which is updated on a regulatory
- * basis in userspace.
+ * basis in userspace. Country information is filled in by
+ * reg_device_uevent
  */
 static int call_crda(const char *alpha2)
 {
-	char country_env[9 + 2] = "COUNTRY=";
-	char *envp[] = {
-		country_env,
-		NULL
-	};
-
 	if (!is_world_regdom((char *) alpha2))
 		pr_info("Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
@@ -381,10 +380,7 @@ static int call_crda(const char *alpha2)
 	/* query internal regulatory database (if it exists) */
 	reg_regdb_query(alpha2);
 
-	country_env[8] = alpha2[0];
-	country_env[9] = alpha2[1];
-
-	return kobject_uevent_env(&reg_pdev->dev.kobj, KOBJ_CHANGE, envp);
+	return kobject_uevent(&reg_pdev->dev.kobj, KOBJ_CHANGE);
 }
 
 /* Used by nl80211 before kmalloc'ing our regulatory domain */
@@ -813,7 +809,7 @@ static void handle_channel(struct wiphy *wiphy,
 	if (r) {
 		/*
 		 * We will disable all channels that do not match our
-		 * recieved regulatory rule unless the hint is coming
+		 * received regulatory rule unless the hint is coming
 		 * from a Country IE and the Country IE had no information
 		 * about a band. The IEEE 802.11 spec allows for an AP
 		 * to send only a subset of the regulatory rules allowed,
@@ -842,7 +838,7 @@ static void handle_channel(struct wiphy *wiphy,
 	    request_wiphy && request_wiphy == wiphy &&
 	    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
 		/*
-		 * This gaurantees the driver's requested regulatory domain
+		 * This guarantees the driver's requested regulatory domain
 		 * will always be used as a base for further regulatory
 		 * settings
 		 */
@@ -1801,9 +1797,9 @@ void regulatory_hint_disconnect(void)
 
 static bool freq_is_chan_12_13_14(u16 freq)
 {
-	if (freq == ieee80211_channel_to_frequency(12) ||
-	    freq == ieee80211_channel_to_frequency(13) ||
-	    freq == ieee80211_channel_to_frequency(14))
+	if (freq == ieee80211_channel_to_frequency(12, IEEE80211_BAND_2GHZ) ||
+	    freq == ieee80211_channel_to_frequency(13, IEEE80211_BAND_2GHZ) ||
+	    freq == ieee80211_channel_to_frequency(14, IEEE80211_BAND_2GHZ))
 		return true;
 	return false;
 }
@@ -2087,6 +2083,25 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	return r;
 }
 
+#ifdef CONFIG_HOTPLUG
+int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	if (last_request && !last_request->processed) {
+		if (add_uevent_var(env, "COUNTRY=%c%c",
+				   last_request->alpha2[0],
+				   last_request->alpha2[1]))
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+#else
+int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_HOTPLUG */
+
 /* Caller must hold cfg80211_mutex */
 void reg_device_remove(struct wiphy *wiphy)
 {
@@ -2117,6 +2132,8 @@ int __init regulatory_init(void)
 	reg_pdev = platform_device_register_simple("regulatory", 0, NULL, 0);
 	if (IS_ERR(reg_pdev))
 		return PTR_ERR(reg_pdev);
+
+	reg_pdev->dev.type = &reg_device_type;
 
 	spin_lock_init(&reg_requests_lock);
 	spin_lock_init(&reg_pending_beacons_lock);

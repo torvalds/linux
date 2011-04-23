@@ -267,9 +267,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	19
-#define DM_VERSION_PATCHLEVEL	1
-#define DM_VERSION_EXTRA	"-ioctl (2011-01-07)"
+#define DM_VERSION_MINOR	20
+#define DM_VERSION_PATCHLEVEL	0
+#define DM_VERSION_EXTRA	"-ioctl (2011-02-02)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -327,5 +327,11 @@ enum {
  * if no uuid was previously supplied: an existing uuid cannot be changed.
  */
 #define DM_UUID_FLAG			(1 << 14) /* In */
+
+/*
+ * If set, all buffers are wiped after use. Use when sending
+ * or requesting sensitive data such as an encryption key.
+ */
+#define DM_SECURE_DATA_FLAG		(1 << 15) /* In */
 
 #endif				/* _LINUX_DM_IOCTL_H */

@@ -56,7 +56,7 @@
 
 /****************************************************************************
  * 8MiB NOR flash. The struct mtd_partition is not in the same order as the
- *     partitions on the device because we want to keep compatability with
+ *     partitions on the device because we want to keep compatibility with
  *     existing QNAP firmware.
  *
  * Layout as used by QNAP:
@@ -314,6 +314,7 @@ MACHINE_START(TS409, "QNAP TS-409")
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts409_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

@@ -224,7 +224,7 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
 int ar9170_nag_limiter(struct ar9170 *ar);
 
 /* MAC */
-int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int ar9170_init_mac(struct ar9170 *ar);
 int ar9170_set_qos(struct ar9170 *ar);
 int ar9170_update_multicast(struct ar9170 *ar, const u64 mc_hast);

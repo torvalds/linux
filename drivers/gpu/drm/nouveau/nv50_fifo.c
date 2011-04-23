@@ -149,6 +149,7 @@ nv50_fifo_init_regs(struct drm_device *dev)
 	nv_wr32(dev, 0x3204, 0);
 	nv_wr32(dev, 0x3210, 0);
 	nv_wr32(dev, 0x3270, 0);
+	nv_wr32(dev, 0x2044, 0x01003fff);
 
 	/* Enable dummy channels setup by nv50_instmem.c */
 	nv50_fifo_channel_enable(dev, 0);
@@ -273,7 +274,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	nv_wo32(ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 			     (4 << 24) /* SEARCH_FULL */ |
 			     (chan->ramht->gpuobj->cinst >> 4));
-	nv_wo32(ramfc, 0x44, 0x2101ffff);
+	nv_wo32(ramfc, 0x44, 0x01003fff);
 	nv_wo32(ramfc, 0x60, 0x7fffffff);
 	nv_wo32(ramfc, 0x40, 0x00000000);
 	nv_wo32(ramfc, 0x7c, 0x30000001);

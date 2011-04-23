@@ -38,6 +38,7 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 		BUG_ON(ret != bsize);
 		data += bsize - index;
 		len -= bsize - index;
+		index = 0;
 	}
 
 	/* process as many blocks as possible */

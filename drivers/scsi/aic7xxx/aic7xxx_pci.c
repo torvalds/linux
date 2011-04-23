@@ -789,7 +789,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	ahc->bus_intr = ahc_pci_intr;
 	ahc->bus_chip_init = ahc_pci_chip_init;
 
-	/* Remeber how the card was setup in case there is no SEEPROM */
+	/* Remember how the card was setup in case there is no SEEPROM */
 	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
 		ahc_pause(ahc);
 		if ((ahc->features & AHC_ULTRA2) != 0)
@@ -860,7 +860,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	}
 
 	/*
-	 * We cannot perform ULTRA speeds without the presense
+	 * We cannot perform ULTRA speeds without the presence
 	 * of the external precision resistor.
 	 */
 	if ((ahc->features & AHC_ULTRA) != 0) {
@@ -969,7 +969,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 }
 
 /*
- * Test for the presense of external sram in an
+ * Test for the presence of external sram in an
  * "unshared" configuration.
  */
 static int

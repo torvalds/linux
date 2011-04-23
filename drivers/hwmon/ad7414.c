@@ -242,6 +242,7 @@ static const struct i2c_device_id ad7414_id[] = {
 	{ "ad7414", 0 },
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
 static struct i2c_driver ad7414_driver = {
 	.driver = {

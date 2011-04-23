@@ -106,25 +106,6 @@ pcf50633_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int
-pcf50633_rtc_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct pcf50633_rtc *rtc = dev_get_drvdata(dev);
-	int err;
-
-	if (enabled)
-		err = pcf50633_irq_unmask(rtc->pcf, PCF50633_IRQ_SECOND);
-	else
-		err = pcf50633_irq_mask(rtc->pcf, PCF50633_IRQ_SECOND);
-
-	if (err < 0)
-		return err;
-
-	rtc->second_enabled = enabled;
-
-	return 0;
-}
-
 static int pcf50633_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf50633_rtc *rtc;
@@ -262,8 +243,7 @@ static struct rtc_class_ops pcf50633_rtc_ops = {
 	.set_time		= pcf50633_rtc_set_time,
 	.read_alarm		= pcf50633_rtc_read_alarm,
 	.set_alarm		= pcf50633_rtc_set_alarm,
-	.alarm_irq_enable 	= pcf50633_rtc_alarm_irq_enable,
-	.update_irq_enable 	= pcf50633_rtc_update_irq_enable,
+	.alarm_irq_enable	= pcf50633_rtc_alarm_irq_enable,
 };
 
 static void pcf50633_rtc_irq(int irq, void *data)

@@ -31,24 +31,9 @@
 #include <linux/connector.h>
 #include <linux/delay.h>
 
-void cn_queue_wrapper(struct work_struct *work)
-{
-	struct cn_callback_entry *cbq =
-		container_of(work, struct cn_callback_entry, work);
-	struct cn_callback_data *d = &cbq->data;
-	struct cn_msg *msg = NLMSG_DATA(nlmsg_hdr(d->skb));
-	struct netlink_skb_parms *nsp = &NETLINK_CB(d->skb);
-
-	d->callback(msg, nsp);
-
-	kfree_skb(d->skb);
-	d->skb = NULL;
-
-	kfree(d->free);
-}
-
 static struct cn_callback_entry *
-cn_queue_alloc_callback_entry(char *name, struct cb_id *id,
+cn_queue_alloc_callback_entry(struct cn_queue_dev *dev, const char *name,
+			      struct cb_id *id,
 			      void (*callback)(struct cn_msg *, struct netlink_skb_parms *))
 {
 	struct cn_callback_entry *cbq;
@@ -59,17 +44,23 @@ cn_queue_alloc_callback_entry(char *name, struct cb_id *id,
 		return NULL;
 	}
 
+	atomic_set(&cbq->refcnt, 1);
+
+	atomic_inc(&dev->refcnt);
+	cbq->pdev = dev;
+
 	snprintf(cbq->id.name, sizeof(cbq->id.name), "%s", name);
 	memcpy(&cbq->id.id, id, sizeof(struct cb_id));
-	cbq->data.callback = callback;
-
-	INIT_WORK(&cbq->work, &cn_queue_wrapper);
+	cbq->callback = callback;
 	return cbq;
 }
 
-static void cn_queue_free_callback(struct cn_callback_entry *cbq)
+void cn_queue_release_callback(struct cn_callback_entry *cbq)
 {
-	flush_workqueue(cbq->pdev->cn_queue);
+	if (!atomic_dec_and_test(&cbq->refcnt))
+		return;
+
+	atomic_dec(&cbq->pdev->refcnt);
 	kfree(cbq);
 }
 
@@ -78,18 +69,16 @@ int cn_cb_equal(struct cb_id *i1, struct cb_id *i2)
 	return ((i1->idx == i2->idx) && (i1->val == i2->val));
 }
 
-int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id,
+int cn_queue_add_callback(struct cn_queue_dev *dev, const char *name,
+			  struct cb_id *id,
 			  void (*callback)(struct cn_msg *, struct netlink_skb_parms *))
 {
 	struct cn_callback_entry *cbq, *__cbq;
 	int found = 0;
 
-	cbq = cn_queue_alloc_callback_entry(name, id, callback);
+	cbq = cn_queue_alloc_callback_entry(dev, name, id, callback);
 	if (!cbq)
 		return -ENOMEM;
-
-	atomic_inc(&dev->refcnt);
-	cbq->pdev = dev;
 
 	spin_lock_bh(&dev->queue_lock);
 	list_for_each_entry(__cbq, &dev->queue_list, callback_entry) {
@@ -103,8 +92,7 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id
 	spin_unlock_bh(&dev->queue_lock);
 
 	if (found) {
-		cn_queue_free_callback(cbq);
-		atomic_dec(&dev->refcnt);
+		cn_queue_release_callback(cbq);
 		return -EINVAL;
 	}
 
@@ -129,13 +117,11 @@ void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id)
 	}
 	spin_unlock_bh(&dev->queue_lock);
 
-	if (found) {
-		cn_queue_free_callback(cbq);
-		atomic_dec(&dev->refcnt);
-	}
+	if (found)
+		cn_queue_release_callback(cbq);
 }
 
-struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *nls)
+struct cn_queue_dev *cn_queue_alloc_dev(const char *name, struct sock *nls)
 {
 	struct cn_queue_dev *dev;
 
@@ -150,21 +136,12 @@ struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *nls)
 
 	dev->nls = nls;
 
-	dev->cn_queue = alloc_ordered_workqueue(dev->name, 0);
-	if (!dev->cn_queue) {
-		kfree(dev);
-		return NULL;
-	}
-
 	return dev;
 }
 
 void cn_queue_free_dev(struct cn_queue_dev *dev)
 {
 	struct cn_callback_entry *cbq, *n;
-
-	flush_workqueue(dev->cn_queue);
-	destroy_workqueue(dev->cn_queue);
 
 	spin_lock_bh(&dev->queue_lock);
 	list_for_each_entry_safe(cbq, n, &dev->queue_list, callback_entry)

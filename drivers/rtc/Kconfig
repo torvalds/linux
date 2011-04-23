@@ -97,6 +97,18 @@ config RTC_INTF_DEV
 
 	  If unsure, say Y.
 
+config RTC_INTF_DEV_UIE_EMUL
+	bool "RTC UIE emulation on dev interface"
+	depends on RTC_INTF_DEV
+	help
+	  Provides an emulation for RTC_UIE if the underlying rtc chip
+	  driver does not expose RTC_UIE ioctls. Those requests generate
+	  once-per-second update interrupts, used for synchronization.
+
+	  The emulation code will read the time from the hardware
+	  clock several times per second, please enable this option
+	  only if you know that you really need it.
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	help
@@ -972,5 +984,15 @@ config RTC_DRV_LPC32XX
 
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-lpc32xx.
+
+config RTC_DRV_TEGRA
+	tristate "NVIDIA Tegra Internal RTC driver"
+	depends on RTC_CLASS && ARCH_TEGRA
+	help
+	  If you say yes here you get support for the
+	  Tegra 200 series internal RTC module.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-tegra.
 
 endif # RTC_CLASS

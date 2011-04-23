@@ -63,20 +63,15 @@ static int v9fs_dentry_delete(const struct dentry *dentry)
  * v9fs_cached_dentry_delete - called when dentry refcount equals 0
  * @dentry:  dentry in question
  *
- * Only return 1 if our inode is invalid.  Only non-synthetic files
- * (ones without mtime == 0) should be calling this function.
- *
  */
-
 static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
+	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n",
+		   dentry->d_name.name, dentry);
 
-	if(!inode)
+	/* Don't cache negative dentries */
+	if (!dentry->d_inode)
 		return 1;
-
 	return 0;
 }
 
@@ -105,7 +100,43 @@ static void v9fs_dentry_release(struct dentry *dentry)
 	}
 }
 
+static int v9fs_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
+{
+	struct p9_fid *fid;
+	struct inode *inode;
+	struct v9fs_inode *v9inode;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
+	if (!inode)
+		goto out_valid;
+
+	v9inode = V9FS_I(inode);
+	if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
+		int retval;
+		struct v9fs_session_info *v9ses;
+		fid = v9fs_fid_lookup(dentry);
+		if (IS_ERR(fid))
+			return PTR_ERR(fid);
+
+		v9ses = v9fs_inode2v9ses(inode);
+		if (v9fs_proto_dotl(v9ses))
+			retval = v9fs_refresh_inode_dotl(fid, inode);
+		else
+			retval = v9fs_refresh_inode(fid, inode);
+		if (retval == -ENOENT)
+			return 0;
+		if (retval < 0)
+			return retval;
+	}
+out_valid:
+	return 1;
+}
+
 const struct dentry_operations v9fs_cached_dentry_operations = {
+	.d_revalidate = v9fs_lookup_revalidate,
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };

@@ -214,8 +214,9 @@ void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
  *
  * print any IRQs asserted at resume time (ie, we woke from)
 */
-static void s3c_pm_show_resume_irqs(int start, unsigned long which,
-				    unsigned long mask)
+static void __maybe_unused s3c_pm_show_resume_irqs(int start,
+						   unsigned long which,
+						   unsigned long mask)
 {
 	int i;
 
@@ -241,8 +242,6 @@ void (*pm_cpu_sleep)(void);
 
 static int s3c_pm_enter(suspend_state_t state)
 {
-	static unsigned long regs_save[16];
-
 	/* ensure the debug is initialised (if enabled) */
 
 	s3c_pm_debug_init();
@@ -265,12 +264,6 @@ static int s3c_pm_enter(suspend_state_t state)
 		printk(KERN_ERR "%s: Aborting sleep\n", __func__);
 		return -EINVAL;
 	}
-
-	/* store the physical address of the register recovery block */
-
-	s3c_sleep_save_phys = virt_to_phys(regs_save);
-
-	S3C_PMDBG("s3c_sleep_save_phys=0x%08lx\n", s3c_sleep_save_phys);
 
 	/* save all necessary core registers not covered by the drivers */
 
@@ -305,7 +298,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	 * we resume as it saves its own register state and restores it
 	 * during the resume.  */
 
-	s3c_cpu_save(regs_save);
+	s3c_cpu_save(0, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 
 	/* restore the cpu state using the kernel's cpu init code. */
 
@@ -334,12 +327,6 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	S3C_PMDBG("S3C PM Resume (post-restore)\n");
 	return 0;
-}
-
-/* callback from assembly code */
-void s3c_pm_cb_flushcache(void)
-{
-	flush_cache_all();
 }
 
 static int s3c_pm_prepare(void)

@@ -15,7 +15,6 @@
  */
 
 #include <linux/netdevice.h>
-#include <osl.h>
 #include <bcmutils.h>
 
 #include <dngl_stats.h>
@@ -47,7 +46,7 @@ extern int sdioh_mmc_irq(int irq);
 #include <mach/gpio.h>
 #endif
 
-/* Customer specific Host GPIO defintion  */
+/* Customer specific Host GPIO definition  */
 static int dhd_oob_gpio_num = -1;	/* GG 19 */
 
 module_param(dhd_oob_gpio_num, int, 0644);
@@ -149,9 +148,8 @@ int dhd_custom_get_mac_address(unsigned char *buf)
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
 	{
-		struct ether_addr ea_example = {
-			{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF} };
-		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
+		u8 ea_example[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0xFF};
+		memcpy(buf, ea_example, ETH_ALEN);
 	}
 #endif				/* EXAMPLE_GET_MAC */
 

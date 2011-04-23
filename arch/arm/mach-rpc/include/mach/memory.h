@@ -21,7 +21,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	UL(0x10000000)
+#define PLAT_PHYS_OFFSET	UL(0x10000000)
 
 /*
  * Cache flushing area - ROM

@@ -2275,16 +2275,12 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 	if (keycode != KEY_RESERVED) {
 		mutex_lock(&tpacpi_inputdev_send_mutex);
 
+		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
 		input_report_key(tpacpi_inputdev, keycode, 1);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
 		input_sync(tpacpi_inputdev);
 
+		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
 		input_report_key(tpacpi_inputdev, keycode, 0);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
 		input_sync(tpacpi_inputdev);
 
 		mutex_unlock(&tpacpi_inputdev_send_mutex);
@@ -2411,7 +2407,7 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	 * This code is supposed to duplicate the IBM firmware behaviour:
 	 * - Pressing MUTE issues mute hotkey message, even when already mute
 	 * - Pressing Volume up/down issues volume up/down hotkey messages,
-	 *   even when already at maximum or minumum volume
+	 *   even when already at maximum or minimum volume
 	 * - The act of unmuting issues volume up/down notification,
 	 *   depending which key was used to unmute
 	 *
@@ -2994,7 +2990,7 @@ static void tpacpi_send_radiosw_update(void)
 	 * rfkill input events, or we will race the rfkill core input
 	 * handler.
 	 *
-	 * tpacpi_inputdev_send_mutex works as a syncronization point
+	 * tpacpi_inputdev_send_mutex works as a synchronization point
 	 * for the above.
 	 *
 	 * We optimize to avoid numerous calls to hotkey_get_wlsw.
@@ -6311,6 +6307,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		return 1;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = bright_maxlvl;
 	props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	ibm_backlight_device = backlight_device_register(TPACPI_BACKLIGHT_DEV_NAME,
@@ -8621,8 +8618,7 @@ static bool __pure __init tpacpi_is_valid_fw_id(const char* const s,
 		tpacpi_is_fw_digit(s[1]) &&
 		s[2] == t && s[3] == 'T' &&
 		tpacpi_is_fw_digit(s[4]) &&
-		tpacpi_is_fw_digit(s[5]) &&
-		s[6] == 'W' && s[7] == 'W';
+		tpacpi_is_fw_digit(s[5]);
 }
 
 /* returns 0 - probe ok, or < 0 - probe error.

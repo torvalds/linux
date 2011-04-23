@@ -26,23 +26,23 @@ static struct mpic *msi_mpic;
 static void mpic_u3msi_mask_irq(struct irq_data *data)
 {
 	mask_msi_irq(data);
-	mpic_mask_irq(data->irq);
+	mpic_mask_irq(data);
 }
 
 static void mpic_u3msi_unmask_irq(struct irq_data *data)
 {
-	mpic_unmask_irq(data->irq);
+	mpic_unmask_irq(data);
 	unmask_msi_irq(data);
 }
 
 static struct irq_chip mpic_u3msi_chip = {
-	.irq_shutdown	= mpic_u3msi_mask_irq,
-	.irq_mask	= mpic_u3msi_mask_irq,
-	.irq_unmask	= mpic_u3msi_unmask_irq,
-	.eoi		= mpic_end_irq,
-	.set_type	= mpic_set_irq_type,
-	.set_affinity	= mpic_set_affinity,
-	.name		= "MPIC-U3MSI",
+	.irq_shutdown		= mpic_u3msi_mask_irq,
+	.irq_mask		= mpic_u3msi_mask_irq,
+	.irq_unmask		= mpic_u3msi_unmask_irq,
+	.irq_eoi		= mpic_end_irq,
+	.irq_set_type		= mpic_set_irq_type,
+	.irq_set_affinity	= mpic_set_affinity,
+	.name			= "MPIC-U3MSI",
 };
 
 static u64 read_ht_magic_addr(struct pci_dev *pdev, unsigned int pos)
@@ -129,7 +129,7 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 		if (entry->irq == NO_IRQ)
 			continue;
 
-		set_irq_msi(entry->irq, NULL);
+		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
 				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
@@ -166,9 +166,9 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return -ENOSPC;
 		}
 
-		set_irq_msi(virq, entry);
-		set_irq_chip(virq, &mpic_u3msi_chip);
-		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
+		irq_set_msi_desc(virq, entry);
+		irq_set_chip(virq, &mpic_u3msi_chip);
+		irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
 		pr_debug("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);

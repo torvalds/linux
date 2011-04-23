@@ -2,7 +2,7 @@
 # link order is important here
 #
 
-EXTRA_CFLAGS				+= -Idrivers/ide
+ccflags-y				:= -Idrivers/ide
 
 ide-core-y += ide.o ide-ioctls.o ide-io.o ide-iops.o ide-lib.o ide-probe.o \
 	      ide-taskfile.o ide-pm.o ide-park.o ide-sysfs.o ide-devsets.o \

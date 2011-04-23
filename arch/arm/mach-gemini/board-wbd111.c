@@ -130,6 +130,7 @@ static void __init wbd111_init(void)
 				 wbd111_num_partitions);
 	platform_device_register(&wbd111_leds_device);
 	platform_device_register(&wbd111_keys_device);
+	platform_register_rtc();
 }
 
 MACHINE_START(WBD111, "Wiliboard WBD-111")

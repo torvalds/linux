@@ -33,7 +33,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
@@ -135,7 +134,7 @@ static struct se_device *fd_create_virtdevice(
 	mm_segment_t old_fs;
 	struct file *file;
 	struct inode *inode = NULL;
-	int dev_flags = 0, flags;
+	int dev_flags = 0, flags, ret = -EINVAL;
 
 	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 
@@ -147,6 +146,7 @@ static struct se_device *fd_create_virtdevice(
 	if (IS_ERR(dev_p)) {
 		printk(KERN_ERR "getname(%s) failed: %lu\n",
 			fd_dev->fd_dev_name, IS_ERR(dev_p));
+		ret = PTR_ERR(dev_p);
 		goto fail;
 	}
 #if 0
@@ -159,15 +159,19 @@ static struct se_device *fd_create_virtdevice(
 #endif
 /*	flags |= O_DIRECT; */
 	/*
-	 * If fd_buffered_io=1 has not been set explictly (the default),
+	 * If fd_buffered_io=1 has not been set explicitly (the default),
 	 * use O_SYNC to force FILEIO writes to disk.
 	 */
 	if (!(fd_dev->fbd_flags & FDBD_USE_BUFFERED_IO))
 		flags |= O_SYNC;
 
 	file = filp_open(dev_p, flags, 0600);
-
-	if (IS_ERR(file) || !file || !file->f_dentry) {
+	if (IS_ERR(file)) {
+		printk(KERN_ERR "filp_open(%s) failed\n", dev_p);
+		ret = PTR_ERR(file);
+		goto fail;
+	}
+	if (!file || !file->f_dentry) {
 		printk(KERN_ERR "filp_open(%s) failed\n", dev_p);
 		goto fail;
 	}
@@ -242,7 +246,7 @@ fail:
 		fd_dev->fd_file = NULL;
 	}
 	putname(dev_p);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 /*	fd_free_device(): (Part of se_subsystem_api_t template)
@@ -510,7 +514,7 @@ enum {
 static match_table_t tokens = {
 	{Opt_fd_dev_name, "fd_dev_name=%s"},
 	{Opt_fd_dev_size, "fd_dev_size=%s"},
-	{Opt_fd_buffered_io, "fd_buffered_id=%d"},
+	{Opt_fd_buffered_io, "fd_buffered_io=%d"},
 	{Opt_err, NULL}
 };
 
@@ -537,15 +541,26 @@ static ssize_t fd_set_configfs_dev_params(
 		token = match_token(ptr, tokens, args);
 		switch (token) {
 		case Opt_fd_dev_name:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
 			snprintf(fd_dev->fd_dev_name, FD_MAX_DEV_NAME,
-					"%s", match_strdup(&args[0]));
+					"%s", arg_p);
+			kfree(arg_p);
 			printk(KERN_INFO "FILEIO: Referencing Path: %s\n",
 					fd_dev->fd_dev_name);
 			fd_dev->fbd_flags |= FBDF_HAS_PATH;
 			break;
 		case Opt_fd_dev_size:
 			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
 			ret = strict_strtoull(arg_p, 0, &fd_dev->fd_dev_size);
+			kfree(arg_p);
 			if (ret < 0) {
 				printk(KERN_ERR "strict_strtoull() failed for"
 						" fd_dev_size=\n");

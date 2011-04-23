@@ -149,6 +149,7 @@ static int __init consistent_init(void)
 {
 	int ret = 0;
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	int i = 0;
@@ -156,7 +157,15 @@ static int __init consistent_init(void)
 
 	do {
 		pgd = pgd_offset(&init_mm, base);
-		pmd = pmd_alloc(&init_mm, pgd, base);
+
+		pud = pud_alloc(&init_mm, pgd, base);
+		if (!pud) {
+			printk(KERN_ERR "%s: no pud tables\n", __func__);
+			ret = -ENOMEM;
+			break;
+		}
+
+		pmd = pmd_alloc(&init_mm, pud, base);
 		if (!pmd) {
 			printk(KERN_ERR "%s: no pmd tables\n", __func__);
 			ret = -ENOMEM;

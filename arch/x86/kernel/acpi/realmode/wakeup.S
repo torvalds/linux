@@ -6,11 +6,17 @@
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
+#include "wakeup.h"
 
 	.code16
-	.section ".header", "a"
+	.section ".jump", "ax"
+	.globl	_start
+_start:
+	cli
+	jmp	wakeup_code
 
 /* This should match the structure in wakeup.h */
+		.section ".header", "a"
 		.globl	wakeup_header
 wakeup_header:
 video_mode:	.short	0	/* Video mode number */
@@ -30,14 +36,11 @@ wakeup_jmp:	.byte	0xea	/* ljmpw */
 wakeup_jmp_off:	.word	3f
 wakeup_jmp_seg:	.word	0
 wakeup_gdt:	.quad	0, 0, 0
-signature:	.long	0x51ee1111
+signature:	.long	WAKEUP_HEADER_SIGNATURE
 
 	.text
-	.globl	_start
 	.code16
 wakeup_code:
-_start:
-	cli
 	cld
 
 	/* Apparently some dimwit BIOS programmers don't know how to
@@ -77,12 +80,12 @@ _start:
 
 	/* Check header signature... */
 	movl	signature, %eax
-	cmpl	$0x51ee1111, %eax
+	cmpl	$WAKEUP_HEADER_SIGNATURE, %eax
 	jne	bogus_real_magic
 
 	/* Check we really have everything... */
 	movl	end_signature, %eax
-	cmpl	$0x65a22c82, %eax
+	cmpl	$WAKEUP_END_SIGNATURE, %eax
 	jne	bogus_real_magic
 
 	/* Call the C code */
@@ -147,3 +150,7 @@ wakeup_heap:
 wakeup_stack:
 	.space	2048
 wakeup_stack_end:
+
+	.section ".signature","a"
+end_signature:
+	.long	WAKEUP_END_SIGNATURE

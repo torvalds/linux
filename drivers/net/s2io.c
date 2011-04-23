@@ -2353,7 +2353,7 @@ static int start_nic(struct s2io_nic *nic)
 
 	if (s2io_link_fault_indication(nic) == MAC_RMAC_ERR_TIMER) {
 		/*
-		 * Dont see link state interrupts initally on some switches,
+		 * Dont see link state interrupts initially on some switches,
 		 * so directly scheduling the link state task here.
 		 */
 		schedule_work(&nic->set_link_task);
@@ -3563,7 +3563,7 @@ static void s2io_reset(struct s2io_nic *sp)
 	}
 
 	/*
-	 * Clear spurious ECC interrupts that would have occured on
+	 * Clear spurious ECC interrupts that would have occurred on
 	 * XFRAME II cards after reset.
 	 */
 	if (sp->device_type == XFRAME_II_DEVICE) {
@@ -4065,7 +4065,7 @@ static int s2io_close(struct net_device *dev)
  *  Description :
  *  This function is the Tx entry point of the driver. S2IO NIC supports
  *  certain protocol assist features on Tx side, namely  CSO, S/G, LSO.
- *  NOTE: when device cant queue the pkt,just the trans_start variable will
+ *  NOTE: when device can't queue the pkt,just the trans_start variable will
  *  not be upadted.
  *  Return value:
  *  0 on success & 1 on failure.
@@ -6726,7 +6726,7 @@ static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
 	int rc = 0;
 	int changed = 0;
 
-	if (data & ~ETH_FLAG_LRO)
+	if (ethtool_invalid_flags(dev, data, ETH_FLAG_LRO))
 		return -EINVAL;
 
 	if (data & ETH_FLAG_LRO) {
@@ -7556,7 +7556,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			if (ring_data->lro) {
-				u32 tcp_len;
+				u32 tcp_len = 0;
 				u8 *tcp;
 				int ret = 0;
 

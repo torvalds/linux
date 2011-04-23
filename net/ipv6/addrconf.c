@@ -718,11 +718,8 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	struct inet6_ifaddr *ifa, *ifn;
 	struct inet6_dev *idev = ifp->idev;
 	int state;
-	int hash;
 	int deleted = 0, onlink = 0;
 	unsigned long expires = jiffies;
-
-	hash = ipv6_addr_hash(&ifp->addr);
 
 	spin_lock_bh(&ifp->state_lock);
 	state = ifp->state;
@@ -1087,7 +1084,7 @@ static int ipv6_get_saddr_eval(struct net *net,
 	case IPV6_SADDR_RULE_PRIVACY:
 	    {
 		/* Rule 7: Prefer public address
-		 * Note: prefer temprary address if use_tempaddr >= 2
+		 * Note: prefer temporary address if use_tempaddr >= 2
 		 */
 		int preftmp = dst->prefs & (IPV6_PREFER_SRC_PUBLIC|IPV6_PREFER_SRC_TMP) ?
 				!!(dst->prefs & IPV6_PREFER_SRC_TMP) :
@@ -1971,7 +1968,7 @@ ok:
 					 *  to the stored lifetime since we'll
 					 *  be updating the timestamp below,
 					 *  else we'll set it back to the
-					 *  minumum.
+					 *  minimum.
 					 */
 					if (prefered_lft != ifp->prefered_lft) {
 						valid_lft = stored_lft;

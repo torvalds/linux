@@ -44,28 +44,6 @@ xfs_trans_inode_broot_debug(
 #endif
 
 /*
- * Get an inode and join it to the transaction.
- */
-int
-xfs_trans_iget(
-	xfs_mount_t	*mp,
-	xfs_trans_t	*tp,
-	xfs_ino_t	ino,
-	uint		flags,
-	uint		lock_flags,
-	xfs_inode_t	**ipp)
-{
-	int			error;
-
-	error = xfs_iget(mp, tp, ino, flags, lock_flags, ipp);
-	if (!error && tp) {
-		xfs_trans_ijoin(tp, *ipp);
-		(*ipp)->i_itemp->ili_lock_flags = lock_flags;
-	}
-	return error;
-}
-
-/*
  * Add a locked inode to the transaction.
  *
  * The inode must be locked, and it cannot be associated with any transaction.
@@ -103,7 +81,7 @@ xfs_trans_ijoin(
  *
  *
  * Grabs a reference to the inode which will be dropped when the transaction
- * is commited.  The inode will also be unlocked at that point.  The inode
+ * is committed.  The inode will also be unlocked at that point.  The inode
  * must be locked, and it cannot be associated with any transaction.
  */
 void

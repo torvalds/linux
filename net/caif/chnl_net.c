@@ -394,9 +394,7 @@ static void ipcaif_net_setup(struct net_device *dev)
 	priv->conn_req.sockaddr.u.dgm.connection_id = -1;
 	priv->flowenabled = false;
 
-	ASSERT_RTNL();
 	init_waitqueue_head(&priv->netmgmt_wq);
-	list_add(&priv->list_field, &chnl_net_list);
 }
 
 
@@ -453,6 +451,8 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 	ret = register_netdevice(dev);
 	if (ret)
 		pr_warn("device rtml registration failed\n");
+	else
+		list_add(&caifdev->list_field, &chnl_net_list);
 	return ret;
 }
 

@@ -109,6 +109,8 @@ static bool scratchpad_available(void)
 static int scratchpad_offset(int i)
 {
 	BUG();
+	/* Really unreachable, but evidently some GCC want this. */
+	return 0;
 }
 #endif
 /*
@@ -350,7 +352,7 @@ static void __cpuinit __maybe_unused build_tlb_probe_entry(u32 **p)
 
 /*
  * Write random or indexed TLB entry, and care about the hazards from
- * the preceeding mtc0 and for the following eret.
+ * the preceding mtc0 and for the following eret.
  */
 enum tlb_write_entry { tlb_random, tlb_indexed };
 

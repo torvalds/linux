@@ -164,7 +164,7 @@ struct b43_phy_g {
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code.
-	 * Each value in the stack is layed out as follows:
+	 * Each value in the stack is laid out as follows:
 	 * bit 0-11:  offset
 	 * bit 12-15: register ID
 	 * bit 16-32: value

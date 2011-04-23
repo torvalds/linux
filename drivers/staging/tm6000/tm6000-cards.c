@@ -50,6 +50,9 @@
 #define TM6010_BOARD_BEHOLD_VOYAGER		11
 #define TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE	12
 #define TM6010_BOARD_TWINHAN_TU501		13
+#define TM6010_BOARD_BEHOLD_WANDER_LITE		14
+#define TM6010_BOARD_BEHOLD_VOYAGER_LITE	15
+#define TM5600_BOARD_TERRATEC_GRABSTER		16
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -63,6 +66,8 @@ struct tm6000_board {
 	char            *name;
 
 	struct tm6000_capabilities caps;
+	enum            tm6000_inaudio aradio;
+	enum            tm6000_inaudio avideo;
 
 	enum		tm6000_devtype type;	/* variant of the chipset */
 	int             tuner_type;     /* type of the tuner */
@@ -227,12 +232,16 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
-			.has_tuner    = 1,
-			.has_dvb      = 1,
-			.has_zl10353  = 1,
-			.has_eeprom   = 1,
-			.has_remote   = 1,
+			.has_tuner      = 1,
+			.has_dvb        = 1,
+			.has_zl10353    = 1,
+			.has_eeprom     = 1,
+			.has_remote     = 1,
+			.has_input_comp = 1,
+			.has_input_svid = 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -245,12 +254,16 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_type   = TUNER_XC5000,
 		.tuner_addr   = 0xc2 >> 1,
 		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
-			.has_tuner    = 1,
-			.has_dvb      = 0,
-			.has_zl10353  = 0,
-			.has_eeprom   = 1,
-			.has_remote   = 1,
+			.has_tuner      = 1,
+			.has_dvb        = 0,
+			.has_zl10353    = 0,
+			.has_eeprom     = 1,
+			.has_remote     = 1,
+			.has_input_comp = 1,
+			.has_input_svid = 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -281,6 +294,11 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	},
+	[TM5600_BOARD_TERRATEC_GRABSTER] = {
+		.name         = "Terratec Grabster AV 150/250 MX",
+		.type         = TM5600,
+		.tuner_type   = TUNER_ABSENT,
+	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
 		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
@@ -303,7 +321,51 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
-	}
+	},
+	[TM6010_BOARD_BEHOLD_WANDER_LITE] = {
+		.name         = "Beholder Wander Lite DVB-T/TV/FM USB2.0",
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0xc2 >> 1,
+		.demod_addr   = 0x1e >> 1,
+		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
+		.caps = {
+			.has_tuner      = 1,
+			.has_dvb        = 1,
+			.has_zl10353    = 1,
+			.has_eeprom     = 1,
+			.has_remote     = 0,
+			.has_input_comp = 0,
+			.has_input_svid = 0,
+		},
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_0,
+			.demod_reset	= TM6010_GPIO_1,
+			.power_led	= TM6010_GPIO_6,
+		},
+	},
+	[TM6010_BOARD_BEHOLD_VOYAGER_LITE] = {
+		.name         = "Beholder Voyager Lite TV/FM USB2.0",
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0xc2 >> 1,
+		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
+		.caps = {
+			.has_tuner      = 1,
+			.has_dvb        = 0,
+			.has_zl10353    = 0,
+			.has_eeprom     = 1,
+			.has_remote     = 0,
+			.has_input_comp = 0,
+			.has_input_svid = 0,
+		},
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_0,
+			.power_led	= TM6010_GPIO_6,
+		},
+	},
 };
 
 /* table of devices that work with this driver */
@@ -321,10 +383,13 @@ struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0xdec1), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER },
 	{ USB_DEVICE(0x0ccd, 0x0086), .driver_info = TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE },
 	{ USB_DEVICE(0x0ccd, 0x00A5), .driver_info = TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE },
+	{ USB_DEVICE(0x0ccd, 0x0079), .driver_info = TM5600_BOARD_TERRATEC_GRABSTER },
 	{ USB_DEVICE(0x13d3, 0x3240), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x13d3, 0x3241), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x13d3, 0x3243), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x13d3, 0x3264), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
+	{ USB_DEVICE(0x6000, 0xdec2), .driver_info = TM6010_BOARD_BEHOLD_WANDER_LITE },
+	{ USB_DEVICE(0x6000, 0xdec3), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER_LITE },
 	{ },
 };
 
@@ -346,6 +411,8 @@ void tm6000_flash_led(struct tm6000_core *dev, u8 state)
 			break;
 		case TM6010_BOARD_BEHOLD_WANDER:
 		case TM6010_BOARD_BEHOLD_VOYAGER:
+		case TM6010_BOARD_BEHOLD_WANDER_LITE:
+		case TM6010_BOARD_BEHOLD_VOYAGER_LITE:
 			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
 				dev->gpio.power_led, 0x01);
 			break;
@@ -362,6 +429,8 @@ void tm6000_flash_led(struct tm6000_core *dev, u8 state)
 			break;
 		case TM6010_BOARD_BEHOLD_WANDER:
 		case TM6010_BOARD_BEHOLD_VOYAGER:
+		case TM6010_BOARD_BEHOLD_WANDER_LITE:
+		case TM6010_BOARD_BEHOLD_VOYAGER_LITE:
 			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
 				dev->gpio.power_led, 0x00);
 			break;
@@ -520,6 +589,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 		msleep(15);
 		break;
 	case TM6010_BOARD_BEHOLD_WANDER:
+	case TM6010_BOARD_BEHOLD_WANDER_LITE:
 		/* Power led on (blue) */
 		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, dev->gpio.power_led, 0x01);
 		msleep(15);
@@ -530,6 +600,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 		msleep(15);
 		break;
 	case TM6010_BOARD_BEHOLD_VOYAGER:
+	case TM6010_BOARD_BEHOLD_VOYAGER_LITE:
 		/* Power led on (blue) */
 		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, dev->gpio.power_led, 0x01);
 		msleep(15);
@@ -588,8 +659,6 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 	tun_setup.mode_mask = 0;
 	if (dev->caps.has_tuner)
 		tun_setup.mode_mask |= (T_ANALOG_TV | T_RADIO);
-	if (dev->caps.has_dvb)
-		tun_setup.mode_mask |= T_DIGITAL_TV;
 
 	switch (dev->tuner_type) {
 	case TUNER_XC2028:
@@ -644,12 +713,11 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		struct xc5000_config ctl = {
 			.i2c_address = dev->tuner_addr,
 			.if_khz      = 4570,
-			.radio_input = XC5000_RADIO_FM1,
+			.radio_input = XC5000_RADIO_FM1_MONO,
 			};
 
 		xc5000_cfg.tuner = TUNER_XC5000;
 		xc5000_cfg.priv  = &ctl;
-
 
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_config,
 				     &xc5000_cfg);
@@ -683,6 +751,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	dev->caps = tm6000_boards[dev->model].caps;
 
+	dev->avideo = tm6000_boards[dev->model].avideo;
+	dev->aradio = tm6000_boards[dev->model].aradio;
 	/* initialize hardware */
 	rc = tm6000_init(dev);
 	if (rc < 0)
@@ -957,6 +1027,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 			break;
 		case TM6010_BOARD_BEHOLD_WANDER:
 		case TM6010_BOARD_BEHOLD_VOYAGER:
+		case TM6010_BOARD_BEHOLD_WANDER_LITE:
+		case TM6010_BOARD_BEHOLD_VOYAGER_LITE:
 			/* Power led off */
 			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
 				dev->gpio.power_led, 0x00);

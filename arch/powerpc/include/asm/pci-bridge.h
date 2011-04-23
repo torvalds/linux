@@ -106,7 +106,7 @@ struct pci_controller {
 	 * Used for variants of PCI indirect handling and possible quirks:
 	 *  SET_CFG_TYPE - used on 4xx or any PHB that does explicit type0/1
 	 *  EXT_REG - provides access to PCI-e extended registers
-	 *  SURPRESS_PRIMARY_BUS - we surpress the setting of PCI_PRIMARY_BUS
+	 *  SURPRESS_PRIMARY_BUS - we suppress the setting of PCI_PRIMARY_BUS
 	 *   on Freescale PCI-e controllers since they used the PCI_PRIMARY_BUS
 	 *   to determine which bus number to match on when generating type0
 	 *   config cycles
@@ -164,11 +164,21 @@ extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
 
-#ifndef CONFIG_PPC64
-
 static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
 	return bus->sysdata;
+}
+
+#ifndef CONFIG_PPC64
+
+static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
+{
+	struct pci_controller *host;
+
+	if (bus->self)
+		return pci_device_to_OF_node(bus->self);
+	host = pci_bus_to_host(bus);
+	return host ? host->dn : NULL;
 }
 
 static inline int isa_vaddr_is_ioport(void __iomem *address)
@@ -218,19 +228,10 @@ extern void * update_dn_pci_info(struct device_node *dn, void *data);
 
 /* Get a device_node from a pci_dev.  This code must be fast except
  * in the case where the sysdata is incorrect and needs to be fixed
- * up (this will only happen once).
- * In this case the sysdata will have been inherited from a PCI host
- * bridge or a PCI-PCI bridge further up the tree, so it will point
- * to a valid struct pci_dn, just not the one we want.
- */
+ * up (this will only happen once). */
 static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 {
-	struct device_node *dn = dev->sysdata;
-	struct pci_dn *pdn = dn->data;
-
-	if (pdn && pdn->devfn == dev->devfn && pdn->busno == dev->bus->number)
-		return dn;	/* fast path.  sysdata is good */
-	return fetch_dev_dn(dev);
+	return dev->dev.of_node ? dev->dev.of_node : fetch_dev_dn(dev);
 }
 
 static inline int pci_device_from_OF_node(struct device_node *np,
@@ -248,7 +249,7 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 	if (bus->self)
 		return pci_device_to_OF_node(bus->self);
 	else
-		return bus->sysdata; /* Must be root bus (PHB) */
+		return bus->dev.of_node; /* Must be root bus (PHB) */
 }
 
 /** Find the bus corresponding to the indicated device node */
@@ -259,14 +260,6 @@ extern void pcibios_remove_pci_devices(struct pci_bus *bus);
 
 /** Discover new pci devices under this bus, and add them */
 extern void pcibios_add_pci_devices(struct pci_bus *bus);
-
-static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
-{
-	struct device_node *busdn = bus->sysdata;
-
-	BUG_ON(busdn == NULL);
-	return PCI_DN(busdn)->phb;
-}
 
 
 extern void isa_bridge_find_early(struct pci_controller *hose);

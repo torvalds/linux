@@ -148,7 +148,7 @@ static struct usb_driver quausb2_usb_driver = {
  * value of the line status flags from the port
  * @shadowMSR: Last received state of the modem status register, holds
  * the value of the modem status received from the port
- * @rcv_flush: Flag indicating that a receive flush has occured on
+ * @rcv_flush: Flag indicating that a receive flush has occurred on
  * the hardware.
  * @xmit_flush: Flag indicating that a transmit flush has been processed by
  * the hardware.
@@ -156,7 +156,7 @@ static struct usb_driver quausb2_usb_driver = {
  * includes the size (excluding header) of URBs that have been submitted but
  * have not yet been sent to to the device, and bytes that have been sent out
  * of the port but not yet reported sent by the "xmit_empty" messages (which
- * indicate the number of bytes sent each time they are recieved, despite the
+ * indicate the number of bytes sent each time they are received, despite the
  * misleading name).
  * - Starts at zero when port is initialised.
  * - is incremented by the size of the data to be written (no headers)
@@ -649,7 +649,7 @@ static void qt2_close(struct usb_serial_port *port)
 	/* although the USB side is now empty, the UART itself may
 	 * still be pushing characters out over the line, so we have to
 	 * wait testing the actual line status until the lines change
-	 * indicating that the data is done transfering. */
+	 * indicating that the data is done transferring. */
 	/* FIXME: slow this polling down so it doesn't run the USB bus flat out
 	 * if it actually has to spend any time in this loop (which it normally
 	 * doesn't because the buffer is nearly empty) */
@@ -726,7 +726,7 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 	} else if (port_extra->tx_pending_bytes >= QT2_FIFO_DEPTH) {
 		/* buffer is full (==). > should not occur, but would indicate
-		 * that an overflow had occured */
+		 * that an overflow had occurred */
 		dbg("%s(): port transmit buffer is full!", __func__);
 		/* schedule_work(&port->work); commented in vendor driver */
 		return 0;
@@ -823,7 +823,7 @@ static int qt2_write_room(struct tty_struct *tty)
 	 * reduce the free space count by the size of the dispatched write.
 	 * When a "transmit empty" message comes back up the USB read stream,
 	 * we decrement the count by the number of bytes reported sent, thus
-	 * keeping track of the difference between sent and recieved bytes.
+	 * keeping track of the difference between sent and received bytes.
 	 */
 
 	room = (QT2_FIFO_DEPTH - port_extra->tx_pending_bytes);
@@ -852,7 +852,7 @@ static int qt2_chars_in_buffer(struct tty_struct *tty)
  * TIOCMGET and TIOCMSET are filtered off to their own methods before they get
  * here, so we don't have to handle them.
  */
-static int qt2_ioctl(struct tty_struct *tty, struct file *file,
+static int qt2_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1078,7 +1078,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 	}
 }
 
-static int qt2_tiocmget(struct tty_struct *tty, struct file *file)
+static int qt2_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -1121,7 +1121,7 @@ static int qt2_tiocmget(struct tty_struct *tty, struct file *file)
 	}
 }
 
-static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
+static int qt2_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1221,7 +1221,7 @@ static void qt2_throttle(struct tty_struct *tty)
 	}
 	/* Send command to box to stop receiving stuff. This will stop this
 	 * particular UART from filling the endpoint - in the multiport case the
-	 * FPGA UART will handle any flow control implmented, but for the single
+	 * FPGA UART will handle any flow control implemented, but for the single
 	 * port it's handed differently and we just quit submitting urbs
 	 */
 	if (serial->dev->descriptor.idProduct != QUATECH_SSU2_100)
@@ -1795,7 +1795,7 @@ static void qt2_process_rx_char(struct usb_serial_port *port,
 	}
 }
 
-/** @brief Retreive the value of a register from the device
+/** @brief Retrieve the value of a register from the device
  *
  * Issues a GET_REGISTER vendor-spcific request over the USB control
  * pipe to obtain a value back from a specific register on a specific

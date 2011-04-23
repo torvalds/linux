@@ -1343,13 +1343,25 @@ Members of interest:
                    underruns (overruns should be rare). If possible an LLD
                    should set 'resid' prior to invoking 'done'. The most
                    interesting case is data transfers from a SCSI target
-                   device device (i.e. READs) that underrun. 
+                   device (e.g. READs) that underrun.
     underflow    - LLD should place (DID_ERROR << 16) in 'result' if
                    actual number of bytes transferred is less than this
                    figure. Not many LLDs implement this check and some that
                    do just output an error message to the log rather than
                    report a DID_ERROR. Better for an LLD to implement
                    'resid'.
+
+It is recommended that a LLD set 'resid' on data transfers from a SCSI
+target device (e.g. READs). It is especially important that 'resid' is set
+when such data transfers have sense keys of MEDIUM ERROR and HARDWARE ERROR
+(and possibly RECOVERED ERROR). In these cases if a LLD is in doubt how much
+data has been received then the safest approach is to indicate no bytes have
+been received. For example: to indicate that no valid data has been received
+a LLD might use these helpers:
+    scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
+where 'SCpnt' is a pointer to a scsi_cmnd object. To indicate only three 512
+bytes blocks has been received 'resid' could be set like this:
+    scsi_set_resid(SCpnt, scsi_bufflen(SCpnt) - (3 * 512));
 
 The scsi_cmnd structure is defined in include/scsi/scsi_cmnd.h
 

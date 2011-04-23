@@ -68,9 +68,15 @@ config HID_A4TECH
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
-config HID_ACRUX_FF
-	tristate "ACRUX force feedback"
+config HID_ACRUX
+	tristate "ACRUX game controller support"
 	depends on USB_HID
+	---help---
+	Say Y here if you want to enable support for ACRUX game controllers.
+
+config HID_ACRUX_FF
+	tristate "ACRUX force feedback support"
+	depends on HID_ACRUX
 	select INPUT_FF_MEMLESS
 	---help---
 	Say Y here if you want to enable force feedback support for ACRUX
@@ -140,7 +146,12 @@ config HID_DRAGONRISE
 	tristate "DragonRise Inc. game controller"
 	depends on USB_HID
 	---help---
-	Say Y here if you have DragonRise Inc.game controllers.
+	Say Y here if you have DragonRise Inc. game controllers.
+	These might be branded as:
+	- Tesun USB-703
+	- Media-tech MT1504 "Rogue"
+	- DVTech JS19 "Gear"
+	- Defender Game Master
 
 config DRAGONRISE_FF
 	bool "DragonRise Inc. force feedback"
@@ -160,13 +171,6 @@ config HID_EMS_FF
 	Currently the following devices are known to be supported:
 	 - Trio Linker Plus II
 
-config HID_EGALAX
-	tristate "eGalax multi-touch panel"
-	depends on USB_HID
-	---help---
-	Support for the eGalax dual-touch panels, including the
-	Joojoo and Wetab tablets.
-
 config HID_ELECOM
 	tristate "ELECOM BM084 bluetooth mouse"
 	depends on BT_HIDP
@@ -179,6 +183,14 @@ config HID_EZKEY
 	default !EXPERT
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
+
+config HID_KEYTOUCH
+	tristate "Keytouch HID devices"
+	depends on USB_HID
+	---help---
+	Support for Keytouch HID devices not fully compliant with
+	the specification. Currently supported:
+		- Keytouch IEC 60945
 
 config HID_KYE
 	tristate "Kye/Genius Ergo Mouse" if EXPERT
@@ -217,6 +229,12 @@ config HID_KENSINGTON
 	default !EXPERT
 	---help---
 	Support for Kensington Slimblade Trackball.
+
+config HID_LCPOWER
+	tristate "LC-Power"
+	depends on USB_HID
+	---help---
+	Support for LC-Power RC1000MCE RF remote control.
 
 config HID_LOGITECH
 	tristate "Logitech devices" if EXPERT
@@ -304,8 +322,11 @@ config HID_MULTITOUCH
 	  Say Y here if you have one of the following devices:
 	  - Cypress TrueTouch panels
 	  - Hanvon dual touch panels
+	  - IrTouch Infrared USB panels
 	  - Pixcir dual touch panels
 	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
+          - eGalax dual-touch panels, including the
+	    Joojoo and Wetab tablets
 
 	  If unsure, say N.
 
@@ -319,10 +340,17 @@ config HID_NTRIG
 	Support for N-Trig touch screen.
 
 config HID_ORTEK
-	tristate "Ortek WKB-2000 wireless keyboard and mouse trackpad"
+	tristate "Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad"
 	depends on USB_HID
 	---help---
-	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
+	There are certain devices which have LogicalMaximum wrong in the keyboard
+	usage page of their report descriptor. The most prevailing ones so far
+	are manufactured by Ortek, thus the name of the driver. Currently
+	supported devices by this driver are
+
+	   - Ortek PKB-1700
+	   - Ortek WKB-2000
+	   - Skycable wireless presenter
 
 config HID_PANTHERLORD
 	tristate "Pantherlord/GreenAsia game controller"
@@ -417,10 +445,22 @@ config HID_ROCCAT
 	Say Y here if you have a Roccat mouse or keyboard and want OSD or
 	macro execution support.
 
+config HID_ROCCAT_COMMON
+	tristate
+
+config HID_ROCCAT_ARVO
+	tristate "Roccat Arvo keyboard support"
+	depends on USB_HID
+	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
+	---help---
+	Support for Roccat Arvo keyboard.
+
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Kone mouse.
 
@@ -428,13 +468,23 @@ config HID_ROCCAT_KONEPLUS
 	tristate "Roccat Kone[+] mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Kone[+] mouse.
+
+config HID_ROCCAT_KOVAPLUS
+	tristate "Roccat Kova[+] mouse support"
+	depends on USB_HID
+	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
+	---help---
+	Support for Roccat Kova[+] mouse.
 
 config HID_ROCCAT_PYRA
 	tristate "Roccat Pyra mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Pyra mouse.
 

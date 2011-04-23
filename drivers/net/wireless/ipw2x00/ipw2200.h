@@ -961,7 +961,7 @@ struct ipw_country_channel_info {
 struct ipw_country_info {
 	u8 id;
 	u8 length;
-	u8 country_str[3];
+	u8 country_str[IEEE80211_COUNTRY_STRING_LEN];
 	struct ipw_country_channel_info groups[7];
 } __packed;
 
@@ -1298,8 +1298,6 @@ struct ipw_priv {
 	int user_requested_scan;
 	u8 direct_scan_ssid[IW_ESSID_MAX_SIZE];
 	u8 direct_scan_ssid_len;
-
-	struct workqueue_struct *workqueue;
 
 	struct delayed_work adhoc_check;
 	struct work_struct associate;

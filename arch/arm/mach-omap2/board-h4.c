@@ -290,14 +290,15 @@ static struct omap_board_config_kernel h4_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
-static void __init omap_h4_init_irq(void)
+static void __init omap_h4_init_early(void)
 {
-	omap_board_config = h4_config;
-	omap_board_config_size = ARRAY_SIZE(h4_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
+}
+
+static void __init omap_h4_init_irq(void)
+{
 	omap_init_irq();
-	h4_init_flash();
 }
 
 static struct at24_platform_data m24c01 = {
@@ -329,6 +330,9 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap_h4_init(void)
 {
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAF);
+
+	omap_board_config = h4_config;
+	omap_board_config_size = ARRAY_SIZE(h4_config);
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
@@ -367,6 +371,7 @@ static void __init omap_h4_init(void)
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
+	h4_init_flash();
 }
 
 static void __init omap_h4_map_io(void)
@@ -378,8 +383,9 @@ static void __init omap_h4_map_io(void)
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
 	.boot_params	= 0x80000100,
-	.map_io		= omap_h4_map_io,
 	.reserve	= omap_reserve,
+	.map_io		= omap_h4_map_io,
+	.init_early	= omap_h4_init_early,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap_timer,

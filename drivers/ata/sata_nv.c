@@ -539,7 +539,7 @@ struct nv_pi_priv {
 static const struct ata_port_info nv_port_info[] = {
 	/* generic */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -548,7 +548,7 @@ static const struct ata_port_info nv_port_info[] = {
 	},
 	/* nforce2/3 */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -557,7 +557,7 @@ static const struct ata_port_info nv_port_info[] = {
 	},
 	/* ck804 */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -566,8 +566,7 @@ static const struct ata_port_info nv_port_info[] = {
 	},
 	/* ADMA */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_NCQ,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NCQ,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -576,7 +575,7 @@ static const struct ata_port_info nv_port_info[] = {
 	},
 	/* MCP5x */
 	{
-		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -585,8 +584,7 @@ static const struct ata_port_info nv_port_info[] = {
 	},
 	/* SWNCQ */
 	{
-		.flags	        = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_NCQ,
+		.flags	        = ATA_FLAG_SATA | ATA_FLAG_NCQ,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -2123,7 +2121,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 
 	host_stat = ap->ops->bmdma_status(ap);
 	if (unlikely(host_stat & ATA_DMA_ERR)) {
-		/* error when transfering data to/from memory */
+		/* error when transferring data to/from memory */
 		ata_ehi_clear_desc(ehi);
 		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
 		ehi->err_mask |= AC_ERR_HOST_BUS;

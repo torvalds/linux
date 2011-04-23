@@ -50,12 +50,13 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 
 static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int cascade_irq;
 
 	while ((cascade_irq = cpm2_get_irq()) >= 0)
 		generic_handle_irq(cascade_irq);
 
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 }
 
 #endif /* CONFIG_CPM2 */
@@ -100,7 +101,7 @@ static void __init mpc85xx_ads_pic_init(void)
 
 	cpm2_pic_init(np);
 	of_node_put(np);
-	set_irq_chained_handler(irq, cpm2_cascade);
+	irq_set_chained_handler(irq, cpm2_cascade);
 #endif
 }
 

@@ -292,7 +292,7 @@ VELOCITY_PARAM(DMA_length, "DMA length");
 /* IP_byte_align[] is used for IP header DWORD byte aligned
    0: indicate the IP header won't be DWORD byte aligned.(Default) .
    1: indicate the IP header will be DWORD byte aligned.
-      In some enviroment, the IP header should be DWORD byte aligned,
+      In some environment, the IP header should be DWORD byte aligned,
       or the packet will be droped when we receive it. (eg: IPVS)
 */
 VELOCITY_PARAM(IP_byte_align, "Enable IP header dword aligned");
@@ -1994,7 +1994,7 @@ static inline void velocity_rx_csum(struct rx_desc *rd, struct sk_buff *skb)
  *	@dev: network device
  *
  *	Replace the current skb that is scheduled for Rx processing by a
- *	shorter, immediatly allocated skb, if the received packet is small
+ *	shorter, immediately allocated skb, if the received packet is small
  *	enough. This function returns a negative value if the received
  *	packet is too big or if memory is exhausted.
  */
@@ -2923,6 +2923,7 @@ static u16 wol_calc_crc(int size, u8 *pattern, u8 *mask_pattern)
 static int velocity_set_wol(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem *regs = vptr->mac_regs;
+	enum speed_opt spd_dpx = vptr->options.spd_dpx;
 	static u8 buf[256];
 	int i;
 
@@ -2968,6 +2969,12 @@ static int velocity_set_wol(struct velocity_info *vptr)
 
 	writew(0x0FFF, &regs->WOLSRClr);
 
+	if (spd_dpx == SPD_DPX_1000_FULL)
+		goto mac_done;
+
+	if (spd_dpx != SPD_DPX_AUTO)
+		goto advertise_done;
+
 	if (vptr->mii_status & VELOCITY_AUTONEG_ENABLE) {
 		if (PHYID_GET_PHY_ID(vptr->phy_id) == PHYID_CICADA_CS8201)
 			MII_REG_BITS_ON(AUXCR_MDPPS, MII_NCONFIG, vptr->mac_regs);
@@ -2978,6 +2985,7 @@ static int velocity_set_wol(struct velocity_info *vptr)
 	if (vptr->mii_status & VELOCITY_SPEED_1000)
 		MII_REG_BITS_ON(BMCR_ANRESTART, MII_BMCR, vptr->mac_regs);
 
+advertise_done:
 	BYTE_REG_BITS_ON(CHIPGCR_FCMODE, &regs->CHIPGCR);
 
 	{
@@ -2987,6 +2995,7 @@ static int velocity_set_wol(struct velocity_info *vptr)
 		writeb(GCR, &regs->CHIPGCR);
 	}
 
+mac_done:
 	BYTE_REG_BITS_OFF(ISR_PWEI, &regs->ISR);
 	/* Turn on SWPTAG just before entering power mode */
 	BYTE_REG_BITS_ON(STICKHW_SWPTAG, &regs->STICKHW);

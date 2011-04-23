@@ -718,13 +718,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			wdev->ps = false;
 		/* allow mac80211 to determine the timeout */
 		wdev->ps_timeout = -1;
-		if (rdev->ops->set_power_mgmt)
-			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
-						      wdev->ps,
-						      wdev->ps_timeout)) {
-				/* assume this means it's off */
-				wdev->ps = false;
-			}
 
 		if (!dev->ethtool_ops)
 			dev->ethtool_ops = &cfg80211_ethtool_ops;
@@ -813,6 +806,19 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
+
+		/*
+		 * Configure power management to the driver here so that its
+		 * correctly set also after interface type changes etc.
+		 */
+		if (wdev->iftype == NL80211_IFTYPE_STATION &&
+		    rdev->ops->set_power_mgmt)
+			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
+						      wdev->ps,
+						      wdev->ps_timeout)) {
+				/* assume this means it's off */
+				wdev->ps = false;
+			}
 		break;
 	case NETDEV_UNREGISTER:
 		/*

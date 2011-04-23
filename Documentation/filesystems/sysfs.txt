@@ -39,10 +39,12 @@ userspace. Top-level directories in sysfs represent the common
 ancestors of object hierarchies; i.e. the subsystems the objects
 belong to. 
 
-Sysfs internally stores the kobject that owns the directory in the
-->d_fsdata pointer of the directory's dentry. This allows sysfs to do
-reference counting directly on the kobject when the file is opened and
-closed. 
+Sysfs internally stores a pointer to the kobject that implements a
+directory in the sysfs_dirent object associated with the directory. In
+the past this kobject pointer has been used by sysfs to do reference
+counting directly on the kobject whenever the file is opened or closed.
+With the current sysfs implementation the kobject reference count is
+only modified directly by the function sysfs_schedule_callback().
 
 
 Attributes
@@ -60,7 +62,7 @@ values of the same type.
 
 Mixing types, expressing multiple lines of data, and doing fancy
 formatting of data is heavily frowned upon. Doing these things may get
-you publically humiliated and your code rewritten without notice. 
+you publicly humiliated and your code rewritten without notice. 
 
 
 An attribute definition is simply:
@@ -208,9 +210,9 @@ Other notes:
   is 4096. 
 
 - show() methods should return the number of bytes printed into the
-  buffer. This is the return value of snprintf().
+  buffer. This is the return value of scnprintf().
 
-- show() should always use snprintf(). 
+- show() should always use scnprintf().
 
 - store() should return the number of bytes used from the buffer. If the
   entire buffer has been used, just return the count argument.
@@ -229,7 +231,7 @@ A very simple (and naive) implementation of a device attribute is:
 static ssize_t show_name(struct device *dev, struct device_attribute *attr,
                          char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", dev->name);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", dev->name);
 }
 
 static ssize_t store_name(struct device *dev, struct device_attribute *attr,

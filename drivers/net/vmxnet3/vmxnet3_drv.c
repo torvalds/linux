@@ -892,7 +892,7 @@ vmxnet3_prepare_tso(struct sk_buff *skb,
  * Transmits a pkt thru a given tq
  * Returns:
  *    NETDEV_TX_OK:      descriptors are setup successfully
- *    NETDEV_TX_OK:      error occured, the pkt is dropped
+ *    NETDEV_TX_OK:      error occurred, the pkt is dropped
  *    NETDEV_TX_BUSY:    tx ring is full, queue is stopped
  *
  * Side-effects:
@@ -2685,7 +2685,7 @@ vmxnet3_read_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac)
  * Enable MSIx vectors.
  * Returns :
  *	0 on successful enabling of required vectors,
- *	VMXNET3_LINUX_MIN_MSIX_VECT when only minumum number of vectors required
+ *	VMXNET3_LINUX_MIN_MSIX_VECT when only minimum number of vectors required
  *	 could be enabled.
  *	number of vectors which can be enabled otherwise (this number is smaller
  *	 than VMXNET3_LINUX_MIN_MSIX_VECT)

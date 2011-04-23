@@ -344,7 +344,7 @@ static int emc1403_remove(struct i2c_client *client)
 }
 
 static const unsigned short emc1403_address_list[] = {
-	0x18, 0x2a, 0x4c, 0x4d, I2C_CLIENT_END
+	0x18, 0x29, 0x4c, 0x4d, I2C_CLIENT_END
 };
 
 static const struct i2c_device_id emc1403_idtable[] = {

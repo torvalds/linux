@@ -14,28 +14,16 @@
  *  option) any later version.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/jiffies.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-clock.h>
-
-#include <asm/dma.h>
 #include <mach/dma.h>
-
 #include <plat/regs-iis.h>
 
 #include "dma.h"

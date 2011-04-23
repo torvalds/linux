@@ -81,7 +81,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *  Requires:
  *      cmm_init(void) called.
  *      ph_cmm_mgr != NULL.
- *      mgr_attrts->ul_min_block_size >= 4 bytes.
+ *      mgr_attrts->min_block_size >= 4 bytes.
  *  Ensures:
  *
  */
@@ -190,7 +190,7 @@ extern int cmm_get_info(struct cmm_object *hcmm_mgr,
  *      Initializes private state of CMM module.
  *  Parameters:
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      CMM initialized.

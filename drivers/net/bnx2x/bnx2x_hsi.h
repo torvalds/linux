@@ -11,20 +11,27 @@
 
 #include "bnx2x_fw_defs.h"
 
+#define FW_ENCODE_32BIT_PATTERN		0x1e1e1e1e
+
 struct license_key {
 	u32 reserved[6];
 
-#if defined(__BIG_ENDIAN)
-	u16 max_iscsi_init_conn;
-	u16 max_iscsi_trgt_conn;
-#elif defined(__LITTLE_ENDIAN)
-	u16 max_iscsi_trgt_conn;
-	u16 max_iscsi_init_conn;
-#endif
+	u32 max_iscsi_conn;
+#define BNX2X_MAX_ISCSI_TRGT_CONN_MASK	0xFFFF
+#define BNX2X_MAX_ISCSI_TRGT_CONN_SHIFT	0
+#define BNX2X_MAX_ISCSI_INIT_CONN_MASK	0xFFFF0000
+#define BNX2X_MAX_ISCSI_INIT_CONN_SHIFT	16
 
-	u32 reserved_a[6];
+	u32 reserved_a;
+
+	u32 max_fcoe_conn;
+#define BNX2X_MAX_FCOE_TRGT_CONN_MASK	0xFFFF
+#define BNX2X_MAX_FCOE_TRGT_CONN_SHIFT	0
+#define BNX2X_MAX_FCOE_INIT_CONN_MASK	0xFFFF0000
+#define BNX2X_MAX_FCOE_INIT_CONN_SHIFT	16
+
+	u32 reserved_b[4];
 };
-
 
 #define PORT_0				0
 #define PORT_1				1
@@ -237,8 +244,26 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_SHIFT	      16
 
 
-	u32 Reserved0[16];				    /* 0x158 */
+	u32 Reserved0[3];				    /* 0x158 */
+	/*	Controls the TX laser of the SFP+ module */
+	u32 sfp_ctrl;					/* 0x164 */
+#define PORT_HW_CFG_TX_LASER_MASK			      0x000000FF
+#define PORT_HW_CFG_TX_LASER_SHIFT			      0
+#define PORT_HW_CFG_TX_LASER_MDIO			      0x00000000
+#define PORT_HW_CFG_TX_LASER_GPIO0			      0x00000001
+#define PORT_HW_CFG_TX_LASER_GPIO1			      0x00000002
+#define PORT_HW_CFG_TX_LASER_GPIO2			      0x00000003
+#define PORT_HW_CFG_TX_LASER_GPIO3			      0x00000004
 
+    /*	Controls the fault module LED of the SFP+ */
+#define PORT_HW_CFG_FAULT_MODULE_LED_MASK		      0x0000FF00
+#define PORT_HW_CFG_FAULT_MODULE_LED_SHIFT		      8
+#define PORT_HW_CFG_FAULT_MODULE_LED_GPIO0		      0x00000000
+#define PORT_HW_CFG_FAULT_MODULE_LED_GPIO1		      0x00000100
+#define PORT_HW_CFG_FAULT_MODULE_LED_GPIO2		      0x00000200
+#define PORT_HW_CFG_FAULT_MODULE_LED_GPIO3		      0x00000300
+#define PORT_HW_CFG_FAULT_MODULE_LED_DISABLED		      0x00000400
+	u32 Reserved01[12];				    /* 0x158 */
 	/*  for external PHY, or forced mode or during AN */
 	u16 xgxs_config_rx[4];				    /* 0x198 */
 
@@ -246,11 +271,77 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 
 	u32 Reserved1[56];				    /* 0x1A8 */
 	u32 default_cfg;				    /* 0x288 */
+#define PORT_HW_CFG_GPIO0_CONFIG_MASK			      0x00000003
+#define PORT_HW_CFG_GPIO0_CONFIG_SHIFT			      0
+#define PORT_HW_CFG_GPIO0_CONFIG_NA			      0x00000000
+#define PORT_HW_CFG_GPIO0_CONFIG_LOW			      0x00000001
+#define PORT_HW_CFG_GPIO0_CONFIG_HIGH			      0x00000002
+#define PORT_HW_CFG_GPIO0_CONFIG_INPUT			      0x00000003
+
+#define PORT_HW_CFG_GPIO1_CONFIG_MASK			      0x0000000C
+#define PORT_HW_CFG_GPIO1_CONFIG_SHIFT			      2
+#define PORT_HW_CFG_GPIO1_CONFIG_NA			      0x00000000
+#define PORT_HW_CFG_GPIO1_CONFIG_LOW			      0x00000004
+#define PORT_HW_CFG_GPIO1_CONFIG_HIGH			      0x00000008
+#define PORT_HW_CFG_GPIO1_CONFIG_INPUT			      0x0000000c
+
+#define PORT_HW_CFG_GPIO2_CONFIG_MASK			      0x00000030
+#define PORT_HW_CFG_GPIO2_CONFIG_SHIFT			      4
+#define PORT_HW_CFG_GPIO2_CONFIG_NA			      0x00000000
+#define PORT_HW_CFG_GPIO2_CONFIG_LOW			      0x00000010
+#define PORT_HW_CFG_GPIO2_CONFIG_HIGH			      0x00000020
+#define PORT_HW_CFG_GPIO2_CONFIG_INPUT			      0x00000030
+
+#define PORT_HW_CFG_GPIO3_CONFIG_MASK			      0x000000C0
+#define PORT_HW_CFG_GPIO3_CONFIG_SHIFT			      6
+#define PORT_HW_CFG_GPIO3_CONFIG_NA			      0x00000000
+#define PORT_HW_CFG_GPIO3_CONFIG_LOW			      0x00000040
+#define PORT_HW_CFG_GPIO3_CONFIG_HIGH			      0x00000080
+#define PORT_HW_CFG_GPIO3_CONFIG_INPUT			      0x000000c0
+
+	/*
+	 * When KR link is required to be set to force which is not
+	 * KR-compliant, this parameter determine what is the trigger for it.
+	 * When GPIO is selected, low input will force the speed. Currently
+	 * default speed is 1G. In the future, it may be widen to select the
+	 * forced speed in with another parameter. Note when force-1G is
+	 * enabled, it override option 56: Link Speed option.
+	 */
+#define PORT_HW_CFG_FORCE_KR_ENABLER_MASK		      0x00000F00
+#define PORT_HW_CFG_FORCE_KR_ENABLER_SHIFT		      8
+#define PORT_HW_CFG_FORCE_KR_ENABLER_NOT_FORCED		      0x00000000
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO0_P0		      0x00000100
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO1_P0		      0x00000200
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO2_P0		      0x00000300
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO3_P0		      0x00000400
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO0_P1		      0x00000500
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO1_P1		      0x00000600
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO2_P1		      0x00000700
+#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO3_P1		      0x00000800
+#define PORT_HW_CFG_FORCE_KR_ENABLER_FORCED		      0x00000900
+    /*	Enable to determine with which GPIO to reset the external phy */
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_MASK		      0x000F0000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_SHIFT		      16
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_PHY_TYPE		      0x00000000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO0_P0		      0x00010000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO1_P0		      0x00020000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO2_P0		      0x00030000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO3_P0		      0x00040000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO0_P1		      0x00050000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO1_P1		      0x00060000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO2_P1		      0x00070000
+#define PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO3_P1		      0x00080000
 	/*  Enable BAM on KR */
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_MASK		      0x00100000
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_SHIFT		      20
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_DISABLED		      0x00000000
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED		      0x00100000
+
+	/*  Enable Common Mode Sense */
+#define PORT_HW_CFG_ENABLE_CMS_MASK			      0x00200000
+#define PORT_HW_CFG_ENABLE_CMS_SHIFT			      21
+#define PORT_HW_CFG_ENABLE_CMS_DISABLED			      0x00000000
+#define PORT_HW_CFG_ENABLE_CMS_ENABLED			      0x00200000
 
 	u32 speed_capability_mask2;			    /* 0x28C */
 #define PORT_HW_CFG_SPEED_CAPABILITY2_D3_MASK		      0x0000FFFF
@@ -381,6 +472,7 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727	    0x00000900
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC   0x00000a00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823	    0x00000b00
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833	    0x00000d00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE	    0x0000fd00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN	    0x0000ff00
 
@@ -2927,7 +3019,7 @@ struct tstorm_eth_mac_filter_config {
 
 
 /*
- * common flag to indicate existance of TPA.
+ * common flag to indicate existence of TPA.
  */
 struct tstorm_eth_tpa_exist {
 #if defined(__BIG_ENDIAN)

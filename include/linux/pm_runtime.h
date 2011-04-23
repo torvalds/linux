@@ -87,6 +87,11 @@ static inline bool pm_runtime_enabled(struct device *dev)
 	return !dev->power.disable_depth;
 }
 
+static inline bool pm_runtime_callbacks_present(struct device *dev)
+{
+	return !dev->power.no_callbacks;
+}
+
 static inline void pm_runtime_mark_last_busy(struct device *dev)
 {
 	ACCESS_ONCE(dev->power.last_busy) = jiffies;
@@ -133,6 +138,7 @@ static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
 static inline void pm_runtime_no_callbacks(struct device *dev) {}
 static inline void pm_runtime_irq_safe(struct device *dev) {}
 
+static inline bool pm_runtime_callbacks_present(struct device *dev) { return false; }
 static inline void pm_runtime_mark_last_busy(struct device *dev) {}
 static inline void __pm_runtime_use_autosuspend(struct device *dev,
 						bool use) {}

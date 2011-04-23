@@ -31,7 +31,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "version_info.h"
 #include "vmbus.h"
@@ -95,7 +95,7 @@ struct blkvsc_request {
 /* Per device structure */
 struct block_device_context {
 	/* point back to our device context */
-	struct vm_device *device_ctx;
+	struct hv_device *device_ctx;
 	struct kmem_cache *request_pool;
 	spinlock_t lock;
 	struct gendisk *gd;
@@ -115,13 +115,6 @@ struct block_device_context {
 	int users;
 };
 
-/* Per driver */
-struct blkvsc_driver_context {
-	/* !! These must be the first 2 fields !! */
-	/* FIXME this is a bug! */
-	struct driver_context drv_ctx;
-	struct storvsc_driver_object drv_obj;
-};
 
 /* Static decl */
 static DEFINE_MUTEX(blkvsc_mutex);
@@ -131,7 +124,8 @@ static void blkvsc_shutdown(struct device *device);
 
 static int blkvsc_open(struct block_device *bdev,  fmode_t mode);
 static int blkvsc_release(struct gendisk *disk, fmode_t mode);
-static int blkvsc_media_changed(struct gendisk *gd);
+static unsigned int blkvsc_check_events(struct gendisk *gd,
+					unsigned int clearing);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
 static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
@@ -156,13 +150,13 @@ module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
 
 /* The one and only one */
-static struct blkvsc_driver_context g_blkvsc_drv;
+static  struct storvsc_driver_object g_blkvsc_drv;
 
 static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
 	.open = blkvsc_open,
 	.release = blkvsc_release,
-	.media_changed = blkvsc_media_changed,
+	.check_events = blkvsc_check_events,
 	.revalidate_disk = blkvsc_revalidate_disk,
 	.getgeo = blkvsc_getgeo,
 	.ioctl  = blkvsc_ioctl,
@@ -173,25 +167,25 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
-	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv;
+	struct hv_driver *drv = &g_blkvsc_drv.base;
 	int ret;
 
 	storvsc_drv_obj->ring_buffer_size = blkvsc_ringbuffer_size;
 
+	drv->priv = storvsc_drv_obj;
+
 	/* Callback to client driver to complete the initialization */
 	drv_init(&storvsc_drv_obj->base);
 
-	drv_ctx->driver.name = storvsc_drv_obj->base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.deviceType,
-	       sizeof(struct hv_guid));
+	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv_ctx->probe = blkvsc_probe;
-	drv_ctx->remove = blkvsc_remove;
-	drv_ctx->shutdown = blkvsc_shutdown;
+	drv->driver.probe = blkvsc_probe;
+	drv->driver.remove = blkvsc_remove;
+	drv->driver.shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(drv_ctx);
+	ret = vmbus_child_driver_register(&drv->driver);
 
 	return ret;
 }
@@ -205,8 +199,8 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void blkvsc_drv_exit(void)
 {
-	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv;
+	struct hv_driver *drv = &g_blkvsc_drv.base;
 	struct device *current_dev;
 	int ret;
 
@@ -214,7 +208,7 @@ static void blkvsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+		ret = driver_for_each_device(&drv->driver, NULL,
 					     (void *) &current_dev,
 					     blkvsc_drv_exit_cb);
 
@@ -230,10 +224,10 @@ static void blkvsc_drv_exit(void)
 		device_unregister(current_dev);
 	}
 
-	if (storvsc_drv_obj->base.OnCleanup)
-		storvsc_drv_obj->base.OnCleanup(&storvsc_drv_obj->base);
+	if (storvsc_drv_obj->base.cleanup)
+		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(drv_ctx);
+	vmbus_child_driver_unregister(&drv->driver);
 
 	return;
 }
@@ -243,14 +237,11 @@ static void blkvsc_drv_exit(void)
  */
 static int blkvsc_probe(struct device *device)
 {
-	struct driver_context *driver_ctx =
-				driver_to_driver_context(device->driver);
-	struct blkvsc_driver_context *blkvsc_drv_ctx =
-				(struct blkvsc_driver_context *)driver_ctx;
+	struct hv_driver *drv =
+				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-				&blkvsc_drv_ctx->drv_obj;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+				drv->priv;
+	struct hv_device *device_obj = device_to_hv_device(device);
 
 	struct block_device_context *blkdev = NULL;
 	struct storvsc_device_info device_info;
@@ -262,7 +253,7 @@ static int blkvsc_probe(struct device *device)
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_probe - enter");
 
-	if (!storvsc_drv_obj->base.OnDeviceAdd) {
+	if (!storvsc_drv_obj->base.dev_add) {
 		DPRINT_ERR(BLKVSC_DRV, "OnDeviceAdd() not set");
 		ret = -1;
 		goto Cleanup;
@@ -282,7 +273,7 @@ static int blkvsc_probe(struct device *device)
 	/* ASSERT(sizeof(struct blkvsc_request_group) <= */
 	/* 	sizeof(struct blkvsc_request)); */
 
-	blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
+	blkdev->request_pool = kmem_cache_create(dev_name(&device_obj->device),
 					sizeof(struct blkvsc_request) +
 					storvsc_drv_obj->request_ext_size, 0,
 					SLAB_HWCACHE_ALIGN, NULL);
@@ -293,13 +284,13 @@ static int blkvsc_probe(struct device *device)
 
 
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.OnDeviceAdd(device_obj, &device_info);
+	ret = storvsc_drv_obj->base.dev_add(device_obj, &device_info);
 	if (ret != 0) {
 		DPRINT_ERR(BLKVSC_DRV, "unable to add blkvsc device");
 		goto Cleanup;
 	}
 
-	blkdev->device_ctx = device_ctx;
+	blkdev->device_ctx = device_obj;
 	/* this identified the device 0 or 1 */
 	blkdev->target = device_info.target_id;
 	/* this identified the ide ctrl 0 or 1 */
@@ -367,6 +358,7 @@ static int blkvsc_probe(struct device *device)
 	else
 		blkdev->gd->first_minor = 0;
 	blkdev->gd->fops = &block_ops;
+	blkdev->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	blkdev->gd->private_data = blkdev;
 	blkdev->gd->driverfs_dev = &(blkdev->device_ctx->device);
 	sprintf(blkdev->gd->disk_name, "hd%c", 'a' + devnum);
@@ -392,7 +384,7 @@ static int blkvsc_probe(struct device *device)
 	return ret;
 
 Remove:
-	storvsc_drv_obj->base.OnDeviceRemove(device_obj);
+	storvsc_drv_obj->base.dev_rm(device_obj);
 
 Cleanup:
 	if (blkdev) {
@@ -460,9 +452,9 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.PfnArray[0] = 0;
-	blkvsc_req->request.data_buffer.Offset = 0;
-	blkvsc_req->request.data_buffer.Length = 0;
+	blkvsc_req->request.data_buffer.pfn_array[0] = 0;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 0;
 
 	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
 	blkvsc_req->cmd_len = 10;
@@ -507,9 +499,9 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.PfnArray[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.Offset = 0;
-	blkvsc_req->request.data_buffer.Length = 64;
+	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 64;
 
 	blkvsc_req->cmnd[0] = INQUIRY;
 	blkvsc_req->cmnd[1] = 0x1;		/* Get product data */
@@ -594,9 +586,9 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.PfnArray[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.Offset = 0;
-	blkvsc_req->request.data_buffer.Length = 8;
+	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 8;
 
 	blkvsc_req->cmnd[0] = READ_CAPACITY;
 	blkvsc_req->cmd_len = 16;
@@ -671,9 +663,9 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.PfnArray[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.Offset = 0;
-	blkvsc_req->request.data_buffer.Length = 12;
+	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 12;
 
 	blkvsc_req->cmnd[0] = 0x9E; /* READ_CAPACITY16; */
 	blkvsc_req->cmd_len = 16;
@@ -728,28 +720,25 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
  */
 static int blkvsc_remove(struct device *device)
 {
-	struct driver_context *driver_ctx =
-				driver_to_driver_context(device->driver);
-	struct blkvsc_driver_context *blkvsc_drv_ctx =
-				(struct blkvsc_driver_context *)driver_ctx;
+	struct hv_driver *drv =
+				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-				&blkvsc_drv_ctx->drv_obj;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+				drv->priv;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
 	int ret;
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_remove()\n");
 
-	if (!storvsc_drv_obj->base.OnDeviceRemove)
+	if (!storvsc_drv_obj->base.dev_rm)
 		return -1;
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = storvsc_drv_obj->base.OnDeviceRemove(device_obj);
+	ret = storvsc_drv_obj->base.dev_rm(device_obj);
 	if (ret != 0) {
 		/* TODO: */
 		DPRINT_ERR(BLKVSC_DRV,
@@ -850,13 +839,11 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct vm_device *device_ctx = blkdev->device_ctx;
-	struct driver_context *driver_ctx =
-			driver_to_driver_context(device_ctx->device.driver);
-	struct blkvsc_driver_context *blkvsc_drv_ctx =
-			(struct blkvsc_driver_context *)driver_ctx;
+	struct hv_device *device_ctx = blkdev->device_ctx;
+	struct hv_driver *drv =
+			drv_to_hv_drv(device_ctx->device.driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-			&blkvsc_drv_ctx->drv_obj;
+			drv->priv;
 	struct hv_storvsc_request *storvsc_req;
 	int ret;
 
@@ -866,14 +853,14 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long) blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.data_buffer.Offset,
-		   blkvsc_req->request.data_buffer.Length);
+		   blkvsc_req->request.data_buffer.offset,
+		   blkvsc_req->request.data_buffer.len);
 #if 0
-	for (i = 0; i < (blkvsc_req->request.data_buffer.Length >> 12); i++) {
+	for (i = 0; i < (blkvsc_req->request.data_buffer.len >> 12); i++) {
 		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
 			   "req %p pfn[%d] %llx\n",
 			   blkvsc_req, i,
-			   blkvsc_req->request.data_buffer.PfnArray[i]);
+			   blkvsc_req->request.data_buffer.pfn_array[i]);
 	}
 #endif
 
@@ -897,7 +884,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
 	storvsc_req->sense_buffer_size = SCSI_SENSE_BUFFERSIZE;
 
-	ret = storvsc_drv_obj->on_io_request(&blkdev->device_ctx->device_obj,
+	ret = storvsc_drv_obj->on_io_request(blkdev->device_ctx,
 					   &blkvsc_req->request);
 	if (ret == 0)
 		blkdev->num_outstanding_reqs++;
@@ -907,7 +894,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 
 /*
  * We break the request into 1 or more blkvsc_requests and submit
- * them.  If we cant submit them all, we put them on the
+ * them.  If we can't submit them all, we put them on the
  * pending_list. The blkvsc_request() will work on the pending_list.
  */
 static int blkvsc_do_request(struct block_device_context *blkdev,
@@ -993,9 +980,9 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 
 					blkvsc_req->dev = blkdev;
 					blkvsc_req->req = req;
-					blkvsc_req->request.data_buffer.Offset
+					blkvsc_req->request.data_buffer.offset
 						= bvec->bv_offset;
-					blkvsc_req->request.data_buffer.Length
+					blkvsc_req->request.data_buffer.len
 						= 0;
 
 					/* Add to the group */
@@ -1011,9 +998,9 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 
 				/* Add the curr bvec/segment to the curr blkvsc_req */
 				blkvsc_req->request.data_buffer.
-					PfnArray[databuf_idx]
+					pfn_array[databuf_idx]
 						= page_to_pfn(bvec->bv_page);
-				blkvsc_req->request.data_buffer.Length
+				blkvsc_req->request.data_buffer.len
 					+= bvec->bv_len;
 
 				prev_bvec = bvec;
@@ -1116,7 +1103,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long)blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.data_buffer.Length,
+		   blkvsc_req->request.data_buffer.len,
 		   blkvsc_req->group->outstanding,
 		   blkdev->num_outstanding_reqs);
 
@@ -1352,10 +1339,11 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static int blkvsc_media_changed(struct gendisk *gd)
+static unsigned int blkvsc_check_events(struct gendisk *gd,
+					unsigned int clearing)
 {
 	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
-	return 1;
+	return DISK_EVENT_MEDIA_CHANGE;
 }
 
 static int blkvsc_revalidate_disk(struct gendisk *gd)

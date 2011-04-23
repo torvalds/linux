@@ -75,7 +75,6 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
  * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
-			     struct input_handler *src_handler,
 			     unsigned int type, unsigned int code, int value)
 {
 	struct input_handler *handler;
@@ -94,15 +93,6 @@ static void input_pass_event(struct input_dev *dev,
 				continue;
 
 			handler = handle->handler;
-
-			/*
-			 * If this is the handler that injected this
-			 * particular event we want to skip it to avoid
-			 * filters firing again and again.
-			 */
-			if (handler == src_handler)
-				continue;
-
 			if (!handler->filter) {
 				if (filtered)
 					break;
@@ -132,7 +122,7 @@ static void input_repeat_key(unsigned long data)
 	if (test_bit(dev->repeat_key, dev->key) &&
 	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
 
-		input_pass_event(dev, NULL, EV_KEY, dev->repeat_key, 2);
+		input_pass_event(dev, EV_KEY, dev->repeat_key, 2);
 
 		if (dev->sync) {
 			/*
@@ -141,7 +131,7 @@ static void input_repeat_key(unsigned long data)
 			 * Otherwise assume that the driver will send
 			 * SYN_REPORT once it's done.
 			 */
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 		}
 
 		if (dev->rep[REP_PERIOD])
@@ -174,7 +164,6 @@ static void input_stop_autorepeat(struct input_dev *dev)
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
 
 static int input_handle_abs_event(struct input_dev *dev,
-				  struct input_handler *src_handler,
 				  unsigned int code, int *pval)
 {
 	bool is_mt_event;
@@ -218,15 +207,13 @@ static int input_handle_abs_event(struct input_dev *dev,
 	/* Flush pending "slot" event */
 	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
 		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
-		input_pass_event(dev, src_handler,
-				 EV_ABS, ABS_MT_SLOT, dev->slot);
+		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
 	return INPUT_PASS_TO_HANDLERS;
 }
 
 static void input_handle_event(struct input_dev *dev,
-			       struct input_handler *src_handler,
 			       unsigned int type, unsigned int code, int value)
 {
 	int disposition = INPUT_IGNORE_EVENT;
@@ -279,8 +266,7 @@ static void input_handle_event(struct input_dev *dev,
 
 	case EV_ABS:
 		if (is_event_supported(code, dev->absbit, ABS_MAX))
-			disposition = input_handle_abs_event(dev, src_handler,
-							     code, &value);
+			disposition = input_handle_abs_event(dev, code, &value);
 
 		break;
 
@@ -338,7 +324,7 @@ static void input_handle_event(struct input_dev *dev,
 		dev->event(dev, type, code, value);
 
 	if (disposition & INPUT_PASS_TO_HANDLERS)
-		input_pass_event(dev, src_handler, type, code, value);
+		input_pass_event(dev, type, code, value);
 }
 
 /**
@@ -367,7 +353,7 @@ void input_event(struct input_dev *dev,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		add_input_randomness(type, code, value);
-		input_handle_event(dev, NULL, type, code, value);
+		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
@@ -397,8 +383,7 @@ void input_inject_event(struct input_handle *handle,
 		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
-			input_handle_event(dev, handle->handler,
-					   type, code, value);
+			input_handle_event(dev, type, code, value);
 		rcu_read_unlock();
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -611,10 +596,10 @@ static void input_dev_release_keys(struct input_dev *dev)
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, NULL, EV_KEY, code, 0);
+				input_pass_event(dev, EV_KEY, code, 0);
 			}
 		}
-		input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 }
 
@@ -848,9 +833,9 @@ int input_set_keycode(struct input_dev *dev,
 	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
 	    __test_and_clear_bit(old_keycode, dev->key)) {
 
-		input_pass_event(dev, NULL, EV_KEY, old_keycode, 0);
+		input_pass_event(dev, EV_KEY, old_keycode, 0);
 		if (dev->sync)
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -1761,6 +1746,42 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 }
 EXPORT_SYMBOL(input_set_capability);
 
+static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
+{
+	int mt_slots;
+	int i;
+	unsigned int events;
+
+	if (dev->mtsize) {
+		mt_slots = dev->mtsize;
+	} else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit)) {
+		mt_slots = dev->absinfo[ABS_MT_TRACKING_ID].maximum -
+			   dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1,
+		clamp(mt_slots, 2, 32);
+	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+		mt_slots = 2;
+	} else {
+		mt_slots = 0;
+	}
+
+	events = mt_slots + 1; /* count SYN_MT_REPORT and SYN_REPORT */
+
+	for (i = 0; i < ABS_CNT; i++) {
+		if (test_bit(i, dev->absbit)) {
+			if (input_is_mt_axis(i))
+				events += mt_slots;
+			else
+				events++;
+		}
+	}
+
+	for (i = 0; i < REL_CNT; i++)
+		if (test_bit(i, dev->relbit))
+			events++;
+
+	return events;
+}
+
 #define INPUT_CLEANSE_BITMASK(dev, type, bits)				\
 	do {								\
 		if (!test_bit(EV_##type, dev->evbit))			\
@@ -1807,6 +1828,10 @@ int input_register_device(struct input_dev *dev)
 
 	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
 	input_cleanse_bitmasks(dev);
+
+	if (!dev->hint_events_per_packet)
+		dev->hint_events_per_packet =
+				input_estimate_events_per_packet(dev);
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating

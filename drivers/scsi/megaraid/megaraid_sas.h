@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.05.29-rc1"
-#define MEGASAS_RELDATE				"Dec. 7, 2010"
-#define MEGASAS_EXT_VERSION			"Tue. Dec. 7 17:00:00 PDT 2010"
+#define MEGASAS_VERSION				"00.00.05.34-rc1"
+#define MEGASAS_RELDATE				"Feb. 24, 2011"
+#define MEGASAS_EXT_VERSION			"Thu. Feb. 24 17:00:00 PDT 2011"
 
 /*
  * Device IDs
@@ -723,6 +723,7 @@ struct megasas_ctrl_info {
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 
 #define MEGASAS_MAX_SECTORS                    (2*1024)
+#define MEGASAS_MAX_SECTORS_IEEE		(2*128)
 #define MEGASAS_DBG_LVL				1
 
 #define MEGASAS_FW_BUSY				1
@@ -1346,7 +1347,7 @@ struct megasas_instance {
 	struct timer_list io_completion_timer;
 	struct list_head internal_reset_pending_q;
 
-	/* Ptr to hba specfic information */
+	/* Ptr to hba specific information */
 	void *ctrl_context;
 	u8	msi_flag;
 	struct msix_entry msixentry;
@@ -1476,5 +1477,8 @@ struct megasas_mgmt_info {
 	struct megasas_instance *instance[MAX_MGMT_ADAPTERS];
 	int max_index;
 };
+
+#define msi_control_reg(base) (base + PCI_MSI_FLAGS)
+#define PCI_MSIX_FLAGS_ENABLE (1 << 15)
 
 #endif				/*LSI_MEGARAID_SAS_H */

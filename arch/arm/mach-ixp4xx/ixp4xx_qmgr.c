@@ -265,6 +265,11 @@ void qmgr_release_queue(unsigned int queue)
 	       qmgr_queue_descs[queue], queue);
 	qmgr_queue_descs[queue][0] = '\x0';
 #endif
+
+	while ((addr = qmgr_get_entry(queue)))
+		printk(KERN_ERR "qmgr: released queue %i not empty: 0x%08X\n",
+		       queue, addr);
+
 	__raw_writel(0, &qmgr_regs->sram[queue]);
 
 	used_sram_bitmap[0] &= ~mask[0];
@@ -275,10 +280,6 @@ void qmgr_release_queue(unsigned int queue)
 	spin_unlock_irq(&qmgr_lock);
 
 	module_put(THIS_MODULE);
-
-	while ((addr = qmgr_get_entry(queue)))
-		printk(KERN_ERR "qmgr: released queue %i not empty: 0x%08X\n",
-		       queue, addr);
 }
 
 static int qmgr_init(void)

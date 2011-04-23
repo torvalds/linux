@@ -2,7 +2,7 @@
  *  linux/arch/arm/mach-omap2/clock.h
  *
  *  Copyright (C) 2005-2009 Texas Instruments, Inc.
- *  Copyright (C) 2004-2009 Nokia Corporation
+ *  Copyright (C) 2004-2011 Nokia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
@@ -17,9 +17,6 @@
 #define __ARCH_ARM_MACH_OMAP2_CLOCK_H
 
 #include <plat/clock.h>
-
-/* The maximum error between a target DPLL rate and the rounded rate in Hz */
-#define DEFAULT_DPLL_RATE_TOLERANCE	50000
 
 /* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
 #define CORE_CLK_SRC_32K		0x0
@@ -55,7 +52,6 @@ void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);
 int omap2_clk_set_rate(struct clk *clk, unsigned long rate);
 int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent);
-int omap2_dpll_set_rate_tolerance(struct clk *clk, unsigned int tolerance);
 long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate);
 unsigned long omap3_dpll_recalc(struct clk *clk);
 unsigned long omap3_clkoutx2_recalc(struct clk *clk);
@@ -65,6 +61,9 @@ u32 omap3_dpll_autoidle_read(struct clk *clk);
 int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate);
 int omap3_noncore_dpll_enable(struct clk *clk);
 void omap3_noncore_dpll_disable(struct clk *clk);
+int omap4_dpllmx_gatectrl_read(struct clk *clk);
+void omap4_dpllmx_allow_gatectrl(struct clk *clk);
+void omap4_dpllmx_deny_gatectrl(struct clk *clk);
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);
@@ -82,6 +81,10 @@ unsigned long omap2_clksel_recalc(struct clk *clk);
 long omap2_clksel_round_rate(struct clk *clk, unsigned long target_rate);
 int omap2_clksel_set_rate(struct clk *clk, unsigned long rate);
 int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent);
+
+/* clkt_iclk.c public functions */
+extern void omap2_clkt_iclk_allow_idle(struct clk *clk);
+extern void omap2_clkt_iclk_deny_idle(struct clk *clk);
 
 u32 omap2_get_dpll_rate(struct clk *clk);
 void omap2_init_dpll_parent(struct clk *clk);
@@ -136,6 +139,7 @@ extern struct clk *vclk, *sclk;
 extern const struct clksel_rate gpt_32k_rates[];
 extern const struct clksel_rate gpt_sys_rates[];
 extern const struct clksel_rate gfx_l3_rates[];
+extern const struct clksel_rate dsp_ick_rates[];
 
 #if defined(CONFIG_ARCH_OMAP2) && defined(CONFIG_CPU_FREQ)
 extern void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
@@ -145,6 +149,13 @@ extern void omap2_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 #define omap2_clk_exit_cpufreq_table	0
 #endif
 
+extern const struct clkops clkops_omap2_iclk_dflt_wait;
+extern const struct clkops clkops_omap2_iclk_dflt;
+extern const struct clkops clkops_omap2_iclk_idle_only;
+extern const struct clkops clkops_omap2_mdmclk_dflt_wait;
+extern const struct clkops clkops_omap2xxx_dpll_ops;
 extern const struct clkops clkops_omap3_noncore_dpll_ops;
+extern const struct clkops clkops_omap3_core_dpll_ops;
+extern const struct clkops clkops_omap4_dpllmx_ops;
 
 #endif

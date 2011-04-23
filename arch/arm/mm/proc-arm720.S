@@ -63,7 +63,7 @@ ENTRY(cpu_arm720_proc_fin)
 /*
  * Function: arm720_proc_do_idle(void)
  * Params  : r0 = unused
- * Purpose : put the processer in proper idle mode
+ * Purpose : put the processor in proper idle mode
  */
 ENTRY(cpu_arm720_do_idle)
 		mov	pc, lr
@@ -185,6 +185,9 @@ ENTRY(arm720_processor_functions)
 		.word	cpu_arm720_dcache_clean_area
 		.word	cpu_arm720_switch_mm
 		.word	cpu_arm720_set_pte_ext
+		.word	0
+		.word	0
+		.word	0
 		.size	arm720_processor_functions, . - arm720_processor_functions
 
 		.section ".rodata"

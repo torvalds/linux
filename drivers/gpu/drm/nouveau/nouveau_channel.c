@@ -35,7 +35,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *pb = chan->pushbuf_bo;
 	struct nouveau_gpuobj *pushbuf = NULL;
-	int ret;
+	int ret = 0;
 
 	if (dev_priv->card_type >= NV_50) {
 		if (dev_priv->card_type < NV_C0) {
@@ -90,8 +90,7 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 	else
 		location = TTM_PL_FLAG_TT;
 
-	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, false,
-			     true, &pushbuf);
+	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, &pushbuf);
 	if (ret) {
 		NV_ERROR(dev, "error allocating DMA push buffer: %d\n", ret);
 		return NULL;
@@ -201,7 +200,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
 
-	/* Construct inital RAMFC for new channel */
+	/* Construct initial RAMFC for new channel */
 	ret = pfifo->create_context(chan);
 	if (ret) {
 		nouveau_channel_put(&chan);
@@ -279,7 +278,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 		return;
 	}
 
-	/* noone wants the channel anymore */
+	/* no one wants the channel anymore */
 	NV_DEBUG(dev, "freeing channel %d\n", chan->id);
 	nouveau_debugfs_channel_fini(chan);
 

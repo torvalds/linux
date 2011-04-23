@@ -64,7 +64,7 @@ int msg_create(struct msg_mgr **msg_man,
 
 	/* Let Bridge message module finish the create: */
 	status =
-	    (*intf_fxns->pfn_msg_create) (&hmsg_mgr, hdev_obj, msg_callback);
+	    (*intf_fxns->msg_create) (&hmsg_mgr, hdev_obj, msg_callback);
 
 	if (!status) {
 		/* Fill in DSP API message module's fields of the msg_mgr
@@ -96,7 +96,7 @@ void msg_delete(struct msg_mgr *hmsg_mgr)
 		intf_fxns = msg_mgr_obj->intf_fxns;
 
 		/* Let Bridge message module destroy the msg_mgr: */
-		(*intf_fxns->pfn_msg_delete) (hmsg_mgr);
+		(*intf_fxns->msg_delete) (hmsg_mgr);
 	} else {
 		dev_dbg(bridge, "%s: Error hmsg_mgr handle: %p\n",
 			__func__, hmsg_mgr);

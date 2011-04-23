@@ -905,7 +905,7 @@ static int uart_get_lsr_info(struct tty_struct *tty,
 	return put_user(result, value);
 }
 
-static int uart_tiocmget(struct tty_struct *tty, struct file *file)
+static int uart_tiocmget(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port = &state->port;
@@ -913,10 +913,8 @@ static int uart_tiocmget(struct tty_struct *tty, struct file *file)
 	int result = -EIO;
 
 	mutex_lock(&port->mutex);
-	if ((!file || !tty_hung_up_p(file)) &&
-	    !(tty->flags & (1 << TTY_IO_ERROR))) {
+	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
 		result = uport->mctrl;
-
 		spin_lock_irq(&uport->lock);
 		result |= uport->ops->get_mctrl(uport);
 		spin_unlock_irq(&uport->lock);
@@ -927,8 +925,7 @@ static int uart_tiocmget(struct tty_struct *tty, struct file *file)
 }
 
 static int
-uart_tiocmset(struct tty_struct *tty, struct file *file,
-	      unsigned int set, unsigned int clear)
+uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *uport = state->uart_port;
@@ -936,8 +933,7 @@ uart_tiocmset(struct tty_struct *tty, struct file *file,
 	int ret = -EIO;
 
 	mutex_lock(&port->mutex);
-	if ((!file || !tty_hung_up_p(file)) &&
-	    !(tty->flags & (1 << TTY_IO_ERROR))) {
+	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
 		uart_update_mctrl(uport, set, clear);
 		ret = 0;
 	}
@@ -1103,7 +1099,7 @@ static int uart_get_icount(struct tty_struct *tty,
  * Called via sys_ioctl.  We can use spin_lock_irq() here.
  */
 static int
-uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
+uart_ioctl(struct tty_struct *tty, unsigned int cmd,
 	   unsigned long arg)
 {
 	struct uart_state *state = tty->driver_data;
@@ -1156,7 +1152,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 
 	mutex_lock(&port->mutex);
 
-	if (tty_hung_up_p(filp)) {
+	if (tty->flags & (1 << TTY_IO_ERROR)) {
 		ret = -EIO;
 		goto out_up;
 	}
@@ -2064,7 +2060,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	/*
 	 * Re-enable the console device after suspending.
 	 */
-	if (console_suspend_enabled && uart_console(uport)) {
+	if (uart_console(uport)) {
 		/*
 		 * First try to use the console cflag setting.
 		 */
@@ -2077,9 +2073,9 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (port->tty && port->tty->termios && termios.c_cflag == 0)
 			termios = *(port->tty->termios);
 
-		uart_change_pm(state, 0);
 		uport->ops->set_termios(uport, &termios, NULL);
-		console_start(uport->cons);
+		if (console_suspend_enabled)
+			console_start(uport->cons);
 	}
 
 	if (port->flags & ASYNC_SUSPENDED) {

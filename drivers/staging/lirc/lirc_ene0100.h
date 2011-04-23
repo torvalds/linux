@@ -81,7 +81,7 @@
 
 /* CIR block settings */
 #define ENE_CIR_CONF1		0xFEC0
-#define ENE_CIR_CONF1_ADC_ON	0x7	 /* reciever on gpio40 enabled */
+#define ENE_CIR_CONF1_ADC_ON	0x7	 /* receiver on gpio40 enabled */
 #define ENE_CIR_CONF1_LEARN1	(1 << 3) /* enabled on learning mode */
 #define ENE_CIR_CONF1_TX_ON	0x30	 /* enabled on transmit */
 #define ENE_CIR_CONF1_TX_CARR	(1 << 7) /* send TX carrier or not */
@@ -96,7 +96,7 @@
 
 /* transmitter - not implemented yet */
 /* KB3926C and higher */
-/* transmission is very similiar to recieving, a byte is written to */
+/* transmission is very similar to receiving, a byte is written to */
 /* ENE_TX_INPUT, in same manner as it is read from sample buffer */
 /* sample period is fixed*/
 

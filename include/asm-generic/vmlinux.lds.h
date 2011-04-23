@@ -15,7 +15,7 @@
  *	HEAD_TEXT_SECTION
  *	INIT_TEXT_SECTION(PAGE_SIZE)
  *	INIT_DATA_SECTION(...)
- *	PERCPU(PAGE_SIZE)
+ *	PERCPU(CACHELINE_SIZE, PAGE_SIZE)
  *	__init_end = .;
  *
  *	_stext = .;
@@ -124,7 +124,8 @@
 #endif
 
 #ifdef CONFIG_EVENT_TRACING
-#define FTRACE_EVENTS()	VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
+#define FTRACE_EVENTS()	. = ALIGN(8);					\
+			VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
 			*(_ftrace_events)				\
 			VMLINUX_SYMBOL(__stop_ftrace_events) = .;
 #else
@@ -140,7 +141,8 @@
 #endif
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-#define TRACE_SYSCALLS() VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
+#define TRACE_SYSCALLS() . = ALIGN(8);					\
+			 VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
 			 *(__syscalls_metadata)				\
 			 VMLINUX_SYMBOL(__stop_syscalls_metadata) = .;
 #else
@@ -165,10 +167,8 @@
 	CPU_KEEP(exit.data)						\
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
-	. = ALIGN(32);							\
-	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
+	STRUCT_ALIGN();							\
 	*(__tracepoints)						\
-	VMLINUX_SYMBOL(__stop___tracepoints) = .;			\
 	/* implement dynamic printk debug */				\
 	. = ALIGN(8);							\
 	VMLINUX_SYMBOL(__start___verbose) = .;                          \
@@ -176,13 +176,7 @@
 	VMLINUX_SYMBOL(__stop___verbose) = .;				\
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
-	TRACE_PRINTKS()							\
-									\
-	STRUCT_ALIGN();							\
-	FTRACE_EVENTS()							\
-									\
-	STRUCT_ALIGN();							\
-	TRACE_SYSCALLS()
+	TRACE_PRINTKS()
 
 /*
  * Data section helpers
@@ -220,6 +214,10 @@
 		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
 		*(__vermagic)		/* Kernel version magic */	\
+		. = ALIGN(8);						\
+		VMLINUX_SYMBOL(__start___tracepoints_ptrs) = .;		\
+		*(__tracepoints_ptrs)	/* Tracepoints: pointer array */\
+		VMLINUX_SYMBOL(__stop___tracepoints_ptrs) = .;		\
 		*(__markers_strings)	/* Markers: strings */		\
 		*(__tracepoints_strings)/* Tracepoints: strings */	\
 	}								\
@@ -426,6 +424,12 @@
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
+#define ENTRY_TEXT							\
+		ALIGN_FUNCTION();					\
+		VMLINUX_SYMBOL(__entry_text_start) = .;			\
+		*(.entry.text)						\
+		VMLINUX_SYMBOL(__entry_text_end) = .;
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define IRQENTRY_TEXT							\
 		ALIGN_FUNCTION();					\
@@ -482,6 +486,8 @@
 	KERNEL_CTORS()							\
 	*(.init.rodata)							\
 	MCOUNT_REC()							\
+	FTRACE_EVENTS()							\
+	TRACE_SYSCALLS()						\
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)					\
@@ -683,13 +689,18 @@
 
 /**
  * PERCPU_VADDR - define output section for percpu area
+ * @cacheline: cacheline size
  * @vaddr: explicit base address (optional)
  * @phdr: destination PHDR (optional)
  *
- * Macro which expands to output section for percpu area.  If @vaddr
- * is not blank, it specifies explicit base address and all percpu
- * symbols will be offset from the given address.  If blank, @vaddr
- * always equals @laddr + LOAD_OFFSET.
+ * Macro which expands to output section for percpu area.
+ *
+ * @cacheline is used to align subsections to avoid false cacheline
+ * sharing between subsections for different purposes.
+ *
+ * If @vaddr is not blank, it specifies explicit base address and all
+ * percpu symbols will be offset from the given address.  If blank,
+ * @vaddr always equals @laddr + LOAD_OFFSET.
  *
  * @phdr defines the output PHDR to use if not blank.  Be warned that
  * output PHDR is sticky.  If @phdr is specified, the next output
@@ -700,7 +711,7 @@
  * If there is no need to put the percpu section at a predetermined
  * address, use PERCPU().
  */
-#define PERCPU_VADDR(vaddr, phdr)					\
+#define PERCPU_VADDR(cacheline, vaddr, phdr)				\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
 	.data..percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
@@ -708,7 +719,9 @@
 		*(.data..percpu..first)					\
 		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu..readmostly)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
@@ -717,18 +730,18 @@
 
 /**
  * PERCPU - define output section for percpu area, simple version
+ * @cacheline: cacheline size
  * @align: required alignment
  *
- * Align to @align and outputs output section for percpu area.  This
- * macro doesn't maniuplate @vaddr or @phdr and __per_cpu_load and
+ * Align to @align and outputs output section for percpu area.  This macro
+ * doesn't manipulate @vaddr or @phdr and __per_cpu_load and
  * __per_cpu_start will be identical.
  *
- * This macro is equivalent to ALIGN(align); PERCPU_VADDR( , ) except
- * that __per_cpu_load is defined as a relative symbol against
- * .data..percpu which is required for relocatable x86_32
- * configuration.
+ * This macro is equivalent to ALIGN(@align); PERCPU_VADDR(@cacheline,,)
+ * except that __per_cpu_load is defined as a relative symbol against
+ * .data..percpu which is required for relocatable x86_32 configuration.
  */
-#define PERCPU(align)							\
+#define PERCPU(cacheline, align)					\
 	. = ALIGN(align);						\
 	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
@@ -736,7 +749,9 @@
 		*(.data..percpu..first)					\
 		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu..readmostly)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
@@ -758,7 +773,7 @@
  * the sections that has this restriction (or similar)
  * is located before the ones requiring PAGE_SIZE alignment.
  * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
- * matches the requirment of PAGE_ALIGNED_DATA.
+ * matches the requirement of PAGE_ALIGNED_DATA.
  *
  * use 0 as page_align if page_aligned data is not used */
 #define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\

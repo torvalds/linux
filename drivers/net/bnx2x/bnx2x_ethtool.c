@@ -238,7 +238,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	speed |= (cmd->speed_hi << 16);
 
 	if (IS_MF_SI(bp)) {
-		u32 param = 0;
+		u32 part;
 		u32 line_speed = bp->link_vars.line_speed;
 
 		/* use 10G if no link detected */
@@ -251,23 +251,22 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				       REQ_BC_VER_4_SET_MF_BW);
 			return -EINVAL;
 		}
-		if (line_speed < speed) {
-			BNX2X_DEV_INFO("New speed should be less or equal "
-				       "to actual line speed\n");
+
+		part = (speed * 100) / line_speed;
+
+		if (line_speed < speed || !part) {
+			BNX2X_DEV_INFO("Speed setting should be in a range "
+				       "from 1%% to 100%% "
+				       "of actual line speed\n");
 			return -EINVAL;
 		}
-		/* load old values */
-		param = bp->mf_config[BP_VN(bp)];
 
-		/* leave only MIN value */
-		param &= FUNC_MF_CFG_MIN_BW_MASK;
+		if (bp->state != BNX2X_STATE_OPEN)
+			/* store value for following "load" */
+			bp->pending_max = part;
+		else
+			bnx2x_update_max_mf_config(bp, part);
 
-		/* set new MAX value */
-		param |= (((speed * 100) / line_speed)
-				 << FUNC_MF_CFG_MAX_BW_SHIFT)
-				  & FUNC_MF_CFG_MAX_BW_MASK;
-
-		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, param);
 		return 0;
 	}
 
@@ -1618,7 +1617,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	/* prepare the loopback packet */
 	pkt_size = (((bp->dev->mtu < ETH_MAX_PACKET_SIZE) ?
 		     bp->dev->mtu : ETH_MAX_PACKET_SIZE) + ETH_HLEN);
-	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, fp_rx->rx_buf_size);
 	if (!skb) {
 		rc = -ENOMEM;
 		goto test_loopback_exit;
@@ -1781,9 +1780,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x100, 0x350 }, /* manuf_info */
 		{ 0x450,  0xf0 }, /* feature_info */
 		{ 0x640,  0x64 }, /* upgrade_key_info */
-		{ 0x6a4,  0x64 },
 		{ 0x708,  0x70 }, /* manuf_key_info */
-		{ 0x778,  0x70 },
 		{     0,     0 }
 	};
 	__be32 buf[0x350 / 4];
@@ -1933,11 +1930,11 @@ static void bnx2x_self_test(struct net_device *dev,
 		buf[4] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
-	if (bp->port.pmf)
-		if (bnx2x_link_test(bp, is_serdes) != 0) {
-			buf[5] = 1;
-			etest->flags |= ETH_TEST_FL_FAILED;
-		}
+
+	if (bnx2x_link_test(bp, is_serdes) != 0) {
+		buf[5] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
 
 #ifdef BNX2X_EXTRA_DEBUG
 	bnx2x_panic_dump(bp);
@@ -2134,6 +2131,59 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   void *rules __always_unused)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = BNX2X_NUM_ETH_QUEUES(bp);
+		return 0;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnx2x_get_rxfh_indir(struct net_device *dev,
+				struct ethtool_rxfh_indir *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	size_t copy_size =
+		min_t(size_t, indir->size, TSTORM_INDIRECTION_TABLE_SIZE);
+
+	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
+		return -EOPNOTSUPP;
+
+	indir->size = TSTORM_INDIRECTION_TABLE_SIZE;
+	memcpy(indir->ring_index, bp->rx_indir_table,
+	       copy_size * sizeof(bp->rx_indir_table[0]));
+	return 0;
+}
+
+static int bnx2x_set_rxfh_indir(struct net_device *dev,
+				const struct ethtool_rxfh_indir *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	size_t i;
+
+	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
+		return -EOPNOTSUPP;
+
+	/* Validate size and indices */
+	if (indir->size != TSTORM_INDIRECTION_TABLE_SIZE)
+		return -EINVAL;
+	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
+		if (indir->ring_index[i] >= BNX2X_NUM_ETH_QUEUES(bp))
+			return -EINVAL;
+
+	memcpy(bp->rx_indir_table, indir->ring_index,
+	       indir->size * sizeof(bp->rx_indir_table[0]));
+	bnx2x_push_indir_table(bp);
+	return 0;
+}
+
 static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
@@ -2170,6 +2220,9 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_strings		= bnx2x_get_strings,
 	.phys_id		= bnx2x_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
+	.get_rxnfc		= bnx2x_get_rxnfc,
+	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
+	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev)

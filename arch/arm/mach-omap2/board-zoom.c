@@ -16,6 +16,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/i2c/twl.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -33,7 +34,7 @@
 
 #define ZOOM3_EHCI_RESET_GPIO		64
 
-static void __init omap_zoom_init_irq(void)
+static void __init omap_zoom_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	if (machine_is_omap_zoom2())
@@ -42,14 +43,12 @@ static void __init omap_zoom_init_irq(void)
 	else if (machine_is_omap_zoom3())
 		omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
 					  h8mbx00u0mer0em_sdrc_params);
-
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* WLAN IRQ - GPIO 162 */
-	OMAP3_MUX(MCBSP1_CLKX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+	OMAP3_MUX(MCBSP1_CLKX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 	/* WLAN POWER ENABLE - GPIO 101 */
 	OMAP3_MUX(CAM_D2, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	/* WLAN SDIO: MMC3 CMD */
@@ -106,10 +105,10 @@ static struct mtd_partition zoom_nand_partitions[] = {
 	},
 };
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[1]		= EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[2]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+	.port_mode[0]		= OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[1]		= OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[2]		= OMAP_USBHS_PORT_MODE_UNUSED,
 	.phy_reset		= true,
 	.reset_gpio_port[0]	= -EINVAL,
 	.reset_gpio_port[1]	= ZOOM3_EHCI_RESET_GPIO,
@@ -123,11 +122,11 @@ static void __init omap_zoom_init(void)
 	} else if (machine_is_omap_zoom3()) {
 		omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
 		omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
-		usb_ehci_init(&ehci_pdata);
+		usbhs_init(&usbhs_bdata);
 	}
 
-	board_nand_init(zoom_nand_partitions,
-			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS);
+	board_nand_init(zoom_nand_partitions, ARRAY_SIZE(zoom_nand_partitions),
+						ZOOM_NAND_CS, NAND_BUSWIDTH_16);
 	zoom_debugboard_init();
 	zoom_peripherals_init();
 	zoom_display_init();
@@ -135,18 +134,20 @@ static void __init omap_zoom_init(void)
 
 MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_zoom_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_zoom_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap_timer,
 MACHINE_END
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_zoom_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_zoom_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap_timer,
 MACHINE_END

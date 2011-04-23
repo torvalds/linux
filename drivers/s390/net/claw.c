@@ -264,8 +264,10 @@ static struct device *claw_root_dev;
 /* ccwgroup table  */
 
 static struct ccwgroup_driver claw_group_driver = {
-        .owner       = THIS_MODULE,
-        .name        = "claw",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "claw",
+	},
         .max_slaves  = 2,
         .driver_id   = 0xC3D3C1E6,
         .probe       = claw_probe,
@@ -282,8 +284,10 @@ static struct ccw_device_id claw_ids[] = {
 MODULE_DEVICE_TABLE(ccw, claw_ids);
 
 static struct ccw_driver claw_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "claw",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "claw",
+	},
 	.ids	= claw_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
@@ -775,7 +779,7 @@ claw_irq_handler(struct ccw_device *cdev,
 	case CLAW_START_WRITE:
 		if (p_ch->irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			dev_info(&cdev->dev,
-				"%s: Unit Check Occured in "
+				"%s: Unit Check Occurred in "
 				"write channel\n", dev->name);
 			clear_bit(0, (void *)&p_ch->IO_active);
 			if (p_ch->irb->ecw[0] & 0x80) {

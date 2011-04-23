@@ -303,6 +303,7 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = ADP5020_MAX_BRIGHTNESS;
 	bl = backlight_device_register(pdev->name, data->master, data,
 				       &adp5520_bl_ops, &props);

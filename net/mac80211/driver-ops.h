@@ -5,9 +5,9 @@
 #include "ieee80211_i.h"
 #include "driver-trace.h"
 
-static inline int drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
+static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	return local->ops->tx(&local->hw, skb);
+	local->ops->tx(&local->hw, skb);
 }
 
 static inline int drv_start(struct ieee80211_local *local)
@@ -382,17 +382,17 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 				   struct ieee80211_sub_if_data *sdata,
 				   enum ieee80211_ampdu_mlme_action action,
 				   struct ieee80211_sta *sta, u16 tid,
-				   u16 *ssn)
+				   u16 *ssn, u8 buf_size)
 {
 	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 
-	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn);
+	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn, buf_size);
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
-					       sta, tid, ssn);
+					       sta, tid, ssn, buf_size);
 
 	trace_drv_return_int(local, ret);
 
@@ -493,6 +493,63 @@ static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
 	trace_drv_return_int(local, ret);
 
 	return ret;
+}
+
+static inline int drv_offchannel_tx(struct ieee80211_local *local,
+				    struct sk_buff *skb,
+				    struct ieee80211_channel *chan,
+				    enum nl80211_channel_type channel_type,
+				    unsigned int wait)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_offchannel_tx(local, skb, chan, channel_type, wait);
+	ret = local->ops->offchannel_tx(&local->hw, skb, chan,
+					channel_type, wait);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_offchannel_tx_cancel_wait(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_offchannel_tx_cancel_wait(local);
+	ret = local->ops->offchannel_tx_cancel_wait(&local->hw);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_set_ringparam(struct ieee80211_local *local,
+				    u32 tx, u32 rx)
+{
+	int ret = -ENOTSUPP;
+
+	might_sleep();
+
+	trace_drv_set_ringparam(local, tx, rx);
+	if (local->ops->set_ringparam)
+		ret = local->ops->set_ringparam(&local->hw, tx, rx);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_get_ringparam(struct ieee80211_local *local,
+				     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
+{
+	might_sleep();
+
+	trace_drv_get_ringparam(local, tx, tx_max, rx, rx_max);
+	if (local->ops->get_ringparam)
+		local->ops->get_ringparam(&local->hw, tx, tx_max, rx, rx_max);
+	trace_drv_return_void(local);
 }
 
 #endif /* __MAC80211_DRIVER_OPS */

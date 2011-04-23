@@ -1917,7 +1917,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 		return;
 	}
 	/* Now we try to fetch requests from the request queue */
-	while (!blk_queue_plugged(queue) && (req = blk_peek_request(queue))) {
+	while ((req = blk_peek_request(queue))) {
 		if (basedev->features & DASD_FEATURE_READONLY &&
 		    rq_data_dir(req) == WRITE) {
 			DBF_DEV_EVENT(DBF_ERR, basedev,

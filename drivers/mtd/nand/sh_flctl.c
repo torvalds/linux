@@ -78,7 +78,7 @@ static void start_translation(struct sh_flctl *flctl)
 
 static void timeout_error(struct sh_flctl *flctl, const char *str)
 {
-	dev_err(&flctl->pdev->dev, "Timeout occured in %s\n", str);
+	dev_err(&flctl->pdev->dev, "Timeout occurred in %s\n", str);
 }
 
 static void wait_completion(struct sh_flctl *flctl)

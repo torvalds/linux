@@ -17,13 +17,22 @@
 #ifndef	_bcmsdh_h_
 #define	_bcmsdh_h_
 
+#include <linux/skbuff.h>
 #define BCMSDH_ERROR_VAL	0x0001	/* Error */
 #define BCMSDH_INFO_VAL		0x0002	/* Info */
 extern const uint bcmsdh_msglevel;
 
 #ifdef BCMDBG
-#define BCMSDH_ERROR(x)	do { if ((bcmsdh_msglevel & BCMSDH_ERROR_VAL) && net_ratelimit()) printf x; } while (0)
-#define BCMSDH_INFO(x)	do { if ((bcmsdh_msglevel & BCMSDH_INFO_VAL) && net_ratelimit()) printf x; } while (0)
+#define BCMSDH_ERROR(x) \
+	do { \
+		if ((bcmsdh_msglevel & BCMSDH_ERROR_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define BCMSDH_INFO(x)	\
+	do { \
+		if ((bcmsdh_msglevel & BCMSDH_INFO_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
 #else				/* BCMDBG */
 #define BCMSDH_ERROR(x)
 #define BCMSDH_INFO(x)
@@ -40,11 +49,10 @@ typedef void (*bcmsdh_cb_fn_t) (void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-extern bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
-				    void **regsva, uint irq);
+extern bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq);
 
 /* Detach - freeup resources allocated in attach */
-extern int bcmsdh_detach(struct osl_info *osh, void *sdh);
+extern int bcmsdh_detach(void *sdh);
 
 /* Query if SD device interrupts are enabled */
 extern bool bcmsdh_intr_query(void *sdh);
@@ -57,7 +65,7 @@ extern int bcmsdh_intr_disable(void *sdh);
 extern int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
 extern int bcmsdh_intr_dereg(void *sdh);
 
-#if defined(BCMDBG)
+#if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */
 extern bool bcmsdh_intr_pending(void *sdh);
 #endif
@@ -174,8 +182,7 @@ extern void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
 typedef struct {
 	/* attach to device */
 	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
-			 u16 func, uint bustype, void *regsva,
-			 struct osl_info *osh, void *param);
+			 u16 func, uint bustype, void *regsva, void *param);
 	/* detach from device */
 	void (*detach) (void *ch);
 } bcmsdh_driver_t;

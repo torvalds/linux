@@ -147,22 +147,15 @@
 /**
  * struct ade7854_state - device instance specific data
  * @spi:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
- * @inter:		used to check if new interrupt has been triggered
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
  * @indio_dev:		industrial I/O device structure
- * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct ade7854_state {
 	struct spi_device		*spi;
 	struct i2c_client               *i2c;
-	struct work_struct		work_trigger_to_ring;
-	s64				last_timestamp;
 	struct iio_dev			*indio_dev;
-	struct iio_trigger		*trig;
 	u8				*tx;
 	u8				*rx;
 	int				(*read_reg_8) (struct device *, u16, u8 *);
@@ -179,67 +172,5 @@ struct ade7854_state {
 
 extern int ade7854_probe(struct ade7854_state *st, struct device *dev);
 extern int ade7854_remove(struct ade7854_state *st);
-
-#if defined(CONFIG_IIO_RING_BUFFER) && defined(THIS_HAS_RING_BUFFER_SUPPORT)
-/* At the moment triggers are only used for ring buffer
- * filling. This may change!
- */
-
-enum ade7854_scan {
-	ADE7854_SCAN_PHA_V,
-	ADE7854_SCAN_PHB_V,
-	ADE7854_SCAN_PHC_V,
-	ADE7854_SCAN_PHA_I,
-	ADE7854_SCAN_PHB_I,
-	ADE7854_SCAN_PHC_I,
-};
-
-void ade7854_remove_trigger(struct iio_dev *indio_dev);
-int ade7854_probe_trigger(struct iio_dev *indio_dev);
-
-ssize_t ade7854_read_data_from_ring(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf);
-
-
-int ade7854_configure_ring(struct iio_dev *indio_dev);
-void ade7854_unconfigure_ring(struct iio_dev *indio_dev);
-
-int ade7854_initialize_ring(struct iio_ring_buffer *ring);
-void ade7854_uninitialize_ring(struct iio_ring_buffer *ring);
-#else /* CONFIG_IIO_RING_BUFFER */
-
-static inline void ade7854_remove_trigger(struct iio_dev *indio_dev)
-{
-}
-static inline int ade7854_probe_trigger(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline ssize_t
-ade7854_read_data_from_ring(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	return 0;
-}
-
-static inline int ade7854_configure_ring(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline void ade7854_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-static inline int ade7854_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-static inline void ade7854_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-}
-#endif /* CONFIG_IIO_RING_BUFFER */
 
 #endif

@@ -42,13 +42,13 @@
 typedef PREPACK struct dset_descriptor_s {
   struct dset_descriptor_s  *next;         /* List link. NULL only at the last
                                               descriptor */
-  A_UINT16                   id;           /* Dset ID */
-  A_UINT16                   size;         /* Dset size. */
+  u16 id;           /* Dset ID */
+  u16 size;         /* Dset size. */
   void                      *DataPtr;      /* Pointer to raw data for standard
                                               DataSet or pointer to original
                                               dset_descriptor for patched
                                               DataSet */
-  A_UINT32                   data_type;    /* DSET_TYPE_*, above */
+  u32 data_type;    /* DSET_TYPE_*, above */
 
   void                      *AuxPtr;       /* Additional data that might
                                               needed for data_type. For

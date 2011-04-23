@@ -30,7 +30,7 @@
  * enable the interrupt.
  */
 
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 enum armv6_perf_types {
 	ARMV6_PERFCTR_ICACHE_MISS	    = 0x0,
 	ARMV6_PERFCTR_IBUF_STALL	    = 0x1,
@@ -474,7 +474,7 @@ armv6pmu_handle_irq(int irq_num,
 			continue;
 
 		hwc = &event->hw;
-		armpmu_event_update(event, hwc, idx);
+		armpmu_event_update(event, hwc, idx, 1);
 		data.period = event->hw.last_period;
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
@@ -669,4 +669,4 @@ static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return NULL;
 }
-#endif	/* CONFIG_CPU_V6 */
+#endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */

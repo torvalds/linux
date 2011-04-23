@@ -204,7 +204,7 @@ static int nand_dev_ready(struct mtd_info *mtd)
 
 static const char *part_probes[] = { "cmdlinepart", NULL };
 
-struct platform_nand_data nand_platdata = {
+static struct platform_nand_data nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
 		.chip_offset		= 0,

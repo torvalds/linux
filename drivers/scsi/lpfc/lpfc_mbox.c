@@ -1263,7 +1263,8 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (phba->sli_rev == LPFC_SLI_REV3 && phba->vpd.sli3Feat.cerbm) {
 		if (phba->cfg_enable_bg)
 			mb->un.varCfgPort.cbg = 1; /* configure BlockGuard */
-		mb->un.varCfgPort.cdss = 1; /* Configure Security */
+		if (phba->cfg_enable_dss)
+			mb->un.varCfgPort.cdss = 1; /* Configure Security */
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.ccrp = 1; /* Command Ring Polling */
 		mb->un.varCfgPort.max_hbq = lpfc_sli_hbq_count();
@@ -1692,7 +1693,7 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
  * @mbox: pointer to lpfc mbox command.
  * @subsystem: The sli4 config sub mailbox subsystem.
  * @opcode: The sli4 config sub mailbox command opcode.
- * @length: Length of the sli4 config mailbox command.
+ * @length: Length of the sli4 config mailbox command (including sub-header).
  *
  * This routine sets up the header fields of SLI4 specific mailbox command
  * for sending IOCTL command.
@@ -1723,14 +1724,14 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	if (emb) {
 		/* Set up main header fields */
 		bf_set(lpfc_mbox_hdr_emb, &sli4_config->header.cfg_mhdr, 1);
-		sli4_config->header.cfg_mhdr.payload_length =
-					LPFC_MBX_CMD_HDR_LENGTH + length;
+		sli4_config->header.cfg_mhdr.payload_length = length;
 		/* Set up sub-header fields following main header */
 		bf_set(lpfc_mbox_hdr_opcode,
 			&sli4_config->header.cfg_shdr.request, opcode);
 		bf_set(lpfc_mbox_hdr_subsystem,
 			&sli4_config->header.cfg_shdr.request, subsystem);
-		sli4_config->header.cfg_shdr.request.request_length = length;
+		sli4_config->header.cfg_shdr.request.request_length =
+			length - LPFC_MBX_CMD_HDR_LENGTH;
 		return length;
 	}
 
@@ -1833,7 +1834,7 @@ lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
  * @fcf_index: index to fcf table.
  *
  * This routine routine allocates and constructs non-embedded mailbox command
- * for reading a FCF table entry refered by @fcf_index.
+ * for reading a FCF table entry referred by @fcf_index.
  *
  * Return: pointer to the mailbox command constructed if successful, otherwise
  * NULL.
@@ -1902,6 +1903,7 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 
 	/* Set up host requested features. */
 	bf_set(lpfc_mbx_rq_ftr_rq_fcpi, &mboxq->u.mqe.un.req_ftrs, 1);
+	bf_set(lpfc_mbx_rq_ftr_rq_perfh, &mboxq->u.mqe.un.req_ftrs, 1);
 
 	/* Enable DIF (block guard) only if configured to do so. */
 	if (phba->cfg_enable_bg)
@@ -2159,17 +2161,16 @@ lpfc_supported_pages(struct lpfcMboxq *mbox)
 }
 
 /**
- * lpfc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params
- *                    mailbox command.
+ * lpfc_pc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params mbox cmd.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
  * The PORT_CAPABILITIES SLI4 parameters mailbox command is issued to
  * retrieve the particular SLI4 features supported by the port.
  **/
 void
-lpfc_sli4_params(struct lpfcMboxq *mbox)
+lpfc_pc_sli4_params(struct lpfcMboxq *mbox)
 {
-	struct lpfc_mbx_sli4_params *sli4_params;
+	struct lpfc_mbx_pc_sli4_params *sli4_params;
 
 	memset(mbox, 0, sizeof(*mbox));
 	sli4_params = &mbox->u.mqe.un.sli4_params;

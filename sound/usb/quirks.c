@@ -266,7 +266,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
  * audio-interface quirks
  *
  * returns zero if no standard audio/MIDI parsing is needed.
- * returns a postive value if standard audio/midi interfaces are parsed
+ * returns a positive value if standard audio/midi interfaces are parsed
  * after this.
  * returns a negative value at error.
  */
@@ -425,6 +425,34 @@ static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * Some sound cards from Native Instruments are in fact compliant to the USB
+ * audio standard of version 2 and other approved USB standards, even though
+ * they come up as vendor-specific device when first connected.
+ *
+ * However, they can be told to come up with a new set of descriptors
+ * upon their next enumeration, and the interfaces announced by the new
+ * descriptors will then be handled by the kernel's class drivers. As the
+ * product ID will also change, no further checks are required.
+ */
+
+static int snd_usb_nativeinstruments_boot_quirk(struct usb_device *dev)
+{
+	int ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+				  0xaf, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				  cpu_to_le16(1), 0, NULL, 0, 1000);
+
+	if (ret < 0)
+		return ret;
+
+	usb_reset_device(dev);
+
+	/* return -EAGAIN, so the creation of an audio interface for this
+	 * temporary device is aborted. The device will reconnect with a
+	 * new product ID */
+	return -EAGAIN;
+}
+
+/*
  * Setup quirks
  */
 #define AUDIOPHILE_SET			0x01 /* if set, parse device_setup */
@@ -489,26 +517,32 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 	u32 id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 			le16_to_cpu(dev->descriptor.idProduct));
 
-	/* SB Extigy needs special boot-up sequence */
-	/* if more models come, this will go to the quirk list. */
-	if (id == USB_ID(0x041e, 0x3000))
+	switch (id) {
+	case USB_ID(0x041e, 0x3000):
+		/* SB Extigy needs special boot-up sequence */
+		/* if more models come, this will go to the quirk list. */
 		return snd_usb_extigy_boot_quirk(dev, intf);
 
-	/* SB Audigy 2 NX needs its own boot-up magic, too */
-	if (id == USB_ID(0x041e, 0x3020))
+	case USB_ID(0x041e, 0x3020):
+		/* SB Audigy 2 NX needs its own boot-up magic, too */
 		return snd_usb_audigy2nx_boot_quirk(dev);
 
-	/* C-Media CM106 / Turtle Beach Audio Advantage Roadie */
-	if (id == USB_ID(0x10f5, 0x0200))
+	case USB_ID(0x10f5, 0x0200):
+		/* C-Media CM106 / Turtle Beach Audio Advantage Roadie */
 		return snd_usb_cm106_boot_quirk(dev);
 
-	/* C-Media CM6206 / CM106-Like Sound Device */
-	if (id == USB_ID(0x0d8c, 0x0102))
+	case USB_ID(0x0d8c, 0x0102):
+		/* C-Media CM6206 / CM106-Like Sound Device */
 		return snd_usb_cm6206_boot_quirk(dev);
 
-	/* Access Music VirusTI Desktop */
-	if (id == USB_ID(0x133e, 0x0815))
+	case USB_ID(0x133e, 0x0815):
+		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
+
+	case USB_ID(0x17cc, 0x1010): /* Traktor Audio 6 */
+	case USB_ID(0x17cc, 0x1020): /* Traktor Audio 10 */
+		return snd_usb_nativeinstruments_boot_quirk(dev);
+	}
 
 	return 0;
 }
@@ -532,7 +566,7 @@ int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat 
 }
 
 /*
- * For E-Mu 0404USB/0202USB/TrackerPre sample rate should be set for device,
+ * For E-Mu 0404USB/0202USB/TrackerPre/0204 sample rate should be set for device,
  * not for interface.
  */
 
@@ -589,6 +623,7 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
 	case USB_ID(0x041e, 0x3f04): /* E-Mu 0404 USB */
 	case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
+	case USB_ID(0x041e, 0x3f19): /* E-Mu 0204 USB */
 		set_format_emu_quirk(subs, fmt);
 		break;
 	}

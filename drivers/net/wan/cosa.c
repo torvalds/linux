@@ -329,7 +329,7 @@ static int startmicrocode(struct cosa_data *cosa, int address);
 static int readmem(struct cosa_data *cosa, char __user *data, int addr, int len);
 static int cosa_reset_and_read_id(struct cosa_data *cosa, char *id);
 
-/* Auxilliary functions */
+/* Auxiliary functions */
 static int get_wait_data(struct cosa_data *cosa);
 static int put_wait_data(struct cosa_data *cosa, int data);
 static int puthexnumber(struct cosa_data *cosa, int number);

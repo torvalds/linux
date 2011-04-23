@@ -36,7 +36,7 @@ extern void error(char *x);
 
 #ifdef CONFIG_DEBUG_ICEDCC
 
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 
 static void icedcc_putc(int ch)
 {
@@ -52,16 +52,6 @@ static void icedcc_putc(int ch)
 	asm("mcr p14, 0, %0, c0, c5, 0" : : "r" (ch));
 }
 
-#elif defined(CONFIG_CPU_V7)
-
-static void icedcc_putc(int ch)
-{
-	asm(
-	"wait:	mrc	p14, 0, pc, c0, c1, 0			\n\
-		bcs	wait					\n\
-		mcr     p14, 0, %0, c0, c5, 0			"
-	: : "r" (ch));
-}
 
 #elif defined(CONFIG_CPU_XSCALE)
 

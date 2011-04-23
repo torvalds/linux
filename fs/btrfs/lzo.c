@@ -280,6 +280,7 @@ static int lzo_decompress_biovec(struct list_head *ws,
 	unsigned long tot_out;
 	unsigned long tot_len;
 	char *buf;
+	bool may_late_unmap, need_unmap;
 
 	data_in = kmap(pages_in[0]);
 	tot_len = read_compress_length(data_in);
@@ -300,11 +301,13 @@ static int lzo_decompress_biovec(struct list_head *ws,
 
 		tot_in += in_len;
 		working_bytes = in_len;
+		may_late_unmap = need_unmap = false;
 
 		/* fast path: avoid using the working buffer */
 		if (in_page_bytes_left >= in_len) {
 			buf = data_in + in_offset;
 			bytes = in_len;
+			may_late_unmap = true;
 			goto cont;
 		}
 
@@ -329,14 +332,17 @@ cont:
 				if (working_bytes == 0 && tot_in >= tot_len)
 					break;
 
-				kunmap(pages_in[page_in_index]);
-				page_in_index++;
-				if (page_in_index >= total_pages_in) {
+				if (page_in_index + 1 >= total_pages_in) {
 					ret = -1;
-					data_in = NULL;
 					goto done;
 				}
-				data_in = kmap(pages_in[page_in_index]);
+
+				if (may_late_unmap)
+					need_unmap = true;
+				else
+					kunmap(pages_in[page_in_index]);
+
+				data_in = kmap(pages_in[++page_in_index]);
 
 				in_page_bytes_left = PAGE_CACHE_SIZE;
 				in_offset = 0;
@@ -346,6 +352,8 @@ cont:
 		out_len = lzo1x_worst_compress(PAGE_CACHE_SIZE);
 		ret = lzo1x_decompress_safe(buf, in_len, workspace->buf,
 					    &out_len);
+		if (need_unmap)
+			kunmap(pages_in[page_in_index - 1]);
 		if (ret != LZO_E_OK) {
 			printk(KERN_WARNING "btrfs decompress failed\n");
 			ret = -1;
@@ -363,8 +371,7 @@ cont:
 			break;
 	}
 done:
-	if (data_in)
-		kunmap(pages_in[page_in_index]);
+	kunmap(pages_in[page_in_index]);
 	return ret;
 }
 

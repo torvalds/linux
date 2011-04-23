@@ -550,7 +550,7 @@ cy_as_misc_destroy_device(
    West Bridge.
 
    Description
-   This function intializes the hardware to establish basic
+   This function initializes the hardware to establish basic
    communication with the West Bridge device.  This is always the first
    function called to initialize communication with the West Bridge
    device.
@@ -620,7 +620,7 @@ cy_as_misc_in_standby(
    * Nestable: YES
 
    Returns
-   * CY_AS_ERROR_SUCCESS - the firmware was sucessfully downloaded
+   * CY_AS_ERROR_SUCCESS - the firmware was successfully downloaded
    * CY_AS_ERROR_INVALID_HANDLE
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device
    *	was not configured
@@ -836,7 +836,7 @@ cy_as_misc_reset(
    ownership.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - the p port sucessfully acquired the
+   * CY_AS_ERROR_SUCCESS - the p port successfully acquired the
    * 	resource of interest
    * CY_AS_ERROR_INVALID_HANDLE
    * CY_AS_ERROR_NOT_CONFIGURED
@@ -879,7 +879,7 @@ cy_as_misc_acquire_resource(
    * Valid In Asynchronous Callback: NO
 
    Returns
-   * CY_AS_ERROR_SUCCESS - the p port sucessfully released
+   * CY_AS_ERROR_SUCCESS - the p port successfully released
    *	the resource of interest
    * CY_AS_ERROR_INVALID_HANDLE
    * CY_AS_ERROR_NOT_CONFIGURED
@@ -929,7 +929,7 @@ cy_as_misc_release_resource(
 
    Returns
    * CY_AS_ERROR_SUCCESS - the trace configuration has been
-   *	sucessfully changed
+   *	successfully changed
    * CY_AS_ERROR_NO_SUCH_BUS - the bus specified does not exist
    * CY_AS_ERROR_NO_SUCH_DEVICE - the specified media/device
    *	pair does not exist

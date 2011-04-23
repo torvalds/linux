@@ -54,7 +54,7 @@ config OMAP_SMARTREFLEX
 	  user must write 1 to
 		/debug/voltage/vdd_<X>/smartreflex/autocomp,
 	  where X is mpu or core for OMAP3.
-	  Optionallly autocompensation can be enabled in the kernel
+	  Optionally autocompensation can be enabled in the kernel
 	  by default during system init via the enable_on_init flag
 	  which an be passed as platform data to the smartreflex driver.
 

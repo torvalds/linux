@@ -212,6 +212,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	pdev = pci_get_slot(pbus, PCI_DEVFN(device, function));
 	if (pdev) {
+		pdev->current_state = PCI_D0;
 		slot->flags |= (SLOT_ENABLED | SLOT_POWEREDON);
 		pci_dev_put(pdev);
 	}
@@ -584,7 +585,7 @@ static void remove_bridge(acpi_handle handle)
 
 	/*
 	 * On root bridges with hotplug slots directly underneath (ie,
-	 * no p2p bridge inbetween), we call cleanup_bridge(). 
+	 * no p2p bridge between), we call cleanup_bridge(). 
 	 *
 	 * The else clause cleans up root bridges that either had no
 	 * hotplug slots at all, or had a p2p bridge underneath.

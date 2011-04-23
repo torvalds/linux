@@ -352,7 +352,7 @@ Changes from 20041229 to 20050110
 	  lpfc_scsiport.c
 	* In remote port changes: no longer nulling target->pnode when
 	  removing from mapped list. Pnode get nulled when the node is
-	  freed (after nodev tmo). This bug was causing i/o recieved in
+	  freed (after nodev tmo). This bug was causing i/o received in
 	  the small window while the device was blocked to be errored w/
 	  did_no_connect. With the fix, it returns host_busy
 	  (per the pre-remote port changes).
@@ -530,7 +530,7 @@ Changes from 20041018 to 20041123
 	  coherent mappings.  Note: There are more consistent mappings
 	  that are using pci_dma_sync calls. Probably these should be
 	  removed as well.
-	* Modified lpfc_free_scsi_buf to accomodate all three scsi_buf
+	* Modified lpfc_free_scsi_buf to accommodate all three scsi_buf
 	  free types to alleviate miscellaneous panics with cable pull
 	  testing.
 	* Set hotplug to default 0 and lpfc_target_remove to not remove
@@ -583,7 +583,7 @@ Changes from 20041018 to 20041123
 	  included more than once.
 	* Replaced "set_current_state(TASK_UNINTERRUPTIBLE);
 	  schedule_timeout(timeout)" with "msleep(timeout)".
-	* Fixnode was loosing starget when rediscovered. We saw messages
+	* Fixnode was losing starget when rediscovered. We saw messages
 	  like: lpfc 0000:04:02.0: 0:0263 Cannot block scsi target as a
 	  result.  Moved starget field into struct lpfc_target which is
 	  referenced from the node.
@@ -604,7 +604,7 @@ Changes from 20041018 to 20041123
 	* Make 3 functions static: lpfc_get_hba_sym_node_name,
 	  lpfc_intr_prep and lpfc_setup_slim_access.  Move lpfc_intr_prep
 	  and lpfc_setup_slim_access so they're defined before being used.
-	* Remove an unecessary list_del() in lpfc_hbadisc.c.
+	* Remove an unnecessary list_del() in lpfc_hbadisc.c.
 	* Set nlp_state before calling lpfc_nlp_list() since this will
 	  potentially call fc_target_unblock which may cause a race in
 	  queuecommand by releasing host_lock.
@@ -753,7 +753,7 @@ Changes from 20040908 to 20040920
 	* Changed version number to 8.0.12
 	* Removed used #defines: DEFAULT_PCI_LATENCY_CLOCKS and
 	  PCI_LATENCY_VALUE from lpfc_hw.h.
-	* Changes to accomodate rnid.
+	* Changes to accommodate rnid.
 	* Fix RSCN handling so RSCN NS queries only effect NPorts found in
 	  RSCN data.
 	* If we rcv a plogi on a NPort queued up for discovery, clear the
@@ -813,7 +813,7 @@ Changes from 20040908 to 20040920
 	  counter instead, brd_no isn't reused anymore.  Also some tiny
 	  whitespace cleanups in surrounding code.
 	* Reorder functions in lpfc_els.c to remove need for prototypes.
-	* Removed unsed prototypes from lpfc_crtn.h -
+	* Removed unused prototypes from lpfc_crtn.h -
 	  lpfc_ip_timeout_handler, lpfc_read_pci and lpfc_revoke.
 	* Removed some unused prototypes from lpfc_crtn.h -
 	  lpfc_scsi_hba_reset, lpfc_scsi_issue_inqsn,
@@ -863,7 +863,7 @@ Changes from 20040823 to 20040908
 	* Minimal support for SCSI flat space addressing/volume set
 	  addressing.  Use 16 bits of LUN address so that flat
 	  addressing/VSA will work.
-	* Changed 2 occurences of if( 1 != f(x)) to if(f(x) != 1)
+	* Changed 2 occurrences of if( 1 != f(x)) to if(f(x) != 1)
 	* Drop include of lpfc_cfgparm.h.
 	* Reduce stack usage of lpfc_fdmi_cmd in lpfc_ct.c.
 	* Add minimum range checking property to /sys write/store
@@ -1449,7 +1449,7 @@ Changes from 20040402 to 20040409
 	* Removed lpfc_els_chk_latt from the lpfc_config_post function.
 	  lpfc_els_chk_latt will enable the link event interrupts when
 	  flogi is pending which causes two discovery state machines
-	  running parallely.
+	  running parallelly.
 	* Add pci_disable_device to unload path.
 	* Move lpfc_sleep_event from lpfc_fcp.c to lpfc_util_ioctl.c
 	* Call dma_map_single() & pci_map_single() directly instead of via
@@ -1590,7 +1590,7 @@ Changes from 20040326 to 20040402
 	  ELX_WRITE_HS ELX_WRITE_HA ELX_WRITE_CA ELX_READ_HC
 	  ELX_READ_HS ELX_READ_HA ELX_READ_CA ELX_READ_MB ELX_RESET
 	  ELX_READ_HBA ELX_INSTANCE ELX_LIP.  Also introduced
-	  attribute "set" to be used in conjuction with the above
+	  attribute "set" to be used in conjunction with the above
 	  attributes.
 	* Removed DLINK, enque and deque declarations now that clock
 	  doesn't use them anymore

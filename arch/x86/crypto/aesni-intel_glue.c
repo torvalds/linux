@@ -828,9 +828,15 @@ static int rfc4106_init(struct crypto_tfm *tfm)
 	struct cryptd_aead *cryptd_tfm;
 	struct aesni_rfc4106_gcm_ctx *ctx = (struct aesni_rfc4106_gcm_ctx *)
 		PTR_ALIGN((u8 *)crypto_tfm_ctx(tfm), AESNI_ALIGN);
+	struct crypto_aead *cryptd_child;
+	struct aesni_rfc4106_gcm_ctx *child_ctx;
 	cryptd_tfm = cryptd_alloc_aead("__driver-gcm-aes-aesni", 0, 0);
 	if (IS_ERR(cryptd_tfm))
 		return PTR_ERR(cryptd_tfm);
+
+	cryptd_child = cryptd_aead_child(cryptd_tfm);
+	child_ctx = aesni_rfc4106_gcm_ctx_get(cryptd_child);
+	memcpy(child_ctx, ctx, sizeof(*ctx));
 	ctx->cryptd_tfm = cryptd_tfm;
 	tfm->crt_aead.reqsize = sizeof(struct aead_request)
 		+ crypto_aead_reqsize(&cryptd_tfm->base);
@@ -873,22 +879,18 @@ rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 	crypto_ablkcipher_clear_flags(ctr_tfm, ~0);
 
 	ret = crypto_ablkcipher_setkey(ctr_tfm, key, key_len);
-	if (ret) {
-		crypto_free_ablkcipher(ctr_tfm);
-		return ret;
-	}
+	if (ret)
+		goto out_free_ablkcipher;
 
+	ret = -ENOMEM;
 	req = ablkcipher_request_alloc(ctr_tfm, GFP_KERNEL);
-	if (!req) {
-		crypto_free_ablkcipher(ctr_tfm);
-		return -EINVAL;
-	}
+	if (!req)
+		goto out_free_ablkcipher;
 
 	req_data = kmalloc(sizeof(*req_data), GFP_KERNEL);
-	if (!req_data) {
-		crypto_free_ablkcipher(ctr_tfm);
-		return -ENOMEM;
-	}
+	if (!req_data)
+		goto out_free_request;
+
 	memset(req_data->iv, 0, sizeof(req_data->iv));
 
 	/* Clear the data in the hash sub key container to zero.*/
@@ -913,8 +915,10 @@ rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 		if (!ret)
 			ret = req_data->result.err;
 	}
-	ablkcipher_request_free(req);
 	kfree(req_data);
+out_free_request:
+	ablkcipher_request_free(req);
+out_free_ablkcipher:
 	crypto_free_ablkcipher(ctr_tfm);
 	return ret;
 }
@@ -925,6 +929,9 @@ static int rfc4106_set_key(struct crypto_aead *parent, const u8 *key,
 	int ret = 0;
 	struct crypto_tfm *tfm = crypto_aead_tfm(parent);
 	struct aesni_rfc4106_gcm_ctx *ctx = aesni_rfc4106_gcm_ctx_get(parent);
+	struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
+	struct aesni_rfc4106_gcm_ctx *child_ctx =
+                                 aesni_rfc4106_gcm_ctx_get(cryptd_child);
 	u8 *new_key_mem = NULL;
 
 	if (key_len < 4) {
@@ -968,6 +975,7 @@ static int rfc4106_set_key(struct crypto_aead *parent, const u8 *key,
 		goto exit;
 	}
 	ret = rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
+	memcpy(child_ctx, ctx, sizeof(*ctx));
 exit:
 	kfree(new_key_mem);
 	return ret;
@@ -999,7 +1007,6 @@ static int rfc4106_encrypt(struct aead_request *req)
 	int ret;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct aesni_rfc4106_gcm_ctx *ctx = aesni_rfc4106_gcm_ctx_get(tfm);
-	struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
 
 	if (!irq_fpu_usable()) {
 		struct aead_request *cryptd_req =
@@ -1008,6 +1015,7 @@ static int rfc4106_encrypt(struct aead_request *req)
 		aead_request_set_tfm(cryptd_req, &ctx->cryptd_tfm->base);
 		return crypto_aead_encrypt(cryptd_req);
 	} else {
+		struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
 		kernel_fpu_begin();
 		ret = cryptd_child->base.crt_aead.encrypt(req);
 		kernel_fpu_end();
@@ -1020,7 +1028,6 @@ static int rfc4106_decrypt(struct aead_request *req)
 	int ret;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct aesni_rfc4106_gcm_ctx *ctx = aesni_rfc4106_gcm_ctx_get(tfm);
-	struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
 
 	if (!irq_fpu_usable()) {
 		struct aead_request *cryptd_req =
@@ -1029,6 +1036,7 @@ static int rfc4106_decrypt(struct aead_request *req)
 		aead_request_set_tfm(cryptd_req, &ctx->cryptd_tfm->base);
 		return crypto_aead_decrypt(cryptd_req);
 	} else {
+		struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
 		kernel_fpu_begin();
 		ret = cryptd_child->base.crt_aead.decrypt(req);
 		kernel_fpu_end();

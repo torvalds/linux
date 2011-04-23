@@ -786,7 +786,7 @@ static int xemaclite_mdio_read(struct mii_bus *bus, int phy_id, int reg)
  * @reg:	register number to write to
  * @val:	value to write to the register number specified by reg
  *
- * This fucntion waits till the device is ready to accept a new MDIO
+ * This function waits till the device is ready to accept a new MDIO
  * request and then writes the val to the MDIO Write Data register.
  */
 static int xemaclite_mdio_write(struct mii_bus *bus, int phy_id, int reg,
@@ -1101,8 +1101,7 @@ static struct net_device_ops xemaclite_netdev_ops;
  * Return:	0, if the driver is bound to the Emaclite device, or
  *		a negative error if there is failure.
  */
-static int __devinit xemaclite_of_probe(struct platform_device *ofdev,
-					const struct of_device_id *match)
+static int __devinit xemaclite_of_probe(struct platform_device *ofdev)
 {
 	struct resource r_irq; /* Interrupt resources */
 	struct resource r_mem; /* IO mem resources */
@@ -1288,7 +1287,7 @@ static struct of_device_id xemaclite_of_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, xemaclite_of_match);
 
-static struct of_platform_driver xemaclite_of_driver = {
+static struct platform_driver xemaclite_of_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1306,7 +1305,7 @@ static struct of_platform_driver xemaclite_of_driver = {
 static int __init xemaclite_init(void)
 {
 	/* No kernel boot options used, we just need to register the driver */
-	return of_register_platform_driver(&xemaclite_of_driver);
+	return platform_driver_register(&xemaclite_of_driver);
 }
 
 /**
@@ -1314,7 +1313,7 @@ static int __init xemaclite_init(void)
  */
 static void __exit xemaclite_cleanup(void)
 {
-	of_unregister_platform_driver(&xemaclite_of_driver);
+	platform_driver_unregister(&xemaclite_of_driver);
 }
 
 module_init(xemaclite_init);

@@ -101,7 +101,7 @@ enum p9_req_status_t {
  * Transport use an array to track outstanding requests
  * instead of a list.  While this may incurr overhead during initial
  * allocation or expansion, it makes request lookup much easier as the
- * tag id is a index into an array.  (We use tag+1 so that we can accomodate
+ * tag id is a index into an array.  (We use tag+1 so that we can accommodate
  * the -1 tag for the T_VERSION request).
  * This also has the nice effect of only having to allocate wait_queues
  * once, instead of constantly allocating and freeing them.  Its possible
@@ -218,8 +218,8 @@ void p9_client_disconnect(struct p9_client *clnt);
 void p9_client_begin_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 					char *uname, u32 n_uname, char *aname);
-struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
-								int clone);
+struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
+		char **wnames, int clone);
 int p9_client_open(struct p9_fid *fid, int mode);
 int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 							char *extension);

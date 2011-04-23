@@ -24,6 +24,7 @@ config SND_OMAP_SOC_RX51
 	select OMAP_MCBSP
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TLV320AIC3X
+	select SND_SOC_TPA6130A2
 	help
 	  Say Y if you want to add support for SoC audio on Nokia RX-51
 	  hardware. This is also known as Nokia N900 product.

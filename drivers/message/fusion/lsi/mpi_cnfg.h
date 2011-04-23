@@ -2593,6 +2593,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 #define MPI_SAS_IOUNIT0_RATE_SATA_OOB_COMPLETE              (0x03)
 #define MPI_SAS_IOUNIT0_RATE_1_5                            (0x08)
 #define MPI_SAS_IOUNIT0_RATE_3_0                            (0x09)
+#define MPI_SAS_IOUNIT0_RATE_6_0                            (0x0A)
 
 /* see mpi_sas.h for values for SAS IO Unit Page 0 ControllerPhyDeviceInfo values */
 

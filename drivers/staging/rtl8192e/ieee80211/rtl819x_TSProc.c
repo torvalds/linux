@@ -135,7 +135,7 @@ void ResetRxTsEntry(PRX_TS_RECORD pTS)
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->RxIndicateSeq = 0xffff; // This indicate the RxIndicateSeq is not used now!!
 	pTS->RxTimeoutIndicateSeq = 0xffff; // This indicate the RxTimeoutIndicateSeq is not used now!!
-	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recepient
+	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recipient
 }
 
 void TSInitialize(struct ieee80211_device *ieee)
@@ -293,7 +293,6 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 
 				if (pRet->TSpec.f.TSInfo.field.ucTSID == TID)
 					if(pRet->TSpec.f.TSInfo.field.ucDirection == dir)
 					{
-	//					printk("Bingo! got it\n");
 						break;
 					}
 

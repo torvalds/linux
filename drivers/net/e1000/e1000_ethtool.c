@@ -160,7 +160,7 @@ static int e1000_get_settings(struct net_device *netdev,
 		                                   &adapter->link_duplex);
 		ecmd->speed = adapter->link_speed;
 
-		/* unfortunatly FULL_DUPLEX != DUPLEX_FULL
+		/* unfortunately FULL_DUPLEX != DUPLEX_FULL
 		 *          and HALF_DUPLEX != DUPLEX_HALF */
 
 		if (adapter->link_duplex == FULL_DUPLEX)

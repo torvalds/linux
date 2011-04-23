@@ -72,7 +72,7 @@ static struct dasd_discipline dasd_eckd_discipline;
 static struct ccw_device_id dasd_eckd_ids[] = {
 	{ CCW_DEVICE_DEVTYPE (0x3990, 0, 0x3390, 0), .driver_info = 0x1},
 	{ CCW_DEVICE_DEVTYPE (0x2105, 0, 0x3390, 0), .driver_info = 0x2},
-	{ CCW_DEVICE_DEVTYPE (0x3880, 0, 0x3390, 0), .driver_info = 0x3},
+	{ CCW_DEVICE_DEVTYPE (0x3880, 0, 0x3380, 0), .driver_info = 0x3},
 	{ CCW_DEVICE_DEVTYPE (0x3990, 0, 0x3380, 0), .driver_info = 0x4},
 	{ CCW_DEVICE_DEVTYPE (0x2105, 0, 0x3380, 0), .driver_info = 0x5},
 	{ CCW_DEVICE_DEVTYPE (0x9343, 0, 0x9345, 0), .driver_info = 0x6},
@@ -2648,6 +2648,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		dasd_sfree_request(cqr, startdev);
 		return ERR_PTR(-EAGAIN);
 	}
+	len_to_track_end = 0;
 	/*
 	 * A tidaw can address 4k of memory, but must not cross page boundaries
 	 * We can let the block layer handle this by setting
@@ -2857,7 +2858,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	/*
 	 * struct PFX_eckd_data has up to 2 byte as extended parameter
 	 * this is needed for write full track and has to be mentioned
-	 * seperately
+	 * separately
 	 * add 8 instead of 2 to keep 8 byte boundary
 	 */
 	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;
@@ -3981,8 +3982,10 @@ out_err:
 }
 
 static struct ccw_driver dasd_eckd_driver = {
-	.name	     = "dasd-eckd",
-	.owner	     = THIS_MODULE,
+	.driver = {
+		.name	= "dasd-eckd",
+		.owner	= THIS_MODULE,
+	},
 	.ids	     = dasd_eckd_ids,
 	.probe	     = dasd_eckd_probe,
 	.remove      = dasd_generic_remove,

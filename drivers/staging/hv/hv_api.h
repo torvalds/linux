@@ -23,6 +23,11 @@
 #ifndef __HV_API_H
 #define __HV_API_H
 
+struct hv_guid {
+	unsigned char data[16];
+};
+
+
 
 /* Status codes for hypervisor operations. */
 
@@ -48,14 +53,14 @@
 
 /*
  * HV_STATUS_INVALID_ALIGNMENT
- * The hypervisor could not perform the operation beacuse a parameter has an
+ * The hypervisor could not perform the operation because a parameter has an
  * invalid alignment.
  */
 #define HV_STATUS_INVALID_ALIGNMENT			((u16)0x0004)
 
 /*
  * HV_STATUS_INVALID_PARAMETER
- * The hypervisor could not perform the operation beacuse an invalid parameter
+ * The hypervisor could not perform the operation because an invalid parameter
  * was specified.
  */
 #define HV_STATUS_INVALID_PARAMETER			((u16)0x0005)

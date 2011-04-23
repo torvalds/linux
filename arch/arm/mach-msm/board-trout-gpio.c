@@ -74,8 +74,6 @@ static int msm_gpiolib_direction_output(struct gpio_chip *chip,
 
 static int trout_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct msm_gpio_chip *msm_gpio = to_msm_gpio_chip(chip);
-
 	return TROUT_GPIO_TO_INT(offset + chip->base);
 }
 
@@ -216,17 +214,17 @@ int __init trout_init_gpio(void)
 {
 	int i;
 	for(i = TROUT_INT_START; i <= TROUT_INT_END; i++) {
-		set_irq_chip(i, &trout_gpio_irq_chip);
-		set_irq_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &trout_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(msm_gpio_banks); i++)
 		gpiochip_add(&msm_gpio_banks[i].chip);
 
-	set_irq_type(MSM_GPIO_TO_INT(17), IRQF_TRIGGER_HIGH);
-	set_irq_chained_handler(MSM_GPIO_TO_INT(17), trout_gpio_irq_handler);
-	set_irq_wake(MSM_GPIO_TO_INT(17), 1);
+	irq_set_irq_type(MSM_GPIO_TO_INT(17), IRQF_TRIGGER_HIGH);
+	irq_set_chained_handler(MSM_GPIO_TO_INT(17), trout_gpio_irq_handler);
+	irq_set_irq_wake(MSM_GPIO_TO_INT(17), 1);
 
 	return 0;
 }

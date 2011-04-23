@@ -241,8 +241,8 @@ static int avc_write(struct firedtv *fdtv)
 		if (unlikely(avc_debug))
 			debug_fcp(fdtv->avc_data, fdtv->avc_data_length);
 
-		err = fdtv->backend->write(fdtv, FCP_COMMAND_REGISTER,
-				fdtv->avc_data, fdtv->avc_data_length);
+		err = fdtv_write(fdtv, FCP_COMMAND_REGISTER,
+				 fdtv->avc_data, fdtv->avc_data_length);
 		if (err) {
 			dev_err(fdtv->device, "FCP command write failed\n");
 
@@ -1322,7 +1322,7 @@ static int cmp_read(struct firedtv *fdtv, u64 addr, __be32 *data)
 
 	mutex_lock(&fdtv->avc_mutex);
 
-	ret = fdtv->backend->read(fdtv, addr, data);
+	ret = fdtv_read(fdtv, addr, data);
 	if (ret < 0)
 		dev_err(fdtv->device, "CMP: read I/O error\n");
 
@@ -1340,7 +1340,7 @@ static int cmp_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
 	/* data[] is stack-allocated and should not be DMA-mapped. */
 	memcpy(fdtv->avc_data, data, 8);
 
-	ret = fdtv->backend->lock(fdtv, addr, fdtv->avc_data);
+	ret = fdtv_lock(fdtv, addr, fdtv->avc_data);
 	if (ret < 0)
 		dev_err(fdtv->device, "CMP: lock I/O error\n");
 	else
@@ -1405,10 +1405,7 @@ repeat:
 		/* FIXME: this is for the worst case - optimize */
 		set_opcr_overhead_id(opcr, 0);
 
-		/*
-		 * FIXME: allocate isochronous channel and bandwidth at IRM
-		 * fdtv->backend->alloc_resources(fdtv, channels_mask, bw);
-		 */
+		/* FIXME: allocate isochronous channel and bandwidth at IRM */
 	}
 
 	set_opcr_p2p_connections(opcr, get_opcr_p2p_connections(*opcr) + 1);
@@ -1424,8 +1421,6 @@ repeat:
 		/*
 		 * FIXME: if old_opcr.P2P_Connections > 0,
 		 * deallocate isochronous channel and bandwidth at IRM
-		 * if (...)
-		 *	fdtv->backend->dealloc_resources(fdtv, channel, bw);
 		 */
 
 		if (++attempts < 6) /* arbitrary limit */

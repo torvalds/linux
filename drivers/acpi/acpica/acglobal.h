@@ -273,6 +273,10 @@ ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
 ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
 
+/* Initialization sequencing */
+
+ACPI_EXTERN u8 acpi_gbl_reg_methods_executed;
+
 /* Misc */
 
 ACPI_EXTERN u32 acpi_gbl_original_mode;

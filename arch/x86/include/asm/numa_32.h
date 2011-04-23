@@ -4,7 +4,12 @@
 extern int numa_off;
 
 extern int pxm_to_nid(int pxm);
-extern void numa_remove_cpu(int cpu);
+
+#ifdef CONFIG_NUMA
+extern int __cpuinit numa_cpu_node(int cpu);
+#else	/* CONFIG_NUMA */
+static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }
+#endif	/* CONFIG_NUMA */
 
 #ifdef CONFIG_HIGHMEM
 extern void set_highmem_pages_init(void);

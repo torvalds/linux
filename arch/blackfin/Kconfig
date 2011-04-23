@@ -31,6 +31,7 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
 	select IRQ_PER_CPU if SMP
 
@@ -690,13 +691,13 @@ endmenu
 
 
 menu "Blackfin Kernel Optimizations"
-	depends on !SMP
 
 comment "Memory Optimizations"
 
 config I_ENTRY_L1
 	bool "Locate interrupt entry code in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, interrupt entry code (STORE/RESTORE CONTEXT) is linked
 	  into L1 instruction memory. (less latency)
@@ -704,6 +705,7 @@ config I_ENTRY_L1
 config EXCPT_IRQ_SYSC_L1
 	bool "Locate entire ASM lowlevel exception / interrupt - Syscall and CPLB handler code in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the entire ASM lowlevel exception and interrupt entry code
 	  (STORE/RESTORE CONTEXT) is linked into L1 instruction memory.
@@ -712,6 +714,7 @@ config EXCPT_IRQ_SYSC_L1
 config DO_IRQ_L1
 	bool "Locate frequently called do_irq dispatcher function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the frequently called do_irq dispatcher function is linked
 	  into L1 instruction memory. (less latency)
@@ -719,6 +722,7 @@ config DO_IRQ_L1
 config CORE_TIMER_IRQ_L1
 	bool "Locate frequently called timer_interrupt() function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the frequently called timer_interrupt() function is linked
 	  into L1 instruction memory. (less latency)
@@ -726,6 +730,7 @@ config CORE_TIMER_IRQ_L1
 config IDLE_L1
 	bool "Locate frequently idle function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the frequently called idle function is linked
 	  into L1 instruction memory. (less latency)
@@ -733,6 +738,7 @@ config IDLE_L1
 config SCHEDULE_L1
 	bool "Locate kernel schedule function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the frequently called kernel schedule is linked
 	  into L1 instruction memory. (less latency)
@@ -740,6 +746,7 @@ config SCHEDULE_L1
 config ARITHMETIC_OPS_L1
 	bool "Locate kernel owned arithmetic functions in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, arithmetic functions are linked
 	  into L1 instruction memory. (less latency)
@@ -747,6 +754,7 @@ config ARITHMETIC_OPS_L1
 config ACCESS_OK_L1
 	bool "Locate access_ok function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the access_ok function is linked
 	  into L1 instruction memory. (less latency)
@@ -754,6 +762,7 @@ config ACCESS_OK_L1
 config MEMSET_L1
 	bool "Locate memset function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the memset function is linked
 	  into L1 instruction memory. (less latency)
@@ -761,6 +770,7 @@ config MEMSET_L1
 config MEMCPY_L1
 	bool "Locate memcpy function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the memcpy function is linked
 	  into L1 instruction memory. (less latency)
@@ -768,6 +778,7 @@ config MEMCPY_L1
 config STRCMP_L1
 	bool "locate strcmp function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the strcmp function is linked
 	  into L1 instruction memory (less latency).
@@ -775,6 +786,7 @@ config STRCMP_L1
 config STRNCMP_L1
 	bool "locate strncmp function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the strncmp function is linked
 	  into L1 instruction memory (less latency).
@@ -782,6 +794,7 @@ config STRNCMP_L1
 config STRCPY_L1
 	bool "locate strcpy function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the strcpy function is linked
 	  into L1 instruction memory (less latency).
@@ -789,6 +802,7 @@ config STRCPY_L1
 config STRNCPY_L1
 	bool "locate strncpy function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, the strncpy function is linked
 	  into L1 instruction memory (less latency).
@@ -796,6 +810,7 @@ config STRNCPY_L1
 config SYS_BFIN_SPINLOCK_L1
 	bool "Locate sys_bfin_spinlock function in L1 Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled, sys_bfin_spinlock function is linked
 	  into L1 instruction memory. (less latency)
@@ -803,6 +818,7 @@ config SYS_BFIN_SPINLOCK_L1
 config IP_CHECKSUM_L1
 	bool "Locate IP Checksum function in L1 Memory"
 	default n
+	depends on !SMP
 	help
 	  If enabled, the IP Checksum function is linked
 	  into L1 instruction memory. (less latency)
@@ -811,7 +827,7 @@ config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
 	default y if !BF54x
 	default n if BF54x
-	depends on !BF531
+	depends on !SMP && !BF531
 	help
 	  If enabled, cacheline_aligned data is linked
 	  into L1 data memory. (less latency)
@@ -819,7 +835,7 @@ config CACHELINE_ALIGNED_L1
 config SYSCALL_TAB_L1
 	bool "Locate Syscall Table L1 Data Memory"
 	default n
-	depends on !BF531
+	depends on !SMP && !BF531
 	help
 	  If enabled, the Syscall LUT is linked
 	  into L1 data memory. (less latency)
@@ -827,16 +843,16 @@ config SYSCALL_TAB_L1
 config CPLB_SWITCH_TAB_L1
 	bool "Locate CPLB Switch Tables L1 Data Memory"
 	default n
-	depends on !BF531
+	depends on !SMP && !BF531
 	help
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
-config CACHE_FLUSH_L1
-	bool "Locate cache flush funcs in L1 Inst Memory"
+config ICACHE_FLUSH_L1
+	bool "Locate icache flush funcs in L1 Inst Memory"
 	default y
 	help
-	  If enabled, the Blackfin cache flushing functions are linked
+	  If enabled, the Blackfin icache flushing functions are linked
 	  into L1 instruction memory.
 
 	  Note that this might be required to address anomalies, but
@@ -844,9 +860,18 @@ config CACHE_FLUSH_L1
 	  If you are using a processor affected by an anomaly, the build
 	  system will double check for you and prevent it.
 
+config DCACHE_FLUSH_L1
+	bool "Locate dcache flush funcs in L1 Inst Memory"
+	default y
+	depends on !SMP
+	help
+	  If enabled, the Blackfin dcache flushing functions are linked
+	  into L1 instruction memory.
+
 config APP_STACK_L1
 	bool "Support locating application stack in L1 Scratch Memory"
 	default y
+	depends on !SMP
 	help
 	  If enabled the application stack can be located in L1
 	  scratch memory (less latency).
@@ -856,7 +881,7 @@ config APP_STACK_L1
 config EXCEPTION_L1_SCRATCH
 	bool "Locate exception stack in L1 Scratch Memory"
 	default n
-	depends on !APP_STACK_L1
+	depends on !SMP && !APP_STACK_L1
 	help
 	  Whenever an exception occurs, use the L1 Scratch memory for
 	  stack storage.  You cannot place the stacks of FLAT binaries
@@ -868,6 +893,7 @@ comment "Speed Optimizations"
 config BFIN_INS_LOWOVERHEAD
 	bool "ins[bwl] low overhead, higher interrupt latency"
 	default y
+	depends on !SMP
 	help
 	  Reads on the Blackfin are speculative. In Blackfin terms, this means
 	  they can be interrupted at any time (even after they have been issued

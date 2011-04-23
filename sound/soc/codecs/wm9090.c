@@ -144,7 +144,7 @@ struct wm9090_priv {
 	void *control_data;
 };
 
-static int wm9090_volatile(unsigned int reg)
+static int wm9090_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM9090_SOFTWARE_RESET:
@@ -518,7 +518,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 			for (i = 1; i < codec->driver->reg_cache_size; i++) {
 				if (reg_cache[i] == wm9090_reg_defaults[i])
 					continue;
-				if (wm9090_volatile(i))
+				if (wm9090_volatile(codec, i))
 					continue;
 
 				ret = snd_soc_write(codec, i, reg_cache[i]);
@@ -551,7 +551,6 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 static int wm9090_probe(struct snd_soc_codec *codec)
 {
 	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	codec->control_data = wm9090->control_data;
@@ -576,22 +575,30 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
-	reg_cache[WM9090_IN1_LINE_INPUT_A_VOLUME] |= WM9090_IN1_VU
-		| WM9090_IN1A_ZC;
-	reg_cache[WM9090_IN1_LINE_INPUT_B_VOLUME] |= WM9090_IN1_VU
-		| WM9090_IN1B_ZC;
-	reg_cache[WM9090_IN2_LINE_INPUT_A_VOLUME] |= WM9090_IN2_VU
-		| WM9090_IN2A_ZC;
-	reg_cache[WM9090_IN2_LINE_INPUT_B_VOLUME] |= WM9090_IN2_VU
-		| WM9090_IN2B_ZC;
-	reg_cache[WM9090_SPEAKER_VOLUME_LEFT] |=
-		WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC;
-	reg_cache[WM9090_LEFT_OUTPUT_VOLUME] |=
-		WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC;
-	reg_cache[WM9090_RIGHT_OUTPUT_VOLUME] |=
-		WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC;
+	snd_soc_update_bits(codec, WM9090_IN1_LINE_INPUT_A_VOLUME,
+			    WM9090_IN1_VU | WM9090_IN1A_ZC,
+			    WM9090_IN1_VU | WM9090_IN1A_ZC);
+	snd_soc_update_bits(codec, WM9090_IN1_LINE_INPUT_B_VOLUME,
+			    WM9090_IN1_VU | WM9090_IN1B_ZC,
+			    WM9090_IN1_VU | WM9090_IN1B_ZC);
+	snd_soc_update_bits(codec, WM9090_IN2_LINE_INPUT_A_VOLUME,
+			    WM9090_IN2_VU | WM9090_IN2A_ZC,
+			    WM9090_IN2_VU | WM9090_IN2A_ZC);
+	snd_soc_update_bits(codec, WM9090_IN2_LINE_INPUT_B_VOLUME,
+			    WM9090_IN2_VU | WM9090_IN2B_ZC,
+			    WM9090_IN2_VU | WM9090_IN2B_ZC);
+	snd_soc_update_bits(codec, WM9090_SPEAKER_VOLUME_LEFT,
+			    WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC,
+			    WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC);
+	snd_soc_update_bits(codec, WM9090_LEFT_OUTPUT_VOLUME,
+			    WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC,
+			    WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC);
+	snd_soc_update_bits(codec, WM9090_RIGHT_OUTPUT_VOLUME,
+			    WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC,
+			    WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC);
 
-	reg_cache[WM9090_CLOCKING_1] |= WM9090_TOCLK_ENA;
+	snd_soc_update_bits(codec, WM9090_CLOCKING_1,
+			    WM9090_TOCLK_ENA, WM9090_TOCLK_ENA);
 
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

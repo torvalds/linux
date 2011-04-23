@@ -20,7 +20,6 @@
 #include <asm/unistd.h>
 #include <asm/vfp.h>
 
-#include "ptrace.h"
 #include "signal.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -348,8 +347,6 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	if (restore_sigframe(regs, frame))
 		goto badframe;
 
-	single_step_trap(current);
-
 	return regs->ARM_r0;
 
 badframe:
@@ -382,8 +379,6 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 
 	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
 		goto badframe;
-
-	single_step_trap(current);
 
 	return regs->ARM_r0;
 
@@ -474,7 +469,9 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	unsigned long handler = (unsigned long)ka->sa.sa_handler;
 	unsigned long retcode;
 	int thumb = 0;
-	unsigned long cpsr = regs->ARM_cpsr & ~PSR_f;
+	unsigned long cpsr = regs->ARM_cpsr & ~(PSR_f | PSR_E_BIT);
+
+	cpsr |= PSR_ENDSTATE;
 
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
@@ -704,8 +701,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (try_to_freeze())
 		goto no_signal;
 
-	single_step_clear(current);
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		sigset_t *oldset;
@@ -724,7 +719,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
 		}
-		single_step_set(current);
 		return;
 	}
 
@@ -770,7 +764,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 		}
 	}
-	single_step_set(current);
 }
 
 asmlinkage void
