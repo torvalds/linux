@@ -1391,7 +1391,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		  __entry->wasfromfl,
 		  __entry->isfl,
 		  __entry->userdata,
-		  __entry->firstblock)
+		  (unsigned long long)__entry->firstblock)
 )
 
 #define DEFINE_ALLOC_EVENT(name) \
