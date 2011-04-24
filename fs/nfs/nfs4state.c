@@ -1604,6 +1604,7 @@ static void nfs4_set_lease_expired(struct nfs_client *clp, int status)
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 		break;
 	case -NFS4ERR_DELAY:
+	case -ETIMEDOUT:
 	case -EAGAIN:
 		ssleep(1);
 		break;

@@ -3751,7 +3751,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 				sizeof(setclientid.sc_uaddr), "%s.%u.%u",
 				clp->cl_ipaddr, port >> 8, port & 255);
 
-		status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
+		status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 		if (status != -NFS4ERR_CLID_INUSE)
 			break;
 		if (loop != 0) {
@@ -3779,7 +3779,7 @@ int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 	int status;
 
 	now = jiffies;
-	status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
+	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (status == 0) {
 		spin_lock(&clp->cl_lock);
 		clp->cl_lease_time = fsinfo.lease_time * HZ;
@@ -4793,7 +4793,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 				init_utsname()->domainname,
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
-	status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
+	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (!status)
 		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
 	dprintk("<-- %s status= %d\n", __func__, status);
@@ -4876,7 +4876,8 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
 		.rpc_client = clp->cl_rpcclient,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_get_lease_time_ops,
-		.callback_data = &data
+		.callback_data = &data,
+		.flags = RPC_TASK_TIMEOUT,
 	};
 	int status;
 
@@ -5178,7 +5179,7 @@ static int _nfs4_proc_create_session(struct nfs_client *clp)
 	nfs4_init_channel_attrs(&args);
 	args.flags = (SESSION4_PERSIST | SESSION4_BACK_CHAN);
 
-	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, 0);
+	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 
 	if (!status)
 		/* Verify the session's negotiated channel_attrs values */
@@ -5245,7 +5246,7 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 	msg.rpc_argp = session;
 	msg.rpc_resp = NULL;
 	msg.rpc_cred = NULL;
-	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, 0);
+	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 
 	if (status)
 		printk(KERN_WARNING
