@@ -73,11 +73,12 @@
 #define MemAbs      (1<<11)      /* Memory operand is absolute displacement */
 #define String      (1<<12)     /* String instruction (rep capable) */
 #define Stack       (1<<13)     /* Stack instruction (push/pop) */
+#define GroupMask   (7<<14)     /* Opcode uses one of the group mechanisms */
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
-#define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
-#define Prefix      (1<<16)     /* Instruction varies with 66/f2/f3 prefix */
+#define GroupDual   (2<<14)     /* Alternate decoding of mod == 3 */
+#define Prefix      (3<<14)     /* Instruction varies with 66/f2/f3 prefix */
+#define RMExt       (4<<14)     /* Opcode extension in ModRM r/m if mod == 3 */
 #define Sse         (1<<17)     /* SSE Vector instruction */
-#define RMExt       (1<<18)     /* Opcode extension in ModRM r/m if mod == 3 */
 /* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
@@ -2969,7 +2970,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define N    D(0)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
-#define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
+#define GD(_f, _g) { .flags = ((_f) | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define II(_f, _e, _i) \
 	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
@@ -3337,9 +3338,9 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes, dual, goffset, simd_prefix;
+	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
 	bool op_prefix = false;
-	struct opcode opcode, *g_mod012, *g_mod3;
+	struct opcode opcode;
 	struct operand memop = { .type = OP_NONE };
 
 	c->eip = ctxt->eip;
@@ -3433,44 +3434,43 @@ done_prefixes:
 	}
 	c->d = opcode.flags;
 
-	if (c->d & Group) {
-		dual = c->d & GroupDual;
-		c->modrm = insn_fetch(u8, 1, c->eip);
-		--c->eip;
-
-		if (c->d & GroupDual) {
-			g_mod012 = opcode.u.gdual->mod012;
-			g_mod3 = opcode.u.gdual->mod3;
-		} else
-			g_mod012 = g_mod3 = opcode.u.group;
-
-		c->d &= ~(Group | GroupDual);
-
-		goffset = (c->modrm >> 3) & 7;
-
-		if ((c->modrm >> 6) == 3)
-			opcode = g_mod3[goffset];
-		else
-			opcode = g_mod012[goffset];
-
-		if (opcode.flags & RMExt) {
+	while (c->d & GroupMask) {
+		switch (c->d & GroupMask) {
+		case Group:
+			c->modrm = insn_fetch(u8, 1, c->eip);
+			--c->eip;
+			goffset = (c->modrm >> 3) & 7;
+			opcode = opcode.u.group[goffset];
+			break;
+		case GroupDual:
+			c->modrm = insn_fetch(u8, 1, c->eip);
+			--c->eip;
+			goffset = (c->modrm >> 3) & 7;
+			if ((c->modrm >> 6) == 3)
+				opcode = opcode.u.gdual->mod3[goffset];
+			else
+				opcode = opcode.u.gdual->mod012[goffset];
+			break;
+		case RMExt:
 			goffset = c->modrm & 7;
 			opcode = opcode.u.group[goffset];
-		}
-
-		c->d |= opcode.flags;
-	}
-
-	if (c->d & Prefix) {
-		if (c->rep_prefix && op_prefix)
+			break;
+		case Prefix:
+			if (c->rep_prefix && op_prefix)
+				return X86EMUL_UNHANDLEABLE;
+			simd_prefix = op_prefix ? 0x66 : c->rep_prefix;
+			switch (simd_prefix) {
+			case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
+			case 0x66: opcode = opcode.u.gprefix->pfx_66; break;
+			case 0xf2: opcode = opcode.u.gprefix->pfx_f2; break;
+			case 0xf3: opcode = opcode.u.gprefix->pfx_f3; break;
+			}
+			break;
+		default:
 			return X86EMUL_UNHANDLEABLE;
-		simd_prefix = op_prefix ? 0x66 : c->rep_prefix;
-		switch (simd_prefix) {
-		case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
-		case 0x66: opcode = opcode.u.gprefix->pfx_66; break;
-		case 0xf2: opcode = opcode.u.gprefix->pfx_f2; break;
-		case 0xf3: opcode = opcode.u.gprefix->pfx_f3; break;
 		}
+
+		c->d &= ~GroupMask;
 		c->d |= opcode.flags;
 	}
 
