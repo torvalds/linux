@@ -164,8 +164,8 @@ static void d_free(struct dentry *dentry)
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
 
-	/* if dentry was never inserted into hash, immediate free is OK */
-	if (hlist_bl_unhashed(&dentry->d_hash))
+	/* if dentry was never visible to RCU, immediate free is OK */
+	if (!(dentry->d_flags & DCACHE_RCUACCESS))
 		__d_free(&dentry->d_u.d_rcu);
 	else
 		call_rcu(&dentry->d_u.d_rcu, __d_free);
@@ -327,28 +327,19 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
  */
 void __d_drop(struct dentry *dentry)
 {
-	if (!(dentry->d_flags & DCACHE_UNHASHED)) {
+	if (!d_unhashed(dentry)) {
 		struct hlist_bl_head *b;
-		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED)) {
+		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
 			b = &dentry->d_sb->s_anon;
-			spin_lock_bucket(b);
-			dentry->d_flags |= DCACHE_UNHASHED;
-			hlist_bl_del_init(&dentry->d_hash);
-			spin_unlock_bucket(b);
-		} else {
-			struct hlist_bl_head *b;
+		else
 			b = d_hash(dentry->d_parent, dentry->d_name.hash);
-			spin_lock_bucket(b);
-			/*
-			 * We may not actually need to put DCACHE_UNHASHED
-			 * manipulations under the hash lock, but follow
-			 * the principle of least surprise.
-			 */
-			dentry->d_flags |= DCACHE_UNHASHED;
-			hlist_bl_del_rcu(&dentry->d_hash);
-			spin_unlock_bucket(b);
-			dentry_rcuwalk_barrier(dentry);
-		}
+
+		spin_lock_bucket(b);
+		__hlist_bl_del(&dentry->d_hash);
+		dentry->d_hash.pprev = NULL;
+		spin_unlock_bucket(b);
+
+		dentry_rcuwalk_barrier(dentry);
 	}
 }
 EXPORT_SYMBOL(__d_drop);
@@ -1301,7 +1292,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	dname[name->len] = 0;
 
 	dentry->d_count = 1;
-	dentry->d_flags = DCACHE_UNHASHED;
+	dentry->d_flags = 0;
 	spin_lock_init(&dentry->d_lock);
 	seqcount_init(&dentry->d_seq);
 	dentry->d_inode = NULL;
@@ -1603,10 +1594,9 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	tmp->d_inode = inode;
 	tmp->d_flags |= DCACHE_DISCONNECTED;
 	list_add(&tmp->d_alias, &inode->i_dentry);
-	bit_spin_lock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
-	tmp->d_flags &= ~DCACHE_UNHASHED;
+	spin_lock_bucket(&tmp->d_sb->s_anon);
 	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
-	__bit_spin_unlock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
+	spin_unlock_bucket(&tmp->d_sb->s_anon);
 	spin_unlock(&tmp->d_lock);
 	spin_unlock(&inode->i_lock);
 	security_d_instantiate(tmp, inode);
@@ -2087,7 +2077,7 @@ static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
 {
 	BUG_ON(!d_unhashed(entry));
 	spin_lock_bucket(b);
- 	entry->d_flags &= ~DCACHE_UNHASHED;
+	entry->d_flags |= DCACHE_RCUACCESS;
 	hlist_bl_add_head_rcu(&entry->d_hash, b);
 	spin_unlock_bucket(b);
 }
