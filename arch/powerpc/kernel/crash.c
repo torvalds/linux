@@ -162,34 +162,6 @@ static void crash_kexec_prepare_cpus(int cpu)
 	/* Leave the IPI callback set */
 }
 
-/* wait for all the CPUs to hit real mode but timeout if they don't come in */
-#ifdef CONFIG_PPC_STD_MMU_64
-static void crash_kexec_wait_realmode(int cpu)
-{
-	unsigned int msecs;
-	int i;
-
-	msecs = 10000;
-	for (i=0; i < NR_CPUS && msecs > 0; i++) {
-		if (i == cpu)
-			continue;
-
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
-			barrier();
-			if (!cpu_possible(i)) {
-				break;
-			}
-			if (!cpu_online(i)) {
-				break;
-			}
-			msecs--;
-			mdelay(1);
-		}
-	}
-	mb();
-}
-#endif	/* CONFIG_PPC_STD_MMU_64 */
-
 /*
  * This function will be called by secondary cpus or by kexec cpu
  * if soft-reset is activated to stop some CPUs.
@@ -234,7 +206,6 @@ void crash_kexec_secondary(struct pt_regs *regs)
 }
 
 #else	/* ! CONFIG_SMP */
-static inline void crash_kexec_wait_realmode(int cpu) {}
 
 static void crash_kexec_prepare_cpus(int cpu)
 {
@@ -256,6 +227,36 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	cpus_in_sr = CPU_MASK_NONE;
 }
 #endif	/* CONFIG_SMP */
+
+/* wait for all the CPUs to hit real mode but timeout if they don't come in */
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_64)
+static void crash_kexec_wait_realmode(int cpu)
+{
+	unsigned int msecs;
+	int i;
+
+	msecs = 10000;
+	for (i=0; i < NR_CPUS && msecs > 0; i++) {
+		if (i == cpu)
+			continue;
+
+		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+			barrier();
+			if (!cpu_possible(i)) {
+				break;
+			}
+			if (!cpu_online(i)) {
+				break;
+			}
+			msecs--;
+			mdelay(1);
+		}
+	}
+	mb();
+}
+#else
+static inline void crash_kexec_wait_realmode(int cpu) {}
+#endif	/* CONFIG_SMP && CONFIG_PPC_STD_MMU_64 */
 
 /*
  * Register a function to be called on shutdown.  Only use this if you
