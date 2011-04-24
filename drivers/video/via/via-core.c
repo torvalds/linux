@@ -505,7 +505,7 @@ static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
 	ret = vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
 	if (ret < 0)
 		goto out_unmap;
-	vdev->fbmem = ioremap_nocache(vdev->fbmem_start, vdev->fbmem_len);
+	vdev->fbmem = ioremap_wc(vdev->fbmem_start, vdev->fbmem_len);
 	if (vdev->fbmem == NULL) {
 		ret = -ENOMEM;
 		goto out_unmap;
