@@ -1151,44 +1151,7 @@ TRACE_EVENT(xfs_bunmap,
 
 );
 
-#define XFS_BUSY_SYNC \
-	{ 0,	"async" }, \
-	{ 1,	"sync" }
-
-TRACE_EVENT(xfs_alloc_busy,
-	TP_PROTO(struct xfs_trans *trans, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len, int sync),
-	TP_ARGS(trans, agno, agbno, len, sync),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(struct xfs_trans *, tp)
-		__field(int, tid)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, agbno)
-		__field(xfs_extlen_t, len)
-		__field(int, sync)
-	),
-	TP_fast_assign(
-		__entry->dev = trans->t_mountp->m_super->s_dev;
-		__entry->tp = trans;
-		__entry->tid = trans->t_ticket->t_tid;
-		__entry->agno = agno;
-		__entry->agbno = agbno;
-		__entry->len = len;
-		__entry->sync = sync;
-	),
-	TP_printk("dev %d:%d trans 0x%p tid 0x%x agno %u agbno %u len %u %s",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->tp,
-		  __entry->tid,
-		  __entry->agno,
-		  __entry->agbno,
-		  __entry->len,
-		  __print_symbolic(__entry->sync, XFS_BUSY_SYNC))
-
-);
-
-TRACE_EVENT(xfs_alloc_unbusy,
+DECLARE_EVENT_CLASS(xfs_busy_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len),
 	TP_ARGS(mp, agno, agbno, len),
@@ -1210,36 +1173,16 @@ TRACE_EVENT(xfs_alloc_unbusy,
 		  __entry->agbno,
 		  __entry->len)
 );
-
-#define XFS_BUSY_STATES \
-	{ 0,	"missing" }, \
-	{ 1,	"found" }
-
-TRACE_EVENT(xfs_alloc_busysearch,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len, int found),
-	TP_ARGS(mp, agno, agbno, len, found),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, agbno)
-		__field(xfs_extlen_t, len)
-		__field(int, found)
-	),
-	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->agbno = agbno;
-		__entry->len = len;
-		__entry->found = found;
-	),
-	TP_printk("dev %d:%d agno %u agbno %u len %u %s",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->agno,
-		  __entry->agbno,
-		  __entry->len,
-		  __print_symbolic(__entry->found, XFS_BUSY_STATES))
-);
+#define DEFINE_BUSY_EVENT(name) \
+DEFINE_EVENT(xfs_busy_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+		 xfs_agblock_t agbno, xfs_extlen_t len), \
+	TP_ARGS(mp, agno, agbno, len))
+DEFINE_BUSY_EVENT(xfs_alloc_busy);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_enomem);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_force);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_reuse);
+DEFINE_BUSY_EVENT(xfs_alloc_busy_clear);
 
 TRACE_EVENT(xfs_alloc_busy_trim,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,

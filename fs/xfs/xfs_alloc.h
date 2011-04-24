@@ -145,6 +145,10 @@ xfs_alloc_busy_clear(struct xfs_mount *mp, struct xfs_busy_extent *busyp);
 int
 xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
 	xfs_agblock_t bno, xfs_extlen_t len);
+
+void
+xfs_alloc_busy_reuse(struct xfs_mount *mp, xfs_agnumber_t agno,
+	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
 #endif	/* __KERNEL__ */
 
 /*
