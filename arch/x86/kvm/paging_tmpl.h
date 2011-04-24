@@ -172,49 +172,51 @@ walk:
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
 					      PFERR_USER_MASK|PFERR_WRITE_MASK);
-		if (real_gfn == UNMAPPED_GVA) {
+		if (unlikely(real_gfn == UNMAPPED_GVA)) {
 			present = false;
 			break;
 		}
 		real_gfn = gpa_to_gfn(real_gfn);
 
 		host_addr = gfn_to_hva(vcpu->kvm, real_gfn);
-		if (kvm_is_error_hva(host_addr)) {
+		if (unlikely(kvm_is_error_hva(host_addr))) {
 			present = false;
 			break;
 		}
 
 		ptep_user = (pt_element_t __user *)((void *)host_addr + offset);
-		if (get_user(pte, ptep_user)) {
+		if (unlikely(get_user(pte, ptep_user))) {
 			present = false;
 			break;
 		}
 
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
-		if (!is_present_gpte(pte)) {
+		if (unlikely(!is_present_gpte(pte))) {
 			present = false;
 			break;
 		}
 
-		if (is_rsvd_bits_set(&vcpu->arch.mmu, pte, walker->level)) {
+		if (unlikely(is_rsvd_bits_set(&vcpu->arch.mmu, pte,
+					      walker->level))) {
 			rsvd_fault = true;
 			break;
 		}
 
-		if (write_fault && !is_writable_pte(pte))
-			if (user_fault || is_write_protection(vcpu))
-				eperm = true;
+		if (unlikely(write_fault && !is_writable_pte(pte)
+			     && (user_fault || is_write_protection(vcpu))))
+			eperm = true;
 
-		if (user_fault && !(pte & PT_USER_MASK))
+		if (unlikely(user_fault && !(pte & PT_USER_MASK)))
 			eperm = true;
 
 #if PTTYPE == 64
-		if (fetch_fault && (pte & PT64_NX_MASK))
+		if (unlikely(fetch_fault && (pte & PT64_NX_MASK)))
 			eperm = true;
 #endif
 
-		if (!eperm && !rsvd_fault && !(pte & PT_ACCESSED_MASK)) {
+		if (!eperm && !rsvd_fault
+		    && unlikely(!(pte & PT_ACCESSED_MASK))) {
 			int ret;
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
 						       sizeof(pte));
@@ -270,10 +272,10 @@ walk:
 		--walker->level;
 	}
 
-	if (!present || eperm || rsvd_fault)
+	if (unlikely(!present || eperm || rsvd_fault))
 		goto error;
 
-	if (write_fault && !is_dirty_gpte(pte)) {
+	if (write_fault && unlikely(!is_dirty_gpte(pte))) {
 		int ret;
 
 		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
