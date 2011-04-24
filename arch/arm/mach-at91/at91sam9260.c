@@ -350,15 +350,12 @@ static void __init at91sam9260_map_io(void)
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 }
 
-static void __init at91sam9260_initialize(unsigned long main_clock)
+static void __init at91sam9260_initialize(void)
 {
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9260_poweroff;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)
 			| (1 << AT91SAM9260_ID_IRQ2);
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
 
 	/* Register the processor-specific clocks */
 	at91sam9260_register_clocks();

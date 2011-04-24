@@ -7,7 +7,7 @@
 struct at91_init_soc {
 	unsigned int *default_irq_priority;
 	void (*map_io)(void);
-	void (*init)(unsigned long main_clock);
+	void (*init)(void);
 };
 
 extern struct at91_init_soc at91_boot_soc;

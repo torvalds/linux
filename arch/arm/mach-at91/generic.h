@@ -31,7 +31,6 @@ extern struct sys_timer at91sam926x_timer;
 extern struct sys_timer at91x40_timer;
 
  /* Clocks */
-extern int __init at91_clock_init(unsigned long main_clock);
 /*
  * function to specify the clock of the default console. As we do not
  * use the device/driver bus, the dev_name is not intialize. So we need
@@ -44,6 +43,11 @@ extern void __init at91sam9263_set_console_clock(int id);
 extern void __init at91sam9rl_set_console_clock(int id);
 extern void __init at91sam9g45_set_console_clock(int id);
 extern void __init at91cap9_set_console_clock(int id);
+#ifdef CONFIG_AT91_PMC_UNIT
+extern int __init at91_clock_init(unsigned long main_clock);
+#else
+static int inline at91_clock_init(unsigned long main_clock) { return 0; }
+#endif
 struct device;
 
  /* Power Management */

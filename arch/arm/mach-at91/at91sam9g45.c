@@ -330,14 +330,11 @@ static void __init at91sam9g45_map_io(void)
 	iotable_init(at91sam9g45_sram_desc, ARRAY_SIZE(at91sam9g45_sram_desc));
 }
 
-static void __init at91sam9g45_initialize(unsigned long main_clock)
+static void __init at91sam9g45_initialize(void)
 {
 	at91_arch_reset = at91sam9g45_reset;
 	pm_power_off = at91sam9g45_poweroff;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
 
 	/* Register the processor-specific clocks */
 	at91sam9g45_register_clocks();

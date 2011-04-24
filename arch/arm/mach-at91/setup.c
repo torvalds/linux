@@ -248,5 +248,8 @@ void __init at91_map_io(void)
 
 void __init at91_initialize(unsigned long main_clock)
 {
-	at91_boot_soc.init(main_clock);
+	/* Init clock subsystem */
+	at91_clock_init(main_clock);
+
+	at91_boot_soc.init();
 }
