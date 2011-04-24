@@ -37,6 +37,8 @@ static char *viafb_mode1;
 static int viafb_bpp = 32;
 static int viafb_bpp1 = 32;
 
+static unsigned int viafb_second_xres = 640;
+static unsigned int viafb_second_yres = 480;
 static unsigned int viafb_second_offset;
 static int viafb_second_size;
 
@@ -440,8 +442,8 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (viafb_SAMM_ON == 1) {
 			u.viamode.xres_sec = viafb_second_xres;
 			u.viamode.yres_sec = viafb_second_yres;
-			u.viamode.virtual_xres_sec = viafb_second_virtual_xres;
-			u.viamode.virtual_yres_sec = viafb_second_virtual_yres;
+			u.viamode.virtual_xres_sec = viafb_dual_fb ? viafbinfo1->var.xres_virtual : viafbinfo->var.xres_virtual;
+			u.viamode.virtual_yres_sec = viafb_dual_fb ? viafbinfo1->var.yres_virtual : viafbinfo->var.yres_virtual;
 			u.viamode.refresh_sec = viafb_refresh1;
 			u.viamode.bpp_sec = viafb_bpp1;
 		} else {
@@ -930,10 +932,8 @@ static int get_primary_device(void)
 	/* Rule: device on iga1 path are the primary device. */
 	if (viafb_SAMM_ON) {
 		if (viafb_CRT_ON) {
-			if (viaparinfo->crt_setting_info->iga_path == IGA1) {
-				DEBUG_MSG(KERN_INFO "CRT IGA Path:%d\n",
-					viaparinfo->
-					crt_setting_info->iga_path);
+			if (viaparinfo->shared->iga1_devices & VIA_CRT) {
+				DEBUG_MSG(KERN_INFO "CRT IGA Path:%d\n", IGA1);
 				primary_device = CRT_Device;
 			}
 		}
@@ -1746,7 +1746,6 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	viaparinfo->lvds_setting_info = &viaparinfo->shared->lvds_setting_info;
 	viaparinfo->lvds_setting_info2 =
 		&viaparinfo->shared->lvds_setting_info2;
-	viaparinfo->crt_setting_info = &viaparinfo->shared->crt_setting_info;
 	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
 
 	if (viafb_dual_fb)
@@ -1793,13 +1792,9 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 
 	parse_mode(viafb_mode, &default_xres, &default_yres);
 	vmode_entry = viafb_get_mode(default_xres, default_yres);
-	if (viafb_SAMM_ON == 1) {
+	if (viafb_SAMM_ON == 1)
 		parse_mode(viafb_mode1, &viafb_second_xres,
 			&viafb_second_yres);
-
-		viafb_second_virtual_xres = viafb_second_xres;
-		viafb_second_virtual_yres = viafb_second_yres;
-	}
 
 	default_var.xres = default_xres;
 	default_var.yres = default_yres;
@@ -1844,8 +1839,8 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 
 		default_var.xres = viafb_second_xres;
 		default_var.yres = viafb_second_yres;
-		default_var.xres_virtual = viafb_second_virtual_xres;
-		default_var.yres_virtual = viafb_second_virtual_yres;
+		default_var.xres_virtual = viafb_second_xres;
+		default_var.yres_virtual = viafb_second_yres;
 		default_var.bits_per_pixel = viafb_bpp1;
 		viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
 			default_var.xres, default_var.yres, viafb_refresh1),

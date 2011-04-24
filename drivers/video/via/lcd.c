@@ -48,7 +48,6 @@ static struct _lcd_scaling_factor lcd_scaling_factor_CLE = {
 	{LCD_VER_SCALING_FACTOR_REG_NUM_CLE, {{CR78, 0, 7}, {CR79, 6, 7} } }
 };
 
-static int check_lvds_chip(int device_id_subaddr, int device_id);
 static bool lvds_identify_integratedlvds(void);
 static void __devinit fp_id_to_vindex(int panel_id);
 static int lvds_register_read(int index);
@@ -84,12 +83,9 @@ static struct display_timing lcd_centering_timging(struct display_timing
 					    mode_crt_reg,
 					   struct display_timing panel_crt_reg);
 
-static int check_lvds_chip(int device_id_subaddr, int device_id)
+static inline bool check_lvds_chip(int device_id_subaddr, int device_id)
 {
-	if (lvds_register_read(device_id_subaddr) == device_id)
-		return OK;
-	else
-		return FAIL;
+	return lvds_register_read(device_id_subaddr) == device_id;
 }
 
 void __devinit viafb_init_lcd_size(void)
@@ -150,7 +146,7 @@ static bool lvds_identify_integratedlvds(void)
 	return true;
 }
 
-int __devinit viafb_lvds_trasmitter_identify(void)
+bool __devinit viafb_lvds_trasmitter_identify(void)
 {
 	if (viafb_lvds_identify_vt1636(VIA_PORT_31)) {
 		viaparinfo->chip_info->lvds_chip_info.i2c_port = VIA_PORT_31;
@@ -175,20 +171,20 @@ int __devinit viafb_lvds_trasmitter_identify(void)
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr =
 		VT1631_LVDS_I2C_ADDR;
 
-	if (check_lvds_chip(VT1631_DEVICE_ID_REG, VT1631_DEVICE_ID) != FAIL) {
+	if (check_lvds_chip(VT1631_DEVICE_ID_REG, VT1631_DEVICE_ID)) {
 		DEBUG_MSG(KERN_INFO "\n VT1631 LVDS ! \n");
 		DEBUG_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->lvds_chip_info.lvds_chip_name);
 		DEBUG_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->lvds_chip_info.lvds_chip_name);
-		return OK;
+		return true;
 	}
 
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 		NON_LVDS_TRANSMITTER;
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr =
 		VT1631_LVDS_I2C_ADDR;
-	return FAIL;
+	return false;
 }
 
 static void __devinit fp_id_to_vindex(int panel_id)

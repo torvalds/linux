@@ -910,7 +910,6 @@ struct via_device_mapping {
 	const char *name;
 };
 
-extern unsigned int viafb_second_virtual_xres;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;

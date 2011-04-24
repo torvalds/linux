@@ -309,6 +309,42 @@ static struct io_reg scaling_parameters[] = {
 	{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14 */
 };
 
+static struct io_reg common_vga[] = {
+	{VIACR, CR07, 0x10, 0x10}, /* [0] vertical total (bit 8)
+					[1] vertical display end (bit 8)
+					[2] vertical retrace start (bit 8)
+					[3] start vertical blanking (bit 8)
+					[4] line compare (bit 8)
+					[5] vertical total (bit 9)
+					[6] vertical display end (bit 9)
+					[7] vertical retrace start (bit 9) */
+	{VIACR, CR08, 0xFF, 0x00}, /* [0-4] preset row scan
+					[5-6] byte panning */
+	{VIACR, CR09, 0xDF, 0x40}, /* [0-4] max scan line
+					[5] start vertical blanking (bit 9)
+					[6] line compare (bit 9)
+					[7] scan doubling */
+	{VIACR, CR0A, 0xFF, 0x1E}, /* [0-4] cursor start
+					[5] cursor disable */
+	{VIACR, CR0B, 0xFF, 0x00}, /* [0-4] cursor end
+					[5-6] cursor skew */
+	{VIACR, CR0E, 0xFF, 0x00}, /* [0-7] cursor location (high) */
+	{VIACR, CR0F, 0xFF, 0x00}, /* [0-7] cursor location (low) */
+	{VIACR, CR11, 0xF0, 0x80}, /* [0-3] vertical retrace end
+					[6] memory refresh bandwidth
+					[7] CRTC register protect enable */
+	{VIACR, CR14, 0xFF, 0x00}, /* [0-4] underline location
+					[5] divide memory address clock by 4
+					[6] double word addressing */
+	{VIACR, CR17, 0xFF, 0x63}, /* [0-1] mapping of display address 13-14
+					[2] divide scan line clock by 2
+					[3] divide memory address clock by 2
+					[5] address wrap
+					[6] byte mode select
+					[7] sync enable */
+	{VIACR, CR18, 0xFF, 0xFF}, /* [0-7] line compare */
+};
+
 static struct fifo_depth_select display_fifo_depth_reg = {
 	/* IGA1 FIFO Depth_Select */
 	{IGA1_FIFO_DEPTH_SELECT_REG_NUM, {{SR17, 0, 7} } },
@@ -771,13 +807,14 @@ static u32 get_lcd_devices(int output_interface)
 /*Set IGA path for each device*/
 void viafb_set_iga_path(void)
 {
+	int crt_iga_path = 0;
 
 	if (viafb_SAMM_ON == 1) {
 		if (viafb_CRT_ON) {
 			if (viafb_primary_dev == CRT_Device)
-				viaparinfo->crt_setting_info->iga_path = IGA1;
+				crt_iga_path = IGA1;
 			else
-				viaparinfo->crt_setting_info->iga_path = IGA2;
+				crt_iga_path = IGA2;
 		}
 
 		if (viafb_DVI_ON) {
@@ -794,8 +831,7 @@ void viafb_set_iga_path(void)
 					UNICHROME_CLE266)) {
 					viaparinfo->
 					lvds_setting_info->iga_path = IGA2;
-					viaparinfo->
-					crt_setting_info->iga_path = IGA1;
+					crt_iga_path = IGA1;
 					viaparinfo->
 					tmds_setting_info->iga_path = IGA1;
 				} else
@@ -815,10 +851,10 @@ void viafb_set_iga_path(void)
 		viafb_SAMM_ON = 0;
 
 		if (viafb_CRT_ON && viafb_LCD_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 		} else if (viafb_CRT_ON && viafb_DVI_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 			viaparinfo->tmds_setting_info->iga_path = IGA2;
 		} else if (viafb_LCD_ON && viafb_DVI_ON) {
 			viaparinfo->tmds_setting_info->iga_path = IGA1;
@@ -827,7 +863,7 @@ void viafb_set_iga_path(void)
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 			viaparinfo->lvds_setting_info2->iga_path = IGA2;
 		} else if (viafb_CRT_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 		} else if (viafb_LCD_ON) {
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 		} else if (viafb_DVI_ON) {
@@ -838,7 +874,7 @@ void viafb_set_iga_path(void)
 	viaparinfo->shared->iga1_devices = 0;
 	viaparinfo->shared->iga2_devices = 0;
 	if (viafb_CRT_ON) {
-		if (viaparinfo->crt_setting_info->iga_path == IGA1)
+		if (crt_iga_path == IGA1)
 			viaparinfo->shared->iga1_devices |= VIA_CRT;
 		else
 			viaparinfo->shared->iga2_devices |= VIA_CRT;
@@ -1167,25 +1203,17 @@ void via_odev_to_seq(struct seq_file *m, u32 odev)
 
 static void load_fix_bit_crtc_reg(void)
 {
+	viafb_unlock_crt();
+
 	/* always set to 1 */
 	viafb_write_reg_mask(CR03, VIACR, 0x80, BIT7);
-	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg(CR18, VIACR, 0xff);
-	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg_mask(CR07, VIACR, 0x10, BIT4);
-	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg_mask(CR09, VIACR, 0x40, BIT6);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR35, VIACR, 0x10, BIT4);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR33, VIACR, 0x06, BIT0 + BIT1 + BIT2);
 	/*viafb_write_reg_mask(CR32, VIACR, 0x01, BIT0); */
-	/* extend mode always set to e3h */
-	viafb_write_reg(CR17, VIACR, 0xe3);
-	/* extend mode always set to 0h */
-	viafb_write_reg(CR08, VIACR, 0x00);
-	/* extend mode always set to 0h */
-	viafb_write_reg(CR14, VIACR, 0x00);
+
+	viafb_lock_crt();
 
 	/* If K8M800, enable Prefetch Mode. */
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_K800)
@@ -2038,8 +2066,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	v_addr = crt_reg.ver_addr;
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
-		viafb_write_reg(CR09, VIACR, 0x00);	/*initial CR09=0 */
-		viafb_write_reg_mask(CR11, VIACR, 0x00, BIT4 + BIT5 + BIT6);
 		viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 	}
 
@@ -2052,7 +2078,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 		break;
 	}
 
-	load_fix_bit_crtc_reg();
 	viafb_lock_crt();
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 	viafb_load_fetch_count_reg(h_addr, bpp_byte, set_iga);
@@ -2075,8 +2100,6 @@ void __devinit viafb_init_chip_info(int chip_type)
 	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
-
-	viaparinfo->crt_setting_info->iga_path = IGA1;
 
 	/*Set IGA path for each device */
 	viafb_set_iga_path();
@@ -2359,6 +2382,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	outb(0x00, VIAAR);
 
 	/* Write Common Setting for Video Mode */
+	viafb_write_regx(common_vga, ARRAY_SIZE(common_vga));
 	switch (viaparinfo->chip_info->gfx_chip_name) {
 	case UNICHROME_CLE266:
 		viafb_write_regx(CLE266_ModeXregs, NUM_TOTAL_CLE266_ModeXregs);
@@ -2405,9 +2429,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
 
-	/* Write CRTC */
-	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
-
 	/* Write Graphic Controller */
 	for (i = 0; i < StdGR; i++)
 		via_write_reg(VIAGR, i, VPIT.GR[i]);
@@ -2437,6 +2458,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		}
 	}
 
+	load_fix_bit_crtc_reg();
 	via_set_primary_pitch(viafbinfo->fix.line_length);
 	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
@@ -2456,15 +2478,15 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	/* CRT set mode */
 	if (viafb_CRT_ON) {
-		if (viafb_SAMM_ON && (viaparinfo->crt_setting_info->iga_path ==
-			IGA2)) {
+		if (viafb_SAMM_ON &&
+			viaparinfo->shared->iga2_devices & VIA_CRT) {
 			viafb_fill_crtc_timing(crt_timing1, vmode_tbl1,
-				video_bpp1 / 8,
-				viaparinfo->crt_setting_info->iga_path);
+				video_bpp1 / 8, IGA2);
 		} else {
 			viafb_fill_crtc_timing(crt_timing, vmode_tbl,
 				video_bpp / 8,
-				viaparinfo->crt_setting_info->iga_path);
+				(viaparinfo->shared->iga1_devices & VIA_CRT)
+				? IGA1 : IGA2);
 		}
 
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
