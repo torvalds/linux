@@ -38,6 +38,7 @@ static struct event_symbol event_symbols[] = {
   { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
   { CHW(BRANCH_MISSES),		"branch-misses",	""		},
   { CHW(BUS_CYCLES),		"bus-cycles",		""		},
+  { CHW(STALLED_CYCLES),	"stalled-cycles",	""		},
 
   { CSW(CPU_CLOCK),		"cpu-clock",		""		},
   { CSW(TASK_CLOCK),		"task-clock",		""		},

@@ -1413,6 +1413,9 @@ static __init int intel_pmu_init(void)
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		x86_pmu.extra_regs = intel_nehalem_extra_regs;
 
+		/* Install the stalled-cycles event: 0xff: All reasons, 0xa2: Resource stalls */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES] = 0xffa2;
+
 		if (ebx & 0x40) {
 			/*
 			 * Erratum AAJ80 detected, we work it around by using
