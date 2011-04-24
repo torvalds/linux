@@ -2964,24 +2964,60 @@ fail:
 	*rlen = 0;
 }
 
-void
-xfs_alloc_busy_clear(
+static void
+xfs_alloc_busy_clear_one(
 	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_busy_extent	*busyp)
 {
-	struct xfs_perag	*pag;
-
-	list_del_init(&busyp->list);
-
-	pag = xfs_perag_get(mp, busyp->agno);
-	spin_lock(&pag->pagb_lock);
 	if (busyp->length) {
 		trace_xfs_alloc_busy_clear(mp, busyp->agno, busyp->bno,
 						busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
-	spin_unlock(&pag->pagb_lock);
-	xfs_perag_put(pag);
 
+	list_del_init(&busyp->list);
 	kmem_free(busyp);
+}
+
+void
+xfs_alloc_busy_clear(
+	struct xfs_mount	*mp,
+	struct list_head	*list)
+{
+	struct xfs_busy_extent	*busyp, *n;
+	struct xfs_perag	*pag = NULL;
+	xfs_agnumber_t		agno = NULLAGNUMBER;
+
+	list_for_each_entry_safe(busyp, n, list, list) {
+		if (busyp->agno != agno) {
+			if (pag) {
+				spin_unlock(&pag->pagb_lock);
+				xfs_perag_put(pag);
+			}
+			pag = xfs_perag_get(mp, busyp->agno);
+			spin_lock(&pag->pagb_lock);
+			agno = busyp->agno;
+		}
+
+		xfs_alloc_busy_clear_one(mp, pag, busyp);
+	}
+
+	if (pag) {
+		spin_unlock(&pag->pagb_lock);
+		xfs_perag_put(pag);
+	}
+}
+
+/*
+ * Callback for list_sort to sort busy extents by the AG they reside in.
+ */
+int
+xfs_busy_extent_ag_cmp(
+	void			*priv,
+	struct list_head	*a,
+	struct list_head	*b)
+{
+	return container_of(a, struct xfs_busy_extent, list)->agno -
+		container_of(b, struct xfs_busy_extent, list)->agno;
 }

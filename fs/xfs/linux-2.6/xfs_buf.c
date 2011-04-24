@@ -33,7 +33,6 @@
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
-#include <linux/list_sort.h>
 
 #include "xfs_sb.h"
 #include "xfs_inum.h"
