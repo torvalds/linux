@@ -52,6 +52,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #include <asm/setup.h>
 
@@ -301,19 +302,7 @@ static int __init omap3_touchbook_i2c_init(void)
 	return 0;
 }
 
-static void __init omap3_ads7846_init(void)
-{
-	if (gpio_request(OMAP3_TS_GPIO, "ads7846_pen_down")) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", OMAP3_TS_GPIO);
-		return;
-	}
-
-	gpio_direction_input(OMAP3_TS_GPIO);
-	gpio_set_debounce(OMAP3_TS_GPIO, 310);
-}
-
-static struct ads7846_platform_data ads7846_config = {
+static struct ads7846_platform_data ads7846_pdata = {
 	.x_min			= 100,
 	.y_min			= 265,
 	.x_max			= 3950,
@@ -325,23 +314,6 @@ static struct ads7846_platform_data ads7846_config = {
 	.debounce_rep		= 1,
 	.gpio_pendown		= OMAP3_TS_GPIO,
 	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info omap3_ads7846_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 4,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}
 };
 
 static struct gpio_led gpio_leds[] = {
@@ -526,9 +498,7 @@ static void __init omap3_touchbook_init(void)
 	gpio_direction_output(176, true);
 
 	/* Touchscreen and accelerometer */
-	spi_register_board_info(omap3_ads7846_spi_board_info,
-				ARRAY_SIZE(omap3_ads7846_spi_board_info));
-	omap3_ads7846_init();
+	omap_ads7846_init(4, OMAP3_TS_GPIO, 310, &ads7846_pdata);
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
 	omap3touchbook_flash_init();

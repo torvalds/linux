@@ -51,7 +51,6 @@
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/dm9000.h>
 #include <linux/interrupt.h>
 
@@ -60,6 +59,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -463,56 +463,6 @@ static void __init devkit8000_init_irq(void)
 #endif
 }
 
-static void __init devkit8000_ads7846_init(void)
-{
-	int gpio = OMAP3_DEVKIT_TS_GPIO;
-	int ret;
-
-	ret = gpio_request(gpio, "ads7846_pen_down");
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", gpio);
-		return;
-	}
-
-	gpio_direction_input(gpio);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_DEVKIT_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max                  = 0x0fff,
-	.y_max                  = 0x0fff,
-	.x_plate_ohms           = 180,
-	.pressure_max           = 255,
-	.debounce_max           = 10,
-	.debounce_tol           = 5,
-	.debounce_rep           = 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs     = 150,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info devkit8000_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 2,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_DEVKIT_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}
-};
-
 #define OMAP_DM9000_BASE	0x2c000000
 
 static struct resource omap_dm9000_resources[] = {
@@ -795,10 +745,8 @@ static void __init devkit8000_init(void)
 			ARRAY_SIZE(devkit8000_devices));
 
 	omap_display_init(&devkit8000_dss_data);
-	spi_register_board_info(devkit8000_spi_board_info,
-	ARRAY_SIZE(devkit8000_spi_board_info));
 
-	devkit8000_ads7846_init();
+	omap_ads7846_init(2, OMAP3_DEVKIT_TS_GPIO, 0, NULL);
 
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);

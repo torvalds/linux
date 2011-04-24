@@ -56,6 +56,7 @@
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define OVERO_GPIO_BT_XGATE	15
 #define OVERO_GPIO_W2W_NRESET	16
@@ -73,30 +74,6 @@
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-
-#include <linux/spi/ads7846.h>
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OVERO_GPIO_PENDOWN);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
 
 /* fixed regulator for ads7846 */
 static struct regulator_consumer_supply ads7846_supply =
@@ -128,14 +105,7 @@ static struct platform_device vads7846_device = {
 
 static void __init overo_ads7846_init(void)
 {
-	if ((gpio_request(OVERO_GPIO_PENDOWN, "ADS7846_PENDOWN") == 0) &&
-	    (gpio_direction_input(OVERO_GPIO_PENDOWN) == 0)) {
-		gpio_export(OVERO_GPIO_PENDOWN, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for ADS7846_PENDOWN\n");
-		return;
-	}
-
+	omap_ads7846_init(1, OVERO_GPIO_PENDOWN, 0, NULL);
 	platform_device_register(&vads7846_device);
 }
 
@@ -589,18 +559,6 @@ static int __init overo_i2c_init(void)
 }
 
 static struct spi_board_info overo_spi_board_info[] __initdata = {
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
-	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OVERO_GPIO_PENDOWN),
-		.platform_data		= &ads7846_config,
-	},
-#endif
 #if defined(CONFIG_PANEL_LGPHILIPS_LB035Q02) || \
 	defined(CONFIG_PANEL_LGPHILIPS_LB035Q02_MODULE)
 	{

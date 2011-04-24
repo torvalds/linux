@@ -45,7 +45,6 @@
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
 #include <linux/i2c/at24.h>
@@ -54,6 +53,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <plat/gpmc-smsc911x.h>
@@ -498,49 +498,6 @@ static int __init omap3_stalker_i2c_init(void)
 }
 
 #define OMAP3_STALKER_TS_GPIO	175
-static void ads7846_dev_init(void)
-{
-	if (gpio_request(OMAP3_STALKER_TS_GPIO, "ADS7846 pendown") < 0)
-		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
-
-	gpio_direction_input(OMAP3_STALKER_TS_GPIO);
-	gpio_set_debounce(OMAP3_STALKER_TS_GPIO, 310);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_STALKER_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs	= 150,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode		= 0,
-	.single_channel		= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info omap3stalker_spi_board_info[] = {
-	[0] = {
-	       .modalias	= "ads7846",
-	       .bus_num		= 1,
-	       .chip_select	= 0,
-	       .max_speed_hz	= 1500000,
-	       .controller_data	= &ads7846_mcspi_config,
-	       .irq		= OMAP_GPIO_IRQ(OMAP3_STALKER_TS_GPIO),
-	       .platform_data	= &ads7846_config,
-	},
-};
 
 static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
 };
@@ -602,13 +559,11 @@ static void __init omap3_stalker_init(void)
 			     ARRAY_SIZE(omap3_stalker_devices));
 
 	omap_display_init(&omap3_stalker_dss_data);
-	spi_register_board_info(omap3stalker_spi_board_info,
-				ARRAY_SIZE(omap3stalker_spi_board_info));
 
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
-	ads7846_dev_init();
+	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);
 
 	omap_mux_init_gpio(21, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(18, OMAP_PIN_INPUT_PULLUP);

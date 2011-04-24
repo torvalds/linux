@@ -22,7 +22,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/io.h>
@@ -49,6 +48,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
+#include "common-board-devices.h"
 
 #define LDP_SMSC911X_CS		1
 #define LDP_SMSC911X_GPIO	152
@@ -165,55 +165,6 @@ static struct platform_device ldp_gpio_keys_device = {
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &ldp_gpio_keys,
-	},
-};
-
-static int ts_gpio;
-
-/**
- * @brief ads7846_dev_init : Requests & sets GPIO line for pen-irq
- *
- * @return - void. If request gpio fails then Flag KERN_ERR.
- */
-static void ads7846_dev_init(void)
-{
-	if (gpio_request(ts_gpio, "ads7846 irq") < 0) {
-		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
-		return;
-	}
-
-	gpio_direction_input(ts_gpio);
-	gpio_set_debounce(ts_gpio, 310);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(ts_gpio);
-}
-
-static struct ads7846_platform_data tsc2046_config __initdata = {
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config tsc2046_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info ldp_spi_board_info[] __initdata = {
-	[0] = {
-		/*
-		 * TSC2046 operates at a max freqency of 2MHz, so
-		 * operate slightly below at 1.5MHz
-		 */
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &tsc2046_mcspi_config,
-		.irq			= 0,
-		.platform_data		= &tsc2046_config,
 	},
 };
 
@@ -399,11 +350,7 @@ static void __init omap_ldp_init(void)
 	ldp_init_smsc911x();
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
-	ts_gpio = 54;
-	ldp_spi_board_info[0].irq = gpio_to_irq(ts_gpio);
-	spi_register_board_info(ldp_spi_board_info,
-				ARRAY_SIZE(ldp_spi_board_info));
-	ads7846_dev_init();
+	omap_ads7846_init(1, 54, 310, NULL);
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	board_nand_init(ldp_nand_partitions,

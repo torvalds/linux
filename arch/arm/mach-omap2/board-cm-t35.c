@@ -54,6 +54,7 @@
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define CM_T35_GPIO_PENDOWN	57
 
@@ -175,61 +176,6 @@ static void __init cm_t35_init_nand(void)
 }
 #else
 static inline void cm_t35_init_nand(void) {}
-#endif
-
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
-	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-#include <linux/spi/ads7846.h>
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(CM_T35_GPIO_PENDOWN);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct spi_board_info cm_t35_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(CM_T35_GPIO_PENDOWN),
-		.platform_data		= &ads7846_config,
-	},
-};
-
-static void __init cm_t35_init_ads7846(void)
-{
-	if ((gpio_request(CM_T35_GPIO_PENDOWN, "ADS7846_PENDOWN") == 0) &&
-	    (gpio_direction_input(CM_T35_GPIO_PENDOWN) == 0)) {
-		gpio_export(CM_T35_GPIO_PENDOWN, 0);
-	} else {
-		pr_err("CM-T35: could not obtain gpio for ADS7846_PENDOWN\n");
-		return;
-	}
-
-	spi_register_board_info(cm_t35_spi_board_info,
-				ARRAY_SIZE(cm_t35_spi_board_info));
-}
-#else
-static inline void cm_t35_init_ads7846(void) {}
 #endif
 
 #define CM_T35_LCD_EN_GPIO 157
@@ -734,7 +680,7 @@ static void __init cm_t35_init(void)
 	omap_serial_init();
 	cm_t35_init_i2c();
 	cm_t35_init_nand();
-	cm_t35_init_ads7846();
+	omap_ads7846_init(1, CM_T35_GPIO_PENDOWN, 0, NULL);
 	cm_t35_init_ethernet();
 	cm_t35_init_led();
 	cm_t35_init_display();

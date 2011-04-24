@@ -270,3 +270,5 @@ obj-$(CONFIG_ARCH_OMAP4)		+= hwspinlock.o
 
 disp-$(CONFIG_OMAP2_DSS)		:= display.o
 obj-y					+= $(disp-m) $(disp-y)
+
+obj-y					+= common-board-devices.o
