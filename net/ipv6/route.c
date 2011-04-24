@@ -153,6 +153,12 @@ static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static u32 *ip6_rt_blackhole_cow_metrics(struct dst_entry *dst,
+					 unsigned long old)
+{
+	return NULL;
+}
+
 static struct dst_ops ip6_dst_blackhole_ops = {
 	.family			=	AF_INET6,
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
@@ -161,6 +167,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.default_mtu		=	ip6_blackhole_default_mtu,
 	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
+	.cow_metrics		=	ip6_rt_blackhole_cow_metrics,
 };
 
 static const u32 ip6_template_metrics[RTAX_MAX] = {
