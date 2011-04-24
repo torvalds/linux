@@ -304,45 +304,6 @@ static struct mtd_partition overo_nand_partitions[] = {
 	},
 };
 
-static struct omap_nand_platform_data overo_nand_data = {
-	.parts = overo_nand_partitions,
-	.nr_parts = ARRAY_SIZE(overo_nand_partitions),
-	.dma_channel = -1,	/* disable DMA in OMAP NAND driver */
-};
-
-static void __init overo_flash_init(void)
-{
-	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
-
-	/* find out the chip-select on which NAND exists */
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
-		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		if ((ret & 0xC00) == 0x800) {
-			printk(KERN_INFO "Found NAND on CS%d\n", cs);
-			if (nandcs > GPMC_CS_NUM)
-				nandcs = cs;
-		}
-		cs++;
-	}
-
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
-		return;
-	}
-
-	if (nandcs < GPMC_CS_NUM) {
-		overo_nand_data.cs = nandcs;
-
-		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&overo_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
-	}
-}
-
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -604,7 +565,8 @@ static void __init overo_init(void)
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
-	overo_flash_init();
+	omap_nand_flash_init(0, overo_nand_partitions,
+			     ARRAY_SIZE(overo_nand_partitions));
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
 	overo_spi_init();

@@ -97,13 +97,6 @@ static struct mtd_partition devkit8000_nand_partitions[] = {
 	},
 };
 
-static struct omap_nand_platform_data devkit8000_nand_data = {
-	.options	= NAND_BUSWIDTH_16,
-	.parts		= devkit8000_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(devkit8000_nand_partitions),
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
-};
-
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -516,39 +509,6 @@ static struct platform_device *devkit8000_devices[] __initdata = {
 	&omap_dm9000_dev,
 };
 
-static void __init devkit8000_flash_init(void)
-{
-	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
-
-	/* find out the chip-select on which NAND exists */
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
-		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		if ((ret & 0xC00) == 0x800) {
-			printk(KERN_INFO "Found NAND on CS%d\n", cs);
-			if (nandcs > GPMC_CS_NUM)
-				nandcs = cs;
-		}
-		cs++;
-	}
-
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
-		return;
-	}
-
-	if (nandcs < GPMC_CS_NUM) {
-		devkit8000_nand_data.cs = nandcs;
-
-		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&devkit8000_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
-	}
-}
-
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,
 	.mode			= MUSB_OTG,
@@ -740,7 +700,8 @@ static void __init devkit8000_init(void)
 
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
-	devkit8000_flash_init();
+	omap_nand_flash_init(NAND_BUSWIDTH_16, devkit8000_nand_partitions,
+			     ARRAY_SIZE(devkit8000_nand_partitions));
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
