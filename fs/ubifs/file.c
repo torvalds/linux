@@ -1541,7 +1541,6 @@ static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
 
-	/* 'generic_file_mmap()' takes care of NOMMU case */
 	err = generic_file_mmap(file, vma);
 	if (err)
 		return err;
