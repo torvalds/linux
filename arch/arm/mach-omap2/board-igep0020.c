@@ -38,6 +38,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-numonyx-m65kxxxxam.h"
+#include "common-board-devices.h"
 
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176
@@ -536,15 +537,6 @@ static struct twl4030_platform_data igep2_twldata = {
 	.vio		= &igep2_vio,
 };
 
-static struct i2c_board_info __initdata igep2_i2c1_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags		= I2C_CLIENT_WAKE,
-		.irq		= INT_34XX_SYS_NIRQ,
-		.platform_data	= &igep2_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata igep2_i2c3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("eeprom", 0x50),
@@ -555,10 +547,7 @@ static void __init igep2_i2c_init(void)
 {
 	int ret;
 
-	ret = omap_register_i2c_bus(1, 2600, igep2_i2c1_boardinfo,
-		ARRAY_SIZE(igep2_i2c1_boardinfo));
-	if (ret)
-		pr_warning("IGEP2: Could not register I2C1 bus (%d)\n", ret);
+	omap3_pmic_init("twl4030", &igep2_twldata);
 
 	/*
 	 * Bus 3 is attached to the DVI port where devices like the pico DLP

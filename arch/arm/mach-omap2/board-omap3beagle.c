@@ -52,6 +52,7 @@
 #include "hsmmc.h"
 #include "timer-gp.h"
 #include "pm.h"
+#include "common-board-devices.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -453,15 +454,6 @@ static struct twl4030_platform_data beagle_twldata = {
 	.vpll2		= &beagle_vpll2,
 };
 
-static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &beagle_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
        {
                I2C_BOARD_INFO("eeprom", 0x50),
@@ -470,8 +462,7 @@ static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
 
 static int __init omap3_beagle_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
-			ARRAY_SIZE(beagle_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &beagle_twldata);
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 100, beagle_i2c_eeprom, ARRAY_SIZE(beagle_i2c_eeprom));

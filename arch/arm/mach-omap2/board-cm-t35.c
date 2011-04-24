@@ -541,19 +541,9 @@ static struct twl4030_platform_data cm_t35_twldata = {
 	.vpll2		= &cm_t35_vpll2,
 };
 
-static struct i2c_board_info __initdata cm_t35_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65930", 0x48),
-		.flags		= I2C_CLIENT_WAKE,
-		.irq		= INT_34XX_SYS_NIRQ,
-		.platform_data	= &cm_t35_twldata,
-	},
-};
-
 static void __init cm_t35_init_i2c(void)
 {
-	omap_register_i2c_bus(1, 2600, cm_t35_i2c_boardinfo,
-			      ARRAY_SIZE(cm_t35_i2c_boardinfo));
+	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
 
 static void __init cm_t35_init_early(void)

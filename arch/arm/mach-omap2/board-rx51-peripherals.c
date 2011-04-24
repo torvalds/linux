@@ -43,6 +43,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
@@ -777,15 +778,6 @@ static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata_or_module =
 	.power_gpio		= 98,
 };
 
-static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
-	{
-		I2C_BOARD_INFO("twl5030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &rx51_twldata,
-	},
-};
-
 /* Audio setup data */
 static struct aic3x_setup_data rx51_aic34_setup = {
 	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
@@ -833,8 +825,7 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 	}
 	rx51_twldata.vmmc2 = &rx51_vmmc2;
-	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
-			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
+	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);

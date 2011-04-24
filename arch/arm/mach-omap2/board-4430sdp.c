@@ -42,6 +42,7 @@
 #include "hsmmc.h"
 #include "timer-gp.h"
 #include "control.h"
+#include "common-board-devices.h"
 
 #define ETH_KS8851_IRQ			34
 #define ETH_KS8851_POWER_ON		48
@@ -575,14 +576,6 @@ static struct twl4030_platform_data sdp4430_twldata = {
 	.usb		= &omap4_usbphy_data
 };
 
-static struct i2c_board_info __initdata sdp4430_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl6030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = OMAP44XX_IRQ_SYS_1N,
-		.platform_data = &sdp4430_twldata,
-	},
-};
 static struct i2c_board_info __initdata sdp4430_i2c_3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("tmp105", 0x48),
@@ -598,12 +591,7 @@ static struct i2c_board_info __initdata sdp4430_i2c_4_boardinfo[] = {
 };
 static int __init omap4_i2c_init(void)
 {
-	/*
-	 * Phoenix Audio IC needs I2C1 to
-	 * start with 400 KHz or less
-	 */
-	omap_register_i2c_bus(1, 400, sdp4430_i2c_boardinfo,
-			ARRAY_SIZE(sdp4430_i2c_boardinfo));
+	omap4_pmic_init("twl6030", &sdp4430_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, sdp4430_i2c_3_boardinfo,
 				ARRAY_SIZE(sdp4430_i2c_3_boardinfo));

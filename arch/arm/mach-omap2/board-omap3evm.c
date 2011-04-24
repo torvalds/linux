@@ -604,28 +604,13 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.vdac		= &omap3_evm_vdac,
 	.vpll2		= &omap3_evm_vpll2,
 	.vio		= &omap3evm_vio,
-};
-
-static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &omap3evm_twldata,
-	},
+	.vmmc1		= &omap3evm_vmmc1,
+	.vsim		= &omap3evm_vsim,
 };
 
 static int __init omap3_evm_i2c_init(void)
 {
-	/*
-	 * REVISIT: These entries can be set in omap3evm_twl_data
-	 * after a merge with MFD tree
-	 */
-	omap3evm_twldata.vmmc1 = &omap3evm_vmmc1;
-	omap3evm_twldata.vsim = &omap3evm_vsim;
-
-	omap_register_i2c_bus(1, 2600, omap3evm_i2c_boardinfo,
-			ARRAY_SIZE(omap3evm_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &omap3evm_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;

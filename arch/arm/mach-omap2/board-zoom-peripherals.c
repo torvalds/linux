@@ -31,6 +31,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define OMAP_ZOOM_WLAN_PMENA_GPIO	(101)
 #define OMAP_ZOOM_WLAN_IRQ_GPIO		(162)
@@ -349,15 +350,6 @@ static struct twl4030_platform_data zoom_twldata = {
 	.vdac		= &zoom_vdac,
 };
 
-static struct i2c_board_info __initdata zoom_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl5030", 0x48),
-		.flags		= I2C_CLIENT_WAKE,
-		.irq		= INT_34XX_SYS_NIRQ,
-		.platform_data	= &zoom_twldata,
-	},
-};
-
 static int __init omap_i2c_init(void)
 {
 	if (machine_is_omap_zoom2()) {
@@ -365,8 +357,7 @@ static int __init omap_i2c_init(void)
 		zoom_audio_data.hs_extmute = 1;
 		zoom_audio_data.set_hs_extmute = zoom2_set_hs_extmute;
 	}
-	omap_register_i2c_bus(1, 2400, zoom_i2c_boardinfo,
-			ARRAY_SIZE(zoom_i2c_boardinfo));
+	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &zoom_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;

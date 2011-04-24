@@ -528,20 +528,10 @@ static struct twl4030_platform_data sdp3430_twldata = {
 	.vpll2		= &sdp3430_vpll2,
 };
 
-static struct i2c_board_info __initdata sdp3430_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &sdp3430_twldata,
-	},
-};
-
 static int __init omap3430_i2c_init(void)
 {
 	/* i2c1 for PMIC only */
-	omap_register_i2c_bus(1, 2600, sdp3430_i2c_boardinfo,
-			ARRAY_SIZE(sdp3430_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &sdp3430_twldata);
 	/* i2c2 on camera connector (for sensor control) and optional isp1301 */
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/* i2c3 on display connector (for DVI, tfp410) */

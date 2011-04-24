@@ -46,6 +46,7 @@
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"
+#include "common-board-devices.h"
 
 #define GPIO_HUB_POWER		1
 #define GPIO_HUB_NRESET		62
@@ -408,15 +409,6 @@ static struct twl4030_platform_data omap4_panda_twldata = {
 	.usb		= &omap4_usbphy_data,
 };
 
-static struct i2c_board_info __initdata omap4_panda_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl6030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = OMAP44XX_IRQ_SYS_1N,
-		.platform_data = &omap4_panda_twldata,
-	},
-};
-
 /*
  * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
  * is connected as I2C slave device, and can be accessed at address 0x50
@@ -429,12 +421,7 @@ static struct i2c_board_info __initdata panda_i2c_eeprom[] = {
 
 static int __init omap4_panda_i2c_init(void)
 {
-	/*
-	 * Phoenix Audio IC needs I2C1 to
-	 * start with 400 KHz or less
-	 */
-	omap_register_i2c_bus(1, 400, omap4_panda_i2c_boardinfo,
-			ARRAY_SIZE(omap4_panda_i2c_boardinfo));
+	omap4_pmic_init("twl6030", &omap4_panda_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/*
 	 * Bus 3 is attached to the DVI port where devices like the pico DLP

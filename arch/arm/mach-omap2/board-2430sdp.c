@@ -41,6 +41,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define SDP2430_CS0_BASE	0x04000000
 #define SECONDARY_LCD_GPIO		147
@@ -180,15 +181,6 @@ static struct twl4030_platform_data sdp2430_twldata = {
 	.vmmc1		= &sdp2430_vmmc1,
 };
 
-static struct i2c_board_info __initdata sdp2430_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_24XX_SYS_NIRQ,
-		.platform_data = &sdp2430_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata sdp2430_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2D),
@@ -201,8 +193,7 @@ static int __init omap2430_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
-	omap_register_i2c_bus(2, 2600, sdp2430_i2c_boardinfo,
-			ARRAY_SIZE(sdp2430_i2c_boardinfo));
+	omap2_pmic_init("twl4030", &sdp2430_twldata);
 	return 0;
 }
 

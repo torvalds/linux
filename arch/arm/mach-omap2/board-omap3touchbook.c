@@ -274,15 +274,6 @@ static struct twl4030_platform_data touchbook_twldata = {
 	.vpll2		= &touchbook_vpll2,
 };
 
-static struct i2c_board_info __initdata touchbook_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &touchbook_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("bq27200", 0x55),
@@ -292,8 +283,7 @@ static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
 static int __init omap3_touchbook_i2c_init(void)
 {
 	/* Standard TouchBook bus */
-	omap_register_i2c_bus(1, 2600, touchbook_i2c_boardinfo,
-			ARRAY_SIZE(touchbook_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &touchbook_twldata);
 
 	/* Additional TouchBook bus */
 	omap_register_i2c_bus(3, 100, touchBook_i2c_boardinfo,

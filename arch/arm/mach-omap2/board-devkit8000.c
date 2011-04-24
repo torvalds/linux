@@ -366,19 +366,9 @@ static struct twl4030_platform_data devkit8000_twldata = {
 	.keypad		= &devkit8000_kp_data,
 };
 
-static struct i2c_board_info __initdata devkit8000_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65930", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &devkit8000_twldata,
-	},
-};
-
 static int __init devkit8000_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, devkit8000_i2c_boardinfo,
-			ARRAY_SIZE(devkit8000_i2c_boardinfo));
+	omap3_pmic_init("tps65930", &devkit8000_twldata);
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 400, NULL, 0);

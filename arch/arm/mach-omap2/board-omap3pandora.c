@@ -544,15 +544,6 @@ static struct twl4030_platform_data omap3pandora_twldata = {
 	.bci		= &pandora_bci_data,
 };
 
-static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65950", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &omap3pandora_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("bq27500", 0x55),
@@ -562,8 +553,7 @@ static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 
 static int __init omap3pandora_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, omap3pandora_i2c_boardinfo,
-			ARRAY_SIZE(omap3pandora_i2c_boardinfo));
+	omap3_pmic_init("tps65950", &omap3pandora_twldata);
 	/* i2c2 pins are not connected */
 	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,
 			ARRAY_SIZE(omap3pandora_i2c3_boardinfo));

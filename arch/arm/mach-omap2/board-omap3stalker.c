@@ -455,15 +455,8 @@ static struct twl4030_platform_data omap3stalker_twldata = {
 	.codec		= &omap3stalker_codec_data,
 	.vdac		= &omap3_stalker_vdac,
 	.vpll2		= &omap3_stalker_vpll2,
-};
-
-static struct i2c_board_info __initdata omap3stalker_i2c_boardinfo[] = {
-	{
-	 I2C_BOARD_INFO("twl4030", 0x48),
-	 .flags		= I2C_CLIENT_WAKE,
-	 .irq		= INT_34XX_SYS_NIRQ,
-	 .platform_data	= &omap3stalker_twldata,
-	 },
+	.vmmc1		= &omap3stalker_vmmc1,
+	.vsim		= &omap3stalker_vsim,
 };
 
 static struct at24_platform_data fram_info = {
@@ -482,15 +475,7 @@ static struct i2c_board_info __initdata omap3stalker_i2c_boardinfo3[] = {
 
 static int __init omap3_stalker_i2c_init(void)
 {
-	/*
-	 * REVISIT: These entries can be set in omap3evm_twl_data
-	 * after a merge with MFD tree
-	 */
-	omap3stalker_twldata.vmmc1 = &omap3stalker_vmmc1;
-	omap3stalker_twldata.vsim = &omap3stalker_vsim;
-
-	omap_register_i2c_bus(1, 2600, omap3stalker_i2c_boardinfo,
-			      ARRAY_SIZE(omap3stalker_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &omap3stalker_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, omap3stalker_i2c_boardinfo3,
 			      ARRAY_SIZE(omap3stalker_i2c_boardinfo3));
