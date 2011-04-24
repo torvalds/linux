@@ -43,24 +43,20 @@ void __init amiga_chip_init(void)
 void *amiga_chip_alloc(unsigned long size, const char *name)
 {
 	struct resource *res;
+	void *p;
 
-	/* round up */
-	size = PAGE_ALIGN(size);
-
-	pr_debug("amiga_chip_alloc: allocate %lu bytes\n", size);
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		return NULL;
-	res->name = name;
 
-	if (allocate_resource(&chipram_res, res, size, 0, UINT_MAX, PAGE_SIZE,
-			      NULL, NULL) < 0) {
+	res->name = name;
+	p = amiga_chip_alloc_res(size, res);
+	if (!p) {
 		kfree(res);
 		return NULL;
 	}
-	chipavail -= size;
-	pr_debug("amiga_chip_alloc: returning %pR\n", res);
-	return (void *)ZTWO_VADDR(res->start);
+
+	return p;
 }
 EXPORT_SYMBOL(amiga_chip_alloc);
 
@@ -72,23 +68,22 @@ EXPORT_SYMBOL(amiga_chip_alloc);
 	 *  those drivers must not free that Chip RAM afterwards.
 	 */
 
-void * __init amiga_chip_alloc_res(unsigned long size, struct resource *res)
+void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
 {
-	unsigned long start;
+	int error;
 
 	/* round up */
 	size = PAGE_ALIGN(size);
-	/* dmesg into chipmem prefers memory at the safe end */
-	start = CHIP_PHYSADDR + chipavail - size;
 
 	pr_debug("amiga_chip_alloc_res: allocate %lu bytes\n", size);
-	if (allocate_resource(&chipram_res, res, size, start, UINT_MAX,
-			      PAGE_SIZE, NULL, NULL) < 0) {
-		pr_err("amiga_chip_alloc_res: first alloc failed!\n");
-		if (allocate_resource(&chipram_res, res, size, 0, UINT_MAX,
-				      PAGE_SIZE, NULL, NULL) < 0)
-			return NULL;
+	error = allocate_resource(&chipram_res, res, size, 0, UINT_MAX,
+				  PAGE_SIZE, NULL, NULL);
+	if (error < 0) {
+		pr_err("amiga_chip_alloc_res: allocate_resource() failed %d!\n",
+		       error);
+		return NULL;
 	}
+
 	chipavail -= size;
 	pr_debug("amiga_chip_alloc_res: returning %pR\n", res);
 	return (void *)ZTWO_VADDR(res->start);
