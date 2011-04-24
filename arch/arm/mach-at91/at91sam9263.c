@@ -320,9 +320,6 @@ static void __init at91sam9263_initialize(void)
 	pm_power_off = at91sam9263_poweroff;
 	at91_extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1);
 
-	/* Register the processor-specific clocks */
-	at91sam9263_register_clocks();
-
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9263_gpio, 5);
 }
@@ -372,5 +369,6 @@ static unsigned int at91sam9263_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91sam9263_soc = {
 	.map_io = at91sam9263_map_io,
 	.default_irq_priority = at91sam9263_default_irq_priority,
+	.register_clocks = at91sam9263_register_clocks,
 	.init = at91sam9263_initialize,
 };

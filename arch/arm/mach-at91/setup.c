@@ -251,5 +251,8 @@ void __init at91_initialize(unsigned long main_clock)
 	/* Init clock subsystem */
 	at91_clock_init(main_clock);
 
+	/* Register the processor-specific clocks */
+	at91_boot_soc.register_clocks();
+
 	at91_boot_soc.init();
 }

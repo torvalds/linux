@@ -346,9 +346,6 @@ static void __init at91cap9_initialize(void)
 	pm_power_off = at91cap9_poweroff;
 	at91_extern_irq = (1 << AT91CAP9_ID_IRQ0) | (1 << AT91CAP9_ID_IRQ1);
 
-	/* Register the processor-specific clocks */
-	at91cap9_register_clocks();
-
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91cap9_gpio, 4);
 
@@ -404,5 +401,6 @@ static unsigned int at91cap9_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91cap9_soc = {
 	.map_io = at91cap9_map_io,
 	.default_irq_priority = at91cap9_default_irq_priority,
+	.register_clocks = at91cap9_register_clocks,
 	.init = at91cap9_initialize,
 };

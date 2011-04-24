@@ -336,9 +336,6 @@ static void __init at91sam9g45_initialize(void)
 	pm_power_off = at91sam9g45_poweroff;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);
 
-	/* Register the processor-specific clocks */
-	at91sam9g45_register_clocks();
-
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9g45_gpio, 5);
 }
@@ -388,5 +385,6 @@ static unsigned int at91sam9g45_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91sam9g45_soc = {
 	.map_io = at91sam9g45_map_io,
 	.default_irq_priority = at91sam9g45_default_irq_priority,
+	.register_clocks = at91sam9g45_register_clocks,
 	.init = at91sam9g45_initialize,
 };
