@@ -20,6 +20,7 @@
  */
 
 #include <linux/via-core.h>
+#include <asm/olpc.h>
 #include "global.h"
 
 static struct pll_config cle266_pll_config[] = {
@@ -875,6 +876,10 @@ void viafb_set_iga_path(void)
 				viaparinfo->chip_info->
 				lvds_chip_info2.output_interface);
 	}
+
+	/* looks like the OLPC has its display wired to DVP1 and LVDS2 */
+	if (machine_is_olpc())
+		viaparinfo->shared->iga2_devices = VIA_DVP1 | VIA_LVDS2;
 }
 
 static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
@@ -2600,7 +2605,7 @@ int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 
 	if (abs(best->refresh_rate - long_refresh) > 3) {
 		if (hres == 1200 && vres == 900)
-			return 50; /* OLPC DCON only supports 50 Hz */
+			return 49; /* OLPC DCON only supports 50 Hz */
 		else
 			return 60;
 	}
