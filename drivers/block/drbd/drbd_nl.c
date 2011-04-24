@@ -195,7 +195,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 
 	adm_ctx.minor = d_in->minor;
 	adm_ctx.mdev = minor_to_mdev(d_in->minor);
-	adm_ctx.tconn = conn_by_name(adm_ctx.conn_name);
+	adm_ctx.tconn = conn_get_by_name(adm_ctx.conn_name);
 
 	if (!adm_ctx.mdev && (flags & DRBD_ADM_NEED_MINOR)) {
 		drbd_msg_put_info("unknown minor");
@@ -223,8 +223,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 		drbd_msg_put_info("minor exists as different volume");
 		return ERR_INVALID_REQUEST;
 	}
-	if (adm_ctx.mdev && !adm_ctx.tconn)
-		adm_ctx.tconn = adm_ctx.mdev->tconn;
+
 	return NO_ERROR;
 
 fail:
@@ -237,6 +236,11 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
 {
 	struct nlattr *nla;
 	const char *conn_name = NULL;
+
+	if (adm_ctx.tconn) {
+		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
+		adm_ctx.tconn = NULL;
+	}
 
 	if (!adm_ctx.reply_skb)
 		return -ENOMEM;
@@ -2748,9 +2752,12 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!nla)
 		return -EINVAL;
 	conn_name = nla_data(nla);
-	tconn = conn_by_name(conn_name);
+	tconn = conn_get_by_name(conn_name);
+
 	if (!tconn)
 		return -ENODEV;
+
+	kref_put(&tconn->kref, &conn_destroy); /* get_one_status() (re)validates tconn by itself */
 
 	/* prime iterators, and set "filter" mode mark:
 	 * only dump this tconn. */

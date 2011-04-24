@@ -2362,7 +2362,7 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
 	INIT_LIST_HEAD(&wq->q);
 }
 
-struct drbd_tconn *conn_by_name(const char *name)
+struct drbd_tconn *conn_get_by_name(const char *name)
 {
 	struct drbd_tconn *tconn;
 
@@ -2371,8 +2371,10 @@ struct drbd_tconn *conn_by_name(const char *name)
 
 	down_read(&drbd_cfg_rwsem);
 	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
-		if (!strcmp(tconn->name, name))
+		if (!strcmp(tconn->name, name)) {
+			kref_get(&tconn->kref);
 			goto found;
+		}
 	}
 	tconn = NULL;
 found:

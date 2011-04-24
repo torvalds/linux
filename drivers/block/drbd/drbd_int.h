@@ -1381,7 +1381,7 @@ extern void drbd_delete_device(struct drbd_conf *mdev);
 
 struct drbd_tconn *conn_create(const char *name);
 extern void conn_destroy(struct kref *kref);
-struct drbd_tconn *conn_by_name(const char *name);
+struct drbd_tconn *conn_get_by_name(const char *name);
 extern void conn_free_crypto(struct drbd_tconn *tconn);
 
 extern int proc_details;
