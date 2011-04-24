@@ -99,12 +99,9 @@ static struct kmem_cache *dentry_cache __read_mostly;
 static unsigned int d_hash_mask __read_mostly;
 static unsigned int d_hash_shift __read_mostly;
 
-struct dcache_hash_bucket {
-	struct hlist_bl_head head;
-};
-static struct dcache_hash_bucket *dentry_hashtable __read_mostly;
+static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
-static inline struct dcache_hash_bucket *d_hash(struct dentry *parent,
+static inline struct hlist_bl_head *d_hash(struct dentry *parent,
 					unsigned long hash)
 {
 	hash += ((unsigned long) parent ^ GOLDEN_RATIO_PRIME) / L1_CACHE_BYTES;
@@ -112,14 +109,14 @@ static inline struct dcache_hash_bucket *d_hash(struct dentry *parent,
 	return dentry_hashtable + (hash & D_HASHMASK);
 }
 
-static inline void spin_lock_bucket(struct dcache_hash_bucket *b)
+static inline void spin_lock_bucket(struct hlist_bl_head *b)
 {
-	bit_spin_lock(0, (unsigned long *)&b->head.first);
+	bit_spin_lock(0, (unsigned long *)&b->first);
 }
 
-static inline void spin_unlock_bucket(struct dcache_hash_bucket *b)
+static inline void spin_unlock_bucket(struct hlist_bl_head *b)
 {
-	__bit_spin_unlock(0, (unsigned long *)&b->head.first);
+	__bit_spin_unlock(0, (unsigned long *)&b->first);
 }
 
 /* Statistics gathering. */
@@ -331,15 +328,15 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 void __d_drop(struct dentry *dentry)
 {
 	if (!(dentry->d_flags & DCACHE_UNHASHED)) {
+		struct hlist_bl_head *b;
 		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED)) {
-			bit_spin_lock(0,
-				(unsigned long *)&dentry->d_sb->s_anon.first);
+			b = &dentry->d_sb->s_anon;
+			spin_lock_bucket(b);
 			dentry->d_flags |= DCACHE_UNHASHED;
 			hlist_bl_del_init(&dentry->d_hash);
-			__bit_spin_unlock(0,
-				(unsigned long *)&dentry->d_sb->s_anon.first);
+			spin_unlock_bucket(b);
 		} else {
-			struct dcache_hash_bucket *b;
+			struct hlist_bl_head *b;
 			b = d_hash(dentry->d_parent, dentry->d_name.hash);
 			spin_lock_bucket(b);
 			/*
@@ -1789,7 +1786,7 @@ struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
-	struct dcache_hash_bucket *b = d_hash(parent, hash);
+	struct hlist_bl_head *b = d_hash(parent, hash);
 	struct hlist_bl_node *node;
 	struct dentry *dentry;
 
@@ -1813,7 +1810,7 @@ struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
 	 *
 	 * See Documentation/filesystems/path-lookup.txt for more details.
 	 */
-	hlist_bl_for_each_entry_rcu(dentry, node, &b->head, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, node, b, d_hash) {
 		struct inode *i;
 		const char *tname;
 		int tlen;
@@ -1908,7 +1905,7 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
-	struct dcache_hash_bucket *b = d_hash(parent, hash);
+	struct hlist_bl_head *b = d_hash(parent, hash);
 	struct hlist_bl_node *node;
 	struct dentry *found = NULL;
 	struct dentry *dentry;
@@ -1935,7 +1932,7 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 	 */
 	rcu_read_lock();
 	
-	hlist_bl_for_each_entry_rcu(dentry, node, &b->head, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, node, b, d_hash) {
 		const char *tname;
 		int tlen;
 
@@ -2086,12 +2083,12 @@ again:
 }
 EXPORT_SYMBOL(d_delete);
 
-static void __d_rehash(struct dentry * entry, struct dcache_hash_bucket *b)
+static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
 {
 	BUG_ON(!d_unhashed(entry));
 	spin_lock_bucket(b);
  	entry->d_flags &= ~DCACHE_UNHASHED;
-	hlist_bl_add_head_rcu(&entry->d_hash, &b->head);
+	hlist_bl_add_head_rcu(&entry->d_hash, b);
 	spin_unlock_bucket(b);
 }
 
@@ -3025,7 +3022,7 @@ static void __init dcache_init_early(void)
 
 	dentry_hashtable =
 		alloc_large_system_hash("Dentry cache",
-					sizeof(struct dcache_hash_bucket),
+					sizeof(struct hlist_bl_head),
 					dhash_entries,
 					13,
 					HASH_EARLY,
@@ -3034,7 +3031,7 @@ static void __init dcache_init_early(void)
 					0);
 
 	for (loop = 0; loop < (1 << d_hash_shift); loop++)
-		INIT_HLIST_BL_HEAD(&dentry_hashtable[loop].head);
+		INIT_HLIST_BL_HEAD(dentry_hashtable + loop);
 }
 
 static void __init dcache_init(void)
@@ -3057,7 +3054,7 @@ static void __init dcache_init(void)
 
 	dentry_hashtable =
 		alloc_large_system_hash("Dentry cache",
-					sizeof(struct dcache_hash_bucket),
+					sizeof(struct hlist_bl_head),
 					dhash_entries,
 					13,
 					0,
@@ -3066,7 +3063,7 @@ static void __init dcache_init(void)
 					0);
 
 	for (loop = 0; loop < (1 << d_hash_shift); loop++)
-		INIT_HLIST_BL_HEAD(&dentry_hashtable[loop].head);
+		INIT_HLIST_BL_HEAD(dentry_hashtable + loop);
 }
 
 /* SLAB cache for __getname() consumers */
