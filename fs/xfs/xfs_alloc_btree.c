@@ -94,6 +94,8 @@ xfs_allocbt_alloc_block(
 		*stat = 0;
 		return 0;
 	}
+	if (xfs_alloc_busy_search(cur->bc_mp, cur->bc_private.a.agno, bno, 1))
+		xfs_trans_set_sync(cur->bc_tp);
 
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
