@@ -3754,18 +3754,17 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
 		if (status != -NFS4ERR_CLID_INUSE)
 			break;
-		if (signalled())
+		if (loop != 0) {
+			++clp->cl_id_uniquifier;
 			break;
-		if (loop++ & 1)
-			ssleep(clp->cl_lease_time / HZ + 1);
-		else
-			if (++clp->cl_id_uniquifier == 0)
-				break;
+		}
+		++loop;
+		ssleep(clp->cl_lease_time / HZ + 1);
 	}
 	return status;
 }
 
-static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp,
+int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		struct nfs4_setclientid_res *arg,
 		struct rpc_cred *cred)
 {
@@ -3788,26 +3787,6 @@ static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		spin_unlock(&clp->cl_lock);
 	}
 	return status;
-}
-
-int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
-		struct nfs4_setclientid_res *arg,
-		struct rpc_cred *cred)
-{
-	long timeout = 0;
-	int err;
-	do {
-		err = _nfs4_proc_setclientid_confirm(clp, arg, cred);
-		switch (err) {
-			case 0:
-				return err;
-			case -NFS4ERR_RESOURCE:
-				/* The IBM lawyers misread another document! */
-			case -NFS4ERR_DELAY:
-				err = nfs4_delay(clp->cl_rpcclient, &timeout);
-		}
-	} while (err == 0);
-	return err;
 }
 
 struct nfs4_delegreturndata {
@@ -5222,20 +5201,10 @@ int nfs4_proc_create_session(struct nfs_client *clp)
 	int status;
 	unsigned *ptr;
 	struct nfs4_session *session = clp->cl_session;
-	long timeout = 0;
-	int err;
 
 	dprintk("--> %s clp=%p session=%p\n", __func__, clp, session);
 
-	do {
-		status = _nfs4_proc_create_session(clp);
-		if (status == -NFS4ERR_DELAY) {
-			err = nfs4_delay(clp->cl_rpcclient, &timeout);
-			if (err)
-				status = err;
-		}
-	} while (status == -NFS4ERR_DELAY);
-
+	status = _nfs4_proc_create_session(clp);
 	if (status)
 		goto out;
 
