@@ -35,10 +35,6 @@
 #include <linux/cache.h>
 #include <linux/security.h>
 
-#ifndef __KERNEL__
-#warning This file is not supposed to be used outside of kernel.
-#endif
-
 #define RTO_ONLINK	0x01
 
 #define RTO_CONN	0

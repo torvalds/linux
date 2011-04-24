@@ -21,8 +21,6 @@ struct route_info {
 	__u8			prefix[0];	/* 0,8 or 16 */
 };
 
-#ifdef __KERNEL__
-
 #include <net/flow.h>
 #include <net/ip6_fib.h>
 #include <net/sock.h>
@@ -192,5 +190,4 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
-#endif
 #endif

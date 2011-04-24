@@ -42,8 +42,6 @@ enum {
 #define ND_REACHABLE_TIME		(30*HZ)
 #define ND_RETRANS_TIMER		HZ
 
-#ifdef __KERNEL__
-
 #include <linux/compiler.h>
 #include <linux/icmpv6.h>
 #include <linux/in6.h>
@@ -155,9 +153,5 @@ static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, const s
 
 	return ERR_PTR(-ENODEV);
 }
-
-
-#endif /* __KERNEL__ */
-
 
 #endif

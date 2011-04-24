@@ -77,11 +77,9 @@
 /*
  *	Addr scopes
  */
-#ifdef __KERNEL__
 #define IPV6_ADDR_MC_SCOPE(a)	\
 	((a)->s6_addr[1] & 0x0f)	/* nonstandard */
 #define __IPV6_ADDR_SCOPE_INVALID	-1
-#endif
 #define IPV6_ADDR_SCOPE_NODELOCAL	0x01
 #define IPV6_ADDR_SCOPE_LINKLOCAL	0x02
 #define IPV6_ADDR_SCOPE_SITELOCAL	0x05
@@ -91,14 +89,12 @@
 /*
  *	Addr flags
  */
-#ifdef __KERNEL__
 #define IPV6_ADDR_MC_FLAG_TRANSIENT(a)	\
 	((a)->s6_addr[1] & 0x10)
 #define IPV6_ADDR_MC_FLAG_PREFIX(a)	\
 	((a)->s6_addr[1] & 0x20)
 #define IPV6_ADDR_MC_FLAG_RENDEZVOUS(a)	\
 	((a)->s6_addr[1] & 0x40)
-#endif
 
 /*
  *	fragmentation header
@@ -112,8 +108,6 @@ struct frag_hdr {
 };
 
 #define	IP6_MF	0x0001
-
-#ifdef __KERNEL__
 
 #include <net/sock.h>
 
@@ -667,5 +661,4 @@ extern int ipv6_static_sysctl_register(void);
 extern void ipv6_static_sysctl_unregister(void);
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _NET_IPV6_H */

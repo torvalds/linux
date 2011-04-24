@@ -13,8 +13,6 @@
 #ifndef _IP6_FIB_H
 #define _IP6_FIB_H
 
-#ifdef __KERNEL__
-
 #include <linux/ipv6_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
@@ -238,6 +236,5 @@ static inline void              fib6_rules_cleanup(void)
 {
 	return ;
 }
-#endif
 #endif
 #endif

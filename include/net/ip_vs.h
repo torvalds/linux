@@ -8,9 +8,6 @@
 
 #include <linux/ip_vs.h>                /* definitions shared with userland */
 
-/* old ipvsadm versions still include this file directly */
-#ifdef __KERNEL__
-
 #include <asm/types.h>                  /* for __uXX types */
 
 #include <linux/sysctl.h>               /* for ctl_path */
@@ -1414,7 +1411,5 @@ ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
 	return (atomic_read(&dest->activeconns) << 8) +
 		atomic_read(&dest->inactconns);
 }
-
-#endif /* __KERNEL__ */
 
 #endif	/* _NET_IP_VS_H */

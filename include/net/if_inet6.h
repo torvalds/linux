@@ -30,8 +30,6 @@
 #define IF_PREFIX_ONLINK	0x01
 #define IF_PREFIX_AUTOCONF	0x02
 
-#ifdef __KERNEL__
-
 enum {
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
@@ -302,5 +300,4 @@ static inline int ipv6_ipgre_mc_map(const struct in6_addr *addr,
 	return 0;
 }
 
-#endif
 #endif
