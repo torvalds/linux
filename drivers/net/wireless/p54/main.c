@@ -308,6 +308,31 @@ out:
 	return ret;
 }
 
+static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
+				 struct netdev_hw_addr_list *mc_list)
+{
+	struct p54_common *priv = dev->priv;
+	struct netdev_hw_addr *ha;
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(priv->mc_maclist) !=
+		ARRAY_SIZE(((struct p54_group_address_table *)NULL)->mac_list));
+	/*
+	 * The first entry is reserved for the global broadcast MAC.
+	 * Otherwise the firmware will drop it and ARP will no longer work.
+	 */
+	i = 1;
+	priv->mc_maclist_num = netdev_hw_addr_list_count(mc_list) + i;
+	netdev_hw_addr_list_for_each(ha, mc_list) {
+		memcpy(&priv->mc_maclist[i], ha->addr, ETH_ALEN);
+		i++;
+		if (i >= ARRAY_SIZE(priv->mc_maclist))
+			break;
+	}
+
+	return 1; /* update */
+}
+
 static void p54_configure_filter(struct ieee80211_hw *dev,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -316,12 +341,16 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	*total_flags &= FIF_PROMISC_IN_BSS |
+			FIF_ALLMULTI |
 			FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
 	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
 		p54_setup_mac(priv);
+
+	if (changed_flags & FIF_ALLMULTI || multicast)
+		p54_set_groupfilter(priv);
 }
 
 static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
@@ -591,6 +620,7 @@ static const struct ieee80211_ops p54_ops = {
 	.config			= p54_config,
 	.flush			= p54_flush,
 	.bss_info_changed	= p54_bss_info_changed,
+	.prepare_multicast	= p54_prepare_multicast,
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
@@ -660,6 +690,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	init_completion(&priv->beacon_comp);
 	INIT_DELAYED_WORK(&priv->work, p54_work);
 
+	memset(&priv->mc_maclist[0], ~0, ETH_ALEN);
 	return dev;
 }
 EXPORT_SYMBOL_GPL(p54_init_common);
