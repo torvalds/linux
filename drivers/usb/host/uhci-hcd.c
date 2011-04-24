@@ -53,9 +53,10 @@
 /*
  * Version Information
  */
-#define DRIVER_AUTHOR "Linus 'Frodo Rabbit' Torvalds, Johannes Erdfelt, \
-Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
-Alan Stern"
+#define DRIVER_AUTHOR							\
+	"Linus 'Frodo Rabbit' Torvalds, Johannes Erdfelt, "		\
+	"Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, "	\
+	"Roman Weissgaerber, Alan Stern"
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
 /* for flakey hardware, ignore overcurrent indicators */

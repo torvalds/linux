@@ -713,8 +713,8 @@ iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			iwl4965_find_first_chain(priv->cfg->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
-			IWL_DEBUG_CALIB(priv, "All Tx chains are disconnected \
-					W/A - declare %d as connected\n",
+			IWL_DEBUG_CALIB(priv,
+					"All Tx chains are disconnected W/A - declare %d as connected\n",
 					first_chain);
 			break;
 		}

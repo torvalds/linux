@@ -787,8 +787,8 @@ static int __devinit spear_pcie_gadget_probe(struct platform_device *pdev)
 
 	status = request_irq(irq, spear_pcie_gadget_irq, 0, pdev->name, NULL);
 	if (status) {
-		dev_err(&pdev->dev, "pcie gadget interrupt IRQ%d already \
-				claimed\n", irq);
+		dev_err(&pdev->dev,
+			"pcie gadget interrupt IRQ%d already claimed\n", irq);
 		goto err_iounmap;
 	}
 

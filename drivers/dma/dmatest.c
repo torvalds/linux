@@ -56,8 +56,8 @@ MODULE_PARM_DESC(pq_sources,
 
 static int timeout = 3000;
 module_param(timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), \
-		Pass -1 for infinite timeout");
+MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
+		 "Pass -1 for infinite timeout");
 
 /*
  * Initialization patterns. All bytes in the source buffer has bit 7
