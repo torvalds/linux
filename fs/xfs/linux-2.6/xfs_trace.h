@@ -1241,6 +1241,36 @@ TRACE_EVENT(xfs_alloc_busysearch,
 		  __print_symbolic(__entry->found, XFS_BUSY_STATES))
 );
 
+TRACE_EVENT(xfs_alloc_busy_trim,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+		 xfs_agblock_t agbno, xfs_extlen_t len,
+		 xfs_agblock_t tbno, xfs_extlen_t tlen),
+	TP_ARGS(mp, agno, agbno, len, tbno, tlen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+		__field(xfs_agblock_t, tbno)
+		__field(xfs_extlen_t, tlen)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agbno = agbno;
+		__entry->len = len;
+		__entry->tbno = tbno;
+		__entry->tlen = tlen;
+	),
+	TP_printk("dev %d:%d agno %u agbno %u len %u tbno %u tlen %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->tbno,
+		  __entry->tlen)
+);
+
 TRACE_EVENT(xfs_trans_commit_lsn,
 	TP_PROTO(struct xfs_trans *trans),
 	TP_ARGS(trans),
@@ -1433,11 +1463,14 @@ DEFINE_ALLOC_EVENT(xfs_alloc_near_first);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_greater);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_lesser);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_error);
+DEFINE_ALLOC_EVENT(xfs_alloc_near_noentry);
+DEFINE_ALLOC_EVENT(xfs_alloc_near_busy);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_neither);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_noentry);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_nominleft);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_done);
 DEFINE_ALLOC_EVENT(xfs_alloc_size_error);
+DEFINE_ALLOC_EVENT(xfs_alloc_size_busy);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_freelist);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_notenough);
 DEFINE_ALLOC_EVENT(xfs_alloc_small_done);
