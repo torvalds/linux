@@ -1754,9 +1754,6 @@ int drbd_worker(struct drbd_thread *thi)
 		drbd_mdev_cleanup(mdev);
 	}
 	up_read(&drbd_cfg_rwsem);
-	clear_bit(OBJECT_DYING, &tconn->flags);
-	clear_bit(CONFIG_PENDING, &tconn->flags);
-	wake_up(&tconn->ping_wait);
 
 	return 0;
 }

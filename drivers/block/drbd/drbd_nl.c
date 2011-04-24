@@ -1040,34 +1040,20 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 	drbd_setup_queue_param(mdev, new);
 }
 
-/* serialize deconfig (worker exiting, doing cleanup)
- * and reconfig (drbdsetup disk, drbdsetup net)
- *
- * Wait for a potentially exiting worker, then restart it,
- * or start a new one.  Flush any pending work, there may still be an
- * after_state_change queued.
- */
+/* Starts the worker thread */
 static void conn_reconfig_start(struct drbd_tconn *tconn)
 {
-	wait_event(tconn->ping_wait, !test_and_set_bit(CONFIG_PENDING, &tconn->flags));
-	wait_event(tconn->ping_wait, !test_bit(OBJECT_DYING, &tconn->flags));
 	drbd_thread_start(&tconn->worker);
 	conn_flush_workqueue(tconn);
 }
 
-/* if still unconfigured, stops worker again.
- * if configured now, clears CONFIG_PENDING.
- * wakes potential waiters */
+/* if still unconfigured, stops worker again. */
 static void conn_reconfig_done(struct drbd_tconn *tconn)
 {
 	spin_lock_irq(&tconn->req_lock);
-	if (conn_all_vols_unconf(tconn)) {
-		set_bit(OBJECT_DYING, &tconn->flags);
+	if (conn_all_vols_unconf(tconn))
 		drbd_thread_stop_nowait(&tconn->worker);
-	} else
-		clear_bit(CONFIG_PENDING, &tconn->flags);
 	spin_unlock_irq(&tconn->req_lock);
-	wake_up(&tconn->ping_wait);
 }
 
 /* Make sure IO is suspended before calling this function(). */

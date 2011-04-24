@@ -926,18 +926,6 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	mdev->tconn->susp_nod = ns.susp_nod;
 	mdev->tconn->susp_fen = ns.susp_fen;
 
-	/* solve the race between becoming unconfigured,
-	 * worker doing the cleanup, and
-	 * admin reconfiguring us:
-	 * on (re)configure, first set CONFIG_PENDING,
-	 * then wait for a potentially exiting worker,
-	 * start the worker, and schedule one no_op.
-	 * then proceed with configuration.
-	 */
-	if(conn_all_vols_unconf(mdev->tconn) &&
-	   !test_and_set_bit(CONFIG_PENDING, &mdev->tconn->flags))
-		set_bit(OBJECT_DYING, &mdev->tconn->flags);
-
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
 		drbd_print_uuids(mdev, "attached to UUIDs");
 
@@ -1401,10 +1389,8 @@ struct after_conn_state_chg_work {
 
 static void after_all_state_ch(struct drbd_tconn *tconn)
 {
-	if (conn_all_vols_unconf(tconn) &&
-	    test_bit(OBJECT_DYING, &tconn->flags)) {
+	if (conn_all_vols_unconf(tconn))
 		drbd_thread_stop_nowait(&tconn->worker);
-	}
 }
 
 static int w_after_conn_state_ch(struct drbd_work *w, int unused)
