@@ -22,7 +22,8 @@ extern void __init at91cap9_map_io(void);
 extern void __init at572d940hf_map_io(void);
 
  /* Processors */
-extern void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks);
+extern void __init at91rm9200_set_type(int type);
+extern void __init at91rm9200_initialize(unsigned long main_clock);
 extern void __init at91sam9260_initialize(unsigned long main_clock);
 extern void __init at91sam9261_initialize(unsigned long main_clock);
 extern void __init at91sam9263_initialize(unsigned long main_clock);

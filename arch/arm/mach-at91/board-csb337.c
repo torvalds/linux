@@ -46,7 +46,7 @@
 static void __init csb337_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
-	at91rm9200_initialize(3686400, AT91RM9200_BGA);
+	at91rm9200_initialize(3686400);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);

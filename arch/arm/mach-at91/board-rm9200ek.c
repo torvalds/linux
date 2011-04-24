@@ -48,7 +48,7 @@
 static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_BGA);
+	at91rm9200_initialize(18432000);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB1, AT91_PIN_PB2);

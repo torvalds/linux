@@ -36,7 +36,7 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-
+#include <mach/cpu.h>
 #include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
@@ -44,8 +44,11 @@
 
 static void __init kb9202_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 10 MHz crystal */
-	at91rm9200_initialize(10000000, AT91RM9200_PQFP);
+	at91rm9200_initialize(10000000);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);

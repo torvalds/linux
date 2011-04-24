@@ -38,6 +38,7 @@
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 
@@ -52,8 +53,11 @@ static struct gpio_led cpuat91_leds[] = {
 
 static void __init cpuat91_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
+	at91rm9200_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
