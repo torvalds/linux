@@ -442,7 +442,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " # %10.3f IPC  ", ratio);
+		fprintf(stderr, " # ( %4.2f instructions per cycle )", ratio);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_branches_stats[cpu]);
@@ -450,7 +450,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg * 100 / total;
 
-		fprintf(stderr, " # %10.3f %%    ", ratio);
+		fprintf(stderr, " # %10.3f %%", ratio);
 
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
@@ -459,6 +459,13 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 			ratio = 1000.0 * avg / total;
 
 		fprintf(stderr, " # %10.3f M/sec", ratio);
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES)) {
+		total = avg_stats(&runtime_cycles_stats[cpu]);
+
+		if (total)
+			ratio = avg / total * 100.0;
+
+		fprintf(stderr, " # (%5.2f%% of all cycles )", ratio);
 	}
 }
 
