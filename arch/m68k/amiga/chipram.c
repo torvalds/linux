@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
+#include <asm/atomic.h>
 #include <asm/page.h>
 #include <asm/amigahw.h>
 
@@ -25,7 +26,7 @@ EXPORT_SYMBOL(amiga_chip_size);
 static struct resource chipram_res = {
 	.name = "Chip RAM", .start = CHIP_PHYSADDR
 };
-static unsigned long chipavail;
+static atomic_t chipavail;
 
 
 void __init amiga_chip_init(void)
@@ -36,7 +37,7 @@ void __init amiga_chip_init(void)
 	chipram_res.end = amiga_chip_size-1;
 	request_resource(&iomem_resource, &chipram_res);
 
-	chipavail = amiga_chip_size;
+	atomic_set(&chipavail, amiga_chip_size);
 }
 
 
@@ -84,7 +85,7 @@ void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
 		return NULL;
 	}
 
-	chipavail -= size;
+	atomic_sub(size, &chipavail);
 	pr_debug("amiga_chip_alloc_res: returning %pR\n", res);
 	return (void *)ZTWO_VADDR(res->start);
 }
@@ -101,7 +102,7 @@ void amiga_chip_free(void *ptr)
 		*p = res->sibling;
 		size = res->end-start;
 		pr_debug("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
-		chipavail += size;
+		atomic_add(size, &chipavail);
 		kfree(res);
 		return;
 	}
@@ -113,8 +114,10 @@ EXPORT_SYMBOL(amiga_chip_free);
 
 unsigned long amiga_chip_avail(void)
 {
-	pr_debug("amiga_chip_avail : %lu bytes\n", chipavail);
-	return chipavail;
+	unsigned long n = atomic_read(&chipavail);
+
+	pr_debug("amiga_chip_avail : %lu bytes\n", n);
+	return n;
 }
 EXPORT_SYMBOL(amiga_chip_avail);
 
