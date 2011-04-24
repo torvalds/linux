@@ -746,7 +746,13 @@ void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
 		if (bud->lnum == lp->lnum) {
 			int head = 0;
 			for (i = 0; i < c->jhead_cnt; i++) {
-				if (lp->lnum == c->jheads[i].wbuf.lnum) {
+				/*
+				 * Note, if we are in R/O mode or in the middle
+				 * of mounting/re-mounting, the write-buffers do
+				 * not exist.
+				 */
+				if (c->jheads &&
+				    lp->lnum == c->jheads[i].wbuf.lnum) {
 					printk(KERN_CONT ", jhead %s",
 					       dbg_jhead(i));
 					head = 1;
