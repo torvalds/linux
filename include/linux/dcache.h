@@ -197,7 +197,7 @@ struct dentry_operations {
       * typically using d_splice_alias. */
 
 #define DCACHE_REFERENCED	0x0008  /* Recently used, don't discard. */
-#define DCACHE_UNHASHED		0x0010	
+#define DCACHE_RCUACCESS	0x0010	/* Entry has ever been RCU-visible */
 #define DCACHE_INOTIFY_PARENT_WATCHED 0x0020
      /* Parent inode is watched by inotify */
 
@@ -384,7 +384,7 @@ extern struct dentry *dget_parent(struct dentry *dentry);
  
 static inline int d_unhashed(struct dentry *dentry)
 {
-	return (dentry->d_flags & DCACHE_UNHASHED);
+	return hlist_bl_unhashed(&dentry->d_hash);
 }
 
 static inline int d_unlinked(struct dentry *dentry)
