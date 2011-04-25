@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/clocksource.h>
@@ -152,10 +153,12 @@ static int sh_cmt_enable(struct sh_cmt_priv *p, unsigned long *rate)
 {
 	int ret;
 
-	/* enable clock */
+	/* wake up device and enable clock */
+	pm_runtime_get_sync(&p->pdev->dev);
 	ret = clk_enable(p->clk);
 	if (ret) {
 		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		pm_runtime_put_sync(&p->pdev->dev);
 		return ret;
 	}
 
@@ -187,8 +190,9 @@ static void sh_cmt_disable(struct sh_cmt_priv *p)
 	/* disable interrupts in CMT block */
 	sh_cmt_write(p, CMCSR, 0);
 
-	/* stop clock */
+	/* stop clock and mark device as idle */
 	clk_disable(p->clk);
+	pm_runtime_put_sync(&p->pdev->dev);
 }
 
 /* private flags */
@@ -660,6 +664,7 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 
 	if (p) {
 		dev_info(&pdev->dev, "kept as earlytimer\n");
+		pm_runtime_enable(&pdev->dev);
 		return 0;
 	}
 
@@ -674,6 +679,9 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 		kfree(p);
 		platform_set_drvdata(pdev, NULL);
 	}
+
+	if (!is_early_platform_device(pdev))
+		pm_runtime_enable(&pdev->dev);
 	return ret;
 }
 
