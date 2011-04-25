@@ -2336,6 +2336,12 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(3DNOWPREFETCH) | 0 /* OSVW */ | 0 /* IBS */ | F(XOP) |
 		0 /* SKINIT, WDT, LWP */ | F(FMA4) | F(TBM);
 
+	/* cpuid 0xC0000001.edx */
+	const u32 kvm_supported_word5_x86_features =
+		F(XSTORE) | F(XSTORE_EN) | F(XCRYPT) | F(XCRYPT_EN) |
+		F(ACE2) | F(ACE2_EN) | F(PHE) | F(PHE_EN) |
+		F(PMM) | F(PMM_EN);
+
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
 	do_cpuid_1_ent(entry, function, index);
@@ -2445,6 +2451,20 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->ecx &= kvm_supported_word6_x86_features;
 		cpuid_mask(&entry->ecx, 6);
 		break;
+	/*Add support for Centaur's CPUID instruction*/
+	case 0xC0000000:
+		/*Just support up to 0xC0000004 now*/
+		entry->eax = min(entry->eax, 0xC0000004);
+		break;
+	case 0xC0000001:
+		entry->edx &= kvm_supported_word5_x86_features;
+		cpuid_mask(&entry->edx, 5);
+		break;
+	case 0xC0000002:
+	case 0xC0000003:
+	case 0xC0000004:
+		/*Now nothing to do, reserved for the future*/
+		break;
 	}
 
 	kvm_x86_ops->set_supported_cpuid(function, entry);
@@ -2490,6 +2510,26 @@ static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 	r = -E2BIG;
 	if (nent >= cpuid->nent)
 		goto out_free;
+
+	/* Add support for Centaur's CPUID instruction. */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR) {
+		do_cpuid_ent(&cpuid_entries[nent], 0xC0000000, 0,
+				&nent, cpuid->nent);
+
+		r = -E2BIG;
+		if (nent >= cpuid->nent)
+			goto out_free;
+
+		limit = cpuid_entries[nent - 1].eax;
+		for (func = 0xC0000001;
+			func <= limit && nent < cpuid->nent; ++func)
+			do_cpuid_ent(&cpuid_entries[nent], func, 0,
+					&nent, cpuid->nent);
+
+		r = -E2BIG;
+		if (nent >= cpuid->nent)
+			goto out_free;
+	}
 
 	do_cpuid_ent(&cpuid_entries[nent], KVM_CPUID_SIGNATURE, 0, &nent,
 		     cpuid->nent);
