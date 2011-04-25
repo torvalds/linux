@@ -2585,7 +2585,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		ironlake_pch_enable(crtc);
 
 	intel_crtc_load_lut(crtc);
+
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
+
 	intel_crtc_update_cursor(crtc, true);
 }
 
@@ -2681,8 +2685,11 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc->active = false;
 	intel_update_watermarks(dev);
+
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	intel_clear_scanline_wait(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -6973,6 +6980,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	 * userspace...
 	 */
 	I915_WRITE(GEN6_RC_STATE, 0);
+	mutex_lock(&dev_priv->dev->struct_mutex);
 	gen6_gt_force_wake_get(dev_priv);
 
 	/* disable the counters and set deterministic thresholds */
@@ -7075,6 +7083,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
 	gen6_gt_force_wake_put(dev_priv);
+	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
 void intel_enable_clock_gating(struct drm_device *dev)

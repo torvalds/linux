@@ -853,6 +853,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
 
 	if (IS_GEN5(dev)) {
 		u16 rgvswctl = I915_READ16(MEMSWCTL);
@@ -874,6 +875,10 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		int max_freq;
 
 		/* RPSTAT1 is in the GT power well */
+		ret = mutex_lock_interruptible(&dev->struct_mutex);
+		if (ret)
+			return ret;
+
 		gen6_gt_force_wake_get(dev_priv);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
@@ -883,6 +888,9 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
+
+		gen6_gt_force_wake_put(dev_priv);
+		mutex_unlock(&dev->struct_mutex);
 
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "RPSTAT1: 0x%08x\n", rpstat);
@@ -918,8 +926,6 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   max_freq * 50);
-
-		gen6_gt_force_wake_put(dev_priv);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
