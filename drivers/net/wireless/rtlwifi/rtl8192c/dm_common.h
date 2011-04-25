@@ -200,5 +200,7 @@ void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
 void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
 void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);
+void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw);
+void rtl92c_dm_bt_coexist(struct ieee80211_hw *hw);
 
 #endif
