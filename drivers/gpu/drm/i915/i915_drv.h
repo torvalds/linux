@@ -1325,10 +1325,30 @@ extern void intel_display_print_error_state(struct seq_file *m,
 		LOCK_TEST_WITH_RETURN(dev, file);			\
 } while (0)
 
+/* On SNB platform, before reading ring registers forcewake bit
+ * must be set to prevent GT core from power down and stale values being
+ * returned.
+ */
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
+
+/* We give fast paths for the really cool registers */
+#define NEEDS_FORCE_WAKE(dev_priv, reg) \
+	(((dev_priv)->info->gen >= 6) && \
+	((reg) < 0x40000) && \
+	((reg) != FORCEWAKE))
 
 #define __i915_read(x, y) \
 static inline u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
-	u##x val = read##y(dev_priv->regs + reg); \
+	u##x val = 0; \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		__gen6_gt_force_wake_get(dev_priv); \
+		val = read##y(dev_priv->regs + reg); \
+		__gen6_gt_force_wake_put(dev_priv); \
+	} else { \
+		val = read##y(dev_priv->regs + reg); \
+	} \
 	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
 	return val; \
 }
@@ -1341,6 +1361,9 @@ __i915_read(64, q)
 #define __i915_write(x, y) \
 static inline void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		__gen6_gt_wait_for_fifo(dev_priv); \
+	} \
 	write##y(val, dev_priv->regs + reg); \
 }
 __i915_write(8, b)
@@ -1369,33 +1392,4 @@ __i915_write(64, q)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
 
-/* On SNB platform, before reading ring registers forcewake bit
- * must be set to prevent GT core from power down and stale values being
- * returned.
- */
-void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
-void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
-
-static inline u32 i915_gt_read(struct drm_i915_private *dev_priv, u32 reg)
-{
-	u32 val;
-
-	if (dev_priv->info->gen >= 6) {
-		__gen6_gt_force_wake_get(dev_priv);
-		val = I915_READ(reg);
-		__gen6_gt_force_wake_put(dev_priv);
-	} else
-		val = I915_READ(reg);
-
-	return val;
-}
-
-static inline void i915_gt_write(struct drm_i915_private *dev_priv,
-				u32 reg, u32 val)
-{
-	if (dev_priv->info->gen >= 6)
-		__gen6_gt_wait_for_fifo(dev_priv);
-	I915_WRITE(reg, val);
-}
 #endif
