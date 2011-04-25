@@ -58,6 +58,7 @@ struct wm8962_priv {
 	int bclk;  /* Desired BCLK */
 	int lrclk;
 
+	struct completion fll_lock;
 	int fll_src;
 	int fll_fref;
 	int fll_fout;
@@ -3178,6 +3179,7 @@ static int wm8962_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
+	unsigned long timeout;
 	int ret;
 	int fll1 = snd_soc_read(codec, WM8962_FLL_CONTROL_1) & WM8962_FLL_ENA;
 
@@ -3243,6 +3245,11 @@ static int wm8962_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 			    WM8962_FLL_ENA, fll1);
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
+
+	/* This should be a massive overestimate */
+	timeout = msecs_to_jiffies(1);
+
+	wait_for_completion_timeout(&wm8962->fll_lock, timeout);
 
 	wm8962->fll_fref = Fref;
 	wm8962->fll_fout = Fout;
@@ -3339,6 +3346,11 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
+
+	if (active & WM8962_FLL_LOCK_EINT) {
+		dev_dbg(codec->dev, "FLL locked\n");
+		complete(&wm8962->fll_lock);
+	}
 
 	if (active & WM8962_FIFOS_ERR_EINT)
 		dev_err(codec->dev, "FIFO error\n");
@@ -3712,6 +3724,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 
 	wm8962->codec = codec;
 	INIT_DELAYED_WORK(&wm8962->mic_work, wm8962_mic_work);
+	init_completion(&wm8962->fll_lock);
 
 	codec->cache_sync = 1;
 	codec->dapm.idle_bias_off = 1;
@@ -3868,9 +3881,10 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 				i2c->irq, ret);
 			/* Non-fatal */
 		} else {
-			/* Enable error reporting IRQs by default */
+			/* Enable some IRQs by default */
 			snd_soc_update_bits(codec,
 					    WM8962_INTERRUPT_STATUS_2_MASK,
+					    WM8962_FLL_LOCK_EINT |
 					    WM8962_TEMP_SHUT_EINT |
 					    WM8962_FIFOS_ERR_EINT, 0);
 		}
