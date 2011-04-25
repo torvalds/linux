@@ -1217,6 +1217,18 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	seq_printf(m, "forcewake count = %d\n",
+		   atomic_read(&dev_priv->forcewake_count));
+
+	return 0;
+}
+
 static int
 i915_wedged_open(struct inode *inode,
 		 struct file *filp)
@@ -1319,6 +1331,67 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 	return drm_add_fake_info_node(minor, ent, &i915_wedged_fops);
 }
 
+static int i915_forcewake_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	if (!IS_GEN6(dev))
+		return 0;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+	gen6_gt_force_wake_get(dev_priv);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+int i915_forcewake_release(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_GEN6(dev))
+		return 0;
+
+	/*
+	 * It's bad that we can potentially hang userspace if struct_mutex gets
+	 * forever stuck.  However, if we cannot acquire this lock it means that
+	 * almost certainly the driver has hung, is not unload-able. Therefore
+	 * hanging here is probably a minor inconvenience not to be seen my
+	 * almost every user.
+	 */
+	mutex_lock(&dev->struct_mutex);
+	gen6_gt_force_wake_put(dev_priv);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static const struct file_operations i915_forcewake_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_forcewake_open,
+	.release = i915_forcewake_release,
+};
+
+static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	struct dentry *ent;
+
+	ent = debugfs_create_file("i915_forcewake_user",
+				  S_IRWXU,
+				  root, dev,
+				  &i915_forcewake_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return 0;
+}
+
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
@@ -1356,6 +1429,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
+	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
@@ -1364,6 +1438,10 @@ int i915_debugfs_init(struct drm_minor *minor)
 	int ret;
 
 	ret = i915_wedged_create(minor->debugfs_root, minor);
+	if (ret)
+		return ret;
+
+	ret = i915_forcewake_create(minor->debugfs_root, minor);
 	if (ret)
 		return ret;
 
@@ -1376,6 +1454,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_forcewake_fops,
+				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_wedged_fops,
 				 1, minor);
 }
