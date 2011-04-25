@@ -867,6 +867,19 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
+static void iwlagn_abort_notification_waits(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_notification_wait *wait_entry;
+
+	spin_lock_irqsave(&priv->_agn.notif_wait_lock, flags);
+	list_for_each_entry(wait_entry, &priv->_agn.notif_waits, list)
+		wait_entry->aborted = true;
+	spin_unlock_irqrestore(&priv->_agn.notif_wait_lock, flags);
+
+	wake_up_all(&priv->_agn.notif_waitq);
+}
+
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
@@ -877,6 +890,8 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+
+	iwlagn_abort_notification_waits(priv);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */

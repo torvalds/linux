@@ -76,6 +76,16 @@ void iwl_set_bits_mask_prph(struct iwl_priv *priv, u32 reg,
 			    u32 bits, u32 mask);
 void iwl_clear_bits_prph(struct iwl_priv *priv, u32 reg, u32 mask);
 
+void _iwl_read_targ_mem_words(struct iwl_priv *priv, u32 addr,
+			      void *buf, int words);
+
+#define iwl_read_targ_mem_words(priv, addr, buf, bufsize)	\
+	do {							\
+		BUILD_BUG_ON((bufsize) % sizeof(u32));		\
+		_iwl_read_targ_mem_words(priv, addr, buf,	\
+					 (bufsize) / sizeof(u32));\
+	} while (0)
+
 u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr);
 void iwl_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val);
 #endif

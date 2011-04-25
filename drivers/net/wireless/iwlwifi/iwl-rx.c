@@ -225,55 +225,6 @@ err_bd:
  *
  ******************************************************************************/
 
-static void iwl_rx_reply_alive(struct iwl_priv *priv,
-			       struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_alive_resp *palive;
-	struct delayed_work *pwork;
-
-	palive = &pkt->u.alive_frame;
-
-	IWL_DEBUG_INFO(priv, "Alive ucode status 0x%08X revision "
-		       "0x%01X 0x%01X\n",
-		       palive->is_valid, palive->ver_type,
-		       palive->ver_subtype);
-
-	priv->device_pointers.log_event_table =
-		le32_to_cpu(palive->log_event_table_ptr);
-	priv->device_pointers.error_event_table =
-		le32_to_cpu(palive->error_event_table_ptr);
-
-	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
-		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-		pwork = &priv->init_alive_start;
-	} else {
-		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-		pwork = &priv->alive_start;
-	}
-
-	/* We delay the ALIVE response by 5ms to
-	 * give the HW RF Kill time to activate... */
-	if (palive->is_valid == UCODE_VALID_OK)
-		queue_delayed_work(priv->workqueue, pwork,
-				   msecs_to_jiffies(5));
-	else {
-		IWL_WARN(priv, "%s uCode did not respond OK.\n",
-			(palive->ver_subtype == INITIALIZE_SUBTYPE) ?
-			"init" : "runtime");
-		/*
-		 * If fail to load init uCode,
-		 * let's try to load the init uCode again.
-		 * We should not get into this situation, but if it
-		 * does happen, we should not move on and loading "runtime"
-		 * without proper calibrate the device.
-		 */
-		if (palive->ver_subtype == INITIALIZE_SUBTYPE)
-			priv->ucode_type = UCODE_NONE;
-		queue_work(priv->workqueue, &priv->restart);
-	}
-}
-
 static void iwl_rx_reply_error(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb)
 {
@@ -1125,7 +1076,6 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 
 	handlers = priv->rx_handlers;
 
-	handlers[REPLY_ALIVE]			= iwl_rx_reply_alive;
 	handlers[REPLY_ERROR]			= iwl_rx_reply_error;
 	handlers[CHANNEL_SWITCH_NOTIFICATION]	= iwl_rx_csa;
 	handlers[SPECTRUM_MEASURE_NOTIFICATION]	= iwl_rx_spectrum_measure_notif;
