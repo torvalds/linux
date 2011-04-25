@@ -124,8 +124,9 @@ static void scic_sds_remote_node_context_construct_buffer(
 	rnc->ssp.logical_port_index =
 		scic_sds_remote_device_get_port_index(sci_dev);
 
-	rnc->ssp.remote_sas_address_hi = SCIC_SWAP_DWORD(sci_dev->device_address.high);
-	rnc->ssp.remote_sas_address_lo = SCIC_SWAP_DWORD(sci_dev->device_address.low);
+	/* address is always big endian, destination is always little */
+	rnc->ssp.remote_sas_address_hi = swab32(sci_dev->device_address.high);
+	rnc->ssp.remote_sas_address_lo = swab32(sci_dev->device_address.low);
 
 	rnc->ssp.nexus_loss_timer_enable = true;
 	rnc->ssp.check_bit               = false;

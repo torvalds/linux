@@ -339,26 +339,6 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 			smp_response_buffer,
 			sizeof(union smp_response_body) / sizeof(u32)
 			);
-		if (rsp_hdr->function == SMP_FUNCTION_DISCOVER) {
-			struct smp_response *smp_resp;
-
-			smp_resp = (struct smp_response *)user_smp_buffer;
-
-			/*
-			 * Some expanders only report an attached SATA device, and
-			 * not an STP target.  Since the core depends on the STP
-			 * target attribute to correctly build I/O, set the bit now
-			 * if necessary. */
-			if (smp_resp->response.discover.protocols.u.bits.attached_sata_device
-			    && !smp_resp->response.discover.protocols.u.bits.attached_stp_target) {
-				smp_resp->response.discover.protocols.u.bits.attached_stp_target = 1;
-
-				dev_dbg(scic_to_dev(sci_req->owning_controller),
-					"%s: scic_sds_smp_request_await_response_frame_handler(0x%p) Found SATA dev, setting STP bit.\n",
-					__func__, sci_req);
-			}
-		}
-
 		/*
 		 * Don't need to copy to user space. User instead will refer to
 		 * core request's response buffer. */

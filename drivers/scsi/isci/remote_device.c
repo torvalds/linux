@@ -1533,21 +1533,8 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
 	return SCI_SUCCESS;
 }
 
-static void scic_sds_remote_device_get_info_from_smp_discover_response(
-	struct scic_sds_remote_device *sci_dev,
-	struct smp_response_discover *discover_response)
-{
-	/* decode discover_response to set sas_address to sci_dev. */
-	sci_dev->device_address.high =
-		discover_response->attached_sas_address.high;
-
-	sci_dev->device_address.low =
-		discover_response->attached_sas_address.low;
-}
-
 /**
  * scic_remote_device_ea_construct() - construct expander attached device
- * @discover_response: data to build remote device
  *
  * Remote node context(s) is/are a global resource allocated by this
  * routine, freed by scic_remote_device_destruct().
@@ -1559,17 +1546,14 @@ static void scic_sds_remote_device_get_info_from_smp_discover_response(
  * SCI_FAILURE_INSUFFICIENT_RESOURCES - remote node contexts exhausted.
  */
 static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci_port,
-						       struct scic_sds_remote_device *sci_dev,
-						       struct smp_response_discover *discover_response)
+						       struct scic_sds_remote_device *sci_dev)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status;
 
 	scic_remote_device_construct(sci_port, sci_dev);
-
-	scic_sds_remote_device_get_info_from_smp_discover_response(
-		sci_dev, discover_response);
+	memcpy(&sci_dev->device_address, dev->sas_addr, SAS_ADDR_SIZE);
 
 	status = scic_sds_controller_allocate_remote_node_context(
 		scic, sci_dev, &sci_dev->rnc.remote_node_index);
@@ -1605,7 +1589,7 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 	 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
 	 * one another, so this code works for both situations. */
 	sci_dev->connection_rate = min_t(u16, scic_sds_port_get_max_allowed_speed(sci_port),
-			discover_response->u2.sas1_1.negotiated_physical_link_rate);
+					 dev->linkrate);
 
 	/* / @todo Should I assign the port width by reading all of the phys on the port? */
 	sci_dev->device_port_width = 1;
@@ -1632,117 +1616,35 @@ static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *s
 	return sci_dev->state_handlers->start_handler(sci_dev);
 }
 
-/**
- * isci_remote_device_construct() - This function calls the scic remote device
- *    construct and start functions, it waits on the remote device start
- *    completion.
- * @port: This parameter specifies the isci port with the remote device.
- * @isci_device: This parameter specifies the isci remote device
- *
- * status from the scic calls, the caller to this function should clean up
- * resources as appropriate.
- */
-static enum sci_status isci_remote_device_construct(
-	struct isci_port *port,
-	struct isci_remote_device *isci_device)
+static enum sci_status isci_remote_device_construct(struct isci_port *iport,
+						    struct isci_remote_device *idev)
 {
-	enum sci_status status = SCI_SUCCESS;
+	struct scic_sds_port *sci_port = iport->sci_port_handle;
+	struct isci_host *ihost = iport->isci_host;
+	struct domain_device *dev = idev->domain_dev;
+	enum sci_status status;
 
-	if (isci_device->domain_dev->parent &&
-	    dev_is_expander(isci_device->domain_dev->parent)) {
-		int i;
-
-		/* struct smp_response_discover discover_response; */
-		struct discover_resp discover_response;
-		struct domain_device *parent =
-			isci_device->domain_dev->parent;
-
-		struct expander_device *parent_ex = &parent->ex_dev;
-
-		for (i = 0; i < parent_ex->num_phys; i++) {
-
-			struct ex_phy *phy = &parent_ex->ex_phy[i];
-
-			if ((phy->phy_state == PHY_VACANT) ||
-			    (phy->phy_state == PHY_NOT_PRESENT))
-				continue;
-
-			if (SAS_ADDR(phy->attached_sas_addr)
-			    == SAS_ADDR(isci_device->domain_dev->sas_addr)) {
-
-				discover_response.attached_dev_type
-					= phy->attached_dev_type;
-				discover_response.linkrate
-					= phy->linkrate;
-				discover_response.attached_sata_host
-					= phy->attached_sata_host;
-				discover_response.attached_sata_dev
-					= phy->attached_sata_dev;
-				discover_response.attached_sata_ps
-					= phy->attached_sata_ps;
-				discover_response.iproto
-					= phy->attached_iproto >> 1;
-				discover_response.tproto
-					= phy->attached_tproto >> 1;
-				memcpy(
-					discover_response.attached_sas_addr,
-					phy->attached_sas_addr,
-					SAS_ADDR_SIZE
-					);
-				discover_response.attached_phy_id
-					= phy->attached_phy_id;
-				discover_response.change_count
-					= phy->phy_change_count;
-				discover_response.routing_attr
-					= phy->routing_attr;
-				discover_response.hmin_linkrate
-					= phy->phy->minimum_linkrate_hw;
-				discover_response.hmax_linkrate
-					= phy->phy->maximum_linkrate_hw;
-				discover_response.pmin_linkrate
-					= phy->phy->minimum_linkrate;
-				discover_response.pmax_linkrate
-					= phy->phy->maximum_linkrate;
-			}
-		}
-
-
-		dev_dbg(&port->isci_host->pdev->dev,
-			"%s: parent->dev_type = EDGE_DEV\n",
-			__func__);
-
-		status = scic_remote_device_ea_construct(port->sci_port_handle,
-							 &isci_device->sci,
-				(struct smp_response_discover *)&discover_response);
-
-	} else
-		status = scic_remote_device_da_construct(port->sci_port_handle,
-							 &isci_device->sci);
-
+	if (dev->parent && dev_is_expander(dev->parent))
+		status = scic_remote_device_ea_construct(sci_port, &idev->sci);
+	else
+		status = scic_remote_device_da_construct(sci_port, &idev->sci);
 
 	if (status != SCI_SUCCESS) {
-		dev_dbg(&port->isci_host->pdev->dev,
-			"%s: scic_remote_device_da_construct failed - "
-			"isci_device = %p\n",
-			__func__,
-			isci_device);
+		dev_dbg(&ihost->pdev->dev, "%s: construct failed: %d\n",
+			__func__, status);
 
 		return status;
 	}
 
 	/* XXX will be killed with sci_base_object removal */
-	sci_object_set_association(&isci_device->sci, isci_device);
+	sci_object_set_association(&idev->sci, idev);
 
 	/* start the device. */
-	status = scic_remote_device_start(&isci_device->sci,
-					  ISCI_REMOTE_DEVICE_START_TIMEOUT);
+	status = scic_remote_device_start(&idev->sci, ISCI_REMOTE_DEVICE_START_TIMEOUT);
 
-	if (status != SCI_SUCCESS) {
-		dev_warn(&port->isci_host->pdev->dev,
-			 "%s: scic_remote_device_start failed\n",
-			 __func__);
-		return status;
-	}
+	if (status != SCI_SUCCESS)
+		dev_warn(&ihost->pdev->dev, "remote device start failed: %d\n",
+			 status);
 
 	return status;
 }
