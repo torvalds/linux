@@ -2998,7 +2998,6 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	case WM8962_SYSCLK_FLL:
 		wm8962->sysclk = WM8962_SYSCLK_FLL;
 		src = 1 << WM8962_SYSCLK_SRC_SHIFT;
-		WARN_ON(freq != wm8962->fll_fout);
 		break;
 	default:
 		return -EINVAL;
