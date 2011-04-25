@@ -43,6 +43,8 @@
  *	be in the queues
  * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
  *	station in power-save mode, reply when the driver unblocks.
+ * @WLAN_STA_PS_DRIVER_BUF: Station has frames pending in driver internal
+ *	buffers. Automatically cleared on station wake-up.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -58,6 +60,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_BLOCK_BA	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
+	WLAN_STA_PS_DRIVER_BUF	= 1<<14,
 };
 
 #define STA_TID_NUM 16
@@ -226,6 +229,7 @@ enum plink_state {
  * @rx_bytes: Number of bytes received from this STA
  * @wep_weak_iv_count: number of weak WEP IVs received from this station
  * @last_rx: time (in jiffies) when last frame was received from this STA
+ * @last_connected: time (in seconds) when a station got connected
  * @num_duplicates: number of duplicate frames received from this STA
  * @rx_fragments: number of received MPDUs
  * @rx_dropped: number of dropped MPDUs from this STA
@@ -295,6 +299,7 @@ struct sta_info {
 	unsigned long rx_packets, rx_bytes;
 	unsigned long wep_weak_iv_count;
 	unsigned long last_rx;
+	long last_connected;
 	unsigned long num_duplicates;
 	unsigned long rx_fragments;
 	unsigned long rx_dropped;

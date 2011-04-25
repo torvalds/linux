@@ -888,64 +888,37 @@ static const struct file_operations fops_queue = {
 void
 ath5k_debug_init_device(struct ath5k_softc *sc)
 {
+	struct dentry *phydir;
+
 	sc->debug.level = ath5k_debug;
 
-	sc->debug.debugfs_phydir = debugfs_create_dir("ath5k",
-				sc->hw->wiphy->debugfsdir);
+	phydir = debugfs_create_dir("ath5k", sc->hw->wiphy->debugfsdir);
+	if (!phydir)
+	    return;
 
-	sc->debug.debugfs_debug = debugfs_create_file("debug",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc, &fops_debug);
+	debugfs_create_file("debug", S_IWUSR | S_IRUSR, phydir, sc,
+			    &fops_debug);
 
-	sc->debug.debugfs_registers = debugfs_create_file("registers", S_IRUSR,
-				sc->debug.debugfs_phydir, sc, &fops_registers);
+	debugfs_create_file("registers", S_IRUSR, phydir, sc, &fops_registers);
 
-	sc->debug.debugfs_beacon = debugfs_create_file("beacon",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc, &fops_beacon);
+	debugfs_create_file("beacon", S_IWUSR | S_IRUSR, phydir, sc,
+			    &fops_beacon);
 
-	sc->debug.debugfs_reset = debugfs_create_file("reset", S_IWUSR,
-				sc->debug.debugfs_phydir, sc, &fops_reset);
+	debugfs_create_file("reset", S_IWUSR, phydir, sc, &fops_reset);
 
-	sc->debug.debugfs_antenna = debugfs_create_file("antenna",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc, &fops_antenna);
+	debugfs_create_file("antenna", S_IWUSR | S_IRUSR, phydir, sc,
+			    &fops_antenna);
 
-	sc->debug.debugfs_misc = debugfs_create_file("misc",
-				S_IRUSR,
-				sc->debug.debugfs_phydir, sc, &fops_misc);
+	debugfs_create_file("misc", S_IRUSR, phydir, sc, &fops_misc);
 
-	sc->debug.debugfs_frameerrors = debugfs_create_file("frameerrors",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc,
-				&fops_frameerrors);
+	debugfs_create_file("frameerrors", S_IWUSR | S_IRUSR, phydir, sc,
+			    &fops_frameerrors);
 
-	sc->debug.debugfs_ani = debugfs_create_file("ani",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc,
-				&fops_ani);
+	debugfs_create_file("ani", S_IWUSR | S_IRUSR, phydir, sc, &fops_ani);
 
-	sc->debug.debugfs_queue = debugfs_create_file("queue",
-				S_IWUSR | S_IRUSR,
-				sc->debug.debugfs_phydir, sc,
-				&fops_queue);
+	debugfs_create_file("queue", S_IWUSR | S_IRUSR, phydir, sc,
+			    &fops_queue);
 }
-
-void
-ath5k_debug_finish_device(struct ath5k_softc *sc)
-{
-	debugfs_remove(sc->debug.debugfs_debug);
-	debugfs_remove(sc->debug.debugfs_registers);
-	debugfs_remove(sc->debug.debugfs_beacon);
-	debugfs_remove(sc->debug.debugfs_reset);
-	debugfs_remove(sc->debug.debugfs_antenna);
-	debugfs_remove(sc->debug.debugfs_misc);
-	debugfs_remove(sc->debug.debugfs_frameerrors);
-	debugfs_remove(sc->debug.debugfs_ani);
-	debugfs_remove(sc->debug.debugfs_queue);
-	debugfs_remove(sc->debug.debugfs_phydir);
-}
-
 
 /* functions used in other places */
 

@@ -282,6 +282,15 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_BEACON_INT)
 		sc->bintval = bss_conf->beacon_int;
 
+	if (changes & BSS_CHANGED_ERP_SLOT) {
+		int slot_time;
+
+		ah->ah_short_slot = bss_conf->use_short_slot;
+		slot_time = ath5k_hw_get_default_slottime(ah) +
+			    3 * ah->ah_coverage_class;
+		ath5k_hw_set_ifs_intervals(ah, slot_time);
+	}
+
 	if (changes & BSS_CHANGED_ASSOC) {
 		avf->assoc = bss_conf->assoc;
 		if (bss_conf->assoc)

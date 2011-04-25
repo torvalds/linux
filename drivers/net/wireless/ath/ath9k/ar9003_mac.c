@@ -329,7 +329,6 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
 		| SM(txpower, AR_XmitPower)
 		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
 		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
 		| (flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0);
 
@@ -348,6 +347,16 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 	ads->ctl20 = 0;
 	ads->ctl21 = 0;
 	ads->ctl22 = 0;
+}
+
+static void ar9003_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
+{
+	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
+
+	if (val)
+		ads->ctl11 |= AR_ClrDestMask;
+	else
+		ads->ctl11 &= ~AR_ClrDestMask;
 }
 
 static void ar9003_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
@@ -510,6 +519,7 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->set11n_aggr_last = ar9003_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9003_hw_clr11n_aggr;
 	ops->set11n_burstduration = ar9003_hw_set11n_burstduration;
+	ops->set_clrdmask = ar9003_hw_set_clrdmask;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

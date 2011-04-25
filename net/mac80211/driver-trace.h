@@ -74,6 +74,21 @@ TRACE_EVENT(drv_return_int,
 	TP_printk(LOCAL_PR_FMT " - %d", LOCAL_PR_ARG, __entry->ret)
 );
 
+TRACE_EVENT(drv_return_bool,
+	TP_PROTO(struct ieee80211_local *local, bool ret),
+	TP_ARGS(local, ret),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, ret)
+	),
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->ret = ret;
+	),
+	TP_printk(LOCAL_PR_FMT " - %s", LOCAL_PR_ARG, (__entry->ret) ?
+		  "true" : "false")
+);
+
 TRACE_EVENT(drv_return_u64,
 	TP_PROTO(struct ieee80211_local *local, u64 ret),
 	TP_ARGS(local, ret),
@@ -962,6 +977,11 @@ TRACE_EVENT(drv_get_ringparam,
 		LOCAL_PR_ARG,
 		__entry->tx, __entry->tx_max, __entry->rx, __entry->rx_max
 	)
+);
+
+DEFINE_EVENT(local_only_evt, drv_tx_frames_pending,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
 );
 
 DEFINE_EVENT(local_only_evt, drv_offchannel_tx_cancel_wait,

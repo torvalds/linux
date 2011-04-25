@@ -200,7 +200,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	 * here as they will fetch the next beacon directly prior to
 	 * transmission.
 	 */
-	if (test_bit(DRIVER_SUPPORT_PRE_TBTT_INTERRUPT, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_PRE_TBTT_INTERRUPT, &rt2x00dev->cap_flags))
 		return;
 
 	/* fetch next beacon */
@@ -225,7 +225,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 void rt2x00lib_dmastart(struct queue_entry *entry)
 {
 	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	rt2x00queue_index_inc(entry, Q_INDEX);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmastart);
 
@@ -233,7 +233,7 @@ void rt2x00lib_dmadone(struct queue_entry *entry)
 {
 	set_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags);
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DMA_DONE);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);
 
@@ -271,7 +271,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Remove L2 padding which was added during
 	 */
-	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+	if (test_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
 
 	/*
@@ -280,7 +280,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * mac80211 will expect the same data to be present it the
 	 * frame as it was passed to us.
 	 */
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
 		rt2x00crypto_tx_insert_iv(entry->skb, header_length);
 
 	/*
@@ -377,7 +377,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * send the status report back.
 	 */
 	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211)) {
-		if (test_bit(DRIVER_REQUIRE_TASKLET_CONTEXT, &rt2x00dev->flags))
+		if (test_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags))
 			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
 		else
 			ieee80211_tx_status_ni(rt2x00dev->hw, entry->skb);
@@ -392,7 +392,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 
 	rt2x00dev->ops->lib->clear_entry(entry);
 
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
 
 	/*
 	 * If the data queue was below the threshold before the txdone
@@ -559,7 +559,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 
 submit_entry:
 	entry->flags = 0;
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
 	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->clear_entry(entry);
@@ -806,15 +806,15 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Take TX headroom required for alignment into account.
 	 */
-	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+	if (test_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags))
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_L2PAD_SIZE;
-	else if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags))
+	else if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags))
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
-	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
+	if (test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags)) {
 		/*
 		 * Allocate the txstatus fifo. In the worst case the tx
 		 * status fifo has to hold the tx status of all entries
@@ -1071,6 +1071,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all work.
 	 */
+	del_timer_sync(&rt2x00dev->txstatus_timer);
 	cancel_work_sync(&rt2x00dev->intf_work);
 	if (rt2x00_is_usb(rt2x00dev)) {
 		cancel_work_sync(&rt2x00dev->rxdone_work);

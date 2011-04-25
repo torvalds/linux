@@ -115,7 +115,7 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv,
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
 	/* Clear RD responder bit */
-	RESETHT_EXTCAP_RDG(ht_ext_cap);
+	ht_ext_cap &= ~IEEE80211_HT_EXT_CAP_RD_RESPONDER;
 
 	ht_cap->ht_cap.cap_info = cpu_to_le16(ht_cap_info);
 	ht_cap->ht_cap.extended_ht_cap_info = cpu_to_le16(ht_ext_cap);
@@ -242,9 +242,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
  *
  * Handling includes changing the header fields into CPU format.
  */
-int mwifiex_ret_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *resp,
-			void *data_buf)
+int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp, void *data_buf)
 {
 	struct mwifiex_ds_11n_tx_cfg *tx_cfg = NULL;
 	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
@@ -298,8 +296,7 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
  *      - Setting AMSDU control parameters (for SET only)
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 				int cmd_action, void *data_buf)
 {
 	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
@@ -331,8 +328,7 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct mwifiex_private *priv,
  *
  * Handling includes changing the header fields into CPU format.
  */
-int mwifiex_ret_amsdu_aggr_ctrl(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *resp,
+int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
 				void *data_buf)
 {
 	struct mwifiex_ds_11n_amsdu_aggr_ctrl *amsdu_aggr_ctrl = NULL;
@@ -357,8 +353,7 @@ int mwifiex_ret_amsdu_aggr_ctrl(struct mwifiex_private *priv,
  *      - Setting HT Tx capability and HT Tx information fields
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
-			struct host_cmd_ds_command *cmd,
+int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd,
 			u16 cmd_action, void *data_buf)
 {
 	struct host_cmd_ds_11n_cfg *htcfg = &cmd->params.htcfg;
@@ -541,11 +536,8 @@ mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 	else if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_8K)
 		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_8K;
 	if (curr_tx_buf_size != tx_buf)
-		mwifiex_prepare_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
-			HostCmd_ACT_GEN_SET, 0,
-			NULL, &tx_buf);
-
-	return;
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
+				       HostCmd_ACT_GEN_SET, 0, &tx_buf);
 }
 
 /*
@@ -583,8 +575,6 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 	list_del(&tx_ba_tsr_tbl->list);
 
 	kfree(tx_ba_tsr_tbl);
-
-	return;
 }
 
 /*
@@ -663,8 +653,6 @@ void mwifiex_11n_create_tx_ba_stream_tbl(struct mwifiex_private *priv,
 		list_add_tail(&new_node->list, &priv->tx_ba_stream_tbl_ptr);
 		spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
 	}
-
-	return;
 }
 
 /*
@@ -694,8 +682,8 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	memcpy(&add_ba_req.peer_mac_addr, peer_mac, ETH_ALEN);
 
 	/* We don't wait for the response of this command */
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_11N_ADDBA_REQ,
-				  0, 0, NULL, &add_ba_req);
+	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_ADDBA_REQ,
+				     0, 0, &add_ba_req);
 
 	return ret;
 }
@@ -722,8 +710,8 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 	memcpy(&delba.peer_mac_addr, peer_mac, ETH_ALEN);
 
 	/* We don't wait for the response of this command */
-	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_11N_DELBA,
-				  HostCmd_ACT_GEN_SET, 0, NULL, &delba);
+	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_DELBA,
+				     HostCmd_ACT_GEN_SET, 0, &delba);
 
 	return ret;
 }

@@ -3173,7 +3173,7 @@ static void iwl4965_hw_detect(struct iwl_priv *priv)
 {
 	priv->hw_rev = _iwl_legacy_read32(priv, CSR_HW_REV);
 	priv->hw_wa_rev = _iwl_legacy_read32(priv, CSR_HW_REV_WA_REG);
-	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
+	priv->rev_id = priv->pci_dev->revision;
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", priv->rev_id);
 }
 

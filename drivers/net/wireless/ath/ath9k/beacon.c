@@ -320,6 +320,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 	if (avp->av_bcbuf != NULL) {
 		struct ath_buf *bf;
 
+		avp->is_bslot_active = false;
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = NULL;
 			sc->nbcnvifs--;
@@ -743,37 +744,10 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 		cur_conf->dtim_period = 1;
 
 	ath_set_beacon(sc);
-	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 }
 
-void ath_set_beacon(struct ath_softc *sc)
+static bool ath_has_valid_bslot(struct ath_softc *sc)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
-
-	switch (sc->sc_ah->opmode) {
-	case NL80211_IFTYPE_AP:
-		ath_beacon_config_ap(sc, cur_conf);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
-		ath_beacon_config_adhoc(sc, cur_conf);
-		break;
-	case NL80211_IFTYPE_STATION:
-		ath_beacon_config_sta(sc, cur_conf);
-		break;
-	default:
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Unsupported beaconing mode\n");
-		return;
-	}
-
-	sc->sc_flags |= SC_OP_BEACONS;
-}
-
-void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
-{
-	struct ath_hw *ah = sc->sc_ah;
 	struct ath_vif *avp;
 	int slot;
 	bool found = false;
@@ -787,7 +761,47 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 			}
 		}
 	}
-	if (!found)
+	return found;
+}
+
+
+void ath_set_beacon(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+
+	switch (sc->sc_ah->opmode) {
+	case NL80211_IFTYPE_AP:
+		if (ath_has_valid_bslot(sc))
+			ath_beacon_config_ap(sc, cur_conf);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+		ath_beacon_config_adhoc(sc, cur_conf);
+		break;
+	case NL80211_IFTYPE_STATION:
+		ath_beacon_config_sta(sc, cur_conf);
+		/*
+		 * Request a re-configuration of Beacon related timers
+		 * on the receipt of the first Beacon frame (i.e.,
+		 * after time sync with the AP).
+		 */
+		sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
+		break;
+	default:
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Unsupported beaconing mode\n");
+		return;
+	}
+
+	sc->sc_flags |= SC_OP_BEACONS;
+}
+
+void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
+{
+	struct ath_hw *ah = sc->sc_ah;
+
+	if (!ath_has_valid_bslot(sc))
 		return;
 
 	ath9k_ps_wakeup(sc);

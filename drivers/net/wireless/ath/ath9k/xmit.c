@@ -357,6 +357,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_frame_info *fi;
 	int nframes;
 	u8 tidno;
+	bool clear_filter;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -441,22 +442,24 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			/* transmit completion */
 			acked_cnt++;
 		} else {
-			if (!(tid->state & AGGR_CLEANUP) && retry) {
-				if (fi->retries < ATH_MAX_SW_RETRIES) {
-					ath_tx_set_retry(sc, txq, bf->bf_mpdu);
-					txpending = 1;
-				} else {
-					bf->bf_state.bf_type |= BUF_XRETRY;
-					txfail = 1;
-					sendbar = 1;
-					txfail_cnt++;
-				}
-			} else {
+			if ((tid->state & AGGR_CLEANUP) || !retry) {
 				/*
 				 * cleanup in progress, just fail
 				 * the un-acked sub-frames
 				 */
 				txfail = 1;
+			} else if (fi->retries < ATH_MAX_SW_RETRIES) {
+				if (!(ts->ts_status & ATH9K_TXERR_FILT) ||
+				    !an->sleeping)
+					ath_tx_set_retry(sc, txq, bf->bf_mpdu);
+
+				clear_filter = true;
+				txpending = 1;
+			} else {
+				bf->bf_state.bf_type |= BUF_XRETRY;
+				txfail = 1;
+				sendbar = 1;
+				txfail_cnt++;
 			}
 		}
 
@@ -496,6 +499,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				!txfail, sendbar);
 		} else {
 			/* retry the un-acked ones */
+			ath9k_hw_set_clrdmask(sc->sc_ah, bf->bf_desc, false);
 			if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)) {
 				if (bf->bf_next == NULL && bf_last->bf_stale) {
 					struct ath_buf *tbf;
@@ -546,7 +550,12 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	/* prepend un-acked frames to the beginning of the pending frame queue */
 	if (!list_empty(&bf_pending)) {
+		if (an->sleeping)
+			ieee80211_sta_set_tim(sta);
+
 		spin_lock_bh(&txq->axq_lock);
+		if (clear_filter)
+			tid->ac->clear_ps_filter = true;
 		list_splice(&bf_pending, &tid->buf_q);
 		ath_tx_queue_tid(txq, tid);
 		spin_unlock_bh(&txq->axq_lock);
@@ -816,6 +825,11 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		bf = list_first_entry(&bf_q, struct ath_buf, list);
 		bf->bf_lastbf = list_entry(bf_q.prev, struct ath_buf, list);
 
+		if (tid->ac->clear_ps_filter) {
+			tid->ac->clear_ps_filter = false;
+			ath9k_hw_set_clrdmask(sc->sc_ah, bf->bf_desc, true);
+		}
+
 		/* if only one frame, send as non-aggregate */
 		if (bf == bf->bf_lastbf) {
 			fi = get_frame_info(bf->bf_mpdu);
@@ -894,6 +908,67 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	spin_unlock_bh(&txq->axq_lock);
 
 	ath_tx_flush_tid(sc, txtid);
+}
+
+bool ath_tx_aggr_sleep(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_atx_tid *tid;
+	struct ath_atx_ac *ac;
+	struct ath_txq *txq;
+	bool buffered = false;
+	int tidno;
+
+	for (tidno = 0, tid = &an->tid[tidno];
+	     tidno < WME_NUM_TID; tidno++, tid++) {
+
+		if (!tid->sched)
+			continue;
+
+		ac = tid->ac;
+		txq = ac->txq;
+
+		spin_lock_bh(&txq->axq_lock);
+
+		if (!list_empty(&tid->buf_q))
+			buffered = true;
+
+		tid->sched = false;
+		list_del(&tid->list);
+
+		if (ac->sched) {
+			ac->sched = false;
+			list_del(&ac->list);
+		}
+
+		spin_unlock_bh(&txq->axq_lock);
+	}
+
+	return buffered;
+}
+
+void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_atx_tid *tid;
+	struct ath_atx_ac *ac;
+	struct ath_txq *txq;
+	int tidno;
+
+	for (tidno = 0, tid = &an->tid[tidno];
+	     tidno < WME_NUM_TID; tidno++, tid++) {
+
+		ac = tid->ac;
+		txq = ac->txq;
+
+		spin_lock_bh(&txq->axq_lock);
+		ac->clear_ps_filter = true;
+
+		if (!list_empty(&tid->buf_q) && !tid->paused) {
+			ath_tx_queue_tid(txq, tid);
+			ath_txq_schedule(sc, txq);
+		}
+
+		spin_unlock_bh(&txq->axq_lock);
+	}
 }
 
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
@@ -1451,7 +1526,7 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr;
 	struct ath_frame_info *fi = get_frame_info(skb);
-	struct ath_node *an;
+	struct ath_node *an = NULL;
 	struct ath_atx_tid *tid;
 	enum ath9k_key_type keytype;
 	u16 seqno = 0;
@@ -1459,11 +1534,13 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
 
+	if (sta)
+		an = (struct ath_node *) sta->drv_priv;
+
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (sta && ieee80211_is_data_qos(hdr->frame_control) &&
+	if (an && ieee80211_is_data_qos(hdr->frame_control) &&
 		conf_is_ht(&hw->conf) && (sc->sc_flags & SC_OP_TXAGGR)) {
 
-		an = (struct ath_node *) sta->drv_priv;
 		tidno = ieee80211_get_qos_ctl(hdr)[0] & IEEE80211_QOS_CTL_TID_MASK;
 
 		/*
@@ -1479,6 +1556,8 @@ static void setup_frame_info(struct ieee80211_hw *hw, struct sk_buff *skb,
 	memset(fi, 0, sizeof(*fi));
 	if (hw_key)
 		fi->keyix = hw_key->hw_key_idx;
+	else if (an && ieee80211_is_data(hdr->frame_control) && an->ps_key > 0)
+		fi->keyix = an->ps_key;
 	else
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
 	fi->keytype = keytype;
@@ -1491,7 +1570,6 @@ static int setup_tx_flags(struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	int flags = 0;
 
-	flags |= ATH9K_TXDESC_CLRDMASK; /* needed for crypto errors */
 	flags |= ATH9K_TXDESC_INTREQ;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
@@ -1753,6 +1831,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 
 		if (txctl->paprd)
 			bf->bf_state.bfs_paprd_timestamp = jiffies;
+
+		if (tx_info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
+			ath9k_hw_set_clrdmask(sc->sc_ah, bf->bf_desc, true);
 
 		ath_tx_send_normal(sc, txctl->txq, tid, &bf_head);
 	}

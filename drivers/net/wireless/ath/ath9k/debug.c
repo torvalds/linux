@@ -845,7 +845,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	struct ath_softc *sc = file->private_data;
 	char *buf;
-	unsigned int len = 0, size = 1152;
+	unsigned int len = 0, size = 1400;
 	ssize_t retval = 0;
 
 	buf = kzalloc(size, GFP_KERNEL);
@@ -873,6 +873,34 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%18s : %10u\n", "DECRYPT BUSY ERR",
 			sc->debug.stats.rxstats.decrypt_busy_err);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL0",
+			sc->debug.stats.rxstats.rs_rssi_ctl0);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL1",
+			sc->debug.stats.rxstats.rs_rssi_ctl1);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL2",
+			sc->debug.stats.rxstats.rs_rssi_ctl2);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT0",
+			sc->debug.stats.rxstats.rs_rssi_ext0);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT1",
+			sc->debug.stats.rxstats.rs_rssi_ext1);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT2",
+			sc->debug.stats.rxstats.rs_rssi_ext2);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "Rx Antenna",
+			sc->debug.stats.rxstats.rs_antenna);
 
 	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
@@ -947,6 +975,16 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 		phyerr = rs->rs_phyerr & 0x24;
 		RX_PHY_ERR_INC(phyerr);
 	}
+
+	sc->debug.stats.rxstats.rs_rssi_ctl0 = rs->rs_rssi_ctl0;
+	sc->debug.stats.rxstats.rs_rssi_ctl1 = rs->rs_rssi_ctl1;
+	sc->debug.stats.rxstats.rs_rssi_ctl2 = rs->rs_rssi_ctl2;
+
+	sc->debug.stats.rxstats.rs_rssi_ext0 = rs->rs_rssi_ext0;
+	sc->debug.stats.rxstats.rs_rssi_ext1 = rs->rs_rssi_ext1;
+	sc->debug.stats.rxstats.rs_rssi_ext2 = rs->rs_rssi_ext2;
+
+	sc->debug.stats.rxstats.rs_antenna = rs->rs_antenna;
 
 #undef RX_STAT_INC
 #undef RX_PHY_ERR_INC

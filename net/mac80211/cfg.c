@@ -330,6 +330,7 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct timespec uptime;
 
 	sinfo->generation = sdata->local->sta_generation;
 
@@ -343,7 +344,11 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_TX_BITRATE |
 			STATION_INFO_RX_BITRATE |
 			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_BSS_PARAM;
+			STATION_INFO_BSS_PARAM |
+			STATION_INFO_CONNECTED_TIME;
+
+	do_posix_clock_monotonic_gettime(&uptime);
+	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;
@@ -685,6 +690,12 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		sta->flags &= ~WLAN_STA_MFP;
 		if (set & BIT(NL80211_STA_FLAG_MFP))
 			sta->flags |= WLAN_STA_MFP;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
+		sta->flags &= ~WLAN_STA_AUTH;
+		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
+			sta->flags |= WLAN_STA_AUTH;
 	}
 	spin_unlock_irqrestore(&sta->flaglock, flags);
 
@@ -1034,26 +1045,26 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	u8 *new_ie;
 	const u8 *old_ie;
 
-	/* first allocate the new vendor information element */
+	/* allocate information elements */
 	new_ie = NULL;
-	old_ie = ifmsh->vendor_ie;
+	old_ie = ifmsh->ie;
 
-	ifmsh->vendor_ie_len = setup->vendor_ie_len;
-	if (setup->vendor_ie_len) {
-		new_ie = kmemdup(setup->vendor_ie, setup->vendor_ie_len,
+	if (setup->ie_len) {
+		new_ie = kmemdup(setup->ie, setup->ie_len,
 				GFP_KERNEL);
 		if (!new_ie)
 			return -ENOMEM;
 	}
+	ifmsh->ie_len = setup->ie_len;
+	ifmsh->ie = new_ie;
+	kfree(old_ie);
 
 	/* now copy the rest of the setup parameters */
 	ifmsh->mesh_id_len = setup->mesh_id_len;
 	memcpy(ifmsh->mesh_id, setup->mesh_id, ifmsh->mesh_id_len);
 	ifmsh->mesh_pp_id = setup->path_sel_proto;
 	ifmsh->mesh_pm_id = setup->path_metric;
-	ifmsh->vendor_ie = new_ie;
-
-	kfree(old_ie);
+	ifmsh->is_secure = setup->is_secure;
 
 	return 0;
 }

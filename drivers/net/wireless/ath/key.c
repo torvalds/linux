@@ -483,6 +483,9 @@ int ath_key_config(struct ath_common *common,
 	memset(&hk, 0, sizeof(hk));
 
 	switch (key->cipher) {
+	case 0:
+		hk.kv_type = ATH_CIPHER_CLR;
+		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		hk.kv_type = ATH_CIPHER_WEP;
@@ -498,7 +501,8 @@ int ath_key_config(struct ath_common *common,
 	}
 
 	hk.kv_len = key->keylen;
-	memcpy(hk.kv_val, key->key, key->keylen);
+	if (key->keylen)
+		memcpy(hk.kv_val, key->key, key->keylen);
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		switch (vif->type) {

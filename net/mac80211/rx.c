@@ -143,7 +143,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	if (status->flag & RX_FLAG_HT) {
 		/*
 		 * MCS information is a separate field in radiotap,
-		 * added below.
+		 * added below. The byte here is needed as padding
+		 * for the channel though, so initialise it to 0.
 		 */
 		*pos = 0;
 	} else {
@@ -502,7 +503,8 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_is_probe_req(hdr->frame_control) ||
 		    ieee80211_is_probe_resp(hdr->frame_control) ||
-		    ieee80211_is_beacon(hdr->frame_control))
+		    ieee80211_is_beacon(hdr->frame_control) ||
+		    ieee80211_is_auth(hdr->frame_control))
 			return RX_CONTINUE;
 
 		return RX_DROP_MONITOR;
@@ -1585,7 +1587,7 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 }
 
 static int
-__ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
+__ieee80211_data_to_8023(struct ieee80211_rx_data *rx, bool *port_control)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
@@ -1593,6 +1595,7 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 	struct ethhdr *ehdr;
 	int ret;
 
+	*port_control = false;
 	if (ieee80211_has_a4(hdr->frame_control) &&
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN && !sdata->u.vlan.sta)
 		return -1;
@@ -1611,11 +1614,13 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 		return -1;
 
 	ret = ieee80211_data_to_8023(rx->skb, sdata->vif.addr, sdata->vif.type);
-	if (ret < 0 || !check_port_control)
+	if (ret < 0)
 		return ret;
 
 	ehdr = (struct ethhdr *) rx->skb->data;
-	if (ehdr->h_proto != rx->sdata->control_port_protocol)
+	if (ehdr->h_proto == rx->sdata->control_port_protocol)
+		*port_control = true;
+	else if (check_port_control)
 		return -1;
 
 	return 0;
@@ -1916,6 +1921,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	struct net_device *dev = sdata->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
+	bool port_control;
 	int err;
 
 	if (unlikely(!ieee80211_is_data(hdr->frame_control)))
@@ -1932,12 +1938,20 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	    sdata->vif.type == NL80211_IFTYPE_AP)
 		return RX_DROP_MONITOR;
 
-	err = __ieee80211_data_to_8023(rx);
+	err = __ieee80211_data_to_8023(rx, &port_control);
 	if (unlikely(err))
 		return RX_DROP_UNUSABLE;
 
 	if (!ieee80211_frame_allowed(rx, fc))
 		return RX_DROP_MONITOR;
+
+	if (rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+	    unlikely(port_control) && sdata->bss) {
+		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
+				     u.ap);
+		dev = sdata->dev;
+		rx->sdata = sdata;
+	}
 
 	rx->skb->dev = dev;
 

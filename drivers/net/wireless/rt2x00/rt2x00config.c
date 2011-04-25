@@ -109,15 +109,6 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
 }
 
-static inline
-enum antenna rt2x00lib_config_antenna_check(enum antenna current_ant,
-					    enum antenna default_ant)
-{
-	if (current_ant != ANTENNA_SW_DIVERSITY)
-		return current_ant;
-	return (default_ant != ANTENNA_SW_DIVERSITY) ? default_ant : ANTENNA_B;
-}
-
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      struct antenna_setup config)
 {
@@ -126,19 +117,35 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
 
 	/*
-	 * Failsafe: Make sure we are not sending the
-	 * ANTENNA_SW_DIVERSITY state to the driver.
-	 * If that happens, fallback to hardware defaults,
-	 * or our own default.
+	 * When the caller tries to send the SW diversity,
+	 * we must update the ANTENNA_RX_DIVERSITY flag to
+	 * enable the antenna diversity in the link tuner.
+	 *
+	 * Secondly, we must guarentee we never send the
+	 * software antenna diversity command to the driver.
 	 */
-	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
-		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else if (config.rx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_RX_DIVERSITY)) {
+		if (config.rx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_RX_DIVERSITY;
+
+			if (def->rx == ANTENNA_SW_DIVERSITY)
+				config.rx = ANTENNA_B;
+			else
+				config.rx = def->rx;
+		}
+	} else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
-	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
-		config.tx = rt2x00lib_config_antenna_check(config.tx, def->tx);
-	else if (config.tx == ANTENNA_SW_DIVERSITY)
+	if (!(ant->flags & ANTENNA_TX_DIVERSITY)) {
+		if (config.tx == ANTENNA_SW_DIVERSITY) {
+			ant->flags |= ANTENNA_TX_DIVERSITY;
+
+			if (def->tx == ANTENNA_SW_DIVERSITY)
+				config.tx = ANTENNA_B;
+			else
+				config.tx = def->tx;
+		}
+	} else if (config.tx == ANTENNA_SW_DIVERSITY)
 		config.tx = active->tx;
 
 	/*
@@ -163,6 +170,34 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00queue_start_queue(rt2x00dev->rx);
 }
 
+static u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
+				   struct ieee80211_conf *conf)
+{
+	struct hw_mode_spec *spec = &rt2x00dev->spec;
+	int center_channel;
+	u16 i;
+
+	/*
+	 * Initialize center channel to current channel.
+	 */
+	center_channel = spec->channels[conf->channel->hw_value].channel;
+
+	/*
+	 * Adjust center channel to HT40+ and HT40- operation.
+	 */
+	if (conf_is_ht40_plus(conf))
+		center_channel += 2;
+	else if (conf_is_ht40_minus(conf))
+		center_channel -= (center_channel == 14) ? 1 : 2;
+
+	for (i = 0; i < spec->num_channels; i++)
+		if (spec->channels[i].channel == center_channel)
+			return i;
+
+	WARN_ON(1);
+	return conf->channel->hw_value;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf,
 		      unsigned int ieee80211_flags)
@@ -176,10 +211,10 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		if (conf_is_ht40(conf)) {
-			__set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = rt2x00ht_center_channel(rt2x00dev, conf);
 		} else {
-			__clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = conf->channel->hw_value;
 		}
 

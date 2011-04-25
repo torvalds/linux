@@ -1373,6 +1373,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
+	} else {
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
 	}
 }
 
@@ -1733,10 +1736,28 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 			 struct ieee80211_sta *sta)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ieee80211_key_conf ps_key = { };
 
 	ath_node_attach(sc, sta);
+	an->ps_key = ath_key_config(common, vif, sta, &ps_key);
 
 	return 0;
+}
+
+static void ath9k_del_ps_key(struct ath_softc *sc,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ieee80211_key_conf ps_key = { .hw_key_idx = an->ps_key };
+
+	if (!an->ps_key)
+	    return;
+
+	ath_key_delete(common, &ps_key);
 }
 
 static int ath9k_sta_remove(struct ieee80211_hw *hw,
@@ -1745,9 +1766,31 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 
+	ath9k_del_ps_key(sc, vif, sta);
 	ath_node_detach(sc, sta);
 
 	return 0;
+}
+
+static void ath9k_sta_notify(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 enum sta_notify_cmd cmd,
+			 struct ieee80211_sta *sta)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+
+	switch (cmd) {
+	case STA_NOTIFY_SLEEP:
+		an->sleeping = true;
+		if (ath_tx_aggr_sleep(sc, an))
+			ieee80211_sta_set_tim(sta);
+		break;
+	case STA_NOTIFY_AWAKE:
+		an->sleeping = false;
+		ath_tx_aggr_wakeup(sc, an);
+		break;
+	}
 }
 
 static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
@@ -1826,6 +1869,9 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
+		if (sta)
+			ath9k_del_ps_key(sc, vif, sta);
+
 		ret = ath_key_config(common, vif, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
@@ -2209,6 +2255,21 @@ out:
 	ath9k_ps_restore(sc);
 }
 
+static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+	int i;
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		if (ath9k_has_pending_frames(sc, &sc->tx.txq[i]))
+			return true;
+	}
+	return false;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2220,6 +2281,7 @@ struct ieee80211_ops ath9k_ops = {
 	.configure_filter   = ath9k_configure_filter,
 	.sta_add	    = ath9k_sta_add,
 	.sta_remove	    = ath9k_sta_remove,
+	.sta_notify         = ath9k_sta_notify,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,
@@ -2231,4 +2293,5 @@ struct ieee80211_ops ath9k_ops = {
 	.rfkill_poll        = ath9k_rfkill_poll_state,
 	.set_coverage_class = ath9k_set_coverage_class,
 	.flush		    = ath9k_flush,
+	.tx_frames_pending  = ath9k_tx_frames_pending,
 };

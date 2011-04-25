@@ -35,7 +35,6 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_node *bss_prio;
-	int status = 0;
 	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
@@ -59,7 +58,7 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	spin_unlock_irqrestore(&adapter->bss_prio_tbl[priv->bss_priority]
 			.bss_prio_lock, flags);
 
-	return status;
+	return 0;
 }
 
 /*
@@ -72,7 +71,6 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 static int mwifiex_init_priv(struct mwifiex_private *priv)
 {
 	u32 i;
-	int ret = 0;
 
 	priv->media_connected = false;
 	memset(priv->curr_addr, 0xff, ETH_ALEN);
@@ -140,9 +138,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->scan_block = false;
 
-	ret = mwifiex_add_bss_prio_tbl(priv);
-
-	return ret;
+	return mwifiex_add_bss_prio_tbl(priv);
 }
 
 /*
@@ -300,8 +296,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->adhoc_awake_period = 0;
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
-
-	return;
 }
 
 /*
@@ -340,8 +334,6 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 	adapter->if_ops.cleanup_if(adapter);
 
 	dev_kfree_skb_any(adapter->sleep_cfm);
-
-	return;
 }
 
 /*
@@ -429,8 +421,6 @@ void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 			list_del(&priv->rx_reorder_tbl_ptr);
 		}
 	}
-
-	return;
 }
 
 /*

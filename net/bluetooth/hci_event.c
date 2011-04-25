@@ -2497,6 +2497,9 @@ static inline void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
+	if (!test_bit(HCI_MGMT, &hdev->flags))
+		goto unlock;
+
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
 	if (data) {
 		struct hci_cp_remote_oob_data_reply cp;
@@ -2515,6 +2518,7 @@ static inline void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 									&cp);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 

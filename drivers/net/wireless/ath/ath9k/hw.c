@@ -676,41 +676,54 @@ unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ar9003_get_pll_sqsum_dvc);
 
-#define DPLL2_KD_VAL            0x3D
-#define DPLL2_KI_VAL            0x06
-#define DPLL3_PHASE_SHIFT_VAL   0x1
-
+#define DPLL3_PHASE_SHIFT_VAL 0x1
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
 	u32 pll;
 
 	if (AR_SREV_9485(ah)) {
-		REG_WRITE(ah, AR_RTC_PLL_CONTROL2, 0x886666);
-		REG_WRITE(ah, AR_CH0_DDR_DPLL2, 0x19e82f01);
 
-		REG_RMW_FIELD(ah, AR_CH0_DDR_DPLL3,
-			      AR_CH0_DPLL3_PHASE_SHIFT, DPLL3_PHASE_SHIFT_VAL);
+		/* program BB PLL ki and kd value, ki=0x4, kd=0x40 */
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_BB_DPLL2_PLL_PWD, 0x1);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_DPLL2_KD, 0x40);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_DPLL2_KI, 0x4);
 
-		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL1,
+			      AR_CH0_BB_DPLL1_REFDIV, 0x5);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL1,
+			      AR_CH0_BB_DPLL1_NINI, 0x58);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL1,
+			      AR_CH0_BB_DPLL1_NFRAC, 0x0);
+
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_BB_DPLL2_OUTDIV, 0x1);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_BB_DPLL2_LOCAL_PLL, 0x1);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_BB_DPLL2_EN_NEGTRIG, 0x1);
+
+		/* program BB PLL phase_shift to 0x6 */
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
+			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x6);
+
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_BB_DPLL2_PLL_PWD, 0x0);
 		udelay(1000);
-
-		REG_WRITE(ah, AR_RTC_PLL_CONTROL2, 0x886666);
-
-		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
-			      AR_CH0_DPLL2_KD, DPLL2_KD_VAL);
-		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
-			      AR_CH0_DPLL2_KI, DPLL2_KI_VAL);
 
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
 			      AR_CH0_DPLL3_PHASE_SHIFT, DPLL3_PHASE_SHIFT_VAL);
-		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x142c);
-		udelay(1000);
 	}
 
 	pll = ath9k_hw_compute_pll_control(ah, chan);
 
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
+
+	if (AR_SREV_9485(ah))
+		udelay(1000);
 
 	/* Switch the core clock for ar9271 to 117Mhz */
 	if (AR_SREV_9271(ah)) {

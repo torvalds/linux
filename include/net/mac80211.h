@@ -1819,6 +1819,9 @@ enum ieee80211_ampdu_mlme_action {
  * @set_ringparam: Set tx and rx ring sizes.
  *
  * @get_ringparam: Get tx and rx ring current and maximum sizes.
+ *
+ * @tx_frames_pending: Check if there is any pending frame in the hardware
+ *	queues before entering power save.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1906,6 +1909,7 @@ struct ieee80211_ops {
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
 	void (*get_ringparam)(struct ieee80211_hw *hw,
 			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
+	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
 };
 
 /**
@@ -2221,6 +2225,18 @@ static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
  * This is enough for the radiotap header.
  */
 #define IEEE80211_TX_STATUS_HEADROOM	13
+
+/**
+ * ieee80211_sta_set_tim - set the TIM bit for a sleeping station
+ *
+ * If a driver buffers frames for a powersave station instead of passing
+ * them back to mac80211 for retransmission, the station needs to be told
+ * to wake up using the TIM bitmap in the beacon.
+ *
+ * This function sets the station's TIM bit - it will be cleared when the
+ * station wakes up.
+ */
+void ieee80211_sta_set_tim(struct ieee80211_sta *sta);
 
 /**
  * ieee80211_tx_status - transmit status callback

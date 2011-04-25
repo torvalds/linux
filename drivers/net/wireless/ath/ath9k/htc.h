@@ -67,8 +67,11 @@ enum htc_opmode {
 };
 
 #define ATH9K_HTC_HDRSPACE sizeof(struct htc_frame_hdr)
-#define ATH9K_HTC_AMPDU	1
+
+#define ATH9K_HTC_AMPDU  1
 #define ATH9K_HTC_NORMAL 2
+#define ATH9K_HTC_BEACON 3
+#define ATH9K_HTC_MGMT   4
 
 #define ATH9K_HTC_TX_CTSONLY      0x1
 #define ATH9K_HTC_TX_RTSCTS       0x2
@@ -82,7 +85,8 @@ struct tx_frame_hdr {
 	__be32 flags; /* ATH9K_HTC_TX_* */
 	u8 key_type;
 	u8 keyix;
-	u8 reserved[26];
+	u8 cookie;
+	u8 pad;
 } __packed;
 
 struct tx_mgmt_hdr {
@@ -92,24 +96,14 @@ struct tx_mgmt_hdr {
 	u8 flags;
 	u8 key_type;
 	u8 keyix;
-	u16 reserved;
+	u8 cookie;
+	u8 pad;
 } __packed;
 
 struct tx_beacon_header {
-	u8 len_changed;
 	u8 vif_index;
+	u8 len_changed;
 	u16 rev;
-} __packed;
-
-struct ath9k_htc_target_hw {
-	u32 flags;
-	u32 flags_ext;
-	u32 ampdu_limit;
-	u8 ampdu_subframes;
-	u8 tx_chainmask;
-	u8 tx_chainmask_legacy;
-	u8 rtscts_ratecode;
-	u8 protmode;
 } __packed;
 
 struct ath9k_htc_cap_target {
@@ -121,21 +115,16 @@ struct ath9k_htc_cap_target {
 	u8 tx_chainmask_legacy;
 	u8 rtscts_ratecode;
 	u8 protmode;
+	u8 pad;
 } __packed;
 
 struct ath9k_htc_target_vif {
 	u8 index;
-	u8 des_bssid[ETH_ALEN];
-	__be32 opmode;
+	u8 opmode;
 	u8 myaddr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
-	u32 flags;
-	u32 flags_ext;
-	u16 ps_sta;
-	__be16 rtsthreshold;
 	u8 ath_cap;
-	u8 node;
-	s8 mcast_rate;
+	__be16 rtsthreshold;
+	u8 pad;
 } __packed;
 
 #define ATH_HTC_STA_AUTH  0x0001
@@ -143,27 +132,16 @@ struct ath9k_htc_target_vif {
 #define ATH_HTC_STA_ERP   0x0004
 #define ATH_HTC_STA_HT    0x0008
 
-/* FIXME: UAPSD variables */
 struct ath9k_htc_target_sta {
-	u16 associd;
-	u16 txpower;
-	u32 ucastkey;
 	u8 macaddr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 sta_index;
 	u8 vif_index;
-	u8 vif_sta;
-	__be16 flags; /* ATH_HTC_STA_* */
-	u16 htcap;
-	u8 valid;
-	u16 capinfo;
-	struct ath9k_htc_target_hw *hw;
-	struct ath9k_htc_target_vif *vif;
-	u16 txseqmgmt;
 	u8 is_vif_sta;
-	u16 maxampdu;
-	u16 iv16;
-	u32 iv32;
+	__be16 flags; /* ATH_HTC_STA_* */
+	__be16 htcap;
+	__be16 maxampdu;
+	u8 pad;
 } __packed;
 
 struct ath9k_htc_target_aggr {
@@ -197,12 +175,31 @@ struct ath9k_htc_target_rate {
 	struct ath9k_htc_rate rates;
 };
 
-struct ath9k_htc_target_stats {
-	__be32 tx_shortretry;
-	__be32 tx_longretry;
-	__be32 tx_xretries;
-	__be32 ht_txunaggr_xretry;
-	__be32 ht_tx_xretries;
+struct ath9k_htc_target_int_stats {
+	__be32 rx;
+	__be32 rxorn;
+	__be32 rxeol;
+	__be32 txurn;
+	__be32 txto;
+	__be32 cst;
+} __packed;
+
+struct ath9k_htc_target_tx_stats {
+	__be32 xretries;
+	__be32 fifoerr;
+	__be32 filtered;
+	__be32 timer_exp;
+	__be32 shortretries;
+	__be32 longretries;
+	__be32 qnull;
+	__be32 encap_fail;
+	__be32 nobuf;
+} __packed;
+
+struct ath9k_htc_target_rx_stats {
+	__be32 nobuf;
+	__be32 host_send;
+	__be32 host_done;
 } __packed;
 
 #define ATH9K_HTC_MAX_VIF 2
@@ -244,6 +241,8 @@ struct ath9k_htc_vif {
 	u8 index;
 	u16 seq_no;
 	bool beacon_configured;
+	int bslot;
+	__le64 tsfadjust;
 };
 
 struct ath9k_vif_iter_data {
@@ -282,23 +281,65 @@ struct ath9k_htc_rx {
 	spinlock_t rxbuflock;
 };
 
+#define ATH9K_HTC_TX_CLEANUP_INTERVAL 50 /* ms */
+#define ATH9K_HTC_TX_TIMEOUT_INTERVAL 2500 /* ms */
+#define ATH9K_HTC_TX_RESERVE 10
+#define ATH9K_HTC_TX_TIMEOUT_COUNT 20
+#define ATH9K_HTC_TX_THRESHOLD (MAX_TX_BUF_NUM - ATH9K_HTC_TX_RESERVE)
+
+#define ATH9K_HTC_OP_TX_QUEUES_STOP BIT(0)
+#define ATH9K_HTC_OP_TX_DRAIN       BIT(1)
+
+struct ath9k_htc_tx {
+	u8 flags;
+	int queued_cnt;
+	struct sk_buff_head mgmt_ep_queue;
+	struct sk_buff_head cab_ep_queue;
+	struct sk_buff_head data_be_queue;
+	struct sk_buff_head data_bk_queue;
+	struct sk_buff_head data_vi_queue;
+	struct sk_buff_head data_vo_queue;
+	struct sk_buff_head tx_failed;
+	DECLARE_BITMAP(tx_slot, MAX_TX_BUF_NUM);
+	struct timer_list cleanup_timer;
+	spinlock_t tx_lock;
+};
+
 struct ath9k_htc_tx_ctl {
 	u8 type; /* ATH9K_HTC_* */
+	u8 epid;
+	u8 txok;
+	u8 sta_idx;
+	unsigned long timestamp;
 };
+
+static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+
+	BUILD_BUG_ON(sizeof(struct ath9k_htc_tx_ctl) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	return (struct ath9k_htc_tx_ctl *) &tx_info->driver_data;
+}
 
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
+#define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
+
+void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
+			   struct ath_htc_rx_status *rxs);
 
 struct ath_tx_stats {
 	u32 buf_queued;
 	u32 buf_completed;
 	u32 skb_queued;
-	u32 skb_completed;
-	u32 skb_dropped;
+	u32 skb_success;
+	u32 skb_failed;
+	u32 cab_queued;
 	u32 queue_stats[WME_NUM_AC];
 };
 
@@ -306,24 +347,34 @@ struct ath_rx_stats {
 	u32 skb_allocated;
 	u32 skb_completed;
 	u32 skb_dropped;
+	u32 err_crc;
+	u32 err_decrypt_crc;
+	u32 err_mic;
+	u32 err_pre_delim;
+	u32 err_post_delim;
+	u32 err_decrypt_busy;
+	u32 err_phy;
+	u32 err_phy_stats[ATH9K_PHYERR_MAX];
 };
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
-	struct dentry *debugfs_tgt_stats;
-	struct dentry *debugfs_xmit;
-	struct dentry *debugfs_recv;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
-	u32 txrate;
 };
 
 #else
 
 #define TX_STAT_INC(c) do { } while (0)
 #define RX_STAT_INC(c) do { } while (0)
+#define CAB_STAT_INC   do { } while (0)
 
 #define TX_QSTAT_INC(c) do { } while (0)
+
+static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
+					 struct ath_htc_rx_status *rxs)
+{
+}
 
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
@@ -351,10 +402,21 @@ struct ath_led {
 	int brightness;
 };
 
+#define BSTUCK_THRESHOLD 10
+
+/*
+ * Adjust these when the max. no of beaconing interfaces is
+ * increased.
+ */
+#define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
+#define MIN_SWBA_RESPONSE     10 /* in TUs */
+
 struct htc_beacon_config {
+	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
 	u16 beacon_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
+	u32 bmiss_cnt;
 };
 
 struct ath_btcoex {
@@ -388,6 +450,9 @@ struct ath9k_htc_priv {
 	struct htc_target *htc;
 	struct wmi *wmi;
 
+	u16 fw_version_major;
+	u16 fw_version_minor;
+
 	enum htc_endpoint_id wmi_cmd_ep;
 	enum htc_endpoint_id beacon_ep;
 	enum htc_endpoint_id cab_ep;
@@ -411,27 +476,23 @@ struct ath9k_htc_priv {
 	u16 txpowlimit;
 	u16 nvifs;
 	u16 nstations;
-	u32 bmiss_cnt;
 	bool rearm_ani;
 	bool reconfig_beacon;
+	unsigned int rxfilter;
 
 	struct ath9k_hw_cal_data caldata;
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	spinlock_t beacon_lock;
-
-	bool tx_queues_stop;
-	spinlock_t tx_lock;
-
-	struct ieee80211_vif *vif;
 	struct htc_beacon_config cur_beacon_conf;
-	unsigned int rxfilter;
+
+	struct ath9k_htc_rx rx;
+	struct ath9k_htc_tx tx;
+
 	struct tasklet_struct swba_tasklet;
 	struct tasklet_struct rx_tasklet;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
-	struct ath9k_htc_rx rx;
-	struct tasklet_struct tx_tasklet;
-	struct sk_buff_head tx_queue;
 	struct delayed_work ani_work;
+	struct tasklet_struct tx_failed_tasklet;
 	struct work_struct ps_work;
 	struct work_struct fatal_work;
 
@@ -470,11 +531,18 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 
 void ath9k_htc_reset(struct ath9k_htc_priv *priv);
 
+void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif);
+void ath9k_htc_remove_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif);
+void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
+			     struct ieee80211_vif *vif);
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
 void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv);
-void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
+void ath9k_htc_swba(struct ath9k_htc_priv *priv,
+		    struct wmi_event_swba *swba);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id);
@@ -491,14 +559,23 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
-void ath9k_tx_tasklet(unsigned long data);
-int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb);
+int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
+		       struct sk_buff *skb, u8 slot, bool is_cab);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype);
 int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
 int get_hw_qnum(u16 queue, int *hwq_map);
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo);
+void ath9k_htc_check_stop_queues(struct ath9k_htc_priv *priv);
+void ath9k_htc_check_wake_queues(struct ath9k_htc_priv *priv);
+int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv);
+void ath9k_htc_tx_clear_slot(struct ath9k_htc_priv *priv, int slot);
+void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
+void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
+void ath9k_htc_tx_failed(struct ath9k_htc_priv *priv);
+void ath9k_tx_failed_tasklet(unsigned long data);
+void ath9k_htc_tx_cleanup_timer(unsigned long data);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);
@@ -528,15 +605,9 @@ void ath9k_htc_suspend(struct htc_target *htc_handle);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
-int ath9k_htc_debug_create_root(void);
-void ath9k_htc_debug_remove_root(void);
 int ath9k_htc_init_debug(struct ath_hw *ah);
-void ath9k_htc_exit_debug(struct ath_hw *ah);
 #else
-static inline int ath9k_htc_debug_create_root(void) { return 0; };
-static inline void ath9k_htc_debug_remove_root(void) {};
 static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
-static inline void ath9k_htc_exit_debug(struct ath_hw *ah) {};
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */
