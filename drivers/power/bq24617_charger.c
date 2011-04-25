@@ -19,13 +19,21 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 struct bq24617_data {
 	int stat1_irq;
 	int stat2_irq;
 	int detect_irq;
+
 	struct power_supply ac;
 	int ac_online;
+
+	struct delayed_work work;
+
+	bool stat_irq_en;
+	spinlock_t stat_irq_lock;
 };
 
 static int bq24617_stat1_value = 1; /* 0 = charging in progress */
@@ -86,12 +94,58 @@ static void bq24617_read_status(struct bq24617_data *bq_data)
 	power_supply_changed(&bq_data->ac);
 }
 
-static irqreturn_t bq24617_isr(int irq, void *data)
+static irqreturn_t bq24617_stat_isr(int irq, void *data)
 {
 	struct bq24617_data *bq_data = data;
 
 	bq24617_read_status(bq_data);
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t bq24617_detect_isr(int irq, void *data)
+{
+	struct bq24617_data *bq_data = data;
+	unsigned long flags;
+
+	cancel_delayed_work(&bq_data->work);
+
+	spin_lock_irqsave(&bq_data->stat_irq_lock, flags);
+	if (bq_data->stat_irq_en) {
+		disable_irq(bq_data->stat1_irq);
+		disable_irq(bq_data->stat2_irq);
+		bq_data->stat_irq_en = false;
+	}
+	spin_unlock_irqrestore(&bq_data->stat_irq_lock, flags);
+
+	/* The STAT lines cannot be trusted immediately after a charger
+	 * insertion. Default the STAT lines to their "not charging" values.
+	 */
+	bq24617_stat1_value = 1;
+	bq24617_stat2_value = 1;
+
+	bq_data->ac_online = gpio_get_value(irq_to_gpio(bq_data->detect_irq));
+	pr_debug("%s: ac_online=%d\n", __func__, bq_data->ac_online);
+
+	power_supply_changed(&bq_data->ac);
+
+	/* Give time for STAT lines to settle before enabling the IRQs. */
+	if (bq_data->ac_online)
+		schedule_delayed_work(&bq_data->work, msecs_to_jiffies(500));
+
+	return IRQ_HANDLED;
+}
+
+static void bq24617_work(struct work_struct *work)
+{
+	struct bq24617_data *bq_data =
+		container_of(work, struct bq24617_data, work.work);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bq_data->stat_irq_lock, flags);
+	enable_irq(bq_data->stat1_irq);
+	enable_irq(bq_data->stat2_irq);
+	bq_data->stat_irq_en = true;
+	spin_unlock_irqrestore(&bq_data->stat_irq_lock, flags);
 }
 
 static int bq24617_probe(struct platform_device *pdev)
@@ -104,6 +158,9 @@ static int bq24617_probe(struct platform_device *pdev)
 	if (bq_data == NULL)
 		return -ENOMEM;
 
+	INIT_DELAYED_WORK(&bq_data->work, bq24617_work);
+	bq_data->stat_irq_en = true;
+	spin_lock_init(&bq_data->stat_irq_lock);
 	platform_set_drvdata(pdev, bq_data);
 
 	bq_data->stat1_irq = platform_get_irq_byname(pdev, "stat1");
@@ -116,14 +173,14 @@ static int bq24617_probe(struct platform_device *pdev)
 
 	flags = IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
 
-	retval = request_irq(bq_data->stat1_irq, bq24617_isr, flags,
+	retval = request_irq(bq_data->stat1_irq, bq24617_stat_isr, flags,
 			     "bq24617_stat1", bq_data);
 	if (retval) {
 		dev_err(&pdev->dev, "Failed requesting STAT1 IRQ\n");
 		goto free_mem;
 	}
 
-	retval = request_irq(bq_data->stat2_irq, bq24617_isr, flags,
+	retval = request_irq(bq_data->stat2_irq, bq24617_stat_isr, flags,
 			     "bq24617_stat2", bq_data);
 	if (retval) {
 		dev_err(&pdev->dev, "Failed requesting STAT2 IRQ\n");
@@ -153,8 +210,8 @@ static int bq24617_probe(struct platform_device *pdev)
 	else {
 		dev_info(&pdev->dev, "Using STAT and DETECT for detection.\n");
 
-		retval = request_irq(bq_data->detect_irq, bq24617_isr, flags,
-				     "bq24617_detect", bq_data);
+		retval = request_irq(bq_data->detect_irq, bq24617_detect_isr,
+				     flags, "bq24617_detect", bq_data);
 		if (retval) {
 			dev_err(&pdev->dev, "Failed requesting DETECT IRQ\n");
 			goto free_all;
@@ -183,6 +240,8 @@ static int bq24617_remove(struct platform_device *pdev)
 {
 	struct bq24617_data *bq_data = platform_get_drvdata(pdev);
 
+	cancel_delayed_work_sync(&bq_data->work);
+
 	power_supply_unregister(&bq_data->ac);
 
 	free_irq(bq_data->stat1_irq, bq_data);
@@ -198,8 +257,16 @@ static int bq24617_remove(struct platform_device *pdev)
 static int bq24617_resume(struct device *dev)
 {
 	struct bq24617_data *bq_data = dev_get_drvdata(dev);
-	int stat1 = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
-	int stat2 = gpio_get_value(irq_to_gpio(bq_data->stat2_irq));
+	int stat1;
+	int stat2;
+
+	if (delayed_work_pending(&bq_data->work)) {
+		pr_debug("%s: STAT check skipped\n", __func__);
+		return 0;
+	}
+
+	stat1 = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
+	stat2 = gpio_get_value(irq_to_gpio(bq_data->stat2_irq));
 
 	if ((stat1 != bq24617_stat1_value) || (stat2 != bq24617_stat2_value)) {
 		pr_debug("%s: STAT pins changed while suspended\n", __func__);
