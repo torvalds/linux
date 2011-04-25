@@ -3609,7 +3609,7 @@ drop:
 static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
-	struct sock *sk;
+	struct sock *sk = NULL;
 	struct l2cap_pinfo *pi;
 	u16 control;
 	u8 tx_seq;
