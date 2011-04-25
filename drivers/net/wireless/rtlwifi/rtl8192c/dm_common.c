@@ -320,7 +320,7 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 
 static void rtl92c_dm_initial_gain_multi_sta(struct ieee80211_hw *hw)
 {
-	static u8 binitialized; /* initialized to false */
+	static u8 initialized; /* initialized to false */
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	long rssi_strength = rtlpriv->dm.entry_min_undecoratedsmoothed_pwdb;
@@ -331,11 +331,11 @@ static void rtl92c_dm_initial_gain_multi_sta(struct ieee80211_hw *hw)
 
 	if ((multi_sta == false) || (dm_digtable.cursta_connectctate !=
 				     DIG_STA_DISCONNECT)) {
-		binitialized = false;
+		initialized = false;
 		dm_digtable.dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 		return;
-	} else if (binitialized == false) {
-		binitialized = true;
+	} else if (initialized == false) {
+		initialized = true;
 		dm_digtable.dig_ext_port_stage = DIG_EXT_PORT_STAGE_0;
 		dm_digtable.cur_igvalue = 0x20;
 		rtl92c_dm_write_dig(hw);
@@ -1513,7 +1513,7 @@ void rtl92c_dm_watchdog(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_dm_watchdog);
 
-static u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
+u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
@@ -1570,6 +1570,7 @@ static u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
 		return false;
 	}
 }
+EXPORT_SYMBOL(rtl92c_bt_rssi_state_change);
 
 static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 {
@@ -1820,3 +1821,4 @@ void rtl92c_dm_bt_coexist(struct ieee80211_hw *hw)
 			rtl92c_check_bt_change(hw);
 	}
 }
+EXPORT_SYMBOL(rtl92c_dm_bt_coexist);

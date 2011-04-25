@@ -606,10 +606,12 @@ void rtl92cu_read_eeprom_info(struct ieee80211_hw *hw)
 	if (!IS_NORMAL_CHIP(rtlhal->version))
 		return;
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_9346CR);
+#if 0	/* temporary */
 	rtlefuse->epromtype = (tmp_u1b & EEPROMSEL) ?
 			       EEPROM_93C46 : EEPROM_BOOT_EFUSE;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, ("Boot from %s\n",
 		 (tmp_u1b & EEPROMSEL) ? "EERROM" : "EFUSE"));
+#endif
 	rtlefuse->autoload_failflag = (tmp_u1b & EEPROM_EN) ? false : true;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("Autoload %s\n",
 		 (tmp_u1b & EEPROM_EN) ? "OK!!" : "ERR!!"));
