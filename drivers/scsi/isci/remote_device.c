@@ -1438,15 +1438,14 @@ static const struct sci_base_state scic_sds_remote_device_state_table[] = {
 };
 
 /**
- * scic_remote_device_construct() - This method will perform the construction
- *    common to all remote device objects.
+ * scic_remote_device_construct() - common construction
  * @sci_port: SAS/SATA port through which this device is accessed.
  * @sci_dev: remote device to construct
  *
- * It isn't necessary to call scic_remote_device_destruct() for device objects
- * that have only called this method for construction. Once subsequent
- * construction methods have been invoked (e.g.
- * scic_remote_device_da_construct()), then destruction should occur. none
+ * This routine just performs benign initialization and does not
+ * allocate the remote_node_context which is left to
+ * scic_remote_device_[de]a_construct().  scic_remote_device_destruct()
+ * frees the remote_node_context(s) for the device.
  */
 static void scic_remote_device_construct(struct scic_sds_port *sci_port,
 				  struct scic_sds_remote_device *sci_dev)
@@ -1473,31 +1472,27 @@ static void scic_remote_device_construct(struct scic_sds_port *sci_port,
 }
 
 /**
- * scic_remote_device_da_construct() - This method will construct a
- *    SCIC_REMOTE_DEVICE object for a direct attached (da) device.  The
- *    information (e.g. IAF, Signature FIS, etc.) necessary to build the device
- *    is known to the SCI Core since it is contained in the scic_phy object.
- * @remote_device: This parameter specifies the remote device to be destructed.
+ * scic_remote_device_da_construct() - construct direct attached device.
  *
- * The user must have previously called scic_remote_device_construct() Remote
- * device objects are a limited resource.  As such, they must be protected.
- * Thus calls to construct and destruct are mutually exclusive and
- * non-reentrant. Indicate if the remote device was successfully constructed.
- * SCI_SUCCESS Returned if the device was successfully constructed.
- * SCI_FAILURE_DEVICE_EXISTS Returned if the device has already been
- * constructed.  If it's an additional phy for the target, then call
- * scic_remote_device_da_add_phy(). SCI_FAILURE_UNSUPPORTED_PROTOCOL Returned
- * if the supplied parameters necessitate creation of a remote device for which
- * the protocol is not supported by the underlying controller hardware.
- * SCI_FAILURE_INSUFFICIENT_RESOURCES This value is returned if the core
- * controller associated with the supplied parameters is unable to support
- * additional remote devices.
+ * The information (e.g. IAF, Signature FIS, etc.) necessary to build
+ * the device is known to the SCI Core since it is contained in the
+ * scic_phy object.  Remote node context(s) is/are a global resource
+ * allocated by this routine, freed by scic_remote_device_destruct().
+ *
+ * Returns:
+ * SCI_FAILURE_DEVICE_EXISTS - device has already been constructed.
+ * SCI_FAILURE_UNSUPPORTED_PROTOCOL - e.g. sas device attached to
+ * sata-only controller instance.
+ * SCI_FAILURE_INSUFFICIENT_RESOURCES - remote node contexts exhausted.
  */
-static enum sci_status scic_remote_device_da_construct(struct scic_sds_remote_device *sci_dev)
+static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci_port,
+						       struct scic_sds_remote_device *sci_dev)
 {
 	enum sci_status status;
 	u16 remote_node_index;
 	struct sci_sas_identify_address_frame_protocols protocols;
+
+	scic_remote_device_construct(sci_port, sci_dev);
 
 	/*
 	 * This information is request to determine how many remote node context
@@ -1567,34 +1562,26 @@ static void scic_sds_remote_device_get_info_from_smp_discover_response(
 }
 
 /**
- * scic_remote_device_ea_construct() - This method will construct an
- *    SCIC_REMOTE_DEVICE object for an expander attached (ea) device from an
- *    SMP Discover Response.
- * @remote_device: This parameter specifies the remote device to be destructed.
- * @discover_response: This parameter specifies the SMP Discovery Response to
- *    be used in device creation.
+ * scic_remote_device_ea_construct() - construct expander attached device
+ * @discover_response: data to build remote device
  *
- * The user must have previously called scic_remote_device_construct() Remote
- * device objects are a limited resource.  As such, they must be protected.
- * Thus calls to construct and destruct are mutually exclusive and
- * non-reentrant. Indicate if the remote device was successfully constructed.
- * SCI_SUCCESS Returned if the device was successfully constructed.
- * SCI_FAILURE_DEVICE_EXISTS Returned if the device has already been
- * constructed.  If it's an additional phy for the target, then call
- * scic_ea_remote_device_add_phy(). SCI_FAILURE_UNSUPPORTED_PROTOCOL Returned
- * if the supplied parameters necessitate creation of a remote device for which
- * the protocol is not supported by the underlying controller hardware.
- * SCI_FAILURE_INSUFFICIENT_RESOURCES This value is returned if the core
- * controller associated with the supplied parameters is unable to support
- * additional remote devices.
+ * Remote node context(s) is/are a global resource allocated by this
+ * routine, freed by scic_remote_device_destruct().
+ *
+ * Returns:
+ * SCI_FAILURE_DEVICE_EXISTS - device has already been constructed.
+ * SCI_FAILURE_UNSUPPORTED_PROTOCOL - e.g. sas device attached to
+ * sata-only controller instance.
+ * SCI_FAILURE_INSUFFICIENT_RESOURCES - remote node contexts exhausted.
  */
-static enum sci_status scic_remote_device_ea_construct(struct scic_sds_remote_device *sci_dev,
+static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci_port,
+						       struct scic_sds_remote_device *sci_dev,
 						       struct smp_response_discover *discover_response)
 {
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	enum sci_status status;
-	struct scic_sds_controller *scic;
 
-	scic = scic_sds_port_get_controller(sci_dev->owning_port);
+	scic_remote_device_construct(sci_port, sci_dev);
 
 	scic_sds_remote_device_get_info_from_smp_discover_response(
 		sci_dev, discover_response);
@@ -1632,9 +1619,8 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_remote_de
 		 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
 		 * one another, so this code works for both situations. */
 		sci_dev->connection_rate = min_t(u16,
-			scic_sds_port_get_max_allowed_speed(sci_dev->owning_port),
-			discover_response->u2.sas1_1.negotiated_physical_link_rate
-			);
+			scic_sds_port_get_max_allowed_speed(sci_port),
+			discover_response->u2.sas1_1.negotiated_physical_link_rate);
 
 		/* / @todo Should I assign the port width by reading all of the phys on the port? */
 		sci_dev->device_port_width = 1;
@@ -1678,11 +1664,6 @@ static enum sci_status isci_remote_device_construct(
 {
 	enum sci_status status = SCI_SUCCESS;
 
-	/* let the core do it's common constuction. */
-	scic_remote_device_construct(port->sci_port_handle,
-				     &isci_device->sci);
-
-	/* let the core do it's device specific constuction. */
 	if (isci_device->domain_dev->parent &&
 	    (isci_device->domain_dev->parent->dev_type == EDGE_DEV)) {
 		int i;
@@ -1746,11 +1727,13 @@ static enum sci_status isci_remote_device_construct(
 			"%s: parent->dev_type = EDGE_DEV\n",
 			__func__);
 
-		status = scic_remote_device_ea_construct(&isci_device->sci,
+		status = scic_remote_device_ea_construct(port->sci_port_handle,
+							 &isci_device->sci,
 				(struct smp_response_discover *)&discover_response);
 
 	} else
-		status = scic_remote_device_da_construct(&isci_device->sci);
+		status = scic_remote_device_da_construct(port->sci_port_handle,
+							 &isci_device->sci);
 
 
 	if (status != SCI_SUCCESS) {
