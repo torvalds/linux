@@ -51,6 +51,13 @@ static const struct sdio_device_id wl1271_devices[] = {
 };
 MODULE_DEVICE_TABLE(sdio, wl1271_devices);
 
+static void wl1271_sdio_set_block_size(struct wl1271 *wl, unsigned int blksz)
+{
+	sdio_claim_host(wl->if_priv);
+	sdio_set_block_size(wl->if_priv, blksz);
+	sdio_release_host(wl->if_priv);
+}
+
 static inline struct sdio_func *wl_to_func(struct wl1271 *wl)
 {
 	return wl->if_priv;
@@ -203,7 +210,8 @@ static struct wl1271_if_operations sdio_ops = {
 	.power		= wl1271_sdio_set_power,
 	.dev		= wl1271_sdio_wl_to_dev,
 	.enable_irq	= wl1271_sdio_enable_interrupts,
-	.disable_irq	= wl1271_sdio_disable_interrupts
+	.disable_irq	= wl1271_sdio_disable_interrupts,
+	.set_block_size = wl1271_sdio_set_block_size,
 };
 
 static int __devinit wl1271_probe(struct sdio_func *func,
@@ -212,6 +220,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	struct ieee80211_hw *hw;
 	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
+	unsigned long irqflags;
 	int ret;
 
 	/* We are only able to handle the wlan function */
@@ -230,6 +239,9 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 
+	/* Use block mode for transferring over one block size of data */
+	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
+
 	wlan_data = wl12xx_get_platform_data();
 	if (IS_ERR(wlan_data)) {
 		ret = PTR_ERR(wlan_data);
@@ -239,9 +251,16 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	wl->irq = wlan_data->irq;
 	wl->ref_clock = wlan_data->board_ref_clock;
+	wl->tcxo_clock = wlan_data->board_tcxo_clock;
+	wl->platform_quirks = wlan_data->platform_quirks;
+
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		irqflags = IRQF_TRIGGER_RISING;
+	else
+		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
 
 	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   irqflags,
 				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
@@ -343,4 +362,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
 MODULE_FIRMWARE(WL1271_FW_NAME);
-MODULE_FIRMWARE(WL1271_AP_FW_NAME);
+MODULE_FIRMWARE(WL128X_FW_NAME);
+MODULE_FIRMWARE(WL127X_AP_FW_NAME);
+MODULE_FIRMWARE(WL128X_AP_FW_NAME);

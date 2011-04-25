@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/wl12xx.h>
 
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
@@ -54,7 +55,7 @@ static struct conf_drv_settings default_conf = {
 			[CONF_SG_BT_PER_THRESHOLD]                  = 7500,
 			[CONF_SG_HV3_MAX_OVERRIDE]                  = 0,
 			[CONF_SG_BT_NFS_SAMPLE_INTERVAL]            = 400,
-			[CONF_SG_BT_LOAD_RATIO]                     = 50,
+			[CONF_SG_BT_LOAD_RATIO]                     = 200,
 			[CONF_SG_AUTO_PS_MODE]                      = 1,
 			[CONF_SG_AUTO_SCAN_PROBE_REQ]               = 170,
 			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3]   = 50,
@@ -254,7 +255,7 @@ static struct conf_drv_settings default_conf = {
 		.ps_poll_threshold           = 10,
 		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
-		.bet_max_consecutive         = 10,
+		.bet_max_consecutive         = 50,
 		.psm_entry_retries           = 5,
 		.psm_exit_retries            = 255,
 		.psm_entry_nullfunc_retries  = 3,
@@ -298,7 +299,7 @@ static struct conf_drv_settings default_conf = {
 		.tx_ba_win_size = 64,
 		.inactivity_timeout = 10000,
 	},
-	.mem = {
+	.mem_wl127x = {
 		.num_stations                 = 1,
 		.ssid_profiles                = 1,
 		.rx_block_num                 = 70,
@@ -307,7 +308,18 @@ static struct conf_drv_settings default_conf = {
 		.min_req_tx_blocks            = 100,
 		.min_req_rx_blocks            = 22,
 		.tx_min                       = 27,
-	}
+	},
+	.mem_wl128x = {
+		.num_stations                 = 1,
+		.ssid_profiles                = 1,
+		.rx_block_num                 = 40,
+		.tx_min_block_num             = 40,
+		.dynamic_memory               = 1,
+		.min_req_tx_blocks            = 45,
+		.min_req_rx_blocks            = 22,
+		.tx_min                       = 27,
+	},
+	.hci_io_ds = HCI_IO_DS_6MA,
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);
@@ -329,6 +341,7 @@ static struct platform_device wl1271_device = {
 	},
 };
 
+static DEFINE_MUTEX(wl_list_mutex);
 static LIST_HEAD(wl_list);
 
 static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
@@ -359,10 +372,12 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		return NOTIFY_DONE;
 
 	wl_temp = hw->priv;
+	mutex_lock(&wl_list_mutex);
 	list_for_each_entry(wl, &wl_list, list) {
 		if (wl == wl_temp)
 			break;
 	}
+	mutex_unlock(&wl_list_mutex);
 	if (wl != wl_temp)
 		return NOTIFY_DONE;
 
@@ -438,15 +453,30 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	struct conf_tx_tid *conf_tid;
 	int ret, i;
 
-	ret = wl1271_cmd_general_parms(wl);
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		ret = wl128x_cmd_general_parms(wl);
+	else
+		ret = wl1271_cmd_general_parms(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_cmd_radio_parms(wl);
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		ret = wl128x_cmd_radio_parms(wl);
+	else
+		ret = wl1271_cmd_radio_parms(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_cmd_ext_radio_parms(wl);
+	if (wl->chip.id != CHIP_ID_1283_PG20) {
+		ret = wl1271_cmd_ext_radio_parms(wl);
+		if (ret < 0)
+			return ret;
+	}
+	if (ret < 0)
+		return ret;
+
+	/* Chip-specific initializations */
+	ret = wl1271_chip_specific_init(wl);
 	if (ret < 0)
 		return ret;
 
@@ -593,15 +623,17 @@ static void wl1271_fw_status(struct wl1271 *wl,
 {
 	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
-	u32 total = 0;
+	u32 old_tx_blk_count = wl->tx_blocks_available;
+	u32 freed_blocks = 0;
 	int i;
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
 				sizeof(struct wl1271_fw_ap_status), false);
-	else
+	} else {
 		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
 				sizeof(struct wl1271_fw_sta_status), false);
+	}
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -612,22 +644,37 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		u32 cnt = le32_to_cpu(status->tx_released_blks[i]) -
-			wl->tx_blocks_freed[i];
+		freed_blocks += le32_to_cpu(status->tx_released_blks[i]) -
+				wl->tx_blocks_freed[i];
 
 		wl->tx_blocks_freed[i] =
 			le32_to_cpu(status->tx_released_blks[i]);
-		wl->tx_blocks_available += cnt;
-		total += cnt;
+	}
+
+	wl->tx_allocated_blocks -= freed_blocks;
+
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		/* Update num of allocated TX blocks per link and ps status */
+		wl1271_irq_update_links_status(wl, &full_status->ap);
+		wl->tx_blocks_available += freed_blocks;
+	} else {
+		int avail = full_status->sta.tx_total - wl->tx_allocated_blocks;
+
+		/*
+		 * The FW might change the total number of TX memblocks before
+		 * we get a notification about blocks being released. Thus, the
+		 * available blocks calculation might yield a temporary result
+		 * which is lower than the actual available blocks. Keeping in
+		 * mind that only blocks that were allocated can be moved from
+		 * TX to RX, tx_blocks_available should never decrease here.
+		 */
+		wl->tx_blocks_available = max((int)wl->tx_blocks_available,
+					      avail);
 	}
 
 	/* if more blocks are available now, tx work can be scheduled */
-	if (total)
+	if (wl->tx_blocks_available > old_tx_blk_count)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
-
-	/* for AP update num of allocated TX blocks per link and ps status */
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		wl1271_irq_update_links_status(wl, &full_status->ap);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -673,6 +720,13 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 	/* TX might be handled here, avoid redundant work */
 	set_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
 	cancel_work_sync(&wl->tx_work);
+
+	/*
+	 * In case edge triggered interrupt must be used, we cannot iterate
+	 * more than once without introducing race conditions with the hardirq.
+	 */
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		loopcount = 1;
 
 	mutex_lock(&wl->mutex);
 
@@ -785,11 +839,17 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 
 	switch (wl->bss_type) {
 	case BSS_TYPE_AP_BSS:
-		fw_name = WL1271_AP_FW_NAME;
+		if (wl->chip.id == CHIP_ID_1283_PG20)
+			fw_name = WL128X_AP_FW_NAME;
+		else
+			fw_name = WL127X_AP_FW_NAME;
 		break;
 	case BSS_TYPE_IBSS:
 	case BSS_TYPE_STA_BSS:
-		fw_name = WL1271_FW_NAME;
+		if (wl->chip.id == CHIP_ID_1283_PG20)
+			fw_name = WL128X_FW_NAME;
+		else
+			fw_name	= WL1271_FW_NAME;
 		break;
 	default:
 		wl1271_error("no compatible firmware for bss_type %d",
@@ -838,14 +898,14 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, WL1271_NVS_NAME, wl1271_wl_to_dev(wl));
+	ret = request_firmware(&fw, WL12XX_NVS_NAME, wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
 		wl1271_error("could not get nvs file: %d", ret);
 		return ret;
 	}
 
-	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
@@ -954,6 +1014,17 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		if (ret < 0)
 			goto out;
 		break;
+	case CHIP_ID_1283_PG20:
+		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
+			     wl->chip.id);
+
+		ret = wl1271_setup(wl);
+		if (ret < 0)
+			goto out;
+		if (wl1271_set_block_size(wl))
+			wl->quirks |= WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT;
+		break;
+	case CHIP_ID_1283_PG10:
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		ret = -ENODEV;
@@ -976,6 +1047,24 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 
 out:
 	return ret;
+}
+
+static unsigned int wl1271_get_fw_ver_quirks(struct wl1271 *wl)
+{
+	unsigned int quirks = 0;
+	unsigned int *fw_ver = wl->chip.fw_ver;
+
+	/* Only for wl127x */
+	if ((fw_ver[FW_VER_CHIP] == FW_VER_CHIP_WL127X) &&
+	    /* Check STA version */
+	    (((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
+	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_STA_MIN)) ||
+	     /* Check AP version */
+	     ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP) &&
+	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_AP_MIN))))
+		quirks |= WL12XX_QUIRK_USE_2_SPARE_BLOCKS;
+
+	return quirks;
 }
 
 int wl1271_plt_start(struct wl1271 *wl)
@@ -1013,6 +1102,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 		wl->state = WL1271_STATE_PLT;
 		wl1271_notice("firmware booted in PLT mode (%s)",
 			      wl->chip.fw_ver_str);
+
+		/* Check if any quirks are needed with older fw versions */
+		wl->quirks |= wl1271_get_fw_ver_quirks(wl);
 		goto out;
 
 irq_disable:
@@ -1040,7 +1132,7 @@ out:
 	return ret;
 }
 
-int __wl1271_plt_stop(struct wl1271 *wl)
+static int __wl1271_plt_stop(struct wl1271 *wl)
 {
 	int ret = 0;
 
@@ -1124,6 +1216,69 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
+int wl1271_tx_dummy_packet(struct wl1271 *wl)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
+	wl->tx_queue_count++;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/* The FW is low on RX memory blocks, so send the dummy packet asap */
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
+		wl1271_tx_work_locked(wl);
+
+	/*
+	 * If the FW TX is busy, TX work will be scheduled by the threaded
+	 * interrupt handler function
+	 */
+	return 0;
+}
+
+/*
+ * The size of the dummy packet should be at least 1400 bytes. However, in
+ * order to minimize the number of bus transactions, aligning it to 512 bytes
+ * boundaries could be beneficial, performance wise
+ */
+#define TOTAL_TX_DUMMY_PACKET_SIZE (ALIGN(1400, 512))
+
+static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
+{
+	struct sk_buff *skb;
+	struct ieee80211_hdr_3addr *hdr;
+	unsigned int dummy_packet_size;
+
+	dummy_packet_size = TOTAL_TX_DUMMY_PACKET_SIZE -
+			    sizeof(struct wl1271_tx_hw_descr) - sizeof(*hdr);
+
+	skb = dev_alloc_skb(TOTAL_TX_DUMMY_PACKET_SIZE);
+	if (!skb) {
+		wl1271_warning("Failed to allocate a dummy packet skb");
+		return NULL;
+	}
+
+	skb_reserve(skb, sizeof(struct wl1271_tx_hw_descr));
+
+	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					 IEEE80211_STYPE_NULLFUNC |
+					 IEEE80211_FCTL_TODS);
+
+	memset(skb_put(skb, dummy_packet_size), 0, dummy_packet_size);
+
+	/* Dummy packets require the TID to be management */
+	skb->priority = WL1271_TID_MGMT;
+
+	/* Initialize all fields that might be used */
+	skb->queue_mapping = 0;
+	memset(IEEE80211_SKB_CB(skb), 0, sizeof(struct ieee80211_tx_info));
+
+	return skb;
+}
+
+
 static struct notifier_block wl1271_dev_notifier = {
 	.notifier_call = wl1271_dev_notify,
 };
@@ -1170,6 +1325,16 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	if (wl->vif) {
 		wl1271_debug(DEBUG_MAC80211,
 			     "multiple vifs are not supported yet");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * in some very corner case HW recovery scenarios its possible to
+	 * get here before __wl1271_op_remove_interface is complete, so
+	 * opt out if that is the case.
+	 */
+	if (test_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1242,12 +1407,16 @@ power_off:
 
 	wl->vif = vif;
 	wl->state = WL1271_STATE_ON;
+	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
 	wl1271_info("firmware booted (%s)", wl->chip.fw_ver_str);
 
 	/* update hw/fw version info in wiphy struct */
 	wiphy->hw_version = wl->chip.id;
 	strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
 		sizeof(wiphy->fw_version));
+
+	/* Check if any quirks are needed with older fw versions */
+	wl->quirks |= wl1271_get_fw_ver_quirks(wl);
 
 	/*
 	 * Now we know if 11a is supported (info from the NVS), so disable
@@ -1262,8 +1431,10 @@ power_off:
 out:
 	mutex_unlock(&wl->mutex);
 
+	mutex_lock(&wl_list_mutex);
 	if (!ret)
 		list_add(&wl->list, &wl_list);
+	mutex_unlock(&wl_list_mutex);
 
 	return ret;
 }
@@ -1274,11 +1445,15 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
+	/* because of hardware recovery, we may get here twice */
+	if (wl->state != WL1271_STATE_ON)
+		return;
+
 	wl1271_info("down");
 
+	mutex_lock(&wl_list_mutex);
 	list_del(&wl->list);
-
-	WARN_ON(wl->state != WL1271_STATE_ON);
+	mutex_unlock(&wl_list_mutex);
 
 	/* enable dyn ps just in case (if left on due to fw crash etc) */
 	if (wl->bss_type == BSS_TYPE_STA_BSS)
@@ -1286,12 +1461,15 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
-		kfree(wl->scan.scanned_ch);
-		wl->scan.scanned_ch = NULL;
+		memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 		wl->scan.req = NULL;
 		ieee80211_scan_completed(wl->hw, true);
 	}
 
+	/*
+	 * this must be before the cancel_work calls below, so that the work
+	 * functions don't perform further work.
+	 */
 	wl->state = WL1271_STATE_OFF;
 
 	mutex_unlock(&wl->mutex);
@@ -1321,6 +1499,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
+	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
 	wl->tx_security_last_seq = 0;
@@ -1328,13 +1507,19 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
-	wl->flags = 0;
 	wl->vif = NULL;
 	wl->filters = 0;
 	wl1271_free_ap_keys(wl);
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
+
+	/*
+	 * this is performed after the cancel_work calls and the associated
+	 * mutex_lock, so that wl1271_op_add_interface does not accidentally
+	 * get executed before all these vars have been reset.
+	 */
+	wl->flags = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
@@ -1368,7 +1553,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->recovery_work);
 }
 
-static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
+void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
 {
 	wl1271_set_default_filters(wl);
 
@@ -1431,10 +1616,10 @@ static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 	 * One of the side effects of the JOIN command is that is clears
 	 * WPA/WPA2 keys from the chipset. Performing a JOIN while associated
 	 * to a WPA/WPA2 access point will therefore kill the data-path.
-	 * Currently there is no supported scenario for JOIN during
-	 * association - if it becomes a supported scenario, the WPA/WPA2 keys
-	 * must be handled somehow.
-	 *
+	 * Currently the only valid scenario for JOIN during association
+	 * is on roaming, in which case we will also be given new keys.
+	 * Keep the below message for now, unless it starts bothering
+	 * users who really like to roam a lot :)
 	 */
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		wl1271_info("JOIN while associated.");
@@ -1490,7 +1675,7 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	memset(wl->bssid, 0, ETH_ALEN);
 
-	/* stop filterting packets based on bssid */
+	/* stop filtering packets based on bssid */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 out:
@@ -1569,7 +1754,12 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF)) {
-		ret = -EAGAIN;
+		/* we support configuring the channel and band while off */
+		if ((changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
+			wl->band = conf->channel->band;
+			wl->channel = channel;
+		}
+
 		goto out;
 	}
 
@@ -2650,32 +2840,31 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		conf_tid->ack_policy = CONF_ACK_POLICY_LEGACY;
 		conf_tid->apsd_conf[0] = 0;
 		conf_tid->apsd_conf[1] = 0;
-	} else {
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			goto out;
+		goto out;
+	}
 
-		/*
-		 * the txop is confed in units of 32us by the mac80211,
-		 * we need us
-		 */
-		ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
-					params->cw_min, params->cw_max,
-					params->aifs, params->txop << 5);
-		if (ret < 0)
-			goto out_sleep;
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
-		ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
-					 CONF_CHANNEL_TYPE_EDCF,
-					 wl1271_tx_get_queue(queue),
-					 ps_scheme, CONF_ACK_POLICY_LEGACY,
-					 0, 0);
-		if (ret < 0)
-			goto out_sleep;
+	/*
+	 * the txop is confed in units of 32us by the mac80211,
+	 * we need us
+	 */
+	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop << 5);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
+				 CONF_CHANNEL_TYPE_EDCF,
+				 wl1271_tx_get_queue(queue),
+				 ps_scheme, CONF_ACK_POLICY_LEGACY,
+				 0, 0);
 
 out_sleep:
-		wl1271_ps_elp_sleep(wl);
-	}
+	wl1271_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -2847,10 +3036,11 @@ out:
 	return ret;
 }
 
-int wl1271_op_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   enum ieee80211_ampdu_mlme_action action,
-			   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			   u8 buf_size)
+static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  enum ieee80211_ampdu_mlme_action action,
+				  struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+				  u8 buf_size)
 {
 	struct wl1271 *wl = hw->priv;
 	int ret;
@@ -3003,7 +3193,8 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 
 #ifdef CONFIG_WL12XX_HT
 #define WL12XX_HT_CAP { \
-	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20, \
+	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | \
+	       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT), \
 	.ht_supported = true, \
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K, \
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8, \
@@ -3207,8 +3398,7 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	unsigned long res;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &res);
-
+	ret = kstrtoul(buf, 10, &res);
 	if (ret < 0) {
 		wl1271_warning("incorrect value written to bt_coex_mode");
 		return count;
@@ -3273,7 +3463,11 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	ret = wl1271_fetch_nvs(wl);
 	if (ret == 0) {
-		u8 *nvs_ptr = (u8 *)wl->nvs->nvs;
+		/* NOTE: The wl->nvs->nvs element must be first, in
+		 * order to simplify the casting, we assume it is at
+		 * the beginning of the wl->nvs structure.
+		 */
+		u8 *nvs_ptr = (u8 *)wl->nvs;
 
 		wl->mac_addr[0] = nvs_ptr[11];
 		wl->mac_addr[1] = nvs_ptr[10];
@@ -3358,6 +3552,10 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
+	/* make sure all our channels fit in the scanned_ch bitmask */
+	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +
+		     ARRAY_SIZE(wl1271_channels_5ghz) >
+		     WL1271_MAX_CHANNELS);
 	/*
 	 * We keep local copies of the band structs because we need to
 	 * modify them on a per-device basis.
@@ -3458,6 +3656,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
 	wl->quirks = 0;
+	wl->platform_quirks = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
@@ -3478,11 +3677,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_hw;
 	}
 
+	wl->dummy_packet = wl12xx_alloc_dummy_packet(wl);
+	if (!wl->dummy_packet) {
+		ret = -ENOMEM;
+		goto err_aggr;
+	}
+
 	/* Register platform device */
 	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
-		goto err_aggr;
+		goto err_dummy_packet;
 	}
 	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
@@ -3508,6 +3713,9 @@ err_bt_coex_state:
 err_platform:
 	platform_device_unregister(wl->plat_dev);
 
+err_dummy_packet:
+	dev_kfree_skb(wl->dummy_packet);
+
 err_aggr:
 	free_pages((unsigned long)wl->aggr_buf, order);
 
@@ -3527,6 +3735,7 @@ EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 int wl1271_free_hw(struct wl1271 *wl)
 {
 	platform_device_unregister(wl->plat_dev);
+	dev_kfree_skb(wl->dummy_packet);
 	free_pages((unsigned long)wl->aggr_buf,
 			get_order(WL1271_AGGR_BUFFER_SIZE));
 	kfree(wl->plat_dev);

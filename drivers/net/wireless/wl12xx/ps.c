@@ -149,9 +149,6 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			return ret;
 
 		/* disable beacon early termination */
 		ret = wl1271_acx_bet_enable(wl, false);
