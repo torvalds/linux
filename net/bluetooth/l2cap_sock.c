@@ -849,6 +849,8 @@ void l2cap_sock_kill(struct sock *sk)
 	BT_DBG("sk %p state %d", sk, sk->sk_state);
 
 	/* Kill poor orphan */
+
+	l2cap_chan_free(l2cap_pi(sk)->chan);
 	bt_sock_unlink(&l2cap_sk_list, sk);
 	sock_set_flag(sk, SOCK_DEAD);
 	sock_put(sk);

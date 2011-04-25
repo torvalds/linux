@@ -160,6 +160,11 @@ struct l2cap_chan *l2cap_chan_alloc(struct sock *sk)
 	return chan;
 }
 
+void l2cap_chan_free(struct l2cap_chan *chan)
+{
+	kfree(chan);
+}
+
 static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 {
 	struct sock *sk = chan->sk;
@@ -236,7 +241,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	if (!(chan->conf_state & L2CAP_CONF_OUTPUT_DONE &&
 			chan->conf_state & L2CAP_CONF_INPUT_DONE))
-		goto free;
+		return;
 
 	skb_queue_purge(&chan->tx_q);
 
@@ -255,9 +260,6 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 			kfree(l);
 		}
 	}
-
-free:
-	kfree(chan);
 }
 
 static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)

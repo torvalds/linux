@@ -469,6 +469,7 @@ struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
 struct l2cap_chan *l2cap_chan_alloc(struct sock *sk);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void l2cap_chan_free(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan);
 
 #endif /* __L2CAP_H */
