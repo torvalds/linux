@@ -147,7 +147,17 @@
 #define WM8900_LRC_MASK 0xfc00
 #define SPK_CON 		RK29_PIN6_PB6
 
+#define WM8900_IS_STARTUP	1
+#define WM8900_IS_SHUTDOWN	2
+
+static void wm8900_work(struct work_struct *work);
+
+static struct workqueue_struct *wm8900_workq;
+static DECLARE_DELAYED_WORK(delayed_work, wm8900_work);
+static int wm8900_current_status = WM8900_IS_SHUTDOWN;
+
 struct snd_soc_codec_device soc_codec_dev_wm8900;
+static struct snd_soc_codec *wm8900_codec;
 
 struct wm8900_priv {
 	struct snd_soc_codec codec;
@@ -647,6 +657,19 @@ static int wm8900_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static void wm8900_work(struct work_struct *work)
+{
+	WM8900_DBG("Enter::wm8900 work, power down wm8900\n");
+
+	snd_soc_write(wm8900_codec, WM8900_REG_RESET, 0);
+
+#ifdef SPK_CON
+	gpio_set_value(SPK_CON, GPIO_LOW);
+#endif
+
+	wm8900_current_status = WM8900_IS_SHUTDOWN;
+}
+
 static void wm8900_set_hw(struct snd_soc_codec *codec)
 {
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
@@ -688,6 +711,10 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_INBOOSTMIX1, 0x0042);
 	snd_soc_write(codec, WM8900_REG_INBOOSTMIX2, 0x0042);
 	snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0055);
+
+#ifdef SPK_CON
+	gpio_set_value(SPK_CON, GPIO_HIGH);
+#endif
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -744,9 +771,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	unsigned int K, Ndiv, Nmod, target;
 	unsigned int div;
 
-	BUG_ON(!Fout);
-	
 	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+
+	BUG_ON(!Fout);
         
 	/* The FLL must run at 90-100MHz which is then scaled down to
 	 * the output value by FLLCLK_DIV. */
@@ -879,7 +906,9 @@ reenable:
 static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+
 	return wm8900_set_fll(codec_dai->codec, pll_id, freq_in, freq_out);
 }
 
@@ -888,6 +917,7 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int reg;
+
 	WM8900_DBG("Enter:%s, %d, div_id=%d, div=%d \n", __FUNCTION__, __LINE__, div_id, div);
 
 	switch (div_id) {
@@ -1053,7 +1083,8 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
-        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
 
@@ -1081,8 +1112,15 @@ static int wm8900_startup(struct snd_pcm_substream *substream,
 
 	if (!(codec_dai->playback.active || codec_dai->capture.active)) {
 
+		cancel_delayed_work_sync(&delayed_work);
+
+		if (wm8900_current_status & WM8900_IS_STARTUP)
+			return 0;
+
 		WM8900_DBG("Power up wm8900\n");
+
 		wm8900_set_hw(codec);
+		wm8900_current_status |= WM8900_IS_STARTUP;
 	}
 	return 0;
 }
@@ -1091,21 +1129,25 @@ static void wm8900_shutdown(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
-	struct snd_soc_codec *codec = socdev->card->codec;
 
 	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
 		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
 
 	if (!codec_dai->capture.active && !codec_dai->playback.active) {
 
-		WM8900_DBG("Power down wm8900\n");
+		cancel_delayed_work_sync(&delayed_work);
 
-		/* When codec is not using , close it. */
-		snd_soc_write(codec, WM8900_REG_RESET, 0);
-	}    
+		/* If codec is already shutdown, return */
+		if (wm8900_current_status == WM8900_IS_SHUTDOWN)
+			return;
+
+		WM8900_DBG("Is going to power down wm8900\n");
+
+		queue_delayed_work(wm8900_workq, &delayed_work,
+			msecs_to_jiffies(3000));
+	}
 }
 
 static int wm8900_trigger(struct snd_pcm_substream *substream,
@@ -1121,15 +1163,7 @@ static int wm8900_trigger(struct snd_pcm_substream *substream,
 
 	if(status == 1 || status == 0){
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-
 			codec_dai->playback.active = status;
-#ifdef SPK_CON
-			if(status == 1){		
-				gpio_set_value(SPK_CON, GPIO_HIGH);
-			}else{		
-				gpio_set_value(SPK_CON, GPIO_LOW);
-			}
-#endif
 		}else{
 			codec_dai->capture.active = status;
 		}
@@ -1153,8 +1187,8 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_fmt	= wm8900_set_dai_fmt,
 	.digital_mute	= wm8900_digital_mute,
 	.startup	= wm8900_startup,
-	.trigger	= wm8900_trigger,
 	.shutdown	= wm8900_shutdown,
+	.trigger	= wm8900_trigger,
 };
 
 struct snd_soc_dai wm8900_dai = {
@@ -1332,8 +1366,6 @@ static int wm8900_resume(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct snd_soc_codec *wm8900_codec;
 
 static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
@@ -1515,6 +1547,13 @@ static int wm8900_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register card\n");
 		goto card_err;
+	}
+
+	wm8900_workq = create_freezeable_workqueue("wm8900");
+	if (wm8900_workq == NULL) {
+		kfree(codec->private_data);
+		kfree(codec);
+		return -ENOMEM;
 	}
 
 	return ret;
