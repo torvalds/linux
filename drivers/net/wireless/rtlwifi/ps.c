@@ -428,6 +428,10 @@ void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 {
 }
 
+void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
+{
+}
+
 /*Enter the leisure power save mode.*/
 void rtl_lps_enter(struct ieee80211_hw *hw)
 {
