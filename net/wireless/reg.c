@@ -672,11 +672,9 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 	for (i = 0; i < regd->n_reg_rules; i++) {
 		const struct ieee80211_reg_rule *rr;
 		const struct ieee80211_freq_range *fr = NULL;
-		const struct ieee80211_power_rule *pr = NULL;
 
 		rr = &regd->reg_rules[i];
 		fr = &rr->freq_range;
-		pr = &rr->power_rule;
 
 		/*
 		 * We only need to know if one frequency rule was
