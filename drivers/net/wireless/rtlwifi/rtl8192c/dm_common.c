@@ -640,7 +640,7 @@ static void rtl92c_dm_txpower_tracking_callback_thermalmeter(struct ieee80211_hw
 	u8 txpwr_level[2] = {0, 0};
 	u8 ofdm_min_index = 6, rf;
 
-	rtlpriv->dm.txpower_trackingInit = true;
+	rtlpriv->dm.txpower_trackinginit = true;
 	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 		 ("rtl92c_dm_txpower_tracking_callback_thermalmeter\n"));
 
@@ -1062,7 +1062,7 @@ static void rtl92c_dm_initialize_txpower_tracking_thermalmeter(
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.txpower_tracking = true;
-	rtlpriv->dm.txpower_trackingInit = false;
+	rtlpriv->dm.txpower_trackinginit = false;
 
 	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 		 ("pMgntInfo->txpower_tracking = %d\n",
