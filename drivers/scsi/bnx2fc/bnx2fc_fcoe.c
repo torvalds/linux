@@ -1352,8 +1352,6 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
-	bnx2fc_interface_put(hba);
-
 	/* Free queued packets for the receive thread */
 	bnx2fc_clean_rx_queue(lport);
 
@@ -1372,6 +1370,8 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 
 	/* Release Scsi_Host */
 	scsi_host_put(lport->host);
+
+	bnx2fc_interface_put(hba);
 }
 
 /**
