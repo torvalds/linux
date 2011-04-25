@@ -112,10 +112,12 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.update_interrupt_mask = rtl92ce_update_interrupt_mask,
 	.get_hw_reg = rtl92ce_get_hw_reg,
 	.set_hw_reg = rtl92ce_set_hw_reg,
+#if 0	/* temporary */
 	.update_rate_table = rtl92ce_update_hal_rate_table,
 	.update_rate_mask = rtl92ce_update_hal_rate_mask,
 	.fill_tx_desc = rtl92ce_tx_fill_desc,
 	.fill_tx_cmddesc = rtl92ce_tx_fill_cmddesc,
+#endif
 	.query_rx_desc = rtl92ce_rx_query_desc,
 	.set_channel_access = rtl92ce_update_channel_access_setting,
 	.radio_onoff_checking = rtl92ce_gpio_radio_on_off_checking,

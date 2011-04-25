@@ -42,6 +42,7 @@
 #include "trx.h"
 #include "led.h"
 #include "table.h"
+#include "../rtl8192ce/hw.h"
 
 static void _rtl92cu_phy_param_tab_init(struct ieee80211_hw *hw)
 {
