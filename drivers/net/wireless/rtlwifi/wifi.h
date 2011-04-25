@@ -1445,12 +1445,8 @@ struct rtl_intf_ops {
 	int (*adapter_start) (struct ieee80211_hw *hw);
 	void (*adapter_stop) (struct ieee80211_hw *hw);
 
-#if 0	/* temporary */
 	int (*adapter_tx) (struct ieee80211_hw *hw, struct sk_buff *skb,
 			struct rtl_tcb_desc *ptcb_desc);
-#else
-	int (*adapter_tx) (struct ieee80211_hw *hw, struct sk_buff *skb);
-#endif
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
 	int (*reset_trx_ring) (struct ieee80211_hw *hw);
 	bool (*waitq_insert) (struct ieee80211_hw *hw, struct sk_buff *skb);

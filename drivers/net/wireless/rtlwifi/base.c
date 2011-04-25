@@ -1182,14 +1182,8 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		info->control.rates[0].idx = 0;
 		info->control.sta = sta;
 		info->band = hw->conf.channel->band;
-#if 0
 		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-#else
-		rtlpriv->intf_ops->adapter_tx(hw, skb);
-#endif
 	}
-	return 1;
-
 err_free:
 	return 0;
 }

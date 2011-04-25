@@ -885,7 +885,8 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_TX);
 }
 
-static int rtl_usb_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static int rtl_usb_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
+		      struct rtl_tcb_desc *dummy)
 {
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
