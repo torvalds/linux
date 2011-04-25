@@ -135,6 +135,11 @@ static inline int hard_smp_processor_id(void)
 		__asm__ __volatile__("lda [%g0] ASI_M_VIKING_TMP1, %0\n\t"
 				     "nop; nop" :
 				     "=&r" (cpuid));
+		     - leon
+		__asm__ __volatile__(	"rd %asr17, %0\n\t"
+					"srl %0, 0x1c, %0\n\t"
+					"nop\n\t" :
+					"=&r" (cpuid));
 	   See btfixup.h and btfixupprep.c to understand how a blackbox works.
 	 */
 	__asm__ __volatile__("sethi %%hi(___b_hard_smp_processor_id), %0\n\t"
