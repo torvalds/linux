@@ -33,20 +33,22 @@
 #include <linux/earlysuspend.h>
 #endif
 
-// #define ENABLE_DEBUG_LOG
-#include <mach/custom_log.h>
-
 #if 1
-#define mmaprintk(x...) D(x)
+#define mmaprintk(x...) printk(x)
 #else
 #define mmaprintk(x...)
 #endif
 
-// #define ENABLE_VERBOSE_LOG
-#ifdef ENABLE_VERBOSE_LOG
-#define V(x...) D(x)
+#if 0
+#define mmaprintkd(x...) printk(x)
 #else
-#define V(x...)
+#define mmaprintkd(x...)
+#endif
+
+#if 0
+#define mmaprintkf(x...) printk(x)
+#else
+#define mmaprintkf(x...)
 #endif
 
 static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id *id);
@@ -73,8 +75,6 @@ typedef char status_t;
 #define MMA8452_OPEN           1
 #define MMA8452_CLOSE          0
 
-
-// .! : 设备实例数据类型. 
 struct mma8452_data {
     status_t status;
     char  curr_tate;
@@ -83,19 +83,12 @@ struct mma8452_data {
 	struct work_struct work;
 	struct delayed_work delaywork;	/*report second event*/
     
-    /** 缓存 sensor 数据. */
     struct mma8452_axis sense_data;
-    /** 对 "sense_data" 的互斥保护. */
     struct mutex sense_data_mutex;
-
-    /** 标识 "sense_data" 中的数据是否有效. */
     atomic_t data_ready;
-    /** 用来等待 数据 ready 的等待队列头. */
     wait_queue_head_t data_ready_wq;
 
-    /** 标识 设备被要求 START 采集数据的次数, 对应 MMA_IOCTL_START 可能被调用多次的情况. */
     int start_count;
-    /** 对 'start_count' 和相关操作的互斥保护. */
     struct mutex operation_mutex;
 };
 
@@ -199,7 +192,7 @@ static int mma845x_active(struct i2c_client *client,int enable)
 		tmp |=ACTIVE_MASK;
 	else
 		tmp &=~ACTIVE_MASK;
-	mmaprintk("mma845x_active %s (0x%x)\n",enable?"active":"standby",tmp);	
+	mmaprintkd("mma845x_active %s (0x%x)\n",enable?"active":"standby",tmp);	
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG1,tmp);
 	return ret;
 }
@@ -209,39 +202,39 @@ static int mma8452_start_test(struct i2c_client *client)
 	int ret = 0;
 	int tmp;
 
-	mmaprintk("-------------------------mma8452 start test------------------------\n");	
+	mmaprintkf("-------------------------mma8452 start test------------------------\n");	
 	
 	/* standby */
 	mma845x_active(client,0);
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 
 	/* disable FIFO  FMODE = 0*/
 	ret = mma845x_write_reg(client,MMA8452_REG_F_SETUP,0);
-	mmaprintk("mma8452 MMA8452_REG_F_SETUP:%x\n",mma845x_read_reg(client,MMA8452_REG_F_SETUP));
+	mmaprintkd("mma8452 MMA8452_REG_F_SETUP:%x\n",mma845x_read_reg(client,MMA8452_REG_F_SETUP));
 
 	/* set full scale range to 2g */
 	ret = mma845x_write_reg(client,MMA8452_REG_XYZ_DATA_CFG,0);
-	mmaprintk("mma8452 MMA8452_REG_XYZ_DATA_CFG:%x\n",mma845x_read_reg(client,MMA8452_REG_XYZ_DATA_CFG));
+	mmaprintkd("mma8452 MMA8452_REG_XYZ_DATA_CFG:%x\n",mma845x_read_reg(client,MMA8452_REG_XYZ_DATA_CFG));
 
 	/* set bus 8bit/14bit(FREAD = 1,FMODE = 0) ,data rate*/
 	tmp = (MMA8452_RATE_12P5<< MMA8452_RATE_SHIFT) | FREAD_MASK;
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG1,tmp);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG1:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG1));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG1:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG1));
 	
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG3,5);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG3:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG3));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG3:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG3));
 	
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG4,1);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG4:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG4));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG4:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG4));
 
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG5,1);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG5:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG5));	
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG5:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG5));	
 
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 	mma845x_active(client,1);
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 
 	enable_irq(client->irq);
 	msleep(50);
@@ -255,39 +248,39 @@ static int mma8452_start_dev(struct i2c_client *client, char rate)
 	int tmp;
 	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);   // mma8452_data 定义在 mma8452.h 中. 
 
-	mmaprintk("-------------------------mma8452 start ------------------------\n");	
+	mmaprintkf("-------------------------mma8452 start ------------------------\n");	
 	/* standby */
 	mma845x_active(client,0);
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 
 	/* disable FIFO  FMODE = 0*/
 	ret = mma845x_write_reg(client,MMA8452_REG_F_SETUP,0);
-	mmaprintk("mma8452 MMA8452_REG_F_SETUP:%x\n",mma845x_read_reg(client,MMA8452_REG_F_SETUP));
+	mmaprintkd("mma8452 MMA8452_REG_F_SETUP:%x\n",mma845x_read_reg(client,MMA8452_REG_F_SETUP));
 
 	/* set full scale range to 2g */
 	ret = mma845x_write_reg(client,MMA8452_REG_XYZ_DATA_CFG,0);
-	mmaprintk("mma8452 MMA8452_REG_XYZ_DATA_CFG:%x\n",mma845x_read_reg(client,MMA8452_REG_XYZ_DATA_CFG));
+	mmaprintkd("mma8452 MMA8452_REG_XYZ_DATA_CFG:%x\n",mma845x_read_reg(client,MMA8452_REG_XYZ_DATA_CFG));
 
 	/* set bus 8bit/14bit(FREAD = 1,FMODE = 0) ,data rate*/
 	tmp = (rate<< MMA8452_RATE_SHIFT) | FREAD_MASK;
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG1,tmp);
 	mma8452->curr_tate = rate;
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG1:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG1));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG1:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG1));
 	
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG3,5);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG3:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG3));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG3:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG3));
 	
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG4,1);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG4:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG4));
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG4:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG4));
 
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG5,1);
-	mmaprintk("mma8452 MMA8452_REG_CTRL_REG5:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG5));	
+	mmaprintkd("mma8452 MMA8452_REG_CTRL_REG5:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG5));	
 
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 	mma845x_active(client,1);
-	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
+	mmaprintkd("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
 	
 	enable_irq(client->irq);
 	return ret;
@@ -298,7 +291,7 @@ static int mma8452_start(struct i2c_client *client, char rate)
 { 
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
     
-   printk("%s::enter\n",__FUNCTION__); 
+   mmaprintkf("%s::enter\n",__FUNCTION__); 
     if (mma8452->status == MMA8452_OPEN) {
         return 0;      
     }
@@ -315,7 +308,7 @@ static int mma8452_close_dev(struct i2c_client *client)
 static int mma8452_close(struct i2c_client *client)
 {
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-   printk("%s::enter\n",__FUNCTION__); 
+   mmaprintkf("%s::enter\n",__FUNCTION__); 
     mma8452->status = MMA8452_CLOSE;
     
     return mma8452_close_dev(client);
@@ -325,7 +318,7 @@ static int mma8452_reset_rate(struct i2c_client *client, char rate)
 {
 	int ret = 0;
 	
-	mmaprintk("\n----------------------------mma8452_reset_rate------------------------\n");
+	mmaprintkf("\n----------------------------mma8452_reset_rate------------------------\n");
 	
     ret = mma8452_close_dev(client);
     ret = mma8452_start_dev(client, rate);
@@ -356,7 +349,7 @@ static void mma8452_report_value(struct i2c_client *client, struct mma8452_axis 
     input_report_abs(mma8452->input_dev, ABS_Y, axis->y);
     input_report_abs(mma8452->input_dev, ABS_Z, axis->z);
     input_sync(mma8452->input_dev);
-    V("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
+    mmaprintkd("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
 }
 
 /** 在 底半部执行, 具体获取 g sensor 数据. */
@@ -377,7 +370,7 @@ static int mma8452_get_data(struct i2c_client *client)
             return ret;
     } while (0);
 
-	V("0x%02x 0x%02x 0x%02x \n",buffer[0],buffer[1],buffer[2]);
+	mmaprintkd("0x%02x 0x%02x 0x%02x \n",buffer[0],buffer[1],buffer[2]);
 
 	axis.x = mma8452_convert_to_int(buffer[0]);
 	axis.y = mma8452_convert_to_int(buffer[1]);
@@ -389,7 +382,7 @@ static int mma8452_get_data(struct i2c_client *client)
 		swap(axis.x,axis.y);		
 	}
 	
-    V( "%s: ------------------mma8452_GetData axis = %d  %d  %d--------------\n",
+    mmaprintkd( "%s: ------------------mma8452_GetData axis = %d  %d  %d--------------\n",
             __func__, axis.x, axis.y, axis.z); 
      
     //memcpy(sense_data, &axis, sizeof(axis));
@@ -425,34 +418,20 @@ static int mma8452_trans_buff(char *rbuf, int size)
 }
 */
 
-/**
- * 获取当前已经 cache 了的 sensor 数据.
- * @param sense_data
- *          指向返回用 buffer.
- * @param client
- *          当前 i2c client 设备实例数据的指针. 
- * @return
- *          若成功, 返回 0; 否则, 返回其它.
- */
 static int mma8452_get_cached_data(struct i2c_client* client, struct mma8452_axis* sense_data)
 {
     struct mma8452_data* this = (struct mma8452_data *)i2c_get_clientdata(client);
 
-    /* 有超时地, 等待数据 ready. */
     wait_event_interruptible_timeout(this->data_ready_wq, 
                                      atomic_read(&(this->data_ready) ),
                                      msecs_to_jiffies(1000) );
-    /* 若超时, 且数据没有 ready. */
     if ( 0 == atomic_read(&(this->data_ready) ) ) {
-        E("waiting 'data_ready_wq' timed out.");
-        /* 返回 error. */
+        printk("waiting 'data_ready_wq' timed out.");
         return -1;
     }
-    /* 数据已经 ready, 互斥地返回数据. */
     mutex_lock(&(this->sense_data_mutex) );
     *sense_data = this->sense_data;
     mutex_unlock(&(this->sense_data_mutex) );
-    /* 返回. */
     return 0;
 }
 
@@ -489,44 +468,31 @@ static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cm
 
 	switch (cmd) {
 	case MMA_IOCTL_START:
-        /* 上锁. */
         mutex_lock(&(this->operation_mutex) );
-        D("to perform 'MMA_IOCTL_START', former 'start_count' is %d.", this->start_count);
-        /* 记数 自加. */
+        mmaprintkd("to perform 'MMA_IOCTL_START', former 'start_count' is %d.", this->start_count);
         (this->start_count)++;
-        /* 若是初次 start, 则... */
         if ( 1 == this->start_count ) {
-            /* 复位 data_ready. */
             atomic_set(&(this->data_ready), 0);
-            /* 执行具体的对硬件的启动操作. */
             if ( (ret = mma8452_start(client, MMA8452_RATE_12P5) ) < 0 ) {
                 mutex_unlock(&(this->operation_mutex) );
                 return ret;
             }
         }
-        /* 解锁. */
         mutex_unlock(&(this->operation_mutex) );
-        D("finish 'MMA_IOCTL_START', ret = %d.", ret);
-        /* 返回. */
+        mmaprintkd("finish 'MMA_IOCTL_START', ret = %d.", ret);
         return 0;
 
 	case MMA_IOCTL_CLOSE:
-        /* 上锁. */
         mutex_lock(&(this->operation_mutex) );
-        D("to perform 'MMA_IOCTL_CLOSE', former 'start_count' is %d, PID : %d", this->start_count, get_current()->pid);
-        /* 若记数自减到 0, 则... */
+        mmaprintkd("to perform 'MMA_IOCTL_CLOSE', former 'start_count' is %d, PID : %d", this->start_count, get_current()->pid);
         if ( 0 == (--(this->start_count) ) ) {
-            /* 复位 data_ready. */
             atomic_set(&(this->data_ready), 0);
-            /* 执行具体的对硬件的 stop 操作. */
             if ( (ret = mma8452_close(client) ) < 0 ) {
                 mutex_unlock(&(this->operation_mutex) );
                 return ret;
             }
         }
-        /* 解锁. */
         mutex_unlock(&(this->operation_mutex) );
-        /* 返回. */
         return 0;
 
 	case MMA_IOCTL_APP_SET_RATE:
@@ -537,7 +503,7 @@ static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	case MMA_IOCTL_GETDATA:
 		// ret = mma8452_trans_buff(msg, RBUFF_SIZE);
 		if ( (ret = mma8452_get_cached_data(client, &sense_data) ) < 0 ) {
-            E("failed to get cached sense data, ret = %d.", ret);
+            printk("failed to get cached sense data, ret = %d.", ret);
 			return ret;
         }
 		break;
@@ -552,7 +518,7 @@ static int mma8452_ioctl(struct inode *inode, struct file *file, unsigned int cm
 			return -EFAULT;
         */
         if ( copy_to_user(argp, &sense_data, sizeof(sense_data) ) ) {
-            D("failed to copy sense data to user space.");
+            printk("failed to copy sense data to user space.");
 			return -EFAULT;
         }
 		break;
@@ -569,7 +535,7 @@ static void mma8452_work_func(struct work_struct *work)
 	struct i2c_client *client = mma8452->client;
 	
 	if (mma8452_get_data(client) < 0) 
-		mmaprintk(KERN_ERR "MMA8452 mma_work_func: Get data failed\n");
+		mmaprintkd(KERN_ERR "MMA8452 mma_work_func: Get data failed\n");
 		
 	enable_irq(client->irq);		
 }
@@ -581,8 +547,8 @@ static void  mma8452_delaywork_func(struct work_struct *work)
 	struct i2c_client *client = mma8452->client;
 
 	if (mma8452_get_data(client) < 0) 
-		E(KERN_ERR "MMA8452 mma_work_func: Get data failed\n");
-	V("%s :int src:0x%02x\n",__FUNCTION__,mma845x_read_reg(mma8452->client,MMA8452_REG_INTSRC));	
+		printk(KERN_ERR "MMA8452 mma_work_func: Get data failed\n");
+	mmaprintkd("%s :int src:0x%02x\n",__FUNCTION__,mma845x_read_reg(mma8452->client,MMA8452_REG_INTSRC));	
 	enable_irq(client->irq);		
 }
 
@@ -591,9 +557,8 @@ static irqreturn_t mma8452_interrupt(int irq, void *dev_id)
 	struct mma8452_data *mma8452 = (struct mma8452_data *)dev_id;
 	
 	disable_irq_nosync(irq);
-    /* .! : 延迟地在 底半部 发起后续操作(读取具体数据). */
 	schedule_delayed_work(&mma8452->delaywork, msecs_to_jiffies(30));
-	V("%s :enter\n",__FUNCTION__);	
+	mmaprintkf("%s :enter\n",__FUNCTION__);	
 	return IRQ_HANDLED;
 }
 
@@ -604,7 +569,6 @@ static struct file_operations mma8452_fops = {
 	.ioctl = mma8452_ioctl,
 };
 
-/** 控制设备. */
 static struct miscdevice mma8452_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "mma8452_daemon",//"mma8452_daemon",
@@ -632,7 +596,7 @@ static void mma8452_suspend(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
 	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-	mmaprintk("Gsensor mma7760 enter suspend mma8452->status %d\n",mma8452->status);
+	mmaprintkd("Gsensor mma7760 enter suspend mma8452->status %d\n",mma8452->status);
 //	if(mma8452->status == MMA8452_OPEN)
 //	{
 		//mma8452->status = MMA8452_SUSPEND;
@@ -644,7 +608,7 @@ static void mma8452_resume(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-	mmaprintk("Gsensor mma7760 resume!! mma8452->status %d\n",mma8452->status);
+	mmaprintkd("Gsensor mma7760 resume!! mma8452->status %d\n",mma8452->status);
 	//if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
 //	if (mma8452->status == MMA8452_OPEN)
 //		mma8452_start_dev(client,mma8452->curr_tate);
@@ -653,7 +617,7 @@ static void mma8452_resume(struct early_suspend *h)
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
-	mmaprintk("Gsensor mma7760 enter 2 level  suspend mma8452->status %d\n",mma8452->status);
+	mmaprintkd("Gsensor mma7760 enter 2 level  suspend mma8452->status %d\n",mma8452->status);
 	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 //	if(mma8452->status == MMA8452_OPEN)
 //	{
@@ -666,7 +630,7 @@ static int mma8452_resume(struct i2c_client *client)
 {
 	int ret;
 	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-	mmaprintk("Gsensor mma7760 2 level resume!! mma8452->status %d\n",mma8452->status);
+	mmaprintkd("Gsensor mma7760 2 level resume!! mma8452->status %d\n",mma8452->status);
 //	if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
 //if (mma8452->status == MMA8452_OPEN)
 //		ret = mma8452_start_dev(client, mma8452->curr_tate);
@@ -679,16 +643,12 @@ static const struct i2c_device_id mma8452_id[] = {
 		{ }
 };
 
-/** 表征驱动的数据类型定义. */
 static struct i2c_driver mma8452_driver = {
 	.driver = {
 		.name = "gs_mma8452",
 	    },
 	.id_table 	= mma8452_id,
-	.probe		= mma8452_probe,            // .!! : 对 probe() 的调用, 仍是由 注册设备的操作触发的,
-                                            //      具体参见 board-rk29sdk.c 中的 board_i2c0_devices.
-                                            //      在 board_i2c0_devices 中声明了一个可以使用名称是 "gs_mma8452" 驱动程序的 I2C 设备. 
-                                            //      同时也体现了 I2C 地址 和 终端号等信息. 
+	.probe		= mma8452_probe,           
 	.remove		= __devexit_p(mma8452_remove),
 #ifndef CONFIG_HAS_EARLYSUSPEND	
 	.suspend = &mma8452_suspend,
@@ -741,7 +701,7 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	int err;
 	char devid;
 
-	mmaprintk("%s enter\n",__FUNCTION__);
+	mmaprintkf("%s enter\n",__FUNCTION__);
 
 	mma8452 = kzalloc(sizeof(struct mma8452_data), GFP_KERNEL);
 	if (!mma8452) {

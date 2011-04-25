@@ -54,8 +54,7 @@
 #define MMA8452_REG_OFF_Y				0x30 //RW
 #define MMA8452_REG_OFF_Z				0x31 //RW
 
-//#define MMAIO				0xA1
-#define MMAIO				'm'
+#define MMAIO				0xA1
 
 /* IOCTLs for MMA8452 library */
 #define MMA_IOCTL_INIT                  _IO(MMAIO, 0x01)
