@@ -243,7 +243,7 @@ static int __devinit lsr_probe(struct platform_device *pdev)
     }
 	lightsensor->gpio		= LSR_GPIO;
 	lightsensor->desc		= "rk29-lsr";
-	lightsensor->adc_chn	= 1;
+	lightsensor->adc_chn	= 2;
 	lightsensor->delay_time	= 1000;
 	lightsensor->rate		= 100;
 	lightsensor->oldresult	= 0;
