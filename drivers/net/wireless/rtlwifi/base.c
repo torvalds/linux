@@ -795,7 +795,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	ip = (struct iphdr *)((u8 *) skb->data + mac_hdr_len +
 			      SNAP_SIZE + PROTOC_TYPE_SIZE);
 	ether_type = *(u16 *) ((u8 *) skb->data + mac_hdr_len + SNAP_SIZE);
-	ether_type = ntohs(ether_type);
+	/*	ether_type = ntohs(ether_type); */
 
 	if (ETH_P_IP == ether_type) {
 		if (IPPROTO_UDP == ip->protocol) {
@@ -1105,7 +1105,7 @@ u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie)
 
 /* when we use 2 rx ants we send IEEE80211_SMPS_OFF */
 /* when we use 1 rx ant we send IEEE80211_SMPS_STATIC */
-struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
+static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
 		enum ieee80211_smps_mode smps, u8 *da, u8 *bssid)
 {
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
@@ -1230,7 +1230,7 @@ static bool rtl_chk_vendor_ouisub(struct ieee80211_hw *hw,
 	return matched;
 }
 
-bool rtl_find_221_ie(struct ieee80211_hw *hw, u8 *data,
+static bool rtl_find_221_ie(struct ieee80211_hw *hw, u8 *data,
 		unsigned int len)
 {
 	struct ieee80211_mgmt *mgmt = (void *)data;

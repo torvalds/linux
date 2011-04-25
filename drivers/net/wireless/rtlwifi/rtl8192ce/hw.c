@@ -2177,7 +2177,7 @@ void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 	}
 }
 
-void rtl8192ce_bt_var_init(struct ieee80211_hw *hw)
+static void rtl8192ce_bt_var_init(struct ieee80211_hw *hw)
 {
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 

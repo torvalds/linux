@@ -543,8 +543,6 @@
 #define	IMR_OCPINT				BIT(1)
 #define	IMR_WLANOFF				BIT(0)
 
-#define	HWSET_MAX_SIZE				128
-#define EFUSE_MAX_SECTION			16
 #define EFUSE_REAL_CONTENT_LEN			512
 
 #define	EEPROM_DEFAULT_TSSI			0x0

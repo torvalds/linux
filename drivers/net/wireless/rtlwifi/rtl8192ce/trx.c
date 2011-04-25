@@ -36,9 +36,9 @@
 #include "trx.h"
 #include "led.h"
 
-u8 _rtl92ce_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
+static u8 _rtl92ce_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 {
-	u16 fc = rtl_get_fc(skb);
+	__le16 fc = rtl_get_fc(skb);
 
 	if (unlikely(ieee80211_is_beacon(fc)))
 		return QSLT_BEACON;
@@ -795,7 +795,6 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 			u8 ampdu_density = sta->ht_cap.ampdu_density;
 			SET_TX_DESC_AMPDU_DENSITY(pdesc, ampdu_density);
 		}
-		rcu_read_unlock();
 
 		if (info->control.hw_key) {
 			struct ieee80211_key_conf *keyconf =
@@ -834,13 +833,14 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 			}
 		}
 	}
+	rcu_read_unlock();
 
 	SET_TX_DESC_FIRST_SEG(pdesc, (firstseg ? 1 : 0));
 	SET_TX_DESC_LAST_SEG(pdesc, (lastseg ? 1 : 0));
 
 	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) skb->len);
 
-	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
+	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, mapping);
 
 	if (rtlpriv->dm.useramask) {
 		SET_TX_DESC_RATE_ID(pdesc, tcb_desc->ratr_index);
@@ -901,7 +901,7 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) (skb->len));
 
-	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
+	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, mapping);
 
 	SET_TX_DESC_RATE_ID(pdesc, 7);
 	SET_TX_DESC_MACID(pdesc, 0);

@@ -253,5 +253,9 @@ bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw);
 void _rtl92c_phy_set_rf_sleep(struct ieee80211_hw *hw);
 bool rtl92c_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				   enum rf_pwrstate rfpwr_state);
+bool _rtl92ce_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
+					    u8 configtype);
+bool _rtl92ce_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
+					      u8 configtype);
 
 #endif

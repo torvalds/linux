@@ -83,7 +83,7 @@ void rtl92c_phy_set_bb_reg(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(rtl92c_phy_set_bb_reg);
 
 u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
-					 enum radio_path rfpath, u32 offset)
+				  enum radio_path rfpath, u32 offset)
 {
 	RT_ASSERT(false, ("deprecated!\n"));
 	return 0;
@@ -92,15 +92,15 @@ u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_read);
 
 void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
-					   enum radio_path rfpath, u32 offset,
-					   u32 data)
+				    enum radio_path rfpath, u32 offset,
+				    u32 data)
 {
 	RT_ASSERT(false, ("deprecated!\n"));
 }
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_write);
 
 u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
-				      enum radio_path rfpath, u32 offset)
+			       enum radio_path rfpath, u32 offset)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -151,8 +151,8 @@ u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(_rtl92c_phy_rf_serial_read);
 
 void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
-					enum radio_path rfpath, u32 offset,
-					u32 data)
+				 enum radio_path rfpath, u32 offset,
+				 u32 data)
 {
 	u32 data_and_addr;
 	u32 newoffset;
@@ -250,8 +250,8 @@ bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 EXPORT_SYMBOL(_rtl92c_phy_bb8192c_config_parafile);
 
 void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
-						   u32 regaddr, u32 bitmask,
-						   u32 data)
+					    u32 regaddr, u32 bitmask,
+					    u32 data)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);

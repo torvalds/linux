@@ -1238,51 +1238,6 @@ static void rtl92c_dm_init_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	dm_pstable.rssi_val_min = 0;
 }
 
-void rtl92c_dm_1r_cca(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-
-	if (dm_pstable.rssi_val_min != 0) {
-		if (dm_pstable.pre_ccastate == CCA_2R) {
-			if (dm_pstable.rssi_val_min >= 35)
-				dm_pstable.cur_ccasate = CCA_1R;
-			else
-				dm_pstable.cur_ccasate = CCA_2R;
-		} else {
-			if (dm_pstable.rssi_val_min <= 30)
-				dm_pstable.cur_ccasate = CCA_2R;
-			else
-				dm_pstable.cur_ccasate = CCA_1R;
-		}
-	} else {
-		dm_pstable.cur_ccasate = CCA_MAX;
-	}
-
-	if (dm_pstable.pre_ccastate != dm_pstable.cur_ccasate) {
-		if (dm_pstable.cur_ccasate == CCA_1R) {
-			if (get_rf_type(rtlphy) == RF_2T2R) {
-				rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE,
-					      MASKBYTE0, 0x13);
-				rtl_set_bbreg(hw, 0xe70, MASKBYTE3, 0x20);
-			} else {
-				rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE,
-					      MASKBYTE0, 0x23);
-				rtl_set_bbreg(hw, 0xe70, 0x7fc00000, 0x10c);
-			}
-		} else {
-			rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE, MASKBYTE0,
-				      0x33);
-			rtl_set_bbreg(hw, 0xe70, MASKBYTE3, 0x63);
-		}
-		dm_pstable.pre_ccastate = dm_pstable.cur_ccasate;
-	}
-
-	RT_TRACE(rtlpriv, DBG_LOUD, DBG_LOUD, ("CCAStage = %s\n",
-					       (dm_pstable.cur_ccasate ==
-						0) ? "1RCCA" : "2RCCA"));
-}
-
 void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 {
 	static u8 initialize;

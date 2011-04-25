@@ -42,7 +42,7 @@
 #include "trx.h"
 #include "led.h"
 
-void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
+static void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
@@ -185,7 +185,7 @@ void rtl92c_deinit_sw_vars(struct ieee80211_hw *hw)
 	}
 }
 
-struct rtl_hal_ops rtl8192ce_hal_ops = {
+static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.init_sw_vars = rtl92c_init_sw_vars,
 	.deinit_sw_vars = rtl92c_deinit_sw_vars,
 	.read_eeprom_info = rtl92ce_read_eeprom_info,
@@ -235,14 +235,14 @@ struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.dm_dynamic_txpower = rtl92ce_dm_dynamic_txpower,
 };
 
-struct rtl_mod_params rtl92ce_mod_params = {
+static struct rtl_mod_params rtl92ce_mod_params = {
 	.sw_crypto = false,
 	.inactiveps = true,
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
 };
 
-struct rtl_hal_cfg rtl92ce_hal_cfg = {
+static struct rtl_hal_cfg rtl92ce_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl92c_pci",

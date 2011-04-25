@@ -238,5 +238,21 @@ void _rtl92c_phy_set_rf_sleep(struct ieee80211_hw *hw);
 bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 				      u8 channel, u8 *stage, u8 *step,
 				      u32 *delay);
+u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw);
+u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
+				  enum radio_path rfpath, u32 offset);
+void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
+				    enum radio_path rfpath, u32 offset,
+				    u32 data);
+u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
+			       enum radio_path rfpath, u32 offset);
+void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
+				 enum radio_path rfpath, u32 offset,
+				 u32 data);
+bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw);
+void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
+					    u32 regaddr, u32 bitmask,
+					    u32 data);
+bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype);
 
 #endif

@@ -303,6 +303,9 @@ enum hw_variables {
 	HW_VAR_DATA_FILTER,
 };
 
+#define HWSET_MAX_SIZE				128
+#define EFUSE_MAX_SECTION			16
+
 enum _RT_MEDIA_STATUS {
 	RT_MEDIA_DISCONNECT = 0,
 	RT_MEDIA_CONNECT = 1
@@ -1963,9 +1966,9 @@ static inline struct ieee80211_hdr *rtl_get_hdr(struct sk_buff *skb)
 	return (struct ieee80211_hdr *)(skb->data);
 }
 
-static inline u16 rtl_get_fc(struct sk_buff *skb)
+static inline __le16 rtl_get_fc(struct sk_buff *skb)
 {
-	return le16_to_cpu(rtl_get_hdr(skb)->frame_control);
+	return rtl_get_hdr(skb)->frame_control;
 }
 
 static inline u16 rtl_get_tid_h(struct ieee80211_hdr *hdr)
