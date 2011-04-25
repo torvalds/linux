@@ -11276,10 +11276,12 @@ out:
 	return err;
 }
 
-#define TG3_MAC_LOOPBACK_FAILED		1
-#define TG3_PHY_LOOPBACK_FAILED		2
-#define TG3_LOOPBACK_FAILED		(TG3_MAC_LOOPBACK_FAILED |	\
-					 TG3_PHY_LOOPBACK_FAILED)
+#define TG3_STD_LOOPBACK_FAILED		1
+#define TG3_JMB_LOOPBACK_FAILED		2
+
+#define TG3_MAC_LOOPBACK_SHIFT		0
+#define TG3_PHY_LOOPBACK_SHIFT		4
+#define TG3_LOOPBACK_FAILED			0x00000033
 
 static int tg3_test_loopback(struct tg3 *tp)
 {
@@ -11338,11 +11340,11 @@ static int tg3_test_loopback(struct tg3 *tp)
 	}
 
 	if (tg3_run_loopback(tp, ETH_FRAME_LEN, TG3_MAC_LOOPBACK))
-		err |= TG3_MAC_LOOPBACK_FAILED;
+		err |= TG3_STD_LOOPBACK_FAILED << TG3_MAC_LOOPBACK_SHIFT;
 
 	if ((tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) &&
 	    tg3_run_loopback(tp, 9000 + ETH_HLEN, TG3_MAC_LOOPBACK))
-		err |= (TG3_MAC_LOOPBACK_FAILED << 2);
+		err |= TG3_JMB_LOOPBACK_FAILED << TG3_MAC_LOOPBACK_SHIFT;
 
 	if (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) {
 		tw32(TG3_CPMU_CTRL, cpmuctrl);
@@ -11354,10 +11356,12 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (!(tp->phy_flags & TG3_PHYFLG_PHY_SERDES) &&
 	    !(tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB)) {
 		if (tg3_run_loopback(tp, ETH_FRAME_LEN, TG3_PHY_LOOPBACK))
-			err |= TG3_PHY_LOOPBACK_FAILED;
+			err |= TG3_STD_LOOPBACK_FAILED <<
+			       TG3_PHY_LOOPBACK_SHIFT;
 		if ((tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) &&
 		    tg3_run_loopback(tp, 9000 + ETH_HLEN, TG3_PHY_LOOPBACK))
-			err |= (TG3_PHY_LOOPBACK_FAILED << 2);
+			err |= TG3_JMB_LOOPBACK_FAILED <<
+			       TG3_PHY_LOOPBACK_SHIFT;
 	}
 
 	/* Re-enable gphy autopowerdown. */
