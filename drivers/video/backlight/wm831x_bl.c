@@ -34,6 +34,7 @@ struct wm831x_backlight_data {
 	struct 	early_suspend early_suspend;
 	struct delayed_work work;
 	int suspend_flag;
+	int shutdown_flag;
 #endif
 };
 #define TS_POLL_DELAY (10000*1000*1000)
@@ -129,6 +130,8 @@ static int wm831x_backlight_update_status(struct backlight_device *bl)
 	}
 
 	if(gwm831x_data->suspend_flag == 1)
+		brightness = 0;
+	if (gwm831x_data->shutdown_flag == 1)
 		brightness = 0;
 		
 	if (bl->props.power != FB_BLANK_UNBLANK)
@@ -305,6 +308,17 @@ static int wm831x_backlight_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void wm831x_backlight_shutdown(struct platform_device *pdev)
+{
+	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct wm831x_backlight_data *data = bl_get_data(bl);
+	
+	printk("enter %s\n", __func__);
+	data->shutdown_flag = 1;
+	wm831x_backlight_update_status(bl);
+	return;
+}
+
 static struct platform_driver wm831x_backlight_driver = {
 	.driver		= {
 		.name	= "wm831x-backlight",
@@ -312,6 +326,7 @@ static struct platform_driver wm831x_backlight_driver = {
 	},
 	.probe		= wm831x_backlight_probe,
 	.remove		= wm831x_backlight_remove,
+	.shutdown	= wm831x_backlight_shutdown,
 };
 
 static int __init wm831x_backlight_init(void)
