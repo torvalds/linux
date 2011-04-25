@@ -30,6 +30,8 @@
 #ifndef __REALTEK_RTL_PCI_PS_H__
 #define __REALTEK_RTL_PCI_PS_H__
 
+#define MAX_SW_LPS_SLEEP_INTV	5
+
 bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 			 enum rf_pwrstate state_toset, u32 changesource,
 			 bool protect_or_not);
