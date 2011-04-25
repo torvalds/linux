@@ -86,7 +86,11 @@ static int rated_capacities[] = {
 	920,	/* NEC */
 	1440,	/* Samsung */
 	1440,	/* BYD */
+#ifdef CONFIG_MACH_H4700
+	1800,	/* HP iPAQ hx4700 3.7V 1800mAh (359113-001) */
+#else
 	1440,	/* Lishen */
+#endif
 	1440,	/* NEC */
 	2880,	/* Samsung */
 	2880,	/* BYD */
