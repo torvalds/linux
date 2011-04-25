@@ -682,6 +682,10 @@ typedef struct drm_i915_private {
 
 	bool mchbar_need_disable;
 
+	struct work_struct rps_work;
+	spinlock_t rps_lock;
+	u32 pm_iir;
+
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;

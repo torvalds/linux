@@ -6876,6 +6876,11 @@ void gen6_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	I915_WRITE(GEN6_PMIER, 0);
+
+	spin_lock_irq(&dev_priv->rps_lock);
+	dev_priv->pm_iir = 0;
+	spin_unlock_irq(&dev_priv->rps_lock);
+
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 }
 
@@ -7078,7 +7083,10 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		   GEN6_PM_RP_DOWN_THRESHOLD |
 		   GEN6_PM_RP_UP_EI_EXPIRED |
 		   GEN6_PM_RP_DOWN_EI_EXPIRED);
+	spin_lock_irq(&dev_priv->rps_lock);
+	WARN_ON(dev_priv->pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
+	spin_unlock_irq(&dev_priv->rps_lock);
 	/* enable all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 

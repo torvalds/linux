@@ -367,22 +367,30 @@ static void notify_ring(struct drm_device *dev,
 		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 }
 
-static void gen6_pm_irq_handler(struct drm_device *dev)
+static void gen6_pm_rps_work(struct work_struct *work)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    rps_work);
 	u8 new_delay = dev_priv->cur_delay;
-	u32 pm_iir;
+	u32 pm_iir, pm_imr;
 
-	pm_iir = I915_READ(GEN6_PMIIR);
+	spin_lock_irq(&dev_priv->rps_lock);
+	pm_iir = dev_priv->pm_iir;
+	dev_priv->pm_iir = 0;
+	pm_imr = I915_READ(GEN6_PMIMR);
+	spin_unlock_irq(&dev_priv->rps_lock);
+
 	if (!pm_iir)
 		return;
 
+	mutex_lock(&dev_priv->dev->struct_mutex);
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (dev_priv->cur_delay != dev_priv->max_delay)
 			new_delay = dev_priv->cur_delay + 1;
 		if (new_delay > dev_priv->max_delay)
 			new_delay = dev_priv->max_delay;
 	} else if (pm_iir & (GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT)) {
+		gen6_gt_force_wake_get(dev_priv);
 		if (dev_priv->cur_delay != dev_priv->min_delay)
 			new_delay = dev_priv->cur_delay - 1;
 		if (new_delay < dev_priv->min_delay) {
@@ -396,12 +404,19 @@ static void gen6_pm_irq_handler(struct drm_device *dev)
 			I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
 				   I915_READ(GEN6_RP_INTERRUPT_LIMITS) & ~0x3f0000);
 		}
+		gen6_gt_force_wake_put(dev_priv);
 	}
 
-	gen6_set_rps(dev, new_delay);
+	gen6_set_rps(dev_priv->dev, new_delay);
 	dev_priv->cur_delay = new_delay;
 
-	I915_WRITE(GEN6_PMIIR, pm_iir);
+	/*
+	 * rps_lock not held here because clearing is non-destructive. There is
+	 * an *extremely* unlikely race with gen6_rps_enable() that is prevented
+	 * by holding struct_mutex for the duration of the write.
+	 */
+	I915_WRITE(GEN6_PMIMR, pm_imr & ~pm_iir);
+	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
 static void pch_irq_handler(struct drm_device *dev)
@@ -525,13 +540,30 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		i915_handle_rps_change(dev);
 	}
 
-	if (IS_GEN6(dev))
-		gen6_pm_irq_handler(dev);
+	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS) {
+		/*
+		 * IIR bits should never already be set because IMR should
+		 * prevent an interrupt from being shown in IIR. The warning
+		 * displays a case where we've unsafely cleared
+		 * dev_priv->pm_iir. Although missing an interrupt of the same
+		 * type is not a problem, it displays a problem in the logic.
+		 *
+		 * The mask bit in IMR is cleared by rps_work.
+		 */
+		unsigned long flags;
+		spin_lock_irqsave(&dev_priv->rps_lock, flags);
+		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
+		I915_WRITE(GEN6_PMIMR, pm_iir);
+		dev_priv->pm_iir |= pm_iir;
+		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+		queue_work(dev_priv->wq, &dev_priv->rps_work);
+	}
 
 	/* should clear PCH hotplug event before clear CPU irq */
 	I915_WRITE(SDEIIR, pch_iir);
 	I915_WRITE(GTIIR, gt_iir);
 	I915_WRITE(DEIIR, de_iir);
+	I915_WRITE(GEN6_PMIIR, pm_iir);
 
 done:
 	I915_WRITE(DEIER, de_ier);
@@ -1658,6 +1690,7 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
+	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ironlake_irq_preinstall(dev);

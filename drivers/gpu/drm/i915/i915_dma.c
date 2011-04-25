@@ -2038,6 +2038,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
+	spin_lock_init(&dev_priv->rps_lock);
 
 	if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;

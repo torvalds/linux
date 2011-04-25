@@ -3386,7 +3386,7 @@
 #define GEN6_PMINTRMSK				0xA168
 
 #define GEN6_PMISR				0x44020
-#define GEN6_PMIMR				0x44024
+#define GEN6_PMIMR				0x44024 /* rps_lock */
 #define GEN6_PMIIR				0x44028
 #define GEN6_PMIER				0x4402C
 #define  GEN6_PM_MBOX_EVENT			(1<<25)
@@ -3396,6 +3396,9 @@
 #define  GEN6_PM_RP_DOWN_THRESHOLD		(1<<4)
 #define  GEN6_PM_RP_UP_EI_EXPIRED		(1<<2)
 #define  GEN6_PM_RP_DOWN_EI_EXPIRED		(1<<1)
+#define  GEN6_PM_DEFERRED_EVENTS		(GEN6_PM_RP_UP_THRESHOLD | \
+						 GEN6_PM_RP_DOWN_THRESHOLD | \
+						 GEN6_PM_RP_DOWN_TIMEOUT)
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
