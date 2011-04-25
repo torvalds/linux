@@ -40,7 +40,7 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_mgmt *mgmt,
 					size_t len)
 {
-	u16 auth_alg, auth_transaction, status_code;
+	u16 auth_alg, auth_transaction;
 
 	lockdep_assert_held(&sdata->u.ibss.mtx);
 
@@ -49,7 +49,6 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 
 	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
 	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
-	status_code = le16_to_cpu(mgmt->u.auth.status_code);
 
 	/*
 	 * IEEE 802.11 standard does not require authentication in IBSS
@@ -527,8 +526,6 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	u8 bssid[ETH_ALEN];
 	u16 capability;
 	int i;
@@ -550,8 +547,6 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 
 	printk(KERN_DEBUG "%s: Creating new IBSS network, BSSID %pM\n",
 	       sdata->name, bssid);
-
-	sband = local->hw.wiphy->bands[ifibss->channel->band];
 
 	capability = WLAN_CAPABILITY_IBSS;
 

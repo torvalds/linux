@@ -633,7 +633,6 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	struct mesh_path *mpath;
 	u8 ttl;
 	u8 *ta, *target_addr;
-	u8 target_flags;
 	u32 target_sn;
 	u16 target_rcode;
 
@@ -644,7 +643,6 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 	ttl--;
-	target_flags = PERR_IE_TARGET_FLAGS(perr_elem);
 	target_addr = PERR_IE_TARGET_ADDR(perr_elem);
 	target_sn = PERR_IE_TARGET_SN(perr_elem);
 	target_rcode = PERR_IE_TARGET_RCODE(perr_elem);
@@ -675,12 +673,10 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
-	u8 *ta;
 	u8 ttl, flags, hopcount;
 	u8 *orig_addr;
 	u32 orig_sn, metric;
 
-	ta = mgmt->sa;
 	ttl = rann->rann_ttl;
 	if (ttl <= 1) {
 		ifmsh->mshstats.dropped_frames_ttl++;

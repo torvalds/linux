@@ -613,11 +613,8 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status;
-	struct ieee80211_if_mesh *ifmsh;
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
-
-	ifmsh = &sdata->u.mesh;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;

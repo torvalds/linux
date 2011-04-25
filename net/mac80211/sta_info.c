@@ -587,7 +587,6 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 {
 	unsigned long flags;
 	struct sk_buff *skb;
-	struct ieee80211_sub_if_data *sdata;
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
 		return false;
@@ -604,7 +603,6 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (!skb)
 			break;
 
-		sdata = sta->sdata;
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "Buffered frame expired (STA %pM)\n",
