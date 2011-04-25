@@ -53,6 +53,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/atmel_maxtouch.h>
+
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
@@ -395,6 +397,48 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
 
 };
 #endif
+
+/*Atmel mxt224 touch*/
+#if defined (CONFIG_ATMEL_MXT224)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+int mxt224_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN, "Touch_reset") != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("mxt224_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN, "Touch_int") != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("mxt224_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(10);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+    msleep(500);
+    return 0;
+}
+
+u8 mxt_read_chg(void)
+{
+	return 1;
+}
+
+struct mxt_platform_data mxt224_info = {
+        .numtouch = 2,
+        .init_platform_hw= mxt224_init_platform_hw,
+        .read_chg = mxt_read_chg,
+        .max_x = 4095,
+        .max_y = 4095,
+};
+#endif
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -1025,10 +1069,11 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #endif
 #if defined (CONFIG_ATMEL_MXT224)
     {
-      .type           = "mXT224_touch",
+      .type           = "maXTouch",
       .addr           = 0x4B,
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
+      .platform_data  = &mxt224_info,
     },
 #endif
 };
