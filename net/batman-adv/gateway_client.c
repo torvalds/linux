@@ -127,7 +127,7 @@ void gw_election(struct bat_priv *bat_priv)
 		return;
 
 	curr_gw = gw_get_selected_gw_node(bat_priv);
-	if (!curr_gw)
+	if (curr_gw)
 		goto out;
 
 	rcu_read_lock();
@@ -310,9 +310,13 @@ void gw_node_update(struct bat_priv *bat_priv,
 	struct hlist_node *node;
 	struct gw_node *gw_node, *curr_gw;
 
+	/**
+	 * Note: We don't need a NULL check here, since curr_gw never gets
+	 * dereferenced. If curr_gw is NULL we also should not exit as we may
+	 * have this gateway in our list (duplication check!) even though we
+	 * have no currently selected gateway.
+	 */
 	curr_gw = gw_get_selected_gw_node(bat_priv);
-	if (!curr_gw)
-		goto out;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
@@ -350,7 +354,7 @@ deselect:
 	gw_deselect(bat_priv);
 unlock:
 	rcu_read_unlock();
-out:
+
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
 }
