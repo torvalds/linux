@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/bitops.h>
