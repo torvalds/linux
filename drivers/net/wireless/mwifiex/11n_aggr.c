@@ -44,8 +44,7 @@
  * MSDU => |DA|SA|Length|SNAP|......   ..|
  */
 static int
-mwifiex_11n_form_amsdu_pkt(struct mwifiex_adapter *adapter,
-			   struct sk_buff *skb_aggr,
+mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 			   struct sk_buff *skb_src, int *pad)
 
 {
@@ -324,7 +323,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
-		mwifiex_11n_form_amsdu_pkt(adapter, skb_aggr, skb_src, &pad);
+		mwifiex_11n_form_amsdu_pkt(skb_aggr, skb_src, &pad);
 
 		mwifiex_write_data_complete(adapter, skb_src, 0);
 

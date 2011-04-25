@@ -626,6 +626,7 @@ struct ath_hw_ops {
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
 	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
 				     u32 burstDuration);
+	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
 };
 
 struct ath_nf_limits {
@@ -844,6 +845,14 @@ struct ath_hw {
 
 	/* Enterprise mode cap */
 	u32 ent_mode;
+};
+
+struct ath_bus_ops {
+	enum ath_bus_type ath_bus_type;
+	void (*read_cachesize)(struct ath_common *common, int *csz);
+	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+	void (*bt_coex_prep)(struct ath_common *common);
+	void (*extn_synch_en)(struct ath_common *common);
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)

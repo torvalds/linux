@@ -177,8 +177,7 @@ static void mwifiex_wmm_default_queue_priorities(struct mwifiex_private *priv)
  * This function map ACs to TIDs.
  */
 static void
-mwifiex_wmm_queue_priorities_tid(struct mwifiex_private *priv,
-				 u8 queue_priority[])
+mwifiex_wmm_queue_priorities_tid(u8 queue_priority[])
 {
 	int i;
 
@@ -247,7 +246,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		}
 	}
 
-	mwifiex_wmm_queue_priorities_tid(priv, priv->wmm.queue_priority);
+	mwifiex_wmm_queue_priorities_tid(priv->wmm.queue_priority);
 }
 
 /*
@@ -416,7 +415,7 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 		priv = adapter->priv[j];
 		if (priv) {
 			for (i = 0; i < MAX_NUM_TID; i++)
-				if (!mwifiex_wmm_is_ra_list_empty(adapter,
+				if (!mwifiex_wmm_is_ra_list_empty(
 					     &priv->wmm.tid_tbl_ptr[i].ra_list))
 					return false;
 		}
@@ -974,7 +973,6 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	struct sk_buff *skb, *skb_next;
 	struct mwifiex_tx_param tx_param;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int status = 0;
 	struct mwifiex_txinfo *tx_info;
 
 	if (skb_queue_empty(&ptr->skb_head)) {
@@ -1001,9 +999,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	tx_param.next_pkt_len = ((skb_next) ? skb_next->len +
 				sizeof(struct txpd) : 0);
 
-	status = mwifiex_process_tx(priv, skb, &tx_param);
-
-	if (status == -EBUSY) {
+	if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {
 		/* Queue the packet back at the head */
 		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
@@ -1161,7 +1157,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 	if (!ptr)
 		return -1;
 
-	tid = mwifiex_get_tid(priv->adapter, ptr);
+	tid = mwifiex_get_tid(ptr);
 
 	dev_dbg(adapter->dev, "data: tid=%d\n", tid);
 
@@ -1186,14 +1182,14 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		/* ra_list_spinlock has been freed in
 		   mwifiex_send_single_packet() */
 	} else {
-		if (mwifiex_is_ampdu_allowed(priv, ptr, tid)) {
-			if (mwifiex_is_ba_stream_avail(priv)) {
+		if (mwifiex_is_ampdu_allowed(priv, tid)) {
+			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_11n_create_tx_ba_stream_tbl(priv,
 						ptr->ra, tid,
 						BA_STREAM_SETUP_INPROGRESS);
 				mwifiex_send_addba(priv, tid, ptr->ra);
 			} else if (mwifiex_find_stream_to_delete
-				   (priv, ptr, tid, &tid_del, ra)) {
+				   (priv, tid, &tid_del, ra)) {
 				mwifiex_11n_create_tx_ba_stream_tbl(priv,
 						ptr->ra, tid,
 						BA_STREAM_SETUP_INPROGRESS);
@@ -1202,7 +1198,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		}
 /* Minimum number of AMSDU */
 #define MIN_NUM_AMSDU 2
-		if (mwifiex_is_amsdu_allowed(priv, ptr, tid) &&
+		if (mwifiex_is_amsdu_allowed(priv, tid) &&
 		    (mwifiex_num_pkts_in_txq(priv, ptr, adapter->tx_buf_size) >=
 		     MIN_NUM_AMSDU))
 			mwifiex_11n_aggregate_pkt(priv, ptr, INTF_HEADER_LEN,
@@ -1232,6 +1228,4 @@ mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter)
 		if (mwifiex_dequeue_tx_packet(adapter))
 			break;
 	} while (true);
-
-	return;
 }

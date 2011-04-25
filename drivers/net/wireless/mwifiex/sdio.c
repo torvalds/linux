@@ -208,7 +208,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 	/* Disable Host Sleep */
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
-			      MWIFIEX_NO_WAIT);
+			  MWIFIEX_ASYNC_CMD);
 
 	return 0;
 }
@@ -282,7 +282,7 @@ mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u32 *data)
  */
 static int
 mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
-			u8 *buffer, u32 pkt_len, u32 port, u32 timeout)
+			u8 *buffer, u32 pkt_len, u32 port)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -314,9 +314,8 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 /*
  * This function reads multiple data from SDIO card memory.
  */
-static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter,
-				  u8 *buffer, u32 len,
-		       u32 port, u32 timeout, u8 claim)
+static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
+				  u32 len, u32 port, u8 claim)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -348,12 +347,9 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter,
  */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "event: wakeup device...\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 }
 
 /*
@@ -363,12 +359,9 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "cmd: wakeup device completed\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 }
 
 /*
@@ -430,8 +423,7 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
 	int ret = 0;
 
 	do {
-		ret = mwifiex_write_data_sync(adapter, payload, pkt_len,
-								port, 0);
+		ret = mwifiex_write_data_sync(adapter, payload, pkt_len, port);
 		if (ret) {
 			i++;
 			dev_err(adapter->dev, "host_to_card, write iomem"
@@ -630,7 +622,7 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
-	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 0, 1);
+	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 1);
 
 	if (ret) {
 		dev_err(adapter->dev, "%s: read iomem failed: %d\n", __func__,
@@ -769,7 +761,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 		ret = mwifiex_write_data_sync(adapter, fwbuf, tx_blocks *
 					      MWIFIEX_SDIO_BLOCK_SIZE,
-					      adapter->ioport, 0);
+					      adapter->ioport);
 		if (ret) {
 			dev_err(adapter->dev, "FW download, write iomem (%d)"
 					" failed @ %d\n", i, offset);
@@ -842,7 +834,7 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 	unsigned long flags;
 
 	if (mwifiex_read_data_sync(adapter, card->mp_regs, MAX_MP_REGS,
-				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK, 0,
+				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK,
 				   0)) {
 		dev_err(adapter->dev, "read mp_regs failed\n");
 		return;
@@ -859,8 +851,6 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 		adapter->int_status |= sdio_ireg;
 		spin_unlock_irqrestore(&adapter->int_lock, flags);
 	}
-
-	return;
 }
 
 /*
@@ -891,8 +881,6 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 
 	mwifiex_interrupt_status(adapter);
 	queue_work(adapter->workqueue, &adapter->main_work);
-
-	return;
 }
 
 /*
@@ -1054,7 +1042,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					   card->mpa_rx.buf_len,
 					   (adapter->ioport | 0x1000 |
 					    (card->mpa_rx.ports << 4)) +
-					   card->mpa_rx.start_port, 0, 1))
+					   card->mpa_rx.start_port, 1))
 			return -1;
 
 		curr_ptr = card->mpa_rx.buf;
@@ -1709,13 +1697,9 @@ static struct mwifiex_if_ops sdio_ops = {
 static int
 mwifiex_sdio_init_module(void)
 {
-	int ret;
-
 	sema_init(&add_remove_card_sem, 1);
 
-	ret = sdio_register_driver(&mwifiex_sdio);
-
-	return ret;
+	return sdio_register_driver(&mwifiex_sdio);
 }
 
 /*
@@ -1745,13 +1729,12 @@ mwifiex_sdio_cleanup_module(void)
 	for (i = 0; i < adapter->priv_num; i++)
 		if ((GET_BSS_ROLE(adapter->priv[i]) == MWIFIEX_BSS_ROLE_STA) &&
 		    adapter->priv[i]->media_connected)
-			mwifiex_disconnect(adapter->priv[i], MWIFIEX_CMD_WAIT,
-					   NULL);
+			mwifiex_deauthenticate(adapter->priv[i], NULL);
 
 	if (!adapter->surprise_removed)
-		mwifiex_shutdown_fw(mwifiex_get_priv
-				    (adapter, MWIFIEX_BSS_ROLE_ANY),
-				    MWIFIEX_CMD_WAIT);
+		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
+							  MWIFIEX_BSS_ROLE_ANY),
+					 MWIFIEX_FUNC_SHUTDOWN);
 
 exit:
 	up(&add_remove_card_sem);

@@ -173,8 +173,6 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv);
 int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
-void iwl_dump_csr(struct iwl_priv *priv);
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);
@@ -222,6 +220,7 @@ static inline u32 iwl_tx_status_to_mac80211(u32 status)
 	case TX_STATUS_DIRECT_DONE:
 		return IEEE80211_TX_STAT_ACK;
 	case TX_STATUS_FAIL_DEST_PS:
+	case TX_STATUS_FAIL_PASSIVE_NO_RX:
 		return IEEE80211_TX_STAT_TX_FILTERED;
 	default:
 		return 0;

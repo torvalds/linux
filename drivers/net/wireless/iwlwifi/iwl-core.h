@@ -139,12 +139,6 @@ struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-struct iwl_tt_ops {
-	bool (*lower_power_detection)(struct iwl_priv *priv);
-	u8 (*tt_power_mode)(struct iwl_priv *priv);
-	bool (*ct_kill_check)(struct iwl_priv *priv);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -171,12 +165,6 @@ struct iwl_lib_ops {
 	void (*cancel_deferred_work)(struct iwl_priv *priv);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr)(u32 addr);
-
-	int (*dump_nic_event_log)(struct iwl_priv *priv,
-				  bool full_log, char **buf, bool display);
-	void (*dump_nic_error_log)(struct iwl_priv *priv);
-	void (*dump_csr)(struct iwl_priv *priv);
-	int (*dump_fh)(struct iwl_priv *priv, char **buf, bool display);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
 	/* power management */
@@ -196,13 +184,6 @@ struct iwl_lib_ops {
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
 	struct iwl_debugfs_ops debugfs_ops;
-
-	/* thermal throttling */
-	struct iwl_tt_ops tt_ops;
-};
-
-struct iwl_led_ops {
-	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
 };
 
 /* NIC specific ops */
@@ -210,23 +191,11 @@ struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
 };
 
-struct iwl_legacy_ops {
-	void (*post_associate)(struct iwl_priv *priv);
-	void (*config_ap)(struct iwl_priv *priv);
-	/* station management */
-	int (*update_bcast_stations)(struct iwl_priv *priv);
-	int (*manage_ibss_station)(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif, bool add);
-};
-
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
-	const struct iwl_legacy_ops *legacy;
-	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct iwl_mod_params {
@@ -256,13 +225,6 @@ struct iwl_mod_params {
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @tx_power_by_driver: tx power calibration performed by driver
- *	instead of uCode
- * @ucode_tracing: support ucode continuous tracing
- * @sensitivity_calib_by_driver: driver has the capability to perform
- *	sensitivity calibration operation
- * @chain_noise_calib_by_driver: driver has the capability to perform
- *	chain noise calibration operation
  * @shadow_reg_enable: HW shadhow register bit
  */
 struct iwl_base_params {
@@ -271,12 +233,10 @@ struct iwl_base_params {
 	int num_of_ampdu_queues;/* def: HW dependent */
 	/* for iwl_apm_init() */
 	u32 pll_cfg_val;
-	bool set_l0s;
 
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;
-	const bool broken_powersave;
 	int chain_noise_num_beacons;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
@@ -286,17 +246,12 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
-	const bool tx_power_by_driver;
-	const bool ucode_tracing;
-	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
 	const bool shadow_reg_enable;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
  * @bt_init_traffic_load: specify initial bt traffic load
  * @bt_prio_boost: default bt priority boost value
- * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
@@ -306,7 +261,6 @@ struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
 	u8 bt_prio_boost;
-	const bool bt_statistics;
 	u16 agg_time_limit;
 	u8 ampdu_factor;
 	u8 ampdu_density;
@@ -337,6 +291,7 @@ struct iwl_ht_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @iq_invert: I/Q inversion
+ * @disable_otp_refresh: disable OTP refresh current limit
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -387,13 +342,13 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool iq_invert;
+	const bool disable_otp_refresh;
 };
 
 /***************************
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
@@ -598,6 +553,8 @@ extern const struct dev_pm_ops iwl_pm_ops;
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 int iwl_dump_nic_event_log(struct iwl_priv *priv,
 			   bool full_log, char **buf, bool display);
+void iwl_dump_csr(struct iwl_priv *priv);
+int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
@@ -707,11 +664,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
 	return priv->cfg->bt_params &&
 	       priv->cfg->bt_params->advanced_bt_coexist;
-}
-
-static inline bool iwl_bt_statistics(struct iwl_priv *priv)
-{
-	return priv->bt_statistics;
 }
 
 extern bool bt_coex_active;

@@ -75,9 +75,18 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	freq = centers.synth_center;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
-		if (AR_SREV_9485(ah))
-			channelSel = CHANSEL_2G_9485(freq);
-		else
+		if (AR_SREV_9485(ah)) {
+			u32 chan_frac;
+
+			/*
+			 * freq_ref = 40 / (refdiva >> amoderefsel); where refdiva=1 and amoderefsel=0
+			 * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
+			 * chansel = int(ndiv), chanfrac = (ndiv - chansel) * 0x20000
+			 */
+			channelSel = (freq * 4) / 120;
+			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else
 			channelSel = CHANSEL_2G(freq);
 		/* Set to 2G mode */
 		bMode = 1;
@@ -401,7 +410,7 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 
 	ar9003_hw_spur_ofdm_clear(ah);
 
-	for (i = 0; spurChansPtr[i] && i < 5; i++) {
+	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
 		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);

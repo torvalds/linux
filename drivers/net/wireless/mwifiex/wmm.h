@@ -35,8 +35,7 @@ enum ieee_types_wmm_ecw_bitmasks {
  * This function retrieves the TID of the given RA list.
  */
 static inline int
-mwifiex_get_tid(struct mwifiex_adapter *adapter,
-		struct mwifiex_ra_list_tbl *ptr)
+mwifiex_get_tid(struct mwifiex_ra_list_tbl *ptr)
 {
 	struct sk_buff *skb;
 
@@ -52,7 +51,7 @@ mwifiex_get_tid(struct mwifiex_adapter *adapter,
  * This function gets the length of a list.
  */
 static inline int
-mwifiex_wmm_list_len(struct mwifiex_adapter *adapter, struct list_head *head)
+mwifiex_wmm_list_len(struct list_head *head)
 {
 	struct list_head *pos;
 	int count = 0;
@@ -67,8 +66,7 @@ mwifiex_wmm_list_len(struct mwifiex_adapter *adapter, struct list_head *head)
  * This function checks if a RA list is empty or not.
  */
 static inline u8
-mwifiex_wmm_is_ra_list_empty(struct mwifiex_adapter *adapter,
-			     struct list_head *ra_list_hhead)
+mwifiex_wmm_is_ra_list_empty(struct list_head *ra_list_hhead)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	int is_list_empty;

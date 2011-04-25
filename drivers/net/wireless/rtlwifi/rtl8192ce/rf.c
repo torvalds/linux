@@ -202,7 +202,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	u8 i, chnlgroup, pwr_diff_limit[4];
+	u8 i, chnlgroup = 0, pwr_diff_limit[4];
 	u32 writeVal, customer_limit, rf;
 
 	for (rf = 0; rf < 2; rf++) {
@@ -447,7 +447,7 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	u32 u4_regvalue;
+	u32 u4_regvalue = 0;
 	u8 rfpath;
 	bool rtstatus;
 	struct bb_reg_def *pphyreg;

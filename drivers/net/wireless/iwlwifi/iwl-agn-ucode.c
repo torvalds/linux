@@ -428,6 +428,7 @@ void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
+	struct iwl_rxon_context *ctx;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -501,6 +502,8 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
 	for (i = 0; i < 4; i++)
 		atomic_set(&priv->queue_stop_count[i], 0);
+	for_each_context(priv, ctx)
+		ctx->last_tx_rejected = false;
 
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;

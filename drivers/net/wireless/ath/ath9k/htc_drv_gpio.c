@@ -398,9 +398,9 @@ void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 
 	/* Start TX */
 	htc_start(priv->htc);
-	spin_lock_bh(&priv->tx_lock);
-	priv->tx_queues_stop = false;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
+	spin_unlock_bh(&priv->tx.tx_lock);
 	ieee80211_wake_queues(hw);
 
 	WMI_CMD(WMI_ENABLE_INTR_CMDID);
@@ -429,12 +429,14 @@ void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 
 	/* Stop TX */
 	ieee80211_stop_queues(hw);
-	htc_stop(priv->htc);
+	ath9k_htc_tx_drain(priv);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
-	skb_queue_purge(&priv->tx_queue);
 
 	/* Stop RX */
 	WMI_CMD(WMI_STOP_RECV_CMDID);
+
+	/* Clear the WMI event queue */
+	ath9k_wmi_event_drain(priv);
 
 	/*
 	 * The MIB counters have to be disabled here,

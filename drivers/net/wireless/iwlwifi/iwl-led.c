@@ -61,10 +61,16 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 	{ .throughput = 300 * 1024 - 1, .blink_time = 50 },
 };
 
+/* Set led register off */
+void iwlagn_led_enable(struct iwl_priv *priv)
+{
+	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+}
+
 /*
  * Adjust led blink rate to compensate on a MAC Clock difference on every HW
- * Led blink rate analysis showed an average deviation of 0% on 3945,
- * 5% on 4965 HW and 20% on 5000 series and up.
+ * Led blink rate analysis showed an average deviation of 20% on 5000 series
+ * and up.
  * Need to compensate on the led on/off time per HW according to the deviation
  * to achieve the desired led frequency
  * The calculation is: (100-averageDeviation)/100 * blinkTime
@@ -82,6 +88,24 @@ static inline u8 iwl_blink_compensation(struct iwl_priv *priv,
 	}
 
 	return (u8)((time * compensation) >> 6);
+}
+
+static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
+{
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_LEDS_CMD,
+		.len = sizeof(struct iwl_led_cmd),
+		.data = led_cmd,
+		.flags = CMD_ASYNC,
+		.callback = NULL,
+	};
+	u32 reg;
+
+	reg = iwl_read32(priv, CSR_LED_REG);
+	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
+		iwl_write32(priv, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
+
+	return iwl_send_cmd(priv, &cmd);
 }
 
 /* Set led pattern command */
@@ -108,7 +132,7 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	led_cmd.off = iwl_blink_compensation(priv, off,
 				priv->cfg->base_params->led_compensation);
 
-	ret = priv->cfg->ops->led->cmd(priv, &led_cmd);
+	ret = iwl_send_led_cmd(priv, &led_cmd);
 	if (!ret) {
 		priv->blink_on = on;
 		priv->blink_off = off;

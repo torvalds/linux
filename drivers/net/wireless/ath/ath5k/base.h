@@ -193,12 +193,13 @@ struct ath5k_softc {
 	dma_addr_t		desc_daddr;	/* DMA (physical) address */
 	size_t			desc_len;	/* size of TX/RX descriptors */
 
-	DECLARE_BITMAP(status, 5);
+	DECLARE_BITMAP(status, 6);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
 #define ATH_STAT_MRRETRY	1		/* multi-rate retry support */
 #define ATH_STAT_PROMISC	2
 #define ATH_STAT_LEDSOFT	3		/* enable LED gpio status */
 #define ATH_STAT_STARTED	4		/* opened & irqs enabled */
+#define ATH_STAT_2G_DISABLED	5		/* multiband radio without 2G */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
@@ -206,6 +207,10 @@ struct ath5k_softc {
 	u16			nvifs;
 
 	enum ath5k_int		imask;		/* interrupt mask copy */
+
+	spinlock_t		irqlock;
+	bool			rx_pending;	/* rx tasklet pending */
+	bool			tx_pending;	/* tx tasklet pending */
 
 	u8			lladdr[ETH_ALEN];
 	u8			bssidmask[ETH_ALEN];

@@ -289,10 +289,17 @@ struct mwl8k_vif {
 #define MWL8K_VIF(_vif) ((struct mwl8k_vif *)&((_vif)->drv_priv))
 #define IEEE80211_KEY_CONF(_u8) ((struct ieee80211_key_conf *)(_u8))
 
+struct tx_traffic_info {
+	u32 start_time;
+	u32 pkts;
+};
+
+#define MWL8K_MAX_TID 8
 struct mwl8k_sta {
 	/* Index into station database. Returned by UPDATE_STADB.  */
 	u8 peer_id;
 	u8 is_ampdu_allowed;
+	struct tx_traffic_info tx_stats[MWL8K_MAX_TID];
 };
 #define MWL8K_STA(_sta) ((struct mwl8k_sta *)&((_sta)->drv_priv))
 
@@ -701,7 +708,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 			       "helper image\n", pci_name(priv->pdev));
 			return rc;
 		}
-		msleep(5);
+		msleep(20);
 
 		rc = mwl8k_feed_fw_image(priv, fw->data, fw->size);
 	} else {
@@ -823,8 +830,8 @@ static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
 	/*
 	 * Make sure the packet header is in the DMA header format (4-address
 	 * without QoS), the necessary crypto padding between the header and the
-	 * payload has already been provided by mac80211, but it doesn't add tail
-	 * padding when HW crypto is enabled.
+	 * payload has already been provided by mac80211, but it doesn't add
+	 * tail padding when HW crypto is enabled.
 	 *
 	 * We have the following trailer padding requirements:
 	 * - WEP: 4 trailer bytes (ICV)
@@ -1487,9 +1494,8 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 		if (timeout) {
 			WARN_ON(priv->pending_tx_pkts);
-			if (retry) {
+			if (retry)
 				wiphy_notice(hw->wiphy, "tx rings drained\n");
-			}
 			break;
 		}
 
@@ -1649,8 +1655,8 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		/* Rate control is happening in the firmware.
 		 * Ensure no tx rate is being reported.
 		 */
-                info->status.rates[0].idx = -1;
-                info->status.rates[0].count = 1;
+		info->status.rates[0].idx = -1;
+		info->status.rates[0].count = 1;
 
 		if (MWL8K_TXD_SUCCESS(status))
 			info->flags |= IEEE80211_TX_STAT_ACK;
@@ -1688,7 +1694,7 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 }
 
 /* caller must hold priv->stream_lock when calling the stream functions */
-struct mwl8k_ampdu_stream *
+static struct mwl8k_ampdu_stream *
 mwl8k_add_stream(struct ieee80211_hw *hw, struct ieee80211_sta *sta, u8 tid)
 {
 	struct mwl8k_ampdu_stream *stream;
@@ -1753,6 +1759,41 @@ mwl8k_lookup_stream(struct ieee80211_hw *hw, u8 *addr, u8 tid)
 			return stream;
 	}
 	return NULL;
+}
+
+#define MWL8K_AMPDU_PACKET_THRESHOLD 64
+static inline bool mwl8k_ampdu_allowed(struct ieee80211_sta *sta, u8 tid)
+{
+	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
+	struct tx_traffic_info *tx_stats;
+
+	BUG_ON(tid >= MWL8K_MAX_TID);
+	tx_stats = &sta_info->tx_stats[tid];
+
+	return sta_info->is_ampdu_allowed &&
+		tx_stats->pkts > MWL8K_AMPDU_PACKET_THRESHOLD;
+}
+
+static inline void mwl8k_tx_count_packet(struct ieee80211_sta *sta, u8 tid)
+{
+	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
+	struct tx_traffic_info *tx_stats;
+
+	BUG_ON(tid >= MWL8K_MAX_TID);
+	tx_stats = &sta_info->tx_stats[tid];
+
+	if (tx_stats->start_time == 0)
+		tx_stats->start_time = jiffies;
+
+	/* reset the packet count after each second elapses.  If the number of
+	 * packets ever exceeds the ampdu_min_traffic threshold, we will allow
+	 * an ampdu stream to be started.
+	 */
+	if (jiffies - tx_stats->start_time > HZ) {
+		tx_stats->pkts = 0;
+		tx_stats->start_time = 0;
+	} else
+		tx_stats->pkts++;
 }
 
 static void
@@ -1841,6 +1882,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	    skb->protocol != cpu_to_be16(ETH_P_PAE) &&
 	    sta->ht_cap.ht_supported && priv->ap_fw) {
 		tid = qos & 0xf;
+		mwl8k_tx_count_packet(sta, tid);
 		spin_lock(&priv->stream_lock);
 		stream = mwl8k_lookup_stream(hw, sta->addr, tid);
 		if (stream != NULL) {
@@ -1881,7 +1923,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 			 * prevents sequence number mismatch at the recepient
 			 * as described above.
 			 */
-			if (MWL8K_STA(sta)->is_ampdu_allowed) {
+			if (mwl8k_ampdu_allowed(sta, tid)) {
 				stream = mwl8k_add_stream(hw, sta, tid);
 				if (stream != NULL)
 					start_ba_session = true;
@@ -2657,7 +2699,7 @@ struct mwl8k_cmd_tx_power {
 	__le16 bw;
 	__le16 sub_ch;
 	__le16 power_level_list[MWL8K_TX_POWER_LEVEL_TOTAL];
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
 				     struct ieee80211_conf *conf,
@@ -3520,13 +3562,13 @@ static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 #define BASTREAM_FLAG_DIRECTION_UPSTREAM	0x00
 #define BASTREAM_FLAG_IMMEDIATE_TYPE		0x01
 
-enum {
+enum ba_stream_action_type {
 	MWL8K_BA_CREATE,
 	MWL8K_BA_UPDATE,
 	MWL8K_BA_DESTROY,
 	MWL8K_BA_FLUSH,
 	MWL8K_BA_CHECK,
-} ba_stream_action_type;
+};
 
 
 struct mwl8k_create_ba_stream {
@@ -3780,7 +3822,7 @@ struct mwl8k_cmd_update_encryption {
 	__u8 mac_addr[6];
 	__u8 encr_type;
 
-} __attribute__((packed));
+} __packed;
 
 struct mwl8k_cmd_set_key {
 	struct mwl8k_cmd_pkt header;
@@ -3800,7 +3842,7 @@ struct mwl8k_cmd_set_key {
 	__le16 tkip_tsc_low;
 	__le32 tkip_tsc_high;
 	__u8 mac_addr[6];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	MWL8K_ENCR_ENABLE,
@@ -4285,6 +4327,8 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 
 	/* Enable interrupts */
 	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
+	iowrite32(MWL8K_A2H_EVENTS,
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 
 	rc = mwl8k_fw_lock(hw);
 	if (!rc) {
@@ -4502,7 +4546,7 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	u32 ap_legacy_rates;
+	u32 ap_legacy_rates = 0;
 	u8 ap_mcs_rates[16];
 	int rc;
 
@@ -5283,7 +5327,8 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 	iowrite32(MWL8K_A2H_INT_TX_DONE|MWL8K_A2H_INT_RX_READY|
 		  MWL8K_A2H_INT_BA_WATCHDOG,
 		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
-	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+	iowrite32(MWL8K_A2H_INT_OPC_DONE,
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);

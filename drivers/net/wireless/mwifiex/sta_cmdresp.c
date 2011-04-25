@@ -41,8 +41,7 @@
  */
 static void
 mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
-			      struct host_cmd_ds_command *resp,
-			      struct mwifiex_wait_queue *wq_buf)
+			      struct host_cmd_ds_command *resp)
 {
 	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node = NULL;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -51,8 +50,9 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 	dev_err(adapter->dev, "CMD_RESP: cmd %#x error, result=%#x\n",
 			resp->command, resp->result);
-	if (wq_buf)
-		wq_buf->status = MWIFIEX_ERROR_FW_CMDRESP;
+
+	if (adapter->curr_cmd->wait_q_enabled)
+		adapter->cmd_wait_q.status = -1;
 
 	switch (le16_to_cpu(resp->command)) {
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
@@ -103,8 +103,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = NULL;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-
-	return;
 }
 
 /*
@@ -282,7 +280,6 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				   struct host_cmd_ds_command *resp,
 				   void *data_buf)
 {
-	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_rate_cfg *ds_rate = NULL;
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
@@ -328,9 +325,9 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		ret = mwifiex_prepare_cmd(priv,
+		ret = mwifiex_send_cmd_async(priv,
 					  HostCmd_CMD_802_11_TX_RATE_QUERY,
-					  HostCmd_ACT_GEN_GET, 0, NULL, NULL);
+					  HostCmd_ACT_GEN_GET, 0, NULL);
 
 	if (data_buf) {
 		ds_rate = (struct mwifiex_rate_cfg *) data_buf;
@@ -338,9 +335,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			if (priv->is_data_rate_auto) {
 				ds_rate->is_rate_auto = 1;
 			} else {
-				ds_rate->rate =
-					mwifiex_get_rate_index(adapter,
-							       priv->
+				ds_rate->rate = mwifiex_get_rate_index(priv->
 							       bitmap_rates,
 							       sizeof(priv->
 							       bitmap_rates));
@@ -516,13 +511,11 @@ static int mwifiex_ret_mac_multicast_adr(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_tx_rate_query(struct mwifiex_private *priv,
 					    struct host_cmd_ds_command *resp)
 {
-	struct mwifiex_adapter *adapter = priv->adapter;
-
 	priv->tx_rate = resp->params.tx_rate.tx_rate;
 	priv->tx_htinfo = resp->params.tx_rate.ht_info;
 	if (!priv->is_data_rate_auto)
 		priv->data_rate =
-			mwifiex_index_to_data_rate(adapter, priv->tx_rate,
+			mwifiex_index_to_data_rate(priv->tx_rate,
 						   priv->tx_htinfo);
 
 	return 0;
@@ -574,8 +567,7 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 		&resp->params.key_material;
 
 	if (le16_to_cpu(key->action) == HostCmd_ACT_GEN_SET) {
-		if ((le16_to_cpu(key->key_param_set.key_info) &
-		     KEY_INFO_TKIP_MCAST)) {
+		if ((le16_to_cpu(key->key_param_set.key_info) & KEY_MCAST)) {
 			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
@@ -834,19 +826,17 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
  * response handlers based on the command ID.
  */
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
-				u16 cmdresp_no, void *cmd_buf, void *wq_buf)
+				u16 cmdresp_no, void *cmd_buf)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_command *resp =
 		(struct host_cmd_ds_command *) cmd_buf;
-	struct mwifiex_wait_queue *wait_queue =
-		(struct mwifiex_wait_queue *) wq_buf;
 	void *data_buf = adapter->curr_cmd->data_buf;
 
 	/* If the command is not successful, cleanup and return failure */
 	if (resp->result != HostCmd_RESULT_OK) {
-		mwifiex_process_cmdresp_error(priv, resp, wait_queue);
+		mwifiex_process_cmdresp_error(priv, resp);
 		return -1;
 	}
 	/* Command successful, handle response */
@@ -866,12 +856,11 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 		ret = mwifiex_ret_tx_rate_cfg(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_802_11_SCAN:
-		ret = mwifiex_ret_802_11_scan(priv, resp, wait_queue);
-		wait_queue = NULL;
-		adapter->curr_cmd->wq_buf = NULL;
+		ret = mwifiex_ret_802_11_scan(priv, resp);
+		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
-		ret = mwifiex_ret_802_11_scan(priv, resp, wait_queue);
+		ret = mwifiex_ret_802_11_scan(priv, resp);
 		dev_dbg(adapter->dev,
 			"info: CMD_RESP: BG_SCAN result is ready!\n");
 		break;
@@ -885,14 +874,14 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 		ret = mwifiex_ret_802_11_hs_cfg(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_ASSOCIATE:
-		ret = mwifiex_ret_802_11_associate(priv, resp, wait_queue);
+		ret = mwifiex_ret_802_11_associate(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_DEAUTHENTICATE:
 		ret = mwifiex_ret_802_11_deauthenticate(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_AD_HOC_START:
 	case HostCmd_CMD_802_11_AD_HOC_JOIN:
-		ret = mwifiex_ret_802_11_ad_hoc(priv, resp, wait_queue);
+		ret = mwifiex_ret_802_11_ad_hoc(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_AD_HOC_STOP:
 		ret = mwifiex_ret_802_11_ad_hoc_stop(priv, resp);
@@ -952,7 +941,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 						mp_end_port));
 		break;
 	case HostCmd_CMD_AMSDU_AGGR_CTRL:
-		ret = mwifiex_ret_amsdu_aggr_ctrl(priv, resp, data_buf);
+		ret = mwifiex_ret_amsdu_aggr_ctrl(resp, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		ret = mwifiex_ret_wmm_get_status(priv, resp);
@@ -971,7 +960,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 	case HostCmd_CMD_SET_BSS_MODE:
 		break;
 	case HostCmd_CMD_11N_CFG:
-		ret = mwifiex_ret_11n_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_11n_cfg(resp, data_buf);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

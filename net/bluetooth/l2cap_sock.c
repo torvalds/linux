@@ -269,7 +269,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->dcid) {
+	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->scid) {
 		bdaddr_t *src = &bt_sk(sk)->src;
 		u16 psm;
 
@@ -757,35 +757,37 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
 		/* Entire SDU fits into one PDU */
-		if (len <= pi->remote_mps) {
+		if (len <= pi->chan->remote_mps) {
 			control = L2CAP_SDU_UNSEGMENTED;
 			skb = l2cap_create_iframe_pdu(sk, msg, len, control, 0);
 			if (IS_ERR(skb)) {
 				err = PTR_ERR(skb);
 				goto done;
 			}
-			__skb_queue_tail(TX_QUEUE(sk), skb);
+			__skb_queue_tail(&pi->chan->tx_q, skb);
 
-			if (sk->sk_send_head == NULL)
-				sk->sk_send_head = skb;
+			if (pi->chan->tx_send_head == NULL)
+				pi->chan->tx_send_head = skb;
 
 		} else {
 		/* Segment SDU into multiples PDUs */
-			err = l2cap_sar_segment_sdu(sk, msg, len);
+			err = l2cap_sar_segment_sdu(pi->chan, msg, len);
 			if (err < 0)
 				goto done;
 		}
 
 		if (pi->mode == L2CAP_MODE_STREAMING) {
-			l2cap_streaming_send(sk);
-		} else {
-			if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
-					(pi->conn_state & L2CAP_CONN_WAIT_F)) {
-				err = len;
-				break;
-			}
-			err = l2cap_ertm_send(sk);
+			l2cap_streaming_send(pi->chan);
+			err = len;
+			break;
 		}
+
+		if ((pi->chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+				(pi->chan->conn_state & L2CAP_CONN_WAIT_F)) {
+			err = len;
+			break;
+		}
+		err = l2cap_ertm_send(pi->chan);
 
 		if (err >= 0)
 			err = len;
@@ -808,29 +810,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	lock_sock(sk);
 
 	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
-		struct l2cap_conn_rsp rsp;
-		struct l2cap_conn *conn = l2cap_pi(sk)->conn;
-		u8 buf[128];
-
-		sk->sk_state = BT_CONFIG;
-
-		rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
-		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
-		rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
-		rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-		l2cap_send_cmd(l2cap_pi(sk)->conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
-
-		if (l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT) {
-			release_sock(sk);
-			return 0;
-		}
-
-		l2cap_pi(sk)->conf_state |= L2CAP_CONF_REQ_SENT;
-		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
-				l2cap_build_conf_req(sk, buf), buf);
-		l2cap_pi(sk)->num_conf_req++;
-
+		__l2cap_connect_rsp_defer(sk);
 		release_sock(sk);
 		return 0;
 	}
@@ -886,6 +866,7 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 void __l2cap_sock_close(struct sock *sk, int reason)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 
 	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
 
@@ -900,9 +881,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 					sk->sk_type == SOCK_STREAM) &&
 					conn->hcon->type == ACL_LINK) {
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
-			l2cap_send_disconn_req(conn, sk, reason);
+			l2cap_send_disconn_req(conn, chan, reason);
 		} else
-			l2cap_chan_del(sk, reason);
+			l2cap_chan_del(chan, reason);
 		break;
 
 	case BT_CONNECT2:
@@ -921,16 +902,16 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
+							sizeof(rsp), &rsp);
 		}
 
-		l2cap_chan_del(sk, reason);
+		l2cap_chan_del(chan, reason);
 		break;
 
 	case BT_CONNECT:
 	case BT_DISCONN:
-		l2cap_chan_del(sk, reason);
+		l2cap_chan_del(chan, reason);
 		break;
 
 	default:
@@ -1035,12 +1016,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	}
 
 	/* Default config options */
-	pi->conf_len = 0;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
-	skb_queue_head_init(TX_QUEUE(sk));
-	skb_queue_head_init(SREJ_QUEUE(sk));
-	skb_queue_head_init(BUSY_QUEUE(sk));
-	INIT_LIST_HEAD(SREJ_LIST(sk));
 }
 
 static struct proto l2cap_proto = {

@@ -293,7 +293,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u8 boxnum;
-	u16 box_reg, box_extreg;
+	u16 box_reg = 0, box_extreg = 0;
 	u8 u1b_tmp;
 	bool isfw_read = false;
 	bool bwrite_sucess = false;

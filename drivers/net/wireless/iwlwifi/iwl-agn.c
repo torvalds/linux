@@ -59,7 +59,6 @@
 #include "iwl-sta.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-agn-led.h"
 
 
 /******************************************************************************
@@ -254,6 +253,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_frame *frame;
 	unsigned int frame_size;
 	int rc;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_TX_BEACON,
+		.flags = CMD_SIZE_HUGE,
+	};
 
 	frame = iwl_get_free_frame(priv);
 	if (!frame) {
@@ -269,8 +272,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	rc = iwl_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
-			      &frame->u.cmd[0]);
+	cmd.len = frame_size;
+	cmd.data = &frame->u.cmd[0];
+
+	rc = iwl_send_cmd_sync(priv, &cmd);
 
 	iwl_free_frame(priv, frame);
 
@@ -395,7 +400,9 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 		return -EINVAL;
 	}
 
-	BUG_ON(addr & ~DMA_BIT_MASK(36));
+	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
+		return -EINVAL;
+
 	if (unlikely(addr & ~IWL_TX_DMA_MASK))
 		IWL_ERR(priv, "Unaligned address = %llx\n",
 			  (unsigned long long)addr);
@@ -719,7 +726,10 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		/* If an RXB doesn't have a Rx queue slot associated with it,
 		 * then a bug has been introduced in the queue refilling
 		 * routines -- catch it here */
-		BUG_ON(rxb == NULL);
+		if (WARN_ON(rxb == NULL)) {
+			i = (i + 1) & RX_QUEUE_MASK;
+			continue;
+		}
 
 		rxq->queue[i] = NULL;
 
@@ -1481,7 +1491,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		default:
-			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
+			IWL_DEBUG_INFO(priv, "unknown TLV: %d\n", tlv_type);
 			break;
 		}
 	}
@@ -1704,10 +1714,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	else
 		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-
-	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BTSTATS ||
-	    (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics))
-		priv->bt_statistics = true;
 
 	/* Copy images into buffers for card's bus-master reads ... */
 
@@ -2626,17 +2632,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		if (iwl_bt_statistics(priv)) {
-			iwl_chain_noise_calibration(priv,
-					(void *)&priv->_agn.statistics_bt);
-			iwl_sensitivity_calibration(priv,
-					(void *)&priv->_agn.statistics_bt);
-		} else {
-			iwl_chain_noise_calibration(priv,
-					(void *)&priv->_agn.statistics);
-			iwl_sensitivity_calibration(priv,
-					(void *)&priv->_agn.statistics);
-		}
+		iwl_chain_noise_calibration(priv);
+		iwl_sensitivity_calibration(priv);
 	}
 
 	mutex_unlock(&priv->mutex);
@@ -2828,9 +2825,8 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 
-	if (!priv->cfg->base_params->broken_powersave)
-		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
+		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	if (priv->cfg->sku & IWL_SKU_N)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -3731,6 +3727,28 @@ static const u8 iwlagn_pan_ac_to_fifo[] = {
 static const u8 iwlagn_pan_ac_to_queue[] = {
 	7, 6, 5, 4,
 };
+
+/* This function both allocates and initializes hw and priv. */
+static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
+{
+	struct iwl_priv *priv;
+	/* mac80211 allocates memory for this device instance, including
+	 *   space for this driver's private structure */
+	struct ieee80211_hw *hw;
+
+	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv), &iwlagn_hw_ops);
+	if (hw == NULL) {
+		pr_err("%s: Can not allocate network device\n",
+		       cfg->name);
+		goto out;
+	}
+
+	priv = hw->priv;
+	priv->hw = hw;
+
+out:
+	return hw;
+}
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

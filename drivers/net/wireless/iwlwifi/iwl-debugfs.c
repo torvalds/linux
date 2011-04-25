@@ -437,8 +437,7 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -ENOMEM;
 
-	ret = pos = priv->cfg->ops->lib->dump_nic_event_log(
-					priv, true, &buf, true);
+	ret = pos = iwl_dump_nic_event_log(priv, true, &buf, true);
 	if (buf) {
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 		kfree(buf);
@@ -462,8 +461,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		priv->cfg->ops->lib->dump_nic_event_log(priv, true,
-							NULL, false);
+		iwl_dump_nic_event_log(priv, true, NULL, false);
 
 	return count;
 }
@@ -1268,8 +1266,7 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	if (sscanf(buf, "%d", &csr) != 1)
 		return -EFAULT;
 
-	if (priv->cfg->ops->lib->dump_csr)
-		priv->cfg->ops->lib->dump_csr(priv);
+	iwl_dump_csr(priv);
 
 	return count;
 }
@@ -1359,13 +1356,11 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (priv->cfg->ops->lib->dump_fh) {
-		ret = pos = priv->cfg->ops->lib->dump_fh(priv, &buf, true);
-		if (buf) {
-			ret = simple_read_from_buffer(user_buf,
-						      count, ppos, buf, pos);
-			kfree(buf);
-		}
+	ret = pos = iwl_dump_fh(priv, &buf, true);
+	if (buf) {
+		ret = simple_read_from_buffer(user_buf,
+					      count, ppos, buf, pos);
+		kfree(buf);
 	}
 
 	return ret;
@@ -1728,11 +1723,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	if (!priv->cfg->base_params->broken_powersave) {
-		DEBUGFS_ADD_FILE(sleep_level_override, dir_data,
-				 S_IWUSR | S_IRUSR);
-		DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
-	}
+	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
@@ -1755,29 +1747,20 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
 
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->ucode_tracing)
-		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
-	if (iwl_bt_statistics(priv))
-		DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
 	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
-				 &priv->disable_sens_cal);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-				 &priv->disable_chain_noise_cal);
-	if (priv->cfg->base_params->tx_power_by_driver)
-		DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf,
-				&priv->disable_tx_power_cal);
+	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
+			 &priv->disable_sens_cal);
+	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
+			 &priv->disable_chain_noise_cal);
 	return 0;
 
 err:

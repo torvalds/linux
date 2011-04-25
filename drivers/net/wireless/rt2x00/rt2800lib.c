@@ -730,34 +730,20 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	struct queue_entry *entry;
 	u32 reg;
-	u8 pid;
-	int i;
+	u8 qid;
 
-	/*
-	 * TX_STA_FIFO is a stack of X entries, hence read TX_STA_FIFO
-	 * at most X times and also stop processing once the TX_STA_FIFO_VALID
-	 * flag is not set anymore.
-	 *
-	 * The legacy drivers use X=TX_RING_SIZE but state in a comment
-	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
-	 * tx ring size for now.
-	 */
-	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
-		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &reg);
-		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
-			break;
+	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
 
-		/*
-		 * Skip this entry when it contains an invalid
-		 * queue identication number.
+		/* TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus
+		 * qid is guaranteed to be one of the TX QIDs
 		 */
-		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
-		if (pid >= QID_RX)
+		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
+		if (unlikely(!queue)) {
+			WARNING(rt2x00dev, "Got TX status for an unavailable "
+					   "queue %u, dropping\n", qid);
 			continue;
-
-		queue = rt2x00queue_get_tx_queue(rt2x00dev, pid);
-		if (unlikely(!queue))
-			continue;
+		}
 
 		/*
 		 * Inside each queue, we process each entry in a chronological
@@ -949,25 +935,49 @@ static void rt2800_brightness_set(struct led_classdev *led_cdev,
 	unsigned int ledmode =
 		rt2x00_get_field16(led->rt2x00dev->led_mcu_reg,
 				   EEPROM_FREQ_LED_MODE);
+	u32 reg;
 
-	if (led->type == LED_TYPE_RADIO) {
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
-				      enabled ? 0x20 : 0);
-	} else if (led->type == LED_TYPE_ASSOC) {
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
-				      enabled ? (bg_mode ? 0x60 : 0xa0) : 0x20);
-	} else if (led->type == LED_TYPE_QUALITY) {
-		/*
-		 * The brightness is divided into 6 levels (0 - 5),
-		 * The specs tell us the following levels:
-		 *	0, 1 ,3, 7, 15, 31
-		 * to determine the level in a simple way we can simply
-		 * work with bitshifting:
-		 *	(1 << level) - 1
-		 */
-		rt2800_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
-				      (1 << brightness / (LED_FULL / 6)) - 1,
-				      polarity);
+	/* Check for SoC (SOC devices don't support MCU requests) */
+	if (rt2x00_is_soc(led->rt2x00dev)) {
+		rt2800_register_read(led->rt2x00dev, LED_CFG, &reg);
+
+		/* Set LED Polarity */
+		rt2x00_set_field32(&reg, LED_CFG_LED_POLAR, polarity);
+
+		/* Set LED Mode */
+		if (led->type == LED_TYPE_RADIO) {
+			rt2x00_set_field32(&reg, LED_CFG_G_LED_MODE,
+					   enabled ? 3 : 0);
+		} else if (led->type == LED_TYPE_ASSOC) {
+			rt2x00_set_field32(&reg, LED_CFG_Y_LED_MODE,
+					   enabled ? 3 : 0);
+		} else if (led->type == LED_TYPE_QUALITY) {
+			rt2x00_set_field32(&reg, LED_CFG_R_LED_MODE,
+					   enabled ? 3 : 0);
+		}
+
+		rt2800_register_write(led->rt2x00dev, LED_CFG, reg);
+
+	} else {
+		if (led->type == LED_TYPE_RADIO) {
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+					      enabled ? 0x20 : 0);
+		} else if (led->type == LED_TYPE_ASSOC) {
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+					      enabled ? (bg_mode ? 0x60 : 0xa0) : 0x20);
+		} else if (led->type == LED_TYPE_QUALITY) {
+			/*
+			 * The brightness is divided into 6 levels (0 - 5),
+			 * The specs tell us the following levels:
+			 *	0, 1 ,3, 7, 15, 31
+			 * to determine the level in a simple way we can simply
+			 * work with bitshifting:
+			 *	(1 << level) - 1
+			 */
+			rt2800_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
+					      (1 << brightness / (LED_FULL / 6)) - 1,
+					      polarity);
+		}
 	}
 }
 
@@ -1221,6 +1231,25 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_SYNC, conf->sync);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+		if (conf->sync == TSF_SYNC_AP_NONE) {
+			/*
+			 * Tune beacon queue transmit parameters for AP mode
+			 */
+			rt2800_register_read(rt2x00dev, TBTT_SYNC_CFG, &reg);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_CWMIN, 0);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_AIFSN, 1);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_EXP_WIN, 32);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_TBTT_ADJUST, 0);
+			rt2800_register_write(rt2x00dev, TBTT_SYNC_CFG, reg);
+		} else {
+			rt2800_register_read(rt2x00dev, TBTT_SYNC_CFG, &reg);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_CWMIN, 4);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_AIFSN, 2);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_BCN_EXP_WIN, 32);
+			rt2x00_set_field32(&reg, TBTT_SYNC_CFG_TBTT_ADJUST, 16);
+			rt2800_register_write(rt2x00dev, TBTT_SYNC_CFG, reg);
+		}
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
@@ -1739,8 +1768,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	if (rf->channel <= 14) {
 		if (!rt2x00_rt(rt2x00dev, RT5390)) {
-			if (test_bit(CONFIG_EXTERNAL_LNA_BG,
-				     &rt2x00dev->flags)) {
+			if (test_bit(CAPABILITY_EXTERNAL_LNA_BG,
+				     &rt2x00dev->cap_flags)) {
 				rt2800_bbp_write(rt2x00dev, 82, 0x62);
 				rt2800_bbp_write(rt2x00dev, 75, 0x46);
 			} else {
@@ -1751,7 +1780,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	} else {
 		rt2800_bbp_write(rt2x00dev, 82, 0xf2);
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags))
 			rt2800_bbp_write(rt2x00dev, 75, 0x46);
 		else
 			rt2800_bbp_write(rt2x00dev, 75, 0x50);
@@ -1984,7 +2013,7 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
 		return txpower;
 
-	if (test_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags)) {
+	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
 		/*
 		 * Check if eirp txpower exceed txpower_limit.
 		 * We use OFDM 6M as criterion and its eirp txpower
@@ -2384,7 +2413,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	} else if (rt2800_is_305x_soc(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00000000);
-		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x0000001f);
+		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000030);
 	} else if (rt2x00_rt(rt2x00dev, RT5390)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000404);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
@@ -3285,8 +3314,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E)) {
-			if (!test_bit(CONFIG_EXTERNAL_LNA_BG,
-				      &rt2x00dev->flags))
+			if (!test_bit(CAPABILITY_EXTERNAL_LNA_BG,
+				      &rt2x00dev->cap_flags))
 				rt2x00_set_field8(&rfcsr, RFCSR17_R, 1);
 		}
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXMIXER_GAIN_BG, &eeprom);
@@ -3709,15 +3738,15 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
 
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_5G))
-		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_2G))
-		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_HW_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Store led settings, for correct led behaviour.
@@ -3737,7 +3766,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_get_field16(eeprom, EEPROM_EIRP_MAX_TX_POWER_2GHZ) <
 					EIRP_MAX_TX_POWER_LIMIT)
-		__set_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags);
 
 	return 0;
 }

@@ -122,6 +122,11 @@ static inline void ath9k_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set11n_burstduration(ah, ds, burstDuration);
 }
 
+static inline void ath9k_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
+{
+	ath9k_hw_ops(ah)->set_clrdmask(ah, ds, val);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */
