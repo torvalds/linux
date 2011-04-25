@@ -229,17 +229,24 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " capability=%d ", a->u.cap);
 		break;
 	case LSM_AUDIT_DATA_PATH: {
-		struct dentry *dentry = a->u.path.dentry;
 		struct inode *inode;
 
-		if (a->u.path.mnt) {
-			audit_log_d_path(ab, "path=", &a->u.path);
-		} else {
-			audit_log_format(ab, " name=");
-			audit_log_untrustedstring(ab,
-					 dentry->d_name.name);
-		}
-		inode = dentry->d_inode;
+		audit_log_d_path(ab, "path=", &a->u.path);
+
+		inode = a->u.path.dentry->d_inode;
+		if (inode)
+			audit_log_format(ab, " dev=%s ino=%lu",
+					inode->i_sb->s_id,
+					inode->i_ino);
+		break;
+	}
+	case LSM_AUDIT_DATA_DENTRY: {
+		struct inode *inode;
+
+		audit_log_format(ab, " name=");
+		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
+
+		inode = a->u.dentry->d_inode;
 		if (inode)
 			audit_log_format(ab, " dev=%s ino=%lu",
 					inode->i_sb->s_id,
