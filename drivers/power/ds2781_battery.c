@@ -72,6 +72,12 @@ struct battery_status {
 #define THRES_BATT      7500000
 #define THRES_CHRG      7750000
 
+/* When charge complete is reached, a sanity check is performed on the reported
+ * capacity. If the capacity is less than 100, but the battery voltage is above
+ * THRES_100_RESET, the ACR will be reset to full capacity.
+ */
+#define THRES_100_RESET 8320000
+
 #define BATTERY_LOG_MAX 1024
 #define BATTERY_LOG_MASK (BATTERY_LOG_MAX - 1)
 
@@ -386,7 +392,8 @@ static void ds2781_reset_if_necessary(struct ds2781_device_info *di)
 {
 	/* If we have read from the DS2781 and the percentage is not 100%,
 	 * the ACR should be reset. */
-	if (di->raw[DS2781_REG_RSNSP] && (di->status.percentage < 100)) {
+	if (di->raw[DS2781_REG_RSNSP] && (di->status.percentage < 100) &&
+	    (di->status.voltage_uV > THRES_100_RESET)) {
 		dev_err(di->dev, "Charge complete before 100 percent.\n");
 		dev_err(di->dev, "Resetting ACR registers to Full 40 value.\n");
 
