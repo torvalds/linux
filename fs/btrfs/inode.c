@@ -4731,9 +4731,10 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, mode, &index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
@@ -4792,9 +4793,10 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, mode, &index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
@@ -7278,9 +7280,10 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, S_IFLNK|S_IRWXUGO,
 				&index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
