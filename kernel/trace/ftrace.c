@@ -1087,12 +1087,8 @@ static void ftrace_replace_code(int enable)
 		return;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		/*
-		 * Skip over free records, records that have
-		 * failed and not converted.
-		 */
-		if (rec->flags & FTRACE_FL_FREE ||
-		    !(rec->flags & FTRACE_FL_CONVERTED))
+		/* Skip over free records */
+		if (rec->flags & FTRACE_FL_FREE)
 			continue;
 
 		failed = __ftrace_replace_code(rec, enable);
@@ -1280,10 +1276,10 @@ static int ftrace_update_code(struct module *mod)
 		 */
 		if (!ftrace_code_disable(mod, p)) {
 			ftrace_free_rec(p);
-			continue;
+			/* Game over */
+			break;
 		}
 
-		p->flags |= FTRACE_FL_CONVERTED;
 		ftrace_update_cnt++;
 
 		/*
