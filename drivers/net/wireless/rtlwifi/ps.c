@@ -416,6 +416,14 @@ static void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 	}
 }
 
+void rtl_swlps_rfon_wq_callback(void *data)
+{
+}
+
+void rtl_swlps_wq_callback(void *data)
+{
+}
+
 /*Enter the leisure power save mode.*/
 void rtl_lps_enter(struct ieee80211_hw *hw)
 {

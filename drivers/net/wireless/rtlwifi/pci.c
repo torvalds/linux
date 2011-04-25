@@ -1242,8 +1242,6 @@ static int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	u8 own;
 	u8 temp_one = 1;
 
-	if (ieee80211_is_mgmt(fc))
-		rtl_tx_mgmt_proc(hw, skb);
 	rtl_action_proc(hw, skb, true);
 
 	queue_index = skb_get_queue_mapping(skb);

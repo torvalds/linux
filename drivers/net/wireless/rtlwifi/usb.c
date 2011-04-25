@@ -860,8 +860,6 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u8 tid = 0;
 	u16 seq_number = 0;
 
-	if (ieee80211_is_mgmt(fc))
-		rtl_tx_mgmt_proc(hw, skb);
 	rtl_action_proc(hw, skb, true);
 	if (is_multicast_ether_addr(pda_addr))
 		rtlpriv->stats.txbytesmulticast += skb->len;
