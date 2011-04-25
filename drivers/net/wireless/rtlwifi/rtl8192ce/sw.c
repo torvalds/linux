@@ -214,7 +214,6 @@ struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.switch_channel = rtl92c_phy_sw_chnl,
 	.dm_watchdog = rtl92c_dm_watchdog,
 	.scan_operation_backup = rtl92c_phy_scan_operation_backup,
-#if 0	/* temporary */
 	.set_rf_power_state = rtl92c_phy_set_rf_power_state,
 	.led_control = rtl92ce_led_control,
 	.set_desc = rtl92ce_set_desc,
@@ -234,7 +233,6 @@ struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.config_bb_with_pgheaderfile = _rtl92ce_phy_config_bb_with_pgheaderfile,
 	.phy_lc_calibrate = _rtl92ce_phy_lc_calibrate,
 	.dm_dynamic_txpower = rtl92ce_dm_dynamic_txpower,
-#endif
 };
 
 struct rtl_mod_params rtl92ce_mod_params = {

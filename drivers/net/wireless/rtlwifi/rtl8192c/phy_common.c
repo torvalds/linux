@@ -82,7 +82,7 @@ void rtl92c_phy_set_bb_reg(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(rtl92c_phy_set_bb_reg);
 
-static u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
+u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
 					 enum radio_path rfpath, u32 offset)
 {
 	RT_ASSERT(false, ("deprecated!\n"));
@@ -91,7 +91,7 @@ static u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_read);
 
-static void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
+void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
 					   enum radio_path rfpath, u32 offset,
 					   u32 data)
 {
@@ -99,7 +99,7 @@ static void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_write);
 
-static u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
+u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 				      enum radio_path rfpath, u32 offset)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -150,7 +150,7 @@ static u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(_rtl92c_phy_rf_serial_read);
 
-static void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
+void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 					enum radio_path rfpath, u32 offset,
 					u32 data)
 {
@@ -208,7 +208,7 @@ bool rtl92c_phy_rf_config(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_phy_rf_config);
 
-static bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
+bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -1364,8 +1364,7 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 static void _rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw,
 				     char delta, bool is2t)
 {
-	/* This routine is deliberately dummied out for later fixes */
-#if 0
+#if 0 /* This routine is deliberately dummied out for later fixes */
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));

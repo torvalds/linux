@@ -366,7 +366,7 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	return true;
 }
 
-static void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
+void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -430,32 +430,9 @@ static void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			 ("unknown bandwidth: %#X\n", rtlphy->current_chan_bw));
 		break;
 	}
-#if 0	/* temporary */
 	rtl92ce_phy_rf6052_set_bandwidth(hw, rtlphy->current_chan_bw);
-#endif
 	rtlphy->set_bwmode_inprogress = false;
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_TRACE, ("<==\n"));
-}
-
-void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
-			    enum nl80211_channel_type ch_type)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 tmp_bw = rtlphy->current_chan_bw;
-
-	if (rtlphy->set_bwmode_inprogress)
-		return;
-	rtlphy->set_bwmode_inprogress = true;
-	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
-		rtl92c_phy_set_bw_mode_callback(hw);
-	} else {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 ("FALSE driver sleep or unload\n"));
-		rtlphy->set_bwmode_inprogress = false;
-		rtlphy->current_chan_bw = tmp_bw;
-	}
 }
 
 void _rtl92ce_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)

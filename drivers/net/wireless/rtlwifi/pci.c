@@ -584,9 +584,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 				_rtl_update_earlymode_info(hw, skb,
 							   &tcb_desc, tid);
 
-#if 0	/* temporary */
 			rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-#endif
 		}
 	}
 }
@@ -1100,10 +1098,8 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	hdr = rtl_get_hdr(pskb);
 	info = IEEE80211_SKB_CB(pskb);
 	pdesc = &ring->desc[0];
-#if 0	/* temporary */
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
 		info, pskb, BEACON_QUEUE, &tcb_desc);
-#endif
 
 	__skb_queue_tail(&ring->queue, pskb);
 

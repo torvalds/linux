@@ -1370,13 +1370,8 @@ struct rtl_hal_ops {
 				       u32 add_msr, u32 rm_msr);
 	void (*get_hw_reg) (struct ieee80211_hw *hw, u8 variable, u8 *val);
 	void (*set_hw_reg) (struct ieee80211_hw *hw, u8 variable, u8 *val);
-#if 1	/* temporary */
 	void (*update_rate_tbl) (struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta, u8 rssi_level);
-#endif
-#if 1	/* temporary */
-	void (*update_rate_table) (struct ieee80211_hw *hw);
-#endif
 	void (*update_rate_mask) (struct ieee80211_hw *hw, u8 rssi_level);
 	void (*fill_tx_desc) (struct ieee80211_hw *hw,
 			      struct ieee80211_hdr *hdr, u8 *pdesc_tx,
