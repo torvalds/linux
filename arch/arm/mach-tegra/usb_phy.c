@@ -54,6 +54,7 @@
 #define   USB_WAKE_ON_CNNT_EN_DEV	(1 << 3)
 #define   USB_WAKE_ON_DISCON_EN_DEV	(1 << 4)
 #define   USB_SUSP_CLR		(1 << 5)
+#define   USB_CLKEN             (1 << 6)
 #define   USB_PHY_CLK_VALID	(1 << 7)
 #define   UTMIP_RESET			(1 << 11)
 #define   UHSIC_RESET			(1 << 11)
@@ -292,7 +293,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 
 static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
 {
-	unsigned long timeout = 2000;
+	unsigned long timeout = 2500;
 	do {
 		if ((readl(reg) & mask) == result)
 			return 0;
@@ -353,7 +354,7 @@ static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
 	}
 
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
-						     USB_PHY_CLK_VALID))
+						     USB_PHY_CLK_VALID) < 0)
 		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
 }
 
@@ -606,7 +607,6 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	unsigned long val;
 	void __iomem *base = phy->regs;
 	struct tegra_ulpi_config *config = phy->config;
-	unsigned long timeout = 2000;
 
 	clk_enable(phy->clk);
 	msleep(1);
@@ -633,14 +633,17 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	val = readl(base + USB_SUSP_CTRL);
 	val |= USB_SUSP_CLR;
 	writel(val, base + USB_SUSP_CTRL);
-	udelay(100);
+
+	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
+						     USB_PHY_CLK_VALID) < 0)
+		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
+
+	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_CLKEN, USB_CLKEN) < 0)
+		pr_err("%s: timeout waiting for AHB clock\n", __func__);
 
 	val = readl(base + USB_SUSP_CTRL);
 	val &= ~USB_SUSP_CLR;
 	writel(val, base + USB_SUSP_CTRL);
-
-	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID, USB_PHY_CLK_VALID))
-		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
 
 	val = 0;
 	writel(val, base + ULPI_TIMING_CTRL_1);
@@ -656,24 +659,8 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	val |= ULPI_DIR_TRIMMER_LOAD;
 	writel(val, base + ULPI_TIMING_CTRL_1);
 
-	val = 0;
-	val |= ULPI_WAKEUP;
-	val |= ULPI_RD_WR;
-	writel(val, base + ULPI_VIEWPORT);
-
-
-	do {
-		if ((readl(base + ULPI_VIEWPORT) & ULPI_WAKEUP))
-			udelay(1);
-		else
-			break;
-		timeout--;
-	} while (timeout);
-	if (!timeout)
-		pr_err("%s: timeout on ULPI Wakeup\n", __func__);
-
 	/* Fix VbusInvalid due to floating VBUS */
-	ret = otg_io_write(phy->ulpi, 0xC0, 0x08);
+	ret = otg_io_write(phy->ulpi, 0x40, 0x08);
 	if (ret) {
 		pr_err("%s: ulpi write failed\n", __func__);
 		return ret;
