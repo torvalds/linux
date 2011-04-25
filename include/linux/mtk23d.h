@@ -1,6 +1,10 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/miscdevice.h>
+                             
+#define MODEM_POWER_START 0x3
+#define MODEM_POWER_END  0x2
+#define MODEM_RESET      0x1
 
 struct modem_dev
 {

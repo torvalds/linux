@@ -160,7 +160,21 @@ static int mtk23d_release(struct inode *inode, struct file *file)
 
 static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
 {
-	MODEMDBG("mtk23d_ioctl\n");
+	struct rk2818_23d_data *pdata = gpdata;
+	
+	MODEMDBG("mtk23d_ioctl, cmd = %d\n", cmd);
+	
+	if(cmd == MODEM_RESET)
+	{
+		gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
+		mdelay(100);
+		gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
+		mdelay(10);
+		gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+		mdelay(2000);
+		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+	}
+	
 	return 0;
 }
 
