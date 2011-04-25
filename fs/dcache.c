@@ -109,16 +109,6 @@ static inline struct hlist_bl_head *d_hash(struct dentry *parent,
 	return dentry_hashtable + (hash & D_HASHMASK);
 }
 
-static inline void spin_lock_bucket(struct hlist_bl_head *b)
-{
-	bit_spin_lock(0, (unsigned long *)&b->first);
-}
-
-static inline void spin_unlock_bucket(struct hlist_bl_head *b)
-{
-	__bit_spin_unlock(0, (unsigned long *)&b->first);
-}
-
 /* Statistics gathering. */
 struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
@@ -334,10 +324,10 @@ void __d_drop(struct dentry *dentry)
 		else
 			b = d_hash(dentry->d_parent, dentry->d_name.hash);
 
-		spin_lock_bucket(b);
+		hlist_bl_lock(b);
 		__hlist_bl_del(&dentry->d_hash);
 		dentry->d_hash.pprev = NULL;
-		spin_unlock_bucket(b);
+		hlist_bl_unlock(b);
 
 		dentry_rcuwalk_barrier(dentry);
 	}
@@ -1594,9 +1584,9 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	tmp->d_inode = inode;
 	tmp->d_flags |= DCACHE_DISCONNECTED;
 	list_add(&tmp->d_alias, &inode->i_dentry);
-	spin_lock_bucket(&tmp->d_sb->s_anon);
+	hlist_bl_lock(&tmp->d_sb->s_anon);
 	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
-	spin_unlock_bucket(&tmp->d_sb->s_anon);
+	hlist_bl_unlock(&tmp->d_sb->s_anon);
 	spin_unlock(&tmp->d_lock);
 	spin_unlock(&inode->i_lock);
 	security_d_instantiate(tmp, inode);
@@ -2076,10 +2066,10 @@ EXPORT_SYMBOL(d_delete);
 static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
 {
 	BUG_ON(!d_unhashed(entry));
-	spin_lock_bucket(b);
+	hlist_bl_lock(b);
 	entry->d_flags |= DCACHE_RCUACCESS;
 	hlist_bl_add_head_rcu(&entry->d_hash, b);
-	spin_unlock_bucket(b);
+	hlist_bl_unlock(b);
 }
 
 static void _d_rehash(struct dentry * entry)
