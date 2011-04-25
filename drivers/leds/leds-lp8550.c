@@ -193,7 +193,7 @@ static void ld_lp8550_brightness_set(struct led_classdev *led_cdev,
 
 	led_data->brightness = brightness;
 	if (!led_data->suspended)
-		schedule_work(&led_data->wq);
+		queue_work(system_nrt_wq, &led_data->wq);
 }
 EXPORT_SYMBOL(ld_lp8550_brightness_set);
 
@@ -352,7 +352,7 @@ static void lp8550_late_resume(struct early_suspend *h)
 	struct lp8550_data *led_data =
 		container_of(h, struct lp8550_data, early_suspender);
 	led_data->suspended = false;
-	schedule_work(&led_data->wq);
+	queue_work(system_nrt_wq, &led_data->wq);
 }
 #endif
 
