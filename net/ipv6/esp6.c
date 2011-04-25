@@ -371,7 +371,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	iv = esp_tmp_iv(aead, tmp, seqhilen);
 	req = esp_tmp_req(aead, iv);
 	asg = esp_req_sg(aead, req);
-	sg = asg + 1;
+	sg = asg + sglists;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
