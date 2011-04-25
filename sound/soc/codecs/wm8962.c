@@ -2468,6 +2468,7 @@ SND_SOC_DAPM_INPUT("IN3R"),
 SND_SOC_DAPM_INPUT("IN4L"),
 SND_SOC_DAPM_INPUT("IN4R"),
 SND_SOC_DAPM_INPUT("Beep"),
+SND_SOC_DAPM_INPUT("DMICDAT"),
 
 SND_SOC_DAPM_MICBIAS("MICBIAS", WM8962_PWR_MGMT_1, 1, 0),
 
@@ -2486,6 +2487,8 @@ SND_SOC_DAPM_MIXER("MIXINL", WM8962_PWR_MGMT_1, 5, 0,
 		   mixinl, ARRAY_SIZE(mixinl)),
 SND_SOC_DAPM_MIXER("MIXINR", WM8962_PWR_MGMT_1, 4, 0,
 		   mixinr, ARRAY_SIZE(mixinr)),
+
+SND_SOC_DAPM_AIF_IN("DMIC", NULL, 0, WM8962_PWR_MGMT_1, 10, 0),
 
 SND_SOC_DAPM_ADC("ADCL", "Capture", WM8962_PWR_MGMT_1, 3, 0),
 SND_SOC_DAPM_ADC("ADCR", "Capture", WM8962_PWR_MGMT_1, 2, 0),
@@ -2564,13 +2567,17 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "MICBIAS", NULL, "SYSCLK" },
 
+	{ "DMIC", NULL, "DMICDAT" },
+
 	{ "ADCL", NULL, "SYSCLK" },
 	{ "ADCL", NULL, "TOCLK" },
 	{ "ADCL", NULL, "MIXINL" },
+	{ "ADCL", NULL, "DMIC" },
 
 	{ "ADCR", NULL, "SYSCLK" },
 	{ "ADCR", NULL, "TOCLK" },
 	{ "ADCR", NULL, "MIXINR" },
+	{ "ADCR", NULL, "DMIC" },
 
 	{ "STL", "Left", "ADCL" },
 	{ "STL", "Right", "ADCR" },
@@ -3719,6 +3726,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 					      dev);
 	u16 *reg_cache = codec->reg_cache;
 	int i, trigger, irq_pol;
+	bool dmicclk, dmicdat;
 
 	wm8962->codec = codec;
 	INIT_DELAYED_WORK(&wm8962->mic_work, wm8962_mic_work);
@@ -3855,6 +3863,29 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
 
 	wm8962_add_widgets(codec);
+
+	/* Save boards having to disable DMIC when not in use */
+	dmicclk = false;
+	dmicdat = false;
+	for (i = 0; i < WM8962_MAX_GPIO; i++) {
+		switch (snd_soc_read(codec, WM8962_GPIO_BASE + i)
+			& WM8962_GP2_FN_MASK) {
+		case WM8962_GPIO_FN_DMICCLK:
+			dmicclk = true;
+			break;
+		case WM8962_GPIO_FN_DMICDAT:
+			dmicdat = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (!dmicclk || !dmicdat) {
+		dev_dbg(codec->dev, "DMIC not in use, disabling\n");
+		snd_soc_dapm_nc_pin(&codec->dapm, "DMICDAT");
+	}
+	if (dmicclk != dmicdat)
+		dev_warn(codec->dev, "DMIC GPIOs partially configured\n");
 
 	wm8962_init_beep(codec);
 	wm8962_init_gpio(codec);
