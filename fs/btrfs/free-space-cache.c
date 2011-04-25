@@ -2301,7 +2301,7 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			start = entry->offset;
 			bytes = min(entry->bytes, end - start);
 			unlink_free_space(block_group, entry);
-			kfree(entry);
+			kmem_cache_free(btrfs_free_space_cachep, entry);
 		}
 
 		spin_unlock(&block_group->tree_lock);
