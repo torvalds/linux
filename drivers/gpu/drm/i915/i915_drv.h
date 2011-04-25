@@ -709,6 +709,8 @@ typedef struct drm_i915_private {
 	struct intel_fbdev *fbdev;
 
 	struct drm_property *broadcast_rgb_property;
+
+	atomic_t forcewake_count;
 } drm_i915_private_t;
 
 enum i915_cache_level {
@@ -1329,8 +1331,8 @@ extern void intel_display_print_error_state(struct seq_file *m,
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
-void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
-void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
 /* We give fast paths for the really cool registers */
@@ -1343,15 +1345,16 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 static inline u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		__gen6_gt_force_wake_get(dev_priv); \
+		gen6_gt_force_wake_get(dev_priv); \
 		val = read##y(dev_priv->regs + reg); \
-		__gen6_gt_force_wake_put(dev_priv); \
+		gen6_gt_force_wake_put(dev_priv); \
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \
 	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
 	return val; \
 }
+
 __i915_read(8, b)
 __i915_read(16, w)
 __i915_read(32, l)

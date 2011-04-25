@@ -1540,7 +1540,7 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 	u32 blt_ecoskpd;
 
 	/* Make sure blitter notifies FBC of writes */
-	__gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv);
 	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
 	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
 		GEN6_BLITTER_LOCK_SHIFT;
@@ -1551,7 +1551,7 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 			 GEN6_BLITTER_LOCK_SHIFT);
 	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
 	POSTING_READ(GEN6_BLITTER_ECOSKPD);
-	__gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv);
 }
 
 static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
@@ -6973,7 +6973,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	 * userspace...
 	 */
 	I915_WRITE(GEN6_RC_STATE, 0);
-	__gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv);
 
 	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -7074,7 +7074,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	/* enable all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
-	__gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv);
 }
 
 void intel_enable_clock_gating(struct drm_device *dev)

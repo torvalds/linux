@@ -396,7 +396,6 @@ static void gen6_pm_irq_handler(struct drm_device *dev)
 			I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
 				   I915_READ(GEN6_RP_INTERRUPT_LIMITS) & ~0x3f0000);
 		}
-
 	}
 
 	gen6_set_rps(dev, new_delay);

@@ -263,7 +263,7 @@ void intel_detect_pch (struct drm_device *dev)
 	}
 }
 
-void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
 
@@ -279,10 +279,36 @@ void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 		udelay(10);
 }
 
-void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+/*
+ * Generally this is called implicitly by the register read function. However,
+ * if some sequence requires the GT to not power down then this function should
+ * be called at the beginning of the sequence followed by a call to
+ * gen6_gt_force_wake_put() at the end of the sequence.
+ */
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	/* Forcewake is atomic in case we get in here without the lock */
+	if (atomic_add_return(1, &dev_priv->forcewake_count) == 1)
+		__gen6_gt_force_wake_get(dev_priv);
+}
+
+static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
 	POSTING_READ(FORCEWAKE);
+}
+
+/*
+ * see gen6_gt_force_wake_get()
+ */
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	if (atomic_dec_and_test(&dev_priv->forcewake_count))
+		__gen6_gt_force_wake_put(dev_priv);
 }
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
