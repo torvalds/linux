@@ -3173,10 +3173,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8962_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
+static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	unsigned long timeout;
@@ -3281,7 +3280,6 @@ static struct snd_soc_dai_ops wm8962_dai_ops = {
 	.hw_params = wm8962_hw_params,
 	.set_sysclk = wm8962_set_dai_sysclk,
 	.set_fmt = wm8962_set_dai_fmt,
-	.set_pll = wm8962_set_fll,
 	.digital_mute = wm8962_mute,
 };
 
@@ -3932,6 +3930,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.reg_cache_default = wm8962_reg,
 	.volatile_register = wm8962_volatile_register,
 	.readable_register = wm8962_readable_register,
+	.set_pll = wm8962_set_fll,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
