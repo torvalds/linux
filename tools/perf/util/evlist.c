@@ -348,7 +348,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (target_tid != -1)
+	if (cpu_list == NULL && target_tid != -1)
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(cpu_list);
