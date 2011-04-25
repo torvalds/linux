@@ -1378,18 +1378,11 @@ struct rtl_hal_ops {
 	void (*update_rate_table) (struct ieee80211_hw *hw);
 #endif
 	void (*update_rate_mask) (struct ieee80211_hw *hw, u8 rssi_level);
-#if 0	/* temporary */
 	void (*fill_tx_desc) (struct ieee80211_hw *hw,
 			      struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 			      struct ieee80211_tx_info *info,
 			      struct sk_buff *skb, u8 hw_queue,
 			      struct rtl_tcb_desc *ptcb_desc);
-#else
-	void (*fill_tx_desc) (struct ieee80211_hw *hw,
-			      struct ieee80211_hdr *hdr, u8 *pdesc_tx,
-			      struct ieee80211_tx_info *info,
-			      struct sk_buff *skb, unsigned int queue_index);
-#endif
 	void (*fill_fake_txdesc) (struct ieee80211_hw *hw, u8 *pDesc,
 				  u32 buffer_len, bool bIsPsPoll);
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,

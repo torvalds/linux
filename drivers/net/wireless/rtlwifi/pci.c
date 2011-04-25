@@ -1569,10 +1569,8 @@ int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (ieee80211_is_data(fc))
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_TX);
 
-#if 0	/* temporary */
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc,
 			info, skb, hw_queue, ptcb_desc);
-#endif
 
 	__skb_queue_tail(&ring->queue, skb);
 
