@@ -1913,6 +1913,8 @@ struct sctp_association {
 	 * after reaching 4294967295.
 	 */
 	__u32 addip_serial;
+	union sctp_addr *asconf_addr_del_pending;
+	int src_out_of_asoc_ok;
 
 	/* SCTP AUTH: list of the endpoint shared keys.  These
 	 * keys are provided out of band by the user applicaton

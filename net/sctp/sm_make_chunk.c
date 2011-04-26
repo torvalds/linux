@@ -2768,6 +2768,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 	int			addr_param_len = 0;
 	int 			totallen = 0;
 	int 			i;
+	int			del_pickup = 0;
 
 	/* Get total length of all the address parameters. */
 	addr_buf = addrs;
@@ -2780,6 +2781,13 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		totallen += addr_param_len;
 
 		addr_buf += af->sockaddr_len;
+		if (asoc->asconf_addr_del_pending && !del_pickup) {
+			/* reuse the parameter length from the same scope one */
+			totallen += paramlen;
+			totallen += addr_param_len;
+			del_pickup = 1;
+			SCTP_DEBUG_PRINTK("mkasconf_update_ip: picked same-scope del_pending addr, totallen for all addresses is %d\n", totallen);
+		}
 	}
 
 	/* Create an asconf chunk with the required length. */
@@ -2801,6 +2809,17 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		sctp_addto_chunk(retval, addr_param_len, &addr_param);
 
 		addr_buf += af->sockaddr_len;
+	}
+	if (flags == SCTP_PARAM_ADD_IP && del_pickup) {
+		addr = asoc->asconf_addr_del_pending;
+		af = sctp_get_af_specific(addr->v4.sin_family);
+		addr_param_len = af->to_addr_param(addr, &addr_param);
+		param.param_hdr.type = SCTP_PARAM_DEL_IP;
+		param.param_hdr.length = htons(paramlen + addr_param_len);
+		param.crr_id = i;
+
+		sctp_addto_chunk(retval, paramlen, &param);
+		sctp_addto_chunk(retval, addr_param_len, &addr_param);
 	}
 	return retval;
 }
@@ -3224,6 +3243,11 @@ static void sctp_asconf_param_success(struct sctp_association *asoc,
 	case SCTP_PARAM_DEL_IP:
 		local_bh_disable();
 		sctp_del_bind_addr(bp, &addr);
+		if (asoc->asconf_addr_del_pending != NULL &&
+		    sctp_cmp_addr_exact(asoc->asconf_addr_del_pending, &addr)) {
+			kfree(asoc->asconf_addr_del_pending);
+			asoc->asconf_addr_del_pending = NULL;
+		}
 		local_bh_enable();
 		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
 				transports) {
@@ -3380,6 +3404,9 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 						      length);
 		asconf_len -= length;
 	}
+
+	if (no_err && asoc->src_out_of_asoc_ok)
+		asoc->src_out_of_asoc_ok = 0;
 
 	/* Free the cached last sent asconf chunk. */
 	list_del_init(&asconf->transmitted_list);
