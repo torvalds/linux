@@ -465,33 +465,35 @@ static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
  */
 static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 					 union sctp_addr *daddr,
-					 union sctp_addr *saddr)
+					 union sctp_addr *saddr,
+					 struct flowi *fl,
+					 struct sock *sk)
 {
 	struct rtable *rt;
-	struct flowi4 fl4;
+	struct flowi4 *fl4 = &fl->u.ip4;
 	struct sctp_bind_addr *bp;
 	struct sctp_sockaddr_entry *laddr;
 	struct dst_entry *dst = NULL;
 	union sctp_addr dst_saddr;
 
-	memset(&fl4, 0x0, sizeof(struct flowi4));
-	fl4.daddr  = daddr->v4.sin_addr.s_addr;
-	fl4.fl4_dport = daddr->v4.sin_port;
-	fl4.flowi4_proto = IPPROTO_SCTP;
+	memset(fl4, 0x0, sizeof(struct flowi4));
+	fl4->daddr  = daddr->v4.sin_addr.s_addr;
+	fl4->fl4_dport = daddr->v4.sin_port;
+	fl4->flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl4.flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
-		fl4.flowi4_oif = asoc->base.sk->sk_bound_dev_if;
-		fl4.fl4_sport = htons(asoc->base.bind_addr.port);
+		fl4->flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
+		fl4->flowi4_oif = asoc->base.sk->sk_bound_dev_if;
+		fl4->fl4_sport = htons(asoc->base.bind_addr.port);
 	}
 	if (saddr) {
-		fl4.saddr = saddr->v4.sin_addr.s_addr;
-		fl4.fl4_sport = saddr->v4.sin_port;
+		fl4->saddr = saddr->v4.sin_addr.s_addr;
+		fl4->fl4_sport = saddr->v4.sin_port;
 	}
 
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
-			  __func__, &fl4.daddr, &fl4.saddr);
+			  __func__, &fl4->daddr, &fl4->saddr);
 
-	rt = ip_route_output_key(&init_net, &fl4);
+	rt = ip_route_output_key(&init_net, fl4);
 	if (!IS_ERR(rt))
 		dst = &rt->dst;
 
@@ -533,9 +535,9 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			continue;
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
-			fl4.saddr = laddr->a.v4.sin_addr.s_addr;
-			fl4.fl4_sport = laddr->a.v4.sin_port;
-			rt = ip_route_output_key(&init_net, &fl4);
+			fl4->saddr = laddr->a.v4.sin_addr.s_addr;
+			fl4->fl4_sport = laddr->a.v4.sin_port;
+			rt = ip_route_output_key(&init_net, fl4);
 			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
 				goto out_unlock;
@@ -559,19 +561,15 @@ out:
  * to cache it separately and hence this is an empty routine.
  */
 static void sctp_v4_get_saddr(struct sctp_sock *sk,
-			      struct sctp_association *asoc,
-			      struct dst_entry *dst,
+			      struct sctp_transport *t,
 			      union sctp_addr *daddr,
-			      union sctp_addr *saddr)
+			      struct flowi *fl)
 {
-	struct rtable *rt = (struct rtable *)dst;
-
-	if (!asoc)
-		return;
+	union sctp_addr *saddr = &t->saddr;
+	struct rtable *rt = (struct rtable *)t->dst;
 
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
-		saddr->v4.sin_port = htons(asoc->base.bind_addr.port);
 		saddr->v4.sin_addr.s_addr = rt->rt_src;
 	}
 }
@@ -950,7 +948,6 @@ static struct sctp_af sctp_af_inet = {
 	.to_sk_daddr	   = sctp_v4_to_sk_daddr,
 	.from_addr_param   = sctp_v4_from_addr_param,
 	.to_addr_param	   = sctp_v4_to_addr_param,
-	.dst_saddr	   = sctp_v4_dst_saddr,
 	.cmp_addr	   = sctp_v4_cmp_addr,
 	.addr_valid	   = sctp_v4_addr_valid,
 	.inaddr_any	   = sctp_v4_inaddr_any,

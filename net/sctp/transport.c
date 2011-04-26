@@ -211,11 +211,15 @@ void sctp_transport_set_owner(struct sctp_transport *transport,
 }
 
 /* Initialize the pmtu of a transport. */
-void sctp_transport_pmtu(struct sctp_transport *transport)
+void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 {
 	struct dst_entry *dst;
+	struct flowi fl;
 
-	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr, NULL);
+	dst = transport->af_specific->get_dst(transport->asoc,
+					      &transport->ipaddr,
+					      &transport->saddr,
+					      &fl, sk);
 
 	if (dst) {
 		transport->pathmtu = dst_mtu(dst);
@@ -272,15 +276,16 @@ void sctp_transport_route(struct sctp_transport *transport,
 	struct sctp_af *af = transport->af_specific;
 	union sctp_addr *daddr = &transport->ipaddr;
 	struct dst_entry *dst;
+	struct flowi fl;
 
-	dst = af->get_dst(asoc, daddr, saddr);
+	dst = af->get_dst(asoc, daddr, saddr, &fl, sctp_opt2sk(opt));
+	transport->dst = dst;
 
 	if (saddr)
 		memcpy(&transport->saddr, saddr, sizeof(union sctp_addr));
 	else
-		af->get_saddr(opt, asoc, dst, daddr, &transport->saddr);
+		af->get_saddr(opt, transport, daddr, &fl);
 
-	transport->dst = dst;
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
 		return;
 	}
