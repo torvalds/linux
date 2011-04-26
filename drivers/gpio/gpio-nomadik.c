@@ -58,7 +58,6 @@ struct nmk_gpio_chip {
 	u32 real_wake;
 	u32 rwimsc;
 	u32 fwimsc;
-	u32 slpm;
 	u32 pull_up;
 };
 
@@ -583,10 +582,14 @@ static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
 static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 				int gpio, bool on)
 {
-	if (nmk_chip->sleepmode) {
+	/*
+	 * Ensure WAKEUP_ENABLE is on.  No need to disable it if wakeup is
+	 * disabled, since setting SLPM to 1 increases power consumption, and
+	 * wakeup is anyhow controlled by the RIMSC and FIMSC registers.
+	 */
+	if (nmk_chip->sleepmode && on) {
 		__nmk_gpio_set_slpm(nmk_chip, gpio - nmk_chip->chip.base,
-				    on ? NMK_GPIO_SLPM_WAKEUP_ENABLE
-				    : NMK_GPIO_SLPM_WAKEUP_DISABLE);
+				    NMK_GPIO_SLPM_WAKEUP_ENABLE);
 	}
 
 	__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, on);
@@ -1016,13 +1019,6 @@ void nmk_gpio_wakeups_suspend(void)
 		writel(chip->fwimsc & chip->real_wake,
 		       chip->addr + NMK_GPIO_FWIMSC);
 
-		if (chip->sleepmode) {
-			chip->slpm = readl(chip->addr + NMK_GPIO_SLPC);
-
-			/* 0 -> wakeup enable */
-			writel(~chip->real_wake, chip->addr + NMK_GPIO_SLPC);
-		}
-
 		clk_disable(chip->clk);
 	}
 }
@@ -1041,9 +1037,6 @@ void nmk_gpio_wakeups_resume(void)
 
 		writel(chip->rwimsc, chip->addr + NMK_GPIO_RWIMSC);
 		writel(chip->fwimsc, chip->addr + NMK_GPIO_FWIMSC);
-
-		if (chip->sleepmode)
-			writel(chip->slpm, chip->addr + NMK_GPIO_SLPC);
 
 		clk_disable(chip->clk);
 	}
