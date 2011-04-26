@@ -80,6 +80,9 @@
 
 #include <asm/uaccess.h>
 
+static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
+					 union sctp_addr *s2);
+
 /* Event handler for inet6 address addition/deletion events.
  * The sctp_local_addr_list needs to be protocted by a spin lock since
  * multiple notifiers (say IPv4 and IPv6) may be running at the same
@@ -244,8 +247,14 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr)
 {
-	struct dst_entry *dst;
+	struct dst_entry *dst = NULL;
 	struct flowi6 fl6;
+	struct sctp_bind_addr *bp;
+	struct sctp_sockaddr_entry *laddr;
+	union sctp_addr *baddr = NULL;
+	__u8 matchlen = 0;
+	__u8 bmatchlen;
+	sctp_scope_t scope;
 
 	memset(&fl6, 0, sizeof(fl6));
 	ipv6_addr_copy(&fl6.daddr, &daddr->v6.sin6_addr);
@@ -261,6 +270,39 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	}
 
 	dst = ip6_route_output(&init_net, NULL, &fl6);
+	if (!asoc || saddr)
+		goto out;
+
+	if (dst->error) {
+		dst_release(dst);
+		dst = NULL;
+		bp = &asoc->base.bind_addr;
+		scope = sctp_scope(daddr);
+		/* Walk through the bind address list and try to get a dst that
+		 * matches a bind address as the source address.
+		 */
+		rcu_read_lock();
+		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+			if (!laddr->valid)
+				continue;
+			if ((laddr->state == SCTP_ADDR_SRC) &&
+			    (laddr->a.sa.sa_family == AF_INET6) &&
+			    (scope <= sctp_scope(&laddr->a))) {
+				bmatchlen = sctp_v6_addr_match_len(daddr,
+								   &laddr->a);
+				if (!baddr || (matchlen < bmatchlen)) {
+					baddr = &laddr->a;
+					matchlen = bmatchlen;
+				}
+			}
+		}
+		rcu_read_unlock();
+		if (baddr) {
+			ipv6_addr_copy(&fl6.saddr, &baddr->v6.sin6_addr);
+			dst = ip6_route_output(&init_net, NULL, &fl6);
+		}
+	}
+out:
 	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
