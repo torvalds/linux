@@ -2816,6 +2816,7 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rttdcs;
 	u32 mask;
+	u32 reg;
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
@@ -2838,6 +2839,12 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 		/* We enable 8 traffic classes, DCB only */
 		IXGBE_WRITE_REG(hw, IXGBE_MTQC,
 			      (IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ));
+
+		/* Enable Security TX Buffer IFG for DCB */
+		reg = IXGBE_READ_REG(hw, IXGBE_SECTXMINIFG);
+		reg |= IXGBE_SECTX_DCB;
+		IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, reg);
+
 		break;
 
 	default:

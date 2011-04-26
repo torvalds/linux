@@ -319,62 +319,6 @@ static s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_dcb_config_82599 - Configure general DCB parameters
- * @hw: pointer to hardware structure
- *
- * Configure general DCB parameters.
- */
-static s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
-{
-	u32 reg;
-	u32 q;
-
-	/* Disable the Tx desc arbiter so that MTQC can be changed */
-	reg = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
-	reg |= IXGBE_RTTDCS_ARBDIS;
-	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, reg);
-
-	/* Enable DCB for Rx with 8 TCs */
-	reg = IXGBE_READ_REG(hw, IXGBE_MRQC);
-	switch (reg & IXGBE_MRQC_MRQE_MASK) {
-	case 0:
-	case IXGBE_MRQC_RT4TCEN:
-		/* RSS disabled cases */
-		reg = (reg & ~IXGBE_MRQC_MRQE_MASK) | IXGBE_MRQC_RT8TCEN;
-		break;
-	case IXGBE_MRQC_RSSEN:
-	case IXGBE_MRQC_RTRSS4TCEN:
-		/* RSS enabled cases */
-		reg = (reg & ~IXGBE_MRQC_MRQE_MASK) | IXGBE_MRQC_RTRSS8TCEN;
-		break;
-	default:
-		/* Unsupported value, assume stale data, overwrite no RSS */
-		reg = (reg & ~IXGBE_MRQC_MRQE_MASK) | IXGBE_MRQC_RT8TCEN;
-	}
-	IXGBE_WRITE_REG(hw, IXGBE_MRQC, reg);
-
-	/* Enable DCB for Tx with 8 TCs */
-	reg = IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
-	IXGBE_WRITE_REG(hw, IXGBE_MTQC, reg);
-
-	/* Disable drop for all queues */
-	for (q = 0; q < 128; q++)
-		IXGBE_WRITE_REG(hw, IXGBE_QDE, q << IXGBE_QDE_IDX_SHIFT);
-
-	/* Enable the Tx desc arbiter */
-	reg = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
-	reg &= ~IXGBE_RTTDCS_ARBDIS;
-	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, reg);
-
-	/* Enable Security TX Buffer IFG for DCB */
-	reg = IXGBE_READ_REG(hw, IXGBE_SECTXMINIFG);
-	reg |= IXGBE_SECTX_DCB;
-	IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, reg);
-
-	return 0;
-}
-
-/**
  * ixgbe_dcb_hw_config_82599 - Configure and enable DCB
  * @hw: pointer to hardware structure
  * @refill: refill credits index by traffic class
@@ -388,7 +332,6 @@ static s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
 s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw, u8 pfc_en, u16 *refill,
 			      u16 *max, u8 *bwg_id, u8 *prio_type, u8 *prio_tc)
 {
-	ixgbe_dcb_config_82599(hw);
 	ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max, bwg_id,
 					  prio_type, prio_tc);
 	ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
