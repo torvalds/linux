@@ -1907,6 +1907,7 @@ static void be_worker(struct work_struct *work)
 	}
 
 reschedule:
+	adapter->work_counter++;
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 

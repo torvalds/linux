@@ -3040,11 +3040,14 @@ static void ehea_rereg_mrs(void)
 
 					if (dev->flags & IFF_UP) {
 						mutex_lock(&port->port_lock);
-						port_napi_enable(port);
 						ret = ehea_restart_qps(dev);
-						check_sqs(port);
-						if (!ret)
+						if (!ret) {
+							check_sqs(port);
+							port_napi_enable(port);
 							netif_wake_queue(dev);
+						} else {
+							netdev_err(dev, "Unable to restart QPS\n");
+						}
 						mutex_unlock(&port->port_lock);
 					}
 				}
