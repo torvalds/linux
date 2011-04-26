@@ -25,10 +25,16 @@
 #include "gateway_common.h"
 #include "hard-interface.h"
 #include "originator.h"
+#include "routing.h"
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+
+/* This is the offset of the options field in a dhcp packet starting at
+ * the beginning of the dhcp header */
+#define DHCP_OPTIONS_OFFSET 240
+#define DHCP_REQUEST 3
 
 static void gw_node_free_ref(struct gw_node *gw_node)
 {
@@ -509,14 +515,75 @@ out:
 	return ret;
 }
 
-int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
+static bool is_type_dhcprequest(struct sk_buff *skb, int header_len)
+{
+	int ret = false;
+	unsigned char *p;
+	int pkt_len;
+
+	if (skb_linearize(skb) < 0)
+		goto out;
+
+	pkt_len = skb_headlen(skb);
+
+	if (pkt_len < header_len + DHCP_OPTIONS_OFFSET + 1)
+		goto out;
+
+	p = skb->data + header_len + DHCP_OPTIONS_OFFSET;
+	pkt_len -= header_len + DHCP_OPTIONS_OFFSET + 1;
+
+	/* Access the dhcp option lists. Each entry is made up by:
+	 * - octect 1: option type
+	 * - octect 2: option data len (only if type != 255 and 0)
+	 * - octect 3: option data */
+	while (*p != 255 && !ret) {
+		/* p now points to the first octect: option type */
+		if (*p == 53) {
+			/* type 53 is the message type option.
+			 * Jump the len octect and go to the data octect */
+			if (pkt_len < 2)
+				goto out;
+			p += 2;
+
+			/* check if the message type is what we need */
+			if (*p == DHCP_REQUEST)
+				ret = true;
+			break;
+		} else if (*p == 0) {
+			/* option type 0 (padding), just go forward */
+			if (pkt_len < 1)
+				goto out;
+			pkt_len--;
+			p++;
+		} else {
+			/* This is any other option. So we get the length... */
+			if (pkt_len < 1)
+				goto out;
+			pkt_len--;
+			p++;
+
+			/* ...and then we jump over the data */
+			if (pkt_len < *p)
+				goto out;
+			pkt_len -= *p;
+			p += (*p);
+		}
+	}
+out:
+	return ret;
+}
+
+int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb,
+		 struct orig_node *old_gw)
 {
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
 	struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
 	struct gw_node *curr_gw;
+	struct neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	unsigned int header_len = 0;
+	int ret = 1;
 
 	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_OFF)
 		return 0;
@@ -584,7 +651,30 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	if (!curr_gw)
 		return 0;
 
+	/* If old_gw != NULL then this packet is unicast.
+	 * So, at this point we have to check the message type: if it is a
+	 * DHCPREQUEST we have to decide whether to drop it or not */
+	if (old_gw && curr_gw->orig_node != old_gw) {
+		if (is_type_dhcprequest(skb, header_len)) {
+			/* If the dhcp packet has been sent to a different gw,
+			 * we have to evaluate whether the old gw is still
+			 * reliable enough */
+			neigh_curr = find_router(bat_priv, curr_gw->orig_node,
+						 NULL);
+			neigh_old = find_router(bat_priv, old_gw, NULL);
+			if (!neigh_curr || !neigh_old)
+				goto free_neigh;
+			if (neigh_curr->tq_avg - neigh_old->tq_avg <
+								GW_THRESHOLD)
+				ret = -1;
+		}
+	}
+free_neigh:
+	if (neigh_old)
+		neigh_node_free_ref(neigh_old);
+	if (neigh_curr)
+		neigh_node_free_ref(neigh_curr);
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
-	return 1;
+	return ret;
 }

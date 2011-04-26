@@ -91,7 +91,6 @@ enum mesh_state {
 #define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
 
-
 enum uev_action {
 	UEV_ADD = 0,
 	UEV_DEL,
@@ -101,6 +100,8 @@ enum uev_action {
 enum uev_type {
 	UEV_GW = 0
 };
+
+#define GW_THRESHOLD	50
 
 /*
  * Debug Messages
