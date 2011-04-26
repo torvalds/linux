@@ -43,7 +43,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME ov5640
+#define SENSOR_NAME RK29_CAM_SENSOR_OV5640
 #define SENSOR_V4L2_IDENT V4L2_IDENT_OV5640
 #define SENSOR_ID 0x5640
 #define SENSOR_MIN_WIDTH    176

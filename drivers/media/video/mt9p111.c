@@ -44,7 +44,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME mt9p111
+#define SENSOR_NAME RK29_CAM_SENSOR_MT9P111
 #define SENSOR_V4L2_IDENT V4L2_IDENT_MT9P111
 #define SENSOR_ID SEQUENCE_END
 #define SENSOR_ID_REG SEQUENCE_END

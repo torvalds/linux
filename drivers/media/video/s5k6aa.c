@@ -44,7 +44,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME s5k6aa
+#define SENSOR_NAME RK29_CAM_SENSOR_S5K6AA
 #define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A
 #define SENSOR_ID 0x06aa
 #define SENSOR_ID_REG SEQUENCE_END//0x015a
