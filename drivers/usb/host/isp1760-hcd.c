@@ -272,7 +272,7 @@ static void init_memory(struct isp1760_hcd *priv)
 		payload_addr += priv->memory_pool[curr + i].size;
 	}
 
-	BUG_ON(payload_addr - priv->memory_pool[0].start > PAYLOAD_AREA_SIZE);
+	WARN_ON(payload_addr - priv->memory_pool[0].start > PAYLOAD_AREA_SIZE);
 }
 
 static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
@@ -280,7 +280,7 @@ static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int i;
 
-	BUG_ON(qtd->payload_addr);
+	WARN_ON(qtd->payload_addr);
 
 	if (!qtd->length)
 		return;
@@ -318,7 +318,7 @@ static void free_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 
 	for (i = 0; i < BLOCKS; i++) {
 		if (priv->memory_pool[i].start == qtd->payload_addr) {
-			BUG_ON(priv->memory_pool[i].free);
+			WARN_ON(priv->memory_pool[i].free);
 			priv->memory_pool[i].free = 1;
 			qtd->payload_addr = 0;
 			return;
@@ -379,7 +379,7 @@ static int ehci_reset(struct usb_hcd *hcd)
 
 static void qh_destroy(struct isp1760_qh *qh)
 {
-	BUG_ON(!list_empty(&qh->qtd_list));
+	WARN_ON(!list_empty(&qh->qtd_list));
 	kmem_cache_free(qh_cachep, qh);
 }
 
@@ -738,23 +738,6 @@ static void transform_into_int(struct isp1760_qh *qh,
 	transform_add_int(qh, qtd, ptd);
 }
 
-static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len,
-		u32 token)
-{
-	int count;
-
-	qtd->data_buffer = databuffer;
-	qtd->packet_type = GET_QTD_TOKEN_TYPE(token);
-
-	if (len > MAX_PAYLOAD_SIZE)
-		count = MAX_PAYLOAD_SIZE;
-	else
-		count = len;
-
-	qtd->length = count;
-	return count;
-}
-
 static int check_error(struct usb_hcd *hcd, struct ptd *ptd)
 {
 	int error = 0;
@@ -948,9 +931,25 @@ __acquires(priv->lock)
 	spin_lock(&priv->lock);
 }
 
-static void isp1760_qtd_free(struct isp1760_qtd *qtd)
+static struct isp1760_qtd *qtd_alloc(gfp_t flags, struct urb *urb,
+								u8 packet_type)
 {
-	BUG_ON(qtd->payload_addr);
+	struct isp1760_qtd *qtd;
+
+	qtd = kmem_cache_zalloc(qtd_cachep, flags);
+	if (!qtd)
+		return NULL;
+
+	INIT_LIST_HEAD(&qtd->qtd_list);
+	qtd->urb = urb;
+	qtd->packet_type = packet_type;
+
+	return qtd;
+}
+
+static void qtd_free(struct isp1760_qtd *qtd)
+{
+	WARN_ON(qtd->payload_addr);
 	kmem_cache_free(qtd_cachep, qtd);
 }
 
@@ -965,7 +964,7 @@ static struct isp1760_qtd *clean_this_qtd(struct isp1760_qtd *qtd,
 		tmp_qtd = list_entry(qtd->qtd_list.next, struct isp1760_qtd,
 								qtd_list);
 	list_del(&qtd->qtd_list);
-	isp1760_qtd_free(qtd);
+	qtd_free(qtd);
 	return tmp_qtd;
 }
 
@@ -1294,210 +1293,95 @@ static void do_intl_int(struct usb_hcd *hcd)
 	}
 }
 
-static struct isp1760_qh *qh_make(struct usb_hcd *hcd, struct urb *urb,
-		gfp_t flags)
+static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len)
 {
-	struct isp1760_qh *qh;
-	int is_input, type;
+	qtd->data_buffer = databuffer;
 
-	qh = isp1760_qh_alloc(flags);
-	if (!qh)
-		return qh;
+	if (len > MAX_PAYLOAD_SIZE)
+		len = MAX_PAYLOAD_SIZE;
+	qtd->length = len;
 
-	/*
-	 * init endpoint/device data for this QH
-	 */
-	is_input = usb_pipein(urb->pipe);
-	type = usb_pipetype(urb->pipe);
-
-	if (!usb_pipecontrol(urb->pipe))
-		usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe), !is_input,
-				1);
-	return qh;
+	return qtd->length;
 }
 
-/*
- * For control/bulk/interrupt, return QH with these TDs appended.
- * Allocates and initializes the QH if necessary.
- * Returns null if it can't allocate a QH it needs to.
- * If the QH has TDs (urbs) already, that's great.
- */
-static struct isp1760_qh *qh_append_tds(struct usb_hcd *hcd,
-		struct urb *urb, struct list_head *qtd_list, int epnum,
-		void **ptr)
+static void qtd_list_free(struct list_head *qtd_list)
 {
-	struct isp1760_qh *qh;
+	struct isp1760_qtd *qtd, *qtd_next;
 
-	qh = (struct isp1760_qh *)*ptr;
-	if (!qh) {
-		/* can't sleep here, we have priv->lock... */
-		qh = qh_make(hcd, urb, GFP_ATOMIC);
-		if (!qh)
-			return qh;
-		*ptr = qh;
-	}
-
-	list_splice(qtd_list, qh->qtd_list.prev);
-
-	return qh;
-}
-
-static void qtd_list_free(struct urb *urb, struct list_head *qtd_list)
-{
-	struct list_head *entry, *temp;
-
-	list_for_each_safe(entry, temp, qtd_list) {
-		struct isp1760_qtd	*qtd;
-
-		qtd = list_entry(entry, struct isp1760_qtd, qtd_list);
+	list_for_each_entry_safe(qtd, qtd_next, qtd_list, qtd_list) {
 		list_del(&qtd->qtd_list);
-		isp1760_qtd_free(qtd);
+		qtd_free(qtd);
 	}
-}
-
-static int isp1760_prepare_enqueue(struct usb_hcd *hcd, struct urb *urb,
-		struct list_head *qtd_list, gfp_t mem_flags, packet_enqueue *p)
-{
-	struct isp1760_hcd *priv = hcd_to_priv(hcd);
-	struct isp1760_qtd         *qtd;
-	int                     epnum;
-	unsigned long           flags;
-	struct isp1760_qh          *qh = NULL;
-	int                     rc;
-	int qh_busy;
-
-	qtd = list_entry(qtd_list->next, struct isp1760_qtd, qtd_list);
-	epnum = urb->ep->desc.bEndpointAddress;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!HCD_HW_ACCESSIBLE(hcd)) {
-		rc = -ESHUTDOWN;
-		goto done;
-	}
-	rc = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (rc)
-		goto done;
-
-	qh = urb->ep->hcpriv;
-	if (qh)
-		qh_busy = !list_empty(&qh->qtd_list);
-	else
-		qh_busy = 0;
-
-	qh = qh_append_tds(hcd, urb, qtd_list, epnum, &urb->ep->hcpriv);
-	if (!qh) {
-		usb_hcd_unlink_urb_from_ep(hcd, urb);
-		rc = -ENOMEM;
-		goto done;
-	}
-
-	if (!qh_busy)
-		p(hcd, qh, qtd);
-
-done:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	if (!qh)
-		qtd_list_free(urb, qtd_list);
-	return rc;
-}
-
-static struct isp1760_qtd *isp1760_qtd_alloc(gfp_t flags)
-{
-	struct isp1760_qtd *qtd;
-
-	qtd = kmem_cache_zalloc(qtd_cachep, flags);
-	if (qtd)
-		INIT_LIST_HEAD(&qtd->qtd_list);
-
-	return qtd;
 }
 
 /*
- * create a list of filled qtds for this URB; won't link into qh.
+ * Packetize urb->transfer_buffer into list of packets of size wMaxPacketSize.
+ * Also calculate the PID type (SETUP/IN/OUT) for each packet.
  */
 #define max_packet(wMaxPacketSize) ((wMaxPacketSize) & 0x07ff)
-static struct list_head *qh_urb_transaction(struct usb_hcd *hcd,
+static void packetize_urb(struct usb_hcd *hcd,
 		struct urb *urb, struct list_head *head, gfp_t flags)
 {
 	struct isp1760_qtd *qtd;
 	void *buf;
-	int len, maxpacket;
-	int is_input;
-	u32 token;
+	int len, maxpacketsize;
+	u8 packet_type;
 
 	/*
 	 * URBs map to sequences of QTDs:  one logical transaction
 	 */
-	qtd = isp1760_qtd_alloc(flags);
-	if (!qtd)
-		return NULL;
 
-	list_add_tail(&qtd->qtd_list, head);
-	qtd->urb = urb;
-	urb->status = -EINPROGRESS;
+	if (!urb->transfer_buffer && urb->transfer_buffer_length) {
+		/* XXX This looks like usb storage / SCSI bug */
+		dev_err(hcd->self.controller,
+				"buf is null, dma is %08lx len is %d\n",
+				(long unsigned)urb->transfer_dma,
+				urb->transfer_buffer_length);
+		WARN_ON(1);
+	}
 
-	token = 0;
-	/* for split transactions, SplitXState initialized to zero */
+	if (usb_pipein(urb->pipe))
+		packet_type = IN_PID;
+	else
+		packet_type = OUT_PID;
 
-	len = urb->transfer_buffer_length;
-	is_input = usb_pipein(urb->pipe);
 	if (usb_pipecontrol(urb->pipe)) {
-		/* SETUP pid */
-		qtd_fill(qtd, urb->setup_packet,
-				sizeof(struct usb_ctrlrequest),
-				token | SETUP_PID);
-
-		/* ... and always at least one more pid */
-		qtd = isp1760_qtd_alloc(flags);
+		qtd = qtd_alloc(flags, urb, SETUP_PID);
 		if (!qtd)
 			goto cleanup;
-		qtd->urb = urb;
+		qtd_fill(qtd, urb->setup_packet, sizeof(struct usb_ctrlrequest));
 		list_add_tail(&qtd->qtd_list, head);
 
 		/* for zero length DATA stages, STATUS is always IN */
-		if (len == 0)
-			token |= IN_PID;
+		if (urb->transfer_buffer_length == 0)
+			packet_type = IN_PID;
 	}
 
-	/*
-	 * data transfer stage:  buffer setup
-	 */
-	buf = urb->transfer_buffer;
-
-	if (is_input)
-		token |= IN_PID;
-	else
-		token |= OUT_PID;
-
-	maxpacket = max_packet(usb_maxpacket(urb->dev, urb->pipe, !is_input));
+	maxpacketsize = max_packet(usb_maxpacket(urb->dev, urb->pipe,
+						usb_pipeout(urb->pipe)));
 
 	/*
 	 * buffer gets wrapped in one or more qtds;
 	 * last one may be "short" (including zero len)
 	 * and may serve as a control status ack
 	 */
+	buf = urb->transfer_buffer;
+	len = urb->transfer_buffer_length;
+
 	for (;;) {
 		int this_qtd_len;
 
-		if (!buf && len) {
-			/* XXX This looks like usb storage / SCSI bug */
-			dev_err(hcd->self.controller, "buf is null, dma is %08lx len is %d\n",
-					(long unsigned)urb->transfer_dma, len);
-			WARN_ON(1);
-		}
+		qtd = qtd_alloc(flags, urb, packet_type);
+		if (!qtd)
+			goto cleanup;
+		this_qtd_len = qtd_fill(qtd, buf, len);
+		list_add_tail(&qtd->qtd_list, head);
 
-		this_qtd_len = qtd_fill(qtd, buf, len, token);
 		len -= this_qtd_len;
 		buf += this_qtd_len;
 
 		if (len <= 0)
 			break;
-
-		qtd = isp1760_qtd_alloc(flags);
-		if (!qtd)
-			goto cleanup;
-		qtd->urb = urb;
-		list_add_tail(&qtd->qtd_list, head);
 	}
 
 	/*
@@ -1509,31 +1393,78 @@ static struct list_head *qh_urb_transaction(struct usb_hcd *hcd,
 
 		if (usb_pipecontrol(urb->pipe)) {
 			one_more = 1;
-			/* "in" <--> "out"  */
-			token ^= IN_PID;
+			if (packet_type == IN_PID)
+				packet_type = OUT_PID;
+			else
+				packet_type = IN_PID;
 		} else if (usb_pipebulk(urb->pipe)
 				&& (urb->transfer_flags & URB_ZERO_PACKET)
-				&& !(urb->transfer_buffer_length % maxpacket)) {
+				&& !(urb->transfer_buffer_length %
+							maxpacketsize)) {
 			one_more = 1;
 		}
 		if (one_more) {
-			qtd = isp1760_qtd_alloc(flags);
+			qtd = qtd_alloc(flags, urb, packet_type);
 			if (!qtd)
 				goto cleanup;
-			qtd->urb = urb;
-			list_add_tail(&qtd->qtd_list, head);
 
 			/* never any data in such packets */
-			qtd_fill(qtd, NULL, 0, token);
+			qtd_fill(qtd, NULL, 0);
+			list_add_tail(&qtd->qtd_list, head);
 		}
 	}
 
-	qtd->status = 0;
-	return head;
+	return;
 
 cleanup:
-	qtd_list_free(urb, head);
-	return NULL;
+	qtd_list_free(head);
+}
+
+static int enqueue_qtdlist(struct usb_hcd *hcd, struct urb *urb,
+		struct list_head *qtd_list, gfp_t mem_flags, packet_enqueue *p)
+{
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	struct isp1760_qtd *qtd;
+	struct isp1760_qh *qh = NULL;
+	unsigned long flags;
+	int qh_empty;
+	int rc;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
+		rc = -ESHUTDOWN;
+		goto done;
+	}
+	rc = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (rc)
+		goto done;
+
+	qh = urb->ep->hcpriv;
+	if (!qh) {
+		qh = isp1760_qh_alloc(GFP_ATOMIC);
+		if (!qh) {
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
+			rc = -ENOMEM;
+			goto done;
+		}
+		if (!usb_pipecontrol(urb->pipe))
+			usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
+						!usb_pipein(urb->pipe), 1);
+		urb->ep->hcpriv = qh;
+	}
+
+	qh_empty = list_empty(&qh->qtd_list);
+	list_splice_tail(qtd_list, &qh->qtd_list);
+	if (qh_empty) {
+		qtd = list_entry(qtd_list->next, struct isp1760_qtd, qtd_list);
+		p(hcd, qh, qtd);
+	}
+
+done:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	if (!qh)
+		qtd_list_free(qtd_list);
+	return rc;
 }
 
 static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
@@ -1547,14 +1478,10 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_CONTROL:
 	case PIPE_BULK:
-		if (!qh_urb_transaction(hcd, urb, &qtd_list, mem_flags))
-			return -ENOMEM;
-		pe =  enqueue_an_ATL_packet;
+		pe = enqueue_an_ATL_packet;
 		break;
 
 	case PIPE_INTERRUPT:
-		if (!qh_urb_transaction(hcd, urb, &qtd_list, mem_flags))
-			return -ENOMEM;
 		pe = enqueue_an_INT_packet;
 		break;
 
@@ -1564,7 +1491,11 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		return -EPIPE;
 	}
 
-	return isp1760_prepare_enqueue(hcd, urb, &qtd_list, mem_flags, pe);
+	packetize_urb(hcd, urb, &qtd_list, mem_flags);
+	if (list_empty(&qtd_list))
+		return -ENOMEM;
+
+	return enqueue_qtdlist(hcd, urb, &qtd_list, mem_flags, pe);
 }
 
 static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
@@ -1605,7 +1536,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	for (i = 0; i < 32; i++) {
 		if (!ints[i].qh)
 			continue;
-		BUG_ON(!ints[i].qtd);
+		WARN_ON(!ints[i].qtd);
 
 		if (ints[i].qtd->urb == urb) {
 			u32 skip_map;
