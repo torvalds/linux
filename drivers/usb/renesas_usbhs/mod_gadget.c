@@ -787,10 +787,16 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 		usbhsg_queue_pop(uep, ureq, -ECONNRESET);
 	}
 
-	uep->pipe->mod_private	= NULL;
-	uep->pipe		= NULL;
-
 	return 0;
+}
+
+static void usbhsg_uep_init(struct usbhsg_gpriv *gpriv)
+{
+	int i;
+	struct usbhsg_uep *uep;
+
+	usbhsg_for_each_uep_with_dcp(uep, gpriv, i)
+		uep->pipe = NULL;
 }
 
 /*
@@ -808,6 +814,13 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	spinlock_t *lock = usbhsg_gpriv_to_lock(gpriv);
 	unsigned long flags;
 	int ret = -EIO;
+
+	/*
+	 * if it already have pipe,
+	 * nothing to do
+	 */
+	if (uep->pipe)
+		return 0;
 
 	/********************  spin lock ********************/
 	spin_lock_irqsave(lock, flags);
@@ -1045,6 +1058,7 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * pipe initialize and enable DCP
 	 */
 	usbhs_pipe_init(priv);
+	usbhsg_uep_init(gpriv);
 	usbhsg_dcp_enable(dcp);
 
 	/*
