@@ -296,12 +296,12 @@ out_in_use:
 
 static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-	int rc;
-	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_l2tpip *lsa = (struct sockaddr_l2tpip *) uaddr;
+	struct inet_sock *inet = inet_sk(sk);
+	struct flowi4 fl4;
 	struct rtable *rt;
 	__be32 saddr;
-	int oif;
+	int oif, rc;
 
 	rc = -EINVAL;
 	if (addr_len < sizeof(*lsa))
@@ -320,7 +320,7 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	if (ipv4_is_multicast(lsa->l2tp_addr.s_addr))
 		goto out;
 
-	rt = ip_route_connect(lsa->l2tp_addr.s_addr, saddr,
+	rt = ip_route_connect(&fl4, lsa->l2tp_addr.s_addr, saddr,
 			      RT_CONN_FLAGS(sk), oif,
 			      IPPROTO_L2TP,
 			      0, 0, sk, true);

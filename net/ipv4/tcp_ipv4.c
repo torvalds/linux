@@ -146,12 +146,13 @@ EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
+	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	__be16 orig_sport, orig_dport;
-	struct rtable *rt;
 	__be32 daddr, nexthop;
+	struct flowi4 fl4;
+	struct rtable *rt;
 	int err;
 
 	if (addr_len < sizeof(struct sockaddr_in))
@@ -169,7 +170,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	orig_sport = inet->inet_sport;
 	orig_dport = usin->sin_port;
-	rt = ip_route_connect(nexthop, inet->inet_saddr,
+	rt = ip_route_connect(&fl4, nexthop, inet->inet_saddr,
 			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			      IPPROTO_TCP,
 			      orig_sport, orig_dport, sk, true);
@@ -236,8 +237,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err)
 		goto failure;
 
-	rt = ip_route_newports(rt, IPPROTO_TCP,
-			       orig_sport, orig_dport,
+	rt = ip_route_newports(&fl4, rt, orig_sport, orig_dport,
 			       inet->inet_sport, inet->inet_dport, sk);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);

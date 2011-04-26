@@ -40,12 +40,13 @@
 
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
+	const struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	const struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	__be16 orig_sport, orig_dport;
-	struct rtable *rt;
 	__be32 daddr, nexthop;
+	struct flowi4 fl4;
+	struct rtable *rt;
 	int err;
 
 	dp->dccps_role = DCCP_ROLE_CLIENT;
@@ -65,7 +66,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	orig_sport = inet->inet_sport;
 	orig_dport = usin->sin_port;
-	rt = ip_route_connect(nexthop, inet->inet_saddr,
+	rt = ip_route_connect(&fl4, nexthop, inet->inet_saddr,
 			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			      IPPROTO_DCCP,
 			      orig_sport, orig_dport, sk, true);
@@ -101,8 +102,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err != 0)
 		goto failure;
 
-	rt = ip_route_newports(rt, IPPROTO_DCCP,
-			       orig_sport, orig_dport,
+	rt = ip_route_newports(&fl4, rt, orig_sport, orig_dport,
 			       inet->inet_sport, inet->inet_dport, sk);
 	if (IS_ERR(rt)) {
 		rt = NULL;

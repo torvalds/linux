@@ -1103,6 +1103,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct inet_sock *inet = inet_sk(sk);
 	__be32 old_saddr = inet->inet_saddr;
 	__be32 daddr = inet->inet_daddr;
+	struct flowi4 fl4;
 	struct rtable *rt;
 	__be32 new_saddr;
 
@@ -1110,7 +1111,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 		daddr = inet->opt->faddr;
 
 	/* Query new route. */
-	rt = ip_route_connect(daddr, 0, RT_CONN_FLAGS(sk),
+	rt = ip_route_connect(&fl4, daddr, 0, RT_CONN_FLAGS(sk),
 			      sk->sk_bound_dev_if, sk->sk_protocol,
 			      inet->inet_sport, inet->inet_dport, sk, false);
 	if (IS_ERR(rt))

@@ -24,6 +24,7 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_in *usin = (struct sockaddr_in *) uaddr;
+	struct flowi4 fl4;
 	struct rtable *rt;
 	__be32 saddr;
 	int oif;
@@ -46,7 +47,7 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		if (!saddr)
 			saddr = inet->mc_addr;
 	}
-	rt = ip_route_connect(usin->sin_addr.s_addr, saddr,
+	rt = ip_route_connect(&fl4, usin->sin_addr.s_addr, saddr,
 			      RT_CONN_FLAGS(sk), oif,
 			      sk->sk_protocol,
 			      inet->inet_sport, usin->sin_port, sk, true);
