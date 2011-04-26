@@ -76,7 +76,7 @@ static void prng_seed(int nbytes)
 
 	/* Add the entropy */
 	while (nbytes >= 8) {
-		*((__u64 *)parm_block) ^= *((__u64 *)buf+i*8);
+		*((__u64 *)parm_block) ^= *((__u64 *)buf+i);
 		prng_add_entropy();
 		i += 8;
 		nbytes -= 8;
