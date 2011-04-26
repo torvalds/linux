@@ -307,12 +307,9 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 
 	/* We found our driver ? */
 	if (memcmp(&device_ctx->dev_type, &drv->dev_type,
-		   sizeof(struct hv_guid)) == 0) {
-
-		device_ctx->drv = drv->priv;
-
+		   sizeof(struct hv_guid)) == 0)
 		match = 1;
-	}
+
 	return match;
 }
 
