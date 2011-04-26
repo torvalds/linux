@@ -45,6 +45,24 @@ struct s390_aes_ctx {
 	} fallback;
 };
 
+struct pcc_param {
+	u8 key[32];
+	u8 tweak[16];
+	u8 block[16];
+	u8 bit[16];
+	u8 xts[16];
+};
+
+struct s390_xts_ctx {
+	u8 key[32];
+	u8 xts_param[16];
+	struct pcc_param pcc;
+	long enc;
+	long dec;
+	int key_len;
+	struct crypto_blkcipher *fallback;
+};
+
 /*
  * Check if the key_len is supported by the HW.
  * Returns 0 if it is, a positive number if it is not and software fallback is
@@ -504,8 +522,211 @@ static struct crypto_alg cbc_aes_alg = {
 	}
 };
 
+static int xts_fallback_setkey(struct crypto_tfm *tfm, const u8 *key,
+				   unsigned int len)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
+	unsigned int ret;
+
+	xts_ctx->fallback->base.crt_flags &= ~CRYPTO_TFM_REQ_MASK;
+	xts_ctx->fallback->base.crt_flags |= (tfm->crt_flags &
+			CRYPTO_TFM_REQ_MASK);
+
+	ret = crypto_blkcipher_setkey(xts_ctx->fallback, key, len);
+	if (ret) {
+		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+		tfm->crt_flags |= (xts_ctx->fallback->base.crt_flags &
+				CRYPTO_TFM_RES_MASK);
+	}
+	return ret;
+}
+
+static int xts_fallback_decrypt(struct blkcipher_desc *desc,
+		struct scatterlist *dst, struct scatterlist *src,
+		unsigned int nbytes)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_blkcipher *tfm;
+	unsigned int ret;
+
+	tfm = desc->tfm;
+	desc->tfm = xts_ctx->fallback;
+
+	ret = crypto_blkcipher_decrypt_iv(desc, dst, src, nbytes);
+
+	desc->tfm = tfm;
+	return ret;
+}
+
+static int xts_fallback_encrypt(struct blkcipher_desc *desc,
+		struct scatterlist *dst, struct scatterlist *src,
+		unsigned int nbytes)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_blkcipher *tfm;
+	unsigned int ret;
+
+	tfm = desc->tfm;
+	desc->tfm = xts_ctx->fallback;
+
+	ret = crypto_blkcipher_encrypt_iv(desc, dst, src, nbytes);
+
+	desc->tfm = tfm;
+	return ret;
+}
+
+static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+			   unsigned int key_len)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
+
+	switch (key_len) {
+	case 32:
+		xts_ctx->enc = KM_XTS_128_ENCRYPT;
+		xts_ctx->dec = KM_XTS_128_DECRYPT;
+		memcpy(xts_ctx->key + 16, in_key, 16);
+		memcpy(xts_ctx->pcc.key + 16, in_key + 16, 16);
+		break;
+	case 48:
+		xts_ctx->enc = 0;
+		xts_ctx->dec = 0;
+		xts_fallback_setkey(tfm, in_key, key_len);
+		break;
+	case 64:
+		xts_ctx->enc = KM_XTS_256_ENCRYPT;
+		xts_ctx->dec = KM_XTS_256_DECRYPT;
+		memcpy(xts_ctx->key, in_key, 32);
+		memcpy(xts_ctx->pcc.key, in_key + 32, 32);
+		break;
+	default:
+		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+		return -EINVAL;
+	}
+	xts_ctx->key_len = key_len;
+	return 0;
+}
+
+static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
+			 struct s390_xts_ctx *xts_ctx,
+			 struct blkcipher_walk *walk)
+{
+	unsigned int offset = (xts_ctx->key_len >> 1) & 0x10;
+	int ret = blkcipher_walk_virt(desc, walk);
+	unsigned int nbytes = walk->nbytes;
+	unsigned int n;
+	u8 *in, *out;
+	void *param;
+
+	if (!nbytes)
+		goto out;
+
+	memset(xts_ctx->pcc.block, 0, sizeof(xts_ctx->pcc.block));
+	memset(xts_ctx->pcc.bit, 0, sizeof(xts_ctx->pcc.bit));
+	memset(xts_ctx->pcc.xts, 0, sizeof(xts_ctx->pcc.xts));
+	memcpy(xts_ctx->pcc.tweak, walk->iv, sizeof(xts_ctx->pcc.tweak));
+	param = xts_ctx->pcc.key + offset;
+	ret = crypt_s390_pcc(func, param);
+	BUG_ON(ret < 0);
+
+	memcpy(xts_ctx->xts_param, xts_ctx->pcc.xts, 16);
+	param = xts_ctx->key + offset;
+	do {
+		/* only use complete blocks */
+		n = nbytes & ~(AES_BLOCK_SIZE - 1);
+		out = walk->dst.virt.addr;
+		in = walk->src.virt.addr;
+
+		ret = crypt_s390_km(func, param, out, in, n);
+		BUG_ON(ret < 0 || ret != n);
+
+		nbytes &= AES_BLOCK_SIZE - 1;
+		ret = blkcipher_walk_done(desc, walk, nbytes);
+	} while ((nbytes = walk->nbytes));
+out:
+	return ret;
+}
+
+static int xts_aes_encrypt(struct blkcipher_desc *desc,
+			   struct scatterlist *dst, struct scatterlist *src,
+			   unsigned int nbytes)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+
+	if (unlikely(xts_ctx->key_len == 48))
+		return xts_fallback_encrypt(desc, dst, src, nbytes);
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	return xts_aes_crypt(desc, xts_ctx->enc, xts_ctx, &walk);
+}
+
+static int xts_aes_decrypt(struct blkcipher_desc *desc,
+			   struct scatterlist *dst, struct scatterlist *src,
+			   unsigned int nbytes)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+
+	if (unlikely(xts_ctx->key_len == 48))
+		return xts_fallback_decrypt(desc, dst, src, nbytes);
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	return xts_aes_crypt(desc, xts_ctx->dec, xts_ctx, &walk);
+}
+
+static int xts_fallback_init(struct crypto_tfm *tfm)
+{
+	const char *name = tfm->__crt_alg->cra_name;
+	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
+
+	xts_ctx->fallback = crypto_alloc_blkcipher(name, 0,
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+
+	if (IS_ERR(xts_ctx->fallback)) {
+		pr_err("Allocating XTS fallback algorithm %s failed\n",
+		       name);
+		return PTR_ERR(xts_ctx->fallback);
+	}
+	return 0;
+}
+
+static void xts_fallback_exit(struct crypto_tfm *tfm)
+{
+	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
+
+	crypto_free_blkcipher(xts_ctx->fallback);
+	xts_ctx->fallback = NULL;
+}
+
+static struct crypto_alg xts_aes_alg = {
+	.cra_name		=	"xts(aes)",
+	.cra_driver_name	=	"xts-aes-s390",
+	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
+	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
+					CRYPTO_ALG_NEED_FALLBACK,
+	.cra_blocksize		=	AES_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof(struct s390_xts_ctx),
+	.cra_type		=	&crypto_blkcipher_type,
+	.cra_module		=	THIS_MODULE,
+	.cra_list		=	LIST_HEAD_INIT(xts_aes_alg.cra_list),
+	.cra_init		=	xts_fallback_init,
+	.cra_exit		=	xts_fallback_exit,
+	.cra_u			=	{
+		.blkcipher = {
+			.min_keysize		=	2 * AES_MIN_KEY_SIZE,
+			.max_keysize		=	2 * AES_MAX_KEY_SIZE,
+			.ivsize			=	AES_BLOCK_SIZE,
+			.setkey			=	xts_aes_set_key,
+			.encrypt		=	xts_aes_encrypt,
+			.decrypt		=	xts_aes_decrypt,
+		}
+	}
+};
+
 static int __init aes_s390_init(void)
 {
+	unsigned long long facility_bits[2];
 	int ret;
 
 	if (crypt_s390_func_available(KM_AES_128_ENCRYPT, CRYPT_S390_MSA))
@@ -535,9 +756,20 @@ static int __init aes_s390_init(void)
 	if (ret)
 		goto cbc_aes_err;
 
+	if (crypt_s390_func_available(KM_XTS_128_ENCRYPT,
+			CRYPT_S390_MSA | CRYPT_S390_MSA4) &&
+	    crypt_s390_func_available(KM_XTS_256_ENCRYPT,
+			CRYPT_S390_MSA | CRYPT_S390_MSA4)) {
+		ret = crypto_register_alg(&xts_aes_alg);
+		if (ret)
+			goto xts_aes_err;
+	}
+
 out:
 	return ret;
 
+xts_aes_err:
+	crypto_unregister_alg(&cbc_aes_alg);
 cbc_aes_err:
 	crypto_unregister_alg(&ecb_aes_alg);
 ecb_aes_err:
@@ -548,6 +780,7 @@ aes_err:
 
 static void __exit aes_s390_fini(void)
 {
+	crypto_unregister_alg(&xts_aes_alg);
 	crypto_unregister_alg(&cbc_aes_alg);
 	crypto_unregister_alg(&ecb_aes_alg);
 	crypto_unregister_alg(&aes_alg);

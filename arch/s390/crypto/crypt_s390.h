@@ -55,6 +55,10 @@ enum crypt_s390_km_func {
 	KM_AES_192_DECRYPT  = CRYPT_S390_KM | 0x13 | 0x80,
 	KM_AES_256_ENCRYPT  = CRYPT_S390_KM | 0x14,
 	KM_AES_256_DECRYPT  = CRYPT_S390_KM | 0x14 | 0x80,
+	KM_XTS_128_ENCRYPT  = CRYPT_S390_KM | 0x32,
+	KM_XTS_128_DECRYPT  = CRYPT_S390_KM | 0x32 | 0x80,
+	KM_XTS_256_ENCRYPT  = CRYPT_S390_KM | 0x34,
+	KM_XTS_256_DECRYPT  = CRYPT_S390_KM | 0x34 | 0x80,
 };
 
 /*
@@ -333,5 +337,32 @@ static inline int crypt_s390_func_available(int func,
 	func &= 0x7f;		/* mask modifier bit */
 	return (status[func >> 3] & (0x80 >> (func & 7))) != 0;
 }
+
+/**
+ * crypt_s390_pcc:
+ * @func: the function code passed to KM; see crypt_s390_km_func
+ * @param: address of parameter block; see POP for details on each func
+ *
+ * Executes the PCC (PERFORM CRYPTOGRAPHIC COMPUTATION) operation of the CPU.
+ *
+ * Returns -1 for failure, 0 for success.
+ */
+static inline int crypt_s390_pcc(long func, void *param)
+{
+	register long __func asm("0") = func & 0x7f; /* encrypt or decrypt */
+	register void *__param asm("1") = param;
+	int ret = -1;
+
+	asm volatile(
+		"0:	.insn	rre,0xb92c0000,0,0 \n" /* PCC opcode */
+		"1:	brc	1,0b \n" /* handle partial completion */
+		"	la	%0,0\n"
+		"2:\n"
+		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		: "+d" (ret)
+		: "d" (__func), "a" (__param) : "cc", "memory");
+	return ret;
+}
+
 
 #endif	/* _CRYPTO_ARCH_S390_CRYPT_S390_H */
