@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include "vstorage.h"
 #include "vmbus_api.h"
+#include "vmbus.h"
 
 /* Defines */
 #define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
@@ -151,6 +152,13 @@ static inline void put_stor_device(struct hv_device *device)
 static inline struct storvsc_driver_object *hvdr_to_stordr(struct hv_driver *d)
 {
 	return container_of(d, struct storvsc_driver_object, base);
+}
+
+static inline
+struct storvsc_driver_object *drv_to_stordrv(struct device_driver *d)
+{
+	struct hv_driver *hvdrv = drv_to_hv_drv(d);
+	return hvdr_to_stordr(hvdrv);
 }
 
 /* Interface */
