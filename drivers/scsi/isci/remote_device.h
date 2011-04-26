@@ -664,14 +664,6 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
 	)
 
 /**
- * scic_sds_remote_device_get_port_index() -
- *
- * This macro returns the port index for the devices owning port
- */
-#define scic_sds_remote_device_get_port_index(sci_dev) \
-	(scic_sds_port_get_index(scic_sds_remote_device_get_port(sci_dev)))
-
-/**
  * scic_sds_remote_device_get_index() -
  *
  * This macro returns the remote node index for this device object
@@ -687,7 +679,7 @@ extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_tab
 #define scic_sds_remote_device_build_command_context(device, command) \
 	((command) \
 	 | (scic_sds_remote_device_get_controller_peg((device)) << SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) \
-	 | (scic_sds_remote_device_get_port_index((device)) << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) \
+	 | ((device)->owning_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) \
 	 | (scic_sds_remote_device_get_index((device)))	\
 	)
 

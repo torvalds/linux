@@ -108,22 +108,20 @@ static void scic_sds_remote_node_context_construct_buffer(
 {
 	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	int rni = sci_rnc->remote_node_index;
 	union scu_remote_node_context *rnc;
 	struct scic_sds_controller *scic;
 	__le64 sas_addr;
 
 	scic = scic_sds_remote_device_get_controller(sci_dev);
-
-	rnc = scic_sds_controller_get_remote_node_context_buffer(
-		scic, sci_rnc->remote_node_index);
+	rnc = scic_sds_controller_get_remote_node_context_buffer(scic, rni);
 
 	memset(rnc, 0, sizeof(union scu_remote_node_context)
 		* scic_sds_remote_device_node_count(sci_dev));
 
-	rnc->ssp.remote_node_index = sci_rnc->remote_node_index;
+	rnc->ssp.remote_node_index = rni;
 	rnc->ssp.remote_node_port_width = sci_dev->device_port_width;
-	rnc->ssp.logical_port_index =
-		scic_sds_remote_device_get_port_index(sci_dev);
+	rnc->ssp.logical_port_index = sci_dev->owning_port->physical_port_index;
 
 	/* sas address is __be64, context ram format is __le64 */
 	sas_addr = cpu_to_le64(SAS_ADDR(dev->sas_addr));
