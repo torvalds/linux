@@ -665,62 +665,6 @@ void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *tx_ring,
 	/* tx_buffer_info must be completely set up in the transmit path */
 }
 
-/**
- * ixgbe_dcb_txq_to_tc - convert a reg index to a traffic class
- * @adapter: driver private struct
- * @index: reg idx of queue to query (0-127)
- *
- * Helper function to determine the traffic index for a particular
- * register index.
- *
- * Returns : a tc index for use in range 0-7, or 0-3
- */
-static u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 reg_idx)
-{
-	int tc = -1;
-	int dcb_i = netdev_get_num_tc(adapter->netdev);
-
-	/* if DCB is not enabled the queues have no TC */
-	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-		return tc;
-
-	/* check valid range */
-	if (reg_idx >= adapter->hw.mac.max_tx_queues)
-		return tc;
-
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82598EB:
-		tc = reg_idx >> 2;
-		break;
-	default:
-		if (dcb_i != 4 && dcb_i != 8)
-			break;
-
-		/* if VMDq is enabled the lowest order bits determine TC */
-		if (adapter->flags & (IXGBE_FLAG_SRIOV_ENABLED |
-				      IXGBE_FLAG_VMDQ_ENABLED)) {
-			tc = reg_idx & (dcb_i - 1);
-			break;
-		}
-
-		/*
-		 * Convert the reg_idx into the correct TC. This bitmask
-		 * targets the last full 32 ring traffic class and assigns
-		 * it a value of 1. From there the rest of the rings are
-		 * based on shifting the mask further up to include the
-		 * reg_idx / 16 and then reg_idx / 8. It assumes dcB_i
-		 * will only ever be 8 or 4 and that reg_idx will never
-		 * be greater then 128. The code without the power of 2
-		 * optimizations would be:
-		 * (((reg_idx % 32) + 32) * dcb_i) >> (9 - reg_idx / 32)
-		 */
-		tc = ((reg_idx & 0X1F) + 0x20) * dcb_i;
-		tc >>= 9 - (reg_idx >> 5);
-	}
-
-	return tc;
-}
-
 static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -766,7 +710,7 @@ static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 	/* disarm tx queues that have received xoff frames */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
-		u32 tc = ixgbe_dcb_txq_to_tc(adapter, tx_ring->reg_idx);
+		u8 tc = tx_ring->dcb_tc;
 
 		if (xoff[tc])
 			clear_bit(__IXGBE_HANG_CHECK_ARMED, &tx_ring->state);
