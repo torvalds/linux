@@ -262,22 +262,27 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	__u8 matchlen = 0;
 	__u8 bmatchlen;
 	sctp_scope_t scope;
-	int err = 0;
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	ipv6_addr_copy(&fl6->daddr, &daddr->v6.sin6_addr);
+	fl6->fl6_dport = daddr->v6.sin6_port;
+	fl6->flowi6_proto = IPPROTO_SCTP;
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 		fl6->flowi6_oif = daddr->v6.sin6_scope_id;
 
 
 	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl6->daddr);
 
+	if (asoc)
+		fl6->fl6_sport = htons(asoc->base.bind_addr.port);
+
 	if (saddr) {
 		ipv6_addr_copy(&fl6->saddr, &saddr->v6.sin6_addr);
+		fl6->fl6_sport = saddr->v6.sin6_port;
 		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl6->saddr);
 	}
 
-	err = ip6_dst_lookup(sk, &dst, fl6);
+	dst = ip6_dst_lookup_flow(sk, fl6, NULL, false);
 	if (!asoc || saddr)
 		goto out;
 
@@ -286,7 +291,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	/* ip6_dst_lookup has filled in the fl6->saddr for us.  Check
 	 * to see if we can use it.
 	 */
-	if (!err) {
+	if (!IS_ERR(dst)) {
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
@@ -330,11 +335,12 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	rcu_read_unlock();
 	if (baddr) {
 		ipv6_addr_copy(&fl6->saddr, &baddr->v6.sin6_addr);
-		err = ip6_dst_lookup(sk, &dst, fl6);
+		fl6->fl6_sport = baddr->v6.sin6_port;
+		dst = ip6_dst_lookup_flow(sk, fl6, NULL, false);
 	}
 
 out:
-	if (!err) {
+	if (!IS_ERR(dst)) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
 		SCTP_DEBUG_PRINTK("rt6_dst:%pI6 rt6_src:%pI6\n",
