@@ -197,8 +197,6 @@ static int storvsc_drv_init(void)
 	/* Callback to client driver to complete the initialization */
 	stor_vsc_initialize(&storvsc_drv_obj->base);
 
-	drv->priv = storvsc_drv_obj;
-
 	DPRINT_INFO(STORVSC_DRV,
 		    "max outstanding reqs %u",
 		    storvsc_drv_obj->max_outstanding_req_per_channel);
@@ -325,9 +323,8 @@ static void storvsc_drv_exit(void)
 static int storvsc_probe(struct device *device)
 {
 	int ret;
-	struct hv_driver *drv =
-				drv_to_hv_drv(device->driver);
-	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
+	struct storvsc_driver_object *storvsc_drv_obj =
+				 drv_to_stordrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
@@ -404,9 +401,8 @@ static int storvsc_probe(struct device *device)
  */
 static int storvsc_remove(struct device *device)
 {
-	struct hv_driver *drv =
-			drv_to_hv_drv(device->driver);
-	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
+	struct storvsc_driver_object *storvsc_drv_obj =
+			 drv_to_stordrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 	struct Scsi_Host *host = dev_get_drvdata(device);
 	struct host_device_context *host_device_ctx =
@@ -692,9 +688,8 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
 	struct hv_device *device_ctx = host_device_ctx->device_ctx;
-	struct hv_driver *drv =
-		drv_to_hv_drv(device_ctx->device.driver);
-	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
+	struct storvsc_driver_object *storvsc_drv_obj =
+		drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;
 	unsigned int request_size = 0;
