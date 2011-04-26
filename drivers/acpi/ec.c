@@ -938,6 +938,14 @@ static struct dmi_system_id __initdata ec_dmi_table[] = {
 	ec_flag_msi, "MSI hardware", {
 	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR")}, NULL},
 	{
+	ec_flag_msi, "Quanta hardware", {
+	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "TW8/SW8/DW8"),}, NULL},
+	{
+	ec_flag_msi, "Quanta hardware", {
+	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "TW9/SW9"),}, NULL},
+	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "ASUS") }, NULL},
 	{},
