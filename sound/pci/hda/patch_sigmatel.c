@@ -5449,13 +5449,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->init = stac92hd83xxx_core_init;
 
-	if (codec->bus->pci && codec->bus->pci->vendor == PCI_VENDOR_ID_AMD) {
-		snd_printk(KERN_INFO "idt92hd83xxx: "
-			   "Enable sync_write for AMD chipset\n");
-		codec->bus->sync_write = 1;
-		codec->bus->allow_bus_reset = 1;
-	}
-
 	spec->board_config = snd_hda_check_board_config(codec,
 							STAC_92HD83XXX_MODELS,
 							stac92hd83xxx_models,
@@ -5735,15 +5728,6 @@ again:
 
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
 		snd_hda_sequence_write_cache(codec, unmute_init);
-
-	/* Some HP machines seem to have unstable codec communications
-	 * especially with ATI fglrx driver.  For recovering from the
-	 * CORB/RIRB stall, allow the BUS reset and keep always sync
-	 */
-	if (spec->board_config == STAC_HP_DV5) {
-		codec->bus->sync_write = 1;
-		codec->bus->allow_bus_reset = 1;
-	}
 
 	spec->aloopback_ctl = stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
