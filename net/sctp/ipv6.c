@@ -247,17 +247,16 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 /* Returns the dst cache entry for the given source and destination ip
  * addresses.
  */
-static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
-					 union sctp_addr *daddr,
-					 union sctp_addr *saddr,
-					 struct flowi *fl,
-					 struct sock *sk)
+static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
+			    struct flowi *fl, struct sock *sk)
 {
+	struct sctp_association *asoc = t->asoc;
 	struct dst_entry *dst = NULL;
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sctp_bind_addr *bp;
 	struct sctp_sockaddr_entry *laddr;
 	union sctp_addr *baddr = NULL;
+	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 	__u8 matchlen = 0;
 	__u8 bmatchlen;
@@ -269,7 +268,6 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	fl6->flowi6_proto = IPPROTO_SCTP;
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 		fl6->flowi6_oif = daddr->v6.sin6_scope_id;
-
 
 	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl6->daddr);
 
@@ -343,12 +341,13 @@ out:
 	if (!IS_ERR(dst)) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
+		t->dst = dst;
 		SCTP_DEBUG_PRINTK("rt6_dst:%pI6 rt6_src:%pI6\n",
 			&rt->rt6i_dst.addr, &fl6->saddr);
-		return dst;
+	} else {
+		t->dst = NULL;
+		SCTP_DEBUG_PRINTK("NO ROUTE\n");
 	}
-	SCTP_DEBUG_PRINTK("NO ROUTE\n");
-	return NULL;
 }
 
 /* Returns the number of consecutive initial bits that match in the 2 ipv6

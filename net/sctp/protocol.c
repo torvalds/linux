@@ -463,17 +463,16 @@ static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
  * addresses. If an association is passed, trys to get a dst entry with a
  * source address that matches an address in the bind address list.
  */
-static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
-					 union sctp_addr *daddr,
-					 union sctp_addr *saddr,
-					 struct flowi *fl,
-					 struct sock *sk)
+static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
+				struct flowi *fl, struct sock *sk)
 {
+	struct sctp_association *asoc = t->asoc;
 	struct rtable *rt;
 	struct flowi4 *fl4 = &fl->u.ip4;
 	struct sctp_bind_addr *bp;
 	struct sctp_sockaddr_entry *laddr;
 	struct dst_entry *dst = NULL;
+	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 
 	memset(fl4, 0x0, sizeof(struct flowi4));
@@ -548,13 +547,12 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 out_unlock:
 	rcu_read_unlock();
 out:
+	t->dst = dst;
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%pI4, rt_src:%pI4\n",
 				  &rt->rt_dst, &rt->rt_src);
 	else
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
-
-	return dst;
 }
 
 /* For v4, the source address is cached in the route entry(dst). So no need

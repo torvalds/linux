@@ -213,17 +213,17 @@ void sctp_transport_set_owner(struct sctp_transport *transport,
 /* Initialize the pmtu of a transport. */
 void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 {
-	struct dst_entry *dst;
 	struct flowi fl;
 
-	dst = transport->af_specific->get_dst(transport->asoc,
-					      &transport->ipaddr,
-					      &transport->saddr,
+	/* If we don't have a fresh route, look one up */
+	if (!transport->dst || transport->dst->obsolete > 1) {
+		dst_release(transport->dst);
+		transport->af_specific->get_dst(transport, &transport->saddr,
 					      &fl, sk);
+	}
 
-	if (dst) {
-		transport->pathmtu = dst_mtu(dst);
-		dst_release(dst);
+	if (transport->dst) {
+		transport->pathmtu = dst_mtu(transport->dst);
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
@@ -274,12 +274,9 @@ void sctp_transport_route(struct sctp_transport *transport,
 {
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
-	union sctp_addr *daddr = &transport->ipaddr;
-	struct dst_entry *dst;
 	struct flowi fl;
 
-	dst = af->get_dst(asoc, daddr, saddr, &fl, sctp_opt2sk(opt));
-	transport->dst = dst;
+	af->get_dst(transport, saddr, &fl, sctp_opt2sk(opt));
 
 	if (saddr)
 		memcpy(&transport->saddr, saddr, sizeof(union sctp_addr));
@@ -289,8 +286,8 @@ void sctp_transport_route(struct sctp_transport *transport,
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
 		return;
 	}
-	if (dst) {
-		transport->pathmtu = dst_mtu(dst);
+	if (transport->dst) {
+		transport->pathmtu = dst_mtu(transport->dst);
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
