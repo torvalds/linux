@@ -27,10 +27,6 @@
 #include <mach/ddr.h>
 #include <mach/memtester.h>
 
-#include <mach/iomux.h>
-
-#define grf_readl(offset) readl(RK29_GRF_BASE + offset)
-#define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
 
 static unsigned long save_sp;
 
@@ -434,38 +430,9 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
 	printch('4');
-	/*pullup/pulldown*/
-
-	gpio0_pull = grf_readl(GRF_GPIO0_PULL);
-	gpio1_pull = grf_readl(GRF_GPIO1_PULL);
-	gpio2_pull = grf_readl(GRF_GPIO2_PULL);
-	gpio3_pull = grf_readl(GRF_GPIO3_PULL);
-	gpio4_pull = grf_readl(GRF_GPIO4_PULL);
-	gpio5_pull = grf_readl(GRF_GPIO5_PULL);
-	gpio6_pull = grf_readl(GRF_GPIO6_PULL);
-
-
-
-	grf_writel(0xffffffff,GRF_GPIO0_PULL);
-	grf_writel(0xffffffff,GRF_GPIO1_PULL);
-	grf_writel(0xffffffff,GRF_GPIO2_PULL);
-	grf_writel(0xffffffff,GRF_GPIO3_PULL);
-	grf_writel(0xffffffff,GRF_GPIO4_PULL);
-	grf_writel(0xffffffff,GRF_GPIO5_PULL);
-	grf_writel(gpio6_pull|0x0fffffff,GRF_GPIO6_PULL);
-
 	
 	rk29_suspend();
 	printch('4');
-	/*resusme pullup/pulldown*/
-	grf_writel(gpio0_pull,GRF_GPIO0_PULL);
-	grf_writel(gpio1_pull,GRF_GPIO1_PULL);
-	grf_writel(gpio2_pull,GRF_GPIO2_PULL);
-	grf_writel(gpio3_pull,GRF_GPIO3_PULL);
-	grf_writel(gpio4_pull,GRF_GPIO4_PULL);
-	grf_writel(gpio5_pull,GRF_GPIO5_PULL);
-	grf_writel(gpio6_pull,GRF_GPIO6_PULL);
-
 	
 	/* resume general pll */
 	cru_writel(gpll, CRU_GPLL_CON);
