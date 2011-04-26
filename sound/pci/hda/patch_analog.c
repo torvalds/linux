@@ -489,11 +489,6 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
-static inline void ad198x_shutup(struct hda_codec *codec)
-{
-	snd_hda_shutup_pins(codec);
-}
-
 static void ad198x_free_kctls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -547,6 +542,12 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 	}
 }
 
+static void ad198x_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+	ad198x_power_eapd(codec);
+}
+
 static void ad198x_free(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -564,7 +565,6 @@ static void ad198x_free(struct hda_codec *codec)
 static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	ad198x_shutup(codec);
-	ad198x_power_eapd(codec);
 	return 0;
 }
 #endif
