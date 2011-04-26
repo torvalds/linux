@@ -847,6 +847,14 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_free_devinfo;
 	}
 
+	mem = request_mem_region(mem->start, resource_size(mem),
+					dev_name(&pdev->dev));
+	if (!mem) {
+		dev_err(&pdev->dev, "%s: no mem region\n", __func__);
+		ret = -EBUSY;
+		goto err_free_devinfo;
+	}
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	pm_runtime_enable(&pdev->dev);
