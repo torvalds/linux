@@ -835,6 +835,9 @@ static void netvsc_receive(struct hv_device *device,
 	int i, j;
 	int count = 0, bytes_remain = 0;
 	unsigned long flags;
+	struct netvsc_driver *netvsc_drv =
+		 drv_to_netvscdrv(device->device.driver);
+
 	LIST_HEAD(listHead);
 
 	net_device = get_inbound_net_device(device);
@@ -995,8 +998,7 @@ static void netvsc_receive(struct hv_device *device,
 		}
 
 		/* Pass it to the upper layer */
-		((struct netvsc_driver *)device->drv)->
-			recv_cb(device, netvsc_packet);
+		netvsc_drv->recv_cb(device, netvsc_packet);
 
 		netvsc_receive_completion(netvsc_packet->
 				completion.recv.recv_completion_ctx);
@@ -1102,7 +1104,7 @@ static int netvsc_device_add(struct hv_device *device, void *additional_info)
 	struct netvsc_device *net_device;
 	struct hv_netvsc_packet *packet, *pos;
 	struct netvsc_driver *net_driver =
-				(struct netvsc_driver *)device->drv;
+		drv_to_netvscdrv(device->device.driver);
 
 	net_device = alloc_net_device(device);
 	if (!net_device) {
@@ -1183,7 +1185,8 @@ cleanup:
  */
 int netvsc_initialize(struct hv_driver *drv)
 {
-	struct netvsc_driver *driver = (struct netvsc_driver *)drv;
+	struct netvsc_driver *driver =
+		drv_to_netvscdrv(&drv->driver);
 
 	drv->name = driver_name;
 	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));

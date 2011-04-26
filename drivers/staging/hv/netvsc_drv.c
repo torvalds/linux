@@ -132,9 +132,8 @@ static void netvsc_xmit_completion(void *context)
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_driver *drv =
-	    drv_to_hv_drv(net_device_ctx->device_ctx->device.driver);
-	struct netvsc_driver *net_drv_obj = drv->priv;
+	struct netvsc_driver *net_drv_obj =
+		drv_to_netvscdrv(net_device_ctx->device_ctx->device.driver);
 	struct hv_netvsc_packet *packet;
 	int ret;
 	unsigned int i, num_pages;
@@ -343,9 +342,8 @@ static void netvsc_send_garp(struct work_struct *w)
 
 static int netvsc_probe(struct device *device)
 {
-	struct hv_driver *drv =
-		drv_to_hv_drv(device->driver);
-	struct netvsc_driver *net_drv_obj = drv->priv;
+	struct netvsc_driver *net_drv_obj =
+		drv_to_netvscdrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
@@ -413,9 +411,8 @@ static int netvsc_probe(struct device *device)
 
 static int netvsc_remove(struct device *device)
 {
-	struct hv_driver *drv =
-		drv_to_hv_drv(device->driver);
-	struct netvsc_driver *net_drv_obj = drv->priv;
+	struct netvsc_driver *net_drv_obj =
+		drv_to_netvscdrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	int ret;
@@ -498,7 +495,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	net_drv_obj->ring_buf_size = ring_size * PAGE_SIZE;
 	net_drv_obj->recv_cb = netvsc_recv_callback;
 	net_drv_obj->link_status_change = netvsc_linkstatus_callback;
-	drv->priv = net_drv_obj;
 
 	/* Callback to client driver to complete the initialization */
 	drv_init(&net_drv_obj->base);
