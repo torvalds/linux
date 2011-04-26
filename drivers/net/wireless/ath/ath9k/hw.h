@@ -56,6 +56,9 @@
 #define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
 #define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
 
+#define AR9300_NUM_BT_WEIGHTS   4
+#define AR9300_NUM_WLAN_WEIGHTS 4
+
 #define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
 #define	ATH_DEFAULT_NOISE_FLOOR -95
@@ -772,6 +775,8 @@ struct ath_hw {
 
 	/* Bluetooth coexistance */
 	struct ath_btcoex_hw btcoex_hw;
+	u32 bt_coex_bt_weight[AR9300_NUM_BT_WEIGHTS];
+	u32 bt_coex_wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
 
 	u32 intr_txqs;
 	u8 txchainmask;

@@ -51,6 +51,10 @@ void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 		.bt_hold_rx_clear = true,
 	};
 	u32 i;
+	bool rxclear_polarity = ath_bt_config.bt_rxclear_polarity;
+
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		rxclear_polarity = !ath_bt_config.bt_rxclear_polarity;
 
 	btcoex_hw->bt_coex_mode =
 		(btcoex_hw->bt_coex_mode & AR_BT_QCU_THRESH) |
@@ -59,7 +63,7 @@ void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 		SM(ath_bt_config.bt_txframe_extend, AR_BT_TX_FRAME_EXTEND) |
 		SM(ath_bt_config.bt_mode, AR_BT_MODE) |
 		SM(ath_bt_config.bt_quiet_collision, AR_BT_QUIET) |
-		SM(ath_bt_config.bt_rxclear_polarity, AR_BT_RX_CLEAR_POLARITY) |
+		SM(rxclear_polarity, AR_BT_RX_CLEAR_POLARITY) |
 		SM(ath_bt_config.bt_priority_time, AR_BT_PRIORITY_TIME) |
 		SM(ath_bt_config.bt_first_slot_time, AR_BT_FIRST_SLOT_TIME) |
 		SM(qnum, AR_BT_QCU_THRESH);
@@ -142,6 +146,7 @@ void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_set_weight);
 
+
 static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
@@ -152,8 +157,21 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 	 * enable coex 3-wire
 	 */
 	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_hw->bt_coex_mode);
-	REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_hw->bt_coex_weights);
 	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_hw->bt_coex_mode2);
+
+
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS0, ah->bt_coex_wlan_weight[0]);
+		REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS1, ah->bt_coex_wlan_weight[1]);
+		REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS0, ah->bt_coex_bt_weight[0]);
+		REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS1, ah->bt_coex_bt_weight[1]);
+		REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS2, ah->bt_coex_bt_weight[2]);
+		REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS3, ah->bt_coex_bt_weight[3]);
+
+	} else
+		REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_hw->bt_coex_weights);
+
+
 
 	if (AR_SREV_9271(ah)) {
 		val = REG_READ(ah, 0x50040);
@@ -202,8 +220,18 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 
 	if (btcoex_hw->scheme == ATH_BTCOEX_CFG_3WIRE) {
 		REG_WRITE(ah, AR_BT_COEX_MODE, AR_BT_QUIET | AR_BT_MODE);
-		REG_WRITE(ah, AR_BT_COEX_WEIGHT, 0);
 		REG_WRITE(ah, AR_BT_COEX_MODE2, 0);
+
+		if (AR_SREV_9300_20_OR_LATER(ah)) {
+			REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS0, 0);
+			REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS1, 0);
+			REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS0, 0);
+			REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS1, 0);
+			REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS2, 0);
+			REG_WRITE(ah, AR_BT_COEX_BT_WEIGHTS3, 0);
+		} else
+			REG_WRITE(ah, AR_BT_COEX_WEIGHT, 0);
+
 	}
 
 	ah->btcoex_hw.enabled = false;
