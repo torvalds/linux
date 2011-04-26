@@ -3147,6 +3147,28 @@ out:
 	return ret;
 }
 
+static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct wl1271 *wl = hw->priv;
+	bool ret = false;
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	/* packets are considered pending if in the TX queue or the FW */
+	ret = (wl->tx_queue_count > 0) || (wl->tx_frames_cnt > 0);
+
+	/* the above is appropriate for STA mode for PS purposes */
+	WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
 	{ .bitrate = 10,
@@ -3398,6 +3420,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.sta_add = wl1271_op_sta_add,
 	.sta_remove = wl1271_op_sta_remove,
 	.ampdu_action = wl1271_op_ampdu_action,
+	.tx_frames_pending = wl1271_tx_frames_pending,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
