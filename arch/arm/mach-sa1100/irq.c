@@ -323,28 +323,28 @@ void __init sa1100_init_irq(void)
 	ICCR = 1;
 
 	for (irq = 0; irq <= 10; irq++) {
-		set_irq_chip(irq, &sa1100_low_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1100_low_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	for (irq = 12; irq <= 31; irq++) {
-		set_irq_chip(irq, &sa1100_normal_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &sa1100_normal_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	for (irq = 32; irq <= 48; irq++) {
-		set_irq_chip(irq, &sa1100_high_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1100_high_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/*
 	 * Install handler for GPIO 11-27 edge detect interrupts
 	 */
-	set_irq_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
-	set_irq_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
+	irq_set_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
+	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
 
 	sa1100_init_gpio();
 }

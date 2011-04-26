@@ -364,6 +364,10 @@ int __weak arch_show_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
+#ifndef ACTUAL_NR_IRQS
+# define ACTUAL_NR_IRQS nr_irqs
+#endif
+
 int show_interrupts(struct seq_file *p, void *v)
 {
 	static int prec;
@@ -373,10 +377,10 @@ int show_interrupts(struct seq_file *p, void *v)
 	struct irqaction *action;
 	struct irq_desc *desc;
 
-	if (i > nr_irqs)
+	if (i > ACTUAL_NR_IRQS)
 		return 0;
 
-	if (i == nr_irqs)
+	if (i == ACTUAL_NR_IRQS)
 		return arch_show_interrupts(p, prec);
 
 	/* print header and calculate the width of the first column */

@@ -183,7 +183,7 @@ void __init arch_init_irq(void)
 	int configPR;
 
 	for (i = 0; i < PNX8550_INT_CP0_TOTINT; i++)
-		set_irq_chip_and_handler(i, &level_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &level_irq_type, handle_level_irq);
 
 	/* init of GIC/IPC interrupts */
 	/* should be done before cp0 since cp0 init enables the GIC int */
@@ -206,7 +206,7 @@ void __init arch_init_irq(void)
 		/* mask/priority is still 0 so we will not get any
 		 * interrupts until it is unmasked */
 
-		set_irq_chip_and_handler(i, &level_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &level_irq_type, handle_level_irq);
 	}
 
 	/* Priority level 0 */
@@ -215,20 +215,20 @@ void __init arch_init_irq(void)
 	/* Set int vector table address */
 	PNX8550_GIC_VECTOR_0 = PNX8550_GIC_VECTOR_1 = 0;
 
-	set_irq_chip_and_handler(MIPS_CPU_GIC_IRQ, &level_irq_type,
+	irq_set_chip_and_handler(MIPS_CPU_GIC_IRQ, &level_irq_type,
 				 handle_level_irq);
 	setup_irq(MIPS_CPU_GIC_IRQ, &gic_action);
 
 	/* init of Timer interrupts */
 	for (i = PNX8550_INT_TIMER_MIN; i <= PNX8550_INT_TIMER_MAX; i++)
-		set_irq_chip_and_handler(i, &level_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &level_irq_type, handle_level_irq);
 
 	/* Stop Timer 1-3 */
 	configPR = read_c0_config7();
 	configPR |= 0x00000038;
 	write_c0_config7(configPR);
 
-	set_irq_chip_and_handler(MIPS_CPU_TIMER_IRQ, &level_irq_type,
+	irq_set_chip_and_handler(MIPS_CPU_TIMER_IRQ, &level_irq_type,
 				 handle_level_irq);
 	setup_irq(MIPS_CPU_TIMER_IRQ, &timer_action);
 }

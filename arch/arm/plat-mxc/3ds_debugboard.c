@@ -100,14 +100,9 @@ static void mxc_expio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	expio_irq = MXC_BOARD_IRQ_START;
 	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
-		struct irq_desc *d;
 		if ((int_valid & 1) == 0)
 			continue;
-		d = irq_desc + expio_irq;
-		if (unlikely(!(d->handle_irq)))
-			pr_err("\nEXPIO irq: %d unhandled\n", expio_irq);
-		else
-			d->handle_irq(expio_irq, d);
+		generic_handle_irq(expio_irq);
 	}
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
@@ -186,12 +181,11 @@ int __init mxc_expio_init(u32 base, u32 p_irq)
 	__raw_writew(0x1F, brd_io + INTR_MASK_REG);
 	for (i = MXC_EXP_IO_BASE;
 	     i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES); i++) {
-		set_irq_chip(i, &expio_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_type(p_irq, IRQF_TRIGGER_LOW);
-	set_irq_chained_handler(p_irq, mxc_expio_irq_handler);
+	irq_set_irq_type(p_irq, IRQF_TRIGGER_LOW);
+	irq_set_chained_handler(p_irq, mxc_expio_irq_handler);
 
 	/* Register Lan device on the debugboard */
 	smsc911x_resources[0].start = LAN9217_BASE_ADDR(base);

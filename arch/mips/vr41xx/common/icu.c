@@ -710,11 +710,11 @@ static int __init vr41xx_icu_init(void)
 	icu2_write(MGIUINTHREG, 0xffff);
 
 	for (i = SYSINT1_IRQ_BASE; i <= SYSINT1_IRQ_LAST; i++)
-		set_irq_chip_and_handler(i, &sysint1_irq_type,
+		irq_set_chip_and_handler(i, &sysint1_irq_type,
 					 handle_level_irq);
 
 	for (i = SYSINT2_IRQ_BASE; i <= SYSINT2_IRQ_LAST; i++)
-		set_irq_chip_and_handler(i, &sysint2_irq_type,
+		irq_set_chip_and_handler(i, &sysint2_irq_type,
 					 handle_level_irq);
 
 	cascade_irq(INT0_IRQ, icu_get_irq);

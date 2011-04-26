@@ -126,6 +126,7 @@ struct btrfs_fs_devices {
 struct btrfs_bio_stripe {
 	struct btrfs_device *dev;
 	u64 physical;
+	u64 length; /* only used for discard mappings */
 };
 
 struct btrfs_multi_bio {
@@ -143,6 +144,17 @@ struct btrfs_device_info {
 	struct btrfs_device *dev;
 	u64 dev_offset;
 	u64 max_avail;
+};
+
+struct map_lookup {
+	u64 type;
+	int io_align;
+	int io_width;
+	int stripe_len;
+	int sector_size;
+	int num_stripes;
+	int sub_stripes;
+	struct btrfs_bio_stripe stripes[];
 };
 
 /* Used to sort the devices by max_avail(descending sort) */

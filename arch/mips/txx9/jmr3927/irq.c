@@ -120,8 +120,9 @@ void __init jmr3927_irq_setup(void)
 
 	tx3927_irq_init();
 	for (i = JMR3927_IRQ_IOC; i < JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &jmr3927_irq_ioc, handle_level_irq);
+		irq_set_chip_and_handler(i, &jmr3927_irq_ioc,
+					 handle_level_irq);
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
-	set_irq_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
+	irq_set_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
 }

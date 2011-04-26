@@ -2679,7 +2679,7 @@ static int __init amd64_edac_init(void)
 	mcis	  = kzalloc(amd_nb_num() * sizeof(mcis[0]), GFP_KERNEL);
 	ecc_stngs = kzalloc(amd_nb_num() * sizeof(ecc_stngs[0]), GFP_KERNEL);
 	if (!(mcis && ecc_stngs))
-		goto err_ret;
+		goto err_free;
 
 	msrs = msrs_alloc();
 	if (!msrs)

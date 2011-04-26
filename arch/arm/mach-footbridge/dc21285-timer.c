@@ -30,7 +30,7 @@ static int cksrc_dc21285_enable(struct clocksource *cs)
 	return 0;
 }
 
-static int cksrc_dc21285_disable(struct clocksource *cs)
+static void cksrc_dc21285_disable(struct clocksource *cs)
 {
 	*CSR_TIMER2_CNTL = 0;
 }

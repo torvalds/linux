@@ -743,7 +743,7 @@ static int __init gpmc_init(void)
 	/* initalize the irq_chained */
 	irq = OMAP_GPMC_IRQ_BASE;
 	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
-		set_irq_chip_and_handler(irq, &dummy_irq_chip,
+		irq_set_chip_and_handler(irq, &dummy_irq_chip,
 						handle_simple_irq);
 		set_irq_flags(irq, IRQF_VALID);
 		irq++;

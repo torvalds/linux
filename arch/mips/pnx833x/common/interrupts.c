@@ -259,11 +259,13 @@ void __init arch_init_irq(void)
 	/* Set IRQ information in irq_desc */
 	for (irq = PNX833X_PIC_IRQ_BASE; irq < (PNX833X_PIC_IRQ_BASE + PNX833X_PIC_NUM_IRQ); irq++) {
 		pnx833x_hard_disable_pic_irq(irq);
-		set_irq_chip_and_handler(irq, &pnx833x_pic_irq_type, handle_simple_irq);
+		irq_set_chip_and_handler(irq, &pnx833x_pic_irq_type,
+					 handle_simple_irq);
 	}
 
 	for (irq = PNX833X_GPIO_IRQ_BASE; irq < (PNX833X_GPIO_IRQ_BASE + PNX833X_GPIO_NUM_IRQ); irq++)
-		set_irq_chip_and_handler(irq, &pnx833x_gpio_irq_type, handle_simple_irq);
+		irq_set_chip_and_handler(irq, &pnx833x_gpio_irq_type,
+					 handle_simple_irq);
 
 	/* Set PIC priority limiter register to 0 */
 	PNX833X_PIC_INT_PRIORITY = 0;

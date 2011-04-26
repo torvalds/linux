@@ -559,7 +559,7 @@ static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 #ifdef CONFIG_IPIPE
 	handle = handle_level_irq;
 #endif
-	__set_irq_handler_unlocked(irq, handle);
+	__irq_set_handler_locked(irq, handle);
 }
 
 static DECLARE_BITMAP(gpio_enabled, MAX_BLACKFIN_GPIOS);
@@ -578,10 +578,9 @@ static void bfin_gpio_ack_irq(struct irq_data *d)
 static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = d->irq;
-	struct irq_desc *desc = irq_to_desc(irq);
 	u32 gpionr = irq_to_gpio(irq);
 
-	if (desc->handle_irq == handle_edge_irq)
+	if (!irqd_is_level_type(d))
 		set_gpio_data(gpionr, 0);
 
 	set_gpio_maska(gpionr, 0);
@@ -837,12 +836,11 @@ void init_pint_lut(void)
 
 static void bfin_gpio_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
@@ -854,12 +852,11 @@ static void bfin_gpio_ack_irq(struct irq_data *d)
 
 static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
@@ -1166,9 +1163,9 @@ int __init init_arch_irq(void)
 
 	for (irq = 0; irq <= SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
-			set_irq_chip(irq, &bfin_core_irqchip);
+			irq_set_chip(irq, &bfin_core_irqchip);
 		else
-			set_irq_chip(irq, &bfin_internal_irqchip);
+			irq_set_chip(irq, &bfin_internal_irqchip);
 
 		switch (irq) {
 #if defined(CONFIG_BF53x)
@@ -1192,50 +1189,50 @@ int __init init_arch_irq(void)
 #elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
 		case IRQ_PORTF_INTA:
 #endif
-			set_irq_chained_handler(irq,
-						bfin_demux_gpio_irq);
+			irq_set_chained_handler(irq, bfin_demux_gpio_irq);
 			break;
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 		case IRQ_GENERIC_ERROR:
-			set_irq_chained_handler(irq, bfin_demux_error_irq);
+			irq_set_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 		case IRQ_MAC_ERROR:
-			set_irq_chained_handler(irq, bfin_demux_mac_status_irq);
+			irq_set_chained_handler(irq,
+						bfin_demux_mac_status_irq);
 			break;
 #endif
 #ifdef CONFIG_SMP
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
-			set_irq_handler(irq, handle_percpu_irq);
+			irq_set_handler(irq, handle_percpu_irq);
 			break;
 #endif
 
 #ifdef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_CORETMR:
 # ifdef CONFIG_SMP
-			set_irq_handler(irq, handle_percpu_irq);
+			irq_set_handler(irq, handle_percpu_irq);
 			break;
 # else
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_handler(irq, handle_simple_irq);
 			break;
 # endif
 #endif
 
 #ifdef CONFIG_TICKSOURCE_GPTMR0
 		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_handler(irq, handle_simple_irq);
 			break;
 #endif
 
 #ifdef CONFIG_IPIPE
 		default:
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_handler(irq, handle_level_irq);
 			break;
 #else /* !CONFIG_IPIPE */
 		default:
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_handler(irq, handle_simple_irq);
 			break;
 #endif /* !CONFIG_IPIPE */
 		}
@@ -1243,22 +1240,22 @@ int __init init_arch_irq(void)
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++)
-		set_irq_chip_and_handler(irq, &bfin_generic_error_irqchip,
+		irq_set_chip_and_handler(irq, &bfin_generic_error_irqchip,
 					 handle_level_irq);
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-	set_irq_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
+	irq_set_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
 #endif
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	for (irq = IRQ_MAC_PHYINT; irq <= IRQ_MAC_STMDONE; irq++)
-		set_irq_chip_and_handler(irq, &bfin_mac_status_irqchip,
+		irq_set_chip_and_handler(irq, &bfin_mac_status_irqchip,
 					 handle_level_irq);
 #endif
 	/* if configured as edge, then will be changed to do_edge_IRQ */
 	for (irq = GPIO_IRQ_BASE;
 		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
-		set_irq_chip_and_handler(irq, &bfin_gpio_irqchip,
+		irq_set_chip_and_handler(irq, &bfin_gpio_irqchip,
 					 handle_level_irq);
 
 	bfin_write_IMASK(0);

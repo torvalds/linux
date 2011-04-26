@@ -2407,7 +2407,7 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	 * This code is supposed to duplicate the IBM firmware behaviour:
 	 * - Pressing MUTE issues mute hotkey message, even when already mute
 	 * - Pressing Volume up/down issues volume up/down hotkey messages,
-	 *   even when already at maximum or minumum volume
+	 *   even when already at maximum or minimum volume
 	 * - The act of unmuting issues volume up/down notification,
 	 *   depending which key was used to unmute
 	 *
@@ -2990,7 +2990,7 @@ static void tpacpi_send_radiosw_update(void)
 	 * rfkill input events, or we will race the rfkill core input
 	 * handler.
 	 *
-	 * tpacpi_inputdev_send_mutex works as a syncronization point
+	 * tpacpi_inputdev_send_mutex works as a synchronization point
 	 * for the above.
 	 *
 	 * We optimize to avoid numerous calls to hotkey_get_wlsw.

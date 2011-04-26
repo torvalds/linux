@@ -145,7 +145,7 @@ static int mpc8xxx_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static void mpc8xxx_gpio_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = get_irq_desc_data(desc);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = irq_desc_get_handler_data(desc);
 	struct of_mm_gpio_chip *mm = &mpc8xxx_gc->mm_gc;
 	unsigned int mask;
 
@@ -278,9 +278,9 @@ static int mpc8xxx_gpio_irq_map(struct irq_host *h, unsigned int virq,
 	if (mpc8xxx_gc->of_dev_id_data)
 		mpc8xxx_irq_chip.irq_set_type = mpc8xxx_gc->of_dev_id_data;
 
-	set_irq_chip_data(virq, h->host_data);
-	set_irq_chip_and_handler(virq, &mpc8xxx_irq_chip, handle_level_irq);
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_chip_and_handler(virq, &mpc8xxx_irq_chip, handle_level_irq);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	return 0;
 }
@@ -369,8 +369,8 @@ static void __init mpc8xxx_add_controller(struct device_node *np)
 	out_be32(mm_gc->regs + GPIO_IER, 0xffffffff);
 	out_be32(mm_gc->regs + GPIO_IMR, 0);
 
-	set_irq_data(hwirq, mpc8xxx_gc);
-	set_irq_chained_handler(hwirq, mpc8xxx_gpio_irq_cascade);
+	irq_set_handler_data(hwirq, mpc8xxx_gc);
+	irq_set_chained_handler(hwirq, mpc8xxx_gpio_irq_cascade);
 
 skip_irq:
 	return;

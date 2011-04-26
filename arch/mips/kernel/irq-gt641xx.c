@@ -126,6 +126,6 @@ void __init gt641xx_irq_init(void)
 	 * bit31: logical or of bits[25:1].
 	 */
 	for (i = 1; i < 30; i++)
-		set_irq_chip_and_handler(GT641XX_IRQ_BASE + i,
-		                         &gt641xx_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(GT641XX_IRQ_BASE + i,
+					 &gt641xx_irq_chip, handle_level_irq);
 }

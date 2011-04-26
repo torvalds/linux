@@ -56,7 +56,7 @@ void __init init_r4030_ints(void)
 	int i;
 
 	for (i = JAZZ_IRQ_START; i <= JAZZ_IRQ_END; i++)
-		set_irq_chip_and_handler(i, &r4030_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &r4030_irq_type, handle_level_irq);
 
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE, 0);
 	r4030_read_reg16(JAZZ_IO_IRQ_SOURCE);		/* clear pending IRQs */
