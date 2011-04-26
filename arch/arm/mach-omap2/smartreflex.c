@@ -954,6 +954,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	return ret;
 
 err_iounmap:
+	list_del(&sr_info->node);
 	iounmap(sr_info->base);
 err_release_region:
 	release_mem_region(mem->start, resource_size(mem));
