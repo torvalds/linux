@@ -34,6 +34,8 @@ enum chip_flavors {
 	chip_6485,
 	chip_9480,
 	chip_9180,
+	chip_9445,
+	chip_9485,
 	chip_1300,
 	chip_1320
 };
