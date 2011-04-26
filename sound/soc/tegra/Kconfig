@@ -30,3 +30,11 @@ config SND_SOC_TEGRA_WM8903
 	  boards using the WM8093 codec. Currently, the supported boards are
 	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
 
+config SND_SOC_TEGRA_TRIMSLICE
+	tristate "SoC Audio support for TrimSlice board"
+	depends on SND_SOC_TEGRA && MACH_TRIMSLICE && I2C
+	select SND_SOC_TEGRA_I2S
+	select SND_SOC_TLV320AIC23
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  TrimSlice platform.
