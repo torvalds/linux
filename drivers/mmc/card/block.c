@@ -31,7 +31,11 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <linux/string_helpers.h>
+#include <linux/delay.h>
+#include <linux/capability.h>
+#include <linux/compat.h>
 
+#include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -218,11 +222,208 @@ mmc_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
+struct mmc_blk_ioc_data {
+	struct mmc_ioc_cmd ic;
+	unsigned char *buf;
+	u64 buf_bytes;
+};
+
+static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
+	struct mmc_ioc_cmd __user *user)
+{
+	struct mmc_blk_ioc_data *idata;
+	int err;
+
+	idata = kzalloc(sizeof(*idata), GFP_KERNEL);
+	if (!idata) {
+		err = -ENOMEM;
+		goto copy_err;
+	}
+
+	if (copy_from_user(&idata->ic, user, sizeof(idata->ic))) {
+		err = -EFAULT;
+		goto copy_err;
+	}
+
+	idata->buf_bytes = (u64) idata->ic.blksz * idata->ic.blocks;
+	if (idata->buf_bytes > MMC_IOC_MAX_BYTES) {
+		err = -EOVERFLOW;
+		goto copy_err;
+	}
+
+	idata->buf = kzalloc(idata->buf_bytes, GFP_KERNEL);
+	if (!idata->buf) {
+		err = -ENOMEM;
+		goto copy_err;
+	}
+
+	if (copy_from_user(idata->buf, (void __user *)(unsigned long)
+					idata->ic.data_ptr, idata->buf_bytes)) {
+		err = -EFAULT;
+		goto copy_err;
+	}
+
+	return idata;
+
+copy_err:
+	kfree(idata->buf);
+	kfree(idata);
+	return ERR_PTR(err);
+
+}
+
+static int mmc_blk_ioctl_cmd(struct block_device *bdev,
+	struct mmc_ioc_cmd __user *ic_ptr)
+{
+	struct mmc_blk_ioc_data *idata;
+	struct mmc_blk_data *md;
+	struct mmc_card *card;
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct mmc_request mrq = {0};
+	struct scatterlist sg;
+	int err;
+
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
+
+	idata = mmc_blk_ioctl_copy_from_user(ic_ptr);
+	if (IS_ERR(idata))
+		return PTR_ERR(idata);
+
+	cmd.opcode = idata->ic.opcode;
+	cmd.arg = idata->ic.arg;
+	cmd.flags = idata->ic.flags;
+
+	data.sg = &sg;
+	data.sg_len = 1;
+	data.blksz = idata->ic.blksz;
+	data.blocks = idata->ic.blocks;
+
+	sg_init_one(data.sg, idata->buf, idata->buf_bytes);
+
+	if (idata->ic.write_flag)
+		data.flags = MMC_DATA_WRITE;
+	else
+		data.flags = MMC_DATA_READ;
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	md = mmc_blk_get(bdev->bd_disk);
+	if (!md) {
+		err = -EINVAL;
+		goto cmd_done;
+	}
+
+	card = md->queue.card;
+	if (IS_ERR(card)) {
+		err = PTR_ERR(card);
+		goto cmd_done;
+	}
+
+	mmc_claim_host(card->host);
+
+	if (idata->ic.is_acmd) {
+		err = mmc_app_cmd(card->host, card);
+		if (err)
+			goto cmd_rel_host;
+	}
+
+	/* data.flags must already be set before doing this. */
+	mmc_set_data_timeout(&data, card);
+	/* Allow overriding the timeout_ns for empirical tuning. */
+	if (idata->ic.data_timeout_ns)
+		data.timeout_ns = idata->ic.data_timeout_ns;
+
+	if ((cmd.flags & MMC_RSP_R1B) == MMC_RSP_R1B) {
+		/*
+		 * Pretend this is a data transfer and rely on the host driver
+		 * to compute timeout.  When all host drivers support
+		 * cmd.cmd_timeout for R1B, this can be changed to:
+		 *
+		 *     mrq.data = NULL;
+		 *     cmd.cmd_timeout = idata->ic.cmd_timeout_ms;
+		 */
+		data.timeout_ns = idata->ic.cmd_timeout_ms * 1000000;
+	}
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error) {
+		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
+						__func__, cmd.error);
+		err = cmd.error;
+		goto cmd_rel_host;
+	}
+	if (data.error) {
+		dev_err(mmc_dev(card->host), "%s: data error %d\n",
+						__func__, data.error);
+		err = data.error;
+		goto cmd_rel_host;
+	}
+
+	/*
+	 * According to the SD specs, some commands require a delay after
+	 * issuing the command.
+	 */
+	if (idata->ic.postsleep_min_us)
+		usleep_range(idata->ic.postsleep_min_us, idata->ic.postsleep_max_us);
+
+	if (copy_to_user(&(ic_ptr->response), cmd.resp, sizeof(cmd.resp))) {
+		err = -EFAULT;
+		goto cmd_rel_host;
+	}
+
+	if (!idata->ic.write_flag) {
+		if (copy_to_user((void __user *)(unsigned long) idata->ic.data_ptr,
+						idata->buf, idata->buf_bytes)) {
+			err = -EFAULT;
+			goto cmd_rel_host;
+		}
+	}
+
+cmd_rel_host:
+	mmc_release_host(card->host);
+
+cmd_done:
+	mmc_blk_put(md);
+	kfree(idata->buf);
+	kfree(idata);
+	return err;
+}
+
+static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
+	unsigned int cmd, unsigned long arg)
+{
+	int ret = -EINVAL;
+	if (cmd == MMC_IOC_CMD)
+		ret = mmc_blk_ioctl_cmd(bdev, (struct mmc_ioc_cmd __user *)arg);
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static int mmc_blk_compat_ioctl(struct block_device *bdev, fmode_t mode,
+	unsigned int cmd, unsigned long arg)
+{
+	return mmc_blk_ioctl(bdev, mode, cmd, (unsigned long) compat_ptr(arg));
+}
+#endif
+
 static const struct block_device_operations mmc_bdops = {
 	.open			= mmc_blk_open,
 	.release		= mmc_blk_release,
 	.getgeo			= mmc_blk_getgeo,
 	.owner			= THIS_MODULE,
+	.ioctl			= mmc_blk_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= mmc_blk_compat_ioctl,
+#endif
 };
 
 struct mmc_blk_request {

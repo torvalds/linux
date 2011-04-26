@@ -21,7 +21,7 @@
 #include "core.h"
 #include "sd_ops.h"
 
-static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
+int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
 	struct mmc_command cmd = {0};
@@ -49,6 +49,7 @@ static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mmc_app_cmd);
 
 /**
  *	mmc_wait_for_app_cmd - start an application command and wait for
