@@ -104,50 +104,11 @@ enum _scic_sds_stp_packet_request_started_substates {
 	SCIC_SDS_STP_PACKET_REQUEST_STARTED_COMPLETION_DELAY_SUBSTATE,
 };
 
-
-
-#if !defined(DISABLE_ATAPI)
-extern const struct sci_base_state scic_sds_stp_packet_request_started_substate_table[];
-extern const struct scic_sds_io_request_state_handler scic_sds_stp_packet_request_started_substate_handler_table[];
-#endif /* !defined(DISABLE_ATAPI) */
-
-#if !defined(DISABLE_ATAPI)
-enum sci_status scic_sds_stp_packet_request_construct(
-	struct scic_sds_request *sci_req);
-#else  /* !defined(DISABLE_ATAPI) */
 #define scic_sds_stp_packet_request_construct(request) SCI_FAILURE
-#endif /* !defined(DISABLE_ATAPI) */
-
-#if !defined(DISABLE_ATAPI)
-void scu_stp_packet_request_command_phase_construct_task_context(
-	struct scic_sds_request *sci_req,
-	struct scu_task_context *task_context);
-#else  /* !defined(DISABLE_ATAPI) */
 #define scu_stp_packet_request_command_phase_construct_task_context(reqeust, tc)
-#endif /* !defined(DISABLE_ATAPI) */
-
-#if !defined(DISABLE_ATAPI)
-void scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(
-	struct scic_sds_request *sci_req,
-	struct scu_task_context *task_context);
-#else  /* !defined(DISABLE_ATAPI) */
 #define scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(reqeust, tc)
-#endif /* !defined(DISABLE_ATAPI) */
-
-#if !defined(DISABLE_ATAPI)
-enum sci_status scic_sds_stp_packet_request_process_status_fis(
-	struct scic_sds_request *sci_req,
-	struct sata_fis_reg_d2h *status_fis);
-#else  /* !defined(DISABLE_ATAPI) */
 #define scic_sds_stp_packet_request_process_status_fis(reqeust, fis) SCI_FAILURE
-#endif /* !defined(DISABLE_ATAPI) */
-
-#if !defined(DISABLE_ATAPI)
-void scic_sds_stp_packet_internal_request_sense_build_sgl(
-	struct scic_sds_request *sci_req);
-#else  /* !defined(DISABLE_ATAPI) */
 #define scic_sds_stp_packet_internal_request_sense_build_sgl(request)
-#endif /* !defined(DISABLE_ATAPI) */
 
 #endif /* _SCIC_SDS_STP_PACKET_REQUEST_H_ */
 

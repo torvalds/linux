@@ -483,47 +483,6 @@ static enum sci_status scic_sds_stp_remote_device_ready_await_reset_substate_com
 	return status;
 }
 
-#if !defined(DISABLE_ATAPI)
-/*
- * *****************************************************************************
- * *  STP REMOTE DEVICE READY ATAPI ERROR SUBSTATE HANDLERS
- * ***************************************************************************** */
-
-/**
- *
- * @[in]: device The device received event.
- * @[in]: event_code The event code.
- *
- * This method will handle the event for a ATAPI device that is in the ATAPI
- * ERROR state. We pick up suspension events to handle specifically to this
- * state. We resume the RNC right away. We then complete the outstanding IO to
- * this device. enum sci_status
- */
-enum sci_status scic_sds_stp_remote_device_ready_atapi_error_substate_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	status = scic_sds_remote_device_general_event_handler(sci_dev, event_code);
-
-	if (status == SCI_SUCCESS) {
-		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX
-		    || scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX) {
-			status = scic_sds_remote_node_context_resume(
-				sci_dev->rnc,
-				sci_dev->working_request->state_handlers->parent.complete_handler,
-				(void *)sci_dev->working_request
-				);
-		}
-	}
-
-	return status;
-}
-#endif /* !defined(DISABLE_ATAPI) */
-
-/* --------------------------------------------------------------------------- */
-
 static const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_device_ready_substate_handler_table[] = {
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
 		.start_handler		= scic_sds_remote_device_default_start_handler,
@@ -593,25 +552,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_dev
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
-#if !defined(DISABLE_ATAPI)
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_ATAPI_ERROR] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
-		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
-		.fail_handler		= scic_sds_remote_device_default_fail_handler,
-		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
-		.reset_handler		= scic_sds_remote_device_ready_state_reset_handler,
-		.reset_complete_handler	= scic_sds_remote_device_default_reset_complete_handler,
-		.start_io_handler	= scic_sds_remote_device_default_start_request_handler,
-		.complete_io_handler	= scic_sds_stp_remote_device_complete_request,
-		.continue_io_handler	= scic_sds_remote_device_default_continue_request_handler,
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
-		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
-		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
-		.event_handler			= scic_sds_stp_remote_device_ready_atapi_error_substate_event_handler,
-		.frame_handler			= scic_sds_remote_device_general_frame_handler
-	},
-#endif
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
 		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
@@ -764,35 +704,6 @@ static void scic_sds_stp_remote_device_ready_await_reset_substate_enter(
 		);
 }
 
-#if !defined(DISABLE_ATAPI)
-/*
- * *****************************************************************************
- * *  STP REMOTE DEVICE READY ATAPI ERROR SUBSTATE
- * ***************************************************************************** */
-
-/**
- * The enter routine to READY ATAPI ERROR substate.
- * @device: This is the SCI base object which is cast into a
- *    struct scic_sds_remote_device object.
- *
- */
-void scic_sds_stp_remote_device_ready_atapi_error_substate_enter(
-	struct sci_base_object *device)
-{
-	struct scic_sds_remote_device *sci_dev;
-
-	sci_dev = (struct scic_sds_remote_device *)device;
-
-	SET_STATE_HANDLER(
-		sci_dev,
-		scic_sds_stp_remote_device_ready_substate_handler_table,
-		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_ATAPI_ERROR
-		);
-}
-#endif /* !defined(DISABLE_ATAPI) */
-
-/* --------------------------------------------------------------------------- */
-
 const struct sci_base_state scic_sds_stp_remote_device_ready_substate_table[] = {
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
 		.enter_state = scic_sds_stp_remote_device_ready_idle_substate_enter,
@@ -806,11 +717,6 @@ const struct sci_base_state scic_sds_stp_remote_device_ready_substate_table[] = 
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
 		.enter_state = scic_sds_stp_remote_device_ready_ncq_error_substate_enter,
 	},
-#if !defined(DISABLE_ATAPI)
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_ATAPI_ERROR] = {
-		.enter_state = scic_sds_stp_remote_device_ready_atapi_error_substate_enter,
-	},
-#endif
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
 		.enter_state = scic_sds_stp_remote_device_ready_await_reset_substate_enter,
 	},

@@ -105,14 +105,6 @@ struct scic_sds_remote_device {
 	 */
 	bool is_direct_attached;
 
-#if !defined(DISABLE_ATAPI)
-	/**
-	 * This filed is assinged the value of true if the device is an ATAPI
-	 * device.
-	 */
-	bool is_atapi;
-#endif
-
 	/**
 	 * This filed contains a pointer back to the port to which this device
 	 * is assigned.
@@ -254,22 +246,7 @@ enum sci_status scic_remote_device_reset_complete(
 enum sas_linkrate scic_remote_device_get_connection_rate(
 	struct scic_sds_remote_device *remote_device);
 
-#if !defined(DISABLE_ATAPI)
-/**
- * scic_remote_device_is_atapi() -
- * @this_device: The device whose type is to be decided.
- *
- * This method first decide whether a device is a stp target, then decode the
- * signature fis of a DA STP device to tell whether it is a standard end disk
- * or an ATAPI device. bool Indicate a device is ATAPI device or not.
- */
-bool scic_remote_device_is_atapi(
-	struct scic_sds_remote_device *device_handle);
-#else /* !defined(DISABLE_ATAPI) */
 #define scic_remote_device_is_atapi(device_handle) false
-#endif /* !defined(DISABLE_ATAPI) */
-
-
 
 /**
  * enum scic_sds_remote_device_states - This enumeration depicts all the states
@@ -404,16 +381,6 @@ enum scic_sds_stp_remote_device_ready_substates {
 	 * this state.
 	 */
 	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR,
-
-#if !defined(DISABLE_ATAPI)
-	/**
-	 * This is the ATAPI error state for the STP ATAPI remote device.  This state is
-	 * entered when ATAPI device sends error status FIS without data while the device
-	 * object is in CMD state. A suspension event is expected in this state. The device
-	 * object will resume right away.
-	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_ATAPI_ERROR,
-#endif
 
 	/**
 	 * This is the READY substate indicates the device is waiting for the RESET task
@@ -727,12 +694,7 @@ void scic_sds_remote_device_post_request(
 	struct scic_sds_remote_device *sci_dev,
 	u32 request);
 
-#if !defined(DISABLE_ATAPI)
-bool scic_sds_remote_device_is_atapi(
-	struct scic_sds_remote_device *sci_dev);
-#else /* !defined(DISABLE_ATAPI) */
 #define scic_sds_remote_device_is_atapi(sci_dev) false
-#endif /* !defined(DISABLE_ATAPI) */
 
 void scic_sds_remote_device_start_request(
 	struct scic_sds_remote_device *sci_dev,

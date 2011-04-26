@@ -2,9 +2,6 @@
 #generation of silicon
 EXTRA_CFLAGS += -DSCIC_SDS_4_ENABLED
 
-#temporary until atapi support ready
-EXTRA_CFLAGS += -DDISABLE_ATAPI
-
 EXTRA_CFLAGS += -Idrivers/scsi/isci/core/ -Idrivers/scsi/isci/
 obj-$(CONFIG_SCSI_ISCI) += isci.o
 isci-objs := init.o phy.o request.o sata.o \
@@ -17,7 +14,6 @@ isci-objs := init.o phy.o request.o sata.o \
 	     core/scic_sds_controller.o  \
 	     core/scic_sds_request.o \
 	     core/scic_sds_stp_request.o \
-	     core/scic_sds_stp_packet_request.o \
 	     core/scic_sds_port.o \
 	     core/scic_sds_port_configuration_agent.o \
 	     core/scic_sds_phy.o \

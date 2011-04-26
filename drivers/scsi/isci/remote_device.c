@@ -99,15 +99,6 @@ enum sas_linkrate scic_remote_device_get_connection_rate(
 	return sci_dev->connection_rate;
 }
 
-
-#if !defined(DISABLE_ATAPI)
-bool scic_remote_device_is_atapi(struct scic_sds_remote_device *sci_dev)
-{
-	return sci_dev->is_atapi;
-}
-#endif
-
-
 /**
  *
  *
@@ -217,16 +208,6 @@ enum sci_status scic_sds_remote_device_start_task(
 
 /**
  *
- * @controller: The controller that is completing the task request.
- * @sci_dev: The remote device for which the complete task handling is
- *    being requested.
- * @io_request: The task request that is being completed.
- *
- * This method invokes the remote device complete task handler. enum sci_status
- */
-
-/**
- *
  * @sci_dev:
  * @request:
  *
@@ -246,47 +227,6 @@ void scic_sds_remote_device_post_request(
 		context
 		);
 }
-
-#if !defined(DISABLE_ATAPI)
-/**
- *
- * @sci_dev: The device to be checked.
- *
- * This method check the signature fis of a stp device to decide whether a
- * device is atapi or not. true if a device is atapi device. False if a device
- * is not atapi.
- */
-bool scic_sds_remote_device_is_atapi(
-	struct scic_sds_remote_device *sci_dev)
-{
-	if (!sci_dev->target_protocols.u.bits.attached_stp_target)
-		return false;
-	else if (sci_dev->is_direct_attached) {
-		struct scic_sds_phy *phy;
-		struct scic_sata_phy_properties properties;
-		struct sata_fis_reg_d2h *signature_fis;
-		phy = scic_sds_port_get_a_connected_phy(sci_dev->owning_port);
-		scic_sata_phy_get_properties(phy, &properties);
-
-		/* decode the signature fis. */
-		signature_fis = &(properties.signature_fis);
-
-		if ((signature_fis->sector_count  == 0x01)
-		    && (signature_fis->lba_low       == 0x01)
-		    && (signature_fis->lba_mid       == 0x14)
-		    && (signature_fis->lba_high      == 0xEB)
-		    && ((signature_fis->device & 0x5F) == 0x00)
-		    ) {
-			/* An ATA device supporting the PACKET command set. */
-			return true;
-		} else
-			return false;
-	} else {
-		/* Expander supported ATAPI device is not currently supported. */
-		return false;
-	}
-}
-#endif
 
 /**
  *

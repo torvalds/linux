@@ -73,10 +73,6 @@
 #include "scu_constants.h"
 #include "scu_task_context.h"
 
-#if !defined(DISABLE_ATAPI)
-#include "scic_sds_stp_packet_request.h"
-#endif
-
 /*
  * ****************************************************************************
  * * SCIC SDS IO REQUEST CONSTANTS
@@ -669,16 +665,6 @@ static enum sci_status scic_io_request_construct_sata(struct scic_sds_request *s
 	case SAT_PROTOCOL_FPDMA:
 		status = scic_sds_stp_ncq_request_construct(sci_req, len, dir);
 		break;
-
-#if !defined(DISABLE_ATAPI)
-	case SAT_PROTOCOL_PACKET_NON_DATA:
-	case SAT_PROTOCOL_PACKET_DMA_DATA_IN:
-	case SAT_PROTOCOL_PACKET_DMA_DATA_OUT:
-	case SAT_PROTOCOL_PACKET_PIO_DATA_IN:
-	case SAT_PROTOCOL_PACKET_PIO_DATA_OUT:
-		status = scic_sds_stp_packet_request_construct(sci_req);
-		break;
-#endif
 
 	case SAT_PROTOCOL_DMA_QUEUED:
 	case SAT_PROTOCOL_DMA:
