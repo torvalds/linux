@@ -89,9 +89,9 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
  *
  */
 
-static void gfs2_ail1_start_one(struct gfs2_sbd *sdp,
-				struct writeback_control *wbc,
-				struct gfs2_ail *ai)
+static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
+			       struct writeback_control *wbc,
+			       struct gfs2_ail *ai)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
@@ -100,7 +100,6 @@ __acquires(&sdp->sd_ail_lock)
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
 
-restart:
 	list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list, bd_ail_st_list) {
 		bh = bd->bd_bh;
 
@@ -120,13 +119,17 @@ restart:
 		gl = bd->bd_gl;
 		list_move(&bd->bd_ail_st_list, &ai->ai_ail1_list);
 		mapping = bh->b_page->mapping;
+		if (!mapping)
+			continue;
 		spin_unlock(&sdp->sd_ail_lock);
 		generic_writepages(mapping, wbc);
 		spin_lock(&sdp->sd_ail_lock);
 		if (wbc->nr_to_write <= 0)
 			break;
-		goto restart;
+		return 1;
 	}
+
+	return 0;
 }
 
 
@@ -146,10 +149,12 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	spin_lock(&sdp->sd_ail_lock);
+restart:
 	list_for_each_entry_reverse(ai, head, ai_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		gfs2_ail1_start_one(sdp, wbc, ai); /* This may drop ail lock */
+		if (gfs2_ail1_start_one(sdp, wbc, ai))
+			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	trace_gfs2_ail_flush(sdp, wbc, 0);
