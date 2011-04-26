@@ -2043,15 +2043,15 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_unlock(&tconn->net_conf_update);
 
-	retcode = conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
-
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {
 		mdev->send_cnt = 0;
 		mdev->recv_cnt = 0;
-		kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	}
 	rcu_read_unlock();
+
+	retcode = conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
+
 	conn_reconfig_done(tconn);
 	drbd_adm_finish(info, retcode);
 	return 0;
