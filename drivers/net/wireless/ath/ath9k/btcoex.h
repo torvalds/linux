@@ -32,6 +32,14 @@
 #define ATH_BT_CNT_THRESHOLD	       3
 #define ATH_BT_CNT_SCAN_THRESHOLD      15
 
+/* Defines the BT AR_BT_COEX_WGHT used */
+enum ath_stomp_type {
+	ATH_BTCOEX_NO_STOMP,
+	ATH_BTCOEX_STOMP_ALL,
+	ATH_BTCOEX_STOMP_LOW,
+	ATH_BTCOEX_STOMP_NONE
+};
+
 enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
 	ATH_BTCOEX_CFG_2WIRE,
@@ -57,5 +65,7 @@ void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
 				u32 wlan_weight);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
+void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
+			      enum ath_stomp_type stomp_type);
 
 #endif

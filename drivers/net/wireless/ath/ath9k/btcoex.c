@@ -209,3 +209,69 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	ah->btcoex_hw.enabled = false;
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_disable);
+
+static void ar9003_btcoex_bt_stomp(struct ath_hw *ah,
+			 enum ath_stomp_type stomp_type)
+{
+	ah->bt_coex_bt_weight[0] = AR9300_BT_WGHT;
+	ah->bt_coex_bt_weight[1] = AR9300_BT_WGHT;
+	ah->bt_coex_bt_weight[2] = AR9300_BT_WGHT;
+	ah->bt_coex_bt_weight[3] = AR9300_BT_WGHT;
+
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ah->bt_coex_wlan_weight[0] = AR9300_STOMP_ALL_WLAN_WGHT0;
+		ah->bt_coex_wlan_weight[1] = AR9300_STOMP_ALL_WLAN_WGHT1;
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ah->bt_coex_wlan_weight[0] = AR9300_STOMP_LOW_WLAN_WGHT0;
+		ah->bt_coex_wlan_weight[1] = AR9300_STOMP_LOW_WLAN_WGHT1;
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ah->bt_coex_wlan_weight[0] = AR9300_STOMP_NONE_WLAN_WGHT0;
+		ah->bt_coex_wlan_weight[1] = AR9300_STOMP_NONE_WLAN_WGHT1;
+		break;
+
+	default:
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+				"Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+
+/*
+ * Configures appropriate weight based on stomp type.
+ */
+void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
+			      enum ath_stomp_type stomp_type)
+{
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ar9003_btcoex_bt_stomp(ah, stomp_type);
+		return;
+	}
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+				AR_STOMP_ALL_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+				AR_STOMP_LOW_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+				AR_STOMP_NONE_WLAN_WGHT);
+		break;
+	default:
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+				"Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+EXPORT_SYMBOL(ath9k_hw_btcoex_bt_stomp);
