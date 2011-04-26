@@ -1177,6 +1177,8 @@ find_free:
 	lnum = ubifs_find_free_leb_for_idx(c);
 	if (lnum < 0) {
 		dbg_err("could not find an empty LEB");
+		dbg_dump_lprops(c);
+		dbg_dump_budg(c, &c->bi);
 		return lnum;
 	}
 	/* And reset the index flag */
