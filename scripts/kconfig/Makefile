@@ -169,7 +169,7 @@ mconf-objs     := mconf.o zconf.tab.o $(lxdialog)
 nconf-objs     := nconf.o zconf.tab.o nconf.gui.o
 kxgettext-objs	:= kxgettext.o zconf.tab.o
 
-hostprogs-y := conf qconf gconf kxgettext
+hostprogs-y := conf qconf gconf
 
 ifeq ($(MAKECMDGOALS),nconfig)
 	hostprogs-y += nconf
@@ -177,6 +177,10 @@ endif
 
 ifeq ($(MAKECMDGOALS),menuconfig)
 	hostprogs-y += mconf
+endif
+
+ifeq ($(MAKECMDGOALS),update-po-config)
+	hostprogs-y += kxgettext
 endif
 
 ifeq ($(MAKECMDGOALS),xconfig)
