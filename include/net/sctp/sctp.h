@@ -285,20 +285,21 @@ do {							\
 		pr_cont(fmt, ##args);			\
 } while (0)
 #define SCTP_DEBUG_PRINTK_IPADDR(fmt_lead, fmt_trail,			\
-				 args_lead, saddr, args_trail...)	\
+				 args_lead, addr, args_trail...)	\
 do {									\
+	const union sctp_addr *_addr = (addr);				\
 	if (sctp_debug_flag) {						\
-		if (saddr->sa.sa_family == AF_INET6) {			\
+		if (_addr->sa.sa_family == AF_INET6) {			\
 			printk(KERN_DEBUG				\
 			       pr_fmt(fmt_lead "%pI6" fmt_trail),	\
 			       args_lead,				\
-			       &saddr->v6.sin6_addr,			\
+			       &_addr->v6.sin6_addr,			\
 			       args_trail);				\
 		} else {						\
 			printk(KERN_DEBUG				\
 			       pr_fmt(fmt_lead "%pI4" fmt_trail),	\
 			       args_lead,				\
-			       &saddr->v4.sin_addr.s_addr,		\
+			       &_addr->v4.sin_addr.s_addr,		\
 			       args_trail);				\
 		}							\
 	}								\
