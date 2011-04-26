@@ -26,6 +26,7 @@
 #define _NETVSC_API_H_
 
 #include "vmbus_api.h"
+#include "vmbus.h"
 
 /* Fwd declaration */
 struct hv_netvsc_packet;
@@ -102,6 +103,13 @@ struct netvsc_driver {
 
 	void *ctx;
 };
+
+static inline
+struct netvsc_driver *drv_to_netvscdrv(struct device_driver *d)
+{
+	struct hv_driver *hvdrv = drv_to_hv_drv(d);
+	return container_of(hvdrv, struct netvsc_driver, base);
+}
 
 struct netvsc_device_info {
 	unsigned char mac_adr[6];
