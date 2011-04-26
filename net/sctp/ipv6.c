@@ -365,15 +365,12 @@ static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
  */
 static void sctp_v6_get_saddr(struct sctp_sock *sk,
 			      struct sctp_transport *t,
-			      union sctp_addr *daddr,
 			      struct flowi *fl)
 {
 	struct flowi6 *fl6 = &fl->u.ip6;
 	union sctp_addr *saddr = &t->saddr;
 
-	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p daddr:%pI6 ",
-			  __func__, t->asoc, t->dst, &daddr->v6.sin6_addr);
-
+	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p\n", __func__, t->asoc, t->dst);
 
 	if (t->dst) {
 		saddr->v6.sin6_family = AF_INET6;

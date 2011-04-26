@@ -562,7 +562,6 @@ out:
  */
 static void sctp_v4_get_saddr(struct sctp_sock *sk,
 			      struct sctp_transport *t,
-			      union sctp_addr *daddr,
 			      struct flowi *fl)
 {
 	union sctp_addr *saddr = &t->saddr;

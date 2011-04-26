@@ -571,7 +571,6 @@ struct sctp_af {
 					 struct sock *sk);
 	void		(*get_saddr)	(struct sctp_sock *sk,
 					 struct sctp_transport *t,
-					 union sctp_addr *daddr,
 					 struct flowi *fl);
 	void		(*copy_addrlist) (struct list_head *,
 					  struct net_device *);
