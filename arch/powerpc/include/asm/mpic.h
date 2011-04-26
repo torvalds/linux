@@ -3,7 +3,6 @@
 #ifdef __KERNEL__
 
 #include <linux/irq.h>
-#include <linux/sysdev.h>
 #include <asm/dcr.h>
 #include <asm/msi_bitmap.h>
 
@@ -319,8 +318,6 @@ struct mpic
 
 	/* link */
 	struct mpic		*next;
-
-	struct sys_device	sysdev;
 
 #ifdef CONFIG_PM
 	struct mpic_irq_save	*save_data;
