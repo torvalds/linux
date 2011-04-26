@@ -1127,20 +1127,9 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 	}
 
 	ubifs_assert(!(lp.flags & LPROPS_INDEX));
+	ubifs_assert(lp.free + lp.dirty >= wbuf->offs);
 	lnum = lp.lnum;
 
-	/*
-	 * There was no empty LEB so the used space in the dirtiest LEB must fit
-	 * in the GC head LEB.
-	 */
-	if (lp.free + lp.dirty < wbuf->offs) {
-		dbg_rcvry("LEB %d doesn't fit in GC head LEB %d:%d",
-			  lnum, wbuf->lnum, wbuf->offs);
-		err = ubifs_return_leb(c, lnum);
-		if (err)
-			return err;
-		goto find_free;
-	}
 	/*
 	 * We run the commit before garbage collection otherwise subsequent
 	 * mounts will see the GC and orphan deletion in a different order.
