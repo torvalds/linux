@@ -30,5 +30,6 @@
 #define BCM4329_CORE_SOCRAM_BASE	0x18003000
 /* ARM Cortex M3 core, ID 0x82a */
 #define BCM4329_CORE_ARM_BASE		0x18002000
+#define BCM4329_RAMSIZE			0x48000
 
 #endif				/* _bcmchip_h_ */
