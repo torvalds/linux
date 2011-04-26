@@ -336,10 +336,6 @@ static void isp1760_init_regs(struct usb_hcd *hcd)
 	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
 	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
 	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
-
-	reg_write32(hcd->regs, HC_ATL_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
-	reg_write32(hcd->regs, HC_INT_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
-	reg_write32(hcd->regs, HC_ISO_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
 }
 
 static int handshake(struct usb_hcd *hcd, u32 reg,
@@ -516,14 +512,17 @@ static void isp1760_init_maps(struct usb_hcd *hcd)
 	reg_write32(hcd->regs, HC_ATL_PTD_LASTPTD_REG, 0x80000000);
 	reg_write32(hcd->regs, HC_INT_PTD_LASTPTD_REG, 0x80000000);
 	reg_write32(hcd->regs, HC_ISO_PTD_LASTPTD_REG, 0x00000001);
+
+	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
+						ATL_BUF_FILL | INT_BUF_FILL);
 }
 
 static void isp1760_enable_interrupts(struct usb_hcd *hcd)
 {
 	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_AND_REG, 0);
-	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, 0);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, 0xffffffff);
 	reg_write32(hcd->regs, HC_INT_IRQ_MASK_AND_REG, 0);
-	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, 0);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, 0xffffffff);
 	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_AND_REG, 0);
 	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_OR_REG, 0xffffffff);
 	/* step 23 passed */
@@ -835,9 +834,8 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 				  struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
-	u32 skip_map, or_map;
+	u32 skip_map;
 	u32 slot;
-	u32 buffstatus;
 
 	/*
 	 * When this function is called from the interrupt handler to enqueue
@@ -854,10 +852,6 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 
 	enqueue_one_atl_qtd(hcd, qh, slot, qtd);
 
-	or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
-	or_map |= (1 << slot);
-	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
-
 	skip_map &= ~(1 << slot);
 	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
 
@@ -865,18 +859,13 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	if (priv->atl_queued == 2)
 		reg_write32(hcd->regs, HC_INTERRUPT_ENABLE,
 				INTERRUPT_ENABLE_SOT_MASK);
-
-	buffstatus = reg_read32(hcd->regs, HC_BUFFER_STATUS_REG);
-	buffstatus |= ATL_BUFFER;
-	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, buffstatus);
 }
 
 static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 				  struct isp1760_qtd *qtd)
 {
-	u32 skip_map, or_map;
+	u32 skip_map;
 	u32 slot;
-	u32 buffstatus;
 
 	/*
 	 * When this function is called from the interrupt handler to enqueue
@@ -893,16 +882,8 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 
 	enqueue_one_int_qtd(hcd, qh, slot, qtd);
 
-	or_map = reg_read32(hcd->regs, HC_INT_IRQ_MASK_OR_REG);
-	or_map |= (1 << slot);
-	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, or_map);
-
 	skip_map &= ~(1 << slot);
 	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
-
-	buffstatus = reg_read32(hcd->regs, HC_BUFFER_STATUS_REG);
-	buffstatus |= INT_BUFFER;
-	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, buffstatus);
 }
 
 static void isp1760_urb_done(struct usb_hcd *hcd, struct urb *urb)
@@ -994,7 +975,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 	struct urb *urb;
 	u32 slot;
 	u32 length;
-	u32 or_map;
 	u32 status = -EINVAL;
 	int error;
 	struct isp1760_qtd *qtd;
@@ -1004,10 +984,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 
 	done_map = reg_read32(hcd->regs, HC_ATL_PTD_DONEMAP_REG);
 	skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
-
-	or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
-	or_map &= ~done_map;
-	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
 
 	while (done_map) {
 		status = 0;
@@ -1048,8 +1024,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 		}
 
 		if (!nakcount && (ptd.dw3 & DW3_QTD_ACTIVE)) {
-			u32 buffstatus;
-
 			/*
 			 * NAKs are handled in HW by the chip. Usually if the
 			 * device is not able to send data fast enough.
@@ -1068,9 +1042,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 			 * unskipped once it gets written to the HW.
 			 */
 			skip_map &= ~(1 << slot);
-			or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
-			or_map |= 1 << slot;
-			reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
 
 			ptd.dw0 |= PTD_VALID;
 			ptd_write(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
@@ -1079,12 +1050,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 			if (priv->atl_queued == 2)
 				reg_write32(hcd->regs, HC_INTERRUPT_ENABLE,
 						INTERRUPT_ENABLE_SOT_MASK);
-
-			buffstatus = reg_read32(hcd->regs,
-							HC_BUFFER_STATUS_REG);
-			buffstatus |= ATL_BUFFER;
-			reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
-								buffstatus);
 			continue;
 		}
 
@@ -1191,7 +1156,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 	struct ptd ptd;
 	struct urb *urb;
 	u32 length;
-	u32 or_map;
 	int error;
 	u32 slot;
 	struct isp1760_qtd *qtd;
@@ -1199,10 +1163,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 
 	done_map = reg_read32(hcd->regs, HC_INT_PTD_DONEMAP_REG);
 	skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
-
-	or_map = reg_read32(hcd->regs, HC_INT_IRQ_MASK_OR_REG);
-	or_map &= ~done_map;
-	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, or_map);
 
 	while (done_map) {
 		slot = __ffs(done_map);
@@ -1503,7 +1463,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	struct inter_packet_info *ints;
 	u32 i;
-	u32 reg_base, or_reg, skip_reg;
+	u32 reg_base, skip_reg;
 	unsigned long flags;
 	struct ptd ptd;
 	packet_enqueue *pe;
@@ -1516,7 +1476,6 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	case PIPE_INTERRUPT:
 		ints = priv->int_ints;
 		reg_base = INT_PTD_OFFSET;
-		or_reg = HC_INT_IRQ_MASK_OR_REG;
 		skip_reg = HC_INT_PTD_SKIPMAP_REG;
 		pe = enqueue_an_INT_packet;
 		break;
@@ -1524,7 +1483,6 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	default:
 		ints = priv->atl_ints;
 		reg_base = ATL_PTD_OFFSET;
-		or_reg = HC_ATL_IRQ_MASK_OR_REG;
 		skip_reg = HC_ATL_PTD_SKIPMAP_REG;
 		pe =  enqueue_an_ATL_packet;
 		break;
@@ -1540,17 +1498,12 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 		if (ints[i].qtd->urb == urb) {
 			u32 skip_map;
-			u32 or_map;
 			struct isp1760_qtd *qtd;
 			struct isp1760_qh *qh;
 
 			skip_map = reg_read32(hcd->regs, skip_reg);
 			skip_map |= 1 << i;
 			reg_write32(hcd->regs, skip_reg, skip_map);
-
-			or_map = reg_read32(hcd->regs, or_reg);
-			or_map &= ~(1 << i);
-			reg_write32(hcd->regs, or_reg, or_map);
 
 			ptd_write(hcd->regs, reg_base, i, &ptd);
 

@@ -49,10 +49,9 @@ void deinit_kmem_cache(void);
 #define SW_RESET_RESET_ALL	(1 << 0)
 
 #define HC_BUFFER_STATUS_REG	0x334
-#define ATL_BUFFER		0x1
-#define INT_BUFFER		0x2
-#define ISO_BUFFER		0x4
-#define BUFFER_MAP		0x7
+#define ISO_BUF_FILL		(1 << 2)
+#define INT_BUF_FILL		(1 << 1)
+#define ATL_BUF_FILL		(1 << 0)
 
 #define HC_MEMORY_REG		0x33c
 #define ISP_BANK(x)		((x) << 16)
@@ -68,14 +67,13 @@ void deinit_kmem_cache(void);
 #define HC_INTERRUPT_REG	0x310
 
 #define HC_INTERRUPT_ENABLE	0x314
-#define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT | HC_EOT_INT)
-#define INTERRUPT_ENABLE_SOT_MASK	(HC_INTL_INT | HC_SOT_INT | HC_EOT_INT)
-
 #define HC_ISO_INT		(1 << 9)
 #define HC_ATL_INT		(1 << 8)
 #define HC_INTL_INT		(1 << 7)
 #define HC_EOT_INT		(1 << 3)
 #define HC_SOT_INT		(1 << 1)
+#define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT)
+#define INTERRUPT_ENABLE_SOT_MASK	(HC_SOT_INT)
 
 #define HC_ISO_IRQ_MASK_OR_REG	0x318
 #define HC_INT_IRQ_MASK_OR_REG	0x31C
