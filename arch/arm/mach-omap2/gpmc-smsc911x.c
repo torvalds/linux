@@ -10,6 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -55,7 +56,7 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 	gpmc_cfg = board_data;
 
 	if (gpmc_cs_request(gpmc_cfg->cs, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed to request GPMC mem for smsc911x\n");
+		pr_err("Failed to request GPMC mem region\n");
 		return;
 	}
 
@@ -63,8 +64,7 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 	gpmc_smsc911x_resources[0].end = cs_mem_base + 0xff;
 
 	if (gpio_request(gpmc_cfg->gpio_irq, "smsc911x irq") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smsc911x IRQ\n",
-				gpmc_cfg->gpio_irq);
+		pr_err("Failed to request IRQ GPIO%d\n", gpmc_cfg->gpio_irq);
 		goto free1;
 	}
 
@@ -74,8 +74,8 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 	if (gpio_is_valid(gpmc_cfg->gpio_reset)) {
 		ret = gpio_request(gpmc_cfg->gpio_reset, "smsc911x reset");
 		if (ret) {
-			printk(KERN_ERR "Failed to request GPIO%d for smsc911x reset\n",
-					gpmc_cfg->gpio_reset);
+			pr_err("Failed to request reset GPIO%d\n",
+			       gpmc_cfg->gpio_reset);
 			goto free2;
 		}
 
@@ -92,7 +92,7 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 		 gpmc_smsc911x_resources, ARRAY_SIZE(gpmc_smsc911x_resources),
 		 &gpmc_smsc911x_config, sizeof(gpmc_smsc911x_config));
 	if (!pdev) {
-		printk(KERN_ERR "Unable to register smsc911x device\n");
+		pr_err("Unable to register platform device\n");
 		gpio_free(gpmc_cfg->gpio_reset);
 		goto free2;
 	}
@@ -104,5 +104,5 @@ free2:
 free1:
 	gpmc_cs_free(gpmc_cfg->cs);
 
-	printk(KERN_ERR "Could not initialize smsc911x\n");
+	pr_err("Could not initialize smsc911x device\n");
 }
