@@ -211,8 +211,6 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 
 	scrubval = scrubval & 0x001F;
 
-	amd64_debug("pci-read, sdram scrub control value: %d\n", scrubval);
-
 	for (i = 0; i < ARRAY_SIZE(scrubrates); i++) {
 		if (scrubrates[i].scrubval == scrubval) {
 			retval = scrubrates[i].bandwidth;
@@ -933,25 +931,74 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 /* On F10h and later ErrAddr is MC4_ADDR[47:1] */
 static u64 get_error_address(struct mce *m)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+	u64 addr;
 	u8 start_bit = 1;
 	u8 end_bit   = 47;
 
-	if (boot_cpu_data.x86 == 0xf) {
+	if (c->x86 == 0xf) {
 		start_bit = 3;
 		end_bit   = 39;
 	}
 
-	return m->addr & GENMASK(start_bit, end_bit);
+	addr = m->addr & GENMASK(start_bit, end_bit);
+
+	/*
+	 * Erratum 637 workaround
+	 */
+	if (c->x86 == 0x15) {
+		struct amd64_pvt *pvt;
+		u64 cc6_base, tmp_addr;
+		u32 tmp;
+		u8 mce_nid, intlv_en;
+
+		if ((addr & GENMASK(24, 47)) >> 24 != 0x00fdf7)
+			return addr;
+
+		mce_nid	= amd_get_nb_id(m->extcpu);
+		pvt	= mcis[mce_nid]->pvt_info;
+
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_LIM, &tmp);
+		intlv_en = tmp >> 21 & 0x7;
+
+		/* add [47:27] + 3 trailing bits */
+		cc6_base  = (tmp & GENMASK(0, 20)) << 3;
+
+		/* reverse and add DramIntlvEn */
+		cc6_base |= intlv_en ^ 0x7;
+
+		/* pin at [47:24] */
+		cc6_base <<= 24;
+
+		if (!intlv_en)
+			return cc6_base | (addr & GENMASK(0, 23));
+
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_BASE, &tmp);
+
+							/* faster log2 */
+		tmp_addr  = (addr & GENMASK(12, 23)) << __fls(intlv_en + 1);
+
+		/* OR DramIntlvSel into bits [14:12] */
+		tmp_addr |= (tmp & GENMASK(21, 23)) >> 9;
+
+		/* add remaining [11:0] bits from original MC4_ADDR */
+		tmp_addr |= addr & GENMASK(0, 11);
+
+		return cc6_base | tmp_addr;
+	}
+
+	return addr;
 }
 
 static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int off = range << 3;
 
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_LO + off,  &pvt->ranges[range].base.lo);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_LO + off, &pvt->ranges[range].lim.lo);
 
-	if (boot_cpu_data.x86 == 0xf)
+	if (c->x86 == 0xf)
 		return;
 
 	if (!dram_rw(pvt, range))
@@ -959,6 +1006,31 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_HI + off,  &pvt->ranges[range].base.hi);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_HI + off, &pvt->ranges[range].lim.hi);
+
+	/* Factor in CC6 save area by reading dst node's limit reg */
+	if (c->x86 == 0x15) {
+		struct pci_dev *f1 = NULL;
+		u8 nid = dram_dst_node(pvt, range);
+		u32 llim;
+
+		f1 = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0x18 + nid, 1));
+		if (WARN_ON(!f1))
+			return;
+
+		amd64_read_pci_cfg(f1, DRAM_LOCAL_NODE_LIM, &llim);
+
+		pvt->ranges[range].lim.lo &= GENMASK(0, 15);
+
+					    /* {[39:27],111b} */
+		pvt->ranges[range].lim.lo |= ((llim & 0x1fff) << 3 | 0x7) << 16;
+
+		pvt->ranges[range].lim.hi &= GENMASK(0, 7);
+
+					    /* [47:40] */
+		pvt->ranges[range].lim.hi |= llim >> 13;
+
+		pci_dev_put(f1);
+	}
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
@@ -1403,12 +1475,8 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 		return -EINVAL;
 	}
 
-	if (intlv_en &&
-	    (intlv_sel != ((sys_addr >> 12) & intlv_en))) {
-		amd64_warn("Botched intlv bits, en: 0x%x, sel: 0x%x\n",
-			   intlv_en, intlv_sel);
+	if (intlv_en && (intlv_sel != ((sys_addr >> 12) & intlv_en)))
 		return -EINVAL;
-	}
 
 	sys_addr = f1x_swap_interleaved_region(pvt, sys_addr);
 
