@@ -733,6 +733,7 @@ static struct {
 	{ RC_TYPE_SONY,		"sony"		},
 	{ RC_TYPE_RC5_SZ,	"rc-5-sz"	},
 	{ RC_TYPE_LIRC,		"lirc"		},
+	{ RC_TYPE_OTHER,	"other"		},
 };
 
 #define PROTO_NONE	"none"
