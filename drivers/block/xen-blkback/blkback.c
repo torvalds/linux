@@ -559,7 +559,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		operation = READ;
 		break;
 	case BLKIF_OP_WRITE:
-		operation = WRITE;
+		operation = WRITE_ODIRECT;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 		operation = WRITE_BARRIER;
