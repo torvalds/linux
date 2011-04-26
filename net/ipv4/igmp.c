@@ -328,11 +328,6 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 		kfree_skb(skb);
 		return NULL;
 	}
-	if (rt->rt_src == 0) {
-		kfree_skb(skb);
-		ip_rt_put(rt);
-		return NULL;
-	}
 
 	skb_dst_set(skb, &rt->dst);
 	skb->dev = dev;
@@ -669,11 +664,6 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 				   IPPROTO_IGMP, 0, dev->ifindex);
 	if (IS_ERR(rt))
 		return -1;
-
-	if (rt->rt_src == 0) {
-		ip_rt_put(rt);
-		return -1;
-	}
 
 	skb = alloc_skb(IGMP_SIZE+LL_ALLOCATED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL) {
