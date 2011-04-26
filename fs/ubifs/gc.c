@@ -473,6 +473,37 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 	ubifs_assert(c->gc_lnum != lnum);
 	ubifs_assert(wbuf->lnum != lnum);
 
+	if (lp->free + lp->dirty == c->leb_size) {
+		/* Special case - a free LEB  */
+		dbg_gc("LEB %d is free, return it", lp->lnum);
+		ubifs_assert(!(lp->flags & LPROPS_INDEX));
+
+		if (lp->free != c->leb_size) {
+			/*
+			 * Write buffers must be sync'd before unmapping
+			 * freeable LEBs, because one of them may contain data
+			 * which obsoletes something in 'lp->pnum'.
+			 */
+			err = gc_sync_wbufs(c);
+			if (err)
+				return err;
+			err = ubifs_change_one_lp(c, lp->lnum, c->leb_size,
+						  0, 0, 0, 0);
+			if (err)
+				return err;
+		}
+		err = ubifs_leb_unmap(c, lp->lnum);
+		if (err)
+			return err;
+
+		if (c->gc_lnum == -1) {
+			c->gc_lnum = lnum;
+			return LEB_RETAINED;
+		}
+
+		return LEB_FREED;
+	}
+
 	/*
 	 * We scan the entire LEB even though we only really need to scan up to
 	 * (c->leb_size - lp->free).
@@ -681,37 +712,6 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 		dbg_gc("found LEB %d: free %d, dirty %d, sum %d "
 		       "(min. space %d)", lp.lnum, lp.free, lp.dirty,
 		       lp.free + lp.dirty, min_space);
-
-		if (lp.free + lp.dirty == c->leb_size) {
-			/* An empty LEB was returned */
-			dbg_gc("LEB %d is free, return it", lp.lnum);
-			/*
-			 * ubifs_find_dirty_leb() doesn't return freeable index
-			 * LEBs.
-			 */
-			ubifs_assert(!(lp.flags & LPROPS_INDEX));
-			if (lp.free != c->leb_size) {
-				/*
-				 * Write buffers must be sync'd before
-				 * unmapping freeable LEBs, because one of them
-				 * may contain data which obsoletes something
-				 * in 'lp.pnum'.
-				 */
-				ret = gc_sync_wbufs(c);
-				if (ret)
-					goto out;
-				ret = ubifs_change_one_lp(c, lp.lnum,
-							  c->leb_size, 0, 0, 0,
-							  0);
-				if (ret)
-					goto out;
-			}
-			ret = ubifs_leb_unmap(c, lp.lnum);
-			if (ret)
-				goto out;
-			ret = lp.lnum;
-			break;
-		}
 
 		space_before = c->leb_size - wbuf->offs - wbuf->used;
 		if (wbuf->lnum == -1)

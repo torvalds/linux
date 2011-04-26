@@ -1125,25 +1125,10 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 		}
 		return err;
 	}
+
 	ubifs_assert(!(lp.flags & LPROPS_INDEX));
 	lnum = lp.lnum;
-	if (lp.free + lp.dirty == c->leb_size) {
-		/* An empty LEB was returned */
-		if (lp.free != c->leb_size) {
-			err = ubifs_change_one_lp(c, lnum, c->leb_size,
-						  0, 0, 0, 0);
-			if (err)
-				return err;
-		}
-		err = ubifs_leb_unmap(c, lnum);
-		if (err)
-			return err;
-		c->gc_lnum = lnum;
-		dbg_rcvry("allocated LEB %d for GC", lnum);
-		/* Run the commit */
-		dbg_rcvry("committing");
-		return ubifs_run_commit(c);
-	}
+
 	/*
 	 * There was no empty LEB so the used space in the dirtiest LEB must fit
 	 * in the GC head LEB.
