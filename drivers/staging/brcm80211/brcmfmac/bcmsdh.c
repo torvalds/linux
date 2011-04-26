@@ -22,7 +22,6 @@
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <hndsoc.h>
-#include <siutils.h>
 
 #include <bcmsdh.h>		/* BRCM API for SDIO
 			 clients (such as wl, dhd) */

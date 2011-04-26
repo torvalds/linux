@@ -52,12 +52,8 @@ DHDOFILES = \
 	bcmsdh_linux.o	\
 	bcmsdh_sdmmc.o \
 	bcmsdh_sdmmc_linux.o \
-	aiutils.o \
-	siutils.o \
-	sbutils.o \
 	bcmutils.o \
-	bcmwifi.o \
-	hndpmu.o
+	bcmwifi.o
 
 obj-m += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)

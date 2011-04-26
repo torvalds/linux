@@ -28,8 +28,6 @@
 #include <bcmutils.h>
 #include <bcmdevs.h>
 
-#include <siutils.h>
-#include <hndpmu.h>
 #include <hndsoc.h>
 #ifdef DHD_DEBUG
 #include <hndrte_armtrap.h>
@@ -52,7 +50,6 @@
 #include <dhd_dbg.h>
 #include <dhdioctl.h>
 #include <sdiovar.h>
-#include <siutils_priv.h>
 #include <bcmchip.h>
 
 #ifndef DHDSDIO_MEM_DUMP_FNAME

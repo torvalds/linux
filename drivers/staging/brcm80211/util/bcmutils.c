@@ -24,7 +24,6 @@
 #include <bcmdefs.h>
 #include <stdarg.h>
 #include <bcmutils.h>
-#include <siutils.h>
 #include <bcmnvram.h>
 #include <bcmdevs.h>
 #include <proto/802.11.h>
