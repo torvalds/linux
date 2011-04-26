@@ -89,6 +89,7 @@
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
 static int tx_queues	= BOND_DEFAULT_TX_QUEUES;
+static int num_peer_notif = 1;
 static int miimon	= BOND_LINK_MON_INTERV;
 static int updelay;
 static int downdelay;
@@ -111,6 +112,10 @@ module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
 module_param(tx_queues, int, 0);
 MODULE_PARM_DESC(tx_queues, "Max number of transmit queues (default = 16)");
+module_param_named(num_grat_arp, num_peer_notif, int, 0644);
+MODULE_PARM_DESC(num_grat_arp, "Number of peer notifications to send on failover event (alias of num_unsol_na)");
+module_param_named(num_unsol_na, num_peer_notif, int, 0644);
+MODULE_PARM_DESC(num_unsol_na, "Number of peer notifications to send on failover event (alias of num_grat_arp)");
 module_param(miimon, int, 0);
 MODULE_PARM_DESC(miimon, "Link check interval in milliseconds");
 module_param(updelay, int, 0);
@@ -1082,6 +1087,21 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 	return bestslave;
 }
 
+static bool bond_should_notify_peers(struct bonding *bond)
+{
+	struct slave *slave = bond->curr_active_slave;
+
+	pr_debug("bond_should_notify_peers: bond %s slave %s\n",
+		 bond->dev->name, slave ? slave->dev->name : "NULL");
+
+	if (!slave || !bond->send_peer_notif ||
+	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
+		return false;
+
+	bond->send_peer_notif--;
+	return true;
+}
+
 /**
  * change_active_interface - change the active slave into the specified one
  * @bond: our bonding struct
@@ -1149,16 +1169,28 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			bond_set_slave_inactive_flags(old_active);
 
 		if (new_active) {
+			bool should_notify_peers = false;
+
 			bond_set_slave_active_flags(new_active);
 
 			if (bond->params.fail_over_mac)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
 
+			if (netif_running(bond->dev)) {
+				bond->send_peer_notif =
+					bond->params.num_peer_notif;
+				should_notify_peers =
+					bond_should_notify_peers(bond);
+			}
+
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
 
 			netdev_bonding_change(bond->dev, NETDEV_BONDING_FAILOVER);
+			if (should_notify_peers)
+				netdev_bonding_change(bond->dev,
+						      NETDEV_NOTIFY_PEERS);
 
 			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
@@ -2556,6 +2588,7 @@ void bond_mii_monitor(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mii_work.work);
+	bool should_notify_peers = false;
 
 	read_lock(&bond->lock);
 	if (bond->kill_timers)
@@ -2563,6 +2596,8 @@ void bond_mii_monitor(struct work_struct *work)
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
+
+	should_notify_peers = bond_should_notify_peers(bond);
 
 	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
@@ -2582,6 +2617,12 @@ re_arm:
 				   msecs_to_jiffies(bond->params.miimon));
 out:
 	read_unlock(&bond->lock);
+
+	if (should_notify_peers) {
+		rtnl_lock();
+		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		rtnl_unlock();
+	}
 }
 
 static __be32 bond_glean_dev_ip(struct net_device *dev)
@@ -3154,6 +3195,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    arp_work.work);
+	bool should_notify_peers = false;
 	int delta_in_ticks;
 
 	read_lock(&bond->lock);
@@ -3165,6 +3207,8 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
+
+	should_notify_peers = bond_should_notify_peers(bond);
 
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
@@ -3185,6 +3229,12 @@ re_arm:
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
+
+	if (should_notify_peers) {
+		rtnl_lock();
+		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		rtnl_unlock();
+	}
 }
 
 /*-------------------------- netdev event handling --------------------------*/
@@ -3493,6 +3543,8 @@ static int bond_close(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 
 	write_lock_bh(&bond->lock);
+
+	bond->send_peer_notif = 0;
 
 	/* signal timers not to re-arm */
 	bond->kill_timers = 1;
@@ -4571,6 +4623,12 @@ static int bond_check_params(struct bond_params *params)
 		use_carrier = 1;
 	}
 
+	if (num_peer_notif < 0 || num_peer_notif > 255) {
+		pr_warning("Warning: num_grat_arp/num_unsol_na (%d) not in range 0-255 so it was reset to 1\n",
+			   num_peer_notif);
+		num_peer_notif = 1;
+	}
+
 	/* reset values for 802.3ad */
 	if (bond_mode == BOND_MODE_8023AD) {
 		if (!miimon) {
@@ -4760,6 +4818,7 @@ static int bond_check_params(struct bond_params *params)
 	params->mode = bond_mode;
 	params->xmit_policy = xmit_hashtype;
 	params->miimon = miimon;
+	params->num_peer_notif = num_peer_notif;
 	params->arp_interval = arp_interval;
 	params->arp_validate = arp_validate_value;
 	params->updelay = updelay;

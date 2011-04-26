@@ -1747,7 +1747,6 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		fib6_run_gc(~0UL, net);
 		break;
 	case NETDEV_NOTIFY_PEERS:
-	case NETDEV_BONDING_FAILOVER:
 		ndisc_send_unsol_na(dev);
 		break;
 	default:

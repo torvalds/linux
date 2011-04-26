@@ -869,6 +869,30 @@ static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_store_ad_select);
 
 /*
+ * Show and set the number of peer notifications to send after a failover event.
+ */
+static ssize_t bonding_show_num_peer_notif(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
+}
+
+static ssize_t bonding_store_num_peer_notif(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
+	return err ? err : count;
+}
+static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+
+/*
  * Show and set the MII monitor interval.  There are two tricky bits
  * here.  First, if MII monitoring is activated, then we must disable
  * ARP monitoring.  Second, if the timer isn't running, we must
@@ -1566,6 +1590,8 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,
+	&dev_attr_num_grat_arp.attr,
+	&dev_attr_num_unsol_na.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
 	&dev_attr_primary_reselect.attr,
