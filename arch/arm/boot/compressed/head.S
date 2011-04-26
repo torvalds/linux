@@ -253,6 +253,11 @@ restart:	adr	r0, LC0
 		/* Preserve offset to relocated code. */
 		sub	r6, r9, r6
 
+#ifndef CONFIG_ZBOOT_ROM
+		/* cache_clean_flush may use the stack, so relocate it */
+		add	sp, sp, r6
+#endif
+
 		bl	cache_clean_flush
 
 		adr	r0, BSYM(restart)
