@@ -2039,6 +2039,13 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char *cap_hpf_mode_text[] = {
+	"Hi-fi", "Application"
+};
+
+static const struct soc_enum cap_hpf_mode =
+	SOC_ENUM_SINGLE(WM8962_ADC_DAC_CONTROL_2, 10, 2, cap_hpf_mode_text);
+
 static const struct snd_kcontrol_new wm8962_snd_controls[] = {
 SOC_DOUBLE("Input Mixer Switch", WM8962_INPUT_MIXER_CONTROL_1, 3, 2, 1, 1),
 
@@ -2064,6 +2071,9 @@ SOC_DOUBLE_R("Capture Switch", WM8962_LEFT_INPUT_VOLUME,
 	     WM8962_RIGHT_INPUT_VOLUME, 7, 1, 1),
 SOC_DOUBLE_R("Capture ZC Switch", WM8962_LEFT_INPUT_VOLUME,
 	     WM8962_RIGHT_INPUT_VOLUME, 6, 1, 1),
+SOC_SINGLE("Capture HPF Switch", WM8962_ADC_DAC_CONTROL_1, 0, 1, 1),
+SOC_ENUM("Capture HPF Mode", cap_hpf_mode),
+SOC_SINGLE("Capture HPF Cutoff", WM8962_ADC_DAC_CONTROL_2, 7, 7, 0),
 
 SOC_DOUBLE_R_TLV("Sidetone Volume", WM8962_DAC_DSP_MIXING_1,
 		 WM8962_DAC_DSP_MIXING_2, 4, 12, 0, st_tlv),
