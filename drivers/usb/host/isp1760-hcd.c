@@ -1021,10 +1021,10 @@ static void do_atl_int(struct usb_hcd *hcd)
 		qtd = priv->atl_ints[slot].qtd;
 		qh = priv->atl_ints[slot].qh;
 
-		if (!qh) {
-			dev_err(hcd->self.controller, "qh is 0\n");
+		/* urb unlinked? */
+		if (!qh)
 			continue;
-		}
+
 		ptd_read(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 
 		rl = (ptd.dw2 >> 25) & 0x0f;
@@ -1213,10 +1213,9 @@ static void do_intl_int(struct usb_hcd *hcd)
 		qtd = priv->int_ints[slot].qtd;
 		qh = priv->int_ints[slot].qh;
 
-		if (!qh) {
-			dev_err(hcd->self.controller, "(INT) qh is 0\n");
+		/* urb unlinked? */
+		if (!qh)
 			continue;
-		}
 
 		ptd_read(hcd->regs, INT_PTD_OFFSET, slot, &ptd);
 		check_int_err_status(hcd, ptd.dw4);
