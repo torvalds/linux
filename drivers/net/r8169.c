@@ -1188,6 +1188,19 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
+static const char *rtl_lookup_firmware_name(struct rtl8169_private *tp)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rtl_firmware_infos); i++) {
+		const struct rtl_firmware_info *info = rtl_firmware_infos + i;
+
+		if (info->mac_version == tp->mac_version)
+			return info->fw_name;
+	}
+	return NULL;
+}
+
 static void rtl8169_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
@@ -1196,6 +1209,8 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, MODULENAME);
 	strcpy(info->version, RTL8169_VERSION);
 	strcpy(info->bus_info, pci_name(tp->pci_dev));
+	strncpy(info->fw_version, IS_ERR_OR_NULL(tp->fw) ? "N/A" :
+		rtl_lookup_firmware_name(tp), sizeof(info->fw_version) - 1);
 }
 
 static int rtl8169_get_regs_len(struct net_device *dev)
@@ -3491,33 +3506,23 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 
 static void rtl_request_firmware(struct rtl8169_private *tp)
 {
-	int i;
-
 	/* Return early if the firmware is already loaded / cached. */
-	if (!IS_ERR(tp->fw))
-		goto out;
+	if (IS_ERR(tp->fw)) {
+		const char *name;
 
-	for (i = 0; i < ARRAY_SIZE(rtl_firmware_infos); i++) {
-		const struct rtl_firmware_info *info = rtl_firmware_infos + i;
-
-		if (info->mac_version == tp->mac_version) {
-			const char *name = info->fw_name;
+		name = rtl_lookup_firmware_name(tp);
+		if (name) {
 			int rc;
 
 			rc = request_firmware(&tp->fw, name, &tp->pci_dev->dev);
-			if (rc < 0) {
-				netif_warn(tp, ifup, tp->dev, "unable to load "
-					"firmware patch %s (%d)\n", name, rc);
-				goto out_disable_request_firmware;
-			}
-			goto out;
-		}
-	}
+			if (rc >= 0)
+				return;
 
-out_disable_request_firmware:
-	tp->fw = NULL;
-out:
-	return;
+			netif_warn(tp, ifup, tp->dev, "unable to load "
+				"firmware patch %s (%d)\n", name, rc);
+		}
+		tp->fw = NULL;
+	}
 }
 
 static int rtl8169_open(struct net_device *dev)
