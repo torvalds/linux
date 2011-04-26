@@ -1324,7 +1324,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	if (*pos == 0)
-		*pos = first_cpu(cpu_online_map);
+		*pos = cpumask_first(cpu_online_mask);
 	if (*pos >= num_online_cpus())
 		return NULL;
 
@@ -1333,7 +1333,7 @@ static void *c_start(struct seq_file *m, loff_t *pos)
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	*pos = next_cpu(*pos, cpu_online_map);
+	*pos = cpumask_next(*pos, cpu_online_mask);
 
 	return c_start(m, pos);
 }
