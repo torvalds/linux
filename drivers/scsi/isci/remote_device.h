@@ -100,11 +100,6 @@ struct scic_sds_remote_device {
 	enum sas_linkrate connection_rate;
 
 	/**
-	 * This field contains the device SAS address.
-	 */
-	struct sci_sas_address device_address;
-
-	/**
 	 * This filed is assinged the value of true if the device is directly
 	 * attached to the port.
 	 */

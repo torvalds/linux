@@ -1501,8 +1501,6 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
 
 	sci_dev->rnc.remote_node_index = remote_node_index;
 
-	scic_sds_port_get_attached_sas_address(sci_port, &sci_dev->device_address);
-
 	if (dev->dev_type == SAS_END_DEV)
 		sci_dev->has_ready_substate_machine = false;
 	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
@@ -1553,7 +1551,6 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 	enum sci_status status;
 
 	scic_remote_device_construct(sci_port, sci_dev);
-	memcpy(&sci_dev->device_address, dev->sas_addr, SAS_ADDR_SIZE);
 
 	status = scic_sds_controller_allocate_remote_node_context(
 		scic, sci_dev, &sci_dev->rnc.remote_node_index);

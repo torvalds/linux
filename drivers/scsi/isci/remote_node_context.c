@@ -110,6 +110,7 @@ static void scic_sds_remote_node_context_construct_buffer(
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	union scu_remote_node_context *rnc;
 	struct scic_sds_controller *scic;
+	__le64 sas_addr;
 
 	scic = scic_sds_remote_device_get_controller(sci_dev);
 
@@ -124,9 +125,10 @@ static void scic_sds_remote_node_context_construct_buffer(
 	rnc->ssp.logical_port_index =
 		scic_sds_remote_device_get_port_index(sci_dev);
 
-	/* address is always big endian, destination is always little */
-	rnc->ssp.remote_sas_address_hi = swab32(sci_dev->device_address.high);
-	rnc->ssp.remote_sas_address_lo = swab32(sci_dev->device_address.low);
+	/* sas address is __be64, context ram format is __le64 */
+	sas_addr = cpu_to_le64(SAS_ADDR(dev->sas_addr));
+	rnc->ssp.remote_sas_address_hi = upper_32_bits(sas_addr);
+	rnc->ssp.remote_sas_address_lo = lower_32_bits(sas_addr);
 
 	rnc->ssp.nexus_loss_timer_enable = true;
 	rnc->ssp.check_bit               = false;
