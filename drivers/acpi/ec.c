@@ -804,8 +804,6 @@ static int acpi_ec_add(struct acpi_device *device)
 			return -EINVAL;
 	}
 
-	ec->handle = device->handle;
-
 	/* Find and register all query methods */
 	acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
 			    acpi_ec_register_query_methods, NULL, ec, NULL);
