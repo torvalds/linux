@@ -475,7 +475,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	int err, i;
 	struct isci_host *isci_host;
 	const struct firmware *fw = NULL;
-	struct isci_orom *orom;
+	struct isci_orom *orom = NULL;
 	char *source = "(platform)";
 
 	check_si_rev(pdev);
@@ -487,7 +487,8 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 
 	if (efi_enabled)
 		orom = isci_get_efi_var(pdev);
-	else
+
+	if (!orom)
 		orom = isci_request_oprom(pdev);
 
 	for (i = 0; orom && i < ARRAY_SIZE(orom->ctrl); i++) {
