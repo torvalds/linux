@@ -107,10 +107,7 @@ struct ubifs_debug_info {
 	}                                                                      \
 } while (0)
 
-#define dbg_dump_stack() do {                                                  \
-	if (!dbg_failure_mode)                                                 \
-		dump_stack();                                                  \
-} while (0)
+#define dbg_dump_stack() dump_stack()
 
 /* Generic debugging messages */
 #define dbg_msg(fmt, ...) do {                                                 \
