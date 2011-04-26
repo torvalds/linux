@@ -816,6 +816,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	loff_t bytes, max_bytes;
 	struct gfs2_alloc *al;
 	int error;
+	loff_t bsize_mask = ~((loff_t)sdp->sd_sb.sb_bsize - 1);
 	loff_t next = (offset + len - 1) >> sdp->sd_sb.sb_bsize_shift;
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
@@ -823,13 +824,15 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
 
-	offset = (offset >> sdp->sd_sb.sb_bsize_shift) <<
-		 sdp->sd_sb.sb_bsize_shift;
+	offset &= bsize_mask;
 
 	len = next - offset;
 	bytes = sdp->sd_max_rg_data * sdp->sd_sb.sb_bsize / 2;
 	if (!bytes)
 		bytes = UINT_MAX;
+	bytes &= bsize_mask;
+	if (bytes == 0)
+		bytes = sdp->sd_sb.sb_bsize;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
 	error = gfs2_glock_nq(&ip->i_gh);
@@ -860,6 +863,9 @@ retry:
 		if (error) {
 			if (error == -ENOSPC && bytes > sdp->sd_sb.sb_bsize) {
 				bytes >>= 1;
+				bytes &= bsize_mask;
+				if (bytes == 0)
+					bytes = sdp->sd_sb.sb_bsize;
 				goto retry;
 			}
 			goto out_qunlock;
