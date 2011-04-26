@@ -661,11 +661,10 @@ static void wm8900_work(struct work_struct *work)
 {
 	WM8900_DBG("Enter::wm8900 work, power down wm8900\n");
 
-	snd_soc_write(wm8900_codec, WM8900_REG_RESET, 0);
-
 #ifdef SPK_CON
 	gpio_set_value(SPK_CON, GPIO_LOW);
 #endif
+	snd_soc_write(wm8900_codec, WM8900_REG_RESET, 0);
 
 	wm8900_current_status = WM8900_IS_SHUTDOWN;
 }
@@ -686,16 +685,10 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_DACCTRL, 0x00);
 	snd_soc_write(codec, WM8900_REG_LOUTMIXCTL1, 0x150);
 	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
-	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x133);
-	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x133);
 
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xB0);
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xF0);
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);
-
-	//for SPK out
-	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x130);
-	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x130);
 
 	//for recorder
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
@@ -1084,16 +1077,37 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
 
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	WM8900_DBG("Enter:%s, %d , mute = %d \n", __FUNCTION__, __LINE__, mute);
+
+	if (mute)
+		return 0;
 
 	reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
 
-	if (mute)
-		reg |= WM8900_REG_DACCTRL_MUTE;
-	else
-		reg &= ~WM8900_REG_DACCTRL_MUTE;
-
+	reg &= ~WM8900_REG_DACCTRL_MUTE;
 	snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
+
+	/* Turn up vol slowly, for SPK out pop */
+	for (reg = 0; reg <= 0x30; reg += 0x10) {
+		if (snd_soc_read(codec, WM8900_REG_LOUT1CTL) < 0x30)
+			snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x100 + reg);
+
+		if (snd_soc_read(codec, WM8900_REG_ROUT1CTL) < 0x30)
+			snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x100 + reg);
+	}
+	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x130);
+	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x130);
+
+	/* Turn up vol slowly, for HP out pop */
+	for (reg = 0; reg <= 0x33; reg += 0x10) {
+		if (snd_soc_read(codec, WM8900_REG_LOUT2CTL) < 0x33)
+			snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x100 + reg);
+
+		if (snd_soc_read(codec, WM8900_REG_ROUT2CTL) < 0x33)
+			snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x100 + reg);
+	}
+	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x133);
+	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x133);
 
 	return 0;
 }
