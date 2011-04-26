@@ -854,23 +854,6 @@ static struct VideoModeTable viafb_rb_modes[] = {
 	{CRTM1920x1200_RB, ARRAY_SIZE(CRTM1920x1200_RB)}
 };
 
-struct crt_mode_table CEAM1280x720[] = {
-	{REFRESH_60, M1280X720_CEA_R60_HSP, M1280X720_CEA_R60_VSP,
-	 /* HT,    HA,   HBS,  HBE,  HSS, HSE,  VT,   VA,  VBS, VBE, VSS, VSE */
-	 {1650, 1280, 1280, 370, 1390, 40, 750, 720, 720, 30, 725, 5} }
-};
-struct crt_mode_table CEAM1920x1080[] = {
-	{REFRESH_60, M1920X1080_CEA_R60_HSP, M1920X1080_CEA_R60_VSP,
-	 /* HT,    HA,   HBS,  HBE,  HSS, HSE,  VT,  VA, VBS, VBE,  VSS, VSE */
-	 {2200, 1920, 1920, 300, 2008, 44, 1125, 1080, 1080, 45, 1084, 5} }
-};
-struct VideoModeTable CEA_HDMI_Modes[] = {
-	/* Display : 1280x720 */
-	{CEAM1280x720, ARRAY_SIZE(CEAM1280x720)},
-	{CEAM1920x1080, ARRAY_SIZE(CEAM1920x1080)}
-};
-
-int NUM_TOTAL_CEA_MODES = ARRAY_SIZE(CEA_HDMI_Modes);
 int NUM_TOTAL_CN400_ModeXregs = ARRAY_SIZE(CN400_ModeXregs);
 int NUM_TOTAL_CN700_ModeXregs = ARRAY_SIZE(CN700_ModeXregs);
 int NUM_TOTAL_KM400_ModeXregs = ARRAY_SIZE(KM400_ModeXregs);

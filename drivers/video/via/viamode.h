@@ -41,7 +41,6 @@ struct patch_table {
 	struct io_reg *io_reg_table;
 };
 
-extern int NUM_TOTAL_CEA_MODES;
 extern int NUM_TOTAL_CN400_ModeXregs;
 extern int NUM_TOTAL_CN700_ModeXregs;
 extern int NUM_TOTAL_KM400_ModeXregs;
@@ -49,14 +48,6 @@ extern int NUM_TOTAL_CX700_ModeXregs;
 extern int NUM_TOTAL_VX855_ModeXregs;
 extern int NUM_TOTAL_CLE266_ModeXregs;
 extern int NUM_TOTAL_PATCH_MODE;
-
-/********************/
-/* Mode Table       */
-/********************/
-
-extern struct crt_mode_table CEAM1280x720[];
-extern struct crt_mode_table CEAM1920x1080[];
-extern struct VideoModeTable CEA_HDMI_Modes[];
 
 extern struct io_reg CN400_ModeXregs[];
 extern struct io_reg CN700_ModeXregs[];
