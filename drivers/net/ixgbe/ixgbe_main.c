@@ -4417,72 +4417,72 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return false;
 
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-#ifdef CONFIG_IXGBE_DCB
-		int tc;
-		struct net_device *dev = adapter->netdev;
+	f->indices = min((int)num_online_cpus(), f->indices);
 
-		tc = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
-		f->indices = dev->tc_to_txq[tc].count;
-		f->mask = dev->tc_to_txq[tc].offset;
-#endif
-	} else {
-		f->indices = min((int)num_online_cpus(), f->indices);
+	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
 
-		adapter->num_rx_queues = 1;
-		adapter->num_tx_queues = 1;
-
-		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			e_info(probe, "FCoE enabled with RSS\n");
-			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
-				ixgbe_set_fdir_queues(adapter);
-			else
-				ixgbe_set_rss_queues(adapter);
-		}
-		/* adding FCoE rx rings to the end */
-		f->mask = adapter->num_rx_queues;
-		adapter->num_rx_queues += f->indices;
-		adapter->num_tx_queues += f->indices;
+	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
+		e_info(probe, "FCoE enabled with RSS\n");
+		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+			ixgbe_set_fdir_queues(adapter);
+		else
+			ixgbe_set_rss_queues(adapter);
 	}
+	/* adding FCoE rx rings to the end */
+	f->mask = adapter->num_rx_queues;
+	adapter->num_rx_queues += f->indices;
+	adapter->num_tx_queues += f->indices;
 
 	return true;
 }
 #endif /* IXGBE_FCOE */
 
+/* Artificial max queue cap per traffic class in DCB mode */
+#define DCB_QUEUE_CAP 8
+
 #ifdef CONFIG_IXGBE_DCB
 static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 {
-	bool ret = false;
-	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_DCB];
-	int tcs = netdev_get_num_tc(adapter->netdev);
-	int max_q, i, q;
+	int per_tc_q, q, i, offset = 0;
+	struct net_device *dev = adapter->netdev;
+	int tcs = netdev_get_num_tc(dev);
 
-	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED) || !tcs)
-		return ret;
+	if (!tcs)
+		return false;
 
-	max_q = adapter->netdev->num_tx_queues / tcs;
+	/* Map queue offset and counts onto allocated tx queues */
+	per_tc_q = min(dev->num_tx_queues / tcs, (unsigned int)DCB_QUEUE_CAP);
+	q = min((int)num_online_cpus(), per_tc_q);
 
-	f->indices = 0;
 	for (i = 0; i < tcs; i++) {
-		q = min((int)num_online_cpus(), max_q);
-		f->indices += q;
+		netdev_set_prio_tc_map(dev, i, i);
+		netdev_set_tc_queue(dev, i, q, offset);
+		offset += q;
 	}
 
-	f->mask = 0x7 << 3;
-	adapter->num_rx_queues = f->indices;
-	adapter->num_tx_queues = f->indices;
-	ret = true;
+	adapter->num_tx_queues = q * tcs;
+	adapter->num_rx_queues = q * tcs;
 
 #ifdef IXGBE_FCOE
-	/* FCoE enabled queues require special configuration done through
-	 * configure_fcoe() and others. Here we map FCoE indices onto the
-	 * DCB queue pairs allowing FCoE to own configuration later.
+	/* FCoE enabled queues require special configuration indexed
+	 * by feature specific indices and mask. Here we map FCoE
+	 * indices onto the DCB queue pairs allowing FCoE to own
+	 * configuration later.
 	 */
-	ixgbe_set_fcoe_queues(adapter);
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		int tc;
+		struct ixgbe_ring_feature *f =
+					&adapter->ring_feature[RING_F_FCOE];
+
+		tc = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
+		f->indices = dev->tc_to_txq[tc].count;
+		f->mask = dev->tc_to_txq[tc].offset;
+	}
 #endif
 
-	return ret;
+	return true;
 }
 #endif
 
@@ -5172,7 +5172,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	rss = min(IXGBE_MAX_RSS_INDICES, (int)num_online_cpus());
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
-	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		if (hw->device_id == IXGBE_DEV_ID_82598AT)
@@ -7213,10 +7212,8 @@ static void ixgbe_validate_rtr(struct ixgbe_adapter *adapter, u8 tc)
  */
 int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 {
-	unsigned int q, i, offset = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int max_q = adapter->netdev->num_tx_queues / tc;
 
 	/* If DCB is anabled do not remove traffic classes, multiple
 	 * traffic classes are required to implement DCB
@@ -7241,14 +7238,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		netdev_set_num_tc(dev, tc);
 	else
 		netdev_reset_tc(dev);
-
-	/* Partition Tx queues evenly amongst traffic classes */
-	for (i = 0; i < tc; i++) {
-		q = min((int)num_online_cpus(), max_q);
-		netdev_set_prio_tc_map(dev, i, i);
-		netdev_set_tc_queue(dev, i, q, offset);
-		offset += q;
-	}
 
 	ixgbe_init_interrupt_scheme(adapter);
 	ixgbe_validate_rtr(adapter, tc);
@@ -7436,14 +7425,16 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
+#ifdef CONFIG_IXGBE_DCB
+	indices *= MAX_TRAFFIC_CLASS;
+#endif
+
 	if (ii->mac == ixgbe_mac_82598EB)
 		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
 	else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
 
-#if defined(CONFIG_DCB)
-	indices = max_t(unsigned int, indices, IXGBE_MAX_DCB_INDICES);
-#elif defined(IXGBE_FCOE)
+#ifdef IXGBE_FCOE
 	indices += min_t(unsigned int, num_possible_cpus(),
 			 IXGBE_MAX_FCOE_INDICES);
 #endif
