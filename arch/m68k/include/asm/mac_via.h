@@ -204,7 +204,7 @@
 #define vT2CL	0x1000  /* [VIA only] Timer two counter low. */
 #define vT2CH	0x1200  /* [VIA only] Timer two counter high. */
 #define vSR	0x1400  /* [VIA only] Shift register. */
-#define vACR	0x1600  /* [VIA only] Auxilary control register. */
+#define vACR	0x1600  /* [VIA only] Auxiliary control register. */
 #define vPCR	0x1800  /* [VIA only] Peripheral control register. */
                         /*            CHRP sez never ever to *write* this.
 			 *            Mac family says never to *change* this.

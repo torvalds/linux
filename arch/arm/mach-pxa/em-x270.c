@@ -31,6 +31,7 @@
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/regulator/userspace-consumer.h>
 
 #include <media/soc_camera.h>
@@ -45,7 +46,6 @@
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 #include <plat/pxa27x_keypad.h>
-#include <plat/i2c.h>
 #include <mach/camera.h>
 
 #include "generic.h"
@@ -689,7 +689,7 @@ static struct pxafb_mach_info em_x270_lcd = {
 
 static void __init em_x270_init_lcd(void)
 {
-	set_pxa_fb_info(&em_x270_lcd);
+	pxa_set_fb_info(NULL, &em_x270_lcd);
 }
 #else
 static inline void em_x270_init_lcd(void) {}

@@ -105,7 +105,7 @@ int mmc_go_idle(struct mmc_host *host)
 	 * that in case of hardware that won't pull up DAT3/nCS otherwise.
 	 *
 	 * SPI hosts ignore ios.chip_select; it's managed according to
-	 * rules that must accomodate non-MMC slaves which this layer
+	 * rules that must accommodate non-MMC slaves which this layer
 	 * won't even know about.
 	 */
 	if (!mmc_host_is_spi(host)) {

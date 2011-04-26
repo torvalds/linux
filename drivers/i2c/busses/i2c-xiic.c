@@ -21,7 +21,7 @@
  * to the automotive development board Russellville. The copyright holder
  * as seen in the header is Intel corporation.
  * Mocean Laboratories forked off the GNU/Linux platform work into a
- * separate company called Pelagicore AB, which commited the code to the
+ * separate company called Pelagicore AB, which committed the code to the
  * kernel.
  */
 
@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -704,7 +705,7 @@ static int __devinit xiic_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		goto resource_missing;
 
-	pdata = (struct xiic_i2c_platform_data *) pdev->dev.platform_data;
+	pdata = mfd_get_data(pdev);
 	if (!pdata)
 		return -EINVAL;
 

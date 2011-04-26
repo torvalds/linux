@@ -55,8 +55,6 @@
 #include <linux/jiffies.h>
 #include <linux/rar_register.h>
 
-#include "../memrar/memrar.h"
-
 #include "sep_driver_hw_defs.h"
 #include "sep_driver_config.h"
 #include "sep_driver_api.h"
@@ -586,7 +584,7 @@ static unsigned int sep_poll(struct file *filp, poll_table *wait)
 	dev_dbg(&sep->pdev->dev, "poll: send_ct is %lx reply ct is %lx\n",
 		sep->send_ct, sep->reply_ct);
 
-	/* Check if error occured during poll */
+	/* Check if error occurred during poll */
 	retval2 = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
 	if (retval2 != 0x0) {
 		dev_warn(&sep->pdev->dev, "poll; poll error %x\n", retval2);
@@ -1106,7 +1104,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			lli_array[count].block_size);
 	}
 
-	/* Set output params acording to the in_out flag */
+	/* Set output params according to the in_out flag */
 	if (in_out_flag == SEP_DRIVER_IN_FLAG) {
 		*lli_array_ptr = lli_array;
 		sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages = num_pages;
@@ -1577,7 +1575,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 
 		/*
 		 * If this is not the last table -
-		 * then allign it to the block size
+		 * then align it to the block size
 		 */
 		if (!last_table_flag)
 			table_data_size =
@@ -1974,7 +1972,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP is %x\n",
 		SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
 
-	/* Call the fucntion that creates table from the lli arrays */
+	/* Call the function that creates table from the lli arrays */
 	error = sep_construct_dma_tables_from_lli(sep, lli_in_array,
 		sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages,
 		lli_out_array,
@@ -2372,7 +2370,6 @@ static int sep_rar_prepare_output_msg_handler(struct sep_device *sep,
 	int error = 0;
 	/* Command args */
 	struct rar_hndl_to_bus_struct command_args;
-	struct RAR_buffer rar_buf;
 	/* Bus address */
 	dma_addr_t  rar_bus = 0;
 	/* Holds the RAR address in the system memory offset */
@@ -2386,16 +2383,8 @@ static int sep_rar_prepare_output_msg_handler(struct sep_device *sep,
 	}
 
 	/* Call to translation function only if user handle is not NULL */
-	if (command_args.rar_handle) {
-		memset(&rar_buf, 0, sizeof(rar_buf));
-		rar_buf.info.handle = (u32)command_args.rar_handle;
-
-		if (rar_handle_to_bus(&rar_buf, 1) != 1) {
-			error = -EFAULT;
-			goto end_function;
-		}
-		rar_bus = rar_buf.bus_address;
-	}
+	if (command_args.rar_handle)
+		return -EOPNOTSUPP;
 	dev_dbg(&sep->pdev->dev, "rar msg; rar_addr_bus = %x\n", (u32)rar_bus);
 
 	/* Set value in the SYSTEM MEMORY offset */
@@ -2416,7 +2405,7 @@ end_function:
  *	@cmd: command
  *	@arg: pointer to argument structure
  *
- *	Implement the ioctl methods availble on the SEP device.
+ *	Implement the ioctl methods available on the SEP device.
  */
 static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

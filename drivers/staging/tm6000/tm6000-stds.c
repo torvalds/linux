@@ -952,6 +952,22 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 	uint8_t mono_flag = 0;  /* No mono */
 	uint8_t nicam_flag = 0; /* No NICAM */
 
+	if (dev->radio) {
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
+		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R04_A_SIF_AMP_CTRL, 0x80);
+		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0c);
+		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
+		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x18);
+		tm6000_set_reg(dev, TM6010_REQ08_R0C_A_ASD_THRES2, 0x0a);
+		tm6000_set_reg(dev, TM6010_REQ08_R0D_A_AMD_THRES, 0x40);
+		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
+		tm6000_set_reg(dev, TM6010_REQ08_R1E_A_GAIN_DEEMPH_OUT, 0x13);
+		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
+		return 0;
+	}
+
 	switch (std) {
 #if 0
 	case DK_MONO:
@@ -984,20 +1000,6 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 	case EIAJ:
 		areg_05 = 0x02;
 		break;
-	case FM_RADIO:
-		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
-		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
-		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
-		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0c);
-		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
-		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x18);
-		tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0x91);
-		tm6000_set_reg(dev, TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe);
-		tm6000_set_reg(dev, TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01);
-		tm6000_set_reg(dev, TM6010_REQ08_R1E_A_GAIN_DEEMPH_OUT, 0x13);
-		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
-		return 0;
-		break;
 	case I_NICAM:
 		areg_05 = 0x08;
 		nicam_flag = 1;
@@ -1009,6 +1011,9 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 		areg_02 = 0x02; /* GC1 Fixed gain +12dB */
 		areg_05 = 0x0a;
 		nicam_flag = 1;
+		break;
+	default:
+		/* do nothink */
 		break;
 	}
 
@@ -1156,8 +1161,6 @@ int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id * norm)
 				rc = tm6000_load_std(dev, svideo_stds[i].common,
 						     sizeof(svideo_stds[i].
 							    common));
-				tm6000_set_audio_std(dev, svideo_stds[i].audio_default_std);
-
 				goto ret;
 			}
 		}

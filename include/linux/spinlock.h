@@ -81,7 +81,7 @@
 #include <linux/spinlock_types.h>
 
 /*
- * Pull the arch_spin*() functions/declarations (UP-nondebug doesnt need them):
+ * Pull the arch_spin*() functions/declarations (UP-nondebug doesn't need them):
  */
 #ifdef CONFIG_SMP
 # include <asm/spinlock.h>

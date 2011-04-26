@@ -567,7 +567,7 @@ static void __tasklet_hrtimer_trampoline(unsigned long data)
 /**
  * tasklet_hrtimer_init - Init a tasklet/hrtimer combo for softirq callbacks
  * @ttimer:	 tasklet_hrtimer which is initialized
- * @function:	 hrtimer callback funtion which gets called from softirq context
+ * @function:	 hrtimer callback function which gets called from softirq context
  * @which_clock: clock id (CLOCK_MONOTONIC/CLOCK_REALTIME)
  * @mode:	 hrtimer mode (HRTIMER_MODE_ABS/HRTIMER_MODE_REL)
  */
@@ -845,7 +845,10 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		p = kthread_create(run_ksoftirqd, hcpu, "ksoftirqd/%d", hotcpu);
+		p = kthread_create_on_node(run_ksoftirqd,
+					   hcpu,
+					   cpu_to_node(hotcpu),
+					   "ksoftirqd/%d", hotcpu);
 		if (IS_ERR(p)) {
 			printk("ksoftirqd for %i failed\n", hotcpu);
 			return notifier_from_errno(PTR_ERR(p));

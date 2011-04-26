@@ -47,7 +47,7 @@ config UBIFS_FS_DEBUG
 	bool "Enable debugging support"
 	depends on UBIFS_FS
 	select DEBUG_FS
-	select KALLSYMS_ALL
+	select KALLSYMS
 	help
 	  This option enables UBIFS debugging support. It makes sure various
 	  assertions, self-checks, debugging messages and test modes are compiled
@@ -58,12 +58,3 @@ config UBIFS_FS_DEBUG
 	  down UBIFS. You can then further enable / disable individual  debugging
 	  features using UBIFS module parameters and the corresponding sysfs
 	  interfaces.
-
-config UBIFS_FS_DEBUG_CHKS
-	bool "Enable extra checks"
-	depends on UBIFS_FS_DEBUG
-	help
-	  If extra checks are enabled UBIFS will check the consistency of its
-	  internal data structures during operation. However, UBIFS performance
-	  is dramatically slower when this option is selected especially if the
-	  file system is large.

@@ -193,7 +193,7 @@ static int __devinit cciss_find_cfg_addrs(struct pci_dev *pdev,
 	u64 *cfg_offset);
 static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar);
-
+static inline u32 cciss_tag_discard_error_bits(ctlr_info_t *h, u32 tag);
 
 /* performant mode helper functions */
 static void  calc_bucket_map(int *bucket, int num_buckets, int nsgs,
@@ -231,7 +231,7 @@ static const struct block_device_operations cciss_fops = {
  */
 static void set_performant_mode(ctlr_info_t *h, CommandList_struct *c)
 {
-	if (likely(h->transMethod == CFGTBL_Trans_Performant))
+	if (likely(h->transMethod & CFGTBL_Trans_Performant))
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
 }
 
@@ -556,6 +556,44 @@ static void __devinit cciss_procinit(ctlr_info_t *h)
 #define to_hba(n) container_of(n, struct ctlr_info, dev)
 #define to_drv(n) container_of(n, drive_info_struct, dev)
 
+/* List of controllers which cannot be reset on kexec with reset_devices */
+static u32 unresettable_controller[] = {
+	0x324a103C, /* Smart Array P712m */
+	0x324b103C, /* SmartArray P711m */
+	0x3223103C, /* Smart Array P800 */
+	0x3234103C, /* Smart Array P400 */
+	0x3235103C, /* Smart Array P400i */
+	0x3211103C, /* Smart Array E200i */
+	0x3212103C, /* Smart Array E200 */
+	0x3213103C, /* Smart Array E200i */
+	0x3214103C, /* Smart Array E200i */
+	0x3215103C, /* Smart Array E200i */
+	0x3237103C, /* Smart Array E500 */
+	0x323D103C, /* Smart Array P700m */
+	0x409C0E11, /* Smart Array 6400 */
+	0x409D0E11, /* Smart Array 6400 EM */
+};
+
+static int ctlr_is_resettable(struct ctlr_info *h)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(unresettable_controller); i++)
+		if (unresettable_controller[i] == h->board_id)
+			return 0;
+	return 1;
+}
+
+static ssize_t host_show_resettable(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct ctlr_info *h = to_hba(dev);
+
+	return snprintf(buf, 20, "%d\n", ctlr_is_resettable(h));
+}
+static DEVICE_ATTR(resettable, S_IRUGO, host_show_resettable, NULL);
+
 static ssize_t host_store_rescan(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
@@ -741,6 +779,7 @@ static DEVICE_ATTR(usage_count, S_IRUGO, cciss_show_usage_count, NULL);
 
 static struct attribute *cciss_host_attrs[] = {
 	&dev_attr_rescan.attr,
+	&dev_attr_resettable.attr,
 	NULL
 };
 
@@ -973,8 +1012,8 @@ static void cmd_special_free(ctlr_info_t *h, CommandList_struct *c)
 	temp64.val32.upper = c->ErrDesc.Addr.upper;
 	pci_free_consistent(h->pdev, sizeof(ErrorInfo_struct),
 			    c->err_info, (dma_addr_t) temp64.val);
-	pci_free_consistent(h->pdev, sizeof(CommandList_struct),
-			    c, (dma_addr_t) c->busaddr);
+	pci_free_consistent(h->pdev, sizeof(CommandList_struct), c,
+		(dma_addr_t) cciss_tag_discard_error_bits(h, (u32) c->busaddr));
 }
 
 static inline ctlr_info_t *get_host(struct gendisk *disk)
@@ -1490,8 +1529,7 @@ static int cciss_bigpassthru(ctlr_info_t *h, void __user *argp)
 		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	ioc = (BIG_IOCTL_Command_struct *)
-	    kmalloc(sizeof(*ioc), GFP_KERNEL);
+	ioc = kmalloc(sizeof(*ioc), GFP_KERNEL);
 	if (!ioc) {
 		status = -ENOMEM;
 		goto cleanup1;
@@ -2653,6 +2691,10 @@ static int process_sendcmd_error(ctlr_info_t *h, CommandList_struct *c)
 			c->Request.CDB[0]);
 		return_status = IO_NEEDS_RETRY;
 		break;
+	case CMD_UNABORTABLE:
+		dev_warn(&h->pdev->dev, "cmd unabortable\n");
+		return_status = IO_ERROR;
+		break;
 	default:
 		dev_warn(&h->pdev->dev, "cmd 0x%02x returned "
 		       "unknown status %x\n", c->Request.CDB[0],
@@ -3103,6 +3145,13 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 			(cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
 				DID_PASSTHROUGH : DID_ERROR);
 		break;
+	case CMD_UNABORTABLE:
+		dev_warn(&h->pdev->dev, "cmd %p unabortable\n", cmd);
+		rq->errors = make_status_bytes(SAM_STAT_GOOD,
+			cmd->err_info->CommandStatus, DRIVER_OK,
+			cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC ?
+				DID_PASSTHROUGH : DID_ERROR);
+		break;
 	default:
 		dev_warn(&h->pdev->dev, "cmd %p returned "
 		       "unknown status %x\n", cmd,
@@ -3136,10 +3185,13 @@ static inline u32 cciss_tag_to_index(u32 tag)
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
-static inline u32 cciss_tag_discard_error_bits(u32 tag)
+static inline u32 cciss_tag_discard_error_bits(ctlr_info_t *h, u32 tag)
 {
-#define CCISS_ERROR_BITS 0x03
-	return tag & ~CCISS_ERROR_BITS;
+#define CCISS_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
+#define CCISS_SIMPLE_ERROR_BITS 0x03
+	if (likely(h->transMethod & CFGTBL_Trans_Performant))
+		return tag & ~CCISS_PERF_ERROR_BITS;
+	return tag & ~CCISS_SIMPLE_ERROR_BITS;
 }
 
 static inline void cciss_mark_tag_indexed(u32 *tag)
@@ -3169,12 +3221,6 @@ static void do_cciss_request(struct request_queue *q)
 	int i, dir;
 	int sg_index = 0;
 	int chained = 0;
-
-	/* We call start_io here in case there is a command waiting on the
-	 * queue that has not been sent.
-	 */
-	if (blk_queue_plugged(q))
-		goto startio;
 
       queue:
 	creq = blk_peek_request(q);
@@ -3365,7 +3411,7 @@ static inline u32 next_command(ctlr_info_t *h)
 {
 	u32 a;
 
-	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
 		return h->access.command_completed(h);
 
 	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
@@ -3400,14 +3446,12 @@ static inline u32 process_indexed_cmd(ctlr_info_t *h, u32 raw_tag)
 /* process completion of a non-indexed command */
 static inline u32 process_nonindexed_cmd(ctlr_info_t *h, u32 raw_tag)
 {
-	u32 tag;
 	CommandList_struct *c = NULL;
 	__u32 busaddr_masked, tag_masked;
 
-	tag = cciss_tag_discard_error_bits(raw_tag);
+	tag_masked = cciss_tag_discard_error_bits(h, raw_tag);
 	list_for_each_entry(c, &h->cmpQ, list) {
-		busaddr_masked = cciss_tag_discard_error_bits(c->busaddr);
-		tag_masked = cciss_tag_discard_error_bits(tag);
+		busaddr_masked = cciss_tag_discard_error_bits(h, c->busaddr);
 		if (busaddr_masked == tag_masked) {
 			finish_cmd(h, c, raw_tag);
 			return next_command(h);
@@ -3759,7 +3803,8 @@ static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
 	}
 }
 
-static __devinit void cciss_enter_performant_mode(ctlr_info_t *h)
+static __devinit void cciss_enter_performant_mode(ctlr_info_t *h,
+	u32 use_short_tags)
 {
 	/* This is a bit complicated.  There are 8 registers on
 	 * the controller which we write to to tell it 8 different
@@ -3814,7 +3859,7 @@ static __devinit void cciss_enter_performant_mode(ctlr_info_t *h)
 	writel(0, &h->transtable->RepQCtrAddrHigh32);
 	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
 	writel(0, &h->transtable->RepQAddr0High32);
-	writel(CFGTBL_Trans_Performant,
+	writel(CFGTBL_Trans_Performant | use_short_tags,
 			&(h->cfgtable->HostWrite.TransportRequest));
 
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
@@ -3861,7 +3906,8 @@ static void __devinit cciss_put_controller_into_performant_mode(ctlr_info_t *h)
 	if ((h->reply_pool == NULL) || (h->blockFetchTable == NULL))
 		goto clean_up;
 
-	cciss_enter_performant_mode(h);
+	cciss_enter_performant_mode(h,
+		trans_support & CFGTBL_Trans_use_short_tags);
 
 	/* Change the access methods to the performant access methods */
 	h->access = SA5_performant_access;

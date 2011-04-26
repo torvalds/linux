@@ -154,29 +154,33 @@ int security_capset(struct cred *new, const struct cred *old,
 				    effective, inheritable, permitted);
 }
 
-int security_capable(const struct cred *cred, int cap)
+int security_capable(struct user_namespace *ns, const struct cred *cred,
+		     int cap)
 {
-	return security_ops->capable(current, cred, cap, SECURITY_CAP_AUDIT);
+	return security_ops->capable(current, cred, ns, cap,
+				     SECURITY_CAP_AUDIT);
 }
 
-int security_real_capable(struct task_struct *tsk, int cap)
+int security_real_capable(struct task_struct *tsk, struct user_namespace *ns,
+			  int cap)
 {
 	const struct cred *cred;
 	int ret;
 
 	cred = get_task_cred(tsk);
-	ret = security_ops->capable(tsk, cred, cap, SECURITY_CAP_AUDIT);
+	ret = security_ops->capable(tsk, cred, ns, cap, SECURITY_CAP_AUDIT);
 	put_cred(cred);
 	return ret;
 }
 
-int security_real_capable_noaudit(struct task_struct *tsk, int cap)
+int security_real_capable_noaudit(struct task_struct *tsk,
+				  struct user_namespace *ns, int cap)
 {
 	const struct cred *cred;
 	int ret;
 
 	cred = get_task_cred(tsk);
-	ret = security_ops->capable(tsk, cred, cap, SECURITY_CAP_NOAUDIT);
+	ret = security_ops->capable(tsk, cred, ns, cap, SECURITY_CAP_NOAUDIT);
 	put_cred(cred);
 	return ret;
 }
@@ -514,16 +518,14 @@ int security_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_permission(inode, mask);
+	return security_ops->inode_permission(inode, mask, 0);
 }
 
 int security_inode_exec_permission(struct inode *inode, unsigned int flags)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	if (flags)
-		return -ECHILD;
-	return security_ops->inode_permission(inode, MAY_EXEC);
+	return security_ops->inode_permission(inode, MAY_EXEC, flags);
 }
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)

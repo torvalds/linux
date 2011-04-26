@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -254,8 +254,8 @@ uint16_t lpfc_sli_next_iotag(struct lpfc_hba *, struct lpfc_iocbq *);
 void lpfc_sli_cancel_iocbs(struct lpfc_hba *, struct list_head *, uint32_t,
 			   uint32_t);
 void lpfc_sli_wake_mbox_wait(struct lpfc_hba *, LPFC_MBOXQ_t *);
-
-void lpfc_reset_barrier(struct lpfc_hba * phba);
+int lpfc_selective_reset(struct lpfc_hba *);
+void lpfc_reset_barrier(struct lpfc_hba *);
 int lpfc_sli_brdready(struct lpfc_hba *, uint32_t);
 int lpfc_sli_brdkill(struct lpfc_hba *);
 int lpfc_sli_brdreset(struct lpfc_hba *);

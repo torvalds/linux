@@ -23,9 +23,9 @@
 
 static DEFINE_RAW_SPINLOCK(r4030_lock);
 
-static void enable_r4030_irq(unsigned int irq)
+static void enable_r4030_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq - JAZZ_IRQ_START);
+	unsigned int mask = 1 << (d->irq - JAZZ_IRQ_START);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&r4030_lock, flags);
@@ -34,9 +34,9 @@ static void enable_r4030_irq(unsigned int irq)
 	raw_spin_unlock_irqrestore(&r4030_lock, flags);
 }
 
-void disable_r4030_irq(unsigned int irq)
+void disable_r4030_irq(struct irq_data *d)
 {
-	unsigned int mask = ~(1 << (irq - JAZZ_IRQ_START));
+	unsigned int mask = ~(1 << (d->irq - JAZZ_IRQ_START));
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&r4030_lock, flags);
@@ -47,10 +47,8 @@ void disable_r4030_irq(unsigned int irq)
 
 static struct irq_chip r4030_irq_type = {
 	.name = "R4030",
-	.ack = disable_r4030_irq,
-	.mask = disable_r4030_irq,
-	.mask_ack = disable_r4030_irq,
-	.unmask = enable_r4030_irq,
+	.irq_mask = disable_r4030_irq,
+	.irq_unmask = enable_r4030_irq,
 };
 
 void __init init_r4030_ints(void)
@@ -58,7 +56,7 @@ void __init init_r4030_ints(void)
 	int i;
 
 	for (i = JAZZ_IRQ_START; i <= JAZZ_IRQ_END; i++)
-		set_irq_chip_and_handler(i, &r4030_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &r4030_irq_type, handle_level_irq);
 
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE, 0);
 	r4030_read_reg16(JAZZ_IO_IRQ_SOURCE);		/* clear pending IRQs */

@@ -1482,13 +1482,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
-	struct net_device *bond_dev;
 	struct bonding *bond;
-
-	slave = bond_slave_get_rcu(skb->dev);
-	bond_dev = ACCESS_ONCE(slave->dev->master);
-	if (unlikely(!bond_dev))
-		return RX_HANDLER_PASS;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1496,7 +1490,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 
 	*pskb = skb;
 
-	bond = netdev_priv(bond_dev);
+	slave = bond_slave_get_rcu(skb->dev);
+	bond = slave->bond;
 
 	if (bond->params.arp_interval)
 		slave->dev->last_rx = jiffies;
@@ -1505,10 +1500,10 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_EXACT;
 	}
 
-	skb->dev = bond_dev;
+	skb->dev = bond->dev;
 
 	if (bond->params.mode == BOND_MODE_ALB &&
-	    bond_dev->priv_flags & IFF_BRIDGE_PORT &&
+	    bond->dev->priv_flags & IFF_BRIDGE_PORT &&
 	    skb->pkt_type == PACKET_HOST) {
 
 		if (unlikely(skb_cow_head(skb,
@@ -1516,7 +1511,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 			kfree_skb(skb);
 			return RX_HANDLER_CONSUMED;
 		}
-		memcpy(eth_hdr(skb)->h_dest, bond_dev->dev_addr, ETH_ALEN);
+		memcpy(eth_hdr(skb)->h_dest, bond->dev->dev_addr, ETH_ALEN);
 	}
 
 	return RX_HANDLER_ANOTHER;
@@ -1698,20 +1693,15 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		pr_debug("Error %d calling netdev_set_bond_master\n", res);
 		goto err_restore_mac;
 	}
-	res = netdev_rx_handler_register(slave_dev, bond_handle_frame,
-					 new_slave);
-	if (res) {
-		pr_debug("Error %d calling netdev_rx_handler_register\n", res);
-		goto err_unset_master;
-	}
 
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
 		pr_debug("Opening slave %s failed\n", slave_dev->name);
-		goto err_unreg_rxhandler;
+		goto err_unset_master;
 	}
 
+	new_slave->bond = bond;
 	new_slave->dev = slave_dev;
 	slave_dev->priv_flags |= IFF_BONDING;
 
@@ -1907,6 +1897,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (res)
 		goto err_close;
 
+	res = netdev_rx_handler_register(slave_dev, bond_handle_frame,
+					 new_slave);
+	if (res) {
+		pr_debug("Error %d calling netdev_rx_handler_register\n", res);
+		goto err_dest_symlinks;
+	}
+
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
 		bond_is_active_slave(new_slave) ? "n active" : " backup",
@@ -1916,12 +1913,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	return 0;
 
 /* Undo stages on error */
+err_dest_symlinks:
+	bond_destroy_slave_symlinks(bond_dev, slave_dev);
+
 err_close:
 	dev_close(slave_dev);
-
-err_unreg_rxhandler:
-	netdev_rx_handler_unregister(slave_dev);
-	synchronize_net();
 
 err_unset_master:
 	netdev_set_bond_master(slave_dev, NULL);
@@ -1987,6 +1983,14 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		unblock_netpoll_tx();
 		return -EINVAL;
 	}
+
+	/* unregister rx_handler early so bond_handle_frame wouldn't be called
+	 * for this slave anymore.
+	 */
+	netdev_rx_handler_unregister(slave_dev);
+	write_unlock_bh(&bond->lock);
+	synchronize_net();
+	write_lock_bh(&bond->lock);
 
 	if (!bond->params.fail_over_mac) {
 		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr) &&
@@ -2104,8 +2108,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
-	netdev_rx_handler_unregister(slave_dev);
-	synchronize_net();
 	netdev_set_bond_master(slave_dev, NULL);
 
 	slave_disable_netpoll(slave);
@@ -2130,7 +2132,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 }
 
 /*
-* First release a slave and than destroy the bond if no more slaves are left.
+* First release a slave and then destroy the bond if no more slaves are left.
 * Must be under rtnl_lock when this function is called.
 */
 static int  bond_release_and_destroy(struct net_device *bond_dev,
@@ -2186,6 +2188,12 @@ static int bond_release_all(struct net_device *bond_dev)
 		 */
 		write_unlock_bh(&bond->lock);
 
+		/* unregister rx_handler early so bond_handle_frame wouldn't
+		 * be called for this slave anymore.
+		 */
+		netdev_rx_handler_unregister(slave_dev);
+		synchronize_net();
+
 		if (bond_is_lb(bond)) {
 			/* must be called only after the slave
 			 * has been detached from the list
@@ -2217,8 +2225,6 @@ static int bond_release_all(struct net_device *bond_dev)
 			netif_addr_unlock_bh(bond_dev);
 		}
 
-		netdev_rx_handler_unregister(slave_dev);
-		synchronize_net();
 		netdev_set_bond_master(slave_dev, NULL);
 
 		slave_disable_netpoll(slave);

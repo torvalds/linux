@@ -3,6 +3,7 @@
 
 #include <linux/nfsacl.h>
 #include <linux/nfs3.h>
+#include <linux/sunrpc/gss_api.h>
 
 /*
  * To change the maximum rsize and wsize supported by the NFS client, adjust
@@ -13,6 +14,9 @@
 #define NFS_MAX_FILE_IO_SIZE	(1048576U)
 #define NFS_DEF_FILE_IO_SIZE	(4096U)
 #define NFS_MIN_FILE_IO_SIZE	(1024U)
+
+/* Forward declaration for NFS v3 */
+struct nfs4_secinfo_flavors;
 
 struct nfs_fsid {
 	uint64_t		major;
@@ -78,6 +82,7 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_CHANGE		(1U << 17)
 #define NFS_ATTR_FATTR_PRECHANGE	(1U << 18)
 #define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
+#define NFS_ATTR_FATTR_MOUNTPOINT	(1U << 20)	/* Treat as mountpoint */
 
 #define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
 		| NFS_ATTR_FATTR_MODE \
@@ -190,8 +195,9 @@ struct nfs4_get_lease_time_res {
 #define PNFS_LAYOUT_MAXSIZE 4096
 
 struct nfs4_layoutdriver_data {
+	struct page **pages;
+	__u32 pglen;
 	__u32 len;
-	void *buf;
 };
 
 struct pnfs_layout_range {
@@ -209,6 +215,7 @@ struct nfs4_layoutget_args {
 	struct nfs_open_context *ctx;
 	struct nfs4_sequence_args seq_args;
 	nfs4_stateid stateid;
+	struct nfs4_layoutdriver_data layout;
 };
 
 struct nfs4_layoutget_res {
@@ -216,8 +223,8 @@ struct nfs4_layoutget_res {
 	struct pnfs_layout_range range;
 	__u32 type;
 	nfs4_stateid stateid;
-	struct nfs4_layoutdriver_data layout;
 	struct nfs4_sequence_res seq_res;
+	struct nfs4_layoutdriver_data *layoutp;
 };
 
 struct nfs4_layoutget {
@@ -234,6 +241,29 @@ struct nfs4_getdeviceinfo_args {
 struct nfs4_getdeviceinfo_res {
 	struct pnfs_device *pdev;
 	struct nfs4_sequence_res seq_res;
+};
+
+struct nfs4_layoutcommit_args {
+	nfs4_stateid stateid;
+	__u64 lastbytewritten;
+	struct inode *inode;
+	const u32 *bitmask;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_layoutcommit_res {
+	struct nfs_fattr *fattr;
+	const struct nfs_server *server;
+	struct nfs4_sequence_res seq_res;
+};
+
+struct nfs4_layoutcommit_data {
+	struct rpc_task task;
+	struct nfs_fattr fattr;
+	struct pnfs_layout_segment *lseg;
+	struct rpc_cred *cred;
+	struct nfs4_layoutcommit_args args;
+	struct nfs4_layoutcommit_res res;
 };
 
 /*
@@ -936,6 +966,38 @@ struct nfs4_fs_locations_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
+struct nfs4_secinfo_oid {
+	unsigned int len;
+	char data[GSS_OID_MAX_LEN];
+};
+
+struct nfs4_secinfo_gss {
+	struct nfs4_secinfo_oid sec_oid4;
+	unsigned int qop4;
+	unsigned int service;
+};
+
+struct nfs4_secinfo_flavor {
+	unsigned int 		flavor;
+	struct nfs4_secinfo_gss	gss;
+};
+
+struct nfs4_secinfo_flavors {
+	unsigned int num_flavors;
+	struct nfs4_secinfo_flavor flavors[0];
+};
+
+struct nfs4_secinfo_arg {
+	const struct nfs_fh		*dir_fh;
+	const struct qstr		*name;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs4_secinfo_res {
+	struct nfs4_secinfo_flavors	*flavors;
+	struct nfs4_sequence_res	seq_res;
+};
+
 #endif /* CONFIG_NFS_V4 */
 
 struct nfstime4 {
@@ -1040,6 +1102,7 @@ struct nfs_write_data {
 	struct nfs_writeres	res;		/* result struct */
 	struct pnfs_layout_segment *lseg;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
+	int			ds_commit_index;
 	const struct rpc_call_ops *mds_ops;
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 #ifdef CONFIG_NFS_V4
@@ -1071,7 +1134,7 @@ struct nfs_rpc_ops {
 			    struct nfs_fattr *);
 	int	(*setattr) (struct dentry *, struct nfs_fattr *,
 			    struct iattr *);
-	int	(*lookup)  (struct inode *, struct qstr *,
+	int	(*lookup)  (struct rpc_clnt *clnt, struct inode *, struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *);
 	int	(*access)  (struct inode *, struct nfs_access_entry *);
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
@@ -1118,6 +1181,7 @@ struct nfs_rpc_ops {
 				struct iattr *iattr);
 	int	(*init_client) (struct nfs_client *, const struct rpc_timeout *,
 				const char *, rpc_authflavor_t, int);
+	int	(*secinfo)(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
 };
 
 /*

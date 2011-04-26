@@ -401,9 +401,9 @@ TRACE_EVENT(block_plug,
 
 DECLARE_EVENT_CLASS(block_unplug,
 
-	TP_PROTO(struct request_queue *q),
+	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q),
+	TP_ARGS(q, depth, explicit),
 
 	TP_STRUCT__entry(
 		__field( int,		nr_rq			)
@@ -411,7 +411,7 @@ DECLARE_EVENT_CLASS(block_unplug,
 	),
 
 	TP_fast_assign(
-		__entry->nr_rq	= q->rq.count[READ] + q->rq.count[WRITE];
+		__entry->nr_rq = depth;
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
 
@@ -419,31 +419,19 @@ DECLARE_EVENT_CLASS(block_unplug,
 );
 
 /**
- * block_unplug_timer - timed release of operations requests in queue to device driver
+ * block_unplug - release of operations requests in request queue
  * @q: request queue to unplug
- *
- * Unplug the request queue @q because a timer expired and allow block
- * operation requests to be sent to the device driver.
- */
-DEFINE_EVENT(block_unplug, block_unplug_timer,
-
-	TP_PROTO(struct request_queue *q),
-
-	TP_ARGS(q)
-);
-
-/**
- * block_unplug_io - release of operations requests in request queue
- * @q: request queue to unplug
+ * @depth: number of requests just added to the queue
+ * @explicit: whether this was an explicit unplug, or one from schedule()
  *
  * Unplug request queue @q because device driver is scheduled to work
  * on elements in the request queue.
  */
-DEFINE_EVENT(block_unplug, block_unplug_io,
+DEFINE_EVENT(block_unplug, block_unplug,
 
-	TP_PROTO(struct request_queue *q),
+	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q)
+	TP_ARGS(q, depth, explicit)
 );
 
 /**

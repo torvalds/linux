@@ -301,7 +301,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * disk, but it retrieves and clears ctx->error after synching, despite
  * the two being set at the same time in nfs_context_set_write_error().
  * This is because the former is used to notify the _next_ call to
- * nfs_file_write() that a write error occured, and hence cause it to
+ * nfs_file_write() that a write error occurred, and hence cause it to
  * fall back to doing a synchronous write.
  */
 static int
@@ -326,6 +326,9 @@ nfs_file_fsync(struct file *file, int datasync)
 		ret = xchg(&ctx->error, 0);
 	if (!ret && status < 0)
 		ret = status;
+	if (!ret && !datasync)
+		/* application has asked for meta-data sync */
+		ret = pnfs_layoutcommit_inode(inode, true);
 	return ret;
 }
 

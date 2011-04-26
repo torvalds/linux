@@ -305,7 +305,7 @@ static ext2_fsblk_t ext2_find_near(struct inode *inode, Indirect *ind)
 		return ind->bh->b_blocknr;
 
 	/*
-	 * It is going to be refered from inode itself? OK, just put it into
+	 * It is going to be referred from inode itself? OK, just put it into
 	 * the same cylinder group then.
 	 */
 	bg_start = ext2_group_first_block_no(inode->i_sb, ei->i_block_group);
@@ -860,7 +860,6 @@ const struct address_space_operations ext2_aops = {
 	.readpage		= ext2_readpage,
 	.readpages		= ext2_readpages,
 	.writepage		= ext2_writepage,
-	.sync_page		= block_sync_page,
 	.write_begin		= ext2_write_begin,
 	.write_end		= ext2_write_end,
 	.bmap			= ext2_bmap,
@@ -880,7 +879,6 @@ const struct address_space_operations ext2_nobh_aops = {
 	.readpage		= ext2_readpage,
 	.readpages		= ext2_readpages,
 	.writepage		= ext2_nobh_writepage,
-	.sync_page		= block_sync_page,
 	.write_begin		= ext2_nobh_write_begin,
 	.write_end		= nobh_write_end,
 	.bmap			= ext2_bmap,
@@ -915,7 +913,7 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *
  *	When we do truncate() we may have to clean the ends of several indirect
  *	blocks but leave the blocks themselves alive. Block is partially
- *	truncated if some data below the new i_size is refered from it (and
+ *	truncated if some data below the new i_size is referred from it (and
  *	it is on the path to the first completely truncated data block, indeed).
  *	We have to free the top of that path along with everything to the right
  *	of the path. Since no allocation past the truncation point is possible
@@ -992,7 +990,7 @@ no_top:
  *	@p:	array of block numbers
  *	@q:	points immediately past the end of array
  *
- *	We are freeing all blocks refered from that array (numbers are
+ *	We are freeing all blocks referred from that array (numbers are
  *	stored as little-endian 32-bit) and updating @inode->i_blocks
  *	appropriately.
  */
@@ -1032,7 +1030,7 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
  *	@q:	pointer immediately past the end of array
  *	@depth:	depth of the branches to free
  *
- *	We are freeing all blocks refered from these branches (numbers are
+ *	We are freeing all blocks referred from these branches (numbers are
  *	stored as little-endian 32-bit) and updating @inode->i_blocks
  *	appropriately.
  */

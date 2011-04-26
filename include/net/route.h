@@ -64,6 +64,7 @@ struct rtable {
 
 	__be32			rt_dst;	/* Path destination	*/
 	__be32			rt_src;	/* Path source		*/
+	int			rt_route_iif;
 	int			rt_iif;
 	int			rt_oif;
 	__u32			rt_mark;
@@ -80,12 +81,12 @@ struct rtable {
 
 static inline bool rt_is_input_route(struct rtable *rt)
 {
-	return rt->rt_iif != 0;
+	return rt->rt_route_iif != 0;
 }
 
 static inline bool rt_is_output_route(struct rtable *rt)
 {
-	return rt->rt_iif == 0;
+	return rt->rt_route_iif == 0;
 }
 
 struct ip_rt_acct {
@@ -207,6 +208,7 @@ extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
 
 struct in_ifaddr;
 extern void fib_add_ifaddr(struct in_ifaddr *);
+extern void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 
 static inline void ip_rt_put(struct rtable * rt)
 {
@@ -269,8 +271,8 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 		struct flowi4 fl4 = {
 			.flowi4_oif = rt->rt_oif,
 			.flowi4_mark = rt->rt_mark,
-			.daddr = rt->rt_key_dst,
-			.saddr = rt->rt_key_src,
+			.daddr = rt->rt_dst,
+			.saddr = rt->rt_src,
 			.flowi4_tos = rt->rt_tos,
 			.flowi4_proto = protocol,
 			.fl4_sport = sport,

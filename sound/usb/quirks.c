@@ -266,7 +266,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
  * audio-interface quirks
  *
  * returns zero if no standard audio/MIDI parsing is needed.
- * returns a postive value if standard audio/midi interfaces are parsed
+ * returns a positive value if standard audio/midi interfaces are parsed
  * after this.
  * returns a negative value at error.
  */

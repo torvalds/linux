@@ -364,6 +364,10 @@ int __weak arch_show_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
+#ifndef ACTUAL_NR_IRQS
+# define ACTUAL_NR_IRQS nr_irqs
+#endif
+
 int show_interrupts(struct seq_file *p, void *v)
 {
 	static int prec;
@@ -373,10 +377,10 @@ int show_interrupts(struct seq_file *p, void *v)
 	struct irqaction *action;
 	struct irq_desc *desc;
 
-	if (i > nr_irqs)
+	if (i > ACTUAL_NR_IRQS)
 		return 0;
 
-	if (i == nr_irqs)
+	if (i == ACTUAL_NR_IRQS)
 		return arch_show_interrupts(p, prec);
 
 	/* print header and calculate the width of the first column */
@@ -404,7 +408,20 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_printf(p, "%*d: ", prec, i);
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-	seq_printf(p, " %8s", desc->irq_data.chip->name);
+
+	if (desc->irq_data.chip) {
+		if (desc->irq_data.chip->irq_print_chip)
+			desc->irq_data.chip->irq_print_chip(&desc->irq_data, p);
+		else if (desc->irq_data.chip->name)
+			seq_printf(p, " %8s", desc->irq_data.chip->name);
+		else
+			seq_printf(p, " %8s", "-");
+	} else {
+		seq_printf(p, " %8s", "None");
+	}
+#ifdef CONFIG_GENIRC_IRQ_SHOW_LEVEL
+	seq_printf(p, " %-8s", irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
+#endif
 	if (desc->name)
 		seq_printf(p, "-%-8s", desc->name);
 

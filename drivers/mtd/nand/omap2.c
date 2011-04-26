@@ -668,6 +668,8 @@ static void gen_true_ecc(u8 *ecc_buf)
  *
  * This function compares two ECC's and indicates if there is an error.
  * If the error can be corrected it will be corrected to the buffer.
+ * If there is no error, %0 is returned. If there is an error but it
+ * was corrected, %1 is returned. Otherwise, %-1 is returned.
  */
 static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 			    u8 *ecc_data2,	/* read from register */
@@ -773,7 +775,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 		page_data[find_byte] ^= (1 << find_bit);
 
-		return 0;
+		return 1;
 	default:
 		if (isEccFF) {
 			if (ecc_data2[0] == 0 &&
@@ -794,8 +796,11 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
  * @calc_ecc: ecc read from HW ECC registers
  *
  * Compares the ecc read from nand spare area with ECC registers values
- * and if ECC's mismached, it will call 'omap_compare_ecc' for error detection
- * and correction.
+ * and if ECC's mismatched, it will call 'omap_compare_ecc' for error
+ * detection and correction. If there are no errors, %0 is returned. If
+ * there were errors and all of the errors were corrected, the number of
+ * corrected errors is returned. If uncorrectable errors exist, %-1 is
+ * returned.
  */
 static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
 				u_char *read_ecc, u_char *calc_ecc)
@@ -803,6 +808,7 @@ static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 							mtd);
 	int blockCnt = 0, i = 0, ret = 0;
+	int stat = 0;
 
 	/* Ex NAND_ECC_HW12_2048 */
 	if ((info->nand.ecc.mode == NAND_ECC_HW) &&
@@ -816,12 +822,14 @@ static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
 			ret = omap_compare_ecc(read_ecc, calc_ecc, dat);
 			if (ret < 0)
 				return ret;
+			/* keep track of the number of corrected errors */
+			stat += ret;
 		}
 		read_ecc += 3;
 		calc_ecc += 3;
 		dat      += 512;
 	}
-	return 0;
+	return stat;
 }
 
 /**

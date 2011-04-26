@@ -1788,7 +1788,8 @@ static int ub_bd_revalidate(struct gendisk *disk)
  *
  * The return code is bool!
  */
-static int ub_bd_media_changed(struct gendisk *disk)
+static unsigned int ub_bd_check_events(struct gendisk *disk,
+				       unsigned int clearing)
 {
 	struct ub_lun *lun = disk->private_data;
 
@@ -1806,10 +1807,10 @@ static int ub_bd_media_changed(struct gendisk *disk)
 	 */
 	if (ub_sync_tur(lun->udev, lun) != 0) {
 		lun->changed = 1;
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	}
 
-	return lun->changed;
+	return lun->changed ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static const struct block_device_operations ub_bd_fops = {
@@ -1817,7 +1818,7 @@ static const struct block_device_operations ub_bd_fops = {
 	.open		= ub_bd_unlocked_open,
 	.release	= ub_bd_release,
 	.ioctl		= ub_bd_ioctl,
-	.media_changed	= ub_bd_media_changed,
+	.check_events	= ub_bd_check_events,
 	.revalidate_disk = ub_bd_revalidate,
 };
 
@@ -2333,6 +2334,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
+	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = lun;
 	disk->driverfs_dev = &sc->intf->dev;
 

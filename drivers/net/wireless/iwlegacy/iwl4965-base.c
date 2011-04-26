@@ -3140,12 +3140,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 
 	iwl_legacy_init_scan_params(priv);
 
-	/* Set the tx_power_user_lmt to the lowest power level
-	 * this value will get overwritten by channel max power avg
-	 * from eeprom */
-	priv->tx_power_user_lmt = IWL4965_TX_POWER_TARGET_POWER_MIN;
-	priv->tx_power_next = IWL4965_TX_POWER_TARGET_POWER_MIN;
-
 	ret = iwl_legacy_init_channel_map(priv);
 	if (ret) {
 		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);

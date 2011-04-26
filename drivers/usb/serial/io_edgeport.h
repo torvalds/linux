@@ -68,7 +68,7 @@ struct comMapper {
 #define PROC_SET_COM_ENTRY		2
 
 
-/* The following sturcture is passed to the write */
+/* The following structure is passed to the write */
 struct procWrite {
 	int	Command;
 	union {

@@ -62,7 +62,7 @@ ieee754dp ieee754dp_fsp(ieee754sp x)
 		break;
 	}
 
-	/* CANT possibly overflow,underflow, or need rounding
+	/* CAN'T possibly overflow,underflow, or need rounding
 	 */
 
 	/* drop the hidden bit */

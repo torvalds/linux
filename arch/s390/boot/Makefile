@@ -6,7 +6,7 @@ COMPILE_VERSION := __linux_compile_version_id__`hostname |  \
 			tr -c '[0-9A-Za-z]' '_'`__`date | \
 			tr -c '[0-9A-Za-z]' '_'`_t
 
-EXTRA_CFLAGS  := -DCOMPILE_VERSION=$(COMPILE_VERSION) -gstabs -I.
+ccflags-y  := -DCOMPILE_VERSION=$(COMPILE_VERSION) -gstabs -I.
 
 targets := image
 targets += bzImage

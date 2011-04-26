@@ -213,7 +213,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some wierd eDP panels
+	/* only refuse the mode on non eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(intel_dp) &&
 	    (intel_dp_link_required(connector->dev, intel_dp, mode->clock)
@@ -1957,9 +1957,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
 			/* if this fails, presume the device is a ghost */
-			DRM_ERROR("failed to retrieve link info\n");
-			intel_dp_destroy(&intel_connector->base);
+			DRM_INFO("failed to retrieve link info, disabling eDP\n");
 			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
 			return;
 		}
 	}

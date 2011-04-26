@@ -93,14 +93,12 @@ static unsigned int gl_hash(const struct gfs2_sbd *sdp,
 
 static inline void spin_lock_bucket(unsigned int hash)
 {
-	struct hlist_bl_head *bl = &gl_hash_table[hash];
-	bit_spin_lock(0, (unsigned long *)bl);
+	hlist_bl_lock(&gl_hash_table[hash]);
 }
 
 static inline void spin_unlock_bucket(unsigned int hash)
 {
-	struct hlist_bl_head *bl = &gl_hash_table[hash];
-	__bit_spin_unlock(0, (unsigned long *)bl);
+	hlist_bl_unlock(&gl_hash_table[hash]);
 }
 
 static void gfs2_glock_dealloc(struct rcu_head *rcu)
@@ -1123,7 +1121,7 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
  * @number: the lock number
  * @glops: the glock operations for the type of glock
  * @state: the state to acquire the glock in
- * @flags: modifier flags for the aquisition
+ * @flags: modifier flags for the acquisition
  * @gh: the struct gfs2_holder
  *
  * Returns: errno

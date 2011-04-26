@@ -28,6 +28,7 @@ config ARM
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select GENERIC_IRQ_SHOW
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -235,6 +236,7 @@ config ARCH_INTEGRATOR
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -242,11 +244,11 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
-	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
 	help
@@ -257,11 +259,12 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select CLKDEV_LOOKUP
-	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -274,9 +277,10 @@ config ARCH_VEXPRESS
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select HAVE_SCHED_CLOCK
+	select HAVE_PATA_PLATFORM
 	select ICST
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
@@ -362,6 +366,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -689,7 +694,7 @@ config ARCH_S3C2410
 	  the Samsung SMDK2410 development board (and derivatives).
 
 	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no seperate machine
+	  the same SoC ID code. This means that there is no separate machine
 	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX
@@ -1011,6 +1016,7 @@ source "arch/arm/mach-ux500/Kconfig"
 source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
+source "arch/arm/plat-versatile/Kconfig"
 
 source "arch/arm/mach-vt8500/Kconfig"
 
@@ -1534,7 +1540,6 @@ config HIGHMEM
 config HIGHPTE
 	bool "Allocate 2nd-level pagetables from highmem"
 	depends on HIGHMEM
-	depends on !OUTER_CACHE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
@@ -2005,6 +2010,9 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
+	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
+	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
+		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y
 
 endmenu

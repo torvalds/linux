@@ -122,8 +122,14 @@ struct sk_buff_head {
 
 struct sk_buff;
 
-/* To allow 64K frame to be packed as single skb without frag_list */
+/* To allow 64K frame to be packed as single skb without frag_list. Since
+ * GRO uses frags we allocate at least 16 regardless of page size.
+ */
+#if (65536/PAGE_SIZE + 2) < 16
+#define MAX_SKB_FRAGS 16UL
+#else
 #define MAX_SKB_FRAGS (65536/PAGE_SIZE + 2)
+#endif
 
 typedef struct skb_frag_struct skb_frag_t;
 
@@ -468,7 +474,7 @@ static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
 extern void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst);
 
 /**
- * skb_dst_is_noref - Test if skb dst isnt refcounted
+ * skb_dst_is_noref - Test if skb dst isn't refcounted
  * @skb: buffer
  */
 static inline bool skb_dst_is_noref(const struct sk_buff *skb)

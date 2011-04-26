@@ -4,8 +4,10 @@
 
 #include <linux/kallsyms.h>
 
-#define P(f) if (desc->status & f) printk("%14s set\n", #f)
+#define P(f) if (desc->status_use_accessors & f) printk("%14s set\n", #f)
 #define PS(f) if (desc->istate & f) printk("%14s set\n", #f)
+/* FIXME */
+#define PD(f) do { } while (0)
 
 static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
@@ -28,13 +30,15 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	P(IRQ_NOAUTOEN);
 
 	PS(IRQS_AUTODETECT);
-	PS(IRQS_INPROGRESS);
 	PS(IRQS_REPLAY);
 	PS(IRQS_WAITING);
-	PS(IRQS_DISABLED);
 	PS(IRQS_PENDING);
-	PS(IRQS_MASKED);
+
+	PD(IRQS_INPROGRESS);
+	PD(IRQS_DISABLED);
+	PD(IRQS_MASKED);
 }
 
 #undef P
 #undef PS
+#undef PD

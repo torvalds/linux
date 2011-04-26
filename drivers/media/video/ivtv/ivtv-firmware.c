@@ -179,7 +179,7 @@ static volatile struct ivtv_mailbox __iomem *ivtv_search_mailbox(const volatile 
 {
 	int i;
 
-	/* mailbox is preceeded by a 16 byte 'magic cookie' starting at a 256-byte
+	/* mailbox is preceded by a 16 byte 'magic cookie' starting at a 256-byte
 	   address boundary */
 	for (i = 0; i < size; i += 0x100) {
 		if (readl(mem + i)      == 0x12345678 &&
@@ -377,7 +377,7 @@ int ivtv_firmware_check(struct ivtv *itv, char *where)
 			  "Reloading\n", where);
 		res = ivtv_firmware_restart(itv);
 		/*
-		 * Even if restarted ok, still signal a problem had occured.
+		 * Even if restarted ok, still signal a problem had occurred.
 		 * The caller can come through this function again to check
 		 * if things are really ok after the restart.
 		 */

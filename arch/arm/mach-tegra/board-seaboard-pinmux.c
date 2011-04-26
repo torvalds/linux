@@ -161,11 +161,12 @@ static __initdata struct tegra_pingroup_config seaboard_pinmux[] = {
 
 
 static struct tegra_gpio_table gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_PI5,	.enable = true	}, /* mmc2 cd	 */
-	{ .gpio = TEGRA_GPIO_PH1,	.enable = true	}, /* mmc2 wp	 */
-	{ .gpio = TEGRA_GPIO_PI6,	.enable = true	}, /* mmc2 pwr	 */
-	{ .gpio = TEGRA_GPIO_LIDSWITCH,	.enable = true	}, /* lid switch */
-	{ .gpio = TEGRA_GPIO_POWERKEY,	.enable = true	}, /* power key	 */
+	{ .gpio = TEGRA_GPIO_SD2_CD,		.enable = true },
+	{ .gpio = TEGRA_GPIO_SD2_WP,		.enable = true },
+	{ .gpio = TEGRA_GPIO_SD2_POWER,		.enable = true },
+	{ .gpio = TEGRA_GPIO_LIDSWITCH,		.enable = true },
+	{ .gpio = TEGRA_GPIO_POWERKEY,		.enable = true },
+	{ .gpio = TEGRA_GPIO_ISL29018_IRQ,	.enable = true },
 };
 
 void __init seaboard_pinmux_init(void)

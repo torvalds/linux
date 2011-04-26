@@ -221,6 +221,7 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 #endif
 	v9inode->writeback_fid = NULL;
 	v9inode->cache_validity = 0;
+	mutex_init(&v9inode->v_mutex);
 	return &v9inode->vfs_inode;
 }
 
@@ -650,7 +651,9 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
 		v9inode = V9FS_I(dentry->d_inode);
-		if (v9ses->cache && !v9inode->writeback_fid) {
+		mutex_lock(&v9inode->v_mutex);
+		if (v9ses->cache && !v9inode->writeback_fid &&
+		    ((flags & O_ACCMODE) != O_RDONLY)) {
 			/*
 			 * clone a fid and add it to writeback_fid
 			 * we do it during open time instead of
@@ -661,10 +664,12 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 			inode_fid = v9fs_writeback_fid(dentry);
 			if (IS_ERR(inode_fid)) {
 				err = PTR_ERR(inode_fid);
+				mutex_unlock(&v9inode->v_mutex);
 				goto error;
 			}
 			v9inode->writeback_fid = (void *) inode_fid;
 		}
+		mutex_unlock(&v9inode->v_mutex);
 		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);
@@ -931,7 +936,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	err = -EPERM;
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		generic_fillattr(dentry->d_inode, stat);
 		return 0;
@@ -967,8 +972,12 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct p9_wstat wstat;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
+	retval = inode_change_ok(dentry->d_inode, iattr);
+	if (retval)
+		return retval;
+
 	retval = -EPERM;
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	fid = v9fs_fid_lookup(dentry);
 	if(IS_ERR(fid))
 		return PTR_ERR(fid);
@@ -993,12 +1002,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (iattr->ia_valid & ATTR_GID)
 			wstat.n_gid = iattr->ia_gid;
 	}
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(dentry->d_inode)) {
-		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
-		if (retval)
-			return retval;
-	}
+
 	/* Write all dirty data */
 	if (S_ISREG(dentry->d_inode->i_mode))
 		filemap_write_and_wait(dentry->d_inode->i_mapping);
@@ -1006,6 +1010,11 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	retval = p9_client_wstat(fid, &wstat);
 	if (retval < 0)
 		return retval;
+
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(dentry->d_inode))
+		truncate_setsize(dentry->d_inode, iattr->ia_size);
+
 	v9fs_invalidate_inode_attr(dentry->d_inode);
 
 	setattr_copy(dentry->d_inode, iattr);
@@ -1130,7 +1139,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 
 	P9_DPRINTK(P9_DEBUG_VFS, " %s\n", dentry->d_name.name);
 	retval = -EPERM;
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);

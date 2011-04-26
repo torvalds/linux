@@ -247,7 +247,7 @@ speed_t tty_termios_baud_rate(struct ktermios *termios)
 	cbaud = termios->c_cflag & CBAUD;
 
 #ifdef BOTHER
-	/* Magic token for arbitary speed via c_ispeed/c_ospeed */
+	/* Magic token for arbitrary speed via c_ispeed/c_ospeed */
 	if (cbaud == BOTHER)
 		return termios->c_ospeed;
 #endif
@@ -283,7 +283,7 @@ speed_t tty_termios_input_baud_rate(struct ktermios *termios)
 	if (cbaud == B0)
 		return tty_termios_baud_rate(termios);
 
-	/* Magic token for arbitary speed via c_ispeed*/
+	/* Magic token for arbitrary speed via c_ispeed*/
 	if (cbaud == BOTHER)
 		return termios->c_ispeed;
 
@@ -449,7 +449,7 @@ EXPORT_SYMBOL(tty_get_baud_rate);
  *	@new: New termios
  *	@old: Old termios
  *
- *	Propogate the hardware specific terminal setting bits from
+ *	Propagate the hardware specific terminal setting bits from
  *	the old termios structure to the new one. This is used in cases
  *	where the hardware does not support reconfiguration or as a helper
  *	in some cases where only minimal reconfiguration is supported

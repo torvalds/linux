@@ -374,11 +374,10 @@ xfs_log_mount(
 	int		error;
 
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
-		cmn_err(CE_NOTE, "XFS mounting filesystem %s", mp->m_fsname);
+		xfs_notice(mp, "Mounting Filesystem");
 	else {
-		cmn_err(CE_NOTE,
-			"Mounting filesystem \"%s\" in no-recovery mode.  Filesystem will be inconsistent.",
-			mp->m_fsname);
+		xfs_notice(mp,
+"Mounting filesystem in no-recovery mode.  Filesystem will be inconsistent.");
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
 
@@ -393,7 +392,7 @@ xfs_log_mount(
 	 */
 	error = xfs_trans_ail_init(mp);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);
+		xfs_warn(mp, "AIL initialisation failed: error %d", error);
 		goto out_free_log;
 	}
 	mp->m_log->l_ailp = mp->m_ail;
@@ -413,7 +412,8 @@ xfs_log_mount(
 		if (readonly)
 			mp->m_flags |= XFS_MOUNT_RDONLY;
 		if (error) {
-			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
+			xfs_warn(mp, "log mount/recovery failed: error %d",
+				error);
 			goto out_destroy_ail;
 		}
 	}
@@ -542,10 +542,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 			 */
 		}
 
-		if (error) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-				"xfs_log_unmount: unmount record failed");
-		}
+		if (error)
+			xfs_alert(mp, "%s: unmount record failed", __func__);
 
 
 		spin_lock(&log->l_icloglock);
@@ -763,7 +761,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		break;
 	case XLOG_STATE_COVER_NEED:
 	case XLOG_STATE_COVER_NEED2:
-		if (!xfs_trans_ail_tail(log->l_ailp) &&
+		if (!xfs_ail_min_lsn(log->l_ailp) &&
 		    xlog_iclogs_empty(log)) {
 			if (log->l_covered_state == XLOG_STATE_COVER_NEED)
 				log->l_covered_state = XLOG_STATE_COVER_DONE;
@@ -803,7 +801,7 @@ xlog_assign_tail_lsn(
 	xfs_lsn_t		tail_lsn;
 	struct log		*log = mp->m_log;
 
-	tail_lsn = xfs_trans_ail_tail(mp->m_ail);
+	tail_lsn = xfs_ail_min_lsn(mp->m_ail);
 	if (!tail_lsn)
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 
@@ -852,7 +850,7 @@ xlog_space_left(
 		 * In this case we just want to return the size of the
 		 * log as the amount of space left.
 		 */
-		xfs_fs_cmn_err(CE_ALERT, log->l_mp,
+		xfs_alert(log->l_mp,
 			"xlog_space_left: head behind tail\n"
 			"  tail_cycle = %d, tail_bytes = %d\n"
 			"  GH   cycle = %d, GH   bytes = %d",
@@ -1001,7 +999,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	log = kmem_zalloc(sizeof(xlog_t), KM_MAYFAIL);
 	if (!log) {
-		xlog_warn("XFS: Log allocation failed: No memory!");
+		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;
 	}
 
@@ -1029,24 +1027,24 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	if (xfs_sb_version_hassector(&mp->m_sb)) {
 	        log2_size = mp->m_sb.sb_logsectlog;
 		if (log2_size < BBSHIFT) {
-			xlog_warn("XFS: Log sector size too small "
-				"(0x%x < 0x%x)", log2_size, BBSHIFT);
+			xfs_warn(mp, "Log sector size too small (0x%x < 0x%x)",
+				log2_size, BBSHIFT);
 			goto out_free_log;
 		}
 
 	        log2_size -= BBSHIFT;
 		if (log2_size > mp->m_sectbb_log) {
-			xlog_warn("XFS: Log sector size too large "
-				"(0x%x > 0x%x)", log2_size, mp->m_sectbb_log);
+			xfs_warn(mp, "Log sector size too large (0x%x > 0x%x)",
+				log2_size, mp->m_sectbb_log);
 			goto out_free_log;
 		}
 
 		/* for larger sector sizes, must have v2 or external log */
 		if (log2_size && log->l_logBBstart > 0 &&
 			    !xfs_sb_version_haslogv2(&mp->m_sb)) {
-
-			xlog_warn("XFS: log sector size (0x%x) invalid "
-				  "for configuration.", log2_size);
+			xfs_warn(mp,
+		"log sector size (0x%x) invalid for configuration.",
+				log2_size);
 			goto out_free_log;
 		}
 	}
@@ -1241,7 +1239,7 @@ xlog_grant_push_ail(
 	 * the filesystem is shutting down.
 	 */
 	if (!XLOG_FORCED_SHUTDOWN(log))
-		xfs_trans_ail_push(log->l_ailp, threshold_lsn);
+		xfs_ail_push(log->l_ailp, threshold_lsn);
 }
 
 /*
@@ -1563,38 +1561,36 @@ xlog_print_tic_res(
 	    "SWAPEXT"
 	};
 
-	xfs_fs_cmn_err(CE_WARN, mp,
-			"xfs_log_write: reservation summary:\n"
-			"  trans type  = %s (%u)\n"
-			"  unit res    = %d bytes\n"
-			"  current res = %d bytes\n"
-			"  total reg   = %u bytes (o/flow = %u bytes)\n"
-			"  ophdrs      = %u (ophdr space = %u bytes)\n"
-			"  ophdr + reg = %u bytes\n"
-			"  num regions = %u\n",
-			((ticket->t_trans_type <= 0 ||
-			  ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
-			  "bad-trans-type" : trans_type_str[ticket->t_trans_type-1]),
-			ticket->t_trans_type,
-			ticket->t_unit_res,
-			ticket->t_curr_res,
-			ticket->t_res_arr_sum, ticket->t_res_o_flow,
-			ticket->t_res_num_ophdrs, ophdr_spc,
-			ticket->t_res_arr_sum + 
-			ticket->t_res_o_flow + ophdr_spc,
-			ticket->t_res_num);
+	xfs_warn(mp,
+		"xfs_log_write: reservation summary:\n"
+		"  trans type  = %s (%u)\n"
+		"  unit res    = %d bytes\n"
+		"  current res = %d bytes\n"
+		"  total reg   = %u bytes (o/flow = %u bytes)\n"
+		"  ophdrs      = %u (ophdr space = %u bytes)\n"
+		"  ophdr + reg = %u bytes\n"
+		"  num regions = %u\n",
+		((ticket->t_trans_type <= 0 ||
+		  ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
+		  "bad-trans-type" : trans_type_str[ticket->t_trans_type-1]),
+		ticket->t_trans_type,
+		ticket->t_unit_res,
+		ticket->t_curr_res,
+		ticket->t_res_arr_sum, ticket->t_res_o_flow,
+		ticket->t_res_num_ophdrs, ophdr_spc,
+		ticket->t_res_arr_sum +
+		ticket->t_res_o_flow + ophdr_spc,
+		ticket->t_res_num);
 
 	for (i = 0; i < ticket->t_res_num; i++) {
-		uint r_type = ticket->t_res_arr[i].r_type; 
-		cmn_err(CE_WARN,
-			    "region[%u]: %s - %u bytes\n",
-			    i, 
+		uint r_type = ticket->t_res_arr[i].r_type;
+		xfs_warn(mp, "region[%u]: %s - %u bytes\n", i,
 			    ((r_type <= 0 || r_type > XLOG_REG_TYPE_MAX) ?
 			    "bad-rtype" : res_type_str[r_type-1]),
 			    ticket->t_res_arr[i].r_len);
 	}
 
-	xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
+	xfs_alert_tag(mp, XFS_PTAG_LOGRES,
 		"xfs_log_write: reservation ran out. Need to up reservation");
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 }
@@ -1682,7 +1678,7 @@ xlog_write_setup_ophdr(
 	case XFS_LOG:
 		break;
 	default:
-		xfs_fs_cmn_err(CE_WARN, log->l_mp,
+		xfs_warn(log->l_mp,
 			"Bad XFS transaction clientid 0x%x in ticket 0x%p",
 			ophdr->oh_clientid, ticket);
 		return NULL;
@@ -2264,7 +2260,7 @@ xlog_state_do_callback(
 		if (repeats > 5000) {
 			flushcnt += repeats;
 			repeats = 0;
-			xfs_fs_cmn_err(CE_WARN, log->l_mp,
+			xfs_warn(log->l_mp,
 				"%s: possible infinite loop (%d iterations)",
 				__func__, flushcnt);
 		}
@@ -3052,10 +3048,8 @@ xfs_log_force(
 	int	error;
 
 	error = _xfs_log_force(mp, flags, NULL);
-	if (error) {
-		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
-			"error %d returned.", error);
-	}
+	if (error)
+		xfs_warn(mp, "%s: error %d returned.", __func__, error);
 }
 
 /*
@@ -3204,10 +3198,8 @@ xfs_log_force_lsn(
 	int	error;
 
 	error = _xfs_log_force_lsn(mp, lsn, flags, NULL);
-	if (error) {
-		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
-			"error %d returned.", error);
-	}
+	if (error)
+		xfs_warn(mp, "%s: error %d returned.", __func__, error);
 }
 
 /*
@@ -3412,9 +3404,20 @@ xlog_verify_dest_ptr(
 	}
 
 	if (!good_ptr)
-		xlog_panic("xlog_verify_dest_ptr: invalid ptr");
+		xfs_emerg(log->l_mp, "%s: invalid ptr", __func__);
 }
 
+/*
+ * Check to make sure the grant write head didn't just over lap the tail.  If
+ * the cycles are the same, we can't be overlapping.  Otherwise, make sure that
+ * the cycles differ by exactly one and check the byte count.
+ *
+ * This check is run unlocked, so can give false positives. Rather than assert
+ * on failures, use a warn-once flag and a panic tag to allow the admin to
+ * determine if they want to panic the machine when such an error occurs. For
+ * debug kernels this will have the same effect as using an assert but, unlinke
+ * an assert, it can be turned off at runtime.
+ */
 STATIC void
 xlog_verify_grant_tail(
 	struct log	*log)
@@ -3422,17 +3425,22 @@ xlog_verify_grant_tail(
 	int		tail_cycle, tail_blocks;
 	int		cycle, space;
 
-	/*
-	 * Check to make sure the grant write head didn't just over lap the
-	 * tail.  If the cycles are the same, we can't be overlapping.
-	 * Otherwise, make sure that the cycles differ by exactly one and
-	 * check the byte count.
-	 */
 	xlog_crack_grant_head(&log->l_grant_write_head, &cycle, &space);
 	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_blocks);
 	if (tail_cycle != cycle) {
-		ASSERT(cycle - 1 == tail_cycle);
-		ASSERT(space <= BBTOB(tail_blocks));
+		if (cycle - 1 != tail_cycle &&
+		    !(log->l_flags & XLOG_TAIL_WARN)) {
+			xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
+				"%s: cycle - 1 != tail_cycle", __func__);
+			log->l_flags |= XLOG_TAIL_WARN;
+		}
+
+		if (space > BBTOB(tail_blocks) &&
+		    !(log->l_flags & XLOG_TAIL_WARN)) {
+			xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
+				"%s: space > BBTOB(tail_blocks)", __func__);
+			log->l_flags |= XLOG_TAIL_WARN;
+		}
 	}
 }
 
@@ -3448,16 +3456,16 @@ xlog_verify_tail_lsn(xlog_t	    *log,
 	blocks =
 	    log->l_logBBsize - (log->l_prev_block - BLOCK_LSN(tail_lsn));
 	if (blocks < BTOBB(iclog->ic_offset)+BTOBB(log->l_iclog_hsize))
-	    xlog_panic("xlog_verify_tail_lsn: ran out of log space");
+		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
     } else {
 	ASSERT(CYCLE_LSN(tail_lsn)+1 == log->l_prev_cycle);
 
 	if (BLOCK_LSN(tail_lsn) == log->l_prev_block)
-	    xlog_panic("xlog_verify_tail_lsn: tail wrapped");
+		xfs_emerg(log->l_mp, "%s: tail wrapped", __func__);
 
 	blocks = BLOCK_LSN(tail_lsn) - log->l_prev_block;
 	if (blocks < BTOBB(iclog->ic_offset) + 1)
-	    xlog_panic("xlog_verify_tail_lsn: ran out of log space");
+		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
     }
 }	/* xlog_verify_tail_lsn */
 
@@ -3497,22 +3505,23 @@ xlog_verify_iclog(xlog_t	 *log,
 	icptr = log->l_iclog;
 	for (i=0; i < log->l_iclog_bufs; i++) {
 		if (icptr == NULL)
-			xlog_panic("xlog_verify_iclog: invalid ptr");
+			xfs_emerg(log->l_mp, "%s: invalid ptr", __func__);
 		icptr = icptr->ic_next;
 	}
 	if (icptr != log->l_iclog)
-		xlog_panic("xlog_verify_iclog: corrupt iclog ring");
+		xfs_emerg(log->l_mp, "%s: corrupt iclog ring", __func__);
 	spin_unlock(&log->l_icloglock);
 
 	/* check log magic numbers */
 	if (be32_to_cpu(iclog->ic_header.h_magicno) != XLOG_HEADER_MAGIC_NUM)
-		xlog_panic("xlog_verify_iclog: invalid magic num");
+		xfs_emerg(log->l_mp, "%s: invalid magic num", __func__);
 
 	ptr = (xfs_caddr_t) &iclog->ic_header;
 	for (ptr += BBSIZE; ptr < ((xfs_caddr_t)&iclog->ic_header) + count;
 	     ptr += BBSIZE) {
 		if (be32_to_cpu(*(__be32 *)ptr) == XLOG_HEADER_MAGIC_NUM)
-			xlog_panic("xlog_verify_iclog: unexpected magic num");
+			xfs_emerg(log->l_mp, "%s: unexpected magic num",
+				__func__);
 	}
 
 	/* check fields */
@@ -3542,9 +3551,10 @@ xlog_verify_iclog(xlog_t	 *log,
 			}
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG)
-			cmn_err(CE_WARN, "xlog_verify_iclog: "
-				"invalid clientid %d op 0x%p offset 0x%lx",
-				clientid, ophead, (unsigned long)field_offset);
+			xfs_warn(log->l_mp,
+				"%s: invalid clientid %d op 0x%p offset 0x%lx",
+				__func__, clientid, ophead,
+				(unsigned long)field_offset);
 
 		/* check length */
 		field_offset = (__psint_t)

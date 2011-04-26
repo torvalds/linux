@@ -42,8 +42,6 @@ struct compact_control {
 	unsigned int order;		/* order a direct compactor needs */
 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
 	struct zone *zone;
-
-	int compact_mode;
 };
 
 static unsigned long release_freepages(struct list_head *freelist)
@@ -155,7 +153,6 @@ static void isolate_freepages(struct zone *zone,
 	 * pages on cc->migratepages. We stop searching if the migrate
 	 * and free page scanners meet or enough free pages are isolated.
 	 */
-	spin_lock_irqsave(&zone->lock, flags);
 	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
 					pfn -= pageblock_nr_pages) {
 		unsigned long isolated;
@@ -178,9 +175,19 @@ static void isolate_freepages(struct zone *zone,
 		if (!suitable_migration_target(page))
 			continue;
 
-		/* Found a block suitable for isolating free pages from */
-		isolated = isolate_freepages_block(zone, pfn, freelist);
-		nr_freepages += isolated;
+		/*
+		 * Found a block suitable for isolating free pages from. Now
+		 * we disabled interrupts, double check things are ok and
+		 * isolate the pages. This is to minimise the time IRQs
+		 * are disabled
+		 */
+		isolated = 0;
+		spin_lock_irqsave(&zone->lock, flags);
+		if (suitable_migration_target(page)) {
+			isolated = isolate_freepages_block(zone, pfn, freelist);
+			nr_freepages += isolated;
+		}
+		spin_unlock_irqrestore(&zone->lock, flags);
 
 		/*
 		 * Record the highest PFN we isolated pages from. When next
@@ -190,7 +197,6 @@ static void isolate_freepages(struct zone *zone,
 		if (isolated)
 			high_pfn = max(high_pfn, pfn);
 	}
-	spin_unlock_irqrestore(&zone->lock, flags);
 
 	/* split_free_page does not map the pages */
 	list_for_each_entry(page, freelist, lru) {
@@ -271,9 +277,27 @@ static unsigned long isolate_migratepages(struct zone *zone,
 	}
 
 	/* Time to isolate some pages for migration */
+	cond_resched();
 	spin_lock_irq(&zone->lru_lock);
 	for (; low_pfn < end_pfn; low_pfn++) {
 		struct page *page;
+		bool locked = true;
+
+		/* give a chance to irqs before checking need_resched() */
+		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
+			spin_unlock_irq(&zone->lru_lock);
+			locked = false;
+		}
+		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
+			if (locked)
+				spin_unlock_irq(&zone->lru_lock);
+			cond_resched();
+			spin_lock_irq(&zone->lru_lock);
+			if (fatal_signal_pending(current))
+				break;
+		} else if (!locked)
+			spin_lock_irq(&zone->lru_lock);
+
 		if (!pfn_valid_within(low_pfn))
 			continue;
 		nr_scanned++;
@@ -397,10 +421,7 @@ static int compact_finished(struct zone *zone,
 		return COMPACT_COMPLETE;
 
 	/* Compaction run is not finished if the watermark is not met */
-	if (cc->compact_mode != COMPACT_MODE_KSWAPD)
-		watermark = low_wmark_pages(zone);
-	else
-		watermark = high_wmark_pages(zone);
+	watermark = low_wmark_pages(zone);
 	watermark += (1 << cc->order);
 
 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
@@ -411,15 +432,6 @@ static int compact_finished(struct zone *zone,
 	 * /proc/sys/vm/compact_memory
 	 */
 	if (cc->order == -1)
-		return COMPACT_CONTINUE;
-
-	/*
-	 * Generating only one page of the right order is not enough
-	 * for kswapd, we must continue until we're above the high
-	 * watermark as a pool for high order GFP_ATOMIC allocations
-	 * too.
-	 */
-	if (cc->compact_mode == COMPACT_MODE_KSWAPD)
 		return COMPACT_CONTINUE;
 
 	/* Direct compactor: Is a suitable page free? */
@@ -508,12 +520,13 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
 		unsigned long nr_migrate, nr_remaining;
+		int err;
 
 		if (!isolate_migratepages(zone, cc))
 			continue;
 
 		nr_migrate = cc->nr_migratepages;
-		migrate_pages(&cc->migratepages, compaction_alloc,
+		err = migrate_pages(&cc->migratepages, compaction_alloc,
 				(unsigned long)cc, false,
 				cc->sync);
 		update_nr_listpages(cc);
@@ -527,7 +540,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 						nr_remaining);
 
 		/* Release LRU pages not migrated */
-		if (!list_empty(&cc->migratepages)) {
+		if (err) {
 			putback_lru_pages(&cc->migratepages);
 			cc->nr_migratepages = 0;
 		}
@@ -543,8 +556,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 unsigned long compact_zone_order(struct zone *zone,
 				 int order, gfp_t gfp_mask,
-				 bool sync,
-				 int compact_mode)
+				 bool sync)
 {
 	struct compact_control cc = {
 		.nr_freepages = 0,
@@ -553,7 +565,6 @@ unsigned long compact_zone_order(struct zone *zone,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
 		.sync = sync,
-		.compact_mode = compact_mode,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
@@ -599,8 +610,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 								nodemask) {
 		int status;
 
-		status = compact_zone_order(zone, order, gfp_mask, sync,
-					    COMPACT_MODE_DIRECT_RECLAIM);
+		status = compact_zone_order(zone, order, gfp_mask, sync);
 		rc = max(status, rc);
 
 		/* If a normal allocation would succeed, stop compacting */
@@ -631,7 +641,6 @@ static int compact_node(int nid)
 			.nr_freepages = 0,
 			.nr_migratepages = 0,
 			.order = -1,
-			.compact_mode = COMPACT_MODE_DIRECT_RECLAIM,
 		};
 
 		zone = &pgdat->node_zones[zoneid];

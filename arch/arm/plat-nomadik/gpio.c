@@ -54,6 +54,7 @@ struct nmk_gpio_chip {
 	u32 rwimsc;
 	u32 fwimsc;
 	u32 slpm;
+	u32 enabled;
 };
 
 static struct nmk_gpio_chip *
@@ -318,7 +319,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
 		struct nmk_gpio_chip *nmk_chip;
 		int pin = PIN_NUM(cfgs[i]);
 
-		nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(pin));
+		nmk_chip = irq_get_chip_data(NOMADIK_GPIO_TO_IRQ(pin));
 		if (!nmk_chip) {
 			ret = -EINVAL;
 			break;
@@ -397,7 +398,7 @@ int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode)
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 
-	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	nmk_chip = irq_get_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
 	if (!nmk_chip)
 		return -EINVAL;
 
@@ -430,7 +431,7 @@ int nmk_gpio_set_pull(int gpio, enum nmk_gpio_pull pull)
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 
-	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	nmk_chip = irq_get_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
 	if (!nmk_chip)
 		return -EINVAL;
 
@@ -456,7 +457,7 @@ int nmk_gpio_set_mode(int gpio, int gpio_mode)
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 
-	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	nmk_chip = irq_get_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
 	if (!nmk_chip)
 		return -EINVAL;
 
@@ -473,7 +474,7 @@ int nmk_gpio_get_mode(int gpio)
 	struct nmk_gpio_chip *nmk_chip;
 	u32 afunc, bfunc, bit;
 
-	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	nmk_chip = irq_get_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
 	if (!nmk_chip)
 		return -EINVAL;
 
@@ -541,13 +542,6 @@ static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
 static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 				int gpio, bool on)
 {
-#ifdef CONFIG_ARCH_U8500
-	if (cpu_is_u8500v2()) {
-		__nmk_gpio_set_slpm(nmk_chip, gpio - nmk_chip->chip.base,
-				    on ? NMK_GPIO_SLPM_WAKEUP_ENABLE
-				       : NMK_GPIO_SLPM_WAKEUP_DISABLE);
-	}
-#endif
 	__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, on);
 }
 
@@ -563,6 +557,11 @@ static int nmk_gpio_irq_maskunmask(struct irq_data *d, bool enable)
 	bitmask = nmk_gpio_get_bitmask(gpio);
 	if (!nmk_chip)
 		return -EINVAL;
+
+	if (enable)
+		nmk_chip->enabled |= bitmask;
+	else
+		nmk_chip->enabled &= ~bitmask;
 
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
 	spin_lock(&nmk_chip->lock);
@@ -590,8 +589,6 @@ static void nmk_gpio_irq_unmask(struct irq_data *d)
 
 static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	bool enabled = !(desc->status & IRQ_DISABLED);
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 	u32 bitmask;
@@ -606,7 +603,7 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
 	spin_lock(&nmk_chip->lock);
 
-	if (!enabled)
+	if (!(nmk_chip->enabled & bitmask))
 		__nmk_gpio_set_wake(nmk_chip, gpio, on);
 
 	if (on)
@@ -622,9 +619,7 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	bool enabled = !(desc->status & IRQ_DISABLED);
-	bool wake = desc->wake_depth;
+	bool enabled, wake = irqd_is_wakeup_set(d);
 	int gpio;
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
@@ -640,6 +635,8 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	if (type & IRQ_TYPE_LEVEL_LOW)
 		return -EINVAL;
+
+	enabled = nmk_chip->enabled & bitmask;
 
 	spin_lock_irqsave(&nmk_chip->lock, flags);
 
@@ -681,7 +678,7 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 				   u32 status)
 {
 	struct nmk_gpio_chip *nmk_chip;
-	struct irq_chip *host_chip = get_irq_chip(irq);
+	struct irq_chip *host_chip = irq_get_chip(irq);
 	unsigned int first_irq;
 
 	if (host_chip->irq_mask_ack)
@@ -692,7 +689,7 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 			host_chip->irq_ack(&desc->irq_data);
 	}
 
-	nmk_chip = get_irq_data(irq);
+	nmk_chip = irq_get_handler_data(irq);
 	first_irq = NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base);
 	while (status) {
 		int bit = __ffs(status);
@@ -706,7 +703,7 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 
 static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct nmk_gpio_chip *nmk_chip = get_irq_data(irq);
+	struct nmk_gpio_chip *nmk_chip = irq_get_handler_data(irq);
 	u32 status = readl(nmk_chip->addr + NMK_GPIO_IS);
 
 	__nmk_gpio_irq_handler(irq, desc, status);
@@ -715,7 +712,7 @@ static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 static void nmk_gpio_secondary_irq_handler(unsigned int irq,
 					   struct irq_desc *desc)
 {
-	struct nmk_gpio_chip *nmk_chip = get_irq_data(irq);
+	struct nmk_gpio_chip *nmk_chip = irq_get_handler_data(irq);
 	u32 status = nmk_chip->get_secondary_status(nmk_chip->bank);
 
 	__nmk_gpio_irq_handler(irq, desc, status);
@@ -728,20 +725,20 @@ static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
 
 	first_irq = NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base);
 	for (i = first_irq; i < first_irq + nmk_chip->chip.ngpio; i++) {
-		set_irq_chip(i, &nmk_gpio_irq_chip);
-		set_irq_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &nmk_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
-		set_irq_chip_data(i, nmk_chip);
-		set_irq_type(i, IRQ_TYPE_EDGE_FALLING);
+		irq_set_chip_data(i, nmk_chip);
+		irq_set_irq_type(i, IRQ_TYPE_EDGE_FALLING);
 	}
 
-	set_irq_chained_handler(nmk_chip->parent_irq, nmk_gpio_irq_handler);
-	set_irq_data(nmk_chip->parent_irq, nmk_chip);
+	irq_set_chained_handler(nmk_chip->parent_irq, nmk_gpio_irq_handler);
+	irq_set_handler_data(nmk_chip->parent_irq, nmk_chip);
 
 	if (nmk_chip->secondary_parent_irq >= 0) {
-		set_irq_chained_handler(nmk_chip->secondary_parent_irq,
+		irq_set_chained_handler(nmk_chip->secondary_parent_irq,
 					nmk_gpio_secondary_irq_handler);
-		set_irq_data(nmk_chip->secondary_parent_irq, nmk_chip);
+		irq_set_handler_data(nmk_chip->secondary_parent_irq, nmk_chip);
 	}
 
 	return 0;
@@ -832,51 +829,6 @@ static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 				: "?  ",
 			(mode < 0) ? "unknown" : modes[mode],
 			pull ? "pull" : "none");
-
-		if (!is_out) {
-			int		irq = gpio_to_irq(gpio);
-			struct irq_desc	*desc = irq_to_desc(irq);
-
-			/* This races with request_irq(), set_irq_type(),
-			 * and set_irq_wake() ... but those are "rare".
-			 *
-			 * More significantly, trigger type flags aren't
-			 * currently maintained by genirq.
-			 */
-			if (irq >= 0 && desc->action) {
-				char *trigger;
-
-				switch (desc->status & IRQ_TYPE_SENSE_MASK) {
-				case IRQ_TYPE_NONE:
-					trigger = "(default)";
-					break;
-				case IRQ_TYPE_EDGE_FALLING:
-					trigger = "edge-falling";
-					break;
-				case IRQ_TYPE_EDGE_RISING:
-					trigger = "edge-rising";
-					break;
-				case IRQ_TYPE_EDGE_BOTH:
-					trigger = "edge-both";
-					break;
-				case IRQ_TYPE_LEVEL_HIGH:
-					trigger = "level-high";
-					break;
-				case IRQ_TYPE_LEVEL_LOW:
-					trigger = "level-low";
-					break;
-				default:
-					trigger = "?trigger?";
-					break;
-				}
-
-				seq_printf(s, " irq-%d %s%s",
-					irq, trigger,
-					(desc->status & IRQ_WAKEUP)
-						? " wakeup" : "");
-			}
-		}
-
 		seq_printf(s, "\n");
 	}
 }

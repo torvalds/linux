@@ -168,6 +168,13 @@ Do not unnecessarily use braces where a single statement will do.
 if (condition)
 	action();
 
+and
+
+if (condition)
+	do_this();
+else
+	do_that();
+
 This does not apply if one branch of a conditional statement is a single
 statement. Use braces in both branches.
 

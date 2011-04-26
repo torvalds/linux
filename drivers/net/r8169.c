@@ -2685,9 +2685,9 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	rtl8169_set_speed(dev, AUTONEG_ENABLE, SPEED_1000, DUPLEX_FULL,
 		ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
 		ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full |
-		tp->mii.supports_gmii ?
+		(tp->mii.supports_gmii ?
 			ADVERTISED_1000baseT_Half |
-			ADVERTISED_1000baseT_Full : 0);
+			ADVERTISED_1000baseT_Full : 0));
 
 	if (RTL_R8(PHYstatus) & TBI_Enable)
 		netif_info(tp, link, dev, "TBI auto-negotiating\n");

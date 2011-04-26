@@ -573,7 +573,7 @@ static int x1205_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, rtc);
 
-	/* Check for power failures and eventualy enable the osc */
+	/* Check for power failures and eventually enable the osc */
 	if ((err = x1205_get_status(client, &sr)) == 0) {
 		if (sr & X1205_SR_RTCF) {
 			dev_err(&client->dev,

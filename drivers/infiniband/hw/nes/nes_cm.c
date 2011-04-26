@@ -1116,7 +1116,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		return rc;
 	}
 
-	if (netif_is_bond_slave(netdev))
+	if (netif_is_bond_slave(nesvnic->netdev))
 		netdev = nesvnic->netdev->master;
 	else
 		netdev = nesvnic->netdev;
@@ -1397,7 +1397,7 @@ static void handle_fin_pkt(struct nes_cm_node *cm_node)
 		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSING;
 		send_ack(cm_node, NULL);
-		/* Wait for ACK as this is simultanous close..
+		/* Wait for ACK as this is simultaneous close..
 		* After we receive ACK, do not send anything..
 		* Just rm the node.. Done.. */
 		break;

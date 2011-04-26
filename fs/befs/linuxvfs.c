@@ -75,7 +75,6 @@ static const struct inode_operations befs_dir_inode_operations = {
 
 static const struct address_space_operations befs_aops = {
 	.readpage	= befs_readpage,
-	.sync_page	= block_sync_page,
 	.bmap		= befs_bmap,
 };
 
@@ -735,7 +734,7 @@ parse_options(char *options, befs_mount_options * opts)
 
 /* This function has the responsibiltiy of getting the
  * filesystem ready for unmounting. 
- * Basicly, we free everything that we allocated in
+ * Basically, we free everything that we allocated in
  * befs_read_inode
  */
 static void

@@ -27,13 +27,18 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
+	pud_t *pud;
 	spinlock_t *ptl;
 
 	pgd = pgd_offset(current->mm, addr);
 	if (unlikely(pgd_none(*pgd) || pgd_bad(*pgd)))
 		return 0;
 
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	if (unlikely(pud_none(*pud) || pud_bad(*pud)))
+		return 0;
+
+	pmd = pmd_offset(pud, addr);
 	if (unlikely(pmd_none(*pmd) || pmd_bad(*pmd)))
 		return 0;
 

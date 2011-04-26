@@ -5,7 +5,7 @@
  * domain gets 1024 event channels, but NR_IRQ is not that large, we
  * must dynamically map irqs<->event channels.  The event channels
  * interface with the rest of the kernel by defining a xen interrupt
- * chip.  When an event is recieved, it is mapped to an irq and sent
+ * chip.  When an event is received, it is mapped to an irq and sent
  * through the normal interrupt processing path.
  *
  * There are four kinds of events which can be mapped to an event
@@ -122,7 +122,7 @@ static struct irq_chip xen_pirq_chip;
 /* Get info for IRQ */
 static struct irq_info *info_for_irq(unsigned irq)
 {
-	return get_irq_data(irq);
+	return irq_get_handler_data(irq);
 }
 
 /* Constructors for packed IRQ information. */
@@ -403,7 +403,7 @@ static void xen_irq_init(unsigned irq)
 
 	info->type = IRQT_UNBOUND;
 
-	set_irq_data(irq, info);
+	irq_set_handler_data(irq, info);
 
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
@@ -416,7 +416,7 @@ static int __must_check xen_allocate_irq_dynamic(void)
 #ifdef CONFIG_X86_IO_APIC
 	/*
 	 * For an HVM guest or domain 0 which see "real" (emulated or
-	 * actual repectively) GSIs we allocate dynamic IRQs
+	 * actual respectively) GSIs we allocate dynamic IRQs
 	 * e.g. those corresponding to event channels or MSIs
 	 * etc. from the range above those "real" GSIs to avoid
 	 * collisions.
@@ -458,11 +458,11 @@ static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 
 static void xen_free_irq(unsigned irq)
 {
-	struct irq_info *info = get_irq_data(irq);
+	struct irq_info *info = irq_get_handler_data(irq);
 
 	list_del(&info->list);
 
-	set_irq_data(irq, NULL);
+	irq_set_handler_data(irq, NULL);
 
 	kfree(info);
 
@@ -585,7 +585,7 @@ static void ack_pirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 
 	if (VALID_EVTCHN(evtchn)) {
 		mask_evtchn(evtchn);
@@ -639,8 +639,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	if (irq < 0)
 		goto out;
 
-	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
-				      handle_level_irq, name);
+	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
+				      name);
 
 	irq_op.irq = irq;
 	irq_op.vector = 0;
@@ -690,8 +690,8 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (irq == -1)
 		goto out;
 
-	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
-				      handle_level_irq, name);
+	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
+				      name);
 
 	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
@@ -772,7 +772,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		if (irq == -1)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_dynamic_chip,
+		irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
 					      handle_fasteoi_irq, "event");
 
 		xen_irq_info_evtchn_init(irq, evtchn);
@@ -799,7 +799,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		if (irq < 0)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
+		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "ipi");
 
 		bind_ipi.vcpu = cpu;
@@ -848,7 +848,7 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		if (irq == -1)
 			goto out;
 
-		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
+		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "virq");
 
 		bind_virq.virq = virq;
@@ -912,8 +912,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      unsigned long irqflags,
 			      const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_evtchn_to_irq(evtchn);
 	if (irq < 0)
@@ -955,8 +954,7 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_virq_to_irq(virq, cpu);
 	if (irq < 0)
@@ -1339,7 +1337,7 @@ static void ack_dynirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_masked_irq(data->irq);
+	irq_move_masked_irq(data);
 
 	if (VALID_EVTCHN(evtchn))
 		unmask_evtchn(evtchn);

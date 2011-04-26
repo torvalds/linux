@@ -13,7 +13,7 @@
 #ifdef CONFIG_MACH_AP4EVB
 #define MACH_TYPE	MACH_TYPE_AP4EVB
 #include "mach/head-ap4evb.txt"
-#elif CONFIG_MACH_MACKEREL
+#elif defined(CONFIG_MACH_MACKEREL)
 #define MACH_TYPE	MACH_TYPE_MACKEREL
 #include "mach/head-mackerel.txt"
 #else

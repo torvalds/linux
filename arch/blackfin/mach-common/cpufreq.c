@@ -1,7 +1,7 @@
 /*
  * Blackfin core clock scaling
  *
- * Copyright 2008-2009 Analog Devices Inc.
+ * Copyright 2008-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -16,10 +16,8 @@
 #include <asm/time.h>
 #include <asm/dpmc.h>
 
-#define CPUFREQ_CPU 0
-
 /* this is the table of CCLK frequencies, in Hz */
-/* .index is the entry in the auxillary dpm_state_table[] */
+/* .index is the entry in the auxiliary dpm_state_table[] */
 static struct cpufreq_frequency_table bfin_freq_table[] = {
 	{
 		.frequency = CPUFREQ_TABLE_END,
@@ -46,7 +44,7 @@ static struct bfin_dpm_state {
 
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 /*
- * normalized to maximum frequncy offset for CYCLES,
+ * normalized to maximum frequency offset for CYCLES,
  * used in time-ts cycles clock source, but could be used
  * somewhere also.
  */

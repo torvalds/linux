@@ -3,7 +3,7 @@
  */
 
 /*
- * FP-Gaming Assasin 3D joystick driver for Linux
+ * FP-Gaming Assassin 3D joystick driver for Linux
  */
 
 /*
@@ -34,7 +34,7 @@
 #include <linux/input.h>
 #include <linux/jiffies.h>
 
-#define DRIVER_DESC	"FP-Gaming Assasin 3D joystick driver"
+#define DRIVER_DESC	"FP-Gaming Assassin 3D joystick driver"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION(DRIVER_DESC);

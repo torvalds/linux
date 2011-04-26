@@ -43,6 +43,14 @@ static int perf_event__repipe(union perf_event *event,
 	return perf_event__repipe_synth(event, session);
 }
 
+static int perf_event__repipe_sample(union perf_event *event,
+			      struct perf_sample *sample __used,
+			      struct perf_evsel *evsel __used,
+			      struct perf_session *session)
+{
+	return perf_event__repipe_synth(event, session);
+}
+
 static int perf_event__repipe_mmap(union perf_event *event,
 				   struct perf_sample *sample,
 				   struct perf_session *session)
@@ -124,6 +132,7 @@ static int dso__inject_build_id(struct dso *self, struct perf_session *session)
 
 static int perf_event__inject_buildid(union perf_event *event,
 				      struct perf_sample *sample,
+				      struct perf_evsel *evsel __used,
 				      struct perf_session *session)
 {
 	struct addr_location al;
@@ -164,7 +173,7 @@ repipe:
 }
 
 struct perf_event_ops inject_ops = {
-	.sample		= perf_event__repipe,
+	.sample		= perf_event__repipe_sample,
 	.mmap		= perf_event__repipe,
 	.comm		= perf_event__repipe,
 	.fork		= perf_event__repipe,

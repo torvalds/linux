@@ -703,28 +703,21 @@ void blk_trace_shutdown(struct request_queue *q)
  *
  **/
 static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
-				    u32 what)
+			     u32 what)
 {
 	struct blk_trace *bt = q->blk_trace;
-	int rw = rq->cmd_flags & 0x03;
 
 	if (likely(!bt))
 		return;
 
-	if (rq->cmd_flags & REQ_DISCARD)
-		rw |= REQ_DISCARD;
-
-	if (rq->cmd_flags & REQ_SECURE)
-		rw |= REQ_SECURE;
-
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rq->cmd_flags,
 				what, rq->errors, rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), rw,
-				what, rq->errors, 0, NULL);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq),
+				rq->cmd_flags, what, rq->errors, 0, NULL);
 	}
 }
 
@@ -857,29 +850,21 @@ static void blk_add_trace_plug(void *ignore, struct request_queue *q)
 		__blk_add_trace(bt, 0, 0, 0, BLK_TA_PLUG, 0, 0, NULL);
 }
 
-static void blk_add_trace_unplug_io(void *ignore, struct request_queue *q)
+static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
+				    unsigned int depth, bool explicit)
 {
 	struct blk_trace *bt = q->blk_trace;
 
 	if (bt) {
-		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
-		__be64 rpdu = cpu_to_be64(pdu);
+		__be64 rpdu = cpu_to_be64(depth);
+		u32 what;
 
-		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_IO, 0,
-				sizeof(rpdu), &rpdu);
-	}
-}
+		if (explicit)
+			what = BLK_TA_UNPLUG_IO;
+		else
+			what = BLK_TA_UNPLUG_TIMER;
 
-static void blk_add_trace_unplug_timer(void *ignore, struct request_queue *q)
-{
-	struct blk_trace *bt = q->blk_trace;
-
-	if (bt) {
-		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
-		__be64 rpdu = cpu_to_be64(pdu);
-
-		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_TIMER, 0,
-				sizeof(rpdu), &rpdu);
+		__blk_add_trace(bt, 0, 0, 0, what, 0, sizeof(rpdu), &rpdu);
 	}
 }
 
@@ -1022,9 +1007,7 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_plug(blk_add_trace_plug, NULL);
 	WARN_ON(ret);
-	ret = register_trace_block_unplug_timer(blk_add_trace_unplug_timer, NULL);
-	WARN_ON(ret);
-	ret = register_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
+	ret = register_trace_block_unplug(blk_add_trace_unplug, NULL);
 	WARN_ON(ret);
 	ret = register_trace_block_split(blk_add_trace_split, NULL);
 	WARN_ON(ret);
@@ -1039,8 +1022,7 @@ static void blk_unregister_tracepoints(void)
 	unregister_trace_block_rq_remap(blk_add_trace_rq_remap, NULL);
 	unregister_trace_block_bio_remap(blk_add_trace_bio_remap, NULL);
 	unregister_trace_block_split(blk_add_trace_split, NULL);
-	unregister_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
-	unregister_trace_block_unplug_timer(blk_add_trace_unplug_timer, NULL);
+	unregister_trace_block_unplug(blk_add_trace_unplug, NULL);
 	unregister_trace_block_plug(blk_add_trace_plug, NULL);
 	unregister_trace_block_sleeprq(blk_add_trace_sleeprq, NULL);
 	unregister_trace_block_getrq(blk_add_trace_getrq, NULL);

@@ -18,4 +18,14 @@ static inline bool ip_set_get_ip6_port(const struct sk_buff *skb, bool src,
 extern bool ip_set_get_ip_port(const struct sk_buff *skb, u8 pf, bool src,
 				__be16 *port);
 
+static inline bool ip_set_proto_with_ports(u8 proto)
+{
+	switch (proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		return true;
+	}
+	return false;
+}
+
 #endif /*_IP_SET_GETPORT_H*/

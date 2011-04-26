@@ -741,6 +741,12 @@ int set_create_files_as(struct cred *new, struct inode *inode)
 }
 EXPORT_SYMBOL(set_create_files_as);
 
+struct user_namespace *current_user_ns(void)
+{
+	return _current_user_ns();
+}
+EXPORT_SYMBOL(current_user_ns);
+
 #ifdef CONFIG_DEBUG_CREDENTIALS
 
 bool creds_are_invalid(const struct cred *cred)

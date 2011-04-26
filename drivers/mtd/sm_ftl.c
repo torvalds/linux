@@ -64,12 +64,16 @@ struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 					SM_SMALL_PAGE - SM_CIS_VENDOR_OFFSET);
 
 	char *vendor = kmalloc(vendor_len, GFP_KERNEL);
+	if (!vendor)
+		goto error1;
 	memcpy(vendor, ftl->cis_buffer + SM_CIS_VENDOR_OFFSET, vendor_len);
 	vendor[vendor_len] = 0;
 
 	/* Initialize sysfs attributes */
 	vendor_attribute =
 		kzalloc(sizeof(struct sm_sysfs_attribute), GFP_KERNEL);
+	if (!vendor_attribute)
+		goto error2;
 
 	sysfs_attr_init(&vendor_attribute->dev_attr.attr);
 
@@ -83,12 +87,24 @@ struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 	/* Create array of pointers to the attributes */
 	attributes = kzalloc(sizeof(struct attribute *) * (NUM_ATTRIBUTES + 1),
 								GFP_KERNEL);
+	if (!attributes)
+		goto error3;
 	attributes[0] = &vendor_attribute->dev_attr.attr;
 
 	/* Finally create the attribute group */
 	attr_group = kzalloc(sizeof(struct attribute_group), GFP_KERNEL);
+	if (!attr_group)
+		goto error4;
 	attr_group->attrs = attributes;
 	return attr_group;
+error4:
+	kfree(attributes);
+error3:
+	kfree(vendor_attribute);
+error2:
+	kfree(vendor);
+error1:
+	return NULL;
 }
 
 void sm_delete_sysfs_attributes(struct sm_ftl *ftl)
@@ -524,7 +540,7 @@ static int sm_check_block(struct sm_ftl *ftl, int zone, int block)
 			return -EIO;
 	}
 
-	/* If the block is sliced (partialy erased usually) erase it */
+	/* If the block is sliced (partially erased usually) erase it */
 	if (i == 2) {
 		sm_erase_block(ftl, zone, block, 1);
 		return 1;
@@ -862,7 +878,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	return 0;
 }
 
-/* Get and automaticly initialize an FTL mapping for one zone */
+/* Get and automatically initialize an FTL mapping for one zone */
 struct ftl_zone *sm_get_zone(struct sm_ftl *ftl, int zone_num)
 {
 	struct ftl_zone *zone;
@@ -1178,6 +1194,8 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	}
 
 	ftl->disk_attributes = sm_create_sysfs_attributes(ftl);
+	if (!ftl->disk_attributes)
+		goto error6;
 	trans->disk_attributes = ftl->disk_attributes;
 
 	sm_printk("Found %d MiB xD/SmartMedia FTL on mtd%d",

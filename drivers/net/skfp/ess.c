@@ -241,7 +241,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			!= SMT_RDF_SUCCESS) ||
 			(sm->smt_tid != smc->ess.alloc_trans_id)) {
 
-			DB_ESS("ESS: Allocation Responce not accepted\n",0,0) ;
+			DB_ESS("ESS: Allocation Response not accepted\n",0,0) ;
 			return fs;
 		}
 
@@ -393,7 +393,7 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 	 *		      |	 T-NEG	|
 	 *		       -       -
  	 *
-	 * T-NEG is discribed by the equation:
+	 * T-NEG is described by the equation:
 	 *
 	 *		     (-) fddiMACT-NEG
 	 *	T-NEG =	    -------------------
@@ -479,7 +479,7 @@ static void ess_send_response(struct s_smc *smc, struct smt_header *sm,
 	void			*p ;
 
 	/*
-	 * get and initialize the responce frame
+	 * get and initialize the response frame
 	 */
 	if (sba_cmd == CHANGE_ALLOCATION) {
 		if (!(mb=smt_build_frame(smc,SMT_RAF,SMT_REPLY,
@@ -578,7 +578,7 @@ static void ess_send_alc_req(struct s_smc *smc)
 	}
 	
 	/*
-	 * get and initialize the responce frame
+	 * get and initialize the response frame
 	 */
 	if (!(mb=smt_build_frame(smc,SMT_RAF,SMT_REQUEST,
 			sizeof(struct smt_sba_alc_req))))

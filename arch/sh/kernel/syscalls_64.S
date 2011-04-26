@@ -399,3 +399,4 @@ sys_call_table:
 	.long sys_name_to_handle_at	/* 370 */
 	.long sys_open_by_handle_at
 	.long sys_clock_adjtime
+	.long sys_syncfs

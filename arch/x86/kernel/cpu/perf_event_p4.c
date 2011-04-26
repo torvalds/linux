@@ -777,6 +777,7 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	 * the counter has reached zero value and continued counting before
 	 * real NMI signal was received:
 	 */
+	rdmsrl(hwc->event_base, v);
 	if (!(v & ARCH_P4_UNFLAGGED_BIT))
 		return 1;
 
@@ -946,7 +947,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_event_set_period(event))
 			continue;
 		if (perf_event_overflow(event, 1, &data, regs))
-			p4_pmu_disable_event(event);
+			x86_pmu_stop(event, 0);
 	}
 
 	if (handled) {

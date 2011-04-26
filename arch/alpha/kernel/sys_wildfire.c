@@ -156,7 +156,6 @@ static void __init
 wildfire_init_irq_per_pca(int qbbno, int pcano)
 {
 	int i, irq_bias;
-	unsigned long io_bias;
 	static struct irqaction isa_enable = {
 		.handler	= no_action,
 		.name		= "isa_enable",
@@ -165,10 +164,12 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 	irq_bias = qbbno * (WILDFIRE_PCA_PER_QBB * WILDFIRE_IRQ_PER_PCA)
 		 + pcano * WILDFIRE_IRQ_PER_PCA;
 
+#if 0
+	unsigned long io_bias;
+
 	/* Only need the following for first PCI bus per PCA. */
 	io_bias = WILDFIRE_IO(qbbno, pcano<<1) - WILDFIRE_IO_BIAS;
 
-#if 0
 	outb(0, DMA1_RESET_REG + io_bias);
 	outb(0, DMA2_RESET_REG + io_bias);
 	outb(DMA_MODE_CASCADE, DMA2_MODE_REG + io_bias);
@@ -183,17 +184,17 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 	for (i = 0; i < 16; ++i) {
 		if (i == 2)
 			continue;
-		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
-			handle_level_irq);
+		irq_set_chip_and_handler(i + irq_bias, &wildfire_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 
-	set_irq_chip_and_handler(36+irq_bias, &wildfire_irq_type,
-		handle_level_irq);
+	irq_set_chip_and_handler(36 + irq_bias, &wildfire_irq_type,
+				 handle_level_irq);
 	irq_set_status_flags(36 + irq_bias, IRQ_LEVEL);
 	for (i = 40; i < 64; ++i) {
-		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
-			handle_level_irq);
+		irq_set_chip_and_handler(i + irq_bias, &wildfire_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 

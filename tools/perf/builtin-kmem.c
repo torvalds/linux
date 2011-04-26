@@ -305,6 +305,7 @@ static void process_raw_event(union perf_event *raw_event __used, void *data,
 
 static int process_sample_event(union perf_event *event,
 				struct perf_sample *sample,
+				struct perf_evsel *evsel __used,
 				struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, event->ip.pid);

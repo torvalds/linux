@@ -1196,6 +1196,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				if (curr_dso == NULL)
 					goto out_elf_end;
 				curr_dso->kernel = self->kernel;
+				curr_dso->long_name = self->long_name;
+				curr_dso->long_name_len = self->long_name_len;
 				curr_map = map__new2(start, curr_dso,
 						     map->type);
 				if (curr_map == NULL) {
@@ -1486,7 +1488,9 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	 * On the first pass, only load images if they have a full symtab.
 	 * Failing that, do a second pass where we accept .dynsym also
 	 */
-	for (self->symtab_type = SYMTAB__BUILD_ID_CACHE, want_symtab = 1;
+	want_symtab = 1;
+restart:
+	for (self->symtab_type = SYMTAB__BUILD_ID_CACHE;
 	     self->symtab_type != SYMTAB__NOT_FOUND;
 	     self->symtab_type++) {
 		switch (self->symtab_type) {
@@ -1536,17 +1540,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 			snprintf(name, size, "%s%s", symbol_conf.symfs,
 				 self->long_name);
 			break;
-
-		default:
-			/*
-			 * If we wanted a full symtab but no image had one,
-			 * relax our requirements and repeat the search.
-			 */
-			if (want_symtab) {
-				want_symtab = 0;
-				self->symtab_type = SYMTAB__BUILD_ID_CACHE;
-			} else
-				continue;
+		default:;
 		}
 
 		/* Name is now the name of the next image to try */
@@ -1571,6 +1565,15 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 				ret += nr_plt;
 			break;
 		}
+	}
+
+	/*
+	 * If we wanted a full symtab but no image had one,
+	 * relax our requirements and repeat the search.
+	 */
+	if (ret <= 0 && want_symtab) {
+		want_symtab = 0;
+		goto restart;
 	}
 
 	free(name);
@@ -1841,6 +1844,7 @@ int dso__load_vmlinux(struct dso *self, struct map *map,
 	if (fd < 0)
 		return -1;
 
+	dso__set_long_name(self, (char *)vmlinux);
 	dso__set_loaded(self, map->type);
 	err = dso__load_sym(self, map, symfs_vmlinux, fd, filter, 0, 0);
 	close(fd);
@@ -2401,6 +2405,8 @@ int symbol__init(void)
 
 	if (symbol_conf.initialized)
 		return 0;
+
+	symbol_conf.priv_size = ALIGN(symbol_conf.priv_size, sizeof(u64));
 
 	elf_version(EV_CURRENT);
 	if (symbol_conf.sort_by_name)

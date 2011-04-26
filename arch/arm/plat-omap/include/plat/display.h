@@ -58,6 +58,7 @@ enum omap_display_type {
 	OMAP_DISPLAY_TYPE_SDI		= 1 << 2,
 	OMAP_DISPLAY_TYPE_DSI		= 1 << 3,
 	OMAP_DISPLAY_TYPE_VENC		= 1 << 4,
+	OMAP_DISPLAY_TYPE_HDMI		= 1 << 5,
 };
 
 enum omap_plane {
@@ -237,6 +238,13 @@ static inline int omap_display_init(struct omap_dss_board_info *board_data)
 }
 #endif
 
+struct omap_display_platform_data {
+	struct omap_dss_board_info *board_data;
+	/* TODO: Additional members to be added when PM is considered */
+
+	bool (*opt_clock_available)(const char *clk_role);
+};
+
 struct omap_video_timings {
 	/* Unit: pixels */
 	u16 x_res;
@@ -396,8 +404,8 @@ struct omap_dss_device {
 			struct {
 				u16 regn;
 				u16 regm;
-				u16 regm3;
-				u16 regm4;
+				u16 regm_dispc;
+				u16 regm_dsi;
 
 				u16 lp_clk_div;
 
@@ -555,6 +563,9 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 		int channel,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(int, void *), void *data);
+int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
+int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
+void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev);

@@ -245,7 +245,9 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	v9fs_set_create_acl(dentry, dacl, pacl);
 
 	v9inode = V9FS_I(inode);
-	if (v9ses->cache && !v9inode->writeback_fid) {
+	mutex_lock(&v9inode->v_mutex);
+	if (v9ses->cache && !v9inode->writeback_fid &&
+	    ((flags & O_ACCMODE) != O_RDONLY)) {
 		/*
 		 * clone a fid and add it to writeback_fid
 		 * we do it during open time instead of
@@ -256,10 +258,12 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		inode_fid = v9fs_writeback_fid(dentry);
 		if (IS_ERR(inode_fid)) {
 			err = PTR_ERR(inode_fid);
+			mutex_unlock(&v9inode->v_mutex);
 			goto error;
 		}
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
+	mutex_unlock(&v9inode->v_mutex);
 	/* Since we are opening a file, assign the open fid to the file */
 	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 	if (IS_ERR(filp)) {
@@ -391,7 +395,7 @@ v9fs_vfs_getattr_dotl(struct vfsmount *mnt, struct dentry *dentry,
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	err = -EPERM;
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		generic_fillattr(dentry->d_inode, stat);
 		return 0;
@@ -448,17 +452,11 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	p9attr.mtime_nsec = iattr->ia_mtime.tv_nsec;
 
 	retval = -EPERM;
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(dentry->d_inode)) {
-		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
-		if (retval)
-			return retval;
-	}
 	/* Write all dirty data */
 	if (S_ISREG(dentry->d_inode->i_mode))
 		filemap_write_and_wait(dentry->d_inode->i_mapping);
@@ -466,8 +464,12 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	retval = p9_client_setattr(fid, &p9attr);
 	if (retval < 0)
 		return retval;
-	v9fs_invalidate_inode_attr(dentry->d_inode);
 
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(dentry->d_inode))
+		truncate_setsize(dentry->d_inode, iattr->ia_size);
+
+	v9fs_invalidate_inode_attr(dentry->d_inode);
 	setattr_copy(dentry->d_inode, iattr);
 	mark_inode_dirty(dentry->d_inode);
 	if (iattr->ia_valid & ATTR_MODE) {
@@ -809,7 +811,7 @@ v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid)) {
 		__putname(link);
-		link = ERR_PTR(PTR_ERR(fid));
+		link = ERR_CAST(fid);
 		goto ndset;
 	}
 	retval = p9_client_readlink(fid, &target);

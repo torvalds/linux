@@ -328,7 +328,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
  * processing to finish, then directly poll (and ack ) the eventq.
  * Finally reenable NAPI and interrupts.
  *
- * Since we are touching interrupts the caller should hold the suspend lock
+ * This is for use only during a loopback self-test.  It must not
+ * deliver any packets up the stack as this can result in deadlock.
  */
 void efx_process_channel_now(struct efx_channel *channel)
 {
@@ -336,6 +337,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 
 	BUG_ON(channel->channel >= efx->n_channels);
 	BUG_ON(!channel->enabled);
+	BUG_ON(!efx->loopback_selftest);
 
 	/* Disable interrupts and wait for ISRs to complete */
 	efx_nic_disable_interrupts(efx);
@@ -1054,6 +1056,7 @@ static int efx_init_io(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
+	bool use_wc;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
@@ -1104,8 +1107,21 @@ static int efx_init_io(struct efx_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_wc(efx->membase_phys,
-				  efx->type->mem_map_size);
+
+	/* bug22643: If SR-IOV is enabled then tx push over a write combined
+	 * mapping is unsafe. We need to disable write combining in this case.
+	 * MSI is unsupported when SR-IOV is enabled, and the firmware will
+	 * have removed the MSI capability. So write combining is safe if
+	 * there is an MSI capability.
+	 */
+	use_wc = (!EFX_WORKAROUND_22643(efx) ||
+		  pci_find_capability(pci_dev, PCI_CAP_ID_MSI));
+	if (use_wc)
+		efx->membase = ioremap_wc(efx->membase_phys,
+					  efx->type->mem_map_size);
+	else
+		efx->membase = ioremap_nocache(efx->membase_phys,
+					       efx->type->mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
@@ -1422,7 +1438,7 @@ static void efx_start_all(struct efx_nic *efx)
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	if (efx_dev_registered(efx))
+	if (efx_dev_registered(efx) && !efx->port_inhibited)
 		netif_tx_wake_all_queues(efx->net_dev);
 
 	efx_for_each_channel(channel, efx)

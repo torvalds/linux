@@ -430,7 +430,7 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 			 * The system is too slow to cope with
 			 * the enormous workload. We have simply
 			 * run out of active rx urbs and this
-			 * unfortunatly leads to an unpredictable
+			 * unfortunately leads to an unpredictable
 			 * device.
 			 */
 

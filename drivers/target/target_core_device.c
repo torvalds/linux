@@ -371,7 +371,7 @@ int core_update_device_list_for_node(
 	if (!(enable)) {
 		/*
 		 * deve->se_lun_acl will be NULL for demo-mode created LUNs
-		 * that have not been explictly concerted to MappedLUNs ->
+		 * that have not been explicitly concerted to MappedLUNs ->
 		 * struct se_lun_acl, but we remove deve->alua_port_list from
 		 * port->sep_alua_list. This also means that active UAs and
 		 * NodeACL context specific PR metadata for demo-mode
@@ -589,6 +589,7 @@ static void core_export_port(
  *	Called with struct se_device->se_port_lock spinlock held.
  */
 static void core_release_port(struct se_device *dev, struct se_port *port)
+	__releases(&dev->se_port_lock) __acquires(&dev->se_port_lock)
 {
 	/*
 	 * Wait for any port reference for PR ALL_TG_PT=1 operation
@@ -779,49 +780,14 @@ void se_release_vpd_for_dev(struct se_device *dev)
 	return;
 }
 
-/*
- * Called with struct se_hba->device_lock held.
- */
-void se_clear_dev_ports(struct se_device *dev)
-{
-	struct se_hba *hba = dev->se_hba;
-	struct se_lun *lun;
-	struct se_portal_group *tpg;
-	struct se_port *sep, *sep_tmp;
-
-	spin_lock(&dev->se_port_lock);
-	list_for_each_entry_safe(sep, sep_tmp, &dev->dev_sep_list, sep_list) {
-		spin_unlock(&dev->se_port_lock);
-		spin_unlock(&hba->device_lock);
-
-		lun = sep->sep_lun;
-		tpg = sep->sep_tpg;
-		spin_lock(&lun->lun_sep_lock);
-		if (lun->lun_se_dev == NULL) {
-			spin_unlock(&lun->lun_sep_lock);
-			continue;
-		}
-		spin_unlock(&lun->lun_sep_lock);
-
-		core_dev_del_lun(tpg, lun->unpacked_lun);
-
-		spin_lock(&hba->device_lock);
-		spin_lock(&dev->se_port_lock);
-	}
-	spin_unlock(&dev->se_port_lock);
-
-	return;
-}
-
 /*	se_free_virtual_device():
  *
  *	Used for IBLOCK, RAMDISK, and FILEIO Transport Drivers.
  */
 int se_free_virtual_device(struct se_device *dev, struct se_hba *hba)
 {
-	spin_lock(&hba->device_lock);
-	se_clear_dev_ports(dev);
-	spin_unlock(&hba->device_lock);
+	if (!list_empty(&dev->dev_sep_list))
+		dump_stack();
 
 	core_alua_free_lu_gp_mem(dev);
 	se_release_device_for_hba(dev);

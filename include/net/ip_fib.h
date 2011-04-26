@@ -51,7 +51,6 @@ struct fib_nh {
 	struct fib_info		*nh_parent;
 	unsigned		nh_flags;
 	unsigned char		nh_scope;
-	unsigned char		nh_cfg_scope;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			nh_weight;
 	int			nh_power;
@@ -62,6 +61,7 @@ struct fib_nh {
 	int			nh_oif;
 	__be32			nh_gw;
 	__be32			nh_saddr;
+	int			nh_saddr_genid;
 };
 
 /*
@@ -74,9 +74,10 @@ struct fib_info {
 	struct net		*fib_net;
 	int			fib_treeref;
 	atomic_t		fib_clntref;
-	int			fib_dead;
 	unsigned		fib_flags;
-	int			fib_protocol;
+	unsigned char		fib_dead;
+	unsigned char		fib_protocol;
+	unsigned char		fib_scope;
 	__be32			fib_prefsrc;
 	u32			fib_priority;
 	u32			*fib_metrics;
@@ -141,12 +142,19 @@ struct fib_result_nl {
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
-#define FIB_RES_SADDR(res)		(FIB_RES_NH(res).nh_saddr)
+extern __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+
+#define FIB_RES_SADDR(net, res)				\
+	((FIB_RES_NH(res).nh_saddr_genid ==		\
+	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
+	 FIB_RES_NH(res).nh_saddr :			\
+	 fib_info_update_nh_saddr((net), &FIB_RES_NH(res)))
 #define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
 #define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
 #define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
 
-#define FIB_RES_PREFSRC(res)		((res).fi->fib_prefsrc ? : FIB_RES_SADDR(res))
+#define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
+					 FIB_RES_SADDR(net, res))
 
 struct fib_table {
 	struct hlist_node tb_hlist;

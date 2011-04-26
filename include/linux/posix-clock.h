@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/posix-timers.h>
+#include <linux/rwsem.h>
 
 struct posix_clock;
 
@@ -104,7 +105,7 @@ struct posix_clock_operations {
  * @ops:     Functional interface to the clock
  * @cdev:    Character device instance for this clock
  * @kref:    Reference count.
- * @mutex:   Protects the 'zombie' field from concurrent access.
+ * @rwsem:   Protects the 'zombie' field from concurrent access.
  * @zombie:  If 'zombie' is true, then the hardware has disappeared.
  * @release: A function to free the structure when the reference count reaches
  *           zero. May be NULL if structure is statically allocated.
@@ -117,7 +118,7 @@ struct posix_clock {
 	struct posix_clock_operations ops;
 	struct cdev cdev;
 	struct kref kref;
-	struct mutex mutex;
+	struct rw_semaphore rwsem;
 	bool zombie;
 	void (*release)(struct posix_clock *clk);
 };

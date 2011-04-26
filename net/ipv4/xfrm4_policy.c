@@ -74,6 +74,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	rt->rt_key_dst = fl4->daddr;
 	rt->rt_key_src = fl4->saddr;
 	rt->rt_tos = fl4->flowi4_tos;
+	rt->rt_route_iif = fl4->flowi4_iif;
 	rt->rt_iif = fl4->flowi4_iif;
 	rt->rt_oif = fl4->flowi4_oif;
 	rt->rt_mark = fl4->flowi4_mark;

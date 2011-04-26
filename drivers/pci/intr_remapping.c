@@ -50,7 +50,7 @@ static DEFINE_SPINLOCK(irq_2_ir_lock);
 
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	struct irq_cfg *cfg = get_irq_chip_data(irq);
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
@@ -289,7 +289,7 @@ int free_irte(int irq)
  * source validation type
  */
 #define SVT_NO_VERIFY		0x0  /* no verification is required */
-#define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fiels */
+#define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fields */
 #define SVT_VERIFY_BUS		0x2  /* verify bus of request-id */
 
 /*

@@ -33,7 +33,7 @@
 #include "pnfs.h"
 
 /*
- * Field testing shows we need to support upto 4096 stripe indices.
+ * Field testing shows we need to support up to 4096 stripe indices.
  * We store each index as a u8 (u32 on the wire) to keep the memory footprint
  * reasonable. This in turn means we support a maximum of 256
  * RFC 5661 multipath_list4 structures.
@@ -79,6 +79,8 @@ struct nfs4_filelayout_segment {
 	struct nfs4_file_layout_dsaddr *dsaddr; /* Point to GETDEVINFO data */
 	unsigned int num_fh;
 	struct nfs_fh **fh_array;
+	struct list_head *commit_buckets; /* Sort commits to ds */
+	int number_of_buckets;
 };
 
 static inline struct nfs4_filelayout_segment *

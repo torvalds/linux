@@ -129,7 +129,7 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 		return ret;
 
 	/*
-	 * Here we could argubly set the cache state to STATE_CLEAN.
+	 * Here we could arguably set the cache state to STATE_CLEAN.
 	 * However this could lead to inconsistency since we will not
 	 * be notified if this content is altered on the flash by other
 	 * means.  Let's declare it empty and leave buffering tasks to

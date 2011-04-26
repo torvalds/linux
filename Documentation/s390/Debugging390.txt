@@ -2273,7 +2273,7 @@ IP forwarding is on.
 There is a lot of useful info in here best found by going in & having a look around,
 so I'll take you through some entries I consider important.
 
-All the processes running on the machine have there own entry defined by
+All the processes running on the machine have their own entry defined by
 /proc/<pid>
 So lets have a look at the init process
 cd /proc/1

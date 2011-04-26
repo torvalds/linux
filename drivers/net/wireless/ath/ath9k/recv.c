@@ -486,12 +486,12 @@ start_recv:
 bool ath_stoprecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	bool stopped;
+	bool stopped, reset = false;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
 	ath9k_hw_abortpcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
-	stopped = ath9k_hw_stopdmarecv(ah);
+	stopped = ath9k_hw_stopdmarecv(ah, &reset);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ath_edma_stop_recv(sc);
@@ -506,7 +506,7 @@ bool ath_stoprecv(struct ath_softc *sc)
 			"confusing the DMA engine when we start RX up\n");
 		ATH_DBG_WARN_ON_ONCE(!stopped);
 	}
-	return stopped;
+	return stopped || reset;
 }
 
 void ath_flushrecv(struct ath_softc *sc)

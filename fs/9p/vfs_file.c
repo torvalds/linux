@@ -90,7 +90,9 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = fid;
-	if (v9ses->cache && !v9inode->writeback_fid) {
+	mutex_lock(&v9inode->v_mutex);
+	if (v9ses->cache && !v9inode->writeback_fid &&
+	    ((file->f_flags & O_ACCMODE) != O_RDONLY)) {
 		/*
 		 * clone a fid and add it to writeback_fid
 		 * we do it during open time instead of
@@ -101,10 +103,12 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		fid = v9fs_writeback_fid(file->f_path.dentry);
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
+			mutex_unlock(&v9inode->v_mutex);
 			goto out_error;
 		}
 		v9inode->writeback_fid = (void *) fid;
 	}
+	mutex_unlock(&v9inode->v_mutex);
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
@@ -504,9 +508,12 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (!count)
 		goto out;
 
-	return v9fs_file_write_internal(filp->f_path.dentry->d_inode,
+	retval = v9fs_file_write_internal(filp->f_path.dentry->d_inode,
 					filp->private_data,
-					data, count, offset, 1);
+					data, count, &origin, 1);
+	/* update offset on successful write */
+	if (retval > 0)
+		*offset = origin;
 out:
 	return retval;
 }

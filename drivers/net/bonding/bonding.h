@@ -187,6 +187,7 @@ struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct slave *next;
 	struct slave *prev;
+	struct bonding *bond; /* our master */
 	int    delay;
 	unsigned long jiffies;
 	unsigned long last_arp_rx;

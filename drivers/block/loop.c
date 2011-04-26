@@ -540,17 +540,6 @@ out:
 	return 0;
 }
 
-/*
- * kick off io on the underlying address space
- */
-static void loop_unplug(struct request_queue *q)
-{
-	struct loop_device *lo = q->queuedata;
-
-	queue_flag_clear_unlocked(QUEUE_FLAG_PLUGGED, q);
-	blk_run_address_space(lo->lo_backing_file->f_mapping);
-}
-
 struct switch_request {
 	struct file *file;
 	struct completion wait;
@@ -917,7 +906,6 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	 */
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
-	lo->lo_queue->unplug_fn = loop_unplug;
 
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
 		blk_queue_flush(lo->lo_queue, REQ_FLUSH);
@@ -1019,7 +1007,6 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	kthread_stop(lo->lo_thread);
 
-	lo->lo_queue->unplug_fn = NULL;
 	lo->lo_backing_file = NULL;
 
 	loop_release_xfer(lo);
@@ -1636,9 +1623,6 @@ out:
 
 static void loop_free(struct loop_device *lo)
 {
-	if (!lo->lo_queue->queue_lock)
-		lo->lo_queue->queue_lock = &lo->lo_queue->__queue_lock;
-
 	blk_cleanup_queue(lo->lo_queue);
 	put_disk(lo->lo_disk);
 	list_del(&lo->lo_list);

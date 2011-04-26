@@ -6,7 +6,7 @@ zlib	:= inffast.c inflate.c inftrees.c
 
 lib-y	+= $(zlib:.c=.o) zmem.o
 
-EXTRA_CFLAGS	+= -Ilib/zlib_inflate
+ccflags-y	:= -Ilib/zlib_inflate
 
 quiet_cmd_copy_zlib = COPY    $@
       cmd_copy_zlib = cat $< > $@

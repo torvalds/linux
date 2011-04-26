@@ -267,14 +267,6 @@ msmsdcc_dma_complete_tlet(unsigned long data)
 	dma_unmap_sg(mmc_dev(host->mmc), host->dma.sg, host->dma.num_ents,
 		     host->dma.dir);
 
-	if (host->curr.user_pages) {
-		struct scatterlist *sg = host->dma.sg;
-		int i;
-
-		for (i = 0; i < host->dma.num_ents; i++)
-			flush_dcache_page(sg_page(sg++));
-	}
-
 	host->dma.sg = NULL;
 	host->dma.busy = 0;
 

@@ -109,6 +109,8 @@
 struct se_mem;
 struct se_subsystem_api;
 
+extern struct kmem_cache *se_mem_cache;
+
 extern int init_se_global(void);
 extern void release_se_global(void);
 extern void init_scsi_index_table(void);
@@ -190,6 +192,8 @@ extern void transport_generic_process_write(struct se_cmd *);
 extern int transport_generic_do_tmr(struct se_cmd *);
 /* From target_core_alua.c */
 extern int core_alua_check_nonop_delay(struct se_cmd *);
+/* From target_core_cdb.c */
+extern int transport_emulate_control_cdb(struct se_task *);
 
 /*
  * Each se_transport_task_t can have N number of possible struct se_task's

@@ -197,7 +197,7 @@ kset_put:
 }
 
 /**
- *	sysdev_driver_register - Register auxillary driver
+ *	sysdev_driver_register - Register auxiliary driver
  *	@cls:	Device class driver belongs to.
  *	@drv:	Driver.
  *
@@ -250,7 +250,7 @@ unlock:
 }
 
 /**
- *	sysdev_driver_unregister - Remove an auxillary driver.
+ *	sysdev_driver_unregister - Remove an auxiliary driver.
  *	@cls:	Class driver belongs to.
  *	@drv:	Driver.
  */
@@ -302,7 +302,7 @@ int sysdev_register(struct sys_device *sysdev)
 		 * code that should have called us.
 		 */
 
-		/* Notify class auxillary drivers */
+		/* Notify class auxiliary drivers */
 		list_for_each_entry(drv, &cls->drivers, entry) {
 			if (drv->add)
 				drv->add(sysdev);
@@ -329,13 +329,13 @@ void sysdev_unregister(struct sys_device *sysdev)
 }
 
 
-
+#ifndef CONFIG_ARCH_NO_SYSDEV_OPS
 /**
  *	sysdev_shutdown - Shut down all system devices.
  *
  *	Loop over each class of system devices, and the devices in each
  *	of those classes. For each device, we call the shutdown method for
- *	each driver registered for the device - the auxillaries,
+ *	each driver registered for the device - the auxiliaries,
  *	and the class driver.
  *
  *	Note: The list is iterated in reverse order, so that we shut down
@@ -360,7 +360,7 @@ void sysdev_shutdown(void)
 			struct sysdev_driver *drv;
 			pr_debug(" %s\n", kobject_name(&sysdev->kobj));
 
-			/* Call auxillary drivers first */
+			/* Call auxiliary drivers first */
 			list_for_each_entry(drv, &cls->drivers, entry) {
 				if (drv->shutdown)
 					drv->shutdown(sysdev);
@@ -385,7 +385,7 @@ static void __sysdev_resume(struct sys_device *dev)
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled after %pF\n", cls->resume);
 
-	/* Call auxillary drivers next. */
+	/* Call auxiliary drivers next. */
 	list_for_each_entry(drv, &cls->drivers, entry) {
 		if (drv->resume)
 			drv->resume(dev);
@@ -432,7 +432,7 @@ int sysdev_suspend(pm_message_t state)
 		list_for_each_entry(sysdev, &cls->kset.list, kobj.entry) {
 			pr_debug(" %s\n", kobject_name(&sysdev->kobj));
 
-			/* Call auxillary drivers first */
+			/* Call auxiliary drivers first */
 			list_for_each_entry(drv, &cls->drivers, entry) {
 				if (drv->suspend) {
 					ret = drv->suspend(sysdev, state);
@@ -524,6 +524,7 @@ int sysdev_resume(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sysdev_resume);
+#endif /* CONFIG_ARCH_NO_SYSDEV_OPS */
 
 int __init system_bus_init(void)
 {

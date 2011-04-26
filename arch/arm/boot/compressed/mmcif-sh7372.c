@@ -10,7 +10,8 @@
  */
 
 #include <linux/mmc/sh_mmcif.h>
-#include <mach/mmcif.h>
+#include <linux/mmc/boot.h>
+#include <mach/mmc.h>
 
 #define MMCIF_BASE      (void __iomem *)0xe6bd0000
 
@@ -41,8 +42,8 @@
  */
 asmlinkage void mmcif_loader(unsigned char *buf, unsigned long len)
 {
-	mmcif_init_progress();
-	mmcif_update_progress(MMCIF_PROGRESS_ENTER);
+	mmc_init_progress();
+	mmc_update_progress(MMC_PROGRESS_ENTER);
 
 	/* Initialise MMC
 	 * registers: PORT84CR-PORT92CR
@@ -68,12 +69,12 @@ asmlinkage void mmcif_loader(unsigned char *buf, unsigned long len)
 	/* Enable clock to MMC hardware block */
 	__raw_writel(__raw_readl(SMSTPCR3) & ~(1 << 12), SMSTPCR3);
 
-	mmcif_update_progress(MMCIF_PROGRESS_INIT);
+	mmc_update_progress(MMC_PROGRESS_INIT);
 
 	/* setup MMCIF hardware */
 	sh_mmcif_boot_init(MMCIF_BASE);
 
-	mmcif_update_progress(MMCIF_PROGRESS_LOAD);
+	mmc_update_progress(MMC_PROGRESS_LOAD);
 
 	/* load kernel via MMCIF interface */
 	sh_mmcif_boot_do_read(MMCIF_BASE, 2, /* Kernel is at block 2 */
@@ -83,5 +84,5 @@ asmlinkage void mmcif_loader(unsigned char *buf, unsigned long len)
 	/* Disable clock to MMC hardware block */
 	__raw_writel(__raw_readl(SMSTPCR3) & (1 << 12), SMSTPCR3);
 
-	mmcif_update_progress(MMCIF_PROGRESS_DONE);
+	mmc_update_progress(MMC_PROGRESS_DONE);
 }

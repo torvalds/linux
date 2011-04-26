@@ -3620,6 +3620,38 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = 0,
 		},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV_FM3] = {
+		.name           = "Encore ENLTV-FM 3",
+		.audio_clock    = 0x02187de7,
+		.tuner_type     = TUNER_TENA_TNF_5337,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr	= 0x61,
+		.radio_addr	= 0x60,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.vmux = 1,
+			.amux = LINE1,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x43000,
+		},
+	},
 	[SAA7134_BOARD_CINERGY_HT_PCI] = {
 		.name           = "Terratec Cinergy HT PCI",
 		.audio_clock    = 0x00187de7,
@@ -6387,6 +6419,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM53,
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1a7f,
+		.subdevice    = 0x2108,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM3,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1175,
@@ -7102,6 +7140,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM3:
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 	case SAA7134_BOARD_BEHOLD_401:
 	case SAA7134_BOARD_BEHOLD_403:
@@ -7294,9 +7333,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 static void saa7134_tuner_setup(struct saa7134_dev *dev)
 {
 	struct tuner_setup tun_setup;
-	unsigned int mode_mask = T_RADIO     |
-				 T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_RADIO | T_ANALOG_TV;
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.tuner_callback = saa7134_tuner_callback;
@@ -7423,7 +7460,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->tuner_type = TUNER_PHILIPS_FM1216ME_MK3;
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else if ((data[1] != 0) && (data[1] != 0xff)) {
 			/* new config structure */
@@ -7443,7 +7480,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 					printk(KERN_INFO "%s Board has DVB-T\n", dev->name);
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else {
 			printk(KERN_ERR "%s unexpected config structure\n", dev->name);

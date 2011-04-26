@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 
 #include "squashfs_fs.h"
@@ -73,4 +74,37 @@ const struct squashfs_decompressor *squashfs_lookup_decompressor(int id)
 			break;
 
 	return decompressor[i];
+}
+
+
+void *squashfs_decompressor_init(struct super_block *sb, unsigned short flags)
+{
+	struct squashfs_sb_info *msblk = sb->s_fs_info;
+	void *strm, *buffer = NULL;
+	int length = 0;
+
+	/*
+	 * Read decompressor specific options from file system if present
+	 */
+	if (SQUASHFS_COMP_OPTS(flags)) {
+		buffer = kmalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+		if (buffer == NULL)
+			return ERR_PTR(-ENOMEM);
+
+		length = squashfs_read_data(sb, &buffer,
+			sizeof(struct squashfs_super_block), 0, NULL,
+			PAGE_CACHE_SIZE, 1);
+
+		if (length < 0) {
+			strm = ERR_PTR(length);
+			goto finished;
+		}
+	}
+
+	strm = msblk->decompressor->init(msblk, buffer, length);
+
+finished:
+	kfree(buffer);
+
+	return strm;
 }

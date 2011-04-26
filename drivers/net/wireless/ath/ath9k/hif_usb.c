@@ -1040,7 +1040,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	}
 
 	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
-				&hif_dev->udev->dev, hif_dev->device_id,
+				&interface->dev, hif_dev->device_id,
 				hif_dev->udev->product, id->driver_info);
 	if (ret) {
 		ret = -EINVAL;
@@ -1158,7 +1158,7 @@ fail_resume:
 #endif
 
 static struct usb_driver ath9k_hif_usb_driver = {
-	.name = "ath9k_hif_usb",
+	.name = KBUILD_MODNAME,
 	.probe = ath9k_hif_usb_probe,
 	.disconnect = ath9k_hif_usb_disconnect,
 #ifdef CONFIG_PM
