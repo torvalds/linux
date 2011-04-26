@@ -24,12 +24,6 @@
 #include <linux/sysdev.h>
 #include <linux/wakelock.h>
 
-#if 0
-#define DBG(x...)   DBG(x)
-#else
-#define DBG(x...)
-#endif
-
 #define ANDROID_ALARM_PRINT_ERROR (1U << 0)
 #define ANDROID_ALARM_PRINT_INIT_STATUS (1U << 1)
 #define ANDROID_ALARM_PRINT_TSET (1U << 2)
@@ -250,7 +244,7 @@ int rtc_change_time(struct timespec new_time)
 
 	rtc_time_to_tm(new_time.tv_sec, &rtc_new_rtc_time);
 
-	DBG("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
+	printk("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
 		new_time.tv_sec, new_time.tv_nsec,
 		rtc_new_rtc_time.tm_hour, rtc_new_rtc_time.tm_min,
 		rtc_new_rtc_time.tm_sec, rtc_new_rtc_time.tm_mon + 1,
@@ -272,7 +266,7 @@ int alarm_set_rtc(struct timespec new_time)
 
 	rtc_time_to_tm(new_time.tv_sec, &rtc_new_rtc_time);
 
-	DBG("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
+	printk("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
 		new_time.tv_sec, new_time.tv_nsec,
 		rtc_new_rtc_time.tm_hour, rtc_new_rtc_time.tm_min,
 		rtc_new_rtc_time.tm_sec, rtc_new_rtc_time.tm_mon + 1,
@@ -343,20 +337,20 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 	struct alarm *alarm;
 	unsigned long flags;
 	ktime_t now;
-	DBG("alarm_timer_triggered\n");
+	printk("alarm_timer_triggered\n");
 	spin_lock_irqsave(&alarm_slock, flags);
 
 	base = container_of(timer, struct alarm_queue, timer);
 	now = base->stopped ? base->stopped_time : hrtimer_cb_get_time(timer);
 	now = ktime_sub(now, base->delta);
 
-	DBG( "alarm_timer_triggered type %d at %lld\n",
+	printk( "alarm_timer_triggered type %d at %lld\n",
 		base - alarms, ktime_to_ns(now));
 
 	while (base->first) {
 		alarm = container_of(base->first, struct alarm, node);
 		if (alarm->softexpires.tv64 > now.tv64) {
-			DBG( "don't call alarm, %pF, %lld (s %lld)\n",
+			printk( "don't call alarm, %pF, %lld (s %lld)\n",
 				alarm->function, ktime_to_ns(alarm->expires),
 				ktime_to_ns(alarm->softexpires));
 			break;
@@ -364,7 +358,7 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 		base->first = rb_next(&alarm->node);
 		rb_erase(&alarm->node, &base->alarms);
 		RB_CLEAR_NODE(&alarm->node);
-		DBG("call alarm, type %d, func %pF, %lld (s %lld)\n",
+		printk("call alarm, type %d, func %pF, %lld (s %lld)\n",
 			alarm->type, alarm->function,
 			ktime_to_ns(alarm->expires),
 			ktime_to_ns(alarm->softexpires));
@@ -373,10 +367,10 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 		spin_lock_irqsave(&alarm_slock, flags);
 	}
 	if (!base->first)
-		DBG( "no more alarms of type %d\n", base - alarms);
+		printk( "no more alarms of type %d\n", base - alarms);
 	update_timer_locked(base, true);
 	spin_unlock_irqrestore(&alarm_slock, flags);
-	DBG("---alarm_timer_triggered---\n");
+	printk("---alarm_timer_triggered---\n");
 	return HRTIMER_NORESTART;
 }
 
@@ -402,7 +396,7 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 	struct alarm_queue *wakeup_queue = NULL;
 	struct alarm_queue *tmp_queue = NULL;
 
-	DBG( "alarm_suspend(%p, %d)\n", pdev, state.event);
+	printk( "alarm_suspend(%p, %d)\n", pdev, state.event);
 
 	spin_lock_irqsave(&alarm_slock, flags);
 	suspended = true;
@@ -437,7 +431,7 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 		rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
 		rtc_read_time(alarm_rtc_dev, &rtc_current_rtc_time);
 		rtc_tm_to_time(&rtc_current_rtc_time, &rtc_current_time);
-		DBG(
+		printk(
 			"rtc alarm set at %ld, now %ld, rtc delta %ld.%09ld\n",
 			rtc_alarm_time, rtc_current_time,
 			rtc_delta.tv_sec, rtc_delta.tv_nsec);
@@ -458,7 +452,7 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 			spin_unlock_irqrestore(&alarm_slock, flags);
 		}
 	}
-	DBG( "alarm_suspend over\n");
+	printk( "alarm_suspend over\n");
 	return err;
 }
 
@@ -475,7 +469,7 @@ static int alarm_shutdown(struct platform_device *pdev, pm_message_t state)
 	struct alarm_queue *wakeup_queue = NULL;
 	struct alarm_queue *tmp_queue = NULL;
 
-	DBG( "alarm_suspend(%p, %d)\n", pdev, state.event);
+	printk( "alarm_suspend(%p, %d)\n", pdev, state.event);
 
 	spin_lock_irqsave(&alarm_slock, flags);
 	suspended = true;
@@ -509,7 +503,7 @@ static int alarm_shutdown(struct platform_device *pdev, pm_message_t state)
 		rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
 		rtc_read_time(alarm_rtc_dev, &rtc_current_rtc_time);
 		rtc_tm_to_time(&rtc_current_rtc_time, &rtc_current_time);
-		DBG(
+		printk(
 			"rtc alarm set at %ld, now %ld, rtc delta %ld.%09ld\n",
 			rtc_alarm_time, rtc_current_time,
 			rtc_delta.tv_sec, rtc_delta.tv_nsec);
@@ -530,7 +524,7 @@ static int alarm_shutdown(struct platform_device *pdev, pm_message_t state)
 			spin_unlock_irqrestore(&alarm_slock, flags);
 		}
 	}
-	DBG( "alarm_suspend over\n");
+	printk( "alarm_suspend over\n");
 	return err;
 }
 static int alarm_resume(struct platform_device *pdev)
@@ -538,7 +532,7 @@ static int alarm_resume(struct platform_device *pdev)
 	struct rtc_wkalrm alarm;
 	unsigned long       flags;
 
-	DBG( "alarm_resume(%p)\n", pdev);
+	printk( "alarm_resume(%p)\n", pdev);
 
 	memset(&alarm, 0, sizeof(alarm));
 	alarm.enabled = 0;
@@ -623,7 +617,7 @@ static int __init alarm_late_init(void)
 {
 	unsigned long   flags;
 	struct timespec tmp_time, system_time;
-	DBG("alarm_late_init\n");
+	printk("alarm_late_init\n");
 	/* this needs to run after the rtc is read at boot */
 	spin_lock_irqsave(&alarm_slock, flags);
 	/* We read the current rtc and system time so we can later calulate
@@ -637,7 +631,7 @@ static int __init alarm_late_init(void)
 			timespec_to_ktime(timespec_sub(tmp_time, system_time));
 
 	spin_unlock_irqrestore(&alarm_slock, flags);
-	DBG("---alarm_late_init----\n");
+	printk("---alarm_late_init----\n");
 	return 0;
 }
 
@@ -645,7 +639,7 @@ static int __init alarm_driver_init(void)
 {
 	int err;
 	int i;
-	DBG("alarm_driver_init\n");
+	printk("alarm_driver_init\n");
 	for (i = 0; i < ANDROID_ALARM_SYSTEMTIME; i++) {
 		hrtimer_init(&alarms[i].timer,
 				CLOCK_REALTIME, HRTIMER_MODE_ABS);
@@ -662,7 +656,7 @@ static int __init alarm_driver_init(void)
 	err = class_interface_register(&rtc_alarm_interface);
 	if (err < 0)
 		goto err2;
-	DBG("---alarm_driver_init---\n");
+	printk("---alarm_driver_init---\n");
 	return 0;
 
 err2:
