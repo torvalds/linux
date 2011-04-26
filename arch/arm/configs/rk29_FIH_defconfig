@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Tue Apr 19 11:02:26 2011
+# Tue Apr 26 18:33:17 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -613,7 +613,8 @@ CONFIG_APANIC_PLABEL="kpanic"
 # CONFIG_EEPROM_MAX6875 is not set
 # CONFIG_EEPROM_93CX6 is not set
 # CONFIG_RK29_SUPPORT_MODEM is not set
-# CONFIG_RK29_GPS is not set
+CONFIG_RK29_GPS=y
+# CONFIG_GPS_GNS7560 is not set
 
 #
 # Motion Sensors Support
@@ -857,15 +858,11 @@ CONFIG_INPUT_MISC=y
 # CONFIG_INPUT_UINPUT is not set
 # CONFIG_INPUT_GPIO is not set
 # CONFIG_INPUT_GPIO_ROTARY_ENCODER is not set
-
-#
-# Magnetometer sensors
-#
-# CONFIG_COMPASS_AK8975 is not set
-# CONFIG_COMPASS_AK8973 is not set
+# CONFIG_MAG_SENSORS is not set
 # CONFIG_G_SENSOR_DEVICE is not set
 # CONFIG_INPUT_JOGBALL is not set
-# CONFIG_LIGHT_SENSOR_DEVICE is not set
+CONFIG_LIGHT_SENSOR_DEVICE=y
+CONFIG_CM3202=y
 
 #
 # Hardware I/O ports
