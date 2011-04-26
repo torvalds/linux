@@ -1938,6 +1938,8 @@ int fb1_open(struct fb_info *info, int user)
         return -EACCES;
     } else {
         par->refcount++;
+        fb0_set_par(inf->fb0);
+        fb0_pan_display(&inf->fb0->var, inf->fb0);
         win0_blank(FB_BLANK_POWERDOWN, info);
         return 0;
     }
@@ -1956,7 +1958,9 @@ int fb1_release(struct fb_info *info, int user)
         inf->video_mode = 0;
         par->par_seted = 0;
         par->addr_seted = 0;
-        win0_blank(FB_BLANK_POWERDOWN, info);
+        //win0_blank(FB_BLANK_POWERDOWN, info);
+        fb0_set_par(inf->fb0);
+        fb0_pan_display(&inf->fb0->var, inf->fb0);
         win1_blank(FB_BLANK_POWERDOWN, info);
         // wait for lcdc stop access memory
         //msleep(50);
