@@ -487,6 +487,7 @@ static int dhdsdio_chip_attach(struct dhd_bus *bus, void *regs);
 static void dhdsdio_chip_resetcore(bcmsdh_info_t *sdh, u32 corebase);
 static void dhdsdio_sdiod_drive_strength_init(struct dhd_bus *bus,
 					u32 drivestrength);
+static void dhdsdio_chip_detach(struct dhd_bus *bus);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size)
 {
@@ -5484,10 +5485,8 @@ static void dhdsdio_release(dhd_bus_t *bus)
 		bcmsdh_intr_dereg(bus->sdh);
 
 		if (bus->dhd) {
-
-			dhdsdio_release_dongle(bus);
-
 			dhd_detach(bus->dhd);
+			dhdsdio_release_dongle(bus);
 			bus->dhd = NULL;
 		}
 
@@ -5530,6 +5529,7 @@ static void dhdsdio_release_dongle(dhd_bus_t *bus)
 #endif				/* !defined(BCMLXSDMMC) */
 		dhdsdio_clkctl(bus, CLK_NONE, false);
 		si_detach(bus->sih);
+		dhdsdio_chip_detach(bus);
 		if (bus->vars && bus->varsz)
 			kfree(bus->vars);
 		bus->vars = NULL;
@@ -6425,4 +6425,13 @@ dhdsdio_sdiod_drive_strength_init(struct dhd_bus *bus, u32 drivestrength) {
 		DHD_INFO(("SDIO: %dmA drive strength selected, set to 0x%08x\n",
 			drivestrength, cc_data_temp));
 	}
+}
+
+static void
+dhdsdio_chip_detach(struct dhd_bus *bus)
+{
+	DHD_TRACE(("%s: Enter\n", __func__));
+
+	kfree(bus->ci);
+	bus->ci = NULL;
 }
