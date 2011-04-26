@@ -179,6 +179,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 	u32 timer_period;
 	bool is_btscan;
 
+	ath9k_ps_wakeup(sc);
 	ath_detect_bt_priority(sc);
 
 	is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
@@ -201,6 +202,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 		btcoex->hw_timer_enabled = true;
 	}
 
+	ath9k_ps_restore(sc);
 	mod_timer(&btcoex->period_timer, jiffies +
 				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
 }
@@ -220,6 +222,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	ath_dbg(common, ATH_DBG_BTCOEX,
 		"no stomp timer running\n");
 
+	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&btcoex->btcoex_lock);
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
@@ -228,6 +231,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
+	ath9k_ps_restore(sc);
 }
 
 int ath_init_btcoex_timer(struct ath_softc *sc)
