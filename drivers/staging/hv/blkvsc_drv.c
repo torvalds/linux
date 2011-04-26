@@ -214,10 +214,8 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
 	struct hv_device *device_ctx = blkdev->device_ctx;
-	struct hv_driver *drv =
-			drv_to_hv_drv(device_ctx->device.driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-			drv->priv;
+			drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *storvsc_req;
 	struct vmscsi_request *vm_srb;
 	int ret;
@@ -541,10 +539,8 @@ out:
  */
 static int blkvsc_remove(struct device *device)
 {
-	struct hv_driver *drv =
-				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-				drv->priv;
+				drv_to_stordrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
@@ -881,8 +877,6 @@ static int blkvsc_drv_init(void)
 
 	storvsc_drv_obj->ring_buffer_size = blkvsc_ringbuffer_size;
 
-	drv->priv = storvsc_drv_obj;
-
 	/* Callback to client driver to complete the initialization */
 	blk_vsc_initialize(&storvsc_drv_obj->base);
 
@@ -945,10 +939,8 @@ static void blkvsc_drv_exit(void)
  */
 static int blkvsc_probe(struct device *device)
 {
-	struct hv_driver *drv =
-				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
-				drv->priv;
+				drv_to_stordrv(device->driver);
 	struct hv_device *device_obj = device_to_hv_device(device);
 
 	struct block_device_context *blkdev = NULL;

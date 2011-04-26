@@ -414,7 +414,7 @@ static int stor_vsc_connect_to_vsp(struct hv_device *device)
 	struct storvsc_driver_object *stor_driver;
 	int ret;
 
-	stor_driver = (struct storvsc_driver_object *)device->drv;
+	stor_driver = drv_to_stordrv(device->device.driver);
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
