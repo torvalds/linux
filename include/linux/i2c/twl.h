@@ -679,6 +679,7 @@ struct twl4030_audio_data {
 	/* twl6040 */
 	int audpwron_gpio;	/* audio power-on gpio */
 	int naudint_irq;	/* audio interrupt */
+	unsigned int irq_base;
 };
 
 struct twl4030_platform_data {
