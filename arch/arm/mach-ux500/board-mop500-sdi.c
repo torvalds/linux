@@ -32,13 +32,32 @@
 #define MCI_DATA31DIREN		(1 << 5)
 #define MCI_FBCLKEN		(1 << 7)
 
+/* GPIO pins used by the sdi0 level shifter */
+static int sdi0_en = -1;
+static int sdi0_vsel = -1;
+
 static u32 mop500_sdi0_vdd_handler(struct device *dev, unsigned int vdd,
 				   unsigned char power_mode)
 {
-	if (power_mode == MMC_POWER_UP)
-		gpio_set_value_cansleep(GPIO_SDMMC_EN, 1);
-	else if (power_mode == MMC_POWER_OFF)
-		gpio_set_value_cansleep(GPIO_SDMMC_EN, 0);
+	switch (power_mode) {
+	case MMC_POWER_UP:
+	case MMC_POWER_ON:
+		/*
+		 * Level shifter voltage should depend on vdd to when deciding
+		 * on either 1.8V or 2.9V. Once the decision has been made the
+		 * level shifter must be disabled and re-enabled with a changed
+		 * select signal in order to switch the voltage. Since there is
+		 * no framework support yet for indicating 1.8V in vdd, use the
+		 * default 2.9V.
+		 */
+		gpio_direction_output(sdi0_vsel, 0);
+		gpio_direction_output(sdi0_en, 1);
+		break;
+	case MMC_POWER_OFF:
+		gpio_direction_output(sdi0_vsel, 0);
+		gpio_direction_output(sdi0_en, 0);
+		break;
+	}
 
 	return MCI_FBCLKEN | MCI_CMDDIREN | MCI_DATA0DIREN |
 	       MCI_DATA2DIREN | MCI_DATA31DIREN;
@@ -76,10 +95,6 @@ static struct mmci_platform_data mop500_sdi0_data = {
 	.dma_tx_param	= &mop500_sdi0_dma_cfg_tx,
 #endif
 };
-
-/* GPIO pins used by the sdi0 level shifter */
-static int sdi0_en = -1;
-static int sdi0_vsel = -1;
 
 static void sdi0_configure(void)
 {
@@ -210,6 +225,7 @@ void __init mop500_sdi_init(void)
 		sdi0_vsel = HREFV60_SDMMC_1V8_3V_GPIO;
 		sdi0_configure();
 	}
+
 	/*
 	 * On boards with the TC35892 GPIO expander, sdi0 will finally
 	 * be added when the TC35892 initializes and calls
