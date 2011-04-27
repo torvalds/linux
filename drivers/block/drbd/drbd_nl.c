@@ -2290,7 +2290,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	cpumask_var_t new_cpu_mask;
 	struct drbd_tconn *tconn;
 	int *rs_plan_s = NULL;
-	struct res_opts sc;
+	struct res_opts res_opts;
 	int err;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
@@ -2306,11 +2306,11 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	sc = tconn->res_opts;
+	res_opts = tconn->res_opts;
 	if (should_set_defaults(info))
-		drbd_set_res_opts_default(&sc);
+		drbd_set_res_opts_default(&res_opts);
 
-	err = res_opts_from_attrs(&sc, info);
+	err = res_opts_from_attrs(&res_opts, info);
 	if (err) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
@@ -2318,8 +2318,8 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* silently ignore cpu mask on UP kernel */
-	if (nr_cpu_ids > 1 && sc.cpu_mask[0] != 0) {
-		err = __bitmap_parse(sc.cpu_mask, 32, 0,
+	if (nr_cpu_ids > 1 && res_opts.cpu_mask[0] != 0) {
+		err = __bitmap_parse(res_opts.cpu_mask, 32, 0,
 				cpumask_bits(new_cpu_mask), nr_cpu_ids);
 		if (err) {
 			conn_warn(tconn, "__bitmap_parse() failed with %d\n", err);
@@ -2329,7 +2329,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 
-	tconn->res_opts = sc;
+	tconn->res_opts = res_opts;
 
 	if (!cpumask_equal(tconn->cpu_mask, new_cpu_mask)) {
 		cpumask_copy(tconn->cpu_mask, new_cpu_mask);
