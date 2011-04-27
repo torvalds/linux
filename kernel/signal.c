@@ -2364,40 +2364,34 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
  *  @oset: previous value of signal mask if non-null
  *  @sigsetsize: size of sigset_t type
  */
-SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, set,
+SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, nset,
 		sigset_t __user *, oset, size_t, sigsetsize)
 {
-	int error = -EINVAL;
 	sigset_t old_set, new_set;
+	int error;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
-		goto out;
+		return -EINVAL;
 
-	if (set) {
-		error = -EFAULT;
-		if (copy_from_user(&new_set, set, sizeof(*set)))
-			goto out;
+	old_set = current->blocked;
+
+	if (nset) {
+		if (copy_from_user(&new_set, nset, sizeof(sigset_t)))
+			return -EFAULT;
 		sigdelsetmask(&new_set, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
-		error = sigprocmask(how, &new_set, &old_set);
+		error = sigprocmask(how, &new_set, NULL);
 		if (error)
-			goto out;
-		if (oset)
-			goto set_old;
-	} else if (oset) {
-		spin_lock_irq(&current->sighand->siglock);
-		old_set = current->blocked;
-		spin_unlock_irq(&current->sighand->siglock);
-
-	set_old:
-		error = -EFAULT;
-		if (copy_to_user(oset, &old_set, sizeof(*oset)))
-			goto out;
+			return error;
 	}
-	error = 0;
-out:
-	return error;
+
+	if (oset) {
+		if (copy_to_user(oset, &old_set, sizeof(sigset_t)))
+			return -EFAULT;
+	}
+
+	return 0;
 }
 
 long do_sigpending(void __user *set, unsigned long sigsetsize)
