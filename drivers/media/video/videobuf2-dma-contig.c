@@ -46,7 +46,7 @@ static void *vb2_dma_contig_alloc(void *alloc_ctx, unsigned long size)
 					GFP_KERNEL);
 	if (!buf->vaddr) {
 		dev_err(conf->dev, "dma_alloc_coherent of size %ld failed\n",
-			buf->size);
+			size);
 		kfree(buf);
 		return ERR_PTR(-ENOMEM);
 	}
