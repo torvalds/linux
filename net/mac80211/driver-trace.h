@@ -989,6 +989,33 @@ DEFINE_EVENT(local_only_evt, drv_offchannel_tx_cancel_wait,
 	TP_ARGS(local)
 );
 
+TRACE_EVENT(drv_set_bitrate_mask,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const struct cfg80211_bitrate_mask *mask),
+
+	TP_ARGS(local, sdata, mask),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u32, legacy_2g)
+		__field(u32, legacy_5g)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->legacy_2g = mask->control[IEEE80211_BAND_2GHZ].legacy;
+		__entry->legacy_5g = mask->control[IEEE80211_BAND_5GHZ].legacy;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " 2G Mask:0x%x 5G Mask:0x%x",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->legacy_2g, __entry->legacy_5g
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
