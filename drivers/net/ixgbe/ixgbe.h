@@ -382,6 +382,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_SEARCH_FOR_SFP              (u32)(1 << 4)
 #define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
 #define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
+#define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
@@ -455,12 +456,12 @@ struct ixgbe_adapter {
 	bool link_up;
 	unsigned long link_check_timeout;
 
-	struct work_struct fdir_reinit_task;
 	struct work_struct check_overtemp_task;
 	struct work_struct service_task;
 	struct timer_list service_timer;
 	u32 fdir_pballoc;
 	u32 atr_sample_rate;
+	unsigned long fdir_overflow; /* number of times ATR was backed off */
 	spinlock_t fdir_perfect_lock;
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;

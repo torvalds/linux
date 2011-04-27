@@ -1950,16 +1950,20 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 	case ixgbe_mac_X540:
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
+			int reinit_count = 0;
 			int i;
-			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_FLOW_DIR);
-			/* Disable transmits before FDIR Re-initialization */
-			netif_tx_stop_all_queues(netdev);
 			for (i = 0; i < adapter->num_tx_queues; i++) {
-				struct ixgbe_ring *tx_ring =
-							    adapter->tx_ring[i];
+				struct ixgbe_ring *ring = adapter->tx_ring[i];
 				if (test_and_clear_bit(__IXGBE_TX_FDIR_INIT_DONE,
-						       &tx_ring->state))
-					schedule_work(&adapter->fdir_reinit_task);
+						       &ring->state))
+					reinit_count++;
+			}
+			if (reinit_count) {
+				/* no more flow director interrupts until after init */
+				IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_FLOW_DIR);
+				eicr &= ~IXGBE_EICR_FLOW_DIR;
+				adapter->flags2 |= IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
+				ixgbe_service_event_schedule(adapter);
 			}
 		}
 		break;
@@ -4198,7 +4202,8 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	ixgbe_napi_disable_all(adapter);
 
-	adapter->flags2 &= ~IXGBE_FLAG2_RESET_REQUESTED;
+	adapter->flags2 &= ~(IXGBE_FLAG2_FDIR_REQUIRES_REINIT |
+			     IXGBE_FLAG2_RESET_REQUESTED);
 	adapter->flags &= ~IXGBE_FLAG_NEED_LINK_UPDATE;
 
 	del_timer_sync(&adapter->service_timer);
@@ -4211,13 +4216,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		/* release the CPU mask memory */
 		free_cpumask_var(q_vector->affinity_mask);
 	}
-
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
-	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
-		cancel_work_sync(&adapter->fdir_reinit_task);
-
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		cancel_work_sync(&adapter->check_overtemp_task);
 
 	/* disable transmits in the hardware now that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -5950,27 +5948,39 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_fdir_reinit_task - worker thread to reinit FDIR filter table
- * @work: pointer to work_struct containing our data
+ * ixgbe_fdir_reinit_subtask - worker thread to reinit FDIR filter table
+ * @adapter - pointer to the device adapter structure
  **/
-static void ixgbe_fdir_reinit_task(struct work_struct *work)
+static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_adapter *adapter = container_of(work,
-						     struct ixgbe_adapter,
-						     fdir_reinit_task);
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_FDIR_REQUIRES_REINIT))
+		return;
+
+	adapter->flags2 &= ~IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
+
+	/* if interface is down do nothing */
+	if (test_bit(__IXGBE_DOWN, &adapter->state))
+		return;
+
+	/* do nothing if we are not using signature filters */
+	if (!(adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE))
+		return;
+
+	adapter->fdir_overflow++;
 
 	if (ixgbe_reinit_fdir_tables_82599(hw) == 0) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			set_bit(__IXGBE_TX_FDIR_INIT_DONE,
 				&(adapter->tx_ring[i]->state));
+		/* re-enable flow director interrupts */
+		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	} else {
 		e_err(probe, "failed to finish FDIR re-initialization, "
 		      "ignored adding FDIR ATR filters\n");
 	}
-	/* Done FDIR Re-initialization, enable transmits */
-	netif_tx_start_all_queues(adapter->netdev);
 }
 
 /**
@@ -6370,6 +6380,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_sfp_detection_subtask(adapter);
 	ixgbe_sfp_link_config_subtask(adapter);
 	ixgbe_watchdog_subtask(adapter);
+	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
 
 	ixgbe_service_event_complete(adapter);
@@ -7637,10 +7648,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
-	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
-		INIT_WORK(&adapter->fdir_reinit_task, ixgbe_fdir_reinit_task);
-
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
 		INIT_WORK(&adapter->check_overtemp_task,
 			  ixgbe_check_overtemp_task);
@@ -7700,12 +7707,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
 
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
-	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
-		cancel_work_sync(&adapter->fdir_reinit_task);
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
 		cancel_work_sync(&adapter->check_overtemp_task);
-
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
