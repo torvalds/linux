@@ -4226,7 +4226,7 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 		synchronize_rcu();
 		kfree(old_conf);
 
-		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE);
+		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE | CS_HARD);
 	}
 }
 

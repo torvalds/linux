@@ -604,21 +604,27 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns)
 static enum drbd_state_rv
 is_valid_conn_transition(enum drbd_conns oc, enum drbd_conns nc)
 {
-	enum drbd_state_rv rv = SS_SUCCESS;
+	/* no change -> nothing to do, at least for the connection part */
+	if (oc == nc)
+		return SS_NOTHING_TO_DO;
 
-	/* Disallow Network errors to configure a device's network part */
-	if ((nc >= C_TIMEOUT && nc <= C_TEAR_DOWN) && oc <= C_DISCONNECTING)
-		rv = SS_NEED_CONNECTION;
+	/* disconnect of an unconfigured connection does not make sense */
+	if (oc == C_STANDALONE && nc == C_DISCONNECTING)
+		return SS_ALREADY_STANDALONE;
+
+	/* from C_STANDALONE, we start with C_UNCONNECTED */
+	if (oc == C_STANDALONE && nc != C_UNCONNECTED)
+		return SS_NEED_CONNECTION;
 
 	/* After a network error only C_UNCONNECTED or C_DISCONNECTING may follow. */
 	if (oc >= C_TIMEOUT && oc <= C_TEAR_DOWN && nc != C_UNCONNECTED && nc != C_DISCONNECTING)
-		rv = SS_IN_TRANSIENT_STATE;
+		return SS_IN_TRANSIENT_STATE;
 
 	/* After C_DISCONNECTING only C_STANDALONE may follow */
 	if (oc == C_DISCONNECTING && nc != C_STANDALONE)
-		rv = SS_IN_TRANSIENT_STATE;
+		return SS_IN_TRANSIENT_STATE;
 
-	return rv;
+	return SS_SUCCESS;
 }
 
 

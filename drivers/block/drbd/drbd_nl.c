@@ -2075,10 +2075,9 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_tconn *tconn, bool for
 	enum drbd_state_rv rv;
 	if (force) {
 		spin_lock_irq(&tconn->req_lock);
-		if (tconn->cstate >= C_WF_CONNECTION)
-			_conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+		rv = _conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		spin_unlock_irq(&tconn->req_lock);
-		return SS_SUCCESS;
+		return rv;
 	}
 
 	rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING), 0);
@@ -2137,10 +2136,12 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
 	if (rv < SS_SUCCESS)
 		goto fail;
 
+	/* No one else can reconfigure the network while I am here.
+	 * The state handling only uses drbd_thread_stop_nowait(),
+	 * we want to really wait here until the receiver is no more. */
+	drbd_thread_stop(&tconn->receiver);
 	if (wait_event_interruptible(tconn->ping_wait,
-				     tconn->cstate != C_DISCONNECTING)) {
-		/* Do not test for mdev->state.conn == C_STANDALONE, since
-		   someone else might connect us in the mean time! */
+				     tconn->cstate == C_STANDALONE)) {
 		retcode = ERR_INTR;
 		goto fail;
 	}
@@ -3043,6 +3044,10 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		goto out_unlock;
 	}
 
+	/* Make sure the network threads have actually stopped,
+	 * state handling only does drbd_thread_stop_nowait(). */
+	drbd_thread_stop(&adm_ctx.tconn->receiver);
+
 	/* detach */
 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
 		rv = adm_detach(mdev);
@@ -3066,11 +3071,9 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	/* stop all threads */
-	conn_reconfig_done(adm_ctx.tconn);
-
 	/* delete connection */
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
+		drbd_thread_stop(&adm_ctx.tconn->worker);
 		list_del(&adm_ctx.tconn->all_tconn);
 		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
 
