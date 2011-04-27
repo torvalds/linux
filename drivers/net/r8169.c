@@ -1349,7 +1349,8 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_irqsave(&tp->lock, flags);
 	ret = rtl8169_set_speed(dev,
-		cmd->autoneg, cmd->speed, cmd->duplex, cmd->advertising);
+				cmd->autoneg, ethtool_cmd_speed(cmd),
+				cmd->duplex, cmd->advertising);
 	spin_unlock_irqrestore(&tp->lock, flags);
 
 	return ret;

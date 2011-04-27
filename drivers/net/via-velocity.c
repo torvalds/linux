@@ -3247,9 +3247,11 @@ static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd
 	return 0;
 }
 
-static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int velocity_set_settings(struct net_device *dev,
+				 struct ethtool_cmd *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 	u32 curr_status;
 	u32 new_status = 0;
 	int ret = 0;
@@ -3258,9 +3260,9 @@ static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd
 	curr_status &= (~VELOCITY_LINK_FAIL);
 
 	new_status |= ((cmd->autoneg) ? VELOCITY_AUTONEG_ENABLE : 0);
-	new_status |= ((cmd->speed == SPEED_1000) ? VELOCITY_SPEED_1000 : 0);
-	new_status |= ((cmd->speed == SPEED_100) ? VELOCITY_SPEED_100 : 0);
-	new_status |= ((cmd->speed == SPEED_10) ? VELOCITY_SPEED_10 : 0);
+	new_status |= ((speed == SPEED_1000) ? VELOCITY_SPEED_1000 : 0);
+	new_status |= ((speed == SPEED_100) ? VELOCITY_SPEED_100 : 0);
+	new_status |= ((speed == SPEED_10) ? VELOCITY_SPEED_10 : 0);
 	new_status |= ((cmd->duplex == DUPLEX_FULL) ? VELOCITY_DUPLEX_FULL : 0);
 
 	if ((new_status & VELOCITY_AUTONEG_ENABLE) &&

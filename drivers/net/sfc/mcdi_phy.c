@@ -545,7 +545,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 		caps = (ethtool_to_mcdi_cap(ecmd->advertising) |
 			 1 << MC_CMD_PHY_CAP_AN_LBN);
 	} else if (ecmd->duplex) {
-		switch (ecmd->speed) {
+		switch (ethtool_cmd_speed(ecmd)) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;  break;
@@ -553,7 +553,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 		default:    return -EINVAL;
 		}
 	} else {
-		switch (ecmd->speed) {
+		switch (ethtool_cmd_speed(ecmd)) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;  break;

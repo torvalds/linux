@@ -6758,21 +6758,21 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		advertising |= ADVERTISED_Autoneg;
 	}
 	else {
+		u32 speed = ethtool_cmd_speed(cmd);
 		if (cmd->port == PORT_FIBRE) {
-			if ((cmd->speed != SPEED_1000 &&
-			     cmd->speed != SPEED_2500) ||
+			if ((speed != SPEED_1000 &&
+			     speed != SPEED_2500) ||
 			    (cmd->duplex != DUPLEX_FULL))
 				goto err_out_unlock;
 
-			if (cmd->speed == SPEED_2500 &&
+			if (speed == SPEED_2500 &&
 			    !(bp->phy_flags & BNX2_PHY_FLAG_2_5G_CAPABLE))
 				goto err_out_unlock;
-		}
-		else if (cmd->speed == SPEED_1000 || cmd->speed == SPEED_2500)
+		} else if (speed == SPEED_1000 || speed == SPEED_2500)
 			goto err_out_unlock;
 
 		autoneg &= ~AUTONEG_SPEED;
-		req_line_speed = cmd->speed;
+		req_line_speed = speed;
 		req_duplex = cmd->duplex;
 		advertising = 0;
 	}

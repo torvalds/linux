@@ -256,7 +256,8 @@ bnad_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	/* 10G full duplex setting supported only */
 	if (cmd->autoneg == AUTONEG_ENABLE)
 		return -EOPNOTSUPP; else {
-		if ((cmd->speed == SPEED_10000) && (cmd->duplex == DUPLEX_FULL))
+		if ((ethtool_cmd_speed(cmd) == SPEED_10000)
+		    && (cmd->duplex == DUPLEX_FULL))
 			return 0;
 	}
 

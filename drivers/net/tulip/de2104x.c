@@ -1549,10 +1549,11 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 {
 	u32 new_media;
 	unsigned int media_lock;
+	u32 speed = ethtool_cmd_speed(ecmd);
 
-	if (ecmd->speed != SPEED_10 && ecmd->speed != 5 && ecmd->speed != 2)
+	if (speed != SPEED_10 && speed != 5 && speed != 2)
 		return -EINVAL;
-	if (de->de21040 && ecmd->speed == 2)
+	if (de->de21040 && speed == 2)
 		return -EINVAL;
 	if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 		return -EINVAL;

@@ -6859,7 +6859,7 @@ static int niu_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct niu_link_config *lp = &np->link_config;
 
 	lp->advertising = cmd->advertising;
-	lp->speed = cmd->speed;
+	lp->speed = ethtool_cmd_speed(cmd);
 	lp->duplex = cmd->duplex;
 	lp->autoneg = cmd->autoneg;
 	return niu_init_link(np);

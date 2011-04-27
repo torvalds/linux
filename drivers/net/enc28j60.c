@@ -1499,7 +1499,8 @@ enc28j60_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int
 enc28j60_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	return enc28j60_setlink(dev, cmd->autoneg, cmd->speed, cmd->duplex);
+	return enc28j60_setlink(dev, cmd->autoneg,
+				ethtool_cmd_speed(cmd), cmd->duplex);
 }
 
 static u32 enc28j60_get_msglevel(struct net_device *dev)

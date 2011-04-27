@@ -2908,7 +2908,8 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 			return -EINVAL;
 		}
 	} else if (ecmd->autoneg == AUTONEG_DISABLE) {
-		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (speed != SPEED_10 && speed != SPEED_100)
 			return -EINVAL;
 		if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 			return -EINVAL;
@@ -2956,7 +2957,7 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			np->advertising |= ADVERTISE_100FULL;
 	} else {
-		np->speed  = ecmd->speed;
+		np->speed  = ethtool_cmd_speed(ecmd);
 		np->duplex = ecmd->duplex;
 		/* user overriding the initial full duplex parm? */
 		if (np->duplex == DUPLEX_HALF)

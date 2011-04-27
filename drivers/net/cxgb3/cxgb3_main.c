@@ -1821,7 +1821,8 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * being requested.
 		 */
 		if (cmd->autoneg == AUTONEG_DISABLE) {
-			int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+			u32 speed = ethtool_cmd_speed(cmd);
+			int cap = speed_duplex_to_caps(speed, cmd->duplex);
 			if (lc->supported & cap)
 				return 0;
 		}
@@ -1829,11 +1830,12 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
-		int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+		u32 speed = ethtool_cmd_speed(cmd);
+		int cap = speed_duplex_to_caps(speed, cmd->duplex);
 
-		if (!(lc->supported & cap) || cmd->speed == SPEED_1000)
+		if (!(lc->supported & cap) || (speed == SPEED_1000))
 			return -EINVAL;
-		lc->requested_speed = cmd->speed;
+		lc->requested_speed = speed;
 		lc->requested_duplex = cmd->duplex;
 		lc->advertising = 0;
 	} else {

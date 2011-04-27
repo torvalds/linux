@@ -92,7 +92,7 @@ static int pch_gbe_get_settings(struct net_device *netdev,
 	ecmd->advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 	return ret;
 }
 
@@ -109,12 +109,15 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
+	u32 speed = ethtool_cmd_speed(ecmd);
 	int ret;
 
 	pch_gbe_hal_write_phy_reg(hw, MII_BMCR, BMCR_RESET);
 
-	if (ecmd->speed == USHRT_MAX) {
-		ecmd->speed = SPEED_1000;
+	/* when set_settings() is called with a ethtool_cmd previously
+	 * filled by get_settings() on a down link, speed is -1: */
+	if (speed == UINT_MAX) {
+		speed = SPEED_1000;
 		ecmd->duplex = DUPLEX_FULL;
 	}
 	ret = mii_ethtool_sset(&adapter->mii, ecmd);
@@ -122,7 +125,7 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 		pr_err("Error: mii_ethtool_sset\n");
 		return ret;
 	}
-	hw->mac.link_speed = ecmd->speed;
+	hw->mac.link_speed = speed;
 	hw->mac.link_duplex = ecmd->duplex;
 	hw->phy.autoneg_advertised = ecmd->advertising;
 	hw->mac.autoneg = ecmd->autoneg;

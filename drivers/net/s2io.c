@@ -5380,7 +5380,7 @@ static int s2io_ethtool_sset(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (info->speed != SPEED_10000) ||
+	    (ethtool_cmd_speed(info) != SPEED_10000) ||
 	    (info->duplex != DUPLEX_FULL))
 		return -EINVAL;
 	else {

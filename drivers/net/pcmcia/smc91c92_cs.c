@@ -1875,8 +1875,8 @@ static int smc_netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
     u16 tmp;
     unsigned int ioaddr = dev->base_addr;
 
-    if (ecmd->speed != SPEED_10)
-    	return -EINVAL;
+    if (ethtool_cmd_speed(ecmd) != SPEED_10)
+	return -EINVAL;
     if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
     	return -EINVAL;
     if (ecmd->port != PORT_TP && ecmd->port != PORT_AUI)

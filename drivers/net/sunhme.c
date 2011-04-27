@@ -1383,7 +1383,7 @@ force_link:
 		if (ep == NULL || ep->autoneg == AUTONEG_ENABLE) {
 			hp->sw_bmcr = BMCR_SPEED100;
 		} else {
-			if (ep->speed == SPEED_100)
+			if (ethtool_cmd_speed(ep) == SPEED_100)
 				hp->sw_bmcr = BMCR_SPEED100;
 			else
 				hp->sw_bmcr = 0;
@@ -2452,8 +2452,8 @@ static int hme_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	    cmd->autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((ethtool_cmd_speed(cmd) != SPEED_100 &&
+	      ethtool_cmd_speed(cmd) != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;

@@ -1294,7 +1294,7 @@ static void gem_begin_auto_negotiation(struct gem *gp, struct ethtool_cmd *ep)
 		autoneg = 1;
 	} else {
 		autoneg = 0;
-		speed = ep->speed;
+		speed = ethtool_cmd_speed(ep);
 		duplex = ep->duplex;
 	}
 
@@ -2686,6 +2686,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct gem *gp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -2697,9 +2698,9 @@ static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_1000 &&
-	      cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;

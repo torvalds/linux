@@ -10042,6 +10042,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		struct phy_device *phydev;
@@ -10091,14 +10092,14 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->advertising &= mask;
 	} else {
 		if (tp->phy_flags & TG3_PHYFLG_ANY_SERDES) {
-			if (cmd->speed != SPEED_1000)
+			if (speed != SPEED_1000)
 				return -EINVAL;
 
 			if (cmd->duplex != DUPLEX_FULL)
 				return -EINVAL;
 		} else {
-			if (cmd->speed != SPEED_100 &&
-			    cmd->speed != SPEED_10)
+			if (speed != SPEED_100 &&
+			    speed != SPEED_10)
 				return -EINVAL;
 		}
 	}
@@ -10113,7 +10114,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.duplex = DUPLEX_INVALID;
 	} else {
 		tp->link_config.advertising = 0;
-		tp->link_config.speed = cmd->speed;
+		tp->link_config.speed = speed;
 		tp->link_config.duplex = cmd->duplex;
 	}
 

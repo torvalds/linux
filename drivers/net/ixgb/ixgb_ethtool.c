@@ -129,9 +129,10 @@ static int
 ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE ||
-	   ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL)
+	    (speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 		return -EINVAL;
 
 	if (netif_running(adapter->netdev)) {

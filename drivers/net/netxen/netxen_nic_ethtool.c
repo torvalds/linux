@@ -251,6 +251,7 @@ static int
 netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 	int ret;
 
 	if (adapter->ahw.port_type != NETXEN_NIC_GBE)
@@ -259,14 +260,14 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (!(adapter->capabilities & NX_FW_CAPABILITY_GBE_LINK_CFG))
 		return -EOPNOTSUPP;
 
-	ret = nx_fw_cmd_set_gbe_port(adapter, ecmd->speed, ecmd->duplex,
+	ret = nx_fw_cmd_set_gbe_port(adapter, speed, ecmd->duplex,
 				     ecmd->autoneg);
 	if (ret == NX_RCODE_NOT_SUPPORTED)
 		return -EOPNOTSUPP;
 	else if (ret)
 		return -EIO;
 
-	adapter->link_speed = ecmd->speed;
+	adapter->link_speed = speed;
 	adapter->link_duplex = ecmd->duplex;
 	adapter->link_autoneg = ecmd->autoneg;
 
