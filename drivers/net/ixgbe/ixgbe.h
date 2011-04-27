@@ -367,19 +367,20 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 19)
 #define IXGBE_FLAG_FAN_FAIL_CAPABLE             (u32)(1 << 20)
 #define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 22)
-#define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 23)
-#define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 24)
-#define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 25)
-#define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 26)
-#define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 27)
-#define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 28)
-#define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 29)
-#define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 30)
+#define IXGBE_FLAG_NEED_LINK_CONFIG             (u32)(1 << 23)
+#define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 24)
+#define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 25)
+#define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 26)
+#define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 27)
+#define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 28)
+#define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 29)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
 #define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
 #define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
+#define IXGBE_FLAG2_SEARCH_FOR_SFP              (u32)(1 << 4)
+#define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
@@ -455,13 +456,11 @@ struct ixgbe_adapter {
 
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;
-	struct work_struct sfp_task;
-	struct work_struct multispeed_fiber_task;
-	struct work_struct sfp_config_module_task;
 	struct work_struct fdir_reinit_task;
 	struct work_struct check_overtemp_task;
+	struct work_struct service_task;
 	struct timer_list watchdog_timer;
-	struct timer_list sfp_timer;
+	struct timer_list service_timer;
 	u32 fdir_pballoc;
 	u32 atr_sample_rate;
 	spinlock_t fdir_perfect_lock;
@@ -492,7 +491,8 @@ enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
 	__IXGBE_DOWN,
-	__IXGBE_SFP_MODULE_NOT_FOUND
+	__IXGBE_SERVICE_SCHED,
+	__IXGBE_IN_SFP_INIT,
 };
 
 struct ixgbe_rsc_cb {
