@@ -431,9 +431,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		}
 		xhci_dbg(xhci, "get port status, actual port %d status  = 0x%x\n", wIndex, temp);
 
-		/* FIXME - should we return a port status value like the USB
-		 * 3.0 external hubs do?
-		 */
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
 			status |= USB_PORT_STAT_C_CONNECTION << 16;
@@ -441,13 +438,21 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			status |= USB_PORT_STAT_C_ENABLE << 16;
 		if ((temp & PORT_OCC))
 			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
-		/*
-		 * FIXME ignoring reset and USB 2.1/3.0 specific
-		 * changes
-		 */
-		if ((temp & PORT_PLS_MASK) == XDEV_U3
-			&& (temp & PORT_POWER))
-			status |= 1 << USB_PORT_FEAT_SUSPEND;
+		if ((temp & PORT_RC))
+			status |= USB_PORT_STAT_C_RESET << 16;
+		/* USB3.0 only */
+		if (hcd->speed == HCD_USB3) {
+			if ((temp & PORT_PLC))
+				status |= USB_PORT_STAT_C_LINK_STATE << 16;
+			if ((temp & PORT_WRC))
+				status |= USB_PORT_STAT_C_BH_RESET << 16;
+		}
+
+		if (hcd->speed != HCD_USB3) {
+			if ((temp & PORT_PLS_MASK) == XDEV_U3
+					&& (temp & PORT_POWER))
+				status |= USB_PORT_STAT_SUSPEND;
+		}
 		if ((temp & PORT_PLS_MASK) == XDEV_RESUME) {
 			if ((temp & PORT_RESET) || !(temp & PORT_PE))
 				goto error;
@@ -490,8 +495,20 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			status |= USB_PORT_STAT_OVERCURRENT;
 		if (temp & PORT_RESET)
 			status |= USB_PORT_STAT_RESET;
-		if (temp & PORT_POWER)
-			status |= USB_PORT_STAT_POWER;
+		if (temp & PORT_POWER) {
+			if (hcd->speed == HCD_USB3)
+				status |= USB_SS_PORT_STAT_POWER;
+			else
+				status |= USB_PORT_STAT_POWER;
+		}
+		/* Port Link State */
+		if (hcd->speed == HCD_USB3) {
+			/* resume state is a xHCI internal state.
+			 * Do not report it to usb core.
+			 */
+			if ((temp & PORT_PLS_MASK) != XDEV_RESUME)
+				status |= (temp & PORT_PLS_MASK);
+		}
 		if (bus_state->port_c_suspend & (1 << wIndex))
 			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
