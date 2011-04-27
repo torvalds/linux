@@ -164,15 +164,10 @@ struct x86_emulate_ops {
 				int size, unsigned short port, const void *val,
 				unsigned int count);
 
-	bool (*get_cached_descriptor)(struct x86_emulate_ctxt *ctxt,
-				      struct desc_struct *desc, u32 *base3,
-				      int seg);
-	void (*set_cached_descriptor)(struct x86_emulate_ctxt *ctxt,
-				      struct desc_struct *desc, u32 base3,
-				      int seg);
-	u16 (*get_segment_selector)(struct x86_emulate_ctxt *ctxt, int seg);
-	void (*set_segment_selector)(struct x86_emulate_ctxt *ctxt,
-				     u16 sel, int seg);
+	bool (*get_segment)(struct x86_emulate_ctxt *ctxt, u16 *selector,
+			    struct desc_struct *desc, u32 *base3, int seg);
+	void (*set_segment)(struct x86_emulate_ctxt *ctxt, u16 selector,
+			    struct desc_struct *desc, u32 base3, int seg);
 	unsigned long (*get_cached_segment_base)(struct x86_emulate_ctxt *ctxt,
 						 int seg);
 	void (*get_gdt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);

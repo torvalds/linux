@@ -4304,13 +4304,14 @@ static unsigned long emulator_get_cached_segment_base(
 	return get_segment_base(emul_to_vcpu(ctxt), seg);
 }
 
-static bool emulator_get_cached_descriptor(struct x86_emulate_ctxt *ctxt,
-					   struct desc_struct *desc, u32 *base3,
-					   int seg)
+static bool emulator_get_segment(struct x86_emulate_ctxt *ctxt, u16 *selector,
+				 struct desc_struct *desc, u32 *base3,
+				 int seg)
 {
 	struct kvm_segment var;
 
 	kvm_get_segment(emul_to_vcpu(ctxt), &var, seg);
+	*selector = var.selector;
 
 	if (var.unusable)
 		return false;
@@ -4335,16 +4336,14 @@ static bool emulator_get_cached_descriptor(struct x86_emulate_ctxt *ctxt,
 	return true;
 }
 
-static void emulator_set_cached_descriptor(struct x86_emulate_ctxt *ctxt,
-					   struct desc_struct *desc, u32 base3,
-					   int seg)
+static void emulator_set_segment(struct x86_emulate_ctxt *ctxt, u16 selector,
+				 struct desc_struct *desc, u32 base3,
+				 int seg)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	struct kvm_segment var;
 
-	/* needed to preserve selector */
-	kvm_get_segment(vcpu, &var, seg);
-
+	var.selector = selector;
 	var.base = get_desc_base(desc);
 #ifdef CONFIG_X86_64
 	var.base |= ((u64)base3) << 32;
@@ -4366,24 +4365,6 @@ static void emulator_set_cached_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	kvm_set_segment(vcpu, &var, seg);
 	return;
-}
-
-static u16 emulator_get_segment_selector(struct x86_emulate_ctxt *ctxt, int seg)
-{
-	struct kvm_segment kvm_seg;
-
-	kvm_get_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
-	return kvm_seg.selector;
-}
-
-static void emulator_set_segment_selector(struct x86_emulate_ctxt *ctxt,
-					  u16 sel, int seg)
-{
-	struct kvm_segment kvm_seg;
-
-	kvm_get_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
-	kvm_seg.selector = sel;
-	kvm_set_segment(emul_to_vcpu(ctxt), &kvm_seg, seg);
 }
 
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
@@ -4436,10 +4417,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.invlpg              = emulator_invlpg,
 	.pio_in_emulated     = emulator_pio_in_emulated,
 	.pio_out_emulated    = emulator_pio_out_emulated,
-	.get_cached_descriptor = emulator_get_cached_descriptor,
-	.set_cached_descriptor = emulator_set_cached_descriptor,
-	.get_segment_selector = emulator_get_segment_selector,
-	.set_segment_selector = emulator_set_segment_selector,
+	.get_segment         = emulator_get_segment,
+	.set_segment         = emulator_set_segment,
 	.get_cached_segment_base = emulator_get_cached_segment_base,
 	.get_gdt             = emulator_get_gdt,
 	.get_idt	     = emulator_get_idt,
