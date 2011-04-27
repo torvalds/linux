@@ -30,6 +30,8 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
+static const struct proto_ops l2cap_sock_ops;
+
 /* ---- L2CAP timers ---- */
 static void l2cap_sock_timeout(unsigned long arg)
 {
@@ -1106,7 +1108,7 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 	return 0;
 }
 
-const struct proto_ops l2cap_sock_ops = {
+static const struct proto_ops l2cap_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= l2cap_sock_release,

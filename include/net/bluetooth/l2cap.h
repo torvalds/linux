@@ -441,7 +441,6 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 #define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
 
 extern int disable_ertm;
-extern const struct proto_ops l2cap_sock_ops;
 extern struct bt_sock_list l2cap_sk_list;
 
 int l2cap_init_sockets(void);
