@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, <yu.liu@freescale.com>
  *
@@ -78,8 +78,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 
 	switch (sprn) {
 	case SPRN_PID:
-		vcpu_e500->pid[0] = vcpu->arch.shadow_pid =
-			vcpu->arch.pid = spr_val;
+		kvmppc_set_pid(vcpu, spr_val);
 		break;
 	case SPRN_PID1:
 		vcpu_e500->pid[1] = spr_val; break;

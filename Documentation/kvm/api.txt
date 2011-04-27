@@ -261,7 +261,7 @@ See KVM_GET_REGS for the data structure.
 4.13 KVM_GET_SREGS
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_sregs (out)
 Returns: 0 on success, -1 on error
@@ -279,6 +279,8 @@ struct kvm_sregs {
 	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
 };
 
+/* ppc -- see arch/powerpc/include/asm/kvm.h */
+
 interrupt_bitmap is a bitmap of pending external interrupts.  At most
 one bit may be set.  This interrupt has been acknowledged by the APIC
 but not yet injected into the cpu core.
@@ -286,7 +288,7 @@ but not yet injected into the cpu core.
 4.14 KVM_SET_SREGS
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_sregs (in)
 Returns: 0 on success, -1 on error

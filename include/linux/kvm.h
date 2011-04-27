@@ -543,6 +543,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_ASYNC_PF 59
 #define KVM_CAP_TSC_CONTROL 60
 #define KVM_CAP_GET_TSC_KHZ 61
+#define KVM_CAP_PPC_BOOKE_SREGS 62
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

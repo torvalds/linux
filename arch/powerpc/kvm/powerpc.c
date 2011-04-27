@@ -175,7 +175,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 	int r;
 
 	switch (ext) {
+#ifdef CONFIG_BOOKE
+	case KVM_CAP_PPC_BOOKE_SREGS:
+#else
 	case KVM_CAP_PPC_SEGSTATE:
+#endif
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_UNSET_IRQ:
 	case KVM_CAP_PPC_IRQ_LEVEL:

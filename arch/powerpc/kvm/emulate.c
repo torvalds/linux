@@ -114,6 +114,12 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	}
 }
 
+u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb)
+{
+	u64 jd = tb - vcpu->arch.dec_jiffies;
+	return vcpu->arch.dec - jd;
+}
+
 /* XXX to do:
  * lhax
  * lhaux
@@ -279,11 +285,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 			case SPRN_DEC:
 			{
-				u64 jd = get_tb() - vcpu->arch.dec_jiffies;
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.dec - jd);
-				pr_debug("mfDEC: %x - %llx = %lx\n",
-					 vcpu->arch.dec, jd,
-					 kvmppc_get_gpr(vcpu, rt));
+				kvmppc_set_gpr(vcpu, rt,
+					       kvmppc_get_dec(vcpu, get_tb()));
 				break;
 			}
 			default:

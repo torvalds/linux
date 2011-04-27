@@ -675,6 +675,14 @@ int kvmppc_e500_tlb_search(struct kvm_vcpu *vcpu,
 	return -1;
 }
 
+void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	vcpu_e500->pid[0] = vcpu->arch.shadow_pid =
+		vcpu->arch.pid = pid;
+}
+
 void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
 	struct tlbe *tlbe;
