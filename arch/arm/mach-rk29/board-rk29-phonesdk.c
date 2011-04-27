@@ -547,12 +547,12 @@ struct rk29_gpio_expander_info  wm831x_gpio_settinginfo[] = {
 
 
 #if defined(CONFIG_MFD_WM831X)
-
+static struct wm831x *gWm831x;
 int wm831x_pre_init(struct wm831x *parm)
 {
 	int ret;
 	printk("%s\n", __FUNCTION__);
-
+	gWm831x = parm;
 	//ILIM = 900ma
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret&0xfff8) | 0x04);	
@@ -568,7 +568,6 @@ int wm831x_post_init(struct wm831x *parm)
 	struct regulator *dcdc;
 	struct regulator *ldo;
 	
-
 	dcdc = regulator_get(NULL, "dcdc3");		// 1th IO
 	regulator_set_voltage(dcdc,3000000,3000000);
 	regulator_enable(dcdc);			
@@ -3030,6 +3029,9 @@ static void rk29_pm_power_off(void)
 {
 	printk(KERN_ERR "rk29_pm_power_off start...\n");
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+#if defined(CONFIG_MFD_WM831X)
+	wm831x_device_shutdown(gWm831x);
+#endif
 	while (1);
 }
 
