@@ -2299,6 +2299,29 @@ long do_no_restart_syscall(struct restart_block *param)
 	return -EINTR;
 }
 
+/**
+ * set_current_blocked - change current->blocked mask
+ * @newset: new mask
+ *
+ * It is wrong to change ->blocked directly, this helper should be used
+ * to ensure the process can't miss a shared signal we are going to block.
+ */
+void set_current_blocked(const sigset_t *newset)
+{
+	struct task_struct *tsk = current;
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (signal_pending(tsk) && !thread_group_empty(tsk)) {
+		sigset_t newblocked;
+		/* A set of now blocked but previously unblocked signals. */
+		signandsets(&newblocked, newset, &current->blocked);
+		retarget_shared_pending(tsk, &newblocked);
+	}
+	tsk->blocked = *newset;
+	recalc_sigpending();
+	spin_unlock_irq(&tsk->sighand->siglock);
+}
+
 /*
  * This is also useful for kernel threads that want to temporarily
  * (or permanently) block certain signals.
@@ -2330,11 +2353,7 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 		return -EINVAL;
 	}
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	tsk->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&tsk->sighand->siglock);
-
+	set_current_blocked(&newset);
 	return 0;
 }
 

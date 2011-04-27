@@ -243,6 +243,7 @@ extern long do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig,
 				 siginfo_t *info);
 extern long do_sigpending(void __user *, unsigned long);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
+extern void set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 
 struct pt_regs;
