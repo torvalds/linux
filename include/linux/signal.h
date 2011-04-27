@@ -123,13 +123,13 @@ _SIG_SET_BINOP(sigorsets, _sig_or)
 #define _sig_and(x,y)	((x) & (y))
 _SIG_SET_BINOP(sigandsets, _sig_and)
 
-#define _sig_nand(x,y)	((x) & ~(y))
-_SIG_SET_BINOP(signandsets, _sig_nand)
+#define _sig_andn(x,y)	((x) & ~(y))
+_SIG_SET_BINOP(sigandnsets, _sig_andn)
 
 #undef _SIG_SET_BINOP
 #undef _sig_or
 #undef _sig_and
-#undef _sig_nand
+#undef _sig_andn
 
 #define _SIG_SET_OP(name, op)						\
 static inline void name(sigset_t *set)					\
