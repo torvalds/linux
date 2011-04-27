@@ -1458,40 +1458,43 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 	}
 }
 
+static struct snd_soc_dapm_widget *dapm_find_widget(
+			struct snd_soc_dapm_context *dapm, const char *pin,
+			bool search_other_contexts)
+{
+	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *fallback = NULL;
+
+	list_for_each_entry(w, &dapm->card->widgets, list) {
+		if (!strcmp(w->name, pin)) {
+			if (w->dapm == dapm)
+				return w;
+			else
+				fallback = w;
+		}
+	}
+
+	if (search_other_contexts)
+		return fallback;
+
+	return NULL;
+}
+
 static int snd_soc_dapm_set_pin(struct snd_soc_dapm_context *dapm,
 				const char *pin, int status)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, true);
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (w->dapm != dapm)
-			continue;
-		if (!strcmp(w->name, pin)) {
-			dev_dbg(w->dapm->dev, "dapm: pin %s = %d\n",
-				pin, status);
-			w->connected = status;
-			/* Allow disabling of forced pins */
-			if (status == 0)
-				w->force = 0;
-			return 0;
-		}
+	if (!w) {
+		dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
+		return -EINVAL;
 	}
 
-	/* Try again in other contexts */
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (!strcmp(w->name, pin)) {
-			dev_dbg(w->dapm->dev, "dapm: pin %s = %d\n",
-				pin, status);
-			w->connected = status;
-			/* Allow disabling of forced pins */
-			if (status == 0)
-				w->force = 0;
-			return 0;
-		}
-	}
+	w->connected = status;
+	if (status == 0)
+		w->force = 0;
 
-	dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
-	return -EINVAL;
+	return 0;
 }
 
 /**
@@ -2316,33 +2319,18 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_enable_pin);
 int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm,
 				  const char *pin)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, true);
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (w->dapm != dapm)
-			continue;
-		if (!strcmp(w->name, pin)) {
-			dev_dbg(w->dapm->dev,
-				"dapm: force enable pin %s\n", pin);
-			w->connected = 1;
-			w->force = 1;
-			return 0;
-		}
+	if (!w) {
+		dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
+		return -EINVAL;
 	}
 
-	/* Try again with other contexts */
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (!strcmp(w->name, pin)) {
-			dev_dbg(w->dapm->dev,
-				"dapm: force enable pin %s\n", pin);
-			w->connected = 1;
-			w->force = 1;
-			return 0;
-		}
-	}
+	dev_dbg(w->dapm->dev, "dapm: force enable pin %s\n", pin);
+	w->connected = 1;
+	w->force = 1;
 
-	dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
-	return -EINVAL;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_force_enable_pin);
 
@@ -2394,20 +2382,10 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin);
 int snd_soc_dapm_get_pin_status(struct snd_soc_dapm_context *dapm,
 				const char *pin)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, true);
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (w->dapm != dapm)
-			continue;
-		if (!strcmp(w->name, pin))
-			return w->connected;
-	}
-
-	/* Try again in other contexts */
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (!strcmp(w->name, pin))
-			return w->connected;
-	}
+	if (w)
+		return w->connected;
 
 	return 0;
 }
@@ -2427,19 +2405,16 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, false);
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (w->dapm != dapm)
-			continue;
-		if (!strcmp(w->name, pin)) {
-			w->ignore_suspend = 1;
-			return 0;
-		}
+	if (!w) {
+		dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
+		return -EINVAL;
 	}
 
-	dev_err(dapm->dev, "dapm: unknown pin %s\n", pin);
-	return -EINVAL;
+	w->ignore_suspend = 1;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
 
