@@ -483,7 +483,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			&& (temp & PORT_POWER)
 			&& (bus_state->suspended_ports & (1 << wIndex))) {
 			bus_state->suspended_ports &= ~(1 << wIndex);
-			bus_state->port_c_suspend |= 1 << wIndex;
+			if (hcd->speed != HCD_USB3)
+				bus_state->port_c_suspend |= 1 << wIndex;
 		}
 		if (temp & PORT_CONNECT) {
 			status |= USB_PORT_STAT_CONNECTION;
@@ -656,35 +657,27 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			if (temp & XDEV_U3) {
 				if ((temp & PORT_PE) == 0)
 					goto error;
-				if (DEV_SUPERSPEED(temp)) {
-					temp = xhci_port_state_to_neutral(temp);
-					temp &= ~PORT_PLS_MASK;
-					temp |= PORT_LINK_STROBE | XDEV_U0;
-					xhci_writel(xhci, temp,
-							port_array[wIndex]);
-					xhci_readl(xhci, port_array[wIndex]);
-				} else {
-					temp = xhci_port_state_to_neutral(temp);
-					temp &= ~PORT_PLS_MASK;
-					temp |= PORT_LINK_STROBE | XDEV_RESUME;
-					xhci_writel(xhci, temp,
-							port_array[wIndex]);
 
-					spin_unlock_irqrestore(&xhci->lock,
-							       flags);
-					msleep(20);
-					spin_lock_irqsave(&xhci->lock, flags);
+				temp = xhci_port_state_to_neutral(temp);
+				temp &= ~PORT_PLS_MASK;
+				temp |= PORT_LINK_STROBE | XDEV_RESUME;
+				xhci_writel(xhci, temp,
+						port_array[wIndex]);
 
-					temp = xhci_readl(xhci,
-							port_array[wIndex]);
-					temp = xhci_port_state_to_neutral(temp);
-					temp &= ~PORT_PLS_MASK;
-					temp |= PORT_LINK_STROBE | XDEV_U0;
-					xhci_writel(xhci, temp,
-							port_array[wIndex]);
-				}
-				bus_state->port_c_suspend |= 1 << wIndex;
+				spin_unlock_irqrestore(&xhci->lock,
+						       flags);
+				msleep(20);
+				spin_lock_irqsave(&xhci->lock, flags);
+
+				temp = xhci_readl(xhci,
+						port_array[wIndex]);
+				temp = xhci_port_state_to_neutral(temp);
+				temp &= ~PORT_PLS_MASK;
+				temp |= PORT_LINK_STROBE | XDEV_U0;
+				xhci_writel(xhci, temp,
+						port_array[wIndex]);
 			}
+			bus_state->port_c_suspend |= 1 << wIndex;
 
 			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
 					wIndex + 1);
@@ -755,7 +748,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	memset(buf, 0, retval);
 	status = 0;
 
-	mask = PORT_CSC | PORT_PEC | PORT_OCC;
+	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
