@@ -100,7 +100,7 @@ void amiga_chip_free(void *ptr)
 		if (res->start != start)
 			continue;
 		*p = res->sibling;
-		size = res->end-start;
+		size = resource_size(res);
 		pr_debug("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
 		atomic_add(size, &chipavail);
 		kfree(res);
