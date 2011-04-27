@@ -1,5 +1,5 @@
 /*
- * AD5791, AD5791 Voltage Output Digital to Analog Converter
+ * AD5760, AD5780, AD5781, AD5791 Voltage Output Digital to Analog Converter
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -242,17 +242,6 @@ static const struct attribute_group ad5791_attribute_group = {
 	.attrs = ad5791_attributes,
 };
 
-static const struct ad5791_chip_info ad5791_chip_info_tbl[] = {
-	[ID_AD5791] = {
-		.bits = 20,
-		.left_shift = 0,
-	},
-	[ID_AD5781] = {
-		.bits = 18,
-		.left_shift = 2,
-	},
-};
-
 static int ad5791_get_lin_comp(unsigned int span)
 {
 	if (span <= 10000)
@@ -266,6 +255,37 @@ static int ad5791_get_lin_comp(unsigned int span)
 	else
 		return AD5791_LINCOMP_19_20;
 }
+
+static int ad5780_get_lin_comp(unsigned int span)
+{
+	if (span <= 10000)
+		return AD5780_LINCOMP_0_10;
+	else
+		return AD5780_LINCOMP_10_20;
+}
+
+static const struct ad5791_chip_info ad5791_chip_info_tbl[] = {
+	[ID_AD5760] = {
+		.bits = 16,
+		.left_shift = 4,
+		.get_lin_comp = ad5780_get_lin_comp,
+	},
+	[ID_AD5780] = {
+		.bits = 18,
+		.left_shift = 2,
+		.get_lin_comp = ad5780_get_lin_comp,
+	},
+	[ID_AD5781] = {
+		.bits = 18,
+		.left_shift = 2,
+		.get_lin_comp = ad5791_get_lin_comp,
+	},
+	[ID_AD5791] = {
+		.bits = 20,
+		.left_shift = 0,
+		.get_lin_comp = ad5791_get_lin_comp,
+	},
+};
 
 static int __devinit ad5791_probe(struct spi_device *spi)
 {
@@ -314,8 +334,8 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 		&ad5791_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
 
-	st->ctrl = AD5761_CTRL_LINCOMP(ad5791_get_lin_comp(st->vref_mv)) |
-		  ((pdata && pdata->use_rbuf_gain2) ? 0 : AD5791_CTRL_RBUF) |
+	st->ctrl = AD5761_CTRL_LINCOMP(st->chip_info->get_lin_comp(st->vref_mv))
+		  | ((pdata && pdata->use_rbuf_gain2) ? 0 : AD5791_CTRL_RBUF) |
 		  AD5791_CTRL_BIN2SC;
 
 	ret = ad5791_spi_write(spi, AD5791_ADDR_CTRL, st->ctrl |
@@ -386,8 +406,10 @@ static int __devexit ad5791_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5791_id[] = {
-	{"ad5791", ID_AD5791},
+	{"ad5760", ID_AD5760},
+	{"ad5780", ID_AD5780},
 	{"ad5781", ID_AD5781},
+	{"ad5791", ID_AD5791},
 	{}
 };
 
@@ -414,5 +436,5 @@ static __exit void ad5791_spi_exit(void)
 module_exit(ad5791_spi_exit);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD5791/AD5781 DAC");
+MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5791 DAC");
 MODULE_LICENSE("GPL v2");

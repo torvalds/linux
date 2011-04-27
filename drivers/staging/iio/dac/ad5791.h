@@ -38,6 +38,9 @@
 #define AD5791_LINCOMP_16_19		3
 #define AD5791_LINCOMP_19_20		12
 
+#define AD5780_LINCOMP_0_10		0
+#define AD5780_LINCOMP_10_20		12
+
 /* Software Control Register */
 #define AD5791_SWCTRL_LDAC		(1 << 0)
 #define AD5791_SWCTRL_CLR		(1 << 1)
@@ -67,11 +70,13 @@ struct ad5791_platform_data {
  * struct ad5791_chip_info - chip specific information
  * @bits:		accuracy of the DAC in bits
  * @left_shift:		number of bits the datum must be shifted
+ * @get_lin_comp:	function pointer to the device specific function
  */
 
 struct ad5791_chip_info {
 	u8			bits;
 	u8			left_shift;
+	int (*get_lin_comp)	(unsigned int span);
 };
 
 /**
@@ -102,8 +107,10 @@ struct ad5791_state {
  */
 
 enum ad5791_supported_device_ids {
-	ID_AD5791,
+	ID_AD5760,
+	ID_AD5780,
 	ID_AD5781,
+	ID_AD5791,
 };
 
 #endif /* SPI_AD5791_H_ */
