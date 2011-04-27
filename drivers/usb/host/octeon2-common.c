@@ -183,6 +183,9 @@ end_clock:
 		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
 			       port_ctl_status.u64);
 	}
+
+	/* Set uSOF cycle period to 60,000 bits. */
+	cvmx_write_csr(CVMX_UCTLX_EHCI_FLA(0), 0x20ull);
 exit:
 	mutex_unlock(&octeon2_usb_clocks_mutex);
 }
