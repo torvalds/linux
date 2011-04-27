@@ -1288,6 +1288,16 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
+	/*
+	 * Some chipsets need to unmask the LVTPC in a particular spot
+	 * inside the nmi handler.  As a result, the unmasking was pushed
+	 * into all the nmi handlers.
+	 *
+	 * This generic handler doesn't seem to have any issues where the
+	 * unmasking occurs so it was left at the top.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		if (!test_bit(idx, cpuc->active_mask)) {
 			/*
@@ -1373,8 +1383,6 @@ perf_event_nmi_handler(struct notifier_block *self,
 	default:
 		return NOTIFY_DONE;
 	}
-
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	handled = x86_pmu.handle_irq(args->regs);
 	if (!handled)
