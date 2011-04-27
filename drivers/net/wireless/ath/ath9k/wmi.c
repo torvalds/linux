@@ -79,6 +79,8 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_TX_STATS_CMDID";
 	case WMI_RX_STATS_CMDID:
 		return "WMI_RX_STATS_CMDID";
+	case WMI_BITRATE_MASK_CMDID:
+		return "WMI_BITRATE_MASK_CMDID";
 	}
 
 	return "Bogus";

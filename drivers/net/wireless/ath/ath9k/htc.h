@@ -171,6 +171,13 @@ struct ath9k_htc_target_rate {
 	struct ath9k_htc_rate rates;
 };
 
+struct ath9k_htc_target_rate_mask {
+	u8 vif_index;
+	u8 band;
+	__be32 mask;
+	u16 pad;
+} __packed;
+
 struct ath9k_htc_target_int_stats {
 	__be32 rx;
 	__be32 rxorn;

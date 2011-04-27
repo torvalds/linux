@@ -111,6 +111,7 @@ enum wmi_cmd_id {
 	WMI_INT_STATS_CMDID,
 	WMI_TX_STATS_CMDID,
 	WMI_RX_STATS_CMDID,
+	WMI_BITRATE_MASK_CMDID,
 };
 
 enum wmi_event_id {
