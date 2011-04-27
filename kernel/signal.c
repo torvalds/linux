@@ -2504,6 +2504,66 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 #endif
 
 /**
+ *  do_sigtimedwait - wait for queued signals specified in @which
+ *  @which: queued signals to wait for
+ *  @info: if non-null, the signal's siginfo is returned here
+ *  @ts: upper bound on process time suspension
+ */
+int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
+			const struct timespec *ts)
+{
+	struct task_struct *tsk = current;
+	long timeout = MAX_SCHEDULE_TIMEOUT;
+	sigset_t mask = *which;
+	int sig;
+
+	if (ts) {
+		if (!timespec_valid(ts))
+			return -EINVAL;
+		timeout = timespec_to_jiffies(ts);
+		/*
+		 * We can be close to the next tick, add another one
+		 * to ensure we will wait at least the time asked for.
+		 */
+		if (ts->tv_sec || ts->tv_nsec)
+			timeout++;
+	}
+
+	/*
+	 * Invert the set of allowed signals to get those we want to block.
+	 */
+	sigdelsetmask(&mask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+	signotset(&mask);
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	sig = dequeue_signal(tsk, &mask, info);
+	if (!sig && timeout) {
+		/*
+		 * None ready, temporarily unblock those we're interested
+		 * while we are sleeping in so that we'll be awakened when
+		 * they arrive.
+		 */
+		tsk->real_blocked = tsk->blocked;
+		sigandsets(&tsk->blocked, &tsk->blocked, &mask);
+		recalc_sigpending();
+		spin_unlock_irq(&tsk->sighand->siglock);
+
+		timeout = schedule_timeout_interruptible(timeout);
+
+		spin_lock_irq(&tsk->sighand->siglock);
+		sig = dequeue_signal(tsk, &mask, info);
+		tsk->blocked = tsk->real_blocked;
+		siginitset(&tsk->real_blocked, 0);
+		recalc_sigpending();
+	}
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	if (sig)
+		return sig;
+	return timeout ? -EINTR : -EAGAIN;
+}
+
+/**
  *  sys_rt_sigtimedwait - synchronously wait for queued signals specified
  *			in @uthese
  *  @uthese: queued signals to wait for
@@ -2515,11 +2575,10 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 		siginfo_t __user *, uinfo, const struct timespec __user *, uts,
 		size_t, sigsetsize)
 {
-	int ret, sig;
 	sigset_t these;
 	struct timespec ts;
 	siginfo_t info;
-	long timeout;
+	int ret;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
@@ -2528,55 +2587,16 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 	if (copy_from_user(&these, uthese, sizeof(these)))
 		return -EFAULT;
 
-	/*
-	 * Invert the set of allowed signals to get those we
-	 * want to block.
-	 */
-	sigdelsetmask(&these, sigmask(SIGKILL)|sigmask(SIGSTOP));
-	signotset(&these);
-
-	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (uts) {
 		if (copy_from_user(&ts, uts, sizeof(ts)))
 			return -EFAULT;
-		if (!timespec_valid(&ts))
-			return -EINVAL;
-		timeout = timespec_to_jiffies(&ts) + (ts.tv_sec || ts.tv_nsec);
 	}
 
-	spin_lock_irq(&current->sighand->siglock);
-	sig = dequeue_signal(current, &these, &info);
-	if (!sig && timeout) {
-		/*
-		 * None ready -- temporarily unblock those we're
-		 * interested while we are sleeping in so that we'll
-		 * be awakened when they arrive.
-		 */
-		current->real_blocked = current->blocked;
-		sigandsets(&current->blocked, &current->blocked, &these);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
+	ret = do_sigtimedwait(&these, &info, uts ? &ts : NULL);
 
-		timeout = schedule_timeout_interruptible(timeout);
-
-		spin_lock_irq(&current->sighand->siglock);
-		sig = dequeue_signal(current, &these, &info);
-		current->blocked = current->real_blocked;
-		siginitset(&current->real_blocked, 0);
-		recalc_sigpending();
-	}
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (sig) {
-		ret = sig;
-		if (uinfo) {
-			if (copy_siginfo_to_user(uinfo, &info))
-				ret = -EFAULT;
-		}
-	} else {
-		ret = -EAGAIN;
-		if (timeout)
-			ret = -EINTR;
+	if (ret > 0 && uinfo) {
+		if (copy_siginfo_to_user(uinfo, &info))
+			ret = -EFAULT;
 	}
 
 	return ret;

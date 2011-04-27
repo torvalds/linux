@@ -890,10 +890,9 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 {
 	compat_sigset_t s32;
 	sigset_t s;
-	int sig;
 	struct timespec t;
 	siginfo_t info;
-	long ret, timeout;
+	long ret;
 
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
@@ -901,45 +900,19 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	if (copy_from_user(&s32, uthese, sizeof(compat_sigset_t)))
 		return -EFAULT;
 	sigset_from_compat(&s, &s32);
-	sigdelsetmask(&s,sigmask(SIGKILL)|sigmask(SIGSTOP));
-	signotset(&s);
 
-	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (uts) {
-		if (get_compat_timespec (&t, uts))
+		if (get_compat_timespec(&t, uts))
 			return -EFAULT;
-		if (!timespec_valid(&t))
-			return -EINVAL;
-		timeout = timespec_to_jiffies(&t) + (t.tv_sec || t.tv_nsec);
 	}
 
-	spin_lock_irq(&current->sighand->siglock);
-	sig = dequeue_signal(current, &s, &info);
-	if (!sig && timeout) {
-		current->real_blocked = current->blocked;
-		sigandsets(&current->blocked, &current->blocked, &s);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
+	ret = do_sigtimedwait(&s, &info, uts ? &t : NULL);
 
-		timeout = schedule_timeout_interruptible(timeout);
-
-		spin_lock_irq(&current->sighand->siglock);
-		sig = dequeue_signal(current, &s, &info);
-		current->blocked = current->real_blocked;
-		siginitset(&current->real_blocked, 0);
-		recalc_sigpending();
+	if (ret > 0 && uinfo) {
+		if (copy_siginfo_to_user32(uinfo, &info))
+			ret = -EFAULT;
 	}
-	spin_unlock_irq(&current->sighand->siglock);
 
-	if (sig) {
-		ret = sig;
-		if (uinfo) {
-			if (copy_siginfo_to_user32(uinfo, &info))
-				ret = -EFAULT;
-		}
-	} else {
-		ret = timeout?-EINTR:-EAGAIN;
-	}
 	return ret;
 
 }
