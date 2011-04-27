@@ -191,9 +191,8 @@ static const struct rtl_firmware_info {
 	{ .mac_version = RTL_GIGA_MAC_VER_26, .fw_name = FIRMWARE_8168D_2 },
 	{ .mac_version = RTL_GIGA_MAC_VER_29, .fw_name = FIRMWARE_8105E_1 },
 	{ .mac_version = RTL_GIGA_MAC_VER_30, .fw_name = FIRMWARE_8105E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_30, .fw_name = FIRMWARE_8105E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_31, .fw_name = FIRMWARE_8168E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_32, .fw_name = FIRMWARE_8168E_2 }
+	{ .mac_version = RTL_GIGA_MAC_VER_32, .fw_name = FIRMWARE_8168E_1 },
+	{ .mac_version = RTL_GIGA_MAC_VER_33, .fw_name = FIRMWARE_8168E_2 }
 };
 
 enum cfg_version {
@@ -2535,6 +2534,8 @@ static void rtl8168e_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x1f, 0x0000 }
 	};
 
+	rtl_apply_firmware(tp);
+
 	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
 	/* DCO enable for 10M IDLE Power */
@@ -2574,20 +2575,6 @@ static void rtl8168e_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x0d, 0x4007);
 	rtl_writephy(tp, 0x0e, 0x0000);
 	rtl_writephy(tp, 0x0d, 0x0000);
-}
-
-static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
-{
-	rtl_apply_firmware(tp);
-
-	rtl8168e_hw_phy_config(tp);
-}
-
-static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
-{
-	rtl_apply_firmware(tp);
-
-	rtl8168e_hw_phy_config(tp);
 }
 
 static void rtl8102e_hw_phy_config(struct rtl8169_private *tp)
@@ -2705,10 +2692,8 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		rtl8105e_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_32:
-		rtl8168e_1_hw_phy_config(tp);
-		break;
 	case RTL_GIGA_MAC_VER_33:
-		rtl8168e_2_hw_phy_config(tp);
+		rtl8168e_hw_phy_config(tp);
 		break;
 
 	default:
