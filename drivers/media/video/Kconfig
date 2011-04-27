@@ -906,11 +906,24 @@ config SOC_CAMERA_OV9650
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov2655 camera driver
+	  
 config SOC_CAMERA_OV3640
 	tristate "ov3640 camera support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov3640 camera driver
+	  This is a ov3640 camera driver	
+choice
+	prompt "OV3640 Module Focus select"
+	depends on SOC_CAMERA_OV3640
+	default OV3640_AUTOFOCUS
+	---help---
+		
+config OV3640_AUTOFOCUS
+	bool "OV3640 auto focus"
+
+config OV3640_FIXEDFOCUS
+	bool "OV3640 fixed focus"
+endchoice	  
 	  
 config SOC_CAMERA_OV5642
 	tristate "ov5642 camera support"
