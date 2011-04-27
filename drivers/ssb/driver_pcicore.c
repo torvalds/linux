@@ -414,6 +414,16 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
  * Workarounds.
  **************************************************/
 
+static void ssb_pcicore_fix_sprom_core_index(struct ssb_pcicore *pc)
+{
+	u16 tmp = pcicore_read16(pc, SSB_PCICORE_SPROM(0));
+	if (((tmp & 0xF000) >> 12) != pc->dev->core_index) {
+		tmp &= ~0xF000;
+		tmp |= (pc->dev->core_index << 12);
+		pcicore_write16(pc, SSB_PCICORE_SPROM(0), tmp);
+	}
+}
+
 static u8 ssb_pcicore_polarity_workaround(struct ssb_pcicore *pc)
 {
 	return (ssb_pcie_read(pc, 0x204) & 0x10) ? 0xC0 : 0x80;
@@ -520,6 +530,8 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 		return;
 	if (!ssb_device_is_enabled(dev))
 		ssb_device_enable(dev, 0);
+
+	ssb_pcicore_fix_sprom_core_index(pc);
 
 #ifdef CONFIG_SSB_PCICORE_HOSTMODE
 	pc->hostmode = pcicore_is_in_hostmode(pc);
