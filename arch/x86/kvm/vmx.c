@@ -162,6 +162,10 @@ struct vcpu_vmx {
 			u32 ar;
 		} tr, es, ds, fs, gs;
 	} rmode;
+	struct {
+		u32 bitmask; /* 4 bits per segment (1 bit per field) */
+		struct kvm_save_segment seg[8];
+	} segment_cache;
 	int vpid;
 	bool emulation_required;
 
@@ -172,6 +176,15 @@ struct vcpu_vmx {
 	u32 exit_reason;
 
 	bool rdtscp_enabled;
+};
+
+enum segment_cache_field {
+	SEG_FIELD_SEL = 0,
+	SEG_FIELD_BASE = 1,
+	SEG_FIELD_LIMIT = 2,
+	SEG_FIELD_AR = 3,
+
+	SEG_FIELD_NR = 4
 };
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
@@ -644,6 +657,62 @@ static void vmcs_clear_bits(unsigned long field, u32 mask)
 static void vmcs_set_bits(unsigned long field, u32 mask)
 {
 	vmcs_writel(field, vmcs_readl(field) | mask);
+}
+
+static void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
+{
+	vmx->segment_cache.bitmask = 0;
+}
+
+static bool vmx_segment_cache_test_set(struct vcpu_vmx *vmx, unsigned seg,
+				       unsigned field)
+{
+	bool ret;
+	u32 mask = 1 << (seg * SEG_FIELD_NR + field);
+
+	if (!(vmx->vcpu.arch.regs_avail & (1 << VCPU_EXREG_SEGMENTS))) {
+		vmx->vcpu.arch.regs_avail |= (1 << VCPU_EXREG_SEGMENTS);
+		vmx->segment_cache.bitmask = 0;
+	}
+	ret = vmx->segment_cache.bitmask & mask;
+	vmx->segment_cache.bitmask |= mask;
+	return ret;
+}
+
+static u16 vmx_read_guest_seg_selector(struct vcpu_vmx *vmx, unsigned seg)
+{
+	u16 *p = &vmx->segment_cache.seg[seg].selector;
+
+	if (!vmx_segment_cache_test_set(vmx, seg, SEG_FIELD_SEL))
+		*p = vmcs_read16(kvm_vmx_segment_fields[seg].selector);
+	return *p;
+}
+
+static ulong vmx_read_guest_seg_base(struct vcpu_vmx *vmx, unsigned seg)
+{
+	ulong *p = &vmx->segment_cache.seg[seg].base;
+
+	if (!vmx_segment_cache_test_set(vmx, seg, SEG_FIELD_BASE))
+		*p = vmcs_readl(kvm_vmx_segment_fields[seg].base);
+	return *p;
+}
+
+static u32 vmx_read_guest_seg_limit(struct vcpu_vmx *vmx, unsigned seg)
+{
+	u32 *p = &vmx->segment_cache.seg[seg].limit;
+
+	if (!vmx_segment_cache_test_set(vmx, seg, SEG_FIELD_LIMIT))
+		*p = vmcs_read32(kvm_vmx_segment_fields[seg].limit);
+	return *p;
+}
+
+static u32 vmx_read_guest_seg_ar(struct vcpu_vmx *vmx, unsigned seg)
+{
+	u32 *p = &vmx->segment_cache.seg[seg].ar;
+
+	if (!vmx_segment_cache_test_set(vmx, seg, SEG_FIELD_AR))
+		*p = vmcs_read32(kvm_vmx_segment_fields[seg].ar_bytes);
+	return *p;
 }
 
 static void update_exception_bitmap(struct kvm_vcpu *vcpu)
@@ -1271,9 +1340,11 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		break;
 #ifdef CONFIG_X86_64
 	case MSR_FS_BASE:
+		vmx_segment_cache_clear(vmx);
 		vmcs_writel(GUEST_FS_BASE, data);
 		break;
 	case MSR_GS_BASE:
+		vmx_segment_cache_clear(vmx);
 		vmcs_writel(GUEST_GS_BASE, data);
 		break;
 	case MSR_KERNEL_GS_BASE:
@@ -1717,6 +1788,8 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 0;
 
+	vmx_segment_cache_clear(vmx);
+
 	vmcs_write16(GUEST_TR_SELECTOR, vmx->rmode.tr.selector);
 	vmcs_writel(GUEST_TR_BASE, vmx->rmode.tr.base);
 	vmcs_write32(GUEST_TR_LIMIT, vmx->rmode.tr.limit);
@@ -1739,6 +1812,8 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	fix_pmode_dataseg(VCPU_SREG_DS, &vmx->rmode.ds);
 	fix_pmode_dataseg(VCPU_SREG_GS, &vmx->rmode.gs);
 	fix_pmode_dataseg(VCPU_SREG_FS, &vmx->rmode.fs);
+
+	vmx_segment_cache_clear(vmx);
 
 	vmcs_write16(GUEST_SS_SELECTOR, 0);
 	vmcs_write32(GUEST_SS_AR_BYTES, 0x93);
@@ -1802,6 +1877,8 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 		vmx_set_tss_addr(vcpu->kvm, 0xfeffd000);
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	}
+
+	vmx_segment_cache_clear(vmx);
 
 	vmx->rmode.tr.selector = vmcs_read16(GUEST_TR_SELECTOR);
 	vmx->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
@@ -1878,6 +1955,8 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 static void enter_lmode(struct kvm_vcpu *vcpu)
 {
 	u32 guest_tr_ar;
+
+	vmx_segment_cache_clear(to_vmx(vcpu));
 
 	guest_tr_ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	if ((guest_tr_ar & AR_TYPE_MASK) != AR_TYPE_BUSY_64_TSS) {
@@ -2082,7 +2161,6 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	struct kvm_save_segment *save;
 	u32 ar;
 
@@ -2104,13 +2182,13 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 		var->limit = save->limit;
 		ar = save->ar;
 		if (seg == VCPU_SREG_TR
-		    || var->selector == vmcs_read16(sf->selector))
+		    || var->selector == vmx_read_guest_seg_selector(vmx, seg))
 			goto use_saved_rmode_seg;
 	}
-	var->base = vmcs_readl(sf->base);
-	var->limit = vmcs_read32(sf->limit);
-	var->selector = vmcs_read16(sf->selector);
-	ar = vmcs_read32(sf->ar_bytes);
+	var->base = vmx_read_guest_seg_base(vmx, seg);
+	var->limit = vmx_read_guest_seg_limit(vmx, seg);
+	var->selector = vmx_read_guest_seg_selector(vmx, seg);
+	ar = vmx_read_guest_seg_ar(vmx, seg);
 use_saved_rmode_seg:
 	if ((ar & AR_UNUSABLE_MASK) && !emulate_invalid_guest_state)
 		ar = 0;
@@ -2127,14 +2205,13 @@ use_saved_rmode_seg:
 
 static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
 {
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	struct kvm_segment s;
 
 	if (to_vmx(vcpu)->rmode.vm86_active) {
 		vmx_get_segment(vcpu, &s, seg);
 		return s.base;
 	}
-	return vmcs_readl(sf->base);
+	return vmx_read_guest_seg_base(to_vmx(vcpu), seg);
 }
 
 static int __vmx_get_cpl(struct kvm_vcpu *vcpu)
@@ -2146,7 +2223,7 @@ static int __vmx_get_cpl(struct kvm_vcpu *vcpu)
 	    && (kvm_get_rflags(vcpu) & X86_EFLAGS_VM)) /* if virtual 8086 */
 		return 3;
 
-	return vmcs_read16(GUEST_CS_SELECTOR) & 3;
+	return vmx_read_guest_seg_selector(to_vmx(vcpu), VCPU_SREG_CS) & 3;
 }
 
 static int vmx_get_cpl(struct kvm_vcpu *vcpu)
@@ -2187,6 +2264,8 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	u32 ar;
+
+	vmx_segment_cache_clear(vmx);
 
 	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
 		vmcs_write16(sf->selector, var->selector);
@@ -2229,7 +2308,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
 {
-	u32 ar = vmcs_read32(GUEST_CS_AR_BYTES);
+	u32 ar = vmx_read_guest_seg_ar(to_vmx(vcpu), VCPU_SREG_CS);
 
 	*db = (ar >> 14) & 1;
 	*l = (ar >> 13) & 1;
@@ -2815,6 +2894,8 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	ret = fx_init(&vmx->vcpu);
 	if (ret != 0)
 		goto out;
+
+	vmx_segment_cache_clear(vmx);
 
 	seg_setup(VCPU_SREG_CS);
 	/*
@@ -4188,6 +4269,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 				  | (1 << VCPU_EXREG_RFLAGS)
 				  | (1 << VCPU_EXREG_CPL)
 				  | (1 << VCPU_EXREG_PDPTR)
+				  | (1 << VCPU_EXREG_SEGMENTS)
 				  | (1 << VCPU_EXREG_CR3));
 	vcpu->arch.regs_dirty = 0;
 
