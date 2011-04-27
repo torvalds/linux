@@ -208,11 +208,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
 static struct omap_usb_config sdp2430_usb_config __initdata = {
 	.otg		= 1,
 #ifdef  CONFIG_USB_GADGET_OMAP
@@ -246,7 +241,7 @@ static void __init omap_2430sdp_init(void)
 	omap2_usbfs_init(&sdp2430_usb_config);
 
 	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 
 	board_smc91x_init();
 

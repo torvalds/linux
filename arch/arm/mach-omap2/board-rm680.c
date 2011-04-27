@@ -144,17 +144,11 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data rm680_musb_data = {
-	.interface_type	= MUSB_INTERFACE_ULPI,
-	.mode		= MUSB_PERIPHERAL,
-	.power		= 100,
-};
-
 static void __init rm680_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
-	usb_musb_init(&rm680_musb_data);
+	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }
 

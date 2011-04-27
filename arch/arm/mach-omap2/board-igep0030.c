@@ -357,12 +357,6 @@ static int __init igep3_i2c_init(void)
 	return 0;
 }
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type	= MUSB_INTERFACE_ULPI,
-	.mode		= MUSB_OTG,
-	.power		= 100,
-};
-
 #if defined(CONFIG_LIBERTAS_SDIO) || defined(CONFIG_LIBERTAS_SDIO_MODULE)
 
 static void __init igep3_wifi_bt_init(void)
@@ -424,7 +418,7 @@ static void __init igep3_init(void)
 	igep3_i2c_init();
 	platform_add_devices(igep3_devices, ARRAY_SIZE(igep3_devices));
 	omap_serial_init();
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 
 	igep3_flash_init();

@@ -653,12 +653,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
-
 static struct omap_board_config_kernel cm_t35_config[] __initdata = {
 };
 
@@ -675,7 +669,7 @@ static void __init cm_t35_init(void)
 	cm_t35_init_led();
 	cm_t35_init_display();
 
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 }
 
