@@ -381,17 +381,26 @@ static void rk29_sdmmc_show_info(struct rk29_sdmmc *host)
 static int rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 {
 	int tmo = RK29_SDMMC_TMO_COUNT;
-	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)))
+	int retry = 1000;
+	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)) &&
+		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY))
 		return 0;
-
+retry:
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_FIFO_RESET);
 	while (--tmo && rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_FIFO_RESET);
 	if(tmo > 0) {
-		rk29_sdmmc_set_mrq_status(host, MRQ_RESET_CTRL_DONE);
+		if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)){
+			udelay(1);
+			if(retry <= 0){
+				dev_dbg(host->dev, "%s error,retry = %d\n", __func__,retry);
+				return -1;
+			}
+			retry--;
+			goto retry;
+		}
 		return 0;
 	}
 	else {
-		rk29_sdmmc_set_mrq_status(host, MRQ_RESET_CTRL_ERR);
 		dev_err(host->dev, "%s error\n", __func__);
 		return -1;
 	}
@@ -399,9 +408,10 @@ static int rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 static int rk29_sdmmc_reset_ctrl(struct rk29_sdmmc *host)
 {
 	int tmo = RK29_SDMMC_TMO_COUNT;
+	/*
 	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)))
 		return 0;
-
+	*/
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 	while (--tmo && rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
@@ -463,15 +473,15 @@ static void rk29_sdmmc_request_done(struct rk29_sdmmc *host,struct mmc_request	*
 		~(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS));
 	if(mrq->stop && !rk29_sdmmc_test_mrq_status(host, MRQ_STOP_START_DONE))
 		send_stop_cmd(host);
-	if(mrq->cmd->opcode == 17 && (host->data_intsts & SDMMC_INT_SBE)){
-		rk29_sdmmc_write(host->regs, SDMMC_CMD, SDMMC_CMD_STOP | SDMMC_CMD_START); 
+	if(mrq->cmd->opcode == 17|| mrq->cmd->opcode == 51){
+		rk29_sdmmc_write(host->regs, SDMMC_CMD, 12|SDMMC_CMD_STOP | SDMMC_CMD_START); 
 		while (--tmo && rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START);
 	}
 	if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_FULL ){
 		rk29_sdmmc_read(host->regs, SDMMC_DATA);
 		rk29_sdmmc_read(host->regs, SDMMC_DATA);
 	}
-	if(mrq->data && mrq->data->error)
+	//if(mrq->data && mrq->data->error)
 		rk29_sdmmc_reset_fifo(host);
 	
 	host->mrq = NULL;
@@ -595,8 +605,8 @@ static void rk29_sdmmc_set_timeout(struct rk29_sdmmc *host,struct mmc_data *data
 	else
 		clock = (host->bus_hz / host->div) >> 1;
 	timeout = ns_to_clocks(clock, data->timeout_ns) + data->timeout_clks;
-	//rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
-	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
+	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
+	//rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
 }
 static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
 				 struct mmc_command *cmd)
@@ -695,10 +705,7 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 		host->is_init = 0;
 	    cmdflags |= SDMMC_CMD_INIT; 
 	}
-	if(cmd->opcode == 0/* &&
-		((rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_MC_BUSY)||
-		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY))*/)
-		cmdflags |= SDMMC_CMD_STOP;
+
 	if (mrq->data) {
 		rk29_sdmmc_set_mrq_status(host, MRQ_HAS_DATA);
 		ret = rk29_sdmmc_submit_data(host, mrq->data);
@@ -709,7 +716,7 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 	}
 	dev_dbg(host->dev,"start cmd:%d ARGR=0x%08x CMDR=0x%08x\n",
 						cmd->opcode, cmd->arg, cmdflags);
-	
+
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, ~SDMMC_INT_SDIO);
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,
 		rk29_sdmmc_read(host->regs, SDMMC_INTMASK) | 
@@ -723,6 +730,8 @@ static int rk29_sdmmc_start_request(struct rk29_sdmmc *host,struct mmc_request *
 	if (mrq->stop) {
 		rk29_sdmmc_set_mrq_status(host, MRQ_HAS_STOP);
 		host->stop_cmdr = rk29_sdmmc_prepare_command(host->mmc, mrq->stop);
+		if(mrq->cmd->opcode == 25)
+			host->stop_cmdr |= SDMMC_CMD_DAT_WR;
 	}
 	spin_unlock(&host->lock);
 	return 0;
@@ -735,7 +744,8 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	int timeout;
 	struct rk29_sdmmc *host = mmc_priv(mmc);
-
+	if(!mrq)
+		dev_info(host->dev, "mrq = NULL!!!!!\n");
 	if(host->mrq) 
 		rk29_sdmmc_show_info(host);
 	WARN_ON(host->mrq);
@@ -1105,7 +1115,7 @@ static void rk29_sdmmc_detect_change(struct rk29_sdmmc *host)
 		}
 		rk29_sdmmc_request_end(host);
 	}
-	//rk29_sdmmc_reset_ctrl(host);
+	rk29_sdmmc_reset_fifo(host);
 	spin_unlock(&host->lock);
 	mmc_detect_change(host->mmc, 0);
 }
