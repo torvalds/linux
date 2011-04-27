@@ -277,6 +277,9 @@ enum {
 
 	/* module m52790: just ident 52790 */
 	V4L2_IDENT_M52790 = 52790,
+
+
+    V4L2_IDENT_GT2005 = 64100,       /* ddl@rock-chips.com : GT2005 support */
 };
 
 #endif

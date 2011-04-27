@@ -953,6 +953,12 @@ config SOC_CAMERA_S5K6AA
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a samsung S5K6AA mobile camera driver
+	  
+config SOC_CAMERA_GT2005
+	tristate "GT2005 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GT2005 camera driver	  
 
  	     
 config MX1_VIDEO
