@@ -176,8 +176,10 @@ end_clock:
 	for (i = 0; i <= 1; i++) {
 		port_ctl_status.u64 =
 			cvmx_read_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0));
-		/* Set txvreftune to 15 to obtain complient 'eye' diagram. */
+		/* Set txvreftune to 15 to obtain compliant 'eye' diagram. */
 		port_ctl_status.s.txvreftune = 15;
+		port_ctl_status.s.txrisetune = 1;
+		port_ctl_status.s.txpreemphasistune = 1;
 		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
 			       port_ctl_status.u64);
 	}
