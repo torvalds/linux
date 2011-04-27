@@ -387,6 +387,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	__le32 __iomem **port_array;
 	int slot_id;
 	struct xhci_bus_state *bus_state;
+	u16 link_state = 0;
 
 	if (hcd->speed == HCD_USB3) {
 		ports = xhci->num_usb3_ports;
@@ -497,6 +498,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;
 	case SetPortFeature:
+		if (wValue == USB_PORT_FEAT_LINK_STATE)
+			link_state = (wIndex & 0xff00) >> 3;
 		wIndex &= 0xff;
 		if (!wIndex || wIndex > ports)
 			goto error;
@@ -544,6 +547,44 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			temp = xhci_readl(xhci, port_array[wIndex]);
 			bus_state->suspended_ports |= 1 << wIndex;
+			break;
+		case USB_PORT_FEAT_LINK_STATE:
+			temp = xhci_readl(xhci, port_array[wIndex]);
+			/* Software should not attempt to set
+			 * port link state above '5' (Rx.Detect) and the port
+			 * must be enabled.
+			 */
+			if ((temp & PORT_PE) == 0 ||
+				(link_state > USB_SS_PORT_LS_RX_DETECT)) {
+				xhci_warn(xhci, "Cannot set link state.\n");
+				goto error;
+			}
+
+			if (link_state == USB_SS_PORT_LS_U3) {
+				slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+						wIndex + 1);
+				if (slot_id) {
+					/* unlock to execute stop endpoint
+					 * commands */
+					spin_unlock_irqrestore(&xhci->lock,
+								flags);
+					xhci_stop_device(xhci, slot_id, 1);
+					spin_lock_irqsave(&xhci->lock, flags);
+				}
+			}
+
+			temp = xhci_port_state_to_neutral(temp);
+			temp &= ~PORT_PLS_MASK;
+			temp |= PORT_LINK_STROBE | link_state;
+			xhci_writel(xhci, temp, port_array[wIndex]);
+
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			msleep(20); /* wait device to enter */
+			spin_lock_irqsave(&xhci->lock, flags);
+
+			temp = xhci_readl(xhci, port_array[wIndex]);
+			if (link_state == USB_SS_PORT_LS_U3)
+				bus_state->suspended_ports |= 1 << wIndex;
 			break;
 		case USB_PORT_FEAT_POWER:
 			/*
