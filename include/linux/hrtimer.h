@@ -155,6 +155,7 @@ enum  hrtimer_base_type {
 	HRTIMER_BASE_REALTIME,
 	HRTIMER_BASE_MONOTONIC,
 	HRTIMER_BASE_BOOTTIME,
+	HRTIMER_BASE_REALTIME_COS,
 	HRTIMER_MAX_CLOCK_BASES,
 };
 
@@ -310,6 +311,7 @@ extern void hrtimers_resume(void);
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_real(void);
 extern ktime_t ktime_get_boottime(void);
+extern ktime_t ktime_get_monotonic_offset(void);
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 

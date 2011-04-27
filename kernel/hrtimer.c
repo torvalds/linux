@@ -78,6 +78,11 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 			.get_time = &ktime_get_boottime,
 			.resolution = KTIME_LOW_RES,
 		},
+		{
+			.index = CLOCK_REALTIME_COS,
+			.get_time = &ktime_get_real,
+			.resolution = KTIME_LOW_RES,
+		},
 	}
 };
 
@@ -85,6 +90,7 @@ static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
 	[CLOCK_REALTIME]	= HRTIMER_BASE_REALTIME,
 	[CLOCK_MONOTONIC]	= HRTIMER_BASE_MONOTONIC,
 	[CLOCK_BOOTTIME]	= HRTIMER_BASE_BOOTTIME,
+	[CLOCK_REALTIME_COS]	= HRTIMER_BASE_REALTIME_COS,
 };
 
 static inline int hrtimer_clockid_to_base(clockid_t clock_id)
@@ -110,6 +116,7 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 	base->clock_base[HRTIMER_BASE_REALTIME].softirq_time = xtim;
 	base->clock_base[HRTIMER_BASE_MONOTONIC].softirq_time = mono;
 	base->clock_base[HRTIMER_BASE_BOOTTIME].softirq_time = boot;
+	base->clock_base[HRTIMER_BASE_REALTIME_COS].softirq_time = xtim;
 }
 
 /*
@@ -479,6 +486,8 @@ static inline void debug_deactivate(struct hrtimer *timer)
 	trace_hrtimer_cancel(timer);
 }
 
+static void hrtimer_expire_cancelable(struct hrtimer_cpu_base *cpu_base);
+
 /* High resolution timer related functions */
 #ifdef CONFIG_HIGH_RES_TIMERS
 
@@ -715,9 +724,14 @@ static void retrigger_next_event(void *arg)
 	struct hrtimer_cpu_base *base = &__get_cpu_var(hrtimer_bases);
 	struct timespec realtime_offset, xtim, wtm, sleep;
 
-	if (!hrtimer_hres_active())
+	if (!hrtimer_hres_active()) {
+		raw_spin_lock(&base->lock);
+		hrtimer_expire_cancelable(base);
+		raw_spin_unlock(&base->lock);
 		return;
+	}
 
+	/* Optimized out for !HIGH_RES */
 	get_xtime_and_monotonic_and_sleep_offset(&xtim, &wtm, &sleep);
 	set_normalized_timespec(&realtime_offset, -wtm.tv_sec, -wtm.tv_nsec);
 
@@ -727,6 +741,10 @@ static void retrigger_next_event(void *arg)
 		timespec_to_ktime(realtime_offset);
 	base->clock_base[HRTIMER_BASE_BOOTTIME].offset =
 		timespec_to_ktime(sleep);
+	base->clock_base[HRTIMER_BASE_REALTIME_COS].offset =
+		timespec_to_ktime(realtime_offset);
+
+	hrtimer_expire_cancelable(base);
 
 	hrtimer_force_reprogram(base, 0);
 	raw_spin_unlock(&base->lock);
@@ -1220,6 +1238,22 @@ static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
 	WARN_ON_ONCE(!(timer->state & HRTIMER_STATE_CALLBACK));
 
 	timer->state &= ~HRTIMER_STATE_CALLBACK;
+}
+
+static void hrtimer_expire_cancelable(struct hrtimer_cpu_base *cpu_base)
+{
+	struct timerqueue_node *node;
+	struct hrtimer_clock_base *base;
+	ktime_t now = ktime_get_real();
+
+	base = &cpu_base->clock_base[HRTIMER_BASE_REALTIME_COS];
+
+	while ((node = timerqueue_getnext(&base->active))) {
+			struct hrtimer *timer;
+
+			timer = container_of(node, struct hrtimer, node);
+			__run_hrtimer(timer, &now);
+	}
 }
 
 #ifdef CONFIG_HIGH_RES_TIMERS
