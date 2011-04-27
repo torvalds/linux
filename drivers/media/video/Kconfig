@@ -959,7 +959,11 @@ config SOC_CAMERA_GT2005
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a GT2005 camera driver	  
-
+config SOC_CAMERA_GC0308
+	tristate "GC0308 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC0308 camera driver
  	     
 config MX1_VIDEO
 	bool

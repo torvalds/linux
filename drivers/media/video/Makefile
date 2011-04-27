@@ -91,6 +91,8 @@ obj-$(CONFIG_SOC_CAMERA_OV5640)		+= ov5640.o
 obj-$(CONFIG_SOC_CAMERA_OV5642)		+= ov5642.o
 obj-$(CONFIG_SOC_CAMERA_S5K6AA)		+= s5k6aa.o
 obj-$(CONFIG_SOC_CAMERA_GT2005)		+= gt2005.o
+obj-$(CONFIG_SOC_CAMERA_GC0308)		+= gc0308.o
+
 # And now the v4l2 drivers:
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
