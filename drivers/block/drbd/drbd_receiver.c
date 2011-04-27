@@ -1384,8 +1384,8 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	void *dig_vv = mdev->tconn->int_dig_vv;
 	unsigned long *data;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
 
 	if (dgs) {
 		/*
@@ -1442,7 +1442,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	}
 
 	if (dgs) {
-		drbd_csum_ee(mdev, mdev->tconn->integrity_r_tfm, peer_req, dig_vv);
+		drbd_csum_ee(mdev, mdev->tconn->peer_integrity_tfm, peer_req, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
@@ -1491,8 +1491,8 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	void *dig_in = mdev->tconn->int_dig_in;
 	void *dig_vv = mdev->tconn->int_dig_vv;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
 
 	if (dgs) {
 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
@@ -1520,7 +1520,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	}
 
 	if (dgs) {
-		drbd_csum_bio(mdev, mdev->tconn->integrity_r_tfm, bio, dig_vv);
+		drbd_csum_bio(mdev, mdev->tconn->peer_integrity_tfm, bio, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED. Broken NICs?\n");
 			return -EINVAL;

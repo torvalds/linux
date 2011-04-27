@@ -1405,8 +1405,8 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
 		      struct p_data *dp, int data_size)
 {
-	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
+	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
 	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 		       dp->block_id);
 }
@@ -2407,7 +2407,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	crypto_free_hash(tconn->verify_tfm);
 	crypto_free_hash(tconn->cram_hmac_tfm);
 	crypto_free_hash(tconn->integrity_tfm);
-	crypto_free_hash(tconn->integrity_r_tfm);
+	crypto_free_hash(tconn->peer_integrity_tfm);
 	kfree(tconn->int_dig_in);
 	kfree(tconn->int_dig_vv);
 
@@ -2415,7 +2415,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	tconn->verify_tfm = NULL;
 	tconn->cram_hmac_tfm = NULL;
 	tconn->integrity_tfm = NULL;
-	tconn->integrity_r_tfm = NULL;
+	tconn->peer_integrity_tfm = NULL;
 	tconn->int_dig_in = NULL;
 	tconn->int_dig_vv = NULL;
 }
