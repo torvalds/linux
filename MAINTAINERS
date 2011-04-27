@@ -2808,7 +2808,7 @@ GPIO SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
 S:	Maintained
 T:	git git://git.secretlab.ca/git/linux-2.6.git
-F:	Documentation/gpio/gpio.txt
+F:	Documentation/gpio.txt
 F:	drivers/gpio/
 F:	include/linux/gpio*
 
