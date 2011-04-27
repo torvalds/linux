@@ -1818,6 +1818,8 @@ out:
 __be32
 nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_reclaim_complete *rc)
 {
+	int status = 0;
+
 	if (rc->rca_one_fs) {
 		if (!cstate->current_fh.fh_dentry)
 			return nfserr_nofilehandle;
@@ -1827,9 +1829,14 @@ nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		 */
 		 return nfs_ok;
 	}
+
 	nfs4_lock_state();
-	if (is_client_expired(cstate->session->se_client)) {
-		nfs4_unlock_state();
+	status = nfserr_complete_already;
+	if (cstate->session->se_client->cl_firststate)
+		goto out;
+
+	status = nfserr_stale_clientid;
+	if (is_client_expired(cstate->session->se_client))
 		/*
 		 * The following error isn't really legal.
 		 * But we only get here if the client just explicitly
@@ -1837,11 +1844,13 @@ nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		 * error it gets back on an operation for the dead
 		 * client.
 		 */
-		return nfserr_stale_clientid;
-	}
+		goto out;
+
+	status = nfs_ok;
 	nfsd4_create_clid_dir(cstate->session->se_client);
+out:
 	nfs4_unlock_state();
-	return nfs_ok;
+	return status;
 }
 
 __be32
