@@ -874,13 +874,11 @@ static __be32
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
-	struct inode *inode;
 	mm_segment_t	oldfs;
 	__be32		err;
 	int		host_err;
 
 	err = nfserr_perm;
-	inode = file->f_path.dentry->d_inode;
 
 	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
 		struct splice_desc sd = {
