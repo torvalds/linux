@@ -199,7 +199,7 @@ static int e1000_set_settings(struct net_device *netdev,
 		ecmd->advertising = hw->autoneg_advertised;
 	} else {
 		u32 speed = ethtool_cmd_speed(ecmd);
-		if (e1000_set_spd_dplx(adapter, speed + ecmd->duplex)) {
+		if (e1000_set_spd_dplx(adapter, speed, ecmd->duplex)) {
 			clear_bit(__E1000_RESETTING, &adapter->flags);
 			return -EINVAL;
 		}
