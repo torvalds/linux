@@ -27,6 +27,11 @@
 #include <mach/ddr.h>
 #include <mach/memtester.h>
 
+#include <mach/iomux.h>
+
+
+#define grf_readl(offset) readl(RK29_GRF_BASE + offset)
+#define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
 
 static unsigned long save_sp;
 
@@ -347,11 +352,31 @@ static void dump_inten(void)
 	DUMP_GPIO_INTEN(6);
 }
 
+
+
+#define DUMP_GPIO_PULL(ID) \
+do { \
+	u32 state = readl(RK29_GRF_BASE + GRF_GPIO0_PULL + (ID<<2)); \
+	printascii("GPIO" #ID "_PULL: "); \
+	printhex(state); \
+	printch('\n'); \
+} while (0)
+
+static void dump_io_pull(void)
+{
+	DUMP_GPIO_PULL(0);
+	DUMP_GPIO_PULL(1);
+	DUMP_GPIO_PULL(2);
+	DUMP_GPIO_PULL(3);
+	DUMP_GPIO_PULL(4);
+	DUMP_GPIO_PULL(5);
+	DUMP_GPIO_PULL(6);
+}
+
 static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 apll, cpll, gpll, mode, clksel0;
 	u32 clkgate[4];
-	u32 gpio0_pull,gpio1_pull,gpio2_pull,gpio3_pull,gpio4_pull,gpio5_pull,gpio6_pull;
 
 	// memory teseter
 	if (ddr_debug == 3)
@@ -359,7 +384,9 @@ static int rk29_pm_enter(suspend_state_t state)
 
 	// dump GPIO INTEN for debug
 	dump_inten();
-
+	// dump GPIO PULL state for debug
+	dump_io_pull();
+	
 	printch('0');
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
