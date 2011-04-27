@@ -1353,8 +1353,8 @@ bool nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);
 /* nv50_calc. */
 int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
 		  int *N1, int *M1, int *N2, int *M2, int *P);
-int nv50_calc_pll2(struct drm_device *, struct pll_lims *,
-		   int clk, int *N, int *fN, int *M, int *P);
+int nva3_calc_pll(struct drm_device *, struct pll_lims *,
+		  int clk, int *N, int *fN, int *M, int *P);
 
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN

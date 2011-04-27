@@ -104,7 +104,7 @@ nva3_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 {
 	struct nva3_pm_state *pll;
 	struct pll_lims limits;
-	int N, fN, M, P, diff;
+	int N, M, P, diff;
 	int ret, off;
 
 	ret = get_pll_limits(dev, id, &limits);
@@ -136,7 +136,7 @@ nva3_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	}
 
 	if (!pll->new_div) {
-		ret = nv50_calc_pll2(dev, &limits, khz, &N, &fN, &M, &P);
+		ret = nva3_calc_pll(dev, &limits, khz, &N, NULL, &M, &P);
 		if (ret < 0)
 			return ERR_PTR(ret);
 
