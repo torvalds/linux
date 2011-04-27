@@ -83,13 +83,13 @@
 union vac {
 	unsigned long value;
 	struct {
-		int a_int:1;
-		int a_from_int_cr:1;
-		int a_to_int_cr:1;
-		int a_from_psr:1;
-		int a_from_cpuid:1;
-		int a_cover:1;
-		int a_bsw:1;
+		unsigned int a_int:1;
+		unsigned int a_from_int_cr:1;
+		unsigned int a_to_int_cr:1;
+		unsigned int a_from_psr:1;
+		unsigned int a_from_cpuid:1;
+		unsigned int a_cover:1;
+		unsigned int a_bsw:1;
 		long reserved:57;
 	};
 };
@@ -97,12 +97,12 @@ union vac {
 union vdc {
 	unsigned long value;
 	struct {
-		int d_vmsw:1;
-		int d_extint:1;
-		int d_ibr_dbr:1;
-		int d_pmc:1;
-		int d_to_pmd:1;
-		int d_itm:1;
+		unsigned int d_vmsw:1;
+		unsigned int d_extint:1;
+		unsigned int d_ibr_dbr:1;
+		unsigned int d_pmc:1;
+		unsigned int d_to_pmd:1;
+		unsigned int d_itm:1;
 		long reserved:58;
 	};
 };
