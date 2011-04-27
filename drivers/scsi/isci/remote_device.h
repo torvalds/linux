@@ -68,9 +68,7 @@ enum scic_remote_device_not_ready_reason_code {
 	SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED,
 	SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED,
 	SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED,
-
 	SCIC_REMOTE_DEVICE_NOT_READY_REASON_CODE_MAX
-
 };
 
 struct scic_sds_remote_device {
@@ -132,19 +130,6 @@ struct scic_sds_remote_device {
 	u32 not_ready_reason;
 
 	/**
-	 * This field is true if this remote device has an initialzied ready substate
-	 * machine. SSP devices do not have a ready substate machine and STP devices
-	 * have a ready substate machine.
-	 */
-	bool has_ready_substate_machine;
-
-	/**
-	 * This field contains the state machine for the ready substate machine for
-	 * this struct scic_sds_remote_device object.
-	 */
-	struct sci_base_state_machine ready_substate_machine;
-
-	/**
 	 * This field maintains the set of state handlers for the remote device
 	 * object.  These are changed each time the remote device enters a new state.
 	 */
@@ -171,10 +156,6 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost,
 					struct isci_remote_device *idev);
 void isci_remote_device_nuke_requests(struct isci_host *ihost,
 				      struct isci_remote_device *idev);
-void isci_remote_device_ready(struct isci_host *ihost,
-			      struct isci_remote_device *idev);
-void isci_remote_device_not_ready(struct isci_host *ihost,
-				  struct isci_remote_device *idev, u32 reason);
 void isci_remote_device_gone(struct domain_device *domain_dev);
 int isci_remote_device_found(struct domain_device *domain_dev);
 bool isci_device_is_reset_pending(struct isci_host *ihost,
@@ -278,77 +259,6 @@ enum scic_sds_remote_device_states {
 	SCI_BASE_REMOTE_DEVICE_STATE_READY,
 
 	/**
-	 * This state indicates that the remote device is in the process of
-	 * stopping.  In this state no new IO operations are permitted, but
-	 * existing IO operations are allowed to complete.
-	 * This state is entered from the READY state.
-	 * This state is entered from the FAILED state.
-	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_STOPPING,
-
-	/**
-	 * This state indicates that the remote device has failed.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the INITIALIZING state.
-	 * This state is entered from the READY state.
-	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_FAILED,
-
-	/**
-	 * This state indicates the device is being reset.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the READY state.
-	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_RESETTING,
-
-	/**
-	 * Simply the final state for the base remote device state machine.
-	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_FINAL,
-};
-
-/**
- * enum scic_sds_ssp_remote_device_ready_substates -
- *
- * This is the enumeration of the ready substates for the
- * struct scic_sds_remote_device.
- */
-enum scic_sds_ssp_remote_device_ready_substates {
-	/**
-	 * This is the initial state for the remote device ready substate.
-	 */
-	SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_INITIAL,
-
-	/**
-	 * This is the ready operational substate for the remote device.
-	 * This is the normal operational state for a remote device.
-	 */
-	SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_OPERATIONAL,
-
-	/**
-	 * This is the suspended state for the remote device. This is the state
-	 * that the device is placed in when a RNC suspend is received by
-	 * the SCU hardware.
-	 */
-	SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_SUSPENDED,
-
-	/**
-	 * This is the final state that the device is placed in before a change
-	 * to the base state machine.
-	 */
-	SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_FINAL,
-
-	SCIC_SDS_SSP_REMOTE_DEVICE_READY_MAX_SUBSTATES
-};
-
-/**
- * enum scic_sds_stp_remote_device_ready_substates -
- *
- * This is the enumeration for the struct scic_sds_remote_device ready substates
- * for the STP remote device.
- */
-enum scic_sds_stp_remote_device_ready_substates {
-	/**
 	 * This is the idle substate for the stp remote device.  When there are no
 	 * active IO for the device it is is in this state.
 	 */
@@ -381,14 +291,7 @@ enum scic_sds_stp_remote_device_ready_substates {
 	 * coming to be recovered from certain hardware specific error.
 	 */
 	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET,
-};
 
-/**
- * enum scic_sds_smp_remote_device_ready_substates -
- *
- * This is the enumeration of the ready substates for the SMP REMOTE DEVICE.
- */
-enum scic_sds_smp_remote_device_ready_substates {
 	/**
 	 * This is the ready operational substate for the remote device.  This is the
 	 * normal operational state for a remote device.
@@ -400,6 +303,35 @@ enum scic_sds_smp_remote_device_ready_substates {
 	 * the device is placed in when a RNC suspend is received by the SCU hardware.
 	 */
 	SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD,
+
+	/**
+	 * This state indicates that the remote device is in the process of
+	 * stopping.  In this state no new IO operations are permitted, but
+	 * existing IO operations are allowed to complete.
+	 * This state is entered from the READY state.
+	 * This state is entered from the FAILED state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_STOPPING,
+
+	/**
+	 * This state indicates that the remote device has failed.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the INITIALIZING state.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_FAILED,
+
+	/**
+	 * This state indicates the device is being reset.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_RESETTING,
+
+	/**
+	 * Simply the final state for the base remote device state machine.
+	 */
+	SCI_BASE_REMOTE_DEVICE_STATE_FINAL,
 };
 
 static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_node_context *rnc)
@@ -541,10 +473,6 @@ struct scic_sds_remote_device_state_handler {
 	scic_sds_remote_device_frame_handler_t frame_handler;
 };
 
-extern const struct sci_base_state scic_sds_ssp_remote_device_ready_substate_table[];
-extern const struct sci_base_state scic_sds_stp_remote_device_ready_substate_table[];
-extern const struct sci_base_state scic_sds_smp_remote_device_ready_substate_table[];
-
 /**
  * scic_sds_remote_device_increment_request_count() -
  *
@@ -672,92 +600,24 @@ enum sci_status scic_sds_remote_device_start_io(
 	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *io_request);
 
+enum sci_status scic_sds_remote_device_start_task(
+	struct scic_sds_controller *controller,
+	struct scic_sds_remote_device *sci_dev,
+	struct scic_sds_request *io_request);
+
 enum sci_status scic_sds_remote_device_complete_io(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *io_request);
 
-enum sci_status scic_sds_remote_device_resume(
-	struct scic_sds_remote_device *sci_dev);
-
 enum sci_status scic_sds_remote_device_suspend(
 	struct scic_sds_remote_device *sci_dev,
 	u32 suspend_type);
-
-enum sci_status scic_sds_remote_device_start_task(
-	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *io_request);
 
 void scic_sds_remote_device_post_request(
 	struct scic_sds_remote_device *sci_dev,
 	u32 request);
 
 #define scic_sds_remote_device_is_atapi(sci_dev) false
-
-void scic_sds_remote_device_start_request(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *sci_req,
-	enum sci_status status);
-
-void scic_sds_remote_device_continue_request(void *sci_dev);
-
-enum sci_status scic_sds_remote_device_default_start_handler(
-	struct scic_sds_remote_device *sci_dev);
-
-enum sci_status scic_sds_remote_device_default_fail_handler(
-	struct scic_sds_remote_device *sci_dev);
-
-enum sci_status scic_sds_remote_device_default_destruct_handler(
-	struct scic_sds_remote_device *sci_dev);
-
-enum sci_status scic_sds_remote_device_default_reset_handler(
-	struct scic_sds_remote_device *device);
-
-enum sci_status scic_sds_remote_device_default_reset_complete_handler(
-	struct scic_sds_remote_device *device);
-
-enum sci_status scic_sds_remote_device_default_start_request_handler(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request);
-
-enum sci_status scic_sds_remote_device_default_complete_request_handler(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request);
-
-enum sci_status scic_sds_remote_device_default_continue_request_handler(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request);
-
-enum sci_status scic_sds_remote_device_default_suspend_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 suspend_type);
-
-enum sci_status scic_sds_remote_device_default_resume_handler(
-	struct scic_sds_remote_device *sci_dev);
-
-
-enum sci_status scic_sds_remote_device_default_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index);
-
-enum sci_status scic_sds_remote_device_ready_state_stop_handler(
-	struct scic_sds_remote_device *device);
-
-enum sci_status scic_sds_remote_device_ready_state_reset_handler(
-	struct scic_sds_remote_device *device);
-
-enum sci_status scic_sds_remote_device_general_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index);
-
-enum sci_status scic_sds_remote_device_general_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code);
-
-enum sci_status scic_sds_ssp_remote_device_ready_suspended_substate_resume_handler(
-	struct scic_sds_remote_device *sci_dev);
-
-
 
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */
