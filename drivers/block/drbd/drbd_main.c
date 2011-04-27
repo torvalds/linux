@@ -1689,8 +1689,8 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	int dgs;
 	int err;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
 
 	sock = &mdev->tconn->data;
 	p = drbd_prepare_command(mdev, sock);
@@ -1711,7 +1711,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	}
 	p->dp_flags = cpu_to_be32(dp_flags);
 	if (dgs)
-		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, p + 1);
+		drbd_csum_bio(mdev, mdev->tconn->integrity_tfm, req->master_bio, p + 1);
 	err = __send_command(mdev->tconn, mdev->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
 	if (!err) {
 		/* For protocol A, we have to memcpy the payload into
@@ -1735,7 +1735,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 			/* 64 byte, 512 bit, is the largest digest size
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
-			drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, digest);
+			drbd_csum_bio(mdev, mdev->tconn->integrity_tfm, req->master_bio, digest);
 			if (memcmp(p + 1, digest, dgs)) {
 				dev_warn(DEV,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
@@ -1762,8 +1762,8 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	int err;
 	int dgs;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
 
 	sock = &mdev->tconn->data;
 	p = drbd_prepare_command(mdev, sock);
@@ -1773,7 +1773,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	p->block_id = peer_req->block_id;
 	p->seq_num = 0;  /* unused */
 	if (dgs)
-		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, p + 1);
+		drbd_csum_ee(mdev, mdev->tconn->integrity_tfm, peer_req, p + 1);
 	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
 	if (!err)
 		err = _drbd_send_zc_ee(mdev, peer_req);
@@ -2406,7 +2406,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	crypto_free_hash(tconn->csums_tfm);
 	crypto_free_hash(tconn->verify_tfm);
 	crypto_free_hash(tconn->cram_hmac_tfm);
-	crypto_free_hash(tconn->integrity_w_tfm);
+	crypto_free_hash(tconn->integrity_tfm);
 	crypto_free_hash(tconn->integrity_r_tfm);
 	kfree(tconn->int_dig_in);
 	kfree(tconn->int_dig_vv);
@@ -2414,7 +2414,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	tconn->csums_tfm = NULL;
 	tconn->verify_tfm = NULL;
 	tconn->cram_hmac_tfm = NULL;
-	tconn->integrity_w_tfm = NULL;
+	tconn->integrity_tfm = NULL;
 	tconn->integrity_r_tfm = NULL;
 	tconn->int_dig_in = NULL;
 	tconn->int_dig_vv = NULL;

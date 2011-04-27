@@ -1792,7 +1792,7 @@ struct crypto {
 	struct crypto_hash *verify_tfm;
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *cram_hmac_tfm;
-	struct crypto_hash *integrity_w_tfm;
+	struct crypto_hash *integrity_tfm;
 	struct crypto_hash *integrity_r_tfm;
 	void *int_dig_in;
 	void *int_dig_vv;
@@ -1831,7 +1831,7 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
 		       ERR_VERIFY_ALG, ERR_VERIFY_ALG_ND);
 	if (rv != NO_ERROR)
 		return rv;
-	rv = alloc_tfm(&crypto->integrity_w_tfm, new_conf->integrity_alg,
+	rv = alloc_tfm(&crypto->integrity_tfm, new_conf->integrity_alg,
 		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
 	if (rv != NO_ERROR)
 		return rv;
@@ -1846,8 +1846,8 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
 		rv = alloc_tfm(&crypto->cram_hmac_tfm, hmac_name,
 			       ERR_AUTH_ALG, ERR_AUTH_ALG_ND);
 	}
-	if (crypto->integrity_w_tfm) {
-		hash_size = crypto_hash_digestsize(crypto->integrity_w_tfm);
+	if (crypto->integrity_tfm) {
+		hash_size = crypto_hash_digestsize(crypto->integrity_tfm);
 		crypto->int_dig_in = kmalloc(hash_size, GFP_KERNEL);
 		if (!crypto->int_dig_in)
 			return ERR_NOMEM;
@@ -1864,7 +1864,7 @@ static void free_crypto(struct crypto *crypto)
 	kfree(crypto->int_dig_in);
 	kfree(crypto->int_dig_vv);
 	crypto_free_hash(crypto->cram_hmac_tfm);
-	crypto_free_hash(crypto->integrity_w_tfm);
+	crypto_free_hash(crypto->integrity_tfm);
 	crypto_free_hash(crypto->integrity_r_tfm);
 	crypto_free_hash(crypto->csums_tfm);
 	crypto_free_hash(crypto->verify_tfm);
@@ -1956,8 +1956,8 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	tconn->int_dig_in = crypto.int_dig_in;
 	kfree(tconn->int_dig_vv);
 	tconn->int_dig_vv = crypto.int_dig_vv;
-	crypto_free_hash(tconn->integrity_w_tfm);
-	tconn->integrity_w_tfm = crypto.integrity_w_tfm;
+	crypto_free_hash(tconn->integrity_tfm);
+	tconn->integrity_tfm = crypto.integrity_tfm;
 	crypto_free_hash(tconn->integrity_r_tfm);
 	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
 
@@ -2083,7 +2083,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	tconn->int_dig_in = crypto.int_dig_in;
 	tconn->int_dig_vv = crypto.int_dig_vv;
 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
-	tconn->integrity_w_tfm = crypto.integrity_w_tfm;
+	tconn->integrity_tfm = crypto.integrity_tfm;
 	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
 	tconn->csums_tfm = crypto.csums_tfm;
 	tconn->verify_tfm = crypto.verify_tfm;

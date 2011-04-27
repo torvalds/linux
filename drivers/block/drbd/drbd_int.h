@@ -849,7 +849,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct list_head out_of_sequence_requests;
 
 	struct crypto_hash *cram_hmac_tfm;
-	struct crypto_hash *integrity_w_tfm; /* to be used by the worker thread */
+	struct crypto_hash *integrity_tfm;  /* checksums we compute */
 	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
