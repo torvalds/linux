@@ -2203,9 +2203,14 @@ relock:
  * group-wide signal. Another thread should be notified now to take
  * the signal since we will not.
  */
-static void retarget_shared_pending(struct task_struct *tsk)
+static void retarget_shared_pending(struct task_struct *tsk, sigset_t *which)
 {
+	sigset_t retarget;
 	struct task_struct *t;
+
+	sigandsets(&retarget, &tsk->signal->shared_pending.signal, which);
+	if (sigisemptyset(&retarget))
+		return;
 
 	t = tsk;
 	while_each_thread(tsk, t) {
@@ -2217,6 +2222,7 @@ static void retarget_shared_pending(struct task_struct *tsk)
 void exit_signals(struct task_struct *tsk)
 {
 	int group_stop = 0;
+	sigset_t unblocked;
 
 	if (thread_group_empty(tsk) || signal_group_exit(tsk->signal)) {
 		tsk->flags |= PF_EXITING;
@@ -2232,7 +2238,9 @@ void exit_signals(struct task_struct *tsk)
 	if (!signal_pending(tsk))
 		goto out;
 
-	retarget_shared_pending(tsk);
+	unblocked = tsk->blocked;
+	signotset(&unblocked);
+	retarget_shared_pending(tsk, &unblocked);
 
 	if (unlikely(tsk->group_stop & GROUP_STOP_PENDING) &&
 	    task_participate_group_stop(tsk))
