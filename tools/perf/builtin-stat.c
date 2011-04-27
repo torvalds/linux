@@ -73,6 +73,47 @@ static struct perf_event_attr default_attrs[] = {
 
 };
 
+/*
+ * Detailed stats:
+ */
+static struct perf_event_attr detailed_attrs[] = {
+
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CPU_MIGRATIONS		},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
+
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES		},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES		},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS		},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_LL			<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_LL			<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+};
+
 struct perf_evlist		*evsel_list;
 
 static bool			system_wide			=  false;
@@ -86,6 +127,7 @@ static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
+static bool			detailed_run			=  false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static const char		*cpu_list;
@@ -550,7 +592,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_branches_stats[cpu].n != 0) {
+			runtime_l1_dcache_stats[cpu].n != 0) {
 		print_l1_dcache_misses(cpu, evsel, avg);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
 			runtime_cacherefs_stats[cpu].n != 0) {
@@ -625,8 +667,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 		avg_enabled = avg_stats(&ps->res_stats[1]);
 		avg_running = avg_stats(&ps->res_stats[2]);
 
-		fprintf(stderr, "  (scaled from %.2f%%)",
-				100 * avg_running / avg_enabled);
+		fprintf(stderr, "  (%.2f%%)", 100 * avg_running / avg_enabled);
 	}
 	fprintf(stderr, "\n");
 }
@@ -668,10 +709,8 @@ static void print_counter(struct perf_evsel *counter)
 		if (!csv_output) {
 			print_noise(counter, 1.0);
 
-			if (run != ena) {
-				fprintf(stderr, "  (scaled from %.2f%%)",
-					100.0 * run / ena);
-			}
+			if (run != ena)
+				fprintf(stderr, "  (%.2f%%)", 100.0 * run / ena);
 		}
 		fputc('\n', stderr);
 	}
@@ -778,6 +817,8 @@ static const struct option options[] = {
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
+	OPT_BOOLEAN('d', "detailed", &detailed_run,
+		    "detailed run - start a lot of events"),
 	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL, 
 			   "print large numbers with thousands\' separators",
 			   stat__set_big_num),
@@ -839,7 +880,18 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	}
 
 	/* Set attrs and nr_counters if no event is selected and !null_run */
-	if (!null_run && !evsel_list->nr_entries) {
+	if (detailed_run) {
+		size_t c;
+
+		for (c = 0; c < ARRAY_SIZE(detailed_attrs); ++c) {
+			pos = perf_evsel__new(&detailed_attrs[c], c);
+			if (pos == NULL)
+				goto out;
+			perf_evlist__add(evsel_list, pos);
+		}
+	}
+	/* Set attrs and nr_counters if no event is selected and !null_run */
+	if (!detailed_run && !null_run && !evsel_list->nr_entries) {
 		size_t c;
 
 		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
