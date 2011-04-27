@@ -450,6 +450,29 @@ static void print_stalled_cycles(int cpu, struct perf_evsel *evsel __used, doubl
 	fprintf(stderr, " of all cycles are idle ");
 }
 
+static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_branches_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #   ");
+	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " of all branches        ");
+}
+
 static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double total, ratio = 0.0;
@@ -495,13 +518,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_branches_stats[cpu]);
-
-		if (total)
-			ratio = avg * 100 / total;
-
-		fprintf(stderr, " #   %5.2f  %% of all branches      ", ratio);
-
+		print_branch_misses(cpu, evsel, avg);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
 			runtime_cacherefs_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_cacherefs_stats[cpu]);
