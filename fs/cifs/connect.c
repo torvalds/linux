@@ -274,7 +274,8 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	char *data_area_of_target;
 	char *data_area_of_buf2;
 	int remaining;
-	__u16 byte_count, total_data_size, total_in_buf, total_in_buf2;
+	unsigned int byte_count, total_in_buf;
+	__u16 total_data_size, total_in_buf2;
 
 	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 
@@ -287,7 +288,7 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	remaining = total_data_size - total_in_buf;
 
 	if (remaining < 0)
-		return -EINVAL;
+		return -EPROTO;
 
 	if (remaining == 0) /* nothing to do, ignore */
 		return 0;
@@ -308,19 +309,28 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	data_area_of_target += total_in_buf;
 
 	/* copy second buffer into end of first buffer */
-	memcpy(data_area_of_target, data_area_of_buf2, total_in_buf2);
 	total_in_buf += total_in_buf2;
+	/* is the result too big for the field? */
+	if (total_in_buf > USHRT_MAX)
+		return -EPROTO;
 	put_unaligned_le16(total_in_buf, &pSMBt->t2_rsp.DataCount);
+
+	/* fix up the BCC */
 	byte_count = get_bcc_le(pTargetSMB);
 	byte_count += total_in_buf2;
+	/* is the result too big for the field? */
+	if (byte_count > USHRT_MAX)
+		return -EPROTO;
 	put_bcc_le(byte_count, pTargetSMB);
 
 	byte_count = pTargetSMB->smb_buf_length;
 	byte_count += total_in_buf2;
-
-	/* BB also add check that we are not beyond maximum buffer size */
-
+	/* don't allow buffer to overflow */
+	if (byte_count > CIFSMaxBufSize)
+		return -ENOBUFS;
 	pTargetSMB->smb_buf_length = byte_count;
+
+	memcpy(data_area_of_target, data_area_of_buf2, total_in_buf2);
 
 	if (remaining == total_in_buf2) {
 		cFYI(1, "found the last secondary response");
