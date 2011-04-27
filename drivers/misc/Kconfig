@@ -291,6 +291,10 @@ config STE
 config MTK23D
 	bool "MTK6223D modem control driver"
 	default n	
+
+config FM580X
+	bool "FM rda580x driver"
+	default n	
 	
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

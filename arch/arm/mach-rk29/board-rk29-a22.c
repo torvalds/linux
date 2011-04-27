@@ -1520,6 +1520,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 //	#endif	
 	},
 #endif
+#if defined (CONFIG_FM580X)
+	{
+		.type    		= "fm580x",
+		.addr           = 0x10,
+		.flags			= 0,
+	},
+#endif
+
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100",
