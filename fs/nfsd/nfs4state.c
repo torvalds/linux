@@ -1636,8 +1636,9 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		return nfserr_badsession;
 
 	status = nfsd4_map_bcts_dir(&bcts->dir);
-	nfsd4_new_conn(rqstp, cstate->session, bcts->dir);
-	return nfs_ok;
+	if (!status)
+		nfsd4_new_conn(rqstp, cstate->session, bcts->dir);
+	return status;
 }
 
 static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
