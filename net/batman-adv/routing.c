@@ -90,9 +90,7 @@ static void update_transtable(struct bat_priv *bat_priv,
 		/* Even if we received the crc into the OGM, we prefer
 		 * to recompute it to spot any possible inconsistency
 		 * in the global table */
-		spin_lock_bh(&bat_priv->tt_ghash_lock);
 		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
-		spin_unlock_bh(&bat_priv->tt_ghash_lock);
 		/* Roaming phase is over: tables are in sync again. I can
 		 * unset the flag */
 		orig_node->tt_poss_change = false;

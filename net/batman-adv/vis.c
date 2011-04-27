@@ -665,11 +665,12 @@ next:
 
 	hash = bat_priv->tt_local_hash;
 
-	spin_lock_bh(&bat_priv->tt_lhash_lock);
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(tt_local_entry, node, head, hash_entry) {
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(tt_local_entry, node, head,
+					 hash_entry) {
 			entry = (struct vis_info_entry *)
 					skb_put(info->skb_packet,
 						sizeof(*entry));
@@ -678,14 +679,12 @@ next:
 			entry->quality = 0; /* 0 means TT */
 			packet->entries++;
 
-			if (vis_packet_full(info)) {
-				spin_unlock_bh(&bat_priv->tt_lhash_lock);
-				return 0;
-			}
+			if (vis_packet_full(info))
+				goto unlock;
 		}
+		rcu_read_unlock();
 	}
 
-	spin_unlock_bh(&bat_priv->tt_lhash_lock);
 	return 0;
 
 unlock:

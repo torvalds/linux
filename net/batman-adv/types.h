@@ -184,8 +184,6 @@ struct bat_priv {
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
 	spinlock_t tt_changes_list_lock; /* protects tt_changes */
-	spinlock_t tt_lhash_lock; /* protects tt_local_hash */
-	spinlock_t tt_ghash_lock; /* protects tt_global_hash */
 	spinlock_t tt_req_list_lock; /* protects tt_req_list */
 	spinlock_t tt_roam_list_lock; /* protects tt_roam_list */
 	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
@@ -226,6 +224,8 @@ struct tt_local_entry {
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
 	char never_purge;
+	atomic_t refcount;
+	struct rcu_head rcu;
 	struct hlist_node hash_entry;
 };
 
@@ -235,6 +235,8 @@ struct tt_global_entry {
 	uint8_t ttvn;
 	uint8_t flags; /* only TT_GLOBAL_ROAM is used */
 	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+	atomic_t refcount;
+	struct rcu_head rcu;
 	struct hlist_node hash_entry; /* entry in the global table */
 };
 
