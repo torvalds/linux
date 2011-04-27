@@ -32,13 +32,13 @@ char debugfs_path[MAXPATHLEN];
 
 static struct event_symbol event_symbols[] = {
   { CHW(CPU_CYCLES),		"cpu-cycles",		"cycles"	},
+  { CHW(STALLED_CYCLES),	"stalled-cycles",	"idle-cycles"	},
   { CHW(INSTRUCTIONS),		"instructions",		""		},
   { CHW(CACHE_REFERENCES),	"cache-references",	""		},
   { CHW(CACHE_MISSES),		"cache-misses",		""		},
   { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
   { CHW(BRANCH_MISSES),		"branch-misses",	""		},
   { CHW(BUS_CYCLES),		"bus-cycles",		""		},
-  { CHW(STALLED_CYCLES),	"stalled-cycles",	""		},
 
   { CSW(CPU_CLOCK),		"cpu-clock",		""		},
   { CSW(TASK_CLOCK),		"task-clock",		""		},
@@ -54,9 +54,9 @@ static struct event_symbol event_symbols[] = {
 #define __PERF_EVENT_FIELD(config, name) \
 	((config & PERF_EVENT_##name##_MASK) >> PERF_EVENT_##name##_SHIFT)
 
-#define PERF_EVENT_RAW(config)	__PERF_EVENT_FIELD(config, RAW)
+#define PERF_EVENT_RAW(config)		__PERF_EVENT_FIELD(config, RAW)
 #define PERF_EVENT_CONFIG(config)	__PERF_EVENT_FIELD(config, CONFIG)
-#define PERF_EVENT_TYPE(config)	__PERF_EVENT_FIELD(config, TYPE)
+#define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
 static const char *hw_event_names[] = {
@@ -67,6 +67,7 @@ static const char *hw_event_names[] = {
 	"branches",
 	"branch-misses",
 	"bus-cycles",
+	"stalled-cycles",
 };
 
 static const char *sw_event_names[] = {
@@ -308,7 +309,7 @@ const char *__event_name(int type, u64 config)
 
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		if (config < PERF_COUNT_HW_MAX)
+		if (config < PERF_COUNT_HW_MAX && hw_event_names[config])
 			return hw_event_names[config];
 		return "unknown-hardware";
 
@@ -334,7 +335,7 @@ const char *__event_name(int type, u64 config)
 	}
 
 	case PERF_TYPE_SOFTWARE:
-		if (config < PERF_COUNT_SW_MAX)
+		if (config < PERF_COUNT_SW_MAX && sw_event_names[config])
 			return sw_event_names[config];
 		return "unknown-software";
 
