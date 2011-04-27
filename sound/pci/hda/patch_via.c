@@ -1021,6 +1021,11 @@ static int via_smart51_build(struct via_spec *spec)
 	hda_nid_t nid;
 	int i;
 
+	if (!cfg)
+		return 0;
+	if (cfg->line_outs > 2)
+		return 0;
+
 	knew = via_clone_control(spec, &via_smart51_mixer[0]);
 	if (knew == NULL)
 		return -ENOMEM;
