@@ -45,7 +45,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 /* Sensor Driver Configuration */
 #define SENSOR_NAME RK29_CAM_SENSOR_S5K6AA
-#define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A
+#define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A 
 #define SENSOR_ID 0x06aa
 #define SENSOR_ID_REG SEQUENCE_END//0x015a
 #define SENSOR_RESET_REG SEQUENCE_END
@@ -3021,10 +3021,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
 	return -1;
+#else
+    return 0;
+#endif
+
 }
 
 /* sensor register write */
@@ -3276,7 +3279,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
-    int ret,pid = 0;
+    int ret;
+    u16 pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
@@ -4021,7 +4025,7 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 }
 #endif
 #if CONFIG_SENSOR_Flash
-static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
@@ -4450,7 +4454,6 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		sensor->info_priv.enable = 0;
 	}
 
-sensor_s_stream_end:
 	return 0;
 }
 /* Interface active, can use i2c. If it fails, it can indeed mean, that
@@ -4520,7 +4523,10 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-    int ret = 0,i;
+    int ret = 0;
+#if CONFIG_SENSOR_Flash	
+    int i;
+#endif
 
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)

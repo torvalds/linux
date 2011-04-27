@@ -1234,10 +1234,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
+    
 	return 0;
 sensor_task_lock_err:
-	return -1;
+	return -1;    
+#else
+    return 0;
+#endif
 }
 
 static int sensor_read(struct i2c_client *client, u16 reg, u16 *val);
@@ -2445,11 +2448,9 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
     struct i2c_client *client = sd->priv;
+    const struct v4l2_queryctrl *qctrl;   
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
-    const struct v4l2_queryctrl *qctrl;
-
-
     qctrl = soc_camera_find_qctrl(&sensor_ops, ctrl->id);
 
     if (!qctrl)
@@ -2618,7 +2619,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
     const struct v4l2_queryctrl *qctrl;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
-    int val_offset;
+    int val_offset;      
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);
 
@@ -2818,7 +2819,6 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		sensor->info_priv.enable = 0;
 	}
 
-sensor_s_stream_end:
 	return 0;
 }
 
@@ -2829,6 +2829,9 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 {
     int ret=0;
     struct sensor *sensor = to_sensor(client);
+#if (SENSOR_ID_REG != SEQUENCE_END)
+    u16 pid;
+#endif
 
     /* We must have a parent by now. And it cannot be a wrong one.
      * So this entire test is completely redundant. */
@@ -2859,7 +2862,6 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 
 	/* check if it is an sensor sensor */
 #if (SENSOR_ID_REG != SEQUENCE_END)
-    u16 pid;
     ret = sensor_read(client, SENSOR_ID_REG, &pid);
     if (ret != 0) {
         SENSOR_TR("read chip id failed\n");

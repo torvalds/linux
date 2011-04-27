@@ -1481,10 +1481,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
 	return -1;
+#else
+    return 0;
+#endif
+
 }
 
 /* sensor register write */
@@ -1568,7 +1571,9 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err = 0, cnt;
     int i = 0;
+#if CONFIG_SENSOR_I2C_RDWRCHK    
 	char valchk;
+#endif
 
 	cnt = 0;
 	if (sensor_task_lock(client, 1) < 0)
@@ -2377,12 +2382,8 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 }
 #endif
 #if CONFIG_SENSOR_Flash
-static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
-{
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct sensor *sensor = to_sensor(client);
-	const struct v4l2_queryctrl *qctrl_info;
-    
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{    
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
         if (value == 3) {       /* ddl@rock-chips.com: torch */
             sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
