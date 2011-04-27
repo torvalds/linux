@@ -46,6 +46,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
+#include "util/color.h"
 #include "util/header.h"
 #include "util/cpumap.h"
 #include "util/thread.h"
@@ -426,6 +427,29 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 		fprintf(stderr, " # %8.3f CPUs utilized          ", avg / avg_stats(&walltime_nsecs_stats));
 }
 
+static void print_stalled_cycles(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_cycles_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 75.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 50.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 25.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #   ");
+	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " of all cycles are idle ");
+}
+
 static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double total, ratio = 0.0;
@@ -488,12 +512,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		fprintf(stderr, " # %8.3f %% of all cache refs    ", ratio);
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES)) {
-		total = avg_stats(&runtime_cycles_stats[cpu]);
-
-		if (total)
-			ratio = avg / total * 100.0;
-
-		fprintf(stderr, " #   %5.2f%% of all cycles are idle ", ratio);
+		print_stalled_cycles(cpu, evsel, avg);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
@@ -508,6 +527,8 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 			ratio = 1000.0 * avg / total;
 
 		fprintf(stderr, " # %8.3f M/sec                  ", ratio);
+	} else {
+		fprintf(stderr, "                                   ");
 	}
 }
 
