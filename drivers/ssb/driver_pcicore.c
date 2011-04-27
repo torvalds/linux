@@ -460,16 +460,23 @@ static void ssb_pcicore_pci_setup_workarounds(struct ssb_pcicore *pc)
 
 static void ssb_pcicore_pcie_setup_workarounds(struct ssb_pcicore *pc)
 {
-	struct ssb_device *pdev = pc->dev;
 	u32 tmp;
+	u8 rev = pc->dev->id.revision;
 
-	if ((pdev->id.revision == 0) || (pdev->id.revision == 1)) {
+	if (rev == 0 || rev == 1) {
 		/* TLP Workaround register. */
 		tmp = ssb_pcie_read(pc, 0x4);
 		tmp |= 0x8;
 		ssb_pcie_write(pc, 0x4, tmp);
 	}
-	if (pdev->id.revision == 0) {
+	if (rev == 1) {
+		/* DLLP Link Control register. */
+		tmp = ssb_pcie_read(pc, 0x100);
+		tmp |= 0x40;
+		ssb_pcie_write(pc, 0x100, tmp);
+	}
+
+	if (rev == 0) {
 		const u8 serdes_rx_device = 0x1F;
 
 		ssb_pcie_mdio_write(pc, serdes_rx_device,
@@ -478,11 +485,20 @@ static void ssb_pcicore_pcie_setup_workarounds(struct ssb_pcicore *pc)
 					6 /* CDR */, 0x0100);
 		ssb_pcie_mdio_write(pc, serdes_rx_device,
 					7 /* CDR BW */, 0x1466);
-	} else if (pdev->id.revision == 1) {
-		/* DLLP Link Control register. */
-		tmp = ssb_pcie_read(pc, 0x100);
-		tmp |= 0x40;
-		ssb_pcie_write(pc, 0x100, tmp);
+	} else if (rev == 3 || rev == 4 || rev == 5) {
+		/* TODO: DLLP Power Management Threshold */
+		ssb_pcicore_serdes_workaround(pc);
+		/* TODO: ASPM */
+	} else if (rev == 7) {
+		/* TODO: No PLL down */
+	}
+
+	if (rev >= 6) {
+		/* Miscellaneous Configuration Fixup */
+		tmp = pcicore_read16(pc, SSB_PCICORE_SPROM(5));
+		if (!(tmp & 0x8000))
+			pcicore_write16(pc, SSB_PCICORE_SPROM(5),
+					tmp | 0x8000);
 	}
 }
 
@@ -513,7 +529,10 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 	if (!pc->hostmode)
 		ssb_pcicore_init_clientmode(pc);
 
+	/* Additional always once-executed workarounds */
 	ssb_pcicore_serdes_workaround(pc);
+	/* TODO: ASPM */
+	/* TODO: Clock Request Update */
 }
 
 static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address)
