@@ -157,6 +157,7 @@ static double stddev_stats(struct stats *stats)
 struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
 struct stats			runtime_cycles_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
+struct stats			runtime_cacherefs_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
 static int create_perf_stat_counter(struct perf_evsel *evsel)
@@ -219,10 +220,12 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	 */
 	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
 		update_stats(&runtime_nsecs_stats[0], count[0]);
-	if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
+	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[0], count[0]);
-	if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
+	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 		update_stats(&runtime_branches_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
+		update_stats(&runtime_cacherefs_stats[0], count[0]);
 
 	return 0;
 }
@@ -404,7 +407,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 		return;
 
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		fprintf(stderr, " # %10.3f CPUs ",
+		fprintf(stderr, " # %10.3f CPUs",
 				avg / avg_stats(&walltime_nsecs_stats));
 }
 
@@ -446,6 +449,15 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_branches_stats[cpu]);
+
+		if (total)
+			ratio = avg * 100 / total;
+
+		fprintf(stderr, " # %10.3f %%", ratio);
+
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
+			runtime_cacherefs_stats[cpu].n != 0) {
+		total = avg_stats(&runtime_cacherefs_stats[cpu]);
 
 		if (total)
 			ratio = avg * 100 / total;
