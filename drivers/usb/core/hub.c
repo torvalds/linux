@@ -2151,6 +2151,42 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 	return status;
 }
 
+/* Warm reset a USB3 protocol port */
+static int hub_port_warm_reset(struct usb_hub *hub, int port)
+{
+	int ret;
+	u16 portstatus, portchange;
+
+	if (!hub_is_superspeed(hub->hdev)) {
+		dev_err(hub->intfdev, "only USB3 hub support warm reset\n");
+		return -EINVAL;
+	}
+
+	/* Warm reset the port */
+	ret = set_port_feature(hub->hdev,
+				port, USB_PORT_FEAT_BH_PORT_RESET);
+	if (ret) {
+		dev_err(hub->intfdev, "cannot warm reset port %d\n", port);
+		return ret;
+	}
+
+	msleep(20);
+	ret = hub_port_status(hub, port, &portstatus, &portchange);
+
+	if (portchange & USB_PORT_STAT_C_RESET)
+		clear_port_feature(hub->hdev, port, USB_PORT_FEAT_C_RESET);
+
+	if (portchange & USB_PORT_STAT_C_BH_RESET)
+		clear_port_feature(hub->hdev, port,
+					USB_PORT_FEAT_C_BH_PORT_RESET);
+
+	if (portchange & USB_PORT_STAT_C_LINK_STATE)
+		clear_port_feature(hub->hdev, port,
+					USB_PORT_FEAT_C_PORT_LINK_STATE);
+
+	return ret;
+}
+
 /* Check if a port is power on */
 static int port_is_power_on(struct usb_hub *hub, unsigned portstatus)
 {
@@ -3517,6 +3553,16 @@ static void hub_events(void)
 					i);
 				clear_port_feature(hub->hdev, i,
 						USB_PORT_FEAT_C_PORT_CONFIG_ERROR);
+			}
+
+			/* Warm reset a USB3 protocol port if it's in
+			 * SS.Inactive state.
+			 */
+			if (hub_is_superspeed(hub->hdev) &&
+				(portstatus & USB_PORT_STAT_LINK_STATE)
+					== USB_SS_PORT_LS_SS_INACTIVE) {
+				dev_dbg(hub_dev, "warm reset port %d\n", i);
+				hub_port_warm_reset(hub, i);
 			}
 
 			if (connect_change)
