@@ -1493,7 +1493,7 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 	et_cmd->maxrxpkt = 511;
 
 	if (nesadapter->OneG_Mode) {
-		et_cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(et_cmd, SPEED_1000);
 		if (phy_type == NES_PHY_TYPE_PUMA_1G) {
 			et_cmd->supported   = SUPPORTED_1000baseT_Full;
 			et_cmd->advertising = ADVERTISED_1000baseT_Full;
@@ -1532,7 +1532,7 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 		et_cmd->advertising = ADVERTISED_10000baseT_Full;
 		et_cmd->phy_address = mac_index;
 	}
-	et_cmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(et_cmd, SPEED_10000);
 	et_cmd->autoneg = AUTONEG_DISABLE;
 	return 0;
 }

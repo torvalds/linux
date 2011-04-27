@@ -104,10 +104,10 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	ecmd->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(adapter->netdev)) {
-		ecmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

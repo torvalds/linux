@@ -178,11 +178,11 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		if ((status & E1000_STATUS_SPEED_1000) ||
 		    hw->phy.media_type != e1000_media_type_copper)
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 
 		if ((status & E1000_STATUS_FD) ||
 		    hw->phy.media_type != e1000_media_type_copper)
@@ -190,7 +190,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

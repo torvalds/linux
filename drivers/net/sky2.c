@@ -3413,10 +3413,10 @@ static int sky2_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	ecmd->phy_address = PHY_ADDR_MARV;
 	if (sky2_is_copper(hw)) {
 		ecmd->port = PORT_TP;
-		ecmd->speed = sky2->speed;
+		ethtool_cmd_speed_set(ecmd, sky2->speed);
 		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_TP;
 	} else {
-		ecmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		ecmd->port = PORT_FIBRE;
 		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_FIBRE;
 	}

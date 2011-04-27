@@ -5414,10 +5414,10 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(sp->dev)) {
-		info->speed = 10000;
+		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		info->speed = -1;
+		ethtool_cmd_speed_set(info, -1);
 		info->duplex = -1;
 	}
 

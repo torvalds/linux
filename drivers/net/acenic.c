@@ -2658,15 +2658,15 @@ static int ace_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	link = readl(&regs->GigLnkState);
 	if (link & LNK_1000MB)
-		ecmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
 	else {
 		link = readl(&regs->FastLnkState);
 		if (link & LNK_100MB)
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else if (link & LNK_10MB)
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 		else
-			ecmd->speed = 0;
+			ethtool_cmd_speed_set(ecmd, 0);
 	}
 	if (link & LNK_FULL_DUPLEX)
 		ecmd->duplex = DUPLEX_FULL;

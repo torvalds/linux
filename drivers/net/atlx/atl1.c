@@ -3231,13 +3231,13 @@ static int atl1_get_settings(struct net_device *netdev,
 	if (netif_carrier_ok(adapter->netdev)) {
 		u16 link_speed, link_duplex;
 		atl1_get_speed_and_duplex(hw, &link_speed, &link_duplex);
-		ecmd->speed = link_speed;
+		ethtool_cmd_speed_set(ecmd, link_speed);
 		if (link_duplex == FULL_DUPLEX)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 	if (hw->media_type == MEDIA_TYPE_AUTO_SENSOR ||

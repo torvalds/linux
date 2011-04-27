@@ -1518,15 +1518,15 @@ static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 	switch (de->media_type) {
 	case DE_MEDIA_AUI:
 		ecmd->port = PORT_AUI;
-		ecmd->speed = 5;
+		ethtool_cmd_speed_set(ecmd, 5);
 		break;
 	case DE_MEDIA_BNC:
 		ecmd->port = PORT_BNC;
-		ecmd->speed = 2;
+		ethtool_cmd_speed_set(ecmd, 2);
 		break;
 	default:
 		ecmd->port = PORT_TP;
-		ecmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(ecmd, SPEED_10);
 		break;
 	}
 

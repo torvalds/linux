@@ -121,22 +121,25 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 		if (nego & (ADVERTISED_1000baseT_Full |
 			    ADVERTISED_1000baseT_Half)) {
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 			ecmd->duplex = !!(nego & ADVERTISED_1000baseT_Full);
 		} else if (nego & (ADVERTISED_100baseT_Full |
 				   ADVERTISED_100baseT_Half)) {
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 			ecmd->duplex = !!(nego & ADVERTISED_100baseT_Full);
 		} else {
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 			ecmd->duplex = !!(nego & ADVERTISED_10baseT_Full);
 		}
 	} else {
 		ecmd->autoneg = AUTONEG_DISABLE;
 
-		ecmd->speed = ((bmcr & BMCR_SPEED1000 &&
-				(bmcr & BMCR_SPEED100) == 0) ? SPEED_1000 :
-			       (bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10);
+		ethtool_cmd_speed_set(ecmd,
+				      ((bmcr & BMCR_SPEED1000 &&
+					(bmcr & BMCR_SPEED100) == 0) ?
+				       SPEED_1000 :
+				       ((bmcr & BMCR_SPEED100) ?
+					SPEED_100 : SPEED_10)));
 		ecmd->duplex = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 

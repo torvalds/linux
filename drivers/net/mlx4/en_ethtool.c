@@ -265,10 +265,10 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	trans_type = priv->port_state.transciver;
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = priv->port_state.link_speed;
+		ethtool_cmd_speed_set(cmd, priv->port_state.link_speed);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 

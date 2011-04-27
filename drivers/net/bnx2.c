@@ -6696,17 +6696,16 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (bp->autoneg & AUTONEG_SPEED) {
 		cmd->autoneg = AUTONEG_ENABLE;
-	}
-	else {
+	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 	}
 
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = bp->line_speed;
+		ethtool_cmd_speed_set(cmd, bp->line_speed);
 		cmd->duplex = bp->duplex;
 	}
 	else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 	spin_unlock_bh(&bp->phy_lock);

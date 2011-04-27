@@ -1444,13 +1444,13 @@ mv643xx_eth_get_settings_phyless(struct mv643xx_eth_private *mp,
 	cmd->advertising = ADVERTISED_MII;
 	switch (port_status & PORT_SPEED_MASK) {
 	case PORT_SPEED_10:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	case PORT_SPEED_100:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	case PORT_SPEED_1000:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	default:
 		cmd->speed = -1;

@@ -6844,7 +6844,7 @@ static int niu_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->supported = lp->supported;
 	cmd->advertising = lp->active_advertising;
 	cmd->autoneg = lp->active_autoneg;
-	cmd->speed = lp->active_speed;
+	ethtool_cmd_speed_set(cmd, lp->active_speed);
 	cmd->duplex = lp->active_duplex;
 	cmd->port = (np->flags & NIU_FLAGS_FIBER) ? PORT_FIBRE : PORT_TP;
 	cmd->transceiver = (np->flags & NIU_FLAGS_XCVR_SERDES) ?

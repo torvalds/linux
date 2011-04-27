@@ -2820,7 +2820,7 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u32 tmp;
 
 	ecmd->port        = dev->if_port;
-	ecmd->speed       = np->speed;
+	ethtool_cmd_speed_set(ecmd, np->speed);
 	ecmd->duplex      = np->duplex;
 	ecmd->autoneg     = np->autoneg;
 	ecmd->advertising = 0;
@@ -2878,9 +2878,9 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		tmp = mii_nway_result(
 			np->advertising & mdio_read(dev, MII_LPA));
 		if (tmp == LPA_100FULL || tmp == LPA_100HALF)
-			ecmd->speed  = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed  = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 		if (tmp == LPA_100FULL || tmp == LPA_10FULL)
 			ecmd->duplex = DUPLEX_FULL;
 		else

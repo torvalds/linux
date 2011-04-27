@@ -513,7 +513,7 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 	ecmd->supported =
 		mcdi_to_ethtool_cap(phy_cfg->media, phy_cfg->supported_cap);
 	ecmd->advertising = efx->link_advertising;
-	ecmd->speed = efx->link_state.speed;
+	ethtool_cmd_speed_set(ecmd, efx->link_state.speed);
 	ecmd->duplex = efx->link_state.fd;
 	ecmd->port = mcdi_to_ethtool_media(phy_cfg->media);
 	ecmd->phy_address = phy_cfg->port;

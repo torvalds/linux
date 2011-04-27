@@ -710,7 +710,7 @@ static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				SUPPORTED_FIBRE);
 	cmd->advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg |
 				ADVERTISED_FIBRE);
-	cmd->speed = SPEED_1000;
+	ethtool_cmd_speed_set(cmd, SPEED_1000);
 	cmd->duplex = DUPLEX_FULL;
 	cmd->port = PORT_FIBRE;
 	cmd->phy_address = 0;

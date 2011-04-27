@@ -256,7 +256,7 @@ void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 	if (ret)
 		pr_err("Error: mii_ethtool_gset\n");
 
-	cmd.speed = hw->mac.link_speed;
+	ethtool_cmd_speed_set(&cmd, hw->mac.link_speed);
 	cmd.duplex = hw->mac.link_duplex;
 	cmd.advertising = hw->phy.autoneg_advertised;
 	cmd.autoneg = hw->mac.autoneg;

@@ -58,7 +58,7 @@ spider_net_ethtool_get_settings(struct net_device *netdev,
 	cmd->advertising = (ADVERTISED_1000baseT_Full |
 			     ADVERTISED_FIBRE);
 	cmd->port = PORT_FIBRE;
-	cmd->speed = card->phy.speed;
+	ethtool_cmd_speed_set(cmd, card->phy.speed);
 	cmd->duplex = DUPLEX_FULL;
 
 	return 0;

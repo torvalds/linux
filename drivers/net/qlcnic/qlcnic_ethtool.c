@@ -166,7 +166,7 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 				     ADVERTISED_1000baseT_Half |
 				     ADVERTISED_1000baseT_Full);
 
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
@@ -183,15 +183,15 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		}
 
 		if (netif_running(dev) && adapter->has_link_events) {
-			ecmd->speed = adapter->link_speed;
+			ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 			ecmd->autoneg = adapter->link_autoneg;
 			ecmd->duplex = adapter->link_duplex;
 			goto skip;
 		}
 
 		val = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
-		ecmd->speed = P3P_LINK_SPEED_MHZ *
-			P3P_LINK_SPEED_VAL(pcifn, val);
+		ethtool_cmd_speed_set(ecmd, P3P_LINK_SPEED_MHZ *
+				      P3P_LINK_SPEED_VAL(pcifn, val));
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	} else

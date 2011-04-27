@@ -1436,7 +1436,8 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->supported = from_fw_linkcaps(p->port_type, p->link_cfg.supported);
 	cmd->advertising = from_fw_linkcaps(p->port_type,
 					    p->link_cfg.advertising);
-	cmd->speed = netif_carrier_ok(dev) ? p->link_cfg.speed : 0;
+	ethtool_cmd_speed_set(cmd,
+			      netif_carrier_ok(dev) ? p->link_cfg.speed : 0);
 	cmd->duplex = DUPLEX_FULL;
 	cmd->autoneg = p->link_cfg.autoneg;
 	cmd->maxtxpkt = 0;

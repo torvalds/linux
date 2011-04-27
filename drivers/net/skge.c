@@ -303,7 +303,7 @@ static int skge_get_settings(struct net_device *dev,
 
 	ecmd->advertising = skge->advertising;
 	ecmd->autoneg = skge->autoneg;
-	ecmd->speed = skge->speed;
+	ethtool_cmd_speed_set(ecmd, skge->speed);
 	ecmd->duplex = skge->duplex;
 	return 0;
 }

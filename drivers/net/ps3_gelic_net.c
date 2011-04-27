@@ -1243,17 +1243,17 @@ static int gelic_ether_get_settings(struct net_device *netdev,
 
 	switch (card->ether_port_status & GELIC_LV1_ETHER_SPEED_MASK) {
 	case GELIC_LV1_ETHER_SPEED_10:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	case GELIC_LV1_ETHER_SPEED_100:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	case GELIC_LV1_ETHER_SPEED_1000:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	default:
 		pr_info("%s: speed unknown\n", __func__);
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	}
 

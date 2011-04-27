@@ -219,7 +219,7 @@ static int efx_ethtool_get_settings(struct net_device *net_dev,
 	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (LOOPBACK_INTERNAL(efx)) {
-		ecmd->speed = link_state->speed;
+		ethtool_cmd_speed_set(ecmd, link_state->speed);
 		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 

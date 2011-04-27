@@ -1422,7 +1422,7 @@ static int rtl8169_gset_tbi(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->advertising = (status & TBINwEnable) ?  ADVERTISED_Autoneg : 0;
 	cmd->autoneg = !!(status & TBINwEnable);
 
-	cmd->speed = SPEED_1000;
+	ethtool_cmd_speed_set(cmd, SPEED_1000);
 	cmd->duplex = DUPLEX_FULL; /* Always set */
 
 	return 0;

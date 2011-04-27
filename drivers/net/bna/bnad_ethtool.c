@@ -237,10 +237,10 @@ bnad_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	cmd->phy_address = 0;
 
 	if (netif_carrier_ok(netdev)) {
-		cmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(cmd, SPEED_10000);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 	cmd->transceiver = XCVR_EXTERNAL;

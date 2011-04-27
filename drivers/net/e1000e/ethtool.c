@@ -122,6 +122,7 @@ static int e1000_get_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u32 speed;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
@@ -159,23 +160,23 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	ecmd->speed = -1;
+	speed = -1;
 	ecmd->duplex = -1;
 
 	if (netif_running(netdev)) {
 		if (netif_carrier_ok(netdev)) {
-			ecmd->speed = adapter->link_speed;
+			speed = adapter->link_speed;
 			ecmd->duplex = adapter->link_duplex - 1;
 		}
 	} else {
 		u32 status = er32(STATUS);
 		if (status & E1000_STATUS_LU) {
 			if (status & E1000_STATUS_SPEED_1000)
-				ecmd->speed = 1000;
+				speed = SPEED_1000;
 			else if (status & E1000_STATUS_SPEED_100)
-				ecmd->speed = 100;
+				speed = SPEED_100;
 			else
-				ecmd->speed = 10;
+				speed = SPEED_10;
 
 			if (status & E1000_STATUS_FD)
 				ecmd->duplex = DUPLEX_FULL;
@@ -184,6 +185,7 @@ static int e1000_get_settings(struct net_device *netdev,
 		}
 	}
 
+	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
 			 hw->mac.autoneg) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 

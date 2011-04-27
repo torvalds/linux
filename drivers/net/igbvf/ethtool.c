@@ -90,18 +90,18 @@ static int igbvf_get_settings(struct net_device *netdev,
 	status = er32(STATUS);
 	if (status & E1000_STATUS_LU) {
 		if (status & E1000_STATUS_SPEED_1000)
-			ecmd->speed = 1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = 100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed = 10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 
 		if (status & E1000_STATUS_FD)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

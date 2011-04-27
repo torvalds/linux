@@ -460,7 +460,7 @@ tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
 	if (LOOPBACK_EXTERNAL(efx))
-		ecmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
 }
 
 static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)

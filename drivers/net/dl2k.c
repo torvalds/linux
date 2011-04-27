@@ -1189,10 +1189,10 @@ static int rio_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->transceiver = XCVR_INTERNAL;
 	}
 	if ( np->link_status ) {
-		cmd->speed = np->speed;
+		ethtool_cmd_speed_set(cmd, np->speed);
 		cmd->duplex = np->full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 	if ( np->an_enable)

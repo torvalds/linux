@@ -424,10 +424,10 @@ vmxnet3_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	ecmd->transceiver = XCVR_INTERNAL;
 
 	if (adapter->link_speed) {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 	return 0;

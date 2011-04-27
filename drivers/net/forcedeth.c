@@ -3955,6 +3955,7 @@ static int nv_set_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)
 static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct fe_priv *np = netdev_priv(dev);
+	u32 speed;
 	int adv;
 
 	spin_lock_irq(&np->lock);
@@ -3974,23 +3975,26 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (netif_carrier_ok(dev)) {
 		switch (np->linkspeed & (NVREG_LINKSPEED_MASK)) {
 		case NVREG_LINKSPEED_10:
-			ecmd->speed = SPEED_10;
+			speed = SPEED_10;
 			break;
 		case NVREG_LINKSPEED_100:
-			ecmd->speed = SPEED_100;
+			speed = SPEED_100;
 			break;
 		case NVREG_LINKSPEED_1000:
-			ecmd->speed = SPEED_1000;
+			speed = SPEED_1000;
+			break;
+		default:
+			speed = -1;
 			break;
 		}
 		ecmd->duplex = DUPLEX_HALF;
 		if (np->duplex)
 			ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		speed = -1;
 		ecmd->duplex = -1;
 	}
-
+	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = np->autoneg;
 
 	ecmd->advertising = ADVERTISED_MII;

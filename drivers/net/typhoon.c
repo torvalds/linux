@@ -1050,7 +1050,7 @@ typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	/* need to get stats to make these link speed/duplex valid */
 	typhoon_do_get_stats(tp);
-	cmd->speed = tp->speed;
+	ethtool_cmd_speed_set(cmd, tp->speed);
 	cmd->duplex = tp->duplex;
 	cmd->phy_address = 0;
 	cmd->transceiver = XCVR_INTERNAL;

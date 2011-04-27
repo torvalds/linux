@@ -1346,7 +1346,8 @@ static int bcm_enet_get_settings(struct net_device *dev,
 		return phy_ethtool_gset(priv->phydev, cmd);
 	} else {
 		cmd->autoneg = 0;
-		cmd->speed = (priv->force_speed_100) ? SPEED_100 : SPEED_10;
+		ethtool_cmd_speed_set(cmd, ((priv->force_speed_100)
+					    ? SPEED_100 : SPEED_10));
 		cmd->duplex = (priv->force_duplex_full) ?
 			DUPLEX_FULL : DUPLEX_HALF;
 		cmd->supported = ADVERTISED_10baseT_Half  |

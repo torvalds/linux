@@ -158,7 +158,7 @@ static int e1000_get_settings(struct net_device *netdev,
 
 		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
 		                                   &adapter->link_duplex);
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 
 		/* unfortunately FULL_DUPLEX != DUPLEX_FULL
 		 *          and HALF_DUPLEX != DUPLEX_HALF */
@@ -168,7 +168,7 @@ static int e1000_get_settings(struct net_device *netdev,
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

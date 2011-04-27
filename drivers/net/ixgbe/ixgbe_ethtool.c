@@ -288,20 +288,20 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	if (link_up) {
 		switch (link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
-			ecmd->speed = SPEED_10000;
+			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 			break;
 		case IXGBE_LINK_SPEED_100_FULL:
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 			break;
 		default:
 			break;
 		}
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

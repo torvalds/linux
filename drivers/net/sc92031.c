@@ -1173,7 +1173,8 @@ static int sc92031_ethtool_get_settings(struct net_device *dev,
 	if (phy_ctrl & PhyCtrlAne)
 		cmd->advertising |= ADVERTISED_Autoneg;
 
-	cmd->speed = (output_status & 0x2) ? SPEED_100 : SPEED_10;
+	ethtool_cmd_speed_set(cmd,
+			      (output_status & 0x2) ? SPEED_100 : SPEED_10);
 	cmd->duplex = (output_status & 0x4) ? DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = PORT_MII;
 	cmd->phy_address = phy_address;

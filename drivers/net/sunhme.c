@@ -2401,6 +2401,7 @@ static void happy_meal_set_multicast(struct net_device *dev)
 static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct happy_meal *hp = netdev_priv(dev);
+	u32 speed;
 
 	cmd->supported =
 		(SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
@@ -2420,10 +2421,9 @@ static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (hp->sw_bmcr & BMCR_ANENABLE) {
 		cmd->autoneg = AUTONEG_ENABLE;
-		cmd->speed =
-			(hp->sw_lpa & (LPA_100HALF | LPA_100FULL)) ?
-			SPEED_100 : SPEED_10;
-		if (cmd->speed == SPEED_100)
+		speed = ((hp->sw_lpa & (LPA_100HALF | LPA_100FULL)) ?
+			 SPEED_100 : SPEED_10);
+		if (speed == SPEED_100)
 			cmd->duplex =
 				(hp->sw_lpa & (LPA_100FULL)) ?
 				DUPLEX_FULL : DUPLEX_HALF;
@@ -2433,13 +2433,12 @@ static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				DUPLEX_FULL : DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
-		cmd->speed =
-			(hp->sw_bmcr & BMCR_SPEED100) ?
-			SPEED_100 : SPEED_10;
+		speed = (hp->sw_bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10;
 		cmd->duplex =
 			(hp->sw_bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
 	}
+	ethtool_cmd_speed_set(cmd, speed);
 	return 0;
 }
 

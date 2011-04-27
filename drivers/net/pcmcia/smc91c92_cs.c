@@ -1860,7 +1860,7 @@ static int smc_netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
     tmp = inw(ioaddr + CONFIG);
     ecmd->port = (tmp & CFG_AUI_SELECT) ? PORT_AUI : PORT_TP;
     ecmd->transceiver = XCVR_INTERNAL;
-    ecmd->speed = SPEED_10;
+    ethtool_cmd_speed_set(ecmd, SPEED_10);
     ecmd->phy_address = ioaddr + MGMT;
 
     SMC_SELECT_BANK(0);

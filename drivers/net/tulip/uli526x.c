@@ -945,12 +945,12 @@ ULi_ethtool_gset(struct uli526x_board_info *db, struct ethtool_cmd *ecmd)
 
 	ecmd->transceiver = XCVR_EXTERNAL;
 
-	ecmd->speed = 10;
+	ethtool_cmd_speed_set(ecmd, SPEED_10);
 	ecmd->duplex = DUPLEX_HALF;
 
 	if(db->op_mode==ULI526X_100MHF || db->op_mode==ULI526X_100MFD)
 	{
-		ecmd->speed = 100;
+		ethtool_cmd_speed_set(ecmd, SPEED_100);
 	}
 	if(db->op_mode==ULI526X_10MFD || db->op_mode==ULI526X_100MFD)
 	{
@@ -958,7 +958,7 @@ ULi_ethtool_gset(struct uli526x_board_info *db, struct ethtool_cmd *ecmd)
 	}
 	if(db->link_failed)
 	{
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 

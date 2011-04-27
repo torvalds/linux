@@ -4606,18 +4606,17 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (bmcr & BMCR_ANENABLE) {
 		cmd->advertising |= ADVERTISED_Autoneg;
 		cmd->autoneg = AUTONEG_ENABLE;
-		cmd->speed = ((speed == 10) ?
-			      SPEED_10 :
-			      ((speed == 1000) ?
-			       SPEED_1000 : SPEED_100));
+		ethtool_cmd_speed_set(cmd, ((speed == 10) ?
+					    SPEED_10 :
+					    ((speed == 1000) ?
+					     SPEED_1000 : SPEED_100)));
 		cmd->duplex = full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
-		cmd->speed =
-			(bmcr & CAS_BMCR_SPEED1000) ?
-			SPEED_1000 :
-			((bmcr & BMCR_SPEED100) ? SPEED_100:
-			 SPEED_10);
+		ethtool_cmd_speed_set(cmd, ((bmcr & CAS_BMCR_SPEED1000) ?
+					    SPEED_1000 :
+					    ((bmcr & BMCR_SPEED100) ?
+					     SPEED_100 : SPEED_10)));
 		cmd->duplex =
 			(bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
@@ -4634,14 +4633,14 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * settings that we configured.
 		 */
 		if (cp->link_cntl & BMCR_ANENABLE) {
-			cmd->speed = 0;
+			ethtool_cmd_speed_set(cmd, 0);
 			cmd->duplex = 0xff;
 		} else {
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 			if (cp->link_cntl & BMCR_SPEED100) {
-				cmd->speed = SPEED_100;
+				ethtool_cmd_speed_set(cmd, SPEED_100);
 			} else if (cp->link_cntl & CAS_BMCR_SPEED1000) {
-				cmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(cmd, SPEED_1000);
 			}
 			cmd->duplex = (cp->link_cntl & BMCR_FULLDPLX)?
 				DUPLEX_FULL : DUPLEX_HALF;

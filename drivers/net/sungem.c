@@ -2642,7 +2642,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		/* Return current PHY settings */
 		spin_lock_irq(&gp->lock);
 		cmd->autoneg = gp->want_autoneg;
-		cmd->speed = gp->phy_mii.speed;
+		ethtool_cmd_speed_set(cmd, gp->phy_mii.speed);
 		cmd->duplex = gp->phy_mii.duplex;
 		cmd->advertising = gp->phy_mii.advertising;
 
@@ -2659,7 +2659,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			 SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 			 SUPPORTED_Autoneg);
 		cmd->advertising = cmd->supported;
-		cmd->speed = 0;
+		ethtool_cmd_speed_set(cmd, 0);
 		cmd->duplex = cmd->port = cmd->phy_address =
 			cmd->transceiver = cmd->autoneg = 0;
 
@@ -2673,7 +2673,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->advertising = cmd->supported;
 			cmd->transceiver = XCVR_INTERNAL;
 			if (gp->lstate == link_up)
-				cmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(cmd, SPEED_1000);
 			cmd->duplex = DUPLEX_FULL;
 			cmd->autoneg = 1;
 		}

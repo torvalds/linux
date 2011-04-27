@@ -288,7 +288,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	cmd->advertising = phydev->advertising;
 
-	cmd->speed = phydev->speed;
+	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
 	cmd->port = PORT_MII;
 	cmd->phy_address = phydev->addr;

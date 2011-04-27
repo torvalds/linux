@@ -34,6 +34,7 @@
 static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct ehea_port *port = netdev_priv(dev);
+	u32 speed;
 	int ret;
 
 	ret = ehea_sense_port_attr(port);
@@ -43,17 +44,29 @@ static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (netif_carrier_ok(dev)) {
 		switch (port->port_speed) {
-		case EHEA_SPEED_10M: cmd->speed = SPEED_10; break;
-		case EHEA_SPEED_100M: cmd->speed = SPEED_100; break;
-		case EHEA_SPEED_1G: cmd->speed = SPEED_1000; break;
-		case EHEA_SPEED_10G: cmd->speed = SPEED_10000; break;
+		case EHEA_SPEED_10M:
+			speed = SPEED_10;
+			break;
+		case EHEA_SPEED_100M:
+			speed = SPEED_100;
+			break;
+		case EHEA_SPEED_1G:
+			speed = SPEED_1000;
+			break;
+		case EHEA_SPEED_10G:
+			speed = SPEED_10000;
+			break;
+		default:
+			speed = -1;
+			break; /* BUG */
 		}
 		cmd->duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->speed = -1;
+		speed = ~0;
 		cmd->duplex = -1;
 	}
+	ethtool_cmd_speed_set(cmd, speed);
 
 	cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_1000baseT_Full
 		       | SUPPORTED_100baseT_Full |  SUPPORTED_100baseT_Half

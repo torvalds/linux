@@ -381,23 +381,23 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		be_link_status_update(adapter, link_up);
 		/* link_speed is in units of 10 Mbps */
 		if (link_speed) {
-			ecmd->speed = link_speed*10;
+			ethtool_cmd_speed_set(ecmd, link_speed*10);
 		} else {
 			switch (mac_speed) {
 			case PHY_LINK_SPEED_10MBPS:
-				ecmd->speed = SPEED_10;
+				ethtool_cmd_speed_set(ecmd, SPEED_10);
 				break;
 			case PHY_LINK_SPEED_100MBPS:
-				ecmd->speed = SPEED_100;
+				ethtool_cmd_speed_set(ecmd, SPEED_100);
 				break;
 			case PHY_LINK_SPEED_1GBPS:
-				ecmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(ecmd, SPEED_1000);
 				break;
 			case PHY_LINK_SPEED_10GBPS:
-				ecmd->speed = SPEED_10000;
+				ethtool_cmd_speed_set(ecmd, SPEED_10000);
 				break;
 			case PHY_LINK_SPEED_ZERO:
-				ecmd->speed = 0;
+				ethtool_cmd_speed_set(ecmd, 0);
 				break;
 			}
 		}
@@ -440,14 +440,14 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 
 		/* Save for future use */
-		adapter->link_speed = ecmd->speed;
+		adapter->link_speed = ethtool_cmd_speed(ecmd);
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
 		adapter->autoneg = ecmd->autoneg;
 		dma_free_coherent(&adapter->pdev->dev, phy_cmd.size, phy_cmd.va,
 				  phy_cmd.dma);
 	} else {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->port = adapter->port_type;
 		ecmd->transceiver = adapter->transceiver;
 		ecmd->autoneg = adapter->autoneg;

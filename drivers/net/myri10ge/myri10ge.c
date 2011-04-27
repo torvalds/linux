@@ -1644,7 +1644,7 @@ myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	int i;
 
 	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(cmd, SPEED_10000);
 	cmd->duplex = DUPLEX_FULL;
 
 	/*

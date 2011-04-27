@@ -117,7 +117,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		ecmd->port = PORT_TP;
 
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
@@ -134,7 +134,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		}
 
 		if (netif_running(dev) && adapter->has_link_events) {
-			ecmd->speed = adapter->link_speed;
+			ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 			ecmd->autoneg = adapter->link_autoneg;
 			ecmd->duplex = adapter->link_duplex;
 			goto skip;
@@ -146,10 +146,10 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			u16 pcifn = adapter->ahw.pci_func;
 
 			val = NXRD32(adapter, P3_LINK_SPEED_REG(pcifn));
-			ecmd->speed = P3_LINK_SPEED_MHZ *
-					P3_LINK_SPEED_VAL(pcifn, val);
+			ethtool_cmd_speed_set(ecmd, P3_LINK_SPEED_MHZ *
+					      P3_LINK_SPEED_VAL(pcifn, val));
 		} else
-			ecmd->speed = SPEED_10000;
+			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
