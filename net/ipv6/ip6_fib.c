@@ -394,10 +394,11 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	arg.net = net;
 	w->args = &arg;
 
+	rcu_read_lock();
 	for (h = s_h; h < FIB6_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv6.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb6_hlist) {
+		hlist_for_each_entry_rcu(tb, node, head, tb6_hlist) {
 			if (e < s_e)
 				goto next;
 			res = fib6_dump_table(tb, skb, cb);
@@ -408,6 +409,7 @@ next:
 		}
 	}
 out:
+	rcu_read_unlock();
 	cb->args[1] = e;
 	cb->args[0] = h;
 
