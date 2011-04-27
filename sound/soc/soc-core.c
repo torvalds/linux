@@ -1299,6 +1299,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai, *cpu_dai;
+	const char *platform_name;
 
 	if (rtd->complete)
 		return 1;
@@ -1351,13 +1352,18 @@ find_codec:
 			dai_link->codec_name);
 
 find_platform:
-	/* do we already have the CODEC DAI for this link ? */
-	if (rtd->platform) {
+	/* do we need a platform? */
+	if (rtd->platform)
 		goto out;
-	}
-	/* no, then find CPU DAI from registered DAIs*/
+
+	/* if there's no platform we match on the empty platform */
+	platform_name = dai_link->platform_name;
+	if (!platform_name)
+		platform_name = "snd-soc-dummy";
+
+	/* no, then find one from the set of registered platforms */
 	list_for_each_entry(platform, &platform_list, list) {
-		if (!strcmp(platform->name, dai_link->platform_name)) {
+		if (!strcmp(platform->name, platform_name)) {
 			rtd->platform = platform;
 			goto out;
 		}
