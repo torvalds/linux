@@ -382,6 +382,16 @@ static int run_perf_stat(int argc __used, const char **argv)
 	return WEXITSTATUS(status);
 }
 
+static void print_noise_pct(double total, double avg)
+{
+	double pct = 0.0;
+
+	if (avg)
+		pct = 100.0*total/avg;
+
+	fprintf(stderr, "  ( +-%6.2f%% )", pct);
+}
+
 static void print_noise(struct perf_evsel *evsel, double avg)
 {
 	struct perf_stat *ps;
@@ -390,8 +400,7 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 		return;
 
 	ps = evsel->priv;
-	fprintf(stderr, "   ( +- %7.3f%% )",
-			100 * stddev_stats(&ps->res_stats[0]) / avg);
+	print_noise_pct(stddev_stats(&ps->res_stats[0]), avg);
 }
 
 static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
@@ -635,9 +644,8 @@ static void print_stat(int argc, const char **argv)
 		fprintf(stderr, " %18.9f  seconds time elapsed",
 				avg_stats(&walltime_nsecs_stats)/1e9);
 		if (run_count > 1) {
-			fprintf(stderr, "   ( +-%5.2f%% )",
-				100*stddev_stats(&walltime_nsecs_stats) /
-				avg_stats(&walltime_nsecs_stats));
+			print_noise_pct(stddev_stats(&walltime_nsecs_stats),
+					avg_stats(&walltime_nsecs_stats));
 		}
 		fprintf(stderr, "\n\n");
 	}
