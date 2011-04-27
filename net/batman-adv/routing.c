@@ -93,6 +93,9 @@ static void update_transtable(struct bat_priv *bat_priv,
 		spin_lock_bh(&bat_priv->tt_ghash_lock);
 		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
 		spin_unlock_bh(&bat_priv->tt_ghash_lock);
+		/* Roaming phase is over: tables are in sync again. I can
+		 * unset the flag */
+		orig_node->tt_poss_change = false;
 	} else {
 		/* if we missed more than one change or our tables are not
 		 * in sync anymore -> request fresh tt data */
@@ -1252,6 +1255,54 @@ out:
 	return NET_RX_DROP;
 }
 
+int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
+{
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct roam_adv_packet *roam_adv_packet;
+	struct orig_node *orig_node;
+	struct ethhdr *ethhdr;
+
+	/* drop packet if it has not necessary minimum size */
+	if (unlikely(!pskb_may_pull(skb, sizeof(struct roam_adv_packet))))
+		goto out;
+
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+	/* packet with unicast indication but broadcast recipient */
+	if (is_broadcast_ether_addr(ethhdr->h_dest))
+		goto out;
+
+	/* packet with broadcast sender address */
+	if (is_broadcast_ether_addr(ethhdr->h_source))
+		goto out;
+
+	roam_adv_packet = (struct roam_adv_packet *)skb->data;
+
+	if (!is_my_mac(roam_adv_packet->dst))
+		return route_unicast_packet(skb, recv_if);
+
+	orig_node = orig_hash_find(bat_priv, roam_adv_packet->src);
+	if (!orig_node)
+		goto out;
+
+	bat_dbg(DBG_TT, bat_priv, "Received ROAMING_ADV from %pM "
+		"(client %pM)\n", roam_adv_packet->src,
+		roam_adv_packet->client);
+
+	tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
+		      atomic_read(&orig_node->last_ttvn) + 1, true);
+
+	/* Roaming phase starts: I have new information but the ttvn has not
+	 * been incremented yet. This flag will make me check all the incoming
+	 * packets for the correct destination. */
+	bat_priv->tt_poss_change = true;
+
+	orig_node_free_ref(orig_node);
+out:
+	/* returning NET_RX_DROP will make the caller function kfree the skb */
+	return NET_RX_DROP;
+}
+
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
  * refcount.*/
@@ -1445,6 +1496,7 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 	struct ethhdr *ethhdr;
 	struct hard_iface *primary_if;
 	struct unicast_packet *unicast_packet;
+	bool tt_poss_change;
 
 	/* I could need to modify it */
 	if (skb_cow(skb, sizeof(struct unicast_packet)) < 0)
@@ -1452,27 +1504,28 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
-	if (is_my_mac(unicast_packet->dest))
+	if (is_my_mac(unicast_packet->dest)) {
+		tt_poss_change = bat_priv->tt_poss_change;
 		curr_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
-	else {
+	} else {
 		orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
 
 		if (!orig_node)
 			return 0;
 
 		curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+		tt_poss_change = orig_node->tt_poss_change;
 		orig_node_free_ref(orig_node);
 	}
 
 	/* Check whether I have to reroute the packet */
-	if (seq_before(unicast_packet->ttvn, curr_ttvn)) {
+	if (seq_before(unicast_packet->ttvn, curr_ttvn) || tt_poss_change) {
 		/* Linearize the skb before accessing it */
 		if (skb_linearize(skb) < 0)
 			return 0;
 
 		ethhdr = (struct ethhdr *)(skb->data +
 			sizeof(struct unicast_packet));
-
 		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
 		if (!orig_node) {

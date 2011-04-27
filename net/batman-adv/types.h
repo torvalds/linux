@@ -81,6 +81,12 @@ struct orig_node {
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff */
 	atomic_t tt_size;
+	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
+	 * If true, then I sent a Roaming_adv to this orig_node and I have to
+	 * inspect every packet directed to it to check whether it is still
+	 * the true destination or not. This flag will be reset to false as
+	 * soon as I receive a new TTVN from this orig_node */
+	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	unsigned long bcast_bits[NUM_WORDS];
@@ -153,6 +159,12 @@ struct bat_priv {
 	atomic_t ttvn; /* tranlation table version number */
 	atomic_t tt_ogm_append_cnt;
 	atomic_t tt_local_changes; /* changes registered in a OGM interval */
+	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
+	 * If true, then I received a Roaming_adv and I have to inspect every
+	 * packet directed to me to check whether I am still the true
+	 * destination or not. This flag will be reset to false as soon as I
+	 * increase my TTVN */
+	bool tt_poss_change;
 	char num_ifaces;
 	struct debug_log *debug_log;
 	struct kobject *mesh_obj;
@@ -167,6 +179,7 @@ struct bat_priv {
 	struct hashtable_t *tt_local_hash;
 	struct hashtable_t *tt_global_hash;
 	struct list_head tt_req_list; /* list of pending tt_requests */
+	struct list_head tt_roam_list;
 	struct hashtable_t *vis_hash;
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
@@ -174,6 +187,7 @@ struct bat_priv {
 	spinlock_t tt_lhash_lock; /* protects tt_local_hash */
 	spinlock_t tt_ghash_lock; /* protects tt_global_hash */
 	spinlock_t tt_req_list_lock; /* protects tt_req_list */
+	spinlock_t tt_roam_list_lock; /* protects tt_roam_list */
 	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
@@ -219,8 +233,9 @@ struct tt_global_entry {
 	uint8_t addr[ETH_ALEN];
 	struct orig_node *orig_node;
 	uint8_t ttvn;
-	/* entry in the global table */
-	struct hlist_node hash_entry;
+	uint8_t flags; /* only TT_GLOBAL_ROAM is used */
+	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+	struct hlist_node hash_entry; /* entry in the global table */
 };
 
 struct tt_change_node {
@@ -231,6 +246,13 @@ struct tt_change_node {
 struct tt_req_node {
 	uint8_t addr[ETH_ALEN];
 	unsigned long issued_at;
+	struct list_head list;
+};
+
+struct tt_roam_node {
+	uint8_t addr[ETH_ALEN];
+	atomic_t counter;
+	unsigned long first_time;
 	struct list_head list;
 };
 

@@ -534,7 +534,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	/* only modify transtable if it has been initialised before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		tt_local_remove(bat_priv, dev->dev_addr,
-				"mac address changed");
+				"mac address changed", false);
 		tt_local_add(dev, addr->sa_data);
 	}
 
@@ -836,6 +836,7 @@ struct net_device *softif_create(const char *name)
 
 	bat_priv->tt_buff = NULL;
 	bat_priv->tt_buff_len = 0;
+	bat_priv->tt_poss_change = false;
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;

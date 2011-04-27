@@ -42,7 +42,7 @@
  * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
 #define PURGE_TIMEOUT 200
 #define TT_LOCAL_TIMEOUT 3600 /* in seconds */
-
+#define TT_CLIENT_ROAM_TIMEOUT 600
 /* sliding packet range of received originator messages in squence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
@@ -54,6 +54,10 @@
 #define TQ_TOTAL_BIDRECT_LIMIT 1
 
 #define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
+
+#define ROAMING_MAX_TIME 20 /* Time in which a client can roam at most
+			     * ROAMING_MAX_COUNT times */
+#define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0
 
