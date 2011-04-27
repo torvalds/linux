@@ -1569,6 +1569,75 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 	return err;
 }
 
+static int start_discovery(struct sock *sk, u16 index)
+{
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_START_DISCOVERY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, index, NULL, 0);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	memcpy(&cp.lap, lap, 3);
+	cp.length  = 0x08;
+	cp.num_rsp = 0x00;
+
+	err = hci_send_cmd(hdev, HCI_OP_INQUIRY, sizeof(cp), &cp);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int stop_discovery(struct sock *sk, u16 index)
+{
+	struct hci_dev *hdev;
+	struct pending_cmd *cmd;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_STOP_DISCOVERY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, index, NULL, 0);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1677,7 +1746,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		err = remove_remote_oob_data(sk, index, buf + sizeof(*hdr),
 									len);
 		break;
-
+	case MGMT_OP_START_DISCOVERY:
+		err = start_discovery(sk, index);
+		break;
+	case MGMT_OP_STOP_DISCOVERY:
+		err = stop_discovery(sk, index);
+		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
 		err = cmd_status(sk, index, opcode, 0x01);

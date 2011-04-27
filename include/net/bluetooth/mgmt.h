@@ -195,6 +195,10 @@ struct mgmt_cp_remove_remote_oob_data {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define MGMT_OP_START_DISCOVERY		0x001B
+
+#define MGMT_OP_STOP_DISCOVERY		0x001C
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
