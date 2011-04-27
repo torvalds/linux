@@ -649,13 +649,15 @@ static int check_events(const char *str, unsigned int i)
 	int n;
 
 	n = strlen(event_symbols[i].symbol);
-	if (!strncmp(str, event_symbols[i].symbol, n))
+	if (!strncasecmp(str, event_symbols[i].symbol, n))
 		return n;
 
 	n = strlen(event_symbols[i].alias);
-	if (n)
-		if (!strncmp(str, event_symbols[i].alias, n))
+	if (n) {
+		if (!strncasecmp(str, event_symbols[i].alias, n))
 			return n;
+	}
+
 	return 0;
 }
 
