@@ -550,6 +550,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	del_timer_sync(&xhci->event_ring_timer);
 #endif
 
+	if (xhci->quirks & XHCI_AMD_PLL_FIX)
+		usb_amd_dev_put();
+
 	xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
@@ -771,7 +774,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 	/* If restore operation fails, re-initialize the HC during resume */
 	if ((temp & STS_SRE) || hibernated) {
-		usb_root_hub_lost_power(hcd->self.root_hub);
+		/* Let the USB core know _both_ roothubs lost power. */
+		usb_root_hub_lost_power(xhci->main_hcd->self.root_hub);
+		usb_root_hub_lost_power(xhci->shared_hcd->self.root_hub);
 
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
@@ -2386,10 +2391,18 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
 	last_freed_endpoint = 1;
 	for (i = 1; i < 31; ++i) {
-		if (!virt_dev->eps[i].ring)
-			continue;
-		xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
-		last_freed_endpoint = i;
+		struct xhci_virt_ep *ep = &virt_dev->eps[i];
+
+		if (ep->ep_state & EP_HAS_STREAMS) {
+			xhci_free_stream_info(xhci, ep->stream_info);
+			ep->stream_info = NULL;
+			ep->ep_state &= ~EP_HAS_STREAMS;
+		}
+
+		if (ep->ring) {
+			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+			last_freed_endpoint = i;
+		}
 	}
 	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);

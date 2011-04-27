@@ -2285,7 +2285,17 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	}
 
 	/* see 7.1.7.6 */
-	status = set_port_feature(hub->hdev, port1, USB_PORT_FEAT_SUSPEND);
+	/* Clear PORT_POWER if it's a USB3.0 device connected to USB 3.0
+	 * external hub.
+	 * FIXME: this is a temporary workaround to make the system able
+	 * to suspend/resume.
+	 */
+	if ((hub->hdev->parent != NULL) && hub_is_superspeed(hub->hdev))
+		status = clear_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_POWER);
+	else
+		status = set_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_SUSPEND);
 	if (status) {
 		dev_dbg(hub->intfdev, "can't suspend port %d, status %d\n",
 				port1, status);

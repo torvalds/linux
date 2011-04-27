@@ -74,6 +74,7 @@
 				compatible = "intel,ce4100-pci", "pci";
 				device_type = "pci";
 				bus-range = <1 1>;
+				reg = <0x0800 0x0 0x0 0x0 0x0>;
 				ranges = <0x2000000 0 0xdffe0000 0x2000000 0 0xdffe0000 0 0x1000>;
 
 				interrupt-parent = <&ioapic2>;
@@ -412,6 +413,7 @@
 				#address-cells = <2>;
 				#size-cells = <1>;
 				compatible = "isa";
+				reg = <0xf800 0x0 0x0 0x0 0x0>;
 				ranges = <1 0 0 0 0 0x100>;
 
 				rtc@70 {
