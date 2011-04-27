@@ -257,11 +257,16 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
 };
 
+static int vpr200_usbh_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id,
+			MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY);
+}
+
 /* USB HOST config */
 static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
-	.portsc		= MXC_EHCI_MODE_SERIAL,
-	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
-			  MXC_EHCI_INTERNAL_PHY,
+	.init = vpr200_usbh_init,
+	.portsc = MXC_EHCI_MODE_SERIAL,
 };
 
 static struct platform_device *devices[] __initdata = {
