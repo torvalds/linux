@@ -285,3 +285,5 @@ struct mgmt_ev_remote_name {
 	bdaddr_t bdaddr;
 	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
+
+#define MGMT_EV_DISCOVERING		0x0014

@@ -2149,3 +2149,9 @@ int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 *name)
 
 	return mgmt_event(MGMT_EV_REMOTE_NAME, index, &ev, sizeof(ev), NULL);
 }
+
+int mgmt_discovering(u16 index, u8 discovering)
+{
+	return mgmt_event(MGMT_EV_DISCOVERING, index, &discovering,
+						sizeof(discovering), NULL);
+}
