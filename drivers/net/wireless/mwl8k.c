@@ -1562,24 +1562,11 @@ static int mwl8k_tid_queue_mapping(u8 tid)
 
 /* The firmware will fill in the rate information
  * for each packet that gets queued in the hardware
- * in this structure
+ * and these macros will interpret that info.
  */
 
-struct rateinfo {
-	__le16  format:1;
-	__le16  short_gi:1;
-	__le16  band_width:1;
-	__le16  rate_id_mcs:6;
-	__le16  adv_coding:2;
-	__le16  antenna:2;
-	__le16  act_sub_chan:2;
-	__le16  preamble_type:1;
-	__le16  power_id:4;
-	__le16  antenna2:1;
-	__le16  reserved:1;
-	__le16  tx_bf_frame:1;
-	__le16  green_field:1;
-} __packed;
+#define RI_FORMAT(a)		  (a & 0x0001)
+#define RI_RATE_ID_MCS(a)	 ((a & 0x01f8) >> 3)
 
 static int
 mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
@@ -1600,7 +1587,6 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		struct ieee80211_sta *sta;
 		struct mwl8k_sta *sta_info = NULL;
 		u16 rate_info;
-		struct rateinfo *rate;
 		struct ieee80211_hdr *wh;
 
 		tx = txq->head;
@@ -1643,14 +1629,13 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 				sta_info = MWL8K_STA(sta);
 				BUG_ON(sta_info == NULL);
 				rate_info = le16_to_cpu(tx_desc->rate_info);
-				rate = (struct rateinfo *)&rate_info;
 				/* If rate is < 6.5 Mpbs for an ht station
 				 * do not form an ampdu. If the station is a
 				 * legacy station (format = 0), do not form an
 				 * ampdu
 				 */
-				if (rate->rate_id_mcs < 1 ||
-				    rate->format == 0) {
+				if (RI_RATE_ID_MCS(rate_info) < 1 ||
+				    RI_FORMAT(rate_info) == 0) {
 					sta_info->is_ampdu_allowed = false;
 				} else {
 					sta_info->is_ampdu_allowed = true;
