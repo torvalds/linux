@@ -1724,6 +1724,13 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 	return;
 }
 
+static bool nfsd4_session_too_many_ops(struct svc_rqst *rqstp, struct nfsd4_session *session)
+{
+	struct nfsd4_compoundargs *args = rqstp->rq_argp;
+
+	return args->opcnt > session->se_fchannel.maxops;
+}
+
 __be32
 nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
@@ -1750,6 +1757,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	status = nfserr_badsession;
 	session = find_in_sessionid_hashtbl(&seq->sessionid);
 	if (!session)
+		goto out;
+
+	status = nfserr_too_many_ops;
+	if (nfsd4_session_too_many_ops(rqstp, session))
 		goto out;
 
 	status = nfserr_badslot;
