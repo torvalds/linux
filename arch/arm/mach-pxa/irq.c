@@ -64,7 +64,7 @@ static inline void __iomem *irq_base(int i)
 	return (void __iomem *)io_p2v(phys_base[i]);
 }
 
-static void pxa_mask_irq(struct irq_data *d)
+void pxa_mask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);
@@ -73,7 +73,7 @@ static void pxa_mask_irq(struct irq_data *d)
 	__raw_writel(icmr, base + ICMR);
 }
 
-static void pxa_unmask_irq(struct irq_data *d)
+void pxa_unmask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);

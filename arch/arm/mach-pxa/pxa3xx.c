@@ -31,7 +31,6 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/regs-intc.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -328,13 +327,13 @@ static void pxa_ack_ext_wakeup(struct irq_data *d)
 
 static void pxa_mask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 &= ~(1 << ((d->irq - PXA_IRQ(0)) & 0x1f));
+	pxa_mask_irq(d);
 	PECR &= ~PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 
 static void pxa_unmask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 |= 1 << ((d->irq - PXA_IRQ(0)) & 0x1f);
+	pxa_unmask_irq(d);
 	PECR |= PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 

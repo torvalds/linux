@@ -104,4 +104,11 @@
 
 #define NR_IRQS			(IRQ_BOARD_START)
 
+#ifndef __ASSEMBLY__
+struct irq_data;
+
+void pxa_mask_irq(struct irq_data *);
+void pxa_unmask_irq(struct irq_data *);
+#endif
+
 #endif /* __ASM_MACH_IRQS_H */
