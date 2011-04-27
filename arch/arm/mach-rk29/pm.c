@@ -385,8 +385,11 @@ static int rk29_pm_enter(suspend_state_t state)
 	// dump GPIO INTEN for debug
 	dump_inten();
 	// dump GPIO PULL state for debug
+	//if you want to display the information, please enable the code.
+#if 0
 	dump_io_pull();
-	
+#endif
+
 	printch('0');
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
