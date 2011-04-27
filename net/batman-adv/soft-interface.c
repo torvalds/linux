@@ -534,7 +534,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	/* only modify transtable if it has been initialised before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		tt_local_remove(bat_priv, dev->dev_addr,
-				 "mac address changed");
+				"mac address changed");
 		tt_local_add(dev, addr->sa_data);
 	}
 
@@ -592,7 +592,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	if (curr_softif_neigh)
 		goto dropped;
 
-	/* TODO: check this for locks */
+	/* Register the client MAC in the transtable */
 	tt_local_add(soft_iface, ethhdr->h_source);
 
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
@@ -830,7 +830,12 @@ struct net_device *softif_create(const char *name)
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
-	atomic_set(&bat_priv->tt_local_changed, 0);
+	atomic_set(&bat_priv->ttvn, 0);
+	atomic_set(&bat_priv->tt_local_changes, 0);
+	atomic_set(&bat_priv->tt_ogm_append_cnt, 0);
+
+	bat_priv->tt_buff = NULL;
+	bat_priv->tt_buff_len = 0;
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;

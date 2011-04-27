@@ -30,7 +30,8 @@ enum bat_packettype {
 	BAT_UNICAST      = 0x03,
 	BAT_BCAST        = 0x04,
 	BAT_VIS          = 0x05,
-	BAT_UNICAST_FRAG = 0x06
+	BAT_UNICAST_FRAG = 0x06,
+	BAT_TT_QUERY     = 0x07
 };
 
 /* this file is included by batctl which needs these defines */
@@ -63,6 +64,25 @@ enum unicast_frag_flags {
 	UNI_FRAG_LARGETAIL = 1 << 1
 };
 
+/* TT_QUERY subtypes */
+#define TT_QUERY_TYPE_MASK 0x3
+
+enum tt_query_packettype {
+	TT_REQUEST    = 0,
+	TT_RESPONSE   = 1
+};
+
+/* TT_QUERY flags */
+enum tt_query_flags {
+	TT_FULL_TABLE = 1 << 2
+};
+
+/* TT_CHANGE flags */
+enum tt_change_flags {
+	TT_CHANGE_DEL  = 0x01,
+	TT_CLIENT_ROAM = 0x02
+};
+
 struct batman_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
@@ -73,8 +93,9 @@ struct batman_packet {
 	uint8_t  prev_sender[6];
 	uint8_t  gw_flags;  /* flags related to gateway class */
 	uint8_t  tq;
-	uint8_t  num_tt;
-	uint8_t  reserved;
+	uint8_t  tt_num_changes;
+	uint8_t  ttvn; /* translation table version number */
+	uint16_t tt_crc;
 } __packed;
 
 #define BAT_PACKET_LEN sizeof(struct batman_packet)
@@ -112,7 +133,7 @@ struct unicast_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  ttl;
-	uint8_t  reserved;
+	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[6];
 } __packed;
 
@@ -120,7 +141,7 @@ struct unicast_frag_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  ttl;
-	uint8_t  reserved;
+	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[6];
 	uint8_t  flags;
 	uint8_t  align;
@@ -148,6 +169,34 @@ struct vis_packet {
 	uint8_t  vis_orig[6];	 /* originator that announces its neighbors */
 	uint8_t  target_orig[6]; /* who should receive this packet */
 	uint8_t  sender_orig[6]; /* who sent or rebroadcasted this packet */
+} __packed;
+
+struct tt_query_packet {
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  ttl;
+	/* the flag field is a combination of:
+	 * - TT_REQUEST or TT_RESPONSE
+	 * - TT_FULL_TABLE */
+	uint8_t  flags;
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  src[ETH_ALEN];
+	/* the ttvn field is:
+	 * if TT_REQUEST: ttvn that triggered the
+	 *		  request
+	 * if TT_RESPONSE: new ttvn for the src
+	 *		   orig_node */
+	uint8_t  ttvn;
+	/* tt_data field is:
+	 * if TT_REQUEST: crc associated with the
+	 *		  ttvn
+	 * if TT_RESPONSE: table_size */
+	uint16_t tt_data;
+} __packed;
+
+struct tt_change {
+	uint8_t flags;
+	uint8_t addr[ETH_ALEN];
 } __packed;
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

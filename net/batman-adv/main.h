@@ -46,10 +46,14 @@
 /* sliding packet range of received originator messages in squence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
+#define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
+
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define TQ_TOTAL_BIDRECT_LIMIT 1
+
+#define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
 
 #define NO_FLAGS 0
 
@@ -96,7 +100,8 @@ enum mesh_state {
 enum dbg_level {
 	DBG_BATMAN = 1 << 0,
 	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
-	DBG_ALL    = 3
+	DBG_TT	   = 1 << 2, /* translation table operations */
+	DBG_ALL    = 7
 };
 
 

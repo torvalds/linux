@@ -64,27 +64,56 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 	}
 }
 
-static void update_TT(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		      const unsigned char *tt_buff, int tt_buff_len)
+static void update_transtable(struct bat_priv *bat_priv,
+			      struct orig_node *orig_node,
+			      const unsigned char *tt_buff,
+			      uint8_t tt_num_changes, uint8_t ttvn,
+			      uint16_t tt_crc)
 {
-	if ((tt_buff_len != orig_node->tt_buff_len) ||
-	    ((tt_buff_len > 0) &&
-	     (orig_node->tt_buff_len > 0) &&
-	     (memcmp(orig_node->tt_buff, tt_buff, tt_buff_len) != 0))) {
+	uint8_t orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+	bool full_table = true;
 
-		if (orig_node->tt_buff_len > 0)
-			tt_global_del_orig(bat_priv, orig_node,
-					    "originator changed tt");
+	/* the ttvn increased by one -> we can apply the attached changes */
+	if (ttvn - orig_ttvn == 1) {
+		/* the OGM could not contain the changes because they were too
+		 * many to fit in one frame or because they have already been
+		 * sent TT_OGM_APPEND_MAX times. In this case send a tt
+		 * request */
+		if (!tt_num_changes) {
+			full_table = false;
+			goto request_table;
+		}
 
-		if ((tt_buff_len > 0) && (tt_buff))
-			tt_global_add_orig(bat_priv, orig_node,
-					    tt_buff, tt_buff_len);
+		tt_update_changes(bat_priv, orig_node, tt_num_changes, ttvn,
+				  (struct tt_change *)tt_buff);
+
+		/* Even if we received the crc into the OGM, we prefer
+		 * to recompute it to spot any possible inconsistency
+		 * in the global table */
+		spin_lock_bh(&bat_priv->tt_ghash_lock);
+		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
+		spin_unlock_bh(&bat_priv->tt_ghash_lock);
+	} else {
+		/* if we missed more than one change or our tables are not
+		 * in sync anymore -> request fresh tt data */
+		if (ttvn != orig_ttvn || orig_node->tt_crc != tt_crc) {
+request_table:
+			bat_dbg(DBG_TT, bat_priv, "TT inconsistency for %pM. "
+				"Need to retrieve the correct information "
+				"(ttvn: %u last_ttvn: %u crc: %u last_crc: "
+				"%u num_changes: %u)\n", orig_node->orig, ttvn,
+				orig_ttvn, tt_crc, orig_node->tt_crc,
+				tt_num_changes);
+			send_tt_request(bat_priv, orig_node, ttvn, tt_crc,
+					full_table);
+			return;
+		}
 	}
 }
 
-static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
-			 struct neigh_node *neigh_node,
-			 const unsigned char *tt_buff, int tt_buff_len)
+static void update_route(struct bat_priv *bat_priv,
+			 struct orig_node *orig_node,
+			 struct neigh_node *neigh_node)
 {
 	struct neigh_node *curr_router;
 
@@ -92,11 +121,10 @@ static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 
 	/* route deleted */
 	if ((curr_router) && (!neigh_node)) {
-
 		bat_dbg(DBG_ROUTES, bat_priv, "Deleting route towards: %pM\n",
 			orig_node->orig);
 		tt_global_del_orig(bat_priv, orig_node,
-				    "originator timed out");
+				    "Deleted route towards originator");
 
 	/* route added */
 	} else if ((!curr_router) && (neigh_node)) {
@@ -104,9 +132,6 @@ static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Adding route towards: %pM (via %pM)\n",
 			orig_node->orig, neigh_node->addr);
-		tt_global_add_orig(bat_priv, orig_node,
-				    tt_buff, tt_buff_len);
-
 	/* route changed */
 	} else if (neigh_node && curr_router) {
 		bat_dbg(DBG_ROUTES, bat_priv,
@@ -133,8 +158,7 @@ static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 }
 
 void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		   struct neigh_node *neigh_node, const unsigned char *tt_buff,
-		   int tt_buff_len)
+		   struct neigh_node *neigh_node)
 {
 	struct neigh_node *router = NULL;
 
@@ -144,11 +168,7 @@ void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	router = orig_node_get_router(orig_node);
 
 	if (router != neigh_node)
-		update_route(bat_priv, orig_node, neigh_node,
-			     tt_buff, tt_buff_len);
-	/* may be just TT changed */
-	else
-		update_TT(bat_priv, orig_node, tt_buff, tt_buff_len);
+		update_route(bat_priv, orig_node, neigh_node);
 
 out:
 	if (router)
@@ -360,14 +380,12 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			const struct ethhdr *ethhdr,
 			const struct batman_packet *batman_packet,
 			struct hard_iface *if_incoming,
-			const unsigned char *tt_buff, int tt_buff_len,
-			int is_duplicate)
+			const unsigned char *tt_buff, int is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct neigh_node *router = NULL;
 	struct orig_node *orig_node_tmp;
 	struct hlist_node *node;
-	int tmp_tt_buff_len;
 	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
 
 	bat_dbg(DBG_BATMAN, bat_priv, "update_originator(): "
@@ -432,9 +450,6 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 
 	bonding_candidate_add(orig_node, neigh_node);
 
-	tmp_tt_buff_len = (tt_buff_len > batman_packet->num_tt * ETH_ALEN ?
-			    batman_packet->num_tt * ETH_ALEN : tt_buff_len);
-
 	/* if this neighbor already is our next hop there is nothing
 	 * to change */
 	router = orig_node_get_router(orig_node);
@@ -464,15 +479,19 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			goto update_tt;
 	}
 
-	update_routes(bat_priv, orig_node, neigh_node,
-		      tt_buff, tmp_tt_buff_len);
-	goto update_gw;
+	update_routes(bat_priv, orig_node, neigh_node);
 
 update_tt:
-	update_routes(bat_priv, orig_node, router,
-		      tt_buff, tmp_tt_buff_len);
+	/* I have to check for transtable changes only if the OGM has been
+	 * sent through a primary interface */
+	if (((batman_packet->orig != ethhdr->h_source) &&
+				(batman_packet->ttl > 2)) ||
+				(batman_packet->flags & PRIMARIES_FIRST_HOP))
+		update_transtable(bat_priv, orig_node, tt_buff,
+				  batman_packet->tt_num_changes,
+				  batman_packet->ttvn,
+				  batman_packet->tt_crc);
 
-update_gw:
 	if (orig_node->gw_flags != batman_packet->gw_flags)
 		gw_node_update(bat_priv, orig_node, batman_packet->gw_flags);
 
@@ -594,7 +613,7 @@ out:
 
 void receive_bat_packet(const struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
-			const unsigned char *tt_buff, int tt_buff_len,
+			const unsigned char *tt_buff,
 			struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -633,12 +652,14 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Received BATMAN packet via NB: %pM, IF: %s [%pM] "
-		"(from OG: %pM, via prev OG: %pM, seqno %d, tq %d, "
-		"TTL %d, V %d, IDF %d)\n",
+		"(from OG: %pM, via prev OG: %pM, seqno %d, ttvn %u, "
+		"crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->net_dev->name,
 		if_incoming->net_dev->dev_addr, batman_packet->orig,
 		batman_packet->prev_sender, batman_packet->seqno,
-		batman_packet->tq, batman_packet->ttl, batman_packet->version,
+		batman_packet->ttvn, batman_packet->tt_crc,
+		batman_packet->tt_num_changes, batman_packet->tq,
+		batman_packet->ttl, batman_packet->version,
 		has_directlink_flag);
 
 	rcu_read_lock();
@@ -790,14 +811,14 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 	     ((orig_node->last_real_seqno == batman_packet->seqno) &&
 	      (orig_node->last_ttl - 3 <= batman_packet->ttl))))
 		update_orig(bat_priv, orig_node, ethhdr, batman_packet,
-			    if_incoming, tt_buff, tt_buff_len, is_duplicate);
+			    if_incoming, tt_buff, is_duplicate);
 
 	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
 
 		/* mark direct link on incoming interface */
 		schedule_forward_packet(orig_node, ethhdr, batman_packet,
-					1, tt_buff_len, if_incoming);
+					1, if_incoming);
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Forwarding packet: "
 			"rebroadcast neighbor packet with direct link flag\n");
@@ -820,7 +841,7 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
 	schedule_forward_packet(orig_node, ethhdr, batman_packet,
-				0, tt_buff_len, if_incoming);
+				0, if_incoming);
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
@@ -1167,6 +1188,70 @@ static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
 	return router;
 }
 
+int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
+{
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct tt_query_packet *tt_query;
+	struct ethhdr *ethhdr;
+
+	/* drop packet if it has not necessary minimum size */
+	if (unlikely(!pskb_may_pull(skb, sizeof(struct tt_query_packet))))
+		goto out;
+
+	/* I could need to modify it */
+	if (skb_cow(skb, sizeof(struct tt_query_packet)) < 0)
+		goto out;
+
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+	/* packet with unicast indication but broadcast recipient */
+	if (is_broadcast_ether_addr(ethhdr->h_dest))
+		goto out;
+
+	/* packet with broadcast sender address */
+	if (is_broadcast_ether_addr(ethhdr->h_source))
+		goto out;
+
+	tt_query = (struct tt_query_packet *)skb->data;
+
+	tt_query->tt_data = ntohs(tt_query->tt_data);
+
+	switch (tt_query->flags & TT_QUERY_TYPE_MASK) {
+	case TT_REQUEST:
+		/* If we cannot provide an answer the tt_request is
+		 * forwarded */
+		if (!send_tt_response(bat_priv, tt_query)) {
+			bat_dbg(DBG_TT, bat_priv,
+				"Routing TT_REQUEST to %pM [%c]\n",
+				tt_query->dst,
+				(tt_query->flags & TT_FULL_TABLE ? 'F' : '.'));
+			tt_query->tt_data = htons(tt_query->tt_data);
+			return route_unicast_packet(skb, recv_if);
+		}
+		break;
+	case TT_RESPONSE:
+		/* packet needs to be linearised to access the TT changes */
+		if (skb_linearize(skb) < 0)
+			goto out;
+
+		if (is_my_mac(tt_query->dst))
+			handle_tt_response(bat_priv, tt_query);
+		else {
+			bat_dbg(DBG_TT, bat_priv,
+				"Routing TT_RESPONSE to %pM [%c]\n",
+				tt_query->dst,
+				(tt_query->flags & TT_FULL_TABLE ? 'F' : '.'));
+			tt_query->tt_data = htons(tt_query->tt_data);
+			return route_unicast_packet(skb, recv_if);
+		}
+		break;
+	}
+
+out:
+	/* returning NET_RX_DROP will make the caller function kfree the skb */
+	return NET_RX_DROP;
+}
+
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
  * refcount.*/
@@ -1353,12 +1438,80 @@ out:
 	return ret;
 }
 
+static int check_unicast_ttvn(struct bat_priv *bat_priv,
+			       struct sk_buff *skb) {
+	uint8_t curr_ttvn;
+	struct orig_node *orig_node;
+	struct ethhdr *ethhdr;
+	struct hard_iface *primary_if;
+	struct unicast_packet *unicast_packet;
+
+	/* I could need to modify it */
+	if (skb_cow(skb, sizeof(struct unicast_packet)) < 0)
+		return 0;
+
+	unicast_packet = (struct unicast_packet *)skb->data;
+
+	if (is_my_mac(unicast_packet->dest))
+		curr_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
+	else {
+		orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
+
+		if (!orig_node)
+			return 0;
+
+		curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+		orig_node_free_ref(orig_node);
+	}
+
+	/* Check whether I have to reroute the packet */
+	if (seq_before(unicast_packet->ttvn, curr_ttvn)) {
+		/* Linearize the skb before accessing it */
+		if (skb_linearize(skb) < 0)
+			return 0;
+
+		ethhdr = (struct ethhdr *)(skb->data +
+			sizeof(struct unicast_packet));
+
+		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
+
+		if (!orig_node) {
+			if (!is_my_client(bat_priv, ethhdr->h_dest))
+				return 0;
+			primary_if = primary_if_get_selected(bat_priv);
+			if (!primary_if)
+				return 0;
+			memcpy(unicast_packet->dest,
+			       primary_if->net_dev->dev_addr, ETH_ALEN);
+			hardif_free_ref(primary_if);
+		} else {
+			memcpy(unicast_packet->dest, orig_node->orig,
+			       ETH_ALEN);
+			curr_ttvn = (uint8_t)
+				atomic_read(&orig_node->last_ttvn);
+			orig_node_free_ref(orig_node);
+		}
+
+		bat_dbg(DBG_ROUTES, bat_priv, "TTVN mismatch (old_ttvn %u "
+			"new_ttvn %u)! Rerouting unicast packet (for %pM) to "
+			"%pM\n", unicast_packet->ttvn, curr_ttvn,
+			ethhdr->h_dest, unicast_packet->dest);
+
+		unicast_packet->ttvn = curr_ttvn;
+	}
+	return 1;
+}
+
 int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_packet *unicast_packet;
 	int hdr_size = sizeof(*unicast_packet);
 
 	if (check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	if (!check_unicast_ttvn(bat_priv, skb))
 		return NET_RX_DROP;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
@@ -1381,6 +1534,9 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	int ret;
 
 	if (check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	if (!check_unicast_ttvn(bat_priv, skb))
 		return NET_RX_DROP;
 
 	unicast_packet = (struct unicast_frag_packet *)skb->data;
