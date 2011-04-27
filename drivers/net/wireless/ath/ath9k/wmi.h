@@ -111,7 +111,6 @@ enum wmi_cmd_id {
 	WMI_INT_STATS_CMDID,
 	WMI_TX_STATS_CMDID,
 	WMI_RX_STATS_CMDID,
-	WMI_AGGR_LIMIT_CMD = 0x0026,
 };
 
 enum wmi_event_id {
