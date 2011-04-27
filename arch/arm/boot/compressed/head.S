@@ -372,7 +372,7 @@ LC0:		.word	LC0			@ r1
 		.word	input_data_end - 4	@ r10 (inflated size location)
 		.word	_got_start		@ r11
 		.word	_got_end		@ ip
-		.word	user_stack_end		@ sp
+		.word	.L_user_stack_end	@ sp
 		.size	LC0, . - LC0
 
 #ifdef CONFIG_ARCH_RPC
@@ -1100,5 +1100,5 @@ reloc_code_end:
 
 		.align
 		.section ".stack", "aw", %nobits
-user_stack:	.space	4096
-user_stack_end:
+.L_user_stack:	.space	4096
+.L_user_stack_end:
