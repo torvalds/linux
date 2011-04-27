@@ -721,15 +721,19 @@ parse_numeric_event(const char **strp, struct perf_event_attr *attr)
 	return EVT_FAILED;
 }
 
-static enum event_result
+static int
 parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 {
 	const char *str = *strp;
 	int exclude = 0;
 	int eu = 0, ek = 0, eh = 0, precise = 0;
 
-	if (*str++ != ':')
+	if (!*str)
 		return 0;
+
+	if (*str++ != ':')
+		return -1;
+
 	while (*str) {
 		if (*str == 'u') {
 			if (!exclude)
@@ -750,14 +754,16 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 
 		++str;
 	}
-	if (str >= *strp + 2) {
-		*strp = str;
-		attr->exclude_user   = eu;
-		attr->exclude_kernel = ek;
-		attr->exclude_hv     = eh;
-		attr->precise_ip     = precise;
-		return 1;
-	}
+	if (str < *strp + 2)
+		return -1;
+
+	*strp = str;
+
+	attr->exclude_user   = eu;
+	attr->exclude_kernel = ek;
+	attr->exclude_hv     = eh;
+	attr->precise_ip     = precise;
+
 	return 0;
 }
 
@@ -800,7 +806,12 @@ parse_event_symbols(const struct option *opt, const char **str,
 	return EVT_FAILED;
 
 modifier:
-	parse_event_modifier(str, attr);
+	if (parse_event_modifier(str, attr) < 0) {
+		fprintf(stderr, "invalid event modifier: '%s'\n", *str);
+		fprintf(stderr, "Run 'perf list' for a list of valid events and modifiers\n");
+
+		return EVT_FAILED;
+	}
 
 	return ret;
 }
