@@ -2300,12 +2300,6 @@ long do_no_restart_syscall(struct restart_block *param)
 }
 
 /*
- * We don't need to get the kernel lock - this is all local to this
- * particular thread.. (and that's good, because this is _heavily_
- * used by various programs)
- */
-
-/*
  * This is also useful for kernel threads that want to temporarily
  * (or permanently) block certain signals.
  *
@@ -2315,30 +2309,33 @@ long do_no_restart_syscall(struct restart_block *param)
  */
 int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 {
-	int error;
+	struct task_struct *tsk = current;
+	sigset_t newset;
 
-	spin_lock_irq(&current->sighand->siglock);
+	/* Lockless, only current can change ->blocked, never from irq */
 	if (oldset)
-		*oldset = current->blocked;
+		*oldset = tsk->blocked;
 
-	error = 0;
 	switch (how) {
 	case SIG_BLOCK:
-		sigorsets(&current->blocked, &current->blocked, set);
+		sigorsets(&newset, &tsk->blocked, set);
 		break;
 	case SIG_UNBLOCK:
-		signandsets(&current->blocked, &current->blocked, set);
+		signandsets(&newset, &tsk->blocked, set);
 		break;
 	case SIG_SETMASK:
-		current->blocked = *set;
+		newset = *set;
 		break;
 	default:
-		error = -EINVAL;
+		return -EINVAL;
 	}
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
 
-	return error;
+	spin_lock_irq(&tsk->sighand->siglock);
+	tsk->blocked = newset;
+	recalc_sigpending();
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	return 0;
 }
 
 /**
