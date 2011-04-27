@@ -977,11 +977,22 @@ config SOC_CAMERA_GC0308
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a GC0308 camera driver
+config SOC_CAMERA_GC0309
+	tristate "GC0309 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC0309 camera driver	  
 config SOC_CAMERA_SIV120B
 	tristate "siv120b support"
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a SIV120B camera driver	  
+
+config SOC_CAMERA_SID130B
+	tristate "sid130b support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a SID130B camera driver	 	  
  	     
 config MX1_VIDEO
 	bool

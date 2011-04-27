@@ -281,7 +281,9 @@ enum {
 
     V4L2_IDENT_GT2005 = 64100,       /* ddl@rock-chips.com : GT2005 support */
     V4L2_IDENT_GC0308 = 64101,      /* ddl@rock-chips.com : GC0308 support */
-    V4L2_IDENT_SIV120B = 64102,      /* ddl@rock-chips.com : siv120b support */
+    V4L2_IDENT_GC0309 = 64102,      /* ddl@rock-chips.com : GC0309 support */
+    V4L2_IDENT_SIV120B = 64103,      /* ddl@rock-chips.com : siv120b support */
+    V4L2_IDENT_SID130B = 64104,      /* ddl@rock-chips.com : sid130B support */
 };
 
 #endif
