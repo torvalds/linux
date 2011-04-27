@@ -1512,7 +1512,7 @@ static int e100_phy_init(struct nic *nic)
 
 static int e100_hw_init(struct nic *nic)
 {
-	int err;
+	int err = 0;
 
 	e100_hw_reset(nic);
 
