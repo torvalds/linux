@@ -3299,7 +3299,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	/*
 	 * Keep chip from being accessed until we are ready.  Use
 	 * writeq() directly, to allow the write even though QIB_PRESENT
-	 * isn't' set.
+	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT | QIB_BADINTR);
 	dd->flags |= QIB_DOING_RESET;
