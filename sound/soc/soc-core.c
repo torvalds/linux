@@ -555,7 +555,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	if (platform->driver->ops->open) {
+	if (platform->driver->ops && platform->driver->ops->open) {
 		ret = platform->driver->ops->open(substream);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: can't open platform %s\n", platform->name);
@@ -685,7 +685,7 @@ machine_err:
 		codec_dai->driver->ops->shutdown(substream, codec_dai);
 
 codec_dai_err:
-	if (platform->driver->ops->close)
+	if (platform->driver->ops && platform->driver->ops->close)
 		platform->driver->ops->close(substream);
 
 platform_err:
@@ -767,7 +767,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	if (rtd->dai_link->ops && rtd->dai_link->ops->shutdown)
 		rtd->dai_link->ops->shutdown(substream);
 
-	if (platform->driver->ops->close)
+	if (platform->driver->ops && platform->driver->ops->close)
 		platform->driver->ops->close(substream);
 	cpu_dai->runtime = NULL;
 
@@ -810,7 +810,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 
-	if (platform->driver->ops->prepare) {
+	if (platform->driver->ops && platform->driver->ops->prepare) {
 		ret = platform->driver->ops->prepare(substream);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: platform prepare error\n");
@@ -899,7 +899,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (platform->driver->ops->hw_params) {
+	if (platform->driver->ops && platform->driver->ops->hw_params) {
 		ret = platform->driver->ops->hw_params(substream, params);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: platform %s hw params failed\n",
@@ -952,7 +952,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 		rtd->dai_link->ops->hw_free(substream);
 
 	/* free any DMA resources */
-	if (platform->driver->ops->hw_free)
+	if (platform->driver->ops && platform->driver->ops->hw_free)
 		platform->driver->ops->hw_free(substream);
 
 	/* now free hw params for the DAIs  */
@@ -980,7 +980,7 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			return ret;
 	}
 
-	if (platform->driver->ops->trigger) {
+	if (platform->driver->ops && platform->driver->ops->trigger) {
 		ret = platform->driver->ops->trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
@@ -1009,7 +1009,7 @@ static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 	snd_pcm_uframes_t offset = 0;
 	snd_pcm_sframes_t delay = 0;
 
-	if (platform->driver->ops->pointer)
+	if (platform->driver->ops && platform->driver->ops->pointer)
 		offset = platform->driver->ops->pointer(substream);
 
 	if (cpu_dai->driver->ops->delay)
@@ -2125,13 +2125,15 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 	rtd->pcm = pcm;
 	pcm->private_data = rtd;
-	soc_pcm_ops.mmap = platform->driver->ops->mmap;
-	soc_pcm_ops.pointer = platform->driver->ops->pointer;
-	soc_pcm_ops.ioctl = platform->driver->ops->ioctl;
-	soc_pcm_ops.copy = platform->driver->ops->copy;
-	soc_pcm_ops.silence = platform->driver->ops->silence;
-	soc_pcm_ops.ack = platform->driver->ops->ack;
-	soc_pcm_ops.page = platform->driver->ops->page;
+	if (platform->driver->ops) {
+		soc_pcm_ops.mmap = platform->driver->ops->mmap;
+		soc_pcm_ops.pointer = platform->driver->ops->pointer;
+		soc_pcm_ops.ioctl = platform->driver->ops->ioctl;
+		soc_pcm_ops.copy = platform->driver->ops->copy;
+		soc_pcm_ops.silence = platform->driver->ops->silence;
+		soc_pcm_ops.ack = platform->driver->ops->ack;
+		soc_pcm_ops.page = platform->driver->ops->page;
+	}
 
 	if (playback)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &soc_pcm_ops);
@@ -2139,10 +2141,13 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &soc_pcm_ops);
 
-	ret = platform->driver->pcm_new(rtd->card->snd_card, codec_dai, pcm);
-	if (ret < 0) {
-		printk(KERN_ERR "asoc: platform pcm constructor failed\n");
-		return ret;
+	if (platform->driver->pcm_new) {
+		ret = platform->driver->pcm_new(rtd->card->snd_card,
+						codec_dai, pcm);
+		if (ret < 0) {
+			pr_err("asoc: platform pcm constructor failed\n");
+			return ret;
+		}
 	}
 
 	pcm->private_free = platform->driver->pcm_free;
