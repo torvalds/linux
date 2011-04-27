@@ -70,8 +70,8 @@ static const char *hw_event_names[] = {
 };
 
 static const char *sw_event_names[] = {
-	"cpu-clock-msecs",
-	"task-clock-msecs",
+	"cpu-clock",
+	"task-clock",
 	"page-faults",
 	"context-switches",
 	"CPU-migrations",
