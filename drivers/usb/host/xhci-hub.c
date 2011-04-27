@@ -341,6 +341,10 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 		status = PORT_RC;
 		port_change_bit = "reset";
 		break;
+	case USB_PORT_FEAT_C_BH_PORT_RESET:
+		status = PORT_WRC;
+		port_change_bit = "warm(BH) reset";
+		break;
 	case USB_PORT_FEAT_C_CONNECTION:
 		status = PORT_CSC;
 		port_change_bit = "connect";
@@ -557,6 +561,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp = xhci_readl(xhci, port_array[wIndex]);
 			xhci_dbg(xhci, "set port reset, actual port %d status  = 0x%x\n", wIndex, temp);
 			break;
+		case USB_PORT_FEAT_BH_PORT_RESET:
+			temp |= PORT_WR;
+			xhci_writel(xhci, temp, port_array[wIndex]);
+
+			temp = xhci_readl(xhci, port_array[wIndex]);
+			break;
 		default:
 			goto error;
 		}
@@ -625,6 +635,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_SUSPEND:
 			bus_state->port_c_suspend &= ~(1 << wIndex);
 		case USB_PORT_FEAT_C_RESET:
+		case USB_PORT_FEAT_C_BH_PORT_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 		case USB_PORT_FEAT_C_ENABLE:
