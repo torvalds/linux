@@ -2299,6 +2299,18 @@ long do_no_restart_syscall(struct restart_block *param)
 	return -EINTR;
 }
 
+static void __set_task_blocked(struct task_struct *tsk, const sigset_t *newset)
+{
+	if (signal_pending(tsk) && !thread_group_empty(tsk)) {
+		sigset_t newblocked;
+		/* A set of now blocked but previously unblocked signals. */
+		signandsets(&newblocked, newset, &current->blocked);
+		retarget_shared_pending(tsk, &newblocked);
+	}
+	tsk->blocked = *newset;
+	recalc_sigpending();
+}
+
 /**
  * set_current_blocked - change current->blocked mask
  * @newset: new mask
@@ -2311,14 +2323,7 @@ void set_current_blocked(const sigset_t *newset)
 	struct task_struct *tsk = current;
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (signal_pending(tsk) && !thread_group_empty(tsk)) {
-		sigset_t newblocked;
-		/* A set of now blocked but previously unblocked signals. */
-		signandsets(&newblocked, newset, &current->blocked);
-		retarget_shared_pending(tsk, &newblocked);
-	}
-	tsk->blocked = *newset;
-	recalc_sigpending();
+	__set_task_blocked(tsk, newset);
 	spin_unlock_irq(&tsk->sighand->siglock);
 }
 
@@ -2541,7 +2546,8 @@ int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 		/*
 		 * None ready, temporarily unblock those we're interested
 		 * while we are sleeping in so that we'll be awakened when
-		 * they arrive.
+		 * they arrive. Unblocking is always fine, we can avoid
+		 * set_current_blocked().
 		 */
 		tsk->real_blocked = tsk->blocked;
 		sigandsets(&tsk->blocked, &tsk->blocked, &mask);
@@ -2551,10 +2557,9 @@ int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 		timeout = schedule_timeout_interruptible(timeout);
 
 		spin_lock_irq(&tsk->sighand->siglock);
-		sig = dequeue_signal(tsk, &mask, info);
-		tsk->blocked = tsk->real_blocked;
+		__set_task_blocked(tsk, &tsk->real_blocked);
 		siginitset(&tsk->real_blocked, 0);
-		recalc_sigpending();
+		sig = dequeue_signal(tsk, &mask, info);
 	}
 	spin_unlock_irq(&tsk->sighand->siglock);
 
