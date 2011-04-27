@@ -183,7 +183,6 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.cpu_dai_name = "wm8915-aif2",
 		.codec_dai_name = "wm1250-ev1",
 		.codec_name = "wm1250-ev1.1-0027",
-		.platform_name = "samsung-audio",
 		.ops = &speyside_ops,
 		.ignore_suspend = 1,
 	},
