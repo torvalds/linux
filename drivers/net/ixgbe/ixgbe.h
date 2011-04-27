@@ -381,6 +381,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
 #define IXGBE_FLAG2_SEARCH_FOR_SFP              (u32)(1 << 4)
 #define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
+#define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
@@ -454,7 +455,6 @@ struct ixgbe_adapter {
 	bool link_up;
 	unsigned long link_check_timeout;
 
-	struct work_struct reset_task;
 	struct work_struct fdir_reinit_task;
 	struct work_struct check_overtemp_task;
 	struct work_struct service_task;
