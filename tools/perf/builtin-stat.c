@@ -194,6 +194,23 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 }
 
 /*
+ * Update various tracking values we maintain to print
+ * more semantic information such as miss/hit ratios,
+ * instruction rates, etc:
+ */
+static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
+{
+	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
+		update_stats(&runtime_nsecs_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
+		update_stats(&runtime_cycles_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
+		update_stats(&runtime_branches_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
+		update_stats(&runtime_cacherefs_stats[0], count[0]);
+}
+
+/*
  * Read out the results of a single counter:
  * aggregate counts across CPUs in system-wide mode
  */
@@ -218,14 +235,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-		update_stats(&runtime_nsecs_stats[0], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_stats(&runtime_cycles_stats[0], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_stats(&runtime_branches_stats[0], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_stats(&runtime_cacherefs_stats[0], count[0]);
+	update_shadow_stats(counter, count);
 
 	return 0;
 }
@@ -245,12 +255,7 @@ static int read_counter(struct perf_evsel *counter)
 
 		count = counter->counts->cpu[cpu].values;
 
-		if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-			update_stats(&runtime_nsecs_stats[cpu], count[0]);
-		if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-			update_stats(&runtime_cycles_stats[cpu], count[0]);
-		if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-			update_stats(&runtime_branches_stats[cpu], count[0]);
+		update_shadow_stats(counter, count);
 	}
 
 	return 0;
