@@ -503,7 +503,7 @@ static int smsc75xx_update_flowcontrol(struct usbnet *dev, u8 duplex,
 static int smsc75xx_link_reset(struct usbnet *dev)
 {
 	struct mii_if_info *mii = &dev->mii;
-	struct ethtool_cmd ecmd;
+	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
 	u16 lcladv, rmtadv;
 	int ret;
 
@@ -519,8 +519,9 @@ static int smsc75xx_link_reset(struct usbnet *dev)
 	lcladv = smsc75xx_mdio_read(dev->net, mii->phy_id, MII_ADVERTISE);
 	rmtadv = smsc75xx_mdio_read(dev->net, mii->phy_id, MII_LPA);
 
-	netif_dbg(dev, link, dev->net, "speed: %d duplex: %d lcladv: %04x"
-		" rmtadv: %04x", ecmd.speed, ecmd.duplex, lcladv, rmtadv);
+	netif_dbg(dev, link, dev->net, "speed: %u duplex: %d lcladv: %04x"
+		  " rmtadv: %04x", ethtool_cmd_speed(&ecmd),
+		  ecmd.duplex, lcladv, rmtadv);
 
 	return smsc75xx_update_flowcontrol(dev, ecmd.duplex, lcladv, rmtadv);
 }

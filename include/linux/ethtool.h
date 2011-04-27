@@ -744,7 +744,9 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
 /**
  * struct ethtool_ops - optional netdev operations
  * @get_settings: Get various device settings including Ethernet link
- *	settings.  Returns a negative error code or zero.
+ *	settings. The @cmd parameter is expected to have been cleared
+ *	before get_settings is called. Returns a negative error code or
+ *	zero.
  * @set_settings: Set various device settings including Ethernet link
  *	settings.  Returns a negative error code or zero.
  * @get_drvinfo: Report driver/device information.  Should only set the

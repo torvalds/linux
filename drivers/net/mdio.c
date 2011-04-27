@@ -176,6 +176,9 @@ static u32 mdio45_get_an(const struct mdio_if_info *mdio, u16 addr)
  * @npage_adv: Modes currently advertised on next pages
  * @npage_lpa: Modes advertised by link partner on next pages
  *
+ * The @ecmd parameter is expected to have been cleared before calling
+ * mdio45_ethtool_gset_npage().
+ *
  * Since the CSRs for auto-negotiation using next pages are not fully
  * standardised, this function does not attempt to decode them.  The
  * caller must pass them in.

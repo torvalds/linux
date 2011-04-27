@@ -1668,7 +1668,7 @@ static void e100_adjust_adaptive_ifs(struct nic *nic, int speed, int duplex)
 static void e100_watchdog(unsigned long data)
 {
 	struct nic *nic = (struct nic *)data;
-	struct ethtool_cmd cmd;
+	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 
 	netif_printk(nic, timer, KERN_DEBUG, nic->netdev,
 		     "right now = %ld\n", jiffies);

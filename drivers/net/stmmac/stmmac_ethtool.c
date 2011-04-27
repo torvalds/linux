@@ -237,13 +237,12 @@ stmmac_set_pauseparam(struct net_device *netdev,
 
 	if (phy->autoneg) {
 		if (netif_running(netdev)) {
-			struct ethtool_cmd cmd;
+			struct ethtool_cmd cmd = { .cmd = ETHTOOL_SSET };
 			/* auto-negotiation automatically restarted */
-			cmd.cmd = ETHTOOL_NWAY_RST;
 			cmd.supported = phy->supported;
 			cmd.advertising = phy->advertising;
 			cmd.autoneg = phy->autoneg;
-			cmd.speed = phy->speed;
+			ethtool_cmd_speed_set(&cmd, phy->speed);
 			cmd.duplex = phy->duplex;
 			cmd.phy_address = phy->addr;
 			ret = phy_ethtool_sset(phy, &cmd);

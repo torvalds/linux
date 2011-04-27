@@ -247,7 +247,7 @@ inline void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
 void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 {
 	struct pch_gbe_adapter *adapter;
-	struct ethtool_cmd     cmd;
+	struct ethtool_cmd     cmd = { .cmd = ETHTOOL_GSET };
 	int ret;
 	u16 mii_reg;
 

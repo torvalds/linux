@@ -888,12 +888,12 @@ static void pch_gbe_watchdog(unsigned long data)
 	struct pch_gbe_adapter *adapter = (struct pch_gbe_adapter *)data;
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
-	struct ethtool_cmd cmd;
 
 	pr_debug("right now = %ld\n", jiffies);
 
 	pch_gbe_update_stats(adapter);
 	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
+		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 		netdev->tx_queue_len = adapter->tx_queue_len;
 		/* mii library handles link maintenance tasks */
 		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
@@ -903,7 +903,7 @@ static void pch_gbe_watchdog(unsigned long data)
 						PCH_GBE_WATCHDOG_PERIOD));
 			return;
 		}
-		hw->mac.link_speed = cmd.speed;
+		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
 		hw->mac.link_duplex = cmd.duplex;
 		/* Set the RGMII control. */
 		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
@@ -913,7 +913,7 @@ static void pch_gbe_watchdog(unsigned long data)
 				 hw->mac.link_duplex);
 		netdev_dbg(netdev,
 			   "Link is Up %d Mbps %s-Duplex\n",
-			   cmd.speed,
+			   hw->mac.link_speed,
 			   cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
 		netif_carrier_on(netdev);
 		netif_wake_queue(netdev);

@@ -58,6 +58,9 @@ static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
  * @mii: MII interface
  * @ecmd: requested ethtool_cmd
  *
+ * The @ecmd parameter is expected to have been cleared before calling
+ * mii_ethtool_gset().
+ *
  * Returns 0 for success, negative on error.
  */
 int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)

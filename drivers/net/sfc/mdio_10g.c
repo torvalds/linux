@@ -232,12 +232,12 @@ void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
  */
 int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct ethtool_cmd prev;
+	struct ethtool_cmd prev = { .cmd = ETHTOOL_GSET };
 
 	efx->phy_op->get_settings(efx, &prev);
 
 	if (ecmd->advertising == prev.advertising &&
-	    ecmd->speed == prev.speed &&
+	    ethtool_cmd_speed(ecmd) == ethtool_cmd_speed(&prev) &&
 	    ecmd->duplex == prev.duplex &&
 	    ecmd->port == prev.port &&
 	    ecmd->autoneg == prev.autoneg)
