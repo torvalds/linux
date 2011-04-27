@@ -250,9 +250,6 @@ armpmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	if (!armpmu)
-		return;
-
 	/*
 	 * ARM pmu always has to update the counter, so ignore
 	 * PERF_EF_UPDATE, see comments in armpmu_start().
@@ -269,9 +266,6 @@ static void
 armpmu_start(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-
-	if (!armpmu)
-		return;
 
 	/*
 	 * ARM pmu always has to reprogram the period, so ignore
@@ -567,9 +561,6 @@ static int armpmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
-	if (!armpmu)
-		return -ENODEV;
-
 	event->destroy = hw_perf_event_destroy;
 
 	if (!atomic_inc_not_zero(&active_events)) {
@@ -599,9 +590,6 @@ static void armpmu_enable(struct pmu *pmu)
 	int idx, enabled = 0;
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	if (!armpmu)
-		return;
-
 	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 
@@ -618,8 +606,7 @@ static void armpmu_enable(struct pmu *pmu)
 
 static void armpmu_disable(struct pmu *pmu)
 {
-	if (armpmu)
-		armpmu->stop();
+	armpmu->stop();
 }
 
 static struct pmu pmu = {
@@ -738,11 +725,10 @@ init_hw_perf_events(void)
 	if (armpmu) {
 		pr_info("enabled with %s PMU driver, %d counters available\n",
 			armpmu->name, armpmu->num_events);
+		perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 	} else {
 		pr_info("no hardware support available\n");
 	}
-
-	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 
 	return 0;
 }
