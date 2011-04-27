@@ -361,6 +361,10 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 		status = PORT_PLC;
 		port_change_bit = "suspend/resume";
 		break;
+	case USB_PORT_FEAT_C_PORT_LINK_STATE:
+		status = PORT_PLC;
+		port_change_bit = "link state";
+		break;
 	default:
 		/* Should never happen */
 		return;
@@ -639,6 +643,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 		case USB_PORT_FEAT_C_ENABLE:
+		case USB_PORT_FEAT_C_PORT_LINK_STATE:
 			xhci_clear_port_change_bit(xhci, wValue, wIndex,
 					port_array[wIndex], temp);
 			break;
