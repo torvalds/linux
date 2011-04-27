@@ -2200,8 +2200,8 @@ relock:
 
 /*
  * It could be that complete_signal() picked us to notify about the
- * group-wide signal. Another thread should be notified now to take
- * the signal since we will not.
+ * group-wide signal. Other threads should be notified now to take
+ * the shared signals in @which since we will not.
  */
 static void retarget_shared_pending(struct task_struct *tsk, sigset_t *which)
 {
@@ -2214,8 +2214,19 @@ static void retarget_shared_pending(struct task_struct *tsk, sigset_t *which)
 
 	t = tsk;
 	while_each_thread(tsk, t) {
-		if (!signal_pending(t) && !(t->flags & PF_EXITING))
-			recalc_sigpending_and_wake(t);
+		if (t->flags & PF_EXITING)
+			continue;
+
+		if (!has_pending_signals(&retarget, &t->blocked))
+			continue;
+		/* Remove the signals this thread can handle. */
+		sigandsets(&retarget, &retarget, &t->blocked);
+
+		if (!signal_pending(t))
+			signal_wake_up(t, 0);
+
+		if (sigisemptyset(&retarget))
+			break;
 	}
 }
 
