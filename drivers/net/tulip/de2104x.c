@@ -1518,17 +1518,16 @@ static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 	switch (de->media_type) {
 	case DE_MEDIA_AUI:
 		ecmd->port = PORT_AUI;
-		ethtool_cmd_speed_set(ecmd, 5);
 		break;
 	case DE_MEDIA_BNC:
 		ecmd->port = PORT_BNC;
-		ethtool_cmd_speed_set(ecmd, 2);
 		break;
 	default:
 		ecmd->port = PORT_TP;
-		ethtool_cmd_speed_set(ecmd, SPEED_10);
 		break;
 	}
+
+	ethtool_cmd_speed_set(ecmd, 10);
 
 	if (dr32(MacMode) & FullDuplex)
 		ecmd->duplex = DUPLEX_FULL;
@@ -1549,11 +1548,8 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 {
 	u32 new_media;
 	unsigned int media_lock;
-	u32 speed = ethtool_cmd_speed(ecmd);
 
-	if (speed != SPEED_10 && speed != 5 && speed != 2)
-		return -EINVAL;
-	if (de->de21040 && speed == 2)
+	if (ethtool_cmd_speed(ecmd) != 10)
 		return -EINVAL;
 	if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 		return -EINVAL;
