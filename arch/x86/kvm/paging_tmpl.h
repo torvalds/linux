@@ -115,6 +115,20 @@ static unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, pt_element_t gpte)
 	return access;
 }
 
+static int FNAME(read_gpte)(pt_element_t *pte, pt_element_t __user *ptep_user)
+{
+#if defined(CONFIG_X86_32) && (PTTYPE == 64)
+	u32 *p = (u32 *)pte;
+	u32 __user *p_user = (u32 __user *)ptep_user;
+
+	if (unlikely(get_user(*p, p_user)))
+		return -EFAULT;
+	return get_user(*(p + 1), p_user + 1);
+#else
+	return get_user(*pte, ptep_user);
+#endif
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -185,7 +199,7 @@ walk:
 		}
 
 		ptep_user = (pt_element_t __user *)((void *)host_addr + offset);
-		if (unlikely(get_user(pte, ptep_user))) {
+		if (unlikely(FNAME(read_gpte)(&pte, ptep_user))) {
 			present = false;
 			break;
 		}
