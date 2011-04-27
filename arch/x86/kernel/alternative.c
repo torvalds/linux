@@ -679,7 +679,7 @@ void __kprobes text_poke_smp_batch(struct text_poke_param *params, int n)
 	__stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
 }
 
-#if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(CONFIG_JUMP_LABEL)
 
 #ifdef CONFIG_X86_64
 unsigned char ideal_nop5[5] = { 0x66, 0x66, 0x66, 0x66, 0x90 };
