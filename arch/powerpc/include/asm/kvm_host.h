@@ -223,6 +223,7 @@ struct kvm_vcpu_arch {
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
+	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
 	ulong sprg4;
 	ulong sprg5;
