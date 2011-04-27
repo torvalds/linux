@@ -430,9 +430,12 @@ static int watchdog_enable(int cpu)
 		p = kthread_create(watchdog, (void *)(unsigned long)cpu, "watchdog/%d", cpu);
 		if (IS_ERR(p)) {
 			printk(KERN_ERR "softlockup watchdog for %i failed\n", cpu);
-			if (!err)
+			if (!err) {
 				/* if hardlockup hasn't already set this */
 				err = PTR_ERR(p);
+				/* and disable the perf event */
+				watchdog_nmi_disable(cpu);
+			}
 			goto out;
 		}
 		kthread_bind(p, cpu);
