@@ -772,7 +772,6 @@ static int qlcnic_set_led(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		adapter->blink_was_down = false;
 		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 				return -EIO;
@@ -781,7 +780,7 @@ static int qlcnic_set_led(struct net_device *dev,
 				clear_bit(__QLCNIC_RESETTING, &adapter->state);
 				return -EIO;
 			}
-			adapter->blink_was_down = true;
+			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 		}
 
 		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0)
@@ -792,18 +791,17 @@ static int qlcnic_set_led(struct net_device *dev,
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
-		if (adapter->nic_ops->config_led(adapter, 0, 0xf) == 0)
-			return 0;
+		if (adapter->nic_ops->config_led(adapter, 0, 0xf))
+			dev_err(&adapter->pdev->dev,
+				"Failed to reset LED blink state.\n");
 
-		dev_err(&adapter->pdev->dev,
-			"Failed to reset LED blink state.\n");
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if (adapter->blink_was_down) {
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state)) {
 		qlcnic_diag_free_res(dev, max_sds_rings);
 		clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	}

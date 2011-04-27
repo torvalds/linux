@@ -884,6 +884,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_RESETTING		2
 #define __QLCNIC_START_FW 		4
 #define __QLCNIC_AER			5
+#define __QLCNIC_DIAG_RES_ALLOC		6
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -913,7 +914,6 @@ struct qlcnic_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
-	bool 		blink_was_down;
 	unsigned long state;
 	u32 flags;
 
