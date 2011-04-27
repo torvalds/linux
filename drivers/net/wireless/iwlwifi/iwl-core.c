@@ -1765,6 +1765,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_context *tmp;
 	u32 interface_modes;
 	int err;
@@ -1785,6 +1786,19 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
 
 	if (!(interface_modes & BIT(newtype))) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * Refuse a change that should be done by moving from the PAN
+	 * context to the BSS context instead, if the BSS context is
+	 * available and can support the new interface type.
+	 */
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && !bss_ctx->vif &&
+	    (bss_ctx->interface_modes & BIT(newtype) ||
+	     bss_ctx->exclusive_interface_modes & BIT(newtype))) {
+		BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 		err = -EBUSY;
 		goto out;
 	}
