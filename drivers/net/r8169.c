@@ -98,40 +98,40 @@ static const int multicast_filter_limit = 32;
 #define RTL_R32(reg)		readl (ioaddr + (reg))
 
 enum mac_version {
-	RTL_GIGA_MAC_NONE   = 0x00,
-	RTL_GIGA_MAC_VER_01 = 0x01, // 8169
-	RTL_GIGA_MAC_VER_02 = 0x02, // 8169S
-	RTL_GIGA_MAC_VER_03 = 0x03, // 8110S
-	RTL_GIGA_MAC_VER_04 = 0x04, // 8169SB
-	RTL_GIGA_MAC_VER_05 = 0x05, // 8110SCd
-	RTL_GIGA_MAC_VER_06 = 0x06, // 8110SCe
-	RTL_GIGA_MAC_VER_07 = 0x07, // 8102e
-	RTL_GIGA_MAC_VER_08 = 0x08, // 8102e
-	RTL_GIGA_MAC_VER_09 = 0x09, // 8102e
-	RTL_GIGA_MAC_VER_10 = 0x0a, // 8101e
-	RTL_GIGA_MAC_VER_11 = 0x0b, // 8168Bb
-	RTL_GIGA_MAC_VER_12 = 0x0c, // 8168Be
-	RTL_GIGA_MAC_VER_13 = 0x0d, // 8101Eb
-	RTL_GIGA_MAC_VER_14 = 0x0e, // 8101 ?
-	RTL_GIGA_MAC_VER_15 = 0x0f, // 8101 ?
-	RTL_GIGA_MAC_VER_16 = 0x11, // 8101Ec
-	RTL_GIGA_MAC_VER_17 = 0x10, // 8168Bf
-	RTL_GIGA_MAC_VER_18 = 0x12, // 8168CP
-	RTL_GIGA_MAC_VER_19 = 0x13, // 8168C
-	RTL_GIGA_MAC_VER_20 = 0x14, // 8168C
-	RTL_GIGA_MAC_VER_21 = 0x15, // 8168C
-	RTL_GIGA_MAC_VER_22 = 0x16, // 8168C
-	RTL_GIGA_MAC_VER_23 = 0x17, // 8168CP
-	RTL_GIGA_MAC_VER_24 = 0x18, // 8168CP
-	RTL_GIGA_MAC_VER_25 = 0x19, // 8168D
-	RTL_GIGA_MAC_VER_26 = 0x1a, // 8168D
-	RTL_GIGA_MAC_VER_27 = 0x1b, // 8168DP
-	RTL_GIGA_MAC_VER_28 = 0x1c, // 8168DP
-	RTL_GIGA_MAC_VER_29 = 0x1d, // 8105E
-	RTL_GIGA_MAC_VER_30 = 0x1e, // 8105E
-	RTL_GIGA_MAC_VER_31 = 0x1f, // 8168DP
-	RTL_GIGA_MAC_VER_32 = 0x20, // 8168E
-	RTL_GIGA_MAC_VER_33 = 0x21, // 8168E
+	RTL_GIGA_MAC_VER_01 = 0,
+	RTL_GIGA_MAC_VER_02,
+	RTL_GIGA_MAC_VER_03,
+	RTL_GIGA_MAC_VER_04,
+	RTL_GIGA_MAC_VER_05,
+	RTL_GIGA_MAC_VER_06,
+	RTL_GIGA_MAC_VER_07,
+	RTL_GIGA_MAC_VER_08,
+	RTL_GIGA_MAC_VER_09,
+	RTL_GIGA_MAC_VER_10,
+	RTL_GIGA_MAC_VER_11,
+	RTL_GIGA_MAC_VER_12,
+	RTL_GIGA_MAC_VER_13,
+	RTL_GIGA_MAC_VER_14,
+	RTL_GIGA_MAC_VER_15,
+	RTL_GIGA_MAC_VER_16,
+	RTL_GIGA_MAC_VER_17,
+	RTL_GIGA_MAC_VER_18,
+	RTL_GIGA_MAC_VER_19,
+	RTL_GIGA_MAC_VER_20,
+	RTL_GIGA_MAC_VER_21,
+	RTL_GIGA_MAC_VER_22,
+	RTL_GIGA_MAC_VER_23,
+	RTL_GIGA_MAC_VER_24,
+	RTL_GIGA_MAC_VER_25,
+	RTL_GIGA_MAC_VER_26,
+	RTL_GIGA_MAC_VER_27,
+	RTL_GIGA_MAC_VER_28,
+	RTL_GIGA_MAC_VER_29,
+	RTL_GIGA_MAC_VER_30,
+	RTL_GIGA_MAC_VER_31,
+	RTL_GIGA_MAC_VER_32,
+	RTL_GIGA_MAC_VER_33,
+	RTL_GIGA_MAC_NONE   = 0xff,
 };
 
 enum rtl_tx_desc_version {
@@ -139,61 +139,84 @@ enum rtl_tx_desc_version {
 	RTL_TD_1	= 1,
 };
 
-#define _R(NAME,MAC,TD) \
-	{ .name = NAME, .mac_version = MAC, .txd_version = TD }
+#define _R(NAME,TD,FW) \
+	{ .name = NAME, .txd_version = TD, .fw_name = FW }
 
 static const struct {
 	const char *name;
-	u8 mac_version;
 	enum rtl_tx_desc_version txd_version;
-} rtl_chip_info[] = {
-	_R("RTL8169",		RTL_GIGA_MAC_VER_01, RTL_TD_0), // 8169
-	_R("RTL8169s",		RTL_GIGA_MAC_VER_02, RTL_TD_0), // 8169S
-	_R("RTL8110s",		RTL_GIGA_MAC_VER_03, RTL_TD_0), // 8110S
-	_R("RTL8169sb/8110sb",	RTL_GIGA_MAC_VER_04, RTL_TD_0), // 8169SB
-	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_05, RTL_TD_0), // 8110SCd
-	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_06, RTL_TD_0), // 8110SCe
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_07, RTL_TD_1), // PCI-E
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_08, RTL_TD_1), // PCI-E
-	_R("RTL8102e",		RTL_GIGA_MAC_VER_09, RTL_TD_1), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_10, RTL_TD_0), // PCI-E
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_11, RTL_TD_0), // PCI-E
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_12, RTL_TD_0), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_13, RTL_TD_0), // PCI-E 8139
-	_R("RTL8100e",		RTL_GIGA_MAC_VER_14, RTL_TD_0), // PCI-E 8139
-	_R("RTL8100e",		RTL_GIGA_MAC_VER_15, RTL_TD_0), // PCI-E 8139
-	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_17, RTL_TD_0), // PCI-E
-	_R("RTL8101e",		RTL_GIGA_MAC_VER_16, RTL_TD_0), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_18, RTL_TD_1), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_19, RTL_TD_1), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_20, RTL_TD_1), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_21, RTL_TD_1), // PCI-E
-	_R("RTL8168c/8111c",	RTL_GIGA_MAC_VER_22, RTL_TD_1), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_23, RTL_TD_1), // PCI-E
-	_R("RTL8168cp/8111cp",	RTL_GIGA_MAC_VER_24, RTL_TD_1), // PCI-E
-	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_25, RTL_TD_1), // PCI-E
-	_R("RTL8168d/8111d",	RTL_GIGA_MAC_VER_26, RTL_TD_1), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_27, RTL_TD_1), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_28, RTL_TD_1), // PCI-E
-	_R("RTL8105e",		RTL_GIGA_MAC_VER_29, RTL_TD_1), // PCI-E
-	_R("RTL8105e",		RTL_GIGA_MAC_VER_30, RTL_TD_1), // PCI-E
-	_R("RTL8168dp/8111dp",	RTL_GIGA_MAC_VER_31, RTL_TD_1), // PCI-E
-	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_32, RTL_TD_1), // PCI-E
-	_R("RTL8168e/8111e",	RTL_GIGA_MAC_VER_33, RTL_TD_1)  // PCI-E
+	const char *fw_name;
+} rtl_chip_infos[] = {
+	/* PCI devices. */
+	[RTL_GIGA_MAC_VER_01] =
+		_R("RTL8169",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_02] =
+		_R("RTL8169s",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_03] =
+		_R("RTL8110s",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_04] =
+		_R("RTL8169sb/8110sb",	RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_05] =
+		_R("RTL8169sc/8110sc",	RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_06] =
+		_R("RTL8169sc/8110sc",	RTL_TD_0, NULL),
+	/* PCI-E devices. */
+	[RTL_GIGA_MAC_VER_07] =
+		_R("RTL8102e",		RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_08] =
+		_R("RTL8102e",		RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_09] =
+		_R("RTL8102e",		RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_10] =
+		_R("RTL8101e",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_11] =
+		_R("RTL8168b/8111b",	RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_12] =
+		_R("RTL8168b/8111b",	RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_13] =
+		_R("RTL8101e",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_14] =
+		_R("RTL8100e",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_15] =
+		_R("RTL8100e",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_16] =
+		_R("RTL8101e",		RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_17] =
+		_R("RTL8168b/8111b",	RTL_TD_0, NULL),
+	[RTL_GIGA_MAC_VER_18] =
+		_R("RTL8168cp/8111cp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_19] =
+		_R("RTL8168c/8111c",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_20] =
+		_R("RTL8168c/8111c",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_21] =
+		_R("RTL8168c/8111c",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_22] =
+		_R("RTL8168c/8111c",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_23] =
+		_R("RTL8168cp/8111cp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_24] =
+		_R("RTL8168cp/8111cp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_25] =
+		_R("RTL8168d/8111d",	RTL_TD_1, FIRMWARE_8168D_1),
+	[RTL_GIGA_MAC_VER_26] =
+		_R("RTL8168d/8111d",	RTL_TD_1, FIRMWARE_8168D_2),
+	[RTL_GIGA_MAC_VER_27] =
+		_R("RTL8168dp/8111dp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_28] =
+		_R("RTL8168dp/8111dp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_29] =
+		_R("RTL8105e",		RTL_TD_1, FIRMWARE_8105E_1),
+	[RTL_GIGA_MAC_VER_30] =
+		_R("RTL8105e",		RTL_TD_1, FIRMWARE_8105E_1),
+	[RTL_GIGA_MAC_VER_31] =
+		_R("RTL8168dp/8111dp",	RTL_TD_1, NULL),
+	[RTL_GIGA_MAC_VER_32] =
+		_R("RTL8168e/8111e",	RTL_TD_1, FIRMWARE_8168E_1),
+	[RTL_GIGA_MAC_VER_33] =
+		_R("RTL8168e/8111e",	RTL_TD_1, FIRMWARE_8168E_2)
 };
 #undef _R
-
-static const struct rtl_firmware_info {
-	int mac_version;
-	const char *fw_name;
-} rtl_firmware_infos[] = {
-	{ .mac_version = RTL_GIGA_MAC_VER_25, .fw_name = FIRMWARE_8168D_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_26, .fw_name = FIRMWARE_8168D_2 },
-	{ .mac_version = RTL_GIGA_MAC_VER_29, .fw_name = FIRMWARE_8105E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_30, .fw_name = FIRMWARE_8105E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_32, .fw_name = FIRMWARE_8168E_1 },
-	{ .mac_version = RTL_GIGA_MAC_VER_33, .fw_name = FIRMWARE_8168E_2 }
-};
 
 enum cfg_version {
 	RTL_CFG_0 = 0x00,
@@ -1190,15 +1213,7 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 static const char *rtl_lookup_firmware_name(struct rtl8169_private *tp)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(rtl_firmware_infos); i++) {
-		const struct rtl_firmware_info *info = rtl_firmware_infos + i;
-
-		if (info->mac_version == tp->mac_version)
-			return info->fw_name;
-	}
-	return NULL;
+	return rtl_chip_infos[tp->mac_version].fw_name;
 }
 
 static void rtl8169_get_drvinfo(struct net_device *dev,
@@ -3359,17 +3374,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl8169_print_mac_version(tp);
 
-	for (i = 0; i < ARRAY_SIZE(rtl_chip_info); i++) {
-		if (tp->mac_version == rtl_chip_info[i].mac_version)
-			break;
-	}
-	if (i == ARRAY_SIZE(rtl_chip_info)) {
-		dev_err(&pdev->dev,
-			"driver bug, MAC version not found in rtl_chip_info\n");
-		goto err_out_msi_4;
-	}
-	chipset = i;
-	tp->txd_version = rtl_chip_info[chipset].txd_version;
+	chipset = tp->mac_version;
+	tp->txd_version = rtl_chip_infos[chipset].txd_version;
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
@@ -3444,7 +3450,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	netif_info(tp, probe, dev, "%s at 0x%lx, %pM, XID %08x IRQ %d\n",
-		   rtl_chip_info[chipset].name, dev->base_addr, dev->dev_addr,
+		   rtl_chip_infos[chipset].name, dev->base_addr, dev->dev_addr,
 		   (u32)(RTL_R32(TxConfig) & 0x9cf0f8ff), dev->irq);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_27 ||
