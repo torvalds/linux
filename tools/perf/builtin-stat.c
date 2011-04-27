@@ -156,6 +156,7 @@ static double stddev_stats(struct stats *stats)
 
 struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
 struct stats			runtime_cycles_stats[MAX_NR_CPUS];
+struct stats			runtime_stalled_cycles_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			runtime_cacherefs_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
@@ -204,6 +205,8 @@ static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
 		update_stats(&runtime_nsecs_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES))
+		update_stats(&runtime_stalled_cycles_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 		update_stats(&runtime_branches_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
@@ -412,8 +415,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 		return;
 
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		fprintf(stderr, " # %10.3f CPUs",
-				avg / avg_stats(&walltime_nsecs_stats));
+		fprintf(stderr, " # %8.3f CPUs utilized          ", avg / avg_stats(&walltime_nsecs_stats));
 }
 
 static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
@@ -450,7 +452,15 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " # ( %4.2f instructions per cycle )", ratio);
+		fprintf(stderr, " #    %4.2f  insns per cycle", ratio);
+
+		total = avg_stats(&runtime_stalled_cycles_stats[cpu]);
+
+		if (total && avg) {
+			ratio = total / avg;
+			fprintf(stderr, "\n                                            #    %4.2f  stalled cycles per insn", ratio);
+		}
+
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_branches_stats[cpu]);
@@ -458,7 +468,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg * 100 / total;
 
-		fprintf(stderr, " # %10.3f %%", ratio);
+		fprintf(stderr, " # %8.3f %% of all branches", ratio);
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
 			runtime_cacherefs_stats[cpu].n != 0) {
@@ -467,22 +477,29 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg * 100 / total;
 
-		fprintf(stderr, " # %10.3f %%", ratio);
+		fprintf(stderr, " # %8.3f %% of all cache refs    ", ratio);
 
-	} else if (runtime_nsecs_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_nsecs_stats[cpu]);
-
-		if (total)
-			ratio = 1000.0 * avg / total;
-
-		fprintf(stderr, " # %10.3f M/sec", ratio);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES)) {
 		total = avg_stats(&runtime_cycles_stats[cpu]);
 
 		if (total)
 			ratio = avg / total * 100.0;
 
-		fprintf(stderr, " # (%5.2f%% of all cycles )", ratio);
+		fprintf(stderr, " #   %5.2f%% of all cycles are idle ", ratio);
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
+		total = avg_stats(&runtime_nsecs_stats[cpu]);
+
+		if (total)
+			ratio = 1.0 * avg / total;
+
+		fprintf(stderr, " # %8.3f GHz                    ", ratio);
+	} else if (runtime_nsecs_stats[cpu].n != 0) {
+		total = avg_stats(&runtime_nsecs_stats[cpu]);
+
+		if (total)
+			ratio = 1000.0 * avg / total;
+
+		fprintf(stderr, " # %8.3f M/sec                  ", ratio);
 	}
 }
 
@@ -619,7 +636,7 @@ static void print_stat(int argc, const char **argv)
 		fprintf(stderr, " %18.9f  seconds time elapsed",
 				avg_stats(&walltime_nsecs_stats)/1e9);
 		if (run_count > 1) {
-			fprintf(stderr, "   ( +- %7.3f%% )",
+			fprintf(stderr, "   ( +-%5.2f%% )",
 				100*stddev_stats(&walltime_nsecs_stats) /
 				avg_stats(&walltime_nsecs_stats));
 		}
