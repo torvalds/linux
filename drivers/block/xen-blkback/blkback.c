@@ -276,8 +276,6 @@ int xen_blkif_schedule(void *arg)
 		printk(KERN_DEBUG "%s: started\n", current->comm);
 
 	while (!kthread_should_stop()) {
-		struct blk_plug plug;
-
 		if (try_to_freeze())
 			continue;
 		if (unlikely(vbd->size != vbd_sz(vbd)))
@@ -294,12 +292,8 @@ int xen_blkif_schedule(void *arg)
 		blkif->waiting_reqs = 0;
 		smp_mb(); /* clear flag *before* checking for work */
 
-		blk_start_plug(&plug);
-
 		if (do_block_io_op(blkif))
 			blkif->waiting_reqs = 1;
-
-		blk_finish_plug(&plug);
 
 		if (log_stats && time_after(jiffies, blkif->st_print))
 			print_stats(blkif);
@@ -553,6 +547,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	struct bio *biolist[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	int i, nbio = 0;
 	int operation;
+	struct blk_plug plug;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -665,8 +660,14 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	 */
 	atomic_set(&pending_req->pendcnt, nbio);
 
+	/* Get a reference count for the disk queue and start sending I/O */
+	blk_start_plug(&plug);
+
 	for (i = 0; i < nbio; i++)
 		submit_bio(operation, biolist[i]);
+
+	blk_finish_plug(&plug);
+	/* Let the I/Os go.. */
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
