@@ -1077,6 +1077,84 @@ static void drbd_suspend_al(struct drbd_conf *mdev)
 		dev_info(DEV, "Suspended AL updates\n");
 }
 
+
+static bool should_set_defaults(struct genl_info *info)
+{
+	unsigned flags = ((struct drbd_genlmsghdr*)info->userhdr)->flags;
+	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
+}
+
+/* Maybe we should we generate these functions
+ * from the drbd_genl.h magic as well?
+ * That way we would not "accidentally forget" to add defaults here. */
+
+#define RESET_ARRAY_FIELD(field) do { \
+	memset(field, 0, sizeof(field)); \
+	field ## _len = 0; \
+} while (0)
+void drbd_set_res_opts_default(struct res_opts *r)
+{
+	RESET_ARRAY_FIELD(r->cpu_mask);
+	r->on_no_data  = DRBD_ON_NO_DATA_DEF;
+}
+
+static void drbd_set_net_conf_defaults(struct net_conf *nc)
+{
+	/* Do NOT (re)set those fields marked as GENLA_F_INVARIANT
+	 * in drbd_genl.h, they can only be change with disconnect/reconnect */
+	RESET_ARRAY_FIELD(nc->shared_secret);
+
+	RESET_ARRAY_FIELD(nc->cram_hmac_alg);
+	RESET_ARRAY_FIELD(nc->integrity_alg);
+	RESET_ARRAY_FIELD(nc->verify_alg);
+	RESET_ARRAY_FIELD(nc->csums_alg);
+#undef RESET_ARRAY_FIELD
+
+	nc->wire_protocol = DRBD_PROTOCOL_DEF;
+	nc->try_connect_int = DRBD_CONNECT_INT_DEF;
+	nc->timeout = DRBD_TIMEOUT_DEF;
+	nc->ping_int = DRBD_PING_INT_DEF;
+	nc->ping_timeo = DRBD_PING_TIMEO_DEF;
+	nc->sndbuf_size = DRBD_SNDBUF_SIZE_DEF;
+	nc->rcvbuf_size = DRBD_RCVBUF_SIZE_DEF;
+	nc->ko_count = DRBD_KO_COUNT_DEF;
+	nc->max_buffers = DRBD_MAX_BUFFERS_DEF;
+	nc->max_epoch_size = DRBD_MAX_EPOCH_SIZE_DEF;
+	nc->unplug_watermark = DRBD_UNPLUG_WATERMARK_DEF;
+	nc->after_sb_0p = DRBD_AFTER_SB_0P_DEF;
+	nc->after_sb_1p = DRBD_AFTER_SB_1P_DEF;
+	nc->after_sb_2p = DRBD_AFTER_SB_2P_DEF;
+	nc->rr_conflict = DRBD_RR_CONFLICT_DEF;
+	nc->on_congestion = DRBD_ON_CONGESTION_DEF;
+	nc->cong_fill = DRBD_CONG_FILL_DEF;
+	nc->cong_extents = DRBD_CONG_EXTENTS_DEF;
+	nc->two_primaries = 0;
+	nc->no_cork = 0;
+	nc->always_asbp = 0;
+	nc->use_rle = 0;
+}
+
+static void drbd_set_disk_conf_defaults(struct disk_conf *dc)
+{
+	/* Do NOT (re)set those fields marked as GENLA_F_INVARIANT
+	 * in drbd_genl.h, they can only be change with detach/reattach */
+	dc->on_io_error = DRBD_ON_IO_ERROR_DEF;
+	dc->fencing = DRBD_FENCING_DEF;
+	dc->resync_rate = DRBD_RATE_DEF;
+	dc->resync_after = DRBD_AFTER_DEF;
+	dc->al_extents = DRBD_AL_EXTENTS_DEF;
+	dc->c_plan_ahead = DRBD_C_PLAN_AHEAD_DEF;
+	dc->c_delay_target = DRBD_C_DELAY_TARGET_DEF;
+	dc->c_fill_target = DRBD_C_FILL_TARGET_DEF;
+	dc->c_max_rate = DRBD_C_MAX_RATE_DEF;
+	dc->c_min_rate = DRBD_C_MIN_RATE_DEF;
+	dc->no_disk_barrier = 0;
+	dc->no_disk_flush = 0;
+	dc->no_disk_drain = 0;
+	dc->no_md_flush = 0;
+}
+
+
 int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
@@ -1113,6 +1191,9 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	memcpy(ndc, &mdev->ldev->dc, sizeof(*ndc));
+	if (should_set_defaults(info))
+		drbd_set_disk_conf_defaults(ndc);
+
 	err = disk_conf_from_attrs_for_change(ndc, info);
 	if (err) {
 		retcode = ERR_MANDATORY_TAG;
@@ -1228,27 +1309,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	nbc->dc = (struct disk_conf) {
-		{}, 0, /* backing_dev */
-		{}, 0, /* meta_dev */
-		0, /* meta_dev_idx */
-		DRBD_DISK_SIZE_SECT_DEF, /* disk_size */
-		DRBD_MAX_BIO_BVECS_DEF, /* max_bio_bvecs */
-		DRBD_ON_IO_ERROR_DEF, /* on_io_error */
-		DRBD_FENCING_DEF, /* fencing */
-		DRBD_RATE_DEF, /* resync_rate */
-		DRBD_AFTER_DEF, /* resync_after */
-		DRBD_AL_EXTENTS_DEF, /* al_extents */
-		DRBD_C_PLAN_AHEAD_DEF, /* c_plan_ahead */
-		DRBD_C_DELAY_TARGET_DEF, /* c_delay_target */
-		DRBD_C_FILL_TARGET_DEF, /* c_fill_target */
-		DRBD_C_MAX_RATE_DEF, /* c_max_rate */
-		DRBD_C_MIN_RATE_DEF, /* c_min_rate */
-		0, /* no_disk_barrier */
-		0, /* no_disk_flush */
-		0, /* no_disk_drain */
-		0, /* no_md_flush */
-	};
+	drbd_set_disk_conf_defaults(&nbc->dc);
 
 	err = disk_conf_from_attrs(&nbc->dc, info);
 	if (err) {
@@ -1845,6 +1906,8 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	*new_conf = *old_conf;
+	if (should_set_defaults(info))
+		drbd_set_net_conf_defaults(new_conf);
 
 	err = net_conf_from_attrs_for_change(new_conf, info);
 	if (err) {
@@ -1949,45 +2012,13 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* allocation not in the IO path, cqueue thread context */
-	new_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
+	new_conf = kzalloc(sizeof(*new_conf), GFP_KERNEL);
 	if (!new_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
 	}
 
-	*new_conf = (struct net_conf) {
-		{}, 0, /* my_addr */
-		{}, 0, /* peer_addr */
-		{}, 0, /* shared_secret */
-		{}, 0, /* cram_hmac_alg */
-		{}, 0, /* integrity_alg */
-		{}, 0, /* verify_alg */
-		{}, 0, /* csums_alg */
-		DRBD_PROTOCOL_DEF, /* wire_protocol */
-		DRBD_CONNECT_INT_DEF, /* try_connect_int */
-		DRBD_TIMEOUT_DEF, /* timeout */
-		DRBD_PING_INT_DEF, /* ping_int */
-		DRBD_PING_TIMEO_DEF, /* ping_timeo */
-		DRBD_SNDBUF_SIZE_DEF, /* sndbuf_size */
-		DRBD_RCVBUF_SIZE_DEF, /* rcvbuf_size */
-		DRBD_KO_COUNT_DEF, /* ko_count */
-		DRBD_MAX_BUFFERS_DEF, /* max_buffers */
-		DRBD_MAX_EPOCH_SIZE_DEF, /* max_epoch_size */
-		DRBD_UNPLUG_WATERMARK_DEF, /* unplug_watermark */
-		DRBD_AFTER_SB_0P_DEF, /* after_sb_0p */
-		DRBD_AFTER_SB_1P_DEF, /* after_sb_1p */
-		DRBD_AFTER_SB_2P_DEF, /* after_sb_2p */
-		DRBD_RR_CONFLICT_DEF, /* rr_conflict */
-		DRBD_ON_CONGESTION_DEF, /* on_congestion */
-		DRBD_CONG_FILL_DEF, /* cong_fill */
-		DRBD_CONG_EXTENTS_DEF, /* cong_extents */
-		0, /* two_primaries */
-		0, /* want_lose */
-		0, /* no_cork */
-		0, /* always_asbp */
-		0, /* dry_run */
-		0, /* use_rle */
-	};
+	drbd_set_net_conf_defaults(new_conf);
 
 	err = net_conf_from_attrs(new_conf, info);
 	if (err) {
@@ -2275,12 +2306,9 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	if (((struct drbd_genlmsghdr*)info->userhdr)->flags
-			& DRBD_GENL_F_SET_DEFAULTS) {
-		memset(&sc, 0, sizeof(struct res_opts));
-		sc.on_no_data  = DRBD_ON_NO_DATA_DEF;
-	} else
-		sc = tconn->res_opts;
+	sc = tconn->res_opts;
+	if (should_set_defaults(info))
+		drbd_set_res_opts_default(&sc);
 
 	err = res_opts_from_attrs(&sc, info);
 	if (err) {
