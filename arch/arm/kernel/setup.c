@@ -20,6 +20,7 @@
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
+#include <linux/of_fdt.h>
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
@@ -42,6 +43,7 @@
 #include <asm/cachetype.h>
 #include <asm/tlbflush.h>
 
+#include <asm/prom.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
@@ -309,7 +311,7 @@ static void __init cacheid_init(void)
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
 
-static void __init early_print(const char *str, ...)
+void __init early_print(const char *str, ...)
 {
 	extern void printascii(const char *);
 	char buf[256];
@@ -439,7 +441,7 @@ void cpu_init(void)
 	    : "r14");
 }
 
-static void __init dump_machine_table(void)
+void __init dump_machine_table(void)
 {
 	struct machine_desc *p;
 
@@ -837,8 +839,17 @@ static struct machine_desc * __init setup_machine_tags(unsigned int nr)
 	if (tags->hdr.tag != ATAG_CORE)
 		convert_to_tag_list(tags);
 #endif
-	if (tags->hdr.tag != ATAG_CORE)
+
+	if (tags->hdr.tag != ATAG_CORE) {
+#if defined(CONFIG_OF)
+		/*
+		 * If CONFIG_OF is set, then assume this is a reasonably
+		 * modern system that should pass boot parameters
+		 */
+		early_print("Warning: Neither atags nor dtb found\n");
+#endif
 		tags = (struct tag *)&init_tags;
+	}
 
 	if (mdesc->fixup)
 		mdesc->fixup(mdesc, tags, &from, &meminfo);
@@ -864,7 +875,9 @@ void __init setup_arch(char **cmdline_p)
 	unwind_init();
 
 	setup_processor();
-	mdesc = setup_machine_tags(machine_arch_type);
+	mdesc = setup_machine_fdt(__atags_pointer);
+	if (!mdesc)
+		mdesc = setup_machine_tags(machine_arch_type);
 	machine_desc = mdesc;
 	machine_name = mdesc->name;
 
@@ -886,6 +899,8 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init(mdesc);
 	request_standard_resources(mdesc);
+
+	unflatten_device_tree();
 
 #ifdef CONFIG_SMP
 	if (is_smp())
