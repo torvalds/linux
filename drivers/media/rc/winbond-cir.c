@@ -382,7 +382,7 @@ wbcir_shutdown(struct pnp_dev *device)
 {
 	struct device *dev = &device->dev;
 	struct wbcir_data *data = pnp_get_drvdata(device);
-	int do_wake = 1;
+	bool do_wake = true;
 	u8 match[11];
 	u8 mask[11];
 	u8 rc6_csl = 0;
@@ -392,14 +392,14 @@ wbcir_shutdown(struct pnp_dev *device)
 	memset(mask, 0, sizeof(mask));
 
 	if (wake_sc == INVALID_SCANCODE || !device_may_wakeup(dev)) {
-		do_wake = 0;
+		do_wake = false;
 		goto finish;
 	}
 
 	switch (protocol) {
 	case IR_PROTOCOL_RC5:
 		if (wake_sc > 0xFFF) {
-			do_wake = 0;
+			do_wake = false;
 			dev_err(dev, "RC5 - Invalid wake scancode\n");
 			break;
 		}
@@ -418,7 +418,7 @@ wbcir_shutdown(struct pnp_dev *device)
 
 	case IR_PROTOCOL_NEC:
 		if (wake_sc > 0xFFFFFF) {
-			do_wake = 0;
+			do_wake = false;
 			dev_err(dev, "NEC - Invalid wake scancode\n");
 			break;
 		}
@@ -440,7 +440,7 @@ wbcir_shutdown(struct pnp_dev *device)
 
 		if (wake_rc6mode == 0) {
 			if (wake_sc > 0xFFFF) {
-				do_wake = 0;
+				do_wake = false;
 				dev_err(dev, "RC6 - Invalid wake scancode\n");
 				break;
 			}
@@ -496,7 +496,7 @@ wbcir_shutdown(struct pnp_dev *device)
 			} else if (wake_sc <= 0x007FFFFF) {
 				rc6_csl = 60;
 			} else {
-				do_wake = 0;
+				do_wake = false;
 				dev_err(dev, "RC6 - Invalid wake scancode\n");
 				break;
 			}
@@ -508,14 +508,14 @@ wbcir_shutdown(struct pnp_dev *device)
 			mask[i++] = 0x0F;
 
 		} else {
-			do_wake = 0;
+			do_wake = false;
 			dev_err(dev, "RC6 - Invalid wake mode\n");
 		}
 
 		break;
 
 	default:
-		do_wake = 0;
+		do_wake = false;
 		break;
 	}
 
