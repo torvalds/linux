@@ -38,7 +38,7 @@ int mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 			       u8 **buffer);
 void mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 			struct mwifiex_bssdescriptor *bss_desc);
-void mwifiex_fill_cap_info(struct mwifiex_private *,
+void mwifiex_fill_cap_info(struct mwifiex_private *, u8 radio_type,
 			   struct mwifiex_ie_types_htcap *);
 int mwifiex_set_get_11n_htcap_cfg(struct mwifiex_private *priv,
 				  u16 action, int *htcap_cfg);

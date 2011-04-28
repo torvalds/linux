@@ -1007,7 +1007,9 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 		ht_cap->header.type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
 		ht_cap->header.len =
 				cpu_to_le16(sizeof(struct ieee80211_ht_cap));
-		mwifiex_fill_cap_info(priv, ht_cap);
+		radio_type =
+			mwifiex_band_to_radio_type(priv->adapter->config_bands);
+		mwifiex_fill_cap_info(priv, radio_type, ht_cap);
 		tlv_pos += sizeof(struct mwifiex_ie_types_htcap);
 	}
 
