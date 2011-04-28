@@ -2035,8 +2035,7 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 	if (!test_bit(HCI_PAIRABLE, &hdev->flags))
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 					sizeof(ev->bdaddr), &ev->bdaddr);
-
-	if (test_bit(HCI_MGMT, &hdev->flags)) {
+	else if (test_bit(HCI_MGMT, &hdev->flags)) {
 		u8 secure;
 
 		if (conn->pending_sec_level == BT_SECURITY_HIGH)
