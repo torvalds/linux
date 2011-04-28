@@ -128,11 +128,6 @@ struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
 	/* Handling TX */
-	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
-					struct iwl_tx_queue *txq,
-					u16 byte_cnt);
-	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
-				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
 	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
 				     struct iwl_tx_queue *txq,
