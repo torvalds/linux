@@ -1833,17 +1833,13 @@ static void rt_set_nexthop(struct rtable *rt, const struct flowi4 *oldflp4,
 	rt->rt_type = type;
 }
 
-static struct rtable *rt_dst_alloc(bool nopolicy, bool noxfrm)
+static struct rtable *rt_dst_alloc(struct net_device *dev,
+				   bool nopolicy, bool noxfrm)
 {
-	struct rtable *rt = dst_alloc(&ipv4_dst_ops, 1);
-	if (rt) {
-		rt->dst.obsolete = -1;
-
-		rt->dst.flags = DST_HOST |
-			(nopolicy ? DST_NOPOLICY : 0) |
-			(noxfrm ? DST_NOXFRM : 0);
-	}
-	return rt;
+	return dst_alloc(&ipv4_dst_ops, dev, 1, -1,
+			 DST_HOST |
+			 (nopolicy ? DST_NOPOLICY : 0) |
+			 (noxfrm ? DST_NOXFRM : 0));
 }
 
 /* called in rcu_read_lock() section */
@@ -1876,7 +1872,8 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		if (err < 0)
 			goto e_err;
 	}
-	rth = rt_dst_alloc(IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
+	rth = rt_dst_alloc(init_net.loopback_dev,
+			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
 	if (!rth)
 		goto e_nobufs;
 
@@ -1893,8 +1890,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 #endif
 	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
-	rth->dst.dev	= init_net.loopback_dev;
-	dev_hold(rth->dst.dev);
 	rth->rt_oif	= 0;
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
@@ -2013,7 +2008,8 @@ static int __mkroute_input(struct sk_buff *skb,
 		}
 	}
 
-	rth = rt_dst_alloc(IN_DEV_CONF_GET(in_dev, NOPOLICY),
+	rth = rt_dst_alloc(out_dev->dev,
+			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(out_dev, NOXFRM));
 	if (!rth) {
 		err = -ENOBUFS;
@@ -2029,8 +2025,6 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_gateway	= daddr;
 	rth->rt_route_iif = in_dev->dev->ifindex;
 	rth->rt_iif 	= in_dev->dev->ifindex;
-	rth->dst.dev	= (out_dev)->dev;
-	dev_hold(rth->dst.dev);
 	rth->rt_oif 	= 0;
 	rth->rt_spec_dst= spec_dst;
 
@@ -2188,7 +2182,8 @@ brd_input:
 	RT_CACHE_STAT_INC(in_brd);
 
 local_input:
-	rth = rt_dst_alloc(IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
+	rth = rt_dst_alloc(net->loopback_dev,
+			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
 	if (!rth)
 		goto e_nobufs;
 
@@ -2206,8 +2201,6 @@ local_input:
 #endif
 	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
-	rth->dst.dev	= net->loopback_dev;
-	dev_hold(rth->dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
 	rth->dst.input= ip_local_deliver;
@@ -2392,7 +2385,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 			fi = NULL;
 	}
 
-	rth = rt_dst_alloc(IN_DEV_CONF_GET(in_dev, NOPOLICY),
+	rth = rt_dst_alloc(dev_out,
+			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(in_dev, NOXFRM));
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
@@ -2406,10 +2400,6 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_src	= fl4->saddr;
 	rth->rt_route_iif = 0;
 	rth->rt_iif	= oldflp4->flowi4_oif ? : dev_out->ifindex;
-	/* get references to the devices that are to be hold by the routing
-	   cache entry */
-	rth->dst.dev	= dev_out;
-	dev_hold(dev_out);
 	rth->rt_gateway = fl4->daddr;
 	rth->rt_spec_dst= fl4->saddr;
 
@@ -2711,7 +2701,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 
 struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig)
 {
-	struct rtable *rt = dst_alloc(&ipv4_dst_blackhole_ops, 1);
+	struct rtable *rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, 0, 0);
 	struct rtable *ort = (struct rtable *) dst_orig;
 
 	if (rt) {

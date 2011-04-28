@@ -166,7 +166,8 @@ EXPORT_SYMBOL(dst_discard);
 
 const u32 dst_default_metrics[RTAX_MAX];
 
-void *dst_alloc(struct dst_ops *ops, int initial_ref)
+void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
+		int initial_ref, int initial_obsolete, int flags)
 {
 	struct dst_entry *dst;
 
@@ -177,12 +178,19 @@ void *dst_alloc(struct dst_ops *ops, int initial_ref)
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	atomic_set(&dst->__refcnt, initial_ref);
 	dst->ops = ops;
-	dst->lastuse = jiffies;
-	dst->path = dst;
-	dst->input = dst->output = dst_discard;
+	dst->dev = dev;
+	if (dev)
+		dev_hold(dev);
 	dst_init_metrics(dst, dst_default_metrics, true);
+	dst->path = dst;
+	dst->input = dst_discard;
+	dst->output = dst_discard;
+
+	dst->obsolete = initial_obsolete;
+	atomic_set(&dst->__refcnt, initial_ref);
+	dst->lastuse = jiffies;
+	dst->flags = flags;
 #if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
