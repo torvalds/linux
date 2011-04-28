@@ -466,7 +466,7 @@ static struct machine_desc * __init setup_machine(unsigned int nr)
 		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
-static int __init arm_add_memory(phys_addr_t start, unsigned long size)
+int __init arm_add_memory(phys_addr_t start, unsigned long size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 
