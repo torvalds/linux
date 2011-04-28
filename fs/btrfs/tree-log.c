@@ -589,6 +589,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						ins.objectid, ins.offset,
 						0, root->root_key.objectid,
 						key->objectid, offset);
+				BUG_ON(ret);
 			} else {
 				/*
 				 * insert the extent pointer in the extent
