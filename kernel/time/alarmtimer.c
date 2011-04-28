@@ -26,7 +26,15 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
-
+/**
+ * struct alarm_base - Alarm timer bases
+ * @lock:		Lock for syncrhonized access to the base
+ * @timerqueue:		Timerqueue head managing the list of events
+ * @timer: 		hrtimer used to schedule events while running
+ * @gettime:		Function to read the time correlating to the base
+ * @base_clockid:	clockid for the base
+ * @irqwork		Delayed work structure for expiring timers
+ */
 static struct alarm_base {
 	spinlock_t		lock;
 	struct timerqueue_head	timerqueue;
@@ -36,18 +44,16 @@ static struct alarm_base {
 	struct work_struct	irqwork;
 } alarm_bases[ALARM_NUMTYPE];
 
+/* rtc timer and device for setting alarm wakeups at suspend */
 static struct rtc_timer		rtctimer;
 static struct rtc_device	*rtcdev;
 
+/* freezer delta & lock used to handle clock_nanosleep triggered wakeups */
 static ktime_t freezer_delta;
 static DEFINE_SPINLOCK(freezer_delta_lock);
 
 
-/**************************************************************************
- * alarmtimer management code
- */
-
-/*
+/**
  * alarmtimer_enqueue - Adds an alarm timer to an alarm_base timerqueue
  * @base: pointer to the base where the timer is being run
  * @alarm: pointer to alarm being enqueued.
@@ -67,7 +73,7 @@ static void alarmtimer_enqueue(struct alarm_base *base, struct alarm *alarm)
 	}
 }
 
-/*
+/**
  * alarmtimer_remove - Removes an alarm timer from an alarm_base timerqueue
  * @base: pointer to the base where the timer is running
  * @alarm: pointer to alarm being removed
@@ -91,16 +97,16 @@ static void alarmtimer_remove(struct alarm_base *base, struct alarm *alarm)
 	}
 }
 
-/*
+/**
  * alarmtimer_do_work - Handles alarm being fired.
  * @work: pointer to workqueue being run
  *
- * When a timer fires, this runs through the timerqueue to see
- * which alarm timers, and run those that expired. If there are
- * more alarm timers queued, we set the hrtimer to fire in the
- * future.
+ * When a alarm timer fires, this runs through the timerqueue to
+ * see which alarms expired, and runs those. If there are more alarm
+ * timers queued for the future, we set the hrtimer to fire when
+ * when the next future alarm timer expires.
  */
-void alarmtimer_do_work(struct work_struct *work)
+static void alarmtimer_do_work(struct work_struct *work)
 {
 	struct alarm_base *base = container_of(work, struct alarm_base,
 						irqwork);
@@ -141,7 +147,7 @@ void alarmtimer_do_work(struct work_struct *work)
 }
 
 
-/*
+/**
  * alarmtimer_fired - Handles alarm hrtimer being fired.
  * @timer: pointer to hrtimer being run
  *
@@ -156,7 +162,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 }
 
 
-/*
+/**
  * alarmtimer_suspend - Suspend time callback
  * @dev: unused
  * @state: unused
@@ -230,17 +236,11 @@ static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
 }
 
 
-/**************************************************************************
- * alarm kernel interface code
- */
-
-/*
+/**
  * alarm_init - Initialize an alarm structure
  * @alarm: ptr to alarm to be initialized
  * @type: the type of the alarm
  * @function: callback that is run when the alarm fires
- *
- * In-kernel interface to initializes the alarm structure.
  */
 void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 		void (*function)(struct alarm *))
@@ -252,13 +252,11 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 	alarm->enabled = 0;
 }
 
-/*
+/**
  * alarm_start - Sets an alarm to fire
  * @alarm: ptr to alarm to set
  * @start: time to run the alarm
  * @period: period at which the alarm will recur
- *
- * In-kernel interface set an alarm timer.
  */
 void alarm_start(struct alarm *alarm, ktime_t start, ktime_t period)
 {
@@ -275,11 +273,9 @@ void alarm_start(struct alarm *alarm, ktime_t start, ktime_t period)
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 
-/*
+/**
  * alarm_cancel - Tries to cancel an alarm timer
  * @alarm: ptr to alarm to be canceled
- *
- * In-kernel interface to cancel an alarm timer.
  */
 void alarm_cancel(struct alarm *alarm)
 {
@@ -294,15 +290,9 @@ void alarm_cancel(struct alarm *alarm)
 }
 
 
-/**************************************************************************
- * alarm posix interface code
- */
-
-/*
+/**
  * clock2alarm - helper that converts from clockid to alarmtypes
  * @clockid: clockid.
- *
- * Helper function that converts from clockids to alarmtypes
  */
 static enum alarmtimer_type clock2alarm(clockid_t clockid)
 {
@@ -313,7 +303,7 @@ static enum alarmtimer_type clock2alarm(clockid_t clockid)
 	return -1;
 }
 
-/*
+/**
  * alarm_handle_timer - Callback for posix timers
  * @alarm: alarm that fired
  *
@@ -327,7 +317,7 @@ static void alarm_handle_timer(struct alarm *alarm)
 		ptr->it_overrun++;
 }
 
-/*
+/**
  * alarm_clock_getres - posix getres interface
  * @which_clock: clockid
  * @tp: timespec to fill
@@ -598,9 +588,6 @@ out:
 	return ret;
 }
 
-/**************************************************************************
- * alarmtimer initialization code
- */
 
 /* Suspend hook structures */
 static const struct dev_pm_ops alarmtimer_pm_ops = {

@@ -13,12 +13,22 @@ enum alarmtimer_type {
 	ALARM_NUMTYPE,
 };
 
+/**
+ * struct alarm - Alarm timer structure
+ * @node:	timerqueue node for adding to the event list this value
+ *		also includes the expiration time.
+ * @period:	Period for recuring alarms
+ * @function:	Function pointer to be executed when the timer fires.
+ * @type:	Alarm type (BOOTTIME/REALTIME)
+ * @enabled:	Flag that represents if the alarm is set to fire or not
+ * @data:	Internal data value.
+ */
 struct alarm {
 	struct timerqueue_node	node;
 	ktime_t			period;
 	void			(*function)(struct alarm *);
 	enum alarmtimer_type	type;
-	char			enabled;
+	bool			enabled;
 	void			*data;
 };
 
