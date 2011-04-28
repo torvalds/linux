@@ -187,7 +187,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_mixer_named_ctl: {
 		int val;
 		struct soc_mixer_control *mc = (struct soc_mixer_control *)
-			w->kcontrols[i].private_value;
+			w->kcontrol_news[i].private_value;
 		unsigned int reg = mc->reg;
 		unsigned int shift = mc->shift;
 		int max = mc->max;
@@ -204,7 +204,8 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	}
 	break;
 	case snd_soc_dapm_mux: {
-		struct soc_enum *e = (struct soc_enum *)w->kcontrols[i].private_value;
+		struct soc_enum *e = (struct soc_enum *)
+			w->kcontrol_news[i].private_value;
 		int val, item, bitmask;
 
 		for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
@@ -220,7 +221,8 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	}
 	break;
 	case snd_soc_dapm_virt_mux: {
-		struct soc_enum *e = (struct soc_enum *)w->kcontrols[i].private_value;
+		struct soc_enum *e = (struct soc_enum *)
+			w->kcontrol_news[i].private_value;
 
 		p->connect = 0;
 		/* since a virtual mux has no backing registers to
@@ -235,7 +237,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	break;
 	case snd_soc_dapm_value_mux: {
 		struct soc_enum *e = (struct soc_enum *)
-			w->kcontrols[i].private_value;
+			w->kcontrol_news[i].private_value;
 		int val, item;
 
 		val = snd_soc_read(w->codec, e->reg);
@@ -310,11 +312,11 @@ static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
 
 	/* search for mixer kcontrol */
 	for (i = 0; i < dest->num_kcontrols; i++) {
-		if (!strcmp(control_name, dest->kcontrols[i].name)) {
+		if (!strcmp(control_name, dest->kcontrol_news[i].name)) {
 			list_add(&path->list, &dapm->card->paths);
 			list_add(&path->list_sink, &dest->sources);
 			list_add(&path->list_source, &src->sinks);
-			path->name = dest->kcontrols[i].name;
+			path->name = dest->kcontrol_news[i].name;
 			dapm_set_path_status(dest, path, i);
 			return 0;
 		}
@@ -349,7 +351,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 		list_for_each_entry(path, &w->sources, list_sink) {
 
 			/* mixer/mux paths name must match control name */
-			if (path->name != (char*)w->kcontrols[i].name)
+			if (path->name != (char *)w->kcontrol_news[i].name)
 				continue;
 
 			/* add dapm control with long name.
@@ -358,7 +360,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 			 * for dapm_mixer_named_ctl this is simply the
 			 * kcontrol name.
 			 */
-			name_len = strlen(w->kcontrols[i].name) + 1;
+			name_len = strlen(w->kcontrol_news[i].name) + 1;
 			if (w->id != snd_soc_dapm_mixer_named_ctl)
 				name_len += 1 + strlen(w->name);
 
@@ -377,17 +379,17 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 				 */
 				snprintf(path->long_name, name_len, "%s %s",
 					 w->name + prefix_len,
-					 w->kcontrols[i].name);
+					 w->kcontrol_news[i].name);
 				break;
 			case snd_soc_dapm_mixer_named_ctl:
 				snprintf(path->long_name, name_len, "%s",
-					 w->kcontrols[i].name);
+					 w->kcontrol_news[i].name);
 				break;
 			}
 
 			path->long_name[name_len - 1] = '\0';
 
-			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
+			path->kcontrol = snd_soc_cnew(&w->kcontrol_news[i], w,
 						      path->long_name, prefix);
 			ret = snd_ctl_add(card, path->kcontrol);
 			if (ret < 0) {
@@ -433,7 +435,7 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 	 * process but we're also using the same prefix for widgets so
 	 * cut the prefix off the front of the widget name.
 	 */
-	kcontrol = snd_soc_cnew(&w->kcontrols[0], w, w->name + prefix_len,
+	kcontrol = snd_soc_cnew(&w->kcontrol_news[0], w, w->name + prefix_len,
 				prefix);
 	ret = snd_ctl_add(card, kcontrol);
 
@@ -1648,7 +1650,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_virt_mux:
 	case snd_soc_dapm_value_mux:
 		ret = dapm_connect_mux(dapm, wsource, wsink, path, control,
-			&wsink->kcontrols[0]);
+			&wsink->kcontrol_news[0]);
 		if (ret != 0)
 			goto err;
 		break;
