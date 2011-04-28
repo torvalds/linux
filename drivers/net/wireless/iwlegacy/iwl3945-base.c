@@ -3815,7 +3815,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->sync_cmd_mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
