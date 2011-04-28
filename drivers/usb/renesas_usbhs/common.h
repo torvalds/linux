@@ -105,6 +105,7 @@ struct usbhs_priv;
 #define SACKE	(1 << 4)	/* Setup Transaction ACK Interrupt Enable */
 
 /* INTSTS0 */
+#define VBINT	(1 << 15)	/* VBUS0_0 and VBUS1_0 Interrupt Status */
 #define DVST	(1 << 12)	/* Device State Transition Interrupt Status */
 #define CTRT	(1 << 11)	/* Control Stage Interrupt Status */
 #define BEMP	(1 << 10)	/* Buffer Empty Interrupt Status */
@@ -181,6 +182,8 @@ struct usbhs_priv {
 	struct platform_device *pdev;
 
 	spinlock_t		lock;
+
+	u32 flags;
 
 	/*
 	 * module control

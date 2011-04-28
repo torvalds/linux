@@ -20,6 +20,48 @@
 #include "./mod.h"
 
 #define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
+#define usbhs_mod_info_call(priv, func, param...)	\
+({						\
+	struct usbhs_mod_info *info;		\
+	info = usbhs_priv_to_modinfo(priv);	\
+	!info->func ? 0 :			\
+	 info->func(param);			\
+})
+
+/*
+ *		autonomy
+ *
+ * these functions are used if platform doesn't have external phy.
+ *  -> there is no "notify_hotplug" callback from platform
+ *  -> call "notify_hotplug" by itself
+ *  -> use own interrupt to connect/disconnect
+ *  -> it mean module clock is always ON
+ *             ~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
+static int usbhsm_autonomy_get_vbus(struct platform_device *pdev)
+{
+	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
+
+	return  VBSTS & usbhs_read(priv, INTSTS0);
+}
+
+static int usbhsm_autonomy_irq_vbus(struct usbhs_priv *priv,
+				    struct usbhs_irq_state *irq_state)
+{
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+
+	return usbhsc_drvcllbck_notify_hotplug(pdev);
+}
+
+void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
+{
+	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
+
+	info->irq_vbus		= usbhsm_autonomy_irq_vbus;
+	priv->pfunc->get_vbus	= usbhsm_autonomy_get_vbus;
+
+	usbhs_irq_callback_update(priv, NULL);
+}
 
 /*
  *		host / gadget functions
@@ -227,6 +269,9 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	 * see also
 	 *	usbhs_irq_setting_update
 	 */
+	if (irq_state.intsts0 & VBINT)
+		usbhs_mod_info_call(priv, irq_vbus, priv, &irq_state);
+
 	if (irq_state.intsts0 & DVST)
 		usbhs_mod_call(priv, irq_dev_state, priv, &irq_state);
 
@@ -245,6 +290,7 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 {
 	u16 intenb0 = 0;
+	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
 	usbhs_write(priv, INTENB0, 0);
 
@@ -260,6 +306,8 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 	 * it don't enable DVSE (intenb0) here
 	 * but "mod->irq_dev_state" will be called.
 	 */
+	if (info->irq_vbus)
+		intenb0 |= VBSE;
 
 	if (mod) {
 		if (mod->irq_ctrl_stage)

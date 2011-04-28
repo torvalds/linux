@@ -68,6 +68,19 @@ struct usbhs_mod {
 struct usbhs_mod_info {
 	struct usbhs_mod *mod[USBHS_MAX];
 	struct usbhs_mod *curt; /* current mod */
+
+	/*
+	 * INTSTS0 :: VBINT
+	 *
+	 * This function will be used as autonomy mode
+	 * when platform cannot call notify_hotplug.
+	 *
+	 * This callback cannot be member of "struct usbhs_mod"
+	 * because it will be used even though
+	 * host/gadget has not been selected.
+	 */
+	int (*irq_vbus)(struct usbhs_priv *priv,
+			struct usbhs_irq_state *irq_state);
 };
 
 /*
@@ -80,6 +93,8 @@ int usbhs_mod_is_host(struct usbhs_priv *priv, struct usbhs_mod *mod);
 int usbhs_mod_change(struct usbhs_priv *priv, int id);
 int usbhs_mod_probe(struct usbhs_priv *priv);
 void usbhs_mod_remove(struct usbhs_priv *priv);
+
+void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
 
 /*
  *		status functions

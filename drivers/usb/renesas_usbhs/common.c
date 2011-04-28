@@ -21,6 +21,14 @@
 #include <linux/sysfs.h>
 #include "./common.h"
 
+#define USBHSF_RUNTIME_PWCTRL	(1 << 0)
+
+/* status */
+#define usbhsc_flags_init(p)   do {(p)->flags = 0; } while (0)
+#define usbhsc_flags_set(p, b) ((p)->flags |=  (b))
+#define usbhsc_flags_clr(p, b) ((p)->flags &= ~(b))
+#define usbhsc_flags_has(p, b) ((p)->flags &   (b))
+
 /*
  * platform call back
  *
@@ -203,7 +211,8 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		dev_dbg(&pdev->dev, "%s enable\n", __func__);
 
 		/* power on */
-		usbhsc_power_ctrl(priv, enable);
+		if (usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+			usbhsc_power_ctrl(priv, enable);
 
 		/* module start */
 		usbhs_mod_call(priv, start, priv);
@@ -215,7 +224,8 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		usbhs_mod_call(priv, stop, priv);
 
 		/* power off */
-		usbhsc_power_ctrl(priv, enable);
+		if (usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+			usbhsc_power_ctrl(priv, enable);
 
 		usbhs_mod_change(priv, -1);
 
@@ -252,8 +262,7 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 
 	/* check platform information */
 	if (!info ||
-	    !info->platform_callback.get_id ||
-	    !info->platform_callback.get_vbus) {
+	    !info->platform_callback.get_id) {
 		dev_err(&pdev->dev, "no platform information\n");
 		return -EINVAL;
 	}
@@ -295,6 +304,11 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 		priv->dparam->pipe_type = usbhsc_default_pipe_type;
 		priv->dparam->pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
 	}
+
+	/* FIXME */
+	/* runtime power control ? */
+	if (priv->pfunc->get_vbus)
+		usbhsc_flags_set(priv, USBHSF_RUNTIME_PWCTRL);
 
 	/*
 	 * priv settings
@@ -338,10 +352,16 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 	/* reset phy for connection */
 	usbhs_platform_call(priv, phy_reset, pdev);
 
+	/* power control */
+	pm_runtime_enable(&pdev->dev);
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL)) {
+		usbhsc_power_ctrl(priv, 1);
+		usbhs_mod_autonomy_mode(priv);
+	}
+
 	/*
 	 * manual call notify_hotplug for cold plug
 	 */
-	pm_runtime_enable(&pdev->dev);
 	ret = usbhsc_drvcllbck_notify_hotplug(pdev);
 	if (ret < 0)
 		goto probe_end_call_remove;
@@ -376,9 +396,11 @@ static int __devexit usbhs_remove(struct platform_device *pdev)
 
 	dfunc->notify_hotplug = NULL;
 
-	pm_runtime_disable(&pdev->dev);
+	/* power off */
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+		usbhsc_power_ctrl(priv, 0);
 
-	usbhsc_bus_ctrl(priv, 0);
+	pm_runtime_disable(&pdev->dev);
 
 	usbhs_platform_call(priv, hardware_exit, pdev);
 	usbhs_pipe_remove(priv);
