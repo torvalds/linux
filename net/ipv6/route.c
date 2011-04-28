@@ -230,7 +230,11 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 static inline struct rt6_info *ip6_dst_alloc(struct dst_ops *ops,
 					     struct net_device *dev)
 {
-	return (struct rt6_info *)dst_alloc(ops, dev, 0, 0, 0);
+	struct rt6_info *rt = dst_alloc(ops, dev, 0, 0, 0);
+
+	memset(&rt->rt6i_table, 0, sizeof(*rt) - sizeof(struct dst_entry));
+
+	return rt;
 }
 
 static void ip6_dst_destroy(struct dst_entry *dst)
@@ -887,6 +891,8 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 
 	rt = dst_alloc(&ip6_dst_blackhole_ops, ort->dst.dev, 1, 0, 0);
 	if (rt) {
+		memset(&rt->rt6i_table, 0, sizeof(*rt) - sizeof(struct dst_entry));
+
 		new = &rt->dst;
 
 		new->__use = 1;

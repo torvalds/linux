@@ -1830,7 +1830,6 @@ static void rt_set_nexthop(struct rtable *rt, const struct flowi4 *oldflp4,
 #endif
 	set_class_tag(rt, itag);
 #endif
-	rt->rt_type = type;
 }
 
 static struct rtable *rt_dst_alloc(struct net_device *dev,
@@ -1877,25 +1876,28 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (!rth)
 		goto e_nobufs;
 
-	rth->dst.output = ip_rt_bug;
-
-	rth->rt_key_dst	= daddr;
-	rth->rt_dst	= daddr;
-	rth->rt_tos	= tos;
-	rth->rt_mark    = skb->mark;
-	rth->rt_key_src	= saddr;
-	rth->rt_src	= saddr;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
-	rth->rt_route_iif = dev->ifindex;
-	rth->rt_iif	= dev->ifindex;
-	rth->rt_oif	= 0;
-	rth->rt_gateway	= daddr;
-	rth->rt_spec_dst= spec_dst;
+	rth->dst.output = ip_rt_bug;
+
+	rth->rt_key_dst	= daddr;
+	rth->rt_key_src	= saddr;
 	rth->rt_genid	= rt_genid(dev_net(dev));
 	rth->rt_flags	= RTCF_MULTICAST;
 	rth->rt_type	= RTN_MULTICAST;
+	rth->rt_tos	= tos;
+	rth->rt_dst	= daddr;
+	rth->rt_src	= saddr;
+	rth->rt_route_iif = dev->ifindex;
+	rth->rt_iif	= dev->ifindex;
+	rth->rt_oif	= 0;
+	rth->rt_mark    = skb->mark;
+	rth->rt_gateway	= daddr;
+	rth->rt_spec_dst= spec_dst;
+	rth->rt_peer_genid = 0;
+	rth->peer = NULL;
+	rth->fi = NULL;
 	if (our) {
 		rth->dst.input= ip_local_deliver;
 		rth->rt_flags |= RTCF_LOCAL;
@@ -2017,24 +2019,27 @@ static int __mkroute_input(struct sk_buff *skb,
 	}
 
 	rth->rt_key_dst	= daddr;
-	rth->rt_dst	= daddr;
-	rth->rt_tos	= tos;
-	rth->rt_mark    = skb->mark;
 	rth->rt_key_src	= saddr;
+	rth->rt_genid = rt_genid(dev_net(rth->dst.dev));
+	rth->rt_flags = flags;
+	rth->rt_type = res->type;
+	rth->rt_tos	= tos;
+	rth->rt_dst	= daddr;
 	rth->rt_src	= saddr;
-	rth->rt_gateway	= daddr;
 	rth->rt_route_iif = in_dev->dev->ifindex;
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->rt_oif 	= 0;
+	rth->rt_mark    = skb->mark;
+	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
+	rth->rt_peer_genid = 0;
+	rth->peer = NULL;
+	rth->fi = NULL;
 
 	rth->dst.input = ip_forward;
 	rth->dst.output = ip_output;
-	rth->rt_genid = rt_genid(dev_net(rth->dst.dev));
 
 	rt_set_nexthop(rth, NULL, res, res->fi, res->type, itag);
-
-	rth->rt_flags = flags;
 
 	*result = rth;
 	err = 0;
@@ -2187,30 +2192,37 @@ local_input:
 	if (!rth)
 		goto e_nobufs;
 
+	rth->dst.input= ip_local_deliver;
 	rth->dst.output= ip_rt_bug;
-	rth->rt_genid = rt_genid(net);
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	rth->dst.tclassid = itag;
+#endif
 
 	rth->rt_key_dst	= daddr;
-	rth->rt_dst	= daddr;
-	rth->rt_tos	= tos;
-	rth->rt_mark    = skb->mark;
 	rth->rt_key_src	= saddr;
+	rth->rt_genid = rt_genid(net);
+	rth->rt_flags 	= flags|RTCF_LOCAL;
+	rth->rt_type	= res.type;
+	rth->rt_tos	= tos;
+	rth->rt_dst	= daddr;
 	rth->rt_src	= saddr;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
 	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
+	rth->rt_oif	= 0;
+	rth->rt_mark    = skb->mark;
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
-	rth->dst.input= ip_local_deliver;
-	rth->rt_flags 	= flags|RTCF_LOCAL;
+	rth->rt_peer_genid = 0;
+	rth->peer = NULL;
+	rth->fi = NULL;
 	if (res.type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
 		rth->dst.error= -err;
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
-	rth->rt_type	= res.type;
 	hash = rt_hash(daddr, saddr, fl4.flowi4_iif, rt_genid(net));
 	rth = rt_intern_hash(hash, rth, skb, fl4.flowi4_iif);
 	err = 0;
@@ -2391,20 +2403,25 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
 
+	rth->dst.output = ip_output;
+
 	rth->rt_key_dst	= oldflp4->daddr;
-	rth->rt_tos	= tos;
 	rth->rt_key_src	= oldflp4->saddr;
-	rth->rt_oif	= oldflp4->flowi4_oif;
-	rth->rt_mark    = oldflp4->flowi4_mark;
+	rth->rt_genid = rt_genid(dev_net(dev_out));
+	rth->rt_flags	= flags;
+	rth->rt_type	= type;
+	rth->rt_tos	= tos;
 	rth->rt_dst	= fl4->daddr;
 	rth->rt_src	= fl4->saddr;
 	rth->rt_route_iif = 0;
 	rth->rt_iif	= oldflp4->flowi4_oif ? : dev_out->ifindex;
+	rth->rt_oif	= oldflp4->flowi4_oif;
+	rth->rt_mark    = oldflp4->flowi4_mark;
 	rth->rt_gateway = fl4->daddr;
 	rth->rt_spec_dst= fl4->saddr;
-
-	rth->dst.output=ip_output;
-	rth->rt_genid = rt_genid(dev_net(dev_out));
+	rth->rt_peer_genid = 0;
+	rth->peer = NULL;
+	rth->fi = NULL;
 
 	RT_CACHE_STAT_INC(out_slow_tot);
 
@@ -2432,7 +2449,6 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 
 	rt_set_nexthop(rth, oldflp4, res, fi, type, 0);
 
-	rth->rt_flags = flags;
 	return rth;
 }
 

@@ -1129,6 +1129,7 @@ make_route:
 	if (rt == NULL)
 		goto e_nobufs;
 
+	memset(&rt->fld, 0, sizeof(rt->fld));
 	rt->fld.saddr        = oldflp->saddr;
 	rt->fld.daddr        = oldflp->daddr;
 	rt->fld.flowidn_oif  = oldflp->flowidn_oif;
@@ -1398,6 +1399,7 @@ make_route:
 	if (rt == NULL)
 		goto e_nobufs;
 
+	memset(&rt->fld, 0, sizeof(rt->fld));
 	rt->rt_saddr      = fld.saddr;
 	rt->rt_daddr      = fld.daddr;
 	rt->rt_gateway    = fld.daddr;

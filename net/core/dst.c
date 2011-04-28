@@ -175,22 +175,36 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 		if (ops->gc(ops))
 			return NULL;
 	}
-	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
+	dst = kmem_cache_alloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	dst->ops = ops;
+	dst->child = NULL;
 	dst->dev = dev;
 	if (dev)
 		dev_hold(dev);
+	dst->ops = ops;
 	dst_init_metrics(dst, dst_default_metrics, true);
+	dst->expires = 0UL;
 	dst->path = dst;
+	dst->neighbour = NULL;
+	dst->hh = NULL;
+#ifdef CONFIG_XFRM
+	dst->xfrm = NULL;
+#endif
 	dst->input = dst_discard;
 	dst->output = dst_discard;
-
+	dst->error = 0;
 	dst->obsolete = initial_obsolete;
+	dst->header_len = 0;
+	dst->trailer_len = 0;
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	dst->tclassid = 0;
+#endif
 	atomic_set(&dst->__refcnt, initial_ref);
+	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
+	dst->next = NULL;
 #if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
