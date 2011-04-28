@@ -1230,6 +1230,7 @@ static void __init mackerel_init(void)
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
 	hdmi_init_pm_clock();
+	sh7372_pm_init();
 }
 
 static void __init mackerel_timer_init(void)
