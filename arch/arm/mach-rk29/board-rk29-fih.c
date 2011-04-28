@@ -1591,6 +1591,53 @@ struct rk29_bl_info rk29_bl_info = {
     .pwm_resume = rk29_backlight_pwm_resume,
 };
 #endif
+
+#ifdef CONFIG_FIH_TOUCHKEY_LED
+#define FIH_TOUCHKEY_LED_PWM_ID 1
+#define FIH_TOUCHKEY_LED_PWM_MUX_NAME      	GPIO5D2_PWM1_UART1SIRIN_NAME 
+#define FIH_TOUCHKEY_LED_PWM_MUX_MODE      	GPIO5H_PWM1 
+#define FIH_TOUCHKEY_LED_PWM_MUX_MODE_GPIO 	GPIO5H_GPIO5D2 
+#define FIH_TOUCHKEY_LED_PWM_GPIO 			RK29_PIN5_PD2
+#define FIH_TOUCHKEY_LED_PWM_EFFECT_VALUE  	0
+
+static int fih_touchkey_led_io_init(void)
+{
+    rk29_mux_api_set(FIH_TOUCHKEY_LED_PWM_MUX_NAME, FIH_TOUCHKEY_LED_PWM_MUX_MODE);
+}
+static int fih_touchkey_led_io_deinit(void)
+{
+    rk29_mux_api_set(FIH_TOUCHKEY_LED_PWM_MUX_NAME, FIH_TOUCHKEY_LED_PWM_MUX_MODE_GPIO);
+}
+
+static int fih_touchkey_led_pwm_suspend(void)
+{
+	int ret = 0;
+	rk29_mux_api_set(FIH_TOUCHKEY_LED_PWM_MUX_NAME, FIH_TOUCHKEY_LED_PWM_MUX_MODE_GPIO);
+	if (ret = gpio_request(FIH_TOUCHKEY_LED_PWM_GPIO, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	gpio_direction_output(FIH_TOUCHKEY_LED_PWM_GPIO, GPIO_HIGH);
+	return ret;
+}
+
+static int fih_touchkey_led_pwm_resume(void)
+{
+	gpio_free(FIH_TOUCHKEY_LED_PWM_GPIO);
+	rk29_mux_api_set(FIH_TOUCHKEY_LED_PWM_MUX_NAME, FIH_TOUCHKEY_LED_PWM_MUX_MODE);
+	return 0;
+}
+
+struct rk29_bl_info fih_touchkey_led_info = {
+    .pwm_id   = FIH_TOUCHKEY_LED_PWM_ID,
+    .bl_ref   = FIH_TOUCHKEY_LED_PWM_EFFECT_VALUE,
+    .io_init   = fih_touchkey_led_io_init,
+    .io_deinit = fih_touchkey_led_io_deinit,
+    .pwm_suspend = fih_touchkey_led_pwm_suspend,
+    .pwm_resume = fih_touchkey_led_pwm_resume,
+};
+#endif
+
 /*****************************************************************************************
 * pwm voltage regulator devices
 ******************************************************************************************/
@@ -2143,6 +2190,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk29_device_vibrator,
+#endif
+#ifdef CONFIG_FIH_TOUCHKEY_LED
+	&fih_touchkey_led,
 #endif
 };
 
