@@ -148,7 +148,31 @@ static u32 usbhsc_default_pipe_type[] = {
 };
 
 /*
- *		driver callback functions
+ *		power control
+ */
+static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
+{
+	struct device *dev = usbhs_priv_to_dev(priv);
+
+	if (enable) {
+		/* enable PM */
+		pm_runtime_get_sync(dev);
+
+		/* USB on */
+		usbhs_sys_clock_ctrl(priv, enable);
+		usbhsc_bus_ctrl(priv, enable);
+	} else {
+		/* USB off */
+		usbhsc_bus_ctrl(priv, enable);
+		usbhs_sys_clock_ctrl(priv, enable);
+
+		/* disable PM */
+		pm_runtime_put_sync(dev);
+	}
+}
+
+/*
+ *		notify hotplug
  */
 static void usbhsc_notify_hotplug(struct work_struct *work)
 {
@@ -178,12 +202,8 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 
 		dev_dbg(&pdev->dev, "%s enable\n", __func__);
 
-		/* enable PM */
-		pm_runtime_get_sync(&pdev->dev);
-
-		/* USB on */
-		usbhs_sys_clock_ctrl(priv, enable);
-		usbhsc_bus_ctrl(priv, enable);
+		/* power on */
+		usbhsc_power_ctrl(priv, enable);
 
 		/* module start */
 		usbhs_mod_call(priv, start, priv);
@@ -194,12 +214,8 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		/* module stop */
 		usbhs_mod_call(priv, stop, priv);
 
-		/* USB off */
-		usbhsc_bus_ctrl(priv, enable);
-		usbhs_sys_clock_ctrl(priv, enable);
-
-		/* disable PM */
-		pm_runtime_put_sync(&pdev->dev);
+		/* power off */
+		usbhsc_power_ctrl(priv, enable);
 
 		usbhs_mod_change(priv, -1);
 
