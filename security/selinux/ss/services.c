@@ -1359,13 +1359,13 @@ out:
 }
 
 static void filename_compute_type(struct policydb *p, struct context *newcontext,
-				  u32 scon, u32 tcon, u16 tclass,
+				  u32 stype, u32 ttype, u16 tclass,
 				  const char *objname)
 {
 	struct filename_trans *ft;
 	for (ft = p->filename_trans; ft; ft = ft->next) {
-		if (ft->stype == scon &&
-		    ft->ttype == tcon &&
+		if (ft->stype == stype &&
+		    ft->ttype == ttype &&
 		    ft->tclass == tclass &&
 		    !strcmp(ft->name, objname)) {
 			newcontext->type = ft->otype;
