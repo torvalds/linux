@@ -1858,7 +1858,7 @@ int mgmt_connectable(u16 index, u8 connectable)
 	return ret;
 }
 
-int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type)
+int mgmt_new_key(u16 index, struct link_key *key)
 {
 	struct mgmt_ev_new_key ev;
 
@@ -1868,7 +1868,6 @@ int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type)
 	ev.key.type = key->type;
 	memcpy(ev.key.val, key->val, 16);
 	ev.key.pin_len = key->pin_len;
-	ev.old_key_type = old_key_type;
 
 	return mgmt_event(MGMT_EV_NEW_KEY, index, &ev, sizeof(ev), NULL);
 }

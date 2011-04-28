@@ -1097,14 +1097,15 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 	bacpy(&key->bdaddr, bdaddr);
 	memcpy(key->val, val, 16);
-	key->type = type;
 	key->pin_len = pin_len;
-
-	if (new_key)
-		mgmt_new_key(hdev->id, key, old_key_type);
 
 	if (type == HCI_LK_CHANGED_COMBINATION)
 		key->type = old_key_type;
+	else
+		key->type = type;
+
+	if (new_key)
+		mgmt_new_key(hdev->id, key);
 
 	return 0;
 }
