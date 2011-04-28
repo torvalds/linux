@@ -1459,7 +1459,6 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->sec_level = conn->pending_sec_level;
 		} else {
 			mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
-			conn->sec_level = BT_SECURITY_LOW;
 		}
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
