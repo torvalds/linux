@@ -1995,13 +1995,15 @@ int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 	return err;
 }
 
-int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value)
+int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value,
+							u8 confirm_hint)
 {
 	struct mgmt_ev_user_confirm_request ev;
 
 	BT_DBG("hci%u", index);
 
 	bacpy(&ev.bdaddr, bdaddr);
+	ev.confirm_hint = confirm_hint;
 	put_unaligned_le32(value, &ev.value);
 
 	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, index, &ev, sizeof(ev),

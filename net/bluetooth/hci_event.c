@@ -2497,7 +2497,7 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 							struct sk_buff *skb)
 {
 	struct hci_ev_user_confirm_req *ev = (void *) skb->data;
-	int loc_mitm, rem_mitm;
+	int loc_mitm, rem_mitm, confirm_hint = 0;
 	struct hci_conn *conn;
 
 	BT_DBG("%s", hdev->name);
@@ -2529,6 +2529,16 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	/* If no side requires MITM protection; auto-accept */
 	if ((!loc_mitm || conn->remote_cap == 0x03) &&
 				(!rem_mitm || conn->io_capability == 0x03)) {
+
+		/* If we're not the initiators request authorization to
+		 * proceed from user space (mgmt_user_confirm with
+		 * confirm_hint set to 1). */
+		if (!test_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
+			BT_DBG("Confirming auto-accept as acceptor");
+			confirm_hint = 1;
+			goto confirm;
+		}
+
 		BT_DBG("Auto-accept of user confirmation with %ums delay",
 						hdev->auto_accept_delay);
 
@@ -2543,7 +2553,9 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	mgmt_user_confirm_request(hdev->id, &ev->bdaddr, ev->passkey);
+confirm:
+	mgmt_user_confirm_request(hdev->id, &ev->bdaddr, ev->passkey,
+								confirm_hint);
 
 unlock:
 	hci_dev_unlock(hdev);
