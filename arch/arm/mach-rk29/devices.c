@@ -178,15 +178,6 @@ struct platform_device rk29_device_backlight = {
         }
 };
 #endif
-#ifdef CONFIG_FIH_TOUCHKEY_LED
-struct platform_device fih_touchkey_led = {
-		.name	= "fih_touchkey_led",
-		.id 	= -1,
-        .dev    = {
-           .platform_data  = &fih_touchkey_led_info,
-        }
-};
-#endif
 #ifdef CONFIG_SDMMC0_RK29 
 #ifndef CONFIG_EMMC_RK29 
 static struct resource resources_sdmmc0[] = {

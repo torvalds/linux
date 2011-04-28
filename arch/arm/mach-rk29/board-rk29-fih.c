@@ -1637,7 +1637,15 @@ struct rk29_bl_info fih_touchkey_led_info = {
     .pwm_resume = fih_touchkey_led_pwm_resume,
 };
 #endif
-
+#ifdef CONFIG_FIH_TOUCHKEY_LED
+struct platform_device fih_touchkey_led = {
+		.name	= "fih_touchkey_led",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &fih_touchkey_led_info,
+        }
+};
+#endif
 /*****************************************************************************************
 * pwm voltage regulator devices
 ******************************************************************************************/
