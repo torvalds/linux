@@ -148,6 +148,8 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 		input_report_key(wm831x_ts->input_dev, BTN_TOUCH, 0);
 
 		schedule_work(&wm831x_ts->pd_data_work);
+	} else {
+		input_report_key(wm831x_ts->input_dev, BTN_TOUCH, 1);
 	}
 
 	input_sync(wm831x_ts->input_dev);
@@ -173,9 +175,6 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
 			WM831X_TCH_X_ENA | WM831X_TCH_Y_ENA | WM831X_TCH_Z_ENA,
 			WM831X_TCH_X_ENA | WM831X_TCH_Y_ENA | ena);
-
-	input_report_key(wm831x_ts->input_dev, BTN_TOUCH, 1);
-	input_sync(wm831x_ts->input_dev);
 
 	wm831x_set_bits(wm831x, WM831X_INTERRUPT_STATUS_1,
 			WM831X_TCHPD_EINT, WM831X_TCHPD_EINT);
