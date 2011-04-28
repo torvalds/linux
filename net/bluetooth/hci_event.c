@@ -2397,7 +2397,7 @@ static inline u8 hci_get_auth_req(struct hci_conn *conn)
 
 	/* If remote requests no-bonding follow that lead */
 	if (conn->remote_auth == 0x00 || conn->remote_auth == 0x01)
-		return 0x00;
+		return conn->remote_auth | (conn->auth_type & 0x01);
 
 	return conn->auth_type;
 }
