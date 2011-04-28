@@ -2462,7 +2462,7 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 		struct hci_cp_io_capability_neg_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		cp.reason = 0x16; /* Pairing not allowed */
+		cp.reason = 0x18; /* Pairing not allowed */
 
 		hci_send_cmd(hdev, HCI_OP_IO_CAPABILITY_NEG_REPLY,
 							sizeof(cp), &cp);
