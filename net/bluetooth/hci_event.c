@@ -2447,7 +2447,8 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
 		cp.capability = conn->io_capability;
-		cp.authentication = hci_get_auth_req(conn);
+		conn->auth_type = hci_get_auth_req(conn);
+		cp.authentication = conn->auth_type;
 
 		if ((conn->out == 0x01 || conn->remote_oob == 0x01) &&
 				hci_find_remote_oob_data(hdev, &conn->dst))
