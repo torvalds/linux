@@ -241,7 +241,7 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	struct wm831x_pdata *core_pdata = dev_get_platdata(pdev->dev.parent);
 	struct wm831x_touch_pdata *pdata = NULL;
 	struct input_dev *input_dev;
-	int error;
+	int error, irqf;
 
 	if (core_pdata)
 		pdata = core_pdata->touch;
@@ -314,9 +314,14 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
 			WM831X_TCH_RATE_MASK, 6);
 
+	if (pdata && pdata->data_irqf)
+		irqf = pdata->data_irqf;
+	else
+		irqf = IRQF_TRIGGER_HIGH;
+
 	error = request_threaded_irq(wm831x_ts->data_irq,
 				     NULL, wm831x_ts_data_irq,
-				     IRQF_ONESHOT,
+				     irqf | IRQF_ONESHOT,
 				     "Touchscreen data", wm831x_ts);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to request data IRQ %d: %d\n",
@@ -325,9 +330,14 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	}
 	disable_irq(wm831x_ts->data_irq);
 
+	if (pdata && pdata->pd_irqf)
+		irqf = pdata->pd_irqf;
+	else
+		irqf = IRQF_TRIGGER_HIGH;
+
 	error = request_threaded_irq(wm831x_ts->pd_irq,
 				     NULL, wm831x_ts_pen_down_irq,
-				     IRQF_ONESHOT,
+				     irqf | IRQF_ONESHOT,
 				     "Touchscreen pen down", wm831x_ts);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to request pen down IRQ %d: %d\n",
