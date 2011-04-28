@@ -128,6 +128,7 @@ static pid_t			target_tid			= -1;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static bool			detailed_run			=  false;
+static bool			sync_run			=  false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static const char		*cpu_list;
@@ -819,6 +820,8 @@ static const struct option options[] = {
 		    "null run - dont start any counters"),
 	OPT_BOOLEAN('d', "detailed", &detailed_run,
 		    "detailed run - start a lot of events"),
+	OPT_BOOLEAN('S', "sync", &sync_run,
+		    "call sync() before starting a run"),
 	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL, 
 			   "print large numbers with thousands\' separators",
 			   stat__set_big_num),
@@ -944,6 +947,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	for (run_idx = 0; run_idx < run_count; run_idx++) {
 		if (run_count != 1 && verbose)
 			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx + 1);
+
+		if (sync_run)
+			sync();
+
 		status = run_perf_stat(argc, argv);
 	}
 
