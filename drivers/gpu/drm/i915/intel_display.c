@@ -2469,10 +2469,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	u32 reg, temp;
 
 	/* For PCH output, training FDI link */
-	if (IS_GEN6(dev))
-		gen6_fdi_link_train(crtc);
-	else
-		ironlake_fdi_link_train(crtc);
+	dev_priv->display.fdi_link_train(crtc);
 
 	intel_enable_pch_pll(dev_priv, pipe);
 
@@ -7431,6 +7428,7 @@ static void intel_init_display(struct drm_device *dev)
 					      "Disable CxSR\n");
 				dev_priv->display.update_wm = NULL;
 			}
+			dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
 		} else if (IS_GEN6(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
@@ -7439,6 +7437,7 @@ static void intel_init_display(struct drm_device *dev)
 					      "Disable CxSR\n");
 				dev_priv->display.update_wm = NULL;
 			}
+			dev_priv->display.fdi_link_train = gen6_fdi_link_train;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_PINEVIEW(dev)) {

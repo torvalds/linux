@@ -208,7 +208,7 @@ struct drm_i915_display_funcs {
 			     struct drm_display_mode *adjusted_mode,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
-
+	void (*fdi_link_train)(struct drm_crtc *crtc);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
