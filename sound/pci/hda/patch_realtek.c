@@ -1517,16 +1517,19 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int present = 0;
 	int i;
 
-	if (!cfg->hp_pins[0]) {
-		if (cfg->line_out_type != AUTO_PIN_HP_OUT)
-			return;
-	}
+	if (cfg->hp_pins[0])
+		present++;
+	if (cfg->line_out_pins[0])
+		present++;
+	if (cfg->speaker_pins[0])
+		present++;
+	if (present < 2) /* need two different output types */
+		return;
 
 	if (!cfg->speaker_pins[0]) {
-		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
-			return;
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
 		       sizeof(cfg->speaker_pins));
 		cfg->speaker_outs = cfg->line_outs;
