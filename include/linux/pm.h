@@ -460,6 +460,7 @@ struct dev_pm_info {
 	unsigned long		active_jiffies;
 	unsigned long		suspended_jiffies;
 	unsigned long		accounting_timestamp;
+	void			*subsys_data;  /* Owned by the subsystem. */
 #endif
 };
 

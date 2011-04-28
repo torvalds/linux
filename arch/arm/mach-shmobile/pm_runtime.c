@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_PM_RUNTIME
 #define BIT_ONCE 0
@@ -29,22 +30,9 @@ struct pm_runtime_data {
 	struct clk *clk;
 };
 
-static void __devres_release(struct device *dev, void *res)
-{
-	struct pm_runtime_data *prd = res;
-
-	dev_dbg(dev, "__devres_release()\n");
-
-	if (test_bit(BIT_CLK_ENABLED, &prd->flags))
-		clk_disable(prd->clk);
-
-	if (test_bit(BIT_ACTIVE, &prd->flags))
-		clk_put(prd->clk);
-}
-
 static struct pm_runtime_data *__to_prd(struct device *dev)
 {
-	return devres_find(dev, __devres_release, NULL, NULL);
+	return dev ? dev->power.subsys_data : NULL;
 }
 
 static void platform_pm_runtime_init(struct device *dev,
@@ -121,14 +109,26 @@ static int platform_bus_notify(struct notifier_block *nb,
 
 	dev_dbg(dev, "platform_bus_notify() %ld !\n", action);
 
-	if (action == BUS_NOTIFY_BIND_DRIVER) {
-		prd = devres_alloc(__devres_release, sizeof(*prd), GFP_KERNEL);
+	switch (action) {
+	case BUS_NOTIFY_BIND_DRIVER:
+		prd = kzalloc(sizeof(*prd), GFP_KERNEL);
 		if (prd) {
-			devres_add(dev, prd);
+			dev->power.subsys_data = prd;
 			dev->pwr_domain = &default_power_domain;
 		} else {
 			dev_err(dev, "unable to alloc memory for runtime pm\n");
 		}
+		break;
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		prd = __to_prd(dev);
+		if (prd) {
+			if (test_bit(BIT_CLK_ENABLED, &prd->flags))
+				clk_disable(prd->clk);
+
+			if (test_bit(BIT_ACTIVE, &prd->flags))
+				clk_put(prd->clk);
+		}
+		break;
 	}
 
 	return 0;
