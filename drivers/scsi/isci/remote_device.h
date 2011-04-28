@@ -75,12 +75,6 @@ enum scic_remote_device_not_ready_reason_code {
 
 struct scic_sds_remote_device {
 	/**
-	 * The field specifies that the parent object for the base remote
-	 * device is the base object itself.
-	 */
-	struct sci_base_object parent;
-
-	/**
 	 * This field contains the information for the base remote device state
 	 * machine.
 	 */
@@ -417,11 +411,16 @@ static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_n
 	return sci_dev;
 }
 
-static inline struct domain_device *sci_dev_to_domain(struct scic_sds_remote_device *sci_dev)
+static inline struct isci_remote_device *sci_dev_to_idev(struct scic_sds_remote_device *sci_dev)
 {
 	struct isci_remote_device *idev = container_of(sci_dev, typeof(*idev), sci);
 
-	return idev->domain_dev;
+	return idev;
+}
+
+static inline struct domain_device *sci_dev_to_domain(struct scic_sds_remote_device *sci_dev)
+{
+	return sci_dev_to_idev(sci_dev)->domain_dev;
 }
 
 static inline bool dev_is_expander(struct domain_device *dev)

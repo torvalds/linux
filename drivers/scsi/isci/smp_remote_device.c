@@ -246,11 +246,10 @@ static const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_dev
  */
 static void scic_sds_smp_remote_device_ready_idle_substate_enter(void *object)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
-							      parent);
+	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
+	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev,
 			  scic_sds_smp_remote_device_ready_substate_handler_table,
@@ -270,11 +269,10 @@ static void scic_sds_smp_remote_device_ready_idle_substate_enter(void *object)
  */
 static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
-							      parent);
+	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
+	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
 
@@ -295,8 +293,7 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
  */
 static void scic_sds_smp_remote_device_ready_cmd_substate_exit(void *object)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
-							      parent);
+	struct scic_sds_remote_device *sci_dev = object;
 	sci_dev->working_request = NULL;
 }
 

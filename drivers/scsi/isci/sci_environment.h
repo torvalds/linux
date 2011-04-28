@@ -59,7 +59,6 @@
 #include "isci.h"
 #include "core/scic_sds_controller.h"
 
-struct scic_sds_remote_device;
 
 static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
 {
@@ -88,9 +87,11 @@ static inline struct device *sciport_to_dev(struct scic_sds_port *sci_port)
 	return &iport->isci_host->pdev->dev;
 }
 
-static inline struct device *scirdev_to_dev(struct scic_sds_remote_device *sci_dev)
+static inline struct device *scirdev_to_dev(
+		struct scic_sds_remote_device *sci_dev)
 {
-	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
+	struct isci_remote_device *idev =
+			container_of(sci_dev, typeof(*idev), sci);
 
 	if (!idev || !idev->isci_port || !idev->isci_port->isci_host)
 		return NULL;
