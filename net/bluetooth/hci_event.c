@@ -2053,15 +2053,16 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff
 	BT_DBG("%s found key type %u for %s", hdev->name, key->type,
 							batostr(&ev->bdaddr));
 
-	if (!test_bit(HCI_DEBUG_KEYS, &hdev->flags) && key->type == 0x03) {
+	if (!test_bit(HCI_DEBUG_KEYS, &hdev->flags) &&
+				key->type == HCI_LK_DEBUG_COMBINATION) {
 		BT_DBG("%s ignoring debug key", hdev->name);
 		goto not_found;
 	}
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 
-	if (key->type == 0x04 && conn && conn->auth_type != 0xff &&
-						(conn->auth_type & 0x01)) {
+	if (key->type == HCI_LK_UNAUTH_COMBINATION && conn &&
+			conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
 		BT_DBG("%s ignoring unauthenticated key", hdev->name);
 		goto not_found;
 	}

@@ -1050,7 +1050,7 @@ int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 	if (new_key)
 		mgmt_new_key(hdev->id, key, old_key_type);
 
-	if (type == 0x06)
+	if (type == HCI_LK_CHANGED_COMBINATION)
 		key->type = old_key_type;
 
 	return 0;
