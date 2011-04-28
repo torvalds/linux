@@ -575,7 +575,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " #    %4.2f  insns per cycle", ratio);
+		fprintf(stderr, " #    %4.2f  insns per cycle        ", ratio);
 
 		total = avg_stats(&runtime_stalled_cycles_stats[cpu]);
 
