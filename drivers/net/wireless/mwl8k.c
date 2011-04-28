@@ -781,8 +781,10 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 		skb_pull(skb, sizeof(*tr) - hdrlen);
 }
 
+#define REDUCED_TX_HEADROOM	8
+
 static void
-mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
+mwl8k_add_dma_header(struct mwl8k_priv *priv, struct sk_buff *skb, int tail_pad)
 {
 	struct ieee80211_hdr *wh;
 	int hdrlen;
@@ -798,6 +800,22 @@ mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 	wh = (struct ieee80211_hdr *)skb->data;
 
 	hdrlen = ieee80211_hdrlen(wh->frame_control);
+
+	/*
+	 * Check if skb_resize is required because of
+	 * tx_headroom adjustment.
+	 */
+	if (priv->ap_fw && (hdrlen < (sizeof(struct ieee80211_cts)
+						+ REDUCED_TX_HEADROOM))) {
+		if (pskb_expand_head(skb, REDUCED_TX_HEADROOM, 0, GFP_ATOMIC)) {
+
+			wiphy_err(priv->hw->wiphy,
+					"Failed to reallocate TX buffer\n");
+			return;
+		}
+		skb->truesize += REDUCED_TX_HEADROOM;
+	}
+
 	reqd_hdrlen = sizeof(*tr);
 
 	if (hdrlen != reqd_hdrlen)
@@ -820,7 +838,8 @@ mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr) + tail_pad);
 }
 
-static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
+static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
+		struct sk_buff *skb)
 {
 	struct ieee80211_hdr *wh;
 	struct ieee80211_tx_info *tx_info;
@@ -861,7 +880,7 @@ static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
 			break;
 		}
 	}
-	mwl8k_add_dma_header(skb, data_pad);
+	mwl8k_add_dma_header(priv, skb, data_pad);
 }
 
 /*
@@ -1816,9 +1835,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		mgmtframe = true;
 
 	if (priv->ap_fw)
-		mwl8k_encapsulate_tx_frame(skb);
+		mwl8k_encapsulate_tx_frame(priv, skb);
 	else
-		mwl8k_add_dma_header(skb, 0);
+		mwl8k_add_dma_header(priv, skb, 0);
 
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
@@ -5473,6 +5492,8 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	 */
 	hw->extra_tx_headroom =
 		sizeof(struct mwl8k_dma_data) - sizeof(struct ieee80211_cts);
+
+	hw->extra_tx_headroom -= priv->ap_fw ? REDUCED_TX_HEADROOM : 0;
 
 	hw->channel_change_time = 10;
 
