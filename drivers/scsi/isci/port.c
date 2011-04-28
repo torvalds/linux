@@ -137,8 +137,7 @@ void isci_port_bc_change_received(
 	struct scic_sds_port *port,
 	struct scic_sds_phy *phy)
 {
-	struct isci_phy *isci_phy =
-		(struct isci_phy *)sci_object_get_association(phy);
+	struct isci_phy *isci_phy = phy->iphy;
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_phy = %p, sas_phy = %p\n",
@@ -170,10 +169,9 @@ void isci_port_link_up(
 {
 	unsigned long flags;
 	struct scic_port_properties properties;
-	struct isci_phy *isci_phy
-		= (struct isci_phy *)sci_object_get_association(phy);
 	struct isci_port *isci_port
 		= (struct isci_port *)sci_object_get_association(port);
+	struct isci_phy *isci_phy = phy->iphy;
 	enum sci_status call_status;
 	unsigned long success = true;
 

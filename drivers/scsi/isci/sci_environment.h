@@ -73,7 +73,7 @@ static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
 
 static inline struct device *sciphy_to_dev(struct scic_sds_phy *sci_phy)
 {
-	struct isci_phy *iphy = sci_object_get_association(sci_phy);
+	struct isci_phy *iphy = sci_phy->iphy;
 
 	if (!iphy || !iphy->isci_port || !iphy->isci_port->isci_host)
 		return NULL;

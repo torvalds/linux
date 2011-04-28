@@ -1565,9 +1565,7 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_ha
  */
 static void scic_sds_phy_starting_initial_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
@@ -1587,9 +1585,7 @@ static void scic_sds_phy_starting_initial_substate_enter(void *object)
  */
 static void scic_sds_phy_starting_await_ossp_en_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN
@@ -1607,9 +1603,7 @@ static void scic_sds_phy_starting_await_ossp_en_substate_enter(void *object)
 static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
 		void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
@@ -1626,9 +1620,7 @@ static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
  */
 static void scic_sds_phy_starting_await_iaf_uf_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
@@ -1646,9 +1638,7 @@ static void scic_sds_phy_starting_await_iaf_uf_substate_enter(void *object)
  */
 static void scic_sds_phy_starting_await_sas_power_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER
@@ -1670,9 +1660,7 @@ static void scic_sds_phy_starting_await_sas_power_substate_enter(void *object)
  */
 static void scic_sds_phy_starting_await_sas_power_substate_exit(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_controller_power_control_queue_remove(
 		scic_sds_phy_get_controller(sci_phy), sci_phy
@@ -1690,9 +1678,7 @@ static void scic_sds_phy_starting_await_sas_power_substate_exit(void *object)
  */
 static void scic_sds_phy_starting_await_sata_power_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
@@ -1714,9 +1700,7 @@ static void scic_sds_phy_starting_await_sata_power_substate_enter(void *object)
  */
 static void scic_sds_phy_starting_await_sata_power_substate_exit(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_controller_power_control_queue_remove(
 		scic_sds_phy_get_controller(sci_phy),
@@ -1734,7 +1718,7 @@ static void scic_sds_phy_starting_await_sata_power_substate_exit(void *object)
  */
 static void scic_sds_phy_starting_await_sata_phy_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 			sci_phy,
@@ -1756,7 +1740,7 @@ static void scic_sds_phy_starting_await_sata_phy_substate_enter(void *object)
 static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
 		void *object)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
@@ -1771,7 +1755,7 @@ static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
  */
 static void scic_sds_phy_starting_await_sata_speed_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 			sci_phy,
@@ -1793,7 +1777,7 @@ static void scic_sds_phy_starting_await_sata_speed_substate_enter(void *object)
 static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
 	void *object)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
@@ -1811,7 +1795,7 @@ static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 {
 	bool continue_to_ready_state;
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(
 			sci_phy,
@@ -1848,9 +1832,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
 	void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
@@ -1866,9 +1848,7 @@ static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
  */
 static void scic_sds_phy_starting_final_substate_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = container_of(object, typeof(*sci_phy), parent);
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_starting_substate_handlers(sci_phy,
 						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
@@ -2200,9 +2180,7 @@ static void scu_link_layer_tx_hard_reset(
  */
 static void scic_sds_phy_initial_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_INITIAL);
 }
@@ -2218,11 +2196,9 @@ static void scic_sds_phy_initial_state_enter(void *object)
  */
 static void scic_sds_phy_stopped_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
 	struct isci_host *ihost = scic->ihost;
-
-	sci_phy = (struct scic_sds_phy *)object;
 
 	/*
 	 * @todo We need to get to the controller to place this PE in a
@@ -2262,9 +2238,7 @@ static void scic_sds_phy_stopped_state_enter(void *object)
  */
 static void scic_sds_phy_starting_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_STARTING);
 
@@ -2300,9 +2274,7 @@ static void scic_sds_phy_starting_state_enter(void *object)
  */
 static void scic_sds_phy_ready_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_READY);
 
@@ -2323,9 +2295,7 @@ static void scic_sds_phy_ready_state_enter(void *object)
  */
 static void scic_sds_phy_ready_state_exit(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_suspend(sci_phy);
 }
@@ -2340,9 +2310,7 @@ static void scic_sds_phy_ready_state_exit(void *object)
  */
 static void scic_sds_phy_resetting_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_RESETTING);
 
@@ -2375,9 +2343,7 @@ static void scic_sds_phy_resetting_state_enter(void *object)
  */
 static void scic_sds_phy_final_state_enter(void *object)
 {
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_FINAL);
 
@@ -2412,9 +2378,8 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 			    struct scic_sds_port *owning_port, u8 phy_index)
 {
 
-	sci_phy->parent.private = NULL;
 	sci_base_state_machine_construct(&sci_phy->state_machine,
-					 &sci_phy->parent,
+					 sci_phy,
 					 scic_sds_phy_state_table,
 					 SCI_BASE_PHY_STATE_INITIAL);
 
@@ -2434,7 +2399,7 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 
 	/* Initialize the the substate machines */
 	sci_base_state_machine_construct(&sci_phy->starting_substate_machine,
-					 &sci_phy->parent,
+					 sci_phy,
 					 scic_sds_phy_starting_substates,
 					 SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
 }

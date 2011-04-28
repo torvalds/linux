@@ -57,6 +57,7 @@
 #include "phy.h"
 #include "scic_port.h"
 #include "scic_config_parameters.h"
+#include "core/scic_sds_phy.h"
 
 struct scic_sds_phy;
 extern enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy);
@@ -88,8 +89,8 @@ void isci_phy_init(
 
 	status = scic_controller_get_phy_handle(scic, index, &scic_phy);
 	if (status == SCI_SUCCESS) {
-		sci_object_set_association(scic_phy, (void *)phy);
 		phy->sci_phy_handle = scic_phy;
+		scic_phy->iphy = phy;
 	} else
 		dev_err(&isci_host->pdev->dev,
 			"failed scic_controller_get_phy_handle\n");

@@ -680,7 +680,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct isci_port *iport = sci_object_get_association(sci_port);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_phy *iphy = sci_object_get_association(sci_phy);
+	struct isci_phy *iphy = sci_phy->iphy;
 
 	sci_port->active_phy_mask &= ~(1 << sci_phy->phy_index);
 
