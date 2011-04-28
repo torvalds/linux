@@ -27,12 +27,6 @@
 #include <asm/stacktrace.h>
 
 /*
- * Hardware lock to serialize accesses to PMU registers. Needed for the
- * read/modify/write sequences.
- */
-static DEFINE_RAW_SPINLOCK(pmu_lock);
-
-/*
  * ARMv6 supports a maximum of 3 events, starting from index 0. If we add
  * another platform that supports more, we need to increase this to be the
  * largest of all platforms.
@@ -55,6 +49,12 @@ struct cpu_hw_events {
 	 * an event. A 0 means that the counter can be used.
 	 */
 	unsigned long		used_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
+
+	/*
+	 * Hardware lock to serialize accesses to PMU registers. Needed for the
+	 * read/modify/write sequences.
+	 */
+	raw_spinlock_t		pmu_lock;
 };
 static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
@@ -685,6 +685,11 @@ static struct cpu_hw_events *armpmu_get_cpu_events(void)
 
 static void __init cpu_pmu_init(struct arm_pmu *armpmu)
 {
+	int cpu;
+	for_each_possible_cpu(cpu) {
+		struct cpu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
+		raw_spin_lock_init(&events->pmu_lock);
+	}
 	armpmu->get_hw_events = armpmu_get_cpu_events;
 }
 
