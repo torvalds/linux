@@ -33,7 +33,6 @@
  * @timer: 		hrtimer used to schedule events while running
  * @gettime:		Function to read the time correlating to the base
  * @base_clockid:	clockid for the base
- * @irqwork		Delayed work structure for expiring timers
  */
 static struct alarm_base {
 	spinlock_t		lock;
@@ -41,7 +40,6 @@ static struct alarm_base {
 	struct hrtimer		timer;
 	ktime_t			(*gettime)(void);
 	clockid_t		base_clockid;
-	struct work_struct	irqwork;
 } alarm_bases[ALARM_NUMTYPE];
 
 /* rtc timer and device for setting alarm wakeups at suspend */
@@ -97,22 +95,23 @@ static void alarmtimer_remove(struct alarm_base *base, struct alarm *alarm)
 	}
 }
 
+
 /**
- * alarmtimer_do_work - Handles alarm being fired.
- * @work: pointer to workqueue being run
+ * alarmtimer_fired - Handles alarm hrtimer being fired.
+ * @timer: pointer to hrtimer being run
  *
  * When a alarm timer fires, this runs through the timerqueue to
  * see which alarms expired, and runs those. If there are more alarm
  * timers queued for the future, we set the hrtimer to fire when
  * when the next future alarm timer expires.
  */
-static void alarmtimer_do_work(struct work_struct *work)
+static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 {
-	struct alarm_base *base = container_of(work, struct alarm_base,
-						irqwork);
+	struct alarm_base *base = container_of(timer, struct alarm_base, timer);
 	struct timerqueue_node *next;
 	unsigned long flags;
 	ktime_t now;
+	int ret = HRTIMER_NORESTART;
 
 	spin_lock_irqsave(&base->lock, flags);
 	now = base->gettime();
@@ -140,25 +139,13 @@ static void alarmtimer_do_work(struct work_struct *work)
 	}
 
 	if (next) {
-		hrtimer_start(&base->timer, next->expires,
-				HRTIMER_MODE_ABS);
+		hrtimer_set_expires(&base->timer, next->expires);
+		ret = HRTIMER_RESTART;
 	}
 	spin_unlock_irqrestore(&base->lock, flags);
-}
 
+	return ret;
 
-/**
- * alarmtimer_fired - Handles alarm hrtimer being fired.
- * @timer: pointer to hrtimer being run
- *
- * When a timer fires, this schedules the do_work function to
- * be run.
- */
-static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
-{
-	struct alarm_base *base = container_of(timer, struct alarm_base, timer);
-	schedule_work(&base->irqwork);
-	return HRTIMER_NORESTART;
 }
 
 
@@ -636,7 +623,6 @@ static int __init alarmtimer_init(void)
 				alarm_bases[i].base_clockid,
 				HRTIMER_MODE_ABS);
 		alarm_bases[i].timer.function = alarmtimer_fired;
-		INIT_WORK(&alarm_bases[i].irqwork, alarmtimer_do_work);
 	}
 	error = platform_driver_register(&alarmtimer_driver);
 	platform_device_register_simple("alarmtimer", -1, NULL, 0);
