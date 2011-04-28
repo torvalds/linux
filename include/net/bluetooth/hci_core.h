@@ -777,7 +777,7 @@ int mgmt_connected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnect_failed(u16 index);
 int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
-int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr);
+int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr, u8 secure);
 int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
 int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
 int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value);

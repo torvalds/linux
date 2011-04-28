@@ -2022,8 +2022,16 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 					sizeof(ev->bdaddr), &ev->bdaddr);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_pin_code_request(hdev->id, &ev->bdaddr);
+	if (test_bit(HCI_MGMT, &hdev->flags)) {
+		u8 secure;
+
+		if (conn->pending_sec_level == BT_SECURITY_HIGH)
+			secure = 1;
+		else
+			secure = 0;
+
+		mgmt_pin_code_request(hdev->id, &ev->bdaddr, secure);
+	}
 
 	hci_dev_unlock(hdev);
 }
