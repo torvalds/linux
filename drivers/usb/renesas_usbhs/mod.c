@@ -179,15 +179,17 @@ static void usbhs_status_get_each_irq(struct usbhs_priv *priv,
 	state->intsts0 = usbhs_read(priv, INTSTS0);
 	state->intsts1 = usbhs_read(priv, INTSTS1);
 
-	state->brdysts = usbhs_read(priv, BRDYSTS);
-	state->nrdysts = usbhs_read(priv, NRDYSTS);
-	state->bempsts = usbhs_read(priv, BEMPSTS);
-
 	state->dvstctr = usbhs_read(priv, DVSTCTR);
 
 	/* mask */
-	state->bempsts &= mod->irq_bempsts;
-	state->brdysts &= mod->irq_brdysts;
+	if (mod) {
+		state->brdysts = usbhs_read(priv, BRDYSTS);
+		state->nrdysts = usbhs_read(priv, NRDYSTS);
+		state->bempsts = usbhs_read(priv, BEMPSTS);
+
+		state->bempsts &= mod->irq_bempsts;
+		state->brdysts &= mod->irq_brdysts;
+	}
 }
 
 /*
@@ -259,17 +261,19 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 	 * but "mod->irq_dev_state" will be called.
 	 */
 
-	if (mod->irq_ctrl_stage)
-		intenb0 |= CTRE;
+	if (mod) {
+		if (mod->irq_ctrl_stage)
+			intenb0 |= CTRE;
 
-	if (mod->irq_empty && mod->irq_bempsts) {
-		usbhs_write(priv, BEMPENB, mod->irq_bempsts);
-		intenb0 |= BEMPE;
-	}
+		if (mod->irq_empty && mod->irq_bempsts) {
+			usbhs_write(priv, BEMPENB, mod->irq_bempsts);
+			intenb0 |= BEMPE;
+		}
 
-	if (mod->irq_ready && mod->irq_brdysts) {
-		usbhs_write(priv, BRDYENB, mod->irq_brdysts);
-		intenb0 |= BRDYE;
+		if (mod->irq_ready && mod->irq_brdysts) {
+			usbhs_write(priv, BRDYENB, mod->irq_brdysts);
+			intenb0 |= BRDYE;
+		}
 	}
 
 	usbhs_write(priv, INTENB0, intenb0);
