@@ -419,6 +419,15 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	spin_lock(&inode->i_lock);
 	inode->i_state &= ~I_SYNC;
 	if (!(inode->i_state & I_FREEING)) {
+		/*
+		 * Sync livelock prevention. Each inode is tagged and synced in
+		 * one shot. If still dirty, it will be redirty_tail()'ed below.
+		 * Update the dirty time to prevent enqueue and sync it again.
+		 */
+		if ((inode->i_state & I_DIRTY) &&
+		    (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages))
+			inode->dirtied_when = jiffies;
+
 		if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 			/*
 			 * We didn't write back all the pages.  nfs_writepages()
