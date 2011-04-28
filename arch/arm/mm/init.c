@@ -392,7 +392,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * Convert start_pfn/end_pfn to a struct page pointer.
 	 */
 	start_pg = pfn_to_page(start_pfn - 1) + 1;
-	end_pg = pfn_to_page(end_pfn);
+	end_pg = pfn_to_page(end_pfn - 1) + 1;
 
 	/*
 	 * Convert to physical addresses, and
@@ -426,6 +426,14 @@ static void __init free_unused_memmap(struct meminfo *mi)
 
 		bank_start = bank_pfn_start(bank);
 
+#ifdef CONFIG_SPARSEMEM
+		/*
+		 * Take care not to free memmap entries that don't exist
+		 * due to SPARSEMEM sections which aren't present.
+		 */
+		bank_start = min(bank_start,
+				 ALIGN(prev_bank_end, PAGES_PER_SECTION));
+#endif
 		/*
 		 * If we had a previous bank, and there is a space
 		 * between the current bank and the previous, free it.
@@ -440,6 +448,12 @@ static void __init free_unused_memmap(struct meminfo *mi)
 		 */
 		prev_bank_end = ALIGN(bank_pfn_end(bank), MAX_ORDER_NR_PAGES);
 	}
+
+#ifdef CONFIG_SPARSEMEM
+	if (!IS_ALIGNED(prev_bank_end, PAGES_PER_SECTION))
+		free_memmap(prev_bank_end,
+			    ALIGN(prev_bank_end, PAGES_PER_SECTION));
+#endif
 }
 
 static void __init free_highpages(void)
