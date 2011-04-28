@@ -1433,8 +1433,8 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
 		      struct p_data *dp, int data_size)
 {
-	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
+	if (mdev->tconn->peer_integrity_tfm)
+		data_size -= crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
 	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 		       dp->block_id);
 }

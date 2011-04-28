@@ -1384,10 +1384,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	void *dig_vv = mdev->tconn->int_dig_vv;
 	unsigned long *data;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
-
-	if (dgs) {
+	dgs = 0;
+	if (mdev->tconn->peer_integrity_tfm) {
+		dgs = crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
 		/*
 		 * FIXME: Receive the incoming digest into the receive buffer
 		 *	  here, together with its struct p_data?
@@ -1395,9 +1394,8 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
 		if (err)
 			return NULL;
+		data_size -= dgs;
 	}
-
-	data_size -= dgs;
 
 	if (!expect(data_size != 0))
 		return NULL;
@@ -1491,16 +1489,14 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	void *dig_in = mdev->tconn->int_dig_in;
 	void *dig_vv = mdev->tconn->int_dig_vv;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
-
-	if (dgs) {
+	dgs = 0;
+	if (mdev->tconn->peer_integrity_tfm) {
+		dgs = crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
 		if (err)
 			return err;
+		data_size -= dgs;
 	}
-
-	data_size -= dgs;
 
 	/* optimistically update recv_cnt.  if receiving fails below,
 	 * we disconnect anyways, and counters will be reset. */
@@ -2997,7 +2993,6 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct p_protocol *p = pi->data;
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
 	int p_want_lose, p_two_primaries, cf;
-	char p_integrity_alg[SHARED_SECRET_MAX] = "";
 	struct net_conf *nc;
 
 	p_proto		= be32_to_cpu(p->protocol);
@@ -3009,15 +3004,30 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	p_want_lose = cf & CF_WANT_LOSE;
 
 	if (tconn->agreed_pro_version >= 87) {
+		char integrity_alg[SHARED_SECRET_MAX];
+		struct crypto_hash *tfm = NULL;
 		int err;
 
-		if (pi->size > sizeof(p_integrity_alg))
+		if (pi->size > sizeof(integrity_alg))
 			return -EIO;
-		err = drbd_recv_all(tconn, p_integrity_alg, pi->size);
+		err = drbd_recv_all(tconn, integrity_alg, pi->size);
 		if (err)
 			return err;
+		integrity_alg[SHARED_SECRET_MAX-1] = 0;
 
-		p_integrity_alg[SHARED_SECRET_MAX-1] = 0;
+		if (integrity_alg[0]) {
+			tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
+			if (!tfm) {
+				conn_err(tconn, "peer data-integrity-alg %s not supported\n",
+					 integrity_alg);
+				goto disconnect;
+			}
+			conn_info(tconn, "peer data-integrity-alg: %s\n", integrity_alg);
+		}
+
+		if (tconn->peer_integrity_tfm)
+			crypto_free_hash(tconn->peer_integrity_tfm);
+		tconn->peer_integrity_tfm = tfm;
 	}
 
 	clear_bit(CONN_DRY_RUN, &tconn->flags);
@@ -3058,19 +3068,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		goto disconnect_rcu_unlock;
 	}
 
-	if (tconn->agreed_pro_version >= 87) {
-		if (strcmp(p_integrity_alg, nc->integrity_alg)) {
-			conn_err(tconn, "incompatible setting of the data-integrity-alg\n");
-			goto disconnect;
-		}
-	}
-
 	rcu_read_unlock();
-
-	if (tconn->agreed_pro_version >= 87) {
-		conn_info(tconn, "data-integrity-alg: %s\n",
-			  nc->integrity_alg[0] ? nc->integrity_alg : (unsigned char *)"<not-used>");
-	}
 
 	return 0;
 
