@@ -1,7 +1,7 @@
 /*
- * Samsung S5P SoC series camera interface (camera capture) driver
+ * Samsung S5P/EXYNOS4 SoC series camera interface (camera capture) driver
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd
+ * Copyright (C) 2010 - 2011 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki, <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
