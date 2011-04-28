@@ -324,6 +324,28 @@ static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
 	return -ENODEV;
 }
 
+static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
+	const struct snd_kcontrol_new *kcontrol_new,
+	struct snd_kcontrol **kcontrol)
+{
+	struct snd_soc_dapm_widget *w;
+	int i;
+
+	*kcontrol = NULL;
+
+	list_for_each_entry(w, &dapm->card->widgets, list) {
+		for (i = 0; i < w->num_kcontrols; i++) {
+			if (&w->kcontrol_news[i] == kcontrol_new) {
+				if (w->kcontrols)
+					*kcontrol = w->kcontrols[i];
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* create new dapm mixer control */
 static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_widget *w)
@@ -433,58 +455,80 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 	struct snd_card *card = dapm->card->snd_card;
 	const char *prefix;
 	size_t prefix_len;
-	int ret = 0;
+	int ret;
 	struct snd_soc_dapm_widget_list *wlist;
+	int shared, wlistentries;
 	size_t wlistsize;
+	char *name;
 
-	if (!w->num_kcontrols) {
-		dev_err(dapm->dev, "asoc: mux %s has no controls\n", w->name);
+	if (w->num_kcontrols != 1) {
+		dev_err(dapm->dev,
+			"asoc: mux %s has incorrect number of controls\n",
+			w->name);
 		return -EINVAL;
 	}
 
+	shared = dapm_is_shared_kcontrol(dapm, &w->kcontrol_news[0],
+					 &kcontrol);
+	if (kcontrol) {
+		wlist = kcontrol->private_data;
+		wlistentries = wlist->num_widgets + 1;
+	} else {
+		wlist = NULL;
+		wlistentries = 1;
+	}
 	wlistsize = sizeof(struct snd_soc_dapm_widget_list) +
-		    sizeof(struct snd_soc_dapm_widget *),
-	wlist = kzalloc(wlistsize, GFP_KERNEL);
+		wlistentries * sizeof(struct snd_soc_dapm_widget *),
+	wlist = krealloc(wlist, wlistsize, GFP_KERNEL);
 	if (wlist == NULL) {
 		dev_err(dapm->dev,
 			"asoc: can't allocate widget list for %s\n", w->name);
 		return -ENOMEM;
 	}
-	wlist->num_widgets = 1;
-	wlist->widgets[0] = w;
+	wlist->num_widgets = wlistentries;
+	wlist->widgets[wlistentries - 1] = w;
 
-	if (dapm->codec)
-		prefix = dapm->codec->name_prefix;
-	else
-		prefix = NULL;
+	if (!kcontrol) {
+		if (dapm->codec)
+			prefix = dapm->codec->name_prefix;
+		else
+			prefix = NULL;
 
-	if (prefix)
-		prefix_len = strlen(prefix) + 1;
-	else
-		prefix_len = 0;
+		if (shared) {
+			name = w->kcontrol_news[0].name;
+			prefix_len = 0;
+		} else {
+			name = w->name;
+			if (prefix)
+				prefix_len = strlen(prefix) + 1;
+			else
+				prefix_len = 0;
+		}
 
-	/* The control will get a prefix from the control creation
-	 * process but we're also using the same prefix for widgets so
-	 * cut the prefix off the front of the widget name.
-	 */
-	kcontrol = snd_soc_cnew(&w->kcontrol_news[0], wlist,
-				w->name + prefix_len, prefix);
-	ret = snd_ctl_add(card, kcontrol);
+		/*
+		 * The control will get a prefix from the control creation
+		 * process but we're also using the same prefix for widgets so
+		 * cut the prefix off the front of the widget name.
+		 */
+		kcontrol = snd_soc_cnew(&w->kcontrol_news[0], wlist,
+					name + prefix_len, prefix);
+		ret = snd_ctl_add(card, kcontrol);
+		if (ret < 0) {
+			dev_err(dapm->dev,
+				"asoc: failed to add kcontrol %s\n", w->name);
+			kfree(wlist);
+			return ret;
+		}
+	}
 
-	if (ret < 0)
-		goto err;
+	kcontrol->private_data = wlist;
 
 	w->kcontrols[0] = kcontrol;
 
 	list_for_each_entry(path, &w->sources, list_sink)
 		path->kcontrol = kcontrol;
 
-	return ret;
-
-err:
-	dev_err(dapm->dev, "asoc: failed to add kcontrol %s\n", w->name);
-	kfree(wlist);
-	return ret;
+	return 0;
 }
 
 /* create new dapm volume control */
