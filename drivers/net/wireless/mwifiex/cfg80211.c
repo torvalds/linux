@@ -1235,19 +1235,22 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	wdev->wiphy->max_scan_ssids = 10;
 	wdev->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
+
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
-	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+	mwifiex_setup_ht_caps(
+		&wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+
+	if (priv->adapter->config_bands & BAND_A) {
+		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+		mwifiex_setup_ht_caps(
+			&wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
+	} else {
+		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
+	}
 
 	/* Initialize cipher suits */
 	wdev->wiphy->cipher_suites = mwifiex_cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
-
-	/* Initialize parameters for 2GHz band */
-
-	mwifiex_setup_ht_caps(&wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap,
-									priv);
-	mwifiex_setup_ht_caps(&wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap,
-									priv);
 
 	memcpy(wdev->wiphy->perm_addr, mac, 6);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
