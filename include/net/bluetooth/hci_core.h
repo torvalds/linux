@@ -126,6 +126,8 @@ struct hci_dev {
 	__u16		sniff_min_interval;
 	__u16		sniff_max_interval;
 
+	unsigned int	auto_accept_delay;
+
 	unsigned long	quirks;
 
 	atomic_t	cmd_cnt;
@@ -246,6 +248,7 @@ struct hci_conn {
 
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
+	struct timer_list auto_accept_timer;
 
 	struct work_struct work_add;
 	struct work_struct work_del;

@@ -2515,7 +2515,15 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	/* If no side requires MITM protection; auto-accept */
 	if ((!loc_mitm || conn->remote_cap == 0x03) &&
 				(!rem_mitm || conn->io_capability == 0x03)) {
-		BT_DBG("Auto-accept of user confirmation");
+		BT_DBG("Auto-accept of user confirmation with %ums delay",
+						hdev->auto_accept_delay);
+
+		if (hdev->auto_accept_delay > 0) {
+			int delay = msecs_to_jiffies(hdev->auto_accept_delay);
+			mod_timer(&conn->auto_accept_timer, jiffies + delay);
+			goto unlock;
+		}
+
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_REPLY,
 						sizeof(ev->bdaddr), &ev->bdaddr);
 		goto unlock;
