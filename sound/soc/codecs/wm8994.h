@@ -72,4 +72,6 @@ struct wm8994_platform_data {
     unsigned int bt_call_vol;
 }; 
 
+#define WM_EN_PIN RK29_PIN5_PA1
+
 #endif

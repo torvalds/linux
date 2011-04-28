@@ -24,6 +24,7 @@
 #include "../codecs/wm8994.h"
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
+#include <linux/clk.h>
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -38,7 +39,9 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;    
 	unsigned int pll_out = 0; 
-    int ret;
+	int div_bclk,div_mclk;
+	int ret;
+	struct clk	*general_pll;
 	  
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
     /*by Vincent Hsiung for EQ Vol Change*/
@@ -78,7 +81,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         if (ret < 0)
             return ret;
     }
-/*	
+	
     switch(params_rate(params)) {
         case 8000:
         case 16000:
@@ -98,12 +101,36 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
             break;
      }
      DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-	//1¡¢ÉèÖÃSYSCLK = FLL1  	
-	snd_soc_dai_set_sysclk(codec_dai,WM8994_SYSCLK_FLL1,12000000,pll_out);
-	//2¡¢ÉèÖÃFLL1 CLK
-	snd_soc_dai_set_pll(codec_dai,WM8994_FLL1,12000000,pll_out);
-*/		     
-	snd_soc_dai_set_sysclk(cpu_dai, 0, 12000000, 0);
+	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 	
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	#endif	
+	
+	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+		general_pll=clk_get(NULL, "general_pll");
+		if(clk_get_rate(general_pll)>260000000)
+		{
+			div_bclk=(pll_out/4)/params_rate(params)-1;
+			div_mclk=3;
+		}
+		else if(clk_get_rate(general_pll)>130000000)
+		{
+			div_bclk=(pll_out/2)/params_rate(params)-1;
+			div_mclk=1;
+		}
+		else
+		{
+			pll_out=pll_out/4;
+			div_bclk=(pll_out)/params_rate(params)-1;
+			div_mclk=0;
+		}
+		DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld\n",
+				__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+		DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));		
+	#endif
+
     return 0;
 }
 /*
@@ -143,13 +170,9 @@ static int rk29_wm8994_init(struct snd_soc_codec *codec)
 	
     /* Add specific widgets */
 //	snd_soc_dapm_new_controls(codec, rk2818_dapm_widgets,
-//				  ARRAY_SIZE(rk2818_dapm_widgets));
-// 	snd_soc_dapm_nc_pin(codec, "LOUT2");
-//	snd_soc_dapm_nc_pin(codec, "ROUT2");
-	
+//				  ARRAY_SIZE(rk2818_dapm_widgets));	
     /* Set up specific audio path audio_mapnects */
-//    snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-       
+//    snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));       
 //    snd_soc_dapm_sync(codec);
  
     return 0;
