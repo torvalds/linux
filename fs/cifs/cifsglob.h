@@ -833,6 +833,11 @@ GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
 /* reconnect after this many failed echo attempts */
 GLOBAL_EXTERN unsigned short echo_retries;
 
+GLOBAL_EXTERN struct rb_root uidtree;
+GLOBAL_EXTERN struct rb_root gidtree;
+GLOBAL_EXTERN spinlock_t siduidlock;
+GLOBAL_EXTERN spinlock_t sidgidlock;
+
 void cifs_oplock_break(struct work_struct *work);
 void cifs_oplock_break_get(struct cifsFileInfo *cfile);
 void cifs_oplock_break_put(struct cifsFileInfo *cfile);

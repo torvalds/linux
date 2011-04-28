@@ -1033,22 +1033,31 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_mids;
 
-	rc = register_filesystem(&cifs_fs_type);
-	if (rc)
-		goto out_destroy_request_bufs;
 #ifdef CONFIG_CIFS_UPCALL
 	rc = register_key_type(&cifs_spnego_key_type);
 	if (rc)
-		goto out_unregister_filesystem;
-#endif
+		goto out_destroy_request_bufs;
+#endif /* CONFIG_CIFS_UPCALL */
+
+#ifdef CONFIG_CIFS_ACL
+	rc = init_cifs_idmap();
+	if (rc)
+		goto out_destroy_request_bufs;
+#endif /* CONFIG_CIFS_ACL */
+
+	rc = register_filesystem(&cifs_fs_type);
+	if (rc)
+		goto out_destroy_request_bufs;
 
 	return 0;
 
-#ifdef CONFIG_CIFS_UPCALL
-out_unregister_filesystem:
-	unregister_filesystem(&cifs_fs_type);
-#endif
 out_destroy_request_bufs:
+#ifdef CONFIG_CIFS_ACL
+	exit_cifs_idmap();
+#endif
+#ifdef CONFIG_CIFS_UPCALL
+	unregister_key_type(&cifs_spnego_key_type);
+#endif
 	cifs_destroy_request_bufs();
 out_destroy_mids:
 	cifs_destroy_mids();
@@ -1069,6 +1078,10 @@ exit_cifs(void)
 	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
+#endif
+#ifdef CONFIG_CIFS_ACL
+	cifs_destroy_idmaptrees();
+	exit_cifs_idmap();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
