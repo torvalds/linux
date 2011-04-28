@@ -843,7 +843,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 
 #if CONFIG_HAS_EARLYSUSPEND
-    register_early_suspend(&gpu_early_suspend_info);
+    //register_early_suspend(&gpu_early_suspend_info);
 #endif
 
 #if gcdENABLE_DELAY_EARLY_SUSPEND
