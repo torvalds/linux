@@ -1083,8 +1083,11 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	 * previous key */
 	if (type == HCI_LK_CHANGED_COMBINATION &&
 					(!conn || conn->remote_auth == 0xff) &&
-					old_key_type == 0xff)
+					old_key_type == 0xff) {
 		type = HCI_LK_COMBINATION;
+		if (conn)
+			conn->key_type = type;
+	}
 
 	if (new_key && !hci_persistent_key(hdev, conn, type, old_key_type)) {
 		list_del(&key->list);
