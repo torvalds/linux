@@ -65,7 +65,6 @@
 #include <scsi/libsas.h>
 #include <scsi/scsi.h>
 
-#include "core/sci_object.h"
 #include "scic_controller.h"
 #include "host.h"
 #include "timers.h"

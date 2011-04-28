@@ -161,8 +161,7 @@ enum sci_status scic_io_request_construct(
  * if the remote_device does not support the SSP protocol.
  * SCI_FAILURE_INVALID_ASSOCIATION This value is returned if the user did not
  * properly set the association between the SCIC IO request and the user's IO
- * request.  Please refer to the sci_object_set_association() routine for more
- * information.
+ * request.
  */
 enum sci_status scic_io_request_construct_basic_ssp(
 	struct scic_sds_request *scic_io_request);
@@ -184,8 +183,7 @@ enum sci_status scic_io_request_construct_basic_ssp(
  * if the remote_device does not support the STP protocol.
  * SCI_FAILURE_INVALID_ASSOCIATION This value is returned if the user did not
  * properly set the association between the SCIC IO request and the user's IO
- * request.  Please refer to the sci_object_set_association() routine for more
- * information.
+ * request.
  */
 enum sci_status scic_io_request_construct_basic_sata(
 	struct scic_sds_request *scic_io_request);
@@ -206,8 +204,7 @@ enum sci_status scic_io_request_construct_basic_sata(
  * if the remote_device does not support the SMP protocol.
  * SCI_FAILURE_INVALID_ASSOCIATION This value is returned if the user did not
  * properly set the association between the SCIC IO request and the user's IO
- * request.  Please refer to the sci_object_set_association() routine for more
- * information.
+ * request.
  */
 enum sci_status scic_io_request_construct_smp(
 	struct scic_sds_request *scic_io_request);

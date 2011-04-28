@@ -56,8 +56,6 @@
 #ifndef _SCI_BASE_STATE_H_
 #define _SCI_BASE_STATE_H_
 
-#include "sci_object.h"
-
 typedef void (*sci_base_state_handler_t)(void);
 
 typedef void (*sci_state_transition_t)(void *base_object);
