@@ -28,7 +28,7 @@
 #include <mach/at91rm9200_mc.h>
 #include "generic.h"
 
-static void __init eco920_map_io(void)
+static void __init eco920_init_early(void)
 {
 	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
 
@@ -131,7 +131,8 @@ MACHINE_START(ECO920, "eco920")
 	/* Maintainer: Sascha Hauer */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= eco920_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= eco920_init_early,
 	.init_irq	= eco920_init_irq,
 	.init_machine	= eco920_board_init,
 MACHINE_END

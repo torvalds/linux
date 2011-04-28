@@ -303,11 +303,14 @@ static void at91cap9_poweroff(void)
  *  AT91CAP9 processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91cap9_initialize(unsigned long main_clock)
+void __init at91cap9_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at91cap9_io_desc, ARRAY_SIZE(at91cap9_io_desc));
+}
 
+void __init at91cap9_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91cap9_reset;
 	pm_power_off = at91cap9_poweroff;
 	at91_extern_irq = (1 << AT91CAP9_ID_IRQ0) | (1 << AT91CAP9_ID_IRQ1);

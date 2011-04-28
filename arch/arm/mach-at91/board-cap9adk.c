@@ -50,7 +50,7 @@
 #include "generic.h"
 
 
-static void __init cap9adk_map_io(void)
+static void __init cap9adk_init_early(void)
 {
 	/* Initialize processor: 12 MHz crystal */
 	at91cap9_initialize(12000000);
@@ -398,7 +398,8 @@ MACHINE_START(AT91CAP9ADK, "Atmel AT91CAP9A-DK")
 	/* Maintainer: Stelian Pop <stelian.pop@leadtechdesign.com> */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= cap9adk_map_io,
+	.map_io		= at91cap9_map_io,
+	.init_early	= cap9adk_init_early,
 	.init_irq	= cap9adk_init_irq,
 	.init_machine	= cap9adk_board_init,
 MACHINE_END

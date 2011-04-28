@@ -47,7 +47,7 @@
 #include "generic.h"
 
 
-static void __init eb_map_io(void)
+static void __init eb_init_early(void)
 {
 	/* Initialize processor: 12.500 MHz crystal */
 	at572d940hf_initialize(12000000);
@@ -317,7 +317,8 @@ MACHINE_START(AT572D940HFEB, "Atmel AT91D940HF-EB")
 	/* Maintainer: Atmel <costa.antonior@gmail.com> */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= eb_map_io,
+	.map_io		= at572d940hf_map_io,
+	.init_early	= eb_init_early,
 	.init_irq	= eb_init_irq,
 	.init_machine	= eb_board_init,
 MACHINE_END

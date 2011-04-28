@@ -289,7 +289,7 @@ static void at91sam9260_poweroff(void)
  *  AT91SAM9260 processor initialization
  * -------------------------------------------------------------------- */
 
-static void __init at91sam9xe_initialize(void)
+static void __init at91sam9xe_map_io(void)
 {
 	unsigned long cidr, sram_size;
 
@@ -310,18 +310,21 @@ static void __init at91sam9xe_initialize(void)
 	iotable_init(at91sam9xe_sram_desc, ARRAY_SIZE(at91sam9xe_sram_desc));
 }
 
-void __init at91sam9260_initialize(unsigned long main_clock)
+void __init at91sam9260_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at91sam9260_io_desc, ARRAY_SIZE(at91sam9260_io_desc));
 
 	if (cpu_is_at91sam9xe())
-		at91sam9xe_initialize();
+		at91sam9xe_map_io();
 	else if (cpu_is_at91sam9g20())
 		iotable_init(at91sam9g20_sram_desc, ARRAY_SIZE(at91sam9g20_sram_desc));
 	else
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
+}
 
+void __init at91sam9260_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9260_poweroff;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)

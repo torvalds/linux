@@ -61,7 +61,7 @@ static int inline ek_have_2mmc(void)
 }
 
 
-static void __init ek_map_io(void)
+static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
@@ -405,7 +405,8 @@ MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")
 	/* Maintainer: Atmel */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= ek_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= ek_init_early,
 	.init_irq	= ek_init_irq,
 	.init_machine	= ek_board_init,
 MACHINE_END
@@ -414,7 +415,8 @@ MACHINE_START(AT91SAM9G20EK_2MMC, "Atmel AT91SAM9G20-EK 2 MMC Slot Mod")
 	/* Maintainer: Atmel */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= ek_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= ek_init_early,
 	.init_irq	= ek_init_irq,
 	.init_machine	= ek_board_init,
 MACHINE_END

@@ -267,7 +267,7 @@ static void at91sam9261_poweroff(void)
  *  AT91SAM9261 processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9261_initialize(unsigned long main_clock)
+void __init at91sam9261_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at91sam9261_io_desc, ARRAY_SIZE(at91sam9261_io_desc));
@@ -276,8 +276,10 @@ void __init at91sam9261_initialize(unsigned long main_clock)
 		iotable_init(at91sam9g10_sram_desc, ARRAY_SIZE(at91sam9g10_sram_desc));
 	else
 		iotable_init(at91sam9261_sram_desc, ARRAY_SIZE(at91sam9261_sram_desc));
+}
 
-
+void __init at91sam9261_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9261_poweroff;
 	at91_extern_irq = (1 << AT91SAM9261_ID_IRQ0) | (1 << AT91SAM9261_ID_IRQ1)

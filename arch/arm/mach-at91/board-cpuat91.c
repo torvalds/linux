@@ -50,7 +50,7 @@ static struct gpio_led cpuat91_leds[] = {
 	},
 };
 
-static void __init cpuat91_map_io(void)
+static void __init cpuat91_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
@@ -177,7 +177,8 @@ MACHINE_START(CPUAT91, "Eukrea")
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= cpuat91_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= cpuat91_init_early,
 	.init_irq	= cpuat91_init_irq,
 	.init_machine	= cpuat91_board_init,
 MACHINE_END

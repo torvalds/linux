@@ -42,7 +42,7 @@
 #include "generic.h"
 
 
-static void __init ecb_at91map_io(void)
+static void __init ecb_at91init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
@@ -170,7 +170,8 @@ MACHINE_START(ECBAT91, "emQbit's ECB_AT91")
 	/* Maintainer: emQbit.com */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= ecb_at91map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= ecb_at91init_early,
 	.init_irq	= ecb_at91init_irq,
 	.init_machine	= ecb_at91board_init,
 MACHINE_END

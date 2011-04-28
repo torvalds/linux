@@ -302,11 +302,14 @@ static void at572d940hf_reset(void)
  *  AT572D940HF processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at572d940hf_initialize(unsigned long main_clock)
+void __init at572d940hf_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at572d940hf_io_desc, ARRAY_SIZE(at572d940hf_io_desc));
+}
 
+void __init at572d940hf_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at572d940hf_reset;
 	at91_extern_irq = (1 << AT572D940HF_ID_IRQ0) | (1 << AT572D940HF_ID_IRQ1)
 			| (1 << AT572D940HF_ID_IRQ2);

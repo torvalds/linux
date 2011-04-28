@@ -40,7 +40,7 @@
 #include "generic.h"
 
 
-static void __init carmeva_map_io(void)
+static void __init carmeva_init_early(void)
 {
 	/* Initialize processor: 20.000 MHz crystal */
 	at91rm9200_initialize(20000000, AT91RM9200_BGA);
@@ -164,7 +164,8 @@ MACHINE_START(CARMEVA, "Carmeva")
 	/* Maintainer: Conitec Datasystems */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= carmeva_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= carmeva_init_early,
 	.init_irq	= carmeva_init_irq,
 	.init_machine	= carmeva_board_init,
 MACHINE_END

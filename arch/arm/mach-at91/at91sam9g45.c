@@ -306,11 +306,14 @@ static void at91sam9g45_poweroff(void)
  *  AT91SAM9G45 processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9g45_initialize(unsigned long main_clock)
+void __init at91sam9g45_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at91sam9g45_io_desc, ARRAY_SIZE(at91sam9g45_io_desc));
+}
 
+void __init at91sam9g45_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91sam9g45_reset;
 	pm_power_off = at91sam9g45_poweroff;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);

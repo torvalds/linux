@@ -45,7 +45,7 @@
 #include "generic.h"
 
 
-static void __init ek_map_io(void)
+static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91rm9200_initialize(18432000, AT91RM9200_BGA);
@@ -195,7 +195,8 @@ MACHINE_START(AT91RM9200EK, "Atmel AT91RM9200-EK")
 	/* Maintainer: SAN People/Atmel */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= ek_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= ek_init_early,
 	.init_irq	= ek_init_irq,
 	.init_machine	= ek_board_init,
 MACHINE_END

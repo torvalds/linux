@@ -53,7 +53,7 @@
 #include "generic.h"
 
 
-static void __init ek_map_io(void)
+static void __init ek_init_early(void)
 {
 	/* Initialize processor: 16.367 MHz crystal */
 	at91sam9263_initialize(16367660);
@@ -453,7 +453,8 @@ MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
 	/* Maintainer: Atmel */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= ek_map_io,
+	.map_io		= at91sam9263_map_io,
+	.init_early	= ek_init_early,
 	.init_irq	= ek_init_irq,
 	.init_machine	= ek_board_init,
 MACHINE_END

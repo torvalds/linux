@@ -252,7 +252,7 @@ static void at91sam9rl_poweroff(void)
  *  AT91SAM9RL processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9rl_initialize(unsigned long main_clock)
+void __init at91sam9rl_map_io(void)
 {
 	unsigned long cidr, sram_size;
 
@@ -275,7 +275,10 @@ void __init at91sam9rl_initialize(unsigned long main_clock)
 
 	/* Map SRAM */
 	iotable_init(at91sam9rl_sram_desc, ARRAY_SIZE(at91sam9rl_sram_desc));
+}
 
+void __init at91sam9rl_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9rl_poweroff;
 	at91_extern_irq = (1 << AT91SAM9RL_ID_IRQ0);

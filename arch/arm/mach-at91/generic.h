@@ -8,6 +8,17 @@
  * published by the Free Software Foundation.
  */
 
+ /* Map io */
+extern void __init at91rm9200_map_io(void);
+extern void __init at91sam9260_map_io(void);
+extern void __init at91sam9261_map_io(void);
+extern void __init at91sam9263_map_io(void);
+extern void __init at91sam9rl_map_io(void);
+extern void __init at91sam9g45_map_io(void);
+extern void __init at91x40_map_io(void);
+extern void __init at91cap9_map_io(void);
+extern void __init at572d940hf_map_io(void);
+
  /* Processors */
 extern void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks);
 extern void __init at91sam9260_initialize(unsigned long main_clock);
