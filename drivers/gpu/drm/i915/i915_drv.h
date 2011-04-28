@@ -229,6 +229,7 @@ struct intel_device_info {
 	u8 is_pineview : 1;
 	u8 is_broadwater : 1;
 	u8 is_crestline : 1;
+	u8 is_ivybridge : 1;
 	u8 has_fbc : 1;
 	u8 has_pipe_cxsr : 1;
 	u8 has_hotplug : 1;
@@ -933,6 +934,7 @@ enum intel_chip_family {
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
 #define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_IVYBRIDGE(dev)	(INTEL_INFO(dev)->is_ivybridge)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
 /*
