@@ -307,7 +307,7 @@ static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
 	return rs_enr >>
 		/* bit to page */
 		((PAGE_SHIFT + 3) -
-		/* al extent number to bit */
+		/* resync extent number to bit */
 		 (BM_EXT_SHIFT - BM_BLOCK_SHIFT));
 }
 
