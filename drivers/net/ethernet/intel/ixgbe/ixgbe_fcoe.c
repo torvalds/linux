@@ -241,10 +241,12 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	 */
 	if (lastsize == bufflen) {
 		if (j >= IXGBE_BUFFCNT_MAX) {
-			e_err(drv, "xid=%x:%d,%d,%d:addr=%llx "
-				"not enough user buffers. We need an extra "
-				"buffer because lastsize is bufflen.\n",
-				xid, i, j, dmacount, (u64)addr);
+			printk_once("Will NOT use DDP since there are not "
+				    "enough user buffers. We need an  extra "
+				    "buffer because lastsize is bufflen. "
+				    "xid=%x:%d,%d,%d:addr=%llx\n",
+				    xid, i, j, dmacount, (u64)addr);
+
 			goto out_noddp_free;
 		}
 
