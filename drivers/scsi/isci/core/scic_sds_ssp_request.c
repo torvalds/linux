@@ -202,7 +202,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_
 static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -223,7 +223,7 @@ static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_e
 static void scic_sds_io_request_started_task_mgmt_await_task_response_substate_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,

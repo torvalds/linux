@@ -61,7 +61,7 @@
 #include "request.h"
 #include "sata.h"
 #include "scu_completion_codes.h"
-
+#include "core/scic_sds_request.h"
 
 static enum sci_status isci_request_ssp_request_construct(
 	struct isci_request *request)
@@ -225,7 +225,7 @@ static enum sci_status isci_io_request_build(
 		return SCI_FAILURE;
 	}
 
-	sci_object_set_association(request->sci_request_handle, request);
+	request->sci_request_handle->ireq = request;
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:

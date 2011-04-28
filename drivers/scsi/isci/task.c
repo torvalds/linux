@@ -63,7 +63,7 @@
 #include "request.h"
 #include "sata.h"
 #include "task.h"
-
+#include "core/scic_sds_request.h"
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in
 *     the case where an I/O needs to be completed back in the submit path.
@@ -314,10 +314,7 @@ static enum sci_status isci_task_request_build(
 		goto errout;
 	}
 
-	sci_object_set_association(
-		request->sci_request_handle,
-		request
-		);
+	request->sci_request_handle->ireq =  request;
 
 	/* XXX convert to get this from task->tproto like other drivers */
 	if (dev->dev_type == SAS_END_DEV) {

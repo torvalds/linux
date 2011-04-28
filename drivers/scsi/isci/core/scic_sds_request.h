@@ -118,6 +118,7 @@ enum scic_sds_smp_request_started_substates {
 	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION,
 };
 
+struct isci_request;
 /**
  * struct scic_sds_request - This structure contains or references all of
  *    the data necessary to process a task management or normal IO request.
@@ -126,10 +127,9 @@ enum scic_sds_smp_request_started_substates {
  */
 struct scic_sds_request {
 	/**
-	 * The field specifies that the parent object for the base request is the
-	 * base object itself.
+	 * The field specifies that the peer object for the request object.
 	 */
-	struct sci_base_object parent;
+	struct isci_request *ireq;
 
 	/**
 	 * This field contains the information for the base request state machine.

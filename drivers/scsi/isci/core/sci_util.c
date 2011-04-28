@@ -72,7 +72,7 @@ void scic_word_copy_with_swap(
 
 void *scic_request_get_virt_addr(struct scic_sds_request *sci_req, dma_addr_t phys_addr)
 {
-	struct isci_request *ireq = sci_object_get_association(sci_req);
+	struct isci_request *ireq = sci_req->ireq;
 	dma_addr_t offset;
 
 	BUG_ON(phys_addr < ireq->request_daddr);
@@ -87,8 +87,7 @@ void *scic_request_get_virt_addr(struct scic_sds_request *sci_req, dma_addr_t ph
 dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *sds_request,
 					void *virt_addr)
 {
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_request *isci_request = sds_request->ireq;
 
 	char *requested_addr = (char *)virt_addr;
 	char *base_addr = (char *)isci_request;

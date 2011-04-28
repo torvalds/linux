@@ -566,7 +566,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -581,7 +581,7 @@ static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(
 
 static void scic_sds_stp_request_started_non_data_await_d2h_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -611,7 +611,7 @@ enum sci_status scic_sds_stp_non_data_request_construct(struct scic_sds_request 
 	scu_stp_raw_request_construct_task_context(stp_req, sci_req->task_context_buffer);
 
 	sci_base_state_machine_construct(&sci_req->started_substate_machine,
-					 &sci_req->parent,
+					 sci_req,
 					 scic_sds_stp_request_started_non_data_substate_table,
 					 SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE);
 
@@ -1215,7 +1215,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1229,7 +1229,7 @@ static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(
 
 static void scic_sds_stp_request_started_pio_await_frame_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1241,7 +1241,7 @@ static void scic_sds_stp_request_started_pio_await_frame_enter(void *object)
 static void scic_sds_stp_request_started_pio_data_in_await_data_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1253,7 +1253,7 @@ static void scic_sds_stp_request_started_pio_data_in_await_data_enter(
 static void scic_sds_stp_request_started_pio_data_out_transmit_data_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1311,7 +1311,7 @@ enum sci_status scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_
 	}
 
 	sci_base_state_machine_construct(&sci_req->started_substate_machine,
-					 &sci_req->parent,
+					 sci_req,
 					 scic_sds_stp_request_started_pio_substate_table,
 					 SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE);
 
@@ -1485,7 +1485,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 static void scic_sds_stp_request_started_udma_await_tc_completion_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1504,7 +1504,7 @@ static void scic_sds_stp_request_started_udma_await_tc_completion_enter(
 static void scic_sds_stp_request_started_udma_await_d2h_reg_fis_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1535,7 +1535,7 @@ enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci
 
 	sci_base_state_machine_construct(
 		&sci_req->started_substate_machine,
-		&sci_req->parent,
+		sci_req,
 		scic_sds_stp_request_started_udma_substate_table,
 		SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE
 		);
@@ -1732,7 +1732,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1748,7 +1748,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completio
 static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 	struct scu_task_context *task_context;
 	struct sata_fis_reg_h2d *h2d_fis;
 	enum sci_status status;
@@ -1775,7 +1775,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 static void scic_sds_stp_request_started_soft_reset_await_d2h_response_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1806,7 +1806,7 @@ enum sci_status scic_sds_stp_soft_reset_request_construct(struct scic_sds_reques
 	scu_stp_raw_request_construct_task_context(stp_req, sci_req->task_context_buffer);
 
 	sci_base_state_machine_construct(&sci_req->started_substate_machine,
-					 &sci_req->parent,
+					 sci_req,
 					 scic_sds_stp_request_started_soft_reset_substate_table,
 					 SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE);
 

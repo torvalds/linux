@@ -525,7 +525,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_smp_request_start
 static void scic_sds_smp_request_started_await_response_substate_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -546,7 +546,7 @@ static void scic_sds_smp_request_started_await_response_substate_enter(
 static void scic_sds_smp_request_started_await_tc_completion_substate_enter(
 	void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -590,7 +590,7 @@ enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 	/* Construct the started sub-state machine. */
 	sci_base_state_machine_construct(
 		&sci_req->started_substate_machine,
-		&sci_req->parent,
+		sci_req,
 		scic_sds_smp_request_started_substate_table,
 		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE
 		);

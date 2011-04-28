@@ -209,8 +209,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_start_io_h
 	struct scic_sds_request *request)
 {
 	enum sci_status status;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(request);
+	struct isci_request *isci_request = request->ireq;
 
 
 	/* Will the port allow the io request to start? */
@@ -280,8 +279,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_start_io_ha
 	struct scic_sds_request *request)
 {
 	enum sci_status status;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(request);
+	struct isci_request *isci_request = request->ireq;
 
 	if (isci_sata_get_sat_protocol(isci_request) == SAT_PROTOCOL_FPDMA) {
 		status = sci_dev->owning_port->state_handlers->start_io_handler(
