@@ -577,15 +577,11 @@ wbcir_txmask(struct rc_dev *dev, u32 mask)
 }
 
 static int
-wbcir_tx(struct rc_dev *dev, int *buf, u32 bufsize)
+wbcir_tx(struct rc_dev *dev, unsigned *buf, unsigned count)
 {
 	struct wbcir_data *data = dev->priv;
-	u32 count;
 	unsigned i;
 	unsigned long flags;
-
-	/* bufsize has been sanity checked by the caller */
-	count = bufsize / sizeof(int);
 
 	/* Not sure if this is possible, but better safe than sorry */
 	spin_lock_irqsave(&data->spinlock, flags);
