@@ -2059,11 +2059,23 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff
 	}
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn) {
+		if (key->type == HCI_LK_UNAUTH_COMBINATION &&
+				conn->auth_type != 0xff &&
+				(conn->auth_type & 0x01)) {
+			BT_DBG("%s ignoring unauthenticated key", hdev->name);
+			goto not_found;
+		}
 
-	if (key->type == HCI_LK_UNAUTH_COMBINATION && conn &&
-			conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
-		BT_DBG("%s ignoring unauthenticated key", hdev->name);
-		goto not_found;
+		if (key->type == HCI_LK_COMBINATION && key->pin_len < 16 &&
+				conn->pending_sec_level == BT_SECURITY_HIGH) {
+			BT_DBG("%s ignoring key unauthenticated for high \
+							security", hdev->name);
+			goto not_found;
+		}
+
+		conn->key_type = key->type;
+		conn->pin_length = key->pin_len;
 	}
 
 	bacpy(&cp.bdaddr, &ev->bdaddr);
