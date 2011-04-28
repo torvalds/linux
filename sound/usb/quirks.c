@@ -533,6 +533,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 
 	case USB_ID(0x0d8c, 0x0102):
 		/* C-Media CM6206 / CM106-Like Sound Device */
+	case USB_ID(0x0ccd, 0x00b1): /* Terratec Aureon 7.1 USB */
 		return snd_usb_cm6206_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
