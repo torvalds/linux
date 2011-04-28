@@ -58,5 +58,6 @@ struct tegra_kbc_platform_data {
 
 	bool wakeup;
 	bool use_fn_map;
+	bool use_ghost_filter;
 };
 #endif
