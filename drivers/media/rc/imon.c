@@ -443,16 +443,6 @@ static int display_close(struct inode *inode, struct file *file)
 	} else {
 		ictx->display_isopen = false;
 		dev_dbg(ictx->dev, "display port closed\n");
-		if (!ictx->dev_present_intf0) {
-			/*
-			 * Device disconnected before close and IR port is not
-			 * open. If IR port is open, context will be deleted by
-			 * ir_close.
-			 */
-			mutex_unlock(&ictx->lock);
-			free_imon_context(ictx);
-			return retval;
-		}
 	}
 
 	mutex_unlock(&ictx->lock);
@@ -1492,7 +1482,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	struct device *dev = ictx->dev;
 	unsigned long flags;
 	u32 kc;
-	bool norelease = false;
 	int i;
 	u64 scancode;
 	int press_type = 0;
@@ -1560,7 +1549,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	     !(buf[1] & 0x1 || buf[1] >> 2 & 0x1))) {
 		len = 8;
 		imon_pad_to_keys(ictx, buf);
-		norelease = true;
 	}
 
 	if (debug) {
@@ -2274,13 +2262,11 @@ static int __devinit imon_probe(struct usb_interface *interface,
 	struct usb_host_interface *iface_desc = NULL;
 	struct usb_interface *first_if;
 	struct device *dev = &interface->dev;
-	int ifnum, code_length, sysfs_err;
+	int ifnum, sysfs_err;
 	int ret = 0;
 	struct imon_context *ictx = NULL;
 	struct imon_context *first_if_ctx = NULL;
 	u16 vendor, product;
-
-	code_length = BUF_CHUNK_SIZE * 8;
 
 	usbdev     = usb_get_dev(interface_to_usbdev(interface));
 	iface_desc = interface->cur_altsetting;
@@ -2366,8 +2352,6 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 	dev = ictx->dev;
 	ifnum = interface->cur_altsetting->desc.bInterfaceNumber;
 
-	mutex_lock(&ictx->lock);
-
 	/*
 	 * sysfs_remove_group is safe to call even if sysfs_create_group
 	 * hasn't been called
@@ -2391,24 +2375,20 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);
-			else
+			else if (ictx->display_type == IMON_DISPLAY_TYPE_VFD)
 				usb_deregister_dev(interface, &imon_vfd_class);
 		}
 	} else {
 		ictx->dev_present_intf1 = false;
 		usb_kill_urb(ictx->rx_urb_intf1);
-		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA)
+		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
 			input_unregister_device(ictx->touch);
+			del_timer_sync(&ictx->ttimer);
+		}
 	}
 
-	if (!ictx->dev_present_intf0 && !ictx->dev_present_intf1) {
-		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA)
-			del_timer_sync(&ictx->ttimer);
-		mutex_unlock(&ictx->lock);
-		if (!ictx->display_isopen)
-			free_imon_context(ictx);
-	} else
-		mutex_unlock(&ictx->lock);
+	if (!ictx->dev_present_intf0 && !ictx->dev_present_intf1)
+		free_imon_context(ictx);
 
 	mutex_unlock(&driver_lock);
 
