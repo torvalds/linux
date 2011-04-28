@@ -184,6 +184,43 @@ out:
 	return rc;
 }
 
+static u32 filenametr_hash(struct hashtab *h, const void *k)
+{
+	const struct filename_trans *ft = k;
+	unsigned long hash;
+	unsigned int byte_num;
+	unsigned char focus;
+
+	hash = ft->stype ^ ft->ttype ^ ft->tclass;
+
+	byte_num = 0;
+	while ((focus = ft->name[byte_num++]))
+		hash = partial_name_hash(focus, hash);
+	return hash & (h->size - 1);
+}
+
+static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
+{
+	const struct filename_trans *ft1 = k1;
+	const struct filename_trans *ft2 = k2;
+	int v;
+
+	v = ft1->stype - ft2->stype;
+	if (v)
+		return v;
+
+	v = ft1->ttype - ft2->ttype;
+	if (v)
+		return v;
+
+	v = ft1->tclass - ft2->tclass;
+	if (v)
+		return v;
+
+	return strcmp(ft1->name, ft2->name);
+
+}
+
 static u32 rangetr_hash(struct hashtab *h, const void *k)
 {
 	const struct range_trans *key = k;
@@ -236,6 +273,10 @@ static int policydb_init(struct policydb *p)
 	if (rc)
 		goto out;
 
+	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp, (1 << 10));
+	if (!p->filename_trans)
+		goto out;
+
 	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, 256);
 	if (!p->range_tr)
 		goto out;
@@ -246,6 +287,8 @@ static int policydb_init(struct policydb *p)
 
 	return 0;
 out:
+	hashtab_destroy(p->filename_trans);
+	hashtab_destroy(p->range_tr);
 	for (i = 0; i < SYM_NUM; i++)
 		hashtab_destroy(p->symtab[i].table);
 	return rc;
@@ -675,6 +718,16 @@ static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 	cat_destroy,
 };
 
+static int filenametr_destroy(void *key, void *datum, void *p)
+{
+	struct filename_trans *ft = key;
+	kfree(ft->name);
+	kfree(key);
+	kfree(datum);
+	cond_resched();
+	return 0;
+}
+
 static int range_tr_destroy(void *key, void *datum, void *p)
 {
 	struct mls_range *rt = datum;
@@ -709,7 +762,6 @@ void policydb_destroy(struct policydb *p)
 	int i;
 	struct role_allow *ra, *lra = NULL;
 	struct role_trans *tr, *ltr = NULL;
-	struct filename_trans *ft, *nft;
 
 	for (i = 0; i < SYM_NUM; i++) {
 		cond_resched();
@@ -773,6 +825,9 @@ void policydb_destroy(struct policydb *p)
 	}
 	kfree(lra);
 
+	hashtab_map(p->filename_trans, filenametr_destroy, NULL);
+	hashtab_destroy(p->filename_trans);
+
 	hashtab_map(p->range_tr, range_tr_destroy, NULL);
 	hashtab_destroy(p->range_tr);
 
@@ -786,14 +841,6 @@ void policydb_destroy(struct policydb *p)
 			ebitmap_destroy(e);
 		}
 		flex_array_free(p->type_attr_map_array);
-	}
-
-	ft = p->filename_trans;
-	while (ft) {
-		nft = ft->next;
-		kfree(ft->name);
-		kfree(ft);
-		ft = nft;
 	}
 
 	ebitmap_destroy(&p->filename_trans_ttypes);
@@ -1806,9 +1853,10 @@ out:
 
 static int filename_trans_read(struct policydb *p, void *fp)
 {
-	struct filename_trans *ft, *last;
-	u32 nel, len;
+	struct filename_trans *ft;
+	struct filename_trans_datum *otype;
 	char *name;
+	u32 nel, len;
 	__le32 buf[4];
 	int rc, i;
 
@@ -1817,25 +1865,23 @@ static int filename_trans_read(struct policydb *p, void *fp)
 
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc)
-		goto out;
+		return rc;
 	nel = le32_to_cpu(buf[0]);
 
-	last = p->filename_trans;
-	while (last && last->next)
-		last = last->next;
-
 	for (i = 0; i < nel; i++) {
+		ft = NULL;
+		otype = NULL;
+		name = NULL;
+
 		rc = -ENOMEM;
 		ft = kzalloc(sizeof(*ft), GFP_KERNEL);
 		if (!ft)
 			goto out;
 
-		/* add it to the tail of the list */
-		if (!last)
-			p->filename_trans = ft;
-		else
-			last->next = ft;
-		last = ft;
+		rc = -ENOMEM;
+		otype = kmalloc(sizeof(*otype), GFP_KERNEL);
+		if (!otype)
+			goto out;
 
 		/* length of the path component string */
 		rc = next_entry(buf, fp, sizeof(u32));
@@ -1863,14 +1909,22 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		ft->stype = le32_to_cpu(buf[0]);
 		ft->ttype = le32_to_cpu(buf[1]);
 		ft->tclass = le32_to_cpu(buf[2]);
-		ft->otype = le32_to_cpu(buf[3]);
+
+		otype->otype = le32_to_cpu(buf[3]);
 
 		rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
 		if (rc)
 			goto out;
+
+		hashtab_insert(p->filename_trans, ft, otype);
 	}
-	rc = 0;
+	hash_eval(p->filename_trans, "filenametr");
+	return 0;
 out:
+	kfree(ft);
+	kfree(name);
+	kfree(otype);
+
 	return rc;
 }
 
@@ -3131,43 +3185,60 @@ static int range_write(struct policydb *p, void *fp)
 	return 0;
 }
 
+static int filename_write_helper(void *key, void *data, void *ptr)
+{
+	__le32 buf[4];
+	struct filename_trans *ft = key;
+	struct filename_trans_datum *otype = data;
+	void *fp = ptr;
+	int rc;
+	u32 len;
+
+	len = strlen(ft->name);
+	buf[0] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(ft->name, sizeof(char), len, fp);
+	if (rc)
+		return rc;
+
+	buf[0] = ft->stype;
+	buf[1] = ft->ttype;
+	buf[2] = ft->tclass;
+	buf[3] = otype->otype;
+
+	rc = put_entry(buf, sizeof(u32), 4, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 static int filename_trans_write(struct policydb *p, void *fp)
 {
-	struct filename_trans *ft;
-	u32 len, nel = 0;
-	__le32 buf[4];
+	u32 nel;
+	__le32 buf[1];
 	int rc;
 
-	for (ft = p->filename_trans; ft; ft = ft->next)
-		nel++;
+	nel = 0;
+	rc = hashtab_map(p->filename_trans, hashtab_cnt, &nel);
+	if (rc)
+		return rc;
 
 	buf[0] = cpu_to_le32(nel);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
 
-	for (ft = p->filename_trans; ft; ft = ft->next) {
-		len = strlen(ft->name);
-		buf[0] = cpu_to_le32(len);
-		rc = put_entry(buf, sizeof(u32), 1, fp);
-		if (rc)
-			return rc;
+	rc = hashtab_map(p->filename_trans, filename_write_helper, fp);
+	if (rc)
+		return rc;
 
-		rc = put_entry(ft->name, sizeof(char), len, fp);
-		if (rc)
-			return rc;
-
-		buf[0] = ft->stype;
-		buf[1] = ft->ttype;
-		buf[2] = ft->tclass;
-		buf[3] = ft->otype;
-
-		rc = put_entry(buf, sizeof(u32), 4, fp);
-		if (rc)
-			return rc;
-	}
 	return 0;
 }
+
 /*
  * Write the configuration data in a policy database
  * structure to a policy database binary representation

@@ -79,11 +79,13 @@ struct role_trans {
 };
 
 struct filename_trans {
-	struct filename_trans *next;
 	u32 stype;		/* current process */
 	u32 ttype;		/* parent dir context */
 	u16 tclass;		/* class of new object */
 	const char *name;	/* last path component */
+};
+
+struct filename_trans_datum {
 	u32 otype;		/* expected of new object */
 };
 
@@ -227,10 +229,11 @@ struct policydb {
 	/* role transitions */
 	struct role_trans *role_tr;
 
+	/* file transitions with the last path component */
 	/* quickly exclude lookups when parent ttype has no rules */
 	struct ebitmap filename_trans_ttypes;
-	/* file transitions with the last path component */
-	struct filename_trans *filename_trans;
+	/* actual set of filename_trans rules */
+	struct hashtab *filename_trans;
 
 	/* bools indexed by (value - 1) */
 	struct cond_bool_datum **bool_val_to_struct;
