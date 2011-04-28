@@ -178,7 +178,7 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 {
 	struct usbhs_priv *priv = container_of(work,
 					       struct usbhs_priv,
-					       notify_hotplug_work);
+					       notify_hotplug_work.work);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	int id;
@@ -224,16 +224,17 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 	}
 }
 
-static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
+int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
+	int delay = usbhs_get_dparam(priv, detection_delay);
 
 	/*
 	 * This functions will be called in interrupt.
 	 * To make sure safety context,
 	 * use workqueue for usbhs_notify_hotplug
 	 */
-	schedule_work(&priv->notify_hotplug_work);
+	schedule_delayed_work(&priv->notify_hotplug_work, delay);
 	return 0;
 }
 
@@ -300,7 +301,7 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 	 */
 	priv->irq	= irq;
 	priv->pdev	= pdev;
-	INIT_WORK(&priv->notify_hotplug_work, usbhsc_notify_hotplug);
+	INIT_DELAYED_WORK(&priv->notify_hotplug_work, usbhsc_notify_hotplug);
 	spin_lock_init(usbhs_priv_to_lock(priv));
 
 	/* call pipe and module init */

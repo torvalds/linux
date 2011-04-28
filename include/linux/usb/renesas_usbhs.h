@@ -103,6 +103,13 @@ struct renesas_usbhs_driver_param {
 	 * for BUSWAIT :: BWAIT
 	 * */
 	int buswait_bwait;
+
+	/*
+	 * option:
+	 *
+	 * delay time from notify_hotplug callback
+	 */
+	int detection_delay;
 };
 
 /*

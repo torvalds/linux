@@ -177,7 +177,7 @@ struct usbhs_priv {
 	struct renesas_usbhs_platform_callback	*pfunc;
 	struct renesas_usbhs_driver_param	*dparam;
 
-	struct work_struct notify_hotplug_work;
+	struct delayed_work notify_hotplug_work;
 	struct platform_device *pdev;
 
 	spinlock_t		lock;
@@ -200,6 +200,7 @@ u16 usbhs_read(struct usbhs_priv *priv, u32 reg);
 void usbhs_write(struct usbhs_priv *priv, u32 reg, u16 data);
 void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data);
 
+int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev);
 /*
  * sysconfig
  */
