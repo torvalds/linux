@@ -2404,11 +2404,12 @@ static void iwl4965_bg_init_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, init_alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	priv->cfg->ops->lib->init_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2417,11 +2418,12 @@ static void iwl4965_bg_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl4965_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2471,10 +2473,12 @@ static void iwl4965_bg_restart(struct work_struct *data)
 	} else {
 		iwl4965_down(priv);
 
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return;
-
 		mutex_lock(&priv->mutex);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+			mutex_unlock(&priv->mutex);
+			return;
+		}
+
 		__iwl4965_up(priv);
 		mutex_unlock(&priv->mutex);
 	}
@@ -2851,21 +2855,22 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
+	mutex_lock(&priv->mutex);
+
 	if (iwl_legacy_is_rfkill(priv))
-		goto out_exit;
+		goto out;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
 	    test_bit(STATUS_SCANNING, &priv->status))
-		goto out_exit;
+		goto out;
 
 	if (!iwl_legacy_is_associated_ctx(ctx))
-		goto out_exit;
+		goto out;
 
 	/* channel switch in progress */
 	if (priv->switch_rxon.switch_in_progress == true)
-		goto out_exit;
+		goto out;
 
-	mutex_lock(&priv->mutex);
 	if (priv->cfg->ops->lib->set_channel_switch) {
 
 		ch = channel->hw_value;
@@ -2921,7 +2926,6 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 	}
 out:
 	mutex_unlock(&priv->mutex);
-out_exit:
 	if (!priv->switch_rxon.switch_in_progress)
 		ieee80211_chswitch_done(ctx->vif, false);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
