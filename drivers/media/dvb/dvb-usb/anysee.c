@@ -37,6 +37,8 @@
 #include "mt352_priv.h"
 #include "zl10353.h"
 #include "tda18212.h"
+#include "cx24116.h"
+#include "isl6423.h"
 
 /* debug */
 static int dvb_usb_anysee_debug;
@@ -300,6 +302,19 @@ static struct tda18212_config anysee_tda18212_config = {
 	.if_dvbc = 5000,
 };
 
+static struct cx24116_config anysee_cx24116_config = {
+	.demod_address = (0xaa >> 1),
+	.mpg_clk_pos_pol = 0x00,
+	.i2c_wr_max = 48,
+};
+
+static struct isl6423_config anysee_isl6423_config = {
+	.current_max = SEC_CURRENT_800m,
+	.curlim  = SEC_CURRENT_LIM_OFF,
+	.mod_extern = 1,
+	.addr = (0x10 >> 1),
+};
+
 /*
  * New USB device strings: Mfr=1, Product=2, SerialNumber=0
  * Manufacturer: AMT.CO.KR
@@ -327,6 +342,13 @@ static struct tda18212_config anysee_tda18212_config = {
  * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
  * IOA=4f IOB=ff IOC=00 IOD=26 IOF=01
  * IOD[0] TDA10023 1=enabled
+ *
+ * E30 S2 Plus VID=04b4 PID=861f HW=11 FW=0.1 "anysee-S2(LP)"
+ * PCB: 507SI (rev2.1)
+ * parts: BS2N10WCC01(CX24116, CX24118), ISL6423, TDA8024
+ * OEA=80 OEB=00 OEC=ff OED=ff OEF=fe
+ * IOA=4d IOB=ff IOC=00 IOD=26 IOF=01
+ * IOD[0] CX24116 1=enabled
  *
  * E30 C Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
  * PCB: 507FA (rev0.4)
@@ -447,6 +469,19 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* attach demod */
 		adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
 			&adap->dev->i2c_adap, 0x48);
+
+		break;
+	case ANYSEE_HW_507SI: /* 11 */
+		/* E30 S2 Plus */
+
+		/* enable DVB-S/S2 demod on IOD[0] */
+		ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (1 << 0), 0x01);
+		if (ret)
+			goto error;
+
+		/* attach demod */
+		adap->fe = dvb_attach(cx24116_attach, &anysee_cx24116_config,
+			&adap->dev->i2c_adap);
 
 		break;
 	case ANYSEE_HW_507FA: /* 15 */
@@ -623,6 +658,14 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach tuner */
 		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
+
+		break;
+	case ANYSEE_HW_507SI: /* 11 */
+		/* E30 S2 Plus */
+
+		/* attach LNB controller */
+		fe = dvb_attach(isl6423_attach, adap->fe, &adap->dev->i2c_adap,
+			&anysee_isl6423_config);
 
 		break;
 	case ANYSEE_HW_507FA: /* 15 */
