@@ -1535,6 +1535,86 @@ int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t le
 	return size;
 }
 
+int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
+{
+	struct sock *sk = chan->sk;
+	struct sk_buff *skb;
+	u16 control;
+	int err;
+
+	/* Connectionless channel */
+	if (sk->sk_type == SOCK_DGRAM) {
+		skb = l2cap_create_connless_pdu(chan, msg, len);
+		if (IS_ERR(skb))
+			return PTR_ERR(skb);
+
+		l2cap_do_send(chan, skb);
+		return len;
+	}
+
+	switch (chan->mode) {
+	case L2CAP_MODE_BASIC:
+		/* Check outgoing MTU */
+		if (len > chan->omtu)
+			return -EMSGSIZE;
+
+		/* Create a basic PDU */
+		skb = l2cap_create_basic_pdu(chan, msg, len);
+		if (IS_ERR(skb))
+			return PTR_ERR(skb);
+
+		l2cap_do_send(chan, skb);
+		err = len;
+		break;
+
+	case L2CAP_MODE_ERTM:
+	case L2CAP_MODE_STREAMING:
+		/* Entire SDU fits into one PDU */
+		if (len <= chan->remote_mps) {
+			control = L2CAP_SDU_UNSEGMENTED;
+			skb = l2cap_create_iframe_pdu(chan, msg, len, control,
+									0);
+			if (IS_ERR(skb))
+				return PTR_ERR(skb);
+
+			__skb_queue_tail(&chan->tx_q, skb);
+
+			if (chan->tx_send_head == NULL)
+				chan->tx_send_head = skb;
+
+		} else {
+			/* Segment SDU into multiples PDUs */
+			err = l2cap_sar_segment_sdu(chan, msg, len);
+			if (err < 0)
+				return err;
+		}
+
+		if (chan->mode == L2CAP_MODE_STREAMING) {
+			l2cap_streaming_send(chan);
+			err = len;
+			break;
+		}
+
+		if ((chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+				(chan->conn_state & L2CAP_CONN_WAIT_F)) {
+			err = len;
+			break;
+		}
+
+		err = l2cap_ertm_send(chan);
+		if (err >= 0)
+			err = len;
+
+		break;
+
+	default:
+		BT_DBG("bad state %1.1x", chan->mode);
+		err = -EBADFD;
+	}
+
+	return err;
+}
+
 static void l2cap_chan_ready(struct sock *sk)
 {
 	struct sock *parent = bt_sk(sk)->parent;

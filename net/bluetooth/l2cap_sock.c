@@ -673,8 +673,6 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
-	struct sk_buff *skb;
-	u16 control;
 	int err;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
@@ -689,87 +687,12 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	lock_sock(sk);
 
 	if (sk->sk_state != BT_CONNECTED) {
-		err = -ENOTCONN;
-		goto done;
+		release_sock(sk);
+		return -ENOTCONN;
 	}
 
-	/* Connectionless channel */
-	if (sk->sk_type == SOCK_DGRAM) {
-		skb = l2cap_create_connless_pdu(chan, msg, len);
-		if (IS_ERR(skb)) {
-			err = PTR_ERR(skb);
-		} else {
-			l2cap_do_send(chan, skb);
-			err = len;
-		}
-		goto done;
-	}
+	err = l2cap_chan_send(chan, msg, len);
 
-	switch (chan->mode) {
-	case L2CAP_MODE_BASIC:
-		/* Check outgoing MTU */
-		if (len > chan->omtu) {
-			err = -EMSGSIZE;
-			goto done;
-		}
-
-		/* Create a basic PDU */
-		skb = l2cap_create_basic_pdu(chan, msg, len);
-		if (IS_ERR(skb)) {
-			err = PTR_ERR(skb);
-			goto done;
-		}
-
-		l2cap_do_send(chan, skb);
-		err = len;
-		break;
-
-	case L2CAP_MODE_ERTM:
-	case L2CAP_MODE_STREAMING:
-		/* Entire SDU fits into one PDU */
-		if (len <= chan->remote_mps) {
-			control = L2CAP_SDU_UNSEGMENTED;
-			skb = l2cap_create_iframe_pdu(chan, msg, len, control,
-									0);
-			if (IS_ERR(skb)) {
-				err = PTR_ERR(skb);
-				goto done;
-			}
-			__skb_queue_tail(&chan->tx_q, skb);
-
-			if (chan->tx_send_head == NULL)
-				chan->tx_send_head = skb;
-
-		} else {
-		/* Segment SDU into multiples PDUs */
-			err = l2cap_sar_segment_sdu(chan, msg, len);
-			if (err < 0)
-				goto done;
-		}
-
-		if (chan->mode == L2CAP_MODE_STREAMING) {
-			l2cap_streaming_send(chan);
-			err = len;
-			break;
-		}
-
-		if ((chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
-				(chan->conn_state & L2CAP_CONN_WAIT_F)) {
-			err = len;
-			break;
-		}
-		err = l2cap_ertm_send(chan);
-
-		if (err >= 0)
-			err = len;
-		break;
-
-	default:
-		BT_DBG("bad state %1.1x", chan->mode);
-		err = -EBADFD;
-	}
-
-done:
 	release_sock(sk);
 	return err;
 }
