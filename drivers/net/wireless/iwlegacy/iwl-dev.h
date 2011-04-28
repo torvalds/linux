@@ -134,7 +134,7 @@ struct iwl_queue {
 				* space more than this */
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
-} __packed;
+};
 
 /* One for each TFD */
 struct iwl_tx_info {
