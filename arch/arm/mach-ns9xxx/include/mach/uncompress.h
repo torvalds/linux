@@ -20,7 +20,7 @@ static void putc_dummy(char c, void __iomem *base)
 	/* nothing */
 }
 
-static int timeout;
+int timeout;
 
 static void putc_ns9360(char c, void __iomem *base)
 {

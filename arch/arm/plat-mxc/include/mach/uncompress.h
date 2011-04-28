@@ -21,7 +21,7 @@
 
 #include <asm/mach-types.h>
 
-static unsigned long uart_base;
+unsigned long uart_base;
 
 #define UART(x) (*(volatile unsigned long *)(uart_base + (x)))
 
