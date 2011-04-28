@@ -449,14 +449,6 @@ void l2cap_cleanup_sockets(void);
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 int __l2cap_wait_ack(struct sock *sk);
 
-struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
-struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
-struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
-int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
-void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);
-void l2cap_streaming_send(struct l2cap_chan *chan);
-int l2cap_ertm_send(struct l2cap_chan *chan);
-
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
@@ -470,5 +462,6 @@ struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void __l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan);
+int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 
 #endif /* __L2CAP_H */
