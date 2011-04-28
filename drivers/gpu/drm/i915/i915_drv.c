@@ -255,6 +255,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
 #define INTEL_PCH_DEVICE_ID_MASK	0xff00
+#define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 
@@ -275,7 +276,10 @@ void intel_detect_pch (struct drm_device *dev)
 			int id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
 
-			if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_IBX;
+				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
