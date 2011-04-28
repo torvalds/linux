@@ -1097,11 +1097,13 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		append_ctl_name(kctl, control == UAC_FU_MUTE ?
 				" Switch" : " Volume");
 		if (control == UAC_FU_VOLUME) {
-			kctl->tlv.c = mixer_vol_tlv;
-			kctl->vd[0].access |= 
-				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
-				SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 			check_mapped_dB(map, cval);
+			if (cval->dBmin < cval->dBmax) {
+				kctl->tlv.c = mixer_vol_tlv;
+				kctl->vd[0].access |= 
+					SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+					SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+			}
 		}
 		break;
 
