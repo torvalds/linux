@@ -667,7 +667,7 @@ static int platform_legacy_resume(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_prepare(struct device *dev)
+int platform_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -678,7 +678,7 @@ static int platform_pm_prepare(struct device *dev)
 	return ret;
 }
 
-static void platform_pm_complete(struct device *dev)
+void platform_pm_complete(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 
@@ -686,16 +686,11 @@ static void platform_pm_complete(struct device *dev)
 		drv->pm->complete(dev);
 }
 
-#else /* !CONFIG_PM_SLEEP */
-
-#define platform_pm_prepare		NULL
-#define platform_pm_complete		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
 
-int __weak platform_pm_suspend(struct device *dev)
+int platform_pm_suspend(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -713,7 +708,7 @@ int __weak platform_pm_suspend(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_suspend_noirq(struct device *dev)
+int platform_pm_suspend_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -729,7 +724,7 @@ int __weak platform_pm_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume(struct device *dev)
+int platform_pm_resume(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -747,7 +742,7 @@ int __weak platform_pm_resume(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume_noirq(struct device *dev)
+int platform_pm_resume_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -763,18 +758,11 @@ int __weak platform_pm_resume_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_SUSPEND */
-
-#define platform_pm_suspend		NULL
-#define platform_pm_resume		NULL
-#define platform_pm_suspend_noirq	NULL
-#define platform_pm_resume_noirq	NULL
-
-#endif /* !CONFIG_SUSPEND */
+#endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 
-static int platform_pm_freeze(struct device *dev)
+int platform_pm_freeze(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -792,7 +780,7 @@ static int platform_pm_freeze(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_freeze_noirq(struct device *dev)
+int platform_pm_freeze_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -808,7 +796,7 @@ static int platform_pm_freeze_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_thaw(struct device *dev)
+int platform_pm_thaw(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -826,7 +814,7 @@ static int platform_pm_thaw(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_thaw_noirq(struct device *dev)
+int platform_pm_thaw_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -842,7 +830,7 @@ static int platform_pm_thaw_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_poweroff(struct device *dev)
+int platform_pm_poweroff(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -860,7 +848,7 @@ static int platform_pm_poweroff(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_poweroff_noirq(struct device *dev)
+int platform_pm_poweroff_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -876,7 +864,7 @@ static int platform_pm_poweroff_noirq(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_restore(struct device *dev)
+int platform_pm_restore(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -894,7 +882,7 @@ static int platform_pm_restore(struct device *dev)
 	return ret;
 }
 
-static int platform_pm_restore_noirq(struct device *dev)
+int platform_pm_restore_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -910,18 +898,7 @@ static int platform_pm_restore_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_HIBERNATE_CALLBACKS */
-
-#define platform_pm_freeze		NULL
-#define platform_pm_thaw		NULL
-#define platform_pm_poweroff		NULL
-#define platform_pm_restore		NULL
-#define platform_pm_freeze_noirq	NULL
-#define platform_pm_thaw_noirq		NULL
-#define platform_pm_poweroff_noirq	NULL
-#define platform_pm_restore_noirq	NULL
-
-#endif /* !CONFIG_HIBERNATE_CALLBACKS */
+#endif /* CONFIG_HIBERNATE_CALLBACKS */
 
 #ifdef CONFIG_PM_RUNTIME
 
@@ -949,23 +926,10 @@ int __weak platform_pm_runtime_idle(struct device *dev)
 #endif /* !CONFIG_PM_RUNTIME */
 
 static const struct dev_pm_ops platform_dev_pm_ops = {
-	.prepare = platform_pm_prepare,
-	.complete = platform_pm_complete,
-	.suspend = platform_pm_suspend,
-	.resume = platform_pm_resume,
-	.freeze = platform_pm_freeze,
-	.thaw = platform_pm_thaw,
-	.poweroff = platform_pm_poweroff,
-	.restore = platform_pm_restore,
-	.suspend_noirq = platform_pm_suspend_noirq,
-	.resume_noirq = platform_pm_resume_noirq,
-	.freeze_noirq = platform_pm_freeze_noirq,
-	.thaw_noirq = platform_pm_thaw_noirq,
-	.poweroff_noirq = platform_pm_poweroff_noirq,
-	.restore_noirq = platform_pm_restore_noirq,
 	.runtime_suspend = platform_pm_runtime_suspend,
 	.runtime_resume = platform_pm_runtime_resume,
 	.runtime_idle = platform_pm_runtime_idle,
+	USE_PLATFORM_PM_SLEEP_OPS
 };
 
 struct bus_type platform_bus_type = {
