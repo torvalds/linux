@@ -68,7 +68,22 @@ struct wm831x_ts {
 	unsigned int pd_irq;
 	bool pressure;
 	bool pen_down;
+	struct work_struct pd_data_work;
 };
+
+static void wm831x_pd_data_work(struct work_struct *work)
+{
+	struct wm831x_ts *wm831x_ts =
+		container_of(work, struct wm831x_ts, pd_data_work);
+
+	if (wm831x_ts->pen_down) {
+		enable_irq(wm831x_ts->data_irq);
+		dev_dbg(wm831x_ts->wm831x->dev, "IRQ PD->DATA done\n");
+	} else {
+		enable_irq(wm831x_ts->pd_irq);
+		dev_dbg(wm831x_ts->wm831x->dev, "IRQ DATA->PD done\n");
+	}
+}
 
 static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 {
@@ -110,6 +125,9 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 	}
 
 	if (!wm831x_ts->pen_down) {
+		/* Switch from data to pen down */
+		dev_dbg(wm831x->dev, "IRQ DATA->PD\n");
+
 		disable_irq_nosync(wm831x_ts->data_irq);
 
 		/* Don't need data any more */
@@ -128,6 +146,8 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 					 ABS_PRESSURE, 0);
 
 		input_report_key(wm831x_ts->input_dev, BTN_TOUCH, 0);
+
+		schedule_work(&wm831x_ts->pd_data_work);
 	}
 
 	input_sync(wm831x_ts->input_dev);
@@ -140,6 +160,11 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 	struct wm831x_ts *wm831x_ts = irq_data;
 	struct wm831x *wm831x = wm831x_ts->wm831x;
 	int ena = 0;
+
+	if (wm831x_ts->pen_down)
+		return IRQ_HANDLED;
+
+	disable_irq_nosync(wm831x_ts->pd_irq);
 
 	/* Start collecting data */
 	if (wm831x_ts->pressure)
@@ -156,7 +181,10 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 			WM831X_TCHPD_EINT, WM831X_TCHPD_EINT);
 
 	wm831x_ts->pen_down = true;
-	enable_irq(wm831x_ts->data_irq);
+
+	/* Switch from pen down to data */
+	dev_dbg(wm831x->dev, "IRQ PD->DATA\n");
+	schedule_work(&wm831x_ts->pd_data_work);
 
 	return IRQ_HANDLED;
 }
@@ -182,13 +210,28 @@ static void wm831x_ts_input_close(struct input_dev *idev)
 	struct wm831x_ts *wm831x_ts = input_get_drvdata(idev);
 	struct wm831x *wm831x = wm831x_ts->wm831x;
 
+	/* Shut the controller down, disabling all other functionality too */
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
-			WM831X_TCH_ENA | WM831X_TCH_CVT_ENA |
-			WM831X_TCH_X_ENA | WM831X_TCH_Y_ENA |
-			WM831X_TCH_Z_ENA, 0);
+			WM831X_TCH_ENA | WM831X_TCH_X_ENA |
+			WM831X_TCH_Y_ENA | WM831X_TCH_Z_ENA, 0);
 
-	if (wm831x_ts->pen_down)
+	/* Make sure any pending IRQs are done, the above will prevent
+	 * new ones firing.
+	 */
+	synchronize_irq(wm831x_ts->data_irq);
+	synchronize_irq(wm831x_ts->pd_irq);
+
+	/* Make sure the IRQ completion work is quiesced */
+	flush_work_sync(&wm831x_ts->pd_data_work);
+
+	/* If we ended up with the pen down then make sure we revert back
+	 * to pen detection state for the next time we start up.
+	 */
+	if (wm831x_ts->pen_down) {
 		disable_irq(wm831x_ts->data_irq);
+		enable_irq(wm831x_ts->pd_irq);
+		wm831x_ts->pen_down = false;
+	}
 }
 
 static __devinit int wm831x_ts_probe(struct platform_device *pdev)
@@ -212,6 +255,7 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 
 	wm831x_ts->wm831x = wm831x;
 	wm831x_ts->input_dev = input_dev;
+	INIT_WORK(&wm831x_ts->pd_data_work, wm831x_pd_data_work);
 
 	/*
 	 * If we have a direct IRQ use it, otherwise use the interrupt
