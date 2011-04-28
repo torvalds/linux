@@ -18,14 +18,21 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 
 #include <mach/rk29_lightsensor.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend cm3202_early_suspend;
+#endif
+
 
 struct rk29_lsr_platform_data *lightsensor;
 static void lsr_report_value(struct input_dev *input_dev, int value)
 {
-    input_report_abs(input_dev, ABS_X, value);
-    //input_sync(input_dev);
+    input_report_abs(input_dev, ABS_MISC/*ABS_X*/, value);
+    input_sync(input_dev);
 }
 
 
@@ -219,7 +226,7 @@ static void rk29_lsr_input_init(struct platform_device *dev)
 	pdata->input_dev->name = "lsensor";
 	pdata->input_dev->dev.parent = &dev->dev;
 	pdata->input_dev->evbit[0] = BIT(EV_ABS);
-	input_set_abs_params(pdata->input_dev,ABS_X,0,0x3ff,0,0);
+	input_set_abs_params(pdata->input_dev,ABS_MISC/*ABS_X*/,0,9/*0x3ff*/,0,0);
 	ret = input_register_device(pdata->input_dev);
 	return ;
 init_input_register_device_failed:
@@ -232,7 +239,19 @@ static void rk29_lsr_input_deinit(struct platform_device *dev)
 	input_unregister_device(pdata->input_dev);
     input_free_device(pdata->input_dev);
 }
+static int lsr_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	set_lsr_timer(0);
+	set_lsr_value(LSR_OFF);
+	return 0;
+}
 
+static int lsr_resume(struct platform_device *pdev)
+{
+	set_lsr_timer(1);
+	set_lsr_value(LSR_ON);
+	return 0; 
+}
 static int __devinit lsr_probe(struct platform_device *pdev)
 {
 	lightsensor = kzalloc(sizeof(struct rk29_lsr_platform_data), GFP_KERNEL);
@@ -253,6 +272,12 @@ static int __devinit lsr_probe(struct platform_device *pdev)
 	rk29_lsr_adc_init(pdev);
 	rk29_lsr_timer_init(pdev);
 	rk29_lsr_input_init(pdev);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	cm3202_early_suspend.suspend = lsr_suspend;
+	cm3202_early_suspend.resume  = lsr_resume; 
+	register_early_suspend(&cm3202_early_suspend);
+#endif
+
 	return 0;
 
 err_kzalloc_lightsensor:
@@ -271,27 +296,11 @@ static int __devexit lsr_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int lsr_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	set_lsr_timer(0);
-	set_lsr_value(LSR_OFF);
-	return 0;
-}
-
-static int lsr_resume(struct platform_device *pdev)
-{
-	set_lsr_timer(1);
-	set_lsr_value(LSR_ON);
-	return 0; 
-}
-
-
-
 static struct platform_driver lsr_device_driver = {
 	.probe		= lsr_probe,
 	.remove		= __devexit_p(lsr_remove),
-	.suspend	= lsr_suspend,
-	.resume		= lsr_resume,
+//	.suspend	= lsr_suspend,
+//	.resume		= lsr_resume,
 	.driver		= {
 		.name	= LSR_NAME,
 		.owner	= THIS_MODULE,
