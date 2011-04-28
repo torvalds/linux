@@ -1502,7 +1502,7 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 }
 
 static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, int *cmd_status)
+		struct usb_device *udev, u32 *cmd_status)
 {
 	int ret;
 
@@ -1540,7 +1540,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 }
 
 static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, int *cmd_status)
+		struct usb_device *udev, u32 *cmd_status)
 {
 	int ret;
 	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
