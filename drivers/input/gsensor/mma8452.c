@@ -331,9 +331,9 @@ static inline int mma8452_convert_to_int(char value)
     int result;
 
     if (value < MMA8452_BOUNDARY) {
-       result = value * MMA8452_GRAVITY_STEP;
+       result = value * MMA8452_GRAVITY_STEP / 10;
     } else {
-       result = ~(((~value & 0x7f) + 1)* MMA8452_GRAVITY_STEP) + 1;
+       result = ~(((~value & 0x7f) + 1)* MMA8452_GRAVITY_STEP / 10) + 1;
     }
 
     return result;
@@ -742,11 +742,11 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	set_bit(EV_ABS, mma8452->input_dev->evbit);
 
 	/* x-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_X, -20000, 20000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_X, -2000, 2000, 0, 0); //2g full scale range
 	/* y-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_Y, -20000, 20000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_Y, -2000, 2000, 0, 0); //2g full scale range
 	/* z-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_Z, -20000, 20000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_Z, -2000, 2000, 0, 0); //2g full scale range
 
 	// mma8452->input_dev->name = "compass";
 	mma8452->input_dev->name = "gsensor";
