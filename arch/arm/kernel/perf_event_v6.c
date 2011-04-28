@@ -657,6 +657,12 @@ armv6mpcore_pmu_disable_event(struct hw_perf_event *hwc,
 	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
+static int armv6_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv6_perf_map,
+				&armv6_perf_cache_map, 0xFF);
+}
+
 static struct arm_pmu armv6pmu = {
 	.id			= ARM_PERF_PMU_ID_V6,
 	.name			= "v6",
@@ -668,9 +674,7 @@ static struct arm_pmu armv6pmu = {
 	.get_event_idx		= armv6pmu_get_event_idx,
 	.start			= armv6pmu_start,
 	.stop			= armv6pmu_stop,
-	.cache_map		= &armv6_perf_cache_map,
-	.event_map		= &armv6_perf_map,
-	.raw_event_mask		= 0xFF,
+	.map_event		= armv6_map_event,
 	.num_events		= 3,
 	.max_period		= (1LLU << 32) - 1,
 };
@@ -687,6 +691,13 @@ static struct arm_pmu *__init armv6pmu_init(void)
  * disable the interrupt reporting and update the event. When unthrottling we
  * reset the period and enable the interrupt reporting.
  */
+
+static int armv6mpcore_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv6mpcore_perf_map,
+				&armv6mpcore_perf_cache_map, 0xFF);
+}
+
 static struct arm_pmu armv6mpcore_pmu = {
 	.id			= ARM_PERF_PMU_ID_V6MP,
 	.name			= "v6mpcore",
@@ -698,9 +709,7 @@ static struct arm_pmu armv6mpcore_pmu = {
 	.get_event_idx		= armv6pmu_get_event_idx,
 	.start			= armv6pmu_start,
 	.stop			= armv6pmu_stop,
-	.cache_map		= &armv6mpcore_perf_cache_map,
-	.event_map		= &armv6mpcore_perf_map,
-	.raw_event_mask		= 0xFF,
+	.map_event		= armv6mpcore_map_event,
 	.num_events		= 3,
 	.max_period		= (1LLU << 32) - 1,
 };

@@ -75,11 +75,7 @@ struct arm_pmu {
 	void		(*start)(void);
 	void		(*stop)(void);
 	void		(*reset)(void *);
-	const unsigned	(*cache_map)[PERF_COUNT_HW_CACHE_MAX]
-				    [PERF_COUNT_HW_CACHE_OP_MAX]
-				    [PERF_COUNT_HW_CACHE_RESULT_MAX];
-	const unsigned	(*event_map)[PERF_COUNT_HW_MAX];
-	u32		raw_event_mask;
+	int		(*map_event)(struct perf_event *event);
 	int		num_events;
 	atomic_t	active_events;
 	struct mutex	reserve_mutex;
@@ -129,7 +125,11 @@ EXPORT_SYMBOL_GPL(perf_num_counters);
 #define CACHE_OP_UNSUPPORTED		0xFFFF
 
 static int
-armpmu_map_cache_event(u64 config)
+armpmu_map_cache_event(const unsigned (*cache_map)
+				      [PERF_COUNT_HW_CACHE_MAX]
+				      [PERF_COUNT_HW_CACHE_OP_MAX]
+				      [PERF_COUNT_HW_CACHE_RESULT_MAX],
+		       u64 config)
 {
 	unsigned int cache_type, cache_op, cache_result, ret;
 
@@ -145,7 +145,7 @@ armpmu_map_cache_event(u64 config)
 	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		return -EINVAL;
 
-	ret = (int)(*armpmu->cache_map)[cache_type][cache_op][cache_result];
+	ret = (int)(*cache_map)[cache_type][cache_op][cache_result];
 
 	if (ret == CACHE_OP_UNSUPPORTED)
 		return -ENOENT;
@@ -154,16 +154,38 @@ armpmu_map_cache_event(u64 config)
 }
 
 static int
-armpmu_map_event(u64 config)
+armpmu_map_event(const unsigned (*event_map)[PERF_COUNT_HW_MAX], u64 config)
 {
-	int mapping = (*armpmu->event_map)[config];
-	return mapping == HW_OP_UNSUPPORTED ? -EOPNOTSUPP : mapping;
+	int mapping = (*event_map)[config];
+	return mapping == HW_OP_UNSUPPORTED ? -ENOENT : mapping;
 }
 
 static int
-armpmu_map_raw_event(u64 config)
+armpmu_map_raw_event(u32 raw_event_mask, u64 config)
 {
-	return (int)(config & armpmu->raw_event_mask);
+	return (int)(config & raw_event_mask);
+}
+
+static int map_cpu_event(struct perf_event *event,
+			 const unsigned (*event_map)[PERF_COUNT_HW_MAX],
+			 const unsigned (*cache_map)
+					[PERF_COUNT_HW_CACHE_MAX]
+					[PERF_COUNT_HW_CACHE_OP_MAX]
+					[PERF_COUNT_HW_CACHE_RESULT_MAX],
+			 u32 raw_event_mask)
+{
+	u64 config = event->attr.config;
+
+	switch (event->attr.type) {
+	case PERF_TYPE_HARDWARE:
+		return armpmu_map_event(event_map, config);
+	case PERF_TYPE_HW_CACHE:
+		return armpmu_map_cache_event(cache_map, config);
+	case PERF_TYPE_RAW:
+		return armpmu_map_raw_event(raw_event_mask, config);
+	}
+
+	return -ENOENT;
 }
 
 static int
@@ -484,17 +506,7 @@ __hw_perf_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int mapping, err;
 
-	/* Decode the generic type into an ARM event identifier. */
-	if (PERF_TYPE_HARDWARE == event->attr.type) {
-		mapping = armpmu_map_event(event->attr.config);
-	} else if (PERF_TYPE_HW_CACHE == event->attr.type) {
-		mapping = armpmu_map_cache_event(event->attr.config);
-	} else if (PERF_TYPE_RAW == event->attr.type) {
-		mapping = armpmu_map_raw_event(event->attr.config);
-	} else {
-		pr_debug("event type %x not supported\n", event->attr.type);
-		return -EOPNOTSUPP;
-	}
+	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
 		pr_debug("event %x:%llx not supported\n", event->attr.type,
@@ -550,15 +562,8 @@ static int armpmu_event_init(struct perf_event *event)
 	int err = 0;
 	atomic_t *active_events = &armpmu->active_events;
 
-	switch (event->attr.type) {
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-	case PERF_TYPE_HW_CACHE:
-		break;
-
-	default:
+	if (armpmu->map_event(event) == -ENOENT)
 		return -ENOENT;
-	}
 
 	event->destroy = hw_perf_event_destroy;
 

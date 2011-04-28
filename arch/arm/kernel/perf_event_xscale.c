@@ -425,6 +425,12 @@ xscale1pmu_write_counter(int counter, u32 val)
 	}
 }
 
+static int xscale_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &xscale_perf_map,
+				&xscale_perf_cache_map, 0xFF);
+}
+
 static struct arm_pmu xscale1pmu = {
 	.id		= ARM_PERF_PMU_ID_XSCALE1,
 	.name		= "xscale1",
@@ -436,9 +442,7 @@ static struct arm_pmu xscale1pmu = {
 	.get_event_idx	= xscale1pmu_get_event_idx,
 	.start		= xscale1pmu_start,
 	.stop		= xscale1pmu_stop,
-	.cache_map	= &xscale_perf_cache_map,
-	.event_map	= &xscale_perf_map,
-	.raw_event_mask	= 0xFF,
+	.map_event	= xscale_map_event,
 	.num_events	= 3,
 	.max_period	= (1LLU << 32) - 1,
 };
@@ -799,9 +803,7 @@ static struct arm_pmu xscale2pmu = {
 	.get_event_idx	= xscale2pmu_get_event_idx,
 	.start		= xscale2pmu_start,
 	.stop		= xscale2pmu_stop,
-	.cache_map	= &xscale_perf_cache_map,
-	.event_map	= &xscale_perf_map,
-	.raw_event_mask	= 0xFF,
+	.map_event	= xscale_map_event,
 	.num_events	= 5,
 	.max_period	= (1LLU << 32) - 1,
 };

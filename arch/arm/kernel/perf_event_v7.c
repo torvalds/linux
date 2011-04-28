@@ -1140,6 +1140,30 @@ static void armv7pmu_reset(void *info)
 	armv7_pmnc_write(ARMV7_PMNC_P | ARMV7_PMNC_C);
 }
 
+static int armv7_a8_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv7_a8_perf_map,
+				&armv7_a8_perf_cache_map, 0xFF);
+}
+
+static int armv7_a9_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv7_a9_perf_map,
+				&armv7_a9_perf_cache_map, 0xFF);
+}
+
+static int armv7_a5_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv7_a5_perf_map,
+				&armv7_a5_perf_cache_map, 0xFF);
+}
+
+static int armv7_a15_map_event(struct perf_event *event)
+{
+	return map_cpu_event(event, &armv7_a15_perf_map,
+				&armv7_a15_perf_cache_map, 0xFF);
+}
+
 static struct arm_pmu armv7pmu = {
 	.handle_irq		= armv7pmu_handle_irq,
 	.enable			= armv7pmu_enable_event,
@@ -1150,7 +1174,6 @@ static struct arm_pmu armv7pmu = {
 	.start			= armv7pmu_start,
 	.stop			= armv7pmu_stop,
 	.reset			= armv7pmu_reset,
-	.raw_event_mask		= 0xFF,
 	.max_period		= (1LLU << 32) - 1,
 };
 
@@ -1169,8 +1192,7 @@ static struct arm_pmu *__init armv7_a8_pmu_init(void)
 {
 	armv7pmu.id		= ARM_PERF_PMU_ID_CA8;
 	armv7pmu.name		= "ARMv7 Cortex-A8";
-	armv7pmu.cache_map	= &armv7_a8_perf_cache_map;
-	armv7pmu.event_map	= &armv7_a8_perf_map;
+	armv7pmu.map_event	= armv7_a8_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	return &armv7pmu;
 }
@@ -1179,8 +1201,7 @@ static struct arm_pmu *__init armv7_a9_pmu_init(void)
 {
 	armv7pmu.id		= ARM_PERF_PMU_ID_CA9;
 	armv7pmu.name		= "ARMv7 Cortex-A9";
-	armv7pmu.cache_map	= &armv7_a9_perf_cache_map;
-	armv7pmu.event_map	= &armv7_a9_perf_map;
+	armv7pmu.map_event	= armv7_a9_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	return &armv7pmu;
 }
@@ -1189,8 +1210,7 @@ static struct arm_pmu *__init armv7_a5_pmu_init(void)
 {
 	armv7pmu.id		= ARM_PERF_PMU_ID_CA5;
 	armv7pmu.name		= "ARMv7 Cortex-A5";
-	armv7pmu.cache_map	= &armv7_a5_perf_cache_map;
-	armv7pmu.event_map	= &armv7_a5_perf_map;
+	armv7pmu.map_event	= armv7_a5_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	return &armv7pmu;
 }
@@ -1199,8 +1219,7 @@ static struct arm_pmu *__init armv7_a15_pmu_init(void)
 {
 	armv7pmu.id		= ARM_PERF_PMU_ID_CA15;
 	armv7pmu.name		= "ARMv7 Cortex-A15";
-	armv7pmu.cache_map	= &armv7_a15_perf_cache_map;
-	armv7pmu.event_map	= &armv7_a15_perf_map;
+	armv7pmu.map_event	= armv7_a15_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	armv7pmu.set_event_filter = armv7pmu_set_event_filter;
 	return &armv7pmu;
