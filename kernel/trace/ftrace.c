@@ -151,6 +151,34 @@ static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip)
 }
 #endif
 
+static void update_ftrace_function(void)
+{
+	ftrace_func_t func;
+
+	/*
+	 * If there's only one function registered, then call that
+	 * function directly. Otherwise, we need to iterate over the
+	 * registered callers.
+	 */
+	if (ftrace_list == &ftrace_list_end ||
+	    ftrace_list->next == &ftrace_list_end)
+		func = ftrace_list->func;
+	else
+		func = ftrace_list_func;
+
+	/* If we filter on pids, update to use the pid function */
+	if (!list_empty(&ftrace_pids)) {
+		set_ftrace_pid_function(func);
+		func = ftrace_pid_func;
+	}
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	ftrace_trace_function = func;
+#else
+	__ftrace_trace_function = func;
+	ftrace_trace_function = ftrace_test_stop_func;
+#endif
+}
+
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
 	ops->next = ftrace_list;
@@ -162,30 +190,8 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	 */
 	rcu_assign_pointer(ftrace_list, ops);
 
-	if (ftrace_enabled) {
-		ftrace_func_t func;
-
-		if (ops->next == &ftrace_list_end)
-			func = ops->func;
-		else
-			func = ftrace_list_func;
-
-		if (!list_empty(&ftrace_pids)) {
-			set_ftrace_pid_function(func);
-			func = ftrace_pid_func;
-		}
-
-		/*
-		 * For one func, simply call it directly.
-		 * For more than one func, call the chain.
-		 */
-#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-		ftrace_trace_function = func;
-#else
-		__ftrace_trace_function = func;
-		ftrace_trace_function = ftrace_test_stop_func;
-#endif
-	}
+	if (ftrace_enabled)
+		update_ftrace_function();
 
 	return 0;
 }
@@ -213,52 +219,19 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 
 	*p = (*p)->next;
 
-	if (ftrace_enabled) {
-		/* If we only have one func left, then call that directly */
-		if (ftrace_list->next == &ftrace_list_end) {
-			ftrace_func_t func = ftrace_list->func;
-
-			if (!list_empty(&ftrace_pids)) {
-				set_ftrace_pid_function(func);
-				func = ftrace_pid_func;
-			}
-#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-			ftrace_trace_function = func;
-#else
-			__ftrace_trace_function = func;
-#endif
-		}
-	}
+	if (ftrace_enabled)
+		update_ftrace_function();
 
 	return 0;
 }
 
 static void ftrace_update_pid_func(void)
 {
-	ftrace_func_t func;
-
+	/* Only do something if we are tracing something */
 	if (ftrace_trace_function == ftrace_stub)
 		return;
 
-#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	func = ftrace_trace_function;
-#else
-	func = __ftrace_trace_function;
-#endif
-
-	if (!list_empty(&ftrace_pids)) {
-		set_ftrace_pid_function(func);
-		func = ftrace_pid_func;
-	} else {
-		if (func == ftrace_pid_func)
-			func = ftrace_pid_function;
-	}
-
-#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	ftrace_trace_function = func;
-#else
-	__ftrace_trace_function = func;
-#endif
+	update_ftrace_function();
 }
 
 #ifdef CONFIG_FUNCTION_PROFILER
