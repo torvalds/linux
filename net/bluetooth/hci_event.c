@@ -2136,7 +2136,7 @@ static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff 
 	}
 
 	if (test_bit(HCI_LINK_KEYS, &hdev->flags))
-		hci_add_link_key(hdev, 1, &ev->bdaddr, ev->link_key,
+		hci_add_link_key(hdev, conn, 1, &ev->bdaddr, ev->link_key,
 							ev->key_type, pin_len);
 
 	hci_dev_unlock(hdev);

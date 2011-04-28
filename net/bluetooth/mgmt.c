@@ -945,7 +945,7 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_key_info *key = &cp->keys[i];
 
-		hci_add_link_key(hdev, 0, &key->bdaddr, key->val, key->type,
+		hci_add_link_key(hdev, NULL, 0, &key->bdaddr, key->val, key->type,
 								key->pin_len);
 	}
 
