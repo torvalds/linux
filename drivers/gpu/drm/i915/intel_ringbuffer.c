@@ -621,35 +621,6 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
-ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
-{
-	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (!dev->irq_enabled)
-	       return false;
-
-	spin_lock(&ring->irq_lock);
-	if (ring->irq_refcount++ == 0)
-		ironlake_enable_irq(dev_priv, flag);
-	spin_unlock(&ring->irq_lock);
-
-	return true;
-}
-
-static void
-ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
-{
-	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	spin_lock(&ring->irq_lock);
-	if (--ring->irq_refcount == 0)
-		ironlake_disable_irq(dev_priv, flag);
-	spin_unlock(&ring->irq_lock);
-}
-
-static bool
 gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
