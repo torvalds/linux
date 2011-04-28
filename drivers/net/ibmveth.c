@@ -1397,6 +1397,8 @@ static int __devinit ibmveth_probe(struct vio_dev *dev,
 
 	netdev_dbg(netdev, "registering netdev...\n");
 
+	ibmveth_set_features(netdev, netdev->features);
+
 	rc = register_netdev(netdev);
 
 	if (rc) {
