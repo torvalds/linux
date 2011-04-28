@@ -1021,12 +1021,19 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
-	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+	if (!conn)
+		goto unlock;
+
+	if (!hci_outgoing_auth_needed(hdev, conn))
+		goto unlock;
+
+	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
 		cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -1516,12 +1523,19 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 		mgmt_remote_name(hdev->id, &ev->bdaddr, ev->name);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+	if (!conn)
+		goto unlock;
+
+	if (!hci_outgoing_auth_needed(hdev, conn))
+		goto unlock;
+
+	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
 		cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
