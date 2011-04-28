@@ -2261,6 +2261,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	struct ath_softc *sc = hw->priv;
 	int timeout = 200; /* ms */
 	int i, j;
+	bool drain_txq;
 
 	mutex_lock(&sc->mutex);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
@@ -2286,7 +2287,10 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	}
 
 	ath9k_ps_wakeup(sc);
-	if (!ath_drain_all_txq(sc, false))
+	spin_lock_bh(&sc->sc_pcu_lock);
+	drain_txq = ath_drain_all_txq(sc, false);
+	spin_unlock_bh(&sc->sc_pcu_lock);
+	if (!drain_txq)
 		ath_reset(sc, false);
 	ath9k_ps_restore(sc);
 	ieee80211_wake_queues(hw);
