@@ -680,7 +680,6 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	req = nfs_setup_write_request(ctx, page, offset, count);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	nfs_mark_request_dirty(req);
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
@@ -1418,8 +1417,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
                                 task->tk_pid, task->tk_status);
 
 	/* Call the NFS version-specific code */
-	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
-		return;
+	NFS_PROTO(data->inode)->commit_done(task, data);
 }
 
 void nfs_commit_release_pages(struct nfs_write_data *data)
