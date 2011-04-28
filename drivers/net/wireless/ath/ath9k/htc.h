@@ -385,25 +385,6 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define ATH_LED_PIN_9287            10
 #define ATH_LED_PIN_9271            15
 #define ATH_LED_PIN_7010            12
-#define ATH_LED_ON_DURATION_IDLE    350	/* in msecs */
-#define ATH_LED_OFF_DURATION_IDLE   250	/* in msecs */
-
-enum ath_led_type {
-	ATH_LED_RADIO,
-	ATH_LED_ASSOC,
-	ATH_LED_TX,
-	ATH_LED_RX
-};
-
-struct ath_led {
-	struct ath9k_htc_priv *priv;
-	struct led_classdev led_cdev;
-	enum ath_led_type led_type;
-	struct delayed_work brightness_work;
-	char name[32];
-	bool registered;
-	int brightness;
-};
 
 #define BSTUCK_THRESHOLD 10
 
@@ -437,14 +418,11 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 
 #define OP_INVALID		   BIT(0)
 #define OP_SCANNING		   BIT(1)
-#define OP_LED_ASSOCIATED	   BIT(2)
-#define OP_LED_ON		   BIT(3)
-#define OP_ENABLE_BEACON	   BIT(4)
-#define OP_LED_DEINIT		   BIT(5)
-#define OP_BT_PRIORITY_DETECTED    BIT(6)
-#define OP_BT_SCAN                 BIT(7)
-#define OP_ANI_RUNNING             BIT(8)
-#define OP_TSF_RESET               BIT(9)
+#define OP_ENABLE_BEACON           BIT(2)
+#define OP_BT_PRIORITY_DETECTED    BIT(3)
+#define OP_BT_SCAN                 BIT(4)
+#define OP_ANI_RUNNING             BIT(5)
+#define OP_TSF_RESET               BIT(6)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -504,15 +482,13 @@ struct ath9k_htc_priv {
 	bool ps_enabled;
 	bool ps_idle;
 
-	struct ath_led radio_led;
-	struct ath_led assoc_led;
-	struct ath_led tx_led;
-	struct ath_led rx_led;
-	struct delayed_work ath9k_led_blink_work;
-	int led_on_duration;
-	int led_off_duration;
-	int led_on_cnt;
-	int led_off_cnt;
+#ifdef CONFIG_MAC80211_LEDS
+	enum led_brightness brightness;
+	bool led_registered;
+	char led_name[32];
+	struct led_classdev led_cdev;
+	struct work_struct led_work;
+#endif
 
 	int beaconq;
 	int cabq;
@@ -597,9 +573,24 @@ void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
 void ath9k_htc_radio_enable(struct ieee80211_hw *hw);
 void ath9k_htc_radio_disable(struct ieee80211_hw *hw);
-void ath9k_led_stop_brightness(struct ath9k_htc_priv *priv);
+
+#ifdef CONFIG_MAC80211_LEDS
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
+void ath9k_led_work(struct work_struct *work);
+#else
+static inline void ath9k_init_leds(struct ath9k_htc_priv *priv)
+{
+}
+
+static inline void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
+{
+}
+
+static inline void ath9k_led_work(struct work_struct *work)
+{
+}
+#endif
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 			   u16 devid, char *product, u32 drv_info);

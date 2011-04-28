@@ -1003,9 +1003,11 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	/* Cancel all the running timers/work .. */
 	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
+
+#ifdef CONFIG_MAC80211_LEDS
+	cancel_work_sync(&priv->led_work);
+#endif
 	ath9k_htc_stop_ani(priv);
-	ath9k_led_stop_brightness(priv);
 
 	mutex_lock(&priv->mutex);
 
