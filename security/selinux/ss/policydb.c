@@ -3066,7 +3066,7 @@ static int genfs_write(struct policydb *p, void *fp)
 	return 0;
 }
 
-static int range_count(void *key, void *data, void *ptr)
+static int hashtab_cnt(void *key, void *data, void *ptr)
 {
 	int *cnt = ptr;
 	*cnt = *cnt + 1;
@@ -3114,7 +3114,7 @@ static int range_write(struct policydb *p, void *fp)
 
 	/* count the number of entries in the hashtab */
 	nel = 0;
-	rc = hashtab_map(p->range_tr, range_count, &nel);
+	rc = hashtab_map(p->range_tr, hashtab_cnt, &nel);
 	if (rc)
 		return rc;
 
