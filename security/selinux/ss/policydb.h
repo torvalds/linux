@@ -227,6 +227,8 @@ struct policydb {
 	/* role transitions */
 	struct role_trans *role_tr;
 
+	/* quickly exclude lookups when parent ttype has no rules */
+	struct ebitmap filename_trans_ttypes;
 	/* file transitions with the last path component */
 	struct filename_trans *filename_trans;
 

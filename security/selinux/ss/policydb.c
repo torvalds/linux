@@ -240,6 +240,7 @@ static int policydb_init(struct policydb *p)
 	if (!p->range_tr)
 		goto out;
 
+	ebitmap_init(&p->filename_trans_ttypes);
 	ebitmap_init(&p->policycaps);
 	ebitmap_init(&p->permissive_map);
 
@@ -801,6 +802,7 @@ void policydb_destroy(struct policydb *p)
 		ft = nft;
 	}
 
+	ebitmap_destroy(&p->filename_trans_ttypes);
 	ebitmap_destroy(&p->policycaps);
 	ebitmap_destroy(&p->permissive_map);
 
@@ -1868,6 +1870,10 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		ft->ttype = le32_to_cpu(buf[1]);
 		ft->tclass = le32_to_cpu(buf[2]);
 		ft->otype = le32_to_cpu(buf[3]);
+
+		rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
+		if (rc)
+			goto out;
 	}
 	rc = 0;
 out:

@@ -1363,6 +1363,15 @@ static void filename_compute_type(struct policydb *p, struct context *newcontext
 				  const char *objname)
 {
 	struct filename_trans *ft;
+
+	/*
+	 * Most filename trans rules are going to live in specific directories
+	 * like /dev or /var/run.  This bitmap will quickly skip rule searches
+	 * if the ttype does not contain any rules.
+	 */
+	if (!ebitmap_get_bit(&p->filename_trans_ttypes, ttype))
+		return;
+
 	for (ft = p->filename_trans; ft; ft = ft->next) {
 		if (ft->stype == stype &&
 		    ft->ttype == ttype &&
