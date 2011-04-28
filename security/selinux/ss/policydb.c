@@ -423,32 +423,26 @@ static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 };
 
 #ifdef DEBUG_HASHES
-static void symtab_hash_eval(struct symtab *s)
-{
-	int i;
-
-	for (i = 0; i < SYM_NUM; i++) {
-		struct hashtab *h = s[i].table;
-		struct hashtab_info info;
-
-		hashtab_stat(h, &info);
-		printk(KERN_DEBUG "SELinux: %s:  %d entries and %d/%d buckets used, "
-		       "longest chain length %d\n", symtab_name[i], h->nel,
-		       info.slots_used, h->size, info.max_chain_len);
-	}
-}
-
-static void rangetr_hash_eval(struct hashtab *h)
+static void hash_eval(struct hashtab *h, const char *hash_name)
 {
 	struct hashtab_info info;
 
 	hashtab_stat(h, &info);
-	printk(KERN_DEBUG "SELinux: rangetr:  %d entries and %d/%d buckets used, "
-	       "longest chain length %d\n", h->nel,
+	printk(KERN_DEBUG "SELinux: %s:  %d entries and %d/%d buckets used, "
+	       "longest chain length %d\n", hash_name, h->nel,
 	       info.slots_used, h->size, info.max_chain_len);
 }
+
+static void symtab_hash_eval(struct symtab *s)
+{
+	int i;
+
+	for (i = 0; i < SYM_NUM; i++)
+		hash_eval(s[i].table, symtab_name[i]);
+}
+
 #else
-static inline void rangetr_hash_eval(struct hashtab *h)
+static inline void hash_eval(struct hashtab *h, char *hash_name)
 {
 }
 #endif
@@ -1802,7 +1796,7 @@ static int range_read(struct policydb *p, void *fp)
 		rt = NULL;
 		r = NULL;
 	}
-	rangetr_hash_eval(p->range_tr);
+	hash_eval(p->range_tr, "rangetr");
 	rc = 0;
 out:
 	kfree(rt);
