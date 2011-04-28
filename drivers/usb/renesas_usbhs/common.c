@@ -56,6 +56,11 @@ void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data)
 	usbhs_write(priv, reg, val);
 }
 
+struct usbhs_priv *usbhs_pdev_to_priv(struct platform_device *pdev)
+{
+	return dev_get_drvdata(&pdev->dev);
+}
+
 /*
  *		syscfg functions
  */
@@ -113,11 +118,6 @@ int usbhs_frame_get_num(struct usbhs_priv *priv)
 /*
  *		local functions
  */
-static struct usbhs_priv *usbhsc_pdev_to_priv(struct platform_device *pdev)
-{
-	return dev_get_drvdata(&pdev->dev);
-}
-
 static void usbhsc_bus_ctrl(struct usbhs_priv *priv, int enable)
 {
 	int wait = usbhs_get_dparam(priv, buswait_bwait);
@@ -210,7 +210,7 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 
 static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 {
-	struct usbhs_priv *priv = usbhsc_pdev_to_priv(pdev);
+	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 
 	/*
 	 * This functions will be called in interrupt.
@@ -351,7 +351,7 @@ probe_end_kfree:
 
 static int __devexit usbhs_remove(struct platform_device *pdev)
 {
-	struct usbhs_priv *priv = usbhsc_pdev_to_priv(pdev);
+	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
 	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 

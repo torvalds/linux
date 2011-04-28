@@ -217,6 +217,7 @@ int usbhs_frame_get_num(struct usbhs_priv *priv);
 /*
  * data
  */
+struct usbhs_priv *usbhs_pdev_to_priv(struct platform_device *pdev);
 #define usbhs_get_dparam(priv, param)	(priv->dparam->param)
 #define usbhs_priv_to_pdev(priv)	(priv->pdev)
 #define usbhs_priv_to_dev(priv)		(&priv->pdev->dev)
