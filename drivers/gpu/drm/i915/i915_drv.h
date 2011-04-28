@@ -209,12 +209,12 @@ struct drm_i915_display_funcs {
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
+	void (*init_clock_gating)(struct drm_device *dev);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
-	/* clock gating init */
 };
 
 struct intel_device_info {

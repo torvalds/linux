@@ -7211,161 +7211,194 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-void intel_enable_clock_gating(struct drm_device *dev)
+static void ironlake_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+
+	/* Required for FBC */
+	dspclk_gate |= DPFCUNIT_CLOCK_GATE_DISABLE |
+		DPFCRUNIT_CLOCK_GATE_DISABLE |
+		DPFDUNIT_CLOCK_GATE_DISABLE;
+	/* Required for CxSR */
+	dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
+
+	I915_WRITE(PCH_3DCGDIS0,
+		   MARIUNIT_CLOCK_GATE_DISABLE |
+		   SVSMUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(PCH_3DCGDIS1,
+		   VFMUNIT_CLOCK_GATE_DISABLE);
+
+	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * According to the spec the following bits should be set in
+	 * order to enable memory self-refresh
+	 * The bit 22/21 of 0x42004
+	 * The bit 5 of 0x42020
+	 * The bit 15 of 0x45000
+	 */
+	I915_WRITE(ILK_DISPLAY_CHICKEN2,
+		   (I915_READ(ILK_DISPLAY_CHICKEN2) |
+		    ILK_DPARB_GATE | ILK_VSDPFD_FULL));
+	I915_WRITE(ILK_DSPCLK_GATE,
+		   (I915_READ(ILK_DSPCLK_GATE) |
+		    ILK_DPARB_CLK_GATE));
+	I915_WRITE(DISP_ARB_CTL,
+		   (I915_READ(DISP_ARB_CTL) |
+		    DISP_FBC_WM_DIS));
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
+
+	/*
+	 * Based on the document from hardware guys the following bits
+	 * should be set unconditionally in order to enable FBC.
+	 * The bit 22 of 0x42000
+	 * The bit 22 of 0x42004
+	 * The bit 7,8,9 of 0x42020.
+	 */
+	if (IS_IRONLAKE_M(dev)) {
+		I915_WRITE(ILK_DISPLAY_CHICKEN1,
+			   I915_READ(ILK_DISPLAY_CHICKEN1) |
+			   ILK_FBCQ_DIS);
+		I915_WRITE(ILK_DISPLAY_CHICKEN2,
+			   I915_READ(ILK_DISPLAY_CHICKEN2) |
+			   ILK_DPARB_GATE);
+		I915_WRITE(ILK_DSPCLK_GATE,
+			   I915_READ(ILK_DSPCLK_GATE) |
+			   ILK_DPFC_DIS1 |
+			   ILK_DPFC_DIS2 |
+			   ILK_CLK_FBC);
+	}
+
+	I915_WRITE(ILK_DISPLAY_CHICKEN2,
+		   I915_READ(ILK_DISPLAY_CHICKEN2) |
+		   ILK_ELPIN_409_SELECT);
+	I915_WRITE(_3D_CHICKEN2,
+		   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
+		   _3D_CHICKEN2_WM_READ_PIPELINED);
+}
+
+static void gen6_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
+	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+
+	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 
 	/*
-	 * Disable clock gating reported to work incorrectly according to the
-	 * specs, but enable as much else as we can.
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
 	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 
-		if (IS_GEN5(dev)) {
-			/* Required for FBC */
-			dspclk_gate |= DPFCUNIT_CLOCK_GATE_DISABLE |
-				DPFCRUNIT_CLOCK_GATE_DISABLE |
-				DPFDUNIT_CLOCK_GATE_DISABLE;
-			/* Required for CxSR */
-			dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(ILK_DISPLAY_CHICKEN2,
+		   I915_READ(ILK_DISPLAY_CHICKEN2) |
+		   ILK_ELPIN_409_SELECT);
 
-			I915_WRITE(PCH_3DCGDIS0,
-				   MARIUNIT_CLOCK_GATE_DISABLE |
-				   SVSMUNIT_CLOCK_GATE_DISABLE);
-			I915_WRITE(PCH_3DCGDIS1,
-				   VFMUNIT_CLOCK_GATE_DISABLE);
-		}
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
 
-		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+	/*
+	 * According to the spec the following bits should be
+	 * set in order to enable memory self-refresh and fbc:
+	 * The bit21 and bit22 of 0x42000
+	 * The bit21 and bit22 of 0x42004
+	 * The bit5 and bit7 of 0x42020
+	 * The bit14 of 0x70180
+	 * The bit14 of 0x71180
+	 */
+	I915_WRITE(ILK_DISPLAY_CHICKEN1,
+		   I915_READ(ILK_DISPLAY_CHICKEN1) |
+		   ILK_FBCQ_DIS | ILK_PABSTRETCH_DIS);
+	I915_WRITE(ILK_DISPLAY_CHICKEN2,
+		   I915_READ(ILK_DISPLAY_CHICKEN2) |
+		   ILK_DPARB_GATE | ILK_VSDPFD_FULL);
+	I915_WRITE(ILK_DSPCLK_GATE,
+		   I915_READ(ILK_DSPCLK_GATE) |
+		   ILK_DPARB_CLK_GATE  |
+		   ILK_DPFD_CLK_GATE);
 
-		/*
-		 * On Ibex Peak and Cougar Point, we need to disable clock
-		 * gating for the panel power sequencer or it will fail to
-		 * start up when no ports are active.
-		 */
-		I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+	for_each_pipe(pipe)
+		I915_WRITE(DSPCNTR(pipe),
+			   I915_READ(DSPCNTR(pipe)) |
+			   DISPPLANE_TRICKLE_FEED_DISABLE);
+}
 
-		/*
-		 * According to the spec the following bits should be set in
-		 * order to enable memory self-refresh
-		 * The bit 22/21 of 0x42004
-		 * The bit 5 of 0x42020
-		 * The bit 15 of 0x45000
-		 */
-		if (IS_GEN5(dev)) {
-			I915_WRITE(ILK_DISPLAY_CHICKEN2,
-					(I915_READ(ILK_DISPLAY_CHICKEN2) |
-					ILK_DPARB_GATE | ILK_VSDPFD_FULL));
-			I915_WRITE(ILK_DSPCLK_GATE,
-					(I915_READ(ILK_DSPCLK_GATE) |
-						ILK_DPARB_CLK_GATE));
-			I915_WRITE(DISP_ARB_CTL,
-					(I915_READ(DISP_ARB_CTL) |
-						DISP_FBC_WM_DIS));
-			I915_WRITE(WM3_LP_ILK, 0);
-			I915_WRITE(WM2_LP_ILK, 0);
-			I915_WRITE(WM1_LP_ILK, 0);
-		}
-		/*
-		 * Based on the document from hardware guys the following bits
-		 * should be set unconditionally in order to enable FBC.
-		 * The bit 22 of 0x42000
-		 * The bit 22 of 0x42004
-		 * The bit 7,8,9 of 0x42020.
-		 */
-		if (IS_IRONLAKE_M(dev)) {
-			I915_WRITE(ILK_DISPLAY_CHICKEN1,
-				   I915_READ(ILK_DISPLAY_CHICKEN1) |
-				   ILK_FBCQ_DIS);
-			I915_WRITE(ILK_DISPLAY_CHICKEN2,
-				   I915_READ(ILK_DISPLAY_CHICKEN2) |
-				   ILK_DPARB_GATE);
-			I915_WRITE(ILK_DSPCLK_GATE,
-				   I915_READ(ILK_DSPCLK_GATE) |
-				   ILK_DPFC_DIS1 |
-				   ILK_DPFC_DIS2 |
-				   ILK_CLK_FBC);
-		}
+static void g4x_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dspclk_gate;
 
-		I915_WRITE(ILK_DISPLAY_CHICKEN2,
-			   I915_READ(ILK_DISPLAY_CHICKEN2) |
-			   ILK_ELPIN_409_SELECT);
+	I915_WRITE(RENCLK_GATE_D1, 0);
+	I915_WRITE(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
+		   GS_UNIT_CLOCK_GATE_DISABLE |
+		   CL_UNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(RAMCLK_GATE_D, 0);
+	dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
+		OVRUNIT_CLOCK_GATE_DISABLE |
+		OVCUNIT_CLOCK_GATE_DISABLE;
+	if (IS_GM45(dev))
+		dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, dspclk_gate);
+}
 
-		if (IS_GEN5(dev)) {
-			I915_WRITE(_3D_CHICKEN2,
-				   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
-				   _3D_CHICKEN2_WM_READ_PIPELINED);
-		}
+static void crestline_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
-		if (IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
-			I915_WRITE(WM3_LP_ILK, 0);
-			I915_WRITE(WM2_LP_ILK, 0);
-			I915_WRITE(WM1_LP_ILK, 0);
+	I915_WRITE(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
+	I915_WRITE(RENCLK_GATE_D2, 0);
+	I915_WRITE(DSPCLK_GATE_D, 0);
+	I915_WRITE(RAMCLK_GATE_D, 0);
+	I915_WRITE16(DEUC, 0);
+}
 
-			/*
-			 * According to the spec the following bits should be
-			 * set in order to enable memory self-refresh and fbc:
-			 * The bit21 and bit22 of 0x42000
-			 * The bit21 and bit22 of 0x42004
-			 * The bit5 and bit7 of 0x42020
-			 * The bit14 of 0x70180
-			 * The bit14 of 0x71180
-			 */
-			I915_WRITE(ILK_DISPLAY_CHICKEN1,
-				   I915_READ(ILK_DISPLAY_CHICKEN1) |
-				   ILK_FBCQ_DIS | ILK_PABSTRETCH_DIS);
-			I915_WRITE(ILK_DISPLAY_CHICKEN2,
-				   I915_READ(ILK_DISPLAY_CHICKEN2) |
-				   ILK_DPARB_GATE | ILK_VSDPFD_FULL);
-			I915_WRITE(ILK_DSPCLK_GATE,
-				   I915_READ(ILK_DSPCLK_GATE) |
-				   ILK_DPARB_CLK_GATE  |
-				   ILK_DPFD_CLK_GATE);
+static void broadwater_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
-			for_each_pipe(pipe)
-				I915_WRITE(DSPCNTR(pipe),
-					   I915_READ(DSPCNTR(pipe)) |
-					   DISPPLANE_TRICKLE_FEED_DISABLE);
-		}
-	} else if (IS_G4X(dev)) {
-		uint32_t dspclk_gate;
-		I915_WRITE(RENCLK_GATE_D1, 0);
-		I915_WRITE(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
-		       GS_UNIT_CLOCK_GATE_DISABLE |
-		       CL_UNIT_CLOCK_GATE_DISABLE);
-		I915_WRITE(RAMCLK_GATE_D, 0);
-		dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
-			OVRUNIT_CLOCK_GATE_DISABLE |
-			OVCUNIT_CLOCK_GATE_DISABLE;
-		if (IS_GM45(dev))
-			dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
-		I915_WRITE(DSPCLK_GATE_D, dspclk_gate);
-	} else if (IS_CRESTLINE(dev)) {
-		I915_WRITE(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
-		I915_WRITE(RENCLK_GATE_D2, 0);
-		I915_WRITE(DSPCLK_GATE_D, 0);
-		I915_WRITE(RAMCLK_GATE_D, 0);
-		I915_WRITE16(DEUC, 0);
-	} else if (IS_BROADWATER(dev)) {
-		I915_WRITE(RENCLK_GATE_D1, I965_RCZ_CLOCK_GATE_DISABLE |
-		       I965_RCC_CLOCK_GATE_DISABLE |
-		       I965_RCPB_CLOCK_GATE_DISABLE |
-		       I965_ISC_CLOCK_GATE_DISABLE |
-		       I965_FBC_CLOCK_GATE_DISABLE);
-		I915_WRITE(RENCLK_GATE_D2, 0);
-	} else if (IS_GEN3(dev)) {
-		u32 dstate = I915_READ(D_STATE);
+	I915_WRITE(RENCLK_GATE_D1, I965_RCZ_CLOCK_GATE_DISABLE |
+		   I965_RCC_CLOCK_GATE_DISABLE |
+		   I965_RCPB_CLOCK_GATE_DISABLE |
+		   I965_ISC_CLOCK_GATE_DISABLE |
+		   I965_FBC_CLOCK_GATE_DISABLE);
+	I915_WRITE(RENCLK_GATE_D2, 0);
+}
 
-		dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
-			DSTATE_DOT_CLOCK_GATING;
-		I915_WRITE(D_STATE, dstate);
-	} else if (IS_I85X(dev) || IS_I865G(dev)) {
-		I915_WRITE(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
-	} else if (IS_I830(dev)) {
-		I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
-	}
+static void gen3_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dstate = I915_READ(D_STATE);
+
+	dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
+		DSTATE_DOT_CLOCK_GATING;
+	I915_WRITE(D_STATE, dstate);
+}
+
+static void i85x_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
+}
+
+static void i830_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void ironlake_teardown_rc6(struct drm_device *dev)
@@ -7549,6 +7582,7 @@ static void intel_init_display(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
+			dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
 		} else if (IS_GEN6(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
@@ -7558,6 +7592,7 @@ static void intel_init_display(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.fdi_link_train = gen6_fdi_link_train;
+			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
@@ -7568,6 +7603,8 @@ static void intel_init_display(struct drm_device *dev)
 					      "Disable CxSR\n");
 				dev_priv->display.update_wm = NULL;
 			}
+			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
+
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_PINEVIEW(dev)) {
@@ -7585,18 +7622,30 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
-	} else if (IS_G4X(dev))
+	} else if (IS_G4X(dev)) {
 		dev_priv->display.update_wm = g4x_update_wm;
-	else if (IS_GEN4(dev))
+		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
+	} else if (IS_GEN4(dev)) {
 		dev_priv->display.update_wm = i965_update_wm;
-	else if (IS_GEN3(dev)) {
+		if (IS_CRESTLINE(dev))
+			dev_priv->display.init_clock_gating = crestline_init_clock_gating;
+		else if (IS_BROADWATER(dev))
+			dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
+	} else if (IS_GEN3(dev)) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
+		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
+	} else if (IS_I865G(dev)) {
+		dev_priv->display.update_wm = i830_update_wm;
+		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
+		dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	} else if (IS_I85X(dev)) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i85x_get_fifo_size;
+		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
 	} else {
 		dev_priv->display.update_wm = i830_update_wm;
+		dev_priv->display.init_clock_gating = i830_init_clock_gating;
 		if (IS_845G(dev))
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;
 		else
@@ -7726,7 +7775,7 @@ void intel_modeset_init(struct drm_device *dev)
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
 
-	intel_enable_clock_gating(dev);
+	dev_priv->display.init_clock_gating(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
