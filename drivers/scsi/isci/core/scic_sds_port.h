@@ -151,17 +151,17 @@ enum scic_sds_port_states {
 
 };
 
+struct isci_port;
 /**
- * struct scic_sds_port -
+ * struct scic_sds_port
  *
  * The core port object provides the the abstraction for an SCU port.
  */
 struct scic_sds_port {
 	/**
-	 * The field specifies that the parent object for the base controller
-	 * is the base object itself.
+	 * The field specifies the peer object for the port.
 	 */
-	struct sci_base_object parent;
+	struct isci_port *iport;
 
 	/**
 	 * This field contains the information for the base port state machine.

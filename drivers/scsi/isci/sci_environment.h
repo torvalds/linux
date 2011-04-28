@@ -59,9 +59,6 @@
 #include "isci.h"
 #include "core/scic_sds_controller.h"
 
-struct scic_sds_controller;
-struct scic_sds_phy;
-struct scic_sds_port;
 struct scic_sds_remote_device;
 
 static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
@@ -83,7 +80,7 @@ static inline struct device *sciphy_to_dev(struct scic_sds_phy *sci_phy)
 
 static inline struct device *sciport_to_dev(struct scic_sds_port *sci_port)
 {
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_port *iport = sci_port->iport;
 
 	if (!iport || !iport->isci_host)
 		return NULL;

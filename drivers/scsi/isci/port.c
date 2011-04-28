@@ -100,8 +100,8 @@ void isci_port_init(
 	isci_port_change_state(isci_port, isci_freed);
 
 	(void)scic_controller_get_port_handle(controller, index, &scic_port);
-	sci_object_set_association(scic_port, isci_port);
 	isci_port->sci_port_handle = scic_port;
+	scic_port->iport = isci_port;
 }
 
 
@@ -169,9 +169,8 @@ void isci_port_link_up(
 {
 	unsigned long flags;
 	struct scic_port_properties properties;
-	struct isci_port *isci_port
-		= (struct isci_port *)sci_object_get_association(port);
 	struct isci_phy *isci_phy = phy->iphy;
+	struct isci_port *isci_port = port->iport;
 	enum sci_status call_status;
 	unsigned long success = true;
 
