@@ -1478,7 +1478,7 @@ static int security_compute_sid(u32 ssid,
 		newcontext.type = avdatum->data;
 	}
 
-	/* if we have a qstr this is a file trans check so check those rules */
+	/* if we have a objname this is a file trans check so check those rules */
 	if (objname)
 		filename_compute_type(&policydb, &newcontext, scontext->type,
 				      tcontext->type, tclass, objname);
