@@ -488,6 +488,20 @@ config VGA_HOSE
 	  which always have multiple hoses, and whose consoles support it.
 
 
+config ALPHA_QEMU
+	bool "Run under QEMU emulation"
+	depends on !ALPHA_GENERIC
+	---help---
+	  Assume the presence of special features supported by QEMU PALcode
+	  that reduce the overhead of system emulation.
+
+	  Generic kernels will auto-detect QEMU.  But when building a
+	  system-specific kernel, the assumption is that we want to
+	  elimiate as many runtime tests as possible.
+
+	  If unsure, say N.
+
+
 config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY

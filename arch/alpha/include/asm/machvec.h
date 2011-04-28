@@ -126,13 +126,19 @@ extern struct alpha_machine_vector alpha_mv;
 
 #ifdef CONFIG_ALPHA_GENERIC
 extern int alpha_using_srm;
+extern int alpha_using_qemu;
 #else
-#ifdef CONFIG_ALPHA_SRM
-#define alpha_using_srm 1
-#else
-#define alpha_using_srm 0
-#endif
+# ifdef CONFIG_ALPHA_SRM
+#  define alpha_using_srm 1
+# else
+#  define alpha_using_srm 0
+# endif
+# ifdef CONFIG_ALPHA_QEMU
+#  define alpha_using_qemu 1
+# else
+#  define alpha_using_qemu 0
+# endif
 #endif /* GENERIC */
 
-#endif
+#endif /* __KERNEL__ */
 #endif /* __ALPHA_MACHVEC_H */
