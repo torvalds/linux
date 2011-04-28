@@ -500,7 +500,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
-	out_meta->flags = cmd->flags | CMD_MAPPED;
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
 	if (cmd->flags & CMD_ASYNC)
@@ -538,12 +537,19 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				q->write_ptr, idx, priv->cmd_queue);
 	}
 #endif
-	txq->need_update = 1;
-
 	phys_addr = pci_map_single(priv->pci_dev, &out_cmd->hdr,
 				   fix_size, PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(pci_dma_mapping_error(priv->pci_dev, phys_addr))) {
+		idx = -ENOMEM;
+		goto out;
+	}
+
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
+
+	out_meta->flags = cmd->flags | CMD_MAPPED;
+
+	txq->need_update = 1;
 
 	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
@@ -555,6 +561,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(priv, txq);
 
+ out:
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 	return idx;
 }
