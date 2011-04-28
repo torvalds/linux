@@ -226,6 +226,7 @@ struct hci_conn {
 	__u16		pkt_type;
 	__u16		link_policy;
 	__u32		link_mode;
+	__u8		key_type;
 	__u8		auth_type;
 	__u8		sec_level;
 	__u8		pending_sec_level;

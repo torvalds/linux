@@ -287,6 +287,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->auth_type = HCI_AT_GENERAL_BONDING;
 	conn->io_capability = hdev->io_capability;
 	conn->remote_auth = 0xff;
+	conn->key_type = 0xff;
 
 	conn->power_save = 1;
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
@@ -535,32 +536,72 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	return 0;
 }
 
+/* Encrypt the the link */
+static void hci_conn_encrypt(struct hci_conn *conn)
+{
+	BT_DBG("conn %p", conn);
+
+	if (!test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
+		struct hci_cp_set_conn_encrypt cp;
+		cp.handle  = cpu_to_le16(conn->handle);
+		cp.encrypt = 0x01;
+		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT, sizeof(cp),
+									&cp);
+	}
+}
+
 /* Enable security */
 int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
 
+	/* For sdp we don't need the link key. */
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
 
+	/* For non 2.1 devices and low security level we don't need the link
+	   key. */
 	if (sec_level == BT_SECURITY_LOW &&
 				(!conn->ssp_mode || !conn->hdev->ssp_mode))
 		return 1;
 
-	if (conn->link_mode & HCI_LM_ENCRYPT)
-		return hci_conn_auth(conn, sec_level, auth_type);
+	/* For other security levels we need the link key. */
+	if (!(conn->link_mode & HCI_LM_AUTH))
+		goto auth;
 
+	/* An authenticated combination key has sufficient security for any
+	   security level. */
+	if (conn->key_type == HCI_LK_AUTH_COMBINATION)
+		goto encrypt;
+
+	/* An unauthenticated combination key has sufficient security for
+	   security level 1 and 2. */
+	if (conn->key_type == HCI_LK_UNAUTH_COMBINATION &&
+			(sec_level == BT_SECURITY_MEDIUM ||
+			sec_level == BT_SECURITY_LOW))
+		goto encrypt;
+
+	/* A combination key has always sufficient security for the security
+	   levels 1 or 2. High security level requires the combination key
+	   is generated using maximum PIN code length (16).
+	   For pre 2.1 units. */
+	if (conn->key_type == HCI_LK_COMBINATION &&
+			(sec_level != BT_SECURITY_HIGH ||
+			conn->pin_length == 16))
+		goto encrypt;
+
+auth:
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
 
-	if (hci_conn_auth(conn, sec_level, auth_type)) {
-		struct hci_cp_set_conn_encrypt cp;
-		cp.handle  = cpu_to_le16(conn->handle);
-		cp.encrypt = 1;
-		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT,
-							sizeof(cp), &cp);
-	}
+	hci_conn_auth(conn, sec_level, auth_type);
+	return 0;
 
+encrypt:
+	if (conn->link_mode & HCI_LM_ENCRYPT)
+		return 1;
+
+	hci_conn_encrypt(conn);
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_security);

@@ -2095,6 +2095,10 @@ static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff 
 		hci_conn_hold(conn);
 		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 		pin_len = conn->pin_length;
+
+		if (ev->key_type != HCI_LK_CHANGED_COMBINATION)
+			conn->key_type = ev->key_type;
+
 		hci_conn_put(conn);
 	}
 
