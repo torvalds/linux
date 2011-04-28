@@ -69,7 +69,11 @@ static void l2cap_busy_work(struct work_struct *work);
 
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				u8 code, u8 ident, u16 dlen, void *data);
+static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len,
+								void *data);
 static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
+static void l2cap_send_disconn_req(struct l2cap_conn *conn,
+				struct l2cap_chan *chan, int err);
 
 static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
 
@@ -271,7 +275,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 
 /* Delete channel.
  * Must be called on the locked socket. */
-void l2cap_chan_del(struct l2cap_chan *chan, int err)
+static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 {
 	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
@@ -324,6 +328,87 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 			list_del(&l->list);
 			kfree(l);
 		}
+	}
+}
+
+/* Must be called on unlocked socket. */
+static void l2cap_chan_close(struct sock *sk)
+{
+	l2cap_sock_clear_timer(sk);
+	lock_sock(sk);
+	__l2cap_chan_close(l2cap_pi(sk)->chan, ECONNRESET);
+	release_sock(sk);
+	l2cap_sock_kill(sk);
+}
+
+static void l2cap_chan_cleanup_listen(struct sock *parent)
+{
+	struct sock *sk;
+
+	BT_DBG("parent %p", parent);
+
+	/* Close not yet accepted channels */
+	while ((sk = bt_accept_dequeue(parent, NULL)))
+		l2cap_chan_close(sk);
+
+	parent->sk_state = BT_CLOSED;
+	sock_set_flag(parent, SOCK_ZAPPED);
+}
+
+void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct sock *sk = chan->sk;
+
+	BT_DBG("chan %p state %d socket %p", chan, sk->sk_state, sk->sk_socket);
+
+	switch (sk->sk_state) {
+	case BT_LISTEN:
+		l2cap_chan_cleanup_listen(sk);
+		break;
+
+	case BT_CONNECTED:
+	case BT_CONFIG:
+		if ((sk->sk_type == SOCK_SEQPACKET ||
+					sk->sk_type == SOCK_STREAM) &&
+					conn->hcon->type == ACL_LINK) {
+			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
+			l2cap_send_disconn_req(conn, chan, reason);
+		} else
+			l2cap_chan_del(chan, reason);
+		break;
+
+	case BT_CONNECT2:
+		if ((sk->sk_type == SOCK_SEQPACKET ||
+					sk->sk_type == SOCK_STREAM) &&
+					conn->hcon->type == ACL_LINK) {
+			struct l2cap_conn_rsp rsp;
+			__u16 result;
+
+			if (bt_sk(sk)->defer_setup)
+				result = L2CAP_CR_SEC_BLOCK;
+			else
+				result = L2CAP_CR_BAD_PSM;
+
+			rsp.scid   = cpu_to_le16(chan->dcid);
+			rsp.dcid   = cpu_to_le16(chan->scid);
+			rsp.result = cpu_to_le16(result);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
+							sizeof(rsp), &rsp);
+		}
+
+		l2cap_chan_del(chan, reason);
+		break;
+
+	case BT_CONNECT:
+	case BT_DISCONN:
+		l2cap_chan_del(chan, reason);
+		break;
+
+	default:
+		sock_set_flag(sk, SOCK_ZAPPED);
+		break;
 	}
 }
 
@@ -393,7 +478,7 @@ u8 l2cap_get_ident(struct l2cap_conn *conn)
 	return id;
 }
 
-void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data)
+static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data)
 {
 	struct sk_buff *skb = l2cap_build_cmd(conn, code, ident, len, data);
 	u8 flags;
@@ -533,7 +618,7 @@ static inline int l2cap_mode_supported(__u8 mode, __u32 feat_mask)
 	}
 }
 
-void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err)
+static void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err)
 {
 	struct sock *sk;
 	struct l2cap_disconn_req req;
@@ -591,10 +676,10 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					conn->feat_mask)
 					&& chan->conf_state &
 					L2CAP_CONF_STATE2_DEVICE) {
-				/* __l2cap_sock_close() calls list_del(chan)
+				/* __l2cap_chan_close() calls list_del(chan)
 				 * so release the lock */
 				read_unlock_bh(&conn->chan_lock);
-				 __l2cap_sock_close(sk, ECONNRESET);
+				 __l2cap_chan_close(chan, ECONNRESET);
 				read_lock_bh(&conn->chan_lock);
 				bh_unlock_sock(sk);
 				continue;
@@ -3943,7 +4028,7 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 			l2cap_sock_clear_timer(sk);
 			l2cap_sock_set_timer(sk, HZ * 5);
 		} else if (chan->sec_level == BT_SECURITY_HIGH)
-			__l2cap_sock_close(sk, ECONNREFUSED);
+			__l2cap_chan_close(chan, ECONNREFUSED);
 	} else {
 		if (chan->sec_level == BT_SECURITY_MEDIUM)
 			l2cap_sock_clear_timer(sk);

@@ -446,7 +446,6 @@ extern int disable_ertm;
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 
-void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 int __l2cap_wait_ack(struct sock *sk);
 
@@ -463,14 +462,12 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
-void __l2cap_sock_close(struct sock *sk, int reason);
 void l2cap_sock_kill(struct sock *sk);
 void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
-void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
-void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void __l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan);
 
