@@ -85,7 +85,7 @@ static void smp_beatic_message_pass(int target, int msg)
 
 static int __init smp_beatic_probe(void)
 {
-	return cpus_weight(cpu_possible_map);
+	return cpumask_weight(cpu_possible_mask);
 }
 
 static void __devinit smp_beatic_setup_cpu(int cpu)

@@ -77,7 +77,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	unsigned int pcpu;
 	int start_cpu;
 
-	if (cpu_isset(lcpu, of_spin_map))
+	if (cpumask_test_cpu(lcpu, &of_spin_map))
 		/* Already started by OF and sitting in spin loop */
 		return 1;
 
@@ -123,7 +123,7 @@ static int __init smp_iic_probe(void)
 {
 	iic_request_IPIs();
 
-	return cpus_weight(cpu_possible_map);
+	return cpumask_weight(cpu_possible_mask);
 }
 
 static void __devinit smp_cell_setup_cpu(int cpu)
@@ -188,13 +188,12 @@ void __init smp_init_cell(void)
 	if (cpu_has_feature(CPU_FTR_SMT)) {
 		for_each_present_cpu(i) {
 			if (cpu_thread_in_core(i) == 0)
-				cpu_set(i, of_spin_map);
+				cpumask_set_cpu(i, &of_spin_map);
 		}
-	} else {
-		of_spin_map = cpu_present_map;
-	}
+	} else
+		cpumask_copy(&of_spin_map, cpu_present_mask);
 
-	cpu_clear(boot_cpuid, of_spin_map);
+	cpumask_clear_cpu(boot_cpuid, &of_spin_map);
 
 	/* Non-lpar has additional take/give timebase */
 	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {

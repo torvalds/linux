@@ -64,9 +64,9 @@ void crash_ipi_callback(struct pt_regs *regs)
 		return;
 
 	hard_irq_disable();
-	if (!cpu_isset(cpu, cpus_in_crash))
+	if (!cpumask_test_cpu(cpu, &cpus_in_crash))
 		crash_save_cpu(regs, cpu);
-	cpu_set(cpu, cpus_in_crash);
+	cpumask_set_cpu(cpu, &cpus_in_crash);
 
 	/*
 	 * Entered via soft-reset - could be the kdump
@@ -77,8 +77,8 @@ void crash_ipi_callback(struct pt_regs *regs)
 	 * Tell the kexec CPU that entered via soft-reset and ready
 	 * to go down.
 	 */
-	if (cpu_isset(cpu, cpus_in_sr)) {
-		cpu_clear(cpu, cpus_in_sr);
+	if (cpumask_test_cpu(cpu, &cpus_in_sr)) {
+		cpumask_clear_cpu(cpu, &cpus_in_sr);
 		atomic_inc(&enter_on_soft_reset);
 	}
 
@@ -87,7 +87,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	 * This barrier is needed to make sure that all CPUs are stopped.
 	 * If not, soft-reset will be invoked to bring other CPUs.
 	 */
-	while (!cpu_isset(crashing_cpu, cpus_in_crash))
+	while (!cpumask_test_cpu(crashing_cpu, &cpus_in_crash))
 		cpu_relax();
 
 	if (ppc_md.kexec_cpu_down)
@@ -109,7 +109,7 @@ static void crash_soft_reset_check(int cpu)
 {
 	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
 
-	cpu_clear(cpu, cpus_in_sr);
+	cpumask_clear_cpu(cpu, &cpus_in_sr);
 	while (atomic_read(&enter_on_soft_reset) != ncpus)
 		cpu_relax();
 }
@@ -132,7 +132,7 @@ static void crash_kexec_prepare_cpus(int cpu)
 	 */
 	printk(KERN_EMERG "Sending IPI to other cpus...\n");
 	msecs = 10000;
-	while ((cpus_weight(cpus_in_crash) < ncpus) && (--msecs > 0)) {
+	while ((cpumask_weight(&cpus_in_crash) < ncpus) && (--msecs > 0)) {
 		cpu_relax();
 		mdelay(1);
 	}
@@ -144,20 +144,20 @@ static void crash_kexec_prepare_cpus(int cpu)
 	 * user to do soft reset such that we get all.
 	 * Soft-reset will be used until better mechanism is implemented.
 	 */
-	if (cpus_weight(cpus_in_crash) < ncpus) {
+	if (cpumask_weight(&cpus_in_crash) < ncpus) {
 		printk(KERN_EMERG "done waiting: %d cpu(s) not responding\n",
-			ncpus - cpus_weight(cpus_in_crash));
+			ncpus - cpumask_weight(&cpus_in_crash));
 		printk(KERN_EMERG "Activate soft-reset to stop other cpu(s)\n");
-		cpus_in_sr = CPU_MASK_NONE;
+		cpumask_clear(&cpus_in_sr);
 		atomic_set(&enter_on_soft_reset, 0);
-		while (cpus_weight(cpus_in_crash) < ncpus)
+		while (cpumask_weight(&cpus_in_crash) < ncpus)
 			cpu_relax();
 	}
 	/*
 	 * Make sure all CPUs are entered via soft-reset if the kdump is
 	 * invoked using soft-reset.
 	 */
-	if (cpu_isset(cpu, cpus_in_sr))
+	if (cpumask_test_cpu(cpu, &cpus_in_sr))
 		crash_soft_reset_check(cpu);
 	/* Leave the IPI callback set */
 }
@@ -210,7 +210,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 			 * exited using 'x'(exit and recover) or
 			 * kexec_should_crash() failed for all running tasks.
 			 */
-			cpu_clear(cpu, cpus_in_sr);
+			cpumask_clear_cpu(cpu, &cpus_in_sr);
 			local_irq_restore(flags);
 			return;
 		}
@@ -224,7 +224,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 		 * then start kexec boot.
 		 */
 		crash_soft_reset_check(cpu);
-		cpu_set(crashing_cpu, cpus_in_crash);
+		cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
 		if (ppc_md.kexec_cpu_down)
 			ppc_md.kexec_cpu_down(1, 0);
 		machine_kexec(kexec_crash_image);
@@ -253,7 +253,7 @@ static void crash_kexec_prepare_cpus(int cpu)
 
 void crash_kexec_secondary(struct pt_regs *regs)
 {
-	cpus_in_sr = CPU_MASK_NONE;
+	cpumask_clear(&cpus_in_sr);
 }
 #endif	/* CONFIG_SMP */
 
@@ -345,7 +345,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	crashing_cpu = smp_processor_id();
 	crash_save_cpu(regs, crashing_cpu);
 	crash_kexec_prepare_cpus(crashing_cpu);
-	cpu_set(crashing_cpu, cpus_in_crash);
+	cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
 	crash_kexec_wait_realmode(crashing_cpu);
 
 	machine_kexec_mask_interrupts();

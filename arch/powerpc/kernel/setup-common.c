@@ -381,7 +381,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	int i;
 
 	threads_per_core = tpc;
-	threads_core_mask = CPU_MASK_NONE;
+	cpumask_clear(&threads_core_mask);
 
 	/* This implementation only supports power of 2 number of threads
 	 * for simplicity and performance
@@ -390,7 +390,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	BUG_ON(tpc != (1 << threads_shift));
 
 	for (i = 0; i < tpc; i++)
-		cpu_set(i, threads_core_mask);
+		cpumask_set_cpu(i, &threads_core_mask);
 
 	printk(KERN_INFO "CPU maps initialized for %d thread%s per core\n",
 	       tpc, tpc > 1 ? "s" : "");

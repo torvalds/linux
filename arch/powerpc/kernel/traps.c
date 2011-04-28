@@ -221,7 +221,7 @@ void system_reset_exception(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KEXEC
-	cpu_set(smp_processor_id(), cpus_in_sr);
+	cpumask_set_cpu(smp_processor_id(), &cpus_in_sr);
 #endif
 
 	die("System Reset", regs, SIGABRT);

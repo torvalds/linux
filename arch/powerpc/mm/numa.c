@@ -1452,7 +1452,7 @@ int arch_update_cpu_topology(void)
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	struct sys_device *sysdev;
 
-	for_each_cpu_mask(cpu, cpu_associativity_changes_mask) {
+	for_each_cpu(cpu,&cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
 		nid = associativity_to_nid(associativity);
 
