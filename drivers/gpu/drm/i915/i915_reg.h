@@ -3104,7 +3104,15 @@
 #define  FDI_TX_ENHANCE_FRAME_ENABLE    (1<<18)
 /* Ironlake: hardwired to 1 */
 #define  FDI_TX_PLL_ENABLE              (1<<14)
+
+/* Ivybridge has different bits for lolz */
+#define  FDI_LINK_TRAIN_PATTERN_1_IVB       (0<<8)
+#define  FDI_LINK_TRAIN_PATTERN_2_IVB       (1<<8)
+#define  FDI_LINK_TRAIN_PATTERN_IDLE_IVB    (2<<8)
+#define  FDI_LINK_TRAIN_NONE_IVB            (3<<8)
+
 /* both Tx and Rx */
+#define  FDI_LINK_TRAIN_AUTO		(1<<10)
 #define  FDI_SCRAMBLING_ENABLE          (0<<7)
 #define  FDI_SCRAMBLING_DISABLE         (1<<7)
 
@@ -3114,6 +3122,8 @@
 #define FDI_RX_CTL(pipe) _PIPE(pipe, _FDI_RXA_CTL, _FDI_RXB_CTL)
 #define  FDI_RX_ENABLE          (1<<31)
 /* train, dp width same as FDI_TX */
+#define  FDI_FS_ERRC_ENABLE		(1<<27)
+#define  FDI_FE_ERRC_ENABLE		(1<<26)
 #define  FDI_DP_PORT_WIDTH_X8           (7<<19)
 #define  FDI_8BPC                       (0<<16)
 #define  FDI_10BPC                      (1<<16)

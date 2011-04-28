@@ -2051,8 +2051,13 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 	/* enable normal train */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+	if (IS_GEN6(dev)) {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+	} else if (IS_IVYBRIDGE(dev)) {
+		temp &= ~FDI_LINK_TRAIN_NONE_IVB;
+		temp |= FDI_LINK_TRAIN_NONE_IVB | FDI_TX_ENHANCE_FRAME_ENABLE;
+	}
 	I915_WRITE(reg, temp);
 
 	reg = FDI_RX_CTL(pipe);
@@ -2069,6 +2074,11 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 	/* wait one idle pattern time */
 	POSTING_READ(reg);
 	udelay(1000);
+
+	/* IVB wants error correction enabled */
+	if (IS_IVYBRIDGE(dev))
+		I915_WRITE(reg, I915_READ(reg) | FDI_FS_ERRC_ENABLE |
+			   FDI_FE_ERRC_ENABLE);
 }
 
 /* The FDI link training functions for ILK/Ibexpeak. */
@@ -2296,7 +2306,116 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_fdi_enable(struct drm_crtc *crtc)
+/* Manual link training for Ivy Bridge A0 parts */
+static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 reg, temp, i;
+
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	reg = FDI_RX_IMR(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(reg, temp);
+
+	POSTING_READ(reg);
+	udelay(150);
+
+	/* enable CPU FDI TX and PCH FDI RX */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
+	temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
+	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
+	I915_WRITE(reg, temp | FDI_TX_ENABLE);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_AUTO;
+	temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+	temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+	I915_WRITE(reg, temp | FDI_RX_ENABLE);
+
+	POSTING_READ(reg);
+	udelay(150);
+
+	for (i = 0; i < 4; i++ ) {
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+		temp |= snb_b_fdi_train_param[i];
+		I915_WRITE(reg, temp);
+
+		POSTING_READ(reg);
+		udelay(500);
+
+		reg = FDI_RX_IIR(pipe);
+		temp = I915_READ(reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if (temp & FDI_RX_BIT_LOCK ||
+		    (I915_READ(reg) & FDI_RX_BIT_LOCK)) {
+			I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
+			DRM_DEBUG_KMS("FDI train 1 done.\n");
+			break;
+		}
+	}
+	if (i == 4)
+		DRM_ERROR("FDI train 1 fail!\n");
+
+	/* Train 2 */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_NONE_IVB;
+	temp |= FDI_LINK_TRAIN_PATTERN_2_IVB;
+	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
+	I915_WRITE(reg, temp);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+	temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
+	I915_WRITE(reg, temp);
+
+	POSTING_READ(reg);
+	udelay(150);
+
+	for (i = 0; i < 4; i++ ) {
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+		temp |= snb_b_fdi_train_param[i];
+		I915_WRITE(reg, temp);
+
+		POSTING_READ(reg);
+		udelay(500);
+
+		reg = FDI_RX_IIR(pipe);
+		temp = I915_READ(reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if (temp & FDI_RX_SYMBOL_LOCK) {
+			I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
+			DRM_DEBUG_KMS("FDI train 2 done.\n");
+			break;
+		}
+	}
+	if (i == 4)
+		DRM_ERROR("FDI train 2 fail!\n");
+
+	DRM_DEBUG_KMS("FDI train done.\n");
+}
+
+static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2559,7 +2678,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	is_pch_port = intel_crtc_driving_pch(crtc);
 
 	if (is_pch_port)
-		ironlake_fdi_enable(crtc);
+		ironlake_fdi_pll_enable(crtc);
 	else
 		ironlake_fdi_disable(crtc);
 
@@ -7438,6 +7557,9 @@ static void intel_init_display(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.fdi_link_train = gen6_fdi_link_train;
+		} else if (IS_IVYBRIDGE(dev)) {
+			/* FIXME: detect B0+ stepping and use auto training */
+			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_PINEVIEW(dev)) {
