@@ -211,10 +211,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 		if (!iwl_legacy_is_channel_valid(ch))
 			continue;
 
-		if (iwl_legacy_is_channel_a_band(ch))
-			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
-		else
-			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
+		sband = &priv->bands[ch->band];
 
 		geo_ch = &sband->channels[sband->n_channels++];
 
