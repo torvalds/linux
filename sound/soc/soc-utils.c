@@ -82,7 +82,7 @@ static struct platform_driver soc_dummy_driver = {
 
 static struct platform_device *soc_dummy_dev;
 
-static int __init snd_soc_util_init(void)
+int __init snd_soc_util_init(void)
 {
 	int ret;
 
@@ -102,11 +102,9 @@ static int __init snd_soc_util_init(void)
 
 	return ret;
 }
-module_init(snd_soc_util_init);
 
-static void __exit snd_soc_util_exit(void)
+void __exit snd_soc_util_exit(void)
 {
 	platform_device_unregister(soc_dummy_dev);
 	platform_driver_unregister(&soc_dummy_driver);
 }
-module_exit(snd_soc_util_exit);

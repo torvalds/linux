@@ -888,6 +888,9 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->dapm_list);
 }
 
+int snd_soc_util_init(void);
+void snd_soc_util_exit(void);
+
 #include <sound/soc-dai.h>
 
 #ifdef CONFIG_DEBUG_FS

@@ -3868,12 +3868,16 @@ static int __init snd_soc_init(void)
 		pr_warn("ASoC: Failed to create platform list debugfs file\n");
 #endif
 
+	snd_soc_util_init();
+
 	return platform_driver_register(&soc_driver);
 }
 module_init(snd_soc_init);
 
 static void __exit snd_soc_exit(void)
 {
+	snd_soc_util_exit();
+
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(snd_soc_debugfs_root);
 #endif
