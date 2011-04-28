@@ -66,11 +66,11 @@ static void platform_pm_runtime_bug(struct device *dev,
 		dev_err(dev, "runtime pm suspend before resume\n");
 }
 
-int platform_pm_runtime_suspend(struct device *dev)
+static int default_platform_runtime_suspend(struct device *dev)
 {
 	struct pm_runtime_data *prd = __to_prd(dev);
 
-	dev_dbg(dev, "platform_pm_runtime_suspend()\n");
+	dev_dbg(dev, "%s()\n", __func__);
 
 	platform_pm_runtime_bug(dev, prd);
 
@@ -82,11 +82,11 @@ int platform_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-int platform_pm_runtime_resume(struct device *dev)
+static int default_platform_runtime_resume(struct device *dev)
 {
 	struct pm_runtime_data *prd = __to_prd(dev);
 
-	dev_dbg(dev, "platform_pm_runtime_resume()\n");
+	dev_dbg(dev, "%s()\n", __func__);
 
 	platform_pm_runtime_init(dev, prd);
 
@@ -98,11 +98,20 @@ int platform_pm_runtime_resume(struct device *dev)
 	return 0;
 }
 
-int platform_pm_runtime_idle(struct device *dev)
+static int default_platform_runtime_idle(struct device *dev)
 {
 	/* suspend synchronously to disable clocks immediately */
 	return pm_runtime_suspend(dev);
 }
+
+static struct dev_power_domain default_power_domain = {
+	.ops = {
+		.runtime_suspend = default_platform_runtime_suspend,
+		.runtime_resume = default_platform_runtime_resume,
+		.runtime_idle = default_platform_runtime_idle,
+		USE_PLATFORM_PM_SLEEP_OPS
+	},
+};
 
 static int platform_bus_notify(struct notifier_block *nb,
 			       unsigned long action, void *data)
@@ -114,10 +123,12 @@ static int platform_bus_notify(struct notifier_block *nb,
 
 	if (action == BUS_NOTIFY_BIND_DRIVER) {
 		prd = devres_alloc(__devres_release, sizeof(*prd), GFP_KERNEL);
-		if (prd)
+		if (prd) {
 			devres_add(dev, prd);
-		else
+			dev->pwr_domain = &default_power_domain;
+		} else {
 			dev_err(dev, "unable to alloc memory for runtime pm\n");
+		}
 	}
 
 	return 0;
