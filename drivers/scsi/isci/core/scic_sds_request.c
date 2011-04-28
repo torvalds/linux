@@ -1612,7 +1612,7 @@ static void scic_sds_request_completed_state_enter(void *object)
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 	struct scic_sds_controller *scic =
 		scic_sds_request_get_controller(sci_req);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_request *ireq = sci_object_get_association(sci_req);
 
 	SET_STATE_HANDLER(sci_req,

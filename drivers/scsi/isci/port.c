@@ -68,6 +68,7 @@
 #include "scic_port.h"
 #include "port.h"
 #include "request.h"
+#include "core/scic_sds_controller.h"
 
 static void isci_port_change_state(
 	struct isci_port *isci_port,
@@ -472,7 +473,7 @@ void isci_port_invalid_link_up(struct scic_sds_controller *scic,
 				      struct scic_sds_port *sci_port,
 				      struct scic_sds_phy *phy)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
 }
@@ -481,7 +482,7 @@ void isci_port_stop_complete(struct scic_sds_controller *scic,
 					  struct scic_sds_port *sci_port,
 					  enum sci_status completion_status)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	dev_dbg(&ihost->pdev->dev, "Port stop complete\n");
 }

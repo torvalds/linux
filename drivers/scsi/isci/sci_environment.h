@@ -57,6 +57,7 @@
 #define _SCI_ENVIRONMENT_H_
 
 #include "isci.h"
+#include "core/scic_sds_controller.h"
 
 struct scic_sds_controller;
 struct scic_sds_phy;
@@ -65,7 +66,7 @@ struct scic_sds_remote_device;
 
 static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
 {
-	struct isci_host *isci_host = sci_object_get_association(scic);
+	struct isci_host *isci_host = scic->ihost;
 
 	return &isci_host->pdev->dev;
 }

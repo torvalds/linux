@@ -582,7 +582,7 @@ scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *use
 	struct scic_sds_remote_device *sci_dev = user_cookie;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	/*
 	 * For NCQ operation we do not issue a
@@ -639,7 +639,7 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(void *object)
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
@@ -667,7 +667,7 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev,

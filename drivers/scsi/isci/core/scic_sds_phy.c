@@ -336,7 +336,7 @@ enum sci_status scic_sds_phy_initialize(
 	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
 	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
 	sci_phy->sata_timeout_timer =
@@ -1932,7 +1932,7 @@ scic_sds_phy_stopped_state_start_handler(struct scic_sds_phy *sci_phy)
 	struct scic_sds_controller *scic;
 
 	scic = scic_sds_phy_get_controller(sci_phy),
-	ihost = sci_object_get_association(scic);
+	ihost = scic->ihost;
 
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
 	sci_phy->sata_timeout_timer = isci_timer_create(ihost, sci_phy,
@@ -2220,7 +2220,7 @@ static void scic_sds_phy_stopped_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	sci_phy = (struct scic_sds_phy *)object;
 

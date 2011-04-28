@@ -365,7 +365,7 @@ int isci_host_init(struct isci_host *isci_host)
 	}
 
 	isci_host->core_controller = controller;
-	sci_object_set_association(isci_host->core_controller, isci_host);
+	controller->ihost = isci_host;
 	spin_lock_init(&isci_host->state_lock);
 	spin_lock_init(&isci_host->scic_lock);
 	spin_lock_init(&isci_host->queue_lock);

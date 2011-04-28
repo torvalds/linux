@@ -1211,7 +1211,7 @@ static void scic_sds_remote_device_stopped_state_enter(void *object)
 
 	sci_dev = container_of(object, typeof(*sci_dev), parent);
 	scic = scic_sds_remote_device_get_controller(sci_dev);
-	ihost = sci_object_get_association(scic);
+	ihost = scic->ihost;
 	idev = sci_object_get_association(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
@@ -1232,7 +1232,7 @@ static void scic_sds_remote_device_starting_state_enter(void *object)
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
@@ -1247,7 +1247,7 @@ static void scic_sds_remote_device_ready_state_enter(void *object)
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	SET_STATE_HANDLER(sci_dev,
@@ -1270,7 +1270,7 @@ static void scic_sds_remote_device_ready_state_exit(void *object)
 		sci_base_state_machine_stop(&sci_dev->ready_substate_machine);
 	else {
 		struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-		struct isci_host *ihost = sci_object_get_association(scic);
+		struct isci_host *ihost = scic->ihost;
 		struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 		isci_remote_device_not_ready(ihost, idev,

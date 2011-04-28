@@ -657,7 +657,7 @@ static void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
 {
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct sci_sas_identify_address_frame_protocols protocols;
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	scic_sds_phy_get_attached_phy_protocols(sci_phy, &protocols);
 
@@ -679,7 +679,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 {
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct isci_port *iport = sci_object_get_association(sci_port);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_phy *iphy = sci_object_get_association(sci_phy);
 
 	sci_port->active_phy_mask &= ~(1 << sci_phy->phy_index);
@@ -1012,7 +1012,7 @@ void scic_sds_port_broadcast_change_received(
 	struct scic_sds_phy *sci_phy)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	/* notify the user. */
 	isci_port_bc_change_received(ihost, sci_port, sci_phy);
@@ -1666,7 +1666,7 @@ static void scic_sds_port_ready_substate_operational_enter(void *object)
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_port *iport = sci_object_get_association(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
@@ -1707,7 +1707,7 @@ static void scic_sds_port_ready_substate_operational_exit(void *object)
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_port *iport = sci_object_get_association(sci_port);
 
 	/*
@@ -1738,7 +1738,7 @@ static void scic_sds_port_ready_substate_configuring_enter(void *object)
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct isci_port *iport = sci_object_get_association(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
@@ -1825,7 +1825,7 @@ static enum sci_status
 scic_sds_port_stopped_state_start_handler(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	enum sci_status status = SCI_SUCCESS;
 	u32 phy_mask;
 
@@ -2312,7 +2312,7 @@ static void scic_sds_port_ready_state_enter(void *object)
 
 	sci_port = container_of(object, typeof(*sci_port), parent);
 	scic = scic_sds_port_get_controller(sci_port);
-	ihost = sci_object_get_association(scic);
+	ihost = scic->ihost;
 	iport = sci_object_get_association(sci_port);
 
 	/* Put the ready state handlers in place though they will not be there long */
