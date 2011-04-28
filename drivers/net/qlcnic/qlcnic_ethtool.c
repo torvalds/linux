@@ -474,6 +474,39 @@ qlcnic_set_ringparam(struct net_device *dev,
 	return qlcnic_reset_context(adapter);
 }
 
+static void qlcnic_get_channels(struct net_device *dev,
+		struct ethtool_channels *channel)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	channel->max_rx = rounddown_pow_of_two(min_t(int,
+			adapter->max_rx_ques, num_online_cpus()));
+	channel->max_tx = adapter->max_tx_ques;
+
+	channel->rx_count = adapter->max_sds_rings;
+	channel->tx_count = adapter->max_tx_ques;
+}
+
+static int qlcnic_set_channels(struct net_device *dev,
+		struct ethtool_channels *channel)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int err;
+
+	if (channel->other_count || channel->combined_count ||
+	    channel->tx_count != channel->max_tx)
+		return -EINVAL;
+
+	err = qlcnic_validate_max_rss(dev, channel->max_rx, channel->rx_count);
+	if (err)
+		return err;
+
+	err = qlcnic_set_max_rss(adapter, channel->rx_count);
+	netdev_info(dev, "allocated 0x%x sds rings\n",
+				 adapter->max_sds_rings);
+	return err;
+}
+
 static void
 qlcnic_get_pauseparam(struct net_device *netdev,
 			  struct ethtool_pauseparam *pause)
@@ -949,6 +982,8 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_eeprom = qlcnic_get_eeprom,
 	.get_ringparam = qlcnic_get_ringparam,
 	.set_ringparam = qlcnic_set_ringparam,
+	.get_channels = qlcnic_get_channels,
+	.set_channels = qlcnic_set_channels,
 	.get_pauseparam = qlcnic_get_pauseparam,
 	.set_pauseparam = qlcnic_set_pauseparam,
 	.get_wol = qlcnic_get_wol,

@@ -18,6 +18,7 @@
 #include <linux/inetdevice.h>
 #include <linux/sysfs.h>
 #include <linux/aer.h>
+#include <linux/log2.h>
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -350,22 +351,51 @@ static struct qlcnic_nic_template qlcnic_vf_ops = {
 	.start_firmware = qlcnicvf_start_firmware
 };
 
-static void
-qlcnic_setup_intr(struct qlcnic_adapter *adapter)
+static int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int err = -1;
+
+	adapter->max_sds_rings = 1;
+	adapter->flags &= ~(QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED);
+	qlcnic_set_msix_bit(pdev, 0);
+
+	if (adapter->msix_supported) {
+ enable_msix:
+		qlcnic_init_msix_entries(adapter, num_msix);
+		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
+		if (err == 0) {
+			adapter->flags |= QLCNIC_MSIX_ENABLED;
+			qlcnic_set_msix_bit(pdev, 1);
+
+			adapter->max_sds_rings = num_msix;
+
+			dev_info(&pdev->dev, "using msi-x interrupts\n");
+			return err;
+		}
+		if (err > 0) {
+			num_msix = rounddown_pow_of_two(err);
+			if (num_msix)
+				goto enable_msix;
+		}
+	}
+	return err;
+}
+
+
+static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 {
 	const struct qlcnic_legacy_intr_set *legacy_intrp;
 	struct pci_dev *pdev = adapter->pdev;
-	int err, num_msix;
 
-	if (adapter->msix_supported) {
-		num_msix = (num_online_cpus() >= MSIX_ENTRIES_PER_ADAPTER) ?
-			MSIX_ENTRIES_PER_ADAPTER : 2;
-	} else
-		num_msix = 1;
-
-	adapter->max_sds_rings = 1;
-
-	adapter->flags &= ~(QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED);
+	if (use_msi && !pci_enable_msi(pdev)) {
+		adapter->flags |= QLCNIC_MSI_ENABLED;
+		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
+				msi_tgt_status[adapter->ahw->pci_func]);
+		dev_info(&pdev->dev, "using msi interrupts\n");
+		adapter->msix_entries[0].vector = pdev->irq;
+		return;
+	}
 
 	legacy_intrp = &legacy_intr[adapter->ahw->pci_func];
 
@@ -378,40 +408,27 @@ qlcnic_setup_intr(struct qlcnic_adapter *adapter)
 
 	adapter->crb_int_state_reg = qlcnic_get_ioaddr(adapter,
 			ISR_INT_STATE_REG);
-
-	qlcnic_set_msix_bit(pdev, 0);
-
-	if (adapter->msix_supported) {
-
-		qlcnic_init_msix_entries(adapter, num_msix);
-		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
-		if (err == 0) {
-			adapter->flags |= QLCNIC_MSIX_ENABLED;
-			qlcnic_set_msix_bit(pdev, 1);
-
-			adapter->max_sds_rings = num_msix;
-
-			dev_info(&pdev->dev, "using msi-x interrupts\n");
-			return;
-		}
-
-		if (err > 0)
-			pci_disable_msix(pdev);
-
-		/* fall through for msi */
-	}
-
-	if (use_msi && !pci_enable_msi(pdev)) {
-		adapter->flags |= QLCNIC_MSI_ENABLED;
-		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
-				msi_tgt_status[adapter->ahw->pci_func]);
-		dev_info(&pdev->dev, "using msi interrupts\n");
-		adapter->msix_entries[0].vector = pdev->irq;
-		return;
-	}
-
 	dev_info(&pdev->dev, "using legacy interrupts\n");
 	adapter->msix_entries[0].vector = pdev->irq;
+}
+
+static void
+qlcnic_setup_intr(struct qlcnic_adapter *adapter)
+{
+	int num_msix;
+
+	if (adapter->msix_supported) {
+		num_msix = (num_online_cpus() >=
+			QLCNIC_DEF_NUM_STS_DESC_RINGS) ?
+			QLCNIC_DEF_NUM_STS_DESC_RINGS :
+			QLCNIC_MIN_NUM_RSS_RINGS;
+	} else
+		num_msix = 1;
+
+	if (!qlcnic_enable_msix(adapter, num_msix))
+		return;
+
+	qlcnic_enable_msi_legacy(adapter);
 }
 
 static void
@@ -1493,6 +1510,19 @@ static int qlcnic_set_dma_mask(struct pci_dev *pdev, u8 *pci_using_dac)
 	return 0;
 }
 
+static int
+qlcnic_alloc_msix_entries(struct qlcnic_adapter *adapter, u16 count)
+{
+	adapter->msix_entries = kcalloc(count, sizeof(struct msix_entry),
+					GFP_KERNEL);
+
+	if (adapter->msix_entries)
+		return 0;
+
+	dev_err(&adapter->pdev->dev, "failed allocating msix_entries\n");
+	return -ENOMEM;
+}
+
 static int __devinit
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1587,6 +1617,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	qlcnic_clear_stats(adapter);
 
+	err = qlcnic_alloc_msix_entries(adapter, adapter->max_rx_ques);
+	if (err)
+		goto err_out_decr_ref;
+
 	qlcnic_setup_intr(adapter);
 
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
@@ -1615,6 +1649,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_disable_msi:
 	qlcnic_teardown_intr(adapter);
+	kfree(adapter->msix_entries);
 
 err_out_decr_ref:
 	qlcnic_clr_all_drv_state(adapter, 0);
@@ -1666,6 +1701,7 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_free_lb_filters_mem(adapter);
 
 	qlcnic_teardown_intr(adapter);
+	kfree(adapter->msix_entries);
 
 	qlcnic_remove_diag_entries(adapter);
 
@@ -3298,6 +3334,56 @@ static struct device_attribute dev_attr_diag_mode = {
 	.show = qlcnic_show_diag_mode,
 	.store = qlcnic_store_diag_mode,
 };
+
+int qlcnic_validate_max_rss(struct net_device *netdev, u8 max_hw, u8 val)
+{
+	if (!use_msi_x && !use_msi) {
+		netdev_info(netdev, "no msix or msi support, hence no rss\n");
+		return -EINVAL;
+	}
+
+	if ((val > max_hw) || (val <  2) || !is_power_of_2(val)) {
+		netdev_info(netdev, "rss_ring valid range [2 - %x] in "
+			" powers of 2\n", max_hw);
+		return -EINVAL;
+	}
+	return 0;
+
+}
+
+int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err = 0;
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EBUSY;
+
+	netif_device_detach(netdev);
+	if (netif_running(netdev))
+		__qlcnic_down(adapter, netdev);
+	qlcnic_detach(adapter);
+	qlcnic_teardown_intr(adapter);
+
+	if (qlcnic_enable_msix(adapter, data)) {
+		netdev_info(netdev, "failed setting max_rss; rss disabled\n");
+		qlcnic_enable_msi_legacy(adapter);
+	}
+
+	if (netif_running(netdev)) {
+		err = qlcnic_attach(adapter);
+		if (err)
+			goto done;
+		err = __qlcnic_up(adapter, netdev);
+		if (err)
+			goto done;
+		qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+	}
+ done:
+	netif_device_attach(netdev);
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return err;
+}
 
 static int
 qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
