@@ -472,12 +472,14 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 	if (rt == NULL) {
 		struct ip_options_rcu *inet_opt;
 
-		inet_opt = rcu_dereference_protected(inet->inet_opt,
-						     sock_owned_by_user(sk));
+		rcu_read_lock();
+		inet_opt = rcu_dereference(inet->inet_opt);
 
 		/* Use correct destination address if we have options. */
 		if (inet_opt && inet_opt->opt.srr)
 			daddr = inet_opt->opt.faddr;
+
+		rcu_read_unlock();
 
 		/* If this fails, retransmit mechanism of transport layer will
 		 * keep trying until route appears or the connection times
