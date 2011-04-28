@@ -372,7 +372,10 @@ static int run_perf_stat(int argc __used, const char **argv)
 
 	list_for_each_entry(counter, &evsel_list->entries, node) {
 		if (create_perf_stat_counter(counter) < 0) {
-			if (errno == -EPERM || errno == -EACCES) {
+			if (errno == EINVAL || errno == ENOSYS)
+				continue;
+
+			if (errno == EPERM || errno == EACCES) {
 				error("You may not have permission to collect %sstats.\n"
 				      "\t Consider tweaking"
 				      " /proc/sys/kernel/perf_event_paranoid or running as root.",
