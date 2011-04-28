@@ -36,8 +36,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 16
-#define QLCNIC_LINUX_VERSIONID  "5.0.16"
+#define _QLCNIC_LINUX_SUBVERSION 17
+#define QLCNIC_LINUX_VERSIONID  "5.0.17"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -573,8 +573,10 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_CONFIGURE_ESWITCH	0x00000028
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_PORT_CONFIG	0x00000029
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_STATS	0x0000002a
+#define QLCNIC_CDRP_CMD_CONFIG_PORT		0x0000002E
 
 #define QLCNIC_RCODE_SUCCESS		0
+#define QLCNIC_RCODE_NOT_SUPPORTED	9
 #define QLCNIC_RCODE_TIMEOUT		17
 #define QLCNIC_DESTROY_CTX_RESET	0
 
@@ -1155,8 +1157,7 @@ struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics tx;
 };
 
-int qlcnic_fw_cmd_query_phy(struct qlcnic_adapter *adapter, u32 reg, u32 *val);
-int qlcnic_fw_cmd_set_phy(struct qlcnic_adapter *adapter, u32 reg, u32 val);
+int qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config);
 
 u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
 int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *, ulong off, u32 data);

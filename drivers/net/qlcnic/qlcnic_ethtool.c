@@ -284,50 +284,44 @@ skip:
 static int
 qlcnic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
+	u32 config = 0;
+	u32 ret = 0;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	__u32 status;
+
+	if (adapter->ahw->port_type != QLCNIC_GBE)
+		return -EOPNOTSUPP;
 
 	/* read which mode */
-	if (adapter->ahw->port_type == QLCNIC_GBE) {
-		/* autonegotiation */
-		if (qlcnic_fw_cmd_set_phy(adapter,
-			       QLCNIC_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-			       ecmd->autoneg) != 0)
-			return -EIO;
-		else
-			adapter->link_autoneg = ecmd->autoneg;
+	if (ecmd->duplex)
+		config |= 0x1;
 
-		if (qlcnic_fw_cmd_query_phy(adapter,
-			      QLCNIC_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-			      &status) != 0)
-			return -EIO;
+	if (ecmd->autoneg)
+		config |= 0x2;
 
-		switch (ecmd->speed) {
-		case SPEED_10:
-			qlcnic_set_phy_speed(status, 0);
-			break;
-		case SPEED_100:
-			qlcnic_set_phy_speed(status, 1);
-			break;
-		case SPEED_1000:
-			qlcnic_set_phy_speed(status, 2);
-			break;
-		}
+	switch (ethtool_cmd_speed(ecmd)) {
+	case SPEED_10:
+		config |= (0 << 8);
+		break;
+	case SPEED_100:
+		config |= (1 << 8);
+		break;
+	case SPEED_1000:
+		config |= (10 << 8);
+		break;
+	default:
+		return -EIO;
+	}
 
-		if (ecmd->duplex == DUPLEX_HALF)
-			qlcnic_clear_phy_duplex(status);
-		if (ecmd->duplex == DUPLEX_FULL)
-			qlcnic_set_phy_duplex(status);
-		if (qlcnic_fw_cmd_set_phy(adapter,
-			       QLCNIC_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-			       *((int *)&status)) != 0)
-			return -EIO;
-		else {
-			adapter->link_speed = ecmd->speed;
-			adapter->link_duplex = ecmd->duplex;
-		}
-	} else
+	ret = qlcnic_fw_cmd_set_port(adapter, config);
+
+	if (ret == QLCNIC_RCODE_NOT_SUPPORTED)
 		return -EOPNOTSUPP;
+	else if (ret)
+		return -EIO;
+
+	adapter->link_speed = ethtool_cmd_speed(ecmd);
+	adapter->link_duplex = ecmd->duplex;
+	adapter->link_autoneg = ecmd->autoneg;
 
 	if (!netif_running(dev))
 		return 0;

@@ -359,33 +359,15 @@ qlcnic_fw_cmd_destroy_tx_ctx(struct qlcnic_adapter *adapter)
 }
 
 int
-qlcnic_fw_cmd_query_phy(struct qlcnic_adapter *adapter, u32 reg, u32 *val)
-{
-
-	if (qlcnic_issue_cmd(adapter,
-			adapter->ahw->pci_func,
-			adapter->fw_hal_version,
-			reg,
-			0,
-			0,
-			QLCNIC_CDRP_CMD_READ_PHY)) {
-
-		return -EIO;
-	}
-
-	return QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-}
-
-int
-qlcnic_fw_cmd_set_phy(struct qlcnic_adapter *adapter, u32 reg, u32 val)
+qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config)
 {
 	return qlcnic_issue_cmd(adapter,
 			adapter->ahw->pci_func,
 			adapter->fw_hal_version,
-			reg,
-			val,
+			config,
 			0,
-			QLCNIC_CDRP_CMD_WRITE_PHY);
+			0,
+			QLCNIC_CDRP_CMD_CONFIG_PORT);
 }
 
 int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
