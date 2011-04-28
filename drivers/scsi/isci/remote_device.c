@@ -1099,8 +1099,7 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 	}
 };
 
-static void scic_sds_remote_device_initial_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_initial_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
@@ -1202,8 +1201,7 @@ static void isci_remote_device_stop_complete(struct isci_host *ihost,
 	isci_remote_device_deconstruct(ihost, idev);
 }
 
-static void scic_sds_remote_device_stopped_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_stopped_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev;
 	struct scic_sds_controller *scic;
@@ -1229,7 +1227,7 @@ static void scic_sds_remote_device_stopped_state_enter(
 	scic_sds_controller_remote_device_stopped(scic, sci_dev);
 }
 
-static void scic_sds_remote_device_starting_state_enter(struct sci_base_object *object)
+static void scic_sds_remote_device_starting_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -1244,7 +1242,7 @@ static void scic_sds_remote_device_starting_state_enter(struct sci_base_object *
 				     SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
 }
 
-static void scic_sds_remote_device_ready_state_enter(struct sci_base_object *object)
+static void scic_sds_remote_device_ready_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -1264,8 +1262,7 @@ static void scic_sds_remote_device_ready_state_enter(struct sci_base_object *obj
 		isci_remote_device_ready(ihost, idev);
 }
 
-static void scic_sds_remote_device_ready_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_ready_state_exit(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -1281,8 +1278,7 @@ static void scic_sds_remote_device_ready_state_exit(
 	}
 }
 
-static void scic_sds_remote_device_stopping_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_stopping_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
@@ -1293,8 +1289,7 @@ static void scic_sds_remote_device_stopping_state_enter(
 		);
 }
 
-static void scic_sds_remote_device_failed_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_failed_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
@@ -1305,8 +1300,7 @@ static void scic_sds_remote_device_failed_state_enter(
 		);
 }
 
-static void scic_sds_remote_device_resetting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_resetting_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
@@ -1320,16 +1314,14 @@ static void scic_sds_remote_device_resetting_state_enter(
 		&sci_dev->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
 }
 
-static void scic_sds_remote_device_resetting_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_resetting_state_exit(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
 	scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
 }
 
-static void scic_sds_remote_device_final_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_final_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 

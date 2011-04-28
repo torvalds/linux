@@ -970,8 +970,7 @@ static void scic_sds_remote_node_context_invalidate_context_buffer(
  *
  *
  */
-static void scic_sds_remote_node_context_initial_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_initial_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 
@@ -1001,8 +1000,7 @@ static void scic_sds_remote_node_context_initial_state_enter(
  *
  *
  */
-static void scic_sds_remote_node_context_posting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_posting_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *sci_rnc;
 
@@ -1022,8 +1020,7 @@ static void scic_sds_remote_node_context_posting_state_enter(
  *
  *
  */
-static void scic_sds_remote_node_context_invalidating_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_invalidating_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 
@@ -1043,8 +1040,7 @@ static void scic_sds_remote_node_context_invalidating_state_enter(
  *
  *
  */
-static void scic_sds_remote_node_context_resuming_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_resuming_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 	struct scic_sds_remote_device *sci_dev;
@@ -1079,8 +1075,7 @@ static void scic_sds_remote_node_context_resuming_state_enter(
  *
  *
  */
-static void scic_sds_remote_node_context_ready_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_ready_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 
@@ -1104,8 +1099,7 @@ static void scic_sds_remote_node_context_ready_state_enter(
  *
  *
  */
-static void scic_sds_remote_node_context_tx_suspended_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_remote_node_context_tx_suspended_state_enter(void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 
@@ -1126,7 +1120,7 @@ static void scic_sds_remote_node_context_tx_suspended_state_enter(
  *
  */
 static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(
-	struct sci_base_object *object)
+		void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 
@@ -1147,7 +1141,7 @@ static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(
  *
  */
 static void scic_sds_remote_node_context_await_suspension_state_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_remote_node_context *rnc;
 

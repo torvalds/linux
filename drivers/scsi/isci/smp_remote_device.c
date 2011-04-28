@@ -237,14 +237,14 @@ static const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_dev
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast into a
+ * @object: This is the object which is cast into a
  *    struct scic_sds_remote_device.
  *
  * This is the SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE enter method.
  * This function sets the ready cmd substate handlers and reports the device as
  * ready. none
  */
-static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base_object *object)
+static void scic_sds_smp_remote_device_ready_idle_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -261,15 +261,14 @@ static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast into a
+ * @object: This is the object which is cast into a
  *    struct scic_sds_remote_device.
  *
  * This is the SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD enter method. This
  * function sets the remote device objects ready cmd substate handlers, and
  * notify core user that the device is not ready. none
  */
-static void scic_sds_smp_remote_device_ready_cmd_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -289,12 +288,12 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast into a
+ * @object: This is the object which is cast into a
  *    struct scic_sds_remote_device.
  *
  * This is the SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATE_CMD exit method. none
  */
-static void scic_sds_smp_remote_device_ready_cmd_substate_exit(struct sci_base_object *object)
+static void scic_sds_smp_remote_device_ready_cmd_substate_exit(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);

@@ -58,13 +58,9 @@
 
 #include "sci_object.h"
 
-typedef void (*sci_base_state_handler_t)(
-	void
-	);
+typedef void (*sci_base_state_handler_t)(void);
 
-typedef void (*sci_state_transition_t)(
-	struct sci_base_object *base_object
-	);
+typedef void (*sci_state_transition_t)(void *base_object);
 
 /**
  * struct sci_base_state - The base state object abstracts the fields common to

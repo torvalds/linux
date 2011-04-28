@@ -601,12 +601,11 @@ scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *use
 
 /**
  *
- * @device: This is the SCI base object which is cast into a
+ * @device: This is the object which is cast into a
  *    struct scic_sds_remote_device object.
  *
  */
-static void scic_sds_stp_remote_device_ready_idle_substate_enter(
-	struct sci_base_object *device)
+static void scic_sds_stp_remote_device_ready_idle_substate_enter(void *device)
 {
 	struct scic_sds_remote_device *sci_dev;
 
@@ -635,7 +634,7 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(
 	}
 }
 
-static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_object *object)
+static void scic_sds_stp_remote_device_ready_cmd_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -653,7 +652,7 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_
 				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
 }
 
-static void scic_sds_stp_remote_device_ready_ncq_substate_enter(struct sci_base_object *object)
+static void scic_sds_stp_remote_device_ready_ncq_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -662,7 +661,8 @@ static void scic_sds_stp_remote_device_ready_ncq_substate_enter(struct sci_base_
 			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
 }
 
-static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci_base_object *object)
+static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
+		void *object)
 {
 	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
 							      parent);
@@ -686,12 +686,12 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci
 
 /**
  * The enter routine to READY AWAIT RESET substate.
- * @device: This is the SCI base object which is cast into a
+ * @device: This is the object which is cast into a
  *    struct scic_sds_remote_device object.
  *
  */
 static void scic_sds_stp_remote_device_ready_await_reset_substate_enter(
-	struct sci_base_object *device)
+	void *device)
 {
 	struct scic_sds_remote_device *sci_dev;
 

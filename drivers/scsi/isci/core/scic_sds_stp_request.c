@@ -564,7 +564,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 };
 
 static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -579,8 +579,7 @@ static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(
 		);
 }
 
-static void scic_sds_stp_request_started_non_data_await_d2h_enter(
-	struct sci_base_object *object)
+static void scic_sds_stp_request_started_non_data_await_d2h_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1214,7 +1213,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 };
 
 static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1228,8 +1227,7 @@ static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(
 		sci_req->target_device, sci_req);
 }
 
-static void scic_sds_stp_request_started_pio_await_frame_enter(
-	struct sci_base_object *object)
+static void scic_sds_stp_request_started_pio_await_frame_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1241,7 +1239,7 @@ static void scic_sds_stp_request_started_pio_await_frame_enter(
 }
 
 static void scic_sds_stp_request_started_pio_data_in_await_data_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1253,7 +1251,7 @@ static void scic_sds_stp_request_started_pio_data_in_await_data_enter(
 }
 
 static void scic_sds_stp_request_started_pio_data_out_transmit_data_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1485,7 +1483,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 };
 
 static void scic_sds_stp_request_started_udma_await_tc_completion_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1504,7 +1502,7 @@ static void scic_sds_stp_request_started_udma_await_tc_completion_enter(
  * will UF the D2H register FIS to complete the IO.
  */
 static void scic_sds_stp_request_started_udma_await_d2h_reg_fis_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1732,7 +1730,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_stp_request_start
 };
 
 static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1748,7 +1746,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completio
 }
 
 static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 	struct scu_task_context *task_context;
@@ -1775,7 +1773,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 }
 
 static void scic_sds_stp_request_started_soft_reset_await_d2h_response_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 

@@ -94,7 +94,7 @@ struct sci_base_state_machine {
 	 * associated.  It serves as a cookie to be provided to the state
 	 * enter/exit methods.
 	 */
-	struct sci_base_object *state_machine_owner;
+	void *state_machine_owner;
 
 	/**
 	 * This field simply indicates the state value for the state machine's
@@ -121,7 +121,7 @@ struct sci_base_state_machine {
 
 void sci_base_state_machine_construct(
 	struct sci_base_state_machine *this_state_machine,
-	struct sci_base_object *state_machine_owner,
+	void *state_machine_owner,
 	const struct sci_base_state *state_table,
 	u32 initial_state);
 

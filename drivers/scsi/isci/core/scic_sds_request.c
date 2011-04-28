@@ -1521,8 +1521,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
  * base request is constructed. Entry into the initial state sets all handlers
  * for the io request object to their default handlers. none
  */
-static void scic_sds_request_initial_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_initial_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1541,8 +1540,7 @@ static void scic_sds_request_initial_state_enter(
  * SCI_BASE_REQUEST_STATE_CONSTRUCTED state. The method sets the state handlers
  * for the the constructed state. none
  */
-static void scic_sds_request_constructed_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_constructed_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1556,14 +1554,13 @@ static void scic_sds_request_constructed_state_enter(
 /**
  * scic_sds_request_started_state_enter() -
  * @object: This parameter specifies the base object for which the state
- *    transition is occuring.  This is cast into a SCIC_SDS_IO_REQUEST object.
+ *    transition is occurring.  This is cast into a SCIC_SDS_IO_REQUEST object.
  *
  * This method implements the actions taken when entering the
  * SCI_BASE_REQUEST_STATE_STARTED state. If the io request object type is a
  * SCSI Task request we must enter the started substate machine. none
  */
-static void scic_sds_request_started_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_started_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1583,15 +1580,14 @@ static void scic_sds_request_started_state_enter(
 /**
  * scic_sds_request_started_state_exit() -
  * @object: This parameter specifies the base object for which the state
- *    transition is occuring.  This object is cast into a SCIC_SDS_IO_REQUEST
+ *    transition is occurring.  This object is cast into a SCIC_SDS_IO_REQUEST
  *    object.
  *
  * This method implements the actions taken when exiting the
  * SCI_BASE_REQUEST_STATE_STARTED state. For task requests the action will be
  * to stop the started substate machine. none
  */
-static void scic_sds_request_started_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_request_started_state_exit(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1602,7 +1598,7 @@ static void scic_sds_request_started_state_exit(
 /**
  * scic_sds_request_completed_state_enter() -
  * @object: This parameter specifies the base object for which the state
- *    transition is occuring.  This object is cast into a SCIC_SDS_IO_REQUEST
+ *    transition is occurring.  This object is cast into a SCIC_SDS_IO_REQUEST
  *    object.
  *
  * This method implements the actions taken when entering the
@@ -1611,8 +1607,7 @@ static void scic_sds_request_started_state_exit(
  * completion status and convert it to an enum sci_status to return in the
  * completion callback function. none
  */
-static void scic_sds_request_completed_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_completed_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 	struct scic_sds_controller *scic =
@@ -1636,14 +1631,13 @@ static void scic_sds_request_completed_state_enter(
 /**
  * scic_sds_request_aborting_state_enter() -
  * @object: This parameter specifies the base object for which the state
- *    transition is occuring.  This object is cast into a SCIC_SDS_IO_REQUEST
+ *    transition is occurring.  This object is cast into a SCIC_SDS_IO_REQUEST
  *    object.
  *
  * This method implements the actions taken when entering the
  * SCI_BASE_REQUEST_STATE_ABORTING state. none
  */
-static void scic_sds_request_aborting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_aborting_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -1660,14 +1654,13 @@ static void scic_sds_request_aborting_state_enter(
 /**
  * scic_sds_request_final_state_enter() -
  * @object: This parameter specifies the base object for which the state
- *    transition is occuring.  This is cast into a SCIC_SDS_IO_REQUEST object.
+ *    transition is occurring.  This is cast into a SCIC_SDS_IO_REQUEST object.
  *
  * This method implements the actions taken when entering the
  * SCI_BASE_REQUEST_STATE_FINAL state. The only action required is to put the
  * state handlers in place. none
  */
-static void scic_sds_request_final_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_request_final_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 

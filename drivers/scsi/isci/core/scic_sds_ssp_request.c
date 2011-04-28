@@ -195,12 +195,12 @@ static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_
  *    sub-state.  This includes setting the IO request state handlers for this
  *    sub-state.
  * @object: This parameter specifies the request object for which the sub-state
- *    change is occuring.
+ *    change is occurring.
  *
  * none.
  */
 static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 
@@ -216,12 +216,12 @@ static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_e
  *    SCIC_SDS_IO_REQUEST_STARTED_SUBSTATE_AWAIT_TC_RESPONSE sub-state. This
  *    includes setting the IO request state handlers for this sub-state.
  * @object: This parameter specifies the request object for which the sub-state
- *    change is occuring.
+ *    change is occurring.
  *
  * none.
  */
 static void scic_sds_io_request_started_task_mgmt_await_task_response_substate_enter(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
 

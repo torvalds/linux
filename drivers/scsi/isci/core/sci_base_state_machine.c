@@ -100,7 +100,7 @@ static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
  *
  */
 void sci_base_state_machine_construct(struct sci_base_state_machine *sm,
-				      struct sci_base_object *owner,
+				      void *owner,
 				      const struct sci_base_state *state_table,
 				      u32 initial_state)
 {
