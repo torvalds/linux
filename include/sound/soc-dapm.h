@@ -474,6 +474,7 @@ struct snd_soc_dapm_widget {
 	/* kcontrols that relate to this widget */
 	int num_kcontrols;
 	const struct snd_kcontrol_new *kcontrol_news;
+	struct snd_kcontrol **kcontrols;
 
 	/* widget input and outputs */
 	struct list_head sources;
