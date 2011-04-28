@@ -316,8 +316,7 @@ static void __device_release_driver(struct device *dev)
 
 	drv = dev->driver;
 	if (drv) {
-		pm_runtime_get_noresume(dev);
-		pm_runtime_barrier(dev);
+		pm_runtime_get_sync(dev);
 
 		driver_sysfs_remove(dev);
 
@@ -325,6 +324,8 @@ static void __device_release_driver(struct device *dev)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 						     BUS_NOTIFY_UNBIND_DRIVER,
 						     dev);
+
+		pm_runtime_put_sync(dev);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);
@@ -338,7 +339,6 @@ static void __device_release_driver(struct device *dev)
 						     BUS_NOTIFY_UNBOUND_DRIVER,
 						     dev);
 
-		pm_runtime_put_sync(dev);
 	}
 }
 
