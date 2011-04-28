@@ -45,7 +45,7 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-#define PAGE_ALLOC_LIMIT                    1   // 限制Page申请
+#define PAGE_ALLOC_LIMIT                    0   // 限制Page申请
 #define PAGE_ALLOC_LIMIT_SIZE               0   // 限制Page申请的大小,单位为M
 
 #if PAGE_ALLOC_LIMIT
