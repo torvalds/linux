@@ -1129,18 +1129,28 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 static void update_speakers(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	int on;
 
+	if (!spec->automute)
+		on = 0;
+	else
+		on = spec->jack_present | spec->line_jack_present;
+	on |= spec->master_mute;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.speaker_pins),
-		    spec->autocfg.speaker_pins,
-		    spec->jack_present | spec->line_jack_present |
-		    spec->master_mute, false);
+		    spec->autocfg.speaker_pins, on, false);
 
 	/* toggle line-out mutes if needed, too */
-	if (!spec->automute_lines)
+	/* if LO is a copy of either HP or Speaker, don't need to handle it */
+	if (spec->autocfg.line_out_pins[0] == spec->autocfg.hp_pins[0] ||
+	    spec->autocfg.line_out_pins[0] == spec->autocfg.speaker_pins[0])
 		return;
+	if (!spec->automute_lines || !spec->automute)
+		on = 0;
+	else
+		on = spec->jack_present;
+	on |= spec->master_mute;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
-		    spec->autocfg.line_out_pins,
-		    spec->jack_present | spec->master_mute, false);
+		    spec->autocfg.line_out_pins, on, false);
 }
 
 static void alc_hp_automute(struct hda_codec *codec)
@@ -1414,6 +1424,95 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 	}
 }
 
+static int alc_automute_mode_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[] = {
+		"Disabled", "Speaker Only", "Line-Out+Speaker"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+	if (uinfo->value.enumerated.item >= 3)
+		uinfo->value.enumerated.item = 2;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int alc_automute_mode_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	unsigned int val;
+	if (!spec->automute)
+		val = 0;
+	else if (!spec->automute_lines)
+		val = 1;
+	else
+		val = 2;
+	ucontrol->value.enumerated.item[0] = val;
+	return 0;
+}
+
+static int alc_automute_mode_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+
+	switch (ucontrol->value.enumerated.item[0]) {
+	case 0:
+		if (!spec->automute)
+			return 0;
+		spec->automute = 0;
+		break;
+	case 1:
+		if (spec->automute && !spec->automute_lines)
+			return 0;
+		spec->automute = 1;
+		spec->automute_lines = 0;
+		break;
+	case 2:
+		if (spec->automute && spec->automute_lines)
+			return 0;
+		spec->automute = 1;
+		spec->automute_lines = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+	update_speakers(codec);
+	return 1;
+}
+
+static struct snd_kcontrol_new alc_automute_mode_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Auto-Mute Mode",
+	.info = alc_automute_mode_info,
+	.get = alc_automute_mode_get,
+	.put = alc_automute_mode_put,
+};
+
+static struct snd_kcontrol_new *alc_kcontrol_new(struct alc_spec *spec);
+
+static int alc_add_automute_mode_enum(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew;
+
+	knew = alc_kcontrol_new(spec);
+	if (!knew)
+		return -ENOMEM;
+	*knew = alc_automute_mode_enum;
+	knew->name = kstrdup("Auto-Mute Mode", GFP_KERNEL);
+	if (!knew->name)
+		return -ENOMEM;
+	return 0;
+}
+
 static void alc_init_auto_hp(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1440,13 +1539,36 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 	}
 
 	for (i = 0; i < cfg->hp_outs; i++) {
+		hda_nid_t nid = cfg->hp_pins[i];
+		if (!(snd_hda_query_pin_caps(codec, nid) &
+		      AC_PINCAP_PRES_DETECT))
+			continue;
 		snd_printdd("realtek: Enable HP auto-muting on NID 0x%x\n",
-			    cfg->hp_pins[i]);
-		snd_hda_codec_write_cache(codec, cfg->hp_pins[i], 0,
+			    nid);
+		snd_hda_codec_write_cache(codec, nid, 0,
 				  AC_VERB_SET_UNSOLICITED_ENABLE,
 				  AC_USRSP_EN | ALC880_HP_EVENT);
 		spec->automute = 1;
 		spec->automute_mode = ALC_AUTOMUTE_PIN;
+	}
+	if (spec->automute && cfg->line_out_pins[0] &&
+	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
+	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
+		for (i = 0; i < cfg->line_outs; i++) {
+			hda_nid_t nid = cfg->line_out_pins[i];
+			if (!(snd_hda_query_pin_caps(codec, nid) &
+			      AC_PINCAP_PRES_DETECT))
+				continue;
+			snd_printdd("realtek: Enable Line-Out auto-muting "
+				    "on NID 0x%x\n", nid);
+			snd_hda_codec_write_cache(codec, nid, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					AC_USRSP_EN | ALC880_FRONT_EVENT);
+			spec->detect_line = 1;
+		}
+		/* create a control for automute mode */
+		alc_add_automute_mode_enum(codec);
+		spec->automute_lines = 1;
 	}
 	spec->unsol_event = alc_sku_unsol_event;
 }
@@ -1684,9 +1806,6 @@ do_sku:
 				return 1;
 		spec->autocfg.hp_pins[0] = nid;
 	}
-
-	alc_init_auto_hp(codec);
-	alc_init_auto_mic(codec);
 	return 1;
 }
 
@@ -1699,9 +1818,10 @@ static void alc_ssid_check(struct hda_codec *codec,
 		snd_printd("realtek: "
 			   "Enable default setup for auto mode as fallback\n");
 		spec->init_amp = ALC_INIT_DEFAULT;
-		alc_init_auto_hp(codec);
-		alc_init_auto_mic(codec);
 	}
+
+	alc_init_auto_hp(codec);
+	alc_init_auto_mic(codec);
 }
 
 /*
