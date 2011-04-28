@@ -7298,7 +7298,7 @@ void intel_enable_clock_gating(struct drm_device *dev)
 				   _3D_CHICKEN2_WM_READ_PIPELINED);
 		}
 
-		if (IS_GEN6(dev)) {
+		if (IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
 			I915_WRITE(WM3_LP_ILK, 0);
 			I915_WRITE(WM2_LP_ILK, 0);
 			I915_WRITE(WM1_LP_ILK, 0);
@@ -7560,6 +7560,13 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
+			if (SNB_READ_WM0_LATENCY()) {
+				dev_priv->display.update_wm = sandybridge_update_wm;
+			} else {
+				DRM_DEBUG_KMS("Failed to read display plane latency. "
+					      "Disable CxSR\n");
+				dev_priv->display.update_wm = NULL;
+			}
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_PINEVIEW(dev)) {
