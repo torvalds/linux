@@ -2990,32 +2990,28 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 	struct mwifiex_bssdescriptor *curr_bss =
 		&priv->curr_bss_params.bss_descriptor;
 
-	/* save the beacon buffer if it is not saved or updated */
-	if ((priv->curr_bcn_buf == NULL) ||
-	    (priv->curr_bcn_size != curr_bss->beacon_buf_size) ||
-	    (memcmp(priv->curr_bcn_buf, curr_bss->beacon_buf,
-		    curr_bss->beacon_buf_size))) {
+	if (!curr_bss->beacon_buf_size)
+		return;
+
+	/* allocate beacon buffer at 1st time; or if it's size has changed */
+	if (!priv->curr_bcn_buf ||
+			priv->curr_bcn_size != curr_bss->beacon_buf_size) {
+		priv->curr_bcn_size = curr_bss->beacon_buf_size;
 
 		kfree(priv->curr_bcn_buf);
-		priv->curr_bcn_buf = NULL;
-
-		priv->curr_bcn_size = curr_bss->beacon_buf_size;
-		if (!priv->curr_bcn_size)
-			return;
-
 		priv->curr_bcn_buf = kzalloc(curr_bss->beacon_buf_size,
 						GFP_KERNEL);
 		if (!priv->curr_bcn_buf) {
 			dev_err(priv->adapter->dev,
 					"failed to alloc curr_bcn_buf\n");
-		} else {
-			memcpy(priv->curr_bcn_buf, curr_bss->beacon_buf,
-			       curr_bss->beacon_buf_size);
-			dev_dbg(priv->adapter->dev,
-				"info: current beacon saved %d\n",
-			       priv->curr_bcn_size);
+			return;
 		}
 	}
+
+	memcpy(priv->curr_bcn_buf, curr_bss->beacon_buf,
+		curr_bss->beacon_buf_size);
+	dev_dbg(priv->adapter->dev, "info: current beacon saved %d\n",
+		priv->curr_bcn_size);
 }
 
 /*
