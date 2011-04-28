@@ -231,7 +231,8 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 	input->keycodesize = sizeof(pdata->keycodes[0]);
 	input->keycodemax = ARRAY_SIZE(pdata->keycodes);
 
-	error = request_irq(irq, sh_keysc_isr, 0, pdev->name, pdev);
+	error = request_threaded_irq(irq, NULL, sh_keysc_isr, IRQF_ONESHOT,
+				     dev_name(&pdev->dev), pdev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto err3;
