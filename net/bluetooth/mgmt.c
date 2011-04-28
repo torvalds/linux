@@ -1858,12 +1858,13 @@ int mgmt_connectable(u16 index, u8 connectable)
 	return ret;
 }
 
-int mgmt_new_key(u16 index, struct link_key *key)
+int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
 {
 	struct mgmt_ev_new_key ev;
 
 	memset(&ev, 0, sizeof(ev));
 
+	ev.store_hint = persistent;
 	bacpy(&ev.key.bdaddr, &key->bdaddr);
 	ev.key.type = key->type;
 	memcpy(ev.key.val, key->val, 16);

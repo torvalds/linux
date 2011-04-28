@@ -1062,7 +1062,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
 {
 	struct link_key *key, *old_key;
-	u8 old_key_type;
+	u8 old_key_type, persistent;
 
 	old_key = hci_find_link_key(hdev, bdaddr);
 	if (old_key) {
@@ -1089,12 +1089,6 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 			conn->key_type = type;
 	}
 
-	if (new_key && !hci_persistent_key(hdev, conn, type, old_key_type)) {
-		list_del(&key->list);
-		kfree(key);
-		return 0;
-	}
-
 	bacpy(&key->bdaddr, bdaddr);
 	memcpy(key->val, val, 16);
 	key->pin_len = pin_len;
@@ -1104,8 +1098,17 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	else
 		key->type = type;
 
-	if (new_key)
-		mgmt_new_key(hdev->id, key);
+	if (!new_key)
+		return 0;
+
+	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
+
+	mgmt_new_key(hdev->id, key, persistent);
+
+	if (!persistent) {
+		list_del(&key->list);
+		kfree(key);
+	}
 
 	return 0;
 }
