@@ -1413,8 +1413,8 @@ static __init int intel_pmu_init(void)
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		x86_pmu.extra_regs = intel_nehalem_extra_regs;
 
-		/* Install the stalled-cycles event: 0xff: All reasons, 0xa2: Resource stalls */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES] = 0xffa2;
+		/* Install the stalled-cycles event: UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES] = 0x1803fb1;
 
 		if (ebx & 0x40) {
 			/*
