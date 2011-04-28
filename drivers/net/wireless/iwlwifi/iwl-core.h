@@ -99,7 +99,6 @@ struct iwl_hcmd_ops {
 };
 
 struct iwl_hcmd_utils_ops {
-	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,
