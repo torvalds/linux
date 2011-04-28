@@ -226,11 +226,6 @@ enum scic_sds_remote_node_context_destination_state {
  *    the silicon RNC.
  */
 struct scic_sds_remote_node_context {
-	/*
-	 * parent object
-	 */
-	struct sci_base_object parent;
-
 	/**
 	 * This field indicates the remote node index (RNI) associated with
 	 * this RNC.

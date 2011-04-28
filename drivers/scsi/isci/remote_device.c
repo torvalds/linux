@@ -1386,8 +1386,6 @@ static void scic_remote_device_construct(struct scic_sds_port *sci_port,
 
 	scic_sds_remote_node_context_construct(&sci_dev->rnc,
 					       SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
-
-	sci_object_set_association(&sci_dev->rnc, sci_dev);
 }
 
 /**

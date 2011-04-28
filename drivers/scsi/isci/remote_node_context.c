@@ -972,9 +972,7 @@ static void scic_sds_remote_node_context_invalidate_context_buffer(
  */
 static void scic_sds_remote_node_context_initial_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1002,9 +1000,7 @@ static void scic_sds_remote_node_context_initial_state_enter(void *object)
  */
 static void scic_sds_remote_node_context_posting_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *sci_rnc;
-
-	sci_rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *sci_rnc = object;
 
 	SET_STATE_HANDLER(
 		sci_rnc,
@@ -1022,9 +1018,7 @@ static void scic_sds_remote_node_context_posting_state_enter(void *object)
  */
 static void scic_sds_remote_node_context_invalidating_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1042,11 +1036,10 @@ static void scic_sds_remote_node_context_invalidating_state_enter(void *object)
  */
 static void scic_sds_remote_node_context_resuming_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
+	struct scic_sds_remote_node_context *rnc = object;
 	struct scic_sds_remote_device *sci_dev;
 	struct domain_device *dev;
 
-	rnc = (struct scic_sds_remote_node_context *)object;
 	sci_dev = rnc_to_dev(rnc);
 	dev = sci_dev_to_domain(sci_dev);
 
@@ -1077,9 +1070,7 @@ static void scic_sds_remote_node_context_resuming_state_enter(void *object)
  */
 static void scic_sds_remote_node_context_ready_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1101,9 +1092,7 @@ static void scic_sds_remote_node_context_ready_state_enter(void *object)
  */
 static void scic_sds_remote_node_context_tx_suspended_state_enter(void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1122,9 +1111,7 @@ static void scic_sds_remote_node_context_tx_suspended_state_enter(void *object)
 static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(
 		void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1143,9 +1130,7 @@ static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(
 static void scic_sds_remote_node_context_await_suspension_state_enter(
 	void *object)
 {
-	struct scic_sds_remote_node_context *rnc;
-
-	rnc = (struct scic_sds_remote_node_context *)object;
+	struct scic_sds_remote_node_context *rnc = object;
 
 	SET_STATE_HANDLER(
 		rnc,
@@ -1193,7 +1178,7 @@ void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context 
 
 	sci_base_state_machine_construct(
 		&rnc->state_machine,
-		&rnc->parent,
+		rnc,
 		scic_sds_remote_node_context_state_table,
 		SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE
 		);
