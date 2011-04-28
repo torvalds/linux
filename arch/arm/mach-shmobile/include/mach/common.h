@@ -8,6 +8,7 @@ struct clk;
 extern int clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern void shmobile_handle_irq_gic(struct pt_regs *);
+extern struct platform_suspend_ops shmobile_suspend_ops;
 
 extern void sh7367_init_irq(void);
 extern void sh7367_add_early_devices(void);
