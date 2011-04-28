@@ -44,7 +44,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 /* Sensor Driver Configuration */
 #define SENSOR_NAME sid130B
-#define SENSOR_V4L2_IDENT V4L2_IDENT_OV2655
+#define SENSOR_V4L2_IDENT V4L2_IDENT_SID130B
 #define SENSOR_ID 0x1B
 #define SENSOR_MIN_WIDTH    176
 #define SENSOR_MIN_HEIGHT   144
