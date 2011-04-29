@@ -59,6 +59,9 @@ static int adxrs450_spi_read_reg_16(struct device *dev,
 	st->tx[2] = 0;
 	st->tx[3] = 0;
 
+	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
+		st->tx[3]  |= ADXRS450_P;
+
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
 	spi_message_add_tail(&xfers[1], &msg);
@@ -103,6 +106,10 @@ static int adxrs450_spi_write_reg_16(struct device *dev,
 	st->tx[1] = reg_address << 1 | val >> 15;
 	st->tx[2] = val >> 7;
 	st->tx[3] = val << 1;
+
+	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
+		st->tx[3]  |= ADXRS450_P;
+
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers, &msg);
 	ret = spi_sync(st->us, &msg);
