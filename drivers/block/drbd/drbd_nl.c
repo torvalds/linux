@@ -1799,7 +1799,7 @@ struct crypto {
 };
 
 static int
-alloc_tfm(struct crypto_hash **tfm, char *tfm_name, int err_alg, int err_nd)
+alloc_hash(struct crypto_hash **tfm, char *tfm_name, int err_alg)
 {
 	if (!tfm_name[0])
 		return NO_ERROR;
@@ -1809,9 +1809,6 @@ alloc_tfm(struct crypto_hash **tfm, char *tfm_name, int err_alg, int err_nd)
 		*tfm = NULL;
 		return err_alg;
 	}
-
-	if (!drbd_crypto_is_hash(crypto_hash_tfm(*tfm)))
-		return err_nd;
 
 	return NO_ERROR;
 }
@@ -1823,28 +1820,28 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
 	enum drbd_ret_code rv;
 	int hash_size;
 
-	rv = alloc_tfm(&crypto->csums_tfm, new_conf->csums_alg,
-		       ERR_CSUMS_ALG, ERR_CSUMS_ALG_ND);
+	rv = alloc_hash(&crypto->csums_tfm, new_conf->csums_alg,
+		       ERR_CSUMS_ALG);
 	if (rv != NO_ERROR)
 		return rv;
-	rv = alloc_tfm(&crypto->verify_tfm, new_conf->verify_alg,
-		       ERR_VERIFY_ALG, ERR_VERIFY_ALG_ND);
+	rv = alloc_hash(&crypto->verify_tfm, new_conf->verify_alg,
+		       ERR_VERIFY_ALG);
 	if (rv != NO_ERROR)
 		return rv;
-	rv = alloc_tfm(&crypto->integrity_tfm, new_conf->integrity_alg,
-		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
+	rv = alloc_hash(&crypto->integrity_tfm, new_conf->integrity_alg,
+		       ERR_INTEGRITY_ALG);
 	if (rv != NO_ERROR)
 		return rv;
-	rv = alloc_tfm(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
-		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
+	rv = alloc_hash(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
+		       ERR_INTEGRITY_ALG);
 	if (rv != NO_ERROR)
 		return rv;
 	if (new_conf->cram_hmac_alg[0] != 0) {
 		snprintf(hmac_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
 			 new_conf->cram_hmac_alg);
 
-		rv = alloc_tfm(&crypto->cram_hmac_tfm, hmac_name,
-			       ERR_AUTH_ALG, ERR_AUTH_ALG_ND);
+		rv = alloc_hash(&crypto->cram_hmac_tfm, hmac_name,
+			       ERR_AUTH_ALG);
 	}
 	if (crypto->integrity_tfm) {
 		hash_size = crypto_hash_digestsize(crypto->integrity_tfm);
