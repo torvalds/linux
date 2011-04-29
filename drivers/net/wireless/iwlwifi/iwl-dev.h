@@ -238,15 +238,6 @@ struct iwl_channel_info {
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
 #define IEEE80211_FRAME_LEN             (IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
-struct iwl_frame {
-	union {
-		struct ieee80211_hdr frame;
-		struct iwl_tx_beacon_cmd beacon;
-		u8 raw[IEEE80211_FRAME_LEN];
-		u8 cmd[360];
-	} u;
-	struct list_head list;
-};
 
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
@@ -1187,10 +1178,6 @@ struct iwl_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct iwl_cfg *cfg;
-
-	/* temporary frame storage list */
-	struct list_head free_frames;
-	int frames_count;
 
 	enum ieee80211_band band;
 
