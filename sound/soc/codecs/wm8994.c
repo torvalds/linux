@@ -2539,7 +2539,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			printk("this route not user\n");
 			break;		 			
 		default:
-			DBG("wm8994 error route!!!\n");
+			printk("wm8994 error route!!!\n");
 			break;
 	}
 	return 0;
