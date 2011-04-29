@@ -340,9 +340,9 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	l2tp_ip_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
 	if (!inet->inet_saddr)
-		inet->inet_saddr = rt->rt_src;
+		inet->inet_saddr = fl4.saddr;
 	if (!inet->inet_rcv_saddr)
-		inet->inet_rcv_saddr = rt->rt_src;
+		inet->inet_rcv_saddr = fl4.saddr;
 	inet->inet_daddr = rt->rt_dst;
 	sk->sk_state = TCP_ESTABLISHED;
 	inet->inet_id = jiffies;
