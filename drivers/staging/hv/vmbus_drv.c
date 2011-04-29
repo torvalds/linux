@@ -45,11 +45,6 @@ static struct pci_dev *hv_pci_dev;
 static struct tasklet_struct msg_dpc;
 static struct tasklet_struct event_dpc;
 
-/* Main vmbus driver data structure */
-struct hv_bus {
-	struct bus_type bus;
-};
-
 unsigned int vmbus_loglevel = (ALL_MODULES << 16 | INFO_LVL);
 EXPORT_SYMBOL(vmbus_loglevel);
 	/* (ALL_MODULES << 16 | DEBUG_LVL_ENTEREXIT); */
@@ -403,14 +398,14 @@ static void vmbus_device_release(struct device *device)
 }
 
 /* The one and only one */
-static struct hv_bus  hv_bus = {
-	.bus.name =		"vmbus",
-	.bus.match =		vmbus_match,
-	.bus.shutdown =		vmbus_shutdown,
-	.bus.remove =		vmbus_remove,
-	.bus.probe =		vmbus_probe,
-	.bus.uevent =		vmbus_uevent,
-	.bus.dev_attrs =	vmbus_device_attrs,
+static struct bus_type  hv_bus = {
+	.name =		"vmbus",
+	.match =		vmbus_match,
+	.shutdown =		vmbus_shutdown,
+	.remove =		vmbus_remove,
+	.probe =		vmbus_probe,
+	.uevent =		vmbus_uevent,
+	.dev_attrs =	vmbus_device_attrs,
 };
 
 static const char *driver_name = "hyperv";
@@ -548,14 +543,12 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 		goto cleanup;
 	}
 
-	hv_bus.bus.name = driver_name;
-
 	/* Initialize the bus context */
 	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
 	tasklet_init(&event_dpc, vmbus_on_event, 0);
 
 	/* Now, register the bus  with LDM */
-	ret = bus_register(&hv_bus.bus);
+	ret = bus_register(&hv_bus);
 	if (ret) {
 		ret = -1;
 		goto cleanup;
@@ -570,7 +563,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 		pr_err("Unable to request IRQ %d\n",
 			   pdev->irq);
 
-		bus_unregister(&hv_bus.bus);
+		bus_unregister(&hv_bus);
 
 		ret = -1;
 		goto cleanup;
@@ -586,7 +579,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	ret = vmbus_connect();
 	if (ret) {
 		free_irq(pdev->irq, pdev);
-		bus_unregister(&hv_bus.bus);
+		bus_unregister(&hv_bus);
 		goto cleanup;
 	}
 
@@ -616,7 +609,7 @@ int vmbus_child_driver_register(struct device_driver *drv)
 	pr_info("child driver registering - name %s\n", drv->name);
 
 	/* The child driver on this vmbus */
-	drv->bus = &hv_bus.bus;
+	drv->bus = &hv_bus;
 
 	ret = driver_register(drv);
 
@@ -686,7 +679,7 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
 		     atomic_inc_return(&device_num));
 
 	/* The new device belongs to this bus */
-	child_device_obj->device.bus = &hv_bus.bus; /* device->dev.bus; */
+	child_device_obj->device.bus = &hv_bus; /* device->dev.bus; */
 	child_device_obj->device.parent = &hv_pci_dev->dev;
 	child_device_obj->device.release = vmbus_device_release;
 
