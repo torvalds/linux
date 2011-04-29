@@ -1331,11 +1331,11 @@ static int lm85_probe(struct i2c_client *client,
 	if (data->type != emc6d103s) {
 		err = sysfs_create_group(&client->dev.kobj, &lm85_group_minctl);
 		if (err)
-			goto err_kfree;
+			goto err_remove_files;
 		err = sysfs_create_group(&client->dev.kobj,
 					 &lm85_group_temp_off);
 		if (err)
-			goto err_kfree;
+			goto err_remove_files;
 	}
 
 	/* The ADT7463/68 have an optional VRM 10 mode where pin 21 is used
