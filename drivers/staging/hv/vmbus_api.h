@@ -99,6 +99,9 @@ struct hv_driver {
 	int (*dev_add)(struct hv_device *device, void *data);
 	int (*dev_rm)(struct hv_device *device);
 	void (*cleanup)(struct hv_driver *driver);
+
+	int (*probe)(struct hv_device *);
+
 };
 
 /* Base device object */
