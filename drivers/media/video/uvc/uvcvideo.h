@@ -600,6 +600,10 @@ extern int uvc_queue_mmap(struct uvc_video_queue *queue,
 		struct vm_area_struct *vma);
 extern unsigned int uvc_queue_poll(struct uvc_video_queue *queue,
 		struct file *file, poll_table *wait);
+#ifndef CONFIG_MMU
+extern unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
+		unsigned long pgoff);
+#endif
 extern int uvc_queue_allocated(struct uvc_video_queue *queue);
 static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 {
