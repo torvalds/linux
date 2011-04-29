@@ -278,11 +278,9 @@ static int adxrs450_initial_setup(struct adxrs450_state *st)
 	ret = adxrs450_spi_initial(st, &t, 1);
 	if (ret)
 		return ret;
-	if (t != 0x01) {
-		dev_err(&st->us->dev, "The initial response is not correct!\n");
-		return -ENODEV;
-
-	}
+	if (t != 0x01)
+		dev_warn(&st->us->dev, "The initial power on response "
+			 "is not correct! Restart without reset?\n");
 
 	msleep(ADXRS450_STARTUP_DELAY);
 	ret = adxrs450_spi_initial(st, &t, 0);
