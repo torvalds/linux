@@ -851,7 +851,13 @@ int rfbi_configure(int rfbi_module, int bpp, int lines)
 
 	return 0;
 }
-EXPORT_SYMBOL(rfbi_configure);
+
+int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
+		int data_lines)
+{
+	return rfbi_configure(dssdev->phy.rfbi.channel, pixel_size, data_lines);
+}
+EXPORT_SYMBOL(omap_rfbi_configure);
 
 int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 		u16 *x, u16 *y, u16 *w, u16 *h)
