@@ -213,10 +213,13 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 	return data;
 }
 
-static void cancel_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
+static unsigned long cancel_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
+	unsigned long data;
 	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
+	data = info[cmdid].ctx;
 	info[cmdid].ctx = CMD_CTX_CANCELLED;
+	return data;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -667,7 +670,7 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
 {
 	spin_lock_irq(&nvmeq->q_lock);
-	cancel_cmdid_data(nvmeq, cmdid);
+	cancel_cmdid(nvmeq, cmdid);
 	spin_unlock_irq(&nvmeq->q_lock);
 }
 
