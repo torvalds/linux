@@ -585,9 +585,9 @@ static int blkvsc_remove(struct hv_device *dev)
 
 }
 
-static void blkvsc_shutdown(struct device *device)
+static void blkvsc_shutdown(struct hv_device *dev)
 {
-	struct block_device_context *blkdev = dev_get_drvdata(device);
+	struct block_device_context *blkdev = dev_get_drvdata(&dev->device);
 	unsigned long flags;
 
 	if (!blkdev)
@@ -883,7 +883,7 @@ static int blkvsc_drv_init(void)
 
 	drv->probe = blkvsc_probe;
 	drv->remove = blkvsc_remove;
-	drv->driver.shutdown = blkvsc_shutdown;
+	drv->shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);

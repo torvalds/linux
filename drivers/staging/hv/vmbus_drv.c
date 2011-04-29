@@ -367,6 +367,7 @@ static int vmbus_remove(struct device *child_device)
 static void vmbus_shutdown(struct device *child_device)
 {
 	struct hv_driver *drv;
+	struct hv_device *dev = device_to_hv_device(child_device);
 
 
 	/* The device may not be attached yet */
@@ -375,9 +376,8 @@ static void vmbus_shutdown(struct device *child_device)
 
 	drv = drv_to_hv_drv(child_device->driver);
 
-	/* Let the specific open-source driver handles the removal if it can */
-	if (drv->driver.shutdown)
-		drv->driver.shutdown(child_device);
+	if (drv->shutdown)
+		drv->shutdown(dev);
 
 	return;
 }
