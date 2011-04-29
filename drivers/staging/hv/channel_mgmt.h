@@ -315,6 +315,4 @@ void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
 
-void vmbus_release_unattached_channels(void);
-
 #endif /* _CHANNEL_MGMT_H_ */

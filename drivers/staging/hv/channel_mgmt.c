@@ -791,37 +791,4 @@ cleanup:
 	return ret;
 }
 
-/*
- * vmbus_release_unattached_channels - Release channels that are
- * unattached/unconnected ie (no drivers associated)
- */
-void vmbus_release_unattached_channels(void)
-{
-	struct vmbus_channel *channel, *pos;
-	struct vmbus_channel *start = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-
-	list_for_each_entry_safe(channel, pos, &vmbus_connection.chn_list,
-				 listentry) {
-		if (channel == start)
-			break;
-
-		if (!channel->device_obj->drv) {
-			list_del(&channel->listentry);
-
-			pr_err("Releasing unattached device object\n");
-
-			vmbus_child_device_unregister(channel->device_obj);
-			free_channel(channel);
-		} else {
-			if (!start)
-				start = channel;
-		}
-	}
-
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
-}
-
 /* eof */
