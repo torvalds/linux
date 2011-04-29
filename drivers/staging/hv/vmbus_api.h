@@ -108,8 +108,6 @@ struct hv_driver {
 
 /* Base device object */
 struct hv_device {
-	char name[64];
-
 	/* the device type id of this device */
 	struct hv_guid dev_type;
 
