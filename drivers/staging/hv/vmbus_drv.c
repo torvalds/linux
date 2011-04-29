@@ -720,9 +720,6 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
 	 */
 	ret = device_register(&child_device_obj->device);
 
-	/* vmbus_probe() error does not get propergate to device_register(). */
-	ret = child_device_obj->probe_error;
-
 	if (ret)
 		pr_err("Unable to register child device\n");
 	else
