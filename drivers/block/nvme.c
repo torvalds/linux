@@ -310,9 +310,9 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 	dma_unmap_sg(nvmeq->q_dmadev, nbio->sg, nbio->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	free_nbio(nvmeq, nbio);
-	if (status)
+	if (status) {
 		bio_endio(bio, -EIO);
-	if (bio->bi_vcnt > bio->bi_idx) {
+	} else if (bio->bi_vcnt > bio->bi_idx) {
 		bio_list_add(&nvmeq->sq_cong, bio);
 		wake_up_process(nvme_thread);
 	} else {
