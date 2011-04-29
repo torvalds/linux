@@ -239,7 +239,6 @@ static void dasd_ext_handler(unsigned int ext_int_code,
 	addr_t ip;
 	int rc;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_DSD]++;
 	switch (ext_int_code >> 24) {
 	case DASD_DIAG_CODE_31BIT:
 		ip = (addr_t) param32;
@@ -250,6 +249,7 @@ static void dasd_ext_handler(unsigned int ext_int_code,
 	default:
 		return;
 	}
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_DSD]++;
 	if (!ip) {		/* no intparm: unsolicited interrupt */
 		DBF_EVENT(DBF_NOTICE, "%s", "caught unsolicited "
 			      "interrupt");
