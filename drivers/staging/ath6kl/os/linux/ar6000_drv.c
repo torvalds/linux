@@ -1678,6 +1678,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     wdev->netdev = dev;
     ar->arNetworkType = INFRA_NETWORK;
     ar->smeState = SME_DISCONNECTED;
+    ar->arAutoAuthStage = AUTH_IDLE;
 
     init_netdev(dev, ifname);
 

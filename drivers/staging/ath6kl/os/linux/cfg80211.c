@@ -172,6 +172,12 @@ ar6k_set_auth_type(struct ar6_softc *ar, enum nl80211_auth_type auth_type)
     case NL80211_AUTHTYPE_NETWORK_EAP:
         ar->arDot11AuthMode = LEAP_AUTH;
         break;
+
+    case NL80211_AUTHTYPE_AUTOMATIC:
+        ar->arDot11AuthMode = OPEN_AUTH;
+        ar->arAutoAuthStage = AUTH_OPEN_IN_PROGRESS;
+        break;
+
     default:
         ar->arDot11AuthMode = OPEN_AUTH;
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -460,6 +466,8 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
     assocReqLen -= assocReqIeOffset;
     assocRespLen -= assocRespIeOffset;
 
+    ar->arAutoAuthStage = AUTH_IDLE;
+
     if((ADHOC_NETWORK & networkType)) {
         if(NL80211_IFTYPE_ADHOC != ar->wdev->iftype) {
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -633,6 +641,8 @@ ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
                                u8 *assocInfo, u16 protocolReasonStatus)
 {
 
+    u16 status;
+
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason));
 
     if (ar->scan_request) {
@@ -663,23 +673,70 @@ ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
             /* connect cmd failed */
             wmi_disconnect_cmd(ar->arWmi);
         } else if (reason == DISCONNECT_CMD) {
-            /* connection loss due to disconnect cmd or low rssi */
-            ar->arConnectPending = false;   
-            if (ar->smeState == SME_CONNECTING) {
-                cfg80211_connect_result(ar->arNetDev, bssid,
-                                        NULL, 0,
-                                        NULL, 0,
-                                        WLAN_STATUS_UNSPECIFIED_FAILURE,
-                                        GFP_KERNEL);
-            } else {
-                cfg80211_disconnected(ar->arNetDev, reason, NULL, 0, GFP_KERNEL);
-            }
-            ar->smeState = SME_DISCONNECTED;
-        }
+		if (ar->arAutoAuthStage) {
+			/*
+			 * If the current auth algorithm is open try shared
+			 * and make autoAuthStage idle. We do not make it
+			 * leap for now being.
+			 */
+			if (ar->arDot11AuthMode == OPEN_AUTH) {
+				struct ar_key *key = NULL;
+				key = &ar->keys[ar->arDefTxKeyIndex];
+				if (down_interruptible(&ar->arSem)) {
+					AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: busy, couldn't get access\n", __func__));
+					return;
+				}
+
+
+				ar->arDot11AuthMode = SHARED_AUTH;
+				ar->arAutoAuthStage = AUTH_IDLE;
+
+				wmi_addKey_cmd(ar->arWmi, ar->arDefTxKeyIndex,
+						ar->arPairwiseCrypto,
+						GROUP_USAGE | TX_USAGE,
+						key->key_len,
+						NULL,
+						key->key, KEY_OP_INIT_VAL, NULL,
+						NO_SYNC_WMIFLAG);
+
+				status = wmi_connect_cmd(ar->arWmi,
+							 ar->arNetworkType,
+							 ar->arDot11AuthMode,
+							 ar->arAuthMode,
+							 ar->arPairwiseCrypto,
+							 ar->arPairwiseCryptoLen,
+							 ar->arGroupCrypto,
+							 ar->arGroupCryptoLen,
+							 ar->arSsidLen,
+							 ar->arSsid,
+							 ar->arReqBssid,
+							 ar->arChannelHint,
+							 ar->arConnectCtrlFlags);
+				up(&ar->arSem);
+
+			} else if (ar->arDot11AuthMode == SHARED_AUTH) {
+				/* should not reach here */
+			}
+		} else {
+			ar->arConnectPending = false;
+			if (ar->smeState == SME_CONNECTING) {
+				cfg80211_connect_result(ar->arNetDev, bssid,
+							NULL, 0,
+							NULL, 0,
+							WLAN_STATUS_UNSPECIFIED_FAILURE,
+							GFP_KERNEL);
+			} else {
+				cfg80211_disconnected(ar->arNetDev,
+						      reason,
+						      NULL, 0,
+						      GFP_KERNEL);
+			}
+			ar->smeState = SME_DISCONNECTED;
+		}
+	}
     } else {
-        if (reason != DISCONNECT_CMD) {
-            wmi_disconnect_cmd(ar->arWmi);
-        }
+	    if (reason != DISCONNECT_CMD)
+		    wmi_disconnect_cmd(ar->arWmi);
     }
 }
 

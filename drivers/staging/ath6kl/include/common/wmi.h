@@ -521,6 +521,11 @@ typedef enum {
     LEAP_AUTH           = 0x04,  /* different from IEEE_AUTH_MODE definitions */
 } DOT11_AUTH_MODE;
 
+enum {
+	AUTH_IDLE,
+	AUTH_OPEN_IN_PROGRESS,
+};
+
 typedef enum {
     NONE_AUTH           = 0x01,
     WPA_AUTH            = 0x02,

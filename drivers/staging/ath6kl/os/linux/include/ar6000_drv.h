@@ -653,6 +653,7 @@ struct ar6_softc {
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
     void                    *arApDev;
 #endif
+    u8 arAutoAuthStage;
 };
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
