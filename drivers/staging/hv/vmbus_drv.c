@@ -622,30 +622,6 @@ cleanup:
 	return ret;
 }
 
-/*
- * vmbus_bus_exit - Terminate the vmbus driver.
- *
- * This routine is opposite of vmbus_bus_init()
- */
-static void vmbus_bus_exit(void)
-{
-
-
-	vmbus_release_unattached_channels();
-	vmbus_disconnect();
-	on_each_cpu(hv_synic_cleanup, NULL, 1);
-
-	hv_cleanup();
-
-	bus_unregister(&hv_bus.bus);
-
-	free_irq(hv_pci_dev->irq, hv_pci_dev);
-
-	tasklet_kill(&hv_bus.msg_dpc);
-	tasklet_kill(&hv_bus.event_dpc);
-}
-
-
 /**
  * vmbus_child_driver_register() - Register a vmbus's child driver
  * @drv:        Pointer to driver structure you want to register
@@ -814,17 +790,9 @@ static int __init hv_pci_init(void)
 	return pci_register_driver(&hv_bus_driver);
 }
 
-static void __exit hv_pci_exit(void)
-{
-	vmbus_bus_exit();
-	pci_unregister_driver(&hv_bus_driver);
-}
-
-
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 module_param(vmbus_loglevel, int, S_IRUGO|S_IWUSR);
 
 module_init(hv_pci_init);
-module_exit(hv_pci_exit);
