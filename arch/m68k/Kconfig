@@ -88,7 +88,6 @@ config USE_GENERIC_HARDIRQS
 	bool "Use genirq"
 	depends on MMU
 	depends on !AMIGA
-	depends on !ATARI
 	depends on !MAC
 	depends on !APOLLO
 	depends on !MVME147
