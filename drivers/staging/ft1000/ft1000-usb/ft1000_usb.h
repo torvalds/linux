@@ -494,21 +494,11 @@ struct ft1000_info {
     bool fProvComplete;
     bool fCondResetPend;
     bool fAppMsgPend;
-    char *pfwimg;
-    int fwimgsz;
     u16 DrvErrNum;
-    u8  *pTestImage;
     u16 AsicID;
-    unsigned long TestImageIndx;
-    unsigned long TestImageSz;
-    u8  TestImageEnable;
-    u8  TestImageReady;
     int ASICResetNum;
     int DspAsicReset;
-    int PktIntfErr;
     int DSPResetNum;
-    int NumIOCTLBufs;
-    int IOCTLBufLvl;
     int DeviceCreated;
     int CardReady;
     int NetDevRegDone;
@@ -517,8 +507,6 @@ struct ft1000_info {
     struct ft1000_debug_dirs nodes;
     int registered;
     int mediastate;
-    int dhcpflg;
-    u16 packetseqnum;
     u8 squeseqnum;                 // sequence number on slow queue
     spinlock_t dpram_lock;
     spinlock_t fifo_lock;
@@ -534,7 +522,6 @@ struct ft1000_info {
     u8 RfCalVer[CALVERSZ];
     u8 RfCalDate[CALDATESZ];
     u16 DSP_TIME[4];
-    u16 ProgSnr;
     u16 LedStat;	//mbelian
     u16 ConStat;	//mbelian
     u16 ProgConStat;
