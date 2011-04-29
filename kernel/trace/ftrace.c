@@ -1726,34 +1726,52 @@ update_record(struct dyn_ftrace *rec, unsigned long flag, int not)
 }
 
 static int
-ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
+ftrace_match_record(struct dyn_ftrace *rec, char *mod,
+		    char *regex, int len, int type)
 {
 	char str[KSYM_SYMBOL_LEN];
+	char *modname;
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	kallsyms_lookup(rec->ip, NULL, NULL, &modname, str);
+
+	if (mod) {
+		/* module lookup requires matching the module */
+		if (!modname || strcmp(modname, mod))
+			return 0;
+
+		/* blank search means to match all funcs in the mod */
+		if (!len)
+			return 1;
+	}
+
 	return ftrace_match(str, regex, len, type);
 }
 
-static int ftrace_match_records(char *buff, int len, int enable)
+static int match_records(char *buff, int len, char *mod, int enable, int not)
 {
-	unsigned int search_len;
+	unsigned search_len = 0;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	int type = MATCH_FULL;
+	char *search = buff;
 	unsigned long flag;
-	char *search;
-	int type;
-	int not;
 	int found = 0;
 
-	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	type = filter_parse_regex(buff, len, &search, &not);
+	if (len) {
+		type = filter_parse_regex(buff, len, &search, &not);
+		search_len = strlen(search);
+	}
 
-	search_len = strlen(search);
+	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 
 	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
+
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (ftrace_match_record(rec, search, search_len, type)) {
+		if (ftrace_match_record(rec, mod, search, search_len, type)) {
 			update_record(rec, flag, not);
 			found = 1;
 		}
@@ -1763,43 +1781,23 @@ static int ftrace_match_records(char *buff, int len, int enable)
 		 */
 		if (enable && (rec->flags & FTRACE_FL_FILTER))
 			ftrace_filtered = 1;
+
 	} while_for_each_ftrace_rec();
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
 
 	return found;
 }
 
 static int
-ftrace_match_module_record(struct dyn_ftrace *rec, char *mod,
-			   char *regex, int len, int type)
+ftrace_match_records(char *buff, int len, int enable)
 {
-	char str[KSYM_SYMBOL_LEN];
-	char *modname;
-
-	kallsyms_lookup(rec->ip, NULL, NULL, &modname, str);
-
-	if (!modname || strcmp(modname, mod))
-		return 0;
-
-	/* blank search means to match all funcs in the mod */
-	if (len)
-		return ftrace_match(str, regex, len, type);
-	else
-		return 1;
+	return match_records(buff, len, NULL, enable, 0);
 }
 
 static int ftrace_match_module_records(char *buff, char *mod, int enable)
 {
-	unsigned search_len = 0;
-	struct ftrace_page *pg;
-	struct dyn_ftrace *rec;
-	int type = MATCH_FULL;
-	char *search = buff;
-	unsigned long flag;
 	int not = 0;
-	int found = 0;
-
-	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 
 	/* blank or '*' mean the same */
 	if (strcmp(buff, "*") == 0)
@@ -1811,31 +1809,7 @@ static int ftrace_match_module_records(char *buff, char *mod, int enable)
 		not = 1;
 	}
 
-	if (strlen(buff)) {
-		type = filter_parse_regex(buff, strlen(buff), &search, &not);
-		search_len = strlen(search);
-	}
-
-	mutex_lock(&ftrace_lock);
-
-	if (unlikely(ftrace_disabled))
-		goto out_unlock;
-
-	do_for_each_ftrace_rec(pg, rec) {
-
-		if (ftrace_match_module_record(rec, mod,
-					       search, search_len, type)) {
-			update_record(rec, flag, not);
-			found = 1;
-		}
-		if (enable && (rec->flags & FTRACE_FL_FILTER))
-			ftrace_filtered = 1;
-
-	} while_for_each_ftrace_rec();
- out_unlock:
-	mutex_unlock(&ftrace_lock);
-
-	return found;
+	return match_records(buff, strlen(buff), mod, enable, not);
 }
 
 /*
@@ -1993,7 +1967,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (!ftrace_match_record(rec, search, len, type))
+		if (!ftrace_match_record(rec, NULL, search, len, type))
 			continue;
 
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -2548,7 +2522,7 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 		if (rec->flags & FTRACE_FL_FREE)
 			continue;
 
-		if (ftrace_match_record(rec, search, search_len, type)) {
+		if (ftrace_match_record(rec, NULL, search, search_len, type)) {
 			/* if it is in the array */
 			exists = false;
 			for (i = 0; i < *idx; i++) {
