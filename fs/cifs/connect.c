@@ -617,59 +617,59 @@ incomplete_rcv:
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 
-			if ((mid_entry->mid == smb_buffer->Mid) &&
-			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
-			    (mid_entry->command == smb_buffer->Command)) {
-				if (length == 0 &&
-				   check2ndT2(smb_buffer, server->maxBuf) > 0) {
-					/* We have a multipart transact2 resp */
-					isMultiRsp = true;
-					if (mid_entry->resp_buf) {
-						/* merge response - fix up 1st*/
-						if (coalesce_t2(smb_buffer,
+			if (mid_entry->mid != smb_buffer->Mid ||
+			    mid_entry->midState != MID_REQUEST_SUBMITTED ||
+			    mid_entry->command != smb_buffer->Command) {
+				mid_entry = NULL;
+				continue;
+			}
+
+			if (length == 0 &&
+			    check2ndT2(smb_buffer, server->maxBuf) > 0) {
+				/* We have a multipart transact2 resp */
+				isMultiRsp = true;
+				if (mid_entry->resp_buf) {
+					/* merge response - fix up 1st*/
+					if (coalesce_t2(smb_buffer,
 							mid_entry->resp_buf)) {
-							mid_entry->multiRsp =
-								 true;
-							break;
-						} else {
-							/* all parts received */
-							mid_entry->multiEnd =
-								 true;
-							goto multi_t2_fnd;
-						}
+						mid_entry->multiRsp = true;
+						break;
 					} else {
-						if (!isLargeBuf) {
-							cERROR(1, "1st trans2 resp needs bigbuf");
-					/* BB maybe we can fix this up,  switch
-					   to already allocated large buffer? */
-						} else {
-							/* Have first buffer */
-							mid_entry->resp_buf =
-								 smb_buffer;
-							mid_entry->largeBuf =
-								 true;
-							bigbuf = NULL;
-						}
+						/* all parts received */
+						mid_entry->multiEnd = true;
+						goto multi_t2_fnd;
 					}
-					break;
+				} else {
+					if (!isLargeBuf) {
+						/*
+						 * FIXME: switch to already
+						 *        allocated largebuf?
+						 */
+						cERROR(1, "1st trans2 resp "
+							  "needs bigbuf");
+					} else {
+						/* Have first buffer */
+						mid_entry->resp_buf =
+							 smb_buffer;
+						mid_entry->largeBuf = true;
+						bigbuf = NULL;
+					}
 				}
-				mid_entry->resp_buf = smb_buffer;
-				mid_entry->largeBuf = isLargeBuf;
-multi_t2_fnd:
-				if (length == 0)
-					mid_entry->midState =
-							MID_RESPONSE_RECEIVED;
-				else
-					mid_entry->midState =
-							MID_RESPONSE_MALFORMED;
-#ifdef CONFIG_CIFS_STATS2
-				mid_entry->when_received = jiffies;
-#endif
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
 				break;
 			}
-			mid_entry = NULL;
+			mid_entry->resp_buf = smb_buffer;
+			mid_entry->largeBuf = isLargeBuf;
+multi_t2_fnd:
+			if (length == 0)
+				mid_entry->midState = MID_RESPONSE_RECEIVED;
+			else
+				mid_entry->midState = MID_RESPONSE_MALFORMED;
+#ifdef CONFIG_CIFS_STATS2
+			mid_entry->when_received = jiffies;
+#endif
+			list_del_init(&mid_entry->qhead);
+			mid_entry->callback(mid_entry);
+			break;
 		}
 		spin_unlock(&GlobalMid_Lock);
 
