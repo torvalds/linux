@@ -343,7 +343,7 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 		inet->inet_saddr = fl4.saddr;
 	if (!inet->inet_rcv_saddr)
 		inet->inet_rcv_saddr = fl4.saddr;
-	inet->inet_daddr = rt->rt_dst;
+	inet->inet_daddr = fl4.daddr;
 	sk->sk_state = TCP_ESTABLISHED;
 	inet->inet_id = jiffies;
 
