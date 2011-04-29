@@ -3,7 +3,7 @@
  *
  * Copyright 2011 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -69,7 +69,7 @@ static int adxrs450_spi_read_reg_16(struct device *dev,
 		goto error_ret;
 	}
 
-	*val = (st->rx[1] & 0x1f) << 11 | st->rx[2] << 3 | (st->rx[3] & 0xe0) >> 5;
+	*val = (be32_to_cpu(*(u32 *)st->rx) >> 5) & 0xFFFF;
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -152,7 +152,8 @@ static int adxrs450_spi_sensor_data(struct device *dev, u16 *val)
 		goto error_ret;
 	}
 
-	*val = (st->rx[0] & 0x03) << 14 | st->rx[1] << 6 | (st->rx[2] & 0xfc) >> 2;
+	*val = (be32_to_cpu(*(u32 *)st->rx) >> 10) & 0xFFFF;
+
 error_ret:
 	mutex_unlock(&st->buf_lock);
 	return ret;
