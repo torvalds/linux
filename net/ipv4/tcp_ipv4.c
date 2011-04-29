@@ -190,7 +190,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	if (!inet_opt || !inet_opt->opt.srr)
-		daddr = rt->rt_dst;
+		daddr = fl4.daddr;
 
 	if (!inet->inet_saddr)
 		inet->inet_saddr = fl4.saddr;
@@ -204,7 +204,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	if (tcp_death_row.sysctl_tw_recycle &&
-	    !tp->rx_opt.ts_recent_stamp && rt->rt_dst == daddr) {
+	    !tp->rx_opt.ts_recent_stamp && fl4.daddr == daddr) {
 		struct inet_peer *peer = rt_get_peer(rt);
 		/*
 		 * VJ's idea. We save last timestamp seen from
