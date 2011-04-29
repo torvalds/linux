@@ -340,11 +340,10 @@ static void netvsc_send_garp(struct work_struct *w)
 }
 
 
-static int netvsc_probe(struct device *device)
+static int netvsc_probe(struct hv_device *dev)
 {
 	struct netvsc_driver *net_drv_obj =
-		drv_to_netvscdrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
+		drv_to_netvscdrv(dev->device.driver);
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info device_info;
@@ -361,16 +360,16 @@ static int netvsc_probe(struct device *device)
 	netif_carrier_off(net);
 
 	net_device_ctx = netdev_priv(net);
-	net_device_ctx->device_ctx = device_obj;
+	net_device_ctx->device_ctx = dev;
 	net_device_ctx->avail = ring_size;
-	dev_set_drvdata(device, net);
+	dev_set_drvdata(&dev->device, net);
 	INIT_WORK(&net_device_ctx->work, netvsc_send_garp);
 
 	/* Notify the netvsc driver of the new device */
-	ret = net_drv_obj->base.dev_add(device_obj, &device_info);
+	ret = net_drv_obj->base.dev_add(dev, &device_info);
 	if (ret != 0) {
 		free_netdev(net);
-		dev_set_drvdata(device, NULL);
+		dev_set_drvdata(&dev->device, NULL);
 
 		netdev_err(net, "unable to add netvsc device (ret %d)\n", ret);
 		return ret;
@@ -397,12 +396,12 @@ static int netvsc_probe(struct device *device)
 	net->features = NETIF_F_SG;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
-	SET_NETDEV_DEV(net, device);
+	SET_NETDEV_DEV(net, &dev->device);
 
 	ret = register_netdev(net);
 	if (ret != 0) {
 		/* Remove the device and release the resource */
-		net_drv_obj->base.dev_rm(device_obj);
+		net_drv_obj->base.dev_rm(dev);
 		free_netdev(net);
 	}
 
@@ -501,7 +500,7 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 
 	drv->driver.name = net_drv_obj->base.name;
 
-	drv->driver.probe = netvsc_probe;
+	drv->probe = netvsc_probe;
 	drv->driver.remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */

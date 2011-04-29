@@ -319,10 +319,10 @@ static int vmbus_probe(struct device *child_device)
 	int ret = 0;
 	struct hv_driver *drv =
 			drv_to_hv_drv(child_device->driver);
+	struct hv_device *dev = device_to_hv_device(child_device);
 
-	/* Let the specific open-source driver handles the probe if it can */
-	if (drv->driver.probe) {
-		ret = drv->driver.probe(child_device);
+	if (drv->probe) {
+		ret = drv->probe(dev);
 		if (ret != 0)
 			pr_err("probe failed for device %s (%d)\n",
 			       dev_name(child_device), ret);

@@ -140,7 +140,7 @@ MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
  * There is a circular dependency involving blkvsc_probe()
  * and block_ops.
  */
-static int blkvsc_probe(struct device *dev);
+static int blkvsc_probe(struct hv_device *dev);
 
 static int blk_vsc_on_device_add(struct hv_device *device,
 				void *additional_info)
@@ -882,7 +882,7 @@ static int blkvsc_drv_init(void)
 
 	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv->driver.probe = blkvsc_probe;
+	drv->probe = blkvsc_probe;
 	drv->driver.remove = blkvsc_remove;
 	drv->driver.shutdown = blkvsc_shutdown;
 
@@ -937,11 +937,10 @@ static void blkvsc_drv_exit(void)
 /*
  * blkvsc_probe - Add a new device for this driver
  */
-static int blkvsc_probe(struct device *device)
+static int blkvsc_probe(struct hv_device *dev)
 {
 	struct storvsc_driver_object *storvsc_drv_obj =
-				drv_to_stordrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
+			drv_to_stordrv(dev->device.driver);
 
 	struct block_device_context *blkdev = NULL;
 	struct storvsc_device_info device_info;
@@ -961,7 +960,7 @@ static int blkvsc_probe(struct device *device)
 	spin_lock_init(&blkdev->lock);
 
 
-	blkdev->request_pool = kmem_cache_create(dev_name(&device_obj->device),
+	blkdev->request_pool = kmem_cache_create(dev_name(&dev->device),
 					sizeof(struct blkvsc_request), 0,
 					SLAB_HWCACHE_ALIGN, NULL);
 	if (!blkdev->request_pool) {
@@ -971,17 +970,17 @@ static int blkvsc_probe(struct device *device)
 
 
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.dev_add(device_obj, &device_info);
+	ret = storvsc_drv_obj->base.dev_add(dev, &device_info);
 	if (ret != 0)
 		goto cleanup;
 
-	blkdev->device_ctx = device_obj;
+	blkdev->device_ctx = dev;
 	/* this identified the device 0 or 1 */
 	blkdev->target = device_info.target_id;
 	/* this identified the ide ctrl 0 or 1 */
 	blkdev->path = device_info.path_id;
 
-	dev_set_drvdata(device, blkdev);
+	dev_set_drvdata(&dev->device, blkdev);
 
 	ret = stor_vsc_get_major_info(&device_info, &major_info);
 
@@ -1041,7 +1040,7 @@ static int blkvsc_probe(struct device *device)
 	return ret;
 
 remove:
-	storvsc_drv_obj->base.dev_rm(device_obj);
+	storvsc_drv_obj->base.dev_rm(dev);
 
 cleanup:
 	if (blkdev) {

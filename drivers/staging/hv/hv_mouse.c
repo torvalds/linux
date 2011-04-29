@@ -832,23 +832,22 @@ static void mousevsc_hid_close(struct hid_device *hid)
 {
 }
 
-static int mousevsc_probe(struct device *device)
+static int mousevsc_probe(struct hv_device *dev)
 {
 	int ret = 0;
 
 	struct mousevsc_drv_obj *mousevsc_drv_obj =
-		drv_to_mousedrv(device->driver);
+		drv_to_mousedrv(dev->device.driver);
 
-	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
 				GFP_KERNEL);
 
-	dev_set_drvdata(device, input_dev_ctx);
+	dev_set_drvdata(&dev->device, input_dev_ctx);
 
 	/* Call to the vsc driver to add the device */
-	ret = mousevsc_drv_obj->base.dev_add(device_obj, NULL);
+	ret = mousevsc_drv_obj->base.dev_add(dev, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV, "unable to add input vsc device");
@@ -1023,7 +1022,7 @@ static int __init mousevsc_init(void)
 
 	drv->driver.name = input_drv_obj->base.name;
 
-	drv->driver.probe = mousevsc_probe;
+	drv->probe = mousevsc_probe;
 	drv->driver.remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */

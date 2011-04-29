@@ -123,7 +123,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 }
 
 /* Static decl */
-static int storvsc_probe(struct device *dev);
+static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
 static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
@@ -213,7 +213,7 @@ static int storvsc_drv_init(void)
 
 	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv->driver.probe = storvsc_probe;
+	drv->probe = storvsc_probe;
 	drv->driver.remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */
@@ -320,12 +320,11 @@ static void storvsc_drv_exit(void)
 /*
  * storvsc_probe - Add a new device for this driver
  */
-static int storvsc_probe(struct device *device)
+static int storvsc_probe(struct hv_device *device)
 {
 	int ret;
 	struct storvsc_driver_object *storvsc_drv_obj =
-				 drv_to_stordrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
+		 drv_to_stordrv(device->device.driver);
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
 	struct storvsc_device_info device_info;
@@ -340,16 +339,16 @@ static int storvsc_probe(struct device *device)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(device, host);
+	dev_set_drvdata(&device->device, host);
 
 	host_device_ctx = (struct host_device_context *)host->hostdata;
 	memset(host_device_ctx, 0, sizeof(struct host_device_context));
 
 	host_device_ctx->port = host->host_no;
-	host_device_ctx->device_ctx = device_obj;
+	host_device_ctx->device_ctx = device;
 
 	host_device_ctx->request_pool =
-				kmem_cache_create(dev_name(&device_obj->device),
+				kmem_cache_create(dev_name(&device->device),
 					sizeof(struct storvsc_cmd_request), 0,
 					SLAB_HWCACHE_ALIGN, NULL);
 
@@ -360,8 +359,8 @@ static int storvsc_probe(struct device *device)
 
 	device_info.port_number = host->host_no;
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.dev_add(device_obj,
-						(void *)&device_info);
+	ret = storvsc_drv_obj->base.dev_add(device, (void *)&device_info);
+
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi vsc device");
 		kmem_cache_destroy(host_device_ctx->request_pool);
@@ -381,11 +380,11 @@ static int storvsc_probe(struct device *device)
 	host->max_channel = STORVSC_MAX_CHANNELS - 1;
 
 	/* Register the HBA and start the scsi bus scan */
-	ret = scsi_add_host(host, device);
+	ret = scsi_add_host(host, &device->device);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi host device");
 
-		storvsc_drv_obj->base.dev_rm(device_obj);
+		storvsc_drv_obj->base.dev_rm(device);
 
 		kmem_cache_destroy(host_device_ctx->request_pool);
 		scsi_host_put(host);
