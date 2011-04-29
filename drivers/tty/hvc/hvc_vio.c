@@ -67,22 +67,10 @@ typedef enum hv_protocol {
 	HV_PROTOCOL_HVSI
 } hv_protocol_t;
 
-#define HV_INBUF_SIZE		255
-
 struct hvterm_priv {
-	u32		termno;		/* HV term number */
-	hv_protocol_t	proto;		/* Raw data or HVSI packets */
-	unsigned int	inbuf_len;	/* Data in input buffer */
-	unsigned char	inbuf[HV_INBUF_SIZE];
-	unsigned int	inbuf_cur;	/* Cursor in input buffer */
-	unsigned int	inbuf_pktlen;	/* HVSI packet lenght from cursor */
-	atomic_t	seqno;		/* HVSI packet sequence number */
-	unsigned int	opened:1;	/* HVSI driver opened */
-	unsigned int	established:1;	/* HVSI protocol established */
-	unsigned int 	is_console:1;	/* Used as a kernel console device */
-	unsigned int	mctrl_update:1;	/* HVSI modem control updated */
-	unsigned short	mctrl;		/* HVSI modem control */
-	struct tty_struct *tty;		/* TTY structure */
+	u32			termno;	/* HV term number */
+	hv_protocol_t		proto;	/* Raw data or HVSI packets */
+	struct hvsi_priv	hvsi;	/* HVSI specific data */
 };
 static struct hvterm_priv *hvterm_privs[MAX_NR_HVC_CONSOLES];
 
@@ -139,348 +127,24 @@ static const struct hv_ops hvterm_raw_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static int hvterm_hvsi_send_packet(struct hvterm_priv *pv, struct hvsi_header *packet)
-{
-	packet->seqno = atomic_inc_return(&pv->seqno);
-
-	/* Assumes that always succeeds, works in practice */
-	return hvc_put_chars(pv->termno, (char *)packet, packet->len);
-}
-
-static void hvterm_hvsi_start_handshake(struct hvterm_priv *pv)
-{
-	struct hvsi_query q;
-
-	/* Reset state */
-	pv->established = 0;
-	atomic_set(&pv->seqno, 0);
-
-	pr_devel("HVSI@%x: Handshaking started\n", pv->termno);
-
-	/* Send version query */
-	q.hdr.type = VS_QUERY_PACKET_HEADER;
-	q.hdr.len = sizeof(struct hvsi_query);
-	q.verb = VSV_SEND_VERSION_NUMBER;
-	hvterm_hvsi_send_packet(pv, &q.hdr);
-}
-
-static int hvterm_hvsi_send_close(struct hvterm_priv *pv)
-{
-	struct hvsi_control ctrl;
-
-	pv->established = 0;
-
-	ctrl.hdr.type = VS_CONTROL_PACKET_HEADER;
-	ctrl.hdr.len = sizeof(struct hvsi_control);
-	ctrl.verb = VSV_CLOSE_PROTOCOL;
-	return hvterm_hvsi_send_packet(pv, &ctrl.hdr);
-}
-
-static void hvterm_cd_change(struct hvterm_priv *pv, int cd)
-{
-	if (cd)
-		pv->mctrl |= TIOCM_CD;
-	else {
-		pv->mctrl &= ~TIOCM_CD;
-
-		/* We copy the existing hvsi driver semantics
-		 * here which are to trigger a hangup when
-		 * we get a carrier loss.
-		 * Closing our connection to the server will
-		 * do just that.
-		 */
-		if (!pv->is_console && pv->opened) {
-			pr_devel("HVSI@%x Carrier lost, hanging up !\n",
-				 pv->termno);
-			hvterm_hvsi_send_close(pv);
-		}
-	}
-}
-
-static void hvterm_hvsi_got_control(struct hvterm_priv *pv)
-{
-	struct hvsi_control *pkt = (struct hvsi_control *)pv->inbuf;
-
-	switch (pkt->verb) {
-	case VSV_CLOSE_PROTOCOL:
-		/* We restart the handshaking */
-		hvterm_hvsi_start_handshake(pv);
-		break;
-	case VSV_MODEM_CTL_UPDATE:
-		/* Transition of carrier detect */
-		hvterm_cd_change(pv, pkt->word & HVSI_TSCD);
-		break;
-	}
-}
-
-static void hvterm_hvsi_got_query(struct hvterm_priv *pv)
-{
-	struct hvsi_query *pkt = (struct hvsi_query *)pv->inbuf;
-	struct hvsi_query_response r;
-
-	/* We only handle version queries */
-	if (pkt->verb != VSV_SEND_VERSION_NUMBER)
-		return;
-
-	pr_devel("HVSI@%x: Got version query, sending response...\n",
-		 pv->termno);
-
-	/* Send version response */
-	r.hdr.type = VS_QUERY_RESPONSE_PACKET_HEADER;
-	r.hdr.len = sizeof(struct hvsi_query_response);
-	r.verb = VSV_SEND_VERSION_NUMBER;
-	r.u.version = HVSI_VERSION;
-	r.query_seqno = pkt->hdr.seqno;
-	hvterm_hvsi_send_packet(pv, &r.hdr);
-
-	/* Assume protocol is open now */
-	pv->established = 1;
-}
-
-static void hvterm_hvsi_got_response(struct hvterm_priv *pv)
-{
-	struct hvsi_query_response *r = (struct hvsi_query_response *)pv->inbuf;
-
-	switch(r->verb) {
-	case VSV_SEND_MODEM_CTL_STATUS:
-		hvterm_cd_change(pv, r->u.mctrl_word & HVSI_TSCD);
-		pv->mctrl_update = 1;
-		break;
-	}
-}
-
-static int hvterm_hvsi_check_packet(struct hvterm_priv *pv)
-{
-	u8 len, type;
-
-	/* Check header validity. If it's invalid, we ditch
-	 * the whole buffer and hope we eventually resync
-	 */
-	if (pv->inbuf[0] < 0xfc) {
-		pv->inbuf_len = pv->inbuf_pktlen = 0;
-		return 0;
-	}
-	type = pv->inbuf[0];
-	len = pv->inbuf[1];
-
-	/* Packet incomplete ? */
-	if (pv->inbuf_len < len)
-		return 0;
-
-	pr_devel("HVSI@%x: Got packet type %x len %d bytes:\n",
-		 pv->termno, type, len);
-
-	/* We have a packet, yay ! Handle it */
-	switch(type) {
-	case VS_DATA_PACKET_HEADER:
-		pv->inbuf_pktlen = len - 4;
-		pv->inbuf_cur = 4;
-		return 1;
-	case VS_CONTROL_PACKET_HEADER:
-		hvterm_hvsi_got_control(pv);
-		break;
-	case VS_QUERY_PACKET_HEADER:
-		hvterm_hvsi_got_query(pv);
-		break;
-	case VS_QUERY_RESPONSE_PACKET_HEADER:
-		hvterm_hvsi_got_response(pv);
-		break;
-	}
-
-	/* Swallow packet and retry */
-	pv->inbuf_len -= len;
-	memmove(pv->inbuf, &pv->inbuf[len], pv->inbuf_len);
-	return 1;
-}
-
-static int hvterm_hvsi_get_packet(struct hvterm_priv *pv)
-{
-	/* If we have room in the buffer, ask HV for more */
-	if (pv->inbuf_len < HV_INBUF_SIZE)
-		pv->inbuf_len += hvc_get_chars(pv->termno,
-					       &pv->inbuf[pv->inbuf_len],
-					       HV_INBUF_SIZE - pv->inbuf_len);
-	/*
-	 * If we have at least 4 bytes in the buffer, check for
-	 * a full packet and retry
-	 */
-	if (pv->inbuf_len >= 4)
-		return hvterm_hvsi_check_packet(pv);
-	return 0;
-}
-
 static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
-	unsigned int tries, read = 0;
 
 	if (WARN_ON(!pv))
 		return 0;
 
-	/* If we aren't open, dont do anything in order to avoid races
-	 * with connection establishment. The hvc core will call this
-	 * before we have returned from notifier_add(), and we need to
-	 * avoid multiple users playing with the receive buffer
-	 */
-	if (!pv->opened)
-		return 0;
-
-	/* We try twice, once with what data we have and once more
-	 * after we try to fetch some more from the hypervisor
-	 */
-	for (tries = 1; count && tries < 2; tries++) {
-		/* Consume existing data packet */
-		if (pv->inbuf_pktlen) {
-			unsigned int l = min(count, (int)pv->inbuf_pktlen);
-			memcpy(&buf[read], &pv->inbuf[pv->inbuf_cur], l);
-			pv->inbuf_cur += l;
-			pv->inbuf_pktlen -= l;
-			count -= l;
-			read += l;
-		}
-		if (count == 0)
-			break;
-
-		/* Data packet fully consumed, move down remaning data */
-		if (pv->inbuf_cur) {
-			pv->inbuf_len -= pv->inbuf_cur;
-			memmove(pv->inbuf, &pv->inbuf[pv->inbuf_cur], pv->inbuf_len);
-			pv->inbuf_cur = 0;
-		}
-
-		/* Try to get another packet */
-		if (hvterm_hvsi_get_packet(pv))
-			tries--;
-	}
-	if (!pv->established) {
-		pr_devel("HVSI@%x: returning -EPIPE\n", pv->termno);
-		return -EPIPE;
-	}
-	return read;
+	return hvsi_get_chars(&pv->hvsi, buf, count);
 }
 
 static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
-	struct hvsi_data dp;
-	int rc, adjcount = min(count, HVSI_MAX_OUTGOING_DATA);
 
 	if (WARN_ON(!pv))
 		return 0;
 
-	dp.hdr.type = VS_DATA_PACKET_HEADER;
-	dp.hdr.len = adjcount + sizeof(struct hvsi_header);
-	memcpy(dp.data, buf, adjcount);
-	rc = hvterm_hvsi_send_packet(pv, &dp.hdr);
-	if (rc <= 0)
-		return rc;
-	return adjcount;
-}
-
-static void maybe_msleep(unsigned long ms)
-{
-	/* During early boot, IRQs are disabled, use mdelay */
-	if (irqs_disabled())
-		mdelay(ms);
-	else
-		msleep(ms);
-}
-
-static int hvterm_hvsi_read_mctrl(struct hvterm_priv *pv)
-{
-	struct hvsi_query q;
-	int rc, timeout;
-
-	pr_devel("HVSI@%x: Querying modem control status...\n",
-		 pv->termno);
-
-	pv->mctrl_update = 0;
-	q.hdr.type = VS_QUERY_PACKET_HEADER;
-	q.hdr.len = sizeof(struct hvsi_query);
-	q.hdr.seqno = atomic_inc_return(&pv->seqno);
-	q.verb = VSV_SEND_MODEM_CTL_STATUS;
-	rc = hvterm_hvsi_send_packet(pv, &q.hdr);
-	if (rc <= 0) {
-		pr_devel("HVSI@%x: Error %d...\n", pv->termno, rc);
-		return rc;
-	}
-
-	/* Try for up to 1s */
-	for (timeout = 0; timeout < 1000; timeout++) {
-		if (!pv->established)
-			return -ENXIO;
-		if (pv->mctrl_update)
-			return 0;
-		if (!hvterm_hvsi_get_packet(pv))
-			maybe_msleep(1);
-	}
-	return -EIO;
-}
-
-static int hvterm_hvsi_write_mctrl(struct hvterm_priv *pv, int dtr)
-{
-	struct hvsi_control ctrl;
-
-	pr_devel("HVSI@%x: %s DTR...\n", pv->termno,
-		 dtr ? "Setting" : "Clearing");
-
-	ctrl.hdr.type = VS_CONTROL_PACKET_HEADER,
-	ctrl.hdr.len = sizeof(struct hvsi_control);
-	ctrl.verb = VSV_SET_MODEM_CTL;
-	ctrl.mask = HVSI_TSDTR;
-	ctrl.word = dtr ? HVSI_TSDTR : 0;
-	if (dtr)
-		pv->mctrl |= TIOCM_DTR;
-	else
-		pv->mctrl &= ~TIOCM_DTR;
-	return hvterm_hvsi_send_packet(pv, &ctrl.hdr);
-}
-
-static void hvterm_hvsi_establish(struct hvterm_priv *pv)
-{
-	int timeout;
-
-	/* Try for up to 10ms, there can be a packet to
-	 * start the process waiting for us...
-	 */
-	for (timeout = 0; timeout < 10; timeout++) {
-		if (pv->established)
-			goto established;
-		if (!hvterm_hvsi_get_packet(pv))
-			maybe_msleep(1);
-	}
-
-	/* Failed, send a close connection packet just
-	 * in case
-	 */
-	hvterm_hvsi_send_close(pv);
-
-	/* Then restart handshake */
-	hvterm_hvsi_start_handshake(pv);
-
-	/* Try for up to 100ms */
-	for (timeout = 0; timeout < 100; timeout++) {
-		if (pv->established)
-			goto established;
-		if (!hvterm_hvsi_get_packet(pv))
-			maybe_msleep(1);
-	}
-
-	if (!pv->established) {
-		pr_devel("HVSI@%x: Timeout handshaking, giving up !\n",
-			 pv->termno);
-		return;
-	}
- established:
-	/* Query modem control lines */
-	hvterm_hvsi_read_mctrl(pv);
-
-	/* Set our own DTR */
-	hvterm_hvsi_write_mctrl(pv, 1);
-
-	/* Set the opened flag so reads are allowed */
-	wmb();
-	pv->opened = 1;
+	return hvsi_put_chars(&pv->hvsi, buf, count);
 }
 
 static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
@@ -494,46 +158,16 @@ static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
 	if (rc)
 		return rc;
 
-	/* Keep track of the tty data structure */
-	pv->tty = tty_kref_get(hp->tty);
-
-	hvterm_hvsi_establish(pv);
-	return 0;
-}
-
-static void hvterm_hvsi_shutdown(struct hvc_struct *hp, struct hvterm_priv *pv)
-{
-	unsigned long flags;
-
-	if (!pv->is_console) {
-		pr_devel("HVSI@%x: Not a console, tearing down\n",
-			 pv->termno);
-
-		/* Clear opened, synchronize with khvcd */
-		spin_lock_irqsave(&hp->lock, flags);
-		pv->opened = 0;
-		spin_unlock_irqrestore(&hp->lock, flags);
-
-		/* Clear our own DTR */
-		if (!pv->tty || (pv->tty->termios->c_cflag & HUPCL))
-			hvterm_hvsi_write_mctrl(pv, 0);
-
-		/* Tear down the connection */
-		hvterm_hvsi_send_close(pv);
-	}
-
-	if (pv->tty)
-		tty_kref_put(pv->tty);
-	pv->tty = NULL;
+	return hvsi_open(&pv->hvsi, hp);
 }
 
 static void hvterm_hvsi_close(struct hvc_struct *hp, int data)
 {
 	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
 
-	pr_devel("HVSI@%x: close !\n", pv->termno);
+	pr_devel("HVSI@%x: do close !\n", pv->termno);
 
-	hvterm_hvsi_shutdown(hp, pv);
+	hvsi_close(&pv->hvsi, hp);
 
 	notifier_del_irq(hp, data);
 }
@@ -542,9 +176,9 @@ void hvterm_hvsi_hangup(struct hvc_struct *hp, int data)
 {
 	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
 
-	pr_devel("HVSI@%x: hangup !\n", pv->termno);
+	pr_devel("HVSI@%x: do hangup !\n", pv->termno);
 
-	hvterm_hvsi_shutdown(hp, pv);
+	hvsi_close(&pv->hvsi, hp);
 
 	notifier_hangup_irq(hp, data);
 }
@@ -555,7 +189,7 @@ static int hvterm_hvsi_tiocmget(struct hvc_struct *hp)
 
 	if (!pv)
 		return -EINVAL;
-	return pv->mctrl;
+	return pv->hvsi.mctrl;
 }
 
 static int hvterm_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
@@ -567,9 +201,9 @@ static int hvterm_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
 		 pv->termno, set, clear);
 
 	if (set & TIOCM_DTR)
-		hvterm_hvsi_write_mctrl(pv, 1);
+		hvsi_write_mctrl(&pv->hvsi, 1);
 	else if (clear & TIOCM_DTR)
-		hvterm_hvsi_write_mctrl(pv, 0);
+		hvsi_write_mctrl(&pv->hvsi, 0);
 
 	return 0;
 }
@@ -633,6 +267,8 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 		pv->termno = vdev->unit_address;
 		pv->proto = proto;
 		hvterm_privs[termno] = pv;
+		hvsi_init(&pv->hvsi, hvc_get_chars, hvc_put_chars,
+			  pv->termno, 0);
 	}
 
 	hp = hvc_alloc(termno, vdev->irq, ops, MAX_VIO_PUT_CHARS);
@@ -770,7 +406,6 @@ void __init hvc_vio_init_early(void)
 	if (termno == NULL)
 		goto out;
 	hvterm_priv0.termno = *termno;
-	hvterm_priv0.is_console = 1;
 	hvterm_privs[0] = &hvterm_priv0;
 
 	/* Check the protocol */
@@ -781,8 +416,10 @@ void __init hvc_vio_init_early(void)
 	else if (of_device_is_compatible(stdout_node, "hvterm-protocol")) {
 		hvterm_priv0.proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
+		hvsi_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
+			  hvterm_priv0.termno, 1);
 		/* HVSI, perform the handshake now */
-		hvterm_hvsi_establish(&hvterm_priv0);
+		hvsi_establish(&hvterm_priv0.hvsi);
 	} else
 		goto out;
 	udbg_putc = udbg_hvc_putc;
@@ -810,7 +447,6 @@ void __init udbg_init_debug_lpar(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = 0;
 	hvterm_priv0.proto = HV_PROTOCOL_RAW;
-	hvterm_priv0.is_console = 1;
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
@@ -823,10 +459,11 @@ void __init udbg_init_debug_lpar_hvsi(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;
-	hvterm_priv0.is_console = 1;
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
-	hvterm_hvsi_establish(&hvterm_priv0);
+	hvsi_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
+		  hvterm_priv0.termno, 1);
+	hvsi_establish(&hvterm_priv0.hvsi);
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI */
