@@ -630,12 +630,16 @@ incomplete_rcv:
 				isMultiRsp = true;
 				if (mid_entry->resp_buf) {
 					/* merge response - fix up 1st*/
-					if (coalesce_t2(smb_buffer,
-							mid_entry->resp_buf)) {
+					length = coalesce_t2(smb_buffer,
+							mid_entry->resp_buf);
+					if (length > 0) {
+						length = 0;
 						mid_entry->multiRsp = true;
 						break;
 					} else {
-						/* all parts received */
+						/* all parts received or
+						 * packet is malformed
+						 */
 						mid_entry->multiEnd = true;
 						goto multi_t2_fnd;
 					}
