@@ -508,7 +508,6 @@ struct ft1000_info {
     u8 squeseqnum;                 // sequence number on slow queue
     spinlock_t dpram_lock;
     spinlock_t fifo_lock;
-    int InterruptsEnabled;
     u16 fifo_cnt;
     u8 DspVer[DSPVERSZ];        // DSP version number
     u8 HwSerNum[HWSERNUMSZ];    // Hardware Serial Number
