@@ -367,7 +367,7 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	rt = ip_route_output_flow(net, &fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && fl4.daddr != rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 
