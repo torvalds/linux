@@ -83,7 +83,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	if (inet_opt == NULL || !inet_opt->opt.srr)
-		daddr = rt->rt_dst;
+		daddr = fl4.daddr;
 
 	if (inet->inet_saddr == 0)
 		inet->inet_saddr = rt->rt_src;
