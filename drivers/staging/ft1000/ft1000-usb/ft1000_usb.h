@@ -586,8 +586,6 @@ extern void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
 void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
 
-char *getfw (char *fn, size_t *pimgsz);
-
 int dsp_reload(struct ft1000_device *ft1000dev);
 int init_ft1000_netdev(struct ft1000_device *ft1000dev);
 struct usb_interface;
