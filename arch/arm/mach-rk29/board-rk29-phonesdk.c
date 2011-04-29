@@ -72,6 +72,7 @@
 #endif
 
 #include "../../../drivers/misc/gps/rk29_gps.h"
+#include "../../../drivers/serial/sc8800.h"
 
 /* Set memory size of pmem */
 #ifdef CONFIG_RK29_MEM_SIZE_M
@@ -2920,6 +2921,16 @@ static struct xpt2046_platform_data xpt2046_info = {
 };
 #endif
 
+#if defined(CONFIG_SERIAL_SC8800)
+static struct plat_sc8800 sc8800_plat_data = {
+	.slav_rts_pin = RK29_PIN4_PD4,
+	.slav_rdy_pin = RK29_PIN4_PD1,
+	.master_rts_pin = RK29_PIN4_PD2,
+	.master_rdy_pin = RK29_PIN4_PD3,
+	//.poll_time = 100,
+};
+#endif
+
 static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
 	{
@@ -2942,7 +2953,15 @@ static struct spi_board_info board_spi_devices[] = {
 		.platform_data = &wm831x_platdata,
 	},
 #endif
-
+#if defined(CONFIG_SERIAL_SC8800)
+	{
+		.modalias  = "sc8800",
+		.bus_num = 0,
+		.platform_data = &sc8800_plat_data,
+		.max_speed_hz  = 12*1000*1000,
+		.chip_select   = 0,
+	},
+#endif
 };
 
 

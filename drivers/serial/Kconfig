@@ -1540,4 +1540,12 @@ config SERIAL_RK29_CONSOLE
 	bool "Rockchip rk29 serial console support"
 	depends on SERIAL_RK29=y
 	select SERIAL_CORE_CONSOLE
+	
+config SERIAL_SC8800
+	tristate "SC8800 support"
+	depends on SPI
+	select SERIAL_CORE
+	help
+	  SC8800 spi-serial support	
+ 
 endmenu
