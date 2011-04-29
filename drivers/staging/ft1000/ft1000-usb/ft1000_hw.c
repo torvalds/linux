@@ -593,8 +593,6 @@ static void ft1000_reset_asic(struct net_device *dev)
 
 	DEBUG("ft1000_hw:ft1000_reset_asic called\n");
 
-	info->ASICResetNum++;
-
 	/* Let's use the register provided by the Magnemite ASIC to reset the
 	 * ASIC and DSP.
 	 */
@@ -748,7 +746,6 @@ int init_ft1000_netdev(struct ft1000_device *ft1000dev)
 	spin_lock_init(&pInfo->dpram_lock);
 	pInfo->pFt1000Dev = ft1000dev;
 	pInfo->DrvErrNum = 0;
-	pInfo->ASICResetNum = 0;
 	pInfo->registered = 1;
 	pInfo->ft1000_reset = ft1000_reset;
 	pInfo->mediastate = 0;

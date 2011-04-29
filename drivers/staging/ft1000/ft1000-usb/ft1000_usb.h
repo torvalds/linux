@@ -496,7 +496,6 @@ struct ft1000_info {
     bool fAppMsgPend;
     u16 DrvErrNum;
     u16 AsicID;
-    int ASICResetNum;
     int DspAsicReset;
     int DSPResetNum;
     int DeviceCreated;
