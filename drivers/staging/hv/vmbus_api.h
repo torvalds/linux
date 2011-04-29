@@ -103,9 +103,6 @@ struct hv_driver {
 
 /* Base device object */
 struct hv_device {
-	/* the driver for this device */
-	struct hv_driver *drv;
-
 	char name[64];
 
 	struct work_struct probe_failed_work_item;
