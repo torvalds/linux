@@ -441,10 +441,11 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 	struct CommandControlBlock *ccb_tmp;
 	int i = 0, j = 0;
 	dma_addr_t cdb_phyaddr;
-	unsigned long roundup_ccbsize = 0, offset;
+	unsigned long roundup_ccbsize;
 	unsigned long max_xfer_len;
 	unsigned long max_sg_entrys;
 	uint32_t  firm_config_version;
+
 	for (i = 0; i < ARCMSR_MAX_TARGETID; i++)
 		for (j = 0; j < ARCMSR_MAX_TARGETLUN; j++)
 			acb->devstate[i][j] = ARECA_RAID_GONE;
@@ -454,23 +455,20 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 	firm_config_version = acb->firm_cfg_version;
 	if((firm_config_version & 0xFF) >= 3){
 		max_xfer_len = (ARCMSR_CDB_SG_PAGE_LENGTH << ((firm_config_version >> 8) & 0xFF)) * 1024;/* max 4M byte */
-		max_sg_entrys = (max_xfer_len/4096);	
+		max_sg_entrys = (max_xfer_len/4096);
 	}
 	acb->host->max_sectors = max_xfer_len/512;
 	acb->host->sg_tablesize = max_sg_entrys;
 	roundup_ccbsize = roundup(sizeof(struct CommandControlBlock) + (max_sg_entrys - 1) * sizeof(struct SG64ENTRY), 32);
-	acb->uncache_size = roundup_ccbsize * ARCMSR_MAX_FREECCB_NUM + 32;
+	acb->uncache_size = roundup_ccbsize * ARCMSR_MAX_FREECCB_NUM;
 	dma_coherent = dma_alloc_coherent(&pdev->dev, acb->uncache_size, &dma_coherent_handle, GFP_KERNEL);
 	if(!dma_coherent){
-		printk(KERN_NOTICE "arcmsr%d: dma_alloc_coherent got error \n", acb->host->host_no);
+		printk(KERN_NOTICE "arcmsr%d: dma_alloc_coherent got error\n", acb->host->host_no);
 		return -ENOMEM;
 	}
 	acb->dma_coherent = dma_coherent;
 	acb->dma_coherent_handle = dma_coherent_handle;
 	memset(dma_coherent, 0, acb->uncache_size);
-	offset = roundup((unsigned long)dma_coherent, 32) - (unsigned long)dma_coherent;
-	dma_coherent_handle = dma_coherent_handle + offset;
-	dma_coherent = (struct CommandControlBlock *)dma_coherent + offset;
 	ccb_tmp = dma_coherent;
 	acb->vir2phy_offset = (unsigned long)dma_coherent - (unsigned long)dma_coherent_handle;
 	for(i = 0; i < ARCMSR_MAX_FREECCB_NUM; i++){
