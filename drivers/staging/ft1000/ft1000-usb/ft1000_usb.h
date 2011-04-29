@@ -497,7 +497,6 @@ struct ft1000_info {
     u16 DrvErrNum;
     u16 AsicID;
     int DspAsicReset;
-    int DSPResetNum;
     int DeviceCreated;
     int CardReady;
     int NetDevRegDone;

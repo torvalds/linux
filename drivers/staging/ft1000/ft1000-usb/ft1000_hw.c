@@ -650,8 +650,6 @@ static int ft1000_reset_card(struct net_device *dev)
 	DEBUG("ft1000_hw:ft1000_reset_card: reset asic\n");
 	ft1000_reset_asic(dev);
 
-	info->DSPResetNum++;
-
 	DEBUG("ft1000_hw:ft1000_reset_card: call dsp_reload\n");
 	dsp_reload(ft1000dev);
 
