@@ -304,12 +304,10 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
 
-	buffer->smb_buf_length =
+	buffer->smb_buf_length = cpu_to_be32(
 	    (2 * word_count) + sizeof(struct smb_hdr) -
 	    4 /*  RFC 1001 length field does not count */  +
-	    2 /* for bcc field itself */ ;
-	/* Note that this is the only network field that has to be converted
-	   to big endian and it is done just before we send it */
+	    2 /* for bcc field itself */) ;
 
 	buffer->Protocol[0] = 0xFF;
 	buffer->Protocol[1] = 'S';
@@ -424,7 +422,7 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 int
 checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 {
-	__u32 len = smb->smb_buf_length;
+	__u32 len = be32_to_cpu(smb->smb_buf_length);
 	__u32 clc_len;  /* calculated length */
 	cFYI(0, "checkSMB Length: 0x%x, smb_buf_length: 0x%x", length, len);
 

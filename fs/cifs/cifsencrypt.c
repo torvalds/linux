@@ -60,7 +60,7 @@ static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 		server->session_key.response, server->session_key.len);
 
 	crypto_shash_update(&server->secmech.sdescmd5->shash,
-		cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
+		cifs_pdu->Protocol, be32_to_cpu(cifs_pdu->smb_buf_length));
 
 	rc = crypto_shash_final(&server->secmech.sdescmd5->shash, signature);
 

@@ -397,9 +397,9 @@
 #define GETU32(var)  (*((__u32 *)var))	/* BB check for endian issues */
 
 struct smb_hdr {
-	__u32 smb_buf_length;	/* big endian on wire *//* BB length is only two
-		or three bytes - with one or two byte type preceding it that are
-		zero - we could mask the type byte off just in case BB */
+	__be32 smb_buf_length;	/* BB length is only two (rarely three) bytes,
+		with one or two byte "type" preceding it that will be
+		zero - we could mask the type byte off */
 	__u8 Protocol[4];
 	__u8 Command;
 	union {

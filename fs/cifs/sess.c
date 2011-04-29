@@ -621,7 +621,7 @@ ssetup_ntlmssp_authenticate:
 	and rest of bcc area. This allows us to avoid
 	a large buffer 17K allocation */
 	iov[0].iov_base = (char *)pSMB;
-	iov[0].iov_len = smb_buf->smb_buf_length + 4;
+	iov[0].iov_len = be32_to_cpu(smb_buf->smb_buf_length) + 4;
 
 	/* setting this here allows the code at the end of the function
 	   to free the request buffer if there's an error */
@@ -859,7 +859,8 @@ ssetup_ntlmssp_authenticate:
 	iov[2].iov_len = (long) bcc_ptr - (long) str_area;
 
 	count = iov[1].iov_len + iov[2].iov_len;
-	smb_buf->smb_buf_length += count;
+	smb_buf->smb_buf_length =
+		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
 
 	put_bcc_le(count, smb_buf);
 
