@@ -492,11 +492,11 @@ static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __us
 		ratio = avg / total * 100.0;
 
 	color = PERF_COLOR_NORMAL;
-	if (ratio > 75.0)
+	if (ratio > 50.0)
 		color = PERF_COLOR_RED;
-	else if (ratio > 50.0)
+	else if (ratio > 30.0)
 		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 20.0)
+	else if (ratio > 10.0)
 		color = PERF_COLOR_YELLOW;
 
 	fprintf(stderr, " #   ");
@@ -519,7 +519,7 @@ static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __use
 		color = PERF_COLOR_RED;
 	else if (ratio > 50.0)
 		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 25.0)
+	else if (ratio > 20.0)
 		color = PERF_COLOR_YELLOW;
 
 	fprintf(stderr, " #   ");
