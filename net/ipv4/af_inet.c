@@ -1122,7 +1122,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 
 	sk_setup_caps(sk, &rt->dst);
 
-	new_saddr = rt->rt_src;
+	new_saddr = fl4.saddr;
 
 	if (new_saddr == old_saddr)
 		return 0;
