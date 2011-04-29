@@ -515,13 +515,6 @@ void hdmi_panel_exit(void);
 int rfbi_init_platform_driver(void);
 void rfbi_uninit_platform_driver(void);
 void rfbi_dump_regs(struct seq_file *s);
-
-int rfbi_configure(int rfbi_module, int bpp, int lines);
-void rfbi_enable_rfbi(bool enable);
-void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
-		u16 height, void (callback)(void *data), void *data);
-void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t);
-unsigned long rfbi_get_max_tx_rate(void);
 int rfbi_init_display(struct omap_dss_device *display);
 #else
 static inline int rfbi_init_platform_driver(void)
