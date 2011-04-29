@@ -487,74 +487,82 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
                            ((ADHOC_NETWORK & networkType) ? WLAN_CAPABILITY_IBSS : WLAN_CAPABILITY_ESS),
                            ((ADHOC_NETWORK & networkType) ? WLAN_CAPABILITY_IBSS : WLAN_CAPABILITY_ESS));
 
-    if(!bss) {
-        if (ADHOC_NETWORK & networkType) {
+    /*
+     * Earlier we were updating the cfg about bss by making a beacon frame
+     * only if the entry for bss is not there. This can have some issue if
+     * ROAM event is generated and a heavy traffic is ongoing. The ROAM
+     * event is handled through a work queue and by the time it really gets
+     * handled, BSS would have been aged out. So it is better to update the
+     * cfg about BSS irrespective of its entry being present right now or
+     * not.
+     */
+
+    if (ADHOC_NETWORK & networkType) {
             /* construct 802.11 mgmt beacon */
             if(ptr_ie_buf) {
-                *ptr_ie_buf++ = WLAN_EID_SSID;
-                *ptr_ie_buf++ = ar->arSsidLen;
-                memcpy(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
-                ptr_ie_buf +=ar->arSsidLen;
+		    *ptr_ie_buf++ = WLAN_EID_SSID;
+		    *ptr_ie_buf++ = ar->arSsidLen;
+		    memcpy(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
+		    ptr_ie_buf +=ar->arSsidLen;
 
-                *ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
-                *ptr_ie_buf++ = 2; /* length */
-                *ptr_ie_buf++ = 0; /* ATIM window */
-                *ptr_ie_buf++ = 0; /* ATIM window */
+		    *ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
+		    *ptr_ie_buf++ = 2; /* length */
+		    *ptr_ie_buf++ = 0; /* ATIM window */
+		    *ptr_ie_buf++ = 0; /* ATIM window */
 
-                /* TODO: update ibss params and include supported rates,
-                 * DS param set, extened support rates, wmm. */
+		    /* TODO: update ibss params and include supported rates,
+		     * DS param set, extened support rates, wmm. */
 
-                ie_buf_len = ptr_ie_buf - ie_buf;
+		    ie_buf_len = ptr_ie_buf - ie_buf;
             }
 
             capability |= IEEE80211_CAPINFO_IBSS;
             if(WEP_CRYPT == ar->arPairwiseCrypto) {
-                capability |= IEEE80211_CAPINFO_PRIVACY;
+		    capability |= IEEE80211_CAPINFO_PRIVACY;
             }
             memcpy(source_mac, ar->arNetDev->dev_addr, ATH_MAC_LEN);
             ptr_ie_buf = ie_buf;
-        } else {
+    } else {
             capability = *(u16 *)(&assocInfo[beaconIeLen]);
             memcpy(source_mac, bssid, ATH_MAC_LEN);
             ptr_ie_buf = assocReqIe;
             ie_buf_len = assocReqLen;
-        }
+    }
 
-        size = offsetof(struct ieee80211_mgmt, u)
-             + sizeof(mgmt->u.beacon)
-             + ie_buf_len;
+    size = offsetof(struct ieee80211_mgmt, u)
+	    + sizeof(mgmt->u.beacon)
+	    + ie_buf_len;
 
-        ieeemgmtbuf = A_MALLOC_NOWAIT(size);
-        if(!ieeemgmtbuf) {
+    ieeemgmtbuf = A_MALLOC_NOWAIT(size);
+    if(!ieeemgmtbuf) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                             ("%s: ieeeMgmtbuf alloc error\n", __func__));
             return;
-        }
-
-        A_MEMZERO(ieeemgmtbuf, size);
-        mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
-        mgmt->frame_control = (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
-        memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
-        memcpy(mgmt->sa, source_mac, ATH_MAC_LEN);
-        memcpy(mgmt->bssid, bssid, ATH_MAC_LEN);
-        mgmt->u.beacon.beacon_int = beaconInterval;
-        mgmt->u.beacon.capab_info = capability;
-        memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
-
-        ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
-
-	AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-		("%s: inform bss with bssid %pM channel %d beaconInterval %d "
-			"capability 0x%x\n", __func__, mgmt->bssid,
-			ibss_channel->hw_value, beaconInterval, capability));
-
-        bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
-                                        ibss_channel, mgmt,
-                                        le16_to_cpu(size),
-                                        signal, GFP_KERNEL);
-        kfree(ieeemgmtbuf);
-        cfg80211_put_bss(bss);
     }
+
+    A_MEMZERO(ieeemgmtbuf, size);
+    mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
+    mgmt->frame_control = (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
+    memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
+    memcpy(mgmt->sa, source_mac, ATH_MAC_LEN);
+    memcpy(mgmt->bssid, bssid, ATH_MAC_LEN);
+    mgmt->u.beacon.beacon_int = beaconInterval;
+    mgmt->u.beacon.capab_info = capability;
+    memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
+
+    ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
+
+    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+		    ("%s: inform bss with bssid %pM channel %d beaconInterval %d "
+		     "capability 0x%x\n", __func__, mgmt->bssid,
+		     ibss_channel->hw_value, beaconInterval, capability));
+
+    bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
+				    ibss_channel, mgmt,
+				    le16_to_cpu(size),
+				    signal, GFP_KERNEL);
+    kfree(ieeemgmtbuf);
+    cfg80211_put_bss(bss);
 
     if((ADHOC_NETWORK & networkType)) {
         cfg80211_ibss_joined(ar->arNetDev, bssid, GFP_KERNEL);
