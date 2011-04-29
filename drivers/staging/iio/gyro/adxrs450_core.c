@@ -126,7 +126,7 @@ static int adxrs450_spi_write_reg_16(struct device *dev,
  * @dev: device associated with child of actual iio_dev
  * @val: somewhere to pass back the value read
  **/
-static int adxrs450_spi_sensor_data(struct device *dev, u16 *val)
+static int adxrs450_spi_sensor_data(struct device *dev, s16 *val)
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -217,7 +217,7 @@ static ssize_t adxrs450_read_temp(struct device *dev,
 			&t);
 	if (ret)
 		return ret;
-	return sprintf(buf, "%d\n", t);
+	return sprintf(buf, "%d\n", t >> 7);
 }
 
 static ssize_t adxrs450_read_quad(struct device *dev,
@@ -225,7 +225,7 @@ static ssize_t adxrs450_read_quad(struct device *dev,
 		char *buf)
 {
 	int ret;
-	u16 t;
+	s16 t;
 	ret = adxrs450_spi_read_reg_16(dev,
 			ADXRS450_QUAD1,
 			&t);
@@ -247,7 +247,7 @@ static ssize_t adxrs450_write_dnc(struct device *dev,
 		goto error_ret;
 	ret = adxrs450_spi_write_reg_16(dev,
 			ADXRS450_DNC1,
-			val);
+			val & 0x3FF);
 error_ret:
 	return ret ? ret : len;
 }
@@ -257,7 +257,7 @@ static ssize_t adxrs450_read_sensor_data(struct device *dev,
 		char *buf)
 {
 	int ret;
-	u16 t;
+	s16 t;
 
 	ret = adxrs450_spi_sensor_data(dev, &t);
 	if (ret)
