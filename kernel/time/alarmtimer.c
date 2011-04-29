@@ -42,9 +42,11 @@ static struct alarm_base {
 	clockid_t		base_clockid;
 } alarm_bases[ALARM_NUMTYPE];
 
+#ifdef CONFIG_RTC_CLASS
 /* rtc timer and device for setting alarm wakeups at suspend */
 static struct rtc_timer		rtctimer;
 static struct rtc_device	*rtcdev;
+#endif
 
 /* freezer delta & lock used to handle clock_nanosleep triggered wakeups */
 static ktime_t freezer_delta;
@@ -148,7 +150,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 
 }
 
-
+#ifdef CONFIG_RTC_CLASS
 /**
  * alarmtimer_suspend - Suspend time callback
  * @dev: unused
@@ -206,7 +208,12 @@ static int alarmtimer_suspend(struct device *dev)
 
 	return 0;
 }
-
+#else
+static int alarmtimer_suspend(struct device *dev)
+{
+	return 0;
+}
+#endif
 
 static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
 {
@@ -631,6 +638,7 @@ static int __init alarmtimer_init(void)
 }
 device_initcall(alarmtimer_init);
 
+#ifdef CONFIG_RTC_CLASS
 /**
  * has_wakealarm - check rtc device has wakealarm ability
  * @dev: current device
@@ -675,4 +683,12 @@ static int __init alarmtimer_init_late(void)
 
 	return 0;
 }
+#else
+static int __init alarmtimer_init_late(void)
+{
+	printk(KERN_WARNING "Kernel not built with RTC support, ALARM timers"
+		" will not wake from suspend");
+	return 0;
+}
+#endif
 late_initcall(alarmtimer_init_late);
