@@ -1094,6 +1094,7 @@ static struct attribute *lm85_attributes_minctl[] = {
 	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group lm85_group_minctl = {
@@ -1104,6 +1105,7 @@ static struct attribute *lm85_attributes_temp_off[] = {
 	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp3_auto_temp_off.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group lm85_group_temp_off = {
