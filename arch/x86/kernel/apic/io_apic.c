@@ -128,8 +128,8 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
-static int io_apic_setup_irq_pin_once(unsigned int irq, int node,
-				      struct io_apic_irq_attr *attr);
+static int io_apic_setup_irq_pin(unsigned int irq, int node,
+				 struct io_apic_irq_attr *attr);
 
 /* Will be called in mpparse/acpi/sfi codes for saving IRQ info */
 void mp_save_irq(struct mpc_intsrc *m)
@@ -3570,7 +3570,7 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 }
 #endif /* CONFIG_HT_IRQ */
 
-int
+static int
 io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr)
 {
 	struct irq_cfg *cfg = alloc_irq_and_cfg_at(irq, node);
@@ -3585,8 +3585,8 @@ io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr)
 	return ret;
 }
 
-static int io_apic_setup_irq_pin_once(unsigned int irq, int node,
-				      struct io_apic_irq_attr *attr)
+int io_apic_setup_irq_pin_once(unsigned int irq, int node,
+			       struct io_apic_irq_attr *attr)
 {
 	unsigned int id = attr->ioapic, pin = attr->ioapic_pin;
 	int ret;
