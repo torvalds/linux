@@ -31,24 +31,25 @@ char debugfs_path[MAXPATHLEN];
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
 static struct event_symbol event_symbols[] = {
-  { CHW(CPU_CYCLES),		"cpu-cycles",		"cycles"	},
-  { CHW(STALLED_CYCLES),	"stalled-cycles",	"idle-cycles"	},
-  { CHW(INSTRUCTIONS),		"instructions",		""		},
-  { CHW(CACHE_REFERENCES),	"cache-references",	""		},
-  { CHW(CACHE_MISSES),		"cache-misses",		""		},
-  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
-  { CHW(BRANCH_MISSES),		"branch-misses",	""		},
-  { CHW(BUS_CYCLES),		"bus-cycles",		""		},
+  { CHW(CPU_CYCLES),			"cpu-cycles",			"cycles"		},
+  { CHW(STALLED_CYCLES_FRONTEND),	"stalled-cycles-frontend",	"idle-cycles-frontend"	},
+  { CHW(STALLED_CYCLES_BACKEND),	"stalled-cycles-backend",	"idle-cycles-backend"	},
+  { CHW(INSTRUCTIONS),			"instructions",			""			},
+  { CHW(CACHE_REFERENCES),		"cache-references",		""			},
+  { CHW(CACHE_MISSES),			"cache-misses",			""			},
+  { CHW(BRANCH_INSTRUCTIONS),		"branch-instructions",		"branches"		},
+  { CHW(BRANCH_MISSES),			"branch-misses",		""			},
+  { CHW(BUS_CYCLES),			"bus-cycles",			""			},
 
-  { CSW(CPU_CLOCK),		"cpu-clock",		""		},
-  { CSW(TASK_CLOCK),		"task-clock",		""		},
-  { CSW(PAGE_FAULTS),		"page-faults",		"faults"	},
-  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		""		},
-  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
-  { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
-  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	"migrations"	},
-  { CSW(ALIGNMENT_FAULTS),	"alignment-faults",	""		},
-  { CSW(EMULATION_FAULTS),	"emulation-faults",	""		},
+  { CSW(CPU_CLOCK),			"cpu-clock",			""			},
+  { CSW(TASK_CLOCK),			"task-clock",			""			},
+  { CSW(PAGE_FAULTS),			"page-faults",			"faults"		},
+  { CSW(PAGE_FAULTS_MIN),		"minor-faults",			""			},
+  { CSW(PAGE_FAULTS_MAJ),		"major-faults",			""			},
+  { CSW(CONTEXT_SWITCHES),		"context-switches",		"cs"			},
+  { CSW(CPU_MIGRATIONS),		"cpu-migrations",		"migrations"		},
+  { CSW(ALIGNMENT_FAULTS),		"alignment-faults",		""			},
+  { CSW(EMULATION_FAULTS),		"emulation-faults",		""			},
 };
 
 #define __PERF_EVENT_FIELD(config, name) \
