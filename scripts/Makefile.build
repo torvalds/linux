@@ -60,6 +60,8 @@ endif
 # $(call cc-option, -W...) handles gcc -W.. options which
 # are not supported by all versions of the compiler
 ifdef KBUILD_ENABLE_EXTRA_GCC_CHECKS
+warning-  := $(empty)
+
 warning-1 := -Wextra -Wunused -Wno-unused-parameter
 warning-1 += -Wmissing-declarations
 warning-1 += -Wmissing-format-attribute
@@ -86,9 +88,11 @@ warning-3 += -Wswitch-default
 warning-3 += $(call cc-option, -Wpacked-bitfield-compat)
 warning-3 += $(call cc-option, -Wvla)
 
-warning := $(warning-$(KBUILD_ENABLE_EXTRA_GCC_CHECKS))
+warning := $(warning-$(findstring 1, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
+warning += $(warning-$(findstring 2, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
+warning += $(warning-$(findstring 3, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
 
-ifeq ("$(warning)","")
+ifeq ("$(strip $(warning))","")
         $(error W=$(KBUILD_ENABLE_EXTRA_GCC_CHECKS) is unknown)
 endif
 
