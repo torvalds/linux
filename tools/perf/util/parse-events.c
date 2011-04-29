@@ -60,7 +60,7 @@ static struct event_symbol event_symbols[] = {
 #define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-static const char *hw_event_names[] = {
+static const char *hw_event_names[PERF_COUNT_HW_MAX] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -68,10 +68,11 @@ static const char *hw_event_names[] = {
 	"branches",
 	"branch-misses",
 	"bus-cycles",
-	"stalled-cycles",
+	"stalled-cycles-frontend",
+	"stalled-cycles-backend",
 };
 
-static const char *sw_event_names[] = {
+static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
 	"cpu-clock",
 	"task-clock",
 	"page-faults",

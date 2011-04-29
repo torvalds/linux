@@ -201,7 +201,8 @@ static double stddev_stats(struct stats *stats)
 
 struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
 struct stats			runtime_cycles_stats[MAX_NR_CPUS];
-struct stats			runtime_stalled_cycles_stats[MAX_NR_CPUS];
+struct stats			runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
+struct stats			runtime_stalled_cycles_back_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			runtime_cacherefs_stats[MAX_NR_CPUS];
 struct stats			runtime_l1_dcache_stats[MAX_NR_CPUS];
@@ -251,8 +252,10 @@ static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
 		update_stats(&runtime_nsecs_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
+		update_stats(&runtime_stalled_cycles_front_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
-		update_stats(&runtime_stalled_cycles_stats[0], count[0]);
+		update_stats(&runtime_stalled_cycles_back_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 		update_stats(&runtime_branches_stats[0], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
@@ -478,7 +481,30 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 		fprintf(stderr, " # %8.3f CPUs utilized          ", avg / avg_stats(&walltime_nsecs_stats));
 }
 
-static void print_stalled_cycles(int cpu, struct perf_evsel *evsel __used, double avg)
+static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_cycles_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 75.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 50.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 20.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #   ");
+	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " frontend cycles idle   ");
+}
+
+static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __used, double avg)
 {
 	double total, ratio = 0.0;
 	const char *color;
@@ -498,7 +524,7 @@ static void print_stalled_cycles(int cpu, struct perf_evsel *evsel __used, doubl
 
 	fprintf(stderr, " #   ");
 	color_fprintf(stderr, color, "%5.2f%%", ratio);
-	fprintf(stderr, " of all cycles are idle ");
+	fprintf(stderr, "  backend cycles idle   ");
 }
 
 static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -583,7 +609,8 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 		fprintf(stderr, " #    %4.2f  insns per cycle        ", ratio);
 
-		total = avg_stats(&runtime_stalled_cycles_stats[cpu]);
+		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
+		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
 
 		if (total && avg) {
 			ratio = total / avg;
@@ -609,8 +636,10 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 		fprintf(stderr, " # %8.3f %% of all cache refs    ", ratio);
 
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
+		print_stalled_cycles_frontend(cpu, evsel, avg);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_BACKEND)) {
-		print_stalled_cycles(cpu, evsel, avg);
+		print_stalled_cycles_backend(cpu, evsel, avg);
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
