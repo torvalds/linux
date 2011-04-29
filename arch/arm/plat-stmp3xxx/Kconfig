@@ -5,12 +5,6 @@ menu "Freescale STMP3xxx implementations"
 choice
 	prompt "Select STMP3xxx chip family"
 
-config ARCH_STMP37XX
-	bool "Freescale SMTP37xx"
-	select CPU_ARM926T
-	---help---
-	 STMP37xx refers to 3700 through 3769 chips
-
 config ARCH_STMP378X
 	bool "Freescale STMP378x"
 	select CPU_ARM926T
@@ -21,10 +15,6 @@ endchoice
 
 choice
 	prompt "Select STMP3xxx board type"
-
-config MACH_STMP37XX
-	depends on ARCH_STMP37XX
-	bool "Freescale STMP37xx development board"
 
 config MACH_STMP378X
 	depends on ARCH_STMP378X
