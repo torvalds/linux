@@ -42,10 +42,11 @@
 
 static struct pci_dev *hv_pci_dev;
 
+static struct tasklet_struct msg_dpc;
+
 /* Main vmbus driver data structure */
 struct hv_bus {
 	struct bus_type bus;
-	struct tasklet_struct msg_dpc;
 	struct tasklet_struct event_dpc;
 };
 
@@ -515,7 +516,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
 		if (test_bit(0, (unsigned long *)&ret))
-			tasklet_schedule(&hv_bus.msg_dpc);
+			tasklet_schedule(&msg_dpc);
 
 		if (test_bit(1, (unsigned long *)&ret))
 			tasklet_schedule(&hv_bus.event_dpc);
@@ -550,7 +551,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	hv_bus.bus.name = driver_name;
 
 	/* Initialize the bus context */
-	tasklet_init(&hv_bus.msg_dpc, vmbus_on_msg_dpc, 0);
+	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
 	tasklet_init(&hv_bus.event_dpc, vmbus_on_event, 0);
 
 	/* Now, register the bus  with LDM */
