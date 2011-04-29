@@ -40,7 +40,7 @@
 #include "vmbus_private.h"
 
 
-struct pci_dev *hv_pci_dev;
+static struct pci_dev *hv_pci_dev;
 
 /* Main vmbus driver data structure */
 struct hv_bus {
