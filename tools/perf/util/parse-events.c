@@ -929,7 +929,7 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
 
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
-			printf("  %-42s [%s]\n", evt_path,
+			printf("  %-50s [%s]\n", evt_path,
 				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
 		}
 		closedir(evt_dir);
@@ -994,7 +994,7 @@ void print_events_type(u8 type)
 		else
 			snprintf(name, sizeof(name), "%s", syms->symbol);
 
-		printf("  %-42s [%s]\n", name,
+		printf("  %-50s [%s]\n", name,
 			event_type_descriptors[type]);
 	}
 }
@@ -1012,11 +1012,10 @@ int print_hwcache_events(const char *event_glob)
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
 				char *name = event_cache_name(type, op, i);
 
-				if (event_glob != NULL && 
-				    !strglobmatch(name, event_glob))
+				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 
-				printf("  %-42s [%s]\n", name,
+				printf("  %-50s [%s]\n", name,
 					event_type_descriptors[PERF_TYPE_HW_CACHE]);
 				++printed;
 			}
@@ -1026,14 +1025,16 @@ int print_hwcache_events(const char *event_glob)
 	return printed;
 }
 
+#define MAX_NAME_LEN 100
+
 /*
  * Print the help text for the event symbols:
  */
 void print_events(const char *event_glob)
 {
-	struct event_symbol *syms = event_symbols;
 	unsigned int i, type, prev_type = -1, printed = 0, ntypes_printed = 0;
-	char name[40];
+	struct event_symbol *syms = event_symbols;
+	char name[MAX_NAME_LEN];
 
 	printf("\n");
 	printf("List of pre-defined events (to be used in -e):\n");
@@ -1053,10 +1054,10 @@ void print_events(const char *event_glob)
 			continue;
 
 		if (strlen(syms->alias))
-			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
+			snprintf(name, MAX_NAME_LEN, "%s OR %s", syms->symbol, syms->alias);
 		else
-			strcpy(name, syms->symbol);
-		printf("  %-42s [%s]\n", name,
+			strncpy(name, syms->symbol, MAX_NAME_LEN);
+		printf("  %-50s [%s]\n", name,
 			event_type_descriptors[type]);
 
 		prev_type = type;
@@ -1073,12 +1074,12 @@ void print_events(const char *event_glob)
 		return;
 
 	printf("\n");
-	printf("  %-42s [%s]\n",
+	printf("  %-50s [%s]\n",
 		"rNNN (see 'perf list --help' on how to encode it)",
 	       event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
-	printf("  %-42s [%s]\n",
+	printf("  %-50s [%s]\n",
 			"mem:<addr>[:access]",
 			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
 	printf("\n");
