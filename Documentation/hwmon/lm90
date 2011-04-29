@@ -205,9 +205,9 @@ are exported, one for each channel, but these values are of course linked.
 Only the local hysteresis can be set from user-space, and the same delta
 applies to the remote hysteresis.
 
-The lm90 driver will not update its values more frequently than every
-other second; reading them more often will do no harm, but will return
-'old' values.
+The lm90 driver will not update its values more frequently than configured with
+the update_interval attribute; reading them more often will do no harm, but will
+return 'old' values.
 
 SMBus Alert Support
 -------------------
