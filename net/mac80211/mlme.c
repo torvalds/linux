@@ -781,7 +781,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_tx_wake_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
