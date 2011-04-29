@@ -202,8 +202,8 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 			   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
 
 	req->chute = chute;
-	req->hdr_ring_id = 0;
-	req->data_ring_id = 0;
+	req->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba));
+	req->data_ring_id = cpu_to_le16(HWI_GET_DEF_BUFQ_ID(phba));
 
 	status =  be_mcc_notify_wait(phba);
 	if (status)
