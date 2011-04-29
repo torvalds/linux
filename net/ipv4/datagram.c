@@ -63,9 +63,9 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		return -EACCES;
 	}
 	if (!inet->inet_saddr)
-		inet->inet_saddr = rt->rt_src;	/* Update source address */
+		inet->inet_saddr = fl4.saddr;	/* Update source address */
 	if (!inet->inet_rcv_saddr) {
-		inet->inet_rcv_saddr = rt->rt_src;
+		inet->inet_rcv_saddr = fl4.saddr;
 		if (sk->sk_prot->rehash)
 			sk->sk_prot->rehash(sk);
 	}
