@@ -271,8 +271,6 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 		rt = __ip_route_output_key(net, fl4);
 		if (IS_ERR(rt))
 			return rt;
-		fl4->daddr = rt->rt_dst;
-		fl4->saddr = rt->rt_src;
 		ip_rt_put(rt);
 	}
 	security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
