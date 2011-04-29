@@ -149,7 +149,6 @@ enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FILTER	= (1 << 1),
 	FTRACE_FL_ENABLED	= (1 << 2),
-	FTRACE_FL_NOTRACE	= (1 << 3),
 };
 
 struct dyn_ftrace {
