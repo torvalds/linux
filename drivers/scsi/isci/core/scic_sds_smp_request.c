@@ -193,8 +193,7 @@ static void scu_smp_request_construct_task_context(
 	 */
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
-	task_context->connection_rate =
-		scic_remote_device_get_connection_rate(sci_dev);
+	task_context->connection_rate = sci_dev->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =

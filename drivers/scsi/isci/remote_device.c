@@ -152,21 +152,8 @@ enum sci_status scic_remote_device_reset_complete(
 	return sci_dev->state_handlers->reset_complete_handler(sci_dev);
 }
 
-
-enum sas_linkrate scic_remote_device_get_connection_rate(
-	struct scic_sds_remote_device *sci_dev)
-{
-	return sci_dev->connection_rate;
-}
-
-/**
- *
- *
- * Remote device timer requirements
- */
 #define SCIC_SDS_REMOTE_DEVICE_MINIMUM_TIMER_COUNT (0)
 #define SCIC_SDS_REMOTE_DEVICE_MAXIMUM_TIMER_COUNT (SCI_MAX_REMOTE_DEVICES)
-
 
 /**
  *

@@ -443,8 +443,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->abort = 0;
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
-	task_context->connection_rate =
-		scic_remote_device_get_connection_rate(target_device);
+	task_context->connection_rate = target_device->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
