@@ -39,16 +39,20 @@
 #include "trace_stat.h"
 
 #define FTRACE_WARN_ON(cond)			\
-	do {					\
-		if (WARN_ON(cond))		\
+	({					\
+		int ___r = cond;		\
+		if (WARN_ON(___r))		\
 			ftrace_kill();		\
-	} while (0)
+		___r;				\
+	})
 
 #define FTRACE_WARN_ON_ONCE(cond)		\
-	do {					\
-		if (WARN_ON_ONCE(cond))		\
+	({					\
+		int ___r = cond;		\
+		if (WARN_ON_ONCE(___r))		\
 			ftrace_kill();		\
-	} while (0)
+		___r;				\
+	})
 
 /* hash bits for specific function selection */
 #define FTRACE_HASH_BITS 7
