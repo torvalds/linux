@@ -3224,6 +3224,22 @@ static void __devinit rtl_init_pll_power_ops(struct rtl8169_private *tp)
 	}
 }
 
+static void rtl_hw_reset(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+
+	/* Soft reset the chip. */
+	RTL_W8(ChipCmd, CmdReset);
+
+	/* Check that the chip has finished the reset. */
+	for (i = 0; i < 100; i++) {
+		if ((RTL_R8(ChipCmd) & CmdReset) == 0)
+			break;
+		msleep_interruptible(1);
+	}
+}
+
 static int __devinit
 rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -3323,6 +3339,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EIO;
 		goto err_out_free_res_3;
 	}
+	tp->mmio_addr = ioaddr;
 
 	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!tp->pcie_cap)
@@ -3330,15 +3347,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	RTL_W16(IntrMask, 0x0000);
 
-	/* Soft reset the chip. */
-	RTL_W8(ChipCmd, CmdReset);
-
-	/* Check that the chip has finished the reset. */
-	for (i = 0; i < 100; i++) {
-		if ((RTL_R8(ChipCmd) & CmdReset) == 0)
-			break;
-		msleep_interruptible(1);
-	}
+	rtl_hw_reset(tp);
 
 	RTL_W16(IntrStatus, 0xffff);
 
@@ -3408,8 +3417,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	spin_lock_init(&tp->lock);
-
-	tp->mmio_addr = ioaddr;
 
 	/* Get MAC address */
 	for (i = 0; i < MAC_ADDR_LEN; i++)
@@ -3658,24 +3665,13 @@ static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
 static void rtl_hw_start(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned int i;
 
-	/* Soft reset the chip. */
-	RTL_W8(ChipCmd, CmdReset);
-
-	/* Check that the chip has finished the reset. */
-	for (i = 0; i < 100; i++) {
-		if ((RTL_R8(ChipCmd) & CmdReset) == 0)
-			break;
-		msleep_interruptible(1);
-	}
+	rtl_hw_reset(tp);
 
 	tp->hw_start(dev);
 
 	netif_start_queue(dev);
 }
-
 
 static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp,
 					 void __iomem *ioaddr)
