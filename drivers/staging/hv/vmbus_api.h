@@ -102,6 +102,7 @@ struct hv_driver {
 
 	int (*probe)(struct hv_device *);
 	int (*remove)(struct hv_device *);
+	void (*shutdown)(struct hv_device *);
 
 };
 
