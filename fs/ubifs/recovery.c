@@ -1138,44 +1138,26 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 {
 	struct ubifs_wbuf *wbuf = &c->jheads[GCHD].wbuf;
 	struct ubifs_lprops lp;
-	int lnum, err;
+	int err;
 
 	c->gc_lnum = -1;
-	if (wbuf->lnum == -1) {
-		dbg_rcvry("no GC head LEB");
+	if (wbuf->lnum == -1 || wbuf->offs == c->leb_size) {
+		dbg_rcvry("no GC head: wbuf->lnum %d, wbuf->offs %d",
+			  wbuf->lnum, wbuf->offs);
 		return grab_empty_leb(c);
 	}
-	/*
-	 * See whether the used space in the dirtiest LEB fits in the GC head
-	 * LEB.
-	 */
-	if (wbuf->offs == c->leb_size) {
-		dbg_rcvry("no room in GC head LEB");
-		return grab_empty_leb(c);
-	}
+
 	err = ubifs_find_dirty_leb(c, &lp, wbuf->offs, 2);
 	if (err) {
-		/*
-		 * There are no dirty or empty LEBs subject to here being
-		 * enough for the index. Try to use
-		 * 'ubifs_find_free_leb_for_idx()', which will return any empty
-		 * LEBs (ignoring index requirements). If the index then
-		 * doesn't have enough LEBs the recovery commit will fail -
-		 * which is the  same result anyway i.e. recovery fails. So
-		 * there is no problem ignoring index  requirements and just
-		 * grabbing a free LEB since we have already established there
-		 * is not a dirty LEB we could have used instead.
-		 */
-		if (err == -ENOSPC) {
-			dbg_rcvry("could not find a dirty LEB");
-			return grab_empty_leb(c);
-		}
-		return err;
+		if (err != -ENOSPC)
+			return err;
+
+		dbg_rcvry("could not find a dirty LEB");
+		return grab_empty_leb(c);
 	}
 
 	ubifs_assert(!(lp.flags & LPROPS_INDEX));
 	ubifs_assert(lp.free + lp.dirty >= wbuf->offs);
-	lnum = lp.lnum;
 
 	/*
 	 * We run the commit before garbage collection otherwise subsequent
@@ -1185,11 +1167,8 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 	err = ubifs_run_commit(c);
 	if (err)
 		return err;
-	/*
-	 * The data in the dirtiest LEB fits in the GC head LEB, so do the GC
-	 * - use locking to keep 'ubifs_assert()' happy.
-	 */
-	dbg_rcvry("GC'ing LEB %d", lnum);
+
+	dbg_rcvry("GC'ing LEB %d", lp.lnum);
 	mutex_lock_nested(&wbuf->io_mutex, wbuf->jhead);
 	err = ubifs_garbage_collect_leb(c, &lp);
 	if (err >= 0) {
@@ -1205,14 +1184,16 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 			err = -EINVAL;
 		return err;
 	}
-	if (err != LEB_RETAINED) {
-		dbg_err("GC returned %d", err);
+
+	ubifs_assert(err == LEB_RETAINED);
+	if (err != LEB_RETAINED)
 		return -EINVAL;
-	}
+
 	err = ubifs_leb_unmap(c, c->gc_lnum);
 	if (err)
 		return err;
-	dbg_rcvry("allocated LEB %d for GC", lnum);
+
+	dbg_rcvry("allocated LEB %d for GC", lp.lnum);
 	return 0;
 }
 
