@@ -858,20 +858,19 @@ static int mousevsc_probe(struct hv_device *dev)
 	return 0;
 }
 
-static int mousevsc_remove(struct device *device)
+static int mousevsc_remove(struct hv_device *dev)
 {
 	int ret = 0;
 
 	struct mousevsc_drv_obj *mousevsc_drv_obj =
-		drv_to_mousedrv(device->driver);
+		drv_to_mousedrv(dev->device.driver);
 
-	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
 				GFP_KERNEL);
 
-	dev_set_drvdata(device, input_dev_ctx);
+	dev_set_drvdata(&dev->device, input_dev_ctx);
 
 	if (input_dev_ctx->connected) {
 		hidinput_disconnect(input_dev_ctx->hid_device);
@@ -885,7 +884,7 @@ static int mousevsc_remove(struct device *device)
 	 * Call to the vsc driver to let it know that the device
 	 * is being removed
 	 */
-	ret = mousevsc_drv_obj->base.dev_rm(device_obj);
+	ret = mousevsc_drv_obj->base.dev_rm(dev);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV,
@@ -1023,7 +1022,7 @@ static int __init mousevsc_init(void)
 	drv->driver.name = input_drv_obj->base.name;
 
 	drv->probe = mousevsc_probe;
-	drv->driver.remove = mousevsc_remove;
+	drv->remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(&drv->driver);

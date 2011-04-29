@@ -408,16 +408,15 @@ static int netvsc_probe(struct hv_device *dev)
 	return ret;
 }
 
-static int netvsc_remove(struct device *device)
+static int netvsc_remove(struct hv_device *dev)
 {
 	struct netvsc_driver *net_drv_obj =
-		drv_to_netvscdrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
-	struct net_device *net = dev_get_drvdata(&device_obj->device);
+		drv_to_netvscdrv(dev->device.driver);
+	struct net_device *net = dev_get_drvdata(&dev->device);
 	int ret;
 
 	if (net == NULL) {
-		dev_err(device, "No net device to remove\n");
+		dev_err(&dev->device, "No net device to remove\n");
 		return 0;
 	}
 
@@ -434,7 +433,7 @@ static int netvsc_remove(struct device *device)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = net_drv_obj->base.dev_rm(device_obj);
+	ret = net_drv_obj->base.dev_rm(dev);
 	if (ret != 0) {
 		/* TODO: */
 		netdev_err(net, "unable to remove vsc device (ret %d)\n", ret);
@@ -501,7 +500,7 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	drv->driver.name = net_drv_obj->base.name;
 
 	drv->probe = netvsc_probe;
-	drv->driver.remove = netvsc_remove;
+	drv->remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);

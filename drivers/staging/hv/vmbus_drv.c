@@ -343,16 +343,13 @@ static int vmbus_remove(struct device *child_device)
 	int ret;
 	struct hv_driver *drv;
 
+	struct hv_device *dev = device_to_hv_device(child_device);
 
 	if (child_device->driver) {
 		drv = drv_to_hv_drv(child_device->driver);
 
-		/*
-		 * Let the specific open-source driver handles the removal if
-		 * it can
-		 */
-		if (drv->driver.remove) {
-			ret = drv->driver.remove(child_device);
+		if (drv->remove) {
+			ret = drv->remove(dev);
 		} else {
 			pr_err("remove not set for driver %s\n",
 				dev_name(child_device));

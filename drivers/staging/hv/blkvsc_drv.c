@@ -537,19 +537,18 @@ out:
 /*
  * blkvsc_remove() - Callback when our device is removed
  */
-static int blkvsc_remove(struct device *device)
+static int blkvsc_remove(struct hv_device *dev)
 {
 	struct storvsc_driver_object *storvsc_drv_obj =
-				drv_to_stordrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
-	struct block_device_context *blkdev = dev_get_drvdata(device);
+				drv_to_stordrv(dev->device.driver);
+	struct block_device_context *blkdev = dev_get_drvdata(&dev->device);
 	unsigned long flags;
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	storvsc_drv_obj->base.dev_rm(device_obj);
+	storvsc_drv_obj->base.dev_rm(dev);
 
 	/* Get to a known state */
 	spin_lock_irqsave(&blkdev->lock, flags);
@@ -883,7 +882,7 @@ static int blkvsc_drv_init(void)
 	drv->driver.name = storvsc_drv_obj->base.name;
 
 	drv->probe = blkvsc_probe;
-	drv->driver.remove = blkvsc_remove;
+	drv->remove = blkvsc_remove;
 	drv->driver.shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */

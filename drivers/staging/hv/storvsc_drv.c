@@ -128,7 +128,7 @@ static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd
 static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
-static int storvsc_remove(struct device *dev);
+static int storvsc_remove(struct hv_device *dev);
 
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 						unsigned int sg_count,
@@ -214,7 +214,7 @@ static int storvsc_drv_init(void)
 	drv->driver.name = storvsc_drv_obj->base.name;
 
 	drv->probe = storvsc_probe;
-	drv->driver.remove = storvsc_remove;
+	drv->remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
@@ -398,12 +398,11 @@ static int storvsc_probe(struct hv_device *device)
 /*
  * storvsc_remove - Callback when our device is removed
  */
-static int storvsc_remove(struct device *device)
+static int storvsc_remove(struct hv_device *dev)
 {
 	struct storvsc_driver_object *storvsc_drv_obj =
-			 drv_to_stordrv(device->driver);
-	struct hv_device *device_obj = device_to_hv_device(device);
-	struct Scsi_Host *host = dev_get_drvdata(device);
+			 drv_to_stordrv(dev->device.driver);
+	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
 	struct host_device_context *host_device_ctx =
 			(struct host_device_context *)host->hostdata;
 
@@ -411,7 +410,7 @@ static int storvsc_remove(struct device *device)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	storvsc_drv_obj->base.dev_rm(device_obj);
+	storvsc_drv_obj->base.dev_rm(dev);
 
 	if (host_device_ctx->request_pool) {
 		kmem_cache_destroy(host_device_ctx->request_pool);
