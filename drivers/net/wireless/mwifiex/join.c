@@ -116,9 +116,6 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 	memcpy(*buffer, &tsf_tlv, sizeof(tsf_tlv.header));
 	*buffer += sizeof(tsf_tlv.header);
 
-	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
-	*buffer += sizeof(tsf_val);
-
 	memcpy(&tsf_val, bss_desc->time_stamp, sizeof(tsf_val));
 
 	dev_dbg(priv->adapter->dev, "info: %s: TSF offset calc: %016llx - "
