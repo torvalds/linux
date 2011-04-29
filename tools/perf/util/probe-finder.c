@@ -1538,6 +1538,7 @@ static int find_probes(int fd, struct probe_finder *pf)
 			.file	  = pp->file,
 			.cu_die	  = &pf->cu_die,
 			.sp_die	  = &pf->sp_die,
+			.found	  = 0,
 		};
 		struct dwarf_callback_param probe_param = {
 			.data = pf,
