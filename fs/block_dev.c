@@ -1203,6 +1203,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (!bdev->bd_part)
 				goto out_clear;
 
+			ret = 0;
 			if (disk->fops->open) {
 				ret = disk->fops->open(bdev, mode);
 				if (ret == -ERESTARTSYS) {
@@ -1218,9 +1219,18 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					mutex_unlock(&bdev->bd_mutex);
 					goto restart;
 				}
-				if (ret)
-					goto out_clear;
 			}
+			/*
+			 * If the device is invalidated, rescan partition
+			 * if open succeeded or failed with -ENOMEDIUM.
+			 * The latter is necessary to prevent ghost
+			 * partitions on a removed medium.
+			 */
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
+				rescan_partitions(disk, bdev);
+			if (ret)
+				goto out_clear;
+
 			if (!bdev->bd_openers) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
 				bdi = blk_get_backing_dev_info(bdev);
@@ -1228,8 +1238,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					bdi = &default_backing_dev_info;
 				bdev->bd_inode->i_data.backing_dev_info = bdi;
 			}
-			if (bdev->bd_invalidated)
-				rescan_partitions(disk, bdev);
 		} else {
 			struct block_device *whole;
 			whole = bdget_disk(disk, 0);
@@ -1256,13 +1264,14 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		put_disk(disk);
 		disk = NULL;
 		if (bdev->bd_contains == bdev) {
-			if (bdev->bd_disk->fops->open) {
+			ret = 0;
+			if (bdev->bd_disk->fops->open)
 				ret = bdev->bd_disk->fops->open(bdev, mode);
-				if (ret)
-					goto out_unlock_bdev;
-			}
-			if (bdev->bd_invalidated)
+			/* the same as first opener case, read comment there */
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
 				rescan_partitions(bdev->bd_disk, bdev);
+			if (ret)
+				goto out_unlock_bdev;
 		}
 	}
 	bdev->bd_openers++;
