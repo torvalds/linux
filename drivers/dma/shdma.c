@@ -1255,6 +1255,8 @@ rst_err:
 	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 
 	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	if (dmars)
 		iounmap(shdev->dmars);
 emapdmars:
@@ -1313,12 +1315,78 @@ static void sh_dmae_shutdown(struct platform_device *pdev)
 	sh_dmae_ctl_stop(shdev);
 }
 
+static int sh_dmae_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int sh_dmae_runtime_resume(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+
+	return sh_dmae_rst(shdev);
+}
+
+#ifdef CONFIG_PM
+static int sh_dmae_suspend(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < shdev->pdata->channel_num; i++) {
+		struct sh_dmae_chan *sh_chan = shdev->chan[i];
+		if (sh_chan->descs_allocated)
+			sh_chan->pm_error = pm_runtime_put_sync(dev);
+	}
+
+	return 0;
+}
+
+static int sh_dmae_resume(struct device *dev)
+{
+	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < shdev->pdata->channel_num; i++) {
+		struct sh_dmae_chan *sh_chan = shdev->chan[i];
+		struct sh_dmae_slave *param = sh_chan->common.private;
+
+		if (!sh_chan->descs_allocated)
+			continue;
+
+		if (!sh_chan->pm_error)
+			pm_runtime_get_sync(dev);
+
+		if (param) {
+			const struct sh_dmae_slave_config *cfg = param->config;
+			dmae_set_dmars(sh_chan, cfg->mid_rid);
+			dmae_set_chcr(sh_chan, cfg->chcr);
+		} else {
+			dmae_init(sh_chan);
+		}
+	}
+
+	return 0;
+}
+#else
+#define sh_dmae_suspend NULL
+#define sh_dmae_resume NULL
+#endif
+
+const struct dev_pm_ops sh_dmae_pm = {
+	.suspend		= sh_dmae_suspend,
+	.resume			= sh_dmae_resume,
+	.runtime_suspend	= sh_dmae_runtime_suspend,
+	.runtime_resume		= sh_dmae_runtime_resume,
+};
+
 static struct platform_driver sh_dmae_driver = {
 	.remove		= __exit_p(sh_dmae_remove),
 	.shutdown	= sh_dmae_shutdown,
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "sh-dma-engine",
+		.pm	= &sh_dmae_pm,
 	},
 };
 
