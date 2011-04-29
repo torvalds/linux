@@ -19,6 +19,7 @@ obj-$(CONFIG_MX1_VIDEO)	+= mx1-camera-fiq.o mx1-camera-fiq-ksym.o
 
 obj-$(CONFIG_ARCH_MX1ADS) += mach-mx1ads.o
 obj-$(CONFIG_MACH_SCB9328) += mach-scb9328.o
+obj-$(CONFIG_MACH_APF9328) += mach-apf9328.o
 
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
 
