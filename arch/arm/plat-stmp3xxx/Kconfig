@@ -1,7 +1,0 @@
-if ARCH_STMP3XXX
-
-menu "Freescale STMP3xxx implementations"
-
-endmenu
-
-endif

@@ -205,7 +205,6 @@ machine-$(CONFIG_MACH_SPEAR600)		:= spear6xx
 plat-$(CONFIG_ARCH_MXC)		:= mxc
 plat-$(CONFIG_ARCH_OMAP)	:= omap
 plat-$(CONFIG_ARCH_S3C64XX)	:= samsung
-plat-$(CONFIG_ARCH_STMP3XXX)	:= stmp3xxx
 plat-$(CONFIG_ARCH_TCC_926)	:= tcc
 plat-$(CONFIG_PLAT_IOP)		:= iop
 plat-$(CONFIG_PLAT_NOMADIK)	:= nomadik
