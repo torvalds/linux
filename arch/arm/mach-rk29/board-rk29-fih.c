@@ -468,7 +468,8 @@ static struct mma8452_platform_data mma8452_info = {
 static struct mpu3050_platform_data mpu3050_data = {
 		.int_config = 0x10,
 		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
-		.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
 		.level_shifter = 0,
 #if defined (CONFIG_SENSORS_KXTF9)
 		.accel = {
@@ -479,7 +480,8 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
 				.address = 0x0f,
 				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-				.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
 		},
 #endif
 #if defined (CONFIG_SENSORS_AK8975)
@@ -492,7 +494,8 @@ static struct mpu3050_platform_data mpu3050_data = {
 				.bus = EXT_SLAVE_BUS_PRIMARY,
 				.address = 0x0d,
 				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-				.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
 		},
 };
 #endif
@@ -942,7 +945,7 @@ struct rk29_i2c_platform_data default_i2c0_data = {
 	.bus_num    = 0,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
+	.scl_rate  = 200*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c0_io_init,
 };
@@ -951,7 +954,7 @@ struct rk29_i2c_platform_data default_i2c1_data = {
 	.bus_num    = 1,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
+	.scl_rate  = 200*1000,
 	.mode 		= I2C_MODE_POLL,
 	.io_init = rk29_i2c1_io_init,
 };
@@ -960,7 +963,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
+	.scl_rate  = 200*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
@@ -969,7 +972,7 @@ struct rk29_i2c_platform_data default_i2c3_data = {
 	.bus_num    = 3,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
+	.scl_rate  = 200*1000,
 	.mode 		= I2C_MODE_POLL,
 	.io_init = rk29_i2c3_io_init,
 };
@@ -1598,7 +1601,7 @@ struct rk29_bl_info rk29_bl_info = {
 #define FIH_TOUCHKEY_LED_PWM_MUX_MODE      	GPIO5H_PWM1 
 #define FIH_TOUCHKEY_LED_PWM_MUX_MODE_GPIO 	GPIO5H_GPIO5D2 
 #define FIH_TOUCHKEY_LED_PWM_GPIO 			RK29_PIN5_PD2
-#define FIH_TOUCHKEY_LED_PWM_EFFECT_VALUE  	0
+#define FIH_TOUCHKEY_LED_PWM_EFFECT_VALUE  	1
 
 static int fih_touchkey_led_io_init(void)
 {
@@ -1617,7 +1620,7 @@ static int fih_touchkey_led_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(FIH_TOUCHKEY_LED_PWM_GPIO, GPIO_HIGH);
+	gpio_direction_output(FIH_TOUCHKEY_LED_PWM_GPIO, GPIO_LOW);
 	return ret;
 }
 

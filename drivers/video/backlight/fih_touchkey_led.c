@@ -270,3 +270,4 @@ static int __init fih_touchkey_led_init(void)
 	return 0;
 }
 fs_initcall_sync(fih_touchkey_led_init);
+//late_initcall_sync(fih_touchkey_led_init);
