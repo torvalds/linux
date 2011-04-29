@@ -313,27 +313,6 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	return match;
 }
 
-
-/*
- * vmbus_probe_failed_cb - Callback when a driver probe failed in vmbus_probe()
- *
- * We need a callback because we cannot invoked device_unregister() inside
- * vmbus_probe() since vmbus_probe() may be invoked inside device_register()
- * i.e. we cannot call device_unregister() inside device_register()
- */
-static void vmbus_probe_failed_cb(struct work_struct *context)
-{
-	struct hv_device *device_ctx = (struct hv_device *)context;
-
-	/*
-	 * Kick off the process of unregistering the device.
-	 * This will call vmbus_remove() and eventually vmbus_device_release()
-	 */
-	device_unregister(&device_ctx->device);
-
-	/* put_device(&device_ctx->device); */
-}
-
 /*
  * vmbus_probe - Add the new vmbus's child device
  */
@@ -342,20 +321,14 @@ static int vmbus_probe(struct device *child_device)
 	int ret = 0;
 	struct hv_driver *drv =
 			drv_to_hv_drv(child_device->driver);
-	struct hv_device *dev = device_to_hv_device(child_device);
 
 	/* Let the specific open-source driver handles the probe if it can */
 	if (drv->driver.probe) {
-		ret = dev->probe_error =
-		drv->driver.probe(child_device);
-		if (ret != 0) {
+		ret = drv->driver.probe(child_device);
+		if (ret != 0)
 			pr_err("probe failed for device %s (%d)\n",
 			       dev_name(child_device), ret);
 
-			INIT_WORK(&dev->probe_failed_work_item,
-				  vmbus_probe_failed_cb);
-			schedule_work(&dev->probe_failed_work_item);
-		}
 	} else {
 		pr_err("probe not set for driver %s\n",
 		       dev_name(child_device));

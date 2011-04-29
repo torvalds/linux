@@ -105,10 +105,6 @@ struct hv_driver {
 struct hv_device {
 	char name[64];
 
-	struct work_struct probe_failed_work_item;
-
-	int probe_error;
-
 	/* the device type id of this device */
 	struct hv_guid dev_type;
 
