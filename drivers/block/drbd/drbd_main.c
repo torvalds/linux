@@ -757,14 +757,24 @@ static unsigned int prepare_header(struct drbd_tconn *tconn, int vnr,
 		return prepare_header80(buffer, cmd, size);
 }
 
+static void *__conn_prepare_command(struct drbd_tconn *tconn,
+				    struct drbd_socket *sock)
+{
+	if (!sock->socket)
+		return NULL;
+	return sock->sbuf + drbd_header_size(tconn);
+}
+
 void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
 {
+	void *p;
+
 	mutex_lock(&sock->mutex);
-	if (!sock->socket) {
+	p = __conn_prepare_command(tconn, sock);
+	if (!p)
 		mutex_unlock(&sock->mutex);
-		return NULL;
-	}
-	return sock->sbuf + drbd_header_size(tconn);
+
+	return p;
 }
 
 void *drbd_prepare_command(struct drbd_conf *mdev, struct drbd_socket *sock)
@@ -798,13 +808,20 @@ static int __send_command(struct drbd_tconn *tconn, int vnr,
 	return err;
 }
 
+static int __conn_send_command(struct drbd_tconn *tconn, struct drbd_socket *sock,
+			       enum drbd_packet cmd, unsigned int header_size,
+			       void *data, unsigned int size)
+{
+	return __send_command(tconn, 0, sock, cmd, header_size, data, size);
+}
+
 int conn_send_command(struct drbd_tconn *tconn, struct drbd_socket *sock,
 		      enum drbd_packet cmd, unsigned int header_size,
 		      void *data, unsigned int size)
 {
 	int err;
 
-	err = __send_command(tconn, 0, sock, cmd, header_size, data, size);
+	err = __conn_send_command(tconn, sock, cmd, header_size, data, size);
 	mutex_unlock(&sock->mutex);
 	return err;
 }
@@ -893,7 +910,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	return drbd_send_command(mdev, sock, cmd, size, NULL, 0);
 }
 
-int drbd_send_protocol(struct drbd_tconn *tconn)
+int __drbd_send_protocol(struct drbd_tconn *tconn)
 {
 	struct drbd_socket *sock;
 	struct p_protocol *p;
@@ -901,7 +918,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	int size, cf;
 
 	sock = &tconn->data;
-	p = conn_prepare_command(tconn, sock);
+	p = __conn_prepare_command(tconn, sock);
 	if (!p)
 		return -EIO;
 
@@ -935,7 +952,18 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 		strcpy(p->integrity_alg, nc->integrity_alg);
 	rcu_read_unlock();
 
-	return conn_send_command(tconn, sock, P_PROTOCOL, size, NULL, 0);
+	return __conn_send_command(tconn, sock, P_PROTOCOL, size, NULL, 0);
+}
+
+int drbd_send_protocol(struct drbd_tconn *tconn)
+{
+	int err;
+
+	mutex_lock(&tconn->data.mutex);
+	err = __drbd_send_protocol(tconn);
+	mutex_unlock(&tconn->data.mutex);
+
+	return err;
 }
 
 int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
