@@ -3727,16 +3727,8 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
-	 * Read frequency offset and RF programming sequence.
+	 * Determine external LNA informations.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
-	rt2x00dev->freq_offset = rt2x00_get_field16(eeprom, EEPROM_FREQ_OFFSET);
-
-	/*
-	 * Read external LNA informations.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
-
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_5G))
 		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_2G))
@@ -3749,6 +3741,12 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
+	 * Read frequency offset and RF programming sequence.
+	 */
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
+	rt2x00dev->freq_offset = rt2x00_get_field16(eeprom, EEPROM_FREQ_OFFSET);
+
+	/*
 	 * Store led settings, for correct led behaviour.
 	 */
 #ifdef CONFIG_RT2X00_LIB_LEDS
@@ -3756,7 +3754,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2800_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
 	rt2800_init_led(rt2x00dev, &rt2x00dev->led_qual, LED_TYPE_QUALITY);
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &rt2x00dev->led_mcu_reg);
+	rt2x00dev->led_mcu_reg = eeprom;
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
