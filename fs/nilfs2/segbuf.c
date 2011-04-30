@@ -239,12 +239,15 @@ nilfs_segbuf_fill_in_super_root_crc(struct nilfs_segment_buffer *segbuf,
 				    u32 seed)
 {
 	struct nilfs_super_root *raw_sr;
+	struct the_nilfs *nilfs = segbuf->sb_super->s_fs_info;
+	unsigned srsize;
 	u32 crc;
 
 	raw_sr = (struct nilfs_super_root *)segbuf->sb_super_root->b_data;
+	srsize = NILFS_SR_BYTES(nilfs->ns_inode_size);
 	crc = crc32_le(seed,
 		       (unsigned char *)raw_sr + sizeof(raw_sr->sr_sum),
-		       NILFS_SR_BYTES - sizeof(raw_sr->sr_sum));
+		       srsize - sizeof(raw_sr->sr_sum));
 	raw_sr->sr_sum = cpu_to_le32(crc);
 }
 
