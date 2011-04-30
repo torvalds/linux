@@ -65,48 +65,6 @@ static ssize_t display_enabled_store(struct device *dev,
 	return size;
 }
 
-static ssize_t display_upd_mode_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	enum omap_dss_update_mode mode = OMAP_DSS_UPDATE_AUTO;
-	if (dssdev->driver->get_update_mode)
-		mode = dssdev->driver->get_update_mode(dssdev);
-	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
-}
-
-static ssize_t display_upd_mode_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t size)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	int val, r;
-	enum omap_dss_update_mode mode;
-
-	if (!dssdev->driver->set_update_mode)
-		return -EINVAL;
-
-	r = kstrtoint(buf, 0, &val);
-	if (r)
-		return r;
-
-	switch (val) {
-	case OMAP_DSS_UPDATE_DISABLED:
-	case OMAP_DSS_UPDATE_AUTO:
-	case OMAP_DSS_UPDATE_MANUAL:
-		mode = (enum omap_dss_update_mode)val;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	r = dssdev->driver->set_update_mode(dssdev, mode);
-	if (r)
-		return r;
-
-	return size;
-}
-
 static ssize_t display_tear_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -294,8 +252,6 @@ static ssize_t display_wss_store(struct device *dev,
 
 static DEVICE_ATTR(enabled, S_IRUGO|S_IWUSR,
 		display_enabled_show, display_enabled_store);
-static DEVICE_ATTR(update_mode, S_IRUGO|S_IWUSR,
-		display_upd_mode_show, display_upd_mode_store);
 static DEVICE_ATTR(tear_elim, S_IRUGO|S_IWUSR,
 		display_tear_show, display_tear_store);
 static DEVICE_ATTR(timings, S_IRUGO|S_IWUSR,
@@ -309,7 +265,6 @@ static DEVICE_ATTR(wss, S_IRUGO|S_IWUSR,
 
 static struct device_attribute *display_sysfs_attrs[] = {
 	&dev_attr_enabled,
-	&dev_attr_update_mode,
 	&dev_attr_tear_elim,
 	&dev_attr_timings,
 	&dev_attr_rotate,

@@ -538,20 +538,6 @@ static int venc_panel_resume(struct omap_dss_device *dssdev)
 	return venc_panel_enable(dssdev);
 }
 
-static enum omap_dss_update_mode venc_get_update_mode(
-		struct omap_dss_device *dssdev)
-{
-	return OMAP_DSS_UPDATE_AUTO;
-}
-
-static int venc_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	if (mode != OMAP_DSS_UPDATE_AUTO)
-		return -EINVAL;
-	return 0;
-}
-
 static void venc_get_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
@@ -631,9 +617,6 @@ static struct omap_dss_driver venc_driver = {
 
 	.get_resolution	= omapdss_default_get_resolution,
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
-
-	.set_update_mode = venc_set_update_mode,
-	.get_update_mode = venc_get_update_mode,
 
 	.get_timings	= venc_get_timings,
 	.set_timings	= venc_set_timings,
