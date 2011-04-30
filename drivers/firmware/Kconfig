@@ -157,4 +157,6 @@ config SIGMA
 	  If unsure, say N here.  Drivers that need these helpers will select
 	  this option automatically.
 
+source "drivers/firmware/google/Kconfig"
+
 endmenu
