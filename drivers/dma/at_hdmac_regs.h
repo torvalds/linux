@@ -309,8 +309,8 @@ static void atc_setup_irq(struct at_dma_chan *atchan, int on)
 	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
 	u32		ebci;
 
-	/* enable interrupts on buffer chain completion & error */
-	ebci =    AT_DMA_CBTC(atchan->chan_common.chan_id)
+	/* enable interrupts on buffer transfer completion & error */
+	ebci =    AT_DMA_BTC(atchan->chan_common.chan_id)
 		| AT_DMA_ERR(atchan->chan_common.chan_id);
 	if (on)
 		dma_writel(atdma, EBCIER, ebci);
@@ -347,7 +347,12 @@ static inline int atc_chan_is_enabled(struct at_dma_chan *atchan)
  */
 static void set_desc_eol(struct at_desc *desc)
 {
-	desc->lli.ctrlb |= ATC_SRC_DSCR_DIS | ATC_DST_DSCR_DIS;
+	u32 ctrlb = desc->lli.ctrlb;
+
+	ctrlb &= ~ATC_IEN;
+	ctrlb |= ATC_SRC_DSCR_DIS | ATC_DST_DSCR_DIS;
+
+	desc->lli.ctrlb = ctrlb;
 	desc->lli.dscr = 0;
 }
 

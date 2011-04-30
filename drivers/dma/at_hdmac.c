@@ -464,7 +464,7 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 
 		for (i = 0; i < atdma->dma_common.chancnt; i++) {
 			atchan = &atdma->chan[i];
-			if (pending & (AT_DMA_CBTC(i) | AT_DMA_ERR(i))) {
+			if (pending & (AT_DMA_BTC(i) | AT_DMA_ERR(i))) {
 				if (pending & AT_DMA_ERR(i)) {
 					/* Disable channel on AHB error */
 					dma_writel(atdma, CHDR, atchan->mask);
@@ -549,7 +549,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	}
 
 	ctrla =   ATC_DEFAULT_CTRLA;
-	ctrlb =   ATC_DEFAULT_CTRLB
+	ctrlb =   ATC_DEFAULT_CTRLB | ATC_IEN
 		| ATC_SRC_ADDR_MODE_INCR
 		| ATC_DST_ADDR_MODE_INCR
 		| ATC_FC_MEM2MEM;
