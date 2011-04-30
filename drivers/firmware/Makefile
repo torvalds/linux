@@ -14,4 +14,4 @@ obj-$(CONFIG_ISCSI_IBFT)	+= iscsi_ibft.o
 obj-$(CONFIG_FIRMWARE_MEMMAP)	+= memmap.o
 obj-$(CONFIG_SIGMA)		+= sigma.o
 
-obj-y  += google/
+obj-$(CONFIG_GOOGLE_FIRMWARE)	+= google/
