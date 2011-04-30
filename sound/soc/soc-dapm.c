@@ -1254,13 +1254,19 @@ static const struct file_operations dapm_bias_fops = {
 	.llseek = default_llseek,
 };
 
-void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm)
+void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
+	struct dentry *parent)
 {
 	struct snd_soc_dapm_widget *w;
 	struct dentry *d;
 
-	if (!dapm->debugfs_dapm)
+	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
+
+	if (!dapm->debugfs_dapm) {
+		printk(KERN_WARNING
+		       "Failed to create DAPM debugfs directory\n");
 		return;
+	}
 
 	d = debugfs_create_file("bias_level", 0444,
 				dapm->debugfs_dapm, dapm,
@@ -1283,7 +1289,8 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm)
 	}
 }
 #else
-void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm)
+void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
+	struct dentry *parent)
 {
 }
 #endif

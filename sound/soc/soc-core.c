@@ -302,13 +302,7 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec register debugfs file\n");
 
-	codec->dapm.debugfs_dapm = debugfs_create_dir("dapm",
-						 codec->debugfs_codec_root);
-	if (!codec->dapm.debugfs_dapm)
-		printk(KERN_WARNING
-		       "Failed to create DAPM debugfs directory\n");
-
-	snd_soc_dapm_debugfs_init(&codec->dapm);
+	snd_soc_dapm_debugfs_init(&codec->dapm, codec->debugfs_codec_root);
 }
 
 static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
@@ -1926,13 +1920,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 					card->num_dapm_routes);
 
 #ifdef CONFIG_DEBUG_FS
-	card->dapm.debugfs_dapm = debugfs_create_dir("dapm",
-						     card->debugfs_card_root);
-	if (!card->dapm.debugfs_dapm)
-		printk(KERN_WARNING
-		       "Failed to create card DAPM debugfs directory\n");
-
-	snd_soc_dapm_debugfs_init(&card->dapm);
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
 #endif
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),

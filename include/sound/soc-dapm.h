@@ -356,7 +356,8 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);
-void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm);
+void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
+				struct dentry *parent);
 
 /* dapm audio pin control and status */
 int snd_soc_dapm_enable_pin(struct snd_soc_dapm_context *dapm,
