@@ -499,8 +499,8 @@ static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __us
 	else if (ratio > 10.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #   ");
-	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
 	fprintf(stderr, " frontend cycles idle   ");
 }
 
@@ -522,9 +522,9 @@ static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __use
 	else if (ratio > 20.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #   ");
-	color_fprintf(stderr, color, "%5.2f%%", ratio);
-	fprintf(stderr, "  backend cycles idle   ");
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " backend  cycles idle   ");
 }
 
 static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -545,8 +545,8 @@ static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #   ");
-	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
 	fprintf(stderr, " of all branches        ");
 }
 
@@ -568,8 +568,8 @@ static void print_l1_dcache_misses(int cpu, struct perf_evsel *evsel __used, dou
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #   ");
-	color_fprintf(stderr, color, "%5.2f%%", ratio);
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
 	fprintf(stderr, " of all L1-dcache hits  ");
 }
 
@@ -607,14 +607,14 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " #    %4.2f  insns per cycle        ", ratio);
+		fprintf(stderr, " #   %5.2f  insns per cycle        ", ratio);
 
 		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
 		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
 
 		if (total && avg) {
 			ratio = total / avg;
-			fprintf(stderr, "\n                                            #    %4.2f  stalled cycles per insn", ratio);
+			fprintf(stderr, "\n                                            #   %5.2f  stalled cycles per insn", ratio);
 		}
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
