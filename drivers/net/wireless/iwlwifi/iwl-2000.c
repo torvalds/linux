@@ -46,7 +46,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
-#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 5
@@ -285,13 +284,6 @@ static struct iwl_lib_ops iwl2000_lib = {
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
-	},
-	.debugfs_ops = {
-		.rx_stats_read = iwl_ucode_rx_stats_read,
-		.tx_stats_read = iwl_ucode_tx_stats_read,
-		.general_stats_read = iwl_ucode_general_stats_read,
-		.bt_stats_read = iwl_ucode_bt_stats_read,
-		.reply_tx_error = iwl_reply_tx_error_read,
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
