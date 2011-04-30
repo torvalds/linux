@@ -1257,7 +1257,6 @@ static const struct file_operations dapm_bias_fops = {
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
-	struct snd_soc_dapm_widget *w;
 	struct dentry *d;
 
 	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
@@ -1274,25 +1273,35 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	if (!d)
 		dev_warn(dapm->dev,
 			 "ASoC: Failed to create bias level debugfs file\n");
-
-	list_for_each_entry(w, &dapm->card->widgets, list) {
-		if (!w->name || w->dapm != dapm)
-			continue;
-
-		d = debugfs_create_file(w->name, 0444,
-					dapm->debugfs_dapm, w,
-					&dapm_widget_power_fops);
-		if (!d)
-			dev_warn(w->dapm->dev,
-				"ASoC: Failed to create %s debugfs file\n",
-				w->name);
-	}
 }
+
+static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct dentry *d;
+
+	if (!dapm->debugfs_dapm || !w->name)
+		return;
+
+	d = debugfs_create_file(w->name, 0444,
+				dapm->debugfs_dapm, w,
+				&dapm_widget_power_fops);
+	if (!d)
+		dev_warn(w->dapm->dev,
+			"ASoC: Failed to create %s debugfs file\n",
+			w->name);
+}
+
 #else
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
 }
+
+static inline void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+{
+}
+
 #endif
 
 /* test and update the power status of a mux widget */
@@ -1765,6 +1774,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		}
 
 		w->new = 1;
+
+		dapm_debugfs_add_widget(w);
 	}
 
 	dapm_power_widgets(dapm, SND_SOC_DAPM_STREAM_NOP);

@@ -1493,6 +1493,8 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (!try_module_get(codec->dev->driver->owner))
 		return -ENODEV;
 
+	soc_init_codec_debugfs(codec);
+
 	if (driver->probe) {
 		ret = driver->probe(codec);
 		if (ret < 0) {
@@ -1513,8 +1515,6 @@ static int soc_probe_codec(struct snd_soc_card *card,
 		snd_soc_dapm_add_routes(&codec->dapm, driver->dapm_routes,
 					driver->num_dapm_routes);
 
-	soc_init_codec_debugfs(codec);
-
 	/* mark codec as probed and add to card codec list */
 	codec->probed = 1;
 	list_add(&codec->card_list, &card->codec_dev_list);
@@ -1523,6 +1523,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	return 0;
 
 err_probe:
+	soc_cleanup_codec_debugfs(codec);
 	module_put(codec->dev->driver->owner);
 
 	return ret;
@@ -1873,6 +1874,10 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	card->dapm.card = card;
 	list_add(&card->dapm.list, &card->dapm_list);
 
+#ifdef CONFIG_DEBUG_FS
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
+#endif
+
 #ifdef CONFIG_PM_SLEEP
 	/* deferred resume work */
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
@@ -1918,10 +1923,6 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->dapm_routes)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
-
-#ifdef CONFIG_DEBUG_FS
-	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
-#endif
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s",  card->name);
