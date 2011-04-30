@@ -2368,47 +2368,6 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	return RX_QUEUED;
 }
 
-static void ieee80211_rx_michael_mic_report(struct ieee80211_hdr *hdr,
-					    struct ieee80211_rx_data *rx)
-{
-	int keyidx;
-	unsigned int hdrlen;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (rx->skb->len >= hdrlen + 4)
-		keyidx = rx->skb->data[hdrlen + 3] >> 6;
-	else
-		keyidx = -1;
-
-	if (!rx->sta) {
-		/*
-		 * Some hardware seem to generate incorrect Michael MIC
-		 * reports; ignore them to avoid triggering countermeasures.
-		 */
-		return;
-	}
-
-	if (!ieee80211_has_protected(hdr->frame_control))
-		return;
-
-	if (rx->sdata->vif.type == NL80211_IFTYPE_AP && keyidx) {
-		/*
-		 * APs with pairwise keys should never receive Michael MIC
-		 * errors for non-zero keyidx because these are reserved for
-		 * group keys and only the AP is sending real multicast
-		 * frames in the BSS.
-		 */
-		return;
-	}
-
-	if (!ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_auth(hdr->frame_control))
-		return;
-
-	mac80211_ev_michael_mic_failure(rx->sdata, keyidx, hdr, NULL,
-					GFP_ATOMIC);
-}
-
 /* TODO: use IEEE80211_RX_FRAGMENTED */
 static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 					struct ieee80211_rate *rate)
@@ -2751,12 +2710,6 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 
 	if (!prepares)
 		return false;
-
-	if (status->flag & RX_FLAG_MMIC_ERROR) {
-		if (status->rx_flags & IEEE80211_RX_RA_MATCH)
-			ieee80211_rx_michael_mic_report(hdr, rx);
-		return false;
-	}
 
 	if (!consume) {
 		skb = skb_copy(skb, GFP_ATOMIC);
