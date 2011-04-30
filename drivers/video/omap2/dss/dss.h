@@ -322,6 +322,30 @@ static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device 
 	WARN("%s: DSI not compiled in, returning rate as 0\n", __func__);
 	return 0;
 }
+static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
+		struct dsi_clock_info *cinfo)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
+		bool is_tft, unsigned long req_pck,
+		struct dsi_clock_info *dsi_cinfo,
+		struct dispc_clock_info *dispc_cinfo)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline int dsi_pll_init(struct platform_device *dsidev,
+		bool enable_hsclk, bool enable_hsdiv)
+{
+	WARN("%s: DSI not compiled in\n", __func__);
+	return -ENODEV;
+}
+static inline void dsi_pll_uninit(struct platform_device *dsidev,
+		bool disconnect_lanes)
+{
+}
 static inline void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
 {
 }
