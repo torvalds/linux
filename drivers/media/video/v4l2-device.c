@@ -155,8 +155,10 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	sd->v4l2_dev = v4l2_dev;
 	if (sd->internal_ops && sd->internal_ops->registered) {
 		err = sd->internal_ops->registered(sd);
-		if (err)
+		if (err) {
+			module_put(sd->owner);
 			return err;
+		}
 	}
 
 	/* This just returns 0 if either of the two args is NULL */
@@ -164,6 +166,7 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	if (err) {
 		if (sd->internal_ops && sd->internal_ops->unregistered)
 			sd->internal_ops->unregistered(sd);
+		module_put(sd->owner);
 		return err;
 	}
 
