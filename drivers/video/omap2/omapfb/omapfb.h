@@ -73,6 +73,11 @@ struct omapfb_info {
 	bool mirror;
 };
 
+struct omapfb_display_data {
+	struct omap_dss_device *dssdev;
+	u8 bpp_override;
+};
+
 struct omapfb2_device {
 	struct device *dev;
 	struct mutex  mtx;
@@ -86,17 +91,11 @@ struct omapfb2_device {
 	struct omapfb2_mem_region regions[10];
 
 	unsigned num_displays;
-	struct omap_dss_device *displays[10];
+	struct omapfb_display_data displays[10];
 	unsigned num_overlays;
 	struct omap_overlay *overlays[10];
 	unsigned num_managers;
 	struct omap_overlay_manager *managers[10];
-
-	unsigned num_bpp_overrides;
-	struct {
-		struct omap_dss_device *dssdev;
-		u8 bpp;
-	} bpp_overrides[10];
 };
 
 struct omapfb_colormode {
@@ -141,6 +140,19 @@ static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 	}
 
 	return NULL;
+}
+
+static inline struct omapfb_display_data *get_display_data(
+		struct omapfb2_device *fbdev, struct omap_dss_device *dssdev)
+{
+	int i;
+
+	for (i = 0; i < fbdev->num_displays; ++i)
+		if (fbdev->displays[i].dssdev == dssdev)
+			return &fbdev->displays[i];
+
+	/* This should never happen */
+	BUG();
 }
 
 static inline void omapfb_lock(struct omapfb2_device *fbdev)

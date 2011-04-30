@@ -1858,10 +1858,11 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	for (i = 0; i < fbdev->num_displays; i++) {
-		if (fbdev->displays[i]->state != OMAP_DSS_DISPLAY_DISABLED)
-			fbdev->displays[i]->driver->disable(fbdev->displays[i]);
+		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
+		if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
+			dssdev->driver->disable(dssdev);
 
-		omap_dss_put_device(fbdev->displays[i]);
+		omap_dss_put_device(dssdev);
 	}
 
 	dev_set_drvdata(fbdev->dev, NULL);
@@ -2084,14 +2085,14 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 	int r;
 	u8 bpp;
 	struct omap_video_timings timings, temp_timings;
+	struct omapfb_display_data *d;
 
 	r = omapfb_mode_to_timings(mode_str, &timings, &bpp);
 	if (r)
 		return r;
 
-	fbdev->bpp_overrides[fbdev->num_bpp_overrides].dssdev = display;
-	fbdev->bpp_overrides[fbdev->num_bpp_overrides].bpp = bpp;
-	++fbdev->num_bpp_overrides;
+	d = get_display_data(fbdev, display);
+	d->bpp_override = bpp;
 
 	if (display->driver->check_timings) {
 		r = display->driver->check_timings(display, &timings);
@@ -2117,14 +2118,14 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 static int omapfb_get_recommended_bpp(struct omapfb2_device *fbdev,
 		struct omap_dss_device *dssdev)
 {
-	int i;
+	struct omapfb_display_data *d;
 
 	BUG_ON(dssdev->driver->get_recommended_bpp == NULL);
 
-	for (i = 0; i < fbdev->num_bpp_overrides; ++i) {
-		if (dssdev == fbdev->bpp_overrides[i].dssdev)
-			return fbdev->bpp_overrides[i].bpp;
-	}
+	d = get_display_data(fbdev, dssdev);
+
+	if (d->bpp_override != 0)
+		return d->bpp_override;
 
 	return dssdev->driver->get_recommended_bpp(dssdev);
 }
@@ -2156,9 +2157,9 @@ static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
 
 		display = NULL;
 		for (i = 0; i < fbdev->num_displays; ++i) {
-			if (strcmp(fbdev->displays[i]->name,
+			if (strcmp(fbdev->displays[i].dssdev->name,
 						display_str) == 0) {
-				display = fbdev->displays[i];
+				display = fbdev->displays[i].dssdev;
 				break;
 			}
 		}
@@ -2282,7 +2283,7 @@ static int omapfb_probe(struct platform_device *pdev)
 			r = -ENODEV;
 		}
 
-		fbdev->displays[fbdev->num_displays++] = dssdev;
+		fbdev->displays[fbdev->num_displays++].dssdev = dssdev;
 	}
 
 	if (r)
