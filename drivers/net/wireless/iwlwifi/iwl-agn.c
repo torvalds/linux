@@ -4129,21 +4129,21 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x088F, 0x4266, iwl6035_2bg_cfg)},
 	{IWL_PCI_DEVICE(0x088E, 0x4466, iwl6035_2bg_cfg)},
 
-/* 200 Series */
-	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl200_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl200_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl200_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0026, iwl200_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0895, 0x0226, iwl200_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0426, iwl200_bg_cfg)},
+/* 105 Series */
+	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl105_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl105_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl105_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0026, iwl105_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0895, 0x0226, iwl105_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0426, iwl105_bg_cfg)},
 
-/* 230 Series */
-	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl230_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl230_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl230_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0066, iwl230_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl230_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl230_bg_cfg)},
+/* 135 Series */
+	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0066, iwl135_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl135_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl135_bg_cfg)},
 
 	{0}
 };
