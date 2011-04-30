@@ -276,11 +276,6 @@ static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
 
 	dev_net_set(dev, net);
 
-	if (strchr(name, '%')) {
-		if (dev_alloc_name(dev, name) < 0)
-			goto failed_free;
-	}
-
 	nt = netdev_priv(dev);
 	nt->parms = *parms;
 

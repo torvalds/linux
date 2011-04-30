@@ -948,7 +948,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
-static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt)
+static int dev_get_valid_name(struct net_device *dev, const char *name)
 {
 	struct net *net;
 
@@ -958,7 +958,7 @@ static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt
 	if (!dev_valid_name(name))
 		return -EINVAL;
 
-	if (fmt && strchr(name, '%'))
+	if (strchr(name, '%'))
 		return dev_alloc_name(dev, name);
 	else if (__dev_get_by_name(net, name))
 		return -EEXIST;
@@ -995,7 +995,7 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
-	err = dev_get_valid_name(dev, newname, 1);
+	err = dev_get_valid_name(dev, newname);
 	if (err < 0)
 		return err;
 
@@ -5420,8 +5420,8 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
-	ret = dev_get_valid_name(dev, dev->name, 0);
-	if (ret)
+	ret = dev_get_valid_name(dev, dev->name);
+	if (ret < 0)
 		goto err_uninit;
 
 	dev->ifindex = dev_new_index(net);
@@ -5562,19 +5562,7 @@ int register_netdev(struct net_device *dev)
 	int err;
 
 	rtnl_lock();
-
-	/*
-	 * If the name is a format string the caller wants us to do a
-	 * name allocation.
-	 */
-	if (strchr(dev->name, '%')) {
-		err = dev_alloc_name(dev, dev->name);
-		if (err < 0)
-			goto out;
-	}
-
 	err = register_netdevice(dev);
-out:
 	rtnl_unlock();
 	return err;
 }
@@ -6056,7 +6044,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		if (dev_get_valid_name(dev, pat, 1))
+		if (dev_get_valid_name(dev, pat) < 0)
 			goto out;
 	}
 

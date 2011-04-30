@@ -1099,12 +1099,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		tun_net_init(dev);
 
-		if (strchr(dev->name, '%')) {
-			err = dev_alloc_name(dev, dev->name);
-			if (err < 0)
-				goto err_free_sk;
-		}
-
 		dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			TUN_USER_FEATURES;
 		dev->features = dev->hw_features;

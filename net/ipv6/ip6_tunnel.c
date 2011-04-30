@@ -280,11 +280,6 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct ip6_tnl_parm *p)
 
 	dev_net_set(dev, net);
 
-	if (strchr(name, '%')) {
-		if (dev_alloc_name(dev, name) < 0)
-			goto failed_free;
-	}
-
 	t = netdev_priv(dev);
 	t->parms = *p;
 	err = ip6_tnl_dev_init(dev);

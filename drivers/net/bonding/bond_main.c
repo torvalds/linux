@@ -4917,8 +4917,9 @@ int bond_create(struct net *net, const char *name)
 
 	rtnl_lock();
 
-	bond_dev = alloc_netdev_mq(sizeof(struct bonding), name ? name : "",
-				bond_setup, tx_queues);
+	bond_dev = alloc_netdev_mq(sizeof(struct bonding),
+				   name ? name : "bond%d",
+				   bond_setup, tx_queues);
 	if (!bond_dev) {
 		pr_err("%s: eek! can't alloc netdev!\n", name);
 		rtnl_unlock();
@@ -4928,26 +4929,10 @@ int bond_create(struct net *net, const char *name)
 	dev_net_set(bond_dev, net);
 	bond_dev->rtnl_link_ops = &bond_link_ops;
 
-	if (!name) {
-		res = dev_alloc_name(bond_dev, "bond%d");
-		if (res < 0)
-			goto out;
-	} else {
-		/*
-		 * If we're given a name to register
-		 * we need to ensure that its not already
-		 * registered
-		 */
-		res = -EEXIST;
-		if (__dev_get_by_name(net, name) != NULL)
-			goto out;
-	}
-
 	res = register_netdevice(bond_dev);
 
 	netif_carrier_off(bond_dev);
 
-out:
 	rtnl_unlock();
 	if (res < 0)
 		bond_destructor(bond_dev);

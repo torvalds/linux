@@ -706,10 +706,6 @@ static struct mwifiex_private *mwifiex_add_interface(
 		dev_err(adapter->dev, "no memory available for netdevice\n");
 		goto error;
 	}
-	if (dev_alloc_name(dev, dev->name)) {
-		dev_err(adapter->dev, "unable to alloc name for netdevice\n");
-		goto error;
-	}
 
 	if (mwifiex_register_cfg80211(dev, adapter->priv[bss_index]->curr_addr,
 				      adapter->priv[bss_index]) != 0) {
