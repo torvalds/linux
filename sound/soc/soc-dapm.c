@@ -1292,6 +1292,11 @@ static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
 			w->name);
 }
 
+static void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
+{
+	debugfs_remove_recursive(dapm->debugfs_dapm);
+}
+
 #else
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
@@ -1299,6 +1304,10 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 }
 
 static inline void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+{
+}
+
+static inline void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
 {
 }
 
@@ -2445,6 +2454,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
 void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm)
 {
 	snd_soc_dapm_sys_remove(dapm->dev);
+	dapm_debugfs_cleanup(dapm);
 	dapm_free_widgets(dapm);
 	list_del(&dapm->list);
 }
