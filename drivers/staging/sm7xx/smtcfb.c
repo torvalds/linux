@@ -14,15 +14,15 @@
  *
  * Version 0.10.26192.21.01
  *	- Add PowerPC/Big endian support
- *	- Add 2D support for Lynx
- *	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Verified on 2.6.19.2
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09.2621.00.01
- *	- Only support Linux Kernel's version 2.6.21.
- *	Boyod.yang  <boyod.yang@siliconmotion.com.cn>
+ *	- Only support Linux Kernel's version 2.6.21
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09
- *	- Only support Linux Kernel's version 2.6.12.
+ *	- Only support Linux Kernel's version 2.6.12
  *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  */
 
@@ -99,17 +99,17 @@ struct vesa_mode_table	{
 static struct vesa_mode_table vesa_mode[] = {
 	{"0x301", 640,  480,  8},
 	{"0x303", 800,  600,  8},
-	{"0x305", 1024, 768,	8},
+	{"0x305", 1024, 768,  8},
 	{"0x307", 1280, 1024, 8},
 
 	{"0x311", 640,  480,  16},
 	{"0x314", 800,  600,  16},
-	{"0x317", 1024, 768,	16},
+	{"0x317", 1024, 768,  16},
 	{"0x31A", 1280, 1024, 16},
 
 	{"0x312", 640,  480,  24},
 	{"0x315", 800,  600,  24},
-	{"0x318", 1024, 768,	24},
+	{"0x318", 1024, 768,  24},
 	{"0x31B", 1280, 1024, 24},
 };
 
