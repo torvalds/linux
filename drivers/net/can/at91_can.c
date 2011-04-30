@@ -47,11 +47,10 @@
  * RX/TX Mailbox split
  * don't dare to touch
  */
-#define AT91_MB_RX_NUM		11
 #define AT91_MB_TX_SHIFT	2
 
 #define AT91_MB_RX_FIRST	1
-#define AT91_MB_RX_LAST		(AT91_MB_RX_FIRST + AT91_MB_RX_NUM - 1)
+#define AT91_MB_RX_LAST		11
 
 #define AT91_MB_RX_MASK(i)	((1 << (i)) - 1)
 #define AT91_MB_RX_SPLIT	8
