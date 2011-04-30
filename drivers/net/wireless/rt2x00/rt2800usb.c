@@ -134,7 +134,7 @@ static void rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
-		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(20));
+		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(2));
 	}
 }
 
@@ -493,7 +493,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	 * also delayed -> use a timer to retrieve it.
 	 */
 	if (rt2800usb_txstatus_pending(rt2x00dev))
-		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(20));
+		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(2));
 }
 
 /*
