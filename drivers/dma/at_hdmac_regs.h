@@ -181,12 +181,22 @@ txd_to_at_desc(struct dma_async_tx_descriptor *txd)
 /*--  Channels  --------------------------------------------------------*/
 
 /**
+ * atc_status - information bits stored in channel status flag
+ *
+ * Manipulated with atomic operations.
+ */
+enum atc_status {
+	ATC_IS_ERROR = 0,
+	ATC_IS_CYCLIC = 24,
+};
+
+/**
  * struct at_dma_chan - internal representation of an Atmel HDMAC channel
  * @chan_common: common dmaengine channel object members
  * @device: parent device
  * @ch_regs: memory mapped register base
  * @mask: channel index in a mask
- * @error_status: transmit error status information from irq handler
+ * @status: transmit status information from irq/prep* functions
  *                to tasklet (use atomic operations)
  * @tasklet: bottom half to finish transaction work
  * @lock: serializes enqueue/dequeue operations to descriptors lists
@@ -201,7 +211,7 @@ struct at_dma_chan {
 	struct at_dma		*device;
 	void __iomem		*ch_regs;
 	u8			mask;
-	unsigned long		error_status;
+	unsigned long		status;
 	struct tasklet_struct	tasklet;
 
 	spinlock_t		lock;
