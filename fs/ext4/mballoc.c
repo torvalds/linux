@@ -2661,7 +2661,7 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 	struct super_block *sb = journal->j_private;
 	struct ext4_buddy e4b;
 	struct ext4_group_info *db;
-	int err, ret, count = 0, count2 = 0;
+	int err, count = 0, count2 = 0;
 	struct ext4_free_data *entry;
 	struct list_head *l, *ltmp;
 
@@ -2671,15 +2671,9 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 		mb_debug(1, "gonna free %u blocks in group %u (0x%p):",
 			 entry->count, entry->group, entry);
 
-		if (test_opt(sb, DISCARD)) {
-			ret = ext4_issue_discard(sb, entry->group,
-					entry->start_blk, entry->count);
-			if (unlikely(ret == -EOPNOTSUPP)) {
-				ext4_warning(sb, "discard not supported, "
-						 "disabling");
-				clear_opt(sb, DISCARD);
-			}
-		}
+		if (test_opt(sb, DISCARD))
+			ext4_issue_discard(sb, entry->group,
+					   entry->start_blk, entry->count);
 
 		err = ext4_mb_load_buddy(sb, entry->group, &e4b);
 		/* we expect to find existing buddy because it's pinned */
@@ -4717,11 +4711,10 @@ error_return:
  * one will allocate those blocks, mark it as used in buddy bitmap. This must
  * be called with under the group lock.
  */
-static int ext4_trim_extent(struct super_block *sb, int start, int count,
-		ext4_group_t group, struct ext4_buddy *e4b)
+static void ext4_trim_extent(struct super_block *sb, int start, int count,
+			     ext4_group_t group, struct ext4_buddy *e4b)
 {
 	struct ext4_free_extent ex;
-	int ret = 0;
 
 	assert_spin_locked(ext4_group_lock_ptr(sb, group));
 
@@ -4735,12 +4728,9 @@ static int ext4_trim_extent(struct super_block *sb, int start, int count,
 	 */
 	mb_mark_used(e4b, &ex);
 	ext4_unlock_group(sb, group);
-
-	ret = ext4_issue_discard(sb, group, start, count);
-
+	ext4_issue_discard(sb, group, start, count);
 	ext4_lock_group(sb, group);
 	mb_free_blocks(NULL, e4b, start, ex.fe_len);
-	return ret;
 }
 
 /**
@@ -4768,7 +4758,6 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 	void *bitmap;
 	ext4_grpblk_t next, count = 0;
 	ext4_group_t group;
-	int ret = 0;
 
 	BUG_ON(e4b == NULL);
 
@@ -4785,10 +4774,8 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 		next = mb_find_next_bit(bitmap, max, start);
 
 		if ((next - start) >= minblocks) {
-			ret = ext4_trim_extent(sb, start,
-				next - start, group, e4b);
-			if (ret < 0)
-				break;
+			ext4_trim_extent(sb, start,
+					 next - start, group, e4b);
 			count += next - start;
 		}
 		start = next + 1;
@@ -4811,9 +4798,6 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 
 	ext4_debug("trimmed %d blocks in the group %d\n",
 		count, group);
-
-	if (ret < 0)
-		count = ret;
 
 	return count;
 }
