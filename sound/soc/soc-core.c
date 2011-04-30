@@ -2047,6 +2047,8 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	if (card->remove)
 		card->remove(card);
 
+	snd_soc_dapm_free(&card->dapm);
+
 	kfree(card->rtd);
 	snd_card_free(card->snd_card);
 	return 0;
