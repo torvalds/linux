@@ -1221,6 +1221,23 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 		if (xctrl->value < 0 || xctrl->value >= mapping->menu_count)
 			return -ERANGE;
 		value = mapping->menu_info[xctrl->value].value;
+
+		/* Valid menu indices are reported by the GET_RES request for
+		 * UVC controls that support it.
+		 */
+		if (ctrl->info.flags & UVC_CTRL_FLAG_GET_RES) {
+			if (!ctrl->cached) {
+				ret = uvc_ctrl_populate_cache(chain, ctrl);
+				if (ret < 0)
+					return ret;
+			}
+
+			step = mapping->get(mapping, UVC_GET_RES,
+					uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+			if (!(step & value))
+				return -ERANGE;
+		}
+
 		break;
 
 	default:
