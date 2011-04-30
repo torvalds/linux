@@ -1996,9 +1996,9 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 static int omapfb_mode_to_timings(const char *mode_str,
 		struct omap_video_timings *timings, u8 *bpp)
 {
-	struct fb_info fbi;
-	struct fb_var_screeninfo var;
-	struct fb_ops fbops;
+	struct fb_info *fbi;
+	struct fb_var_screeninfo *var;
+	struct fb_ops *fbops;
 	int r;
 
 #ifdef CONFIG_OMAP2_DSS_VENC
@@ -2016,39 +2016,66 @@ static int omapfb_mode_to_timings(const char *mode_str,
 	/* this is quite a hack, but I wanted to use the modedb and for
 	 * that we need fb_info and var, so we create dummy ones */
 
-	memset(&fbi, 0, sizeof(fbi));
-	memset(&var, 0, sizeof(var));
-	memset(&fbops, 0, sizeof(fbops));
-	fbi.fbops = &fbops;
+	*bpp = 0;
+	fbi = NULL;
+	var = NULL;
+	fbops = NULL;
 
-	r = fb_find_mode(&var, &fbi, mode_str, NULL, 0, NULL, 24);
-
-	if (r != 0) {
-		timings->pixel_clock = PICOS2KHZ(var.pixclock);
-		timings->hbp = var.left_margin;
-		timings->hfp = var.right_margin;
-		timings->vbp = var.upper_margin;
-		timings->vfp = var.lower_margin;
-		timings->hsw = var.hsync_len;
-		timings->vsw = var.vsync_len;
-		timings->x_res = var.xres;
-		timings->y_res = var.yres;
-
-		switch (var.bits_per_pixel) {
-		case 16:
-			*bpp = 16;
-			break;
-		case 24:
-		case 32:
-		default:
-			*bpp = 24;
-			break;
-		}
-
-		return 0;
-	} else {
-		return -EINVAL;
+	fbi = kzalloc(sizeof(*fbi), GFP_KERNEL);
+	if (fbi == NULL) {
+		r = -ENOMEM;
+		goto err;
 	}
+
+	var = kzalloc(sizeof(*var), GFP_KERNEL);
+	if (var == NULL) {
+		r = -ENOMEM;
+		goto err;
+	}
+
+	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
+	if (fbops == NULL) {
+		r = -ENOMEM;
+		goto err;
+	}
+
+	fbi->fbops = fbops;
+
+	r = fb_find_mode(var, fbi, mode_str, NULL, 0, NULL, 24);
+	if (r == 0) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	timings->pixel_clock = PICOS2KHZ(var->pixclock);
+	timings->hbp = var->left_margin;
+	timings->hfp = var->right_margin;
+	timings->vbp = var->upper_margin;
+	timings->vfp = var->lower_margin;
+	timings->hsw = var->hsync_len;
+	timings->vsw = var->vsync_len;
+	timings->x_res = var->xres;
+	timings->y_res = var->yres;
+
+	switch (var->bits_per_pixel) {
+	case 16:
+		*bpp = 16;
+		break;
+	case 24:
+	case 32:
+	default:
+		*bpp = 24;
+		break;
+	}
+
+	r = 0;
+
+err:
+	kfree(fbi);
+	kfree(var);
+	kfree(fbops);
+
+	return r;
 }
 
 static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
