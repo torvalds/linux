@@ -634,6 +634,7 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
 	setup_timer(&rt2x00dev->txstatus_timer,
 		    rt2800usb_tx_sta_fifo_timeout,

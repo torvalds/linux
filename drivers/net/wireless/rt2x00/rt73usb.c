@@ -2209,6 +2209,7 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	if (!modparam_nohwcrypt)
 		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
