@@ -1015,6 +1015,24 @@ int uvc_query_v4l2_menu(struct uvc_video_chain *chain,
 	}
 
 	menu_info = &mapping->menu_info[query_menu->index];
+
+	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_RES) {
+		s32 bitmap;
+
+		if (!ctrl->cached) {
+			ret = uvc_ctrl_populate_cache(chain, ctrl);
+			if (ret < 0)
+				goto done;
+		}
+
+		bitmap = mapping->get(mapping, UVC_GET_RES,
+				      uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		if (!(bitmap & menu_info->value)) {
+			ret = -EINVAL;
+			goto done;
+		}
+	}
+
 	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
 
 done:
