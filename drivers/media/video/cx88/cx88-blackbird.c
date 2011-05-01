@@ -1060,18 +1060,21 @@ static int mpeg_open(struct file *file)
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
-	if (drv) {
-		err = drv->request_acquire(drv);
-		if(err != 0) {
-			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
-			mutex_unlock(&dev->core->lock);
-			return err;
-		}
+	if (!drv) {
+		dprintk(1, "%s: blackbird driver is not loaded\n", __func__);
+		mutex_unlock(&dev->core->lock);
+		return -ENODEV;
+	}
+
+	err = drv->request_acquire(drv);
+	if (err != 0) {
+		dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
+		mutex_unlock(&dev->core->lock);
+		return err;
 	}
 
 	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
-		if (drv)
-			drv->request_release(drv);
+		drv->request_release(drv);
 		mutex_unlock(&dev->core->lock);
 		return -EINVAL;
 	}
@@ -1080,8 +1083,7 @@ static int mpeg_open(struct file *file)
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh) {
-		if (drv)
-			drv->request_release(drv);
+		drv->request_release(drv);
 		mutex_unlock(&dev->core->lock);
 		return -ENOMEM;
 	}
@@ -1125,6 +1127,7 @@ static int mpeg_release(struct file *file)
 
 	/* Make sure we release the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
+	WARN_ON(!drv);
 	if (drv)
 		drv->request_release(drv);
 
