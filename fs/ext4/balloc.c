@@ -507,11 +507,6 @@ static int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 						EXT4_FREEBLOCKS_WATERMARK) {
 		free_blocks  = percpu_counter_sum_positive(fbc);
 		dirty_blocks = percpu_counter_sum_positive(dbc);
-		if (dirty_blocks < 0) {
-			printk(KERN_CRIT "Dirty block accounting "
-					"went wrong %lld\n",
-					(long long)dirty_blocks);
-		}
 	}
 	/* Check whether we have space after
 	 * accounting for current dirty blocks & root reserved blocks.
