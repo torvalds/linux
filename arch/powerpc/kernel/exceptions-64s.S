@@ -461,9 +461,20 @@ bad_stack:
 	std	r12,_XER(r1)
 	SAVE_GPR(0,r1)
 	SAVE_GPR(2,r1)
-	SAVE_4GPRS(3,r1)
-	SAVE_2GPRS(7,r1)
-	SAVE_10GPRS(12,r1)
+	ld	r10,EX_R3(r3)
+	std	r10,GPR3(r1)
+	SAVE_GPR(4,r1)
+	SAVE_4GPRS(5,r1)
+	ld	r9,EX_R9(r3)
+	ld	r10,EX_R10(r3)
+	SAVE_2GPRS(9,r1)
+	ld	r9,EX_R11(r3)
+	ld	r10,EX_R12(r3)
+	ld	r11,EX_R13(r3)
+	std	r9,GPR11(r1)
+	std	r10,GPR12(r1)
+	std	r11,GPR13(r1)
+	SAVE_8GPRS(14,r1)
 	SAVE_10GPRS(22,r1)
 	lhz	r12,PACA_TRAP_SAVE(r13)
 	std	r12,_TRAP(r1)
@@ -472,6 +483,9 @@ bad_stack:
 	li	r12,0
 	std	r12,0(r11)
 	ld	r2,PACATOC(r13)
+	ld	r11,exception_marker@toc(r2)
+	std	r12,RESULT(r1)
+	std	r11,STACK_FRAME_OVERHEAD-16(r1)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_bad_stack
 	b	1b
