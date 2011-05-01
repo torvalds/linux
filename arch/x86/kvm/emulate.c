@@ -729,7 +729,6 @@ static void *decode_register(u8 modrm_reg, unsigned long *regs,
 }
 
 static int read_descriptor(struct x86_emulate_ctxt *ctxt,
-			   struct x86_emulate_ops *ops,
 			   struct segmented_address addr,
 			   u16 *size, unsigned long *address, int op_bytes)
 {
@@ -2720,7 +2719,7 @@ static int em_lgdt(struct x86_emulate_ctxt *ctxt)
 	struct desc_ptr desc_ptr;
 	int rc;
 
-	rc = read_descriptor(ctxt, ctxt->ops, c->src.addr.mem,
+	rc = read_descriptor(ctxt, c->src.addr.mem,
 			     &desc_ptr.size, &desc_ptr.address,
 			     c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
@@ -2749,9 +2748,8 @@ static int em_lidt(struct x86_emulate_ctxt *ctxt)
 	struct desc_ptr desc_ptr;
 	int rc;
 
-	rc = read_descriptor(ctxt, ctxt->ops, c->src.addr.mem,
-			     &desc_ptr.size,
-			     &desc_ptr.address,
+	rc = read_descriptor(ctxt, c->src.addr.mem,
+			     &desc_ptr.size, &desc_ptr.address,
 			     c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
