@@ -709,18 +709,17 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 		drv->request_release = cx8802_request_release;
 		memcpy(driver, drv, sizeof(*driver));
 
+		mutex_lock(&drv->core->lock);
 		err = drv->probe(driver);
 		if (err == 0) {
 			i++;
-			mutex_lock(&drv->core->lock);
 			list_add_tail(&driver->drvlist, &dev->drvlist);
-			mutex_unlock(&drv->core->lock);
 		} else {
 			printk(KERN_ERR
 			       "%s/2: cx8802 probe failed, err = %d\n",
 			       dev->core->name, err);
 		}
-
+		mutex_unlock(&drv->core->lock);
 	}
 
 	return i ? 0 : -ENODEV;

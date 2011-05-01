@@ -505,13 +505,10 @@ struct cx8802_driver {
 	int (*suspend)(struct pci_dev *pci_dev, pm_message_t state);
 	int (*resume)(struct pci_dev *pci_dev);
 
-	/* MPEG 8802 -> mini driver - Driver probe and configuration */
-
-	/* Caller must _not_ hold core->lock */
-	int (*probe)(struct cx8802_driver *drv);
-
 	/* Callers to the following functions must hold core->lock */
 
+	/* MPEG 8802 -> mini driver - Driver probe and configuration */
+	int (*probe)(struct cx8802_driver *drv);
 	int (*remove)(struct cx8802_driver *drv);
 
 	/* MPEG 8802 -> mini driver - Access for hardware control */
