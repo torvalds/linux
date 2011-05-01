@@ -275,6 +275,17 @@ config INPUT_TWL4030_VIBRA
 	  To compile this driver as a module, choose M here. The module will
 	  be called twl4030_vibra.
 
+config INPUT_TWL6040_VIBRA
+	tristate "Support for TWL6040 Vibrator"
+	depends on TWL4030_CORE
+	select TWL6040_CORE
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for TWL6040 Vibrator Driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called twl6040_vibra.
+
 config INPUT_UINPUT
 	tristate "User level driver support"
 	help
