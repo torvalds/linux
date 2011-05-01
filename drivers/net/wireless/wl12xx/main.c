@@ -2376,20 +2376,24 @@ out:
 static int wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *skb,
 			    int offset)
 {
-	u8 *ptr = skb->data + offset;
+	u8 ssid_len;
+	const u8 *ptr = cfg80211_find_ie(WLAN_EID_SSID, skb->data + offset,
+					 skb->len - offset);
 
-	/* find the location of the ssid in the beacon */
-	while (ptr < skb->data + skb->len) {
-		if (ptr[0] == WLAN_EID_SSID) {
-			wl->ssid_len = ptr[1];
-			memcpy(wl->ssid, ptr+2, wl->ssid_len);
-			return 0;
-		}
-		ptr += (ptr[1] + 2);
+	if (!ptr) {
+		wl1271_error("No SSID in IEs!");
+		return -ENOENT;
 	}
 
-	wl1271_error("No SSID in IEs!\n");
-	return -ENOENT;
+	ssid_len = ptr[1];
+	if (ssid_len > IEEE80211_MAX_SSID_LEN) {
+		wl1271_error("SSID is too long!");
+		return -EINVAL;
+	}
+
+	wl->ssid_len = ssid_len;
+	memcpy(wl->ssid, ptr+2, ssid_len);
+	return 0;
 }
 
 static int wl1271_bss_erp_info_changed(struct wl1271 *wl,
