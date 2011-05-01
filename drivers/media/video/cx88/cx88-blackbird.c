@@ -1073,7 +1073,7 @@ static int mpeg_open(struct file *file)
 		return err;
 	}
 
-	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
+	if (!dev->core->mpeg_users && blackbird_initialize_codec(dev) < 0) {
 		drv->request_release(drv);
 		mutex_unlock(&dev->core->lock);
 		return -EINVAL;
@@ -1101,7 +1101,7 @@ static int mpeg_open(struct file *file)
 	cx88_set_scale(dev->core, dev->width, dev->height,
 			fh->mpegq.field);
 
-	atomic_inc(&dev->core->mpeg_users);
+	dev->core->mpeg_users++;
 	mutex_unlock(&dev->core->lock);
 	return 0;
 }
@@ -1112,7 +1112,9 @@ static int mpeg_release(struct file *file)
 	struct cx8802_dev *dev = fh->dev;
 	struct cx8802_driver *drv = NULL;
 
-	if (dev->mpeg_active && atomic_read(&dev->core->mpeg_users) == 1)
+	mutex_lock(&dev->core->lock);
+
+	if (dev->mpeg_active && dev->core->mpeg_users == 1)
 		blackbird_stop_codec(dev);
 
 	cx8802_cancel_buffers(fh->dev);
@@ -1121,7 +1123,6 @@ static int mpeg_release(struct file *file)
 
 	videobuf_mmap_free(&fh->mpegq);
 
-	mutex_lock(&dev->core->lock);
 	file->private_data = NULL;
 	kfree(fh);
 
@@ -1131,7 +1132,7 @@ static int mpeg_release(struct file *file)
 	if (drv)
 		drv->request_release(drv);
 
-	atomic_dec(&dev->core->mpeg_users);
+	dev->core->mpeg_users--;
 
 	mutex_unlock(&dev->core->lock);
 
