@@ -14868,6 +14868,23 @@ static void alc269_fixup_hweq(struct hda_codec *codec,
 	alc_write_coef_idx(codec, 0x1e, coef | 0x80);
 }
 
+static void alc271_fixup_dmic(struct hda_codec *codec,
+			      const struct alc_fixup *fix, int action)
+{
+	static struct hda_verb verbs[] = {
+		{0x20, AC_VERB_SET_COEF_INDEX, 0x0d},
+		{0x20, AC_VERB_SET_PROC_COEF, 0x4000},
+		{}
+	};
+	unsigned int cfg;
+
+	if (strcmp(codec->chip_name, "ALC271X"))
+		return;
+	cfg = snd_hda_codec_get_pincfg(codec, 0x12);
+	if (get_defcfg_connect(cfg) == AC_JACK_PORT_FIXED)
+		snd_hda_sequence_write(codec, verbs);
+}
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -14876,6 +14893,7 @@ enum {
 	ALC269_FIXUP_ASUS_G73JW,
 	ALC269_FIXUP_LENOVO_EAPD,
 	ALC275_FIXUP_SONY_HWEQ,
+	ALC271_FIXUP_DMIC,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -14929,7 +14947,11 @@ static const struct alc_fixup alc269_fixups[] = {
 		.v.func = alc269_fixup_hweq,
 		.chained = true,
 		.chain_id = ALC275_FIXUP_SONY_VAIO_GPIO2
-	}
+	},
+	[ALC271_FIXUP_DMIC] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc271_fixup_dmic,
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -14938,6 +14960,7 @@ static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK_VENDOR(0x1025, "Acer Aspire", ALC271_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Thinkpad L512", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
