@@ -49,9 +49,6 @@ static void __iomem *ictlr_reg_base[] = {
 	IO_ADDRESS(TEGRA_QUATERNARY_ICTLR_BASE),
 };
 
-static u32 tegra_legacy_wake_mask[4];
-static u32 tegra_legacy_saved_mask[4];
-
 /* When going into deep sleep, the CPU is powered down, taking the GIC with it
    In order to wake, the wake interrupts need to be enabled in the legacy
    interrupt controller. */
@@ -129,40 +126,6 @@ unsigned long tegra_legacy_class(int nr)
 	return readl(base + ICTLR_CPU_IEP_CLASS);
 }
 
-int tegra_legacy_irq_set_wake(int irq, int enable)
-{
-	irq -= 32;
-	if (enable)
-		tegra_legacy_wake_mask[irq >> 5] |= 1 << (irq & 31);
-	else
-		tegra_legacy_wake_mask[irq >> 5] &= ~(1 << (irq & 31));
-
-	return 0;
-}
-
-void tegra_legacy_irq_set_lp1_wake_mask(void)
-{
-	void __iomem *base;
-	int i;
-
-	for (i = 0; i < NUM_ICTLRS; i++) {
-		base = ictlr_reg_base[i];
-		tegra_legacy_saved_mask[i] = readl(base + ICTLR_CPU_IER);
-		writel(tegra_legacy_wake_mask[i], base + ICTLR_CPU_IER);
-	}
-}
-
-void tegra_legacy_irq_restore_mask(void)
-{
-	void __iomem *base;
-	int i;
-
-	for (i = 0; i < NUM_ICTLRS; i++) {
-		base = ictlr_reg_base[i];
-		writel(tegra_legacy_saved_mask[i], base + ICTLR_CPU_IER);
-	}
-}
-
 void tegra_init_legacy_irq(void)
 {
 	int i;
@@ -173,43 +136,3 @@ void tegra_init_legacy_irq(void)
 		writel(0, ictlr + ICTLR_CPU_IEP_CLASS);
 	}
 }
-
-#ifdef CONFIG_PM
-static u32 cop_ier[NUM_ICTLRS];
-static u32 cpu_ier[NUM_ICTLRS];
-static u32 cpu_iep[NUM_ICTLRS];
-
-void tegra_irq_suspend(void)
-{
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	for (i = 0; i < NUM_ICTLRS; i++) {
-		void __iomem *ictlr = ictlr_reg_base[i];
-		cpu_ier[i] = readl(ictlr + ICTLR_CPU_IER);
-		cpu_iep[i] = readl(ictlr + ICTLR_CPU_IEP_CLASS);
-		cop_ier[i] = readl(ictlr + ICTLR_COP_IER);
-		writel(~0, ictlr + ICTLR_COP_IER_CLR);
-	}
-	local_irq_restore(flags);
-}
-
-void tegra_irq_resume(void)
-{
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	for (i = 0; i < NUM_ICTLRS; i++) {
-		void __iomem *ictlr = ictlr_reg_base[i];
-		writel(cpu_iep[i], ictlr + ICTLR_CPU_IEP_CLASS);
-		writel(~0ul, ictlr + ICTLR_CPU_IER_CLR);
-		writel(cpu_ier[i], ictlr + ICTLR_CPU_IER_SET);
-		writel(0, ictlr + ICTLR_COP_IEP_CLASS);
-		writel(~0ul, ictlr + ICTLR_COP_IER_CLR);
-		writel(cop_ier[i], ictlr + ICTLR_COP_IER_SET);
-	}
-	local_irq_restore(flags);
-}
-#endif
