@@ -667,22 +667,6 @@ static void remote_device_resume_done(void *_dev)
 	}
 }
 
-static enum sci_status
-default_device_handler(struct scic_sds_remote_device *sci_dev,
-		       const char *func)
-{
-	dev_warn(scirdev_to_dev(sci_dev),
-		 "%s: in wrong state: %d\n", func,
-		 sci_base_state_machine_get_state(&sci_dev->state_machine));
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_remote_device_default_resume_handler(
-	struct scic_sds_remote_device *sci_dev)
-{
-	return default_device_handler(sci_dev, __func__);
-}
-
 /**
  *
  * @device: The struct scic_sds_remote_device which is then cast into a
@@ -961,77 +945,62 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_stp_remote_device_ready_idle_substate_event_handler,
 		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	}
