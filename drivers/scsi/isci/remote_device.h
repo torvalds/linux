@@ -387,13 +387,6 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  */
 struct scic_sds_remote_device_state_handler {
 	/**
-	 * The fail_handler specifies the method invoked when a remote device
-	 * failure has occurred.  A failure may be due to an inability to
-	 * initialize/configure the device.
-	 */
-	scic_sds_remote_device_handler_t fail_handler;
-
-	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a remote device.
 	 */
