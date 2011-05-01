@@ -293,19 +293,84 @@ enum sci_status scic_sds_remote_device_frame_handler(
 	return sci_dev->state_handlers->frame_handler(sci_dev, frame_index);
 }
 
-/**
- *
- * @sci_dev: The remote device for which the event handling is being
- *    requested.
- * @event_code: This is the event code that is to be processed.
- *
- * This method invokes the remote device event handler. enum sci_status
- */
-enum sci_status scic_sds_remote_device_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code)
+static bool is_remote_device_ready(struct scic_sds_remote_device *sci_dev)
 {
-	return sci_dev->state_handlers->event_handler(sci_dev, event_code);
+
+	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	enum scic_sds_remote_device_states state = sm->current_state_id;
+
+	switch (state) {
+	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+		return true;
+	default:
+		return false;
+	}
+}
+
+enum sci_status scic_sds_remote_device_event_handler(struct scic_sds_remote_device *sci_dev,
+						     u32 event_code)
+{
+	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	enum scic_sds_remote_device_states state = sm->current_state_id;
+	enum sci_status status;
+
+	switch (scu_get_event_type(event_code)) {
+	case SCU_EVENT_TYPE_RNC_OPS_MISC:
+	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
+	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
+		status = scic_sds_remote_node_context_event_handler(&sci_dev->rnc, event_code);
+		break;
+	case SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT:
+		if (scu_get_event_code(event_code) == SCU_EVENT_IT_NEXUS_TIMEOUT) {
+			status = SCI_SUCCESS;
+
+			/* Suspend the associated RNC */
+			scic_sds_remote_node_context_suspend(&sci_dev->rnc,
+							      SCI_SOFTWARE_SUSPENSION,
+							      NULL, NULL);
+
+			dev_dbg(scirdev_to_dev(sci_dev),
+				"%s: device: %p event code: %x: %s\n",
+				__func__, sci_dev, event_code,
+				is_remote_device_ready(sci_dev)
+				? "I_T_Nexus_Timeout event"
+				: "I_T_Nexus_Timeout event in wrong state");
+
+			break;
+		}
+	/* Else, fall through and treat as unhandled... */
+	default:
+		dev_dbg(scirdev_to_dev(sci_dev),
+			"%s: device: %p event code: %x: %s\n",
+			__func__, sci_dev, event_code,
+			is_remote_device_ready(sci_dev)
+			? "unexpected event"
+			: "unexpected event in wrong state");
+		status = SCI_FAILURE_INVALID_STATE;
+		break;
+	}
+
+	if (status != SCI_SUCCESS)
+		return status;
+
+	if (state == SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE) {
+
+		/* We pick up suspension events to handle specifically to this
+		 * state. We resume the RNC right away.
+		 */
+		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX ||
+		    scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX)
+			status = scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
+	}
+
+	return status;
 }
 
 static void scic_sds_remote_device_start_request(struct scic_sds_remote_device *sci_dev,
@@ -646,103 +711,13 @@ void scic_sds_remote_device_post_request(
 static void remote_device_resume_done(void *_dev)
 {
 	struct scic_sds_remote_device *sci_dev = _dev;
-	enum scic_sds_remote_device_states state;
 
-	state = sci_dev->state_machine.current_state_id;
-	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-		break;
-	default:
-		/* go 'ready' if we are not already in a ready state */
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCI_BASE_REMOTE_DEVICE_STATE_READY);
-		break;
-	}
-}
+	if (is_remote_device_ready(sci_dev))
+		return;
 
-/**
- *
- * @device: The struct scic_sds_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @event_code: The event code that the struct scic_sds_controller wants the device
- *    object to process.
- *
- * This method is the default event handler.  It will call the RNC state
- * machine handler for any RNC events otherwise it will log a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status  scic_sds_remote_device_core_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code,
-	bool is_ready_state)
-{
-	enum sci_status status;
-
-	switch (scu_get_event_type(event_code)) {
-	case SCU_EVENT_TYPE_RNC_OPS_MISC:
-	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
-	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
-		status = scic_sds_remote_node_context_event_handler(&sci_dev->rnc, event_code);
-		break;
-	case SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT:
-
-		if (scu_get_event_code(event_code) == SCU_EVENT_IT_NEXUS_TIMEOUT) {
-			status = SCI_SUCCESS;
-
-			/* Suspend the associated RNC */
-			scic_sds_remote_node_context_suspend(&sci_dev->rnc,
-							      SCI_SOFTWARE_SUSPENSION,
-							      NULL, NULL);
-
-			dev_dbg(scirdev_to_dev(sci_dev),
-				"%s: device: %p event code: %x: %s\n",
-				__func__, sci_dev, event_code,
-				(is_ready_state)
-				? "I_T_Nexus_Timeout event"
-				: "I_T_Nexus_Timeout event in wrong state");
-
-			break;
-		}
-	/* Else, fall through and treat as unhandled... */
-
-	default:
-		dev_dbg(scirdev_to_dev(sci_dev),
-			"%s: device: %p event code: %x: %s\n",
-			__func__, sci_dev, event_code,
-			(is_ready_state)
-			? "unexpected event"
-			: "unexpected event in wrong state");
-		status = SCI_FAILURE_INVALID_STATE;
-		break;
-	}
-
-	return status;
-}
-/**
- *
- * @device: The struct scic_sds_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @event_code: The event code that the struct scic_sds_controller wants the device
- *    object to process.
- *
- * This method is the default event handler.  It will call the RNC state
- * machine handler for any RNC events otherwise it will log a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status  scic_sds_remote_device_default_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code)
-{
-	return scic_sds_remote_device_core_event_handler(sci_dev,
-							  event_code,
-							  false);
+	/* go 'ready' if we are not already in a ready state */
+	sci_base_state_machine_change_state(&sci_dev->state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_READY);
 }
 
 /**
@@ -822,43 +797,6 @@ static enum sci_status scic_sds_remote_device_general_frame_handler(
 	}
 
 	return result;
-}
-
-/**
- *
- * @[in]: sci_dev This is the device object that is receiving the event.
- * @[in]: event_code The event code to process.
- *
- * This is a common method for handling events reported to the remote device
- * from the controller object. enum sci_status
- */
-static enum sci_status scic_sds_remote_device_general_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code)
-{
-	return scic_sds_remote_device_core_event_handler(sci_dev,
-							  event_code,
-							  true);
-}
-
-static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	status = scic_sds_remote_device_general_event_handler(sci_dev, event_code);
-	if (status != SCI_SUCCESS)
-		return status;
-
-	/* We pick up suspension events to handle specifically to this state. We
-	 * resume the RNC right away. enum sci_status
-	 */
-	if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX ||
-	    scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX)
-		status = scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
-
-	return status;
 }
 
 static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_frame_handler(struct scic_sds_remote_device *sci_dev,
@@ -945,63 +883,48 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.event_handler			= scic_sds_stp_remote_device_ready_idle_substate_event_handler,
 		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	}
 };
