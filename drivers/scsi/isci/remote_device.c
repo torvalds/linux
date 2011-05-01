@@ -795,13 +795,6 @@ static enum sci_status scic_sds_remote_device_default_frame_handler(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-static enum sci_status scic_sds_remote_device_default_complete_request_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	return default_device_handler(sci_dev, __func__);
-}
-
 /**
  *
  * @device: The struct scic_sds_remote_device which is then cast into a
@@ -865,136 +858,6 @@ static enum sci_status scic_sds_remote_device_general_event_handler(
 	return scic_sds_remote_device_core_event_handler(sci_dev,
 							  event_code,
 							  true);
-}
-
-/*
- * This method will complete the request for the remote device object.  The
- * method will call the completion handler for the request object and if
- * successful it will complete the request on the port object then decrement
- * its own started_request_count. enum sci_status
- */
-static enum sci_status scic_sds_remote_device_ready_state_complete_request_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	enum sci_status result;
-
-	result = scic_sds_request_complete(request);
-
-	if (result != SCI_SUCCESS)
-		return result;
-
-	/* See if the port is in a state
-	 * where we can start the IO request */
-	result = scic_sds_port_complete_io(
-			scic_sds_remote_device_get_port(sci_dev),
-			sci_dev, request);
-
-	if (result == SCI_SUCCESS)
-		scic_sds_remote_device_decrement_request_count(sci_dev);
-
-	return result;
-}
-
-/**
- *
- * @device: The device object for which the request is completing.
- * @request: The task request that is being completed.
- *
- * This method completes requests for this struct scic_sds_remote_device while it is
- * in the SCI_BASE_REMOTE_DEVICE_STATE_STOPPING state. This method calls the
- * complete method for the request object and if that is successful the port
- * object is called to complete the task request. Then the device object itself
- * completes the task request. If struct scic_sds_remote_device started_request_count
- * goes to 0 and the invalidate RNC request has completed the device object can
- * transition to the SCI_BASE_REMOTE_DEVICE_STATE_STOPPED. enum sci_status
- */
-static enum sci_status scic_sds_remote_device_stopping_state_complete_request_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	enum sci_status status = SCI_SUCCESS;
-
-	status = scic_sds_request_complete(request);
-
-	if (status != SCI_SUCCESS)
-		return status;
-
-	status = scic_sds_port_complete_io(scic_sds_remote_device_get_port(sci_dev),
-					   sci_dev, request);
-	if (status != SCI_SUCCESS)
-		return status;
-
-	scic_sds_remote_device_decrement_request_count(sci_dev);
-
-	if (scic_sds_remote_device_get_request_count(sci_dev) == 0)
-		scic_sds_remote_node_context_destruct(&sci_dev->rnc,
-						      rnc_destruct_done, sci_dev);
-	return SCI_SUCCESS;
-}
-
-/* complete requests for this device while it is in the
- * SCI_BASE_REMOTE_DEVICE_STATE_RESETTING state. This method calls the complete
- * method for the request object and if that is successful the port object is
- * called to complete the task request. Then the device object itself completes
- * the task request. enum sci_status
- */
-static enum sci_status scic_sds_remote_device_resetting_state_complete_request_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	enum sci_status status = SCI_SUCCESS;
-
-	status = scic_sds_request_complete(request);
-
-	if (status == SCI_SUCCESS) {
-		status = scic_sds_port_complete_io(
-				scic_sds_remote_device_get_port(sci_dev),
-				sci_dev, request);
-
-		if (status == SCI_SUCCESS) {
-			scic_sds_remote_device_decrement_request_count(sci_dev);
-		}
-	}
-
-	return status;
-}
-
-static enum sci_status scic_sds_stp_remote_device_complete_request(struct scic_sds_remote_device *sci_dev,
-								   struct scic_sds_request *sci_req)
-{
-	enum sci_status status;
-
-	status = scic_sds_io_request_complete(sci_req);
-	if (status != SCI_SUCCESS)
-		goto out;
-
-	status = scic_sds_port_complete_io(sci_dev->owning_port, sci_dev, sci_req);
-	if (status != SCI_SUCCESS)
-		goto out;
-
-	scic_sds_remote_device_decrement_request_count(sci_dev);
-	if (sci_req->sci_status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-		/* This request causes hardware error, device needs to be Lun Reset.
-		 * So here we force the state machine to IDLE state so the rest IOs
-		 * can reach RNC state handler, these IOs will be completed by RNC with
-		 * status of "DEVICE_RESET_REQUIRED", instead of "INVALID STATE".
-		 */
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET);
-	} else if (scic_sds_remote_device_get_request_count(sci_dev) == 0)
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
-
-
- out:
-	if (status != SCI_SUCCESS)
-		dev_err(scirdev_to_dev(sci_dev),
-			"%s: Port:0x%p Device:0x%p Request:0x%p Status:0x%x "
-			"could not complete\n", __func__, sci_dev->owning_port,
-			sci_dev, sci_req, status);
-
-	return status;
 }
 
 static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_handler(
@@ -1113,105 +976,90 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.complete_task_handler	= scic_sds_remote_device_ready_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_stp_remote_device_ready_idle_substate_event_handler,
 		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_stp_remote_device_ready_cmd_substate_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
 		.event_handler			= scic_sds_remote_device_general_event_handler,
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.complete_task_handler	= scic_sds_remote_device_stopping_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_general_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.complete_task_handler	= scic_sds_remote_device_resetting_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
 		.event_handler		= scic_sds_remote_device_default_event_handler,
