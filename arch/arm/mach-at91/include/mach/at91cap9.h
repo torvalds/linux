@@ -20,8 +20,6 @@
 /*
  * Peripheral identifiers/interrupts.
  */
-#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
-#define AT91_ID_SYS		1	/* System Peripherals */
 #define AT91CAP9_ID_PIOABCD	2	/* Parallel IO Controller A, B, C and D */
 #define AT91CAP9_ID_MPB0	3	/* MP Block Peripheral 0 */
 #define AT91CAP9_ID_MPB1	4	/* MP Block Peripheral 1 */

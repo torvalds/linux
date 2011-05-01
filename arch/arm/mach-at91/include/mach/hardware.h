@@ -39,6 +39,12 @@
 #endif
 
 
+/*
+ * Peripheral identifiers/interrupts.
+ */
+#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
+#define AT91_ID_SYS		1	/* System Peripherals */
+
 #ifdef CONFIG_MMU
 /*
  * Remap the peripherals from address 0xFFF78000 .. 0xFFFFFFFF
