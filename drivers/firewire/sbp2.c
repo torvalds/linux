@@ -826,8 +826,6 @@ static void sbp2_target_put(struct sbp2_target *tgt)
 	kref_put(&tgt->kref, sbp2_release_target);
 }
 
-static struct workqueue_struct *sbp2_wq;
-
 /*
  * Always get the target's kref when scheduling work on one its units.
  * Each workqueue job is responsible to call sbp2_target_put() upon return.
@@ -835,7 +833,7 @@ static struct workqueue_struct *sbp2_wq;
 static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
 {
 	sbp2_target_get(lu->tgt);
-	if (!queue_delayed_work(sbp2_wq, &lu->work, delay))
+	if (!queue_delayed_work(fw_workqueue, &lu->work, delay))
 		sbp2_target_put(lu->tgt);
 }
 
@@ -1645,17 +1643,12 @@ MODULE_ALIAS("sbp2");
 
 static int __init sbp2_init(void)
 {
-	sbp2_wq = create_singlethread_workqueue(KBUILD_MODNAME);
-	if (!sbp2_wq)
-		return -ENOMEM;
-
 	return driver_register(&sbp2_driver.driver);
 }
 
 static void __exit sbp2_cleanup(void)
 {
 	driver_unregister(&sbp2_driver.driver);
-	destroy_workqueue(sbp2_wq);
 }
 
 module_init(sbp2_init);

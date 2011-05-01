@@ -449,4 +449,6 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 			    u64 channels_mask, int *channel, int *bandwidth,
 			    bool allocate);
 
+extern struct workqueue_struct *fw_workqueue;
+
 #endif /* _LINUX_FIREWIRE_H */

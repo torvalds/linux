@@ -725,12 +725,13 @@ struct fw_device *fw_device_get_by_devt(dev_t devt)
 	return device;
 }
 
-struct workqueue_struct *fw_wq;
+struct workqueue_struct *fw_workqueue;
+EXPORT_SYMBOL(fw_workqueue);
 
 static void fw_schedule_device_work(struct fw_device *device,
 				    unsigned long delay)
 {
-	queue_delayed_work(fw_wq, &device->work, delay);
+	queue_delayed_work(fw_workqueue, &device->work, delay);
 }
 
 /*
