@@ -521,22 +521,97 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 	return status;
 }
 
-/**
- *
- * @controller: The controller that is starting the task request.
- * @sci_dev: The remote device for which the start task handling is being
- *    requested.
- * @io_request: The task request that is being started.
- *
- * This method invokes the remote device start task handler. enum sci_status
- */
-enum sci_status scic_sds_remote_device_start_task(
-	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *io_request)
+static void scic_sds_remote_device_continue_request(void *dev)
 {
-	return sci_dev->state_handlers->start_task_handler(
-		       sci_dev, io_request);
+	struct scic_sds_remote_device *sci_dev = dev;
+
+	/* we need to check if this request is still valid to continue. */
+	if (sci_dev->working_request)
+		scic_controller_continue_io(sci_dev->working_request);
+}
+
+enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *scic,
+						  struct scic_sds_remote_device *sci_dev,
+						  struct scic_sds_request *sci_req)
+{
+	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	enum scic_sds_remote_device_states state = sm->current_state_id;
+	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	enum sci_status status;
+
+	switch (state) {
+	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
+	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
+	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
+	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	default:
+		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
+			 __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
+		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
+		if (status != SCI_SUCCESS)
+			return status;
+
+		status = scic_sds_remote_node_context_start_task(&sci_dev->rnc, sci_req);
+		if (status != SCI_SUCCESS)
+			goto out;
+
+		status = sci_req->state_handlers->start_handler(sci_req);
+		if (status != SCI_SUCCESS)
+			goto out;
+
+		/* Note: If the remote device state is not IDLE this will
+		 * replace the request that probably resulted in the task
+		 * management request.
+		 */
+		sci_dev->working_request = sci_req;
+		sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
+
+		/* The remote node context must cleanup the TCi to NCQ mapping
+		 * table.  The only way to do this correctly is to either write
+		 * to the TLCR register or to invalidate and repost the RNC. In
+		 * either case the remote node context state machine will take
+		 * the correct action when the remote node context is suspended
+		 * and later resumed.
+		 */
+		scic_sds_remote_node_context_suspend(&sci_dev->rnc,
+				SCI_SOFTWARE_SUSPENSION, NULL, NULL);
+		scic_sds_remote_node_context_resume(&sci_dev->rnc,
+				scic_sds_remote_device_continue_request,
+						    sci_dev);
+
+	out:
+		scic_sds_remote_device_start_request(sci_dev, sci_req, status);
+		/* We need to let the controller start request handler know that
+		 * it can't post TC yet. We will provide a callback function to
+		 * post TC when RNC gets resumed.
+		 */
+		return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
+	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
+		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
+		if (status != SCI_SUCCESS)
+			return status;
+
+		status = scic_sds_remote_node_context_start_task(&sci_dev->rnc, sci_req);
+		if (status != SCI_SUCCESS)
+			break;
+
+		status = scic_sds_request_start(sci_req);
+		break;
+	}
+	scic_sds_remote_device_start_request(sci_dev, sci_req, status);
+
+	return status;
 }
 
 /**
@@ -587,23 +662,6 @@ static void remote_device_resume_done(void *_dev)
 						    SCI_BASE_REMOTE_DEVICE_STATE_READY);
 		break;
 	}
-}
-
-/**
- *
- * @request: This parameter specifies the request being continued.
- *
- * This method will continue to post tc for a STP request. This method usually
- * serves as a callback when RNC gets resumed during a task management
- * sequence. none
- */
-static void scic_sds_remote_device_continue_request(void *dev)
-{
-	struct scic_sds_remote_device *sci_dev = dev;
-
-	/* we need to check if this request is still valid to continue. */
-	if (sci_dev->working_request)
-		scic_controller_continue_io(sci_dev->working_request);
 }
 
 static enum sci_status
@@ -737,13 +795,6 @@ static enum sci_status scic_sds_remote_device_default_frame_handler(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-static enum sci_status scic_sds_remote_device_default_start_request_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	return default_device_handler(sci_dev, __func__);
-}
-
 static enum sci_status scic_sds_remote_device_default_complete_request_handler(
 	struct scic_sds_remote_device *sci_dev,
 	struct scic_sds_request *request)
@@ -814,36 +865,6 @@ static enum sci_status scic_sds_remote_device_general_event_handler(
 	return scic_sds_remote_device_core_event_handler(sci_dev,
 							  event_code,
 							  true);
-}
-
-/*
- * This method will attempt to start a task request for this device object. The
- * remote device object will issue the start request for the task and if
- * successful it will start the request for the port object then increment its
- * own requet count. enum sci_status SCI_SUCCESS if the task request is started for
- * this device object. SCI_FAILURE_INSUFFICIENT_RESOURCES if the io request
- * object could not get the resources to start.
- */
-static enum sci_status scic_sds_remote_device_ready_state_start_task_handler(
-	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *request)
-{
-	enum sci_status result;
-
-	/* See if the port is in a state where we can start the IO request */
-	result = scic_sds_port_start_io(
-		scic_sds_remote_device_get_port(sci_dev), sci_dev, request);
-
-	if (result == SCI_SUCCESS) {
-		result = scic_sds_remote_node_context_start_task(&sci_dev->rnc,
-								 request);
-		if (result == SCI_SUCCESS)
-			result = scic_sds_request_start(request);
-
-		scic_sds_remote_device_start_request(sci_dev, request, result);
-	}
-
-	return result;
 }
 
 /*
@@ -976,68 +997,6 @@ static enum sci_status scic_sds_stp_remote_device_complete_request(struct scic_s
 	return status;
 }
 
-/* scic_sds_stp_remote_device_ready_substate_start_request_handler - start stp
- * @device: The target device a task management request towards to.
- * @request: The task request.
- *
- * This is the READY NCQ substate handler to start task management request. In
- * this routine, we suspend and resume the RNC.  enum sci_status Always return
- * SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS status to let
- * controller_start_task_handler know that the controller can't post TC for
- * task request yet, instead, when RNC gets resumed, a controller_continue_task
- * callback will be called.
- */
-static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_handler(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request)
-{
-	enum sci_status status;
-
-	/* Will the port allow the io request to start? */
-	status = device->owning_port->state_handlers->start_io_handler(
-		device->owning_port, device, request);
-	if (status != SCI_SUCCESS)
-		return status;
-
-	status = scic_sds_remote_node_context_start_task(&device->rnc, request);
-	if (status != SCI_SUCCESS)
-		goto out;
-
-	status = request->state_handlers->start_handler(request);
-	if (status != SCI_SUCCESS)
-		goto out;
-
-	/*
-	 * Note: If the remote device state is not IDLE this will replace
-	 * the request that probably resulted in the task management request.
-	 */
-	device->working_request = request;
-	sci_base_state_machine_change_state(&device->state_machine,
-			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
-
-	/*
-	 * The remote node context must cleanup the TCi to NCQ mapping table.
-	 * The only way to do this correctly is to either write to the TLCR
-	 * register or to invalidate and repost the RNC. In either case the
-	 * remote node context state machine will take the correct action when
-	 * the remote node context is suspended and later resumed.
-	 */
-	scic_sds_remote_node_context_suspend(&device->rnc,
-			SCI_SOFTWARE_SUSPENSION, NULL, NULL);
-	scic_sds_remote_node_context_resume(&device->rnc,
-			scic_sds_remote_device_continue_request,
-			device);
-
-out:
-	scic_sds_remote_device_start_request(device, request, status);
-	/*
-	 * We need to let the controller start request handler know that it can't
-	 * post TC yet. We will provide a callback function to post TC when RNC gets
-	 * resumed.
-	 */
-	return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
-}
-
 static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_handler(
 	struct scic_sds_remote_device *sci_dev,
 	u32 event_code)
@@ -1154,7 +1113,6 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1162,7 +1120,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1170,7 +1127,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1178,7 +1134,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.start_task_handler	= scic_sds_remote_device_ready_state_start_task_handler,
 		.complete_task_handler	= scic_sds_remote_device_ready_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1186,7 +1141,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
@@ -1194,7 +1148,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
 		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_stp_remote_device_ready_cmd_substate_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
@@ -1202,7 +1155,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
 		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
@@ -1210,7 +1162,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
 		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
@@ -1218,7 +1169,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.start_task_handler	= scic_sds_stp_remote_device_ready_substate_start_request_handler,
 		.complete_task_handler	= scic_sds_stp_remote_device_complete_request,
 		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler			= scic_sds_remote_device_default_resume_handler,
@@ -1226,7 +1176,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1234,7 +1183,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1242,7 +1190,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_stopping_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1250,7 +1197,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1258,7 +1204,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_resetting_state_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,
@@ -1266,7 +1211,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
 		.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
 		.suspend_handler	= scic_sds_remote_device_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_device_default_resume_handler,

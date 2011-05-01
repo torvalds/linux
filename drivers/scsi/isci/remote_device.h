@@ -387,12 +387,6 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  */
 struct scic_sds_remote_device_state_handler {
 	/**
-	 * The start_task_handler specifies the method invoked when a user
-	 * attempts to start a task management request for a remote device.
-	 */
-	scic_sds_remote_device_request_handler_t start_task_handler;
-
-	/**
 	 * The complete_task_handler specifies the method invoked when a user
 	 * attempts to complete a task management request for a remote device.
 	 */
