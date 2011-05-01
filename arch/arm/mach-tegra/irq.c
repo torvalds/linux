@@ -95,6 +95,14 @@ static void tegra_ack(struct irq_data *d)
 	tegra_irq_write_mask(d->irq, ICTLR_CPU_IEP_FIR_CLR);
 }
 
+static void tegra_eoi(struct irq_data *d)
+{
+	if (d->irq < FIRST_LEGACY_IRQ)
+		return;
+
+	tegra_irq_write_mask(d->irq, ICTLR_CPU_IEP_FIR_CLR);
+}
+
 static int tegra_retrigger(struct irq_data *d)
 {
 	if (d->irq < FIRST_LEGACY_IRQ)
@@ -116,6 +124,7 @@ void __init tegra_init_irq(void)
 	}
 
 	gic_arch_extn.irq_ack = tegra_ack;
+	gic_arch_extn.irq_eoi = tegra_eoi;
 	gic_arch_extn.irq_mask = tegra_mask;
 	gic_arch_extn.irq_unmask = tegra_unmask;
 	gic_arch_extn.irq_retrigger = tegra_retrigger;
