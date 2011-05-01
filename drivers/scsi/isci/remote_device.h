@@ -128,12 +128,6 @@ struct scic_sds_remote_device {
 	 * assigned in the state handlers and used in the state transition.
 	 */
 	u32 not_ready_reason;
-
-	/**
-	 * This field maintains the set of state handlers for the remote device
-	 * object.  These are changed each time the remote device enters a new state.
-	 */
-	const struct scic_sds_remote_device_state_handler *state_handlers;
 };
 
 struct isci_remote_device {
@@ -347,47 +341,6 @@ static inline bool dev_is_expander(struct domain_device *dev)
 	return dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV;
 }
 
-typedef enum sci_status (*scic_sds_remote_device_request_handler_t)(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request);
-
-typedef enum sci_status (*scic_sds_remote_device_high_priority_request_complete_handler_t)(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *request,
-	void *,
-	enum sci_io_status);
-
-typedef enum sci_status (*scic_sds_remote_device_handler_t)(
-	struct scic_sds_remote_device *sci_dev);
-
-typedef enum sci_status (*scic_sds_remote_device_suspend_handler_t)(
-	struct scic_sds_remote_device *sci_dev,
-	u32 suspend_type);
-
-typedef enum sci_status (*scic_sds_remote_device_resume_handler_t)(
-	struct scic_sds_remote_device *sci_dev);
-
-typedef enum sci_status (*scic_sds_remote_device_frame_handler_t)(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index);
-
-typedef enum sci_status (*scic_sds_remote_device_event_handler_t)(
-	struct scic_sds_remote_device *sci_dev,
-	u32 event_code);
-
-typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
-	struct scic_sds_remote_device *sci_dev);
-
-/**
- * struct scic_sds_remote_device_state_handler - This structure conains the
- *    state handlers that are needed to process requests for the SCU remote
- *    device objects.
- *
- *
- */
-struct scic_sds_remote_device_state_handler {
-};
-
 /**
  * scic_sds_remote_device_increment_request_count() -
  *
@@ -429,15 +382,6 @@ struct scic_sds_remote_device_state_handler {
  */
 #define scic_sds_remote_device_get_controller(sci_dev) \
 	scic_sds_port_get_controller(scic_sds_remote_device_get_port(sci_dev))
-
-/**
- * scic_sds_remote_device_set_state_handlers() -
- *
- * This macro sets the remote device state handlers pointer and is set on entry
- * to each device state.
- */
-#define scic_sds_remote_device_set_state_handlers(sci_dev, handlers) \
-	((sci_dev)->state_handlers = (handlers))
 
 /**
  * scic_sds_remote_device_get_port() -

@@ -809,45 +809,9 @@ static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handl
 		isci_remote_device_ready(scic->ihost, idev);
 }
 
-static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
-	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-	},
-	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-	},
-	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-	}
-};
-
 static void scic_sds_remote_device_initial_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCI_BASE_REMOTE_DEVICE_STATE_INITIAL);
 
 	/* Initial state is a transitional state to the stopped state */
 	sci_base_state_machine_change_state(&sci_dev->state_machine,
@@ -953,9 +917,6 @@ static void scic_sds_remote_device_stopped_state_enter(void *object)
 	ihost = scic->ihost;
 	idev = sci_dev_to_idev(sci_dev);
 
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
-
 	/* If we are entering from the stopping state let the SCI User know that
 	 * the stop operation has completed.
 	 */
@@ -973,9 +934,6 @@ static void scic_sds_remote_device_starting_state_enter(void *object)
 	struct isci_host *ihost = scic->ihost;
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
-
 	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
 }
@@ -985,10 +943,6 @@ static void scic_sds_remote_device_ready_state_enter(void *object)
 	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
-
-	SET_STATE_HANDLER(sci_dev,
-			  scic_sds_remote_device_state_handler_table,
-			  SCI_BASE_REMOTE_DEVICE_STATE_READY);
 
 	scic->remote_device_sequence[sci_dev->rnc.remote_node_index]++;
 
@@ -1016,37 +970,9 @@ static void scic_sds_remote_device_ready_state_exit(void *object)
 	}
 }
 
-static void scic_sds_remote_device_stopping_state_enter(void *object)
-{
-	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(
-		sci_dev,
-		scic_sds_remote_device_state_handler_table,
-		SCI_BASE_REMOTE_DEVICE_STATE_STOPPING
-		);
-}
-
-static void scic_sds_remote_device_failed_state_enter(void *object)
-{
-	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(
-		sci_dev,
-		scic_sds_remote_device_state_handler_table,
-		SCI_BASE_REMOTE_DEVICE_STATE_FAILED
-		);
-}
-
 static void scic_sds_remote_device_resetting_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(
-		sci_dev,
-		scic_sds_remote_device_state_handler_table,
-		SCI_BASE_REMOTE_DEVICE_STATE_RESETTING
-		);
 
 	scic_sds_remote_node_context_suspend(
 		&sci_dev->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
@@ -1059,23 +985,9 @@ static void scic_sds_remote_device_resetting_state_exit(void *object)
 	scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
 }
 
-static void scic_sds_remote_device_final_state_enter(void *object)
-{
-	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(
-		sci_dev,
-		scic_sds_remote_device_state_handler_table,
-		SCI_BASE_REMOTE_DEVICE_STATE_FINAL
-		);
-}
-
 static void scic_sds_stp_remote_device_ready_idle_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
 
 	sci_dev->working_request = NULL;
 	if (scic_sds_remote_node_context_is_ready(&sci_dev->rnc)) {
@@ -1097,19 +1009,8 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(void *object)
 
 	BUG_ON(sci_dev->working_request == NULL);
 
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
-
 	isci_remote_device_not_ready(scic->ihost, sci_dev_to_idev(sci_dev),
 				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
-}
-
-static void scic_sds_stp_remote_device_ready_ncq_substate_enter(void *object)
-{
-	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
 }
 
 static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(void *object)
@@ -1118,29 +1019,15 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(void *obje
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
-
 	if (sci_dev->not_ready_reason == SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED)
 		isci_remote_device_not_ready(scic->ihost, idev,
 					     sci_dev->not_ready_reason);
-}
-
-static void scic_sds_stp_remote_device_ready_await_reset_substate_enter(void *object)
-{
-	struct scic_sds_remote_device *sci_dev = object;
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET);
 }
 
 static void scic_sds_smp_remote_device_ready_idle_substate_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
 
 	isci_remote_device_ready(scic->ihost, sci_dev_to_idev(sci_dev));
 }
@@ -1151,9 +1038,6 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
-
-	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
-			  SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
 	isci_remote_device_not_ready(scic->ihost, sci_dev_to_idev(sci_dev),
 				     SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);
@@ -1186,15 +1070,11 @@ static const struct sci_base_state scic_sds_remote_device_state_table[] = {
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
 		.enter_state = scic_sds_stp_remote_device_ready_cmd_substate_enter,
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.enter_state = scic_sds_stp_remote_device_ready_ncq_substate_enter,
-	},
+	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = { },
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
 		.enter_state = scic_sds_stp_remote_device_ready_ncq_error_substate_enter,
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.enter_state = scic_sds_stp_remote_device_ready_await_reset_substate_enter,
-	},
+	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = { },
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
 		.enter_state = scic_sds_smp_remote_device_ready_idle_substate_enter,
 	},
@@ -1202,19 +1082,13 @@ static const struct sci_base_state scic_sds_remote_device_state_table[] = {
 		.enter_state = scic_sds_smp_remote_device_ready_cmd_substate_enter,
 		.exit_state  = scic_sds_smp_remote_device_ready_cmd_substate_exit,
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.enter_state = scic_sds_remote_device_stopping_state_enter,
-	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.enter_state = scic_sds_remote_device_failed_state_enter,
-	},
+	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = { },
+	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = { },
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
 		.enter_state = scic_sds_remote_device_resetting_state_enter,
 		.exit_state  = scic_sds_remote_device_resetting_state_exit
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.enter_state = scic_sds_remote_device_final_state_enter,
-	},
+	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = { },
 };
 
 /**
