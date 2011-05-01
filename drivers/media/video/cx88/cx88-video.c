@@ -824,7 +824,7 @@ static int video_open(struct file *file)
 		call_all(core, tuner, s_radio);
 	}
 
-	atomic_inc(&core->users);
+	core->users++;
 	mutex_unlock(&core->lock);
 
 	return 0;
@@ -922,7 +922,8 @@ static int video_release(struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
-	if(atomic_dec_and_test(&dev->core->users))
+	dev->core->users--;
+	if (!dev->core->users)
 		call_all(dev->core, core, s_power, 0);
 	mutex_unlock(&dev->core->lock);
 
