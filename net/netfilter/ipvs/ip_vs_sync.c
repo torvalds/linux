@@ -1663,7 +1663,7 @@ int stop_sync_thread(struct net *net, int state)
 /*
  * Initialize data struct for each netns
  */
-int __net_init __ip_vs_sync_init(struct net *net)
+int __net_init ip_vs_sync_net_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -1677,7 +1677,7 @@ int __net_init __ip_vs_sync_init(struct net *net)
 	return 0;
 }
 
-void __ip_vs_sync_cleanup(struct net *net)
+void ip_vs_sync_net_cleanup(struct net *net)
 {
 	int retc;
 

@@ -1891,22 +1891,22 @@ static int __net_init __ip_vs_init(struct net *net)
 	atomic_inc(&ipvs_netns_cnt);
 	net->ipvs = ipvs;
 
-	if (__ip_vs_estimator_init(net) < 0)
+	if (ip_vs_estimator_net_init(net) < 0)
 		goto estimator_fail;
 
-	if (__ip_vs_control_init(net) < 0)
+	if (ip_vs_control_net_init(net) < 0)
 		goto control_fail;
 
-	if (__ip_vs_protocol_init(net) < 0)
+	if (ip_vs_protocol_net_init(net) < 0)
 		goto protocol_fail;
 
-	if (__ip_vs_app_init(net) < 0)
+	if (ip_vs_app_net_init(net) < 0)
 		goto app_fail;
 
-	if (__ip_vs_conn_init(net) < 0)
+	if (ip_vs_conn_net_init(net) < 0)
 		goto conn_fail;
 
-	if (__ip_vs_sync_init(net) < 0)
+	if (ip_vs_sync_net_init(net) < 0)
 		goto sync_fail;
 
 	printk(KERN_INFO "IPVS: Creating netns size=%zu id=%d\n",
@@ -1917,27 +1917,27 @@ static int __net_init __ip_vs_init(struct net *net)
  */
 
 sync_fail:
-	__ip_vs_conn_cleanup(net);
+	ip_vs_conn_net_cleanup(net);
 conn_fail:
-	__ip_vs_app_cleanup(net);
+	ip_vs_app_net_cleanup(net);
 app_fail:
-	__ip_vs_protocol_cleanup(net);
+	ip_vs_protocol_net_cleanup(net);
 protocol_fail:
-	__ip_vs_control_cleanup(net);
+	ip_vs_control_net_cleanup(net);
 control_fail:
-	__ip_vs_estimator_cleanup(net);
+	ip_vs_estimator_net_cleanup(net);
 estimator_fail:
 	return -ENOMEM;
 }
 
 static void __net_exit __ip_vs_cleanup(struct net *net)
 {
-	__ip_vs_service_cleanup(net);	/* ip_vs_flush() with locks */
-	__ip_vs_conn_cleanup(net);
-	__ip_vs_app_cleanup(net);
-	__ip_vs_protocol_cleanup(net);
-	__ip_vs_control_cleanup(net);
-	__ip_vs_estimator_cleanup(net);
+	ip_vs_service_net_cleanup(net);	/* ip_vs_flush() with locks */
+	ip_vs_conn_net_cleanup(net);
+	ip_vs_app_net_cleanup(net);
+	ip_vs_protocol_net_cleanup(net);
+	ip_vs_control_net_cleanup(net);
+	ip_vs_estimator_net_cleanup(net);
 	IP_VS_DBG(2, "ipvs netns %d released\n", net_ipvs(net)->gen);
 }
 
@@ -1945,7 +1945,7 @@ static void __net_exit __ip_vs_dev_cleanup(struct net *net)
 {
 	EnterFunction(2);
 	net_ipvs(net)->enable = 0;	/* Disable packet reception */
-	__ip_vs_sync_cleanup(net);
+	ip_vs_sync_net_cleanup(net);
 	LeaveFunction(2);
 }
 
