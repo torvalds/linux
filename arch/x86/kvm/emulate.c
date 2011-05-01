@@ -1687,14 +1687,14 @@ static inline int emulate_iret(struct x86_emulate_ctxt *ctxt,
 	}
 }
 
-static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt)
+static int em_grp1a(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 
 	return emulate_pop(ctxt, &c->dst.val, c->dst.bytes);
 }
 
-static inline void emulate_grp2(struct x86_emulate_ctxt *ctxt)
+static int em_grp2(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	switch (c->modrm_reg) {
@@ -1721,10 +1721,10 @@ static inline void emulate_grp2(struct x86_emulate_ctxt *ctxt)
 		emulate_2op_SrcB("sar", c->src, c->dst, ctxt->eflags);
 		break;
 	}
+	return X86EMUL_CONTINUE;
 }
 
-static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
-			       struct x86_emulate_ops *ops)
+static int em_grp3(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	unsigned long *rax = &c->regs[VCPU_REGS_RAX];
@@ -1763,7 +1763,7 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 }
 
-static int emulate_grp45(struct x86_emulate_ctxt *ctxt)
+static int em_grp45(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
@@ -1793,8 +1793,7 @@ static int emulate_grp45(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
-			       struct x86_emulate_ops *ops)
+static int em_grp9(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	u64 old = c->dst.orig_val64;
@@ -3916,7 +3915,7 @@ special_insn:
 		break;
 	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
-		rc = emulate_grp1a(ctxt);
+		rc = em_grp1a(ctxt);
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
@@ -3932,7 +3931,7 @@ special_insn:
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
 	case 0xc0 ... 0xc1:
-		emulate_grp2(ctxt);
+		rc = em_grp2(ctxt);
 		break;
 	case 0xc3: /* ret */
 		c->dst.type = OP_REG;
@@ -3967,11 +3966,11 @@ special_insn:
 		rc = emulate_iret(ctxt, ops);
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
-		emulate_grp2(ctxt);
+		rc = em_grp2(ctxt);
 		break;
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		c->src.val = c->regs[VCPU_REGS_RCX];
-		emulate_grp2(ctxt);
+		rc = em_grp2(ctxt);
 		break;
 	case 0xe0 ... 0xe2:	/* loop/loopz/loopnz */
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
@@ -4040,7 +4039,7 @@ special_insn:
 		ctxt->eflags ^= EFLG_CF;
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
-		rc = emulate_grp3(ctxt, ops);
+		rc = em_grp3(ctxt);
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
@@ -4071,13 +4070,13 @@ special_insn:
 		ctxt->eflags |= EFLG_DF;
 		break;
 	case 0xfe: /* Grp4 */
-	grp45:
-		rc = emulate_grp45(ctxt);
+		rc = em_grp45(ctxt);
 		break;
 	case 0xff: /* Grp5 */
 		if (c->modrm_reg == 5)
 			goto jump_far;
-		goto grp45;
+		rc = em_grp45(ctxt);
+		break;
 	default:
 		goto cannot_emulate;
 	}
@@ -4344,7 +4343,7 @@ twobyte_insn:
 							(u64) c->src.val;
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
-		rc = emulate_grp9(ctxt, ops);
+		rc = em_grp9(ctxt);
 		break;
 	default:
 		goto cannot_emulate;
