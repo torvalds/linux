@@ -387,12 +387,6 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  */
 struct scic_sds_remote_device_state_handler {
 	/**
-	 * The reset handler specifies the method invloked when requesting to
-	 * reset a remote device.
-	 */
-	scic_sds_remote_device_handler_t reset_handler;
-
-	/**
 	 * The reset complete handler specifies the method invloked when
 	 * reporting that a reset has completed to the remote device.
 	 */
