@@ -500,7 +500,6 @@ static unsigned long seg_base(struct x86_emulate_ctxt *ctxt,
 }
 
 static unsigned seg_override(struct x86_emulate_ctxt *ctxt,
-			     struct x86_emulate_ops *ops,
 			     struct decode_cache *c)
 {
 	if (!c->has_seg_override)
@@ -3527,7 +3526,7 @@ done_prefixes:
 	if (!c->has_seg_override)
 		set_seg_override(c, VCPU_SREG_DS);
 
-	memop.addr.mem.seg = seg_override(ctxt, ops, c);
+	memop.addr.mem.seg = seg_override(ctxt, c);
 
 	if (memop.type == OP_MEM && c->ad_bytes != 8)
 		memop.addr.mem.ea = (u32)memop.addr.mem.ea;
@@ -3587,7 +3586,7 @@ done_prefixes:
 		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->src.addr.mem.ea =
 			register_address(c, c->regs[VCPU_REGS_RSI]);
-		c->src.addr.mem.seg = seg_override(ctxt, ops, c),
+		c->src.addr.mem.seg = seg_override(ctxt, c);
 		c->src.val = 0;
 		break;
 	case SrcImmFAddr:
@@ -4103,7 +4102,7 @@ writeback:
 	c->dst.type = saved_dst_type;
 
 	if ((c->d & SrcMask) == SrcSI)
-		string_addr_inc(ctxt, seg_override(ctxt, ops, c),
+		string_addr_inc(ctxt, seg_override(ctxt, c),
 				VCPU_REGS_RSI, &c->src);
 
 	if ((c->d & DstMask) == DstDI)
