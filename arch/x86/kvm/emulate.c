@@ -1351,8 +1351,7 @@ static void write_register_operand(struct operand *op)
 	}
 }
 
-static inline int writeback(struct x86_emulate_ctxt *ctxt,
-			    struct x86_emulate_ops *ops)
+static int writeback(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
 	struct decode_cache *c = &ctxt->decode;
@@ -4089,7 +4088,7 @@ special_insn:
 		goto done;
 
 writeback:
-	rc = writeback(ctxt, ops);
+	rc = writeback(ctxt);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
