@@ -387,12 +387,6 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  */
 struct scic_sds_remote_device_state_handler {
 	/**
-	 * The start_handler specifies the method invoked when a user
-	 * attempts to start a remote device.
-	 */
-	scic_sds_remote_device_handler_t start_handler;
-
-	/**
 	 * The stop_handler specifies the method invoked when a user attempts to
 	 * stop a remote device.
 	 */

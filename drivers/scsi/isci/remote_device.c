@@ -291,7 +291,7 @@ static void scic_sds_cb_remote_device_rnc_destruct_complete(void *_dev)
  * ready state.  This is the indication that the remote device object can also
  * transition to ready.
  */
-static void scic_sds_remote_device_resume_complete_handler(void *_dev)
+static void remote_device_resume_done(void *_dev)
 {
 	struct scic_sds_remote_device *sci_dev = _dev;
 	enum scic_sds_remote_device_states state;
@@ -407,12 +407,6 @@ default_device_handler(struct scic_sds_remote_device *sci_dev,
 		 "%s: in wrong state: %d\n", func,
 		 sci_base_state_machine_get_state(&sci_dev->state_machine));
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_remote_device_default_start_handler(
-	struct scic_sds_remote_device *sci_dev)
-{
-	return default_device_handler(sci_dev, __func__);
 }
 
 static enum sci_status scic_sds_remote_device_default_stop_handler(
@@ -650,38 +644,6 @@ static enum sci_status scic_sds_remote_device_general_event_handler(
 	return scic_sds_remote_device_core_event_handler(sci_dev,
 							  event_code,
 							  true);
-}
-
-/*
- * *****************************************************************************
- * *  STOPPED STATE HANDLERS
- * ***************************************************************************** */
-
-/**
- *
- * @device:
- *
- * This method takes the struct scic_sds_remote_device from a stopped state and
- * attempts to start it.   The RNC buffer for the device is constructed and the
- * device state machine is transitioned to the
- * SCIC_BASE_REMOTE_DEVICE_STATE_STARTING. enum sci_status SCI_SUCCESS if there is
- * an RNC buffer available to construct the remote device.
- * SCI_FAILURE_INSUFFICIENT_RESOURCES if there is no RNC buffer available in
- * which to construct the remote device.
- */
-static enum sci_status scic_sds_remote_device_stopped_state_start_handler(
-	struct scic_sds_remote_device *sci_dev)
-{
-	enum sci_status status;
-
-	status = scic_sds_remote_node_context_resume(&sci_dev->rnc,
-			scic_sds_remote_device_resume_complete_handler, sci_dev);
-
-	if (status == SCI_SUCCESS)
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
-
-	return status;
 }
 
 static enum sci_status scic_sds_remote_device_stopped_state_stop_handler(
@@ -1373,7 +1335,6 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_default_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1390,7 +1351,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.start_handler		= scic_sds_remote_device_stopped_state_start_handler,
 		.stop_handler		= scic_sds_remote_device_stopped_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_stopped_state_destruct_handler,
@@ -1407,7 +1367,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_starting_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1424,7 +1383,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1441,7 +1399,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1458,7 +1415,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1475,7 +1431,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1492,7 +1447,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1509,7 +1463,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1526,7 +1479,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1543,7 +1495,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1560,7 +1511,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_stopping_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1577,7 +1527,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_default_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1594,7 +1543,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_resetting_state_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -1611,7 +1559,6 @@ static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_
 		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.start_handler		= scic_sds_remote_device_default_start_handler,
 		.stop_handler		= scic_sds_remote_device_default_stop_handler,
 		.fail_handler		= scic_sds_remote_device_default_fail_handler,
 		.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
@@ -2129,9 +2076,27 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
  * the device when there have been no phys added to it.
  */
 static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *sci_dev,
-					 u32 timeout)
+						u32 timeout)
 {
-	return sci_dev->state_handlers->start_handler(sci_dev);
+	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	enum scic_sds_remote_device_states state = sm->current_state_id;
+	enum sci_status status;
+
+	if (state != SCI_BASE_REMOTE_DEVICE_STATE_STOPPED) {
+		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
+			 __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+
+	status = scic_sds_remote_node_context_resume(&sci_dev->rnc,
+						     remote_device_resume_done,
+						     sci_dev);
+	if (status != SCI_SUCCESS)
+		return status;
+
+	sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
+
+	return SCI_SUCCESS;
 }
 
 static enum sci_status isci_remote_device_construct(struct isci_port *iport,
