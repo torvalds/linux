@@ -1687,6 +1687,23 @@ static inline int emulate_iret(struct x86_emulate_ctxt *ctxt,
 	}
 }
 
+static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+	unsigned short sel;
+
+	memcpy(&sel, c->src.valptr + c->op_bytes, 2);
+
+	rc = load_segment_descriptor(ctxt, ctxt->ops, sel, VCPU_SREG_CS);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->eip = 0;
+	memcpy(&c->eip, c->src.valptr, c->op_bytes);
+	return X86EMUL_CONTINUE;
+}
+
 static int em_grp1a(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -1785,6 +1802,9 @@ static int em_grp45(struct x86_emulate_ctxt *ctxt)
 	}
 	case 4: /* jmp abs */
 		c->eip = c->src.val;
+		break;
+	case 5: /* jmp far */
+		rc = em_jmp_far(ctxt);
 		break;
 	case 6:	/* push */
 		rc = em_push(ctxt);
@@ -3997,19 +4017,9 @@ special_insn:
 	}
 	case 0xe9: /* jmp rel */
 		goto jmp;
-	case 0xea: { /* jmp far */
-		unsigned short sel;
-	jump_far:
-		memcpy(&sel, c->src.valptr + c->op_bytes, 2);
-
-		rc = load_segment_descriptor(ctxt, ops, sel, VCPU_SREG_CS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-
-		c->eip = 0;
-		memcpy(&c->eip, c->src.valptr, c->op_bytes);
+	case 0xea: /* jmp far */
+		rc = em_jmp_far(ctxt);
 		break;
-	}
 	case 0xeb:
 	      jmp:		/* jmp rel short */
 		jmp_rel(c, c->src.val);
@@ -4073,8 +4083,6 @@ special_insn:
 		rc = em_grp45(ctxt);
 		break;
 	case 0xff: /* Grp5 */
-		if (c->modrm_reg == 5)
-			goto jump_far;
 		rc = em_grp45(ctxt);
 		break;
 	default:
