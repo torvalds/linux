@@ -1402,7 +1402,6 @@ static int em_push(struct x86_emulate_ctxt *ctxt)
 }
 
 static int emulate_pop(struct x86_emulate_ctxt *ctxt,
-		       struct x86_emulate_ops *ops,
 		       void *dest, int len)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -1423,7 +1422,7 @@ static int em_pop(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 
-	return emulate_pop(ctxt, ctxt->ops, &c->dst.val, c->op_bytes);
+	return emulate_pop(ctxt, &c->dst.val, c->op_bytes);
 }
 
 static int emulate_popf(struct x86_emulate_ctxt *ctxt,
@@ -1435,7 +1434,7 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	int iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
 	int cpl = ops->cpl(ctxt);
 
-	rc = emulate_pop(ctxt, ops, &val, len);
+	rc = emulate_pop(ctxt, &val, len);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -1494,7 +1493,7 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	unsigned long selector;
 	int rc;
 
-	rc = emulate_pop(ctxt, ops, &selector, c->op_bytes);
+	rc = emulate_pop(ctxt, &selector, c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -1544,7 +1543,7 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 			--reg;
 		}
 
-		rc = emulate_pop(ctxt, ctxt->ops, &c->regs[reg], c->op_bytes);
+		rc = emulate_pop(ctxt, &c->regs[reg], c->op_bytes);
 		if (rc != X86EMUL_CONTINUE)
 			break;
 		--reg;
@@ -1633,7 +1632,7 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt,
 
 	/* TODO: Add stack limit check */
 
-	rc = emulate_pop(ctxt, ops, &temp_eip, c->op_bytes);
+	rc = emulate_pop(ctxt, &temp_eip, c->op_bytes);
 
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
@@ -1641,12 +1640,12 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt,
 	if (temp_eip & ~0xffff)
 		return emulate_gp(ctxt, 0);
 
-	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
+	rc = emulate_pop(ctxt, &cs, c->op_bytes);
 
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	rc = emulate_pop(ctxt, ops, &temp_eflags, c->op_bytes);
+	rc = emulate_pop(ctxt, &temp_eflags, c->op_bytes);
 
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
@@ -1688,12 +1687,11 @@ static inline int emulate_iret(struct x86_emulate_ctxt *ctxt,
 	}
 }
 
-static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
-				struct x86_emulate_ops *ops)
+static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 
-	return emulate_pop(ctxt, ops, &c->dst.val, c->dst.bytes);
+	return emulate_pop(ctxt, &c->dst.val, c->dst.bytes);
 }
 
 static inline void emulate_grp2(struct x86_emulate_ctxt *ctxt)
@@ -1822,12 +1820,12 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 	int rc;
 	unsigned long cs;
 
-	rc = emulate_pop(ctxt, ops, &c->eip, c->op_bytes);
+	rc = emulate_pop(ctxt, &c->eip, c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	if (c->op_bytes == 4)
 		c->eip = (u32)c->eip;
-	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
+	rc = emulate_pop(ctxt, &cs, c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	rc = load_segment_descriptor(ctxt, ops, (u16)cs, VCPU_SREG_CS);
@@ -2543,7 +2541,7 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	c->dst.type = OP_REG;
 	c->dst.addr.reg = &c->eip;
 	c->dst.bytes = c->op_bytes;
-	rc = emulate_pop(ctxt, ctxt->ops, &c->dst.val, c->op_bytes);
+	rc = emulate_pop(ctxt, &c->dst.val, c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.val);
@@ -3918,7 +3916,7 @@ special_insn:
 		break;
 	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
-		rc = emulate_grp1a(ctxt, ops);
+		rc = emulate_grp1a(ctxt);
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
