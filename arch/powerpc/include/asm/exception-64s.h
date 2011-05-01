@@ -46,6 +46,7 @@
 #define EX_CCR		60
 #define EX_R3		64
 #define EX_LR		72
+#define EX_CFAR		80
 
 /*
  * We're short on space and time in the exception prolog, so we can't
@@ -66,6 +67,10 @@
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
+	BEGIN_FTR_SECTION_NESTED(66);					\
+	mfspr	r10,SPRN_CFAR;						\
+	std	r10,area+EX_CFAR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		\
 	GET_SCRATCH0(r9);						\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
@@ -130,6 +135,10 @@
 	std	r9,GPR11(r1);						   \
 	std	r10,GPR12(r1);						   \
 	std	r11,GPR13(r1);						   \
+	BEGIN_FTR_SECTION_NESTED(66);					   \
+	ld	r10,area+EX_CFAR(r13);					   \
+	std	r10,ORIG_GPR3(r1);					   \
+	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		   \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
 	mflr	r9;			/* save LR in stackframe	*/ \
 	std	r9,_LINK(r1);						   \
