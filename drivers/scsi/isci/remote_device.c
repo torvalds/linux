@@ -277,20 +277,96 @@ enum sci_status scic_sds_remote_device_suspend(struct scic_sds_remote_device *sc
 						    suspend_type, NULL, NULL);
 }
 
-/**
- *
- * @sci_dev: The remote device for which the event handling is being
- *    requested.
- * @frame_index: This is the frame index that is being processed.
- *
- * This method invokes the frame handler for the remote device state machine
- * enum sci_status
- */
-enum sci_status scic_sds_remote_device_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index)
+enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_device *sci_dev,
+						     u32 frame_index)
 {
-	return sci_dev->state_handlers->frame_handler(sci_dev, frame_index);
+	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	enum scic_sds_remote_device_states state = sm->current_state_id;
+	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
+	enum sci_status status;
+
+	switch (state) {
+	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	default:
+		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
+			 __func__, state);
+		/* Return the frame back to the controller */
+		scic_sds_controller_release_frame(scic, frame_index);
+		return SCI_FAILURE_INVALID_STATE;
+	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
+	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
+	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
+	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING: {
+		struct scic_sds_request *sci_req;
+		struct sci_ssp_frame_header *hdr;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&hdr);
+		if (status != SCI_SUCCESS)
+			return status;
+
+		sci_req = scic_sds_controller_get_io_request_from_tag(scic, hdr->tag);
+		if (sci_req && sci_req->target_device == sci_dev) {
+			/* The IO request is now in charge of releasing the frame */
+			status = sci_req->state_handlers->frame_handler(sci_req,
+									frame_index);
+		} else {
+			/* We could not map this tag to a valid IO
+			 * request Just toss the frame and continue
+			 */
+			scic_sds_controller_release_frame(scic, frame_index);
+		}
+		break;
+	}
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ: {
+		struct sata_fis_header *hdr;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&hdr);
+		if (status != SCI_SUCCESS)
+			return status;
+
+		if (hdr->fis_type == SATA_FIS_TYPE_SETDEVBITS &&
+		    (hdr->status & ATA_STATUS_REG_ERROR_BIT)) {
+			sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
+
+			/* TODO Check sactive and complete associated IO if any. */
+			sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
+		} else if (hdr->fis_type == SATA_FIS_TYPE_REGD2H &&
+			   (hdr->status & ATA_STATUS_REG_ERROR_BIT)) {
+			/*
+			 * Some devices return D2H FIS when an NCQ error is detected.
+			 * Treat this like an SDB error FIS ready reason.
+			 */
+			sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
+			sci_base_state_machine_change_state(&sci_dev->state_machine,
+							    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
+		} else
+			status = SCI_FAILURE;
+
+		scic_sds_controller_release_frame(scic, frame_index);
+		break;
+	}
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+		/* The device does not process any UF received from the hardware while
+		 * in this state.  All unsolicited frames are forwarded to the io request
+		 * object.
+		 */
+		status = scic_sds_io_request_frame_handler(sci_dev->working_request, frame_index);
+		break;
+	}
+
+	return status;
 }
 
 static bool is_remote_device_ready(struct scic_sds_remote_device *sci_dev)
@@ -720,136 +796,6 @@ static void remote_device_resume_done(void *_dev)
 					    SCI_BASE_REMOTE_DEVICE_STATE_READY);
 }
 
-/**
- *
- * @device: The struct scic_sds_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @frame_index: The frame index for which the struct scic_sds_controller wants this
- *    device object to process.
- *
- * This method is the default unsolicited frame handler.  It logs a warning,
- * releases the frame and returns a failure. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status scic_sds_remote_device_default_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index)
-{
-	dev_warn(scirdev_to_dev(sci_dev),
-		 "%s: SCIC Remote Device requested to handle frame %x "
-		 "while in wrong state %d\n",
-		 __func__,
-		 frame_index,
-		 sci_base_state_machine_get_state(
-			 &sci_dev->state_machine));
-
-	/* Return the frame back to the controller */
-	scic_sds_controller_release_frame(
-		scic_sds_remote_device_get_controller(sci_dev), frame_index
-		);
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @device: The struct scic_sds_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @frame_index: The frame index for which the struct scic_sds_controller wants this
- *    device object to process.
- *
- * This method is a general ssp frame handler.  In most cases the device object
- * needs to route the unsolicited frame processing to the io request object.
- * This method decodes the tag for the io request object and routes the
- * unsolicited frame to that object. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status scic_sds_remote_device_general_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index)
-{
-	enum sci_status result;
-	struct sci_ssp_frame_header *frame_header;
-	struct scic_sds_request *io_request;
-
-	result = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_remote_device_get_controller(sci_dev)->uf_control),
-		frame_index,
-		(void **)&frame_header
-		);
-
-	if (SCI_SUCCESS == result) {
-		io_request = scic_sds_controller_get_io_request_from_tag(
-			scic_sds_remote_device_get_controller(sci_dev), frame_header->tag);
-
-		if ((io_request == NULL)
-		    || (io_request->target_device != sci_dev)) {
-			/*
-			 * We could not map this tag to a valid IO request
-			 * Just toss the frame and continue */
-			scic_sds_controller_release_frame(
-				scic_sds_remote_device_get_controller(sci_dev), frame_index
-				);
-		} else {
-			/* The IO request is now in charge of releasing the frame */
-			result = io_request->state_handlers->frame_handler(
-				io_request, frame_index);
-		}
-	}
-
-	return result;
-}
-
-static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_frame_handler(struct scic_sds_remote_device *sci_dev,
-										   u32 frame_index)
-{
-	enum sci_status status;
-	struct sata_fis_header *frame_header;
-	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
-
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
-							       frame_index,
-							       (void **)&frame_header);
-	if (status != SCI_SUCCESS)
-		return status;
-
-	if (frame_header->fis_type == SATA_FIS_TYPE_SETDEVBITS &&
-	    (frame_header->status & ATA_STATUS_REG_ERROR_BIT)) {
-		sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
-
-		/* TODO Check sactive and complete associated IO if any. */
-
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
-	} else if (frame_header->fis_type == SATA_FIS_TYPE_REGD2H &&
-		   (frame_header->status & ATA_STATUS_REG_ERROR_BIT)) {
-		/*
-		 * Some devices return D2H FIS when an NCQ error is detected.
-		 * Treat this like an SDB error FIS ready reason.
-		 */
-		sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
-
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
-	} else
-		status = SCI_FAILURE;
-
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return status;
-}
-
-static enum sci_status scic_sds_stp_remote_device_ready_cmd_substate_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index)
-{
-	/* The device doe not process any UF received from the hardware while
-	 * in this state.  All unsolicited frames are forwarded to the io
-	 * request object.
-	 */
-	return scic_sds_io_request_frame_handler(sci_dev->working_request,
-						 frame_index);
-}
-
 static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *_dev)
 {
 	struct scic_sds_remote_device *sci_dev = _dev;
@@ -863,69 +809,36 @@ static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handl
 		isci_remote_device_ready(scic->ihost, idev);
 }
 
-static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
-	u32 frame_index)
-{
-	enum sci_status status;
-
-	/* The device does not process any UF received from the hardware while
-	 * in this state.  All unsolicited frames are forwarded to the io request
-	 * object.
-	 */
-	status = scic_sds_io_request_frame_handler(
-		sci_dev->working_request,
-		frame_index
-		);
-
-	return status;
-}
-
 static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
-		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
-		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
-		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
-		.frame_handler		= scic_sds_remote_device_general_frame_handler,
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.frame_handler			= scic_sds_stp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = {
-		.frame_handler			= scic_sds_stp_remote_device_ready_ncq_substate_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
-		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = {
-		.frame_handler			= scic_sds_remote_device_general_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
-		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	},
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
-		.frame_handler		= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = {
-		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = {
-		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
-		.frame_handler		= scic_sds_remote_device_general_frame_handler
 	},
 	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = {
-		.frame_handler		= scic_sds_remote_device_default_frame_handler
 	}
 };
 

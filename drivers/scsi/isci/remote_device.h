@@ -386,7 +386,6 @@ typedef void (*scic_sds_remote_device_ready_not_ready_handler_t)(
  *
  */
 struct scic_sds_remote_device_state_handler {
-	scic_sds_remote_device_frame_handler_t frame_handler;
 };
 
 /**
