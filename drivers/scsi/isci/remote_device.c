@@ -1157,10 +1157,8 @@ static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_start_io_ha
 			return status;
 
 		status = scic_sds_remote_node_context_start_io(&sci_dev->rnc, request);
-		if (status != SCI_SUCCESS)
-			return status;
-
-		status = request->state_handlers->start_handler(request);
+		if (status == SCI_SUCCESS)
+			status = request->state_handlers->start_handler(request);
 
 		scic_sds_remote_device_start_request(sci_dev, request, status);
 	} else
@@ -1302,16 +1300,17 @@ static enum sci_status scic_sds_smp_remote_device_ready_idle_substate_start_io_h
 
 	status = scic_sds_remote_node_context_start_io(&sci_dev->rnc, sci_req);
 	if (status != SCI_SUCCESS)
-		return status;
+		goto out;
 
 	status = scic_sds_request_start(sci_req);
 	if (status != SCI_SUCCESS)
-		return status;
+		goto out;
 
 	sci_dev->working_request = sci_req;
 	sci_base_state_machine_change_state(&sci_dev->state_machine,
 					    SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
+ out:
 	scic_sds_remote_device_start_request(sci_dev, sci_req, status);
 
 	return status;
