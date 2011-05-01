@@ -79,20 +79,18 @@ static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
 }
 
 static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-			 gfn_t table_gfn, unsigned index,
-			 pt_element_t orig_pte, pt_element_t new_pte)
+			       pt_element_t __user *ptep_user, unsigned index,
+			       pt_element_t orig_pte, pt_element_t new_pte)
 {
+	int npages;
 	pt_element_t ret;
 	pt_element_t *table;
 	struct page *page;
-	gpa_t gpa;
 
-	gpa = mmu->translate_gpa(vcpu, table_gfn << PAGE_SHIFT,
-				 PFERR_USER_MASK|PFERR_WRITE_MASK);
-	if (gpa == UNMAPPED_GVA)
+	npages = get_user_pages_fast((unsigned long)ptep_user, 1, 1, &page);
+	/* Check if the user is doing something meaningless. */
+	if (unlikely(npages != 1))
 		return -EFAULT;
-
-	page = gfn_to_page(vcpu->kvm, gpa_to_gfn(gpa));
 
 	table = kmap_atomic(page, KM_USER0);
 	ret = CMPXCHG(&table[index], orig_pte, new_pte);
@@ -220,9 +218,9 @@ walk:
 			int ret;
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
 						       sizeof(pte));
-			ret = FNAME(cmpxchg_gpte)(vcpu, mmu, table_gfn,
-					index, pte, pte|PT_ACCESSED_MASK);
-			if (ret < 0) {
+			ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
+						  pte, pte|PT_ACCESSED_MASK);
+			if (unlikely(ret < 0)) {
 				present = false;
 				break;
 			} else if (ret)
@@ -279,9 +277,9 @@ walk:
 		int ret;
 
 		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
-		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, table_gfn, index, pte,
-			    pte|PT_DIRTY_MASK);
-		if (ret < 0) {
+		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
+					  pte, pte|PT_DIRTY_MASK);
+		if (unlikely(ret < 0)) {
 			present = false;
 			goto error;
 		} else if (ret)
