@@ -258,7 +258,6 @@ struct sbp2_orb {
 	struct kref kref;
 	dma_addr_t request_bus;
 	int rcode;
-	struct sbp2_pointer pointer;
 	void (*callback)(struct sbp2_orb * orb, struct sbp2_status * status);
 	struct list_head link;
 };
@@ -490,10 +489,11 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 			  int node_id, int generation, u64 offset)
 {
 	struct fw_device *device = target_device(lu->tgt);
+	struct sbp2_pointer orb_pointer;
 	unsigned long flags;
 
-	orb->pointer.high = 0;
-	orb->pointer.low = cpu_to_be32(orb->request_bus);
+	orb_pointer.high = 0;
+	orb_pointer.low = cpu_to_be32(orb->request_bus);
 
 	spin_lock_irqsave(&device->card->lock, flags);
 	list_add_tail(&orb->link, &lu->orb_list);
@@ -504,7 +504,7 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation, device->max_speed, offset,
-			&orb->pointer, 8, complete_transaction, orb);
+			&orb_pointer, 8, complete_transaction, orb);
 }
 
 static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
