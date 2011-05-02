@@ -112,7 +112,7 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
  *        a single node with all available processors in it with a flat
  *        memory map.
  */
-int __init get_memcfg_numa_flat(void)
+static int __init get_memcfg_numa_flat(void)
 {
 	printk(KERN_DEBUG "NUMA - single node, flat memory mode\n");
 
@@ -330,6 +330,15 @@ static __init void init_alloc_remap(int nid)
 
 	printk(KERN_DEBUG "remap_alloc: node %d [%08llx-%08llx) -> [%p-%p)\n",
 	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
+}
+
+static void get_memcfg_numa(void)
+{
+	if (get_memcfg_numaq())
+		return;
+	if (get_memcfg_from_srat())
+		return;
+	get_memcfg_numa_flat();
 }
 
 void __init initmem_init(void)
