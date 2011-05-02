@@ -1069,7 +1069,7 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 
 	for (i = 0; i < entries; i++) {
 		nextdescaddress = (u32) dma +
-					      ((i + 11) % entries) *
+					      ((i + 1) % entries) *
 					      sizeof(*ring);
 
 		rtlpriv->cfg->ops->set_desc((u8 *)&(ring[i]),
