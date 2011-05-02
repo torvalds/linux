@@ -134,6 +134,7 @@ struct isci_remote_device {
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
 	#define IDEV_ALLOCATED 2
+	#define IDEV_EH 3
 	unsigned long flags;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;

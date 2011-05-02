@@ -1022,9 +1022,11 @@ int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
 		"%s: domain_device=%p, isci_host=%p; isci_device=%p\n",
 		 __func__, domain_device, isci_host, isci_device);
 
-	if (isci_device != NULL)
+	if (isci_device != NULL) {
 		device_stopping = (isci_device->status == isci_stopping)
 				  || (isci_device->status == isci_stopped);
+		set_bit(IDEV_EH, &isci_device->flags);
+	}
 
 	/* If there is a device reset pending on any request in the
 	 * device's list, fail this LUN reset request in order to
@@ -1068,12 +1070,6 @@ int isci_task_clear_nexus_ha(struct sas_ha_struct *ha)
 {
 	return TMF_RESP_FUNC_FAILED;
 }
-
-int isci_task_I_T_nexus_reset(struct domain_device *dev)
-{
-	return TMF_RESP_FUNC_FAILED;
-}
-
 
 /* Task Management Functions. Must be called from process context.	 */
 
@@ -1170,6 +1166,12 @@ int isci_task_abort_task(struct sas_task *task)
 	 */
 	device_stopping = (isci_device->status == isci_stopping)
 			  || (isci_device->status == isci_stopped);
+
+	/* XXX need to fix device lookup lifetime (needs to be done
+	 * under scic_lock, among other things...), but for now assume
+	 * the device is available like the above code
+	 */
+	set_bit(IDEV_EH, &isci_device->flags);
 
 	/* This version of the driver will fail abort requests for
 	 * SATA/STP.  Failing the abort request this way will cause the
@@ -1481,86 +1483,94 @@ isci_task_request_complete(struct isci_host *ihost,
 	complete(tmf_complete);
 }
 
-/**
- * isci_bus_reset_handler() - This function performs a target reset of the
- *    device referenced by "cmd'.  This function is exported through the
- *    "struct scsi_host_template" structure such that it is called when an I/O
- *    recovery process has escalated to a target reset. Note that this function
- *    is called from the scsi error handler event thread, so may block on calls.
- * @scsi_cmd: This parameter specifies the target to be reset.
- *
- * SUCCESS if the reset process was successful, else FAILED.
- */
-int isci_bus_reset_handler(struct scsi_cmnd *cmd)
+static int isci_reset_device(struct domain_device *dev, int hard_reset)
 {
-	struct domain_device *dev = cmd_to_domain_dev(cmd);
-	struct isci_host *isci_host = dev_to_ihost(dev);
-	unsigned long flags = 0;
+	struct isci_remote_device *idev = dev->lldd_dev;
+	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct isci_host *ihost = dev_to_ihost(dev);
 	enum sci_status status;
-	int base_status;
-	struct isci_remote_device *isci_dev = dev->lldd_dev;
+	unsigned long flags;
+	int rc;
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: cmd %p, isci_dev %p\n",
-		__func__, cmd, isci_dev);
+	dev_dbg(&ihost->pdev->dev, "%s: idev %p\n", __func__, idev);
 
-	if (!isci_dev) {
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: isci_dev is GONE!\n",
+	if (!idev) {
+		dev_warn(&ihost->pdev->dev,
+			 "%s: idev is GONE!\n",
 			 __func__);
 
 		return TMF_RESP_FUNC_COMPLETE; /* Nothing to reset. */
 	}
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	status = scic_remote_device_reset(&isci_dev->sci);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	status = scic_remote_device_reset(&idev->sci);
 	if (status != SCI_SUCCESS) {
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-		scmd_printk(KERN_WARNING, cmd,
-			    "%s: scic_remote_device_reset(%p) returned %d!\n",
-			    __func__, isci_dev, status);
+		dev_warn(&ihost->pdev->dev,
+			 "%s: scic_remote_device_reset(%p) returned %d!\n",
+			 __func__, idev, status);
 
 		return TMF_RESP_FUNC_FAILED;
 	}
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Make sure all pending requests are able to be fully terminated. */
-	isci_device_clear_reset_pending(isci_host, isci_dev);
+	isci_device_clear_reset_pending(ihost, idev);
+
+	rc = sas_phy_reset(phy, hard_reset);
+	msleep(2000); /* just like mvsas */
 
 	/* Terminate in-progress I/O now. */
-	isci_remote_device_nuke_requests(isci_host, isci_dev);
+	isci_remote_device_nuke_requests(ihost, idev);
 
-	/* Call into the libsas default handler (which calls sas_phy_reset). */
-	base_status = sas_eh_bus_reset_handler(cmd);
-
-	if (base_status != SUCCESS) {
-
-		/* There can be cases where the resets to individual devices
-		 * behind an expander will fail because of an unplug of the
-		 * expander itself.
-		 */
-		scmd_printk(KERN_WARNING, cmd,
-			    "%s: sas_eh_bus_reset_handler(%p) returned %d!\n",
-			    __func__, cmd, base_status);
-	}
-
-	/* WHAT TO DO HERE IF sas_phy_reset FAILS? */
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	status = scic_remote_device_reset_complete(&isci_dev->sci);
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	status = scic_remote_device_reset_complete(&idev->sci);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	if (status != SCI_SUCCESS) {
-		scmd_printk(KERN_WARNING, cmd,
-			    "%s: scic_remote_device_reset_complete(%p) "
-			    "returned %d!\n",
-			    __func__, isci_dev, status);
+		dev_warn(&ihost->pdev->dev,
+			 "%s: scic_remote_device_reset_complete(%p) "
+			 "returned %d!\n", __func__, idev, status);
 	}
-	/* WHAT TO DO HERE IF scic_remote_device_reset_complete FAILS? */
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: cmd %p, isci_dev %p complete.\n",
-		__func__, cmd, isci_dev);
+	dev_dbg(&ihost->pdev->dev, "%s: idev %p complete.\n", __func__, idev);
 
-	return TMF_RESP_FUNC_COMPLETE;
+	return rc;
+}
+
+int isci_task_I_T_nexus_reset(struct domain_device *dev)
+{
+	struct isci_host *ihost = dev_to_ihost(dev);
+	int ret = TMF_RESP_FUNC_FAILED, hard_reset = 1;
+	struct isci_remote_device *idev;
+	unsigned long flags;
+
+	/* XXX mvsas is not protecting against ->lldd_dev_gone(), are we
+	 * being too paranoid, or is mvsas busted?!
+	 */
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	idev = dev->lldd_dev;
+	if (!idev || !test_bit(IDEV_EH, &idev->flags))
+		ret = TMF_RESP_FUNC_COMPLETE;
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	if (ret == TMF_RESP_FUNC_COMPLETE)
+		return ret;
+
+	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
+		hard_reset = 0;
+
+	return isci_reset_device(dev, hard_reset);
+}
+
+int isci_bus_reset_handler(struct scsi_cmnd *cmd)
+{
+	struct domain_device *dev = sdev_to_domain_dev(cmd->device);
+	int hard_reset = 1;
+
+	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
+		hard_reset = 0;
+
+	return isci_reset_device(dev, hard_reset);
 }

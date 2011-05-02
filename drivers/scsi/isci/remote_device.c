@@ -891,6 +891,7 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 
 	clear_bit(IDEV_START_PENDING, &idev->flags);
 	clear_bit(IDEV_STOP_PENDING, &idev->flags);
+	clear_bit(IDEV_EH, &idev->flags);
 	wake_up(&ihost->eventq);
 }
 
