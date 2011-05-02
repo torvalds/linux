@@ -91,6 +91,10 @@ typedef struct page *pgtable_t;
 /* Must be a macro since it is used to create constants. */
 #define __pgprot(val) hv_pte(val)
 
+/* Rarely-used initializers, typically with a "zero" value. */
+#define __pte(x) hv_pte(x)
+#define __pgd(x) hv_pte(x)
+
 static inline u64 pgprot_val(pgprot_t pgprot)
 {
 	return hv_pte_val(pgprot);
@@ -109,6 +113,8 @@ static inline u64 pgd_val(pgd_t pgd)
 #ifdef __tilegx__
 
 typedef HV_PTE pmd_t;
+
+#define __pmd(x) hv_pte(x)
 
 static inline u64 pmd_val(pmd_t pmd)
 {
@@ -318,7 +324,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 /* Provide as macros since these require some other headers included. */
 #define page_to_pa(page) ((phys_addr_t)(page_to_pfn(page)) << PAGE_SHIFT)
-#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn(kaddr))
+#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn((void *)(kaddr)))
 #define page_to_virt(page) pfn_to_kaddr(page_to_pfn(page))
 
 struct mm_struct;

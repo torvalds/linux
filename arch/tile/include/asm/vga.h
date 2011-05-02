@@ -10,14 +10,30 @@
  *   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
+ *
+ * Access to VGA videoram.
  */
 
-#ifndef _ASM_TILE_SWAB_H
-#define _ASM_TILE_SWAB_H
+#ifndef _ASM_TILE_VGA_H
+#define _ASM_TILE_VGA_H
 
-/* Tile gcc is always >= 4.3.0, so we use __builtin_bswap. */
-#define __arch_swab32(x) __builtin_bswap32(x)
-#define __arch_swab64(x) __builtin_bswap64(x)
-#define __arch_swab16(x) (__builtin_bswap32(x) >> 16)
+#include <asm/io.h>
 
-#endif /* _ASM_TILE_SWAB_H */
+#define VT_BUF_HAVE_RW
+
+static inline void scr_writew(u16 val, volatile u16 *addr)
+{
+	__raw_writew(val, (volatile u16 __iomem *) addr);
+}
+
+static inline u16 scr_readw(volatile const u16 *addr)
+{
+	return __raw_readw((volatile const u16 __iomem *) addr);
+}
+
+#define vga_readb(a)	readb((u8 __iomem *)(a))
+#define vga_writeb(v,a)	writeb(v, (u8 __iomem *)(a))
+
+#define VGA_MAP_MEM(x,s)	((unsigned long) ioremap(x, s))
+
+#endif
