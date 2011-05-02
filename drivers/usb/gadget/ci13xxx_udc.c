@@ -1843,6 +1843,7 @@ __releases(mEp->lock)
 __acquires(mEp->lock)
 {
 	struct ci13xxx_req *mReq, *mReqTemp;
+	struct ci13xxx_ep *mEpTemp = mEp;
 	int uninitialized_var(retval);
 
 	trace("%p", mEp);
@@ -1859,7 +1860,10 @@ __acquires(mEp->lock)
 		dbg_done(_usb_addr(mEp), mReq->ptr->token, retval);
 		if (mReq->req.complete != NULL) {
 			spin_unlock(mEp->lock);
-			mReq->req.complete(&mEp->ep, &mReq->req);
+			if ((mEp->type == USB_ENDPOINT_XFER_CONTROL) &&
+					mReq->req.length)
+				mEpTemp = &_udc->ep0in;
+			mReq->req.complete(&mEpTemp->ep, &mReq->req);
 			spin_lock(mEp->lock);
 		}
 	}
@@ -2248,11 +2252,15 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	spin_lock_irqsave(mEp->lock, flags);
 
-	if (mEp->type == USB_ENDPOINT_XFER_CONTROL &&
-	    !list_empty(&mEp->qh.queue)) {
-		_ep_nuke(mEp);
-		retval = -EOVERFLOW;
-		warn("endpoint ctrl %X nuked", _usb_addr(mEp));
+	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
+		if (req->length)
+			mEp = (_udc->ep0_dir == RX) ?
+				&_udc->ep0out : &_udc->ep0in;
+		if (!list_empty(&mEp->qh.queue)) {
+			_ep_nuke(mEp);
+			retval = -EOVERFLOW;
+			warn("endpoint ctrl %X nuked", _usb_addr(mEp));
+		}
 	}
 
 	/* first nuke then test link, e.g. previous status has not sent */
