@@ -161,6 +161,7 @@ static void __init tx28_stk5v3_init(void)
 	i2c_register_board_info(0, tx28_stk5v3_i2c_boardinfo,
 			ARRAY_SIZE(tx28_stk5v3_i2c_boardinfo));
 	mx28_add_mxs_mmc(0, &tx28_mmc0_pdata);
+	mx28_add_rtc_stmp3xxx();
 }
 
 static void __init tx28_timer_init(void)
