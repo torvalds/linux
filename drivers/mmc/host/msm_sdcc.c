@@ -1159,7 +1159,6 @@ msmsdcc_probe(struct platform_device *pdev)
 	struct msmsdcc_host *host;
 	struct mmc_host *mmc;
 	struct resource *cmd_irqres = NULL;
-	struct resource *pio_irqres = NULL;
 	struct resource *stat_irqres = NULL;
 	struct resource *memres = NULL;
 	struct resource *dmares = NULL;
@@ -1184,12 +1183,10 @@ msmsdcc_probe(struct platform_device *pdev)
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	cmd_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 						  "cmd_irq");
-	pio_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-						  "pio_irq");
 	stat_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 						   "status_irq");
 
-	if (!cmd_irqres || !pio_irqres || !memres) {
+	if (!cmd_irqres || !memres) {
 		pr_err("%s: Invalid resource\n", __func__);
 		return -ENXIO;
 	}
@@ -1219,7 +1216,6 @@ msmsdcc_probe(struct platform_device *pdev)
 	}
 
 	host->cmd_irqres = cmd_irqres;
-	host->pio_irqres = pio_irqres;
 	host->memres = memres;
 	host->dmares = dmares;
 	spin_lock_init(&host->lock);
@@ -1336,7 +1332,7 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (ret)
 		goto stat_irq_free;
 
-	ret = request_irq(pio_irqres->start, msmsdcc_pio_irq, IRQF_SHARED,
+	ret = request_irq(cmd_irqres->start, msmsdcc_pio_irq, IRQF_SHARED,
 			  DRIVER_NAME " (pio)", host);
 	if (ret)
 		goto cmd_irq_free;

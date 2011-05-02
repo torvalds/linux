@@ -202,7 +202,6 @@ struct msmsdcc_stats {
 
 struct msmsdcc_host {
 	struct resource		*cmd_irqres;
-	struct resource		*pio_irqres;
 	struct resource		*memres;
 	struct resource		*dmares;
 	void __iomem		*base;
