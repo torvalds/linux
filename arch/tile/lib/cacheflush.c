@@ -15,6 +15,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <arch/icache.h>
+#include <arch/spr_def.h>
 
 
 void __flush_icache_range(unsigned long start, unsigned long end)
@@ -39,6 +40,18 @@ void finv_buffer_remote(void *buffer, size_t size, int hfh)
 	char *p, *base;
 	size_t step_size, load_count;
 	const unsigned long STRIPE_WIDTH = 8192;
+#ifdef __tilegx__
+	/*
+	 * On TILE-Gx, we must disable the dstream prefetcher before doing
+	 * a cache flush; otherwise, we could end up with data in the cache
+	 * that we don't want there.  Note that normally we'd do an mf
+	 * after the SPR write to disabling the prefetcher, but we do one
+	 * below, before any further loads, so there's no need to do it
+	 * here.
+	 */
+	uint_reg_t old_dstream_pf = __insn_mfspr(SPR_DSTREAM_PF);
+	__insn_mtspr(SPR_DSTREAM_PF, 0);
+#endif
 
 	/*
 	 * Flush and invalidate the buffer out of the local L1/L2
@@ -122,4 +135,9 @@ void finv_buffer_remote(void *buffer, size_t size, int hfh)
 
 	/* Wait for the load+inv's (and thus finvs) to have completed. */
 	__insn_mf();
+
+#ifdef __tilegx__
+	/* Reenable the prefetcher. */
+	__insn_mtspr(SPR_DSTREAM_PF, old_dstream_pf);
+#endif
 }
