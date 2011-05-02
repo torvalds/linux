@@ -213,7 +213,8 @@ msmsdcc_dma_exec_func(struct msm_dmov_cmd *cmd)
 	msmsdcc_writel(host, host->cmd_timeout, MMCIDATATIMER);
 	msmsdcc_writel(host, (unsigned int)host->curr.xfer_size,
 		       MMCIDATALENGTH);
-	msmsdcc_writel(host, host->cmd_pio_irqmask, MMCIMASK1);
+	msmsdcc_writel(host, (msmsdcc_readl(host, MMCIMASK0) &
+			(~MCI_IRQ_PIO)) | host->cmd_pio_irqmask, MMCIMASK0);
 	msmsdcc_writel(host, host->cmd_datactrl, MMCIDATACTRL);
 
 	if (host->cmd_cmd) {
@@ -543,7 +544,9 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data,
 
 		msmsdcc_writel(host, host->curr.xfer_size, MMCIDATALENGTH);
 
-		msmsdcc_writel(host, pio_irqmask, MMCIMASK1);
+		msmsdcc_writel(host, (msmsdcc_readl(host, MMCIMASK0) &
+				(~MCI_IRQ_PIO)) | pio_irqmask, MMCIMASK0);
+
 		msmsdcc_writel(host, datactrl, MMCIDATACTRL);
 
 		if (cmd) {
@@ -659,8 +662,13 @@ msmsdcc_pio_irq(int irq, void *dev_id)
 {
 	struct msmsdcc_host	*host = dev_id;
 	uint32_t		status;
+	u32 mci_mask0;
 
 	status = msmsdcc_readl(host, MMCISTATUS);
+	mci_mask0 = msmsdcc_readl(host, MMCIMASK0);
+
+	if (((mci_mask0 & status) & MCI_IRQ_PIO) == 0)
+		return IRQ_NONE;
 
 	do {
 		unsigned long flags;
@@ -719,10 +727,12 @@ msmsdcc_pio_irq(int irq, void *dev_id)
 	} while (1);
 
 	if (status & MCI_RXACTIVE && host->curr.xfer_remain < MCI_FIFOSIZE)
-		msmsdcc_writel(host, MCI_RXDATAAVLBLMASK, MMCIMASK1);
+		msmsdcc_writel(host, (mci_mask0 & (~MCI_IRQ_PIO)) |
+					MCI_RXDATAAVLBLMASK, MMCIMASK0);
 
 	if (!host->curr.xfer_remain)
-		msmsdcc_writel(host, 0, MMCIMASK1);
+		msmsdcc_writel(host, (mci_mask0 & (~MCI_IRQ_PIO)) | 0,
+					MMCIMASK0);
 
 	return IRQ_HANDLED;
 }
@@ -854,6 +864,8 @@ msmsdcc_irq(int irq, void *dev_id)
 	do {
 		status = msmsdcc_readl(host, MMCISTATUS);
 		status &= msmsdcc_readl(host, MMCIMASK0);
+		if ((status & (~MCI_IRQ_PIO)) == 0)
+			break;
 		msmsdcc_writel(host, status, MMCICLEAR);
 
 		if (status & MCI_SDIOINTR)
