@@ -1894,7 +1894,7 @@ __acquires(udc->lock)
 
 	for (i = 0; i < hw_ep_max; i++) {
 		struct ci13xxx_ep *mEp  = &udc->ci13xxx_ep[i];
-		int type, num, err = -EINVAL;
+		int type, num, dir, err = -EINVAL;
 		struct usb_ctrlrequest req;
 
 		if (mEp->desc == NULL)
@@ -1952,7 +1952,10 @@ __acquires(udc->lock)
 				if (req.wLength != 0)
 					break;
 				num  = le16_to_cpu(req.wIndex);
+				dir = num & USB_ENDPOINT_DIR_MASK;
 				num &= USB_ENDPOINT_NUMBER_MASK;
+				if (dir) /* TX */
+					num += hw_ep_max/2;
 				if (!udc->ci13xxx_ep[num].wedge) {
 					spin_unlock(udc->lock);
 					err = usb_ep_clear_halt(
@@ -2001,7 +2004,10 @@ __acquires(udc->lock)
 				if (req.wLength != 0)
 					break;
 				num  = le16_to_cpu(req.wIndex);
+				dir = num & USB_ENDPOINT_DIR_MASK;
 				num &= USB_ENDPOINT_NUMBER_MASK;
+				if (dir) /* TX */
+					num += hw_ep_max/2;
 
 				spin_unlock(udc->lock);
 				err = usb_ep_set_halt(&udc->ci13xxx_ep[num].ep);
