@@ -44,6 +44,7 @@
 #include <linux/random.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
