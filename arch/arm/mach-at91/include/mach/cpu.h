@@ -41,12 +41,12 @@
 
 static inline unsigned long at91_cpu_identify(void)
 {
-	return (at91_sys_read(AT91_DBGU_CIDR) & ~AT91_CIDR_VERSION);
+	return (dbgu_readl(AT91_DBGU, CIDR) & ~AT91_CIDR_VERSION);
 }
 
 static inline unsigned long at91_cpu_fully_identify(void)
 {
-	return at91_sys_read(AT91_DBGU_CIDR);
+	return dbgu_readl(AT91_DBGU, CIDR);
 }
 
 #define ARCH_EXID_AT91SAM9M11	0x00000001
@@ -62,7 +62,7 @@ static inline unsigned long at91_cpu_fully_identify(void)
 
 static inline unsigned long at91_exid_identify(void)
 {
-	return at91_sys_read(AT91_DBGU_EXID);
+	return dbgu_readl(AT91_DBGU, EXID);
 }
 
 
@@ -72,7 +72,7 @@ static inline unsigned long at91_exid_identify(void)
 
 static inline unsigned long at91_arch_identify(void)
 {
-	return (at91_sys_read(AT91_DBGU_CIDR) & AT91_CIDR_ARCH);
+	return (dbgu_readl(AT91_DBGU, CIDR) & AT91_CIDR_ARCH);
 }
 
 #ifdef CONFIG_ARCH_AT91CAP9

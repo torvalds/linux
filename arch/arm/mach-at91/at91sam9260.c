@@ -324,7 +324,7 @@ static void __init at91sam9xe_map_io(void)
 {
 	unsigned long cidr, sram_size;
 
-	cidr = at91_sys_read(AT91_DBGU_CIDR);
+	cidr = dbgu_readl(AT91_DBGU, CIDR);
 
 	switch (cidr & AT91_CIDR_SRAMSIZ) {
 		case AT91_CIDR_SRAMSIZ_32K:
