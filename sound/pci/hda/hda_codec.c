@@ -3872,7 +3872,8 @@ EXPORT_SYMBOL_HDA(snd_hda_check_board_codec_sid_config);
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
+int snd_hda_add_new_ctls(struct hda_codec *codec,
+			 const struct snd_kcontrol_new *knew)
 {
 	int err;
 
@@ -4015,7 +4016,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 struct hda_loopback_check *check,
 				 hda_nid_t nid)
 {
-	struct hda_amp_list *p;
+	const struct hda_amp_list *p;
 	int ch, v;
 
 	if (!check->amplist)

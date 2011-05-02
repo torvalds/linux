@@ -347,7 +347,7 @@ int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
                                int num_configs, const char * const *models,
                                const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
-			 struct snd_kcontrol_new *knew);
+			 const struct snd_kcontrol_new *knew);
 
 /*
  * unsolicited event handler
@@ -567,7 +567,7 @@ struct hda_amp_list {
 };
 
 struct hda_loopback_check {
-	struct hda_amp_list *amplist;
+	const struct hda_amp_list *amplist;
 	int power_on;
 };
 
