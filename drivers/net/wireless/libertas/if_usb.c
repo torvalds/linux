@@ -206,7 +206,7 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	wake_method.hdr.size = cpu_to_le16(sizeof(wake_method));
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);
 	if (lbs_cmd_with_response(priv, CMD_802_11_FW_WAKE_METHOD, &wake_method)) {
-		pr_info("Firmware does not seem to support PS mode\n");
+		netdev_info(priv->dev, "Firmware does not seem to support PS mode\n");
 		priv->fwcapinfo &= ~FW_CAPINFO_PS;
 	} else {
 		if (le16_to_cpu(wake_method.method) == CMD_WAKE_METHOD_COMMAND_INT) {
@@ -215,7 +215,8 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 			/* The versions which boot up this way don't seem to
 			   work even if we set it to the command interrupt */
 			priv->fwcapinfo &= ~FW_CAPINFO_PS;
-			pr_info("Firmware doesn't wake via command interrupt; disabling PS mode\n");
+			netdev_info(priv->dev,
+				    "Firmware doesn't wake via command interrupt; disabling PS mode\n");
 		}
 	}
 }
@@ -351,10 +352,12 @@ static int if_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, cardp);
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_fw))
-		pr_err("cannot register lbs_flash_fw attribute\n");
+		netdev_err(priv->dev,
+			   "cannot register lbs_flash_fw attribute\n");
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_boot2))
-		pr_err("cannot register lbs_flash_boot2 attribute\n");
+		netdev_err(priv->dev,
+			   "cannot register lbs_flash_boot2 attribute\n");
 
 	/*
 	 * EHS_REMOVE_WAKEUP is not supported on all versions of the firmware.

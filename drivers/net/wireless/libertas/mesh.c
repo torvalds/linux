@@ -269,7 +269,7 @@ int lbs_init_mesh(struct lbs_private *priv)
 		lbs_add_mesh(priv);
 
 		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
-			pr_err("cannot register lbs_mesh attribute\n");
+			netdev_err(dev, "cannot register lbs_mesh attribute\n");
 
 		ret = 1;
 	}
@@ -975,7 +975,7 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	if (defs.meshie.val.mesh_id_len > IEEE80211_MAX_SSID_LEN) {
-		pr_err("inconsistent mesh ID length\n");
+		dev_err(dev, "inconsistent mesh ID length\n");
 		defs.meshie.val.mesh_id_len = IEEE80211_MAX_SSID_LEN;
 	}
 

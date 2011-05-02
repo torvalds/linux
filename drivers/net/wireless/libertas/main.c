@@ -444,8 +444,8 @@ static int lbs_thread(void *data)
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
-			pr_info("Timeout submitting command 0x%04x\n",
-				le16_to_cpu(cmdnode->cmdbuf->command));
+			netdev_info(dev, "Timeout submitting command 0x%04x\n",
+				    le16_to_cpu(cmdnode->cmdbuf->command));
 			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
 			if (priv->reset_card)
 				priv->reset_card(priv);
@@ -472,7 +472,8 @@ static int lbs_thread(void *data)
 				 * after firmware fixes it
 				 */
 				priv->psstate = PS_STATE_AWAKE;
-				pr_alert("ignore PS_SleepConfirm in non-connected state\n");
+				netdev_alert(dev,
+					     "ignore PS_SleepConfirm in non-connected state\n");
 			}
 		}
 
@@ -566,7 +567,8 @@ int lbs_suspend(struct lbs_private *priv)
 	if (priv->is_deep_sleep) {
 		ret = lbs_set_deep_sleep(priv, 0);
 		if (ret) {
-			pr_err("deep sleep cancellation failed: %d\n", ret);
+			netdev_err(priv->dev,
+				   "deep sleep cancellation failed: %d\n", ret);
 			return ret;
 		}
 		priv->deep_sleep_required = 1;
@@ -599,7 +601,8 @@ int lbs_resume(struct lbs_private *priv)
 		priv->deep_sleep_required = 0;
 		ret = lbs_set_deep_sleep(priv, 1);
 		if (ret)
-			pr_err("deep sleep activation failed: %d\n", ret);
+			netdev_err(priv->dev,
+				   "deep sleep activation failed: %d\n", ret);
 	}
 
 	if (priv->setup_fw_on_resume)
@@ -627,8 +630,8 @@ static void lbs_cmd_timeout_handler(unsigned long data)
 	if (!priv->cur_cmd)
 		goto out;
 
-	pr_info("command 0x%04x timed out\n",
-		le16_to_cpu(priv->cur_cmd->cmdbuf->command));
+	netdev_info(priv->dev, "command 0x%04x timed out\n",
+		    le16_to_cpu(priv->cur_cmd->cmdbuf->command));
 
 	priv->cmd_timed_out = 1;
 	wake_up_interruptible(&priv->waitq);
@@ -945,7 +948,7 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_debugfs_init_one(priv, dev);
 
-	pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
+	netdev_info(dev, "Marvell WLAN 802.11 adapter\n");
 
 	ret = 0;
 
@@ -1072,14 +1075,16 @@ int lbs_get_firmware(struct device *dev, const char *user_helper,
 	if (user_helper) {
 		ret = request_firmware(helper, user_helper, dev);
 		if (ret) {
-			pr_err("couldn't find helper firmware %s", user_helper);
+			dev_err(dev, "couldn't find helper firmware %s\n",
+				user_helper);
 			goto fail;
 		}
 	}
 	if (user_mainfw) {
 		ret = request_firmware(mainfw, user_mainfw, dev);
 		if (ret) {
-			pr_err("couldn't find main firmware %s", user_mainfw);
+			dev_err(dev, "couldn't find main firmware %s\n",
+				user_mainfw);
 			goto fail;
 		}
 	}

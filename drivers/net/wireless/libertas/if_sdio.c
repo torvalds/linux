@@ -851,7 +851,7 @@ static int if_sdio_enter_deep_sleep(struct lbs_private *priv)
 	ret = __lbs_cmd(priv, CMD_802_11_DEEP_SLEEP, &cmd, sizeof(cmd),
 			lbs_cmd_copyback, (unsigned long) &cmd);
 	if (ret)
-		pr_err("DEEP_SLEEP cmd failed\n");
+		netdev_err(priv->dev, "DEEP_SLEEP cmd failed\n");
 
 	mdelay(200);
 	return ret;
@@ -867,7 +867,7 @@ static int if_sdio_exit_deep_sleep(struct lbs_private *priv)
 
 	sdio_writeb(card->func, HOST_POWER_UP, CONFIGURATION_REG, &ret);
 	if (ret)
-		pr_err("sdio_writeb failed!\n");
+		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
@@ -884,7 +884,7 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 
 	sdio_writeb(card->func, 0, CONFIGURATION_REG, &ret);
 	if (ret)
-		pr_err("sdio_writeb failed!\n");
+		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
@@ -1103,7 +1103,7 @@ static int if_sdio_probe(struct sdio_func *func,
 		lbs_deb_sdio("send function INIT command\n");
 		if (__lbs_cmd(priv, CMD_FUNC_INIT, &cmd, sizeof(cmd),
 				lbs_cmd_copyback, (unsigned long) &cmd))
-			pr_alert("CMD_FUNC_INIT cmd failed\n");
+			netdev_alert(priv->dev, "CMD_FUNC_INIT cmd failed\n");
 	}
 
 	ret = lbs_start_card(priv);
@@ -1204,19 +1204,20 @@ static int if_sdio_suspend(struct device *dev)
 
 	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
 
-	pr_info("%s: suspend: PM flags = 0x%x\n", sdio_func_id(func), flags);
+	dev_info(dev, "%s: suspend: PM flags = 0x%x\n",
+		 sdio_func_id(func), flags);
 
 	/* If we aren't being asked to wake on anything, we should bail out
 	 * and let the SD stack power down the card.
 	 */
 	if (card->priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-		pr_info("Suspend without wake params -- powering down card\n");
+		dev_info(dev, "Suspend without wake params -- powering down card\n");
 		return -ENOSYS;
 	}
 
 	if (!(flags & MMC_PM_KEEP_POWER)) {
-		pr_err("%s: cannot remain alive while host is suspended\n",
-		       sdio_func_id(func));
+		dev_err(dev, "%s: cannot remain alive while host is suspended\n",
+			sdio_func_id(func));
 		return -ENOSYS;
 	}
 
@@ -1237,7 +1238,7 @@ static int if_sdio_resume(struct device *dev)
 	struct if_sdio_card *card = sdio_get_drvdata(func);
 	int ret;
 
-	pr_info("%s: resume: we're back\n", sdio_func_id(func));
+	dev_info(dev, "%s: resume: we're back\n", sdio_func_id(func));
 
 	ret = lbs_resume(card->priv);
 

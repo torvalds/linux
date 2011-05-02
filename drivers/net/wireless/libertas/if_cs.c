@@ -364,7 +364,7 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 		if (status & IF_CS_BIT_COMMAND)
 			break;
 		if (++loops > 100) {
-			pr_err("card not ready for commands\n");
+			netdev_err(priv->dev, "card not ready for commands\n");
 			goto done;
 		}
 		mdelay(1);
@@ -434,14 +434,16 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 	/* is hardware ready? */
 	status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
 	if ((status & IF_CS_BIT_RESP) == 0) {
-		pr_err("no cmd response in card\n");
+		netdev_err(priv->dev, "no cmd response in card\n");
 		*len = 0;
 		goto out;
 	}
 
 	*len = if_cs_read16(priv->card, IF_CS_RESP_LEN);
 	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
-		pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
+		netdev_err(priv->dev,
+			   "card cmd buffer has invalid # of bytes (%d)\n",
+			   *len);
 		goto out;
 	}
 
@@ -475,7 +477,9 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 
 	len = if_cs_read16(priv->card, IF_CS_READ_LEN);
 	if (len == 0 || len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
-		pr_err("card data buffer has invalid # of bytes (%d)\n", len);
+		netdev_err(priv->dev,
+			   "card data buffer has invalid # of bytes (%d)\n",
+			   len);
 		priv->dev->stats.rx_dropped++;
 		goto dat_err;
 	}
@@ -761,7 +765,8 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 		ret = if_cs_send_cmd(priv, buf, nb);
 		break;
 	default:
-		pr_err("%s: unsupported type %d\n", __func__, type);
+		netdev_err(priv->dev, "%s: unsupported type %d\n",
+			   __func__, type);
 	}
 
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);

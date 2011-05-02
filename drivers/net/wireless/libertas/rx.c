@@ -251,7 +251,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* add space for the new radio header */
 	if ((skb_headroom(skb) < sizeof(struct rx_radiotap_hdr)) &&
 	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0, GFP_ATOMIC)) {
-		pr_alert("%s: couldn't pskb_expand_head\n", __func__);
+		netdev_alert(dev, "%s: couldn't pskb_expand_head\n", __func__);
 		ret = -ENOMEM;
 		kfree_skb(skb);
 		goto done;
