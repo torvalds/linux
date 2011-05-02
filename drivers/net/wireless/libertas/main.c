@@ -149,28 +149,6 @@ static int lbs_eth_stop(struct net_device *dev)
 	return 0;
 }
 
-static void lbs_tx_timeout(struct net_device *dev)
-{
-	struct lbs_private *priv = dev->ml_priv;
-
-	lbs_deb_enter(LBS_DEB_TX);
-
-	lbs_pr_err("tx watch dog timeout\n");
-
-	dev->trans_start = jiffies; /* prevent tx timeout */
-
-	if (priv->currenttxskb)
-		lbs_send_tx_feedback(priv, 0);
-
-	/* XX: Shouldn't we also call into the hw-specific driver
-	   to kick it somehow? */
-	lbs_host_to_card_done(priv);
-
-	/* FIXME: reset the card */
-
-	lbs_deb_leave(LBS_DEB_TX);
-}
-
 void lbs_host_to_card_done(struct lbs_private *priv)
 {
 	unsigned long flags;
@@ -791,7 +769,6 @@ static const struct net_device_ops lbs_netdev_ops = {
 	.ndo_stop		= lbs_eth_stop,
 	.ndo_start_xmit		= lbs_hard_start_xmit,
 	.ndo_set_mac_address	= lbs_set_mac_address,
-	.ndo_tx_timeout 	= lbs_tx_timeout,
 	.ndo_set_multicast_list = lbs_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
