@@ -41,9 +41,6 @@
 #include <asm/bios_ebda.h>
 #include <asm/proto.h>
 
-struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_data);
-
 /*
  * numa interface - we expect the numa architecture specific code to have
  *                  populated the following initialisation.
