@@ -21,6 +21,8 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/twl6040.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>

@@ -240,6 +240,7 @@ config SND_SOC_TWL4030
 	tristate
 
 config SND_SOC_TWL6040
+	select TWL6040_CORE
 	tristate
 
 config SND_SOC_UDA134X
