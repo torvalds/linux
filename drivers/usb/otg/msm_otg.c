@@ -389,13 +389,13 @@ skip_phy_resume:
 	if (bus)
 		set_bit(HCD_FLAG_HW_ACCESSIBLE, &(bus_to_hcd(bus))->flags);
 
+	atomic_set(&motg->in_lpm, 0);
+
 	if (motg->async_int) {
 		motg->async_int = 0;
 		pm_runtime_put(otg->dev);
 		enable_irq(motg->irq);
 	}
-
-	atomic_set(&motg->in_lpm, 0);
 
 	dev_info(otg->dev, "USB exited from low power mode\n");
 
