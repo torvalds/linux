@@ -1134,7 +1134,7 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 		usbip_uerr("create hcd failed\n");
 		return -ENOMEM;
 	}
-
+	hcd->has_tt = 1;
 
 	/* this is private data for vhci_hcd */
 	the_controller = hcd_to_vhci(hcd);
