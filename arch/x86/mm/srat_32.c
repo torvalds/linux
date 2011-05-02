@@ -209,7 +209,7 @@ static __init int node_read_chunk(int nid, struct node_memory_chunk_s *memory_ch
 
 int __init get_memcfg_from_srat(void)
 {
-	int i, j, nid;
+	int i, j;
 
 	if (srat_disabled())
 		goto out_fail;
@@ -273,12 +273,6 @@ int __init get_memcfg_from_srat(void)
 	/* for out of order entries in SRAT */
 	sort_node_map();
 
-	for_each_online_node(nid) {
-		unsigned long start = node_start_pfn[nid];
-		unsigned long end = min(node_end_pfn[nid], max_pfn);
-
-		memory_present(nid, start, end);
-	}
 	return 1;
 out_fail:
 	printk(KERN_DEBUG "failed to get NUMA memory information from SRAT"

@@ -91,8 +91,6 @@ static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
 
 	memblock_x86_register_active_regions(node, node_start_pfn[node],
 						node_end_pfn[node]);
-
-	memory_present(node, node_start_pfn[node], node_end_pfn[node]);
 }
 
 /*
