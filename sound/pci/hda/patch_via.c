@@ -109,19 +109,19 @@ enum VIA_HDA_CODEC {
 
 struct via_spec {
 	/* codec parameterization */
-	struct snd_kcontrol_new *mixers[6];
+	const struct snd_kcontrol_new *mixers[6];
 	unsigned int num_mixers;
 
-	struct hda_verb *init_verbs[5];
+	const struct hda_verb *init_verbs[5];
 	unsigned int num_iverbs;
 
 	char *stream_name_analog;
-	struct hda_pcm_stream *stream_analog_playback;
-	struct hda_pcm_stream *stream_analog_capture;
+	const struct hda_pcm_stream *stream_analog_playback;
+	const struct hda_pcm_stream *stream_analog_capture;
 
 	char *stream_name_digital;
-	struct hda_pcm_stream *stream_digital_playback;
-	struct hda_pcm_stream *stream_digital_capture;
+	const struct hda_pcm_stream *stream_digital_playback;
+	const struct hda_pcm_stream *stream_digital_capture;
 
 	/* playback */
 	struct hda_multi_out multiout;
@@ -129,7 +129,7 @@ struct via_spec {
 
 	/* capture */
 	unsigned int num_adc_nids;
-	hda_nid_t *adc_nids;
+	const hda_nid_t *adc_nids;
 	hda_nid_t mux_nids[3];
 	hda_nid_t dig_in_nid;
 	hda_nid_t dig_in_pin;
@@ -410,54 +410,54 @@ static int bind_pin_switch_put(struct snd_kcontrol *kcontrol,
 			.put = bind_pin_switch_put,			\
 			.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0) }
 
-static struct snd_kcontrol_new via_control_templates[] = {
+static const struct snd_kcontrol_new via_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	ANALOG_INPUT_MUTE,
 	BIND_PIN_MUTE,
 };
 
-static hda_nid_t vt1708_adc_nids[2] = {
+static const hda_nid_t vt1708_adc_nids[2] = {
 	/* ADC1-2 */
 	0x15, 0x27
 };
 
-static hda_nid_t vt1709_adc_nids[3] = {
+static const hda_nid_t vt1709_adc_nids[3] = {
 	/* ADC1-2 */
 	0x14, 0x15, 0x16
 };
 
-static hda_nid_t vt1708B_adc_nids[2] = {
+static const hda_nid_t vt1708B_adc_nids[2] = {
 	/* ADC1-2 */
 	0x13, 0x14
 };
 
-static hda_nid_t vt1708S_adc_nids[2] = {
+static const hda_nid_t vt1708S_adc_nids[2] = {
 	/* ADC1-2 */
 	0x13, 0x14
 };
 
-static hda_nid_t vt1702_adc_nids[3] = {
+static const hda_nid_t vt1702_adc_nids[3] = {
 	/* ADC1-2 */
 	0x12, 0x20, 0x1F
 };
 
-static hda_nid_t vt1718S_adc_nids[2] = {
+static const hda_nid_t vt1718S_adc_nids[2] = {
 	/* ADC1-2 */
 	0x10, 0x11
 };
 
-static hda_nid_t vt1716S_adc_nids[2] = {
+static const hda_nid_t vt1716S_adc_nids[2] = {
 	/* ADC1-2 */
 	0x13, 0x14
 };
 
-static hda_nid_t vt2002P_adc_nids[2] = {
+static const hda_nid_t vt2002P_adc_nids[2] = {
 	/* ADC1-2 */
 	0x10, 0x11
 };
 
-static hda_nid_t vt1812_adc_nids[2] = {
+static const hda_nid_t vt1812_adc_nids[2] = {
 	/* ADC1-2 */
 	0x10, 0x11
 };
@@ -487,7 +487,7 @@ static int __via_add_control(struct via_spec *spec, int type, const char *name,
 	__via_add_control(spec, type, name, 0, val)
 
 static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
-						struct snd_kcontrol_new *tmpl)
+				const struct snd_kcontrol_new *tmpl)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -780,7 +780,7 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new via_hp_mixer[2] = {
+static const struct snd_kcontrol_new via_hp_mixer[2] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Independent HP",
@@ -1003,7 +1003,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new via_smart51_mixer[2] = {
+static const struct snd_kcontrol_new via_smart51_mixer[2] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name = "Smart 5.1",
@@ -1049,7 +1049,7 @@ static int via_smart51_build(struct via_spec *spec)
 }
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1708_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1708_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x27, 0x0, HDA_INPUT),
@@ -1179,7 +1179,7 @@ static void analog_low_current_mode(struct hda_codec *codec, int stream_idle)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static struct hda_verb vt1708_volume_init_verbs[] = {
+static const struct hda_verb vt1708_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -1421,7 +1421,7 @@ static int via_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static struct hda_pcm_stream vt1708_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1708_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -1433,7 +1433,7 @@ static struct hda_pcm_stream vt1708_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
+static const struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -1450,7 +1450,7 @@ static struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1708_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1461,7 +1461,7 @@ static struct hda_pcm_stream vt1708_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1708_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1708_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1474,7 +1474,7 @@ static struct hda_pcm_stream vt1708_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708_pcm_digital_capture = {
+static const struct hda_pcm_stream vt1708_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1484,7 +1484,7 @@ static int via_build_controls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	struct snd_kcontrol *kctl;
-	struct snd_kcontrol_new *knew;
+	const struct snd_kcontrol_new *knew;
 	int err, i;
 
 	for (i = 0; i < spec->num_mixers; i++) {
@@ -1819,7 +1819,7 @@ static int via_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 
 /*
  */
-static struct hda_codec_ops via_patch_ops = {
+static const struct hda_codec_ops via_patch_ops = {
 	.build_controls = via_build_controls,
 	.build_pcms = via_build_pcms,
 	.init = via_init,
@@ -2002,7 +2002,8 @@ static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 					    const struct auto_pin_cfg *cfg,
 					    hda_nid_t cap_nid,
-					    hda_nid_t pin_idxs[], int num_idxs)
+					    const hda_nid_t pin_idxs[],
+					    int num_idxs)
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
@@ -2048,13 +2049,13 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 static int vt1708_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0xff, 0x24, 0x1d, 0x1e, 0x21 };
+	static const hda_nid_t pin_idxs[] = { 0xff, 0x24, 0x1d, 0x1e, 0x21 };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x17, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1708_loopbacks[] = {
+static const struct hda_amp_list vt1708_loopbacks[] = {
 	{ 0x17, HDA_INPUT, 1 },
 	{ 0x17, HDA_INPUT, 2 },
 	{ 0x17, HDA_INPUT, 3 },
@@ -2113,7 +2114,7 @@ static int vt1708_jack_detectect_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new vt1708_jack_detectect[] = {
+static const struct snd_kcontrol_new vt1708_jack_detectect[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Jack Detect",
@@ -2293,7 +2294,7 @@ static int patch_vt1708(struct hda_codec *codec)
 }
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1709_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1709_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x15, 0x0, HDA_INPUT),
@@ -2315,7 +2316,7 @@ static struct snd_kcontrol_new vt1709_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt1709_uniwill_init_verbs[] = {
+static const struct hda_verb vt1709_uniwill_init_verbs[] = {
 	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{ }
@@ -2324,7 +2325,7 @@ static struct hda_verb vt1709_uniwill_init_verbs[] = {
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static struct hda_verb vt1709_10ch_volume_init_verbs[] = {
+static const struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-2 and set the default input to mic-in
 	 */
@@ -2364,7 +2365,7 @@ static struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1709_10ch_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1709_10ch_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 10,
@@ -2376,7 +2377,7 @@ static struct hda_pcm_stream vt1709_10ch_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1709_6ch_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1709_6ch_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 6,
@@ -2388,7 +2389,7 @@ static struct hda_pcm_stream vt1709_6ch_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1709_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1709_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -2399,7 +2400,7 @@ static struct hda_pcm_stream vt1709_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1709_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1709_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -2410,7 +2411,7 @@ static struct hda_pcm_stream vt1709_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1709_pcm_digital_capture = {
+static const struct hda_pcm_stream vt1709_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -2622,7 +2623,7 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1709_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0xff, 0x23, 0x1d, 0x1e, 0x21 };
+	static const hda_nid_t pin_idxs[] = { 0xff, 0x23, 0x1d, 0x1e, 0x21 };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x18, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -2672,7 +2673,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1709_loopbacks[] = {
+static const struct hda_amp_list vt1709_loopbacks[] = {
 	{ 0x18, HDA_INPUT, 1 },
 	{ 0x18, HDA_INPUT, 2 },
 	{ 0x18, HDA_INPUT, 3 },
@@ -2733,7 +2734,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static struct hda_verb vt1709_6ch_volume_init_verbs[] = {
+static const struct hda_verb vt1709_6ch_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-2 and set the default input to mic-in
 	 */
@@ -2823,7 +2824,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 }
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1708B_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1708B_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
@@ -2845,7 +2846,7 @@ static struct snd_kcontrol_new vt1708B_capture_mixer[] = {
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
+static const struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -2880,7 +2881,7 @@ static struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
 	{ }
 };
 
-static struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
+static const struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -2915,7 +2916,7 @@ static struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
 	{ }
 };
 
-static struct hda_verb vt1708B_uniwill_init_verbs[] = {
+static const struct hda_verb vt1708B_uniwill_init_verbs[] = {
 	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -2939,7 +2940,7 @@ static int via_pcm_open_close(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static struct hda_pcm_stream vt1708B_8ch_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1708B_8ch_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -2952,7 +2953,7 @@ static struct hda_pcm_stream vt1708B_8ch_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708B_4ch_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1708B_4ch_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 4,
@@ -2964,7 +2965,7 @@ static struct hda_pcm_stream vt1708B_4ch_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708B_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1708B_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -2977,7 +2978,7 @@ static struct hda_pcm_stream vt1708B_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1708B_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1708B_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -2990,7 +2991,7 @@ static struct hda_pcm_stream vt1708B_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708B_pcm_digital_capture = {
+static const struct hda_pcm_stream vt1708B_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -3154,7 +3155,7 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708B_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0xff, 0x1f, 0x1a, 0x1b, 0x1e };
+	static const hda_nid_t pin_idxs[] = { 0xff, 0x1f, 0x1a, 0x1b, 0x1e };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -3204,7 +3205,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1708B_loopbacks[] = {
+static const struct hda_amp_list vt1708B_loopbacks[] = {
 	{ 0x16, HDA_INPUT, 1 },
 	{ 0x16, HDA_INPUT, 2 },
 	{ 0x16, HDA_INPUT, 3 },
@@ -3403,7 +3404,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 /* Patch for VT1708S */
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1708S_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1708S_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
@@ -3426,7 +3427,7 @@ static struct snd_kcontrol_new vt1708S_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt1708S_volume_init_verbs[] = {
+static const struct hda_verb vt1708S_volume_init_verbs[] = {
 	/* Unmute ADC0-1 and set the default input to mic-in */
 	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -3452,7 +3453,7 @@ static struct hda_verb vt1708S_volume_init_verbs[] = {
 	{ }
 };
 
-static struct hda_verb vt1708S_uniwill_init_verbs[] = {
+static const struct hda_verb vt1708S_uniwill_init_verbs[] = {
 	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -3465,7 +3466,7 @@ static struct hda_verb vt1708S_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_verb vt1705_uniwill_init_verbs[] = {
+static const struct hda_verb vt1705_uniwill_init_verbs[] = {
 	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -3477,7 +3478,7 @@ static struct hda_verb vt1705_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1708S_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1708S_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -3490,7 +3491,7 @@ static struct hda_pcm_stream vt1708S_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1705_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1705_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 6,
@@ -3503,7 +3504,7 @@ static struct hda_pcm_stream vt1705_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1708S_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1708S_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -3516,7 +3517,7 @@ static struct hda_pcm_stream vt1708S_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1708S_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1708S_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -3718,7 +3719,7 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -3789,7 +3790,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1708S_loopbacks[] = {
+static const struct hda_amp_list vt1708S_loopbacks[] = {
 	{ 0x16, HDA_INPUT, 1 },
 	{ 0x16, HDA_INPUT, 2 },
 	{ 0x16, HDA_INPUT, 3 },
@@ -3904,7 +3905,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 /* Patch for VT1702 */
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1702_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1702_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x20, 0x0, HDA_INPUT),
@@ -3928,7 +3929,7 @@ static struct snd_kcontrol_new vt1702_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt1702_volume_init_verbs[] = {
+static const struct hda_verb vt1702_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -3959,7 +3960,7 @@ static struct hda_verb vt1702_volume_init_verbs[] = {
 	{ }
 };
 
-static struct hda_verb vt1702_uniwill_init_verbs[] = {
+static const struct hda_verb vt1702_uniwill_init_verbs[] = {
 	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -3969,7 +3970,7 @@ static struct hda_verb vt1702_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1702_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1702_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -3982,7 +3983,7 @@ static struct hda_pcm_stream vt1702_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1702_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1702_pcm_analog_capture = {
 	.substreams = 3,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -3995,7 +3996,7 @@ static struct hda_pcm_stream vt1702_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1702_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1702_pcm_digital_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4095,7 +4096,7 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1702_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0x14, 0x15, 0x18, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x14, 0x15, 0x18, 0xff };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x1a, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -4146,7 +4147,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1702_loopbacks[] = {
+static const struct hda_amp_list vt1702_loopbacks[] = {
 	{ 0x1A, HDA_INPUT, 1 },
 	{ 0x1A, HDA_INPUT, 2 },
 	{ 0x1A, HDA_INPUT, 3 },
@@ -4239,7 +4240,7 @@ static int patch_vt1702(struct hda_codec *codec)
 /* Patch for VT1718S */
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1718S_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1718S_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
@@ -4261,7 +4262,7 @@ static struct snd_kcontrol_new vt1718S_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt1718S_volume_init_verbs[] = {
+static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -4309,7 +4310,7 @@ static struct hda_verb vt1718S_volume_init_verbs[] = {
 };
 
 
-static struct hda_verb vt1718S_uniwill_init_verbs[] = {
+static const struct hda_verb vt1718S_uniwill_init_verbs[] = {
 	{0x28, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x24, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -4322,7 +4323,7 @@ static struct hda_verb vt1718S_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1718S_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1718S_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 10,
@@ -4335,7 +4336,7 @@ static struct hda_pcm_stream vt1718S_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1718S_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1718S_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4348,7 +4349,7 @@ static struct hda_pcm_stream vt1718S_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1718S_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1718S_pcm_digital_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4361,7 +4362,7 @@ static struct hda_pcm_stream vt1718S_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1718S_pcm_digital_capture = {
+static const struct hda_pcm_stream vt1718S_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4515,7 +4516,7 @@ static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1718S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0x2c, 0x2b, 0x2a, 0x29, 0, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x2c, 0x2b, 0x2a, 0x29, 0, 0xff };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -4566,7 +4567,7 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1718S_loopbacks[] = {
+static const struct hda_amp_list vt1718S_loopbacks[] = {
 	{ 0x21, HDA_INPUT, 1 },
 	{ 0x21, HDA_INPUT, 2 },
 	{ 0x21, HDA_INPUT, 3 },
@@ -4748,7 +4749,7 @@ static int vt1716s_dmic_put(struct snd_kcontrol *kcontrol,
 }
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1716S_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1716S_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
@@ -4767,7 +4768,7 @@ static struct snd_kcontrol_new vt1716S_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
+static const struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
 	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x22, 0x0, HDA_INPUT),
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -4783,12 +4784,12 @@ static struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
 
 
 /* mono-out mixer elements */
-static struct snd_kcontrol_new vt1716S_mono_out_mixer[] = {
+static const struct snd_kcontrol_new vt1716S_mono_out_mixer[] = {
 	HDA_CODEC_MUTE("Mono Playback Switch", 0x2a, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
 
-static struct hda_verb vt1716S_volume_init_verbs[] = {
+static const struct hda_verb vt1716S_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -4837,7 +4838,7 @@ static struct hda_verb vt1716S_volume_init_verbs[] = {
 };
 
 
-static struct hda_verb vt1716S_uniwill_init_verbs[] = {
+static const struct hda_verb vt1716S_uniwill_init_verbs[] = {
 	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
@@ -4850,7 +4851,7 @@ static struct hda_verb vt1716S_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1716S_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1716S_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 6,
@@ -4863,7 +4864,7 @@ static struct hda_pcm_stream vt1716S_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1716S_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1716S_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4876,7 +4877,7 @@ static struct hda_pcm_stream vt1716S_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1716S_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1716S_pcm_digital_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5046,7 +5047,7 @@ static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1716S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
 	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
@@ -5093,7 +5094,7 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1716S_loopbacks[] = {
+static const struct hda_amp_list vt1716S_loopbacks[] = {
 	{ 0x16, HDA_INPUT, 1 },
 	{ 0x16, HDA_INPUT, 2 },
 	{ 0x16, HDA_INPUT, 3 },
@@ -5256,7 +5257,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 /* for vt2002P */
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt2002P_capture_mixer[] = {
+static const struct snd_kcontrol_new vt2002P_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
@@ -5279,7 +5280,7 @@ static struct snd_kcontrol_new vt2002P_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt2002P_volume_init_verbs[] = {
+static const struct hda_verb vt2002P_volume_init_verbs[] = {
 	/* Class-D speaker related verbs */
 	{0x1, 0xfe0, 0x4},
 	{0x1, 0xfe9, 0x80},
@@ -5334,7 +5335,7 @@ static struct hda_verb vt2002P_volume_init_verbs[] = {
 	{0x1, 0xfb8, 0x88},
 	{ }
 };
-static struct hda_verb vt1802_volume_init_verbs[] = {
+static const struct hda_verb vt1802_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -5387,7 +5388,7 @@ static struct hda_verb vt1802_volume_init_verbs[] = {
 };
 
 
-static struct hda_verb vt2002P_uniwill_init_verbs[] = {
+static const struct hda_verb vt2002P_uniwill_init_verbs[] = {
 	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
 	{0x26, AC_VERB_SET_UNSOLICITED_ENABLE,
@@ -5397,7 +5398,7 @@ static struct hda_verb vt2002P_uniwill_init_verbs[] = {
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
-static struct hda_verb vt1802_uniwill_init_verbs[] = {
+static const struct hda_verb vt1802_uniwill_init_verbs[] = {
 	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
 	{0x28, AC_VERB_SET_UNSOLICITED_ENABLE,
@@ -5408,7 +5409,7 @@ static struct hda_verb vt1802_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt2002P_pcm_analog_playback = {
+static const struct hda_pcm_stream vt2002P_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5421,7 +5422,7 @@ static struct hda_pcm_stream vt2002P_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt2002P_pcm_analog_capture = {
+static const struct hda_pcm_stream vt2002P_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5434,7 +5435,7 @@ static struct hda_pcm_stream vt2002P_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt2002P_pcm_digital_playback = {
+static const struct hda_pcm_stream vt2002P_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5521,7 +5522,7 @@ static int vt2002P_auto_create_analog_input_ctls(struct hda_codec *codec,
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0xff };
 	int err;
 
 	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
@@ -5582,7 +5583,7 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt2002P_loopbacks[] = {
+static const struct hda_amp_list vt2002P_loopbacks[] = {
 	{ 0x21, HDA_INPUT, 0 },
 	{ 0x21, HDA_INPUT, 1 },
 	{ 0x21, HDA_INPUT, 2 },
@@ -5775,7 +5776,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 /* for vt1812 */
 
 /* capture mixer elements */
-static struct snd_kcontrol_new vt1812_capture_mixer[] = {
+static const struct snd_kcontrol_new vt1812_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
@@ -5797,7 +5798,7 @@ static struct snd_kcontrol_new vt1812_capture_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_verb vt1812_volume_init_verbs[] = {
+static const struct hda_verb vt1812_volume_init_verbs[] = {
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
@@ -5850,7 +5851,7 @@ static struct hda_verb vt1812_volume_init_verbs[] = {
 };
 
 
-static struct hda_verb vt1812_uniwill_init_verbs[] = {
+static const struct hda_verb vt1812_uniwill_init_verbs[] = {
 	{0x33, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
 	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT },
@@ -5862,7 +5863,7 @@ static struct hda_verb vt1812_uniwill_init_verbs[] = {
 	{ }
 };
 
-static struct hda_pcm_stream vt1812_pcm_analog_playback = {
+static const struct hda_pcm_stream vt1812_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5875,7 +5876,7 @@ static struct hda_pcm_stream vt1812_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream vt1812_pcm_analog_capture = {
+static const struct hda_pcm_stream vt1812_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5888,7 +5889,7 @@ static struct hda_pcm_stream vt1812_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream vt1812_pcm_digital_playback = {
+static const struct hda_pcm_stream vt1812_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -5970,7 +5971,7 @@ static int vt1812_auto_create_analog_input_ctls(struct hda_codec *codec,
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0, 0, 0xff };
+	static const hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0, 0, 0xff };
 	int err;
 
 	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
@@ -6032,7 +6033,7 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static struct hda_amp_list vt1812_loopbacks[] = {
+static const struct hda_amp_list vt1812_loopbacks[] = {
 	{ 0x21, HDA_INPUT, 0 },
 	{ 0x21, HDA_INPUT, 1 },
 	{ 0x21, HDA_INPUT, 2 },
@@ -6191,7 +6192,7 @@ static int patch_vt1812(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_via[] = {
+static const struct hda_codec_preset snd_hda_preset_via[] = {
 	{ .id = 0x11061708, .name = "VT1708", .patch = patch_vt1708},
 	{ .id = 0x11061709, .name = "VT1708", .patch = patch_vt1708},
 	{ .id = 0x1106170a, .name = "VT1708", .patch = patch_vt1708},
