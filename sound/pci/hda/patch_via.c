@@ -1292,14 +1292,18 @@ static void notify_aa_path_ctls(struct hda_codec *codec)
 {
 	int i;
 	struct snd_ctl_elem_id id;
-	const char *labels[] = {"Mic", "Front Mic", "Line"};
+	const char *labels[] = {"Mic", "Front Mic", "Line", "Rear Mic"};
+	struct snd_kcontrol *ctl;
 
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	for (i = 0; i < ARRAY_SIZE(labels); i++) {
 		sprintf(id.name, "%s Playback Volume", labels[i]);
-		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
-			       &id);
+		ctl = snd_hda_find_mixer_ctl(codec, id.name);
+		if (ctl)
+			snd_ctl_notify(codec->bus->card,
+					SNDRV_CTL_EVENT_MASK_VALUE,
+					&ctl->id);
 	}
 }
 
