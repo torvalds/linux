@@ -297,5 +297,11 @@ config REGULATOR_TPS6524X
 	  serial interface currently supported on the sequencer serial
 	  port controller.
 
+config REGULATOR_TPS65910
+	tristate "TI TPS65910 Power Regulator"
+	depends on MFD_TPS65910
+	help
+	  This driver supports TPS65910 voltage regulator chips.
+
 endif
 

@@ -215,11 +215,25 @@
 #define VDD2_SR_SEL_SHIFT				0
 
 
+/*Registers VDD1, VDD2 voltage values definitions */
+#define VDD1_2_NUM_VOLTS				73
+#define VDD1_2_MIN_VOLT					6000
+#define VDD1_2_OFFSET					125
+
+
 /*Register VDD3  (0x80) register.RegisterDescription */
 #define VDD3_CKINEN_MASK				0x04
 #define VDD3_CKINEN_SHIFT				2
 #define VDD3_ST_MASK					0x03
 #define VDD3_ST_SHIFT					0
+
+/*Registers VDIG (0x80) to VDAC register.RegisterDescription */
+#define LDO_SEL_MASK					0x0C
+#define LDO_SEL_SHIFT					2
+#define LDO_ST_MASK					0x03
+#define LDO_ST_SHIFT					0
+#define LDO_ST_ON_BIT					0x01
+#define LDO_ST_MODE_BIT					0x02	
 
 
 /*Register VDIG1  (0x80) register.RegisterDescription */
