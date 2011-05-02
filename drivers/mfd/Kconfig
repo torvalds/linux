@@ -719,6 +719,14 @@ config MFD_PM8XXX_IRQ
 	  This is required to use certain other PM 8xxx features, such as GPIO
 	  and MPP.
 
+config MFD_TPS65910
+	tristate "TPS65910 Power Management chip"
+	depends on I2C &&  GPIOLIB
+	select MFD_CORE
+	help
+	  if you say yes here you get support for the TPS65910 series of
+	  Power Management chips.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
