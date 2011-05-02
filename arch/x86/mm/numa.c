@@ -189,8 +189,8 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
 }
 
-/* Initialize bootmem allocator for a node */
-static void __init setup_node_bootmem(int nid, u64 start, u64 end)
+/* Initialize NODE_DATA for a node on the local memory */
+static void __init setup_node_data(int nid, u64 start, u64 end)
 {
 	const u64 nd_low = PFN_PHYS(MAX_DMA_PFN);
 	const u64 nd_high = PFN_PHYS(max_pfn_mapped);
@@ -522,7 +522,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 		}
 
 		if (start < end)
-			setup_node_bootmem(nid, start, end);
+			setup_node_data(nid, start, end);
 	}
 
 	return 0;
