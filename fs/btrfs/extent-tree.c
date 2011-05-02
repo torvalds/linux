@@ -756,6 +756,10 @@ again:
 
 			btrfs_release_path(path);
 
+			/*
+			 * Mutex was contended, block until it's released and try
+			 * again
+			 */
 			mutex_lock(&head->mutex);
 			mutex_unlock(&head->mutex);
 			btrfs_put_delayed_ref(&head->node);
@@ -2297,6 +2301,10 @@ again:
 				atomic_inc(&ref->refs);
 
 				spin_unlock(&delayed_refs->lock);
+				/*
+				 * Mutex was contended, block until it's
+				 * released and try again
+				 */
 				mutex_lock(&head->mutex);
 				mutex_unlock(&head->mutex);
 
@@ -2363,6 +2371,10 @@ static noinline int check_delayed_ref(struct btrfs_trans_handle *trans,
 
 		btrfs_release_path(path);
 
+		/*
+		 * Mutex was contended, block until it's released and let
+		 * caller try again
+		 */
 		mutex_lock(&head->mutex);
 		mutex_unlock(&head->mutex);
 		btrfs_put_delayed_ref(&head->node);
