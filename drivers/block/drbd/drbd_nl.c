@@ -1670,12 +1670,17 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 static int adm_detach(struct drbd_conf *mdev)
 {
 	enum drbd_state_rv retcode;
+	int ret;
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
-	retcode = drbd_request_state(mdev, NS(disk, D_DISKLESS));
-	wait_event(mdev->misc_wait,
-			mdev->state.disk != D_DISKLESS ||
-			!atomic_read(&mdev->local_cnt));
+	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
+	/* D_FAILED will transition to DISKLESS. */
+	ret = wait_event_interruptible(mdev->misc_wait,
+			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
+	if ((int)retcode == (int)SS_IS_DISKLESS)
+		retcode = SS_NOTHING_TO_DO;
+	if (ret)
+		retcode = ERR_INTR;
 	return retcode;
 }
 
