@@ -16,7 +16,8 @@
 #define _ASM_TILE_PAGE_H
 
 #include <linux/const.h>
-#include <hv/pagesize.h>
+#include <hv/hypervisor.h>
+#include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
 #define PAGE_SHIFT	HV_LOG2_PAGE_SIZE_SMALL
@@ -28,8 +29,6 @@
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 
-#ifdef __KERNEL__
-
 /*
  * If the Kconfig doesn't specify, set a maximum zone order that
  * is enough so that we can create huge pages from small pages given
@@ -38,9 +37,6 @@
 #ifndef CONFIG_FORCE_MAX_ZONEORDER
 #define CONFIG_FORCE_MAX_ZONEORDER (HPAGE_SHIFT - PAGE_SHIFT + 1)
 #endif
-
-#include <hv/hypervisor.h>
-#include <arch/chip.h>
 
 #ifndef __ASSEMBLY__
 
@@ -336,7 +332,5 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 	(VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_PAGE_H */
