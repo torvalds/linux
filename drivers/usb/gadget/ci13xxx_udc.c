@@ -1864,7 +1864,7 @@ __acquires(mEp->lock)
 		}
 	}
 
-	if (retval == EBUSY)
+	if (retval == -EBUSY)
 		retval = 0;
 	if (retval < 0)
 		dbg_event(_usb_addr(mEp), "DONE", retval);
