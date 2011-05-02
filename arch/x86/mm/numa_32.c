@@ -265,7 +265,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
  * opportunistically and the callers will fall back to other memory
  * allocation mechanisms on failure.
  */
-static __init void init_alloc_remap(int nid, u64 start, u64 end)
+void __init init_alloc_remap(int nid, u64 start, u64 end)
 {
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long end_pfn = end >> PAGE_SHIFT;

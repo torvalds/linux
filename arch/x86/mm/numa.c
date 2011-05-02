@@ -197,7 +197,9 @@ static void __init setup_node_bootmem(int nid, u64 start, u64 end)
 	const u64 nd_low = PFN_PHYS(MAX_DMA_PFN);
 	const u64 nd_high = PFN_PHYS(max_pfn_mapped);
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
+	bool remapped = false;
 	u64 nd_pa;
+	void *nd;
 	int tnid;
 
 	/*
@@ -207,34 +209,45 @@ static void __init setup_node_bootmem(int nid, u64 start, u64 end)
 	if (end && (end - start) < NODE_MIN_SIZE)
 		return;
 
+	/* initialize remap allocator before aligning to ZONE_ALIGN */
+	init_alloc_remap(nid, start, end);
+
 	start = roundup(start, ZONE_ALIGN);
 
 	printk(KERN_INFO "Initmem setup node %d %016Lx-%016Lx\n",
 	       nid, start, end);
 
 	/*
-	 * Try to allocate node data on local node and then fall back to
-	 * all nodes.  Never allocate in DMA zone.
+	 * Allocate node data.  Try remap allocator first, node-local
+	 * memory and then any node.  Never allocate in DMA zone.
 	 */
-	nd_pa = memblock_x86_find_in_range_node(nid, nd_low, nd_high,
+	nd = alloc_remap(nid, nd_size);
+	if (nd) {
+		nd_pa = __pa(nd);
+		remapped = true;
+	} else {
+		nd_pa = memblock_x86_find_in_range_node(nid, nd_low, nd_high,
 						nd_size, SMP_CACHE_BYTES);
-	if (nd_pa == MEMBLOCK_ERROR)
-		nd_pa = memblock_find_in_range(nd_low, nd_high,
-					       nd_size, SMP_CACHE_BYTES);
-	if (nd_pa == MEMBLOCK_ERROR) {
-		pr_err("Cannot find %zu bytes in node %d\n", nd_size, nid);
-		return;
+		if (nd_pa == MEMBLOCK_ERROR)
+			nd_pa = memblock_find_in_range(nd_low, nd_high,
+						nd_size, SMP_CACHE_BYTES);
+		if (nd_pa == MEMBLOCK_ERROR) {
+			pr_err("Cannot find %zu bytes in node %d\n",
+			       nd_size, nid);
+			return;
+		}
+		memblock_x86_reserve_range(nd_pa, nd_pa + nd_size, "NODE_DATA");
+		nd = __va(nd_pa);
 	}
-	memblock_x86_reserve_range(nd_pa, nd_pa + nd_size, "NODE_DATA");
 
 	/* report and initialize */
-	printk(KERN_INFO "  NODE_DATA [%016Lx - %016Lx]\n",
-	       nd_pa, nd_pa + nd_size - 1);
+	printk(KERN_INFO "  NODE_DATA [%016Lx - %016Lx]%s\n",
+	       nd_pa, nd_pa + nd_size - 1, remapped ? " (remapped)" : "");
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
-	if (tnid != nid)
+	if (!remapped && tnid != nid)
 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
 
-	node_data[nid] = __va(nd_pa);
+	node_data[nid] = nd;
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
 	NODE_DATA(nid)->node_id = nid;
 	NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
