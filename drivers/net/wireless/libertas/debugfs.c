@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -151,13 +153,13 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 		ret = lbs_set_host_sleep(priv, 0);
 	else if (host_sleep == 1) {
 		if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-			lbs_pr_info("wake parameters not configured");
+			pr_info("wake parameters not configured\n");
 			ret = -EINVAL;
 			goto out_unlock;
 		}
 		ret = lbs_set_host_sleep(priv, 1);
 	} else {
-		lbs_pr_err("invalid option\n");
+		pr_err("invalid option\n");
 		ret = -EINVAL;
 	}
 

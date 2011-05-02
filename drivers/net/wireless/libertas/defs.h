@@ -89,13 +89,6 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_spi(fmt, args...)       LBS_DEB_LL(LBS_DEB_SPI, " spi", fmt, ##args)
 #define lbs_deb_cfg80211(fmt, args...)  LBS_DEB_LL(LBS_DEB_CFG80211, " cfg80211", fmt, ##args)
 
-#define lbs_pr_info(format, args...) \
-	printk(KERN_INFO DRV_NAME": " format, ## args)
-#define lbs_pr_err(format, args...) \
-	printk(KERN_ERR DRV_NAME": " format, ## args)
-#define lbs_pr_alert(format, args...) \
-	printk(KERN_ALERT DRV_NAME": " format, ## args)
-
 #ifdef DEBUG
 static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, int len)
 {

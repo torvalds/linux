@@ -3,6 +3,8 @@
  * It prepares command and sends it to firmware when it is ready.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kfifo.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -110,7 +112,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	 * CF card    firmware 5.0.16p0:   cap 0x00000303
 	 * USB dongle firmware 5.110.17p2: cap 0x00000303
 	 */
-	lbs_pr_info("%pM, fw %u.%u.%up%u, cap 0x%08x\n",
+	pr_info("%pM, fw %u.%u.%up%u, cap 0x%08x\n",
 		cmd.permanentaddr,
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
@@ -141,7 +143,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	/* if it's unidentified region code, use the default (USA) */
 	if (i >= MRVDRV_MAX_REGION_CODE) {
 		priv->regioncode = 0x10;
-		lbs_pr_info("unidentified region code; using the default (USA)\n");
+		pr_info("unidentified region code; using the default (USA)\n");
 	}
 
 	if (priv->current_addr[0] == 0xff)
@@ -211,7 +213,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 					(uint8_t *)&cmd_config.wol_conf,
 					sizeof(struct wol_config));
 	} else {
-		lbs_pr_info("HOST_SLEEP_CFG failed %d\n", ret);
+		pr_info("HOST_SLEEP_CFG failed %d\n", ret);
 	}
 
 	return ret;
@@ -314,7 +316,7 @@ static int lbs_wait_for_ds_awake(struct lbs_private *priv)
 	if (priv->is_deep_sleep) {
 		if (!wait_event_interruptible_timeout(priv->ds_awake_q,
 					!priv->is_deep_sleep, (10 * HZ))) {
-			lbs_pr_err("ds_awake_q: timer expired\n");
+			pr_err("ds_awake_q: timer expired\n");
 			ret = -1;
 		}
 	}
@@ -339,7 +341,7 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 				netif_carrier_off(priv->dev);
 			}
 		} else {
-			lbs_pr_err("deep sleep: already enabled\n");
+			pr_err("deep sleep: already enabled\n");
 		}
 	} else {
 		if (priv->is_deep_sleep) {
@@ -349,8 +351,7 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 			if (!ret) {
 				ret = lbs_wait_for_ds_awake(priv);
 				if (ret)
-					lbs_pr_err("deep sleep: wakeup"
-							"failed\n");
+					pr_err("deep sleep: wakeup failed\n");
 			}
 		}
 	}
@@ -384,8 +385,8 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
 			ret = lbs_host_sleep_cfg(priv, priv->wol_criteria,
 					(struct wol_config *)NULL);
 			if (ret) {
-				lbs_pr_info("Host sleep configuration failed: "
-						"%d\n", ret);
+				pr_info("Host sleep configuration failed: %d\n",
+					ret);
 				return ret;
 			}
 			if (priv->psstate == PS_STATE_FULL_POWER) {
@@ -395,19 +396,19 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
 						sizeof(cmd),
 						lbs_ret_host_sleep_activate, 0);
 				if (ret)
-					lbs_pr_info("HOST_SLEEP_ACTIVATE "
-							"failed: %d\n", ret);
+					pr_info("HOST_SLEEP_ACTIVATE failed: %d\n",
+						ret);
 			}
 
 			if (!wait_event_interruptible_timeout(
 						priv->host_sleep_q,
 						priv->is_host_sleep_activated,
 						(10 * HZ))) {
-				lbs_pr_err("host_sleep_q: timer expired\n");
+				pr_err("host_sleep_q: timer expired\n");
 				ret = -1;
 			}
 		} else {
-			lbs_pr_err("host sleep: already enabled\n");
+			pr_err("host sleep: already enabled\n");
 		}
 	} else {
 		if (priv->is_host_sleep_activated)
@@ -1007,7 +1008,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
 	if (ret) {
-		lbs_pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
+		pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
 		timeo = HZ/4;
@@ -1276,7 +1277,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (priv->cur_cmd) {
-		lbs_pr_alert( "EXEC_NEXT_CMD: already processing command!\n");
+		pr_alert( "EXEC_NEXT_CMD: already processing command!\n");
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;
@@ -1438,7 +1439,7 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &confirm_sleep,
 		sizeof(confirm_sleep));
 	if (ret) {
-		lbs_pr_alert("confirm_sleep failed\n");
+		pr_alert("confirm_sleep failed\n");
 		goto out;
 	}
 
@@ -1664,8 +1665,7 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	ret = cmdnode->result;
 	if (ret)
-		lbs_pr_info("PREP_CMD: command 0x%04x failed: %d\n",
-			    command, ret);
+		pr_info("PREP_CMD: command 0x%04x failed: %d\n", command, ret);
 
 	__lbs_cleanup_and_insert_cmd(priv, cmdnode);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);

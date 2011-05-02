@@ -4,6 +4,8 @@
  * thread etc..
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
@@ -442,7 +444,7 @@ static int lbs_thread(void *data)
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
-			lbs_pr_info("Timeout submitting command 0x%04x\n",
+			pr_info("Timeout submitting command 0x%04x\n",
 				le16_to_cpu(cmdnode->cmdbuf->command));
 			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
 			if (priv->reset_card)
@@ -470,8 +472,7 @@ static int lbs_thread(void *data)
 				 * after firmware fixes it
 				 */
 				priv->psstate = PS_STATE_AWAKE;
-				lbs_pr_alert("ignore PS_SleepConfirm in "
-					"non-connected state\n");
+				pr_alert("ignore PS_SleepConfirm in non-connected state\n");
 			}
 		}
 
@@ -565,7 +566,7 @@ int lbs_suspend(struct lbs_private *priv)
 	if (priv->is_deep_sleep) {
 		ret = lbs_set_deep_sleep(priv, 0);
 		if (ret) {
-			lbs_pr_err("deep sleep cancellation failed: %d\n", ret);
+			pr_err("deep sleep cancellation failed: %d\n", ret);
 			return ret;
 		}
 		priv->deep_sleep_required = 1;
@@ -598,7 +599,7 @@ int lbs_resume(struct lbs_private *priv)
 		priv->deep_sleep_required = 0;
 		ret = lbs_set_deep_sleep(priv, 1);
 		if (ret)
-			lbs_pr_err("deep sleep activation failed: %d\n", ret);
+			pr_err("deep sleep activation failed: %d\n", ret);
 	}
 
 	if (priv->setup_fw_on_resume)
@@ -626,7 +627,7 @@ static void lbs_cmd_timeout_handler(unsigned long data)
 	if (!priv->cur_cmd)
 		goto out;
 
-	lbs_pr_info("command 0x%04x timed out\n",
+	pr_info("command 0x%04x timed out\n",
 		le16_to_cpu(priv->cur_cmd->cmdbuf->command));
 
 	priv->cmd_timed_out = 1;
@@ -732,7 +733,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
-		lbs_pr_err("Out of memory allocating command buffers\n");
+		pr_err("Out of memory allocating command buffers\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -742,7 +743,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	/* Create the event FIFO */
 	ret = kfifo_alloc(&priv->event_fifo, sizeof(u32) * 16, GFP_KERNEL);
 	if (ret) {
-		lbs_pr_err("Out of memory allocating event FIFO buffer\n");
+		pr_err("Out of memory allocating event FIFO buffer\n");
 		goto out;
 	}
 
@@ -793,7 +794,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	/* Allocate an Ethernet device and register it */
 	wdev = lbs_cfg_alloc(dmdev);
 	if (IS_ERR(wdev)) {
-		lbs_pr_err("cfg80211 init failed\n");
+		pr_err("cfg80211 init failed\n");
 		goto done;
 	}
 
@@ -802,7 +803,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->wdev = wdev;
 
 	if (lbs_init_adapter(priv)) {
-		lbs_pr_err("failed to initialize adapter structure.\n");
+		pr_err("failed to initialize adapter structure\n");
 		goto err_wdev;
 	}
 
@@ -934,7 +935,7 @@ int lbs_start_card(struct lbs_private *priv)
 		goto done;
 
 	if (lbs_cfg_register(priv)) {
-		lbs_pr_err("cannot register device\n");
+		pr_err("cannot register device\n");
 		goto done;
 	}
 
@@ -944,7 +945,7 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_debugfs_init_one(priv, dev);
 
-	lbs_pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
+	pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
 
 	ret = 0;
 
@@ -1071,16 +1072,14 @@ int lbs_get_firmware(struct device *dev, const char *user_helper,
 	if (user_helper) {
 		ret = request_firmware(helper, user_helper, dev);
 		if (ret) {
-			lbs_pr_err("couldn't find helper firmware %s",
-					user_helper);
+			pr_err("couldn't find helper firmware %s", user_helper);
 			goto fail;
 		}
 	}
 	if (user_mainfw) {
 		ret = request_firmware(mainfw, user_mainfw, dev);
 		if (ret) {
-			lbs_pr_err("couldn't find main firmware %s",
-					user_mainfw);
+			pr_err("couldn't find main firmware %s", user_mainfw);
 			goto fail;
 		}
 	}

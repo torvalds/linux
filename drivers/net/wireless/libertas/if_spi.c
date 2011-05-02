@@ -17,6 +17,8 @@
  * (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
@@ -305,8 +307,7 @@ static int spu_wait_for_u16(struct if_spi_card *card, u16 reg,
 		}
 		udelay(100);
 		if (time_after(jiffies, timeout)) {
-			lbs_pr_err("%s: timeout with val=%02x, "
-			       "target_mask=%02x, target=%02x\n",
+			pr_err("%s: timeout with val=%02x, target_mask=%02x, target=%02x\n",
 			       __func__, val, target_mask, target);
 			return -ETIMEDOUT;
 		}
@@ -405,7 +406,7 @@ static int spu_set_bus_mode(struct if_spi_card *card, u16 mode)
 	if (err)
 		return err;
 	if ((rval & 0xF) != mode) {
-		lbs_pr_err("Can't read bus mode register.\n");
+		pr_err("Can't read bus mode register\n");
 		return -EIO;
 	}
 	return 0;
@@ -534,7 +535,7 @@ static int if_spi_prog_helper_firmware(struct if_spi_card *card,
 
 out:
 	if (err)
-		lbs_pr_err("failed to load helper firmware (err=%d)\n", err);
+		pr_err("failed to load helper firmware (err=%d)\n", err);
 	lbs_deb_leave_args(LBS_DEB_SPI, "err %d", err);
 	return err;
 }
@@ -557,7 +558,7 @@ static int if_spi_prog_main_firmware_check_len(struct if_spi_card *card,
 				IF_SPI_HIST_CMD_DOWNLOAD_RDY,
 				IF_SPI_HIST_CMD_DOWNLOAD_RDY);
 	if (err) {
-		lbs_pr_err("timed out waiting for host_int_status\n");
+		pr_err("timed out waiting for host_int_status\n");
 		return err;
 	}
 
@@ -567,9 +568,8 @@ static int if_spi_prog_main_firmware_check_len(struct if_spi_card *card,
 		return err;
 
 	if (len > IF_SPI_CMD_BUF_SIZE) {
-		lbs_pr_err("firmware load device requested a larger "
-			   "tranfer than we are prepared to "
-			   "handle. (len = %d)\n", len);
+		pr_err("firmware load device requested a larger transfer than we are prepared to handle (len = %d)\n",
+		       len);
 		return -EIO;
 	}
 	if (len & 0x1) {
@@ -598,8 +598,8 @@ static int if_spi_prog_main_firmware(struct if_spi_card *card,
 
 	err = spu_wait_for_u16(card, IF_SPI_SCRATCH_1_REG, 0, 0);
 	if (err) {
-		lbs_pr_err("%s: timed out waiting for initial "
-			   "scratch reg = 0\n", __func__);
+		pr_err("%s: timed out waiting for initial scratch reg = 0\n",
+		       __func__);
 		goto out;
 	}
 
@@ -617,15 +617,13 @@ static int if_spi_prog_main_firmware(struct if_spi_card *card,
 			 * If there are no more bytes left, we would normally
 			 * expect to have terminated with len = 0
 			 */
-			lbs_pr_err("Firmware load wants more bytes "
-				   "than we have to offer.\n");
+			pr_err("Firmware load wants more bytes than we have to offer.\n");
 			break;
 		}
 		if (crc_err) {
 			/* Previous transfer failed. */
 			if (++num_crc_errs > MAX_MAIN_FW_LOAD_CRC_ERR) {
-				lbs_pr_err("Too many CRC errors encountered "
-					   "in firmware load.\n");
+				pr_err("Too many CRC errors encountered in firmware load.\n");
 				err = -EIO;
 				goto out;
 			}
@@ -654,21 +652,20 @@ static int if_spi_prog_main_firmware(struct if_spi_card *card,
 		prev_len = len;
 	}
 	if (bytes > prev_len) {
-		lbs_pr_err("firmware load wants fewer bytes than "
-			   "we have to offer.\n");
+		pr_err("firmware load wants fewer bytes than we have to offer\n");
 	}
 
 	/* Confirm firmware download */
 	err = spu_wait_for_u32(card, IF_SPI_SCRATCH_4_REG,
 					SUCCESSFUL_FW_DOWNLOAD_MAGIC);
 	if (err) {
-		lbs_pr_err("failed to confirm the firmware download\n");
+		pr_err("failed to confirm the firmware download\n");
 		goto out;
 	}
 
 out:
 	if (err)
-		lbs_pr_err("failed to load firmware (err=%d)\n", err);
+		pr_err("failed to load firmware (err=%d)\n", err);
 	lbs_deb_leave_args(LBS_DEB_SPI, "err %d", err);
 	return err;
 }
@@ -709,14 +706,12 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		lbs_pr_err("%s: error: card has no data for host\n",
-			   __func__);
+		pr_err("%s: error: card has no data for host\n", __func__);
 		err = -EINVAL;
 		goto out;
 	} else if (len > IF_SPI_CMD_BUF_SIZE) {
-		lbs_pr_err("%s: error: response packet too large: "
-			   "%d bytes, but maximum is %d\n",
-			   __func__, len, IF_SPI_CMD_BUF_SIZE);
+		pr_err("%s: error: response packet too large: %d bytes, but maximum is %d\n",
+		       __func__, len, IF_SPI_CMD_BUF_SIZE);
 		err = -EINVAL;
 		goto out;
 	}
@@ -737,7 +732,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 
 out:
 	if (err)
-		lbs_pr_err("%s: err=%d\n", __func__, err);
+		pr_err("%s: err=%d\n", __func__, err);
 	lbs_deb_leave(LBS_DEB_SPI);
 	return err;
 }
@@ -757,14 +752,12 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		lbs_pr_err("%s: error: card has no data for host\n",
-			   __func__);
+		pr_err("%s: error: card has no data for host\n", __func__);
 		err = -EINVAL;
 		goto out;
 	} else if (len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
-		lbs_pr_err("%s: error: card has %d bytes of data, but "
-			   "our maximum skb size is %zu\n",
-			   __func__, len, MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
+		pr_err("%s: error: card has %d bytes of data, but our maximum skb size is %zu\n",
+		       __func__, len, MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
 		err = -EINVAL;
 		goto out;
 	}
@@ -795,7 +788,7 @@ free_skb:
 	dev_kfree_skb(skb);
 out:
 	if (err)
-		lbs_pr_err("%s: err=%d\n", __func__, err);
+		pr_err("%s: err=%d\n", __func__, err);
 	lbs_deb_leave(LBS_DEB_SPI);
 	return err;
 }
@@ -817,7 +810,7 @@ static void if_spi_h2c(struct if_spi_card *card,
 		port_reg = IF_SPI_CMD_RDWRPORT_REG;
 		break;
 	default:
-		lbs_pr_err("can't transfer buffer of type %d\n", type);
+		pr_err("can't transfer buffer of type %d\n", type);
 		err = -EINVAL;
 		goto out;
 	}
@@ -831,7 +824,7 @@ out:
 	kfree(packet);
 
 	if (err)
-		lbs_pr_err("%s: error %d\n", __func__, err);
+		pr_err("%s: error %d\n", __func__, err);
 }
 
 /* Inform the host about a card event */
@@ -855,7 +848,7 @@ static void if_spi_e2h(struct if_spi_card *card)
 	lbs_queue_event(priv, cause & 0xff);
 out:
 	if (err)
-		lbs_pr_err("%s: error %d\n", __func__, err);
+		pr_err("%s: error %d\n", __func__, err);
 }
 
 static void if_spi_host_to_card_worker(struct work_struct *work)
@@ -877,7 +870,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 	err = spu_read_u16(card, IF_SPI_HOST_INT_STATUS_REG,
 				&hiStatus);
 	if (err) {
-		lbs_pr_err("I/O error\n");
+		pr_err("I/O error\n");
 		goto err;
 	}
 
@@ -940,7 +933,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 
 err:
 	if (err)
-		lbs_pr_err("%s: got error %d\n", __func__, err);
+		pr_err("%s: got error %d\n", __func__, err);
 
 	lbs_deb_leave(LBS_DEB_SPI);
 }
@@ -963,7 +956,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 	lbs_deb_enter_args(LBS_DEB_SPI, "type %d, bytes %d", type, nb);
 
 	if (nb == 0) {
-		lbs_pr_err("%s: invalid size requested: %d\n", __func__, nb);
+		pr_err("%s: invalid size requested: %d\n", __func__, nb);
 		err = -EINVAL;
 		goto out;
 	}
@@ -991,7 +984,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 		spin_unlock_irqrestore(&card->buffer_lock, flags);
 		break;
 	default:
-		lbs_pr_err("can't transfer buffer of type %d", type);
+		pr_err("can't transfer buffer of type %d\n", type);
 		err = -EINVAL;
 		break;
 	}
@@ -1052,8 +1045,7 @@ static int if_spi_init_card(struct if_spi_card *card)
 				break;
 		}
 		if (i == ARRAY_SIZE(fw_table)) {
-			lbs_pr_err("Unsupported chip_id: 0x%02x\n",
-					card->card_id);
+			pr_err("Unsupported chip_id: 0x%02x\n", card->card_id);
 			err = -ENODEV;
 			goto out;
 		}
@@ -1062,7 +1054,7 @@ static int if_spi_init_card(struct if_spi_card *card)
 					card->card_id, &fw_table[0], &helper,
 					&mainfw);
 		if (err) {
-			lbs_pr_err("failed to find firmware (%d)\n", err);
+			pr_err("failed to find firmware (%d)\n", err);
 			goto out;
 		}
 
@@ -1187,7 +1179,7 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 	err = request_irq(spi->irq, if_spi_host_interrupt,
 			IRQF_TRIGGER_FALLING, "libertas_spi", card);
 	if (err) {
-		lbs_pr_err("can't get host irq line-- request_irq failed\n");
+		pr_err("can't get host irq line-- request_irq failed\n");
 		goto terminate_workqueue;
 	}
 
