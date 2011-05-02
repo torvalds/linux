@@ -1118,6 +1118,27 @@
 #define IXGBE_GPIE_VTMODE_32     0x00008000 /* 32 VFs 4 queues per VF */
 #define IXGBE_GPIE_VTMODE_64     0x0000C000 /* 64 VFs 2 queues per VF */
 
+/* Packet Buffer Initialization */
+#define IXGBE_TXPBSIZE_20KB     0x00005000 /* 20KB Packet Buffer */
+#define IXGBE_TXPBSIZE_40KB     0x0000A000 /* 40KB Packet Buffer */
+#define IXGBE_RXPBSIZE_48KB     0x0000C000 /* 48KB Packet Buffer */
+#define IXGBE_RXPBSIZE_64KB     0x00010000 /* 64KB Packet Buffer */
+#define IXGBE_RXPBSIZE_80KB     0x00014000 /* 80KB Packet Buffer */
+#define IXGBE_RXPBSIZE_128KB    0x00020000 /* 128KB Packet Buffer */
+#define IXGBE_RXPBSIZE_MAX      0x00080000 /* 512KB Packet Buffer*/
+#define IXGBE_TXPBSIZE_MAX      0x00028000 /* 160KB Packet Buffer*/
+
+#define IXGBE_TXPKT_SIZE_MAX    0xA        /* Max Tx Packet size  */
+#define IXGBE_MAX_PB		8
+
+/* Packet buffer allocation strategies */
+enum {
+	PBA_STRATEGY_EQUAL	= 0,	/* Distribute PB space equally */
+#define PBA_STRATEGY_EQUAL	PBA_STRATEGY_EQUAL
+	PBA_STRATEGY_WEIGHTED	= 1,	/* Weight front half of TCs */
+#define PBA_STRATEGY_WEIGHTED	PBA_STRATEGY_WEIGHTED
+};
+
 /* Transmit Flow Control status */
 #define IXGBE_TFCS_TXOFF         0x00000001
 #define IXGBE_TFCS_TXOFF0        0x00000100
@@ -2614,6 +2635,9 @@ struct ixgbe_mac_operations {
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
 	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
 	                             bool *);
+
+	/* Packet Buffer Manipulation */
+	void (*set_rxpba)(struct ixgbe_hw *, int, u32, int);
 
 	/* LED */
 	s32 (*led_on)(struct ixgbe_hw *, u32);

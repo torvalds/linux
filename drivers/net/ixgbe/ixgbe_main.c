@@ -3780,12 +3780,27 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 }
 
 #endif
+
+static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
+{
+	int hdrm = 0;
+	int num_tc = netdev_get_num_tc(adapter->netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
+	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
+		hdrm = 64 << adapter->fdir_pballoc;
+
+	hw->mac.ops.set_rxpba(&adapter->hw, num_tc, hdrm, PBA_STRATEGY_EQUAL);
+}
+
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
 
+	ixgbe_configure_pb(adapter);
 #ifdef CONFIG_IXGBE_DCB
 	ixgbe_configure_dcb(adapter);
 #endif
@@ -5251,7 +5266,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	}
 	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
 	adapter->dcb_cfg.bw_percentage[DCB_RX_CONFIG][0] = 100;
-	adapter->dcb_cfg.rx_pba_cfg = pba_equal;
 	adapter->dcb_cfg.pfc_mode_enable = false;
 	adapter->dcb_set_bitmap = 0x00;
 	adapter->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_CEE;

@@ -100,6 +100,9 @@ void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf);
 void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
 
+void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
+			     u32 headroom, int strategy);
+
 #define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
 
 #ifndef writeq

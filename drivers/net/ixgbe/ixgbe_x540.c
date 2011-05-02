@@ -876,6 +876,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.read_analog_reg8       = NULL,
 	.write_analog_reg8      = NULL,
 	.setup_link             = &ixgbe_setup_mac_link_X540,
+	.set_rxpba		= &ixgbe_set_rxpba_generic,
 	.check_link             = &ixgbe_check_mac_link_generic,
 	.get_link_capabilities  = &ixgbe_get_copper_link_capabilities_generic,
 	.led_on                 = &ixgbe_led_on_generic,

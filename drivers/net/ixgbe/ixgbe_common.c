@@ -3267,3 +3267,69 @@ s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps)
 
 	return 0;
 }
+
+/**
+ * ixgbe_set_rxpba_generic - Initialize RX packet buffer
+ * @hw: pointer to hardware structure
+ * @num_pb: number of packet buffers to allocate
+ * @headroom: reserve n KB of headroom
+ * @strategy: packet buffer allocation strategy
+ **/
+void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw,
+			     int num_pb,
+			     u32 headroom,
+			     int strategy)
+{
+	u32 pbsize = hw->mac.rx_pb_size;
+	int i = 0;
+	u32 rxpktsize, txpktsize, txpbthresh;
+
+	/* Reserve headroom */
+	pbsize -= headroom;
+
+	if (!num_pb)
+		num_pb = 1;
+
+	/* Divide remaining packet buffer space amongst the number
+	 * of packet buffers requested using supplied strategy.
+	 */
+	switch (strategy) {
+	case (PBA_STRATEGY_WEIGHTED):
+		/* pba_80_48 strategy weight first half of packet buffer with
+		 * 5/8 of the packet buffer space.
+		 */
+		rxpktsize = ((pbsize * 5 * 2) / (num_pb * 8));
+		pbsize -= rxpktsize * (num_pb / 2);
+		rxpktsize <<= IXGBE_RXPBSIZE_SHIFT;
+		for (; i < (num_pb / 2); i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+		/* Fall through to configure remaining packet buffers */
+	case (PBA_STRATEGY_EQUAL):
+		/* Divide the remaining Rx packet buffer evenly among the TCs */
+		rxpktsize = (pbsize / (num_pb - i)) << IXGBE_RXPBSIZE_SHIFT;
+		for (; i < num_pb; i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Setup Tx packet buffer and threshold equally for all TCs
+	 * TXPBTHRESH register is set in K so divide by 1024 and subtract
+	 * 10 since the largest packet we support is just over 9K.
+	 */
+	txpktsize = IXGBE_TXPBSIZE_MAX / num_pb;
+	txpbthresh = (txpktsize / 1024) - IXGBE_TXPKT_SIZE_MAX;
+	for (i = 0; i < num_pb; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), txpktsize);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i), txpbthresh);
+	}
+
+	/* Clear unused TCs, if any, to zero buffer size*/
+	for (; i < IXGBE_MAX_PB; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i), 0);
+	}
+}
