@@ -512,15 +512,6 @@ unsigned long __init numa_free_all_bootmem(void)
 	return pages;
 }
 
-int __cpuinit numa_cpu_node(int cpu)
-{
-	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
-
-	if (apicid != BAD_APICID)
-		return __apicid_to_node[apicid];
-	return NUMA_NO_NODE;
-}
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 int memory_add_physaddr_to_nid(u64 start)
 {

@@ -26,7 +26,6 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
 
 extern nodemask_t numa_nodes_parsed __initdata;
 
-extern int __cpuinit numa_cpu_node(int cpu);
 extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
 extern void __init numa_set_distance(int from, int to, int distance);
 
@@ -35,8 +34,6 @@ extern void __init numa_set_distance(int from, int to, int distance);
 #define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1UL))
 void numa_emu_cmdline(char *);
 #endif /* CONFIG_NUMA_EMU */
-#else
-static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }
 #endif
 
 #endif /* _ASM_X86_NUMA_64_H */

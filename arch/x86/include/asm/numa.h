@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_NUMA_H
 #define _ASM_X86_NUMA_H
 
+#include <linux/nodemask.h>
+
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 
@@ -22,9 +24,17 @@ static inline void set_apicid_to_node(int apicid, s16 node)
 {
 	__apicid_to_node[apicid] = node;
 }
+
+extern int __cpuinit numa_cpu_node(int cpu);
+
 #else	/* CONFIG_NUMA */
 static inline void set_apicid_to_node(int apicid, s16 node)
 {
+}
+
+static inline int numa_cpu_node(int cpu)
+{
+	return NUMA_NO_NODE;
 }
 #endif	/* CONFIG_NUMA */
 
