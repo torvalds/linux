@@ -2240,7 +2240,6 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	enum drbd_ret_code retcode;
 	cpumask_var_t new_cpu_mask;
 	struct drbd_tconn *tconn;
-	int *rs_plan_s = NULL;
 	struct res_opts res_opts;
 	int err;
 
@@ -2291,7 +2290,6 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 fail:
-	kfree(rs_plan_s);
 	free_cpumask_var(new_cpu_mask);
 
 	drbd_adm_finish(info, retcode);
