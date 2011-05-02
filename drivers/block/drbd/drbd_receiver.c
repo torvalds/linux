@@ -4213,20 +4213,8 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 
 	spin_unlock_irq(&tconn->req_lock);
 
-	if (oc == C_DISCONNECTING) {
-		struct net_conf *old_conf;
-
-		mutex_lock(&tconn->net_conf_update);
-		old_conf = tconn->net_conf;
-		rcu_assign_pointer(tconn->net_conf, NULL);
-		conn_free_crypto(tconn);
-		mutex_unlock(&tconn->net_conf_update);
-
-		synchronize_rcu();
-		kfree(old_conf);
-
+	if (oc == C_DISCONNECTING)
 		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE | CS_HARD);
-	}
 }
 
 static int drbd_disconnected(int vnr, void *p, void *data)

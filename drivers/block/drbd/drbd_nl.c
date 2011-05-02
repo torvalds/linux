@@ -2115,37 +2115,54 @@ out:
 static enum drbd_state_rv conn_try_disconnect(struct drbd_tconn *tconn, bool force)
 {
 	enum drbd_state_rv rv;
-	if (force) {
-		spin_lock_irq(&tconn->req_lock);
-		rv = _conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
-		spin_unlock_irq(&tconn->req_lock);
-		return rv;
-	}
 
-	rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING), 0);
+	rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING),
+			force ? CS_HARD : 0);
 
 	switch (rv) {
 	case SS_NOTHING_TO_DO:
+		break;
 	case SS_ALREADY_STANDALONE:
 		return SS_SUCCESS;
 	case SS_PRIMARY_NOP:
 		/* Our state checking code wants to see the peer outdated. */
 		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
-							pdsk, D_OUTDATED), CS_VERBOSE);
+						pdsk, D_OUTDATED), CS_VERBOSE);
 		break;
 	case SS_CW_FAILED_BY_PEER:
 		/* The peer probably wants to see us outdated. */
 		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
 							disk, D_OUTDATED), 0);
 		if (rv == SS_IS_DISKLESS || rv == SS_LOWER_THAN_OUTDATED) {
-			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
-			rv = SS_SUCCESS;
+			rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING),
+					CS_HARD);
 		}
 		break;
 	default:;
 		/* no special handling necessary */
 	}
 
+	if (rv >= SS_SUCCESS) {
+		enum drbd_state_rv rv2;
+		/* No one else can reconfigure the network while I am here.
+		 * The state handling only uses drbd_thread_stop_nowait(),
+		 * we want to really wait here until the receiver is no more.
+		 */
+		drbd_thread_stop(&adm_ctx.tconn->receiver);
+
+		/* Race breaker.  This additional state change request may be
+		 * necessary, if this was a forced disconnect during a receiver
+		 * restart.  We may have "killed" the receiver thread just
+		 * after drbdd_init() returned.  Typically, we should be
+		 * C_STANDALONE already, now, and this becomes a no-op.
+		 */
+		rv2 = conn_request_state(tconn, NS(conn, C_STANDALONE),
+				CS_VERBOSE | CS_HARD);
+		if (rv2 < SS_SUCCESS)
+			conn_err(tconn,
+				"unexpected rv2=%d in conn_try_disconnect()\n",
+				rv2);
+	}
 	return rv;
 }
 
@@ -2176,19 +2193,9 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
 
 	rv = conn_try_disconnect(tconn, parms.force_disconnect);
 	if (rv < SS_SUCCESS)
-		goto fail;
-
-	/* No one else can reconfigure the network while I am here.
-	 * The state handling only uses drbd_thread_stop_nowait(),
-	 * we want to really wait here until the receiver is no more. */
-	drbd_thread_stop(&tconn->receiver);
-	if (wait_event_interruptible(tconn->ping_wait,
-				     tconn->cstate == C_STANDALONE)) {
-		retcode = ERR_INTR;
-		goto fail;
-	}
-
-	retcode = NO_ERROR;
+		retcode = rv;  /* FIXME: Type mismatch. */
+	else
+		retcode = NO_ERROR;
  fail:
 	drbd_adm_finish(info, retcode);
 	return 0;
@@ -3049,8 +3056,7 @@ out:
 
 int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 {
-	enum drbd_ret_code retcode;
-	enum drbd_state_rv rv;
+	int retcode; /* enum drbd_ret_code rsp. enum drbd_state_rv */
 	struct drbd_conf *mdev;
 	unsigned i;
 
@@ -3074,29 +3080,34 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 			goto out_unlock;
 		}
 	}
+	up_read(&drbd_cfg_rwsem);
 
-	/* disconnect */
-	rv = conn_try_disconnect(adm_ctx.tconn, 0);
-	if (rv < SS_SUCCESS) {
-		retcode = rv; /* enum type mismatch! */
+	/* disconnect; may stop the receiver;
+	 * must not hold the drbd_cfg_rwsem */
+	retcode = conn_try_disconnect(adm_ctx.tconn, 0);
+	if (retcode < SS_SUCCESS) {
 		drbd_msg_put_info("failed to disconnect");
-		goto out_unlock;
+		goto out;
 	}
 
-	/* Make sure the network threads have actually stopped,
-	 * state handling only does drbd_thread_stop_nowait(). */
-	drbd_thread_stop(&adm_ctx.tconn->receiver);
-
+	down_read(&drbd_cfg_rwsem);
 	/* detach */
 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
-		rv = adm_detach(mdev);
-		if (rv < SS_SUCCESS) {
-			retcode = rv; /* enum type mismatch! */
+		retcode = adm_detach(mdev);
+		if (retcode < SS_SUCCESS) {
 			drbd_msg_put_info("failed to detach");
 			goto out_unlock;
 		}
 	}
 	up_read(&drbd_cfg_rwsem);
+
+	/* If we reach this, all volumes (of this tconn) are Secondary,
+	 * Disconnected, Diskless, aka Unconfigured. Make sure all threads have
+	 * actually stopped, state handling only does drbd_thread_stop_nowait().
+	 * This needs to be done without holding drbd_cfg_rwsem. */
+	drbd_thread_stop(&adm_ctx.tconn->worker);
+
+	/* Now, nothing can fail anymore */
 
 	/* delete volumes */
 	down_write(&drbd_cfg_rwsem);

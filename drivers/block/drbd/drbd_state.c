@@ -1416,6 +1416,19 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	if (oc == C_STANDALONE && ns_max.conn == C_UNCONNECTED)
 		drbd_thread_start(&tconn->receiver);
 
+	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
+		struct net_conf *old_conf;
+
+		mutex_lock(&tconn->net_conf_update);
+		old_conf = tconn->net_conf;
+		rcu_assign_pointer(tconn->net_conf, NULL);
+		conn_free_crypto(tconn);
+		mutex_unlock(&tconn->net_conf_update);
+
+		synchronize_rcu();
+		kfree(old_conf);
+	}
+
 	if (ns_max.susp_fen) {
 		/* case1: The outdate peer handler is successful: */
 		if (ns_max.pdsk <= D_OUTDATED) {
