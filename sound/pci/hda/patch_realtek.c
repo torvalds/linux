@@ -5294,7 +5294,7 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec,
 		nid = cfg->line_out_pins[i];
 		if (alc880_is_fixed_pin(nid)) {
 			int idx = alc880_fixed_pin_idx(nid);
-			spec->multiout.dac_nids[i] = alc880_idx_to_dac(idx);
+			spec->private_dac_nids[i] = alc880_idx_to_dac(idx);
 			assigned[idx] = 1;
 		}
 	}
@@ -5306,7 +5306,7 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec,
 		/* search for an empty channel */
 		for (j = 0; j < cfg->line_outs; j++) {
 			if (!assigned[j]) {
-				spec->multiout.dac_nids[i] =
+				spec->private_dac_nids[i] =
 					alc880_idx_to_dac(j);
 				assigned[j] = 1;
 				break;
@@ -7131,7 +7131,7 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	spec->multiout.num_dacs = 1;
 	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->multiout.dac_nids[0] = 0x02;
+	spec->private_dac_nids[0] = 0x02;
 
 	nid = cfg->line_out_pins[0];
 	if (nid) {
@@ -12214,7 +12214,7 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	spec->multiout.num_dacs = 1;	/* only use one dac */
 	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->multiout.dac_nids[0] = 2;
+	spec->private_dac_nids[0] = 2;
 
 	pfx = alc_get_line_out_pfx(spec, true);
 	if (!pfx)
@@ -13553,7 +13553,7 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 						      HDA_OUTPUT));
 		if (err < 0)
 			return err;
-		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
 	}
 
 	if (nid != 0x16)
@@ -15951,7 +15951,7 @@ static int alc861_auto_fill_dac_nids(struct hda_codec *codec,
 		dac = alc861_look_for_dac(codec, nid);
 		if (!dac)
 			continue;
-		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
 	}
 	return 0;
 }
@@ -18932,7 +18932,7 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec,
 		dac = alc_auto_look_for_dac(codec, cfg->line_out_pins[i]);
 		if (!dac)
 			continue;
-		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
 	}
 	return 0;
 }
@@ -19166,7 +19166,7 @@ static int alc_auto_fill_multi_ios(struct hda_codec *codec,
 			spec->multi_io[num_pins].pin = nid;
 			spec->multi_io[num_pins].dac = dac;
 			num_pins++;
-			spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+			spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
 		}
 	}
 	spec->multiout.num_dacs = 1;
@@ -19786,7 +19786,7 @@ static int alc680_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 
 		if (err < 0)
 			return err;
-		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
 	}
 
 	return 0;

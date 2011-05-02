@@ -1233,7 +1233,7 @@ static void playback_multi_pcm_prep_0(struct hda_codec *codec,
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_multi_out *mout = &spec->multiout;
-	hda_nid_t *nids = mout->dac_nids;
+	const hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
 	int i;
 
@@ -1302,7 +1302,7 @@ static int via_playback_multi_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_multi_out *mout = &spec->multiout;
-	hda_nid_t *nids = mout->dac_nids;
+	const hda_nid_t *nids = mout->dac_nids;
 
 	if (substream->number == 0)
 		playback_multi_pcm_prep_0(codec, stream_tag, format,
@@ -1323,7 +1323,7 @@ static int via_playback_multi_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_multi_out *mout = &spec->multiout;
-	hda_nid_t *nids = mout->dac_nids;
+	const hda_nid_t *nids = mout->dac_nids;
 	int i;
 
 	if (substream->number == 0) {
@@ -1849,16 +1849,16 @@ static int vt1708_auto_fill_dac_nids(struct via_spec *spec,
 			/* config dac list */
 			switch (i) {
 			case AUTO_SEQ_FRONT:
-				spec->multiout.dac_nids[i] = 0x10;
+				spec->private_dac_nids[i] = 0x10;
 				break;
 			case AUTO_SEQ_CENLFE:
-				spec->multiout.dac_nids[i] = 0x12;
+				spec->private_dac_nids[i] = 0x12;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->private_dac_nids[i] = 0x11;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0x13;
+				spec->private_dac_nids[i] = 0x13;
 				break;
 			}
 		}
@@ -2437,26 +2437,26 @@ static int vt1709_auto_fill_dac_nids(struct via_spec *spec,
 				switch (i) {
 				case AUTO_SEQ_FRONT:
 					/* AOW0 */
-					spec->multiout.dac_nids[i] = 0x10;
+					spec->private_dac_nids[i] = 0x10;
 					break;
 				case AUTO_SEQ_CENLFE:
 					/* AOW2 */
-					spec->multiout.dac_nids[i] = 0x12;
+					spec->private_dac_nids[i] = 0x12;
 					break;
 				case AUTO_SEQ_SURROUND:
 					/* AOW3 */
-					spec->multiout.dac_nids[i] = 0x11;
+					spec->private_dac_nids[i] = 0x11;
 					break;
 				case AUTO_SEQ_SIDE:
 					/* AOW1 */
-					spec->multiout.dac_nids[i] = 0x27;
+					spec->private_dac_nids[i] = 0x27;
 					break;
 				default:
 					break;
 				}
 			}
 		}
-		spec->multiout.dac_nids[cfg->line_outs] = 0x28; /* AOW4 */
+		spec->private_dac_nids[cfg->line_outs] = 0x28; /* AOW4 */
 
 	} else if (cfg->line_outs == 3) { /* 6 channels */
 		for (i = 0; i < cfg->line_outs; i++) {
@@ -2466,15 +2466,15 @@ static int vt1709_auto_fill_dac_nids(struct via_spec *spec,
 				switch (i) {
 				case AUTO_SEQ_FRONT:
 					/* AOW0 */
-					spec->multiout.dac_nids[i] = 0x10;
+					spec->private_dac_nids[i] = 0x10;
 					break;
 				case AUTO_SEQ_CENLFE:
 					/* AOW2 */
-					spec->multiout.dac_nids[i] = 0x12;
+					spec->private_dac_nids[i] = 0x12;
 					break;
 				case AUTO_SEQ_SURROUND:
 					/* AOW1 */
-					spec->multiout.dac_nids[i] = 0x11;
+					spec->private_dac_nids[i] = 0x11;
 					break;
 				default:
 					break;
@@ -3013,16 +3013,16 @@ static int vt1708B_auto_fill_dac_nids(struct via_spec *spec,
 			/* config dac list */
 			switch (i) {
 			case AUTO_SEQ_FRONT:
-				spec->multiout.dac_nids[i] = 0x10;
+				spec->private_dac_nids[i] = 0x10;
 				break;
 			case AUTO_SEQ_CENLFE:
-				spec->multiout.dac_nids[i] = 0x24;
+				spec->private_dac_nids[i] = 0x24;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->private_dac_nids[i] = 0x11;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0x25;
+				spec->private_dac_nids[i] = 0x25;
 				break;
 			}
 		}
@@ -3546,19 +3546,19 @@ static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 			/* config dac list */
 			switch (i) {
 			case AUTO_SEQ_FRONT:
-				spec->multiout.dac_nids[i] = 0x10;
+				spec->private_dac_nids[i] = 0x10;
 				break;
 			case AUTO_SEQ_CENLFE:
 				if (spec->codec->vendor_id == 0x11064397)
-					spec->multiout.dac_nids[i] = 0x25;
+					spec->private_dac_nids[i] = 0x25;
 				else
-					spec->multiout.dac_nids[i] = 0x24;
+					spec->private_dac_nids[i] = 0x24;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->private_dac_nids[i] = 0x11;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0x25;
+				spec->private_dac_nids[i] = 0x25;
 				break;
 			}
 		}
@@ -3567,11 +3567,11 @@ static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 	/* for Smart 5.1, line/mic inputs double as output pins */
 	if (cfg->line_outs == 1) {
 		spec->multiout.num_dacs = 3;
-		spec->multiout.dac_nids[AUTO_SEQ_SURROUND] = 0x11;
+		spec->private_dac_nids[AUTO_SEQ_SURROUND] = 0x11;
 		if (spec->codec->vendor_id == 0x11064397)
-			spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x25;
+			spec->private_dac_nids[AUTO_SEQ_CENLFE] = 0x25;
 		else
-			spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x24;
+			spec->private_dac_nids[AUTO_SEQ_CENLFE] = 0x24;
 	}
 
 	return 0;
@@ -4017,7 +4017,7 @@ static int vt1702_auto_fill_dac_nids(struct via_spec *spec,
 
 	if (cfg->line_out_pins[0]) {
 		/* config dac list */
-		spec->multiout.dac_nids[0] = 0x10;
+		spec->private_dac_nids[0] = 0x10;
 	}
 
 	return 0;
@@ -4384,16 +4384,16 @@ static int vt1718S_auto_fill_dac_nids(struct via_spec *spec,
 			/* config dac list */
 			switch (i) {
 			case AUTO_SEQ_FRONT:
-				spec->multiout.dac_nids[i] = 0x8;
+				spec->private_dac_nids[i] = 0x8;
 				break;
 			case AUTO_SEQ_CENLFE:
-				spec->multiout.dac_nids[i] = 0xa;
+				spec->private_dac_nids[i] = 0xa;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x9;
+				spec->private_dac_nids[i] = 0x9;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0xb;
+				spec->private_dac_nids[i] = 0xb;
 				break;
 			}
 		}
@@ -4905,13 +4905,13 @@ static int vt1716S_auto_fill_dac_nids(struct via_spec *spec,
 			/* config dac list */
 			switch (i) {
 			case AUTO_SEQ_FRONT:
-				spec->multiout.dac_nids[i] = 0x10;
+				spec->private_dac_nids[i] = 0x10;
 				break;
 			case AUTO_SEQ_CENLFE:
-				spec->multiout.dac_nids[i] = 0x25;
+				spec->private_dac_nids[i] = 0x25;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->private_dac_nids[i] = 0x11;
 				break;
 			}
 		}
@@ -5454,7 +5454,7 @@ static int vt2002P_auto_fill_dac_nids(struct via_spec *spec,
 	spec->multiout.num_dacs = 1;
 	spec->multiout.dac_nids = spec->private_dac_nids;
 	if (cfg->line_out_pins[0])
-		spec->multiout.dac_nids[0] = 0x8;
+		spec->private_dac_nids[0] = 0x8;
 	return 0;
 }
 
@@ -5907,7 +5907,7 @@ static int vt1812_auto_fill_dac_nids(struct via_spec *spec,
 	spec->multiout.num_dacs = 1;
 	spec->multiout.dac_nids = spec->private_dac_nids;
 	if (cfg->line_out_pins[0])
-		spec->multiout.dac_nids[0] = 0x8;
+		spec->private_dac_nids[0] = 0x8;
 	return 0;
 }
 

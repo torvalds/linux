@@ -3072,7 +3072,8 @@ static int add_spec_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 		printk(KERN_WARNING "stac92xx: No space for DAC 0x%x\n", nid);
 		return 1;
 	} else {
-		spec->multiout.dac_nids[spec->multiout.num_dacs] = nid;
+		snd_BUG_ON(spec->multiout.dac_nids != spec->dac_nids);
+		spec->dac_nids[spec->multiout.num_dacs] = nid;
 		spec->multiout.num_dacs++;
 	}
 	return 0;

@@ -2845,7 +2845,7 @@ static int ad1988_auto_fill_dac_nids(struct hda_codec *codec,
 	/* check the pins hardwired to audio widget */
 	for (i = 0; i < cfg->line_outs; i++) {
 		idx = ad1988_pin_idx(cfg->line_out_pins[i]);
-		spec->multiout.dac_nids[i] = ad1988_idx_to_dac(codec, idx);
+		spec->private_dac_nids[i] = ad1988_idx_to_dac(codec, idx);
 	}
 	spec->multiout.num_dacs = cfg->line_outs;
 	return 0;

@@ -2621,7 +2621,7 @@ static unsigned int convert_to_spdif_status(unsigned short val)
 static void set_dig_out(struct hda_codec *codec, hda_nid_t nid,
 			int verb, int val)
 {
-	hda_nid_t *d;
+	const hda_nid_t *d;
 
 	snd_hda_codec_write_cache(codec, nid, 0, verb, val);
 	d = codec->slave_dig_outs;
@@ -4184,7 +4184,7 @@ static void setup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid,
 				    -1);
 	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
 	if (codec->slave_dig_outs) {
-		hda_nid_t *d;
+		const hda_nid_t *d;
 		for (d = codec->slave_dig_outs; *d; d++)
 			snd_hda_codec_setup_stream(codec, *d, stream_tag, 0,
 						   format);
@@ -4199,7 +4199,7 @@ static void cleanup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid)
 {
 	snd_hda_codec_cleanup_stream(codec, nid);
 	if (codec->slave_dig_outs) {
-		hda_nid_t *d;
+		const hda_nid_t *d;
 		for (d = codec->slave_dig_outs; *d; d++)
 			snd_hda_codec_cleanup_stream(codec, *d);
 	}
@@ -4346,7 +4346,7 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 				     unsigned int format,
 				     struct snd_pcm_substream *substream)
 {
-	hda_nid_t *nids = mout->dac_nids;
+	const hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
 	int i;
 
@@ -4401,7 +4401,7 @@ EXPORT_SYMBOL_HDA(snd_hda_multi_out_analog_prepare);
 int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 				     struct hda_multi_out *mout)
 {
-	hda_nid_t *nids = mout->dac_nids;
+	const hda_nid_t *nids = mout->dac_nids;
 	int i;
 
 	for (i = 0; i < mout->num_dacs; i++)
@@ -4426,7 +4426,7 @@ EXPORT_SYMBOL_HDA(snd_hda_multi_out_analog_cleanup);
  * Helper for automatic pin configuration
  */
 
-static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
+static int is_in_nid_list(hda_nid_t nid, const hda_nid_t *list)
 {
 	for (; *list; list++)
 		if (*list == nid)
@@ -4507,7 +4507,7 @@ static void sort_autocfg_input_pins(struct auto_pin_cfg *cfg)
  */
 int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 				 struct auto_pin_cfg *cfg,
-				 hda_nid_t *ignore_nids)
+				 const hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, end_nid;
 	short seq, assoc_line_out, assoc_speaker;
