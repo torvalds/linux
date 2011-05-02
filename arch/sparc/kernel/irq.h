@@ -86,4 +86,10 @@ BTFIXUPDEF_CALL(void, set_irq_udt, int)
 #define set_cpu_int(cpu,level) BTFIXUP_CALL(set_cpu_int)(cpu,level)
 #define clear_cpu_int(cpu,level) BTFIXUP_CALL(clear_cpu_int)(cpu,level)
 #define set_irq_udt(cpu) BTFIXUP_CALL(set_irq_udt)(cpu)
+
+/* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
+#define SUN4D_IPI_IRQ 14
+
+extern void sun4d_ipi_interrupt(void);
+
 #endif

@@ -156,6 +156,15 @@ void sun4d_handler_irq(int pil, struct pt_regs *regs)
 
 	cc_set_iclr(1 << pil);
 
+#ifdef CONFIG_SMP
+	/*
+	 * Check IPI data structures after IRQ has been cleared. Hard and Soft
+	 * IRQ can happen at the same time, so both cases are always handled.
+	 */
+	if (pil == SUN4D_IPI_IRQ)
+		sun4d_ipi_interrupt();
+#endif
+
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 	if (sbusl == 0) {
