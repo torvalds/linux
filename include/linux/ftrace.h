@@ -29,9 +29,15 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
+struct ftrace_hash;
+
 struct ftrace_ops {
-	ftrace_func_t	  func;
-	struct ftrace_ops *next;
+	ftrace_func_t			func;
+	struct ftrace_ops		*next;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct ftrace_hash		*notrace_hash;
+	struct ftrace_hash		*filter_hash;
+#endif
 };
 
 extern int function_trace_stop;
