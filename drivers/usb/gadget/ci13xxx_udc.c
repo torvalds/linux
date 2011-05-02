@@ -1634,8 +1634,6 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	gadget_for_each_ep(ep, gadget) {
 		usb_ep_disable(ep);
 	}
-	usb_ep_disable(&udc->ep0out.ep);
-	usb_ep_disable(&udc->ep0in.ep);
 
 	if (udc->status != NULL) {
 		usb_ep_free_request(&udc->ep0in.ep, udc->status);
@@ -1678,18 +1676,10 @@ __acquires(udc->lock)
 	if (retval)
 		goto done;
 
-	retval = usb_ep_enable(&udc->ep0out.ep, &ctrl_endpt_out_desc);
-	if (retval)
-		goto done;
+	udc->status = usb_ep_alloc_request(&udc->ep0in.ep, GFP_ATOMIC);
+	if (udc->status == NULL)
+		retval = -ENOMEM;
 
-	retval = usb_ep_enable(&udc->ep0in.ep, &ctrl_endpt_in_desc);
-	if (!retval) {
-		udc->status = usb_ep_alloc_request(&udc->ep0in.ep, GFP_ATOMIC);
-		if (udc->status == NULL) {
-			usb_ep_disable(&udc->ep0out.ep);
-			retval = -ENOMEM;
-		}
-	}
 	spin_lock(udc->lock);
 
  done:
@@ -2120,7 +2110,12 @@ static int ep_enable(struct usb_ep *ep,
 		(mEp->ep.maxpacket << ffs_nr(QH_MAX_PKT)) & QH_MAX_PKT;
 	mEp->qh.ptr->td.next |= TD_TERMINATE;   /* needed? */
 
-	retval |= hw_ep_enable(mEp->num, mEp->dir, mEp->type);
+	/*
+	 * Enable endpoints in the HW other than ep0 as ep0
+	 * is always enabled
+	 */
+	if (mEp->num)
+		retval |= hw_ep_enable(mEp->num, mEp->dir, mEp->type);
 
 	spin_unlock_irqrestore(mEp->lock, flags);
 	return retval;
@@ -2609,6 +2604,14 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	}
 	if (retval)
 		goto done;
+	spin_unlock_irqrestore(udc->lock, flags);
+	retval = usb_ep_enable(&udc->ep0out.ep, &ctrl_endpt_out_desc);
+	if (retval)
+		return retval;
+	retval = usb_ep_enable(&udc->ep0in.ep, &ctrl_endpt_in_desc);
+	if (retval)
+		return retval;
+	spin_lock_irqsave(udc->lock, flags);
 
 	udc->gadget.ep0 = &udc->ep0in.ep;
 	/* bind gadget */
