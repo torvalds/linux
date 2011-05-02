@@ -173,7 +173,6 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 		(mi->nr_blks - idx) * sizeof(mi->blk[0]));
 }
 
-#ifdef CONFIG_X86_64
 /**
  * numa_add_memblk - Add one numa_memblk to numa_meminfo
  * @nid: NUMA node ID of the new memblk
@@ -189,7 +188,6 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
 }
-#endif
 
 /* Initialize bootmem allocator for a node */
 static void __init setup_node_bootmem(int nid, u64 start, u64 end)
@@ -413,7 +411,6 @@ static int __init numa_alloc_distance(void)
 	return 0;
 }
 
-#ifdef CONFIG_X86_64
 /**
  * numa_set_distance - Set NUMA distance from one NUMA to another
  * @from: the 'from' node to set distance
@@ -452,7 +449,6 @@ void __init numa_set_distance(int from, int to, int distance)
 
 	numa_distance[from * numa_distance_cnt + to] = distance;
 }
-#endif
 
 int __node_distance(int from, int to)
 {
@@ -626,6 +622,10 @@ static int __init dummy_numa_init(void)
 void __init x86_numa_init(void)
 {
 	if (!numa_off) {
+#ifdef CONFIG_X86_NUMAQ
+		if (!numa_init(numaq_numa_init))
+			return;
+#endif
 #ifdef CONFIG_ACPI_NUMA
 		if (!numa_init(x86_acpi_numa_init))
 			return;
@@ -805,7 +805,7 @@ EXPORT_SYMBOL(cpumask_of_node);
 
 #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_MEMORY_HOTPLUG)
+#ifdef CONFIG_MEMORY_HOTPLUG
 int memory_add_physaddr_to_nid(u64 start)
 {
 	struct numa_meminfo *mi = &numa_meminfo;
