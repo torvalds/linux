@@ -26,12 +26,12 @@
 #include "a_types.h"
 
 #include "AR6002/hw2.0/hw/mbox_host_reg.h"
-#include "AR6002/hw2.0/hw/apb_map.h"
 #include "AR6002/hw2.0/hw/si_reg.h"
 #include "AR6002/hw2.0/hw/gpio_reg.h"
 #include "AR6002/hw2.0/hw/rtc_reg.h"
 #include "AR6002/hw2.0/hw/vmc_reg.h"
 #include "AR6002/hw2.0/hw/mbox_reg.h"
+#include "hw/apb_map.h"
 
 #include "a_osapi.h"
 #include "targaddrs.h"
