@@ -1334,11 +1334,19 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			  struct drbd_nl_cfg_reply *reply)
 {
+	enum drbd_ret_code retcode;
+	int ret;
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
-	reply->ret_code = drbd_request_state(mdev, NS(disk, D_DISKLESS));
-	if (mdev->state.disk == D_DISKLESS)
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
+	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
+	/* D_FAILED will transition to DISKLESS. */
+	ret = wait_event_interruptible(mdev->misc_wait,
+			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
+	if (retcode == SS_IS_DISKLESS)
+		retcode = SS_NOTHING_TO_DO;
+	if (ret)
+		retcode = ERR_INTR;
+	reply->ret_code = retcode;
 	return 0;
 }
 
