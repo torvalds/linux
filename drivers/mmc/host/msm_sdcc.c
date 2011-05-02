@@ -1215,7 +1215,7 @@ msmsdcc_probe(struct platform_device *pdev)
 	host->base = ioremap(memres->start, PAGE_SIZE);
 	if (!host->base) {
 		ret = -ENOMEM;
-		goto out;
+		goto host_free;
 	}
 
 	host->cmd_irqres = cmd_irqres;
@@ -1230,13 +1230,15 @@ msmsdcc_probe(struct platform_device *pdev)
 	/*
 	 * Setup DMA
 	 */
-	msmsdcc_init_dma(host);
+	ret = msmsdcc_init_dma(host);
+	if (ret)
+		goto ioremap_free;
 
 	/* Get our clocks */
 	host->pclk = clk_get(&pdev->dev, "sdc_pclk");
 	if (IS_ERR(host->pclk)) {
 		ret = PTR_ERR(host->pclk);
-		goto host_free;
+		goto dma_free;
 	}
 
 	host->clk = clk_get(&pdev->dev, "sdc_clk");
@@ -1377,6 +1379,12 @@ msmsdcc_probe(struct platform_device *pdev)
 	clk_put(host->clk);
  pclk_put:
 	clk_put(host->pclk);
+dma_free:
+	dma_free_coherent(NULL, sizeof(struct msmsdcc_nc_dmadata),
+				host->dma.nc, host->dma.nc_busaddr);
+ioremap_free:
+	tasklet_kill(&host->dma_tlet);
+	iounmap(host->base);
  host_free:
 	mmc_free_host(mmc);
  out:
