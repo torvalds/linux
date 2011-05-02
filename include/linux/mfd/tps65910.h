@@ -715,6 +715,8 @@
 
 struct tps65910_board {
 	int gpio_base;
+	int irq;
+	int irq_base;
 	struct regulator_init_data *tps65910_pmic_init_data;
 };
 
@@ -745,11 +747,14 @@ struct tps65910 {
 };
 
 struct tps65910_platform_data {
+	int irq;
 	int irq_base;
 };
 
 int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
 int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
 void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
+int tps65910_irq_init(struct tps65910 *tps65910, int irq,
+		struct tps65910_platform_data *pdata);
 
 #endif /*  __LINUX_MFD_TPS65910_H */

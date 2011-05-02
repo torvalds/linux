@@ -136,11 +136,19 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 {
 	struct tps65910 *tps65910;
 	struct tps65910_board *pmic_plat_data;
+	struct tps65910_platform_data *init_data;
 	int ret = 0;
 
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 	if (!pmic_plat_data)
 		return -EINVAL;
+
+	init_data = kzalloc(sizeof(struct tps65910_platform_data), GFP_KERNEL);
+	if (init_data == NULL)
+		return -ENOMEM;
+
+	init_data->irq = pmic_plat_data->irq;
+	init_data->irq_base = pmic_plat_data->irq;
 
 	tps65910 = kzalloc(sizeof(struct tps65910), GFP_KERNEL);
 	if (tps65910 == NULL)
@@ -160,6 +168,10 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		goto err;
 
 	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
+
+	ret = tps65910_irq_init(tps65910, init_data->irq, init_data);
+	if (ret < 0)
+		goto err;
 
 	return ret;
 
