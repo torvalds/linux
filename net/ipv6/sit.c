@@ -401,11 +401,6 @@ out:
 	return err;
 }
 
-static void prl_entry_destroy_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct ip_tunnel_prl_entry, rcu_head));
-}
-
 static void prl_list_destroy_rcu(struct rcu_head *head)
 {
 	struct ip_tunnel_prl_entry *p, *n;
@@ -433,7 +428,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		     p = &x->next) {
 			if (x->addr == a->addr) {
 				*p = x->next;
-				call_rcu(&x->rcu_head, prl_entry_destroy_rcu);
+				kfree_rcu(x, rcu_head);
 				t->prl_count--;
 				goto out;
 			}
