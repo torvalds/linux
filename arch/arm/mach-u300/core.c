@@ -25,6 +25,8 @@
 #include <linux/err.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/fsmc.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -1535,6 +1537,14 @@ static struct coh901318_platform coh901318_platform = {
 	.max_channels = U300_DMA_CHANNELS,
 };
 
+static struct resource pinmux_resources[] = {
+	{
+		.start = U300_SYSCON_BASE,
+		.end   = U300_SYSCON_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
 static struct platform_device wdog_device = {
 	.name = "coh901327_wdog",
 	.id = -1,
@@ -1630,6 +1640,72 @@ static struct platform_device dma_device = {
 	},
 };
 
+static struct platform_device pinmux_device = {
+	.name = "pinmux-u300",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(pinmux_resources),
+	.resource = pinmux_resources,
+};
+
+/* Pinmux settings */
+static struct pinmux_map u300_pinmux_map[] = {
+	/* anonymous maps for chip power and EMIFs */
+	PINMUX_MAP_PRIMARY_SYS_HOG("POWER", "power"),
+	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF0", "emif0"),
+	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF1", "emif1"),
+	/* per-device maps for MMC/SD, SPI and UART */
+	PINMUX_MAP_PRIMARY("MMCSD", "mmc0", "mmci"),
+	PINMUX_MAP_PRIMARY("SPI", "spi0", "pl022"),
+	PINMUX_MAP_PRIMARY("UART0", "uart0", "uart0"),
+};
+
+struct u300_mux_hog {
+	const char *name;
+	struct device *dev;
+	struct pinmux *pmx;
+};
+
+static struct u300_mux_hog u300_mux_hogs[] = {
+	{
+		.name = "uart0",
+		.dev = &uart0_device.dev,
+	},
+	{
+		.name = "spi0",
+		.dev = &pl022_device.dev,
+	},
+	{
+		.name = "mmc0",
+		.dev = &mmcsd_device.dev,
+	},
+};
+
+static int __init u300_pinmux_fetch(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
+		struct pinmux *pmx;
+		int ret;
+
+		pmx = pinmux_get(u300_mux_hogs[i].dev, NULL);
+		if (IS_ERR(pmx)) {
+			pr_err("u300: could not get pinmux hog %s\n",
+			       u300_mux_hogs[i].name);
+			continue;
+		}
+		ret = pinmux_enable(pmx);
+		if (ret) {
+			pr_err("u300: could enable pinmux hog %s\n",
+			       u300_mux_hogs[i].name);
+			continue;
+		}
+		u300_mux_hogs[i].pmx = pmx;
+	}
+	return 0;
+}
+subsys_initcall(u300_pinmux_fetch);
+
 /*
  * Notice that AMBA devices are initialized before platform devices.
  *
@@ -1643,9 +1719,9 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&ave_device
+	&ave_device,
+	&pinmux_device,
 };
-
 
 /*
  * Interrupts: the U300 platforms have two pl190 ARM PrimeCells connected
@@ -1827,6 +1903,10 @@ void __init u300_init_devices(void)
 	}
 
 	u300_assign_physmem();
+
+	/* Initialize pinmuxing */
+	pinmux_register_mappings(u300_pinmux_map,
+				 ARRAY_SIZE(u300_pinmux_map));
 
 	/* Register subdevices on the I2C buses */
 	u300_i2c_register_board_devices();
