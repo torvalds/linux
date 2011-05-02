@@ -414,3 +414,37 @@ int memory_add_physaddr_to_nid(u64 addr)
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
+/* temporary shim, will go away soon */
+int __init numa_add_memblk(int nid, u64 start, u64 end)
+{
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long end_pfn = end >> PAGE_SHIFT;
+
+	printk(KERN_DEBUG "nid %d start_pfn %08lx end_pfn %08lx\n",
+	       nid, start_pfn, end_pfn);
+
+	if (start >= (u64)max_pfn << PAGE_SHIFT) {
+		printk(KERN_INFO "Ignoring SRAT pfns: %08lx - %08lx\n",
+		       start_pfn, end_pfn);
+		return 0;
+	}
+
+	node_set_online(nid);
+	memblock_x86_register_active_regions(nid, start_pfn,
+					     min(end_pfn, max_pfn));
+
+	if (!node_has_online_mem(nid)) {
+		node_start_pfn[nid] = start_pfn;
+		node_end_pfn[nid] = end_pfn;
+	} else {
+		node_start_pfn[nid] = min(node_start_pfn[nid], start_pfn);
+		node_end_pfn[nid] = max(node_end_pfn[nid], end_pfn);
+	}
+	return 0;
+}
+
+/* temporary shim, will go away soon */
+void __init numa_set_distance(int from, int to, int distance)
+{
+	/* nada */
+}

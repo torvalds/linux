@@ -15,9 +15,6 @@ extern unsigned long numa_free_all_bootmem(void);
  */
 #define NODE_MIN_SIZE (4*1024*1024)
 
-extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
-extern void __init numa_set_distance(int from, int to, int distance);
-
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	((u64)32 << 20)
 #define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1UL))
