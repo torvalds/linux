@@ -131,7 +131,7 @@ struct rk29_nand_platform_data rk29_nand_data = {
 *****************************************************************************************/
 #define FB_ID                       0
 #define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
+#define FB_LCD_STANDBY_PIN          INVALID_GPIO
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
@@ -139,6 +139,15 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
 
 //#endif
+/*****************************************************************************************
+* touch screen devices
+* author: cf@rock-chips.com
+*****************************************************************************************/
+#define TOUCH_SCREEN_STANDBY_PIN          RK29_PIN6_PD1
+#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
+#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
+
 static int rk29_lcd_io_init(void)
 {
     int ret = 0;
@@ -173,24 +182,52 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         }
         gpio_direction_input(FB_MCU_FMK_PIN);
     }
-    if(fb_setting->disp_on_en && (FB_DISPLAY_ON_PIN != INVALID_GPIO))
+    if(fb_setting->disp_on_en)
     {
-        ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
-        if(ret != 0)
+        if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
         {
-            gpio_free(FB_DISPLAY_ON_PIN);
-            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
+            if(ret != 0)
+            {
+                gpio_free(FB_DISPLAY_ON_PIN);
+                printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            }
+        }
+        else
+        {
+             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
+                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
+             }
+             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
+             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
         }
     }
 
-    if(fb_setting->disp_on_en && (FB_LCD_STANDBY_PIN != INVALID_GPIO))
+    if(fb_setting->disp_on_en)
     {
-        ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
-        if(ret != 0)
+        if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
         {
-            gpio_free(FB_LCD_STANDBY_PIN);
-            printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
+             ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(FB_LCD_STANDBY_PIN);
+                 printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
+             }
         }
+        else
+        {
+             ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(TOUCH_SCREEN_STANDBY_PIN);
+                 printk(">>>>>> TOUCH_SCREEN_STANDBY_PIN gpio_request err \n ");
+             }
+             gpio_direction_output(TOUCH_SCREEN_STANDBY_PIN, 0);
+             gpio_set_value(TOUCH_SCREEN_STANDBY_PIN, TOUCH_SCREEN_STANDBY_VALUE);
+         }
     }
 
     if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
@@ -387,7 +424,10 @@ static int EETI_EGALAX_init_platform_hw(void)
 static struct eeti_egalax_platform_data eeti_egalax_info = {
   .model= 1003,
   .init_platform_hw= EETI_EGALAX_init_platform_hw,
-
+  .standby_pin = TOUCH_SCREEN_STANDBY_PIN,
+  .standby_value = TOUCH_SCREEN_STANDBY_VALUE,
+  .disp_on_pin = TOUCH_SCREEN_DISPLAY_PIN,
+  .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
 /*MMA8452 gsensor*/
@@ -512,6 +552,20 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_alc5621)
+        {
+                .type                   = "ALC5621",
+                .addr                   = 0x1a,
+                .flags                  = 0,
+        },
+#endif
+#if defined (CONFIG_SND_SOC_alc5631)
+        {
+                .type                   = "rt5631",
+                .addr                   = 0x1a,
+                .flags                  = 0,
+        },
+#endif
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
 		.type    		= "rk1000_i2c_codec",
@@ -604,9 +658,10 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
     {
       .type           = "p1003_touch",
       .addr           = 0x04,
-      .flags          = 0,
+      .flags          = 0, //I2C_M_NEED_DELAY
       .irq            = RK29_PIN0_PA2,
       .platform_data  = &p1003_info,
+      //.udelay		  = 100
     },
 #endif
 #if defined (CONFIG_EETI_EGALAX)
@@ -894,13 +949,35 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 		{
 			if (camera_flash != INVALID_GPIO) {
 				if (camera_io_init & RK29_CAM_FLASHACTIVE_MASK) {
-					if (on) {
-			        	gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-			        	//printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-					} else {
-						gpio_set_value(camera_flash,(((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-		        		//printk("\n%s..%s..FlashPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_flash, (((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-			        }
+                    switch (on)
+                    {
+                        case Flash_Off:
+                        {
+                            gpio_set_value(camera_flash,(((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+		        		    //printk("\n%s..%s..FlashPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_flash, (((~camera_ioflag)&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS)); 
+		        		    break;
+                        }
+
+                        case Flash_On:
+                        {
+                            gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    //printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    break;
+                        }
+
+                        case Flash_Torch:
+                        {
+                            gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    //printk("\n%s..%s..FlashPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+			        	    break;
+                        }
+
+                        default:
+                        {
+                            printk("\n%s..%s..Flash command(%d) is invalidate \n",__FUNCTION__,dev_name(dev),on);
+                            break;
+                        }
+                    }
 				} else {
 					ret = RK29_CAM_EIO_REQUESTFAIL;
 					printk("\n%s..%s..FlashPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_flash);
@@ -1874,7 +1951,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_300mhz);
+	rk29_clock_init(periph_pll_288mhz);
 	rk29_iomux_init();
 }
 

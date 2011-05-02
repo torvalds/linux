@@ -86,8 +86,8 @@ struct rk29_bl_info{
     int (*io_deinit)(void);
 	int (*pwm_suspend)(void);
 	int (*pwm_resume)(void);
-    struct timer_list timer;  
-    struct notifier_block freq_transition;
+	int min_brightness;	/* 0 ~ 255 */
+	unsigned int delay_ms;	/* in milliseconds */
 };
 
 struct wifi_platform_data {
@@ -152,6 +152,11 @@ struct eeti_egalax_platform_data{
     int     (*eeti_egalax_platform_sleep)(void);
     int     (*eeti_egalax_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
+    int     standby_pin;
+    int     standby_value;
+    int     disp_on_pin;
+    int     disp_on_value;
+ 
 };
 
 /*sintex touch*/
@@ -234,7 +239,6 @@ struct tca6424_platform_data {
 
 void __init rk29_setup_early_printk(void);
 void __init rk29_map_common_io(void);
-void __init rk29_clock_init(unsigned long ppll_rate);
 void __init board_power_init(void);
 
 #define BOOT_MODE_NORMAL		0
@@ -244,12 +248,14 @@ void __init board_power_init(void);
 #define BOOT_MODE_POWER_TEST		4
 #define BOOT_MODE_OFFMODE_CHARGING	5
 int board_boot_mode(void);
-enum periph_pll{
-	periph_pll_96mhz=96000000,
-	periph_pll_144mhz=144000000,
-	periph_pll_288mhz=288000000,
-	periph_pll_300mhz=300000000,
+
+enum periph_pll {
+	periph_pll_96mhz = 96000000,
+	periph_pll_144mhz = 144000000,
+	periph_pll_288mhz = 288000000,
+	periph_pll_300mhz = 300000000,
 };
+void __init rk29_clock_init(enum periph_pll ppll_rate);
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET
