@@ -498,7 +498,7 @@ static int irlmp_state_disconnected(struct lsap_cb *self, IRLMP_EVENT event,
 	switch (event) {
 #ifdef CONFIG_IRDA_ULTRA
 	case LM_UDATA_INDICATION:
-		/* This is most bizzare. Those packets are  aka unreliable
+		/* This is most bizarre. Those packets are  aka unreliable
 		 * connected, aka IrLPT or SOCK_DGRAM/IRDAPROTO_UNITDATA.
 		 * Why do we pass them as Ultra ??? Jean II */
 		irlmp_connless_data_indication(self, skb);

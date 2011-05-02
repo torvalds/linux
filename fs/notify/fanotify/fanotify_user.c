@@ -164,7 +164,7 @@ static int process_access_response(struct fsnotify_group *group,
 		 fd, response);
 	/*
 	 * make sure the response is valid, if invalid we do nothing and either
-	 * userspace can send a valid responce or we will clean it up after the
+	 * userspace can send a valid response or we will clean it up after the
 	 * timeout
 	 */
 	switch (response) {

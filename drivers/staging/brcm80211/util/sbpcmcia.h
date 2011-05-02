@@ -109,7 +109,7 @@
 #define	CISTPL_CFTABLE		0x1b	/* Config table entry */
 #define	CISTPL_END		0xff	/* End of the CIS tuple chain */
 
-/* Function identifier provides context for the function extentions tuple */
+/* Function identifier provides context for the function extensions tuple */
 #define CISTPL_FID_SDIO		0x0c	/* Extensions defined by SDIO spec */
 
 /* Function extensions for LANs (assumed for extensions other than SDIO) */

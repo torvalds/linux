@@ -303,7 +303,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			    !test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
 
 				qla_printk(KERN_WARNING, ha,
-				    "Mailbox command timeout occured. "
+				    "Mailbox command timeout occurred. "
 				    "Scheduling ISP " "abort. eeh_busy: 0x%x\n",
 				    ha->flags.eeh_busy);
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
@@ -321,7 +321,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			    !test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
 
 				qla_printk(KERN_WARNING, ha,
-				    "Mailbox command timeout occured. "
+				    "Mailbox command timeout occurred. "
 				    "Issuing ISP abort.\n");
 
 				set_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
@@ -3789,7 +3789,7 @@ qla2x00_loopback_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 	mcp->mb[20] = LSW(MSD(mreq->send_dma));
 	mcp->mb[21] = MSW(MSD(mreq->send_dma));
 
-	/* recieve data address */
+	/* receive data address */
 	mcp->mb[16] = LSW(mreq->rcv_dma);
 	mcp->mb[17] = MSW(mreq->rcv_dma);
 	mcp->mb[6] = LSW(MSD(mreq->rcv_dma));

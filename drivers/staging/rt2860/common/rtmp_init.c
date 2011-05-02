@@ -2037,7 +2037,7 @@ void NICUpdateFifoStaCounters(struct rt_rtmp_adapter *pAd)
 
 			pEntry->FIFOCount = 0;
 			pEntry->OneSecTxNoRetryOkCount++;
-			/* update NoDataIdleCount when sucessful send packet to STA. */
+			/* update NoDataIdleCount when successful send packet to STA. */
 			pEntry->NoDataIdleCount = 0;
 			pEntry->ContinueTxFailCnt = 0;
 		}
@@ -2516,7 +2516,7 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 	/*pAd->TurnAggrBulkInCount = 0; */
 	pAd->bUsbTxBulkAggre = 0;
 
-	/* init as unsed value to ensure driver will set to MCU once. */
+	/* init as unused value to ensure driver will set to MCU once. */
 	pAd->LedIndicatorStrength = 0xFF;
 
 	pAd->CommonCfg.MaxPktOneTxBulk = 2;
@@ -3076,11 +3076,11 @@ void RTMPSetLED(struct rt_rtmp_adapter *pAd, u8 Status)
 	========================================================================
 
 	Routine Description:
-		Set LED Signal Stregth
+		Set LED Signal Strength
 
 	Arguments:
 		pAd						Pointer to our adapter
-		Dbm						Signal Stregth
+		Dbm						Signal Strength
 
 	Return Value:
 		None
@@ -3090,7 +3090,7 @@ void RTMPSetLED(struct rt_rtmp_adapter *pAd, u8 Status)
 	Note:
 		Can be run on any IRQL level.
 
-		According to Microsoft Zero Config Wireless Signal Stregth definition as belows.
+		According to Microsoft Zero Config Wireless Signal Strength definition as belows.
 		<= -90  No Signal
 		<= -81  Very Low
 		<= -71  Low
@@ -3118,7 +3118,7 @@ void RTMPSetSignalLED(struct rt_rtmp_adapter *pAd, IN NDIS_802_11_RSSI Dbm)
 			nLed = 31;
 
 		/* */
-		/* Update Signal Stregth to firmware if changed. */
+		/* Update Signal Strength to firmware if changed. */
 		/* */
 		if (pAd->LedIndicatorStrength != nLed) {
 			AsicSendCommandToMcu(pAd, 0x51, 0xff, nLed,
@@ -3166,7 +3166,7 @@ void RTMPEnableRxTx(struct rt_rtmp_adapter *pAd)
 		if (pAd->CommonCfg.PSPXlink)
 			rx_filter_flag = PSPXLINK;
 		else
-			rx_filter_flag = STANORMAL;	/* Staion not drop control frame will fail WiFi Certification. */
+			rx_filter_flag = STANORMAL;	/* Station not drop control frame will fail WiFi Certification. */
 		RTMP_IO_WRITE32(pAd, RX_FILTR_CFG, rx_filter_flag);
 	}
 

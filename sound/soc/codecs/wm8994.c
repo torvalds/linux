@@ -82,18 +82,18 @@ struct wm8994_priv {
 
 	int mbc_ena[3];
 
-	/* Platform dependant DRC configuration */
+	/* Platform dependent DRC configuration */
 	const char **drc_texts;
 	int drc_cfg[WM8994_NUM_DRC];
 	struct soc_enum drc_enum;
 
-	/* Platform dependant ReTune mobile configuration */
+	/* Platform dependent ReTune mobile configuration */
 	int num_retune_mobile_texts;
 	const char **retune_mobile_texts;
 	int retune_mobile_cfg[WM8994_NUM_EQ];
 	struct soc_enum retune_mobile_enum;
 
-	/* Platform dependant MBC configuration */
+	/* Platform dependent MBC configuration */
 	int mbc_cfg;
 	const char **mbc_texts;
 	struct soc_enum mbc_enum;
@@ -3261,20 +3261,36 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch volume updates (right only; we always do left then right). */
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC1_LEFT_VOLUME,
+			    WM8994_AIF1DAC1_VU, WM8994_AIF1DAC1_VU);
 	snd_soc_update_bits(codec, WM8994_AIF1_DAC1_RIGHT_VOLUME,
 			    WM8994_AIF1DAC1_VU, WM8994_AIF1DAC1_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC2_LEFT_VOLUME,
+			    WM8994_AIF1DAC2_VU, WM8994_AIF1DAC2_VU);
 	snd_soc_update_bits(codec, WM8994_AIF1_DAC2_RIGHT_VOLUME,
 			    WM8994_AIF1DAC2_VU, WM8994_AIF1DAC2_VU);
+	snd_soc_update_bits(codec, WM8994_AIF2_DAC_LEFT_VOLUME,
+			    WM8994_AIF2DAC_VU, WM8994_AIF2DAC_VU);
 	snd_soc_update_bits(codec, WM8994_AIF2_DAC_RIGHT_VOLUME,
 			    WM8994_AIF2DAC_VU, WM8994_AIF2DAC_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,
+			    WM8994_AIF1ADC1_VU, WM8994_AIF1ADC1_VU);
 	snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,
 			    WM8994_AIF1ADC1_VU, WM8994_AIF1ADC1_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_ADC2_LEFT_VOLUME,
+			    WM8994_AIF1ADC2_VU, WM8994_AIF1ADC2_VU);
 	snd_soc_update_bits(codec, WM8994_AIF1_ADC2_RIGHT_VOLUME,
 			    WM8994_AIF1ADC2_VU, WM8994_AIF1ADC2_VU);
+	snd_soc_update_bits(codec, WM8994_AIF2_ADC_LEFT_VOLUME,
+			    WM8994_AIF2ADC_VU, WM8994_AIF1ADC2_VU);
 	snd_soc_update_bits(codec, WM8994_AIF2_ADC_RIGHT_VOLUME,
 			    WM8994_AIF2ADC_VU, WM8994_AIF1ADC2_VU);
+	snd_soc_update_bits(codec, WM8994_DAC1_LEFT_VOLUME,
+			    WM8994_DAC1_VU, WM8994_DAC1_VU);
 	snd_soc_update_bits(codec, WM8994_DAC1_RIGHT_VOLUME,
 			    WM8994_DAC1_VU, WM8994_DAC1_VU);
+	snd_soc_update_bits(codec, WM8994_DAC2_LEFT_VOLUME,
+			    WM8994_DAC2_VU, WM8994_DAC2_VU);
 	snd_soc_update_bits(codec, WM8994_DAC2_RIGHT_VOLUME,
 			    WM8994_DAC2_VU, WM8994_DAC2_VU);
 

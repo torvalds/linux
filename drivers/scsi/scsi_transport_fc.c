@@ -2378,7 +2378,7 @@ fc_flush_devloss(struct Scsi_Host *shost)
  * fc_remove_host - called to terminate any fc_transport-related elements for a scsi host.
  * @shost:	Which &Scsi_Host
  *
- * This routine is expected to be called immediately preceeding the
+ * This routine is expected to be called immediately preceding the
  * a driver's call to scsi_remove_host().
  *
  * WARNING: A driver utilizing the fc_transport, which fails to call
@@ -2458,7 +2458,7 @@ static void fc_terminate_rport_io(struct fc_rport *rport)
 }
 
 /**
- * fc_starget_delete - called to delete the scsi decendents of an rport
+ * fc_starget_delete - called to delete the scsi descendants of an rport
  * @work:	remote port to be operated on.
  *
  * Deletes target and all sdevs.

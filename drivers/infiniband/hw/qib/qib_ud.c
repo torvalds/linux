@@ -116,7 +116,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	}
 
 	/*
-	 * A GRH is expected to preceed the data even if not
+	 * A GRH is expected to precede the data even if not
 	 * present on the wire.
 	 */
 	length = swqe->length;
@@ -520,7 +520,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		goto drop;
 
 	/*
-	 * A GRH is expected to preceed the data even if not
+	 * A GRH is expected to precede the data even if not
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);

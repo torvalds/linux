@@ -348,7 +348,7 @@ static void __init gic_init_irq(void)
 
 #ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
-		gic_init(1, 64, __io_address(REALVIEW_EB_GIC_DIST_BASE),
+		gic_init(1, 96, __io_address(REALVIEW_EB_GIC_DIST_BASE),
 			 __io_address(REALVIEW_EB_GIC_CPU_BASE));
 		gic_cascade_irq(1, IRQ_EB11MP_EB_IRQ1);
 #endif

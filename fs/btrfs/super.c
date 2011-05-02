@@ -644,6 +644,7 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct btrfs_root *root = btrfs_sb(vfs->mnt_sb);
 	struct btrfs_fs_info *info = root->fs_info;
+	char *compress_type;
 
 	if (btrfs_test_opt(root, DEGRADED))
 		seq_puts(seq, ",degraded");
@@ -662,8 +663,16 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (info->thread_pool_size !=  min_t(unsigned long,
 					     num_online_cpus() + 2, 8))
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
-	if (btrfs_test_opt(root, COMPRESS))
-		seq_puts(seq, ",compress");
+	if (btrfs_test_opt(root, COMPRESS)) {
+		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
+			compress_type = "zlib";
+		else
+			compress_type = "lzo";
+		if (btrfs_test_opt(root, FORCE_COMPRESS))
+			seq_printf(seq, ",compress-force=%s", compress_type);
+		else
+			seq_printf(seq, ",compress=%s", compress_type);
+	}
 	if (btrfs_test_opt(root, NOSSD))
 		seq_puts(seq, ",nossd");
 	if (btrfs_test_opt(root, SSD_SPREAD))
@@ -678,6 +687,12 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",discard");
 	if (!(root->fs_info->sb->s_flags & MS_POSIXACL))
 		seq_puts(seq, ",noacl");
+	if (btrfs_test_opt(root, SPACE_CACHE))
+		seq_puts(seq, ",space_cache");
+	if (btrfs_test_opt(root, CLEAR_CACHE))
+		seq_puts(seq, ",clear_cache");
+	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
+		seq_puts(seq, ",user_subvol_rm_allowed");
 	return 0;
 }
 

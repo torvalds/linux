@@ -7,7 +7,6 @@ config FRV
 	select HAVE_PERF_EVENTS
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config ZONE_DMA
 	bool

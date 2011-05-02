@@ -63,7 +63,7 @@ When data is sent to the firmware, the first TBD is used to indicate to the
 firmware if a Command or Data is being sent.  If it is Command, all of the
 command information is contained within the physical address referred to by the
 TBD.  If it is Data, the first TBD indicates the type of data packet, number
-of fragments, etc.  The next TBD then referrs to the actual packet location.
+of fragments, etc.  The next TBD then refers to the actual packet location.
 
 The Tx flow cycle is as follows:
 

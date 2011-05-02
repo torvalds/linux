@@ -272,7 +272,7 @@ static unsigned long tce_get_pSeriesLP(struct iommu_table *tbl, long tcenum)
 	return tce_ret;
 }
 
-/* this is compatable with cells for the device tree property */
+/* this is compatible with cells for the device tree property */
 struct dynamic_dma_window_prop {
 	__be32	liobn;		/* tce table number */
 	__be64	dma_base;	/* address hi,lo */
@@ -976,7 +976,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	pr_debug("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
 
 	/* dev setup for LPAR is a little tricky, since the device tree might
-	 * contain the dma-window properties per-device and not neccesarily
+	 * contain the dma-window properties per-device and not necessarily
 	 * for the bus. So we need to search upwards in the tree until we
 	 * either hit a dma-window property, OR find a parent with a table
 	 * already allocated.
@@ -1033,7 +1033,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 
 		/*
 		 * the device tree might contain the dma-window properties
-		 * per-device and not neccesarily for the bus. So we need to
+		 * per-device and not necessarily for the bus. So we need to
 		 * search upwards in the tree until we either hit a dma-window
 		 * property, OR find a parent with a table already allocated.
 		 */

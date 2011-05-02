@@ -434,8 +434,7 @@ bitmap_ipmac_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, htonl(map->first_ip));
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP_TO, htonl(map->last_ip));
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
 		      htonl(sizeof(*map)
 			    + (map->last_ip - map->first_ip + 1) * map->dsize));

@@ -708,7 +708,7 @@ static void __init setup_hwcaps(void)
 	 * and 1ULL<<0 as bit 63. Bits 0-31 contain the same information
 	 * as stored by stfl, bits 32-xxx contain additional facilities.
 	 * How many facility words are stored depends on the number of
-	 * doublewords passed to the instruction. The additional facilites
+	 * doublewords passed to the instruction. The additional facilities
 	 * are:
 	 *   Bit 42: decimal floating point facility is installed
 	 *   Bit 44: perform floating point operation facility is installed

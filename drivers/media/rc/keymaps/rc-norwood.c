@@ -49,7 +49,7 @@ static struct rc_map_table norwood[] = {
 	{ 0x37, KEY_PLAY },		/* Play                */
 	{ 0x36, KEY_PAUSE },		/* Pause               */
 	{ 0x2b, KEY_STOP },		/* Stop                */
-	{ 0x67, KEY_FASTFORWARD },	/* Foward              */
+	{ 0x67, KEY_FASTFORWARD },	/* Forward              */
 	{ 0x66, KEY_REWIND },		/* Rewind              */
 	{ 0x3e, KEY_SEARCH },		/* Auto Scan           */
 	{ 0x2e, KEY_CAMERA },		/* Capture Video       */

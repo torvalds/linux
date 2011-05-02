@@ -2475,7 +2475,7 @@ static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
  
 	spec->hp_switch = ucontrol->value.integer.value[0] ? nid : 0;
 
-	/* check to be sure that the ports are upto date with
+	/* check to be sure that the ports are up to date with
 	 * switch changes
 	 */
 	stac_issue_unsol_event(codec, nid);

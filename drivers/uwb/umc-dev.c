@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(umc_device_register);
  * First we unregister the device, make sure the driver can do it's
  * resource release thing and then we try to release any left over
  * resources. We take a ref to the device, to make sure it doesn't
- * dissapear under our feet.
+ * disappear under our feet.
  */
 void umc_device_unregister(struct umc_dev *umc)
 {

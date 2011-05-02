@@ -348,7 +348,7 @@ EXPORT_SYMBOL(i2c_verify_client);
 
 
 /* This is a permissive address validity check, I2C address map constraints
- * are purposedly not enforced, except for the general call address. */
+ * are purposely not enforced, except for the general call address. */
 static int i2c_check_client_addr_validity(const struct i2c_client *client)
 {
 	if (client->flags & I2C_CLIENT_TEN) {

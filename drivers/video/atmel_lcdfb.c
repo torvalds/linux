@@ -637,7 +637,7 @@ static inline unsigned int chan_to_field(unsigned int chan, const struct fb_bitf
  *  	magnitude which needs to be scaled in this function for the hardware.
  *	Things to take into consideration are how many color registers, if
  *	any, are supported with the current color visual. With truecolor mode
- *	no color palettes are supported. Here a psuedo palette is created
+ *	no color palettes are supported. Here a pseudo palette is created
  *	which we store the value in pseudo_palette in struct fb_info. For
  *	pseudocolor mode we have a limited color palette. To deal with this
  *	we can program what color is displayed for a particular pixel value.

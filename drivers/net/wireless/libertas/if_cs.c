@@ -913,7 +913,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out3;
 	}
 
-	/* Clear any interrupt cause that happend while sending
+	/* Clear any interrupt cause that happened while sending
 	 * firmware/initializing card */
 	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, IF_CS_BIT_MASK);
 	if_cs_enable_ints(card);

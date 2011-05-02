@@ -87,7 +87,7 @@ struct Map {
 ** The Topology array contains the ID of the unit connected to each of the
 ** four links on this unit. The entry will be 0xFFFF if NOTHING is connected
 ** to the link, or will be 0xFF00 if an UNKNOWN unit is connected to the link.
-** The Name field is a null-terminated string, upto 31 characters, containing
+** The Name field is a null-terminated string, up to 31 characters, containing
 ** the 'cute' name that the sysadmin/users know the RTA by. It is permissible
 ** for this string to contain any character in the range \040 to \176 inclusive.
 ** In particular, ctrl sequences and DEL (0x7F, \177) are not allowed. The

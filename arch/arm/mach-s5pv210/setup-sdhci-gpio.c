@@ -32,10 +32,10 @@ void s5pv210_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 
 	switch (width) {
 	case 8:
-		/* GPG1[3:6] special-funtion 3 */
+		/* GPG1[3:6] special-function 3 */
 		s3c_gpio_cfgrange_nopull(S5PV210_GPG1(3), 4, S3C_GPIO_SFN(3));
 	case 4:
-		/* GPG0[3:6] special-funtion 2 */
+		/* GPG0[3:6] special-function 2 */
 		s3c_gpio_cfgrange_nopull(S5PV210_GPG0(3), 4, S3C_GPIO_SFN(2));
 	default:
 		break;

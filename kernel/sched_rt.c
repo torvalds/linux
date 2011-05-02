@@ -1378,7 +1378,7 @@ retry:
 		task = pick_next_pushable_task(rq);
 		if (task_cpu(next_task) == rq->cpu && task == next_task) {
 			/*
-			 * If we get here, the task hasnt moved at all, but
+			 * If we get here, the task hasn't moved at all, but
 			 * it has failed to push.  We will not try again,
 			 * since the other cpus will pull from us when they
 			 * are ready.
@@ -1488,7 +1488,7 @@ static int pull_rt_task(struct rq *this_rq)
 			/*
 			 * We continue with the search, just in
 			 * case there's an even higher prio task
-			 * in another runqueue. (low likelyhood
+			 * in another runqueue. (low likelihood
 			 * but possible)
 			 */
 		}

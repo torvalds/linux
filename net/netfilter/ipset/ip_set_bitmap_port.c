@@ -320,8 +320,7 @@ bitmap_port_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	NLA_PUT_NET16(skb, IPSET_ATTR_PORT, htons(map->first_port));
 	NLA_PUT_NET16(skb, IPSET_ATTR_PORT_TO, htons(map->last_port));
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
 		      htonl(sizeof(*map) + map->memsize));
 	if (with_timeout(map->timeout))

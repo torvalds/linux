@@ -54,8 +54,8 @@
 #define MUSYCC_MTU          2048  /* default */
 #define MUSYCC_TXDESC_MIN   10    /* HDLC mode default */
 #define MUSYCC_RXDESC_MIN   18    /* HDLC mode default */
-#define MUSYCC_TXDESC_TRANS 4     /* Transparent mode minumum # of TX descriptors */
-#define MUSYCC_RXDESC_TRANS 12    /* Transparent mode minumum # of RX descriptors */
+#define MUSYCC_TXDESC_TRANS 4     /* Transparent mode minimum # of TX descriptors */
+#define MUSYCC_RXDESC_TRANS 12    /* Transparent mode minimum # of RX descriptors */
 
 #define MAX_DEFAULT_IFQLEN  32    /* network qlen */
 

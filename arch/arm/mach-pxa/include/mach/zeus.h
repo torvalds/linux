@@ -64,7 +64,7 @@
 
 /*
  * CPLD registers:
- * Only 4 registers, but spreaded over a 32MB address space.
+ * Only 4 registers, but spread over a 32MB address space.
  * Be gentle, and remap that over 32kB...
  */
 

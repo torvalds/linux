@@ -67,7 +67,7 @@ struct cvmx_bootmem_block_header {
 
 /*
  * Structure for named memory blocks.  Number of descriptors available
- * can be changed without affecting compatiblity, but name length
+ * can be changed without affecting compatibility, but name length
  * changes require a bump in the bootmem descriptor version Note: This
  * structure must be naturally 64 bit aligned, as a single memory
  * image will be used by both 32 and 64 bit programs.

@@ -283,7 +283,7 @@ BOOLEAN OS_Need_Clone_Packet(void)
 	Arguments:
 		pAd 	Pointer to our adapter
 		pInsAMSDUHdr	EWC A-MSDU format has extra 14-bytes header. if TRUE, insert this 14-byte hdr in front of MSDU.
-		*pSrcTotalLen			return total packet length. This lenght is calculated with 802.3 format packet.
+		*pSrcTotalLen			return total packet length. This length is calculated with 802.3 format packet.
 
 	Return Value:
 		NDIS_STATUS_SUCCESS

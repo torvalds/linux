@@ -702,7 +702,7 @@ Arguments:
 	*pRxPending			pending received packet flag
 
 Return Value:
-    the recieved packet
+    the received packet
 
 Note:
 ========================================================================
@@ -850,7 +850,7 @@ int RTMPCheckRxError(struct rt_rtmp_adapter *pAd,
 	/* Add Rx size to channel load counter, we should ignore error counts */
 	pAd->StaCfg.CLBusyBytes += (pRxWI->MPDUtotalByteCount + 14);
 
-	/* Drop ToDs promiscous frame, it is opened due to CCX 2 channel load statistics */
+	/* Drop ToDs promiscuous frame, it is opened due to CCX 2 channel load statistics */
 	if (pHeader->FC.ToDs) {
 		DBGPRINT_RAW(RT_DEBUG_ERROR, ("Err;FC.ToDs\n"));
 		return NDIS_STATUS_FAILURE;
@@ -860,7 +860,7 @@ int RTMPCheckRxError(struct rt_rtmp_adapter *pAd,
 		DBGPRINT_RAW(RT_DEBUG_ERROR, ("received packet too long\n"));
 		return NDIS_STATUS_FAILURE;
 	}
-	/* Drop not U2M frames, cant's drop here because we will drop beacon in this case */
+	/* Drop not U2M frames, can't's drop here because we will drop beacon in this case */
 	/* I am kind of doubting the U2M bit operation */
 	/* if (pRxD->U2M == 0) */
 	/*      return(NDIS_STATUS_FAILURE); */

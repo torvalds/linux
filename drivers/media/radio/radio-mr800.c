@@ -99,7 +99,7 @@ devices, that would be 76 and 91.  */
 
 /*
  * Commands that device should understand
- * List isnt full and will be updated with implementation of new functions
+ * List isn't full and will be updated with implementation of new functions
  */
 #define AMRADIO_SET_FREQ	0xa4
 #define AMRADIO_SET_MUTE	0xab

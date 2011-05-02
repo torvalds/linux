@@ -19,7 +19,7 @@
  * VPE support module
  *
  * Provides support for loading a MIPS SP program on VPE1.
- * The SP enviroment is rather simple, no tlb's.  It needs to be relocatable
+ * The SP environment is rather simple, no tlb's.  It needs to be relocatable
  * (or partially linked). You should initialise your stack in the startup
  * code. This loader looks for the symbol __start and sets up
  * execution to resume from there. The MIPS SDE kit contains suitable examples.

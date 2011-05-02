@@ -1651,7 +1651,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	/*
 	 *  On selected chips turn on the BCR18:NOUFLO bit. This stops transmit
 	 *  starting until the packet is loaded. Strike one for reliability, lose
-	 *  one for latency - although on PCI this isnt a big loss. Older chips
+	 *  one for latency - although on PCI this isn't a big loss. Older chips
 	 *  have FIFO's smaller than a packet, so you can't do this.
 	 *  Turn on BCR18:BurstRdEn and BCR18:BurstWrEn.
 	 */

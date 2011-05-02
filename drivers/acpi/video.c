@@ -1354,7 +1354,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_WARNING PREFIX
-					"Cant attach device\n");
+					"Can't attach device\n");
 			continue;
 		}
 	}
@@ -1373,7 +1373,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 					    acpi_video_device_notify);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_WARNING PREFIX
-		       "Cant remove video notify handler\n");
+		       "Can't remove video notify handler\n");
 	}
 	if (device->backlight) {
 		backlight_device_unregister(device->backlight);

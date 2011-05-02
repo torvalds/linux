@@ -145,7 +145,7 @@ struct bfa_fw_io_stats_s {
 	u32	ioh_data_oor_event;	/*  Data out of range */
 	u32	ioh_ro_ooo_event;	/*  Relative offset out of range */
 	u32	ioh_cpu_owned_event;	/*  IOH hit -iost owned by f/w */
-	u32	ioh_unexp_frame_event;	/*  unexpected frame recieved
+	u32	ioh_unexp_frame_event;	/*  unexpected frame received
 						 *   count */
 	u32	ioh_err_int;		/*  IOH error int during data-phase
 						 *   for scsi write
@@ -566,8 +566,8 @@ struct bfa_itnim_iostats_s {
 	u32	input_reqs;		/*  Data in-bound requests	*/
 	u32	output_reqs;		/*  Data out-bound requests	*/
 	u32	io_comps;		/*  Total IO Completions	*/
-	u32	wr_throughput;		/*  Write data transfered in bytes */
-	u32	rd_throughput;		/*  Read data transfered in bytes  */
+	u32	wr_throughput;		/*  Write data transferred in bytes */
+	u32	rd_throughput;		/*  Read data transferred in bytes  */
 
 	u32	iocomp_ok;		/*  Slowpath IO completions	*/
 	u32	iocomp_underrun;	/*  IO underrun		*/

@@ -180,7 +180,7 @@ struct usbduxfastsub_s {
 	/* comedi device for the interrupt context */
 	struct comedi_device *comedidev;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	short int ai_continous;	/* continous aquisition */
+	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
 	uint8_t *dux_commands;	/* commands */
 	int ignore;		/* counter which ignores the first
@@ -392,7 +392,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	p = urb->transfer_buffer;
 	if (!udfs->ignore) {
 		if (!udfs->ai_continous) {
-			/* not continous, fixed number of samples */
+			/* not continuous, fixed number of samples */
 			n = urb->actual_length / sizeof(uint16_t);
 			if (unlikely(udfs->ai_sample_count < n)) {
 				/*
@@ -775,7 +775,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&udfs->sem);
 		return -EBUSY;
 	}
-	/* set current channel of the running aquisition to zero */
+	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 
 	/*
@@ -1182,7 +1182,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		}
 		udfs->ai_continous = 0;
 	} else {
-		/* continous aquisition */
+		/* continous acquisition */
 		udfs->ai_continous = 1;
 		udfs->ai_sample_count = 0;
 	}

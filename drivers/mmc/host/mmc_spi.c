@@ -99,7 +99,7 @@
 #define r1b_timeout		(HZ * 3)
 
 /* One of the critical speed parameters is the amount of data which may
- * be transfered in one command. If this value is too low, the SD card
+ * be transferred in one command. If this value is too low, the SD card
  * controller has to do multiple partial block writes (argggh!). With
  * today (2008) SD cards there is little speed gain if we transfer more
  * than 64 KBytes at a time. So use this value until there is any indication

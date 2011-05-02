@@ -72,7 +72,7 @@ folder:
 #  fragmentation    gw_sel_class  vis_mode
 
 
-There is a special folder for debugging informations:
+There is a special folder for debugging information:
 
 #  ls /sys/kernel/debug/batman_adv/bat0/
 #  gateways     socket        transtable_global  vis_data

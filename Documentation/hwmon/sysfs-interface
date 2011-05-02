@@ -579,7 +579,7 @@ channel should not be trusted.
 fan[1-*]_fault
 temp[1-*]_fault
 		Input fault condition
-		0: no fault occured
+		0: no fault occurred
 		1: fault condition
 		RO
 

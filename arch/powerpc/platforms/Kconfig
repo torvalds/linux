@@ -46,7 +46,7 @@ config PPC_OF_BOOT_TRAMPOLINE
 	help
 	  Support from booting from Open Firmware or yaboot using an
 	  Open Firmware client interface. This enables the kernel to
-	  communicate with open firmware to retrieve system informations
+	  communicate with open firmware to retrieve system information
 	  such as the device tree.
 
 	  In case of doubt, say Y

@@ -6266,7 +6266,7 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	 * rt is a sector_t, so could be 32bit or 64bit.
 	 * So we divide before multiply in case it is 32bit and close
 	 * to the limit.
-	 * We scale the divisor (db) by 32 to avoid loosing precision
+	 * We scale the divisor (db) by 32 to avoid losing precision
 	 * near the end of resync when the number of remaining sectors
 	 * is close to 'db'.
 	 * We then divide rt by 32 after multiplying by db to compensate.

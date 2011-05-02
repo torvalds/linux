@@ -1,5 +1,5 @@
 /*
- * Alchemy Semi Pb1000 Referrence Board
+ * Alchemy Semi Pb1000 Reference Board
  *
  * Copyright 2001, 2008 MontaVista Software Inc.
  * Author: MontaVista Software, Inc. <source@mvista.com>
