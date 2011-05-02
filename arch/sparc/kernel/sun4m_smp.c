@@ -15,6 +15,9 @@
 #include "irq.h"
 #include "kernel.h"
 
+#define IRQ_IPI_SINGLE		12
+#define IRQ_IPI_MASK		13
+#define IRQ_IPI_RESCHED		14
 #define IRQ_CROSS_CALL		15
 
 static inline unsigned long
@@ -26,6 +29,7 @@ swap_ulong(volatile unsigned long *ptr, unsigned long val)
 	return val;
 }
 
+static void smp4m_ipi_init(void);
 static void smp_setup_percpu_timer(void);
 
 void __cpuinit smp4m_callin(void)
@@ -81,6 +85,7 @@ void __cpuinit smp4m_callin(void)
  */
 void __init smp4m_boot_cpus(void)
 {
+	smp4m_ipi_init();
 	smp_setup_percpu_timer();
 	local_flush_cache_all();
 }
@@ -146,6 +151,27 @@ void __init smp4m_smp_done(void)
 	local_flush_cache_all();
 
 	/* Ok, they are spinning and ready to go. */
+}
+
+
+/* Initialize IPIs on the SUN4M SMP machine */
+static void __init smp4m_ipi_init(void)
+{
+}
+
+static void smp4m_ipi_resched(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_RESCHED);
+}
+
+static void smp4m_ipi_single(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_SINGLE);
+}
+
+static void smp4m_ipi_mask_one(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_MASK);
 }
 
 static struct smp_funcall {
@@ -290,4 +316,7 @@ void __init sun4m_init_smp(void)
 	BTFIXUPSET_BLACKBOX(load_current, smp4m_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4m_cross_call, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4m_processor_id, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_resched, smp4m_ipi_resched, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_single, smp4m_ipi_single, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4m_ipi_mask_one, BTFIXUPCALL_NORM);
 }

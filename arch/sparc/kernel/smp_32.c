@@ -267,11 +267,6 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	}
 }
 
-void smp_reschedule_irq(void)
-{
-	set_need_resched();
-}
-
 void smp_flush_page_to_ram(unsigned long page)
 {
 	/* Current theory is that those who call this are the one's

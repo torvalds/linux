@@ -269,19 +269,22 @@ smp4m_ticker:
 	/* Here is where we check for possible SMP IPI passed to us
 	 * on some level other than 15 which is the NMI and only used
 	 * for cross calls.  That has a separate entry point below.
+	 *
+	 * IPIs are sent on Level 12, 13 and 14. See IRQ_IPI_*.
 	 */
 maybe_smp4m_msg:
 	GET_PROCESSOR4M_ID(o3)
 	sethi	%hi(sun4m_irq_percpu), %l5
 	sll	%o3, 2, %o3
 	or	%l5, %lo(sun4m_irq_percpu), %o5
-	sethi	%hi(0x40000000), %o2
+	sethi	%hi(0x70000000), %o2	! Check all soft-IRQs
 	ld	[%o5 + %o3], %o1
 	ld	[%o1 + 0x00], %o3	! sun4m_irq_percpu[cpu]->pending
 	andcc	%o3, %o2, %g0
 	be,a	smp4m_ticker
 	 cmp	%l7, 14
-	st	%o2, [%o1 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x40000000
+	/* Soft-IRQ IPI */
+	st	%o2, [%o1 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x70000000
 	WRITE_PAUSE
 	ld	[%o1 + 0x00], %g0	! sun4m_irq_percpu[cpu]->pending
 	WRITE_PAUSE
@@ -290,9 +293,27 @@ maybe_smp4m_msg:
 	WRITE_PAUSE
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
-	call	smp_reschedule_irq
+	sll	%o2, 28, %o2		! shift for simpler checks below
+maybe_smp4m_msg_check_single:
+	andcc	%o2, 0x1, %g0
+	beq,a	maybe_smp4m_msg_check_mask
+	 andcc	%o2, 0x2, %g0
+	call	smp_call_function_single_interrupt
 	 nop
-
+	andcc	%o2, 0x2, %g0
+maybe_smp4m_msg_check_mask:
+	beq,a	maybe_smp4m_msg_check_resched
+	 andcc	%o2, 0x4, %g0
+	call	smp_call_function_interrupt
+	 nop
+	andcc	%o2, 0x4, %g0
+maybe_smp4m_msg_check_resched:
+	/* rescheduling is done in RESTORE_ALL regardless, but incr stats */
+	beq,a	maybe_smp4m_msg_out
+	 nop
+	call	smp_resched_interrupt
+	 nop
+maybe_smp4m_msg_out:
 	RESTORE_ALL
 
 	.align	4
