@@ -26,7 +26,7 @@
 #include "a_types.h"
 
 #include "hw/mbox_host_reg.h"
-#include "AR6002/hw2.0/hw/si_reg.h"
+#include "hw/si_reg.h"
 #include "AR6002/hw2.0/hw/gpio_reg.h"
 #include "AR6002/hw2.0/hw/vmc_reg.h"
 #include "hw/rtc_reg.h"
