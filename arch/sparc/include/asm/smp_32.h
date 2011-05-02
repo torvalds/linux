@@ -50,12 +50,19 @@ void smp_callin(void);
 void smp_boot_cpus(void);
 void smp_store_cpu_info(int);
 
+void smp_resched_interrupt(void);
+void smp_call_function_single_interrupt(void);
+void smp_call_function_interrupt(void);
+
 struct seq_file;
 void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
 BTFIXUPDEF_CALL(void, smp_cross_call, smpfunc_t, cpumask_t, unsigned long, unsigned long, unsigned long, unsigned long)
 BTFIXUPDEF_CALL(int, __hard_smp_processor_id, void)
+BTFIXUPDEF_CALL(void, smp_ipi_resched, int);
+BTFIXUPDEF_CALL(void, smp_ipi_single, int);
+BTFIXUPDEF_CALL(void, smp_ipi_mask_one, int);
 BTFIXUPDEF_BLACKBOX(hard_smp_processor_id)
 BTFIXUPDEF_BLACKBOX(load_current)
 
@@ -73,19 +80,8 @@ static inline void xc4(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3, unsigned long arg4)
 { smp_cross_call(func, cpu_online_map, arg1, arg2, arg3, arg4); }
 
-static inline int smp_call_function(void (*func)(void *info), void *info, int wait)
-{
-	xc1((smpfunc_t)func, (unsigned long)info);
-	return 0;
-}
-
-static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
-					   void *info, int wait)
-{
-	smp_cross_call((smpfunc_t)func, cpumask_of_cpu(cpuid),
-		       (unsigned long) info, 0, 0, 0);
-	return 0;
-}
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 static inline int cpu_logical_map(int cpu)
 {
