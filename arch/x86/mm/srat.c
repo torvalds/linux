@@ -138,7 +138,7 @@ static inline int save_add_info(void) {return 0;}
 void __init
 acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
-	unsigned long start, end;
+	u64 start, end;
 	int node, pxm;
 
 	if (srat_disabled())
@@ -167,7 +167,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		return;
 	}
 
-	printk(KERN_INFO "SRAT: Node %u PXM %u %lx-%lx\n", node, pxm,
+	printk(KERN_INFO "SRAT: Node %u PXM %u %Lx-%Lx\n", node, pxm,
 	       start, end);
 }
 
