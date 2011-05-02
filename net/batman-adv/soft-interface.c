@@ -211,13 +211,24 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct softif_neigh *softif_neigh;
+	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct softif_neigh *curr_softif_neigh;
+	int ret = 0;
 
-	if (!bat_priv->primary_if) {
-		return seq_printf(seq, "BATMAN mesh %s disabled - "
-			       "please specify interfaces to enable it\n",
-			       net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "please specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s "
+				 "disabled - primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "Softif neighbor list (%s)\n", net_dev->name);
@@ -234,7 +245,10 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	if (curr_softif_neigh)
 		softif_neigh_free_ref(curr_softif_neigh);
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
@@ -243,7 +257,8 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batman_packet *batman_packet;
-	struct softif_neigh *softif_neigh;
+	struct softif_neigh *softif_neigh = NULL;
+	struct hard_iface *primary_if = NULL;
 	struct softif_neigh *curr_softif_neigh = NULL;
 
 	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q)
@@ -253,28 +268,34 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 		batman_packet = (struct batman_packet *)(skb->data + ETH_HLEN);
 
 	if (batman_packet->version != COMPAT_VERSION)
-		goto err;
+		goto out;
 
 	if (batman_packet->packet_type != BAT_PACKET)
-		goto err;
+		goto out;
 
 	if (!(batman_packet->flags & PRIMARIES_FIRST_HOP))
-		goto err;
+		goto out;
 
 	if (is_my_mac(batman_packet->orig))
-		goto err;
+		goto out;
 
 	softif_neigh = softif_neigh_get(bat_priv, batman_packet->orig, vid);
-
 	if (!softif_neigh)
-		goto err;
+		goto out;
 
 	curr_softif_neigh = softif_neigh_get_selected(bat_priv);
+	if (!curr_softif_neigh)
+		goto out;
+
 	if (curr_softif_neigh == softif_neigh)
 		goto out;
 
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
 	/* we got a neighbor but its mac is 'bigger' than ours  */
-	if (memcmp(bat_priv->primary_if->net_dev->dev_addr,
+	if (memcmp(primary_if->net_dev->dev_addr,
 		   softif_neigh->addr, ETH_ALEN) < 0)
 		goto out;
 
@@ -296,7 +317,7 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 	/* close own batX device and use softif_neigh as exit node */
 	if ((!curr_softif_neigh) &&
 	    (memcmp(softif_neigh->addr,
-		    bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN) < 0)) {
+		    primary_if->net_dev->dev_addr, ETH_ALEN) < 0)) {
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Setting mesh exit point to %pM (vid: %d).\n",
 			softif_neigh->addr, softif_neigh->vid);
@@ -306,12 +327,13 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 out:
-	softif_neigh_free_ref(softif_neigh);
-err:
 	kfree_skb(skb);
+	if (softif_neigh)
+		softif_neigh_free_ref(softif_neigh);
 	if (curr_softif_neigh)
 		softif_neigh_free_ref(curr_softif_neigh);
-
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	return;
 }
 
@@ -367,6 +389,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	struct hard_iface *primary_if = NULL;
 	struct bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	struct softif_neigh *curr_softif_neigh = NULL;
@@ -416,7 +439,8 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 
 	/* ethernet packet should be broadcasted */
 	if (do_bcast) {
-		if (!bat_priv->primary_if)
+		primary_if = primary_if_get_selected(bat_priv);
+		if (!primary_if)
 			goto dropped;
 
 		if (my_skb_head_push(skb, sizeof(struct bcast_packet)) < 0)
@@ -432,7 +456,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh */
 		memcpy(bcast_packet->orig,
-		       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+		       primary_if->net_dev->dev_addr, ETH_ALEN);
 
 		/* set broadcast sequence number */
 		bcast_packet->seqno =
@@ -462,6 +486,8 @@ dropped_freed:
 end:
 	if (curr_softif_neigh)
 		softif_neigh_free_ref(curr_softif_neigh);
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	return NETDEV_TX_OK;
 }
 

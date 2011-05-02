@@ -22,6 +22,7 @@
 #include "main.h"
 #include "translation-table.h"
 #include "soft-interface.h"
+#include "hard-interface.h"
 #include "hash.h"
 #include "originator.h"
 
@@ -237,16 +238,26 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->hna_local_hash;
 	struct hna_local_entry *hna_local_entry;
+	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	size_t buf_size, pos;
 	char *buff;
-	int i;
+	int i, ret = 0;
 
-	if (!bat_priv->primary_if) {
-		return seq_printf(seq, "BATMAN mesh %s disabled - "
-			       "please specify interfaces to enable it\n",
-			       net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "please specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "Locally retrieved addresses (from %s) "
@@ -269,7 +280,8 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	buff = kmalloc(buf_size, GFP_ATOMIC);
 	if (!buff) {
 		spin_unlock_bh(&bat_priv->hna_lhash_lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	buff[0] = '\0';
@@ -291,7 +303,10 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "%s", buff);
 	kfree(buff);
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 static void _hna_local_del(struct hlist_node *node, void *arg)
@@ -468,16 +483,26 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->hna_global_hash;
 	struct hna_global_entry *hna_global_entry;
+	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	size_t buf_size, pos;
 	char *buff;
-	int i;
+	int i, ret = 0;
 
-	if (!bat_priv->primary_if) {
-		return seq_printf(seq, "BATMAN mesh %s disabled - "
-				  "please specify interfaces to enable it\n",
-				  net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - please "
+				 "specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "Globally announced HNAs received via the mesh %s\n",
@@ -499,7 +524,8 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	buff = kmalloc(buf_size, GFP_ATOMIC);
 	if (!buff) {
 		spin_unlock_bh(&bat_priv->hna_ghash_lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	buff[0] = '\0';
 	pos = 0;
@@ -522,7 +548,10 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "%s", buff);
 	kfree(buff);
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 static void _hna_global_del_orig(struct bat_priv *bat_priv,

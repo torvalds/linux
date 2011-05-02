@@ -149,7 +149,6 @@ struct bat_priv {
 	struct hlist_head softif_neigh_list;
 	struct softif_neigh __rcu *softif_neigh;
 	struct debug_log *debug_log;
-	struct hard_iface *primary_if;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
@@ -174,6 +173,7 @@ struct bat_priv {
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
 	struct gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct vis_info *my_vis_info;
 };
 

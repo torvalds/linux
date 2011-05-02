@@ -904,6 +904,7 @@ int recv_bat_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 			       struct sk_buff *skb, size_t icmp_len)
 {
+	struct hard_iface *primary_if = NULL;
 	struct orig_node *orig_node = NULL;
 	struct neigh_node *router = NULL;
 	struct icmp_packet_rr *icmp_packet;
@@ -917,7 +918,8 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	if (!bat_priv->primary_if)
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
 		goto out;
 
 	/* answer echo request (ping) */
@@ -937,8 +939,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 	icmp_packet = (struct icmp_packet_rr *)skb->data;
 
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
-	memcpy(icmp_packet->orig,
-		bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = ECHO_REPLY;
 	icmp_packet->ttl = TTL;
 
@@ -946,6 +947,8 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 	ret = NET_RX_SUCCESS;
 
 out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	if (router)
 		neigh_node_free_ref(router);
 	if (orig_node)
@@ -956,6 +959,7 @@ out:
 static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 				  struct sk_buff *skb)
 {
+	struct hard_iface *primary_if = NULL;
 	struct orig_node *orig_node = NULL;
 	struct neigh_node *router = NULL;
 	struct icmp_packet *icmp_packet;
@@ -971,7 +975,8 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	if (!bat_priv->primary_if)
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
 		goto out;
 
 	/* get routing information */
@@ -990,8 +995,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	icmp_packet = (struct icmp_packet *)skb->data;
 
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
-	memcpy(icmp_packet->orig,
-		bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = TTL_EXCEEDED;
 	icmp_packet->ttl = TTL;
 
@@ -999,6 +1003,8 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	ret = NET_RX_SUCCESS;
 
 out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	if (router)
 		neigh_node_free_ref(router);
 	if (orig_node)
@@ -1310,13 +1316,10 @@ int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	}
 
 	/* get routing information */
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
 
 	if (!orig_node)
-		goto unlock;
-
-	rcu_read_unlock();
+		goto out;
 
 	/* find_router() increases neigh_nodes refcount if found. */
 	neigh_node = find_router(bat_priv, orig_node, recv_if);
@@ -1362,10 +1365,7 @@ int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	/* route it */
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = NET_RX_SUCCESS;
-	goto out;
 
-unlock:
-	rcu_read_unlock();
 out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
@@ -1464,13 +1464,10 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (bcast_packet->ttl < 2)
 		goto out;
 
-	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, bcast_packet->orig);
 
 	if (!orig_node)
-		goto rcu_unlock;
-
-	rcu_read_unlock();
+		goto out;
 
 	spin_lock_bh(&orig_node->bcast_seqno_lock);
 
@@ -1501,9 +1498,6 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	ret = NET_RX_SUCCESS;
 	goto out;
 
-rcu_unlock:
-	rcu_read_unlock();
-	goto out;
 spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 out:
