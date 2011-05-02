@@ -535,7 +535,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
  * as the number of CPUs is not known yet. We round robin the existing
  * nodes.
  */
-void __init numa_init_array(void)
+static void __init numa_init_array(void)
 {
 	int rr, i;
 
