@@ -1818,6 +1818,8 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 	struct rb_node **p, *parent = NULL;
 	struct fsck_inode *fscki;
 	ino_t inum = key_inum_flash(c, &ino->key);
+	struct inode *inode;
+	struct ubifs_inode *ui;
 
 	p = &fsckd->inodes.rb_node;
 	while (*p) {
@@ -1841,19 +1843,46 @@ static struct fsck_inode *add_inode(struct ubifs_info *c,
 	if (!fscki)
 		return ERR_PTR(-ENOMEM);
 
+	inode = ilookup(c->vfs_sb, inum);
+
 	fscki->inum = inum;
-	fscki->nlink = le32_to_cpu(ino->nlink);
-	fscki->size = le64_to_cpu(ino->size);
-	fscki->xattr_cnt = le32_to_cpu(ino->xattr_cnt);
-	fscki->xattr_sz = le32_to_cpu(ino->xattr_size);
-	fscki->xattr_nms = le32_to_cpu(ino->xattr_names);
-	fscki->mode = le32_to_cpu(ino->mode);
+	/*
+	 * If the inode is present in the VFS inode cache, use it instead of
+	 * the on-flash inode which might be out-of-date. E.g., the size might
+	 * be out-of-date. If we do not do this, the following may happen, for
+	 * example:
+	 *   1. A power cut happens
+	 *   2. We mount the file-system R/O, the replay process fixes up the
+	 *      inode size in the VFS cache, but on on-flash.
+	 *   3. 'check_leaf()' fails because it hits a data node beyond inode
+	 *      size.
+	 */
+	if (!inode) {
+		fscki->nlink = le32_to_cpu(ino->nlink);
+		fscki->size = le64_to_cpu(ino->size);
+		fscki->xattr_cnt = le32_to_cpu(ino->xattr_cnt);
+		fscki->xattr_sz = le32_to_cpu(ino->xattr_size);
+		fscki->xattr_nms = le32_to_cpu(ino->xattr_names);
+		fscki->mode = le32_to_cpu(ino->mode);
+	} else {
+		ui = ubifs_inode(inode);
+		fscki->nlink = inode->i_nlink;
+		fscki->size = inode->i_size;
+		fscki->xattr_cnt = ui->xattr_cnt;
+		fscki->xattr_sz = ui->xattr_size;
+		fscki->xattr_nms = ui->xattr_names;
+		fscki->mode = inode->i_mode;
+		iput(inode);
+	}
+
 	if (S_ISDIR(fscki->mode)) {
 		fscki->calc_sz = UBIFS_INO_NODE_SZ;
 		fscki->calc_cnt = 2;
 	}
+
 	rb_link_node(&fscki->rb, parent, p);
 	rb_insert_color(&fscki->rb, &fsckd->inodes);
+
 	return fscki;
 }
 
