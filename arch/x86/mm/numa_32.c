@@ -265,8 +265,10 @@ void resume_map_numa_kva(pgd_t *pgd_base)
  * opportunistically and the callers will fall back to other memory
  * allocation mechanisms on failure.
  */
-static __init void init_alloc_remap(int nid)
+static __init void init_alloc_remap(int nid, u64 start, u64 end)
 {
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long end_pfn = end >> PAGE_SHIFT;
 	unsigned long size, pfn;
 	u64 node_pa, remap_pa;
 	void *remap_va;
@@ -276,24 +278,15 @@ static __init void init_alloc_remap(int nid)
 	 * memory could be added but not currently present.
 	 */
 	printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
-	       nid, node_start_pfn[nid], node_end_pfn[nid]);
-	if (node_start_pfn[nid] > max_pfn)
-		return;
-	if (!node_end_pfn[nid])
-		return;
-	if (node_end_pfn[nid] > max_pfn)
-		node_end_pfn[nid] = max_pfn;
+	       nid, start_pfn, end_pfn);
 
 	/* calculate the necessary space aligned to large page size */
-	size = node_memmap_size_bytes(nid, node_start_pfn[nid],
-				      min(node_end_pfn[nid], max_pfn));
+	size = node_memmap_size_bytes(nid, start_pfn, end_pfn);
 	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 	size = ALIGN(size, LARGE_PAGE_BYTES);
 
 	/* allocate node memory and the lowmem remap area */
-	node_pa = memblock_find_in_range(node_start_pfn[nid] << PAGE_SHIFT,
-					 (u64)node_end_pfn[nid] << PAGE_SHIFT,
-					 size, LARGE_PAGE_BYTES);
+	node_pa = memblock_find_in_range(start, end, size, LARGE_PAGE_BYTES);
 	if (node_pa == MEMBLOCK_ERROR) {
 		pr_warning("remap_alloc: failed to allocate %lu bytes for node %d\n",
 			   size, nid);
@@ -391,8 +384,14 @@ void __init initmem_init(void)
 	get_memcfg_numa();
 	numa_init_array();
 
-	for_each_online_node(nid)
-		init_alloc_remap(nid);
+	for_each_online_node(nid) {
+		u64 start = (u64)node_start_pfn[nid] << PAGE_SHIFT;
+		u64 end = min((u64)node_end_pfn[nid] << PAGE_SHIFT,
+			      (u64)max_pfn << PAGE_SHIFT);
+
+		if (start < end)
+			init_alloc_remap(nid, start, end);
+	}
 
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
