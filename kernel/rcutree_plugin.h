@@ -1086,7 +1086,7 @@ static void rcu_initiate_boost_trace(struct rcu_node *rnp)
 	else if (rnp->gp_tasks != NULL && rnp->qsmask != 0)
 		rnp->n_balk_notblocked++;
 	else if (rnp->gp_tasks != NULL &&
-		 ULONG_CMP_GE(jiffies, rnp->boost_time))
+		 ULONG_CMP_LT(jiffies, rnp->boost_time))
 		rnp->n_balk_notyet++;
 	else
 		rnp->n_balk_nos++;
