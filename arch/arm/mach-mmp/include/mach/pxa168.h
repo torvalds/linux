@@ -17,6 +17,7 @@ extern void pxa168_clear_keypad_wakeup(void);
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;
+extern struct pxa_device_desc pxa168_device_uart3;
 extern struct pxa_device_desc pxa168_device_twsi0;
 extern struct pxa_device_desc pxa168_device_twsi1;
 extern struct pxa_device_desc pxa168_device_pwm1;
@@ -39,6 +40,7 @@ static inline int pxa168_add_uart(int id)
 	switch (id) {
 	case 1: d = &pxa168_device_uart1; break;
 	case 2: d = &pxa168_device_uart2; break;
+	case 3: d = &pxa168_device_uart3; break;
 	}
 
 	if (d == NULL)
