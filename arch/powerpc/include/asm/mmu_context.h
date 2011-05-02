@@ -32,6 +32,10 @@ extern void __destroy_context(unsigned long context_id);
 extern void mmu_context_init(void);
 #endif
 
+extern void switch_cop(struct mm_struct *next);
+extern int use_cop(unsigned long acop, struct mm_struct *mm);
+extern void drop_cop(unsigned long acop, struct mm_struct *mm);
+
 /*
  * switch_mm is the entry point called from the architecture independent
  * code in kernel/sched.c
@@ -54,6 +58,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	/* Nothing else to do if we aren't actually switching */
 	if (prev == next)
 		return;
+
+#ifdef CONFIG_PPC_ICSWX
+	/* Switch coprocessor context only if prev or next uses a coprocessor */
+	if (prev->context.acop || next->context.acop)
+		switch_cop(next);
+#endif /* CONFIG_PPC_ICSWX */
 
 	/* We must stop all altivec streams before changing the HW
 	 * context
