@@ -28,7 +28,12 @@ EXPORT_SYMBOL(node_data);
 
 nodemask_t numa_nodes_parsed __initdata;
 
-static struct numa_meminfo numa_meminfo __initdata;
+static struct numa_meminfo numa_meminfo
+#ifndef CONFIG_MEMORY_HOTPLUG
+__initdata
+#endif
+;
+
 static int numa_distance_cnt;
 static u8 *numa_distance;
 
@@ -540,3 +545,18 @@ int __cpuinit numa_cpu_node(int cpu)
 		return __apicid_to_node[apicid];
 	return NUMA_NO_NODE;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int memory_add_physaddr_to_nid(u64 start)
+{
+	struct numa_meminfo *mi = &numa_meminfo;
+	int nid = mi->blk[0].nid;
+	int i;
+
+	for (i = 0; i < mi->nr_blks; i++)
+		if (mi->blk[i].start <= start && mi->blk[i].end > start)
+			nid = mi->blk[i].nid;
+	return nid;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
