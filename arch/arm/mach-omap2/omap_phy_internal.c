@@ -228,7 +228,7 @@ void am35x_musb_clear_irq(void)
 	regval = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
 }
 
-void am35x_musb_set_mode(u8 musb_mode)
+void am35x_set_mode(u8 musb_mode)
 {
 	u32 devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
 
