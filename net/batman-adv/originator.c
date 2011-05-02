@@ -56,18 +56,10 @@ err:
 	return 0;
 }
 
-static void neigh_node_free_rcu(struct rcu_head *rcu)
-{
-	struct neigh_node *neigh_node;
-
-	neigh_node = container_of(rcu, struct neigh_node, rcu);
-	kfree(neigh_node);
-}
-
 void neigh_node_free_ref(struct neigh_node *neigh_node)
 {
 	if (atomic_dec_and_test(&neigh_node->refcount))
-		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
+		kfree_rcu(neigh_node, rcu);
 }
 
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
