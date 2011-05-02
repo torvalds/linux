@@ -1192,9 +1192,6 @@ static void context_append(struct context *ctx,
 	wmb(); /* finish init of new descriptors before branch_address update */
 	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
 	ctx->prev = find_branch_descriptor(d, z);
-
-	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
-	flush_writes(ctx->ohci);
 }
 
 static void context_stop(struct context *ctx)
@@ -1348,8 +1345,12 @@ static int at_context_queue_packet(struct context *ctx,
 
 	context_append(ctx, d, z, 4 - z);
 
-	if (!ctx->running)
+	if (ctx->running) {
+		reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
+		flush_writes(ohci);
+	} else {
 		context_run(ctx, 0);
+	}
 
 	return 0;
 }
@@ -3121,6 +3122,15 @@ static int ohci_queue_iso(struct fw_iso_context *base,
 	return ret;
 }
 
+static void ohci_flush_queue_iso(struct fw_iso_context *base)
+{
+	struct context *ctx =
+			&container_of(base, struct iso_context, base)->context;
+
+	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
+	flush_writes(ctx->ohci);
+}
+
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
 	.read_phy_reg		= ohci_read_phy_reg,
@@ -3137,6 +3147,7 @@ static const struct fw_card_driver ohci_driver = {
 	.free_iso_context	= ohci_free_iso_context,
 	.set_iso_channels	= ohci_set_iso_channels,
 	.queue_iso		= ohci_queue_iso,
+	.flush_queue_iso	= ohci_flush_queue_iso,
 	.start_iso		= ohci_start_iso,
 	.stop_iso		= ohci_stop_iso,
 };

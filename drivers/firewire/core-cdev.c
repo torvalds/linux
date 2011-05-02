@@ -1107,6 +1107,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		payload += u.packet.payload_length;
 		count++;
 	}
+	fw_iso_context_queue_flush(ctx);
 
 	a->size    -= uptr_to_u64(p) - a->packets;
 	a->packets  = uptr_to_u64(p);

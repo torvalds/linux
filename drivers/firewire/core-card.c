@@ -630,6 +630,10 @@ static int dummy_queue_iso(struct fw_iso_context *ctx, struct fw_iso_packet *p,
 	return -ENODEV;
 }
 
+static void dummy_flush_queue_iso(struct fw_iso_context *ctx)
+{
+}
+
 static const struct fw_card_driver dummy_driver_template = {
 	.read_phy_reg		= dummy_read_phy_reg,
 	.update_phy_reg		= dummy_update_phy_reg,
@@ -641,6 +645,7 @@ static const struct fw_card_driver dummy_driver_template = {
 	.start_iso		= dummy_start_iso,
 	.set_iso_channels	= dummy_set_iso_channels,
 	.queue_iso		= dummy_queue_iso,
+	.flush_queue_iso	= dummy_flush_queue_iso,
 };
 
 void fw_card_release(struct kref *kref)
