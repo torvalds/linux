@@ -37,7 +37,7 @@
 #include "hif_internal.h"
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
+#include "hw/mbox_host_reg.h"
 
 #if HIF_USE_DMA_BOUNCE_BUFFER
 /* macro to check if DMA buffer is WORD-aligned and DMA-able.  Most host controllers assume the

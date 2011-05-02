@@ -25,7 +25,7 @@
 #include "athdefs.h"
 #include "a_types.h"
 
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
+#include "hw/mbox_host_reg.h"
 #include "AR6002/hw2.0/hw/si_reg.h"
 #include "AR6002/hw2.0/hw/gpio_reg.h"
 #include "AR6002/hw2.0/hw/rtc_reg.h"
