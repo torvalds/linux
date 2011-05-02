@@ -711,18 +711,10 @@ struct conf_tx_settings {
 	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
 
 	/*
-	 * Allow this number of TX retries to a connected station/AP before an
+	 * AP-mode - allow this number of TX retries to a station before an
 	 * event is triggered from FW.
-	 * In AP-mode the hlids of unreachable stations are given in the
-	 * "sta_tx_retry_exceeded" member in the event mailbox.
 	 */
-	u8 max_tx_retries;
-
-	/*
-	 * AP-mode - after this number of seconds a connected station is
-	 * considered inactive.
-	 */
-	u16 ap_aging_period;
+	u16 ap_max_tx_retries;
 
 	/*
 	 * Configuration for TID parameters.
