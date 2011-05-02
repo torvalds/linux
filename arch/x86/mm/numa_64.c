@@ -128,14 +128,11 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 
 /* Initialize bootmem allocator for a node */
 void __init
-setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
+setup_node_bootmem(int nid, unsigned long start, unsigned long end)
 {
-	unsigned long start_pfn, last_pfn, nodedata_phys;
-	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
-	int nid;
-
-	if (!end)
-		return;
+	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
+	unsigned long nd_pa;
+	int tnid;
 
 	/*
 	 * Don't confuse VM with a node that doesn't have the
@@ -146,30 +143,27 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 
 	start = roundup(start, ZONE_ALIGN);
 
-	printk(KERN_INFO "Initmem setup node %d %016lx-%016lx\n", nodeid,
-	       start, end);
+	printk(KERN_INFO "Initmem setup node %d %016lx-%016lx\n",
+	       nid, start, end);
 
-	start_pfn = start >> PAGE_SHIFT;
-	last_pfn = end >> PAGE_SHIFT;
-
-	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size,
-					   SMP_CACHE_BYTES);
-	if (node_data[nodeid] == NULL)
+	node_data[nid] = early_node_mem(nid, start, end, nd_size,
+					SMP_CACHE_BYTES);
+	if (node_data[nid] == NULL)
 		return;
-	nodedata_phys = __pa(node_data[nodeid]);
-	memblock_x86_reserve_range(nodedata_phys, nodedata_phys + pgdat_size, "NODE_DATA");
-	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n", nodedata_phys,
-		nodedata_phys + pgdat_size - 1);
-	nid = early_pfn_to_nid(nodedata_phys >> PAGE_SHIFT);
-	if (nid != nodeid)
-		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nodeid, nid);
+	nd_pa = __pa(node_data[nid]);
+	memblock_x86_reserve_range(nd_pa, nd_pa + nd_size, "NODE_DATA");
+	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n",
+	       nd_pa, nd_pa + nd_size - 1);
+	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
+	if (tnid != nid)
+		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
 
-	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
-	NODE_DATA(nodeid)->node_id = nodeid;
-	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
-	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
+	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+	NODE_DATA(nid)->node_id = nid;
+	NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
+	NODE_DATA(nid)->node_spanned_pages = (end - start) >> PAGE_SHIFT;
 
-	node_set_online(nodeid);
+	node_set_online(nid);
 }
 
 /**
