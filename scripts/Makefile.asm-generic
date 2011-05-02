@@ -6,7 +6,7 @@
 # a small wrapper file in $(obj) (arch/$(SRCARCH)/include/generated/asm)
 
 kbuild-file := $(srctree)/arch/$(SRCARCH)/include/asm/Kbuild
-include $(kbuild-file)
+-include $(kbuild-file)
 
 include scripts/Kbuild.include
 
