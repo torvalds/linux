@@ -315,7 +315,6 @@ static void __init eb_board_init(void)
 
 MACHINE_START(AT572D940HFEB, "Atmel AT91D940HF-EB")
 	/* Maintainer: Atmel <costa.antonior@gmail.com> */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= at572d940hf_map_io,
 	.init_early	= eb_init_early,

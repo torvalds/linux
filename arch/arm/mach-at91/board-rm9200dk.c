@@ -227,7 +227,6 @@ static void __init dk_board_init(void)
 
 MACHINE_START(AT91RM9200DK, "Atmel AT91RM9200-DK")
 	/* Maintainer: SAN People/Atmel */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91rm9200_map_io,
 	.init_early	= dk_init_early,

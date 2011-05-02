@@ -88,13 +88,6 @@
 #define AT91_CHIPSELECT_6	0x70000000
 #define AT91_CHIPSELECT_7	0x80000000
 
-/* SDRAM */
-#ifdef CONFIG_DRAM_BASE
-#define AT91_SDRAM_BASE		CONFIG_DRAM_BASE
-#else
-#define AT91_SDRAM_BASE		AT91_CHIPSELECT_1
-#endif
-
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */
 

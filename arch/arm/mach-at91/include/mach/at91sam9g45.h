@@ -129,8 +129,6 @@
 #define AT91SAM9G45_EHCI_BASE	0x00800000	/* USB Host controller (EHCI) */
 #define AT91SAM9G45_VDEC_BASE	0x00900000	/* Video Decoder Controller */
 
-#define CONFIG_DRAM_BASE	AT91_CHIPSELECT_6
-
 #define CONSISTENT_DMA_SIZE	SZ_4M
 
 /*

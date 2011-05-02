@@ -594,7 +594,6 @@ static void __init yl9200_board_init(void)
 
 MACHINE_START(YL9200, "uCdragon YL-9200")
 	/* Maintainer: S.Birtles */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91rm9200_map_io,
 	.init_early	= yl9200_init_early,

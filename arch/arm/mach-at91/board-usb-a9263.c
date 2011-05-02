@@ -244,7 +244,6 @@ static void __init ek_board_init(void)
 
 MACHINE_START(USB_A9263, "CALAO USB_A9263")
 	/* Maintainer: calao-systems */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91sam9263_map_io,
 	.init_early	= ek_init_early,

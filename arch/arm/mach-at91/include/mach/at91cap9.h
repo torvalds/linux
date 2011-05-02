@@ -121,6 +121,4 @@
 #define AT91CAP9_UDPHS_FIFO	0x00600000	/* USB High Speed Device Port */
 #define AT91CAP9_UHP_BASE	0x00700000	/* USB Host controller */
 
-#define CONFIG_DRAM_BASE	AT91_CHIPSELECT_6
-
 #endif
