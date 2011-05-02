@@ -345,8 +345,8 @@ struct alc_spec {
 
 	/* capture */
 	unsigned int num_adc_nids;
-	hda_nid_t *adc_nids;
-	hda_nid_t *capsrc_nids;
+	const hda_nid_t *adc_nids;
+	const hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 
 	/* capture setup for dynamic dual-adc switch */
@@ -441,13 +441,13 @@ struct alc_config_preset {
 	const struct snd_kcontrol_new *cap_mixer; /* capture mixer */
 	const struct hda_verb *init_verbs[5];
 	unsigned int num_dacs;
-	hda_nid_t *dac_nids;
+	const hda_nid_t *dac_nids;
 	hda_nid_t dig_out_nid;		/* optional */
 	hda_nid_t hp_nid;		/* optional */
-	hda_nid_t *slave_dig_outs;
+	const hda_nid_t *slave_dig_outs;
 	unsigned int num_adc_nids;
-	hda_nid_t *adc_nids;
-	hda_nid_t *capsrc_nids;
+	const hda_nid_t *adc_nids;
+	const hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;
 	unsigned int num_channel_mode;
 	const struct hda_channel_mode *channel_mode;
@@ -2547,12 +2547,12 @@ static void alc889_acer_aspire_8930g_setup(struct hda_codec *codec)
  *                 F-Mic = 0x1b, HP = 0x19
  */
 
-static hda_nid_t alc880_dac_nids[4] = {
+static const hda_nid_t alc880_dac_nids[4] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x05, 0x04, 0x03
 };
 
-static hda_nid_t alc880_adc_nids[3] = {
+static const hda_nid_t alc880_adc_nids[3] = {
 	/* ADC0-2 */
 	0x07, 0x08, 0x09,
 };
@@ -2561,7 +2561,7 @@ static hda_nid_t alc880_adc_nids[3] = {
  * but it shows zero connection in the real implementation on some devices.
  * Note: this is a 915GAV bug, fixed on 915GLV
  */
-static hda_nid_t alc880_adc_nids_alt[2] = {
+static const hda_nid_t alc880_adc_nids_alt[2] = {
 	/* ADC1-2 */
 	0x08, 0x09,
 };
@@ -2820,7 +2820,7 @@ static const struct hda_channel_mode alc880_fivestack_modes[2] = {
  *   Mic = 0x18, F-Mic = 0x19, Line = 0x1a, HP = 0x1b
  */
 
-static hda_nid_t alc880_6st_dac_nids[4] = {
+static const hda_nid_t alc880_6st_dac_nids[4] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x03, 0x04, 0x05
 };
@@ -2895,7 +2895,7 @@ static const struct snd_kcontrol_new alc880_six_stack_mixer[] = {
  * haven't setup any initialization verbs for these yet...
  */
 
-static hda_nid_t alc880_w810_dac_nids[3] = {
+static const hda_nid_t alc880_w810_dac_nids[3] = {
 	/* front, rear/surround, clfe */
 	0x02, 0x03, 0x04
 };
@@ -2928,7 +2928,7 @@ static const struct snd_kcontrol_new alc880_w810_base_mixer[] = {
  *                 Line = 0x1a
  */
 
-static hda_nid_t alc880_z71v_dac_nids[1] = {
+static const hda_nid_t alc880_z71v_dac_nids[1] = {
 	0x02
 };
 #define ALC880_Z71V_HP_DAC	0x03
@@ -2958,7 +2958,7 @@ static const struct snd_kcontrol_new alc880_z71v_mixer[] = {
  * Pin assignment: HP = 0x14, Front = 0x15, Mic = 0x18
  */
 
-static hda_nid_t alc880_f1734_dac_nids[1] = {
+static const hda_nid_t alc880_f1734_dac_nids[1] = {
 	0x03
 };
 #define ALC880_F1734_HP_DAC	0x02
@@ -3241,7 +3241,7 @@ static int alc_build_controls(struct hda_codec *codec)
 		if (!kctl)
 			kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 		for (i = 0; kctl && i < kctl->count; i++) {
-			hda_nid_t *nids = spec->capsrc_nids;
+			const hda_nid_t *nids = spec->capsrc_nids;
 			if (!nids)
 				nids = spec->adc_nids;
 			err = snd_hda_add_nid(codec, kctl, i, nids[i]);
@@ -3809,7 +3809,7 @@ static const struct hda_verb alc880_pin_tcl_S700_init_verbs[] = {
  */
 
 /* To make 5.1 output working (green=Front, blue=Surr, red=CLFE) */
-static hda_nid_t alc880_lg_dac_nids[3] = {
+static const hda_nid_t alc880_lg_dac_nids[3] = {
 	0x05, 0x02, 0x03
 };
 
@@ -4542,7 +4542,7 @@ static int alc_codec_rename(struct hda_codec *codec, const char *name)
  * enum controls.
  */
 #ifdef CONFIG_SND_DEBUG
-static hda_nid_t alc880_test_dac_nids[4] = {
+static const hda_nid_t alc880_test_dac_nids[4] = {
 	0x02, 0x03, 0x04, 0x05
 };
 
@@ -4569,7 +4569,7 @@ static const struct hda_channel_mode alc880_test_modes[4] = {
 static int alc_test_pin_ctl_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {
+	static const char * const texts[] = {
 		"N/A", "Line Out", "HP Out",
 		"In Hi-Z", "In 50%", "In Grd", "In 80%", "In 100%"
 	};
@@ -4614,7 +4614,7 @@ static int alc_test_pin_ctl_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
-	static unsigned int ctls[] = {
+	static const unsigned int ctls[] = {
 		0, AC_PINCTL_OUT_EN, AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN,
 		AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ,
 		AC_PINCTL_IN_EN | AC_PINCTL_VREF_50,
@@ -4644,7 +4644,7 @@ static int alc_test_pin_ctl_put(struct snd_kcontrol *kcontrol,
 static int alc_test_pin_src_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {
+	static const char * const texts[] = {
 		"Front", "Surround", "CLFE", "Side"
 	};
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -5632,7 +5632,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc880_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc880_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc880_ignore);
@@ -5827,7 +5827,7 @@ static void set_capture_mixer(struct hda_codec *codec)
 }
 
 /* fill adc_nids (and capsrc_nids) containing all active input pins */
-static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
+static void fillup_priv_adc_nids(struct hda_codec *codec, const hda_nid_t *nids,
 				 int num_nids)
 {
 	struct alc_spec *spec = codec->spec;
@@ -6004,17 +6004,17 @@ static int patch_alc880(struct hda_codec *codec)
  * ALC260 support
  */
 
-static hda_nid_t alc260_dac_nids[1] = {
+static const hda_nid_t alc260_dac_nids[1] = {
 	/* front */
 	0x02,
 };
 
-static hda_nid_t alc260_adc_nids[1] = {
+static const hda_nid_t alc260_adc_nids[1] = {
 	/* ADC0 */
 	0x04,
 };
 
-static hda_nid_t alc260_adc_nids_alt[1] = {
+static const hda_nid_t alc260_adc_nids_alt[1] = {
 	/* ADC1 */
 	0x05,
 };
@@ -6022,7 +6022,7 @@ static hda_nid_t alc260_adc_nids_alt[1] = {
 /* NIDs used when simultaneous access to both ADCs makes sense.  Note that
  * alc260_capture_mixer assumes ADC0 (nid 0x04) is the first ADC.
  */
-static hda_nid_t alc260_dual_adc_nids[2] = {
+static const hda_nid_t alc260_dual_adc_nids[2] = {
 	/* ADC0, ADC1 */
 	0x04, 0x05
 };
@@ -6892,10 +6892,10 @@ static const struct hda_verb alc260_hp_dc7600_verbs[] = {
  * configuration.
  */
 #ifdef CONFIG_SND_DEBUG
-static hda_nid_t alc260_test_dac_nids[1] = {
+static const hda_nid_t alc260_test_dac_nids[1] = {
 	0x02,
 };
-static hda_nid_t alc260_test_adc_nids[2] = {
+static const hda_nid_t alc260_test_adc_nids[2] = {
 	0x04, 0x05,
 };
 /* For testing the ALC260, each input MUX needs its own definition since
@@ -7274,7 +7274,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc260_ignore[] = { 0x17, 0 };
+	static const hda_nid_t alc260_ignore[] = { 0x17, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc260_ignore);
@@ -7644,7 +7644,7 @@ static const struct hda_channel_mode alc882_ch_modes[1] = {
 };
 
 /* DACs */
-static hda_nid_t alc882_dac_nids[4] = {
+static const hda_nid_t alc882_dac_nids[4] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x03, 0x04, 0x05
 };
@@ -7654,14 +7654,14 @@ static hda_nid_t alc882_dac_nids[4] = {
 #define alc882_adc_nids		alc880_adc_nids
 #define alc882_adc_nids_alt	alc880_adc_nids_alt
 #define alc883_adc_nids		alc882_adc_nids_alt
-static hda_nid_t alc883_adc_nids_alt[1] = { 0x08 };
-static hda_nid_t alc883_adc_nids_rev[2] = { 0x09, 0x08 };
+static const hda_nid_t alc883_adc_nids_alt[1] = { 0x08 };
+static const hda_nid_t alc883_adc_nids_rev[2] = { 0x09, 0x08 };
 #define alc889_adc_nids		alc880_adc_nids
 
-static hda_nid_t alc882_capsrc_nids[3] = { 0x24, 0x23, 0x22 };
-static hda_nid_t alc882_capsrc_nids_alt[2] = { 0x23, 0x22 };
+static const hda_nid_t alc882_capsrc_nids[3] = { 0x24, 0x23, 0x22 };
+static const hda_nid_t alc882_capsrc_nids_alt[2] = { 0x23, 0x22 };
 #define alc883_capsrc_nids	alc882_capsrc_nids_alt
-static hda_nid_t alc883_capsrc_nids_rev[2] = { 0x22, 0x23 };
+static const hda_nid_t alc883_capsrc_nids_rev[2] = { 0x22, 0x23 };
 #define alc889_capsrc_nids	alc882_capsrc_nids
 
 /* input MUX */
@@ -9972,11 +9972,11 @@ static void alc889A_mb31_unsol_event(struct hda_codec *codec, unsigned int res)
 #define alc882_pcm_digital_playback	alc880_pcm_digital_playback
 #define alc882_pcm_digital_capture	alc880_pcm_digital_capture
 
-static hda_nid_t alc883_slave_dig_outs[] = {
+static const hda_nid_t alc883_slave_dig_outs[] = {
 	ALC1200_DIGOUT_NID, 0,
 };
 
-static hda_nid_t alc1200_slave_dig_outs[] = {
+static const hda_nid_t alc1200_slave_dig_outs[] = {
 	ALC883_DIGOUT_NID, 0,
 };
 
@@ -11158,7 +11158,7 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 static int alc882_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	static hda_nid_t alc882_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc882_ignore[] = { 0x1d, 0 };
 	int err;
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
@@ -11375,12 +11375,12 @@ static int patch_alc882(struct hda_codec *codec)
 #define alc262_modes		alc260_modes
 #define alc262_capture_source	alc882_capture_source
 
-static hda_nid_t alc262_dmic_adc_nids[1] = {
+static const hda_nid_t alc262_dmic_adc_nids[1] = {
 	/* ADC0 */
 	0x09
 };
 
-static hda_nid_t alc262_dmic_capsrc_nids[1] = { 0x22 };
+static const hda_nid_t alc262_dmic_capsrc_nids[1] = { 0x22 };
 
 static const struct snd_kcontrol_new alc262_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -12590,7 +12590,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc262_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc262_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc262_ignore);
@@ -13100,22 +13100,22 @@ static int patch_alc262(struct hda_codec *codec)
 #define ALC268_DIGOUT_NID	ALC880_DIGOUT_NID
 #define alc268_modes		alc260_modes
 
-static hda_nid_t alc268_dac_nids[2] = {
+static const hda_nid_t alc268_dac_nids[2] = {
 	/* front, hp */
 	0x02, 0x03
 };
 
-static hda_nid_t alc268_adc_nids[2] = {
+static const hda_nid_t alc268_adc_nids[2] = {
 	/* ADC0-1 */
 	0x08, 0x07
 };
 
-static hda_nid_t alc268_adc_nids_alt[1] = {
+static const hda_nid_t alc268_adc_nids_alt[1] = {
 	/* ADC0 */
 	0x08
 };
 
-static hda_nid_t alc268_capsrc_nids[2] = { 0x23, 0x24 };
+static const hda_nid_t alc268_capsrc_nids[2] = { 0x23, 0x24 };
 
 static const struct snd_kcontrol_new alc268_base_mixer[] = {
 	/* output mixer control */
@@ -13726,7 +13726,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc268_ignore[] = { 0 };
+	static const hda_nid_t alc268_ignore[] = { 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc268_ignore);
@@ -14113,25 +14113,25 @@ static int patch_alc268(struct hda_codec *codec)
 
 #define alc269_dac_nids		alc260_dac_nids
 
-static hda_nid_t alc269_adc_nids[1] = {
+static const hda_nid_t alc269_adc_nids[1] = {
 	/* ADC1 */
 	0x08,
 };
 
-static hda_nid_t alc269_capsrc_nids[1] = {
+static const hda_nid_t alc269_capsrc_nids[1] = {
 	0x23,
 };
 
-static hda_nid_t alc269vb_adc_nids[1] = {
+static const hda_nid_t alc269vb_adc_nids[1] = {
 	/* ADC1 */
 	0x09,
 };
 
-static hda_nid_t alc269vb_capsrc_nids[1] = {
+static const hda_nid_t alc269vb_capsrc_nids[1] = {
 	0x22,
 };
 
-static hda_nid_t alc269_adc_candidates[] = {
+static const hda_nid_t alc269_adc_candidates[] = {
 	0x08, 0x09, 0x07, 0x11,
 };
 
@@ -14696,7 +14696,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc269_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc269_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc269_ignore);
@@ -15886,17 +15886,17 @@ static const struct hda_channel_mode alc861_8ch_modes[1] = {
 	{ 8, NULL }
 };
 
-static hda_nid_t alc861_dac_nids[4] = {
+static const hda_nid_t alc861_dac_nids[4] = {
 	/* front, surround, clfe, side */
 	0x03, 0x06, 0x05, 0x04
 };
 
-static hda_nid_t alc660_dac_nids[3] = {
+static const hda_nid_t alc660_dac_nids[3] = {
 	/* front, clfe, surround */
 	0x03, 0x05, 0x06
 };
 
-static hda_nid_t alc861_adc_nids[1] = {
+static const hda_nid_t alc861_adc_nids[1] = {
 	/* ADC0-2 */
 	0x08,
 };
@@ -16115,7 +16115,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc861_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc861_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc861_ignore);
@@ -16439,7 +16439,7 @@ static int patch_alc861(struct hda_codec *codec)
  */
 #define ALC861VD_DIGOUT_NID	0x06
 
-static hda_nid_t alc861vd_dac_nids[4] = {
+static const hda_nid_t alc861vd_dac_nids[4] = {
 	/* front, surr, clfe, side surr */
 	0x02, 0x03, 0x04, 0x05
 };
@@ -16451,17 +16451,17 @@ static hda_nid_t alc861vd_dac_nids[4] = {
  * - and it is the same as in 861vd.
  * adc_nids in ALC660vd are (is) the same as in 861vd
  */
-static hda_nid_t alc660vd_dac_nids[3] = {
+static const hda_nid_t alc660vd_dac_nids[3] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x04, 0x03
 };
 
-static hda_nid_t alc861vd_adc_nids[1] = {
+static const hda_nid_t alc861vd_adc_nids[1] = {
 	/* ADC0 */
 	0x09,
 };
 
-static hda_nid_t alc861vd_capsrc_nids[1] = { 0x22 };
+static const hda_nid_t alc861vd_capsrc_nids[1] = { 0x22 };
 
 /* input MUX */
 /* FIXME: should be a matrix-type input source selection */
@@ -17238,7 +17238,7 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc861vd_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc861vd_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc861vd_ignore);
@@ -17427,27 +17427,27 @@ static int patch_alc861vd(struct hda_codec *codec)
 #define ALC662_DIGOUT_NID	0x06
 #define ALC662_DIGIN_NID	0x0a
 
-static hda_nid_t alc662_dac_nids[3] = {
+static const hda_nid_t alc662_dac_nids[3] = {
 	/* front, rear, clfe */
 	0x02, 0x03, 0x04
 };
 
-static hda_nid_t alc272_dac_nids[2] = {
+static const hda_nid_t alc272_dac_nids[2] = {
 	0x02, 0x03
 };
 
-static hda_nid_t alc662_adc_nids[2] = {
+static const hda_nid_t alc662_adc_nids[2] = {
 	/* ADC1-2 */
 	0x09, 0x08
 };
 
-static hda_nid_t alc272_adc_nids[1] = {
+static const hda_nid_t alc272_adc_nids[1] = {
 	/* ADC1-2 */
 	0x08,
 };
 
-static hda_nid_t alc662_capsrc_nids[2] = { 0x22, 0x23 };
-static hda_nid_t alc272_capsrc_nids[1] = { 0x23 };
+static const hda_nid_t alc662_capsrc_nids[2] = { 0x22, 0x23 };
+static const hda_nid_t alc272_capsrc_nids[1] = { 0x23 };
 
 
 /* input MUX */
@@ -19292,7 +19292,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc662_ignore[] = { 0x1d, 0 };
+	static const hda_nid_t alc662_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc662_ignore);
@@ -19571,12 +19571,12 @@ static int patch_alc888(struct hda_codec *codec)
 #define ALC680_DIGOUT_NID	ALC880_DIGOUT_NID
 #define alc680_modes		alc260_modes
 
-static hda_nid_t alc680_dac_nids[3] = {
+static const hda_nid_t alc680_dac_nids[3] = {
 	/* Lout1, Lout2, hp */
 	0x02, 0x03, 0x04
 };
 
-static hda_nid_t alc680_adc_nids[3] = {
+static const hda_nid_t alc680_adc_nids[3] = {
 	/* ADC0-2 */
 	/* DMIC, MIC, Line-in*/
 	0x07, 0x08, 0x09
@@ -19872,7 +19872,7 @@ static int alc680_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t alc680_ignore[] = { 0 };
+	static const hda_nid_t alc680_ignore[] = { 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc680_ignore);
