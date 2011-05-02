@@ -1245,8 +1245,9 @@ void __cpuinit setup_local_APIC(void)
 	 * a bit too late - percpu allocation has already happened without
 	 * proper NUMA affinity.
 	 */
-	set_apicid_to_node(early_per_cpu(x86_cpu_to_apicid, cpu),
-			   apic->x86_32_numa_cpu_node(cpu));
+	if (apic->x86_32_numa_cpu_node)
+		set_apicid_to_node(early_per_cpu(x86_cpu_to_apicid, cpu),
+				   apic->x86_32_numa_cpu_node(cpu));
 #endif
 
 	/*
@@ -2012,21 +2013,6 @@ void default_init_apic_ldr(void)
 	val |= SET_APIC_LOGICAL_ID(1UL << smp_processor_id());
 	apic_write(APIC_LDR, val);
 }
-
-#ifdef CONFIG_X86_32
-int default_x86_32_numa_cpu_node(int cpu)
-{
-#ifdef CONFIG_NUMA
-	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
-
-	if (apicid != BAD_APICID)
-		return __apicid_to_node[apicid];
-	return NUMA_NO_NODE;
-#else
-	return 0;
-#endif
-}
-#endif
 
 /*
  * Power management
