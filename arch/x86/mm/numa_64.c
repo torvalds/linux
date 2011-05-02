@@ -37,38 +37,6 @@ __initdata
 static int numa_distance_cnt;
 static u8 *numa_distance;
 
-static void * __init early_node_mem(int nodeid, unsigned long start,
-				    unsigned long end, unsigned long size,
-				    unsigned long align)
-{
-	unsigned long mem;
-
-	/*
-	 * put it on high as possible
-	 * something will go with NODE_DATA
-	 */
-	if (start < (MAX_DMA_PFN<<PAGE_SHIFT))
-		start = MAX_DMA_PFN<<PAGE_SHIFT;
-	if (start < (MAX_DMA32_PFN<<PAGE_SHIFT) &&
-	    end > (MAX_DMA32_PFN<<PAGE_SHIFT))
-		start = MAX_DMA32_PFN<<PAGE_SHIFT;
-	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
-	if (mem != MEMBLOCK_ERROR)
-		return __va(mem);
-
-	/* extend the search scope */
-	end = max_pfn_mapped << PAGE_SHIFT;
-	start = MAX_DMA_PFN << PAGE_SHIFT;
-	mem = memblock_find_in_range(start, end, size, align);
-	if (mem != MEMBLOCK_ERROR)
-		return __va(mem);
-
-	printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
-		       size, nodeid);
-
-	return NULL;
-}
-
 static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 				     struct numa_meminfo *mi)
 {
@@ -130,6 +98,8 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 void __init
 setup_node_bootmem(int nid, unsigned long start, unsigned long end)
 {
+	const u64 nd_low = (u64)MAX_DMA_PFN << PAGE_SHIFT;
+	const u64 nd_high = (u64)max_pfn_mapped << PAGE_SHIFT;
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	unsigned long nd_pa;
 	int tnid;
@@ -146,18 +116,29 @@ setup_node_bootmem(int nid, unsigned long start, unsigned long end)
 	printk(KERN_INFO "Initmem setup node %d %016lx-%016lx\n",
 	       nid, start, end);
 
-	node_data[nid] = early_node_mem(nid, start, end, nd_size,
-					SMP_CACHE_BYTES);
-	if (node_data[nid] == NULL)
+	/*
+	 * Try to allocate node data on local node and then fall back to
+	 * all nodes.  Never allocate in DMA zone.
+	 */
+	nd_pa = memblock_x86_find_in_range_node(nid, nd_low, nd_high,
+						nd_size, SMP_CACHE_BYTES);
+	if (nd_pa == MEMBLOCK_ERROR)
+		nd_pa = memblock_find_in_range(nd_low, nd_high,
+					       nd_size, SMP_CACHE_BYTES);
+	if (nd_pa == MEMBLOCK_ERROR) {
+		pr_err("Cannot find %lu bytes in node %d\n", nd_size, nid);
 		return;
-	nd_pa = __pa(node_data[nid]);
+	}
 	memblock_x86_reserve_range(nd_pa, nd_pa + nd_size, "NODE_DATA");
+
+	/* report and initialize */
 	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n",
 	       nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
 
+	node_data[nid] = __va(nd_pa);
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
 	NODE_DATA(nid)->node_id = nid;
 	NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
