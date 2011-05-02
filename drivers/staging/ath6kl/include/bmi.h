@@ -32,7 +32,6 @@ extern "C" {
 /* Header files */
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "hif.h"
 #include "a_osapi.h"
 #include "bmi_msg.h"

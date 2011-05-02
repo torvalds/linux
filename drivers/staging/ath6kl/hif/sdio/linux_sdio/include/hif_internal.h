@@ -27,7 +27,6 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "hif.h"
 #include "../../../common/hif_sdio_common.h"

@@ -27,7 +27,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <a_types.h>
 #include <a_osapi.h>
 
     /* standard debug print masks bits 0..7 */

@@ -23,7 +23,6 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 
 #include "hw/mbox_host_reg.h"
 #include "hw/si_reg.h"

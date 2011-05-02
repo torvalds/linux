@@ -616,7 +616,7 @@ typedef PREPACK struct {
  * WMI_SET_EXCESS_TX_RETRY_THRES_CMDID
  */
 typedef PREPACK struct {
-    A_UINT32 threshold;
+    u32 threshold;
 } POSTPACK WMI_SET_EXCESS_TX_RETRY_THRES_CMD;
 
 /*

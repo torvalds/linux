@@ -345,7 +345,7 @@ valid */
     (u32)((unsigned long)&((((struct host_interest_s *)(AR6003_HOST_INTEREST_ADDRESS))->item)))
 
 #define AR6004_HOST_INTEREST_ITEM_ADDRESS(item) \
-        ((A_UINT32)&((((struct host_interest_s *)(AR6004_HOST_INTEREST_ADDRESS))->item)))
+        ((u32)&((((struct host_interest_s *)(AR6004_HOST_INTEREST_ADDRESS))->item)))
 
 
 #define HOST_INTEREST_DBGLOG_IS_ENABLED() \

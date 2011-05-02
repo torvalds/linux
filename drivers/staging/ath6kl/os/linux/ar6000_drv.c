@@ -1485,7 +1485,7 @@ ar6000_configure_target(struct ar6_softc *ar)
      */
 
 	if (ar->arTargetType == TARGET_TYPE_AR6003) {
-		A_UINT32 ramReservedSz;
+		u32 ramReservedSz;
 		if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
 			param = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
 			ramReservedSz =  AR6003_REV2_RAM_RESERVE_SIZE;
@@ -2676,7 +2676,7 @@ int ar6000_init(struct net_device *dev)
     }
 
 	if (regscanmode) {
-		A_UINT32 param;
+		u32 param;
 
 		if (BMIReadMemory(ar->arHifDevice,
 				  HOST_INTEREST_ITEM_ADDRESS(ar,

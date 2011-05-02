@@ -26,7 +26,6 @@
 #include <linux/etherdevice.h>
 #include <a_config.h>
 #include <athdefs.h>
-#include "a_types.h"
 #include "a_osapi.h"
 #include "htc_api.h"
 #include "wmi.h"

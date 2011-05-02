@@ -24,7 +24,6 @@
 //==============================================================================
 #include <a_config.h>
 #include <athdefs.h>
-#include <a_types.h>
 #include <a_osapi.h>
 #define ATH_MODULE_NAME wlan
 #include <a_debug.h>
@@ -54,7 +53,7 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(wlan,
 #endif
 
 #ifdef THREAD_X
-static void wlan_node_timeout(A_ATH_TIMER arg);
+static void wlan_node_timeout(unsigned long arg);
 #endif
 
 static bss_t * _ieee80211_find_node (struct ieee80211_node_table *nt,
@@ -375,7 +374,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
 
 #ifdef THREAD_X
 static void
-wlan_node_timeout (A_ATH_TIMER arg)
+wlan_node_timeout (unsigned long arg)
 {
     struct ieee80211_node_table *nt = (struct ieee80211_node_table *)arg;
     bss_t *bss, *nextBss;

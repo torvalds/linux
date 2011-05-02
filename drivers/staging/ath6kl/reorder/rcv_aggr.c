@@ -23,7 +23,6 @@
 
 #include <a_config.h>
 #include <athdefs.h>
-#include <a_types.h>
 #include <a_osapi.h>
 #include <a_debug.h>
 #include "pkt_log.h"
@@ -38,7 +37,7 @@ static void
 aggr_slice_amsdu(struct aggr_info *p_aggr, struct rxtid *rxtid, void **osbuf);
 
 static void
-aggr_timeout(A_ATH_TIMER arg);
+aggr_timeout(unsigned long arg);
 
 static void
 aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order);
@@ -571,7 +570,7 @@ aggr_reset_state(void *cntxt)
 
 
 static void
-aggr_timeout(A_ATH_TIMER arg)
+aggr_timeout(unsigned long arg)
 {
     u8 i,j;
     struct aggr_info *p_aggr = (struct aggr_info *)arg;

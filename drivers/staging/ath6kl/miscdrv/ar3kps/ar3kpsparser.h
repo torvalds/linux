@@ -33,7 +33,6 @@
 #include "athdefs.h"
 #ifdef HCI_TRANSPORT_SDIO
 #include "a_config.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #define ATH_MODULE_NAME misc
 #include "a_debug.h"
