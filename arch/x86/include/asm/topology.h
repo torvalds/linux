@@ -95,7 +95,6 @@ extern void setup_node_to_cpumask_map(void);
 #ifdef CONFIG_X86_32
 extern unsigned long node_start_pfn[];
 extern unsigned long node_end_pfn[];
-extern unsigned long node_remap_size[];
 #define node_has_online_mem(nid) (node_start_pfn[nid] != node_end_pfn[nid])
 
 # define SD_CACHE_NICE_TRIES	1

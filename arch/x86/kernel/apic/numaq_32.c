@@ -93,10 +93,6 @@ static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
 						node_end_pfn[node]);
 
 	memory_present(node, node_start_pfn[node], node_end_pfn[node]);
-
-	node_remap_size[node] = node_memmap_size_bytes(node,
-					node_start_pfn[node],
-					node_end_pfn[node]);
 }
 
 /*

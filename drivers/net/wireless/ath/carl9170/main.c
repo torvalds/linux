@@ -1355,6 +1355,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		tid_info = rcu_dereference(sta_info->agg[tid]);
 
 		sta_info->stats[tid].clear = true;
+		sta_info->stats[tid].req = false;
 
 		if (tid_info) {
 			bitmap_zero(tid_info->bitmap, CARL9170_BAW_SIZE);

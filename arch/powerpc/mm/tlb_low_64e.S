@@ -431,7 +431,7 @@ virt_page_table_tlb_miss_fault:
 	 * The thing is, we know that in normal circumstances, this is
 	 * always called as a second level tlb miss for SW load or as a first
 	 * level TLB miss for HW load, so we should be able to peek at the
-	 * relevant informations in the first exception frame in the PACA.
+	 * relevant information in the first exception frame in the PACA.
 	 *
 	 * However, we do need to double check that, because we may just hit
 	 * a stray kernel pointer or a userland attack trying to hit those

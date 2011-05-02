@@ -77,7 +77,7 @@ struct throtl_grp {
 	unsigned long slice_end[2];
 
 	/* Some throttle limits got updated for the group */
-	bool limits_changed;
+	int limits_changed;
 };
 
 struct throtl_data
@@ -102,7 +102,7 @@ struct throtl_data
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
 
-	bool limits_changed;
+	int limits_changed;
 };
 
 enum tg_state_flags {

@@ -69,7 +69,7 @@ static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
 	u8 sts, val;
 
 	sts = readb(kbd->io_base + STATUS_REG);
-	if (sts & DATA_AVAIL)
+	if (!(sts & DATA_AVAIL))
 		return IRQ_NONE;
 
 	if (kbd->last_key != KEY_RESERVED) {
