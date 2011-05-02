@@ -113,7 +113,7 @@ static void split_key_done(struct device *dev, u32 *desc, u32 err,
 	dev_err(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 	if (err) {
-		char tmp[256];
+		char tmp[CAAM_ERROR_STR_MAX];
 
 		dev_err(dev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
 	}
@@ -414,7 +414,7 @@ static void ipsec_esp_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		 offsetof(struct ipsec_esp_edesc, hw_desc));
 
 	if (err) {
-		char tmp[256];
+		char tmp[CAAM_ERROR_STR_MAX];
 
 		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
 	}
@@ -454,7 +454,7 @@ static void ipsec_esp_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		 offsetof(struct ipsec_esp_edesc, hw_desc));
 
 	if (err) {
-		char tmp[256];
+		char tmp[CAAM_ERROR_STR_MAX];
 
 		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
 	}
