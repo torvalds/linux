@@ -318,6 +318,14 @@ void single_step_once(struct pt_regs *regs)
 "    .popsection\n"
 	);
 
+	/*
+	 * Enable interrupts here to allow touching userspace and the like.
+	 * The callers expect this: do_trap() already has interrupts
+	 * enabled, and do_work_pending() handles functions that enable
+	 * interrupts internally.
+	 */
+	local_irq_enable();
+
 	if (state == NULL) {
 		/* allocate a page of writable, executable memory */
 		state = kmalloc(sizeof(struct single_step_state), GFP_KERNEL);

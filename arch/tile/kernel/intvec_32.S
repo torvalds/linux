@@ -851,14 +851,27 @@ STD_ENTRY(interrupt_return)
 	/* Check to see if there is any work to do before returning to user. */
 	{
 	 addi   r29, r32, THREAD_INFO_FLAGS_OFFSET
-	 moveli r28, lo16(_TIF_ALLWORK_MASK)
+	 moveli r1, lo16(_TIF_ALLWORK_MASK)
 	}
 	{
 	 lw     r29, r29
-	 auli   r28, r28, ha16(_TIF_ALLWORK_MASK)
+	 auli   r1, r1, ha16(_TIF_ALLWORK_MASK)
 	}
-	and     r28, r29, r28
-	bnz     r28, .Lwork_pending
+	and     r1, r29, r1
+	bzt     r1, .Lrestore_all
+
+	/*
+	 * Make sure we have all the registers saved for signal
+	 * handling or single-step.  Call out to C code to figure out
+	 * exactly what we need to do for each flag bit, then if
+	 * necessary, reload the flags and recheck.
+	 */
+	push_extra_callee_saves r0
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_work_pending
+	}
+	bnz     r0, .Lresume_userspace
 
 	/*
 	 * In the NMI case we
@@ -1099,99 +1112,6 @@ STD_ENTRY(interrupt_return)
 	pop_reg r50
 	pop_reg r51, sp, PTREGS_OFFSET_REG(29) - PTREGS_OFFSET_REG(51)
 	j .Lcontinue_restore_regs
-
-.Lwork_pending:
-	/* Mask the reschedule flag */
-	andi    r28, r29, _TIF_NEED_RESCHED
-
-	{
-	 /*
-	  * If the NEED_RESCHED flag is called, we call schedule(), which
-	  * may drop this context right here and go do something else.
-	  * On return, jump back to .Lresume_userspace and recheck.
-	  */
-	 bz     r28, .Lasync_tlb
-
-	 /* Mask the async-tlb flag */
-	 andi   r28, r29, _TIF_ASYNC_TLB
-	}
-
-	jal     schedule
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Reload the flags and check again */
-	j       .Lresume_userspace
-
-.Lasync_tlb:
-	{
-	 bz     r28, .Lneed_sigpending
-
-	 /* Mask the sigpending flag */
-	 andi   r28, r29, _TIF_SIGPENDING
-	}
-
-	PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	jal     do_async_page_fault
-	FEEDBACK_REENTER(interrupt_return)
-
-	/*
-	 * Go restart the "resume userspace" process.  We may have
-	 * fired a signal, and we need to disable interrupts again.
-	 */
-	j       .Lresume_userspace
-
-.Lneed_sigpending:
-	/*
-	 * At this point we are either doing signal handling or single-step,
-	 * so either way make sure we have all the registers saved.
-	 */
-	push_extra_callee_saves r0
-
-	{
-	 /* If no signal pending, skip to singlestep check */
-	 bz     r28, .Lneed_singlestep
-
-	 /* Mask the singlestep flag */
-	 andi   r28, r29, _TIF_SINGLESTEP
-	}
-
-	jal     do_signal
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Reload the flags and check again */
-	j       .Lresume_userspace
-
-.Lneed_singlestep:
-	{
-	 /* Get a pointer to the EX1 field */
-	 PTREGS_PTR(r29, PTREGS_OFFSET_EX1)
-
-	 /* If we get here, our bit must be set. */
-	 bz     r28, .Lwork_confusion
-	}
-	/* If we are in priv mode, don't single step */
-	lw      r28, r29
-	andi    r28, r28, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
-	bnz     r28, .Lrestore_all
-
-	/* Allow interrupts within the single step code */
-	TRACE_IRQS_ON  /* Note: clobbers registers r0-r29 */
-	IRQ_ENABLE(r20, r21)
-
-	/* try to single-step the current instruction */
-	PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	jal     single_step_once
-	FEEDBACK_REENTER(interrupt_return)
-
-	/* Re-disable interrupts.  TRACE_IRQS_OFF in .Lrestore_all. */
-	IRQ_DISABLE(r20,r21)
-
-	j       .Lrestore_all
-
-.Lwork_confusion:
-	move    r0, r28
-	panic   "thread_info allwork flags unhandled on userspace resume: %#x"
-
 	STD_ENDPROC(interrupt_return)
 
 	/*

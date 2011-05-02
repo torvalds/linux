@@ -732,6 +732,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		panic("Bad fault number %d in do_page_fault", fault_num);
 	}
 
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 	if (EX1_PL(regs->ex1) != USER_PL) {
 		struct async_tlb *async;
 		switch (fault_num) {
@@ -775,6 +776,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 			return;
 		}
 	}
+#endif
 
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
 }
@@ -801,8 +803,6 @@ static void handle_async_page_fault(struct pt_regs *regs,
 				  async->address, async->is_write);
 	}
 }
-#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
-
 
 /*
  * This routine effectively re-issues asynchronous page faults
@@ -824,6 +824,8 @@ void do_async_page_fault(struct pt_regs *regs)
 	handle_async_page_fault(regs, &current->thread.sn_async_tlb);
 #endif
 }
+#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
+
 
 void vmalloc_sync_all(void)
 {
