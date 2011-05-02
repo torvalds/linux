@@ -503,7 +503,7 @@ restart:
 	thi->task = NULL;
 	thi->t_state = NONE;
 	smp_mb();
-	complete(&thi->stop);
+	complete_all(&thi->stop);
 	spin_unlock_irqrestore(&thi->t_lock, flags);
 
 	conn_info(tconn, "Terminating %s\n", current->comm);

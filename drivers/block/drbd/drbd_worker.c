@@ -1744,10 +1744,6 @@ int drbd_worker(struct drbd_thread *thi)
 	 */
 	spin_unlock_irq(&tconn->data.work.q_lock);
 
-	/* _drbd_set_state only uses stop_nowait.
-	 * wait here for the exiting receiver. */
-	drbd_thread_stop(&tconn->receiver);
-
 	down_read(&drbd_cfg_rwsem);
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);

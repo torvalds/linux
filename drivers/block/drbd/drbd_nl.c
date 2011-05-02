@@ -1050,10 +1050,16 @@ static void conn_reconfig_start(struct drbd_tconn *tconn)
 /* if still unconfigured, stops worker again. */
 static void conn_reconfig_done(struct drbd_tconn *tconn)
 {
+	bool stop_threads;
 	spin_lock_irq(&tconn->req_lock);
-	if (conn_all_vols_unconf(tconn))
-		drbd_thread_stop_nowait(&tconn->worker);
+	stop_threads = conn_all_vols_unconf(tconn);
 	spin_unlock_irq(&tconn->req_lock);
+	if (stop_threads) {
+		/* asender is implicitly stopped by receiver
+		 * in drbd_disconnect() */
+		drbd_thread_stop(&tconn->receiver);
+		drbd_thread_stop(&tconn->worker);
+	}
 }
 
 /* Make sure IO is suspended before calling this function(). */
@@ -3123,7 +3129,6 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 
 	/* delete connection */
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
-		drbd_thread_stop(&adm_ctx.tconn->worker);
 		list_del(&adm_ctx.tconn->all_tconn);
 		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
 
@@ -3133,7 +3138,6 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		retcode = ERR_CONN_IN_USE;
 		drbd_msg_put_info("failed to delete connection");
 	}
-
 	up_write(&drbd_cfg_rwsem);
 	goto out;
 out_unlock:
@@ -3164,6 +3168,8 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
 	}
 	up_write(&drbd_cfg_rwsem);
 
+	if (retcode == NO_ERROR)
+		drbd_thread_stop(&adm_ctx.tconn->worker);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
