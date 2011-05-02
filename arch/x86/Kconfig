@@ -1201,7 +1201,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA_EMU
 	bool "NUMA emulation"
-	depends on X86_64 && NUMA
+	depends on NUMA
 	---help---
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
