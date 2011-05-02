@@ -270,6 +270,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 	const u64 high = PFN_PHYS(max_pfn);
 	int i, j, k;
 
+	/* first, trim all entries */
 	for (i = 0; i < mi->nr_blks; i++) {
 		struct numa_memblk *bi = &mi->blk[i];
 
@@ -278,10 +279,13 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 		bi->end = min(bi->end, high);
 
 		/* and there's no empty block */
-		if (bi->start >= bi->end) {
+		if (bi->start >= bi->end)
 			numa_remove_memblk_from(i--, mi);
-			continue;
-		}
+	}
+
+	/* merge neighboring / overlapping entries */
+	for (i = 0; i < mi->nr_blks; i++) {
+		struct numa_memblk *bi = &mi->blk[i];
 
 		for (j = i + 1; j < mi->nr_blks; j++) {
 			struct numa_memblk *bj = &mi->blk[j];
@@ -311,8 +315,8 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			 */
 			if (bi->nid != bj->nid)
 				continue;
-			start = max(min(bi->start, bj->start), low);
-			end = min(max(bi->end, bj->end), high);
+			start = min(bi->start, bj->start);
+			end = max(bi->end, bj->end);
 			for (k = 0; k < mi->nr_blks; k++) {
 				struct numa_memblk *bk = &mi->blk[k];
 
@@ -332,6 +336,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 		}
 	}
 
+	/* clear unused ones */
 	for (i = mi->nr_blks; i < ARRAY_SIZE(mi->blk); i++) {
 		mi->blk[i].start = mi->blk[i].end = 0;
 		mi->blk[i].nid = NUMA_NO_NODE;
