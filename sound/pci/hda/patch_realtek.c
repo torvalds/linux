@@ -1948,11 +1948,11 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 				   codec->chip_name, fix->type);
 			break;
 		}
-		if (!fix[id].chained)
+		if (!fix->chained)
 			break;
 		if (++depth > 10)
 			break;
-		id = fix[id].chain_id;
+		id = fix->chain_id;
 	}
 }
 
