@@ -24,10 +24,7 @@ obj-$(CONFIG_MMIOTRACE_TEST)	+= testmmiotrace.o
 
 obj-$(CONFIG_NUMA)		+= numa.o numa_$(BITS).o
 obj-$(CONFIG_AMD_NUMA)		+= amdtopology_64.o
-ifeq ($(CONFIG_ACPI_NUMA),y)
-obj-$(CONFIG_X86_64)		+= srat.o
-obj-$(CONFIG_X86_32)		+= srat_32.o
-endif
+obj-$(CONFIG_ACPI_NUMA)		+= srat.o
 obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
 
 obj-$(CONFIG_HAVE_MEMBLOCK)		+= memblock.o

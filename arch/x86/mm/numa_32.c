@@ -332,6 +332,29 @@ static __init void init_alloc_remap(int nid)
 	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
 }
 
+static int get_memcfg_from_srat(void)
+{
+#ifdef CONFIG_ACPI_NUMA
+	int nid;
+
+	if (numa_off)
+		return 0;
+
+	if (x86_acpi_numa_init() < 0) {
+		nodes_clear(numa_nodes_parsed);
+		remove_all_active_ranges();
+		return 0;
+	}
+
+	for_each_node_mask(nid, numa_nodes_parsed)
+		node_set_online(nid);
+	sort_node_map();
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static void get_memcfg_numa(void)
 {
 	if (get_memcfg_numaq())
