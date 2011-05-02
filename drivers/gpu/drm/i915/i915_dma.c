@@ -2207,7 +2207,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
-		drm_fb_helper_restore();
+		intel_fb_restore_mode(dev);
 		vga_switcheroo_process_delayed_switch();
 		return;
 	}

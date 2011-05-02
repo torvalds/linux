@@ -391,7 +391,7 @@ static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
 
 	set_io_apic_irq_attr(&attr, idx, line, it->trigger, it->polarity);
 
-	return io_apic_setup_irq_pin(*out_hwirq, cpu_to_node(0), &attr);
+	return io_apic_setup_irq_pin_once(*out_hwirq, cpu_to_node(0), &attr);
 }
 
 static void __init ioapic_add_ofnode(struct device_node *np)

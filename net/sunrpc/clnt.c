@@ -1508,7 +1508,10 @@ call_timeout(struct rpc_task *task)
 		if (clnt->cl_chatty)
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
 				clnt->cl_protname, clnt->cl_server);
-		rpc_exit(task, -EIO);
+		if (task->tk_flags & RPC_TASK_TIMEOUT)
+			rpc_exit(task, -ETIMEDOUT);
+		else
+			rpc_exit(task, -EIO);
 		return;
 	}
 
