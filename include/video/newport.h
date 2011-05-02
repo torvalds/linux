@@ -5,7 +5,7 @@
  *
  * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
  * 
- * Ulf Carlsson - Compability with the IRIX structures added
+ * Ulf Carlsson - Compatibility with the IRIX structures added
  */
 
 #ifndef _SGI_NEWPORT_H

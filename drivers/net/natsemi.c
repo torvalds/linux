@@ -203,7 +203,7 @@ skbuff at an offset of "+2", 16-byte aligning the IP header.
 IIId. Synchronization
 
 Most operations are synchronized on the np->lock irq spinlock, except the
-recieve and transmit paths which are synchronised using a combination of
+receive and transmit paths which are synchronised using a combination of
 hardware descriptor ownership, disabling interrupts and NAPI poll scheduling.
 
 IVb. References
@@ -726,7 +726,7 @@ static void move_int_phy(struct net_device *dev, int addr)
 	 * There are two addresses we must avoid:
 	 * - the address on the external phy that is used for transmission.
 	 * - the address that we want to access. User space can access phys
-	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independant from the
+	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independent from the
 	 *   phy that is used for transmission.
 	 */
 
@@ -859,6 +859,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		dev->dev_addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+
+	/* Store MAC Address in perm_addr */
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	dev->base_addr = (unsigned long __force) ioaddr;
 	dev->irq = irq;
@@ -1982,7 +1985,7 @@ static void init_ring(struct net_device *dev)
 
 	np->rx_head_desc = &np->rx_ring[0];
 
-	/* Please be carefull before changing this loop - at least gcc-2.95.1
+	/* Please be careful before changing this loop - at least gcc-2.95.1
 	 * miscompiles it otherwise.
 	 */
 	/* Initialize all Rx descriptors. */

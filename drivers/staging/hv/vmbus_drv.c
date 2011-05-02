@@ -254,7 +254,7 @@ static int vmbus_on_isr(void)
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
-	if (test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
 		DPRINT_DBG(VMBUS, "received event %d", event->flags32[0]);
 		ret |= 0x2;
 	}

@@ -352,7 +352,7 @@ static void send_tasklet(unsigned long arg)
 	if (!atomic_read(&fmdev->tx_cnt))
 		return;
 
-	/* Check, is there any timeout happenned to last transmitted packet */
+	/* Check, is there any timeout happened to last transmitted packet */
 	if ((jiffies - fmdev->last_tx_jiffies) > FM_DRV_TX_TIMEOUT) {
 		fmerr("TX timeout occurred\n");
 		atomic_set(&fmdev->tx_cnt, 1);
@@ -478,7 +478,7 @@ u32 fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 		return -ETIMEDOUT;
 	}
 	if (!fmdev->resp_skb) {
-		fmerr("Reponse SKB is missing\n");
+		fmerr("Response SKB is missing\n");
 		return -EFAULT;
 	}
 	spin_lock_irqsave(&fmdev->resp_skb_lock, flags);
@@ -1598,7 +1598,7 @@ u32 fmc_release(struct fmdev *fmdev)
 		fmdbg("FM Core is already down\n");
 		return 0;
 	}
-	/* Sevice pending read */
+	/* Service pending read */
 	wake_up_interruptible(&fmdev->rx.rds.read_queue);
 
 	tasklet_kill(&fmdev->tx_task);

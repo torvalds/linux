@@ -173,7 +173,7 @@ xdr_nfsace_decode(struct xdr_array2_desc *desc, void *elem)
 				return -EINVAL;
 			break;
 		case ACL_MASK:
-			/* Solaris sometimes sets additonal bits in the mask */
+			/* Solaris sometimes sets additional bits in the mask */
 			entry->e_perm &= S_IRWXO;
 			break;
 		default:

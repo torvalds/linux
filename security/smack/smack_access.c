@@ -431,7 +431,7 @@ char *smk_import(const char *string, int len)
  * smack_from_secid - find the Smack label associated with a secid
  * @secid: an integer that might be associated with a Smack label
  *
- * Returns a pointer to the appropraite Smack label if there is one,
+ * Returns a pointer to the appropriate Smack label if there is one,
  * otherwise a pointer to the invalid Smack label.
  */
 char *smack_from_secid(const u32 secid)

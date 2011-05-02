@@ -177,13 +177,13 @@ static inline int sctp_cacc_skip_3_2(struct sctp_transport *primary, __u32 tsn)
  * 3) If the missing report count for TSN t is to be
  * incremented according to [RFC2960] and
  * [SCTP_STEWART-2002], and CHANGEOVER_ACTIVE is set,
- * then the sender MUST futher execute steps 3.1 and
+ * then the sender MUST further execute steps 3.1 and
  * 3.2 to determine if the missing report count for
  * TSN t SHOULD NOT be incremented.
  *
  * 3.3) If 3.1 and 3.2 do not dictate that the missing
  * report count for t should not be incremented, then
- * the sender SOULD increment missing report count for
+ * the sender SHOULD increment missing report count for
  * t (according to [RFC2960] and [SCTP_STEWART_2002]).
  */
 static inline int sctp_cacc_skip(struct sctp_transport *primary,
@@ -843,7 +843,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		case SCTP_CID_ECN_CWR:
 		case SCTP_CID_ASCONF_ACK:
 			one_packet = 1;
-			/* Fall throught */
+			/* Fall through */
 
 		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:

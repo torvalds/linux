@@ -181,7 +181,7 @@ nv40_graph_load_context(struct nouveau_channel *chan)
 		  NV40_PGRAPH_CTXCTL_CUR_LOADED);
 	/* 0x32E0 records the instance address of the active FIFO's PGRAPH
 	 * context.  If at any time this doesn't match 0x40032C, you will
-	 * recieve PGRAPH_INTR_CONTEXT_SWITCH
+	 * receive PGRAPH_INTR_CONTEXT_SWITCH
 	 */
 	nv_wr32(dev, NV40_PFIFO_GRCTX_INSTANCE, inst);
 	return 0;

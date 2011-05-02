@@ -632,7 +632,7 @@ void MlmeHalt(struct rt_rtmp_adapter *pAd)
 			pChipOps->AsicHaltAction(pAd);
 	}
 
-	RTMPusecDelay(5000);	/*  5 msec to gurantee Ant Diversity timer canceled */
+	RTMPusecDelay(5000);	/*  5 msec to guarantee Ant Diversity timer canceled */
 
 	MlmeQueueDestroy(&pAd->Mlme.Queue);
 	NdisFreeSpinLock(&pAd->Mlme.TaskLock);
@@ -1107,14 +1107,14 @@ void MlmeSelectTxRateTable(struct rt_rtmp_adapter *pAd,
 					*pInitTxRateIdx =
 					    RateSwitchTable11N1S[1];
 					DBGPRINT_RAW(RT_DEBUG_ERROR,
-						     ("DRS: unkown mode,default use 11N 1S AP \n"));
+						     ("DRS: unknown mode,default use 11N 1S AP \n"));
 				} else {
 					*ppTable = RateSwitchTable11N2S;
 					*pTableSize = RateSwitchTable11N2S[0];
 					*pInitTxRateIdx =
 					    RateSwitchTable11N2S[1];
 					DBGPRINT_RAW(RT_DEBUG_ERROR,
-						     ("DRS: unkown mode,default use 11N 2S AP \n"));
+						     ("DRS: unknown mode,default use 11N 2S AP \n"));
 				}
 			} else {
 				if (pAd->CommonCfg.TxStream == 1) {
@@ -1123,7 +1123,7 @@ void MlmeSelectTxRateTable(struct rt_rtmp_adapter *pAd,
 					*pInitTxRateIdx =
 					    RateSwitchTable11N1S[1];
 					DBGPRINT_RAW(RT_DEBUG_ERROR,
-						     ("DRS: unkown mode,default use 11N 1S AP \n"));
+						     ("DRS: unknown mode,default use 11N 1S AP \n"));
 				} else {
 					*ppTable = RateSwitchTable11N2SForABand;
 					*pTableSize =
@@ -1131,11 +1131,11 @@ void MlmeSelectTxRateTable(struct rt_rtmp_adapter *pAd,
 					*pInitTxRateIdx =
 					    RateSwitchTable11N2SForABand[1];
 					DBGPRINT_RAW(RT_DEBUG_ERROR,
-						     ("DRS: unkown mode,default use 11N 2S AP \n"));
+						     ("DRS: unknown mode,default use 11N 2S AP \n"));
 				}
 			}
 			DBGPRINT_RAW(RT_DEBUG_ERROR,
-				     ("DRS: unkown mode (SupRateLen=%d, ExtRateLen=%d, MCSSet[0]=0x%x, MCSSet[1]=0x%x)\n",
+				     ("DRS: unknown mode (SupRateLen=%d, ExtRateLen=%d, MCSSet[0]=0x%x, MCSSet[1]=0x%x)\n",
 				      pAd->StaActive.SupRateLen,
 				      pAd->StaActive.ExtRateLen,
 				      pAd->StaActive.SupportedPhyInfo.MCSSet[0],
@@ -1368,7 +1368,7 @@ void STAMlmePeriodicExec(struct rt_rtmp_adapter *pAd)
 					if ((pAd->StaCfg.LastScanTime +
 					     10 * OS_HZ) < pAd->Mlme.Now32) {
 						DBGPRINT(RT_DEBUG_TRACE,
-							 ("MMCHK - Roaming, No eligable entry, try new scan!\n"));
+							 ("MMCHK - Roaming, No eligible entry, try new scan!\n"));
 						pAd->StaCfg.ScanCnt = 2;
 						pAd->StaCfg.LastScanTime =
 						    pAd->Mlme.Now32;
@@ -2828,7 +2828,7 @@ void UpdateBasicRateBitmap(struct rt_rtmp_adapter *pAdapter)
 
 /* IRQL = PASSIVE_LEVEL */
 /* IRQL = DISPATCH_LEVEL */
-/* bLinkUp is to identify the inital link speed. */
+/* bLinkUp is to identify the initial link speed. */
 /* TRUE indicates the rate update at linkup, we should not try to set the rate at 54Mbps. */
 void MlmeUpdateTxRates(struct rt_rtmp_adapter *pAd, IN BOOLEAN bLinkUp, u8 apidx)
 {

@@ -392,7 +392,7 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long pgm_int_code,
 {
 	int fault;
 
-	/* Protection exception is supressing, decrement psw address. */
+	/* Protection exception is suppressing, decrement psw address. */
 	regs->psw.addr -= (pgm_int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
@@ -558,9 +558,9 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	 * Get the token (= address of the task structure of the affected task).
 	 */
 #ifdef CONFIG_64BIT
-	tsk = *(struct task_struct **) param64;
+	tsk = (struct task_struct *) param64;
 #else
-	tsk = *(struct task_struct **) param32;
+	tsk = (struct task_struct *) param32;
 #endif
 
 	if (subcode & 0x0080) {

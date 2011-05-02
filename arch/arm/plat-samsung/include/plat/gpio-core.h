@@ -108,7 +108,7 @@ extern void s3c_gpiolib_add(struct s3c_gpio_chip *chip);
  * of control per GPIO, generally in the form of:
  * 0000 = Input
  * 0001 = Output
- * others = Special functions (dependant on bank)
+ * others = Special functions (dependent on bank)
  *
  * Note, since the code to deal with the case where there are two control
  * registers instead of one, we do not have a separate set of function

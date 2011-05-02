@@ -309,7 +309,7 @@ ioctlfd field set to the descriptor obtained from the open call.
 AUTOFS_DEV_IOCTL_TIMEOUT_CMD
 ----------------------------
 
-Set the expire timeout for mounts withing an autofs mount point.
+Set the expire timeout for mounts within an autofs mount point.
 
 The call requires an initialized struct autofs_dev_ioctl with the
 ioctlfd field set to the descriptor obtained from the open call.

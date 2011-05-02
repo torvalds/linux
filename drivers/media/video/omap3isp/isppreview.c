@@ -34,7 +34,7 @@
 #include "ispreg.h"
 #include "isppreview.h"
 
-/* Default values in Office Flourescent Light for RGBtoRGB Blending */
+/* Default values in Office Fluorescent Light for RGBtoRGB Blending */
 static struct omap3isp_prev_rgbtorgb flr_rgb2rgb = {
 	{	/* RGB-RGB Matrix */
 		{0x01E2, 0x0F30, 0x0FEE},
@@ -44,7 +44,7 @@ static struct omap3isp_prev_rgbtorgb flr_rgb2rgb = {
 	{0x0000, 0x0000, 0x0000}
 };
 
-/* Default values in Office Flourescent Light for RGB to YUV Conversion*/
+/* Default values in Office Fluorescent Light for RGB to YUV Conversion*/
 static struct omap3isp_prev_csc flr_prev_csc = {
 	{	/* CSC Coef Matrix */
 		{66, 129, 25},
@@ -54,22 +54,22 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 	{0x0, 0x0, 0x0}
 };
 
-/* Default values in Office Flourescent Light for CFA Gradient*/
+/* Default values in Office Fluorescent Light for CFA Gradient*/
 #define FLR_CFA_GRADTHRS_HORZ	0x28
 #define FLR_CFA_GRADTHRS_VERT	0x28
 
-/* Default values in Office Flourescent Light for Chroma Suppression*/
+/* Default values in Office Fluorescent Light for Chroma Suppression*/
 #define FLR_CSUP_GAIN		0x0D
 #define FLR_CSUP_THRES		0xEB
 
-/* Default values in Office Flourescent Light for Noise Filter*/
+/* Default values in Office Fluorescent Light for Noise Filter*/
 #define FLR_NF_STRGTH		0x03
 
 /* Default values for White Balance */
 #define FLR_WBAL_DGAIN		0x100
 #define FLR_WBAL_COEF		0x20
 
-/* Default values in Office Flourescent Light for Black Adjustment*/
+/* Default values in Office Fluorescent Light for Black Adjustment*/
 #define FLR_BLKADJ_BLUE		0x0
 #define FLR_BLKADJ_GREEN	0x0
 #define FLR_BLKADJ_RED		0x0
@@ -137,7 +137,7 @@ preview_enable_invalaw(struct isp_prev_device *prev, u8 enable)
  * @enable: 1 - Enable, 0 - Disable
  *
  * NOTE: PRV_WSDR_ADDR and PRV_WADD_OFFSET must be set also
- * The proccess is applied for each captured frame.
+ * The process is applied for each captured frame.
  */
 static void
 preview_enable_drkframe_capture(struct isp_prev_device *prev, u8 enable)
@@ -157,7 +157,7 @@ preview_enable_drkframe_capture(struct isp_prev_device *prev, u8 enable)
  * @enable: 1 - Acquires memory bandwidth since the pixels in each frame is
  *          subtracted with the pixels in the current frame.
  *
- * The proccess is applied for each captured frame.
+ * The process is applied for each captured frame.
  */
 static void
 preview_enable_drkframe(struct isp_prev_device *prev, u8 enable)
@@ -755,7 +755,7 @@ static struct preview_update update_attrs[] = {
  * @configs - pointer to update config structure.
  * @config - return pointer to appropriate structure field.
  * @bit - for which feature to return pointers.
- * Return size of coresponding prev_params member
+ * Return size of corresponding prev_params member
  */
 static u32
 __preview_get_ptrs(struct prev_params *params, void **param,
@@ -1528,7 +1528,7 @@ static long preview_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
  * preview_set_stream - Enable/Disable streaming on preview subdev
  * @sd    : pointer to v4l2 subdev structure
  * @enable: 1 == Enable, 0 == Disable
- * return -EINVAL or zero on sucess
+ * return -EINVAL or zero on success
  */
 static int preview_set_stream(struct v4l2_subdev *sd, int enable)
 {
@@ -1780,7 +1780,7 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
  * @sd : pointer to v4l2 subdev structure
  * @fh : V4L2 subdev file handle
  * @fmt: pointer to v4l2 subdev format structure
- * return -EINVAL or zero on sucess
+ * return -EINVAL or zero on success
  */
 static int preview_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			      struct v4l2_subdev_format *fmt)

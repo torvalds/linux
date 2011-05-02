@@ -722,7 +722,7 @@ static u16 HPIMSGX__init(struct hpi_message *phm,
 		return phr->error;
 	}
 	if (hr.error == 0) {
-		/* the adapter was created succesfully
+		/* the adapter was created successfully
 		   save the mapping for future use */
 		hpi_entry_points[hr.u.s.adapter_index] = entry_point_func;
 		/* prepare adapter (pre-open streams etc.) */

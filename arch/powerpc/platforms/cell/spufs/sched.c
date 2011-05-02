@@ -846,7 +846,7 @@ static struct spu_context *grab_runnable_context(int prio, int node)
 		struct list_head *rq = &spu_prio->runq[best];
 
 		list_for_each_entry(ctx, rq, rq) {
-			/* XXX(hch): check for affinity here aswell */
+			/* XXX(hch): check for affinity here as well */
 			if (__node_allowed(ctx, node)) {
 				__spu_del_from_rq(ctx);
 				goto found;

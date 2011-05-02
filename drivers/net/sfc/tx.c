@@ -435,7 +435,8 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	 * queue state. */
 	smp_mb();
 	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
-	    likely(efx->port_enabled)) {
+	    likely(efx->port_enabled) &&
+	    likely(!efx->port_inhibited)) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
 		if (fill_level < EFX_TXQ_THRESHOLD(efx)) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));

@@ -193,7 +193,7 @@ struct hdspm_version {
  * 32768 Bytes
  */
 
-/* organisation is 64 channelfader in a continous memory block */
+/* organisation is 64 channelfader in a continuous memory block */
 /* equivalent to hardware definition, maybe for future feature of mmap of
  * them
  */

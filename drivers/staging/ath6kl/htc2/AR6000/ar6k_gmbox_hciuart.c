@@ -237,7 +237,7 @@ static int CreditsAvailableCallback(void *pContext, int Credits, bool CreditIRQE
                          pProt->CreditsCurrentSeek));
         
         if (pProt->CreditsAvailable >= pProt->CreditsCurrentSeek) {
-                /* we have enough credits to fullfill at least 1 packet waiting in the queue */
+                /* we have enough credits to fulfill at least 1 packet waiting in the queue */
             pProt->CreditsCurrentSeek = 0;
             pProt->SendStateFlags &= ~HCI_SEND_WAIT_CREDITS;  
             doPendingSends = true;
@@ -285,7 +285,7 @@ static void FailureCallback(void *pContext, int Status)
 {
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)pContext; 
     
-        /* target assertion occured */           
+        /* target assertion occurred */           
     NotifyTransportFailure(pProt, Status);  
 }
 
@@ -507,7 +507,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
         
     } while (false);
         
-        /* check if we need to disable the reciever */
+        /* check if we need to disable the receiver */
     if (status || blockRecv) {
         DevGMboxIRQAction(pProt->pDev, GMBOX_RECV_IRQ_DISABLE, PROC_IO_SYNC); 
     }

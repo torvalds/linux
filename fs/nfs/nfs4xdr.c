@@ -1452,26 +1452,25 @@ static void encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args,
 
 static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req, struct compound_hdr *hdr)
 {
-	uint32_t attrs[2] = {0, 0};
+	uint32_t attrs[2] = {
+		FATTR4_WORD0_RDATTR_ERROR,
+		FATTR4_WORD1_MOUNTED_ON_FILEID,
+	};
 	uint32_t dircount = readdir->count >> 1;
 	__be32 *p;
 
 	if (readdir->plus) {
 		attrs[0] |= FATTR4_WORD0_TYPE|FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE|
-			FATTR4_WORD0_FSID|FATTR4_WORD0_FILEHANDLE;
+			FATTR4_WORD0_FSID|FATTR4_WORD0_FILEHANDLE|FATTR4_WORD0_FILEID;
 		attrs[1] |= FATTR4_WORD1_MODE|FATTR4_WORD1_NUMLINKS|FATTR4_WORD1_OWNER|
 			FATTR4_WORD1_OWNER_GROUP|FATTR4_WORD1_RAWDEV|
 			FATTR4_WORD1_SPACE_USED|FATTR4_WORD1_TIME_ACCESS|
 			FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
 		dircount >>= 1;
 	}
-	attrs[0] |= FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID;
-	attrs[1] |= FATTR4_WORD1_MOUNTED_ON_FILEID;
-	/* Switch to mounted_on_fileid if the server supports it */
-	if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
-		attrs[0] &= ~FATTR4_WORD0_FILEID;
-	else
-		attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
+	/* Use mounted_on_fileid only if the server supports it */
+	if (!(readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID))
+		attrs[0] |= FATTR4_WORD0_FILEID;
 
 	p = reserve_space(xdr, 12+NFS4_VERIFIER_SIZE+20);
 	*p++ = cpu_to_be32(OP_READDIR);
@@ -3140,7 +3139,7 @@ static int decode_attr_mounted_on_fileid(struct xdr_stream *xdr, uint32_t *bitma
 			goto out_overflow;
 		xdr_decode_hyper(p, fileid);
 		bitmap[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
-		ret = NFS_ATTR_FATTR_FILEID;
+		ret = NFS_ATTR_FATTR_MOUNTED_ON_FILEID;
 	}
 	dprintk("%s: fileid=%Lu\n", __func__, (unsigned long long)*fileid);
 	return ret;
@@ -4002,7 +4001,6 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 {
 	int status;
 	umode_t fmode = 0;
-	uint64_t fileid;
 	uint32_t type;
 
 	status = decode_attr_type(xdr, bitmap, &type);
@@ -4101,13 +4099,10 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 		goto xdr_error;
 	fattr->valid |= status;
 
-	status = decode_attr_mounted_on_fileid(xdr, bitmap, &fileid);
+	status = decode_attr_mounted_on_fileid(xdr, bitmap, &fattr->mounted_on_fileid);
 	if (status < 0)
 		goto xdr_error;
-	if (status != 0 && !(fattr->valid & status)) {
-		fattr->fileid = fileid;
-		fattr->valid |= status;
-	}
+	fattr->valid |= status;
 
 xdr_error:
 	dprintk("%s: xdr returned %d\n", __func__, -status);
@@ -4838,17 +4833,21 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 	struct nfs4_secinfo_flavor *sec_flavor;
 	int status;
 	__be32 *p;
-	int i;
+	int i, num_flavors;
 
 	status = decode_op_hdr(xdr, OP_SECINFO);
+	if (status)
+		goto out;
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
-	res->flavors->num_flavors = be32_to_cpup(p);
 
-	for (i = 0; i < res->flavors->num_flavors; i++) {
+	res->flavors->num_flavors = 0;
+	num_flavors = be32_to_cpup(p);
+
+	for (i = 0; i < num_flavors; i++) {
 		sec_flavor = &res->flavors->flavors[i];
-		if ((char *)&sec_flavor[1] - (char *)res > PAGE_SIZE)
+		if ((char *)&sec_flavor[1] - (char *)res->flavors > PAGE_SIZE)
 			break;
 
 		p = xdr_inline_decode(xdr, 4);
@@ -4857,13 +4856,15 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 		sec_flavor->flavor = be32_to_cpup(p);
 
 		if (sec_flavor->flavor == RPC_AUTH_GSS) {
-			if (decode_secinfo_gss(xdr, sec_flavor))
-				break;
+			status = decode_secinfo_gss(xdr, sec_flavor);
+			if (status)
+				goto out;
 		}
+		res->flavors->num_flavors++;
 	}
 
-	return 0;
-
+out:
+	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
@@ -6408,7 +6409,9 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh,
 					entry->server, 1) < 0)
 		goto out_overflow;
-	if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
+	if (entry->fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID)
+		entry->ino = entry->fattr->mounted_on_fileid;
+	else if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
 		entry->ino = entry->fattr->fileid;
 
 	entry->d_type = DT_UNKNOWN;

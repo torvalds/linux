@@ -950,7 +950,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 }
 
 /*  Update statistics.
-	Suprisingly this need not be run single-threaded, but it effectively is.
+	Surprisingly this need not be run single-threaded, but it effectively is.
 	The counters clear when read, so the adds must merely be atomic.
  */
 static void update_stats(struct net_device *dev)

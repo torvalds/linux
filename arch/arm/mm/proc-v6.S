@@ -124,7 +124,7 @@ ENTRY(cpu_v6_set_pte_ext)
 /* Suspend/resume support: taken from arch/arm/mach-s3c64xx/sleep.S */
 .globl	cpu_v6_suspend_size
 .equ	cpu_v6_suspend_size, 4 * 8
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_v6_do_suspend)
 	stmfd	sp!, {r4 - r11, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
@@ -132,7 +132,7 @@ ENTRY(cpu_v6_do_suspend)
 	mrc	p15, 0, r6, c3, c0, 0	@ Domain ID
 	mrc	p15, 0, r7, c2, c0, 0	@ Translation table base 0
 	mrc	p15, 0, r8, c2, c0, 1	@ Translation table base 1
-	mrc	p15, 0, r9, c1, c0, 1	@ auxillary control register
+	mrc	p15, 0, r9, c1, c0, 1	@ auxiliary control register
 	mrc	p15, 0, r10, c1, c0, 2	@ co-processor access control
 	mrc	p15, 0, r11, c1, c0, 0	@ control register
 	stmia	r0, {r4 - r11}
@@ -151,7 +151,7 @@ ENTRY(cpu_v6_do_resume)
 	mcr	p15, 0, r6, c3, c0, 0	@ Domain ID
 	mcr	p15, 0, r7, c2, c0, 0	@ Translation table base 0
 	mcr	p15, 0, r8, c2, c0, 1	@ Translation table base 1
-	mcr	p15, 0, r9, c1, c0, 1	@ auxillary control register
+	mcr	p15, 0, r9, c1, c0, 1	@ auxiliary control register
 	mcr	p15, 0, r10, c1, c0, 2	@ co-processor access control
 	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
 	mcr	p15, 0, ip, c7, c5, 4	@ ISB

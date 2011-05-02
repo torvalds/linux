@@ -367,7 +367,7 @@ Drivers need to be able to handle hardware which has been reset since the
 suspend methods were called, for example by complete reinitialization.
 This may be the hardest part, and the one most protected by NDA'd documents
 and chip errata.  It's simplest if the hardware state hasn't changed since
-the suspend was carried out, but that can't be guaranteed (in fact, it ususally
+the suspend was carried out, but that can't be guaranteed (in fact, it usually
 is not the case).
 
 Drivers must also be prepared to notice that the device has been removed

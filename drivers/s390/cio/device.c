@@ -541,15 +541,24 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	int force, ret;
 	unsigned long i;
 
-	if (!dev_fsm_final_state(cdev) &&
-	    cdev->private->state != DEV_STATE_DISCONNECTED)
-		return -EAGAIN;
+	/* Prevent conflict between multiple on-/offline processing requests. */
 	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
+	/* Prevent conflict between internal I/Os and on-/offline processing. */
+	if (!dev_fsm_final_state(cdev) &&
+	    cdev->private->state != DEV_STATE_DISCONNECTED) {
+		ret = -EAGAIN;
+		goto out_onoff;
+	}
+	/* Prevent conflict between pending work and on-/offline processing.*/
+	if (work_pending(&cdev->private->todo_work)) {
+		ret = -EAGAIN;
+		goto out_onoff;
+	}
 
 	if (cdev->drv && !try_module_get(cdev->drv->driver.owner)) {
-		atomic_set(&cdev->private->onoff, 0);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_onoff;
 	}
 	if (!strncmp(buf, "force\n", count)) {
 		force = 1;
@@ -574,6 +583,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 out:
 	if (cdev->drv)
 		module_put(cdev->drv->driver.owner);
+out_onoff:
 	atomic_set(&cdev->private->onoff, 0);
 	return (ret < 0) ? ret : count;
 }
@@ -1311,10 +1321,12 @@ static int purge_fn(struct device *dev, void *data)
 
 	spin_lock_irq(cdev->ccwlock);
 	if (is_blacklisted(id->ssid, id->devno) &&
-	    (cdev->private->state == DEV_STATE_OFFLINE)) {
+	    (cdev->private->state == DEV_STATE_OFFLINE) &&
+	    (atomic_cmpxchg(&cdev->private->onoff, 0, 1) == 0)) {
 		CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", id->ssid,
 			      id->devno);
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
+		atomic_set(&cdev->private->onoff, 0);
 	}
 	spin_unlock_irq(cdev->ccwlock);
 	/* Abort loop in case of pending signal. */

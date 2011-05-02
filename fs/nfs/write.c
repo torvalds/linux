@@ -542,11 +542,15 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, u
 	if (!nfs_need_commit(nfsi))
 		return 0;
 
+	spin_lock(&inode->i_lock);
 	ret = nfs_scan_list(nfsi, dst, idx_start, npages, NFS_PAGE_TAG_COMMIT);
 	if (ret > 0)
 		nfsi->ncommit -= ret;
+	spin_unlock(&inode->i_lock);
+
 	if (nfs_need_commit(NFS_I(inode)))
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+
 	return ret;
 }
 #else
@@ -676,7 +680,6 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	req = nfs_setup_write_request(ctx, page, offset, count);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	nfs_mark_request_dirty(req);
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
@@ -1414,8 +1417,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
                                 task->tk_pid, task->tk_status);
 
 	/* Call the NFS version-specific code */
-	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
-		return;
+	NFS_PROTO(data->inode)->commit_done(task, data);
 }
 
 void nfs_commit_release_pages(struct nfs_write_data *data)
@@ -1483,9 +1485,7 @@ int nfs_commit_inode(struct inode *inode, int how)
 	res = nfs_commit_set_lock(NFS_I(inode), may_wait);
 	if (res <= 0)
 		goto out_mark_dirty;
-	spin_lock(&inode->i_lock);
 	res = nfs_scan_commit(inode, &head, 0, 0);
-	spin_unlock(&inode->i_lock);
 	if (res) {
 		int error;
 

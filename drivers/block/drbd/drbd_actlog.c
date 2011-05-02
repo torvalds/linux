@@ -30,7 +30,7 @@
 
 /* We maintain a trivial check sum in our on disk activity log.
  * With that we can ensure correct operation even when the storage
- * device might do a partial (last) sector write while loosing power.
+ * device might do a partial (last) sector write while losing power.
  */
 struct __packed al_transaction {
 	u32       magic;

@@ -1,6 +1,6 @@
 # Makefile to generate or copy the latest register definitions
 # and related datastructures and helpermacros.
-# The offical place for these files is at:
+# The official place for these files is at:
 RELEASE ?= r1_alfa5
 OFFICIAL_INCDIR = /n/asic/projects/guinness/releases/$(RELEASE)/design/top/sw/include/
 

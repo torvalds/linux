@@ -2282,7 +2282,7 @@ vxge_alarm_msix_handle(int irq, void *dev_id)
 		VXGE_HW_VPATH_MSIX_ACTIVE) + VXGE_ALARM_MSIX_ID;
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
-		/* Reduce the chance of loosing alarm interrupts by masking
+		/* Reduce the chance of losing alarm interrupts by masking
 		 * the vector. A pending bit will be set if an alarm is
 		 * generated and on unmask the interrupt will be fired.
 		 */
@@ -2788,7 +2788,7 @@ static int vxge_open(struct net_device *dev)
 	}
 
 	/* Enable vpath to sniff all unicast/multicast traffic that not
-	 * addressed to them. We allow promiscous mode for PF only
+	 * addressed to them. We allow promiscuous mode for PF only
 	 */
 
 	val64 = 0;
@@ -2890,7 +2890,7 @@ out0:
 	return ret;
 }
 
-/* Loop throught the mac address list and delete all the entries */
+/* Loop through the mac address list and delete all the entries */
 static void vxge_free_mac_add_list(struct vxge_vpath *vpath)
 {
 
@@ -2957,7 +2957,7 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 					val64);
 		}
 
-		/* Remove the function 0 from promiscous mode */
+		/* Remove the function 0 from promiscuous mode */
 		vxge_hw_mgmt_reg_write(vdev->devh,
 			vxge_hw_mgmt_reg_type_mrpcim,
 			0,

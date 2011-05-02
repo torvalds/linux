@@ -474,7 +474,7 @@ static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
 extern void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst);
 
 /**
- * skb_dst_is_noref - Test if skb dst isnt refcounted
+ * skb_dst_is_noref - Test if skb dst isn't refcounted
  * @skb: buffer
  */
 static inline bool skb_dst_is_noref(const struct sk_buff *skb)

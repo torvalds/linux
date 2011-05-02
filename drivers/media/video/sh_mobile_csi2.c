@@ -38,6 +38,8 @@ struct sh_csi2 {
 	void __iomem			*base;
 	struct platform_device		*pdev;
 	struct sh_csi2_client_config	*client;
+	unsigned long (*query_bus_param)(struct soc_camera_device *);
+	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 };
 
 static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
@@ -208,6 +210,7 @@ static int sh_csi2_notify(struct notifier_block *nb,
 	case BUS_NOTIFY_BOUND_DRIVER:
 		snprintf(priv->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s%s",
 			 dev_name(v4l2_dev->dev), ".mipi-csi");
+		priv->subdev.grp_id = (long)icd;
 		ret = v4l2_device_register_subdev(v4l2_dev, &priv->subdev);
 		dev_dbg(dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
 		if (ret < 0)
@@ -215,6 +218,8 @@ static int sh_csi2_notify(struct notifier_block *nb,
 
 		priv->client = pdata->clients + i;
 
+		priv->set_bus_param		= icd->ops->set_bus_param;
+		priv->query_bus_param		= icd->ops->query_bus_param;
 		icd->ops->set_bus_param		= sh_csi2_set_bus_param;
 		icd->ops->query_bus_param	= sh_csi2_query_bus_param;
 
@@ -226,8 +231,10 @@ static int sh_csi2_notify(struct notifier_block *nb,
 		priv->client = NULL;
 
 		/* Driver is about to be unbound */
-		icd->ops->set_bus_param		= NULL;
-		icd->ops->query_bus_param	= NULL;
+		icd->ops->set_bus_param		= priv->set_bus_param;
+		icd->ops->query_bus_param	= priv->query_bus_param;
+		priv->set_bus_param		= NULL;
+		priv->query_bus_param		= NULL;
 
 		v4l2_device_unregister_subdev(&priv->subdev);
 

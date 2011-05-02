@@ -50,10 +50,10 @@ struct drm_mm_node;
  *
  * @fpfn:		first valid page frame number to put the object
  * @lpfn:		last valid page frame number to put the object
- * @num_placement:	number of prefered placements
- * @placement:		prefered placements
- * @num_busy_placement:	number of prefered placements when need to evict buffer
- * @busy_placement:	prefered placements when need to evict buffer
+ * @num_placement:	number of preferred placements
+ * @placement:		preferred placements
+ * @num_busy_placement:	number of preferred placements when need to evict buffer
+ * @busy_placement:	preferred placements when need to evict buffer
  *
  * Structure indicating the placement you request for an object.
  */

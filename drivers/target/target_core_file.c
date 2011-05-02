@@ -159,7 +159,7 @@ static struct se_device *fd_create_virtdevice(
 #endif
 /*	flags |= O_DIRECT; */
 	/*
-	 * If fd_buffered_io=1 has not been set explictly (the default),
+	 * If fd_buffered_io=1 has not been set explicitly (the default),
 	 * use O_SYNC to force FILEIO writes to disk.
 	 */
 	if (!(fd_dev->fbd_flags & FDBD_USE_BUFFERED_IO))

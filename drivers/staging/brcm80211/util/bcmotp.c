@@ -213,7 +213,7 @@ static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 	return (int)st;
 }
 
-/* Calculate max HW/SW region byte size by substracting fuse region and checksum size,
+/* Calculate max HW/SW region byte size by subtracting fuse region and checksum size,
  * osizew is oi->wsize (OTP size - GU size) in words
  */
 static int ipxotp_max_rgnsz(si_t *sih, int osizew)
@@ -229,7 +229,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
 		break;
 	default:
-		ASSERT(0);	/* Don't konw about this chip */
+		ASSERT(0);	/* Don't know about this chip */
 	}
 
 	return ret;

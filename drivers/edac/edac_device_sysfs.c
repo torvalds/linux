@@ -533,7 +533,7 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 	memset(&block->kobj, 0, sizeof(struct kobject));
 
 	/* bump the main kobject's reference count for this controller
-	 * and this instance is dependant on the main
+	 * and this instance is dependent on the main
 	 */
 	main_kobj = kobject_get(&edac_dev->kobj);
 	if (!main_kobj) {
@@ -635,7 +635,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 	instance->ctl = edac_dev;
 
 	/* bump the main kobject's reference count for this controller
-	 * and this instance is dependant on the main
+	 * and this instance is dependent on the main
 	 */
 	main_kobj = kobject_get(&edac_dev->kobj);
 	if (!main_kobj) {

@@ -115,7 +115,7 @@ analog triggering on 1602 series
 #define   INT_MASK 0x3		/*  mask of interrupt select bits */
 #define   INTE 0x4		/*  interrupt enable */
 #define   DAHFIE 0x8		/*  dac half full interrupt enable */
-#define   EOAIE	0x10		/*  end of aquisition interrupt enable */
+#define   EOAIE	0x10		/*  end of acquisition interrupt enable */
 #define   DAHFI	0x20		/*  dac half full read status / write interrupt clear */
 #define   EOAI 0x40		/*  read end of acq. interrupt status / write clear */
 #define   INT 0x80		/*  read interrupt status / write clear */
@@ -440,7 +440,7 @@ struct cb_pcidas_private {
 	unsigned int divisor1;
 	unsigned int divisor2;
 	volatile unsigned int count;	/*  number of analog input samples remaining */
-	volatile unsigned int adc_fifo_bits;	/*  bits to write to interupt/adcfifo register */
+	volatile unsigned int adc_fifo_bits;	/*  bits to write to interrupt/adcfifo register */
 	volatile unsigned int s5933_intcsr_bits;	/*  bits to write to amcc s5933 interrupt control/status register */
 	volatile unsigned int ao_control_bits;	/*  bits to write to ao control and status register */
 	short ai_buffer[AI_BUFFER_SIZE];
@@ -1653,7 +1653,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	} else if (status & EOAI) {
 		comedi_error(dev,
-			     "bug! encountered end of aquisition interrupt?");
+			     "bug! encountered end of acquisition interrupt?");
 		/*  clear EOA interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | EOAI,

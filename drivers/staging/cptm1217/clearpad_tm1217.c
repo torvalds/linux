@@ -52,7 +52,7 @@
 #define TMA1217_DEV_STATUS		0x13	/* Device Status */
 #define TMA1217_INT_STATUS		0x14	/* Interrupt Status */
 
-/* Controller can detect upto 2 possible finger touches.
+/* Controller can detect up to 2 possible finger touches.
  * Each finger touch provides  12 bit X Y co-ordinates, the values are split
  * across 2 registers, and an 8 bit  Z value */
 #define TMA1217_FINGER_STATE		0x18 /* Finger State */

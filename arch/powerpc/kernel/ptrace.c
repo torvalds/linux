@@ -463,7 +463,7 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 #ifdef CONFIG_VSX
 /*
  * Currently to set and and get all the vsx state, you need to call
- * the fp and VMX calls aswell.  This only get/sets the lower 32
+ * the fp and VMX calls as well.  This only get/sets the lower 32
  * 128bit VSX registers.
  */
 

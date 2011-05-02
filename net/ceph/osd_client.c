@@ -579,9 +579,15 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 
 	list_for_each_entry_safe(req, nreq, &osd->o_linger_requests,
 				 r_linger_osd) {
-		__unregister_linger_request(osdc, req);
+		/*
+		 * reregister request prior to unregistering linger so
+		 * that r_osd is preserved.
+		 */
+		BUG_ON(!list_empty(&req->r_req_lru_item));
 		__register_request(osdc, req);
-		list_move(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add(&req->r_osd_item, &req->r_osd->o_requests);
+		__unregister_linger_request(osdc, req);
 		dout("requeued lingering %p tid %llu osd%d\n", req, req->r_tid,
 		     osd->o_osd);
 	}
@@ -798,7 +804,7 @@ static void __register_request(struct ceph_osd_client *osdc,
 	req->r_request->hdr.tid = cpu_to_le64(req->r_tid);
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 
-	dout("register_request %p tid %lld\n", req, req->r_tid);
+	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	__insert_request(osdc, req);
 	ceph_osdc_get_request(req);
 	osdc->num_requests++;
@@ -917,7 +923,7 @@ EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 /*
  * Pick an osd (the first 'up' osd in the pg), allocate the osd struct
  * (as needed), and set the request r_osd appropriately.  If there is
- * no up osd, set r_osd to NULL.  Move the request to the appropiate list
+ * no up osd, set r_osd to NULL.  Move the request to the appropriate list
  * (unsent, homeless) or leave on in-flight lru.
  *
  * Return 0 if unchanged, 1 if changed, or negative on error.

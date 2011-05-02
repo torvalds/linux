@@ -261,6 +261,7 @@ enum musb_g_ep0_state {
  * @try_ilde:	tries to idle the IP
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
+ * @channel_program: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
 	int	(*init)(struct musb *musb);
@@ -274,6 +275,10 @@ struct musb_platform_ops {
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
+
+	int	(*adjust_channel_params)(struct dma_channel *channel,
+				u16 packet_sz, u8 *mode,
+				dma_addr_t *dma_addr, u32 *len);
 };
 
 /*

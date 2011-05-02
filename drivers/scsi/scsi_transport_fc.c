@@ -2378,7 +2378,7 @@ fc_flush_devloss(struct Scsi_Host *shost)
  * fc_remove_host - called to terminate any fc_transport-related elements for a scsi host.
  * @shost:	Which &Scsi_Host
  *
- * This routine is expected to be called immediately preceeding the
+ * This routine is expected to be called immediately preceding the
  * a driver's call to scsi_remove_host().
  *
  * WARNING: A driver utilizing the fc_transport, which fails to call
@@ -2458,7 +2458,7 @@ static void fc_terminate_rport_io(struct fc_rport *rport)
 }
 
 /**
- * fc_starget_delete - called to delete the scsi decendents of an rport
+ * fc_starget_delete - called to delete the scsi descendants of an rport
  * @work:	remote port to be operated on.
  *
  * Deletes target and all sdevs.
@@ -3816,27 +3816,16 @@ fail_host_msg:
 static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
-	int flagset;
-	unsigned long flags;
-
 	if (!rport->rqst_q)
 		return;
 
+	/*
+	 * This get/put dance makes no sense
+	 */
 	get_device(&rport->dev);
-
-	spin_lock_irqsave(rport->rqst_q->queue_lock, flags);
-	flagset = test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags) &&
-		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
-	if (flagset)
-		queue_flag_set(QUEUE_FLAG_REENTER, rport->rqst_q);
-	__blk_run_queue(rport->rqst_q, false);
-	if (flagset)
-		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
-	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
-
+	blk_run_queue_async(rport->rqst_q);
 	put_device(&rport->dev);
 }
-
 
 /**
  * fc_bsg_rport_dispatch - process rport bsg requests and dispatch to LLDD

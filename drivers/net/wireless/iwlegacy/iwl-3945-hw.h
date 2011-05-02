@@ -74,8 +74,6 @@
 /* RSSI to dBm */
 #define IWL39_RSSI_OFFSET	95
 
-#define IWL_DEFAULT_TX_POWER	0x0F
-
 /*
  * EEPROM related constants, enums, and structures.
  */

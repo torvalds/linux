@@ -1887,7 +1887,7 @@ relock:
 	for (;;) {
 		struct k_sigaction *ka;
 		/*
-		 * Tracing can induce an artifical signal and choose sigaction.
+		 * Tracing can induce an artificial signal and choose sigaction.
 		 * The return value in @signr determines the default action,
 		 * but @info->si_signo is the signal number we will report.
 		 */
@@ -2711,8 +2711,8 @@ out:
 /**
  *  sys_rt_sigaction - alter an action taken by a process
  *  @sig: signal to be sent
- *  @act: the thread group ID of the thread
- *  @oact: the PID of the thread
+ *  @act: new sigaction
+ *  @oact: used to save the previous sigaction
  *  @sigsetsize: size of sigset_t type
  */
 SYSCALL_DEFINE4(rt_sigaction, int, sig,

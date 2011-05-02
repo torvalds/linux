@@ -353,7 +353,7 @@ static int uw2453_init_hw(struct zd_rf *rf)
 	};
 
 	static const u32 rv[] = {
-		UW2453_REGWRITE(4, 0x2b),    /* configure reciever gain */
+		UW2453_REGWRITE(4, 0x2b),    /* configure receiver gain */
 		UW2453_REGWRITE(5, 0x19e4f), /* configure transmitter gain */
 		UW2453_REGWRITE(6, 0xf81ad), /* enable RX/TX filter tuning */
 		UW2453_REGWRITE(7, 0x3fffe), /* disable TX gain in test mode */

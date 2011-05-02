@@ -65,7 +65,7 @@ enum drm_mode_status {
     MODE_H_ILLEGAL,	/* mode has illegal horizontal timings */
     MODE_V_ILLEGAL,	/* mode has illegal horizontal timings */
     MODE_BAD_WIDTH,	/* requires an unsupported linepitch */
-    MODE_NOMODE,	/* no mode with a maching name */
+    MODE_NOMODE,	/* no mode with a matching name */
     MODE_NO_INTERLACE,	/* interlaced mode not supported */
     MODE_NO_DBLESCAN,	/* doublescan mode not supported */
     MODE_NO_VSCAN,	/* multiscan mode not supported */
@@ -321,7 +321,7 @@ struct drm_crtc_funcs {
 
 	/*
 	 * Flip to the given framebuffer.  This implements the page
-	 * flip ioctl descibed in drm_mode.h, specifically, the
+	 * flip ioctl described in drm_mode.h, specifically, the
 	 * implementation must return immediately and block all
 	 * rendering to the current fb until the flip has completed.
 	 * If userspace set the event flag in the ioctl, the event
