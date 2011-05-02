@@ -1218,6 +1218,10 @@ msmsdcc_probe(struct platform_device *pdev)
 	host->plat = plat;
 	host->mmc = mmc;
 	host->curr.cmd = NULL;
+	init_timer(&host->busclk_timer);
+	host->busclk_timer.data = (unsigned long) host;
+	host->busclk_timer.function = msmsdcc_busclk_expired;
+
 
 	host->cmdpoll = 1;
 
@@ -1334,10 +1338,6 @@ msmsdcc_probe(struct platform_device *pdev)
 		host->oldstat = host->plat->status(mmc_dev(host->mmc));
 		host->eject = !host->oldstat;
 	}
-
-	init_timer(&host->busclk_timer);
-	host->busclk_timer.data = (unsigned long) host;
-	host->busclk_timer.function = msmsdcc_busclk_expired;
 
 	ret = request_irq(cmd_irqres->start, msmsdcc_irq, IRQF_SHARED,
 			  DRIVER_NAME " (cmd)", host);
