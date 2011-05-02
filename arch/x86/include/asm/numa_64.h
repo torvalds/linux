@@ -3,18 +3,11 @@
 
 #include <linux/nodemask.h>
 
-struct bootnode {
-	u64 start;
-	u64 end;
-};
-
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 
 extern int numa_off;
 
 extern unsigned long numa_free_all_bootmem(void);
-extern void setup_node_bootmem(int nodeid, unsigned long start,
-			       unsigned long end);
 
 #ifdef CONFIG_NUMA
 /*

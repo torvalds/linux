@@ -95,7 +95,7 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 }
 
 /* Initialize bootmem allocator for a node */
-void __init
+static void __init
 setup_node_bootmem(int nid, unsigned long start, unsigned long end)
 {
 	const u64 nd_low = (u64)MAX_DMA_PFN << PAGE_SHIFT;
