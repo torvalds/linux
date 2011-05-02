@@ -135,7 +135,12 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct tps65910 *tps65910;
+	struct tps65910_board *pmic_plat_data;
 	int ret = 0;
+
+	pmic_plat_data = dev_get_platdata(&i2c->dev);
+	if (!pmic_plat_data)
+		return -EINVAL;
 
 	tps65910 = kzalloc(sizeof(struct tps65910), GFP_KERNEL);
 	if (tps65910 == NULL)
@@ -153,6 +158,8 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			      NULL, 0);
 	if (ret < 0)
 		goto err;
+
+	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 
 	return ret;
 
