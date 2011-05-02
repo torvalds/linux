@@ -2675,6 +2675,10 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *flp4)
 			dst_use(&rth->dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();
+			if (!flp4->saddr)
+				flp4->saddr = rth->rt_src;
+			if (!flp4->daddr)
+				flp4->daddr = rth->rt_dst;
 			return rth;
 		}
 		RT_CACHE_STAT_INC(out_hlist_search);
@@ -2772,15 +2776,10 @@ struct rtable *ip_route_output_flow(struct net *net, struct flowi4 *flp4,
 	if (IS_ERR(rt))
 		return rt;
 
-	if (flp4->flowi4_proto) {
-		if (!flp4->saddr)
-			flp4->saddr = rt->rt_src;
-		if (!flp4->daddr)
-			flp4->daddr = rt->rt_dst;
+	if (flp4->flowi4_proto)
 		rt = (struct rtable *) xfrm_lookup(net, &rt->dst,
 						   flowi4_to_flowi(flp4),
 						   sk, 0);
-	}
 
 	return rt;
 }
