@@ -215,7 +215,7 @@ static inline int sparc_leon3_cpuid(void)
 #endif /*!__ASSEMBLY__*/
 
 #ifdef CONFIG_SMP
-# define LEON3_IRQ_RESCHEDULE		13
+# define LEON3_IRQ_IPI_DEFAULT		13
 # define LEON3_IRQ_TICKER		(leon3_ticker_irq)
 # define LEON3_IRQ_CROSS_CALL		15
 #endif
@@ -351,9 +351,11 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
 extern irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused);
 
 extern unsigned int real_irq_entry[];
+extern unsigned int smpleon_ipi[];
 extern unsigned int patchme_maybe_smp_msg[];
 extern unsigned int t_nmi[], linux_trap_ipi15_leon[];
 extern unsigned int linux_trap_ipi15_sun4m[];
+extern int leon_ipi_irq;
 
 #endif /* CONFIG_SMP */
 

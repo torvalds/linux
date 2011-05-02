@@ -401,6 +401,22 @@ linux_trap_ipi15_sun4d:
 1:	b,a	1b
 
 #ifdef CONFIG_SPARC_LEON
+	.globl	smpleon_ipi
+	.extern leon_ipi_interrupt
+	/* SMP per-cpu IPI interrupts are handled specially. */
+smpleon_ipi:
+        SAVE_ALL
+	or	%l0, PSR_PIL, %g2
+	wr	%g2, 0x0, %psr
+	WRITE_PAUSE
+	wr	%g2, PSR_ET, %psr
+	WRITE_PAUSE
+	call	leonsmp_ipi_interrupt
+	 add	%sp, STACKFRAME_SZ, %o1 ! pt_regs
+	wr	%l0, PSR_ET, %psr
+	WRITE_PAUSE
+	RESTORE_ALL
+
 	.align	4
 	.globl	linux_trap_ipi15_leon
 linux_trap_ipi15_leon:
