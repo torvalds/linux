@@ -1077,7 +1077,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	struct sh_dmae_pdata *pdata = pdev->dev.platform_data;
 	unsigned long irqflags = IRQF_DISABLED,
 		chan_flag[SH_DMAC_MAX_CHANNELS] = {};
-	unsigned long flags;
 	int errirq, chan_irq[SH_DMAC_MAX_CHANNELS];
 	int err, i, irq_cnt = 0, irqres = 0;
 	struct sh_dmae_device *shdev;
@@ -1143,9 +1142,9 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_add_tail_rcu(&shdev->node, &sh_dmae_devices);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
 	/* reset dma controller - only needed as a test */
 	err = sh_dmae_rst(shdev);
@@ -1250,9 +1249,9 @@ eirqres:
 eirq_err:
 #endif
 rst_err:
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1261,6 +1260,7 @@ rst_err:
 		iounmap(shdev->dmars);
 emapdmars:
 	iounmap(shdev->chan_reg);
+	synchronize_rcu();
 emapchan:
 	kfree(shdev);
 ealloc:
@@ -1276,7 +1276,6 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct resource *res;
-	unsigned long flags;
 	int errirq = platform_get_irq(pdev, 0);
 
 	dma_async_device_unregister(&shdev->common);
@@ -1284,9 +1283,9 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 	if (errirq > 0)
 		free_irq(errirq, shdev);
 
-	spin_lock_irqsave(&sh_dmae_lock, flags);
+	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irqrestore(&sh_dmae_lock, flags);
+	spin_unlock_irq(&sh_dmae_lock);
 
 	/* channel data remove */
 	sh_dmae_chan_remove(shdev);
@@ -1297,6 +1296,7 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 		iounmap(shdev->dmars);
 	iounmap(shdev->chan_reg);
 
+	synchronize_rcu();
 	kfree(shdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
