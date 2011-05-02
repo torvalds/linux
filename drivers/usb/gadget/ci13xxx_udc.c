@@ -1843,7 +1843,7 @@ __releases(mEp->lock)
 __acquires(mEp->lock)
 {
 	struct ci13xxx_req *mReq, *mReqTemp;
-	int retval;
+	int uninitialized_var(retval);
 
 	trace("%p", mEp);
 
