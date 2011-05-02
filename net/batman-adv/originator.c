@@ -19,8 +19,6 @@
  *
  */
 
-/* increase the reference counter for this originator */
-
 #include "main.h"
 #include "originator.h"
 #include "hash.h"
