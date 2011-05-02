@@ -1,8 +1,6 @@
 #ifndef _ASM_X86_NUMA_32_H
 #define _ASM_X86_NUMA_32_H
 
-extern int numa_off;
-
 #ifdef CONFIG_HIGHMEM
 extern void set_highmem_pages_init(void);
 #else
