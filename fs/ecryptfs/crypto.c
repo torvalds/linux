@@ -1024,25 +1024,25 @@ out:
 }
 
 /**
- * contains_ecryptfs_marker - check for the ecryptfs marker
+ * ecryptfs_validate_marker - check for the ecryptfs marker
  * @data: The data block in which to check
  *
- * Returns one if marker found; zero if not found
+ * Returns zero if marker found; -EINVAL if not found
  */
-static int contains_ecryptfs_marker(char *data)
+static int ecryptfs_validate_marker(char *data)
 {
 	u32 m_1, m_2;
 
 	m_1 = get_unaligned_be32(data);
 	m_2 = get_unaligned_be32(data + 4);
 	if ((m_1 ^ MAGIC_ECRYPTFS_MARKER) == m_2)
-		return 1;
+		return 0;
 	ecryptfs_printk(KERN_DEBUG, "m_1 = [0x%.8x]; m_2 = [0x%.8x]; "
 			"MAGIC_ECRYPTFS_MARKER = [0x%.8x]\n", m_1, m_2,
 			MAGIC_ECRYPTFS_MARKER);
 	ecryptfs_printk(KERN_DEBUG, "(m_1 ^ MAGIC_ECRYPTFS_MARKER) = "
 			"[0x%.8x]\n", (m_1 ^ MAGIC_ECRYPTFS_MARKER));
-	return 0;
+	return -EINVAL;
 }
 
 struct ecryptfs_flag_map_elem {
@@ -1217,10 +1217,7 @@ int ecryptfs_read_and_validate_header_region(char *data,
 		       __func__, rc);
 		goto out;
 	}
-	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
-		rc = -EINVAL;
-	} else
-		rc = 0;
+	rc = ecryptfs_validate_marker(data + ECRYPTFS_FILE_SIZE_BYTES);
 out:
 	return rc;
 }
@@ -1496,11 +1493,9 @@ static int ecryptfs_read_headers_virt(char *page_virt,
 	crypt_stat->mount_crypt_stat = &ecryptfs_superblock_to_private(
 		ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	offset = ECRYPTFS_FILE_SIZE_BYTES;
-	rc = contains_ecryptfs_marker(page_virt + offset);
-	if (rc == 0) {
-		rc = -EINVAL;
+	rc = ecryptfs_validate_marker(page_virt + offset);
+	if (rc)
 		goto out;
-	}
 	if (!(crypt_stat->flags & ECRYPTFS_I_SIZE_INITIALIZED))
 		ecryptfs_i_size_init(page_virt, ecryptfs_dentry->d_inode);
 	offset += MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
@@ -1575,11 +1570,10 @@ int ecryptfs_read_and_validate_xattr_region(char *page_virt,
 	rc = ecryptfs_read_xattr_region(page_virt, inode);
 	if (rc)
 		goto out;
-	if (!contains_ecryptfs_marker(page_virt	+ ECRYPTFS_FILE_SIZE_BYTES)) {
+	rc = ecryptfs_validate_marker(page_virt + ECRYPTFS_FILE_SIZE_BYTES);
+	if (rc)
 		printk(KERN_WARNING "Valid data found in [%s] xattr, but "
 			"the marker is invalid\n", ECRYPTFS_XATTR_NAME);
-		rc = -EINVAL;
-	}
 out:
 	return rc;
 }
