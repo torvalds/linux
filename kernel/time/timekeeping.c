@@ -680,7 +680,7 @@ static void timekeeping_resume(void)
 	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
 
 	/* Resume hrtimers */
-	hres_timers_resume();
+	hrtimers_resume();
 }
 
 static int timekeeping_suspend(void)
