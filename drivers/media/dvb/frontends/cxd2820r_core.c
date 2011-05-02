@@ -93,7 +93,7 @@ static int cxd2820r_rd_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
 }
 
 /* write multiple registers */
-static int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
+int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len)
 {
 	int ret;
@@ -119,7 +119,7 @@ static int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 }
 
 /* read multiple registers */
-static int cxd2820r_rd_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
+int cxd2820r_rd_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len)
 {
 	int ret;
@@ -145,19 +145,19 @@ static int cxd2820r_rd_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 }
 
 /* write single register */
-static int cxd2820r_wr_reg(struct cxd2820r_priv *priv, u32 reg, u8 val)
+int cxd2820r_wr_reg(struct cxd2820r_priv *priv, u32 reg, u8 val)
 {
 	return cxd2820r_wr_regs(priv, reg, &val, 1);
 }
 
 /* read single register */
-static int cxd2820r_rd_reg(struct cxd2820r_priv *priv, u32 reg, u8 *val)
+int cxd2820r_rd_reg(struct cxd2820r_priv *priv, u32 reg, u8 *val)
 {
 	return cxd2820r_rd_regs(priv, reg, val, 1);
 }
 
 /* write single register with mask */
-static int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
+int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 	u8 mask)
 {
 	int ret;
@@ -177,7 +177,7 @@ static int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 	return cxd2820r_wr_reg(priv, reg, val);
 }
 
-static int cxd2820r_gpio(struct dvb_frontend *fe)
+int cxd2820r_gpio(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret, i;
@@ -285,15 +285,10 @@ static void cxd2820r_unlock(struct cxd2820r_priv *priv, int active_fe)
 }
 
 /* 64 bit div with round closest, like DIV_ROUND_CLOSEST but 64 bit */
-static u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor)
+u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor)
 {
 	return div_u64(dividend + (divisor / 2), divisor);
 }
-
-/* TODO: ... */
-#include "cxd2820r_t.c"
-#include "cxd2820r_c.c"
-#include "cxd2820r_t2.c"
 
 static int cxd2820r_set_frontend(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *p)
