@@ -19,6 +19,7 @@
  * numa_cpu_node().
  */
 extern s16 __apicid_to_node[MAX_LOCAL_APIC];
+extern nodemask_t numa_nodes_parsed __initdata;
 
 static inline void set_apicid_to_node(int apicid, s16 node)
 {
