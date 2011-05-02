@@ -1436,7 +1436,7 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 	err = ubi_leb_change(c->ubi, lnum, c->sbuf, len, UBI_UNKNOWN);
 	if (err)
 		goto out;
-	dbg_rcvry("inode %lu at %d:%d size %lld -> %lld ",
+	dbg_rcvry("inode %lu at %d:%d size %lld -> %lld",
 		  (unsigned long)e->inum, lnum, offs, i_size, e->d_size);
 	return 0;
 
@@ -1485,10 +1485,13 @@ int ubifs_recover_size(struct ubifs_info *c)
 				e->i_size = le64_to_cpu(ino->size);
 			}
 		}
+
 		if (e->exists && e->i_size < e->d_size) {
-			if (!e->inode && c->ro_mount) {
+			if (c->ro_mount) {
 				/* Fix the inode size and pin it in memory */
 				struct inode *inode;
+
+				ubifs_assert(!e->inode);
 
 				inode = ubifs_iget(c->vfs_sb, e->inum);
 				if (IS_ERR(inode))
@@ -1513,9 +1516,11 @@ int ubifs_recover_size(struct ubifs_info *c)
 					iput(e->inode);
 			}
 		}
+
 		this = rb_next(this);
 		rb_erase(&e->rb, &c->size_tree);
 		kfree(e);
 	}
+
 	return 0;
 }
