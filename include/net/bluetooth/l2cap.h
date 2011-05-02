@@ -295,6 +295,7 @@ struct l2cap_chan {
 	__u16		omtu;
 	__u16		flush_to;
 	__u8		mode;
+	__u8		chan_type;
 
 	__le16		sport;
 
@@ -383,6 +384,10 @@ struct l2cap_conn {
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
 #define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
 #define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08
+
+#define L2CAP_CHAN_RAW			1
+#define L2CAP_CHAN_CONN_LESS		2
+#define L2CAP_CHAN_CONN_ORIENTED	3
 
 /* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)

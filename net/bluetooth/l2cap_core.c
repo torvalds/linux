@@ -245,7 +245,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 
 	chan->conn = conn;
 
-	if (sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM) {
+	if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED) {
 		if (conn->hcon->type == LE_LINK) {
 			/* LE connection */
 			chan->omtu = L2CAP_LE_DEFAULT_MTU;
@@ -256,7 +256,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 			chan->scid = l2cap_alloc_cid(conn);
 			chan->omtu = L2CAP_DEFAULT_MTU;
 		}
-	} else if (sk->sk_type == SOCK_DGRAM) {
+	} else if (chan->chan_type == L2CAP_CHAN_CONN_LESS) {
 		/* Connectionless socket */
 		chan->scid = L2CAP_CID_CONN_LESS;
 		chan->dcid = L2CAP_CID_CONN_LESS;
@@ -369,8 +369,7 @@ void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if ((sk->sk_type == SOCK_SEQPACKET ||
-					sk->sk_type == SOCK_STREAM) &&
+		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED &&
 					conn->hcon->type == ACL_LINK) {
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 			l2cap_send_disconn_req(conn, chan, reason);
@@ -379,8 +378,7 @@ void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 		break;
 
 	case BT_CONNECT2:
-		if ((sk->sk_type == SOCK_SEQPACKET ||
-					sk->sk_type == SOCK_STREAM) &&
+		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED &&
 					conn->hcon->type == ACL_LINK) {
 			struct l2cap_conn_rsp rsp;
 			__u16 result;
@@ -414,9 +412,7 @@ void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
-
-	if (sk->sk_type == SOCK_RAW) {
+	if (chan->chan_type == L2CAP_CHAN_RAW) {
 		switch (chan->sec_level) {
 		case BT_SECURITY_HIGH:
 			return HCI_AT_DEDICATED_BONDING_MITM;
@@ -657,8 +653,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 
 		bh_lock_sock(sk);
 
-		if (sk->sk_type != SOCK_SEQPACKET &&
-				sk->sk_type != SOCK_STREAM) {
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			bh_unlock_sock(sk);
 			continue;
 		}
@@ -852,8 +847,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 			sk->sk_state_change(sk);
 		}
 
-		if (sk->sk_type != SOCK_SEQPACKET &&
-				sk->sk_type != SOCK_STREAM) {
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			l2cap_sock_clear_timer(sk);
 			sk->sk_state = BT_CONNECTED;
 			sk->sk_state_change(sk);
@@ -1056,8 +1050,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan)
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
 	if (hcon->state == BT_CONNECTED) {
-		if (sk->sk_type != SOCK_SEQPACKET &&
-				sk->sk_type != SOCK_STREAM) {
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			l2cap_sock_clear_timer(sk);
 			if (l2cap_check_security(chan))
 				sk->sk_state = BT_CONNECTED;
@@ -1537,13 +1530,12 @@ int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t le
 
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 {
-	struct sock *sk = chan->sk;
 	struct sk_buff *skb;
 	u16 control;
 	int err;
 
 	/* Connectionless channel */
-	if (sk->sk_type == SOCK_DGRAM) {
+	if (chan->chan_type == L2CAP_CHAN_CONN_LESS) {
 		skb = l2cap_create_connless_pdu(chan, msg, len);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
@@ -1650,7 +1642,7 @@ static void l2cap_raw_recv(struct l2cap_conn *conn, struct sk_buff *skb)
 	read_lock(&conn->chan_lock);
 	list_for_each_entry(chan, &conn->chan_l, list) {
 		struct sock *sk = chan->sk;
-		if (sk->sk_type != SOCK_RAW)
+		if (chan->chan_type != L2CAP_CHAN_RAW)
 			continue;
 
 		/* Don't send frame to the socket it came from */
@@ -4100,7 +4092,7 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 {
 	struct sock *sk = chan->sk;
 
-	if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM)
+	if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED)
 		return;
 
 	if (encrypt == 0x00) {

@@ -162,7 +162,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	lock_sock(sk);
 
-	if ((sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM)
+	if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED
 			&& !(la.l2_psm || la.l2_cid)) {
 		err = -EINVAL;
 		goto done;
@@ -204,8 +204,8 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	}
 
 	/* PSM must be odd and lsb of upper byte must be 0 */
-	if ((__le16_to_cpu(la.l2_psm) & 0x0101) != 0x0001 &&
-				sk->sk_type != SOCK_RAW && !la.l2_cid) {
+	if ((__le16_to_cpu(la.l2_psm) & 0x0101) != 0x0001 && !la.l2_cid &&
+					chan->chan_type != L2CAP_CHAN_RAW) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -453,8 +453,8 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
-				&& sk->sk_type != SOCK_RAW) {
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED &&
+					chan->chan_type != L2CAP_CHAN_RAW) {
 			err = -EINVAL;
 			break;
 		}
@@ -599,8 +599,8 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
-				&& sk->sk_type != SOCK_RAW) {
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED &&
+					chan->chan_type != L2CAP_CHAN_RAW) {
 			err = -EINVAL;
 			break;
 		}
@@ -806,6 +806,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		sk->sk_type = parent->sk_type;
 		bt_sk(sk)->defer_setup = bt_sk(parent)->defer_setup;
 
+		chan->chan_type = pchan->chan_type;
 		chan->imtu = pchan->imtu;
 		chan->omtu = pchan->omtu;
 		chan->conf_state = pchan->conf_state;
@@ -818,6 +819,20 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->force_reliable = pchan->force_reliable;
 		chan->flushable = pchan->flushable;
 	} else {
+
+		switch (sk->sk_type) {
+		case SOCK_RAW:
+			chan->chan_type = L2CAP_CHAN_RAW;
+			break;
+		case SOCK_DGRAM:
+			chan->chan_type = L2CAP_CHAN_CONN_LESS;
+			break;
+		case SOCK_SEQPACKET:
+		case SOCK_STREAM:
+			chan->chan_type = L2CAP_CHAN_CONN_ORIENTED;
+			break;
+		}
+
 		chan->imtu = L2CAP_DEFAULT_MTU;
 		chan->omtu = 0;
 		if (!disable_ertm && sk->sk_type == SOCK_STREAM) {
