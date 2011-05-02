@@ -82,7 +82,6 @@ struct caam_ctx {
 	u32 alg_op;
 	u8 *key;
 	dma_addr_t key_phys;
-	unsigned int keylen;
 	unsigned int enckeylen;
 	unsigned int authkeylen;
 	unsigned int split_key_len;
@@ -330,7 +329,6 @@ static int aead_authenc_setkey(struct crypto_aead *aead,
 		       ctx->split_key_pad_len + enckeylen, 1);
 #endif
 
-	ctx->keylen = keylen;
 	ctx->enckeylen = enckeylen;
 	ctx->authkeylen = authkeylen;
 
