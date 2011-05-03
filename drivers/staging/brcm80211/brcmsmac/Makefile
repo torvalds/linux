@@ -38,7 +38,6 @@ BRCMSMAC_OFILES := \
 	wlc_channel.o \
 	wlc_main.o \
 	wlc_phy_shim.o \
-	wlc_pmu.o \
 	wlc_rate.o \
 	wlc_stf.o \
 	phy/wlc_phy_cmn.o \
@@ -53,6 +52,7 @@ BRCMSMAC_OFILES := \
 	../util/bcmotp.o \
 	../util/bcmsrom.o \
 	../util/hnddma.o \
+	../util/hndpmu.o \
 	../util/nicpci.o \
 	../util/qmath.o \
 	../util/nvram/nvram_ro.o
