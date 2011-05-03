@@ -1247,8 +1247,6 @@ typedef struct tx_inst_power {
 /* Message levels */
 #define WL_ERROR_VAL		0x00000001
 #define WL_TRACE_VAL		0x00000002
-#define WL_AMPDU_VAL		0x20000000
-#define WL_FFPLD_VAL		0x40000000
 
 /* maximum channels returned by the get valid channels iovar */
 #define WL_NUMCHANNELS		64

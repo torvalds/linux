@@ -22,12 +22,6 @@
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
 extern u32 wl_msg_level;
 
-#define WL_PRINT(level, fmt, args...)		\
-do {						\
-	if (wl_msg_level & level)		\
-		printk(fmt, ##args);		\
-} while (0)
-
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
 	if (wl_msg_level & WL_TRACE_VAL)	\
@@ -36,7 +30,6 @@ do {						\
 
 #ifdef BCMDBG
 
-#define WL_FFPLD(fmt, args...)	WL_PRINT(WL_FFPLD_VAL, fmt, ##args)
 
 /* Extra message control for AMPDU debugging */
 #define   WL_AMPDU_UPDN_VAL	0x00000001	/* Config up/down related  */
@@ -79,7 +72,6 @@ do {						\
 
 #else				/* BCMDBG */
 
-#define WL_FFPLD(fmt, args...)		no_printk(fmt, ##args)
 
 #define WL_AMPDU_UPDN(fmt, args...)	no_printk(fmt, ##args)
 #define WL_AMPDU_RX(fmt, args...)	no_printk(fmt, ##args)

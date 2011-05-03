@@ -314,7 +314,7 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 			 M_UCODE_MACSTAT + offsetof(macstat_t, txfunfl[fid]));
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
-		WL_FFPLD("check_txunfl : TX status FRAG set but no tx underflows\n");
+		BCMMSG(wlc->wiphy, "TX status FRAG set but no tx underflows\n");
 		return -1;
 	}
 	fifo->prev_txfunfl = cur_txunfl;
@@ -324,7 +324,6 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 
 	/* check if fifo is big enough */
 	if (wlc_xmtfifo_sz_get(wlc, fid, &xmtfifo_sz)) {
-		WL_FFPLD("check_txunfl : get xmtfifo_sz failed\n");
 		return -1;
 	}
 
@@ -338,8 +337,8 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 	if (fifo->accum_txfunfl < 10)
 		return 0;
 
-	WL_FFPLD("ampdu_count %d  tx_underflows %d\n",
-		 current_ampdu_cnt, fifo->accum_txfunfl);
+	BCMMSG(wlc->wiphy, "ampdu_count %d  tx_underflows %d\n",
+		current_ampdu_cnt, fifo->accum_txfunfl);
 
 	/*
 	   compute the current ratio of tx unfl per ampdu.
@@ -366,7 +365,6 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 	 */
 
 	if (fifo->ampdu_pld_size >= max_mpdu * FFPLD_MPDU_SIZE) {
-		WL_FFPLD(("tx fifo pld : max ampdu fits in fifo\n)"));
 		fifo->accum_txfunfl = 0;
 		return 0;
 	}
@@ -392,8 +390,9 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 		      (max_mpdu * FFPLD_MPDU_SIZE - fifo->ampdu_pld_size))
 		     / (max_mpdu * FFPLD_MPDU_SIZE)) * 100;
 
-		WL_FFPLD("DMA estimated transfer rate %d; pre-load size %d\n",
-			 fifo->dmaxferrate, fifo->ampdu_pld_size);
+		BCMMSG(wlc->wiphy, "DMA estimated transfer rate %d; "
+			"pre-load size %d\n",
+			fifo->dmaxferrate, fifo->ampdu_pld_size);
 	} else {
 
 		/* decrease ampdu size */
