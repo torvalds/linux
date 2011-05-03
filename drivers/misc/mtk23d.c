@@ -31,6 +31,10 @@ MODULE_LICENSE("GPL");
 #define MODEMDBG(fmt,argss...)
 #endif
 
+#define MTK23D_RESET 0x01
+#define MTK23D_POWERON  0x02
+#define MTK23D_POWER_HIGH 0x03
+#define MTK23D_IMEI_READ  0x04
 //#define BP_POW_EN	TCA6424_P02
 //#define BP_STATUS    RK2818_PIN_PH7    //input  high bp sleep
 //#define AP_STATUS    RK2818_PIN_PA4    //output high ap sleep
@@ -104,7 +108,26 @@ static irqreturn_t  bp_apwakeup_work_func(int irq, void *data)
 	//wake_up_interruptible(&dev->wakeup);
 	return IRQ_HANDLED;
 }
-
+int modem_poweron_off(int on_off)
+{
+	struct rk2818_23d_data *pdata = gpdata;
+	
+  if(on_off)
+  {
+         printk("modem_poweron\n");
+         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+         msleep(4000);
+         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+  }
+  else
+  {
+         printk("modem_poweroff\n");
+         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+         mdelay(100);
+         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+  }
+}
+static int power_on =1;
 static int mtk23d_open(struct inode *inode, struct file *file)
 {
 	struct rk2818_23d_data *pdata = gpdata;
@@ -114,39 +137,13 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 	MODEMDBG("modem_open\n");
 
 	int ret = 0;
-
-	//gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH); // phc
-	
-	gpio_direction_input(pdata->bp_statue);
-	
-	//rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
-	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
-	
-	//rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,0);
-	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
-	mdelay(100);
-	//rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
-	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
-	mdelay(100);
-	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	mdelay(10);
-	gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-	mdelay(2000);
-	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
-	
-	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
-	
-	#if 1 // phc
-	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
-	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN); 
-	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
-	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N); 	
-	#endif
-	
-	//INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
+	if(power_on)
+	{
+		power_on = 0;
+		modem_poweron_off(1);
+	}
 	device_init_wakeup(&pdev, 1);
 
-	printk("%s\n",__FUNCTION__);
 	return 0;
 }
 
@@ -158,23 +155,36 @@ static int mtk23d_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+//extern char imei_value[16]; // phc, no find 'imei_value' in rk29 project
+char imei_value[16] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5};
+
 static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk2818_23d_data *pdata = gpdata;
-	
-	MODEMDBG("mtk23d_ioctl, cmd = %d\n", cmd);
-	
-	if(cmd == MODEM_RESET)
+	int i;
+	void __user *argp = (void __user *)arg;
+	printk("mtk23d_ioctl\n");
+	switch(cmd)
 	{
-		gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
-		mdelay(100);
-		gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-		mdelay(10);
-		gpio_direction_output(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-		mdelay(2000);
-		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+	case MTK23D_RESET:
+	gpio_direction_output(pdata->bp_power, GPIO_HIGH);
+	mdelay(100);
+	gpio_direction_output(pdata->bp_reset, GPIO_LOW);
+        mdelay(100);
+        gpio_set_value(pdata->bp_reset, GPIO_HIGH);
+        msleep(4000);
+        gpio_set_value(pdata->bp_power, GPIO_LOW);
+	break;
+	case MTK23D_IMEI_READ:
+             if(copy_to_user(argp, &(imei_value[0]), 16))
+             {
+                            printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
+                            return -EFAULT;
+            }
+	    break;
+	default:
+	break;
 	}
-	
 	return 0;
 }
 
@@ -203,10 +213,12 @@ static int mtk23d_probe(struct platform_device *pdev)
 	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_GPIO1B7); 			
 	gpio_request(RK29_PIN1_PB7, NULL);
 	gpio_direction_output(RK29_PIN1_PB7,GPIO_LOW);
+	gpio_pull_updown(RK29_PIN1_PB7, PullDisable);  // 下拉禁止
 	
 	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_GPIO1B6); 		
 	gpio_request(RK29_PIN1_PB6, NULL);
 	gpio_direction_output(RK29_PIN1_PB6,GPIO_LOW);	
+	gpio_pull_updown(RK29_PIN1_PB6, PullDisable);  // 下拉禁止
 	
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1); 			
 	gpio_request(RK29_PIN1_PC1, NULL);
@@ -217,6 +229,8 @@ static int mtk23d_probe(struct platform_device *pdev)
 	gpio_direction_output(RK29_PIN1_PC0,GPIO_LOW);		
 #endif
 
+	pdata->io_init();
+
 	mt6223d_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(NULL == mt6223d_data)
 	{
@@ -224,8 +238,6 @@ static int mtk23d_probe(struct platform_device *pdev)
 		goto err6;
 	}
 	platform_set_drvdata(pdev, mt6223d_data);
-
-	pdata->io_init();
 
 	result = gpio_request(pdata->bp_statue, "mtk23d");
 	if (result) {
@@ -259,14 +271,13 @@ static int mtk23d_probe(struct platform_device *pdev)
 	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
 	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
 	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
+	mdelay(100);
 	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
 #endif	
 	
 #if 0 
-	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
-	
 	gpio_direction_input(pdata->bp_statue);
 	
 	//rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
@@ -279,16 +290,11 @@ static int mtk23d_probe(struct platform_device *pdev)
 	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	
-	mdelay(2000);
-	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-	
 	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
-	printk("%s:power up modem\n",__FUNCTION__);
 #endif
 
 	INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
-
+        power_on = 1;
 	result = misc_register(&mtk23d_misc);
 	if(result)
 	{
@@ -345,6 +351,8 @@ void mtk23d_shutdown(struct platform_device *pdev, pm_message_t state)
 	struct modem_dev *mt6223d_data = platform_get_drvdata(pdev);
 	
 	MODEMDBG("%s \n", __FUNCTION__);
+	
+	modem_poweron_off(0);  // power down
 
 	cancel_work_sync(&mt6223d_data->work);
 	gpio_free(pdata->bp_ap_wakeup);

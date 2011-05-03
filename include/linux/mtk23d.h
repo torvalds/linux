@@ -1,10 +1,6 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/miscdevice.h>
-                             
-#define MODEM_POWER_START 0x3
-#define MODEM_POWER_END  0x2
-#define MODEM_RESET      0x1
 
 struct modem_dev
 {
@@ -13,7 +9,7 @@ struct modem_dev
 	struct work_struct work;
 };
 
-/* 耳机数据结构体 */
+/* 耳机数据结构�?*/
 struct rk2818_23d_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
