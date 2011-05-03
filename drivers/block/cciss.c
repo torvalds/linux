@@ -4353,7 +4353,7 @@ static __devinit int cciss_message(struct pci_dev *pdev, unsigned char opcode, u
 		tag = readl(vaddr + SA5_REPLY_PORT_OFFSET);
 		if ((tag & ~3) == paddr32)
 			break;
-		schedule_timeout_uninterruptible(HZ);
+		msleep(CCISS_POST_RESET_NOOP_TIMEOUT_MSECS);
 	}
 
 	iounmap(vaddr);
