@@ -33,6 +33,7 @@
 
 #define SST_CARD_NAMES "intel_mid_card"
 
+#define MFLD_MAX_HW_CH 4
 /* control list Pmic & Lpe */
 /* Input controls */
 enum port_status {
@@ -108,6 +109,9 @@ struct snd_pmic_ops {
 	int (*power_down_pmic_pb) (unsigned int device);
 	int (*power_down_pmic_cp) (unsigned int device);
 	int (*power_down_pmic) (void);
+	unsigned int hw_dmic_map[MFLD_MAX_HW_CH];
+	unsigned int available_dmics;
+	int (*set_hw_dmic_route) (u8 index);
 };
 
 struct intel_sst_pcm_control {

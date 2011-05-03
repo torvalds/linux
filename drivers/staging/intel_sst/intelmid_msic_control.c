@@ -29,8 +29,14 @@
 #include <linux/pci.h>
 #include <linux/file.h>
 #include <linux/delay.h>
+#include <sound/control.h>
 #include "intel_sst.h"
+#include <linux/input.h>
 #include "intelmid_snd_control.h"
+#include "intelmid.h"
+
+#define AUDIOMUX12  0x24c
+#define AUDIOMUX34  0x24d
 
 static int msic_init_card(void)
 {
@@ -680,6 +686,57 @@ static int msic_set_selected_input_dev(u8 value)
 	return retval;
 }
 
+static int msic_set_hw_dmic_route(u8 hw_ch_index)
+{
+	struct sc_reg_access sc_access_router;
+	int    retval = -EINVAL;
+
+	switch (hw_ch_index) {
+	case HW_CH0:
+		sc_access_router.reg_addr = AUDIOMUX12;
+		sc_access_router.value    = snd_msic_ops.hw_dmic_map[0];
+		sc_access_router.mask     = (MASK2 | MASK1 | MASK0);
+		pr_debug("hw_ch0.  value = 0x%x\n",
+				sc_access_router.value);
+		retval = sst_sc_reg_access(&sc_access_router,
+				PMIC_READ_MODIFY, 1);
+		break;
+
+	case HW_CH1:
+		sc_access_router.reg_addr = AUDIOMUX12;
+		sc_access_router.value    = (snd_msic_ops.hw_dmic_map[1]) << 4;
+		sc_access_router.mask     = (MASK6 | MASK5 | MASK4);
+		pr_debug("### hw_ch1.  value = 0x%x\n",
+				sc_access_router.value);
+		retval = sst_sc_reg_access(&sc_access_router,
+				PMIC_READ_MODIFY, 1);
+		break;
+
+	case HW_CH2:
+		sc_access_router.reg_addr = AUDIOMUX34;
+		sc_access_router.value    = snd_msic_ops.hw_dmic_map[2];
+		sc_access_router.mask     = (MASK2 | MASK1 | MASK0);
+		pr_debug("hw_ch2.  value = 0x%x\n",
+				sc_access_router.value);
+		retval = sst_sc_reg_access(&sc_access_router,
+				PMIC_READ_MODIFY, 1);
+		break;
+
+	case HW_CH3:
+		sc_access_router.reg_addr = AUDIOMUX34;
+		sc_access_router.value    = (snd_msic_ops.hw_dmic_map[3]) << 4;
+		sc_access_router.mask     = (MASK6 | MASK5 | MASK4);
+		pr_debug("hw_ch3.  value = 0x%x\n",
+				sc_access_router.value);
+		retval = sst_sc_reg_access(&sc_access_router,
+				PMIC_READ_MODIFY, 1);
+		break;
+	}
+
+	return retval;
+}
+
+
 static int msic_set_pcm_voice_params(void)
 {
 	return 0;
@@ -724,6 +781,7 @@ struct snd_pmic_ops snd_msic_ops = {
 	.set_input_dev	=	msic_set_selected_input_dev,
 	.set_output_dev =	msic_set_selected_output_dev,
 	.set_lineout_dev =	msic_set_selected_lineout_dev,
+	.set_hw_dmic_route =    msic_set_hw_dmic_route,
 	.set_mute	=	msic_set_mute,
 	.get_mute	=	msic_get_mute,
 	.set_vol	=	msic_set_vol,

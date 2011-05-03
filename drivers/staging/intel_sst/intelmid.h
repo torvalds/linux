@@ -28,6 +28,7 @@
 #define __INTELMID_H
 
 #include <linux/time.h>
+#include <sound/jack.h>
 
 #define DRIVER_NAME_MFLD "msic_audio"
 #define DRIVER_NAME_MRST "pmic_audio"
@@ -43,7 +44,7 @@
 #define MAX_BUFFER		(800*1024) /* for PCM */
 #define MIN_BUFFER		(800*1024)
 #define MAX_PERIODS		(1024*2)
-#define MIN_PERIODS		1
+#define MIN_PERIODS		2
 #define MAX_PERIOD_BYTES MAX_BUFFER
 #define MIN_PERIOD_BYTES 32
 /*#define MIN_PERIOD_BYTES 160*/
@@ -57,7 +58,7 @@
 #define FIFO_SIZE		0 /* fifo not being used */
 #define INTEL_MAD		"Intel MAD"
 #define MAX_CTRL_MRST		7
-#define MAX_CTRL_MFLD		3
+#define MAX_CTRL_MFLD		7
 #define MAX_CTRL		7
 #define MAX_VENDORS		4
 /* TODO +6 db */
@@ -166,6 +167,12 @@ enum _widget_ctrl {
 };
 enum _widget_ctrl_mfld {
 	LINEOUT_SEL_MFLD = 3,
+};
+enum hw_chs {
+	HW_CH0 = 0,
+	HW_CH1,
+	HW_CH2,
+	HW_CH3
 };
 
 void period_elapsed(void *mad_substream);
