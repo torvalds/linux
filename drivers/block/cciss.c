@@ -4719,6 +4719,28 @@ static void cciss_free_cmd_pool(ctlr_info_t *h)
 			h->errinfo_pool, h->errinfo_pool_dhandle);
 }
 
+static int cciss_request_irq(ctlr_info_t *h,
+	irqreturn_t (*msixhandler)(int, void *),
+	irqreturn_t (*intxhandler)(int, void *))
+{
+	if (h->msix_vector || h->msi_vector) {
+		if (!request_irq(h->intr[PERF_MODE_INT], msixhandler,
+				IRQF_DISABLED, h->devname, h))
+			return 0;
+		dev_err(&h->pdev->dev, "Unable to get msi irq %d"
+			" for %s\n", h->intr[PERF_MODE_INT],
+			h->devname);
+		return -1;
+	}
+
+	if (!request_irq(h->intr[PERF_MODE_INT], intxhandler,
+			IRQF_DISABLED, h->devname, h))
+		return 0;
+	dev_err(&h->pdev->dev, "Unable to get irq %d for %s\n",
+		h->intr[PERF_MODE_INT], h->devname);
+	return -1;
+}
+
 /*
  *  This is it.  Find all the controllers and register them.  I really hate
  *  stealing all these major device numbers.
@@ -4789,22 +4811,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, CCISS_INTR_OFF);
-	if (h->msi_vector || h->msix_vector) {
-		if (request_irq(h->intr[PERF_MODE_INT],
-				do_cciss_msix_intr,
-				IRQF_DISABLED, h->devname, h)) {
-			dev_err(&h->pdev->dev, "Unable to get irq %d for %s\n",
-			       h->intr[PERF_MODE_INT], h->devname);
-			goto clean2;
-		}
-	} else {
-		if (request_irq(h->intr[PERF_MODE_INT], do_cciss_intx,
-				IRQF_DISABLED, h->devname, h)) {
-			dev_err(&h->pdev->dev, "Unable to get irq %d for %s\n",
-			       h->intr[PERF_MODE_INT], h->devname);
-			goto clean2;
-		}
-	}
+	rc = cciss_request_irq(h, do_cciss_msix_intr, do_cciss_intx);
+	if (rc)
+		goto clean2;
 
 	dev_info(&h->pdev->dev, "%s: <0x%x> at PCI %s IRQ %d%s using DAC\n",
 	       h->devname, pdev->device, pci_name(pdev),
