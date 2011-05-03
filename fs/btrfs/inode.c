@@ -6591,6 +6591,7 @@ out:
 static int btrfs_truncate(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_block_rsv *rsv;
 	int ret;
 	int err = 0;
 	struct btrfs_trans_handle *trans;
@@ -6604,28 +6605,83 @@ static int btrfs_truncate(struct inode *inode)
 	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
 	btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
 
-	trans = btrfs_start_transaction(root, 5);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	/*
+	 * Yes ladies and gentelment, this is indeed ugly.  The fact is we have
+	 * 3 things going on here
+	 *
+	 * 1) We need to reserve space for our orphan item and the space to
+	 * delete our orphan item.  Lord knows we don't want to have a dangling
+	 * orphan item because we didn't reserve space to remove it.
+	 *
+	 * 2) We need to reserve space to update our inode.
+	 *
+	 * 3) We need to have something to cache all the space that is going to
+	 * be free'd up by the truncate operation, but also have some slack
+	 * space reserved in case it uses space during the truncate (thank you
+	 * very much snapshotting).
+	 *
+	 * And we need these to all be seperate.  The fact is we can use alot of
+	 * space doing the truncate, and we have no earthly idea how much space
+	 * we will use, so we need the truncate reservation to be seperate so it
+	 * doesn't end up using space reserved for updating the inode or
+	 * removing the orphan item.  We also need to be able to stop the
+	 * transaction and start a new one, which means we need to be able to
+	 * update the inode several times, and we have no idea of knowing how
+	 * many times that will be, so we can't just reserve 1 item for the
+	 * entirety of the opration, so that has to be done seperately as well.
+	 * Then there is the orphan item, which does indeed need to be held on
+	 * to for the whole operation, and we need nobody to touch this reserved
+	 * space except the orphan code.
+	 *
+	 * So that leaves us with
+	 *
+	 * 1) root->orphan_block_rsv - for the orphan deletion.
+	 * 2) rsv - for the truncate reservation, which we will steal from the
+	 * transaction reservation.
+	 * 3) fs_info->trans_block_rsv - this will have 1 items worth left for
+	 * updating the inode.
+	 */
+	rsv = btrfs_alloc_block_rsv(root);
+	if (!rsv)
+		return -ENOMEM;
+	btrfs_add_durable_block_rsv(root->fs_info, rsv);
+
+	trans = btrfs_start_transaction(root, 4);
+	if (IS_ERR(trans)) {
+		err = PTR_ERR(trans);
+		goto out;
+	}
 
 	btrfs_set_trans_block_group(trans, inode);
+
+	/*
+	 * Reserve space for the truncate process.  Truncate should be adding
+	 * space, but if there are snapshots it may end up using space.
+	 */
+	ret = btrfs_truncate_reserve_metadata(trans, root, rsv);
+	BUG_ON(ret);
 
 	ret = btrfs_orphan_add(trans, inode);
 	if (ret) {
 		btrfs_end_transaction(trans, root);
-		return ret;
+		goto out;
 	}
 
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
 
-	/* Now start a transaction for the truncate */
-	trans = btrfs_start_transaction(root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	/*
+	 * Ok so we've already migrated our bytes over for the truncate, so here
+	 * just reserve the one slot we need for updating the inode.
+	 */
+	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		err = PTR_ERR(trans);
+		goto out;
+	}
 	btrfs_set_trans_block_group(trans, inode);
-	trans->block_rsv = root->orphan_block_rsv;
+	trans->block_rsv = rsv;
 
 	/*
 	 * setattr is responsible for setting the ordered_data_close flag,
@@ -6649,24 +6705,18 @@ static int btrfs_truncate(struct inode *inode)
 
 	while (1) {
 		if (!trans) {
-			trans = btrfs_start_transaction(root, 0);
-			if (IS_ERR(trans))
-				return PTR_ERR(trans);
-			btrfs_set_trans_block_group(trans, inode);
-			trans->block_rsv = root->orphan_block_rsv;
-		}
+			trans = btrfs_start_transaction(root, 3);
+			if (IS_ERR(trans)) {
+				err = PTR_ERR(trans);
+				goto out;
+			}
 
-		ret = btrfs_block_rsv_check(trans, root,
-					    root->orphan_block_rsv, 0, 5);
-		if (ret == -EAGAIN) {
-			ret = btrfs_commit_transaction(trans, root);
-			if (ret)
-				return ret;
-			trans = NULL;
-			continue;
-		} else if (ret) {
-			err = ret;
-			break;
+			ret = btrfs_truncate_reserve_metadata(trans, root,
+							      rsv);
+			BUG_ON(ret);
+
+			btrfs_set_trans_block_group(trans, inode);
+			trans->block_rsv = rsv;
 		}
 
 		ret = btrfs_truncate_inode_items(trans, root, inode,
@@ -6677,6 +6727,7 @@ static int btrfs_truncate(struct inode *inode)
 			break;
 		}
 
+		trans->block_rsv = &root->fs_info->trans_block_rsv;
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
 			err = ret;
@@ -6690,6 +6741,7 @@ static int btrfs_truncate(struct inode *inode)
 	}
 
 	if (ret == 0 && inode->i_nlink > 0) {
+		trans->block_rsv = root->orphan_block_rsv;
 		ret = btrfs_orphan_del(trans, inode);
 		if (ret)
 			err = ret;
@@ -6701,15 +6753,20 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_orphan_del(NULL, inode);
 	}
 
+	trans->block_rsv = &root->fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret && !err)
 		err = ret;
 
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction_throttle(trans, root);
+	btrfs_btree_balance_dirty(root, nr);
+
+out:
+	btrfs_free_block_rsv(root, rsv);
+
 	if (ret && !err)
 		err = ret;
-	btrfs_btree_balance_dirty(root, nr);
 
 	return err;
 }

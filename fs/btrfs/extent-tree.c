@@ -3980,6 +3980,37 @@ static u64 calc_trans_metadata_size(struct btrfs_root *root, int num_items)
 		3 * num_items;
 }
 
+int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
+				    struct btrfs_root *root,
+				    struct btrfs_block_rsv *rsv)
+{
+	struct btrfs_block_rsv *trans_rsv = &root->fs_info->trans_block_rsv;
+	u64 num_bytes;
+	int ret;
+
+	/*
+	 * Truncate should be freeing data, but give us 2 items just in case it
+	 * needs to use some space.  We may want to be smarter about this in the
+	 * future.
+	 */
+	num_bytes = calc_trans_metadata_size(root, 2);
+
+	/* We already have enough bytes, just return */
+	if (rsv->reserved >= num_bytes)
+		return 0;
+
+	num_bytes -= rsv->reserved;
+
+	/*
+	 * You should have reserved enough space before hand to do this, so this
+	 * should not fail.
+	 */
+	ret = block_rsv_migrate_bytes(trans_rsv, rsv, num_bytes);
+	BUG_ON(ret);
+
+	return 0;
+}
+
 int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 int num_items)
@@ -4020,23 +4051,18 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *dst_rsv = root->orphan_block_rsv;
 
 	/*
-	 * one for deleting orphan item, one for updating inode and
-	 * two for calling btrfs_truncate_inode_items.
-	 *
-	 * btrfs_truncate_inode_items is a delete operation, it frees
-	 * more space than it uses in most cases. So two units of
-	 * metadata space should be enough for calling it many times.
-	 * If all of the metadata space is used, we can commit
-	 * transaction and use space it freed.
+	 * We need to hold space in order to delete our orphan item once we've
+	 * added it, so this takes the reservation so we can release it later
+	 * when we are truly done with the orphan item.
 	 */
-	u64 num_bytes = calc_trans_metadata_size(root, 4);
+	u64 num_bytes = calc_trans_metadata_size(root, 1);
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
 void btrfs_orphan_release_metadata(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 num_bytes = calc_trans_metadata_size(root, 4);
+	u64 num_bytes = calc_trans_metadata_size(root, 1);
 	btrfs_block_rsv_release(root, root->orphan_block_rsv, num_bytes);
 }
 
