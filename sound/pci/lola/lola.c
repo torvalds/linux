@@ -587,14 +587,31 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	chip->sample_rate_min = sample_rate_min[dev];
 	chip->granularity = granularity[dev];
-	/* FIXME */
-	if (chip->granularity != LOLA_GRANULARITY_MAX) {
+	switch (chip->granularity) {
+	case 8:
+		chip->sample_rate_max = 48000;
+		break;
+	case 16:
+		chip->sample_rate_max = 96000;
+		break;
+	case 32:
+		chip->sample_rate_max = 192000;
+		break;
+	default:
 		snd_printk(KERN_WARNING SFX
-			   "Only %d granularity is supported for now\n",
-			   LOLA_GRANULARITY_MAX);
+			   "Invalid granularity %d, reset to %d\n",
+			   chip->granularity, LOLA_GRANULARITY_MAX);
 		chip->granularity = LOLA_GRANULARITY_MAX;
+		chip->sample_rate_max = 192000;
+		break;
+	}
+	chip->sample_rate_min = sample_rate_min[dev];
+	if (chip->sample_rate_min > chip->sample_rate_max) {
+		snd_printk(KERN_WARNING SFX
+			   "Invalid sample_rate_min %d, reset to 16000\n",
+			   chip->sample_rate_min);
+		chip->sample_rate_min = 16000;
 	}
 
 	err = pci_request_regions(pci, DRVNAME);

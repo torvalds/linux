@@ -178,14 +178,16 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 	str->opened = 1;
 	runtime->hw = lola_pcm_hw;
 	runtime->hw.channels_max = pcm->num_streams - str->index;
+	runtime->hw.rate_min = chip->sample_rate_min;
+	runtime->hw.rate_max = chip->sample_rate_max;
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	/* period size = multiple of chip->granularity (8, 16 or 32 frames)
 	 * use LOLA_GRANULARITY_MAX = 32 for instance
 	 */
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-				   LOLA_GRANULARITY_MAX);
+				   chip->granularity);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-				   LOLA_GRANULARITY_MAX);
+				   chip->granularity);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
 }

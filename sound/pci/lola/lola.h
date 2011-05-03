@@ -367,6 +367,7 @@ struct lola {
 	/* parameters */
 	unsigned int granularity;
 	unsigned int sample_rate_min;
+	unsigned int sample_rate_max;
 
 	/* flags */
 	unsigned int running :1;
