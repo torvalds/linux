@@ -6556,7 +6556,7 @@ S:	Maintained
 F:	drivers/usb/host/uhci*
 
 USB "USBNET" DRIVER FRAMEWORK
-M:	David Brownell <dbrownell@users.sourceforge.net>
+M:	Oliver Neukum <oneukum@suse.de>
 L:	netdev@vger.kernel.org
 W:	http://www.linux-usb.org/usbnet
 S:	Maintained

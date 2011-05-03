@@ -532,7 +532,7 @@ int xfrm_init_replay(struct xfrm_state *x)
 
 	if (replay_esn) {
 		if (replay_esn->replay_window >
-		    replay_esn->bmp_len * sizeof(__u32))
+		    replay_esn->bmp_len * sizeof(__u32) * 8)
 			return -EINVAL;
 
 	if ((x->props.flags & XFRM_STATE_ESN) && x->replay_esn)
