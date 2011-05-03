@@ -2743,6 +2743,26 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
 	}
 }
 
+static int __devinit hpsa_send_host_reset(struct ctlr_info *h,
+	unsigned char *scsi3addr, u8 reset_type)
+{
+	struct CommandList *c;
+
+	c = cmd_alloc(h);
+	if (!c)
+		return -ENOMEM;
+	fill_cmd(c, HPSA_DEVICE_RESET_MSG, h, NULL, 0, 0,
+		RAID_CTLR_LUNID, TYPE_MSG);
+	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to target reset */
+	c->waiting = NULL;
+	enqueue_cmd_and_start_io(h, c);
+	/* Don't wait for completion, the reset won't complete.  Don't free
+	 * the command either.  This is the last command we will send before
+	 * re-initializing everything, so it doesn't matter and won't leak.
+	 */
+	return 0;
+}
+
 static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
 	int cmd_type)
@@ -2820,7 +2840,8 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.Type.Attribute = ATTR_SIMPLE;
 			c->Request.Type.Direction = XFER_NONE;
 			c->Request.Timeout = 0; /* Don't time out */
-			c->Request.CDB[0] =  0x01; /* RESET_MSG is 0x01 */
+			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
+			c->Request.CDB[0] =  cmd;
 			c->Request.CDB[1] = 0x03;  /* Reset target above */
 			/* If bytes 4-7 are zero, it means reset the */
 			/* LunID device */
@@ -2986,6 +3007,63 @@ static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
 	return next_command(h);
 }
 
+/* Some controllers, like p400, will give us one interrupt
+ * after a soft reset, even if we turned interrupts off.
+ * Only need to check for this in the hpsa_xxx_discard_completions
+ * functions.
+ */
+static int ignore_bogus_interrupt(struct ctlr_info *h)
+{
+	if (likely(!reset_devices))
+		return 0;
+
+	if (likely(h->interrupts_enabled))
+		return 0;
+
+	dev_info(&h->pdev->dev, "Received interrupt while interrupts disabled "
+		"(known firmware bug.)  Ignoring.\n");
+
+	return 1;
+}
+
+static irqreturn_t hpsa_intx_discard_completions(int irq, void *dev_id)
+{
+	struct ctlr_info *h = dev_id;
+	unsigned long flags;
+	u32 raw_tag;
+
+	if (ignore_bogus_interrupt(h))
+		return IRQ_NONE;
+
+	if (interrupt_not_for_us(h))
+		return IRQ_NONE;
+	spin_lock_irqsave(&h->lock, flags);
+	while (interrupt_pending(h)) {
+		raw_tag = get_next_completion(h);
+		while (raw_tag != FIFO_EMPTY)
+			raw_tag = next_command(h);
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t hpsa_msix_discard_completions(int irq, void *dev_id)
+{
+	struct ctlr_info *h = dev_id;
+	unsigned long flags;
+	u32 raw_tag;
+
+	if (ignore_bogus_interrupt(h))
+		return IRQ_NONE;
+
+	spin_lock_irqsave(&h->lock, flags);
+	raw_tag = get_next_completion(h);
+	while (raw_tag != FIFO_EMPTY)
+		raw_tag = next_command(h);
+	spin_unlock_irqrestore(&h->lock, flags);
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id)
 {
 	struct ctlr_info *h = dev_id;
@@ -3124,7 +3202,6 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 	return 0;
 }
 
-#define hpsa_soft_reset_controller(p) hpsa_message(p, 1, 0)
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
 static int hpsa_controller_hard_reset(struct pci_dev *pdev,
@@ -3320,7 +3397,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 				"'Bit 2 doorbell reset' is "
 				"supported, but not 'bit 5 doorbell reset'.  "
 				"Firmware update is recommended.\n");
-			rc = -ENODEV;
+			rc = -ENOTSUPP; /* try soft reset */
 			goto unmap_cfgtable;
 		}
 	}
@@ -3344,13 +3421,18 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	/* Wait for board to become not ready, then ready. */
 	dev_info(&pdev->dev, "Waiting for board to reset.\n");
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
-	if (rc)
+	if (rc) {
 		dev_warn(&pdev->dev,
-			"failed waiting for board to reset\n");
+			"failed waiting for board to reset."
+			" Will try soft reset.\n");
+		rc = -ENOTSUPP; /* Not expected, but try soft reset later */
+		goto unmap_cfgtable;
+	}
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
 		dev_warn(&pdev->dev,
-			"failed waiting for board to become ready\n");
+			"failed waiting for board to become ready "
+			"after hard reset\n");
 		goto unmap_cfgtable;
 	}
 
@@ -3358,11 +3440,11 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	if (rc < 0)
 		goto unmap_cfgtable;
 	if (rc) {
-		dev_warn(&pdev->dev, "Unable to successfully reset controller,"
-			" Ignoring controller.\n");
-		rc = -ENODEV;
+		dev_warn(&pdev->dev, "Unable to successfully reset "
+			"controller. Will try soft reset.\n");
+		rc = -ENOTSUPP;
 	} else {
-		dev_info(&pdev->dev, "board ready.\n");
+		dev_info(&pdev->dev, "board ready after hard reset.\n");
 	}
 
 unmap_cfgtable:
@@ -3840,7 +3922,7 @@ static __devinit int hpsa_init_reset_devices(struct pci_dev *pdev)
 	 * due to concerns about shared bbwc between 6402/6404 pair.
 	 */
 	if (rc == -ENOTSUPP)
-		return 0; /* just try to do the kdump anyhow. */
+		return rc; /* just try to do the kdump anyhow. */
 	if (rc)
 		return -ENODEV;
 
@@ -3910,18 +3992,79 @@ static int hpsa_request_irq(struct ctlr_info *h,
 	return 0;
 }
 
+static int __devinit hpsa_kdump_soft_reset(struct ctlr_info *h)
+{
+	if (hpsa_send_host_reset(h, RAID_CTLR_LUNID,
+		HPSA_RESET_TYPE_CONTROLLER)) {
+		dev_warn(&h->pdev->dev, "Resetting array controller failed.\n");
+		return -EIO;
+	}
+
+	dev_info(&h->pdev->dev, "Waiting for board to soft reset.\n");
+	if (hpsa_wait_for_board_state(h->pdev, h->vaddr, BOARD_NOT_READY)) {
+		dev_warn(&h->pdev->dev, "Soft reset had no effect.\n");
+		return -1;
+	}
+
+	dev_info(&h->pdev->dev, "Board reset, awaiting READY status.\n");
+	if (hpsa_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY)) {
+		dev_warn(&h->pdev->dev, "Board failed to become ready "
+			"after soft reset.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
+{
+	free_irq(h->intr[h->intr_mode], h);
+#ifdef CONFIG_PCI_MSI
+	if (h->msix_vector)
+		pci_disable_msix(h->pdev);
+	else if (h->msi_vector)
+		pci_disable_msi(h->pdev);
+#endif /* CONFIG_PCI_MSI */
+	hpsa_free_sg_chain_blocks(h);
+	hpsa_free_cmd_pool(h);
+	kfree(h->blockFetchTable);
+	pci_free_consistent(h->pdev, h->reply_pool_size,
+		h->reply_pool, h->reply_pool_dhandle);
+	if (h->vaddr)
+		iounmap(h->vaddr);
+	if (h->transtable)
+		iounmap(h->transtable);
+	if (h->cfgtable)
+		iounmap(h->cfgtable);
+	pci_release_regions(h->pdev);
+	kfree(h);
+}
+
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
 	int dac, rc;
 	struct ctlr_info *h;
+	int try_soft_reset = 0;
+	unsigned long flags;
 
 	if (number_of_controllers == 0)
 		printk(KERN_INFO DRIVER_NAME "\n");
 
 	rc = hpsa_init_reset_devices(pdev);
-	if (rc)
-		return rc;
+	if (rc) {
+		if (rc != -ENOTSUPP)
+			return rc;
+		/* If the reset fails in a particular way (it has no way to do
+		 * a proper hard reset, so returns -ENOTSUPP) we can try to do
+		 * a soft reset once we get the controller configured up to the
+		 * point that it can accept a command.
+		 */
+		try_soft_reset = 1;
+		rc = 0;
+	}
+
+reinit_after_soft_reset:
 
 	/* Command structures must be aligned on a 32-byte boundary because
 	 * the 5 lower bits of the address are used by the hardware. and by
@@ -3981,11 +4124,66 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->ndevices = 0;
 	h->scsi_host = NULL;
 	spin_lock_init(&h->devlock);
+	hpsa_put_ctlr_into_performant_mode(h);
+
+	/* At this point, the controller is ready to take commands.
+	 * Now, if reset_devices and the hard reset didn't work, try
+	 * the soft reset and see if that works.
+	 */
+	if (try_soft_reset) {
+
+		/* This is kind of gross.  We may or may not get a completion
+		 * from the soft reset command, and if we do, then the value
+		 * from the fifo may or may not be valid.  So, we wait 10 secs
+		 * after the reset throwing away any completions we get during
+		 * that time.  Unregister the interrupt handler and register
+		 * fake ones to scoop up any residual completions.
+		 */
+		spin_lock_irqsave(&h->lock, flags);
+		h->access.set_intr_mask(h, HPSA_INTR_OFF);
+		spin_unlock_irqrestore(&h->lock, flags);
+		free_irq(h->intr[h->intr_mode], h);
+		rc = hpsa_request_irq(h, hpsa_msix_discard_completions,
+					hpsa_intx_discard_completions);
+		if (rc) {
+			dev_warn(&h->pdev->dev, "Failed to request_irq after "
+				"soft reset.\n");
+			goto clean4;
+		}
+
+		rc = hpsa_kdump_soft_reset(h);
+		if (rc)
+			/* Neither hard nor soft reset worked, we're hosed. */
+			goto clean4;
+
+		dev_info(&h->pdev->dev, "Board READY.\n");
+		dev_info(&h->pdev->dev,
+			"Waiting for stale completions to drain.\n");
+		h->access.set_intr_mask(h, HPSA_INTR_ON);
+		msleep(10000);
+		h->access.set_intr_mask(h, HPSA_INTR_OFF);
+
+		rc = controller_reset_failed(h->cfgtable);
+		if (rc)
+			dev_info(&h->pdev->dev,
+				"Soft reset appears to have failed.\n");
+
+		/* since the controller's reset, we have to go back and re-init
+		 * everything.  Easiest to just forget what we've done and do it
+		 * all over again.
+		 */
+		hpsa_undo_allocations_after_kdump_soft_reset(h);
+		try_soft_reset = 0;
+		if (rc)
+			/* don't go to clean4, we already unallocated */
+			return -ENODEV;
+
+		goto reinit_after_soft_reset;
+	}
 
 	/* Turn the interrupts on so we can service requests */
 	h->access.set_intr_mask(h, HPSA_INTR_ON);
 
-	hpsa_put_ctlr_into_performant_mode(h);
 	hpsa_hba_inquiry(h);
 	hpsa_register_scsi(h);	/* hook ourselves into SCSI subsystem */
 	h->busy_initializing = 0;
