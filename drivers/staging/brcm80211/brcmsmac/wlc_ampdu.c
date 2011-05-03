@@ -520,8 +520,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	f = ampdu->fifo_tb + prio2fifo[tid];
 
 	scb = wlc->pub->global_scb;
-	ASSERT(scb->magic == SCB_MAGIC);
-
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	ini = &scb_ampdu->ini[tid];
 
@@ -900,7 +898,6 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	if (likely(scb)) {
 		scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 		ini = SCB_AMPDU_INI(scb_ampdu, p->priority);
-		ASSERT(ini->scb == scb);
 		wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
 	} else {
 		/* loop through all pkts and free */
@@ -983,13 +980,13 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			update_rate = false;
 		}
 
-		ASSERT(txs->status & TX_STATUS_INTERMEDIATE);
+		WARN_ON(!(txs->status & TX_STATUS_INTERMEDIATE));
 		start_seq = txs->sequence >> SEQNUM_SHIFT;
 		bitmap[0] = (txs->status & TX_STATUS_BA_BMAP03_MASK) >>
 		    TX_STATUS_BA_BMAP03_SHIFT;
 
-		ASSERT(!(s1 & TX_STATUS_INTERMEDIATE));
-		ASSERT(s1 & TX_STATUS_AMPDU);
+		WARN_ON(s1 & TX_STATUS_INTERMEDIATE);
+		WARN_ON(!(s1 & TX_STATUS_AMPDU));
 
 		bitmap[0] |=
 		    (s1 & TX_STATUS_BA_BMAP47_MASK) <<
