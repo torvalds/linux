@@ -115,7 +115,7 @@ static void can_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 }
 
-static const struct can_proto *can_try_module_get(int protocol)
+static const struct can_proto *can_get_proto(int protocol)
 {
 	const struct can_proto *cp;
 
@@ -126,6 +126,11 @@ static const struct can_proto *can_try_module_get(int protocol)
 	rcu_read_unlock();
 
 	return cp;
+}
+
+static inline void can_put_proto(const struct can_proto *cp)
+{
+	module_put(cp->prot->owner);
 }
 
 static int can_create(struct net *net, struct socket *sock, int protocol,
@@ -143,7 +148,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
-	cp = can_try_module_get(protocol);
+	cp = can_get_proto(protocol);
 
 #ifdef CONFIG_MODULES
 	if (!cp) {
@@ -160,7 +165,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 			printk(KERN_ERR "can: request_module "
 			       "(can-proto-%d) failed.\n", protocol);
 
-		cp = can_try_module_get(protocol);
+		cp = can_get_proto(protocol);
 	}
 #endif
 
@@ -195,7 +200,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 	}
 
  errout:
-	module_put(cp->prot->owner);
+	can_put_proto(cp);
 	return err;
 }
 
