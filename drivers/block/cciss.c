@@ -4653,6 +4653,39 @@ static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
 	return 0;
 }
 
+static __devinit int cciss_allocate_cmd_pool(ctlr_info_t *h)
+{
+	h->cmd_pool_bits = kmalloc(
+		DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG) *
+		sizeof(unsigned long), GFP_KERNEL);
+	h->cmd_pool = pci_alloc_consistent(h->pdev,
+		h->nr_cmds * sizeof(CommandList_struct),
+		&(h->cmd_pool_dhandle));
+	h->errinfo_pool = pci_alloc_consistent(h->pdev,
+		h->nr_cmds * sizeof(ErrorInfo_struct),
+		&(h->errinfo_pool_dhandle));
+	if ((h->cmd_pool_bits == NULL)
+		|| (h->cmd_pool == NULL)
+		|| (h->errinfo_pool == NULL)) {
+		dev_err(&h->pdev->dev, "out of memory");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void cciss_free_cmd_pool(ctlr_info_t *h)
+{
+	kfree(h->cmd_pool_bits);
+	if (h->cmd_pool)
+		pci_free_consistent(h->pdev,
+			h->nr_cmds * sizeof(CommandList_struct),
+			h->cmd_pool, h->cmd_pool_dhandle);
+	if (h->errinfo_pool)
+		pci_free_consistent(h->pdev,
+			h->nr_cmds * sizeof(ErrorInfo_struct),
+			h->errinfo_pool, h->errinfo_pool_dhandle);
+}
+
 /*
  *  This is it.  Find all the controllers and register them.  I really hate
  *  stealing all these major device numbers.
@@ -4745,23 +4778,8 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	       h->devname, pdev->device, pci_name(pdev),
 	       h->intr[PERF_MODE_INT], dac ? "" : " not");
 
-	h->cmd_pool_bits =
-	    kmalloc(DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG)
-			* sizeof(unsigned long), GFP_KERNEL);
-	h->cmd_pool = (CommandList_struct *)
-	    pci_alloc_consistent(h->pdev,
-		    h->nr_cmds * sizeof(CommandList_struct),
-		    &(h->cmd_pool_dhandle));
-	h->errinfo_pool = (ErrorInfo_struct *)
-	    pci_alloc_consistent(h->pdev,
-		    h->nr_cmds * sizeof(ErrorInfo_struct),
-		    &(h->errinfo_pool_dhandle));
-	if ((h->cmd_pool_bits == NULL)
-	    || (h->cmd_pool == NULL)
-	    || (h->errinfo_pool == NULL)) {
-		dev_err(&h->pdev->dev, "out of memory");
+	if (cciss_allocate_cmd_pool(h))
 		goto clean4;
-	}
 
 	/* Need space for temp scatter list */
 	h->scatter_list = kmalloc(h->max_commands *
@@ -4837,21 +4855,12 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return 1;
 
 clean4:
-	kfree(h->cmd_pool_bits);
+	cciss_free_cmd_pool(h);
 	/* Free up sg elements */
 	for (k-- ; k >= 0; k--)
 		kfree(h->scatter_list[k]);
 	kfree(h->scatter_list);
 	cciss_free_sg_chain_blocks(h->cmd_sg_list, h->nr_cmds);
-	if (h->cmd_pool)
-		pci_free_consistent(h->pdev,
-				    h->nr_cmds * sizeof(CommandList_struct),
-				    h->cmd_pool, h->cmd_pool_dhandle);
-	if (h->errinfo_pool)
-		pci_free_consistent(h->pdev,
-				    h->nr_cmds * sizeof(ErrorInfo_struct),
-				    h->errinfo_pool,
-				    h->errinfo_pool_dhandle);
 	free_irq(h->intr[PERF_MODE_INT], h);
 clean2:
 	unregister_blkdev(h->major, h->devname);
@@ -4949,11 +4958,7 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	iounmap(h->cfgtable);
 	iounmap(h->vaddr);
 
-	pci_free_consistent(h->pdev, h->nr_cmds * sizeof(CommandList_struct),
-			    h->cmd_pool, h->cmd_pool_dhandle);
-	pci_free_consistent(h->pdev, h->nr_cmds * sizeof(ErrorInfo_struct),
-			    h->errinfo_pool, h->errinfo_pool_dhandle);
-	kfree(h->cmd_pool_bits);
+	cciss_free_cmd_pool(h);
 	/* Free up sg elements */
 	for (j = 0; j < h->nr_cmds; j++)
 		kfree(h->scatter_list[j]);
