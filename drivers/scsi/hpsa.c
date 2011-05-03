@@ -3334,11 +3334,11 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
 	/* Wait for board to become not ready, then ready. */
-	dev_info(&pdev->dev, "Waiting for board to become ready.\n");
+	dev_info(&pdev->dev, "Waiting for board to reset.\n");
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
 	if (rc)
 		dev_warn(&pdev->dev,
-			"failed waiting for board to become not ready\n");
+			"failed waiting for board to reset\n");
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
 		dev_warn(&pdev->dev,
@@ -3837,6 +3837,7 @@ static __devinit int hpsa_init_reset_devices(struct pci_dev *pdev)
 		return -ENODEV;
 
 	/* Now try to get the controller to respond to a no-op */
+	dev_warn(&pdev->dev, "Waiting for controller to respond to no-op\n");
 	for (i = 0; i < HPSA_POST_RESET_NOOP_RETRIES; i++) {
 		if (hpsa_noop(pdev) == 0)
 			break;
