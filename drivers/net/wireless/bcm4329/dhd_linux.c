@@ -136,11 +136,13 @@ int wifi_get_mac_addr(unsigned char *buf)
 void *wifi_get_country_code(char *ccode)
 {
 	DHD_TRACE(("%s\n", __FUNCTION__));
+#ifdef CONFIG_WIFI_CONTROL_FUNC
 	if (!ccode)
 		return NULL;
 	if (wifi_control_data && wifi_control_data->get_country_code) {
 		return wifi_control_data->get_country_code(ccode);
 	}
+#endif
 	return NULL;
 }
 
