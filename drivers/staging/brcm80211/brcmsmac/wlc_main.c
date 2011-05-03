@@ -8104,3 +8104,16 @@ int wlc_get_curband(struct wlc_info *wlc)
 {
 	return wlc->band->bandunit;
 }
+
+void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop)
+{
+	/* flush packet queue when requested */
+	if (drop)
+		pktq_flush(&wlc->active_queue->q, false, NULL, 0);
+
+	/* wait for queue and DMA fifos to run dry */
+	while (!pktq_empty(&wlc->active_queue->q) ||
+	       TXPKTPENDTOT(wlc) > 0) {
+		wl_msleep(wlc->wl, 1);
+	}
+}

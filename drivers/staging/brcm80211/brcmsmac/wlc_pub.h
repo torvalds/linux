@@ -569,6 +569,7 @@ extern void wlc_associate_upd(struct wlc_info *wlc, bool state);
 extern void wlc_scan_start(struct wlc_info *wlc);
 extern void wlc_scan_stop(struct wlc_info *wlc);
 extern int wlc_get_curband(struct wlc_info *wlc);
+extern void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop);
 
 static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)

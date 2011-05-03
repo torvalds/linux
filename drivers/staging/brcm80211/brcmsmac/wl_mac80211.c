@@ -149,6 +149,7 @@ static int wl_ops_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
 			       u8 buf_size);
 static void wl_ops_rfkill_poll(struct ieee80211_hw *hw);
+static void wl_ops_flush(struct ieee80211_hw *hw, bool drop);
 
 static void wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -667,6 +668,18 @@ static void wl_ops_rfkill_poll(struct ieee80211_hw *hw)
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 }
 
+static void wl_ops_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct wl_info *wl = HW_TO_WL(hw);
+
+	no_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
+
+	/* wait for packet queue and dma fifos to run empty */
+	WL_LOCK(wl);
+	wlc_wait_for_tx_completion(wl->wlc, drop);
+	WL_UNLOCK(wl);
+}
+
 static const struct ieee80211_ops wl_ops = {
 	.tx = wl_ops_tx,
 	.start = wl_ops_start,
@@ -688,6 +701,7 @@ static const struct ieee80211_ops wl_ops = {
 	.sta_remove = wl_ops_sta_remove,
 	.ampdu_action = wl_ops_ampdu_action,
 	.rfkill_poll = wl_ops_rfkill_poll,
+	.flush = wl_ops_flush,
 };
 
 /*
@@ -1946,4 +1960,14 @@ bool wl_rfkill_set_hw_state(struct wl_info *wl)
 		wiphy_rfkill_start_polling(wl->pub->ieee_hw->wiphy);
 	WL_LOCK(wl);
 	return blocked;
+}
+
+/*
+ * precondition: perimeter lock has been acquired
+ */
+void wl_msleep(struct wl_info *wl, uint ms)
+{
+	WL_UNLOCK(wl);
+	msleep(ms);
+	WL_LOCK(wl);
 }
