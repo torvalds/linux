@@ -1066,6 +1066,8 @@ static int nc_jack_enable(void)
 }
 
 struct snd_pmic_ops snd_pmic_ops_nc = {
+	.input_dev_id   =       DMIC,
+	.output_dev_id  =       INTERNAL_SPKR,
 	.set_input_dev	=	nc_set_selected_input_dev,
 	.set_output_dev =	nc_set_selected_output_dev,
 	.set_mute	=	nc_set_mute,
