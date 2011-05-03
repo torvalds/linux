@@ -1211,7 +1211,7 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 
 u32 si_pmu_ilp_clock(si_t *sih)
 {
-	static u32 ilpcycles_per_sec = 0;
+	static u32 ilpcycles_per_sec;
 
 	if (ISSIM_ENAB(sih))
 		return ILP_CLOCK;
