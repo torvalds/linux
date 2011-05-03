@@ -83,6 +83,7 @@ static int __devinit wl_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent);
 static void wl_remove(struct pci_dev *pdev);
 static void wl_free(struct wl_info *wl);
+static void wl_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -367,9 +368,37 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 			mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
+		struct ieee80211_supported_band *bi;
+		u32 br_mask, i;
+		u16 rate;
+		struct wl_rateset rs;
+		int error;
+
 		/* Basic rateset changed */
-		wiphy_err(wiphy, "%s: Need to change Basic Rates: 0x%x"
-			  " (implement)\n", __func__, (u32) info->basic_rates);
+		no_printk("%s: change basic rates: 0x%x\n",
+			 __func__, (u32) info->basic_rates);
+
+		/* retrieve the current rates */
+		error = wlc_ioctl(wl->wlc, WLC_GET_CURR_RATESET,
+				  &rs, sizeof(rs), NULL);
+		if (error) {
+			wiphy_err(wiphy, "%s: retrieve rateset failed: %d\n",
+				  __func__, error);
+			return;
+		}
+		br_mask = info->basic_rates;
+		bi = hw->wiphy->bands[wlc_get_curband(wl->wlc)];
+		for (i = 0; i < bi->n_bitrates; i++) {
+			/* convert to internal rate value */
+			rate = (bi->bitrates[i].bitrate << 1) / 10;
+
+			/* set/clear basic rate flag */
+			wl_set_basic_rate(&rs, rate, br_mask & 1);
+			br_mask >>= 1;
+		}
+
+		/* update the rate set */
+		wlc_ioctl(wl->wlc, WLC_SET_RATESET, &rs, sizeof(rs), NULL);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
@@ -1353,6 +1382,23 @@ static void wl_free(struct wl_info *wl)
 		iounmap((void *)wl->regsva);
 	}
 	wl->regsva = NULL;
+}
+
+/* flags the given rate in rateset as requested */
+static void wl_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br)
+{
+	u32 i;
+
+	for (i = 0; i < rs->count; i++) {
+		if (rate != (rs->rates[i] & 0x7f))
+			continue;
+
+		if (is_br)
+			rs->rates[i] |= WLC_RATE_FLAG;
+		else
+			rs->rates[i] &= WLC_RATE_MASK;
+		return;
+	}
 }
 
 /*

@@ -3006,8 +3006,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	wlc_bss_info_t *current_bss;
 
 	/* update bsscfg pointer */
-	bsscfg = NULL;		/* XXX: Hack bsscfg to be size one and use this globally */
-	current_bss = NULL;
+	bsscfg = wlc->cfg;
+	current_bss = bsscfg->current_bss;
 
 	/* initialize the following to get rid of compiler warning */
 	nextscb = NULL;
@@ -3582,7 +3582,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			wl_rateset_t *ret_rs = (wl_rateset_t *) arg;
 			wlc_rateset_t *rs;
 
-			if (bsscfg->associated)
+			if (wlc->pub->associated)
 				rs = &current_bss->rateset;
 			else
 				rs = &wlc->default_bss->rateset;
@@ -8450,4 +8450,9 @@ void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
 		if (dmah != NULL)
 			dma_walk_packets(dmah, dma_callback_fn, sta);
 	}
+}
+
+int wlc_get_curband(struct wlc_info *wlc)
+{
+	return wlc->band->bandunit;
 }

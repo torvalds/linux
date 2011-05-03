@@ -54,12 +54,8 @@ extern const mcs_info_t mcs_table[];
 	(_is40 ? mcs_table[_mcs].phy_rate_40 : mcs_table[_mcs].phy_rate_20))
 #define VALID_MCS(_mcs)	((_mcs < MCS_TABLE_SIZE))
 
-/* rate related definitions */
-#define	WLC_RATE_FLAG	0x80	/* Rate flag to indicate it is a basic rate */
-#define	WLC_RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
-
-/* Macro to use in the rate_info table */
-#define	WLC_RATE_MASK_FULL	0xff /* Rate value mask with basic rate flag */
+/* Macro to use the rate_info table */
+#define	WLC_RATE_MASK_FULL 0xff	/* Rate value mask with basic rate flag */
 
 #define WLC_RATE_500K_TO_BPS(rate)	((rate) * 500000)	/* convert 500kbps to bps */
 

@@ -59,6 +59,10 @@
  */
 #define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
+/* rate related definitions */
+#define	WLC_RATE_FLAG	0x80	/* Flag to indicate it is a basic rate */
+#define	WLC_RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
+
 /* legacy rx Antenna diversity for SISO rates */
 #define	ANT_RX_DIV_FORCE_0		0	/* Use antenna 0 */
 #define	ANT_RX_DIV_FORCE_1		1	/* Use antenna 1 */
@@ -564,6 +568,7 @@ extern void wlc_enable_mac(struct wlc_info *wlc);
 extern void wlc_associate_upd(struct wlc_info *wlc, bool state);
 extern void wlc_scan_start(struct wlc_info *wlc);
 extern void wlc_scan_stop(struct wlc_info *wlc);
+extern int wlc_get_curband(struct wlc_info *wlc);
 
 static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)
