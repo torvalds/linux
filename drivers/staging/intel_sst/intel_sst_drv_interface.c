@@ -283,8 +283,8 @@ void sst_process_mad_ops(struct work_struct *work)
 		retval = sst_resume_stream(mad_ops->stream_id);
 		break;
 	case SST_SND_DROP:
-/*		retval = sst_drop_stream(mad_ops->stream_id);
-*/		break;
+		retval = sst_drop_stream(mad_ops->stream_id);
+		break;
 	case SST_SND_START:
 			pr_debug("SST Debug: start stream\n");
 		retval = sst_start_stream(mad_ops->stream_id);
