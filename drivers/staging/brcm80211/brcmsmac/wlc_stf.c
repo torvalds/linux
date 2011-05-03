@@ -21,7 +21,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>
 #include <sbhnddma.h>

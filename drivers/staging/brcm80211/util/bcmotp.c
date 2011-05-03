@@ -17,16 +17,16 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bcmdefs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+
+#include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
 #include <bcmotp.h>
-#include "siutils_priv.h"
 
 /*
  * There are two different OTP controllers so far:
@@ -356,7 +356,7 @@ static void *ipxotp_init(si_t *sih)
 	}
 
 	/* Retrieve OTP region info */
-	idx = si_coreidx(sih);
+	idx = ai_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
 
 	_ipxotp_init(oi, cc);
@@ -439,7 +439,7 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		return -EINVAL;
 	}
 
-	idx = si_coreidx(oi->sih);
+	idx = ai_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
 
 	/* Read the data */
@@ -615,7 +615,7 @@ static void *hndotp_init(si_t *sih)
 
 	oi = &otpinfo;
 
-	idx = si_coreidx(sih);
+	idx = ai_coreidx(sih);
 
 	/* Check for otp */
 	cc = si_setcoreidx(sih, SI_CC_IDX);
@@ -699,7 +699,7 @@ static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 	*wlen =
 	    ((int)*wlen < oi->boundary / 2) ? *wlen : (uint) oi->boundary / 2;
 
-	idx = si_coreidx(oi->sih);
+	idx = ai_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
 
 	for (i = 0; i < (int)*wlen; i++)
@@ -722,7 +722,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 	u16 *rawotp = NULL;
 
 	/* save the orig core */
-	idx = si_coreidx(oi->sih);
+	idx = ai_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
 
 	st = hndotp_status(oh);
@@ -860,7 +860,7 @@ int otp_size(void *oh)
 u16 otp_read_bit(void *oh, uint offset)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	uint idx = si_coreidx(oi->sih);
+	uint idx = ai_coreidx(oi->sih);
 	chipcregs_t *cc = si_setcoreidx(oi->sih, SI_CC_IDX);
 	u16 readBit = (u16) oi->fn->read_bit(oh, cc, offset);
 	si_setcoreidx(oi->sih, idx);

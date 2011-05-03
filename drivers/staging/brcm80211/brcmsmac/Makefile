@@ -47,7 +47,6 @@ BRCMSMAC_OFILES := \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
 	../util/aiutils.o \
-	../util/siutils.o \
 	../util/bcmutils.o \
 	../util/bcmwifi.o \
 	../util/bcmotp.o \

@@ -29,7 +29,7 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>

@@ -18,7 +18,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <wlioctl.h>
 #include <sbhnddma.h>
 #include <hnddma.h>

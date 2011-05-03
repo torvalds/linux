@@ -21,7 +21,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <sbhnddma.h>
 #include <wlioctl.h>
 

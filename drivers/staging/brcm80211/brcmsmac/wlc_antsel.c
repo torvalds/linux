@@ -22,7 +22,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <bcmdevs.h>
 #include <sbhnddma.h>
 #include <wlioctl.h>

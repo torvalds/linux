@@ -18,7 +18,7 @@
 #define _wlc_phy_h_
 
 #include <wlioctl.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <d11.h>
 #include <wlc_phy_shim.h>
 #include <net/mac80211.h>	/* struct wiphy */

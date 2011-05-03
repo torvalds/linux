@@ -19,7 +19,7 @@
 #include <proto/802.11.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <wlioctl.h>
 #include <sbhnddma.h>
 

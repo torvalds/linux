@@ -21,7 +21,7 @@
 #include <wlc_cfg.h>
 #include <qmath.h>
 #include <linux/pci.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <wlc_pmu.h>
 
 #include <bcmdevs.h>

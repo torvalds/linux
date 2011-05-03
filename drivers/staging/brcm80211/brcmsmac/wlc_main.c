@@ -23,7 +23,7 @@
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>

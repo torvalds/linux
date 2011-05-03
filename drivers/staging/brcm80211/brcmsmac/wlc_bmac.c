@@ -25,7 +25,7 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmwifi.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <bcmsrom.h>
 #include <bcmotp.h>
 #include <bcmutils.h>
@@ -829,7 +829,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		wlc_hw->band->bandtype = j ? WLC_BAND_5G : WLC_BAND_2G;
 		wlc->band->bandunit = j;
 		wlc->band->bandtype = j ? WLC_BAND_5G : WLC_BAND_2G;
-		wlc->core->coreidx = si_coreidx(wlc_hw->sih);
+		wlc->core->coreidx = ai_coreidx(wlc_hw->sih);
 
 		wlc_hw->machwcap = R_REG(&regs->machwcap);
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
