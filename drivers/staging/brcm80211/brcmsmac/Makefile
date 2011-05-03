@@ -41,12 +41,12 @@ BRCMSMAC_OFILES := \
 	wlc_pmu.o \
 	wlc_rate.o \
 	wlc_stf.o \
+	aiutils.o \
 	phy/wlc_phy_cmn.o \
 	phy/wlc_phy_lcn.o \
 	phy/wlc_phy_n.o \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
-	../util/aiutils.o \
 	../util/bcmutils.o \
 	../util/bcmwifi.o \
 	../util/bcmotp.o \
