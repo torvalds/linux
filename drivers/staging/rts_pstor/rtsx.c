@@ -594,7 +594,9 @@ static int rtsx_polling_thread(void *__dev)
 	wait_timeout((delay_use + 5) * 1000);
 
 	for (;;) {
-		wait_timeout(POLLING_INTERVAL);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(POLLING_INTERVAL);
 
 		/* lock the device pointers */
 		mutex_lock(&(dev->dev_mutex));
