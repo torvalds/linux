@@ -36,7 +36,6 @@ do {						\
 
 #ifdef BCMDBG
 
-#define WL_AMPDU(fmt, args...)	WL_PRINT(WL_AMPDU_VAL, fmt, ##args)
 #define WL_FFPLD(fmt, args...)	WL_PRINT(WL_FFPLD_VAL, fmt, ##args)
 
 /* Extra message control for AMPDU debugging */
@@ -80,8 +79,6 @@ do {						\
 
 #else				/* BCMDBG */
 
-#define	WL_TRACE(fmt, args...)		no_printk(fmt, ##args)
-#define WL_AMPDU(fmt, args...)		no_printk(fmt, ##args)
 #define WL_FFPLD(fmt, args...)		no_printk(fmt, ##args)
 
 #define WL_AMPDU_UPDN(fmt, args...)	no_printk(fmt, ##args)

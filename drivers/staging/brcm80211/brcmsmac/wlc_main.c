@@ -6280,8 +6280,9 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
 	if (supr_status == TX_STATUS_SUPR_BADCH)
-		WL_TRACE("%s: Pkt tx suppressed, possibly channel %d\n",
-			 __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
+		BCMMSG(wlc->wiphy,
+		       "%s: Pkt tx suppressed, possibly channel %d\n",
+		       __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 
 	tx_rts = cpu_to_le16(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =

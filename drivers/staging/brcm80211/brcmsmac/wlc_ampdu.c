@@ -76,16 +76,6 @@
 	AMPDU_DELIMITER_LEN + 3\
 	+ DOT11_A4_HDR_LEN + DOT11_QOS_LEN + DOT11_IV_MAX_LEN)
 
-#ifdef BCMDBG
-u32 wl_ampdu_dbg =
-    WL_AMPDU_UPDN_VAL |
-    WL_AMPDU_ERR_VAL |
-    WL_AMPDU_TX_VAL |
-    WL_AMPDU_RX_VAL |
-    WL_AMPDU_CTL_VAL |
-    WL_AMPDU_HW_VAL | WL_AMPDU_HWTXS_VAL | WL_AMPDU_HWDBG_VAL;
-#endif
-
 /* structure to hold tx fifo information and pre-loading state
  * counters specific to tx underflows of ampdus
  * some counters might be redundant with the ones in wlc or ampdu structures.
@@ -235,7 +225,7 @@ void scb_ampdu_cleanup(struct ampdu_info *ampdu, struct scb *scb)
 	scb_ampdu_t *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	u8 tid;
 
-	WL_AMPDU_UPDN("scb_ampdu_cleanup: enter\n");
+	BCMMSG(ampdu->wlc->wiphy, "enter\n");
 	for (tid = 0; tid < AMPDU_MAX_SCB_TID; tid++) {
 		ampdu_cleanup_tid_ini(ampdu, scb_ampdu, tid, false);
 	}
@@ -604,8 +594,8 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		ndelim = txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM];
 		seg_cnt += 1;
 
-		WL_AMPDU_TX("wl%d: wlc_sendampdu: mpdu %d plcp_len %d\n",
-			    wlc->pub->unit, count, len);
+		BCMMSG(wlc->wiphy, "wl%d: mpdu %d plcp_len %d\n",
+			wlc->pub->unit, count, len);
 
 		/*
 		 * aggregateable mpdu. For ucode/hw agg,
@@ -635,8 +625,9 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 
 		dma_len += (u16) pkttotlen(p);
 
-		WL_AMPDU_TX("wl%d: wlc_sendampdu: ampdu_len %d seg_cnt %d null delim %d\n",
-			    wlc->pub->unit, ampdu_len, seg_cnt, ndelim);
+		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
+			" seg_cnt %d null delim %d\n",
+			wlc->pub->unit, ampdu_len, seg_cnt, ndelim);
 
 		txh->MacTxControlLow = cpu_to_le16(mcl);
 
@@ -709,8 +700,9 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		/* test whether to add more */
 		if ((MCS_RATE(mcs, true, false) >= f->dmaxferrate) &&
 		    (count == f->mcs2ampdu_table[mcs])) {
-			WL_AMPDU_ERR("wl%d: PR 37644: stopping ampdu at %d for mcs %d\n",
-				     wlc->pub->unit, count, mcs);
+			BCMMSG(wlc->wiphy, "wl%d: PR 37644: stopping"
+				" ampdu at %d for mcs %d\n",
+				wlc->pub->unit, count, mcs);
 			break;
 		}
 
@@ -846,8 +838,8 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			WLC_SET_MIMO_PLCP_AMPDU(txh->FragPLCPFallback);
 		}
 
-		WL_AMPDU_TX("wl%d: wlc_sendampdu: count %d ampdu_len %d\n",
-			    wlc->pub->unit, count, ampdu_len);
+		BCMMSG(wlc->wiphy, "wl%d: count %d ampdu_len %d\n",
+			wlc->pub->unit, count, ampdu_len);
 
 		/* inform rate_sel if it this is a rate probe pkt */
 		frameid = le16_to_cpu(txh->TxFrameID);
@@ -1068,11 +1060,10 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		ack_recd = false;
 		if (ba_recd) {
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
-
-			WL_AMPDU_TX("%s: tid %d seq is %d, start_seq is %d, bindex is %d set %d, index %d\n",
-				    __func__, tid, seq, start_seq, bindex,
-				    isset(bitmap, bindex), index);
-
+			BCMMSG(wlc->wiphy, "tid %d seq %d,"
+				" start_seq %d, bindex %d set %d, index %d\n",
+				tid, seq, start_seq, bindex,
+				isset(bitmap, bindex), index);
 			/* if acked then clear bit and free packet */
 			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
 			    && isset(bitmap, bindex)) {
@@ -1150,8 +1141,7 @@ ampdu_cleanup_tid_ini(struct ampdu_info *ampdu, scb_ampdu_t *scb_ampdu, u8 tid,
 	if (!ini)
 		return;
 
-	WL_AMPDU_CTL("wl%d: ampdu_cleanup_tid_ini: tid %d\n",
-		     ampdu->wlc->pub->unit, tid);
+	BCMMSG(ampdu->wlc->wiphy, "wl%d: tid %d\n", ampdu->wlc->pub->unit, tid);
 
 	if (ini->tx_in_transit && !force)
 		return;
@@ -1193,13 +1183,13 @@ static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 
 	if (on) {
 		if (!N_ENAB(wlc->pub)) {
-			WL_AMPDU_ERR("wl%d: driver not nmode enabled\n",
-				     wlc->pub->unit);
+			wiphy_err(ampdu->wlc->wiphy, "wl%d: driver not "
+				"nmode enabled\n", wlc->pub->unit);
 			return -ENOTSUPP;
 		}
 		if (!wlc_ampdu_cap(ampdu)) {
-			WL_AMPDU_ERR("wl%d: device not ampdu capable\n",
-				     wlc->pub->unit);
+			wiphy_err(ampdu->wlc->wiphy, "wl%d: device not "
+				"ampdu capable\n", wlc->pub->unit);
 			return -ENOTSUPP;
 		}
 		wlc->pub->_ampdu = on;
