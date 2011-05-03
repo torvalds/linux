@@ -423,7 +423,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	vi = bcm_iovar_lookup(sdioh_iovars, name);
 	if (vi == NULL) {
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		goto exit;
 	}
 
@@ -472,7 +472,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_BLOCKSIZE):
 		if ((u32) int_val > si->num_funcs) {
-			bcmerror = -BCME_BADARG;
+			bcmerror = -EINVAL;
 			break;
 		}
 		int_val = (s32) si->client_block_size[int_val];
@@ -486,7 +486,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			uint maxsize;
 
 			if (func > si->num_funcs) {
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -504,7 +504,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 				maxsize = 0;
 			}
 			if (blksize > maxsize) {
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 			if (!blksize)
@@ -607,7 +607,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			    || sd_ptr->offset > SD_MaxCurCap) {
 				sd_err(("%s: bad offset 0x%x\n", __func__,
 					sd_ptr->offset));
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -637,7 +637,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			    || sd_ptr->offset > SD_MaxCurCap) {
 				sd_err(("%s: bad offset 0x%x\n", __func__,
 					sd_ptr->offset));
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -679,7 +679,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		}
 
 	default:
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		break;
 	}
 exit:

@@ -309,7 +309,7 @@ int
 dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
 		  void *params, int plen, void *arg, int len, bool set)
 {
-	return -BCME_UNSUPPORTED;
+	return -ENOTSUPP;
 }
 
 void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
@@ -416,7 +416,7 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 
 fail:
 	kfree(cdc);
-	return -BCME_NOMEM;
+	return -ENOMEM;
 }
 
 /* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */

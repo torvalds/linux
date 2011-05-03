@@ -819,7 +819,7 @@ int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 	if (sleep) {
 		/* Don't sleep if something is pending */
 		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq))
-			return -BCME_BUSY;
+			return -EBUSY;
 
 		/* Disable SDIO interrupts (no longer interested) */
 		bcmsdh_intr_disable(bus->sdh);
@@ -961,7 +961,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
 					__func__, pkt->len + DHD_SDALIGN));
-				ret = -BCME_NOMEM;
+				ret = -ENOMEM;
 				goto done;
 			}
 
@@ -1133,7 +1133,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 			dhd_txcomplete(bus->dhd, pkt, false);
 			pkt_buf_free_skb(pkt);
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
-			ret = -BCME_NORESOURCE;
+			ret = -ENOSR;
 		} else {
 			ret = 0;
 		}
@@ -1690,7 +1690,7 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 
 	memcpy(&pktgen, arg, sizeof(pktgen));
 	if (pktgen.version != DHD_PKTGEN_VERSION)
-		return -BCME_BADARG;
+		return -EINVAL;
 
 	oldcnt = bus->pktgen_count;
 	oldmode = bus->pktgen_mode;
@@ -1851,7 +1851,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 		if (mbuffer == NULL) {
 			DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__,
 				   msize));
-			bcmerror = -BCME_NOMEM;
+			bcmerror = -ENOMEM;
 			goto done;
 		}
 	}
@@ -1859,7 +1859,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 	str = kmalloc(maxstrlen, GFP_ATOMIC);
 	if (str == NULL) {
 		DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__, maxstrlen));
-		bcmerror = -BCME_NOMEM;
+		bcmerror = -ENOMEM;
 		goto done;
 	}
 
@@ -2028,7 +2028,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 		c->bufsize = le32_to_cpu(c->log.buf_size);
 		c->buf = kmalloc(c->bufsize, GFP_ATOMIC);
 		if (c->buf == NULL)
-			return -BCME_NOMEM;
+			return -ENOMEM;
 	}
 
 	idx = le32_to_cpu(c->log.idx);
@@ -2094,7 +2094,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 		goto err;
 	}
 	if (!len) {
-		bcmerror = -BCME_BUFTOOSHORT;
+		bcmerror = -EOVERFLOW;
 		goto err;
 	}
 
@@ -2104,7 +2104,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 	bus->vars = kmalloc(len, GFP_ATOMIC);
 	bus->varsz = bus->vars ? len : 0;
 	if (bus->vars == NULL) {
-		bcmerror = -BCME_NOMEM;
+		bcmerror = -ENOMEM;
 		goto err;
 	}
 
@@ -2203,7 +2203,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_IDLETIME):
 		if ((int_val < 0) && (int_val != DHD_IDLE_IMMEDIATE))
-			bcmerror = -BCME_BADARG;
+			bcmerror = -EINVAL;
 		else
 			bus->idletime = int_val;
 		break;
@@ -2249,7 +2249,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 				"0x%08x size %d dsize %d\n",
 				__func__, (set ? "set" : "get"),
 				address, size, dsize));
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -2264,7 +2264,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 				DHD_ERROR(("%s: ramsize 0x%08x doesn't have %d "
 				"bytes at 0x%08x\n",
 				__func__, bus->orig_ramsize, size, address));
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -2322,7 +2322,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_SDRXCHAIN):
 		if (bool_val && !bus->sd_rxchain)
-			bcmerror = -BCME_UNSUPPORTED;
+			bcmerror = -ENOTSUPP;
 		else
 			bus->use_rxchain = bool_val;
 		break;
@@ -2345,7 +2345,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		if (bus->varsz < (uint) len)
 			memcpy(arg, bus->vars, bus->varsz);
 		else
-			bcmerror = -BCME_BUFTOOSHORT;
+			bcmerror = -EOVERFLOW;
 		break;
 #endif				/* DHD_DEBUG */
 
@@ -2509,7 +2509,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	default:
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		break;
 	}
 
@@ -2546,7 +2546,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 	if (bus->vars) {
 		vbuffer = kzalloc(varsize, GFP_ATOMIC);
 		if (!vbuffer)
-			return -BCME_NOMEM;
+			return -ENOMEM;
 
 		memcpy(vbuffer, bus->vars, bus->varsz);
 
@@ -2558,7 +2558,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 		DHD_INFO(("Compare NVRAM dl & ul; varsize=%d\n", varsize));
 		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
 		if (!nvram_ularray)
-			return -BCME_NOMEM;
+			return -ENOMEM;
 
 		/* Upload image to verify downloaded contents. */
 		memset(nvram_ularray, 0xaa, varsize);
@@ -4918,7 +4918,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 
 	/* Address could be zero if CONSOLE := 0 in dongle Makefile */
 	if (bus->console_addr == 0)
-		return -BCME_UNSUPPORTED;
+		return -ENOTSUPP;
 
 	/* Exclusive bus access */
 	dhd_os_sdlock(bus->dhd);
@@ -5145,7 +5145,7 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	/* if firmware path present try to download and bring up bus */
 	ret = dhd_bus_start(bus->dhd);
 	if (ret != 0) {
-		if (ret == -BCME_NOTUP) {
+		if (ret == -ENOLINK) {
 			DHD_ERROR(("%s: dongle is not responding\n", __func__));
 			goto fail;
 		}
@@ -5588,7 +5588,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 
 		ularray = kmalloc(bus->ramsize, GFP_ATOMIC);
 		if (!ularray) {
-			bcmerror = -BCME_NOMEM;
+			bcmerror = -ENOMEM;
 			goto err;
 		}
 		/* Upload image to verify downloaded contents. */

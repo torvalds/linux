@@ -502,21 +502,21 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 	case IOVT_UINT32:
 		/* all integers are s32 sized args at the ioctl interface */
 		if (len < (int)sizeof(int)) {
-			bcmerror = -BCME_BUFTOOSHORT;
+			bcmerror = -EOVERFLOW;
 		}
 		break;
 
 	case IOVT_BUFFER:
 		/* buffer must meet minimum length requirement */
 		if (len < vi->minlen) {
-			bcmerror = -BCME_BUFTOOSHORT;
+			bcmerror = -EOVERFLOW;
 		}
 		break;
 
 	case IOVT_VOID:
 		if (!set) {
 			/* Cannot return nil... */
-			bcmerror = -BCME_UNSUPPORTED;
+			bcmerror = -ENOTSUPP;
 		} else if (len) {
 			/* Set is an action w/o parameters */
 			bcmerror = -BCME_BUFTOOLONG;
@@ -526,7 +526,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 	default:
 		/* unknown type for length check in iovar info */
 		ASSERT(0);
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 	}
 
 	return bcmerror;

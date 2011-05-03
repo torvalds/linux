@@ -189,7 +189,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	/* Add any bus info */
 	dhd_bus_dump(dhdp, strbuf);
 
-	return !strbuf->size ? -BCME_BUFTOOSHORT : 0;
+	return !strbuf->size ? -EOVERFLOW : 0;
 }
 
 static int
@@ -242,7 +242,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_WDTICK):
 		if (!dhd_pub->up) {
-			bcmerror = -BCME_NOTUP;
+			bcmerror = -ENOLINK;
 			break;
 		}
 		dhd_os_wd_timer(dhd_pub, (uint) int_val);
@@ -289,7 +289,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_IOCTLTIMEOUT):{
 			if (int_val <= 0)
-				bcmerror = -BCME_BADARG;
+				bcmerror = -EINVAL;
 			else
 				dhd_os_set_ioctl_resp_timeout((unsigned int)
 							      int_val);
@@ -297,7 +297,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		}
 
 	default:
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		break;
 	}
 
@@ -381,7 +381,7 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 
 	vi = bcm_iovar_lookup(dhd_iovars, name);
 	if (vi == NULL) {
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		goto exit;
 	}
 
@@ -420,19 +420,19 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	if (!buf)
-		return -BCME_BADARG;
+		return -EINVAL;
 
 	switch (ioc->cmd) {
 	case DHD_GET_MAGIC:
 		if (buflen < sizeof(int))
-			bcmerror = -BCME_BUFTOOSHORT;
+			bcmerror = -EOVERFLOW;
 		else
 			*(int *)buf = DHD_IOCTL_MAGIC;
 		break;
 
 	case DHD_GET_VERSION:
 		if (buflen < sizeof(int))
-			bcmerror = -BCME_BUFTOOSHORT;
+			bcmerror = -EOVERFLOW;
 		else
 			*(int *)buf = DHD_IOCTL_VERSION;
 		break;
@@ -448,7 +448,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 				;
 
 			if (*arg) {
-				bcmerror = -BCME_BUFTOOSHORT;
+				bcmerror = -EOVERFLOW;
 				break;
 			}
 
@@ -464,7 +464,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 				bcmerror =
 				    dhd_iovar_op(dhd_pub, buf, NULL, 0, arg,
 						 arglen, IOV_SET);
-			if (bcmerror != -BCME_UNSUPPORTED)
+			if (bcmerror != -ENOTSUPP)
 				break;
 
 			/* not in generic table, try protocol module */
@@ -476,7 +476,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 				bcmerror = dhd_prot_iovar_op(dhd_pub, buf,
 							     NULL, 0, arg,
 							     arglen, IOV_SET);
-			if (bcmerror != -BCME_UNSUPPORTED)
+			if (bcmerror != -ENOTSUPP)
 				break;
 
 			/* if still not found, try bus module */
@@ -493,7 +493,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 		}
 
 	default:
-		bcmerror = -BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 	}
 
 	return bcmerror;

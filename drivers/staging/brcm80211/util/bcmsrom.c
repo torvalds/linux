@@ -324,7 +324,7 @@ static int initvars_table(char *start, char *end,
 		char *vp = kmalloc(c, GFP_ATOMIC);
 		ASSERT(vp != NULL);
 		if (!vp)
-			return -BCME_NOMEM;
+			return -ENOMEM;
 		memcpy(vp, start, c);
 		*vars = vp;
 		*count = c;
@@ -353,7 +353,7 @@ static int initvars_flash(si_t *sih, char **base, uint len)
 	/* allocate memory and read in flash */
 	flash = kmalloc(NVRAM_SPACE, GFP_ATOMIC);
 	if (!flash)
-		return -BCME_NOMEM;
+		return -ENOMEM;
 	err = nvram_getall(flash, NVRAM_SPACE);
 	if (err)
 		goto exit;
@@ -372,7 +372,7 @@ static int initvars_flash(si_t *sih, char **base, uint len)
 		/* is there enough room to copy? */
 		copy_len = l - dl + 1;
 		if (len < copy_len) {
-			err = -BCME_BUFTOOSHORT;
+			err = -EOVERFLOW;
 			goto exit;
 		}
 
@@ -384,7 +384,7 @@ static int initvars_flash(si_t *sih, char **base, uint len)
 
 	/* add null string as terminator */
 	if (len < 1) {
-		err = -BCME_BUFTOOSHORT;
+		err = -EOVERFLOW;
 		goto exit;
 	}
 	*vp++ = '\0';
@@ -410,7 +410,7 @@ static int initvars_flash_si(si_t *sih, char **vars, uint *count)
 	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
 	ASSERT(vp != NULL);
 	if (!vp)
-		return -BCME_NOMEM;
+		return -ENOMEM;
 
 	err = initvars_flash(sih, &vp, MAXSZ_NVRAM_VARS);
 	if (err == 0)

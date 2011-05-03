@@ -1699,7 +1699,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* Copy the ioc control structure part of ioctl request */
 	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(wl_ioctl_t))) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 
@@ -1715,11 +1715,11 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		{
 			buf = kmalloc(buflen, GFP_ATOMIC);
 			if (!buf) {
-				bcmerror = -BCME_NOMEM;
+				bcmerror = -ENOMEM;
 				goto done;
 			}
 			if (copy_from_user(buf, ioc.buf, buflen)) {
-				bcmerror = -BCME_BADADDR;
+				bcmerror = -EINVAL;
 				goto done;
 			}
 		}
@@ -1728,12 +1728,12 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* To differentiate between wl and dhd read 4 more byes */
 	if ((copy_from_user(&driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
 			    sizeof(uint)) != 0)) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 
 	if (!capable(CAP_NET_ADMIN)) {
-		bcmerror = -BCME_EPERM;
+		bcmerror = -EPERM;
 		goto done;
 	}
 

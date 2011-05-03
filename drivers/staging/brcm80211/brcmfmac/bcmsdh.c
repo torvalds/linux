@@ -174,7 +174,7 @@ int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	ASSERT(sdh);
 
 	/* don't support yet */
-	return -BCME_UNSUPPORTED;
+	return -ENOTSUPP;
 }
 
 u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
@@ -317,7 +317,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 		tmp_buf = kmalloc(length, GFP_ATOMIC);
 		if (tmp_buf == NULL) {
 			BCMSDH_ERROR(("%s: out of memory\n", __func__));
-			return -BCME_NOMEM;
+			return -ENOMEM;
 		}
 		memcpy(tmp_buf, cis, length);
 		for (tmp_ptr = tmp_buf, ptr = cis; ptr < (cis + length - 4);
@@ -467,7 +467,7 @@ bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
 	/* Async not implemented yet */
 	ASSERT(!(flags & SDIO_REQ_ASYNC));
 	if (flags & SDIO_REQ_ASYNC)
-		return -BCME_UNSUPPORTED;
+		return -ENOTSUPP;
 
 	if (bar0 != bcmsdh->sbwad) {
 		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
@@ -512,7 +512,7 @@ bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 	/* Async not implemented yet */
 	ASSERT(!(flags & SDIO_REQ_ASYNC));
 	if (flags & SDIO_REQ_ASYNC)
-		return -BCME_UNSUPPORTED;
+		return -ENOTSUPP;
 
 	if (bar0 != bcmsdh->sbwad) {
 		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
