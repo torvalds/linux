@@ -147,6 +147,8 @@
 #define WM8900_LRC_MASK 0xfc00
 #define SPK_CON 		RK29_PIN6_PB6
 
+#define WM8900_NO_POWEROFF /* Do not close codec except suspend or poweroff */
+
 #define WM8900_IS_SHUTDOWN	0
 #define WM8900_IS_STARTUP	1
 
@@ -250,16 +252,16 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 {
 	u16 reg;
 
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	if (wm8900_current_status & WM8900_IS_STARTUP)
+		return;
 
-	//snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x140);
-	//snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x140);
+	printk("Power up wm8900\n");
 
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0x30);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0100);
 	snd_soc_write(codec, WM8900_REG_POWER3, 0x60);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0101);
-	msleep(300);
+	msleep(400);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x0109);
 	snd_soc_write(codec, WM8900_REG_ADDCTL, 0x02);
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x09);
@@ -310,6 +312,8 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 #ifdef SPK_CON
 	gpio_set_value(SPK_CON, GPIO_HIGH);
 #endif
+
+	wm8900_current_status |= WM8900_IS_STARTUP;
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -693,13 +697,8 @@ static int wm8900_startup(struct snd_pcm_substream *substream,
 
 	cancel_delayed_work_sync(&delayed_work);
 
-	if (wm8900_current_status == WM8900_IS_SHUTDOWN) {
+	wm8900_set_hw(codec);
 
-		printk("Power up wm8900\n");
-
-		wm8900_set_hw(codec);
-		wm8900_current_status |= WM8900_IS_STARTUP;
-	}
 	return 0;
 }
 
@@ -709,6 +708,10 @@ static void wm8900_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
+
+#ifdef WM8900_NO_POWEROFF
+	return; /* Let codec not going to power off for pop noise */
+#endif
 
 	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
 		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
@@ -908,7 +911,9 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 
 	cancel_delayed_work_sync(&delayed_work);
 
+#ifdef WM8900_NO_POWEROFF
 	wm8900_powerdown();
+#endif
 
 	/* Stop the FLL in an orderly fashion */
 	ret = wm8900_set_fll(codec, 0, 0, 0);
@@ -948,6 +953,10 @@ static int wm8900_resume(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+#ifdef WM8900_NO_POWEROFF
+	wm8900_set_hw(codec);
+#endif
 
 	return 0;
 }
@@ -1130,6 +1139,10 @@ static int wm8900_probe(struct platform_device *pdev)
 		kfree(codec);
 		return -ENOMEM;
 	}
+
+#ifdef WM8900_NO_POWEROFF
+	wm8900_set_hw(codec);
+#endif
 
 	return ret;
 
