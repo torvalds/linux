@@ -76,7 +76,6 @@ static int mesh_table_grow(struct mesh_table *oldtbl,
 			< oldtbl->mean_chain_len * (oldtbl->hash_mask + 1))
 		return -EAGAIN;
 
-
 	newtbl->free_node = oldtbl->free_node;
 	newtbl->mean_chain_len = oldtbl->mean_chain_len;
 	newtbl->copy_node = oldtbl->copy_node;
@@ -329,7 +328,8 @@ void mesh_mpath_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	newtbl = mesh_table_alloc(mesh_paths->size_order + 1);
+	rcu_read_lock();
+	newtbl = mesh_table_alloc(rcu_dereference(mesh_paths)->size_order + 1);
 	if (!newtbl)
 		return;
 	write_lock(&pathtbl_resize_lock);
@@ -339,6 +339,7 @@ void mesh_mpath_table_grow(void)
 		write_unlock(&pathtbl_resize_lock);
 		return;
 	}
+	rcu_read_unlock();
 	rcu_assign_pointer(mesh_paths, newtbl);
 	write_unlock(&pathtbl_resize_lock);
 
@@ -350,7 +351,8 @@ void mesh_mpp_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	newtbl = mesh_table_alloc(mpp_paths->size_order + 1);
+	rcu_read_lock();
+	newtbl = mesh_table_alloc(rcu_dereference(mpp_paths)->size_order + 1);
 	if (!newtbl)
 		return;
 	write_lock(&pathtbl_resize_lock);
@@ -360,6 +362,7 @@ void mesh_mpp_table_grow(void)
 		write_unlock(&pathtbl_resize_lock);
 		return;
 	}
+	rcu_read_unlock();
 	rcu_assign_pointer(mpp_paths, newtbl);
 	write_unlock(&pathtbl_resize_lock);
 
