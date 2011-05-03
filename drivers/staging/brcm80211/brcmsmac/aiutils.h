@@ -291,8 +291,6 @@
  *   public (read-only) portion of aiutils handle returned by si_attach()
  */
 struct si_pub {
-	uint socitype;		/* SOCI_SB, SOCI_AI */
-
 	uint bustype;		/* SI_BUS, PCI_BUS */
 	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
 	uint buscorerev;	/* buscore rev */
