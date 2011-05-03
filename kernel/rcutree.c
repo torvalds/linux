@@ -581,21 +581,24 @@ static void print_cpu_stall(struct rcu_state *rsp)
 
 static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	long delta;
+	unsigned long j;
+	unsigned long js;
 	struct rcu_node *rnp;
 
 	if (rcu_cpu_stall_suppress)
 		return;
-	delta = jiffies - ACCESS_ONCE(rsp->jiffies_stall);
+	j = ACCESS_ONCE(jiffies);
+	js = ACCESS_ONCE(rsp->jiffies_stall);
 	rnp = rdp->mynode;
-	if ((ACCESS_ONCE(rnp->qsmask) & rdp->grpmask) && delta >= 0) {
+	if ((ACCESS_ONCE(rnp->qsmask) & rdp->grpmask) && ULONG_CMP_GE(j, js)) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
 
-	} else if (rcu_gp_in_progress(rsp) && delta >= RCU_STALL_RAT_DELAY) {
+	} else if (rcu_gp_in_progress(rsp) &&
+		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY)) {
 
-		/* They had two time units to dump stack, so complain. */
+		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(rsp);
 	}
 }
