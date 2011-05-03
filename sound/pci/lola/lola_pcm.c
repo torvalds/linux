@@ -126,6 +126,22 @@ static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 	if (str->prepared) {
 		str->prepared = 0;
 
+		if (str->paused) {
+			/* finish pause - prepare for a new resume
+			 * move this code later to trigger function,
+			 * as this is also needed when resuming from pause
+			 */
+			str->paused = 0;
+			/* implement later loop for all streams */
+			lola_stream_wait_for_fifo(chip, str, false);
+			lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRUN |
+				       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
+			/* end loop */
+			/* implement later once more loop for all streams */
+			lola_stream_wait_for_fifo(chip, str, true);
+			/* end loop */
+			/* end finish pause */
+		}
 		lola_dsd_write(chip, str->dsd, CTL,
 			       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
 		lola_stream_wait_for_fifo(chip, str, false);
@@ -178,12 +194,17 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 	str->opened = 1;
 	runtime->hw = lola_pcm_hw;
 	runtime->hw.channels_max = pcm->num_streams - str->index;
-	runtime->hw.rate_min = chip->sample_rate_min;
-	runtime->hw.rate_max = chip->sample_rate_max;
+	if (chip->sample_rate) {
+		/* sample rate is locked */
+		runtime->hw.rate_min = chip->sample_rate;
+		runtime->hw.rate_max = chip->sample_rate;
+	} else {
+		runtime->hw.rate_min = chip->sample_rate_min;
+		runtime->hw.rate_max = chip->sample_rate_max;
+	}
+	chip->ref_count_rate++;
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	/* period size = multiple of chip->granularity (8, 16 or 32 frames)
-	 * use LOLA_GRANULARITY_MAX = 32 for instance
-	 */
+	/* period size = multiple of chip->granularity (8, 16 or 32 frames)*/
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 				   chip->granularity);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
@@ -214,6 +235,10 @@ static int lola_pcm_close(struct snd_pcm_substream *substream)
 	if (str->substream == substream) {
 		str->substream = NULL;
 		str->opened = 0;
+	}
+	if (--chip->ref_count_rate == 0) {
+		/* release sample rate */
+		chip->sample_rate = 0;
 	}
 	mutex_unlock(&chip->open_mutex);
 	return 0;
@@ -427,6 +452,11 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
+	err = lola_set_sample_rate(chip, runtime->rate);
+	if (err < 0)
+		return err;
+	chip->sample_rate = runtime->rate;	/* sample rate gets locked */
+
 	err = lola_set_stream_config(chip, str, runtime->channels);
 	if (err < 0)
 		return err;
@@ -447,6 +477,7 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_pcm_substream *s;
 	unsigned int start;
 	unsigned int tstamp;
+	bool sync_streams;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -463,7 +494,12 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return -EINVAL;
 	}
 
-	tstamp = lola_get_tstamp(chip, false);
+	/*
+	 * sample correct synchronization is only needed starting several
+	 * streams on stop or if only one stream do as quick as possible
+	 */
+	sync_streams = (start && snd_pcm_stream_linked(substream));
+	tstamp = lola_get_tstamp(chip, !sync_streams);
 	spin_lock(&chip->reg_lock);
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (s->pcm->card != substream->pcm->card)
@@ -474,6 +510,7 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		else
 			lola_stream_stop(chip, str, tstamp);
 		str->running = start;
+		str->paused = !start;
 		snd_pcm_trigger_done(s, substream);
 	}
 	spin_unlock(&chip->reg_lock);

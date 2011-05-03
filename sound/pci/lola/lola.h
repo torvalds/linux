@@ -306,6 +306,7 @@ struct lola_stream {
 	/* flags */
 	unsigned int opened:1;
 	unsigned int prepared:1;
+	unsigned int paused:1;
 	unsigned int running:1;
 };
 
@@ -356,6 +357,8 @@ struct lola {
 
 	/* clock */
 	struct lola_clock_widget clock;
+	int ref_count_rate;
+	unsigned int sample_rate;
 
 	/* mixer */
 	struct lola_mixer_widget mixer;
@@ -370,7 +373,6 @@ struct lola {
 	unsigned int sample_rate_max;
 
 	/* flags */
-	unsigned int running :1;
 	unsigned int initialized :1;
 	unsigned int cold_reset :1;
 
