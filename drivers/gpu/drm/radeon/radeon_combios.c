@@ -2504,6 +2504,12 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 	return true;
 }
 
+static const char *thermal_controller_names[] = {
+	"NONE",
+	"lm63",
+	"adm1032",
+};
+
 void radeon_combios_get_power_modes(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -2522,6 +2528,54 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 		rdev->pm.current_clock_mode_index = 0;
 		return;
+	}
+
+	/* check for a thermal chip */
+	offset = combios_get_table_offset(dev, COMBIOS_OVERDRIVE_INFO_TABLE);
+	if (offset) {
+		u8 thermal_controller = 0, gpio = 0, i2c_addr = 0, clk_bit = 0, data_bit = 0;
+		struct radeon_i2c_bus_rec i2c_bus;
+
+		rev = RBIOS8(offset);
+
+		if (rev == 0) {
+			thermal_controller = RBIOS8(offset + 3);
+			gpio = RBIOS8(offset + 4) & 0x3f;
+			i2c_addr = RBIOS8(offset + 5);
+		} else if (rev == 1) {
+			thermal_controller = RBIOS8(offset + 4);
+			gpio = RBIOS8(offset + 5) & 0x3f;
+			i2c_addr = RBIOS8(offset + 6);
+		} else if (rev == 2) {
+			thermal_controller = RBIOS8(offset + 4);
+			gpio = RBIOS8(offset + 5) & 0x3f;
+			i2c_addr = RBIOS8(offset + 6);
+			clk_bit = RBIOS8(offset + 0xa);
+			data_bit = RBIOS8(offset + 0xb);
+		}
+		if ((thermal_controller > 0) && (thermal_controller < 3)) {
+			DRM_INFO("Possible %s thermal controller at 0x%02x\n",
+				 thermal_controller_names[thermal_controller],
+				 i2c_addr >> 1);
+			if (gpio == DDC_LCD) {
+				/* MM i2c */
+				i2c_bus.valid = true;
+				i2c_bus.hw_capable = true;
+				i2c_bus.mm_i2c = true;
+				i2c_bus.i2c_id = 0xa0;
+			} else if (gpio == DDC_GPIO)
+				i2c_bus = combios_setup_i2c_bus(rdev, gpio, 1 << clk_bit, 1 << data_bit);
+			else
+				i2c_bus = combios_setup_i2c_bus(rdev, gpio, 0, 0);
+			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
+			if (rdev->pm.i2c_bus) {
+				struct i2c_board_info info = { };
+				const char *name = thermal_controller_names[thermal_controller];
+				info.addr = i2c_addr >> 1;
+				strlcpy(info.type, name, sizeof(info.type));
+				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
+			}
+		}
 	}
 
 	if (rdev->flags & RADEON_IS_MOBILITY) {
