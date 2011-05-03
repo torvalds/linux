@@ -1357,7 +1357,7 @@ void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
 		spin_unlock(&mdsc->cap_dirty_lock);
 		if (ci->i_flushing_caps == 0) {
-			igrab(inode);
+			ihold(inode);
 			dirty |= I_DIRTY_SYNC;
 		}
 	}
@@ -1991,7 +1991,7 @@ static void __take_cap_refs(struct ceph_inode_info *ci, int got)
 		ci->i_wr_ref++;
 	if (got & CEPH_CAP_FILE_BUFFER) {
 		if (ci->i_wrbuffer_ref == 0)
-			igrab(&ci->vfs_inode);
+			ihold(&ci->vfs_inode);
 		ci->i_wrbuffer_ref++;
 		dout("__take_cap_refs %p wrbuffer %d -> %d (?)\n",
 		     &ci->vfs_inode, ci->i_wrbuffer_ref-1, ci->i_wrbuffer_ref);
