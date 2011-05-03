@@ -133,6 +133,7 @@ static int nc_init_card(void)
 	snd_pmic_ops_nc.master_mute = UNMUTE;
 	snd_pmic_ops_nc.mute_status = UNMUTE;
 	sst_sc_reg_access(sc_access, PMIC_WRITE, 27);
+	mutex_init(&snd_pmic_ops_nc.lock);
 	pr_debug("init complete!!\n");
 	return 0;
 }
@@ -179,6 +180,7 @@ static int nc_power_up_pb(unsigned int port)
 		return retval;
 	if (port == 0xFF)
 		return 0;
+	mutex_lock(&snd_pmic_ops_nc.lock);
 	nc_enable_audiodac(MUTE);
 	msleep(30);
 
@@ -219,6 +221,8 @@ static int nc_power_up_pb(unsigned int port)
 
 	msleep(30);
 
+	snd_pmic_ops_nc.pb_on = 1;
+
 	/*
 	 * There is a mismatch between Playback Sources and the enumerated
 	 * values of output sources.  This mismatch causes ALSA upper to send
@@ -229,8 +233,9 @@ static int nc_power_up_pb(unsigned int port)
 	if (snd_pmic_ops_nc.output_dev_id == MONO_EARPIECE ||
 	    snd_pmic_ops_nc.output_dev_id == INTERNAL_SPKR)
 		nc_set_amp_power(1);
-	return nc_enable_audiodac(UNMUTE);
-
+	nc_enable_audiodac(UNMUTE);
+	mutex_unlock(&snd_pmic_ops_nc.lock);
+	return 0;
 }
 
 static int nc_power_up_cp(unsigned int port)
@@ -351,7 +356,7 @@ static int nc_power_down_pb(unsigned int device)
 		return retval;
 
 	pr_debug("powering dn pb....\n");
-
+	mutex_lock(&snd_pmic_ops_nc.lock);
 	nc_enable_audiodac(MUTE);
 
 
@@ -378,9 +383,11 @@ static int nc_power_down_pb(unsigned int device)
 
 	msleep(30);
 
-	return nc_enable_audiodac(UNMUTE);
+	snd_pmic_ops_nc.pb_on = 0;
 
-
+	nc_enable_audiodac(UNMUTE);
+	mutex_unlock(&snd_pmic_ops_nc.lock);
+	return 0;
 }
 
 static int nc_power_down_cp(unsigned int device)
@@ -521,11 +528,13 @@ static int nc_set_selected_output_dev(u8 value)
 {
 	struct sc_reg_access sc_access_HP[] = {
 		{LMUTE, 0x02, 0x06},
-		{RMUTE, 0x02, 0x06}
+		{RMUTE, 0x02, 0x06},
+		{DRVPOWERCTRL, 0x06, 0x06},
 	};
 	struct sc_reg_access sc_access_IS[] = {
 		{LMUTE, 0x04, 0x06},
-		{RMUTE, 0x04, 0x06}
+		{RMUTE, 0x04, 0x06},
+		{DRVPOWERCTRL, 0x00, 0x06},
 	};
 	int retval = 0;
 
@@ -535,20 +544,26 @@ static int nc_set_selected_output_dev(u8 value)
 	if (retval)
 		return retval;
 	pr_debug("nc set selected output:%d\n", value);
+	mutex_lock(&snd_pmic_ops_nc.lock);
 	switch (value) {
 	case STEREO_HEADPHONE:
+		if (snd_pmic_ops_nc.pb_on)
+			sst_sc_reg_access(sc_access_HP+2, PMIC_WRITE, 1);
 		retval = sst_sc_reg_access(sc_access_HP, PMIC_WRITE, 2);
 		nc_set_amp_power(0);
 		break;
 	case MONO_EARPIECE:
 	case INTERNAL_SPKR:
-		retval = sst_sc_reg_access(sc_access_IS, PMIC_WRITE, 2);
-		nc_set_amp_power(1);
+		retval = sst_sc_reg_access(sc_access_IS, PMIC_WRITE, 3);
+		if (snd_pmic_ops_nc.pb_on)
+			nc_set_amp_power(1);
 		break;
 	default:
 		pr_err("rcvd illegal request: %d\n", value);
+		mutex_unlock(&snd_pmic_ops_nc.lock);
 		return -EINVAL;
 	}
+	mutex_unlock(&snd_pmic_ops_nc.lock);
 	return retval;
 }
 

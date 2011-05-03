@@ -84,6 +84,7 @@ struct snd_pmic_ops {
 	int num_channel;
 	int input_dev_id;
 	int mute_status;
+	struct mutex lock;
 	int pb_on, pbhs_on;
 	int cap_on;
 	int output_dev_id;
