@@ -121,27 +121,69 @@ static int lola_stream_wait_for_fifo(struct lola *chip,
 	return -EIO;
 }
 
+/* sync for FIFO ready/empty for all linked streams;
+ * clear paused flag when FIFO gets ready again
+ */
+static int lola_sync_wait_for_fifo(struct lola *chip,
+				   struct snd_pcm_substream *substream,
+				   bool ready)
+{
+	unsigned int val = ready ? LOLA_DSD_STS_FIFORDY : 0;
+	unsigned long end_time = jiffies + msecs_to_jiffies(200);
+	struct snd_pcm_substream *s;
+	int pending = 0;
+
+	while (time_before(jiffies, end_time)) {
+		pending = 0;
+		snd_pcm_group_for_each_entry(s, substream) {
+			struct lola_stream *str;
+			if (s->pcm->card != substream->pcm->card)
+				continue;
+			str = lola_get_stream(s);
+			if (str->prepared && str->paused) {
+				unsigned int reg;
+				reg = lola_dsd_read(chip, str->dsd, STS);
+				if ((reg & LOLA_DSD_STS_FIFORDY) != val) {
+					pending = str->dsd + 1;
+					break;
+				}
+				if (ready)
+					str->paused = 0;
+			}
+		}
+		if (!pending)
+			return 0;
+		msleep(1);
+	}
+	printk(KERN_WARNING SFX "FIFO not ready (pending %d)\n", pending - 1);
+	return -EIO;
+}
+
+/* finish pause - prepare for a new resume */
+static void lola_sync_pause(struct lola *chip,
+			    struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_substream *s;
+
+	lola_sync_wait_for_fifo(chip, substream, false);
+	snd_pcm_group_for_each_entry(s, substream) {
+		struct lola_stream *str;
+		if (s->pcm->card != substream->pcm->card)
+			continue;
+		str = lola_get_stream(s);
+		if (str->paused && str->prepared)
+			lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRUN |
+				       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
+	}
+	lola_sync_wait_for_fifo(chip, substream, true);
+}
+
 static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 {
 	if (str->prepared) {
+		if (str->paused)
+			lola_sync_pause(chip, str->substream);
 		str->prepared = 0;
-
-		if (str->paused) {
-			/* finish pause - prepare for a new resume
-			 * move this code later to trigger function,
-			 * as this is also needed when resuming from pause
-			 */
-			str->paused = 0;
-			/* implement later loop for all streams */
-			lola_stream_wait_for_fifo(chip, str, false);
-			lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRUN |
-				       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
-			/* end loop */
-			/* implement later once more loop for all streams */
-			lola_stream_wait_for_fifo(chip, str, true);
-			/* end loop */
-			/* end finish pause */
-		}
 		lola_dsd_write(chip, str->dsd, CTL,
 			       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
 		lola_stream_wait_for_fifo(chip, str, false);
