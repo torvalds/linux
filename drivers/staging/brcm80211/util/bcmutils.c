@@ -564,16 +564,11 @@ static const u8 crc8_table[256] = {
 	0xF4, 0x03, 0x4D, 0xBA, 0xD1, 0x26, 0x68, 0x9F
 };
 
-#define CRC_INNER_LOOP(n, c, x) \
-	((c) = ((c) >> 8) ^ crc##n##_table[((c) ^ (x)) & 0xff])
-
 u8 hndcrc8(u8 *pdata,	/* pointer to array of data to process */
 			 uint nbytes,	/* number of input data bytes to process */
 			 u8 crc	/* either CRC8_INIT_VALUE or previous return value */
     ) {
-	/* hard code the crc loop instead of using CRC_INNER_LOOP macro
-	 * to avoid the undefined and unnecessary (u8 >> 8) operation.
-	 */
+	/* loop over the buffer data */
 	while (nbytes-- > 0)
 		crc = crc8_table[(crc ^ *pdata++) & 0xff];
 
