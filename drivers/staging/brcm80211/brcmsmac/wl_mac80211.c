@@ -171,7 +171,6 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 	bool blocked;
 	/*
 	  struct ieee80211_channel *curchan = hw->conf.channel;
-	  WL_NONE("%s : Initial channel: %d\n", __func__, curchan->hw_value);
 	*/
 
 	ieee80211_wake_queues(hw);
@@ -365,7 +364,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HT) {
 		/* 802.11n parameters changed */
 		u16 mode = info->ht_operation_mode;
-		WL_NONE("%s: HT mode: 0x%04X\n", __func__, mode);
 		wlc_protection_upd(wl->wlc, WLC_PROT_N_CFG,
 			mode & IEEE80211_HT_OP_MODE_PROTECTION);
 		wlc_protection_upd(wl->wlc, WLC_PROT_N_NONGF,
@@ -380,14 +378,10 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
-		WL_NONE("%s: Beacon Interval: %d\n",
-			__func__, info->beacon_int);
 		wlc_set(wl->wlc, WLC_SET_BCNPRD, info->beacon_int);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
-		WL_NONE("%s: new BSSID: aid %d  bss:%pM\n", __func__,
-			info->aid, info->bssid);
 		WL_LOCK(wl);
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
 				  info->bssid);
@@ -456,7 +450,6 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 	if (changed_flags & FIF_OTHER_BSS)
 		WL_ERROR("FIF_OTHER_BSS\n");
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
-		WL_NONE("FIF_BCN_PRBRESP_PROMISC\n");
 		WL_LOCK(wl);
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC) {
 			wl->pub->mac80211_state |= MAC80211_PROMISC_BCNS;
@@ -473,14 +466,12 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 static int
 wl_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 {
-	WL_NONE("%s: Enter\n", __func__);
 	return 0;
 }
 
 static void wl_ops_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = hw->priv;
-	WL_NONE("Scan Start\n");
 	WL_LOCK(wl);
 	wlc_scan_start(wl->wlc);
 	WL_UNLOCK(wl);
@@ -490,7 +481,6 @@ static void wl_ops_sw_scan_start(struct ieee80211_hw *hw)
 static void wl_ops_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = hw->priv;
-	WL_NONE("Scan Complete\n");
 	WL_LOCK(wl);
 	wlc_scan_stop(wl->wlc);
 	WL_UNLOCK(wl);
@@ -534,7 +524,6 @@ static void
 wl_ops_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
 {
-	WL_NONE("%s: Enter\n", __func__);
 	switch (cmd) {
 	default:
 		WL_ERROR("%s: Unknown cmd = %d\n", __func__, cmd);
@@ -548,10 +537,6 @@ wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct wl_info *wl = hw->priv;
-
-	WL_NONE("%s: Enter (WME config)\n", __func__);
-	WL_NONE("queue %d, txop %d, cwmin %d, cwmax %d, aifs %d\n", queue,
-		 params->txop, params->cw_min, params->cw_max, params->aifs);
 
 	WL_LOCK(wl);
 	wlc_wme_setparams(wl->wlc, queue, params, true);
@@ -605,7 +590,6 @@ static int
 wl_ops_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
-	WL_NONE("%s: Enter\n", __func__);
 	return 0;
 }
 
@@ -625,10 +609,8 @@ wl_ops_ampdu_action(struct ieee80211_hw *hw,
 	ASSERT(scb->magic == SCB_MAGIC);
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		WL_NONE("%s: action = IEEE80211_AMPDU_RX_START\n", __func__);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		WL_NONE("%s: action = IEEE80211_AMPDU_RX_STOP\n", __func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		WL_LOCK(wl);
@@ -652,8 +634,6 @@ wl_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		/* Not sure what to do here */
 		/* Power save wakeup */
-		WL_NONE("%s: action = IEEE80211_AMPDU_TX_OPERATIONAL\n",
-			__func__);
 		break;
 	default:
 		WL_ERROR("%s: Invalid command, ignoring\n", __func__);
@@ -671,7 +651,6 @@ static void wl_ops_rfkill_poll(struct ieee80211_hw *hw)
 	blocked = wlc_check_radio_disabled(wl->wlc);
 	WL_UNLOCK(wl);
 
-	WL_NONE("wl: rfkill_poll: %d\n", blocked);
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 }
 
@@ -704,8 +683,6 @@ static const struct ieee80211_ops wl_ops = {
  */
 static int wl_set_hint(struct wl_info *wl, char *abbrev)
 {
-	WL_NONE("%s: Sending country code %c%c to MAC80211\n",
-		 __func__, abbrev[0], abbrev[1]);
 	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
 
@@ -1031,7 +1008,6 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	if (wlc_get(wl->wlc, WLC_GET_PHYLIST, (int *)&phy_list) < 0) {
 		WL_ERROR("Phy list failed\n");
 	}
-	WL_NONE("%s: phylist = %c\n", __func__, phy_list[0]);
 
 	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
 		if (phy_list[0] == 'c') {
@@ -1055,9 +1031,6 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 			return -1;
 		}
 	}
-
-	WL_NONE("%s: 2ghz = %d, 5ghz = %d\n", __func__, 1, has_5g);
-
 	return 0;
 }
 
@@ -1250,7 +1223,6 @@ static void wl_remove(struct pci_dev *pdev)
 		WL_LOCK(wl);
 		wl_down(wl);
 		WL_UNLOCK(wl);
-		WL_NONE("%s: Down\n", __func__);
 	}
 	pci_disable_device(pdev);
 
@@ -1838,14 +1810,12 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 			break;
 		sprintf(fw_name, "%s-%d.fw", wl_firmwares[i],
 			UCODE_LOADER_API_VER);
-		WL_NONE("request fw %s\n", fw_name);
 		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
 		if (status) {
 			WL_ERROR("%s: fail to load firmware %s\n",
 				 KBUILD_MODNAME, fw_name);
 			return status;
 		}
-		WL_NONE("request fw %s\n", fw_name);
 		sprintf(fw_name, "%s_hdr-%d.fw", wl_firmwares[i],
 			UCODE_LOADER_API_VER);
 		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
@@ -1856,8 +1826,6 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 		}
 		wl->fw.hdr_num_entries[i] =
 		    wl->fw.fw_hdr[i]->size / (sizeof(struct wl_fw_hdr));
-		WL_NONE("request fw %s find: %d entries\n",
-			fw_name, wl->fw.hdr_num_entries[i]);
 	}
 	wl->fw.fw_cnt = i;
 	return wl_ucode_data_init(wl);
@@ -1944,8 +1912,6 @@ bool wl_rfkill_set_hw_state(struct wl_info *wl)
 {
 	bool blocked = wlc_check_radio_disabled(wl->wlc);
 
-	WL_NONE("%s: update hw state: blocked=%s\n", __func__,
-		blocked ? "true" : "false");
 	WL_UNLOCK(wl);
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 	if (blocked)

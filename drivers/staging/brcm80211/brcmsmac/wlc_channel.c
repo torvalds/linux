@@ -656,9 +656,6 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 	ccode = getvar(wlc->pub->vars, "ccode");
 	if (ccode) {
 		strncpy(wlc->pub->srom_ccode, ccode, WLC_CNTRY_BUF_SZ - 1);
-		WL_NONE("%s: SROM country code is %c%c\n",
-			__func__,
-			wlc->pub->srom_ccode[0], wlc->pub->srom_ccode[1]);
 	}
 
 	/* internal country information which must match regulatory constraints in firmware */
@@ -707,10 +704,6 @@ wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 	const country_info_t *country;
 	char mapped_ccode[WLC_CNTRY_BUF_SZ];
 	uint mapped_regrev;
-
-	WL_NONE("%s: (country_abbrev \"%s\", ccode \"%s\", regrev %d) SPROM \"%s\"/%u\n",
-		__func__, country_abbrev, ccode, regrev,
-		wlc_cm->srom_ccode, wlc_cm->srom_regrev);
 
 	/* if regrev is -1, lookup the mapped country code,
 	 * otherwise use the ccode and regrev directly

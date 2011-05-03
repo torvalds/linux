@@ -251,7 +251,6 @@ void scb_ampdu_cleanup(struct ampdu_info *ampdu, struct scb *scb)
  */
 void wlc_ampdu_reset(struct ampdu_info *ampdu)
 {
-	WL_NONE("%s: Entering\n", __func__);
 }
 
 static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
@@ -680,9 +679,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			    min(scb_ampdu->max_rxlen,
 				ampdu->max_txlen[mcs][is40][sgi]);
 
-			WL_NONE("sendampdu: sgi %d, is40 %d, mcs %d\n",
-				sgi, is40, mcs);
-
 			/* XXX Fix me to honor real max_rxlen */
 			/* can fix this as soon as ampdu_action() in mac80211.h
 			 * gets extra u8buf_size par */
@@ -733,8 +729,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		}
 
 		if (count == scb_ampdu->max_pdu) {
-			WL_NONE("Stop taking from q, reached %d deep\n",
-				scb_ampdu->max_pdu);
 			break;
 		}
 
@@ -1051,10 +1045,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 					 __func__,
 					 CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 			} else {
-				if (supr_status == TX_STATUS_SUPR_FRAG)
-					WL_NONE("%s: AMPDU frag err\n",
-						__func__);
-				else
+				if (supr_status != TX_STATUS_SUPR_FRAG)
 					WL_ERROR("%s: wlc_ampdu_dotxstatus: supr_status 0x%x\n",
 						 __func__, supr_status);
 			}

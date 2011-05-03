@@ -112,7 +112,6 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 #ifdef BCMSDIOH_SPI
 	/* This is the PciSpiHost. */
 	if (device == SPIH_FPGA_ID && vendor == PCI_VENDOR_ID_BROADCOM) {
-		WL_NONE("Found PCI SPI Host Controller\n");
 		return true;
 	}
 #endif				/* BCMSDIOH_SPI */

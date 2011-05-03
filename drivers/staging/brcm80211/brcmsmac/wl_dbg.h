@@ -20,8 +20,6 @@
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
 extern u32 wl_msg_level;
 
-#define WL_NONE(fmt, args...) no_printk(fmt, ##args)
-
 #define WL_PRINT(level, fmt, args...)		\
 do {						\
 	if (wl_msg_level & level)		\

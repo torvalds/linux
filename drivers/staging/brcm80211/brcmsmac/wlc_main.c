@@ -1684,9 +1684,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	struct wlc_txq_info *qi;
 	uint n_disabled;
 
-	WL_NONE("wl%d: %s: vendor 0x%x device 0x%x\n",
-		unit, __func__, vendor, device);
-
 	/* allocate struct wlc_info state and its substructures */
 	wlc = (struct wlc_info *) wlc_attach_malloc(unit, &err, device);
 	if (wlc == NULL)
@@ -3017,11 +3014,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	/* bool conversion to avoid duplication below */
 	bool_val = val != 0;
-
-	if (cmd != WLC_SET_CHANNEL)
-		WL_NONE("WLC_IOCTL: cmd %d val 0x%x (%d) len %d\n",
-			cmd, (uint)val, val, len);
-
 	bcmerror = 0;
 	regs = wlc->regs;
 
@@ -6554,8 +6546,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
 	if (supr_status == TX_STATUS_SUPR_BADCH)
-		WL_NONE("%s: Pkt tx suppressed, possibly channel %d\n",
-			__func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
+		WL_TRACE("%s: Pkt tx suppressed, possibly channel %d\n",
+			 __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 
 	tx_rts = cpu_to_le16(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
