@@ -186,17 +186,17 @@ static struct can_bittiming_const at91_bittiming_const = {
 	.brp_inc	= 1,
 };
 
-static inline int get_tx_next_mb(const struct at91_priv *priv)
+static inline unsigned int get_tx_next_mb(const struct at91_priv *priv)
 {
 	return (priv->tx_next & AT91_NEXT_MB_MASK) + AT91_MB_TX_FIRST;
 }
 
-static inline int get_tx_next_prio(const struct at91_priv *priv)
+static inline unsigned int get_tx_next_prio(const struct at91_priv *priv)
 {
 	return (priv->tx_next >> AT91_NEXT_PRIO_SHIFT) & 0xf;
 }
 
-static inline int get_tx_echo_mb(const struct at91_priv *priv)
+static inline unsigned int get_tx_echo_mb(const struct at91_priv *priv)
 {
 	return (priv->tx_echo & AT91_NEXT_MB_MASK) + AT91_MB_TX_FIRST;
 }
