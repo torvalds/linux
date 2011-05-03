@@ -2488,7 +2488,7 @@ struct drbd_tconn *conn_create(const char *name)
 	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
 	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
 
-	drbd_set_res_opts_default(&tconn->res_opts);
+	drbd_set_res_opts_defaults(&tconn->res_opts);
 
 	down_write(&drbd_cfg_rwsem);
 	kref_init(&tconn->kref);

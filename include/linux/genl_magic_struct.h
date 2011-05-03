@@ -107,6 +107,14 @@ enum {
 	__array(attr_nr, attr_flag, name, NLA_BINARY, char, maxlen, \
 			nla_memcpy, NLA_PUT)
 
+/* fields with default values */
+#define __flg_field_def(attr_nr, attr_flag, name, default) \
+	__flg_field(attr_nr, attr_flag, name)
+#define __u32_field_def(attr_nr, attr_flag, name, default) \
+	__u32_field(attr_nr, attr_flag, name)
+#define __str_field_def(attr_nr, attr_flag, name, maxlen) \
+	__str_field(attr_nr, attr_flag, name, maxlen)
+
 #define __nla_put_flag(skb, attrtype, value)		\
 	do {						\
 		if (value)				\

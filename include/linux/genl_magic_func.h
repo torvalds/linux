@@ -427,6 +427,32 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 
 #include GENL_MAGIC_INCLUDE_FILE
 
+
+/* Functions for initializing structs to default values.  */
+
+#undef __field
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)
+#undef __array
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put)
+#undef __u32_field_def
+#define __u32_field_def(attr_nr, attr_flag, name, default)		\
+	x->name = default;
+#undef __flg_field_def
+#define __flg_field_def(attr_nr, attr_flag, name, default)		\
+	x->name = default;
+#undef __str_field_def
+#define __str_field_def(attr_nr, attr_flag, name, maxlen)		\
+	memset(x->name, 0, sizeof(x->name));				\
+	x->name ## _len = 0;
+#undef GENL_struct
+#define GENL_struct(tag_name, tag_number, s_name, s_fields)		\
+static void set_ ## s_name ## _defaults(struct s_name *x) __attribute__((unused)); \
+static void set_ ## s_name ## _defaults(struct s_name *x) {	\
+s_fields								\
+}
+
+#include GENL_MAGIC_INCLUDE_FILE
+
 #endif /* __KERNEL__ */
 
 /* }}}1 */
