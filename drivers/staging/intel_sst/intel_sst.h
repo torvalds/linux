@@ -103,8 +103,8 @@ struct snd_pmic_ops {
 
 	int (*power_up_pmic_pb) (unsigned int port);
 	int (*power_up_pmic_cp) (unsigned int port);
-	int (*power_down_pmic_pb) (void);
-	int (*power_down_pmic_cp) (void);
+	int (*power_down_pmic_pb) (unsigned int device);
+	int (*power_down_pmic_cp) (unsigned int device);
 	int (*power_down_pmic) (void);
 };
 

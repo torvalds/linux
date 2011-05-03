@@ -105,21 +105,23 @@ void free_stream_context(unsigned int str_id)
 	if (!sst_validate_strid(str_id)) {
 		/* str_id is valid, so stream is alloacted */
 		stream = &sst_drv_ctx->streams[str_id];
+		if (sst_free_stream(str_id))
+			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 		if (stream->ops == STREAM_OPS_PLAYBACK ||
 				stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 			sst_drv_ctx->pb_streams--;
 			if (sst_drv_ctx->pb_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_pb();
+				sst_drv_ctx->scard_ops->power_down_pmic_pb(
+						stream->device);
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			sst_drv_ctx->cp_streams--;
 			if (sst_drv_ctx->cp_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_cp();
+				sst_drv_ctx->scard_ops->power_down_pmic_cp(
+						stream->device);
 		}
 		if (sst_drv_ctx->pb_streams == 0
 				&& sst_drv_ctx->cp_streams == 0)
 			sst_drv_ctx->scard_ops->power_down_pmic();
-		if (sst_free_stream(str_id))
-			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 	}
 }
 

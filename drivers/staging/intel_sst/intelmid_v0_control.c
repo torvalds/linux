@@ -157,7 +157,7 @@ static int fs_power_up_pb(unsigned int port)
 	return fs_enable_audiodac(UNMUTE);
 }
 
-static int fs_power_down_pb(void)
+static int fs_power_down_pb(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{POWERCTRL1, 0x00, 0xC6},
@@ -195,7 +195,7 @@ static int fs_power_up_cp(unsigned int port)
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 }
 
-static int fs_power_down_cp(void)
+static int fs_power_down_cp(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{POWERCTRL2, 0x00, 0x03},

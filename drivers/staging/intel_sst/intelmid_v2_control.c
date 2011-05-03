@@ -315,7 +315,7 @@ static int nc_power_down(void)
 	return nc_enable_audiodac(UNMUTE);
 }
 
-static int nc_power_down_pb(void)
+static int nc_power_down_pb(unsigned int device)
 {
 
 	int retval = 0;
@@ -359,7 +359,7 @@ static int nc_power_down_pb(void)
 
 }
 
-static int nc_power_down_cp(void)
+static int nc_power_down_cp(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{POWERCTRL1, 0x00, 0xBE},

@@ -211,7 +211,7 @@ static int mx_power_up_pb(unsigned int port)
 	return mx_enable_audiodac(UNMUTE);
 }
 
-static int mx_power_down_pb(void)
+static int mx_power_down_pb(unsigned int device)
 {
 	struct sc_reg_access sc_access[3];
 	int retval = 0;
@@ -254,7 +254,7 @@ static int mx_power_up_cp(unsigned int port)
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 }
 
-static int mx_power_down_cp(void)
+static int mx_power_down_cp(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{ENABLE_OPDEV_CTRL, 0x00, MASK1|MASK0},
