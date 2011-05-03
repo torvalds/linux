@@ -43,7 +43,7 @@
 #define dot11MeshMaxPeerLinks(s) (s->u.mesh.mshcfg.dot11MeshMaxPeerLinks)
 
 enum plink_frame_type {
-	PLINK_OPEN = 0,
+	PLINK_OPEN = 1,
 	PLINK_CONFIRM,
 	PLINK_CLOSE
 };
@@ -181,7 +181,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	/* BSSID is left zeroed, wildcard value */
+	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
 	mgmt->u.action.u.plink_action.action_code = action;
 
