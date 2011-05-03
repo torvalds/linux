@@ -113,18 +113,19 @@ static int nc_init_card(void)
 		{VOICEVOL, 0x0e, 0},
 		{HPLVOL, 0x06, 0},
 		{HPRVOL, 0x06, 0},
-		{MICCTRL, 0x41, 0x00},
+		{MICCTRL, 0x51, 0x00},
 		{ADCSAMPLERATE, 0x8B, 0x00},
 		{MICSELVOL, 0x5B, 0x00},
 		{LILSEL, 0x06, 0},
 		{LIRSEL, 0x46, 0},
 		{LOANTIPOP, 0x00, 0},
 		{DMICCTRL1, 0x40, 0},
+		{AUXDBNC, 0xff, 0},
 	};
 	snd_pmic_ops_nc.card_status = SND_CARD_INIT_DONE;
 	snd_pmic_ops_nc.master_mute = UNMUTE;
 	snd_pmic_ops_nc.mute_status = UNMUTE;
-	sst_sc_reg_access(sc_access, PMIC_WRITE, 26);
+	sst_sc_reg_access(sc_access, PMIC_WRITE, 27);
 	pr_debug("init complete!!\n");
 	return 0;
 }
@@ -833,7 +834,7 @@ static int nc_set_selected_input_dev(u8 value)
 		pr_debug("Selecting AMIC\n");
 		sc_access[0].reg_addr = 0x107;
 		sc_access[0].value = 0x40;
-		sc_access[0].mask =  MASK6|MASK4|MASK3|MASK1|MASK0;
+		sc_access[0].mask =  MASK6|MASK3|MASK1|MASK0;
 		sc_access[1].reg_addr = 0x10a;
 		sc_access[1].value = 0x40;
 		sc_access[1].mask = MASK6;
@@ -848,9 +849,9 @@ static int nc_set_selected_input_dev(u8 value)
 
 	case HS_MIC:
 		pr_debug("Selecting HS_MIC\n");
-		sc_access[0].reg_addr = 0x107;
-		sc_access[0].mask =  MASK6|MASK4|MASK3|MASK1|MASK0;
-		sc_access[0].value = 0x10;
+		sc_access[0].reg_addr = MICCTRL;
+		sc_access[0].mask =  MASK6|MASK3|MASK1|MASK0;
+		sc_access[0].value = 0x00;
 		sc_access[1].reg_addr = 0x109;
 		sc_access[1].mask = MASK6;
 		sc_access[1].value = 0x40;
@@ -860,19 +861,16 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[3].reg_addr = 0x105;
 		sc_access[3].value = 0x40;
 		sc_access[3].mask = MASK6;
-		sc_access[4].reg_addr = AUXDBNC;
-		sc_access[4].mask = MASK7|MASK6|MASK5|MASK4|MASK3|MASK2|MASK1|MASK0;
-		sc_access[4].value = 0xff;
-		sc_access[5].reg_addr = ADCSAMPLERATE;
-		sc_access[5].mask = MASK7|MASK6|MASK5|MASK4|MASK3;
-		sc_access[5].value = 0xc8;
-		num_val = 6;
+		sc_access[4].reg_addr = ADCSAMPLERATE;
+		sc_access[4].mask = MASK7|MASK6|MASK5|MASK4|MASK3;
+		sc_access[4].value = 0xc8;
+		num_val = 5;
 		break;
 
 	case DMIC:
 		pr_debug("DMIC\n");
-		sc_access[0].reg_addr = 0x107;
-		sc_access[0].mask = MASK6|MASK4|MASK3|MASK1|MASK0;
+		sc_access[0].reg_addr = MICCTRL;
+		sc_access[0].mask = MASK6|MASK3|MASK1|MASK0;
 		sc_access[0].value = 0x0B;
 		sc_access[1].reg_addr = 0x105;
 		sc_access[1].value = 0x80;
