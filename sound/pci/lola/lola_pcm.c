@@ -26,27 +26,9 @@
 #include <sound/pcm.h>
 #include "lola.h"
 
-/* #define USE_SG_BUFFER */
-
 #define LOLA_MAX_BDL_ENTRIES	8
 #define LOLA_MAX_BUF_SIZE	(1024*1024*1024)
 #define LOLA_BDL_ENTRY_SIZE	(16 * 16)
-
-#ifdef USE_SG_BUFFER
-#define get_addr(substream, ofs) \
-	snd_pcm_sgbuf_get_addr(substream, ofs)
-#define get_size(substream, ofs, size) \
-	snd_pcm_sgbuf_get_chunk_size(substream, ofs, size)
-#define ops_page	snd_pcm_sgbuf_ops_page
-#define PREALLOC_TYPE	SNDRV_DMA_TYPE_DEV_SG
-#else
-#define get_addr(substream, ofs) \
-	((substream)->runtime->dma_addr + ofs)
-#define get_size(substream, ofs, size) \
-	(size)
-#define ops_page	NULL
-#define PREALLOC_TYPE	SNDRV_DMA_TYPE_DEV
-#endif
 
 static struct lola_pcm *lola_get_pcm(struct snd_pcm_substream *substream)
 {
@@ -276,12 +258,12 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		if (str->frags >= LOLA_MAX_BDL_ENTRIES)
 			return -EINVAL;
 
-		addr = get_addr(substream, ofs);
+		addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		/* program the address field of the BDL entry */
 		bdl[0] = cpu_to_le32((u32)addr);
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
-		chunk = get_size(substream, ofs, size);
+		chunk = snd_pcm_sgbuf_get_chunk_size(substream, ofs, size);
 		bdl[2] = cpu_to_le32(chunk);
 		/* program the IOC to enable interrupt
 		 * only when the whole fragment is processed
@@ -530,7 +512,7 @@ static struct snd_pcm_ops lola_pcm_ops = {
 	.prepare = lola_pcm_prepare,
 	.trigger = lola_pcm_trigger,
 	.pointer = lola_pcm_pointer,
-	.page = ops_page,
+	.page = snd_pcm_sgbuf_ops_page,
 };
 
 int __devinit lola_create_pcm(struct lola *chip)
@@ -559,7 +541,7 @@ int __devinit lola_create_pcm(struct lola *chip)
 			snd_pcm_set_ops(pcm, i, &lola_pcm_ops);
 	}
 	/* buffer pre-allocation */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, PREALLOC_TYPE,
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
 					      1024 * 64, 32 * 1024 * 1024);
 	return 0;

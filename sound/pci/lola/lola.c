@@ -588,7 +588,6 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = -1;
 
 	chip->sample_rate_min = sample_rate_min[dev];
-
 	chip->granularity = granularity[dev];
 	/* FIXME */
 	if (chip->granularity != LOLA_GRANULARITY_MAX) {
