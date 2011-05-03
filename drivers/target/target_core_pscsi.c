@@ -328,10 +328,8 @@ static struct se_device *pscsi_add_device_to_list(
 	q = sd->request_queue;
 	limits = &dev_limits.limits;
 	limits->logical_block_size = sd->sector_size;
-	limits->max_hw_sectors = (sd->host->max_sectors > queue_max_hw_sectors(q)) ?
-				  queue_max_hw_sectors(q) : sd->host->max_sectors;
-	limits->max_sectors = (sd->host->max_sectors > queue_max_sectors(q)) ?
-				  queue_max_sectors(q) : sd->host->max_sectors;
+	limits->max_hw_sectors = min_t(int, sd->host->max_sectors, queue_max_hw_sectors(q));
+	limits->max_sectors = min_t(int, sd->host->max_sectors, queue_max_sectors(q));
 	dev_limits.hw_queue_depth = sd->queue_depth;
 	dev_limits.queue_depth = sd->queue_depth;
 	/*
@@ -697,7 +695,7 @@ static int pscsi_transport_complete(struct se_task *task)
 
 		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = task->task_se_cmd->t_task.t_task_buf;
+			unsigned char *buf = task->task_se_cmd->t_task_buf;
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -763,7 +761,7 @@ static struct se_task *
 pscsi_alloc_task(struct se_cmd *cmd)
 {
 	struct pscsi_plugin_task *pt;
-	unsigned char *cdb = cmd->t_task.t_task_cdb;
+	unsigned char *cdb = cmd->t_task_cdb;
 
 	pt = kzalloc(sizeof(struct pscsi_plugin_task), GFP_KERNEL);
 	if (!pt) {
@@ -776,7 +774,7 @@ pscsi_alloc_task(struct se_cmd *cmd)
 	 * allocate the extended CDB buffer for per struct se_task context
 	 * pt->pscsi_cdb now.
 	 */
-	if (cmd->t_task.t_task_cdb != cmd->t_task.__t_task_cdb) {
+	if (cmd->t_task_cdb != cmd->__t_task_cdb) {
 
 		pt->pscsi_cdb = kzalloc(scsi_command_size(cdb), GFP_KERNEL);
 		if (!(pt->pscsi_cdb)) {
@@ -889,7 +887,7 @@ static void pscsi_free_task(struct se_task *task)
 	 * Release the extended CDB allocation from pscsi_alloc_task()
 	 * if one exists.
 	 */
-	if (cmd->t_task.t_task_cdb != cmd->t_task.__t_task_cdb)
+	if (cmd->t_task_cdb != cmd->__t_task_cdb)
 		kfree(pt->pscsi_cdb);
 	/*
 	 * We do not release the bio(s) here associated with this task, as
@@ -1053,7 +1051,7 @@ static void pscsi_bi_endio(struct bio *bio, int error)
 	bio_put(bio);
 }
 
-static inline struct bio *pscsi_get_bio(struct pscsi_dev_virt *pdv, int sg_num)
+static inline struct bio *pscsi_get_bio(int sg_num)
 {
 	struct bio *bio;
 	/*
@@ -1126,7 +1124,7 @@ static int __pscsi_map_task_SG(
 				/*
 				 * Calls bio_kmalloc() and sets bio->bi_end_io()
 				 */
-				bio = pscsi_get_bio(pdv, nr_vecs);
+				bio = pscsi_get_bio(nr_vecs);
 				if (!(bio))
 					goto fail;
 
@@ -1266,7 +1264,7 @@ static int pscsi_map_task_non_SG(struct se_task *task)
 		return 0;
 
 	ret = blk_rq_map_kern(pdv->pdv_sd->request_queue,
-			pt->pscsi_req, cmd->t_task.t_task_buf,
+			pt->pscsi_req, cmd->t_task_buf,
 			task->task_size, GFP_KERNEL);
 	if (ret < 0) {
 		printk(KERN_ERR "PSCSI: blk_rq_map_kern() failed: %d\n", ret);

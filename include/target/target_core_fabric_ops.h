@@ -39,11 +39,6 @@ struct target_core_fabric_ops {
 	 */
 	int (*new_cmd_map)(struct se_cmd *);
 	/*
-	 * Optional function pointer for TCM fabric modules that use
-	 * Linux/NET sockets to allocate struct iovec array to struct se_cmd
-	 */
-	int (*alloc_cmd_iovecs)(struct se_cmd *);
-	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
 	 * I/O descriptor in transport_cmd_check_stop()
 	 */

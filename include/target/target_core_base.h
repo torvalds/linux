@@ -403,64 +403,10 @@ struct se_queue_obj {
 	wait_queue_head_t	thread_wq;
 } ____cacheline_aligned;
 
-/*
- * Used one per struct se_cmd to hold all extra struct se_task
- * metadata.  This structure is setup and allocated in
- * drivers/target/target_core_transport.c:__transport_alloc_se_cmd()
- */
-struct se_transport_task {
-	unsigned char		*t_task_cdb;
-	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
-	unsigned long long	t_task_lba;
-	int			t_tasks_failed;
-	int			t_tasks_fua;
-	bool			t_tasks_bidi;
-	u32			t_task_cdbs;
-	u32			t_tasks_check;
-	u32			t_tasks_no;
-	u32			t_tasks_sectors;
-	u32			t_tasks_se_num;
-	u32			t_tasks_se_bidi_num;
-	u32			t_tasks_sg_chained_no;
-	atomic_t		t_fe_count;
-	atomic_t		t_se_count;
-	atomic_t		t_task_cdbs_left;
-	atomic_t		t_task_cdbs_ex_left;
-	atomic_t		t_task_cdbs_timeout_left;
-	atomic_t		t_task_cdbs_sent;
-	atomic_t		t_transport_aborted;
-	atomic_t		t_transport_active;
-	atomic_t		t_transport_complete;
-	atomic_t		t_transport_queue_active;
-	atomic_t		t_transport_sent;
-	atomic_t		t_transport_stop;
-	atomic_t		t_transport_timeout;
-	atomic_t		transport_dev_active;
-	atomic_t		transport_lun_active;
-	atomic_t		transport_lun_fe_stop;
-	atomic_t		transport_lun_stop;
-	spinlock_t		t_state_lock;
-	struct completion	t_transport_stop_comp;
-	struct completion	transport_lun_fe_stop_comp;
-	struct completion	transport_lun_stop_comp;
-	struct scatterlist	*t_tasks_sg_chained;
-	struct scatterlist	t_tasks_sg_bounce;
-	void			*t_task_buf;
-	/*
-	 * Used for pre-registered fabric SGL passthrough WRITE and READ
-	 * with the special SCF_PASSTHROUGH_CONTIG_TO_SG case for TCM_Loop
-	 * and other HW target mode fabric modules.
-	 */
-	struct scatterlist	*t_task_pt_sgl;
-	struct list_head	t_mem_list;
-	/* Used for BIDI READ */
-	struct list_head	t_mem_bidi_list;
-	struct list_head	t_task_list;
-} ____cacheline_aligned;
-
 struct se_task {
 	unsigned char	task_sense;
 	struct scatterlist *task_sg;
+	u32		task_sg_num;
 	struct scatterlist *task_sg_bidi;
 	u8		task_scsi_status;
 	u8		task_flags;
@@ -471,8 +417,6 @@ struct se_task {
 	u32		task_no;
 	u32		task_sectors;
 	u32		task_size;
-	u32		task_sg_num;
-	u32		task_sg_offset;
 	enum dma_data_direction	task_data_direction;
 	struct se_cmd *task_se_cmd;
 	struct se_device	*se_dev;
@@ -534,13 +478,58 @@ struct se_cmd {
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
-	struct se_transport_task t_task;
 	struct list_head	se_queue_node;
 	struct target_core_fabric_ops *se_tfo;
 	int (*transport_emulate_cdb)(struct se_cmd *);
 	void (*transport_split_cdb)(unsigned long long, u32 *, unsigned char *);
 	void (*transport_wait_for_tasks)(struct se_cmd *, int, int);
 	void (*transport_complete_callback)(struct se_cmd *);
+	unsigned char		*t_task_cdb;
+	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
+	unsigned long long	t_task_lba;
+	int			t_tasks_failed;
+	int			t_tasks_fua;
+	bool			t_tasks_bidi;
+	u32			t_tasks_se_num;
+	u32			t_tasks_se_bidi_num;
+	u32			t_tasks_sg_chained_no;
+	atomic_t		t_fe_count;
+	atomic_t		t_se_count;
+	atomic_t		t_task_cdbs_left;
+	atomic_t		t_task_cdbs_ex_left;
+	atomic_t		t_task_cdbs_timeout_left;
+	atomic_t		t_task_cdbs_sent;
+	atomic_t		t_transport_aborted;
+	atomic_t		t_transport_active;
+	atomic_t		t_transport_complete;
+	atomic_t		t_transport_queue_active;
+	atomic_t		t_transport_sent;
+	atomic_t		t_transport_stop;
+	atomic_t		t_transport_timeout;
+	atomic_t		transport_dev_active;
+	atomic_t		transport_lun_active;
+	atomic_t		transport_lun_fe_stop;
+	atomic_t		transport_lun_stop;
+	spinlock_t		t_state_lock;
+	struct completion	t_transport_stop_comp;
+	struct completion	transport_lun_fe_stop_comp;
+	struct completion	transport_lun_stop_comp;
+	struct scatterlist	*t_tasks_sg_chained;
+	struct scatterlist	t_tasks_sg_bounce;
+	void			*t_task_buf;
+	/*
+	 * Used for pre-registered fabric SGL passthrough WRITE and READ
+	 * with the special SCF_PASSTHROUGH_CONTIG_TO_SG case for TCM_Loop
+	 * and other HW target mode fabric modules.
+	 */
+	struct scatterlist	*t_task_pt_sgl;
+	u32			t_task_pt_sgl_num;
+	struct list_head	t_mem_list;
+	/* Used for BIDI READ */
+	struct list_head	t_mem_bidi_list;
+	struct list_head	t_task_list;
+	u32			t_task_list_num;
+
 } ____cacheline_aligned;
 
 struct se_tmr_req {

@@ -168,7 +168,7 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	 */
 	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
 	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	atomic_set(&se_cmd->t_task.transport_lun_active, 1);
+	atomic_set(&se_cmd->transport_lun_active, 1);
 	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
 
 	return 0;
@@ -656,10 +656,10 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct se_task *se_task;
-	unsigned char *buf = se_cmd->t_task.t_task_buf;
+	unsigned char *buf = se_cmd->t_task_buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
-	list_for_each_entry(se_task, &se_cmd->t_task.t_task_list, t_list)
+	list_for_each_entry(se_task, &se_cmd->t_task_list, t_list)
 		break;
 
 	if (!(se_task)) {

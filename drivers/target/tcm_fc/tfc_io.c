@@ -65,7 +65,6 @@
 int ft_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-	struct se_transport_task *task;
 	struct fc_frame *fp = NULL;
 	struct fc_exch *ep;
 	struct fc_lport *lport;
@@ -90,14 +89,13 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
 
-	task = &se_cmd->t_task;
 	remaining = se_cmd->data_length;
 
 	/*
 	 * Setup to use first mem list entry if any.
 	 */
-	if (task->t_tasks_se_num) {
-		mem = list_first_entry(&task->t_mem_list,
+	if (se_cmd->t_tasks_se_num) {
+		mem = list_first_entry(&se_cmd->t_mem_list,
 			 struct se_mem, se_list);
 		mem_len = mem->se_len;
 		mem_off = mem->se_off;
@@ -148,8 +146,8 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 
 		if (use_sg) {
 			if (!mem) {
-				BUG_ON(!task->t_task_buf);
-				page_addr = task->t_task_buf + mem_off;
+				BUG_ON(!se_cmd->t_task_buf);
+				page_addr = se_cmd->t_task_buf + mem_off;
 				/*
 				 * In this case, offset is 'offset_in_page' of
 				 * (t_task_buf + mem_off) instead of 'mem_off'.
@@ -180,7 +178,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 			kunmap_atomic(page_addr, KM_SOFTIRQ0);
 			to += tlen;
 		} else {
-			from = task->t_task_buf + mem_off;
+			from = se_cmd->t_task_buf + mem_off;
 			memcpy(to, from, tlen);
 			to += tlen;
 		}
@@ -220,7 +218,6 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	struct fc_seq *seq = cmd->seq;
 	struct fc_exch *ep;
 	struct fc_lport *lport;
-	struct se_transport_task *task;
 	struct fc_frame_header *fh;
 	struct se_mem *mem;
 	u32 mem_off;
@@ -234,8 +231,6 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	void *to;
 	u32 f_ctl;
 	void *buf;
-
-	task = &se_cmd->t_task;
 
 	fh = fc_frame_header_get(fp);
 	if (!(ntoh24(fh->fh_f_ctl) & FC_FC_REL_OFF))
@@ -312,8 +307,8 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	/*
 	 * Setup to use first mem list entry if any.
 	 */
-	if (task->t_tasks_se_num) {
-		mem = list_first_entry(&task->t_mem_list,
+	if (se_cmd->t_tasks_se_num) {
+		mem = list_first_entry(&se_cmd->t_mem_list,
 				       struct se_mem, se_list);
 		mem_len = mem->se_len;
 		mem_off = mem->se_off;
@@ -355,7 +350,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 			memcpy(to, from, tlen);
 			kunmap_atomic(page_addr, KM_SOFTIRQ0);
 		} else {
-			to = task->t_task_buf + mem_off;
+			to = se_cmd->t_task_buf + mem_off;
 			memcpy(to, from, tlen);
 		}
 		from += tlen;

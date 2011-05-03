@@ -157,8 +157,8 @@ static int core_scsi2_reservation_reserve(struct se_cmd *cmd)
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
 
-	if ((cmd->t_task.t_task_cdb[1] & 0x01) &&
-	    (cmd->t_task.t_task_cdb[1] & 0x02)) {
+	if ((cmd->t_task_cdb[1] & 0x01) &&
+	    (cmd->t_task_cdb[1] & 0x02)) {
 		printk(KERN_ERR "LongIO and Obselete Bits set, returning"
 				" ILLEGAL_REQUEST\n");
 		return PYX_TRANSPORT_ILLEGAL_REQUEST;
@@ -216,7 +216,7 @@ int core_scsi2_emulate_crh(struct se_cmd *cmd)
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
 	struct t10_reservation *pr_tmpl = &su_dev->t10_pr;
-	unsigned char *cdb = &cmd->t_task.t_task_cdb[0];
+	unsigned char *cdb = &cmd->t_task_cdb[0];
 	int crh = (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS);
 	int conflict = 0;
 
@@ -1482,7 +1482,7 @@ static int core_scsi3_decode_spec_i_port(
 	struct list_head tid_dest_list;
 	struct pr_transport_id_holder *tidh_new, *tidh, *tidh_tmp;
 	struct target_core_fabric_ops *tmp_tf_ops;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	unsigned char *ptr, *i_str = NULL, proto_ident, tmp_proto_ident;
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	u32 tpdl, tid_len = 0;
@@ -3307,7 +3307,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 	struct target_core_fabric_ops *dest_tf_ops = NULL, *tf_ops;
 	struct t10_pr_registration *pr_reg, *pr_res_holder, *dest_pr_reg;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	unsigned char *initiator_str;
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	u32 tid_len, tmp_tid_len;
@@ -3723,7 +3723,7 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
  */
 static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 {
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	u64 res_key, sa_res_key;
 	int sa, scope, type, aptpl;
 	int spec_i_pt = 0, all_tg_pt = 0, unreg = 0;
@@ -3830,7 +3830,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 	struct se_device *se_dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	u32 add_len = 0, off = 8;
 
 	if (cmd->data_length < 8) {
@@ -3885,7 +3885,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 	struct se_device *se_dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	u64 pr_res_key;
 	u32 add_len = 16; /* Hardcoded to 16 when a reservation is held. */
 
@@ -3965,7 +3965,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	u16 add_len = 8; /* Hardcoded to 8. */
 
 	if (cmd->data_length < 6) {
@@ -4020,7 +4020,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
 	struct t10_reservation *pr_tmpl = &se_dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
 	u32 add_desc_len = 0, add_len = 0, desc_len, exp_desc_len;
 	u32 off = 8; /* off into first Full Status descriptor */
 	int format_code = 0;
@@ -4174,7 +4174,7 @@ static int core_scsi3_emulate_pr_in(struct se_cmd *cmd, unsigned char *cdb)
 
 int core_scsi3_emulate_pr(struct se_cmd *cmd)
 {
-	unsigned char *cdb = &cmd->t_task.t_task_cdb[0];
+	unsigned char *cdb = &cmd->t_task_cdb[0];
 	struct se_device *dev = cmd->se_dev;
 	/*
 	 * Following spc2r20 5.5.1 Reservations overview:

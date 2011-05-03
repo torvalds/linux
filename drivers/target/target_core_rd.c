@@ -737,7 +737,7 @@ check_eot:
 	}
 
 out:
-	task->task_se_cmd->t_task.t_tasks_se_num += *se_mem_cnt;
+	task->task_se_cmd->t_tasks_se_num += *se_mem_cnt;
 #ifdef DEBUG_RAMDISK_DR
 	printk(KERN_INFO "RD_DR - Allocated %u struct se_mem segments for task\n",
 			*se_mem_cnt);
@@ -819,7 +819,7 @@ static int rd_DIRECT_without_offset(
 	}
 
 out:
-	task->task_se_cmd->t_task.t_tasks_se_num += *se_mem_cnt;
+	task->task_se_cmd->t_tasks_se_num += *se_mem_cnt;
 #ifdef DEBUG_RAMDISK_DR
 	printk(KERN_INFO "RD_DR - Allocated %u struct se_mem segments for task\n",
 			*se_mem_cnt);
@@ -880,14 +880,14 @@ static int rd_DIRECT_do_se_mem_map(
 	 * across multiple struct se_task->task_sg[].
 	 */
 	ret = transport_init_task_sg(task,
-			list_first_entry(&cmd->t_task.t_mem_list,
+			list_first_entry(&cmd->t_mem_list,
 				   struct se_mem, se_list),
 			task_offset);
 	if (ret <= 0)
 		return ret;
 
 	return transport_map_mem_to_sg(task, se_mem_list, task->task_sg,
-			list_first_entry(&cmd->t_task.t_mem_list,
+			list_first_entry(&cmd->t_mem_list,
 				   struct se_mem, se_list),
 			out_se_mem, se_mem_cnt, task_offset_in);
 }

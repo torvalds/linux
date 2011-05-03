@@ -60,7 +60,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	struct fc_seq *sp;
 	struct se_cmd *se_cmd;
 	struct se_mem *mem;
-	struct se_transport_task *task;
 
 	if (!(ft_debug_logging & FT_DEBUG_IO))
 		return;
@@ -72,12 +71,11 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 		caller, cmd, cmd->cdb);
 	printk(KERN_INFO "%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
-	task = &se_cmd->t_task;
-	printk(KERN_INFO "%s: cmd %p task %p se_num %u buf %p len %u se_cmd_flags <0x%x>\n",
-	       caller, cmd, task, task->t_tasks_se_num,
-	       task->t_task_buf, se_cmd->data_length, se_cmd->se_cmd_flags);
+	printk(KERN_INFO "%s: cmd %p se_num %u buf %p len %u se_cmd_flags <0x%x>\n",
+	       caller, cmd, se_cmd->t_tasks_se_num,
+	       se_cmd->t_task_buf, se_cmd->data_length, se_cmd->se_cmd_flags);
 
-	list_for_each_entry(mem, &task->t_mem_list, se_list)
+	list_for_each_entry(mem, &se_cmd->t_mem_list, se_list)
 		printk(KERN_INFO "%s: cmd %p mem %p page %p "
 		       "len 0x%x off 0x%x\n",
 		       caller, cmd, mem,
@@ -262,9 +260,9 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				 * TCM/LIO target
 				 */
 				transport_do_task_sg_chain(se_cmd);
-				cmd->sg = se_cmd->t_task.t_tasks_sg_chained;
+				cmd->sg = se_cmd->t_tasks_sg_chained;
 				cmd->sg_cnt =
-					se_cmd->t_task.t_tasks_sg_chained_no;
+					se_cmd->t_tasks_sg_chained_no;
 			}
 			if (cmd->sg && lport->tt.ddp_setup(lport, ep->xid,
 						    cmd->sg, cmd->sg_cnt))

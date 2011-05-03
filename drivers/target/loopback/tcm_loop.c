@@ -118,7 +118,7 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	 * Signal BIDI usage with T_TASK(cmd)->t_tasks_bidi
 	 */
 	if (scsi_bidi_cmnd(sc))
-		se_cmd->t_task.t_tasks_bidi = 1;
+		se_cmd->t_tasks_bidi = 1;
 	/*
 	 * Locate the struct se_lun pointer and attach it to struct se_cmd
 	 */
@@ -169,7 +169,7 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	 * For BIDI commands, pass in the extra READ buffer
 	 * to transport_generic_map_mem_to_cmd() below..
 	 */
-	if (se_cmd->t_task.t_tasks_bidi) {
+	if (se_cmd->t_tasks_bidi) {
 		struct scsi_data_buffer *sdb = scsi_in(sc);
 
 		sgl_bidi = sdb->table.sgl;
@@ -1423,13 +1423,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.tpg_release_fabric_acl =
 					&tcm_loop_tpg_release_fabric_acl;
 	fabric->tf_ops.tpg_get_inst_index = &tcm_loop_get_inst_index;
-	/*
-	 * Since tcm_loop is mapping physical memory from Linux/SCSI
-	 * struct scatterlist arrays for each struct scsi_cmnd I/O,
-	 * we do not need TCM to allocate a iovec array for
-	 * virtual memory address mappings
-	 */
-	fabric->tf_ops.alloc_cmd_iovecs = NULL;
 	/*
 	 * Used for setting up remaining TCM resources in process context
 	 */

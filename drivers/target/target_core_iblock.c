@@ -331,7 +331,7 @@ static void iblock_emulate_sync_cache(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
-	int immed = (cmd->t_task.t_task_cdb[1] & 0x2);
+	int immed = (cmd->t_task_cdb[1] & 0x2);
 	sector_t error_sector;
 	int ret;
 
@@ -400,7 +400,7 @@ static int iblock_do_task(struct se_task *task)
 		 */
 		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		     task->task_se_cmd->t_task.t_tasks_fua))
+		     task->task_se_cmd->t_tasks_fua))
 			rw = WRITE_FUA;
 		else
 			rw = WRITE;
