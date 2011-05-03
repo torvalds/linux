@@ -56,6 +56,8 @@
 #define IPC_IA_GET_FW_VERSION 0x04
 #define IPC_IA_GET_FW_BUILD_INF 0x05
 #define IPC_IA_GET_FW_INFO 0x06
+#define IPC_IA_GET_FW_CTXT 0x07
+#define IPC_IA_SET_FW_CTXT 0x08
 
 /* I2L Codec Config/control msgs */
 #define IPC_IA_SET_CODEC_PARAMS 0x10
@@ -406,4 +408,8 @@ struct ipc_post {
 	char *mailbox_data;
 };
 
+struct snd_sst_ctxt_params {
+	u32 address; /* Physical Address in DDR where the context is stored */
+	u32 size; /* size of the context */
+};
 #endif /* __INTEL_SST_FW_IPC_H__ */
