@@ -1626,7 +1626,8 @@ void si_pmu_res_init(si_t *sih)
 			pmu_res_updown_table_sz = 0;
 		} else {
 			pmu_res_updown_table = bcm4329_res_updown;
-			pmu_res_updown_table_sz = ARRAY_SIZE(bcm4329_res_updown);
+			pmu_res_updown_table_sz =
+				ARRAY_SIZE(bcm4329_res_updown);
 		}
 		/* Optimize resources dependencies */
 		pmu_res_depend_table = bcm4329_res_depend;
@@ -1758,15 +1759,13 @@ void si_pmu_res_init(si_t *sih)
 
 	/* Program max resource mask */
 
-	if (max_mask) {
+	if (max_mask)
 		W_REG(&cc->max_res_mask, max_mask);
-	}
 
 	/* Program min resource mask */
 
-	if (min_mask) {
+	if (min_mask)
 		W_REG(&cc->min_res_mask, min_mask);
-	}
 
 	/* Add some delay; allow resources to come up and settle. */
 	mdelay(2);
