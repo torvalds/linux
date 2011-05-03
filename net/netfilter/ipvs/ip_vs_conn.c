@@ -1258,22 +1258,17 @@ int __net_init __ip_vs_conn_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit __ip_vs_conn_cleanup(struct net *net)
+void __net_exit __ip_vs_conn_cleanup(struct net *net)
 {
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(net);
 	proc_net_remove(net, "ip_vs_conn");
 	proc_net_remove(net, "ip_vs_conn_sync");
 }
-static struct pernet_operations ipvs_conn_ops = {
-	.init = __ip_vs_conn_init,
-	.exit = __ip_vs_conn_cleanup,
-};
 
 int __init ip_vs_conn_init(void)
 {
 	int idx;
-	int retc;
 
 	/* Compute size and mask */
 	ip_vs_conn_tab_size = 1 << ip_vs_conn_tab_bits;
@@ -1309,17 +1304,14 @@ int __init ip_vs_conn_init(void)
 		rwlock_init(&__ip_vs_conntbl_lock_array[idx].l);
 	}
 
-	retc = register_pernet_subsys(&ipvs_conn_ops);
-
 	/* calculate the random value for connection hash */
 	get_random_bytes(&ip_vs_conn_rnd, sizeof(ip_vs_conn_rnd));
 
-	return retc;
+	return 0;
 }
 
 void ip_vs_conn_cleanup(void)
 {
-	unregister_pernet_subsys(&ipvs_conn_ops);
 	/* Release the empty cache */
 	kmem_cache_destroy(ip_vs_conn_cachep);
 	vfree(ip_vs_conn_tab);
