@@ -7868,11 +7868,6 @@ void wlc_set_rcmta(struct wlc_info *wlc, int idx, const u8 *addr)
 	wlc_bmac_set_rcmta(wlc->hw, idx, addr);
 }
 
-void wlc_read_tsf(struct wlc_info *wlc, u32 *tsf_l_ptr, u32 *tsf_h_ptr)
-{
-	wlc_bmac_read_tsf(wlc->hw, tsf_l_ptr, tsf_h_ptr);
-}
-
 void wlc_set_cwmin(struct wlc_info *wlc, u16 newmin)
 {
 	wlc->band->CWmin = newmin;
