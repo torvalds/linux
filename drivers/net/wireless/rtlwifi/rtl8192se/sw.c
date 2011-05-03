@@ -58,7 +58,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 4 - Always Enable ASPM without Clock Req.
 	 * set defult to RTL8192CE:3 RTL8192E:2
 	 * */
-	rtlpci->const_pci_aspm = 2;
+	rtlpci->const_pci_aspm = 0; /* changed from 2 due to crashes */
 
 	/*Setting for PCI-E device */
 	rtlpci->const_devicepci_aspm_setting = 0x03;
