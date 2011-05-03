@@ -1053,7 +1053,7 @@ static void nc_pmic_irq_cb(void *cb_data, u8 intsts)
 		present = 1;
 		jack_event_flag = 1;
 		buttonpressflag = 1;
-		mjack->jack.type = MID_JACK_HS_SHORT_PRESS;
+		mjack->jack.type = MID_JACK_HS_LONG_PRESS;
 	}
 
 	if (jack_event_flag)
