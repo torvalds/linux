@@ -3731,12 +3731,6 @@ void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
 	return;
 }
 
-/* this will be true for all ai chips */
-bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok)
-{
-	return true;
-}
-
 u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate)
 {
 	u16 table_ptr;

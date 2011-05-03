@@ -166,9 +166,6 @@ extern const u8 prio2fifo[];
 #define WLC_PLLREQ_RADIO_MON	0x2	/* hold pll for radio monitor register checking */
 #define WLC_PLLREQ_FLIP		0x4	/* hold/release pll for some short operation */
 
-/* Do we support this rate? */
-#define VALID_RATE_DBG(wlc, rspec) wlc_valid_rate(wlc, rspec, WLC_BAND_AUTO, true)
-
 /*
  * Macros to check if AP or STA is active.
  * AP Active means more than just configured: driver and BSS are "up";

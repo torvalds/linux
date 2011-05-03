@@ -176,7 +176,6 @@ extern void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_bw_set(struct wlc_hw_info *wlc_hw, u16 bw);
 extern void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set,
 			    mbool req_bit);
-extern bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok);
 extern void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw);
 extern u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate);
 extern void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail);
