@@ -3128,7 +3128,7 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
 static int hpsa_controller_hard_reset(struct pci_dev *pdev,
-	void * __iomem vaddr, bool use_doorbell)
+	void * __iomem vaddr, u32 use_doorbell)
 {
 	u16 pmcsr;
 	int pos;
@@ -3139,7 +3139,7 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		 * other way using the doorbell register.
 		 */
 		dev_info(&pdev->dev, "using doorbell to reset controller\n");
-		writel(DOORBELL_CTLR_RESET, vaddr + SA5_DOORBELL);
+		writel(use_doorbell, vaddr + SA5_DOORBELL);
 		msleep(1000);
 	} else { /* Try to do it the PCI power state way */
 
@@ -3243,7 +3243,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	u32 misc_fw_support;
 	int rc;
 	struct CfgTable __iomem *cfgtable;
-	bool use_doorbell;
+	u32 use_doorbell;
 	u32 board_id;
 	u16 command_register;
 
@@ -3306,9 +3306,24 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	if (rc)
 		goto unmap_vaddr;
 
-	/* If reset via doorbell register is supported, use that. */
+	/* If reset via doorbell register is supported, use that.
+	 * There are two such methods.  Favor the newest method.
+	 */
 	misc_fw_support = readl(&cfgtable->misc_fw_support);
-	use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
+	use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET2;
+	if (use_doorbell) {
+		use_doorbell = DOORBELL_CTLR_RESET2;
+	} else {
+		use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
+		if (use_doorbell) {
+			dev_warn(&pdev->dev, "Controller claims that "
+				"'Bit 2 doorbell reset' is "
+				"supported, but not 'bit 5 doorbell reset'.  "
+				"Firmware update is recommended.\n");
+			rc = -ENODEV;
+			goto unmap_cfgtable;
+		}
+	}
 
 	rc = hpsa_controller_hard_reset(pdev, vaddr, use_doorbell);
 	if (rc)
