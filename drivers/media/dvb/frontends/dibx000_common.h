@@ -28,6 +28,11 @@ struct dibx000_i2c_master {
 	u8 i2c_addr;
 
 	u16 base_reg;
+
+	/* for the I2C transfer */
+	struct i2c_msg msg[34];
+	u8 i2c_write_buffer[8];
+	u8 i2c_read_buffer[2];
 };
 
 extern int dibx000_init_i2c_master(struct dibx000_i2c_master *mst,
