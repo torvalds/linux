@@ -251,7 +251,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 		rcu_read_unlock();
 		/* Userspace handles peer allocation when security is enabled
 		 * */
-		if (sdata->u.mesh.is_secure)
+		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
 			cfg80211_notify_new_peer_candidate(sdata->dev, hw_addr,
 					elems->ie_start, elems->total_len,
 					GFP_KERNEL);
@@ -460,7 +460,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		mpl_dbg("Mesh plink: missing necessary peer link ie\n");
 		return;
 	}
-	if (elems.rsn_len && !sdata->u.mesh.is_secure) {
+	if (elems.rsn_len &&
+			sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
 		mpl_dbg("Mesh plink: can't establish link with secure peer\n");
 		return;
 	}

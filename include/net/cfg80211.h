@@ -695,7 +695,8 @@ struct mesh_config {
  * @path_metric: which metric to use
  * @ie: vendor information elements (optional)
  * @ie_len: length of vendor information elements
- * @is_secure: or not
+ * @is_authenticated: this mesh requires authentication
+ * @is_secure: this mesh uses security
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -706,6 +707,7 @@ struct mesh_setup {
 	u8  path_metric;
 	const u8 *ie;
 	u8 ie_len;
+	bool is_authenticated;
 	bool is_secure;
 };
 

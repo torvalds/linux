@@ -1769,6 +1769,15 @@ enum nl80211_meshconf_params {
  * @NL80211_MESH_SETUP_USERSPACE_AUTH: Enable this option if an authentication
  * daemon will be authenticating mesh candidates.
  *
+ * @NL80211_MESH_SETUP_USERSPACE_AMPE: Enable this option if an authentication
+ * daemon will be securing peer link frames.  AMPE is a secured version of Mesh
+ * Peering Management (MPM) and is implemented with the assistance of a
+ * userspace daemon.  When this flag is set, the kernel will send peer
+ * management frames to a userspace daemon that will implement AMPE
+ * functionality (security capabilities selection, key confirmation, and key
+ * management).  When the flag is unset (default), the kernel can autonomously
+ * complete (unsecured) mesh peering without the need of a userspace daemon.
+ *
  * @NL80211_MESH_SETUP_ATTR_MAX: highest possible mesh setup attribute number
  * @__NL80211_MESH_SETUP_ATTR_AFTER_LAST: Internal use
  */
@@ -1778,6 +1787,7 @@ enum nl80211_mesh_setup_params {
 	NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC,
 	NL80211_MESH_SETUP_IE,
 	NL80211_MESH_SETUP_USERSPACE_AUTH,
+	NL80211_MESH_SETUP_USERSPACE_AMPE,
 
 	/* keep last */
 	__NL80211_MESH_SETUP_ATTR_AFTER_LAST,

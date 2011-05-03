@@ -574,7 +574,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 			       &elems);
 
 	/* ignore beacons from secure mesh peers if our security is off */
-	if (elems.rsn_len && !sdata->u.mesh.is_secure)
+	if (elems.rsn_len && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE)
 		return;
 
 	if (elems.ds_params && elems.ds_params_len == 1)
