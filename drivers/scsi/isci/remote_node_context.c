@@ -788,80 +788,70 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_event
 /* --------------------------------------------------------------------------- */
 
 static struct scic_sds_remote_node_context_handlers
-scic_sds_remote_node_context_state_handler_table[
-	SCIC_SDS_REMOTE_NODE_CONTEXT_MAX_STATES] =
-{
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE */
-	{
-		scic_sds_remote_node_context_default_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_initial_state_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_default_start_task_handler,
-		scic_sds_remote_node_context_default_event_handler
+scic_sds_remote_node_context_state_handler_table[] = {
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_default_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_initial_state_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_continue_to_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_default_start_task_handler,
-		scic_sds_remote_node_context_posting_state_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_posting_state_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE */
-	{
-		scic_sds_remote_node_context_invalidating_state_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_continue_to_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_default_start_task_handler,
-		scic_sds_remote_node_context_invalidating_state_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_invalidating_state_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_invalidating_state_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_continue_to_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_success_start_task_handler,
-		scic_sds_remote_node_context_resuming_state_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_resuming_state_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_ready_state_suspend_handler,
-		scic_sds_remote_node_context_default_resume_handler,
-		scic_sds_remote_node_context_ready_state_start_io_handler,
-		scic_sds_remote_node_context_success_start_task_handler,
-		scic_sds_remote_node_context_ready_state_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_ready_state_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_default_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_ready_state_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_ready_state_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_tx_suspended_state_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_suspended_start_task_handler,
-		scic_sds_remote_node_context_default_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_tx_suspended_state_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_suspended_start_task_handler,
-		scic_sds_remote_node_context_default_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
-	/* SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE */
-	{
-		scic_sds_remote_node_context_general_destruct_handler,
-		scic_sds_remote_node_context_default_suspend_handler,
-		scic_sds_remote_node_context_await_suspension_state_resume_handler,
-		scic_sds_remote_node_context_default_start_io_handler,
-		scic_sds_remote_node_context_await_suspension_state_start_task_handler,
-		scic_sds_remote_node_context_await_suspension_state_event_handler
+	[SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE] = {
+		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
+		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
+		.resume_handler		= scic_sds_remote_node_context_await_suspension_state_resume_handler,
+		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
+		.start_task_handler	= scic_sds_remote_node_context_await_suspension_state_start_task_handler,
+		.event_handler		= scic_sds_remote_node_context_await_suspension_state_event_handler
 	}
 };
 

@@ -201,10 +201,7 @@ enum scis_sds_remote_node_context_states {
 	 * there is a request to supend the remote node context or when there is a TC
 	 * completion where the remote node will be suspended by the hardware.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE,
-
-	SCIC_SDS_REMOTE_NODE_CONTEXT_MAX_STATES
-
+	SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE
 };
 
 /**
