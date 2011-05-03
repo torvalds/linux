@@ -48,8 +48,6 @@ void *wlc_calloc(uint unit, uint size)
 	void *item;
 
 	item = kzalloc(size, GFP_ATOMIC);
-	if (item == NULL)
-		WL_ERROR("wl%d: %s: out of memory\n", unit, __func__);
 	return item;
 }
 

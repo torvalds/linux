@@ -275,15 +275,19 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 				if (RSPEC_STF(wlc->bandstate[i]->rspec_override)
 				    != PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->rspec_override = 0;
-					WL_ERROR("%s(): temp sense override non-SISO rspec_override\n",
-						 __func__);
+					wiphy_err(wlc->wiphy, "%s(): temp "
+						  "sense override non-SISO "
+						  "rspec_override\n",
+						  __func__);
 				}
 				if (RSPEC_STF
 				    (wlc->bandstate[i]->mrspec_override) !=
 				    PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->mrspec_override = 0;
-					WL_ERROR("%s(): temp sense override non-SISO mrspec_override\n",
-						 __func__);
+					wiphy_err(wlc->wiphy, "%s(): temp "
+						  "sense override non-SISO "
+						  "mrspec_override\n",
+						  __func__);
 				}
 			}
 	}

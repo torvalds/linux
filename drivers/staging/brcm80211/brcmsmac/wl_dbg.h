@@ -28,7 +28,6 @@ do {						\
 
 #ifdef BCMDBG
 
-#define	WL_ERROR(fmt, args...)	WL_PRINT(WL_ERROR_VAL, fmt, ##args)
 #define	WL_TRACE(fmt, args...)	WL_PRINT(WL_TRACE_VAL, fmt, ##args)
 #define WL_AMPDU(fmt, args...)	WL_PRINT(WL_AMPDU_VAL, fmt, ##args)
 #define WL_FFPLD(fmt, args...)	WL_PRINT(WL_FFPLD_VAL, fmt, ##args)
@@ -76,7 +75,6 @@ do {						\
 
 #else				/* BCMDBG */
 
-#define	WL_ERROR(fmt, args...)		no_printk(fmt, ##args)
 #define	WL_TRACE(fmt, args...)		no_printk(fmt, ##args)
 #define WL_AMPDU(fmt, args...)		no_printk(fmt, ##args)
 #define WL_FFPLD(fmt, args...)		no_printk(fmt, ##args)
