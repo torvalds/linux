@@ -3417,7 +3417,7 @@ static int transport_generic_cmd_sequencer(
 		if (sector_ret)
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
-		cmd->t_task.t_task_lba = get_unaligned_be16(&cdb[2]);
+		cmd->t_task.t_task_lba = get_unaligned_be64(&cdb[2]);
 		passthrough = (dev->transport->transport_type ==
 				TRANSPORT_PLUGIN_PHBA_PDEV);
 		/*
