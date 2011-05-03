@@ -340,9 +340,9 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 		sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr);
 	}
 	sst_drv_ctx->lpe_stalled = 0;
-	pm_runtime_set_active(&pci->dev);
-	pm_runtime_enable(&pci->dev);
+	pci_set_drvdata(pci, sst_drv_ctx);
 	pm_runtime_allow(&pci->dev);
+	pm_runtime_put_noidle(&pci->dev);
 	pr_debug("...successfully done!!!\n");
 	return ret;
 
@@ -389,6 +389,8 @@ do_free_drv_ctx:
 */
 static void __devexit intel_sst_remove(struct pci_dev *pci)
 {
+	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_forbid(&pci->dev);
 	pci_dev_put(sst_drv_ctx->pci);
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;
@@ -410,7 +412,7 @@ static void __devexit intel_sst_remove(struct pci_dev *pci)
 	destroy_workqueue(sst_drv_ctx->process_msg_wq);
 	destroy_workqueue(sst_drv_ctx->post_msg_wq);
 	destroy_workqueue(sst_drv_ctx->mad_wq);
-	kfree(sst_drv_ctx);
+	kfree(pci_get_drvdata(pci));
 	sst_drv_ctx = NULL;
 	pci_release_regions(pci);
 	pci_disable_device(pci);
@@ -522,18 +524,45 @@ int intel_sst_resume(struct pci_dev *pci)
 	return 0;
 }
 
+/* The runtime_suspend/resume is pretty much similar to the legacy suspend/resume with the noted exception below:
+ * The PCI core takes care of taking the system through D3hot and restoring it back to D0 and so there is
+ * no need to duplicate that here.
+ */
 static int intel_sst_runtime_suspend(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	pr_debug("runtime_suspend called\n");
-	return intel_sst_suspend(pci_dev, PMSG_SUSPEND);
+	union config_status_reg csr;
+
+	pr_debug("intel_sst_runtime_suspend called\n");
+	if (sst_drv_ctx->stream_cnt) {
+		pr_err("active streams,not able to suspend\n");
+		return -EBUSY;
+	}
+	/*save fw context*/
+	sst_save_dsp_context();
+	/*Assert RESET on LPE Processor*/
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.full = csr.full | 0x2;
+	/* Move the SST state to Suspended */
+	mutex_lock(&sst_drv_ctx->sst_lock);
+	sst_drv_ctx->sst_state = SST_SUSPENDED;
+	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
+	mutex_unlock(&sst_drv_ctx->sst_lock);
+	return 0;
 }
 
 static int intel_sst_runtime_resume(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	pr_debug("runtime_resume called\n");
-	return intel_sst_resume(pci_dev);
+
+	pr_debug("intel_sst_runtime_resume called\n");
+	if (sst_drv_ctx->sst_state != SST_SUSPENDED) {
+		pr_err("SST is not in suspended state\n");
+		return 0;
+	}
+
+	mutex_lock(&sst_drv_ctx->sst_lock);
+	sst_drv_ctx->sst_state = SST_UN_INIT;
+	mutex_unlock(&sst_drv_ctx->sst_lock);
+	return 0;
 }
 
 static int intel_sst_runtime_idle(struct device *dev)
