@@ -25,7 +25,7 @@
 #include <sbchipc.h>
 #include <bcmdevs.h>
 #include <pcicfg.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <bcmsrom.h>
 #include <bcmsrom_tbl.h>
 
@@ -353,7 +353,7 @@ static int initvars_flash(si_t *sih, char **base, uint len)
 	if (err)
 		goto exit;
 
-	si_devpath(sih, devpath, sizeof(devpath));
+	ai_devpath(sih, devpath, sizeof(devpath));
 
 	/* grab vars with the <devpath> prefix in name */
 	dl = strlen(devpath);
@@ -595,7 +595,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 		return -2;
 
 	sromwindow = (u16 *) SROM_OFFSET(sih);
-	if (si_is_sprom_available(sih)) {
+	if (ai_is_sprom_available(sih)) {
 		err =
 		    sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
 				   true);
@@ -643,14 +643,14 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 		u32 val;
 		val = 0;
 
-		value = si_getdevpathvar(sih, "sromrev");
+		value = ai_getdevpathvar(sih, "sromrev");
 		if (value) {
 			sromrev = (u8) simple_strtoul(value, NULL, 0);
 			flash = true;
 			goto varscont;
 		}
 
-		value = si_getnvramflvar(sih, "sromrev");
+		value = ai_getnvramflvar(sih, "sromrev");
 		if (value) {
 			err = 0;
 			goto errout;

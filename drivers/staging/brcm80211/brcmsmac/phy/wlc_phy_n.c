@@ -14558,7 +14558,7 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
 	    CHSPEC_IS40(pi->radio_chanspec)) {
 
-		regs = (d11regs_t *) si_switch_core(pi->sh->sih, D11_CORE_ID,
+		regs = (d11regs_t *) ai_switch_core(pi->sh->sih, D11_CORE_ID,
 						    &origidx, &intr_val);
 		d11_clk_ctl_st = R_REG(&regs->clk_ctl_st);
 		AND_REG(&regs->clk_ctl_st,
@@ -14566,7 +14566,7 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 
 		W_REG(&regs->clk_ctl_st, d11_clk_ctl_st);
 
-		si_restore_core(pi->sh->sih, origidx, intr_val);
+		ai_restore_core(pi->sh->sih, origidx, intr_val);
 	}
 
 	pi->use_int_tx_iqlo_cal_nphy =
@@ -19580,7 +19580,7 @@ void wlc_phy_antsel_init(wlc_phy_t *ppi, bool lut_init)
 		write_phy_reg(pi, 0xc8, 0x0);
 		write_phy_reg(pi, 0xc9, 0x0);
 
-		si_gpiocontrol(pi->sh->sih, mask, mask, GPIO_DRV_PRIORITY);
+		ai_gpiocontrol(pi->sh->sih, mask, mask, GPIO_DRV_PRIORITY);
 
 		mc = R_REG(&pi->regs->maccontrol);
 		mc &= ~MCTL_GPOUT_SEL_MASK;

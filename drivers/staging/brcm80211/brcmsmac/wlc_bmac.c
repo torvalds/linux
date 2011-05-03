@@ -647,7 +647,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	 * Also initialize software state that depends on the particular hardware
 	 * we are running.
 	 */
-	wlc_hw->sih = si_attach((uint) device, regsva, bustype, btparam,
+	wlc_hw->sih = ai_attach((uint) device, regsva, bustype, btparam,
 				&wlc_hw->vars, &wlc_hw->vars_size);
 	if (wlc_hw->sih == NULL) {
 		wiphy_err(wiphy, "wl%d: wlc_bmac_attach: si_attach failed\n",
@@ -698,7 +698,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	wlc_hw->deviceid = device;
 
 	/* set bar0 window to point at D11 core */
-	wlc_hw->regs = (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID, 0);
+	wlc_hw->regs = (d11regs_t *) ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 	wlc_hw->corerev = ai_corerev(wlc_hw->sih);
 
 	regs = wlc_hw->regs;
@@ -712,7 +712,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	}
 
 	/* initialize power control registers */
-	si_clkctl_init(wlc_hw->sih);
+	ai_clkctl_init(wlc_hw->sih);
 
 	/* request fastclock and force fastclock for the rest of attach
 	 * bring the d11 core out of reset.
@@ -750,7 +750,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		wlc_bmac_pllreq(wlc_hw, true, WLC_PLLREQ_SHARED);
 
 	if ((wlc_hw->sih->bustype == PCI_BUS)
-	    && (si_pci_war16165(wlc_hw->sih)))
+	    && (ai_pci_war16165(wlc_hw->sih)))
 		wlc->war16165 = true;
 
 	/* check device id(srom, nvram etc.) to set bands */
@@ -909,10 +909,10 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 
 	/* Match driver "down" state */
 	if (wlc_hw->sih->bustype == PCI_BUS)
-		si_pci_down(wlc_hw->sih);
+		ai_pci_down(wlc_hw->sih);
 
 	/* register sb interrupt callback functions */
-	si_register_intr_callback(wlc_hw->sih, (void *)wlc_wlintrsoff,
+	ai_register_intr_callback(wlc_hw->sih, (void *)wlc_wlintrsoff,
 				  (void *)wlc_wlintrsrestore, NULL, wlc);
 
 	/* turn off pll and xtal to match driver "down" state */
@@ -997,10 +997,10 @@ int wlc_bmac_detach(struct wlc_info *wlc)
 		/* detach interrupt sync mechanism since interrupt is disabled and per-port
 		 * interrupt object may has been freed. this must be done before sb core switch
 		 */
-		si_deregister_intr_callback(wlc_hw->sih);
+		ai_deregister_intr_callback(wlc_hw->sih);
 
 		if (wlc_hw->sih->bustype == PCI_BUS)
-			si_pci_sleep(wlc_hw->sih);
+			ai_pci_sleep(wlc_hw->sih);
 	}
 
 	wlc_bmac_detach_dmapio(wlc_hw);
@@ -1025,7 +1025,7 @@ int wlc_bmac_detach(struct wlc_info *wlc)
 	wlc_hw->vars = NULL;
 
 	if (wlc_hw->sih) {
-		si_detach(wlc_hw->sih);
+		ai_detach(wlc_hw->sih);
 		wlc_hw->sih = NULL;
 	}
 
@@ -1112,7 +1112,7 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 	 * and force fastclock for the remainder of wlc_up().
 	 */
 	wlc_bmac_xtal(wlc_hw, ON);
-	si_clkctl_init(wlc_hw->sih);
+	ai_clkctl_init(wlc_hw->sih);
 	wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/*
@@ -1122,7 +1122,7 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 	coremask = (1 << wlc_hw->wlc->core->coreidx);
 
 	if (wlc_hw->sih->bustype == PCI_BUS)
-		si_pci_setup(wlc_hw->sih, coremask);
+		ai_pci_setup(wlc_hw->sih, coremask);
 
 	/*
 	 * Need to read the hwradio status here to cover the case where the system
@@ -1131,13 +1131,13 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 	if (wlc_bmac_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
 		if (wlc_hw->sih->bustype == PCI_BUS)
-			si_pci_down(wlc_hw->sih);
+			ai_pci_down(wlc_hw->sih);
 		wlc_bmac_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
 	if (wlc_hw->sih->bustype == PCI_BUS)
-		si_pci_up(wlc_hw->sih);
+		ai_pci_up(wlc_hw->sih);
 
 	/* reset the d11 core */
 	wlc_bmac_corereset(wlc_hw, WLC_USE_COREFLAGS);
@@ -1222,7 +1222,7 @@ int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw)
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
 			if (wlc_hw->sih->bustype == PCI_BUS)
-				si_pci_down(wlc_hw->sih);
+				ai_pci_down(wlc_hw->sih);
 			wlc_bmac_xtal(wlc_hw, OFF);
 		}
 	}
@@ -1295,7 +1295,7 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 		 * then use FCA to verify mac is running fast clock
 		 */
 
-		wlc_hw->forcefastclk = si_clkctl_cc(wlc_hw->sih, mode);
+		wlc_hw->forcefastclk = ai_clkctl_cc(wlc_hw->sih, mode);
 
 		/* check fast clock is available (if core is not in reset) */
 		if (wlc_hw->forcefastclk && wlc_hw->clk)
@@ -2042,7 +2042,7 @@ bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
 		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
 			wlc_hw->regs =
-			    (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID,
+			    (d11regs_t *) ai_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
 		ai_core_reset(wlc_hw->sih, flags, resetbits);
 		wlc_mctrl_reset(wlc_hw);
@@ -2073,18 +2073,18 @@ void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw)
 	 * and force fastclock for the remainder of wlc_up().
 	 */
 	wlc_bmac_xtal(wlc_hw, ON);
-	si_clkctl_init(wlc_hw->sih);
+	ai_clkctl_init(wlc_hw->sih);
 	wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	if (wlc_hw->sih->bustype == PCI_BUS) {
-		si_pci_fixcfg(wlc_hw->sih);
+		ai_pci_fixcfg(wlc_hw->sih);
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
 		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
 		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
 			wlc_hw->regs =
-			    (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID,
+			    (d11regs_t *) ai_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
 	}
 
@@ -2099,7 +2099,7 @@ void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw)
 		if (!
 		    (wlc_hw->boardrev >= 0x1250
 		     && (wlc_hw->boardflags & BFL_FEM_BT)))
-			si_epa_4313war(wlc_hw->sih);
+			ai_epa_4313war(wlc_hw->sih);
 	}
 }
 
@@ -2390,7 +2390,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 	wlc_bmac_macphyclk_set(wlc_hw, ON);
 
 	/* program dynamic clock control fast powerup delay register */
-	wlc->fastpwrup_dly = si_clkctl_fast_pwrup_delay(wlc_hw->sih);
+	wlc->fastpwrup_dly = ai_clkctl_fast_pwrup_delay(wlc_hw->sih);
 	W_REG(&regs->scc_fastpwrup_dly, wlc->fastpwrup_dly);
 
 	/* tell the ucode the corerev */
@@ -2533,7 +2533,7 @@ static void wlc_gpio_init(struct wlc_info *wlc)
 		gm |= gc |= BOARD_GPIO_PACTRL;
 
 	/* apply to gpiocontrol register */
-	si_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
+	ai_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
 }
 
 static void wlc_ucode_download(struct wlc_hw_info *wlc_hw)
@@ -3426,7 +3426,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 
 	/* remove gpio controls */
 	if (wlc_hw->ucode_dbgsel)
-		si_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
+		ai_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
 
 	wlc_hw->clk = false;
 	ai_core_disable(wlc_hw->sih, 0);
@@ -3443,7 +3443,7 @@ static void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want)
 		return;
 
 	if (wlc_hw->sih)
-		si_clkctl_xtal(wlc_hw->sih, XTAL | PLL, want);
+		ai_clkctl_xtal(wlc_hw->sih, XTAL | PLL, want);
 
 	wlc_hw->sbclk = want;
 	if (!wlc_hw->sbclk) {

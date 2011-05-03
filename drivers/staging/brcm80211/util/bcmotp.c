@@ -314,14 +314,12 @@ static void *ipxotp_init(si_t *sih)
 		return NULL;
 
 	/* Make sure OTP is not disabled */
-	if (si_is_otp_disabled(sih)) {
+	if (ai_is_otp_disabled(sih))
 		return NULL;
-	}
 
 	/* Make sure OTP is powered up */
-	if (!si_is_otp_powered(sih)) {
+	if (!ai_is_otp_powered(sih))
 		return NULL;
-	}
 
 	oi = &otpinfo;
 
@@ -357,11 +355,11 @@ static void *ipxotp_init(si_t *sih)
 
 	/* Retrieve OTP region info */
 	idx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	_ipxotp_init(oi, cc);
 
-	si_setcoreidx(sih, idx);
+	ai_setcoreidx(sih, idx);
 
 	return (void *)oi;
 }
@@ -440,13 +438,13 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 	}
 
 	idx = ai_coreidx(oi->sih);
-	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
+	cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 
 	/* Read the data */
 	for (i = 0; i < sz; i++)
 		data[i] = ipxotp_otpr(oh, cc, base + i);
 
-	si_setcoreidx(oi->sih, idx);
+	ai_setcoreidx(oi->sih, idx);
 	*wlen = sz;
 	return 0;
 }
@@ -618,7 +616,7 @@ static void *hndotp_init(si_t *sih)
 	idx = ai_coreidx(sih);
 
 	/* Check for otp */
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 	if (cc != NULL) {
 		cap = R_REG(&cc->capabilities);
 		if ((cap & CC_CAP_OTPSIZE) == 0) {
@@ -670,7 +668,7 @@ static void *hndotp_init(si_t *sih)
 	}
 
  out:				/* All done */
-	si_setcoreidx(sih, idx);
+	ai_setcoreidx(sih, idx);
 
 	return ret;
 }
@@ -700,12 +698,12 @@ static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 	    ((int)*wlen < oi->boundary / 2) ? *wlen : (uint) oi->boundary / 2;
 
 	idx = ai_coreidx(oi->sih);
-	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
+	cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 
 	for (i = 0; i < (int)*wlen; i++)
 		data[i] = hndotp_otpr(oh, cc, i);
 
-	si_setcoreidx(oi->sih, idx);
+	ai_setcoreidx(oi->sih, idx);
 
 	return 0;
 }
@@ -723,7 +721,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 
 	/* save the orig core */
 	idx = ai_coreidx(oi->sih);
-	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
+	cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 
 	st = hndotp_status(oh);
 	if (!(st & (OTP_HW_REGION | OTP_SW_REGION))) {
@@ -815,7 +813,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 
  out:
 	kfree(rawotp);
-	si_setcoreidx(oi->sih, idx);
+	ai_setcoreidx(oi->sih, idx);
 
 	return rc;
 }
@@ -861,9 +859,9 @@ u16 otp_read_bit(void *oh, uint offset)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint idx = ai_coreidx(oi->sih);
-	chipcregs_t *cc = si_setcoreidx(oi->sih, SI_CC_IDX);
+	chipcregs_t *cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 	u16 readBit = (u16) oi->fn->read_bit(oh, cc, offset);
-	si_setcoreidx(oi->sih, idx);
+	ai_setcoreidx(oi->sih, idx);
 	return readBit;
 }
 
@@ -905,11 +903,11 @@ otp_read_region(si_t *sih, int region, u16 *data,
 	void *oh;
 	int err = 0;
 
-	wasup = si_is_otp_powered(sih);
+	wasup = ai_is_otp_powered(sih);
 	if (!wasup)
-		si_otp_power(sih, true);
+		ai_otp_power(sih, true);
 
-	if (!si_is_otp_powered(sih) || si_is_otp_disabled(sih)) {
+	if (!ai_is_otp_powered(sih) || ai_is_otp_disabled(sih)) {
 		err = -EPERM;
 		goto out;
 	}
@@ -924,7 +922,7 @@ otp_read_region(si_t *sih, int region, u16 *data,
 
  out:
 	if (!wasup)
-		si_otp_power(sih, false);
+		ai_otp_power(sih, false);
 
 	return err;
 }

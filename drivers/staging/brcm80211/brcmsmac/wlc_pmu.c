@@ -1213,20 +1213,20 @@ u32 si_pmu_ilp_clock(si_t *sih)
 {
 	static u32 ilpcycles_per_sec;
 
-	if (ISSIM_ENAB(sih))
+	if (ISSIM_ENAB(sih) || !PMUCTL_ENAB(sih))
 		return ILP_CLOCK;
 
 	if (ilpcycles_per_sec == 0) {
 		u32 start, end, delta;
 		u32 origidx = ai_coreidx(sih);
-		chipcregs_t *cc = si_setcoreidx(sih, SI_CC_IDX);
+		chipcregs_t *cc = ai_setcoreidx(sih, SI_CC_IDX);
 		ASSERT(cc != NULL);
 		start = R_REG(&cc->pmutimer);
 		mdelay(ILP_CALC_DUR);
 		end = R_REG(&cc->pmutimer);
 		delta = end - start;
 		ilpcycles_per_sec = delta * (1000 / ILP_CALC_DUR);
-		si_setcoreidx(sih, origidx);
+		ai_setcoreidx(sih, origidx);
 	}
 
 	return ilpcycles_per_sec;
@@ -1276,9 +1276,9 @@ void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 
 	shift = sr_cntl_shift + rc_shift;
 
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr),
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr),
 		   ~0, addr);
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_data),
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_data),
 		   mask << shift, (voltage & mask) << shift);
 }
 
@@ -1294,7 +1294,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
@@ -1312,7 +1312,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 		if (ISSIM_ENAB(sih))
 			delay = 70;
 		else {
-			u32 ilp = si_ilp_clock(sih);
+			u32 ilp = si_pmu_ilp_clock(sih);
 			delay =
 			    (si_pmu_res_uptime(sih, cc, RES4329_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
@@ -1327,7 +1327,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 		if (ISSIM_ENAB(sih))
 			delay = 70;
 		else {
-			u32 ilp = si_ilp_clock(sih);
+			u32 ilp = si_pmu_ilp_clock(sih);
 			delay =
 			    (si_pmu_res_uptime(sih, cc, RES4336_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
@@ -1339,7 +1339,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 		if (ISSIM_ENAB(sih))
 			delay = 70;
 		else {
-			u32 ilp = si_ilp_clock(sih);
+			u32 ilp = si_pmu_ilp_clock(sih);
 			delay =
 			    (si_pmu_res_uptime(sih, cc, RES4330_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
@@ -1351,7 +1351,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 		break;
 	}
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 
 	return (u16) delay;
 }
@@ -1363,43 +1363,43 @@ void si_pmu_sprom_enable(si_t *sih, bool enable)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }
 
 /* Read/write a chipcontrol reg */
 u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol_addr), ~0,
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol_addr), ~0,
 		   reg);
-	return si_corereg(sih, SI_CC_IDX,
+	return ai_corereg(sih, SI_CC_IDX,
 			  offsetof(chipcregs_t, chipcontrol_data), mask, val);
 }
 
 /* Read/write a regcontrol reg */
 u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr), ~0,
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr), ~0,
 		   reg);
-	return si_corereg(sih, SI_CC_IDX,
+	return ai_corereg(sih, SI_CC_IDX,
 			  offsetof(chipcregs_t, regcontrol_data), mask, val);
 }
 
 /* Read/write a pllcontrol reg */
 u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 {
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pllcontrol_addr), ~0,
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pllcontrol_addr), ~0,
 		   reg);
-	return si_corereg(sih, SI_CC_IDX,
+	return ai_corereg(sih, SI_CC_IDX,
 			  offsetof(chipcregs_t, pllcontrol_data), mask, val);
 }
 
 /* PMU PLL update */
 void si_pmu_pllupd(si_t *sih)
 {
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmucontrol),
+	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmucontrol),
 		   PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
 }
 
@@ -1416,7 +1416,7 @@ u32 si_pmu_alp_clock(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
@@ -1451,7 +1451,7 @@ u32 si_pmu_alp_clock(si_t *sih)
 	}
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 	return clock;
 }
 
@@ -1462,7 +1462,7 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 	u32 tmp = 0;
 
 	/* Remember original core before switch to chipc */
-	cc = (chipcregs_t *) si_switch_core(sih, CC_CORE_ID, &origidx,
+	cc = (chipcregs_t *) ai_switch_core(sih, CC_CORE_ID, &origidx,
 					    &intr_val);
 
 	/* force the HT off  */
@@ -1487,7 +1487,7 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 	}
 
 	/* Return to original core */
-	si_restore_core(sih, origidx, intr_val);
+	ai_restore_core(sih, origidx, intr_val);
 }
 
 /* initialize PMU */
@@ -1498,7 +1498,7 @@ void si_pmu_init(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	if (sih->pmurev == 1)
 		AND_REG(&cc->pmucontrol, ~PCTL_NOILP_ON_WAIT);
@@ -1515,7 +1515,7 @@ void si_pmu_init(si_t *sih)
 	}
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }
 
 /* initialize PMU chip controls and other chip level stuff */
@@ -1531,7 +1531,7 @@ void si_pmu_chip_init(si_t *sih)
 	origidx = ai_coreidx(sih);
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }
 
 /* initialize PMU switch/regulators */
@@ -1569,7 +1569,7 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1598,7 +1598,7 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 	}
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }
 
 /* initialize PMU resources */
@@ -1616,7 +1616,7 @@ void si_pmu_res_init(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1771,7 +1771,7 @@ void si_pmu_res_init(si_t *sih)
 	mdelay(2);
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }
 
 u32 si_pmu_measure_alpclk(si_t *sih)
@@ -1786,7 +1786,7 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 	ASSERT(cc != NULL);
 
 	if (R_REG(&cc->pmustatus) & PST_EXTLPOAVAIL) {
@@ -1824,7 +1824,7 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 		alp_khz = 0;
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 
 	return alp_khz;
 }
@@ -1837,7 +1837,7 @@ bool si_pmu_is_otp_powered(si_t *sih)
 
 	/* Remember original core before switch to chipc */
 	idx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1874,7 +1874,7 @@ bool si_pmu_is_otp_powered(si_t *sih)
 	}
 
 	/* Return to original core */
-	si_setcoreidx(sih, idx);
+	ai_setcoreidx(sih, idx);
 	return st;
 }
 
@@ -1886,12 +1886,12 @@ void si_pmu_otp_power(si_t *sih, bool on)
 	u32 rsrcs = 0;	/* rsrcs to turn on/off OTP power */
 
 	/* Don't do anything if OTP is disabled */
-	if (si_is_otp_disabled(sih))
+	if (ai_is_otp_disabled(sih))
 		return;
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
-	cc = si_setcoreidx(sih, SI_CC_IDX);
+	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1932,5 +1932,5 @@ void si_pmu_otp_power(si_t *sih, bool on)
 	}
 
 	/* Return to original core */
-	si_setcoreidx(sih, origidx);
+	ai_setcoreidx(sih, origidx);
 }

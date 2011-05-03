@@ -22,7 +22,7 @@
 #include <bcmdevs.h>
 #include <hndsoc.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <aiutils.h>
 
 #include <sbhnddma.h>
 #include <hnddma.h>
@@ -293,7 +293,8 @@ struct hnddma_pub *dma_attach(char *name, si_t *sih,
 
 	di->msg_level = msg_level ? msg_level : &dma_msg_level;
 
-	di->dma64 = ((si_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
+
+	di->dma64 = ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
 
 	/* init dma reg pointer */
 	di->d64txregs = (dma64regs_t *) dmaregstx;
@@ -355,11 +356,11 @@ struct hnddma_pub *dma_attach(char *name, si_t *sih,
 	di->dataoffsetlow = di->dataoffsetlow + SI_SDRAM_SWAPPED;
 #endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
-	if ((si_coreid(sih) == SDIOD_CORE_ID)
-	    && ((si_corerev(sih) > 0) && (si_corerev(sih) <= 2)))
+	if ((ai_coreid(sih) == SDIOD_CORE_ID)
+	    && ((ai_corerev(sih) > 0) && (ai_corerev(sih) <= 2)))
 		di->addrext = 0;
-	else if ((si_coreid(sih) == I2S_CORE_ID) &&
-		 ((si_corerev(sih) == 0) || (si_corerev(sih) == 1)))
+	else if ((ai_coreid(sih) == I2S_CORE_ID) &&
+		 ((ai_corerev(sih) == 0) || (ai_corerev(sih) == 1)))
 		di->addrext = 0;
 	else
 		di->addrext = _dma_isaddrext(di);
@@ -1725,9 +1726,9 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 {
 	/* Perform 64-bit checks only if we want to advertise 64-bit (> 32bit) capability) */
 	/* DMA engine is 64-bit capable */
-	if ((si_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64) {
+	if ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64) {
 		/* backplane are 64-bit capable */
-		if (si_backplane64(sih))
+		if (ai_backplane64(sih))
 			/* If bus is System Backplane or PCIE then we can access 64-bits */
 			if ((sih->bustype == SI_BUS) ||
 			    ((sih->bustype == PCI_BUS) &&

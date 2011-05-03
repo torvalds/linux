@@ -477,72 +477,72 @@ extern u32 ai_addrspacesize(si_t *sih, uint asidx);
 extern void ai_write_wrap_reg(si_t *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern si_t *si_attach(uint pcidev, void *regs, uint bustype,
+extern si_t *ai_attach(uint pcidev, void *regs, uint bustype,
 		       void *sdh, char **vars, uint *varsz);
 
-extern void si_detach(si_t *sih);
-extern bool si_pci_war16165(si_t *sih);
+extern void ai_detach(si_t *sih);
+extern bool ai_pci_war16165(si_t *sih);
 
-extern uint si_coreid(si_t *sih);
-extern uint si_corerev(si_t *sih);
-extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
+extern uint ai_coreid(si_t *sih);
+extern uint ai_corerev(si_t *sih);
+extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		uint val);
-extern void si_write_wrapperreg(si_t *sih, u32 offset, u32 val);
-extern u32 si_core_cflags(si_t *sih, u32 mask, u32 val);
-extern u32 si_core_sflags(si_t *sih, u32 mask, u32 val);
-extern bool si_iscoreup(si_t *sih);
-extern uint si_findcoreidx(si_t *sih, uint coreid, uint coreunit);
-extern void *si_setcoreidx(si_t *sih, uint coreidx);
-extern void *si_setcore(si_t *sih, uint coreid, uint coreunit);
-extern void *si_switch_core(si_t *sih, uint coreid, uint *origidx,
+extern void ai_write_wrapperreg(si_t *sih, u32 offset, u32 val);
+extern u32 ai_core_cflags(si_t *sih, u32 mask, u32 val);
+extern u32 ai_core_sflags(si_t *sih, u32 mask, u32 val);
+extern bool ai_iscoreup(si_t *sih);
+extern uint ai_findcoreidx(si_t *sih, uint coreid, uint coreunit);
+extern void *ai_setcoreidx(si_t *sih, uint coreidx);
+extern void *ai_setcore(si_t *sih, uint coreid, uint coreunit);
+extern void *ai_switch_core(si_t *sih, uint coreid, uint *origidx,
 			    uint *intr_val);
-extern void si_restore_core(si_t *sih, uint coreid, uint intr_val);
-extern void si_core_reset(si_t *sih, u32 bits, u32 resetbits);
-extern void si_core_disable(si_t *sih, u32 bits);
-extern u32 si_alp_clock(si_t *sih);
-extern u32 si_ilp_clock(si_t *sih);
-extern void si_pci_setup(si_t *sih, uint coremask);
-extern void si_setint(si_t *sih, int siflag);
-extern bool si_backplane64(si_t *sih);
-extern void si_register_intr_callback(si_t *sih, void *intrsoff_fn,
+extern void ai_restore_core(si_t *sih, uint coreid, uint intr_val);
+extern void ai_core_reset(si_t *sih, u32 bits, u32 resetbits);
+extern void ai_core_disable(si_t *sih, u32 bits);
+extern u32 ai_alp_clock(si_t *sih);
+extern u32 ai_ilp_clock(si_t *sih);
+extern void ai_pci_setup(si_t *sih, uint coremask);
+extern void ai_setint(si_t *sih, int siflag);
+extern bool ai_backplane64(si_t *sih);
+extern void ai_register_intr_callback(si_t *sih, void *intrsoff_fn,
 				      void *intrsrestore_fn,
 				      void *intrsenabled_fn, void *intr_arg);
-extern void si_deregister_intr_callback(si_t *sih);
-extern void si_clkctl_init(si_t *sih);
-extern u16 si_clkctl_fast_pwrup_delay(si_t *sih);
-extern bool si_clkctl_cc(si_t *sih, uint mode);
-extern int si_clkctl_xtal(si_t *sih, uint what, bool on);
-extern bool si_deviceremoved(si_t *sih);
-extern u32 si_gpiocontrol(si_t *sih, u32 mask, u32 val,
+extern void ai_deregister_intr_callback(si_t *sih);
+extern void ai_clkctl_init(si_t *sih);
+extern u16 ai_clkctl_fast_pwrup_delay(si_t *sih);
+extern bool ai_clkctl_cc(si_t *sih, uint mode);
+extern int ai_clkctl_xtal(si_t *sih, uint what, bool on);
+extern bool ai_deviceremoved(si_t *sih);
+extern u32 ai_gpiocontrol(si_t *sih, u32 mask, u32 val,
 			     u8 priority);
 
 /* OTP status */
-extern bool si_is_otp_disabled(si_t *sih);
-extern bool si_is_otp_powered(si_t *sih);
-extern void si_otp_power(si_t *sih, bool on);
+extern bool ai_is_otp_disabled(si_t *sih);
+extern bool ai_is_otp_powered(si_t *sih);
+extern void ai_otp_power(si_t *sih, bool on);
 
 /* SPROM availability */
-extern bool si_is_sprom_available(si_t *sih);
+extern bool ai_is_sprom_available(si_t *sih);
 
 /*
  * Build device path. Path size must be >= SI_DEVPATH_BUFSZ.
  * The returned path is NULL terminated and has trailing '/'.
  * Return 0 on success, nonzero otherwise.
  */
-extern int si_devpath(si_t *sih, char *path, int size);
+extern int ai_devpath(si_t *sih, char *path, int size);
 /* Read variable with prepending the devpath to the name */
-extern char *si_getdevpathvar(si_t *sih, const char *name);
-extern int si_getdevpathintvar(si_t *sih, const char *name);
+extern char *ai_getdevpathvar(si_t *sih, const char *name);
+extern int ai_getdevpathintvar(si_t *sih, const char *name);
 
-extern void si_pci_sleep(si_t *sih);
-extern void si_pci_down(si_t *sih);
-extern void si_pci_up(si_t *sih);
-extern int si_pci_fixcfg(si_t *sih);
+extern void ai_pci_sleep(si_t *sih);
+extern void ai_pci_down(si_t *sih);
+extern void ai_pci_up(si_t *sih);
+extern int ai_pci_fixcfg(si_t *sih);
 
-extern void si_chipcontrl_epa4331(si_t *sih, bool on);
+extern void ai_chipcontrl_epa4331(si_t *sih, bool on);
 /* Enable Ex-PA for 4313 */
-extern void si_epa_4313war(si_t *sih);
+extern void ai_epa_4313war(si_t *sih);
 
-char *si_getnvramflvar(si_t *sih, const char *name);
+char *ai_getnvramflvar(si_t *sih, const char *name);
 
 #endif				/* _aiutils_h_ */
