@@ -238,9 +238,6 @@ struct e1000_adapter {
 	struct work_struct reset_task;
 	u8 fc_autoneg;
 
-	struct timer_list blink_timer;
-	unsigned long led_status;
-
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
