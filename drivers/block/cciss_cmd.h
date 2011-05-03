@@ -235,6 +235,7 @@ typedef struct _CfgTable_struct {
   u8		   reserved[0x78 - 0x58];
   u32		   misc_fw_support; /* offset 0x78 */
 #define MISC_FW_DOORBELL_RESET (0x02)
+	u8	   driver_version[32];
 } CfgTable_struct;
 
 struct TransTable_struct {
