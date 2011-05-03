@@ -95,6 +95,19 @@ struct wm8994_pdata {
 
 		//If an external amplifier speakers wm8994		enable=1 disable=0
 		unsigned int PA_control:1;
+
+	//volume
+	int speaker_incall_vol;			//max = 6, min = -21
+	int speaker_incall_mic_vol;		//max = 30, min = -22
+	int speaker_normal_vol;			//max = 6, min = -57
+	int earpiece_incall_vol;		//max = 6, min = -21
+	int headset_incall_vol;			//max = 6, min = -12
+	int headset_incall_mic_vol;		//max = 30, min = -22
+	int headset_normal_vol;			//max = 6, min = -57
+	int BT_incall_vol;				//max = 30, min = -16
+	int BT_incall_mic_vol;			//max = 6, min = -57
+	int recorder_vol;				//max = 60 , min = -16
+		
 };
 
 #endif

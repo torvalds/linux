@@ -1400,6 +1400,18 @@ struct wm8994_pdata wm8994_platdata = {
 	.jd_thr = 0,
 	
 	.PA_control =1,	
+
+	.speaker_incall_vol = 0,
+	.speaker_incall_mic_vol = -9,
+	.speaker_normal_vol = 6,
+	.earpiece_incall_vol = 0,
+	.headset_incall_vol = 6,
+	.headset_incall_mic_vol = -6,
+	.headset_normal_vol = 6,
+	.BT_incall_vol = 0,
+	.BT_incall_mic_vol = 0,
+	.recorder_vol = 50,
+		
 };
 //#endif 
 
@@ -3066,12 +3078,7 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 
-	// codec		 
-	gpio_request(RK29_PIN5_PA1, NULL);			 
-	gpio_direction_output(RK29_PIN5_PA1,GPIO_HIGH); 		
-	gpio_free(RK29_PIN5_PA1);
-
-		platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));

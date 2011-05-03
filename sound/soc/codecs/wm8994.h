@@ -58,20 +58,11 @@ extern struct snd_soc_dai wm8994_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8994;
 void wm8994_codec_set_volume(unsigned char mode,unsigned char volume);
 
-struct wm8994_platform_data {
-    unsigned int mic_input;
-    unsigned int micBase_vcc;
-    unsigned int bb_input;
-    unsigned int bb_output;
-    unsigned int frequence;
-    unsigned int enable_pin;
-    unsigned int headset_pin;
-    unsigned int headset_call_vol;
-    unsigned int speaker_call_vol;
-    unsigned int earpiece_call_vol;
-    unsigned int bt_call_vol;
-}; 
-
 #define WM_EN_PIN RK29_PIN5_PA1
+#define WM_PA_PIN RK29_PIN6_PD3
+
+#define ERROR -1
+#define TRUE 0
+
 
 #endif

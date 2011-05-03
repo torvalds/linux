@@ -68,12 +68,9 @@ char debug_write_read = 0;
 
 static struct snd_soc_codec *wm8994_codec;
 struct i2c_client *wm8994_client;
-bool isSetChannelErr = false;
 
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate);
 int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short *buf, u32 scl_rate);
-void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume);
-void wm8994_set_channel_vol(void);
 
 enum wm8994_codec_mode
 {
@@ -132,12 +129,12 @@ enum VoiceDeviceSwitch
 	ALL_CLOSED
 };
 
-#define call_maxvol 5
-#define BT_call_maxvol 15
 
 /* call_vol:  save all kinds of system volume value. */
 unsigned char call_vol = 5, BT_call_vol = 15;
-int vol;
+#define call_maxvol 5			//Sound level during a call
+#define BT_call_maxvol 15
+
 unsigned short headset_vol_table[6]	={0x012D,0x0133,0x0136,0x0139,0x013B,0x013D};
 unsigned short speakers_vol_table[6]	={0x012D,0x0133,0x0136,0x0139,0x013B,0x013D};
 #ifdef CONFIG_RAHO_CTA
@@ -149,17 +146,6 @@ unsigned short BT_vol_table[16]		={0x01DB,0x01DC,0x01DD,0x01DE,0x01DF,0x01E0,
 					0x01E1,0x01E2,0x01E3,0x01E4,0x01E5,0x01E6,
 					0x01E7,0x01E8,0x01E9,0x01EA};
 
-int speaker_incall_vol = 0,//CONFIG_WM8994_SPEAKER_INCALL_VOL
-speaker_incall_mic_vol = -9,//CONFIG_WM8994_SPEAKER_INCALL_MIC_VOL
-speaker_normal_vol = 6,//CONFIG_WM8994_SPEAKER_NORMAL_VOL,
-earpiece_incall_vol = 0,//CONFIG_WM8994_EARPIECE_INCALL_VOL
-headset_incall_vol = 6,//CONFIG_WM8994_HEADSET_INCALL_VOL
-headset_incall_mic_vol = -6,//CONFIG_WM8994_HEADSET_INCALL_MIC_VOL
-headset_normal_vol = 6,//CONFIG_WM8994_HEADSET_NORMAL_VOL,
-BT_incall_vol = 0,//CONFIG_WM8994_BT_INCALL_VOL,
-BT_incall_mic_vol = 0,//CONFIG_WM8994_BT_INCALL_MIC_VOL,
-recorder_vol = 50,//CONFIG_WM8994_RECORDER_VOL,
-bank_vol[6] = {0,0,-3,3,-6,3};
 
 /* codec private data */
 struct wm8994_priv {
@@ -167,15 +153,19 @@ struct wm8994_priv {
 	struct snd_soc_codec codec;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
 	u16 reg_cache[WM8994_NUM_REG];
+	struct snd_kcontrol *kcontrol;//The current working path
+	char RW_status;				//ERROR = -1, TRUE = 0;
 	struct wm8994_pdata *pdata;
 };
 
 static int wm8994_read(unsigned short reg,unsigned short *value)
 {
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values;
 	char i = 2;
 
-	if(isSetChannelErr)return -EIO;
+//	if(wm8994->RW_status == ERROR)return -EIO;
 
 	while(i > 0)
 	{
@@ -190,19 +180,20 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 			return 0;
 		}
 	}
-	isSetChannelErr = true;
 	
+	wm8994->RW_status = ERROR;	
 	printk("%s---line->%d:Codec read error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,*value);
-
 	return -EIO;
 }
 	
 static int wm8994_write(unsigned short reg,unsigned short value)
 {
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values=((value>>8)&0x00FF)|((value<<8)&0xFF00);
 	char i = 2;
 
-	if(isSetChannelErr)return -EIO;
+//	if(wm8994->RW_status == ERROR)return -EIO;
 #ifdef WM8994_PROC	
 	if(debug_write_read != 0)
 		DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,value);
@@ -211,26 +202,76 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 	{
 		i--;
 		if (reg_send_data(wm8994_client,&regs,&values,400000) > 0) 
-		{
-			if (reg == 0x302) 
-			{
-				wm8994_read(0x406, &values);
-				wm8994_write(0x406, values);
-				wm8994_read(reg, &values);
-
-				DBG("read 0x302 = 0x%x write 0x302 = 0x%x \n", values, value);
-
-				if (values != value)
-					isSetChannelErr = true;
-			}
 			return 0;
-		}
 	}
-	isSetChannelErr = true;
-
+	
+	wm8994->RW_status = ERROR;
 	printk("%s---line->%d:Codec write error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,value);
-
 	return -EIO;
+}
+
+static void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume)
+{
+	unsigned short lvol=0,rvol=0;
+
+//	DBG("%s::volume = %d \n",__FUNCTION__,volume);
+
+	if(volume>max_volume)volume=max_volume;
+	
+	if(wm8994_mode == wm8994_handsetMIC_to_baseband_to_headset_and_record||
+	wm8994_mode == wm8994_handsetMIC_to_baseband_to_headset||
+	wm8994_mode == wm8994_mainMIC_to_baseband_to_headset)
+	{
+		wm8994_read(0x001C, &lvol);
+		wm8994_read(0x001D, &rvol);
+		//HPOUT1L_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x001C, (lvol&~0x003f)|headset_vol_table[volume]); 
+		//HPOUT1R_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x001D, (rvol&~0x003f)|headset_vol_table[volume]); 
+	}
+	else if(wm8994_mode == wm8994_mainMIC_to_baseband_to_speakers_and_record||
+	wm8994_mode == wm8994_mainMIC_to_baseband_to_speakers)
+	{
+		wm8994_read(0x0026, &lvol);
+		wm8994_read(0x0027, &rvol);
+		//SPKOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x0026, (lvol&~0x003f)|speakers_vol_table[volume]);
+		//SPKOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x0027, (rvol&~0x003f)|speakers_vol_table[volume]);
+	}
+	else if(wm8994_mode == wm8994_mainMIC_to_baseband_to_earpiece||
+	wm8994_mode == wm8994_mainMIC_to_baseband_to_earpiece_and_record)
+	{
+		wm8994_read(0x0020, &lvol);
+		wm8994_read(0x0021, &rvol);
+
+		//MIXOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x0020, (lvol&~0x003f)|earpiece_vol_table[volume]);
+		//MIXOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
+		wm8994_write(0x0021, (rvol&~0x003f)|earpiece_vol_table[volume]);
+	}
+	else if(wm8994_mode == wm8994_BT_baseband||wm8994_mode==wm8994_BT_baseband_and_record)
+	{
+		//bit 0~4 /-16.5dB to +30dB in 1.5dB steps
+		DBG("BT_vol_table[volume] = 0x%x\n",BT_vol_table[volume]);
+		wm8994_write(0x0500, BT_vol_table[volume]);
+		wm8994_write(0x0501, 0x0100);
+	}
+	else if(wm8994_mode == null)
+	{
+		wm8994_read(0x001C, &lvol);
+		wm8994_read(0x001D, &rvol);
+		wm8994_write(0x001C, (lvol&~0x003f)|headset_vol_table[volume]); 
+		wm8994_write(0x001D, (rvol&~0x003f)|headset_vol_table[volume]);	
+		wm8994_read(0x0026, &lvol);
+		wm8994_read(0x0027, &rvol);
+		wm8994_write(0x0026, (lvol&~0x003f)|speakers_vol_table[volume]);
+		wm8994_write(0x0027, (rvol&~0x003f)|speakers_vol_table[volume]);	
+		wm8994_read(0x0020, &lvol);
+		wm8994_read(0x0021, &rvol);
+		wm8994_write(0x0020, (lvol&~0x003f)|earpiece_vol_table[volume]);
+		wm8994_write(0x0021, (rvol&~0x003f)|earpiece_vol_table[volume]);		
+	}
 }
 
 static void wm8994_set_all_mute(void)
@@ -264,19 +305,287 @@ static void PA_ctrl(unsigned char ctrl)
 		if(ctrl == GPIO_HIGH)
 		{
 			DBG("enable PA_control\n");
-			gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-			gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 		
-			gpio_free(RK29_PIN6_PD3);
+			gpio_request(WM_PA_PIN, NULL);		//AUDIO_PA_ON	 
+			gpio_direction_output(WM_PA_PIN,GPIO_HIGH); 		
+			gpio_free(WM_PA_PIN);
 		}
 		else
 		{
 			DBG("enable PA_control\n");
-			gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-			gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
-			gpio_free(RK29_PIN6_PD3);			
+			gpio_request(WM_PA_PIN, NULL);		//AUDIO_PA_ON	 
+			gpio_direction_output(WM_PA_PIN,GPIO_LOW); 		
+			gpio_free(WM_PA_PIN);			
 		}
 	}
 }
+
+static void wm8994_set_AIF1DAC_EQ(void)
+{
+	int bank_vol[6] = {0,0,-3,3,-6,3};
+	
+	wm8994_write(0x0480, 0x0001|((bank_vol[1]+12)<<11)|
+		((bank_vol[2]+12)<<6)|((bank_vol[3]+12)<<1));
+	wm8994_write(0x0481, 0x0000|((bank_vol[4]+12)<<11)|
+		((bank_vol[5]+12)<<6));
+}
+
+static void wm8994_set_channel_vol(void)
+{
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;	
+	int vol;
+	
+	switch(wm8994_current_mode){
+	case wm8994_AP_to_speakers_and_headset:
+		if(pdata->speaker_normal_vol > 6)
+			pdata->speaker_normal_vol = 6;
+		else if(pdata->speaker_normal_vol < -57)
+			pdata->speaker_normal_vol = -57;
+		if(pdata->headset_normal_vol > 6)
+			pdata->headset_normal_vol = 6;
+		else if(pdata->headset_normal_vol < -57)
+			pdata->headset_normal_vol = -57;
+
+		DBG("headset_normal_vol = %ddB \n",pdata->headset_normal_vol);
+		DBG("speaker_normal_vol = %ddB \n",pdata->speaker_normal_vol);
+
+		vol = pdata->speaker_normal_vol;
+		if(vol<=6){
+			wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
+			wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
+		}else{
+		//	wm8994_write(0x25,  0x003F);      //0~12dB
+			wm8994_write(0x26,  320+vol+45);  //-57dB~6dB
+			wm8994_write(0x27,  320+vol+45);  //-57dB~6dB
+		}
+		vol = pdata->headset_normal_vol-4;
+
+		//for turn down headset volume when ringtone
+		if(vol >= -48)
+			vol -= 14;
+		else
+			vol = -57;
+
+		wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
+		wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
+
+		wm8994_set_AIF1DAC_EQ();
+		break;
+
+	case wm8994_recorder_and_AP_to_headset:
+		if(pdata->headset_normal_vol > 6)
+			pdata->headset_normal_vol = 6;
+		else if(pdata->headset_normal_vol < -57)
+			pdata->headset_normal_vol = -57;
+		if(pdata->recorder_vol > 60)
+			pdata->recorder_vol = 60;
+		else if(pdata->recorder_vol < -16)
+			pdata->recorder_vol = -16;
+
+		DBG("recorder_vol = %ddB \n",pdata->recorder_vol);
+		DBG("headset_normal_vol = %ddB \n",pdata->headset_normal_vol);
+
+		vol = pdata->recorder_vol;
+		if(vol<30){
+			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
+		}else{
+			wm8994_write(0x2A,  0x0030);
+			wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
+		}
+		vol = pdata->headset_normal_vol;
+		wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
+		wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
+		break;
+
+	case wm8994_recorder_and_AP_to_speakers:
+		if(pdata->recorder_vol > 60)
+			pdata->recorder_vol = 60;
+		else if(pdata->recorder_vol < -16)
+			pdata->recorder_vol = -16;
+		if(pdata->speaker_normal_vol > 6)
+			pdata->speaker_normal_vol = 6;
+		else if(pdata->speaker_normal_vol < -57)
+			pdata->speaker_normal_vol = -57;
+
+		DBG("speaker_normal_vol = %ddB \n",pdata->speaker_normal_vol);
+		DBG("recorder_vol = %ddB \n",pdata->recorder_vol);
+
+		vol = pdata->recorder_vol;
+		if(vol<30){
+			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
+		}else{
+			wm8994_write(0x2A,  0x0030);
+			wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
+		}
+
+		vol = pdata->speaker_normal_vol;
+		wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
+		wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
+
+		wm8994_set_AIF1DAC_EQ();
+		break;
+	case wm8994_handsetMIC_to_baseband_to_headset:
+		if(pdata->headset_incall_vol > 6)
+			pdata->headset_incall_vol = 6;
+		else if(pdata->headset_incall_vol < -12)
+			pdata->headset_incall_vol = -12;
+		if(pdata->headset_incall_mic_vol > 30)
+			pdata->headset_incall_mic_vol = 30;
+		else if(pdata->headset_incall_mic_vol < -22)
+			pdata->headset_incall_mic_vol = -22;
+
+		DBG("headset_incall_mic_vol = %ddB \n",pdata->headset_incall_mic_vol);
+		DBG("headset_incall_vol = %ddB \n",pdata->headset_incall_vol);
+
+		vol = pdata->headset_incall_mic_vol;
+		if(vol<-16){
+			wm8994_write(0x1E,  0x0016);  //mic vol
+			wm8994_write(0x18,  320+(vol+22)*10/15);  //mic vol	
+		}else{
+			wm8994_write(0x1E,  0x0006);  //mic vol
+			wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
+		}
+		break;
+	case wm8994_mainMIC_to_baseband_to_headset:
+		if(pdata->headset_incall_vol > 6)
+			pdata->headset_incall_vol = 6;
+		else if(pdata->headset_incall_vol < -12)
+			pdata->headset_incall_vol = -12;
+		if(pdata->speaker_incall_mic_vol > 30)
+			pdata->speaker_incall_mic_vol = 30;
+		else if(pdata->speaker_incall_mic_vol < -22)
+			pdata->speaker_incall_mic_vol = -22;
+
+		DBG("speaker_incall_mic_vol = %ddB \n",pdata->speaker_incall_mic_vol);
+		DBG("headset_incall_vol = %ddB \n",pdata->headset_incall_vol);
+
+		vol=pdata->speaker_incall_mic_vol;
+		if(vol<-16){
+			wm8994_write(0x1E,  0x0016);  //mic vol
+			wm8994_write(0x1A,  320+(vol+22)*10/15);  //mic vol	
+		}else{
+			wm8994_write(0x1E,  0x0006);  //mic vol
+			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
+		}
+		break;
+
+	case wm8994_mainMIC_to_baseband_to_earpiece:
+		if(pdata->speaker_incall_mic_vol > 30)
+			pdata->speaker_incall_mic_vol = 30;
+		else if(pdata->speaker_incall_mic_vol < -22)
+			pdata->speaker_incall_mic_vol = -22;
+		if(pdata->earpiece_incall_vol>6)
+			pdata->earpiece_incall_vol = 6;
+		else if(pdata->earpiece_incall_vol<-21)
+			pdata->earpiece_incall_vol = -21;
+
+		DBG("earpiece_incall_vol = %ddB \n",pdata->earpiece_incall_vol);
+		DBG("speaker_incall_mic_vol = %ddB \n",pdata->speaker_incall_mic_vol);
+
+		vol = pdata->earpiece_incall_vol;
+		if(vol>=0){
+			wm8994_write(0x33,  0x0018);  //6dB
+			wm8994_write(0x31,  (((6-vol)/3)<<3)+(6-vol)/3);  //-21dB
+		}else{
+			wm8994_write(0x33,  0x0010);
+			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);  //-21dB
+		}
+		vol = pdata->speaker_incall_mic_vol;
+		if(vol<-16){
+			wm8994_write(0x1E,  0x0016);
+			wm8994_write(0x1A,  320+(vol+22)*10/15);	
+		}else{
+			wm8994_write(0x1E,  0x0006);
+			wm8994_write(0x1A,  320+(vol+16)*10/15);
+		}
+		break;
+
+	case wm8994_mainMIC_to_baseband_to_speakers:
+		if(pdata->speaker_incall_mic_vol > 30)
+			pdata->speaker_incall_mic_vol = 30;
+		else if(pdata->speaker_incall_mic_vol < -22)
+			pdata->speaker_incall_mic_vol = -22;
+		if(pdata->speaker_incall_vol > 12)
+			pdata->speaker_incall_vol = 12;
+		else if(pdata->speaker_incall_vol < -21)
+			pdata->speaker_incall_vol = -21;
+
+		DBG("speaker_incall_vol = %ddB \n",pdata->speaker_incall_vol);
+		DBG("speaker_incall_mic_vol = %ddB \n",pdata->speaker_incall_mic_vol);
+
+		vol = pdata->speaker_incall_mic_vol;
+		if(vol<-16){
+			wm8994_write(0x1E,  0x0016);
+			wm8994_write(0x1A,  320+(vol+22)*10/15);	
+		}else{
+			wm8994_write(0x1E,  0x0006);
+			wm8994_write(0x1A,  320+(vol+16)*10/15);
+		}
+		vol = pdata->speaker_incall_vol;
+		if(vol<=0){
+			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);
+		}else if(vol <= 9){
+			wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
+		}else{
+			wm8994_write(0x25,  0x003F);
+		}
+		break;
+
+	case wm8994_BT_baseband:
+		if(pdata->BT_incall_vol > 30)
+			pdata->BT_incall_vol = 30;
+		else if(pdata->BT_incall_vol < -16)
+			pdata->BT_incall_vol = -16;
+		if(pdata->BT_incall_mic_vol > 6)
+			pdata->BT_incall_mic_vol = 6;
+		else if(pdata->BT_incall_mic_vol < -57)
+			pdata->BT_incall_mic_vol = -57;
+
+		DBG("BT_incall_mic_vol = %ddB \n",pdata->BT_incall_mic_vol);
+		DBG("BT_incall_vol = %ddB \n",pdata->BT_incall_vol);
+
+		vol = pdata->BT_incall_mic_vol;
+		wm8994_write(0x20,  320+vol+57);
+		vol = pdata->BT_incall_vol;
+		wm8994_write(0x19, 0x0500+(vol+16)*10/15);
+		break;
+	default:
+		printk("route error !\n");
+	}
+
+}
+
+void wm8994_codec_set_volume(unsigned char system_type,unsigned char volume)
+{
+	DBG("%s:: system_type = %d volume = %d \n",__FUNCTION__,system_type,volume);
+
+	if(system_type == VOICE_CALL)
+	{
+		if(volume <= call_maxvol)
+			call_vol=volume;
+		else{
+			printk("%s----%d::max value is 7\n",__FUNCTION__,__LINE__);
+			call_vol=call_maxvol;
+		}
+		if(wm8994_current_mode<=wm8994_mainMIC_to_baseband_to_speakers_and_record&&
+		wm8994_current_mode>=wm8994_handsetMIC_to_baseband_to_headset)
+			wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+	}else if(system_type == BLUETOOTH_SCO){
+		if(volume <= BT_call_maxvol)
+			BT_call_vol = volume;
+		else{
+			printk("%s----%d::max value is 15\n",__FUNCTION__,__LINE__);
+			BT_call_vol = BT_call_maxvol;
+		}
+		if(wm8994_current_mode<null&&
+		wm8994_current_mode>=wm8994_BT_baseband)
+			wm8994_set_volume(wm8994_current_mode,BT_call_vol,BT_call_maxvol);
+	}else{
+		return;
+		printk("%s----%d::system type error!\n",__FUNCTION__,__LINE__);
+	}
+}
+
 #define wm8994_reset()	wm8994_set_all_mute();\
 						wm8994_write(WM8994_RESET, 0)
 						
@@ -2069,377 +2378,6 @@ void BT_baseband_and_record(void) //pcmbaseband
 }
 #endif //PCM_BB
 
-typedef void (wm8994_codec_fnc_t) (void);
-
-wm8994_codec_fnc_t *wm8994_codec_sequence[] = {
-	AP_to_headset,
-	AP_to_speakers,
-	AP_to_speakers_and_headset,
-	recorder_and_AP_to_headset,
-	recorder_and_AP_to_speakers,
-	FM_to_headset,
-	FM_to_headset_and_record,
-	FM_to_speakers,
-	FM_to_speakers_and_record,
-	handsetMIC_to_baseband_to_headset,
-	mainMIC_to_baseband_to_headset,
-	handsetMIC_to_baseband_to_headset_and_record,
-	mainMIC_to_baseband_to_earpiece,
-	mainMIC_to_baseband_to_earpiece_and_record,
-	mainMIC_to_baseband_to_speakers,
-	mainMIC_to_baseband_to_speakers_and_record,
-	BT_baseband,
-	BT_baseband_and_record,
-};
-
-void wm8994_set_AIF1DAC_EQ(void){
-
-	wm8994_write(0x0480, 0x0001|((bank_vol[1]+12)<<11)|
-		((bank_vol[2]+12)<<6)|((bank_vol[3]+12)<<1));
-	wm8994_write(0x0481, 0x0000|((bank_vol[4]+12)<<11)|
-		((bank_vol[5]+12)<<6));
-}
-
-void wm8994_set_channel_vol(void)
-{
-	switch(wm8994_current_mode){
-	case wm8994_AP_to_speakers_and_headset:
-		if(speaker_normal_vol > 6)
-			speaker_normal_vol = 6;
-		else if(speaker_normal_vol < -57)
-			speaker_normal_vol = -57;
-		if(headset_normal_vol > 6)
-			headset_normal_vol = 6;
-		else if(headset_normal_vol < -57)
-			headset_normal_vol = -57;
-
-		DBG("headset_normal_vol = %ddB \n",headset_normal_vol);
-		DBG("speaker_normal_vol = %ddB \n",speaker_normal_vol);
-
-		vol = speaker_normal_vol;
-		if(vol<=6){
-			wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
-			wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
-		}else{
-		//	wm8994_write(0x25,  0x003F);      //0~12dB
-			wm8994_write(0x26,  320+vol+45);  //-57dB~6dB
-			wm8994_write(0x27,  320+vol+45);  //-57dB~6dB
-		}
-		vol = headset_normal_vol-4;
-
-		//for turn down headset volume when ringtone
-		if(vol >= -48)
-			vol -= 14;
-		else
-			vol = -57;
-
-		wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
-		wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
-
-		wm8994_set_AIF1DAC_EQ();
-		break;
-
-	case wm8994_recorder_and_AP_to_headset:
-		if(headset_normal_vol > 6)
-			headset_normal_vol = 6;
-		else if(headset_normal_vol < -57)
-			headset_normal_vol = -57;
-		if(recorder_vol > 60)
-			recorder_vol = 60;
-		else if(recorder_vol < -16)
-			recorder_vol = -16;
-
-		DBG("recorder_vol = %ddB \n",recorder_vol);
-		DBG("headset_normal_vol = %ddB \n",headset_normal_vol);
-
-		vol = recorder_vol;
-		if(vol<30){
-			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
-		}else{
-			wm8994_write(0x2A,  0x0030);
-			wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
-		}
-		vol = headset_normal_vol;
-		wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
-		wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
-		break;
-
-	case wm8994_recorder_and_AP_to_speakers:
-		if(recorder_vol > 60)
-			recorder_vol = 60;
-		else if(recorder_vol < -16)
-			recorder_vol = -16;
-		if(speaker_normal_vol > 6)
-			speaker_normal_vol = 6;
-		else if(speaker_normal_vol < -57)
-			speaker_normal_vol = -57;
-
-		DBG("speaker_normal_vol = %ddB \n",speaker_normal_vol);
-		DBG("recorder_vol = %ddB \n",recorder_vol);
-
-		vol = recorder_vol;
-		if(vol<30){
-			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
-		}else{
-			wm8994_write(0x2A,  0x0030);
-			wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
-		}
-
-		vol = speaker_normal_vol;
-		wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
-		wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
-
-		wm8994_set_AIF1DAC_EQ();
-		break;
-
-	case wm8994_handsetMIC_to_baseband_to_headset:
-		if(headset_incall_vol > 6)
-			headset_incall_vol = 6;
-		else if(headset_incall_vol < -12)
-			headset_incall_vol = -12;
-		if(headset_incall_mic_vol > 30)
-			headset_incall_mic_vol = 30;
-		else if(headset_incall_mic_vol < -22)
-			headset_incall_mic_vol = -22;
-
-		DBG("headset_incall_mic_vol = %ddB \n",headset_incall_mic_vol);
-		DBG("headset_incall_vol = %ddB \n",headset_incall_vol);
-
-		vol = headset_incall_mic_vol;
-		if(vol<-16){
-			wm8994_write(0x1E,  0x0016);  //mic vol
-			wm8994_write(0x18,  320+(vol+22)*10/15);  //mic vol	
-		}else{
-			wm8994_write(0x1E,  0x0006);  //mic vol
-			wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
-		}
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-		vol = headset_incall_vol;
-		wm8994_write(0x2B,  (vol+12)/3+1);  //-12~6dB
-#endif
-		break;
-
-	case wm8994_mainMIC_to_baseband_to_headset:
-		if(headset_incall_vol > 6)
-			headset_incall_vol = 6;
-		else if(headset_incall_vol < -12)
-			headset_incall_vol = -12;
-		if(speaker_incall_mic_vol > 30)
-			speaker_incall_mic_vol = 30;
-		else if(speaker_incall_mic_vol < -22)
-			speaker_incall_mic_vol = -22;
-
-		DBG("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-		DBG("headset_incall_vol = %ddB \n",headset_incall_vol);
-
-		vol=speaker_incall_mic_vol;
-		if(vol<-16){
-			wm8994_write(0x1E,  0x0016);  //mic vol
-			wm8994_write(0x1A,  320+(vol+22)*10/15);  //mic vol	
-		}else{
-			wm8994_write(0x1E,  0x0006);  //mic vol
-			wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
-		}
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-		vol = headset_incall_vol;
-		wm8994_write(0x2B,  (vol+12)/3+1);  //-12~6dB
-#endif
-		break;
-
-	case wm8994_mainMIC_to_baseband_to_earpiece:
-		if(speaker_incall_mic_vol > 30)
-			speaker_incall_mic_vol = 30;
-		else if(speaker_incall_mic_vol < -22)
-			speaker_incall_mic_vol = -22;
-		if(earpiece_incall_vol>6)
-			earpiece_incall_vol = 6;
-		else if(earpiece_incall_vol<-21)
-			earpiece_incall_vol = -21;
-
-		DBG("earpiece_incall_vol = %ddB \n",earpiece_incall_vol);
-		DBG("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-
-		vol = earpiece_incall_vol;
-		if(vol>=0){
-			wm8994_write(0x33,  0x0018);  //6dB
-			wm8994_write(0x31,  (((6-vol)/3)<<3)+(6-vol)/3);  //-21dB
-		}else{
-			wm8994_write(0x33,  0x0010);
-			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);  //-21dB
-		}
-#ifdef CONFIG_SND_INSIDE_EARPIECE
-		vol = speaker_incall_mic_vol;
-		if(vol<-16){
-			wm8994_write(0x1E,  0x0016);
-			wm8994_write(0x1A,  320+(vol+22)*10/15);	
-		}else{
-			wm8994_write(0x1E,  0x0006);
-			wm8994_write(0x1A,  320+(vol+16)*10/15);
-		}
-#endif
-#ifdef CONFIG_SND_OUTSIDE_EARPIECE
-		vol = headset_incall_mic_vol;
-		if(vol<-16){
-			wm8994_write(0x1E,  0x0016);  //mic vol
-			wm8994_write(0x18,  320+(vol+22)*10/15);  //mic vol	
-		}else{
-			wm8994_write(0x1E,  0x0006);  //mic vol
-			wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
-		}
-#endif
-		break;
-
-	case wm8994_mainMIC_to_baseband_to_speakers:
-		if(speaker_incall_mic_vol > 30)
-			speaker_incall_mic_vol = 30;
-		else if(speaker_incall_mic_vol < -22)
-			speaker_incall_mic_vol = -22;
-		if(speaker_incall_vol > 12)
-			speaker_incall_vol = 12;
-		else if(speaker_incall_vol < -21)
-			speaker_incall_vol = -21;
-
-		DBG("speaker_incall_vol = %ddB \n",speaker_incall_vol);
-		DBG("speaker_incall_mic_vol = %ddB \n",speaker_incall_mic_vol);
-
-		vol = speaker_incall_mic_vol;
-		if(vol<-16){
-			wm8994_write(0x1E,  0x0016);
-			wm8994_write(0x1A,  320+(vol+22)*10/15);	
-		}else{
-			wm8994_write(0x1E,  0x0006);
-			wm8994_write(0x1A,  320+(vol+16)*10/15);
-		}
-		vol = speaker_incall_vol;
-		if(vol<=0){
-			wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);
-		}else if(vol <= 9){
-			wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
-		}else{
-			wm8994_write(0x25,  0x003F);
-		}
-		break;
-
-	case wm8994_BT_baseband:
-		if(BT_incall_vol > 30)
-			BT_incall_vol = 30;
-		else if(BT_incall_vol < -16)
-			BT_incall_vol = -16;
-		if(BT_incall_mic_vol > 6)
-			BT_incall_mic_vol = 6;
-		else if(BT_incall_mic_vol < -57)
-			BT_incall_mic_vol = -57;
-
-		DBG("BT_incall_mic_vol = %ddB \n",BT_incall_mic_vol);
-		DBG("BT_incall_vol = %ddB \n",BT_incall_vol);
-
-		vol = BT_incall_mic_vol;
-		wm8994_write(0x20,  320+vol+57);
-
-		vol = BT_incall_vol;
-		wm8994_write(0x19, 0x0500+(vol+16)*10/15);
-		break;
-	default:
-		printk("route error !\n");
-	}
-
-}
-
-void wm8994_codec_set_volume(unsigned char system_type,unsigned char volume)
-{
-	DBG("%s:: system_type = %d volume = %d \n",__FUNCTION__,system_type,volume);
-
-	if(system_type == VOICE_CALL)
-	{
-		if(volume <= call_maxvol)
-			call_vol=volume;
-		else{
-			printk("%s----%d::max value is 7\n",__FUNCTION__,__LINE__);
-			call_vol=call_maxvol;
-		}
-		if(wm8994_current_mode<=wm8994_mainMIC_to_baseband_to_speakers_and_record&&
-		wm8994_current_mode>=wm8994_handsetMIC_to_baseband_to_headset)
-			wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	}else if(system_type == BLUETOOTH_SCO){
-		if(volume <= BT_call_maxvol)
-			BT_call_vol = volume;
-		else{
-			printk("%s----%d::max value is 15\n",__FUNCTION__,__LINE__);
-			BT_call_vol = BT_call_maxvol;
-		}
-		if(wm8994_current_mode<null&&
-		wm8994_current_mode>=wm8994_BT_baseband)
-			wm8994_set_volume(wm8994_current_mode,BT_call_vol,BT_call_maxvol);
-	}else{
-		return;
-		printk("%s----%d::system type error!\n",__FUNCTION__,__LINE__);
-	}
-}
-
-void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume)
-{
-	unsigned short lvol=0,rvol=0;
-
-//	DBG("%s::volume = %d \n",__FUNCTION__,volume);
-
-	if(volume>max_volume)volume=max_volume;
-	
-	if(wm8994_mode == wm8994_handsetMIC_to_baseband_to_headset_and_record||
-	wm8994_mode == wm8994_handsetMIC_to_baseband_to_headset||
-	wm8994_mode == wm8994_mainMIC_to_baseband_to_headset)
-	{
-		wm8994_read(0x001C, &lvol);
-		wm8994_read(0x001D, &rvol);
-		//HPOUT1L_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x001C, (lvol&~0x003f)|headset_vol_table[volume]); 
-		//HPOUT1R_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x001D, (rvol&~0x003f)|headset_vol_table[volume]); 
-	}
-	else if(wm8994_mode == wm8994_mainMIC_to_baseband_to_speakers_and_record||
-	wm8994_mode == wm8994_mainMIC_to_baseband_to_speakers)
-	{
-		wm8994_read(0x0026, &lvol);
-		wm8994_read(0x0027, &rvol);
-		//SPKOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0026, (lvol&~0x003f)|speakers_vol_table[volume]);
-		//SPKOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0027, (rvol&~0x003f)|speakers_vol_table[volume]);
-	}
-	else if(wm8994_mode == wm8994_mainMIC_to_baseband_to_earpiece||
-	wm8994_mode == wm8994_mainMIC_to_baseband_to_earpiece_and_record)
-	{
-		wm8994_read(0x0020, &lvol);
-		wm8994_read(0x0021, &rvol);
-
-		//MIXOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0020, (lvol&~0x003f)|earpiece_vol_table[volume]);
-		//MIXOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0021, (rvol&~0x003f)|earpiece_vol_table[volume]);
-	}
-	else if(wm8994_mode == wm8994_BT_baseband||wm8994_mode==wm8994_BT_baseband_and_record)
-	{
-		//bit 0~4 /-16.5dB to +30dB in 1.5dB steps
-		DBG("BT_vol_table[volume] = 0x%x\n",BT_vol_table[volume]);
-		wm8994_write(0x0500, BT_vol_table[volume]);
-		wm8994_write(0x0501, 0x0100);
-	}
-	else if(wm8994_mode == null)
-	{
-		wm8994_read(0x001C, &lvol);
-		wm8994_read(0x001D, &rvol);
-		wm8994_write(0x001C, (lvol&~0x003f)|headset_vol_table[volume]); 
-		wm8994_write(0x001D, (rvol&~0x003f)|headset_vol_table[volume]);	
-		wm8994_read(0x0026, &lvol);
-		wm8994_read(0x0027, &rvol);
-		wm8994_write(0x0026, (lvol&~0x003f)|speakers_vol_table[volume]);
-		wm8994_write(0x0027, (rvol&~0x003f)|speakers_vol_table[volume]);	
-		wm8994_read(0x0020, &lvol);
-		wm8994_read(0x0021, &rvol);
-		wm8994_write(0x0020, (lvol&~0x003f)|earpiece_vol_table[volume]);
-		wm8994_write(0x0021, (rvol&~0x003f)|earpiece_vol_table[volume]);		
-	}
-}
-
 #define SOC_DOUBLE_SWITCH_WM8994CODEC(xname, route) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_route, \
@@ -2466,29 +2404,38 @@ int snd_soc_get_route(struct snd_kcontrol *kcontrol,
 int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
 	char route = kcontrol->private_value & 0xff;
+
+	wm8994->kcontrol = kcontrol;//save rount
+	//disable PA
+	switch(route)
+	{
+		case HEADSET_NORMAL:
+		case HEADSET_INCALL:
+			PA_ctrl(GPIO_LOW);
+			break;
+		default:
+			break;
+	}
+	//set rount
 	switch(route)
 	{
 		case SPEAKER_NORMAL: 						//AP-> 8994Codec -> Speaker
 		case SPEAKER_RINGTONE:			
 		case EARPIECE_RINGTONE:	
 			recorder_and_AP_to_speakers();
-			PA_ctrl(GPIO_HIGH);
 			break;
 		case SPEAKER_INCALL: 						//BB-> 8994Codec -> Speaker
 			mainMIC_to_baseband_to_speakers();
-			PA_ctrl(GPIO_HIGH);
 			break;					
 		case HEADSET_NORMAL:						//AP-> 8994Codec -> Headset
-			PA_ctrl(GPIO_LOW);
 			recorder_and_AP_to_headset();
 			break;
 		case HEADSET_INCALL:						//AP-> 8994Codec -> Headset
-			PA_ctrl(GPIO_LOW);
 			handsetMIC_to_baseband_to_headset();
 			break;	    
 		case EARPIECE_INCALL:						//BB-> 8994Codec -> EARPIECE
-			PA_ctrl(GPIO_LOW);
 			mainMIC_to_baseband_to_earpiece();
 			break;
 		case EARPIECE_NORMAL:						//BB-> 8994Codec -> EARPIECE
@@ -2496,52 +2443,60 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			{
 				case wm8994_handsetMIC_to_baseband_to_headset:
 				case wm8994_mainMIC_to_baseband_to_headset:
-					PA_ctrl(GPIO_LOW);
 					recorder_and_AP_to_headset();
 					break;
 				default:
-					recorder_and_AP_to_speakers();
-					PA_ctrl(GPIO_HIGH);				
+					recorder_and_AP_to_speakers();	
 					break;
 			}
 			break;   	
 		case BLUETOOTH_SCO_INCALL:					//BB-> 8994Codec -> BLUETOOTH_SCO 
 			BT_baseband();
-			PA_ctrl(GPIO_HIGH);
 			break;   
 		case MIC_CAPTURE:
 			switch(wm8994_current_mode)
 			{
 				case wm8994_AP_to_headset:
-					PA_ctrl(GPIO_LOW);
 					recorder_and_AP_to_headset();
 					break;
 				case wm8994_AP_to_speakers:
 					recorder_and_AP_to_speakers();
-					PA_ctrl(GPIO_HIGH);
 					break;
 				case wm8994_recorder_and_AP_to_speakers:
 				case wm8994_recorder_and_AP_to_headset:
 					break;
 				default:
 					recorder_and_AP_to_speakers();
-					PA_ctrl(GPIO_HIGH);
-					DBG("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);				
+					DBG("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);	
+					break;
 			}
 			break;
 		case HEADSET_RINGTONE:
-			PA_ctrl(GPIO_LOW);
 			AP_to_speakers_and_headset();
 			break;
 		case BLUETOOTH_A2DP_NORMAL:					//AP-> 8994Codec -> BLUETOOTH_A2DP
 		case BLUETOOTH_A2DP_INCALL:
 		case BLUETOOTH_SCO_NORMAL:
-			printk("this route not user\n");
+			printk("this route not use\n");
 			break;		 			
 		default:
 			printk("wm8994 error route!!!\n");
-			break;
+			return 0;
 	}
+	//enable PA
+	switch(route)
+	{
+		case HEADSET_NORMAL:
+		case HEADSET_INCALL:
+		case BLUETOOTH_A2DP_NORMAL:	
+		case BLUETOOTH_A2DP_INCALL:
+		case BLUETOOTH_SCO_NORMAL:		
+			break;
+		default:
+			PA_ctrl(GPIO_HIGH);		
+			break;
+	}	
+	
 	return 0;
 }
 
@@ -3064,26 +3019,18 @@ EXPORT_SYMBOL_GPL(wm8994_dai);
 
 static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;
+//	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+//	struct snd_soc_codec *codec = socdev->card->codec;
+//	struct wm8994_priv *wm8994 = codec->private_data;
+//	struct wm8994_pdata *pdata = wm8994->pdata;
 	
-	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
-	if(pdata ->PA_control == 1)
-	{
-		DBG("wm8994 suspend disable PA_control\n");
-		gpio_request(RK29_PIN6_PD3, NULL);		//AUDIO_PA_ON	 
-		gpio_direction_output(RK29_PIN6_PD3,GPIO_LOW); 		
-		gpio_free(RK29_PIN6_PD3);
-	}
-	
+	DBG("wm8994_suspend\n");
+	PA_ctrl(GPIO_LOW);
 	wm8994_write(0x00, 0x00);
-
+	
 	gpio_request(WM_EN_PIN, NULL);
 	gpio_direction_output(WM_EN_PIN,GPIO_LOW);
-	gpio_free(WM_EN_PIN);
-	
+	gpio_free(WM_EN_PIN);	
 	msleep(50);
 
 	return 0;
@@ -3093,33 +3040,17 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	wm8994_codec_fnc_t **wm8994_fnc_ptr = wm8994_codec_sequence;
-	unsigned char wm8994_resume_mode = wm8994_current_mode;
-	wm8994_current_mode = null;
+	struct wm8994_priv *wm8994 = codec->private_data;
+//	struct wm8994_pdata *pdata = wm8994->pdata;
 
 	gpio_request(WM_EN_PIN, NULL);
 	gpio_direction_output(WM_EN_PIN,GPIO_HIGH);
 	gpio_free(WM_EN_PIN);
-	
 	msleep(50);
-
-	wm8994_set_bias_level(codec,SND_SOC_BIAS_STANDBY);
-	if(wm8994_resume_mode == wm8994_recorder_and_AP_to_speakers ||
-	wm8994_resume_mode == wm8994_recorder_and_AP_to_headset)
-	{
-		DBG("wm8994 resume\n");
-	}
-	else if(wm8994_resume_mode > wm8994_BT_baseband_and_record)
-	{
-		wm8994_resume_mode = wm8994_recorder_and_AP_to_speakers;
-		printk("%s--%d--: Wm8994 resume with null mode\n",__FUNCTION__,__LINE__);
-	}
-	else
-		printk("%s--%d--: Wm8994 resume with error mode\n",__FUNCTION__,__LINE__);
-
-	wm8994_fnc_ptr += wm8994_resume_mode;
-	(*wm8994_fnc_ptr)() ;
-        
+    
+	DBG("wm8994_resume put route\n");
+	wm8994_current_mode = null;
+	snd_soc_put_route(wm8994->kcontrol,NULL);
 	return 0;
 }
 
@@ -3199,6 +3130,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		}
 		break;	
 	case 'p':
+	case 'P':
 		if(cookie_pot[1] =='-')
 		{
 			kcontrol.private_value = simple_strtol(&cookie_pot[2],NULL,10);
@@ -3213,7 +3145,6 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		}	
 		else
 		{
-			printk("snd_soc_put_route error\n");
 			goto help;
 		}
 		help:
@@ -3228,6 +3159,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		DBG("-->'d&&D' Open or Off the debug\n");
 		DBG("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>wm8994_ts\n");
 		DBG("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>wm8994_ts\n");
+		DBG("-->'ph&&Ph' cat snd_soc_put_route list\n");
 		break;
 	}
 
@@ -3301,7 +3233,11 @@ static int wm8994_probe(struct platform_device *pdev)
 		dev_err(codec->dev, "failed to register card: %d\n", ret);
 		goto card_err;
 	}
-
+	//enable power_EN
+	gpio_request(WM_EN_PIN, NULL);			 
+	gpio_direction_output(WM_EN_PIN,GPIO_HIGH); 		
+	gpio_free(WM_EN_PIN);
+	
 	return ret;
 
 card_err:
@@ -3425,6 +3361,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 	wm8994->pdata = i2c->dev.platform_data;//add
+	wm8994->RW_status = TRUE;//add
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }
 
