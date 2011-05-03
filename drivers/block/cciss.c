@@ -558,7 +558,7 @@ static void __devinit cciss_procinit(ctlr_info_t *h)
 #define to_hba(n) container_of(n, struct ctlr_info, dev)
 #define to_drv(n) container_of(n, drive_info_struct, dev)
 
-/* List of controllers which cannot be reset on kexec with reset_devices */
+/* List of controllers which cannot be hard reset on kexec with reset_devices */
 static u32 unresettable_controller[] = {
 	0x324a103C, /* Smart Array P712m */
 	0x324b103C, /* SmartArray P711m */
@@ -576,14 +576,36 @@ static u32 unresettable_controller[] = {
 	0x409D0E11, /* Smart Array 6400 EM */
 };
 
-static int ctlr_is_resettable(struct ctlr_info *h)
+/* List of controllers which cannot even be soft reset */
+static u32 soft_unresettable_controller[] = {
+	0x409C0E11, /* Smart Array 6400 */
+	0x409D0E11, /* Smart Array 6400 EM */
+};
+
+static int ctlr_is_hard_resettable(u32 board_id)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(unresettable_controller); i++)
-		if (unresettable_controller[i] == h->board_id)
+		if (unresettable_controller[i] == board_id)
 			return 0;
 	return 1;
+}
+
+static int ctlr_is_soft_resettable(u32 board_id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(soft_unresettable_controller); i++)
+		if (soft_unresettable_controller[i] == board_id)
+			return 0;
+	return 1;
+}
+
+static int ctlr_is_resettable(u32 board_id)
+{
+	return ctlr_is_hard_resettable(board_id) ||
+		ctlr_is_soft_resettable(board_id);
 }
 
 static ssize_t host_show_resettable(struct device *dev,
@@ -592,7 +614,7 @@ static ssize_t host_show_resettable(struct device *dev,
 {
 	struct ctlr_info *h = to_hba(dev);
 
-	return snprintf(buf, 20, "%d\n", ctlr_is_resettable(h));
+	return snprintf(buf, 20, "%d\n", ctlr_is_resettable(h->board_id));
 }
 static DEVICE_ATTR(resettable, S_IRUGO, host_show_resettable, NULL);
 
@@ -4601,11 +4623,15 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * likely not be happy.  Just forbid resetting this conjoined mess.
 	 */
 	cciss_lookup_board_id(pdev, &board_id);
-	if (board_id == 0x409C0E11 || board_id == 0x409D0E11) {
+	if (!ctlr_is_resettable(board_id)) {
 		dev_warn(&pdev->dev, "Cannot reset Smart Array 640x "
 				"due to shared cache module.");
 		return -ENODEV;
 	}
+
+	/* if controller is soft- but not hard resettable... */
+	if (!ctlr_is_hard_resettable(board_id))
+		return -ENOTSUPP; /* try soft reset later. */
 
 	/* Save the PCI command register */
 	pci_read_config_word(pdev, 4, &command_register);
