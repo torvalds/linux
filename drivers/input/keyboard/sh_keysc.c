@@ -329,7 +329,7 @@ static const struct dev_pm_ops sh_keysc_dev_pm_ops = {
 	.resume = sh_keysc_resume,
 };
 
-struct platform_driver sh_keysc_device_driver = {
+static struct platform_driver sh_keysc_device_driver = {
 	.probe		= sh_keysc_probe,
 	.remove		= __devexit_p(sh_keysc_remove),
 	.driver		= {
