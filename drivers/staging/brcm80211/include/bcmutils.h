@@ -480,7 +480,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* externs */
 /* crc */
 	extern u8 hndcrc8(u8 *p, uint nbytes, u8 crc);
-	extern u16 hndcrc16(u8 *p, uint nbytes, u16 crc);
 /* format/print */
 #if defined(BCMDBG)
 	extern int bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags,

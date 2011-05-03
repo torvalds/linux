@@ -4,6 +4,7 @@ config BRCMSMAC
 	depends on PCI
 	depends on WLAN && MAC80211
 	select FW_LOADER
+	select CRC_CCITT
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
 	  IEEE802.11n SoftMAC chipsets.  If you choose to build a module, it'll
