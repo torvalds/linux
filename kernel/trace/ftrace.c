@@ -890,6 +890,10 @@ static const struct ftrace_hash empty_hash = {
 };
 #define EMPTY_HASH	((struct ftrace_hash *)&empty_hash)
 
+enum {
+	FTRACE_OPS_FL_ENABLED		= 1,
+};
+
 struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 	.notrace_hash		= EMPTY_HASH,
@@ -1161,6 +1165,105 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 		}				\
 	}
 
+static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
+				     int filter_hash,
+				     bool inc)
+{
+	struct ftrace_hash *hash;
+	struct ftrace_hash *other_hash;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	int count = 0;
+	int all = 0;
+
+	/* Only update if the ops has been registered */
+	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
+		return;
+
+	/*
+	 * In the filter_hash case:
+	 *   If the count is zero, we update all records.
+	 *   Otherwise we just update the items in the hash.
+	 *
+	 * In the notrace_hash case:
+	 *   We enable the update in the hash.
+	 *   As disabling notrace means enabling the tracing,
+	 *   and enabling notrace means disabling, the inc variable
+	 *   gets inversed.
+	 */
+	if (filter_hash) {
+		hash = ops->filter_hash;
+		other_hash = ops->notrace_hash;
+		if (!hash->count)
+			all = 1;
+	} else {
+		inc = !inc;
+		hash = ops->notrace_hash;
+		other_hash = ops->filter_hash;
+		/*
+		 * If the notrace hash has no items,
+		 * then there's nothing to do.
+		 */
+		if (!hash->count)
+			return;
+	}
+
+	do_for_each_ftrace_rec(pg, rec) {
+		int in_other_hash = 0;
+		int in_hash = 0;
+		int match = 0;
+
+		if (all) {
+			/*
+			 * Only the filter_hash affects all records.
+			 * Update if the record is not in the notrace hash.
+			 */
+			if (!ftrace_lookup_ip(other_hash, rec->ip))
+				match = 1;
+		} else {
+			in_hash = !!ftrace_lookup_ip(hash, rec->ip);
+			in_other_hash = !!ftrace_lookup_ip(other_hash, rec->ip);
+
+			/*
+			 *
+			 */
+			if (filter_hash && in_hash && !in_other_hash)
+				match = 1;
+			else if (!filter_hash && in_hash &&
+				 (in_other_hash || !other_hash->count))
+				match = 1;
+		}
+		if (!match)
+			continue;
+
+		if (inc) {
+			rec->flags++;
+			if (FTRACE_WARN_ON((rec->flags & ~FTRACE_FL_MASK) == FTRACE_REF_MAX))
+				return;
+		} else {
+			if (FTRACE_WARN_ON((rec->flags & ~FTRACE_FL_MASK) == 0))
+				return;
+			rec->flags--;
+		}
+		count++;
+		/* Shortcut, if we handled all records, we are done. */
+		if (!all && count == hash->count)
+			return;
+	} while_for_each_ftrace_rec();
+}
+
+static void ftrace_hash_rec_disable(struct ftrace_ops *ops,
+				    int filter_hash)
+{
+	__ftrace_hash_rec_update(ops, filter_hash, 0);
+}
+
+static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
+				   int filter_hash)
+{
+	__ftrace_hash_rec_update(ops, filter_hash, 1);
+}
+
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
 	rec->freelist = ftrace_free_records;
@@ -1276,26 +1379,24 @@ int ftrace_text_reserved(void *start, void *end)
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
-	struct ftrace_ops *ops = &global_ops;
 	unsigned long ftrace_addr;
 	unsigned long flag = 0UL;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
 	/*
-	 * If this record is not to be traced or we want to disable it,
-	 * then disable it.
+	 * If we are enabling tracing:
 	 *
-	 * If we want to enable it and filtering is off, then enable it.
+	 *   If the record has a ref count, then we need to enable it
+	 *   because someone is using it.
 	 *
-	 * If we want to enable it and filtering is on, enable it only if
-	 * it's filtered
+	 *   Otherwise we make sure its disabled.
+	 *
+	 * If we are disabling tracing, then disable all records that
+	 * are enabled.
 	 */
-	if (enable && !ftrace_lookup_ip(ops->notrace_hash, rec->ip)) {
-		if (!ops->filter_hash->count ||
-		    ftrace_lookup_ip(ops->filter_hash, rec->ip))
-			flag = FTRACE_FL_ENABLED;
-	}
+	if (enable && (rec->flags & ~FTRACE_FL_MASK))
+		flag = FTRACE_FL_ENABLED;
 
 	/* If the state of this record hasn't changed, then do nothing */
 	if ((rec->flags & FTRACE_FL_ENABLED) == flag)
@@ -1423,17 +1524,25 @@ static void ftrace_startup_enable(int command)
 
 static void ftrace_startup(int command)
 {
+	struct ftrace_ops *ops = &global_ops;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
 	ftrace_start_up++;
 	command |= FTRACE_ENABLE_CALLS;
 
+	ops->flags |= FTRACE_OPS_FL_ENABLED;
+	if (ftrace_start_up == 1)
+		ftrace_hash_rec_enable(ops, 1);
+
 	ftrace_startup_enable(command);
 }
 
 static void ftrace_shutdown(int command)
 {
+	struct ftrace_ops *ops = &global_ops;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -1446,7 +1555,12 @@ static void ftrace_shutdown(int command)
 	WARN_ON_ONCE(ftrace_start_up < 0);
 
 	if (!ftrace_start_up)
+		ftrace_hash_rec_disable(ops, 1);
+
+	if (!ftrace_start_up) {
 		command |= FTRACE_DISABLE_CALLS;
+		ops->flags &= ~FTRACE_OPS_FL_ENABLED;
+	}
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;
@@ -2668,6 +2782,7 @@ ftrace_regex_release(struct inode *inode, struct file *file)
 	struct ftrace_iterator *iter;
 	struct ftrace_hash **orig_hash;
 	struct trace_parser *parser;
+	int filter_hash;
 	int ret;
 
 	mutex_lock(&ftrace_regex_lock);
@@ -2687,15 +2802,26 @@ ftrace_regex_release(struct inode *inode, struct file *file)
 	trace_parser_put(parser);
 
 	if (file->f_mode & FMODE_WRITE) {
-		if (iter->flags & FTRACE_ITER_NOTRACE)
-			orig_hash = &iter->ops->notrace_hash;
-		else
+		filter_hash = !!(iter->flags & FTRACE_ITER_FILTER);
+
+		if (filter_hash)
 			orig_hash = &iter->ops->filter_hash;
+		else
+			orig_hash = &iter->ops->notrace_hash;
 
 		mutex_lock(&ftrace_lock);
+		/*
+		 * Remove the current set, update the hash and add
+		 * them back.
+		 */
+		ftrace_hash_rec_disable(iter->ops, filter_hash);
 		ret = ftrace_hash_move(orig_hash, iter->hash);
-		if (!ret && ftrace_start_up && ftrace_enabled)
-			ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+		if (!ret) {
+			ftrace_hash_rec_enable(iter->ops, filter_hash);
+			if (iter->ops->flags & FTRACE_OPS_FL_ENABLED
+			    && ftrace_enabled)
+				ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+		}
 		mutex_unlock(&ftrace_lock);
 	}
 	free_ftrace_hash(iter->hash);
