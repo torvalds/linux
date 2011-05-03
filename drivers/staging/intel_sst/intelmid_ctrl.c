@@ -504,8 +504,8 @@ static int snd_intelmad_device_get(struct snd_kcontrol *kcontrol,
 	WARN_ON(!kcontrol);
 
 	intelmaddata = kcontrol->private_data;
+	scard_ops = intelmaddata->sstdrv_ops->scard_ops;
 	if (intelmaddata->cpu_id == CPU_CHIP_PENWELL) {
-		scard_ops = intelmaddata->sstdrv_ops->scard_ops;
 		if (kcontrol->id.numid == OUTPUT_SEL)
 			uval->value.enumerated.item[0] =
 					scard_ops->output_dev_id;
@@ -515,6 +515,25 @@ static int snd_intelmad_device_get(struct snd_kcontrol *kcontrol,
 		else if (kcontrol->id.numid == LINEOUT_SEL_MFLD)
 			uval->value.enumerated.item[0] =
 					scard_ops->lineout_dev_id;
+		else
+			return -EINVAL;
+	} else if (intelmaddata->cpu_id == CPU_CHIP_LINCROFT) {
+		if (kcontrol->id.numid == OUTPUT_SEL)
+			/* There is a mismatch here.
+			 * ALSA expects 1 for internal speaker.
+			 * But internally, we may give 2 for internal speaker.
+			 */
+			if (scard_ops->output_dev_id == MONO_EARPIECE ||
+			    scard_ops->output_dev_id == INTERNAL_SPKR)
+				uval->value.enumerated.item[0] = MONO_EARPIECE;
+			else if (scard_ops->output_dev_id == STEREO_HEADPHONE)
+				uval->value.enumerated.item[0] =
+					STEREO_HEADPHONE;
+			else
+				return -EINVAL;
+		else if (kcontrol->id.numid == INPUT_SEL)
+			uval->value.enumerated.item[0] =
+					scard_ops->input_dev_id;
 		else
 			return -EINVAL;
 	} else
