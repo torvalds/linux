@@ -6338,9 +6338,7 @@ dhdsdio_sdiod_drive_strength_init(struct dhd_bus *bus, u32 drivestrength) {
 	struct sdiod_drive_str *str_tab = NULL;
 	u32 str_mask = 0;
 	u32 str_shift = 0;
-#ifdef BCMDBG
 	char chn[8];
-#endif
 
 	if (!(bus->ci->cccaps & CC_CAP_PMU))
 		return;
