@@ -30,8 +30,10 @@
 
 #include <linux/pci.h>
 #include <linux/file.h>
+#include <sound/control.h>
 #include "intel_sst.h"
 #include "intelmid_snd_control.h"
+#include "intelmid.h"
 
 enum reg_v3 {
 	VAUDIOCNT = 0x51,
@@ -884,10 +886,7 @@ static int nc_set_selected_input_dev(u8 value)
 	}
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, num_val);
 }
-static int nc_set_selected_lineout_dev(u8 dev_id)
-{
-	return 0;
-}
+
 static int nc_get_mute(int dev_id, u8 *value)
 {
 	int retval = 0, mask = 0;
@@ -989,10 +988,66 @@ static int nc_get_vol(int dev_id, int *value)
 	return retval;
 }
 
+static void nc_pmic_irq_cb(void *cb_data, u8 intsts)
+{
+	u8 value = 0;
+	struct mad_jack *mjack = NULL;
+	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
+	struct snd_intelmad *intelmaddata = cb_data;
+	struct sc_reg_access sc_access_read = {0,};
+
+	sc_access_read.reg_addr = 0x132;
+	sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
+	value = (sc_access_read.value);
+	pr_debug("value returned = 0x%x\n", value);
+
+	mjack = &intelmaddata->jack[0];
+	if (intsts & 0x1) {
+		pr_debug("SST DBG:MAD headset detected\n");
+		/* send headset detect/undetect */
+		present = (value == 0x1) ? 1 : 0;
+		jack_event_flag = 1;
+		mjack->jack.type = SND_JACK_HEADSET;
+	}
+
+	if (intsts & 0x2) {
+		pr_debug(":MAD headphone detected\n");
+		/* send headphone detect/undetect */
+		present = (value == 0x2) ? 1 : 0;
+		jack_event_flag = 1;
+		mjack->jack.type = SND_JACK_HEADPHONE;
+	}
+
+	if (intsts & 0x4) {
+		pr_debug("MAD short push detected\n");
+		/* send short push */
+		present = 1;
+		jack_event_flag = 1;
+		buttonpressflag = 1;
+		mjack->jack.type = MID_JACK_HS_SHORT_PRESS;
+	}
+
+	if (intsts & 0x8) {
+		pr_debug(":MAD long push detected\n");
+		/* send long push */
+		present = 1;
+		jack_event_flag = 1;
+		buttonpressflag = 1;
+		mjack->jack.type = MID_JACK_HS_SHORT_PRESS;
+	}
+
+	if (jack_event_flag)
+		sst_mad_send_jack_report(&mjack->jack,
+					buttonpressflag, present);
+}
+static int nc_jack_enable(void)
+{
+	return 0;
+}
+
 struct snd_pmic_ops snd_pmic_ops_nc = {
 	.set_input_dev	=	nc_set_selected_input_dev,
 	.set_output_dev =	nc_set_selected_output_dev,
-	.set_lineout_dev =	nc_set_selected_lineout_dev,
 	.set_mute	=	nc_set_mute,
 	.get_mute	=	nc_get_mute,
 	.set_vol	=	nc_set_vol,
@@ -1006,5 +1061,7 @@ struct snd_pmic_ops snd_pmic_ops_nc = {
 	.power_up_pmic_cp =	nc_power_up_cp,
 	.power_down_pmic_pb =	nc_power_down_pb,
 	.power_down_pmic_cp =	nc_power_down_cp,
-	.power_down_pmic =	nc_power_down,
+	.power_down_pmic	=	nc_power_down,
+	.pmic_irq_cb	=	nc_pmic_irq_cb,
+	.pmic_jack_enable =	nc_jack_enable,
 };

@@ -67,12 +67,17 @@
 #define MIN_VOL		0
 #define PLAYBACK_COUNT  1
 #define CAPTURE_COUNT	1
+#define ADC_ONE_LSB_MULTIPLIER 2346
+
+#define MID_JACK_HS_LONG_PRESS SND_JACK_BTN_0
+#define MID_JACK_HS_SHORT_PRESS SND_JACK_BTN_1
 
 extern int	sst_card_vendor_id;
 
 struct mad_jack {
 	struct snd_jack jack;
 	int jack_status;
+	int jack_dev_state;
 	struct timeval buttonpressed;
 	struct timeval  buttonreleased;
 };
@@ -82,6 +87,12 @@ struct mad_jack_msg_wq {
 	struct snd_intelmad *intelmaddata;
 	struct work_struct	wq;
 
+};
+
+struct snd_intelmad_probe_info {
+	unsigned int cpu_id;
+	unsigned int irq_cache;
+	unsigned int size;
 };
 
 /**
@@ -122,6 +133,7 @@ struct snd_intelmad {
 	struct mad_jack jack[4];
 	int playback_cnt;
 	int capture_cnt;
+	u16 adc_address;
 	struct mad_jack_msg_wq  mad_jack_msg;
 	struct workqueue_struct *mad_jack_wq;
 	u8 jack_prev_state;
@@ -188,5 +200,7 @@ extern struct snd_control_val intelmad_ctrl_val[];
 extern struct snd_kcontrol_new snd_intelmad_controls_mrst[];
 extern struct snd_kcontrol_new snd_intelmad_controls_mfld[];
 extern struct snd_pmic_ops *intelmad_vendor_ops[];
+void sst_mad_send_jack_report(struct snd_jack *jack,
+			int buttonpressevent , int status);
 
 #endif /* __INTELMID_H */

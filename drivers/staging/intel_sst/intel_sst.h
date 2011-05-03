@@ -30,6 +30,7 @@
  *  This file is shared between the SST and MAD drivers
  */
 #include "intel_sst_ioctl.h"
+#include <sound/jack.h>
 
 #define SST_CARD_NAMES "intel_mid_card"
 
@@ -88,6 +89,7 @@ struct snd_pmic_ops {
 	int output_dev_id;
 	int lineout_dev_id, line_out_names_cnt;
 	int prev_lineout_dev_id;
+	bool jack_interrupt_status;
 	int (*set_input_dev) (u8 value);
 	int (*set_output_dev) (u8 value);
 	int (*set_lineout_dev) (u8 value);
@@ -109,10 +111,24 @@ struct snd_pmic_ops {
 	int (*power_down_pmic_pb) (unsigned int device);
 	int (*power_down_pmic_cp) (unsigned int device);
 	int (*power_down_pmic) (void);
+	void (*pmic_irq_cb) (void *cb_data, u8 value);
+	void (*pmic_irq_enable)(void *data);
+	int (*pmic_jack_enable) (void);
+	int (*pmic_get_mic_bias)(void *intelmaddata);
+	int (*pmic_set_headset_state)(int state);
+
 	unsigned int hw_dmic_map[MFLD_MAX_HW_CH];
 	unsigned int available_dmics;
 	int (*set_hw_dmic_route) (u8 index);
 };
+
+extern void sst_mad_send_jack_report(struct snd_jack *jack,
+				     int buttonpressevent,
+				     int status);
+
+
+int intemad_set_headset_state(int state);
+int intelmad_get_mic_bias(void);
 
 struct intel_sst_pcm_control {
 	int (*open) (struct snd_sst_params *str_param);

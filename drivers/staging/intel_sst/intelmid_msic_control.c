@@ -89,6 +89,7 @@ static int msic_init_card(void)
 	snd_msic_ops.cap_on = 0;
 	snd_msic_ops.input_dev_id = DMIC; /*def dev*/
 	snd_msic_ops.output_dev_id = STEREO_HEADPHONE;
+	snd_msic_ops.jack_interrupt_status = false;
 	pr_debug("msic init complete!!\n");
 	return 0;
 }
@@ -109,6 +110,9 @@ static int msic_line_out_restore(u8 value)
 	struct sc_reg_access vib2_drv_en[] = {
 		{0x25d, 0x20, 0x20},
 	};
+	struct sc_reg_access pmode_enable[] = {
+		{0x381, 0x10, 0x10},
+	};
 	int retval = 0;
 
 	pr_debug("msic_lineout_restore_lineout_dev:%d\n", value);
@@ -126,6 +130,9 @@ static int msic_line_out_restore(u8 value)
 	case IHF:
 		pr_debug("Selecting Lineout-IHF-restore\n");
 		retval = sst_sc_reg_access(ihf_drv_en, PMIC_READ_MODIFY, 1);
+		if (retval)
+			return retval;
+		retval = sst_sc_reg_access(pmode_enable, PMIC_READ_MODIFY, 1);
 		break;
 	case VIBRA1:
 		pr_debug("Selecting Lineout-Vibra1-restore\n");
@@ -255,6 +262,12 @@ static int msic_set_selected_lineout_dev(u8 value)
 	struct sc_reg_access lout_def[] = {
 		{0x25e, 0x66, 0x0},
 	};
+	struct sc_reg_access pmode_disable[] = {
+		{0x381, 0x00, 0x10},
+	};
+	struct sc_reg_access pmode_enable[] = {
+		{0x381, 0x10, 0x10},
+	};
 	int retval = 0;
 
 	pr_debug("msic_set_selected_lineout_dev:%d\n", value);
@@ -268,29 +281,49 @@ static int msic_set_selected_lineout_dev(u8 value)
 		if (snd_msic_ops.pb_on)
 			retval = sst_sc_reg_access(lout_hs,
 					PMIC_READ_MODIFY, 2);
+			if (retval)
+				return retval;
+			retval = sst_sc_reg_access(pmode_disable,
+					PMIC_READ_MODIFY, 1);
 		break;
 	case IHF:
 		pr_debug("Selecting Lineout-IHF\n");
 		if (snd_msic_ops.pb_on)
 			retval = sst_sc_reg_access(lout_ihf,
 							PMIC_READ_MODIFY, 2);
+			if (retval)
+				return retval;
+			retval = sst_sc_reg_access(pmode_enable,
+					PMIC_READ_MODIFY, 1);
 		break;
 	case VIBRA1:
 		pr_debug("Selecting Lineout-Vibra1\n");
 		if (snd_msic_ops.pb_on)
 			retval = sst_sc_reg_access(lout_vibra1,
 							PMIC_READ_MODIFY, 2);
+			if (retval)
+				return retval;
+			retval = sst_sc_reg_access(pmode_disable,
+					PMIC_READ_MODIFY, 1);
 		break;
 	case VIBRA2:
 		pr_debug("Selecting Lineout-VIBRA2\n");
 		if (snd_msic_ops.pb_on)
 			retval = sst_sc_reg_access(lout_vibra2,
 							PMIC_READ_MODIFY, 2);
+			if (retval)
+				return retval;
+			retval = sst_sc_reg_access(pmode_disable,
+					PMIC_READ_MODIFY, 1);
 		break;
 	case NONE:
 		pr_debug("Selecting Lineout-NONE\n");
 			retval = sst_sc_reg_access(lout_def,
 							PMIC_WRITE, 1);
+			if (retval)
+				return retval;
+			retval = sst_sc_reg_access(pmode_disable,
+					PMIC_READ_MODIFY, 1);
 		break;
 	default:
 		return -EINVAL;
@@ -311,11 +344,12 @@ static int msic_power_up_pb(unsigned int device)
 	};
 	struct sc_reg_access vhs[] = {
 		/*  VHSP */
-		{0x0DC, 0xFF, 0},
+		{0x0DC, 0x3D, 0},
 		/*  VHSN */
 		{0x0DD, 0x3F, 0},
 	};
 	struct sc_reg_access hsdac[] = {
+		{0x382, 0x40, 0x40},
 		/*  disable driver */
 		{0x25D, 0x0, 0x43},
 		/* DAC CONFIG ; both HP, LP on */
@@ -401,7 +435,7 @@ static int msic_power_up_pb(unsigned int device)
 		snd_msic_ops.pbhs_on = 1;
 		if (snd_msic_ops.output_dev_id == STEREO_HEADPHONE) {
 			sst_sc_reg_access(vhs, PMIC_WRITE, 2);
-			sst_sc_reg_access(hsdac, PMIC_READ_MODIFY, 2);
+			sst_sc_reg_access(hsdac, PMIC_READ_MODIFY, 3);
 			sst_sc_reg_access(hs_filter, PMIC_WRITE, 2);
 			sst_sc_reg_access(hs_enable, PMIC_READ_MODIFY, 4);
 		} else {
@@ -555,6 +589,7 @@ static int msic_power_down_pb(unsigned int device)
 	struct sc_reg_access hs_off[] = {
 		{0x257, 0x00, 0x03},
 		{0x250, 0x00, 0x30},
+		{0x382, 0x00, 0x40},
 	};
 	struct sc_reg_access ihf_mute[] = {
 		{0x25B, 0x80, 0x80},
@@ -573,6 +608,9 @@ static int msic_power_down_pb(unsigned int device)
 	struct sc_reg_access lout_off[] = {
 		{0x25e, 0x66, 0x00},
 	};
+	struct sc_reg_access pmode_disable[] = {
+		{0x381, 0x00, 0x10},
+	};
 
 
 
@@ -583,7 +621,7 @@ static int msic_power_down_pb(unsigned int device)
 		sst_sc_reg_access(hs_mute, PMIC_READ_MODIFY, 3);
 		drv_enable[0].mask = 0x43;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
-		sst_sc_reg_access(hs_off, PMIC_READ_MODIFY, 2);
+		sst_sc_reg_access(hs_off, PMIC_READ_MODIFY, 3);
 		if (snd_msic_ops.lineout_dev_id == HEADSET)
 			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
 		break;
@@ -593,8 +631,10 @@ static int msic_power_down_pb(unsigned int device)
 		drv_enable[0].mask = 0x0C;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
 		sst_sc_reg_access(ihf_off, PMIC_READ_MODIFY, 2);
-		if (snd_msic_ops.lineout_dev_id == IHF)
+		if (snd_msic_ops.lineout_dev_id == IHF) {
 			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
+			sst_sc_reg_access(pmode_disable, PMIC_READ_MODIFY, 1);
+		}
 		break;
 
 	case SND_SST_DEVICE_VIBRA:
@@ -777,6 +817,210 @@ static int msic_get_vol(int dev_id, int *value)
 	return 0;
 }
 
+static int msic_set_headset_state(int state)
+{
+	struct sc_reg_access hs_enable[] = {
+		{0x25D, 0x03, 0x03},
+	};
+
+	if (state)
+		/*enable*/
+		sst_sc_reg_access(hs_enable, PMIC_READ_MODIFY, 1);
+	else {
+		hs_enable[0].value = 0;
+		sst_sc_reg_access(hs_enable, PMIC_READ_MODIFY, 1);
+	}
+	return 0;
+}
+
+static int msic_enable_mic_bias(void)
+{
+	struct sc_reg_access jack_interrupt_reg[] = {
+		{0x0DB, 0x07, 0x00},
+
+	};
+	struct sc_reg_access jack_bias_reg[] = {
+		{0x247, 0x0C, 0x0C},
+	};
+
+	sst_sc_reg_access(jack_interrupt_reg, PMIC_WRITE, 1);
+	sst_sc_reg_access(jack_bias_reg, PMIC_READ_MODIFY, 1);
+	return 0;
+}
+
+static int msic_disable_mic_bias(void)
+{
+	if (snd_msic_ops.jack_interrupt_status == true)
+		return 0;
+	if (!(snd_msic_ops.pb_on || snd_msic_ops.cap_on))
+		msic_power_down();
+	return 0;
+}
+
+static int msic_disable_jack_btn(void)
+{
+	struct sc_reg_access btn_disable[] = {
+		{0x26C, 0x00, 0x01}
+	};
+
+	if (!(snd_msic_ops.pb_on || snd_msic_ops.cap_on))
+		msic_power_down();
+	snd_msic_ops.jack_interrupt_status = false;
+	return sst_sc_reg_access(btn_disable, PMIC_READ_MODIFY, 1);
+}
+
+static int msic_enable_jack_btn(void)
+{
+	struct sc_reg_access btn_enable[] = {
+			{0x26b, 0x77, 0x00},
+			{0x26C, 0x01, 0x00},
+	};
+	return sst_sc_reg_access(btn_enable, PMIC_WRITE, 2);
+}
+static int msic_convert_adc_to_mvolt(unsigned int mic_bias)
+{
+	return (ADC_ONE_LSB_MULTIPLIER * mic_bias) / 1000;
+}
+int msic_get_headset_state(int mic_bias)
+{
+	struct sc_reg_access msic_hs_toggle[] = {
+		{0x070, 0x00, 0x01},
+	};
+	if (mic_bias >= 0 && mic_bias < 400) {
+
+		pr_debug("Detected Headphone!!!\n");
+		sst_sc_reg_access(msic_hs_toggle, PMIC_READ_MODIFY, 1);
+
+	} else if (mic_bias > 400 && mic_bias < 650) {
+
+		pr_debug("Detected American headset\n");
+		msic_hs_toggle[0].value = 0x01;
+		sst_sc_reg_access(msic_hs_toggle, PMIC_READ_MODIFY, 1);
+
+	} else if (mic_bias >= 650 && mic_bias < 2000) {
+
+		pr_debug("Detected Headset!!!\n");
+		sst_sc_reg_access(msic_hs_toggle, PMIC_READ_MODIFY, 1);
+		/*power on jack and btn*/
+		snd_msic_ops.jack_interrupt_status = true;
+		msic_enable_jack_btn();
+		msic_enable_mic_bias();
+		return SND_JACK_HEADSET;
+
+	} else
+		pr_debug("Detected Open Cable!!!\n");
+
+	return SND_JACK_HEADPHONE;
+}
+
+static int msic_get_mic_bias(void *arg)
+{
+	struct snd_intelmad *intelmad_drv = (struct snd_intelmad *)arg;
+	u16 adc_adr = intelmad_drv->adc_address;
+	u16 adc_val;
+	int ret;
+	struct sc_reg_access adc_ctrl3[2] = {
+			{0x1C2, 0x05, 0x0},
+	};
+
+	struct sc_reg_access audio_adc_reg1 = {0,};
+	struct sc_reg_access audio_adc_reg2 = {0,};
+
+	msic_enable_mic_bias();
+	/* Enable the msic for conversion before reading */
+	ret = sst_sc_reg_access(adc_ctrl3, PMIC_WRITE, 1);
+	if (ret)
+		return ret;
+	adc_ctrl3[0].value = 0x04;
+	/* Re-toggle the RRDATARD bit */
+	ret = sst_sc_reg_access(adc_ctrl3, PMIC_WRITE, 1);
+	if (ret)
+		return ret;
+
+	audio_adc_reg1.reg_addr = adc_adr;
+	/* Read the higher bits of data */
+	msleep(1000);
+	ret = sst_sc_reg_access(&audio_adc_reg1, PMIC_READ, 1);
+	if (ret)
+		return ret;
+	pr_debug("adc read value %x", audio_adc_reg1.value);
+
+	/* Shift bits to accomodate the lower two data bits */
+	adc_val = (audio_adc_reg1.value << 2);
+	adc_adr++;
+	audio_adc_reg2. reg_addr = adc_adr;
+	ret = sst_sc_reg_access(&audio_adc_reg2, PMIC_READ, 1);
+	if (ret)
+		return ret;
+	pr_debug("adc read value %x", audio_adc_reg2.value);
+
+	/* Adding lower two bits to the higher bits */
+	audio_adc_reg2.value &= 03;
+	adc_val += audio_adc_reg2.value;
+
+	pr_debug("ADC value 0x%x", adc_val);
+	msic_disable_mic_bias();
+	return adc_val;
+}
+
+static void msic_pmic_irq_cb(void *cb_data, u8 intsts)
+{
+	struct mad_jack *mjack = NULL;
+	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
+	struct snd_intelmad *intelmaddata = cb_data;
+	int retval = 0;
+
+	pr_debug("value returned = 0x%x\n", intsts);
+
+	if (snd_msic_ops.card_status == SND_CARD_UN_INIT) {
+		retval = msic_init_card();
+		if (retval)
+			return;
+	  }
+
+	mjack = &intelmaddata->jack[0];
+	if (intsts & 0x1) {
+		pr_debug("MAD short_push detected\n");
+		present = SND_JACK_BTN_0;
+		jack_event_flag = buttonpressflag = 1;
+		mjack->jack.type = SND_JACK_BTN_0;
+		mjack->jack.key[0] = BTN_0 ;
+	}
+
+	if (intsts & 0x2) {
+		pr_debug(":MAD long_push detected\n");
+		jack_event_flag = buttonpressflag = 1;
+		mjack->jack.type = present = SND_JACK_BTN_1;
+		mjack->jack.key[1] = BTN_1;
+	}
+
+	if (intsts & 0x4) {
+		unsigned int mic_bias;
+		jack_event_flag = 1;
+		buttonpressflag = 0;
+		mic_bias = msic_get_mic_bias(intelmaddata);
+		pr_debug("mic_bias = %d\n", mic_bias);
+		mic_bias = msic_convert_adc_to_mvolt(mic_bias);
+		pr_debug("mic_bias after conversion = %d mV\n", mic_bias);
+		mjack->jack_dev_state = msic_get_headset_state(mic_bias);
+		mjack->jack.type = present = mjack->jack_dev_state;
+	}
+
+	if (intsts & 0x8) {
+		mjack->jack.type = mjack->jack_dev_state;
+		present = 0;
+		jack_event_flag = 1;
+		buttonpressflag = 0;
+		msic_disable_jack_btn();
+		msic_disable_mic_bias();
+	}
+	if (jack_event_flag)
+		sst_mad_send_jack_report(&mjack->jack,
+					buttonpressflag, present);
+}
+
+
+
 struct snd_pmic_ops snd_msic_ops = {
 	.set_input_dev	=	msic_set_selected_input_dev,
 	.set_output_dev =	msic_set_selected_output_dev,
@@ -795,5 +1039,9 @@ struct snd_pmic_ops snd_msic_ops = {
 	.power_up_pmic_cp =	msic_power_up_cp,
 	.power_down_pmic_pb =	msic_power_down_pb,
 	.power_down_pmic_cp =	msic_power_down_cp,
-	.power_down_pmic =	msic_power_down,
+	.power_down_pmic	=	msic_power_down,
+	.pmic_irq_cb	=	msic_pmic_irq_cb,
+	.pmic_jack_enable = msic_enable_mic_bias,
+	.pmic_get_mic_bias	= msic_get_mic_bias,
+	.pmic_set_headset_state = msic_set_headset_state,
 };
