@@ -265,7 +265,6 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 	struct sk_buff *tail = NULL;
 	uint n = 0;
 	uint bound_limit = bound ? wlc_hw->wlc->pub->tunables->rxbnd : -1;
-	u32 tsf_h, tsf_l;
 	wlc_d11rxhdr_t *wlc_rxhdr = NULL;
 
 	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
@@ -284,9 +283,6 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 			break;
 	}
 
-	/* get the TSF REG reading */
-	wlc_bmac_read_tsf(wlc_hw, &tsf_l, &tsf_h);
-
 	/* post more rbufs */
 	dma_rxfill(wlc_hw->di[fifo]);
 
@@ -295,9 +291,7 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 		head = head->prev;
 		p->prev = NULL;
 
-		/* record the tsf_l in wlc_rxd11hdr */
 		wlc_rxhdr = (wlc_d11rxhdr_t *) p->data;
-		wlc_rxhdr->tsf_l = cpu_to_le32(tsf_l);
 
 		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
 		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
