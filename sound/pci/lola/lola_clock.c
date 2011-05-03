@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include "lola.h"
