@@ -98,8 +98,8 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
 	if (!asi) {
-		WL_ERROR("wl%d: wlc_antsel_attach: out of mem\n",
-			 wlc->pub->unit);
+		wiphy_err(wlc->wiphy, "wl%d: wlc_antsel_attach: out of mem\n",
+			  wlc->pub->unit);
 		return NULL;
 	}
 
@@ -128,7 +128,8 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
-				WL_ERROR("wlc_antsel_attach: 2o3 board cfg invalid\n");
+				wiphy_err(wlc->wiphy, "wlc_antsel_attach: 2o3 "
+					  "board cfg invalid\n");
 				ASSERT(0);
 			}
 			break;
