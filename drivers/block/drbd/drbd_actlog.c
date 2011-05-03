@@ -212,26 +212,28 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 	unsigned enr;
+	bool locked = false;
+
 
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
 	for (enr = first; enr <= last; enr++)
 		wait_event(mdev->al_wait, _al_get(mdev, enr) != NULL);
 
-	if (mdev->act_log->pending_changes) {
+	/* Serialize multiple transactions.
+	 * This uses test_and_set_bit, memory barrier is implicit.
+	 */
+	wait_event(mdev->al_wait,
+			mdev->act_log->pending_changes == 0 ||
+			(locked = lc_try_lock_for_transaction(mdev->act_log)));
+
+	if (locked) {
 		/* drbd_al_write_transaction(mdev,al_ext,enr);
 		 * recurses into generic_make_request(), which
 		 * disallows recursion, bios being serialized on the
 		 * current->bio_tail list now.
 		 * we have to delegate updates to the activity log
 		 * to the worker thread. */
-
-		/* Serialize multiple transactions.
-		 * This uses test_and_set_bit, memory barrier is implicit.
-		 * Optimization potential:
-		 * first check for transaction number > old transaction number,
-		 * so not all waiters have to lock/unlock.  */
-		wait_event(mdev->al_wait, lc_try_lock_for_transaction(mdev->act_log));
 
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
