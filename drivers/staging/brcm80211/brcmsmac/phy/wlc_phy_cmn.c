@@ -581,7 +581,8 @@ void wlc_phy_shared_detach(shared_phy_t *phy_sh)
 	}
 }
 
-wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars)
+wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
+			  char *vars, struct wiphy *wiphy)
 {
 	phy_info_t *pi;
 	u32 sflags = 0;
@@ -611,6 +612,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	if (pi == NULL) {
 		return NULL;
 	}
+	pi->wiphy = wiphy;
 	pi->regs = (d11regs_t *) regs;
 	pi->sh = sh;
 	pi->phy_init_por = true;

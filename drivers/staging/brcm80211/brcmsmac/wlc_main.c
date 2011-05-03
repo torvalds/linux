@@ -52,6 +52,8 @@
 #include "wlc_alloc.h"
 #include "wl_dbg.h"
 
+#include "wl_mac80211.h"
+
 /*
  *	Disable statistics counting for WME
  */
@@ -1674,8 +1676,9 @@ struct wlc_pub *wlc_pub(void *wlc)
 /*
  * The common driver entry routine. Error codes should be unique
  */
-void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
-		 void *regsva, uint bustype, void *btparam, uint *perr)
+void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
+		 bool piomode, void *regsva, uint bustype, void *btparam,
+		 uint *perr)
 {
 	struct wlc_info *wlc;
 	uint err = 0;
@@ -1688,6 +1691,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc = (struct wlc_info *) wlc_attach_malloc(unit, &err, device);
 	if (wlc == NULL)
 		goto fail;
+	wlc->wiphy = wl->wiphy;
 	pub = wlc->pub;
 
 #if defined(BCMDBG)

@@ -722,6 +722,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	hw = pci_get_drvdata(btparam);	/* btparam == pdev */
 	wl = hw->priv;
 	ASSERT(wl);
+	wl->wiphy = hw->wiphy;
 
 	atomic_set(&wl->callbacks, 0);
 

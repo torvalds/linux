@@ -72,6 +72,7 @@ struct wl_info {
 	/* ping-pong stats counters updated by Linux watchdog */
 	struct net_device_stats stats_watchdog[2];
 	struct wl_firmware fw;
+	struct wiphy *wiphy;
 };
 
 #define WL_LOCK(wl)	spin_lock_bh(&(wl)->lock)

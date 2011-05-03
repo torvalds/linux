@@ -936,6 +936,7 @@ struct phy_info {
 	u8 phycal_tempdelta;
 	u32 mcs20_po;
 	u32 mcs40_po;
+	struct wiphy *wiphy;
 };
 
 typedef s32 fixed;

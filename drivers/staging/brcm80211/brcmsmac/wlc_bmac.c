@@ -849,7 +849,8 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi = wlc_phy_attach(wlc_hw->phy_sh,
-			(void *)regs, wlc_bmac_bandtype(wlc_hw), vars);
+			(void *)regs, wlc_bmac_bandtype(wlc_hw), vars,
+			wlc->wiphy);
 		if (wlc_hw->band->pi == NULL) {
 			WL_ERROR("wl%d: wlc_bmac_attach: wlc_phy_attach failed\n",
 				 unit);

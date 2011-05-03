@@ -757,6 +757,7 @@ struct wlc_info {
 				 */
 	bool pr80838_war;
 	uint hwrxoff;
+	struct wiphy *wiphy;
 };
 
 /* antsel module specific state */

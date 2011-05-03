@@ -480,7 +480,7 @@ extern const u8 wme_fifo2ac[];
 #define	WLC_PROT_N_OBSS		16	/* non-HT OBSS present */
 
 /* common functions for every port */
-extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,
+extern void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 			bool piomode, void *regsva, uint bustype, void *btparam,
 			uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
