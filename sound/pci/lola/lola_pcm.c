@@ -472,7 +472,7 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 	mutex_lock(&chip->open_mutex);
 	lola_stream_reset(chip, str);
 	lola_cleanup_slave_streams(pcm, str);
-	if (str->index + runtime->channels >= pcm->num_streams) {
+	if (str->index + runtime->channels > pcm->num_streams) {
 		mutex_unlock(&chip->open_mutex);
 		return -EINVAL;
 	}
@@ -538,7 +538,7 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	/*
 	 * sample correct synchronization is only needed starting several
-	 * streams on stop or if only one stream do as quick as possible
+	 * streams. On stop or if only one stream do as quick as possible
 	 */
 	sync_streams = (start && snd_pcm_stream_linked(substream));
 	tstamp = lola_get_tstamp(chip, !sync_streams);

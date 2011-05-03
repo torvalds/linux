@@ -99,6 +99,8 @@ int __devinit lola_init_pins(struct lola *chip, int dir, int *nidp)
 		err = lola_init_pin(chip, &chip->pin[dir].pins[i], dir, nid);
 		if (err < 0)
 			return err;
+		if (chip->pin[dir].pins[i].is_analog)
+			chip->pin[dir].num_analog_pins++;
 	}
 	*nidp = nid;
 	return 0;
@@ -540,6 +542,9 @@ static int __devinit create_analog_mixer(struct lola *chip, int dir, char *name)
 {
 	if (!chip->pin[dir].num_pins)
 		return 0;
+	/* no analog volumes on digital only adapters */
+	if (chip->pin[dir].num_pins != chip->pin[dir].num_analog_pins)
+		return 0;
 	lola_analog_mixer.name = name;
 	lola_analog_mixer.private_value = dir;
 	return snd_ctl_add(chip->card,
@@ -547,6 +552,7 @@ static int __devinit create_analog_mixer(struct lola *chip, int dir, char *name)
 }
 
 /*
+ * Hardware sample rate converter on digital input
  */
 static int lola_input_src_info(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_info *uinfo)
@@ -587,15 +593,22 @@ static int lola_input_src_put(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new lola_input_src_mixer __devinitdata = {
-	.name = "Analog Capture Switch",
+	.name = "Digital SRC Capture Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = lola_input_src_info,
 	.get = lola_input_src_get,
 	.put = lola_input_src_put,
 };
 
+/*
+ * Lola16161 or Lola881 can have Hardware sample rate converters
+ * on its digital input pins
+ */
 static int __devinit create_input_src_mixer(struct lola *chip)
 {
+	if (!chip->input_src_caps_mask)
+		return 0;
+
 	return snd_ctl_add(chip->card,
 			   snd_ctl_new1(&lola_input_src_mixer, chip));
 }

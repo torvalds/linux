@@ -242,6 +242,7 @@ struct lola_pin {
 
 struct lola_pin_array {
 	unsigned int num_pins;
+	unsigned int num_analog_pins;
 	struct lola_pin pins[MAX_PINS];
 };
 
