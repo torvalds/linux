@@ -304,7 +304,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 
 	for (i = 0; i < count; i++) {
 		/* mask off "basic rate" bit, WLC_RATE_FLAG */
-		r = (int)rs->rates[i] & RATE_MASK;
+		r = (int)rs->rates[i] & WLC_RATE_MASK;
 		if ((r > WLC_MAXRATE) || (rate_info[r] == 0)) {
 			continue;
 		}
@@ -314,7 +314,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	/* fill out the rates in order, looking at only supported rates */
 	count = 0;
 	for (i = 0; i < hw_rs->count; i++) {
-		r = hw_rs->rates[i] & RATE_MASK;
+		r = hw_rs->rates[i] & WLC_RATE_MASK;
 		ASSERT(r <= WLC_MAXRATE);
 		if (rateset[r])
 			rs->rates[count++] = rateset[r];
@@ -407,9 +407,9 @@ wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 		r = src->rates[i];
 		if (basic_only && !(r & WLC_RATE_FLAG))
 			continue;
-		if ((rates == WLC_RATES_CCK) && IS_OFDM((r & RATE_MASK)))
+		if ((rates == WLC_RATES_CCK) && IS_OFDM((r & WLC_RATE_MASK)))
 			continue;
-		if ((rates == WLC_RATES_OFDM) && IS_CCK((r & RATE_MASK)))
+		if ((rates == WLC_RATES_OFDM) && IS_CCK((r & WLC_RATE_MASK)))
 			continue;
 		dst->rates[count++] = r & xmask;
 	}

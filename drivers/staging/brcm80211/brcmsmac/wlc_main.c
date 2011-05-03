@@ -1106,10 +1106,10 @@ ratespec_t wlc_lowest_basic_rspec(struct wlc_info *wlc, wlc_rateset_t *rs)
 	uint i;
 
 	/* Use the lowest basic rate */
-	lowest_basic_rspec = rs->rates[0] & RATE_MASK;
+	lowest_basic_rspec = rs->rates[0] & WLC_RATE_MASK;
 	for (i = 0; i < rs->count; i++) {
 		if (rs->rates[i] & WLC_RATE_FLAG) {
-			lowest_basic_rspec = rs->rates[i] & RATE_MASK;
+			lowest_basic_rspec = rs->rates[i] & WLC_RATE_MASK;
 			break;
 		}
 	}
@@ -1289,7 +1289,7 @@ static void wlc_bandinit_ordered(struct wlc_info *wlc, chanspec_t chanspec)
 
 		/* fill in hw_rate */
 		wlc_rateset_filter(&default_rateset, &wlc->band->hw_rateset,
-				   false, WLC_RATES_CCK_OFDM, RATE_MASK,
+				   false, WLC_RATES_CCK_OFDM, WLC_RATE_MASK,
 				   (bool) N_ENAB(wlc->pub));
 
 		/* init basic rate lookup */
@@ -1825,7 +1825,7 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 		/* fill in hw_rateset (used early by WLC_SET_RATESET) */
 		wlc_rateset_filter(&wlc->band->defrateset,
 				   &wlc->band->hw_rateset, false,
-				   WLC_RATES_CCK_OFDM, RATE_MASK,
+				   WLC_RATES_CCK_OFDM, WLC_RATE_MASK,
 				   (bool) N_ENAB(wlc->pub));
 	}
 
@@ -3971,9 +3971,13 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				break;
 			}
 
-			/* validate rateset by comparing pre and post sorted against 11g hw rates */
-			wlc_rateset_filter(&rs, &new, false, WLC_RATES_CCK_OFDM,
-					   RATE_MASK, BSS_N_ENAB(wlc, bsscfg));
+			/*
+			 * validate rateset by comparing pre and
+			 * post sorted against 11g hw rates
+			 */
+			wlc_rateset_filter(&rs, &new, false,
+					   WLC_RATES_CCK_OFDM, WLC_RATE_MASK,
+					   BSS_N_ENAB(wlc, bsscfg));
 			wlc_rate_hwrs_filter_sort_validate(&new,
 							   &cck_ofdm_rates,
 							   false,
@@ -5355,7 +5359,7 @@ wlc_compute_ofdm_plcp(ratespec_t rspec, u32 length, u8 *plcp)
 	ASSERT(IS_OFDM(rspec));
 
 	/* encode rate per 802.11a-1999 sec 17.3.4.1, with lsb transmitted first */
-	rate_signal = rate_info[rate] & RATE_MASK;
+	rate_signal = rate_info[rate] & WLC_RATE_MASK;
 	ASSERT(rate_signal != 0);
 
 	memset(plcp, 0, D11_PHY_HDR_LEN);
@@ -7272,7 +7276,7 @@ void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset)
 			continue;
 
 		/* mask off basic bit */
-		rate = (rateset->rates[i] & RATE_MASK);
+		rate = (rateset->rates[i] & WLC_RATE_MASK);
 
 		if (rate > WLC_MAXRATE) {
 			wiphy_err(wlc->wiphy, "wlc_rate_lookup_init: invalid "
@@ -7359,8 +7363,8 @@ static void wlc_write_rate_shm(struct wlc_info *wlc, u8 rate, u8 basic_rate)
 	 * for a given rate, the LS-nibble of the PLCP SIGNAL field is
 	 * the index into the rate table.
 	 */
-	phy_rate = rate_info[rate] & RATE_MASK;
-	basic_phy_rate = rate_info[basic_rate] & RATE_MASK;
+	phy_rate = rate_info[rate] & WLC_RATE_MASK;
+	basic_phy_rate = rate_info[basic_rate] & WLC_RATE_MASK;
 	index = phy_rate & 0xf;
 	basic_index = basic_phy_rate & 0xf;
 
@@ -7407,7 +7411,7 @@ void wlc_set_ratetable(struct wlc_info *wlc)
 
 	/* walk the phy rate table and update SHM basic rate lookup table */
 	for (i = 0; i < rs.count; i++) {
-		rate = rs.rates[i] & RATE_MASK;
+		rate = rs.rates[i] & WLC_RATE_MASK;
 
 		/* for a given rate WLC_BASIC_RATE returns the rate at
 		 * which a response ACK/CTS should be sent.
@@ -7417,7 +7421,7 @@ void wlc_set_ratetable(struct wlc_info *wlc)
 			/* This should only happen if we are using a
 			 * restricted rateset.
 			 */
-			basic_rate = rs.rates[0] & RATE_MASK;
+			basic_rate = rs.rates[0] & WLC_RATE_MASK;
 		}
 
 		wlc_write_rate_shm(wlc, rate, basic_rate);
@@ -7510,7 +7514,7 @@ void wlc_mod_prb_rsp_rate_table(struct wlc_info *wlc, uint frame_len)
 
 	/* walk the phy rate table and update MAC core SHM basic rate table entries */
 	for (i = 0; i < rs.count; i++) {
-		rate = rs.rates[i] & RATE_MASK;
+		rate = rs.rates[i] & WLC_RATE_MASK;
 
 		entry_ptr = wlc_rate_shm_offset(wlc, rate);
 
@@ -7874,7 +7878,7 @@ int wlc_get_revision_info(struct wlc_info *wlc, void *buf, uint len)
 void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs)
 {
 	wlc_rateset_default(rs, NULL, wlc->band->phytype, wlc->band->bandtype,
-			    false, RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
+			    false, WLC_RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
 			    CHSPEC_WLC_BW(wlc->default_bss->chanspec),
 			    wlc->stf->txstreams);
 }
@@ -7907,7 +7911,7 @@ static void wlc_bss_default_init(struct wlc_info *wlc)
 
 	/* init bss rates to the band specific default rate set */
 	wlc_rateset_default(&bi->rateset, NULL, band->phytype, band->bandtype,
-			    false, RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
+			    false, WLC_RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
 			    CHSPEC_WLC_BW(chanspec), wlc->stf->txstreams);
 
 	if (N_ENAB(wlc->pub))
