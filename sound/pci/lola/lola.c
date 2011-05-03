@@ -447,9 +447,9 @@ static int lola_parse_tree(struct lola *chip)
 	chip->lola_caps = val;
 	chip->pin[CAPT].num_pins = LOLA_AFG_INPUT_PIN_COUNT(chip->lola_caps);
 	chip->pin[PLAY].num_pins = LOLA_AFG_OUTPUT_PIN_COUNT(chip->lola_caps);
-	snd_printd(SFX "speccaps=0x%x, pins in=%d, out=%d\n",
-		   chip->lola_caps,
-		   chip->pin[CAPT].num_pins, chip->pin[PLAY].num_pins);
+	snd_printdd(SFX "speccaps=0x%x, pins in=%d, out=%d\n",
+		    chip->lola_caps,
+		    chip->pin[CAPT].num_pins, chip->pin[PLAY].num_pins);
 
 	if (chip->pin[CAPT].num_pins > MAX_AUDIO_INOUT_COUNT ||
 	    chip->pin[PLAY].num_pins > MAX_AUDIO_INOUT_COUNT) {
@@ -600,7 +600,7 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pcm[CAPT].num_streams = (dever >> 0) & 0x3ff;
 	chip->pcm[PLAY].num_streams = (dever >> 10) & 0x3ff;
 	chip->version = (dever >> 24) & 0xff;
-	snd_printd(SFX "streams in=%d, out=%d, version=0x%x\n",
+	snd_printdd(SFX "streams in=%d, out=%d, version=0x%x\n",
 		    chip->pcm[CAPT].num_streams, chip->pcm[PLAY].num_streams,
 		    chip->version);
 
