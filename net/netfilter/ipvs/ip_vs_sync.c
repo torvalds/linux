@@ -1663,7 +1663,7 @@ int stop_sync_thread(struct net *net, int state)
 /*
  * Initialize data struct for each netns
  */
-static int __net_init __ip_vs_sync_init(struct net *net)
+int __net_init __ip_vs_sync_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -1677,7 +1677,7 @@ static int __net_init __ip_vs_sync_init(struct net *net)
 	return 0;
 }
 
-static void __ip_vs_sync_cleanup(struct net *net)
+void __ip_vs_sync_cleanup(struct net *net)
 {
 	int retc;
 
@@ -1690,18 +1690,11 @@ static void __ip_vs_sync_cleanup(struct net *net)
 		pr_err("Failed to stop Backup Daemon\n");
 }
 
-static struct pernet_operations ipvs_sync_ops = {
-	.init = __ip_vs_sync_init,
-	.exit = __ip_vs_sync_cleanup,
-};
-
-
 int __init ip_vs_sync_init(void)
 {
-	return register_pernet_device(&ipvs_sync_ops);
+	return 0;
 }
 
 void ip_vs_sync_cleanup(void)
 {
-	unregister_pernet_device(&ipvs_sync_ops);
 }

@@ -69,6 +69,11 @@ int ip_vs_get_debug_level(void)
 }
 #endif
 
+
+/*  Protos */
+static void __ip_vs_del_service(struct ip_vs_service *svc);
+
+
 #ifdef CONFIG_IP_VS_IPV6
 /* Taken from rt6_fill_node() in net/ipv6/route.c, is there a better way? */
 static int __ip_vs_addr_is_local_v6(struct net *net,
@@ -1214,6 +1219,8 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	write_unlock_bh(&__ip_vs_svc_lock);
 
 	*svc_p = svc;
+	/* Now there is a service - full throttle */
+	ipvs->enable = 1;
 	return 0;
 
 
@@ -1472,6 +1479,84 @@ static int ip_vs_flush(struct net *net)
 	return 0;
 }
 
+/*
+ *	Delete service by {netns} in the service table.
+ *	Called by __ip_vs_cleanup()
+ */
+void __ip_vs_service_cleanup(struct net *net)
+{
+	EnterFunction(2);
+	/* Check for "full" addressed entries */
+	mutex_lock(&__ip_vs_mutex);
+	ip_vs_flush(net);
+	mutex_unlock(&__ip_vs_mutex);
+	LeaveFunction(2);
+}
+/*
+ * Release dst hold by dst_cache
+ */
+static inline void
+__ip_vs_dev_reset(struct ip_vs_dest *dest, struct net_device *dev)
+{
+	spin_lock_bh(&dest->dst_lock);
+	if (dest->dst_cache && dest->dst_cache->dev == dev) {
+		IP_VS_DBG_BUF(3, "Reset dev:%s dest %s:%u ,dest->refcnt=%d\n",
+			      dev->name,
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
+			      ntohs(dest->port),
+			      atomic_read(&dest->refcnt));
+		ip_vs_dst_reset(dest);
+	}
+	spin_unlock_bh(&dest->dst_lock);
+
+}
+/*
+ * Netdev event receiver
+ * Currently only NETDEV_UNREGISTER is handled, i.e. if we hold a reference to
+ * a device that is "unregister" it must be released.
+ */
+static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
+			    void *ptr)
+{
+	struct net_device *dev = ptr;
+	struct net *net = dev_net(dev);
+	struct ip_vs_service *svc;
+	struct ip_vs_dest *dest;
+	unsigned int idx;
+
+	if (event != NETDEV_UNREGISTER)
+		return NOTIFY_DONE;
+	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
+	EnterFunction(2);
+	mutex_lock(&__ip_vs_mutex);
+	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
+		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+			if (net_eq(svc->net, net)) {
+				list_for_each_entry(dest, &svc->destinations,
+						    n_list) {
+					__ip_vs_dev_reset(dest, dev);
+				}
+			}
+		}
+
+		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+			if (net_eq(svc->net, net)) {
+				list_for_each_entry(dest, &svc->destinations,
+						    n_list) {
+					__ip_vs_dev_reset(dest, dev);
+				}
+			}
+
+		}
+	}
+
+	list_for_each_entry(dest, &net_ipvs(net)->dest_trash, n_list) {
+		__ip_vs_dev_reset(dest, dev);
+	}
+	mutex_unlock(&__ip_vs_mutex);
+	LeaveFunction(2);
+	return NOTIFY_DONE;
+}
 
 /*
  *	Zero counters in a service or all services
@@ -3588,6 +3673,10 @@ void __net_init __ip_vs_control_cleanup_sysctl(struct net *net) { }
 
 #endif
 
+static struct notifier_block ip_vs_dst_notifier = {
+	.notifier_call = ip_vs_dst_event,
+};
+
 int __net_init __ip_vs_control_init(struct net *net)
 {
 	int idx;
@@ -3626,7 +3715,7 @@ err:
 	return -ENOMEM;
 }
 
-static void __net_exit __ip_vs_control_cleanup(struct net *net)
+void __net_exit __ip_vs_control_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -3638,11 +3727,6 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	proc_net_remove(net, "ip_vs");
 	free_percpu(ipvs->tot_stats.cpustats);
 }
-
-static struct pernet_operations ipvs_control_ops = {
-	.init = __ip_vs_control_init,
-	.exit = __ip_vs_control_cleanup,
-};
 
 int __init ip_vs_control_init(void)
 {
@@ -3657,33 +3741,32 @@ int __init ip_vs_control_init(void)
 		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
 	}
 
-	ret = register_pernet_subsys(&ipvs_control_ops);
-	if (ret) {
-		pr_err("cannot register namespace.\n");
-		goto err;
-	}
-
 	smp_wmb();	/* Do we really need it now ? */
 
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
 		pr_err("cannot register sockopt.\n");
-		goto err_net;
+		goto err_sock;
 	}
 
 	ret = ip_vs_genl_register();
 	if (ret) {
 		pr_err("cannot register Generic Netlink interface.\n");
-		nf_unregister_sockopt(&ip_vs_sockopts);
-		goto err_net;
+		goto err_genl;
 	}
+
+	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
+	if (ret < 0)
+		goto err_notf;
 
 	LeaveFunction(2);
 	return 0;
 
-err_net:
-	unregister_pernet_subsys(&ipvs_control_ops);
-err:
+err_notf:
+	ip_vs_genl_unregister();
+err_genl:
+	nf_unregister_sockopt(&ip_vs_sockopts);
+err_sock:
 	return ret;
 }
 
@@ -3691,7 +3774,6 @@ err:
 void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
-	unregister_pernet_subsys(&ipvs_control_ops);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);
