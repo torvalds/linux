@@ -991,10 +991,10 @@ SND_SOC_DAPM_MICBIAS("MICB1", WM8915_POWER_MANAGEMENT_1, 8, 0),
 SND_SOC_DAPM_PGA("IN1L PGA", WM8915_POWER_MANAGEMENT_2, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("IN1R PGA", WM8915_POWER_MANAGEMENT_2, 4, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
-
-SND_SOC_DAPM_MUX("IN1 Mux", SND_SOC_NOPM, 0, 0, &in1_mux),
-SND_SOC_DAPM_MUX("IN2 Mux", SND_SOC_NOPM, 0, 0, &in2_mux),
+SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &in1_mux),
+SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &in1_mux),
+SND_SOC_DAPM_MUX("IN2L Mux", SND_SOC_NOPM, 0, 0, &in2_mux),
+SND_SOC_DAPM_MUX("IN2R Mux", SND_SOC_NOPM, 0, 0, &in2_mux),
 
 SND_SOC_DAPM_PGA("IN1L", WM8915_POWER_MANAGEMENT_7, 2, 0, NULL, 0),
 SND_SOC_DAPM_PGA("IN1R", WM8915_POWER_MANAGEMENT_7, 3, 0, NULL, 0),
@@ -1172,28 +1172,33 @@ static const struct snd_soc_dapm_route wm8915_dapm_routes[] = {
 	{ "DMIC1L", NULL, "DMIC1" },
 	{ "DMIC1R", NULL, "DMIC1" },
 
-	{ "ADC", NULL, "ADCL" },
-	{ "ADC", NULL, "ADCR" },
+	{ "IN1L Mux", "ADC", "ADCL" },
+	{ "IN1L Mux", "DMIC1", "DMIC1L" },
+	{ "IN1L Mux", "DMIC2", "DMIC2L" },
 
-	{ "IN1 Mux", "ADC", "ADC" },
-	{ "IN1 Mux", "DMIC1", "DMIC1" },
-	{ "IN1 Mux", "DMIC2", "DMIC2" },
+	{ "IN1R Mux", "ADC", "ADCR" },
+	{ "IN1R Mux", "DMIC1", "DMIC1R" },
+	{ "IN1R Mux", "DMIC2", "DMIC2R" },
 
-	{ "IN2 Mux", "ADC", "ADC" },
-	{ "IN2 Mux", "DMIC1", "DMIC1" },
-	{ "IN2 Mux", "DMIC2", "DMIC2" },
+	{ "IN2L Mux", "ADC", "ADCL" },
+	{ "IN2L Mux", "DMIC1", "DMIC1L" },
+	{ "IN2L Mux", "DMIC2", "DMIC2L" },
 
-	{ "Left Sidetone", "IN1", "IN1 Mux" },
-	{ "Left Sidetone", "IN2", "IN2 Mux" },
+	{ "IN2R Mux", "ADC", "ADCR" },
+	{ "IN2R Mux", "DMIC1", "DMIC1R" },
+	{ "IN2R Mux", "DMIC2", "DMIC2R" },
 
-	{ "Right Sidetone", "IN1", "IN1 Mux" },
-	{ "Right Sidetone", "IN2", "IN2 Mux" },
+	{ "Left Sidetone", "IN1", "IN1L Mux" },
+	{ "Left Sidetone", "IN2", "IN2L Mux" },
 
-	{ "DSP1TXL", "IN1 Switch", "IN1 Mux" },
-	{ "DSP1TXR", "IN1 Switch", "IN1 Mux" },
+	{ "Right Sidetone", "IN1", "IN1R Mux" },
+	{ "Right Sidetone", "IN2", "IN2R Mux" },
 
-	{ "DSP2TXL", "IN1 Switch", "IN2 Mux" },
-	{ "DSP2TXR", "IN1 Switch", "IN2 Mux" },
+	{ "DSP1TXL", "IN1 Switch", "IN1L Mux" },
+	{ "DSP1TXR", "IN1 Switch", "IN1R Mux" },
+
+	{ "DSP2TXL", "IN1 Switch", "IN2L Mux" },
+	{ "DSP2TXR", "IN1 Switch", "IN2R Mux" },
 
 	{ "AIF1TX0", NULL, "DSP1TXL" },
 	{ "AIF1TX1", NULL, "DSP1TXR" },
