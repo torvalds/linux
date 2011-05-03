@@ -1068,12 +1068,7 @@ void *ai_setcore(si_t *sih, uint coreid, uint coreunit)
 	if (!GOODIDX(idx))
 		return NULL;
 
-	if (sih->socitype == SOCI_AI)
-		return ai_setcoreidx(sih, idx);
-	else {
-		ASSERT(0);
-		return NULL;
-	}
+	return ai_setcoreidx(sih, idx);
 }
 
 /* Turn off interrupt as required by ai_setcore, before switch core */
