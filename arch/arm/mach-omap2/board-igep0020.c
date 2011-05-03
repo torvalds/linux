@@ -78,22 +78,22 @@ static void __init igep2_get_revision(void)
 
 	omap_mux_init_gpio(IGEP2_GPIO_LED1_RED, OMAP_PIN_INPUT);
 
-	if ((gpio_request(IGEP2_GPIO_LED1_RED, "GPIO_HW0_REV") == 0) &&
-	    (gpio_direction_input(IGEP2_GPIO_LED1_RED) == 0)) {
-		ret = gpio_get_value(IGEP2_GPIO_LED1_RED);
-		if (ret == 0) {
-			pr_info("IGEP2: Hardware Revision C (B-NON compatible)\n");
-			hwrev = IGEP2_BOARD_HWREV_C;
-		} else if (ret ==  1) {
-			pr_info("IGEP2: Hardware Revision B/C (B compatible)\n");
-			hwrev = IGEP2_BOARD_HWREV_B;
-		} else {
-			pr_err("IGEP2: Unknown Hardware Revision\n");
-			hwrev = -1;
-		}
-	} else {
+	if (gpio_request_one(IGEP2_GPIO_LED1_RED, GPIOF_IN, "GPIO_HW0_REV")) {
 		pr_warning("IGEP2: Could not obtain gpio GPIO_HW0_REV\n");
 		pr_err("IGEP2: Unknown Hardware Revision\n");
+		return;
+	}
+
+	ret = gpio_get_value(IGEP2_GPIO_LED1_RED);
+	if (ret == 0) {
+		pr_info("IGEP2: Hardware Revision C (B-NON compatible)\n");
+		hwrev = IGEP2_BOARD_HWREV_C;
+	} else if (ret ==  1) {
+		pr_info("IGEP2: Hardware Revision B/C (B compatible)\n");
+		hwrev = IGEP2_BOARD_HWREV_B;
+	} else {
+		pr_err("IGEP2: Unknown Hardware Revision\n");
+		hwrev = -1;
 	}
 
 	gpio_free(IGEP2_GPIO_LED1_RED);
@@ -339,32 +339,35 @@ static void __init igep2_leds_init(void)
 }
 
 #else
+static struct gpio igep2_gpio_leds[] __initdata = {
+	{ IGEP2_GPIO_LED0_RED,	 GPIOF_OUT_INIT_LOW, "gpio-led:red:d0"   },
+	{ IGEP2_GPIO_LED0_GREEN, GPIOF_OUT_INIT_LOW, "gpio-led:green:d0" },
+	{ IGEP2_GPIO_LED1_RED,	 GPIOF_OUT_INIT_LOW, "gpio-led:red:d1"   },
+};
+
 static inline void igep2_leds_init(void)
 {
-	if ((gpio_request(IGEP2_GPIO_LED0_RED, "gpio-led:red:d0") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED0_RED, 0) == 0))
-		gpio_export(IGEP2_GPIO_LED0_RED, 0);
-	else
-		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED0_RED\n");
+	if (gpio_request_array(igep2_gpio_leds, ARRAY_SIZE(igep2_gpio_leds))) {
+		pr_warning("IGEP v2: Could not obtain leds gpios\n");
+		return;
+	}
 
-	if ((gpio_request(IGEP2_GPIO_LED0_GREEN, "gpio-led:green:d0") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED0_GREEN, 0) == 0))
-		gpio_export(IGEP2_GPIO_LED0_GREEN, 0);
-	else
-		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED0_GREEN\n");
-
-	if ((gpio_request(IGEP2_GPIO_LED1_RED, "gpio-led:red:d1") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED1_RED, 0) == 0))
-		gpio_export(IGEP2_GPIO_LED1_RED, 0);
-	else
-		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED1_RED\n");
-
+	gpio_export(IGEP2_GPIO_LED0_RED, 0);
+	gpio_export(IGEP2_GPIO_LED0_GREEN, 0);
+	gpio_export(IGEP2_GPIO_LED1_RED, 0);
 }
 #endif
+
+static struct gpio igep2_twl_gpios[] = {
+	{ -EINVAL, GPIOF_IN,		"GPIO_EHCI_NOC"  },
+	{ -EINVAL, GPIOF_OUT_INIT_LOW,	"GPIO_USBH_CPEN" },
+};
 
 static int igep2_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	int ret;
+
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
@@ -373,22 +376,20 @@ static int igep2_twl_gpio_setup(struct device *dev,
 	 * REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
-	if ((gpio_request(gpio + 1, "GPIO_EHCI_NOC") < 0) ||
-	    (gpio_direction_input(gpio + 1) < 0))
-		pr_err("IGEP2: Could not obtain gpio for EHCI NOC");
+	igep2_twl_gpios[0].gpio = gpio + 1;
 
-	/*
-	 * TWL4030_GPIO_MAX + 0 == ledA, GPIO_USBH_CPEN
-	 * (out, active low)
-	 */
-	if ((gpio_request(gpio + TWL4030_GPIO_MAX, "GPIO_USBH_CPEN") < 0) ||
-	    (gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0) < 0))
+	/* TWL4030_GPIO_MAX + 0 == ledA, GPIO_USBH_CPEN (out, active low) */
+	igep2_twl_gpios[1].gpio = gpio + TWL4030_GPIO_MAX;
+
+	ret = gpio_request_array(igep2_twl_gpios, ARRAY_SIZE(igep2_twl_gpios));
+	if (ret < 0)
 		pr_err("IGEP2: Could not obtain gpio for USBH_CPEN");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
 #if !defined(CONFIG_LEDS_GPIO) && !defined(CONFIG_LEDS_GPIO_MODULE)
-	if ((gpio_request(gpio+TWL4030_GPIO_MAX+1, "gpio-led:green:d1") == 0)
-	    && (gpio_direction_output(gpio + TWL4030_GPIO_MAX + 1, 1) == 0))
+	ret = gpio_request_one(gpio + TWL4030_GPIO_MAX + 1, GPIOF_OUT_INIT_HIGH,
+			       "gpio-led:green:d1");
+	if (ret == 0)
 		gpio_export(gpio + TWL4030_GPIO_MAX + 1, 0);
 	else
 		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED1_GREEN\n");
@@ -469,8 +470,9 @@ static struct regulator_init_data igep2_vpll2 = {
 
 static void __init igep2_display_init(void)
 {
-	if (gpio_request(IGEP2_GPIO_DVI_PUP, "GPIO_DVI_PUP") &&
-	    gpio_direction_output(IGEP2_GPIO_DVI_PUP, 1))
+	int err = gpio_request_one(IGEP2_GPIO_DVI_PUP, GPIOF_OUT_INIT_HIGH,
+				   "GPIO_DVI_PUP");
+	if (err)
 		pr_err("IGEP v2: Could not obtain gpio GPIO_DVI_PUP\n");
 }
 
@@ -577,44 +579,43 @@ static struct omap_board_mux board_mux[] __initdata = {
 #endif
 
 #if defined(CONFIG_LIBERTAS_SDIO) || defined(CONFIG_LIBERTAS_SDIO_MODULE)
+static struct gpio igep2_wlan_bt_gpios[] __initdata = {
+	{ -EINVAL, GPIOF_OUT_INIT_HIGH, "GPIO_WIFI_NPD"	   },
+	{ -EINVAL, GPIOF_OUT_INIT_HIGH, "GPIO_WIFI_NRESET" },
+	{ -EINVAL, GPIOF_OUT_INIT_HIGH, "GPIO_BT_NRESET"   },
+};
 
 static void __init igep2_wlan_bt_init(void)
 {
-	unsigned npd, wreset, btreset;
+	int err;
 
 	/* GPIO's for WLAN-BT combo depends on hardware revision */
 	if (hwrev == IGEP2_BOARD_HWREV_B) {
-		npd = IGEP2_RB_GPIO_WIFI_NPD;
-		wreset = IGEP2_RB_GPIO_WIFI_NRESET;
-		btreset = IGEP2_RB_GPIO_BT_NRESET;
+		igep2_wlan_bt_gpios[0].gpio = IGEP2_RB_GPIO_WIFI_NPD;
+		igep2_wlan_bt_gpios[1].gpio = IGEP2_RB_GPIO_WIFI_NRESET;
+		igep2_wlan_bt_gpios[2].gpio = IGEP2_RB_GPIO_BT_NRESET;
 	} else if (hwrev == IGEP2_BOARD_HWREV_C) {
-		npd = IGEP2_RC_GPIO_WIFI_NPD;
-		wreset = IGEP2_RC_GPIO_WIFI_NRESET;
-		btreset = IGEP2_RC_GPIO_BT_NRESET;
+		igep2_wlan_bt_gpios[0].gpio = IGEP2_RC_GPIO_WIFI_NPD;
+		igep2_wlan_bt_gpios[1].gpio = IGEP2_RC_GPIO_WIFI_NRESET;
+		igep2_wlan_bt_gpios[2].gpio = IGEP2_RC_GPIO_BT_NRESET;
 	} else
 		return;
 
-	/* Set GPIO's for  WLAN-BT combo module */
-	if ((gpio_request(npd, "GPIO_WIFI_NPD") == 0) &&
-	    (gpio_direction_output(npd, 1) == 0)) {
-		gpio_export(npd, 0);
-	} else
-		pr_warning("IGEP2: Could not obtain gpio GPIO_WIFI_NPD\n");
+	err = gpio_request_array(igep2_wlan_bt_gpios,
+				 ARRAY_SIZE(igep2_wlan_bt_gpios));
+	if (err) {
+		pr_warning("IGEP2: Could not obtain WIFI/BT gpios\n");
+		return;
+	}
 
-	if ((gpio_request(wreset, "GPIO_WIFI_NRESET") == 0) &&
-	    (gpio_direction_output(wreset, 1) == 0)) {
-		gpio_export(wreset, 0);
-		gpio_set_value(wreset, 0);
-		udelay(10);
-		gpio_set_value(wreset, 1);
-	} else
-		pr_warning("IGEP2: Could not obtain gpio GPIO_WIFI_NRESET\n");
+	gpio_export(igep2_wlan_bt_gpios[0].gpio, 0);
+	gpio_export(igep2_wlan_bt_gpios[1].gpio, 0);
+	gpio_export(igep2_wlan_bt_gpios[2].gpio, 0);
 
-	if ((gpio_request(btreset, "GPIO_BT_NRESET") == 0) &&
-	    (gpio_direction_output(btreset, 1) == 0)) {
-		gpio_export(btreset, 0);
-	} else
-		pr_warning("IGEP2: Could not obtain gpio GPIO_BT_NRESET\n");
+	gpio_set_value(igep2_wlan_bt_gpios[1].gpio, 0);
+	udelay(10);
+	gpio_set_value(igep2_wlan_bt_gpios[1].gpio, 1);
+
 }
 #else
 static inline void __init igep2_wlan_bt_init(void) { }

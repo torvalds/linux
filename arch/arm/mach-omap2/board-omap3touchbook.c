@@ -146,13 +146,11 @@ static int touchbook_twl_gpio_setup(struct device *dev,
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
-
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
+	gpio_request_one(gpio + 1, GPIOF_IN, "EHCI_nOC");
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	gpio_request_one(gpio + TWL4030_GPIO_MAX, GPIOF_OUT_INIT_LOW,
+			 "nEN_USB_PWR");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -401,15 +399,10 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
 static void omap3_touchbook_poweroff(void)
 {
-	int r;
+	int pwr_off = TB_KILL_POWER_GPIO;
 
-	r = gpio_request(TB_KILL_POWER_GPIO, "DVI reset");
-	if (r < 0) {
+	if (gpio_request_one(pwr_off, GPIOF_OUT_INIT_LOW, "DVI reset") < 0)
 		printk(KERN_ERR "Unable to get kill power GPIO\n");
-		return;
-	}
-
-	gpio_direction_output(TB_KILL_POWER_GPIO, 0);
 }
 
 static int __init early_touchbook_revision(char *p)
@@ -435,9 +428,8 @@ static void __init omap3_touchbook_init(void)
 	omap_serial_init();
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
-	gpio_request(176, "DVI_nPD");
 	/* REVISIT leave DVI powered down until it's needed ... */
-	gpio_direction_output(176, true);
+	gpio_request_one(176, GPIOF_OUT_INIT_HIGH, "DVI_nPD");
 
 	/* Touchscreen and accelerometer */
 	omap_ads7846_init(4, OMAP3_TS_GPIO, 310, &ads7846_pdata);

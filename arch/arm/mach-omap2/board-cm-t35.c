@@ -182,10 +182,6 @@ static inline void cm_t35_init_nand(void) {}
 #define CM_T35_LCD_BL_GPIO 58
 #define CM_T35_DVI_EN_GPIO 54
 
-static int lcd_bl_gpio;
-static int lcd_en_gpio;
-static int dvi_en_gpio;
-
 static int lcd_enabled;
 static int dvi_enabled;
 
@@ -196,8 +192,8 @@ static int cm_t35_panel_enable_lcd(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_set_value(lcd_en_gpio, 1);
-	gpio_set_value(lcd_bl_gpio, 1);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
+	gpio_set_value(CM_T35_LCD_BL_GPIO, 1);
 
 	lcd_enabled = 1;
 
@@ -208,8 +204,8 @@ static void cm_t35_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
 	lcd_enabled = 0;
 
-	gpio_set_value(lcd_bl_gpio, 0);
-	gpio_set_value(lcd_en_gpio, 0);
+	gpio_set_value(CM_T35_LCD_BL_GPIO, 0);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 0);
 }
 
 static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
@@ -219,7 +215,7 @@ static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_set_value(dvi_en_gpio, 0);
+	gpio_set_value(CM_T35_DVI_EN_GPIO, 0);
 	dvi_enabled = 1;
 
 	return 0;
@@ -227,7 +223,7 @@ static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
 
 static void cm_t35_panel_disable_dvi(struct omap_dss_device *dssdev)
 {
-	gpio_set_value(dvi_en_gpio, 1);
+	gpio_set_value(CM_T35_DVI_EN_GPIO, 1);
 	dvi_enabled = 0;
 }
 
@@ -309,62 +305,38 @@ static struct spi_board_info cm_t35_lcd_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpio cm_t35_dss_gpios[] __initdata = {
+	{ CM_T35_LCD_EN_GPIO, GPIOF_OUT_INIT_LOW,  "lcd enable"    },
+	{ CM_T35_LCD_BL_GPIO, GPIOF_OUT_INIT_LOW,  "lcd bl enable" },
+	{ CM_T35_DVI_EN_GPIO, GPIOF_OUT_INIT_HIGH, "dvi enable"    },
+};
+
 static void __init cm_t35_init_display(void)
 {
 	int err;
 
-	lcd_en_gpio = CM_T35_LCD_EN_GPIO;
-	lcd_bl_gpio = CM_T35_LCD_BL_GPIO;
-	dvi_en_gpio = CM_T35_DVI_EN_GPIO;
-
 	spi_register_board_info(cm_t35_lcd_spi_board_info,
 				ARRAY_SIZE(cm_t35_lcd_spi_board_info));
 
-	err = gpio_request(lcd_en_gpio, "LCD RST");
+	err = gpio_request_array(cm_t35_dss_gpios,
+				 ARRAY_SIZE(cm_t35_dss_gpios));
 	if (err) {
-		pr_err("CM-T35: failed to get LCD reset GPIO\n");
-		goto out;
+		pr_err("CM-T35: failed to request DSS control GPIOs\n");
+		return;
 	}
 
-	err = gpio_request(lcd_bl_gpio, "LCD BL");
-	if (err) {
-		pr_err("CM-T35: failed to get LCD backlight control GPIO\n");
-		goto err_lcd_bl;
-	}
-
-	err = gpio_request(dvi_en_gpio, "DVI EN");
-	if (err) {
-		pr_err("CM-T35: failed to get DVI reset GPIO\n");
-		goto err_dvi_en;
-	}
-
-	gpio_export(lcd_en_gpio, 0);
-	gpio_export(lcd_bl_gpio, 0);
-	gpio_export(dvi_en_gpio, 0);
-	gpio_direction_output(lcd_en_gpio, 0);
-	gpio_direction_output(lcd_bl_gpio, 0);
-	gpio_direction_output(dvi_en_gpio, 1);
+	gpio_export(CM_T35_LCD_EN_GPIO, 0);
+	gpio_export(CM_T35_LCD_BL_GPIO, 0);
+	gpio_export(CM_T35_DVI_EN_GPIO, 0);
 
 	msleep(50);
-	gpio_set_value(lcd_en_gpio, 1);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
 
 	err = omap_display_init(&cm_t35_dss_data);
 	if (err) {
 		pr_err("CM-T35: failed to register DSS device\n");
-		goto err_dev_reg;
+		gpio_free_array(cm_t35_dss_gpios, ARRAY_SIZE(cm_t35_dss_gpios));
 	}
-
-	return;
-
-err_dev_reg:
-	gpio_free(dvi_en_gpio);
-err_dvi_en:
-	gpio_free(lcd_bl_gpio);
-err_lcd_bl:
-	gpio_free(lcd_en_gpio);
-out:
-
-	return;
 }
 
 static struct regulator_consumer_supply cm_t35_vmmc1_supply = {
@@ -497,10 +469,8 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 {
 	int wlan_rst = gpio + 2;
 
-	if ((gpio_request(wlan_rst, "WLAN RST") == 0) &&
-	    (gpio_direction_output(wlan_rst, 1) == 0)) {
+	if (gpio_request_one(wlan_rst, GPIOF_OUT_INIT_HIGH, "WLAN RST") == 0) {
 		gpio_export(wlan_rst, 0);
-
 		udelay(10);
 		gpio_set_value(wlan_rst, 0);
 		udelay(10);

@@ -277,13 +277,11 @@ static int zoom_twl_gpio_setup(struct device *dev,
 	zoom_vsim_supply.dev = mmc[0].dev;
 	zoom_vmmc2_supply.dev = mmc[1].dev;
 
-	ret = gpio_request(LCD_PANEL_ENABLE_GPIO, "lcd enable");
-	if (ret) {
+	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
+			       "lcd enable");
+	if (ret)
 		pr_err("Failed to get LCD_PANEL_ENABLE_GPIO (gpio%d).\n",
 				LCD_PANEL_ENABLE_GPIO);
-		return ret;
-	}
-	gpio_direction_output(LCD_PANEL_ENABLE_GPIO, 0);
 
 	return ret;
 }

@@ -305,24 +305,13 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 13 drives 32kHz buffer for wifi module */
 	gpio_32khz = gpio + 13;
-	ret = gpio_request(gpio_32khz, "wifi 32kHz");
+	ret = gpio_request_one(gpio_32khz, GPIOF_OUT_INIT_HIGH, "wifi 32kHz");
 	if (ret < 0) {
 		pr_err("Cannot get GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail;
-	}
-
-	ret = gpio_direction_output(gpio_32khz, 1);
-	if (ret < 0) {
-		pr_err("Cannot set GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail_direction;
+		return -ENODEV;
 	}
 
 	return 0;
-
-fail_direction:
-	gpio_free(gpio_32khz);
-fail:
-	return -ENODEV;
 }
 
 static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
@@ -584,13 +573,9 @@ static void __init pandora_wl1251_init(void)
 
 	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
 
-	ret = gpio_request(PANDORA_WIFI_IRQ_GPIO, "wl1251 irq");
+	ret = gpio_request_one(PANDORA_WIFI_IRQ_GPIO, GPIOF_IN, "wl1251 irq");
 	if (ret < 0)
 		goto fail;
-
-	ret = gpio_direction_input(PANDORA_WIFI_IRQ_GPIO);
-	if (ret < 0)
-		goto fail_irq;
 
 	pandora_wl1251_pdata.irq = gpio_to_irq(PANDORA_WIFI_IRQ_GPIO);
 	if (pandora_wl1251_pdata.irq < 0)

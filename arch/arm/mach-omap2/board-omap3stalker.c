@@ -331,12 +331,11 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 	 */
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	gpio_request_one(gpio + TWL4030_GPIO_MAX, GPIOF_OUT_INIT_LOW,
+			 "EN_LCD_BKL");
 
 	/* gpio + 7 == DVI Enable */
-	gpio_request(gpio + 7, "EN_DVI");
-	gpio_direction_output(gpio + 7, 0);
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "EN_DVI");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, mmc0) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;

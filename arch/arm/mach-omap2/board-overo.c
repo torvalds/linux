@@ -151,21 +151,20 @@ static int dvi_enabled;
 #define OVERO_GPIO_LCD_EN 144
 #define OVERO_GPIO_LCD_BL 145
 
+static struct gpio overo_dss_gpios[] __initdata = {
+	{ OVERO_GPIO_LCD_EN, GPIOF_OUT_INIT_HIGH, "OVERO_GPIO_LCD_EN" },
+	{ OVERO_GPIO_LCD_BL, GPIOF_OUT_INIT_HIGH, "OVERO_GPIO_LCD_BL" },
+};
+
 static void __init overo_display_init(void)
 {
-	if ((gpio_request(OVERO_GPIO_LCD_EN, "OVERO_GPIO_LCD_EN") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_LCD_EN, 1) == 0))
-		gpio_export(OVERO_GPIO_LCD_EN, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_LCD_EN\n");
+	if (gpio_request_array(overo_dss_gpios, ARRAY_SIZE(overo_dss_gpios))) {
+		printk(KERN_ERR "could not obtain DSS control GPIOs\n");
+		return;
+	}
 
-	if ((gpio_request(OVERO_GPIO_LCD_BL, "OVERO_GPIO_LCD_BL") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_LCD_BL, 1) == 0))
-		gpio_export(OVERO_GPIO_LCD_BL, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_LCD_BL\n");
+	gpio_export(OVERO_GPIO_LCD_EN, 0);
+	gpio_export(OVERO_GPIO_LCD_BL, 0);
 }
 
 static int overo_panel_enable_dvi(struct omap_dss_device *dssdev)
@@ -553,8 +552,15 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
+static struct gpio overo_bt_gpios[] __initdata = {
+	{ OVERO_GPIO_BT_XGATE,	GPIOF_OUT_INIT_LOW,	"lcd enable"    },
+	{ OVERO_GPIO_BT_NRESET, GPIOF_OUT_INIT_HIGH,	"lcd bl enable" },
+};
+
 static void __init overo_init(void)
 {
+	int ret;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
@@ -574,9 +580,9 @@ static void __init overo_init(void)
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
-	if ((gpio_request(OVERO_GPIO_W2W_NRESET,
-			  "OVERO_GPIO_W2W_NRESET") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_W2W_NRESET, 1) == 0)) {
+	ret = gpio_request_one(OVERO_GPIO_W2W_NRESET, GPIOF_OUT_INIT_HIGH,
+			       "OVERO_GPIO_W2W_NRESET");
+	if (ret == 0) {
 		gpio_export(OVERO_GPIO_W2W_NRESET, 0);
 		gpio_set_value(OVERO_GPIO_W2W_NRESET, 0);
 		udelay(10);
@@ -586,25 +592,20 @@ static void __init overo_init(void)
 					"OVERO_GPIO_W2W_NRESET\n");
 	}
 
-	if ((gpio_request(OVERO_GPIO_BT_XGATE, "OVERO_GPIO_BT_XGATE") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_BT_XGATE, 0) == 0))
+	ret = gpio_request_array(overo_bt_gpios, ARRAY_SIZE(overo_bt_gpios));
+	if (ret) {
+		pr_err("%s: could not obtain BT gpios\n", __func__);
+	} else {
 		gpio_export(OVERO_GPIO_BT_XGATE, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for OVERO_GPIO_BT_XGATE\n");
-
-	if ((gpio_request(OVERO_GPIO_BT_NRESET, "OVERO_GPIO_BT_NRESET") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_BT_NRESET, 1) == 0)) {
 		gpio_export(OVERO_GPIO_BT_NRESET, 0);
 		gpio_set_value(OVERO_GPIO_BT_NRESET, 0);
 		mdelay(6);
 		gpio_set_value(OVERO_GPIO_BT_NRESET, 1);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_BT_NRESET\n");
 	}
 
-	if ((gpio_request(OVERO_GPIO_USBH_CPEN, "OVERO_GPIO_USBH_CPEN") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_USBH_CPEN, 1) == 0))
+	ret = gpio_request_one(OVERO_GPIO_USBH_CPEN, GPIOF_OUT_INIT_HIGH,
+			       "OVERO_GPIO_USBH_CPEN");
+	if (ret == 0)
 		gpio_export(OVERO_GPIO_USBH_CPEN, 0);
 	else
 		printk(KERN_ERR "could not obtain gpio for "

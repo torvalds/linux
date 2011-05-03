@@ -63,23 +63,22 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 	gpmc_smsc911x_resources[0].start = cs_mem_base + 0x0;
 	gpmc_smsc911x_resources[0].end = cs_mem_base + 0xff;
 
-	if (gpio_request(gpmc_cfg->gpio_irq, "smsc911x irq") < 0) {
+	if (gpio_request_one(gpmc_cfg->gpio_irq, GPIOF_IN, "smsc911x irq")) {
 		pr_err("Failed to request IRQ GPIO%d\n", gpmc_cfg->gpio_irq);
 		goto free1;
 	}
 
-	gpio_direction_input(gpmc_cfg->gpio_irq);
 	gpmc_smsc911x_resources[1].start = gpio_to_irq(gpmc_cfg->gpio_irq);
 
 	if (gpio_is_valid(gpmc_cfg->gpio_reset)) {
-		ret = gpio_request(gpmc_cfg->gpio_reset, "smsc911x reset");
+		ret = gpio_request_one(gpmc_cfg->gpio_reset,
+				       GPIOF_OUT_INIT_HIGH, "smsc911x reset");
 		if (ret) {
 			pr_err("Failed to request reset GPIO%d\n",
 			       gpmc_cfg->gpio_reset);
 			goto free2;
 		}
 
-		gpio_direction_output(gpmc_cfg->gpio_reset, 1);
 		gpio_set_value(gpmc_cfg->gpio_reset, 0);
 		msleep(100);
 		gpio_set_value(gpmc_cfg->gpio_reset, 1);

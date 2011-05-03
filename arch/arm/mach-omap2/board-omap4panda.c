@@ -112,6 +112,11 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+static struct gpio panda_ehci_gpios[] __initdata = {
+	{ GPIO_HUB_POWER,	GPIOF_OUT_INIT_LOW,  "hub_power"  },
+	{ GPIO_HUB_NRESET,	GPIOF_OUT_INIT_LOW,  "hub_nreset" },
+};
+
 static void __init omap4_ehci_init(void)
 {
 	int ret;
@@ -121,44 +126,27 @@ static void __init omap4_ehci_init(void)
 	phy_ref_clk = clk_get(NULL, "auxclk3_ck");
 	if (IS_ERR(phy_ref_clk)) {
 		pr_err("Cannot request auxclk3\n");
-		goto error1;
+		return;
 	}
 	clk_set_rate(phy_ref_clk, 19200000);
 	clk_enable(phy_ref_clk);
 
-	/* disable the power to the usb hub prior to init */
-	ret = gpio_request(GPIO_HUB_POWER, "hub_power");
+	/* disable the power to the usb hub prior to init and reset phy+hub */
+	ret = gpio_request_array(panda_ehci_gpios,
+				 ARRAY_SIZE(panda_ehci_gpios));
 	if (ret) {
-		pr_err("Cannot request GPIO %d\n", GPIO_HUB_POWER);
-		goto error1;
+		pr_err("Unable to initialize EHCI power/reset\n");
+		return;
 	}
-	gpio_export(GPIO_HUB_POWER, 0);
-	gpio_direction_output(GPIO_HUB_POWER, 0);
-	gpio_set_value(GPIO_HUB_POWER, 0);
 
-	/* reset phy+hub */
-	ret = gpio_request(GPIO_HUB_NRESET, "hub_nreset");
-	if (ret) {
-		pr_err("Cannot request GPIO %d\n", GPIO_HUB_NRESET);
-		goto error2;
-	}
+	gpio_export(GPIO_HUB_POWER, 0);
 	gpio_export(GPIO_HUB_NRESET, 0);
-	gpio_direction_output(GPIO_HUB_NRESET, 0);
-	gpio_set_value(GPIO_HUB_NRESET, 0);
 	gpio_set_value(GPIO_HUB_NRESET, 1);
 
 	usbhs_init(&usbhs_bdata);
 
 	/* enable power to hub */
 	gpio_set_value(GPIO_HUB_POWER, 1);
-	return;
-
-error2:
-	gpio_free(GPIO_HUB_POWER);
-error1:
-	pr_err("Unable to initialize EHCI power/reset\n");
-	return;
-
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -638,27 +626,19 @@ static void omap4_panda_hdmi_mux_init(void)
 			OMAP_PIN_INPUT_PULLUP);
 }
 
+static struct gpio panda_hdmi_gpios[] = {
+	{ HDMI_GPIO_HPD,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_hpd"   },
+	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ls_oe" },
+};
+
 static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
 {
 	int status;
 
-	status = gpio_request_one(HDMI_GPIO_HPD, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_hpd");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_HPD);
-		return status;
-	}
-	status = gpio_request_one(HDMI_GPIO_LS_OE, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_ls_oe");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_LS_OE);
-		goto error1;
-	}
-
-	return 0;
-
-error1:
-	gpio_free(HDMI_GPIO_HPD);
+	status = gpio_request_array(panda_hdmi_gpios,
+				    ARRAY_SIZE(panda_hdmi_gpios));
+	if (status)
+		pr_err("Cannot request HDMI GPIOs\n");
 
 	return status;
 }

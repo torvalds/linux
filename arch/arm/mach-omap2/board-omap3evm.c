@@ -149,6 +149,15 @@ static inline void __init omap3evm_init_smsc911x(void) { return; }
 #define OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO	210
 #define OMAP3EVM_DVI_PANEL_EN_GPIO	199
 
+static struct gpio omap3_evm_dss_gpios[] __initdata = {
+	{ OMAP3EVM_LCD_PANEL_RESB,  GPIOF_OUT_INIT_HIGH, "lcd_panel_resb"  },
+	{ OMAP3EVM_LCD_PANEL_INI,   GPIOF_OUT_INIT_HIGH, "lcd_panel_ini"   },
+	{ OMAP3EVM_LCD_PANEL_QVGA,  GPIOF_OUT_INIT_LOW,  "lcd_panel_qvga"  },
+	{ OMAP3EVM_LCD_PANEL_LR,    GPIOF_OUT_INIT_HIGH, "lcd_panel_lr"    },
+	{ OMAP3EVM_LCD_PANEL_UD,    GPIOF_OUT_INIT_HIGH, "lcd_panel_ud"    },
+	{ OMAP3EVM_LCD_PANEL_ENVDD, GPIOF_OUT_INIT_LOW,  "lcd_panel_envdd" },
+};
+
 static int lcd_enabled;
 static int dvi_enabled;
 
@@ -156,61 +165,10 @@ static void __init omap3_evm_display_init(void)
 {
 	int r;
 
-	r = gpio_request(OMAP3EVM_LCD_PANEL_RESB, "lcd_panel_resb");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_resb\n");
-		return;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_RESB, 1);
-
-	r = gpio_request(OMAP3EVM_LCD_PANEL_INI, "lcd_panel_ini");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_ini\n");
-		goto err_1;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_INI, 1);
-
-	r = gpio_request(OMAP3EVM_LCD_PANEL_QVGA, "lcd_panel_qvga");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_qvga\n");
-		goto err_2;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_QVGA, 0);
-
-	r = gpio_request(OMAP3EVM_LCD_PANEL_LR, "lcd_panel_lr");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_lr\n");
-		goto err_3;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_LR, 1);
-
-	r = gpio_request(OMAP3EVM_LCD_PANEL_UD, "lcd_panel_ud");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_ud\n");
-		goto err_4;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_UD, 1);
-
-	r = gpio_request(OMAP3EVM_LCD_PANEL_ENVDD, "lcd_panel_envdd");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_envdd\n");
-		goto err_5;
-	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 0);
-
-	return;
-
-err_5:
-	gpio_free(OMAP3EVM_LCD_PANEL_UD);
-err_4:
-	gpio_free(OMAP3EVM_LCD_PANEL_LR);
-err_3:
-	gpio_free(OMAP3EVM_LCD_PANEL_QVGA);
-err_2:
-	gpio_free(OMAP3EVM_LCD_PANEL_INI);
-err_1:
-	gpio_free(OMAP3EVM_LCD_PANEL_RESB);
-
+	r = gpio_request_array(omap3_evm_dss_gpios,
+			       ARRAY_SIZE(omap3_evm_dss_gpios));
+	if (r)
+		printk(KERN_ERR "failed to get lcd_panel_* gpios\n");
 }
 
 static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
@@ -400,7 +358,7 @@ static struct platform_device leds_gpio = {
 static int omap3evm_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	int r;
+	int r, lcd_bl_en;
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
@@ -417,16 +375,14 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	 */
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
-	r = gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
-	if (!r)
-		r = gpio_direction_output(gpio + TWL4030_GPIO_MAX,
-			(get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) ? 1 : 0);
+	lcd_bl_en = get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2 ?
+		GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+	r = gpio_request_one(gpio + TWL4030_GPIO_MAX, lcd_bl_en, "EN_LCD_BKL");
 	if (r)
 		printk(KERN_ERR "failed to get/set lcd_bkl gpio\n");
 
 	/* gpio + 7 == DVI Enable */
-	gpio_request(gpio + 7, "EN_DVI");
-	gpio_direction_output(gpio + 7, 0);
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "EN_DVI");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -717,6 +673,11 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+static struct gpio omap3_evm_ehci_gpios[] __initdata = {
+	{ OMAP3_EVM_EHCI_VBUS,	 GPIOF_OUT_INIT_HIGH,  "enable EHCI VBUS" },
+	{ OMAP3_EVM_EHCI_SELECT, GPIOF_OUT_INIT_LOW,   "select EHCI port" },
+};
+
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
@@ -740,16 +701,12 @@ static void __init omap3_evm_init(void)
 
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
 		/* enable EHCI VBUS using GPIO22 */
-		omap_mux_init_gpio(22, OMAP_PIN_INPUT_PULLUP);
-		gpio_request(OMAP3_EVM_EHCI_VBUS, "enable EHCI VBUS");
-		gpio_direction_output(OMAP3_EVM_EHCI_VBUS, 0);
-		gpio_set_value(OMAP3_EVM_EHCI_VBUS, 1);
-
+		omap_mux_init_gpio(OMAP3_EVM_EHCI_VBUS, OMAP_PIN_INPUT_PULLUP);
 		/* Select EHCI port on main board */
-		omap_mux_init_gpio(61, OMAP_PIN_INPUT_PULLUP);
-		gpio_request(OMAP3_EVM_EHCI_SELECT, "select EHCI port");
-		gpio_direction_output(OMAP3_EVM_EHCI_SELECT, 0);
-		gpio_set_value(OMAP3_EVM_EHCI_SELECT, 0);
+		omap_mux_init_gpio(OMAP3_EVM_EHCI_SELECT,
+				   OMAP_PIN_INPUT_PULLUP);
+		gpio_request_array(omap3_evm_ehci_gpios,
+				   ARRAY_SIZE(omap3_evm_ehci_gpios));
 
 		/* setup EHCI phy reset config */
 		omap_mux_init_gpio(21, OMAP_PIN_INPUT_PULLUP);

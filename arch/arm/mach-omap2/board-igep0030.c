@@ -269,49 +269,43 @@ static void __init igep3_leds_init(void)
 }
 
 #else
+static struct gpio igep3_gpio_leds[] __initdata = {
+	{ IGEP3_GPIO_LED0_RED,	 GPIOF_OUT_INIT_HIGH, "gpio-led:red:d0"	  },
+	{ IGEP3_GPIO_LED0_GREEN, GPIOF_OUT_INIT_HIGH, "gpio-led:green:d0" },
+	{ IGEP3_GPIO_LED1_RED,	 GPIOF_OUT_INIT_HIGH, "gpio-led:red:d1"	  },
+};
+
 static inline void igep3_leds_init(void)
 {
-	if ((gpio_request(IGEP3_GPIO_LED0_RED, "gpio-led:red:d0") == 0) &&
-	    (gpio_direction_output(IGEP3_GPIO_LED0_RED, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_LED0_RED, 0);
-		gpio_set_value(IGEP3_GPIO_LED0_RED, 1);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_LED0_RED\n");
-
-	if ((gpio_request(IGEP3_GPIO_LED0_GREEN, "gpio-led:green:d0") == 0) &&
-	    (gpio_direction_output(IGEP3_GPIO_LED0_GREEN, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_LED0_GREEN, 0);
-		gpio_set_value(IGEP3_GPIO_LED0_GREEN, 1);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_LED0_GREEN\n");
-
-	if ((gpio_request(IGEP3_GPIO_LED1_RED, "gpio-led:red:d1") == 0) &&
-		(gpio_direction_output(IGEP3_GPIO_LED1_RED, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_LED1_RED, 0);
-		gpio_set_value(IGEP3_GPIO_LED1_RED, 1);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_LED1_RED\n");
+	if (gpio_request_array(igep3_gpio_leds, ARRAY_SIZE(igep3_gpio_leds))) {
+		pr_warning("IGEP3: Could not obtain leds gpios\n");
+		return;
+	}
+	gpio_export(IGEP3_GPIO_LED0_RED, 0);
+	gpio_export(IGEP3_GPIO_LED0_GREEN, 0);
+	gpio_export(IGEP3_GPIO_LED1_RED, 0);
 }
 #endif
 
 static int igep3_twl4030_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+#if !defined(CONFIG_LEDS_GPIO) && !defined(CONFIG_LEDS_GPIO_MODULE)
+	int ret;
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
-#if !defined(CONFIG_LEDS_GPIO) && !defined(CONFIG_LEDS_GPIO_MODULE)
-	if ((gpio_request(gpio+TWL4030_GPIO_MAX+1, "gpio-led:green:d1") == 0)
-	    && (gpio_direction_output(gpio + TWL4030_GPIO_MAX + 1, 1) == 0)) {
-		gpio_export(gpio + TWL4030_GPIO_MAX + 1, 0);
-		gpio_set_value(gpio + TWL4030_GPIO_MAX + 1, 0);
-	} else
+	ret = gpio_request_one(gpio + TWL4030_GPIO_MAX + 1, GPIOF_OUT_INIT_HIGH,
+			       "gpio-led:green:d1");
+	if (ret)
 		pr_warning("IGEP3: Could not obtain gpio GPIO_LED1_GREEN\n");
+	else
+		gpio_export(gpio + TWL4030_GPIO_MAX + 1, 0);
 #else
 	igep3_gpio_leds[3].gpio = gpio + TWL4030_GPIO_MAX + 1;
 #endif
+	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
+	mmc[0].gpio_cd = gpio + 0;
+	omap2_hsmmc_init(mmc);
 
 	return 0;
 };
@@ -358,35 +352,36 @@ static int __init igep3_i2c_init(void)
 }
 
 #if defined(CONFIG_LIBERTAS_SDIO) || defined(CONFIG_LIBERTAS_SDIO_MODULE)
+static struct gpio igep3_wlan_bt_gpios[] __initdata = {
+	{ IGEP3_GPIO_WIFI_NPD,	  GPIOF_OUT_INIT_HIGH, "GPIO_WIFI_NPD"	  },
+	{ IGEP3_GPIO_WIFI_NRESET, GPIOF_OUT_INIT_HIGH, "GPIO_WIFI_NRESET" },
+	{ IGEP3_GPIO_BT_NRESET,	  GPIOF_OUT_INIT_HIGH, "GPIO_BT_NRESET"	  },
+};
 
 static void __init igep3_wifi_bt_init(void)
 {
+	int err;
+
 	/* Configure MUX values for W-LAN + Bluetooth GPIO's */
 	omap_mux_init_gpio(IGEP3_GPIO_WIFI_NPD, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(IGEP3_GPIO_WIFI_NRESET, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(IGEP3_GPIO_BT_NRESET, OMAP_PIN_OUTPUT);
 
 	/* Set GPIO's for  W-LAN + Bluetooth combo module */
-	if ((gpio_request(IGEP3_GPIO_WIFI_NPD, "GPIO_WIFI_NPD") == 0) &&
-	    (gpio_direction_output(IGEP3_GPIO_WIFI_NPD, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_WIFI_NPD, 0);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_WIFI_NPD\n");
+	err = gpio_request_array(igep3_wlan_bt_gpios,
+				 ARRAY_SIZE(igep3_wlan_bt_gpios));
+	if (err) {
+		pr_warning("IGEP3: Could not obtain WIFI/BT gpios\n");
+		return;
+	}
 
-	if ((gpio_request(IGEP3_GPIO_WIFI_NRESET, "GPIO_WIFI_NRESET") == 0) &&
-	    (gpio_direction_output(IGEP3_GPIO_WIFI_NRESET, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_WIFI_NRESET, 0);
-		gpio_set_value(IGEP3_GPIO_WIFI_NRESET, 0);
-		udelay(10);
-		gpio_set_value(IGEP3_GPIO_WIFI_NRESET, 1);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_WIFI_NRESET\n");
+	gpio_export(IGEP3_GPIO_WIFI_NPD, 0);
+	gpio_export(IGEP3_GPIO_WIFI_NRESET, 0);
+	gpio_export(IGEP3_GPIO_BT_NRESET, 0);
 
-	if ((gpio_request(IGEP3_GPIO_BT_NRESET, "GPIO_BT_NRESET") == 0) &&
-	    (gpio_direction_output(IGEP3_GPIO_BT_NRESET, 1) == 0)) {
-		gpio_export(IGEP3_GPIO_BT_NRESET, 0);
-	} else
-		pr_warning("IGEP3: Could not obtain gpio GPIO_BT_NRESET\n");
+	gpio_set_value(IGEP3_GPIO_WIFI_NRESET, 0);
+	udelay(10);
+	gpio_set_value(IGEP3_GPIO_WIFI_NRESET, 1);
 }
 #else
 void __init igep3_wifi_bt_init(void) {}

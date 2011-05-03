@@ -252,58 +252,22 @@ static struct spi_board_info sdp4430_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpio sdp4430_eth_gpios[] __initdata = {
+	{ ETH_KS8851_POWER_ON,	GPIOF_OUT_INIT_HIGH,	"eth_power"	},
+	{ ETH_KS8851_QUART,	GPIOF_OUT_INIT_HIGH,	"quart"		},
+	{ ETH_KS8851_IRQ,	GPIOF_IN,		"eth_irq"	},
+};
+
 static int omap_ethernet_init(void)
 {
 	int status;
 
 	/* Request of GPIO lines */
+	status = gpio_request_array(sdp4430_eth_gpios,
+				    ARRAY_SIZE(sdp4430_eth_gpios));
+	if (status)
+		pr_err("Cannot request ETH GPIOs\n");
 
-	status = gpio_request(ETH_KS8851_POWER_ON, "eth_power");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", ETH_KS8851_POWER_ON);
-		return status;
-	}
-
-	status = gpio_request(ETH_KS8851_QUART, "quart");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", ETH_KS8851_QUART);
-		goto error1;
-	}
-
-	status = gpio_request(ETH_KS8851_IRQ, "eth_irq");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", ETH_KS8851_IRQ);
-		goto error2;
-	}
-
-	/* Configuration of requested GPIO lines */
-
-	status = gpio_direction_output(ETH_KS8851_POWER_ON, 1);
-	if (status) {
-		pr_err("Cannot set output GPIO %d\n", ETH_KS8851_IRQ);
-		goto error3;
-	}
-
-	status = gpio_direction_output(ETH_KS8851_QUART, 1);
-	if (status) {
-		pr_err("Cannot set output GPIO %d\n", ETH_KS8851_QUART);
-		goto error3;
-	}
-
-	status = gpio_direction_input(ETH_KS8851_IRQ);
-	if (status) {
-		pr_err("Cannot set input GPIO %d\n", ETH_KS8851_IRQ);
-		goto error3;
-	}
-
-	return 0;
-
-error3:
-	gpio_free(ETH_KS8851_IRQ);
-error2:
-	gpio_free(ETH_KS8851_QUART);
-error1:
-	gpio_free(ETH_KS8851_POWER_ON);
 	return status;
 }
 
@@ -602,21 +566,13 @@ static int __init omap4_i2c_init(void)
 
 static void __init omap_sfh7741prox_init(void)
 {
-	int  error;
+	int error;
 
-	error = gpio_request(OMAP4_SFH7741_ENABLE_GPIO, "sfh7741");
-	if (error < 0) {
+	error = gpio_request_one(OMAP4_SFH7741_ENABLE_GPIO,
+				 GPIOF_OUT_INIT_LOW, "sfh7741");
+	if (error < 0)
 		pr_err("%s:failed to request GPIO %d, error %d\n",
 			__func__, OMAP4_SFH7741_ENABLE_GPIO, error);
-		return;
-	}
-
-	error = gpio_direction_output(OMAP4_SFH7741_ENABLE_GPIO , 0);
-	if (error < 0) {
-		pr_err("%s: GPIO configuration failed: GPIO %d,error %d\n",
-			 __func__, OMAP4_SFH7741_ENABLE_GPIO, error);
-		gpio_free(OMAP4_SFH7741_ENABLE_GPIO);
-	}
 }
 
 static void sdp4430_hdmi_mux_init(void)
@@ -633,27 +589,19 @@ static void sdp4430_hdmi_mux_init(void)
 			OMAP_PIN_INPUT_PULLUP);
 }
 
+static struct gpio sdp4430_hdmi_gpios[] = {
+	{ HDMI_GPIO_HPD,	GPIOF_OUT_INIT_HIGH,	"hdmi_gpio_hpd"   },
+	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH,	"hdmi_gpio_ls_oe" },
+};
+
 static int sdp4430_panel_enable_hdmi(struct omap_dss_device *dssdev)
 {
 	int status;
 
-	status = gpio_request_one(HDMI_GPIO_HPD, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_hpd");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_HPD);
-		return status;
-	}
-	status = gpio_request_one(HDMI_GPIO_LS_OE, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_ls_oe");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_LS_OE);
-		goto error1;
-	}
-
-	return 0;
-
-error1:
-	gpio_free(HDMI_GPIO_HPD);
+	status = gpio_request_array(sdp4430_hdmi_gpios,
+				    ARRAY_SIZE(sdp4430_hdmi_gpios));
+	if (status)
+		pr_err("%s: Cannot request HDMI GPIOs\n", __func__);
 
 	return status;
 }

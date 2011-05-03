@@ -80,6 +80,12 @@ static u8 omap3_beagle_get_rev(void)
 	return omap3_beagle_version;
 }
 
+static struct gpio omap3_beagle_rev_gpios[] __initdata = {
+	{ 171, GPIOF_IN, "rev_id_0"    },
+	{ 172, GPIOF_IN, "rev_id_1" },
+	{ 173, GPIOF_IN, "rev_id_2"    },
+};
+
 static void __init omap3_beagle_init_rev(void)
 {
 	int ret;
@@ -89,21 +95,13 @@ static void __init omap3_beagle_init_rev(void)
 	omap_mux_init_gpio(172, OMAP_PIN_INPUT_PULLUP);
 	omap_mux_init_gpio(173, OMAP_PIN_INPUT_PULLUP);
 
-	ret = gpio_request(171, "rev_id_0");
-	if (ret < 0)
-		goto fail0;
-
-	ret = gpio_request(172, "rev_id_1");
-	if (ret < 0)
-		goto fail1;
-
-	ret = gpio_request(173, "rev_id_2");
-	if (ret < 0)
-		goto fail2;
-
-	gpio_direction_input(171);
-	gpio_direction_input(172);
-	gpio_direction_input(173);
+	ret = gpio_request_array(omap3_beagle_rev_gpios,
+				 ARRAY_SIZE(omap3_beagle_rev_gpios));
+	if (ret < 0) {
+		printk(KERN_ERR "Unable to get revision detection GPIO pins\n");
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_UNKN;
+		return;
+	}
 
 	beagle_rev = gpio_get_value(171) | (gpio_get_value(172) << 1)
 			| (gpio_get_value(173) << 2);
@@ -129,18 +127,6 @@ static void __init omap3_beagle_init_rev(void)
 		printk(KERN_INFO "OMAP3 Beagle Rev: unknown %hd\n", beagle_rev);
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_UNKN;
 	}
-
-	return;
-
-fail2:
-	gpio_free(172);
-fail1:
-	gpio_free(171);
-fail0:
-	printk(KERN_ERR "Unable to get revision detection GPIO pins\n");
-	omap3_beagle_version = OMAP3BEAGLE_BOARD_UNKN;
-
-	return;
 }
 
 static struct mtd_partition omap3beagle_nand_partitions[] = {
@@ -235,13 +221,10 @@ static void __init beagle_display_init(void)
 {
 	int r;
 
-	r = gpio_request(beagle_dvi_device.reset_gpio, "DVI reset");
-	if (r < 0) {
+	r = gpio_request_one(beagle_dvi_device.reset_gpio, GPIOF_OUT_INIT_LOW,
+			     "DVI reset");
+	if (r < 0)
 		printk(KERN_ERR "Unable to get DVI reset GPIO\n");
-		return;
-	}
-
-	gpio_direction_output(beagle_dvi_device.reset_gpio, 0);
 }
 
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -268,7 +251,7 @@ static struct gpio_led gpio_leds[];
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	int r;
+	int r, usb_pwr_level;
 
 	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
 		mmc[0].gpio_wp = -EINVAL;
@@ -287,65 +270,45 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	beagle_vmmc1_supply.dev = mmc[0].dev;
 	beagle_vsim_supply.dev = mmc[0].dev;
 
-	/* REVISIT: need ehci-omap hooks for external VBUS
-	 * power switch and overcurrent detect
-	 */
-	if (omap3_beagle_get_rev() != OMAP3BEAGLE_BOARD_XM) {
-		r = gpio_request(gpio + 1, "EHCI_nOC");
-		if (!r) {
-			r = gpio_direction_input(gpio + 1);
-			if (r)
-				gpio_free(gpio + 1);
-		}
-		if (r)
-			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
-	}
-
 	/*
 	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
 	 * high / others active low)
-	 */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
-		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
-	else
-		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
-
-	/* DVI reset GPIO is different between beagle revisions */
-	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
-		beagle_dvi_device.reset_gpio = 129;
-	else
-		beagle_dvi_device.reset_gpio = 170;
-
-	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
-	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
-
-	/*
-	 * gpio + 1 on Xm controls the TFP410's enable line (active low)
-	 * gpio + 2 control varies depending on the board rev as follows:
-	 * P7/P8 revisions(prototype): Camera EN
-	 * A2+ revisions (production): LDO (supplies DVI, serial, led blocks)
+	 * DVI reset GPIO is different between beagle revisions
 	 */
 	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
-		r = gpio_request(gpio + 1, "nDVI_PWR_EN");
-		if (!r) {
-			r = gpio_direction_output(gpio + 1, 0);
-			if (r)
-				gpio_free(gpio + 1);
-		}
+		usb_pwr_level = GPIOF_OUT_INIT_HIGH;
+		beagle_dvi_device.reset_gpio = 129;
+		/*
+		 * gpio + 1 on Xm controls the TFP410's enable line (active low)
+		 * gpio + 2 control varies depending on the board rev as below:
+		 * P7/P8 revisions(prototype): Camera EN
+		 * A2+ revisions (production): LDO (DVI, serial, led blocks)
+		 */
+		r = gpio_request_one(gpio + 1, GPIOF_OUT_INIT_LOW,
+				     "nDVI_PWR_EN");
 		if (r)
 			pr_err("%s: unable to configure nDVI_PWR_EN\n",
 				__func__);
-		r = gpio_request(gpio + 2, "DVI_LDO_EN");
-		if (!r) {
-			r = gpio_direction_output(gpio + 2, 1);
-			if (r)
-				gpio_free(gpio + 2);
-		}
+		r = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
+				     "DVI_LDO_EN");
 		if (r)
 			pr_err("%s: unable to configure DVI_LDO_EN\n",
 				__func__);
+	} else {
+		usb_pwr_level = GPIOF_OUT_INIT_LOW;
+		beagle_dvi_device.reset_gpio = 170;
+		/*
+		 * REVISIT: need ehci-omap hooks for external VBUS
+		 * power switch and overcurrent detect
+		 */
+		if (gpio_request_one(gpio + 1, GPIOF_IN, "EHCI_nOC"))
+			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
 	}
+
+	gpio_request_one(gpio + TWL4030_GPIO_MAX, usb_pwr_level, "nEN_USB_PWR");
+
+	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
+	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
 	return 0;
 }
@@ -608,9 +571,8 @@ static void __init omap3_beagle_init(void)
 	omap_serial_init();
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
-	gpio_request(170, "DVI_nPD");
 	/* REVISIT leave DVI powered down until it's needed ... */
-	gpio_direction_output(170, true);
+	gpio_request_one(170, GPIOF_OUT_INIT_HIGH, "DVI_nPD");
 
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);

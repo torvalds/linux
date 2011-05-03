@@ -242,7 +242,7 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* TWL4030_GPIO_MAX + 0 is "LCD_PWREN" (out, active high) */
 	devkit8000_lcd_device.reset_gpio = gpio + TWL4030_GPIO_MAX + 0;
 	ret = gpio_request_one(devkit8000_lcd_device.reset_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "LCD_PWREN");
+			       GPIOF_OUT_INIT_LOW, "LCD_PWREN");
 	if (ret < 0) {
 		devkit8000_lcd_device.reset_gpio = -EINVAL;
 		printk(KERN_ERR "Failed to request GPIO for LCD_PWRN\n");
@@ -251,7 +251,7 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* gpio + 7 is "DVI_PD" (out, active low) */
 	devkit8000_dvi_device.reset_gpio = gpio + 7;
 	ret = gpio_request_one(devkit8000_dvi_device.reset_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "DVI PowerDown");
+			       GPIOF_OUT_INIT_LOW, "DVI PowerDown");
 	if (ret < 0) {
 		devkit8000_dvi_device.reset_gpio = -EINVAL;
 		printk(KERN_ERR "Failed to request GPIO for DVI PowerDown\n");
@@ -483,14 +483,14 @@ static void __init omap_dm9000_init(void)
 {
 	unsigned char *eth_addr = omap_dm9000_platdata.dev_addr;
 	struct omap_die_id odi;
+	int ret;
 
-	if (gpio_request(OMAP_DM9000_GPIO_IRQ, "dm9000 irq") < 0) {
+	ret = gpio_request_one(OMAP_DM9000_GPIO_IRQ, GPIOF_IN, "dm9000 irq");
+	if (ret < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for dm9000 IRQ\n",
 			OMAP_DM9000_GPIO_IRQ);
 		return;
-		}
-
-	gpio_direction_input(OMAP_DM9000_GPIO_IRQ);
+	}
 
 	/* init the mac address using DIE id */
 	omap_get_die_id(&odi);

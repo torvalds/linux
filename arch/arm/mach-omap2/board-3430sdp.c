@@ -126,8 +126,11 @@ static struct twl4030_keypad_data sdp3430_kp_data = {
 #define SDP3430_LCD_PANEL_BACKLIGHT_GPIO	8
 #define SDP3430_LCD_PANEL_ENABLE_GPIO		5
 
-static unsigned backlight_gpio;
-static unsigned enable_gpio;
+static struct gpio sdp3430_dss_gpios[] __initdata = {
+	{SDP3430_LCD_PANEL_ENABLE_GPIO,    GPIOF_OUT_INIT_LOW, "LCD reset"    },
+	{SDP3430_LCD_PANEL_BACKLIGHT_GPIO, GPIOF_OUT_INIT_LOW, "LCD Backlight"},
+};
+
 static int lcd_enabled;
 static int dvi_enabled;
 
@@ -135,29 +138,11 @@ static void __init sdp3430_display_init(void)
 {
 	int r;
 
-	enable_gpio    = SDP3430_LCD_PANEL_ENABLE_GPIO;
-	backlight_gpio = SDP3430_LCD_PANEL_BACKLIGHT_GPIO;
+	r = gpio_request_array(sdp3430_dss_gpios,
+			       ARRAY_SIZE(sdp3430_dss_gpios));
+	if (r)
+		printk(KERN_ERR "failed to get LCD control GPIOs\n");
 
-	r = gpio_request(enable_gpio, "LCD reset");
-	if (r) {
-		printk(KERN_ERR "failed to get LCD reset GPIO\n");
-		goto err0;
-	}
-
-	r = gpio_request(backlight_gpio, "LCD Backlight");
-	if (r) {
-		printk(KERN_ERR "failed to get LCD backlight GPIO\n");
-		goto err1;
-	}
-
-	gpio_direction_output(enable_gpio, 0);
-	gpio_direction_output(backlight_gpio, 0);
-
-	return;
-err1:
-	gpio_free(enable_gpio);
-err0:
-	return;
 }
 
 static int sdp3430_panel_enable_lcd(struct omap_dss_device *dssdev)
@@ -167,8 +152,8 @@ static int sdp3430_panel_enable_lcd(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_direction_output(enable_gpio, 1);
-	gpio_direction_output(backlight_gpio, 1);
+	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 1);
+	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 1);
 
 	lcd_enabled = 1;
 
@@ -179,8 +164,8 @@ static void sdp3430_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
 	lcd_enabled = 0;
 
-	gpio_direction_output(enable_gpio, 0);
-	gpio_direction_output(backlight_gpio, 0);
+	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 0);
+	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 0);
 }
 
 static int sdp3430_panel_enable_dvi(struct omap_dss_device *dssdev)
@@ -308,12 +293,10 @@ static int sdp3430_twl_gpio_setup(struct device *dev,
 	omap2_hsmmc_init(mmc);
 
 	/* gpio + 7 is "sub_lcd_en_bkl" (output/PWM1) */
-	gpio_request(gpio + 7, "sub_lcd_en_bkl");
-	gpio_direction_output(gpio + 7, 0);
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "sub_lcd_en_bkl");
 
 	/* gpio + 15 is "sub_lcd_nRST" (output) */
-	gpio_request(gpio + 15, "sub_lcd_nRST");
-	gpio_direction_output(gpio + 15, 0);
+	gpio_request_one(gpio + 15, GPIOF_OUT_INIT_LOW, "sub_lcd_nRST");
 
 	return 0;
 }

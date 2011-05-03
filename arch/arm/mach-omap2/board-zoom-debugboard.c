@@ -77,12 +77,9 @@ static inline void __init zoom_init_quaduart(void)
 
 	quart_gpio = ZOOM_QUADUART_GPIO;
 
-	if (gpio_request(quart_gpio, "TL16CP754C GPIO") < 0) {
+	if (gpio_request_one(quart_gpio, GPIOF_IN, "TL16CP754C GPIO") < 0)
 		printk(KERN_ERR "Failed to request GPIO%d for TL16CP754C\n",
 								quart_gpio);
-		return;
-	}
-	gpio_direction_input(quart_gpio);
 }
 
 static inline int omap_zoom_debugboard_detect(void)
@@ -92,12 +89,12 @@ static inline int omap_zoom_debugboard_detect(void)
 
 	debug_board_detect = ZOOM_SMSC911X_GPIO;
 
-	if (gpio_request(debug_board_detect, "Zoom debug board detect") < 0) {
+	if (gpio_request_one(debug_board_detect, GPIOF_IN,
+			     "Zoom debug board detect") < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for Zoom debug"
 		"board detect\n", debug_board_detect);
 		return 0;
 	}
-	gpio_direction_input(debug_board_detect);
 
 	if (!gpio_get_value(debug_board_detect)) {
 		ret = 0;

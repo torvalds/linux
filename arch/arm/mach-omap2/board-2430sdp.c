@@ -226,8 +226,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init omap_2430sdp_init(void)
 {
-	int ret;
-
 	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
 	omap_board_config = sdp2430_config;
@@ -246,9 +244,8 @@ static void __init omap_2430sdp_init(void)
 	board_smc91x_init();
 
 	/* Turn off secondary LCD backlight */
-	ret = gpio_request(SECONDARY_LCD_GPIO, "Secondary LCD backlight");
-	if (ret == 0)
-		gpio_direction_output(SECONDARY_LCD_GPIO, 0);
+	gpio_request_one(SECONDARY_LCD_GPIO, GPIOF_OUT_INIT_LOW,
+			 "Secondary LCD backlight");
 }
 
 static void __init omap_2430sdp_map_io(void)
