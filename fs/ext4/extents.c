@@ -1563,7 +1563,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
  * Returns 0 if the extents (ex and ex+1) were _not_ merged and returns
  * 1 if they got merged.
  */
-static int ext4_ext_try_to_merge(struct inode *inode,
+static int ext4_ext_try_to_merge_right(struct inode *inode,
 				 struct ext4_ext_path *path,
 				 struct ext4_extent *ex)
 {
@@ -1600,6 +1600,31 @@ static int ext4_ext_try_to_merge(struct inode *inode,
 	}
 
 	return merge_done;
+}
+
+/*
+ * This function tries to merge the @ex extent to neighbours in the tree.
+ * return 1 if merge left else 0.
+ */
+static int ext4_ext_try_to_merge(struct inode *inode,
+				  struct ext4_ext_path *path,
+				  struct ext4_extent *ex) {
+	struct ext4_extent_header *eh;
+	unsigned int depth;
+	int merge_done = 0;
+	int ret = 0;
+
+	depth = ext_depth(inode);
+	BUG_ON(path[depth].p_hdr == NULL);
+	eh = path[depth].p_hdr;
+
+	if (ex > EXT_FIRST_EXTENT(eh))
+		merge_done = ext4_ext_try_to_merge_right(inode, path, ex - 1);
+
+	if (!merge_done)
+		ret = ext4_ext_try_to_merge_right(inode, path, ex);
+
+	return ret;
 }
 
 /*
@@ -3039,6 +3064,7 @@ fix_extent_len:
 	ext4_ext_dirty(handle, inode, path + depth);
 	return err;
 }
+
 static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 					      struct inode *inode,
 					      struct ext4_ext_path *path)
@@ -3047,11 +3073,15 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 	struct ext4_extent_header *eh;
 	int depth;
 	int err = 0;
-	int ret = 0;
 
 	depth = ext_depth(inode);
 	eh = path[depth].p_hdr;
 	ex = path[depth].p_ext;
+
+	ext_debug("ext4_convert_unwritten_extents_endio: inode %lu, logical"
+		"block %llu, max_blocks %u\n", inode->i_ino,
+		(unsigned long long)le32_to_cpu(ex->ee_block),
+		ext4_ext_get_actual_len(ex));
 
 	err = ext4_ext_get_access(handle, inode, path + depth);
 	if (err)
@@ -3059,34 +3089,11 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 	/* first mark the extent as initialized */
 	ext4_ext_mark_initialized(ex);
 
-	/*
-	 * We have to see if it can be merged with the extent
-	 * on the left.
+	/* note: ext4_ext_correct_indexes() isn't needed here because
+	 * borders are not changed
 	 */
-	if (ex > EXT_FIRST_EXTENT(eh)) {
-		/*
-		 * To merge left, pass "ex - 1" to try_to_merge(),
-		 * since it merges towards right _only_.
-		 */
-		ret = ext4_ext_try_to_merge(inode, path, ex - 1);
-		if (ret) {
-			err = ext4_ext_correct_indexes(handle, inode, path);
-			if (err)
-				goto out;
-			depth = ext_depth(inode);
-			ex--;
-		}
-	}
-	/*
-	 * Try to Merge towards right.
-	 */
-	ret = ext4_ext_try_to_merge(inode, path, ex);
-	if (ret) {
-		err = ext4_ext_correct_indexes(handle, inode, path);
-		if (err)
-			goto out;
-		depth = ext_depth(inode);
-	}
+	ext4_ext_try_to_merge(inode, path, ex);
+
 	/* Mark modified extent as dirty */
 	err = ext4_ext_dirty(handle, inode, path + depth);
 out:
