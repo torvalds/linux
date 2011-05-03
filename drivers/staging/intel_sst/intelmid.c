@@ -339,8 +339,11 @@ static int snd_intelmad_open(struct snd_pcm_substream *substream,
 		/*
 		 * MRST firmware currently denies stereo recording requests.
 		 */
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			runtime->hw.formats = (SNDRV_PCM_FMTBIT_S16 |
+					       SNDRV_PCM_FMTBIT_U16);
 			runtime->hw.channels_max = 1;
+		}
 	}
 	if (intelmaddata->cpu_id == CPU_CHIP_PENWELL) {
 		runtime->hw = snd_intelmad_stream;
