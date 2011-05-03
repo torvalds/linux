@@ -324,7 +324,7 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
-	    HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 

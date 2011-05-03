@@ -739,7 +739,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	up_write(&ehci_cf_port_reset_rwsem);
 	ehci->last_periodic_enable = ktime_get_real();
 
-	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
+	temp = HC_VERSION(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),

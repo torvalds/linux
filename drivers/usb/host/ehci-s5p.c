@@ -126,7 +126,8 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(readl(&ehci->caps->hc_capbase));
+	ehci->regs = hcd->regs +
+		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
 
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
