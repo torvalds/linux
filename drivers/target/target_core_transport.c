@@ -1623,7 +1623,7 @@ struct se_device *transport_add_device_to_core_hba(
 	 * setup.
 	 */
 	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (!(inquiry_prod) || !(inquiry_prod)) {
+		if (!inquiry_prod || !inquiry_rev) {
 			printk(KERN_ERR "All non TCM/pSCSI plugins require"
 				" INQUIRY consts\n");
 			goto out;
