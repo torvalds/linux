@@ -32,6 +32,7 @@
 #include <sound/initval.h>
 #include "lola.h"
 
+/* Standard options */
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
@@ -42,6 +43,28 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Digigram Lola driver.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Digigram Lola driver.");
+
+/* Lola-specific options */
+
+/* for instance use always max granularity which is compatible
+ * with all sample rates
+ */
+static int granularity[SNDRV_CARDS] = {
+	[0 ... (SNDRV_CARDS - 1)] = LOLA_GRANULARITY_MAX
+};
+
+/* below a sample_rate of 16kHz the analogue audio quality is NOT excellent */
+static int sample_rate_min[SNDRV_CARDS] = {
+	[0 ... (SNDRV_CARDS - 1) ] = 16000
+};
+
+module_param_array(granularity, int, NULL, 0444);
+MODULE_PARM_DESC(granularity, "Granularity value");
+module_param_array(sample_rate_min, int, NULL, 0444);
+MODULE_PARM_DESC(sample_rate_min, "Minimal sample rate");
+
+/*
+ */
 
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Digigram, Lola}}");
@@ -536,7 +559,7 @@ static int lola_dev_free(struct snd_device *device)
 }
 
 static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
-				 struct lola **rchip)
+				 int dev, struct lola **rchip)
 {
 	struct lola *chip;
 	int err;
@@ -564,14 +587,16 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	/* below a sample_rate of 16kHz the analogue audio quality
-	 * is NOT excellent
-	 */
-	chip->sample_rate_min = 16000;
-	/* for instance use always max granularity which is compatible
-	 * with all sample rates
-	 */
-	chip->granularity = LOLA_GRANULARITY_MAX;
+	chip->sample_rate_min = sample_rate_min[dev];
+
+	chip->granularity = granularity[dev];
+	/* FIXME */
+	if (chip->granularity != LOLA_GRANULARITY_MAX) {
+		snd_printk(KERN_WARNING SFX
+			   "Only %d granularity is supported for now\n",
+			   LOLA_GRANULARITY_MAX);
+		chip->granularity = LOLA_GRANULARITY_MAX;
+	}
 
 	err = pci_request_regions(pci, DRVNAME);
 	if (err < 0) {
@@ -674,7 +699,7 @@ static int __devinit lola_probe(struct pci_dev *pci,
 
 	snd_card_set_dev(card, &pci->dev);
 
-	err = lola_create(card, pci, &chip);
+	err = lola_create(card, pci, dev, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
