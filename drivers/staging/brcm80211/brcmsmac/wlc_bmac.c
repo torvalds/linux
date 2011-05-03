@@ -235,7 +235,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	u32 macintmask;
 
-	WL_TRACE("wl%d: wlc_setband_inact\n", wlc_hw->unit);
+	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	WARN_ON((R_REG(&wlc_hw->regs->maccontrol) & MCTL_EN_MAC) != 0);
 
@@ -267,7 +267,7 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 	uint bound_limit = bound ? wlc_hw->wlc->pub->tunables->rxbnd : -1;
 	wlc_d11rxhdr_t *wlc_rxhdr = NULL;
 
-	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 	/* gather received frames */
 	while ((p = dma_rx(wlc_hw->di[fifo]))) {
 
@@ -325,8 +325,8 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 	macintstatus = wlc->macintstatus;
 	wlc->macintstatus = 0;
 
-	WL_TRACE("wl%d: wlc_dpc: macintstatus 0x%x\n",
-		 wlc_hw->unit, macintstatus);
+	BCMMSG(wlc->wiphy, "wl%d: macintstatus 0x%x\n",
+	       wlc_hw->unit, macintstatus);
 
 	WARN_ON(macintstatus & MI_PRQ); /* PRQ Interrupt in non-MBSS */
 
@@ -356,8 +356,7 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 
 	/* ATIM window end */
 	if (macintstatus & MI_ATIMWINEND) {
-		WL_TRACE("wlc_isr: end of ATIM window\n");
-
+		BCMMSG(wlc->wiphy, "end of ATIM window\n");
 		OR_REG(&regs->maccommand, wlc->qvalid);
 		wlc->qvalid = 0;
 	}
@@ -406,8 +405,8 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 	}
 
 	if (macintstatus & MI_RFDISABLE) {
-		WL_TRACE("wl%d: BMAC Detected a change on the RF Disable Input\n", wlc_hw->unit);
-
+		BCMMSG(wlc->wiphy, "wl%d: BMAC Detected a change on the"
+		       " RF Disable Input\n", wlc_hw->unit);
 		wlc->pub->_cnt->rfdisable++;
 		wl_rfkill_set_hw_state(wlc->wl);
 	}
@@ -430,7 +429,7 @@ void wlc_bmac_watchdog(void *arg)
 	struct wlc_info *wlc = (struct wlc_info *) arg;
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 
-	WL_TRACE("wl%d: wlc_bmac_watchdog\n", wlc_hw->unit);
+	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	if (!wlc_hw->up)
 		return;
@@ -453,8 +452,7 @@ wlc_bmac_set_chanspec(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 {
 	uint bandunit;
 
-	WL_TRACE("wl%d: wlc_bmac_set_chanspec 0x%x\n",
-		 wlc_hw->unit, chanspec);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: 0x%x\n", wlc_hw->unit, chanspec);
 
 	wlc_hw->chanspec = chanspec;
 
@@ -627,9 +625,8 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	shared_phy_params_t sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
 
-	WL_TRACE("wl%d: wlc_bmac_attach: vendor 0x%x device 0x%x\n",
-		 unit, vendor, device);
-
+	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit, vendor,
+		device);
 
 	wme = true;
 
@@ -945,8 +942,9 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		goto fail;
 	}
 
-	WL_TRACE("%s:: deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
-		 __func__, wlc_hw->deviceid, wlc_hw->_nbands,
+	BCMMSG(wlc->wiphy,
+		 "deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
+		 wlc_hw->deviceid, wlc_hw->_nbands,
 		 wlc_hw->sih->boardtype, macaddr);
 
 	return err;
@@ -1035,7 +1033,7 @@ int wlc_bmac_detach(struct wlc_info *wlc)
 
 void wlc_bmac_reset(struct wlc_hw_info *wlc_hw)
 {
-	WL_TRACE("wl%d: wlc_bmac_reset\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	wlc_hw->wlc->pub->_cnt->reset++;
 
@@ -1056,7 +1054,7 @@ wlc_bmac_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 	bool fastclk;
 	struct wlc_info *wlc = wlc_hw->wlc;
 
-	WL_TRACE("wl%d: wlc_bmac_init\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
@@ -1105,7 +1103,7 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 {
 	uint coremask;
 
-	WL_TRACE("wl%d: %s:\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/*
 	 * Enable pll and xtal, initialize the power control registers,
@@ -1147,7 +1145,7 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 
 int wlc_bmac_up_finish(struct wlc_hw_info *wlc_hw)
 {
-	WL_TRACE("wl%d: %s:\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	wlc_hw->up = true;
 	wlc_phy_hw_state_upd(wlc_hw->band->pi, true);
@@ -1163,7 +1161,7 @@ int wlc_bmac_down_prep(struct wlc_hw_info *wlc_hw)
 	bool dev_gone;
 	uint callbacks = 0;
 
-	WL_TRACE("wl%d: %s:\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	if (!wlc_hw->up)
 		return callbacks;
@@ -1191,7 +1189,7 @@ int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw)
 	uint callbacks = 0;
 	bool dev_gone;
 
-	WL_TRACE("wl%d: %s:\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	if (!wlc_hw->up)
 		return callbacks;
@@ -1574,7 +1572,7 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
 	u32 mac_hm;
 	u16 mac_l;
 
-	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	mac_hm =
 	    (addr[3] << 24) | (addr[2] << 16) |
@@ -1601,7 +1599,8 @@ wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 	u16 mac_m;
 	u16 mac_h;
 
-	WL_TRACE("wl%d: wlc_bmac_set_addrmatch\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: wlc_bmac_set_addrmatch\n",
+		 wlc_hw->unit);
 
 	regs = wlc_hw->regs;
 	mac_l = addr[0] | (addr[1] << 8);
@@ -1626,7 +1625,7 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 #ifdef IL_BIGENDIAN
 	volatile u16 *dptr = NULL;
 #endif				/* IL_BIGENDIAN */
-	WL_TRACE("wl%d: wlc_bmac_write_template_ram\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
 	W_REG(&regs->tplatewrptr, offset);
@@ -1759,8 +1758,8 @@ WLBANDINITFN(wlc_bmac_bsinit) (struct wlc_info *wlc, chanspec_t chanspec)
 {
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 
-	WL_TRACE("wl%d: wlc_bmac_bsinit: bandunit %d\n",
-		 wlc_hw->unit, wlc_hw->band->bandunit);
+	BCMMSG(wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
+		wlc_hw->band->bandunit);
 
 	wlc_ucode_bsinit(wlc_hw);
 
@@ -1789,7 +1788,7 @@ WLBANDINITFN(wlc_bmac_bsinit) (struct wlc_info *wlc, chanspec_t chanspec)
 
 static void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
 {
-	WL_TRACE("wl%d: wlc_bmac_core_phy_clk: clk %d\n", wlc_hw->unit, clk);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: clk %d\n", wlc_hw->unit, clk);
 
 	wlc_hw->phyclk = clk;
 
@@ -1814,7 +1813,7 @@ static void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
 /* Perform a soft reset of the PHY PLL */
 void wlc_bmac_core_phypll_reset(struct wlc_hw_info *wlc_hw)
 {
-	WL_TRACE("wl%d: wlc_bmac_core_phypll_reset\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	ai_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_addr), ~0, 0);
@@ -1860,7 +1859,7 @@ void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw)
 	u32 phy_bw_clkbits;
 	bool phy_in_reset = false;
 
-	WL_TRACE("wl%d: wlc_bmac_phy_reset\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	if (pih == NULL)
 		return;
@@ -1937,7 +1936,8 @@ WLBANDINITFN(wlc_bmac_setband) (struct wlc_hw_info *wlc_hw, uint bandunit,
 /* low-level band switch utility routine */
 void WLBANDINITFN(wlc_setxband) (struct wlc_hw_info *wlc_hw, uint bandunit)
 {
-	WL_TRACE("wl%d: wlc_setxband: bandunit %d\n", wlc_hw->unit, bandunit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
+		bandunit);
 
 	wlc_hw->band = wlc_hw->bandstate[bandunit];
 
@@ -2066,7 +2066,7 @@ void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw)
 	if (wlc_hw->wlc->pub->hw_up)
 		return;
 
-	WL_TRACE("wl%d: %s:\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/*
 	 * Enable pll and xtal, initialize the power control registers,
@@ -2127,7 +2127,7 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 	if (flags == WLC_USE_COREFLAGS)
 		flags = (wlc_hw->band->pi ? wlc_hw->band->core_flags : 0);
 
-	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
 
@@ -2269,7 +2269,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 
 	regs = wlc_hw->regs;
 
-	WL_TRACE("wl%d: wlc_coreinit\n", wlc_hw->unit);
+	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/* reset PSM */
 	wlc_bmac_mctrl(wlc_hw, ~0, (MCTL_IHR_EN | MCTL_PSM_JMP_0 | MCTL_WAKE));
@@ -2572,7 +2572,7 @@ static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
 	uint i;
 	uint count;
 
-	WL_TRACE("wl%d: wlc_ucode_write\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	count = (nbytes / sizeof(u32));
 
@@ -2588,7 +2588,7 @@ static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
 	int i;
 	volatile u8 *base;
 
-	WL_TRACE("wl%d: wlc_write_inits\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	base = (volatile u8 *)wlc_hw->regs;
 
@@ -2661,8 +2661,8 @@ void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw)
 		if (!intstatus)
 			continue;
 
-		WL_TRACE("wl%d: wlc_bmac_fifoerrors: intstatus%d 0x%x\n",
-			 unit, idx, intstatus);
+		BCMMSG(wlc_hw->wlc->wiphy, "wl%d: intstatus%d 0x%x\n",
+			unit, idx, intstatus);
 
 		if (intstatus & I_RO) {
 			wiphy_err(wiphy, "wl%d: fifo %d: receive fifo "
@@ -2913,7 +2913,8 @@ static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
 	/* macintstatus includes a DMA interrupt summary bit */
 	macintstatus = R_REG(&regs->macintstatus);
 
-	WL_TRACE("wl%d: macintstatus: 0x%x\n", wlc_hw->unit, macintstatus);
+	BCMMSG(wlc->wiphy, "wl%d: macintstatus: 0x%x\n", wlc_hw->unit,
+		 macintstatus);
 
 	/* detect cardbus removed, in power down(suspend) and in reset */
 	if (DEVICEREMOVED(wlc))
@@ -3047,7 +3048,7 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 	 */
 	uint max_tx_num = bound ? wlc->pub->tunables->txsbnd : -1;
 
-	WL_TRACE("wl%d: wlc_bmac_txstatus\n", wlc_hw->unit);
+	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	txs = &txstatus;
 	regs = wlc_hw->regs;
@@ -3094,8 +3095,8 @@ void wlc_suspend_mac_and_wait(struct wlc_info *wlc)
 	u32 mc, mi;
 	struct wiphy *wiphy = wlc->wiphy;
 
-	WL_TRACE("wl%d: wlc_suspend_mac_and_wait: bandunit %d\n",
-		 wlc_hw->unit, wlc_hw->band->bandunit);
+	BCMMSG(wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
+		wlc_hw->band->bandunit);
 
 	/*
 	 * Track overlapping suspend requests
@@ -3162,8 +3163,8 @@ void wlc_enable_mac(struct wlc_info *wlc)
 	d11regs_t *regs = wlc_hw->regs;
 	u32 mc, mi;
 
-	WL_TRACE("wl%d: wlc_enable_mac: bandunit %d\n",
-		 wlc_hw->unit, wlc->band->bandunit);
+	BCMMSG(wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
+		wlc->band->bandunit);
 
 	/*
 	 * Track overlapping suspend requests
@@ -3285,7 +3286,7 @@ static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 	u32 w, val;
 	struct wiphy *wiphy = wlc_hw->wlc->wiphy;
 
-	WL_TRACE("wl%d: validate_chip_access\n", wlc_hw->unit);
+	BCMMSG(wiphy, "wl%d\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
 
@@ -3349,7 +3350,7 @@ void wlc_bmac_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on)
 	d11regs_t *regs;
 	u32 tmp;
 
-	WL_TRACE("wl%d: wlc_bmac_core_phypll_ctl\n", wlc_hw->unit);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	tmp = 0;
 	regs = wlc_hw->regs;
@@ -3400,7 +3401,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 {
 	bool dev_gone;
 
-	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	dev_gone = DEVICEREMOVED(wlc_hw->wlc);
 
@@ -3436,7 +3437,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 /* power both the pll and external oscillator on/off */
 static void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want)
 {
-	WL_TRACE("wl%d: wlc_bmac_xtal: want %d\n", wlc_hw->unit, want);
+	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: want %d\n", wlc_hw->unit, want);
 
 	/* dont power down if plldown is false or we must poll hw radio disable */
 	if (!want && wlc_hw->pllreq)
@@ -3465,8 +3466,7 @@ static void wlc_flushqueues(struct wlc_info *wlc)
 		if (wlc_hw->di[i]) {
 			dma_txreclaim(wlc_hw->di[i], HNDDMA_RANGE_ALL);
 			TXPKTPENDCLR(wlc, i);
-			WL_TRACE("wlc_flushqueues: pktpend fifo %d cleared\n",
-				 i);
+			BCMMSG(wlc->wiphy, "pktpend fifo %d clrd\n", i);
 		}
 
 	/* free any posted rx packets */
@@ -3581,8 +3581,8 @@ wlc_bmac_copyfrom_objmem(struct wlc_hw_info *wlc_hw, uint offset, void *buf,
 
 void wlc_bmac_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf, uint *len)
 {
-	WL_TRACE("wlc_bmac_copyfrom_vars, nvram vars totlen=%d\n",
-		 wlc_hw->vars_size);
+	BCMMSG(wlc_hw->wlc->wiphy, "nvram vars totlen=%d\n",
+		wlc_hw->vars_size);
 
 	*buf = wlc_hw->vars;
 	*len = wlc_hw->vars_size;

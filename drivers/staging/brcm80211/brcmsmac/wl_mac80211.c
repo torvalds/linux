@@ -766,7 +766,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		/* Do nothing */
 	} else {
 		bustype = PCI_BUS;
-		WL_TRACE("force to PCI\n");
+		BCMMSG(wl->wiphy, "force to PCI\n");
 	}
 	wl->bcm_bustype = bustype;
 
@@ -1104,9 +1104,9 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ieee80211_hw *hw;
 	u32 val;
 
-	WL_TRACE("%s: bus %d slot %d func %d irq %d\n",
-		 __func__, pdev->bus->number, PCI_SLOT(pdev->devfn),
-		 PCI_FUNC(pdev->devfn), pdev->irq);
+	dev_info(&pdev->dev, "bus %d slot %d func %d irq %d\n",
+	       pdev->bus->number, PCI_SLOT(pdev->devfn),
+	       PCI_FUNC(pdev->devfn), pdev->irq);
 
 	if ((pdev->vendor != PCI_VENDOR_ID_BROADCOM) ||
 	    (((pdev->device & 0xff00) != 0x4300) &&
@@ -1155,8 +1155,6 @@ static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 
-	WL_TRACE("wl: wl_suspend\n");
-
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
 	if (!wl) {
@@ -1182,7 +1180,6 @@ static int wl_resume(struct pci_dev *pdev)
 	int err = 0;
 	u32 val;
 
-	WL_TRACE("wl: wl_resume\n");
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
 	if (!wl) {
@@ -1414,8 +1411,7 @@ void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
  */
 void wl_init(struct wl_info *wl)
 {
-	WL_TRACE("wl%d: wl_init\n", wl->pub->unit);
-
+	BCMMSG(WL_TO_HW(wl)->wiphy, "wl%d\n", wl->pub->unit);
 	wl_reset(wl);
 
 	wlc_init(wl->wlc);
@@ -1426,8 +1422,7 @@ void wl_init(struct wl_info *wl)
  */
 uint wl_reset(struct wl_info *wl)
 {
-	WL_TRACE("wl%d: wl_reset\n", wl->pub->unit);
-
+	BCMMSG(WL_TO_HW(wl)->wiphy, "wl%d\n", wl->pub->unit);
 	wlc_reset(wl->wlc);
 
 	/* dpc will not be rescheduled */

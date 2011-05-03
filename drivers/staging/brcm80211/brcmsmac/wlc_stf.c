@@ -190,8 +190,8 @@ bool wlc_stf_stbc_rx_set(struct wlc_info *wlc, s32 int_val)
 
 static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 core_mask)
 {
-	WL_TRACE("wl%d: %s: Nsts %d core_mask %x\n",
-		 wlc->pub->unit, __func__, Nsts, core_mask);
+	BCMMSG(wlc->wiphy, "wl%d: Nsts %d core_mask %x\n",
+		 wlc->pub->unit, Nsts, core_mask);
 
 	if (WLC_BITSCNT(core_mask) > wlc->stf->txstreams) {
 		core_mask = 0;
@@ -226,7 +226,7 @@ static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val)
 	int i;
 	u8 core_mask = 0;
 
-	WL_TRACE("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val);
+	BCMMSG(wlc->wiphy, "wl%d: val %x\n", wlc->pub->unit, val);
 
 	wlc->stf->spatial_policy = (s8) val;
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++) {
