@@ -1792,7 +1792,10 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 	if (R_REG(&cc->pmustatus) & PST_EXTLPOAVAIL) {
 		u32 ilp_ctr, alp_hz;
 
-		/* Enable the reg to measure the freq, in case disabled before */
+		/*
+		 * Enable the reg to measure the freq,
+		 * in case it was disabled before
+		 */
 		W_REG(&cc->pmu_xtalfreq,
 		      1U << PMU_XTALFREQ_REG_MEASURE_SHIFT);
 
@@ -1803,13 +1806,19 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 		ilp_ctr =
 		    R_REG(&cc->pmu_xtalfreq) & PMU_XTALFREQ_REG_ILPCTR_MASK;
 
-		/* Turn off the PMU_XTALFREQ_REG_MEASURE_SHIFT bit to save power */
+		/*
+		 * Turn off the PMU_XTALFREQ_REG_MEASURE_SHIFT
+		 * bit to save power
+		 */
 		W_REG(&cc->pmu_xtalfreq, 0);
 
 		/* Calculate ALP frequency */
 		alp_hz = (ilp_ctr * EXT_ILP_HZ) / 4;
 
-		/* Round to nearest 100KHz, and at the same time convert to KHz */
+		/*
+		 * Round to nearest 100KHz, and at
+		 * the same time convert to KHz
+		 */
 		alp_khz = (alp_hz + 50000) / 100000 * 100;
 	} else
 		alp_khz = 0;
