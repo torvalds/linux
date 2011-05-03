@@ -43,14 +43,6 @@ static struct wlc_pub *wlc_pub_malloc(uint unit,
 static void wlc_pub_mfree(struct wlc_pub *pub);
 static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid);
 
-void *wlc_calloc(uint unit, uint size)
-{
-	void *item;
-
-	item = kzalloc(size, GFP_ATOMIC);
-	return item;
-}
-
 void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 {
 	tunables->ntxd = NTXD;
@@ -73,14 +65,13 @@ static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
 {
 	struct wlc_pub *pub;
 
-	pub = wlc_calloc(unit, sizeof(struct wlc_pub));
+	pub = kzalloc(sizeof(struct wlc_pub), GFP_ATOMIC);
 	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
 	}
 
-	pub->tunables = wlc_calloc(unit,
-		sizeof(wlc_tunables_t));
+	pub->tunables = kzalloc(sizeof(wlc_tunables_t), GFP_ATOMIC);
 	if (pub->tunables == NULL) {
 		*err = 1028;
 		goto fail;
@@ -89,12 +80,11 @@ static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
 	/* need to init the tunables now */
 	wlc_tunables_init(pub->tunables, devid);
 
-	pub->_cnt = wlc_calloc(unit, sizeof(struct wl_cnt));
+	pub->_cnt =  kzalloc(sizeof(struct wl_cnt), GFP_ATOMIC);
 	if (pub->_cnt == NULL)
 		goto fail;
 
-	pub->multicast = (u8 *)wlc_calloc(unit,
-		(ETH_ALEN * MAXMULTILIST));
+	pub->multicast = kzalloc(ETH_ALEN * MAXMULTILIST, GFP_ATOMIC);
 	if (pub->multicast == NULL) {
 		*err = 1003;
 		goto fail;
@@ -122,12 +112,11 @@ static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit)
 {
 	struct wlc_bsscfg *cfg;
 
-	cfg = (struct wlc_bsscfg *) wlc_calloc(unit, sizeof(struct wlc_bsscfg));
+	cfg = kzalloc(sizeof(struct wlc_bsscfg), GFP_ATOMIC);
 	if (cfg == NULL)
 		goto fail;
 
-	cfg->current_bss = (wlc_bss_info_t *)wlc_calloc(unit,
-		sizeof(wlc_bss_info_t));
+	cfg->current_bss = kzalloc(sizeof(wlc_bss_info_t), GFP_ATOMIC);
 	if (cfg->current_bss == NULL)
 		goto fail;
 
@@ -161,7 +150,7 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 {
 	struct wlc_info *wlc;
 
-	wlc = (struct wlc_info *) wlc_calloc(unit, sizeof(struct wlc_info));
+	wlc = kzalloc(sizeof(struct wlc_info), GFP_ATOMIC);
 	if (wlc == NULL) {
 		*err = 1002;
 		goto fail;
@@ -179,16 +168,15 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 
 	/* allocate struct wlc_hw_info state structure */
 
-	wlc->hw = (struct wlc_hw_info *)wlc_calloc(unit,
-			sizeof(struct wlc_hw_info));
+	wlc->hw = kzalloc(sizeof(struct wlc_hw_info), GFP_ATOMIC);
 	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;
 	}
 	wlc->hw->wlc = wlc;
 
-	wlc->hw->bandstate[0] = wlc_calloc(unit,
-		(sizeof(struct wlc_hwband) * MAXBANDS));
+	wlc->hw->bandstate[0] =
+		kzalloc(sizeof(struct wlc_hwband) * MAXBANDS, GFP_ATOMIC);
 	if (wlc->hw->bandstate[0] == NULL) {
 		*err = 1006;
 		goto fail;
@@ -202,15 +190,14 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		}
 	}
 
-	wlc->modulecb = wlc_calloc(unit,
-		sizeof(struct modulecb) * WLC_MAXMODULES);
+	wlc->modulecb =
+		kzalloc(sizeof(struct modulecb) * WLC_MAXMODULES, GFP_ATOMIC);
 	if (wlc->modulecb == NULL) {
 		*err = 1009;
 		goto fail;
 	}
 
-	wlc->default_bss = (wlc_bss_info_t *)wlc_calloc(unit,
-		sizeof(wlc_bss_info_t));
+	wlc->default_bss = kzalloc(sizeof(wlc_bss_info_t), GFP_ATOMIC);
 	if (wlc->default_bss == NULL) {
 		*err = 1010;
 		goto fail;
@@ -223,15 +210,16 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 	}
 	wlc_bsscfg_ID_assign(wlc, wlc->cfg);
 
-	wlc->pkt_callback = wlc_calloc(unit,
-		(sizeof(struct pkt_cb) * (wlc->pub->tunables->maxpktcb + 1)));
+	wlc->pkt_callback = kzalloc(sizeof(struct pkt_cb) *
+				    (wlc->pub->tunables->maxpktcb + 1),
+				    GFP_ATOMIC);
 	if (wlc->pkt_callback == NULL) {
 		*err = 1013;
 		goto fail;
 	}
 
-	wlc->wsec_def_keys[0] = (wsec_key_t *)wlc_calloc(unit,
-		(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS));
+	wlc->wsec_def_keys[0] =
+		kzalloc(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
 	if (wlc->wsec_def_keys[0] == NULL) {
 		*err = 1015;
 		goto fail;
@@ -244,21 +232,20 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		}
 	}
 
-	wlc->protection = wlc_calloc(unit,
-		sizeof(struct wlc_protection));
+	wlc->protection = kzalloc(sizeof(struct wlc_protection), GFP_ATOMIC);
 	if (wlc->protection == NULL) {
 		*err = 1016;
 		goto fail;
 	}
 
-	wlc->stf = wlc_calloc(unit, sizeof(struct wlc_stf));
+	wlc->stf = kzalloc(sizeof(struct wlc_stf), GFP_ATOMIC);
 	if (wlc->stf == NULL) {
 		*err = 1017;
 		goto fail;
 	}
 
-	wlc->bandstate[0] = (struct wlcband *)wlc_calloc(unit,
-				(sizeof(struct wlcband)*MAXBANDS));
+	wlc->bandstate[0] =
+		kzalloc(sizeof(struct wlcband)*MAXBANDS, GFP_ATOMIC);
 	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
@@ -272,15 +259,14 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		}
 	}
 
-	wlc->corestate = (struct wlccore *)wlc_calloc(unit,
-						      sizeof(struct wlccore));
+	wlc->corestate = kzalloc(sizeof(struct wlccore), GFP_ATOMIC);
 	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;
 	}
 
 	wlc->corestate->macstat_snapshot =
-		(macstat_t *)wlc_calloc(unit, sizeof(macstat_t));
+		kzalloc(sizeof(macstat_t), GFP_ATOMIC);
 	if (wlc->corestate->macstat_snapshot == NULL) {
 		*err = 1027;
 		goto fail;

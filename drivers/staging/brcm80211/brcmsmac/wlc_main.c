@@ -8040,7 +8040,7 @@ static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc)
 {
 	struct wlc_txq_info *qi, *p;
 
-	qi = wlc_calloc(wlc->pub->unit, sizeof(struct wlc_txq_info));
+	qi = kzalloc(sizeof(struct wlc_txq_info), GFP_ATOMIC);
 	if (qi != NULL) {
 		/*
 		 * Have enough room for control packets along with HI watermark
