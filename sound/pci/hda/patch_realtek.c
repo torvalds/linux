@@ -4424,7 +4424,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 				alc_pcm_null_stream;
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
 		}
-		if (spec->num_adc_nids > 1) {
+		if (spec->num_adc_nids > 1 && spec->stream_analog_alt_capture) {
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
 				*spec->stream_analog_alt_capture;
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
