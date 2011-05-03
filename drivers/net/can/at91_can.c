@@ -52,11 +52,11 @@
 #define AT91_MB_RX_FIRST	1
 #define AT91_MB_RX_LAST		11
 
-#define AT91_MB_RX_MASK(i)	((1 << (i)) - 1)
+#define AT91_MB_MASK(i)		((1 << (i)) - 1)
 #define AT91_MB_RX_SPLIT	8
 #define AT91_MB_RX_LOW_LAST	(AT91_MB_RX_SPLIT - 1)
-#define AT91_MB_RX_LOW_MASK	(AT91_MB_RX_MASK(AT91_MB_RX_SPLIT) & \
-				 ~AT91_MB_RX_MASK(AT91_MB_RX_FIRST))
+#define AT91_MB_RX_LOW_MASK	(AT91_MB_MASK(AT91_MB_RX_SPLIT) & \
+				 ~AT91_MB_MASK(AT91_MB_RX_FIRST))
 
 #define AT91_MB_TX_NUM		(1 << AT91_MB_TX_SHIFT)
 #define AT91_MB_TX_FIRST	(AT91_MB_RX_LAST + 1)
@@ -64,7 +64,7 @@
 
 #define AT91_NEXT_PRIO_SHIFT	(AT91_MB_TX_SHIFT)
 #define AT91_NEXT_PRIO_MASK	(0xf << AT91_MB_TX_SHIFT)
-#define AT91_NEXT_MB_MASK	(AT91_MB_TX_NUM - 1)
+#define AT91_NEXT_MB_MASK	(AT91_MB_MASK(AT91_MB_TX_SHIFT))
 #define AT91_NEXT_MASK		((AT91_MB_TX_NUM - 1) | AT91_NEXT_PRIO_MASK)
 
 /* Common registers */
@@ -127,10 +127,10 @@ enum at91_mb_mode {
 };
 
 /* Interrupt mask bits */
-#define AT91_IRQ_MB_RX		((1 << (AT91_MB_RX_LAST + 1)) \
-				 - (1 << AT91_MB_RX_FIRST))
-#define AT91_IRQ_MB_TX		((1 << (AT91_MB_TX_LAST + 1)) \
-				 - (1 << AT91_MB_TX_FIRST))
+#define AT91_IRQ_MB_RX		(AT91_MB_MASK(AT91_MB_RX_LAST + 1) & \
+				 ~AT91_MB_MASK(AT91_MB_RX_FIRST))
+#define AT91_IRQ_MB_TX		(AT91_MB_MASK(AT91_MB_TX_LAST + 1) & \
+				 ~AT91_MB_MASK(AT91_MB_TX_FIRST))
 #define AT91_IRQ_MB_ALL		(AT91_IRQ_MB_RX | AT91_IRQ_MB_TX)
 
 #define AT91_IRQ_ERRA		(1 << 16)
@@ -735,7 +735,7 @@ static int at91_poll(struct napi_struct *napi, int quota)
 	if (work_done < quota) {
 		/* enable IRQs for frame errors and all mailboxes >= rx_next */
 		u32 reg_ier = AT91_IRQ_ERR_FRAME;
-		reg_ier |= AT91_IRQ_MB_RX & ~AT91_MB_RX_MASK(priv->rx_next);
+		reg_ier |= AT91_IRQ_MB_RX & ~AT91_MB_MASK(priv->rx_next);
 
 		napi_complete(napi);
 		at91_write(priv, AT91_IER, reg_ier);
