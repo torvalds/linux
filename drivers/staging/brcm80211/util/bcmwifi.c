@@ -60,7 +60,6 @@ u8 wf_chspec_ctlchan(chanspec_t chspec)
 		return CHSPEC_CHANNEL(chspec);
 	} else {
 		/* we only support 40MHZ with sidebands */
-		ASSERT(CHSPEC_BW(chspec) == WL_CHANSPEC_BW_40);
 		/* chanspec channel holds the centre frequency, use that and the
 		 * side band information to reconstruct the control channel number
 		 */
@@ -68,8 +67,6 @@ u8 wf_chspec_ctlchan(chanspec_t chspec)
 			/* control chan is the upper 20 MHZ SB of the 40MHZ channel */
 			ctl_chan = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
 		} else {
-			ASSERT(CHSPEC_CTL_SB(chspec) ==
-			       WL_CHANSPEC_CTL_SB_LOWER);
 			/* control chan is the lower 20 MHZ SB of the 40MHZ channel */
 			ctl_chan = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
 		}

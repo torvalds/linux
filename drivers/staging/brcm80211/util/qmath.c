@@ -552,11 +552,6 @@ void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N)
 	u16 u16offset;
 	s32 s32log;
 
-	/* Logerithm of negative values is undefined.
-	 * assert N is greater than 0.
-	 */
-	/* ASSERT(N > 0); */
-
 	/* normalize the N. */
 	s16norm = qm_norm32(N);
 	N = N << s16norm;

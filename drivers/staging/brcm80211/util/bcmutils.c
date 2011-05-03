@@ -280,16 +280,12 @@ void pktq_flush(struct pktq *pq, bool dir,
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
 		pktq_pflush(pq, prec, dir, fn, arg);
-	if (fn == NULL)
-		ASSERT(pq->len == 0);
 }
 #endif /* BRCM_FULLMAC */
 
 void pktq_init(struct pktq *pq, int num_prec, int max_len)
 {
 	int prec;
-
-	ASSERT(num_prec > 0 && num_prec <= PKTQ_MAX_PREC);
 
 	/* pq is variable size; only zero out what's requested */
 	memset(pq, 0,

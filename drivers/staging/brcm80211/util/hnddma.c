@@ -293,23 +293,9 @@ struct hnddma_pub *dma_attach(char *name, si_t *sih,
 
 	di->msg_level = msg_level ? msg_level : &dma_msg_level;
 
-	/* old chips w/o sb is no longer supported */
-	ASSERT(sih != NULL);
-
 	di->dma64 = ((si_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
 
-	/* check arguments */
-	ASSERT(ISPOWEROF2(ntxd));
-	ASSERT(ISPOWEROF2(nrxd));
-
-	if (nrxd == 0)
-		ASSERT(dmaregsrx == NULL);
-	if (ntxd == 0)
-		ASSERT(dmaregstx == NULL);
-
 	/* init dma reg pointer */
-	ASSERT(ntxd <= D64MAXDD);
-	ASSERT(nrxd <= D64MAXDD);
 	di->d64txregs = (dma64regs_t *) dmaregstx;
 	di->d64rxregs = (dma64regs_t *) dmaregsrx;
 	di->hnddma.di_fn = (const di_fcn_t *)&dma64proc;
@@ -488,7 +474,6 @@ dma64_dd_upd(dma_info_t *di, dma64dd_t *ddring, dmaaddr_t pa, uint outidx,
 #else
 	if ((di->dataoffsetlow == 0) || !(PHYSADDRLO(pa) & PCI32ADDR_HIGH)) {
 #endif				/* defined(__mips__) && defined(IL_BIGENDIAN) */
-		ASSERT((PHYSADDRHI(pa) & PCI64ADDR_HIGH) == 0);
 
 		W_SM(&ddring[outidx].addrlow,
 		     BUS_SWAP32(PHYSADDRLO(pa) + di->dataoffsetlow));
@@ -499,11 +484,9 @@ dma64_dd_upd(dma_info_t *di, dma64dd_t *ddring, dmaaddr_t pa, uint outidx,
 	} else {
 		/* address extension for 32-bit PCI */
 		u32 ae;
-		ASSERT(di->addrext);
 
 		ae = (PHYSADDRLO(pa) & PCI32ADDR_HIGH) >> PCI32ADDR_HIGH_SHIFT;
 		PHYSADDRLO(pa) &= ~PCI32ADDR_HIGH;
-		ASSERT(PHYSADDRHI(pa) == 0);
 
 		ctrl2 |= (ae << D64_CTRL2_AE_SHIFT) & D64_CTRL2_AE;
 		W_SM(&ddring[outidx].addrlow,
@@ -543,10 +526,6 @@ static void _dma_detach(dma_info_t *di)
 {
 
 	DMA_TRACE(("%s: dma_detach\n", di->name));
-
-	/* shouldn't be here if descriptors are unreclaimed */
-	ASSERT(di->txin == di->txout);
-	ASSERT(di->rxin == di->rxout);
 
 	/* free dma descriptor rings */
 	if (di->txd64)
@@ -602,14 +581,12 @@ static bool _dma_isaddrext(dma_info_t *di)
 		if (!_dma64_addrext(di->d64txregs)) {
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 tx doesn't have "
 				   "AE set\n", di->name));
-			ASSERT(0);
 		}
 		return true;
 	} else if (di->d64rxregs != NULL) {
 		if (!_dma64_addrext(di->d64rxregs)) {
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 rx doesn't have "
 				   "AE set\n", di->name));
-			ASSERT(0);
 		}
 		return true;
 	}
@@ -642,8 +619,6 @@ static void _dma_ddtable_init(dma_info_t *di, uint direction, dmaaddr_t pa)
 	} else {
 		/* DMA64 32bits address extension */
 		u32 ae;
-		ASSERT(di->addrext);
-		ASSERT(PHYSADDRHI(pa) == 0);
 
 		/* shift the high bit(s) from pa to ae */
 		ae = (PHYSADDRLO(pa) & PCI32ADDR_HIGH) >>
@@ -783,7 +758,6 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 #ifdef BCMDBG
 		if (resid > 0) {
 			uint cur;
-			ASSERT(p == NULL);
 			cur =
 			    B2I(((R_REG(&di->d64rxregs->status0) &
 				  D64_RS0_CD_MASK) -
@@ -874,10 +848,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		pa = pci_map_single(di->pbus, p->data,
 			di->rxbufsize, PCI_DMA_FROMDEVICE);
 
-		ASSERT(IS_ALIGNED(PHYSADDRLO(pa), 4));
-
 		/* save the free packet pointer */
-		ASSERT(di->rxp[rxout] == NULL);
 		di->rxp[rxout] = p;
 
 		/* reset flags for each descriptor */
@@ -1019,8 +990,6 @@ static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags)
 		return 0;
 	}
 
-	ASSERT((flags & ~mask) == 0);
-
 	dmactrlflags &= ~mask;
 	dmactrlflags |= flags;
 
@@ -1053,9 +1022,6 @@ static unsigned long _dma_getvar(dma_info_t *di, const char *name)
 {
 	if (!strcmp(name, "&txavail"))
 		return (unsigned long)&(di->hnddma.txavail);
-	else {
-		ASSERT(0);
-	}
 	return 0;
 }
 
@@ -1063,8 +1029,6 @@ static
 u8 dma_align_sizetobits(uint size)
 {
 	u8 bitpos = 0;
-	ASSERT(size);
-	ASSERT(!(size & (size - 1)));
 	while (size >>= 1) {
 		bitpos++;
 	}
@@ -1230,12 +1194,8 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		di->txdalign = (uint) ((s8 *)di->txd64 - (s8 *) va);
 		PHYSADDRLOSET(di->txdpa,
 			      PHYSADDRLO(di->txdpaorig) + di->txdalign);
-		/* Make sure that alignment didn't overflow */
-		ASSERT(PHYSADDRLO(di->txdpa) >= PHYSADDRLO(di->txdpaorig));
-
 		PHYSADDRHISET(di->txdpa, PHYSADDRHI(di->txdpaorig));
 		di->txdalloc = alloced;
-		ASSERT(IS_ALIGNED((unsigned long)di->txd64, align));
 	} else {
 		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig);
@@ -1248,12 +1208,8 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		di->rxdalign = (uint) ((s8 *)di->rxd64 - (s8 *) va);
 		PHYSADDRLOSET(di->rxdpa,
 			      PHYSADDRLO(di->rxdpaorig) + di->rxdalign);
-		/* Make sure that alignment didn't overflow */
-		ASSERT(PHYSADDRLO(di->rxdpa) >= PHYSADDRLO(di->rxdpaorig));
-
 		PHYSADDRHISET(di->rxdpa, PHYSADDRHI(di->rxdpaorig));
 		di->rxdalloc = alloced;
-		ASSERT(IS_ALIGNED((unsigned long)di->rxd64, align));
 	}
 
 	return true;
@@ -1396,7 +1352,6 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
 		flags |= D64_CTRL1_EOT;
 
 	dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
-	ASSERT(di->txp[txout] == NULL);
 
 	/* save the buffer pointer - used by dma_getpos */
 	di->txp[txout] = buf;
@@ -1501,7 +1456,6 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 				pa = map->segs[j - 1].addr;
 			}
 			dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
-			ASSERT(di->txp[txout] == NULL);
 
 			txout = NEXTTXD(txout);
 		}
@@ -1648,9 +1602,6 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 	void *rxp;
 	dmaaddr_t pa;
 
-	/* if forcing, dma engine must be disabled */
-	ASSERT(!forceall || !dma64_rxenabled(di));
-
 	i = di->rxin;
 
 	/* return if no packets posted */
@@ -1667,7 +1618,6 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 
 	/* get the packet pointer that corresponds to the rx descriptor */
 	rxp = di->rxp[i];
-	ASSERT(rxp);
 	di->rxp[i] = NULL;
 
 	PHYSADDRLOSET(pa,
@@ -1709,16 +1659,12 @@ static void dma64_txrotate(dma_info_t *di)
 	u32 w;
 	u16 first, last;
 
-	ASSERT(dma64_txsuspendedidle(di));
-
 	nactive = _dma_txactive(di);
 	ad = (u16) (B2I
 		       ((((R_REG(&di->d64txregs->status1) &
 			   D64_XS1_AD_MASK)
 			  - di->xmtptrbase) & D64_XS1_AD_MASK), dma64dd_t));
 	rot = TXD(ad - di->txin);
-
-	ASSERT(rot < di->ntxd);
 
 	/* full-ring case is a lot harder - don't worry about this */
 	if (rot >= (di->ntxd - nactive)) {
@@ -1753,7 +1699,6 @@ static void dma64_txrotate(dma_info_t *di)
 		W_SM(&di->txd64[old].addrhigh, BUS_SWAP32(0xdeadbeef));
 
 		/* move the corresponding txp[] entry */
-		ASSERT(di->txp[new] == NULL);
 		di->txp[new] = di->txp[old];
 
 		/* Move the map */
@@ -1789,7 +1734,7 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 			     (sih->buscoretype == PCIE_CORE_ID)))
 				return DMADDRWIDTH_64;
 	}
-	ASSERT(0); /* DMA hardware not supported by this driver*/
+	/* DMA hardware not supported by this driver*/
 	return DMADDRWIDTH_64;
 }
 

@@ -172,7 +172,6 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 	uint pciidx, pcieidx, pcirev, pcierev;
 
 	cc = si_setcoreidx(&sii->pub, SI_CC_IDX);
-	ASSERT(cc);
 
 	/* get chipcommon rev */
 	sii->pub.ccrev = (int)si_corerev(&sii->pub);
@@ -357,7 +356,6 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 
 	if (sii->pub.boardtype == 0) {
 		SI_ERROR(("si_doattach: unknown board type\n"));
-		ASSERT(sii->pub.boardtype);
 	}
 
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
@@ -374,8 +372,6 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 	u32 w, savewin;
 	chipcregs_t *cc;
 	uint origidx;
-
-	ASSERT(GOODREGS(regs));
 
 	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
@@ -451,8 +447,6 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 	chipcregs_t *cc;
 	char *pvars = NULL;
 	uint origidx;
-
-	ASSERT(GOODREGS(regs));
 
 	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
@@ -588,7 +582,6 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, gpiotimerval), ~0, w);
 
 	if (PCIE(sii)) {
-		ASSERT(sii->pch != NULL);
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
 	}
 
@@ -702,7 +695,6 @@ uint si_flag(si_t *sih)
 	if (sih->socitype == SOCI_AI)
 		return ai_flag(sih);
 	else {
-		ASSERT(0);
 		return 0;
 	}
 }
@@ -711,8 +703,6 @@ void si_setint(si_t *sih, int siflag)
 {
 	if (sih->socitype == SOCI_AI)
 		ai_setint(sih, siflag);
-	else
-		ASSERT(0);
 }
 
 #ifndef BCMSDIO
@@ -743,10 +733,7 @@ uint si_corerev(si_t *sih)
 {
 	if (sih->socitype == SOCI_AI)
 		return ai_corerev(sih);
-	else {
-		ASSERT(0);
-		return 0;
-	}
+	return 0;
 }
 #endif
 
@@ -790,7 +777,6 @@ void *si_setcore(si_t *sih, uint coreid, uint coreunit)
 #ifdef BCMSDIO
 		return sb_setcoreidx(sih, idx);
 #else
-		ASSERT(0);
 		return NULL;
 #endif
 	}
@@ -802,7 +788,6 @@ void *si_setcoreidx(si_t *sih, uint coreidx)
 	if (sih->socitype == SOCI_AI)
 		return ai_setcoreidx(sih, coreidx);
 	else {
-		ASSERT(0);
 		return NULL;
 	}
 }
@@ -830,7 +815,6 @@ void *si_switch_core(si_t *sih, uint coreid, uint *origidx, uint *intr_val)
 	INTR_OFF(sii, *intr_val);
 	*origidx = sii->curidx;
 	cc = si_setcore(sih, coreid, 0);
-	ASSERT(cc != NULL);
 
 	return cc;
 }
@@ -854,7 +838,6 @@ u32 si_core_cflags(si_t *sih, u32 mask, u32 val)
 	if (sih->socitype == SOCI_AI)
 		return ai_core_cflags(sih, mask, val);
 	else {
-		ASSERT(0);
 		return 0;
 	}
 }
@@ -864,7 +847,6 @@ u32 si_core_sflags(si_t *sih, u32 mask, u32 val)
 	if (sih->socitype == SOCI_AI)
 		return ai_core_sflags(sih, mask, val);
 	else {
-		ASSERT(0);
 		return 0;
 	}
 }
@@ -877,7 +859,6 @@ bool si_iscoreup(si_t *sih)
 #ifdef BCMSDIO
 		return sb_iscoreup(sih);
 #else
-		ASSERT(0);
 		return false;
 #endif
 	}
@@ -900,7 +881,6 @@ uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 #ifdef BCMSDIO
 		return sb_corereg(sih, coreidx, regoff, mask, val);
 #else
-		ASSERT(0);
 		return 0;
 #endif
 	}
@@ -1020,8 +1000,6 @@ static uint si_slowclk_src(si_info_t *sii)
 	chipcregs_t *cc;
 	u32 val;
 
-	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
-
 	if (sii->pub.ccrev < 6) {
 		if (sii->pub.bustype == PCI_BUS) {
 			pci_read_config_dword(sii->pbus, PCI_GPIO_OUT,
@@ -1043,11 +1021,6 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 	u32 slowclk;
 	uint div;
 
-	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
-
-	/* shouldn't be here unless we've established the chip has dynamic clk control */
-	ASSERT(R_REG(&cc->capabilities) & CC_CAP_PWR_CTL);
-
 	slowclk = si_slowclk_src(sii);
 	if (sii->pub.ccrev < 6) {
 		if (slowclk == SCC_SS_PCI)
@@ -1068,8 +1041,6 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 		else if (slowclk == SCC_SS_PCI)
 			return max_freq ? (PCIMAXFREQ / div)
 				: (PCIMINFREQ / div);
-		else
-			ASSERT(0);
 	} else {
 		/* Chipc rev 10 is InstaClock */
 		div = R_REG(&cc->system_clk_ctl) >> SYCC_CD_SHIFT;
@@ -1129,7 +1100,6 @@ void si_clkctl_init(si_t *sih)
 		if (cc == NULL)
 			return;
 	}
-	ASSERT(cc != NULL);
 
 	/* set all Instaclk chip ILP to 1 MHz */
 	if (sih->ccrev >= 10)
@@ -1177,7 +1147,6 @@ u16 si_clkctl_fast_pwrup_delay(si_t *sih)
 		if (cc == NULL)
 			goto done;
 	}
-	ASSERT(cc != NULL);
 
 	slowminfreq = si_slowclk_freq(sii, false, cc);
 	fpdelay = (((R_REG(&cc->pll_on_delay) + 2) * 1000000) +
@@ -1303,9 +1272,6 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 	if (sii->pub.ccrev < 6)
 		return false;
 
-	/* Chips with ccrev 10 are EOL and they don't have SYCC_HR which we use below */
-	ASSERT(sii->pub.ccrev != 10);
-
 	if (!fast) {
 		INTR_OFF(sii, intr_val);
 		origidx = sii->curidx;
@@ -1321,7 +1287,6 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 		if (cc == NULL)
 			goto done;
 	}
-	ASSERT(cc != NULL);
 
 	if (!CCCTL_ENAB(&sii->pub) && (sii->pub.ccrev < 20))
 		goto done;
@@ -1344,7 +1309,6 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 			u32 htavail = CCS_HTAVAIL;
 			SPINWAIT(((R_REG(&cc->clk_ctl_st) & htavail)
 				  == 0), PMU_MAX_TRANSITION_DLY);
-			ASSERT(R_REG(&cc->clk_ctl_st) & htavail);
 		} else {
 			udelay(PLL_DELAY);
 		}
@@ -1370,7 +1334,7 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 		break;
 
 	default:
-		ASSERT(0);
+		break;
 	}
 
  done:
@@ -1386,9 +1350,6 @@ int si_devpath(si_t *sih, char *path, int size)
 {
 	int slen;
 
-	ASSERT(path != NULL);
-	ASSERT(size >= SI_DEVPATH_BUFSZ);
-
 	if (!path || size <= 0)
 		return -1;
 
@@ -1398,7 +1359,6 @@ int si_devpath(si_t *sih, char *path, int size)
 		slen = snprintf(path, (size_t) size, "sb/%u/", si_coreidx(sih));
 		break;
 	case PCI_BUS:
-		ASSERT((SI_INFO(sih))->pbus != NULL);
 		slen = snprintf(path, (size_t) size, "pci/%u/%u/",
 			((struct pci_dev *)((SI_INFO(sih))->pbus))->bus->number,
 			PCI_SLOT(
@@ -1413,7 +1373,6 @@ int si_devpath(si_t *sih, char *path, int size)
 #endif
 	default:
 		slen = -1;
-		ASSERT(0);
 		break;
 	}
 
@@ -1507,14 +1466,12 @@ void si_sdio_init(si_t *sih)
 
 		/* get the current core index */
 		idx = sii->curidx;
-		ASSERT(idx == si_findcoreidx(sih, D11_CORE_ID, 0));
 
 		/* switch to sdio core */
 		sdpregs = (sdpcmd_regs_t *) si_setcore(sih, PCMCIA_CORE_ID, 0);
 		if (!sdpregs)
 			sdpregs =
 			    (sdpcmd_regs_t *) si_setcore(sih, SDIOD_CORE_ID, 0);
-		ASSERT(sdpregs);
 
 		SI_MSG(("si_sdio_init: For PCMCIA/SDIO Corerev %d, enable ints from core %d " "through SD core %d (%p)\n", sih->buscorerev, idx, sii->curidx, sdpregs));
 
@@ -1604,9 +1561,6 @@ void si_pci_setup(si_t *sih, uint coremask)
 	if (sii->pub.bustype != PCI_BUS)
 		return;
 
-	ASSERT(PCI(sii) || PCIE(sii));
-	ASSERT(sii->pub.buscoreidx != BADIDX);
-
 	if (PCI(sii)) {
 		/* get current core index */
 		idx = sii->curidx;
@@ -1663,8 +1617,6 @@ int si_pci_fixcfg(si_t *sih)
 
 	si_info_t *sii = SI_INFO(sih);
 
-	ASSERT(sii->pub.bustype == PCI_BUS);
-
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
 	/* save the current index */
 	origidx = si_coreidx(&sii->pub);
@@ -1674,12 +1626,10 @@ int si_pci_fixcfg(si_t *sih)
 		pcieregs =
 		    (sbpcieregs_t *) si_setcore(&sii->pub, PCIE_CORE_ID, 0);
 		regs = pcieregs;
-		ASSERT(pcieregs != NULL);
 		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
 	} else if (sii->pub.buscoretype == PCI_CORE_ID) {
 		pciregs = (struct sbpciregs *)si_setcore(&sii->pub, PCI_CORE_ID, 0);
 		regs = pciregs;
-		ASSERT(pciregs != NULL);
 		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
 	}
 	pciidx = si_coreidx(&sii->pub);
@@ -1726,8 +1676,6 @@ socram_banksize(si_info_t *sii, sbsocramregs_t *regs, u8 index,
 {
 	uint banksize, bankinfo;
 	uint bankidx = index | (mem_type << SOCRAM_BANKIDX_MEMTYPE_SHIFT);
-
-	ASSERT(mem_type <= SOCRAM_MEMTYPE_DEVRAM);
 
 	W_REG(&regs->bankidx, bankidx);
 	bankinfo = R_REG(&regs->bankinfo);
@@ -1863,7 +1811,6 @@ bool si_deviceremoved(si_t *sih)
 
 	switch (sih->bustype) {
 	case PCI_BUS:
-		ASSERT(sii->pbus != NULL);
 		pci_read_config_dword(sii->pbus, PCI_VENDOR_ID, &w);
 		if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 			return true;

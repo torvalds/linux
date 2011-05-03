@@ -107,12 +107,9 @@ void si_pmu_set_switcher_voltage(si_t *sih, u8 bb_voltage, u8 rf_voltage)
 	chipcregs_t *cc;
 	uint origidx;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	W_REG(&cc->regcontrol_addr, 0x01);
 	W_REG(&cc->regcontrol_data, (u32) (bb_voltage & 0x1f) << 22);
@@ -128,8 +125,6 @@ void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 {
 	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
 	u8 addr = 0;
-
-	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 	switch (sih->chip) {
 	case BCM4336_CHIP_ID:
@@ -150,7 +145,6 @@ void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 			mask = 0xf;
 			break;
 		default:
-			ASSERT(false);
 			return;
 		}
 		break;
@@ -162,12 +156,10 @@ void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 			mask = 0x1f;
 			break;
 		default:
-			ASSERT(false);
 			break;
 		}
 		break;
 	default:
-		ASSERT(false);
 		return;
 	}
 
@@ -192,12 +184,10 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 	chn[0] = 0;		/* to suppress compile error */
 #endif
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
@@ -265,12 +255,9 @@ u32 si_pmu_force_ilp(si_t *sih, bool force)
 	uint origidx;
 	u32 oldpmucontrol;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	oldpmucontrol = R_REG(&cc->pmucontrol);
 	if (force)
@@ -689,12 +676,9 @@ void si_pmu_res_init(si_t *sih)
 	char name[8], *val;
 	uint i, rsrcs;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -768,7 +752,6 @@ void si_pmu_res_init(si_t *sih)
 
 	/* Program up/down timers */
 	while (pmu_res_updown_table_sz--) {
-		ASSERT(pmu_res_updown_table != NULL);
 		PMU_MSG(("Changing rsrc %d res_updn_timer to 0x%x\n",
 			 pmu_res_updown_table[pmu_res_updown_table_sz].resnum,
 			 pmu_res_updown_table[pmu_res_updown_table_sz].updown));
@@ -792,7 +775,6 @@ void si_pmu_res_init(si_t *sih)
 
 	/* Program resource dependencies table */
 	while (pmu_res_depend_table_sz--) {
-		ASSERT(pmu_res_depend_table != NULL);
 		if (pmu_res_depend_table[pmu_res_depend_table_sz].filter != NULL
 		    && !(pmu_res_depend_table[pmu_res_depend_table_sz].
 			 filter) (sih))
@@ -823,7 +805,6 @@ void si_pmu_res_init(si_t *sih)
 					[pmu_res_depend_table_sz].depend_mask);
 				break;
 			default:
-				ASSERT(0);
 				break;
 			}
 		}
@@ -1112,7 +1093,6 @@ static const pmu1_xtaltab0_t *si_pmu1_xtaltab0(si_t *sih)
 			 bcm_chipname(sih->chip, chn, 8)));
 		break;
 	}
-	ASSERT(0);
 	return NULL;
 }
 
@@ -1144,7 +1124,6 @@ static const pmu1_xtaltab0_t *si_pmu1_xtaldef0(si_t *sih)
 			 bcm_chipname(sih->chip, chn, 8)));
 		break;
 	}
-	ASSERT(0);
 	return NULL;
 }
 
@@ -1172,7 +1151,6 @@ static u32 si_pmu1_pllfvco0(si_t *sih)
 			 bcm_chipname(sih->chip, chn, 8)));
 		break;
 	}
-	ASSERT(0);
 	return 0;
 }
 
@@ -1192,8 +1170,6 @@ si_pmu1_alpclk0(si_t *sih, chipcregs_t *cc)
 	/* Could not find it so assign a default value */
 	if (xt == NULL || xt->fref == 0)
 		xt = si_pmu1_xtaldef0(sih);
-	ASSERT(xt != NULL && xt->fref != 0);
-
 	return xt->fref * 1000;
 }
 
@@ -1256,7 +1232,6 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 			  PMURES_BIT(RES4329_HT_AVAIL)));
 		SPINWAIT(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
-		ASSERT(!(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL));
 		W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL4);
 		if (xt->fref == 38400)
 			tmp = 0x200024C0;
@@ -1301,7 +1276,6 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 		udelay(100);
 		SPINWAIT(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
-		ASSERT(!(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL));
 		W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL4);
 		tmp = 0x200005c0;
 		W_REG(&cc->pllcontrol_data, tmp);
@@ -1317,7 +1291,6 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 		udelay(100);
 		SPINWAIT(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
-		ASSERT(!(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL));
 		break;
 
 	case BCM4330_CHIP_ID:
@@ -1330,11 +1303,10 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 		udelay(100);
 		SPINWAIT(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL,
 			 PMU_MAX_TRANSITION_DLY);
-		ASSERT(!(R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL));
 		break;
 
 	default:
-		ASSERT(0);
+		break;
 	}
 
 	PMU_MSG(("Done masking\n"));
@@ -1468,12 +1440,9 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 	char chn[8];
 #endif
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1518,12 +1487,9 @@ u32 si_pmu_alp_clock(si_t *sih)
 	char chn[8];
 #endif
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
@@ -1630,12 +1596,9 @@ u32 si_pmu_si_clock(si_t *sih)
 	char chn[8];
 #endif
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
@@ -1706,8 +1669,6 @@ u32 si_pmu_cpu_clock(si_t *sih)
 	uint origidx;
 	u32 clock;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	if ((sih->pmurev >= 5) &&
 	    !((sih->chip == BCM4329_CHIP_ID) ||
 	      (sih->chip == BCM4319_CHIP_ID) ||
@@ -1731,7 +1692,6 @@ u32 si_pmu_cpu_clock(si_t *sih)
 		/* Remember original core before switch to chipc */
 		origidx = si_coreidx(sih);
 		cc = si_setcoreidx(sih, SI_CC_IDX);
-		ASSERT(cc != NULL);
 
 		clock = si_pmu5_clock(sih, cc, pll, PMU5_MAINPLL_CPU);
 
@@ -1749,8 +1709,6 @@ u32 si_pmu_mem_clock(si_t *sih)
 	chipcregs_t *cc;
 	uint origidx;
 	u32 clock;
-
-	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 	if ((sih->pmurev >= 5) &&
 	    !((sih->chip == BCM4329_CHIP_ID) ||
@@ -1775,7 +1733,6 @@ u32 si_pmu_mem_clock(si_t *sih)
 		/* Remember original core before switch to chipc */
 		origidx = si_coreidx(sih);
 		cc = si_setcoreidx(sih, SI_CC_IDX);
-		ASSERT(cc != NULL);
 
 		clock = si_pmu5_clock(sih, cc, pll, PMU5_MAINPLL_MEM);
 
@@ -1802,7 +1759,6 @@ u32 si_pmu_ilp_clock(si_t *sih)
 		u32 start, end, delta;
 		u32 origidx = si_coreidx(sih);
 		chipcregs_t *cc = si_setcoreidx(sih, SI_CC_IDX);
-		ASSERT(cc != NULL);
 		start = R_REG(&cc->pmutimer);
 		mdelay(ILP_CALC_DUR);
 		end = R_REG(&cc->pmutimer);
@@ -1932,12 +1888,9 @@ void si_pmu_init(si_t *sih)
 	chipcregs_t *cc;
 	uint origidx;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	if (sih->pmurev == 1)
 		AND_REG(&cc->pmucontrol, ~PCTL_NOILP_ON_WAIT);
@@ -2021,8 +1974,6 @@ void si_pmu_otp_power(si_t *sih, bool on)
 	uint origidx;
 	u32 rsrcs = 0;	/* rsrcs to turn on/off OTP power */
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Don't do anything if OTP is disabled */
 	if (si_is_otp_disabled(sih)) {
 		PMU_MSG(("si_pmu_otp_power: OTP is disabled\n"));
@@ -2032,7 +1983,6 @@ void si_pmu_otp_power(si_t *sih, bool on)
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -2066,7 +2016,6 @@ void si_pmu_otp_power(si_t *sih, bool on)
 			OR_REG(&cc->min_res_mask, (rsrcs | deps));
 			SPINWAIT(!(R_REG(&cc->res_state) & rsrcs),
 				 PMU_MAX_TRANSITION_DLY);
-			ASSERT(R_REG(&cc->res_state) & rsrcs);
 		} else {
 			PMU_MSG(("Removing rsrc 0x%x from min_res_mask\n",
 				 rsrcs | deps));
@@ -2075,7 +2024,6 @@ void si_pmu_otp_power(si_t *sih, bool on)
 
 		SPINWAIT((((otps = R_REG(&cc->otpstatus)) & OTPS_READY) !=
 			  (on ? OTPS_READY : 0)), 100);
-		ASSERT((otps & OTPS_READY) == (on ? OTPS_READY : 0));
 		if ((otps & OTPS_READY) != (on ? OTPS_READY : 0))
 			PMU_MSG(("OTP ready bit not %s after wait\n",
 				 (on ? "ON" : "OFF")));
@@ -2090,12 +2038,9 @@ void si_pmu_rcal(si_t *sih)
 	chipcregs_t *cc;
 	uint origidx;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:{
@@ -2114,7 +2059,6 @@ void si_pmu_rcal(si_t *sih)
 			/* Wait for completion */
 			SPINWAIT(0 == (R_REG(&cc->chipstatus) & 0x08),
 				 10 * 1000 * 1000);
-			ASSERT(R_REG(&cc->chipstatus) & 0x08);
 
 			/* Drop the LSB to convert from 5 bit code to 4 bit code */
 			rcal_code =
@@ -2173,7 +2117,6 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 	/* Remember original core before switch to chipc */
 	cc = (chipcregs_t *) si_switch_core(sih, CC_CORE_ID, &origidx,
 					    &intr_val);
-	ASSERT(cc != NULL);
 
 	/* force the HT off  */
 	if (sih->chip == BCM4336_CHIP_ID) {
@@ -2183,7 +2126,6 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 		/* wait for the ht to really go away */
 		SPINWAIT(((R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL) == 0),
 			 10000);
-		ASSERT((R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL) == 0);
 	}
 
 	/* update the pll changes */
@@ -2405,7 +2347,6 @@ bool si_pmu_is_otp_powered(si_t *sih)
 	/* Remember original core before switch to chipc */
 	idx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -2454,7 +2395,6 @@ void si_pmu_sprom_enable(si_t *sih, bool enable)
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
@@ -2464,8 +2404,6 @@ void si_pmu_sprom_enable(si_t *sih, bool enable)
 void si_pmu_chip_init(si_t *sih)
 {
 	uint origidx;
-
-	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 	/* Gate off SPROM clock and chip select signals */
 	si_pmu_sprom_enable(sih, false);
@@ -2480,8 +2418,6 @@ void si_pmu_chip_init(si_t *sih)
 /* initialize PMU switch/regulators */
 void si_pmu_swreg_init(si_t *sih)
 {
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	switch (sih->chip) {
 	case BCM4336_CHIP_ID:
 		/* Reduce CLDO PWM output voltage to 1.2V */
@@ -2506,8 +2442,6 @@ void si_pmu_swreg_init(si_t *sih)
 
 void si_pmu_radio_enable(si_t *sih, bool enable)
 {
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	switch (sih->chip) {
 	case BCM4319_CHIP_ID:
 		if (enable)
@@ -2527,12 +2461,9 @@ si_pmu_waitforclk_on_backplane(si_t *sih, u32 clk, u32 delay)
 	chipcregs_t *cc;
 	uint origidx;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	if (delay)
 		SPINWAIT(((R_REG(&cc->pmustatus) & clk) != clk), delay);
@@ -2559,12 +2490,9 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 	if (sih->pmurev < 10)
 		return 0;
 
-	ASSERT(sih->cccaps & CC_CAP_PMU);
-
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	if (R_REG(&cc->pmustatus) & PST_EXTLPOAVAIL) {
 		u32 ilp_ctr, alp_hz;

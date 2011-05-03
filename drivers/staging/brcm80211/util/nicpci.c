@@ -83,8 +83,6 @@ void *pcicore_init(si_t *sih, void *pdev, void *regs)
 {
 	pcicore_info_t *pi;
 
-	ASSERT(sih->bustype == PCI_BUS);
-
 	/* alloc pcicore_info_t */
 	pi = kzalloc(sizeof(pcicore_info_t), GFP_ATOMIC);
 	if (pi == NULL) {
@@ -100,7 +98,6 @@ void *pcicore_init(si_t *sih, void *pdev, void *regs)
 		pi->regs.pcieregs = (sbpcieregs_t *) regs;
 		cap_ptr = pcicore_find_pci_capability(pi->dev, PCI_CAP_ID_EXP,
 						      NULL, NULL);
-		ASSERT(cap_ptr);
 		pi->pciecap_lcreg_offset = cap_ptr + PCIE_CAP_LINKCTRL_OFFSET;
 	} else
 		pi->regs.pciregs = (struct sbpciregs *) regs;
@@ -186,8 +183,6 @@ pcie_readreg(sbpcieregs_t *pcieregs, uint addrtype,
 {
 	uint retval = 0xFFFFFFFF;
 
-	ASSERT(pcieregs != NULL);
-
 	switch (addrtype) {
 	case PCIE_CONFIGREGS:
 		W_REG((&pcieregs->configaddr), offset);
@@ -200,7 +195,6 @@ pcie_readreg(sbpcieregs_t *pcieregs, uint addrtype,
 		retval = R_REG(&(pcieregs->pcieinddata));
 		break;
 	default:
-		ASSERT(0);
 		break;
 	}
 
@@ -211,8 +205,6 @@ uint
 pcie_writereg(sbpcieregs_t *pcieregs, uint addrtype,
 	      uint offset, uint val)
 {
-	ASSERT(pcieregs != NULL);
-
 	switch (addrtype) {
 	case PCIE_CONFIGREGS:
 		W_REG((&pcieregs->configaddr), offset);
@@ -223,7 +215,6 @@ pcie_writereg(sbpcieregs_t *pcieregs, uint addrtype,
 		W_REG((&pcieregs->pcieinddata), val);
 		break;
 	default:
-		ASSERT(0);
 		break;
 	}
 	return 0;
@@ -383,7 +374,6 @@ static void pcie_extendL1timer(pcicore_info_t *pi, bool extend)
 static void pcie_clkreq_upd(pcicore_info_t *pi, uint state)
 {
 	si_t *sih = pi->sih;
-	ASSERT(PCIE_PUB(sih));
 
 	switch (state) {
 	case SI_DOATTACH:
@@ -415,7 +405,6 @@ static void pcie_clkreq_upd(pcicore_info_t *pi, uint state)
 		}
 		break;
 	default:
-		ASSERT(0);
 		break;
 	}
 }
@@ -532,8 +521,6 @@ static void pcie_war_noplldown(pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	u16 *reg16;
-
-	ASSERT(pi->sih->buscorerev == 7);
 
 	/* turn off serdes PLL down */
 	si_corereg(pi->sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol),
