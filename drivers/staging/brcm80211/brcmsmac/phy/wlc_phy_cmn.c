@@ -389,16 +389,6 @@ void write_phy_channel_reg(phy_info_t *pi, uint val)
 	W_REG(&pi->regs->phychannel, val);
 }
 
-#if defined(BCMDBG)
-static bool wlc_phy_war41476(phy_info_t *pi)
-{
-	u32 mc = R_REG(&pi->regs->maccontrol);
-
-	return ((mc & MCTL_EN_MAC) == 0)
-	    || ((mc & MCTL_PHYLOCK) == MCTL_PHYLOCK);
-}
-#endif
-
 u16 read_phy_reg(phy_info_t *pi, u16 addr)
 {
 	d11regs_t *regs;
@@ -409,10 +399,6 @@ u16 read_phy_reg(phy_info_t *pi, u16 addr)
 #ifdef __mips__
 	(void)R_REG(&regs->phyregaddr);
 #endif
-
-	ASSERT(!
-	       (D11REV_IS(pi->sh->corerev, 11)
-		|| D11REV_IS(pi->sh->corerev, 12)) || wlc_phy_war41476(pi));
 
 	pi->phy_wreg = 0;
 	return R_REG(&regs->phyregdata);
@@ -453,10 +439,6 @@ void and_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 	(void)R_REG(&regs->phyregaddr);
 #endif
 
-	ASSERT(!
-	       (D11REV_IS(pi->sh->corerev, 11)
-		|| D11REV_IS(pi->sh->corerev, 12)) || wlc_phy_war41476(pi));
-
 	W_REG(&regs->phyregdata, (R_REG(&regs->phyregdata) & val));
 	pi->phy_wreg = 0;
 }
@@ -472,10 +454,6 @@ void or_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 	(void)R_REG(&regs->phyregaddr);
 #endif
 
-	ASSERT(!
-	       (D11REV_IS(pi->sh->corerev, 11)
-		|| D11REV_IS(pi->sh->corerev, 12)) || wlc_phy_war41476(pi));
-
 	W_REG(&regs->phyregdata, (R_REG(&regs->phyregdata) | val));
 	pi->phy_wreg = 0;
 }
@@ -490,10 +468,6 @@ void mod_phy_reg(phy_info_t *pi, u16 addr, u16 mask, u16 val)
 #ifdef __mips__
 	(void)R_REG(&regs->phyregaddr);
 #endif
-
-	ASSERT(!
-	       (D11REV_IS(pi->sh->corerev, 11)
-		|| D11REV_IS(pi->sh->corerev, 12)) || wlc_phy_war41476(pi));
 
 	W_REG(&regs->phyregdata,
 	      ((R_REG(&regs->phyregdata) & ~mask) | (val & mask)));
@@ -956,17 +930,16 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 	pi->radio_chanspec = chanspec;
 
 	mc = R_REG(&pi->regs->maccontrol);
-	if ((mc & MCTL_EN_MAC) != 0) {
-		ASSERT((const char *)
-		       "wlc_phy_init: Called with the MAC running!" == NULL);
-	}
+	if (WARN(mc & MCTL_EN_MAC, "HW error MAC running on init"))
+		return;
 
 	if (!(pi->measure_hold & PHY_HOLD_FOR_SCAN)) {
 		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
 	}
 
-	if (D11REV_GE(pi->sh->corerev, 5))
-		ASSERT(ai_core_sflags(pi->sh->sih, 0, 0) & SISF_FCLKA);
+	if (WARN(!(ai_core_sflags(pi->sh->sih, 0, 0) & SISF_FCLKA),
+		 "HW error SISF_FCLKA\n"))
+		return;
 
 	phy_init = pi->pi_fptr.init;
 
@@ -1004,7 +977,9 @@ void wlc_phy_cal_init(wlc_phy_t *pih)
 	phy_info_t *pi = (phy_info_t *) pih;
 	initfn_t cal_init = NULL;
 
-	ASSERT((R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC) == 0);
+	if (WARN((R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC) != 0,
+		 "HW error: MAC enabled during phy cal\n"))
+		return;
 
 	if (!pi->initialized) {
 		cal_init = pi->pi_fptr.calinit;
@@ -1225,8 +1200,6 @@ void wlc_phy_do_dummy_tx(phy_info_t *pi, bool ofdm, bool pa_on)
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00
 	};
 	u32 *dummypkt;
-
-	ASSERT((R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC) == 0);
 
 	dummypkt = (u32 *) (ofdm ? ofdmpkt : cckpkt);
 	wlapi_bmac_write_template_ram(pi->sh->physhim, 0, DUMMY_PKT_LEN,

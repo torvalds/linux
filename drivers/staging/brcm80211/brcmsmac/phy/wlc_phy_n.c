@@ -14950,8 +14950,6 @@ static void wlc_phy_resetcca_nphy(phy_info_t *pi)
 {
 	u16 val;
 
-	ASSERT(0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
-
 	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
 
 	val = read_phy_reg(pi, 0x01);
@@ -17403,8 +17401,10 @@ static void wlc_phy_radio_postinit_2055(phy_info_t *pi)
 	SPINWAIT(((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
 		   RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE), 2000);
 
-	ASSERT((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
-		RADIO_2055_RCAL_DONE) == RADIO_2055_RCAL_DONE);
+	if (WARN((read_radio_reg(pi, RADIO_2055_CAL_COUNTER_OUT2) &
+		 RADIO_2055_RCAL_DONE) != RADIO_2055_RCAL_DONE,
+		 "HW error: radio calibration1\n"))
+		return;
 
 	and_radio_reg(pi, RADIO_2055_CAL_LPO_CNTRL,
 		      ~(RADIO_2055_CAL_LPO_ENABLE));
@@ -18253,7 +18253,9 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 			udelay(100);
 		}
 
-		ASSERT(i < MAX_205x_RCAL_WAITLOOPS);
+		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
+			 "HW error: radio calib2"))
+			return 0;
 
 		mod_radio_reg(pi, RADIO_2057_RCAL_CONFIG, 0x2, 0x0);
 
@@ -18302,7 +18304,9 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 			udelay(100);
 		}
 
-		ASSERT(i < MAX_205x_RCAL_WAITLOOPS);
+		if (WARN(i == MAX_205x_RCAL_WAITLOOPS,
+			 "HW error: radio calib3"))
+			return 0;
 
 		write_radio_reg(pi, RADIO_2056_SYN_RCAL_MASTER | RADIO_2056_SYN,
 				0x1);
@@ -18549,8 +18553,6 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		udelay(500);
 	}
 
-	ASSERT(rccal_valid & 0x2);
-
 	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
 
 	rccal_valid = 0;
@@ -18572,8 +18574,6 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		}
 		udelay(500);
 	}
-
-	ASSERT(rccal_valid & 0x2);
 
 	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
 
@@ -18598,7 +18598,8 @@ static u16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 		udelay(500);
 	}
 
-	ASSERT(rccal_valid & 0x2);
+	if (WARN(!(rccal_valid & 0x2), "HW error: radio calib4"))
+		return 0;
 
 	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
 
@@ -19676,8 +19677,7 @@ void wlc_phy_force_rfseq_nphy(phy_info_t *pi, u8 cmd)
 	or_phy_reg(pi, 0xa3, trigger_mask);
 	SPINWAIT((read_phy_reg(pi, 0xa4) & status_mask), 200000);
 	write_phy_reg(pi, 0xa1, orig_RfseqCoreActv);
-
-	ASSERT((read_phy_reg(pi, 0xa4) & status_mask) == 0);
+	WARN(read_phy_reg(pi, 0xa4) & status_mask, "HW error in rf");
 }
 
 static void
@@ -21557,8 +21557,9 @@ wlc_phy_rfctrlintc_override_nphy(phy_info_t *pi, u8 field, u16 value,
 
 					SPINWAIT(((read_phy_reg(pi, 0x78) & val)
 						  != 0), 10000);
-					ASSERT((read_phy_reg(pi, 0x78) & val) ==
-					       0);
+					if (WARN(read_phy_reg(pi, 0x78) & val,
+						"HW error: override failed"))
+						return;
 
 					mask = (0x1 << 0);
 					val = 0 << 0;
@@ -24321,7 +24322,9 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 
 			SPINWAIT(((read_phy_reg(pi, 0xc0) & 0xc000) != 0),
 				 20000);
-			ASSERT((read_phy_reg(pi, 0xc0) & 0xc000) == 0);
+			if (WARN(read_phy_reg(pi, 0xc0) & 0xc000,
+				 "HW error: txiq calib"))
+				return -EIO;
 
 			wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_IQLOCAL,
 						tbl_len, 96, 16, tbl_buf);
@@ -24502,7 +24505,9 @@ wlc_phy_rx_iq_est_nphy(phy_info_t *pi, phy_iq_est_t *est, u16 num_samps,
 
 	SPINWAIT(((read_phy_reg(pi, 0x129) & NPHY_IqestCmd_iqstart) != 0),
 		 10000);
-	ASSERT((read_phy_reg(pi, 0x129) & NPHY_IqestCmd_iqstart) == 0);
+	if (WARN(read_phy_reg(pi, 0x129) & NPHY_IqestCmd_iqstart,
+		 "HW error: rxiq est"))
+		return;
 
 	if ((read_phy_reg(pi, 0x129) & NPHY_IqestCmd_iqstart) == 0) {
 		for (core = 0; core < pi->pubpi.phy_corenum; core++) {
@@ -29124,8 +29129,6 @@ wlc_phy_txpower_sromlimit_get_nphy(phy_info_t *pi, uint chan, u8 *max_pwr,
 void wlc_phy_stay_in_carriersearch_nphy(phy_info_t *pi, bool enable)
 {
 	u16 clip_off[] = { 0xffff, 0xffff };
-
-	ASSERT(0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 
 	if (enable) {
 		if (pi->nphy_deaf_count == 0) {
