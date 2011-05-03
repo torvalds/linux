@@ -142,6 +142,12 @@ static void __init check_tylersburg_isoch(void);
 static int rwbf_quirk;
 
 /*
+ * set to 1 to panic kernel if can't successfully enable VT-d
+ * (used when kernel is launched w/ TXT)
+ */
+static int force_on = 0;
+
+/*
  * 0: Present
  * 1-11: Reserved
  * 12-63: Context Ptr (12 - (haw-1))
@@ -2217,7 +2223,7 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 	return 0;
 }
 
-static int __init init_dmars(int force_on)
+static int __init init_dmars(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct dmar_rmrr_unit *rmrr;
@@ -3117,7 +3123,17 @@ static int init_iommu_hw(void)
 		if (iommu->qi)
 			dmar_reenable_qi(iommu);
 
-	for_each_active_iommu(iommu, drhd) {
+	for_each_iommu(iommu, drhd) {
+		if (drhd->ignored) {
+			/*
+			 * we always have to disable PMRs or DMA may fail on
+			 * this device
+			 */
+			if (force_on)
+				iommu_disable_protect_mem_regions(iommu);
+			continue;
+		}
+	
 		iommu_flush_write_buffer(iommu);
 
 		iommu_set_root_entry(iommu);
@@ -3126,7 +3142,8 @@ static int init_iommu_hw(void)
 					   DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 					 DMA_TLB_GLOBAL_FLUSH);
-		iommu_enable_translation(iommu);
+		if (iommu_enable_translation(iommu))
+			return 1;
 		iommu_disable_protect_mem_regions(iommu);
 	}
 
@@ -3193,7 +3210,10 @@ static void iommu_resume(void)
 	unsigned long flag;
 
 	if (init_iommu_hw()) {
-		WARN(1, "IOMMU setup failed, DMAR can not resume!\n");
+		if (force_on)
+			panic("tboot: IOMMU setup failed, DMAR can not resume!\n");
+		else
+			WARN(1, "IOMMU setup failed, DMAR can not resume!\n");
 		return;
 	}
 
@@ -3270,7 +3290,6 @@ static struct notifier_block device_nb = {
 int __init intel_iommu_init(void)
 {
 	int ret = 0;
-	int force_on = 0;
 
 	/* VT-d is required for a TXT/tboot launch, so enforce that */
 	force_on = tboot_force_iommu();
@@ -3308,7 +3327,7 @@ int __init intel_iommu_init(void)
 
 	init_no_remapping_devices();
 
-	ret = init_dmars(force_on);
+	ret = init_dmars();
 	if (ret) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMARs\n");
