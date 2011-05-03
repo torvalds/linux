@@ -1425,6 +1425,9 @@ u32 si_pmu_alp_clock(si_t *sih)
 #ifdef BCMDBG
 	char chn[8];
 #endif
+	/* bail out with default */
+	if (!PMUCTL_ENAB(sih))
+		return clock;
 
 	/* Remember original core before switch to chipc */
 	origidx = si_coreidx(sih);

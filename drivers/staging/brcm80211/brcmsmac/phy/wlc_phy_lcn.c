@@ -5053,7 +5053,7 @@ bool wlc_phy_attach_lcnphy(phy_info_t *pi)
 		pi->hwpwrctrl_capable = true;
 	}
 
-	pi->xtalfreq = si_alp_clock(pi->sh->sih);
+	pi->xtalfreq = si_pmu_alp_clock(pi->sh->sih);
 	pi_lcn->lcnphy_papd_rxGnCtrl_init = 0;
 
 	pi->pi_fptr.init = wlc_phy_init_lcnphy;
