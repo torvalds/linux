@@ -505,12 +505,18 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	 * DDC_VGA           = RADEON_GPIO_VGA_DDC
 	 * DDC_LCD           = RADEON_GPIOPAD_MASK
 	 * DDC_GPIO          = RADEON_MDGPIO_MASK
-	 * r1xx/r2xx
+	 * r1xx
 	 * DDC_MONID         = RADEON_GPIO_MONID
 	 * DDC_CRT2          = RADEON_GPIO_CRT2_DDC
-	 * r3xx
+	 * r200
 	 * DDC_MONID         = RADEON_GPIO_MONID
 	 * DDC_CRT2          = RADEON_GPIO_DVI_DDC
+	 * r300/r350
+	 * DDC_MONID         = RADEON_GPIO_DVI_DDC
+	 * DDC_CRT2          = RADEON_GPIO_DVI_DDC
+	 * rv2xx/rv3xx
+	 * DDC_MONID         = RADEON_GPIO_MONID
+	 * DDC_CRT2          = RADEON_GPIO_MONID
 	 * rs3xx/rs4xx
 	 * DDC_MONID         = RADEON_GPIOPAD_MASK
 	 * DDC_CRT2          = RADEON_GPIO_MONID
@@ -537,18 +543,21 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 		    rdev->family == CHIP_RS400 ||
 		    rdev->family == CHIP_RS480)
 			ddc_line = RADEON_GPIOPAD_MASK;
+		else if (rdev->family == CHIP_R300 ||
+			 rdev->family == CHIP_R350)
+			ddc_line = RADEON_GPIO_DVI_DDC;
 		else
 			ddc_line = RADEON_GPIO_MONID;
 		break;
 	case DDC_CRT2:
-		if (rdev->family == CHIP_RS300 ||
-		    rdev->family == CHIP_RS400 ||
-		    rdev->family == CHIP_RS480)
-			ddc_line = RADEON_GPIO_MONID;
-		else if (rdev->family >= CHIP_R300) {
+		if (rdev->family == CHIP_R200 ||
+		    rdev->family == CHIP_R300 ||
+		    rdev->family == CHIP_R350)
 			ddc_line = RADEON_GPIO_DVI_DDC;
-			ddc = DDC_DVI;
-		} else
+		else if (rdev->family == CHIP_RS300 ||
+			 rdev->family >= CHIP_RV350)
+			ddc_line = RADEON_GPIO_MONID;
+		else
 			ddc_line = RADEON_GPIO_CRT2_DDC;
 		break;
 	}
@@ -709,26 +718,42 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	struct radeon_i2c_bus_rec i2c;
 
+	/* actual hw pads
+	 * r1xx/rs2xx/rs3xx
+	 * 0x60, 0x64, 0x68, 0x6c, gpiopads, mm
+	 * r200
+	 * 0x60, 0x64, 0x68, mm
+	 * r300/r350
+	 * 0x60, 0x64, mm
+	 * rv2xx/rv3xx/rs4xx
+	 * 0x60, 0x64, 0x68, gpiopads, mm
+	 */
 
+	/* 0x60 */
 	i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 	rdev->i2c_bus[0] = radeon_i2c_create(dev, &i2c, "DVI_DDC");
-
+	/* 0x64 */
 	i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 	rdev->i2c_bus[1] = radeon_i2c_create(dev, &i2c, "VGA_DDC");
 
+	/* mm i2c */
 	i2c.valid = true;
 	i2c.hw_capable = true;
 	i2c.mm_i2c = true;
 	i2c.i2c_id = 0xa0;
 	rdev->i2c_bus[2] = radeon_i2c_create(dev, &i2c, "MM_I2C");
 
-	if (rdev->family == CHIP_RS300 ||
-	    rdev->family == CHIP_RS400 ||
-	    rdev->family == CHIP_RS480) {
+	if (rdev->family == CHIP_R300 ||
+	    rdev->family == CHIP_R350) {
+		/* only 2 sw i2c pads */
+	} else if (rdev->family == CHIP_RS300 ||
+		   rdev->family == CHIP_RS400 ||
+		   rdev->family == CHIP_RS480) {
 		u16 offset;
 		u8 id, blocks, clk, data;
 		int i;
 
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
 
@@ -740,6 +765,7 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 				if (id == 136) {
 					clk = RBIOS8(offset + 3 + (i * 5) + 3);
 					data = RBIOS8(offset + 3 + (i * 5) + 4);
+					/* gpiopad */
 					i2c = combios_setup_i2c_bus(rdev, DDC_MONID,
 								    (1 << clk), (1 << data));
 					rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "GPIOPAD_MASK");
@@ -747,14 +773,15 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 				}
 			}
 		}
-
-	} else if (rdev->family >= CHIP_R300) {
+	} else if (rdev->family >= CHIP_R200) {
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
 	} else {
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
-
+		/* 0x6c */
 		i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "CRT2_DDC");
 	}
