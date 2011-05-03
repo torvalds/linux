@@ -305,6 +305,7 @@ struct lola_stream {
 
 	/* flags */
 	unsigned int opened:1;
+	unsigned int prepared:1;
 	unsigned int running:1;
 };
 

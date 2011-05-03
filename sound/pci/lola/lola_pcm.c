@@ -29,7 +29,6 @@
 /* #define USE_SG_BUFFER */
 
 #define LOLA_MAX_BDL_ENTRIES	8
-#define LOLA_MAX_FRAG		8
 #define LOLA_MAX_BUF_SIZE	(1024*1024*1024)
 #define LOLA_BDL_ENTRY_SIZE	(16 * 16)
 
@@ -111,12 +110,6 @@ static void lola_stream_stop(struct lola *chip, struct lola_stream *str,
 	lola_stream_clear_pending_irq(chip, str);
 }
 
-static void lola_stream_clear(struct lola *chip, struct lola_stream *str)
-{
-	lola_dsd_write(chip, str->dsd, CTL, 0);
-	lola_stream_clear_pending_irq(chip, str);
-}
-
 static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 {
 	unsigned long end_time = jiffies + msecs_to_jiffies(200);
@@ -130,27 +123,37 @@ static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 	printk(KERN_WARNING SFX "SRST not clear (stream %d)\n", str->dsd);
 }
 
-static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
+static int lola_stream_wait_for_fifo(struct lola *chip,
+				     struct lola_stream *str,
+				     bool ready)
 {
-	lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRST);
-	wait_for_srst_clear(chip, str);
-	lola_dsd_write(chip, str->dsd, LVI, 0);
-	lola_dsd_write(chip, str->dsd, BDPU, 0);
-	lola_dsd_write(chip, str->dsd, BDPL, 0);
-}
-
-static int lola_stream_wait_for_fifo_ready(struct lola *chip,
-					   struct lola_stream *str)
-{
-	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
+	unsigned int val = ready ? LOLA_DSD_STS_FIFORDY : 0;
+	unsigned long end_time = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, end_time)) {
-		unsigned int val = lola_dsd_read(chip, str->dsd, STS);
-		if (val & LOLA_DSD_STS_FIFORDY)
+		unsigned int reg = lola_dsd_read(chip, str->dsd, STS);
+		if ((reg & LOLA_DSD_STS_FIFORDY) == val)
 			return 0;
 		msleep(1);
 	}
 	printk(KERN_WARNING SFX "FIFO not ready (stream %d)\n", str->dsd);
 	return -EIO;
+}
+
+static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
+{
+	if (str->prepared) {
+		str->prepared = 0;
+
+		lola_dsd_write(chip, str->dsd, CTL,
+			       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE);
+		lola_stream_wait_for_fifo(chip, str, false);
+		lola_stream_clear_pending_irq(chip, str);
+		lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRST);
+		lola_dsd_write(chip, str->dsd, LVI, 0);
+		lola_dsd_write(chip, str->dsd, BDPU, 0);
+		lola_dsd_write(chip, str->dsd, BDPL, 0);
+		wait_for_srst_clear(chip, str);
+	}
 }
 
 static struct snd_pcm_hardware lola_pcm_hw = {
@@ -163,16 +166,16 @@ static struct snd_pcm_hardware lola_pcm_hw = {
 				 SNDRV_PCM_FMTBIT_S24_LE |
 				 SNDRV_PCM_FMTBIT_S32_LE |
 				 SNDRV_PCM_FMTBIT_FLOAT_LE),
-	.rates =		SNDRV_PCM_RATE_48000,
-	.rate_min =		48000,
-	.rate_max =		48000,
+	.rates =		SNDRV_PCM_RATE_8000_192000,
+	.rate_min =		8000,
+	.rate_max =		192000,
 	.channels_min =		1,
 	.channels_max =		2,
 	.buffer_bytes_max =	LOLA_MAX_BUF_SIZE,
 	.period_bytes_min =	128,
 	.period_bytes_max =	LOLA_MAX_BUF_SIZE / 2,
 	.periods_min =		2,
-	.periods_max =		LOLA_MAX_FRAG,
+	.periods_max =		LOLA_MAX_BDL_ENTRIES,
 	.fifo_size =		0,
 };
 
@@ -194,10 +197,13 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = lola_pcm_hw;
 	runtime->hw.channels_max = pcm->num_streams - str->index;
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				   128);
-	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
-				   128);
+	/* period size = multiple of chip->granularity (8, 16 or 32 frames)
+	 * use LOLA_GRANULARITY_MAX = 32 for instance
+	 */
+	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+				   LOLA_GRANULARITY_MAX);
+	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				   LOLA_GRANULARITY_MAX);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
@@ -383,16 +389,24 @@ static int lola_setup_controller(struct lola *chip, struct lola_pcm *pcm,
 				 struct lola_stream *str)
 {
 	dma_addr_t bdl;
+
+	if (str->prepared)
+		return -EINVAL;
+
 	/* set up BDL */
 	bdl = pcm->bdl.addr + LOLA_BDL_ENTRY_SIZE * str->index;
 	lola_dsd_write(chip, str->dsd, BDPL, (u32)bdl);
 	lola_dsd_write(chip, str->dsd, BDPU, upper_32_bits(bdl));
 	/* program the stream LVI (last valid index) of the BDL */
 	lola_dsd_write(chip, str->dsd, LVI, str->frags - 1);
-	lola_stream_stop(chip, str, lola_get_tstamp(chip, false));
-	lola_stream_wait_for_fifo_ready(chip, str);
+	lola_stream_clear_pending_irq(chip, str);
 
-	return 0;
+ 	lola_dsd_write(chip, str->dsd, CTL,
+		       LOLA_DSD_CTL_IOCE | LOLA_DSD_CTL_DEIE | LOLA_DSD_CTL_SRUN);
+
+	str->prepared = 1;
+
+	return lola_stream_wait_for_fifo(chip, str, true);
 }
 
 static int lola_pcm_prepare(struct snd_pcm_substream *substream)
@@ -421,22 +435,25 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 	period_bytes = snd_pcm_lib_period_bytes(substream);
 	format_verb = lola_get_format_verb(substream);
 
-	if (bufsize != str->bufsize ||
-	    period_bytes != str->period_bytes ||
-	    format_verb != str->format_verb) {
-		str->bufsize = bufsize;
-		str->period_bytes = period_bytes;
-		str->format_verb = format_verb;
-		err = lola_setup_periods(chip, pcm, substream, str);
-		if (err < 0)
-			return err;
-	}
+	str->bufsize = bufsize;
+	str->period_bytes = period_bytes;
+	str->format_verb = format_verb;
+
+	err = lola_setup_periods(chip, pcm, substream, str);
+	if (err < 0)
+		return err;
 
 	err = lola_set_stream_config(chip, str, runtime->channels);
 	if (err < 0)
 		return err;
 
-	return lola_setup_controller(chip, pcm, str);
+	err = lola_setup_controller(chip, pcm, str);
+	if (err < 0) {
+		lola_stream_reset(chip, str);
+		return err;
+	}
+
+	return 0;
 }
 
 static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)

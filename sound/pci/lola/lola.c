@@ -73,6 +73,7 @@ static int corb_send_verb(struct lola *chip, unsigned int nid,
 	chip->last_data = data;
 	chip->last_extdata = extdata;
 	data |= (nid << 20) | (verb << 8);
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (chip->rirb.cmds < LOLA_CORB_ENTRIES - 1) {
 		unsigned int wp = chip->corb.wp + 1;
@@ -338,8 +339,6 @@ static int setup_corb_rirb(struct lola *chip)
 	chip->corb.buf = (u32 *)chip->rb.area;
 	chip->rirb.addr = chip->rb.addr + 2048;
 	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
-	lola_writel(chip, BAR0, CORBLBASE, (u32)chip->corb.addr);
-	lola_writel(chip, BAR0, CORBUBASE, upper_32_bits(chip->corb.addr));
 
 	/* disable ringbuffer DMAs */
 	lola_writeb(chip, BAR0, RIRBCTL, 0);
@@ -496,6 +495,10 @@ static int lola_parse_tree(struct lola *chip)
 	if (!chip->cold_reset) {
 		lola_reset_setups(chip);
 		chip->cold_reset = 1;
+	} else {
+		/* set the granularity if it is not the default */
+		if (chip->granularity != LOLA_GRANULARITY_MIN)
+			lola_set_granularity(chip, chip->granularity, true);
 	}
 
 	return 0;
@@ -561,8 +564,14 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	chip->sample_rate_min = 48000;
-	chip->granularity = LOLA_GRANULARITY_MIN;
+	/* below a sample_rate of 16kHz the analogue audio quality
+	 * is NOT excellent
+	 */
+	chip->sample_rate_min = 16000;
+	/* for instance use always max granularity which is compatible
+	 * with all sample rates
+	 */
+	chip->granularity = LOLA_GRANULARITY_MAX;
 
 	err = pci_request_regions(pci, DRVNAME);
 	if (err < 0) {
