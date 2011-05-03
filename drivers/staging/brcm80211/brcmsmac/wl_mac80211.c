@@ -346,17 +346,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 			  __func__, info->assoc ? "" : "dis");
 		wlc_associate_upd(wl->wlc, info->assoc);
 	}
-	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		/* CTS protection changed */
-		wiphy_err(wiphy, "%s: use_cts_prot: %s (implement)\n", __func__,
-			  info->use_cts_prot ? "true" : "false");
-	}
-	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		/* preamble changed */
-		wiphy_err(wiphy, "%s: short preamble: %s (implement)\n",
-			  __func__, info->use_short_preamble ? "true" :
-			  "false");
-	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		/* slot timing changed */
 		if (info->use_short_slot)
