@@ -376,11 +376,27 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 			port_change_bit, wIndex, port_status);
 }
 
+static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
+{
+	int max_ports;
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	if (hcd->speed == HCD_USB3) {
+		max_ports = xhci->num_usb3_ports;
+		*port_array = xhci->usb3_ports;
+	} else {
+		max_ports = xhci->num_usb2_ports;
+		*port_array = xhci->usb2_ports;
+	}
+
+	return max_ports;
+}
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int ports;
+	int max_ports;
 	unsigned long flags;
 	u32 temp, temp1, status;
 	int retval = 0;
@@ -389,13 +405,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	struct xhci_bus_state *bus_state;
 	u16 link_state = 0;
 
-	if (hcd->speed == HCD_USB3) {
-		ports = xhci->num_usb3_ports;
-		port_array = xhci->usb3_ports;
-	} else {
-		ports = xhci->num_usb2_ports;
-		port_array = xhci->usb2_ports;
-	}
+	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -420,7 +430,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				(struct usb_hub_descriptor *) buf);
 		break;
 	case GetPortStatus:
-		if (!wIndex || wIndex > ports)
+		if (!wIndex || wIndex > max_ports)
 			goto error;
 		wIndex--;
 		status = 0;
@@ -519,7 +529,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if (wValue == USB_PORT_FEAT_LINK_STATE)
 			link_state = (wIndex & 0xff00) >> 3;
 		wIndex &= 0xff;
-		if (!wIndex || wIndex > ports)
+		if (!wIndex || wIndex > max_ports)
 			goto error;
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
@@ -637,7 +647,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_readl(xhci, port_array[wIndex]);
 		break;
 	case ClearPortFeature:
-		if (!wIndex || wIndex > ports)
+		if (!wIndex || wIndex > max_ports)
 			goto error;
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
@@ -730,21 +740,15 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	u32 mask;
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int ports;
+	int max_ports;
 	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 
-	if (hcd->speed == HCD_USB3) {
-		ports = xhci->num_usb3_ports;
-		port_array = xhci->usb3_ports;
-	} else {
-		ports = xhci->num_usb2_ports;
-		port_array = xhci->usb2_ports;
-	}
+	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	/* Initial status is no changes */
-	retval = (ports + 8) / 8;
+	retval = (max_ports + 8) / 8;
 	memset(buf, 0, retval);
 	status = 0;
 
@@ -752,7 +756,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
-	for (i = 0; i < ports; i++) {
+	for (i = 0; i < max_ports; i++) {
 		temp = xhci_readl(xhci, port_array[i]);
 		if (temp == 0xffffffff) {
 			retval = -ENODEV;
@@ -780,15 +784,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 
-	if (hcd->speed == HCD_USB3) {
-		max_ports = xhci->num_usb3_ports;
-		port_array = xhci->usb3_ports;
-		xhci_dbg(xhci, "suspend USB 3.0 root hub\n");
-	} else {
-		max_ports = xhci->num_usb2_ports;
-		port_array = xhci->usb2_ports;
-		xhci_dbg(xhci, "suspend USB 2.0 root hub\n");
-	}
+	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -873,15 +869,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	u32 temp;
 	unsigned long flags;
 
-	if (hcd->speed == HCD_USB3) {
-		max_ports = xhci->num_usb3_ports;
-		port_array = xhci->usb3_ports;
-		xhci_dbg(xhci, "resume USB 3.0 root hub\n");
-	} else {
-		max_ports = xhci->num_usb2_ports;
-		port_array = xhci->usb2_ports;
-		xhci_dbg(xhci, "resume USB 2.0 root hub\n");
-	}
+	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	if (time_before(jiffies, bus_state->next_statechange))
