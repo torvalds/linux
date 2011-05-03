@@ -3881,6 +3881,26 @@ static void hpsa_free_cmd_pool(struct ctlr_info *h)
 			    h->errinfo_pool_dhandle);
 }
 
+static int hpsa_request_irq(struct ctlr_info *h,
+	irqreturn_t (*msixhandler)(int, void *),
+	irqreturn_t (*intxhandler)(int, void *))
+{
+	int rc;
+
+	if (h->msix_vector || h->msi_vector)
+		rc = request_irq(h->intr[h->intr_mode], msixhandler,
+				IRQF_DISABLED, h->devname, h);
+	else
+		rc = request_irq(h->intr[h->intr_mode], intxhandler,
+				IRQF_DISABLED, h->devname, h);
+	if (rc) {
+		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
+		       h->intr[h->intr_mode], h->devname);
+		return -ENODEV;
+	}
+	return 0;
+}
+
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -3936,18 +3956,8 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
 
-	if (h->msix_vector || h->msi_vector)
-		rc = request_irq(h->intr[h->intr_mode], do_hpsa_intr_msi,
-				IRQF_DISABLED, h->devname, h);
-	else
-		rc = request_irq(h->intr[h->intr_mode], do_hpsa_intr_intx,
-				IRQF_DISABLED, h->devname, h);
-	if (rc) {
-		dev_err(&pdev->dev, "unable to get irq %d for %s\n",
-		       h->intr[h->intr_mode], h->devname);
+	if (hpsa_request_irq(h, do_hpsa_intr_msi, do_hpsa_intr_intx))
 		goto clean2;
-	}
-
 	dev_info(&pdev->dev, "%s: <0x%x> at IRQ %d%s using DAC\n",
 	       h->devname, pdev->device,
 	       h->intr[h->intr_mode], dac ? "" : " not");
