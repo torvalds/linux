@@ -73,6 +73,7 @@ struct cxd2820r_priv {
 	u8 gpio[3];
 
 	fe_delivery_system_t delivery_system;
+	int last_tune_failed:1; /* for switch between T and T2 tune */
 };
 
 /* cxd2820r_core.c */

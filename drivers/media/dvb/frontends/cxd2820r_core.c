@@ -25,13 +25,6 @@ int cxd2820r_debug;
 module_param_named(debug, cxd2820r_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
-/* TODO: temporary hack, will be removed later when there is app support */
-unsigned int cxd2820r_dvbt2_freq[5];
-int cxd2820r_dvbt2_count;
-module_param_array_named(dvbt2_freq, cxd2820r_dvbt2_freq, int,
-	&cxd2820r_dvbt2_count, 0644);
-MODULE_PARM_DESC(dvbt2_freq, "RF frequencies forced to DVB-T2 (unit Hz)");
-
 /* write multiple registers */
 static int cxd2820r_wr_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
 	u8 *val, int len)
@@ -626,8 +619,7 @@ static int cxd2820r_get_tune_settings(struct dvb_frontend *fe,
 	struct dvb_frontend_tune_settings *s)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret, i;
-	unsigned int rf1, rf2;
+	int ret;
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
 
 	if (fe->ops.info.type == FE_OFDM) {
@@ -635,35 +627,6 @@ static int cxd2820r_get_tune_settings(struct dvb_frontend *fe,
 		ret = cxd2820r_lock(priv, 0);
 		if (ret)
 			return ret;
-
-		/* TODO: hack! This will be removed later when there is better
-		 * app support for DVB-T2... */
-
-		/* Hz => MHz */
-		rf1 = DIV_ROUND_CLOSEST(fe->dtv_property_cache.frequency,
-			1000000);
-		for (i = 0; i < cxd2820r_dvbt2_count; i++) {
-			if (cxd2820r_dvbt2_freq[i] > 100000000) {
-				/* Hz => MHz */
-				rf2 = DIV_ROUND_CLOSEST(cxd2820r_dvbt2_freq[i],
-					1000000);
-			} else if (cxd2820r_dvbt2_freq[i] > 100000) {
-				/* kHz => MHz */
-				rf2 = DIV_ROUND_CLOSEST(cxd2820r_dvbt2_freq[i],
-					1000);
-			} else {
-				rf2 = cxd2820r_dvbt2_freq[i];
-			}
-
-			dbg("%s: rf1=%d rf2=%d", __func__, rf1, rf2);
-
-			if (rf1 == rf2) {
-				dbg("%s: forcing DVB-T2, frequency=%d",
-				__func__, fe->dtv_property_cache.frequency);
-				fe->dtv_property_cache.delivery_system =
-					SYS_DVBT2;
-			}
-		}
 
 		switch (fe->dtv_property_cache.delivery_system) {
 		case SYS_DVBT:
@@ -685,6 +648,74 @@ static int cxd2820r_get_tune_settings(struct dvb_frontend *fe,
 	}
 
 	return ret;
+}
+
+static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe,
+	struct dvb_frontend_parameters *p)
+{
+	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int ret, i;
+	fe_status_t status = 0;
+	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
+
+	/* switch between DVB-T and DVB-T2 when tune fails */
+	if (priv->last_tune_failed) {
+		if (priv->delivery_system == SYS_DVBT)
+			c->delivery_system = SYS_DVBT2;
+		else
+			c->delivery_system = SYS_DVBT;
+	}
+
+	/* set frontend */
+	ret = cxd2820r_set_frontend(fe, p);
+	if (ret)
+		goto error;
+
+
+	/* frontend lock wait loop count */
+	switch (priv->delivery_system) {
+	case SYS_DVBT:
+		i = 20;
+		break;
+	case SYS_DVBT2:
+		i = 40;
+		break;
+	case SYS_UNDEFINED:
+	default:
+		i = 0;
+		break;
+	}
+
+	/* wait frontend lock */
+	for (; i > 0; i--) {
+		dbg("%s: LOOP=%d", __func__, i);
+		msleep(50);
+		ret = cxd2820r_read_status(fe, &status);
+		if (ret)
+			goto error;
+
+		if (status & FE_HAS_SIGNAL)
+			break;
+	}
+
+	/* check if we have a valid signal */
+	if (status) {
+		priv->last_tune_failed = 0;
+		return DVBFE_ALGO_SEARCH_SUCCESS;
+	} else {
+		priv->last_tune_failed = 1;
+		return DVBFE_ALGO_SEARCH_AGAIN;
+	}
+
+error:
+	dbg("%s: failed:%d", __func__, ret);
+	return DVBFE_ALGO_SEARCH_ERROR;
+}
+
+static int cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
+{
+	return DVBFE_ALGO_CUSTOM;
 }
 
 static void cxd2820r_release(struct dvb_frontend *fe)
@@ -838,8 +869,10 @@ static struct dvb_frontend_ops cxd2820r_ops[2] = {
 
 		.get_tune_settings = cxd2820r_get_tune_settings,
 
-		.set_frontend = cxd2820r_set_frontend,
 		.get_frontend = cxd2820r_get_frontend,
+
+		.get_frontend_algo = cxd2820r_get_frontend_algo,
+		.search = cxd2820r_search,
 
 		.read_status = cxd2820r_read_status,
 		.read_snr = cxd2820r_read_snr,
