@@ -24,7 +24,7 @@
 #include <bcmdevs.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
-#include <hndpmu.h>
+#include <wlc_pmu.h>
 #include "siutils_priv.h"
 
 #define	PMU_ERROR(args)

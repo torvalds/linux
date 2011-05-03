@@ -35,9 +35,9 @@
 #include <pcicfg.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
-#include <hndpmu.h>
 
 #include "wlc_types.h"
+#include "wlc_pmu.h"
 #include "d11.h"
 #include "wlc_cfg.h"
 #include "wlc_rate.h"

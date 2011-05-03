@@ -22,7 +22,7 @@
 #include <qmath.h>
 #include <linux/pci.h>
 #include <siutils.h>
-#include <hndpmu.h>
+#include <wlc_pmu.h>
 
 #include <bcmdevs.h>
 #include <sbhnddma.h>

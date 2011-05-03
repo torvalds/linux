@@ -40,7 +40,7 @@
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 #endif				/* BCMSDIO */
-#include <hndpmu.h>
+#include <wlc_pmu.h>
 
 /* this file now contains only definitions for sb functions, only necessary
 *for devices using Sonics backplanes (bcm4329)

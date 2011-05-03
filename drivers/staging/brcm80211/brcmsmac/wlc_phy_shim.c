@@ -36,7 +36,7 @@
 #include <pcicfg.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
-#include <hndpmu.h>
+#include <wlc_pmu.h>
 
 #include "wlc_types.h"
 #include "wl_dbg.h"
