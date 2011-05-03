@@ -1615,7 +1615,6 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 	uint err = 0;
 	uint j;
 	struct wlc_pub *pub;
-	struct wlc_txq_info *qi;
 	uint n_disabled;
 
 	/* allocate struct wlc_info state and its substructures */
@@ -1781,14 +1780,13 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 	 */
 
 	/* allocate our initial queue */
-	qi = wlc_txq_alloc(wlc);
-	if (qi == NULL) {
+	wlc->pkt_queue = wlc_txq_alloc(wlc);
+	if (wlc->pkt_queue == NULL) {
 		wiphy_err(wl->wiphy, "wl%d: %s: failed to malloc tx queue\n",
 			  unit, __func__);
 		err = 100;
 		goto fail;
 	}
-	wlc->active_queue = qi;
 
 	wlc->bsscfg[0] = wlc->cfg;
 	wlc->cfg->_idx = 0;
@@ -4879,7 +4877,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			     uint prec)
 {
 	struct wlc_info *wlc = (struct wlc_info *) ctx;
-	struct wlc_txq_info *qi = wlc->active_queue;	/* Check me */
+	struct wlc_txq_info *qi = wlc->pkt_queue;	/* Check me */
 	struct pktq *q = &qi->q;
 	int prio;
 
@@ -4935,7 +4933,7 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	    (wlc_d11hdrs_mac80211(wlc, hw, pkt, scb, 0, 1, fifo, 0, NULL, 0)))
 		return -EINVAL;
 	wlc_txq_enq(wlc, scb, pkt, WLC_PRIO_TO_PREC(prio));
-	wlc_send_q(wlc, wlc->active_queue);
+	wlc_send_q(wlc, wlc->pkt_queue);
 
 	wlc->pub->_cnt->ieee_tx++;
 	return 0;
@@ -4951,8 +4949,8 @@ void BCMFASTPATH wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi)
 	struct pktq *q = &qi->q;
 	struct ieee80211_tx_info *tx_info;
 
-	/* only do work for the active queue */
-	if (qi != wlc->active_queue)
+	/* only do work for the packet queue */
+	if (qi != wlc->pkt_queue)
 		return;
 
 	if (in_send_q)
@@ -6184,8 +6182,8 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 	}
 
 	/* send any enq'd tx packets. Just makes sure to jump start tx */
-	if (!pktq_empty(&wlc->active_queue->q))
-		wlc_send_q(wlc, wlc->active_queue);
+	if (!pktq_empty(&wlc->pkt_queue->q))
+		wlc_send_q(wlc, wlc->pkt_queue);
 }
 
 static void wlc_war16165(struct wlc_info *wlc, bool tx)
@@ -8109,10 +8107,10 @@ void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop)
 {
 	/* flush packet queue when requested */
 	if (drop)
-		pktq_flush(&wlc->active_queue->q, false, NULL, 0);
+		pktq_flush(&wlc->pkt_queue->q, false, NULL, 0);
 
 	/* wait for queue and DMA fifos to run dry */
-	while (!pktq_empty(&wlc->active_queue->q) ||
+	while (!pktq_empty(&wlc->pkt_queue->q) ||
 	       TXPKTPENDTOT(wlc) > 0) {
 		wl_msleep(wlc->wl, 1);
 	}

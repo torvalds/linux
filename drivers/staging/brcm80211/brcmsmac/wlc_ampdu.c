@@ -1133,7 +1133,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 		p = GETNEXTTXP(wlc, queue);
 	}
-	wlc_send_q(wlc, wlc->active_queue);
+	wlc_send_q(wlc, wlc->pkt_queue);
 
 	/* update rate state */
 	antselid = wlc_antsel_antsel2id(wlc->asi, mimoantsel);
@@ -1340,7 +1340,7 @@ static void dma_cb_fn_ampdu(void *txi, void *arg_a)
 void wlc_ampdu_flush(struct wlc_info *wlc,
 		     struct ieee80211_sta *sta, u16 tid)
 {
-	struct wlc_txq_info *qi = wlc->active_queue;
+	struct wlc_txq_info *qi = wlc->pkt_queue;
 	struct pktq *pq = &qi->q;
 	int prec;
 	struct cb_del_ampdu_pars ampdu_pars;

@@ -743,9 +743,7 @@ struct wlc_info {
 	u16 next_bsscfg_ID;
 
 	struct wlc_if *wlcif_list;	/* linked list of wlc_if structs */
-	struct wlc_txq_info *active_queue; /* txq for the currently active
-					    * transmit context
-					    */
+	struct wlc_txq_info *pkt_queue; /* txq for transmit packets */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
