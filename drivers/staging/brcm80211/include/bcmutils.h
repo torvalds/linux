@@ -257,16 +257,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define REG_MAP(pa, size)       (void *)(0)
 #endif
 
-extern u32 g_assert_type;
-
-#if defined(BCMDBG_ASSERT)
-#define ASSERT(exp) \
-	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
-extern void osl_assert(char *exp, char *file, int line);
-#else
-#define ASSERT(exp)	do {} while (0)
-#endif  /* defined(BCMDBG_ASSERT) */
-
 /* register access macros */
 #if defined(BCMSDIO)
 #ifdef BRCM_FULLMAC

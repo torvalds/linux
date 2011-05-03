@@ -43,6 +43,9 @@ extern void dhdsdio_isr(void *args);
 #include <linux/platform_device.h>
 #endif				/* CONFIG_MACH_SANDGATE2G */
 
+#include "dngl_stats.h"
+#include "dhd.h"
+
 /**
  * SDIO Host Controller info
  */

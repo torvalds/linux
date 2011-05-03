@@ -114,12 +114,6 @@ typedef struct {
 
 #define BCMEXTRAHDROOM 172
 
-#ifdef BCMDBG
-#ifndef BCMDBG_ASSERT
-#define BCMDBG_ASSERT
-#endif	/* BCMDBG_ASSERT */
-#endif	/* BCMDBG */
-
 /* Macros for doing definition and get/set of bitfields
  * Usage example, e.g. a three-bit field (bits 4-6):
  *    #define <NAME>_M	BITFIELD_MASK(3)

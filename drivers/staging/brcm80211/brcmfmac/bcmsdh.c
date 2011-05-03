@@ -29,6 +29,8 @@
 #include <sbsdio.h>		/* BRCM sdio device core */
 
 #include <sdio.h>		/* sdio spec */
+#include "dngl_stats.h"
+#include "dhd.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
