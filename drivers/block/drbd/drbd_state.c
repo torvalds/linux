@@ -1410,11 +1410,11 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
 		struct net_conf *old_conf;
 
-		mutex_lock(&tconn->net_conf_update);
+		mutex_lock(&tconn->conf_update);
 		old_conf = tconn->net_conf;
 		rcu_assign_pointer(tconn->net_conf, NULL);
 		conn_free_crypto(tconn);
-		mutex_unlock(&tconn->net_conf_update);
+		mutex_unlock(&tconn->conf_update);
 
 		synchronize_rcu();
 		kfree(old_conf);

@@ -597,11 +597,11 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			put_ldev(mdev);
 		}
 	} else {
-		mutex_lock(&mdev->tconn->net_conf_update);
+		mutex_lock(&mdev->tconn->conf_update);
 		nc = mdev->tconn->net_conf;
 		if (nc)
 			nc->want_lose = 0; /* without copy; single bit op is atomic */
-		mutex_unlock(&mdev->tconn->net_conf_update);
+		mutex_unlock(&mdev->tconn->conf_update);
 
 		set_disk_ro(mdev->vdisk, false);
 		if (get_ldev(mdev)) {
@@ -1829,7 +1829,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	conn_reconfig_start(tconn);
 
 	mutex_lock(&tconn->data.mutex);
-	mutex_lock(&tconn->net_conf_update);
+	mutex_lock(&tconn->conf_update);
 	old_conf = tconn->net_conf;
 
 	if (!old_conf) {
@@ -1903,7 +1903,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	crypto_free_hash(tconn->cram_hmac_tfm);
 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
 
-	mutex_unlock(&tconn->net_conf_update);
+	mutex_unlock(&tconn->conf_update);
 	mutex_unlock(&tconn->data.mutex);
 	synchronize_rcu();
 	kfree(old_conf);
@@ -1914,7 +1914,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	goto done;
 
  fail:
-	mutex_unlock(&tconn->net_conf_update);
+	mutex_unlock(&tconn->conf_update);
 	mutex_unlock(&tconn->data.mutex);
 	free_crypto(&crypto);
 	kfree(new_conf);
@@ -2010,11 +2010,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	conn_flush_workqueue(tconn);
 
-	mutex_lock(&tconn->net_conf_update);
+	mutex_lock(&tconn->conf_update);
 	old_conf = tconn->net_conf;
 	if (old_conf) {
 		retcode = ERR_NET_CONFIGURED;
-		mutex_unlock(&tconn->net_conf_update);
+		mutex_unlock(&tconn->conf_update);
 		goto fail;
 	}
 	rcu_assign_pointer(tconn->net_conf, new_conf);
@@ -2027,7 +2027,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	tconn->csums_tfm = crypto.csums_tfm;
 	tconn->verify_tfm = crypto.verify_tfm;
 
-	mutex_unlock(&tconn->net_conf_update);
+	mutex_unlock(&tconn->conf_update);
 
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, i) {

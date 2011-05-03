@@ -832,7 +832,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* content protected by rcu */
-	struct mutex net_conf_update;	/* mutex for ready-copy-update of net_conf */
+	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
 	struct res_opts res_opts;
 

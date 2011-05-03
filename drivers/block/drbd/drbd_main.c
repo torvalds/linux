@@ -2474,7 +2474,7 @@ struct drbd_tconn *conn_create(const char *name)
 	tconn->cstate = C_STANDALONE;
 	mutex_init(&tconn->cstate_mutex);
 	spin_lock_init(&tconn->req_lock);
-	mutex_init(&tconn->net_conf_update);
+	mutex_init(&tconn->conf_update);
 	init_waitqueue_head(&tconn->ping_wait);
 	idr_init(&tconn->volumes);
 
