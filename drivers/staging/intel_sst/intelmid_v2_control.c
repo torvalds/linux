@@ -884,7 +884,10 @@ static int nc_set_selected_input_dev(u8 value)
 	}
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, num_val);
 }
-
+static int nc_set_selected_lineout_dev(u8 dev_id)
+{
+	return 0;
+}
 static int nc_get_mute(int dev_id, u8 *value)
 {
 	int retval = 0, mask = 0;
@@ -989,6 +992,7 @@ static int nc_get_vol(int dev_id, int *value)
 struct snd_pmic_ops snd_pmic_ops_nc = {
 	.set_input_dev	=	nc_set_selected_input_dev,
 	.set_output_dev =	nc_set_selected_output_dev,
+	.set_lineout_dev =	nc_set_selected_lineout_dev,
 	.set_mute	=	nc_set_mute,
 	.get_mute	=	nc_get_mute,
 	.set_vol	=	nc_set_vol,

@@ -584,6 +584,10 @@ static int mx_set_selected_input_dev(u8 dev_id)
 	}
 	return sst_sc_reg_access(sc_access, PMIC_WRITE, num_reg);
 }
+static int mx_set_selected_lineout_dev(u8 dev_id)
+{
+	return 0;
+}
 
 static int mx_set_mute(int dev_id, u8 value)
 {
@@ -834,6 +838,7 @@ static int mx_get_vol(int dev_id, int *value)
 struct snd_pmic_ops snd_pmic_ops_mx = {
 	.set_input_dev = mx_set_selected_input_dev,
 	.set_output_dev = mx_set_selected_output_dev,
+	.set_lineout_dev = mx_set_selected_lineout_dev,
 	.set_mute = mx_set_mute,
 	.get_mute = mx_get_mute,
 	.set_vol = mx_set_vol,

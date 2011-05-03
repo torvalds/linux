@@ -40,6 +40,11 @@ static char *out_names_mrst[] = {"Headphones",
 static char *in_names_mrst[] = {"AMIC",
 				"DMIC",
 				"HS_MIC"};
+static char *line_out_names_mfld[] = {"Headset",
+				"IHF    ",
+				"Vibra1 ",
+				"Vibra2 ",
+				"NONE   "};
 static char *out_names_mfld[] = {"Headset ",
 				"EarPiece  "};
 static char *in_names_mfld[] = {"AMIC",
@@ -179,13 +184,27 @@ static int snd_intelmad_device_info_mrst(struct snd_kcontrol *kcontrol,
 static int snd_intelmad_device_info_mfld(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
+	struct snd_pmic_ops *scard_ops;
+	struct snd_intelmad *intelmaddata;
+
 	WARN_ON(!kcontrol);
 	WARN_ON(!uinfo);
+
+	intelmaddata = kcontrol->private_data;
+
+	WARN_ON(!intelmaddata->sstdrv_ops);
+
+	scard_ops = intelmaddata->sstdrv_ops->scard_ops;
 	/* setup device select as drop down controls with different values */
 	if (kcontrol->id.numid == OUTPUT_SEL)
 		uinfo->value.enumerated.items = ARRAY_SIZE(out_names_mfld);
-	else
+	else if (kcontrol->id.numid == INPUT_SEL)
 		uinfo->value.enumerated.items = ARRAY_SIZE(in_names_mfld);
+	else if (kcontrol->id.numid == LINEOUT_SEL_MFLD) {
+		uinfo->value.enumerated.items = ARRAY_SIZE(line_out_names_mfld);
+		scard_ops->line_out_names_cnt = uinfo->value.enumerated.items;
+	} else
+		return -EINVAL;
 	uinfo->count = MONO_CNTL;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 
@@ -195,10 +214,16 @@ static int snd_intelmad_device_info_mfld(struct snd_kcontrol *kcontrol,
 		strncpy(uinfo->value.enumerated.name,
 			out_names_mfld[uinfo->value.enumerated.item],
 			sizeof(uinfo->value.enumerated.name)-1);
-	else
+	else if (kcontrol->id.numid == INPUT_SEL)
 		strncpy(uinfo->value.enumerated.name,
 			in_names_mfld[uinfo->value.enumerated.item],
 			sizeof(uinfo->value.enumerated.name)-1);
+	else if (kcontrol->id.numid == LINEOUT_SEL_MFLD)
+		strncpy(uinfo->value.enumerated.name,
+			line_out_names_mfld[uinfo->value.enumerated.item],
+			sizeof(uinfo->value.enumerated.name)-1);
+	else
+		return -EINVAL;
 	return 0;
 }
 
@@ -472,6 +497,9 @@ static int snd_intelmad_device_get(struct snd_kcontrol *kcontrol,
 		else if (kcontrol->id.numid == INPUT_SEL)
 			uval->value.enumerated.item[0] =
 					scard_ops->input_dev_id;
+		else if (kcontrol->id.numid == LINEOUT_SEL_MFLD)
+			uval->value.enumerated.item[0] =
+					scard_ops->lineout_dev_id;
 		else
 			return -EINVAL;
 	} else
@@ -533,6 +561,11 @@ static int snd_intelmad_device_set(struct snd_kcontrol *kcontrol,
 		ret_val = scard_ops->set_input_dev(
 				uval->value.enumerated.item[0]);
 		intelmaddata->input_sel = uval->value.enumerated.item[0];
+		break;
+	case LINEOUT_SEL_MFLD:
+		ret_val = scard_ops->set_lineout_dev(
+					uval->value.enumerated.item[0]);
+		intelmaddata->lineout_sel = uval->value.enumerated.item[0];
 		break;
 	default:
 		return -EINVAL;
@@ -621,6 +654,15 @@ snd_intelmad_controls_mfld[MAX_CTRL_MFLD] __devinitdata = {
 {
 	.iface		=	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name		=	"PCM Capture Source",
+	.access		=	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info		=	snd_intelmad_device_info_mfld,
+	.get		=	snd_intelmad_device_get,
+	.put		=	snd_intelmad_device_set,
+	.private_value	=	0,
+},
+{
+	.iface		=	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name		=	"Line out",
 	.access		=	SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.info		=	snd_intelmad_device_info_mfld,
 	.get		=	snd_intelmad_device_get,

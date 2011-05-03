@@ -110,9 +110,14 @@ void free_stream_context(unsigned int str_id)
 		if (stream->ops == STREAM_OPS_PLAYBACK ||
 				stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 			sst_drv_ctx->pb_streams--;
-			if (sst_drv_ctx->pb_streams == 0)
+			if (sst_drv_ctx->pci_id == SST_MFLD_PCI_ID)
 				sst_drv_ctx->scard_ops->power_down_pmic_pb(
 						stream->device);
+			else {
+				if (sst_drv_ctx->pb_streams == 0)
+					sst_drv_ctx->scard_ops->
+					power_down_pmic_pb(stream->device);
+			}
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			sst_drv_ctx->cp_streams--;
 			if (sst_drv_ctx->cp_streams == 0)

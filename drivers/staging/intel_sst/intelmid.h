@@ -53,11 +53,11 @@
 #define STEREO_CNTL		2
 #define MIN_CHANNEL		1
 #define MAX_CHANNEL_AMIC	2
-#define MAX_CHANNEL_DMIC	4
+#define MAX_CHANNEL_DMIC	5
 #define FIFO_SIZE		0 /* fifo not being used */
 #define INTEL_MAD		"Intel MAD"
 #define MAX_CTRL_MRST		7
-#define MAX_CTRL_MFLD		2
+#define MAX_CTRL_MFLD		3
 #define MAX_CTRL		7
 #define MAX_VENDORS		4
 /* TODO +6 db */
@@ -116,6 +116,7 @@ struct snd_intelmad {
 	void __iomem *int_base;
 	int output_sel;
 	int input_sel;
+	int lineout_sel;
 	int master_mute;
 	struct mad_jack jack[4];
 	int playback_cnt;
@@ -162,6 +163,9 @@ enum _widget_ctrl {
 	CAPTURE_VOL,
 	CAPTURE_MUTE,
 	MASTER_MUTE
+};
+enum _widget_ctrl_mfld {
+	LINEOUT_SEL_MFLD = 3,
 };
 
 void period_elapsed(void *mad_substream);

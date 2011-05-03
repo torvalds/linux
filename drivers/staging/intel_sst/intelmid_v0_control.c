@@ -494,7 +494,10 @@ static int fs_set_selected_output_dev(u8 value)
 
 	}
 }
-
+static int fs_set_selected_lineout_dev(u8 value)
+{
+	return 0;
+}
 static int fs_set_mute(int dev_id, u8 value)
 {
 	struct sc_reg_access sc_access[6] = {{0,},};
@@ -756,6 +759,7 @@ static int fs_get_vol(int dev_id, int *value)
 struct snd_pmic_ops snd_pmic_ops_fs = {
 	.set_input_dev = fs_set_selected_input_dev,
 	.set_output_dev = fs_set_selected_output_dev,
+	.set_lineout_dev = fs_set_selected_lineout_dev,
 	.set_mute = fs_set_mute,
 	.get_mute = fs_get_mute,
 	.set_vol = fs_set_vol,

@@ -54,11 +54,8 @@ static int msic_init_card(void)
 		/*TI vibra w/a settings*/
 		{0x384, 0x80, 0},
 		{0x385, 0x80, 0},
-		/*vibra settings*/
 		{0x267, 0x00, 0},
-		{0x26A, 0x10, 0},
 		{0x261, 0x00, 0},
-		{0x264, 0x10, 0},
 		/* pcm port setting */
 		{0x278, 0x00, 0},
 		{0x27B, 0x01, 0},
@@ -80,14 +77,221 @@ static int msic_init_card(void)
 		{0x1e, 0x00, 0x00},
 	};
 	snd_msic_ops.card_status = SND_CARD_INIT_DONE;
-	sst_sc_reg_access(sc_access, PMIC_WRITE, 30);
+	sst_sc_reg_access(sc_access, PMIC_WRITE, 28);
 	snd_msic_ops.pb_on = 0;
+	snd_msic_ops.pbhs_on = 0;
 	snd_msic_ops.cap_on = 0;
 	snd_msic_ops.input_dev_id = DMIC; /*def dev*/
 	snd_msic_ops.output_dev_id = STEREO_HEADPHONE;
 	pr_debug("msic init complete!!\n");
 	return 0;
 }
+static int msic_line_out_restore(u8 value)
+{
+	struct sc_reg_access hs_drv_en[] = {
+		{0x25d, 0x03, 0x03},
+	};
+	struct sc_reg_access ep_drv_en[] = {
+		{0x25d, 0x40, 0x40},
+	};
+	struct sc_reg_access ihf_drv_en[] = {
+		{0x25d, 0x0c, 0x0c},
+	};
+	struct sc_reg_access vib1_drv_en[] = {
+		{0x25d, 0x10, 0x10},
+	};
+	struct sc_reg_access vib2_drv_en[] = {
+		{0x25d, 0x20, 0x20},
+	};
+	int retval = 0;
+
+	pr_debug("msic_lineout_restore_lineout_dev:%d\n", value);
+
+	switch (value) {
+	case HEADSET:
+		pr_debug("Selecting Lineout-HEADSET-restore\n");
+		if (snd_msic_ops.output_dev_id == STEREO_HEADPHONE)
+			retval = sst_sc_reg_access(hs_drv_en,
+							PMIC_READ_MODIFY, 1);
+		else
+			retval = sst_sc_reg_access(ep_drv_en,
+							PMIC_READ_MODIFY, 1);
+		break;
+	case IHF:
+		pr_debug("Selecting Lineout-IHF-restore\n");
+		retval = sst_sc_reg_access(ihf_drv_en, PMIC_READ_MODIFY, 1);
+		break;
+	case VIBRA1:
+		pr_debug("Selecting Lineout-Vibra1-restore\n");
+		retval = sst_sc_reg_access(vib1_drv_en, PMIC_READ_MODIFY, 1);
+		break;
+	case VIBRA2:
+		pr_debug("Selecting Lineout-VIBRA2-restore\n");
+		retval = sst_sc_reg_access(vib2_drv_en, PMIC_READ_MODIFY, 1);
+		break;
+	case NONE:
+		pr_debug("Selecting Lineout-NONE-restore\n");
+		break;
+	default:
+		return -EINVAL;
+	}
+	return retval;
+}
+static int msic_get_lineout_prvstate(void)
+{
+	struct sc_reg_access hs_ihf_drv[2] = {
+		{0x257, 0x0, 0x0},
+		{0x25d, 0x0, 0x0},
+	};
+	struct sc_reg_access vib1drv[2] = {
+		{0x264, 0x0, 0x0},
+		{0x25D, 0x0, 0x0},
+	};
+	struct sc_reg_access vib2drv[2] = {
+		{0x26A, 0x0, 0x0},
+		{0x25D, 0x0, 0x0},
+	};
+	int retval = 0, drv_en, dac_en, dev_id, mask;
+	for (dev_id = 0; dev_id < snd_msic_ops.line_out_names_cnt; dev_id++) {
+		switch (dev_id) {
+		case HEADSET:
+			pr_debug("msic_get_lineout_prvs_state: HEADSET\n");
+			sst_sc_reg_access(hs_ihf_drv, PMIC_READ, 2);
+
+			mask = (MASK0|MASK1);
+			dac_en = (hs_ihf_drv[0].value) & mask;
+
+			mask = ((MASK0|MASK1)|MASK6);
+			drv_en = (hs_ihf_drv[1].value) & mask;
+
+			if (dac_en && (!drv_en)) {
+				snd_msic_ops.prev_lineout_dev_id = HEADSET;
+				return retval;
+			}
+			break;
+		case IHF:
+			pr_debug("msic_get_lineout_prvstate: IHF\n");
+			sst_sc_reg_access(hs_ihf_drv, PMIC_READ, 2);
+
+			mask = (MASK2 | MASK3);
+			dac_en = (hs_ihf_drv[0].value) & mask;
+
+			mask = (MASK2 | MASK3);
+			drv_en = (hs_ihf_drv[1].value) & mask;
+
+			if (dac_en && (!drv_en)) {
+				snd_msic_ops.prev_lineout_dev_id = IHF;
+				return retval;
+			}
+			break;
+		case VIBRA1:
+			pr_debug("msic_get_lineout_prvstate: vibra1\n");
+			sst_sc_reg_access(vib1drv, PMIC_READ, 2);
+
+			mask = MASK1;
+			dac_en = (vib1drv[0].value) & mask;
+
+			mask = MASK4;
+			drv_en = (vib1drv[1].value) & mask;
+
+			if (dac_en && (!drv_en)) {
+				snd_msic_ops.prev_lineout_dev_id = VIBRA1;
+				return retval;
+			}
+			break;
+		case VIBRA2:
+			pr_debug("msic_get_lineout_prvstate: vibra2\n");
+			sst_sc_reg_access(vib2drv, PMIC_READ, 2);
+
+			mask = MASK1;
+			dac_en = (vib2drv[0].value) & mask;
+
+			mask = MASK5;
+			drv_en = ((vib2drv[1].value) & mask);
+
+			if (dac_en && (!drv_en)) {
+				snd_msic_ops.prev_lineout_dev_id = VIBRA2;
+				return retval;
+			}
+			break;
+		case NONE:
+			pr_debug("msic_get_lineout_prvstate: NONE\n");
+			snd_msic_ops.prev_lineout_dev_id = NONE;
+			return retval;
+		default:
+			pr_debug("Invalid device id\n");
+			snd_msic_ops.prev_lineout_dev_id = NONE;
+			return -EINVAL;
+		}
+	}
+	return retval;
+}
+static int msic_set_selected_lineout_dev(u8 value)
+{
+	struct sc_reg_access lout_hs[] = {
+		{0x25e, 0x33, 0xFF},
+		{0x25d, 0x0, 0x43},
+	};
+	struct sc_reg_access lout_ihf[] = {
+		{0x25e, 0x55, 0xff},
+		{0x25d, 0x0, 0x0c},
+	};
+	struct sc_reg_access lout_vibra1[] = {
+
+		{0x25e, 0x61, 0xff},
+		{0x25d, 0x0, 0x10},
+	};
+	struct sc_reg_access lout_vibra2[] = {
+
+		{0x25e, 0x16, 0xff},
+		{0x25d, 0x0, 0x20},
+	};
+	struct sc_reg_access lout_def[] = {
+		{0x25e, 0x66, 0x0},
+	};
+	int retval = 0;
+
+	pr_debug("msic_set_selected_lineout_dev:%d\n", value);
+	msic_get_lineout_prvstate();
+	msic_line_out_restore(snd_msic_ops.prev_lineout_dev_id);
+	snd_msic_ops.lineout_dev_id = value;
+
+	switch (value) {
+	case HEADSET:
+		pr_debug("Selecting Lineout-HEADSET\n");
+		if (snd_msic_ops.pb_on)
+			retval = sst_sc_reg_access(lout_hs,
+					PMIC_READ_MODIFY, 2);
+		break;
+	case IHF:
+		pr_debug("Selecting Lineout-IHF\n");
+		if (snd_msic_ops.pb_on)
+			retval = sst_sc_reg_access(lout_ihf,
+							PMIC_READ_MODIFY, 2);
+		break;
+	case VIBRA1:
+		pr_debug("Selecting Lineout-Vibra1\n");
+		if (snd_msic_ops.pb_on)
+			retval = sst_sc_reg_access(lout_vibra1,
+							PMIC_READ_MODIFY, 2);
+		break;
+	case VIBRA2:
+		pr_debug("Selecting Lineout-VIBRA2\n");
+		if (snd_msic_ops.pb_on)
+			retval = sst_sc_reg_access(lout_vibra2,
+							PMIC_READ_MODIFY, 2);
+		break;
+	case NONE:
+		pr_debug("Selecting Lineout-NONE\n");
+			retval = sst_sc_reg_access(lout_def,
+							PMIC_WRITE, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return retval;
+}
+
 
 static int msic_power_up_pb(unsigned int device)
 {
@@ -161,12 +365,12 @@ static int msic_power_up_pb(unsigned int device)
 	struct sc_reg_access vib1_en[] = {
 		/* enable driver, ADC */
 		{0x25D, 0x10, 0x10},
-		{0x264, 0x02, 0x02},
+		{0x264, 0x02, 0x82},
 	};
 	struct sc_reg_access vib2_en[] = {
 		/* enable driver, ADC */
 		{0x25D, 0x20, 0x20},
-		{0x26A, 0x02, 0x02},
+		{0x26A, 0x02, 0x82},
 	};
 	struct sc_reg_access pcm2_en[] = {
 		/* enable pcm 2 */
@@ -187,6 +391,8 @@ static int msic_power_up_pb(unsigned int device)
 	msleep(1);
 	switch (device) {
 	case SND_SST_DEVICE_HEADSET:
+		snd_msic_ops.pb_on = 1;
+		snd_msic_ops.pbhs_on = 1;
 		if (snd_msic_ops.output_dev_id == STEREO_HEADPHONE) {
 			sst_sc_reg_access(vhs, PMIC_WRITE, 2);
 			sst_sc_reg_access(hsdac, PMIC_READ_MODIFY, 2);
@@ -197,22 +403,31 @@ static int msic_power_up_pb(unsigned int device)
 			sst_sc_reg_access(hs_filter, PMIC_WRITE, 2);
 			sst_sc_reg_access(ep_enable, PMIC_READ_MODIFY, 3);
 		}
-		snd_msic_ops.pb_on = 1;
+		if (snd_msic_ops.lineout_dev_id == HEADSET)
+			msic_set_selected_lineout_dev(HEADSET);
 		break;
-
 	case SND_SST_DEVICE_IHF:
+		snd_msic_ops.pb_on = 1;
 		sst_sc_reg_access(vihf, PMIC_WRITE, 1);
 		sst_sc_reg_access(ihf_filter, PMIC_READ_MODIFY, 3);
 		sst_sc_reg_access(ihf_en, PMIC_READ_MODIFY, 1);
 		sst_sc_reg_access(ihf_unmute, PMIC_READ_MODIFY, 2);
+		if (snd_msic_ops.lineout_dev_id == IHF)
+			msic_set_selected_lineout_dev(IHF);
 		break;
 
 	case SND_SST_DEVICE_VIBRA:
+		snd_msic_ops.pb_on = 1;
 		sst_sc_reg_access(vib1_en, PMIC_READ_MODIFY, 2);
+		if (snd_msic_ops.lineout_dev_id == VIBRA1)
+			msic_set_selected_lineout_dev(VIBRA1);
 		break;
 
 	case SND_SST_DEVICE_HAPTIC:
+		snd_msic_ops.pb_on = 1;
 		sst_sc_reg_access(vib2_en, PMIC_READ_MODIFY, 2);
+		if (snd_msic_ops.lineout_dev_id == VIBRA2)
+			msic_set_selected_lineout_dev(VIBRA2);
 		break;
 
 	default:
@@ -310,6 +525,7 @@ static int msic_power_down(void)
 	};
 
 	pr_debug("powering dn msic\n");
+	snd_msic_ops.pbhs_on = 0;
 	snd_msic_ops.pb_on = 0;
 	snd_msic_ops.cap_on = 0;
 	sst_sc_reg_access(power_dn, PMIC_WRITE, 3);
@@ -348,15 +564,22 @@ static int msic_power_down_pb(unsigned int device)
 	struct sc_reg_access vib2_off[] = {
 		{0x26A, 0x00, 0x82},
 	};
+	struct sc_reg_access lout_off[] = {
+		{0x25e, 0x66, 0x00},
+	};
+
+
 
 	pr_debug("powering dn pb for device %d\n", device);
 	switch (device) {
 	case SND_SST_DEVICE_HEADSET:
-		snd_msic_ops.pb_on = 0;
+		snd_msic_ops.pbhs_on = 0;
 		sst_sc_reg_access(hs_mute, PMIC_READ_MODIFY, 3);
 		drv_enable[0].mask = 0x43;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
 		sst_sc_reg_access(hs_off, PMIC_READ_MODIFY, 2);
+		if (snd_msic_ops.lineout_dev_id == HEADSET)
+			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
 		break;
 
 	case SND_SST_DEVICE_IHF:
@@ -364,18 +587,24 @@ static int msic_power_down_pb(unsigned int device)
 		drv_enable[0].mask = 0x0C;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
 		sst_sc_reg_access(ihf_off, PMIC_READ_MODIFY, 2);
+		if (snd_msic_ops.lineout_dev_id == IHF)
+			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
 		break;
 
 	case SND_SST_DEVICE_VIBRA:
-		sst_sc_reg_access(vib1_off, PMIC_READ_MODIFY, 2);
+		sst_sc_reg_access(vib1_off, PMIC_READ_MODIFY, 1);
 		drv_enable[0].mask = 0x10;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
+		if (snd_msic_ops.lineout_dev_id == VIBRA1)
+			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
 		break;
 
 	case SND_SST_DEVICE_HAPTIC:
-		sst_sc_reg_access(vib2_off, PMIC_READ_MODIFY, 2);
+		sst_sc_reg_access(vib2_off, PMIC_READ_MODIFY, 1);
 		drv_enable[0].mask = 0x20;
 		sst_sc_reg_access(drv_enable, PMIC_READ_MODIFY, 1);
+		if (snd_msic_ops.lineout_dev_id == VIBRA2)
+			sst_sc_reg_access(lout_off, PMIC_WRITE, 1);
 		break;
 	}
 	return 0;
@@ -414,7 +643,7 @@ static int msic_set_selected_output_dev(u8 value)
 
 	pr_debug("msic set selected output:%d\n", value);
 	snd_msic_ops.output_dev_id = value;
-	if (snd_msic_ops.pb_on)
+	if (snd_msic_ops.pbhs_on)
 		msic_power_up_pb(SND_SST_DEVICE_HEADSET);
 	return retval;
 }
@@ -494,6 +723,7 @@ static int msic_get_vol(int dev_id, int *value)
 struct snd_pmic_ops snd_msic_ops = {
 	.set_input_dev	=	msic_set_selected_input_dev,
 	.set_output_dev =	msic_set_selected_output_dev,
+	.set_lineout_dev =	msic_set_selected_lineout_dev,
 	.set_mute	=	msic_set_mute,
 	.get_mute	=	msic_get_mute,
 	.set_vol	=	msic_set_vol,

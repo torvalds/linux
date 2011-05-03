@@ -187,7 +187,7 @@ static int snd_intelmad_pcm_prepare(struct snd_pcm_substream *substream)
 		return ret_val;
 	}
 
-	 ret_val = snd_intelmad_alloc_stream(substream);
+	ret_val = snd_intelmad_alloc_stream(substream);
 	if (ret_val < 0)
 		return ret_val;
 	stream->dbg_cum_bytes = 0;
@@ -797,6 +797,7 @@ static int __devinit snd_intelmad_sst_register(
 		intelmaddata->sstdrv_ops->scard_ops->input_dev_id = DMIC;
 		intelmaddata->sstdrv_ops->scard_ops->output_dev_id =
 							STEREO_HEADPHONE;
+		intelmaddata->sstdrv_ops->scard_ops->lineout_dev_id = NONE;
 	}
 
 	/* registering with SST driver to get access to SST APIs to use */

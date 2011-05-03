@@ -82,12 +82,14 @@ struct snd_pmic_ops {
 	int num_channel;
 	int input_dev_id;
 	int mute_status;
-	int pb_on;
+	int pb_on, pbhs_on;
 	int cap_on;
 	int output_dev_id;
+	int lineout_dev_id, line_out_names_cnt;
+	int prev_lineout_dev_id;
 	int (*set_input_dev) (u8 value);
 	int (*set_output_dev) (u8 value);
-
+	int (*set_lineout_dev) (u8 value);
 	int (*set_mute) (int dev_id, u8 value);
 	int (*get_mute) (int dev_id, u8 *value);
 

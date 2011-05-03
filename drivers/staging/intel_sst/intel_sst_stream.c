@@ -73,6 +73,8 @@ int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 			*pcm_slot = 0x07;
 		else if (device == SND_SST_DEVICE_CAPTURE && num_chan == 4)
 			*pcm_slot = 0x0F;
+		else if (device == SND_SST_DEVICE_CAPTURE && num_chan > 4)
+			*pcm_slot = 0x1F;
 		else {
 			pr_debug("No condition satisfied.. ret err\n");
 			return -EINVAL;
