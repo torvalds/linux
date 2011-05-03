@@ -130,7 +130,6 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 				asi->antsel_avail = false;
 				wiphy_err(wlc->wiphy, "wlc_antsel_attach: 2o3 "
 					  "board cfg invalid\n");
-				ASSERT(0);
 			}
 			break;
 		default:
@@ -297,8 +296,6 @@ static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 	struct wlc_info *wlc = asi->wlc;
 	u8 ant_cfg;
 	u16 mimo_antsel;
-
-	ASSERT(asi->antsel_type != ANTSEL_NA);
 
 	/* 1) Update TX antconfig for all frames that are not unicast data
 	 *    (aka default TX)

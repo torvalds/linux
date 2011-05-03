@@ -594,8 +594,7 @@ struct chan20_info chan20_info[] = {
 static const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_2g_table)) {
-		ASSERT(locale_idx < ARRAY_SIZE(g_locale_2g_table));
-		return NULL;
+		return NULL; /* error condition */
 	}
 	return g_locale_2g_table[locale_idx];
 }
@@ -603,8 +602,7 @@ static const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 static const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_5g_table)) {
-		ASSERT(locale_idx < ARRAY_SIZE(g_locale_5g_table));
-		return NULL;
+		return NULL; /* error condition */
 	}
 	return g_locale_5g_table[locale_idx];
 }
@@ -656,8 +654,6 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 	strncpy(country_abbrev, "X2", sizeof(country_abbrev) - 1);
 	country = wlc_country_lookup(wlc, country_abbrev);
 
-	ASSERT(country != NULL);
-
 	/* save default country for exiting 11d regulatory mode */
 	strncpy(wlc->country_default, country_abbrev, WLC_CNTRY_BUF_SZ - 1);
 
@@ -708,7 +704,6 @@ wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 					&mapped_regrev);
 	} else {
 		/* find the matching built-in country definition */
-		ASSERT(0);
 		country = wlc_country_lookup_direct(ccode, regrev);
 		strncpy(mapped_ccode, ccode, WLC_CNTRY_BUF_SZ);
 		mapped_regrev = regrev;
@@ -737,8 +732,6 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 	const locale_info_t *locale;
 	struct wlc_info *wlc = wlc_cm->wlc;
 	char prev_country_abbrev[WLC_CNTRY_BUF_SZ];
-
-	ASSERT(country != NULL);
 
 	/* save current country state */
 	wlc_cm->country = country;
@@ -824,7 +817,6 @@ static const country_info_t *wlc_countrycode_map(wlc_cm_info_t *wlc_cm,
 		*mapped_regrev = srom_regrev;
 		mapped = 0;
 		wiphy_err(wlc->wiphy, "srom_code == ccode %s\n", __func__);
-		ASSERT(0);
 	} else {
 		mapped =
 		    wlc_country_aggregate_map(wlc_cm, ccode, mapped_ccode,
@@ -837,7 +829,6 @@ static const country_info_t *wlc_countrycode_map(wlc_cm_info_t *wlc_cm,
 	/* if there is not an exact rev match, default to rev zero */
 	if (country == NULL && *mapped_regrev != 0) {
 		*mapped_regrev = 0;
-		ASSERT(0);
 		country =
 		    wlc_country_lookup_direct(mapped_ccode, *mapped_regrev);
 	}
@@ -874,8 +865,6 @@ static const country_info_t *wlc_country_lookup_direct(const char *ccode,
 			return &cntry_locales[i].country;
 		}
 	}
-
-	ASSERT(0);
 	return NULL;
 }
 
@@ -896,12 +885,10 @@ wlc_channels_init(wlc_cm_info_t *wlc_cm, const country_info_t *country)
 		li = BAND_5G(band->bandtype) ?
 		    wlc_get_locale_5g(country->locale_5G) :
 		    wlc_get_locale_2g(country->locale_2G);
-		ASSERT(li);
 		wlc_cm->bandstate[band->bandunit].locale_flags = li->flags;
 		li_mimo = BAND_5G(band->bandtype) ?
 		    wlc_get_mimo_5g(country->locale_mimo_5G) :
 		    wlc_get_mimo_2g(country->locale_mimo_2G);
-		ASSERT(li_mimo);
 
 		/* merge the mimo non-mimo locale flags */
 		wlc_cm->bandstate[band->bandunit].locale_flags |=
@@ -1509,7 +1496,6 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 	if (wf_chspec_malformed(chspec)) {
 		wiphy_err(wlc->wiphy, "wl%d: malformed chanspec 0x%x\n",
 			wlc->pub->unit, chspec);
-		ASSERT(0);
 		return false;
 	}
 

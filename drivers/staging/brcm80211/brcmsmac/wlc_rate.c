@@ -315,7 +315,6 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	count = 0;
 	for (i = 0; i < hw_rs->count; i++) {
 		r = hw_rs->rates[i] & WLC_RATE_MASK;
-		ASSERT(r <= WLC_MAXRATE);
 		if (rateset[r])
 			rs->rates[count++] = rateset[r];
 	}
@@ -364,8 +363,7 @@ ratespec_t BCMFASTPATH wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 		case PRXS0_STDN:
 			/* fallthru */
 		default:
-			/* not supported */
-			ASSERT(0);
+			/* not supported, error condition */
 			break;
 		}
 		if (PLCP3_ISSGI(plcp[3]))
@@ -451,7 +449,7 @@ wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_G)) {
 		rs_dflt = &cck_ofdm_rates;
 	} else {
-		ASSERT(0);	/* should not happen */
+		/* should not happen, error condition */
 		rs_dflt = &cck_rates;	/* force cck */
 	}
 
