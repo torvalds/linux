@@ -166,24 +166,24 @@ static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd,
 	printk("mtk23d_ioctl\n");
 	switch(cmd)
 	{
-	case MTK23D_RESET:
-	gpio_direction_output(pdata->bp_power, GPIO_HIGH);
-	mdelay(100);
-	gpio_direction_output(pdata->bp_reset, GPIO_LOW);
-        mdelay(100);
-        gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-        msleep(4000);
-        gpio_set_value(pdata->bp_power, GPIO_LOW);
-	break;
-	case MTK23D_IMEI_READ:
-             if(copy_to_user(argp, &(imei_value[0]), 16))
-             {
-                            printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
-                            return -EFAULT;
-            }
-	    break;
-	default:
-	break;
+		case MTK23D_RESET:
+			gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+			mdelay(100);
+			gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
+			mdelay(100);
+			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
+			msleep(4000);
+			gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+			break;
+		case MTK23D_IMEI_READ:
+			if(copy_to_user(argp, &(imei_value[0]), 16))
+			{
+				printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
 	}
 	return 0;
 }
