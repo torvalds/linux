@@ -602,58 +602,6 @@ void wlc_mac_promisc(struct wlc_info *wlc)
 	wlc_mctrl(wlc, MCTL_PROMISC | MCTL_KEEPCONTROL, promisc_bits);
 }
 
-/* check if hps and wake states of sw and hw are in sync */
-bool wlc_ps_check(struct wlc_info *wlc)
-{
-	bool res = true;
-	bool hps, wake;
-	bool wake_ok;
-
-	if (!AP_ACTIVE(wlc)) {
-		u32 tmp;
-		tmp = R_REG(&wlc->regs->maccontrol);
-
-		/*
-		 * If deviceremoved is detected, then don't take any action as
-		 * this can be called in any context. Assume that caller will
-		 * take care of the condition. This is just to avoid assert
-		 */
-		if (tmp == 0xffffffff) {
-			wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n",
-				  wlc->pub->unit, __func__);
-			return DEVICEREMOVED(wlc);
-		}
-
-		hps = PS_ALLOWED(wlc);
-
-		if (hps != ((tmp & MCTL_HPS) != 0)) {
-			int idx;
-			struct wlc_bsscfg *cfg;
-			wiphy_err(wlc->wiphy, "wl%d: hps not sync, sw %d, "
-				  "maccontrol 0x%x\n",
-				  wlc->pub->unit, hps, tmp);
-			FOREACH_BSS(wlc, idx, cfg) {
-				if (!BSSCFG_STA(cfg))
-					continue;
-			}
-
-			res = false;
-		}
-		/* For a monolithic build the wake check can be exact since it looks at wake
-		 * override bits. The MCTL_WAKE bit should match the 'wake' value.
-		 */
-		wake = STAY_AWAKE(wlc) || wlc->hw->wake_override;
-		wake_ok = (wake == ((tmp & MCTL_WAKE) != 0));
-		if (hps && !wake_ok) {
-			wiphy_err(wlc->wiphy, "wl%d: wake not sync, sw %d "
-				  "maccontrol 0x%x\n",
-				  wlc->pub->unit, wake, tmp);
-			res = false;
-		}
-	}
-	return res;
-}
-
 /* push sw hps and wake state through hardware */
 void wlc_set_ps_ctrl(struct wlc_info *wlc)
 {

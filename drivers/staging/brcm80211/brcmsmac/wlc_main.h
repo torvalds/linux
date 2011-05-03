@@ -881,7 +881,6 @@ extern void wlc_dump_ie(struct wlc_info *wlc, bcm_tlv_t *ie,
 			struct bcmstrbuf *b);
 #endif
 
-extern bool wlc_ps_check(struct wlc_info *wlc);
 extern void wlc_reprate_init(struct wlc_info *wlc);
 extern void wlc_bsscfg_reprate_init(struct wlc_bsscfg *bsscfg);
 extern void wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high,
