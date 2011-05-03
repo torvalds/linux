@@ -26,10 +26,28 @@
 #include <sound/pcm.h>
 #include "lola.h"
 
-#define BDL_SIZE		4096
-#define LOLA_MAX_BDL_ENTRIES	(BDL_SIZE / 16)
-#define LOLA_MAX_FRAG		32
+/* #define USE_SG_BUFFER */
+
+#define LOLA_MAX_BDL_ENTRIES	8
+#define LOLA_MAX_FRAG		8
 #define LOLA_MAX_BUF_SIZE	(1024*1024*1024)
+#define LOLA_BDL_ENTRY_SIZE	(16 * 16)
+
+#ifdef USE_SG_BUFFER
+#define get_addr(substream, ofs) \
+	snd_pcm_sgbuf_get_addr(substream, ofs)
+#define get_size(substream, ofs, size) \
+	snd_pcm_sgbuf_get_chunk_size(substream, ofs, size)
+#define ops_page	snd_pcm_sgbuf_ops_page
+#define PREALLOC_TYPE	SNDRV_DMA_TYPE_DEV_SG
+#else
+#define get_addr(substream, ofs) \
+	((substream)->runtime->dma_addr + ofs)
+#define get_size(substream, ofs, size) \
+	(size)
+#define ops_page	NULL
+#define PREALLOC_TYPE	SNDRV_DMA_TYPE_DEV
+#endif
 
 static struct lola_pcm *lola_get_pcm(struct snd_pcm_substream *substream)
 {
@@ -101,7 +119,7 @@ static void lola_stream_clear(struct lola *chip, struct lola_stream *str)
 
 static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 {
-	unsigned long end_time = jiffies + msecs_to_jiffies(50);
+	unsigned long end_time = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, end_time)) {
 		unsigned int val;
 		val = lola_dsd_read(chip, str->dsd, CTL);
@@ -115,16 +133,16 @@ static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 {
 	lola_dsd_write(chip, str->dsd, CTL, LOLA_DSD_CTL_SRST);
+	wait_for_srst_clear(chip, str);
 	lola_dsd_write(chip, str->dsd, LVI, 0);
 	lola_dsd_write(chip, str->dsd, BDPU, 0);
 	lola_dsd_write(chip, str->dsd, BDPL, 0);
-	wait_for_srst_clear(chip, str);
 }
 
 static int lola_stream_wait_for_fifo_ready(struct lola *chip,
 					   struct lola_stream *str)
 {
-	unsigned long end_time = jiffies + msecs_to_jiffies(50);
+	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
 	while (time_before(jiffies, end_time)) {
 		unsigned int val = lola_dsd_read(chip, str->dsd, STS);
 		if (val & LOLA_DSD_STS_FIFORDY)
@@ -164,20 +182,11 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 	struct lola_pcm *pcm = lola_get_pcm(substream);
 	struct lola_stream *str = lola_get_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int err;
 
 	mutex_lock(&chip->open_mutex);
 	if (str->opened) {
 		mutex_unlock(&chip->open_mutex);
 		return -EBUSY;
-	}
-	err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				  snd_dma_pci_data(chip->pci),
-				  PAGE_SIZE, &str->bdl);
-	if (err < 0) {
-		mutex_unlock(&chip->open_mutex);
-		printk(KERN_ERR SFX "Can't allocate BDL\n");
-		return err;
 	}
 	str->substream = substream;
 	str->master = NULL;
@@ -216,7 +225,6 @@ static int lola_pcm_close(struct snd_pcm_substream *substream)
 		str->substream = NULL;
 		str->opened = 0;
 	}
-	snd_dma_free_pages(&str->bdl);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
@@ -262,12 +270,12 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		if (str->frags >= LOLA_MAX_BDL_ENTRIES)
 			return -EINVAL;
 
-		addr = snd_pcm_sgbuf_get_addr(substream, ofs);
+		addr = get_addr(substream, ofs);
 		/* program the address field of the BDL entry */
 		bdl[0] = cpu_to_le32((u32)addr);
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
-		chunk = snd_pcm_sgbuf_get_chunk_size(substream, ofs, size);
+		chunk = get_size(substream, ofs, size);
 		bdl[2] = cpu_to_le32(chunk);
 		/* program the IOC to enable interrupt
 		 * only when the whole fragment is processed
@@ -285,7 +293,7 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 /*
  * set up BDL entries
  */
-static int lola_setup_periods(struct lola *chip,
+static int lola_setup_periods(struct lola *chip, struct lola_pcm *pcm,
 			      struct snd_pcm_substream *substream,
 			      struct lola_stream *str)
 {
@@ -296,7 +304,7 @@ static int lola_setup_periods(struct lola *chip,
 	periods = str->bufsize / period_bytes;
 
 	/* program the initial BDL entries */
-	bdl = (u32 *)str->bdl.area;
+	bdl = (u32 *)(pcm->bdl.area + LOLA_BDL_ENTRY_SIZE * str->index);
 	ofs = 0;
 	str->frags = 0;
 	for (i = 0; i < periods; i++) {
@@ -371,13 +379,14 @@ static int lola_set_stream_config(struct lola *chip,
 /*
  * set up the SD for streaming
  */
-static int lola_setup_controller(struct lola *chip, struct lola_stream *str)
+static int lola_setup_controller(struct lola *chip, struct lola_pcm *pcm,
+				 struct lola_stream *str)
 {
-	/* make sure the run bit is zero for SD */
-	lola_stream_clear(chip, str);
+	dma_addr_t bdl;
 	/* set up BDL */
-	lola_dsd_write(chip, str->dsd, BDPL, (u32)str->bdl.addr);
-	lola_dsd_write(chip, str->dsd, BDPU, upper_32_bits(str->bdl.addr));
+	bdl = pcm->bdl.addr + LOLA_BDL_ENTRY_SIZE * str->index;
+	lola_dsd_write(chip, str->dsd, BDPL, (u32)bdl);
+	lola_dsd_write(chip, str->dsd, BDPU, upper_32_bits(bdl));
 	/* program the stream LVI (last valid index) of the BDL */
 	lola_dsd_write(chip, str->dsd, LVI, str->frags - 1);
 	lola_stream_stop(chip, str, lola_get_tstamp(chip, false));
@@ -418,7 +427,7 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 		str->bufsize = bufsize;
 		str->period_bytes = period_bytes;
 		str->format_verb = format_verb;
-		err = lola_setup_periods(chip, substream, str);
+		err = lola_setup_periods(chip, pcm, substream, str);
 		if (err < 0)
 			return err;
 	}
@@ -427,7 +436,7 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	return lola_setup_controller(chip, str);
+	return lola_setup_controller(chip, pcm, str);
 }
 
 static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -504,13 +513,21 @@ static struct snd_pcm_ops lola_pcm_ops = {
 	.prepare = lola_pcm_prepare,
 	.trigger = lola_pcm_trigger,
 	.pointer = lola_pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
+	.page = ops_page,
 };
 
 int __devinit lola_create_pcm(struct lola *chip)
 {
 	struct snd_pcm *pcm;
 	int i, err;
+
+	for (i = 0; i < 2; i++) {
+		err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+					  snd_dma_pci_data(chip->pci),
+					  PAGE_SIZE, &chip->pcm[i].bdl);
+		if (err < 0)
+			return err;
+	}
 
 	err = snd_pcm_new(chip->card, "Digigram Lola", 0,
 			  chip->pcm[SNDRV_PCM_STREAM_PLAYBACK].num_streams,
@@ -525,7 +542,7 @@ int __devinit lola_create_pcm(struct lola *chip)
 			snd_pcm_set_ops(pcm, i, &lola_pcm_ops);
 	}
 	/* buffer pre-allocation */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+	snd_pcm_lib_preallocate_pages_for_all(pcm, PREALLOC_TYPE,
 					      snd_dma_pci_data(chip->pci),
 					      1024 * 64, 32 * 1024 * 1024);
 	return 0;
@@ -533,7 +550,8 @@ int __devinit lola_create_pcm(struct lola *chip)
 
 void lola_free_pcm(struct lola *chip)
 {
-	/* nothing to do */
+	snd_dma_free_pages(&chip->pcm[0].bdl);
+	snd_dma_free_pages(&chip->pcm[1].bdl);
 }
 
 /*

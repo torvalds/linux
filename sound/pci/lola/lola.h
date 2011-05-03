@@ -299,7 +299,6 @@ struct lola_stream {
 	unsigned int bufsize;
 	unsigned int period_bytes;
 	unsigned int frags;
-	struct snd_dma_buffer bdl; /* BDL buffer */
 
 	/* format + channel setup */
 	unsigned int format_verb;
@@ -314,6 +313,7 @@ struct lola_stream {
 
 struct lola_pcm {
 	unsigned int num_streams;
+	struct snd_dma_buffer bdl; /* BDL buffer */
 	struct lola_stream streams[MAX_STREAM_COUNT];
 };
 
