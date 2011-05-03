@@ -683,7 +683,10 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
 	case BCM43236_CHIP_ID:
 	case BCM43238_CHIP_ID:
 
-		/* BCM5357 needs to touch PLL1_PLLCTL[02], so offset PLL0_PLLCTL[02] by 6 */
+		/*
+		 * BCM5357 needs to touch PLL1_PLLCTL[02],
+		 * so offset PLL0_PLLCTL[02] by 6
+		 */
 		phypll_offset = (sih->chip == BCM5357_CHIP_ID) ? 6 : 0;
 
 		/* RMW only the P1 divider */
@@ -821,10 +824,12 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
 		W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL5);
 		W_REG(&cc->pllcontrol_data, 0x88888854);
 
-		if (spuravoid == 1) {	/* spur_avoid ON, enable 41/82/164Mhz clock mode */
+		if (spuravoid == 1) {
+			/* spur_avoid ON, so enable 41/82/164Mhz clock mode */
 			W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL2);
 			W_REG(&cc->pllcontrol_data, 0x05201828);
-		} else {	/* enable 40/80/160Mhz clock mode */
+		} else {
+			/* enable 40/80/160Mhz clock mode */
 			W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL2);
 			W_REG(&cc->pllcontrol_data, 0x05001828);
 		}
@@ -847,11 +852,10 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
 		W_REG(&cc->pllcontrol_data, 0x88888825);
 
 		W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL3);
-		if (spuravoid == 1) {
+		if (spuravoid == 1)
 			W_REG(&cc->pllcontrol_data, 0x00EC4EC4);
-		} else {
+		else
 			W_REG(&cc->pllcontrol_data, 0x00762762);
-		}
 
 		tmp = PCTL_PLL_PLLCTL_UPD;
 		break;
