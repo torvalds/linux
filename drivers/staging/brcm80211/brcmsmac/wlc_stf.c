@@ -255,12 +255,12 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 
 	if ((txchain & ~wlc->stf->hw_txchain)
 	    || !(txchain & wlc->stf->hw_txchain))
-		return -BCME_RANGE;
+		return -EINVAL;
 
 	/* if nrate override is configured to be non-SISO STF mode, reject reducing txchain to 1 */
 	txstreams = (u8) WLC_BITSCNT(txchain);
 	if (txstreams > MAX_STREAMS_SUPPORTED)
-		return -BCME_RANGE;
+		return -EINVAL;
 
 	if (txstreams == 1) {
 		for (i = 0; i < NBANDS(wlc); i++)
@@ -269,7 +269,7 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 			    || (RSPEC_STF(wlc->bandstate[i]->mrspec_override) !=
 				PHY_TXC1_MODE_SISO)) {
 				if (!force)
-					return -BCME_ERROR;
+					return -EBADE;
 
 				/* over-write the override rspec */
 				if (RSPEC_STF(wlc->bandstate[i]->rspec_override)
@@ -379,7 +379,7 @@ int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
 
 	/* when there is only 1 tx_streams, don't allow to change the txant */
 	if (WLCISNPHY(wlc->band) && (wlc->stf->txstreams == 1))
-		return ((val == wlc->stf->txant) ? bcmerror : -BCME_RANGE);
+		return ((val == wlc->stf->txant) ? bcmerror : -EINVAL);
 
 	switch (val) {
 	case -1:
@@ -395,7 +395,7 @@ int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
 		val = ANT_TX_LAST_RX;
 		break;
 	default:
-		bcmerror = -BCME_RANGE;
+		bcmerror = -EINVAL;
 		break;
 	}
 

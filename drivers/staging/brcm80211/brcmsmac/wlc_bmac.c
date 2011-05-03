@@ -1139,7 +1139,7 @@ int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw)
 		if (wlc_hw->sih->bustype == PCI_BUS)
 			si_pci_down(wlc_hw->sih);
 		wlc_bmac_xtal(wlc_hw, OFF);
-		return -BCME_RADIOOFF;
+		return -ENOMEDIUM;
 	}
 
 	if (wlc_hw->sih->bustype == PCI_BUS)
@@ -2816,7 +2816,7 @@ static void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 int wlc_bmac_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo, uint *blocks)
 {
 	if (fifo >= NFIFO)
-		return -BCME_RANGE;
+		return -EINVAL;
 
 	*blocks = wlc_hw->xmtfifo_sz[fifo];
 

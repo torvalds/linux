@@ -22366,7 +22366,7 @@ wlc_phy_tx_tone_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 	num_samps =
 		wlc_phy_gen_load_samples_nphy(pi, f_kHz, max_val, dac_test_mode);
 	if (num_samps == 0) {
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	wlc_phy_runsamples_nphy(pi, num_samps, loops, wait, iqmode,
@@ -24559,7 +24559,7 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 		}
 
 		if ((ii + qq) < NPHY_MIN_RXIQ_PWR) {
-			bcmerror = -BCME_ERROR;
+			bcmerror = -EBADE;
 			break;
 		}
 
@@ -24571,14 +24571,14 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 			a = (-(iq << (30 - iq_nbits)) + (ii >> (1 + arsh)));
 			temp = (s32) (ii >> arsh);
 			if (temp == 0) {
-				bcmerror = -BCME_ERROR;
+				bcmerror = -EBADE;
 				break;
 			}
 		} else {
 			a = (-(iq << (30 - iq_nbits)) + (ii << (-1 - arsh)));
 			temp = (s32) (ii << -arsh);
 			if (temp == 0) {
-				bcmerror = -BCME_ERROR;
+				bcmerror = -EBADE;
 				break;
 			}
 		}
@@ -24590,14 +24590,14 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 			b = (qq << (31 - qq_nbits));
 			temp = (s32) (ii >> brsh);
 			if (temp == 0) {
-				bcmerror = -BCME_ERROR;
+				bcmerror = -EBADE;
 				break;
 			}
 		} else {
 			b = (qq << (31 - qq_nbits));
 			temp = (s32) (ii << -brsh);
 			if (temp == 0) {
-				bcmerror = -BCME_ERROR;
+				bcmerror = -EBADE;
 				break;
 			}
 		}

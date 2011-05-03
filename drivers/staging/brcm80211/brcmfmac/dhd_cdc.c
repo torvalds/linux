@@ -357,7 +357,7 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	if (pktbuf->len < BDC_HEADER_LEN) {
 		DHD_ERROR(("%s: rx data too short (%d < %d)\n", __func__,
 			   pktbuf->len, BDC_HEADER_LEN));
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	h = (struct bdc_header *)(pktbuf->data);
@@ -366,14 +366,14 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	if (*ifidx >= DHD_MAX_IFS) {
 		DHD_ERROR(("%s: rx data ifnum out of range (%d)\n",
 			   __func__, *ifidx));
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {
 		DHD_ERROR(("%s: non-BDC packet received, flags 0x%x\n",
 			   dhd_ifname(dhd, *ifidx), h->flags));
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	if (h->flags & BDC_FLAG_SUM_GOOD) {

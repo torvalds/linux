@@ -519,7 +519,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 			bcmerror = -ENOTSUPP;
 		} else if (len) {
 			/* Set is an action w/o parameters */
-			bcmerror = -BCME_BUFTOOLONG;
+			bcmerror = -ENOBUFS;
 		}
 		break;
 

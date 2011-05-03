@@ -2336,7 +2336,7 @@ int wlc_up(struct wlc_info *wlc)
 
 	/* HW is turned off so don't try to access it */
 	if (wlc->pub->hw_off || DEVICEREMOVED(wlc))
-		return -BCME_RADIOOFF;
+		return -ENOMEDIUM;
 
 	if (!wlc->pub->hw_up) {
 		wlc_bmac_hw_up(wlc->hw);
@@ -2365,7 +2365,7 @@ int wlc_up(struct wlc_info *wlc)
 	 */
 	if (!wlc->pub->radio_disabled) {
 		int status = wlc_bmac_up_prep(wlc->hw);
-		if (status == -BCME_RADIOOFF) {
+		if (status == -ENOMEDIUM) {
 			if (!mboolisset
 			    (wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE)) {
 				int idx;
@@ -2569,7 +2569,7 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 	/* Legacy or bust when no OFDM is supported by regulatory */
 	if ((wlc_channel_locale_flags_in_band(wlc->cmi, band->bandunit) &
 	     WLC_NO_OFDM) && (gmode != GMODE_LEGACY_B))
-		return -BCME_RANGE;
+		return -EINVAL;
 
 	/* update configuration value */
 	if (config == true)
@@ -2702,7 +2702,7 @@ static int wlc_nmode_validate(struct wlc_info *wlc, s32 nmode)
 		break;
 
 	default:
-		err = -BCME_RANGE;
+		err = -EINVAL;
 		break;
 	}
 
@@ -2796,7 +2796,7 @@ static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg)
 			goto good;
 	}
 
-	return -BCME_ERROR;
+	return -EBADE;
 
  good:
 	/* apply new rateset */
@@ -2872,7 +2872,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n", wlc->pub->unit,
 			  __func__);
 		wl_down(wlc->wl);
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	/* default argument is generic integer */
@@ -2995,7 +2995,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			break;
 
 		if (val >= MHFMAX) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3020,7 +3020,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 		i = (u16) val;
 		if (i >= MHFMAX) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3182,7 +3182,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	case WLC_SET_ANTDIV:
 		/* values are -1=driver default, 0=force0, 1=force1, 2=start1, 3=start0 */
 		if ((val < -1) || (val > 3)) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3203,7 +3203,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			rxstatus = R_REG(&wlc->regs->phyrxstatus0);
 			if (rxstatus == 0xdead || rxstatus == (u16) -1) {
-				bcmerror = -BCME_ERROR;
+				bcmerror = -EBADE;
 				break;
 			}
 			*pval = (rxstatus & PRXS0_RXANT_UPSUBBAND) ? 1 : 0;
@@ -3213,7 +3213,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 #if defined(BCMDBG)
 	case WLC_GET_UCANTDIV:
 		if (!wlc->clk) {
-			bcmerror = -BCME_NOCLK;
+			bcmerror = -EIO;
 			break;
 		}
 
@@ -3230,7 +3230,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			/* if multiband, band must be locked */
 			if (IS_MBAND_UNLOCKED(wlc)) {
-				bcmerror = -BCME_NOTBANDLOCKED;
+				bcmerror = -ENOMEDIUM;
 				break;
 			}
 
@@ -3256,7 +3256,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			}
 			wlc_wme_retries_write(wlc);
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 	case WLC_GET_LRL:
@@ -3275,7 +3275,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			}
 			wlc_wme_retries_write(wlc);
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 	case WLC_GET_CWMIN:
@@ -3284,14 +3284,14 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	case WLC_SET_CWMIN:
 		if (!wlc->clk) {
-			bcmerror = -BCME_NOCLK;
+			bcmerror = -EIO;
 			break;
 		}
 
 		if (val >= 1 && val <= 255) {
 			wlc_set_cwmin(wlc, (u16) val);
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 	case WLC_GET_CWMAX:
@@ -3300,14 +3300,14 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	case WLC_SET_CWMAX:
 		if (!wlc->clk) {
-			bcmerror = -BCME_NOCLK;
+			bcmerror = -EIO;
 			break;
 		}
 
 		if (val >= 255 && val <= 2047) {
 			wlc_set_cwmax(wlc, (u16) val);
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 	case WLC_GET_RADIO:	/* use mask if don't want to expose some internal bits */
@@ -3330,7 +3330,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			    || ((radioval & ~radiomask) != 0)) {
 				wiphy_err(wlc->wiphy, "SET_RADIO with wrong "
 					  "bits 0x%x\n", val);
-				bcmerror = -BCME_RANGE;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -3479,7 +3479,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			}
 
 			if (in_rs->count > WLC_NUMRATES) {
-				bcmerror = -BCME_BUFTOOLONG;
+				bcmerror = -ENOBUFS;
 				break;
 			}
 
@@ -3522,7 +3522,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		    && val <= DOT11_MAX_BEACON_PERIOD) {
 			wlc->default_bss->beacon_period = (u16) val;
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 	case WLC_GET_DTIMPRD:
@@ -3538,7 +3538,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		    && val <= DOT11_MAX_DTIM_PERIOD) {
 			wlc->default_bss->dtim_period = (u8) val;
 		} else
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 		break;
 
 #ifdef SUPPORT_PS
@@ -3554,7 +3554,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			/* Change watchdog driver to align watchdog with tbtt if possible */
 			wlc_watchdog_upd(wlc, PS_ALLOWED(wlc));
 		} else
-			bcmerror = -BCME_ERROR;
+			bcmerror = -EBADE;
 		break;
 #endif				/* SUPPORT_PS */
 
@@ -3691,7 +3691,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	case WLC_SET_SHORTSLOT_OVERRIDE:
 		if ((val != WLC_SHORTSLOT_AUTO) &&
 		    (val != WLC_SHORTSLOT_OFF) && (val != WLC_SHORTSLOT_ON)) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3748,7 +3748,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		if (!wlc->pub->associated)
 			bcmerror = wlc_set_gmode(wlc, (u8) val, true);
 		else {
-			bcmerror = -BCME_ASSOCIATED;
+			bcmerror = -EISCONN;
 			break;
 		}
 		break;
@@ -3765,7 +3765,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		if ((val != WLC_PROTECTION_CTL_OFF) &&
 		    (val != WLC_PROTECTION_CTL_LOCAL) &&
 		    (val != WLC_PROTECTION_CTL_OVERLAP)) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3784,7 +3784,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	case WLC_SET_GMODE_PROTECTION_OVERRIDE:
 		if ((val != WLC_PROTECTION_AUTO) &&
 		    (val != WLC_PROTECTION_OFF) && (val != WLC_PROTECTION_ON)) {
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			break;
 		}
 
@@ -3876,11 +3876,11 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	case WLC_SET_PRB_RESP_TIMEOUT:
 		if (wlc->pub->up) {
-			bcmerror = -BCME_NOTDOWN;
+			bcmerror = -EISCONN;
 			break;
 		}
 		if (val < 0 || val >= 0xFFFF) {
-			bcmerror = -BCME_RANGE;	/* bad value */
+			bcmerror = -EINVAL;	/* bad value */
 			break;
 		}
 		wlc->prb_resp_timeout = (u16) val;
@@ -3974,14 +3974,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	}
  done:
 
-	if (bcmerror) {
-		if (VALID_BCMERROR(bcmerror))
-			wlc->pub->bcmerror = bcmerror;
-		else {
-			bcmerror = 0;
-		}
-
-	}
+	if (bcmerror)
+		wlc->pub->bcmerror = bcmerror;
 
 	return bcmerror;
 }
@@ -3996,11 +3990,11 @@ int wlc_iocregchk(struct wlc_info *wlc, uint band)
 
 	/* if multiband and band is not specified, band must be locked */
 	if ((band == WLC_BAND_AUTO) && IS_MBAND_UNLOCKED(wlc))
-		return -BCME_NOTBANDLOCKED;
+		return -ENOMEDIUM;
 
 	/* must have core clocks */
 	if (!wlc->clk)
-		return -BCME_NOCLK;
+		return -EIO;
 
 	return 0;
 }
@@ -4104,7 +4098,7 @@ int wlc_module_unregister(struct wlc_pub *pub, const char *name, void *hdl)
 	int i;
 
 	if (wlc == NULL)
-		return -BCME_NOTFOUND;
+		return -ENODATA;
 
 	for (i = 0; i < WLC_MAXMODULES; i++) {
 		if (!strcmp(wlc->modulecb[i].name, name) &&
@@ -4115,7 +4109,7 @@ int wlc_module_unregister(struct wlc_pub *pub, const char *name, void *hdl)
 	}
 
 	/* table not found! */
-	return -BCME_NOTFOUND;
+	return -ENODATA;
 }
 
 /* Write WME tunable parameters for retransmit/max rate from wlc struct to ucode */
@@ -4208,22 +4202,22 @@ wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi, void *arg, int len,
 	if (set) {
 		if (((vi->flags & IOVF_SET_DOWN) && wlc->pub->up) ||
 		    ((vi->flags & IOVF_SET_UP) && !wlc->pub->up)) {
-			err = (wlc->pub->up ? -BCME_NOTDOWN : -ENOLINK);
+			err = (wlc->pub->up ? -EISCONN : -ENOLINK);
 		} else if ((vi->flags & IOVF_SET_BAND)
 			   && IS_MBAND_UNLOCKED(wlc)) {
-			err = -BCME_NOTBANDLOCKED;
+			err = -ENOMEDIUM;
 		} else if ((vi->flags & IOVF_SET_CLK) && !wlc->clk) {
-			err = -BCME_NOCLK;
+			err = -EIO;
 		}
 	} else {
 		if (((vi->flags & IOVF_GET_DOWN) && wlc->pub->up) ||
 		    ((vi->flags & IOVF_GET_UP) && !wlc->pub->up)) {
-			err = (wlc->pub->up ? -BCME_NOTDOWN : -ENOLINK);
+			err = (wlc->pub->up ? -EISCONN : -ENOLINK);
 		} else if ((vi->flags & IOVF_GET_BAND)
 			   && IS_MBAND_UNLOCKED(wlc)) {
-			err = -BCME_NOTBANDLOCKED;
+			err = -ENOMEDIUM;
 		} else if ((vi->flags & IOVF_GET_CLK) && !wlc->clk) {
-			err = -BCME_NOCLK;
+			err = -EIO;
 		}
 	}
 
@@ -4401,7 +4395,7 @@ wlc_iovar_rangecheck(struct wlc_info *wlc, u32 val, const bcm_iovar_t *vi)
 		/* Signed values are checked against max_val and min_val */
 		if ((s32) val < (s32) min_val
 		    || (s32) val > (s32) max_val)
-			err = -BCME_RANGE;
+			err = -EINVAL;
 		break;
 
 	case IOVT_UINT32:
@@ -4415,7 +4409,7 @@ wlc_iovar_rangecheck(struct wlc_info *wlc, u32 val, const bcm_iovar_t *vi)
 		if (vi->flags & IOVF_NTRL)
 			min_val = 1;
 		if ((val < min_val) || (val > max_val))
-			err = -BCME_RANGE;
+			err = -EINVAL;
 		break;
 	}
 
@@ -7620,7 +7614,7 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 		if (stf > PHY_TXC1_MODE_SDM) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid stf\n",
 				 WLCWLUNIT(wlc), __func__);
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			goto done;
 		}
 
@@ -7631,7 +7625,7 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 			     && (stf != PHY_TXC1_MODE_CDD))) {
 				wiphy_err(wlc->wiphy, "wl%d: %s: Invalid mcs "
 					  "32\n", WLCWLUNIT(wlc), __func__);
-				bcmerror = -BCME_RANGE;
+				bcmerror = -EINVAL;
 				goto done;
 			}
 			/* mcs > 7 must use stf SDM */
@@ -7649,7 +7643,7 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 			     && (stf == PHY_TXC1_MODE_STBC))) {
 				wiphy_err(wlc->wiphy, "wl%d: %s: Invalid STBC"
 					  "\n", WLCWLUNIT(wlc), __func__);
-				bcmerror = -BCME_RANGE;
+				bcmerror = -EINVAL;
 				goto done;
 			}
 		}
@@ -7657,7 +7651,7 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 		if ((stf != PHY_TXC1_MODE_CDD) && (stf != PHY_TXC1_MODE_SISO)) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid OFDM\n",
 				  WLCWLUNIT(wlc), __func__);
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			goto done;
 		}
 	} else if (IS_CCK(rate)) {
@@ -7665,20 +7659,20 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 		    || (stf != PHY_TXC1_MODE_SISO)) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid CCK\n",
 				  WLCWLUNIT(wlc), __func__);
-			bcmerror = -BCME_RANGE;
+			bcmerror = -EINVAL;
 			goto done;
 		}
 	} else {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Unknown rate type\n",
 			  WLCWLUNIT(wlc), __func__);
-		bcmerror = -BCME_RANGE;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 	/* make sure multiple antennae are available for non-siso rates */
 	if ((stf != PHY_TXC1_MODE_SISO) && (wlc->stf->txstreams == 1)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: SISO antenna but !SISO "
 			  "request\n", WLCWLUNIT(wlc), __func__);
-		bcmerror = -BCME_RANGE;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 
@@ -7723,7 +7717,7 @@ wlc_duty_cycle_set(struct wlc_info *wlc, int duty_cycle, bool isOFDM,
 	if (duty_cycle > 100 || duty_cycle < 0) {
 		wiphy_err(wlc->wiphy, "wl%d:  duty cycle value off limit\n",
 			  wlc->pub->unit);
-		return -BCME_RANGE;
+		return -EINVAL;
 	}
 	if (duty_cycle)
 		idle_busy_ratio_x_16 = (100 - duty_cycle) * 16 / duty_cycle;

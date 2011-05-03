@@ -241,30 +241,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* ** driver/apps-shared section ** */
 
 #define BCME_STRLEN 		64	/* Max string length for BCM errors */
-#define VALID_BCMERROR(e)  ((e <= 0) && (e >= -BCME_LAST))
-
-/*
- * error codes could be added but the defined ones shouldn't be changed/deleted
- * these error codes are exposed to the user code
- * when ever a new error code is added to this list
- * please update errorstring table with the related error string and
- * update osl files with os specific errorcode map
-*/
-
-#define BCME_ERROR			1	/* Error generic */
-#define BCME_NOTDOWN			5	/* Not down */
-#define BCME_RADIOOFF			9	/* Radio Off */
-#define BCME_NOTBANDLOCKED		10	/* Not  band locked */
-#define BCME_NOCLK			11	/* No Clock */
-#define BCME_BUFTOOLONG			15	/* Buffer too long */
-#define BCME_NOTREADY			25	/* Not Ready */
-#define BCME_ASSOCIATED			28	/* Associated */
-#define BCME_RANGE			29	/* Not In Range */
-#define BCME_NOTFOUND			30	/* Not Found */
-#define BCME_SDIO_ERROR			35	/* SDIO Bus Error */
-#define BCME_DONGLE_DOWN		36	/* Dongle Not Accessible */
-#define BCME_NONRESIDENT		42  /* access to nonresident overlay */
-#define BCME_LAST			BCME_NONRESIDENT
 
 #ifndef ABS
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))

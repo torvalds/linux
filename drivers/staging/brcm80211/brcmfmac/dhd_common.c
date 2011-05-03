@@ -815,14 +815,14 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 
 	if (memcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
 		DHD_ERROR(("%s: mismatched OUI, bailing\n", __func__));
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	/* BRCM event pkt may be unaligned - use xxx_ua to load user_subtype. */
 	if (get_unaligned_be16(&pvt_data->bcm_hdr.usr_subtype) !=
 	    BCMILCP_BCM_SUBTYPE_EVENT) {
 		DHD_ERROR(("%s: mismatched subtype, bailing\n", __func__));
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	*data_ptr = &pvt_data[1];

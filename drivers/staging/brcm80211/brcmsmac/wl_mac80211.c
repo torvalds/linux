@@ -1806,7 +1806,7 @@ int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 		  idx);
 	*pbuf = NULL;
 fail:
-	return -BCME_NOTFOUND;
+	return -ENODATA;
 }
 
 /*

@@ -126,7 +126,7 @@ int bcmsdh_intr_enable(void *sdh)
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_set(bcmsdh->sdioh, true);
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 int bcmsdh_intr_disable(void *sdh)
@@ -136,7 +136,7 @@ int bcmsdh_intr_disable(void *sdh)
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_set(bcmsdh->sdioh, false);
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
@@ -146,7 +146,7 @@ int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 int bcmsdh_intr_dereg(void *sdh)
@@ -156,7 +156,7 @@ int bcmsdh_intr_dereg(void *sdh)
 	ASSERT(bcmsdh);
 
 	status = sdioh_interrupt_deregister(bcmsdh->sdioh);
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 #if defined(DHD_DEBUG)
@@ -204,7 +204,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 #endif
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -BCME_SDIO_ERROR);
+		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -239,7 +239,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 #endif
 	if (err)
-		*err = SDIOH_API_SUCCESS(status) ? 0 : -BCME_SDIO_ERROR;
+		*err = SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -261,7 +261,7 @@ u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 			       fnc_num, addr, &data, 4);
 
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -BCME_SDIO_ERROR);
+		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -286,7 +286,7 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 			       SDIOH_WRITE, fnc_num, addr, &data, 4);
 
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -BCME_SDIO_ERROR);
+		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -329,7 +329,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 		kfree(tmp_buf);
 	}
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 static int bcmsdhsdio_set_sbaddr_window(void *sdh, u32 address)
@@ -488,7 +488,7 @@ bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
 				      SDIOH_READ, fn, addr, width, nbytes, buf,
 				      pkt);
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_SDIO_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
 int
@@ -533,7 +533,7 @@ bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 				      SDIOH_WRITE, fn, addr, width, nbytes, buf,
 				      pkt);
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
@@ -553,7 +553,7 @@ int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 				 (rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
 				 addr, 4, nbytes, buf, NULL);
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -BCME_ERROR;
+	return SDIOH_API_SUCCESS(status) ? 0 : -EBADE;
 }
 
 int bcmsdh_abort(void *sdh, uint fn)

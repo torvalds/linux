@@ -280,7 +280,7 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 
 	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
 	if (otp == NULL) {
-		return -BCME_ERROR;
+		return -EBADE;
 	}
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);

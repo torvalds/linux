@@ -656,7 +656,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 			if (sdioh_cfg_read
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
-				bcmerror = -BCME_SDIO_ERROR;
+				bcmerror = -EIO;
 				break;
 			}
 
@@ -672,7 +672,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 			if (sdioh_cfg_write
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
-				bcmerror = -BCME_SDIO_ERROR;
+				bcmerror = -EIO;
 				break;
 			}
 			break;
