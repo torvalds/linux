@@ -71,6 +71,7 @@
 #define IPC_IA_DECODE_FRAMES 0x18
 
 #define IPC_IA_ALG_PARAMS 0x1A
+#define IPC_IA_TUNING_PARAMS 0x1B
 
 /* I2L Stream config/control msgs */
 #define IPC_IA_ALLOC_STREAM 0x20 /* Allocate a stream ID */

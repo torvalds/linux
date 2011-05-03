@@ -416,6 +416,24 @@ void sst_process_reply(struct work_struct *work)
 		}
 		break;
 	}
+
+	case IPC_IA_TUNING_PARAMS: {
+		pr_debug("sst:IPC_TUNING_PARAMS resp: %x\n", msg->header.full);
+		pr_debug("data value %x\n", msg->header.part.data);
+		if (msg->header.part.large) {
+			pr_debug("alg set failed\n");
+			sst_drv_ctx->ppp_params_blk.ret_code =
+							-msg->header.part.data;
+		} else {
+			pr_debug("alg set success\n");
+			sst_drv_ctx->ppp_params_blk.ret_code = 0;
+		}
+		if (sst_drv_ctx->ppp_params_blk.on == true) {
+			sst_drv_ctx->ppp_params_blk.condition = true;
+			wake_up(&sst_drv_ctx->wait_queue);
+		}
+	}
+
 	case IPC_IA_GET_FW_INFO: {
 		struct snd_sst_fw_info *fw_info =
 			(struct snd_sst_fw_info *)msg->mailbox;
