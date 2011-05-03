@@ -62,7 +62,6 @@ struct ath_node;
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->tx.txqsetup & (1<<i))
 
 struct ath_config {
-	u32 ath_aggr_prot;
 	u16 txpowlimit;
 	u8 cabqReadytime;
 };

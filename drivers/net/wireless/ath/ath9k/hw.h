@@ -628,8 +628,6 @@ struct ath_hw_ops {
 				   u32 numDelims);
 	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
-	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
-				     u32 burstDuration);
 	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
 };
 

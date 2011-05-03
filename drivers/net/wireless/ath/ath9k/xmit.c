@@ -1663,8 +1663,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 		rix = rates[i].idx;
 		series[i].Tries = rates[i].count;
 
-		if ((sc->config.ath_aggr_prot && bf_isaggr(bf)) ||
-		    (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS)) {
+		    if (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
 			flags |= ATH9K_TXDESC_RTSENA;
 		} else if (rates[i].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
@@ -1733,8 +1732,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 				     !is_pspoll, ctsrate,
 				     0, series, 4, flags);
 
-	if (sc->config.ath_aggr_prot && flags)
-		ath9k_hw_set11n_burstduration(sc->sc_ah, bf->bf_desc, 8192);
 }
 
 static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
