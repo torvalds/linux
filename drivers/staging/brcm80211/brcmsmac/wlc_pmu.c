@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2011 Broadcom Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1220,7 +1220,6 @@ u32 si_pmu_ilp_clock(si_t *sih)
 		u32 start, end, delta;
 		u32 origidx = ai_coreidx(sih);
 		chipcregs_t *cc = ai_setcoreidx(sih, SI_CC_IDX);
-		ASSERT(cc != NULL);
 		start = R_REG(&cc->pmutimer);
 		mdelay(ILP_CALC_DUR);
 		end = R_REG(&cc->pmutimer);
@@ -1473,7 +1472,6 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 		/* wait for the ht to really go away */
 		SPINWAIT(((R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL) == 0),
 			 10000);
-		ASSERT((R_REG(&cc->clk_ctl_st) & CCS_HTAVAIL) == 0);
 	}
 
 	/* update the pll changes */
@@ -1523,7 +1521,6 @@ void si_pmu_chip_init(si_t *sih)
 {
 	uint origidx;
 
-
 	/* Gate off SPROM clock and chip select signals */
 	si_pmu_sprom_enable(sih, false);
 
@@ -1537,7 +1534,6 @@ void si_pmu_chip_init(si_t *sih)
 /* initialize PMU switch/regulators */
 void si_pmu_swreg_init(si_t *sih)
 {
-
 	switch (sih->chip) {
 	case BCM4336_CHIP_ID:
 		/* Reduce CLDO PWM output voltage to 1.2V */
@@ -1565,7 +1561,6 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 {
 	chipcregs_t *cc;
 	uint origidx;
-
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
@@ -1736,7 +1731,6 @@ void si_pmu_res_init(si_t *sih)
 					[pmu_res_depend_table_sz].depend_mask);
 				break;
 			default:
-				ASSERT(0);
 				break;
 			}
 		}
@@ -1783,11 +1777,9 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 	if (sih->pmurev < 10)
 		return 0;
 
-
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
 	cc = ai_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	if (R_REG(&cc->pmustatus) & PST_EXTLPOAVAIL) {
 		u32 ilp_ctr, alp_hz;
