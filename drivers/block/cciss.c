@@ -4673,6 +4673,39 @@ static __devinit int cciss_allocate_cmd_pool(ctlr_info_t *h)
 	return 0;
 }
 
+static __devinit int cciss_allocate_scatterlists(ctlr_info_t *h)
+{
+	int i;
+
+	/* zero it, so that on free we need not know how many were alloc'ed */
+	h->scatter_list = kzalloc(h->max_commands *
+				sizeof(struct scatterlist *), GFP_KERNEL);
+	if (!h->scatter_list)
+		return -ENOMEM;
+
+	for (i = 0; i < h->nr_cmds; i++) {
+		h->scatter_list[i] = kmalloc(sizeof(struct scatterlist) *
+						h->maxsgentries, GFP_KERNEL);
+		if (h->scatter_list[i] == NULL) {
+			dev_err(&h->pdev->dev, "could not allocate "
+				"s/g lists\n");
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static void cciss_free_scatterlists(ctlr_info_t *h)
+{
+	int i;
+
+	if (h->scatter_list) {
+		for (i = 0; i < h->nr_cmds; i++)
+			kfree(h->scatter_list[i]);
+		kfree(h->scatter_list);
+	}
+}
+
 static void cciss_free_cmd_pool(ctlr_info_t *h)
 {
 	kfree(h->cmd_pool_bits);
@@ -4696,7 +4729,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 {
 	int i;
 	int j = 0;
-	int k = 0;
 	int rc;
 	int dac, return_code;
 	InquiryData_struct *inq_buff;
@@ -4781,23 +4813,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	if (cciss_allocate_cmd_pool(h))
 		goto clean4;
 
-	/* Need space for temp scatter list */
-	h->scatter_list = kmalloc(h->max_commands *
-						sizeof(struct scatterlist *),
-						GFP_KERNEL);
-	if (!h->scatter_list)
+	if (cciss_allocate_scatterlists(h))
 		goto clean4;
 
-	for (k = 0; k < h->nr_cmds; k++) {
-		h->scatter_list[k] = kmalloc(sizeof(struct scatterlist) *
-							h->maxsgentries,
-							GFP_KERNEL);
-		if (h->scatter_list[k] == NULL) {
-			dev_err(&h->pdev->dev,
-				"could not allocate s/g lists\n");
-			goto clean4;
-		}
-	}
 	h->cmd_sg_list = cciss_allocate_sg_chain_blocks(h,
 		h->chainsize, h->nr_cmds);
 	if (!h->cmd_sg_list && h->chainsize > 0)
@@ -4856,10 +4874,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 clean4:
 	cciss_free_cmd_pool(h);
-	/* Free up sg elements */
-	for (k-- ; k >= 0; k--)
-		kfree(h->scatter_list[k]);
-	kfree(h->scatter_list);
+	cciss_free_scatterlists(h);
 	cciss_free_sg_chain_blocks(h->cmd_sg_list, h->nr_cmds);
 	free_irq(h->intr[PERF_MODE_INT], h);
 clean2:
