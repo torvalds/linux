@@ -174,29 +174,6 @@ struct sta_ampdu_mlme {
 
 
 /**
- * enum plink_state - state of a mesh peer link finite state machine
- *
- * @PLINK_LISTEN: initial state, considered the implicit state of non existant
- * 	mesh peer links
- * @PLINK_OPN_SNT: mesh plink open frame has been sent to this mesh peer
- * @PLINK_OPN_RCVD: mesh plink open frame has been received from this mesh peer
- * @PLINK_CNF_RCVD: mesh plink confirm frame has been received from this mesh
- * 	peer
- * @PLINK_ESTAB: mesh peer link is established
- * @PLINK_HOLDING: mesh peer link is being closed or cancelled
- * @PLINK_BLOCKED: all frames transmitted from this mesh plink are discarded
- */
-enum plink_state {
-	PLINK_LISTEN,
-	PLINK_OPN_SNT,
-	PLINK_OPN_RCVD,
-	PLINK_CNF_RCVD,
-	PLINK_ESTAB,
-	PLINK_HOLDING,
-	PLINK_BLOCKED
-};
-
-/**
  * struct sta_info - STA information
  *
  * This structure collects information about a station that

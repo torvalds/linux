@@ -174,6 +174,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_OFFCHANNEL_TX_OK] = { .type = NLA_FLAG },
 	[NL80211_ATTR_KEY_DEFAULT_TYPES] = { .type = NLA_NESTED },
 	[NL80211_ATTR_WOWLAN_TRIGGERS] = { .type = NLA_NESTED },
+	[NL80211_ATTR_STA_PLINK_STATE] = { .type = NLA_U8 },
 };
 
 /* policy for the key attributes */
@@ -2247,6 +2248,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	memset(&params, 0, sizeof(params));
 
 	params.listen_interval = -1;
+	params.plink_state = PLINK_INVALID;
 
 	if (info->attrs[NL80211_ATTR_STA_AID])
 		return -EINVAL;
@@ -2277,6 +2279,10 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_STA_PLINK_ACTION])
 		params.plink_action =
 		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_ACTION]);
+
+	if (info->attrs[NL80211_ATTR_STA_PLINK_STATE])
+		params.plink_state =
+		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_STATE]);
 
 	err = get_vlan(info, rdev, &params.vlan);
 	if (err)

@@ -913,6 +913,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_SUPPORT_MESH_AUTH: Currently, this means the underlying driver
  *	allows auth frames in a mesh to be passed to userspace for processing via
  *	the @NL80211_MESH_SETUP_USERSPACE_AUTH flag.
+ * @NL80211_ATTR_STA_PLINK_STATE: The state of a mesh peer link. Used when
+ *      userspace is driving the peer link management state machine.
+ *      @NL80211_MESH_SETUP_USERSPACE_AMPE must be enabled.
  *
  * @NL80211_ATTR_WOWLAN_SUPPORTED: indicates, as part of the wiphy capabilities,
  *	the supported WoWLAN triggers
@@ -1109,6 +1112,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
 
 	NL80211_ATTR_SUPPORT_MESH_AUTH,
+	NL80211_ATTR_STA_PLINK_STATE,
 
 	NL80211_ATTR_WOWLAN_TRIGGERS,
 	NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED,

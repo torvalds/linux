@@ -734,15 +734,27 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 						  params->ht_capa,
 						  &sta->sta.ht_cap);
 
-	if (ieee80211_vif_is_mesh(&sdata->vif) && params->plink_action) {
-		switch (params->plink_action) {
-		case PLINK_ACTION_OPEN:
-			mesh_plink_open(sta);
-			break;
-		case PLINK_ACTION_BLOCK:
-			mesh_plink_block(sta);
-			break;
-		}
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
+			switch (params->plink_state) {
+			case PLINK_LISTEN:
+			case PLINK_ESTAB:
+			case PLINK_BLOCKED:
+				sta->plink_state = params->plink_state;
+				break;
+			default:
+				/*  nothing  */
+				break;
+			}
+		else
+			switch (params->plink_action) {
+			case PLINK_ACTION_OPEN:
+				mesh_plink_open(sta);
+				break;
+			case PLINK_ACTION_BLOCK:
+				mesh_plink_block(sta);
+				break;
+			}
 	}
 }
 
