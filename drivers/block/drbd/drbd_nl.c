@@ -1115,7 +1115,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	enum drbd_ret_code retcode;
 	struct drbd_conf *mdev;
 	struct disk_conf *new_disk_conf, *old_disk_conf;
-	struct fifo_buffer *rs_plan_s = NULL;
+	struct fifo_buffer *old_plan = NULL, *new_plan = NULL;
 	int err, fifo_size;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
@@ -1158,8 +1158,8 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 
 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 	if (fifo_size != mdev->rs_plan_s->size) {
-		rs_plan_s = fifo_alloc(fifo_size);
-		if (!rs_plan_s) {
+		new_plan = fifo_alloc(fifo_size);
+		if (!new_plan) {
 			dev_err(DEV, "kmalloc of fifo_buffer failed");
 			retcode = ERR_NOMEM;
 			goto fail_unlock;
@@ -1188,13 +1188,10 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto fail_unlock;
 
-	spin_lock(&mdev->peer_seq_lock);
-	if (rs_plan_s) {
-		kfree(mdev->rs_plan_s);
-		mdev->rs_plan_s = rs_plan_s;
-		rs_plan_s = NULL;
+	if (new_plan) {
+		old_plan = mdev->rs_plan_s;
+		rcu_assign_pointer(mdev->rs_plan_s, new_plan);
 	}
-	spin_unlock(&mdev->peer_seq_lock);
 
 	drbd_md_sync(mdev);
 
@@ -1204,13 +1201,14 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	mutex_unlock(&mdev->tconn->conf_update);
 	synchronize_rcu();
 	kfree(old_disk_conf);
+	kfree(old_plan);
 	goto success;
 
 fail_unlock:
 	mutex_unlock(&mdev->tconn->conf_update);
  fail:
 	kfree(new_disk_conf);
-	kfree(rs_plan_s);
+	kfree(new_plan);
 success:
 	put_ldev(mdev);
  out:

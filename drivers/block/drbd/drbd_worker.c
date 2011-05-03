@@ -460,15 +460,15 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 	int steps; /* Number of time steps to plan ahead */
 	int curr_corr;
 	int max_sect;
+	struct fifo_buffer *plan;
 
 	sect_in = atomic_xchg(&mdev->rs_sect_in, 0); /* Number of sectors that came in */
 	mdev->rs_in_flight -= sect_in;
 
-	spin_lock(&mdev->peer_seq_lock); /* get an atomic view on mdev->rs_plan_s */
-	rcu_read_lock();
 	dc = rcu_dereference(mdev->ldev->disk_conf);
+	plan = rcu_dereference(mdev->rs_plan_s);
 
-	steps = mdev->rs_plan_s->size; /* (dc->c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
+	steps = plan->size; /* (dc->c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
 
 	if (mdev->rs_in_flight + sect_in == 0) { /* At start of resync */
 		want = ((dc->resync_rate * 2 * SLEEP_TIME) / HZ) * steps;
@@ -477,16 +477,16 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 			sect_in * dc->c_delay_target * HZ / (SLEEP_TIME * 10);
 	}
 
-	correction = want - mdev->rs_in_flight - mdev->rs_plan_s->total;
+	correction = want - mdev->rs_in_flight - plan->total;
 
 	/* Plan ahead */
 	cps = correction / steps;
-	fifo_add_val(mdev->rs_plan_s, cps);
-	mdev->rs_plan_s->total += cps * steps;
+	fifo_add_val(plan, cps);
+	plan->total += cps * steps;
 
 	/* What we do in this step */
-	curr_corr = fifo_push(mdev->rs_plan_s, 0);
-	mdev->rs_plan_s->total -= curr_corr;
+	curr_corr = fifo_push(plan, 0);
+	plan->total -= curr_corr;
 
 	req_sect = sect_in + curr_corr;
 	if (req_sect < 0)
@@ -501,8 +501,6 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 		 sect_in, mdev->rs_in_flight, want, correction,
 		 steps, cps, mdev->rs_planed, curr_corr, req_sect);
 	*/
-	rcu_read_unlock();
-	spin_unlock(&mdev->peer_seq_lock);
 
 	return req_sect;
 }
@@ -510,15 +508,16 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 static int drbd_rs_number_requests(struct drbd_conf *mdev)
 {
 	int number;
-	if (mdev->rs_plan_s->size) { /* rcu_dereference(mdev->ldev->disk_conf)->c_plan_ahead */
+
+	rcu_read_lock();
+	if (rcu_dereference(mdev->rs_plan_s)->size) {
 		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
 		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
 	} else {
-		rcu_read_lock();
 		mdev->c_sync_rate = rcu_dereference(mdev->ldev->disk_conf)->resync_rate;
-		rcu_read_unlock();
 		number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
 	}
+	rcu_read_unlock();
 
 	/* ignore the amount of pending requests, the resync controller should
 	 * throttle down to incoming reply rate soon enough anyways. */
@@ -1468,13 +1467,21 @@ void drbd_sync_after_changed(struct drbd_conf *mdev)
 
 void drbd_rs_controller_reset(struct drbd_conf *mdev)
 {
+	struct fifo_buffer *plan;
+
 	atomic_set(&mdev->rs_sect_in, 0);
 	atomic_set(&mdev->rs_sect_ev, 0);
 	mdev->rs_in_flight = 0;
-	mdev->rs_plan_s->total = 0;
-	spin_lock(&mdev->peer_seq_lock);
-	fifo_set(mdev->rs_plan_s, 0);
-	spin_unlock(&mdev->peer_seq_lock);
+
+	/* Updating the RCU protected object in place is necessary since
+	   this function gets called from atomic context.
+	   It is valid since all other updates also lead to an completely
+	   empty fifo */
+	rcu_read_lock();
+	plan = rcu_dereference(mdev->rs_plan_s);
+	plan->total = 0;
+	fifo_set(plan, 0);
+	rcu_read_unlock();
 }
 
 void start_resync_timer_fn(unsigned long data)

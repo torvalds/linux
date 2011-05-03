@@ -3157,9 +3157,9 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct crypto_hash *verify_tfm = NULL;
 	struct crypto_hash *csums_tfm = NULL;
 	struct net_conf *old_net_conf, *new_net_conf = NULL;
-	struct disk_conf *old_disk_conf, *new_disk_conf = NULL;
+	struct disk_conf *old_disk_conf = NULL, *new_disk_conf = NULL;
 	const int apv = tconn->agreed_pro_version;
-	struct fifo_buffer *rs_plan_s = NULL;
+	struct fifo_buffer *old_plan = NULL, *new_plan = NULL;
 	int fifo_size = 0;
 	int err;
 
@@ -3200,18 +3200,22 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (err)
 		return err;
 
-	new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
-	if (!new_disk_conf) {
-		dev_err(DEV, "Allocation of new disk_conf failed\n");
-		return -ENOMEM;
-	}
-
 	mutex_lock(&mdev->tconn->conf_update);
 	old_net_conf = mdev->tconn->net_conf;
-	old_disk_conf = mdev->ldev->disk_conf;
-	*new_disk_conf = *old_disk_conf;
+	if (get_ldev(mdev)) {
+		new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
+		if (!new_disk_conf) {
+			put_ldev(mdev);
+			mutex_unlock(&mdev->tconn->conf_update);
+			dev_err(DEV, "Allocation of new disk_conf failed\n");
+			return -ENOMEM;
+		}
 
-	new_disk_conf->resync_rate = be32_to_cpu(p->rate);
+		old_disk_conf = mdev->ldev->disk_conf;
+		*new_disk_conf = *old_disk_conf;
+
+		new_disk_conf->resync_rate = be32_to_cpu(p->rate);
+	}
 
 	if (apv >= 88) {
 		if (apv == 88) {
@@ -3219,15 +3223,13 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 				dev_err(DEV, "verify-alg too long, "
 				    "peer wants %u, accepting only %u byte\n",
 						data_size, SHARED_SECRET_MAX);
-				mutex_unlock(&mdev->tconn->conf_update);
-				return -EIO;
+				err = -EIO;
+				goto reconnect;
 			}
 
 			err = drbd_recv_all(mdev->tconn, p->verify_alg, data_size);
-			if (err) {
-				mutex_unlock(&mdev->tconn->conf_update);
-				return err;
-			}
+			if (err)
+				goto reconnect;
 			/* we expect NUL terminated string */
 			/* but just in case someone tries to be evil */
 			D_ASSERT(p->verify_alg[data_size-1] == 0);
@@ -3270,7 +3272,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 			}
 		}
 
-		if (apv > 94) {
+		if (apv > 94 && new_disk_conf) {
 			new_disk_conf->c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
 			new_disk_conf->c_delay_target = be32_to_cpu(p->c_delay_target);
 			new_disk_conf->c_fill_target = be32_to_cpu(p->c_fill_target);
@@ -3278,8 +3280,8 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 
 			fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 			if (fifo_size != mdev->rs_plan_s->size) {
-				rs_plan_s = fifo_alloc(fifo_size);
-				if (!rs_plan_s) {
+				new_plan = fifo_alloc(fifo_size);
+				if (!new_plan) {
 					dev_err(DEV, "kmalloc of fifo_buffer failed");
 					put_ldev(mdev);
 					goto disconnect;
@@ -3314,24 +3316,39 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 		}
 	}
 
-	rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
-	spin_lock(&mdev->peer_seq_lock);
-	if (rs_plan_s) {
-		kfree(mdev->rs_plan_s);
-		mdev->rs_plan_s = rs_plan_s;
+	if (new_disk_conf) {
+		rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
+		put_ldev(mdev);
 	}
-	spin_unlock(&mdev->peer_seq_lock);
+
+	if (new_plan) {
+		old_plan = mdev->rs_plan_s;
+		rcu_assign_pointer(mdev->rs_plan_s, new_plan);
+	}
 
 	mutex_unlock(&mdev->tconn->conf_update);
 	synchronize_rcu();
 	if (new_net_conf)
 		kfree(old_net_conf);
 	kfree(old_disk_conf);
+	kfree(old_plan);
 
 	return 0;
 
+reconnect:
+	if (new_disk_conf) {
+		put_ldev(mdev);
+		kfree(new_disk_conf);
+	}
+	mutex_unlock(&mdev->tconn->conf_update);
+	return -EIO;
+
 disconnect:
-	kfree(rs_plan_s);
+	kfree(new_plan);
+	if (new_disk_conf) {
+		put_ldev(mdev);
+		kfree(new_disk_conf);
+	}
 	mutex_unlock(&mdev->tconn->conf_update);
 	/* just for completeness: actually not needed,
 	 * as this is not reached if csums_tfm was ok. */
