@@ -600,7 +600,7 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_rx_status *rx_status)
 {
 	switch (mgmt->u.action.category) {
-	case WLAN_CATEGORY_MESH_PLINK:
+	case WLAN_CATEGORY_MESH_ACTION:
 		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
 		break;
 	case WLAN_CATEGORY_MESH_PATH_SEL:

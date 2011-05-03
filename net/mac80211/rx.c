@@ -495,8 +495,11 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			return RX_DROP_MONITOR;
 
 		if (ieee80211_is_action(hdr->frame_control)) {
+			u8 category;
 			mgmt = (struct ieee80211_mgmt *)hdr;
-			if (mgmt->u.action.category != WLAN_CATEGORY_MESH_PLINK)
+			category = mgmt->u.action.category;
+			if (category != WLAN_CATEGORY_MESH_ACTION &&
+				category != WLAN_CATEGORY_SELF_PROTECTED)
 				return RX_DROP_MONITOR;
 			return RX_CONTINUE;
 		}
@@ -2205,7 +2208,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto handled;
 		}
 		break;
-	case WLAN_CATEGORY_MESH_PLINK:
+	case WLAN_CATEGORY_MESH_ACTION:
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
 		goto queue;
