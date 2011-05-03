@@ -2310,6 +2310,7 @@ void drbd_delete_device(struct drbd_conf *mdev)
 	__free_page(mdev->md_io_page);
 	put_disk(mdev->vdisk);
 	blk_cleanup_queue(mdev->rq_queue);
+	kfree(mdev->rs_plan_s);
 	kfree(mdev);
 
 	kref_put(&tconn->kref, &conn_destroy);

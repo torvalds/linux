@@ -434,6 +434,21 @@ static void fifo_add_val(struct fifo_buffer *fb, int value)
 		fb->values[i] += value;
 }
 
+struct fifo_buffer *fifo_alloc(int fifo_size)
+{
+	struct fifo_buffer *fb;
+
+	fb = kzalloc(sizeof(struct fifo_buffer) + sizeof(int) * fifo_size, GFP_KERNEL);
+	if (!fb)
+		return NULL;
+
+	fb->head_index = 0;
+	fb->size = fifo_size;
+	fb->total = 0;
+
+	return fb;
+}
+
 static int drbd_rs_controller(struct drbd_conf *mdev)
 {
 	struct disk_conf *dc;
@@ -453,7 +468,7 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 	rcu_read_lock();
 	dc = rcu_dereference(mdev->ldev->disk_conf);
 
-	steps = mdev->rs_plan_s.size; /* (dc->c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
+	steps = mdev->rs_plan_s->size; /* (dc->c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
 
 	if (mdev->rs_in_flight + sect_in == 0) { /* At start of resync */
 		want = ((dc->resync_rate * 2 * SLEEP_TIME) / HZ) * steps;
@@ -462,16 +477,16 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 			sect_in * dc->c_delay_target * HZ / (SLEEP_TIME * 10);
 	}
 
-	correction = want - mdev->rs_in_flight - mdev->rs_planed;
+	correction = want - mdev->rs_in_flight - mdev->rs_plan_s->total;
 
 	/* Plan ahead */
 	cps = correction / steps;
-	fifo_add_val(&mdev->rs_plan_s, cps);
-	mdev->rs_planed += cps * steps;
+	fifo_add_val(mdev->rs_plan_s, cps);
+	mdev->rs_plan_s->total += cps * steps;
 
 	/* What we do in this step */
-	curr_corr = fifo_push(&mdev->rs_plan_s, 0);
-	mdev->rs_planed -= curr_corr;
+	curr_corr = fifo_push(mdev->rs_plan_s, 0);
+	mdev->rs_plan_s->total -= curr_corr;
 
 	req_sect = sect_in + curr_corr;
 	if (req_sect < 0)
@@ -495,7 +510,7 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 static int drbd_rs_number_requests(struct drbd_conf *mdev)
 {
 	int number;
-	if (mdev->rs_plan_s.size) { /* rcu_dereference(mdev->ldev->disk_conf)->c_plan_ahead */
+	if (mdev->rs_plan_s->size) { /* rcu_dereference(mdev->ldev->disk_conf)->c_plan_ahead */
 		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
 		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
 	} else {
@@ -1456,9 +1471,9 @@ void drbd_rs_controller_reset(struct drbd_conf *mdev)
 	atomic_set(&mdev->rs_sect_in, 0);
 	atomic_set(&mdev->rs_sect_ev, 0);
 	mdev->rs_in_flight = 0;
-	mdev->rs_planed = 0;
+	mdev->rs_plan_s->total = 0;
 	spin_lock(&mdev->peer_seq_lock);
-	fifo_set(&mdev->rs_plan_s, 0);
+	fifo_set(mdev->rs_plan_s, 0);
 	spin_unlock(&mdev->peer_seq_lock);
 }
 
