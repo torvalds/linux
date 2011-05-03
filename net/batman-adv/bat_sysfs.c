@@ -502,7 +502,9 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		rtnl_unlock();
 	}
 
+	rtnl_lock();
 	ret = hardif_enable_interface(hard_iface, buff);
+	rtnl_unlock();
 
 out:
 	hardif_free_ref(hard_iface);

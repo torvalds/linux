@@ -819,7 +819,7 @@ struct net_device *softif_create(char *name)
 		goto out;
 	}
 
-	ret = register_netdev(soft_iface);
+	ret = register_netdevice(soft_iface);
 	if (ret < 0) {
 		pr_err("Unable to register the batman interface '%s': %i\n",
 		       name, ret);
