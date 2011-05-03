@@ -4933,25 +4933,22 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	    (wlc_d11hdrs_mac80211(wlc, hw, pkt, scb, 0, 1, fifo, 0, NULL, 0)))
 		return -EINVAL;
 	wlc_txq_enq(wlc, scb, pkt, WLC_PRIO_TO_PREC(prio));
-	wlc_send_q(wlc, wlc->pkt_queue);
+	wlc_send_q(wlc);
 
 	wlc->pub->_cnt->ieee_tx++;
 	return 0;
 }
 
-void BCMFASTPATH wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi)
+void BCMFASTPATH wlc_send_q(struct wlc_info *wlc)
 {
 	struct sk_buff *pkt[DOT11_MAXNUMFRAGS];
 	int prec;
 	u16 prec_map;
 	int err = 0, i, count;
 	uint fifo;
+	struct wlc_txq_info *qi = wlc->pkt_queue;
 	struct pktq *q = &qi->q;
 	struct ieee80211_tx_info *tx_info;
-
-	/* only do work for the packet queue */
-	if (qi != wlc->pkt_queue)
-		return;
 
 	if (in_send_q)
 		return;
@@ -6183,7 +6180,7 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 
 	/* send any enq'd tx packets. Just makes sure to jump start tx */
 	if (!pktq_empty(&wlc->pkt_queue->q))
-		wlc_send_q(wlc, wlc->pkt_queue);
+		wlc_send_q(wlc);
 }
 
 static void wlc_war16165(struct wlc_info *wlc, bool tx)

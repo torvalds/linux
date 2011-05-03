@@ -420,7 +420,7 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 
 	/* send any enq'd tx packets. Just makes sure to jump start tx */
 	if (!pktq_empty(&wlc->pkt_queue->q))
-		wlc_send_q(wlc, wlc->pkt_queue);
+		wlc_send_q(wlc);
 
 	/* it isn't done and needs to be resched if macintstatus is non-zero */
 	return wlc->macintstatus != 0;
@@ -3088,7 +3088,7 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 		morepending = true;
 
 	if (!pktq_empty(&wlc->pkt_queue->q))
-		wlc_send_q(wlc, wlc->pkt_queue);
+		wlc_send_q(wlc);
 
 	return morepending;
 }

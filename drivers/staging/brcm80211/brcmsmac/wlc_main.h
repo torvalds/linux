@@ -856,7 +856,7 @@ extern void wlc_txflowcontrol_override(struct wlc_info *wlc,
 				       bool on, uint override);
 extern bool wlc_txflowcontrol_prio_isset(struct wlc_info *wlc,
 					 struct wlc_txq_info *qi, int prio);
-extern void wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi);
+extern void wlc_send_q(struct wlc_info *wlc);
 extern int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifo);
 
 extern u16 wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec,
