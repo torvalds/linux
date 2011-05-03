@@ -117,6 +117,8 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -EKEYEXPIRED:
 		rpc_delay(task, FILELAYOUT_POLL_RETRY_MAX);
 		break;
+	case -NFS4ERR_RETRY_UNCACHED_REP:
+		break;
 	default:
 		dprintk("%s DS error. Retry through MDS %d\n", __func__,
 			task->tk_status);
