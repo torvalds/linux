@@ -335,6 +335,13 @@ static int snd_intelmad_open(struct snd_pcm_substream *substream,
 	runtime = substream->runtime;
 	/* set the runtime hw parameter with local snd_pcm_hardware struct */
 	runtime->hw = snd_intelmad_stream;
+	if (intelmaddata->cpu_id == CPU_CHIP_LINCROFT) {
+		/*
+		 * MRST firmware currently denies stereo recording requests.
+		 */
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			runtime->hw.channels_max = 1;
+	}
 	if (intelmaddata->cpu_id == CPU_CHIP_PENWELL) {
 		runtime->hw = snd_intelmad_stream;
 		runtime->hw.rates = SNDRV_PCM_RATE_48000;
