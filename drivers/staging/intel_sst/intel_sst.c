@@ -107,6 +107,9 @@ static irqreturn_t intel_sst_interrupt(int irq, void *context)
 	unsigned int size = 0, str_id;
 	struct stream_info *stream ;
 
+	/* Do not handle interrupt in suspended state */
+	if (drv->sst_state == SST_SUSPENDED)
+		return IRQ_NONE;
 	/* Interrupt arrived, check src */
 	isr.full = sst_shim_read(drv->shim, SST_ISRX);
 
