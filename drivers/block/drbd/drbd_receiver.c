@@ -3379,7 +3379,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 
 		/* Never shrink a device with usable data during connect.
 		   But allow online shrinking if we are connected. */
-		if (drbd_new_dev_size(mdev, mdev->ldev, 0) <
+		if (drbd_new_dev_size(mdev, mdev->ldev, p_usize, 0) <
 		   drbd_get_capacity(mdev->this_bdev) &&
 		   mdev->state.disk >= D_OUTDATED &&
 		   mdev->state.conn < C_CONNECTED) {
