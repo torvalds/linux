@@ -1044,7 +1044,6 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 		dc->out->enable();
 
 	tegra_dc_setup_clk(dc, dc->clk);
-	tegra_periph_reset_assert(dc->clk);
 	clk_enable(dc->clk);
 	clk_enable(dc->emc_clk);
 	tegra_periph_reset_deassert(dc->clk);
@@ -1121,6 +1120,10 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	mutex_lock(&dc->lock);
 	if (dc->enabled && !dc->suspended) {
 		_tegra_dc_disable(dc);
+
+		/* A necessary wait. */
+		msleep(100);
+		tegra_periph_reset_assert(dc->clk);
 
 		/* _tegra_dc_enable deasserts reset */
 		_tegra_dc_enable(dc);
