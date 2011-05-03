@@ -455,11 +455,6 @@ typedef struct si_info {
 } si_info_t;
 
 /* AMBA Interconnect exported externs */
-#if 0
-extern si_t *ai_attach(uint pcidev, struct osl_info *osh, void *regs,
-		       uint bustype, void *sdh, char **vars, uint *varsz);
-extern si_t *ai_kattach(struct osl_info *osh);
-#endif
 extern void ai_scan(si_t *sih, void *regs, uint devid);
 
 extern uint ai_flag(si_t *sih);
@@ -489,9 +484,7 @@ extern void si_detach(si_t *sih);
 extern bool si_pci_war16165(si_t *sih);
 
 extern uint si_coreid(si_t *sih);
-extern uint si_flag(si_t *sih);
 extern uint si_corerev(si_t *sih);
-struct osl_info *si_osh(si_t *sih);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		uint val);
 extern void si_write_wrapperreg(si_t *sih, u32 offset, u32 val);
@@ -520,16 +513,8 @@ extern u16 si_clkctl_fast_pwrup_delay(si_t *sih);
 extern bool si_clkctl_cc(si_t *sih, uint mode);
 extern int si_clkctl_xtal(si_t *sih, uint what, bool on);
 extern bool si_deviceremoved(si_t *sih);
-extern u32 si_socram_size(si_t *sih);
-
-extern void si_watchdog(si_t *sih, uint ticks);
 extern u32 si_gpiocontrol(si_t *sih, u32 mask, u32 val,
 			     u8 priority);
-
-#define si_eci(sih) 0
-#define si_eci_init(sih) (0)
-#define si_eci_notify_bt(sih, type, val)  (0)
-#define si_seci(sih) 0
 
 /* OTP status */
 extern bool si_is_otp_disabled(si_t *sih);
@@ -549,11 +534,9 @@ extern int si_devpath(si_t *sih, char *path, int size);
 extern char *si_getdevpathvar(si_t *sih, const char *name);
 extern int si_getdevpathintvar(si_t *sih, const char *name);
 
-extern void si_war42780_clkreq(si_t *sih, bool clkreq);
 extern void si_pci_sleep(si_t *sih);
 extern void si_pci_down(si_t *sih);
 extern void si_pci_up(si_t *sih);
-extern void si_pcie_extendL1timer(si_t *sih, bool extend);
 extern int si_pci_fixcfg(si_t *sih);
 
 extern void si_chipcontrl_epa4331(si_t *sih, bool on);
