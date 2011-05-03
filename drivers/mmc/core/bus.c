@@ -284,6 +284,7 @@ int mmc_add_card(struct mmc_card *card)
 		type = "SD-combo";
 		if (mmc_card_blockaddr(card))
 			type = "SDHC-combo";
+		break;
 	default:
 		type = "?";
 		break;
