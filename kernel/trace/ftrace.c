@@ -1703,6 +1703,7 @@ enum {
 	FTRACE_ITER_NOTRACE	= (1 << 1),
 	FTRACE_ITER_PRINTALL	= (1 << 2),
 	FTRACE_ITER_HASH	= (1 << 3),
+	FTRACE_ITER_ENABLED	= (1 << 4),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -1842,7 +1843,11 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		     !(ftrace_lookup_ip(ops->filter_hash, rec->ip))) ||
 
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
-		     !ftrace_lookup_ip(ops->notrace_hash, rec->ip))) {
+		     !ftrace_lookup_ip(ops->notrace_hash, rec->ip)) ||
+
+		    ((iter->flags & FTRACE_ITER_ENABLED) &&
+		     !(rec->flags & ~FTRACE_FL_MASK))) {
+
 			rec = NULL;
 			goto retry;
 		}
@@ -1944,7 +1949,11 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	seq_printf(m, "%ps\n", (void *)rec->ip);
+	seq_printf(m, "%ps", (void *)rec->ip);
+	if (iter->flags & FTRACE_ITER_ENABLED)
+		seq_printf(m, " (%ld)",
+			   rec->flags & ~FTRACE_FL_MASK);
+	seq_printf(m, "\n");
 
 	return 0;
 }
@@ -1970,6 +1979,34 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	iter->pg = ftrace_pages_start;
+
+	ret = seq_open(file, &show_ftrace_seq_ops);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+
+		m->private = iter;
+	} else {
+		kfree(iter);
+	}
+
+	return ret;
+}
+
+static int
+ftrace_enabled_open(struct inode *inode, struct file *file)
+{
+	struct ftrace_iterator *iter;
+	int ret;
+
+	if (unlikely(ftrace_disabled))
+		return -ENODEV;
+
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return -ENOMEM;
+
+	iter->pg = ftrace_pages_start;
+	iter->flags = FTRACE_ITER_ENABLED;
 
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
@@ -2838,6 +2875,13 @@ static const struct file_operations ftrace_avail_fops = {
 	.release = seq_release_private,
 };
 
+static const struct file_operations ftrace_enabled_fops = {
+	.open = ftrace_enabled_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private,
+};
+
 static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
@@ -3068,6 +3112,9 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 
 	trace_create_file("available_filter_functions", 0444,
 			d_tracer, NULL, &ftrace_avail_fops);
+
+	trace_create_file("enabled_functions", 0444,
+			d_tracer, NULL, &ftrace_enabled_fops);
 
 	trace_create_file("set_ftrace_filter", 0644, d_tracer,
 			NULL, &ftrace_filter_fops);
