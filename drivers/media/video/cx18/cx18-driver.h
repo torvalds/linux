@@ -412,11 +412,11 @@ struct cx18_stream {
 	u32 pixelformat;
 	struct list_head vb_capture;    /* video capture queue */
 	spinlock_t vb_lock;
-	struct v4l2_framebuffer fbuf;
-	v4l2_std_id tvnorm; /* selected tv norm */
 	struct timer_list vb_timeout;
-	int vbwidth;
-	int vbheight;
+
+	struct videobuf_queue vbuf_q;
+	spinlock_t vbuf_q_lock; /* Protect vbuf_q */
+	enum v4l2_buf_type vb_type;
 };
 
 struct cx18_videobuf_buffer {

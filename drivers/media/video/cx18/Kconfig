@@ -2,7 +2,6 @@ config VIDEO_CX18
 	tristate "Conexant cx23418 MPEG encoder support"
 	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C && EXPERIMENTAL
 	select I2C_ALGOBIT
-	select VIDEOBUF_DVB
 	select VIDEOBUF_VMALLOC
 	depends on RC_CORE
 	select VIDEO_TUNER

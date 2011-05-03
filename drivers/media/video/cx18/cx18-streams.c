@@ -98,6 +98,141 @@ static struct {
 	},
 };
 
+
+void cx18_dma_free(struct videobuf_queue *q,
+	struct cx18_stream *s, struct cx18_videobuf_buffer *buf)
+{
+	videobuf_waiton(q, &buf->vb, 0, 0);
+	videobuf_vmalloc_free(&buf->vb);
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
+}
+
+static int cx18_prepare_buffer(struct videobuf_queue *q,
+	struct cx18_stream *s,
+	struct cx18_videobuf_buffer *buf,
+	u32 pixelformat,
+	unsigned int width, unsigned int height,
+	enum v4l2_field field)
+{
+        struct cx18 *cx = s->cx;
+	int rc = 0;
+
+	/* check settings */
+	buf->bytes_used = 0;
+
+	if ((width  < 48) || (height < 32))
+		return -EINVAL;
+
+	buf->vb.size = (width * height * 2);
+	if ((buf->vb.baddr != 0) && (buf->vb.bsize < buf->vb.size))
+		return -EINVAL;
+
+	/* alloc + fill struct (if changed) */
+	if (buf->vb.width != width || buf->vb.height != height ||
+	    buf->vb.field != field || s->pixelformat != pixelformat ||
+	    buf->tvnorm != cx->std) {
+
+		buf->vb.width  = width;
+		buf->vb.height = height;
+		buf->vb.field  = field;
+		buf->tvnorm    = cx->std;
+		s->pixelformat = pixelformat;
+
+		cx18_dma_free(q, s, buf);
+	}
+
+	if ((buf->vb.baddr != 0) && (buf->vb.bsize < buf->vb.size))
+		return -EINVAL;
+
+	if (buf->vb.field == 0)
+		buf->vb.field = V4L2_FIELD_INTERLACED;
+
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
+		buf->vb.width  = width;
+		buf->vb.height = height;
+		buf->vb.field  = field;
+		buf->tvnorm    = cx->std;
+		s->pixelformat = pixelformat;
+
+		rc = videobuf_iolock(q, &buf->vb, NULL);
+		if (rc != 0)
+			goto fail;
+	}
+	buf->vb.state = VIDEOBUF_PREPARED;
+	return 0;
+
+fail:
+	cx18_dma_free(q, s, buf);
+	return rc;
+
+}
+
+/* VB_MIN_BUFSIZE is lcm(1440 * 480, 1440 * 576)
+   1440 is a single line of 4:2:2 YUV at 720 luma samples wide
+*/
+#define VB_MIN_BUFFERS 32
+#define VB_MIN_BUFSIZE 4147200
+
+static int buffer_setup(struct videobuf_queue *q,
+	unsigned int *count, unsigned int *size)
+{
+	struct cx18_stream *s = q->priv_data;
+	struct cx18 *cx = s->cx;
+
+	*size = 2 * cx->cxhdl.width * cx->cxhdl.height;
+	if (*count == 0)
+		*count = VB_MIN_BUFFERS;
+
+	while (*size * *count > VB_MIN_BUFFERS * VB_MIN_BUFSIZE)
+		(*count)--;
+
+	q->field = V4L2_FIELD_INTERLACED;
+	q->last = V4L2_FIELD_INTERLACED;
+
+	return 0;
+}
+
+static int buffer_prepare(struct videobuf_queue *q,
+	struct videobuf_buffer *vb,
+	enum v4l2_field field)
+{
+	struct cx18_videobuf_buffer *buf =
+		container_of(vb, struct cx18_videobuf_buffer, vb);
+	struct cx18_stream *s = q->priv_data;
+	struct cx18 *cx = s->cx;
+
+	return cx18_prepare_buffer(q, s, buf, s->pixelformat,
+		cx->cxhdl.width, cx->cxhdl.height, field);
+}
+
+static void buffer_release(struct videobuf_queue *q,
+	struct videobuf_buffer *vb)
+{
+	struct cx18_videobuf_buffer *buf =
+		container_of(vb, struct cx18_videobuf_buffer, vb);
+	struct cx18_stream *s = q->priv_data;
+
+	cx18_dma_free(q, s, buf);
+}
+
+static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+{
+	struct cx18_videobuf_buffer *buf =
+		container_of(vb, struct cx18_videobuf_buffer, vb);
+	struct cx18_stream *s = q->priv_data;
+
+	buf->vb.state = VIDEOBUF_QUEUED;
+
+	list_add_tail(&buf->vb.queue, &s->vb_capture);
+}
+
+static struct videobuf_queue_ops cx18_videobuf_qops = {
+	.buf_setup    = buffer_setup,
+	.buf_prepare  = buffer_prepare,
+	.buf_queue    = buffer_queue,
+	.buf_release  = buffer_release,
+};
+
 static void cx18_stream_init(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
@@ -139,9 +274,18 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->vb_timeout.data = (unsigned long)s;
 	init_timer(&s->vb_timeout);
 	spin_lock_init(&s->vb_lock);
+	if (type == CX18_ENC_STREAM_TYPE_YUV) {
+		s->vb_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		videobuf_queue_vmalloc_init(&s->vbuf_q, &cx18_videobuf_qops,
+			&cx->pci_dev->dev, &s->vbuf_q_lock,
+			V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			V4L2_FIELD_INTERLACED,
+			sizeof(struct cx18_videobuf_buffer),
+			s, &cx->serialize_lock);
 
-	/* Assume the previous pixel default */
-	s->pixelformat = V4L2_PIX_FMT_HM12;
+		/* Assume the previous pixel default */
+		s->pixelformat = V4L2_PIX_FMT_HM12;
+	}
 }
 
 static int cx18_prep_dev(struct cx18 *cx, int type)
@@ -382,6 +526,9 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 		if (vdev == NULL)
 			continue;
 
+		if (type == CX18_ENC_STREAM_TYPE_YUV)
+			videobuf_mmap_free(&cx->streams[type].vbuf_q);
+
 		cx18_stream_free(&cx->streams[type]);
 
 		/* Unregister or release device */
@@ -591,7 +738,10 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 		 * Set the MDL size to the exact size needed for one frame.
 		 * Use enough buffers per MDL to cover the MDL size
 		 */
-		s->mdl_size = 720 * s->cx->cxhdl.height * 3 / 2;
+		if (s->pixelformat == V4L2_PIX_FMT_HM12)
+			s->mdl_size = 720 * s->cx->cxhdl.height * 3 / 2;
+		else
+			s->mdl_size = 720 * s->cx->cxhdl.height * 2;
 		s->bufs_per_mdl = s->mdl_size / s->buf_size;
 		if (s->mdl_size % s->buf_size)
 			s->bufs_per_mdl++;
@@ -744,7 +894,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		 * rather than the default HM12 Macroblovk 4:2:0 support.
 		 */
 		if (captype == CAPTURE_CHANNEL_TYPE_YUV) {
-			if (s->pixelformat == V4L2_PIX_FMT_YUYV)
+			if (s->pixelformat == V4L2_PIX_FMT_UYVY)
 				cx18_vapi(cx, CX18_CPU_SET_VFC_PARAM, 2,
 					s->handle, 1);
 			else

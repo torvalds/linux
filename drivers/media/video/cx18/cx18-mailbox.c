@@ -177,7 +177,7 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 	if (list_empty(&s->vb_capture))
 		goto out;
 
-	vb_buf = list_entry(s->vb_capture.next, struct cx18_videobuf_buffer,
+	vb_buf = list_first_entry(&s->vb_capture, struct cx18_videobuf_buffer,
 		vb.queue);
 
 	p = videobuf_to_vmalloc(&vb_buf->vb);
@@ -202,25 +202,14 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 		vb_buf->bytes_used = 0;
 	}
 
-	/* */
 	if (dispatch) {
-
-		if (s->pixelformat == V4L2_PIX_FMT_YUYV) {
-			/* UYVY to YUYV */
-			for (i = 0; i < (720 * 480 * 2); i += 2) {
-				u = *(p + i);
-				*(p + i) = *(p + i + 1);
-				*(p + i + 1) = u;
-			}
-		}
-
-		do_gettimeofday(&vb_buf->vb.ts);
+		ktime_get_ts(&vb_buf->vb.ts);
 		list_del(&vb_buf->vb.queue);
 		vb_buf->vb.state = VIDEOBUF_DONE;
 		wake_up(&vb_buf->vb.done);
 	}
 
-	mod_timer(&s->vb_timeout, jiffies + (HZ / 10));
+	mod_timer(&s->vb_timeout, msecs_to_jiffies(2000) + jiffies);
 
 out:
 	spin_unlock(&s->vb_lock);

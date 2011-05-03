@@ -598,9 +598,9 @@ ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 	if (rc)
 		return rc;
 
-	if ((id->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	if ((s->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
 		(id->type == CX18_ENC_STREAM_TYPE_YUV)) {
-		return videobuf_read_stream(&id->vbuf_q, buf, count, pos, 0,
+		return videobuf_read_stream(&s->vbuf_q, buf, count, pos, 0,
 			filp->f_flags & O_NONBLOCK);
 	}
 
@@ -629,9 +629,13 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		CX18_DEBUG_FILE("Encoder poll started capture\n");
 	}
 
-	if ((id->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	if ((s->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
 		(id->type == CX18_ENC_STREAM_TYPE_YUV)) {
-		return videobuf_poll_stream(filp, &id->vbuf_q, wait);
+		int videobuf_poll = videobuf_poll_stream(filp, &s->vbuf_q, wait);
+                if (eof && videobuf_poll == POLLERR)
+                        return POLLHUP;
+                else
+                        return videobuf_poll;
 	}
 
 	/* add stream's waitq to the poll list */
@@ -652,7 +656,7 @@ int cx18_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	struct cx18_stream *s = &cx->streams[id->type];
 	int eof = test_bit(CX18_F_S_STREAMOFF, &s->s_flags);
 
-	if ((id->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	if ((s->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
 		(id->type == CX18_ENC_STREAM_TYPE_YUV)) {
 
 		/* Start a capture if there is none */
@@ -668,10 +672,10 @@ int cx18_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 					s->name, rc);
 				return -EINVAL;
 			}
-			CX18_DEBUG_FILE("Encoder poll started capture\n");
+			CX18_DEBUG_FILE("Encoder mmap started capture\n");
 		}
 
-		return videobuf_mmap_mapper(&id->vbuf_q, vma);
+		return videobuf_mmap_mapper(&s->vbuf_q, vma);
 	}
 
 	return -EINVAL;
@@ -788,142 +792,6 @@ int cx18_v4l2_close(struct file *filp)
 	return 0;
 }
 
-void cx18_dma_free(struct videobuf_queue *q,
-	struct cx18_stream *s, struct cx18_videobuf_buffer *buf)
-{
-	videobuf_waiton(q, &buf->vb, 0, 0);
-	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
-}
-
-static int cx18_prepare_buffer(struct videobuf_queue *q,
-	struct cx18_stream *s,
-	struct cx18_videobuf_buffer *buf,
-	u32 pixelformat,
-	unsigned int width, unsigned int height,
-	enum v4l2_field field)
-{
-	int rc = 0;
-
-	/* check settings */
-	buf->bytes_used = 0;
-
-	if ((width  < 48) || (height < 32))
-		return -EINVAL;
-
-	buf->vb.size = (width * height * 16 /*fmt->depth*/) >> 3;
-	if ((buf->vb.baddr != 0) && (buf->vb.bsize < buf->vb.size))
-		return -EINVAL;
-
-	/* alloc + fill struct (if changed) */
-	if (buf->vb.width != width || buf->vb.height != height ||
-	    buf->vb.field != field || s->pixelformat != pixelformat ||
-	    buf->tvnorm != s->tvnorm) {
-
-		buf->vb.width  = width;
-		buf->vb.height = height;
-		buf->vb.field  = field;
-		buf->tvnorm    = s->tvnorm;
-		s->pixelformat = pixelformat;
-
-		cx18_dma_free(q, s, buf);
-	}
-
-	if ((buf->vb.baddr != 0) && (buf->vb.bsize < buf->vb.size))
-		return -EINVAL;
-
-	if (buf->vb.field == 0)
-		buf->vb.field = V4L2_FIELD_INTERLACED;
-
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		buf->vb.width  = width;
-		buf->vb.height = height;
-		buf->vb.field  = field;
-		buf->tvnorm    = s->tvnorm;
-		s->pixelformat = pixelformat;
-
-		rc = videobuf_iolock(q, &buf->vb, &s->fbuf);
-		if (rc != 0)
-			goto fail;
-	}
-	buf->vb.state = VIDEOBUF_PREPARED;
-	return 0;
-
-fail:
-	cx18_dma_free(q, s, buf);
-	return rc;
-
-}
-
-#define VB_MIN_BUFFERS 32
-#define VB_MIN_BUFSIZE 0x208000
-
-static int buffer_setup(struct videobuf_queue *q,
-	unsigned int *count, unsigned int *size)
-{
-	struct cx18_open_id *id = q->priv_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	*size = 2 * s->vbwidth * s->vbheight;
-	if (*count == 0)
-		*count = VB_MIN_BUFFERS;
-
-	while (*size * *count > VB_MIN_BUFFERS * VB_MIN_BUFSIZE)
-		(*count)--;
-
-	q->field = V4L2_FIELD_INTERLACED;
-	q->last = V4L2_FIELD_INTERLACED;
-
-	return 0;
-}
-
-static int buffer_prepare(struct videobuf_queue *q,
-	struct videobuf_buffer *vb,
-	enum v4l2_field field)
-{
-	struct cx18_videobuf_buffer *buf =
-		container_of(vb, struct cx18_videobuf_buffer, vb);
-	struct cx18_open_id *id = q->priv_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	return cx18_prepare_buffer(q, s, buf, s->pixelformat,
-		s->vbwidth, s->vbheight, field);
-}
-
-static void buffer_release(struct videobuf_queue *q,
-	struct videobuf_buffer *vb)
-{
-	struct cx18_videobuf_buffer *buf =
-		container_of(vb, struct cx18_videobuf_buffer, vb);
-	struct cx18_open_id *id = q->priv_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	cx18_dma_free(q, s, buf);
-}
-
-static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct cx18_videobuf_buffer *buf =
-		container_of(vb, struct cx18_videobuf_buffer, vb);
-	struct cx18_open_id *id = q->priv_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	buf->vb.state = VIDEOBUF_QUEUED;
-
-	list_add_tail(&buf->vb.queue, &s->vb_capture);
-}
-
-static struct videobuf_queue_ops cx18_videobuf_qops = {
-	.buf_setup    = buffer_setup,
-	.buf_prepare  = buffer_prepare,
-	.buf_queue    = buffer_queue,
-	.buf_release  = buffer_release,
-};
-
 static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 {
 	struct cx18 *cx = s->cx;
@@ -942,8 +810,8 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	item->cx = cx;
 	item->type = s->type;
 
-	spin_lock_init(&item->s_lock);
-	item->vb_type = 0;
+	spin_lock_init(&s->vbuf_q_lock);
+	s->vb_type = 0;
 
 	item->open_id = cx->open_id++;
 	filp->private_data = &item->fh;
@@ -978,15 +846,6 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		cx18_audio_set_io(cx);
 		/* Done! Unmute and continue. */
 		cx18_unmute(cx);
-	}
-	if (item->type == CX18_ENC_STREAM_TYPE_YUV) {
-		item->vb_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		videobuf_queue_vmalloc_init(&item->vbuf_q, &cx18_videobuf_qops,
-			&cx->pci_dev->dev, &item->s_lock,
-			V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_INTERLACED,
-			sizeof(struct cx18_videobuf_buffer),
-			item, &cx->serialize_lock);
 	}
 	v4l2_fh_add(&item->fh);
 	return 0;
