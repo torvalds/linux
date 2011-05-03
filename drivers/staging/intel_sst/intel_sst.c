@@ -371,7 +371,8 @@ free_mad_wq:
 	destroy_workqueue(sst_drv_ctx->mad_wq);
 do_free_drv_ctx:
 	kfree(sst_drv_ctx);
-	pr_err("Probe failed with 0x%x\n", ret);
+	sst_drv_ctx = NULL;
+	pr_err("Probe failed with %d\n", ret);
 	return ret;
 }
 
@@ -407,11 +408,9 @@ static void __devexit intel_sst_remove(struct pci_dev *pci)
 	destroy_workqueue(sst_drv_ctx->post_msg_wq);
 	destroy_workqueue(sst_drv_ctx->mad_wq);
 	kfree(sst_drv_ctx);
-	pci_release_region(pci, 1);
-	pci_release_region(pci, 2);
-	pci_release_region(pci, 3);
-	pci_release_region(pci, 4);
-	pci_release_region(pci, 5);
+	sst_drv_ctx = NULL;
+	pci_release_regions(pci);
+	pci_disable_device(pci);
 	pci_set_drvdata(pci, NULL);
 }
 
@@ -604,6 +603,7 @@ static void __exit intel_sst_exit(void)
 	pci_unregister_driver(&driver);
 
 	pr_debug("driver unloaded\n");
+	sst_drv_ctx = NULL;
 	return;
 }
 
