@@ -863,7 +863,10 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[4].reg_addr = AUXDBNC;
 		sc_access[4].mask = MASK7|MASK6|MASK5|MASK4|MASK3|MASK2|MASK1|MASK0;
 		sc_access[4].value = 0xff;
-		num_val = 5;
+		sc_access[5].reg_addr = ADCSAMPLERATE;
+		sc_access[5].mask = MASK7|MASK6|MASK5|MASK4|MASK3;
+		sc_access[5].value = 0xc8;
+		num_val = 6;
 		break;
 
 	case DMIC:
