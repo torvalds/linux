@@ -3184,6 +3184,59 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 	return 0;
 }
 
+static __devinit void init_driver_version(char *driver_version, int len)
+{
+	memset(driver_version, 0, len);
+	strncpy(driver_version, "hpsa " HPSA_DRIVER_VERSION, len - 1);
+}
+
+static __devinit int write_driver_ver_to_cfgtable(
+	struct CfgTable __iomem *cfgtable)
+{
+	char *driver_version;
+	int i, size = sizeof(cfgtable->driver_version);
+
+	driver_version = kmalloc(size, GFP_KERNEL);
+	if (!driver_version)
+		return -ENOMEM;
+
+	init_driver_version(driver_version, size);
+	for (i = 0; i < size; i++)
+		writeb(driver_version[i], &cfgtable->driver_version[i]);
+	kfree(driver_version);
+	return 0;
+}
+
+static __devinit void read_driver_ver_from_cfgtable(
+	struct CfgTable __iomem *cfgtable, unsigned char *driver_ver)
+{
+	int i;
+
+	for (i = 0; i < sizeof(cfgtable->driver_version); i++)
+		driver_ver[i] = readb(&cfgtable->driver_version[i]);
+}
+
+static __devinit int controller_reset_failed(
+	struct CfgTable __iomem *cfgtable)
+{
+
+	char *driver_ver, *old_driver_ver;
+	int rc, size = sizeof(cfgtable->driver_version);
+
+	old_driver_ver = kmalloc(2 * size, GFP_KERNEL);
+	if (!old_driver_ver)
+		return -ENOMEM;
+	driver_ver = old_driver_ver + size;
+
+	/* After a reset, the 32 bytes of "driver version" in the cfgtable
+	 * should have been changed, otherwise we know the reset failed.
+	 */
+	init_driver_version(old_driver_ver, size);
+	read_driver_ver_from_cfgtable(cfgtable, driver_ver);
+	rc = !memcmp(driver_ver, old_driver_ver, size);
+	kfree(old_driver_ver);
+	return rc;
+}
 /* This does a hard reset of the controller using PCI power management
  * states or the using the doorbell register.
  */
@@ -3194,7 +3247,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	u64 cfg_base_addr_index;
 	void __iomem *vaddr;
 	unsigned long paddr;
-	u32 misc_fw_support, active_transport;
+	u32 misc_fw_support;
 	int rc;
 	struct CfgTable __iomem *cfgtable;
 	bool use_doorbell;
@@ -3256,6 +3309,9 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 		rc = -ENOMEM;
 		goto unmap_vaddr;
 	}
+	rc = write_driver_ver_to_cfgtable(cfgtable);
+	if (rc)
+		goto unmap_vaddr;
 
 	/* If reset via doorbell register is supported, use that. */
 	misc_fw_support = readl(&cfgtable->misc_fw_support);
@@ -3289,19 +3345,16 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 			"failed waiting for board to become ready\n");
 		goto unmap_cfgtable;
 	}
-	dev_info(&pdev->dev, "board ready.\n");
 
-	/* Controller should be in simple mode at this point.  If it's not,
-	 * It means we're on one of those controllers which doesn't support
-	 * the doorbell reset method and on which the PCI power management reset
-	 * method doesn't work (P800, for example.)
-	 * In those cases, don't try to proceed, as it generally doesn't work.
-	 */
-	active_transport = readl(&cfgtable->TransportActive);
-	if (active_transport & PERFORMANT_MODE) {
+	rc = controller_reset_failed(vaddr);
+	if (rc < 0)
+		goto unmap_cfgtable;
+	if (rc) {
 		dev_warn(&pdev->dev, "Unable to successfully reset controller,"
 			" Ignoring controller.\n");
 		rc = -ENODEV;
+	} else {
+		dev_info(&pdev->dev, "board ready.\n");
 	}
 
 unmap_cfgtable:
@@ -3542,6 +3595,9 @@ static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 		       cfg_base_addr_index) + cfg_offset, sizeof(*h->cfgtable));
 	if (!h->cfgtable)
 		return -ENOMEM;
+	rc = write_driver_ver_to_cfgtable(h->cfgtable);
+	if (rc)
+		return rc;
 	/* Find performant mode table. */
 	trans_offset = readl(&h->cfgtable->TransMethodOffset);
 	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
