@@ -1401,7 +1401,8 @@ void suspend_other_sg(struct drbd_conf *mdev)
 	write_unlock_irq(&global_state_lock);
 }
 
-static int sync_after_error(struct drbd_conf *mdev, int o_minor)
+/* caller must hold global_state_lock */
+enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
 {
 	struct drbd_conf *odev;
 
@@ -1425,22 +1426,15 @@ static int sync_after_error(struct drbd_conf *mdev, int o_minor)
 	}
 }
 
-int drbd_alter_sa(struct drbd_conf *mdev, int na)
+/* caller must hold global_state_lock */
+void drbd_sync_after_changed(struct drbd_conf *mdev)
 {
 	int changes;
-	int retcode;
 
-	write_lock_irq(&global_state_lock);
-	retcode = sync_after_error(mdev, na);
-	if (retcode == NO_ERROR) {
-		mdev->ldev->dc.resync_after = na;
-		do {
-			changes  = _drbd_pause_after(mdev);
-			changes |= _drbd_resume_next(mdev);
-		} while (changes);
-	}
-	write_unlock_irq(&global_state_lock);
-	return retcode;
+	do {
+		changes  = _drbd_pause_after(mdev);
+		changes |= _drbd_resume_next(mdev);
+	} while (changes);
 }
 
 void drbd_rs_controller_reset(struct drbd_conf *mdev)

@@ -1145,13 +1145,6 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (!expect(new_disk_conf->al_extents <= DRBD_AL_EXTENTS_MAX))
 		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MAX;
 
-	/* most sanity checks done, try to assign the new sync-after
-	 * dependency.  need to hold the global lock in there,
-	 * to avoid a race in the dependency loop check. */
-	retcode = drbd_alter_sa(mdev, new_disk_conf->resync_after);
-	if (retcode != NO_ERROR)
-		goto fail;
-
 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 	if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
 		rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
@@ -1185,7 +1178,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	 * To avoid someone looking at a half-updated struct, we probably
 	 * should have a rw-semaphor on net_conf and disk_conf.
 	 */
-	mdev->ldev->dc = *new_disk_conf;
+	write_lock_irq(&global_state_lock);
+	retcode = drbd_sync_after_valid(mdev, new_disk_conf->resync_after);
+	if (retcode == NO_ERROR) {
+		mdev->ldev->dc = *new_disk_conf;
+		drbd_sync_after_changed(mdev);
+	}
+	write_unlock_irq(&global_state_lock);
 
 	drbd_md_sync(mdev);
 
