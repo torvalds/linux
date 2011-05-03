@@ -787,9 +787,8 @@ static int nc_set_vol(int dev_id, int value)
 	case PMIC_SND_LEFT_PB_VOL:
 		pr_debug("PMIC_SND_LEFT_HP_VOL %d\n", value);
 		sc_access[0].value = -value;
-		sc_access[0].reg_addr  = AUDIOLVOL;
-		sc_access[0].mask =
-			(MASK0|MASK1|MASK2|MASK3|MASK4|MASK5|MASK6);
+		sc_access[0].reg_addr  = HPLVOL;
+		sc_access[0].mask = (MASK0|MASK1|MASK2|MASK3|MASK4);
 		entries = 1;
 		break;
 
@@ -797,15 +796,32 @@ static int nc_set_vol(int dev_id, int value)
 		pr_debug("PMIC_SND_RIGHT_HP_VOL value %d\n", value);
 		if (snd_pmic_ops_nc.num_channel == 1) {
 			sc_access[0].value = 0x04;
-		    sc_access[0].reg_addr = RMUTE;
+			sc_access[0].reg_addr = RMUTE;
 			sc_access[0].mask = MASK2;
 		} else {
+			sc_access[0].value = -value;
+			sc_access[0].reg_addr  = HPRVOL;
+			sc_access[0].mask = (MASK0|MASK1|MASK2|MASK3|MASK4);
+		}
+		entries = 1;
+		break;
+
+	case PMIC_SND_LEFT_MASTER_VOL:
+		pr_debug("PMIC_SND_LEFT_MASTER_VOL value %d\n", value);
 		sc_access[0].value = -value;
-		sc_access[0].reg_addr  = AUDIORVOL;
+		sc_access[0].reg_addr = AUDIOLVOL;
+		sc_access[0].mask =
+			(MASK0|MASK1|MASK2|MASK3|MASK4|MASK5|MASK6);
+		entries = 1;
+		break;
+
+	case PMIC_SND_RIGHT_MASTER_VOL:
+		pr_debug("PMIC_SND_RIGHT_MASTER_VOL value %d\n", value);
+		sc_access[0].value = -value;
+		sc_access[0].reg_addr = AUDIORVOL;
 		sc_access[0].mask =
 				(MASK0|MASK1|MASK2|MASK3|MASK4|MASK5|MASK6);
 		entries = 1;
-		}
 		break;
 
 	default:
@@ -970,16 +986,28 @@ static int nc_get_vol(int dev_id, int *value)
 		mask = (MASK0|MASK1|MASK2|MASK3|MASK4|MASK5);
 		break;
 
-	case PMIC_SND_RIGHT_PB_VOL:
-		pr_debug("GET_VOLUME_PMIC_LEFT_HP_VOL\n");
+	case PMIC_SND_LEFT_MASTER_VOL:
+		pr_debug("GET_VOLUME_PMIC_LEFT_MASTER_VOL\n");
 		sc_access.reg_addr = AUDIOLVOL;
 		mask = (MASK0|MASK1|MASK2|MASK3|MASK4|MASK5|MASK6);
 		break;
 
-	case PMIC_SND_LEFT_PB_VOL:
-		pr_debug("GET_VOLUME_PMIC_RIGHT_HP_VOL\n");
+	case PMIC_SND_RIGHT_MASTER_VOL:
+		pr_debug("GET_VOLUME_PMIC_RIGHT_MASTER_VOL\n");
 		sc_access.reg_addr = AUDIORVOL;
 		mask = (MASK0|MASK1|MASK2|MASK3|MASK4|MASK5|MASK6);
+		break;
+
+	case PMIC_SND_RIGHT_PB_VOL:
+		pr_debug("GET_VOLUME_PMIC_RIGHT_HP_VOL\n");
+		sc_access.reg_addr = HPRVOL;
+		mask = (MASK0|MASK1|MASK2|MASK3|MASK4);
+		break;
+
+	case PMIC_SND_LEFT_PB_VOL:
+		pr_debug("GET_VOLUME_PMIC_LEFT_HP_VOL\n");
+		sc_access.reg_addr = HPLVOL;
+		mask = (MASK0|MASK1|MASK2|MASK3|MASK4);
 		break;
 
 	default:

@@ -57,9 +57,9 @@
 #define MAX_CHANNEL_DMIC	5
 #define FIFO_SIZE		0 /* fifo not being used */
 #define INTEL_MAD		"Intel MAD"
-#define MAX_CTRL_MRST		7
+#define MAX_CTRL_MRST		8
 #define MAX_CTRL_MFLD		7
-#define MAX_CTRL		7
+#define MAX_CTRL		8
 #define MAX_VENDORS		4
 /* TODO +6 db */
 #define MAX_VOL		64
@@ -145,6 +145,8 @@ struct snd_control_val {
 	int	playback_vol_min;
 	int	capture_vol_max;
 	int	capture_vol_min;
+	int	master_vol_max;
+	int	master_vol_min;
 };
 
 struct mad_stream_pvt {
@@ -175,6 +177,7 @@ enum _widget_ctrl {
 	PLAYBACK_MUTE,
 	CAPTURE_VOL,
 	CAPTURE_MUTE,
+	MASTER_VOL,
 	MASTER_MUTE
 };
 enum _widget_ctrl_mfld {

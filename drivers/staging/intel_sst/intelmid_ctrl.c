@@ -80,9 +80,11 @@ struct snd_control_val intelmad_ctrl_val[MAX_VENDORS] = {
 	},
 	{
 		.playback_vol_max = 0,
-		.playback_vol_min = -126,
+		.playback_vol_min = -31,
 		.capture_vol_max = 0,
 		.capture_vol_min = -31,
+		.master_vol_max = 0,
+		.master_vol_min = -126,
 	},
 };
 
@@ -156,6 +158,15 @@ static int snd_intelmad_playback_volume_info(struct snd_kcontrol *kcontrol,
 	snd_intelmad_volume_info(uinfo, STEREO_CNTL,
 		intelmad_ctrl_val[sst_card_vendor_id].playback_vol_max,
 		intelmad_ctrl_val[sst_card_vendor_id].playback_vol_min);
+	return 0;
+}
+
+static int snd_intelmad_master_volume_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
+{
+	snd_intelmad_volume_info(uinfo, STEREO_CNTL,
+		intelmad_ctrl_val[sst_card_vendor_id].master_vol_max,
+		intelmad_ctrl_val[sst_card_vendor_id].master_vol_min);
 	return 0;
 }
 
@@ -281,6 +292,11 @@ static int snd_intelmad_volume_get(struct snd_kcontrol *kcontrol,
 	case CAPTURE_VOL:
 		cntl_list[0] = PMIC_SND_CAPTURE_VOL;
 		break;
+
+	case MASTER_VOL:
+		cntl_list[0] = PMIC_SND_RIGHT_MASTER_VOL;
+		cntl_list[1] = PMIC_SND_LEFT_MASTER_VOL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -291,7 +307,8 @@ static int snd_intelmad_volume_get(struct snd_kcontrol *kcontrol,
 	if (ret_val)
 		return ret_val;
 
-	if (kcontrol->id.numid == PLAYBACK_VOL) {
+	if (kcontrol->id.numid == PLAYBACK_VOL ||
+		kcontrol->id.numid == MASTER_VOL) {
 		ret_val = scard_ops->get_vol(cntl_list[1], &value);
 		uval->value.integer.value[1] = value;
 	}
@@ -399,6 +416,12 @@ static int snd_intelmad_volume_set(struct snd_kcontrol *kcontrol,
 	case CAPTURE_VOL:
 		cntl_list[0] = PMIC_SND_CAPTURE_VOL;
 		break;
+
+	case MASTER_VOL:
+		cntl_list[0] = PMIC_SND_LEFT_MASTER_VOL;
+		cntl_list[1] = PMIC_SND_RIGHT_MASTER_VOL;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -408,7 +431,8 @@ static int snd_intelmad_volume_set(struct snd_kcontrol *kcontrol,
 	if (ret_val)
 		return ret_val;
 
-	if (kcontrol->id.numid == PLAYBACK_VOL)
+	if (kcontrol->id.numid == PLAYBACK_VOL ||
+		kcontrol->id.numid == MASTER_VOL)
 		ret_val = scard_ops->set_vol(cntl_list[1],
 				uval->value.integer.value[1]);
 	return ret_val;
@@ -753,7 +777,6 @@ static int snd_intelmad_device_dmic_info_mfld(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-
 struct snd_kcontrol_new snd_intelmad_controls_mrst[MAX_CTRL] __devinitdata = {
 {
 	.iface		=	SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -807,6 +830,15 @@ struct snd_kcontrol_new snd_intelmad_controls_mrst[MAX_CTRL] __devinitdata = {
 	.info		=	snd_intelmad_mute_info,
 	.get		=	snd_intelmad_mute_get,
 	.put		=	snd_intelmad_mute_set,
+	.private_value	=	0,
+},
+{
+	.iface		=	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name		=	"Master Playback Volume",
+	.access		=	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info		=	snd_intelmad_master_volume_info,
+	.get		=	snd_intelmad_volume_get,
+	.put		=	snd_intelmad_volume_set,
 	.private_value	=	0,
 },
 {
