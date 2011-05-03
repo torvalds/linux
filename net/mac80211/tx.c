@@ -2534,8 +2534,9 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
 
-	/* send all internal mgmt frames on VO */
-	skb_set_queue_mapping(skb, 0);
+	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
+	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
+	skb->priority = 7;
 
 	/*
 	 * The other path calling ieee80211_xmit is from the tasklet,
