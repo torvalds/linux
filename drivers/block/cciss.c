@@ -4673,8 +4673,14 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 		use_doorbell = DOORBELL_CTLR_RESET2;
 	} else {
 		use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
-		if (use_doorbell)
-			use_doorbell = DOORBELL_CTLR_RESET;
+		if (use_doorbell) {
+			dev_warn(&pdev->dev, "Controller claims that "
+				"'Bit 2 doorbell reset' is "
+				"supported, but not 'bit 5 doorbell reset'.  "
+				"Firmware update is recommended.\n");
+			rc = -ENOTSUPP; /* use the soft reset */
+			goto unmap_cfgtable;
+		}
 	}
 
 	rc = cciss_controller_hard_reset(pdev, vaddr, use_doorbell);
