@@ -111,7 +111,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
 	if (cmd == WLC_GET_VAR && buf) {
 		if (!strcmp((char *)buf, "bcmerrorstr")) {
-			strncpy((char *)buf, bcmerrorstr(dhd->dongle_error),
+			strncpy((char *)buf, "bcm_error",
 				BCME_STRLEN);
 			goto done;
 		} else if (!strcmp((char *)buf, "bcmerror")) {

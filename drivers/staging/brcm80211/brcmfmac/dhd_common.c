@@ -225,7 +225,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_BCMERRORSTR):
-		strncpy((char *)arg, bcmerrorstr(dhd_pub->bcmerror),
+		strncpy((char *)arg, "bcm_error",
 			BCME_STRLEN);
 		((char *)arg)[BCME_STRLEN - 1] = 0x00;
 		break;

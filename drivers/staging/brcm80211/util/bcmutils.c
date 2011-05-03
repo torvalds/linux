@@ -463,28 +463,6 @@ void prpkt(const char *msg, struct sk_buff *p0)
 }
 #endif				/* defined(BCMDBG) */
 
-static char bcm_undeferrstr[BCME_STRLEN];
-
-static const char *bcmerrorstrtable[] = BCMERRSTRINGTABLE;
-
-/* Convert the error codes into related error strings  */
-const char *bcmerrorstr(int bcmerror)
-{
-	/* check if someone added a bcmerror code but
-		 forgot to add errorstring */
-	ASSERT(ABS(-BCME_LAST) == (ARRAY_SIZE(bcmerrorstrtable) - 1));
-
-	if (bcmerror > 0 || bcmerror < -BCME_LAST) {
-		snprintf(bcm_undeferrstr, BCME_STRLEN, "Undefined error %d",
-			 bcmerror);
-		return bcm_undeferrstr;
-	}
-
-	ASSERT(strlen(bcmerrorstrtable[-bcmerror]) < BCME_STRLEN);
-
-	return bcmerrorstrtable[-bcmerror];
-}
-
 /* iovar table lookup */
 const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table, const char *name)
 {
