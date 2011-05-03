@@ -761,6 +761,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	u32 w, savewin;
 	chipcregs_t *cc;
 	char *pvars = NULL;
+	uint socitype;
 	uint origidx;
 
 	ASSERT(GOODREGS(regs));
@@ -814,7 +815,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	 *   be added here.
 	 */
 	w = R_REG(&cc->chipid);
-	sih->socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
+	socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 	/* Might as wll fill in chip id rev & pkg */
 	sih->chip = w & CID_ID_MASK;
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
@@ -823,7 +824,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	sih->issim = IS_SIM(sih->chippkg);
 
 	/* scan for cores */
-	if (sii->pub.socitype == SOCI_AI) {
+	if (socitype == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
 		ai_scan(&sii->pub, (void *)cc, devid);
