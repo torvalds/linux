@@ -862,9 +862,15 @@ int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 		SYSTEM_ACCESS_MODE_NOT_IN_SYS |
 		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU |
 		EFFECTIVE_L1_TLB_SIZE(5) | EFFECTIVE_L1_QUEUE_SIZE(5);
-	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
-	WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
-	WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+	if (rdev->flags & RADEON_IS_IGP) {
+		WREG32(FUS_MC_VM_MD_L1_TLB0_CNTL, tmp);
+		WREG32(FUS_MC_VM_MD_L1_TLB1_CNTL, tmp);
+		WREG32(FUS_MC_VM_MD_L1_TLB2_CNTL, tmp);
+	} else {
+		WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
+		WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
+		WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+	}
 	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
@@ -2922,11 +2928,6 @@ static int evergreen_startup(struct radeon_device *rdev)
 		evergreen_blit_fini(rdev);
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
-	/* XXX: ontario has problems blitting to gart at the moment */
-	if (rdev->family == CHIP_PALM) {
-		rdev->asic->copy = NULL;
-		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	}
 
 	/* allocate wb buffer */
