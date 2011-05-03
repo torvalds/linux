@@ -241,7 +241,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* ** driver/apps-shared section ** */
 
 #define BCME_STRLEN 		64	/* Max string length for BCM errors */
-#define VALID_BCMERROR(e)  ((e <= 0) && (e >= BCME_LAST))
+#define VALID_BCMERROR(e)  ((e <= 0) && (e >= -BCME_LAST))
 
 /*
  * error codes could be added but the defined ones shouldn't be changed/deleted
@@ -251,33 +251,33 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
  * update osl files with os specific errorcode map
 */
 
-#define BCME_ERROR			-1	/* Error generic */
-#define BCME_BADARG			-2	/* Bad Argument */
-#define BCME_NOTUP			-4	/* Not up */
-#define BCME_NOTDOWN			-5	/* Not down */
-#define BCME_BADKEYIDX			-8	/* BAD Key Index */
-#define BCME_RADIOOFF			-9	/* Radio Off */
-#define BCME_NOTBANDLOCKED		-10	/* Not  band locked */
-#define BCME_NOCLK			-11	/* No Clock */
-#define BCME_BADRATESET			-12	/* BAD Rate valueset */
-#define BCME_BADBAND			-13	/* BAD Band */
-#define BCME_BUFTOOSHORT		-14	/* Buffer too short */
-#define BCME_BUFTOOLONG			-15	/* Buffer too long */
-#define BCME_BUSY			-16	/* Busy */
-#define BCME_OUTOFRANGECHAN		-19	/* Out of Range Channel */
-#define BCME_BADCHAN			-20	/* Bad Channel */
-#define BCME_BADADDR			-21	/* Bad Address */
-#define BCME_NORESOURCE			-22	/* Not Enough Resources */
-#define BCME_UNSUPPORTED		-23	/* Unsupported */
-#define BCME_NOTREADY			-25	/* Not Ready */
-#define BCME_EPERM			-26	/* Not Permitted */
-#define BCME_NOMEM			-27	/* No Memory */
-#define BCME_ASSOCIATED			-28	/* Associated */
-#define BCME_RANGE			-29	/* Not In Range */
-#define BCME_NOTFOUND			-30	/* Not Found */
-#define BCME_SDIO_ERROR			-35	/* SDIO Bus Error */
-#define BCME_DONGLE_DOWN		-36	/* Dongle Not Accessible */
-#define BCME_NONRESIDENT		-42	/* access to nonresident overlay */
+#define BCME_ERROR			1	/* Error generic */
+#define BCME_BADARG			2	/* Bad Argument */
+#define BCME_NOTUP			4	/* Not up */
+#define BCME_NOTDOWN			5	/* Not down */
+#define BCME_BADKEYIDX			8	/* BAD Key Index */
+#define BCME_RADIOOFF			9	/* Radio Off */
+#define BCME_NOTBANDLOCKED		10	/* Not  band locked */
+#define BCME_NOCLK			11	/* No Clock */
+#define BCME_BADRATESET			12	/* BAD Rate valueset */
+#define BCME_BADBAND			13	/* BAD Band */
+#define BCME_BUFTOOSHORT		14	/* Buffer too short */
+#define BCME_BUFTOOLONG			15	/* Buffer too long */
+#define BCME_BUSY			16	/* Busy */
+#define BCME_OUTOFRANGECHAN		19	/* Out of Range Channel */
+#define BCME_BADCHAN			20	/* Bad Channel */
+#define BCME_BADADDR			21	/* Bad Address */
+#define BCME_NORESOURCE			22	/* Not Enough Resources */
+#define BCME_UNSUPPORTED		23	/* Unsupported */
+#define BCME_NOTREADY			25	/* Not Ready */
+#define BCME_EPERM			26	/* Not Permitted */
+#define BCME_NOMEM			27	/* No Memory */
+#define BCME_ASSOCIATED			28	/* Associated */
+#define BCME_RANGE			29	/* Not In Range */
+#define BCME_NOTFOUND			30	/* Not Found */
+#define BCME_SDIO_ERROR			35	/* SDIO Bus Error */
+#define BCME_DONGLE_DOWN		36	/* Dongle Not Accessible */
+#define BCME_NONRESIDENT		42  /* access to nonresident overlay */
 #define BCME_LAST			BCME_NONRESIDENT
 
 /* These are collection of BCME Error strings */

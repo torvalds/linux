@@ -1620,48 +1620,48 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 }
 
 static s16 linuxbcmerrormap[] = { 0,	/* 0 */
-	-EINVAL,		/* BCME_ERROR */
-	-EINVAL,		/* BCME_BADARG */
-	-EINVAL,		/* BCME_BADOPTION */
-	-EINVAL,		/* BCME_NOTUP */
-	-EINVAL,		/* BCME_NOTDOWN */
-	-EINVAL,		/* BCME_NOTAP */
-	-EINVAL,		/* BCME_NOTSTA */
-	-EINVAL,		/* BCME_BADKEYIDX */
-	-EINVAL,		/* BCME_RADIOOFF */
-	-EINVAL,		/* BCME_NOTBANDLOCKED */
-	-EINVAL,		/* BCME_NOCLK */
-	-EINVAL,		/* BCME_BADRATESET */
-	-EINVAL,		/* BCME_BADBAND */
-	-E2BIG,			/* BCME_BUFTOOSHORT */
-	-E2BIG,			/* BCME_BUFTOOLONG */
-	-EBUSY,			/* BCME_BUSY */
-	-EINVAL,		/* BCME_NOTASSOCIATED */
-	-EINVAL,		/* BCME_BADSSIDLEN */
-	-EINVAL,		/* BCME_OUTOFRANGECHAN */
-	-EINVAL,		/* BCME_BADCHAN */
-	-EFAULT,		/* BCME_BADADDR */
-	-ENOMEM,		/* BCME_NORESOURCE */
-	-EOPNOTSUPP,		/* BCME_UNSUPPORTED */
-	-EMSGSIZE,		/* BCME_BADLENGTH */
-	-EINVAL,		/* BCME_NOTREADY */
-	-EPERM,			/* BCME_NOTPERMITTED */
-	-ENOMEM,		/* BCME_NOMEM */
-	-EINVAL,		/* BCME_ASSOCIATED */
-	-ERANGE,		/* BCME_RANGE */
-	-EINVAL,		/* BCME_NOTFOUND */
-	-EINVAL,		/* BCME_WME_NOT_ENABLED */
-	-EINVAL,		/* BCME_TSPEC_NOTFOUND */
-	-EINVAL,		/* BCME_ACM_NOTSUPPORTED */
-	-EINVAL,		/* BCME_NOT_WME_ASSOCIATION */
-	-EIO,			/* BCME_SDIO_ERROR */
-	-ENODEV,		/* BCME_DONGLE_DOWN */
-	-EINVAL,		/* BCME_VERSION */
-	-EIO,			/* BCME_TXFAIL */
-	-EIO,			/* BCME_RXFAIL */
-	-EINVAL,		/* BCME_NODEVICE */
-	-EINVAL,		/* BCME_NMODE_DISABLED */
-	-ENODATA,		/* BCME_NONRESIDENT */
+	-EINVAL,		/* -BCME_ERROR */
+	-EINVAL,		/* -BCME_BADARG */
+	-EINVAL,		/* -BCME_BADOPTION */
+	-EINVAL,		/* -BCME_NOTUP */
+	-EINVAL,		/* -BCME_NOTDOWN */
+	-EINVAL,		/* -BCME_NOTAP */
+	-EINVAL,		/* -BCME_NOTSTA */
+	-EINVAL,		/* -BCME_BADKEYIDX */
+	-EINVAL,		/* -BCME_RADIOOFF */
+	-EINVAL,		/* -BCME_NOTBANDLOCKED */
+	-EINVAL,		/* -BCME_NOCLK */
+	-EINVAL,		/* -BCME_BADRATESET */
+	-EINVAL,		/* -BCME_BADBAND */
+	-E2BIG,			/* -BCME_BUFTOOSHORT */
+	-E2BIG,			/* -BCME_BUFTOOLONG */
+	-EBUSY,			/* -BCME_BUSY */
+	-EINVAL,		/* -BCME_NOTASSOCIATED */
+	-EINVAL,		/* -BCME_BADSSIDLEN */
+	-EINVAL,		/* -BCME_OUTOFRANGECHAN */
+	-EINVAL,		/* -BCME_BADCHAN */
+	-EFAULT,		/* -BCME_BADADDR */
+	-ENOMEM,		/* -BCME_NORESOURCE */
+	-EOPNOTSUPP,		/* -BCME_UNSUPPORTED */
+	-EMSGSIZE,		/* -BCME_BADLENGTH */
+	-EINVAL,		/* -BCME_NOTREADY */
+	-EPERM,			/* -BCME_NOTPERMITTED */
+	-ENOMEM,		/* -BCME_NOMEM */
+	-EINVAL,		/* -BCME_ASSOCIATED */
+	-ERANGE,		/* -BCME_RANGE */
+	-EINVAL,		/* -BCME_NOTFOUND */
+	-EINVAL,		/* -BCME_WME_NOT_ENABLED */
+	-EINVAL,		/* -BCME_TSPEC_NOTFOUND */
+	-EINVAL,		/* -BCME_ACM_NOTSUPPORTED */
+	-EINVAL,		/* -BCME_NOT_WME_ASSOCIATION */
+	-EIO,			/* -BCME_SDIO_ERROR */
+	-ENODEV,		/* -BCME_DONGLE_DOWN */
+	-EINVAL,		/* -BCME_VERSION */
+	-EIO,			/* -BCME_TXFAIL */
+	-EIO,			/* -BCME_RXFAIL */
+	-EINVAL,		/* -BCME_NODEVICE */
+	-EINVAL,		/* -BCME_NMODE_DISABLED */
+	-ENODATA,		/* -BCME_NONRESIDENT */
 };
 
 static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
@@ -1699,7 +1699,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* Copy the ioc control structure part of ioctl request */
 	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(wl_ioctl_t))) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = BCME_BADADDR;
 		goto done;
 	}
 
@@ -1715,11 +1715,11 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		{
 			buf = kmalloc(buflen, GFP_ATOMIC);
 			if (!buf) {
-				bcmerror = -BCME_NOMEM;
+				bcmerror = BCME_NOMEM;
 				goto done;
 			}
 			if (copy_from_user(buf, ioc.buf, buflen)) {
-				bcmerror = -BCME_BADADDR;
+				bcmerror = BCME_BADADDR;
 				goto done;
 			}
 		}
@@ -1728,12 +1728,12 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* To differentiate between wl and dhd read 4 more byes */
 	if ((copy_from_user(&driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
 			    sizeof(uint)) != 0)) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = BCME_BADADDR;
 		goto done;
 	}
 
 	if (!capable(CAP_NET_ADMIN)) {
-		bcmerror = -BCME_EPERM;
+		bcmerror = BCME_EPERM;
 		goto done;
 	}
 
@@ -1748,12 +1748,12 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* send to dongle (must be up, and wl) */
 	if ((dhd->pub.busstate != DHD_BUS_DATA)) {
 		DHD_ERROR(("%s DONGLE_DOWN,__func__\n", __func__));
-		bcmerror = BCME_DONGLE_DOWN;
+		bcmerror = -BCME_DONGLE_DOWN;
 		goto done;
 	}
 
 	if (!dhd->pub.iswl) {
-		bcmerror = BCME_DONGLE_DOWN;
+		bcmerror = -BCME_DONGLE_DOWN;
 		goto done;
 	}
 
@@ -1781,8 +1781,8 @@ done:
 
 	if (bcmerror > 0)
 		bcmerror = 0;
-	else if (bcmerror < BCME_LAST)
-		bcmerror = BCME_ERROR;
+	else if (bcmerror < -BCME_LAST)
+		bcmerror = -BCME_ERROR;
 
 	return linuxbcmerrormap[-bcmerror];
 }
@@ -2280,7 +2280,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 
 fail:
 	net->netdev_ops = NULL;
-	return BCME_ERROR;
+	return -BCME_ERROR;
 }
 
 void dhd_bus_detach(dhd_pub_t *dhdp)

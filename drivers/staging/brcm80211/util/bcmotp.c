@@ -384,11 +384,11 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		sz = (uint) oi->hwlim - oi->hwbase;
 		if (!(oi->status & OTPS_GUP_HW)) {
 			*wlen = sz;
-			return BCME_NOTFOUND;
+			return -BCME_NOTFOUND;
 		}
 		if (*wlen < sz) {
 			*wlen = sz;
-			return BCME_BUFTOOSHORT;
+			return -BCME_BUFTOOSHORT;
 		}
 		base = oi->hwbase;
 		break;
@@ -396,11 +396,11 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		sz = ((uint) oi->swlim - oi->swbase);
 		if (!(oi->status & OTPS_GUP_SW)) {
 			*wlen = sz;
-			return BCME_NOTFOUND;
+			return -BCME_NOTFOUND;
 		}
 		if (*wlen < sz) {
 			*wlen = sz;
-			return BCME_BUFTOOSHORT;
+			return -BCME_BUFTOOSHORT;
 		}
 		base = oi->swbase;
 		break;
@@ -408,11 +408,11 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		sz = OTPGU_CI_SZ;
 		if (!(oi->status & OTPS_GUP_CI)) {
 			*wlen = sz;
-			return BCME_NOTFOUND;
+			return -BCME_NOTFOUND;
 		}
 		if (*wlen < sz) {
 			*wlen = sz;
-			return BCME_BUFTOOSHORT;
+			return -BCME_BUFTOOSHORT;
 		}
 		base = oi->otpgu_base + OTPGU_CI_OFF;
 		break;
@@ -420,11 +420,11 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		sz = (uint) oi->flim - oi->fbase;
 		if (!(oi->status & OTPS_GUP_FUSE)) {
 			*wlen = sz;
-			return BCME_NOTFOUND;
+			return -BCME_NOTFOUND;
 		}
 		if (*wlen < sz) {
 			*wlen = sz;
-			return BCME_BUFTOOSHORT;
+			return -BCME_BUFTOOSHORT;
 		}
 		base = oi->fbase;
 		break;
@@ -432,16 +432,16 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 		sz = ((uint) oi->flim - oi->hwbase);
 		if (!(oi->status & (OTPS_GUP_HW | OTPS_GUP_SW))) {
 			*wlen = sz;
-			return BCME_NOTFOUND;
+			return -BCME_NOTFOUND;
 		}
 		if (*wlen < sz) {
 			*wlen = sz;
-			return BCME_BUFTOOSHORT;
+			return -BCME_BUFTOOSHORT;
 		}
 		base = oi->hwbase;
 		break;
 	default:
-		return BCME_BADARG;
+		return -BCME_BADARG;
 	}
 
 	idx = si_coreidx(oi->sih);
@@ -459,7 +459,7 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 
 static int ipxotp_nvread(void *oh, char *data, uint *len)
 {
-	return BCME_UNSUPPORTED;
+	return -BCME_UNSUPPORTED;
 }
 
 static otp_fn_t ipxotp_fn = {
@@ -708,7 +708,7 @@ static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 	/* Region empty? */
 	st = oi->hwprot | oi->signvalid;
 	if ((st & region) == 0)
-		return BCME_NOTFOUND;
+		return -BCME_NOTFOUND;
 
 	*wlen =
 	    ((int)*wlen < oi->boundary / 2) ? *wlen : (uint) oi->boundary / 2;
@@ -926,13 +926,13 @@ otp_read_region(si_t *sih, int region, u16 *data,
 		si_otp_power(sih, true);
 
 	if (!si_is_otp_powered(sih) || si_is_otp_disabled(sih)) {
-		err = BCME_NOTREADY;
+		err = -BCME_NOTREADY;
 		goto out;
 	}
 
 	oh = otp_init(sih);
 	if (oh == NULL) {
-		err = BCME_ERROR;
+		err = -BCME_ERROR;
 		goto out;
 	}
 

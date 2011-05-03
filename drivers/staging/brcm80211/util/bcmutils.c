@@ -472,9 +472,9 @@ const char *bcmerrorstr(int bcmerror)
 {
 	/* check if someone added a bcmerror code but
 		 forgot to add errorstring */
-	ASSERT(ABS(BCME_LAST) == (ARRAY_SIZE(bcmerrorstrtable) - 1));
+	ASSERT(ABS(-BCME_LAST) == (ARRAY_SIZE(bcmerrorstrtable) - 1));
 
-	if (bcmerror > 0 || bcmerror < BCME_LAST) {
+	if (bcmerror > 0 || bcmerror < -BCME_LAST) {
 		snprintf(bcm_undeferrstr, BCME_STRLEN, "Undefined error %d",
 			 bcmerror);
 		return bcm_undeferrstr;
@@ -524,31 +524,31 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 	case IOVT_UINT32:
 		/* all integers are s32 sized args at the ioctl interface */
 		if (len < (int)sizeof(int)) {
-			bcmerror = BCME_BUFTOOSHORT;
+			bcmerror = -BCME_BUFTOOSHORT;
 		}
 		break;
 
 	case IOVT_BUFFER:
 		/* buffer must meet minimum length requirement */
 		if (len < vi->minlen) {
-			bcmerror = BCME_BUFTOOSHORT;
+			bcmerror = -BCME_BUFTOOSHORT;
 		}
 		break;
 
 	case IOVT_VOID:
 		if (!set) {
 			/* Cannot return nil... */
-			bcmerror = BCME_UNSUPPORTED;
+			bcmerror = -BCME_UNSUPPORTED;
 		} else if (len) {
 			/* Set is an action w/o parameters */
-			bcmerror = BCME_BUFTOOLONG;
+			bcmerror = -BCME_BUFTOOLONG;
 		}
 		break;
 
 	default:
 		/* unknown type for length check in iovar info */
 		ASSERT(0);
-		bcmerror = BCME_UNSUPPORTED;
+		bcmerror = -BCME_UNSUPPORTED;
 	}
 
 	return bcmerror;

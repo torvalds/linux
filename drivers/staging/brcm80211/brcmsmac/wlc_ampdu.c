@@ -538,14 +538,14 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	/* Let pressure continue to build ... */
 	qlen = pktq_plen(&qi->q, prec);
 	if (ini->tx_in_transit > 0 && qlen < scb_ampdu->max_pdu) {
-		return BCME_BUSY;
+		return -BCME_BUSY;
 	}
 
 	wlc_ampdu_agg(ampdu, scb, p, tid);
 
 	if (wlc->block_datafifo) {
 		WL_ERROR("%s: Fifo blocked\n", __func__);
-		return BCME_BUSY;
+		return -BCME_BUSY;
 	}
 	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
 	ampdu_len = 0;
@@ -566,7 +566,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		}
 
 		if (err) {
-			if (err == BCME_BUSY) {
+			if (err == -BCME_BUSY) {
 				WL_ERROR("wl%d: wlc_sendampdu: prep_xdu retry; seq 0x%x\n",
 					 wlc->pub->unit, seq);
 				WLCNTINCR(ampdu->cnt->sduretry);
@@ -1245,12 +1245,12 @@ static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 		if (!N_ENAB(wlc->pub)) {
 			WL_AMPDU_ERR("wl%d: driver not nmode enabled\n",
 				     wlc->pub->unit);
-			return BCME_UNSUPPORTED;
+			return -BCME_UNSUPPORTED;
 		}
 		if (!wlc_ampdu_cap(ampdu)) {
 			WL_AMPDU_ERR("wl%d: device not ampdu capable\n",
 				     wlc->pub->unit);
-			return BCME_UNSUPPORTED;
+			return -BCME_UNSUPPORTED;
 		}
 		wlc->pub->_ampdu = on;
 	}

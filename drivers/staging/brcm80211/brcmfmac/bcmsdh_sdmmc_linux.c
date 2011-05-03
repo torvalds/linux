@@ -151,7 +151,7 @@ int sdioh_sdmmc_osinit(sdioh_info_t *sd)
 	sdos = kmalloc(sizeof(struct sdos_info), GFP_ATOMIC);
 	sd->sdos_info = (void *)sdos;
 	if (sdos == NULL)
-		return BCME_NOMEM;
+		return -BCME_NOMEM;
 
 	sdos->sd = sd;
 	spin_lock_init(&sdos->lock);

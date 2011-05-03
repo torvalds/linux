@@ -729,7 +729,7 @@ wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 	}
 
 	if (country == NULL)
-		return BCME_BADARG;
+		return -BCME_BADARG;
 
 	/* set the driver state for the country */
 	wlc_set_country_common(wlc_cm, country_abbrev, mapped_ccode,

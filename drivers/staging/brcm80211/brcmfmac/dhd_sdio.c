@@ -541,7 +541,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (err) {
 			DHD_ERROR(("%s: HT Avail request error: %d\n",
 				   __func__, err));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 
 		if (pendok && ((bus->ci->buscoretype == PCMCIA_CORE_ID)
@@ -557,7 +557,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (err) {
 			DHD_ERROR(("%s: HT Avail read error: %d\n",
 				   __func__, err));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 
 		/* Go to pending and await interrupt if appropriate */
@@ -569,7 +569,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			if (err) {
 				DHD_ERROR(("%s: Devctl error setting CA: %d\n",
 					__func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 
 			devctl |= SBSDIO_DEVCTL_CA_INT_ONLY;
@@ -602,12 +602,12 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (err) {
 			DHD_ERROR(("%s: HT Avail request error: %d\n",
 				   __func__, err));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
 			DHD_ERROR(("%s: HT Avail timeout (%d): clkctl 0x%02x\n",
 				   __func__, PMU_MAX_TRANSITION_DLY, clkctl));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 
 		/* Mark clock available */
@@ -651,7 +651,7 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (err) {
 			DHD_ERROR(("%s: Failed access turning clock off: %d\n",
 				   __func__, err));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 	}
 	return 0;
@@ -674,7 +674,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error enabling sd_clock: %d\n",
 					   __func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 
 			iovalue = bus->sd_mode;
@@ -683,7 +683,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error changing sd_mode: %d\n",
 					   __func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 		} else if (bus->idleclock != DHD_IDLE_ACTIVE) {
 			/* Restore clock speed */
@@ -693,7 +693,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error restoring sd_divisor: %d\n",
 					__func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 		}
 		bus->clkstate = CLK_SDONLY;
@@ -702,7 +702,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 		if ((bus->sd_divisor == -1) || (bus->sd_mode == -1)) {
 			DHD_TRACE(("%s: can't idle clock, divisor %d mode %d\n",
 				   __func__, bus->sd_divisor, bus->sd_mode));
-			return BCME_ERROR;
+			return -BCME_ERROR;
 		}
 		if (bus->idleclock == DHD_IDLE_STOP) {
 			if (sd1idle) {
@@ -715,7 +715,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 				if (err) {
 					DHD_ERROR(("%s: error changing sd_clock: %d\n",
 						__func__, err));
-					return BCME_ERROR;
+					return -BCME_ERROR;
 				}
 			}
 
@@ -725,7 +725,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error disabling sd_clock: %d\n",
 					   __func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 		} else if (bus->idleclock != DHD_IDLE_ACTIVE) {
 			/* Set divisor to idle value */
@@ -735,7 +735,7 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error changing sd_divisor: %d\n",
 					__func__, err));
-				return BCME_ERROR;
+				return -BCME_ERROR;
 			}
 		}
 		bus->clkstate = CLK_NONE;
@@ -819,7 +819,7 @@ int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 	if (sleep) {
 		/* Don't sleep if something is pending */
 		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq))
-			return BCME_BUSY;
+			return -BCME_BUSY;
 
 		/* Disable SDIO interrupts (no longer interested) */
 		bcmsdh_intr_disable(bus->sdh);
@@ -943,7 +943,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	sdh = bus->sdh;
 
 	if (bus->dhd->dongle_reset) {
-		ret = BCME_NOTREADY;
+		ret = -BCME_NOTREADY;
 		goto done;
 	}
 
@@ -961,7 +961,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
 					__func__, pkt->len + DHD_SDALIGN));
-				ret = BCME_NOMEM;
+				ret = -BCME_NOMEM;
 				goto done;
 			}
 
@@ -1040,7 +1040,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 		    dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
 					F2SYNC, frame, len, pkt, NULL, NULL);
 		bus->f2txdata++;
-		ASSERT(ret != BCME_PENDING);
+		ASSERT(ret != -BCME_PENDING);
 
 		if (ret < 0) {
 			/* On failure, abort the command
@@ -1089,7 +1089,7 @@ done:
 
 int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 {
-	int ret = BCME_ERROR;
+	int ret = -BCME_ERROR;
 	uint datalen, prec;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
@@ -1133,7 +1133,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 			dhd_txcomplete(bus->dhd, pkt, false);
 			pkt_buf_free_skb(pkt);
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
-			ret = BCME_NORESOURCE;
+			ret = -BCME_NORESOURCE;
 		} else {
 			ret = 0;
 		}
@@ -1347,7 +1347,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 						SDIO_FUNC_2, F2SYNC, frame, len,
 						NULL, NULL, NULL);
 
-			ASSERT(ret != BCME_PENDING);
+			ASSERT(ret != -BCME_PENDING);
 
 			if (ret < 0) {
 				/* On failure, abort the command and
@@ -1690,7 +1690,7 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 
 	memcpy(&pktgen, arg, sizeof(pktgen));
 	if (pktgen.version != DHD_PKTGEN_VERSION)
-		return BCME_BADARG;
+		return -BCME_BADARG;
 
 	oldcnt = bus->pktgen_count;
 	oldmode = bus->pktgen_mode;
@@ -1799,7 +1799,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 	if (addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff)) {
 		DHD_ERROR(("%s: address (0x%08x) of sdpcm_shared invalid\n",
 			   __func__, addr));
-		return BCME_ERROR;
+		return -BCME_ERROR;
 	}
 
 	/* Read hndrte_shared structure */
@@ -1822,7 +1822,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 			   "is different than sdpcm_shared version %d in dongle\n",
 			   __func__, SDPCM_SHARED_VERSION,
 			   sh->flags & SDPCM_SHARED_VERSION_MASK));
-		return BCME_ERROR;
+		return -BCME_ERROR;
 	}
 
 	return 0;
@@ -1851,7 +1851,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 		if (mbuffer == NULL) {
 			DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__,
 				   msize));
-			bcmerror = BCME_NOMEM;
+			bcmerror = -BCME_NOMEM;
 			goto done;
 		}
 	}
@@ -1859,7 +1859,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 	str = kmalloc(maxstrlen, GFP_ATOMIC);
 	if (str == NULL) {
 		DHD_ERROR(("%s: kmalloc(%d) failed\n", __func__, maxstrlen));
-		bcmerror = BCME_NOMEM;
+		bcmerror = -BCME_NOMEM;
 		goto done;
 	}
 
@@ -2028,14 +2028,14 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 		c->bufsize = le32_to_cpu(c->log.buf_size);
 		c->buf = kmalloc(c->bufsize, GFP_ATOMIC);
 		if (c->buf == NULL)
-			return BCME_NOMEM;
+			return -BCME_NOMEM;
 	}
 
 	idx = le32_to_cpu(c->log.idx);
 
 	/* Protect against corrupt value */
 	if (idx > c->bufsize)
-		return BCME_ERROR;
+		return -BCME_ERROR;
 
 	/* Skip reading the console buffer if the index pointer
 	 has not moved */
@@ -2090,11 +2090,11 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 
 	/* Basic sanity checks */
 	if (bus->dhd->up) {
-		bcmerror = BCME_NOTDOWN;
+		bcmerror = -BCME_NOTDOWN;
 		goto err;
 	}
 	if (!len) {
-		bcmerror = BCME_BUFTOOSHORT;
+		bcmerror = -BCME_BUFTOOSHORT;
 		goto err;
 	}
 
@@ -2104,7 +2104,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 	bus->vars = kmalloc(len, GFP_ATOMIC);
 	bus->varsz = bus->vars ? len : 0;
 	if (bus->vars == NULL) {
-		bcmerror = BCME_NOMEM;
+		bcmerror = -BCME_NOMEM;
 		goto err;
 	}
 
@@ -2143,7 +2143,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 	/* Check if dongle is in reset. If so, only allow DEVRESET iovars */
 	if (bus->dhd->dongle_reset && !(actionid == IOV_SVAL(IOV_DEVRESET) ||
 					actionid == IOV_GVAL(IOV_DEVRESET))) {
-		bcmerror = BCME_NOTREADY;
+		bcmerror = -BCME_NOTREADY;
 		goto exit;
 	}
 
@@ -2203,7 +2203,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_IDLETIME):
 		if ((int_val < 0) && (int_val != DHD_IDLE_IMMEDIATE))
-			bcmerror = BCME_BADARG;
+			bcmerror = -BCME_BADARG;
 		else
 			bus->idletime = int_val;
 		break;
@@ -2249,7 +2249,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 				"0x%08x size %d dsize %d\n",
 				__func__, (set ? "set" : "get"),
 				address, size, dsize));
-				bcmerror = BCME_BADARG;
+				bcmerror = -BCME_BADARG;
 				break;
 			}
 
@@ -2264,7 +2264,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 				DHD_ERROR(("%s: ramsize 0x%08x doesn't have %d "
 				"bytes at 0x%08x\n",
 				__func__, bus->orig_ramsize, size, address));
-				bcmerror = BCME_BADARG;
+				bcmerror = -BCME_BADARG;
 				break;
 			}
 
@@ -2322,7 +2322,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_SDRXCHAIN):
 		if (bool_val && !bus->sd_rxchain)
-			bcmerror = BCME_UNSUPPORTED;
+			bcmerror = -BCME_UNSUPPORTED;
 		else
 			bus->use_rxchain = bool_val;
 		break;
@@ -2345,7 +2345,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		if (bus->varsz < (uint) len)
 			memcpy(arg, bus->vars, bus->varsz);
 		else
-			bcmerror = BCME_BUFTOOSHORT;
+			bcmerror = -BCME_BUFTOOSHORT;
 		break;
 #endif				/* DHD_DEBUG */
 
@@ -2361,7 +2361,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			size = sd_ptr->func;
 			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -BCME_SDIO_ERROR;
 			memcpy(arg, &int_val, sizeof(s32));
 			break;
 		}
@@ -2377,7 +2377,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			size = sd_ptr->func;
 			bcmsdh_reg_write(bus->sdh, addr, size, sd_ptr->value);
 			if (bcmsdh_regfail(bus->sdh))
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -BCME_SDIO_ERROR;
 			break;
 		}
 
@@ -2394,7 +2394,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			size = sdreg.func;
 			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -BCME_SDIO_ERROR;
 			memcpy(arg, &int_val, sizeof(s32));
 			break;
 		}
@@ -2410,7 +2410,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			size = sdreg.func;
 			bcmsdh_reg_write(bus->sdh, addr, size, sdreg.value);
 			if (bcmsdh_regfail(bus->sdh))
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -BCME_SDIO_ERROR;
 			break;
 		}
 
@@ -2509,7 +2509,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	default:
-		bcmerror = BCME_UNSUPPORTED;
+		bcmerror = -BCME_UNSUPPORTED;
 		break;
 	}
 
@@ -2546,7 +2546,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 	if (bus->vars) {
 		vbuffer = kzalloc(varsize, GFP_ATOMIC);
 		if (!vbuffer)
-			return BCME_NOMEM;
+			return -BCME_NOMEM;
 
 		memcpy(vbuffer, bus->vars, bus->varsz);
 
@@ -2558,7 +2558,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 		DHD_INFO(("Compare NVRAM dl & ul; varsize=%d\n", varsize));
 		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
 		if (!nvram_ularray)
-			return BCME_NOMEM;
+			return -BCME_NOMEM;
 
 		/* Upload image to verify downloaded contents. */
 		memset(nvram_ularray, 0xaa, varsize);
@@ -2644,7 +2644,7 @@ static int dhdsdio_download_state(dhd_bus_t *bus, bool enter)
 		if ((SICF_CLOCK_EN << SBTML_SICF_SHIFT) != regdata) {
 			DHD_ERROR(("%s: SOCRAM core is down after reset?\n",
 				   __func__));
-			bcmerror = BCME_ERROR;
+			bcmerror = -BCME_ERROR;
 			goto fail;
 		}
 
@@ -3105,7 +3105,7 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 				(bus->rxctl + firstread), rdlen, NULL, NULL,
 				NULL);
 	bus->f2rxdata++;
-	ASSERT(sdret != BCME_PENDING);
+	ASSERT(sdret != -BCME_PENDING);
 
 	/* Control frame failures need retransmission */
 	if (sdret < 0) {
@@ -3291,7 +3291,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			errcode = -1;
 		}
 		bus->f2rxdata++;
-		ASSERT(errcode != BCME_PENDING);
+		ASSERT(errcode != -BCME_PENDING);
 
 		/* On failure, kill the superframe, allow a couple retries */
 		if (errcode < 0) {
@@ -3659,7 +3659,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 						    rdlen, NULL,
 						    NULL, NULL);
 					bus->f2rxdata++;
-					ASSERT(sdret != BCME_PENDING);
+					ASSERT(sdret != -BCME_PENDING);
 
 					/* Control frame failures need
 					 retransmission */
@@ -3701,7 +3701,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 						rxbuf, rdlen, pkt, NULL,
 						NULL);
 				bus->f2rxdata++;
-				ASSERT(sdret != BCME_PENDING);
+				ASSERT(sdret != -BCME_PENDING);
 
 				if (sdret < 0) {
 					DHD_ERROR(("%s (nextlen): read %d bytes failed: %d\n",
@@ -3902,7 +3902,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					F2SYNC, bus->rxhdr, firstread, NULL,
 					NULL, NULL);
 		bus->f2rxhdrs++;
-		ASSERT(sdret != BCME_PENDING);
+		ASSERT(sdret != -BCME_PENDING);
 
 		if (sdret < 0) {
 			DHD_ERROR(("%s: RXHEADER FAILED: %d\n", __func__,
@@ -4068,7 +4068,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					F2SYNC, ((u8 *) (pkt->data)), rdlen,
 					pkt, NULL, NULL);
 		bus->f2rxdata++;
-		ASSERT(sdret != BCME_PENDING);
+		ASSERT(sdret != -BCME_PENDING);
 
 		if (sdret < 0) {
 			DHD_ERROR(("%s: read %d %s bytes failed: %d\n",
@@ -4420,7 +4420,7 @@ clkwait:
 					F2SYNC, (u8 *) bus->ctrl_frame_buf,
 					(u32) bus->ctrl_frame_len, NULL,
 					NULL, NULL);
-		ASSERT(ret != BCME_PENDING);
+		ASSERT(ret != -BCME_PENDING);
 
 		if (ret < 0) {
 			/* On failure, abort the command and
@@ -4918,7 +4918,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 
 	/* Address could be zero if CONSOLE := 0 in dongle Makefile */
 	if (bus->console_addr == 0)
-		return BCME_UNSUPPORTED;
+		return -BCME_UNSUPPORTED;
 
 	/* Exclusive bus access */
 	dhd_os_sdlock(bus->dhd);
@@ -4926,7 +4926,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	/* Don't allow input if dongle is in reset */
 	if (bus->dhd->dongle_reset) {
 		dhd_os_sdunlock(bus->dhd);
-		return BCME_NOTREADY;
+		return -BCME_NOTREADY;
 	}
 
 	/* Request clock to allow SDIO accesses */
@@ -5145,7 +5145,7 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	/* if firmware path present try to download and bring up bus */
 	ret = dhd_bus_start(bus->dhd);
 	if (ret != 0) {
-		if (ret == BCME_NOTUP) {
+		if (ret == -BCME_NOTUP) {
 			DHD_ERROR(("%s: dongle is not responding\n", __func__));
 			goto fail;
 		}
@@ -5588,7 +5588,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 
 		ularray = kmalloc(bus->ramsize, GFP_ATOMIC);
 		if (!ularray) {
-			bcmerror = BCME_NOMEM;
+			bcmerror = -BCME_NOMEM;
 			goto err;
 		}
 		/* Upload image to verify downloaded contents. */
@@ -5811,7 +5811,7 @@ static int dhdsdio_download_nvram(struct dhd_bus *bus)
 	} else {
 		DHD_ERROR(("%s: error reading nvram file: %d\n",
 			   __func__, len));
-		bcmerror = BCME_SDIO_ERROR;
+		bcmerror = -BCME_SDIO_ERROR;
 	}
 
 err:
@@ -5969,7 +5969,7 @@ int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 			DHD_TRACE(("%s:  WLAN OFF DONE\n", __func__));
 			/* App can now remove power from device */
 		} else
-			bcmerror = BCME_SDIO_ERROR;
+			bcmerror = -BCME_SDIO_ERROR;
 	} else {
 		/* App must have restored power to device before calling */
 
@@ -6004,14 +6004,14 @@ int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 					DHD_TRACE(("%s: WLAN ON DONE\n",
 						   __func__));
 				} else
-					bcmerror = BCME_SDIO_ERROR;
+					bcmerror = -BCME_SDIO_ERROR;
 			} else
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -BCME_SDIO_ERROR;
 		} else {
-			bcmerror = BCME_NOTDOWN;
+			bcmerror = -BCME_NOTDOWN;
 			DHD_ERROR(("%s: Set DEVRESET=false invoked when device "
 				"is on\n", __func__));
-			bcmerror = BCME_SDIO_ERROR;
+			bcmerror = -BCME_SDIO_ERROR;
 		}
 	}
 	return bcmerror;

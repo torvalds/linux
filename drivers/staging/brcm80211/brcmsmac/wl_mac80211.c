@@ -1793,7 +1793,7 @@ int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 	WL_ERROR("ERROR: ucode buf tag:%d can not be found!\n", idx);
 	*pbuf = NULL;
 fail:
-	return BCME_NOTFOUND;
+	return -BCME_NOTFOUND;
 }
 
 /*
