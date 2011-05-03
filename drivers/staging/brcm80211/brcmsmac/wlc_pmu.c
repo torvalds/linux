@@ -1886,9 +1886,8 @@ void si_pmu_otp_power(si_t *sih, bool on)
 	u32 rsrcs = 0;	/* rsrcs to turn on/off OTP power */
 
 	/* Don't do anything if OTP is disabled */
-	if (si_is_otp_disabled(sih)) {
+	if (si_is_otp_disabled(sih))
 		return;
-	}
 
 	/* Remember original core before switch to chipc */
 	origidx = ai_coreidx(sih);
