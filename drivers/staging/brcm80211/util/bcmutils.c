@@ -50,8 +50,6 @@ void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
 	struct sk_buff *nskb;
 	int nest = 0;
 
-	ASSERT(skb);
-
 	/* perversion: we use skb->next to chain multi-skb packets */
 	while (skb) {
 		nskb = skb->next;
@@ -121,11 +119,8 @@ struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
 {
 	struct pktq_prec *q;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
-
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	if (pktq_full(pq) || pktq_pfull(pq, prec))
+		return NULL;
 
 	q = &pq->q[prec];
 
@@ -150,11 +145,8 @@ struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
 {
 	struct pktq_prec *q;
 
-	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
-
-	ASSERT(!pktq_full(pq));
-	ASSERT(!pktq_pfull(pq, prec));
+	if (pktq_full(pq) || pktq_pfull(pq, prec))
+		return NULL;
 
 	q = &pq->q[prec];
 
@@ -177,8 +169,6 @@ struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p;
-
-	ASSERT(prec >= 0 && prec < pq->num_prec);
 
 	q = &pq->q[prec];
 
@@ -203,8 +193,6 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev;
-
-	ASSERT(prec >= 0 && prec < pq->num_prec);
 
 	q = &pq->q[prec];
 
@@ -244,7 +232,6 @@ void pktq_pflush(struct pktq *pq, int prec, bool dir)
 		pq->len--;
 		p = q->head;
 	}
-	ASSERT(q->len == 0);
 	q->tail = NULL;
 }
 
@@ -253,7 +240,6 @@ void pktq_flush(struct pktq *pq, bool dir)
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
 		pktq_pflush(pq, prec, dir);
-	ASSERT(pq->len == 0);
 }
 #else /* !BRCM_FULLMAC */
 void
@@ -284,7 +270,6 @@ pktq_pflush(struct pktq *pq, int prec, bool dir,
 	}
 
 	if (q->head == NULL) {
-		ASSERT(q->len == 0);
 		q->tail = NULL;
 	}
 }
@@ -476,8 +461,6 @@ const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table, const char *name)
 	else
 		lookup_name = name;
 
-	ASSERT(table != NULL);
-
 	for (vi = table; vi->name; vi++) {
 		if (!strcmp(vi->name, lookup_name))
 			return vi;
@@ -525,7 +508,6 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 
 	default:
 		/* unknown type for length check in iovar info */
-		ASSERT(0);
 		bcmerror = -ENOTSUPP;
 	}
 

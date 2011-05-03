@@ -177,9 +177,6 @@ static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 
 	oi = (otpinfo_t *) oh;
 
-	ASSERT(wn < oi->wsize);
-	ASSERT(cc != NULL);
-
 	return R_REG(&cc->sromotp[wn]);
 }
 
@@ -229,7 +226,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
 		break;
 	default:
-		ASSERT(0);	/* Don't know about this chip */
+		break;	/* Don't know about this chip */
 	}
 
 	return ret;
@@ -313,7 +310,6 @@ static void *ipxotp_init(si_t *sih)
 	otpinfo_t *oi;
 
 	/* Make sure we're running IPX OTP */
-	ASSERT(OTPTYPE_IPX(sih->ccrev));
 	if (!OTPTYPE_IPX(sih->ccrev))
 		return NULL;
 
@@ -362,7 +358,6 @@ static void *ipxotp_init(si_t *sih)
 	/* Retrieve OTP region info */
 	idx = si_coreidx(sih);
 	cc = si_setcoreidx(sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	_ipxotp_init(oi, cc);
 
@@ -446,7 +441,6 @@ static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 
 	idx = si_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	/* Read the data */
 	for (i = 0; i < sz; i++)
@@ -567,13 +561,7 @@ static int hndotp_size(void *oh)
 
 static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
-#ifdef BCMDBG
-	otpinfo_t *oi = (otpinfo_t *) oh;
-#endif
 	volatile u16 *ptr;
-
-	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
-	ASSERT(cc != NULL);
 
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 	return R_REG(&ptr[wn]);
@@ -583,10 +571,6 @@ static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	volatile u16 *ptr;
-
-	ASSERT(woff >= (-((int)oi->size / 2)));
-	ASSERT(woff < OTP_LIM_OFF);
-	ASSERT(cc != NULL);
 
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 
@@ -642,11 +626,7 @@ static void *hndotp_init(si_t *sih)
 			goto out;
 		}
 
-		/* As of right now, support only 4320a2, 4311a1 and 4312 */
-		ASSERT((oi->ccrev == 12) || (oi->ccrev == 17)
-		       || (oi->ccrev == 22));
-		if (!
-		    ((oi->ccrev == 12) || (oi->ccrev == 17)
+		if (!((oi->ccrev == 12) || (oi->ccrev == 17)
 		     || (oi->ccrev == 22)))
 			return NULL;
 
@@ -702,8 +682,14 @@ static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 	chipcregs_t *cc;
 	int i;
 
-	/* Only support HW region (no active chips use HND OTP SW region) */
-	ASSERT(region == OTP_HW_REGION);
+
+	if (region != OTP_HW_REGION) {
+		/*
+		 * Only support HW region
+		 * (no active chips use HND OTP SW region)
+		 * */
+		return -ENOTSUPP;
+	}
 
 	/* Region empty? */
 	st = oi->hwprot | oi->signvalid;
@@ -715,7 +701,6 @@ static int hndotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 
 	idx = si_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	for (i = 0; i < (int)*wlen; i++)
 		data[i] = hndotp_otpr(oh, cc, i);
@@ -739,7 +724,6 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 	/* save the orig core */
 	idx = si_coreidx(oi->sih);
 	cc = si_setcoreidx(oi->sih, SI_CC_IDX);
-	ASSERT(cc != NULL);
 
 	st = hndotp_status(oh);
 	if (!(st & (OTP_HW_REGION | OTP_SW_REGION))) {

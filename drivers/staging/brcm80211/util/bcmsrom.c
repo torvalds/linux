@@ -139,7 +139,6 @@ int srom_var_init(si_t *sih, uint bustype, void *curmap,
 
 	len = 0;
 
-	ASSERT(bustype == bustype);
 	if (vars == NULL || count == NULL)
 		return 0;
 
@@ -152,14 +151,13 @@ int srom_var_init(si_t *sih, uint bustype, void *curmap,
 		return initvars_srom_si(sih, curmap, vars, count);
 
 	case PCI_BUS:
-		ASSERT(curmap != NULL);
 		if (curmap == NULL)
 			return -1;
 
 		return initvars_srom_pci(sih, curmap, vars, count);
 
 	default:
-		ASSERT(0);
+		break;
 	}
 	return -1;
 }
@@ -276,8 +274,6 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 	uint sz = OTP_SZ_MAX / 2;	/* size in words */
 	int err = 0;
 
-	ASSERT(bufsz <= OTP_SZ_MAX);
-
 	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
 	if (otp == NULL) {
 		return -EBADE;
@@ -322,7 +318,6 @@ static int initvars_table(char *start, char *end,
 	/* do it only when there is more than just the null string */
 	if (c > 1) {
 		char *vp = kmalloc(c, GFP_ATOMIC);
-		ASSERT(vp != NULL);
 		if (!vp)
 			return -ENOMEM;
 		memcpy(vp, start, c);
@@ -404,11 +399,7 @@ static int initvars_flash_si(si_t *sih, char **vars, uint *count)
 	char *vp, *base;
 	int err;
 
-	ASSERT(vars != NULL);
-	ASSERT(count != NULL);
-
 	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
-	ASSERT(vp != NULL);
 	if (!vp)
 		return -ENOMEM;
 
@@ -434,7 +425,6 @@ static uint mask_shift(u16 mask)
 		if (mask & (1 << i))
 			return i;
 	}
-	ASSERT(mask);
 	return 0;
 }
 
@@ -445,18 +435,8 @@ static uint mask_width(u16 mask)
 		if (mask & (1 << i))
 			return (uint) (i - mask_shift(mask) + 1);
 	}
-	ASSERT(mask);
 	return 0;
 }
-
-#if defined(BCMDBG)
-static bool mask_valid(u16 mask)
-{
-	uint shift = mask_shift(mask);
-	uint width = mask_width(mask);
-	return mask == ((~0 << shift) & ~(~0 << (shift + width)));
-}
-#endif				/* BCMDBG */
 
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 {
@@ -497,22 +477,14 @@ static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 
 			varbuf_append(b, "%s=%pM", name, ea);
 		} else {
-			ASSERT(mask_valid(srv->mask));
-			ASSERT(mask_width(srv->mask));
-
 			w = srom[srv->off - off];
 			val = (w & srv->mask) >> mask_shift(srv->mask);
 			width = mask_width(srv->mask);
 
 			while (srv->flags & SRFL_MORE) {
 				srv++;
-				ASSERT(srv->name != NULL);
-
 				if (srv->off == 0 || srv->off < off)
 					continue;
-
-				ASSERT(mask_valid(srv->mask));
-				ASSERT(mask_width(srv->mask));
 
 				w = srom[srv->off - off];
 				val +=
@@ -577,8 +549,6 @@ static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 					continue;
 
 				w = srom[pb + srv->off - off];
-
-				ASSERT(mask_valid(srv->mask));
 				val = (w & srv->mask) >> mask_shift(srv->mask);
 				width = mask_width(srv->mask);
 
@@ -621,7 +591,6 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	 * from flash.
 	 */
 	srom = kmalloc(SROM_MAX, GFP_ATOMIC);
-	ASSERT(srom != NULL);
 	if (!srom)
 		return -2;
 
@@ -703,11 +672,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 		goto errout;
 	}
 
-	ASSERT(vars != NULL);
-	ASSERT(count != NULL);
-
 	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
-	ASSERT(vp != NULL);
 	if (!vp) {
 		err = -2;
 		goto errout;
@@ -727,11 +692,8 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	_initvars_srom_pci(sromrev, srom, 0, &b);
 
 	/* final nullbyte terminator */
-	ASSERT(b.size >= 1);
 	vp = b.buf;
 	*vp++ = '\0';
-
-	ASSERT((vp - base) <= MAXSZ_NVRAM_VARS);
 
  varsdone:
 	err = initvars_table(base, vp, vars, count);
