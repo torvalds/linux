@@ -83,6 +83,7 @@ enum reg_v3 {
 	HPLMIXSEL = 0x12b,
 	HPRMIXSEL = 0x12c,
 	LOANTIPOP = 0x12d,
+	AUXDBNC = 0x12f,
 };
 
 /****
@@ -859,7 +860,10 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[3].reg_addr = 0x105;
 		sc_access[3].value = 0x40;
 		sc_access[3].mask = MASK6;
-		num_val = 4;
+		sc_access[4].reg_addr = AUXDBNC;
+		sc_access[4].mask = MASK7|MASK6|MASK5|MASK4|MASK3|MASK2|MASK1|MASK0;
+		sc_access[4].value = 0xff;
+		num_val = 5;
 		break;
 
 	case DMIC:
