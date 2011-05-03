@@ -131,7 +131,6 @@ static void wl_ops_sw_scan_complete(struct ieee80211_hw *hw);
 static void wl_ops_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static int wl_ops_get_stats(struct ieee80211_hw *hw,
 			    struct ieee80211_low_level_stats *stats);
-static int wl_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 static void wl_ops_sta_notify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      enum sta_notify_cmd cmd,
@@ -508,16 +507,6 @@ wl_ops_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int wl_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
-{
-	struct wl_info *wl = hw->priv;
-
-	WL_LOCK(wl);
-	wlc_iovar_setint(wl->wlc, "rtsthresh", value & 0xFFFF);
-	WL_UNLOCK(wl);
-	return 0;
-}
-
 static void
 wl_ops_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
@@ -669,7 +658,6 @@ static const struct ieee80211_ops wl_ops = {
 	.sw_scan_complete = wl_ops_sw_scan_complete,
 	.set_tsf = wl_ops_set_tsf,
 	.get_stats = wl_ops_get_stats,
-	.set_rts_threshold = wl_ops_set_rts_threshold,
 	.sta_notify = wl_ops_sta_notify,
 	.conf_tx = wl_ops_conf_tx,
 	.get_tsf = wl_ops_get_tsf,
