@@ -28,6 +28,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/gpio.h>
 #include <linux/pci.h>
 #include <linux/file.h>
 #include <sound/control.h>
@@ -85,6 +86,12 @@ enum reg_v3 {
 	LOANTIPOP = 0x12d,
 	AUXDBNC = 0x12f,
 };
+
+static void nc_set_amp_power(int power)
+{
+	if (snd_pmic_ops_nc.gpio_amp)
+		gpio_set_value(snd_pmic_ops_nc.gpio_amp, power);
+}
 
 /****
  * nc_init_card - initialize the sound card
@@ -212,6 +219,16 @@ static int nc_power_up_pb(unsigned int port)
 
 	msleep(30);
 
+	/*
+	 * There is a mismatch between Playback Sources and the enumerated
+	 * values of output sources.  This mismatch causes ALSA upper to send
+	 * Item 1 for Internal Speaker, but the expected enumeration is 2!  For
+	 * now, treat MONO_EARPIECE and INTERNAL_SPKR identically and power up
+	 * the needed resources
+	 */
+	if (snd_pmic_ops_nc.output_dev_id == MONO_EARPIECE ||
+	    snd_pmic_ops_nc.output_dev_id == INTERNAL_SPKR)
+		nc_set_amp_power(1);
 	return nc_enable_audiodac(UNMUTE);
 
 }
@@ -273,7 +290,6 @@ static int nc_power_down(void)
 	int retval = 0;
 	struct sc_reg_access sc_access[5];
 
-
 	if (snd_pmic_ops_nc.card_status == SND_CARD_UN_INIT)
 		retval = nc_init_card();
 	if (retval)
@@ -282,6 +298,10 @@ static int nc_power_down(void)
 
 
 	pr_debug("powering dn nc_power_down ....\n");
+
+	if (snd_pmic_ops_nc.output_dev_id == MONO_EARPIECE ||
+	    snd_pmic_ops_nc.output_dev_id == INTERNAL_SPKR)
+		nc_set_amp_power(0);
 
 	msleep(30);
 
@@ -518,9 +538,12 @@ static int nc_set_selected_output_dev(u8 value)
 	switch (value) {
 	case STEREO_HEADPHONE:
 		retval = sst_sc_reg_access(sc_access_HP, PMIC_WRITE, 2);
+		nc_set_amp_power(0);
 		break;
+	case MONO_EARPIECE:
 	case INTERNAL_SPKR:
 		retval = sst_sc_reg_access(sc_access_IS, PMIC_WRITE, 2);
+		nc_set_amp_power(1);
 		break;
 	default:
 		pr_err("rcvd illegal request: %d\n", value);

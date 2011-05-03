@@ -120,6 +120,8 @@ struct snd_pmic_ops {
 	unsigned int hw_dmic_map[MFLD_MAX_HW_CH];
 	unsigned int available_dmics;
 	int (*set_hw_dmic_route) (u8 index);
+
+	int gpio_amp;
 };
 
 extern void sst_mad_send_jack_report(struct snd_jack *jack,

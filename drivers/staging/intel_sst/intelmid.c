@@ -40,6 +40,7 @@
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
+#include <linux/gpio.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
 #include "intel_sst_fw_ipc.h"
@@ -920,14 +921,20 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	ret_val = snd_intelmad_create(intelmaddata, card);
 	if (ret_val) {
 		pr_err("snd_intelmad_create failed\n");
-		goto set_pvt_data;;
+		goto set_pvt_data;
 	}
 	card->private_data = &intelmaddata;
 	snd_card_set_dev(card, &pdev->dev);
 	ret_val = snd_card_register(card);
 	if (ret_val) {
 		pr_err("snd_card_register failed\n");
-		goto set_pvt_data;;
+		goto set_pvt_data;
+	}
+	if (pdev->dev.platform_data) {
+		int gpio_amp = *(int *)pdev->dev.platform_data;
+		if (gpio_request_one(gpio_amp, GPIOF_OUT_INIT_LOW, "amp power"))
+			gpio_amp = 0;
+		intelmaddata->sstdrv_ops->scard_ops->gpio_amp = gpio_amp;
 	}
 
 	pr_debug("snd_intelmad_probe complete\n");
@@ -957,6 +964,8 @@ static int snd_intelmad_remove(struct platform_device *pdev)
 	struct snd_intelmad *intelmaddata = platform_get_drvdata(pdev);
 
 	if (intelmaddata) {
+		if (intelmaddata->sstdrv_ops->scard_ops->gpio_amp)
+			gpio_free(intelmaddata->sstdrv_ops->scard_ops->gpio_amp);
 		free_irq(intelmaddata->irq, intelmaddata);
 		snd_card_free(intelmaddata->card);
 	}
