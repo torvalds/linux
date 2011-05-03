@@ -153,8 +153,14 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 {
 	unsigned long timeout;
 
+ again:
 	timeout = jiffies + msecs_to_jiffies(1000);
 	for (;;) {
+		if (chip->polling_mode) {
+			spin_lock_irq(&chip->reg_lock);
+			lola_update_rirb(chip);
+			spin_unlock_irq(&chip->reg_lock);
+		}
 		if (!chip->rirb.cmds) {
 			*val = chip->res;
 			if (extval)
@@ -175,9 +181,13 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 			break;
 		udelay(20);
 		cond_resched();
-		lola_update_rirb(chip);
 	}
 	printk(KERN_WARNING SFX "RIRB response error\n");
+	if (!chip->polling_mode) {
+		printk(KERN_WARNING SFX "switching to polling mode\n");
+		chip->polling_mode = 1;
+		goto again;
+	}
 	return -EIO;
 }
 

@@ -374,8 +374,9 @@ struct lola {
 	unsigned int sample_rate_max;
 
 	/* flags */
-	unsigned int initialized :1;
-	unsigned int cold_reset :1;
+	unsigned int initialized:1;
+	unsigned int cold_reset:1;
+	unsigned int polling_mode:1;
 
 	/* for debugging */
 	unsigned int debug_res;
