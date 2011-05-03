@@ -880,12 +880,12 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[2].reg_addr = 0x10a;
 		sc_access[2].value = 0x40;
 		sc_access[2].mask = MASK6;
-		sc_access[3].reg_addr = 0x109;
+		sc_access[3].reg_addr = LILSEL;
 		sc_access[3].mask = MASK6;
 		sc_access[3].value = 0x00;
-		sc_access[4].reg_addr = 0x104;
-		sc_access[4].value = 0x3C;
-		sc_access[4].mask = 0xff;
+		sc_access[4].reg_addr = ADCSAMPLERATE;
+		sc_access[4].mask =  MASK7|MASK6|MASK5|MASK4|MASK3;
+		sc_access[4].value = 0x33;
 		num_val = 5;
 		break;
 	default:
