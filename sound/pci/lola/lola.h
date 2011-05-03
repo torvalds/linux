@@ -499,6 +499,7 @@ int lola_set_clock_index(struct lola *chip, unsigned int idx);
 int lola_set_clock(struct lola *chip, int idx);
 int lola_set_sample_rate(struct lola *chip, int rate);
 bool lola_update_ext_clock_freq(struct lola *chip, unsigned int val);
+unsigned int lola_sample_rate_convert(unsigned int coded);
 
 /* mixer */
 int lola_init_pins(struct lola *chip, int dir, int *nidp);

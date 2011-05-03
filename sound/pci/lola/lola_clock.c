@@ -24,7 +24,7 @@
 #include <sound/pcm.h>
 #include "lola.h"
 
-static unsigned int sample_rate_convert(unsigned int coded)
+unsigned int lola_sample_rate_convert(unsigned int coded)
 {
 	unsigned int freq;
 
@@ -172,7 +172,7 @@ int __devinit lola_init_clock_widget(struct lola *chip, int nid)
 			int format = LOLA_CLOCK_FORMAT_NONE;
 			bool add_clock = true;
 			if (type == LOLA_CLOCK_TYPE_INTERNAL) {
-				freq = sample_rate_convert(freq);
+				freq = lola_sample_rate_convert(freq);
 				if (freq < chip->sample_rate_min)
 					add_clock = false;
 				else if (freq == 48000) {
@@ -181,7 +181,7 @@ int __devinit lola_init_clock_widget(struct lola *chip, int nid)
 					chip->clock.cur_valid = true;
 				}
 			} else if (type == LOLA_CLOCK_TYPE_VIDEO) {
-				freq = sample_rate_convert(freq);
+				freq = lola_sample_rate_convert(freq);
 				if (freq < chip->sample_rate_min)
 					add_clock = false;
 				/* video clock has a format (0:NTSC, 1:PAL)*/
@@ -263,7 +263,7 @@ bool lola_update_ext_clock_freq(struct lola *chip, unsigned int val)
 	/* only for current = external clocks */
 	if (chip->clock.sample_clock[chip->clock.cur_index].type !=
 	    LOLA_CLOCK_TYPE_INTERNAL) {
-		chip->clock.cur_freq = sample_rate_convert(val & 0x7f);
+		chip->clock.cur_freq = lola_sample_rate_convert(val & 0x7f);
 		chip->clock.cur_valid = (val & 0x100) != 0;
 	}
 	return true;
