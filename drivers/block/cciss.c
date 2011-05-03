@@ -2569,7 +2569,7 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
-		case 0:	/* ABORT message */
+		case CCISS_ABORT_MSG:
 			c->Request.CDBLen = 12;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
 			c->Request.Type.Direction = XFER_WRITE;
@@ -2579,16 +2579,16 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 			/* buff contains the tag of the command to abort */
 			memcpy(&c->Request.CDB[4], buff, 8);
 			break;
-		case 1:	/* RESET message */
+		case CCISS_RESET_MSG:
 			c->Request.CDBLen = 16;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
 			c->Request.Type.Direction = XFER_NONE;
 			c->Request.Timeout = 0;
 			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
 			c->Request.CDB[0] = cmd;	/* reset */
-			c->Request.CDB[1] = 0x03;	/* reset a target */
+			c->Request.CDB[1] = CCISS_RESET_TYPE_TARGET;
 			break;
-		case 3:	/* No-Op message */
+		case CCISS_NOOP_MSG:
 			c->Request.CDBLen = 1;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
 			c->Request.Type.Direction = XFER_WRITE;

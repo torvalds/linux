@@ -142,6 +142,14 @@ typedef struct _ReadCapdata_struct_16
 #define BMIC_CACHE_FLUSH 0xc2
 #define CCISS_CACHE_FLUSH 0x01	/* C2 was already being used by CCISS */
 
+#define CCISS_ABORT_MSG 0x00
+#define CCISS_RESET_MSG 0x01
+#define CCISS_RESET_TYPE_CONTROLLER 0x00
+#define CCISS_RESET_TYPE_BUS 0x01
+#define CCISS_RESET_TYPE_TARGET 0x03
+#define CCISS_RESET_TYPE_LUN 0x04
+#define CCISS_NOOP_MSG 0x03
+
 /* Command List Structure */
 #define CTLR_LUNID "\0\0\0\0\0\0\0\0"
 
