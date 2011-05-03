@@ -820,7 +820,7 @@ struct soc_enum {
 	unsigned char shift_r;
 	unsigned int max;
 	unsigned int mask;
-	const char **texts;
+	const char * const *texts;
 	const unsigned int *values;
 	void *dapm;
 };
