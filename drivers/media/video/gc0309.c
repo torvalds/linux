@@ -48,10 +48,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_ID 0xa0
 #define SENSOR_MIN_WIDTH    176
 #define SENSOR_MIN_HEIGHT   144
-#define SENSOR_MAX_WIDTH    648
-#define SENSOR_MAX_HEIGHT   488
-#define SENSOR_INIT_WIDTH	648			/* Sensor pixel size for sensor_init_data array */
-#define SENSOR_INIT_HEIGHT  488
+#define SENSOR_MAX_WIDTH    640
+#define SENSOR_MAX_HEIGHT   480
+#define SENSOR_INIT_WIDTH	640		/* Sensor pixel size for sensor_init_data array */
+#define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
 #define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
 
@@ -74,7 +74,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|\
-                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
+                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
 #define COLOR_TEMPERATURE_CLOUDY_DN  6500
@@ -170,7 +170,7 @@ static struct reginfo sensor_init_data[] =
 
 {0x20,0xff}, 
 {0x21,0xf8}, 
-{0x24,0xa0}, 
+{0x24,0xa2}, 
 {0x25,0x0f},
 	//output sync_mode
 {0x26,0x03}, 
