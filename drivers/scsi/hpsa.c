@@ -1591,6 +1591,7 @@ static unsigned char *msa2xxx_model[] = {
 	"MSA2024",
 	"MSA2312",
 	"MSA2324",
+	"P2000 G3 SAS",
 	NULL,
 };
 
