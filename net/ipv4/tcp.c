@@ -3332,8 +3332,9 @@ void __init tcp_init(void)
 
 static int tcp_is_local(struct net *net, __be32 addr) {
 	struct rtable *rt;
-	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
-	if (ip_route_output_key(net, &rt, &fl) || !rt)
+	struct flowi4 fl4 = { .daddr = addr };
+	rt = ip_route_output_key(net, &fl4);
+	if (!rt)
 		return 0;
 	return rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK);
 }
