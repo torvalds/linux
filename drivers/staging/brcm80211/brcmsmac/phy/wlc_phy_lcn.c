@@ -19,7 +19,6 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <wlc_cfg.h>
-#include <qmath.h>
 #include <linux/pci.h>
 #include <aiutils.h>
 #include <wlc_pmu.h>
@@ -27,10 +26,11 @@
 #include <bcmdevs.h>
 #include <sbhnddma.h>
 
-#include <wlc_phy_radio.h>
-#include <wlc_phy_int.h>
-#include <wlc_phy_lcn.h>
-#include <wlc_phytbl_lcn.h>
+#include "wlc_phy_radio.h"
+#include "wlc_phy_int.h"
+#include "wlc_phy_qmath.h"
+#include "wlc_phy_lcn.h"
+#include "wlc_phytbl_lcn.h"
 
 #define PLL_2064_NDIV		90
 #define PLL_2064_LOW_END_VCO 	3000

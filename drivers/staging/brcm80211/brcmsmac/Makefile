@@ -47,13 +47,13 @@ BRCMSMAC_OFILES := \
 	phy/wlc_phy_n.o \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
+	phy/wlc_phy_qmath.o \
 	../util/bcmutils.o \
 	../util/bcmwifi.o \
 	../util/bcmotp.o \
 	../util/bcmsrom.o \
 	../util/hnddma.o \
 	../util/nicpci.o \
-	../util/qmath.o \
 	../util/nvram/nvram_ro.o
 
 MODULEPFX := brcmsmac

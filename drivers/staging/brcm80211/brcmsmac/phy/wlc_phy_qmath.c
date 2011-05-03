@@ -15,7 +15,8 @@
  */
 
 #include <linux/types.h>
-#include "qmath.h"
+
+#include "wlc_phy_qmath.h"
 
 /*
 Description: This function saturate input 32 bit number into a 16 bit number.
