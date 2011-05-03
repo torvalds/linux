@@ -777,7 +777,7 @@ struct drbd_backing_dev {
 	struct block_device *backing_bdev;
 	struct block_device *md_bdev;
 	struct drbd_md md;
-	struct disk_conf dc; /* The user provided config... */
+	struct disk_conf *disk_conf; /* RCU, for updates: mdev->tconn->conf_update */
 	sector_t known_size; /* last known size of that backing device */
 };
 
@@ -1644,8 +1644,13 @@ static inline union drbd_state drbd_read_state(struct drbd_conf *mdev)
 #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
 static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach, const char *where)
 {
-	switch (mdev->ldev->dc.on_io_error) {
-	case EP_PASS_ON:
+	enum drbd_io_error_p ep;
+
+	rcu_read_lock();
+	ep = rcu_dereference(mdev->ldev->disk_conf)->on_io_error;
+	rcu_read_unlock();
+	switch (ep) {
+	case EP_PASS_ON: /* FIXME would this be better named "Ignore"? */
 		if (!forcedetach) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Local IO failed in %s.\n", where);
@@ -1694,9 +1699,9 @@ static inline void drbd_chk_io_error_(struct drbd_conf *mdev,
  * BTW, for internal meta data, this happens to be the maximum capacity
  * we could agree upon with our peer node.
  */
-static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
+static inline sector_t _drbd_md_first_sector(int meta_dev_idx, struct drbd_backing_dev *bdev)
 {
-	switch (bdev->dc.meta_dev_idx) {
+	switch (meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		return bdev->md.md_offset + bdev->md.bm_offset;
@@ -1706,13 +1711,30 @@ static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
 	}
 }
 
+static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
+{
+	int meta_dev_idx;
+
+	rcu_read_lock();
+	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+	rcu_read_unlock();
+
+	return _drbd_md_first_sector(meta_dev_idx, bdev);
+}
+
 /**
  * drbd_md_last_sector() - Return the last sector number of the meta data area
  * @bdev:	Meta data block device.
  */
 static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
 {
-	switch (bdev->dc.meta_dev_idx) {
+	int meta_dev_idx;
+
+	rcu_read_lock();
+	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+	rcu_read_unlock();
+
+	switch (meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		return bdev->md.md_offset + MD_AL_OFFSET - 1;
@@ -1740,12 +1762,18 @@ static inline sector_t drbd_get_capacity(struct block_device *bdev)
 static inline sector_t drbd_get_max_capacity(struct drbd_backing_dev *bdev)
 {
 	sector_t s;
-	switch (bdev->dc.meta_dev_idx) {
+	int meta_dev_idx;
+
+	rcu_read_lock();
+	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+	rcu_read_unlock();
+
+	switch (meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		s = drbd_get_capacity(bdev->backing_bdev)
 			? min_t(sector_t, DRBD_MAX_SECTORS_FLEX,
-					drbd_md_first_sector(bdev))
+				_drbd_md_first_sector(meta_dev_idx, bdev))
 			: 0;
 		break;
 	case DRBD_MD_INDEX_FLEX_EXT:
@@ -1771,9 +1799,15 @@ static inline sector_t drbd_get_max_capacity(struct drbd_backing_dev *bdev)
 static inline sector_t drbd_md_ss__(struct drbd_conf *mdev,
 				    struct drbd_backing_dev *bdev)
 {
-	switch (bdev->dc.meta_dev_idx) {
+	int meta_dev_idx;
+
+	rcu_read_lock();
+	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+	rcu_read_unlock();
+
+	switch (meta_dev_idx) {
 	default: /* external, some index */
-		return MD_RESERVED_SECT * bdev->dc.meta_dev_idx;
+		return MD_RESERVED_SECT * meta_dev_idx;
 	case DRBD_MD_INDEX_INTERNAL:
 		/* with drbd08, internal meta data is always "flexible" */
 	case DRBD_MD_INDEX_FLEX_INT:

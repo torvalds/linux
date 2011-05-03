@@ -866,6 +866,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	const int apv = mdev->tconn->agreed_pro_version;
 	enum drbd_packet cmd;
 	struct net_conf *nc;
+	struct disk_conf *dc;
 
 	sock = &mdev->tconn->data;
 	p = drbd_prepare_command(mdev, sock);
@@ -887,11 +888,12 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
 
 	if (get_ldev(mdev)) {
-		p->rate = cpu_to_be32(mdev->ldev->dc.resync_rate);
-		p->c_plan_ahead = cpu_to_be32(mdev->ldev->dc.c_plan_ahead);
-		p->c_delay_target = cpu_to_be32(mdev->ldev->dc.c_delay_target);
-		p->c_fill_target = cpu_to_be32(mdev->ldev->dc.c_fill_target);
-		p->c_max_rate = cpu_to_be32(mdev->ldev->dc.c_max_rate);
+		dc = rcu_dereference(mdev->ldev->disk_conf);
+		p->rate = cpu_to_be32(dc->resync_rate);
+		p->c_plan_ahead = cpu_to_be32(dc->c_plan_ahead);
+		p->c_delay_target = cpu_to_be32(dc->c_delay_target);
+		p->c_fill_target = cpu_to_be32(dc->c_fill_target);
+		p->c_max_rate = cpu_to_be32(dc->c_max_rate);
 		put_ldev(mdev);
 	} else {
 		p->rate = cpu_to_be32(DRBD_RATE_DEF);
@@ -1056,7 +1058,9 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 	if (get_ldev_if_state(mdev, D_NEGOTIATING)) {
 		D_ASSERT(mdev->ldev->backing_bdev);
 		d_size = drbd_get_max_capacity(mdev->ldev);
-		u_size = mdev->ldev->dc.disk_size;
+		rcu_read_lock();
+		u_size = rcu_dereference(mdev->ldev->disk_conf)->disk_size;
+		rcu_read_unlock();
 		q_order_type = drbd_queue_order_type(mdev);
 		max_bio_size = queue_max_hw_sectors(mdev->ldev->backing_bdev->bd_disk->queue) << 9;
 		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_BIO_SIZE);
@@ -2889,7 +2893,6 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		bdev->md.uuid[i] = be64_to_cpu(buffer->uuid[i]);
 	bdev->md.flags = be32_to_cpu(buffer->flags);
-	bdev->dc.al_extents = be32_to_cpu(buffer->al_nr_extents);
 	bdev->md.device_uuid = be64_to_cpu(buffer->device_uuid);
 
 	spin_lock_irq(&mdev->tconn->req_lock);
@@ -2901,8 +2904,12 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	if (bdev->dc.al_extents < 7)
-		bdev->dc.al_extents = 127;
+	mutex_lock(&mdev->tconn->conf_update);
+	/* This blocks wants to be get removed... */
+	bdev->disk_conf->al_extents = be32_to_cpu(buffer->al_nr_extents);
+	if (bdev->disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+		bdev->disk_conf->al_extents = DRBD_AL_EXTENTS_DEF;
+	mutex_unlock(&mdev->tconn->conf_update);
 
  err:
 	mutex_unlock(&mdev->md_io_mutex);

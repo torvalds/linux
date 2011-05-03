@@ -436,6 +436,7 @@ static void fifo_add_val(struct fifo_buffer *fb, int value)
 
 static int drbd_rs_controller(struct drbd_conf *mdev)
 {
+	struct disk_conf *dc;
 	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
 	unsigned int want;     /* The number of sectors we want in the proxy */
 	int req_sect; /* Number of sectors to request in this turn */
@@ -449,14 +450,16 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 	mdev->rs_in_flight -= sect_in;
 
 	spin_lock(&mdev->peer_seq_lock); /* get an atomic view on mdev->rs_plan_s */
+	rcu_read_lock();
+	dc = rcu_dereference(mdev->ldev->disk_conf);
 
-	steps = mdev->rs_plan_s.size; /* (mdev->ldev->dc.c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
+	steps = mdev->rs_plan_s.size; /* (dc->c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
 
 	if (mdev->rs_in_flight + sect_in == 0) { /* At start of resync */
-		want = ((mdev->ldev->dc.resync_rate * 2 * SLEEP_TIME) / HZ) * steps;
+		want = ((dc->resync_rate * 2 * SLEEP_TIME) / HZ) * steps;
 	} else { /* normal path */
-		want = mdev->ldev->dc.c_fill_target ? mdev->ldev->dc.c_fill_target :
-			sect_in * mdev->ldev->dc.c_delay_target * HZ / (SLEEP_TIME * 10);
+		want = dc->c_fill_target ? dc->c_fill_target :
+			sect_in * dc->c_delay_target * HZ / (SLEEP_TIME * 10);
 	}
 
 	correction = want - mdev->rs_in_flight - mdev->rs_planed;
@@ -468,14 +471,13 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 
 	/* What we do in this step */
 	curr_corr = fifo_push(&mdev->rs_plan_s, 0);
-	spin_unlock(&mdev->peer_seq_lock);
 	mdev->rs_planed -= curr_corr;
 
 	req_sect = sect_in + curr_corr;
 	if (req_sect < 0)
 		req_sect = 0;
 
-	max_sect = (mdev->ldev->dc.c_max_rate * 2 * SLEEP_TIME) / HZ;
+	max_sect = (dc->c_max_rate * 2 * SLEEP_TIME) / HZ;
 	if (req_sect > max_sect)
 		req_sect = max_sect;
 
@@ -484,6 +486,8 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 		 sect_in, mdev->rs_in_flight, want, correction,
 		 steps, cps, mdev->rs_planed, curr_corr, req_sect);
 	*/
+	rcu_read_unlock();
+	spin_unlock(&mdev->peer_seq_lock);
 
 	return req_sect;
 }
@@ -491,11 +495,13 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 static int drbd_rs_number_requests(struct drbd_conf *mdev)
 {
 	int number;
-	if (mdev->rs_plan_s.size) { /* mdev->ldev->dc.c_plan_ahead */
+	if (mdev->rs_plan_s.size) { /* rcu_dereference(mdev->ldev->disk_conf)->c_plan_ahead */
 		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
 		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
 	} else {
-		mdev->c_sync_rate = mdev->ldev->dc.resync_rate;
+		rcu_read_lock();
+		mdev->c_sync_rate = rcu_dereference(mdev->ldev->disk_conf)->resync_rate;
+		rcu_read_unlock();
 		number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
 	}
 
@@ -1320,13 +1326,17 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 static int _drbd_may_sync_now(struct drbd_conf *mdev)
 {
 	struct drbd_conf *odev = mdev;
+	int ra;
 
 	while (1) {
 		if (!odev->ldev)
 			return 1;
-		if (odev->ldev->dc.resync_after == -1)
+		rcu_read_lock();
+		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+		rcu_read_unlock();
+		if (ra == -1)
 			return 1;
-		odev = minor_to_mdev(odev->ldev->dc.resync_after);
+		odev = minor_to_mdev(ra);
 		if (!expect(odev))
 			return 1;
 		if ((odev->state.conn >= C_SYNC_SOURCE &&
@@ -1405,6 +1415,7 @@ void suspend_other_sg(struct drbd_conf *mdev)
 enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
 {
 	struct drbd_conf *odev;
+	int ra;
 
 	if (o_minor == -1)
 		return NO_ERROR;
@@ -1417,12 +1428,15 @@ enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
 		if (odev == mdev)
 			return ERR_SYNC_AFTER_CYCLE;
 
+		rcu_read_lock();
+		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+		rcu_read_unlock();
 		/* dependency chain ends here, no cycles. */
-		if (odev->ldev->dc.resync_after == -1)
+		if (ra == -1)
 			return NO_ERROR;
 
 		/* follow the dependency chain */
-		odev = minor_to_mdev(odev->ldev->dc.resync_after);
+		odev = minor_to_mdev(ra);
 	}
 }
 

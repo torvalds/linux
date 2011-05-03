@@ -483,13 +483,13 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 	enum drbd_state_rv rv = SS_SUCCESS;
 	struct net_conf *nc;
 
+	rcu_read_lock();
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
-		fp = mdev->ldev->dc.fencing;
+		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
 		put_ldev(mdev);
 	}
 
-	rcu_read_lock();
 	nc = rcu_dereference(mdev->tconn->net_conf);
 	if (nc) {
 		if (!nc->two_primaries && ns.role == R_PRIMARY) {
@@ -674,7 +674,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
-		fp = mdev->ldev->dc.fencing;
+		rcu_read_lock();
+		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
+		rcu_read_unlock();
 		put_ldev(mdev);
 	}
 
@@ -1132,7 +1134,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
-		fp = mdev->ldev->dc.fencing;
+		rcu_read_lock();
+		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
+		rcu_read_unlock();
 		put_ldev(mdev);
 	}
 
@@ -1287,7 +1291,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		/* corresponding get_ldev was in __drbd_set_state, to serialize
 		 * our cleanup here with the transition to D_DISKLESS,
 		 * so it is safe to dreference ldev here. */
-		eh = mdev->ldev->dc.on_io_error;
+		rcu_read_lock();
+		eh = rcu_dereference(mdev->ldev->disk_conf)->on_io_error;
+		rcu_read_unlock();
 		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
 
 		/* current state still has to be D_FAILED,

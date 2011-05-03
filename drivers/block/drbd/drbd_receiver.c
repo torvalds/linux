@@ -1166,6 +1166,7 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
  */
 void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) __must_hold(local)
 {
+	struct disk_conf *dc;
 	enum write_ordering_e pwo;
 	static char *write_ordering_str[] = {
 		[WO_none] = "none",
@@ -1175,10 +1176,14 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 
 	pwo = mdev->write_ordering;
 	wo = min(pwo, wo);
-	if (wo == WO_bdev_flush && mdev->ldev->dc.no_disk_flush)
+	rcu_read_lock();
+	dc = rcu_dereference(mdev->ldev->disk_conf);
+
+	if (wo == WO_bdev_flush && dc->no_disk_flush)
 		wo = WO_drain_io;
-	if (wo == WO_drain_io && mdev->ldev->dc.no_disk_drain)
+	if (wo == WO_drain_io && dc->no_disk_drain)
 		wo = WO_none;
+	rcu_read_unlock();
 	mdev->write_ordering = wo;
 	if (pwo != mdev->write_ordering || wo == WO_bdev_flush)
 		dev_info(DEV, "Method to ensure write ordering: %s\n", write_ordering_str[mdev->write_ordering]);
@@ -2190,9 +2195,14 @@ int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector)
 	struct lc_element *tmp;
 	int curr_events;
 	int throttle = 0;
+	unsigned int c_min_rate;
+
+	rcu_read_lock();
+	c_min_rate = rcu_dereference(mdev->ldev->disk_conf)->c_min_rate;
+	rcu_read_unlock();
 
 	/* feature disabled? */
-	if (mdev->ldev->dc.c_min_rate == 0)
+	if (c_min_rate == 0)
 		return 0;
 
 	spin_lock_irq(&mdev->al_lock);
@@ -2232,7 +2242,7 @@ int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector)
 		db = mdev->rs_mark_left[i] - rs_left;
 		dbdt = Bit2KB(db/dt);
 
-		if (dbdt > mdev->ldev->dc.c_min_rate)
+		if (dbdt > c_min_rate)
 			throttle = 1;
 	}
 	return throttle;
@@ -3147,6 +3157,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct crypto_hash *verify_tfm = NULL;
 	struct crypto_hash *csums_tfm = NULL;
 	struct net_conf *old_net_conf, *new_net_conf = NULL;
+	struct disk_conf *old_disk_conf, *new_disk_conf = NULL;
 	const int apv = tconn->agreed_pro_version;
 	int *rs_plan_s = NULL;
 	int fifo_size = 0;
@@ -3189,10 +3200,18 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (err)
 		return err;
 
-	if (get_ldev(mdev)) {
-		mdev->ldev->dc.resync_rate = be32_to_cpu(p->rate);
-		put_ldev(mdev);
+	new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
+	if (!new_disk_conf) {
+		dev_err(DEV, "Allocation of new disk_conf failed\n");
+		return -ENOMEM;
 	}
+
+	mutex_lock(&mdev->tconn->conf_update);
+	old_net_conf = mdev->tconn->net_conf;
+	old_disk_conf = mdev->ldev->disk_conf;
+	*new_disk_conf = *old_disk_conf;
+
+	new_disk_conf->resync_rate = be32_to_cpu(p->rate);
 
 	if (apv >= 88) {
 		if (apv == 88) {
@@ -3200,13 +3219,15 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 				dev_err(DEV, "verify-alg too long, "
 				    "peer wants %u, accepting only %u byte\n",
 						data_size, SHARED_SECRET_MAX);
+				mutex_unlock(&mdev->tconn->conf_update);
 				return -EIO;
 			}
 
 			err = drbd_recv_all(mdev->tconn, p->verify_alg, data_size);
-			if (err)
+			if (err) {
+				mutex_unlock(&mdev->tconn->conf_update);
 				return err;
-
+			}
 			/* we expect NUL terminated string */
 			/* but just in case someone tries to be evil */
 			D_ASSERT(p->verify_alg[data_size-1] == 0);
@@ -3220,9 +3241,6 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 			p->verify_alg[SHARED_SECRET_MAX-1] = 0;
 			p->csums_alg[SHARED_SECRET_MAX-1] = 0;
 		}
-
-		mutex_lock(&mdev->tconn->conf_update);
-		old_net_conf = mdev->tconn->net_conf;
 
 		if (strcmp(old_net_conf->verify_alg, p->verify_alg)) {
 			if (mdev->state.conn == C_WF_REPORT_PARAMS) {
@@ -3252,14 +3270,13 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 			}
 		}
 
-		if (apv > 94 && get_ldev(mdev)) {
-			mdev->ldev->dc.resync_rate = be32_to_cpu(p->rate);
-			mdev->ldev->dc.c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
-			mdev->ldev->dc.c_delay_target = be32_to_cpu(p->c_delay_target);
-			mdev->ldev->dc.c_fill_target = be32_to_cpu(p->c_fill_target);
-			mdev->ldev->dc.c_max_rate = be32_to_cpu(p->c_max_rate);
+		if (apv > 94) {
+			new_disk_conf->c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
+			new_disk_conf->c_delay_target = be32_to_cpu(p->c_delay_target);
+			new_disk_conf->c_fill_target = be32_to_cpu(p->c_fill_target);
+			new_disk_conf->c_max_rate = be32_to_cpu(p->c_max_rate);
 
-			fifo_size = (mdev->ldev->dc.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
+			fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 			if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
 				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
 				if (!rs_plan_s) {
@@ -3268,7 +3285,6 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 					goto disconnect;
 				}
 			}
-			put_ldev(mdev);
 		}
 
 		if (verify_tfm || csums_tfm) {
@@ -3296,21 +3312,24 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 			}
 			rcu_assign_pointer(tconn->net_conf, new_net_conf);
 		}
-		mutex_unlock(&mdev->tconn->conf_update);
-		if (new_net_conf) {
-			synchronize_rcu();
-			kfree(old_net_conf);
-		}
-
-		spin_lock(&mdev->peer_seq_lock);
-		if (fifo_size != mdev->rs_plan_s.size) {
-			kfree(mdev->rs_plan_s.values);
-			mdev->rs_plan_s.values = rs_plan_s;
-			mdev->rs_plan_s.size   = fifo_size;
-			mdev->rs_planed = 0;
-		}
-		spin_unlock(&mdev->peer_seq_lock);
 	}
+
+	rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
+	spin_lock(&mdev->peer_seq_lock);
+	if (rs_plan_s) {
+		kfree(mdev->rs_plan_s.values);
+		mdev->rs_plan_s.values = rs_plan_s;
+		mdev->rs_plan_s.size   = fifo_size;
+		mdev->rs_planed = 0;
+	}
+	spin_unlock(&mdev->peer_seq_lock);
+
+	mutex_unlock(&mdev->tconn->conf_update);
+	synchronize_rcu();
+	if (new_net_conf)
+		kfree(old_net_conf);
+	kfree(old_disk_conf);
+
 	return 0;
 
 disconnect:
@@ -3358,37 +3377,56 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 	mdev->p_size = p_size;
 
 	if (get_ldev(mdev)) {
+		rcu_read_lock();
+		my_usize = rcu_dereference(mdev->ldev->disk_conf)->disk_size;
+		rcu_read_unlock();
+
 		warn_if_differ_considerably(mdev, "lower level device sizes",
 			   p_size, drbd_get_max_capacity(mdev->ldev));
 		warn_if_differ_considerably(mdev, "user requested size",
-					    p_usize, mdev->ldev->dc.disk_size);
+					    p_usize, my_usize);
 
 		/* if this is the first connect, or an otherwise expected
 		 * param exchange, choose the minimum */
 		if (mdev->state.conn == C_WF_REPORT_PARAMS)
-			p_usize = min_not_zero((sector_t)mdev->ldev->dc.disk_size,
-					     p_usize);
-
-		my_usize = mdev->ldev->dc.disk_size;
-
-		if (mdev->ldev->dc.disk_size != p_usize) {
-			mdev->ldev->dc.disk_size = p_usize;
-			dev_info(DEV, "Peer sets u_size to %lu sectors\n",
-			     (unsigned long)mdev->ldev->dc.disk_size);
-		}
+			p_usize = min_not_zero(my_usize, p_usize);
 
 		/* Never shrink a device with usable data during connect.
 		   But allow online shrinking if we are connected. */
 		if (drbd_new_dev_size(mdev, mdev->ldev, p_usize, 0) <
-		   drbd_get_capacity(mdev->this_bdev) &&
-		   mdev->state.disk >= D_OUTDATED &&
-		   mdev->state.conn < C_CONNECTED) {
+		    drbd_get_capacity(mdev->this_bdev) &&
+		    mdev->state.disk >= D_OUTDATED &&
+		    mdev->state.conn < C_CONNECTED) {
 			dev_err(DEV, "The peer's disk size is too small!\n");
 			conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
-			mdev->ldev->dc.disk_size = my_usize;
 			put_ldev(mdev);
 			return -EIO;
 		}
+
+		if (my_usize != p_usize) {
+			struct disk_conf *old_disk_conf, *new_disk_conf = NULL;
+
+			new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
+			if (!new_disk_conf) {
+				dev_err(DEV, "Allocation of new disk_conf failed\n");
+				put_ldev(mdev);
+				return -ENOMEM;
+			}
+
+			mutex_lock(&mdev->tconn->conf_update);
+			old_disk_conf = mdev->ldev->disk_conf;
+			*new_disk_conf = *old_disk_conf;
+			new_disk_conf->disk_size = p_usize;
+
+			rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
+			mutex_unlock(&mdev->tconn->conf_update);
+			synchronize_rcu();
+			kfree(old_disk_conf);
+
+			dev_info(DEV, "Peer sets u_size to %lu sectors\n",
+				 (unsigned long)my_usize);
+		}
+
 		put_ldev(mdev);
 	}
 
@@ -4268,7 +4306,9 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
-		fp = mdev->ldev->dc.fencing;
+		rcu_read_lock();
+		fp = rcu_dereference(mdev->ldev->disk_conf)->fencing;
+		rcu_read_unlock();
 		put_ldev(mdev);
 	}
 
