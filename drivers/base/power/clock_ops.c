@@ -380,6 +380,7 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 {
 	struct pm_clk_notifier_block *clknb;
 	struct device *dev = data;
+	char *con_id;
 
 	dev_dbg(dev, "%s() %ld\n", __func__, action);
 
