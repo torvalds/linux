@@ -1002,6 +1002,11 @@ struct ieee80211_ht_info {
 
 #define WLAN_CAPABILITY_ESS		(1<<0)
 #define WLAN_CAPABILITY_IBSS		(1<<1)
+
+/* A mesh STA sets the ESS and IBSS capability bits to zero */
+#define WLAN_CAPABILITY_IS_MBSS(cap)	\
+	(!((cap) & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)))
+
 #define WLAN_CAPABILITY_CF_POLLABLE	(1<<2)
 #define WLAN_CAPABILITY_CF_POLL_REQUEST	(1<<3)
 #define WLAN_CAPABILITY_PRIVACY		(1<<4)

@@ -210,7 +210,7 @@ static bool is_mesh(struct cfg80211_bss *a,
 {
 	const u8 *ie;
 
-	if (!is_zero_ether_addr(a->bssid))
+	if (!WLAN_CAPABILITY_IS_MBSS(a->capability))
 		return false;
 
 	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
@@ -248,11 +248,7 @@ static int cmp_bss(struct cfg80211_bss *a,
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
 
-	r = memcmp(a->bssid, b->bssid, ETH_ALEN);
-	if (r)
-		return r;
-
-	if (is_zero_ether_addr(a->bssid)) {
+	if (WLAN_CAPABILITY_IS_MBSS(a->capability | b->capability)) {
 		r = cmp_ies(WLAN_EID_MESH_ID,
 			    a->information_elements,
 			    a->len_information_elements,
@@ -266,6 +262,10 @@ static int cmp_bss(struct cfg80211_bss *a,
 			       b->information_elements,
 			       b->len_information_elements);
 	}
+
+	r = memcmp(a->bssid, b->bssid, ETH_ALEN);
+	if (r)
+		return r;
 
 	return cmp_ies(WLAN_EID_SSID,
 		       a->information_elements,
@@ -407,7 +407,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 
 	res->ts = jiffies;
 
-	if (is_zero_ether_addr(res->pub.bssid)) {
+	if (WLAN_CAPABILITY_IS_MBSS(res->pub.capability)) {
 		/* must be mesh, verify */
 		meshid = cfg80211_find_ie(WLAN_EID_MESH_ID,
 					  res->pub.information_elements,
