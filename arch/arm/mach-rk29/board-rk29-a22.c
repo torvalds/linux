@@ -64,6 +64,7 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #include "../../../drivers/staging/android/timed_gpio.h"
 #include "../../../drivers/input/magnetometer/mmc328x.h"
+#include "../../../drivers/video/backlight/aw9364_bl.h"
 /*set touchscreen different type header*/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
@@ -2162,6 +2163,34 @@ struct rk29_bl_info rk29_bl_info = {
     .io_deinit = rk29_backlight_io_deinit,
 };
 #endif
+
+#ifdef CONFIG_BACKLIGHT_AW9364
+static int aw9364_backlight_io_init(void)
+{
+    return 0;
+}
+
+static int aw9364_backlight_io_deinit(void)
+{
+    return 0;
+}
+struct aw9364_platform_data aw9364_bl_info = {
+    .pin_en   = RK29_PIN6_PD2,
+    .io_init   = aw9364_backlight_io_init,
+    .io_deinit = aw9364_backlight_io_deinit,
+};
+
+struct platform_device aw9364_device_backlight = {
+	.name = "aw9364_backlight",
+	.id = -1,		
+	.dev		= {
+	.platform_data = &aw9364_bl_info,	
+		}    	    
+	};
+
+#endif
+
+
 /*****************************************************************************************
 * pwm voltage regulator devices
 ******************************************************************************************/
@@ -2663,6 +2692,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_BACKLIGHT_AW9364
+	&aw9364_device_backlight,
 #endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,

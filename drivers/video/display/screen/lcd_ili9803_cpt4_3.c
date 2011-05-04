@@ -1405,7 +1405,6 @@ else if(OUT_FACE == OUT_P666)
 int init(void)
 { 
 	volatile u32 data;
-	int i;
 	printk("lcd init...\n");
 	/* reset lcd to start init lcd */
 	gpio_request(RK29_PIN6_PC6, NULL);
@@ -1423,21 +1422,19 @@ int init(void)
 	if(gLcd_info)
 	gLcd_info->io_deinit();
 
-	set_backlight(255);
+	//set_backlight(255);
 
     return 0;
 }
 
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-	int i;
-
     if(gLcd_info)
         gLcd_info->io_init();
 
 	if(enable) {
 		WriteCommand(0X2800); 
-		set_backlight(0);
+		//set_backlight(0);
 		mdelay(100);
 		WriteCommand(0X1000); 
 	} else { 
@@ -1445,7 +1442,7 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		mdelay(120);
 		WriteCommand(0X2900); 
 		mdelay(100);
-		set_backlight(255);
+		//set_backlight(255);
 	}
 
     if(gLcd_info)
