@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2004-2007 Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2004-2007,2011 Freescale Semiconductor, Inc.
+ * All rights reserved.
  *
  * Author: Li Yang <leoli@freescale.com>
  *         Jiang Bo <tanya.jiang@freescale.com>
@@ -230,7 +231,8 @@ static void nuke(struct fsl_ep *ep, int status)
 
 static int dr_controller_setup(struct fsl_udc *udc)
 {
-	unsigned int tmp, portctrl;
+	unsigned int tmp, portctrl, ep_num;
+	unsigned int max_no_of_ep;
 #ifndef CONFIG_ARCH_MXC
 	unsigned int ctrl;
 #endif
@@ -298,6 +300,14 @@ static int dr_controller_setup(struct fsl_udc *udc)
 		udc->ep_qh, (int)tmp,
 		fsl_readl(&dr_regs->endpointlistaddr));
 
+	max_no_of_ep = (0x0000001F & fsl_readl(&dr_regs->dccparams));
+	for (ep_num = 1; ep_num < max_no_of_ep; ep_num++) {
+		tmp = fsl_readl(&dr_regs->endptctrl[ep_num]);
+		tmp &= ~(EPCTRL_TX_TYPE | EPCTRL_RX_TYPE);
+		tmp |= (EPCTRL_EP_TYPE_BULK << EPCTRL_TX_EP_TYPE_SHIFT)
+		| (EPCTRL_EP_TYPE_BULK << EPCTRL_RX_EP_TYPE_SHIFT);
+		fsl_writel(tmp, &dr_regs->endptctrl[ep_num]);
+	}
 	/* Config control enable i/o output, cpu endian register */
 #ifndef CONFIG_ARCH_MXC
 	if (udc->pdata->have_sysif_regs) {
@@ -391,12 +401,14 @@ static void dr_ep_setup(unsigned char ep_num, unsigned char dir,
 		if (ep_num)
 			tmp_epctrl |= EPCTRL_TX_DATA_TOGGLE_RST;
 		tmp_epctrl |= EPCTRL_TX_ENABLE;
+		tmp_epctrl &= ~EPCTRL_TX_TYPE;
 		tmp_epctrl |= ((unsigned int)(ep_type)
 				<< EPCTRL_TX_EP_TYPE_SHIFT);
 	} else {
 		if (ep_num)
 			tmp_epctrl |= EPCTRL_RX_DATA_TOGGLE_RST;
 		tmp_epctrl |= EPCTRL_RX_ENABLE;
+		tmp_epctrl &= ~EPCTRL_RX_TYPE;
 		tmp_epctrl |= ((unsigned int)(ep_type)
 				<< EPCTRL_RX_EP_TYPE_SHIFT);
 	}
@@ -619,10 +631,13 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 	/* disable ep on controller */
 	ep_num = ep_index(ep);
 	epctrl = fsl_readl(&dr_regs->endptctrl[ep_num]);
-	if (ep_is_in(ep))
-		epctrl &= ~EPCTRL_TX_ENABLE;
-	else
-		epctrl &= ~EPCTRL_RX_ENABLE;
+	if (ep_is_in(ep)) {
+		epctrl &= ~(EPCTRL_TX_ENABLE | EPCTRL_TX_TYPE);
+		epctrl |= EPCTRL_EP_TYPE_BULK << EPCTRL_TX_EP_TYPE_SHIFT;
+	} else {
+		epctrl &= ~(EPCTRL_RX_ENABLE | EPCTRL_TX_TYPE);
+		epctrl |= EPCTRL_EP_TYPE_BULK << EPCTRL_RX_EP_TYPE_SHIFT;
+	}
 	fsl_writel(epctrl, &dr_regs->endptctrl[ep_num]);
 
 	udc = (struct fsl_udc *)ep->udc;
