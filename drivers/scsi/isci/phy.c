@@ -79,7 +79,6 @@ void isci_phy_init(
 	struct isci_host *isci_host,
 	int index)
 {
-	struct scic_sds_controller *scic = isci_host->core_controller;
 	struct scic_sds_phy *scic_phy;
 	union scic_oem_parameters oem;
 	enum sci_status status = SCI_SUCCESS;
@@ -87,7 +86,7 @@ void isci_phy_init(
 
 	/*--------------- SCU_Phy Initialization Stuff -----------------------*/
 
-	status = scic_controller_get_phy_handle(scic, index, &scic_phy);
+	status = scic_controller_get_phy_handle(&isci_host->sci, index, &scic_phy);
 	if (status == SCI_SUCCESS) {
 		phy->sci_phy_handle = scic_phy;
 		scic_phy->iphy = phy;
@@ -95,7 +94,7 @@ void isci_phy_init(
 		dev_err(&isci_host->pdev->dev,
 			"failed scic_controller_get_phy_handle\n");
 
-	scic_oem_parameters_get(scic, &oem);
+	scic_oem_parameters_get(&isci_host->sci, &oem);
 	sas_addr = oem.sds1.phys[index].sas_address.high;
 	sas_addr <<= 32;
 	sas_addr |= oem.sds1.phys[index].sas_address.low;

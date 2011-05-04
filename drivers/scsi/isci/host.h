@@ -58,7 +58,7 @@
 #define _SCI_HOST_H_
 
 #include "phy.h"
-/*#include "task.h"*/
+#include "scic_sds_controller.h"
 #include "timers.h"
 #include "remote_device.h"
 
@@ -75,7 +75,7 @@
 #define SCIC_CONTROLLER_STOP_TIMEOUT 5000
 
 struct isci_host {
-	struct scic_sds_controller *core_controller;
+	struct scic_sds_controller sci;
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
@@ -217,6 +217,14 @@ static inline void wait_for_device_stop(struct isci_host *ihost, struct isci_rem
 static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
 {
 	return dev->port->ha->lldd_ha;
+}
+
+static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
+{
+	/* XXX delete after merging scic_sds_contoller and isci_host */
+	struct isci_host *ihost = container_of(scic, typeof(*ihost), sci);
+
+	return ihost;
 }
 
 /**

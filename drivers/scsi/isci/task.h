@@ -52,14 +52,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#if !defined(_ISCI_TASK_H_)
+#ifndef _ISCI_TASK_H_
 #define _ISCI_TASK_H_
 
 #include <scsi/sas_ata.h>
 
 struct isci_request;
-struct isci_host;
 
 /**
  * enum isci_tmf_cb_state - This enum defines the possible states in which the

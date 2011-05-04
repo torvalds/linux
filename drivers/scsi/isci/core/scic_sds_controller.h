@@ -125,18 +125,12 @@ struct scic_power_control {
 
 };
 
-struct isci_host;
 /**
  * struct scic_sds_controller -
  *
  * This structure represents the SCU controller object.
  */
 struct scic_sds_controller {
-	/**
-	 * The field specifies that the peer object for the controller.
-	 */
-	struct isci_host *ihost;
-
 	/**
 	 * This field contains the information for the base controller state
 	 * machine.

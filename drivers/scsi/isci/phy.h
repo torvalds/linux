@@ -85,8 +85,6 @@ struct isci_phy {
 #define to_isci_phy(p)	\
 	container_of(p, struct isci_phy, sas_phy);
 
-struct isci_host;
-
 void isci_phy_init(
 	struct isci_phy *phy,
 	struct isci_host *isci_host,

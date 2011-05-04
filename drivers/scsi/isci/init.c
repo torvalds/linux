@@ -268,7 +268,7 @@ static void isci_unregister(struct isci_host *isci_host)
 
 static int __devinit isci_pci_init(struct pci_dev *pdev)
 {
-	int err, bar_num, bar_mask;
+	int err, bar_num, bar_mask = 0;
 	void __iomem * const *iomap;
 
 	err = pcim_enable_device(pdev);
@@ -556,7 +556,7 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 	for_each_isci_host(i, isci_host, pdev) {
 		isci_unregister(isci_host);
 		isci_host_deinit(isci_host);
-		scic_controller_disable_interrupts(isci_host->core_controller);
+		scic_controller_disable_interrupts(&isci_host->sci);
 	}
 }
 

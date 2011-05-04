@@ -65,9 +65,8 @@
 irqreturn_t isci_msix_isr(int vec, void *data)
 {
 	struct isci_host *ihost = data;
-	struct scic_sds_controller *scic = ihost->core_controller;
 
-	if (scic_sds_controller_isr(scic))
+	if (scic_sds_controller_isr(&ihost->sci))
 		tasklet_schedule(&ihost->completion_tasklet);
 
 	return IRQ_HANDLED;
@@ -77,7 +76,7 @@ irqreturn_t isci_intx_isr(int vec, void *data)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct isci_host *ihost = data;
-	struct scic_sds_controller *scic = ihost->core_controller;
+	struct scic_sds_controller *scic = &ihost->sci;
 
 	if (scic_sds_controller_isr(scic)) {
 		writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
@@ -96,10 +95,9 @@ irqreturn_t isci_intx_isr(int vec, void *data)
 irqreturn_t isci_error_isr(int vec, void *data)
 {
 	struct isci_host *ihost = data;
-	struct scic_sds_controller *scic = ihost->core_controller;
 
-	if (scic_sds_controller_error_isr(scic))
-		scic_sds_controller_error_handler(scic);
+	if (scic_sds_controller_error_isr(&ihost->sci))
+		scic_sds_controller_error_handler(&ihost->sci);
 
 	return IRQ_HANDLED;
 }
@@ -145,21 +143,20 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 void isci_host_scan_start(struct Scsi_Host *shost)
 {
 	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
-	struct scic_sds_controller *scic = ihost->core_controller;
-	unsigned long tmo = scic_controller_get_suggested_start_timeout(scic);
+	unsigned long tmo = scic_controller_get_suggested_start_timeout(&ihost->sci);
 
 	set_bit(IHOST_START_PENDING, &ihost->flags);
 
 	spin_lock_irq(&ihost->scic_lock);
-	scic_controller_start(scic, tmo);
-	scic_controller_enable_interrupts(scic);
+	scic_controller_start(&ihost->sci, tmo);
+	scic_controller_enable_interrupts(&ihost->sci);
 	spin_unlock_irq(&ihost->scic_lock);
 }
 
 void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
 {
 	isci_host_change_state(ihost, isci_stopped);
-	scic_controller_disable_interrupts(ihost->core_controller);
+	scic_controller_disable_interrupts(&ihost->sci);
 	clear_bit(IHOST_STOP_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
 }
@@ -188,7 +185,7 @@ static void isci_host_completion_routine(unsigned long data)
 
 	spin_lock_irq(&isci_host->scic_lock);
 
-	scic_sds_controller_completion_handler(isci_host->core_controller);
+	scic_sds_controller_completion_handler(&isci_host->sci);
 
 	/* Take the lists of completed I/Os from the host. */
 
@@ -276,7 +273,6 @@ static void isci_host_completion_routine(unsigned long data)
 
 void isci_host_deinit(struct isci_host *ihost)
 {
-	struct scic_sds_controller *scic = ihost->core_controller;
 	int i;
 
 	isci_host_change_state(ihost, isci_stopping);
@@ -293,11 +289,11 @@ void isci_host_deinit(struct isci_host *ihost)
 	set_bit(IHOST_STOP_PENDING, &ihost->flags);
 
 	spin_lock_irq(&ihost->scic_lock);
-	scic_controller_stop(scic, SCIC_CONTROLLER_STOP_TIMEOUT);
+	scic_controller_stop(&ihost->sci, SCIC_CONTROLLER_STOP_TIMEOUT);
 	spin_unlock_irq(&ihost->scic_lock);
 
 	wait_for_stop(ihost);
-	scic_controller_reset(scic);
+	scic_controller_reset(&ihost->sci);
 	isci_timer_list_destroy(ihost);
 }
 
@@ -347,25 +343,12 @@ int isci_host_init(struct isci_host *isci_host)
 {
 	int err = 0, i;
 	enum sci_status status;
-	struct scic_sds_controller *controller;
 	union scic_oem_parameters oem;
 	union scic_user_parameters scic_user_params;
 	struct isci_pci_info *pci_info = to_pci_info(isci_host->pdev);
 
 	isci_timer_list_construct(isci_host);
 
-	controller = scic_controller_alloc(&isci_host->pdev->dev);
-
-	if (!controller) {
-		dev_err(&isci_host->pdev->dev,
-			"%s: failed (%d)\n",
-			__func__,
-			err);
-		return -ENOMEM;
-	}
-
-	isci_host->core_controller = controller;
-	controller->ihost = isci_host;
 	spin_lock_init(&isci_host->state_lock);
 	spin_lock_init(&isci_host->scic_lock);
 	spin_lock_init(&isci_host->queue_lock);
@@ -374,7 +357,7 @@ int isci_host_init(struct isci_host *isci_host)
 	isci_host_change_state(isci_host, isci_starting);
 	isci_host->can_queue = ISCI_CAN_QUEUE_VAL;
 
-	status = scic_controller_construct(controller, scu_base(isci_host),
+	status = scic_controller_construct(&isci_host->sci, scu_base(isci_host),
 					   smu_base(isci_host));
 
 	if (status != SCI_SUCCESS) {
@@ -393,7 +376,7 @@ int isci_host_init(struct isci_host *isci_host)
 	 * parameters
 	 */
 	isci_user_parameters_get(isci_host, &scic_user_params);
-	status = scic_user_parameters_set(isci_host->core_controller,
+	status = scic_user_parameters_set(&isci_host->sci,
 					  &scic_user_params);
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -402,7 +385,7 @@ int isci_host_init(struct isci_host *isci_host)
 		return -ENODEV;
 	}
 
-	scic_oem_parameters_get(controller, &oem);
+	scic_oem_parameters_get(&isci_host->sci, &oem);
 
 	/* grab any OEM parameters specified in orom */
 	if (pci_info->orom) {
@@ -416,7 +399,7 @@ int isci_host_init(struct isci_host *isci_host)
 		}
 	}
 
-	status = scic_oem_parameters_set(isci_host->core_controller, &oem);
+	status = scic_oem_parameters_set(&isci_host->sci, &oem);
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
 				"%s: scic_oem_parameters_set failed\n",
@@ -431,7 +414,7 @@ int isci_host_init(struct isci_host *isci_host)
 	INIT_LIST_HEAD(&isci_host->requests_to_errorback);
 
 	spin_lock_irq(&isci_host->scic_lock);
-	status = scic_controller_initialize(isci_host->core_controller);
+	status = scic_controller_initialize(&isci_host->sci);
 	spin_unlock_irq(&isci_host->scic_lock);
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -441,7 +424,7 @@ int isci_host_init(struct isci_host *isci_host)
 		return -ENODEV;
 	}
 
-	err = scic_controller_mem_init(isci_host->core_controller);
+	err = scic_controller_mem_init(&isci_host->sci);
 	if (err)
 		return err;
 

@@ -299,7 +299,7 @@ static enum sci_status isci_task_request_build(
 
 	/* let the core do it's construct. */
 	status = scic_task_request_construct(
-		isci_host->core_controller,
+		&isci_host->sci,
 		sci_device,
 		SCI_CONTROLLER_INVALID_IO_TAG,
 		request,
@@ -378,7 +378,7 @@ static void isci_tmf_timeout_cb(void *tmf_request_arg)
 
 		/* Terminate the TMF transmit request. */
 		status = scic_controller_terminate_request(
-			request->isci_host->core_controller,
+			&request->isci_host->sci,
 			&request->isci_device->sci,
 			request->sci_request_handle
 			);
@@ -469,7 +469,7 @@ int isci_task_execute_tmf(
 
 	/* start the TMF io. */
 	status = scic_controller_start_task(
-		isci_host->core_controller,
+		&isci_host->sci,
 		sci_device,
 		request->sci_request_handle,
 		SCI_CONTROLLER_INVALID_IO_TAG
@@ -772,7 +772,7 @@ static void isci_terminate_request_core(
 		was_terminated = true;
 		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
-			isci_host->core_controller,
+			&isci_host->sci,
 			&isci_device->sci,
 			isci_request->sci_request_handle);
 	}
@@ -1466,12 +1466,9 @@ isci_task_request_complete(struct isci_host *ihost,
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(ihost->core_controller,
-				    &idev->sci,
+	scic_controller_complete_io(&ihost->sci, &idev->sci,
 				    ireq->sci_request_handle);
-
-	/*
-	 * NULL the request handle to make sure it cannot be terminated
+	/* NULL the request handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
 	ireq->sci_request_handle = NULL;

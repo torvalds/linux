@@ -815,7 +815,7 @@ static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handl
 	 * As a result, avoid sending the ready notification.
 	 */
 	if (sci_dev->state_machine.previous_state_id != SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ)
-		isci_remote_device_ready(scic->ihost, idev);
+		isci_remote_device_ready(scic_to_ihost(scic), idev);
 }
 
 static void scic_sds_remote_device_initial_state_enter(void *object)
@@ -918,21 +918,16 @@ static void isci_remote_device_stop_complete(struct isci_host *ihost,
 static void scic_sds_remote_device_stopped_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
-	struct scic_sds_controller *scic;
-	struct isci_remote_device *idev;
-	struct isci_host *ihost;
+	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
+	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 	u32 prev_state;
-
-	scic = scic_sds_remote_device_get_controller(sci_dev);
-	ihost = scic->ihost;
-	idev = sci_dev_to_idev(sci_dev);
 
 	/* If we are entering from the stopping state let the SCI User know that
 	 * the stop operation has completed.
 	 */
 	prev_state = sci_dev->state_machine.previous_state_id;
 	if (prev_state == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING)
-		isci_remote_device_stop_complete(ihost, idev);
+		isci_remote_device_stop_complete(scic_to_ihost(scic), idev);
 
 	scic_sds_controller_remote_device_stopped(scic, sci_dev);
 }
@@ -941,7 +936,7 @@ static void scic_sds_remote_device_starting_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
 	isci_remote_device_not_ready(ihost, idev,
@@ -952,7 +947,8 @@ static void scic_sds_remote_device_ready_state_enter(void *object)
 {
 	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
+	struct domain_device *dev = idev->domain_dev;
 
 	scic->remote_device_sequence[sci_dev->rnc.remote_node_index]++;
 
@@ -963,7 +959,7 @@ static void scic_sds_remote_device_ready_state_enter(void *object)
 		sci_base_state_machine_change_state(&sci_dev->state_machine,
 						    SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
 	} else
-		isci_remote_device_ready(scic->ihost, sci_dev_to_idev(sci_dev));
+		isci_remote_device_ready(scic_to_ihost(scic), idev);
 }
 
 static void scic_sds_remote_device_ready_state_exit(void *object)
@@ -975,7 +971,7 @@ static void scic_sds_remote_device_ready_state_exit(void *object)
 		struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 		struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
-		isci_remote_device_not_ready(scic->ihost, idev,
+		isci_remote_device_not_ready(scic_to_ihost(scic), idev,
 					     SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED);
 	}
 }
@@ -1019,7 +1015,7 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(void *object)
 
 	BUG_ON(sci_dev->working_request == NULL);
 
-	isci_remote_device_not_ready(scic->ihost, sci_dev_to_idev(sci_dev),
+	isci_remote_device_not_ready(scic_to_ihost(scic), sci_dev_to_idev(sci_dev),
 				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
 }
 
@@ -1030,7 +1026,7 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(void *obje
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
 	if (sci_dev->not_ready_reason == SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED)
-		isci_remote_device_not_ready(scic->ihost, idev,
+		isci_remote_device_not_ready(scic_to_ihost(scic), idev,
 					     sci_dev->not_ready_reason);
 }
 
@@ -1039,7 +1035,7 @@ static void scic_sds_smp_remote_device_ready_idle_substate_enter(void *object)
 	struct scic_sds_remote_device *sci_dev = object;
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 
-	isci_remote_device_ready(scic->ihost, sci_dev_to_idev(sci_dev));
+	isci_remote_device_ready(scic_to_ihost(scic), sci_dev_to_idev(sci_dev));
 }
 
 static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
@@ -1049,7 +1045,7 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(void *object)
 
 	BUG_ON(sci_dev->working_request == NULL);
 
-	isci_remote_device_not_ready(scic->ihost, sci_dev_to_idev(sci_dev),
+	isci_remote_device_not_ready(scic_to_ihost(scic), sci_dev_to_idev(sci_dev),
 				     SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);
 }
 

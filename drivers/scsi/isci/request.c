@@ -201,7 +201,7 @@ static enum sci_status isci_io_request_build(
 	 * we will let the core allocate the IO tag.
 	 */
 	status = scic_io_request_construct(
-		isci_host->core_controller,
+		&isci_host->sci,
 		sci_device,
 		SCI_CONTROLLER_INVALID_IO_TAG,
 		request,
@@ -394,7 +394,7 @@ int isci_request_execute(
 
 		/* send the request, let the core assign the IO TAG.	*/
 		status = scic_controller_start_io(
-			isci_host->core_controller,
+			&isci_host->sci,
 			sci_device,
 			request->sci_request_handle,
 			SCI_CONTROLLER_INVALID_IO_TAG
@@ -1186,7 +1186,7 @@ void isci_request_io_request_complete(
 						  );
 
 	/* complete the io request to the core. */
-	scic_controller_complete_io(isci_host->core_controller,
+	scic_controller_complete_io(&isci_host->sci,
 				    &isci_device->sci,
 				    request->sci_request_handle);
 	/* NULL the request handle so it cannot be completed or

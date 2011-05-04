@@ -147,11 +147,6 @@ void isci_port_hard_reset_complete(
 int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
 				 struct isci_phy *iphy);
 
-void isci_port_invalid_link_up(
-		struct scic_sds_controller *scic,
-		struct scic_sds_port *sci_port,
-		struct scic_sds_phy *phy);
-
 void isci_port_stop_complete(
 		struct scic_sds_controller *scic,
 		struct scic_sds_port *sci_port,

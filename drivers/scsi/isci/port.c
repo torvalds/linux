@@ -90,7 +90,6 @@ void isci_port_init(
 	int index)
 {
 	struct scic_sds_port *scic_port;
-	struct scic_sds_controller *controller = isci_host->core_controller;
 
 	INIT_LIST_HEAD(&isci_port->remote_dev_list);
 	INIT_LIST_HEAD(&isci_port->domain_dev_list);
@@ -99,7 +98,7 @@ void isci_port_init(
 	isci_port->isci_host = isci_host;
 	isci_port_change_state(isci_port, isci_freed);
 
-	(void)scic_controller_get_port_handle(controller, index, &scic_port);
+	(void)scic_controller_get_port_handle(&isci_host->sci, index, &scic_port);
 	isci_port->sci_port_handle = scic_port;
 	scic_port->iport = isci_port;
 }
@@ -415,33 +414,9 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	return ret;
 }
 
-/**
- * isci_port_invalid_link_up() - This function informs the SCI Core user that
- *    a phy/link became ready, but the phy is not allowed in the port.  In some
- *    situations the underlying hardware only allows for certain phy to port
- *    mappings.  If these mappings are violated, then this API is invoked.
- * @controller: This parameter represents the controller which contains the
- *    port.
- * @port: This parameter specifies the SCI port object for which the callback
- *    is being invoked.
- * @phy: This parameter specifies the phy that came ready, but the phy can't be
- *    a valid member of the port.
- *
- */
-void isci_port_invalid_link_up(struct scic_sds_controller *scic,
-				      struct scic_sds_port *sci_port,
-				      struct scic_sds_phy *phy)
-{
-	struct isci_host *ihost = scic->ihost;
-
-	dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
-}
-
 void isci_port_stop_complete(struct scic_sds_controller *scic,
 					  struct scic_sds_port *sci_port,
 					  enum sci_status completion_status)
 {
-	struct isci_host *ihost = scic->ihost;
-
-	dev_dbg(&ihost->pdev->dev, "Port stop complete\n");
+	dev_dbg(&scic_to_ihost(scic)->pdev->dev, "Port stop complete\n");
 }

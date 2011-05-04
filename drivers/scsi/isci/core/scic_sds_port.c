@@ -625,7 +625,7 @@ static void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
 				       bool do_notify_user)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	if (sci_phy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA)
 		scic_sds_phy_resume(sci_phy);
@@ -644,7 +644,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 {
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct isci_port *iport = sci_port->iport;
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_phy *iphy = sci_phy->iphy;
 
 	sci_port->active_phy_mask &= ~(1 << sci_phy->phy_index);
@@ -667,12 +667,10 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
  * This function will disable the phy and report that the phy is not valid for
  * this port object. None
  */
-static void scic_sds_port_invalid_link_up(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
+static void scic_sds_port_invalid_link_up(struct scic_sds_port *sci_port,
+					  struct scic_sds_phy *sci_phy)
 {
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 
 	/*
 	 * Check to see if we have alreay reported this link as bad and if
@@ -681,7 +679,7 @@ static void scic_sds_port_invalid_link_up(
 	 */
 	if ((scic->invalid_phy_mask & (1 << sci_phy->phy_index)) == 0) {
 		scic_sds_controller_set_invalid_phy(scic, sci_phy);
-		isci_port_invalid_link_up(scic, sci_port, sci_phy);
+		dev_warn(&scic_to_ihost(scic)->pdev->dev, "Invalid link up!\n");
 	}
 }
 
@@ -971,7 +969,7 @@ void scic_sds_port_broadcast_change_received(
 	struct scic_sds_phy *sci_phy)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	/* notify the user. */
 	isci_port_bc_change_received(ihost, sci_port, sci_phy);
@@ -1625,7 +1623,7 @@ static void scic_sds_port_ready_substate_operational_enter(void *object)
 	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port->iport;
 
 	scic_sds_port_set_ready_state_handlers(
@@ -1666,7 +1664,7 @@ static void scic_sds_port_ready_substate_operational_exit(void *object)
 	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port->iport;
 
 	/*
@@ -1697,7 +1695,7 @@ static void scic_sds_port_ready_substate_configuring_enter(void *object)
 	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port->iport;
 
 	scic_sds_port_set_ready_state_handlers(
@@ -1784,7 +1782,7 @@ static enum sci_status
 scic_sds_port_stopped_state_start_handler(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	enum sci_status status = SCI_SUCCESS;
 	u32 phy_mask;
 
@@ -2259,15 +2257,11 @@ static void scic_sds_port_stopped_state_exit(void *object)
  */
 static void scic_sds_port_ready_state_enter(void *object)
 {
-	struct scic_sds_controller *scic;
 	struct scic_sds_port *sci_port = object;
-	struct isci_port *iport;
-	struct isci_host *ihost;
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_port *iport = sci_port->iport;
 	u32 prev_state;
-
-	scic = scic_sds_port_get_controller(sci_port);
-	ihost = scic->ihost;
-	iport = sci_port->iport;
 
 	/* Put the ready state handlers in place though they will not be there long */
 	scic_sds_port_set_base_state_handlers(sci_port, SCI_BASE_PORT_STATE_READY);

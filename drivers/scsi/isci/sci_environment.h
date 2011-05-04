@@ -62,9 +62,7 @@
 
 static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
 {
-	struct isci_host *isci_host = scic->ihost;
-
-	return &isci_host->pdev->dev;
+	return &scic_to_ihost(scic)->pdev->dev;
 }
 
 static inline struct device *sciphy_to_dev(struct scic_sds_phy *sci_phy)

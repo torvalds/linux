@@ -1545,7 +1545,7 @@ static void scic_sds_request_completed_state_enter(void *object)
 	struct scic_sds_request *sci_req = object;
 	struct scic_sds_controller *scic =
 		scic_sds_request_get_controller(sci_req);
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_request *ireq = sci_req->ireq;
 
 	SET_STATE_HANDLER(sci_req,
