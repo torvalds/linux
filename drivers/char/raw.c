@@ -339,7 +339,6 @@ static int __init raw_init(void)
 	cdev_init(&raw_cdev, &raw_fops);
 	ret = cdev_add(&raw_cdev, dev, max_raw_minors);
 	if (ret) {
-		kobject_put(&raw_cdev.kobj);
 		goto error_region;
 	}
 
