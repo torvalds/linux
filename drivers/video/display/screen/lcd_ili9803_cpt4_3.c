@@ -1401,6 +1401,151 @@ else if(OUT_FACE == OUT_P666)
 }
 
 
+void resume_nt35510(void)
+{
+	WriteCommand(0X1100); 
+	mdelay(120);
+
+	WriteCommand(0X1300); 
+
+	WriteCommand(0XF000); 
+	WriteParameter(0x55);
+
+	WriteCommand(0XF001); 
+	WriteParameter(0xAA);
+
+	WriteCommand(0XF002); 
+	WriteParameter(0x52);
+
+	WriteCommand(0XF003); 
+	WriteParameter(0x08);
+
+	WriteCommand(0XF004); 
+	WriteParameter(0x01);
+
+
+	/**************/
+	WriteCommand(0XBA00); 
+	WriteParameter(0x14);
+
+	WriteCommand(0XBA01); 
+	WriteParameter(0x14);
+
+	WriteCommand(0XBA02); 
+	WriteParameter(0x14);
+
+	WriteCommand(0XBF00); 
+	WriteParameter(0x01);
+
+	WriteCommand(0XB300); 
+	WriteParameter(0x07);
+
+	WriteCommand(0XB301); 
+	WriteParameter(0x07);
+
+	WriteCommand(0XB302); 
+	WriteParameter(0x07);
+
+	WriteCommand(0XB900); 
+	WriteParameter(0x25);
+
+	WriteCommand(0XB901); 
+	WriteParameter(0x25);
+
+	WriteCommand(0XB902); 
+	WriteParameter(0x25);
+
+
+
+	WriteCommand(0XBC01); 
+	WriteParameter(0xA0);
+
+	WriteCommand(0XBC02); 
+	WriteParameter(0x00);
+
+	WriteCommand(0XBD01); 
+	WriteParameter(0xA0);
+
+	WriteCommand(0XBD02); 
+	WriteParameter(0x00);
+
+
+	WriteCommand(0XF000); 
+	WriteParameter(0x55);
+
+	WriteCommand(0XF001); 
+	WriteParameter(0xAA);
+
+	WriteCommand(0XF002); 
+	WriteParameter(0x52);
+
+	WriteCommand(0XF003); 
+	WriteParameter(0x08);
+
+	WriteCommand(0XF004); 
+	WriteParameter(0x00);
+
+	WriteCommand(0XB100); 
+	WriteParameter(0xCC);
+
+	WriteCommand(0XBC00); 
+	WriteParameter(0x05);
+
+	WriteCommand(0XBC01); 
+	WriteParameter(0x05);
+
+	WriteCommand(0XBC02); 
+	WriteParameter(0x05);
+
+
+	WriteCommand(0XBD02); 
+	WriteParameter(0x07);
+	WriteCommand(0XBD03); 
+	WriteParameter(0x31);
+
+	WriteCommand(0XBE02); 
+	WriteParameter(0x07);
+	WriteCommand(0XBE03); 
+	WriteParameter(0x31);
+
+	WriteCommand(0XBF02); 
+	WriteParameter(0x07);
+	WriteCommand(0XBF03); 
+	WriteParameter(0x31);
+
+	WriteCommand(0XFF00); 
+	WriteParameter(0xAA);
+	WriteCommand(0XFF01); 
+	WriteParameter(0x55);
+	WriteCommand(0XFF02); 
+	WriteParameter(0x25);
+	WriteCommand(0XFF03); 
+	WriteParameter(0x01);
+
+
+	WriteCommand(0X3500); 
+	WriteParameter(0x00);
+
+	WriteCommand(0X3a00); 
+	
+if(OUT_FACE == OUT_P888)
+	WriteParameter(0x70);	//24bit
+else if(OUT_FACE == OUT_P666)
+	WriteParameter(0x60);//18bit
+
+	WriteCommand(0X3600); 
+	WriteParameter(0x00);//R<->B
+
+	WriteCommand(0X2000); //
+
+	WriteCommand(0X1100); 
+	mdelay(120);
+
+	WriteCommand(0X2900); 
+
+	mdelay(100);
+	WriteCommand(0X2C00); 
+}
 
 int init(void)
 { 
@@ -1438,11 +1583,12 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		mdelay(100);
 		WriteCommand(0X1000); 
 	} else { 
- 		WriteCommand(0X1100); 
-		mdelay(120);
-		WriteCommand(0X2900); 
-		mdelay(100);
+ 		//WriteCommand(0X1100); 
+		//mdelay(120);
+		//WriteCommand(0X2900); 
+		//mdelay(100);
 		//set_backlight(255);
+		resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
 	}
 
     if(gLcd_info)

@@ -10,6 +10,11 @@
 #include <linux/types.h>
 #include <mach/iomux.h>
 #include <linux/platform_device.h>
+#include <linux/kthread.h>
+#include <linux/sched.h>
+#include <linux/irq.h>
+#include <linux/cdev.h>
+#include <asm/uaccess.h>
 
 #include "ili2102_ts.h"
 
@@ -42,6 +47,7 @@ struct ili2102_ts_data {
 	char	resetpin_iomux_name[IOMUX_NAME_SIZE];	
 	char	phys[32];
 	char	name[32];
+	int		valid_i2c_register;
 	struct 	i2c_client *client;
 	struct 	input_dev *input_dev;
 	struct 	hrtimer timer;
@@ -55,6 +61,216 @@ static void ili2102_ts_early_suspend(struct early_suspend *h);
 static void ili2102_ts_late_resume(struct early_suspend *h);
 #endif
 
+#define ILI2102_TS_APK_SUPPORT 1
+
+#if ILI2102_TS_APK_SUPPORT
+// device data
+struct dev_data {
+        // device number
+        dev_t devno;
+        // character device
+        struct cdev cdev;
+        // class device
+        struct class *class;
+};
+
+// global variables
+static struct ili2102_ts_data *g_ts;
+static struct dev_data g_dev;
+
+// definitions
+#define ILITEK_I2C_RETRY_COUNT			3
+#define ILITEK_FILE_DRIVER_NAME			"ilitek_file"
+#define ILITEK_DEBUG_LEVEL			KERN_INFO
+#define ILITEK_ERROR_LEVEL			KERN_ALERT
+
+// i2c command for ilitek touch screen
+#define ILITEK_TP_CMD_READ_DATA			0x10
+#define ILITEK_TP_CMD_READ_SUB_DATA		0x11
+#define ILITEK_TP_CMD_GET_RESOLUTION		0x20
+#define ILITEK_TP_CMD_GET_FIRMWARE_VERSION	0x40
+#define ILITEK_TP_CMD_GET_PROTOCOL_VERSION	0x42
+#define	ILITEK_TP_CMD_CALIBRATION		0xCC
+#define ILITEK_TP_CMD_ERASE_BACKGROUND		0xCE
+
+// define the application command
+#define ILITEK_IOCTL_BASE                       100
+#define ILITEK_IOCTL_I2C_WRITE_DATA             _IOWR(ILITEK_IOCTL_BASE, 0, unsigned char*)
+#define ILITEK_IOCTL_I2C_WRITE_LENGTH           _IOWR(ILITEK_IOCTL_BASE, 1, int)
+#define ILITEK_IOCTL_I2C_READ_DATA              _IOWR(ILITEK_IOCTL_BASE, 2, unsigned char*)
+#define ILITEK_IOCTL_I2C_READ_LENGTH            _IOWR(ILITEK_IOCTL_BASE, 3, int)
+#define ILITEK_IOCTL_USB_WRITE_DATA             _IOWR(ILITEK_IOCTL_BASE, 4, unsigned char*)
+#define ILITEK_IOCTL_USB_WRITE_LENGTH           _IOWR(ILITEK_IOCTL_BASE, 5, int)
+#define ILITEK_IOCTL_USB_READ_DATA              _IOWR(ILITEK_IOCTL_BASE, 6, unsigned char*)
+#define ILITEK_IOCTL_USB_READ_LENGTH            _IOWR(ILITEK_IOCTL_BASE, 7, int)
+#define ILITEK_IOCTL_I2C_UPDATE_RESOLUTION      _IOWR(ILITEK_IOCTL_BASE, 8, int)
+#define ILITEK_IOCTL_USB_UPDATE_RESOLUTION      _IOWR(ILITEK_IOCTL_BASE, 9, int)
+#define ILITEK_IOCTL_I2C_SET_ADDRESS            _IOWR(ILITEK_IOCTL_BASE, 10, int)
+#define ILITEK_IOCTL_I2C_UPDATE                 _IOWR(ILITEK_IOCTL_BASE, 11, int)
+#define ILITEK_IOCTL_STOP_READ_DATA             _IOWR(ILITEK_IOCTL_BASE, 12, int)
+#define ILITEK_IOCTL_START_READ_DATA            _IOWR(ILITEK_IOCTL_BASE, 13, int)
+
+static int ilitek_file_open(struct inode *inode, struct file *filp)
+{
+	return 0; 
+}
+
+static ssize_t ilitek_file_write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
+{
+	int ret;
+	unsigned char buffer[128]={0};
+	struct i2c_msg msg[2];
+
+	msg[0].addr = g_ts->client->addr;
+	msg[0].flags = g_ts->client->flags;
+	msg[0].len = count;
+	msg[0].buf = buffer;
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 80;
+
+	printk("%s:count=0x%x\n",__FUNCTION__,count);
+	
+	// before sending data to touch device, we need to check whether the device is working or not
+	if(g_ts->valid_i2c_register == 0){
+		printk(ILITEK_ERROR_LEVEL "%s, i2c device driver doesn't be registered\n", __func__);
+		return -1;
+	}
+
+	// check the buffer size whether it exceeds the local buffer size or not
+	if(count > 128){
+		printk(ILITEK_ERROR_LEVEL "%s, buffer exceed 128 bytes\n", __func__);
+		return -1;
+	}
+
+	// copy data from user space
+	ret = copy_from_user(buffer, buf, count-1);
+	if(ret < 0){
+		printk(ILITEK_ERROR_LEVEL "%s, copy data from user space, failed", __func__);
+		return -1;
+	}
+
+	// parsing command
+        if(strcmp(buffer, "calibrate") == 0){
+		buffer[0] = ILITEK_TP_CMD_ERASE_BACKGROUND;
+        msg[0].len = 1;
+        ret = i2c_transfer(g_ts->client->adapter, msg, 1);
+        if(ret < 0){
+                printk(ILITEK_DEBUG_LEVEL "%s, i2c erase background, failed\n", __func__);
+        }
+        else{
+                printk(ILITEK_DEBUG_LEVEL "%s, i2c erase background, success\n", __func__);
+        }
+
+		buffer[0] = ILITEK_TP_CMD_CALIBRATION;
+        msg[0].len = 1;
+        msleep(2000);
+        ret = i2c_transfer(g_ts->client->adapter, msg, 1);
+		if(ret < 0){
+        printk(ILITEK_DEBUG_LEVEL "%s, i2c calibration, failed\n", __func__);
+        }
+		else{
+        printk(ILITEK_DEBUG_LEVEL "%s, i2c calibration, success\n", __func__);
+		}
+		msleep(1000);
+                return count;
+	}
+	return -1;
+}
+
+
+static int ilitek_file_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	static unsigned char buffer[64]={0};
+	static int len=0;
+	int ret;
+	struct i2c_msg msg[2];
+	
+	msg[0].addr = g_ts->client->addr;
+	msg[0].flags = g_ts->client->flags;
+	msg[0].len = len;
+	msg[0].buf = buffer;
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 80;
+	
+	// parsing ioctl command
+	switch(cmd){
+	case ILITEK_IOCTL_I2C_WRITE_DATA:
+		ret = copy_from_user(buffer, (unsigned char*)arg, len);
+		if(ret < 0){
+    	printk(ILITEK_ERROR_LEVEL "%s, copy data from user space, failed\n", __func__);
+    	return -1;
+        }
+		ret = i2c_transfer(g_ts->client->adapter, msg, 1);
+		if(ret < 0){
+		printk(ILITEK_ERROR_LEVEL "%s, i2c write, failed\n", __func__);
+		return -1;
+		}
+		break;
+		
+	case ILITEK_IOCTL_I2C_READ_DATA:
+		msg[0].addr = g_ts->client->addr;
+		msg[0].flags = g_ts->client->flags | I2C_M_RD;
+		msg[0].len = len;	
+		msg[0].buf = buffer;
+		msg[0].scl_rate = 400*1000;
+		msg[0].udelay = 80;
+		ret = i2c_transfer(g_ts->client->adapter, msg, 1);
+		if(ret < 0){
+        printk(ILITEK_ERROR_LEVEL "%s, i2c read, failed\n", __func__);
+		return -1;
+        }
+		ret = copy_to_user((unsigned char*)arg, buffer, len);
+		if(ret < 0){
+        printk(ILITEK_ERROR_LEVEL "%s, copy data to user space, failed\n", __func__);
+        return -1;
+        }
+		break;
+	case ILITEK_IOCTL_I2C_WRITE_LENGTH:
+	case ILITEK_IOCTL_I2C_READ_LENGTH:
+		len = arg;
+		break;
+	case ILITEK_IOCTL_I2C_UPDATE_RESOLUTION:
+	case ILITEK_IOCTL_I2C_SET_ADDRESS:
+	case ILITEK_IOCTL_I2C_UPDATE:
+		break;
+	case ILITEK_IOCTL_START_READ_DATA:
+		//g_ts.stop_polling = 0;
+		break;
+	case ILITEK_IOCTL_STOP_READ_DATA:
+		//g_ts.stop_polling = 1;
+                break;
+	default:
+		return -1;
+	}
+	
+	printk("%s:cmd=0x%x\n",__FUNCTION__,cmd);
+	
+    	return 0;
+}
+
+
+static ssize_t ilitek_file_read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
+{
+	return 0;
+}
+
+
+static int ilitek_file_close(struct inode *inode, struct file *filp)
+{
+        return 0;
+}
+
+
+// declare file operations
+struct file_operations ilitek_fops = {
+	.ioctl = ilitek_file_ioctl,
+	.read = ilitek_file_read,
+	.write = ilitek_file_write,
+	.open = ilitek_file_open,
+	.release = ilitek_file_close,
+};
+
+#endif
 static int verify_coord(struct ili2102_ts_data *ts,unsigned int *x,unsigned int *y)
 {
 
@@ -102,7 +318,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = ts->client->flags | I2C_M_RD;
 	msg[1].len = 9;	
-	msg[1].buf = buf;//msg[1].buf = (u8*)&buf[0];
+	msg[1].buf = buf;
 	msg[1].scl_rate = 400*1000;
 	msg[1].udelay = 80;
 	
@@ -218,12 +434,12 @@ static int __devinit setup_resetPin(struct i2c_client *client, struct ili2102_ts
 				ts->gpio_reset);
 		return err;
 	}
-	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
+	gpio_direction_output(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
 	mdelay(100);
 
 	err = gpio_direction_output(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	if (err) {
-		dev_err(&client->dev, "failed to pulldown resetPin GPIO%d\n",
+		dev_err(&client->dev, "failed to set resetPin GPIO%d\n",
 				ts->gpio_reset);
 		gpio_free(ts->gpio_reset);
 		return err;
@@ -272,7 +488,7 @@ static int __devinit setup_pendown(struct i2c_client *client, struct ili2102_ts_
 		return err;
 	}
 	
-	err = gpio_pull_updown(ts->gpio_pendown, GPIOPullUp);
+	err = gpio_pull_updown(ts->gpio_pendown, PullDisable);
 	if (err) {
 		dev_err(&client->dev, "failed to pullup pendown GPIO%d\n",
 				ts->gpio_pendown);
@@ -295,23 +511,30 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	msg[0].flags = client->flags;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
-	msg[0].scl_rate = 200*1000;
-	msg[0].udelay = 500;
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 200;
 
-	msg[1].addr = client->addr;
-	msg[1].flags = client->flags |I2C_M_RD;
-	msg[1].len = 6;
-	msg[1].buf = (u8*)&buf[0];
-	msg[1].scl_rate = 200*1000;
-	msg[1].udelay = 500;
+	ret = i2c_transfer(client->adapter, msg, 1);   
+	if (ret < 0) {
+	printk("%s:err\n",__FUNCTION__);
+	}
+	
+	mdelay(5);//tp need delay
+	
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags |I2C_M_RD;
+	msg[0].len = 6;
+	msg[0].buf = (u8*)&buf[0];
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 200;
 
-	ret = i2c_transfer(client->adapter, msg, 2);   
+	ret = i2c_transfer(client->adapter, msg, 1);   
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
 
-	printk("%s:b[0]=0x%x,b[1]=0x%x,b[2]=0x%x,b[3]=0x%x,b[4]=0x%x,b[5]=0x%x\n", 
-		__FUNCTION__,buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
+	printk("%s:max_x=%d,max_y=%d,b[4]=0x%x,b[5]=0x%x\n", 
+		__FUNCTION__,buf[0]|(buf[1]<<8),buf[2]|(buf[3]<<8),buf[4],buf[5]);
 
 	/*get firmware version:3bytes */	
 	start_reg = 0x40;
@@ -319,24 +542,31 @@ static int ili2102_chip_Init(struct i2c_client *client)
 	msg[0].flags = client->flags;
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
-	msg[0].scl_rate = 200*1000;
-	msg[0].udelay = 500;
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 200;
 
-	msg[1].addr = client->addr;
-	msg[1].flags = client->flags | I2C_M_RD;
-	msg[1].len = 3;
-	msg[1].buf = (u8*)&buf[0];
-	msg[1].scl_rate =200*1000;
-	msg[1].udelay = 500;
+	ret = i2c_transfer(client->adapter, msg, 1);   
+	if (ret < 0) {
+	printk("%s:err\n",__FUNCTION__);
+	}
+	
+	mdelay(5);//tp need delay
+	
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags | I2C_M_RD;
+	msg[0].len = 3;
+	msg[0].buf = (u8*)&buf[0];
+	msg[0].scl_rate =400*1000;
+	msg[0].udelay = 200;
 
-	ret = i2c_transfer(client->adapter, msg, 2);
+	ret = i2c_transfer(client->adapter, msg, 1);
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
 
 	printk("%s:Ver %d.%d.%d\n",__FUNCTION__,buf[0],buf[1],buf[2]);
 
-	return 0;
+	return ret;
     
 }
 
@@ -405,6 +635,7 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->input_dev->name = ts->name;
 	ts->input_dev->dev.parent = &client->dev;
 	ts->pendown = 0;
+	ts->valid_i2c_register = 1;
 
 	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
 	//ts->input_dev->absbit[0] = 
@@ -444,7 +675,36 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	        }
 	        else 
 		dev_err(&client->dev, "request_irq failed\n");
+    }
+	
+#if ILI2102_TS_APK_SUPPORT
+	// initialize global variable
+	g_ts = ts;
+	memset(&g_dev, 0, sizeof(struct dev_data));	
+	
+	// allocate character device driver buffer
+	ret = alloc_chrdev_region(&g_dev.devno, 0, 1, ILITEK_FILE_DRIVER_NAME);
+    	if(ret){
+        	printk(ILITEK_ERROR_LEVEL "%s, can't allocate chrdev\n", __func__);
+		return ret;
+	}
+    	printk(ILITEK_DEBUG_LEVEL "%s, register chrdev(%d, %d)\n", __func__, MAJOR(g_dev.devno), MINOR(g_dev.devno));
+	
+	// initialize character device driver
+	cdev_init(&g_dev.cdev, &ilitek_fops);
+	g_dev.cdev.owner = THIS_MODULE;
+    	ret = cdev_add(&g_dev.cdev, g_dev.devno, 1);
+    	if(ret < 0){
+        	printk(ILITEK_ERROR_LEVEL "%s, add character device error, ret %d\n", __func__, ret);
+		return ret;
+	}
+	g_dev.class = class_create(THIS_MODULE, ILITEK_FILE_DRIVER_NAME);
+	if(IS_ERR(g_dev.class)){
+        	printk(ILITEK_ERROR_LEVEL "%s, create class, error\n", __func__);
+		return ret;
     	}
+    	device_create(g_dev.class, NULL, g_dev.devno, NULL, "ilitek_ctrl");
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
@@ -480,6 +740,15 @@ static int ili2102_ts_remove(struct i2c_client *client)
 	if (ts->ts_wq)
 	cancel_delayed_work_sync(&ts->work);
 	kfree(ts);
+	
+#if ILI2102_TS_APK_SUPPORT
+	// delete character device driver
+	cdev_del(&g_dev.cdev);
+	unregister_chrdev_region(g_dev.devno, 1);
+	device_destroy(g_dev.class, g_dev.devno);
+	class_destroy(g_dev.class);
+#endif
+
 	return 0;
 }
 
