@@ -937,9 +937,6 @@ static int drbd_check_al_size(struct drbd_conf *mdev, struct disk_conf *dc)
 	unsigned int in_use;
 	int i;
 
-	if (!expect(dc->al_extents >= DRBD_AL_EXTENTS_MIN))
-		dc->al_extents = DRBD_AL_EXTENTS_MIN;
-
 	if (mdev->act_log &&
 	    mdev->act_log->nr_elements == dc->al_extents)
 		return 0;
@@ -1102,6 +1099,17 @@ static bool should_set_defaults(struct genl_info *info)
 	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
 }
 
+static void enforce_disk_conf_limits(struct disk_conf *dc)
+{
+	if (dc->al_extents < DRBD_AL_EXTENTS_MIN)
+		dc->al_extents = DRBD_AL_EXTENTS_MIN;
+	if (dc->al_extents > DRBD_AL_EXTENTS_MAX)
+		dc->al_extents = DRBD_AL_EXTENTS_MAX;
+
+	if (dc->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+		dc->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
+}
+
 int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
@@ -1146,11 +1154,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (!expect(new_disk_conf->resync_rate >= 1))
 		new_disk_conf->resync_rate = 1;
 
-	/* clip to allowed range */
-	if (!expect(new_disk_conf->al_extents >= DRBD_AL_EXTENTS_MIN))
-		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
-	if (!expect(new_disk_conf->al_extents <= DRBD_AL_EXTENTS_MAX))
-		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MAX;
+	enforce_disk_conf_limits(new_disk_conf);
 
 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 	if (fifo_size != mdev->rs_plan_s->size) {
@@ -1272,6 +1276,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
 		goto fail;
 	}
+
+	enforce_disk_conf_limits(new_disk_conf);
 
 	new_plan = fifo_alloc((new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ);
 	if (!new_plan) {
@@ -1449,8 +1455,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		set_bit(MD_NO_FUA, &mdev->flags);
 	else
 		clear_bit(MD_NO_FUA, &mdev->flags);
-
-	/* FIXME Missing stuff: clip al range */
 
 	/* Point of no return reached.
 	 * Devices and memory are no longer released by error cleanup below.
