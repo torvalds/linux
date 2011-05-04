@@ -97,6 +97,9 @@ enum {
 #define __u32_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U32, __u32, \
 			nla_get_u32, NLA_PUT_U32)
+#define __s32_field(attr_nr, attr_flag, name)	\
+	__field(attr_nr, attr_flag, name, NLA_U32, __s32, \
+			nla_get_u32, NLA_PUT_U32)
 #define __u64_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U64, __u64, \
 			nla_get_u64, NLA_PUT_U64)

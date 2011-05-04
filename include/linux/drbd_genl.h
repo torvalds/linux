@@ -102,7 +102,7 @@ GENL_struct(DRBD_NLA_CFG_CONTEXT, 2, drbd_cfg_context,
 GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
 	__str_field(1, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	backing_dev,	128)
 	__str_field(2, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	meta_dev,	128)
-	__u32_field(3, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	meta_dev_idx)
+	__s32_field(3, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	meta_dev_idx)
 
 	/* use the resize command to try and change the disk_size */
 	__u64_field(4, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	disk_size)

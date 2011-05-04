@@ -1253,7 +1253,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	if ((int)nbc->dc.meta_dev_idx < DRBD_MD_INDEX_FLEX_INT) {
+	if (nbc->dc.meta_dev_idx < DRBD_MD_INDEX_FLEX_INT) {
 		retcode = ERR_MD_IDX_INVALID;
 		goto fail;
 	}
@@ -1289,7 +1289,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	 */
 	bdev = blkdev_get_by_path(nbc->dc.meta_dev,
 				  FMODE_READ | FMODE_WRITE | FMODE_EXCL,
-				  ((int)nbc->dc.meta_dev_idx < 0) ?
+				  (nbc->dc.meta_dev_idx < 0) ?
 				  (void *)mdev : (void *)drbd_m_holder);
 	if (IS_ERR(bdev)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.meta_dev,
@@ -1325,7 +1325,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	if ((int)nbc->dc.meta_dev_idx < 0) {
+	if (nbc->dc.meta_dev_idx < 0) {
 		max_possible_sectors = DRBD_MAX_SECTORS_FLEX;
 		/* at least one MB, otherwise it does not make sense */
 		min_md_device_sectors = (2<<10);
@@ -1356,7 +1356,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		dev_warn(DEV, "==> truncating very big lower level device "
 			"to currently maximum possible %llu sectors <==\n",
 			(unsigned long long) max_possible_sectors);
-		if ((int)nbc->dc.meta_dev_idx >= 0)
+		if (nbc->dc.meta_dev_idx >= 0)
 			dev_warn(DEV, "==>> using internal or flexible "
 				      "meta data may help <<==\n");
 	}
