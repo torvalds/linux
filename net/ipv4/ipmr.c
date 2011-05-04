@@ -2041,20 +2041,20 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
-int ipmr_get_route(struct net *net,
-		   struct sk_buff *skb, struct rtmsg *rtm, int nowait)
+int ipmr_get_route(struct net *net, struct sk_buff *skb,
+		   __be32 saddr, __be32 daddr,
+		   struct rtmsg *rtm, int nowait)
 {
-	int err;
-	struct mr_table *mrt;
 	struct mfc_cache *cache;
-	struct rtable *rt = skb_rtable(skb);
+	struct mr_table *mrt;
+	int err;
 
 	mrt = ipmr_get_table(net, RT_TABLE_DEFAULT);
 	if (mrt == NULL)
 		return -ENOENT;
 
 	rcu_read_lock();
-	cache = ipmr_cache_find(mrt, rt->rt_src, rt->rt_dst);
+	cache = ipmr_cache_find(mrt, saddr, daddr);
 
 	if (cache == NULL) {
 		struct sk_buff *skb2;
@@ -2087,8 +2087,8 @@ int ipmr_get_route(struct net *net,
 		skb_reset_network_header(skb2);
 		iph = ip_hdr(skb2);
 		iph->ihl = sizeof(struct iphdr) >> 2;
-		iph->saddr = rt->rt_src;
-		iph->daddr = rt->rt_dst;
+		iph->saddr = saddr;
+		iph->daddr = daddr;
 		iph->version = 0;
 		err = ipmr_cache_unresolved(mrt, vif, skb2);
 		read_unlock(&mrt_lock);

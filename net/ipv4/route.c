@@ -2857,7 +2857,9 @@ static int rt_fill_info(struct net *net,
 
 		if (ipv4_is_multicast(dst) && !ipv4_is_local_multicast(dst) &&
 		    IPV4_DEVCONF_ALL(net, MC_FORWARDING)) {
-			int err = ipmr_get_route(net, skb, r, nowait);
+			int err = ipmr_get_route(net, skb,
+						 rt->rt_src, rt->rt_dst,
+						 r, nowait);
 			if (err <= 0) {
 				if (!nowait) {
 					if (err == 0)
