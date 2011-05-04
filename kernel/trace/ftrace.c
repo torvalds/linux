@@ -91,6 +91,7 @@ static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
+static struct ftrace_ops global_ops;
 
 /*
  * Traverse the ftrace_list, invoking all entries.  The reason that we
@@ -153,7 +154,7 @@ static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip)
 }
 #endif
 
-static void update_ftrace_function(void)
+static void update_global_ops(void)
 {
 	ftrace_func_t func;
 
@@ -173,6 +174,18 @@ static void update_ftrace_function(void)
 		set_ftrace_pid_function(func);
 		func = ftrace_pid_func;
 	}
+
+	global_ops.func = func;
+}
+
+static void update_ftrace_function(void)
+{
+	ftrace_func_t func;
+
+	update_global_ops();
+
+	func = global_ops.func;
+
 #ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	ftrace_trace_function = func;
 #else
@@ -181,17 +194,51 @@ static void update_ftrace_function(void)
 #endif
 }
 
-static int __register_ftrace_function(struct ftrace_ops *ops)
+static void add_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
 {
-	ops->next = ftrace_list;
+	ops->next = *list;
 	/*
 	 * We are entering ops into the ftrace_list but another
 	 * CPU might be walking that list. We need to make sure
 	 * the ops->next pointer is valid before another CPU sees
 	 * the ops pointer included into the ftrace_list.
 	 */
-	rcu_assign_pointer(ftrace_list, ops);
+	rcu_assign_pointer(*list, ops);
+}
 
+static int remove_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
+{
+	struct ftrace_ops **p;
+
+	/*
+	 * If we are removing the last function, then simply point
+	 * to the ftrace_stub.
+	 */
+	if (*list == ops && ops->next == &ftrace_list_end) {
+		*list = &ftrace_list_end;
+		return 0;
+	}
+
+	for (p = list; *p != &ftrace_list_end; p = &(*p)->next)
+		if (*p == ops)
+			break;
+
+	if (*p != ops)
+		return -1;
+
+	*p = (*p)->next;
+	return 0;
+}
+
+static int __register_ftrace_function(struct ftrace_ops *ops)
+{
+	if (ftrace_disabled)
+		return -ENODEV;
+
+	if (FTRACE_WARN_ON(ops == &global_ops))
+		return -EINVAL;
+
+	add_ftrace_ops(&ftrace_list, ops);
 	if (ftrace_enabled)
 		update_ftrace_function();
 
@@ -200,27 +247,17 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 
 static int __unregister_ftrace_function(struct ftrace_ops *ops)
 {
-	struct ftrace_ops **p;
+	int ret;
 
-	/*
-	 * If we are removing the last function, then simply point
-	 * to the ftrace_stub.
-	 */
-	if (ftrace_list == ops && ops->next == &ftrace_list_end) {
-		ftrace_trace_function = ftrace_stub;
-		ftrace_list = &ftrace_list_end;
-		return 0;
-	}
+	if (ftrace_disabled)
+		return -ENODEV;
 
-	for (p = &ftrace_list; *p != &ftrace_list_end; p = &(*p)->next)
-		if (*p == ops)
-			break;
+	if (FTRACE_WARN_ON(ops == &global_ops))
+		return -EINVAL;
 
-	if (*p != ops)
-		return -1;
-
-	*p = (*p)->next;
-
+	ret = remove_ftrace_ops(&ftrace_list, ops);
+	if (ret < 0)
+		return ret;
 	if (ftrace_enabled)
 		update_ftrace_function();
 
@@ -894,7 +931,7 @@ enum {
 	FTRACE_OPS_FL_ENABLED		= 1,
 };
 
-struct ftrace_ops global_ops = {
+static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 	.notrace_hash		= EMPTY_HASH,
 	.filter_hash		= EMPTY_HASH,
@@ -3263,7 +3300,7 @@ void __init ftrace_init(void)
 
 #else
 
-struct ftrace_ops global_ops = {
+static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 };
 
