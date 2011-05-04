@@ -669,11 +669,13 @@ static int __init has_wakealarm(struct device *dev, void *name_ptr)
  */
 static int __init alarmtimer_init_late(void)
 {
+	struct device *dev;
 	char *str;
 
 	/* Find an rtc device and init the rtc_timer */
-	class_find_device(rtc_class, NULL, &str, has_wakealarm);
-	if (str)
+	dev = class_find_device(rtc_class, NULL, &str, has_wakealarm);
+	/* If we have a device then str is valid. See has_wakealarm() */
+	if (dev)
 		rtcdev = rtc_class_open(str);
 	if (!rtcdev) {
 		printk(KERN_WARNING "No RTC device found, ALARM timers will"
