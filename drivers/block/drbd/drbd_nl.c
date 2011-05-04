@@ -1449,10 +1449,10 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	/* Reset the "barriers don't work" bits here, then force meta data to
 	 * be written, to ensure we determine if barriers are supported. */
-	if (new_disk_conf->no_md_flush)
-		set_bit(MD_NO_FUA, &mdev->flags);
-	else
+	if (new_disk_conf->md_flushes)
 		clear_bit(MD_NO_FUA, &mdev->flags);
+	else
+		set_bit(MD_NO_FUA, &mdev->flags);
 
 	/* Point of no return reached.
 	 * Devices and memory are no longer released by error cleanup below.

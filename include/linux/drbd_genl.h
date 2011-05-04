@@ -125,7 +125,7 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
 	__flg_field_def(16, GENLA_F_MANDATORY,	disk_barrier, 1)
 	__flg_field_def(17, GENLA_F_MANDATORY,	disk_flushes, 1)
 	__flg_field_def(18, GENLA_F_MANDATORY,	disk_drain, 1)
-	__flg_field_def(19, GENLA_F_MANDATORY,	no_md_flush, 0)
+	__flg_field_def(19, GENLA_F_MANDATORY,	md_flushes, 1)
 )
 
 GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
