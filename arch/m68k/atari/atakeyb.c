@@ -575,7 +575,7 @@ int atari_keyb_init(void)
 	kb_state.len = 0;
 
 	error = request_irq(IRQ_MFP_ACIA, atari_keyboard_interrupt,
-			    IRQ_TYPE_SLOW, "keyboard/mouse/MIDI",
+			    IRQ_TYPE_SLOW, "keyboard,mouse,MIDI",
 			    atari_keyboard_interrupt);
 	if (error)
 		return error;
