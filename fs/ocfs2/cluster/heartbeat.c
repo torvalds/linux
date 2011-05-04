@@ -1690,6 +1690,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	struct file *filp = NULL;
 	struct inode *inode = NULL;
 	ssize_t ret = -EINVAL;
+	int live_threshold;
 
 	if (reg->hr_bdev)
 		goto out;
@@ -1766,8 +1767,18 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	 * A node is considered live after it has beat LIVE_THRESHOLD
 	 * times.  We're not steady until we've given them a chance
 	 * _after_ our first read.
+	 * The default threshold is bare minimum so as to limit the delay
+	 * during mounts. For global heartbeat, the threshold doubled for the
+	 * first region.
 	 */
-	atomic_set(&reg->hr_steady_iterations, O2HB_LIVE_THRESHOLD + 1);
+	live_threshold = O2HB_LIVE_THRESHOLD;
+	if (o2hb_global_heartbeat_active()) {
+		spin_lock(&o2hb_live_lock);
+		if (o2hb_pop_count(&o2hb_region_bitmap, O2NM_MAX_REGIONS) == 1)
+			live_threshold <<= 1;
+		spin_unlock(&o2hb_live_lock);
+	}
+	atomic_set(&reg->hr_steady_iterations, live_threshold + 1);
 
 	hb_task = kthread_run(o2hb_thread, reg, "o2hb-%s",
 			      reg->hr_item.ci_name);
