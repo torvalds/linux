@@ -2506,6 +2506,15 @@ out:
 	return ret;
 }
 
+static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
+{
+	struct ci13xxx *udc = container_of(_gadget, struct ci13xxx, gadget);
+
+	if (udc->transceiver)
+		return otg_set_power(udc->transceiver, mA);
+	return -ENOTSUPP;
+}
+
 /**
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
@@ -2514,6 +2523,7 @@ out:
 static const struct usb_gadget_ops usb_gadget_ops = {
 	.vbus_session	= ci13xxx_vbus_session,
 	.wakeup		= ci13xxx_wakeup,
+	.vbus_draw	= ci13xxx_vbus_draw,
 };
 
 /**

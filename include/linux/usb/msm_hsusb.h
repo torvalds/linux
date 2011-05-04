@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -54,6 +54,64 @@ enum otg_control_type {
 };
 
 /**
+ * PHY used in
+ *
+ * INVALID_PHY			Unsupported PHY
+ * CI_45NM_INTEGRATED_PHY	Chipidea 45nm integrated PHY
+ * SNPS_28NM_INTEGRATED_PHY	Synopsis 28nm integrated PHY
+ *
+ */
+enum msm_usb_phy_type {
+	INVALID_PHY = 0,
+	CI_45NM_INTEGRATED_PHY,
+	SNPS_28NM_INTEGRATED_PHY,
+};
+
+#define IDEV_CHG_MAX	1500
+#define IUNIT		100
+
+/**
+ * Different states involved in USB charger detection.
+ *
+ * USB_CHG_STATE_UNDEFINED	USB charger is not connected or detection
+ *                              process is not yet started.
+ * USB_CHG_STATE_WAIT_FOR_DCD	Waiting for Data pins contact.
+ * USB_CHG_STATE_DCD_DONE	Data pin contact is detected.
+ * USB_CHG_STATE_PRIMARY_DONE	Primary detection is completed (Detects
+ *                              between SDP and DCP/CDP).
+ * USB_CHG_STATE_SECONDARY_DONE	Secondary detection is completed (Detects
+ *                              between DCP and CDP).
+ * USB_CHG_STATE_DETECTED	USB charger type is determined.
+ *
+ */
+enum usb_chg_state {
+	USB_CHG_STATE_UNDEFINED = 0,
+	USB_CHG_STATE_WAIT_FOR_DCD,
+	USB_CHG_STATE_DCD_DONE,
+	USB_CHG_STATE_PRIMARY_DONE,
+	USB_CHG_STATE_SECONDARY_DONE,
+	USB_CHG_STATE_DETECTED,
+};
+
+/**
+ * USB charger types
+ *
+ * USB_INVALID_CHARGER	Invalid USB charger.
+ * USB_SDP_CHARGER	Standard downstream port. Refers to a downstream port
+ *                      on USB2.0 compliant host/hub.
+ * USB_DCP_CHARGER	Dedicated charger port (AC charger/ Wall charger).
+ * USB_CDP_CHARGER	Charging downstream port. Enumeration can happen and
+ *                      IDEV_CHG_MAX can be drawn irrespective of USB state.
+ *
+ */
+enum usb_chg_type {
+	USB_INVALID_CHARGER = 0,
+	USB_SDP_CHARGER,
+	USB_DCP_CHARGER,
+	USB_CDP_CHARGER,
+};
+
+/**
  * struct msm_otg_platform_data - platform device data
  *              for msm_otg driver.
  * @phy_init_seq: PHY configuration sequence. val, reg pairs
@@ -74,6 +132,7 @@ struct msm_otg_platform_data {
 	enum usb_mode_type mode;
 	enum otg_control_type otg_control;
 	enum usb_mode_type default_mode;
+	enum msm_usb_phy_type phy_type;
 	void (*setup_gpio)(enum usb_otg_state state);
 	char *pclk_src_name;
 };
@@ -93,6 +152,12 @@ struct msm_otg_platform_data {
  * @sm_work: OTG state machine work.
  * @in_lpm: indicates low power mode (LPM) state.
  * @async_int: Async interrupt arrived.
+ * @cur_power: The amount of mA available from downstream port.
+ * @chg_work: Charger detection work.
+ * @chg_state: The state of charger detection process.
+ * @chg_type: The type of charger attached.
+ * @dcd_retires: The retry count used to track Data contact
+ *               detection process.
  */
 struct msm_otg {
 	struct otg_transceiver otg;
@@ -110,6 +175,11 @@ struct msm_otg {
 	struct work_struct sm_work;
 	atomic_t in_lpm;
 	int async_int;
+	unsigned cur_power;
+	struct delayed_work chg_work;
+	enum usb_chg_state chg_state;
+	enum usb_chg_type chg_type;
+	u8 dcd_retries;
 };
 
 #endif
