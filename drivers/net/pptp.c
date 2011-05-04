@@ -271,8 +271,8 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		iph->frag_off	=	0;
 	iph->protocol = IPPROTO_GRE;
 	iph->tos      = 0;
-	iph->daddr    = rt->rt_dst;
-	iph->saddr    = rt->rt_src;
+	iph->daddr    = fl4.daddr;
+	iph->saddr    = fl4.saddr;
 	iph->ttl      = ip4_dst_hoplimit(&rt->dst);
 	iph->tot_len  = htons(skb->len);
 
