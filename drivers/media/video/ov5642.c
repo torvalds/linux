@@ -4390,11 +4390,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     {
 		if (sensor_fmt_capturechk(sd,f) == true) {					/* ddl@rock-chips.com : Capture */
 			sensor_parameter_record(client);
-		#if CONFIG_SENSOR_Focus
-			sensor_af_idlechk(client);
-			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
-				sensor_af_cmdset(client, PauseFocus_Cmd, NULL);
-		#endif
         #if CONFIG_SENSOR_Flash
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_On);
@@ -4442,6 +4437,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
 			}
+			#if CONFIG_SENSOR_Focus
+			sensor_af_zoneupdate(client);
+			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
+					sensor_af_const(client);
+			}
+		    #endif
 			sensor->info_priv.snap2preview = true;
 		} else if (sensor_fmt_videochk(sd,f) == true) {			/* ddl@rock-chips.com : Video */
 			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
