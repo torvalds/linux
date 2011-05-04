@@ -1297,7 +1297,8 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 }
 
 #ifdef CONFIG_PM
-static int ieee80211_suspend(struct wiphy *wiphy)
+static int ieee80211_suspend(struct wiphy *wiphy,
+			     struct cfg80211_wowlan *wowlan)
 {
 	return __ieee80211_suspend(wiphy_priv(wiphy));
 }

@@ -493,6 +493,13 @@ int wiphy_register(struct wiphy *wiphy)
 		return -EINVAL;
 	}
 
+	if (rdev->wiphy.wowlan.n_patterns) {
+		if (WARN_ON(!rdev->wiphy.wowlan.pattern_min_len ||
+			    rdev->wiphy.wowlan.pattern_min_len >
+			    rdev->wiphy.wowlan.pattern_max_len))
+			return -EINVAL;
+	}
+
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
@@ -631,6 +638,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	mutex_destroy(&rdev->devlist_mtx);
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
+	cfg80211_rdev_free_wowlan(rdev);
 	kfree(rdev);
 }
 

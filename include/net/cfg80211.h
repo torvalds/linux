@@ -1088,6 +1088,38 @@ struct cfg80211_pmksa {
 };
 
 /**
+ * struct cfg80211_wowlan_trig_pkt_pattern - packet pattern
+ * @mask: bitmask where to match pattern and where to ignore bytes,
+ *	one bit per byte, in same format as nl80211
+ * @pattern: bytes to match where bitmask is 1
+ * @pattern_len: length of pattern (in bytes)
+ *
+ * Internal note: @mask and @pattern are allocated in one chunk of
+ * memory, free @mask only!
+ */
+struct cfg80211_wowlan_trig_pkt_pattern {
+	u8 *mask, *pattern;
+	int pattern_len;
+};
+
+/**
+ * struct cfg80211_wowlan - Wake on Wireless-LAN support info
+ *
+ * This structure defines the enabled WoWLAN triggers for the device.
+ * @any: wake up on any activity -- special trigger if device continues
+ *	operating as normal during suspend
+ * @disconnect: wake up if getting disconnected
+ * @magic_pkt: wake up on receiving magic packet
+ * @patterns: wake up on receiving packet matching a pattern
+ * @n_patterns: number of patterns
+ */
+struct cfg80211_wowlan {
+	bool any, disconnect, magic_pkt;
+	struct cfg80211_wowlan_trig_pkt_pattern *patterns;
+	int n_patterns;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -1100,7 +1132,9 @@ struct cfg80211_pmksa {
  * wireless extensions but this is subject to reevaluation as soon as this
  * code is used more widely and we have a first user without wext.
  *
- * @suspend: wiphy device needs to be suspended
+ * @suspend: wiphy device needs to be suspended. The variable @wow will
+ *	be %NULL or contain the enabled Wake-on-Wireless triggers that are
+ *	configured for the device.
  * @resume: wiphy device needs to be resumed
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
@@ -1244,7 +1278,7 @@ struct cfg80211_pmksa {
  * @get_ringparam: Get tx and rx ring current and maximum sizes.
  */
 struct cfg80211_ops {
-	int	(*suspend)(struct wiphy *wiphy);
+	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
 	int	(*resume)(struct wiphy *wiphy);
 
 	struct net_device * (*add_virtual_intf)(struct wiphy *wiphy,
@@ -1480,6 +1514,38 @@ struct ieee80211_txrx_stypes {
 };
 
 /**
+ * enum wiphy_wowlan_support_flags - WoWLAN support flags
+ * @WIPHY_WOWLAN_ANY: supports wakeup for the special "any"
+ *	trigger that keeps the device operating as-is and
+ *	wakes up the host on any activity, for example a
+ *	received packet that passed filtering; note that the
+ *	packet should be preserved in that case
+ * @WIPHY_WOWLAN_MAGIC_PKT: supports wakeup on magic packet
+ *	(see nl80211.h)
+ * @WIPHY_WOWLAN_DISCONNECT: supports wakeup on disconnect
+ */
+enum wiphy_wowlan_support_flags {
+	WIPHY_WOWLAN_ANY	= BIT(0),
+	WIPHY_WOWLAN_MAGIC_PKT	= BIT(1),
+	WIPHY_WOWLAN_DISCONNECT	= BIT(2),
+};
+
+/**
+ * struct wiphy_wowlan_support - WoWLAN support data
+ * @flags: see &enum wiphy_wowlan_support_flags
+ * @n_patterns: number of supported wakeup patterns
+ *	(see nl80211.h for the pattern definition)
+ * @pattern_max_len: maximum length of each pattern
+ * @pattern_min_len: minimum length of each pattern
+ */
+struct wiphy_wowlan_support {
+	u32 flags;
+	int n_patterns;
+	int pattern_max_len;
+	int pattern_min_len;
+};
+
+/**
  * struct wiphy - wireless hardware description
  * @reg_notifier: the driver's regulatory notification callback,
  *	note that if your driver uses wiphy_apply_custom_regulatory()
@@ -1546,6 +1612,8 @@ struct ieee80211_txrx_stypes {
  *
  * @max_remain_on_channel_duration: Maximum time a remain-on-channel operation
  *	may request, if implemented.
+ *
+ * @wowlan: WoWLAN support information
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1582,6 +1650,8 @@ struct wiphy {
 
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 	u32 hw_version;
+
+	struct wiphy_wowlan_support wowlan;
 
 	u16 max_remain_on_channel_duration;
 
