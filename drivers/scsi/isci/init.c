@@ -87,15 +87,9 @@ MODULE_DEVICE_TABLE(pci, isci_id_table);
 
 /* linux isci specific settings */
 
-#if defined(CONFIG_PBG_HBA_A0)
-int isci_si_rev = ISCI_SI_REVA0;
-#elif defined(CONFIG_PBG_HBA_A2)
 int isci_si_rev = ISCI_SI_REVA2;
-#else
-int isci_si_rev = ISCI_SI_REVB0;
-#endif
 module_param(isci_si_rev, int, 0);
-MODULE_PARM_DESC(isci_si_rev, "override default si rev (0: A0 1: A2 2: B0)");
+MODULE_PARM_DESC(isci_si_rev, "(deprecated) override default si rev (0: A0 1: A2 2: B0)");
 
 unsigned char no_outbound_task_to = 20;
 module_param(no_outbound_task_to, byte, 0);
