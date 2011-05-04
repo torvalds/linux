@@ -31,7 +31,8 @@
 #define AES_KEYLEN_192		2
 #define AES_KEYLEN_256		4
 
-static char keylen_flag = 0;
+static u8 *ctrblk;
+static char keylen_flag;
 
 struct s390_aes_ctx {
 	u8 iv[AES_BLOCK_SIZE];
@@ -724,9 +725,128 @@ static struct crypto_alg xts_aes_alg = {
 	}
 };
 
+static int ctr_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+			   unsigned int key_len)
+{
+	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
+
+	switch (key_len) {
+	case 16:
+		sctx->enc = KMCTR_AES_128_ENCRYPT;
+		sctx->dec = KMCTR_AES_128_DECRYPT;
+		break;
+	case 24:
+		sctx->enc = KMCTR_AES_192_ENCRYPT;
+		sctx->dec = KMCTR_AES_192_DECRYPT;
+		break;
+	case 32:
+		sctx->enc = KMCTR_AES_256_ENCRYPT;
+		sctx->dec = KMCTR_AES_256_DECRYPT;
+		break;
+	}
+
+	return aes_set_key(tfm, in_key, key_len);
+}
+
+static int ctr_aes_crypt(struct blkcipher_desc *desc, long func,
+			 struct s390_aes_ctx *sctx, struct blkcipher_walk *walk)
+{
+	int ret = blkcipher_walk_virt_block(desc, walk, AES_BLOCK_SIZE);
+	unsigned int i, n, nbytes;
+	u8 buf[AES_BLOCK_SIZE];
+	u8 *out, *in;
+
+	if (!walk->nbytes)
+		return ret;
+
+	memcpy(ctrblk, walk->iv, AES_BLOCK_SIZE);
+	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
+		out = walk->dst.virt.addr;
+		in = walk->src.virt.addr;
+		while (nbytes >= AES_BLOCK_SIZE) {
+			/* only use complete blocks, max. PAGE_SIZE */
+			n = (nbytes > PAGE_SIZE) ? PAGE_SIZE :
+						 nbytes & ~(AES_BLOCK_SIZE - 1);
+			for (i = AES_BLOCK_SIZE; i < n; i += AES_BLOCK_SIZE) {
+				memcpy(ctrblk + i, ctrblk + i - AES_BLOCK_SIZE,
+				       AES_BLOCK_SIZE);
+				crypto_inc(ctrblk + i, AES_BLOCK_SIZE);
+			}
+			ret = crypt_s390_kmctr(func, sctx->key, out, in, n, ctrblk);
+			BUG_ON(ret < 0 || ret != n);
+			if (n > AES_BLOCK_SIZE)
+				memcpy(ctrblk, ctrblk + n - AES_BLOCK_SIZE,
+				       AES_BLOCK_SIZE);
+			crypto_inc(ctrblk, AES_BLOCK_SIZE);
+			out += n;
+			in += n;
+			nbytes -= n;
+		}
+		ret = blkcipher_walk_done(desc, walk, nbytes);
+	}
+	/*
+	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
+	 */
+	if (nbytes) {
+		out = walk->dst.virt.addr;
+		in = walk->src.virt.addr;
+		ret = crypt_s390_kmctr(func, sctx->key, buf, in,
+				       AES_BLOCK_SIZE, ctrblk);
+		BUG_ON(ret < 0 || ret != AES_BLOCK_SIZE);
+		memcpy(out, buf, nbytes);
+		crypto_inc(ctrblk, AES_BLOCK_SIZE);
+		ret = blkcipher_walk_done(desc, walk, 0);
+	}
+	memcpy(walk->iv, ctrblk, AES_BLOCK_SIZE);
+	return ret;
+}
+
+static int ctr_aes_encrypt(struct blkcipher_desc *desc,
+			   struct scatterlist *dst, struct scatterlist *src,
+			   unsigned int nbytes)
+{
+	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	return ctr_aes_crypt(desc, sctx->enc, sctx, &walk);
+}
+
+static int ctr_aes_decrypt(struct blkcipher_desc *desc,
+			   struct scatterlist *dst, struct scatterlist *src,
+			   unsigned int nbytes)
+{
+	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	return ctr_aes_crypt(desc, sctx->dec, sctx, &walk);
+}
+
+static struct crypto_alg ctr_aes_alg = {
+	.cra_name		=	"ctr(aes)",
+	.cra_driver_name	=	"ctr-aes-s390",
+	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
+	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		=	1,
+	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),
+	.cra_type		=	&crypto_blkcipher_type,
+	.cra_module		=	THIS_MODULE,
+	.cra_list		=	LIST_HEAD_INIT(ctr_aes_alg.cra_list),
+	.cra_u			=	{
+		.blkcipher = {
+			.min_keysize		=	AES_MIN_KEY_SIZE,
+			.max_keysize		=	AES_MAX_KEY_SIZE,
+			.ivsize			=	AES_BLOCK_SIZE,
+			.setkey			=	ctr_aes_set_key,
+			.encrypt		=	ctr_aes_encrypt,
+			.decrypt		=	ctr_aes_decrypt,
+		}
+	}
+};
+
 static int __init aes_s390_init(void)
 {
-	unsigned long long facility_bits[2];
 	int ret;
 
 	if (crypt_s390_func_available(KM_AES_128_ENCRYPT, CRYPT_S390_MSA))
@@ -765,9 +885,29 @@ static int __init aes_s390_init(void)
 			goto xts_aes_err;
 	}
 
+	if (crypt_s390_func_available(KMCTR_AES_128_ENCRYPT,
+				CRYPT_S390_MSA | CRYPT_S390_MSA4) &&
+	    crypt_s390_func_available(KMCTR_AES_192_ENCRYPT,
+				CRYPT_S390_MSA | CRYPT_S390_MSA4) &&
+	    crypt_s390_func_available(KMCTR_AES_256_ENCRYPT,
+				CRYPT_S390_MSA | CRYPT_S390_MSA4)) {
+		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
+		if (!ctrblk) {
+			ret = -ENOMEM;
+			goto ctr_aes_err;
+		}
+		ret = crypto_register_alg(&ctr_aes_alg);
+		if (ret) {
+			free_page((unsigned long) ctrblk);
+			goto ctr_aes_err;
+		}
+	}
+
 out:
 	return ret;
 
+ctr_aes_err:
+	crypto_unregister_alg(&xts_aes_alg);
 xts_aes_err:
 	crypto_unregister_alg(&cbc_aes_alg);
 cbc_aes_err:
@@ -780,6 +920,8 @@ aes_err:
 
 static void __exit aes_s390_fini(void)
 {
+	crypto_unregister_alg(&ctr_aes_alg);
+	free_page((unsigned long) ctrblk);
 	crypto_unregister_alg(&xts_aes_alg);
 	crypto_unregister_alg(&cbc_aes_alg);
 	crypto_unregister_alg(&ecb_aes_alg);

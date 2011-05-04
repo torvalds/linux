@@ -119,8 +119,11 @@ config CRYPTO_DES_S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
-	  This us the s390 hardware accelerated implementation of the
+	  This is the s390 hardware accelerated implementation of the
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+	  As of z990 the ECB and CBC mode are hardware accelerated.
+	  As of z196 the CTR mode is hardware accelerated.
 
 config CRYPTO_AES_S390
 	tristate "AES cipher algorithms"
@@ -135,7 +138,8 @@ config CRYPTO_AES_S390
 	  for 128 bit keys.
 	  As of z10 the ECB and CBC modes are hardware accelerated
 	  for all AES key sizes.
-	  As of z196 the XTS mode is hardware accelerated for 256 and
+	  As of z196 the CTR mode is hardware accelerated for all AES
+	  key sizes and XTS mode is hardware accelerated for 256 and
 	  512 bit keys.
 
 config S390_PRNG

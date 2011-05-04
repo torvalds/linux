@@ -34,7 +34,8 @@ enum crypt_s390_operations {
 	CRYPT_S390_KMC  = 0x0200,
 	CRYPT_S390_KIMD = 0x0300,
 	CRYPT_S390_KLMD = 0x0400,
-	CRYPT_S390_KMAC = 0x0500
+	CRYPT_S390_KMAC = 0x0500,
+	CRYPT_S390_KMCTR = 0x0600
 };
 
 /*
@@ -80,6 +81,26 @@ enum crypt_s390_kmc_func {
 	KMC_AES_256_ENCRYPT  = CRYPT_S390_KMC | 0x14,
 	KMC_AES_256_DECRYPT  = CRYPT_S390_KMC | 0x14 | 0x80,
 	KMC_PRNG	     = CRYPT_S390_KMC | 0x43,
+};
+
+/*
+ * function codes for KMCTR (CIPHER MESSAGE WITH COUNTER)
+ * instruction
+ */
+enum crypt_s390_kmctr_func {
+	KMCTR_QUERY            = CRYPT_S390_KMCTR | 0x0,
+	KMCTR_DEA_ENCRYPT      = CRYPT_S390_KMCTR | 0x1,
+	KMCTR_DEA_DECRYPT      = CRYPT_S390_KMCTR | 0x1 | 0x80,
+	KMCTR_TDEA_128_ENCRYPT = CRYPT_S390_KMCTR | 0x2,
+	KMCTR_TDEA_128_DECRYPT = CRYPT_S390_KMCTR | 0x2 | 0x80,
+	KMCTR_TDEA_192_ENCRYPT = CRYPT_S390_KMCTR | 0x3,
+	KMCTR_TDEA_192_DECRYPT = CRYPT_S390_KMCTR | 0x3 | 0x80,
+	KMCTR_AES_128_ENCRYPT  = CRYPT_S390_KMCTR | 0x12,
+	KMCTR_AES_128_DECRYPT  = CRYPT_S390_KMCTR | 0x12 | 0x80,
+	KMCTR_AES_192_ENCRYPT  = CRYPT_S390_KMCTR | 0x13,
+	KMCTR_AES_192_DECRYPT  = CRYPT_S390_KMCTR | 0x13 | 0x80,
+	KMCTR_AES_256_ENCRYPT  = CRYPT_S390_KMCTR | 0x14,
+	KMCTR_AES_256_DECRYPT  = CRYPT_S390_KMCTR | 0x14 | 0x80,
 };
 
 /*
@@ -293,6 +314,45 @@ static inline int crypt_s390_kmac(long func, void *param,
 }
 
 /**
+ * crypt_s390_kmctr:
+ * @func: the function code passed to KMCTR; see crypt_s390_kmctr_func
+ * @param: address of parameter block; see POP for details on each func
+ * @dest: address of destination memory area
+ * @src: address of source memory area
+ * @src_len: length of src operand in bytes
+ * @counter: address of counter value
+ *
+ * Executes the KMCTR (CIPHER MESSAGE WITH COUNTER) operation of the CPU.
+ *
+ * Returns -1 for failure, 0 for the query func, number of processed
+ * bytes for encryption/decryption funcs
+ */
+static inline int crypt_s390_kmctr(long func, void *param, u8 *dest,
+				 const u8 *src, long src_len, u8 *counter)
+{
+	register long __func asm("0") = func & CRYPT_S390_FUNC_MASK;
+	register void *__param asm("1") = param;
+	register const u8 *__src asm("2") = src;
+	register long __src_len asm("3") = src_len;
+	register u8 *__dest asm("4") = dest;
+	register u8 *__ctr asm("6") = counter;
+	int ret = -1;
+
+	asm volatile(
+		"0:	.insn	rrf,0xb92d0000,%3,%1,%4,0 \n" /* KMCTR opcode */
+		"1:	brc	1,0b \n" /* handle partial completion */
+		"	la	%0,0\n"
+		"2:\n"
+		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		: "+d" (ret), "+a" (__src), "+d" (__src_len), "+a" (__dest),
+		  "+a" (__ctr)
+		: "d" (__func), "a" (__param) : "cc", "memory");
+	if (ret < 0)
+		return ret;
+	return (func & CRYPT_S390_FUNC_MASK) ? src_len - __src_len : __src_len;
+}
+
+/**
  * crypt_s390_func_available:
  * @func: the function code of the specific function; 0 if op in general
  *
@@ -328,6 +388,10 @@ static inline int crypt_s390_func_available(int func,
 		break;
 	case CRYPT_S390_KMAC:
 		ret = crypt_s390_kmac(KMAC_QUERY, &status, NULL, 0);
+		break;
+	case CRYPT_S390_KMCTR:
+		ret = crypt_s390_kmctr(KMCTR_QUERY, &status, NULL, NULL, 0,
+				       NULL);
 		break;
 	default:
 		return 0;
