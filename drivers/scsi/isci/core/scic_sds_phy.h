@@ -280,7 +280,7 @@ struct scic_sds_phy {
 		} sas;
 
 		struct {
-			struct sata_fis_reg_d2h signature_fis_buffer;
+			struct dev_to_host_fis signature_fis_buffer;
 
 		} sata;
 

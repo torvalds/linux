@@ -205,11 +205,8 @@ void isci_port_link_up(
 		 */
 		BUG_ON(call_status != SCI_SUCCESS);
 
-		memcpy(isci_phy->frame_rcvd.fis,
-		       &sata_phy_properties.signature_fis,
-		       sizeof(struct sata_fis_reg_d2h));
-
-		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct sata_fis_reg_d2h);
+		isci_phy->frame_rcvd.fis = sata_phy_properties.signature_fis;
+		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct dev_to_host_fis);
 
 		/*
 		 * For direct-attached SATA devices, the SCI core will

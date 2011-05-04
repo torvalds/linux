@@ -101,62 +101,6 @@ struct sata_fis_header {
 	u32 error:8;
 };
 
-
-/**
- * struct sata_fis_reg_h2d - This is the definition for a SATA Host to Device
- *    Register FIS.
- *
- *
- */
-struct sata_fis_reg_h2d {
-	u32 fis_type:8; /* word 0 */
-	u32 pm_port:4;
-	u32 reserved0:3;
-	u32 command_flag:1;
-	u32 command:8;
-	u32 features:8;
-	u32 lba_low:8; /* word 1 */
-	u32 lba_mid:8;
-	u32 lba_high:8;
-	u32 device:8;
-	u32 lba_low_exp:8; /* word 2 */
-	u32 lba_mid_exp:8;
-	u32 lba_high_exp:8;
-	u32 features_exp:8;
-	u32 sector_count:8; /* word 3 */
-	u32 sector_count_exp:8;
-	u32 reserved1:8;
-	u32 control:8;
-	u32 reserved2;          /* word 4 */
-};
-
-/**
- * struct sata_fis_reg_d2h - SATA Device To Host FIS
- *
- *
- */
-struct sata_fis_reg_d2h {
-	u32 fis_type:8;   /* word 0 */
-	u32 pm_port:4;
-	u32 reserved0:2;
-	u32 irq:1;
-	u32 reserved1:1;
-	u32 status:8;
-	u32 error:8;
-	u8 lba_low;          /* word 1 */
-	u8 lba_mid;
-	u8 lba_high;
-	u8 device;
-	u8 lba_low_exp;      /* word 2 */
-	u8 lba_mid_exp;
-	u8 lba_high_exp;
-	u8 reserved;
-	u8 sector_count;     /* word 3 */
-	u8 sector_count_exp;
-	u16 reserved2;
-	u32 reserved3;
-};
-
 /**
  *
  *

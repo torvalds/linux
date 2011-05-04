@@ -79,7 +79,7 @@
  * request memory
  */
 #define scic_sds_stp_request_get_h2d_reg_buffer(memory)	\
-	((struct sata_fis_reg_h2d *)(\
+	((struct host_to_dev_fis *)(\
 		 ((char *)(memory)) + sizeof(struct scic_sds_stp_request) \
 		 ))
 
@@ -90,9 +90,9 @@
  * request memory
  */
 #define scic_sds_stp_request_get_response_buffer(memory) \
-	((struct sata_fis_reg_d2h *)(\
+	((struct dev_to_host_fis *)(\
 		 ((char *)(scic_sds_stp_request_get_h2d_reg_buffer(memory))) \
-		 + sizeof(struct sata_fis_reg_h2d) \
+		 + sizeof(struct host_to_dev_fis) \
 		 ))
 
 /**
@@ -127,8 +127,8 @@
 u32 scic_sds_stp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_stp_request)
-	       + sizeof(struct sata_fis_reg_h2d)
-	       + sizeof(struct sata_fis_reg_d2h)
+	       + sizeof(struct host_to_dev_fis)
+	       + sizeof(struct dev_to_host_fis)
 	       + sizeof(struct scu_task_context)
 	       + SMP_CACHE_BYTES
 	       + sizeof(struct scu_sgl_element_pair) * SCU_MAX_SGL_ELEMENT_PAIRS;
@@ -205,7 +205,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->task_phase = 0x01;
 
 	task_context->ssp_command_iu_length =
-		(sizeof(struct sata_fis_reg_h2d) - sizeof(u32)) / sizeof(u32);
+		(sizeof(struct host_to_dev_fis) - sizeof(u32)) / sizeof(u32);
 
 	/* Set the first word of the H2D REG FIS */
 	task_context->type.words[0] = *(u32 *)sds_request->command_buffer;
@@ -354,7 +354,8 @@ static void scu_stp_raw_request_construct_task_context(
 	task_context->priority              = SCU_TASK_PRIORITY_NORMAL;
 	task_context->task_type             = SCU_TASK_TYPE_SATA_RAW_FRAME;
 	task_context->type.stp.fis_type     = SATA_FIS_TYPE_REGH2D;
-	task_context->transfer_length_bytes = sizeof(struct sata_fis_reg_h2d) - sizeof(u32);
+	task_context->transfer_length_bytes =
+		sizeof(struct host_to_dev_fis) - sizeof(u32);
 }
 
 void scic_stp_io_request_set_ncq_tag(
@@ -1749,7 +1750,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 {
 	struct scic_sds_request *sci_req = object;
 	struct scu_task_context *task_context;
-	struct sata_fis_reg_h2d *h2d_fis;
+	struct host_to_dev_fis *h2d_fis;
 	enum sci_status status;
 
 	/* Clear the SRST bit */

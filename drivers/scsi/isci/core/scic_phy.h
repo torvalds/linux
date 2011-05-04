@@ -64,11 +64,11 @@
  */
 
 
+#include <scsi/sas.h>
+#include <scsi/libsas.h>
 #include "sci_status.h"
-
 #include "intel_sata.h"
 #include "intel_sas.h"
-#include <scsi/libsas.h>
 
 struct scic_sds_phy;
 struct scic_sds_port;
@@ -141,7 +141,7 @@ struct scic_sata_phy_properties {
 	 * This field delineates the signature FIS received from the
 	 * attached target.
 	 */
-	struct sata_fis_reg_d2h signature_fis;
+	struct dev_to_host_fis signature_fis;
 
 	/**
 	 * This field specifies to the user if a port selector is connected

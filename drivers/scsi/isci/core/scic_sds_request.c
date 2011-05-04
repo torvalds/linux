@@ -53,7 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+#include <scsi/sas.h>
 #include "intel_sas.h"
 #include "intel_sata.h"
 #include "intel_sat.h"
@@ -1742,7 +1742,7 @@ enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
 		scic_sds_ssp_io_request_assign_buffers(sci_req);
 	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		scic_sds_stp_request_assign_buffers(sci_req);
-		memset(sci_req->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
+		memset(sci_req->command_buffer, 0, sizeof(struct host_to_dev_fis));
 	} else if (dev_is_expander(dev)) {
 		scic_sds_smp_request_assign_buffers(sci_req);
 		memset(sci_req->command_buffer, 0, sizeof(struct smp_request));

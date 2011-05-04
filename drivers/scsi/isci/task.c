@@ -1452,10 +1452,8 @@ void isci_task_request_complete(
 
 		memcpy(&tmf->resp.d2h_fis,
 		       scic_stp_io_request_get_d2h_reg_address(
-			       request->sci_request_handle
-			       ),
-		       sizeof(struct sata_fis_reg_d2h)
-		       );
+			       request->sci_request_handle),
+		       sizeof(struct dev_to_host_fis));
 	}
 
 	/* Manage the timer if it is still running. */

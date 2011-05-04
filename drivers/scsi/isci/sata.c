@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <scsi/sas.h>
 #include "isci.h"
 #include "remote_device.h"
 #include "scic_io_request.h"
@@ -142,11 +143,10 @@ void isci_sata_set_ncq_tag(
  *
  * none.
  */
-void isci_request_process_stp_response(
-	struct sas_task *task,
-	void *response_buffer)
+void isci_request_process_stp_response(struct sas_task *task,
+				       void *response_buffer)
 {
-	struct sata_fis_reg_d2h *d2h_reg_fis = (struct sata_fis_reg_d2h *)response_buffer;
+	struct dev_to_host_fis *d2h_reg_fis = response_buffer;
 	struct task_status_struct *ts = &task->task_status;
 	struct ata_task_resp *resp = (void *)&ts->buf[0];
 

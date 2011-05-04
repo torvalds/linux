@@ -54,6 +54,7 @@
  */
 
 #include <linux/device.h>
+#include <scsi/sas.h>
 #include "scic_controller.h"
 #include "scic_phy.h"
 #include "scic_port.h"
@@ -1754,17 +1755,11 @@ void scic_sds_controller_copy_sata_response(
 	void *frame_header,
 	void *frame_buffer)
 {
-	memcpy(
-		response_buffer,
-		frame_header,
-		sizeof(u32)
-		);
+	memcpy(response_buffer, frame_header, sizeof(u32));
 
-	memcpy(
-		(char *)((char *)response_buffer + sizeof(u32)),
-		frame_buffer,
-		sizeof(struct sata_fis_reg_d2h) - sizeof(u32)
-		);
+	memcpy(response_buffer + sizeof(u32),
+	       frame_buffer,
+	       sizeof(struct dev_to_host_fis) - sizeof(u32));
 }
 
 /**

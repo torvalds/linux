@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <scsi/sas.h>
 #include "intel_ata.h"
 #include "intel_sata.h"
 #include "sci_base_state.h"
@@ -620,11 +621,9 @@ enum sci_status scic_sata_phy_get_properties(
 	struct scic_sata_phy_properties *properties)
 {
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
-		memcpy(
-			&properties->signature_fis,
-			&sci_phy->phy_type.sata.signature_fis_buffer,
-			sizeof(struct sata_fis_reg_d2h)
-			);
+		memcpy(&properties->signature_fis,
+		       &sci_phy->phy_type.sata.signature_fis_buffer,
+		       sizeof(struct dev_to_host_fis));
 
 		/* / @todo add support for port selectors. */
 		properties->is_port_selector_present = false;

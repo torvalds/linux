@@ -69,7 +69,7 @@
 struct scic_sds_stp_request {
 	struct scic_sds_request parent;
 
-	struct sata_fis_reg_d2h d2h_reg_fis;
+	struct dev_to_host_fis d2h_reg_fis;
 
 	union {
 		u32 ncq;

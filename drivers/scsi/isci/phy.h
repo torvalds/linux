@@ -59,6 +59,7 @@
 
 #include "port.h"
 #include "host.h"
+#include <scsi/sas.h>
 #include <scsi/libsas.h>
 
 
@@ -79,10 +80,8 @@ struct isci_phy {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	union {
-
 		u8 aif[sizeof(struct sci_sas_identify_address_frame)];
-		u8 fis[sizeof(struct sata_fis_reg_d2h)];
-
+		struct dev_to_host_fis fis;
 	} frame_rcvd;
 };
 
