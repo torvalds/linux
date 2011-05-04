@@ -640,7 +640,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_ANX7150)
+#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
     {
 		.type           = "anx7150",
         .addr           = 0x39,             //0x39, 0x3d

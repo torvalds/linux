@@ -80,9 +80,10 @@ enum {
 	MRQ_RESET_CTRL_ERR,  //15
 	MRQ_RESET_CTRL_DONE,  //16
 	MRQ_DMA_SET_ERR,  //17
-	MRQ_STOP_DMA,  //18
-	MRQ_DMA_DONE,  //19
-	MRQ_REQUEST_DONE,  //20
+	MRQ_START_DMA,	//18
+	MRQ_STOP_DMA,  //19
+	MRQ_DMA_DONE,  //20
+	MRQ_REQUEST_DONE,  //21
 };
 enum rk29_sdmmc_state {
 	STATE_IDLE = 0,
@@ -461,6 +462,24 @@ static int send_stop_cmd(struct rk29_sdmmc *host)
 		return 0;
 	}
 }
+static void rk29_sdmmc_dma_cleanup(struct rk29_sdmmc *host)
+{
+	struct mmc_data	*data = host->mrq->data;
+	if (data) 
+		dma_unmap_sg(host->dev, data->sg, data->sg_len,
+		     ((data->flags & MMC_DATA_WRITE)
+		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));		      	
+}
+
+static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
+{
+	rk29_sdmmc_set_mrq_status(host, MRQ_STOP_DMA);
+	rk29_sdmmc_dma_cleanup(host);
+	rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
+	rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);
+	rk29_sdmmc_write(host->regs, SDMMC_CTRL, 
+			(rk29_sdmmc_read(host->regs, SDMMC_CTRL))&(~SDMMC_CTRL_DMA_ENABLE));
+}
 
 static void rk29_sdmmc_request_done(struct rk29_sdmmc *host,struct mmc_request	*mrq)
 {
@@ -471,6 +490,10 @@ static void rk29_sdmmc_request_done(struct rk29_sdmmc *host,struct mmc_request	*
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,
 		rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & 
 		~(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS));
+
+	if(!rk29_sdmmc_test_mrq_status(host, MRQ_STOP_DMA) && 
+		rk29_sdmmc_test_mrq_status(host, MRQ_START_DMA))
+		rk29_sdmmc_stop_dma(host);
 	if(mrq->stop && !rk29_sdmmc_test_mrq_status(host, MRQ_STOP_START_DONE))
 		send_stop_cmd(host);
 	if(mrq->cmd->opcode == 17|| mrq->cmd->opcode == 51){
@@ -668,7 +691,8 @@ static int rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *data
 	for (i = 0; i < dma_len; i++)                              
     	rk29_dma_enqueue(host->dma_info.chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));  // data->sg->dma_address, data->sg->length);	    	
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))|SDMMC_CTRL_DMA_ENABLE);// enable dma
-	rk29_dma_ctrl(host->dma_info.chn, RK29_DMAOP_START);	
+	rk29_dma_ctrl(host->dma_info.chn, RK29_DMAOP_START);
+	rk29_sdmmc_set_mrq_status(host, MRQ_START_DMA);
 	return 0;
 }
 static int rk29_sdmmc_test_cmd_start(struct rk29_sdmmc *host)
@@ -748,6 +772,12 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		dev_info(host->dev, "mrq = NULL!!!!!\n");
 	if(host->mrq) 
 		rk29_sdmmc_show_info(host);
+
+	if((!rk29_sdmmc_test_mrq_status(host, MRQ_STOP_DMA) && 
+		rk29_sdmmc_test_mrq_status(host, MRQ_START_DMA)) ||
+		(rk29_sdmmc_test_mrq_status(host, MRQ_STOP_DMA) && 
+		!rk29_sdmmc_test_mrq_status(host, MRQ_START_DMA)))
+		dev_warn(host->dev, "start_dma but no stop_dma, or no start_dma but stop_dma\n");
 	WARN_ON(host->mrq);
 	host->old_mrq_status = host->mrq_status;
 	host->mrq_status = 0;
@@ -830,24 +860,6 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host)
 {
 	if(host->mrq)
 		rk29_sdmmc_request_done(host, host->mrq);
-}
-static void rk29_sdmmc_dma_cleanup(struct rk29_sdmmc *host)
-{
-	struct mmc_data	*data = host->mrq->data;
-	if (data) 
-		dma_unmap_sg(host->dev, data->sg, data->sg_len,
-		     ((data->flags & MMC_DATA_WRITE)
-		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));		      	
-}
-
-static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
-{
-	rk29_sdmmc_set_mrq_status(host, MRQ_STOP_DMA);
-	rk29_sdmmc_dma_cleanup(host);
-	rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
-	rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);
-	rk29_sdmmc_write(host->regs, SDMMC_CTRL, 
-			(rk29_sdmmc_read(host->regs, SDMMC_CTRL))&(~SDMMC_CTRL_DMA_ENABLE));
 }
 
 static void rk29_sdmmc_command_complete(struct rk29_sdmmc *host,

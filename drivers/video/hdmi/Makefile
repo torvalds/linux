@@ -1,2 +1,2 @@
-obj-$(CONFIG_HDMI)		+= hdmi-core.o hdmi-sysfs.o hdmi-fb.o hdmi-codec.o
-obj-$(CONFIG_HDMI)	    += chips/
+obj-$(CONFIG_HDMI_OLD)	    += hdmi-old/
+obj-$(CONFIG_HDMI_NEW)	    += hdmi-new/

@@ -2,9 +2,9 @@
 #include <linux/fb.h>
 
 #include <linux/completion.h>
-#include "../display/screen/screen.h"
-#include <linux/hdmi.h>
-#include "../rk29_fb.h"
+#include "../../display/screen/screen.h"
+#include <linux/hdmi-new.h>
+#include "../../rk29_fb.h"
 
 
 /* Base */
@@ -263,7 +263,7 @@ int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
 	{
 		hdmi->resolution = HDMI_1920x1080p_50Hz;
 		hdmi->display_on = 1;
-		hdmi->hdmi_set_param(hdmi);
+		hdmi->ops->set_param(hdmi);
 		ret = 1;
 	}
 	
@@ -271,7 +271,7 @@ int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
 	else if(xres >1024 && xres <= 1280 && hdmi->resolution != HDMI_1280x720p_50Hz){
 		hdmi->resolution = HDMI_1280x720p_50Hz;
 		hdmi->display_on = 1;
-		hdmi->hdmi_set_param(hdmi);
+		hdmi->ops->set_param(hdmi);
 		ret = 1;
 	}
 	/*
