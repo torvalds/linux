@@ -112,42 +112,6 @@ struct sci_sas_identify_address_frame_protocols {
 };
 
 /**
- * struct sas_capabilities - This structure depicts the various SAS
- *    capabilities supported by the directly attached target device.  For
- *    specific information on each of these individual fields please reference
- *    the SAS specification Phy layer section on speed negotiation windows.
- *
- *
- */
-struct sas_capabilities {
-	union {
-		struct {
-			/**
-			 * The SAS specification indicates the start bit shall always be set to
-			 * 1.  This implementation will have the start bit set to 0 if the
-			 * PHY CAPABILITIES were either not received or speed negotiation failed.
-			 */
-			u32 start:1;
-			u32 tx_ssc_type:1;
-			u32 reserved1:2;
-			u32 requested_logical_link_rate:4;
-
-			u32 gen1_without_ssc_supported:1;
-			u32 gen1_with_ssc_supported:1;
-			u32 gen2_without_ssc_supported:1;
-			u32 gen2_with_ssc_supported:1;
-			u32 gen3_without_ssc_supported:1;
-			u32 gen3_with_ssc_supported:1;
-			u32 reserved2:17;
-			u32 parity:1;
-		} bits;
-
-		u32 all;
-	} u;
-
-};
-
-/**
  * enum _SCI_SAS_TASK_ATTRIBUTE - This enumeration depicts the SAM/SAS
  *    specification defined task attribute values for a command information
  *    unit.

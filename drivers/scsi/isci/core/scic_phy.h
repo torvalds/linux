@@ -75,6 +75,34 @@ struct scic_sds_port;
 
 enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy);
 
+struct scic_phy_cap {
+	union {
+		struct {
+			/*
+			 * The SAS specification indicates the start bit shall
+			 * always be set to
+			 * 1.  This implementation will have the start bit set
+			 * to 0 if the PHY CAPABILITIES were either not
+			 * received or speed negotiation failed.
+			 */
+			u8 start:1;
+			u8 tx_ssc_type:1;
+			u8 res1:2;
+			u8 req_logical_linkrate:4;
+
+			u32 gen1_no_ssc:1;
+			u32 gen1_ssc:1;
+			u32 gen2_no_ssc:1;
+			u32 gen2_ssc:1;
+			u32 gen3_no_ssc:1;
+			u32 gen3_ssc:1;
+			u32 res2:17;
+			u32 parity:1;
+		};
+		u32 all;
+	};
+}  __packed;
+
 /**
  * struct scic_phy_properties - This structure defines the properties common to
  *    all phys that can be retrieved.
@@ -125,7 +153,7 @@ struct scic_sas_phy_properties {
 	 * This field delineates the Phy capabilities structure received
 	 * from the remote end point.
 	 */
-	struct sas_capabilities received_capabilities;
+	struct scic_phy_cap rcvd_cap;
 
 };
 

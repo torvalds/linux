@@ -122,12 +122,15 @@ static enum sci_status
 scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 				       struct scu_link_layer_registers __iomem *link_layer_registers)
 {
-	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
+	struct scic_sds_controller *scic =
+		sci_phy->owning_port->owning_controller;
 	int phy_idx = sci_phy->phy_index;
-	struct sci_phy_user_params *phy_user = &scic->user_parameters.sds1.phys[phy_idx];
-	struct sci_phy_oem_params *phy_oem = &scic->oem_parameters.sds1.phys[phy_idx];
+	struct sci_phy_user_params *phy_user =
+		&scic->user_parameters.sds1.phys[phy_idx];
+	struct sci_phy_oem_params *phy_oem =
+		&scic->oem_parameters.sds1.phys[phy_idx];
 	u32 phy_configuration;
-	struct sas_capabilities phy_capabilities;
+	struct scic_phy_cap phy_cap;
 	u32 parity_check = 0;
 	u32 parity_count = 0;
 	u32 llctl, link_rate;
@@ -146,7 +149,8 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	       &sci_phy->link_layer_registers->transmit_identification);
 
 	/* Write the device SAS Address */
-	writel(0xFEDCBA98, &sci_phy->link_layer_registers->sas_device_name_high);
+	writel(0xFEDCBA98,
+	       &sci_phy->link_layer_registers->sas_device_name_high);
 	writel(phy_idx, &sci_phy->link_layer_registers->sas_device_name_low);
 
 	/* Write the source SAS Address */
@@ -170,21 +174,21 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 		&sci_phy->link_layer_registers->phy_configuration);
 
 	/* Configure the SNW capabilities */
-	phy_capabilities.u.all = 0;
-	phy_capabilities.u.bits.start                      = 1;
-	phy_capabilities.u.bits.gen3_without_ssc_supported = 1;
-	phy_capabilities.u.bits.gen2_without_ssc_supported = 1;
-	phy_capabilities.u.bits.gen1_without_ssc_supported = 1;
+	phy_cap.all = 0;
+	phy_cap.start = 1;
+	phy_cap.gen3_no_ssc = 1;
+	phy_cap.gen2_no_ssc = 1;
+	phy_cap.gen1_no_ssc = 1;
 	if (scic->oem_parameters.sds1.controller.do_enable_ssc == true) {
-		phy_capabilities.u.bits.gen3_with_ssc_supported = 1;
-		phy_capabilities.u.bits.gen2_with_ssc_supported = 1;
-		phy_capabilities.u.bits.gen1_with_ssc_supported = 1;
+		phy_cap.gen3_ssc = 1;
+		phy_cap.gen2_ssc = 1;
+		phy_cap.gen1_ssc = 1;
 	}
 
 	/*
 	 * The SAS specification indicates that the phy_capabilities that
 	 * are transmitted shall have an even parity.  Calculate the parity. */
-	parity_check = phy_capabilities.u.all;
+	parity_check = phy_cap.all;
 	while (parity_check != 0) {
 		if (parity_check & 0x1)
 			parity_count++;
@@ -195,10 +199,9 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	 * If parity indicates there are an odd number of bits set, then
 	 * set the parity bit to 1 in the phy capabilities. */
 	if ((parity_count % 2) != 0)
-		phy_capabilities.u.bits.parity = 1;
+		phy_cap.parity = 1;
 
-	writel(phy_capabilities.u.all,
-		&sci_phy->link_layer_registers->phy_capabilities);
+	writel(phy_cap.all, &sci_phy->link_layer_registers->phy_capabilities);
 
 	/* Set the enable spinup period but disable the ability to send
 	 * notify enable spinup
@@ -561,7 +564,7 @@ enum sci_status scic_sas_phy_get_properties(
 		       &sci_phy->phy_type.sas_id_frame,
 		       sizeof(struct sas_identify_frame));
 
-		properties->received_capabilities.u.all =
+		properties->rcvd_cap.all =
 			readl(&sci_phy->link_layer_registers->receive_phycap);
 
 		return SCI_SUCCESS;
