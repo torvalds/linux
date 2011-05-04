@@ -435,36 +435,18 @@ struct smb_hdr {
 /* given a pointer to an smb_hdr retrieve the pointer to the byte area */
 #define pByteArea(smb_var) (BCC(smb_var) + 2)
 
-/* get the converted ByteCount for a SMB packet and return it */
-static inline __u16
-get_bcc(struct smb_hdr *hdr)
-{
-	__u16 *bc_ptr = (__u16 *)BCC(hdr);
-
-	return get_unaligned(bc_ptr);
-}
-
 /* get the unconverted ByteCount for a SMB packet and return it */
 static inline __u16
-get_bcc_le(struct smb_hdr *hdr)
+get_bcc(struct smb_hdr *hdr)
 {
 	__le16 *bc_ptr = (__le16 *)BCC(hdr);
 
 	return get_unaligned_le16(bc_ptr);
 }
 
-/* set the ByteCount for a SMB packet in host-byte order */
-static inline void
-put_bcc(__u16 count, struct smb_hdr *hdr)
-{
-	__u16 *bc_ptr = (__u16 *)BCC(hdr);
-
-	put_unaligned(count, bc_ptr);
-}
-
 /* set the ByteCount for a SMB packet in little-endian */
 static inline void
-put_bcc_le(__u16 count, struct smb_hdr *hdr)
+put_bcc(__u16 count, struct smb_hdr *hdr)
 {
 	__le16 *bc_ptr = (__le16 *)BCC(hdr);
 

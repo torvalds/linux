@@ -862,7 +862,7 @@ ssetup_ntlmssp_authenticate:
 	smb_buf->smb_buf_length =
 		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
 
-	put_bcc_le(count, smb_buf);
+	put_bcc(count, smb_buf);
 
 	rc = SendReceive2(xid, ses, iov, 3 /* num_iovecs */, &resp_buf_type,
 			  CIFS_LOG_ERROR);
