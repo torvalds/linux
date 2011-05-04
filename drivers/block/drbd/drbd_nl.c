@@ -1065,7 +1065,7 @@ static void conn_reconfig_done(struct drbd_tconn *tconn)
 	spin_unlock_irq(&tconn->req_lock);
 	if (stop_threads) {
 		/* asender is implicitly stopped by receiver
-		 * in drbd_disconnect() */
+		 * in conn_disconnect() */
 		drbd_thread_stop(&tconn->receiver);
 		drbd_thread_stop(&tconn->worker);
 	}
@@ -3033,7 +3033,11 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_conf *mdev)
 	     * we may want to delete a minor from a live replication group.
 	     */
 	    mdev->state.role == R_SECONDARY) {
-		drbd_delete_device(mdev);
+		idr_remove(&mdev->tconn->volumes, mdev->vnr);
+		idr_remove(&minors, mdev_to_minor(mdev));
+		del_gendisk(mdev->vdisk);
+		synchronize_rcu();
+		kref_put(&mdev->kref, &drbd_minor_destroy);
 		return NO_ERROR;
 	} else
 		return ERR_MINOR_CONFIGURED;

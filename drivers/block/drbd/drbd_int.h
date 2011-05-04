@@ -867,6 +867,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 struct drbd_conf {
 	struct drbd_tconn *tconn;
 	int vnr;			/* volume number within the connection */
+	struct kref kref;
 
 	/* things that are stored as / read from meta data on disk */
 	unsigned long flags;
@@ -1373,7 +1374,7 @@ extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_tconn *tconn);
 enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
-extern void drbd_delete_device(struct drbd_conf *mdev);
+extern void drbd_minor_destroy(struct kref *kref);
 
 struct drbd_tconn *conn_create(const char *name);
 extern void conn_destroy(struct kref *kref);
