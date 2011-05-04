@@ -411,15 +411,7 @@ static void scic_sds_phy_suspend(
 			SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
 }
 
-/**
- *
- * @sci_phy: The phy object to resume.
- *
- * This function will perform the register reads/writes required to resume the
- * SCU hardware protocol engine. none
- */
-void scic_sds_phy_resume(
-	struct scic_sds_phy *sci_phy)
+void scic_sds_phy_resume(struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 
@@ -430,47 +422,22 @@ void scic_sds_phy_resume(
 		&sci_phy->link_layer_registers->phy_configuration);
 }
 
-/**
- * This method returns the local sas address assigned to this phy.
- * @sci_phy: This parameter specifies the phy for which to retrieve the local
- *    SAS address.
- * @sas_address: This parameter specifies the location into which to copy the
- *    local SAS address.
- *
- */
-void scic_sds_phy_get_sas_address(
-	struct scic_sds_phy *sci_phy,
-	struct sci_sas_address *sas_address)
+void scic_sds_phy_get_sas_address(struct scic_sds_phy *sci_phy,
+				  struct sci_sas_address *sas_address)
 {
 	sas_address->high = readl(&sci_phy->link_layer_registers->source_sas_address_high);
 	sas_address->low = readl(&sci_phy->link_layer_registers->source_sas_address_low);
 }
 
-/**
- * This method returns the remote end-point (i.e. attached) sas address
- *    assigned to this phy.
- * @sci_phy: This parameter specifies the phy for which to retrieve the remote
- *    end-point SAS address.
- * @sas_address: This parameter specifies the location into which to copy the
- *    remote end-point SAS address.
- *
- */
-void scic_sds_phy_get_attached_sas_address(
-	struct scic_sds_phy *sci_phy,
-	struct sci_sas_address *sas_address)
+void scic_sds_phy_get_attached_sas_address(struct scic_sds_phy *sci_phy,
+					   struct sci_sas_address *sas_address)
 {
-	sas_address->high
-		= sci_phy->phy_type.sas.identify_address_frame_buffer.sas_address.high;
-	sas_address->low
-		= sci_phy->phy_type.sas.identify_address_frame_buffer.sas_address.low;
+	struct sas_identify_frame *iaf;
+
+	iaf = &sci_phy->phy_type.sas.identify_address_frame_buffer;
+	memcpy(sas_address, iaf->sas_addr, SAS_ADDR_SIZE);
 }
 
-/**
- * This method returns the supported protocols assigned to this phy
- * @sci_phy:
- *
- *
- */
 void scic_sds_phy_get_protocols(
 	struct scic_sds_phy *sci_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols)
@@ -481,17 +448,6 @@ void scic_sds_phy_get_protocols(
 				0x0000FFFF);
 }
 
-/**
- *
- * @sci_phy: The parameter is the phy object for which the attached phy
- *    protcols are to be returned.
- *
- * This method returns the supported protocols for the attached phy.  If this
- * is a SAS phy the protocols are returned from the identify address frame. If
- * this is a SATA phy then protocols are made up and the target phy is an STP
- * target phy. The caller will get the entire set of bits for the protocol
- * value.
- */
 void scic_sds_phy_get_attached_phy_protocols(
 	struct scic_sds_phy *sci_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols)
@@ -499,8 +455,10 @@ void scic_sds_phy_get_attached_phy_protocols(
 	protocols->u.all = 0;
 
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
-		protocols->u.all =
-			sci_phy->phy_type.sas.identify_address_frame_buffer.protocols.u.all;
+		struct sas_identify_frame *iaf;
+
+		iaf = &sci_phy->phy_type.sas.identify_address_frame_buffer;
+		memcpy(&protocols->u.all, &iaf->initiator_bits, 2);
 	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		protocols->u.bits.stp_target = 1;
 	}
@@ -599,11 +557,9 @@ enum sci_status scic_sas_phy_get_properties(
 	struct scic_sas_phy_properties *properties)
 {
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
-		memcpy(
-			&properties->received_iaf,
-			&sci_phy->phy_type.sas.identify_address_frame_buffer,
-			sizeof(struct sci_sas_identify_address_frame)
-			);
+		memcpy(&properties->rcvd_iaf,
+		       &sci_phy->phy_type.sas.identify_address_frame_buffer,
+		       sizeof(struct sas_identify_frame));
 
 		properties->received_capabilities.u.all =
 			readl(&sci_phy->link_layer_registers->receive_phycap);
@@ -1203,7 +1159,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 {
 	enum sci_status result;
 	u32 *frame_words;
-	struct sci_sas_identify_address_frame *identify_frame;
+	struct sas_identify_frame *identify_frame;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
@@ -1215,9 +1171,9 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 	}
 
 	frame_words[0] = SCIC_SWAP_DWORD(frame_words[0]);
-	identify_frame = (struct sci_sas_identify_address_frame *)frame_words;
+	identify_frame = (struct sas_identify_frame *)frame_words;
 
-	if (identify_frame->address_frame_type == 0) {
+	if (identify_frame->frame_type == 0) {
 		u32 state;
 
 		/* Byte swap the rest of the frame so we can make
@@ -1231,9 +1187,9 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 
 		memcpy(&sci_phy->phy_type.sas.identify_address_frame_buffer,
 			identify_frame,
-			sizeof(struct sci_sas_identify_address_frame));
+			sizeof(struct sas_identify_frame));
 
-		if (identify_frame->protocols.u.bits.smp_target) {
+		if (identify_frame->smp_tport) {
 			/* We got the IAF for an expander PHY go to the final state since
 			 * there are no power requirements for expander phys.
 			 */

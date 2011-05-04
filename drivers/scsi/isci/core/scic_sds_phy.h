@@ -274,7 +274,7 @@ struct scic_sds_phy {
 
 	union {
 		struct {
-			struct sci_sas_identify_address_frame identify_address_frame_buffer;
+			struct sas_identify_frame identify_address_frame_buffer;
 
 		} sas;
 

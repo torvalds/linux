@@ -119,7 +119,7 @@ struct scic_sas_phy_properties {
 	 * This field delineates the Identify Address Frame received
 	 * from the remote end point.
 	 */
-	struct sci_sas_identify_address_frame received_iaf;
+	struct sas_identify_frame rcvd_iaf;
 
 	/**
 	 * This field delineates the Phy capabilities structure received

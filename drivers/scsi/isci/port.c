@@ -236,18 +236,12 @@ void isci_port_link_up(
 
 		BUG_ON(call_status != SCI_SUCCESS);
 
-		memcpy(isci_phy->frame_rcvd.aif,
-		       &(sas_phy_properties.received_iaf),
-		       sizeof(struct sci_sas_identify_address_frame));
-
-		isci_phy->sas_phy.frame_rcvd_size
-			= sizeof(struct sci_sas_identify_address_frame);
+		isci_phy->frame_rcvd.iaf = sas_phy_properties.rcvd_iaf;
+		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct sas_identify_frame);
 
 		/* Copy the attached SAS address from the IAF */
 		memcpy(isci_phy->sas_phy.attached_sas_addr,
-		       ((struct sas_identify_frame *)
-			(&isci_phy->frame_rcvd.aif))->sas_addr,
-		       SAS_ADDR_SIZE);
+		       isci_phy->frame_rcvd.iaf.sas_addr, SAS_ADDR_SIZE);
 
 	} else {
 		dev_err(&isci_host->pdev->dev, "%s: unkown target\n", __func__);

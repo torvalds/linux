@@ -112,35 +112,6 @@ struct sci_sas_identify_address_frame_protocols {
 };
 
 /**
- * struct sci_sas_identify_address_frame - This structure depicts the contents
- *    of the SAS IDENTIFY ADDRESS FRAME (IAF).
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification Link layer section on address frames.
- */
-struct sci_sas_identify_address_frame {
-	u16 address_frame_type:4;
-	u16 device_type:3;
-	u16 reserved1:1;
-	u16 reason:4;
-	u16 reserved2:4;
-
-	struct sci_sas_identify_address_frame_protocols protocols;
-
-	struct sci_sas_address device_name;
-	struct sci_sas_address sas_address;
-
-	u32 phy_identifier:8;
-	u32 break_reply_capable:1;
-	u32 requested_in_zpsds:1;
-	u32 in_zpsds_persistent:1;
-	u32 reserved5:21;
-
-	u32 reserved6[4];
-
-};
-
-/**
  * struct sas_capabilities - This structure depicts the various SAS
  *    capabilities supported by the directly attached target device.  For
  *    specific information on each of these individual fields please reference

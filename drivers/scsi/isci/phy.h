@@ -80,7 +80,7 @@ struct isci_phy {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	union {
-		u8 aif[sizeof(struct sci_sas_identify_address_frame)];
+		struct sas_identify_frame iaf;
 		struct dev_to_host_fis fis;
 	} frame_rcvd;
 };
