@@ -1494,7 +1494,7 @@ static void set_multicast_list(struct net_device *dev)
 
 } /* set_multicast_list */
 
-static struct pcmcia_device_id nmclan_ids[] = {
+static const struct pcmcia_device_id nmclan_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Ethernet", 0x085a850b, 0x00b2e941),
 	PCMCIA_DEVICE_PROD_ID12("Portable Add-ons", "Ethernet+", 0xebf1d60, 0xad673aaf),
 	PCMCIA_DEVICE_NULL,

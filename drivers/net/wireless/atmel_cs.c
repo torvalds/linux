@@ -122,7 +122,7 @@ static int atmel_config(struct pcmcia_device *link)
 {
 	local_info_t *dev;
 	int ret;
-	struct pcmcia_device_id *did;
+	const struct pcmcia_device_id *did;
 
 	dev = link->priv;
 	did = dev_get_drvdata(&link->dev);
@@ -211,7 +211,7 @@ static int atmel_resume(struct pcmcia_device *link)
 	.prod_id_hash = { (vh1), (vh2), 0, 0 }, \
         .driver_info = (kernel_ulong_t)(info), }
 
-static struct pcmcia_device_id atmel_ids[] = {
+static const struct pcmcia_device_id atmel_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD_INFO(0x0101, 0x0620, ATMEL_FW_TYPE_502_3COM),
 	PCMCIA_DEVICE_MANF_CARD_INFO(0x0101, 0x0696, ATMEL_FW_TYPE_502_3COM),
 	PCMCIA_DEVICE_MANF_CARD_INFO(0x01bf, 0x3302, ATMEL_FW_TYPE_502E),
