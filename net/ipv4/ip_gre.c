@@ -699,6 +699,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	struct pcpu_tstats *tstats;
 	const struct iphdr  *old_iph = ip_hdr(skb);
 	const struct iphdr  *tiph;
+	struct flowi4 fl4;
 	u8     tos;
 	__be16 df;
 	struct rtable *rt;     			/* Route to the other host */
@@ -769,7 +770,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tos = ipv6_get_dsfield((const struct ipv6hdr *)old_iph);
 	}
 
-	rt = ip_route_output_gre(dev_net(dev), dst, tiph->saddr,
+	rt = ip_route_output_gre(dev_net(dev), &fl4, dst, tiph->saddr,
 				 tunnel->parms.o_key, RT_TOS(tos),
 				 tunnel->parms.link);
 	if (IS_ERR(rt)) {
@@ -873,8 +874,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	iph->frag_off		=	df;
 	iph->protocol		=	IPPROTO_GRE;
 	iph->tos		=	ipgre_ecn_encapsulate(tos, old_iph, skb);
-	iph->daddr		=	rt->rt_dst;
-	iph->saddr		=	rt->rt_src;
+	iph->daddr		=	fl4.daddr;
+	iph->saddr		=	fl4.saddr;
 
 	if ((iph->ttl = tiph->ttl) == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
@@ -938,12 +939,14 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 	/* Guess output device to choose reasonable mtu and needed_headroom */
 
 	if (iph->daddr) {
-		struct rtable *rt = ip_route_output_gre(dev_net(dev),
-							iph->daddr, iph->saddr,
-							tunnel->parms.o_key,
-							RT_TOS(iph->tos),
-							tunnel->parms.link);
+		struct flowi4 fl4;
+		struct rtable *rt;
 
+		rt = ip_route_output_gre(dev_net(dev), &fl4,
+					 iph->daddr, iph->saddr,
+					 tunnel->parms.o_key,
+					 RT_TOS(iph->tos),
+					 tunnel->parms.link);
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
@@ -1196,13 +1199,15 @@ static int ipgre_open(struct net_device *dev)
 	struct ip_tunnel *t = netdev_priv(dev);
 
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
-		struct rtable *rt = ip_route_output_gre(dev_net(dev),
-							t->parms.iph.daddr,
-							t->parms.iph.saddr,
-							t->parms.o_key,
-							RT_TOS(t->parms.iph.tos),
-							t->parms.link);
+		struct flowi4 fl4;
+		struct rtable *rt;
 
+		rt = ip_route_output_gre(dev_net(dev), &fl4,
+					 t->parms.iph.daddr,
+					 t->parms.iph.saddr,
+					 t->parms.o_key,
+					 RT_TOS(t->parms.iph.tos),
+					 t->parms.link);
 		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;

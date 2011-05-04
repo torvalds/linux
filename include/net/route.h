@@ -152,19 +152,18 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 	return ip_route_output_flow(net, fl4, sk);
 }
 
-static inline struct rtable *ip_route_output_gre(struct net *net,
+static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 *fl4,
 						 __be32 daddr, __be32 saddr,
 						 __be32 gre_key, __u8 tos, int oif)
 {
-	struct flowi4 fl4 = {
-		.flowi4_oif = oif,
-		.daddr = daddr,
-		.saddr = saddr,
-		.flowi4_tos = tos,
-		.flowi4_proto = IPPROTO_GRE,
-		.fl4_gre_key = gre_key,
-	};
-	return ip_route_output_key(net, &fl4);
+	memset(fl4, 0, sizeof(*fl4));
+	fl4->flowi4_oif = oif;
+	fl4->daddr = daddr;
+	fl4->saddr = saddr;
+	fl4->flowi4_tos = tos;
+	fl4->flowi4_proto = IPPROTO_GRE;
+	fl4->fl4_gre_key = gre_key;
+	return ip_route_output_key(net, fl4);
 }
 
 extern int ip_route_input_common(struct sk_buff *skb, __be32 dst, __be32 src,
