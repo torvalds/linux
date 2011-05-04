@@ -1621,7 +1621,7 @@ static void __devinit detect_and_report_it87(void)
 	u8 origval, r;
 	if (verbose_probing)
 		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
-	if (!request_region(0x2e, 2, __func__))
+	if (!request_muxed_region(0x2e, 2, __func__))
 		return;
 	origval = inb(0x2e);		/* Save original value */
 	outb(0x87, 0x2e);
