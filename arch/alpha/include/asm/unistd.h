@@ -452,10 +452,14 @@
 #define __NR_fanotify_init		494
 #define __NR_fanotify_mark		495
 #define __NR_prlimit64			496
+#define __NR_name_to_handle_at		497
+#define __NR_open_by_handle_at		498
+#define __NR_clock_adjtime		499
+#define __NR_syncfs			500
 
 #ifdef __KERNEL__
 
-#define NR_SYSCALLS			497
+#define NR_SYSCALLS			501
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
