@@ -1331,10 +1331,11 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
 }
 
 /*
- * Mark caps dirty.  If inode is newly dirty, add to the global dirty
- * list.
+ * Mark caps dirty.  If inode is newly dirty, return the dirty flags.
+ * Caller is then responsible for calling __mark_inode_dirty with the
+ * returned flags value.
  */
-void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
+int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 {
 	struct ceph_mds_client *mdsc =
 		ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
@@ -1365,9 +1366,8 @@ void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	if (((was | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
 	    (mask & CEPH_CAP_FILE_BUFFER))
 		dirty |= I_DIRTY_DATASYNC;
-	if (dirty)
-		__mark_inode_dirty(inode, dirty);
 	__cap_delay_requeue(mdsc, ci);
+	return dirty;
 }
 
 /*

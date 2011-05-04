@@ -703,6 +703,7 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	struct ceph_inode_xattr *xattr = NULL;
 	int issued;
 	int required_blob_size;
+	int dirty;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -763,11 +764,12 @@ retry:
 	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
 	err = __set_xattr(ci, newname, name_len, newval,
 			  val_len, 1, 1, 1, &xattr);
-	__ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
+	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
 	spin_unlock(&inode->i_lock);
-
+	if (dirty)
+		__mark_inode_dirty(inode, dirty);
 	return err;
 
 do_sync:
@@ -810,6 +812,7 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
 	int issued;
 	int err;
+	int dirty;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -833,12 +836,13 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 		goto do_sync;
 
 	err = __remove_xattr_by_name(ceph_inode(inode), name);
-	__ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
+	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
 
 	spin_unlock(&inode->i_lock);
-
+	if (dirty)
+		__mark_inode_dirty(inode, dirty);
 	return err;
 do_sync:
 	spin_unlock(&inode->i_lock);
