@@ -544,20 +544,26 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 		    rdev->family == CHIP_RS480)
 			ddc_line = RADEON_GPIOPAD_MASK;
 		else if (rdev->family == CHIP_R300 ||
-			 rdev->family == CHIP_R350)
+			 rdev->family == CHIP_R350) {
 			ddc_line = RADEON_GPIO_DVI_DDC;
-		else
+			ddc = DDC_DVI;
+		} else
 			ddc_line = RADEON_GPIO_MONID;
 		break;
 	case DDC_CRT2:
 		if (rdev->family == CHIP_R200 ||
 		    rdev->family == CHIP_R300 ||
-		    rdev->family == CHIP_R350)
+		    rdev->family == CHIP_R350) {
 			ddc_line = RADEON_GPIO_DVI_DDC;
-		else if (rdev->family == CHIP_RS300 ||
-			 rdev->family >= CHIP_RV350)
+			ddc = DDC_DVI;
+		} else if (rdev->family == CHIP_RS300 ||
+			   rdev->family == CHIP_RS400 ||
+			   rdev->family == CHIP_RS480)
 			ddc_line = RADEON_GPIO_MONID;
-		else
+		else if (rdev->family >= CHIP_RV350) {
+			ddc_line = RADEON_GPIO_MONID;
+			ddc = DDC_MONID;
+		} else
 			ddc_line = RADEON_GPIO_CRT2_DDC;
 		break;
 	}
