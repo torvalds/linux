@@ -98,6 +98,8 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_SYNC_RSP] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_UCODE_RX_PKT] = { .type = NLA_UNSPEC, },
 
+	[IWL_TM_ATTR_EEPROM] = { .type = NLA_UNSPEC, },
+
 	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
 
@@ -418,6 +420,29 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 				"Error starting the device: %d\n", status);
 		break;
 
+	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
+		if (priv->eeprom) {
+			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+				priv->cfg->base_params->eeprom_size + 20);
+			if (!skb) {
+				IWL_DEBUG_INFO(priv,
+				       "Error allocating memory\n");
+				return -ENOMEM;
+			}
+			NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND,
+				IWL_TM_CMD_DEV2APP_EEPROM_RSP);
+			NLA_PUT(skb, IWL_TM_ATTR_EEPROM,
+				priv->cfg->base_params->eeprom_size,
+				priv->eeprom);
+			status = cfg80211_testmode_reply(skb);
+			if (status < 0)
+				IWL_DEBUG_INFO(priv,
+					       "Error sending msg : %d\n",
+					       status);
+		} else
+			return -EFAULT;
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode driver command ID\n");
 		return -ENOSYS;
@@ -581,6 +606,7 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
 	case IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB:
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
+	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;

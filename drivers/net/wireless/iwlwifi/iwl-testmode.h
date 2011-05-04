@@ -88,6 +88,7 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_LOAD_INIT_FW,
 	IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB,
 	IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW,
+	IWL_TM_CMD_APP2DEV_GET_EEPROM,
 	/* if there is other new command for the driver layer operation,
 	 * append them here */
 
@@ -103,6 +104,11 @@ enum iwl_tm_cmd_t {
 	/* commands from kernel space to multicast the spontaneous messages
 	 * to user application */
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT,
+
+	/* commands from kernel space to carry the eeprom response
+	 * to user application */
+	IWL_TM_CMD_DEV2APP_EEPROM_RSP,
+
 	IWL_TM_CMD_MAX,
 };
 
@@ -147,6 +153,12 @@ enum iwl_tm_attr_t {
 	 * IWL_TM_ATTR_UCODE_RX_PKT for the data content multicast to the user
 	 * application */
 	IWL_TM_ATTR_UCODE_RX_PKT,
+
+	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_DEV2APP_EEPROM,
+	 * The mandatory fields are:
+	 * IWL_TM_ATTR_EEPROM for the data content responging to the user
+	 * application */
+	IWL_TM_ATTR_EEPROM,
 
 	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_XXX_TRACE,
 	 * The mandatory fields are:
