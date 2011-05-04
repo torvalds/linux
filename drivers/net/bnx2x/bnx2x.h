@@ -893,6 +893,22 @@ typedef enum {
 	(&bp->def_status_blk->sp_sb.\
 	index_values[HC_SP_INDEX_EQ_CONS])
 
+/* This is a data that will be used to create a link report message.
+ * We will keep the data used for the last link report in order
+ * to prevent reporting the same link parameters twice.
+ */
+struct bnx2x_link_report_data {
+	u16 line_speed;			/* Effective line speed */
+	unsigned long link_report_flags;/* BNX2X_LINK_REPORT_XXX flags */
+};
+
+enum {
+	BNX2X_LINK_REPORT_FD,		/* Full DUPLEX */
+	BNX2X_LINK_REPORT_LINK_DOWN,
+	BNX2X_LINK_REPORT_RX_FC_ON,
+	BNX2X_LINK_REPORT_TX_FC_ON,
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -1025,6 +1041,9 @@ struct bnx2x {
 
 	struct link_params	link_params;
 	struct link_vars	link_vars;
+	u32			link_cnt;
+	struct bnx2x_link_report_data last_reported_link;
+
 	struct mdio_if_info	mdio;
 
 	struct bnx2x_common	common;
@@ -1440,6 +1459,8 @@ struct bnx2x_func_init_params {
 
 #define WAIT_RAMROD_POLL	0x01
 #define WAIT_RAMROD_COMMON	0x02
+
+void bnx2x_read_mf_cfg(struct bnx2x *bp);
 
 /* dmae */
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);

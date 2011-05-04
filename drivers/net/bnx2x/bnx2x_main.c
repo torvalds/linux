@@ -2036,7 +2036,7 @@ static int bnx2x_get_cmng_fns_mode(struct bnx2x *bp)
 	return CMNG_FNS_NONE;
 }
 
-static void bnx2x_read_mf_cfg(struct bnx2x *bp)
+void bnx2x_read_mf_cfg(struct bnx2x *bp)
 {
 	int vn, n = (CHIP_MODE_IS_4_PORT(bp) ? 2 : 1);
 
@@ -2123,7 +2123,6 @@ static inline void bnx2x_link_sync_notify(struct bnx2x *bp)
 /* This function is called upon link interrupt */
 static void bnx2x_link_attn(struct bnx2x *bp)
 {
-	u32 prev_link_status = bp->link_vars.link_status;
 	/* Make sure that we are synced with the current statistics */
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
@@ -2168,17 +2167,15 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			   "single function mode without fairness\n");
 	}
 
+	__bnx2x_link_report(bp);
+
 	if (IS_MF(bp))
 		bnx2x_link_sync_notify(bp);
-
-	/* indicate link status only if link status actually changed */
-	if (prev_link_status != bp->link_vars.link_status)
-		bnx2x_link_report(bp);
 }
 
 void bnx2x__link_status_update(struct bnx2x *bp)
 {
-	if ((bp->state != BNX2X_STATE_OPEN) || (bp->flags & MF_FUNC_DIS))
+	if (bp->state != BNX2X_STATE_OPEN)
 		return;
 
 	bnx2x_link_status_update(&bp->link_params, &bp->link_vars);
@@ -2187,10 +2184,6 @@ void bnx2x__link_status_update(struct bnx2x *bp)
 		bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	else
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
-
-	/* the link status update could be the result of a DCC event
-	   hence re-read the shmem mf configuration */
-	bnx2x_read_mf_cfg(bp);
 
 	/* indicate link status */
 	bnx2x_link_report(bp);
@@ -3120,9 +3113,13 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if (val & DRV_STATUS_SET_MF_BW)
 				bnx2x_set_mf_bw(bp);
 
-			bnx2x__link_status_update(bp);
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
+
+			/* Always call it here: bnx2x_link_report() will
+			 * prevent the link indication duplication.
+			 */
+			bnx2x__link_status_update(bp);
 
 			if (bp->port.pmf &&
 			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS) &&

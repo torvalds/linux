@@ -758,35 +758,119 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
 	return line_speed;
 }
 
+/**
+ * bnx2x_fill_report_data - fill link report data to report
+ *
+ * @bp:		driver handle
+ * @data:	link state to update
+ *
+ * It uses a none-atomic bit operations because is called under the mutex.
+ */
+static inline void bnx2x_fill_report_data(struct bnx2x *bp,
+					  struct bnx2x_link_report_data *data)
+{
+	u16 line_speed = bnx2x_get_mf_speed(bp);
+
+	memset(data, 0, sizeof(*data));
+
+	/* Fill the report data: efective line speed */
+	data->line_speed = line_speed;
+
+	/* Link is down */
+	if (!bp->link_vars.link_up || (bp->flags & MF_FUNC_DIS))
+		__set_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+			  &data->link_report_flags);
+
+	/* Full DUPLEX */
+	if (bp->link_vars.duplex == DUPLEX_FULL)
+		__set_bit(BNX2X_LINK_REPORT_FD, &data->link_report_flags);
+
+	/* Rx Flow Control is ON */
+	if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX)
+		__set_bit(BNX2X_LINK_REPORT_RX_FC_ON, &data->link_report_flags);
+
+	/* Tx Flow Control is ON */
+	if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+		__set_bit(BNX2X_LINK_REPORT_TX_FC_ON, &data->link_report_flags);
+}
+
+/**
+ * bnx2x_link_report - report link status to OS.
+ *
+ * @bp:		driver handle
+ *
+ * Calls the __bnx2x_link_report() under the same locking scheme
+ * as a link/PHY state managing code to ensure a consistent link
+ * reporting.
+ */
+
 void bnx2x_link_report(struct bnx2x *bp)
 {
-	if (bp->flags & MF_FUNC_DIS) {
+	bnx2x_acquire_phy_lock(bp);
+	__bnx2x_link_report(bp);
+	bnx2x_release_phy_lock(bp);
+}
+
+/**
+ * __bnx2x_link_report - report link status to OS.
+ *
+ * @bp:		driver handle
+ *
+ * None atomic inmlementation.
+ * Should be called under the phy_lock.
+ */
+void __bnx2x_link_report(struct bnx2x *bp)
+{
+	struct bnx2x_link_report_data cur_data;
+
+	/* reread mf_cfg */
+	if (!CHIP_IS_E1(bp))
+		bnx2x_read_mf_cfg(bp);
+
+	/* Read the current link report info */
+	bnx2x_fill_report_data(bp, &cur_data);
+
+	/* Don't report link down or exactly the same link status twice */
+	if (!memcmp(&cur_data, &bp->last_reported_link, sizeof(cur_data)) ||
+	    (test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+		      &bp->last_reported_link.link_report_flags) &&
+	     test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+		      &cur_data.link_report_flags)))
+		return;
+
+	bp->link_cnt++;
+
+	/* We are going to report a new link parameters now -
+	 * remember the current data for the next time.
+	 */
+	memcpy(&bp->last_reported_link, &cur_data, sizeof(cur_data));
+
+	if (test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+		     &cur_data.link_report_flags)) {
 		netif_carrier_off(bp->dev);
 		netdev_err(bp->dev, "NIC Link is Down\n");
 		return;
-	}
-
-	if (bp->link_vars.link_up) {
-		u16 line_speed;
-
-		if (bp->state == BNX2X_STATE_OPEN)
-			netif_carrier_on(bp->dev);
+	} else {
+		netif_carrier_on(bp->dev);
 		netdev_info(bp->dev, "NIC Link is Up, ");
+		pr_cont("%d Mbps ", cur_data.line_speed);
 
-		line_speed = bnx2x_get_mf_speed(bp);
-
-		pr_cont("%d Mbps ", line_speed);
-
-		if (bp->link_vars.duplex == DUPLEX_FULL)
+		if (test_and_clear_bit(BNX2X_LINK_REPORT_FD,
+				       &cur_data.link_report_flags))
 			pr_cont("full duplex");
 		else
 			pr_cont("half duplex");
 
-		if (bp->link_vars.flow_ctrl != BNX2X_FLOW_CTRL_NONE) {
-			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) {
+		/* Handle the FC at the end so that only these flags would be
+		 * possibly set. This way we may easily check if there is no FC
+		 * enabled.
+		 */
+		if (cur_data.link_report_flags) {
+			if (test_bit(BNX2X_LINK_REPORT_RX_FC_ON,
+				     &cur_data.link_report_flags)) {
 				pr_cont(", receive ");
-				if (bp->link_vars.flow_ctrl &
-				    BNX2X_FLOW_CTRL_TX)
+				if (test_bit(BNX2X_LINK_REPORT_TX_FC_ON,
+				     &cur_data.link_report_flags))
 					pr_cont("& transmit ");
 			} else {
 				pr_cont(", transmit ");
@@ -794,10 +878,6 @@ void bnx2x_link_report(struct bnx2x *bp)
 			pr_cont("flow control ON");
 		}
 		pr_cont("\n");
-
-	} else { /* link_down */
-		netif_carrier_off(bp->dev);
-		netdev_err(bp->dev, "NIC Link is Down\n");
 	}
 }
 
@@ -1344,6 +1424,13 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 #endif
 
 	bp->state = BNX2X_STATE_OPENING_WAIT4_LOAD;
+
+	/* Set the initial link reported state to link down */
+	bnx2x_acquire_phy_lock(bp);
+	memset(&bp->last_reported_link, 0, sizeof(bp->last_reported_link));
+	__set_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+		&bp->last_reported_link.link_report_flags);
+	bnx2x_release_phy_lock(bp);
 
 	/* must be called before memory allocation and HW init */
 	bnx2x_ilt_set_info(bp);

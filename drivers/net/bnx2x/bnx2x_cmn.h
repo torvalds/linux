@@ -67,10 +67,11 @@ void bnx2x__link_status_update(struct bnx2x *bp);
  * Report link status to upper layer
  *
  * @param bp
- *
- * @return int
  */
 void bnx2x_link_report(struct bnx2x *bp);
+
+/* None-atomic version of bnx2x_link_report() */
+void __bnx2x_link_report(struct bnx2x *bp);
 
 /**
  * calculates MF speed according to current linespeed and MF
