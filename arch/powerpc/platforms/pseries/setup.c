@@ -405,6 +405,16 @@ static int pseries_set_xdabr(unsigned long dabr)
 #define CMO_CHARACTERISTICS_TOKEN 44
 #define CMO_MAXLENGTH 1026
 
+void pSeries_coalesce_init(void)
+{
+	struct hvcall_mpp_x_data mpp_x_data;
+
+	if (firmware_has_feature(FW_FEATURE_CMO) && !h_get_mpp_x(&mpp_x_data))
+		powerpc_firmware_features |= FW_FEATURE_XCMO;
+	else
+		powerpc_firmware_features &= ~FW_FEATURE_XCMO;
+}
+
 /**
  * fw_cmo_feature_init - FW_FEATURE_CMO is not stored in ibm,hypertas-functions,
  * handle that here. (Stolen from parse_system_parameter_string)
@@ -474,6 +484,7 @@ void pSeries_cmo_feature_init(void)
 		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
 		powerpc_firmware_features |= FW_FEATURE_CMO;
+		pSeries_coalesce_init();
 	} else
 		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);

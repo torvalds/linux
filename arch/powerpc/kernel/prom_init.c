@@ -700,8 +700,10 @@ static void __init early_cmdline_parse(void)
 #endif /* CONFIG_PCI_MSI */
 #ifdef CONFIG_PPC_SMLPAR
 #define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
+#define OV5_XCMO			0x40	/* Page Coalescing */
 #else
 #define OV5_CMO			0x00
+#define OV5_XCMO			0x00
 #endif
 #define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
 
@@ -756,7 +758,7 @@ static unsigned char ibm_architecture_vec[] = {
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
-	OV5_CMO,
+	OV5_CMO | OV5_XCMO,
 	OV5_TYPE1_AFFINITY,
 	0,
 	0,
