@@ -1181,7 +1181,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 
 	if (wo == WO_bdev_flush && !dc->disk_flushes)
 		wo = WO_drain_io;
-	if (wo == WO_drain_io && dc->no_disk_drain)
+	if (wo == WO_drain_io && !dc->disk_drain)
 		wo = WO_none;
 	rcu_read_unlock();
 	mdev->write_ordering = wo;
