@@ -64,7 +64,8 @@ enum otg_control_type {
  * @otg_control: OTG switch controlled by user/Id pin
  * @default_mode: Default operational mode. Applicable only if
  *              OTG switch is controller by user.
- *
+ * @pclk_src_name: pclk is derived from ebi1_usb_clk in case of 7x27 and 8k
+ *              dfab_usb_hs_clk in case of 8660 and 8960.
  */
 struct msm_otg_platform_data {
 	int *phy_init_seq;
@@ -74,6 +75,7 @@ struct msm_otg_platform_data {
 	enum otg_control_type otg_control;
 	enum usb_mode_type default_mode;
 	void (*setup_gpio)(enum usb_otg_state state);
+	char *pclk_src_name;
 };
 
 /**
@@ -83,6 +85,7 @@ struct msm_otg_platform_data {
  * @irq: IRQ number assigned for HSUSB controller.
  * @clk: clock struct of usb_hs_clk.
  * @pclk: clock struct of usb_hs_pclk.
+ * @pclk_src: pclk source for voting.
  * @phy_reset_clk: clock struct of usb_phy_clk.
  * @core_clk: clock struct of usb_hs_core_clk.
  * @regs: ioremapped register base address.
@@ -90,7 +93,6 @@ struct msm_otg_platform_data {
  * @sm_work: OTG state machine work.
  * @in_lpm: indicates low power mode (LPM) state.
  * @async_int: Async interrupt arrived.
- *
  */
 struct msm_otg {
 	struct otg_transceiver otg;
@@ -98,6 +100,7 @@ struct msm_otg {
 	int irq;
 	struct clk *clk;
 	struct clk *pclk;
+	struct clk *pclk_src;
 	struct clk *phy_reset_clk;
 	struct clk *core_clk;
 	void __iomem *regs;

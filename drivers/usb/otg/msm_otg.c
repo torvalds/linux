@@ -324,6 +324,9 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	if (motg->core_clk)
 		clk_disable(motg->core_clk);
 
+	if (!IS_ERR(motg->pclk_src))
+		clk_disable(motg->pclk_src);
+
 	if (device_may_wakeup(otg->dev))
 		enable_irq_wake(motg->irq);
 	if (bus)
@@ -346,6 +349,9 @@ static int msm_otg_resume(struct msm_otg *motg)
 
 	if (!atomic_read(&motg->in_lpm))
 		return 0;
+
+	if (!IS_ERR(motg->pclk_src))
+		clk_enable(motg->pclk_src);
 
 	clk_enable(motg->pclk);
 	clk_enable(motg->clk);
@@ -862,12 +868,31 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		ret = PTR_ERR(motg->clk);
 		goto put_phy_reset_clk;
 	}
+	clk_set_rate(motg->clk, 60000000);
+
+	/*
+	 * If USB Core is running its protocol engine based on CORE CLK,
+	 * CORE CLK  must be running at >55Mhz for correct HSUSB
+	 * operation and USB core cannot tolerate frequency changes on
+	 * CORE CLK. For such USB cores, vote for maximum clk frequency
+	 * on pclk source
+	 */
+	 if (motg->pdata->pclk_src_name) {
+		motg->pclk_src = clk_get(&pdev->dev,
+			motg->pdata->pclk_src_name);
+		if (IS_ERR(motg->pclk_src))
+			goto put_clk;
+		clk_set_rate(motg->pclk_src, INT_MAX);
+		clk_enable(motg->pclk_src);
+	} else
+		motg->pclk_src = ERR_PTR(-ENOENT);
+
 
 	motg->pclk = clk_get(&pdev->dev, "usb_hs_pclk");
 	if (IS_ERR(motg->pclk)) {
 		dev_err(&pdev->dev, "failed to get usb_hs_pclk\n");
 		ret = PTR_ERR(motg->pclk);
-		goto put_clk;
+		goto put_pclk_src;
 	}
 
 	/*
@@ -955,6 +980,11 @@ put_core_clk:
 	if (motg->core_clk)
 		clk_put(motg->core_clk);
 	clk_put(motg->pclk);
+put_pclk_src:
+	if (!IS_ERR(motg->pclk_src)) {
+		clk_disable(motg->pclk_src);
+		clk_put(motg->pclk_src);
+	}
 put_clk:
 	clk_put(motg->clk);
 put_phy_reset_clk:
@@ -1004,6 +1034,10 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 	clk_disable(motg->clk);
 	if (motg->core_clk)
 		clk_disable(motg->core_clk);
+	if (!IS_ERR(motg->pclk_src)) {
+		clk_disable(motg->pclk_src);
+		clk_put(motg->pclk_src);
+	}
 
 	iounmap(motg->regs);
 	pm_runtime_set_suspended(&pdev->dev);
