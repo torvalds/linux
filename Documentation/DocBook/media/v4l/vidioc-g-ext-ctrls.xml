@@ -250,6 +250,13 @@ These controls are described in <xref
 These controls are described in <xref
 		linkend="fm-tx-controls" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_FLASH</constant></entry>
+	    <entry>0x9c0000</entry>
+	    <entry>The class containing flash device controls.
+These controls are described in <xref
+		linkend="flash-controls" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
