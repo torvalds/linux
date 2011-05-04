@@ -274,13 +274,27 @@
 */
 #define gcdENABLE_MEM_CACHE                 2
 
+
 /*
     gcdENABLE_DELAY_EARLY_SUSPEND
 
     在gpu_early_suspend中使用延时工作队列来执行suspend,
     避免gpu_early_suspend过早执行导致用户线程的事情还处理干净
+    0: 使用正常的early_suspend功能
+    1: 使用delay的early_suspend功能
+    2: 关闭early_suspend功能
 */
-#define gcdENABLE_DELAY_EARLY_SUSPEND       0
+#define gcdENABLE_DELAY_EARLY_SUSPEND       2
+
+
+/*
+    gcdENABLE_LONG_IDLE_POWEROFF
+
+    长时间IDLE后进入PowerOff, 该功能开启后需要把EarlySuspend功能关掉
+    这样可以使某些不使用GPU的场景的功耗进一步降低，如视频播放时，一级待机时，
+    或长时间不操作界面但还未进入一级待机
+*/
+#define gcdENABLE_LONG_IDLE_POWEROFF        1
 
 #endif /* __gc_hal_options_h_ */
 

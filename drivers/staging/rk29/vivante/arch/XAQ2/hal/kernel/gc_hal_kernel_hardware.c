@@ -93,6 +93,24 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
 
 #endif
 
+#if gcdENABLE_LONG_IDLE_POWEROFF
+#include <linux/workqueue.h>
+struct delayed_work poweroff_work;
+static gckHARDWARE gHardware = gcvNULL;
+void time_to_poweroff(struct work_struct *work)
+{
+    gceSTATUS status;
+    if(NULL==gHardware)     return;
+
+    status = gckHARDWARE_SetPowerManagementState(gHardware, gcvPOWER_OFF_BROADCAST);
+    if (gcmIS_ERROR(status))
+    {
+        printk("%s fail!\n", __func__);
+        return;
+    }
+}
+#endif
+
 /******************************************************************************\
 ********************************* Support Code *********************************
 \******************************************************************************/
@@ -432,6 +450,11 @@ gckHARDWARE_Construct(
 
     /* Return pointer to the gckHARDWARE object. */
     *Hardware = hardware;
+
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    INIT_DELAYED_WORK(&poweroff_work, time_to_poweroff);
+    gHardware = hardware;
+#endif
 
     /* Success. */
     gcmkFOOTER_ARG("*Hardware=0x%x", *Hardware);
@@ -2963,6 +2986,17 @@ gckHARDWARE_SetPowerManagementState(
     os = Hardware->os;
     gcmkVERIFY_OBJECT(os, gcvOBJ_OS);
 
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    if(gcvPOWER_IDLE_BROADCAST==State) {
+        cancel_delayed_work_sync(&poweroff_work);
+        schedule_delayed_work(&poweroff_work, 5*HZ);
+    } else if(gcvPOWER_OFF_BROADCAST==State) {
+        // NULL
+    } else {
+        cancel_delayed_work_sync(&poweroff_work);
+    }
+#endif
+
     /* Convert the broadcast power state. */
     switch (State)
     {
@@ -3068,6 +3102,12 @@ gckHARDWARE_SetPowerManagementState(
 
     if ((flag == 0) || (Hardware->settingPowerState))
     {
+#if gcdENABLE_LONG_IDLE_POWEROFF
+        if( (gcvPOWER_OFF==Hardware->chipPowerState) && (gcvPOWER_OFF==State) && (gcvFALSE==broadcast) )
+        {
+            Hardware->broadcast = gcvFALSE;
+        }
+#endif
         /* Release the power mutex. */
         Hardware->powerProcess = 0;
         Hardware->powerThread = 0;

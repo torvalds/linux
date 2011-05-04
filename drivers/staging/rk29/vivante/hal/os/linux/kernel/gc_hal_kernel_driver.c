@@ -151,7 +151,7 @@ void gputimer_callback(unsigned long arg)
 }
 #endif
 
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
 struct delayed_work suspend_work;
 void real_suspend(struct work_struct *work)
 {
@@ -770,11 +770,10 @@ module_exit(drv_exit);
 #if CONFIG_HAS_EARLYSUSPEND
 static void gpu_early_suspend(struct early_suspend *h)
 {
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     schedule_delayed_work(&suspend_work, 5*HZ);
 #else
 	gceSTATUS status;
-
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
@@ -789,7 +788,7 @@ static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
 
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     cancel_delayed_work_sync(&suspend_work);
 #endif
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_ON);
@@ -843,10 +842,12 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 
 #if CONFIG_HAS_EARLYSUSPEND
-    //register_early_suspend(&gpu_early_suspend_info);
+#if (2!=gcdENABLE_DELAY_EARLY_SUSPEND)
+    register_early_suspend(&gpu_early_suspend_info);
+#endif
 #endif
 
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     INIT_DELAYED_WORK(&suspend_work, real_suspend);
 #endif
 
@@ -863,7 +864,7 @@ gpu_probe_fail:
 
 static int __devinit gpu_remove(struct platform_device *pdev)
 {
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     cancel_delayed_work_sync(&suspend_work);
 #endif
 	drv_exit();
@@ -875,7 +876,7 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 	gceSTATUS status;
 	gckGALDEVICE device;
     
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     cancel_delayed_work_sync(&suspend_work);
 #endif
 	device = platform_get_drvdata(dev);
@@ -911,7 +912,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
-#if gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
     cancel_delayed_work_sync(&suspend_work);
 #endif
     drv_exit();

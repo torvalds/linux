@@ -488,7 +488,7 @@ gckGALDEVICE_Construct(
         device->registerBase = (gctPOINTER) ioremap_nocache(RegisterMemBase,
                                                         RegisterMemSize);
         if (!device->registerBase)
-    {
+        {
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
                       "[galcore] gckGALDEVICE_Construct: Unable to map location->0x%lX for size->%ld",
               RegisterMemBase,
@@ -496,6 +496,7 @@ gckGALDEVICE_Construct(
 
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
+        printk("---- gpu regbase: 0x%08x ---- \n", (unsigned int)device->registerBase);
 
         physical += RegisterMemSize;
 
