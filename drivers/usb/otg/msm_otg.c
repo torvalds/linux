@@ -163,6 +163,32 @@ put_3p3:
 	return rc;
 }
 
+#ifdef CONFIG_PM_SLEEP
+#define USB_PHY_SUSP_DIG_VOL  500000
+static int msm_hsusb_config_vddcx(int high)
+{
+	int max_vol = USB_PHY_VDD_DIG_VOL_MAX;
+	int min_vol;
+	int ret;
+
+	if (high)
+		min_vol = USB_PHY_VDD_DIG_VOL_MIN;
+	else
+		min_vol = USB_PHY_SUSP_DIG_VOL;
+
+	ret = regulator_set_voltage(hsusb_vddcx, min_vol, max_vol);
+	if (ret) {
+		pr_err("%s: unable to set the voltage for regulator "
+			"HSUSB_VDDCX\n", __func__);
+		return ret;
+	}
+
+	pr_debug("%s: min_vol:%d max_vol:%d\n", __func__, min_vol, max_vol);
+
+	return ret;
+}
+#endif
+
 static int msm_hsusb_ldo_set_mode(int on)
 {
 	int ret = 0;
@@ -434,27 +460,28 @@ static int msm_otg_suspend(struct msm_otg *motg)
 
 	disable_irq(motg->irq);
 	/*
+	 * Chipidea 45-nm PHY suspend sequence:
+	 *
 	 * Interrupt Latch Register auto-clear feature is not present
 	 * in all PHY versions. Latch register is clear on read type.
 	 * Clear latch register to avoid spurious wakeup from
 	 * low power mode (LPM).
-	 */
-	ulpi_read(otg, 0x14);
-
-	/*
+	 *
 	 * PHY comparators are disabled when PHY enters into low power
 	 * mode (LPM). Keep PHY comparators ON in LPM only when we expect
 	 * VBUS/Id notifications from USB PHY. Otherwise turn off USB
 	 * PHY comparators. This save significant amount of power.
-	 */
-	if (pdata->otg_control == OTG_PHY_CONTROL)
-		ulpi_write(otg, 0x01, 0x30);
-
-	/*
+	 *
 	 * PLL is not turned off when PHY enters into low power mode (LPM).
 	 * Disable PLL for maximum power savings.
 	 */
-	ulpi_write(otg, 0x08, 0x09);
+
+	if (motg->pdata->phy_type == CI_45NM_INTEGRATED_PHY) {
+		ulpi_read(otg, 0x14);
+		if (pdata->otg_control == OTG_PHY_CONTROL)
+			ulpi_write(otg, 0x01, 0x30);
+		ulpi_write(otg, 0x08, 0x09);
+	}
 
 	/*
 	 * PHY may take some time or even fail to enter into low power
@@ -485,6 +512,10 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	 */
 	writel(readl(USB_USBCMD) | ASYNC_INTR_CTRL | ULPI_STP_CTRL, USB_USBCMD);
 
+	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
+			motg->pdata->otg_control == OTG_PMIC_CONTROL)
+		writel(readl(USB_PHY_CTRL) | PHY_RETEN, USB_PHY_CTRL);
+
 	clk_disable(motg->pclk);
 	clk_disable(motg->clk);
 	if (motg->core_clk)
@@ -492,6 +523,12 @@ static int msm_otg_suspend(struct msm_otg *motg)
 
 	if (!IS_ERR(motg->pclk_src))
 		clk_disable(motg->pclk_src);
+
+	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
+			motg->pdata->otg_control == OTG_PMIC_CONTROL) {
+		msm_hsusb_ldo_set_mode(0);
+		msm_hsusb_config_vddcx(0);
+	}
 
 	if (device_may_wakeup(otg->dev))
 		enable_irq_wake(motg->irq);
@@ -523,6 +560,13 @@ static int msm_otg_resume(struct msm_otg *motg)
 	clk_enable(motg->clk);
 	if (motg->core_clk)
 		clk_enable(motg->core_clk);
+
+	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
+			motg->pdata->otg_control == OTG_PMIC_CONTROL) {
+		msm_hsusb_ldo_set_mode(1);
+		msm_hsusb_config_vddcx(1);
+		writel(readl(USB_PHY_CTRL) & ~PHY_RETEN, USB_PHY_CTRL);
+	}
 
 	temp = readl(USB_USBCMD);
 	temp &= ~ASYNC_INTR_CTRL;
