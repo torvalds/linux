@@ -3997,7 +3997,7 @@ static int mwl8k_cmd_encryption_set_key(struct ieee80211_hw *hw,
 			mwl8k_vif->wep_key_conf[idx].enabled = 1;
 		}
 
-		keymlen = 0;
+		keymlen = key->keylen;
 		action = MWL8K_ENCR_SET_KEY;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
