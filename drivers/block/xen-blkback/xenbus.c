@@ -276,7 +276,7 @@ int __init xen_blkif_interface_init(void)
 VBD_SHOW(oo_req,  "%d\n", be->blkif->st_oo_req);
 VBD_SHOW(rd_req,  "%d\n", be->blkif->st_rd_req);
 VBD_SHOW(wr_req,  "%d\n", be->blkif->st_wr_req);
-VBD_SHOW(br_req,  "%d\n", be->blkif->st_br_req);
+VBD_SHOW(f_req,  "%d\n", be->blkif->st_f_req);
 VBD_SHOW(rd_sect, "%d\n", be->blkif->st_rd_sect);
 VBD_SHOW(wr_sect, "%d\n", be->blkif->st_wr_sect);
 
@@ -284,7 +284,7 @@ static struct attribute *vbdstat_attrs[] = {
 	&dev_attr_oo_req.attr,
 	&dev_attr_rd_req.attr,
 	&dev_attr_wr_req.attr,
-	&dev_attr_br_req.attr,
+	&dev_attr_f_req.attr,
 	&dev_attr_rd_sect.attr,
 	&dev_attr_wr_sect.attr,
 	NULL
@@ -343,6 +343,7 @@ static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
 {
 	struct vbd *vbd;
 	struct block_device *bdev;
+	struct request_queue *q;
 
 	vbd = &blkif->vbd;
 	vbd->handle   = handle;
@@ -375,6 +376,10 @@ static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
 	if (vbd->bdev->bd_disk->flags & GENHD_FL_REMOVABLE)
 		vbd->type |= VDISK_REMOVABLE;
 
+	q = bdev_get_queue(bdev);
+	if (q && q->flush_flags)
+		vbd->flush_support = true;
+
 	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
@@ -406,16 +411,16 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-int xen_blkbk_barrier(struct xenbus_transaction xbt,
-		      struct backend_info *be, int state)
+int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
+			      struct backend_info *be, int state)
 {
 	struct xenbus_device *dev = be->dev;
 	int err;
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+	err = xenbus_printf(xbt, dev->nodename, "feature-flush-cache",
 			    "%d", state);
 	if (err)
-		xenbus_dev_fatal(dev, err, "writing feature-barrier");
+		xenbus_dev_fatal(dev, err, "writing feature-flush-cache");
 
 	return err;
 }
@@ -642,7 +647,7 @@ again:
 		return;
 	}
 
-	err = xen_blkbk_barrier(xbt, be, 1);
+	err = xen_blkbk_flush_diskcache(xbt, be, be->blkif->vbd.flush_support);
 	if (err)
 		goto abort;
 

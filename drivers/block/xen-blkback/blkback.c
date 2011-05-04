@@ -46,8 +46,6 @@
 #include <asm/xen/hypercall.h>
 #include "common.h"
 
-#define WRITE_BARRIER	(REQ_WRITE | REQ_FLUSH | REQ_FUA)
-
 /*
  * These are rather arbitrary. They are fairly large because adjacent requests
  * pulled from a communication ring are quite likely to end up being part of
@@ -256,9 +254,9 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct blkif_st *blkif)
 {
-	printk(KERN_DEBUG "%s: oo %3d  |  rd %4d  |  wr %4d  |  br %4d\n",
+	printk(KERN_DEBUG "%s: oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
 	       current->comm, blkif->st_oo_req,
-	       blkif->st_rd_req, blkif->st_wr_req, blkif->st_br_req);
+	       blkif->st_rd_req, blkif->st_wr_req, blkif->st_f_req);
 	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
 	blkif->st_rd_req = 0;
 	blkif->st_wr_req = 0;
@@ -414,10 +412,10 @@ static int xen_blkbk_map(struct blkif_request *req, struct pending_req *pending_
 static void __end_block_io_op(struct pending_req *pending_req, int error)
 {
 	/* An error fails the entire request. */
-	if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
+	if ((pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE) &&
 	    (error == -EOPNOTSUPP)) {
-		DPRINTK("blkback: write barrier op failed, not supported\n");
-		xen_blkbk_barrier(XBT_NIL, pending_req->blkif->be, 0);
+		DPRINTK("blkback: flush diskcache op failed, not supported\n");
+		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
 	} else if (error) {
 		DPRINTK("Buffer not up-to-date at end of operation, "
@@ -506,13 +504,14 @@ static int do_block_io_op(struct blkif_st *blkif)
 			blkif->st_rd_req++;
 			dispatch_rw_block_io(blkif, &req, pending_req);
 			break;
-		case BLKIF_OP_WRITE_BARRIER:
-			blkif->st_br_req++;
+		case BLKIF_OP_FLUSH_DISKCACHE:
+			blkif->st_f_req++;
 			/* fall through */
 		case BLKIF_OP_WRITE:
 			blkif->st_wr_req++;
 			dispatch_rw_block_io(blkif, &req, pending_req);
 			break;
+		case BLKIF_OP_WRITE_BARRIER:
 		default:
 			/* A good sign something is wrong: sleep for a while to
 			 * avoid excessive CPU consumption by a bad guest. */
@@ -556,9 +555,14 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	case BLKIF_OP_WRITE:
 		operation = WRITE_ODIRECT;
 		break;
-	case BLKIF_OP_WRITE_BARRIER:
-		operation = WRITE_BARRIER;
+	case BLKIF_OP_FLUSH_DISKCACHE:
+		operation = WRITE_FLUSH;
+		/* The frontend likes to set this to -1, which vbd_translate
+		 * is alergic too. */
+		req->u.rw.sector_number = 0;
 		break;
+	case BLKIF_OP_WRITE_BARRIER:
+		/* Should never get here. */
 	default:
 		operation = 0; /* make gcc happy */
 		BUG();
@@ -566,7 +570,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	/* Check that the number of segments is sane. */
 	nseg = req->nr_segments;
-	if (unlikely(nseg == 0 && operation != WRITE_BARRIER) ||
+	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		DPRINTK("Bad number of segments in request (%d)\n", nseg);
 		/* Haven't submitted any bio's yet. */
@@ -643,7 +647,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	/* This will be hit if the operation was a barrier. */
 	if (!bio) {
-		BUG_ON(operation != WRITE_BARRIER);
+		BUG_ON(operation != WRITE_FLUSH);
 		bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, 0);
 		if (unlikely(bio == NULL))
 			goto fail_put_bio;
@@ -651,7 +655,6 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 		bio->bi_bdev    = preq.bdev;
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
-		bio->bi_sector  = -1;
 	}
 
 
@@ -671,7 +674,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
-	else if (operation == WRITE || operation == WRITE_BARRIER)
+	else if (operation == WRITE || operation == WRITE_FLUSH)
 		blkif->st_wr_sect += preq.nr_sects;
 
 	return;

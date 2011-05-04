@@ -53,6 +53,7 @@ struct vbd {
 	u32            pdevice;     /* phys device that this vbd maps to */
 	struct block_device *bdev;
 	sector_t       size;        /* Cached size parameter */
+	bool           flush_support;
 };
 
 struct backend_info;
@@ -85,7 +86,7 @@ struct blkif_st {
 	int                 st_rd_req;
 	int                 st_wr_req;
 	int                 st_oo_req;
-	int                 st_br_req;
+	int                 st_f_req;
 	int                 st_rd_sect;
 	int                 st_wr_sect;
 
@@ -120,8 +121,8 @@ int xen_blkif_xenbus_init(void);
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);
 
-int xen_blkbk_barrier(struct xenbus_transaction xbt,
-			struct backend_info *be, int state);
+int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
+			      struct backend_info *be, int state);
 
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
 
