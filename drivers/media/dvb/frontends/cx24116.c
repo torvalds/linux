@@ -566,7 +566,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 	struct cx24116_cmd cmd;
-	int i, ret, len, remaining;
+	int i, ret, len, max, remaining;
 	unsigned char vers[4];
 
 	dprintk("%s\n", __func__);
@@ -604,14 +604,16 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	cx24116_writereg(state, 0xF6, 0x00);
 
 	/* Split firmware to the max I2C write len and write.
-	 * This overflows 16 bit intentionally in order to get max write
-	 * len when i2c_wr_max is set to 0. */
-	for (remaining = fw->size; remaining > 0;
-		remaining -= (u16) (state->config->i2c_wr_max - 1)) {
+	 * Writes whole firmware as one write when i2c_wr_max is set to 0. */
+	if (state->config->i2c_wr_max)
+		max = state->config->i2c_wr_max;
+	else
+		max = INT_MAX; /* enough for 32k firmware */
 
+	for (remaining = fw->size; remaining > 0; remaining -= max - 1) {
 		len = remaining;
-		if (len > (u16) (state->config->i2c_wr_max - 1))
-			len = (u16) (state->config->i2c_wr_max - 1);
+		if (len > max - 1)
+			len = max - 1;
 
 		cx24116_writeregN(state, 0xF7, &fw->data[fw->size - remaining],
 			len);
