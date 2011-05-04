@@ -216,7 +216,7 @@ static void l2cap_chan_set_timer(struct l2cap_chan *chan, long timeout)
 	       sock_hold(chan->sk);
 }
 
-void l2cap_chan_clear_timer(struct l2cap_chan *chan)
+static void l2cap_chan_clear_timer(struct l2cap_chan *chan)
 {
        BT_DBG("chan %p state %d", chan, chan->sk->sk_state);
 
@@ -423,6 +423,7 @@ void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 	case BT_CONFIG:
 		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED &&
 					conn->hcon->type == ACL_LINK) {
+			l2cap_chan_clear_timer(chan);
 			l2cap_chan_set_timer(chan, sk->sk_sndtimeo);
 			l2cap_send_disconn_req(conn, chan, reason);
 		} else
