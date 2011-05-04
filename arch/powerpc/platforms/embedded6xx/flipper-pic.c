@@ -48,7 +48,7 @@
 
 static void flipper_pic_mask_and_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 	u32 mask = 1 << irq;
 
@@ -59,7 +59,7 @@ static void flipper_pic_mask_and_ack(struct irq_data *d)
 
 static void flipper_pic_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	/* this is at least needed for RSW */
@@ -68,7 +68,7 @@ static void flipper_pic_ack(struct irq_data *d)
 
 static void flipper_pic_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	clrbits32(io_base + FLIPPER_IMR, 1 << irq);
@@ -76,7 +76,7 @@ static void flipper_pic_mask(struct irq_data *d)
 
 static void flipper_pic_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	setbits32(io_base + FLIPPER_IMR, 1 << irq);

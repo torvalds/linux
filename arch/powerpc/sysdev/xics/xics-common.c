@@ -240,9 +240,9 @@ void xics_migrate_irqs_away(void)
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
-		if (irq_map[virq].host != xics_host)
+		if (virq_to_host(virq) != xics_host)
 			continue;
-		irq = (unsigned int)irq_map[virq].hwirq;
+		irq = (unsigned int)virq_to_hw(virq);
 		/* We need to get IPIs still. */
 		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;

@@ -481,19 +481,41 @@ void do_softirq(void)
  * IRQ controller and virtual interrupts
  */
 
+/* The main irq map itself is an array of NR_IRQ entries containing the
+ * associate host and irq number. An entry with a host of NULL is free.
+ * An entry can be allocated if it's free, the allocator always then sets
+ * hwirq first to the host's invalid irq number and then fills ops.
+ */
+struct irq_map_entry {
+	irq_hw_number_t	hwirq;
+	struct irq_host	*host;
+};
+
 static LIST_HEAD(irq_hosts);
 static DEFINE_RAW_SPINLOCK(irq_big_lock);
 static unsigned int revmap_trees_allocated;
 static DEFINE_MUTEX(revmap_trees_mutex);
-struct irq_map_entry irq_map[NR_IRQS];
+static struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_host *irq_default_host;
+
+irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
+{
+	return irq_map[d->irq].hwirq;
+}
+EXPORT_SYMBOL_GPL(irqd_to_hwirq);
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {
 	return irq_map[virq].hwirq;
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
+
+struct irq_host *virq_to_host(unsigned int virq)
+{
+	return irq_map[virq].host;
+}
+EXPORT_SYMBOL_GPL(virq_to_host);
 
 static int default_irq_host_match(struct irq_host *h, struct device_node *np)
 {
@@ -1103,7 +1125,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			struct irq_chip *chip;
 
 			seq_printf(m, "%5d  ", i);
-			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
+			seq_printf(m, "0x%05lx  ", irq_map[i].hwirq);
 
 			chip = irq_desc_get_chip(desc);
 			if (chip && chip->name)

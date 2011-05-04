@@ -81,7 +81,7 @@ static const u_char irq_to_siubit[] = {
 static void cpm2_mask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = virq_to_hw(d->irq);
+	unsigned int irq_nr = irqd_to_hwirq(d);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
@@ -93,7 +93,7 @@ static void cpm2_mask_irq(struct irq_data *d)
 static void cpm2_unmask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = virq_to_hw(d->irq);
+	unsigned int irq_nr = irqd_to_hwirq(d);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
@@ -105,7 +105,7 @@ static void cpm2_unmask_irq(struct irq_data *d)
 static void cpm2_ack(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = virq_to_hw(d->irq);
+	unsigned int irq_nr = irqd_to_hwirq(d);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
@@ -116,7 +116,7 @@ static void cpm2_ack(struct irq_data *d)
 static void cpm2_end_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = virq_to_hw(d->irq);
+	unsigned int irq_nr = irqd_to_hwirq(d);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
@@ -133,7 +133,7 @@ static void cpm2_end_irq(struct irq_data *d)
 
 static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
-	unsigned int src = virq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned int vold, vnew, edibit;
 
 	/* Port C interrupts are either IRQ_TYPE_EDGE_FALLING or

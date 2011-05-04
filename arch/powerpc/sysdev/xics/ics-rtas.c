@@ -38,7 +38,7 @@ static struct ics ics_rtas = {
 
 static void ics_rtas_unmask_irq(struct irq_data *d)
 {
-	unsigned int hw_irq = (unsigned int)irq_data_to_hw(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int call_status;
 	int server;
 
@@ -109,7 +109,7 @@ static void ics_rtas_mask_real_irq(unsigned int hw_irq)
 
 static void ics_rtas_mask_irq(struct irq_data *d)
 {
-	unsigned int hw_irq = (unsigned int)irq_data_to_hw(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 	pr_devel("xics: mask virq %d [hw 0x%x]\n", d->irq, hw_irq);
 
@@ -122,7 +122,7 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 				 const struct cpumask *cpumask,
 				 bool force)
 {
-	unsigned int hw_irq = (unsigned int)irq_data_to_hw(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int status;
 	int xics_status[2];
 	int irq_server;
@@ -171,7 +171,7 @@ static struct irq_chip ics_rtas_irq_chip = {
 
 static int ics_rtas_map(struct ics *ics, unsigned int virq)
 {
-	unsigned int hw_irq = (unsigned int)irq_map[virq].hwirq;
+	unsigned int hw_irq = (unsigned int)virq_to_hw(virq);
 	int status[2];
 	int rc;
 

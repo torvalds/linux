@@ -56,7 +56,7 @@ static void media5200_irq_unmask(struct irq_data *d)
 
 	spin_lock_irqsave(&media5200_irq.lock, flags);
 	val = in_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE);
-	val |= 1 << (MEDIA5200_IRQ_SHIFT + irq_map[d->irq].hwirq);
+	val |= 1 << (MEDIA5200_IRQ_SHIFT + irqd_to_hwirq(d));
 	out_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE, val);
 	spin_unlock_irqrestore(&media5200_irq.lock, flags);
 }
@@ -68,7 +68,7 @@ static void media5200_irq_mask(struct irq_data *d)
 
 	spin_lock_irqsave(&media5200_irq.lock, flags);
 	val = in_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE);
-	val &= ~(1 << (MEDIA5200_IRQ_SHIFT + irq_map[d->irq].hwirq));
+	val &= ~(1 << (MEDIA5200_IRQ_SHIFT + irqd_to_hwirq(d)));
 	out_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE, val);
 	spin_unlock_irqrestore(&media5200_irq.lock, flags);
 }

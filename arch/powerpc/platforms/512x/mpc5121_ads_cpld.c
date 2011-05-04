@@ -61,7 +61,7 @@ irq_to_pic_bit(unsigned int irq)
 static void
 cpld_mask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -71,7 +71,7 @@ cpld_mask_irq(struct irq_data *d)
 static void
 cpld_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,

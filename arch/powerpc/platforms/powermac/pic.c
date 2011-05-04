@@ -84,7 +84,7 @@ static void __pmac_retrigger(unsigned int irq_nr)
 
 static void pmac_mask_and_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -106,7 +106,7 @@ static void pmac_mask_and_ack_irq(struct irq_data *d)
 
 static void pmac_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -152,7 +152,7 @@ static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 static unsigned int pmac_startup_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
 
@@ -169,7 +169,7 @@ static unsigned int pmac_startup_irq(struct irq_data *d)
 static void pmac_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
         __clear_bit(src, ppc_cached_irq_mask);
@@ -180,7 +180,7 @@ static void pmac_mask_irq(struct irq_data *d)
 static void pmac_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	__set_bit(src, ppc_cached_irq_mask);
@@ -193,7 +193,7 @@ static int pmac_retrigger(struct irq_data *d)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
-	__pmac_retrigger(irq_map[d->irq].hwirq);
+	__pmac_retrigger(irqd_to_hwirq(d));
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 	return 1;
 }

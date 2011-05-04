@@ -28,7 +28,7 @@ int cpm_get_irq(struct pt_regs *regs);
 static void mpc8xx_unmask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int irq_nr = (unsigned int)irqd_to_hwirq(d);
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -40,7 +40,7 @@ static void mpc8xx_unmask_irq(struct irq_data *d)
 static void mpc8xx_mask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int irq_nr = (unsigned int)irqd_to_hwirq(d);
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -52,7 +52,7 @@ static void mpc8xx_mask_irq(struct irq_data *d)
 static void mpc8xx_ack(struct irq_data *d)
 {
 	int	bit;
-	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int irq_nr = (unsigned int)irqd_to_hwirq(d);
 
 	bit = irq_nr & 0x1f;
 	out_be32(&siu_reg->sc_sipend, 1 << (31-bit));
@@ -61,7 +61,7 @@ static void mpc8xx_ack(struct irq_data *d)
 static void mpc8xx_end_irq(struct irq_data *d)
 {
 	int bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int irq_nr = (unsigned int)irqd_to_hwirq(d);
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -73,7 +73,7 @@ static void mpc8xx_end_irq(struct irq_data *d)
 static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	if (flow_type & IRQ_TYPE_EDGE_FALLING) {
-		irq_hw_number_t hw = (unsigned int)irq_map[d->irq].hwirq;
+		irq_hw_number_t hw = (unsigned int)irqd_to_hwirq(d);
 		unsigned int siel = in_be32(&siu_reg->sc_siel);
 
 		/* only external IRQ senses are programmable */

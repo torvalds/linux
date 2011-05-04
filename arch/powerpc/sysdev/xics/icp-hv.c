@@ -58,7 +58,7 @@ static inline void icp_hv_set_qirr(int n_cpu , u8 value)
 
 static void icp_hv_eoi(struct irq_data *d)
 {
-	unsigned int hw_irq = (unsigned int)irq_data_to_hw(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 	iosync();
 	icp_hv_set_xirr((xics_pop_cppr() << 24) | hw_irq);

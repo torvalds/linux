@@ -113,7 +113,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		pr_devel("axon_msi: woff %x roff %x msi %x\n",
 			  write_offset, msic->read_offset, msi);
 
-		if (msi < NR_IRQS && irq_map[msi].host == msic->irq_host) {
+		if (msi < NR_IRQS && virq_to_host(msi) == msic->irq_host) {
 			generic_handle_irq(msi);
 			msic->fifo_virt[idx] = cpu_to_le32(0xffffffff);
 		} else {
