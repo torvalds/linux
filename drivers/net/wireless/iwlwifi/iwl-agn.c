@@ -1622,10 +1622,7 @@ static const char *desc_lookup(u32 num)
 
 void iwl_dump_nic_error_log(struct iwl_priv *priv)
 {
-	u32 data2, line;
-	u32 desc, time, count, base, data1;
-	u32 blink1, blink2, ilink1, ilink2;
-	u32 pc, hcmd;
+	u32 base;
 	struct iwl_error_event_table table;
 
 	base = priv->device_pointers.error_event_table;
@@ -1648,37 +1645,40 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 
 	iwl_read_targ_mem_words(priv, base, &table, sizeof(table));
 
-	count = table.valid;
-
-	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
 		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
-			priv->status, count);
+			priv->status, table.valid);
 	}
 
-	desc = table.error_id;
-	priv->isr_stats.err_code = desc;
-	pc = table.pc;
-	blink1 = table.blink1;
-	blink2 = table.blink2;
-	ilink1 = table.ilink1;
-	ilink2 = table.ilink2;
-	data1 = table.data1;
-	data2 = table.data2;
-	line = table.line;
-	time = table.tsf_low;
-	hcmd = table.hcmd;
+	priv->isr_stats.err_code = table.error_id;
 
-	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
-				      blink1, blink2, ilink1, ilink2);
-
-	IWL_ERR(priv, "Desc                                  Time       "
-		"data1      data2      line\n");
-	IWL_ERR(priv, "%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
-		desc_lookup(desc), desc, time, data1, data2, line);
-	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
-	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
-		pc, blink1, blink2, ilink1, ilink2, hcmd);
+	trace_iwlwifi_dev_ucode_error(priv, table.error_id, table.tsf_low,
+				      table.data1, table.data2, table.line,
+				      table.blink1, table.blink2, table.ilink1,
+				      table.ilink2, table.bcon_time, table.gp1,
+				      table.gp2, table.gp3, table.ucode_ver,
+				      table.hw_ver, table.brd_ver);
+	IWL_ERR(priv, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(priv, "0x%08X | uPc\n", table.pc);
+	IWL_ERR(priv, "0x%08X | branchlink1\n", table.blink1);
+	IWL_ERR(priv, "0x%08X | branchlink2\n", table.blink2);
+	IWL_ERR(priv, "0x%08X | interruptlink1\n", table.ilink1);
+	IWL_ERR(priv, "0x%08X | interruptlink2\n", table.ilink2);
+	IWL_ERR(priv, "0x%08X | data1\n", table.data1);
+	IWL_ERR(priv, "0x%08X | data2\n", table.data2);
+	IWL_ERR(priv, "0x%08X | line\n", table.line);
+	IWL_ERR(priv, "0x%08X | beacon time\n", table.bcon_time);
+	IWL_ERR(priv, "0x%08X | tsf low\n", table.tsf_low);
+	IWL_ERR(priv, "0x%08X | tsf hi\n", table.tsf_hi);
+	IWL_ERR(priv, "0x%08X | time gp1\n", table.gp1);
+	IWL_ERR(priv, "0x%08X | time gp2\n", table.gp2);
+	IWL_ERR(priv, "0x%08X | time gp3\n", table.gp3);
+	IWL_ERR(priv, "0x%08X | uCode version\n", table.ucode_ver);
+	IWL_ERR(priv, "0x%08X | hw version\n", table.hw_ver);
+	IWL_ERR(priv, "0x%08X | board version\n", table.brd_ver);
+	IWL_ERR(priv, "0x%08X | hcmd\n", table.hcmd);
 }
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))
