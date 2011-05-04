@@ -434,7 +434,7 @@ void scic_sds_phy_get_attached_sas_address(struct scic_sds_phy *sci_phy,
 {
 	struct sas_identify_frame *iaf;
 
-	iaf = &sci_phy->phy_type.sas.identify_address_frame_buffer;
+	iaf = &sci_phy->phy_type.sas_id_frame;
 	memcpy(sas_address, iaf->sas_addr, SAS_ADDR_SIZE);
 }
 
@@ -457,7 +457,7 @@ void scic_sds_phy_get_attached_phy_protocols(
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
 		struct sas_identify_frame *iaf;
 
-		iaf = &sci_phy->phy_type.sas.identify_address_frame_buffer;
+		iaf = &sci_phy->phy_type.sas_id_frame;
 		memcpy(&protocols->u.all, &iaf->initiator_bits, 2);
 	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		protocols->u.bits.stp_target = 1;
@@ -558,7 +558,7 @@ enum sci_status scic_sas_phy_get_properties(
 {
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
 		memcpy(&properties->rcvd_iaf,
-		       &sci_phy->phy_type.sas.identify_address_frame_buffer,
+		       &sci_phy->phy_type.sas_id_frame,
 		       sizeof(struct sas_identify_frame));
 
 		properties->received_capabilities.u.all =
@@ -577,7 +577,7 @@ enum sci_status scic_sata_phy_get_properties(
 {
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		memcpy(&properties->signature_fis,
-		       &sci_phy->phy_type.sata.signature_fis_buffer,
+		       &sci_phy->phy_type.sata_sig_fis,
 		       sizeof(struct dev_to_host_fis));
 
 		/* / @todo add support for port selectors. */
@@ -1185,7 +1185,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 		frame_words[4] = SCIC_SWAP_DWORD(frame_words[4]);
 		frame_words[5] = SCIC_SWAP_DWORD(frame_words[5]);
 
-		memcpy(&sci_phy->phy_type.sas.identify_address_frame_buffer,
+		memcpy(&sci_phy->phy_type.sas_id_frame,
 			identify_frame,
 			sizeof(struct sas_identify_frame));
 
@@ -1253,7 +1253,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 			(void **)&fis_frame_data);
 
 		scic_sds_controller_copy_sata_response(
-			&sci_phy->phy_type.sata.signature_fis_buffer,
+			&sci_phy->phy_type.sata_sig_fis,
 			frame_header,
 			fis_frame_data);
 
