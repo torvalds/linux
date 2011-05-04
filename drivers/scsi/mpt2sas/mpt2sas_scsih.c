@@ -113,6 +113,7 @@ struct sense_info {
 };
 
 
+#define MPT2SAS_TURN_ON_FAULT_LED (0xFFFC)
 #define MPT2SAS_RESCAN_AFTER_HOST_RESET (0xFFFF)
 
 /**
@@ -121,6 +122,7 @@ struct sense_info {
  * @work: work object (ioc->fault_reset_work_q)
  * @cancel_pending_work: flag set during reset handling
  * @ioc: per adapter object
+ * @device_handle: device handle
  * @VF_ID: virtual function id
  * @VP_ID: virtual port id
  * @ignore: flag meaning this event has been marked to ignore
@@ -134,6 +136,7 @@ struct fw_event_work {
 	u8			cancel_pending_work;
 	struct delayed_work	delayed_work;
 	struct MPT2SAS_ADAPTER *ioc;
+	u16			device_handle;
 	u8			VF_ID;
 	u8			VP_ID;
 	u8			ignore;
@@ -4047,17 +4050,75 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 #endif
 
 /**
- * _scsih_smart_predicted_fault - illuminate Fault LED
+ * _scsih_turn_on_fault_led - illuminate Fault LED
  * @ioc: per adapter object
  * @handle: device handle
+ * Context: process
+ *
+ * Return nothing.
+ */
+static void
+_scsih_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	Mpi2SepReply_t mpi_reply;
+	Mpi2SepRequest_t mpi_request;
+
+	memset(&mpi_request, 0, sizeof(Mpi2SepRequest_t));
+	mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
+	mpi_request.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
+	mpi_request.SlotStatus =
+	    cpu_to_le32(MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
+	mpi_request.DevHandle = cpu_to_le16(handle);
+	mpi_request.Flags = MPI2_SEP_REQ_FLAGS_DEVHANDLE_ADDRESS;
+	if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
+	    &mpi_request)) != 0) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n", ioc->name,
+		__FILE__, __LINE__, __func__);
+		return;
+	}
+
+	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "enclosure_processor: "
+		    "ioc_status (0x%04x), loginfo(0x%08x)\n", ioc->name,
+		    le16_to_cpu(mpi_reply.IOCStatus),
+		    le32_to_cpu(mpi_reply.IOCLogInfo)));
+		return;
+	}
+}
+
+/**
+ * _scsih_send_event_to_turn_on_fault_led - fire delayed event
+ * @ioc: per adapter object
+ * @handle: device handle
+ * Context: interrupt.
+ *
+ * Return nothing.
+ */
+static void
+_scsih_send_event_to_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	struct fw_event_work *fw_event;
+
+	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
+	if (!fw_event)
+		return;
+	fw_event->event = MPT2SAS_TURN_ON_FAULT_LED;
+	fw_event->device_handle = handle;
+	fw_event->ioc = ioc;
+	_scsih_fw_event_add(ioc, fw_event);
+}
+
+/**
+ * _scsih_smart_predicted_fault - process smart errors
+ * @ioc: per adapter object
+ * @handle: device handle
+ * Context: interrupt.
  *
  * Return nothing.
  */
 static void
 _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
-	Mpi2SepReply_t mpi_reply;
-	Mpi2SepRequest_t mpi_request;
 	struct scsi_target *starget;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	Mpi2EventNotificationReply_t *event_reply;
@@ -4084,30 +4145,8 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	starget_printk(KERN_WARNING, starget, "predicted fault\n");
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM) {
-		memset(&mpi_request, 0, sizeof(Mpi2SepRequest_t));
-		mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
-		mpi_request.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
-		mpi_request.SlotStatus =
-		    cpu_to_le32(MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
-		mpi_request.DevHandle = cpu_to_le16(handle);
-		mpi_request.Flags = MPI2_SEP_REQ_FLAGS_DEVHANDLE_ADDRESS;
-		if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
-		    &mpi_request)) != 0) {
-			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
-			    ioc->name, __FILE__, __LINE__, __func__);
-			return;
-		}
-
-		if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo) {
-			dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-			    "enclosure_processor: ioc_status (0x%04x), "
-			    "loginfo(0x%08x)\n", ioc->name,
-			    le16_to_cpu(mpi_reply.IOCStatus),
-			    le32_to_cpu(mpi_reply.IOCLogInfo)));
-			return;
-		}
-	}
+	if (ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM)
+		_scsih_send_event_to_turn_on_fault_led(ioc, handle);
 
 	/* insert into event log */
 	sz = offsetof(Mpi2EventNotificationReply_t, EventData) +
@@ -6753,6 +6792,9 @@ _firmware_event_work(struct work_struct *work)
 	}
 
 	switch (fw_event->event) {
+	case MPT2SAS_TURN_ON_FAULT_LED:
+		_scsih_turn_on_fault_led(ioc, fw_event->device_handle);
+		break;
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 		_scsih_sas_topology_change_event(ioc, fw_event);
 		break;
