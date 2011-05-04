@@ -766,7 +766,7 @@ inline void viu_activate_overlay(struct viu_reg *viu_reg)
 	out_be32(&vr->picture_count, reg_val.picture_count);
 }
 
-static int viu_start_preview(struct viu_dev *dev, struct viu_fh *fh)
+static int viu_setup_preview(struct viu_dev *dev, struct viu_fh *fh)
 {
 	int bpp;
 
@@ -805,11 +805,6 @@ static int viu_start_preview(struct viu_dev *dev, struct viu_fh *fh)
 	/* setup the base address of the overlay buffer */
 	reg_val.field_base_addr = (u32)dev->ovbuf.base;
 
-	dev->ovenable = 1;
-	viu_activate_overlay(dev->vr);
-
-	/* start dma */
-	viu_start_dma(dev);
 	return 0;
 }
 
@@ -828,7 +823,7 @@ static int vidioc_s_fmt_overlay(struct file *file, void *priv,
 	fh->win = f->fmt.win;
 
 	spin_lock_irqsave(&dev->slock, flags);
-	viu_start_preview(dev, fh);
+	viu_setup_preview(dev, fh);
 	spin_unlock_irqrestore(&dev->slock, flags);
 	return 0;
 }
@@ -836,6 +831,28 @@ static int vidioc_s_fmt_overlay(struct file *file, void *priv,
 static int vidioc_try_fmt_overlay(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
+	return 0;
+}
+
+static int vidioc_overlay(struct file *file, void *priv, unsigned int on)
+{
+	struct viu_fh  *fh  = priv;
+	struct viu_dev *dev = (struct viu_dev *)fh->dev;
+	unsigned long  flags;
+
+	if (on) {
+		spin_lock_irqsave(&dev->slock, flags);
+		viu_activate_overlay(dev->vr);
+		dev->ovenable = 1;
+
+		/* start dma */
+		viu_start_dma(dev);
+		spin_unlock_irqrestore(&dev->slock, flags);
+	} else {
+		viu_stop_dma(dev);
+		dev->ovenable = 0;
+	}
+
 	return 0;
 }
 
@@ -1414,6 +1431,7 @@ static const struct v4l2_ioctl_ops viu_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay = vidioc_g_fmt_overlay,
 	.vidioc_try_fmt_vid_overlay = vidioc_try_fmt_overlay,
 	.vidioc_s_fmt_vid_overlay = vidioc_s_fmt_overlay,
+	.vidioc_overlay	      = vidioc_overlay,
 	.vidioc_g_fbuf	      = vidioc_g_fbuf,
 	.vidioc_s_fbuf	      = vidioc_s_fbuf,
 	.vidioc_reqbufs       = vidioc_reqbufs,
