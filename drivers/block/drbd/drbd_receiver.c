@@ -1179,7 +1179,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 	rcu_read_lock();
 	dc = rcu_dereference(mdev->ldev->disk_conf);
 
-	if (wo == WO_bdev_flush && dc->no_disk_flush)
+	if (wo == WO_bdev_flush && !dc->disk_flushes)
 		wo = WO_drain_io;
 	if (wo == WO_drain_io && dc->no_disk_drain)
 		wo = WO_none;

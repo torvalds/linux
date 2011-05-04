@@ -122,8 +122,8 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
 	__u32_field_def(14,	GENLA_F_MANDATORY,	c_max_rate, DRBD_C_MAX_RATE_DEF)
 	__u32_field_def(15,	GENLA_F_MANDATORY,	c_min_rate, DRBD_C_MIN_RATE_DEF)
 
-	__flg_field_def(16, GENLA_F_MANDATORY,	no_disk_barrier, 0)
-	__flg_field_def(17, GENLA_F_MANDATORY,	no_disk_flush, 0)
+	__flg_field_def(16, GENLA_F_MANDATORY,	disk_barrier, 1)
+	__flg_field_def(17, GENLA_F_MANDATORY,	disk_flushes, 1)
 	__flg_field_def(18, GENLA_F_MANDATORY,	no_disk_drain, 0)
 	__flg_field_def(19, GENLA_F_MANDATORY,	no_md_flush, 0)
 )
