@@ -2674,7 +2674,7 @@ int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
 	/* synchronize with conn_create()/conn_destroy() */
 	down_read(&drbd_cfg_rwsem);
 	/* revalidate iterator position */
-	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
+	list_for_each_entry_rcu(tmp, &drbd_tconns, all_tconn) {
 		if (pos == NULL) {
 			/* first iteration */
 			pos = tmp;
@@ -2692,8 +2692,8 @@ next_tconn:
 		if (!mdev) {
 			/* No more volumes to dump on this tconn.
 			 * Advance tconn iterator. */
-			pos = list_entry(tconn->all_tconn.next,
-					struct drbd_tconn, all_tconn);
+			pos = list_entry_rcu(tconn->all_tconn.next,
+					     struct drbd_tconn, all_tconn);
 			/* Did we dump any volume on this tconn yet? */
 			if (volume != 0) {
 				/* If we reached the end of the list,
@@ -3130,7 +3130,8 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 
 	/* delete connection */
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
-		list_del(&adm_ctx.tconn->all_tconn);
+		list_del_rcu(&adm_ctx.tconn->all_tconn);
+		synchronize_rcu();
 		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
 
 		retcode = NO_ERROR;
@@ -3160,7 +3161,8 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
 
 	down_write(&drbd_cfg_rwsem);
 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
-		list_del(&adm_ctx.tconn->all_tconn);
+		list_del_rcu(&adm_ctx.tconn->all_tconn);
+		synchronize_rcu();
 		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
 
 		retcode = NO_ERROR;

@@ -2341,7 +2341,7 @@ static void drbd_cleanup(void)
 	}
 
 	list_for_each_entry_safe(tconn, tmp, &drbd_tconns, all_tconn) {
-		list_del(&tconn->all_tconn);
+		list_del_rcu(&tconn->all_tconn);
 		synchronize_rcu();
 		kref_put(&tconn->kref, &conn_destroy);
 	}
@@ -2409,7 +2409,7 @@ struct drbd_tconn *conn_get_by_name(const char *name)
 		return NULL;
 
 	down_read(&drbd_cfg_rwsem);
-	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
+	list_for_each_entry_rcu(tconn, &drbd_tconns, all_tconn) {
 		if (!strcmp(tconn->name, name)) {
 			kref_get(&tconn->kref);
 			goto found;
@@ -2459,6 +2459,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	tconn->int_dig_vv = NULL;
 }
 
+/* caller must be under genl_lock() */
 struct drbd_tconn *conn_create(const char *name)
 {
 	struct drbd_tconn *tconn;
@@ -2503,7 +2504,7 @@ struct drbd_tconn *conn_create(const char *name)
 
 	down_write(&drbd_cfg_rwsem);
 	kref_init(&tconn->kref);
-	list_add_tail(&tconn->all_tconn, &drbd_tconns);
+	list_add_tail_rcu(&tconn->all_tconn, &drbd_tconns);
 	up_write(&drbd_cfg_rwsem);
 
 	return tconn;
