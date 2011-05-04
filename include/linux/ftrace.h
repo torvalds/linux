@@ -31,13 +31,18 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
 struct ftrace_hash;
 
+enum {
+	FTRACE_OPS_FL_ENABLED		= 1 << 0,
+	FTRACE_OPS_FL_GLOBAL		= 1 << 1,
+};
+
 struct ftrace_ops {
 	ftrace_func_t			func;
 	struct ftrace_ops		*next;
+	unsigned long			flags;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
-	unsigned long			flags;
 #endif
 };
 
