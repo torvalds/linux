@@ -8560,15 +8560,6 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 				BNX2X_DEV_INFO("Read iSCSI MAC: "
 					       "0x%x:0x%04x\n", val2, val);
 				bnx2x_set_mac_buf(iscsi_mac, val, val2);
-
-				/* Disable iSCSI OOO if MAC configuration is
-				 * invalid.
-				 */
-				if (!is_valid_ether_addr(iscsi_mac)) {
-					bp->flags |= NO_ISCSI_OOO_FLAG |
-						     NO_ISCSI_FLAG;
-					memset(iscsi_mac, 0, ETH_ALEN);
-				}
 			} else
 				bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
 
@@ -8581,13 +8572,6 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 					       "0x%x:0x%04x\n", val2, val);
 				bnx2x_set_mac_buf(fip_mac, val, val2);
 
-				/* Disable FCoE if MAC configuration is
-				 * invalid.
-				 */
-				if (!is_valid_ether_addr(fip_mac)) {
-					bp->flags |= NO_FCOE_FLAG;
-					memset(bp->fip_mac, 0, ETH_ALEN);
-				}
 			} else
 				bp->flags |= NO_FCOE_FLAG;
 		}
@@ -8617,6 +8601,22 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 			memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
 		else if (!IS_MF(bp))
 			memcpy(fip_mac, iscsi_mac, ETH_ALEN);
+	}
+
+	/* Disable iSCSI if MAC configuration is
+	 * invalid.
+	 */
+	if (!is_valid_ether_addr(iscsi_mac)) {
+		bp->flags |= NO_ISCSI_FLAG;
+		memset(iscsi_mac, 0, ETH_ALEN);
+	}
+
+	/* Disable FCoE if MAC configuration is
+	 * invalid.
+	 */
+	if (!is_valid_ether_addr(fip_mac)) {
+		bp->flags |= NO_FCOE_FLAG;
+		memset(bp->fip_mac, 0, ETH_ALEN);
 	}
 #endif
 }
