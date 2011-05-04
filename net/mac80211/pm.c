@@ -6,7 +6,7 @@
 #include "driver-ops.h"
 #include "led.h"
 
-int __ieee80211_suspend(struct ieee80211_hw *hw)
+int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
@@ -46,6 +46,16 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	 */
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 	del_timer_sync(&local->dynamic_ps_timer);
+
+	local->wowlan = wowlan && local->open_count;
+	if (local->wowlan) {
+		int err = drv_suspend(local, wowlan);
+		if (err) {
+			local->quiescing = false;
+			return err;
+		}
+		goto suspend;
+	}
 
 	/* disable keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
@@ -104,6 +114,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	if (local->open_count)
 		ieee80211_stop_device(local);
 
+ suspend:
 	local->suspended = true;
 	/* need suspended to be visible before quiescing is false */
 	barrier();

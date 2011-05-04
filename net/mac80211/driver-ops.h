@@ -41,6 +41,33 @@ static inline void drv_stop(struct ieee80211_local *local)
 	local->started = false;
 }
 
+#ifdef CONFIG_PM
+static inline int drv_suspend(struct ieee80211_local *local,
+			      struct cfg80211_wowlan *wowlan)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_suspend(local);
+	ret = local->ops->suspend(&local->hw, wowlan);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int drv_resume(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_resume(local);
+	ret = local->ops->resume(&local->hw);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+#endif
+
 static inline int drv_add_interface(struct ieee80211_local *local,
 				    struct ieee80211_vif *vif)
 {

@@ -1606,6 +1606,18 @@ enum ieee80211_ampdu_mlme_action {
  *	you should ensure to cancel it on this callback.
  *	Must be implemented and can sleep.
  *
+ * @suspend: Suspend the device; mac80211 itself will quiesce before and
+ *	stop transmitting and doing any other configuration, and then
+ *	ask the device to suspend. This is only invoked when WoWLAN is
+ *	configured, otherwise the device is deconfigured completely and
+ *	reconfigured at resume time.
+ *
+ * @resume: If WoWLAN was configured, this indicates that mac80211 is
+ *	now resuming its operation, after this the device must be fully
+ *	functional again. If this returns an error, the only way out is
+ *	to also unregister the device. If it returns 1, then mac80211
+ *	will also go through the regular complete restart on resume.
+ *
  * @add_interface: Called when a netdevice attached to the hardware is
  *	enabled. Because it is not called for monitor mode devices, @start
  *	and @stop must be implemented.
@@ -1831,6 +1843,10 @@ struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
+#ifdef CONFIG_PM
+	int (*suspend)(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+	int (*resume)(struct ieee80211_hw *hw);
+#endif
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
 	int (*change_interface)(struct ieee80211_hw *hw,

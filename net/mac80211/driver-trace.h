@@ -108,6 +108,16 @@ DEFINE_EVENT(local_only_evt, drv_start,
 	TP_ARGS(local)
 );
 
+DEFINE_EVENT(local_only_evt, drv_suspend,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
+);
+
+DEFINE_EVENT(local_only_evt, drv_resume,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
+);
+
 DEFINE_EVENT(local_only_evt, drv_stop,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
