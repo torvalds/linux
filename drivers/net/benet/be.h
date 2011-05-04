@@ -213,7 +213,7 @@ struct be_rx_stats {
 
 struct be_rx_compl_info {
 	u32 rss_hash;
-	u16 vid;
+	u16 vlan_tag;
 	u16 pkt_size;
 	u16 rxq_idx;
 	u16 mac_id;
