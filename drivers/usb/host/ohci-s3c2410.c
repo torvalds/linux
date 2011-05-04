@@ -362,14 +362,14 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 	clk = clk_get(&dev->dev, "usb-host");
 	if (IS_ERR(clk)) {
 		dev_err(&dev->dev, "cannot get usb-host clock\n");
-		retval = -ENOENT;
+		retval = PTR_ERR(clk);
 		goto err_mem;
 	}
 
 	usb_clk = clk_get(&dev->dev, "usb-bus-host");
 	if (IS_ERR(usb_clk)) {
 		dev_err(&dev->dev, "cannot get usb-bus-host clock\n");
-		retval = -ENOENT;
+		retval = PTR_ERR(usb_clk);
 		goto err_clk;
 	}
 
