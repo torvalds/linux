@@ -72,7 +72,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select ARCH_NO_SYSDEV_OPS
-	select HAVE_BPF_JIT if X86_64
+	select HAVE_BPF_JIT if (X86_64 && NET)
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
