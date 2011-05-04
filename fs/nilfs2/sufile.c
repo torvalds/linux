@@ -98,6 +98,13 @@ nilfs_sufile_get_segment_usage_block(struct inode *sufile, __u64 segnum,
 				   create, NULL, bhp);
 }
 
+static int nilfs_sufile_delete_segment_usage_block(struct inode *sufile,
+						   __u64 segnum)
+{
+	return nilfs_mdt_delete_block(sufile,
+				      nilfs_sufile_get_blkoff(sufile, segnum));
+}
+
 static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
 				     u64 ncleanadd, u64 ndirtyadd)
 {
@@ -607,6 +614,111 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
 	}
 	nilfs_mdt_mark_buffer_dirty(su_bh);
 	nilfs_mdt_mark_dirty(sufile);
+}
+
+/**
+  * nilfs_sufile_truncate_range - truncate range of segment array
+  * @sufile: inode of segment usage file
+  * @start: start segment number (inclusive)
+  * @end: end segment number (inclusive)
+  *
+  * Return Value: On success, 0 is returned.  On error, one of the
+  * following negative error codes is returned.
+  *
+  * %-EIO - I/O error.
+  *
+  * %-ENOMEM - Insufficient amount of memory available.
+  *
+  * %-EINVAL - Invalid number of segments specified
+  *
+  * %-EBUSY - Dirty or active segments are present in the range
+  */
+static int nilfs_sufile_truncate_range(struct inode *sufile,
+				       __u64 start, __u64 end)
+{
+	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
+	struct buffer_head *header_bh;
+	struct buffer_head *su_bh;
+	struct nilfs_segment_usage *su, *su2;
+	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
+	unsigned long segusages_per_block;
+	unsigned long nsegs, ncleaned;
+	__u64 segnum;
+	void *kaddr;
+	ssize_t n, nc;
+	int ret;
+	int j;
+
+	nsegs = nilfs_sufile_get_nsegments(sufile);
+
+	ret = -EINVAL;
+	if (start > end || start >= nsegs)
+		goto out;
+
+	ret = nilfs_sufile_get_header_block(sufile, &header_bh);
+	if (ret < 0)
+		goto out;
+
+	segusages_per_block = nilfs_sufile_segment_usages_per_block(sufile);
+	ncleaned = 0;
+
+	for (segnum = start; segnum <= end; segnum += n) {
+		n = min_t(unsigned long,
+			  segusages_per_block -
+				  nilfs_sufile_get_offset(sufile, segnum),
+			  end - segnum + 1);
+		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0,
+							   &su_bh);
+		if (ret < 0) {
+			if (ret != -ENOENT)
+				goto out_header;
+			/* hole */
+			continue;
+		}
+		kaddr = kmap_atomic(su_bh->b_page, KM_USER0);
+		su = nilfs_sufile_block_get_segment_usage(
+			sufile, segnum, su_bh, kaddr);
+		su2 = su;
+		for (j = 0; j < n; j++, su = (void *)su + susz) {
+			if ((le32_to_cpu(su->su_flags) &
+			     ~(1UL << NILFS_SEGMENT_USAGE_ERROR)) ||
+			    nilfs_segment_is_active(nilfs, segnum + j)) {
+				ret = -EBUSY;
+				kunmap_atomic(kaddr, KM_USER0);
+				brelse(su_bh);
+				goto out_header;
+			}
+		}
+		nc = 0;
+		for (su = su2, j = 0; j < n; j++, su = (void *)su + susz) {
+			if (nilfs_segment_usage_error(su)) {
+				nilfs_segment_usage_set_clean(su);
+				nc++;
+			}
+		}
+		kunmap_atomic(kaddr, KM_USER0);
+		if (nc > 0) {
+			nilfs_mdt_mark_buffer_dirty(su_bh);
+			ncleaned += nc;
+		}
+		brelse(su_bh);
+
+		if (n == segusages_per_block) {
+			/* make hole */
+			nilfs_sufile_delete_segment_usage_block(sufile, segnum);
+		}
+	}
+	ret = 0;
+
+out_header:
+	if (ncleaned > 0) {
+		NILFS_SUI(sufile)->ncleansegs += ncleaned;
+		nilfs_sufile_mod_counter(header_bh, ncleaned, 0);
+		nilfs_mdt_mark_dirty(sufile);
+	}
+	brelse(header_bh);
+out:
+	return ret;
 }
 
 /**
