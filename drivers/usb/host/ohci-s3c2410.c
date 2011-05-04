@@ -56,9 +56,8 @@ static void s3c2410_start_hc(struct platform_device *dev, struct usb_hcd *hcd)
 		info->hcd	= hcd;
 		info->report_oc = s3c2410_hcd_oc;
 
-		if (info->enable_oc != NULL) {
+		if (info->enable_oc != NULL)
 			(info->enable_oc)(info, 1);
-		}
 	}
 }
 
@@ -72,9 +71,8 @@ static void s3c2410_stop_hc(struct platform_device *dev)
 		info->report_oc = NULL;
 		info->hcd	= NULL;
 
-		if (info->enable_oc != NULL) {
+		if (info->enable_oc != NULL)
 			(info->enable_oc)(info, 0);
-		}
 	}
 
 	clk_disable(clk);
@@ -88,14 +86,14 @@ static void s3c2410_stop_hc(struct platform_device *dev)
 */
 
 static int
-ohci_s3c2410_hub_status_data (struct usb_hcd *hcd, char *buf)
+ohci_s3c2410_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct s3c2410_hcd_info *info = to_s3c2410_info(hcd);
 	struct s3c2410_hcd_port *port;
 	int orig;
 	int portno;
 
-	orig  = ohci_hub_status_data (hcd, buf);
+	orig  = ohci_hub_status_data(hcd, buf);
 
 	if (info == NULL)
 		return orig;
@@ -145,7 +143,7 @@ static void s3c2410_usb_set_power(struct s3c2410_hcd_info *info,
  * request.
 */
 
-static int ohci_s3c2410_hub_control (
+static int ohci_s3c2410_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
 	u16		wValue,
@@ -199,9 +197,8 @@ static int ohci_s3c2410_hub_control (
 			dev_dbg(hcd->self.controller,
 				"ClearPortFeature: OVER_CURRENT\n");
 
-			if (valid_port(wIndex)) {
+			if (valid_port(wIndex))
 				info->port[wIndex-1].oc_status = 0;
-			}
 
 			goto out;
 
@@ -242,8 +239,11 @@ static int ohci_s3c2410_hub_control (
 		desc->wHubCharacteristics |= cpu_to_le16(0x0001);
 
 		if (info->enable_oc) {
-			desc->wHubCharacteristics &= ~cpu_to_le16(HUB_CHAR_OCPM);
-			desc->wHubCharacteristics |=  cpu_to_le16(0x0008|0x0001);
+			desc->wHubCharacteristics &= ~cpu_to_le16(
+				HUB_CHAR_OCPM);
+			desc->wHubCharacteristics |=  cpu_to_le16(
+				0x0008 |
+				0x0001);
 		}
 
 		dev_dbg(hcd->self.controller, "wHubCharacteristics after 0x%04x\n",
@@ -257,13 +257,11 @@ static int ohci_s3c2410_hub_control (
 		dev_dbg(hcd->self.controller, "GetPortStatus(%d)\n", wIndex);
 
 		if (valid_port(wIndex)) {
-			if (info->port[wIndex-1].oc_changed) {
+			if (info->port[wIndex-1].oc_changed)
 				*data |= cpu_to_le32(RH_PS_OCIC);
-			}
 
-			if (info->port[wIndex-1].oc_status) {
+			if (info->port[wIndex-1].oc_status)
 				*data |= cpu_to_le32(RH_PS_POCI);
-			}
 		}
 	}
 
@@ -321,7 +319,7 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 */
 
 static void
-usb_hcd_s3c2410_remove (struct usb_hcd *hcd, struct platform_device *dev)
+usb_hcd_s3c2410_remove(struct usb_hcd *hcd, struct platform_device *dev)
 {
 	usb_remove_hcd(hcd);
 	s3c2410_stop_hc(dev);
@@ -339,7 +337,7 @@ usb_hcd_s3c2410_remove (struct usb_hcd *hcd, struct platform_device *dev)
  * through the hotplug entry's driver_data.
  *
  */
-static int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
+static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 				  struct platform_device *dev)
 {
 	struct usb_hcd *hcd = NULL;
@@ -411,17 +409,19 @@ static int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
 /*-------------------------------------------------------------------------*/
 
 static int
-ohci_s3c2410_start (struct usb_hcd *hcd)
+ohci_s3c2410_start(struct usb_hcd *hcd)
 {
-	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 	int ret;
 
-	if ((ret = ohci_init(ohci)) < 0)
+	ret = ohci_init(ohci);
+	if (ret < 0)
 		return ret;
 
-	if ((ret = ohci_run (ohci)) < 0) {
-		err ("can't start %s", hcd->self.bus_name);
-		ohci_stop (hcd);
+	ret = ohci_run(ohci);
+	if (ret < 0) {
+		err("can't start %s", hcd->self.bus_name);
+		ohci_stop(hcd);
 		return ret;
 	}
 
