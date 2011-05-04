@@ -479,9 +479,9 @@ struct mwifiex_private {
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
 	int scan_result_status;
-	bool assoc_request;
+	int assoc_request;
 	u16 assoc_result;
-	bool ibss_join_request;
+	int ibss_join_request;
 	u16 ibss_join_result;
 	bool disconnect;
 	u8 cfg_bssid[6];

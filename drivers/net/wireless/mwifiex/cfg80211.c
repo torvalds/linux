@@ -1044,7 +1044,7 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	priv->assoc_request = 1;
+	priv->assoc_request = -EINPROGRESS;
 
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",
 	       (char *) sme->ssid, sme->bssid);
@@ -1052,6 +1052,7 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = mwifiex_cfg80211_assoc(priv, sme->ssid_len, sme->ssid, sme->bssid,
 				     priv->bss_mode, sme->channel, sme, 0);
 
+	priv->assoc_request = 1;
 done:
 	priv->assoc_result = ret;
 	queue_work(priv->workqueue, &priv->cfg_workqueue);
@@ -1080,7 +1081,7 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	priv->ibss_join_request = 1;
+	priv->ibss_join_request = -EINPROGRESS;
 
 	wiphy_dbg(wiphy, "info: trying to join to %s and bssid %pM\n",
 	       (char *) params->ssid, params->bssid);
@@ -1088,6 +1089,8 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	ret = mwifiex_cfg80211_assoc(priv, params->ssid_len, params->ssid,
 				params->bssid, priv->bss_mode,
 				params->channel, NULL, params->privacy);
+
+	priv->ibss_join_request = 1;
 done:
 	priv->ibss_join_result = ret;
 	queue_work(priv->workqueue, &priv->cfg_workqueue);
@@ -1380,7 +1383,7 @@ done:
 		kfree(scan_req);
 	}
 
-	if (priv->assoc_request) {
+	if (priv->assoc_request == 1) {
 		if (!priv->assoc_result) {
 			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
 						NULL, 0, NULL, 0,
@@ -1399,7 +1402,7 @@ done:
 		priv->assoc_result = 0;
 	}
 
-	if (priv->ibss_join_request) {
+	if (priv->ibss_join_request == 1) {
 		if (!priv->ibss_join_result) {
 			cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid,
 					     GFP_KERNEL);
