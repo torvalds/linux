@@ -215,14 +215,8 @@ int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask);
 int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask);
-int clear_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
-		       gfp_t mask);
-int clear_extent_ordered_metadata(struct extent_io_tree *tree, u64 start,
-				  u64 end, gfp_t mask);
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask);
-int set_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
-		     gfp_t mask);
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, int bits);
 struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
@@ -298,8 +292,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_io_tree *tree,
 			     struct extent_buffer *eb);
-int test_extent_buffer_dirty(struct extent_io_tree *tree,
-			     struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 			       struct extent_buffer *eb);
 int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
@@ -317,7 +309,6 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km);
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
-int release_extent_buffer_tail_pages(struct extent_buffer *eb);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
 int extent_clear_unlock_delalloc(struct inode *inode,
