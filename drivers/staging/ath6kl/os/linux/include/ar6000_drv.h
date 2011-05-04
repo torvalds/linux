@@ -71,7 +71,7 @@
 #include "hw/apb_map.h"
 #include "hw/rtc_reg.h"
 #include "hw/mbox_reg.h"
-#include "hw/gpio_reg.h"
+#include "gpio_reg.h"
 
 #define  ATH_DEBUG_DBG_LOG       ATH_DEBUG_MAKE_MODULE_MASK(0)
 #define  ATH_DEBUG_WLAN_CONNECT  ATH_DEBUG_MAKE_MODULE_MASK(1)
