@@ -211,19 +211,14 @@ id_rb_search(struct rb_root *root, struct cifs_sid *sidptr)
 {
 	int rc;
 	struct rb_node *node = root->rb_node;
-	struct rb_node *parent = NULL;
-	struct rb_node **linkto = &(root->rb_node);
 	struct cifs_sid_id *lsidid;
 
 	while (node) {
 		lsidid = rb_entry(node, struct cifs_sid_id, rbnode);
-		parent = node;
 		rc = compare_sids(sidptr, &((lsidid)->sid));
 		if (rc > 0) {
-			linkto = &(node->rb_left);
 			node = node->rb_left;
 		} else if (rc < 0) {
-			linkto = &(node->rb_right);
 			node = node->rb_right;
 		} else /* node found */
 			return lsidid;
