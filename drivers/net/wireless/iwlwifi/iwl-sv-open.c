@@ -198,10 +198,10 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	}
 
 	cmd.id = nla_get_u8(tb[IWL_TM_ATTR_UCODE_CMD_ID]);
-	cmd.data = nla_data(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
-	cmd.len = nla_len(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
+	cmd.data[0] = nla_data(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
+	cmd.len[0] = nla_len(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
 	IWL_INFO(priv, "testmode ucode command ID 0x%x, flags 0x%x,"
-				" len %d\n", cmd.id, cmd.flags, cmd.len);
+				" len %d\n", cmd.id, cmd.flags, cmd.len[0]);
 	/* ok, let's submit the command to ucode */
 	return iwl_send_cmd(priv, &cmd);
 }

@@ -446,7 +446,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	u16 fix_size;
 	bool is_ct_kill = false;
 
-	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
+	fix_size = (u16)(cmd->len[0] + sizeof(out_cmd->hdr));
 
 	/*
 	 * If any of the command structures end up being larger than
@@ -506,7 +506,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		out_meta->callback = cmd->callback;
 
 	out_cmd->hdr.cmd = cmd->id;
-	memcpy(&out_cmd->cmd.payload, cmd->data, cmd->len);
+	memcpy(&out_cmd->cmd.payload, cmd->data[0], cmd->len[0]);
 
 	/* At this point, the out_cmd now has all of the incoming cmd
 	 * information */
@@ -555,7 +555,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
 						   phys_addr, fix_size, 1,
-						   U32_PAD(cmd->len));
+						   U32_PAD(cmd->len[0]));
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);

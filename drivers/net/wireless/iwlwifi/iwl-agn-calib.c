@@ -93,8 +93,8 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
 		if ((BIT(i) & priv->hw_params.calib_init_cfg) &&
 		    priv->calib_results[i].buf) {
-			hcmd.len = priv->calib_results[i].buf_len;
-			hcmd.data = priv->calib_results[i].buf;
+			hcmd.len[0] = priv->calib_results[i].buf_len;
+			hcmd.data[0] = priv->calib_results[i].buf;
 			ret = iwl_send_cmd_sync(priv, &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",
@@ -456,9 +456,9 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	struct iwl_host_cmd cmd_out = {
 		.id = SENSITIVITY_CMD,
-		.len = sizeof(struct iwl_sensitivity_cmd),
+		.len = { sizeof(struct iwl_sensitivity_cmd), },
 		.flags = CMD_ASYNC,
-		.data = &cmd,
+		.data = { &cmd, },
 	};
 
 	data = &(priv->sensitivity_data);
@@ -491,9 +491,9 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	struct iwl_host_cmd cmd_out = {
 		.id = SENSITIVITY_CMD,
-		.len = sizeof(struct iwl_enhance_sensitivity_cmd),
+		.len = { sizeof(struct iwl_enhance_sensitivity_cmd), },
 		.flags = CMD_ASYNC,
-		.data = &cmd,
+		.data = { &cmd, },
 	};
 
 	data = &(priv->sensitivity_data);

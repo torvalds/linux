@@ -189,8 +189,8 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 			rate_flags);
 
 	/* Submit command */
-	cmd.len = sizeof(*tx_beacon_cmd) + frame_size;
-	cmd.data = tx_beacon_cmd;
+	cmd.len[0] = sizeof(*tx_beacon_cmd) + frame_size;
+	cmd.data[0] = tx_beacon_cmd;
 
 	err = iwl_send_cmd_sync(priv, &cmd);
 
@@ -2114,8 +2114,8 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = CALIBRATION_CFG_CMD,
-		.len = sizeof(struct iwl_calib_cfg_cmd),
-		.data = &calib_cfg_cmd,
+		.len = { sizeof(struct iwl_calib_cfg_cmd), },
+		.data = { &calib_cfg_cmd, },
 	};
 
 	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));

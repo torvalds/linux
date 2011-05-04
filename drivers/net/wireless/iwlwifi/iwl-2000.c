@@ -195,9 +195,9 @@ static int iwl2030_hw_channel_switch(struct iwl_priv *priv,
 	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
-		.len = sizeof(cmd),
+		.len = { sizeof(cmd), },
 		.flags = CMD_SYNC,
-		.data = &cmd,
+		.data = { &cmd, },
 	};
 
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;

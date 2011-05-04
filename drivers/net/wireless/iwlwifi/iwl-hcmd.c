@@ -264,8 +264,8 @@ int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	return iwl_send_cmd_sync(priv, &cmd);
@@ -279,8 +279,8 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	cmd.flags |= CMD_ASYNC;

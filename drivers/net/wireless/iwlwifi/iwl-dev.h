@@ -277,15 +277,16 @@ struct iwl_device_cmd {
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
 
+#define IWL_MAX_CMD_TFDS	1
 
 struct iwl_host_cmd {
-	const void *data;
+	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
 			 struct iwl_rx_packet *pkt);
 	u32 flags;
-	u16 len;
+	u16 len[IWL_MAX_CMD_TFDS];
 	u8 id;
 };
 
