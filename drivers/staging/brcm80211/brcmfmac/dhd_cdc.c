@@ -253,9 +253,9 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			"lastcmd=0x%x (%lu)\n",
 			ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
 			(unsigned long)prot->lastcmd));
-		if ((ioc->cmd == WLC_SET_VAR) || (ioc->cmd == WLC_GET_VAR)) {
+		if ((ioc->cmd == WLC_SET_VAR) || (ioc->cmd == WLC_GET_VAR))
 			DHD_TRACE(("iovar cmd=%s\n", (char *)buf));
-		}
+
 		goto done;
 	}
 
