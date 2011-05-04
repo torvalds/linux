@@ -41,7 +41,7 @@
 int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
 			      struct sk_buff *skb)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct mwifiex_private *priv = adapter->priv[rx_info->bss_index];
 	struct rx_packet_hdr *rx_pkt_hdr;
@@ -123,7 +123,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u8 ta[ETH_ALEN];
-	u16 rx_pkt_type = 0;
+	u16 rx_pkt_type;
 	struct mwifiex_private *priv = adapter->priv[rx_info->bss_index];
 
 	local_rx_pd = (struct rxpd *) (skb->data);

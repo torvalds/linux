@@ -152,8 +152,8 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
  */
 int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 {
-	struct mwifiex_rxinfo *rx_info = NULL;
-	struct mwifiex_private *priv = NULL;
+	struct mwifiex_rxinfo *rx_info;
+	struct mwifiex_private *priv;
 
 	if (!skb)
 		return -1;
@@ -184,8 +184,8 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 int mwifiex_recv_complete(struct mwifiex_adapter *adapter,
 			  struct sk_buff *skb, int status)
 {
-	struct mwifiex_private *priv = NULL;
-	struct mwifiex_rxinfo *rx_info = NULL;
+	struct mwifiex_private *priv;
+	struct mwifiex_rxinfo *rx_info;
 
 	if (!skb)
 		return 0;

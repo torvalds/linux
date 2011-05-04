@@ -60,7 +60,7 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 			 * later with ethertype
 			 */
 	};
-	struct tx_packet_hdr *tx_header = NULL;
+	struct tx_packet_hdr *tx_header;
 
 	skb_put(skb_aggr, sizeof(*tx_header));
 
@@ -182,7 +182,7 @@ int mwifiex_11n_deaggregate_pkt(struct mwifiex_private *priv,
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct rxpd *local_rx_pd = (struct rxpd *) skb->data;
 	struct sk_buff *skb_daggr;
-	struct mwifiex_rxinfo *rx_info_daggr = NULL;
+	struct mwifiex_rxinfo *rx_info_daggr;
 	int ret = -1;
 	struct rx_packet_hdr *rx_pkt_hdr;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -285,8 +285,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb_aggr, *skb_src;
 	struct mwifiex_txinfo *tx_info_aggr, *tx_info_src;
-	int pad = 0;
-	int ret = 0;
+	int pad = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
 

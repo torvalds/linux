@@ -799,7 +799,7 @@ u8
 mwifiex_wmm_compute_drv_pkt_delay(struct mwifiex_private *priv,
 					const struct sk_buff *skb)
 {
-	u8 ret_val = 0;
+	u8 ret_val;
 	struct timeval out_tstamp, in_tstamp;
 	u32 queue_delay;
 

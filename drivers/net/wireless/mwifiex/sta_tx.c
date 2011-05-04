@@ -113,8 +113,8 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 /* sizeof(struct txpd) + Interface specific header */
 #define NULL_PACKET_HDR 64
 	u32 data_len = NULL_PACKET_HDR;
-	struct sk_buff *skb = NULL;
-	int ret = 0;
+	struct sk_buff *skb;
+	int ret;
 	struct mwifiex_txinfo *tx_info = NULL;
 
 	if (adapter->surprise_removed)
