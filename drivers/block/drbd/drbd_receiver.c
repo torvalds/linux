@@ -5040,7 +5040,7 @@ int drbd_asender(struct drbd_thread *thi)
 	int expect   = header_size;
 	bool ping_timeout_active = false;
 	struct net_conf *nc;
-	int ping_timeo, no_cork, ping_int;
+	int ping_timeo, tcp_cork, ping_int;
 
 	current->policy = SCHED_RR;  /* Make this a realtime task! */
 	current->rt_priority = 2;    /* more important than all other tasks */
@@ -5051,7 +5051,7 @@ int drbd_asender(struct drbd_thread *thi)
 		rcu_read_lock();
 		nc = rcu_dereference(tconn->net_conf);
 		ping_timeo = nc->ping_timeo;
-		no_cork = nc->no_cork;
+		tcp_cork = nc->tcp_cork;
 		ping_int = nc->ping_int;
 		rcu_read_unlock();
 
@@ -5066,14 +5066,14 @@ int drbd_asender(struct drbd_thread *thi)
 
 		/* TODO: conditionally cork; it may hurt latency if we cork without
 		   much to send */
-		if (!no_cork)
+		if (tcp_cork)
 			drbd_tcp_cork(tconn->meta.socket);
 		if (tconn_finish_peer_reqs(tconn)) {
 			conn_err(tconn, "tconn_finish_peer_reqs() failed\n");
 			goto reconnect;
 		}
 		/* but unconditionally uncork unless disabled */
-		if (!no_cork)
+		if (tcp_cork)
 			drbd_tcp_uncork(tconn->meta.socket);
 
 		/* short circuit, recv_msg would return EINTR anyways. */

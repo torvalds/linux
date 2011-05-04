@@ -162,7 +162,7 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
 	__u32_field_def(25,	GENLA_F_MANDATORY,	cong_extents, DRBD_CONG_EXTENTS_DEF)
 	__flg_field_def(26, GENLA_F_MANDATORY,	two_primaries, 0)
 	__flg_field(27, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	want_lose)
-	__flg_field_def(28, GENLA_F_MANDATORY,	no_cork, 0)
+	__flg_field_def(28, GENLA_F_MANDATORY,	tcp_cork, 1)
 	__flg_field_def(29, GENLA_F_MANDATORY,	always_asbp, 0)
 	__flg_field(30, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	dry_run)
 	__flg_field_def(31,	GENLA_F_MANDATORY,	use_rle, 0)

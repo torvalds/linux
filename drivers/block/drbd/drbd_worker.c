@@ -1694,7 +1694,7 @@ int drbd_worker(struct drbd_thread *thi)
 
 			rcu_read_lock();
 			nc = rcu_dereference(tconn->net_conf);
-			cork = nc ? !nc->no_cork : 0;
+			cork = nc ? nc->tcp_cork : 0;
 			rcu_read_unlock();
 
 			if (tconn->data.socket && cork)
