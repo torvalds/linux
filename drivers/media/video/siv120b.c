@@ -1741,8 +1741,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     {
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
         set_w = SENSOR_INIT_WIDTH;
-        set_h = SENSOR_INIT_HEIGHT;
-		ret = -1;
+        set_h = SENSOR_INIT_HEIGHT;		
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
