@@ -54,8 +54,7 @@
  */
 
 #include <scsi/sas.h>
-#include "intel_ata.h"
-#include "intel_sata.h"
+#include "sas.h"
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
 #include "scic_phy.h"
@@ -1279,23 +1278,19 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 	u32 frame_index)
 {
 	enum sci_status result;
-	u32 *frame_words;
-	struct sata_fis_header *fis_frame_header;
+	struct dev_to_host_fis *frame_header;
 	u32 *fis_frame_data;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
 		frame_index,
-		(void **)&frame_words);
+		(void **)&frame_header);
 
-	if (result != SCI_SUCCESS) {
+	if (result != SCI_SUCCESS)
 		return result;
-	}
 
-	fis_frame_header = (struct sata_fis_header *)frame_words;
-
-	if ((fis_frame_header->fis_type == SATA_FIS_TYPE_REGD2H) &&
-	    !(fis_frame_header->status & ATA_STATUS_REG_BSY_BIT)) {
+	if ((frame_header->fis_type == FIS_REGD2H) &&
+	    !(frame_header->status & ATA_BUSY)) {
 		scic_sds_unsolicited_frame_control_get_buffer(
 			&(scic_sds_phy_get_controller(sci_phy)->uf_control),
 			frame_index,
@@ -1303,10 +1298,10 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 
 		scic_sds_controller_copy_sata_response(
 			&sci_phy->phy_type.sata.signature_fis_buffer,
-			frame_words,
+			frame_header,
 			fis_frame_data);
 
-		/* We got the IAF we can now go to the await spinup semaphore state */
+		/* got IAF we can now go to the await spinup semaphore state */
 		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
 						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
 
@@ -1318,7 +1313,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 			 __func__,
 			 frame_index);
 
-	/* Regardless of the result release this frame since we are done with it */
+	/* Regardless of the result we are done with this frame with it */
 	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
 					  frame_index);
 

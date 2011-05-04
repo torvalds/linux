@@ -62,8 +62,7 @@
  *
  *
  */
-
-#include "intel_sata.h"
+#include <linux/kernel.h>
 #include "intel_scsi.h"
 
 /**

@@ -53,7 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "intel_sas.h"
-#include "intel_ata.h"
+#include "sas.h"
 #include "isci.h"
 #include "port.h"
 #include "remote_device.h"
@@ -327,7 +327,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 		break;
 	}
 	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ: {
-		struct sata_fis_header *hdr;
+		struct dev_to_host_fis *hdr;
 
 		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
 								       frame_index,
@@ -335,14 +335,14 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 		if (status != SCI_SUCCESS)
 			return status;
 
-		if (hdr->fis_type == SATA_FIS_TYPE_SETDEVBITS &&
-		    (hdr->status & ATA_STATUS_REG_ERROR_BIT)) {
+		if (hdr->fis_type == FIS_SETDEVBITS &&
+		    (hdr->status & ATA_ERR)) {
 			sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
 
 			/* TODO Check sactive and complete associated IO if any. */
 			sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
-		} else if (hdr->fis_type == SATA_FIS_TYPE_REGD2H &&
-			   (hdr->status & ATA_STATUS_REG_ERROR_BIT)) {
+		} else if (hdr->fis_type == FIS_REGD2H &&
+			   (hdr->status & ATA_ERR)) {
 			/*
 			 * Some devices return D2H FIS when an NCQ error is detected.
 			 * Treat this like an SDB error FIS ready reason.
@@ -469,6 +469,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 	struct sci_base_state_machine *sm = &sci_dev->state_machine;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	struct isci_request *ireq = sci_req->ireq;
 	enum sci_status status;
 
 	switch (state) {
@@ -510,6 +511,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		 * substate.
 		 */
 		enum scic_sds_remote_device_states new_state;
+		struct sas_task *task = isci_request_access_task(ireq);
 
 		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
@@ -523,7 +525,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		if (status != SCI_SUCCESS)
 			break;
 
-		if (isci_sata_get_sat_protocol(sci_req->ireq) == SAT_PROTOCOL_FPDMA)
+		if (task->ata_task.use_ncq)
 			new_state = SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ;
 		else {
 			sci_dev->working_request = sci_req;
@@ -532,8 +534,10 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		sci_base_state_machine_change_state(sm, new_state);
 		break;
 	}
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-		if (isci_sata_get_sat_protocol(sci_req->ireq) == SAT_PROTOCOL_FPDMA) {
+	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ: {
+		struct sas_task *task = isci_request_access_task(ireq);
+
+		if (task->ata_task.use_ncq) {
 			status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
 			if (status != SCI_SUCCESS)
 				return status;
@@ -546,6 +550,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		} else
 			return SCI_FAILURE_INVALID_STATE;
 		break;
+	}
 	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
 		return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:

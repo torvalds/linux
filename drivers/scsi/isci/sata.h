@@ -53,10 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "intel_sat.h"
-
-
-
 struct host_to_dev_fis *isci_sata_task_to_fis_copy(
 	struct sas_task *task);
 

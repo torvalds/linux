@@ -61,11 +61,6 @@
 #include "task.h"
 #include "request.h"
 #include "sata.h"
-#include "intel_sat.h"
-#include "intel_ata.h"
-
-static u8 isci_sata_get_management_task_protocol(struct isci_tmf *tmf);
-
 
 /**
  * isci_sata_task_to_fis_copy() - This function gets the host_to_dev_fis from
@@ -158,80 +153,12 @@ void isci_request_process_stp_response(struct sas_task *task,
 	 * If the device fault bit is set in the status register, then
 	 * set the sense data and return.
 	 */
-	if (d2h_reg_fis->status & ATA_STATUS_REG_DEVICE_FAULT_BIT)
+	if (d2h_reg_fis->status & ATA_DF)
 		ts->stat = SAS_PROTO_RESPONSE;
 	else
 		ts->stat = SAM_STAT_GOOD;
 
 	ts->resp = SAS_TASK_COMPLETE;
-}
-
-/**
- * isci_sata_get_sat_protocol() - retrieve the sat protocol for the request
- * @isci_request: ata request
- *
- * Note: temporary implementation until expert mode removes the callback
- *
- */
-u8 isci_sata_get_sat_protocol(struct isci_request *isci_request)
-{
-	struct sas_task *task;
-	struct domain_device *dev;
-
-	dev_dbg(&isci_request->isci_host->pdev->dev,
-		"%s: isci_request = %p, ttype = %d\n",
-		__func__, isci_request, isci_request->ttype);
-
-	if (tmf_task == isci_request->ttype) {
-		struct isci_tmf *tmf = isci_request_access_tmf(isci_request);
-
-		return isci_sata_get_management_task_protocol(tmf);
-	}
-
-	task = isci_request_access_task(isci_request);
-	dev = task->dev;
-
-	if (!sas_protocol_ata(task->task_proto)) {
-		WARN(1, "unhandled task protocol\n");
-		return SAT_PROTOCOL_NON_DATA;
-	}
-
-	if (task->data_dir == DMA_NONE)
-		return SAT_PROTOCOL_NON_DATA;
-
-	/* the "_IN" protocol types are equivalent to their "_OUT"
-	 * analogs as far as the core is concerned
-	 */
-	if (dev->sata_dev.command_set == ATAPI_COMMAND_SET) {
-		if (task->ata_task.dma_xfer)
-			return SAT_PROTOCOL_PACKET_DMA_DATA_IN;
-		else
-			return SAT_PROTOCOL_PACKET_PIO_DATA_IN;
-	}
-
-	if (task->ata_task.use_ncq)
-		return SAT_PROTOCOL_FPDMA;
-
-	if (task->ata_task.dma_xfer)
-		return SAT_PROTOCOL_UDMA_DATA_IN;
-	else
-		return SAT_PROTOCOL_PIO_DATA_IN;
-}
-
-static u8 isci_sata_get_management_task_protocol(
-	struct isci_tmf *tmf)
-{
-	u8 ret = 0;
-
-	pr_warn("tmf = %p, func = %d\n", tmf, tmf->tmf_code);
-
-	if ((tmf->tmf_code == isci_tmf_sata_srst_high) ||
-	    (tmf->tmf_code == isci_tmf_sata_srst_low)) {
-		pr_warn("%s: tmf->tmf_code == TMF_LU_RESET\n", __func__);
-		ret = SAT_PROTOCOL_SOFT_RESET;
-	}
-
-	return ret;
 }
 
 enum sci_status isci_sata_management_task_request_build(

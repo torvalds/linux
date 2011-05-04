@@ -57,7 +57,7 @@
 #define _SCIC_SDS_STP_REQUEST_T_
 
 #include <linux/dma-mapping.h>
-#include "intel_sata.h"
+#include <scsi/sas.h>
 #include "scic_sds_request.h"
 
 /**
@@ -110,11 +110,6 @@ struct scic_sds_stp_request {
 			 * ending_status has the SATA_STATUS_ERR bit set.
 			 */
 			u8 ending_error;
-
-			/**
-			 * Protocol Type. This is filled in by core during IO Request construction type.
-			 */
-			u8 sat_protocol;
 
 			struct scic_sds_request_pio_sgl {
 				struct scu_sgl_element_pair *sgl_pair;
@@ -173,7 +168,6 @@ u32 scic_sds_stp_request_get_object_size(void);
 
 enum sci_status scic_sds_stp_pio_request_construct(
 	struct scic_sds_request *scic_io_request,
-	u8 sat_protocol,
 	bool copy_rx_frame);
 
 enum sci_status scic_sds_stp_udma_request_construct(

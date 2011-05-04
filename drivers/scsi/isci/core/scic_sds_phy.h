@@ -56,7 +56,6 @@
 #ifndef _SCIC_SDS_PHY_H_
 #define _SCIC_SDS_PHY_H_
 
-#include "intel_sata.h"
 #include "intel_sas.h"
 #include "scu_registers.h"
 #include "sci_base_state_machine.h"

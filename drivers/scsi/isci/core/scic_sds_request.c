@@ -55,8 +55,6 @@
 
 #include <scsi/sas.h>
 #include "intel_sas.h"
-#include "intel_sata.h"
-#include "intel_sat.h"
 #include "scic_controller.h"
 #include "scic_io_request.h"
 #include "scic_sds_controller.h"
@@ -631,51 +629,55 @@ static void scu_ssp_task_request_construct_task_context(
  *
  * enum sci_status
  */
-static enum sci_status scic_io_request_construct_sata(struct scic_sds_request *sci_req,
-						      u8 proto, u32 len,
-						      enum dma_data_direction dir,
-						      bool copy)
+static enum sci_status
+scic_io_request_construct_sata(struct scic_sds_request *sci_req,
+			       u32 len,
+			       enum dma_data_direction dir,
+			       bool copy)
 {
 	enum sci_status status = SCI_SUCCESS;
+	struct isci_request *ireq = sci_req->ireq;
+	struct sas_task *task = isci_request_access_task(ireq);
 
-	switch (proto) {
-	case SAT_PROTOCOL_PIO_DATA_IN:
-	case SAT_PROTOCOL_PIO_DATA_OUT:
-		status = scic_sds_stp_pio_request_construct(sci_req, proto, copy);
-		break;
+	/* check for management protocols */
+	if (ireq->ttype == tmf_task) {
+		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
-	case SAT_PROTOCOL_UDMA_DATA_IN:
-	case SAT_PROTOCOL_UDMA_DATA_OUT:
-		status = scic_sds_stp_udma_request_construct(sci_req, len, dir);
-		break;
+		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
+		    tmf->tmf_code == isci_tmf_sata_srst_low)
+			return scic_sds_stp_soft_reset_request_construct(sci_req);
+		else {
+			dev_err(scic_to_dev(sci_req->owning_controller),
+				"%s: Request 0x%p received un-handled SAT "
+				"management protocol 0x%x.\n",
+				__func__, sci_req, tmf->tmf_code);
 
-	case SAT_PROTOCOL_ATA_HARD_RESET:
-	case SAT_PROTOCOL_SOFT_RESET:
-		status = scic_sds_stp_soft_reset_request_construct(sci_req);
-		break;
-
-	case SAT_PROTOCOL_NON_DATA:
-		status = scic_sds_stp_non_data_request_construct(sci_req);
-		break;
-
-	case SAT_PROTOCOL_FPDMA:
-		status = scic_sds_stp_ncq_request_construct(sci_req, len, dir);
-		break;
-
-	case SAT_PROTOCOL_DMA_QUEUED:
-	case SAT_PROTOCOL_DMA:
-	case SAT_PROTOCOL_DEVICE_DIAGNOSTIC:
-	case SAT_PROTOCOL_DEVICE_RESET:
-	case SAT_PROTOCOL_RETURN_RESPONSE_INFO:
-	default:
-		dev_err(scic_to_dev(sci_req->owning_controller),
-			"%s: SCIC IO Request 0x%p received un-handled "
-			"SAT Protocl %d.\n",
-			__func__, sci_req, proto);
-
-		status = SCI_FAILURE;
-		break;
+			return SCI_FAILURE;
+		}
 	}
+
+	if (!sas_protocol_ata(task->task_proto)) {
+		dev_err(scic_to_dev(sci_req->owning_controller),
+			"%s: Non-ATA protocol in SATA path: 0x%x\n",
+			__func__,
+			task->task_proto);
+		return SCI_FAILURE;
+
+	}
+
+	/* non data */
+	if (task->data_dir == DMA_NONE)
+		return scic_sds_stp_non_data_request_construct(sci_req);
+
+	/* NCQ */
+	if (task->ata_task.use_ncq)
+		return scic_sds_stp_ncq_request_construct(sci_req, len, dir);
+
+	/* DMA */
+	if (task->ata_task.dma_xfer)
+		return scic_sds_stp_udma_request_construct(sci_req, len, dir);
+	else /* PIO */
+		return scic_sds_stp_pio_request_construct(sci_req, copy);
 
 	return status;
 }
@@ -735,7 +737,6 @@ enum sci_status scic_io_request_construct_basic_sata(
 {
 	enum sci_status status;
 	struct scic_sds_stp_request *stp_req;
-	u8 proto;
 	u32 len;
 	enum dma_data_direction dir;
 	bool copy = false;
@@ -748,10 +749,9 @@ enum sci_status scic_io_request_construct_basic_sata(
 
 	len = isci_request_io_request_get_transfer_length(isci_request);
 	dir = isci_request_io_request_get_data_direction(isci_request);
-	proto = isci_sata_get_sat_protocol(isci_request);
 	copy = (task->data_dir == DMA_NONE) ? false : true;
 
-	status = scic_io_request_construct_sata(sci_req, proto, len, dir, copy);
+	status = scic_io_request_construct_sata(sci_req, len, dir, copy);
 
 	if (status == SCI_SUCCESS)
 		sci_base_state_machine_change_state(&sci_req->state_machine,
@@ -764,33 +764,30 @@ enum sci_status scic_io_request_construct_basic_sata(
 enum sci_status scic_task_request_construct_sata(
 	struct scic_sds_request *sci_req)
 {
-	enum sci_status status;
-	u8 sat_protocol;
-	struct isci_request *isci_request = sci_req->ireq;
+	enum sci_status status = SCI_SUCCESS;
+	struct isci_request *ireq = sci_req->ireq;
 
-	sat_protocol = isci_sata_get_sat_protocol(isci_request);
+	/* check for management protocols */
+	if (ireq->ttype == tmf_task) {
+		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
-	switch (sat_protocol) {
-	case SAT_PROTOCOL_ATA_HARD_RESET:
-	case SAT_PROTOCOL_SOFT_RESET:
-		status = scic_sds_stp_soft_reset_request_construct(sci_req);
-		break;
+		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
+		    tmf->tmf_code == isci_tmf_sata_srst_low) {
+			status = scic_sds_stp_soft_reset_request_construct(sci_req);
+		} else {
+			dev_err(scic_to_dev(sci_req->owning_controller),
+				"%s: Request 0x%p received un-handled SAT "
+				"Protocol 0x%x.\n",
+				__func__, sci_req, tmf->tmf_code);
 
-	default:
-		dev_err(scic_to_dev(sci_req->owning_controller),
-			"%s: SCIC IO Request 0x%p received un-handled SAT "
-			"Protocl %d.\n",
-			__func__,
-			sci_req,
-			sat_protocol);
-
-		status = SCI_FAILURE;
-		break;
+			return SCI_FAILURE;
+		}
 	}
 
 	if (status == SCI_SUCCESS)
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-			SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+		sci_base_state_machine_change_state(
+				&sci_req->state_machine,
+				SCI_BASE_REQUEST_STATE_CONSTRUCTED);
 
 	return status;
 }

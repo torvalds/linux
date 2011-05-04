@@ -53,43 +53,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SAT_H_
-#define _SAT_H_
-
-/**
- * This file contains constants and constructs defined in the SCSI to ATA
- *    Translation (SAT) T10 standard.  For more information please refer to
- *    www.t10.org.
- *
- *
+#ifndef _SCI_SAS_H_
+#define _SCI_SAS_H_
+/*
+ * SATA FIS Types These constants depict the various SATA FIS types devined in
+ * the serial ATA specification.
+ * XXX: This needs to go into <scsi/sas.h>
  */
+#define FIS_REGH2D          0x27
+#define FIS_REGD2H          0x34
+#define FIS_SETDEVBITS      0xA1
+#define FIS_DMA_ACTIVATE    0x39
+#define FIS_DMA_SETUP       0x41
+#define FIS_BIST_ACTIVATE   0x58
+#define FIS_PIO_SETUP       0x5F
+#define FIS_DATA            0x46
 
-/**
- *
- *
- * SAT_PROTOCOLS These constants indicate the various protocol values that can
- * be supported in a SAT translator.
- */
-#define SAT_PROTOCOL_ATA_HARD_RESET       0
-#define SAT_PROTOCOL_SOFT_RESET           1
-#define SAT_PROTOCOL_NON_DATA             3
-#define SAT_PROTOCOL_PIO_DATA_IN          4
-#define SAT_PROTOCOL_PIO_DATA_OUT         5
-#define SAT_PROTOCOL_DMA                  6
-#define SAT_PROTOCOL_DMA_QUEUED           7
-#define SAT_PROTOCOL_DEVICE_DIAGNOSTIC    8
-#define SAT_PROTOCOL_DEVICE_RESET         9
-#define SAT_PROTOCOL_UDMA_DATA_IN         10
-#define SAT_PROTOCOL_UDMA_DATA_OUT        11
-#define SAT_PROTOCOL_FPDMA                12
-#define SAT_PROTOCOL_RETURN_RESPONSE_INFO 15
-
-#define SAT_PROTOCOL_PACKET               0x10
-#define SAT_PROTOCOL_PACKET_NON_DATA      (SAT_PROTOCOL_PACKET | 0x0)
-#define SAT_PROTOCOL_PACKET_DMA_DATA_IN   (SAT_PROTOCOL_PACKET | 0x1)
-#define SAT_PROTOCOL_PACKET_DMA_DATA_OUT  (SAT_PROTOCOL_PACKET | 0x2)
-#define SAT_PROTOCOL_PACKET_PIO_DATA_IN   (SAT_PROTOCOL_PACKET | 0x3)
-#define SAT_PROTOCOL_PACKET_PIO_DATA_OUT  (SAT_PROTOCOL_PACKET | 0x4)
-
-#endif /* _SAT_H_ */
-
+#endif
