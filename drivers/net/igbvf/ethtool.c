@@ -391,11 +391,6 @@ static int igbvf_set_wol(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
-static int igbvf_phys_id(struct net_device *netdev, u32 data)
-{
-	return 0;
-}
-
 static int igbvf_get_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
@@ -527,7 +522,6 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.self_test		= igbvf_diag_test,
 	.get_sset_count		= igbvf_get_sset_count,
 	.get_strings		= igbvf_get_strings,
-	.phys_id		= igbvf_phys_id,
 	.get_ethtool_stats	= igbvf_get_ethtool_stats,
 	.get_coalesce		= igbvf_get_coalesce,
 	.set_coalesce		= igbvf_set_coalesce,
