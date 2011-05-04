@@ -1578,7 +1578,8 @@ static int may_create(struct inode *dir,
 		return rc;
 
 	if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
-		rc = security_transition_sid(sid, dsec->sid, tclass, NULL, &newsid);
+		rc = security_transition_sid(sid, dsec->sid, tclass,
+					     &dentry->d_name, &newsid);
 		if (rc)
 			return rc;
 	}

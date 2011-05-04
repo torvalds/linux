@@ -232,10 +232,10 @@ EXPORT_SYMBOL(flex_array_clear);
 
 /**
  * flex_array_prealloc - guarantee that array space exists
- * @fa:		the flex array for which to preallocate parts
- * @start:	index of first array element for which space is allocated
- * @end:	index of last (inclusive) element for which space is allocated
- * @flags:	page allocation flags
+ * @fa:			the flex array for which to preallocate parts
+ * @start:		index of first array element for which space is allocated
+ * @nr_elements:	number of elements for which space is allocated
+ * @flags:		page allocation flags
  *
  * This will guarantee that no future calls to flex_array_put()
  * will allocate memory.  It can be used if you are expecting to
@@ -245,14 +245,24 @@ EXPORT_SYMBOL(flex_array_clear);
  * Locking must be provided by the caller.
  */
 int flex_array_prealloc(struct flex_array *fa, unsigned int start,
-			unsigned int end, gfp_t flags)
+			unsigned int nr_elements, gfp_t flags)
 {
 	int start_part;
 	int end_part;
 	int part_nr;
+	unsigned int end;
 	struct flex_array_part *part;
 
-	if (start >= fa->total_nr_elements || end >= fa->total_nr_elements)
+	if (!start && !nr_elements)
+		return 0;
+	if (start >= fa->total_nr_elements)
+		return -ENOSPC;
+	if (!nr_elements)
+		return 0;
+
+	end = start + nr_elements - 1;
+
+	if (end >= fa->total_nr_elements)
 		return -ENOSPC;
 	if (elements_fit_in_base(fa))
 		return 0;
@@ -343,6 +353,8 @@ int flex_array_shrink(struct flex_array *fa)
 	int part_nr;
 	int ret = 0;
 
+	if (!fa->total_nr_elements)
+		return 0;
 	if (elements_fit_in_base(fa))
 		return ret;
 	for (part_nr = 0; part_nr < FLEX_ARRAY_NR_BASE_PTRS; part_nr++) {
