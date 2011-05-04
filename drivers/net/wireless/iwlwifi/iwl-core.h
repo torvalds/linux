@@ -127,16 +127,6 @@ struct iwl_temp_ops {
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
-	/* Handling TX */
-	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
-	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
-				     struct iwl_tx_queue *txq,
-				     dma_addr_t addr,
-				     u16 len, u8 reset, u8 pad);
-	void (*txq_free_tfd)(struct iwl_priv *priv,
-			     struct iwl_tx_queue *txq);
-	int (*txq_init)(struct iwl_priv *priv,
-			struct iwl_tx_queue *txq);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* setup deferred work */

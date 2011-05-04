@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <net/mac80211.h>
 #include "iwl-eeprom.h"
+#include "iwl-agn.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-sta.h"
@@ -85,6 +86,154 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	txq->need_update = 0;
 }
 
+static inline dma_addr_t iwl_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+	dma_addr_t addr = get_unaligned_le32(&tb->lo);
+	if (sizeof(dma_addr_t) > sizeof(u32))
+		addr |=
+		((dma_addr_t)(le16_to_cpu(tb->hi_n_len) & 0xF) << 16) << 16;
+
+	return addr;
+}
+
+static inline u16 iwl_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+static inline void iwl_tfd_set_tb(struct iwl_tfd *tfd, u8 idx,
+				  dma_addr_t addr, u16 len)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	u16 hi_n_len = len << 4;
+
+	put_unaligned_le32(addr, &tb->lo);
+	if (sizeof(dma_addr_t) > sizeof(u32))
+		hi_n_len |= ((addr >> 16) >> 16) & 0xF;
+
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
+
+	tfd->num_tbs = idx + 1;
+}
+
+static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
+{
+	return tfd->num_tbs & 0x1f;
+}
+
+/**
+ * iwlagn_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
+ * @priv - driver private data
+ * @txq - tx queue
+ *
+ * Does NOT advance any TFD circular buffer read/write indexes
+ * Does NOT free the TFD itself (which is within circular buffer)
+ */
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+{
+	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)txq->tfds;
+	struct iwl_tfd *tfd;
+	struct pci_dev *dev = priv->pci_dev;
+	int index = txq->q.read_ptr;
+	int i;
+	int num_tbs;
+
+	tfd = &tfd_tmp[index];
+
+	/* Sanity check on number of chunks */
+	num_tbs = iwl_tfd_get_num_tbs(tfd);
+
+	if (num_tbs >= IWL_NUM_OF_TBS) {
+		IWL_ERR(priv, "Too many chunks: %i\n", num_tbs);
+		/* @todo issue fatal error, it is quite serious situation */
+		return;
+	}
+
+	/* Unmap tx_cmd */
+	if (num_tbs)
+		pci_unmap_single(dev,
+				dma_unmap_addr(&txq->meta[index], mapping),
+				dma_unmap_len(&txq->meta[index], len),
+				PCI_DMA_BIDIRECTIONAL);
+
+	/* Unmap chunks, if any. */
+	for (i = 1; i < num_tbs; i++)
+		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
+				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
+
+	/* free SKB */
+	if (txq->txb) {
+		struct sk_buff *skb;
+
+		skb = txq->txb[txq->q.read_ptr].skb;
+
+		/* can be called from irqs-disabled context */
+		if (skb) {
+			dev_kfree_skb_any(skb);
+			txq->txb[txq->q.read_ptr].skb = NULL;
+		}
+	}
+}
+
+int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len,
+				 u8 reset, u8 pad)
+{
+	struct iwl_queue *q;
+	struct iwl_tfd *tfd, *tfd_tmp;
+	u32 num_tbs;
+
+	q = &txq->q;
+	tfd_tmp = (struct iwl_tfd *)txq->tfds;
+	tfd = &tfd_tmp[q->write_ptr];
+
+	if (reset)
+		memset(tfd, 0, sizeof(*tfd));
+
+	num_tbs = iwl_tfd_get_num_tbs(tfd);
+
+	/* Each TFD can point to a maximum 20 Tx buffers */
+	if (num_tbs >= IWL_NUM_OF_TBS) {
+		IWL_ERR(priv, "Error can not send more than %d chunks\n",
+			  IWL_NUM_OF_TBS);
+		return -EINVAL;
+	}
+
+	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
+		return -EINVAL;
+
+	if (unlikely(addr & ~IWL_TX_DMA_MASK))
+		IWL_ERR(priv, "Unaligned address = %llx\n",
+			  (unsigned long long)addr);
+
+	iwl_tfd_set_tb(tfd, num_tbs, addr, len);
+
+	return 0;
+}
+
+/*
+ * Tell nic where to find circular buffer of Tx Frame Descriptors for
+ * given Tx queue, and enable the DMA channel used for that queue.
+ *
+ * supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
+ * channels supported in hardware.
+ */
+static int iwlagn_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+{
+	int txq_id = txq->q.id;
+
+	/* Circular buffer (TFD queue in DRAM) physical base address */
+	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
+			     txq->q.dma_addr >> 8);
+
+	return 0;
+}
+
 /**
  * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
@@ -97,7 +246,7 @@ void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
 		return;
 
 	 while (q->write_ptr != q->read_ptr) {
-		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+		iwlagn_txq_free_tfd(priv, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
@@ -391,7 +540,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		return ret;
 
 	/* Tell device where to find queue */
-	priv->cfg->ops->lib->txq_init(priv, txq);
+	iwlagn_tx_queue_init(priv, txq);
 
 	return 0;
 err:
@@ -420,7 +569,7 @@ void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	priv->cfg->ops->lib->txq_init(priv, txq);
+	iwlagn_tx_queue_init(priv, txq);
 }
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
@@ -553,9 +702,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
-	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
-						   phys_addr, fix_size, 1,
-						   U32_PAD(cmd->len[0]));
+	iwlagn_txq_attach_buf_to_tfd(priv, txq, phys_addr, fix_size, 1,
+				     U32_PAD(cmd->len[0]));
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);

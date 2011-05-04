@@ -440,7 +440,7 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 			IWL_MASK(0, priv->hw_params.max_txq_num));
 
 	/* Activate all Tx DMA/FIFO channels */
-	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
+	iwlagn_txq_set_sched(priv, IWL_MASK(0, 7));
 
 	/* map queues to FIFOs */
 	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
