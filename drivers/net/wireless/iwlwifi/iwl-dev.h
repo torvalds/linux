@@ -48,8 +48,6 @@
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
 
-#define U32_PAD(n)		((4-(n))&0x3)
-
 struct iwl_tx_queue;
 
 /* CT-KILL constants */

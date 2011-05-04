@@ -182,7 +182,7 @@ void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 struct iwl_tx_queue *txq,
 				 dma_addr_t addr, u16 len,
-				 u8 reset, u8 pad)
+				 u8 reset)
 {
 	struct iwl_queue *q;
 	struct iwl_tfd *tfd, *tfd_tmp;
@@ -702,8 +702,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
-	iwlagn_txq_attach_buf_to_tfd(priv, txq, phys_addr, fix_size, 1,
-				     U32_PAD(cmd->len[0]));
+	iwlagn_txq_attach_buf_to_tfd(priv, txq, phys_addr, fix_size, 1);
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
