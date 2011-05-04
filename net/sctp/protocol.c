@@ -339,13 +339,12 @@ static int sctp_v4_to_addr_param(const union sctp_addr *addr,
 }
 
 /* Initialize a sctp_addr from a dst_entry. */
-static void sctp_v4_dst_saddr(union sctp_addr *saddr, struct dst_entry *dst,
+static void sctp_v4_dst_saddr(union sctp_addr *saddr, struct flowi4 *fl4,
 			      __be16 port)
 {
-	struct rtable *rt = (struct rtable *)dst;
 	saddr->v4.sin_family = AF_INET;
 	saddr->v4.sin_port = port;
-	saddr->v4.sin_addr.s_addr = rt->rt_src;
+	saddr->v4.sin_addr.s_addr = fl4->saddr;
 }
 
 /* Compare two addresses exactly. */
@@ -508,7 +507,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
-		sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
+		sctp_v4_dst_saddr(&dst_saddr, fl4, htons(bp->port));
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
@@ -550,7 +549,7 @@ out:
 	t->dst = dst;
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%pI4, rt_src:%pI4\n",
-				  &rt->rt_dst, &rt->rt_src);
+				  &fl4->daddr, &fl4->saddr);
 	else
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
 }
