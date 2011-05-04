@@ -135,12 +135,6 @@
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-/* Packet free applicable unconditionally for sdio and sdspi.  Conditional if
- * bufpool was present for gspi bus.
- */
-#define PKTFREE2()		if ((bus->bus != SPI_BUS) || bus->usebufpool) \
-							pkt_buf_free_skb(pkt);
-
 /*
  * Conversion of 802.1D priority to precedence level
  */
@@ -436,8 +430,6 @@ do { \
 
 #define HOSTINTMASK		(I_HMB_SW_MASK | I_CHIPACTIVE)
 
-#define GSPI_PR55150_BAILOUT
-
 #ifdef SDTEST
 static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq);
 static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start);
@@ -462,10 +454,6 @@ static void dhdsdio_release_dongle(dhd_bus_t *bus);
 static uint process_nvram_vars(char *varbuf, uint len);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size);
-static int dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn,
-			       uint flags, u8 *buf, uint nbytes,
-			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
-			       void *handle);
 static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes,
 			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
@@ -485,6 +473,17 @@ static void dhdsdio_chip_resetcore(bcmsdh_info_t *sdh, u32 corebase);
 static void dhdsdio_sdiod_drive_strength_init(struct dhd_bus *bus,
 					u32 drivestrength);
 static void dhdsdio_chip_detach(struct dhd_bus *bus);
+
+/* Packet free applicable unconditionally for sdio and sdspi.
+ * Conditional if bufpool was present for gspi bus.
+ */
+static void dhdsdio_pktfree2(dhd_bus_t *bus, struct sk_buff *pkt)
+{
+	dhd_os_sdlock_rxq(bus->dhd);
+	if ((bus->bus != SPI_BUS) || bus->usebufpool)
+		pkt_buf_free_skb(pkt);
+	dhd_os_sdunlock_rxq(bus->dhd);
+}
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size)
 {
@@ -3100,10 +3099,9 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 	}
 
 	/* Read remainder of frame body into the rxctl buffer */
-	sdret =
-	    dhd_bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2, F2SYNC,
-				(bus->rxctl + firstread), rdlen, NULL, NULL,
-				NULL);
+	sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
+				F2SYNC, (bus->rxctl + firstread), rdlen,
+				NULL, NULL, NULL);
 	bus->f2rxdata++;
 	ASSERT(sdret != -BCME_PENDING);
 
@@ -3264,20 +3262,16 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		 * packet and and copy into the chain.
 		 */
 		if (usechain) {
-			errcode = dhd_bcmsdh_recv_buf(bus,
-						      bcmsdh_cur_sbwad
-						      (bus->sdh), SDIO_FUNC_2,
-						      F2SYNC,
-						      (u8 *) pfirst->data,
-						      dlen, pfirst, NULL, NULL);
+			errcode = bcmsdh_recv_buf(bus,
+					bcmsdh_cur_sbwad(bus->sdh), SDIO_FUNC_2,
+					F2SYNC, (u8 *) pfirst->data, dlen,
+					pfirst, NULL, NULL);
 		} else if (bus->dataptr) {
-			errcode = dhd_bcmsdh_recv_buf(bus,
-						      bcmsdh_cur_sbwad
-						      (bus->sdh), SDIO_FUNC_2,
-						      F2SYNC, bus->dataptr,
-						      dlen, NULL, NULL, NULL);
-			sublen =
-			    (u16) pktfrombuf(pfirst, 0, dlen,
+			errcode = bcmsdh_recv_buf(bus,
+					bcmsdh_cur_sbwad(bus->sdh), SDIO_FUNC_2,
+					F2SYNC, bus->dataptr, dlen,
+					NULL, NULL, NULL);
+			sublen = (u16) pktfrombuf(pfirst, 0, dlen,
 						bus->dataptr);
 			if (sublen != dlen) {
 				DHD_ERROR(("%s: FAILED TO COPY, dlen %d sublen %d\n",
@@ -3544,7 +3538,6 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 	u16 len, check;	/* Extracted hardware header fields */
 	u8 chan, seq, doff;	/* Extracted software header fields */
 	u8 fcbits;		/* Extracted fcbits from software header */
-	u8 delta;
 
 	struct sk_buff *pkt;		/* Packet for event or data frames */
 	u16 pad;		/* Number of pad bytes to read */
@@ -3650,14 +3643,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					ASSERT(bus->rxctl >= bus->rxbuf);
 					rxbuf = bus->rxctl;
 					/* Read the entire frame */
-					sdret = dhd_bcmsdh_recv_buf(bus,
-						    bcmsdh_cur_sbwad
-						    (sdh),
-						    SDIO_FUNC_2,
-						    F2SYNC,
-						    rxbuf,
-						    rdlen, NULL,
-						    NULL, NULL);
+					sdret = bcmsdh_recv_buf(bus,
+						    bcmsdh_cur_sbwad(sdh),
+						    SDIO_FUNC_2, F2SYNC,
+						    rxbuf, rdlen,
+						    NULL, NULL, NULL);
 					bus->f2rxdata++;
 					ASSERT(sdret != -BCME_PENDING);
 
@@ -3694,12 +3684,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				PKTALIGN(pkt, rdlen, DHD_SDALIGN);
 				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
-				sdret =
-				    dhd_bcmsdh_recv_buf(bus,
+				sdret = bcmsdh_recv_buf(bus,
 						bcmsdh_cur_sbwad(sdh),
 						SDIO_FUNC_2, F2SYNC,
-						rxbuf, rdlen, pkt, NULL,
-						NULL);
+						rxbuf, rdlen,
+						pkt, NULL, NULL);
 				bus->f2rxdata++;
 				ASSERT(sdret != -BCME_PENDING);
 
@@ -3733,23 +3722,19 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if (!(len | check)) {
 				DHD_INFO(("%s (nextlen): read zeros in HW "
 					"header???\n", __func__));
-				dhd_os_sdlock_rxq(bus->dhd);
-				PKTFREE2();
-				dhd_os_sdunlock_rxq(bus->dhd);
-				GSPI_PR55150_BAILOUT;
+				dhdsdio_pktfree2(bus, pkt);
 				continue;
 			}
 
 			/* Validate check bytes */
 			if ((u16)~(len ^ check)) {
-				DHD_ERROR(("%s (nextlen): HW hdr error: nextlen/len/check" " 0x%04x/0x%04x/0x%04x\n",
+				DHD_ERROR(("%s (nextlen): HW hdr error:"
+					" nextlen/len/check"
+					" 0x%04x/0x%04x/0x%04x\n",
 					__func__, nextlen, len, check));
-				dhd_os_sdlock_rxq(bus->dhd);
-				PKTFREE2();
-				dhd_os_sdunlock_rxq(bus->dhd);
 				bus->rx_badhdr++;
 				dhdsdio_rxfail(bus, false, false);
-				GSPI_PR55150_BAILOUT;
+				dhdsdio_pktfree2(bus, pkt);
 				continue;
 			}
 
@@ -3757,10 +3742,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if (len < SDPCM_HDRLEN) {
 				DHD_ERROR(("%s (nextlen): HW hdr length "
 					"invalid: %d\n", __func__, len));
-				dhd_os_sdlock_rxq(bus->dhd);
-				PKTFREE2();
-				dhd_os_sdunlock_rxq(bus->dhd);
-				GSPI_PR55150_BAILOUT;
+				dhdsdio_pktfree2(bus, pkt);
 				continue;
 			}
 
@@ -3769,31 +3751,25 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if (len_consistent) {
 				/* Mismatch, force retry w/normal
 					header (may be >4K) */
-				DHD_ERROR(("%s (nextlen): mismatch, nextlen %d len %d rnd %d; " "expected rxseq %d\n",
+				DHD_ERROR(("%s (nextlen): mismatch, "
+					"nextlen %d len %d rnd %d; "
+					"expected rxseq %d\n",
 					__func__, nextlen,
 					len, roundup(len, 16), rxseq));
-				dhd_os_sdlock_rxq(bus->dhd);
-				PKTFREE2();
-				dhd_os_sdunlock_rxq(bus->dhd);
-				dhdsdio_rxfail(bus, true,
-					       (bus->bus ==
-						SPI_BUS) ? false : true);
-				GSPI_PR55150_BAILOUT;
+				dhdsdio_rxfail(bus, true, (bus->bus != SPI_BUS));
+				dhdsdio_pktfree2(bus, pkt);
 				continue;
 			}
 
 			/* Extract software header fields */
-			chan =
-			    SDPCM_PACKET_CHANNEL(&bus->rxhdr
-						 [SDPCM_FRAMETAG_LEN]);
-			seq =
-			    SDPCM_PACKET_SEQUENCE(&bus->rxhdr
-						  [SDPCM_FRAMETAG_LEN]);
-			doff =
-			    SDPCM_DOFFSET_VALUE(&bus->rxhdr
-						[SDPCM_FRAMETAG_LEN]);
-			txmax =
-			    SDPCM_WINDOW_VALUE(&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
+			chan = SDPCM_PACKET_CHANNEL(
+					&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
+			seq = SDPCM_PACKET_SEQUENCE(
+					&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
+			doff = SDPCM_DOFFSET_VALUE(
+					&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
+			txmax = SDPCM_WINDOW_VALUE(
+					&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
 
 			bus->nextlen =
 			    bus->rxhdr[SDPCM_FRAMETAG_LEN +
@@ -3805,21 +3781,18 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			}
 
 			bus->dhd->rx_readahead_cnt++;
+
 			/* Handle Flow Control */
-			fcbits =
-			    SDPCM_FCMASK_VALUE(&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
+			fcbits = SDPCM_FCMASK_VALUE(
+					&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
 
-			delta = 0;
-			if (~bus->flowcontrol & fcbits) {
-				bus->fc_xoff++;
-				delta = 1;
-			}
-			if (bus->flowcontrol & ~fcbits) {
-				bus->fc_xon++;
-				delta = 1;
-			}
+			if (bus->flowcontrol != fcbits) {
+				if (~bus->flowcontrol & fcbits)
+					bus->fc_xoff++;
 
-			if (delta) {
+				if (bus->flowcontrol & ~fcbits)
+					bus->fc_xon++;
+
 				bus->fc_rcvd++;
 				bus->flowcontrol = fcbits;
 			}
@@ -3852,23 +3825,15 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				if (bus->bus == SPI_BUS) {
 					dhdsdio_read_control(bus, rxbuf, len,
 							     doff);
-					if (bus->usebufpool) {
-						dhd_os_sdlock_rxq(bus->dhd);
-						pkt_buf_free_skb(pkt);
-						dhd_os_sdunlock_rxq(bus->dhd);
-					}
-					continue;
 				} else {
 					DHD_ERROR(("%s (nextlen): readahead on control" " packet %d?\n",
 						__func__, seq));
 					/* Force retry w/normal header read */
 					bus->nextlen = 0;
 					dhdsdio_rxfail(bus, false, true);
-					dhd_os_sdlock_rxq(bus->dhd);
-					PKTFREE2();
-					dhd_os_sdunlock_rxq(bus->dhd);
-					continue;
 				}
+				dhdsdio_pktfree2(bus, pkt);
+				continue;
 			}
 
 			if ((bus->bus == SPI_BUS) && !bus->usebufpool) {
@@ -3881,11 +3846,8 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if ((doff < SDPCM_HDRLEN) || (doff > len)) {
 				DHD_ERROR(("%s (nextlen): bad data offset %d: HW len %d min %d\n",
 					__func__, doff, len, SDPCM_HDRLEN));
-				dhd_os_sdlock_rxq(bus->dhd);
-				PKTFREE2();
-				dhd_os_sdunlock_rxq(bus->dhd);
-				ASSERT(0);
 				dhdsdio_rxfail(bus, false, false);
+				dhdsdio_pktfree2(bus, pkt);
 				continue;
 			}
 
@@ -3897,10 +3859,9 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			break;
 
 		/* Read frame header (hardware and software) */
-		sdret =
-		    dhd_bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
-					F2SYNC, bus->rxhdr, firstread, NULL,
-					NULL, NULL);
+		sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh),
+				SDIO_FUNC_2, F2SYNC, bus->rxhdr, firstread,
+				NULL, NULL, NULL);
 		bus->f2rxhdrs++;
 		ASSERT(sdret != -BCME_PENDING);
 
@@ -3972,17 +3933,13 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		/* Handle Flow Control */
 		fcbits = SDPCM_FCMASK_VALUE(&bus->rxhdr[SDPCM_FRAMETAG_LEN]);
 
-		delta = 0;
-		if (~bus->flowcontrol & fcbits) {
-			bus->fc_xoff++;
-			delta = 1;
-		}
-		if (bus->flowcontrol & ~fcbits) {
-			bus->fc_xon++;
-			delta = 1;
-		}
+		if (bus->flowcontrol != fcbits) {
+			if (~bus->flowcontrol & fcbits)
+				bus->fc_xoff++;
 
-		if (delta) {
+			if (bus->flowcontrol & ~fcbits)
+				bus->fc_xon++;
+
 			bus->fc_rcvd++;
 			bus->flowcontrol = fcbits;
 		}
@@ -4063,8 +4020,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		PKTALIGN(pkt, rdlen, DHD_SDALIGN);
 
 		/* Read the remaining frame data */
-		sdret =
-		    dhd_bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
+		sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
 					F2SYNC, ((u8 *) (pkt->data)), rdlen,
 					pkt, NULL, NULL);
 		bus->f2rxdata++;
@@ -4211,16 +4167,16 @@ static u32 dhdsdio_hostmail(dhd_bus_t *bus)
 
 	/*
 	 * Flow Control has been moved into the RX headers and this out of band
-	 * method isn't used any more.  Leae this here for possibly
-	 * remaining backward
-	 * compatible with older dongles
+	 * method isn't used any more.
+	 * remaining backward compatible with older dongles.
 	 */
 	if (hmb_data & HMB_DATA_FC) {
-		fcbits =
-		    (hmb_data & HMB_DATA_FCDATA_MASK) >> HMB_DATA_FCDATA_SHIFT;
+		fcbits = (hmb_data & HMB_DATA_FCDATA_MASK) >>
+							HMB_DATA_FCDATA_SHIFT;
 
 		if (fcbits & ~bus->flowcontrol)
 			bus->fc_xoff++;
+
 		if (bus->flowcontrol & ~fcbits)
 			bus->fc_xon++;
 
@@ -5900,19 +5856,6 @@ err:
 	return bcmerror;
 }
 
-static int
-dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
-		    u8 *buf, uint nbytes, struct sk_buff *pkt,
-		    bcmsdh_cmplt_fn_t complete, void *handle)
-{
-	int status;
-
-	/* 4329: GSPI check */
-	status =
-	    bcmsdh_recv_buf(bus->sdh, addr, fn, flags, buf, nbytes, pkt,
-			    complete, handle);
-	return status;
-}
 
 static int
 dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,

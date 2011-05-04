@@ -1013,17 +1013,16 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 /*
  * This function takes a buffer or packet, and fixes everything up
- * so that in the
- * end, a DMA-able packet is created.
+ * so that in the end, a DMA-able packet is created.
  *
  * A buffer does not have an associated packet pointer,
  * and may or may not be aligned.
  * A packet may consist of a single packet, or a packet chain.
- * If it is a packet chain,
- * then all the packets in the chain must be properly aligned.
- * If the packet data is not
- * aligned, then there may only be one packet, and in this case,
- * it is copied to a new
+ * If it is a packet chain, then all the packets in the chain
+ * must be properly aligned.
+ *
+ * If the packet data is not aligned, then there may only be
+ * one packet, and in this case,  it is copied to a new
  * aligned packet.
  *
  */
