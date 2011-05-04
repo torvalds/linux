@@ -66,7 +66,7 @@ static void __init mpc8610_suspend_init(void)
 		return;
 	}
 
-	ret = request_irq(irq, mpc8610_sw9_irq, 0, "sw9/wakeup", NULL);
+	ret = request_irq(irq, mpc8610_sw9_irq, 0, "sw9:wakeup", NULL);
 	if (ret) {
 		pr_err("%s: can't request pixis event IRQ: %d\n",
 		       __func__, ret);
