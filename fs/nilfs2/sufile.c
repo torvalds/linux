@@ -33,7 +33,9 @@
 
 struct nilfs_sufile_info {
 	struct nilfs_mdt_info mi;
-	unsigned long ncleansegs;
+	unsigned long ncleansegs;/* number of clean segments */
+	__u64 allocmin;		/* lower limit of allocatable segment range */
+	__u64 allocmax;		/* upper limit of allocatable segment range */
 };
 
 static inline struct nilfs_sufile_info *NILFS_SUI(struct inode *sufile)
@@ -248,6 +250,35 @@ int nilfs_sufile_update(struct inode *sufile, __u64 segnum, int create,
 }
 
 /**
+ * nilfs_sufile_set_alloc_range - limit range of segment to be allocated
+ * @sufile: inode of segment usage file
+ * @start: minimum segment number of allocatable region (inclusive)
+ * @end: maximum segment number of allocatable region (inclusive)
+ *
+ * Return Value: On success, 0 is returned.  On error, one of the
+ * following negative error codes is returned.
+ *
+ * %-ERANGE - invalid segment region
+ */
+int nilfs_sufile_set_alloc_range(struct inode *sufile, __u64 start, __u64 end)
+{
+	struct nilfs_sufile_info *sui = NILFS_SUI(sufile);
+	__u64 nsegs;
+	int ret = -ERANGE;
+
+	down_write(&NILFS_MDT(sufile)->mi_sem);
+	nsegs = nilfs_sufile_get_nsegments(sufile);
+
+	if (start <= end && end < nsegs) {
+		sui->allocmin = start;
+		sui->allocmax = end;
+		ret = 0;
+	}
+	up_write(&NILFS_MDT(sufile)->mi_sem);
+	return ret;
+}
+
+/**
  * nilfs_sufile_alloc - allocate a segment
  * @sufile: inode of segment usage file
  * @segnump: pointer to segment number
@@ -269,11 +300,12 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 	struct buffer_head *header_bh, *su_bh;
 	struct nilfs_sufile_header *header;
 	struct nilfs_segment_usage *su;
+	struct nilfs_sufile_info *sui = NILFS_SUI(sufile);
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
 	__u64 segnum, maxsegnum, last_alloc;
 	void *kaddr;
-	unsigned long nsegments, ncleansegs, nsus;
-	int ret, i, j;
+	unsigned long nsegments, ncleansegs, nsus, cnt;
+	int ret, j;
 
 	down_write(&NILFS_MDT(sufile)->mi_sem);
 
@@ -287,13 +319,31 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 	kunmap_atomic(kaddr, KM_USER0);
 
 	nsegments = nilfs_sufile_get_nsegments(sufile);
+	maxsegnum = sui->allocmax;
 	segnum = last_alloc + 1;
-	maxsegnum = nsegments - 1;
-	for (i = 0; i < nsegments; i += nsus) {
-		if (segnum >= nsegments) {
-			/* wrap around */
-			segnum = 0;
-			maxsegnum = last_alloc;
+	if (segnum < sui->allocmin || segnum > sui->allocmax)
+		segnum = sui->allocmin;
+
+	for (cnt = 0; cnt < nsegments; cnt += nsus) {
+		if (segnum > maxsegnum) {
+			if (cnt < sui->allocmax - sui->allocmin + 1) {
+				/*
+				 * wrap around in the limited region.
+				 * if allocation started from
+				 * sui->allocmin, this never happens.
+				 */
+				segnum = sui->allocmin;
+				maxsegnum = last_alloc;
+			} else if (segnum > sui->allocmin &&
+				   sui->allocmax + 1 < nsegments) {
+				segnum = sui->allocmax + 1;
+				maxsegnum = nsegments - 1;
+			} else if (sui->allocmin > 0)  {
+				segnum = 0;
+				maxsegnum = sui->allocmin - 1;
+			} else {
+				break; /* never happens */
+			}
 		}
 		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 1,
 							   &su_bh);
@@ -319,7 +369,7 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 			header->sh_last_alloc = cpu_to_le64(segnum);
 			kunmap_atomic(kaddr, KM_USER0);
 
-			NILFS_SUI(sufile)->ncleansegs--;
+			sui->ncleansegs--;
 			nilfs_mdt_mark_buffer_dirty(header_bh);
 			nilfs_mdt_mark_buffer_dirty(su_bh);
 			nilfs_mdt_mark_dirty(sufile);
@@ -678,6 +728,9 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 	sui->ncleansegs = le64_to_cpu(header->sh_ncleansegs);
 	kunmap_atomic(kaddr, KM_USER0);
 	brelse(header_bh);
+
+	sui->allocmax = nilfs_sufile_get_nsegments(sufile) - 1;
+	sui->allocmin = 0;
 
 	unlock_new_inode(sufile);
  out:

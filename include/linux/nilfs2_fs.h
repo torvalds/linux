@@ -845,5 +845,7 @@ struct nilfs_bdesc {
 	_IOR(NILFS_IOCTL_IDENT, 0x8A, __u64)
 #define NILFS_IOCTL_RESIZE  \
 	_IOW(NILFS_IOCTL_IDENT, 0x8B, __u64)
+#define NILFS_IOCTL_SET_ALLOC_RANGE  \
+	_IOW(NILFS_IOCTL_IDENT, 0x8C, __u64[2])
 
 #endif	/* _LINUX_NILFS_FS_H */

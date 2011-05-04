@@ -36,6 +36,7 @@ static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 
 unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile);
 
+int nilfs_sufile_set_alloc_range(struct inode *sufile, __u64 start, __u64 end);
 int nilfs_sufile_alloc(struct inode *, __u64 *);
 int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum);
 int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
