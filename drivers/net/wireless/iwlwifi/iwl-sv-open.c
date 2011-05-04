@@ -103,6 +103,7 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
 
+	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
 };
 
 /*
@@ -443,6 +444,15 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			return -EFAULT;
 		break;
 
+	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
+		if (!tb[IWL_TM_ATTR_FIXRATE]) {
+			IWL_DEBUG_INFO(priv,
+				       "Error finding fixrate setting\n");
+			return -ENOMSG;
+		}
+		priv->dbg_fixed_rate = nla_get_u32(tb[IWL_TM_ATTR_FIXRATE]);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode driver command ID\n");
 		return -ENOSYS;
@@ -607,6 +617,7 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB:
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
+	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;

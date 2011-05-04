@@ -89,6 +89,7 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB,
 	IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW,
 	IWL_TM_CMD_APP2DEV_GET_EEPROM,
+	IWL_TM_CMD_APP2DEV_FIXRATE_REQ,
 	/* if there is other new command for the driver layer operation,
 	 * append them here */
 
@@ -166,6 +167,12 @@ enum iwl_tm_attr_t {
 	 */
 	IWL_TM_ATTR_TRACE_ADDR,
 	IWL_TM_ATTR_TRACE_DATA,
+
+	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_FIXRATE_REQ,
+	 * The mandatory fields are:
+	 * IWL_TM_ATTR_FIXRATE for the fixed rate
+	 */
+	IWL_TM_ATTR_FIXRATE,
 
 	IWL_TM_ATTR_MAX,
 };

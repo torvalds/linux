@@ -335,6 +335,32 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 	return tid;
 }
 
+#if defined(CONFIG_MAC80211_DEBUGFS) || defined(CONFIG_IWLWIFI_DEVICE_SVTOOL)
+static void rs_program_fix_rate(struct iwl_priv *priv,
+				struct iwl_lq_sta *lq_sta)
+{
+	struct iwl_station_priv *sta_priv =
+		container_of(lq_sta, struct iwl_station_priv, lq_sta);
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+
+	lq_sta->active_legacy_rate = 0x0FFF;	/* 1 - 54 MBits, includes CCK */
+	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
+	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
+	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
+
+	lq_sta->dbg_fixed_rate = priv->dbg_fixed_rate;
+
+	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
+		lq_sta->lq.sta_id, priv->dbg_fixed_rate);
+
+	if (priv->dbg_fixed_rate) {
+		rs_fill_link_cmd(NULL, lq_sta, priv->dbg_fixed_rate);
+		iwl_send_lq_cmd(lq_sta->drv, ctx, &lq_sta->lq, CMD_ASYNC,
+				false);
+	}
+}
+#endif
+
 /*
 	get the traffic load value for tid
 */
@@ -1046,7 +1072,10 @@ done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
-
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	if (priv->dbg_fixed_rate != lq_sta->dbg_fixed_rate)
+		rs_program_fix_rate(priv, lq_sta);
+#endif
 	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
@@ -2871,6 +2900,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
 
+	priv->dbg_fixed_rate = 0;
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
@@ -3045,7 +3075,6 @@ static void rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
 	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
-
 #ifdef CONFIG_MAC80211_DEBUGFS
 static int open_file_generic(struct inode *inode, struct file *file)
 {
@@ -3070,6 +3099,7 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 			IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 		} else {
 			lq_sta->dbg_fixed_rate = 0;
+			priv->dbg_fixed_rate = 0;
 			IWL_ERR(priv,
 			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
 			    ant_sel_tx, valid_tx_ant);
@@ -3088,9 +3118,7 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 	char buf[64];
 	int buf_size;
 	u32 parsed_rate;
-	struct iwl_station_priv *sta_priv =
-		container_of(lq_sta, struct iwl_station_priv, lq_sta);
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+
 
 	priv = lq_sta->drv;
 	memset(buf, 0, sizeof(buf));
@@ -3099,23 +3127,11 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 		return -EFAULT;
 
 	if (sscanf(buf, "%x", &parsed_rate) == 1)
-		lq_sta->dbg_fixed_rate = parsed_rate;
+		priv->dbg_fixed_rate = lq_sta->dbg_fixed_rate = parsed_rate;
 	else
-		lq_sta->dbg_fixed_rate = 0;
+		priv->dbg_fixed_rate = lq_sta->dbg_fixed_rate = 0;
 
-	lq_sta->active_legacy_rate = 0x0FFF;	/* 1 - 54 MBits, includes CCK */
-	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
-	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
-	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
-
-	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
-		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
-
-	if (lq_sta->dbg_fixed_rate) {
-		rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
-		iwl_send_lq_cmd(lq_sta->drv, ctx, &lq_sta->lq, CMD_ASYNC,
-				false);
-	}
+	rs_program_fix_rate(priv, lq_sta);
 
 	return count;
 }
@@ -3143,7 +3159,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->total_failed, lq_sta->total_success,
 			lq_sta->active_legacy_rate);
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
-			lq_sta->dbg_fixed_rate);
+			priv->dbg_fixed_rate);
 	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
 	    (priv->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
 	    (priv->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",
