@@ -25,6 +25,39 @@
 
 extern int num_queues;
 
+/************************ Macros ********************************/
+#define BNX2X_PCI_FREE(x, y, size) \
+	do { \
+		if (x) { \
+			dma_free_coherent(&bp->pdev->dev, size, (void *)x, y); \
+			x = NULL; \
+			y = 0; \
+		} \
+	} while (0)
+
+#define BNX2X_FREE(x) \
+	do { \
+		if (x) { \
+			kfree((void *)x); \
+			x = NULL; \
+		} \
+	} while (0)
+
+#define BNX2X_PCI_ALLOC(x, y, size) \
+	do { \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+		memset((void *)x, 0, size); \
+	} while (0)
+
+#define BNX2X_ALLOC(x, size) \
+	do { \
+		x = kzalloc(size, GFP_KERNEL); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+	} while (0)
+
 /*********************** Interfaces ****************************
  *  Functions that need to be implemented by each driver version
  */
@@ -377,6 +410,9 @@ int bnx2x_resume(struct pci_dev *pdev);
 
 /* Release IRQ vectors */
 void bnx2x_free_irq(struct bnx2x *bp);
+
+void bnx2x_free_fp_mem(struct bnx2x *bp);
+int bnx2x_alloc_fp_mem(struct bnx2x *bp);
 
 void bnx2x_init_rx_rings(struct bnx2x *bp);
 void bnx2x_free_skbs(struct bnx2x *bp);
@@ -884,6 +920,9 @@ static inline void bnx2x_free_rx_sge_range(struct bnx2x *bp,
 {
 	int i;
 
+	if (fp->disable_tpa)
+		return;
+
 	for (i = 0; i < last; i++)
 		bnx2x_free_rx_sge(bp, fp, i);
 }
@@ -912,36 +951,39 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 	}
 }
 
+static inline void bnx2x_init_tx_ring_one(struct bnx2x_fastpath *fp)
+{
+	int i;
+
+	for (i = 1; i <= NUM_TX_RINGS; i++) {
+		struct eth_tx_next_bd *tx_next_bd =
+			&fp->tx_desc_ring[TX_DESC_CNT * i - 1].next_bd;
+
+		tx_next_bd->addr_hi =
+			cpu_to_le32(U64_HI(fp->tx_desc_mapping +
+				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
+		tx_next_bd->addr_lo =
+			cpu_to_le32(U64_LO(fp->tx_desc_mapping +
+				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
+	}
+
+	SET_FLAG(fp->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
+	fp->tx_db.data.zero_fill1 = 0;
+	fp->tx_db.data.prod = 0;
+
+	fp->tx_pkt_prod = 0;
+	fp->tx_pkt_cons = 0;
+	fp->tx_bd_prod = 0;
+	fp->tx_bd_cons = 0;
+	fp->tx_pkt = 0;
+}
 
 static inline void bnx2x_init_tx_rings(struct bnx2x *bp)
 {
-	int i, j;
+	int i;
 
-	for_each_tx_queue(bp, j) {
-		struct bnx2x_fastpath *fp = &bp->fp[j];
-
-		for (i = 1; i <= NUM_TX_RINGS; i++) {
-			struct eth_tx_next_bd *tx_next_bd =
-				&fp->tx_desc_ring[TX_DESC_CNT * i - 1].next_bd;
-
-			tx_next_bd->addr_hi =
-				cpu_to_le32(U64_HI(fp->tx_desc_mapping +
-					    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
-			tx_next_bd->addr_lo =
-				cpu_to_le32(U64_LO(fp->tx_desc_mapping +
-					    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
-		}
-
-		SET_FLAG(fp->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
-		fp->tx_db.data.zero_fill1 = 0;
-		fp->tx_db.data.prod = 0;
-
-		fp->tx_pkt_prod = 0;
-		fp->tx_pkt_cons = 0;
-		fp->tx_bd_prod = 0;
-		fp->tx_bd_cons = 0;
-		fp->tx_pkt = 0;
-	}
+	for_each_tx_queue(bp, i)
+		bnx2x_init_tx_ring_one(&bp->fp[i]);
 }
 
 static inline void bnx2x_set_next_page_rx_bd(struct bnx2x_fastpath *fp)
@@ -994,6 +1036,44 @@ static inline void bnx2x_set_next_page_rx_cq(struct bnx2x_fastpath *fp)
 			cpu_to_le32(U64_LO(fp->rx_comp_mapping +
 				   BCM_PAGE_SIZE*(i % NUM_RCQ_RINGS)));
 	}
+}
+
+/* Returns the number of actually allocated BDs */
+static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
+				      int rx_ring_size)
+{
+	struct bnx2x *bp = fp->bp;
+	u16 ring_prod, cqe_ring_prod;
+	int i;
+
+	fp->rx_comp_cons = 0;
+	cqe_ring_prod = ring_prod = 0;
+
+	/* This routine is called only during fo init so
+	 * fp->eth_q_stats.rx_skb_alloc_failed = 0
+	 */
+	for (i = 0; i < rx_ring_size; i++) {
+		if (bnx2x_alloc_rx_skb(bp, fp, ring_prod) < 0) {
+			fp->eth_q_stats.rx_skb_alloc_failed++;
+			continue;
+		}
+		ring_prod = NEXT_RX_IDX(ring_prod);
+		cqe_ring_prod = NEXT_RCQ_IDX(cqe_ring_prod);
+		WARN_ON(ring_prod <= (i - fp->eth_q_stats.rx_skb_alloc_failed));
+	}
+
+	if (fp->eth_q_stats.rx_skb_alloc_failed)
+		BNX2X_ERR("was only able to allocate "
+			  "%d rx skbs on queue[%d]\n",
+			  (i - fp->eth_q_stats.rx_skb_alloc_failed), fp->index);
+
+	fp->rx_bd_prod = ring_prod;
+	/* Limit the CQE producer by the CQE ring size */
+	fp->rx_comp_prod = min_t(u16, NUM_RCQ_RINGS*RCQ_DESC_CNT,
+			       cqe_ring_prod);
+	fp->rx_pkt = fp->rx_calls = 0;
+
+	return i - fp->eth_q_stats.rx_skb_alloc_failed;
 }
 
 #ifdef BCM_CNIC

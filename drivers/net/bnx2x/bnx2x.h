@@ -473,7 +473,8 @@ struct bnx2x_fastpath {
 #define NUM_RX_BD			(RX_DESC_CNT * NUM_RX_RINGS)
 #define MAX_RX_BD			(NUM_RX_BD - 1)
 #define MAX_RX_AVAIL			(MAX_RX_DESC_CNT * NUM_RX_RINGS - 2)
-#define MIN_RX_AVAIL			128
+#define MIN_RX_SIZE_TPA			72
+#define MIN_RX_SIZE_NONTPA		10
 #define INIT_JUMBO_RX_RING_SIZE		MAX_RX_AVAIL
 #define INIT_RX_RING_SIZE		MAX_RX_AVAIL
 #define NEXT_RX_IDX(x)		((((x) & RX_DESC_MASK) == \

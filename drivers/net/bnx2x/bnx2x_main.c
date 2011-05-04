@@ -4447,7 +4447,7 @@ static void bnx2x_init_fp_sb(struct bnx2x *bp, int fp_idx)
 
 	fp->state = BNX2X_FP_STATE_CLOSED;
 
-	fp->index = fp->cid = fp_idx;
+	fp->cid = fp_idx;
 	fp->cl_id = BP_L_ID(bp) + fp_idx;
 	fp->fw_sb_id = bp->base_fw_ndsb + fp->cl_id + CNIC_CONTEXT_USE;
 	fp->igu_sb_id = bp->igu_base_sb + fp_idx + CNIC_CONTEXT_USE;
@@ -4559,9 +4559,11 @@ gunzip_nomem1:
 
 static void bnx2x_gunzip_end(struct bnx2x *bp)
 {
-	kfree(bp->strm->workspace);
-	kfree(bp->strm);
-	bp->strm = NULL;
+	if (bp->strm) {
+		kfree(bp->strm->workspace);
+		kfree(bp->strm);
+		bp->strm = NULL;
+	}
 
 	if (bp->gunzip_buf) {
 		dma_free_coherent(&bp->pdev->dev, FW_BUF_SIZE, bp->gunzip_buf,
@@ -5869,9 +5871,6 @@ int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
 
 	bp->dmae_ready = 0;
 	spin_lock_init(&bp->dmae_lock);
-	rc = bnx2x_gunzip_init(bp);
-	if (rc)
-		return rc;
 
 	switch (load_code) {
 	case FW_MSG_CODE_DRV_LOAD_COMMON:
@@ -5915,80 +5914,10 @@ init_hw_err:
 
 void bnx2x_free_mem(struct bnx2x *bp)
 {
-
-#define BNX2X_PCI_FREE(x, y, size) \
-	do { \
-		if (x) { \
-			dma_free_coherent(&bp->pdev->dev, size, (void *)x, y); \
-			x = NULL; \
-			y = 0; \
-		} \
-	} while (0)
-
-#define BNX2X_FREE(x) \
-	do { \
-		if (x) { \
-			kfree((void *)x); \
-			x = NULL; \
-		} \
-	} while (0)
-
-	int i;
+	bnx2x_gunzip_end(bp);
 
 	/* fastpath */
-	/* Common */
-	for_each_queue(bp, i) {
-#ifdef BCM_CNIC
-		/* FCoE client uses default status block */
-		if (IS_FCOE_IDX(i)) {
-			union host_hc_status_block *sb =
-				&bnx2x_fp(bp, i, status_blk);
-			memset(sb, 0, sizeof(union host_hc_status_block));
-			bnx2x_fp(bp, i, status_blk_mapping) = 0;
-		} else {
-#endif
-		/* status blocks */
-		if (CHIP_IS_E2(bp))
-			BNX2X_PCI_FREE(bnx2x_fp(bp, i, status_blk.e2_sb),
-				       bnx2x_fp(bp, i, status_blk_mapping),
-				       sizeof(struct host_hc_status_block_e2));
-		else
-			BNX2X_PCI_FREE(bnx2x_fp(bp, i, status_blk.e1x_sb),
-				       bnx2x_fp(bp, i, status_blk_mapping),
-				       sizeof(struct host_hc_status_block_e1x));
-#ifdef BCM_CNIC
-		}
-#endif
-	}
-	/* Rx */
-	for_each_rx_queue(bp, i) {
-
-		/* fastpath rx rings: rx_buf rx_desc rx_comp */
-		BNX2X_FREE(bnx2x_fp(bp, i, rx_buf_ring));
-		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_desc_ring),
-			       bnx2x_fp(bp, i, rx_desc_mapping),
-			       sizeof(struct eth_rx_bd) * NUM_RX_BD);
-
-		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_comp_ring),
-			       bnx2x_fp(bp, i, rx_comp_mapping),
-			       sizeof(struct eth_fast_path_rx_cqe) *
-			       NUM_RCQ_BD);
-
-		/* SGE ring */
-		BNX2X_FREE(bnx2x_fp(bp, i, rx_page_ring));
-		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_sge_ring),
-			       bnx2x_fp(bp, i, rx_sge_mapping),
-			       BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
-	}
-	/* Tx */
-	for_each_tx_queue(bp, i) {
-
-		/* fastpath tx rings: tx_buf tx_desc */
-		BNX2X_FREE(bnx2x_fp(bp, i, tx_buf_ring));
-		BNX2X_PCI_FREE(bnx2x_fp(bp, i, tx_desc_ring),
-			       bnx2x_fp(bp, i, tx_desc_mapping),
-			       sizeof(union eth_tx_bd_types) * NUM_TX_BD);
-	}
+	bnx2x_free_fp_mem(bp);
 	/* end of fastpath */
 
 	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
@@ -6021,101 +5950,13 @@ void bnx2x_free_mem(struct bnx2x *bp)
 		       BCM_PAGE_SIZE * NUM_EQ_PAGES);
 
 	BNX2X_FREE(bp->rx_indir_table);
-
-#undef BNX2X_PCI_FREE
-#undef BNX2X_KFREE
 }
 
-static inline void set_sb_shortcuts(struct bnx2x *bp, int index)
-{
-	union host_hc_status_block status_blk = bnx2x_fp(bp, index, status_blk);
-	if (CHIP_IS_E2(bp)) {
-		bnx2x_fp(bp, index, sb_index_values) =
-			(__le16 *)status_blk.e2_sb->sb.index_values;
-		bnx2x_fp(bp, index, sb_running_index) =
-			(__le16 *)status_blk.e2_sb->sb.running_index;
-	} else {
-		bnx2x_fp(bp, index, sb_index_values) =
-			(__le16 *)status_blk.e1x_sb->sb.index_values;
-		bnx2x_fp(bp, index, sb_running_index) =
-			(__le16 *)status_blk.e1x_sb->sb.running_index;
-	}
-}
 
 int bnx2x_alloc_mem(struct bnx2x *bp)
 {
-#define BNX2X_PCI_ALLOC(x, y, size) \
-	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		memset(x, 0, size); \
-	} while (0)
-
-#define BNX2X_ALLOC(x, size) \
-	do { \
-		x = kzalloc(size, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-	} while (0)
-
-	int i;
-
-	/* fastpath */
-	/* Common */
-	for_each_queue(bp, i) {
-		union host_hc_status_block *sb = &bnx2x_fp(bp, i, status_blk);
-		bnx2x_fp(bp, i, bp) = bp;
-		/* status blocks */
-#ifdef BCM_CNIC
-		if (!IS_FCOE_IDX(i)) {
-#endif
-			if (CHIP_IS_E2(bp))
-				BNX2X_PCI_ALLOC(sb->e2_sb,
-				    &bnx2x_fp(bp, i, status_blk_mapping),
-				    sizeof(struct host_hc_status_block_e2));
-			else
-				BNX2X_PCI_ALLOC(sb->e1x_sb,
-				    &bnx2x_fp(bp, i, status_blk_mapping),
-				    sizeof(struct host_hc_status_block_e1x));
-#ifdef BCM_CNIC
-		}
-#endif
-		set_sb_shortcuts(bp, i);
-	}
-	/* Rx */
-	for_each_queue(bp, i) {
-
-		/* fastpath rx rings: rx_buf rx_desc rx_comp */
-		BNX2X_ALLOC(bnx2x_fp(bp, i, rx_buf_ring),
-				sizeof(struct sw_rx_bd) * NUM_RX_BD);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, rx_desc_ring),
-				&bnx2x_fp(bp, i, rx_desc_mapping),
-				sizeof(struct eth_rx_bd) * NUM_RX_BD);
-
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, rx_comp_ring),
-				&bnx2x_fp(bp, i, rx_comp_mapping),
-				sizeof(struct eth_fast_path_rx_cqe) *
-				NUM_RCQ_BD);
-
-		/* SGE ring */
-		BNX2X_ALLOC(bnx2x_fp(bp, i, rx_page_ring),
-				sizeof(struct sw_rx_page) * NUM_RX_SGE);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, rx_sge_ring),
-				&bnx2x_fp(bp, i, rx_sge_mapping),
-				BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
-	}
-	/* Tx */
-	for_each_queue(bp, i) {
-
-		/* fastpath tx rings: tx_buf tx_desc */
-		BNX2X_ALLOC(bnx2x_fp(bp, i, tx_buf_ring),
-				sizeof(struct sw_tx_bd) * NUM_TX_BD);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, tx_desc_ring),
-				&bnx2x_fp(bp, i, tx_desc_mapping),
-				sizeof(union eth_tx_bd_types) * NUM_TX_BD);
-	}
-	/* end of fastpath */
+	if (bnx2x_gunzip_init(bp))
+		return -ENOMEM;
 
 #ifdef BCM_CNIC
 	if (CHIP_IS_E2(bp))
@@ -6155,14 +5996,18 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 
 	BNX2X_ALLOC(bp->rx_indir_table, sizeof(bp->rx_indir_table[0]) *
 		    TSTORM_INDIRECTION_TABLE_SIZE);
+
+	/* fastpath */
+	/* need to be done at the end, since it's self adjusting to amount
+	 * of memory available for RSS queues
+	 */
+	if (bnx2x_alloc_fp_mem(bp))
+		goto alloc_mem_err;
 	return 0;
 
 alloc_mem_err:
 	bnx2x_free_mem(bp);
 	return -ENOMEM;
-
-#undef BNX2X_PCI_ALLOC
-#undef BNX2X_ALLOC
 }
 
 /*
