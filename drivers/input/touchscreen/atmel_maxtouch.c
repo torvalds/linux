@@ -2156,7 +2156,11 @@ static int __devexit mxt_remove(struct i2c_client *client)
 static int mxt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct mxt_data *mxt = i2c_get_clientdata(client);
+	char t7_buf[2] = {0, 0};
 
+	printk("Enter:%s, %d\n", __FUNCTION__, __LINE__);
+
+	mxt_write_block(client, MXT_BASE_ADDR(MXT_GEN_POWERCONFIG_T7, mxt), 2, t7_buf);
 	if (device_may_wakeup(&client->dev))
 		enable_irq_wake(mxt->irq);
 
@@ -2166,7 +2170,14 @@ static int mxt_suspend(struct i2c_client *client, pm_message_t mesg)
 static int mxt_resume(struct i2c_client *client)
 {
 	struct mxt_data *mxt = i2c_get_clientdata(client);
+	char t5_buf[16];
+	char t7_buf[2] = {32, 16};
 
+	printk("Enter:%s, %d\n", __FUNCTION__, __LINE__);
+
+	mxt_write_block(client, MXT_BASE_ADDR(MXT_GEN_POWERCONFIG_T7, mxt), 2, t7_buf);
+	mxt_read_block(client, MXT_BASE_ADDR(MXT_GEN_MESSAGEPROCESSOR_T5, mxt), 10, t5_buf);    
+    
 	if (device_may_wakeup(&client->dev))
 		disable_irq_wake(mxt->irq);
 
