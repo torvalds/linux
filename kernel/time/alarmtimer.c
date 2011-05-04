@@ -675,8 +675,14 @@ static int __init alarmtimer_init_late(void)
 	/* Find an rtc device and init the rtc_timer */
 	dev = class_find_device(rtc_class, NULL, &str, has_wakealarm);
 	/* If we have a device then str is valid. See has_wakealarm() */
-	if (dev)
+	if (dev) {
 		rtcdev = rtc_class_open(str);
+		/*
+		 * Drop the reference we got in class_find_device,
+		 * rtc_open takes its own.
+		 */
+		put_device(dev);
+	}
 	if (!rtcdev) {
 		printk(KERN_WARNING "No RTC device found, ALARM timers will"
 			" not wake from suspend");
