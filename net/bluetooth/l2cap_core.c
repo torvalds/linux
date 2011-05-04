@@ -250,7 +250,7 @@ static void l2cap_chan_timeout(unsigned long arg)
 	else
 		reason = ETIMEDOUT;
 
-	__l2cap_chan_close(chan, reason);
+	l2cap_chan_close(chan, reason);
 
 	bh_unlock_sock(sk);
 
@@ -383,16 +383,6 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	}
 }
 
-/* Must be called on unlocked socket. */
-static void l2cap_chan_close(struct sock *sk)
-{
-	l2cap_chan_clear_timer(l2cap_pi(sk)->chan);
-	lock_sock(sk);
-	__l2cap_chan_close(l2cap_pi(sk)->chan, ECONNRESET);
-	release_sock(sk);
-	l2cap_sock_kill(sk);
-}
-
 static void l2cap_chan_cleanup_listen(struct sock *parent)
 {
 	struct sock *sk;
@@ -400,14 +390,19 @@ static void l2cap_chan_cleanup_listen(struct sock *parent)
 	BT_DBG("parent %p", parent);
 
 	/* Close not yet accepted channels */
-	while ((sk = bt_accept_dequeue(parent, NULL)))
-		l2cap_chan_close(sk);
+	while ((sk = bt_accept_dequeue(parent, NULL))) {
+		l2cap_chan_clear_timer(l2cap_pi(sk)->chan);
+		lock_sock(sk);
+		l2cap_chan_close(l2cap_pi(sk)->chan, ECONNRESET);
+		release_sock(sk);
+		l2cap_sock_kill(sk);
+	}
 
 	parent->sk_state = BT_CLOSED;
 	sock_set_flag(parent, SOCK_ZAPPED);
 }
 
-void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
+void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct sock *sk = chan->sk;
@@ -724,10 +719,10 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					conn->feat_mask)
 					&& chan->conf_state &
 					L2CAP_CONF_STATE2_DEVICE) {
-				/* __l2cap_chan_close() calls list_del(chan)
+				/* l2cap_chan_close() calls list_del(chan)
 				 * so release the lock */
 				read_unlock_bh(&conn->chan_lock);
-				 __l2cap_chan_close(chan, ECONNRESET);
+				 l2cap_chan_close(chan, ECONNRESET);
 				read_lock_bh(&conn->chan_lock);
 				bh_unlock_sock(sk);
 				continue;
@@ -4152,7 +4147,7 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 			l2cap_chan_clear_timer(chan);
 			l2cap_chan_set_timer(chan, HZ * 5);
 		} else if (chan->sec_level == BT_SECURITY_HIGH)
-			__l2cap_chan_close(chan, ECONNREFUSED);
+			l2cap_chan_close(chan, ECONNREFUSED);
 	} else {
 		if (chan->sec_level == BT_SECURITY_MEDIUM)
 			l2cap_chan_clear_timer(chan);
