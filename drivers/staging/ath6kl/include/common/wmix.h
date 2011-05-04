@@ -144,7 +144,6 @@ typedef PREPACK struct {
  * All masks are 18-bit masks with bit N operating on GPIO pin N.
  */
 
-#include "gpio.h"
 
 /*
  * Set GPIO pin output state.

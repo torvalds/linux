@@ -34,7 +34,6 @@
 #include <ieee80211.h>
 #include <ieee80211_node.h>
 #include "dset_api.h"
-#include "gpio_api.h"
 #include "wmi_host.h"
 #include "a_drv.h"
 #include "a_drv_api.h"

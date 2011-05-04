@@ -48,8 +48,6 @@
 #include <ieee80211_ioctl.h>
 #include <wlan_api.h>
 #include <wmi_api.h>
-#include "gpio_api.h"
-#include "gpio.h"
 #include "pkt_log.h"
 #include "aggr_recv_api.h"
 #include <host_version.h>
