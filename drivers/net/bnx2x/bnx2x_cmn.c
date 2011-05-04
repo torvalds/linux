@@ -308,13 +308,15 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
  */
 #define TPA_TSTAMP_OPT_LEN	12
 /**
- * Calculate the approximate value of the MSS for this
- * aggregation using the first packet of it.
+ * bnx2x_set_lro_mss - calculate the approximate value of the MSS
  *
- * @param bp
- * @param parsing_flags Parsing flags from the START CQE
- * @param len_on_bd Total length of the first packet for the
- *		     aggregation.
+ * @bp:			driver handle
+ * @parsing_flags:	parsing flags from the START CQE
+ * @len_on_bd:		total length of the first packet for the
+ *			aggregation.
+ *
+ * Approximate value of the MSS for this aggregation calculated using
+ * the first packet of it.
  */
 static inline u16 bnx2x_set_lro_mss(struct bnx2x *bp, u16 parsing_flags,
 				    u16 len_on_bd)
@@ -2083,12 +2085,11 @@ static inline void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
 }
 
 /**
- * Update PBD in GSO case.
+ * bnx2x_set_pbd_gso - update PBD in GSO case.
  *
- * @param skb
- * @param tx_start_bd
- * @param pbd
- * @param xmit_type
+ * @skb:	packet skb
+ * @pbd:	parse BD
+ * @xmit_type:	xmit flags
  */
 static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
 				     struct eth_tx_parse_bd_e1x *pbd,
@@ -2115,13 +2116,14 @@ static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
 }
 
 /**
+ * bnx2x_set_pbd_csum_e2 - update PBD with checksum and return header length
  *
- * @param skb
- * @param tx_start_bd
- * @param pbd_e2
- * @param xmit_type
+ * @bp:			driver handle
+ * @skb:		packet skb
+ * @parsing_data:	data to be updated
+ * @xmit_type:		xmit flags
  *
- * @return header len
+ * 57712 related
  */
 static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
 	u32 *parsing_data, u32 xmit_type)
@@ -2146,13 +2148,12 @@ static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
 }
 
 /**
+ * bnx2x_set_pbd_csum - update PBD with checksum and return header length
  *
- * @param skb
- * @param tx_start_bd
- * @param pbd
- * @param xmit_type
- *
- * @return Header length
+ * @bp:		driver handle
+ * @skb:	packet skb
+ * @pbd:	parse BD to be updated
+ * @xmit_type:	xmit flags
  */
 static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 	struct eth_tx_parse_bd_e1x *pbd,

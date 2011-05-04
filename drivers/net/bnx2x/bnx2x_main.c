@@ -6035,14 +6035,14 @@ static int bnx2x_func_stop(struct bnx2x *bp)
 }
 
 /**
- * Sets a MAC in a CAM for a few L2 Clients for E1x chips
+ * bnx2x_set_mac_addr_gen - set a MAC in a CAM for a few L2 Clients for E1x chips
  *
- * @param bp driver descriptor
- * @param set set or clear an entry (1 or 0)
- * @param mac pointer to a buffer containing a MAC
- * @param cl_bit_vec bit vector of clients to register a MAC for
- * @param cam_offset offset in a CAM to use
- * @param is_bcast is the set MAC a broadcast address (for E1 only)
+ * @bp:		driver handle
+ * @set:	set or clear an entry (1 or 0)
+ * @mac:	pointer to a buffer containing a MAC
+ * @cl_bit_vec:	bit vector of clients to register a MAC for
+ * @cam_offset:	offset in a CAM to use
+ * @is_bcast:	is the set MAC a broadcast address (for E1 only)
  */
 static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, const u8 *mac,
 				   u32 cl_bit_vec, u8 cam_offset,
@@ -6402,14 +6402,13 @@ void bnx2x_invalidate_e1h_mc_list(struct bnx2x *bp)
 
 #ifdef BCM_CNIC
 /**
- * Set iSCSI MAC(s) at the next enties in the CAM after the ETH
- * MAC(s). This function will wait until the ramdord completion
- * returns.
+ * bnx2x_set_iscsi_eth_mac_addr - set iSCSI MAC(s).
  *
- * @param bp driver handle
- * @param set set or clear the CAM entry
+ * @bp:		driver handle
+ * @set:	set or clear the CAM entry
  *
- * @return 0 if cussess, -ENODEV if ramrod doesn't return.
+ * This function will wait until the ramdord completion returns.
+ * Return 0 if success, -ENODEV if ramrod doesn't return.
  */
 static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set)
 {
@@ -6430,14 +6429,13 @@ static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set)
 }
 
 /**
- * Set FCoE L2 MAC(s) at the next enties in the CAM after the
- * ETH MAC(s). This function will wait until the ramdord
- * completion returns.
+ * bnx2x_set_fip_eth_mac_addr - set FCoE L2 MAC(s)
  *
- * @param bp driver handle
- * @param set set or clear the CAM entry
+ * @bp:		driver handle
+ * @set:	set or clear the CAM entry
  *
- * @return 0 if cussess, -ENODEV if ramrod doesn't return.
+ * This function will wait until the ramrod completion returns.
+ * Returns 0 if success, -ENODEV if ramrod doesn't return.
  */
 int bnx2x_set_fip_eth_mac_addr(struct bnx2x *bp, int set)
 {
@@ -6641,12 +6639,11 @@ static int bnx2x_setup_fw_client(struct bnx2x *bp,
 }
 
 /**
- * Configure interrupt mode according to current configuration.
+ * bnx2x_set_int_mode - configure interrupt mode
+ *
+ * @bp:		driver handle
+ *
  * In case of MSI-X it will also try to enable MSI-X.
- *
- * @param bp
- *
- * @return int
  */
 static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 {
@@ -7230,10 +7227,11 @@ static void bnx2x_clp_reset_prep(struct bnx2x *bp, u32 *magic_val)
 	MF_CFG_WR(bp, shared_mf_config.clp_mb, val | SHARED_MF_CLP_MAGIC);
 }
 
-/* Restore the value of the `magic' bit.
+/**
+ * bnx2x_clp_reset_done - restore the value of the `magic' bit.
  *
- * @param pdev Device handle.
- * @param magic_val Old value of the `magic' bit.
+ * @bp:		driver handle
+ * @magic_val:	old value of the `magic' bit.
  */
 static void bnx2x_clp_reset_done(struct bnx2x *bp, u32 magic_val)
 {
@@ -7244,10 +7242,12 @@ static void bnx2x_clp_reset_done(struct bnx2x *bp, u32 magic_val)
 }
 
 /**
- * Prepares for MCP reset: takes care of CLP configurations.
+ * bnx2x_reset_mcp_prep - prepare for MCP reset.
  *
- * @param bp
- * @param magic_val Old value of 'magic' bit.
+ * @bp:		driver handle
+ * @magic_val:	old value of 'magic' bit.
+ *
+ * Takes care of CLP configurations.
  */
 static void bnx2x_reset_mcp_prep(struct bnx2x *bp, u32 *magic_val)
 {
@@ -7272,10 +7272,10 @@ static void bnx2x_reset_mcp_prep(struct bnx2x *bp, u32 *magic_val)
 #define MCP_TIMEOUT      5000   /* 5 seconds (in ms) */
 #define MCP_ONE_TIMEOUT  100    /* 100 ms */
 
-/* Waits for MCP_ONE_TIMEOUT or MCP_ONE_TIMEOUT*10,
- * depending on the HW type.
+/**
+ * bnx2x_mcp_wait_one - wait for MCP_ONE_TIMEOUT
  *
- * @param bp
+ * @bp:	driver handle
  */
 static inline void bnx2x_mcp_wait_one(struct bnx2x *bp)
 {
