@@ -537,6 +537,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct sk_buff *skb2;
 	const struct iphdr *eiph;
 	struct rtable *rt;
+	struct flowi4 fl4;
 
 	err = ip6_tnl_err(skb, IPPROTO_IPIP, opt, &rel_type, &rel_code,
 			  &rel_msg, &rel_info, offset);
@@ -577,7 +578,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	eiph = ip_hdr(skb2);
 
 	/* Try to guess incoming interface */
-	rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+	rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
 				   eiph->saddr, 0,
 				   0, 0,
 				   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
@@ -590,7 +591,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);
 		rt = NULL;
-		rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+		rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
 					   eiph->daddr, eiph->saddr,
 					   0, 0,
 					   IPPROTO_IPIP,

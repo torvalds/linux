@@ -137,20 +137,19 @@ static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
 	return ip_route_output_key(net, &fl4);
 }
 
-static inline struct rtable *ip_route_output_ports(struct net *net, struct sock *sk,
+static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi4 *fl4,
+						   struct sock *sk,
 						   __be32 daddr, __be32 saddr,
 						   __be16 dport, __be16 sport,
 						   __u8 proto, __u8 tos, int oif)
 {
-	struct flowi4 fl4;
-
-	flowi4_init_output(&fl4, oif, sk ? sk->sk_mark : 0, tos,
+	flowi4_init_output(fl4, oif, sk ? sk->sk_mark : 0, tos,
 			   RT_SCOPE_UNIVERSE, proto,
 			   sk ? inet_sk_flowi_flags(sk) : 0,
 			   daddr, saddr, dport, sport);
 	if (sk)
-		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
-	return ip_route_output_flow(net, &fl4, sk);
+		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+	return ip_route_output_flow(net, fl4, sk);
 }
 
 static inline struct rtable *ip_route_output_gre(struct net *net,

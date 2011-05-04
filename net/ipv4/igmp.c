@@ -309,6 +309,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	struct iphdr *pip;
 	struct igmpv3_report *pig;
 	struct net *net = dev_net(dev);
+	struct flowi4 fl4;
 
 	while (1) {
 		skb = alloc_skb(size + LL_ALLOCATED_SPACE(dev),
@@ -321,7 +322,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	}
 	igmp_skb_size(skb) = size;
 
-	rt = ip_route_output_ports(net, NULL, IGMPV3_ALL_MCR, 0,
+	rt = ip_route_output_ports(net, &fl4, NULL, IGMPV3_ALL_MCR, 0,
 				   0, 0,
 				   IPPROTO_IGMP, 0, dev->ifindex);
 	if (IS_ERR(rt)) {
@@ -650,6 +651,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	struct net_device *dev = in_dev->dev;
 	struct net *net = dev_net(dev);
 	__be32	group = pmc ? pmc->multiaddr : 0;
+	struct flowi4 fl4;
 	__be32	dst;
 
 	if (type == IGMPV3_HOST_MEMBERSHIP_REPORT)
@@ -659,7 +661,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	else
 		dst = group;
 
-	rt = ip_route_output_ports(net, NULL, dst, 0,
+	rt = ip_route_output_ports(net, &fl4, NULL, dst, 0,
 				   0, 0,
 				   IPPROTO_IGMP, 0, dev->ifindex);
 	if (IS_ERR(rt))

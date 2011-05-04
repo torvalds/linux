@@ -1152,6 +1152,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
 	__be32 daddr;
 	struct ip_options_rcu *inet_opt;
+	struct flowi4 fl4;
 	int err;
 
 	/* Route is OK, nothing to do. */
@@ -1165,7 +1166,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	if (inet_opt && inet_opt->opt.srr)
 		daddr = inet_opt->opt.faddr;
 	rcu_read_unlock();
-	rt = ip_route_output_ports(sock_net(sk), sk, daddr, inet->inet_saddr,
+	rt = ip_route_output_ports(sock_net(sk), &fl4, sk, daddr, inet->inet_saddr,
 				   inet->inet_dport, inet->inet_sport,
 				   sk->sk_protocol, RT_CONN_FLAGS(sk),
 				   sk->sk_bound_dev_if);

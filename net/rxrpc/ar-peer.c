@@ -36,10 +36,11 @@ static void rxrpc_destroy_peer(struct work_struct *work);
 static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 {
 	struct rtable *rt;
+	struct flowi4 fl4;
 
 	peer->if_mtu = 1500;
 
-	rt = ip_route_output_ports(&init_net, NULL,
+	rt = ip_route_output_ports(&init_net, &fl4, NULL,
 				   peer->srx.transport.sin.sin_addr.s_addr, 0,
 				   htons(7000), htons(7001),
 				   IPPROTO_UDP, 0, 0);

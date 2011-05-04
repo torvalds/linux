@@ -442,6 +442,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	__be32 dst = tiph->daddr;
+	struct flowi4 fl4;
 	int    mtu;
 
 	if (skb->protocol != htons(ETH_P_IP))
@@ -460,7 +461,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_error_icmp;
 	}
 
-	rt = ip_route_output_ports(dev_net(dev), NULL,
+	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
 				   dst, tiph->saddr,
 				   0, 0,
 				   IPPROTO_IPIP, RT_TOS(tos),
@@ -578,13 +579,15 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct rtable *rt = ip_route_output_ports(dev_net(dev), NULL,
-							  iph->daddr, iph->saddr,
-							  0, 0,
-							  IPPROTO_IPIP,
-							  RT_TOS(iph->tos),
-							  tunnel->parms.link);
+		struct rtable *rt;
+		struct flowi4 fl4;
 
+		rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
+					   iph->daddr, iph->saddr,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(iph->tos),
+					   tunnel->parms.link);
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);

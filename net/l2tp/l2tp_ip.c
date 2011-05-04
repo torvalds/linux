@@ -471,6 +471,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 
 	if (rt == NULL) {
 		struct ip_options_rcu *inet_opt;
+		struct flowi4 fl4;
 
 		rcu_read_lock();
 		inet_opt = rcu_dereference(inet->inet_opt);
@@ -485,7 +486,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 		 * keep trying until route appears or the connection times
 		 * itself out.
 		 */
-		rt = ip_route_output_ports(sock_net(sk), sk,
+		rt = ip_route_output_ports(sock_net(sk), &fl4, sk,
 					   daddr, inet->inet_saddr,
 					   inet->inet_dport, inet->inet_sport,
 					   sk->sk_protocol, RT_CONN_FLAGS(sk),

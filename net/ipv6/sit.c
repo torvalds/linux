@@ -674,6 +674,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	__be32 dst = tiph->daddr;
+	struct flowi4 fl4;
 	int    mtu;
 	const struct in6_addr *addr6;
 	int addr_type;
@@ -733,7 +734,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		dst = addr6->s6_addr32[3];
 	}
 
-	rt = ip_route_output_ports(dev_net(dev), NULL,
+	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
 				   dst, tiph->saddr,
 				   0, 0,
 				   IPPROTO_IPV6, RT_TOS(tos),
@@ -851,12 +852,13 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	struct net_device *tdev = NULL;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
+	struct flowi4 fl4;
 
 	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct rtable *rt = ip_route_output_ports(dev_net(dev), NULL,
+		struct rtable *rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
 							  iph->daddr, iph->saddr,
 							  0, 0,
 							  IPPROTO_IPV6,
