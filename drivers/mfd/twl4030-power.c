@@ -485,9 +485,9 @@ int twl4030_remove_script(u8 flags)
 			return err;
 	}
 	if (flags & TWL4030_WAKEUP12_SCRIPT) {
-		if (err)
 		err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, END_OF_SCRIPT,
 				R_SEQ_ADD_S2A12);
+		if (err)
 			return err;
 	}
 	if (flags & TWL4030_WAKEUP3_SCRIPT) {
