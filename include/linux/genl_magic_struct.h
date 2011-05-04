@@ -86,8 +86,8 @@ enum {
 
 /* possible field types */
 #define __flg_field(attr_nr, attr_flag, name) \
-	__field(attr_nr, attr_flag, name, NLA_FLAG, char, \
-			nla_get_flag, __nla_put_flag)
+	__field(attr_nr, attr_flag, name, NLA_U8, char, \
+			nla_get_u8, NLA_PUT_U8)
 #define __u8_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U8, unsigned char, \
 			nla_get_u8, NLA_PUT_U8)
@@ -117,12 +117,6 @@ enum {
 	__u32_field(attr_nr, attr_flag, name)
 #define __str_field_def(attr_nr, attr_flag, name, maxlen) \
 	__str_field(attr_nr, attr_flag, name, maxlen)
-
-#define __nla_put_flag(skb, attrtype, value)		\
-	do {						\
-		if (value)				\
-			NLA_PUT_FLAG(skb, attrtype);	\
-	} while (0)
 
 #define GENL_op_init(args...)	args
 #define GENL_doit(handler)		\
