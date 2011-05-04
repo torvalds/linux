@@ -1000,8 +1000,10 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 
+#ifdef CONFIG_FB
 	if (!mode_option)
 		mode_option = fb_mode_option;
+#endif
 
 	if (!mode_option) {
 		mode->specified = false;
