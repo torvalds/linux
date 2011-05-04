@@ -698,6 +698,31 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 	return 0;
 }
 
+static int nilfs_ioctl_resize(struct inode *inode, struct file *filp,
+			      void __user *argp)
+{
+	__u64 newsize;
+	int ret = -EPERM;
+
+	if (!capable(CAP_SYS_ADMIN))
+		goto out;
+
+	ret = mnt_want_write(filp->f_path.mnt);
+	if (ret)
+		goto out;
+
+	ret = -EFAULT;
+	if (copy_from_user(&newsize, argp, sizeof(newsize)))
+		goto out_drop_write;
+
+	ret = nilfs_resize_fs(inode->i_sb, newsize);
+
+out_drop_write:
+	mnt_drop_write(filp->f_path.mnt);
+out:
+	return ret;
+}
+
 static int nilfs_ioctl_set_alloc_range(struct inode *inode, void __user *argp)
 {
 	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
@@ -795,6 +820,8 @@ long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return nilfs_ioctl_clean_segments(inode, filp, cmd, argp);
 	case NILFS_IOCTL_SYNC:
 		return nilfs_ioctl_sync(inode, filp, cmd, argp);
+	case NILFS_IOCTL_RESIZE:
+		return nilfs_ioctl_resize(inode, filp, argp);
 	case NILFS_IOCTL_SET_ALLOC_RANGE:
 		return nilfs_ioctl_set_alloc_range(inode, argp);
 	default:

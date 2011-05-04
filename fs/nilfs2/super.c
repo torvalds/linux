@@ -56,6 +56,7 @@
 #include "btnode.h"
 #include "page.h"
 #include "cpfile.h"
+#include "sufile.h" /* nilfs_sufile_resize(), nilfs_sufile_set_alloc_range() */
 #include "ifile.h"
 #include "dat.h"
 #include "segment.h"
@@ -400,6 +401,77 @@ static int nilfs_move_2nd_super(struct super_block *sb, loff_t sb2off)
 	} else {
 		brelse(nsbh);
 	}
+out:
+	return ret;
+}
+
+/**
+ * nilfs_resize_fs - resize the filesystem
+ * @sb: super block instance
+ * @newsize: new size of the filesystem (in bytes)
+ */
+int nilfs_resize_fs(struct super_block *sb, __u64 newsize)
+{
+	struct the_nilfs *nilfs = sb->s_fs_info;
+	struct nilfs_super_block **sbp;
+	__u64 devsize, newnsegs;
+	loff_t sb2off;
+	int ret;
+
+	ret = -ERANGE;
+	devsize = i_size_read(sb->s_bdev->bd_inode);
+	if (newsize > devsize)
+		goto out;
+
+	/*
+	 * Write lock is required to protect some functions depending
+	 * on the number of segments, the number of reserved segments,
+	 * and so forth.
+	 */
+	down_write(&nilfs->ns_segctor_sem);
+
+	sb2off = NILFS_SB2_OFFSET_BYTES(newsize);
+	newnsegs = sb2off >> nilfs->ns_blocksize_bits;
+	do_div(newnsegs, nilfs->ns_blocks_per_segment);
+
+	ret = nilfs_sufile_resize(nilfs->ns_sufile, newnsegs);
+	up_write(&nilfs->ns_segctor_sem);
+	if (ret < 0)
+		goto out;
+
+	ret = nilfs_construct_segment(sb);
+	if (ret < 0)
+		goto out;
+
+	down_write(&nilfs->ns_sem);
+	nilfs_move_2nd_super(sb, sb2off);
+	ret = -EIO;
+	sbp = nilfs_prepare_super(sb, 0);
+	if (likely(sbp)) {
+		nilfs_set_log_cursor(sbp[0], nilfs);
+		/*
+		 * Drop NILFS_RESIZE_FS flag for compatibility with
+		 * mount-time resize which may be implemented in a
+		 * future release.
+		 */
+		sbp[0]->s_state = cpu_to_le16(le16_to_cpu(sbp[0]->s_state) &
+					      ~NILFS_RESIZE_FS);
+		sbp[0]->s_dev_size = cpu_to_le64(newsize);
+		sbp[0]->s_nsegments = cpu_to_le64(nilfs->ns_nsegments);
+		if (sbp[1])
+			memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
+		ret = nilfs_commit_super(sb, NILFS_SB_COMMIT_ALL);
+	}
+	up_write(&nilfs->ns_sem);
+
+	/*
+	 * Reset the range of allocatable segments last.  This order
+	 * is important in the case of expansion because the secondary
+	 * superblock must be protected from log write until migration
+	 * completes.
+	 */
+	if (!ret)
+		nilfs_sufile_set_alloc_range(nilfs->ns_sufile, 0, newnsegs - 1);
 out:
 	return ret;
 }
