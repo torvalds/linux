@@ -80,6 +80,9 @@ static struct resource net2272_bfin_resources[] = {
 		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
 	}, {
+		.start = 1,
+		.flags = IORESOURCE_BUS,
+	}, {
 		.start = IRQ_PF10,
 		.end = IRQ_PF10,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -659,6 +662,41 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 };
 
+static int __init net2272_init(void)
+{
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+	int ret;
+
+	/* Set PF0 to 0, PF1 to 1 make /AMS3 work properly */
+	ret = gpio_request(GPIO_PF0, "net2272");
+	if (ret)
+		return ret;
+
+	ret = gpio_request(GPIO_PF1, "net2272");
+	if (ret) {
+		gpio_free(GPIO_PF0);
+		return ret;
+	}
+
+	ret = gpio_request(GPIO_PF11, "net2272");
+	if (ret) {
+		gpio_free(GPIO_PF0);
+		gpio_free(GPIO_PF1);
+		return ret;
+	}
+
+	gpio_direction_output(GPIO_PF0, 0);
+	gpio_direction_output(GPIO_PF1, 1);
+
+	/* Reset the USB chip */
+	gpio_direction_output(GPIO_PF11, 0);
+	mdelay(2);
+	gpio_set_value(GPIO_PF11, 1);
+#endif
+
+	return 0;
+}
+
 static int __init stamp_init(void)
 {
 	int ret;
@@ -684,6 +722,9 @@ static int __init stamp_init(void)
 		gpio_free(GPIO_PF0);
 	}
 #endif
+
+	if (net2272_init())
+		pr_warning("unable to configure net2272; it probably won't work\n");
 
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 	return 0;
