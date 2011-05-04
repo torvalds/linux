@@ -189,6 +189,7 @@ struct xfs_busy_extent {
 	xfs_extlen_t	length;
 	unsigned int	flags;
 #define XFS_ALLOC_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
+#define XFS_ALLOC_BUSY_SKIP_DISCARD	0x02	/* do not discard */
 };
 
 /*
