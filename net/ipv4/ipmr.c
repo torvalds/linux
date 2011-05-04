@@ -1788,12 +1788,14 @@ dont_forward:
 	return 0;
 }
 
-static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct rtable *rt)
+static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 {
+	struct rtable *rt = skb_rtable(skb);
+	struct iphdr *iph = ip_hdr(skb);
 	struct flowi4 fl4 = {
-		.daddr = rt->rt_key_dst,
-		.saddr = rt->rt_key_src,
-		.flowi4_tos = rt->rt_tos,
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
+		.flowi4_tos = iph->tos,
 		.flowi4_oif = rt->rt_oif,
 		.flowi4_iif = rt->rt_iif,
 		.flowi4_mark = rt->rt_mark,
@@ -1825,7 +1827,7 @@ int ip_mr_input(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
 		goto dont_forward;
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt)) {
 		kfree_skb(skb);
 		return PTR_ERR(mrt);
@@ -1957,7 +1959,7 @@ int pim_rcv_v1(struct sk_buff *skb)
 
 	pim = igmp_hdr(skb);
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt))
 		goto drop;
 	if (!mrt->mroute_do_pim ||
@@ -1989,7 +1991,7 @@ static int pim_rcv(struct sk_buff *skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	mrt = ipmr_rt_fib_lookup(net, skb);
 	if (IS_ERR(mrt))
 		goto drop;
 	if (__pim_rcv(mrt, skb, sizeof(*pim))) {
