@@ -1288,7 +1288,6 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct fb_info *info = event->info;
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	int ret;
 
 	if (&ch->lcdc->notifier != nb)
 		return NOTIFY_DONE;
@@ -1302,7 +1301,6 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
-		pm_runtime_put(info->device);
 		sh_mobile_lcdc_stop(ch->lcdc);
 		break;
 	case FB_EVENT_RESUME:
@@ -1316,9 +1314,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			module_put(board_cfg->owner);
 		}
 
-		ret = sh_mobile_lcdc_start(ch->lcdc);
-		if (!ret)
-			pm_runtime_get_sync(info->device);
+		sh_mobile_lcdc_start(ch->lcdc);
 	}
 
 	return NOTIFY_OK;
