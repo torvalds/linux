@@ -111,6 +111,7 @@ struct sdhci_host {
 #define SDHCI_USE_ADMA		(1<<1)	/* Host is ADMA capable */
 #define SDHCI_REQ_USE_DMA	(1<<2)	/* Use DMA for this req. */
 #define SDHCI_DEVICE_DEAD	(1<<3)	/* Device unresponsive */
+#define SDHCI_SDR50_NEEDS_TUNING (1<<4)	/* SDR50 needs tuning */
 
 	unsigned int version;	/* SDHCI spec. version */
 
@@ -146,6 +147,9 @@ struct sdhci_host {
 	unsigned int            ocr_avail_sdio;	/* OCR bit masks */
 	unsigned int            ocr_avail_sd;
 	unsigned int            ocr_avail_mmc;
+
+	wait_queue_head_t	buf_ready_int;	/* Waitqueue for Buffer Read Ready interrupt */
+	unsigned int		tuning_done;	/* Condition flag set when CMD19 succeeds */
 
 	unsigned long private[0] ____cacheline_aligned;
 };
