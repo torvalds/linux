@@ -1065,6 +1065,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		case FBC_MULTIPLE_PIPES:
 			seq_printf(m, "multiple pipes are enabled");
 			break;
+		case FBC_MODULE_PARAM:
+			seq_printf(m, "disabled per module param (default off)");
+			break;
 		default:
 			seq_printf(m, "unknown reason");
 		}

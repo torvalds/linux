@@ -55,6 +55,9 @@ module_param_named(semaphores, i915_semaphores, int, 0600);
 unsigned int i915_enable_rc6 = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 
+unsigned int i915_enable_fbc = 0;
+module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
+
 unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
@@ -169,7 +172,7 @@ static const struct intel_device_info intel_ironlake_d_info = {
 static const struct intel_device_info intel_ironlake_m_info = {
 	.gen = 5, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0, /* disabled due to buggy hardware */
+	.has_fbc = 1,
 	.has_bsd_ring = 1,
 };
 

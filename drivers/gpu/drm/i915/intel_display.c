@@ -1731,6 +1731,11 @@ static void intel_update_fbc(struct drm_device *dev)
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
+	if (!i915_enable_fbc) {
+		DRM_DEBUG_KMS("fbc disabled per module param (default off)\n");
+		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
+		goto out_disable;
+	}
 	if (intel_fb->obj->base.size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 			      "compression\n");
