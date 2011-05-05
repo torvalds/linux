@@ -281,44 +281,6 @@ again:
 }
 
 /*
- * This checks to see if there are any delayed refs in the
- * btree for a given bytenr.  It returns one if it finds any
- * and zero otherwise.
- *
- * If it only finds a head node, it returns 0.
- *
- * The idea is to use this when deciding if you can safely delete an
- * extent from the extent allocation tree.  There may be a pending
- * ref in the rbtree that adds or removes references, so as long as this
- * returns one you need to leave the BTRFS_EXTENT_ITEM in the extent
- * allocation tree.
- */
-int btrfs_delayed_ref_pending(struct btrfs_trans_handle *trans, u64 bytenr)
-{
-	struct btrfs_delayed_ref_node *ref;
-	struct btrfs_delayed_ref_root *delayed_refs;
-	struct rb_node *prev_node;
-	int ret = 0;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
-
-	ref = find_ref_head(&delayed_refs->root, bytenr, NULL);
-	if (ref) {
-		prev_node = rb_prev(&ref->rb_node);
-		if (!prev_node)
-			goto out;
-		ref = rb_entry(prev_node, struct btrfs_delayed_ref_node,
-			       rb_node);
-		if (ref->bytenr == bytenr)
-			ret = 1;
-	}
-out:
-	spin_unlock(&delayed_refs->lock);
-	return ret;
-}
-
-/*
  * helper function to update an extent delayed ref in the
  * rbtree.  existing and update must both have the same
  * bytenr and parent

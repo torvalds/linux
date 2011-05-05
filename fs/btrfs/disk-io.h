@@ -55,11 +55,6 @@ int btrfs_commit_super(struct btrfs_root *root);
 int btrfs_error_commit_super(struct btrfs_root *root);
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize);
-struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
-					u64 root_objectid);
-struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
-				      struct btrfs_key *location,
-				      const char *name, int namelen);
 struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 					       struct btrfs_key *location);
 struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
@@ -80,8 +75,6 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			unsigned long bio_flags, u64 bio_offset,
 			extent_submit_bio_hook_t *submit_bio_start,
 			extent_submit_bio_hook_t *submit_bio_done);
-
-int btrfs_congested_async(struct btrfs_fs_info *info, int iodone);
 unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
 int btrfs_write_tree_block(struct extent_buffer *buf);
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf);

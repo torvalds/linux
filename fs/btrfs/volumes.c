@@ -44,16 +44,6 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root);
 static DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
 
-void btrfs_lock_volumes(void)
-{
-	mutex_lock(&uuid_mutex);
-}
-
-void btrfs_unlock_volumes(void)
-{
-	mutex_unlock(&uuid_mutex);
-}
-
 static void lock_chunks(struct btrfs_root *root)
 {
 	mutex_lock(&root->fs_info->chunk_mutex);
@@ -3686,15 +3676,6 @@ static int read_one_dev(struct btrfs_root *root,
 		device->fs_devices->total_rw_bytes += device->total_bytes;
 	ret = 0;
 	return ret;
-}
-
-int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf)
-{
-	struct btrfs_dev_item *dev_item;
-
-	dev_item = (struct btrfs_dev_item *)offsetof(struct btrfs_super_block,
-						     dev_item);
-	return read_one_dev(root, buf, dev_item);
 }
 
 int btrfs_read_sys_array(struct btrfs_root *root)

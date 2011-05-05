@@ -55,7 +55,6 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 			       u64 offset, u64 bytes, u64 empty_size);
 void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 			   u64 bytes);
-u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group);
 int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group,

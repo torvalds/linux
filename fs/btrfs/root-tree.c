@@ -22,53 +22,6 @@
 #include "print-tree.h"
 
 /*
- *  search forward for a root, starting with objectid 'search_start'
- *  if a root key is found, the objectid we find is filled into 'found_objectid'
- *  and 0 is returned.  < 0 is returned on error, 1 if there is nothing
- *  left in the tree.
- */
-int btrfs_search_root(struct btrfs_root *root, u64 search_start,
-		      u64 *found_objectid)
-{
-	struct btrfs_path *path;
-	struct btrfs_key search_key;
-	int ret;
-
-	root = root->fs_info->tree_root;
-	search_key.objectid = search_start;
-	search_key.type = (u8)-1;
-	search_key.offset = (u64)-1;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-again:
-	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
-	if (ret < 0)
-		goto out;
-	if (ret == 0) {
-		ret = 1;
-		goto out;
-	}
-	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-		ret = btrfs_next_leaf(root, path);
-		if (ret)
-			goto out;
-	}
-	btrfs_item_key_to_cpu(path->nodes[0], &search_key, path->slots[0]);
-	if (search_key.type != BTRFS_ROOT_ITEM_KEY) {
-		search_key.offset++;
-		btrfs_release_path(path);
-		goto again;
-	}
-	ret = 0;
-	*found_objectid = search_key.objectid;
-
-out:
-	btrfs_free_path(path);
-	return ret;
-}
-
-/*
  * lookup the root with the highest offset for a given objectid.  The key we do
  * find is copied into 'key'.  If we find something return 0, otherwise 1, < 0
  * on error.
