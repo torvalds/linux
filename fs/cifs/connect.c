@@ -2614,8 +2614,8 @@ convert_delimiter(char *path, char delim)
 	}
 }
 
-static void setup_cifs_sb(struct smb_vol *pvolume_info,
-			  struct cifs_sb_info *cifs_sb)
+void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
+			struct cifs_sb_info *cifs_sb)
 {
 	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
 
@@ -2671,6 +2671,7 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode);
 
 	cifs_sb->actimeo = pvolume_info->actimeo;
+	cifs_sb->local_nls = pvolume_info->local_nls;
 
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
@@ -2747,8 +2748,8 @@ is_path_accessible(int xid, struct cifsTconInfo *tcon,
 	return rc;
 }
 
-static void
-cleanup_volume_info(struct smb_vol **pvolume_info)
+void
+cifs_cleanup_volume_info(struct smb_vol **pvolume_info)
 {
 	struct smb_vol *volume_info;
 
@@ -2854,40 +2855,13 @@ expand_dfs_referral(int xid, struct cifsSesInfo *pSesInfo,
 }
 #endif
 
-int
-cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
-		const char *devname)
+int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
+			   const char *devname)
 {
-	int rc;
-	int xid;
 	struct smb_vol *volume_info;
-	struct cifsSesInfo *pSesInfo;
-	struct cifsTconInfo *tcon;
-	struct TCP_Server_Info *srvTcp;
-	char   *full_path;
-	struct tcon_link *tlink;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	int referral_walks_count = 0;
-try_mount_again:
-	/* cleanup activities if we're chasing a referral */
-	if (referral_walks_count) {
-		if (tcon)
-			cifs_put_tcon(tcon);
-		else if (pSesInfo)
-			cifs_put_smb_ses(pSesInfo);
+	int rc = 0;
 
-		cleanup_volume_info(&volume_info);
-		FreeXid(xid);
-	}
-#endif
-	rc = 0;
-	tcon = NULL;
-	pSesInfo = NULL;
-	srvTcp = NULL;
-	full_path = NULL;
-	tlink = NULL;
-
-	xid = GetXid();
+	*pvolume_info = NULL;
 
 	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
 	if (!volume_info) {
@@ -2895,7 +2869,7 @@ try_mount_again:
 		goto out;
 	}
 
-	if (cifs_parse_mount_options(cifs_sb->mountdata, devname,
+	if (cifs_parse_mount_options(mount_data, devname,
 				     volume_info)) {
 		rc = -EINVAL;
 		goto out;
@@ -2928,7 +2902,46 @@ try_mount_again:
 			goto out;
 		}
 	}
-	cifs_sb->local_nls = volume_info->local_nls;
+
+	*pvolume_info = volume_info;
+	return rc;
+out:
+	cifs_cleanup_volume_info(&volume_info);
+	return rc;
+}
+
+int
+cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
+	   struct smb_vol *volume_info, const char *devname)
+{
+	int rc = 0;
+	int xid;
+	struct cifsSesInfo *pSesInfo;
+	struct cifsTconInfo *tcon;
+	struct TCP_Server_Info *srvTcp;
+	char   *full_path;
+	struct tcon_link *tlink;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	int referral_walks_count = 0;
+try_mount_again:
+	/* cleanup activities if we're chasing a referral */
+	if (referral_walks_count) {
+		if (tcon)
+			cifs_put_tcon(tcon);
+		else if (pSesInfo)
+			cifs_put_smb_ses(pSesInfo);
+
+		cifs_cleanup_volume_info(&volume_info);
+		FreeXid(xid);
+	}
+#endif
+	tcon = NULL;
+	pSesInfo = NULL;
+	srvTcp = NULL;
+	full_path = NULL;
+	tlink = NULL;
+
+	xid = GetXid();
 
 	/* get a reference to a tcp session */
 	srvTcp = cifs_get_tcp_session(volume_info);
@@ -2945,7 +2958,6 @@ try_mount_again:
 		goto mount_fail_check;
 	}
 
-	setup_cifs_sb(volume_info, cifs_sb);
 	if (pSesInfo->capabilities & CAP_LARGE_FILES)
 		sb->s_maxbytes = MAX_LFS_FILESIZE;
 	else
@@ -3101,7 +3113,6 @@ mount_fail_check:
 	password will be freed at unmount time) */
 out:
 	/* zero out password before freeing */
-	cleanup_volume_info(&volume_info);
 	FreeXid(xid);
 	return rc;
 }
