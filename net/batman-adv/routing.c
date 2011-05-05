@@ -1213,7 +1213,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 
 	router = orig_node_get_router(orig_node);
 	if (!router)
-		return NULL;
+		goto err;
 
 	/* without bonding, the first node should
 	 * always choose the default router. */
@@ -1222,10 +1222,8 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	/* select default router to output */
 	router_orig = router->orig_node;
-	if (!router_orig) {
-		rcu_read_unlock();
-		return NULL;
-	}
+	if (!router_orig)
+		goto err_unlock;
 
 	if ((!recv_if) && (!bonding_enabled))
 		goto return_router;
@@ -1268,6 +1266,12 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 return_router:
 	rcu_read_unlock();
 	return router;
+err_unlock:
+	rcu_read_unlock();
+err:
+	if (router)
+		neigh_node_free_ref(router);
+	return NULL;
 }
 
 static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
