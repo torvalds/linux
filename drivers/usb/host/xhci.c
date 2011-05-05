@@ -1560,6 +1560,11 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
+	case COMP_MEL_ERR:
+		/* Max Exit Latency too large error */
+		dev_warn(&udev->dev, "WARN: Max Exit Latency too large\n");
+		ret = -EINVAL;
+		break;
 	case COMP_SUCCESS:
 		dev_dbg(&udev->dev, "Successful evaluate context command\n");
 		ret = 0;
