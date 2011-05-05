@@ -359,11 +359,6 @@ struct scic_sds_port_state_handler {
 	((this_port)->physical_port_index)
 
 
-static inline void scic_sds_port_increment_request_count(struct scic_sds_port *sci_port)
-{
-	sci_port->started_request_count++;
-}
-
 static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *sci_port)
 {
 	if (WARN_ONCE(sci_port->started_request_count == 0,

@@ -1232,8 +1232,7 @@ static enum sci_status scic_sds_port_ready_operational_substate_start_io_handler
 	struct scic_sds_remote_device *device,
 	struct scic_sds_request *io_request)
 {
-	scic_sds_port_increment_request_count(port);
-
+	port->started_request_count++;
 	return SCI_SUCCESS;
 }
 
