@@ -63,9 +63,8 @@
  * Determine the failure situations and return values.
  */
 
-
+#include <linux/kernel.h>
 #include "sci_status.h"
-#include "intel_sas.h"
 
 struct scic_sds_request;
 struct scic_sds_remote_device;
@@ -110,8 +109,7 @@ typedef enum {
  *
  * Return the size of the SCI IO request object.
  */
-u32 scic_io_request_get_object_size(
-	void);
+u32 scic_io_request_get_object_size(void);
 
 /**
  * scic_io_request_construct() - This method is called by the SCI user to

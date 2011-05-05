@@ -53,8 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sas.h"
-#include "intel_sas.h"
 #include "scic_controller.h"
 #include "scic_phy.h"
 #include "scic_port.h"

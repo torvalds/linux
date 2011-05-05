@@ -66,7 +66,6 @@
 
 
 #include "sci_status.h"
-#include "intel_sas.h"
 #include "sci_controller_constants.h"
 #include "probe_roms.h"
 

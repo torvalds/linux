@@ -56,9 +56,9 @@
 #ifndef _SCIC_PORT_H_
 #define _SCIC_PORT_H_
 
+#include "sas.h"
 #include "sci_status.h"
 #include "scic_phy.h"
-#include "intel_sas.h"
 
 struct scic_sds_port;
 

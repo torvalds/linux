@@ -54,8 +54,6 @@
  */
 
 #include <scsi/sas.h>
-#include "sas.h"
-#include "intel_sas.h"
 #include "sci_base_state_machine.h"
 #include "scic_controller.h"
 #include "scic_sds_controller.h"

@@ -54,8 +54,6 @@
  */
 
 #include <scsi/sas.h>
-#include "sas.h"
-#include "intel_sas.h"
 #include "scic_controller.h"
 #include "scic_io_request.h"
 #include "scic_sds_controller.h"
@@ -503,7 +501,7 @@ static void scu_ssp_io_request_construct_task_context(
 
 	task_context->ssp_command_iu_length =
 		sizeof(struct ssp_cmd_iu) / sizeof(u32);
-	task_context->type.ssp.frame_type = SCI_SAS_COMMAND_FRAME;
+	task_context->type.ssp.frame_type = SSP_COMMAND;
 
 	switch (dir) {
 	case DMA_FROM_DEVICE:
@@ -573,7 +571,7 @@ static void scu_ssp_task_request_construct_task_context(
 	task_context->priority                     = SCU_TASK_PRIORITY_HIGH;
 	task_context->task_type                    = SCU_TASK_TYPE_RAW_FRAME;
 	task_context->transfer_length_bytes        = 0;
-	task_context->type.ssp.frame_type          = SCI_SAS_TASK_FRAME;
+	task_context->type.ssp.frame_type          = SSP_TASK;
 	task_context->ssp_command_iu_length =
 		sizeof(struct ssp_task_iu) / sizeof(u32);
 }

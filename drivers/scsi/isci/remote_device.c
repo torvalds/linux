@@ -53,8 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <scsi/sas.h>
-#include "intel_sas.h"
-#include "sas.h"
 #include "isci.h"
 #include "port.h"
 #include "remote_device.h"

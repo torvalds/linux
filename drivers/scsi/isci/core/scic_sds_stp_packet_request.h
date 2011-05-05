@@ -55,7 +55,6 @@
 #ifndef _SCIC_SDS_STP_PACKET_REQUEST_H_
 #define _SCIC_SDS_STP_PACKET_REQUEST_H_
 
-#include "intel_sas.h"
 #include "scic_sds_stp_request.h"
 
 /**

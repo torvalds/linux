@@ -66,7 +66,6 @@
 #include "scic_io_request.h"
 #include "sci_base_state_machine.h"
 #include "scu_task_context.h"
-#include "intel_sas.h"
 
 struct scic_sds_controller;
 struct scic_sds_remote_device;

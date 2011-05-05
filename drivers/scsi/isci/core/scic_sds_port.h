@@ -57,8 +57,8 @@
 #define _SCIC_SDS_PORT_H_
 
 #include <linux/kernel.h>
+#include "sas.h"
 #include "sci_controller_constants.h"
-#include "intel_sas.h"
 #include "scu_registers.h"
 
 #define SCIC_SDS_DUMMY_PORT   0xFF

@@ -215,4 +215,14 @@ struct smp_req {
 
 #define SMP_RESP_HDR_SZ	4
 
+/*
+ * struct sci_sas_address - This structure depicts how a SAS address is
+ *    represented by SCI.
+ * XXX convert this to u8 [SAS_ADDR_SIZE] like the rest of libsas
+ *
+ */
+struct sci_sas_address {
+	u32 high;
+	u32 low;
+};
 #endif

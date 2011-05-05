@@ -53,7 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "intel_sas.h"
 #include "sci_base_state_machine.h"
 #include "scic_controller.h"
 #include "scic_sds_controller.h"

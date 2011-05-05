@@ -55,7 +55,6 @@
 #ifndef _SCIC_SDS_SMP_REQUEST_T_
 #define _SCIC_SDS_SMP_REQUEST_T_
 
-#include "intel_sas.h"
 #include "scic_sds_request.h"
 
 

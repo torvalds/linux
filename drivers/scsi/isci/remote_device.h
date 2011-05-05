@@ -57,7 +57,6 @@
 #define _ISCI_REMOTE_DEVICE_H_
 #include <scsi/libsas.h>
 #include "sci_status.h"
-#include "intel_sas.h"
 #include "scu_remote_node_context.h"
 #include "remote_node_context.h"
 #include "port.h"
