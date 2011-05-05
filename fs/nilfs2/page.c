@@ -182,7 +182,7 @@ int nilfs_page_buffers_clean(struct page *page)
 void nilfs_page_bug(struct page *page)
 {
 	struct address_space *m;
-	unsigned long ino = 0;
+	unsigned long ino;
 
 	if (unlikely(!page)) {
 		printk(KERN_CRIT "NILFS_PAGE_BUG(NULL)\n");
@@ -190,11 +190,8 @@ void nilfs_page_bug(struct page *page)
 	}
 
 	m = page->mapping;
-	if (m) {
-		struct inode *inode = NILFS_AS_I(m);
-		if (inode != NULL)
-			ino = inode->i_ino;
-	}
+	ino = m ? m->host->i_ino : 0;
+
 	printk(KERN_CRIT "NILFS_PAGE_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
 	       "mapping=%p ino=%lu\n",
 	       page, atomic_read(&page->_count),
@@ -441,10 +438,10 @@ unsigned nilfs_page_count_clean_buffers(struct page *page,
 	return nc;
 }
 
-void nilfs_mapping_init(struct address_space *mapping,
+void nilfs_mapping_init(struct address_space *mapping, struct inode *inode,
 			struct backing_dev_info *bdi)
 {
-	mapping->host = NULL;
+	mapping->host = inode;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->assoc_mapping = NULL;

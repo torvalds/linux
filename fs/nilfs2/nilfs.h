@@ -80,12 +80,6 @@ static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
 	return &ii->vfs_inode;
 }
 
-static inline struct inode *NILFS_AS_I(struct address_space *mapping)
-{
-	return (mapping->host) ? :
-		container_of(mapping, struct inode, i_data);
-}
-
 /*
  * Dynamic state flags of NILFS on-memory inode (i_state)
  */

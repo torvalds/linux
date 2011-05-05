@@ -655,13 +655,10 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
 		if (unlikely(page->index > last))
 			break;
 
-		if (mapping->host) {
-			lock_page(page);
-			if (!page_has_buffers(page))
-				create_empty_buffers(page,
-						     1 << inode->i_blkbits, 0);
-			unlock_page(page);
-		}
+		lock_page(page);
+		if (!page_has_buffers(page))
+			create_empty_buffers(page, 1 << inode->i_blkbits, 0);
+		unlock_page(page);
 
 		bh = head = page_buffers(page);
 		do {
@@ -1503,10 +1500,7 @@ nilfs_segctor_update_payload_blocknr(struct nilfs_sc_info *sci,
 			nblocks = le32_to_cpu(finfo->fi_nblocks);
 			ndatablk = le32_to_cpu(finfo->fi_ndatablk);
 
-			if (buffer_nilfs_node(bh))
-				inode = NILFS_BTNC_I(bh->b_page->mapping);
-			else
-				inode = NILFS_AS_I(bh->b_page->mapping);
+			inode = bh->b_page->mapping->host;
 
 			if (mode == SC_LSEG_DSYNC)
 				sc_op = &nilfs_sc_dsync_ops;
