@@ -10,6 +10,7 @@
 #define _LTQ_DEVICES_XWAY_H__
 
 #include "../devices.h"
+#include <linux/phy.h>
 
 extern void ltq_register_gpio(void);
 extern void ltq_register_gpio_stp(void);
