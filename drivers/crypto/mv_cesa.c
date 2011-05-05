@@ -133,7 +133,6 @@ struct mv_req_hash_ctx {
 	int extra_bytes;	/* unprocessed bytes in buffer */
 	enum hash_op op;
 	int count_add;
-	struct scatterlist dummysg;
 };
 
 static void compute_aes_dec_key(struct mv_ctx *ctx)
@@ -482,7 +481,7 @@ static int count_sgs(struct scatterlist *sl, unsigned int total_bytes)
 	int i = 0;
 	size_t cur_len;
 
-	while (1) {
+	while (sl) {
 		cur_len = sl[i].length;
 		++i;
 		if (total_bytes > cur_len)
@@ -711,10 +710,7 @@ static int mv_hash_update(struct ahash_request *req)
 static int mv_hash_final(struct ahash_request *req)
 {
 	struct mv_req_hash_ctx *ctx = ahash_request_ctx(req);
-	/* dummy buffer of 4 bytes */
-	sg_init_one(&ctx->dummysg, ctx->buffer, 4);
-	/* I think I'm allowed to do that... */
-	ahash_request_set_crypt(req, &ctx->dummysg, req->result, 0);
+
 	mv_update_hash_req_ctx(ctx, 1, 0);
 	return mv_handle_req(&req->base);
 }
