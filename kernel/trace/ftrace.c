@@ -913,6 +913,7 @@ struct ftrace_hash {
 	unsigned long		size_bits;
 	struct hlist_head	*buckets;
 	unsigned long		count;
+	struct rcu_head		rcu;
 };
 
 /*
@@ -1058,6 +1059,21 @@ static void free_ftrace_hash(struct ftrace_hash *hash)
 	kfree(hash);
 }
 
+static void __free_ftrace_hash_rcu(struct rcu_head *rcu)
+{
+	struct ftrace_hash *hash;
+
+	hash = container_of(rcu, struct ftrace_hash, rcu);
+	free_ftrace_hash(hash);
+}
+
+static void free_ftrace_hash_rcu(struct ftrace_hash *hash)
+{
+	if (!hash || hash == EMPTY_HASH)
+		return;
+	call_rcu_sched(&hash->rcu, __free_ftrace_hash_rcu);
+}
+
 static struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 {
 	struct ftrace_hash *hash;
@@ -1122,7 +1138,8 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	struct ftrace_func_entry *entry;
 	struct hlist_node *tp, *tn;
 	struct hlist_head *hhd;
-	struct ftrace_hash *hash = *dst;
+	struct ftrace_hash *old_hash;
+	struct ftrace_hash *new_hash;
 	unsigned long key;
 	int size = src->count;
 	int bits = 0;
@@ -1133,12 +1150,10 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	 * the empty_hash.
 	 */
 	if (!src->count) {
-		free_ftrace_hash(*dst);
-		*dst = EMPTY_HASH;
+		free_ftrace_hash_rcu(*dst);
+		rcu_assign_pointer(*dst, EMPTY_HASH);
 		return 0;
 	}
-
-	ftrace_hash_clear(hash);
 
 	/*
 	 * Make the hash size about 1/2 the # found
@@ -1150,27 +1165,9 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	if (bits > FTRACE_HASH_MAX_BITS)
 		bits = FTRACE_HASH_MAX_BITS;
 
-	/* We can't modify the empty_hash */
-	if (hash == EMPTY_HASH) {
-		/* Create a new hash */
-		*dst = alloc_ftrace_hash(bits);
-		if (!*dst) {
-			*dst = EMPTY_HASH;
-			return -ENOMEM;
-		}
-		hash = *dst;
-	} else {
-		size = 1 << bits;
-
-		/* Use the old hash, but create new buckets */
-		hhd = kzalloc(sizeof(*hhd) * size, GFP_KERNEL);
-		if (!hhd)
-			return -ENOMEM;
-
-		kfree(hash->buckets);
-		hash->buckets = hhd;
-		hash->size_bits = bits;
-	}
+	new_hash = alloc_ftrace_hash(bits);
+	if (!new_hash)
+		return -ENOMEM;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1181,9 +1178,13 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 			else
 				key = 0;
 			remove_hash_entry(src, entry);
-			__add_hash_entry(hash, entry);
+			__add_hash_entry(new_hash, entry);
 		}
 	}
+
+	old_hash = *dst;
+	rcu_assign_pointer(*dst, new_hash);
+	free_ftrace_hash_rcu(old_hash);
 
 	return 0;
 }
