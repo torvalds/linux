@@ -56,6 +56,7 @@ struct gpio_bank {
 	u32 dbck_enable_mask;
 	struct device *dev;
 	bool dbck_flag;
+	bool loses_context;
 	int stride;
 	u32 width;
 	u16 id;
@@ -1181,7 +1182,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;
 	bank->width = pdata->bank_width;
-
+	bank->loses_context = pdata->loses_context;
 	bank->regs = pdata->regs;
 
 	if (bank->regs->set_dataout && bank->regs->clr_dataout)
@@ -1337,8 +1338,7 @@ void omap2_gpio_prepare_for_idle(int off_mode)
 		u32 l1 = 0, l2 = 0;
 		int j;
 
-		/* TODO: Do not use cpu_is_omap34xx */
-		if ((cpu_is_omap34xx()) && (bank->id == 0))
+		if (!bank->loses_context)
 			continue;
 
 		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
@@ -1405,8 +1405,7 @@ void omap2_gpio_resume_after_idle(void)
 		u32 l = 0, gen, gen0, gen1;
 		int j;
 
-		/* TODO: Do not use cpu_is_omap34xx */
-		if ((cpu_is_omap34xx()) && (bank->id == 0))
+		if (!bank->loses_context)
 			continue;
 
 		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
@@ -1505,7 +1504,7 @@ void omap_gpio_save_context(void)
 	list_for_each_entry(bank, &omap_gpio_list, node) {
 		i++;
 
-		if (bank->id == 0)
+		if (!bank->loses_context)
 			continue;
 
 		gpio_context[i].irqenable1 =
@@ -1539,7 +1538,7 @@ void omap_gpio_restore_context(void)
 	list_for_each_entry(bank, &omap_gpio_list, node) {
 		i++;
 
-		if (bank->id == 0)
+		if (!bank->loses_context)
 			continue;
 
 		__raw_writel(gpio_context[i].irqenable1,
