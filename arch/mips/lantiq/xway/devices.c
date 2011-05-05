@@ -96,3 +96,26 @@ void __init ltq_register_ase_asc(void)
 	platform_device_register_simple("ltq_asc", 0,
 		ltq_ase_asc_resources, ARRAY_SIZE(ltq_ase_asc_resources));
 }
+
+/* ethernet */
+static struct resource ltq_etop_resources = {
+	.name	= "etop",
+	.start	= LTQ_ETOP_BASE_ADDR,
+	.end	= LTQ_ETOP_BASE_ADDR + LTQ_ETOP_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device ltq_etop = {
+	.name		= "ltq_etop",
+	.resource	= &ltq_etop_resources,
+	.num_resources	= 1,
+};
+
+void __init
+ltq_register_etop(struct ltq_eth_data *eth)
+{
+	if (eth) {
+		ltq_etop.dev.platform_data = eth;
+		platform_device_register(&ltq_etop);
+	}
+}

@@ -15,5 +15,6 @@
 extern void ltq_register_gpio(void);
 extern void ltq_register_gpio_stp(void);
 extern void ltq_register_ase_asc(void);
+extern void ltq_register_etop(struct ltq_eth_data *eth);
 
 #endif
