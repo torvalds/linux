@@ -342,6 +342,12 @@ static void mv_process_hash_current(int first_block)
 			op.config |= CFG_LAST_FRAG;
 		else
 			op.config |= CFG_MID_FRAG;
+
+		writel(req_ctx->state[0], cpg->reg + DIGEST_INITIAL_VAL_A);
+		writel(req_ctx->state[1], cpg->reg + DIGEST_INITIAL_VAL_B);
+		writel(req_ctx->state[2], cpg->reg + DIGEST_INITIAL_VAL_C);
+		writel(req_ctx->state[3], cpg->reg + DIGEST_INITIAL_VAL_D);
+		writel(req_ctx->state[4], cpg->reg + DIGEST_INITIAL_VAL_E);
 	}
 
 	memcpy(cpg->sram + SRAM_CONFIG, &op, sizeof(struct sec_accel_config));
@@ -523,14 +529,6 @@ static void mv_start_new_hash_req(struct ahash_request *req)
 		memcpy(cpg->sram + SRAM_DATA_IN_START, ctx->buffer,
 		       ctx->extra_bytes);
 		p->crypt_len = ctx->extra_bytes;
-	}
-
-	if (unlikely(!ctx->first_hash)) {
-		writel(ctx->state[0], cpg->reg + DIGEST_INITIAL_VAL_A);
-		writel(ctx->state[1], cpg->reg + DIGEST_INITIAL_VAL_B);
-		writel(ctx->state[2], cpg->reg + DIGEST_INITIAL_VAL_C);
-		writel(ctx->state[3], cpg->reg + DIGEST_INITIAL_VAL_D);
-		writel(ctx->state[4], cpg->reg + DIGEST_INITIAL_VAL_E);
 	}
 
 	ctx->extra_bytes = hw_bytes % SHA1_BLOCK_SIZE;
