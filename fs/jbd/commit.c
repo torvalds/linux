@@ -302,12 +302,6 @@ void journal_commit_transaction(journal_t *journal)
 	 * all outstanding updates to complete.
 	 */
 
-#ifdef COMMIT_STATS
-	spin_lock(&journal->j_list_lock);
-	summarise_journal_usage(journal);
-	spin_unlock(&journal->j_list_lock);
-#endif
-
 	/* Do we need to erase the effects of a prior journal_flush? */
 	if (journal->j_flags & JFS_FLUSHED) {
 		jbd_debug(3, "super block updated\n");
