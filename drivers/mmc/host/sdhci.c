@@ -83,6 +83,8 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 	printk(KERN_DEBUG DRIVER_NAME ": Cmd:      0x%08x | Max curr: 0x%08x\n",
 		sdhci_readw(host, SDHCI_COMMAND),
 		sdhci_readl(host, SDHCI_MAX_CURRENT));
+	printk(KERN_DEBUG DRIVER_NAME ": Host ctl2: 0x%08x\n",
+		sdhci_readw(host, SDHCI_HOST_CONTROL2));
 
 	if (host->flags & SDHCI_USE_ADMA)
 		printk(KERN_DEBUG DRIVER_NAME ": ADMA Err: 0x%08x | ADMA Ptr: 0x%08x\n",
@@ -1323,11 +1325,114 @@ out:
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
+	struct mmc_ios *ios)
+{
+	struct sdhci_host *host;
+	u8 pwr;
+	u16 clk, ctrl;
+	u32 present_state;
+
+	host = mmc_priv(mmc);
+
+	/*
+	 * Signal Voltage Switching is only applicable for Host Controllers
+	 * v3.00 and above.
+	 */
+	if (host->version < SDHCI_SPEC_300)
+		return 0;
+
+	/*
+	 * We first check whether the request is to set signalling voltage
+	 * to 3.3V. If so, we change the voltage to 3.3V and return quickly.
+	 */
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
+		/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
+		ctrl &= ~SDHCI_CTRL_VDD_180;
+		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+
+		/* Wait for 5ms */
+		usleep_range(5000, 5500);
+
+		/* 3.3V regulator output should be stable within 5 ms */
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		if (!(ctrl & SDHCI_CTRL_VDD_180))
+			return 0;
+		else {
+			printk(KERN_INFO DRIVER_NAME ": Switching to 3.3V "
+				"signalling voltage failed\n");
+			return -EIO;
+		}
+	} else if (!(ctrl & SDHCI_CTRL_VDD_180) &&
+		  (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)) {
+		/* Stop SDCLK */
+		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+		clk &= ~SDHCI_CLOCK_CARD_EN;
+		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+		/* Check whether DAT[3:0] is 0000 */
+		present_state = sdhci_readl(host, SDHCI_PRESENT_STATE);
+		if (!((present_state & SDHCI_DATA_LVL_MASK) >>
+		       SDHCI_DATA_LVL_SHIFT)) {
+			/*
+			 * Enable 1.8V Signal Enable in the Host Control2
+			 * register
+			 */
+			ctrl |= SDHCI_CTRL_VDD_180;
+			sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+
+			/* Wait for 5ms */
+			usleep_range(5000, 5500);
+
+			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			if (ctrl & SDHCI_CTRL_VDD_180) {
+				/* Provide SDCLK again and wait for 1ms*/
+				clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+				clk |= SDHCI_CLOCK_CARD_EN;
+				sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+				usleep_range(1000, 1500);
+
+				/*
+				 * If DAT[3:0] level is 1111b, then the card
+				 * was successfully switched to 1.8V signaling.
+				 */
+				present_state = sdhci_readl(host,
+							SDHCI_PRESENT_STATE);
+				if ((present_state & SDHCI_DATA_LVL_MASK) ==
+				     SDHCI_DATA_LVL_MASK)
+					return 0;
+			}
+		}
+
+		/*
+		 * If we are here, that means the switch to 1.8V signaling
+		 * failed. We power cycle the card, and retry initialization
+		 * sequence by setting S18R to 0.
+		 */
+		pwr = sdhci_readb(host, SDHCI_POWER_CONTROL);
+		pwr &= ~SDHCI_POWER_ON;
+		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+
+		/* Wait for 1ms as per the spec */
+		usleep_range(1000, 1500);
+		pwr |= SDHCI_POWER_ON;
+		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+
+		printk(KERN_INFO DRIVER_NAME ": Switching to 1.8V signalling "
+			"voltage failed, retrying with S18R set to 0\n");
+		return -EAGAIN;
+	} else
+		/* No signal voltage switch required */
+		return 0;
+}
+
 static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
 	.enable_sdio_irq = sdhci_enable_sdio_irq,
+	.start_signal_voltage_switch	= sdhci_start_signal_voltage_switch,
 };
 
 /*****************************************************************************\
@@ -1808,7 +1913,9 @@ EXPORT_SYMBOL_GPL(sdhci_alloc_host);
 int sdhci_add_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc;
-	unsigned int caps, ocr_avail;
+	u32 caps[2];
+	u32 max_current_caps;
+	unsigned int ocr_avail;
 	int ret;
 
 	WARN_ON(host == NULL);
@@ -1831,12 +1938,15 @@ int sdhci_add_host(struct sdhci_host *host)
 			host->version);
 	}
 
-	caps = (host->quirks & SDHCI_QUIRK_MISSING_CAPS) ? host->caps :
+	caps[0] = (host->quirks & SDHCI_QUIRK_MISSING_CAPS) ? host->caps :
 		sdhci_readl(host, SDHCI_CAPABILITIES);
+
+	caps[1] = (host->version >= SDHCI_SPEC_300) ?
+		sdhci_readl(host, SDHCI_CAPABILITIES_1) : 0;
 
 	if (host->quirks & SDHCI_QUIRK_FORCE_DMA)
 		host->flags |= SDHCI_USE_SDMA;
-	else if (!(caps & SDHCI_CAN_DO_SDMA))
+	else if (!(caps[0] & SDHCI_CAN_DO_SDMA))
 		DBG("Controller doesn't have SDMA capability\n");
 	else
 		host->flags |= SDHCI_USE_SDMA;
@@ -1847,7 +1957,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->flags &= ~SDHCI_USE_SDMA;
 	}
 
-	if ((host->version >= SDHCI_SPEC_200) && (caps & SDHCI_CAN_DO_ADMA2))
+	if ((host->version >= SDHCI_SPEC_200) &&
+		(caps[0] & SDHCI_CAN_DO_ADMA2))
 		host->flags |= SDHCI_USE_ADMA;
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_ADMA) &&
@@ -1897,10 +2008,10 @@ int sdhci_add_host(struct sdhci_host *host)
 	}
 
 	if (host->version >= SDHCI_SPEC_300)
-		host->max_clk = (caps & SDHCI_CLOCK_V3_BASE_MASK)
+		host->max_clk = (caps[0] & SDHCI_CLOCK_V3_BASE_MASK)
 			>> SDHCI_CLOCK_BASE_SHIFT;
 	else
-		host->max_clk = (caps & SDHCI_CLOCK_BASE_MASK)
+		host->max_clk = (caps[0] & SDHCI_CLOCK_BASE_MASK)
 			>> SDHCI_CLOCK_BASE_SHIFT;
 
 	host->max_clk *= 1000000;
@@ -1916,7 +2027,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	}
 
 	host->timeout_clk =
-		(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+		(caps[0] & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
 	if (host->timeout_clk == 0) {
 		if (host->ops->get_timeout_clock) {
 			host->timeout_clk = host->ops->get_timeout_clock(host);
@@ -1928,7 +2039,7 @@ int sdhci_add_host(struct sdhci_host *host)
 			return -ENODEV;
 		}
 	}
-	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
+	if (caps[0] & SDHCI_TIMEOUT_CLK_UNIT)
 		host->timeout_clk *= 1000;
 
 	/*
@@ -1955,20 +2066,75 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (!(host->quirks & SDHCI_QUIRK_FORCE_1_BIT_DATA))
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	if (caps & SDHCI_CAN_DO_HISPD)
+	if (caps[0] & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION) &&
 	    mmc_card_is_removable(mmc))
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
+	/* UHS-I mode(s) supported by the host controller. */
+	if (host->version >= SDHCI_SPEC_300)
+		mmc->caps |= MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25;
+
+	/* SDR104 supports also implies SDR50 support */
+	if (caps[1] & SDHCI_SUPPORT_SDR104)
+		mmc->caps |= MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_SDR50;
+	else if (caps[1] & SDHCI_SUPPORT_SDR50)
+		mmc->caps |= MMC_CAP_UHS_SDR50;
+
+	if (caps[1] & SDHCI_SUPPORT_DDR50)
+		mmc->caps |= MMC_CAP_UHS_DDR50;
+
 	ocr_avail = 0;
-	if (caps & SDHCI_CAN_VDD_330)
+	/*
+	 * According to SD Host Controller spec v3.00, if the Host System
+	 * can afford more than 150mA, Host Driver should set XPC to 1. Also
+	 * the value is meaningful only if Voltage Support in the Capabilities
+	 * register is set. The actual current value is 4 times the register
+	 * value.
+	 */
+	max_current_caps = sdhci_readl(host, SDHCI_MAX_CURRENT);
+
+	if (caps[0] & SDHCI_CAN_VDD_330) {
+		int max_current_330;
+
 		ocr_avail |= MMC_VDD_32_33 | MMC_VDD_33_34;
-	if (caps & SDHCI_CAN_VDD_300)
+
+		max_current_330 = ((max_current_caps &
+				   SDHCI_MAX_CURRENT_330_MASK) >>
+				   SDHCI_MAX_CURRENT_330_SHIFT) *
+				   SDHCI_MAX_CURRENT_MULTIPLIER;
+
+		if (max_current_330 > 150)
+			mmc->caps |= MMC_CAP_SET_XPC_330;
+	}
+	if (caps[0] & SDHCI_CAN_VDD_300) {
+		int max_current_300;
+
 		ocr_avail |= MMC_VDD_29_30 | MMC_VDD_30_31;
-	if (caps & SDHCI_CAN_VDD_180)
+
+		max_current_300 = ((max_current_caps &
+				   SDHCI_MAX_CURRENT_300_MASK) >>
+				   SDHCI_MAX_CURRENT_300_SHIFT) *
+				   SDHCI_MAX_CURRENT_MULTIPLIER;
+
+		if (max_current_300 > 150)
+			mmc->caps |= MMC_CAP_SET_XPC_300;
+	}
+	if (caps[0] & SDHCI_CAN_VDD_180) {
+		int max_current_180;
+
 		ocr_avail |= MMC_VDD_165_195;
+
+		max_current_180 = ((max_current_caps &
+				   SDHCI_MAX_CURRENT_180_MASK) >>
+				   SDHCI_MAX_CURRENT_180_SHIFT) *
+				   SDHCI_MAX_CURRENT_MULTIPLIER;
+
+		if (max_current_180 > 150)
+			mmc->caps |= MMC_CAP_SET_XPC_180;
+	}
 
 	mmc->ocr_avail = ocr_avail;
 	mmc->ocr_avail_sdio = ocr_avail;
@@ -2029,7 +2195,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (host->quirks & SDHCI_QUIRK_FORCE_BLK_SZ_2048) {
 		mmc->max_blk_size = 2;
 	} else {
-		mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >>
+		mmc->max_blk_size = (caps[0] & SDHCI_MAX_BLOCK_MASK) >>
 				SDHCI_MAX_BLOCK_SHIFT;
 		if (mmc->max_blk_size >= 3) {
 			printk(KERN_WARNING "%s: Invalid maximum block size, "

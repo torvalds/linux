@@ -403,6 +403,7 @@ struct device_type sd_type = {
 int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
 {
 	int err;
+	u32 rocr;
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -420,11 +421,37 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
 	 */
 	err = mmc_send_if_cond(host, ocr);
 	if (!err)
-		ocr |= 1 << 30;
+		ocr |= SD_OCR_CCS;
 
-	err = mmc_send_app_op_cond(host, ocr, NULL);
+	/*
+	 * If the host supports one of UHS-I modes, request the card
+	 * to switch to 1.8V signaling level.
+	 */
+	if (host->caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_DDR50))
+		ocr |= SD_OCR_S18R;
+
+	/* If the host can supply more than 150mA, XPC should be set to 1. */
+	if (host->caps & (MMC_CAP_SET_XPC_330 | MMC_CAP_SET_XPC_300 |
+	    MMC_CAP_SET_XPC_180))
+		ocr |= SD_OCR_XPC;
+
+try_again:
+	err = mmc_send_app_op_cond(host, ocr, &rocr);
 	if (err)
 		return err;
+
+	/*
+	 * In case CCS and S18A in the response is set, start Signal Voltage
+	 * Switch procedure. SPI mode doesn't support CMD11.
+	 */
+	if (!mmc_host_is_spi(host) && ((rocr & 0x41000000) == 0x41000000)) {
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+		if (err) {
+			ocr &= ~SD_OCR_S18R;
+			goto try_again;
+		}
+	}
 
 	if (mmc_host_is_spi(host))
 		err = mmc_send_cid(host, cid);
@@ -772,6 +799,11 @@ int mmc_attach_sd(struct mmc_host *host)
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* Make sure we are at 3.3V signalling voltage */
+	err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
+	if (err)
+		return err;
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)
