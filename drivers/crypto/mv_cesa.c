@@ -187,9 +187,9 @@ static void copy_src_to_buf(struct req_progress *p, char *dbuf, int len)
 {
 	int ret;
 	void *sbuf;
-	int copied = 0;
+	int copy_len;
 
-	while (1) {
+	while (len) {
 		if (!p->sg_src_left) {
 			ret = sg_miter_next(&p->src_sg_it);
 			BUG_ON(!ret);
@@ -199,19 +199,14 @@ static void copy_src_to_buf(struct req_progress *p, char *dbuf, int len)
 
 		sbuf = p->src_sg_it.addr + p->src_start;
 
-		if (p->sg_src_left <= len - copied) {
-			memcpy(dbuf + copied, sbuf, p->sg_src_left);
-			copied += p->sg_src_left;
-			p->sg_src_left = 0;
-			if (copied >= len)
-				break;
-		} else {
-			int copy_len = len - copied;
-			memcpy(dbuf + copied, sbuf, copy_len);
-			p->src_start += copy_len;
-			p->sg_src_left -= copy_len;
-			break;
-		}
+		copy_len = min(p->sg_src_left, len);
+		memcpy(dbuf, sbuf, copy_len);
+
+		p->src_start += copy_len;
+		p->sg_src_left -= copy_len;
+
+		len -= copy_len;
+		dbuf += copy_len;
 	}
 }
 
