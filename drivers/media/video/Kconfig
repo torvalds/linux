@@ -533,6 +533,13 @@ config VIDEO_ADP1653
 	  This is a driver for the ADP1653 flash controller. It is used for
 	  example in Nokia N900.
 
+config VIDEO_AS3645A
+	tristate "AS3645A flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	---help---
+	  This is a driver for the AS3645A and LM3555 flash controllers. It has
+	  build in control for flash, torch and indicator LEDs.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
