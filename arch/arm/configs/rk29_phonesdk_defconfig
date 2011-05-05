@@ -1298,8 +1298,8 @@ CONFIG_LCD_LS035Y8DX02A=y
 #
 # HDMI support
 #
-CONFIG_HDMI=y
-CONFIG_ANX7150=y
+#CONFIG_HDMI is not set
+#CONFIG_ANX7150 is not set
 # CONFIG_ANX9030 is not set
 # CONFIG_HDMI_DEBUG is not set
 
