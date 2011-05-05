@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "sas.h"
 #include "intel_sas.h"
 #include "sci_base_state_machine.h"
 #include "scic_controller.h"
@@ -67,7 +68,7 @@
 
 static void scu_smp_request_construct_task_context(
 	struct scic_sds_request *sci_req,
-	struct smp_request *smp_request);
+	struct smp_req *smp_req);
 
 /**
  *
@@ -77,7 +78,7 @@ static void scu_smp_request_construct_task_context(
 u32 scic_sds_smp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_request)
-	       + sizeof(struct smp_request)
+	       + sizeof(struct smp_req)
 	       + sizeof(struct smp_response)
 	       + sizeof(struct scu_task_context)
 	       + SMP_CACHE_BYTES;
@@ -100,7 +101,7 @@ u32 scic_sds_smp_request_get_object_size(void)
  */
 #define scic_sds_smp_request_get_response_buffer(memory) \
 	(((char *)(scic_sds_smp_request_get_command_buffer(memory))) \
-	 + sizeof(struct smp_request))
+	 + sizeof(struct smp_req))
 
 /**
  * scic_sds_smp_request_get_task_context_buffer() -
@@ -142,21 +143,8 @@ void scic_sds_smp_request_assign_buffers(
 
 }
 
-/**
- * This method is called by the SCI user to build an SMP pass-through IO
- *    request.
- * @scic_smp_request: This parameter specifies the handle to the io request
- *    object to be built.
- * @passthru_cb: This parameter specifies the pointer to the callback structure
- *    that contains the function pointers
- *
- * - The user must have previously called scic_io_request_construct() on the
- * supplied IO request. Indicate if the controller successfully built the IO
- * request.
- */
-
-/**
- * This method will fill in the SCU Task Context for a SMP request. The
+/*
+ * This function will fill in the SCU Task Context for a SMP request. The
  *    following important settings are utilized: -# task_type ==
  *    SCU_TASK_TYPE_SMP.  This simply indicates that a normal request type
  *    (i.e. non-raw frame) is being utilized to perform task management. -#
@@ -166,26 +154,26 @@ void scic_sds_smp_request_assign_buffers(
  *    constructed.
  *
  */
-static void scu_smp_request_construct_task_context(
-	struct scic_sds_request *sds_request,
-	struct smp_request *smp_request)
+static void
+scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
+				       struct smp_req *smp_req)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_controller *controller;
+	struct scic_sds_controller *scic;
 	struct scic_sds_remote_device *sci_dev;
-	struct scic_sds_port *target_port;
+	struct scic_sds_port *sci_port;
 	struct scu_task_context *task_context;
 
 	/* byte swap the smp request. */
-	scic_word_copy_with_swap(sds_request->command_buffer,
-				 (u32 *)smp_request,
-				 sizeof(struct smp_request) / sizeof(u32));
+	scic_word_copy_with_swap(sci_req->command_buffer,
+				 (u32 *)smp_req,
+				 sizeof(struct smp_req) / sizeof(u32));
 
-	task_context = scic_sds_request_get_task_context(sds_request);
+	task_context = scic_sds_request_get_task_context(sci_req);
 
-	controller = scic_sds_request_get_controller(sds_request);
-	sci_dev = scic_sds_request_get_device(sds_request);
-	target_port = scic_sds_request_get_port(sds_request);
+	scic = scic_sds_request_get_controller(sci_req);
+	sci_dev = scic_sds_request_get_device(sci_req);
+	sci_port = scic_sds_request_get_port(sci_req);
 
 	/*
 	 * Fill in the TC with the its required data
@@ -195,9 +183,8 @@ static void scu_smp_request_construct_task_context(
 	task_context->initiator_request = 1;
 	task_context->connection_rate = sci_dev->connection_rate;
 	task_context->protocol_engine_index =
-		scic_sds_controller_get_protocol_engine_group(controller);
-	task_context->logical_port_index =
-		scic_sds_port_get_index(target_port);
+		scic_sds_controller_get_protocol_engine_group(scic);
+	task_context->logical_port_index = scic_sds_port_get_index(sci_port);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SMP;
 	task_context->abort = 0;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
@@ -220,8 +207,7 @@ static void scu_smp_request_construct_task_context(
 	task_context->address_modifier = 0;
 
 	/* 10h */
-	task_context->ssp_command_iu_length =
-		smp_request->header.request_length;
+	task_context->ssp_command_iu_length = smp_req->req_len;
 
 	/* 14h */
 	task_context->transfer_length_bytes = 0;
@@ -231,7 +217,7 @@ static void scu_smp_request_construct_task_context(
 	 * since commandIU has been build by framework at this point, we just
 	 * copy the frist DWord from command IU to this location. */
 	memcpy((void *)(&task_context->type.smp),
-	       sds_request->command_buffer,
+	       sci_req->command_buffer,
 	       sizeof(u32));
 
 	/*
@@ -241,19 +227,18 @@ static void scu_smp_request_construct_task_context(
 	 */
 	task_context->task_phase = 0;
 
-	if (sds_request->was_tag_assigned_by_user) {
+	if (sci_req->was_tag_assigned_by_user) {
 		/*
 		 * Build the task context now since we have already read
 		 * the data
 		 */
-		sds_request->post_context =
+		sci_req->post_context =
 			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							controller) <<
+			 (scic_sds_controller_get_protocol_engine_group(scic) <<
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
+			 (scic_sds_port_get_index(sci_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			 scic_sds_io_tag_get_index(sds_request->io_tag));
+			 scic_sds_io_tag_get_index(sci_req->io_tag));
 	} else {
 		/*
 		 * Build the task context now since we have already read
@@ -261,12 +246,11 @@ static void scu_smp_request_construct_task_context(
 		 * I/O tag index is not assigned because we have to wait
 		 * until we get a TCi.
 		 */
-		sds_request->post_context =
+		sci_req->post_context =
 			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							controller) <<
+			 (scic_sds_controller_get_protocol_engine_group(scic) <<
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
+			 (scic_sds_port_get_index(sci_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
 	}
 
@@ -274,9 +258,9 @@ static void scu_smp_request_construct_task_context(
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context command buffer should not contain command header.
 	 */
-	dma_addr = scic_io_request_get_dma_addr(sds_request,
+	dma_addr = scic_io_request_get_dma_addr(sci_req,
 						(char *)
-						(sds_request->command_buffer) +
+						(sci_req->command_buffer) +
 						sizeof(u32));
 
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
@@ -577,7 +561,7 @@ static const struct sci_base_state scic_sds_smp_request_started_substate_table[]
  */
 enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 {
-	struct smp_request *smp_req = kmalloc(sizeof(*smp_req), GFP_KERNEL);
+	struct smp_req *smp_req = kmalloc(sizeof(*smp_req), GFP_KERNEL);
 
 	if (!smp_req)
 		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
@@ -600,18 +584,18 @@ enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
 	 * functions under SAS 2.0, a zero request length really indicates
 	 * a non-zero default length. */
-	if (smp_req->header.request_length == 0) {
-		switch (smp_req->header.function) {
-		case SMP_FUNCTION_DISCOVER:
-		case SMP_FUNCTION_REPORT_PHY_ERROR_LOG:
-		case SMP_FUNCTION_REPORT_PHY_SATA:
-		case SMP_FUNCTION_REPORT_ROUTE_INFORMATION:
-			smp_req->header.request_length = 2;
+	if (smp_req->req_len == 0) {
+		switch (smp_req->func) {
+		case SMP_DISCOVER:
+		case SMP_REPORT_PHY_ERR_LOG:
+		case SMP_REPORT_PHY_SATA:
+		case SMP_REPORT_ROUTE_INFO:
+			smp_req->req_len = 2;
 			break;
-		case SMP_FUNCTION_CONFIGURE_ROUTE_INFORMATION:
-		case SMP_FUNCTION_PHY_CONTROL:
-		case SMP_FUNCTION_PHY_TEST:
-			smp_req->header.request_length = 9;
+		case SMP_CONF_ROUTE_INFO:
+		case SMP_PHY_CONTROL:
+		case SMP_PHY_TEST_FUNCTION:
+			smp_req->req_len = 9;
 			break;
 			/* Default - zero is a valid default for 2.0. */
 		}

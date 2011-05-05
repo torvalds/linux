@@ -199,20 +199,6 @@ struct sci_ssp_frame_header {
 };
 
 /**
- * struct smp_request_header - This structure defines the contents of an SMP
- *    Request header.
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification.
- */
-struct smp_request_header {
-	u8 smp_frame_type;              /* byte 0 */
-	u8 function;                    /* byte 1 */
-	u8 allocated_response_length;   /* byte 2 */
-	u8 request_length;              /* byte 3 */
-};
-
-/**
  * struct smp_response_header - This structure depicts the contents of the SAS
  *    SMP DISCOVER RESPONSE frame.  For specific information on each of these
  *    individual fields please reference the SAS specification Link layer
@@ -225,136 +211,6 @@ struct smp_response_header {
 	u8 function;            /* byte 1 */
 	u8 function_result;     /* byte 2 */
 	u8 response_length;     /* byte 3 */
-};
-
-/**
- * struct smp_request_general - This structure defines the contents of an SMP
- *    Request that is comprised of the struct smp_request_header and a CRC.
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification.
- */
-struct smp_request_general {
-	u32 crc;      /* bytes 4-7 */
-
-};
-
-/**
- * struct smp_request_phy_identifier - This structure defines the contents of
- *    an SMP Request that is comprised of the struct smp_request_header and a phy
- *    identifier. Examples: SMP_REQUEST_DISCOVER, SMP_REQUEST_REPORT_PHY_SATA.
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification.
- */
-struct smp_request_phy_identifier {
-	u32 reserved_byte4_7;           /* bytes 4-7 */
-
-	u32 ignore_zone_group:1;      /* byte 8 */
-	u32 reserved_byte8:7;
-
-	u32 phy_identifier:8;         /* byte 9 */
-	u32 reserved_byte10:8;        /* byte 10 */
-	u32 reserved_byte11:8;        /* byte 11 */
-
-};
-
-/**
- * struct smp_request_configure_route_information - This structure defines the
- *    contents of an SMP Configure Route Information request.
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification.
- */
-struct smp_request_configure_route_information {
-	u32 expected_expander_change_count:16;        /* bytes 4-5 */
-	u32 expander_route_index_high:8;
-	u32 expander_route_index:8;                   /* bytes 6-7 */
-
-	u32 reserved_byte8:8;                         /* bytes 8 */
-	u32 phy_identifier:8;                         /* bytes 9 */
-	u32 reserved_byte_10_11:16;                   /* bytes 10-11 */
-
-	u32 reserved_byte_12_bit_0_6:7;
-	u32 disable_route_entry:1;    /* byte 12 */
-	u32 reserved_byte_13_15:24;   /* bytes 13-15 */
-
-	u32 routed_sas_address[2];      /* bytes 16-23 */
-	u8 reserved_byte_24_39[16];     /* bytes 24-39 */
-
-};
-
-/**
- * struct smp_request_phy_control - This structure defines the contents of an
- *    SMP Phy Controler request.
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification.
- */
-struct smp_request_phy_control {
-	u16 expected_expander_change_count;     /* byte 4-5 */
-
-	u16 reserved_byte_6_7;                  /* byte 6-7 */
-	u8 reserved_byte_8;                     /* byte 8 */
-
-	u8 phy_identifier;                      /* byte 9 */
-	u8 phy_operation;                       /* byte 10 */
-
-	u8 update_partial_pathway_timeout_value:1;
-	u8 reserved_byte_11_bit_1_7:7;        /* byte 11 */
-
-	u8 reserved_byte_12_23[12];             /* byte 12-23 */
-
-	u8 attached_device_name[8];             /* byte 24-31 */
-
-	u8 reserved_byte_32_bit_3_0:4;        /* byte 32 */
-	u8 programmed_minimum_physical_link_rate:4;
-
-	u8 reserved_byte_33_bit_3_0:4; /* byte 33 */
-	u8 programmed_maximum_physical_link_rate:4;
-
-	u16 reserved_byte_34_35; /* byte 34-35 */
-
-	u8 partial_pathway_timeout_value:4;
-	u8 reserved_byte_36_bit_4_7:4;        /* byte 36 */
-
-	u16 reserved_byte_37_38;                /* byte 37-38 */
-	u8 reserved_byte_39;                    /* byte 39 */
-
-};
-
-/**
- * struct smp_request_vendor_specific - This structure depicts the vendor
- *    specific space for SMP request.
- *
- *
- */
- #define SMP_REQUEST_VENDOR_SPECIFIC_MAX_LENGTH 1016
-struct smp_request_vendor_specific {
-	u8 request_bytes[SMP_REQUEST_VENDOR_SPECIFIC_MAX_LENGTH];
-};
-
-/**
- * struct smp_request - This structure simply unionizes the existing request
- *    structures into a common request type.
- *
- *
- */
-struct smp_request {
-	struct smp_request_header header;
-
-	union { /* bytes 4-N */
-		struct smp_request_general report_general;
-		struct smp_request_phy_identifier discover;
-		struct smp_request_general report_manufacturer_information;
-		struct smp_request_phy_identifier report_phy_sata;
-		struct smp_request_phy_control phy_control;
-		struct smp_request_phy_identifier report_phy_error_log;
-		struct smp_request_phy_identifier report_route_information;
-		struct smp_request_configure_route_information configure_route_information;
-		struct smp_request_vendor_specific vendor_specific_request;
-	} request;
-
 };
 
 
@@ -493,6 +349,7 @@ struct smp_response_report_phy_sata {
 
 };
 
+#define SMP_REQUEST_VENDOR_SPECIFIC_MAX_LENGTH 1016
 struct smp_response_vendor_specific {
 	u8 response_bytes[SMP_REQUEST_VENDOR_SPECIFIC_MAX_LENGTH];
 };
@@ -516,17 +373,6 @@ struct smp_response {
 	union smp_response_body response;
 
 };
-
-/* SMP Request Functions */
-#define SMP_FUNCTION_REPORT_GENERAL                   0x00
-#define SMP_FUNCTION_REPORT_MANUFACTURER_INFORMATION  0x01
-#define SMP_FUNCTION_DISCOVER                         0x10
-#define SMP_FUNCTION_REPORT_PHY_ERROR_LOG             0x11
-#define SMP_FUNCTION_REPORT_PHY_SATA                  0x12
-#define SMP_FUNCTION_REPORT_ROUTE_INFORMATION         0X13
-#define SMP_FUNCTION_CONFIGURE_ROUTE_INFORMATION      0X90
-#define SMP_FUNCTION_PHY_CONTROL                      0x91
-#define SMP_FUNCTION_PHY_TEST                         0x92
 
 #define SMP_FRAME_TYPE_REQUEST          0x40
 #define SMP_FRAME_TYPE_RESPONSE         0x41

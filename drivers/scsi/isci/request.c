@@ -61,7 +61,8 @@
 #include "request.h"
 #include "sata.h"
 #include "scu_completion_codes.h"
-#include "core/scic_sds_request.h"
+#include "scic_sds_request.h"
+#include "sas.h"
 
 static enum sci_status isci_request_ssp_request_construct(
 	struct isci_request *request)
@@ -113,47 +114,37 @@ static enum sci_status isci_request_stp_request_construct(
 	return status;
 }
 
-/**
- * isci_smp_request_build() - This function builds the smp request object.
- * @isci_host: This parameter specifies the ISCI host object
- * @request: This parameter points to the isci_request object allocated in the
+/*
+ * isci_smp_request_build() - This function builds the smp request.
+ * @ireq: This parameter points to the isci_request allocated in the
  *    request construct function.
- * @sci_device: This parameter is the handle for the sci core's remote device
- *    object that is the destination for this request.
  *
  * SCI_SUCCESS on successfull completion, or specific failure code.
  */
-static enum sci_status isci_smp_request_build(
-	struct isci_request *request)
+static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 {
 	enum sci_status status = SCI_FAILURE;
-	struct sas_task *task = isci_request_access_task(request);
+	struct sas_task *task = isci_request_access_task(ireq);
+	struct scic_sds_request *sci_req = ireq->sci_request_handle;
+	void *cmd_iu = sci_req->command_buffer;
 
-	void *command_iu_address =
-		scic_io_request_get_command_iu_address(
-			request->sci_request_handle
-			);
+	dev_dbg(&ireq->isci_host->pdev->dev,
+		"%s: request = %p\n", __func__, ireq);
 
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p\n",
-		__func__,
-		request);
-	dev_dbg(&request->isci_host->pdev->dev,
+	dev_dbg(&ireq->isci_host->pdev->dev,
 		"%s: smp_req len = %d\n",
 		__func__,
 		task->smp_task.smp_req.length);
 
 	/* copy the smp_command to the address; */
 	sg_copy_to_buffer(&task->smp_task.smp_req, 1,
-			  (char *)command_iu_address,
-			  sizeof(struct smp_request)
-			  );
+			  (char *)cmd_iu,
+			  sizeof(struct smp_req));
 
-	status = scic_io_request_construct_smp(request->sci_request_handle);
+	status = scic_io_request_construct_smp(sci_req);
 	if (status != SCI_SUCCESS)
-		dev_warn(&request->isci_host->pdev->dev,
-			 "%s: scic_io_request_construct_smp failed with "
-			 "status = %d\n",
+		dev_warn(&ireq->isci_host->pdev->dev,
+			 "%s: failed with status = %d\n",
 			 __func__,
 			 status);
 
@@ -1073,9 +1064,8 @@ void isci_request_io_request_complete(
 				sg_copy_from_buffer(
 					&task->smp_task.smp_resp, 1,
 					command_iu_address
-					+ sizeof(struct smp_request),
-					sizeof(struct smp_resp)
-					);
+					+ sizeof(struct smp_req),
+					sizeof(struct smp_resp));
 			} else if (completion_status
 				   == SCI_IO_SUCCESS_IO_DONE_EARLY) {
 

@@ -1658,38 +1658,47 @@ static void scic_sds_general_request_construct(struct scic_sds_controller *scic,
 	}
 }
 
-enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
-					  struct scic_sds_remote_device *sci_dev,
-					  u16 io_tag,
-					  void *user_io_request_object,
-					  struct scic_sds_request *sci_req,
-					  struct scic_sds_request **new_scic_io_request_handle)
+enum sci_status
+scic_io_request_construct(struct scic_sds_controller *scic,
+			  struct scic_sds_remote_device *sci_dev,
+			  u16 io_tag,
+			  void *user_req,
+			  struct scic_sds_request *sci_req,
+			  struct scic_sds_request **new_sci_req)
 {
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status = SCI_SUCCESS;
 
 	/* Build the common part of the request */
-	scic_sds_general_request_construct(scic, sci_dev, io_tag,
-					   user_io_request_object, sci_req);
+	scic_sds_general_request_construct(scic,
+					   sci_dev,
+					   io_tag,
+					   user_req,
+					   sci_req);
 
-	if (sci_dev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+	if (sci_dev->rnc.remote_node_index ==
+			SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
-	if (dev->dev_type == SAS_END_DEV) {
+	if (dev->dev_type == SAS_END_DEV)
 		scic_sds_ssp_io_request_assign_buffers(sci_req);
-	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+	else if ((dev->dev_type == SATA_DEV) ||
+		 (dev->tproto & SAS_PROTOCOL_STP)) {
 		scic_sds_stp_request_assign_buffers(sci_req);
-		memset(sci_req->command_buffer, 0, sizeof(struct host_to_dev_fis));
+		memset(sci_req->command_buffer,
+		       0,
+		       sizeof(struct host_to_dev_fis));
 	} else if (dev_is_expander(dev)) {
 		scic_sds_smp_request_assign_buffers(sci_req);
-		memset(sci_req->command_buffer, 0, sizeof(struct smp_request));
+		memset(sci_req->command_buffer, 0, sizeof(struct smp_req));
 	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
 	if (status == SCI_SUCCESS) {
-		memset(sci_req->task_context_buffer, 0,
-			SCI_FIELD_OFFSET(struct scu_task_context, sgl_pair_ab));
-		*new_scic_io_request_handle = sci_req;
+		memset(sci_req->task_context_buffer,
+		       0,
+		       SCI_FIELD_OFFSET(struct scu_task_context, sgl_pair_ab));
+		*new_sci_req = sci_req;
 	}
 
 	return status;
