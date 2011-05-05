@@ -191,7 +191,7 @@ static int fm_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case  V4L2_CID_TUNE_ANTENNA_CAPACITOR:
-		ctrl->val = fm_tx_get_tune_cap_val(fmdev);
+		ctrl->cur.val = fm_tx_get_tune_cap_val(fmdev);
 		break;
 	default:
 		fmwarn("%s: Unknown IOCTL: %d\n", __func__, ctrl->id);
