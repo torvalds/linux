@@ -3183,7 +3183,7 @@ void drbd_bcast_event(struct drbd_conf *mdev, const struct sib_info *sib)
 	if (!d_out) /* cannot happen, but anyways. */
 		goto nla_put_failure;
 	d_out->minor = mdev_to_minor(mdev);
-	d_out->ret_code = 0;
+	d_out->ret_code = NO_ERROR;
 
 	if (nla_put_status_info(msg, mdev, sib))
 		goto nla_put_failure;
