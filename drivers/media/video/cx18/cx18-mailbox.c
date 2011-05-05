@@ -164,10 +164,9 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 {
 	struct cx18_videobuf_buffer *vb_buf;
 	struct cx18_buffer *buf;
-	u8 *p, u;
+	u8 *p;
 	u32 offset = 0;
 	int dispatch = 0;
-	int i;
 
 	if (mdl->bytesused == 0)
 		return;
@@ -203,7 +202,7 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 	}
 
 	if (dispatch) {
-		ktime_get_ts(&vb_buf->vb.ts);
+		vb_buf->vb.ts = ktime_to_timeval(ktime_get());
 		list_del(&vb_buf->vb.queue);
 		vb_buf->vb.state = VIDEOBUF_DONE;
 		wake_up(&vb_buf->vb.done);
