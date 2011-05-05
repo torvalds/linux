@@ -24,12 +24,9 @@ enum writeback_sync_modes {
  */
 struct writeback_control {
 	enum writeback_sync_modes sync_mode;
-	unsigned long *older_than_this;	/* If !NULL, only write back inodes
-					   older than this */
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
 	long pages_skipped;		/* Pages which were not written */
-	long inodes_written;		/* # of inodes written (at least) */
 
 	/*
 	 * For a_ops->writepages(): is start or end are non-zero then this is
@@ -56,8 +53,7 @@ void writeback_inodes_sb_nr(struct super_block *, unsigned long nr);
 int writeback_inodes_sb_if_idle(struct super_block *);
 int writeback_inodes_sb_nr_if_idle(struct super_block *, unsigned long nr);
 void sync_inodes_sb(struct super_block *);
-void writeback_inodes_wb(struct bdi_writeback *wb,
-		struct writeback_control *wbc);
+long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 void wakeup_flusher_threads(long nr_pages);
 

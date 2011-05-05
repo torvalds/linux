@@ -260,18 +260,6 @@ int bdi_has_dirty_io(struct backing_dev_info *bdi)
 	return wb_has_dirty_io(&bdi->wb);
 }
 
-static void bdi_flush_io(struct backing_dev_info *bdi)
-{
-	struct writeback_control wbc = {
-		.sync_mode		= WB_SYNC_NONE,
-		.older_than_this	= NULL,
-		.range_cyclic		= 1,
-		.nr_to_write		= 1024,
-	};
-
-	writeback_inodes_wb(&bdi->wb, &wbc);
-}
-
 /*
  * kupdated() used to do this. We cannot do it from the bdi_forker_thread()
  * or we risk deadlocking on ->s_umount. The longer term solution would be
@@ -457,9 +445,10 @@ static int bdi_forker_thread(void *ptr)
 			if (IS_ERR(task)) {
 				/*
 				 * If thread creation fails, force writeout of
-				 * the bdi from the thread.
+				 * the bdi from the thread. Hopefully 1024 is
+				 * large enough for efficient IO.
 				 */
-				bdi_flush_io(bdi);
+				writeback_inodes_wb(&bdi->wb, 1024);
 			} else {
 				/*
 				 * The spinlock makes sure we do not lose
