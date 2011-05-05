@@ -602,7 +602,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.read = ssm2602_read_reg_cache,
 	.write = ssm2602_write,
 	.set_bias_level = ssm2602_set_bias_level,
-	.reg_cache_size = sizeof(ssm2602_reg),
+	.reg_cache_size = ARRAY_SIZE(ssm2602_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = ssm2602_reg,
 };
