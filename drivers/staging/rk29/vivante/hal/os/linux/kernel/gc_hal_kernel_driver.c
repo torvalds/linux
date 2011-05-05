@@ -708,8 +708,8 @@ static void drv_exit(void)
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] Entering drv_exit\n");
 
-#if 0
-    misc_deregister(&miscdev);
+#if 1
+    //misc_deregister(&miscdev);
 #else
 
 	device_destroy(gpuClass, MKDEV(major, 0));

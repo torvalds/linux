@@ -2896,6 +2896,9 @@ gckHARDWARE_SetPowerManagementState(
     gctBOOL stall = gcvTRUE;
     gctBOOL broadcast = gcvFALSE;
     gctUINT32 process, thread;
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    gceCHIPPOWERSTATE curState = State;
+#endif
 
     /* State transition flags. */
     static const gctUINT flags[4][4] =
@@ -2985,17 +2988,6 @@ gckHARDWARE_SetPowerManagementState(
     /* Get the gckOS object pointer. */
     os = Hardware->os;
     gcmkVERIFY_OBJECT(os, gcvOBJ_OS);
-
-#if gcdENABLE_LONG_IDLE_POWEROFF
-    if(gcvPOWER_IDLE_BROADCAST==State) {
-        cancel_delayed_work_sync(&poweroff_work);
-        schedule_delayed_work(&poweroff_work, 5*HZ);
-    } else if(gcvPOWER_OFF_BROADCAST==State) {
-        // NULL
-    } else {
-        cancel_delayed_work_sync(&poweroff_work);
-    }
-#endif
 
     /* Convert the broadcast power state. */
     switch (State)
@@ -3091,7 +3083,7 @@ gckHARDWARE_SetPowerManagementState(
         /* Acquire the power mutex. */
         gcmkONERROR(gckOS_AcquireMutex(os, Hardware->powerMutex, gcvINFINITE));
     }
-
+    
     Hardware->powerProcess = process;
     Hardware->powerThread  = thread;
     mutexAcquired          = gcvTRUE;
@@ -3099,6 +3091,17 @@ gckHARDWARE_SetPowerManagementState(
     /* Grab control flags and clock. */
     flag  = flags[Hardware->chipPowerState][State];
     clock = clocks[State];
+
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    if(gcvPOWER_IDLE_BROADCAST==curState) {
+        cancel_delayed_work_sync(&poweroff_work);
+        schedule_delayed_work(&poweroff_work, 5*HZ);
+    } else if(gcvPOWER_OFF_BROADCAST==curState) {
+        // NULL
+    } else {
+        cancel_delayed_work_sync(&poweroff_work);
+    }
+#endif
 
     if ((flag == 0) || (Hardware->settingPowerState))
     {

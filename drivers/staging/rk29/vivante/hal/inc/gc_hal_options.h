@@ -294,7 +294,7 @@
     这样可以使某些不使用GPU的场景的功耗进一步降低，如视频播放时，一级待机时，
     或长时间不操作界面但还未进入一级待机
 */
-#define gcdENABLE_LONG_IDLE_POWEROFF        0
+#define gcdENABLE_LONG_IDLE_POWEROFF        1
 
 #endif /* __gc_hal_options_h_ */
 
