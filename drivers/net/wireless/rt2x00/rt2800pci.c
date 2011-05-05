@@ -302,8 +302,8 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
-				   data, len);
+	rt2x00pci_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+				      data, len);
 
 	rt2x00pci_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000);
 	rt2x00pci_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00001);

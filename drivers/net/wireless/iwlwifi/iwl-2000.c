@@ -46,17 +46,16 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
-#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 5
 #define IWL2000_UCODE_API_MAX 5
-#define IWL200_UCODE_API_MAX 5
+#define IWL105_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL2030_UCODE_API_MIN 5
 #define IWL2000_UCODE_API_MIN 5
-#define IWL200_UCODE_API_MIN 5
+#define IWL105_UCODE_API_MIN 5
 
 #define IWL2030_FW_PRE "iwlwifi-2030-"
 #define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE #api ".ucode"
@@ -64,8 +63,8 @@
 #define IWL2000_FW_PRE "iwlwifi-2000-"
 #define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE #api ".ucode"
 
-#define IWL200_FW_PRE "iwlwifi-200-"
-#define IWL200_MODULE_FIRMWARE(api) IWL200_FW_PRE #api ".ucode"
+#define IWL105_FW_PRE "iwlwifi-105-"
+#define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE #api ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -128,10 +127,10 @@ static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 
 static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
@@ -280,21 +279,11 @@ static struct iwl_lib_ops iwl2000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version  = iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
-	},
-	.debugfs_ops = {
-		.rx_stats_read = iwl_ucode_rx_stats_read,
-		.tx_stats_read = iwl_ucode_tx_stats_read,
-		.general_stats_read = iwl_ucode_general_stats_read,
-		.bt_stats_read = iwl_ucode_bt_stats_read,
-		.reply_tx_error = iwl_reply_tx_error_read,
 	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
@@ -312,13 +301,13 @@ static const struct iwl_ops iwl2030_ops = {
 	.utils = &iwlagn_hcmd_utils,
 };
 
-static const struct iwl_ops iwl200_ops = {
+static const struct iwl_ops iwl105_ops = {
 	.lib = &iwl2000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
-static const struct iwl_ops iwl230_ops = {
+static const struct iwl_ops iwl135_ops = {
 	.lib = &iwl2000_lib,
 	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
@@ -383,7 +372,6 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl2000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -409,7 +397,6 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl2030_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
@@ -429,14 +416,13 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	IWL_DEVICE_2030,
 };
 
-#define IWL_DEVICE_200						\
-	.fw_name_pre = IWL200_FW_PRE,				\
-	.ucode_api_max = IWL200_UCODE_API_MAX,			\
-	.ucode_api_min = IWL200_UCODE_API_MIN,			\
+#define IWL_DEVICE_105						\
+	.fw_name_pre = IWL105_FW_PRE,				\
+	.ucode_api_max = IWL105_UCODE_API_MAX,			\
+	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl200_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
+	.ops = &iwl105_ops,					\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -444,25 +430,24 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true				\
 
-struct iwl_cfg iwl200_bg_cfg = {
-	.name = "200 Series 1x1 BG",
-	IWL_DEVICE_200,
+struct iwl_cfg iwl105_bg_cfg = {
+	.name = "105 Series 1x1 BG",
+	IWL_DEVICE_105,
 };
 
-struct iwl_cfg iwl200_bgn_cfg = {
-	.name = "200 Series 1x1 BGN",
-	IWL_DEVICE_200,
+struct iwl_cfg iwl105_bgn_cfg = {
+	.name = "105 Series 1x1 BGN",
+	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
-#define IWL_DEVICE_230						\
-	.fw_name_pre = IWL200_FW_PRE,				\
-	.ucode_api_max = IWL200_UCODE_API_MAX,			\
-	.ucode_api_min = IWL200_UCODE_API_MIN,			\
+#define IWL_DEVICE_135						\
+	.fw_name_pre = IWL105_FW_PRE,				\
+	.ucode_api_max = IWL105_UCODE_API_MAX,			\
+	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl230_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
+	.ops = &iwl135_ops,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
@@ -471,17 +456,17 @@ struct iwl_cfg iwl200_bgn_cfg = {
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true				\
 
-struct iwl_cfg iwl230_bg_cfg = {
-	.name = "200 Series 1x1 BG/BT",
-	IWL_DEVICE_230,
+struct iwl_cfg iwl135_bg_cfg = {
+	.name = "105 Series 1x1 BG/BT",
+	IWL_DEVICE_135,
 };
 
-struct iwl_cfg iwl230_bgn_cfg = {
-	.name = "200 Series 1x1 BGN/BT",
-	IWL_DEVICE_230,
+struct iwl_cfg iwl135_bgn_cfg = {
+	.name = "105 Series 1x1 BGN/BT",
+	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };
 
 MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL200_MODULE_FIRMWARE(IWL200_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL105_MODULE_FIRMWARE(IWL105_UCODE_API_MAX));

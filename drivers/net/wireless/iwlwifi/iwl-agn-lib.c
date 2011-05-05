@@ -483,8 +483,6 @@ void iwlagn_rx_handler_setup(struct iwl_priv *priv)
 	/* init calibration handlers */
 	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
 					iwlagn_rx_calib_result;
-	priv->rx_handlers[CALIBRATION_COMPLETE_NOTIFICATION] =
-					iwlagn_rx_calib_complete;
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */
@@ -667,7 +665,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 
 	rb_timeout = RX_RB_TIMEOUT;
 
-	if (priv->cfg->mod_params->amsdu_size_8K)
+	if (iwlagn_mod_params.amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
@@ -1296,9 +1294,17 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	 * mean we never reach it, but at the same time work around
 	 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
 	 * here instead of IWL_GOOD_CRC_TH_DISABLED.
+	 *
+	 * This was fixed in later versions along with some other
+	 * scan changes, and the threshold behaves as a flag in those
+	 * versions.
 	 */
-	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-					IWL_GOOD_CRC_TH_NEVER;
+	if (priv->new_scan_threshold_behaviour)
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_DISABLED;
+	else
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_NEVER;
 
 	band = priv->scan_band;
 
@@ -2256,34 +2262,44 @@ int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
 /* notification wait support */
 void iwlagn_init_notification_wait(struct iwl_priv *priv,
 				   struct iwl_notification_wait *wait_entry,
+				   u8 cmd,
 				   void (*fn)(struct iwl_priv *priv,
-					      struct iwl_rx_packet *pkt),
-				   u8 cmd)
+					      struct iwl_rx_packet *pkt,
+					      void *data),
+				   void *fn_data)
 {
 	wait_entry->fn = fn;
+	wait_entry->fn_data = fn_data;
 	wait_entry->cmd = cmd;
 	wait_entry->triggered = false;
+	wait_entry->aborted = false;
 
 	spin_lock_bh(&priv->_agn.notif_wait_lock);
 	list_add(&wait_entry->list, &priv->_agn.notif_waits);
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
 }
 
-signed long iwlagn_wait_notification(struct iwl_priv *priv,
-				     struct iwl_notification_wait *wait_entry,
-				     unsigned long timeout)
+int iwlagn_wait_notification(struct iwl_priv *priv,
+			     struct iwl_notification_wait *wait_entry,
+			     unsigned long timeout)
 {
 	int ret;
 
 	ret = wait_event_timeout(priv->_agn.notif_waitq,
-				 wait_entry->triggered,
+				 wait_entry->triggered || wait_entry->aborted,
 				 timeout);
 
 	spin_lock_bh(&priv->_agn.notif_wait_lock);
 	list_del(&wait_entry->list);
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
 
-	return ret;
+	if (wait_entry->aborted)
+		return -EIO;
+
+	/* return value is always >= 0 */
+	if (ret <= 0)
+		return -ETIMEDOUT;
+	return 0;
 }
 
 void iwlagn_remove_notification(struct iwl_priv *priv,
@@ -2292,4 +2308,88 @@ void iwlagn_remove_notification(struct iwl_priv *priv,
 	spin_lock_bh(&priv->_agn.notif_wait_lock);
 	list_del(&wait_entry->list);
 	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+}
+
+int iwlagn_start_device(struct iwl_priv *priv)
+{
+	int ret;
+
+	if (iwl_prepare_card_hw(priv)) {
+		IWL_WARN(priv, "Exit HW not ready\n");
+		return -EIO;
+	}
+
+	/* If platform's RF_KILL switch is NOT set to KILL */
+	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+
+	if (iwl_is_rfkill(priv)) {
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+		iwl_enable_interrupts(priv);
+		return -ERFKILL;
+	}
+
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+
+	ret = iwlagn_hw_nic_init(priv);
+	if (ret) {
+		IWL_ERR(priv, "Unable to init nic\n");
+		return ret;
+	}
+
+	/* make sure rfkill handshake bits are cleared */
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
+
+	/* clear (again), then enable host interrupts */
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+	iwl_enable_interrupts(priv);
+
+	/* really make sure rfkill handshake bits are cleared */
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+
+	return 0;
+}
+
+void iwlagn_stop_device(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	/* stop and reset the on-board processor */
+	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+
+	/* tell the device to stop sending interrupts */
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	iwl_synchronize_irq(priv);
+
+	/* device going down, Stop using ICT table */
+	iwl_disable_ict(priv);
+
+	/*
+	 * If a HW restart happens during firmware loading,
+	 * then the firmware loading might call this function
+	 * and later it might be called again due to the
+	 * restart. So don't process again if the device is
+	 * already dead.
+	 */
+	if (test_bit(STATUS_DEVICE_ENABLED, &priv->status)) {
+                iwlagn_txq_ctx_stop(priv);
+                iwlagn_rxq_stop(priv);
+
+                /* Power-down device's busmaster DMA clocks */
+                iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+                udelay(5);
+        }
+
+	/* Make sure (redundant) we've released our request to stay awake */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+
+	/* Stop the device, and put it in low power state */
+	iwl_apm_stop(priv);
 }

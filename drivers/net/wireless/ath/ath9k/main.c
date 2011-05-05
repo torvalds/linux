@@ -624,6 +624,43 @@ out:
 	ath9k_ps_restore(sc);
 }
 
+static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
+{
+	static int count;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (pll_sqsum >= 0x40000) {
+		count++;
+		if (count == 3) {
+			/* Rx is hung for more than 500ms. Reset it */
+			ath_dbg(common, ATH_DBG_RESET,
+				"Possible RX hang, resetting");
+			ath_reset(sc, true);
+			count = 0;
+		}
+	} else
+		count = 0;
+}
+
+void ath_hw_pll_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    hw_pll_work.work);
+	u32 pll_sqsum;
+
+	if (AR_SREV_9485(sc->sc_ah)) {
+
+		ath9k_ps_wakeup(sc);
+		pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
+		ath9k_ps_restore(sc);
+
+		ath_hw_pll_rx_hang_check(sc, pll_sqsum);
+
+		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
+	}
+}
+
+
 void ath9k_tasklet(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
@@ -1932,6 +1969,12 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 				"Bss Info ASSOC %d, bssid: %pM\n",
 				bss_conf->aid, common->curbssid);
 			ath_beacon_config(sc, vif);
+			/*
+			 * Request a re-configuration of Beacon related timers
+			 * on the receipt of the first Beacon frame (i.e.,
+			 * after time sync with the AP).
+			 */
+			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 			/* Reset rssi stats */
 			sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
@@ -2219,9 +2262,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	int timeout = 200; /* ms */
 	int i, j;
 
-	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
-
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (drop)
@@ -2244,15 +2285,15 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		    goto out;
 	}
 
+	ath9k_ps_wakeup(sc);
 	if (!ath_drain_all_txq(sc, false))
 		ath_reset(sc, false);
-
+	ath9k_ps_restore(sc);
 	ieee80211_wake_queues(hw);
 
 out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
-	ath9k_ps_restore(sc);
 }
 
 static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)

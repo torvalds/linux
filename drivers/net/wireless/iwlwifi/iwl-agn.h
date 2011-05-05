@@ -102,10 +102,10 @@ extern struct iwl_cfg iwl2030_2bg_cfg;
 extern struct iwl_cfg iwl6035_2agn_cfg;
 extern struct iwl_cfg iwl6035_2abg_cfg;
 extern struct iwl_cfg iwl6035_2bg_cfg;
-extern struct iwl_cfg iwl200_bg_cfg;
-extern struct iwl_cfg iwl200_bgn_cfg;
-extern struct iwl_cfg iwl230_bg_cfg;
-extern struct iwl_cfg iwl230_bgn_cfg;
+extern struct iwl_cfg iwl105_bg_cfg;
+extern struct iwl_cfg iwl105_bgn_cfg;
+extern struct iwl_cfg iwl135_bg_cfg;
+extern struct iwl_cfg iwl135_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
@@ -119,6 +119,19 @@ void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);
 void iwl_free_isr_ict(struct iwl_priv *priv);
 irqreturn_t iwl_isr_ict(int irq, void *data);
+
+/* call this function to flush any scheduled tasklet */
+static inline void iwl_synchronize_irq(struct iwl_priv *priv)
+{
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(priv->pci_dev->irq);
+	tasklet_kill(&priv->irq_tasklet);
+}
+
+int iwl_prepare_card_hw(struct iwl_priv *priv);
+
+int iwlagn_start_device(struct iwl_priv *priv);
+void iwlagn_stop_device(struct iwl_priv *priv);
 
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
@@ -145,16 +158,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 
 /* uCode */
-int iwlagn_load_ucode(struct iwl_priv *priv);
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_calib_complete(struct iwl_priv *priv,
-			   struct iwl_rx_mem_buffer *rxb);
-void iwlagn_init_alive_start(struct iwl_priv *priv);
-int iwlagn_alive_notify(struct iwl_priv *priv);
-int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc);
-void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
+int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
+int iwlagn_run_init_ucode(struct iwl_priv *priv);
+int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
+				 struct fw_img *image,
+				 int subtype, int alternate_subtype);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
@@ -245,8 +256,6 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
 
 /* hcmd */
-int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx);
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 
@@ -318,17 +327,17 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 /* eeprom */
 void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
-int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
-void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 
 /* notification wait support */
 void __acquires(wait_entry)
 iwlagn_init_notification_wait(struct iwl_priv *priv,
 			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
 			      void (*fn)(struct iwl_priv *priv,
-					 struct iwl_rx_packet *pkt),
-			      u8 cmd);
-signed long __releases(wait_entry)
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
+int __must_check __releases(wait_entry)
 iwlagn_wait_notification(struct iwl_priv *priv,
 			 struct iwl_notification_wait *wait_entry,
 			 unsigned long timeout);

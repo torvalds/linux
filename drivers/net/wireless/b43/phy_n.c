@@ -2281,6 +2281,7 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B1S0);
 		save_regs_phy[7] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B32S1);
+		save_regs_phy[8] = 0;
 	} else {
 		save_regs_phy[0] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
 		save_regs_phy[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
@@ -2289,6 +2290,8 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		save_regs_phy[4] = b43_phy_read(dev, B43_NPHY_RFCTL_OVER);
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO1);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO2);
+		save_regs_phy[7] = 0;
+		save_regs_phy[8] = 0;
 	}
 
 	b43_nphy_rssi_select(dev, 5, type);
@@ -3845,8 +3848,8 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 {
 	struct b43_phy *phy = &dev->phy;
 
-	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2;
-	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3;
+	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2 = NULL;
+	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3 = NULL;
 
 	u8 tmp;
 

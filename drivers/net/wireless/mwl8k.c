@@ -74,6 +74,14 @@ MODULE_PARM_DESC(ap_mode_default,
 #define  MWL8K_A2H_INT_RX_READY			 (1 << 1)
 #define  MWL8K_A2H_INT_TX_DONE			 (1 << 0)
 
+/* HW micro second timer register
+ * located at offset 0xA600. This
+ * will be used to timestamp tx
+ * packets.
+ */
+
+#define	MWL8K_HW_TIMER_REGISTER			0x0000a600
+
 #define MWL8K_A2H_EVENTS	(MWL8K_A2H_INT_DUMMY | \
 				 MWL8K_A2H_INT_CHNL_SWITCHED | \
 				 MWL8K_A2H_INT_QUEUE_EMPTY | \
@@ -773,8 +781,10 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 		skb_pull(skb, sizeof(*tr) - hdrlen);
 }
 
+#define REDUCED_TX_HEADROOM	8
+
 static void
-mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
+mwl8k_add_dma_header(struct mwl8k_priv *priv, struct sk_buff *skb, int tail_pad)
 {
 	struct ieee80211_hdr *wh;
 	int hdrlen;
@@ -790,6 +800,22 @@ mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 	wh = (struct ieee80211_hdr *)skb->data;
 
 	hdrlen = ieee80211_hdrlen(wh->frame_control);
+
+	/*
+	 * Check if skb_resize is required because of
+	 * tx_headroom adjustment.
+	 */
+	if (priv->ap_fw && (hdrlen < (sizeof(struct ieee80211_cts)
+						+ REDUCED_TX_HEADROOM))) {
+		if (pskb_expand_head(skb, REDUCED_TX_HEADROOM, 0, GFP_ATOMIC)) {
+
+			wiphy_err(priv->hw->wiphy,
+					"Failed to reallocate TX buffer\n");
+			return;
+		}
+		skb->truesize += REDUCED_TX_HEADROOM;
+	}
+
 	reqd_hdrlen = sizeof(*tr);
 
 	if (hdrlen != reqd_hdrlen)
@@ -812,7 +838,8 @@ mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr) + tail_pad);
 }
 
-static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
+static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
+		struct sk_buff *skb)
 {
 	struct ieee80211_hdr *wh;
 	struct ieee80211_tx_info *tx_info;
@@ -853,7 +880,7 @@ static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
 			break;
 		}
 	}
-	mwl8k_add_dma_header(skb, data_pad);
+	mwl8k_add_dma_header(priv, skb, data_pad);
 }
 
 /*
@@ -1554,24 +1581,11 @@ static int mwl8k_tid_queue_mapping(u8 tid)
 
 /* The firmware will fill in the rate information
  * for each packet that gets queued in the hardware
- * in this structure
+ * and these macros will interpret that info.
  */
 
-struct rateinfo {
-	__le16  format:1;
-	__le16  short_gi:1;
-	__le16  band_width:1;
-	__le16  rate_id_mcs:6;
-	__le16  adv_coding:2;
-	__le16  antenna:2;
-	__le16  act_sub_chan:2;
-	__le16  preamble_type:1;
-	__le16  power_id:4;
-	__le16  antenna2:1;
-	__le16  reserved:1;
-	__le16  tx_bf_frame:1;
-	__le16  green_field:1;
-} __packed;
+#define RI_FORMAT(a)		  (a & 0x0001)
+#define RI_RATE_ID_MCS(a)	 ((a & 0x01f8) >> 3)
 
 static int
 mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
@@ -1592,7 +1606,6 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		struct ieee80211_sta *sta;
 		struct mwl8k_sta *sta_info = NULL;
 		u16 rate_info;
-		struct rateinfo *rate;
 		struct ieee80211_hdr *wh;
 
 		tx = txq->head;
@@ -1635,14 +1648,13 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 				sta_info = MWL8K_STA(sta);
 				BUG_ON(sta_info == NULL);
 				rate_info = le16_to_cpu(tx_desc->rate_info);
-				rate = (struct rateinfo *)&rate_info;
 				/* If rate is < 6.5 Mpbs for an ht station
 				 * do not form an ampdu. If the station is a
 				 * legacy station (format = 0), do not form an
 				 * ampdu
 				 */
-				if (rate->rate_id_mcs < 1 ||
-				    rate->format == 0) {
+				if (RI_RATE_ID_MCS(rate_info) < 1 ||
+				    RI_FORMAT(rate_info) == 0) {
 					sta_info->is_ampdu_allowed = false;
 				} else {
 					sta_info->is_ampdu_allowed = true;
@@ -1665,10 +1677,6 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 
 		processed++;
 	}
-
-	if (index < MWL8K_TX_WMM_QUEUES && processed && priv->radio_on &&
-	    !mutex_is_locked(&priv->fw_mutex))
-		ieee80211_wake_queue(hw, index);
 
 	return processed;
 }
@@ -1814,6 +1822,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	u8 tid = 0;
 	struct mwl8k_ampdu_stream *stream = NULL;
 	bool start_ba_session = false;
+	bool mgmtframe = false;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	wh = (struct ieee80211_hdr *)skb->data;
@@ -1822,10 +1831,13 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	else
 		qos = 0;
 
+	if (ieee80211_is_mgmt(wh->frame_control))
+		mgmtframe = true;
+
 	if (priv->ap_fw)
-		mwl8k_encapsulate_tx_frame(skb);
+		mwl8k_encapsulate_tx_frame(priv, skb);
 	else
-		mwl8k_add_dma_header(skb, 0);
+		mwl8k_add_dma_header(priv, skb, 0);
 
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
@@ -1951,14 +1963,26 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txq = priv->txq + index;
 
-	if (index >= MWL8K_TX_WMM_QUEUES && txq->len >= MWL8K_TX_DESCS) {
-		/* This is the case in which the tx packet is destined for an
-		 * AMPDU queue and that AMPDU queue is full.  Because we don't
-		 * start and stop the AMPDU queues, we must drop these packets.
-		 */
-		dev_kfree_skb(skb);
-		spin_unlock_bh(&priv->tx_lock);
-		return;
+	/* Mgmt frames that go out frequently are probe
+	 * responses. Other mgmt frames got out relatively
+	 * infrequently. Hence reserve 2 buffers so that
+	 * other mgmt frames do not get dropped due to an
+	 * already queued probe response in one of the
+	 * reserved buffers.
+	 */
+
+	if (txq->len >= MWL8K_TX_DESCS - 2) {
+		if (mgmtframe == false ||
+			txq->len == MWL8K_TX_DESCS) {
+			if (start_ba_session) {
+				spin_lock(&priv->stream_lock);
+				mwl8k_remove_stream(hw, stream);
+				spin_unlock(&priv->stream_lock);
+			}
+			spin_unlock_bh(&priv->tx_lock);
+			dev_kfree_skb(skb);
+			return;
+		}
 	}
 
 	BUG_ON(txq->skb[txq->tail] != NULL);
@@ -1975,6 +1999,11 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		tx->peer_id = MWL8K_STA(tx_info->control.sta)->peer_id;
 	else
 		tx->peer_id = 0;
+
+	if (priv->ap_fw)
+		tx->timestamp = cpu_to_le32(ioread32(priv->regs +
+						MWL8K_HW_TIMER_REGISTER));
+
 	wmb();
 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
 
@@ -1984,9 +2013,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	txq->tail++;
 	if (txq->tail == MWL8K_TX_DESCS)
 		txq->tail = 0;
-
-	if (txq->head == txq->tail && index < MWL8K_TX_WMM_QUEUES)
-		ieee80211_stop_queue(hw, index);
 
 	mwl8k_tx_start(priv);
 
@@ -2482,7 +2508,8 @@ static int mwl8k_cmd_set_hw_spec(struct ieee80211_hw *hw)
 
 	cmd->flags = cpu_to_le32(MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP |
-				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON);
+				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON |
+				 MWL8K_SET_HW_SPEC_FLAG_ENABLE_LIFE_TIME_EXPIRY);
 	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
 	cmd->total_rxd = cpu_to_le32(MWL8K_RX_DESCS);
 
@@ -5465,6 +5492,8 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	 */
 	hw->extra_tx_headroom =
 		sizeof(struct mwl8k_dma_data) - sizeof(struct ieee80211_cts);
+
+	hw->extra_tx_headroom -= priv->ap_fw ? REDUCED_TX_HEADROOM : 0;
 
 	hw->channel_change_time = 10;
 

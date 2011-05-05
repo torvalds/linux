@@ -100,7 +100,7 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 			   struct mwifiex_bssdescriptor *bss_desc)
 {
 	struct mwifiex_ie_types_tsf_timestamp tsf_tlv;
-	long long tsf_val;
+	__le64 tsf_val;
 
 	/* Null Checks */
 	if (buffer == NULL)
@@ -116,6 +116,8 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 	memcpy(*buffer, &tsf_tlv, sizeof(tsf_tlv.header));
 	*buffer += sizeof(tsf_tlv.header);
 
+	/* TSF at the time when beacon/probe_response was received */
+	tsf_val = cpu_to_le64(bss_desc->network_tsf);
 	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
 	*buffer += sizeof(tsf_val);
 

@@ -423,6 +423,7 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
 
 void ath_hw_check(struct work_struct *work);
+void ath_hw_pll_work(struct work_struct *work);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
@@ -453,6 +454,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 
 #define ATH_LED_PIN_DEF 		1
 #define ATH_LED_PIN_9287		8
+#define ATH_LED_PIN_9300		10
 #define ATH_LED_PIN_9485		6
 
 #ifdef CONFIG_MAC80211_LEDS

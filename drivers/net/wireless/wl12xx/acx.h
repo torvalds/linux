@@ -939,6 +939,16 @@ struct wl1271_acx_keep_alive_config {
 	u8 padding;
 } __packed;
 
+#define HOST_IF_CFG_RX_FIFO_ENABLE     BIT(0)
+#define HOST_IF_CFG_TX_EXTRA_BLKS_SWAP BIT(1)
+#define HOST_IF_CFG_TX_PAD_TO_SDIO_BLK BIT(3)
+
+struct wl1271_acx_host_config_bitmap {
+	struct acx_header header;
+
+	__le32 host_cfg_bitmap;
+} __packed;
+
 enum {
 	WL1271_ACX_TRIG_TYPE_LEVEL = 0,
 	WL1271_ACX_TRIG_TYPE_EDGE,
@@ -1135,7 +1145,7 @@ struct wl1271_acx_fw_tsf_information {
 	u8 padding[3];
 } __packed;
 
-struct wl1271_acx_max_tx_retry {
+struct wl1271_acx_ap_max_tx_retry {
 	struct acx_header header;
 
 	/*
@@ -1144,6 +1154,13 @@ struct wl1271_acx_max_tx_retry {
 	 */
 	__le16 max_tx_retry;
 	u8 padding_1[2];
+} __packed;
+
+struct wl1271_acx_sta_max_tx_retry {
+	struct acx_header header;
+
+	u8 max_tx_retry;
+	u8 padding_1[3];
 } __packed;
 
 struct wl1271_acx_config_ps {
@@ -1275,6 +1292,7 @@ int wl1271_acx_tx_config_options(struct wl1271 *wl);
 int wl1271_acx_ap_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_sta_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
+int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
@@ -1296,7 +1314,8 @@ int wl1271_acx_set_ba_session(struct wl1271 *wl,
 int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
 				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
-int wl1271_acx_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_sta_max_tx_retry(struct wl1271 *wl);
 int wl1271_acx_config_ps(struct wl1271 *wl);
 int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 

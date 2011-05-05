@@ -1,6 +1,6 @@
-/**
-  * This file contains functions used in USB interface module.
-  */
+/*
+ * This file contains functions used in USB interface module.
+ */
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
@@ -66,7 +66,7 @@ static int if_usb_reset_device(struct if_usb_card *cardp);
 
 /* sysfs hooks */
 
-/**
+/*
  *  Set function to write firmware to device's persistent memory
  */
 static ssize_t if_usb_firmware_set(struct device *dev,
@@ -85,7 +85,7 @@ static ssize_t if_usb_firmware_set(struct device *dev,
 	return ret;
 }
 
-/**
+/*
  * lbs_flash_fw attribute to be exported per ethX interface through sysfs
  * (/sys/class/net/ethX/lbs_flash_fw).  Use this like so to write firmware to
  * the device's persistent memory:
@@ -94,7 +94,14 @@ static ssize_t if_usb_firmware_set(struct device *dev,
 static DEVICE_ATTR(lbs_flash_fw, 0200, NULL, if_usb_firmware_set);
 
 /**
- *  Set function to write firmware to device's persistent memory
+ * if_usb_boot2_set - write firmware to device's persistent memory
+ *
+ * @dev: target device
+ * @attr: device attributes
+ * @buf: firmware buffer to write
+ * @count: number of bytes to write
+ *
+ * returns: number of bytes written or negative error code
  */
 static ssize_t if_usb_boot2_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -112,7 +119,7 @@ static ssize_t if_usb_boot2_set(struct device *dev,
 	return ret;
 }
 
-/**
+/*
  * lbs_flash_boot2 attribute to be exported per ethX interface through sysfs
  * (/sys/class/net/ethX/lbs_flash_boot2).  Use this like so to write firmware
  * to the device's persistent memory:
@@ -121,9 +128,10 @@ static ssize_t if_usb_boot2_set(struct device *dev,
 static DEVICE_ATTR(lbs_flash_boot2, 0200, NULL, if_usb_boot2_set);
 
 /**
- *  @brief  call back function to handle the status of the URB
- *  @param urb 		pointer to urb structure
- *  @return 	   	N/A
+ * if_usb_write_bulk_callback - callback function to handle the status
+ * of the URB
+ * @urb:	pointer to &urb structure
+ * returns:	N/A
  */
 static void if_usb_write_bulk_callback(struct urb *urb)
 {
@@ -150,9 +158,9 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 }
 
 /**
- *  @brief  free tx/rx urb, skb and rx buffer
- *  @param cardp	pointer if_usb_card
- *  @return 	   	N/A
+ * if_usb_free - free tx/rx urb, skb and rx buffer
+ * @cardp:	pointer to &if_usb_card
+ * returns:	N/A
  */
 static void if_usb_free(struct if_usb_card *cardp)
 {
@@ -231,10 +239,10 @@ static void if_usb_reset_olpc_card(struct lbs_private *priv)
 #endif
 
 /**
- *  @brief sets the configuration values
- *  @param ifnum	interface number
- *  @param id		pointer to usb_device_id
- *  @return 	   	0 on success, error code on failure
+ * if_usb_probe - sets the configuration values
+ * @intf:	&usb_interface pointer
+ * @id:	pointer to usb_device_id
+ * returns:	0 on success, error code on failure
  */
 static int if_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
@@ -366,9 +374,9 @@ error:
 }
 
 /**
- *  @brief free resource and cleanup
- *  @param intf		USB interface structure
- *  @return 	   	N/A
+ * if_usb_disconnect - free resource and cleanup
+ * @intf:	USB interface structure
+ * returns:	N/A
  */
 static void if_usb_disconnect(struct usb_interface *intf)
 {
@@ -398,9 +406,9 @@ static void if_usb_disconnect(struct usb_interface *intf)
 }
 
 /**
- *  @brief  This function download FW
- *  @param priv		pointer to struct lbs_private
- *  @return 	   	0
+ * if_usb_send_fw_pkt - download FW
+ * @cardp:	pointer to &struct if_usb_card
+ * returns:	0
  */
 static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 {
@@ -486,11 +494,11 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 }
 
 /**
- *  @brief This function transfer the data to the device.
- *  @param priv 	pointer to struct lbs_private
- *  @param payload	pointer to payload data
- *  @param nb		data length
- *  @return 	   	0 or -1
+ *  usb_tx_block - transfer the data to the device
+ *  @cardp: 	pointer to &struct if_usb_card
+ *  @payload:	pointer to payload data
+ *  @nb:	data length
+ *  returns:	0 for success or negative error code
  */
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb)
 {
@@ -727,11 +735,11 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 }
 
 /**
- *  @brief This function reads of the packet into the upload buff,
- *  wake up the main thread and initialise the Rx callack.
+ *  if_usb_receive - read the packet into the upload buffer,
+ *  wake up the main thread and initialise the Rx callack
  *
- *  @param urb		pointer to struct urb
- *  @return 	   	N/A
+ *  @urb:	pointer to &struct urb
+ *  returns:	N/A
  */
 static void if_usb_receive(struct urb *urb)
 {
@@ -802,12 +810,12 @@ rx_exit:
 }
 
 /**
- *  @brief This function downloads data to FW
- *  @param priv		pointer to struct lbs_private structure
- *  @param type		type of data
- *  @param buf		pointer to data buffer
- *  @param len		number of bytes
- *  @return 	   	0 or -1
+ *  if_usb_host_to_card - downloads data to FW
+ *  @priv:	pointer to &struct lbs_private structure
+ *  @type:	type of data
+ *  @payload:	pointer to data buffer
+ *  @nb:	number of bytes
+ *  returns:	0 for success or negative error code
  */
 static int if_usb_host_to_card(struct lbs_private *priv, uint8_t type,
 			       uint8_t *payload, uint16_t nb)
@@ -831,10 +839,11 @@ static int if_usb_host_to_card(struct lbs_private *priv, uint8_t type,
 }
 
 /**
- *  @brief This function issues Boot command to the Boot2 code
- *  @param ivalue   1:Boot from FW by USB-Download
- *                  2:Boot from FW in EEPROM
- *  @return 	   	0
+ *  if_usb_issue_boot_command - issues Boot command to the Boot2 code
+ *  @cardp:	pointer to &if_usb_card
+ *  @ivalue:	1:Boot from FW by USB-Download
+ *		2:Boot from FW in EEPROM
+ *  returns:	0 for success or negative error code
  */
 static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
 {
@@ -853,11 +862,11 @@ static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
 
 
 /**
- *  @brief This function checks the validity of Boot2/FW image.
+ *  check_fwfile_format - check the validity of Boot2/FW image
  *
- *  @param data              pointer to image
- *         len               image length
- *  @return     0 or -1
+ *  @data:	pointer to image
+ *  @totlen:	image length
+ *  returns:     0 (good) or 1 (failure)
  */
 static int check_fwfile_format(const uint8_t *data, uint32_t totlen)
 {
@@ -901,13 +910,13 @@ static int check_fwfile_format(const uint8_t *data, uint32_t totlen)
 
 
 /**
-*  @brief This function programs the firmware subject to cmd
+*  if_usb_prog_firmware - programs the firmware subject to cmd
 *
-*  @param cardp             the if_usb_card descriptor
-*         fwname            firmware or boot2 image file name
-*         cmd               either BOOT_CMD_FW_BY_USB, BOOT_CMD_UPDATE_FW,
-*                           or BOOT_CMD_UPDATE_BOOT2.
-*  @return     0 or error code
+*  @cardp:	the if_usb_card descriptor
+*  @fwname:	firmware or boot2 image file name
+*  @cmd:	either BOOT_CMD_FW_BY_USB, BOOT_CMD_UPDATE_FW,
+*		or BOOT_CMD_UPDATE_BOOT2.
+*  returns:	0 or error code
 */
 static int if_usb_prog_firmware(struct if_usb_card *cardp,
 				const char *fwname, int cmd)

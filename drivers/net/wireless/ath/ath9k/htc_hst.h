@@ -83,21 +83,10 @@ struct htc_ep_callbacks {
 	void (*rx) (void *, struct sk_buff *, enum htc_endpoint_id);
 };
 
-#define HTC_TX_QUEUE_SIZE 256
-
-struct htc_txq {
-	struct sk_buff *buf[HTC_TX_QUEUE_SIZE];
-	u32 txqdepth;
-	u16 txbuf_cnt;
-	u16 txq_head;
-	u16 txq_tail;
-};
-
 struct htc_endpoint {
 	u16 service_id;
 
 	struct htc_ep_callbacks ep_callbacks;
-	struct htc_txq htc_txq;
 	u32 max_txqdepth;
 	int max_msglen;
 

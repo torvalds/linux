@@ -446,7 +446,6 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rate;
 	struct ieee80211_conf *cur_conf = &priv->hw->conf;
-	struct ieee80211_supported_band *sband;
 	bool txok;
 	int slot;
 
@@ -461,7 +460,6 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 	tx_info = IEEE80211_SKB_CB(skb);
 	vif = tx_info->control.vif;
 	rate = &tx_info->status.rates[0];
-	sband = priv->hw->wiphy->bands[cur_conf->channel->band];
 
 	memset(&tx_info->status, 0, sizeof(tx_info->status));
 

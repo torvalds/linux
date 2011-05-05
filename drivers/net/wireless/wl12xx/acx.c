@@ -965,10 +965,13 @@ int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = wl->conf.mem.num_stations;
-	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
-	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
-	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
+	/* FIXME: for now we always use mem_wl127x for AP, because it
+	 * doesn't support dynamic memory and we don't have the
+	 * optimal values for wl128x without dynamic memory yet */
+	mem_conf->num_stations = wl->conf.mem_wl127x.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem_wl127x.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem_wl127x.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem_wl127x.ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
@@ -986,6 +989,7 @@ out:
 int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
 {
 	struct wl1271_acx_sta_config_memory *mem_conf;
+	struct conf_memory_settings *mem;
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
@@ -996,16 +1000,21 @@ int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		mem = &wl->conf.mem_wl128x;
+	else
+		mem = &wl->conf.mem_wl127x;
+
 	/* memory config */
-	mem_conf->num_stations = wl->conf.mem.num_stations;
-	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
-	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
-	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
+	mem_conf->num_stations = mem->num_stations;
+	mem_conf->rx_mem_block_num = mem->rx_block_num;
+	mem_conf->tx_min_mem_block_num = mem->tx_min_block_num;
+	mem_conf->num_ssid_profiles = mem->ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
-	mem_conf->dyn_mem_enable = wl->conf.mem.dynamic_memory;
-	mem_conf->tx_free_req = wl->conf.mem.min_req_tx_blocks;
-	mem_conf->rx_free_req = wl->conf.mem.min_req_rx_blocks;
-	mem_conf->tx_min = wl->conf.mem.tx_min;
+	mem_conf->dyn_mem_enable = mem->dynamic_memory;
+	mem_conf->tx_free_req = mem->min_req_tx_blocks;
+	mem_conf->rx_free_req = mem->min_req_rx_blocks;
+	mem_conf->tx_min = mem->tx_min;
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));
@@ -1016,6 +1025,32 @@ int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
 
 out:
 	kfree(mem_conf);
+	return ret;
+}
+
+int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap)
+{
+	struct wl1271_acx_host_config_bitmap *bitmap_conf;
+	int ret;
+
+	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
+	if (!bitmap_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	bitmap_conf->host_cfg_bitmap = cpu_to_le32(host_cfg_bitmap);
+
+	ret = wl1271_cmd_configure(wl, ACX_HOST_IF_CFG_BITMAP,
+				   bitmap_conf, sizeof(*bitmap_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 bitmap config opt failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(bitmap_conf);
+
 	return ret;
 }
 
@@ -1489,22 +1524,46 @@ out:
 	return ret;
 }
 
-int wl1271_acx_max_tx_retry(struct wl1271 *wl)
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl)
 {
-	struct wl1271_acx_max_tx_retry *acx = NULL;
+	struct wl1271_acx_ap_max_tx_retry *acx = NULL;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx max tx retry");
+	wl1271_debug(DEBUG_ACX, "acx ap max tx retry");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx)
 		return -ENOMEM;
 
-	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.ap_max_tx_retries);
+	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.max_tx_retries);
 
 	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));
 	if (ret < 0) {
-		wl1271_warning("acx max tx retry failed: %d", ret);
+		wl1271_warning("acx ap max tx retry failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_sta_max_tx_retry(struct wl1271 *wl)
+{
+	struct wl1271_acx_sta_max_tx_retry *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx sta max tx retry");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->max_tx_retry = wl->conf.tx.max_tx_retries;
+
+	ret = wl1271_cmd_configure(wl, ACX_CONS_TX_FAILURE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx sta max tx retry failed: %d", ret);
 		goto out;
 	}
 
