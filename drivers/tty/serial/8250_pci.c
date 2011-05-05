@@ -56,6 +56,9 @@ struct serial_private {
 	int			line[0];
 };
 
+static int pci_default_setup(struct serial_private*,
+	  const struct pciserial_board*, struct uart_port*, int);
+
 static void moan_device(const char *str, struct pci_dev *dev)
 {
 	printk(KERN_WARNING
@@ -752,6 +755,62 @@ pci_ni8430_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
+static int pci_netmos_9900_setup(struct serial_private *priv,
+				const struct pciserial_board *board,
+				struct uart_port *port, int idx)
+{
+	unsigned int bar;
+
+	if ((priv->dev->subsystem_device & 0xff00) == 0x3000) {
+		/* netmos apparently orders BARs by datasheet layout, so serial
+		 * ports get BARs 0 and 3 (or 1 and 4 for memmapped)
+		 */
+		bar = 3 * idx;
+
+		return setup_port(priv, port, bar, 0, board->reg_shift);
+	} else {
+		return pci_default_setup(priv, board, port, idx);
+	}
+}
+
+/* the 99xx series comes with a range of device IDs and a variety
+ * of capabilities:
+ *
+ * 9900 has varying capabilities and can cascade to sub-controllers
+ *   (cascading should be purely internal)
+ * 9904 is hardwired with 4 serial ports
+ * 9912 and 9922 are hardwired with 2 serial ports
+ */
+static int pci_netmos_9900_numports(struct pci_dev *dev)
+{
+	unsigned int c = dev->class;
+	unsigned int pi;
+	unsigned short sub_serports;
+
+	pi = (c & 0xff);
+
+	if (pi == 2) {
+		return 1;
+	} else if ((pi == 0) &&
+			   (dev->device == PCI_DEVICE_ID_NETMOS_9900)) {
+		/* two possibilities: 0x30ps encodes number of parallel and
+		 * serial ports, or 0x1000 indicates *something*. This is not
+		 * immediately obvious, since the 2s1p+4s configuration seems
+		 * to offer all functionality on functions 0..2, while still
+		 * advertising the same function 3 as the 4s+2s1p config.
+		 */
+		sub_serports = dev->subsystem_device & 0xf;
+		if (sub_serports > 0) {
+			return sub_serports;
+		} else {
+			printk(KERN_NOTICE "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
+			return 0;
+		}
+	}
+
+	moan_device("unknown NetMos/Mostech program interface", dev);
+	return 0;
+}
 
 static int pci_netmos_init(struct pci_dev *dev)
 {
@@ -761,12 +820,28 @@ static int pci_netmos_init(struct pci_dev *dev)
 	if ((dev->device == PCI_DEVICE_ID_NETMOS_9901) ||
 		(dev->device == PCI_DEVICE_ID_NETMOS_9865))
 		return 0;
+
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
 		return 0;
 
+	switch (dev->device) { /* FALLTHROUGH on all */
+		case PCI_DEVICE_ID_NETMOS_9904:
+		case PCI_DEVICE_ID_NETMOS_9912:
+		case PCI_DEVICE_ID_NETMOS_9922:
+		case PCI_DEVICE_ID_NETMOS_9900:
+			num_serial = pci_netmos_9900_numports(dev);
+			break;
+
+		default:
+			if (num_serial == 0 ) {
+				moan_device("unknown NetMos/Mostech device", dev);
+			}
+	}
+
 	if (num_serial == 0)
 		return -ENODEV;
+
 	return num_serial;
 }
 
@@ -1417,7 +1492,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_netmos_init,
-		.setup		= pci_default_setup,
+		.setup		= pci_netmos_9900_setup,
 	},
 	/*
 	 * For Oxford Semiconductor Tornado based devices
@@ -1644,6 +1719,7 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
 	pbn_omegapci,
+	pbn_NETMOS9900_2s_115200,
 };
 
 /*
@@ -2344,6 +2420,11 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.num_ports	= 8,
 		.base_baud	= 115200,
 		.uart_offset	= 0x200,
+	},
+	[pbn_NETMOS9900_2s_115200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 2,
+		.base_baud	= 115200,
 	},
 };
 
@@ -3825,6 +3906,27 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9901,
 		0xA000, 0x1000,
 		0, 0, pbn_b0_1_115200 },
+
+	/* the 9901 is a rebranded 9912 */
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9912,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9922,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9904,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+		0xA000, 0x3002,
+		0, 0, pbn_NETMOS9900_2s_115200 },
 
 	/*
 	 * Best Connectivity PCI Multi I/O cards
