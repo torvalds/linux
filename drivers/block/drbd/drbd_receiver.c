@@ -63,7 +63,7 @@ enum finish_epoch {
 
 static int drbd_do_features(struct drbd_tconn *tconn);
 static int drbd_do_auth(struct drbd_tconn *tconn);
-static int drbd_disconnected(int vnr, void *p, void *data);
+static int drbd_disconnected(struct drbd_conf *mdev);
 
 static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *, struct drbd_epoch *, enum epoch_event);
 static int e_end_block(struct drbd_work *, int);
@@ -811,9 +811,8 @@ static int drbd_socket_okay(struct socket **sock)
 }
 /* Gets called if a connection is established, or if a new minor gets created
    in a connection */
-int drbd_connected(int vnr, void *p, void *data)
+int drbd_connected(struct drbd_conf *mdev)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *)p;
 	int err;
 
 	atomic_set(&mdev->packet_seq, 0);
@@ -847,8 +846,9 @@ int drbd_connected(int vnr, void *p, void *data)
 static int conn_connect(struct drbd_tconn *tconn)
 {
 	struct socket *sock, *msock;
+	struct drbd_conf *mdev;
 	struct net_conf *nc;
-	int timeout, try, h, ok;
+	int vnr, timeout, try, h, ok;
 
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
@@ -1001,9 +1001,16 @@ retry:
 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
 
-	down_read(&drbd_cfg_rwsem);
-	h = !idr_for_each(&tconn->volumes, drbd_connected, tconn);
-	up_read(&drbd_cfg_rwsem);
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		kref_get(&mdev->kref);
+		rcu_read_unlock();
+		drbd_connected(mdev);
+		kref_put(&mdev->kref, &drbd_minor_destroy);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+
 	return h;
 
 out_release_sockets:
@@ -4242,8 +4249,9 @@ void conn_flush_workqueue(struct drbd_tconn *tconn)
 
 static void conn_disconnect(struct drbd_tconn *tconn)
 {
+	struct drbd_conf *mdev;
 	enum drbd_conns oc;
-	int rv = SS_UNKNOWN_ERROR;
+	int vnr, rv = SS_UNKNOWN_ERROR;
 
 	if (tconn->cstate == C_STANDALONE)
 		return;
@@ -4252,9 +4260,16 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 	drbd_thread_stop(&tconn->asender);
 	drbd_free_sock(tconn);
 
-	down_read(&drbd_cfg_rwsem);
-	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
-	up_read(&drbd_cfg_rwsem);
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		kref_get(&mdev->kref);
+		rcu_read_unlock();
+		drbd_disconnected(mdev);
+		kref_put(&mdev->kref, &drbd_minor_destroy);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+
 	conn_info(tconn, "Connection closed\n");
 
 	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
@@ -4271,9 +4286,8 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE | CS_HARD);
 }
 
-static int drbd_disconnected(int vnr, void *p, void *data)
+static int drbd_disconnected(struct drbd_conf *mdev)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *)p;
 	enum drbd_fencing_p fp;
 	unsigned int i;
 
@@ -4974,30 +4988,33 @@ static int got_skip(struct drbd_tconn *tconn, struct packet_info *pi)
 static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
-	int i, not_empty = 0;
+	int vnr, not_empty = 0;
 
 	do {
 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
 		flush_signals(current);
-		down_read(&drbd_cfg_rwsem);
-		idr_for_each_entry(&tconn->volumes, mdev, i) {
+
+		rcu_read_lock();
+		idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+			kref_get(&mdev->kref);
+			rcu_read_unlock();
 			if (drbd_finish_peer_reqs(mdev)) {
-				up_read(&drbd_cfg_rwsem);
-				return 1; /* error */
+				kref_put(&mdev->kref, &drbd_minor_destroy);
+				return 1;
 			}
+			kref_put(&mdev->kref, &drbd_minor_destroy);
+			rcu_read_lock();
 		}
-		up_read(&drbd_cfg_rwsem);
 		set_bit(SIGNAL_ASENDER, &tconn->flags);
 
 		spin_lock_irq(&tconn->req_lock);
-		rcu_read_lock();
-		idr_for_each_entry(&tconn->volumes, mdev, i) {
+		idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 			not_empty = !list_empty(&mdev->done_ee);
 			if (not_empty)
 				break;
 		}
-		rcu_read_unlock();
 		spin_unlock_irq(&tconn->req_lock);
+		rcu_read_unlock();
 	} while (not_empty);
 
 	return 0;

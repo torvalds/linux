@@ -1774,12 +1774,16 @@ int drbd_worker(struct drbd_thread *thi)
 	 */
 	spin_unlock_irq(&tconn->data.work.q_lock);
 
-	down_read(&drbd_cfg_rwsem);
+	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
+		kref_get(&mdev->kref);
+		rcu_read_unlock();
 		drbd_mdev_cleanup(mdev);
+		kref_put(&mdev->kref, &drbd_minor_destroy);
+		rcu_read_lock();
 	}
-	up_read(&drbd_cfg_rwsem);
+	rcu_read_unlock();
 
 	return 0;
 }

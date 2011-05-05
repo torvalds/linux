@@ -120,7 +120,6 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  */
 struct idr minors;
 struct list_head drbd_tconns;  /* list of struct drbd_tconn */
-DECLARE_RWSEM(drbd_cfg_rwsem);
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -2331,21 +2330,20 @@ static void drbd_cleanup(void)
 
 	drbd_genl_unregister();
 
-	down_write(&drbd_cfg_rwsem);
 	idr_for_each_entry(&minors, mdev, i) {
 		idr_remove(&minors, mdev_to_minor(mdev));
 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
 		del_gendisk(mdev->vdisk);
-		synchronize_rcu();
+		/* synchronize_rcu(); No other threads running at this point */
 		kref_put(&mdev->kref, &drbd_minor_destroy);
 	}
 
+	/* not _rcu since, no other updater anymore. Genl already unregistered */
 	list_for_each_entry_safe(tconn, tmp, &drbd_tconns, all_tconn) {
-		list_del_rcu(&tconn->all_tconn);
-		synchronize_rcu();
+		list_del(&tconn->all_tconn); /* not _rcu no proc, not other threads */
+		/* synchronize_rcu(); */
 		kref_put(&tconn->kref, &conn_destroy);
 	}
-	up_write(&drbd_cfg_rwsem);
 
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
@@ -2408,7 +2406,7 @@ struct drbd_tconn *conn_get_by_name(const char *name)
 	if (!name || !name[0])
 		return NULL;
 
-	down_read(&drbd_cfg_rwsem);
+	rcu_read_lock();
 	list_for_each_entry_rcu(tconn, &drbd_tconns, all_tconn) {
 		if (!strcmp(tconn->name, name)) {
 			kref_get(&tconn->kref);
@@ -2417,7 +2415,7 @@ struct drbd_tconn *conn_get_by_name(const char *name)
 	}
 	tconn = NULL;
 found:
-	up_read(&drbd_cfg_rwsem);
+	rcu_read_unlock();
 	return tconn;
 }
 
@@ -2502,10 +2500,8 @@ struct drbd_tconn *conn_create(const char *name)
 
 	drbd_set_res_opts_defaults(&tconn->res_opts);
 
-	down_write(&drbd_cfg_rwsem);
 	kref_init(&tconn->kref);
 	list_add_tail_rcu(&tconn->all_tconn, &drbd_tconns);
-	up_write(&drbd_cfg_rwsem);
 
 	return tconn;
 
@@ -2637,7 +2633,7 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	/* inherit the connection state */
 	mdev->state.conn = tconn->cstate;
 	if (mdev->state.conn == C_WF_REPORT_PARAMS)
-		drbd_connected(vnr, mdev, tconn);
+		drbd_connected(mdev);
 
 	return NO_ERROR;
 
@@ -2913,12 +2909,10 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	mutex_lock(&mdev->tconn->conf_update);
 	/* This blocks wants to be get removed... */
 	bdev->disk_conf->al_extents = be32_to_cpu(buffer->al_nr_extents);
 	if (bdev->disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
 		bdev->disk_conf->al_extents = DRBD_AL_EXTENTS_DEF;
-	mutex_unlock(&mdev->tconn->conf_update);
 
  err:
 	mutex_unlock(&mdev->md_io_mutex);

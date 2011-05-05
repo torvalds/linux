@@ -229,7 +229,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	 oos .. known out-of-sync kB
 	*/
 
-	down_read(&drbd_cfg_rwsem);
+	rcu_read_lock();
 	idr_for_each_entry(&minors, mdev, i) {
 		if (prev_i != i - 1)
 			seq_printf(seq, "\n");
@@ -242,10 +242,8 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    mdev->state.role == R_SECONDARY) {
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
-			rcu_read_lock();
 			nc = rcu_dereference(mdev->tconn->net_conf);
 			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
-			rcu_read_unlock();
 			seq_printf(seq,
 			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
@@ -299,7 +297,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			}
 		}
 	}
-	up_read(&drbd_cfg_rwsem);
+	rcu_read_unlock();
 
 	return 0;
 }

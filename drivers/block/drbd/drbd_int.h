@@ -169,11 +169,8 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
 #define DRBD_MD_MAGIC (DRBD_MAGIC+4)
 
 extern struct ratelimit_state drbd_ratelimit_state;
-extern struct idr minors;
-extern struct list_head drbd_tconns;
-extern struct rw_semaphore drbd_cfg_rwsem;
-/* drbd_cfg_rwsem protects: drbd_tconns list, minors idr, tconn->volumes idr 
-   note: non sleeping iterations over the idrs are protoected by RCU */
+extern struct idr minors; /* RCU, updates: genl_lock() */
+extern struct list_head drbd_tconns; /* RCU, updates: genl_lock() */
 
 /* on the wire */
 enum drbd_packet {
@@ -1477,7 +1474,7 @@ extern struct page *drbd_alloc_pages(struct drbd_conf *, unsigned int, bool);
 extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
 extern void conn_flush_workqueue(struct drbd_tconn *tconn);
-extern int drbd_connected(int vnr, void *p, void *data);
+extern int drbd_connected(struct drbd_conf *mdev);
 static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
 {
 	conn_flush_workqueue(mdev->tconn);
