@@ -275,7 +275,6 @@ static void mv_process_current_q(int first_block)
 	memcpy(cpg->sram + SRAM_CONFIG, &op,
 			sizeof(struct sec_accel_config));
 
-	writel(SRAM_CONFIG, cpg->reg + SEC_ACCEL_DESC_P0);
 	/* GO */
 	writel(SEC_CMD_EN_SEC_ACCL0, cpg->reg + SEC_ACCEL_CMD);
 
@@ -349,7 +348,6 @@ static void mv_process_hash_current(int first_block)
 
 	memcpy(cpg->sram + SRAM_CONFIG, &op, sizeof(struct sec_accel_config));
 
-	writel(SRAM_CONFIG, cpg->reg + SEC_ACCEL_DESC_P0);
 	/* GO */
 	writel(SEC_CMD_EN_SEC_ACCL0, cpg->reg + SEC_ACCEL_CMD);
 
@@ -1063,6 +1061,7 @@ static int mv_probe(struct platform_device *pdev)
 
 	writel(SEC_INT_ACCEL0_DONE, cpg->reg + SEC_ACCEL_INT_MASK);
 	writel(SEC_CFG_STOP_DIG_ERR, cpg->reg + SEC_ACCEL_CFG);
+	writel(SRAM_CONFIG, cpg->reg + SEC_ACCEL_DESC_P0);
 
 	ret = crypto_register_alg(&mv_aes_alg_ecb);
 	if (ret)
