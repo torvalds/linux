@@ -400,6 +400,98 @@ out:
 	return err;
 }
 
+static int sd_select_driver_type(struct mmc_card *card, u8 *status)
+{
+	int host_drv_type = 0, card_drv_type = 0;
+	int err;
+
+	/*
+	 * If the host doesn't support any of the Driver Types A,C or D,
+	 * default Driver Type B is used.
+	 */
+	if (!(card->host->caps & (MMC_CAP_DRIVER_TYPE_A | MMC_CAP_DRIVER_TYPE_C
+	    | MMC_CAP_DRIVER_TYPE_D)))
+		return 0;
+
+	if (card->host->caps & MMC_CAP_DRIVER_TYPE_A) {
+		host_drv_type = MMC_SET_DRIVER_TYPE_A;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_A)
+			card_drv_type = MMC_SET_DRIVER_TYPE_A;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_B)
+			card_drv_type = MMC_SET_DRIVER_TYPE_B;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	} else if (card->host->caps & MMC_CAP_DRIVER_TYPE_C) {
+		host_drv_type = MMC_SET_DRIVER_TYPE_C;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	} else if (!(card->host->caps & MMC_CAP_DRIVER_TYPE_D)) {
+		/*
+		 * If we are here, that means only the default driver type
+		 * B is supported by the host.
+		 */
+		host_drv_type = MMC_SET_DRIVER_TYPE_B;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_B)
+			card_drv_type = MMC_SET_DRIVER_TYPE_B;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	}
+
+	err = mmc_sd_switch(card, 1, 2, card_drv_type, status);
+	if (err)
+		return err;
+
+	if ((status[15] & 0xF) != card_drv_type) {
+		printk(KERN_WARNING "%s: Problem setting driver strength!\n",
+			mmc_hostname(card->host));
+		return 0;
+	}
+
+	mmc_set_driver_type(card->host, host_drv_type);
+
+	return 0;
+}
+
+/*
+ * UHS-I specific initialization procedure
+ */
+static int mmc_sd_init_uhs_card(struct mmc_card *card)
+{
+	int err;
+	u8 *status;
+
+	if (!card->scr.sda_spec3)
+		return 0;
+
+	if (!(card->csd.cmdclass & CCC_SWITCH))
+		return 0;
+
+	status = kmalloc(64, GFP_KERNEL);
+	if (!status) {
+		printk(KERN_ERR "%s: could not allocate a buffer for "
+			"switch capabilities.\n", mmc_hostname(card->host));
+		return -ENOMEM;
+	}
+
+	/* Set 4-bit bus width */
+	if ((card->host->caps & MMC_CAP_4_BIT_DATA) &&
+	    (card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+		if (err)
+			goto out;
+
+		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
+	}
+
+	/* Set the driver strength for the card */
+	err = sd_select_driver_type(card, status);
+
+out:
+	kfree(status);
+
+	return err;
+}
+
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
@@ -448,10 +540,9 @@ struct device_type sd_type = {
 /*
  * Fetch CID from card.
  */
-int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
+int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
 {
 	int err;
-	u32 rocr;
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -485,7 +576,7 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
 		ocr |= SD_OCR_XPC;
 
 try_again:
-	err = mmc_send_app_op_cond(host, ocr, &rocr);
+	err = mmc_send_app_op_cond(host, ocr, rocr);
 	if (err)
 		return err;
 
@@ -493,7 +584,8 @@ try_again:
 	 * In case CCS and S18A in the response is set, start Signal Voltage
 	 * Switch procedure. SPI mode doesn't support CMD11.
 	 */
-	if (!mmc_host_is_spi(host) && ((rocr & 0x41000000) == 0x41000000)) {
+	if (!mmc_host_is_spi(host) && rocr &&
+	   ((*rocr & 0x41000000) == 0x41000000)) {
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 		if (err) {
 			ocr &= ~SD_OCR_S18R;
@@ -628,11 +720,12 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *card;
 	int err;
 	u32 cid[4];
+	u32 rocr = 0;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
-	err = mmc_sd_get_cid(host, ocr, cid);
+	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
 		return err;
 
@@ -685,30 +778,37 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (err)
 		goto free_card;
 
-	/*
-	 * Attempt to change to high-speed (if supported)
-	 */
-	err = mmc_sd_switch_hs(card);
-	if (err > 0)
-		mmc_sd_go_highspeed(card);
-	else if (err)
-		goto free_card;
-
-	/*
-	 * Set bus speed.
-	 */
-	mmc_set_clock(host, mmc_sd_get_max_clock(card));
-
-	/*
-	 * Switch to wider bus (if supported).
-	 */
-	if ((host->caps & MMC_CAP_4_BIT_DATA) &&
-		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
-		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+	/* Initialization sequence for UHS-I cards */
+	if (rocr & SD_ROCR_S18A) {
+		err = mmc_sd_init_uhs_card(card);
 		if (err)
 			goto free_card;
+	} else {
+		/*
+		 * Attempt to change to high-speed (if supported)
+		 */
+		err = mmc_sd_switch_hs(card);
+		if (err > 0)
+			mmc_sd_go_highspeed(card);
+		else if (err)
+			goto free_card;
 
-		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		/*
+		 * Set bus speed.
+		 */
+		mmc_set_clock(host, mmc_sd_get_max_clock(card));
+
+		/*
+		 * Switch to wider bus (if supported).
+		 */
+		if ((host->caps & MMC_CAP_4_BIT_DATA) &&
+			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+			err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+			if (err)
+				goto free_card;
+
+			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		}
 	}
 
 	host->card = card;

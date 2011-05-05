@@ -984,6 +984,15 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
 }
 
 /*
+ * Select appropriate driver type for host.
+ */
+void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type)
+{
+	host->ios.drv_type = drv_type;
+	mmc_set_ios(host);
+}
+
+/*
  * Apply power to the MMC stack.  This is a two-stage process.
  * First, we enable power to the card without the clock running.
  * We then wait a bit for the power to stabilise.  Finally,

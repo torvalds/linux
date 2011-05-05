@@ -83,6 +83,10 @@ struct sd_switch_caps {
 	unsigned int		hs_max_dtr;
 	unsigned int		sd3_bus_mode;
 	unsigned int		sd3_drv_type;
+#define SD_DRIVER_TYPE_B	0x01
+#define SD_DRIVER_TYPE_A	0x02
+#define SD_DRIVER_TYPE_C	0x04
+#define SD_DRIVER_TYPE_D	0x08
 	unsigned int		sd3_curr_limit;
 };
 

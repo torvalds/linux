@@ -1245,6 +1245,25 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
+	if (host->version >= SDHCI_SPEC_300) {
+		u16 ctrl_2;
+
+		ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		if (!(ctrl_2 & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
+			/*
+			 * We only need to set Driver Strength if the
+			 * preset value enable is not set.
+			 */
+			ctrl_2 &= ~SDHCI_CTRL_DRV_TYPE_MASK;
+			if (ios->drv_type == MMC_SET_DRIVER_TYPE_A)
+				ctrl_2 |= SDHCI_CTRL_DRV_TYPE_A;
+			else if (ios->drv_type == MMC_SET_DRIVER_TYPE_C)
+				ctrl_2 |= SDHCI_CTRL_DRV_TYPE_C;
+
+			sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+		}
+	}
+
 	/*
 	 * Some (ENE) controllers go apeshit on some ios operation,
 	 * signalling timeout and CRC errors even on CMD0. Resetting
@@ -2085,6 +2104,14 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	if (caps[1] & SDHCI_SUPPORT_DDR50)
 		mmc->caps |= MMC_CAP_UHS_DDR50;
+
+	/* Driver Type(s) (A, C, D) supported by the host */
+	if (caps[1] & SDHCI_DRIVER_TYPE_A)
+		mmc->caps |= MMC_CAP_DRIVER_TYPE_A;
+	if (caps[1] & SDHCI_DRIVER_TYPE_C)
+		mmc->caps |= MMC_CAP_DRIVER_TYPE_C;
+	if (caps[1] & SDHCI_DRIVER_TYPE_D)
+		mmc->caps |= MMC_CAP_DRIVER_TYPE_D;
 
 	ocr_avail = 0;
 	/*

@@ -61,6 +61,13 @@ struct mmc_ios {
 
 #define MMC_SIGNAL_VOLTAGE_330	0
 #define MMC_SIGNAL_VOLTAGE_180	1
+
+	unsigned char	drv_type;		/* driver type (A, B, C, D) */
+
+#define MMC_SET_DRIVER_TYPE_B	0
+#define MMC_SET_DRIVER_TYPE_A	1
+#define MMC_SET_DRIVER_TYPE_C	2
+#define MMC_SET_DRIVER_TYPE_D	3
 };
 
 struct mmc_host_ops {
@@ -188,6 +195,9 @@ struct mmc_host {
 #define MMC_CAP_SET_XPC_330	(1 << 20)	/* Host supports >150mA current at 3.3V */
 #define MMC_CAP_SET_XPC_300	(1 << 21)	/* Host supports >150mA current at 3.0V */
 #define MMC_CAP_SET_XPC_180	(1 << 22)	/* Host supports >150mA current at 1.8V */
+#define MMC_CAP_DRIVER_TYPE_A	(1 << 23)	/* Host supports Driver Type A */
+#define MMC_CAP_DRIVER_TYPE_C	(1 << 24)	/* Host supports Driver Type C */
+#define MMC_CAP_DRIVER_TYPE_D	(1 << 25)	/* Host supports Driver Type D */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 

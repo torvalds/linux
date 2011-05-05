@@ -369,8 +369,8 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 	}
 
-	if (ocr & R4_MEMORY_PRESENT
-	    && mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid) == 0) {
+	if ((ocr & R4_MEMORY_PRESENT) &&
+	    mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid, NULL) == 0) {
 		card->type = MMC_TYPE_SD_COMBO;
 
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
