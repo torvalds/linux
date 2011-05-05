@@ -2216,6 +2216,16 @@ int sdhci_add_host(struct sdhci_host *host)
 
 		if (max_current_180 > 150)
 			mmc->caps |= MMC_CAP_SET_XPC_180;
+
+		/* Maximum current capabilities of the host at 1.8V */
+		if (max_current_180 >= 800)
+			mmc->caps |= MMC_CAP_MAX_CURRENT_800;
+		else if (max_current_180 >= 600)
+			mmc->caps |= MMC_CAP_MAX_CURRENT_600;
+		else if (max_current_180 >= 400)
+			mmc->caps |= MMC_CAP_MAX_CURRENT_400;
+		else
+			mmc->caps |= MMC_CAP_MAX_CURRENT_200;
 	}
 
 	mmc->ocr_avail = ocr_avail;

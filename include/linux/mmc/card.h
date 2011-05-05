@@ -105,6 +105,15 @@ struct sd_switch_caps {
 #define SD_DRIVER_TYPE_C	0x04
 #define SD_DRIVER_TYPE_D	0x08
 	unsigned int		sd3_curr_limit;
+#define SD_SET_CURRENT_LIMIT_200	0
+#define SD_SET_CURRENT_LIMIT_400	1
+#define SD_SET_CURRENT_LIMIT_600	2
+#define SD_SET_CURRENT_LIMIT_800	3
+
+#define SD_MAX_CURRENT_200	(1 << SD_SET_CURRENT_LIMIT_200)
+#define SD_MAX_CURRENT_400	(1 << SD_SET_CURRENT_LIMIT_400)
+#define SD_MAX_CURRENT_600	(1 << SD_SET_CURRENT_LIMIT_600)
+#define SD_MAX_CURRENT_800	(1 << SD_SET_CURRENT_LIMIT_800)
 };
 
 struct sdio_cccr {
