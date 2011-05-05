@@ -525,12 +525,6 @@ static void mv_start_new_hash_req(struct ahash_request *req)
 	hw_bytes = req->nbytes + ctx->extra_bytes;
 	old_extra_bytes = ctx->extra_bytes;
 
-	if (unlikely(ctx->extra_bytes)) {
-		memcpy(cpg->sram + SRAM_DATA_IN_START, ctx->buffer,
-		       ctx->extra_bytes);
-		p->crypt_len = ctx->extra_bytes;
-	}
-
 	ctx->extra_bytes = hw_bytes % SHA1_BLOCK_SIZE;
 	if (ctx->extra_bytes != 0
 	    && (!ctx->last_chunk || ctx->count > MAX_HW_HASH_SIZE))
@@ -545,6 +539,12 @@ static void mv_start_new_hash_req(struct ahash_request *req)
 		p->hw_nbytes = hw_bytes;
 		p->complete = mv_hash_algo_completion;
 		p->process = mv_process_hash_current;
+
+		if (unlikely(old_extra_bytes)) {
+			memcpy(cpg->sram + SRAM_DATA_IN_START, ctx->buffer,
+			       old_extra_bytes);
+			p->crypt_len = old_extra_bytes;
+		}
 
 		mv_process_hash_current(1);
 	} else {
