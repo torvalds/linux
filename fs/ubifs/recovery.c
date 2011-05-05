@@ -1490,18 +1490,22 @@ int ubifs_recover_size(struct ubifs_info *c)
 			if (c->ro_mount) {
 				/* Fix the inode size and pin it in memory */
 				struct inode *inode;
+				struct ubifs_inode *ui;
 
 				ubifs_assert(!e->inode);
 
 				inode = ubifs_iget(c->vfs_sb, e->inum);
 				if (IS_ERR(inode))
 					return PTR_ERR(inode);
+
+				ui = ubifs_inode(inode);
 				if (inode->i_size < e->d_size) {
 					dbg_rcvry("ino %lu size %lld -> %lld",
 						  (unsigned long)e->inum,
 						  inode->i_size, e->d_size);
 					inode->i_size = e->d_size;
-					ubifs_inode(inode)->ui_size = e->d_size;
+					ui->ui_size = e->d_size;
+					ui->synced_i_size = e->d_size;
 					e->inode = inode;
 					this = rb_next(this);
 					continue;
