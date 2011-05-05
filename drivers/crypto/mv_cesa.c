@@ -728,9 +728,6 @@ static int mv_hash_final(struct ahash_request *req)
 
 static int mv_hash_finup(struct ahash_request *req)
 {
-	if (!req->nbytes)
-		return mv_hash_final(req);
-
 	mv_update_hash_req_ctx(ahash_request_ctx(req), 1, req->nbytes);
 	return mv_handle_req(&req->base);
 }
