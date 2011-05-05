@@ -121,7 +121,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	/* adjust all flags and log packets */
 	while (aggregated_packet(buff_pos,
 				 forw_packet->packet_len,
-				 batman_packet->num_hna)) {
+				 batman_packet->num_tt)) {
 
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet */
@@ -146,7 +146,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 			hard_iface->net_dev->dev_addr);
 
 		buff_pos += sizeof(struct batman_packet) +
-			(batman_packet->num_hna * ETH_ALEN);
+			(batman_packet->num_tt * ETH_ALEN);
 		packet_num++;
 		batman_packet = (struct batman_packet *)
 			(forw_packet->skb->data + buff_pos);
@@ -222,7 +222,7 @@ static void rebuild_batman_packet(struct bat_priv *bat_priv,
 	struct batman_packet *batman_packet;
 
 	new_len = sizeof(struct batman_packet) +
-			(bat_priv->num_local_hna * ETH_ALEN);
+			(bat_priv->num_local_tt * ETH_ALEN);
 	new_buff = kmalloc(new_len, GFP_ATOMIC);
 
 	/* keep old buffer if kmalloc should fail */
@@ -231,7 +231,7 @@ static void rebuild_batman_packet(struct bat_priv *bat_priv,
 		       sizeof(struct batman_packet));
 		batman_packet = (struct batman_packet *)new_buff;
 
-		batman_packet->num_hna = hna_local_fill_buffer(bat_priv,
+		batman_packet->num_tt = tt_local_fill_buffer(bat_priv,
 				new_buff + sizeof(struct batman_packet),
 				new_len - sizeof(struct batman_packet));
 
@@ -266,8 +266,8 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 	if (hard_iface->if_status == IF_TO_BE_ACTIVATED)
 		hard_iface->if_status = IF_ACTIVE;
 
-	/* if local hna has changed and interface is a primary interface */
-	if ((atomic_read(&bat_priv->hna_local_changed)) &&
+	/* if local tt has changed and interface is a primary interface */
+	if ((atomic_read(&bat_priv->tt_local_changed)) &&
 	    (hard_iface == primary_if))
 		rebuild_batman_packet(bat_priv, hard_iface);
 
@@ -309,7 +309,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 void schedule_forward_packet(struct orig_node *orig_node,
 			     struct ethhdr *ethhdr,
 			     struct batman_packet *batman_packet,
-			     uint8_t directlink, int hna_buff_len,
+			     uint8_t directlink, int tt_buff_len,
 			     struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -369,7 +369,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	send_time = forward_send_time();
 	add_bat_packet_to_list(bat_priv,
 			       (unsigned char *)batman_packet,
-			       sizeof(struct batman_packet) + hna_buff_len,
+			       sizeof(struct batman_packet) + tt_buff_len,
 			       if_incoming, 0, send_time);
 }
 

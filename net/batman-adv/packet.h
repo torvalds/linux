@@ -61,7 +61,7 @@ struct batman_packet {
 	uint8_t  orig[6];
 	uint8_t  prev_sender[6];
 	uint8_t  ttl;
-	uint8_t  num_hna;
+	uint8_t  num_tt;
 	uint8_t  gw_flags;  /* flags related to gateway class */
 	uint8_t  align;
 } __packed;

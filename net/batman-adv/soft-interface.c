@@ -543,11 +543,11 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* only modify hna-table if it has been initialised before */
+	/* only modify transtable if it has been initialised before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
-		hna_local_remove(bat_priv, dev->dev_addr,
+		tt_local_remove(bat_priv, dev->dev_addr,
 				 "mac address changed");
-		hna_local_add(dev, addr->sa_data);
+		tt_local_add(dev, addr->sa_data);
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -605,7 +605,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		goto dropped;
 
 	/* TODO: check this for locks */
-	hna_local_add(soft_iface, ethhdr->h_source);
+	tt_local_add(soft_iface, ethhdr->h_source);
 
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
 		ret = gw_is_target(bat_priv, skb);
@@ -843,7 +843,7 @@ struct net_device *softif_create(char *name)
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
-	atomic_set(&bat_priv->hna_local_changed, 0);
+	atomic_set(&bat_priv->tt_local_changed, 0);
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;

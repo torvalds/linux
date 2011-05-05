@@ -75,8 +75,8 @@ struct orig_node {
 	unsigned long batman_seqno_reset;
 	uint8_t gw_flags;
 	uint8_t flags;
-	unsigned char *hna_buff;
-	int16_t hna_buff_len;
+	unsigned char *tt_buff;
+	int16_t tt_buff_len;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	unsigned long bcast_bits[NUM_WORDS];
@@ -155,21 +155,21 @@ struct bat_priv {
 	struct hlist_head softif_neigh_vids;
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
-	struct hashtable_t *hna_local_hash;
-	struct hashtable_t *hna_global_hash;
+	struct hashtable_t *tt_local_hash;
+	struct hashtable_t *tt_global_hash;
 	struct hashtable_t *vis_hash;
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
-	spinlock_t hna_lhash_lock; /* protects hna_local_hash */
-	spinlock_t hna_ghash_lock; /* protects hna_global_hash */
+	spinlock_t tt_lhash_lock; /* protects tt_local_hash */
+	spinlock_t tt_ghash_lock; /* protects tt_global_hash */
 	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
 	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
 	spinlock_t softif_neigh_vid_lock; /* protects soft-interface vid list */
-	int16_t num_local_hna;
-	atomic_t hna_local_changed;
-	struct delayed_work hna_work;
+	int16_t num_local_tt;
+	atomic_t tt_local_changed;
+	struct delayed_work tt_work;
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
 	struct gw_node __rcu *curr_gw;  /* rcu protected pointer */
@@ -192,14 +192,14 @@ struct socket_packet {
 	struct icmp_packet_rr icmp_packet;
 };
 
-struct hna_local_entry {
+struct tt_local_entry {
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
 	char never_purge;
 	struct hlist_node hash_entry;
 };
 
-struct hna_global_entry {
+struct tt_global_entry {
 	uint8_t addr[ETH_ALEN];
 	struct orig_node *orig_node;
 	struct hlist_node hash_entry;
@@ -262,7 +262,7 @@ struct vis_info {
 struct vis_info_entry {
 	uint8_t  src[ETH_ALEN];
 	uint8_t  dest[ETH_ALEN];
-	uint8_t  quality;	/* quality = 0 means HNA */
+	uint8_t  quality;	/* quality = 0 client */
 } __packed;
 
 struct recvlist_node {

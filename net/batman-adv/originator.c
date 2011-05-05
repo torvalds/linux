@@ -142,7 +142,7 @@ static void orig_node_free_rcu(struct rcu_head *rcu)
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	frag_list_free(&orig_node->frag_list);
-	hna_global_del_orig(orig_node->bat_priv, orig_node,
+	tt_global_del_orig(orig_node->bat_priv, orig_node,
 			    "originator timed out");
 
 	kfree(orig_node->bcast_own);
@@ -220,7 +220,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	orig_node->bat_priv = bat_priv;
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
-	orig_node->hna_buff = NULL;
+	orig_node->tt_buff = NULL;
 	orig_node->bcast_seqno_reset = jiffies - 1
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
 	orig_node->batman_seqno_reset = jiffies - 1
@@ -331,8 +331,8 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 							&best_neigh_node)) {
 			update_routes(bat_priv, orig_node,
 				      best_neigh_node,
-				      orig_node->hna_buff,
-				      orig_node->hna_buff_len);
+				      orig_node->tt_buff,
+				      orig_node->tt_buff_len);
 		}
 	}
 

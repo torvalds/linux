@@ -154,10 +154,10 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	primary_if_update_addr(bat_priv);
 
 	/***
-	 * hacky trick to make sure that we send the HNA information via
+	 * hacky trick to make sure that we send the TT information via
 	 * our new primary interface
 	 */
-	atomic_set(&bat_priv->hna_local_changed, 1);
+	atomic_set(&bat_priv->tt_local_changed, 1);
 }
 
 static bool hardif_is_iface_up(struct hard_iface *hard_iface)
@@ -339,7 +339,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 	batman_packet->flags = 0;
 	batman_packet->ttl = 2;
 	batman_packet->tq = TQ_MAX_VALUE;
-	batman_packet->num_hna = 0;
+	batman_packet->num_tt = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;

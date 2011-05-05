@@ -300,7 +300,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 			goto find_router;
 	}
 
-	/* check for hna host - increases orig_node refcount */
+	/* check for tt host - increases orig_node refcount */
 	orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
 find_router:

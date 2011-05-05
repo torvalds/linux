@@ -39,7 +39,7 @@
 #define PURGE_TIMEOUT 200	/* purge originators after time in seconds if no
 				   * valid packet comes in -> TODO: check
 				   * influence on TQ_LOCAL_WINDOW_SIZE */
-#define LOCAL_HNA_TIMEOUT 3600 /* in seconds */
+#define TT_LOCAL_TIMEOUT 3600 /* in seconds */
 
 #define TQ_LOCAL_WINDOW_SIZE 64	  /* sliding packet range of received originator
 				   * messages in squence numbers (should be a
@@ -89,7 +89,7 @@
 
 #define DBG_BATMAN 1	/* all messages related to routing / flooding /
 			 * broadcasting / etc */
-#define DBG_ROUTES 2	/* route or hna added / changed / deleted */
+#define DBG_ROUTES 2	/* route or tt entry added / changed / deleted */
 #define DBG_ALL 3
 
 
