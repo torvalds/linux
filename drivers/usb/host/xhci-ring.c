@@ -3293,6 +3293,11 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			} else {
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
+				if (xhci->hci_version == 0x100) {
+					/* Set BEI bit except for the last td */
+					if (i < num_tds - 1)
+						field |= TRB_BEI;
+				}
 				more_trbs_coming = false;
 			}
 

@@ -964,6 +964,8 @@ struct xhci_event_cmd {
 /* The buffer pointer contains immediate data */
 #define TRB_IDT			(1<<6)
 
+/* Block Event Interrupt */
+#define	TRB_BEI			(1<<9)
 
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
