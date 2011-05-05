@@ -1061,12 +1061,18 @@ static int mv_probe(struct platform_device *pdev)
 	writel(SRAM_CONFIG, cpg->reg + SEC_ACCEL_DESC_P0);
 
 	ret = crypto_register_alg(&mv_aes_alg_ecb);
-	if (ret)
+	if (ret) {
+		printk(KERN_WARNING MV_CESA
+		       "Could not register aes-ecb driver\n");
 		goto err_irq;
+	}
 
 	ret = crypto_register_alg(&mv_aes_alg_cbc);
-	if (ret)
+	if (ret) {
+		printk(KERN_WARNING MV_CESA
+		       "Could not register aes-cbc driver\n");
 		goto err_unreg_ecb;
+	}
 
 	ret = crypto_register_ahash(&mv_sha1_alg);
 	if (ret == 0)
