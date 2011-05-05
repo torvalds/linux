@@ -489,6 +489,15 @@ config VIDEO_TCM825X
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
 	  It is used for example in Nokia N800.
 
+comment "Flash devices"
+
+config VIDEO_ADP1653
+	tristate "ADP1653 flash support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	---help---
+	  This is a driver for the ADP1653 flash controller. It is used for
+	  example in Nokia N900.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
