@@ -296,6 +296,7 @@ static void mv_crypto_algo_completion(void)
 static void mv_process_hash_current(int first_block)
 {
 	struct ahash_request *req = ahash_request_cast(cpg->cur_req);
+	const struct mv_tfm_hash_ctx *tfm_ctx = crypto_tfm_ctx(req->base.tfm);
 	struct mv_req_hash_ctx *req_ctx = ahash_request_ctx(req);
 	struct req_progress *p = &cpg->p;
 	struct sec_accel_config op = { 0 };
@@ -308,6 +309,8 @@ static void mv_process_hash_current(int first_block)
 		break;
 	case COP_HMAC_SHA1:
 		op.config = CFG_OP_MAC_ONLY | CFG_MACM_HMAC_SHA1;
+		memcpy(cpg->sram + SRAM_HMAC_IV_IN,
+				tfm_ctx->ivs, sizeof(tfm_ctx->ivs));
 		break;
 	}
 
@@ -510,7 +513,6 @@ static void mv_start_new_hash_req(struct ahash_request *req)
 {
 	struct req_progress *p = &cpg->p;
 	struct mv_req_hash_ctx *ctx = ahash_request_ctx(req);
-	const struct mv_tfm_hash_ctx *tfm_ctx = crypto_tfm_ctx(req->base.tfm);
 	int num_sgs, hw_bytes, old_extra_bytes, rc;
 	cpg->cur_req = &req->base;
 	memset(p, 0, sizeof(struct req_progress));
@@ -522,8 +524,6 @@ static void mv_start_new_hash_req(struct ahash_request *req)
 		       ctx->extra_bytes);
 		p->crypt_len = ctx->extra_bytes;
 	}
-
-	memcpy(cpg->sram + SRAM_HMAC_IV_IN, tfm_ctx->ivs, sizeof(tfm_ctx->ivs));
 
 	if (unlikely(!ctx->first_hash)) {
 		writel(ctx->state[0], cpg->reg + DIGEST_INITIAL_VAL_A);
