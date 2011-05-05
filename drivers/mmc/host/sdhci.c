@@ -1013,8 +1013,8 @@ static void sdhci_finish_command(struct sdhci_host *host)
 
 static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-	int div;
-	u16 clk;
+	int div = 0; /* Initialized for compiler warning */
+	u16 clk = 0;
 	unsigned long timeout;
 
 	if (clock == host->clock)
@@ -1032,14 +1032,45 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		goto out;
 
 	if (host->version >= SDHCI_SPEC_300) {
-		/* Version 3.00 divisors must be a multiple of 2. */
-		if (host->max_clk <= clock)
-			div = 1;
-		else {
-			for (div = 2; div < SDHCI_MAX_DIV_SPEC_300; div += 2) {
-				if ((host->max_clk / div) <= clock)
-					break;
+		/*
+		 * Check if the Host Controller supports Programmable Clock
+		 * Mode.
+		 */
+		if (host->clk_mul) {
+			u16 ctrl;
+
+			/*
+			 * We need to figure out whether the Host Driver needs
+			 * to select Programmable Clock Mode, or the value can
+			 * be set automatically by the Host Controller based on
+			 * the Preset Value registers.
+			 */
+			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			if (!(ctrl & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
+				for (div = 1; div <= 1024; div++) {
+					if (((host->max_clk * host->clk_mul) /
+					      div) <= clock)
+						break;
+				}
+				/*
+				 * Set Programmable Clock Mode in the Clock
+				 * Control register.
+				 */
+				clk = SDHCI_PROG_CLOCK_MODE;
+				div--;
 			}
+		} else {
+			/* Version 3.00 divisors must be a multiple of 2. */
+			if (host->max_clk <= clock)
+				div = 1;
+			else {
+				for (div = 2; div < SDHCI_MAX_DIV_SPEC_300;
+				     div += 2) {
+					if ((host->max_clk / div) <= clock)
+						break;
+				}
+			}
+			div >>= 1;
 		}
 	} else {
 		/* Version 2.00 divisors must be a power of 2. */
@@ -1047,10 +1078,10 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 			if ((host->max_clk / div) <= clock)
 				break;
 		}
+		div >>= 1;
 	}
-	div >>= 1;
 
-	clk = (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
+	clk |= (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
 	clk |= ((div & SDHCI_DIV_HI_MASK) >> SDHCI_DIV_MASK_LEN)
 		<< SDHCI_DIVIDER_HI_SHIFT;
 	clk |= SDHCI_CLOCK_INT_EN;
@@ -2308,17 +2339,37 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->timeout_clk *= 1000;
 
 	/*
+	 * In case of Host Controller v3.00, find out whether clock
+	 * multiplier is supported.
+	 */
+	host->clk_mul = (caps[1] & SDHCI_CLOCK_MUL_MASK) >>
+			SDHCI_CLOCK_MUL_SHIFT;
+
+	/*
+	 * In case the value in Clock Multiplier is 0, then programmable
+	 * clock mode is not supported, otherwise the actual clock
+	 * multiplier is one more than the value of Clock Multiplier
+	 * in the Capabilities Register.
+	 */
+	if (host->clk_mul)
+		host->clk_mul += 1;
+
+	/*
 	 * Set host parameters.
 	 */
 	mmc->ops = &sdhci_ops;
+	mmc->f_max = host->max_clk;
 	if (host->ops->get_min_clock)
 		mmc->f_min = host->ops->get_min_clock(host);
-	else if (host->version >= SDHCI_SPEC_300)
-		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_300;
-	else
+	else if (host->version >= SDHCI_SPEC_300) {
+		if (host->clk_mul) {
+			mmc->f_min = (host->max_clk * host->clk_mul) / 1024;
+			mmc->f_max = host->max_clk * host->clk_mul;
+		} else
+			mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_300;
+	} else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 
-	mmc->f_max = host->max_clk;
 	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE;
 
 	/*
