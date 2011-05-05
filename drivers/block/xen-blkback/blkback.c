@@ -603,7 +603,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	if (xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
-	/* This corresponding blkif_put is done in __end_block_io_op */
+	/* This corresponding xen_blkif_put is done in __end_block_io_op */
 	xen_blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
@@ -626,7 +626,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 		preq.sector_number += seg[i].nsec;
 	}
 
-	/* This will be hit if the operation was a barrier. */
+	/* This will be hit if the operation was a flush. */
 	if (!bio) {
 		BUG_ON(operation != WRITE_FLUSH);
 		bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, 0);
@@ -650,8 +650,8 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	for (i = 0; i < nbio; i++)
 		submit_bio(operation, biolist[i]);
 
-	blk_finish_plug(&plug);
 	/* Let the I/Os go.. */
+	blk_finish_plug(&plug);
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
