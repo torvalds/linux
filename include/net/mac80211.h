@@ -1822,6 +1822,10 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @tx_frames_pending: Check if there is any pending frame in the hardware
  *	queues before entering power save.
+ *
+ * @set_bitrate_mask: Set a mask of rates to be used for rate control selection
+ *	when transmitting a frame. Currently only legacy rates are handled.
+ *	The callback can sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1910,6 +1914,8 @@ struct ieee80211_ops {
 	void (*get_ringparam)(struct ieee80211_hw *hw,
 			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
 	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
+	int (*set_bitrate_mask)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				const struct cfg80211_bitrate_mask *mask);
 };
 
 /**
@@ -2290,6 +2296,17 @@ static inline void ieee80211_tx_status_ni(struct ieee80211_hw *hw,
  */
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb);
+
+/**
+ * ieee80211_report_low_ack - report non-responding station
+ *
+ * When operating in AP-mode, call this function to report a non-responding
+ * connected STA.
+ *
+ * @sta: the non-responding connected sta
+ * @num_packets: number of packets sent to @sta without a response
+ */
+void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
 
 /**
  * ieee80211_beacon_get_tim - beacon generation function

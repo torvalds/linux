@@ -979,8 +979,10 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	bacpy(&session->bdaddr, &bt_sk(ctrl_sock->sk)->dst);
 
-	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->omtu, l2cap_pi(ctrl_sock->sk)->imtu);
-	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->omtu, l2cap_pi(intr_sock->sk)->imtu);
+	session->ctrl_mtu = min_t(uint, l2cap_pi(ctrl_sock->sk)->chan->omtu,
+					l2cap_pi(ctrl_sock->sk)->chan->imtu);
+	session->intr_mtu = min_t(uint, l2cap_pi(intr_sock->sk)->chan->omtu,
+					l2cap_pi(intr_sock->sk)->chan->imtu);
 
 	BT_DBG("ctrl mtu %d intr mtu %d", session->ctrl_mtu, session->intr_mtu);
 

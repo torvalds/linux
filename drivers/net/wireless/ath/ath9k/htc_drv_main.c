@@ -332,6 +332,11 @@ static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
 	hvif.index = priv->mon_vif_idx;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove monitor interface at idx: %d\n",
+			priv->mon_vif_idx);
+	}
+
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << priv->mon_vif_idx);
 }
@@ -462,6 +467,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	struct ath9k_htc_sta *ista;
 	int ret, sta_idx;
 	u8 cmd_rsp;
+	u16 maxampdu;
 
 	if (priv->nstations >= ATH9K_HTC_MAX_STA)
 		return -ENOBUFS;
@@ -485,7 +491,15 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-	tsta.maxampdu = cpu_to_be16(0xffff);
+
+	if (!sta) {
+		tsta.maxampdu = cpu_to_be16(0xffff);
+	} else {
+		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				 sta->ht_cap.ampdu_factor);
+		tsta.maxampdu = cpu_to_be16(maxampdu);
+	}
+
 	if (sta && sta->ht_cap.ht_supported)
 		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
 
@@ -558,7 +572,8 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	return 0;
 }
 
-int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
+				u8 enable_coex)
 {
 	struct ath9k_htc_cap_target tcap;
 	int ret;
@@ -566,13 +581,9 @@ int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 
 	memset(&tcap, 0, sizeof(struct ath9k_htc_cap_target));
 
-	/* FIXME: Values are hardcoded */
-	tcap.flags = 0x240c40;
-	tcap.flags_ext = 0x80601000;
-	tcap.ampdu_limit = 0xffff0000;
-	tcap.ampdu_subframes = 20;
-	tcap.tx_chainmask_legacy = priv->ah->caps.tx_chainmask;
-	tcap.protmode = 1;
+	tcap.ampdu_limit = cpu_to_be32(0xffff);
+	tcap.ampdu_subframes = priv->hw->max_tx_aggregation_subframes;
+	tcap.enable_coex = enable_coex;
 	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
 	WMI_CMD_BUF(WMI_TARGET_IC_UPDATE_CMDID, &tcap);
@@ -931,7 +942,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ath9k_host_rx_init(priv);
 
-	ret = ath9k_htc_update_cap_target(priv);
+	ret = ath9k_htc_update_cap_target(priv, 0);
 	if (ret)
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Failed to update capability in target\n");
@@ -964,7 +975,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int ret = 0;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
 	mutex_lock(&priv->mutex);
@@ -992,9 +1003,11 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	/* Cancel all the running timers/work .. */
 	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
+
+#ifdef CONFIG_MAC80211_LEDS
+	cancel_work_sync(&priv->led_work);
+#endif
 	ath9k_htc_stop_ani(priv);
-	ath9k_led_stop_brightness(priv);
 
 	mutex_lock(&priv->mutex);
 
@@ -1135,6 +1148,10 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
 	hvif.index = avp->index;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove interface at idx: %d\n",
+			avp->index);
+	}
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << avp->index);
 
@@ -1567,6 +1584,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -1592,6 +1610,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
 	}
 
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 
 	return ret;
@@ -1642,6 +1661,55 @@ static void ath9k_htc_set_coverage_class(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
+/*
+ * Currently, this is used only for selecting the minimum rate
+ * for management frames, rate selection for data frames remain
+ * unaffected.
+ */
+static int ath9k_htc_set_bitrate_mask(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      const struct cfg80211_bitrate_mask *mask)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_rate_mask tmask;
+	struct ath9k_htc_vif *avp = (void *)vif->drv_priv;
+	int ret = 0;
+	u8 cmd_rsp;
+
+	memset(&tmask, 0, sizeof(struct ath9k_htc_target_rate_mask));
+
+	tmask.vif_index = avp->index;
+	tmask.band = IEEE80211_BAND_2GHZ;
+	tmask.mask = cpu_to_be32(mask->control[IEEE80211_BAND_2GHZ].legacy);
+
+	WMI_CMD_BUF(WMI_BITRATE_MASK_CMDID, &tmask);
+	if (ret) {
+		ath_err(common,
+			"Unable to set 2G rate mask for "
+			"interface at idx: %d\n", avp->index);
+		goto out;
+	}
+
+	tmask.band = IEEE80211_BAND_5GHZ;
+	tmask.mask = cpu_to_be32(mask->control[IEEE80211_BAND_5GHZ].legacy);
+
+	WMI_CMD_BUF(WMI_BITRATE_MASK_CMDID, &tmask);
+	if (ret) {
+		ath_err(common,
+			"Unable to set 5G rate mask for "
+			"interface at idx: %d\n", avp->index);
+		goto out;
+	}
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"Set bitrate masks: 0x%x, 0x%x\n",
+		mask->control[IEEE80211_BAND_2GHZ].legacy,
+		mask->control[IEEE80211_BAND_5GHZ].legacy);
+out:
+	return ret;
+}
+
 struct ieee80211_ops ath9k_htc_ops = {
 	.tx                 = ath9k_htc_tx,
 	.start              = ath9k_htc_start,
@@ -1664,4 +1732,5 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.set_rts_threshold  = ath9k_htc_set_rts_threshold,
 	.rfkill_poll        = ath9k_htc_rfkill_poll_state,
 	.set_coverage_class = ath9k_htc_set_coverage_class,
+	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
 };

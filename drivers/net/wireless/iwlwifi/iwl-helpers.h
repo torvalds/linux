@@ -64,30 +64,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 	return --index & (n_bd - 1);
 }
 
-/* TODO: Move fw_desc functions to iwl-pci.ko */
-static inline void iwl_free_fw_desc(struct pci_dev *pci_dev,
-				    struct fw_desc *desc)
-{
-	if (desc->v_addr)
-		dma_free_coherent(&pci_dev->dev, desc->len,
-				  desc->v_addr, desc->p_addr);
-	desc->v_addr = NULL;
-	desc->len = 0;
-}
-
-static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
-				    struct fw_desc *desc)
-{
-	if (!desc->len) {
-		desc->v_addr = NULL;
-		return -EINVAL;
-	}
-
-	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, desc->len,
-					  &desc->p_addr, GFP_KERNEL);
-	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
-}
-
 /*
  * we have 8 bits used like this:
  *

@@ -683,10 +683,18 @@ struct conf_tx_settings {
 	struct conf_tx_rate_class ap_bcst_conf;
 
 	/*
-	 * AP-mode - allow this number of TX retries to a station before an
+	 * Allow this number of TX retries to a connected station/AP before an
 	 * event is triggered from FW.
+	 * In AP-mode the hlids of unreachable stations are given in the
+	 * "sta_tx_retry_exceeded" member in the event mailbox.
 	 */
-	u16 ap_max_tx_retries;
+	u8 max_tx_retries;
+
+	/*
+	 * AP-mode - after this number of seconds a connected station is
+	 * considered inactive.
+	 */
+	u16 ap_aging_period;
 
 	/*
 	 * Configuration for TID parameters.
@@ -1004,7 +1012,9 @@ enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
 	CONF_REF_CLK_38_4_E,
-	CONF_REF_CLK_52_E
+	CONF_REF_CLK_52_E,
+	CONF_REF_CLK_38_4_M_XTAL,
+	CONF_REF_CLK_26_M_XTAL,
 };
 
 enum single_dual_band_enum {
@@ -1017,15 +1027,6 @@ enum single_dual_band_enum {
 #define CONF_NUMBER_OF_RATE_GROUPS  6
 #define CONF_NUMBER_OF_CHANNELS_2_4 14
 #define CONF_NUMBER_OF_CHANNELS_5   35
-
-struct conf_radio_parms {
-	/*
-	 * FEM parameter set to use
-	 *
-	 * Range: 0 or 1
-	 */
-	u8 fem;
-};
 
 struct conf_itrim_settings {
 	/* enable dco itrim */
@@ -1202,7 +1203,9 @@ struct conf_drv_settings {
 	struct conf_scan_settings scan;
 	struct conf_rf_settings rf;
 	struct conf_ht_setting ht;
-	struct conf_memory_settings mem;
+	struct conf_memory_settings mem_wl127x;
+	struct conf_memory_settings mem_wl128x;
+	u8 hci_io_ds;
 };
 
 #endif

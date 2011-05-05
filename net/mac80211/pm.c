@@ -14,11 +14,22 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 	ieee80211_scan_cancel(local);
 
+	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		mutex_lock(&local->sta_mtx);
+		list_for_each_entry(sta, &local->sta_list, list) {
+			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+			ieee80211_sta_tear_down_BA_sessions(sta, true);
+		}
+		mutex_unlock(&local->sta_mtx);
+	}
+
 	ieee80211_stop_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/* flush out all packets */
 	synchronize_net();
+
+	drv_flush(local, false);
 
 	local->quiescing = true;
 	/* make quiescing visible to timers everywhere */
@@ -43,11 +54,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* tear down aggregation sessions and remove STAs */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
-			ieee80211_sta_tear_down_BA_sessions(sta, true);
-		}
-
 		if (sta->uploaded) {
 			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)

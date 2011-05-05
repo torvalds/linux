@@ -662,6 +662,7 @@ enum rt2x00_state_flags {
 	 * Driver configuration
 	 */
 	CONFIG_CHANNEL_HT40,
+	CONFIG_POWERSAVING,
 };
 
 /*
@@ -681,6 +682,7 @@ enum rt2x00_capability_flags {
 	REQUIRE_TASKLET_CONTEXT,
 	REQUIRE_SW_SEQNO,
 	REQUIRE_HT_TX_DESC,
+	REQUIRE_PS_AUTOWAKE,
 
 	/*
 	 * Capabilities
@@ -697,6 +699,7 @@ enum rt2x00_capability_flags {
 	CAPABILITY_EXTERNAL_LNA_A,
 	CAPABILITY_EXTERNAL_LNA_BG,
 	CAPABILITY_DOUBLE_ANTENNA,
+	CAPABILITY_BT_COEXIST,
 };
 
 /*
@@ -874,9 +877,19 @@ struct rt2x00_dev {
 	u8 calibration[2];
 
 	/*
+	 * Association id.
+	 */
+	u16 aid;
+
+	/*
 	 * Beacon interval.
 	 */
 	u16 beacon_int;
+
+	/**
+	 * Timestamp of last received beacon
+	 */
+	unsigned long last_beacon;
 
 	/*
 	 * Low level statistics which will have
@@ -904,6 +917,11 @@ struct rt2x00_dev {
 	 */
 	struct work_struct rxdone_work;
 	struct work_struct txdone_work;
+
+	/*
+	 * Powersaving work
+	 */
+	struct delayed_work autowakeup_work;
 
 	/*
 	 * Data queue arrays for RX, TX, Beacon and ATIM.

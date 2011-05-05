@@ -74,7 +74,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	__be32 htc_imask = 0;
 	u64 tsf;
 	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
 	memset(&bs, 0, sizeof(bs));
@@ -190,7 +190,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	enum ath9k_int imask = 0;
 	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 	u64 tsf;
 
@@ -246,7 +246,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	enum ath9k_int imask = 0;
 	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 	u64 tsf;
 

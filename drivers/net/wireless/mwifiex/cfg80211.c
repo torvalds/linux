@@ -1150,9 +1150,9 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
  *
  * The following default values are set -
  *      - HT Supported = True
- *      - Maximum AMPDU length factor = 0x3
- *      - Minimum AMPDU spacing = 0x6
- *      - HT Capabilities map = IEEE80211_HT_CAP_SUP_WIDTH_20_40 (0x0002)
+ *      - Maximum AMPDU length factor = IEEE80211_HT_MAX_AMPDU_64K
+ *      - Minimum AMPDU spacing = IEEE80211_HT_MPDU_DENSITY_NONE
+ *      - HT Capabilities supported by firmware
  *      - MCS information, Rx mask = 0xff
  *      - MCD information, Tx parameters = IEEE80211_HT_MCS_TX_DEFINED (0x01)
  */
@@ -1166,13 +1166,41 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	ht_info->ht_supported = true;
-	ht_info->ampdu_factor = 0x3;
-	ht_info->ampdu_density = 0x6;
+	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
 
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-	rx_mcs_supp = GET_RXMCSSUPP(priv->adapter->hw_dev_mcs_support);
+	/* Fill HT capability information */
+	if (ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap))
+		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	else
+		ht_info->cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
+	if (ISSUPP_SHORTGI20(adapter->hw_dot_11n_dev_cap))
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+	else
+		ht_info->cap &= ~IEEE80211_HT_CAP_SGI_20;
+
+	if (ISSUPP_SHORTGI40(adapter->hw_dot_11n_dev_cap))
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
+	else
+		ht_info->cap &= ~IEEE80211_HT_CAP_SGI_40;
+
+	if (ISSUPP_RXSTBC(adapter->hw_dot_11n_dev_cap))
+		ht_info->cap |= 1 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
+	else
+		ht_info->cap &= ~(3 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+
+	if (ISSUPP_TXSTBC(adapter->hw_dot_11n_dev_cap))
+		ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
+	else
+		ht_info->cap &= ~IEEE80211_HT_CAP_TX_STBC;
+
+	ht_info->cap &= ~IEEE80211_HT_CAP_MAX_AMSDU;
+	ht_info->cap |= IEEE80211_HT_CAP_SM_PS;
+
+	rx_mcs_supp = GET_RXMCSSUPP(adapter->hw_dev_mcs_support);
 	/* Set MCS for 1x1 */
 	memset(mcs, 0xff, rx_mcs_supp);
 	/* Clear all the other values */
@@ -1235,19 +1263,22 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	wdev->wiphy->max_scan_ssids = 10;
 	wdev->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
+
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
-	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+	mwifiex_setup_ht_caps(
+		&wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+
+	if (priv->adapter->config_bands & BAND_A) {
+		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+		mwifiex_setup_ht_caps(
+			&wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
+	} else {
+		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
+	}
 
 	/* Initialize cipher suits */
 	wdev->wiphy->cipher_suites = mwifiex_cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
-
-	/* Initialize parameters for 2GHz band */
-
-	mwifiex_setup_ht_caps(&wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap,
-									priv);
-	mwifiex_setup_ht_caps(&wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap,
-									priv);
 
 	memcpy(wdev->wiphy->perm_addr, mac, 6);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;

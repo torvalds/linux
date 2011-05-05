@@ -3217,7 +3217,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 				    u8 *word, int length, int mdata_size)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u8 *dptr;
 	const struct ar9300_eeprom *eep = NULL;
 
 	switch (code) {
@@ -3235,7 +3234,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 		break;
 	case _CompressBlock:
 		if (reference == 0) {
-			dptr = mptr;
 		} else {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
@@ -3448,9 +3446,13 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPABIASLVL_MSB,
-			      bias >> 2);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPASHORT2GND, 1);
+		if (!AR_SREV_9340(ah)) {
+			REG_RMW_FIELD(ah, AR_CH0_THERM,
+				      AR_CH0_THERM_XPABIASLVL_MSB,
+				      bias >> 2);
+			REG_RMW_FIELD(ah, AR_CH0_THERM,
+				      AR_CH0_THERM_XPASHORT2GND, 1);
+		}
 	}
 }
 
@@ -3497,23 +3499,28 @@ static u16 ar9003_hw_ant_ctrl_chain_get(struct ath_hw *ah,
 
 static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 {
+	int chain;
+	static const u32 switch_chain_reg[AR9300_MAX_CHAINS] = {
+			AR_PHY_SWITCH_CHAIN_0,
+			AR_PHY_SWITCH_CHAIN_1,
+			AR_PHY_SWITCH_CHAIN_2,
+	};
+
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
+
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM, AR_SWITCH_TABLE_COM_ALL, value);
 
 	value = ar9003_hw_ant_ctrl_common_2_get(ah, is2ghz);
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
-	value = ar9003_hw_ant_ctrl_chain_get(ah, 0, is2ghz);
-	REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_0, AR_SWITCH_TABLE_ALL, value);
-
-	if (!AR_SREV_9485(ah)) {
-		value = ar9003_hw_ant_ctrl_chain_get(ah, 1, is2ghz);
-		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_1, AR_SWITCH_TABLE_ALL,
-			      value);
-
-		value = ar9003_hw_ant_ctrl_chain_get(ah, 2, is2ghz);
-		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL,
-			      value);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if ((ah->rxchainmask & BIT(chain)) ||
+		    (ah->txchainmask & BIT(chain))) {
+			value = ar9003_hw_ant_ctrl_chain_get(ah, chain,
+							     is2ghz);
+			REG_RMW_FIELD(ah, switch_chain_reg[chain],
+				      AR_SWITCH_TABLE_ALL, value);
+		}
 	}
 
 	if (AR_SREV_9485(ah)) {
@@ -3634,13 +3641,16 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/* Test value. if 0 then attenuation is unused. Don't load anything. */
 	for (i = 0; i < 3; i++) {
-		value = ar9003_hw_atten_chain_get(ah, i, chan);
-		REG_RMW_FIELD(ah, ext_atten_reg[i],
-			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
+		if (ah->txchainmask & BIT(i)) {
+			value = ar9003_hw_atten_chain_get(ah, i, chan);
+			REG_RMW_FIELD(ah, ext_atten_reg[i],
+				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
 
-		value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
-		REG_RMW_FIELD(ah, ext_atten_reg[i],
-			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN, value);
+			value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
+			REG_RMW_FIELD(ah, ext_atten_reg[i],
+				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+				      value);
+		}
 	}
 }
 
@@ -3749,8 +3759,9 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_ant_ctrl_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_drive_strength_apply(ah);
 	ar9003_hw_atten_apply(ah, chan);
-	ar9003_hw_internal_regulator_apply(ah);
-	if (AR_SREV_9485(ah))
+	if (!AR_SREV_9340(ah))
+		ar9003_hw_internal_regulator_apply(ah);
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah))
 		ar9003_hw_apply_tuning_caps(ah);
 }
 

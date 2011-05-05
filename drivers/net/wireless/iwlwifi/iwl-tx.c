@@ -621,9 +621,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	struct iwl_cmd_meta *meta;
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	unsigned long flags;
-	void (*callback) (struct iwl_priv *priv, struct iwl_device_cmd *cmd,
-			  struct iwl_rx_packet *pkt);
-
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -637,8 +634,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->hcmd_lock, flags);
-
 	cmd_index = get_cmd_index(&txq->q, index, huge);
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
@@ -648,13 +643,14 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			 dma_unmap_len(meta, len),
 			 PCI_DMA_BIDIRECTIONAL);
 
-	callback = NULL;
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
 		rxb->page = NULL;
-	} else
-		callback = meta->callback;
+	} else if (meta->callback)
+		meta->callback(priv, cmd, pkt);
+
+	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
 	iwl_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
 
@@ -669,7 +665,4 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	meta->flags = 0;
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
-
-	if (callback)
-		callback(priv, cmd, pkt);
 }

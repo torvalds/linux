@@ -122,8 +122,10 @@ static u8 lbs_auth_to_authtype(enum nl80211_auth_type auth_type)
 }
 
 
-/* Various firmware commands need the list of supported rates, but with
-   the hight-bit set for basic rates */
+/*
+ * Various firmware commands need the list of supported rates, but with
+ * the hight-bit set for basic rates
+ */
 static int lbs_add_rates(u8 *rates)
 {
 	size_t i;
@@ -425,7 +427,7 @@ static int lbs_add_wpa_tlv(u8 *tlv, const u8 *ie, u8 ie_len)
 	return ie_len + 2;
 }
 
-/***************************************************************************
+/*
  * Set Channel
  */
 
@@ -452,7 +454,7 @@ static int lbs_cfg_set_channel(struct wiphy *wiphy,
 
 
 
-/***************************************************************************
+/*
  * Scanning
  */
 
@@ -538,8 +540,10 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		goto done;
 	}
 
-	/* Validity check: the TLV holds TSF values with 8 bytes each, so
-	 * the size in the TLV must match the nr_sets value */
+	/*
+	 * Validity check: the TLV holds TSF values with 8 bytes each, so
+	 * the size in the TLV must match the nr_sets value
+	 */
 	i = get_unaligned_le16(tsfdesc);
 	tsfdesc += 2;
 	if (i / 8 != scanresp->nr_sets) {
@@ -581,8 +585,10 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 
 		/* To find out the channel, we must parse the IEs */
 		ie = pos;
-		/* 6+1+8+2+2: size of BSSID, RSSI, time stamp, beacon
-		   interval, capabilities */
+		/*
+		 * 6+1+8+2+2: size of BSSID, RSSI, time stamp, beacon
+		 * interval, capabilities
+		 */
 		ielen = left = len - (6 + 1 + 8 + 2 + 2);
 		while (left >= 2) {
 			u8 id, elen;
@@ -790,7 +796,7 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
 
 
 
-/***************************************************************************
+/*
  * Events
  */
 
@@ -825,7 +831,7 @@ void lbs_send_mic_failureevent(struct lbs_private *priv, u32 event)
 
 
 
-/***************************************************************************
+/*
  * Connect/disconnect
  */
 
@@ -950,8 +956,10 @@ static int lbs_enable_rsn(struct lbs_private *priv, int enable)
  * Set WPA/WPA key material
  */
 
-/* like "struct cmd_ds_802_11_key_material", but with cmd_header. Once we
- * get rid of WEXT, this should go into host.h */
+/*
+ * like "struct cmd_ds_802_11_key_material", but with cmd_header. Once we
+ * get rid of WEXT, this should go into host.h
+ */
 
 struct cmd_key_material {
 	struct cmd_header hdr;
@@ -1536,7 +1544,7 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 
-/***************************************************************************
+/*
  * Get station
  */
 
@@ -1581,7 +1589,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 
 
-/***************************************************************************
+/*
  * "Site survey", here just current channel and noise level
  */
 
@@ -1614,7 +1622,7 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 
 
 
-/***************************************************************************
+/*
  * Change interface
  */
 
@@ -1656,11 +1664,12 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 
 
 
-/***************************************************************************
+/*
  * IBSS (Ad-Hoc)
  */
 
-/* The firmware needs the following bits masked out of the beacon-derived
+/*
+ * The firmware needs the following bits masked out of the beacon-derived
  * capability field when associating/joining to a BSS:
  *  9 (QoS), 11 (APSD), 12 (unused), 14 (unused), 15 (unused)
  */
@@ -1999,7 +2008,7 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 
 
 
-/***************************************************************************
+/*
  * Initialization
  */
 

@@ -312,7 +312,8 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define CF8385_MANFID		0x02df
 #define CF8385_CARDID		0x8103
 
-/* FIXME: just use the 'driver_info' field of 'struct pcmcia_device_id' when
+/*
+ * FIXME: just use the 'driver_info' field of 'struct pcmcia_device_id' when
  * that gets fixed.  Currently there's no way to access it from the probe hook.
  */
 static inline u32 get_model(u16 manf_id, u16 card_id)
@@ -621,8 +622,10 @@ static int if_cs_prog_helper(struct if_cs_card *card, const struct firmware *fw)
 		if (remain < count)
 			count = remain;
 
-		/* "write the number of bytes to be sent to the I/O Command
-		 * write length register" */
+		/*
+		 * "write the number of bytes to be sent to the I/O Command
+		 * write length register"
+		 */
 		if_cs_write16(card, IF_CS_CMD_LEN, count);
 
 		/* "write this to I/O Command port register as 16 bit writes */
@@ -631,16 +634,22 @@ static int if_cs_prog_helper(struct if_cs_card *card, const struct firmware *fw)
 				&fw->data[sent],
 				count >> 1);
 
-		/* "Assert the download over interrupt command in the Host
-		 * status register" */
+		/*
+		 * "Assert the download over interrupt command in the Host
+		 * status register"
+		 */
 		if_cs_write8(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
 
-		/* "Assert the download over interrupt command in the Card
-		 * interrupt case register" */
+		/*
+		 * "Assert the download over interrupt command in the Card
+		 * interrupt case register"
+		 */
 		if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_COMMAND);
 
-		/* "The host polls the Card Status register ... for 50 ms before
-		   declaring a failure */
+		/*
+		 * "The host polls the Card Status register ... for 50 ms before
+		 * declaring a failure"
+		 */
 		ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_STATUS,
 			IF_CS_BIT_COMMAND);
 		if (ret < 0) {
@@ -841,7 +850,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 
 	/*
 	 * Most of the libertas cards can do unaligned register access, but some
-	 * weird ones can not. That's especially true for the CF8305 card.
+	 * weird ones cannot. That's especially true for the CF8305 card.
 	 */
 	card->align_regs = 0;
 
@@ -913,8 +922,10 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out3;
 	}
 
-	/* Clear any interrupt cause that happened while sending
-	 * firmware/initializing card */
+	/*
+	 * Clear any interrupt cause that happened while sending
+	 * firmware/initializing card
+	 */
 	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, IF_CS_BIT_MASK);
 	if_cs_enable_ints(card);
 

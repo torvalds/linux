@@ -280,7 +280,7 @@ struct mwifiex_bssdescriptor {
 	 * BAND_A(0X04): 'a' band
 	 */
 	u16 bss_band;
-	long long network_tsf;
+	u64 network_tsf;
 	u8 time_stamp[8];
 	union ieee_types_phy_param_set phy_param_set;
 	union ieee_types_ss_param_set ss_param_set;

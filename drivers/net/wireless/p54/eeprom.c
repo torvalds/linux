@@ -491,7 +491,7 @@ static int p54_parse_rssical(struct ieee80211_hw *dev,
 		struct pda_rssi_cal_entry *cal = (void *) &data[offset];
 
 		for (i = 0; i < entries; i++) {
-			u16 freq;
+			u16 freq = 0;
 			switch (i) {
 			case IEEE80211_BAND_2GHZ:
 				freq = 2437;

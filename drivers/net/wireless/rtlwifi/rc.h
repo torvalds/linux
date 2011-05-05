@@ -30,8 +30,15 @@
 #ifndef __RTL_RC_H__
 #define __RTL_RC_H__
 
+#define B_MODE_MAX_RIX 3
+#define G_MODE_MAX_RIX 11
+#define A_MODE_MAX_RIX 7
+
+/* in mac80211 mcs0-mcs15 is idx0-idx15*/
+#define N_MODE_MCS7_RIX 7
+#define N_MODE_MCS15_RIX 15
+
 struct rtl_rate_priv {
-	u8 cur_ratetab_idx;
 	u8 ht_cap;
 };
 

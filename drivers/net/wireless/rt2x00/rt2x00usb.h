@@ -349,10 +349,12 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
  * be called from atomic context.  The callback will be called
  * when the URB completes. Otherwise the function is similar
  * to rt2x00usb_register_read().
+ * When the callback function returns false, the memory will be cleaned up,
+ * when it returns true, the urb will be fired again.
  */
 void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
 				   const unsigned int offset,
-				   void (*callback)(struct rt2x00_dev*,int,u32));
+				   bool (*callback)(struct rt2x00_dev*, int, u32));
 
 /*
  * Radio handlers

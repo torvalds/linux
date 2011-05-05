@@ -90,7 +90,6 @@ struct iwl_cmd;
 #define IWL_CMD(x) case x: return #x
 
 struct iwl_hcmd_ops {
-	int (*rxon_assoc)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	void (*set_rxon_chain)(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);
@@ -120,19 +119,6 @@ struct iwl_hcmd_utils_ops {
 struct iwl_apm_ops {
 	int (*init)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
-};
-
-struct iwl_debugfs_ops {
-	ssize_t (*rx_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*tx_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
-				      size_t count, loff_t *ppos);
-	ssize_t (*bt_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*reply_tx_error)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
 };
 
 struct iwl_temp_ops {
@@ -183,7 +169,6 @@ struct iwl_lib_ops {
 	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
-	struct iwl_debugfs_ops debugfs_ops;
 };
 
 /* NIC specific ops */
@@ -326,8 +311,6 @@ struct iwl_cfg {
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
-	/* module based parameters which can be set from modprobe cmd */
-	const struct iwl_mod_params *mod_params;
 	/* params not likely to change within a device family */
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
@@ -592,6 +575,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
+#define STATUS_DEVICE_ENABLED	18
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
@@ -644,11 +628,6 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-static inline int iwl_send_rxon_assoc(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	return priv->cfg->ops->hcmd->rxon_assoc(priv, ctx);
-}
 static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
 				      struct iwl_rxon_context *ctx)
 {

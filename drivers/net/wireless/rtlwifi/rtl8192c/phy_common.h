@@ -27,8 +27,8 @@
  *
  *****************************************************************************/
 
-#ifndef __RTL92C_PHY_H__
-#define __RTL92C_PHY_H__
+#ifndef __RTL92C_PHY_COMMON_H__
+#define __RTL92C_PHY_COMMON_H__
 
 #define MAX_PRECMD_CNT			16
 #define MAX_RFDEPENDCMD_CNT		16
@@ -39,6 +39,7 @@
 #define RT_CANNOT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
 
+#define IQK_ADDA_REG_NUM		16
 #define MAX_TOLERANCE			5
 #define	IQK_DELAY_TIME			1
 
@@ -56,6 +57,7 @@
 #define IQK_ADDA_REG_NUM		16
 #define IQK_MAC_REG_NUM			4
 
+#define IQK_DELAY_TIME			1
 #define RF90_PATH_MAX			2
 
 #define CT_OFFSET_MAC_ADDR		0X16
@@ -77,6 +79,7 @@
 
 #define RTL92C_MAX_PATH_NUM		2
 #define LLT_LAST_ENTRY_OF_TX_PKT_BUFFER	255
+
 enum swchnlcmd_id {
 	CMDID_END,
 	CMDID_SET_TXPOWEROWER_LEVEL,
@@ -184,45 +187,41 @@ struct tx_power_struct {
 	u32 mcs_original_offset[4][16];
 };
 
-extern u32 rtl92c_phy_query_bb_reg(struct ieee80211_hw *hw,
+u32 rtl92c_phy_query_bb_reg(struct ieee80211_hw *hw,
 				   u32 regaddr, u32 bitmask);
-extern void rtl92c_phy_set_bb_reg(struct ieee80211_hw *hw,
+void rtl92c_phy_set_bb_reg(struct ieee80211_hw *hw,
 				  u32 regaddr, u32 bitmask, u32 data);
-extern u32 rtl92c_phy_query_rf_reg(struct ieee80211_hw *hw,
+u32 rtl92c_phy_query_rf_reg(struct ieee80211_hw *hw,
 				   enum radio_path rfpath, u32 regaddr,
 				   u32 bitmask);
-extern void rtl92c_phy_set_rf_reg(struct ieee80211_hw *hw,
-				  enum radio_path rfpath, u32 regaddr,
-				  u32 bitmask, u32 data);
-extern bool rtl92c_phy_mac_config(struct ieee80211_hw *hw);
-extern bool rtl92c_phy_bb_config(struct ieee80211_hw *hw);
-extern bool rtl92c_phy_rf_config(struct ieee80211_hw *hw);
-extern bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
+bool rtl92c_phy_mac_config(struct ieee80211_hw *hw);
+bool rtl92c_phy_bb_config(struct ieee80211_hw *hw);
+bool rtl92c_phy_rf_config(struct ieee80211_hw *hw);
+bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
 						 enum radio_path rfpath);
-extern void rtl92c_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
-extern void rtl92c_phy_get_txpower_level(struct ieee80211_hw *hw,
+void rtl92c_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
+void rtl92c_phy_get_txpower_level(struct ieee80211_hw *hw,
 					 long *powerlevel);
-extern void rtl92c_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
-extern bool rtl92c_phy_update_txpower_dbm(struct ieee80211_hw *hw,
+void rtl92c_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
+bool rtl92c_phy_update_txpower_dbm(struct ieee80211_hw *hw,
 					  long power_indbm);
-extern void rtl92c_phy_scan_operation_backup(struct ieee80211_hw *hw,
+void rtl92c_phy_scan_operation_backup(struct ieee80211_hw *hw,
 					     u8 operation);
-extern void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
-extern void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
+void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
 				   enum nl80211_channel_type ch_type);
-extern void rtl92c_phy_sw_chnl_callback(struct ieee80211_hw *hw);
-extern u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw);
-extern void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery);
-extern void rtl92c_phy_set_beacon_hw_reg(struct ieee80211_hw *hw,
+void rtl92c_phy_sw_chnl_callback(struct ieee80211_hw *hw);
+u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw);
+void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery);
+void rtl92c_phy_set_beacon_hw_reg(struct ieee80211_hw *hw,
 					 u16 beaconinterval);
 void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
 void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92c_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum radio_path rfpath);
-extern bool rtl8192_phy_check_is_legal_rfpath(struct ieee80211_hw *hw,
+bool rtl8192_phy_check_is_legal_rfpath(struct ieee80211_hw *hw,
 					      u32 rfpath);
-extern bool rtl92c_phy_set_rf_power_state(struct ieee80211_hw *hw,
+bool rtl92c_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					  enum rf_pwrstate rfpwr_state);
 void rtl92ce_phy_set_rf_on(struct ieee80211_hw *hw);
 void rtl92c_phy_set_io(struct ieee80211_hw *hw);
@@ -235,12 +234,25 @@ u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
 				enum wireless_mode wirelessmode,
 				long power_indbm);
 void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw);
-static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
-					     u32 cmdtableidx, u32 cmdtablesz,
-					     enum swchnlcmd_id cmdid, u32 para1,
-					     u32 para2, u32 msdelay);
-static bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
-					     u8 channel, u8 *stage, u8 *step,
-					     u32 *delay);
+void _rtl92c_phy_set_rf_sleep(struct ieee80211_hw *hw);
+bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
+				      u8 channel, u8 *stage, u8 *step,
+				      u32 *delay);
+u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw);
+u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
+				  enum radio_path rfpath, u32 offset);
+void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
+				    enum radio_path rfpath, u32 offset,
+				    u32 data);
+u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
+			       enum radio_path rfpath, u32 offset);
+void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
+				 enum radio_path rfpath, u32 offset,
+				 u32 data);
+bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw);
+void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
+					    u32 regaddr, u32 bitmask,
+					    u32 data);
+bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype);
 
 #endif

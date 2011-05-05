@@ -1455,7 +1455,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	 * We only time out user hints, given that they should be the only
 	 * source of bogus requests.
 	 */
-	if (reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
+	if (r != -EALREADY &&
+	    reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
 		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
 }
 
