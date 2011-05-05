@@ -260,6 +260,17 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	}
 }
 
+static void dwc3_core_num_eps(struct dwc3 *dwc)
+{
+	struct dwc3_hwparams	*parms = &dwc->hwparams;
+
+	dwc->num_in_eps = DWC3_NUM_IN_EPS(parms);
+	dwc->num_out_eps = DWC3_NUM_EPS(parms) - dwc->num_in_eps;
+
+	dev_vdbg(dwc->dev, "found %d IN and %d OUT endpoints\n",
+			dwc->num_in_eps, dwc->num_out_eps);
+}
+
 static void dwc3_cache_hwparams(struct dwc3 *dwc)
 {
 	struct dwc3_hwparams	*parms = &dwc->hwparams;
@@ -335,6 +346,8 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	 */
 	if (dwc->revision < DWC3_REVISION_190A)
 		reg |= DWC3_GCTL_U2RSTECN;
+
+	dwc3_core_num_eps(dwc);
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
