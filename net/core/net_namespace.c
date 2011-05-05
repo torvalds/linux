@@ -8,6 +8,8 @@
 #include <linux/idr.h>
 #include <linux/rculist.h>
 #include <linux/nsproxy.h>
+#include <linux/proc_fs.h>
+#include <linux/file.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -343,6 +345,28 @@ struct net *get_net_ns_by_pid(pid_t pid)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
+struct net *get_net_ns_by_fd(int fd)
+{
+	struct proc_inode *ei;
+	struct file *file;
+	struct net *net;
+
+	net = ERR_PTR(-EINVAL);
+	file = proc_ns_fget(fd);
+	if (!file)
+		goto out;
+
+	ei = PROC_I(file->f_dentry->d_inode);
+	if (ei->ns_ops != &netns_operations)
+		goto out;
+
+	net = get_net(ei->ns);
+out:
+	if (file)
+		fput(file);
+	return net;
+}
+
 static int __init net_ns_init(void)
 {
 	struct net_generic *ng;
@@ -577,10 +601,15 @@ EXPORT_SYMBOL_GPL(unregister_pernet_device);
 #ifdef CONFIG_NET_NS
 static void *netns_get(struct task_struct *task)
 {
-	struct net *net;
+	struct net *net = NULL;
+	struct nsproxy *nsproxy;
+
 	rcu_read_lock();
-	net = get_net(task->nsproxy->net_ns);
+	nsproxy = task_nsproxy(task);
+	if (nsproxy)
+		net = get_net(nsproxy->net_ns);
 	rcu_read_unlock();
+
 	return net;
 }
 
