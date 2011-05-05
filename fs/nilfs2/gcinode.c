@@ -48,9 +48,6 @@
 #include "dat.h"
 #include "ifile.h"
 
-static const struct address_space_operations def_gcinode_aops = {
-};
-
 /*
  * nilfs_gccache_submit_read_data() - add data buffer and submit read request
  * @inode - gc inode
@@ -178,7 +175,7 @@ int nilfs_init_gcinode(struct inode *inode)
 
 	inode->i_mode = S_IFREG;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-	inode->i_mapping->a_ops = &def_gcinode_aops;
+	inode->i_mapping->a_ops = &empty_aops;
 	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	ii->i_flags = 0;
