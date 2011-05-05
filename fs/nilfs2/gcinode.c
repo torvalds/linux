@@ -84,9 +84,9 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 		goto out;
 
 	if (pbn == 0) {
-		struct inode *dat_inode = NILFS_I_NILFS(inode)->ns_dat;
-					  /* use original dat, not gc dat. */
-		err = nilfs_dat_translate(dat_inode, vbn, &pbn);
+		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+
+		err = nilfs_dat_translate(nilfs->ns_dat, vbn, &pbn);
 		if (unlikely(err)) { /* -EIO, -ENOMEM, -ENOENT */
 			brelse(bh);
 			goto failed;
@@ -100,7 +100,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 	}
 
 	if (!buffer_mapped(bh)) {
-		bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+		bh->b_bdev = inode->i_sb->s_bdev;
 		set_buffer_mapped(bh);
 	}
 	bh->b_blocknr = pbn;

@@ -31,7 +31,7 @@
 
 static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 {
-	return NILFS_I_NILFS(sufile)->ns_nsegments;
+	return ((struct the_nilfs *)sufile->i_sb->s_fs_info)->ns_nsegments;
 }
 
 unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile);

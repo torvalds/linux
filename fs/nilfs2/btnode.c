@@ -62,7 +62,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 		BUG();
 	}
 	memset(bh->b_data, 0, 1 << inode->i_blkbits);
-	bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+	bh->b_bdev = inode->i_sb->s_bdev;
 	bh->b_blocknr = blocknr;
 	set_buffer_mapped(bh);
 	set_buffer_uptodate(bh);
@@ -94,10 +94,11 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	if (pblocknr == 0) {
 		pblocknr = blocknr;
 		if (inode->i_ino != NILFS_DAT_INO) {
-			struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
+			struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 
 			/* blocknr is a virtual block number */
-			err = nilfs_dat_translate(dat, blocknr, &pblocknr);
+			err = nilfs_dat_translate(nilfs->ns_dat, blocknr,
+						  &pblocknr);
 			if (unlikely(err)) {
 				brelse(bh);
 				goto out_locked;
@@ -120,7 +121,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		goto found;
 	}
 	set_buffer_mapped(bh);
-	bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+	bh->b_bdev = inode->i_sb->s_bdev;
 	bh->b_blocknr = pblocknr; /* set block address for read */
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);

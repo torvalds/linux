@@ -74,14 +74,14 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	__u64 blknum = 0;
 	int err = 0, ret;
-	struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
 	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
 
-	down_read(&NILFS_MDT(dat)->mi_sem);
+	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	ret = nilfs_bmap_lookup_contig(ii->i_bmap, blkoff, &blknum, maxblocks);
-	up_read(&NILFS_MDT(dat)->mi_sem);
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	if (ret >= 0) {	/* found */
 		map_bh(bh_result, inode->i_sb, blknum);
 		if (ret > 0)
@@ -940,7 +940,7 @@ void nilfs_dirty_inode(struct inode *inode)
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len)
 {
-	struct the_nilfs *nilfs = NILFS_I_NILFS(inode);
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	__u64 logical = 0, phys = 0, size = 0;
 	__u32 flags = 0;
 	loff_t isize;

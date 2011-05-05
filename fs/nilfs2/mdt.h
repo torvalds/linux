@@ -64,11 +64,6 @@ static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
 	return inode->i_private;
 }
 
-static inline struct the_nilfs *NILFS_I_NILFS(struct inode *inode)
-{
-	return inode->i_sb->s_fs_info;
-}
-
 /* Default GFP flags using highmem */
 #define NILFS_MDT_GFP      (__GFP_WAIT | __GFP_IO | __GFP_HIGHMEM)
 
@@ -108,7 +103,7 @@ static inline void nilfs_mdt_clear_dirty(struct inode *inode)
 
 static inline __u64 nilfs_mdt_cno(struct inode *inode)
 {
-	return NILFS_I_NILFS(inode)->ns_cno;
+	return ((struct the_nilfs *)inode->i_sb->s_fs_info)->ns_cno;
 }
 
 #define nilfs_mdt_bgl_lock(inode, bg) \
