@@ -143,10 +143,16 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
+	.suspend = tmio_mmc_host_suspend,
+	.resume = tmio_mmc_host_resume,
+};
+
 static struct platform_driver sh_mobile_sdhi_driver = {
 	.driver		= {
 		.name	= "sh_mobile_sdhi",
 		.owner	= THIS_MODULE,
+		.pm	= &tmio_mmc_dev_pm_ops,
 	},
 	.probe		= sh_mobile_sdhi_probe,
 	.remove		= __devexit_p(sh_mobile_sdhi_remove),

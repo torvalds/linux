@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
@@ -834,12 +835,17 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	else
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_resume(&pdev->dev);
+	if (ret < 0)
+		goto pm_disable;
+
 	tmio_mmc_clk_stop(_host);
 	tmio_mmc_reset(_host);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto unmap_ctl;
+		goto pm_suspend;
 
 	_host->irq = ret;
 
@@ -850,7 +856,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	ret = request_irq(_host->irq, tmio_mmc_irq, IRQF_DISABLED |
 		IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), _host);
 	if (ret)
-		goto unmap_ctl;
+		goto pm_suspend;
 
 	spin_lock_init(&_host->lock);
 
@@ -859,6 +865,9 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
+
+	/* We have to keep the device powered for its card detection to work */
+	pm_runtime_get_noresume(&pdev->dev);
 
 	mmc_add_host(mmc);
 
@@ -874,7 +883,10 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	return 0;
 
-unmap_ctl:
+pm_suspend:
+	pm_runtime_suspend(&pdev->dev);
+pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	iounmap(_host->ctl);
 host_free:
 	mmc_free_host(mmc);
@@ -885,13 +897,52 @@ EXPORT_SYMBOL(tmio_mmc_host_probe);
 
 void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
+	struct platform_device *pdev = host->pdev;
+
 	mmc_remove_host(host->mmc);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
 	free_irq(host->irq, host);
 	iounmap(host->ctl);
 	mmc_free_host(host->mmc);
+
+	/* Compensate for pm_runtime_get_sync() in probe() above */
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
+
+#ifdef CONFIG_PM
+int tmio_mmc_host_suspend(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	int ret = mmc_suspend_host(mmc);
+
+	if (!ret)
+		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+
+	host->pm_error = pm_runtime_put_sync(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(tmio_mmc_host_suspend);
+
+int tmio_mmc_host_resume(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (!host->pm_error)
+		pm_runtime_get_sync(dev);
+
+	tmio_mmc_reset(mmc_priv(mmc));
+	tmio_mmc_request_dma(host, host->pdata);
+
+	return mmc_resume_host(mmc);
+}
+EXPORT_SYMBOL(tmio_mmc_host_resume);
+
+#endif	/* CONFIG_PM */
 
 MODULE_LICENSE("GPL v2");

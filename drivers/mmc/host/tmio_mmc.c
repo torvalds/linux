@@ -30,7 +30,7 @@ static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret;
 
-	ret = mmc_suspend_host(mmc);
+	ret = tmio_mmc_host_suspend(&dev->dev);
 
 	/* Tell MFD core it can disable us now.*/
 	if (!ret && cell->disable)
@@ -46,15 +46,12 @@ static int tmio_mmc_resume(struct platform_device *dev)
 	int ret = 0;
 
 	/* Tell the MFD core we are ready to be enabled */
-	if (cell->resume) {
+	if (cell->resume)
 		ret = cell->resume(dev);
-		if (ret)
-			goto out;
-	}
 
-	mmc_resume_host(mmc);
+	if (!ret)
+		ret = tmio_mmc_host_resume(&dev->dev);
 
-out:
 	return ret;
 }
 #else

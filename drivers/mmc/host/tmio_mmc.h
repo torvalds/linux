@@ -51,6 +51,8 @@ struct tmio_mmc_host {
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
 
+	int			pm_error;
+
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
 	struct scatterlist      *sg_orig;
@@ -118,6 +120,14 @@ static inline void tmio_mmc_request_dma(struct tmio_mmc_host *host,
 static inline void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 {
 }
+#endif
+
+#ifdef CONFIG_PM
+int tmio_mmc_host_suspend(struct device *dev);
+int tmio_mmc_host_resume(struct device *dev);
+#else
+#define tmio_mmc_host_suspend NULL
+#define tmio_mmc_host_resume NULL
 #endif
 
 #endif
