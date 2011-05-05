@@ -1495,6 +1495,10 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	soc_init_codec_debugfs(codec);
 
+	if (driver->dapm_widgets)
+		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
+					  driver->num_dapm_widgets);
+
 	if (driver->probe) {
 		ret = driver->probe(codec);
 		if (ret < 0) {
@@ -1508,9 +1512,6 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (driver->controls)
 		snd_soc_add_controls(codec, driver->controls,
 				     driver->num_controls);
-	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
-					  driver->num_dapm_widgets);
 	if (driver->dapm_routes)
 		snd_soc_dapm_add_routes(&codec->dapm, driver->dapm_routes,
 					driver->num_dapm_routes);
