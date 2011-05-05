@@ -292,7 +292,6 @@ struct ser_req {
 
 struct ads7845_ser_req {
 	u8			command[3];
-	u8			pwrdown[3];
 	struct spi_message	msg;
 	struct spi_transfer	xfer[2];
 	/*
