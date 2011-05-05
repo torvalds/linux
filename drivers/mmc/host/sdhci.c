@@ -1244,7 +1244,16 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl &= ~SDHCI_CTRL_HISPD;
 
 	if (host->version >= SDHCI_SPEC_300) {
-		u16 ctrl_2;
+		u16 clk, ctrl_2;
+		unsigned int clock;
+
+		/* In case of UHS-I modes, set High Speed Enable */
+		if ((ios->timing == MMC_TIMING_UHS_SDR50) ||
+		    (ios->timing == MMC_TIMING_UHS_SDR104) ||
+		    (ios->timing == MMC_TIMING_UHS_DDR50) ||
+		    (ios->timing == MMC_TIMING_UHS_SDR25) ||
+		    (ios->timing == MMC_TIMING_UHS_SDR12))
+			ctrl |= SDHCI_CTRL_HISPD;
 
 		ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 		if (!(ctrl_2 & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
@@ -1267,8 +1276,6 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			 * need to reset SD Clock Enable before changing High
 			 * Speed Enable to avoid generating clock gliches.
 			 */
-			u16 clk;
-			unsigned int clock;
 
 			/* Reset SD Clock Enable */
 			clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
@@ -1282,6 +1289,33 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->clock = 0;
 			sdhci_set_clock(host, clock);
 		}
+
+		ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+		/* Select Bus Speed Mode for host */
+		ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+		if (ios->timing == MMC_TIMING_UHS_SDR12)
+			ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
+		else if (ios->timing == MMC_TIMING_UHS_SDR25)
+			ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+		else if (ios->timing == MMC_TIMING_UHS_SDR50)
+			ctrl_2 |= SDHCI_CTRL_UHS_SDR50;
+		else if (ios->timing == MMC_TIMING_UHS_SDR104)
+			ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+		else if (ios->timing == MMC_TIMING_UHS_DDR50)
+			ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
+
+		/* Reset SD Clock Enable */
+		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+		clk &= ~SDHCI_CLOCK_CARD_EN;
+		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+		sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+
+		/* Re-enable SD Clock */
+		clock = host->clock;
+		host->clock = 0;
+		sdhci_set_clock(host, clock);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 

@@ -81,7 +81,24 @@ struct sd_ssr {
 
 struct sd_switch_caps {
 	unsigned int		hs_max_dtr;
+	unsigned int		uhs_max_dtr;
+#define UHS_SDR104_MAX_DTR	208000000
+#define UHS_SDR50_MAX_DTR	100000000
+#define UHS_DDR50_MAX_DTR	50000000
+#define UHS_SDR25_MAX_DTR	UHS_DDR50_MAX_DTR
+#define UHS_SDR12_MAX_DTR	25000000
 	unsigned int		sd3_bus_mode;
+#define UHS_SDR12_BUS_SPEED	0
+#define UHS_SDR25_BUS_SPEED	1
+#define UHS_SDR50_BUS_SPEED	2
+#define UHS_SDR104_BUS_SPEED	3
+#define UHS_DDR50_BUS_SPEED	4
+
+#define SD_MODE_UHS_SDR12	(1 << UHS_SDR12_BUS_SPEED)
+#define SD_MODE_UHS_SDR25	(1 << UHS_SDR25_BUS_SPEED)
+#define SD_MODE_UHS_SDR50	(1 << UHS_SDR50_BUS_SPEED)
+#define SD_MODE_UHS_SDR104	(1 << UHS_SDR104_BUS_SPEED)
+#define SD_MODE_UHS_DDR50	(1 << UHS_DDR50_BUS_SPEED)
 	unsigned int		sd3_drv_type;
 #define SD_DRIVER_TYPE_B	0x01
 #define SD_DRIVER_TYPE_A	0x02
@@ -165,6 +182,8 @@ struct mmc_card {
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
 	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
+
+	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 
 	struct dentry		*debugfs_root;
 };
