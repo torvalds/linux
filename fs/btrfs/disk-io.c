@@ -1348,35 +1348,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-#if 0
-	struct btrfs_root *root;
-	int ret;
-
-	root = btrfs_read_fs_root_no_name(fs_info, location);
-	if (!root)
-		return NULL;
-
-	if (root->in_sysfs)
-		return root;
-
-	ret = btrfs_set_root_name(root, name, namelen);
-	if (ret) {
-		free_extent_buffer(root->node);
-		kfree(root);
-		return ERR_PTR(ret);
-	}
-
-	ret = btrfs_sysfs_add_root(root);
-	if (ret) {
-		free_extent_buffer(root->node);
-		kfree(root->name);
-		kfree(root);
-		return ERR_PTR(ret);
-	}
-	root->in_sysfs = 1;
-	return root;
-#endif
-
 static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 {
 	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
