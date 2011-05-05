@@ -57,6 +57,7 @@
 #define _SCIC_PORT_H_
 
 #include "sci_status.h"
+#include "scic_phy.h"
 #include "intel_sas.h"
 
 struct scic_sds_port;
@@ -72,8 +73,7 @@ enum scic_port_not_ready_reason_code {
 
 struct scic_port_end_point_properties {
 	struct sci_sas_address sas_address;
-	struct sci_sas_identify_address_frame_protocols protocols;
-
+	struct scic_phy_proto protocols;
 };
 
 struct scic_port_properties {

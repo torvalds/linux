@@ -187,7 +187,7 @@ void isci_port_link_up(
 
 	scic_port_get_properties(port, &properties);
 
-	if (properties.remote.protocols.u.bits.stp_target) {
+	if (phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		u64 attached_sas_address;
 
 		isci_phy->sas_phy.oob_mode = SATA_OOB_MODE;
@@ -207,9 +207,7 @@ void isci_port_link_up(
 
 		memcpy(&isci_phy->sas_phy.attached_sas_addr,
 		       &attached_sas_address, sizeof(attached_sas_address));
-
-	} else if (properties.remote.protocols.u.bits.ssp_target ||
-		   properties.remote.protocols.u.bits.smp_target) {
+	} else if (phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
 		isci_phy->sas_phy.oob_mode = SAS_OOB_MODE;
 		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct sas_identify_frame);
 

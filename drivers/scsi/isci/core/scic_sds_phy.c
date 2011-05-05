@@ -442,36 +442,14 @@ void scic_sds_phy_get_attached_sas_address(struct scic_sds_phy *sci_phy,
 	memcpy(sas_address, iaf->sas_addr, SAS_ADDR_SIZE);
 }
 
-void scic_sds_phy_get_protocols(
-	struct scic_sds_phy *sci_phy,
-	struct sci_sas_identify_address_frame_protocols *protocols)
+void scic_sds_phy_get_protocols(struct scic_sds_phy *sci_phy,
+				struct scic_phy_proto *protocols)
 {
-	protocols->u.all =
+	protocols->all =
 		(u16)(readl(&sci_phy->
 			link_layer_registers->transmit_identification) &
 				0x0000FFFF);
 }
-
-void scic_sds_phy_get_attached_phy_protocols(
-	struct scic_sds_phy *sci_phy,
-	struct sci_sas_identify_address_frame_protocols *protocols)
-{
-	protocols->u.all = 0;
-
-	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
-		struct isci_phy *iphy = sci_phy->iphy;
-		struct sas_identify_frame *iaf;
-
-		iaf = &iphy->frame_rcvd.iaf;
-		memcpy(&protocols->u.all, &iaf->initiator_bits, 2);
-	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA)
-		protocols->u.bits.stp_target = 1;
-}
-
-/*
- * *****************************************************************************
- * * SCIC SDS PHY Handler Redirects
- * ***************************************************************************** */
 
 /**
  * This method will attempt to start the phy object. This request is only valid

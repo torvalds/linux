@@ -103,6 +103,26 @@ struct scic_phy_cap {
 	};
 }  __packed;
 
+/* this data structure reflects the link layer transmit identification reg */
+struct scic_phy_proto {
+	union {
+		struct {
+			u16 _r_a:1;
+			u16 smp_iport:1;
+			u16 stp_iport:1;
+			u16 ssp_iport:1;
+			u16 _r_b:4;
+			u16 _r_c:1;
+			u16 smp_tport:1;
+			u16 stp_tport:1;
+			u16 ssp_tport:1;
+			u16 _r_d:4;
+		};
+		u16 all;
+	};
+} __packed;
+
+
 /**
  * struct scic_phy_properties - This structure defines the properties common to
  *    all phys that can be retrieved.
@@ -124,16 +144,10 @@ struct scic_phy_properties {
 	enum sas_linkrate negotiated_link_rate;
 
 	/**
-	 * This field indicates the protocols supported by the phy.
-	 */
-	struct sci_sas_identify_address_frame_protocols protocols;
-
-	/**
 	 * This field specifies the index of the phy in relation to other
 	 * phys within the controller.  This index is zero relative.
 	 */
 	u8 index;
-
 };
 
 /**

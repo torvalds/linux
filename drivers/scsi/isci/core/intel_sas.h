@@ -85,33 +85,6 @@ struct sci_sas_address {
 };
 
 /**
- * struct sci_sas_identify_address_frame_protocols - This structure depicts the
- *    contents of bytes 2 and 3 in the SAS IDENTIFY ADDRESS FRAME (IAF).
- *
- * For specific information on each of these individual fields please reference
- * the SAS specification Link layer section on address frames.
- */
-struct sci_sas_identify_address_frame_protocols {
-	union {
-		struct {
-			u16 restricted1:1;
-			u16 smp_initiator:1;
-			u16 stp_initiator:1;
-			u16 ssp_initiator:1;
-			u16 reserved3:4;
-			u16 restricted2:1;
-			u16 smp_target:1;
-			u16 stp_target:1;
-			u16 ssp_target:1;
-			u16 reserved4:4;
-		} bits;
-
-		u16 all;
-	} u;
-
-};
-
-/**
  * enum _SCI_SAS_TASK_ATTRIBUTE - This enumeration depicts the SAM/SAS
  *    specification defined task attribute values for a command information
  *    unit.

@@ -57,6 +57,7 @@
 #define _SCIC_SDS_PHY_H_
 
 #include "intel_sas.h"
+#include "scic_phy.h"
 #include "scu_registers.h"
 #include "sci_base_state_machine.h"
 #include <scsi/libsas.h>
@@ -438,11 +439,7 @@ void scic_sds_phy_get_attached_sas_address(
 	struct sci_sas_address *sas_address);
 
 void scic_sds_phy_get_protocols(
-	struct scic_sds_phy *this_phy,
-	struct sci_sas_identify_address_frame_protocols *protocols);
-
-void scic_sds_phy_get_attached_phy_protocols(
-	struct scic_sds_phy *this_phy,
-	struct sci_sas_identify_address_frame_protocols *protocols);
+	struct scic_sds_phy *sci_phy,
+	struct scic_phy_proto *protocols);
 
 #endif /* _SCIC_SDS_PHY_H_ */

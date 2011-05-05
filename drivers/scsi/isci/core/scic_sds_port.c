@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "sas.h"
 #include "intel_sas.h"
 #include "scic_controller.h"
 #include "scic_phy.h"
@@ -362,33 +363,32 @@ void scic_sds_port_get_sas_address(
 	}
 }
 
-/**
- * This method will indicate which protocols are supported by this port.
+/*
+ * This function will indicate which protocols are supported by this port.
  * @sci_port: a handle corresponding to the SAS port for which to return the
  *    supported protocols.
- * @protocols: This parameter specifies a pointer to an IAF protocol field
- *    structure into which the core will copy the protocol values for the port.
- *     The values are returned as part of a bit mask in order to allow for
- *    multi-protocol support.
- *
+ * @protocols: This parameter specifies a pointer to a data structure
+ *    which the core will copy the protocol values for the port from the
+ *    transmit_identification register.
  */
-static void scic_sds_port_get_protocols(
-	struct scic_sds_port *sci_port,
-	struct sci_sas_identify_address_frame_protocols *protocols)
+static void
+scic_sds_port_get_protocols(struct scic_sds_port *sci_port,
+			    struct scic_phy_proto *protocols)
 {
 	u8 index;
 
-	protocols->u.all = 0;
+	protocols->all = 0;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		if (sci_port->phy_table[index] != NULL) {
-			scic_sds_phy_get_protocols(sci_port->phy_table[index], protocols);
+			scic_sds_phy_get_protocols(sci_port->phy_table[index],
+						   protocols);
 		}
 	}
 }
 
-/**
- * This method requests the SAS address for the device directly attached to
+/*
+ * This function requests the SAS address for the device directly attached to
  *    this SAS port.
  * @sci_port: a handle corresponding to the SAS port for which to return the
  *    SAS address.
@@ -401,53 +401,25 @@ void scic_sds_port_get_attached_sas_address(
 	struct scic_sds_port *sci_port,
 	struct sci_sas_address *sas_address)
 {
-	struct sci_sas_identify_address_frame_protocols protocols;
-	struct scic_sds_phy *phy;
+	struct scic_sds_phy *sci_phy;
 
 	/*
 	 * Ensure that the phy is both part of the port and currently
-	 * connected to the remote end-point. */
-	phy = scic_sds_port_get_a_connected_phy(sci_port);
-	if (phy != NULL) {
-		scic_sds_phy_get_attached_phy_protocols(phy, &protocols);
-
-		if (!protocols.u.bits.stp_target) {
-			scic_sds_phy_get_attached_sas_address(phy, sas_address);
+	 * connected to the remote end-point.
+	 */
+	sci_phy = scic_sds_port_get_a_connected_phy(sci_port);
+	if (sci_phy) {
+		if (sci_phy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA) {
+			scic_sds_phy_get_attached_sas_address(sci_phy,
+							      sas_address);
 		} else {
-			scic_sds_phy_get_sas_address(phy, sas_address);
-			sas_address->low += phy->phy_index;
+			scic_sds_phy_get_sas_address(sci_phy, sas_address);
+			sas_address->low += sci_phy->phy_index;
 		}
 	} else {
 		sas_address->high = 0;
 		sas_address->low  = 0;
 	}
-}
-
-/**
- * This method will indicate which protocols are supported by this remote
- *    device.
- * @sci_port: a handle corresponding to the SAS port for which to return the
- *    supported protocols.
- * @protocols: This parameter specifies a pointer to an IAF protocol field
- *    structure into which the core will copy the protocol values for the port.
- *     The values are returned as part of a bit mask in order to allow for
- *    multi-protocol support.
- *
- */
-static void scic_sds_port_get_attached_protocols(
-	struct scic_sds_port *sci_port,
-	struct sci_sas_identify_address_frame_protocols *protocols)
-{
-	struct scic_sds_phy *phy;
-
-	/*
-	 * Ensure that the phy is both part of the port and currently
-	 * connected to the remote end-point. */
-	phy = scic_sds_port_get_a_connected_phy(sci_port);
-	if (phy != NULL)
-		scic_sds_phy_get_attached_phy_protocols(phy, protocols);
-	else
-		protocols->u.all = 0;
 }
 
 /**
@@ -595,7 +567,6 @@ enum sci_status scic_port_get_properties(
 	scic_sds_port_get_sas_address(port, &prop->local.sas_address);
 	scic_sds_port_get_protocols(port, &prop->local.protocols);
 	scic_sds_port_get_attached_sas_address(port, &prop->remote.sas_address);
-	scic_sds_port_get_attached_protocols(port, &prop->remote.protocols);
 
 	return SCI_SUCCESS;
 }
@@ -655,14 +626,10 @@ static void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
 				       struct scic_sds_phy *sci_phy,
 				       bool do_notify_user)
 {
-	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
-	struct sci_sas_identify_address_frame_protocols protocols;
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic->ihost;
 
-	scic_sds_phy_get_attached_phy_protocols(sci_phy, &protocols);
-
-	/* If this is sata port then the phy has already been resumed */
-	if (!protocols.u.bits.stp_target)
+	if (sci_phy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA)
 		scic_sds_phy_resume(sci_phy);
 
 	sci_port->active_phy_mask |= 1 << sci_phy->phy_index;
@@ -803,15 +770,9 @@ bool scic_sds_port_link_detected(
 	struct scic_sds_port *sci_port,
 	struct scic_sds_phy *sci_phy)
 {
-	struct sci_sas_identify_address_frame_protocols protocols;
-
-	scic_sds_phy_get_attached_phy_protocols(sci_phy, &protocols);
-
-	if (
-		(sci_port->logical_port_index != SCIC_SDS_DUMMY_PORT)
-		&& (protocols.u.bits.stp_target)
-		&& scic_sds_port_is_wide(sci_port)
-		) {
+	if ((sci_port->logical_port_index != SCIC_SDS_DUMMY_PORT) &&
+	    (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) &&
+	    scic_sds_port_is_wide(sci_port)) {
 		scic_sds_port_invalid_link_up(sci_port, sci_phy);
 
 		return false;
