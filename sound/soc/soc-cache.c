@@ -404,12 +404,13 @@ static int snd_soc_hw_bulk_write_raw(struct snd_soc_codec *codec, unsigned int r
 {
 	int ret;
 
-	/* Ensure that the base register is volatile.  Subsequently
-	 * any other register that is touched by this routine should be
-	 * volatile as well to ensure that we don't get out of sync with
-	 * the cache.
+	/* To ensure that we don't get out of sync with the cache, check
+	 * whether the base register is volatile or if we've directly asked
+	 * to bypass the cache.  Out of bounds registers are considered
+	 * volatile.
 	 */
-	if (!snd_soc_codec_volatile_register(codec, reg)
+	if (!codec->cache_bypass
+	    && !snd_soc_codec_volatile_register(codec, reg)
 	    && reg < codec->driver->reg_cache_size)
 		return -EINVAL;
 
