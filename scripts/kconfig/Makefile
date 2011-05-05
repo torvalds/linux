@@ -356,7 +356,7 @@ lex.%.c: %.l
 	cp $@ $@_shipped
 
 %.hash.c: %.gperf
-	gperf < $< > $@
+	gperf -C < $< > $@
 	cp $@ $@_shipped
 
 endif

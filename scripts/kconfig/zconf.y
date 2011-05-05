@@ -25,7 +25,7 @@ extern int zconflex(void);
 static void zconfprint(const char *err, ...);
 static void zconf_error(const char *err, ...);
 static void zconferror(const char *err);
-static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken);
+static bool zconf_endtoken(const struct kconf_id *id, int starttoken, int endtoken);
 
 struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 
@@ -45,7 +45,7 @@ static struct menu *current_menu, *current_entry;
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;
-	struct kconf_id *id;
+	const struct kconf_id *id;
 }
 
 %token <id>T_MAINMENU
@@ -229,7 +229,7 @@ symbol_option_list:
 	  /* empty */
 	| symbol_option_list T_WORD symbol_option_arg
 {
-	struct kconf_id *id = kconf_id_lookup($2, strlen($2));
+	const struct kconf_id *id = kconf_id_lookup($2, strlen($2));
 	if (id && id->flags & TF_OPTION)
 		menu_add_option(id->token, $3);
 	else
@@ -545,7 +545,7 @@ static const char *zconf_tokenname(int token)
 	return "<token>";
 }
 
-static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken)
+static bool zconf_endtoken(const struct kconf_id *id, int starttoken, int endtoken)
 {
 	if (id->token != endtoken) {
 		zconf_error("unexpected '%s' within %s block",

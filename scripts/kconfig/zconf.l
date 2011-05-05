@@ -96,7 +96,7 @@ n	[A-Za-z0-9_]
 
 <COMMAND>{
 	{n}+	{
-		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
+		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
 		BEGIN(PARAM);
 		current_pos.file = current_file;
 		current_pos.lineno = current_file->lineno;
@@ -132,7 +132,7 @@ n	[A-Za-z0-9_]
 	\n	BEGIN(INITIAL); current_file->lineno++; return T_EOL;
 	---	/* ignore */
 	({n}|[-/.])+	{
-		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
+		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
 		if (id && id->flags & TF_PARAM) {
 			zconflval.id = id;
 			return id->token;
