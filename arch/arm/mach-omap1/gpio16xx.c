@@ -221,8 +221,6 @@ static int __init omap16xx_gpio_init(void)
 	for (i = 0; i < ARRAY_SIZE(omap16xx_gpio_dev); i++)
 		platform_device_register(omap16xx_gpio_dev[i]);
 
-	gpio_bank_count = ARRAY_SIZE(omap16xx_gpio_dev);
-
 	return 0;
 }
 postcore_initcall(omap16xx_gpio_init);

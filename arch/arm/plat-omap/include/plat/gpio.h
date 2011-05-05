@@ -202,9 +202,6 @@ struct omap_gpio_platform_data {
 	struct omap_gpio_reg_offs *regs;
 };
 
-/* TODO: Analyze removing gpio_bank_count usage from driver code */
-extern int gpio_bank_count;
-
 extern void omap2_gpio_prepare_for_idle(int off_mode);
 extern void omap2_gpio_resume_after_idle(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
