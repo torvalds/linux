@@ -469,7 +469,6 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	int bpp = 0;
 	unsigned long ldddsr;
 	int k, m;
-	int ret = 0;
 
 	/* enable clocks before accessing the hardware */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -538,11 +537,12 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		lcdc_write_chan(ch, LDPMR, 0);
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->setup_sys)
-			ret = board_cfg->setup_sys(board_cfg->board_data, ch,
-						   &sh_mobile_lcdc_sys_bus_ops);
-		if (ret)
-			return ret;
+		if (board_cfg->setup_sys) {
+			int ret = board_cfg->setup_sys(board_cfg->board_data,
+						ch, &sh_mobile_lcdc_sys_bus_ops);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* word and long word swap */
