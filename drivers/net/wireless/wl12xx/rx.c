@@ -76,12 +76,15 @@ static void wl1271_rx_status(struct wl1271 *wl,
 						      status->band);
 
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
+		u8 desc_err_code = desc->status & WL1271_RX_DESC_STATUS_MASK;
 
-		if (likely(!(desc->status & WL1271_RX_DESC_DECRYPT_FAIL)))
-			status->flag |= RX_FLAG_DECRYPTED;
-		if (unlikely(desc->status & WL1271_RX_DESC_MIC_FAIL))
+		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED |
+				RX_FLAG_DECRYPTED;
+
+		if (unlikely(desc_err_code == WL1271_RX_DESC_MIC_FAIL)) {
 			status->flag |= RX_FLAG_MMIC_ERROR;
+			wl1271_warning("Michael MIC error");
+		}
 	}
 }
 
@@ -100,6 +103,25 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	if (unlikely(wl->state == WL1271_STATE_PLT))
 		return -EINVAL;
 
+	/* the data read starts with the descriptor */
+	desc = (struct wl1271_rx_descriptor *) data;
+
+	switch (desc->status & WL1271_RX_DESC_STATUS_MASK) {
+	/* discard corrupted packets */
+	case WL1271_RX_DESC_DRIVER_RX_Q_FAIL:
+	case WL1271_RX_DESC_DECRYPT_FAIL:
+		wl1271_warning("corrupted packet in RX with status: 0x%x",
+			       desc->status & WL1271_RX_DESC_STATUS_MASK);
+		return -EINVAL;
+	case WL1271_RX_DESC_SUCCESS:
+	case WL1271_RX_DESC_MIC_FAIL:
+		break;
+	default:
+		wl1271_error("invalid RX descriptor status: 0x%x",
+			     desc->status & WL1271_RX_DESC_STATUS_MASK);
+		return -EINVAL;
+	}
+
 	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
@@ -108,9 +130,6 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 
 	buf = skb_put(skb, length);
 	memcpy(buf, data, length);
-
-	/* the data read starts with the descriptor */
-	desc = (struct wl1271_rx_descriptor *) buf;
 
 	/* now we pull the descriptor out of the buffer */
 	skb_pull(skb, sizeof(*desc));
@@ -121,7 +140,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb,
+		     skb->len - desc->pad_len,
 		     beacon ? "beacon" : "");
 
 	skb_trim(skb, skb->len - desc->pad_len);
