@@ -1623,14 +1623,15 @@ static const struct usb_gadget_ops dwc3_gadget_ops = {
 
 /* -------------------------------------------------------------------------- */
 
-static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
+static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
+		u8 num, u32 direction)
 {
 	struct dwc3_ep			*dep;
-	u8				epnum;
+	u8				i;
 
-	INIT_LIST_HEAD(&dwc->gadget.ep_list);
+	for (i = 0; i < num; i++) {
+		u8 epnum = (i << 1) | (!!direction);
 
-	for (epnum = 0; epnum < DWC3_ENDPOINTS_NUM; epnum++) {
 		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 		if (!dep) {
 			dev_err(dwc->dev, "can't allocate endpoint %d\n",
@@ -1644,6 +1645,7 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 
 		snprintf(dep->name, sizeof(dep->name), "ep%d%s", epnum >> 1,
 				(epnum & 1) ? "in" : "out");
+
 		dep->endpoint.name = dep->name;
 		dep->direction = (epnum & 1);
 
@@ -1674,6 +1676,27 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 	return 0;
 }
 
+static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
+{
+	int				ret;
+
+	INIT_LIST_HEAD(&dwc->gadget.ep_list);
+
+	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_out_eps, 0);
+	if (ret < 0) {
+		dev_vdbg(dwc->dev, "failed to allocate OUT endpoints\n");
+		return ret;
+	}
+
+	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_in_eps, 1);
+	if (ret < 0) {
+		dev_vdbg(dwc->dev, "failed to allocate IN endpoints\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 {
 	struct dwc3_ep			*dep;
@@ -1681,6 +1704,9 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 
 	for (epnum = 0; epnum < DWC3_ENDPOINTS_NUM; epnum++) {
 		dep = dwc->eps[epnum];
+		if (!dep)
+			continue;
+
 		dwc3_free_trb_pool(dep);
 
 		if (epnum != 0 && epnum != 1)
@@ -2015,6 +2041,9 @@ static void dwc3_stop_active_transfers(struct dwc3 *dwc)
 		struct dwc3_ep *dep;
 
 		dep = dwc->eps[epnum];
+		if (!dep)
+			continue;
+
 		if (!(dep->flags & DWC3_EP_ENABLED))
 			continue;
 
@@ -2032,6 +2061,8 @@ static void dwc3_clear_stall_all_ep(struct dwc3 *dwc)
 		int ret;
 
 		dep = dwc->eps[epnum];
+		if (!dep)
+			continue;
 
 		if (!(dep->flags & DWC3_EP_STALL))
 			continue;
