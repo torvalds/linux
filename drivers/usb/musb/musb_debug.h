@@ -54,8 +54,6 @@ static inline int _dbg_level(unsigned l)
 	return musb_debug >= l;
 }
 
-extern const char *otg_state_string(struct musb *);
-
 #ifdef CONFIG_DEBUG_FS
 extern int musb_init_debugfs(struct musb *musb);
 extern void musb_exit_debugfs(struct musb *musb);

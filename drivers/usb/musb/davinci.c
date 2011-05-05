@@ -220,7 +220,8 @@ static void otg_timer(unsigned long _musb)
 	* status change events (from the transceiver) otherwise.
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
-	DBG(7, "poll devctl %02x (%s)\n", devctl, otg_state_string(musb));
+	DBG(7, "poll devctl %02x (%s)\n", devctl,
+		otg_state_string(musb->xceiv->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
@@ -356,7 +357,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 		davinci_musb_source_power(musb, drvvbus, 0);
 		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				otg_state_string(musb),
+				otg_state_string(musb->xceiv->state),
 				err ? " ERROR" : "",
 				devctl);
 		retval = IRQ_HANDLED;

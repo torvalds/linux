@@ -333,26 +333,6 @@ void musb_load_testpacket(struct musb *musb)
 
 /*-------------------------------------------------------------------------*/
 
-const char *otg_state_string(struct musb *musb)
-{
-	switch (musb->xceiv->state) {
-	case OTG_STATE_A_IDLE:		return "a_idle";
-	case OTG_STATE_A_WAIT_VRISE:	return "a_wait_vrise";
-	case OTG_STATE_A_WAIT_BCON:	return "a_wait_bcon";
-	case OTG_STATE_A_HOST:		return "a_host";
-	case OTG_STATE_A_SUSPEND:	return "a_suspend";
-	case OTG_STATE_A_PERIPHERAL:	return "a_peripheral";
-	case OTG_STATE_A_WAIT_VFALL:	return "a_wait_vfall";
-	case OTG_STATE_A_VBUS_ERR:	return "a_vbus_err";
-	case OTG_STATE_B_IDLE:		return "b_idle";
-	case OTG_STATE_B_SRP_INIT:	return "b_srp_init";
-	case OTG_STATE_B_PERIPHERAL:	return "b_peripheral";
-	case OTG_STATE_B_WAIT_ACON:	return "b_wait_acon";
-	case OTG_STATE_B_HOST:		return "b_host";
-	default:			return "UNDEFINED";
-	}
-}
-
 #ifdef	CONFIG_USB_MUSB_OTG
 
 /*
@@ -373,12 +353,14 @@ void musb_otg_timer_func(unsigned long data)
 		break;
 	case OTG_STATE_A_SUSPEND:
 	case OTG_STATE_A_WAIT_BCON:
-		DBG(1, "HNP: %s timeout\n", otg_state_string(musb));
+		DBG(1, "HNP: %s timeout\n",
+			otg_state_string(musb->xceiv->state));
 		musb_platform_set_vbus(musb, 0);
 		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 		break;
 	default:
-		DBG(1, "HNP: Unhandled mode %s\n", otg_state_string(musb));
+		DBG(1, "HNP: Unhandled mode %s\n",
+			otg_state_string(musb->xceiv->state));
 	}
 	musb->ignore_disconnect = 0;
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -393,12 +375,13 @@ void musb_hnp_stop(struct musb *musb)
 	void __iomem	*mbase = musb->mregs;
 	u8	reg;
 
-	DBG(1, "HNP: stop from %s\n", otg_state_string(musb));
+	DBG(1, "HNP: stop from %s\n", otg_state_string(musb->xceiv->state));
 
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_PERIPHERAL:
 		musb_g_disconnect(musb);
-		DBG(1, "HNP: back to %s\n", otg_state_string(musb));
+		DBG(1, "HNP: back to %s\n",
+			otg_state_string(musb->xceiv->state));
 		break;
 	case OTG_STATE_B_HOST:
 		DBG(1, "HNP: Disabling HR\n");
@@ -412,7 +395,7 @@ void musb_hnp_stop(struct musb *musb)
 		break;
 	default:
 		DBG(1, "HNP: Stopping in unknown state %s\n",
-			otg_state_string(musb));
+			otg_state_string(musb->xceiv->state));
 	}
 
 	/*
@@ -451,7 +434,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	 */
 	if (int_usb & MUSB_INTR_RESUME) {
 		handled = IRQ_HANDLED;
-		DBG(3, "RESUME (%s)\n", otg_state_string(musb));
+		DBG(3, "RESUME (%s)\n", otg_state_string(musb->xceiv->state));
 
 		if (devctl & MUSB_DEVCTL_HM) {
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
@@ -492,7 +475,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			default:
 				WARNING("bogus %s RESUME (%s)\n",
 					"host",
-					otg_state_string(musb));
+					otg_state_string(musb->xceiv->state));
 			}
 #endif
 		} else {
@@ -526,7 +509,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			default:
 				WARNING("bogus %s RESUME (%s)\n",
 					"peripheral",
-					otg_state_string(musb));
+					otg_state_string(musb->xceiv->state));
 			}
 		}
 	}
@@ -542,7 +525,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			return IRQ_HANDLED;
 		}
 
-		DBG(1, "SESSION_REQUEST (%s)\n", otg_state_string(musb));
+		DBG(1, "SESSION_REQUEST (%s)\n",
+			otg_state_string(musb->xceiv->state));
 
 		/* IRQ arrives from ID pin sense or (later, if VBUS power
 		 * is removed) SRP.  responses are time critical:
@@ -607,7 +591,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		}
 
 		DBG(1, "VBUS_ERROR in %s (%02x, %s), retry #%d, port1 %08x\n",
-				otg_state_string(musb),
+				otg_state_string(musb->xceiv->state),
 				devctl,
 				({ char *s;
 				switch (devctl & MUSB_DEVCTL_VBUS) {
@@ -633,7 +617,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 #endif
 	if (int_usb & MUSB_INTR_SUSPEND) {
 		DBG(1, "SUSPEND (%s) devctl %02x power %02x\n",
-				otg_state_string(musb), devctl, power);
+			otg_state_string(musb->xceiv->state), devctl, power);
 		handled = IRQ_HANDLED;
 
 		switch (musb->xceiv->state) {
@@ -758,13 +742,13 @@ b_host:
 			usb_hcd_resume_root_hub(hcd);
 
 		DBG(1, "CONNECT (%s) devctl %02x\n",
-				otg_state_string(musb), devctl);
+				otg_state_string(musb->xceiv->state), devctl);
 	}
 #endif	/* CONFIG_USB_MUSB_HDRC_HCD */
 
 	if ((int_usb & MUSB_INTR_DISCONNECT) && !musb->ignore_disconnect) {
 		DBG(1, "DISCONNECT (%s) as %s, devctl %02x\n",
-				otg_state_string(musb),
+				otg_state_string(musb->xceiv->state),
 				MUSB_MODE(musb), devctl);
 		handled = IRQ_HANDLED;
 
@@ -807,7 +791,7 @@ b_host:
 #endif	/* GADGET */
 		default:
 			WARNING("unhandled DISCONNECT transition (%s)\n",
-				otg_state_string(musb));
+				otg_state_string(musb->xceiv->state));
 			break;
 		}
 	}
@@ -832,7 +816,8 @@ b_host:
 				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 			}
 		} else if (is_peripheral_capable()) {
-			DBG(1, "BUS RESET as %s\n", otg_state_string(musb));
+			DBG(1, "BUS RESET as %s\n",
+				otg_state_string(musb->xceiv->state));
 			switch (musb->xceiv->state) {
 #ifdef CONFIG_USB_OTG
 			case OTG_STATE_A_SUSPEND:
@@ -846,8 +831,8 @@ b_host:
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
 				/* never use invalid T(a_wait_bcon) */
 				DBG(1, "HNP: in %s, %d msec timeout\n",
-						otg_state_string(musb),
-						TA_WAIT_BCON(musb));
+					otg_state_string(musb->xceiv->state),
+					TA_WAIT_BCON(musb));
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
 				break;
@@ -858,7 +843,7 @@ b_host:
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				DBG(1, "HNP: RESET (%s), to b_peripheral\n",
-					otg_state_string(musb));
+					otg_state_string(musb->xceiv->state));
 				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 				musb_g_reset(musb);
 				break;
@@ -871,7 +856,7 @@ b_host:
 				break;
 			default:
 				DBG(1, "Unhandled BUS RESET as %s\n",
-					otg_state_string(musb));
+					otg_state_string(musb->xceiv->state));
 			}
 		}
 	}
@@ -1713,7 +1698,7 @@ musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int ret = -EINVAL;
 
 	spin_lock_irqsave(&musb->lock, flags);
-	ret = sprintf(buf, "%s\n", otg_state_string(musb));
+	ret = sprintf(buf, "%s\n", otg_state_string(musb->xceiv->state));
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	return ret;

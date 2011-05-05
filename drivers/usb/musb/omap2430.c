@@ -114,7 +114,8 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || ((musb->a_wait_bcon == 0)
 			&& (musb->xceiv->state == OTG_STATE_A_WAIT_BCON))) {
-		DBG(4, "%s active, deleting timer\n", otg_state_string(musb));
+		DBG(4, "%s active, deleting timer\n",
+			otg_state_string(musb->xceiv->state));
 		del_timer(&musb_idle_timer);
 		last_timer = jiffies;
 		return;
@@ -131,7 +132,7 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	DBG(4, "%s inactive, for idle timer for %lu ms\n",
-		otg_state_string(musb),
+		otg_state_string(musb->xceiv->state),
 		(unsigned long)jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&musb_idle_timer, timeout);
 }
@@ -195,7 +196,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 
 	DBG(1, "VBUS %s, devctl %02x "
 		/* otg %3x conf %08x prcm %08x */ "\n",
-		otg_state_string(musb),
+		otg_state_string(musb->xceiv->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
