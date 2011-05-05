@@ -2699,11 +2699,16 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 		/* Set TT think time - convert from ns to FS bit times.
 		 * 0 = 8 FS bit times, 1 = 16 FS bit times,
 		 * 2 = 24 FS bit times, 3 = 32 FS bit times.
+		 *
+		 * xHCI 1.0: this field shall be 0 if the device is not a
+		 * High-spped hub.
 		 */
 		think_time = tt->think_time;
 		if (think_time != 0)
 			think_time = (think_time / 666) - 1;
-		slot_ctx->tt_info |= cpu_to_le32(TT_THINK_TIME(think_time));
+		if (xhci->hci_version < 0x100 || hdev->speed == USB_SPEED_HIGH)
+			slot_ctx->tt_info |=
+				cpu_to_le32(TT_THINK_TIME(think_time));
 	} else {
 		xhci_dbg(xhci, "xHCI version %x doesn't need hub "
 				"TT think time or number of ports\n",
