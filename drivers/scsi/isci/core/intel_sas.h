@@ -160,52 +160,6 @@ enum sci_sas_frame_type {
 	SCI_SAS_TASK_FRAME = 0x16
 };
 
-#define SSP_RESPONSE_IU_MAX_DATA 64
-
-#define SCI_SSP_RESPONSE_IU_DATA_PRESENT_MASK   (0x03)
-
-
-#define sci_ssp_get_sense_data_length(sense_data_length_buffer)	\
-	SCIC_BUILD_DWORD(sense_data_length_buffer)
-
-#define sci_ssp_get_response_data_length(response_data_length_buffer) \
-	SCIC_BUILD_DWORD(response_data_length_buffer)
-
-/**
- * struct sci_ssp_response_iu - This structure depicts the contents of the SSP
- *    RESPONSE INFORMATION UNIT. For specific information on each of these
- *    individual fields please reference the SAS specification SSP transport
- *    layer section.
- *
- *
- */
-struct sci_ssp_response_iu {
-	u8 reserved0[8];
-
-	u8 retry_delay_timer[2];
-	u8 data_present;
-	u8 status;
-
-	u8 reserved1[4];
-	u8 sense_data_length[4];
-	u8 response_data_length[4];
-
-	u32 data[SSP_RESPONSE_IU_MAX_DATA];
-
-};
-
-/**
- * enum _SCI_SAS_DATA_PRESENT_TYPE - This enumeration depicts the SAS
- *    specification defined SSP data present types in struct sci_ssp_response_iu.
- *
- *
- */
-enum sci_ssp_response_iu_data_present_type {
-	SCI_SSP_RESPONSE_IU_NO_DATA = 0x00,
-	SCI_SSP_RESPONSE_IU_RESPONSE_DATA = 0x01,
-	SCI_SSP_RESPONSE_IU_SENSE_DATA = 0x02
-};
-
 /**
  * struct sci_ssp_frame_header - This structure depicts the contents of an SSP
  *    frame header.  For specific information on the individual fields please

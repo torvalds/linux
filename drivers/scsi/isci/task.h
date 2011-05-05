@@ -99,7 +99,7 @@ struct isci_tmf {
 	struct completion *complete;
 	enum sas_protocol proto;
 	union {
-		struct sci_ssp_response_iu resp_iu;
+		struct ssp_response_iu resp_iu;
 		struct dev_to_host_fis d2h_fis;
 	}                            resp;
 	unsigned char lun[8];
@@ -120,8 +120,7 @@ struct isci_tmf {
 
 };
 
-static inline void isci_print_tmf(
-	struct isci_tmf *tmf)
+static inline void isci_print_tmf(struct isci_tmf *tmf)
 {
 	if (SAS_PROTOCOL_SATA == tmf->proto)
 		dev_dbg(&tmf->device->isci_port->isci_host->pdev->dev,
@@ -144,16 +143,13 @@ static inline void isci_print_tmf(
 			"tmf->resp.resp_iu.data[3] = %x\n",
 			__func__,
 			tmf->status,
-			tmf->resp.resp_iu.data_present,
+			tmf->resp.resp_iu.datapres,
 			tmf->resp.resp_iu.status,
-			(tmf->resp.resp_iu.response_data_length[0] << 24) +
-			(tmf->resp.resp_iu.response_data_length[1] << 16) +
-			(tmf->resp.resp_iu.response_data_length[2] << 8) +
-			tmf->resp.resp_iu.response_data_length[3],
-			tmf->resp.resp_iu.data[0],
-			tmf->resp.resp_iu.data[1],
-			tmf->resp.resp_iu.data[2],
-			tmf->resp.resp_iu.data[3]);
+			be32_to_cpu(tmf->resp.resp_iu.response_data_len),
+			tmf->resp.resp_iu.resp_data[0],
+			tmf->resp.resp_iu.resp_data[1],
+			tmf->resp.resp_iu.resp_data[2],
+			tmf->resp.resp_iu.resp_data[3]);
 }
 
 

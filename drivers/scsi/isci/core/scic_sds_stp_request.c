@@ -102,7 +102,7 @@
 #define scic_sds_stp_request_get_task_context_buffer(memory) \
 	((struct scu_task_context *)(\
 		 ((char *)(scic_sds_stp_request_get_response_buffer(memory))) \
-		 + sizeof(struct sci_ssp_response_iu) \
+		 + SSP_RESP_IU_MAX_SIZE \
 		 ))
 
 /**

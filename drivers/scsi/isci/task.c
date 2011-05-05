@@ -55,6 +55,7 @@
 
 #include <linux/completion.h>
 #include <linux/irqflags.h>
+#include "sas.h"
 #include "scic_task_request.h"
 #include "scic_io_request.h"
 #include "remote_device.h"
@@ -63,7 +64,8 @@
 #include "request.h"
 #include "sata.h"
 #include "task.h"
-#include "core/scic_sds_request.h"
+#include "scic_sds_stp_request.h"
+
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in
 *     the case where an I/O needs to be completed back in the submit path.
@@ -1411,106 +1413,72 @@ int isci_task_query_task(
 		return TMF_RESP_FUNC_SUCC;
 }
 
-/**
+/*
  * isci_task_request_complete() - This function is called by the sci core when
  *    an task request completes.
- * @isci_host: This parameter specifies the ISCI host object
- * @request: This parameter is the completed isci_request object.
+ * @ihost: This parameter specifies the ISCI host object
+ * @ireq: This parameter is the completed isci_request object.
  * @completion_status: This parameter specifies the completion status from the
  *    sci core.
  *
  * none.
  */
-void isci_task_request_complete(
-	struct isci_host *isci_host,
-	struct isci_request *request,
-	enum sci_task_status completion_status)
+void
+isci_task_request_complete(struct isci_host *ihost,
+			   struct isci_request *ireq,
+			   enum sci_task_status completion_status)
 {
-	struct isci_remote_device *isci_device = request->isci_device;
+	struct isci_remote_device *idev = ireq->isci_device;
 	enum isci_request_status old_state;
-	struct isci_tmf *tmf = isci_request_access_tmf(request);
+	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
+	struct scic_sds_request *sci_req = ireq->sci_request_handle;
+	struct scic_sds_stp_request *stp_req =
+		container_of(sci_req, typeof(*stp_req), parent);
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",
-		__func__, request, completion_status);
+		__func__, ireq, completion_status);
 
-	old_state = isci_request_change_state(request, completed);
+	old_state = isci_request_change_state(ireq, completed);
 
 	tmf->status = completion_status;
-	request->complete_in_target = true;
+	ireq->complete_in_target = true;
 
-	if (SAS_PROTOCOL_SSP == tmf->proto) {
-
+	if (tmf->proto == SAS_PROTOCOL_SSP) {
 		memcpy(&tmf->resp.resp_iu,
-		       scic_io_request_get_response_iu_address(
-			       request->sci_request_handle
-			       ),
-		       sizeof(struct sci_ssp_response_iu));
-
-	} else if (SAS_PROTOCOL_SATA == tmf->proto) {
-
+		       sci_req->response_buffer,
+		       SSP_RESP_IU_MAX_SIZE);
+	} else if (tmf->proto == SAS_PROTOCOL_SATA) {
 		memcpy(&tmf->resp.d2h_fis,
-		       scic_stp_io_request_get_d2h_reg_address(
-			       request->sci_request_handle),
+		       &stp_req->d2h_reg_fis,
 		       sizeof(struct dev_to_host_fis));
 	}
 
 	/* Manage the timer if it is still running. */
 	if (tmf->timeout_timer) {
-		isci_del_timer(isci_host, tmf->timeout_timer);
+		isci_del_timer(ihost, tmf->timeout_timer);
 		tmf->timeout_timer = NULL;
 	}
 
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(
-		isci_host->core_controller,
-		&isci_device->sci,
-		request->sci_request_handle);
-	/* NULL the request handle to make sure it cannot be terminated
+	scic_controller_complete_io(ihost->core_controller,
+				    &idev->sci,
+				    ireq->sci_request_handle);
+
+	/*
+	 * NULL the request handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
-	request->sci_request_handle = NULL;
+	ireq->sci_request_handle = NULL;
 
-	isci_request_change_state(request, unallocated);
-	list_del_init(&request->dev_node);
+	isci_request_change_state(ireq, unallocated);
+	list_del_init(&ireq->dev_node);
 
 	/* The task management part completes last. */
 	complete(tmf_complete);
-}
-
-/**
- * isci_task_ssp_request_get_response_data_address() - This function is called
- *    by the sci core to retrieve the response data address for a given task
- *    request.
- * @request: This parameter is the isci_request object.
- *
- * response data address for specified task request.
- */
-void *isci_task_ssp_request_get_response_data_address(
-	struct isci_request *request)
-{
-	struct isci_tmf *isci_tmf = isci_request_access_tmf(request);
-
-	return &isci_tmf->resp.resp_iu;
-}
-
-/**
- * isci_task_ssp_request_get_response_data_length() - This function is called
- *    by the sci core to retrieve the response data length for a given task
- *    request.
- * @request: This parameter is the isci_request object.
- *
- * response data length for specified task request.
- */
-u32 isci_task_ssp_request_get_response_data_length(
-	struct isci_request *request)
-{
-	struct isci_tmf *isci_tmf = isci_request_access_tmf(request);
-
-	return sizeof(isci_tmf->resp.resp_iu);
 }
 
 /**

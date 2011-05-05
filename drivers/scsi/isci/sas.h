@@ -69,6 +69,9 @@
 #define FIS_PIO_SETUP       0x5F
 #define FIS_DATA            0x46
 
+/**************************************************************************/
+#define SSP_RESP_IU_MAX_SIZE	280
+
 /*
  * contents of the SSP COMMAND INFORMATION UNIT.
  * For specific information on each of these individual fields please
