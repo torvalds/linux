@@ -102,7 +102,8 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-		if (!(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
 			key->local->crypto_tx_tailroom_needed_cnt--;
 
 		return 0;
@@ -161,7 +162,8 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-	if (!(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+	if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+	      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
 		key->local->crypto_tx_tailroom_needed_cnt++;
 }
 
