@@ -199,6 +199,7 @@ struct omap_gpio_platform_data {
 	int bank_stride;	/* Only needed for omap1 MPUIO */
 	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
 	bool loses_context;	/* whether the bank would ever lose context */
+	u32 non_wakeup_gpios;
 
 	struct omap_gpio_reg_offs *regs;
 

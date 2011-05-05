@@ -1021,13 +1021,6 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 
 			/* Initialize interface clk ungated, module enabled */
 			__raw_writel(0, bank->base + OMAP24XX_GPIO_CTRL);
-		} else if (cpu_is_omap24xx()) {
-			static const u32 non_wakeup_gpios[] = {
-				0xe203ffc0, 0x08700040
-			};
-			if (bank->id < ARRAY_SIZE(non_wakeup_gpios))
-				bank->non_wakeup_gpios =
-						non_wakeup_gpios[bank->id];
 		}
 	} else if (cpu_class_is_omap1()) {
 		if (bank_is_mpuio(bank)) {
@@ -1180,6 +1173,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;
 	bank->width = pdata->bank_width;
+	bank->non_wakeup_gpios = pdata->non_wakeup_gpios;
 	bank->loses_context = pdata->loses_context;
 	bank->get_context_loss_count = pdata->get_context_loss_count;
 	bank->regs = pdata->regs;

@@ -65,6 +65,14 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 
 	switch (oh->class->rev) {
 	case 0:
+		if (id == 1)
+			/* non-wakeup GPIO pins for OMAP2 Bank1 */
+			pdata->non_wakeup_gpios = 0xe203ffc0;
+		else if (id == 2)
+			/* non-wakeup GPIO pins for OMAP2 Bank2 */
+			pdata->non_wakeup_gpios = 0x08700040;
+		/* fall through */
+
 	case 1:
 		pdata->bank_type = METHOD_GPIO_24XX;
 		pdata->regs->revision = OMAP24XX_GPIO_REVISION;
