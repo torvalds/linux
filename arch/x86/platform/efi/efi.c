@@ -145,17 +145,6 @@ static void virt_efi_reset_system(int reset_type,
 		       data_size, data);
 }
 
-static efi_status_t virt_efi_set_virtual_address_map(
-	unsigned long memory_map_size,
-	unsigned long descriptor_size,
-	u32 descriptor_version,
-	efi_memory_desc_t *virtual_map)
-{
-	return efi_call_virt4(set_virtual_address_map,
-			      memory_map_size, descriptor_size,
-			      descriptor_version, virtual_map);
-}
-
 static efi_status_t __init phys_efi_set_virtual_address_map(
 	unsigned long memory_map_size,
 	unsigned long descriptor_size,
@@ -572,7 +561,7 @@ void __init efi_enter_virtual_mode(void)
 	efi.set_variable = virt_efi_set_variable;
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
-	efi.set_virtual_address_map = virt_efi_set_virtual_address_map;
+	efi.set_virtual_address_map = NULL;
 	if (__supported_pte_mask & _PAGE_NX)
 		runtime_code_page_mkexec();
 	early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
