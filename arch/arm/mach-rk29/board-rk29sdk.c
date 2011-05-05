@@ -43,6 +43,7 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
+#include <mach/ddr.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -1967,6 +1968,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_sram_init();
 	rk29_clock_init(periph_pll_288mhz);
 	rk29_iomux_init();
+    ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }
 
 MACHINE_START(RK29, "RK29board")
