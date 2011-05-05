@@ -362,10 +362,8 @@ static void scic_sds_io_request_build_ssp_command_iu(struct scic_sds_request *sc
 	cmd_iu->task_attr = task->ssp_task.task_attr;
 	cmd_iu->_r_c = 0;
 
-	scic_word_copy_with_swap(
-		(u32 *)(&cmd_iu->cdb),
-		(u32 *)task->ssp_task.cdb,
-		sizeof(task->ssp_task.cdb) / sizeof(u32));
+	sci_swab32_cpy(&cmd_iu->cdb, task->ssp_task.cdb,
+		       sizeof(task->ssp_task.cdb) / sizeof(u32));
 }
 
 static void scic_sds_task_request_build_ssp_task_iu(struct scic_sds_request *sci_req)
@@ -1120,10 +1118,11 @@ scic_sds_request_started_state_tc_completion_handler(
 		 * completed early.
 		 */
 		struct ssp_response_iu *resp = sci_req->response_buffer;
-		scic_word_copy_with_swap(
-			sci_req->response_buffer,
-			sci_req->response_buffer,
-			SSP_RESP_IU_MAX_SIZE / sizeof(u32));
+		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
+
+		sci_swab32_cpy(sci_req->response_buffer,
+			       sci_req->response_buffer,
+			       word_cnt);
 
 		if (resp->status == 0) {
 			scic_sds_request_set_status(
@@ -1140,16 +1139,18 @@ scic_sds_request_started_state_tc_completion_handler(
 	break;
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CHECK_RESPONSE):
-		scic_word_copy_with_swap(
-			sci_req->response_buffer,
-			sci_req->response_buffer,
-			SSP_RESP_IU_MAX_SIZE / sizeof(u32));
+	{
+		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_TASK_DONE_CHECK_RESPONSE,
-			SCI_FAILURE_IO_RESPONSE_VALID);
+		sci_swab32_cpy(sci_req->response_buffer,
+			       sci_req->response_buffer,
+			       word_cnt);
+
+		scic_sds_request_set_status(sci_req,
+					    SCU_TASK_DONE_CHECK_RESPONSE,
+					    SCI_FAILURE_IO_RESPONSE_VALID);
 		break;
+	}
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_RESP_LEN_ERR):
 		/*
@@ -1273,15 +1274,15 @@ scic_sds_request_started_state_frame_handler(struct scic_sds_request *sci_req,
 
 	if (frame_header->frame_type == SCI_SAS_RESPONSE_FRAME) {
 		struct ssp_response_iu *resp_iu;
+		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
 		status = scic_sds_unsolicited_frame_control_get_buffer(
 			&(scic_sds_request_get_controller(sci_req)->uf_control),
 			frame_index,
 			(void **)&resp_iu);
 
-		scic_word_copy_with_swap(sci_req->response_buffer,
-					 (u32 *)resp_iu,
-					 SSP_RESP_IU_MAX_SIZE);
+		sci_swab32_cpy(sci_req->response_buffer,
+			       resp_iu, word_cnt);
 
 		resp_iu = sci_req->response_buffer;
 

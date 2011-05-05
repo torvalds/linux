@@ -1098,7 +1098,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 {
 	enum sci_status result;
 	u32 *frame_words;
-	struct sas_identify_frame *identify_frame;
+	struct sas_identify_frame iaf;
 	struct isci_phy *iphy = sci_phy->iphy;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
@@ -1106,38 +1106,29 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 		frame_index,
 		(void **)&frame_words);
 
-	if (result != SCI_SUCCESS) {
+	if (result != SCI_SUCCESS)
 		return result;
-	}
 
-	frame_words[0] = SCIC_SWAP_DWORD(frame_words[0]);
-	identify_frame = (struct sas_identify_frame *)frame_words;
-
-	if (identify_frame->frame_type == 0) {
+	sci_swab32_cpy(&iaf, frame_words, sizeof(iaf) / sizeof(u32));
+	if (iaf.frame_type == 0) {
 		u32 state;
 
-		/* Byte swap the rest of the frame so we can make
-		 * a copy of the buffer
-		 */
-		frame_words[1] = SCIC_SWAP_DWORD(frame_words[1]);
-		frame_words[2] = SCIC_SWAP_DWORD(frame_words[2]);
-		frame_words[3] = SCIC_SWAP_DWORD(frame_words[3]);
-		frame_words[4] = SCIC_SWAP_DWORD(frame_words[4]);
-		frame_words[5] = SCIC_SWAP_DWORD(frame_words[5]);
-
-		memcpy(&iphy->frame_rcvd.iaf, identify_frame, sizeof(*identify_frame));
-
-		if (identify_frame->smp_tport) {
-			/* We got the IAF for an expander PHY go to the final state since
-			 * there are no power requirements for expander phys.
+		memcpy(&iphy->frame_rcvd.iaf, &iaf, sizeof(iaf));
+		if (iaf.smp_tport) {
+			/* We got the IAF for an expander PHY go to the final
+			 * state since there are no power requirements for
+			 * expander phys.
 			 */
 			state = SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL;
 		} else {
-			/* We got the IAF we can now go to the await spinup semaphore state */
+			/* We got the IAF we can now go to the await spinup
+			 * semaphore state
+			 */
 			state = SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER;
 		}
-		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
-						    state);
+		sci_base_state_machine_change_state(
+				&sci_phy->starting_substate_machine,
+				state);
 		result = SCI_SUCCESS;
 	} else
 		dev_warn(sciphy_to_dev(sci_phy),
@@ -1146,7 +1137,6 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 			__func__,
 			frame_index);
 
-	/* Regardless of the result release this frame since we are done with it */
 	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
 					  frame_index);
 

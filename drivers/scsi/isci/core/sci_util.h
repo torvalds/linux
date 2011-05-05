@@ -56,21 +56,7 @@
 #ifndef _SCI_UTIL_H_
 #define _SCI_UTIL_H_
 
-#include <linux/string.h>
 #include "scic_sds_request.h"
-
-/**
- * SCIC_SWAP_DWORD() -
- *
- * Normal byte swap macro
- */
-#define SCIC_SWAP_DWORD(x) \
-	(\
-		(((x) >> 24) & 0x000000FF) \
-		| (((x) >>  8) & 0x0000FF00) \
-		| (((x) <<  8) & 0x00FF0000) \
-		| (((x) << 24) & 0xFF000000) \
-	)
 
 #define SCIC_BUILD_DWORD(char_buffer) \
 	(\
@@ -87,17 +73,23 @@
 	((physical_addr) = (addr_lower) | ((u64)addr_upper) << 32)
 
 /**
- * scic_word_copy_with_swap() - Copy the data from source to destination and
- *    swap the bytes during the copy.
- * @destination: This parameter specifies the destination address to which the
- *    data is to be copied.
- * @source: This parameter specifies the source address from which data is to
- *    be copied.
- * @word_count: This parameter specifies the number of 32-bit words to copy and
- *    byte swap.
+ * sci_swab32_cpy - convert between scsi and scu-hardware byte format
+ * @dest: receive the 4-byte endian swapped version of src
+ * @src: word aligned source buffer
  *
+ * scu hardware handles SSP/SMP control, response, and unidentified
+ * frames in "big endian dword" order.  Regardless of host endian this
+ * is always a swab32()-per-dword conversion of the standard definition,
+ * i.e. single byte fields swapped and multi-byte fields in little-
+ * endian
  */
-void scic_word_copy_with_swap(u32 *destination, u32 *source, u32 word_count);
+static inline void sci_swab32_cpy(void *_dest, void *_src, ssize_t word_cnt)
+{
+	u32 *dest = _dest, *src = _src;
+
+	while (--word_cnt >= 0)
+		dest[word_cnt] = swab32(src[word_cnt]);
+}
 
 void *scic_request_get_virt_addr(struct scic_sds_request *sds_request,
 				 dma_addr_t phys_addr);

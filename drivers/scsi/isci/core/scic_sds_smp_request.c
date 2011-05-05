@@ -164,11 +164,11 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	struct scic_sds_remote_device *sci_dev;
 	struct scic_sds_port *sci_port;
 	struct scu_task_context *task_context;
+	ssize_t word_cnt = sizeof(struct smp_req) / sizeof(u32);
 
 	/* byte swap the smp request. */
-	scic_word_copy_with_swap(sci_req->command_buffer,
-				 (u32 *)smp_req,
-				 sizeof(struct smp_req) / sizeof(u32));
+	sci_swab32_cpy(sci_req->command_buffer, smp_req,
+		       word_cnt);
 
 	task_context = scic_sds_request_get_task_context(sci_req);
 
@@ -295,6 +295,7 @@ scic_sds_smp_request_await_response_frame_handler(
 	void *frame_header;
 	struct smp_resp *rsp_hdr;
 	u8 *usr_smp_buf = sci_req->response_buffer;
+	ssize_t word_cnt = SMP_RESP_HDR_SZ / sizeof(u32);
 
 	status = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_request_get_controller(sci_req)->uf_control),
@@ -302,9 +303,7 @@ scic_sds_smp_request_await_response_frame_handler(
 		&frame_header);
 
 	/* byte swap the header. */
-	scic_word_copy_with_swap((u32 *)usr_smp_buf,
-				 frame_header,
-				 SMP_RESP_HDR_SZ / sizeof(u32));
+	sci_swab32_cpy(usr_smp_buf, frame_header, word_cnt);
 
 	rsp_hdr = (struct smp_resp *)usr_smp_buf;
 
@@ -316,11 +315,11 @@ scic_sds_smp_request_await_response_frame_handler(
 			frame_index,
 			&smp_resp);
 
-		scic_word_copy_with_swap(
-			(u32 *)(usr_smp_buf + SMP_RESP_HDR_SZ),
-			smp_resp,
-			(sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
-			sizeof(u32));
+		word_cnt = (sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
+			sizeof(u32);
+
+		sci_swab32_cpy(usr_smp_buf + SMP_RESP_HDR_SZ,
+			       smp_resp, word_cnt);
 
 		scic_sds_request_set_status(
 			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
