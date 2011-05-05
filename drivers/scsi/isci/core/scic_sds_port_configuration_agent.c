@@ -123,11 +123,10 @@ static s32 sci_sas_address_compare(
  * NULL if there is no matching port for the phy.
  */
 static struct scic_sds_port *scic_sds_port_configuration_agent_find_port(
-	struct scic_sds_controller *controller,
+	struct scic_sds_controller *scic,
 	struct scic_sds_phy *phy)
 {
-	u8 port_index;
-	struct scic_sds_port *port_handle;
+	u8 i;
 	struct sci_sas_address port_sas_address;
 	struct sci_sas_address port_attached_device_address;
 	struct sci_sas_address phy_sas_address;
@@ -136,24 +135,20 @@ static struct scic_sds_port *scic_sds_port_configuration_agent_find_port(
 	/*
 	 * Since this phy can be a member of a wide port check to see if one or
 	 * more phys match the sent and received SAS address as this phy in which
-	 * case it should participate in the same port. */
+	 * case it should participate in the same port.
+	 */
 	scic_sds_phy_get_sas_address(phy, &phy_sas_address);
 	scic_sds_phy_get_attached_sas_address(phy, &phy_attached_device_address);
 
-	for (port_index = 0; port_index < SCI_MAX_PORTS; port_index++) {
-		if (scic_controller_get_port_handle(controller, port_index, &port_handle) == SCI_SUCCESS) {
-			struct scic_sds_port *port = (struct scic_sds_port *)port_handle;
+	for (i = 0; i < scic->logical_port_entries; i++) {
+		struct scic_sds_port *port = &scic->port_table[i];
 
-			scic_sds_port_get_sas_address(port, &port_sas_address);
-			scic_sds_port_get_attached_sas_address(port, &port_attached_device_address);
+		scic_sds_port_get_sas_address(port, &port_sas_address);
+		scic_sds_port_get_attached_sas_address(port, &port_attached_device_address);
 
-			if (
-				(sci_sas_address_compare(port_sas_address, phy_sas_address) == 0)
-				&& (sci_sas_address_compare(port_attached_device_address, phy_attached_device_address) == 0)
-				) {
-				return port;
-			}
-		}
+		if ((sci_sas_address_compare(port_sas_address, phy_sas_address) == 0) &&
+		    (sci_sas_address_compare(port_attached_device_address, phy_attached_device_address) == 0))
+			return port;
 	}
 
 	return NULL;
@@ -568,7 +563,6 @@ static void scic_sds_apc_agent_configure_ports(
 	u8 port_index;
 	enum sci_status status;
 	struct scic_sds_port *port;
-	struct scic_sds_port *port_handle;
 	enum SCIC_SDS_APC_ACTIVITY apc_activity = SCIC_SDS_APC_SKIP_PHY;
 
 	port = scic_sds_port_configuration_agent_find_port(controller, phy);
@@ -590,9 +584,8 @@ static void scic_sds_apc_agent_configure_ports(
 			port_index <= port_agent->phy_valid_port_range[phy->phy_index].max_index;
 			port_index++
 			) {
-			scic_controller_get_port_handle(controller, port_index, &port_handle);
 
-			port = (struct scic_sds_port *)port_handle;
+			port = &controller->port_table[port_index];
 
 			/* First we must make sure that this PHY can be added to this Port. */
 			if (scic_sds_port_is_valid_phy_assignment(port, phy->phy_index)) {

@@ -76,31 +76,20 @@ static void isci_port_change_state(
 
 
 
-/**
- * isci_port_init() - This function initializes the given isci_port object.
- * @isci_port: This parameter specifies the port object to be initialized.
- * @isci_host: This parameter specifies parent controller object for the port.
- * @index: This parameter specifies which SCU port the isci_port associates
- *    with. Generally, SCU port 0 relates to isci_port 0, etc.
- *
- */
-void isci_port_init(
-	struct isci_port *isci_port,
-	struct isci_host *isci_host,
-	int index)
+void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 {
-	struct scic_sds_port *scic_port;
+	struct scic_sds_port *sci_port;
 
-	INIT_LIST_HEAD(&isci_port->remote_dev_list);
-	INIT_LIST_HEAD(&isci_port->domain_dev_list);
-	spin_lock_init(&isci_port->state_lock);
-	init_completion(&isci_port->start_complete);
-	isci_port->isci_host = isci_host;
-	isci_port_change_state(isci_port, isci_freed);
+	INIT_LIST_HEAD(&iport->remote_dev_list);
+	INIT_LIST_HEAD(&iport->domain_dev_list);
+	spin_lock_init(&iport->state_lock);
+	init_completion(&iport->start_complete);
+	iport->isci_host = ihost;
+	isci_port_change_state(iport, isci_freed);
 
-	(void)scic_controller_get_port_handle(&isci_host->sci, index, &scic_port);
-	isci_port->sci_port_handle = scic_port;
-	scic_port->iport = isci_port;
+	sci_port = &ihost->sci.port_table[index];
+	iport->sci_port_handle = sci_port;
+	sci_port->iport = iport;
 }
 
 

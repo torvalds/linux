@@ -120,11 +120,6 @@ enum sci_status scic_controller_complete_io(
 	struct scic_sds_remote_device *remote_device,
 	struct scic_sds_request *io_request);
 
-enum sci_status scic_controller_get_port_handle(
-	struct scic_sds_controller *controller,
-	u8 port_index,
-	struct scic_sds_port **port_handle);
-
 enum sci_status scic_controller_get_phy_handle(
 	struct scic_sds_controller *controller,
 	u8 phy_index,

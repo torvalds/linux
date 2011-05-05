@@ -2155,36 +2155,6 @@ enum sci_task_status scic_controller_start_task(
 }
 
 /**
- * scic_controller_get_port_handle() - This method simply provides the user
- *    with a unique handle for a given SAS/SATA core port index.
- * @controller: This parameter represents the handle to the controller object
- *    from which to retrieve a port (SAS or SATA) handle.
- * @port_index: This parameter specifies the port index in the controller for
- *    which to retrieve the port handle. 0 <= port_index < maximum number of
- *    phys.
- * @port_handle: This parameter specifies the retrieved port handle to be
- *    provided to the caller.
- *
- * Indicate if the retrieval of the port handle was successful. SCI_SUCCESS
- * This value is returned if the retrieval was successful.
- * SCI_FAILURE_INVALID_PORT This value is returned if the supplied port id is
- * not in the supported range.
- */
-enum sci_status scic_controller_get_port_handle(
-	struct scic_sds_controller *scic,
-	u8 port_index,
-	struct scic_sds_port **port_handle)
-{
-	if (port_index < scic->logical_port_entries) {
-		*port_handle = &scic->port_table[port_index];
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INVALID_PORT;
-}
-
-/**
  * scic_controller_get_phy_handle() - This method simply provides the user with
  *    a unique handle for a given SAS/SATA phy index/identifier.
  * @controller: This parameter represents the handle to the controller object
