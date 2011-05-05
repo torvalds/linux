@@ -123,9 +123,9 @@ static inline unsigned long vaddr(struct pending_req *req, int seg)
 
 
 static int do_block_io_op(struct blkif_st *blkif);
-static void dispatch_rw_block_io(struct blkif_st *blkif,
-				 struct blkif_request *req,
-				 struct pending_req *pending_req);
+static int dispatch_rw_block_io(struct blkif_st *blkif,
+				struct blkif_request *req,
+				struct pending_req *pending_req);
 static void make_response(struct blkif_st *blkif, u64 id,
 			  unsigned short op, int st);
 
@@ -499,30 +499,8 @@ static int do_block_io_op(struct blkif_st *blkif)
 		/* Apply all sanity checks to /private copy/ of request. */
 		barrier();
 
-		switch (req.operation) {
-		case BLKIF_OP_READ:
-			blkif->st_rd_req++;
-			dispatch_rw_block_io(blkif, &req, pending_req);
+		if (dispatch_rw_block_io(blkif, &req, pending_req))
 			break;
-		case BLKIF_OP_FLUSH_DISKCACHE:
-			blkif->st_f_req++;
-			/* fall through */
-		case BLKIF_OP_WRITE:
-			blkif->st_wr_req++;
-			dispatch_rw_block_io(blkif, &req, pending_req);
-			break;
-		case BLKIF_OP_WRITE_BARRIER:
-		default:
-			/* A good sign something is wrong: sleep for a while to
-			 * avoid excessive CPU consumption by a bad guest. */
-			msleep(1);
-			DPRINTK("error: unknown block io operation [%d]\n",
-				req.operation);
-			make_response(blkif, req.id, req.operation,
-				      BLKIF_RSP_ERROR);
-			free_req(pending_req);
-			break;
-		}
 
 		/* Yield point for this unbounded loop. */
 		cond_resched();
@@ -535,7 +513,7 @@ static int do_block_io_op(struct blkif_st *blkif)
  * Transumation of the 'struct blkif_request' to a proper 'struct bio'
  * and call the 'submit_bio' to pass it to the underlaying storage.
  */
-static void dispatch_rw_block_io(struct blkif_st *blkif,
+static int dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
 				 struct pending_req *pending_req)
 {
@@ -550,22 +528,25 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
+		blkif->st_rd_req++;
 		operation = READ;
 		break;
 	case BLKIF_OP_WRITE:
+		blkif->st_wr_req++;
 		operation = WRITE_ODIRECT;
 		break;
 	case BLKIF_OP_FLUSH_DISKCACHE:
+		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
 		/* The frontend likes to set this to -1, which vbd_translate
 		 * is alergic too. */
 		req->u.rw.sector_number = 0;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
-		/* Should never get here. */
 	default:
 		operation = 0; /* make gcc happy */
-		BUG();
+		goto fail_response;
+		break;
 	}
 
 	/* Check that the number of segments is sane. */
@@ -677,7 +658,7 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	else if (operation == WRITE || operation == WRITE_FLUSH)
 		blkif->st_wr_sect += preq.nr_sects;
 
-	return;
+	return 0;
 
  fail_flush:
 	xen_blkbk_unmap(pending_req);
@@ -686,14 +667,14 @@ static void dispatch_rw_block_io(struct blkif_st *blkif,
 	make_response(blkif, req->id, req->operation, BLKIF_RSP_ERROR);
 	free_req(pending_req);
 	msleep(1); /* back off a bit */
-	return;
+	return -EIO;
 
  fail_put_bio:
 	for (i = 0; i < (nbio-1); i++)
 		bio_put(biolist[i]);
 	__end_block_io_op(pending_req, -EINVAL);
 	msleep(1); /* back off a bit */
-	return;
+	return -EIO;
 }
 
 
