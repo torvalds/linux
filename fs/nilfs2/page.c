@@ -58,19 +58,6 @@ __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
 	return bh;
 }
 
-/*
- * Since the page cache of B-tree node pages or data page cache of pseudo
- * inodes does not have a valid mapping->host pointer, calling
- * mark_buffer_dirty() for their buffers causes a NULL pointer dereference;
- * it calls __mark_inode_dirty(NULL) through __set_page_dirty().
- * To avoid this problem, the old style mark_buffer_dirty() is used instead.
- */
-void nilfs_mark_buffer_dirty(struct buffer_head *bh)
-{
-	if (!buffer_dirty(bh) && !test_set_buffer_dirty(bh))
-		__set_page_dirty_nobuffers(bh->b_page);
-}
-
 struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 				      struct address_space *mapping,
 				      unsigned long blkoff,

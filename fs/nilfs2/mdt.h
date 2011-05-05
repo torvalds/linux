@@ -88,8 +88,6 @@ int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh);
 struct buffer_head *nilfs_mdt_get_frozen_buffer(struct inode *inode,
 						struct buffer_head *bh);
 
-#define nilfs_mdt_mark_buffer_dirty(bh)	nilfs_mark_buffer_dirty(bh)
-
 static inline void nilfs_mdt_mark_dirty(struct inode *inode)
 {
 	if (!test_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state))

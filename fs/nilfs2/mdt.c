@@ -66,7 +66,7 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 	kunmap_atomic(kaddr, KM_USER0);
 
 	set_buffer_uptodate(bh);
-	nilfs_mark_buffer_dirty(bh);
+	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(inode);
 	return 0;
 }
@@ -355,7 +355,7 @@ int nilfs_mdt_mark_block_dirty(struct inode *inode, unsigned long block)
 	err = nilfs_mdt_read_block(inode, block, 0, &bh);
 	if (unlikely(err))
 		return err;
-	nilfs_mark_buffer_dirty(bh);
+	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(inode);
 	brelse(bh);
 	return 0;

@@ -806,7 +806,7 @@ static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
 		/* The following code is duplicated with cpfile.  But, it is
 		   needed to collect the checkpoint even if it was not newly
 		   created */
-		nilfs_mdt_mark_buffer_dirty(bh_cp);
+		mark_buffer_dirty(bh_cp);
 		nilfs_mdt_mark_dirty(nilfs->ns_cpfile);
 		nilfs_cpfile_put_checkpoint(
 			nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
@@ -1865,7 +1865,7 @@ static int nilfs_segctor_collect_dirty_files(struct nilfs_sc_info *sci,
 					      "failed to get inode block.\n");
 				return err;
 			}
-			nilfs_mdt_mark_buffer_dirty(ibh);
+			mark_buffer_dirty(ibh);
 			nilfs_mdt_mark_dirty(ifile);
 			spin_lock(&nilfs->ns_inode_lock);
 			if (likely(!ii->i_bh))

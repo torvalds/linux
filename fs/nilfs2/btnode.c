@@ -254,7 +254,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
-		nilfs_btnode_mark_dirty(obh);
+		mark_buffer_dirty(obh);
 
 		spin_lock_irq(&btnc->tree_lock);
 		radix_tree_delete(&btnc->page_tree, oldkey);
@@ -266,7 +266,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 		unlock_page(opage);
 	} else {
 		nilfs_copy_buffer(nbh, obh);
-		nilfs_btnode_mark_dirty(nbh);
+		mark_buffer_dirty(nbh);
 
 		nbh->b_blocknr = newkey;
 		ctxt->bh = nbh;

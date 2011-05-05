@@ -117,7 +117,7 @@ static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
 	le64_add_cpu(&header->sh_ndirtysegs, ndirtyadd);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(header_bh);
 }
 
 /**
@@ -377,8 +377,8 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 			kunmap_atomic(kaddr, KM_USER0);
 
 			sui->ncleansegs--;
-			nilfs_mdt_mark_buffer_dirty(header_bh);
-			nilfs_mdt_mark_buffer_dirty(su_bh);
+			mark_buffer_dirty(header_bh);
+			mark_buffer_dirty(su_bh);
 			nilfs_mdt_mark_dirty(sufile);
 			brelse(su_bh);
 			*segnump = segnum;
@@ -421,7 +421,7 @@ void nilfs_sufile_do_cancel_free(struct inode *sufile, __u64 segnum,
 	nilfs_sufile_mod_counter(header_bh, -1, 1);
 	NILFS_SUI(sufile)->ncleansegs--;
 
-	nilfs_mdt_mark_buffer_dirty(su_bh);
+	mark_buffer_dirty(su_bh);
 	nilfs_mdt_mark_dirty(sufile);
 }
 
@@ -452,7 +452,7 @@ void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
 	nilfs_sufile_mod_counter(header_bh, clean ? (u64)-1 : 0, dirty ? 0 : 1);
 	NILFS_SUI(sufile)->ncleansegs -= clean;
 
-	nilfs_mdt_mark_buffer_dirty(su_bh);
+	mark_buffer_dirty(su_bh);
 	nilfs_mdt_mark_dirty(sufile);
 }
 
@@ -478,7 +478,7 @@ void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
 	sudirty = nilfs_segment_usage_dirty(su);
 	nilfs_segment_usage_set_clean(su);
 	kunmap_atomic(kaddr, KM_USER0);
-	nilfs_mdt_mark_buffer_dirty(su_bh);
+	mark_buffer_dirty(su_bh);
 
 	nilfs_sufile_mod_counter(header_bh, 1, sudirty ? (u64)-1 : 0);
 	NILFS_SUI(sufile)->ncleansegs++;
@@ -498,7 +498,7 @@ int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
 
 	ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0, &bh);
 	if (!ret) {
-		nilfs_mdt_mark_buffer_dirty(bh);
+		mark_buffer_dirty(bh);
 		nilfs_mdt_mark_dirty(sufile);
 		brelse(bh);
 	}
@@ -533,7 +533,7 @@ int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
 	su->su_nblocks = cpu_to_le32(nblocks);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(bh);
+	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(sufile);
 	brelse(bh);
 
@@ -612,7 +612,7 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
 		nilfs_sufile_mod_counter(header_bh, -1, 0);
 		NILFS_SUI(sufile)->ncleansegs--;
 	}
-	nilfs_mdt_mark_buffer_dirty(su_bh);
+	mark_buffer_dirty(su_bh);
 	nilfs_mdt_mark_dirty(sufile);
 }
 
@@ -698,7 +698,7 @@ static int nilfs_sufile_truncate_range(struct inode *sufile,
 		}
 		kunmap_atomic(kaddr, KM_USER0);
 		if (nc > 0) {
-			nilfs_mdt_mark_buffer_dirty(su_bh);
+			mark_buffer_dirty(su_bh);
 			ncleaned += nc;
 		}
 		brelse(su_bh);
@@ -777,7 +777,7 @@ int nilfs_sufile_resize(struct inode *sufile, __u64 newnsegs)
 	header->sh_ncleansegs = cpu_to_le64(sui->ncleansegs);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	mark_buffer_dirty(header_bh);
 	nilfs_mdt_mark_dirty(sufile);
 	nilfs_set_nsegments(nilfs, newnsegs);
 

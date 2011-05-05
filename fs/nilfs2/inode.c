@@ -901,7 +901,7 @@ int nilfs_mark_inode_dirty(struct inode *inode)
 		return err;
 	}
 	nilfs_update_inode(inode, ibh);
-	nilfs_mdt_mark_buffer_dirty(ibh);
+	mark_buffer_dirty(ibh);
 	nilfs_mdt_mark_dirty(NILFS_I(inode)->i_root->ifile);
 	brelse(ibh);
 	return 0;
