@@ -287,47 +287,4 @@ enum scic_phy_counter_id {
 	SCIC_PHY_COUNTER_SN_DWORD_SYNC_ERROR
 };
 
-
-/**
- * scic_sas_phy_get_properties() - This method will enable the user to retrieve
- *    information specific to a SAS phy, such as: the received identify address
- *    frame, received phy capabilities, etc.
- * @phy: this parameter specifies the phy for which to retrieve properties.
- * @properties: This parameter specifies the properties structure into which to
- *    copy the requested information.
- *
- * This method returns an indication as to whether the SAS phy properties were
- * successfully retrieved. SCI_SUCCESS This value is returned if the SAS
- * properties are successfully retrieved. SCI_FAILURE This value is returned if
- * the SAS properties are not successfully retrieved (e.g. It's not a SAS Phy).
- */
-enum sci_status scic_sas_phy_get_properties(
-	struct scic_sds_phy *phy,
-	struct scic_sas_phy_properties *properties);
-
-/**
- * scic_sata_phy_get_properties() - This method will enable the user to
- *    retrieve information specific to a SATA phy, such as: the received
- *    signature FIS, if a port selector is present, etc.
- * @phy: this parameter specifies the phy for which to retrieve properties.
- * @properties: This parameter specifies the properties structure into which to
- *    copy the requested information.
- *
- * This method returns an indication as to whether the SATA phy properties were
- * successfully retrieved. SCI_SUCCESS This value is returned if the SATA
- * properties are successfully retrieved. SCI_FAILURE This value is returned if
- * the SATA properties are not successfully retrieved (e.g. It's not a SATA
- * Phy).
- */
-enum sci_status scic_sata_phy_get_properties(
-	struct scic_sds_phy *phy,
-	struct scic_sata_phy_properties *properties);
-
-
-
-
-
-
-
 #endif  /* _SCIC_PHY_H_ */
-

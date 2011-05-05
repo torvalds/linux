@@ -171,7 +171,6 @@ void isci_port_link_up(
 	struct scic_port_properties properties;
 	struct isci_phy *isci_phy = phy->iphy;
 	struct isci_port *isci_port = port->iport;
-	enum sci_status call_status;
 	unsigned long success = true;
 
 	BUG_ON(isci_phy->isci_port != NULL);
@@ -191,21 +190,7 @@ void isci_port_link_up(
 	if (properties.remote.protocols.u.bits.stp_target) {
 		u64 attached_sas_address;
 
-		struct scic_sata_phy_properties sata_phy_properties;
-
 		isci_phy->sas_phy.oob_mode = SATA_OOB_MODE;
-
-		/* Get a copy of the signature fis for libsas */
-		call_status = scic_sata_phy_get_properties(phy,
-							   &sata_phy_properties);
-
-		/*
-		 * XXX I am concerned about this "assert". shouldn't we
-		 * handle the return appropriately?
-		 */
-		BUG_ON(call_status != SCI_SUCCESS);
-
-		isci_phy->frame_rcvd.fis = sata_phy_properties.signature_fis;
 		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct dev_to_host_fis);
 
 		/*
@@ -225,24 +210,12 @@ void isci_port_link_up(
 
 	} else if (properties.remote.protocols.u.bits.ssp_target ||
 		   properties.remote.protocols.u.bits.smp_target) {
-
-		struct scic_sas_phy_properties sas_phy_properties;
-
 		isci_phy->sas_phy.oob_mode = SAS_OOB_MODE;
-
-		/* Get a copy of the identify address frame for libsas */
-		call_status = scic_sas_phy_get_properties(phy,
-							  &sas_phy_properties);
-
-		BUG_ON(call_status != SCI_SUCCESS);
-
-		isci_phy->frame_rcvd.iaf = sas_phy_properties.rcvd_iaf;
 		isci_phy->sas_phy.frame_rcvd_size = sizeof(struct sas_identify_frame);
 
 		/* Copy the attached SAS address from the IAF */
 		memcpy(isci_phy->sas_phy.attached_sas_addr,
 		       isci_phy->frame_rcvd.iaf.sas_addr, SAS_ADDR_SIZE);
-
 	} else {
 		dev_err(&isci_host->pdev->dev, "%s: unkown target\n", __func__);
 		success = false;

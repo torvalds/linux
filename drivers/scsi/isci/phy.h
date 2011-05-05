@@ -71,11 +71,8 @@
  */
 
 struct isci_phy {
-
 	struct scic_sds_phy *sci_phy_handle;
-
 	struct asd_sas_phy sas_phy;
-	struct sas_identify_frame *frame;
 	struct isci_port *isci_port;
 	u8 sas_addr[SAS_ADDR_SIZE];
 

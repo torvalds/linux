@@ -436,8 +436,9 @@ void scic_sds_phy_get_attached_sas_address(struct scic_sds_phy *sci_phy,
 					   struct sci_sas_address *sas_address)
 {
 	struct sas_identify_frame *iaf;
+	struct isci_phy *iphy = sci_phy->iphy;
 
-	iaf = &sci_phy->phy_type.sas_id_frame;
+	iaf = &iphy->frame_rcvd.iaf;
 	memcpy(sas_address, iaf->sas_addr, SAS_ADDR_SIZE);
 }
 
@@ -458,13 +459,13 @@ void scic_sds_phy_get_attached_phy_protocols(
 	protocols->u.all = 0;
 
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+		struct isci_phy *iphy = sci_phy->iphy;
 		struct sas_identify_frame *iaf;
 
-		iaf = &sci_phy->phy_type.sas_id_frame;
+		iaf = &iphy->frame_rcvd.iaf;
 		memcpy(&protocols->u.all, &iaf->initiator_bits, 2);
-	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
+	} else if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA)
 		protocols->u.bits.stp_target = 1;
-	}
 }
 
 /*
@@ -547,49 +548,6 @@ enum sci_status scic_sds_phy_consume_power_handler(
 	struct scic_sds_phy *sci_phy)
 {
 	return sci_phy->state_handlers->consume_power_handler(sci_phy);
-}
-
-/*
- * *****************************************************************************
- * * SCIC PHY Public Methods
- * ***************************************************************************** */
-
-
-enum sci_status scic_sas_phy_get_properties(
-	struct scic_sds_phy *sci_phy,
-	struct scic_sas_phy_properties *properties)
-{
-	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
-		memcpy(&properties->rcvd_iaf,
-		       &sci_phy->phy_type.sas_id_frame,
-		       sizeof(struct sas_identify_frame));
-
-		properties->rcvd_cap.all =
-			readl(&sci_phy->link_layer_registers->receive_phycap);
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE;
-}
-
-
-enum sci_status scic_sata_phy_get_properties(
-	struct scic_sds_phy *sci_phy,
-	struct scic_sata_phy_properties *properties)
-{
-	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
-		memcpy(&properties->signature_fis,
-		       &sci_phy->phy_type.sata_sig_fis,
-		       sizeof(struct dev_to_host_fis));
-
-		/* / @todo add support for port selectors. */
-		properties->is_port_selector_present = false;
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE;
 }
 
 /*
@@ -1163,6 +1121,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 	enum sci_status result;
 	u32 *frame_words;
 	struct sas_identify_frame *identify_frame;
+	struct isci_phy *iphy = sci_phy->iphy;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
@@ -1188,9 +1147,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 		frame_words[4] = SCIC_SWAP_DWORD(frame_words[4]);
 		frame_words[5] = SCIC_SWAP_DWORD(frame_words[5]);
 
-		memcpy(&sci_phy->phy_type.sas_id_frame,
-			identify_frame,
-			sizeof(struct sas_identify_frame));
+		memcpy(&iphy->frame_rcvd.iaf, identify_frame, sizeof(*identify_frame));
 
 		if (identify_frame->smp_tport) {
 			/* We got the IAF for an expander PHY go to the final state since
@@ -1239,6 +1196,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 	enum sci_status result;
 	struct dev_to_host_fis *frame_header;
 	u32 *fis_frame_data;
+	struct isci_phy *iphy = sci_phy->iphy;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
@@ -1255,10 +1213,9 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 			frame_index,
 			(void **)&fis_frame_data);
 
-		scic_sds_controller_copy_sata_response(
-			&sci_phy->phy_type.sata_sig_fis,
-			frame_header,
-			fis_frame_data);
+		scic_sds_controller_copy_sata_response(&iphy->frame_rcvd.fis,
+						       frame_header,
+						       fis_frame_data);
 
 		/* got IAF we can now go to the await spinup semaphore state */
 		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
@@ -2330,7 +2287,6 @@ static const struct sci_base_state scic_sds_phy_state_table[] = {
 void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 			    struct scic_sds_port *owning_port, u8 phy_index)
 {
-
 	sci_base_state_machine_construct(&sci_phy->state_machine,
 					 sci_phy,
 					 scic_sds_phy_state_table,
@@ -2346,9 +2302,6 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 	sci_phy->link_layer_registers = NULL;
 	sci_phy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 	sci_phy->sata_timeout_timer = NULL;
-
-	/* Clear out the identification buffer data */
-	memset(&sci_phy->phy_type, 0, sizeof(sci_phy->phy_type));
 
 	/* Initialize the the substate machines */
 	sci_base_state_machine_construct(&sci_phy->starting_substate_machine,

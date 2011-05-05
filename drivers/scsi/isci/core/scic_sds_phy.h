@@ -272,11 +272,6 @@ struct scic_sds_phy {
 	 */
 	bool is_in_link_training;
 
-	union {
-		struct sas_identify_frame sas_id_frame;
-		struct dev_to_host_fis sata_sig_fis;
-	} phy_type;
-
 	/**
 	 * This field contains a reference to the timer utilized in detecting
 	 * when a signature FIS timeout has occurred.  The signature FIS is the
