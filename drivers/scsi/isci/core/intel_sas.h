@@ -160,53 +160,6 @@ enum sci_sas_frame_type {
 	SCI_SAS_TASK_FRAME = 0x16
 };
 
-/**
- * struct sci_ssp_command_iu - This structure depicts the contents of the SSP
- *    COMMAND INFORMATION UNIT. For specific information on each of these
- *    individual fields please reference the SAS specification SSP transport
- *    layer section.
- *
- *
- */
-struct sci_ssp_command_iu {
-	u32 lun_upper;
-	u32 lun_lower;
-
-	u32 additional_cdb_length:6;
-	u32 reserved0:2;
-	u32 reserved1:8;
-	u32 enable_first_burst:1;
-	u32 task_priority:4;
-	u32 task_attribute:3;
-	u32 reserved2:8;
-
-	u32 cdb[4];
-
-};
-
-/**
- * struct sci_ssp_task_iu - This structure depicts the contents of the SSP TASK
- *    INFORMATION UNIT. For specific information on each of these individual
- *    fields please reference the SAS specification SSP transport layer section.
- *
- *
- */
-struct sci_ssp_task_iu {
-	u32 lun_upper;
-	u32 lun_lower;
-
-	u32 reserved0:8;
-	u32 task_function:8;
-	u32 reserved1:8;
-	u32 reserved2:8;
-
-	u32 reserved3:16;
-	u32 task_tag:16;
-
-	u32 reserved4[3];
-
-};
-
 #define SSP_RESPONSE_IU_MAX_DATA 64
 
 #define SCI_SSP_RESPONSE_IU_DATA_PRESENT_MASK   (0x03)

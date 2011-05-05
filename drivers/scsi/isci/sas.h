@@ -69,4 +69,38 @@
 #define FIS_PIO_SETUP       0x5F
 #define FIS_DATA            0x46
 
+/*
+ * contents of the SSP COMMAND INFORMATION UNIT.
+ * For specific information on each of these individual fields please
+ * reference the SAS specification SSP transport layer section.
+ * XXX: This needs to go into <scsi/sas.h>
+ */
+struct ssp_cmd_iu {
+	u8 LUN[8];
+	u8 add_cdb_len:6;
+	u8 _r_a:2;
+	u8 _r_b;
+	u8 en_fburst:1;
+	u8 task_prio:4;
+	u8 task_attr:3;
+	u8 _r_c;
+
+	u8 cdb[16];
+}  __packed;
+
+/*
+ * contents of the SSP TASK INFORMATION UNIT.
+ * For specific information on each of these individual fields please
+ * reference the SAS specification SSP transport layer section.
+ * XXX: This needs to go into <scsi/sas.h>
+ */
+struct ssp_task_iu {
+	u8 LUN[8];
+	u8 _r_a;
+	u8 task_func;
+	u8 _r_b[4];
+	u16 task_tag;
+	u8 _r_c[12];
+}  __packed;
+
 #endif

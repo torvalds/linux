@@ -1481,55 +1481,6 @@ void isci_task_request_complete(
 	complete(tmf_complete);
 }
 
-
-/**
- * isci_task_ssp_request_get_lun() - This function is called by the sci core to
- *    retrieve the lun for a given task request.
- * @request: This parameter is the isci_request object.
- *
- * lun for specified task request.
- */
-
-/**
- * isci_task_ssp_request_get_function() - This function is called by the sci
- *    core to retrieve the function for a given task request.
- * @request: This parameter is the isci_request object.
- *
- * function code for specified task request.
- */
-u8 isci_task_ssp_request_get_function(struct isci_request *request)
-{
-	struct isci_tmf *isci_tmf = isci_request_access_tmf(request);
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: func = %d\n", __func__, isci_tmf->tmf_code);
-
-	return isci_tmf->tmf_code;
-}
-
-/**
- * isci_task_ssp_request_get_io_tag_to_manage() - This function is called by
- *    the sci core to retrieve the io tag for a given task request.
- * @request: This parameter is the isci_request object.
- *
- * io tag for specified task request.
- */
-u16 isci_task_ssp_request_get_io_tag_to_manage(struct isci_request *request)
-{
-	u16 io_tag = SCI_CONTROLLER_INVALID_IO_TAG;
-
-	if (tmf_task == request->ttype) {
-		struct isci_tmf *tmf = isci_request_access_tmf(request);
-		io_tag = tmf->io_tag;
-	}
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p, io_tag = %d\n",
-		__func__, request, io_tag);
-
-	return io_tag;
-}
-
 /**
  * isci_task_ssp_request_get_response_data_address() - This function is called
  *    by the sci core to retrieve the response data address for a given task

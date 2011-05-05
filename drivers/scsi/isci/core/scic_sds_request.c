@@ -54,6 +54,7 @@
  */
 
 #include <scsi/sas.h>
+#include "sas.h"
 #include "intel_sas.h"
 #include "scic_controller.h"
 #include "scic_io_request.h"
@@ -98,7 +99,7 @@
  */
 #define scic_ssp_io_request_get_object_size() \
 	(\
-		sizeof(struct sci_ssp_command_iu) \
+		sizeof(struct ssp_cmd_iu) \
 		+ sizeof(struct sci_ssp_response_iu)	\
 	)
 
@@ -109,7 +110,7 @@
  * memory
  */
 #define scic_sds_ssp_request_get_command_buffer(memory)	\
-	((struct sci_ssp_command_iu *)(\
+	((struct ssp_cmd_iu *)(\
 		 ((char *)(memory)) + sizeof(struct scic_sds_request) \
 		 ))
 
@@ -122,7 +123,7 @@
 #define scic_sds_ssp_request_get_response_buffer(memory) \
 	((struct sci_ssp_response_iu *)(\
 		 ((char *)(scic_sds_ssp_request_get_command_buffer(memory))) \
-		 + sizeof(struct sci_ssp_command_iu)	\
+		 + sizeof(struct ssp_cmd_iu)	\
 		 ))
 
 /**
@@ -158,7 +159,7 @@
  */
 #define scic_ssp_task_request_get_object_size()	\
 	(\
-		sizeof(struct sci_ssp_task_iu) \
+		sizeof(struct ssp_task_iu) \
 		+ sizeof(struct sci_ssp_response_iu)	\
 	)
 
@@ -169,7 +170,7 @@
  * memory.  Yes its the same as the above macro except for the name.
  */
 #define scic_sds_ssp_task_request_get_command_buffer(memory) \
-	((struct sci_ssp_task_iu *)(\
+	((struct ssp_task_iu *)(\
 		 ((char *)(memory)) + sizeof(struct scic_sds_request) \
 		 ))
 
@@ -182,7 +183,7 @@
 #define scic_sds_ssp_task_request_get_response_buffer(memory) \
 	((struct sci_ssp_response_iu *)(\
 		 ((char *)(scic_sds_ssp_task_request_get_command_buffer(memory))) \
-		 + sizeof(struct sci_ssp_task_iu) \
+		 + sizeof(struct ssp_task_iu) \
 		 ))
 
 /**
@@ -344,79 +345,48 @@ static void scic_sds_ssp_io_request_assign_buffers(
 	}
 }
 
-/**
- * This method constructs the SSP Command IU data for this io request object.
- * @sci_req: This parameter specifies the request object for which the SSP
- *    command information unit is being built.
- *
- */
-static void scic_sds_io_request_build_ssp_command_iu(
-	struct scic_sds_request *sds_request)
+static void scic_sds_io_request_build_ssp_command_iu(struct scic_sds_request *sci_req)
 {
-	struct sci_ssp_command_iu *command_frame;
-	u32 cdb_length;
-	u32 *cdb_buffer;
-	struct isci_request *isci_request = sds_request->ireq;
+	struct ssp_cmd_iu *cmd_iu;
+	struct isci_request *ireq = sci_req->ireq;
+	struct sas_task *task = isci_request_access_task(ireq);
 
-	command_frame =
-		(struct sci_ssp_command_iu *)sds_request->command_buffer;
+	cmd_iu = sci_req->command_buffer;
 
-	command_frame->lun_upper = 0;
-	command_frame->lun_lower =
-		isci_request_ssp_io_request_get_lun(isci_request);
+	memcpy(cmd_iu->LUN, task->ssp_task.LUN, 8);
+	cmd_iu->add_cdb_len = 0;
+	cmd_iu->_r_a = 0;
+	cmd_iu->_r_b = 0;
+	cmd_iu->en_fburst = 0; /* unsupported */
+	cmd_iu->task_prio = task->ssp_task.task_prio;
+	cmd_iu->task_attr = task->ssp_task.task_attr;
+	cmd_iu->_r_c = 0;
 
-	((u32 *)command_frame)[2] = 0;
-
-	cdb_length = isci_request_ssp_io_request_get_cdb_length(isci_request);
-	cdb_buffer = (u32 *)isci_request_ssp_io_request_get_cdb_address(
-					isci_request);
-
-	if (cdb_length > 16) {
-		command_frame->additional_cdb_length = cdb_length - 16;
-	}
-
-	/* / @todo Is it ok to leave junk at the end of the cdb buffer? */
 	scic_word_copy_with_swap(
-		(u32 *)(&command_frame->cdb),
-		(u32 *)(cdb_buffer),
-		(cdb_length + 3) / sizeof(u32)
-		);
-
-	command_frame->enable_first_burst = 0;
-	command_frame->task_priority =
-		isci_request_ssp_io_request_get_command_priority(isci_request);
-	command_frame->task_attribute =
-		isci_request_ssp_io_request_get_task_attribute(isci_request);
+		(u32 *)(&cmd_iu->cdb),
+		(u32 *)task->ssp_task.cdb,
+		sizeof(task->ssp_task.cdb) / sizeof(u32));
 }
 
-
-/**
- * This method constructs the SSP Task IU data for this io request object.
- * @sci_req:
- *
- */
-static void scic_sds_task_request_build_ssp_task_iu(
-	struct scic_sds_request *sds_request)
+static void scic_sds_task_request_build_ssp_task_iu(struct scic_sds_request *sci_req)
 {
-	struct sci_ssp_task_iu *command_frame;
-	struct isci_request *isci_request = sds_request->ireq;
+	struct ssp_task_iu *task_iu;
+	struct isci_request *ireq = sci_req->ireq;
+	struct sas_task *task = isci_request_access_task(ireq);
+	struct isci_tmf *isci_tmf = isci_request_access_tmf(ireq);
 
-	command_frame =
-		(struct sci_ssp_task_iu *)sds_request->command_buffer;
+	task_iu = sci_req->command_buffer;
 
-	command_frame->lun_upper = 0;
-	command_frame->lun_lower = isci_request_ssp_io_request_get_lun(
-					isci_request);
+	memset(task_iu, 0, sizeof(struct ssp_task_iu));
 
-	((u32 *)command_frame)[2] = 0;
+	memcpy(task_iu->LUN, task->ssp_task.LUN, 8);
 
-	command_frame->task_function =
-		isci_task_ssp_request_get_function(isci_request);
-	command_frame->task_tag =
-		isci_task_ssp_request_get_io_tag_to_manage(
-				isci_request);
+	task_iu->task_func = isci_tmf->tmf_code;
+	task_iu->task_tag =
+		(ireq->ttype == tmf_task) ?
+		isci_tmf->io_tag :
+		SCI_CONTROLLER_INVALID_IO_TAG;
 }
-
 
 /**
  * This method is will fill in the SCU Task Context for any type of SSP request.
@@ -533,7 +503,8 @@ static void scu_ssp_io_request_construct_task_context(
 
 	scu_ssp_reqeust_construct_task_context(sci_req, task_context);
 
-	task_context->ssp_command_iu_length = sizeof(struct sci_ssp_command_iu) / sizeof(u32);
+	task_context->ssp_command_iu_length =
+		sizeof(struct ssp_cmd_iu) / sizeof(u32);
 	task_context->type.ssp.frame_type = SCI_SAS_COMMAND_FRAME;
 
 	switch (dir) {
@@ -605,7 +576,8 @@ static void scu_ssp_task_request_construct_task_context(
 	task_context->task_type                    = SCU_TASK_TYPE_RAW_FRAME;
 	task_context->transfer_length_bytes        = 0;
 	task_context->type.ssp.frame_type          = SCI_SAS_TASK_FRAME;
-	task_context->ssp_command_iu_length = sizeof(struct sci_ssp_task_iu) / sizeof(u32);
+	task_context->ssp_command_iu_length =
+		sizeof(struct ssp_task_iu) / sizeof(u32);
 }
 
 
