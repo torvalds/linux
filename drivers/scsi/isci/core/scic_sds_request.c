@@ -1265,14 +1265,19 @@ scic_sds_request_started_state_frame_handler(struct scic_sds_request *sci_req,
 					     u32 frame_index)
 {
 	enum sci_status status;
-	struct sci_ssp_frame_header *frame_header;
+	u32 *frame_header;
+	struct ssp_frame_hdr ssp_hdr;
+	ssize_t word_cnt;
 
 	status = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_request_get_controller(sci_req)->uf_control),
 		frame_index,
 		(void **)&frame_header);
 
-	if (frame_header->frame_type == SCI_SAS_RESPONSE_FRAME) {
+	word_cnt = sizeof(struct ssp_frame_hdr) / sizeof(u32);
+	sci_swab32_cpy(&ssp_hdr, frame_header, word_cnt);
+
+	if (ssp_hdr.frame_type == SSP_RESPONSE) {
 		struct ssp_response_iu *resp_iu;
 		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
@@ -1303,7 +1308,7 @@ scic_sds_request_started_state_frame_handler(struct scic_sds_request *sci_req,
 			__func__,
 			sci_req,
 			frame_index,
-			frame_header->frame_type);
+			ssp_hdr.frame_type);
 	}
 
 	/*

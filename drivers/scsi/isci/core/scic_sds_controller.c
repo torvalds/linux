@@ -1619,25 +1619,9 @@ struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 	return NULL;
 }
 
-/**
- * This method returnst the sequence value from the io tag value
- * @scic:
- * @io_tag:
- *
- * u16
- */
-
-/**
- * This method returns the IO request associated with the tag value
- * @scic:
- * @io_tag:
- *
- * SCIC_SDS_IO_REQUEST_T* NULL if there is no valid IO request at the tag value
- */
-struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
-	struct scic_sds_controller *scic,
-	u16 io_tag
-	) {
+struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic,
+					     u16 io_tag)
+{
 	u16 task_index;
 	u16 task_sequence;
 

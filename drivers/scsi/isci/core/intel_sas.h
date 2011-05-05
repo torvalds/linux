@@ -133,45 +133,6 @@ enum sci_sas_frame_type {
 	SCI_SAS_TASK_FRAME = 0x16
 };
 
-/**
- * struct sci_ssp_frame_header - This structure depicts the contents of an SSP
- *    frame header.  For specific information on the individual fields please
- *    reference the SAS specification transport layer SSP frame format.
- *
- *
- */
-struct sci_ssp_frame_header {
-	/* Word 0 */
-	u32 hashed_destination_address:24;
-	u32 frame_type:8;
-
-	/* Word 1 */
-	u32 hashed_source_address:24;
-	u32 reserved1_0:8;
-
-	/* Word 2 */
-	u32 reserved2_2:6;
-	u32 fill_bytes:2;
-	u32 reserved2_1:3;
-	u32 tlr_control:2;
-	u32 retry_data_frames:1;
-	u32 retransmit:1;
-	u32 changing_data_pointer:1;
-	u32 reserved2_0:16;
-
-	/* Word 3 */
-	u32 uiResv4;
-
-	/* Word 4 */
-	u16 target_port_transfer_tag;
-	u16 tag;
-
-	/* Word 5 */
-	u32 data_offset;
-
-};
-
-
 #define PHY_OPERATION_NOP               0x00
 #define PHY_OPERATION_LINK_RESET        0x01
 #define PHY_OPERATION_HARD_RESET        0x02

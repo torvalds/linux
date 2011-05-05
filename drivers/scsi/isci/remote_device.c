@@ -52,6 +52,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <scsi/sas.h>
 #include "intel_sas.h"
 #include "sas.h"
 #include "isci.h"
@@ -305,15 +306,20 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
 	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING: {
 		struct scic_sds_request *sci_req;
-		struct sci_ssp_frame_header *hdr;
+		struct ssp_frame_hdr hdr;
+		void *frame_header;
+		ssize_t word_cnt;
 
 		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
 								       frame_index,
-								       (void **)&hdr);
+								       &frame_header);
 		if (status != SCI_SUCCESS)
 			return status;
 
-		sci_req = scic_sds_controller_get_io_request_from_tag(scic, hdr->tag);
+		word_cnt = sizeof(hdr) / sizeof(u32);
+		sci_swab32_cpy(&hdr, frame_header, word_cnt);
+
+		sci_req = scic_request_by_tag(scic, be16_to_cpu(hdr.tag));
 		if (sci_req && sci_req->target_device == sci_dev) {
 			/* The IO request is now in charge of releasing the frame */
 			status = sci_req->state_handlers->frame_handler(sci_req,

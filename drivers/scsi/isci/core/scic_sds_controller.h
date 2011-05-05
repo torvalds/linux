@@ -556,10 +556,8 @@ union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffe
 	struct scic_sds_controller *this_controller,
 	u16 node_id);
 
-struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
-	struct scic_sds_controller *this_controller,
-	u16 io_tag);
-
+struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic,
+					     u16 io_tag);
 
 struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 	struct scic_sds_controller *this_controller,
