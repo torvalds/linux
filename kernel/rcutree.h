@@ -444,15 +444,12 @@ static void rcu_preempt_send_cbs_to_online(void);
 static void __init __rcu_init_preempt(void);
 static void rcu_needs_cpu_flush(void);
 static void __init rcu_init_boost_waitqueue(struct rcu_node *rnp);
-static void rcu_initiate_boost(struct rcu_node *rnp);
+static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
 					  cpumask_var_t cm);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
 static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp,
 						 int rnp_index);
-#ifdef CONFIG_HOTPLUG_CPU
-static void rcu_stop_boost_kthread(struct rcu_node *rnp);
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 #endif /* #ifndef RCU_TREE_NONCORE */

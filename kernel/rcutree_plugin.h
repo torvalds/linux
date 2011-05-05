@@ -711,15 +711,17 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
 static void
 sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
 {
+	unsigned long flags;
 	int must_wait = 0;
 
-	raw_spin_lock(&rnp->lock); /* irqs already disabled */
-	if (!list_empty(&rnp->blkd_tasks)) {
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	if (list_empty(&rnp->blkd_tasks))
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	else {
 		rnp->exp_tasks = rnp->blkd_tasks.next;
-		rcu_initiate_boost(rnp);
+		rcu_initiate_boost(rnp, flags);  /* releases rnp->lock */
 		must_wait = 1;
 	}
-	raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
 	if (!must_wait)
 		rcu_report_exp_rnp(rsp, rnp);
 }
@@ -1179,12 +1181,7 @@ static int rcu_boost(struct rcu_node *rnp)
  */
 static void rcu_boost_kthread_timer(unsigned long arg)
 {
-	unsigned long flags;
-	struct rcu_node *rnp = (struct rcu_node *)arg;
-
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	invoke_rcu_node_kthread(rnp);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	invoke_rcu_node_kthread((struct rcu_node *)arg);
 }
 
 /*
@@ -1200,10 +1197,7 @@ static int rcu_boost_kthread(void *arg)
 	for (;;) {
 		rnp->boost_kthread_status = RCU_KTHREAD_WAITING;
 		wait_event_interruptible(rnp->boost_wq, rnp->boost_tasks ||
-							rnp->exp_tasks ||
-							kthread_should_stop());
-		if (kthread_should_stop())
-			break;
+							rnp->exp_tasks);
 		rnp->boost_kthread_status = RCU_KTHREAD_RUNNING;
 		more2boost = rcu_boost(rnp);
 		if (more2boost)
@@ -1215,7 +1209,7 @@ static int rcu_boost_kthread(void *arg)
 			spincnt = 0;
 		}
 	}
-	rnp->boost_kthread_status = RCU_KTHREAD_STOPPED;
+	/* NOTREACHED */
 	return 0;
 }
 
@@ -1225,14 +1219,17 @@ static int rcu_boost_kthread(void *arg)
  * kthread to start boosting them.  If there is an expedited grace
  * period in progress, it is always time to boost.
  *
- * The caller must hold rnp->lock.
+ * The caller must hold rnp->lock, which this function releases,
+ * but irqs remain disabled.  The ->boost_kthread_task is immortal,
+ * so we don't need to worry about it going away.
  */
-static void rcu_initiate_boost(struct rcu_node *rnp)
+static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 {
 	struct task_struct *t;
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
 		rnp->n_balk_exp_gp_tasks++;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
 	if (rnp->exp_tasks != NULL ||
@@ -1242,11 +1239,14 @@ static void rcu_initiate_boost(struct rcu_node *rnp)
 	     ULONG_CMP_GE(jiffies, rnp->boost_time))) {
 		if (rnp->exp_tasks == NULL)
 			rnp->boost_tasks = rnp->gp_tasks;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		t = rnp->boost_kthread_task;
 		if (t != NULL)
 			wake_up_process(t);
-	} else
+	} else {
 		rcu_initiate_boost_trace(rnp);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	}
 }
 
 /*
@@ -1312,27 +1312,11 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
-static void rcu_stop_boost_kthread(struct rcu_node *rnp)
-{
-	unsigned long flags;
-	struct task_struct *t;
-
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	t = rnp->boost_kthread_task;
-	rnp->boost_kthread_task = NULL;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	if (t != NULL)
-		kthread_stop(t);
-}
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-
 #else /* #ifdef CONFIG_RCU_BOOST */
 
-static void rcu_initiate_boost(struct rcu_node *rnp)
+static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 {
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
@@ -1354,14 +1338,6 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 {
 	return 0;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
-
-static void rcu_stop_boost_kthread(struct rcu_node *rnp)
-{
-}
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 

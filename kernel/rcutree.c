@@ -1133,22 +1133,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	if (need_report & RCU_OFL_TASKS_EXP_GP)
 		rcu_report_exp_rnp(rsp, rnp);
-
-	/*
-	 * If there are no more online CPUs for this rcu_node structure,
-	 * kill the rcu_node structure's kthread.  Otherwise, adjust its
-	 * affinity.
-	 */
-	t = rnp->node_kthread_task;
-	if (t != NULL &&
-	    rnp->qsmaskinit == 0) {
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		rnp->node_kthread_task = NULL;
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		kthread_stop(t);
-		rcu_stop_boost_kthread(rnp);
-	} else
-		rcu_node_kthread_setaffinity(rnp, -1);
+	rcu_node_kthread_setaffinity(rnp, -1);
 }
 
 /*
@@ -1320,8 +1305,7 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 			return;
 		}
 		if (rnp->qsmask == 0) {
-			rcu_initiate_boost(rnp);
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			rcu_initiate_boost(rnp, flags); /* releases rnp->lock */
 			continue;
 		}
 		cpu = rnp->grplo;
@@ -1340,10 +1324,10 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 	rnp = rcu_get_root(rsp);
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	if (rnp->qsmask == 0)
-		rcu_initiate_boost(rnp);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	if (rnp->qsmask == 0) {
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		rcu_initiate_boost(rnp, flags); /* releases rnp->lock. */
+	}
 }
 
 /*
@@ -1497,7 +1481,8 @@ static void invoke_rcu_cpu_kthread(void)
 
 /*
  * Wake up the specified per-rcu_node-structure kthread.
- * The caller must hold ->lock.
+ * Because the per-rcu_node kthreads are immortal, we don't need
+ * to do anything to keep them alive.
  */
 static void invoke_rcu_node_kthread(struct rcu_node *rnp)
 {
@@ -1546,8 +1531,8 @@ static void rcu_cpu_kthread_timer(unsigned long arg)
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rnp->wakemask |= rdp->grpmask;
-	invoke_rcu_node_kthread(rnp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	invoke_rcu_node_kthread(rnp);
 }
 
 /*
@@ -1694,16 +1679,12 @@ static int rcu_node_kthread(void *arg)
 
 	for (;;) {
 		rnp->node_kthread_status = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(rnp->node_wq, rnp->wakemask != 0 ||
-						       kthread_should_stop());
-		if (kthread_should_stop())
-			break;
+		wait_event_interruptible(rnp->node_wq, rnp->wakemask != 0);
 		rnp->node_kthread_status = RCU_KTHREAD_RUNNING;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		mask = rnp->wakemask;
 		rnp->wakemask = 0;
-		rcu_initiate_boost(rnp);
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		rcu_initiate_boost(rnp, flags); /* releases rnp->lock. */
 		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask >>= 1) {
 			if ((mask & 0x1) == 0)
 				continue;
@@ -1719,6 +1700,7 @@ static int rcu_node_kthread(void *arg)
 			preempt_enable();
 		}
 	}
+	/* NOTREACHED */
 	rnp->node_kthread_status = RCU_KTHREAD_STOPPED;
 	return 0;
 }
@@ -1738,7 +1720,7 @@ static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 	int cpu;
 	unsigned long mask = rnp->qsmaskinit;
 
-	if (rnp->node_kthread_task == NULL || mask == 0)
+	if (rnp->node_kthread_task == NULL)
 		return;
 	if (!alloc_cpumask_var(&cm, GFP_KERNEL))
 		return;
