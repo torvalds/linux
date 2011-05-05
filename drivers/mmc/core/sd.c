@@ -130,7 +130,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 		break;
 	case 1:
 		/*
-		 * This is a block-addressed SDHC card. Most
+		 * This is a block-addressed SDHC or SDXC card. Most
 		 * interesting fields are unused and have fixed
 		 * values. To avoid getting tripped by buggy cards,
 		 * we assume those fixed values ourselves.
@@ -144,6 +144,11 @@ static int mmc_decode_csd(struct mmc_card *card)
 		e = UNSTUFF_BITS(resp, 96, 3);
 		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
 		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+		csd->c_size	  = UNSTUFF_BITS(resp, 48, 22);
+
+		/* SDXC cards have a minimum C_SIZE of 0x00FFFF */
+		if (csd->c_size >= 0xFFFF)
+			mmc_card_set_ext_capacity(card);
 
 		m = UNSTUFF_BITS(resp, 48, 22);
 		csd->capacity     = (1 + m) << 10;
@@ -911,6 +916,9 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_sd_init_uhs_card(card);
 		if (err)
 			goto free_card;
+
+		/* Card is an ultra-high-speed card */
+		mmc_sd_card_set_uhs(card);
 	} else {
 		/*
 		 * Attempt to change to high-speed (if supported)
