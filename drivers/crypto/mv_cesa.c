@@ -407,12 +407,6 @@ static void mv_hash_algo_completion(void)
 		copy_src_to_buf(&cpg->p, ctx->buffer, ctx->extra_bytes);
 	sg_miter_stop(&cpg->p.src_sg_it);
 
-	ctx->state[0] = readl(cpg->reg + DIGEST_INITIAL_VAL_A);
-	ctx->state[1] = readl(cpg->reg + DIGEST_INITIAL_VAL_B);
-	ctx->state[2] = readl(cpg->reg + DIGEST_INITIAL_VAL_C);
-	ctx->state[3] = readl(cpg->reg + DIGEST_INITIAL_VAL_D);
-	ctx->state[4] = readl(cpg->reg + DIGEST_INITIAL_VAL_E);
-
 	if (likely(ctx->last_chunk)) {
 		if (likely(ctx->count <= MAX_HW_HASH_SIZE)) {
 			memcpy(req->result, cpg->sram + SRAM_DIGEST_BUF,
@@ -420,6 +414,12 @@ static void mv_hash_algo_completion(void)
 						       (req)));
 		} else
 			mv_hash_final_fallback(req);
+	} else {
+		ctx->state[0] = readl(cpg->reg + DIGEST_INITIAL_VAL_A);
+		ctx->state[1] = readl(cpg->reg + DIGEST_INITIAL_VAL_B);
+		ctx->state[2] = readl(cpg->reg + DIGEST_INITIAL_VAL_C);
+		ctx->state[3] = readl(cpg->reg + DIGEST_INITIAL_VAL_D);
+		ctx->state[4] = readl(cpg->reg + DIGEST_INITIAL_VAL_E);
 	}
 }
 
