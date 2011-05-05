@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <scsi/sas.h>
 #include "sas.h"
 #include "intel_sas.h"
 #include "sci_base_state_machine.h"
@@ -79,7 +80,7 @@ u32 scic_sds_smp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_request)
 	       + sizeof(struct smp_req)
-	       + sizeof(struct smp_response)
+	       + sizeof(struct smp_resp)
 	       + sizeof(struct scu_task_context)
 	       + SMP_CACHE_BYTES;
 }
@@ -111,7 +112,7 @@ u32 scic_sds_smp_request_get_object_size(void)
 #define scic_sds_smp_request_get_task_context_buffer(memory) \
 	((struct scu_task_context *)(\
 		 ((char *)(scic_sds_smp_request_get_response_buffer(memory))) \
-		 + sizeof(struct smp_response) \
+		 + sizeof(struct smp_resp) \
 		 ))
 
 
@@ -271,8 +272,8 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	task_context->response_iu_lower = 0;
 }
 
-/**
- * This method processes an unsolicited frame while the SMP request is waiting
+/*
+ * This function processes an unsolicited frame while the SMP request is waiting
  *    for a response frame.  It will copy the response data, release the
  *    unsolicited frame, and transition the request to the
  *    SCI_BASE_REQUEST_STATE_COMPLETED state.
@@ -281,63 +282,52 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
  * @frame_index: This parameter indicates the unsolicited frame index that
  *    should contain the response.
  *
- * This method returns an indication of whether the response frame was handled
+ * This function returns an indication of whether the response frame was handled
  * successfully or not. SCI_SUCCESS Currently this value is always returned and
  * indicates successful processing of the TC response.
  */
-static enum sci_status scic_sds_smp_request_await_response_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
+static enum sci_status
+scic_sds_smp_request_await_response_frame_handler(
+		struct scic_sds_request *sci_req,
+		u32 frame_index)
 {
 	enum sci_status status;
 	void *frame_header;
-	struct smp_response_header *rsp_hdr;
-	u8 *user_smp_buffer = sci_req->response_buffer;
+	struct smp_resp *rsp_hdr;
+	u8 *usr_smp_buf = sci_req->response_buffer;
 
 	status = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_request_get_controller(sci_req)->uf_control),
 		frame_index,
-		&frame_header
-		);
+		&frame_header);
 
 	/* byte swap the header. */
-	scic_word_copy_with_swap(
-		(u32 *)user_smp_buffer,
-		frame_header,
-		sizeof(struct smp_response_header) / sizeof(u32)
-		);
-	rsp_hdr = (struct smp_response_header *)user_smp_buffer;
+	scic_word_copy_with_swap((u32 *)usr_smp_buf,
+				 frame_header,
+				 SMP_RESP_HDR_SZ / sizeof(u32));
 
-	if (rsp_hdr->smp_frame_type == SMP_FRAME_TYPE_RESPONSE) {
-		void *smp_response_buffer;
+	rsp_hdr = (struct smp_resp *)usr_smp_buf;
+
+	if (rsp_hdr->frame_type == SMP_RESPONSE) {
+		void *smp_resp;
 
 		status = scic_sds_unsolicited_frame_control_get_buffer(
 			&(scic_sds_request_get_controller(sci_req)->uf_control),
 			frame_index,
-			&smp_response_buffer
-			);
+			&smp_resp);
 
 		scic_word_copy_with_swap(
-			(u32 *)(user_smp_buffer + sizeof(struct smp_response_header)),
-			smp_response_buffer,
-			sizeof(union smp_response_body) / sizeof(u32)
-			);
-		/*
-		 * Don't need to copy to user space. User instead will refer to
-		 * core request's response buffer. */
-
-		/*
-		 * copy the smp response to framework smp request's response buffer.
-		 * scic_sds_smp_request_copy_response(sci_req); */
+			(u32 *)(usr_smp_buf + SMP_RESP_HDR_SZ),
+			smp_resp,
+			(sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
+			sizeof(u32));
 
 		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
-			);
+			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
 
 		sci_base_state_machine_change_state(
 			&sci_req->started_substate_machine,
-			SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION
-			);
+			SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION);
 	} else {
 		/* This was not a response frame why did it get forwarded? */
 		dev_err(scic_to_dev(sci_req->owning_controller),
@@ -346,23 +336,20 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 			__func__,
 			sci_req,
 			frame_index,
-			rsp_hdr->smp_frame_type);
+			rsp_hdr->frame_type);
 
 		scic_sds_request_set_status(
 			sci_req,
 			SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
 		sci_base_state_machine_change_state(
 			&sci_req->state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 	}
 
-	scic_sds_controller_release_frame(
-		sci_req->owning_controller, frame_index
-		);
+	scic_sds_controller_release_frame(sci_req->owning_controller,
+					  frame_index);
 
 	return SCI_SUCCESS;
 }

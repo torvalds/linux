@@ -213,4 +213,6 @@ struct smp_req {
 	};
 }  __packed;
 
+#define SMP_RESP_HDR_SZ	4
+
 #endif
