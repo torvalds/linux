@@ -99,8 +99,6 @@ SOC_SINGLE("Sidetone Playback Volume", SSM2602_APANA, 6, 3, 1),
 SOC_SINGLE("ADC High Pass Filter Switch", SSM2602_APDIGI, 0, 1, 1),
 SOC_SINGLE("Store DC Offset Switch", SSM2602_APDIGI, 4, 1, 0),
 
-SOC_ENUM("Capture Source", ssm2602_enum[0]),
-
 SOC_ENUM("Playback De-emphasis", ssm2602_enum[1]),
 };
 
