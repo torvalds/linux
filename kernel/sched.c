@@ -6807,7 +6807,7 @@ __setup("isolcpus=", isolated_cpu_setup);
  */
 static int find_next_best_node(int node, nodemask_t *used_nodes)
 {
-	int i, n, val, min_val, best_node = 0;
+	int i, n, val, min_val, best_node = -1;
 
 	min_val = INT_MAX;
 
@@ -6831,7 +6831,8 @@ static int find_next_best_node(int node, nodemask_t *used_nodes)
 		}
 	}
 
-	node_set(best_node, *used_nodes);
+	if (best_node != -1)
+		node_set(best_node, *used_nodes);
 	return best_node;
 }
 
@@ -6857,7 +6858,8 @@ static void sched_domain_node_span(int node, struct cpumask *span)
 
 	for (i = 1; i < SD_NODES_PER_DOMAIN; i++) {
 		int next_node = find_next_best_node(node, &used_nodes);
-
+		if (next_node < 0)
+			break;
 		cpumask_or(span, span, cpumask_of_node(next_node));
 	}
 }
