@@ -504,7 +504,6 @@ static void device_irq_exit(struct pm860x_chip *chip)
 }
 
 static void __devinit device_bk_init(struct pm860x_chip *chip,
-				     struct i2c_client *i2c,
 				     struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -540,7 +539,6 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_led_init(struct pm860x_chip *chip,
-				      struct i2c_client *i2c,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -576,7 +574,6 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_regulator_init(struct pm860x_chip *chip,
-					    struct i2c_client *i2c,
 					    struct pm860x_platform_data *pdata)
 {
 	struct regulator_init_data *initdata;
@@ -633,7 +630,6 @@ out:
 }
 
 static void __devinit device_rtc_init(struct pm860x_chip *chip,
-				      struct i2c_client *i2c,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -653,7 +649,6 @@ static void __devinit device_rtc_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_touch_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -673,7 +668,6 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_power_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -701,7 +695,6 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_onkey_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -716,7 +709,6 @@ static void __devinit device_onkey_init(struct pm860x_chip *chip,
 }
 
 static void __devinit device_codec_init(struct pm860x_chip *chip,
-					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -784,12 +776,12 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		goto out;
 
-	device_regulator_init(chip, i2c, pdata);
-	device_rtc_init(chip, i2c, pdata);
-	device_onkey_init(chip, i2c, pdata);
-	device_touch_init(chip, i2c, pdata);
-	device_power_init(chip, i2c, pdata);
-	device_codec_init(chip, i2c, pdata);
+	device_regulator_init(chip, pdata);
+	device_rtc_init(chip, pdata);
+	device_onkey_init(chip, pdata);
+	device_touch_init(chip, pdata);
+	device_power_init(chip, pdata);
+	device_codec_init(chip, pdata);
 out:
 	return;
 }
@@ -801,8 +793,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 
 	switch (chip->id) {
 	case CHIP_PM8606:
-		device_bk_init(chip, chip->client, pdata);
-		device_led_init(chip, chip->client, pdata);
+		device_bk_init(chip, pdata);
+		device_led_init(chip, pdata);
 		break;
 	case CHIP_PM8607:
 		device_8607_init(chip, chip->client, pdata);
@@ -812,8 +804,8 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	if (chip->companion) {
 		switch (chip->id) {
 		case CHIP_PM8607:
-			device_bk_init(chip, chip->companion, pdata);
-			device_led_init(chip, chip->companion, pdata);
+			device_bk_init(chip, pdata);
+			device_led_init(chip, pdata);
 			break;
 		case CHIP_PM8606:
 			device_8607_init(chip, chip->companion, pdata);
