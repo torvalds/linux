@@ -143,18 +143,39 @@ static void finish_reset(struct uhci_hcd *uhci)
 }
 
 /*
+ * Make sure the controller is completely inactive, unable to
+ * generate interrupts or do DMA.
+ */
+static void uhci_pci_reset_hc(struct uhci_hcd *uhci)
+{
+	uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+}
+
+/*
  * Last rites for a defunct/nonfunctional controller
  * or one we don't want to use any more.
  */
 static void uhci_hc_died(struct uhci_hcd *uhci)
 {
 	uhci_get_current_frame_number(uhci);
-	uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+	uhci->reset_hc(uhci);
 	finish_reset(uhci);
 	uhci->dead = 1;
 
 	/* The current frame may already be partway finished */
 	++uhci->frame_number;
+}
+
+/*
+ * Initialize a controller that was newly discovered or has just been
+ * resumed.  In either case we can't be sure of its previous state.
+ *
+ * Returns: 1 if the controller was reset, 0 otherwise.
+ */
+static int uhci_pci_check_and_reset_hc(struct uhci_hcd *uhci)
+{
+	return uhci_check_and_reset_hc(to_pci_dev(uhci_dev(uhci)),
+				uhci->io_addr);
 }
 
 /*
@@ -164,8 +185,20 @@ static void uhci_hc_died(struct uhci_hcd *uhci)
  */
 static void check_and_reset_hc(struct uhci_hcd *uhci)
 {
-	if (uhci_check_and_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr))
+	if (uhci->check_and_reset_hc(uhci))
 		finish_reset(uhci);
+}
+
+static void uhci_pci_configure_hc(struct uhci_hcd *uhci)
+{
+	struct pci_dev *pdev = to_pci_dev(uhci_dev(uhci));
+
+	/* Enable PIRQ */
+	pci_write_config_word(pdev, USBLEGSUP, USBLEGSUP_DEFAULT);
+
+	/* Disable platform-specific non-PME# wakeup */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+		pci_write_config_byte(pdev, USBRES_INTEL, 0);
 }
 
 /*
@@ -173,8 +206,6 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
  */
 static void configure_hc(struct uhci_hcd *uhci)
 {
-	struct pci_dev *pdev = to_pci_dev(uhci_dev(uhci));
-
 	/* Set the frame length to the default: 1 ms exactly */
 	outb(USBSOF_DEFAULT, uhci->io_addr + USBSOF);
 
@@ -185,23 +216,14 @@ static void configure_hc(struct uhci_hcd *uhci)
 	outw(uhci->frame_number & UHCI_MAX_SOF_NUMBER,
 			uhci->io_addr + USBFRNUM);
 
-	/* Enable PIRQ */
-	pci_write_config_word(pdev, USBLEGSUP, USBLEGSUP_DEFAULT);
-
-	/* Disable platform-specific non-PME# wakeup */
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
-		pci_write_config_byte(pdev, USBRES_INTEL, 0);
+	/* perform any arch/bus specific configuration */
+	if (uhci->configure_hc)
+		uhci->configure_hc(uhci);
 }
 
-
-static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
+static int uhci_pci_resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
 	int port;
-
-	/* If we have to ignore overcurrent events then almost by definition
-	 * we can't depend on resume-detect interrupts. */
-	if (ignore_oc)
-		return 1;
 
 	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
 	    default:
@@ -231,7 +253,18 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 	return 0;
 }
 
-static int global_suspend_mode_is_broken(struct uhci_hcd *uhci)
+static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
+{
+	/* If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts. */
+	if (ignore_oc)
+		return 1;
+
+	return uhci->resume_detect_interrupts_are_broken ?
+		uhci->resume_detect_interrupts_are_broken(uhci) : 0;
+}
+
+static int uhci_pci_global_suspend_mode_is_broken(struct uhci_hcd *uhci)
 {
 	int port;
 	const char *sys_info;
@@ -251,6 +284,12 @@ static int global_suspend_mode_is_broken(struct uhci_hcd *uhci)
 	}
 
 	return 0;
+}
+
+static int global_suspend_mode_is_broken(struct uhci_hcd *uhci)
+{
+	return uhci->global_suspend_mode_is_broken ?
+		uhci->global_suspend_mode_is_broken(uhci) : 0;
 }
 
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state)
@@ -557,6 +596,16 @@ static int uhci_init(struct usb_hcd *hcd)
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_HP)
 		uhci->wait_for_hp = 1;
 
+	/* Set up pointers to PCI-specific functions */
+	uhci->reset_hc = uhci_pci_reset_hc;
+	uhci->check_and_reset_hc = uhci_pci_check_and_reset_hc;
+	uhci->configure_hc = uhci_pci_configure_hc;
+	uhci->resume_detect_interrupts_are_broken =
+		uhci_pci_resume_detect_interrupts_are_broken;
+	uhci->global_suspend_mode_is_broken =
+		uhci_pci_global_suspend_mode_is_broken;
+
+
 	/* Kick BIOS off this hardware and reset if the controller
 	 * isn't already safely quiescent.
 	 */
@@ -847,7 +896,7 @@ static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 
 	/* Make sure resume from hibernation re-enumerates everything */
 	if (hibernated) {
-		uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+		uhci->reset_hc(uhci);
 		finish_reset(uhci);
 	}
 

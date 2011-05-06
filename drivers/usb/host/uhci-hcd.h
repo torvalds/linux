@@ -433,6 +433,16 @@ struct uhci_hcd {
 
 	int total_load;				/* Sum of array values */
 	short load[MAX_PHASE];			/* Periodic allocations */
+
+	/* Reset host controller */
+	void	(*reset_hc) (struct uhci_hcd *uhci);
+	int	(*check_and_reset_hc) (struct uhci_hcd *uhci);
+	/* configure_hc should perform arch specific settings, if needed */
+	void	(*configure_hc) (struct uhci_hcd *uhci);
+	/* Check for broken resume detect interrupts */
+	int	(*resume_detect_interrupts_are_broken) (struct uhci_hcd *uhci);
+	/* Check for broken global suspend */
+	int	(*global_suspend_mode_is_broken) (struct uhci_hcd *uhci);
 };
 
 /* Convert between a usb_hcd pointer and the corresponding uhci_hcd */
