@@ -58,7 +58,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 4 - Always Enable ASPM without Clock Req.
 	 * set defult to RTL8192CE:3 RTL8192E:2
 	 * */
-	rtlpci->const_pci_aspm = 0; /* changed from 2 due to crashes */
+	rtlpci->const_pci_aspm = 2;
 
 	/*Setting for PCI-E device */
 	rtlpci->const_devicepci_aspm_setting = 0x03;
@@ -183,6 +183,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 		return 1;
 	}
 
+	printk(KERN_INFO "rtl8192se: Driver for Realtek RTL8192SE/RTL8191SE\n"
+	       "           Loading firmware %s\n", rtlpriv->cfg->fw_name);
 	/* request fw */
 	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
 			rtlpriv->io.dev);
