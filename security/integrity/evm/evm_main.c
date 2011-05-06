@@ -127,21 +127,19 @@ static int evm_protected_xattr(const char *req_xattr_name)
  */
 enum integrity_status evm_verifyxattr(struct dentry *dentry,
 				      const char *xattr_name,
-				      void *xattr_value, size_t xattr_value_len)
+				      void *xattr_value, size_t xattr_value_len,
+				      struct integrity_iint_cache *iint)
 {
-	struct inode *inode = dentry->d_inode;
-	struct integrity_iint_cache *iint;
-	enum integrity_status status;
-
 	if (!evm_initialized || !evm_protected_xattr(xattr_name))
 		return INTEGRITY_UNKNOWN;
 
-	iint = integrity_iint_find(inode);
-	if (!iint)
-		return INTEGRITY_UNKNOWN;
-	status = evm_verify_hmac(dentry, xattr_name, xattr_value,
+	if (!iint) {
+		iint = integrity_iint_find(dentry->d_inode);
+		if (!iint)
+			return INTEGRITY_UNKNOWN;
+	}
+	return evm_verify_hmac(dentry, xattr_name, xattr_value,
 				 xattr_value_len, iint);
-	return status;
 }
 EXPORT_SYMBOL_GPL(evm_verifyxattr);
 
