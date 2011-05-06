@@ -1550,6 +1550,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		}
 		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
 		err = ubifs_write_sb_node(c, sup);
+		kfree(sup);
 		if (err)
 			goto out;
 	}
