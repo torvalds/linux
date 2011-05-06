@@ -1396,6 +1396,12 @@ static int mount_ubifs(struct ubifs_info *c)
 	} else
 		ubifs_assert(c->lst.taken_empty_lebs > 0);
 
+	if (!c->ro_mount && c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out_infos;
+	}
+
 	err = dbg_check_filesystem(c);
 	if (err)
 		goto out_infos;
@@ -1686,6 +1692,13 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		 */
 		err = dbg_check_space_info(c);
 	}
+
+	if (c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out;
+	}
+
 	mutex_unlock(&c->umount_mutex);
 	return err;
 
