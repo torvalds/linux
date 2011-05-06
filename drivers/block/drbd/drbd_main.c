@@ -943,8 +943,8 @@ int __drbd_send_protocol(struct drbd_tconn *tconn)
 	p->after_sb_2p   = cpu_to_be32(nc->after_sb_2p);
 	p->two_primaries = cpu_to_be32(nc->two_primaries);
 	cf = 0;
-	if (nc->want_lose)
-		cf |= CF_WANT_LOSE;
+	if (nc->discard_my_data)
+		cf |= CF_DISCARD_MY_DATA;
 	if (nc->dry_run)
 		cf |= CF_DRY_RUN;
 	p->conn_flags    = cpu_to_be32(cf);
@@ -988,7 +988,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
 	p->uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
 	rcu_read_lock();
-	uuid_flags |= rcu_dereference(mdev->tconn->net_conf)->want_lose ? 1 : 0;
+	uuid_flags |= rcu_dereference(mdev->tconn->net_conf)->discard_my_data ? 1 : 0;
 	rcu_read_unlock();
 	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
 	uuid_flags |= mdev->new_state_tmp.disk == D_INCONSISTENT ? 4 : 0;

@@ -2908,9 +2908,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
-		if (nc->want_lose && !(mdev->p_uuid[UI_FLAGS]&1))
+		if (nc->discard_my_data && !(mdev->p_uuid[UI_FLAGS]&1))
 			hg = -1;
-		if (!nc->want_lose && (mdev->p_uuid[UI_FLAGS]&1))
+		if (!nc->discard_my_data && (mdev->p_uuid[UI_FLAGS]&1))
 			hg = 1;
 
 		if (abs(hg) < 100)
@@ -3009,7 +3009,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct p_protocol *p = pi->data;
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
-	int p_want_lose, p_two_primaries, cf;
+	int p_discard_my_data, p_two_primaries, cf;
 	struct net_conf *nc;
 
 	p_proto		= be32_to_cpu(p->protocol);
@@ -3018,7 +3018,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	p_after_sb_2p	= be32_to_cpu(p->after_sb_2p);
 	p_two_primaries = be32_to_cpu(p->two_primaries);
 	cf		= be32_to_cpu(p->conn_flags);
-	p_want_lose = cf & CF_WANT_LOSE;
+	p_discard_my_data = cf & CF_DISCARD_MY_DATA;
 
 	if (tconn->agreed_pro_version >= 87) {
 		char integrity_alg[SHARED_SECRET_MAX];
@@ -3075,8 +3075,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		goto disconnect_rcu_unlock;
 	}
 
-	if (p_want_lose && nc->want_lose) {
-		conn_err(tconn, "both sides have the 'want_lose' flag set\n");
+	if (p_discard_my_data && nc->discard_my_data) {
+		conn_err(tconn, "both sides have the 'discard_my_data' flag set\n");
 		goto disconnect_rcu_unlock;
 	}
 
@@ -3806,7 +3806,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 	}
 
 	mutex_lock(&mdev->tconn->conf_update);
-	mdev->tconn->net_conf->want_lose = 0; /* without copy; single bit op is atomic */
+	mdev->tconn->net_conf->discard_my_data = 0; /* without copy; single bit op is atomic */
 	mutex_unlock(&mdev->tconn->conf_update);
 
 	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */

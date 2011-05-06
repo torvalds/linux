@@ -606,7 +606,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		mutex_lock(&mdev->tconn->conf_update);
 		nc = mdev->tconn->net_conf;
 		if (nc)
-			nc->want_lose = 0; /* without copy; single bit op is atomic */
+			nc->discard_my_data = 0; /* without copy; single bit op is atomic */
 		mutex_unlock(&mdev->tconn->conf_update);
 
 		set_disk_ro(mdev->vdisk, false);
@@ -1738,7 +1738,7 @@ _check_net_options(struct drbd_tconn *tconn, struct net_conf *old_conf, struct n
 			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH)
 				return ERR_STONITH_AND_PROT_A;
 		}
-		if (mdev->state.role == R_PRIMARY && new_conf->want_lose)
+		if (mdev->state.role == R_PRIMARY && new_conf->discard_my_data)
 			return ERR_DISCARD;
 	}
 
