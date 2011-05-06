@@ -1179,6 +1179,14 @@ enum iwl_scan_type {
 	IWL_SCAN_OFFCH_TX,
 };
 
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+struct iwl_testmode_trace {
+	u8 *cpu_addr;
+	u8 *trace_addr;
+	dma_addr_t dma_addr;
+	bool trace_enabled;
+};
+#endif
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1510,6 +1518,9 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	struct iwl_testmode_trace testmode_trace;
+#endif
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

@@ -3659,6 +3659,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	 */
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 
+	iwl_testmode_cleanup(priv);
 	iwl_leds_exit(priv);
 
 	if (priv->mac80211_registered) {

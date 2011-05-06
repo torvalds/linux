@@ -97,6 +97,10 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_SYNC_RSP] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_UCODE_RX_PKT] = { .type = NLA_UNSPEC, },
+
+	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
+
 };
 
 /*
@@ -167,6 +171,31 @@ nla_put_failure:
 void iwl_testmode_init(struct iwl_priv *priv)
 {
 	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
+	priv->testmode_trace.trace_enabled = false;
+}
+
+static void iwl_trace_cleanup(struct iwl_priv *priv)
+{
+	struct device *dev = &priv->pci_dev->dev;
+
+	if (priv->testmode_trace.trace_enabled) {
+		if (priv->testmode_trace.cpu_addr &&
+		    priv->testmode_trace.dma_addr)
+			dma_free_coherent(dev,
+					TRACE_TOTAL_SIZE,
+					priv->testmode_trace.cpu_addr,
+					priv->testmode_trace.dma_addr);
+		priv->testmode_trace.trace_enabled = false;
+		priv->testmode_trace.cpu_addr = NULL;
+		priv->testmode_trace.trace_addr = NULL;
+		priv->testmode_trace.dma_addr = 0;
+	}
+}
+
+
+void iwl_testmode_cleanup(struct iwl_priv *priv)
+{
+	iwl_trace_cleanup(priv);
 }
 
 /*
@@ -400,6 +429,102 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+
+/*
+ * This function handles the user application commands for uCode trace
+ *
+ * It retrieves command ID carried with IWL_TM_ATTR_COMMAND and calls to the
+ * handlers respectively.
+ *
+ * If it's an unknown commdn ID, -ENOSYS is replied; otherwise, the returned
+ * value of the actual command execution is replied to the user application.
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct sk_buff *skb;
+	int status = 0;
+	struct device *dev = &priv->pci_dev->dev;
+
+	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
+	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
+		if (priv->testmode_trace.trace_enabled)
+			return -EBUSY;
+
+		priv->testmode_trace.cpu_addr =
+			dma_alloc_coherent(dev,
+					   TRACE_TOTAL_SIZE,
+					   &priv->testmode_trace.dma_addr,
+					   GFP_KERNEL);
+		if (!priv->testmode_trace.cpu_addr)
+			return -ENOMEM;
+		priv->testmode_trace.trace_enabled = true;
+		priv->testmode_trace.trace_addr = (u8 *)PTR_ALIGN(
+			priv->testmode_trace.cpu_addr, 0x100);
+		memset(priv->testmode_trace.trace_addr, 0x03B,
+			TRACE_BUFF_SIZE);
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+			sizeof(priv->testmode_trace.dma_addr) + 20);
+		if (!skb) {
+			IWL_DEBUG_INFO(priv,
+				"Error allocating memory\n");
+			iwl_trace_cleanup(priv);
+			return -ENOMEM;
+		}
+		NLA_PUT(skb, IWL_TM_ATTR_TRACE_ADDR,
+			sizeof(priv->testmode_trace.dma_addr),
+			(u64 *)&priv->testmode_trace.dma_addr);
+		status = cfg80211_testmode_reply(skb);
+		if (status < 0) {
+			IWL_DEBUG_INFO(priv,
+				       "Error sending msg : %d\n",
+				       status);
+		}
+		break;
+
+	case IWL_TM_CMD_APP2DEV_END_TRACE:
+		iwl_trace_cleanup(priv);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_READ_TRACE:
+		if (priv->testmode_trace.trace_enabled &&
+		    priv->testmode_trace.trace_addr) {
+			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+				20 + TRACE_BUFF_SIZE);
+			if (skb == NULL) {
+				IWL_DEBUG_INFO(priv,
+					"Error allocating memory\n");
+				return -ENOMEM;
+			}
+			NLA_PUT(skb, IWL_TM_ATTR_TRACE_DATA,
+				TRACE_BUFF_SIZE,
+				priv->testmode_trace.trace_addr);
+			status = cfg80211_testmode_reply(skb);
+			if (status < 0) {
+				IWL_DEBUG_INFO(priv,
+				       "Error sending msg : %d\n", status);
+			}
+		} else
+			return -EFAULT;
+		break;
+
+	default:
+		IWL_DEBUG_INFO(priv, "Unknown testmode mem command ID\n");
+		return -ENOSYS;
+	}
+	return status;
+
+nla_put_failure:
+	kfree_skb(skb);
+	if (nla_get_u32(tb[IWL_TM_ATTR_COMMAND]) ==
+	    IWL_TM_CMD_APP2DEV_BEGIN_TRACE)
+		iwl_trace_cleanup(priv);
+	return -EMSGSIZE;
+}
+
 /* The testmode gnl message handler that takes the gnl message from the
  * user space and parses it per the policy iwl_testmode_gnl_msg_policy, then
  * invoke the corresponding handlers.
@@ -459,6 +584,14 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;
+
+	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
+	case IWL_TM_CMD_APP2DEV_END_TRACE:
+	case IWL_TM_CMD_APP2DEV_READ_TRACE:
+		IWL_DEBUG_INFO(priv, "testmode uCode trace cmd to driver\n");
+		result = iwl_testmode_trace(hw, tb);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode command\n");
 		result = -ENOSYS;

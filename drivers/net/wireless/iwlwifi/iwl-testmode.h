@@ -91,6 +91,10 @@ enum iwl_tm_cmd_t {
 	/* if there is other new command for the driver layer operation,
 	 * append them here */
 
+	/* commands fom user space for uCode trace operations */
+	IWL_TM_CMD_APP2DEV_BEGIN_TRACE,
+	IWL_TM_CMD_APP2DEV_END_TRACE,
+	IWL_TM_CMD_APP2DEV_READ_TRACE,
 
 	/* commands from kernel space to carry the synchronous response
 	 * to user application */
@@ -144,8 +148,19 @@ enum iwl_tm_attr_t {
 	 * application */
 	IWL_TM_ATTR_UCODE_RX_PKT,
 
+	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_XXX_TRACE,
+	 * The mandatory fields are:
+	 * IWL_TM_ATTR_MEM_TRACE_ADDR for the trace address
+	 */
+	IWL_TM_ATTR_TRACE_ADDR,
+	IWL_TM_ATTR_TRACE_DATA,
+
 	IWL_TM_ATTR_MAX,
 };
 
+/* uCode trace buffer */
+#define TRACE_BUFF_SIZE		0x20000
+#define TRACE_BUFF_PADD		0x2000
+#define TRACE_TOTAL_SIZE	(TRACE_BUFF_SIZE + TRACE_BUFF_PADD)
 
 #endif
