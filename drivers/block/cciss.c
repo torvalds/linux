@@ -2503,31 +2503,6 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 	return 0;
 }
 
-static int __devinit cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
-	u8 reset_type)
-{
-	CommandList_struct *c;
-	int return_status;
-
-	c = cmd_alloc(h);
-	if (!c)
-		return -ENOMEM;
-	return_status = fill_cmd(h, c, CCISS_RESET_MSG, NULL, 0, 0,
-		CTLR_LUNID, TYPE_MSG);
-	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to target reset */
-	if (return_status != IO_OK) {
-		cmd_special_free(h, c);
-		return return_status;
-	}
-	c->waiting = NULL;
-	enqueue_cmd_and_start_io(h, c);
-	/* Don't wait for completion, the reset won't complete.  Don't free
-	 * the command either.  This is the last command we will send before
-	 * re-initializing everything, so it doesn't matter and won't leak.
-	 */
-	return 0;
-}
-
 static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 		size_t size, __u8 page_code, unsigned char *scsi3addr,
 		int cmd_type)
@@ -2666,6 +2641,31 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 		c->SG[0].Ext = 0;	/* we are not chaining */
 	}
 	return status;
+}
+
+static int __devinit cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
+	u8 reset_type)
+{
+	CommandList_struct *c;
+	int return_status;
+
+	c = cmd_alloc(h);
+	if (!c)
+		return -ENOMEM;
+	return_status = fill_cmd(h, c, CCISS_RESET_MSG, NULL, 0, 0,
+		CTLR_LUNID, TYPE_MSG);
+	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to target reset */
+	if (return_status != IO_OK) {
+		cmd_special_free(h, c);
+		return return_status;
+	}
+	c->waiting = NULL;
+	enqueue_cmd_and_start_io(h, c);
+	/* Don't wait for completion, the reset won't complete.  Don't free
+	 * the command either.  This is the last command we will send before
+	 * re-initializing everything, so it doesn't matter and won't leak.
+	 */
+	return 0;
 }
 
 static int check_target_status(ctlr_info_t *h, CommandList_struct *c)
