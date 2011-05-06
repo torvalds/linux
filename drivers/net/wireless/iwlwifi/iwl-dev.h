@@ -1558,21 +1558,24 @@ iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
 		if (priv->valid_contexts & BIT(ctx->ctxid))
 
+static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
+{
+	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+}
+
 static inline int iwl_is_associated(struct iwl_priv *priv,
 				    enum iwl_rxon_context_id ctxid)
 {
-	return (priv->contexts[ctxid].active.filter_flags &
-			RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	return iwl_is_associated_ctx(&priv->contexts[ctxid]);
 }
 
 static inline int iwl_is_any_associated(struct iwl_priv *priv)
 {
-	return iwl_is_associated(priv, IWL_RXON_CTX_BSS);
-}
-
-static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
-{
-	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	struct iwl_rxon_context *ctx;
+	for_each_context(priv, ctx)
+		if (iwl_is_associated_ctx(ctx))
+			return true;
+	return false;
 }
 
 static inline int is_channel_valid(const struct iwl_channel_info *ch_info)
