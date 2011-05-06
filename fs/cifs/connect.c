@@ -274,7 +274,8 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	char *data_area_of_target;
 	char *data_area_of_buf2;
 	int remaining;
-	__u16 byte_count, total_data_size, total_in_buf, total_in_buf2;
+	unsigned int byte_count, total_in_buf;
+	__u16 total_data_size, total_in_buf2;
 
 	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 
@@ -287,7 +288,7 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	remaining = total_data_size - total_in_buf;
 
 	if (remaining < 0)
-		return -EINVAL;
+		return -EPROTO;
 
 	if (remaining == 0) /* nothing to do, ignore */
 		return 0;
@@ -308,19 +309,28 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	data_area_of_target += total_in_buf;
 
 	/* copy second buffer into end of first buffer */
-	memcpy(data_area_of_target, data_area_of_buf2, total_in_buf2);
 	total_in_buf += total_in_buf2;
+	/* is the result too big for the field? */
+	if (total_in_buf > USHRT_MAX)
+		return -EPROTO;
 	put_unaligned_le16(total_in_buf, &pSMBt->t2_rsp.DataCount);
+
+	/* fix up the BCC */
 	byte_count = get_bcc_le(pTargetSMB);
 	byte_count += total_in_buf2;
+	/* is the result too big for the field? */
+	if (byte_count > USHRT_MAX)
+		return -EPROTO;
 	put_bcc_le(byte_count, pTargetSMB);
 
 	byte_count = pTargetSMB->smb_buf_length;
 	byte_count += total_in_buf2;
-
-	/* BB also add check that we are not beyond maximum buffer size */
-
+	/* don't allow buffer to overflow */
+	if (byte_count > CIFSMaxBufSize)
+		return -ENOBUFS;
 	pTargetSMB->smb_buf_length = byte_count;
+
+	memcpy(data_area_of_target, data_area_of_buf2, total_in_buf2);
 
 	if (remaining == total_in_buf2) {
 		cFYI(1, "found the last secondary response");
@@ -607,59 +617,63 @@ incomplete_rcv:
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 
-			if ((mid_entry->mid == smb_buffer->Mid) &&
-			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
-			    (mid_entry->command == smb_buffer->Command)) {
-				if (length == 0 &&
-				   check2ndT2(smb_buffer, server->maxBuf) > 0) {
-					/* We have a multipart transact2 resp */
-					isMultiRsp = true;
-					if (mid_entry->resp_buf) {
-						/* merge response - fix up 1st*/
-						if (coalesce_t2(smb_buffer,
-							mid_entry->resp_buf)) {
-							mid_entry->multiRsp =
-								 true;
-							break;
-						} else {
-							/* all parts received */
-							mid_entry->multiEnd =
-								 true;
-							goto multi_t2_fnd;
-						}
+			if (mid_entry->mid != smb_buffer->Mid ||
+			    mid_entry->midState != MID_REQUEST_SUBMITTED ||
+			    mid_entry->command != smb_buffer->Command) {
+				mid_entry = NULL;
+				continue;
+			}
+
+			if (length == 0 &&
+			    check2ndT2(smb_buffer, server->maxBuf) > 0) {
+				/* We have a multipart transact2 resp */
+				isMultiRsp = true;
+				if (mid_entry->resp_buf) {
+					/* merge response - fix up 1st*/
+					length = coalesce_t2(smb_buffer,
+							mid_entry->resp_buf);
+					if (length > 0) {
+						length = 0;
+						mid_entry->multiRsp = true;
+						break;
 					} else {
-						if (!isLargeBuf) {
-							cERROR(1, "1st trans2 resp needs bigbuf");
-					/* BB maybe we can fix this up,  switch
-					   to already allocated large buffer? */
-						} else {
-							/* Have first buffer */
-							mid_entry->resp_buf =
-								 smb_buffer;
-							mid_entry->largeBuf =
-								 true;
-							bigbuf = NULL;
-						}
+						/* all parts received or
+						 * packet is malformed
+						 */
+						mid_entry->multiEnd = true;
+						goto multi_t2_fnd;
 					}
-					break;
+				} else {
+					if (!isLargeBuf) {
+						/*
+						 * FIXME: switch to already
+						 *        allocated largebuf?
+						 */
+						cERROR(1, "1st trans2 resp "
+							  "needs bigbuf");
+					} else {
+						/* Have first buffer */
+						mid_entry->resp_buf =
+							 smb_buffer;
+						mid_entry->largeBuf = true;
+						bigbuf = NULL;
+					}
 				}
-				mid_entry->resp_buf = smb_buffer;
-				mid_entry->largeBuf = isLargeBuf;
-multi_t2_fnd:
-				if (length == 0)
-					mid_entry->midState =
-							MID_RESPONSE_RECEIVED;
-				else
-					mid_entry->midState =
-							MID_RESPONSE_MALFORMED;
-#ifdef CONFIG_CIFS_STATS2
-				mid_entry->when_received = jiffies;
-#endif
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
 				break;
 			}
-			mid_entry = NULL;
+			mid_entry->resp_buf = smb_buffer;
+			mid_entry->largeBuf = isLargeBuf;
+multi_t2_fnd:
+			if (length == 0)
+				mid_entry->midState = MID_RESPONSE_RECEIVED;
+			else
+				mid_entry->midState = MID_RESPONSE_MALFORMED;
+#ifdef CONFIG_CIFS_STATS2
+			mid_entry->when_received = jiffies;
+#endif
+			list_del_init(&mid_entry->qhead);
+			mid_entry->callback(mid_entry);
+			break;
 		}
 		spin_unlock(&GlobalMid_Lock);
 
