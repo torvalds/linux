@@ -131,7 +131,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
 
 	/* filter only on our function */
-	ftrace_set_filter(func_name, strlen(func_name), 1);
+	ftrace_set_global_filter(func_name, strlen(func_name), 1);
 
 	/* enable tracing */
 	ret = tracer_init(trace, tr);
@@ -181,7 +181,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	tracer_enabled = save_tracer_enabled;
 
 	/* Enable tracing on all functions again */
-	ftrace_set_filter(NULL, 0, 1);
+	ftrace_set_global_filter(NULL, 0, 1);
 
 	return ret;
 }

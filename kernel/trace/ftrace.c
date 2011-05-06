@@ -2826,6 +2826,10 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 	struct ftrace_hash *hash;
 	int ret;
 
+	/* All global ops uses the global ops filters */
+	if (ops->flags & FTRACE_OPS_FL_GLOBAL)
+		ops = &global_ops;
+
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
@@ -2856,6 +2860,7 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 
 /**
  * ftrace_set_filter - set a function to filter on in ftrace
+ * @ops - the ops to set the filter with
  * @buf - the string that holds the function filter text.
  * @len - the length of the string.
  * @reset - non zero to reset all filters before applying this filter.
@@ -2863,13 +2868,16 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
  * Filters denote which functions should be enabled when tracing is enabled.
  * If @buf is NULL and reset is set, all functions will be enabled for tracing.
  */
-void ftrace_set_filter(unsigned char *buf, int len, int reset)
+void ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
+		       int len, int reset)
 {
-	ftrace_set_regex(&global_ops, buf, len, reset, 1);
+	ftrace_set_regex(ops, buf, len, reset, 1);
 }
+EXPORT_SYMBOL_GPL(ftrace_set_filter);
 
 /**
  * ftrace_set_notrace - set a function to not trace in ftrace
+ * @ops - the ops to set the notrace filter with
  * @buf - the string that holds the function notrace text.
  * @len - the length of the string.
  * @reset - non zero to reset all filters before applying this filter.
@@ -2878,10 +2886,44 @@ void ftrace_set_filter(unsigned char *buf, int len, int reset)
  * is enabled. If @buf is NULL and reset is set, all functions will be enabled
  * for tracing.
  */
-void ftrace_set_notrace(unsigned char *buf, int len, int reset)
+void ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+			int len, int reset)
+{
+	ftrace_set_regex(ops, buf, len, reset, 0);
+}
+EXPORT_SYMBOL_GPL(ftrace_set_notrace);
+/**
+ * ftrace_set_filter - set a function to filter on in ftrace
+ * @ops - the ops to set the filter with
+ * @buf - the string that holds the function filter text.
+ * @len - the length of the string.
+ * @reset - non zero to reset all filters before applying this filter.
+ *
+ * Filters denote which functions should be enabled when tracing is enabled.
+ * If @buf is NULL and reset is set, all functions will be enabled for tracing.
+ */
+void ftrace_set_global_filter(unsigned char *buf, int len, int reset)
+{
+	ftrace_set_regex(&global_ops, buf, len, reset, 1);
+}
+EXPORT_SYMBOL_GPL(ftrace_set_global_filter);
+
+/**
+ * ftrace_set_notrace - set a function to not trace in ftrace
+ * @ops - the ops to set the notrace filter with
+ * @buf - the string that holds the function notrace text.
+ * @len - the length of the string.
+ * @reset - non zero to reset all filters before applying this filter.
+ *
+ * Notrace Filters denote which functions should not be enabled when tracing
+ * is enabled. If @buf is NULL and reset is set, all functions will be enabled
+ * for tracing.
+ */
+void ftrace_set_global_notrace(unsigned char *buf, int len, int reset)
 {
 	ftrace_set_regex(&global_ops, buf, len, reset, 0);
 }
+EXPORT_SYMBOL_GPL(ftrace_set_global_notrace);
 
 /*
  * command line interface to allow users to set filters on boot up.
