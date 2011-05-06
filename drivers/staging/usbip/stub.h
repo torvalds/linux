@@ -88,9 +88,6 @@ struct bus_id_priv {
 
 extern struct kmem_cache *stub_priv_cache;
 
-/*-------------------------------------------------------------------------*/
-/* prototype declarations */
-
 /* stub_tx.c */
 void stub_complete(struct urb *);
 int stub_tx_loop(void *data);

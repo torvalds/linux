@@ -61,11 +61,6 @@ struct usb_driver stub_driver = {
 	.id_table	= stub_table,
 };
 
-/*-------------------------------------------------------------------------*/
-
-/* Define sysfs entries for a usbip-bound device */
-
-
 /*
  * usbip_status shows status of usbip as long as this driver is bound to the
  * target device.
@@ -190,10 +185,6 @@ static void stub_remove_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_usbip_debug);
 }
 
-/*-------------------------------------------------------------------------*/
-
-/* Event handler functions called by an event handler thread */
-
 static void stub_shutdown_connection(struct usbip_device *ud)
 {
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
@@ -292,8 +283,6 @@ static void stub_device_unusable(struct usbip_device *ud)
 	spin_unlock(&ud->lock);
 }
 
-/*-------------------------------------------------------------------------*/
-
 /**
  * stub_device_alloc - allocate a new stub_device struct
  * @interface: usb_interface of a new device
@@ -361,8 +350,6 @@ static int stub_device_free(struct stub_device *sdev)
 
 	return 0;
 }
-
-/*-------------------------------------------------------------------------*/
 
 /*
  * If a usb device has multiple active interfaces, this driver is bound to all

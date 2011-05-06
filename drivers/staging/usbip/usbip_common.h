@@ -26,12 +26,6 @@
 #include <asm/byteorder.h>
 #include <net/sock.h>
 
-/*-------------------------------------------------------------------------*/
-
-/*
- * define macros to print messages
- */
-
 /**
  * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG_ENABLE is defined
  * @fmt:
@@ -136,8 +130,6 @@ extern struct device_attribute dev_attr_usbip_debug;
 	do {							\
 		printk(KERN_INFO "usbip: " fmt , ## args);	\
 	} while (0)
-
-/*-------------------------------------------------------------------------*/
 
 /*
  * USB/IP request headers.
@@ -256,8 +248,6 @@ struct usbip_header {
 		struct usbip_header_ret_unlink	ret_unlink;
 	} u;
 } __packed;
-
-/*-------------------------------------------------------------------------*/
 
 int usbip_xmit(int, struct socket *, char *, int, int);
 int usbip_sendmsg(struct socket *, struct msghdr *, int);

@@ -255,8 +255,6 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	}
 }
 
-/*-------------------------------------------------------------------------*/
-
 int vhci_rx_loop(void *data)
 {
 	struct usbip_device *ud = data;

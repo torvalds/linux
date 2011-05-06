@@ -30,10 +30,6 @@
 /* stub_priv is allocated from stub_priv_cache */
 struct kmem_cache *stub_priv_cache;
 
-/*-------------------------------------------------------------------------*/
-
-/* Define sysfs entries for the usbip driver */
-
 /*
  * busid_tables defines matching busids that usbip can grab. A user can change
  * dynamically what device is locally used and what device is exported to a
@@ -200,10 +196,6 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 static DRIVER_ATTR(match_busid, S_IRUSR|S_IWUSR, show_match_busid,
 		   store_match_busid);
 
-/*-------------------------------------------------------------------------*/
-
-/* Cleanup functions used to free private data */
-
 static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead)
 {
 	struct stub_priv *priv, *tmp;
@@ -265,8 +257,6 @@ void stub_device_cleanup_urbs(struct stub_device *sdev)
 		usb_free_urb(urb);
 	}
 }
-
-/*-------------------------------------------------------------------------*/
 
 static int __init usb_stub_init(void)
 {

@@ -101,9 +101,6 @@ struct vhci_hcd {
 extern struct vhci_hcd *the_controller;
 extern struct attribute_group dev_attr_group;
 
-/*-------------------------------------------------------------------------*/
-/* prototype declaration */
-
 /* vhci_hcd.c */
 void rh_port_connect(int rhport, enum usb_device_speed speed);
 void rh_port_disconnect(int rhport);

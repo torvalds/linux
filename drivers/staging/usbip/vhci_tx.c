@@ -134,8 +134,6 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 	return total_size;
 }
 
-/*-------------------------------------------------------------------------*/
-
 static struct vhci_unlink *dequeue_from_unlink_tx(struct vhci_device *vdev)
 {
 	unsigned long flags;
@@ -203,8 +201,6 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 
 	return total_size;
 }
-
-/*-------------------------------------------------------------------------*/
 
 int vhci_tx_loop(void *data)
 {

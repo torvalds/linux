@@ -31,9 +31,6 @@
 	"Takahiro Hirofuchi <hirofuchi _at_ users.sourceforge.net>"
 #define DRIVER_DESC "usbip common driver"
 
-/*-------------------------------------------------------------------------*/
-/* debug routines */
-
 #ifdef CONFIG_USB_IP_DEBUG_ENABLE
 unsigned long usbip_debug_flag = 0xffffffff;
 #else
@@ -352,9 +349,6 @@ void usbip_dump_header(struct usbip_header *pdu)
 }
 EXPORT_SYMBOL_GPL(usbip_dump_header);
 
-/*-------------------------------------------------------------------------*/
-/* socket routines */
-
 /* Send/receive messages over TCP/IP. I refer drivers/block/nbd.c */
 int usbip_xmit(int send, struct socket *sock, char *buf,
 	       int size, int msg_flags)
@@ -468,9 +462,6 @@ struct socket *sockfd_to_socket(unsigned int sockfd)
 	return socket;
 }
 EXPORT_SYMBOL_GPL(sockfd_to_socket);
-
-/*-------------------------------------------------------------------------*/
-/* pdu routines */
 
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
@@ -868,8 +859,6 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usbip_recv_xbuff);
-
-/*-------------------------------------------------------------------------*/
 
 static int __init usbip_common_init(void)
 {

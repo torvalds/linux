@@ -154,8 +154,6 @@ void rh_port_disconnect(int rhport)
 	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
 }
 
-/*----------------------------------------------------------------------*/
-
 #define PORT_C_MASK				\
 	((USB_PORT_STAT_C_CONNECTION		\
 	  | USB_PORT_STAT_C_ENABLE		\
@@ -477,10 +475,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	return retval;
 }
-
-
-
-/*----------------------------------------------------------------------*/
 
 static struct vhci_device *get_vdev(struct usb_device *udev)
 {
@@ -951,9 +945,6 @@ static void vhci_device_init(struct vhci_device *vdev)
 	usbip_start_eh(&vdev->ud);
 }
 
-
-/*----------------------------------------------------------------------*/
-
 static int vhci_start(struct usb_hcd *hcd)
 {
 	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
@@ -1007,8 +998,6 @@ static void vhci_stop(struct usb_hcd *hcd)
 
 	usbip_uinfo("vhci_stop done\n");
 }
-
-/*----------------------------------------------------------------------*/
 
 static int vhci_get_frame_number(struct usb_hcd *hcd)
 {
@@ -1214,8 +1203,6 @@ static struct platform_driver vhci_driver = {
 		.owner = THIS_MODULE,
 	},
 };
-
-/*----------------------------------------------------------------------*/
 
 /*
  * The VHCI 'device' is 'virtual'; not a real plug&play hardware.

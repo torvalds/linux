@@ -109,9 +109,6 @@ void stub_complete(struct urb *urb)
 	wake_up(&sdev->tx_waitq);
 }
 
-/*-------------------------------------------------------------------------*/
-/* fill PDU */
-
 static inline void setup_base_pdu(struct usbip_header_basic *base,
 				  __u32 command, __u32 seqnum)
 {
@@ -136,9 +133,6 @@ static void setup_ret_unlink_pdu(struct usbip_header *rpdu,
 	setup_base_pdu(&rpdu->base, USBIP_RET_UNLINK, unlink->seqnum);
 	rpdu->u.ret_unlink.status = unlink->status;
 }
-
-/*-------------------------------------------------------------------------*/
-/* send RET_SUBMIT */
 
 static struct stub_priv *dequeue_from_priv_tx(struct stub_device *sdev)
 {
@@ -292,9 +286,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 	return total_size;
 }
 
-/*-------------------------------------------------------------------------*/
-/* send RET_UNLINK */
-
 static struct stub_unlink *dequeue_from_unlink_tx(struct stub_device *sdev)
 {
 	unsigned long flags;
@@ -368,8 +359,6 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 	return total_size;
 }
-
-/*-------------------------------------------------------------------------*/
 
 int stub_tx_loop(void *data)
 {
