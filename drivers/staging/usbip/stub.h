@@ -58,7 +58,6 @@ struct stub_device {
 	struct list_head unlink_tx;
 	struct list_head unlink_free;
 
-
 	wait_queue_head_t tx_waitq;
 };
 
@@ -88,7 +87,6 @@ struct bus_id_priv {
 };
 
 extern struct kmem_cache *stub_priv_cache;
-
 
 /*-------------------------------------------------------------------------*/
 /* prototype declarations */
