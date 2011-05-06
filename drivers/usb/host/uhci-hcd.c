@@ -226,16 +226,16 @@ static int uhci_pci_resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 	int port;
 
 	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
-	    default:
+	default:
 		break;
 
-	    case PCI_VENDOR_ID_GENESYS:
+	case PCI_VENDOR_ID_GENESYS:
 		/* Genesys Logic's GL880S controllers don't generate
 		 * resume-detect interrupts.
 		 */
 		return 1;
 
-	    case PCI_VENDOR_ID_INTEL:
+	case PCI_VENDOR_ID_INTEL:
 		/* Some of Intel's USB controllers have a bug that causes
 		 * resume-detect interrupts if any port has an over-current
 		 * condition.  To make matters worse, some motherboards
@@ -268,7 +268,7 @@ static int uhci_pci_global_suspend_mode_is_broken(struct uhci_hcd *uhci)
 {
 	int port;
 	const char *sys_info;
-	static char bad_Asus_board[] = "A7V8X";
+	static const char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
@@ -998,7 +998,7 @@ static const struct hc_driver uhci_driver = {
 	.hub_control =		uhci_hub_control,
 };
 
-static const struct pci_device_id uhci_pci_ids[] = { {
+static DEFINE_PCI_DEVICE_TABLE(uhci_pci_ids) = { {
 	/* handle any USB UHCI controller */
 	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_UHCI, ~0),
 	.driver_data =	(unsigned long) &uhci_driver,
