@@ -33,18 +33,6 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 
-
-static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
-	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
-	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
-	{{1, 1, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(11), 0, 0, 0, 0} }, "net-users"},
-	{{1, 1, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(18), 0, 0, 0, 0} }, "sys"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(32), __constant_cpu_to_le32(544), 0, 0, 0} }, "root"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(32), __constant_cpu_to_le32(545), 0, 0, 0} }, "users"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(32), __constant_cpu_to_le32(546), 0, 0, 0} }, "guest"} }
-;
-
-
 /* security id for everyone/world system group */
 static const struct cifs_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
@@ -131,7 +119,7 @@ cifs_idmap_key_destroy(struct key *key)
 }
 
 struct key_type cifs_idmap_key_type = {
-	.name        = "cifs.cifs_idmap",
+	.name        = "cifs.idmap",
 	.instantiate = cifs_idmap_key_instantiate,
 	.destroy     = cifs_idmap_key_destroy,
 	.describe    = user_describe,
@@ -433,51 +421,6 @@ cifs_destroy_idmaptrees(void)
 	while ((node = rb_first(root)))
 		rb_erase(node, root);
 	spin_unlock(&sidgidlock);
-}
-
-int match_sid(struct cifs_sid *ctsid)
-{
-	int i, j;
-	int num_subauth, num_sat, num_saw;
-	struct cifs_sid *cwsid;
-
-	if (!ctsid)
-		return -1;
-
-	for (i = 0; i < NUM_WK_SIDS; ++i) {
-		cwsid = &(wksidarr[i].cifssid);
-
-		/* compare the revision */
-		if (ctsid->revision != cwsid->revision)
-			continue;
-
-		/* compare all of the six auth values */
-		for (j = 0; j < 6; ++j) {
-			if (ctsid->authority[j] != cwsid->authority[j])
-				break;
-		}
-		if (j < 6)
-			continue; /* all of the auth values did not match */
-
-		/* compare all of the subauth values if any */
-		num_sat = ctsid->num_subauth;
-		num_saw = cwsid->num_subauth;
-		num_subauth = num_sat < num_saw ? num_sat : num_saw;
-		if (num_subauth) {
-			for (j = 0; j < num_subauth; ++j) {
-				if (ctsid->sub_auth[j] != cwsid->sub_auth[j])
-					break;
-			}
-			if (j < num_subauth)
-				continue; /* all sub_auth values do not match */
-		}
-
-		cFYI(1, "matching sid: %s\n", wksidarr[i].sidname);
-		return 0; /* sids compare/match */
-	}
-
-	cFYI(1, "No matching sid");
-	return -1;
 }
 
 /* if the two SIDs (roughly equivalent to a UUID for a user or group) are

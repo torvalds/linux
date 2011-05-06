@@ -1046,21 +1046,23 @@ init_cifs(void)
 #ifdef CONFIG_CIFS_ACL
 	rc = init_cifs_idmap();
 	if (rc)
-		goto out_destroy_request_bufs;
+		goto out_register_key_type;
 #endif /* CONFIG_CIFS_ACL */
 
 	rc = register_filesystem(&cifs_fs_type);
 	if (rc)
-		goto out_destroy_request_bufs;
+		goto out_init_cifs_idmap;
 
 	return 0;
 
-out_destroy_request_bufs:
+out_init_cifs_idmap:
 #ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
+out_register_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
+out_destroy_request_bufs:
 #endif
 	cifs_destroy_request_bufs();
 out_destroy_mids:
