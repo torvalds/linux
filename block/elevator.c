@@ -155,13 +155,8 @@ static struct elevator_type *elevator_get(const char *name)
 
 	e = elevator_find(name);
 	if (!e) {
-		char elv[ELV_NAME_MAX + strlen("-iosched")];
-
 		spin_unlock(&elv_list_lock);
-
-		snprintf(elv, sizeof(elv), "%s-iosched", name);
-
-		request_module("%s", elv);
+		request_module("%s-iosched", name);
 		spin_lock(&elv_list_lock);
 		e = elevator_find(name);
 	}
