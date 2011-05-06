@@ -391,7 +391,6 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 			    (mpath->flags & MESH_PATH_SN_VALID)) {
 				if (SN_GT(mpath->sn, orig_sn) ||
 				    (mpath->sn == orig_sn &&
-				     action == MPATH_PREQ &&
 				     new_metric >= mpath->metric)) {
 					process = false;
 					fresh_info = false;
