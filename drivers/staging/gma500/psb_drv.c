@@ -565,7 +565,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->vdc_reg)
 		goto out_err;
 
-	dev_priv->sgx_reg = ioremap(resource_start + PSB_SGX_OFFSET,
+	if (IS_MRST(dev))
+		dev_priv->sgx_reg = ioremap(resource_start + MRST_SGX_OFFSET,
+							PSB_SGX_SIZE);
+	else
+		dev_priv->sgx_reg = ioremap(resource_start + PSB_SGX_OFFSET,
 							PSB_SGX_SIZE);
 
 	if (!dev_priv->sgx_reg)
