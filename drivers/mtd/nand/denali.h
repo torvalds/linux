@@ -732,7 +732,7 @@ struct denali_nand_info {
 	int status;
 	int platform;
 	struct nand_buf buf;
-	struct pci_dev *dev;
+	struct device *dev;
 	int total_used_banks;
 	uint32_t block;  /* stored for future use */
 	uint16_t page;
