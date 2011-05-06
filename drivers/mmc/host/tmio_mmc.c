@@ -64,7 +64,7 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct tmio_mmc_data *pdata;
 	struct tmio_mmc_host *host;
-	int ret = -EINVAL;
+	int ret = -EINVAL, irq;
 
 	if (pdev->num_resources != 2)
 		goto out;
@@ -72,6 +72,12 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	pdata = mfd_get_data(pdev);
 	if (!pdata || !pdata->hclk)
 		goto out;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto out;
+	}
 
 	/* Tell the MFD core we are ready to be enabled */
 	if (cell->enable) {
@@ -84,11 +90,18 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto cell_disable;
 
+	ret = request_irq(irq, tmio_mmc_irq, IRQF_DISABLED |
+			  IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), host);
+	if (ret)
+		goto host_remove;
+
 	pr_info("%s at 0x%08lx irq %d\n", mmc_hostname(host->mmc),
-		(unsigned long)host->ctl, host->irq);
+		(unsigned long)host->ctl, irq);
 
 	return 0;
 
+host_remove:
+	tmio_mmc_host_remove(host);
 cell_disable:
 	if (cell->disable)
 		cell->disable(pdev);
@@ -104,7 +117,9 @@ static int __devexit tmio_mmc_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (mmc) {
-		tmio_mmc_host_remove(mmc_priv(mmc));
+		struct tmio_mmc_host *host = mmc_priv(mmc);
+		free_irq(platform_get_irq(pdev, 0), host);
+		tmio_mmc_host_remove(host);
 		if (cell->disable)
 			cell->disable(pdev);
 	}

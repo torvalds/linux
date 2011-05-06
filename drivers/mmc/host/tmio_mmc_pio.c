@@ -564,7 +564,7 @@ out:
 	spin_unlock(&host->lock);
 }
 
-static irqreturn_t tmio_mmc_irq(int irq, void *devid)
+irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
 	struct tmio_mmc_data *pdata = host->pdata;
@@ -659,6 +659,7 @@ static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 out:
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL(tmio_mmc_irq);
 
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
@@ -893,20 +894,9 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	tmio_mmc_clk_stop(_host);
 	tmio_mmc_reset(_host);
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		goto pm_suspend;
-
-	_host->irq = ret;
-
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		tmio_mmc_enable_sdio_irq(mmc, 0);
-
-	ret = request_irq(_host->irq, tmio_mmc_irq, IRQF_DISABLED |
-		IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), _host);
-	if (ret)
-		goto pm_suspend;
 
 	spin_lock_init(&_host->lock);
 
@@ -933,8 +923,6 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	return 0;
 
-pm_suspend:
-	pm_runtime_suspend(&pdev->dev);
 pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	iounmap(_host->ctl);
@@ -952,7 +940,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	mmc_remove_host(host->mmc);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
-	free_irq(host->irq, host);
 	iounmap(host->ctl);
 	mmc_free_host(host->mmc);
 
