@@ -21,6 +21,7 @@
 //#include <asm/arch/gpio_extend.h>
 #include <linux/workqueue.h>
 #include <linux/mtk23d.h>
+#include <linux/wakelock.h>
 
 MODULE_LICENSE("GPL");
 
@@ -43,6 +44,9 @@ MODULE_LICENSE("GPL");
 
 //#define AP_BP_WAKEUP  RK2818_PIN_PF5   //output AP wake up BP used rising edge
 //#define BP_AP_WAKEUP  RK2818_PIN_PE0	//input BP wake up AP
+
+//static bool wakelock_inited;
+//static struct wake_lock mtk23d_wakelock;
 
 #define SLEEP 1
 #define READY 0
@@ -275,6 +279,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
+	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
 #endif	
 	
 #if 0 
@@ -301,6 +306,12 @@ static int mtk23d_probe(struct platform_device *pdev)
 		MODEMDBG("misc_register err\n");
 	}
 	MODEMDBG("mtk23d_probe ok\n");
+	
+//	if (!wakelock_inited) {
+//		wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
+//		wakelock_inited = true;
+//	}
+	
 	return result;
 err0:
 	cancel_work_sync(&mt6223d_data->work);
@@ -342,6 +353,9 @@ int mtk23d_resume(struct platform_device *pdev)
 	//disable_irq_wake(irq);
 	ap_wakeup(pdev);
 	ap_wakeup_bp(pdev, 1);
+	
+//	wake_lock_timeout(&mtk23d_wakelock, 10 * HZ);
+	
 	return 0;
 }
 
