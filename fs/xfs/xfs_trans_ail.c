@@ -354,7 +354,7 @@ xfs_ail_worker(
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
 	xfs_log_item_t		*lip;
 	xfs_lsn_t		lsn;
-	xfs_lsn_t		target = ailp->xa_target;
+	xfs_lsn_t		target;
 	long			tout = 10;
 	int			flush_log = 0;
 	int			stuck = 0;
@@ -362,6 +362,7 @@ xfs_ail_worker(
 	int			push_xfsbufd = 0;
 
 	spin_lock(&ailp->xa_lock);
+	target = ailp->xa_target;
 	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_trans_ail_cursor_first(ailp, cur, ailp->xa_last_pushed_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
@@ -491,7 +492,7 @@ out_done:
 		 * work to do. Wait a bit longer before starting that work.
 		 */
 		smp_rmb();
-		if (ailp->xa_target == target) {
+		if (XFS_LSN_CMP(ailp->xa_target, target) == 0) {
 			clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
 			return;
 		}
@@ -553,7 +554,7 @@ xfs_ail_push(
 	 * the XFS_AIL_PUSHING_BIT.
 	 */
 	smp_wmb();
-	ailp->xa_target = threshold_lsn;
+	xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
 	if (!test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
 		queue_delayed_work(xfs_syncd_wq, &ailp->xa_work, 0);
 }
