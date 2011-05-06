@@ -23,6 +23,9 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 
+/* This is called from headsmp.S to wakeup the secondary core */
+extern void u8500_secondary_startup(void);
+
 /*
  * control for which core is the next to come out of the secondary
  * boot "holding pen"
