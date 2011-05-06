@@ -26,7 +26,6 @@
 #define DRIVER_VERSION "1.0"
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
 #define DRIVER_DESC "Virtual Host Controller Interface Driver for USB/IP"
-#define DRIVER_LICENCE "GPL"
 
 /*
  * TODO
@@ -1269,4 +1268,5 @@ module_exit(vhci_cleanup);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENCE);
+MODULE_LICENSE("GPL");
+MODULE_VERSION(DRIVER_VERSION);

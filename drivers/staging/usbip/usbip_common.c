@@ -23,13 +23,12 @@
 #include <linux/in.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+
 #include "usbip_common.h"
 
-/* version information */
 #define DRIVER_VERSION "1.0"
-#define DRIVER_AUTHOR \
-	"Takahiro Hirofuchi <hirofuchi _at_ users.sourceforge.net>"
-#define DRIVER_DESC "usbip common driver"
+#define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
+#define DRIVER_DESC "USB/IP Common Driver"
 
 #ifdef CONFIG_USB_IP_DEBUG_ENABLE
 unsigned long usbip_debug_flag = 0xffffffff;
@@ -862,7 +861,8 @@ EXPORT_SYMBOL_GPL(usbip_recv_xbuff);
 
 static int __init usbip_common_init(void)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "" DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " " DRIVER_VERSION
+	       "\n");
 	return 0;
 }
 
@@ -877,3 +877,4 @@ module_exit(usbip_common_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRIVER_VERSION);
