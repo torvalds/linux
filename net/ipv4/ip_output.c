@@ -317,6 +317,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options_rcu *inet_opt;
+	struct flowi4 *fl4;
 	struct rtable *rt;
 	struct iphdr *iph;
 	int res;
@@ -331,9 +332,9 @@ int ip_queue_xmit(struct sk_buff *skb)
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
+	fl4 = &inet->cork.fl.u.ip4;
 	rt = (struct rtable *)__sk_dst_check(sk, 0);
 	if (rt == NULL) {
-		struct flowi4 fl4;
 		__be32 daddr;
 
 		/* Use correct destination address if we have options. */
@@ -345,7 +346,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 		 * keep trying until route appears or the connection times
 		 * itself out.
 		 */
-		rt = ip_route_output_ports(sock_net(sk), &fl4, sk,
+		rt = ip_route_output_ports(sock_net(sk), fl4, sk,
 					   daddr, inet->inet_saddr,
 					   inet->inet_dport,
 					   inet->inet_sport,
