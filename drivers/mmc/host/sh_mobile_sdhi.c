@@ -122,8 +122,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eirq;
 	}
 
-	ret = request_irq(irq, tmio_mmc_irq, IRQF_DISABLED |
-			  IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), host);
+	ret = request_irq(irq, tmio_mmc_irq, 0, dev_name(&pdev->dev), host);
 	if (ret)
 		goto eirq;
 
