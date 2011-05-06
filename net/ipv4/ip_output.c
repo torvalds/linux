@@ -1419,7 +1419,7 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 
 	cork.flags = 0;
 	cork.addr = 0;
-	cork.opt = 0;
+	cork.opt = NULL;
 	err = ip_setup_cork(sk, &cork, ipc, rtp);
 	if (err)
 		return ERR_PTR(err);
