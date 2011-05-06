@@ -1369,7 +1369,7 @@ static void omap_hsmmc_config_dma_params(struct omap_hsmmc_host *host,
 static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 {
 	struct omap_hsmmc_host *host = cb_data;
-	struct mmc_data *data = host->mrq->data;
+	struct mmc_data *data;
 	int dma_ch, req_in_progress;
 
 	if (!(ch_status & OMAP_DMA_BLOCK_IRQ)) {
@@ -1384,6 +1384,7 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 		return;
 	}
 
+	data = host->mrq->data;
 	host->dma_sg_idx++;
 	if (host->dma_sg_idx < host->dma_len) {
 		/* Fire up the next transfer. */
