@@ -2673,6 +2673,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 update:
 	obj->tiling_changed = false;
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		ret = sandybridge_write_fence_reg(obj, pipelined);
 		break;
@@ -2706,6 +2707,7 @@ i915_gem_clear_fence_reg(struct drm_device *dev,
 	uint32_t fence_reg = reg - dev_priv->fence_regs;
 
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + fence_reg*8, 0);
 		break;
