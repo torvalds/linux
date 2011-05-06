@@ -827,8 +827,10 @@ err_put:
 static void __exit
 efivars_exit(void)
 {
-	unregister_efivars(&__efivars);
-	kobject_put(efi_kobj);
+	if (efi_enabled) {
+		unregister_efivars(&__efivars);
+		kobject_put(efi_kobj);
+	}
 }
 
 module_init(efivars_init);
