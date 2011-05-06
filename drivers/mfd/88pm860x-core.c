@@ -90,6 +90,10 @@ static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
 
+static struct resource rtc_resources[] __devinitdata = {
+	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
+};
+
 static struct mfd_cell bk_devs[] = {
 	{"88pm860x-backlight", 0,},
 	{"88pm860x-backlight", 1,},
@@ -141,6 +145,10 @@ static struct mfd_cell codec_devs[] = {
 static struct mfd_cell power_devs[] = {
 	{"88pm860x-battery", -1,},
 	{"88pm860x-charger", -1,},
+};
+
+static struct mfd_cell rtc_devs[] = {
+	{"88pm860x-rtc", -1,},
 };
 
 static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
@@ -635,6 +643,26 @@ out:
 	return;
 }
 
+static void __devinit device_rtc_init(struct pm860x_chip *chip,
+				      struct i2c_client *i2c,
+				      struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	if ((pdata == NULL))
+		return;
+
+	rtc_devs[0].platform_data = pdata->rtc;
+	rtc_devs[0].pdata_size = sizeof(struct pm860x_rtc_pdata);
+	rtc_devs[0].num_resources = ARRAY_SIZE(rtc_resources);
+	rtc_devs[0].resources = &rtc_resources[0];
+	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
+			      ARRAY_SIZE(rtc_devs), &rtc_resources[0],
+			      chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add rtc subdev\n");
+}
+
 static void __devinit device_touch_init(struct pm860x_chip *chip,
 					struct i2c_client *i2c,
 					struct pm860x_platform_data *pdata)
@@ -770,6 +798,7 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		goto out;
 
 	device_regulator_init(chip, i2c, pdata);
+	device_rtc_init(chip, i2c, pdata);
 	device_onkey_init(chip, i2c, pdata);
 	device_touch_init(chip, i2c, pdata);
 	device_power_init(chip, i2c, pdata);
