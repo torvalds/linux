@@ -454,7 +454,6 @@
 #define READ_WRITE_ENABLE_HIGH_COUNT    22
 
 #define ECC_SECTOR_SIZE     512
-#define LLD_MAX_FLASH_BANKS     4
 
 #define DENALI_BUF_SIZE		(NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE)
 
@@ -494,6 +493,7 @@ struct denali_nand_info {
 	uint32_t totalblks;
 	uint32_t blksperchip;
 	uint32_t bbtskipbytes;
+	uint32_t max_banks;
 };
 
 #endif /*_LLD_NAND_*/
