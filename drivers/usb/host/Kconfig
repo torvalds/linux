@@ -396,7 +396,7 @@ config USB_OHCI_LITTLE_ENDIAN
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB && PCI
+	depends on USB && (PCI || SPARC_LEON)
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -405,7 +405,8 @@ config USB_UHCI_HCD
 	  with Intel PCI chipsets (like intel 430TX, 440FX, 440LX, 440BX,
 	  i810, i820) conform to this standard. Also all VIA PCI chipsets
 	  (like VIA VP2, VP3, MVP3, Apollo Pro, Apollo Pro II or Apollo Pro
-	  133). If unsure, say Y.
+	  133) and LEON/GRLIB SoCs with the GRUSBHC controller.
+	  If unsure, say Y.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
@@ -413,6 +414,7 @@ config USB_UHCI_HCD
 config USB_UHCI_SUPPORT_NON_PCI_HC
 	bool
 	depends on USB_UHCI_HCD
+	default y if SPARC_LEON
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"

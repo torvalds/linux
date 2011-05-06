@@ -831,7 +831,19 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 
 static const char hcd_name[] = "uhci_hcd";
 
+#ifdef CONFIG_PCI
 #include "uhci-pci.c"
+#define	PCI_DRIVER		uhci_pci_driver
+#endif
+
+#ifdef CONFIG_SPARC_LEON
+#include "uhci-grlib.c"
+#define PLATFORM_DRIVER		uhci_grlib_driver
+#endif
+
+#if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER)
+#error "missing bus glue for uhci-hcd"
+#endif
 
 static int __init uhci_hcd_init(void)
 {
@@ -858,13 +870,27 @@ static int __init uhci_hcd_init(void)
 	if (!uhci_up_cachep)
 		goto up_failed;
 
-	retval = pci_register_driver(&uhci_pci_driver);
-	if (retval)
-		goto init_failed;
+#ifdef PLATFORM_DRIVER
+	retval = platform_driver_register(&PLATFORM_DRIVER);
+	if (retval < 0)
+		goto clean0;
+#endif
+
+#ifdef PCI_DRIVER
+	retval = pci_register_driver(&PCI_DRIVER);
+	if (retval < 0)
+		goto clean1;
+#endif
 
 	return 0;
 
-init_failed:
+#ifdef PCI_DRIVER
+clean1:
+#endif
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+clean0:
+#endif
 	kmem_cache_destroy(uhci_up_cachep);
 
 up_failed:
@@ -881,7 +907,12 @@ errbuf_failed:
 
 static void __exit uhci_hcd_cleanup(void) 
 {
-	pci_unregister_driver(&uhci_pci_driver);
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+#ifdef PCI_DRIVER
+	pci_unregister_driver(&PCI_DRIVER);
+#endif
 	kmem_cache_destroy(uhci_up_cachep);
 	debugfs_remove(uhci_debugfs_root);
 	kfree(errbuf);
