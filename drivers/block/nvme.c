@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/genhd.h>
+#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -1240,7 +1241,34 @@ static int nvme_kthread(void *data)
 	return 0;
 }
 
-static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int index,
+static DEFINE_IDA(nvme_index_ida);
+
+static int nvme_get_ns_idx(void)
+{
+	int index, error;
+
+	do {
+		if (!ida_pre_get(&nvme_index_ida, GFP_KERNEL))
+			return -1;
+
+		spin_lock(&dev_list_lock);
+		error = ida_get_new(&nvme_index_ida, &index);
+		spin_unlock(&dev_list_lock);
+	} while (error == -EAGAIN);
+
+	if (error)
+		index = -1;
+	return index;
+}
+
+static void nvme_put_ns_idx(int index)
+{
+	spin_lock(&dev_list_lock);
+	ida_remove(&nvme_index_ida, index);
+	spin_unlock(&dev_list_lock);
+}
+
+static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 			struct nvme_id_ns *id, struct nvme_lba_range_type *rt)
 {
 	struct nvme_ns *ns;
@@ -1265,19 +1293,19 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int index,
 	disk = alloc_disk(NVME_MINORS);
 	if (!disk)
 		goto out_free_queue;
-	ns->ns_id = index;
+	ns->ns_id = nsid;
 	ns->disk = disk;
 	lbaf = id->flbas & 0xf;
 	ns->lba_shift = id->lbaf[lbaf].ds;
 
 	disk->major = nvme_major;
 	disk->minors = NVME_MINORS;
-	disk->first_minor = NVME_MINORS * index;
+	disk->first_minor = NVME_MINORS * nvme_get_ns_idx();
 	disk->fops = &nvme_fops;
 	disk->private_data = ns;
 	disk->queue = ns->queue;
 	disk->driverfs_dev = &dev->pci_dev->dev;
-	sprintf(disk->disk_name, "nvme%dn%d", dev->instance, index);
+	sprintf(disk->disk_name, "nvme%dn%d", dev->instance, nsid);
 	set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
 
 	return ns;
@@ -1291,7 +1319,9 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int index,
 
 static void nvme_ns_free(struct nvme_ns *ns)
 {
+	int index = ns->disk->first_minor / NVME_MINORS;
 	put_disk(ns->disk);
+	nvme_put_ns_idx(index);
 	blk_cleanup_queue(ns->queue);
 	kfree(ns);
 }
