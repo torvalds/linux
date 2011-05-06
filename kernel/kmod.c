@@ -301,6 +301,15 @@ void usermodehelper_enable(void)
 	usermodehelper_disabled = 0;
 }
 
+/**
+ * usermodehelper_is_disabled - check if new helpers are allowed to be started
+ */
+bool usermodehelper_is_disabled(void)
+{
+	return usermodehelper_disabled;
+}
+EXPORT_SYMBOL_GPL(usermodehelper_is_disabled);
+
 static void helper_lock(void)
 {
 	atomic_inc(&running_helpers);
