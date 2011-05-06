@@ -689,7 +689,7 @@ config VIDEO_TIMBERDALE
 	select VIDEO_ADV7180
 	select VIDEOBUF_DMA_CONTIG
 	---help---
-	Add support for the Video In peripherial of the timberdale FPGA.
+	  Add support for the Video In peripherial of the timberdale FPGA.
 
 source "drivers/media/video/cx88/Kconfig"
 
