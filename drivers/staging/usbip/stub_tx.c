@@ -91,6 +91,7 @@ void stub_complete(struct urb *urb)
 	default:
 		usbip_uinfo("urb completion with non-zero status %d\n",
 			    urb->status);
+		break;
 	}
 
 	/* link a urb to the queue of tx. */

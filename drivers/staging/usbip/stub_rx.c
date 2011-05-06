@@ -594,7 +594,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 		/* NOTREACHED */
 		dev_err(dev, "unknown pdu\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-		return;
+		break;
 	}
 }
 

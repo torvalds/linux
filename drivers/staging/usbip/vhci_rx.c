@@ -247,10 +247,11 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		vhci_recv_ret_unlink(vdev, &pdu);
 		break;
 	default:
-		/* NOTREACHED */
+		/* NOT REACHED */
 		usbip_uerr("unknown pdu %u\n", pdu.base.command);
 		usbip_dump_header(&pdu);
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
+		break;
 	}
 }
 

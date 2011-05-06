@@ -320,6 +320,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			usbip_dbg_vhci_rh(" ClearPortFeature: default %x\n",
 					  wValue);
 			dum->port_status[rhport] &= ~(1 << wValue);
+			break;
 		}
 		break;
 	case GetHubDescriptor:
@@ -451,6 +452,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			usbip_dbg_vhci_rh(" SetPortFeature: default %d\n",
 					  wValue);
 			dum->port_status[rhport] |= (1 << wValue);
+			break;
 		}
 		break;
 

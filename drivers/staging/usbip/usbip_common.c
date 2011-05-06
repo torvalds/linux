@@ -91,6 +91,7 @@ static void usbip_dump_pipe(unsigned int p)
 		break;
 	default:
 		printk(KERN_DEBUG "ERR");
+		break;
 	}
 
 	printk(KERN_DEBUG "\n");
@@ -120,6 +121,7 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 		break;
 	default:
 		printk(KERN_DEBUG " SPD_ERROR");
+		break;
 	}
 
 	printk(KERN_DEBUG " tt %p, ttport %d", udev->tt, udev->ttport);
@@ -187,6 +189,7 @@ static void usbip_dump_request_type(__u8 rt)
 		break;
 	default:
 		printk(KERN_DEBUG "------");
+		break;
 	}
 }
 
@@ -244,6 +247,7 @@ static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 			break;
 		default:
 			printk(KERN_DEBUG "REQ(%02X) ", cmd->bRequest);
+			break;
 		}
 
 		printk(KERN_DEBUG " ");
@@ -342,7 +346,8 @@ void usbip_dump_header(struct usbip_header *pdu)
 		break;
 	default:
 		/* NOT REACHED */
-		usbip_udbg("UNKNOWN\n");
+		usbip_udbg("unknown command\n");
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_dump_header);
@@ -537,9 +542,10 @@ void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		usbip_pack_ret_submit(pdu, urb, pack);
 		break;
 	default:
+		/* NOT REACHED */
 		err("unknown command");
-		/* NOTREACHED */
 		/* BUG(); */
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_pack_pdu);
@@ -643,9 +649,10 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		correct_endian_ret_unlink(&pdu->u.ret_unlink, send);
 		break;
 	default:
-		/* NOTREACHED */
+		/* NOT REACHED */
 		err("unknown command in pdu header: %d", cmd);
 		/* BUG(); */
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_header_correct_endian);
