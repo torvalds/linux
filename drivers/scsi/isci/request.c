@@ -1197,37 +1197,3 @@ void isci_request_io_request_complete(
 
 	isci_host_can_dequeue(isci_host, 1);
 }
-
-/**
- * isci_request_io_request_get_transfer_length() - This function is called by
- *    the sci core to retrieve the transfer length for a given request.
- * @request: This parameter is the isci_request object.
- *
- * length of transfer for specified request.
- */
-u32 isci_request_io_request_get_transfer_length(struct isci_request *request)
-{
-	struct sas_task *task = isci_request_access_task(request);
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: total_xfer_len: %d\n",
-		__func__,
-		task->total_xfer_len);
-	return task->total_xfer_len;
-}
-
-
-/**
- * isci_request_io_request_get_data_direction() - This function is called by
- *    the sci core to retrieve the data direction for a given request.
- * @request: This parameter is the isci_request object.
- *
- * data direction for specified request.
- */
-enum dma_data_direction isci_request_io_request_get_data_direction(
-	struct isci_request *request)
-{
-	struct sas_task *task = isci_request_access_task(request);
-
-	return task->data_dir;
-}

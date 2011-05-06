@@ -666,19 +666,20 @@ u32 scic_io_request_get_object_size(void)
 enum sci_status scic_io_request_construct_basic_ssp(
 	struct scic_sds_request *sci_req)
 {
-	struct isci_request *isci_request = sci_req->ireq;
+	struct isci_request *ireq = sci_req->ireq;
+	struct sas_task *task = isci_request_access_task(ireq);
 
 	sci_req->protocol = SCIC_SSP_PROTOCOL;
 
-	scu_ssp_io_request_construct_task_context(
-		sci_req,
-		isci_request_io_request_get_data_direction(isci_request),
-		isci_request_io_request_get_transfer_length(isci_request));
+	scu_ssp_io_request_construct_task_context(sci_req,
+						  task->data_dir,
+						  task->total_xfer_len);
 
 	scic_sds_io_request_build_ssp_command_iu(sci_req);
 
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-		SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+	sci_base_state_machine_change_state(
+			&sci_req->state_machine,
+			SCI_BASE_REQUEST_STATE_CONSTRUCTED);
 
 	return SCI_SUCCESS;
 }
@@ -705,8 +706,6 @@ enum sci_status scic_io_request_construct_basic_sata(
 {
 	enum sci_status status;
 	struct scic_sds_stp_request *stp_req;
-	u32 len;
-	enum dma_data_direction dir;
 	bool copy = false;
 	struct isci_request *isci_request = sci_req->ireq;
 	struct sas_task *task = isci_request_access_task(isci_request);
@@ -715,11 +714,12 @@ enum sci_status scic_io_request_construct_basic_sata(
 
 	sci_req->protocol = SCIC_STP_PROTOCOL;
 
-	len = isci_request_io_request_get_transfer_length(isci_request);
-	dir = isci_request_io_request_get_data_direction(isci_request);
 	copy = (task->data_dir == DMA_NONE) ? false : true;
 
-	status = scic_io_request_construct_sata(sci_req, len, dir, copy);
+	status = scic_io_request_construct_sata(sci_req,
+						task->total_xfer_len,
+						task->data_dir,
+						copy);
 
 	if (status == SCI_SUCCESS)
 		sci_base_state_machine_change_state(&sci_req->state_machine,

@@ -343,11 +343,6 @@ void isci_request_io_request_complete(
 	struct isci_request *request,
 	enum sci_io_status completion_status);
 
-u32 isci_request_io_request_get_transfer_length(
-	struct isci_request *request);
-
-enum dma_data_direction isci_request_io_request_get_data_direction(struct isci_request *req);
-
 /**
  * isci_request_io_request_get_next_sge() - This function is called by the sci
  *    core to retrieve the next sge for a given request.
@@ -389,26 +384,6 @@ static inline void *isci_request_io_request_get_next_sge(
 
 	return ret;
 }
-
-
-
-void *isci_request_ssp_io_request_get_cdb_address(
-	struct isci_request *request);
-
-u32 isci_request_ssp_io_request_get_cdb_length(
-	struct isci_request *request);
-
-u32  isci_request_ssp_io_request_get_lun(
-	struct isci_request *request);
-
-u32 isci_request_ssp_io_request_get_task_attribute(
-	struct isci_request *request);
-
-u32 isci_request_ssp_io_request_get_command_priority(
-	struct isci_request *request);
-
-
-
 
 
 void isci_terminate_pending_requests(
