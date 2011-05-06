@@ -151,11 +151,6 @@ static struct mfd_cell rtc_devs[] = {
 	{"88pm860x-rtc", -1,},
 };
 
-static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
-static struct pm860x_led_pdata led_pdata[ARRAY_SIZE(led_devs)];
-static struct regulator_init_data regulator_pdata[ARRAY_SIZE(regulator_devs)];
-static struct pm860x_touch_pdata touch_pdata;
-static struct pm860x_power_pdata power_pdata;
 
 struct pm860x_irq_data {
 	int	reg;
@@ -522,14 +517,12 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 		pdata->num_backlights = ARRAY_SIZE(bk_devs);
 
 	for (i = 0; i < pdata->num_backlights; i++) {
-		memcpy(&bk_pdata[i], &pdata->backlight[i],
-			sizeof(struct pm860x_backlight_pdata));
-		bk_devs[i].platform_data = &bk_pdata[i];
-		bk_devs[i].pdata_size = sizeof(bk_pdata[i]);
+		bk_devs[i].platform_data = &pdata->backlight[i];
+		bk_devs[i].pdata_size = sizeof(struct pm860x_backlight_pdata);
 
 		for (j = 0; j < ARRAY_SIZE(bk_devs); j++) {
 			id = bk_resources[j].start;
-			if (bk_pdata[i].flags != id)
+			if (pdata->backlight[i].flags != id)
 				continue;
 
 			bk_devs[i].num_resources = 1;
@@ -560,14 +553,12 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 		pdata->num_leds = ARRAY_SIZE(led_devs);
 
 	for (i = 0; i < pdata->num_leds; i++) {
-		memcpy(&led_pdata[i], &pdata->led[i],
-			sizeof(struct pm860x_led_pdata));
-		led_devs[i].platform_data = &led_pdata[i];
-		led_devs[i].pdata_size = sizeof(led_pdata[i]);
+		led_devs[i].platform_data = &pdata->led[i];
+		led_devs[i].pdata_size = sizeof(struct pm860x_led_pdata);
 
 		for (j = 0; j < ARRAY_SIZE(led_devs); j++) {
 			id = led_resources[j].start;
-			if (led_pdata[i].flags != id)
+			if (pdata->led[i].flags != id)
 				continue;
 
 			led_devs[i].num_resources = 1;
@@ -625,10 +616,8 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 				initdata->constraints.name);
 			goto out;
 		}
-		memcpy(&regulator_pdata[i], &pdata->regulator[i],
-			sizeof(struct regulator_init_data));
-		regulator_devs[i].platform_data = &regulator_pdata[i];
-		regulator_devs[i].pdata_size = sizeof(regulator_pdata[i]);
+		regulator_devs[i].platform_data = &pdata->regulator[i];
+		regulator_devs[i].pdata_size = sizeof(struct regulator_init_data);
 		regulator_devs[i].num_resources = 1;
 		regulator_devs[i].resources = &regulator_resources[j];
 
@@ -669,12 +658,11 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 {
 	int ret;
 
-	if ((pdata == NULL) || (pdata->touch == NULL))
+	if (pdata == NULL)
 		return;
 
-	memcpy(&touch_pdata, pdata->touch, sizeof(struct pm860x_touch_pdata));
-	touch_devs[0].platform_data = &touch_pdata;
-	touch_devs[0].pdata_size = sizeof(touch_pdata);
+	touch_devs[0].platform_data = pdata->touch;
+	touch_devs[0].pdata_size = sizeof(struct pm860x_touch_pdata);
 	touch_devs[0].num_resources = ARRAY_SIZE(touch_resources);
 	touch_devs[0].resources = &touch_resources[0];
 	ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
@@ -690,12 +678,11 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 {
 	int ret;
 
-	if ((pdata == NULL) || (pdata->power == NULL))
+	if (pdata == NULL)
 		return;
 
-	memcpy(&power_pdata, pdata->power, sizeof(struct pm860x_power_pdata));
-	power_devs[0].platform_data = &power_pdata;
-	power_devs[0].pdata_size = sizeof(power_pdata);
+	power_devs[0].platform_data = pdata->power;
+	power_devs[0].pdata_size = sizeof(struct pm860x_power_pdata);
 	power_devs[0].num_resources = ARRAY_SIZE(battery_resources);
 	power_devs[0].resources = &battery_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[0], 1,
@@ -703,8 +690,8 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add battery subdev\n");
 
-	power_devs[1].platform_data = &power_pdata;
-	power_devs[0].pdata_size = sizeof(power_pdata);
+	power_devs[1].platform_data = pdata->power;
+	power_devs[1].pdata_size = sizeof(struct pm860x_power_pdata);
 	power_devs[1].num_resources = ARRAY_SIZE(charger_resources);
 	power_devs[1].resources = &charger_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[1], 1,
