@@ -578,7 +578,7 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 {
 	struct regulator_init_data *initdata;
 	int ret;
-	int i, j;
+	int i, seq;
 
 	if ((pdata == NULL) || (pdata->regulator == NULL))
 		return;
@@ -586,40 +586,21 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 	if (pdata->num_regulators > ARRAY_SIZE(regulator_devs))
 		pdata->num_regulators = ARRAY_SIZE(regulator_devs);
 
-	for (i = 0, j = -1; i < pdata->num_regulators; i++) {
+	for (i = 0, seq = -1; i < pdata->num_regulators; i++) {
 		initdata = &pdata->regulator[i];
-		if (strstr(initdata->constraints.name, "BUCK")) {
-			sscanf(initdata->constraints.name, "BUCK%d", &j);
-			/* BUCK1 ~ BUCK3 */
-			if ((j < 1) || (j > 3)) {
-				dev_err(chip->dev, "Failed to add constraint "
-					"(%s)\n", initdata->constraints.name);
-				goto out;
-			}
-			j = (j - 1) + PM8607_ID_BUCK1;
-		}
-		if (strstr(initdata->constraints.name, "LDO")) {
-			sscanf(initdata->constraints.name, "LDO%d", &j);
-			/* LDO1 ~ LDO15 */
-			if ((j < 1) || (j > 15)) {
-				dev_err(chip->dev, "Failed to add constraint "
-					"(%s)\n", initdata->constraints.name);
-				goto out;
-			}
-			j = (j - 1) + PM8607_ID_LDO1;
-		}
-		if (j == -1) {
-			dev_err(chip->dev, "Failed to add constraint (%s)\n",
-				initdata->constraints.name);
+		seq = *(unsigned int *)initdata->driver_data;
+		if ((seq < 0) || (seq > PM8607_ID_RG_MAX)) {
+			dev_err(chip->dev, "Wrong ID(%d) on regulator(%s)\n",
+				seq, initdata->constraints.name);
 			goto out;
 		}
 		regulator_devs[i].platform_data = &pdata->regulator[i];
 		regulator_devs[i].pdata_size = sizeof(struct regulator_init_data);
 		regulator_devs[i].num_resources = 1;
-		regulator_devs[i].resources = &regulator_resources[j];
+		regulator_devs[i].resources = &regulator_resources[seq];
 
 		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[i], 1,
-				      &regulator_resources[j], 0);
+				      &regulator_resources[seq], 0);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add regulator subdev\n");
 			goto out;
