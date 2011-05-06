@@ -279,7 +279,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	if (!mm->context.cop_lockp) {
 		__destroy_context(index);
 		subpage_prot_free(mm);
-		mm->context.id = NO_CONTEXT;
+		mm->context.id = MMU_NO_CONTEXT;
 		return -ENOMEM;
 	}
 	spin_lock_init(mm->context.cop_lockp);
