@@ -191,6 +191,7 @@ txd_to_at_desc(struct dma_async_tx_descriptor *txd)
  */
 enum atc_status {
 	ATC_IS_ERROR = 0,
+	ATC_IS_PAUSED = 1,
 	ATC_IS_CYCLIC = 24,
 };
 

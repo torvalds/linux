@@ -508,7 +508,8 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 			if (pending & (AT_DMA_BTC(i) | AT_DMA_ERR(i))) {
 				if (pending & AT_DMA_ERR(i)) {
 					/* Disable channel on AHB error */
-					dma_writel(atdma, CHDR, atchan->mask);
+					dma_writel(atdma, CHDR,
+						AT_DMA_RES(i) | atchan->mask);
 					/* Give information to tasklet */
 					set_bit(ATC_IS_ERROR, &atchan->status);
 				}
@@ -952,39 +953,78 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
-	struct at_desc		*desc, *_desc;
+	int			chan_id = atchan->chan_common.chan_id;
+
 	LIST_HEAD(list);
 
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
+	dev_vdbg(chan2dev(chan), "atc_control (%d)\n", cmd);
+
+	if (cmd == DMA_PAUSE) {
+		int pause_timeout = 1000;
+
+		spin_lock_bh(&atchan->lock);
+
+		dma_writel(atdma, CHER, AT_DMA_SUSP(chan_id));
+
+		/* wait for FIFO to be empty */
+		while (!(dma_readl(atdma, CHSR) & AT_DMA_EMPT(chan_id))) {
+			if (pause_timeout-- > 0) {
+				/* the FIFO can only drain if the peripheral
+				 * is still requesting data:
+				 * -> timeout if it is not the case. */
+				dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
+				spin_unlock_bh(&atchan->lock);
+				return -ETIMEDOUT;
+			}
+			cpu_relax();
+		}
+
+		set_bit(ATC_IS_PAUSED, &atchan->status);
+
+		spin_unlock_bh(&atchan->lock);
+	} else if (cmd == DMA_RESUME) {
+		if (!test_bit(ATC_IS_PAUSED, &atchan->status))
+			return 0;
+
+		spin_lock_bh(&atchan->lock);
+
+		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
+		clear_bit(ATC_IS_PAUSED, &atchan->status);
+
+		spin_unlock_bh(&atchan->lock);
+	} else if (cmd == DMA_TERMINATE_ALL) {
+		struct at_desc	*desc, *_desc;
+		/*
+		 * This is only called when something went wrong elsewhere, so
+		 * we don't really care about the data. Just disable the
+		 * channel. We still have to poll the channel enable bit due
+		 * to AHB/HSB limitations.
+		 */
+		spin_lock_bh(&atchan->lock);
+
+		/* disabling channel: must also remove suspend state */
+		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id) | atchan->mask);
+
+		/* confirm that this channel is disabled */
+		while (dma_readl(atdma, CHSR) & atchan->mask)
+			cpu_relax();
+
+		/* active_list entries will end up before queued entries */
+		list_splice_init(&atchan->queue, &list);
+		list_splice_init(&atchan->active_list, &list);
+
+		/* Flush all pending and queued descriptors */
+		list_for_each_entry_safe(desc, _desc, &list, desc_node)
+			atc_chain_complete(atchan, desc);
+
+		clear_bit(ATC_IS_PAUSED, &atchan->status);
+		/* if channel dedicated to cyclic operations, free it */
+		clear_bit(ATC_IS_CYCLIC, &atchan->status);
+
+		spin_unlock_bh(&atchan->lock);
+	} else {
 		return -ENXIO;
-
-	/*
-	 * This is only called when something went wrong elsewhere, so
-	 * we don't really care about the data. Just disable the
-	 * channel. We still have to poll the channel enable bit due
-	 * to AHB/HSB limitations.
-	 */
-	spin_lock_bh(&atchan->lock);
-
-	dma_writel(atdma, CHDR, atchan->mask);
-
-	/* confirm that this channel is disabled */
-	while (dma_readl(atdma, CHSR) & atchan->mask)
-		cpu_relax();
-
-	/* active_list entries will end up before queued entries */
-	list_splice_init(&atchan->queue, &list);
-	list_splice_init(&atchan->active_list, &list);
-
-	/* Flush all pending and queued descriptors */
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
-		atc_chain_complete(atchan, desc);
-
-	/* if channel dedicated to cyclic operations, free it */
-	clear_bit(ATC_IS_CYCLIC, &atchan->status);
-
-	spin_unlock_bh(&atchan->lock);
+	}
 
 	return 0;
 }
@@ -1032,8 +1072,11 @@ atc_tx_status(struct dma_chan *chan,
 	else
 		dma_set_tx_state(txstate, last_complete, last_used, 0);
 
-	dev_vdbg(chan2dev(chan), "tx_status: %d (d%d, u%d)\n",
-		 cookie, last_complete ? last_complete : 0,
+	if (test_bit(ATC_IS_PAUSED, &atchan->status))
+		ret = DMA_PAUSED;
+
+	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d (d%d, u%d)\n",
+		 ret, cookie, last_complete ? last_complete : 0,
 		 last_used ? last_used : 0);
 
 	return ret;
