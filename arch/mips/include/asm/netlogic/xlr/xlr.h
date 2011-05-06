@@ -41,6 +41,7 @@ unsigned int nlm_xlr_uart_in(struct uart_port *, int);
 void nlm_xlr_uart_out(struct uart_port *, int, int);
 
 /* SMP support functions */
+struct irq_desc;
 void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc);
 void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc);
 int nlm_wakeup_secondary_cpus(u32 wakeup_mask);
@@ -50,5 +51,25 @@ void prom_pre_boot_secondary_cpus(void);
 
 extern struct plat_smp_ops nlm_smp_ops;
 extern unsigned long nlm_common_ebase;
+
+/* XLS B silicon "Rook" */
+static inline unsigned int nlm_chip_is_xls_b(void)
+{
+	uint32_t prid = read_c0_prid();
+
+	return ((prid & 0xf000) == 0x4000);
+}
+
+/*
+ *  XLR chip types
+ */
+ /* The XLS product line has chip versions 0x[48c]? */
+static inline unsigned int nlm_chip_is_xls(void)
+{
+	uint32_t prid = read_c0_prid();
+
+	return ((prid & 0xf000) == 0x8000 || (prid & 0xf000) == 0x4000 ||
+		(prid & 0xf000) == 0xc000);
+}
 
 #endif /* _ASM_NLM_XLR_H */

@@ -83,14 +83,71 @@ static void xlr_pic_mask(struct irq_data *d)
 	spin_unlock_irqrestore(&nlm_pic_lock, flags);
 }
 
+#ifdef CONFIG_PCI
+/* Extra ACK needed for XLR on chip PCI controller */
+static void xlr_pci_ack(struct irq_data *d)
+{
+	nlm_reg_t *pci_mmio = netlogic_io_mmio(NETLOGIC_IO_PCIX_OFFSET);
+
+	netlogic_read_reg(pci_mmio, (0x140 >> 2));
+}
+
+/* Extra ACK needed for XLS on chip PCIe controller */
+static void xls_pcie_ack(struct irq_data *d)
+{
+	nlm_reg_t *pcie_mmio_le = netlogic_io_mmio(NETLOGIC_IO_PCIE_1_OFFSET);
+
+	switch (d->irq) {
+	case PIC_PCIE_LINK0_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x90 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK1_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x94 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK2_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x190 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK3_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x194 >> 2), 0xffffffff);
+		break;
+	}
+}
+
+/* For XLS B silicon, the 3,4 PCI interrupts are different */
+static void xls_pcie_ack_b(struct irq_data *d)
+{
+	nlm_reg_t *pcie_mmio_le = netlogic_io_mmio(NETLOGIC_IO_PCIE_1_OFFSET);
+
+	switch (d->irq) {
+	case PIC_PCIE_LINK0_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x90 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK1_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x94 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_XLSB0_LINK2_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x190 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_XLSB0_LINK3_IRQ:
+		netlogic_write_reg(pcie_mmio_le, (0x194 >> 2), 0xffffffff);
+		break;
+	}
+}
+#endif
+
 static void xlr_pic_ack(struct irq_data *d)
 {
 	unsigned long flags;
 	nlm_reg_t *mmio;
 	int irq = d->irq;
+	void *hd = irq_data_get_irq_handler_data(d);
 
 	WARN(!PIC_IRQ_IS_IRT(irq), "Bad irq %d", irq);
 
+	if (hd) {
+		void (*extra_ack)(void *) = hd;
+		extra_ack(d);
+	}
 	mmio = netlogic_io_mmio(NETLOGIC_IO_PIC_OFFSET);
 	spin_lock_irqsave(&nlm_pic_lock, flags);
 	netlogic_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
@@ -162,6 +219,33 @@ void __init init_xlr_irqs(void)
 	nlm_irq_mask |=
 	    ((1ULL << IRQ_IPI_SMP_FUNCTION) | (1ULL << IRQ_IPI_SMP_RESCHEDULE));
 #endif
+
+#ifdef CONFIG_PCI
+	/*
+	 * For PCI interrupts, we need to ack the PIC controller too, overload
+	 * irq handler data to do this
+	 */
+	if (nlm_chip_is_xls()) {
+		if (nlm_chip_is_xls_b()) {
+			irq_set_handler_data(PIC_PCIE_LINK0_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_LINK1_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_XLSB0_LINK2_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_XLSB0_LINK3_IRQ,
+							xls_pcie_ack_b);
+		} else {
+			irq_set_handler_data(PIC_PCIE_LINK0_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK1_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK2_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK3_IRQ, xls_pcie_ack);
+		}
+	} else {
+		/* XLR PCI controller ACK */
+		irq_set_handler_data(PIC_PCIE_XLSB0_LINK3_IRQ, xlr_pci_ack);
+	}
+#endif
 	/* unmask all PIC related interrupts. If no handler is installed by the
 	 * drivers, it'll just ack the interrupt and return
 	 */
@@ -199,7 +283,7 @@ asmlinkage void plat_irq_dispatch(void)
 		return;
 	}
 
-	/* TODO use dcltz: optimize below code */
+	/* use dcltz: optimize below code */
 	for (i = 63; i != -1; i--) {
 		if (eirr & (1ULL << i))
 			break;
