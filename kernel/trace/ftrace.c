@@ -189,8 +189,14 @@ static void update_ftrace_function(void)
 
 	update_global_ops();
 
+	/*
+	 * If we are at the end of the list and this ops is
+	 * not dynamic, then have the mcount trampoline call
+	 * the function directly
+	 */
 	if (ftrace_ops_list == &ftrace_list_end ||
-	    ftrace_ops_list->next == &ftrace_list_end)
+	    (ftrace_ops_list->next == &ftrace_list_end &&
+	     !(ftrace_ops_list->flags & FTRACE_OPS_FL_DYNAMIC)))
 		func = ftrace_ops_list->func;
 	else
 		func = ftrace_ops_list_func;
@@ -250,6 +256,9 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	if (WARN_ON(ops->flags & FTRACE_OPS_FL_ENABLED))
 		return -EBUSY;
 
+	if (!core_kernel_data((unsigned long)ops))
+		ops->flags |= FTRACE_OPS_FL_DYNAMIC;
+
 	if (ops->flags & FTRACE_OPS_FL_GLOBAL) {
 		int first = ftrace_global_list == &ftrace_list_end;
 		add_ftrace_ops(&ftrace_global_list, ops);
@@ -292,6 +301,13 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 
 	if (ftrace_enabled)
 		update_ftrace_function();
+
+	/*
+	 * Dynamic ops may be freed, we must make sure that all
+	 * callers are done before leaving this function.
+	 */
+	if (ops->flags & FTRACE_OPS_FL_DYNAMIC)
+		synchronize_sched();
 
 	return 0;
 }
@@ -1225,6 +1241,9 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
  * the filter_hash does not exist or is empty,
  *  AND
  * the ip is not in the ops->notrace_hash.
+ *
+ * This needs to be called with preemption disabled as
+ * the hashes are freed with call_rcu_sched().
  */
 static int
 ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
@@ -1232,9 +1251,6 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 	struct ftrace_hash *filter_hash;
 	struct ftrace_hash *notrace_hash;
 	int ret;
-
-	/* The hashes are freed with call_rcu_sched() */
-	preempt_disable_notrace();
 
 	filter_hash = rcu_dereference_raw(ops->filter_hash);
 	notrace_hash = rcu_dereference_raw(ops->notrace_hash);
@@ -1246,7 +1262,6 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 		ret = 1;
 	else
 		ret = 0;
-	preempt_enable_notrace();
 
 	return ret;
 }
@@ -3425,14 +3440,20 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 static void
 ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip)
 {
-	/* see comment above ftrace_global_list_func */
-	struct ftrace_ops *op = rcu_dereference_raw(ftrace_ops_list);
+	struct ftrace_ops *op;
 
+	/*
+	 * Some of the ops may be dynamically allocated,
+	 * they must be freed after a synchronize_sched().
+	 */
+	preempt_disable_notrace();
+	op = rcu_dereference_raw(ftrace_ops_list);
 	while (op != &ftrace_list_end) {
 		if (ftrace_ops_test(op, ip))
 			op->func(ip, parent_ip);
 		op = rcu_dereference_raw(op->next);
 	};
+	preempt_enable_notrace();
 }
 
 static void clear_ftrace_swapper(void)
@@ -3743,6 +3764,7 @@ int register_ftrace_function(struct ftrace_ops *ops)
 	mutex_unlock(&ftrace_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_ftrace_function);
 
 /**
  * unregister_ftrace_function - unregister a function for profiling.
@@ -3762,6 +3784,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(unregister_ftrace_function);
 
 int
 ftrace_enable_sysctl(struct ctl_table *table, int write,

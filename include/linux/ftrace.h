@@ -34,6 +34,7 @@ struct ftrace_hash;
 enum {
 	FTRACE_OPS_FL_ENABLED		= 1 << 0,
 	FTRACE_OPS_FL_GLOBAL		= 1 << 1,
+	FTRACE_OPS_FL_DYNAMIC		= 1 << 2,
 };
 
 struct ftrace_ops {

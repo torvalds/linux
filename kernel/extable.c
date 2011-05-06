@@ -72,6 +72,14 @@ int core_kernel_text(unsigned long addr)
 	return 0;
 }
 
+int core_kernel_data(unsigned long addr)
+{
+	if (addr >= (unsigned long)_sdata &&
+	    addr < (unsigned long)_edata)
+		return 1;
+	return 0;
+}
+
 int __kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
