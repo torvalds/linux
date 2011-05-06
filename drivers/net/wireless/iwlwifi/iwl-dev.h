@@ -1194,6 +1194,8 @@ struct iwl_priv {
 
 	enum ieee80211_band band;
 
+	void (*pre_rx_handler)(struct iwl_priv *priv,
+			       struct iwl_rx_mem_buffer *rxb);
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb);
 

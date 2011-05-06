@@ -344,5 +344,22 @@ iwlagn_wait_notification(struct iwl_priv *priv,
 void __releases(wait_entry)
 iwlagn_remove_notification(struct iwl_priv *priv,
 			   struct iwl_notification_wait *wait_entry);
+extern int iwlagn_init_alive_start(struct iwl_priv *priv);
+extern int iwl_alive_start(struct iwl_priv *priv);
+/* svtool */
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+extern int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
+extern void iwl_testmode_init(struct iwl_priv *priv);
+#else
+static inline
+int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+{
+	return -ENOSYS;
+}
+static inline
+void iwl_testmode_init(struct iwl_priv *priv)
+{
+}
+#endif
 
 #endif /* __iwl_agn_h__ */

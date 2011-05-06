@@ -776,6 +776,8 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 			wake_up_all(&priv->_agn.notif_waitq);
 		}
+		if (priv->pre_rx_handler)
+			priv->pre_rx_handler(priv, rxb);
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -2211,7 +2213,7 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by iwl_init_alive_start()).
  */
-static int iwl_alive_start(struct iwl_priv *priv)
+int iwl_alive_start(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
@@ -3507,6 +3509,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
 	.offchannel_tx = iwl_mac_offchannel_tx,
 	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
+	CFG80211_TESTMODE_CMD(iwl_testmode_cmd)
 };
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)
@@ -3816,6 +3819,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
+	iwl_testmode_init(priv);
 
 	/*********************************************
 	 * 8. Enable interrupts and read RFKILL state
