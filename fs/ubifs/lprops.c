@@ -1108,6 +1108,10 @@ static int scan_check_cb(struct ubifs_info *c,
 	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
 		ret = PTR_ERR(sleb);
+		if (ret == -EUCLEAN) {
+			dbg_dump_lprops(c);
+			dbg_dump_budg(c, &c->bi);
+		}
 		goto out;
 	}
 
