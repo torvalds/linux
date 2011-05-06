@@ -74,7 +74,8 @@ Running Lguest:
 
 - Run an lguest as root:
 
-      Documentation/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 --block=rootfile root=/dev/vda
+      Documentation/virtual/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 \
+        --block=rootfile root=/dev/vda
 
    Explanation:
     64: the amount of memory to use, in MB.
