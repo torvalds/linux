@@ -387,7 +387,7 @@ xfs_ail_worker(
 	 * lots of contention on the AIL lists.
 	 */
 	lsn = lip->li_lsn;
-	while ((XFS_LSN_CMP(lip->li_lsn, target) < 0)) {
+	while ((XFS_LSN_CMP(lip->li_lsn, target) <= 0)) {
 		int	lock_result;
 		/*
 		 * If we can lock the item without sleeping, unlock the AIL
