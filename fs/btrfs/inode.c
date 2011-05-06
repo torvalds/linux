@@ -37,6 +37,7 @@
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -2004,12 +2005,10 @@ good:
 	return 0;
 
 zeroit:
-	if (printk_ratelimit()) {
-		printk(KERN_INFO "btrfs csum failed ino %lu off %llu csum %u "
+	printk_ratelimited(KERN_INFO "btrfs csum failed ino %lu off %llu csum %u "
 		       "private %llu\n", page->mapping->host->i_ino,
 		       (unsigned long long)start, csum,
 		       (unsigned long long)private);
-	}
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
@@ -4243,22 +4242,18 @@ void btrfs_dirty_inode(struct inode *inode)
 		btrfs_end_transaction(trans, root);
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
-			if (printk_ratelimit()) {
-				printk(KERN_ERR "btrfs: fail to "
+			printk_ratelimited(KERN_ERR "btrfs: fail to "
 				       "dirty  inode %lu error %ld\n",
 				       inode->i_ino, PTR_ERR(trans));
-			}
 			return;
 		}
 		btrfs_set_trans_block_group(trans, inode);
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
-			if (printk_ratelimit()) {
-				printk(KERN_ERR "btrfs: fail to "
+			printk_ratelimited(KERN_ERR "btrfs: fail to "
 				       "dirty  inode %lu error %d\n",
 				       inode->i_ino, ret);
-			}
 		}
 	}
 	btrfs_end_transaction(trans, root);
