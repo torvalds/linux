@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/completion.h>
+#include <linux/wakelock.h>
 
 
 #ifdef CONFIG_HDMI_DEBUG
@@ -67,6 +68,8 @@ struct hdmi {
 	u8 resolution;
 	u8 audio_fs;
 
+	int hdmi_stay_awake;
+
 	struct device *dev;
 	struct delayed_work changed_work;
 	struct completion	complete;
@@ -74,6 +77,7 @@ struct hdmi {
 
 	unsigned long		priv[0] ____cacheline_aligned;
 };
+extern int hdmi_is_insert(void);
 extern void *hdmi_priv(struct hdmi *hdmi);
 extern struct hdmi *hdmi_register(int extra, struct device *parent);
 extern void hdmi_unregister(struct hdmi *hdmi);
@@ -90,5 +94,6 @@ extern int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int vi
 extern struct hdmi *get_hdmi_struct(int nr);
 
 extern int hdmi_get_default_resolution(void *screen);
+extern void hdmi_set_spk(int on);
 
 #endif

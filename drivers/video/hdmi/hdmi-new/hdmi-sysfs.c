@@ -10,20 +10,20 @@ static ssize_t hdmi_show_state_attrs(struct device *dev,
 	struct hdmi *hdmi = dev_get_drvdata(dev);
 
 	return sprintf(buf, "display_on=%d\n"
-						//"plug=%d\n"
+						"plug=%d\n"
+						"auto_switch=%d\n"
+						"hdcp_on=%d\n"
+						"audio_fs=%d\n"
+						"resolution=%d\n"
 						"--------------------------\n"
 						"resolution support:\n"
 						"0 -- 1280x720p_50Hz\n"
 						"1 -- 1280x720p_60Hz\n"
 						"2 -- 720x576p_50Hz\n"
 						"3 -- 1920x1080p_50Hz\n"
-						"--------------------------\n"
-						//"auto_switch=%d\n"
-						"hdcp_on=%d\n"
-						"audio_fs=%d\n"
-						"resolution=%d\n", 
-						hdmi->display_on,/*hdmi->plug,*/
-						/*hdmi->auto_switch,*/ hdmi->hdcp_on,
+						"--------------------------\n", 
+						hdmi->display_on,hdmi->ops->hdmi_precent(hdmi),
+						hdmi->auto_switch, hdmi->hdcp_on,
 						hdmi->audio_fs, hdmi->resolution);
 }
 static ssize_t hdmi_restore_state_attrs(struct device *dev, 

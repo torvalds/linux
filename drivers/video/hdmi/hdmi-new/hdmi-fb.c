@@ -257,8 +257,8 @@ int hdmi_switch_fb(struct hdmi *hdmi, int type)
 int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
 {
 	int ret = 0;
-	if(hdmi->display_on == 0|| hdmi->plug == 0)
-		return ret;
+	if(!hdmi->display_on || !hdmi->ops->hdmi_precent(hdmi) || !hdmi->auto_switch)
+		return 0;
 	if(xres > 1280 && hdmi->resolution != HDMI_1920x1080p_50Hz) 
 	{
 		hdmi->resolution = HDMI_1920x1080p_50Hz;

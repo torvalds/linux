@@ -37,7 +37,8 @@ int anx7150_i2c_write_p1_reg(struct i2c_client *client, char reg, char *val)
 static int anx7150_param_chg(struct anx7150_pdata *anx)
 {
 	int resolution_real;
-	
+
+	hdmi_set_spk(anx->hdmi->display_on);
 	hdmi_switch_fb(anx->hdmi, anx->hdmi->display_on);
 	resolution_real = ANX7150_Get_Optimal_resolution(anx->hdmi->resolution);
 	HDMI_Set_Video_Format(resolution_real);
@@ -60,23 +61,22 @@ static int anx7150_insert(struct hdmi *hdmi)
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
 
 	anx7150_plug(anx->client);
-	if(anx->is_changed) {
-		if(ANX7150_Parse_EDID(anx->client,&anx->dev) < 0)
-		{
-			dev_info(&anx->client->dev, "parse EDID error\n");
-			anx7150_unplug(anx->client);
-			return -1;
-		}
-		while(--tmo && ANX7150_GET_SENSE_STATE(anx->client) != 1)
-			mdelay(10);
-		if(tmo <= 0)
-		{
-			anx7150_unplug(anx->client);
-			return -1;
-		}
-		anx->is_changed = 0;
+	if(ANX7150_Parse_EDID(anx->client,&anx->dev) < 0)
+	{
+		dev_info(&anx->client->dev, "parse EDID error\n");
+		anx7150_unplug(anx->client);
+		return -1;
 	}
-	
+		
+	while(--tmo && ANX7150_GET_SENSE_STATE(anx->client) != 1)
+		mdelay(10);
+	if(tmo <= 0)
+	{
+		anx7150_unplug(anx->client);
+		return -1;
+	}
+	if(!hdmi->display_on)
+		return 0;
 	anx7150_param_chg(anx);
 	return 0;
 }
@@ -85,6 +85,7 @@ static int anx7150_remove(struct hdmi *hdmi)
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
 
 	anx7150_unplug(anx->client);
+	hdmi_set_spk(HDMI_DISABLE);
 	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 
 	return 0;
@@ -166,7 +167,8 @@ static void anx7150_early_suspend(struct early_suspend *h)
 	dev_info(&anx->client->dev, "anx7150 enter early suspend\n");
 	anx->is_early_suspend = 1;
 	flush_delayed_work(&anx->work);
-	hdmi_suspend(anx->hdmi);
+	if(anx->hdmi->display_on)
+		hdmi_suspend(anx->hdmi);
 
 	return;
 }
@@ -179,7 +181,8 @@ static void anx7150_early_resume(struct early_suspend *h)
 							early_suspend);
 	dev_info(&anx->client->dev, "anx7150 exit early suspend\n");
 	anx->is_early_suspend = 0;
-	ret = hdmi_resume(anx->hdmi);
+	if(anx->hdmi->display_on)
+		ret = hdmi_resume(anx->hdmi);
 	return;
 
 }

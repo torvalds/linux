@@ -133,6 +133,15 @@ struct hdmi *get_hdmi_struct(int nr)
 	else
 		return ref_info[nr].hdmi;
 }
+int hdmi_is_insert(void)
+{
+	struct hdmi *hdmi = get_hdmi_struct(0);
+
+	if(hdmi && hdmi->ops && hdmi->ops->hdmi_precent)
+		return hdmi->ops->hdmi_precent(hdmi);
+	else
+		return 0;
+}
 static int __init hdmi_class_init(void)
 {
 	int i;

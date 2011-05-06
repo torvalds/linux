@@ -160,6 +160,7 @@ static int wm8900_current_status = WM8900_IS_SHUTDOWN;
 
 struct snd_soc_codec_device soc_codec_dev_wm8900;
 static struct snd_soc_codec *wm8900_codec;
+static bool isSPKon = true;
 
 struct wm8900_priv {
 	struct snd_soc_codec codec;
@@ -226,6 +227,22 @@ static void wm8900_reset(struct snd_soc_codec *codec)
 	memcpy(codec->reg_cache, wm8900_reg_defaults,
 	       sizeof(codec->reg_cache));
 }
+
+void wm8990_set_spk(bool on)
+{
+	isSPKon = on;
+	if (on) {
+#ifdef SPK_CON
+		gpio_set_value(SPK_CON, GPIO_HIGH);
+#endif
+	} else {
+#ifdef SPK_CON
+		gpio_set_value(SPK_CON, GPIO_LOW);
+#endif
+	}
+}
+
+EXPORT_SYMBOL_GPL(wm8990_set_spk);
 
 static void wm8900_powerdown(void)
 {
@@ -310,7 +327,9 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	msleep(20);
 
 #ifdef SPK_CON
-	gpio_set_value(SPK_CON, GPIO_HIGH);
+	if (isSPKon) {
+		gpio_set_value(SPK_CON, GPIO_HIGH);
+	}
 #endif
 
 	wm8900_current_status |= WM8900_IS_STARTUP;

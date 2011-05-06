@@ -461,7 +461,7 @@ static int anx7150_hardware_initial(struct i2c_client *client)
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_SYS_CTRL1_REG, &c);//power down HDCP, 090630
 
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_SYS_CTRL3_REG, &c);//jack wen, for spdif input from SD0.
-	c &= (0xef);
+	c &= (0xfe);
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_SYS_CTRL3_REG, &c);//power down all, 090630
 
 	return rc;
