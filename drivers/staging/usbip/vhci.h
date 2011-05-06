@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/hcd.h>
 
-
 struct vhci_device {
 	struct usb_device *udev;
 
@@ -33,11 +32,10 @@ struct vhci_device {
 	/* speed of a remote device */
 	enum usb_device_speed speed;
 
-	/*  vhci root-hub port to which this device is attached  */
+	/* vhci root-hub port to which this device is attached */
 	__u32 rhport;
 
 	struct usbip_device ud;
-
 
 	/* lock for the below link lists */
 	spinlock_t priv_lock;
@@ -54,7 +52,6 @@ struct vhci_device {
 	wait_queue_head_t waitq_tx;
 };
 
-
 /* urb->hcpriv, use container_of() */
 struct vhci_priv {
 	unsigned long seqnum;
@@ -63,7 +60,6 @@ struct vhci_priv {
 	struct vhci_device *vdev;
 	struct urb *urb;
 };
-
 
 struct vhci_unlink {
 	/* seqnum of this request */
@@ -85,12 +81,12 @@ struct vhci_unlink {
 
 /* for usb_bus.hcpriv */
 struct vhci_hcd {
-	spinlock_t	lock;
+	spinlock_t lock;
 
-	u32	port_status[VHCI_NPORTS];
+	u32 port_status[VHCI_NPORTS];
 
-	unsigned	resuming:1;
-	unsigned long	re_timeout;
+	unsigned resuming:1;
+	unsigned long re_timeout;
 
 	atomic_t seqnum;
 
@@ -102,10 +98,8 @@ struct vhci_hcd {
 	struct vhci_device vdev[VHCI_NPORTS];
 };
 
-
 extern struct vhci_hcd *the_controller;
 extern struct attribute_group dev_attr_group;
-
 
 /*-------------------------------------------------------------------------*/
 /* prototype declaration */
@@ -116,10 +110,9 @@ void rh_port_disconnect(int rhport);
 int vhci_rx_loop(void *data);
 int vhci_tx_loop(void *data);
 
-struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev,
-					    __u32 seqnum);
+struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum);
 
-#define hardware		(&the_controller->pdev.dev)
+#define hardware (&the_controller->pdev.dev)
 
 static inline struct vhci_device *port_to_vdev(__u32 port)
 {
