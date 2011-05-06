@@ -238,8 +238,8 @@ static void task_clear_group_stop_trapping(struct task_struct *task)
 {
 	if (unlikely(task->group_stop & GROUP_STOP_TRAPPING)) {
 		task->group_stop &= ~GROUP_STOP_TRAPPING;
-		__wake_up_sync(&task->parent->signal->wait_chldexit,
-			       TASK_UNINTERRUPTIBLE, 1);
+		__wake_up_sync_key(&task->parent->signal->wait_chldexit,
+				   TASK_UNINTERRUPTIBLE, 1, task);
 	}
 }
 
