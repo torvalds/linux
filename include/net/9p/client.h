@@ -36,9 +36,9 @@
  */
 
 enum p9_proto_versions{
-	p9_proto_legacy = 0,
-	p9_proto_2000u = 1,
-	p9_proto_2000L = 2,
+	p9_proto_legacy,
+	p9_proto_2000u,
+	p9_proto_2000L,
 };
 
 
