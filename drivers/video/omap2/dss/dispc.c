@@ -112,20 +112,20 @@ static struct {
 
 static void _omap_dispc_set_irqs(void);
 
-static inline void dispc_write_reg(const struct dispc_reg idx, u32 val)
+static inline void dispc_write_reg(const u16 idx, u32 val)
 {
-	__raw_writel(val, dispc.base + idx.idx);
+	__raw_writel(val, dispc.base + idx);
 }
 
-static inline u32 dispc_read_reg(const struct dispc_reg idx)
+static inline u32 dispc_read_reg(const u16 idx)
 {
-	return __raw_readl(dispc.base + idx.idx);
+	return __raw_readl(dispc.base + idx);
 }
 
 #define SR(reg) \
-	dispc.ctx[(DISPC_##reg).idx / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
+	dispc.ctx[DISPC_##reg / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
 #define RR(reg) \
-	dispc_write_reg(DISPC_##reg, dispc.ctx[(DISPC_##reg).idx / sizeof(u32)])
+	dispc_write_reg(DISPC_##reg, dispc.ctx[DISPC_##reg / sizeof(u32)])
 
 void dispc_save_context(void)
 {
