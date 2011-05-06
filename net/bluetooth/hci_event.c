@@ -1440,7 +1440,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 
 	conn->state = BT_CLOSED;
 
-	if (conn->type == ACL_LINK)
+	if (conn->type == ACL_LINK || conn->type == LE_LINK)
 		mgmt_disconnected(hdev->id, &conn->dst);
 
 	hci_proto_disconn_cfm(conn, ev->reason);
@@ -2659,11 +2659,14 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	}
 
 	if (ev->status) {
+		mgmt_connect_failed(hdev->id, &ev->bdaddr, ev->status);
 		hci_proto_connect_cfm(conn, ev->status);
 		conn->state = BT_CLOSED;
 		hci_conn_del(conn);
 		goto unlock;
 	}
+
+	mgmt_connected(hdev->id, &ev->bdaddr);
 
 	conn->handle = __le16_to_cpu(ev->handle);
 	conn->state = BT_CONNECTED;
