@@ -626,16 +626,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 		desc->txd.cookie = 0;
 
-		if (!first) {
-			first = desc;
-		} else {
-			/* inform the HW lli about chaining */
-			prev->lli.dscr = desc->txd.phys;
-			/* insert the link descriptor to the LD ring */
-			list_add_tail(&desc->desc_node,
-					&first->tx_list);
-		}
-		prev = desc;
+		atc_desc_chain(&first, &prev, desc);
 	}
 
 	/* First descriptor of the chain embedds additional information */
@@ -726,16 +717,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					| len >> mem_width;
 			desc->lli.ctrlb = ctrlb;
 
-			if (!first) {
-				first = desc;
-			} else {
-				/* inform the HW lli about chaining */
-				prev->lli.dscr = desc->txd.phys;
-				/* insert the link descriptor to the LD ring */
-				list_add_tail(&desc->desc_node,
-						&first->tx_list);
-			}
-			prev = desc;
+			atc_desc_chain(&first, &prev, desc);
 			total_len += len;
 		}
 		break;
@@ -769,16 +751,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					| len >> reg_width;
 			desc->lli.ctrlb = ctrlb;
 
-			if (!first) {
-				first = desc;
-			} else {
-				/* inform the HW lli about chaining */
-				prev->lli.dscr = desc->txd.phys;
-				/* insert the link descriptor to the LD ring */
-				list_add_tail(&desc->desc_node,
-						&first->tx_list);
-			}
-			prev = desc;
+			atc_desc_chain(&first, &prev, desc);
 			total_len += len;
 		}
 		break;
