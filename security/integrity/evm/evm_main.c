@@ -56,13 +56,15 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	struct evm_ima_xattr_data xattr_data;
 	int rc;
 
-	if (iint->hmac_status != INTEGRITY_UNKNOWN)
+	if (iint->hmac_status == INTEGRITY_PASS)
 		return iint->hmac_status;
+
+	/* if status is not PASS, try to check again - against -ENOMEM */
 
 	rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
 			   xattr_value_len, xattr_data.digest);
 	if (rc < 0)
-		return INTEGRITY_UNKNOWN;
+		goto err_out;
 
 	xattr_data.type = EVM_XATTR_HMAC;
 	rc = vfs_xattr_cmp(dentry, XATTR_NAME_EVM, (u8 *)&xattr_data,
@@ -77,11 +79,8 @@ err_out:
 	case -ENODATA:		/* file not labelled */
 		iint->hmac_status = INTEGRITY_NOLABEL;
 		break;
-	case -EINVAL:
-		iint->hmac_status = INTEGRITY_FAIL;
-		break;
 	default:
-		iint->hmac_status = INTEGRITY_UNKNOWN;
+		iint->hmac_status = INTEGRITY_FAIL;
 	}
 	return iint->hmac_status;
 }
