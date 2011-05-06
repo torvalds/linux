@@ -1100,32 +1100,26 @@ static int scan_check_cb(struct ubifs_info *c,
 		goto out;
 	}
 
+	/*
+	 * After an unclean unmount, empty and freeable LEBs
+	 * may contain garbage - do not scan them.
+	 */
+	if (lp->free == c->leb_size) {
+		lst->empty_lebs += 1;
+		lst->total_free += c->leb_size;
+		lst->total_dark += ubifs_calc_dark(c, c->leb_size);
+		return LPT_SCAN_CONTINUE;
+	}
+	if (lp->free + lp->dirty == c->leb_size &&
+	    !(lp->flags & LPROPS_INDEX)) {
+		lst->total_free  += lp->free;
+		lst->total_dirty += lp->dirty;
+		lst->total_dark  +=  ubifs_calc_dark(c, c->leb_size);
+		return LPT_SCAN_CONTINUE;
+	}
+
 	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
-		/*
-		 * After an unclean unmount, empty and freeable LEBs
-		 * may contain garbage.
-		 */
-		if (lp->free == c->leb_size) {
-			ubifs_err("scan errors were in empty LEB "
-				  "- continuing checking");
-			lst->empty_lebs += 1;
-			lst->total_free += c->leb_size;
-			lst->total_dark += ubifs_calc_dark(c, c->leb_size);
-			ret = LPT_SCAN_CONTINUE;
-			goto exit;
-		}
-
-		if (lp->free + lp->dirty == c->leb_size &&
-		    !(lp->flags & LPROPS_INDEX)) {
-			ubifs_err("scan errors were in freeable LEB "
-				  "- continuing checking");
-			lst->total_free  += lp->free;
-			lst->total_dirty += lp->dirty;
-			lst->total_dark  +=  ubifs_calc_dark(c, c->leb_size);
-			ret = LPT_SCAN_CONTINUE;
-			goto exit;
-		}
 		data->err = PTR_ERR(sleb);
 		ret = LPT_SCAN_STOP;
 		goto exit;
