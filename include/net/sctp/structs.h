@@ -894,6 +894,7 @@ struct sctp_transport {
 		/* Is this structure kfree()able? */
 		malloced:1;
 
+	struct flowi fl;
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;

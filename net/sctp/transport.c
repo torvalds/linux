@@ -213,13 +213,11 @@ void sctp_transport_set_owner(struct sctp_transport *transport,
 /* Initialize the pmtu of a transport. */
 void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 {
-	struct flowi fl;
-
 	/* If we don't have a fresh route, look one up */
 	if (!transport->dst || transport->dst->obsolete > 1) {
 		dst_release(transport->dst);
 		transport->af_specific->get_dst(transport, &transport->saddr,
-					      &fl, sk);
+						&transport->fl, sk);
 	}
 
 	if (transport->dst) {
@@ -274,14 +272,13 @@ void sctp_transport_route(struct sctp_transport *transport,
 {
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
-	struct flowi fl;
 
-	af->get_dst(transport, saddr, &fl, sctp_opt2sk(opt));
+	af->get_dst(transport, saddr, &transport->fl, sctp_opt2sk(opt));
 
 	if (saddr)
 		memcpy(&transport->saddr, saddr, sizeof(union sctp_addr));
 	else
-		af->get_saddr(opt, transport, &fl);
+		af->get_saddr(opt, transport, &transport->fl);
 
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
 		return;
