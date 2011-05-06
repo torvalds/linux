@@ -1044,7 +1044,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		if (cat != (lp->flags & LPROPS_CAT_MASK)) {
 			ubifs_err("bad LEB category %d expected %d",
 				  (lp->flags & LPROPS_CAT_MASK), cat);
-			goto out;
+			return -EINVAL;
 		}
 	}
 
@@ -1078,7 +1078,7 @@ static int scan_check_cb(struct ubifs_info *c,
 			}
 			if (!found) {
 				ubifs_err("bad LPT list (category %d)", cat);
-				goto out;
+				return -EINVAL;
 			}
 		}
 	}
@@ -1090,15 +1090,13 @@ static int scan_check_cb(struct ubifs_info *c,
 		if ((lp->hpos != -1 && heap->arr[lp->hpos]->lnum != lnum) ||
 		    lp != heap->arr[lp->hpos]) {
 			ubifs_err("bad LPT heap (category %d)", cat);
-			goto out;
+			return -EINVAL;
 		}
 	}
 
 	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
-	if (!buf) {
-		ubifs_err("cannot allocate memory to scan LEB %d", lnum);
-		goto out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	/*
 	 * After an unclean unmount, empty and freeable LEBs
@@ -1120,9 +1118,8 @@ static int scan_check_cb(struct ubifs_info *c,
 
 	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
-		data->err = PTR_ERR(sleb);
-		ret = LPT_SCAN_STOP;
-		goto exit;
+		ret = PTR_ERR(sleb);
+		goto out;
 	}
 
 	is_idx = -1;
@@ -1240,10 +1237,8 @@ static int scan_check_cb(struct ubifs_info *c,
 	}
 
 	ubifs_scan_destroy(sleb);
-	ret = LPT_SCAN_CONTINUE;
-exit:
 	vfree(buf);
-	return ret;
+	return LPT_SCAN_CONTINUE;
 
 out_print:
 	ubifs_err("bad accounting of LEB %d: free %d, dirty %d flags %#x, "
@@ -1252,10 +1247,10 @@ out_print:
 	dbg_dump_leb(c, lnum);
 out_destroy:
 	ubifs_scan_destroy(sleb);
+	ret = -EINVAL;
 out:
 	vfree(buf);
-	data->err = -EINVAL;
-	return LPT_SCAN_STOP;
+	return ret;
 }
 
 /**
