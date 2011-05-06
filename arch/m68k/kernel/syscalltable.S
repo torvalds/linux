@@ -322,8 +322,8 @@ ENTRY(sys_call_table)
 	.long sys_readlinkat
 	.long sys_fchmodat
 	.long sys_faccessat		/* 300 */
-	.long sys_ni_syscall		/* Reserved for pselect6 */
-	.long sys_ni_syscall		/* Reserved for ppoll */
+	.long sys_pselect6
+	.long sys_ppoll
 	.long sys_unshare
 	.long sys_set_robust_list
 	.long sys_get_robust_list	/* 305 */
