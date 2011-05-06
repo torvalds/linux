@@ -37,7 +37,7 @@ struct integrity_iint_cache {
 	unsigned char flags;
 	u8 digest[SHA1_DIGEST_SIZE];
 	struct mutex mutex;	/* protects: version, flags, digest */
-	enum integrity_status hmac_status;
+	enum integrity_status evm_status;
 };
 
 /* rbtree tree calls to lookup, insert, delete
