@@ -344,26 +344,26 @@ isci_task_set_completion_status(
 * @status: This parameter is the status code for the completed task.
 *
 */
-static inline void isci_execpath_callback(
-	struct isci_host *ihost,
-	struct sas_task  *task,
-	void (*func)(struct sas_task *))
+static inline void isci_execpath_callback(struct isci_host *ihost,
+					  struct sas_task  *task,
+					  void (*func)(struct sas_task *))
 {
-	unsigned long flags;
+	struct domain_device *dev = task->dev;
 
-	if (dev_is_sata(task->dev) && task->uldd_task) {
+	if (dev_is_sata(dev) && task->uldd_task) {
+		unsigned long flags;
+
 		/* Since we are still in the submit path, and since
-		* libsas takes the host lock on behalf of SATA
-		* devices before I/O starts (in the non-discovery case),
-		* we need to unlock before we can call the callback function.
-		*/
+		 * libsas takes the host lock on behalf of SATA
+		 * devices before I/O starts (in the non-discovery case),
+		 * we need to unlock before we can call the callback function.
+		 */
 		raw_local_irq_save(flags);
-		spin_unlock(ihost->shost->host_lock);
+		spin_unlock(dev->sata_dev.ap->lock);
 		func(task);
-		spin_lock(ihost->shost->host_lock);
+		spin_lock(dev->sata_dev.ap->lock);
 		raw_local_irq_restore(flags);
 	} else
 		func(task);
 }
-
 #endif /* !defined(_SCI_TASK_H_) */
