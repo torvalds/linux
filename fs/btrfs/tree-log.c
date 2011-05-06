@@ -2667,6 +2667,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 			extent = btrfs_item_ptr(src, start_slot + i,
 						struct btrfs_file_extent_item);
 
+			if (btrfs_file_extent_generation(src, extent) < trans->transid)
+				continue;
+
 			found_type = btrfs_file_extent_type(src, extent);
 			if (found_type == BTRFS_FILE_EXTENT_REG ||
 			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
