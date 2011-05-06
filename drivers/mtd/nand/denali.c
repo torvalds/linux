@@ -45,16 +45,16 @@ MODULE_PARM_DESC(onfi_timing_mode, "Overrides default ONFI setting."
 
 /* We define a macro here that combines all interrupts this driver uses into
  * a single constant value, for convenience. */
-#define DENALI_IRQ_ALL	(INTR_STATUS0__DMA_CMD_COMP | \
-			INTR_STATUS0__ECC_TRANSACTION_DONE | \
-			INTR_STATUS0__ECC_ERR | \
-			INTR_STATUS0__PROGRAM_FAIL | \
-			INTR_STATUS0__LOAD_COMP | \
-			INTR_STATUS0__PROGRAM_COMP | \
-			INTR_STATUS0__TIME_OUT | \
-			INTR_STATUS0__ERASE_FAIL | \
-			INTR_STATUS0__RST_COMP | \
-			INTR_STATUS0__ERASE_COMP)
+#define DENALI_IRQ_ALL	(INTR_STATUS__DMA_CMD_COMP | \
+			INTR_STATUS__ECC_TRANSACTION_DONE | \
+			INTR_STATUS__ECC_ERR | \
+			INTR_STATUS__PROGRAM_FAIL | \
+			INTR_STATUS__LOAD_COMP | \
+			INTR_STATUS__PROGRAM_COMP | \
+			INTR_STATUS__TIME_OUT | \
+			INTR_STATUS__ERASE_FAIL | \
+			INTR_STATUS__RST_COMP | \
+			INTR_STATUS__ERASE_COMP)
 
 /* indicates whether or not the internal value for the flash bank is
  * valid or not */
@@ -95,30 +95,6 @@ static const struct pci_device_id denali_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0809), INTEL_MRST },
 	{ /* end: all zeroes */ }
 };
-
-
-/* these are static lookup tables that give us easy access to
- * registers in the NAND controller.
- */
-static const uint32_t intr_status_addresses[4] = {INTR_STATUS0,
-						  INTR_STATUS1,
-						  INTR_STATUS2,
-						  INTR_STATUS3};
-
-static const uint32_t device_reset_banks[4] = {DEVICE_RESET__BANK0,
-							DEVICE_RESET__BANK1,
-							DEVICE_RESET__BANK2,
-							DEVICE_RESET__BANK3};
-
-static const uint32_t operation_timeout[4] = {INTR_STATUS0__TIME_OUT,
-							INTR_STATUS1__TIME_OUT,
-							INTR_STATUS2__TIME_OUT,
-							INTR_STATUS3__TIME_OUT};
-
-static const uint32_t reset_complete[4] = {INTR_STATUS0__RST_COMP,
-							INTR_STATUS1__RST_COMP,
-							INTR_STATUS2__RST_COMP,
-							INTR_STATUS3__RST_COMP};
 
 /* forward declarations */
 static void clear_interrupts(struct denali_nand_info *denali);
@@ -181,18 +157,16 @@ static void read_status(struct denali_nand_info *denali)
 static void reset_bank(struct denali_nand_info *denali)
 {
 	uint32_t irq_status = 0;
-	uint32_t irq_mask = reset_complete[denali->flash_bank] |
-			    operation_timeout[denali->flash_bank];
-	int bank = 0;
+	uint32_t irq_mask = INTR_STATUS__RST_COMP |
+			    INTR_STATUS__TIME_OUT;
 
 	clear_interrupts(denali);
 
-	bank = device_reset_banks[denali->flash_bank];
-	iowrite32(bank, denali->flash_reg + DEVICE_RESET);
+	iowrite32(1 << denali->flash_bank, denali->flash_reg + DEVICE_RESET);
 
 	irq_status = wait_for_irq(denali, irq_mask);
 
-	if (irq_status & operation_timeout[denali->flash_bank])
+	if (irq_status & INTR_STATUS__TIME_OUT)
 		dev_err(denali->dev, "reset bank failed.\n");
 }
 
@@ -205,25 +179,24 @@ static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 		       __FILE__, __LINE__, __func__);
 
 	for (i = 0 ; i < LLD_MAX_FLASH_BANKS; i++)
-		iowrite32(reset_complete[i] | operation_timeout[i],
-		denali->flash_reg + intr_status_addresses[i]);
+		iowrite32(INTR_STATUS__RST_COMP | INTR_STATUS__TIME_OUT,
+		denali->flash_reg + INTR_STATUS(i));
 
 	for (i = 0 ; i < LLD_MAX_FLASH_BANKS; i++) {
-		iowrite32(device_reset_banks[i],
-				denali->flash_reg + DEVICE_RESET);
+		iowrite32(1 << i, denali->flash_reg + DEVICE_RESET);
 		while (!(ioread32(denali->flash_reg +
-				intr_status_addresses[i]) &
-			(reset_complete[i] | operation_timeout[i])))
+				INTR_STATUS(i)) &
+			(INTR_STATUS__RST_COMP | INTR_STATUS__TIME_OUT)))
 			cpu_relax();
-		if (ioread32(denali->flash_reg + intr_status_addresses[i]) &
-			operation_timeout[i])
+		if (ioread32(denali->flash_reg + INTR_STATUS(i)) &
+			INTR_STATUS__TIME_OUT)
 			dev_dbg(denali->dev,
 			"NAND Reset operation timed out on bank %d\n", i);
 	}
 
 	for (i = 0; i < LLD_MAX_FLASH_BANKS; i++)
-		iowrite32(reset_complete[i] | operation_timeout[i],
-			denali->flash_reg + intr_status_addresses[i]);
+		iowrite32(INTR_STATUS__RST_COMP | INTR_STATUS__TIME_OUT,
+			denali->flash_reg + INTR_STATUS(i));
 
 	return PASS;
 }
@@ -481,15 +454,15 @@ static void detect_partition_feature(struct denali_nand_info *denali)
 	 * blocks it can't touch.
 	 * */
 	if (ioread32(denali->flash_reg + FEATURES) & FEATURES__PARTITION) {
-		if ((ioread32(denali->flash_reg + PERM_SRC_ID_1) &
-			PERM_SRC_ID_1__SRCID) == SPECTRA_PARTITION_ID) {
+		if ((ioread32(denali->flash_reg + PERM_SRC_ID(1)) &
+			PERM_SRC_ID__SRCID) == SPECTRA_PARTITION_ID) {
 			denali->fwblks =
-			    ((ioread32(denali->flash_reg + MIN_MAX_BANK_1) &
-			      MIN_MAX_BANK_1__MIN_VALUE) *
+			    ((ioread32(denali->flash_reg + MIN_MAX_BANK(1)) &
+			      MIN_MAX_BANK__MIN_VALUE) *
 			     denali->blksperchip)
 			    +
-			    (ioread32(denali->flash_reg + MIN_BLK_ADDR_1) &
-			    MIN_BLK_ADDR_1__VALUE);
+			    (ioread32(denali->flash_reg + MIN_BLK_ADDR(1)) &
+			    MIN_BLK_ADDR__VALUE);
 		} else
 			denali->fwblks = SPECTRA_START_BLOCK;
 	} else
@@ -581,6 +554,7 @@ static inline bool is_flash_bank_valid(int flash_bank)
 static void denali_irq_init(struct denali_nand_info *denali)
 {
 	uint32_t int_mask = 0;
+	int i;
 
 	/* Disable global interrupts */
 	denali_set_intr_modes(denali, false);
@@ -588,10 +562,8 @@ static void denali_irq_init(struct denali_nand_info *denali)
 	int_mask = DENALI_IRQ_ALL;
 
 	/* Clear all status bits */
-	iowrite32(0xFFFF, denali->flash_reg + INTR_STATUS0);
-	iowrite32(0xFFFF, denali->flash_reg + INTR_STATUS1);
-	iowrite32(0xFFFF, denali->flash_reg + INTR_STATUS2);
-	iowrite32(0xFFFF, denali->flash_reg + INTR_STATUS3);
+	for (i = 0; i < LLD_MAX_FLASH_BANKS; ++i)
+		iowrite32(0xFFFF, denali->flash_reg + INTR_STATUS(i));
 
 	denali_irq_enable(denali, int_mask);
 }
@@ -605,10 +577,10 @@ static void denali_irq_cleanup(int irqnum, struct denali_nand_info *denali)
 static void denali_irq_enable(struct denali_nand_info *denali,
 							uint32_t int_mask)
 {
-	iowrite32(int_mask, denali->flash_reg + INTR_EN0);
-	iowrite32(int_mask, denali->flash_reg + INTR_EN1);
-	iowrite32(int_mask, denali->flash_reg + INTR_EN2);
-	iowrite32(int_mask, denali->flash_reg + INTR_EN3);
+	int i;
+
+	for (i = 0; i < LLD_MAX_FLASH_BANKS; ++i)
+		iowrite32(int_mask, denali->flash_reg + INTR_EN(i));
 }
 
 /* This function only returns when an interrupt that this driver cares about
@@ -625,7 +597,7 @@ static inline void clear_interrupt(struct denali_nand_info *denali,
 {
 	uint32_t intr_status_reg = 0;
 
-	intr_status_reg = intr_status_addresses[denali->flash_bank];
+	intr_status_reg = INTR_STATUS(denali->flash_bank);
 
 	iowrite32(irq_mask, denali->flash_reg + intr_status_reg);
 }
@@ -646,7 +618,7 @@ static uint32_t read_interrupt_status(struct denali_nand_info *denali)
 {
 	uint32_t intr_status_reg = 0;
 
-	intr_status_reg = intr_status_addresses[denali->flash_bank];
+	intr_status_reg = INTR_STATUS(denali->flash_bank);
 
 	return ioread32(denali->flash_reg + intr_status_reg);
 }
@@ -755,7 +727,7 @@ static int denali_send_pipeline_cmd(struct denali_nand_info *denali,
 		 irq_mask = 0;
 
 	if (op == DENALI_READ)
-		irq_mask = INTR_STATUS0__LOAD_COMP;
+		irq_mask = INTR_STATUS__LOAD_COMP;
 	else if (op == DENALI_WRITE)
 		irq_mask = 0;
 	else
@@ -862,8 +834,8 @@ static int write_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	uint32_t irq_status = 0;
-	uint32_t irq_mask = INTR_STATUS0__PROGRAM_COMP |
-						INTR_STATUS0__PROGRAM_FAIL;
+	uint32_t irq_mask = INTR_STATUS__PROGRAM_COMP |
+						INTR_STATUS__PROGRAM_FAIL;
 	int status = 0;
 
 	denali->page = page;
@@ -890,7 +862,7 @@ static int write_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 static void read_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
-	uint32_t irq_mask = INTR_STATUS0__LOAD_COMP,
+	uint32_t irq_mask = INTR_STATUS__LOAD_COMP,
 			 irq_status = 0, addr = 0x0, cmd = 0x0;
 
 	denali->page = page;
@@ -945,7 +917,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 {
 	bool check_erased_page = false;
 
-	if (irq_status & INTR_STATUS0__ECC_ERR) {
+	if (irq_status & INTR_STATUS__ECC_ERR) {
 		/* read the ECC errors. we'll ignore them for now */
 		uint32_t err_address = 0, err_correction_info = 0;
 		uint32_t err_byte = 0, err_sector = 0, err_device = 0;
@@ -996,7 +968,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 		 * for a while for this interrupt
 		 * */
 		while (!(read_interrupt_status(denali) &
-				INTR_STATUS0__ECC_TRANSACTION_DONE))
+				INTR_STATUS__ECC_TRANSACTION_DONE))
 			cpu_relax();
 		clear_interrupts(denali);
 		denali_set_intr_modes(denali, true);
@@ -1051,8 +1023,8 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	size_t size = denali->mtd.writesize + denali->mtd.oobsize;
 
 	uint32_t irq_status = 0;
-	uint32_t irq_mask = INTR_STATUS0__DMA_CMD_COMP |
-						INTR_STATUS0__PROGRAM_FAIL;
+	uint32_t irq_mask = INTR_STATUS__DMA_CMD_COMP |
+						INTR_STATUS__PROGRAM_FAIL;
 
 	/* if it is a raw xfer, we want to disable ecc, and send
 	 * the spare area.
@@ -1086,7 +1058,7 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				"timeout on write_page (type = %d)\n",
 				raw_xfer);
 		denali->status =
-			(irq_status & INTR_STATUS0__PROGRAM_FAIL) ?
+			(irq_status & INTR_STATUS__PROGRAM_FAIL) ?
 			NAND_STATUS_FAIL : PASS;
 	}
 
@@ -1144,8 +1116,8 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	size_t size = denali->mtd.writesize + denali->mtd.oobsize;
 
 	uint32_t irq_status = 0;
-	uint32_t irq_mask = INTR_STATUS0__ECC_TRANSACTION_DONE |
-			    INTR_STATUS0__ECC_ERR;
+	uint32_t irq_mask = INTR_STATUS__ECC_TRANSACTION_DONE |
+			    INTR_STATUS__ECC_ERR;
 	bool check_erased_page = false;
 
 	if (page != denali->page) {
@@ -1196,7 +1168,7 @@ static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	size_t size = denali->mtd.writesize + denali->mtd.oobsize;
 
 	uint32_t irq_status = 0;
-	uint32_t irq_mask = INTR_STATUS0__DMA_CMD_COMP;
+	uint32_t irq_mask = INTR_STATUS__DMA_CMD_COMP;
 
 	if (page != denali->page) {
 		dev_err(denali->dev, "IN %s: page %d is not"
@@ -1269,10 +1241,10 @@ static void denali_erase(struct mtd_info *mtd, int page)
 	index_addr(denali, (uint32_t)cmd, 0x1);
 
 	/* wait for erase to complete or failure to occur */
-	irq_status = wait_for_irq(denali, INTR_STATUS0__ERASE_COMP |
-					INTR_STATUS0__ERASE_FAIL);
+	irq_status = wait_for_irq(denali, INTR_STATUS__ERASE_COMP |
+					INTR_STATUS__ERASE_FAIL);
 
-	denali->status = (irq_status & INTR_STATUS0__ERASE_FAIL) ?
+	denali->status = (irq_status & INTR_STATUS__ERASE_FAIL) ?
 						NAND_STATUS_FAIL : PASS;
 }
 
