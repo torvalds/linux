@@ -410,6 +410,10 @@ config USB_UHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
 
+config USB_UHCI_SUPPORT_NON_PCI_HC
+	bool
+	depends on USB_UHCI_HCD
+
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"
 	depends on USB && OF_GPIO && QE_GPIO && QUICC_ENGINE

@@ -167,6 +167,79 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
 		finish_reset(uhci);
 }
 
+#if defined(CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC)
+/*
+ * The two functions below are generic reset functions that are used on systems
+ * that do not have keyboard and mouse legacy support. We assume that we are
+ * running on such a system if CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC is defined.
+ */
+
+/*
+ * Make sure the controller is completely inactive, unable to
+ * generate interrupts or do DMA.
+ */
+static void uhci_generic_reset_hc(struct uhci_hcd *uhci)
+{
+	/* Reset the HC - this will force us to get a
+	 * new notification of any already connected
+	 * ports due to the virtual disconnect that it
+	 * implies.
+	 */
+	uhci_writew(uhci, USBCMD_HCRESET, USBCMD);
+	mb();
+	udelay(5);
+	if (uhci_readw(uhci, USBCMD) & USBCMD_HCRESET)
+		dev_warn(uhci_dev(uhci), "HCRESET not completed yet!\n");
+
+	/* Just to be safe, disable interrupt requests and
+	 * make sure the controller is stopped.
+	 */
+	uhci_writew(uhci, 0, USBINTR);
+	uhci_writew(uhci, 0, USBCMD);
+}
+
+/*
+ * Initialize a controller that was newly discovered or has just been
+ * resumed.  In either case we can't be sure of its previous state.
+ *
+ * Returns: 1 if the controller was reset, 0 otherwise.
+ */
+static int uhci_generic_check_and_reset_hc(struct uhci_hcd *uhci)
+{
+	unsigned int cmd, intr;
+
+	/*
+	 * When restarting a suspended controller, we expect all the
+	 * settings to be the same as we left them:
+	 *
+	 *	Controller is stopped and configured with EGSM set;
+	 *	No interrupts enabled except possibly Resume Detect.
+	 *
+	 * If any of these conditions are violated we do a complete reset.
+	 */
+
+	cmd = uhci_readw(uhci, USBCMD);
+	if ((cmd & USBCMD_RS) || !(cmd & USBCMD_CF) || !(cmd & USBCMD_EGSM)) {
+		dev_dbg(uhci_dev(uhci), "%s: cmd = 0x%04x\n",
+				__func__, cmd);
+		goto reset_needed;
+	}
+
+	intr = uhci_readw(uhci, USBINTR);
+	if (intr & (~USBINTR_RESUME)) {
+		dev_dbg(uhci_dev(uhci), "%s: intr = 0x%04x\n",
+				__func__, intr);
+		goto reset_needed;
+	}
+	return 0;
+
+reset_needed:
+	dev_dbg(uhci_dev(uhci), "Performing full reset\n");
+	uhci_generic_reset_hc(uhci);
+	return 1;
+}
+#endif /* CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC */
+
 /*
  * Store the basic register settings needed by the controller.
  */
