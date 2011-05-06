@@ -82,7 +82,7 @@ do {													\
 #define TRACE_GOTO(chip, label)	goto label
 #endif
 
-#if CONFIG_RTS_PSTOR_DEBUG
+#ifdef CONFIG_RTS_PSTOR_DEBUG
 static inline void rtsx_dump(u8 *buf, int buf_len)
 {
 	int i;
