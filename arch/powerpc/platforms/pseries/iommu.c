@@ -730,16 +730,20 @@ static u64 dupe_ddw_if_kexec(struct pci_dev *dev, struct device_node *pdn)
 	pcidn = PCI_DN(dn);
 	direct64 = of_get_property(pdn, DIRECT64_PROPNAME, &len);
 	if (direct64) {
-		window = kzalloc(sizeof(*window), GFP_KERNEL);
-		if (!window) {
+		if (len < sizeof(struct dynamic_dma_window_prop)) {
 			remove_ddw(pdn);
 		} else {
-			window->device = pdn;
-			window->prop = direct64;
-			spin_lock(&direct_window_list_lock);
-			list_add(&window->list, &direct_window_list);
-			spin_unlock(&direct_window_list_lock);
-			dma_addr = direct64->dma_base;
+			window = kzalloc(sizeof(*window), GFP_KERNEL);
+			if (!window) {
+				remove_ddw(pdn);
+			} else {
+				window->device = pdn;
+				window->prop = direct64;
+				spin_lock(&direct_window_list_lock);
+				list_add(&window->list, &direct_window_list);
+				spin_unlock(&direct_window_list_lock);
+				dma_addr = direct64->dma_base;
+			}
 		}
 	}
 
@@ -833,7 +837,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	struct device_node *dn;
 	const u32 *uninitialized_var(ddr_avail);
 	struct direct_window *window;
-	struct property *uninitialized_var(win64);
+	struct property *win64;
 	struct dynamic_dma_window_prop *ddwprop;
 
 	mutex_lock(&direct_window_init_mutex);
@@ -907,6 +911,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	}
 	win64->name = kstrdup(DIRECT64_PROPNAME, GFP_KERNEL);
 	win64->value = ddwprop = kmalloc(sizeof(*ddwprop), GFP_KERNEL);
+	win64->length = sizeof(*ddwprop);
 	if (!win64->name || !win64->value) {
 		dev_info(&dev->dev,
 			"couldn't allocate property name and value\n");
