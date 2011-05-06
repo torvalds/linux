@@ -126,8 +126,10 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (ret)
 		goto eirq;
 
-	pr_info("%s at 0x%08lx irq %d\n", mmc_hostname(host->mmc),
-		(unsigned long)host->ctl, irq);
+	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
+		 mmc_hostname(host->mmc), (unsigned long)
+		 (platform_get_resource(pdev,IORESOURCE_MEM, 0)->start),
+		 mmc_data->hclk / 1000000);
 
 	return ret;
 
