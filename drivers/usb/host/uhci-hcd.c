@@ -546,6 +546,17 @@ static int uhci_init(struct usb_hcd *hcd)
 	}
 	uhci->rh_numports = port;
 
+	/* Intel controllers report the OverCurrent bit active on.
+	 * VIA controllers report it active off, so we'll adjust the
+	 * bit value.  (It's not standardized in the UHCI spec.)
+	 */
+	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_VIA)
+		uhci->oc_low = 1;
+
+	/* HP's server management chip requires a longer port reset delay. */
+	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_HP)
+		uhci->wait_for_hp = 1;
+
 	/* Kick BIOS off this hardware and reset if the controller
 	 * isn't already safely quiescent.
 	 */

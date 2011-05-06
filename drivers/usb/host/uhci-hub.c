@@ -149,8 +149,7 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 
 				/* HP's server management chip requires
 				 * a longer delay. */
-				if (to_pci_dev(uhci_dev(uhci))->vendor ==
-						PCI_VENDOR_ID_HP)
+				if (uhci->wait_for_hp)
 					wait_for_HP(port_addr);
 
 				/* If the port was enabled before, turning
@@ -266,8 +265,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		 * VIA controllers report it active off, so we'll adjust the
 		 * bit value.  (It's not standardized in the UHCI spec.)
 		 */
-		if (to_pci_dev(hcd->self.controller)->vendor ==
-				PCI_VENDOR_ID_VIA)
+		if (uhci->oc_low)
 			status ^= USBPORTSC_OC;
 
 		/* UHCI doesn't support C_RESET (always false) */

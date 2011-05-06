@@ -415,6 +415,10 @@ struct uhci_hcd {
 
 	struct timer_list fsbr_timer;		/* For turning off FBSR */
 
+	/* Silicon quirks */
+	unsigned int oc_low:1;			/* OverCurrent bit active low */
+	unsigned int wait_for_hp:1;		/* Wait for HP port reset */
+
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
 	unsigned long resuming_ports;
