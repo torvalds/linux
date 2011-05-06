@@ -481,4 +481,34 @@ struct urb_priv {
 #define PCI_VENDOR_ID_GENESYS		0x17a0
 #define PCI_DEVICE_ID_GL880S_UHCI	0x8083
 
+static inline u32 uhci_readl(struct uhci_hcd *uhci, int reg)
+{
+	return inl(uhci->io_addr + reg);
+}
+
+static inline void uhci_writel(struct uhci_hcd *uhci, u32 val, int reg)
+{
+	outl(val, uhci->io_addr + reg);
+}
+
+static inline u16 uhci_readw(struct uhci_hcd *uhci, int reg)
+{
+	return inw(uhci->io_addr + reg);
+}
+
+static inline void uhci_writew(struct uhci_hcd *uhci, u16 val, int reg)
+{
+	outw(val, uhci->io_addr + reg);
+}
+
+static inline u8 uhci_readb(struct uhci_hcd *uhci, int reg)
+{
+	return inb(uhci->io_addr + reg);
+}
+
+static inline void uhci_writeb(struct uhci_hcd *uhci, u8 val, int reg)
+{
+	outb(val, uhci->io_addr + reg);
+}
+
 #endif

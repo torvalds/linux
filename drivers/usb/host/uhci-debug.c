@@ -285,7 +285,6 @@ static int uhci_show_root_hub_state(struct uhci_hcd *uhci, char *buf, int len)
 static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 {
 	char *out = buf;
-	unsigned long io_addr = uhci->io_addr;
 	unsigned short usbcmd, usbstat, usbint, usbfrnum;
 	unsigned int flbaseadd;
 	unsigned char sof;
@@ -295,14 +294,14 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	if (len < 80 * 9)
 		return 0;
 
-	usbcmd    = inw(io_addr + 0);
-	usbstat   = inw(io_addr + 2);
-	usbint    = inw(io_addr + 4);
-	usbfrnum  = inw(io_addr + 6);
-	flbaseadd = inl(io_addr + 8);
-	sof       = inb(io_addr + 12);
-	portsc1   = inw(io_addr + 16);
-	portsc2   = inw(io_addr + 18);
+	usbcmd    = uhci_readw(uhci, 0);
+	usbstat   = uhci_readw(uhci, 2);
+	usbint    = uhci_readw(uhci, 4);
+	usbfrnum  = uhci_readw(uhci, 6);
+	flbaseadd = uhci_readl(uhci, 8);
+	sof       = uhci_readb(uhci, 12);
+	portsc1   = uhci_readw(uhci, 16);
+	portsc2   = uhci_readw(uhci, 18);
 
 	out += sprintf(out, "  usbcmd    =     %04x   %s%s%s%s%s%s%s%s\n",
 		usbcmd,

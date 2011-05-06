@@ -133,7 +133,7 @@ static void finish_reset(struct uhci_hcd *uhci)
 	 * We have to clear them by hand.
 	 */
 	for (port = 0; port < uhci->rh_numports; ++port)
-		outw(0, uhci->io_addr + USBPORTSC1 + (port * 2));
+		uhci_writew(uhci, 0, USBPORTSC1 + (port * 2));
 
 	uhci->port_c_suspend = uhci->resuming_ports = 0;
 	uhci->rh_state = UHCI_RH_RESET;
@@ -173,14 +173,14 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
 static void configure_hc(struct uhci_hcd *uhci)
 {
 	/* Set the frame length to the default: 1 ms exactly */
-	outb(USBSOF_DEFAULT, uhci->io_addr + USBSOF);
+	uhci_writeb(uhci, USBSOF_DEFAULT, USBSOF);
 
 	/* Store the frame list base address */
-	outl(uhci->frame_dma_handle, uhci->io_addr + USBFLBASEADD);
+	uhci_writel(uhci, uhci->frame_dma_handle, USBFLBASEADD);
 
 	/* Set the current frame number */
-	outw(uhci->frame_number & UHCI_MAX_SOF_NUMBER,
-			uhci->io_addr + USBFRNUM);
+	uhci_writew(uhci, uhci->frame_number & UHCI_MAX_SOF_NUMBER,
+			USBFRNUM);
 
 	/* perform any arch/bus specific configuration */
 	if (uhci->configure_hc)
@@ -264,8 +264,8 @@ __acquires(uhci->lock)
 			!int_enable)
 		uhci->RD_enable = int_enable = 0;
 
-	outw(int_enable, uhci->io_addr + USBINTR);
-	outw(egsm_enable | USBCMD_CF, uhci->io_addr + USBCMD);
+	uhci_writew(uhci, int_enable, USBINTR);
+	uhci_writew(uhci, egsm_enable | USBCMD_CF, USBCMD);
 	mb();
 	udelay(5);
 
@@ -274,7 +274,7 @@ __acquires(uhci->lock)
 	 * controller should stop after a few microseconds.  Otherwise
 	 * we will give the controller one frame to stop.
 	 */
-	if (!auto_stop && !(inw(uhci->io_addr + USBSTS) & USBSTS_HCH)) {
+	if (!auto_stop && !(uhci_readw(uhci, USBSTS) & USBSTS_HCH)) {
 		uhci->rh_state = UHCI_RH_SUSPENDING;
 		spin_unlock_irq(&uhci->lock);
 		msleep(1);
@@ -282,7 +282,7 @@ __acquires(uhci->lock)
 		if (uhci->dead)
 			return;
 	}
-	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
+	if (!(uhci_readw(uhci, USBSTS) & USBSTS_HCH))
 		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
@@ -309,9 +309,9 @@ static void start_rh(struct uhci_hcd *uhci)
 	/* Mark it configured and running with a 64-byte max packet.
 	 * All interrupts are enabled, even though RESUME won't do anything.
 	 */
-	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, uhci->io_addr + USBCMD);
-	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
-			uhci->io_addr + USBINTR);
+	uhci_writew(uhci, USBCMD_RS | USBCMD_CF | USBCMD_MAXP, USBCMD);
+	uhci_writew(uhci, USBINTR_TIMEOUT | USBINTR_RESUME |
+		USBINTR_IOC | USBINTR_SP, USBINTR);
 	mb();
 	uhci->rh_state = UHCI_RH_RUNNING;
 	set_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
@@ -334,9 +334,9 @@ __acquires(uhci->lock)
 		unsigned egsm;
 
 		/* Keep EGSM on if it was set before */
-		egsm = inw(uhci->io_addr + USBCMD) & USBCMD_EGSM;
+		egsm = uhci_readw(uhci, USBCMD) & USBCMD_EGSM;
 		uhci->rh_state = UHCI_RH_RESUMING;
-		outw(USBCMD_FGR | USBCMD_CF | egsm, uhci->io_addr + USBCMD);
+		uhci_writew(uhci, USBCMD_FGR | USBCMD_CF | egsm, USBCMD);
 		spin_unlock_irq(&uhci->lock);
 		msleep(20);
 		spin_lock_irq(&uhci->lock);
@@ -344,10 +344,10 @@ __acquires(uhci->lock)
 			return;
 
 		/* End Global Resume and wait for EOP to be sent */
-		outw(USBCMD_CF, uhci->io_addr + USBCMD);
+		uhci_writew(uhci, USBCMD_CF, USBCMD);
 		mb();
 		udelay(4);
-		if (inw(uhci->io_addr + USBCMD) & USBCMD_FGR)
+		if (uhci_readw(uhci, USBCMD) & USBCMD_FGR)
 			dev_warn(uhci_dev(uhci), "FGR not stopped yet!\n");
 	}
 
@@ -367,10 +367,10 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 	 * interrupt cause.  Contrary to the UHCI specification, the
 	 * "HC Halted" status bit is persistent: it is RO, not R/WC.
 	 */
-	status = inw(uhci->io_addr + USBSTS);
+	status = uhci_readw(uhci, USBSTS);
 	if (!(status & ~USBSTS_HCH))	/* shared interrupt, not mine */
 		return IRQ_NONE;
-	outw(status, uhci->io_addr + USBSTS);		/* Clear it */
+	uhci_writew(uhci, status, USBSTS);		/* Clear it */
 
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
 		if (status & USBSTS_HSE)
@@ -426,7 +426,7 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci)
 	if (!uhci->is_stopped) {
 		unsigned delta;
 
-		delta = (inw(uhci->io_addr + USBFRNUM) - uhci->frame_number) &
+		delta = (uhci_readw(uhci, USBFRNUM) - uhci->frame_number) &
 				(UHCI_NUMFRAMES - 1);
 		uhci->frame_number += delta;
 	}
@@ -716,7 +716,7 @@ static int uhci_hcd_get_frame_number(struct usb_hcd *hcd)
 	/* Minimize latency by avoiding the spinlock */
 	frame_number = uhci->frame_number;
 	barrier();
-	delta = (inw(uhci->io_addr + USBFRNUM) - frame_number) &
+	delta = (uhci_readw(uhci, USBFRNUM) - frame_number) &
 			(UHCI_NUMFRAMES - 1);
 	return frame_number + delta;
 }
@@ -739,7 +739,7 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 	for (port = 0; port < (io_size - USBPORTSC1) / 2; port++) {
 		unsigned int portstatus;
 
-		portstatus = inw(uhci->io_addr + USBPORTSC1 + (port * 2));
+		portstatus = uhci_readw(uhci, USBPORTSC1 + (port * 2));
 		if (!(portstatus & 0x0080) || portstatus == 0xffff)
 			break;
 	}
