@@ -1096,14 +1096,14 @@ int ip_append_data(struct sock *sk,
 		return 0;
 
 	if (skb_queue_empty(&sk->sk_write_queue)) {
-		err = ip_setup_cork(sk, &inet->cork, ipc, rtp);
+		err = ip_setup_cork(sk, &inet->cork.base, ipc, rtp);
 		if (err)
 			return err;
 	} else {
 		transhdrlen = 0;
 	}
 
-	return __ip_append_data(sk, &sk->sk_write_queue, &inet->cork, getfrag,
+	return __ip_append_data(sk, &sk->sk_write_queue, &inet->cork.base, getfrag,
 				from, length, transhdrlen, flags);
 }
 
@@ -1114,6 +1114,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	struct sk_buff *skb;
 	struct rtable *rt;
 	struct ip_options *opt = NULL;
+	struct inet_cork *cork;
 	int hh_len;
 	int mtu;
 	int len;
@@ -1129,20 +1130,21 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	if (skb_queue_empty(&sk->sk_write_queue))
 		return -EINVAL;
 
-	rt = (struct rtable *)inet->cork.dst;
-	if (inet->cork.flags & IPCORK_OPT)
-		opt = inet->cork.opt;
+	cork = &inet->cork.base;
+	rt = (struct rtable *)cork->dst;
+	if (cork->flags & IPCORK_OPT)
+		opt = cork->opt;
 
 	if (!(rt->dst.dev->features&NETIF_F_SG))
 		return -EOPNOTSUPP;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
-	mtu = inet->cork.fragsize;
+	mtu = cork->fragsize;
 
 	fragheaderlen = sizeof(struct iphdr) + (opt ? opt->optlen : 0);
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
-	if (inet->cork.length + size > 0xFFFF - fragheaderlen) {
+	if (cork->length + size > 0xFFFF - fragheaderlen) {
 		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport, mtu);
 		return -EMSGSIZE;
 	}
@@ -1150,7 +1152,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)
 		return -EINVAL;
 
-	inet->cork.length += size;
+	cork->length += size;
 	if ((size + skb->len > mtu) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
 	    (rt->dst.dev->features & NETIF_F_UFO)) {
@@ -1245,7 +1247,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	return 0;
 
 error:
-	inet->cork.length -= size;
+	cork->length -= size;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
 	return err;
 }
@@ -1396,7 +1398,7 @@ static void __ip_flush_pending_frames(struct sock *sk,
 
 void ip_flush_pending_frames(struct sock *sk)
 {
-	__ip_flush_pending_frames(sk, &sk->sk_write_queue, &inet_sk(sk)->cork);
+	__ip_flush_pending_frames(sk, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
 }
 
 struct sk_buff *ip_make_skb(struct sock *sk,

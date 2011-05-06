@@ -132,7 +132,7 @@ extern struct sk_buff  *ip_make_skb(struct sock *sk,
 
 static inline struct sk_buff *ip_finish_skb(struct sock *sk)
 {
-	return __ip_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork);
+	return __ip_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
 }
 
 /* datagram.c */
