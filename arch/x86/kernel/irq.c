@@ -276,7 +276,8 @@ void fixup_irqs(void)
 		else if (!(warned++))
 			set_affinity = 0;
 
-		if (!irqd_can_move_in_process_context(data) && chip->irq_unmask)
+		if (!irqd_can_move_in_process_context(data) &&
+		    !irqd_irq_disabled(data) && chip->irq_unmask)
 			chip->irq_unmask(data);
 
 		raw_spin_unlock(&desc->lock);
