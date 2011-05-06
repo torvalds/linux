@@ -2453,7 +2453,7 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 		len -= block_size;
 		addr += block_size;
 
-		if (addr == region_end) {
+		if (region && addr == region_end) {
 			if (!len)
 				break;
 			region++;
