@@ -1408,7 +1408,7 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 			    struct ipcm_cookie *ipc, struct rtable **rtp,
 			    unsigned int flags)
 {
-	struct inet_cork cork = {};
+	struct inet_cork cork;
 	struct sk_buff_head queue;
 	int err;
 
@@ -1417,6 +1417,9 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 
 	__skb_queue_head_init(&queue);
 
+	cork.flags = 0;
+	cork.addr = 0;
+	cork.opt = 0;
 	err = ip_setup_cork(sk, &cork, ipc, rtp);
 	if (err)
 		return ERR_PTR(err);
