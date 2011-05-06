@@ -487,15 +487,19 @@ out_done:
 		ailp->xa_last_pushed_lsn = 0;
 
 		/*
-		 * Check for an updated push target before clearing the
-		 * XFS_AIL_PUSHING_BIT. If the target changed, we've got more
-		 * work to do. Wait a bit longer before starting that work.
+		 * We clear the XFS_AIL_PUSHING_BIT first before checking
+		 * whether the target has changed. If the target has changed,
+		 * this pushes the requeue race directly onto the result of the
+		 * atomic test/set bit, so we are guaranteed that either the
+		 * the pusher that changed the target or ourselves will requeue
+		 * the work (but not both).
 		 */
+		clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
 		smp_rmb();
-		if (XFS_LSN_CMP(ailp->xa_target, target) == 0) {
-			clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
+		if (XFS_LSN_CMP(ailp->xa_target, target) == 0 ||
+		    test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
 			return;
-		}
+
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
