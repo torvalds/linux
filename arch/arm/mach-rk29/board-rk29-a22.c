@@ -43,6 +43,7 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
+#include <mach/ddr.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -1590,7 +1591,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #endif
 #if defined (CONFIG_COMPASS_MMC328X)
 	{
-		.type    		= "mmc3280",
+		.type    		= "mmc328x",
 		.addr           = 0x30,
 		.flags          = I2C_M_NEED_DELAY,
 		.udelay      = 100,
@@ -3154,6 +3155,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_sram_init();
 	rk29_clock_init(periph_pll_288mhz);
 	rk29_iomux_init();
+	ddr_init(DDR_TYPE, DDR_FREQ);
 }
 
 MACHINE_START(RK29, "RK29board")
