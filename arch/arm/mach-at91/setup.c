@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 
 #include <asm/mach/map.h>
 
@@ -71,6 +72,24 @@ static struct map_desc at91_io_desc __initdata = {
 	.length		= SZ_16K,
 	.type		= MT_DEVICE,
 };
+
+void __iomem *at91_ioremap(unsigned long p, size_t size, unsigned int type)
+{
+	if (p >= AT91_BASE_SYS && p <= (AT91_BASE_SYS + SZ_16K - 1))
+		return (void __iomem *)AT91_IO_P2V(p);
+
+	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
+}
+EXPORT_SYMBOL(at91_ioremap);
+
+void at91_iounmap(volatile void __iomem *addr)
+{
+	unsigned long virt = (unsigned long)addr;
+
+	if (virt >= VMALLOC_START && virt < VMALLOC_END)
+		__iounmap(addr);
+}
+EXPORT_SYMBOL(at91_iounmap);
 
 #define AT91_DBGU0	0xfffff200
 #define AT91_DBGU1	0xffffee00
