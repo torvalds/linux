@@ -1773,7 +1773,8 @@ struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_peer *peer;
 
-	if (!rt || rt->rt_dst != inet->inet_daddr) {
+	if (!rt ||
+	    inet->cork.fl.u.ip4.daddr != inet->inet_daddr) {
 		peer = inet_getpeer_v4(inet->inet_daddr, 1);
 		*release_it = true;
 	} else {
