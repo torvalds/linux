@@ -170,32 +170,27 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	struct scic_sds_controller *controller,
 	struct scic_sds_port_configuration_agent *port_agent)
 {
+	struct isci_host *ihost = scic_to_ihost(controller);
 	struct sci_sas_address first_address;
 	struct sci_sas_address second_address;
 
 	/*
 	 * Sanity check the max ranges for all the phys the max index
 	 * is always equal to the port range index */
-	if (
-		(port_agent->phy_valid_port_range[0].max_index != 0)
-		|| (port_agent->phy_valid_port_range[1].max_index != 1)
-		|| (port_agent->phy_valid_port_range[2].max_index != 2)
-		|| (port_agent->phy_valid_port_range[3].max_index != 3)
-		) {
+	if (port_agent->phy_valid_port_range[0].max_index != 0 ||
+	    port_agent->phy_valid_port_range[1].max_index != 1 ||
+	    port_agent->phy_valid_port_range[2].max_index != 2 ||
+	    port_agent->phy_valid_port_range[3].max_index != 3)
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
-	}
 
 	/*
 	 * This is a request to configure a single x4 port or at least attempt
 	 * to make all the phys into a single port */
-	if (
-		(port_agent->phy_valid_port_range[0].min_index == 0)
-		&& (port_agent->phy_valid_port_range[1].min_index == 0)
-		&& (port_agent->phy_valid_port_range[2].min_index == 0)
-		&& (port_agent->phy_valid_port_range[3].min_index == 0)
-		) {
+	if (port_agent->phy_valid_port_range[0].min_index == 0 &&
+	    port_agent->phy_valid_port_range[1].min_index == 0 &&
+	    port_agent->phy_valid_port_range[2].min_index == 0 &&
+	    port_agent->phy_valid_port_range[3].min_index == 0)
 		return SCI_SUCCESS;
-	}
 
 	/*
 	 * This is a degenerate case where phy 1 and phy 2 are assigned
@@ -210,8 +205,8 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * PE0 and PE3 can never have the same SAS Address unless they
 	 * are part of the same x4 wide port and we have already checked
 	 * for this condition. */
-	scic_sds_phy_get_sas_address(&controller->phy_table[0], &first_address);
-	scic_sds_phy_get_sas_address(&controller->phy_table[3], &second_address);
+	scic_sds_phy_get_sas_address(&ihost->phys[0].sci, &first_address);
+	scic_sds_phy_get_sas_address(&ihost->phys[3].sci, &second_address);
 
 	if (sci_sas_address_compare(first_address, second_address) == 0) {
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -221,12 +216,10 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * PE0 and PE1 are configured into a 2x1 ports make sure that the
 	 * SAS Address for PE0 and PE2 are different since they can not be
 	 * part of the same port. */
-	if (
-		(port_agent->phy_valid_port_range[0].min_index == 0)
-		&& (port_agent->phy_valid_port_range[1].min_index == 1)
-		) {
-		scic_sds_phy_get_sas_address(&controller->phy_table[0], &first_address);
-		scic_sds_phy_get_sas_address(&controller->phy_table[2], &second_address);
+	if (port_agent->phy_valid_port_range[0].min_index == 0 &&
+	    port_agent->phy_valid_port_range[1].min_index == 1) {
+		scic_sds_phy_get_sas_address(&ihost->phys[0].sci, &first_address);
+		scic_sds_phy_get_sas_address(&ihost->phys[2].sci, &second_address);
 
 		if (sci_sas_address_compare(first_address, second_address) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -237,12 +230,10 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * PE2 and PE3 are configured into a 2x1 ports make sure that the
 	 * SAS Address for PE1 and PE3 are different since they can not be
 	 * part of the same port. */
-	if (
-		(port_agent->phy_valid_port_range[2].min_index == 2)
-		&& (port_agent->phy_valid_port_range[3].min_index == 3)
-		) {
-		scic_sds_phy_get_sas_address(&controller->phy_table[1], &first_address);
-		scic_sds_phy_get_sas_address(&controller->phy_table[3], &second_address);
+	if (port_agent->phy_valid_port_range[2].min_index == 2 &&
+	    port_agent->phy_valid_port_range[3].min_index == 3) {
+		scic_sds_phy_get_sas_address(&ihost->phys[1].sci, &first_address);
+		scic_sds_phy_get_sas_address(&ihost->phys[3].sci, &second_address);
 
 		if (sci_sas_address_compare(first_address, second_address) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -267,6 +258,7 @@ static enum sci_status scic_sds_mpc_agent_validate_phy_configuration(
 	struct scic_sds_controller *controller,
 	struct scic_sds_port_configuration_agent *port_agent)
 {
+	struct isci_host *ihost = scic_to_ihost(controller);
 	u32 phy_mask;
 	u32 assigned_phy_mask;
 	struct sci_sas_address sas_address;
@@ -281,68 +273,64 @@ static enum sci_status scic_sds_mpc_agent_validate_phy_configuration(
 	for (port_index = 0; port_index < SCI_MAX_PORTS; port_index++) {
 		phy_mask = controller->oem_parameters.sds1.ports[port_index].phy_mask;
 
-		if (phy_mask != 0) {
+		if (!phy_mask)
+			continue;
+		/*
+		 * Make sure that one or more of the phys were not already assinged to
+		 * a different port. */
+		if ((phy_mask & ~assigned_phy_mask) == 0) {
+			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
+		}
+
+		/* Find the starting phy index for this round through the loop */
+		for (phy_index = 0; phy_index < SCI_MAX_PHYS; phy_index++) {
+			if ((phy_mask & (1 << phy_index)) == 0)
+				continue;
+			scic_sds_phy_get_sas_address(&ihost->phys[phy_index].sci,
+						     &sas_address);
+
 			/*
-			 * Make sure that one or more of the phys were not already assinged to
-			 * a different port. */
-			if ((phy_mask & ~assigned_phy_mask) == 0) {
+			 * The phy_index can be used as the starting point for the
+			 * port range since the hardware starts all logical ports
+			 * the same as the PE index. */
+			port_agent->phy_valid_port_range[phy_index].min_index = port_index;
+			port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
+
+			if (phy_index != port_index) {
 				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 			}
 
-			/* Find the starting phy index for this round through the loop */
-			for (phy_index = 0; phy_index < SCI_MAX_PHYS; phy_index++) {
-				if ((1 << phy_index) & phy_mask) {
-					scic_sds_phy_get_sas_address(
-						&controller->phy_table[phy_index], &sas_address
-						);
-
-					/*
-					 * The phy_index can be used as the starting point for the
-					 * port range since the hardware starts all logical ports
-					 * the same as the PE index. */
-					port_agent->phy_valid_port_range[phy_index].min_index = port_index;
-					port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
-
-					if (phy_index != port_index) {
-						return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
-					}
-
-					break;
-				}
-			}
-
-			/*
-			 * See how many additional phys are being added to this logical port.
-			 * Note: We have not moved the current phy_index so we will actually
-			 *       compare the startting phy with itself.
-			 *       This is expected and required to add the phy to the port. */
-			while (phy_index < SCI_MAX_PHYS) {
-				if ((1 << phy_index) & phy_mask) {
-					scic_sds_phy_get_sas_address(
-						&controller->phy_table[phy_index], &phy_assigned_address
-						);
-
-					if (sci_sas_address_compare(sas_address, phy_assigned_address) != 0) {
-						/*
-						 * The phy mask specified that this phy is part of the same port
-						 * as the starting phy and it is not so fail this configuration */
-						return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
-					}
-
-					port_agent->phy_valid_port_range[phy_index].min_index = port_index;
-					port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
-
-					scic_sds_port_add_phy(
-						&controller->port_table[port_index],
-						&controller->phy_table[phy_index]
-						);
-
-					assigned_phy_mask |= (1 << phy_index);
-				}
-
-				phy_index++;
-			}
+			break;
 		}
+
+		/*
+		 * See how many additional phys are being added to this logical port.
+		 * Note: We have not moved the current phy_index so we will actually
+		 *       compare the startting phy with itself.
+		 *       This is expected and required to add the phy to the port. */
+		while (phy_index < SCI_MAX_PHYS) {
+			if ((phy_mask & (1 << phy_index)) == 0)
+				continue;
+			scic_sds_phy_get_sas_address(&ihost->phys[phy_index].sci,
+						     &phy_assigned_address);
+
+			if (sci_sas_address_compare(sas_address, phy_assigned_address) != 0) {
+				/*
+				 * The phy mask specified that this phy is part of the same port
+				 * as the starting phy and it is not so fail this configuration */
+				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
+			}
+
+			port_agent->phy_valid_port_range[phy_index].min_index = port_index;
+			port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
+
+			scic_sds_port_add_phy(&controller->port_table[port_index],
+					      &ihost->phys[phy_index].sci);
+
+			assigned_phy_mask |= (1 << phy_index);
+		}
+
+		phy_index++;
 	}
 
 	return scic_sds_port_configuration_agent_validate_ports(controller, port_agent);
@@ -355,12 +343,12 @@ static enum sci_status scic_sds_mpc_agent_validate_phy_configuration(
  * device objects before a new series of link up notifications because a link
  * down has allowed a better port configuration.
  */
-static void scic_sds_mpc_agent_timeout_handler(
-	void *object)
+static void scic_sds_mpc_agent_timeout_handler(void *object)
 {
 	u8 index;
-	struct scic_sds_controller *controller = (struct scic_sds_controller *)object;
-	struct scic_sds_port_configuration_agent *port_agent = &controller->port_agent;
+	struct scic_sds_controller *scic = object;
+	struct isci_host *ihost = scic_to_ihost(scic);
+	struct scic_sds_port_configuration_agent *port_agent = &scic->port_agent;
 	u16 configure_phy_mask;
 
 	port_agent->timer_pending = false;
@@ -369,13 +357,12 @@ static void scic_sds_mpc_agent_timeout_handler(
 	configure_phy_mask = ~port_agent->phy_configured_mask & port_agent->phy_ready_mask;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		struct scic_sds_phy *sci_phy = &ihost->phys[index].sci;
+
 		if (configure_phy_mask & (1 << index)) {
-			port_agent->link_up_handler(
-				controller,
-				port_agent,
-				scic_sds_phy_get_port(&controller->phy_table[index]),
-				&controller->phy_table[index]
-				);
+			port_agent->link_up_handler(scic, port_agent,
+						    scic_sds_phy_get_port(sci_phy),
+						    sci_phy);
 		}
 	}
 }
@@ -489,6 +476,7 @@ static enum sci_status scic_sds_apc_agent_validate_phy_configuration(
 	u8 port_index;
 	struct sci_sas_address sas_address;
 	struct sci_sas_address phy_assigned_address;
+	struct isci_host *ihost = scic_to_ihost(controller);
 
 	phy_index = 0;
 
@@ -496,14 +484,12 @@ static enum sci_status scic_sds_apc_agent_validate_phy_configuration(
 		port_index = phy_index;
 
 		/* Get the assigned SAS Address for the first PHY on the controller. */
-		scic_sds_phy_get_sas_address(
-			&controller->phy_table[phy_index], &sas_address
-			);
+		scic_sds_phy_get_sas_address(&ihost->phys[phy_index].sci,
+					    &sas_address);
 
 		while (++phy_index < SCI_MAX_PHYS) {
-			scic_sds_phy_get_sas_address(
-				&controller->phy_table[phy_index], &phy_assigned_address
-				);
+			scic_sds_phy_get_sas_address(&ihost->phys[phy_index].sci,
+						     &phy_assigned_address);
 
 			/* Verify each of the SAS address are all the same for every PHY */
 			if (sci_sas_address_compare(sas_address, phy_assigned_address) == 0) {
@@ -739,33 +725,30 @@ static void scic_sds_apc_agent_link_down(
 	}
 }
 
-/**
- *
- *
- * This routine will try to configure the phys into ports when the timer fires.
- */
-static void scic_sds_apc_agent_timeout_handler(
-	void *object)
+/* configure the phys into ports when the timer fires */
+static void scic_sds_apc_agent_timeout_handler(void *object)
 {
 	u32 index;
 	struct scic_sds_port_configuration_agent *port_agent;
-	struct scic_sds_controller *controller = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u16 configure_phy_mask;
 
-	port_agent = scic_sds_controller_get_port_configuration_agent(controller);
+	port_agent = scic_sds_controller_get_port_configuration_agent(scic);
 
 	port_agent->timer_pending = false;
 
 	configure_phy_mask = ~port_agent->phy_configured_mask & port_agent->phy_ready_mask;
 
-	if (configure_phy_mask != 0x00) {
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			if (configure_phy_mask & (1 << index)) {
-				scic_sds_apc_agent_configure_ports(
-					controller, port_agent, &controller->phy_table[index], false
-					);
-			}
-		}
+	if (!configure_phy_mask)
+		return;
+
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		if ((configure_phy_mask & (1 << index)) == 0)
+			continue;
+
+		scic_sds_apc_agent_configure_ports(scic, port_agent,
+						   &ihost->phys[index].sci, false);
 	}
 }
 

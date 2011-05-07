@@ -673,6 +673,7 @@ static void scic_sds_controller_phy_timer_stop(struct scic_sds_controller *scic)
  */
 static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *scic)
 {
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
 	struct scic_sds_phy *sci_phy;
 	enum sci_status status;
@@ -688,7 +689,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		u8 index;
 
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			sci_phy = &scic->phy_table[index];
+			sci_phy = &ihost->phys[index].sci;
 			state = sci_phy->state_machine.current_state_id;
 
 			if (!scic_sds_phy_get_port(sci_phy))
@@ -719,7 +720,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			scic_sds_controller_phy_timer_stop(scic);
 		}
 	} else {
-		sci_phy = &scic->phy_table[scic->next_phy_to_start];
+		sci_phy = &ihost->phys[scic->next_phy_to_start].sci;
 
 		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
 			if (scic_sds_phy_get_port(sci_phy) == NULL) {
@@ -748,7 +749,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 				 "to stop phy %d because of status "
 				 "%d.\n",
 				 __func__,
-				 scic->phy_table[scic->next_phy_to_start].phy_index,
+				 ihost->phys[scic->next_phy_to_start].sci.phy_index,
 				 status);
 		}
 
@@ -792,23 +793,22 @@ static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller 
 	u32 index;
 	enum sci_status status;
 	enum sci_status phy_status;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	status = SCI_SUCCESS;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy_status = scic_sds_phy_stop(&scic->phy_table[index]);
+		phy_status = scic_sds_phy_stop(&ihost->phys[index].sci);
 
-		if (
-			(phy_status != SCI_SUCCESS)
-			&& (phy_status != SCI_FAILURE_INVALID_STATE)
-			) {
+		if (phy_status != SCI_SUCCESS &&
+		    phy_status != SCI_FAILURE_INVALID_STATE) {
 			status = SCI_FAILURE;
 
 			dev_warn(scic_to_dev(scic),
 				 "%s: Controller stop operation failed to stop "
 				 "phy %d because of status %d.\n",
 				 __func__,
-				 scic->phy_table[index].phy_index, phy_status);
+				 ihost->phys[index].sci.phy_index, phy_status);
 		}
 	}
 
@@ -1069,21 +1069,13 @@ static void scic_sds_controller_sdma_completion(
 	}
 }
 
-/**
- *
- * @scic:
- * @completion_entry:
- *
- * This method processes an unsolicited frame message.  This is called from
- * within the controller completion handler. none
- */
-static void scic_sds_controller_unsolicited_frame(
-	struct scic_sds_controller *scic,
-	u32 completion_entry)
+static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *scic,
+						  u32 completion_entry)
 {
 	u32 index;
 	u32 frame_index;
 
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scu_unsolicited_frame_header *frame_header;
 	struct scic_sds_phy *phy;
 	struct scic_sds_remote_device *device;
@@ -1092,10 +1084,8 @@ static void scic_sds_controller_unsolicited_frame(
 
 	frame_index = SCU_GET_FRAME_INDEX(completion_entry);
 
-	frame_header
-		= scic->uf_control.buffers.array[frame_index].header;
-	scic->uf_control.buffers.array[frame_index].state
-		= UNSOLICITED_FRAME_IN_USE;
+	frame_header = scic->uf_control.buffers.array[frame_index].header;
+	scic->uf_control.buffers.array[frame_index].state = UNSOLICITED_FRAME_IN_USE;
 
 	if (SCU_GET_FRAME_ERROR(completion_entry)) {
 		/*
@@ -1108,10 +1098,8 @@ static void scic_sds_controller_unsolicited_frame(
 
 	if (frame_header->is_address_frame) {
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &scic->phy_table[index];
-		if (phy != NULL) {
-			result = scic_sds_phy_frame_handler(phy, frame_index);
-		}
+		phy = &ihost->phys[index].sci;
+		result = scic_sds_phy_frame_handler(phy, frame_index);
 	} else {
 
 		index = SCU_GET_COMPLETION_INDEX(completion_entry);
@@ -1122,7 +1110,7 @@ static void scic_sds_controller_unsolicited_frame(
 			 * device that has not yet been created.  In either case forwared
 			 * the frame to the PE and let it take care of the frame data. */
 			index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-			phy = &scic->phy_table[index];
+			phy = &ihost->phys[index].sci;
 			result = scic_sds_phy_frame_handler(phy, frame_index);
 		} else {
 			if (index < scic->remote_node_entries)
@@ -1144,21 +1132,14 @@ static void scic_sds_controller_unsolicited_frame(
 	}
 }
 
-/**
- * This method processes an event completion entry.  This is called from within
- *    the controller completion handler.
- * @scic:
- * @completion_entry:
- *
- */
-static void scic_sds_controller_event_completion(
-	struct scic_sds_controller *scic,
-	u32 completion_entry)
+static void scic_sds_controller_event_completion(struct scic_sds_controller *scic,
+						 u32 completion_entry)
 {
-	u32 index;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scic_sds_request *io_request;
 	struct scic_sds_remote_device *device;
 	struct scic_sds_phy *phy;
+	u32 index;
 
 	index = SCU_GET_COMPLETION_INDEX(completion_entry);
 
@@ -1237,7 +1218,7 @@ static void scic_sds_controller_event_completion(
 	 * we get the event notification.  This is a type 4 event. */
 	case SCU_EVENT_TYPE_OSSP_EVENT:
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &scic->phy_table[index];
+		phy = &ihost->phys[index].sci;
 		scic_sds_phy_event_handler(phy, completion_entry);
 		break;
 
@@ -2155,38 +2136,6 @@ enum sci_task_status scic_controller_start_task(
 }
 
 /**
- * scic_controller_get_phy_handle() - This method simply provides the user with
- *    a unique handle for a given SAS/SATA phy index/identifier.
- * @controller: This parameter represents the handle to the controller object
- *    from which to retrieve a phy (SAS or SATA) handle.
- * @phy_index: This parameter specifies the phy index in the controller for
- *    which to retrieve the phy handle. 0 <= phy_index < maximum number of phys.
- * @phy_handle: This parameter specifies the retrieved phy handle to be
- *    provided to the caller.
- *
- * Indicate if the retrieval of the phy handle was successful. SCI_SUCCESS This
- * value is returned if the retrieval was successful. SCI_FAILURE_INVALID_PHY
- * This value is returned if the supplied phy id is not in the supported range.
- */
-enum sci_status scic_controller_get_phy_handle(
-	struct scic_sds_controller *scic,
-	u8 phy_index,
-	struct scic_sds_phy **phy_handle)
-{
-	if (phy_index < ARRAY_SIZE(scic->phy_table)) {
-		*phy_handle = &scic->phy_table[phy_index];
-
-		return SCI_SUCCESS;
-	}
-
-	dev_err(scic_to_dev(scic),
-		"%s: Controller:0x%p PhyId:0x%x invalid phy index\n",
-		__func__, scic, phy_index);
-
-	return SCI_FAILURE_INVALID_PHY;
-}
-
-/**
  * scic_controller_allocate_io_tag() - This method will allocate a tag from the
  *    pool of free IO tags. Direct allocation of IO tags by the SCI Core user
  *    is optional. The scic_controller_start_io() method will allocate an IO
@@ -2724,7 +2673,7 @@ enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 		     (result == SCI_SUCCESS) && (index < SCI_MAX_PHYS);
 		     index++) {
 			result = scic_sds_phy_initialize(
-				&scic->phy_table[index],
+				&ihost->phys[index].sci,
 				&scic->scu_registers->peg0.pe[index].tl,
 				&scic->scu_registers->peg0.pe[index].ll);
 		}
@@ -2979,6 +2928,7 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
 					  void __iomem *scu_base,
 					  void __iomem *smu_base)
 {
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u8 i;
 
 	sci_base_state_machine_construct(&scic->state_machine,
@@ -3000,7 +2950,7 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
 	/* Construct the phys for this controller */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		/* Add all the PHYs to the dummy port */
-		scic_sds_phy_construct(&scic->phy_table[i],
+		scic_sds_phy_construct(&ihost->phys[i].sci,
 				       &scic->port_table[SCI_MAX_PORTS], i);
 	}
 

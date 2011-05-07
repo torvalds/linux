@@ -436,7 +436,7 @@ void scic_sds_phy_get_attached_sas_address(struct scic_sds_phy *sci_phy,
 					   struct sci_sas_address *sas_address)
 {
 	struct sas_identify_frame *iaf;
-	struct isci_phy *iphy = sci_phy->iphy;
+	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
 	iaf = &iphy->frame_rcvd.iaf;
 	memcpy(sas_address, iaf->sas_addr, SAS_ADDR_SIZE);
@@ -1099,7 +1099,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 	enum sci_status result;
 	u32 *frame_words;
 	struct sas_identify_frame iaf;
-	struct isci_phy *iphy = sci_phy->iphy;
+	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
@@ -1164,7 +1164,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 	enum sci_status result;
 	struct dev_to_host_fis *frame_header;
 	u32 *fis_frame_data;
-	struct isci_phy *iphy = sci_phy->iphy;
+	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
 	result = scic_sds_unsolicited_frame_control_get_header(
 		&(scic_sds_phy_get_controller(sci_phy)->uf_control),

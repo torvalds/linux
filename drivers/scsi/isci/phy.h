@@ -54,24 +54,17 @@
  */
 
 
-#if !defined(_ISCI_PHY_H_)
+#ifndef _ISCI_PHY_H_
 #define _ISCI_PHY_H_
 
-#include "port.h"
-#include "host.h"
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
-
-
-/**
- * struct isci_phy - This class implements the ISCI specific representation of
- *    the phy object.
- *
- *
- */
+#include "scic_sds_phy.h"
+#include "port.h"
+#include "host.h"
 
 struct isci_phy {
-	struct scic_sds_phy *sci_phy_handle;
+	struct scic_sds_phy sci;
 	struct asd_sas_phy sas_phy;
 	struct isci_port *isci_port;
 	u8 sas_addr[SAS_ADDR_SIZE];
@@ -82,17 +75,21 @@ struct isci_phy {
 	} frame_rcvd;
 };
 
-#define to_isci_phy(p)	\
-	container_of(p, struct isci_phy, sas_phy);
+static inline struct isci_phy *to_isci_phy(struct asd_sas_phy *sas_phy)
+{
+	struct isci_phy *iphy = container_of(sas_phy, typeof(*iphy), sas_phy);
 
-void isci_phy_init(
-	struct isci_phy *phy,
-	struct isci_host *isci_host,
-	int index);
+	return iphy;
+}
 
-int isci_phy_control(
-	struct asd_sas_phy *phy,
-	enum phy_func func,
-	void *buf);
+static inline struct isci_phy *sci_phy_to_iphy(struct scic_sds_phy *sci_phy)
+{
+	struct isci_phy *iphy = container_of(sci_phy, typeof(*iphy), sci);
+
+	return iphy;
+}
+
+void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index);
+int isci_phy_control(struct asd_sas_phy *phy, enum phy_func func, void *buf);
 
 #endif /* !defined(_ISCI_PHY_H_) */

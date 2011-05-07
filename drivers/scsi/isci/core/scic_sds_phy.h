@@ -217,7 +217,6 @@ enum scic_sds_phy_protocol {
 	SCIC_SDS_MAX_PHY_PROTOCOLS
 };
 
-struct isci_phy;
 /**
  * struct scic_sds_phy - This structure  contains or references all of the data
  *    necessary to represent the core phy object and SCU harware protocol
@@ -226,11 +225,6 @@ struct isci_phy;
  *
  */
 struct scic_sds_phy {
-	/**
-	 * This field depicts the peer object for the phy.
-	 */
-	struct isci_phy *iphy;
-
 	/**
 	 * This field contains the information for the base phy state machine.
 	 */

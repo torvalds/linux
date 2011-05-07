@@ -63,61 +63,35 @@ struct scic_sds_phy;
 extern enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy);
 extern enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy);
 
-/**
- * isci_phy_init() - This function is called by the probe function to
- *    initialize the phy objects. This func assumes that the isci_port objects
- *    associated with the SCU have been initialized.
- * @isci_phy: This parameter specifies the isci_phy object to initialize
- * @isci_host: This parameter specifies the parent SCU host object for this
- *    isci_phy
- * @index: This parameter specifies which SCU phy associates with this
- *    isci_phy. Generally, SCU phy 0 relates isci_phy 0, etc.
- *
- */
-void isci_phy_init(
-	struct isci_phy *phy,
-	struct isci_host *isci_host,
-	int index)
+void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 {
-	struct scic_sds_phy *scic_phy;
 	union scic_oem_parameters oem;
-	enum sci_status status = SCI_SUCCESS;
-	u64 sas_addr;
+	u64 sci_sas_addr;
+	__be64 sas_addr;
 
-	/*--------------- SCU_Phy Initialization Stuff -----------------------*/
+	scic_oem_parameters_get(&ihost->sci, &oem);
+	sci_sas_addr = oem.sds1.phys[index].sas_address.high;
+	sci_sas_addr <<= 32;
+	sci_sas_addr |= oem.sds1.phys[index].sas_address.low;
+	sas_addr = cpu_to_be64(sci_sas_addr);
+	memcpy(iphy->sas_addr, &sas_addr, sizeof(sas_addr));
 
-	status = scic_controller_get_phy_handle(&isci_host->sci, index, &scic_phy);
-	if (status == SCI_SUCCESS) {
-		phy->sci_phy_handle = scic_phy;
-		scic_phy->iphy = phy;
-	} else
-		dev_err(&isci_host->pdev->dev,
-			"failed scic_controller_get_phy_handle\n");
-
-	scic_oem_parameters_get(&isci_host->sci, &oem);
-	sas_addr = oem.sds1.phys[index].sas_address.high;
-	sas_addr <<= 32;
-	sas_addr |= oem.sds1.phys[index].sas_address.low;
-	swab64s(&sas_addr);
-
-	memcpy(phy->sas_addr, &sas_addr, sizeof(sas_addr));
-
-	phy->isci_port = NULL;
-	phy->sas_phy.enabled = 0;
-	phy->sas_phy.id = index;
-	phy->sas_phy.sas_addr = &phy->sas_addr[0];
-	phy->sas_phy.frame_rcvd = (u8 *)&phy->frame_rcvd;
-	phy->sas_phy.ha = &isci_host->sas_ha;
-	phy->sas_phy.lldd_phy = phy;
-	phy->sas_phy.enabled = 1;
-	phy->sas_phy.class = SAS;
-	phy->sas_phy.iproto = SAS_PROTOCOL_ALL;
-	phy->sas_phy.tproto = 0;
-	phy->sas_phy.type = PHY_TYPE_PHYSICAL;
-	phy->sas_phy.role = PHY_ROLE_INITIATOR;
-	phy->sas_phy.oob_mode = OOB_NOT_CONNECTED;
-	phy->sas_phy.linkrate = SAS_LINK_RATE_UNKNOWN;
-	memset((u8 *)&phy->frame_rcvd, 0, sizeof(phy->frame_rcvd));
+	iphy->isci_port = NULL;
+	iphy->sas_phy.enabled = 0;
+	iphy->sas_phy.id = index;
+	iphy->sas_phy.sas_addr = &iphy->sas_addr[0];
+	iphy->sas_phy.frame_rcvd = (u8 *)&iphy->frame_rcvd;
+	iphy->sas_phy.ha = &ihost->sas_ha;
+	iphy->sas_phy.lldd_phy = iphy;
+	iphy->sas_phy.enabled = 1;
+	iphy->sas_phy.class = SAS;
+	iphy->sas_phy.iproto = SAS_PROTOCOL_ALL;
+	iphy->sas_phy.tproto = 0;
+	iphy->sas_phy.type = PHY_TYPE_PHYSICAL;
+	iphy->sas_phy.role = PHY_ROLE_INITIATOR;
+	iphy->sas_phy.oob_mode = OOB_NOT_CONNECTED;
+	iphy->sas_phy.linkrate = SAS_LINK_RATE_UNKNOWN;
+	memset(&iphy->frame_rcvd, 0, sizeof(iphy->frame_rcvd));
 }
 
 
@@ -147,14 +121,14 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 	switch (func) {
 	case PHY_FUNC_DISABLE:
 		spin_lock_irqsave(&ihost->scic_lock, flags);
-		scic_sds_phy_stop(iphy->sci_phy_handle);
+		scic_sds_phy_stop(&iphy->sci);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		break;
 
 	case PHY_FUNC_LINK_RESET:
 		spin_lock_irqsave(&ihost->scic_lock, flags);
-		scic_sds_phy_stop(iphy->sci_phy_handle);
-		scic_sds_phy_start(iphy->sci_phy_handle);
+		scic_sds_phy_stop(&iphy->sci);
+		scic_sds_phy_start(&iphy->sci);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		break;
 

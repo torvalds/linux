@@ -168,12 +168,6 @@ struct scic_sds_controller {
 	struct scic_sds_port port_table[SCI_MAX_PORTS + 1];
 
 	/**
-	 * This field is the array of phy objects that are controlled by this
-	 * controller object.
-	 */
-	struct scic_sds_phy phy_table[SCI_MAX_PHYS];
-
-	/**
 	 * This field is the array of device objects that are currently constructed
 	 * for this controller object.  This table is used as a fast lookup of device
 	 * objects that need to handle device completion notifications from the

@@ -120,44 +120,26 @@ static void isci_port_change_state(
 	spin_unlock_irqrestore(&isci_port->state_lock, flags);
 }
 
-void isci_port_bc_change_received(
-	struct isci_host *isci_host,
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
+void isci_port_bc_change_received(struct isci_host *ihost,
+				  struct scic_sds_port *sci_port,
+				  struct scic_sds_phy *sci_phy)
 {
-	struct isci_phy *isci_phy = phy->iphy;
+	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_phy = %p, sas_phy = %p\n",
-		__func__,
-		isci_phy,
-		&isci_phy->sas_phy);
+	dev_dbg(&ihost->pdev->dev, "%s: iphy = %p, sas_phy = %p\n",
+		__func__, iphy, &iphy->sas_phy);
 
-	isci_host->sas_ha.notify_port_event(
-		&isci_phy->sas_phy,
-		PORTE_BROADCAST_RCVD
-		);
-
-	scic_port_enable_broadcast_change_notification(port);
+	ihost->sas_ha.notify_port_event(&iphy->sas_phy, PORTE_BROADCAST_RCVD);
+	scic_port_enable_broadcast_change_notification(sci_port);
 }
 
-/**
- * isci_port_link_up() - This function is called by the sci core when a link
- *    becomes active. the identify address frame is retrieved from the core and
- *    a notify port event is sent to libsas.
- * @isci_host: This parameter specifies the isci host object.
- * @port: This parameter specifies the sci port with the active link.
- * @phy: This parameter specifies the sci phy with the active link.
- *
- */
-void isci_port_link_up(
-	struct isci_host *isci_host,
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
+void isci_port_link_up(struct isci_host *isci_host,
+		       struct scic_sds_port *port,
+		       struct scic_sds_phy *phy)
 {
 	unsigned long flags;
 	struct scic_port_properties properties;
-	struct isci_phy *isci_phy = phy->iphy;
+	struct isci_phy *isci_phy = sci_phy_to_iphy(phy);
 	struct isci_port *isci_port = port->iport;
 	unsigned long success = true;
 
