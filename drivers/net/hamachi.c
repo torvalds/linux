@@ -134,6 +134,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
  *   TCP and UDP packets.  Otherwise the upper layers do the calculation.
  * 3/10/1999 Pete Wyckoff <wyckoff@ca.sandia.gov>
  */
+#define RX_CHECKSUM
 
 /* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
