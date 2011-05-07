@@ -710,8 +710,7 @@ enum sci_status scic_io_request_construct_basic_sata(
 	struct isci_request *isci_request = sci_req->ireq;
 	struct sas_task *task = isci_request_access_task(isci_request);
 
-	stp_req = container_of(sci_req, typeof(*stp_req), parent);
-
+	stp_req = &sci_req->stp.req;
 	sci_req->protocol = SCIC_STP_PROTOCOL;
 
 	copy = (task->data_dir == DMA_NONE) ? false : true;

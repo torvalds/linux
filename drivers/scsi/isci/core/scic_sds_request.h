@@ -56,16 +56,10 @@
 #ifndef _SCIC_SDS_IO_REQUEST_H_
 #define _SCIC_SDS_IO_REQUEST_H_
 
-/**
- * This file contains the structures, constants and prototypes for the
- *    SCIC_SDS_IO_REQUEST object.
- *
- *
- */
-
 #include "scic_io_request.h"
 #include "sci_base_state_machine.h"
 #include "scu_task_context.h"
+#include "scic_sds_stp_request.h"
 
 struct scic_sds_controller;
 struct scic_sds_remote_device;
@@ -233,7 +227,18 @@ struct scic_sds_request {
 	 */
 	u8 device_sequence;
 
+	struct {
+		struct scic_sds_stp_request req;
+	} stp;
 };
+
+static inline struct scic_sds_request *to_sci_req(struct scic_sds_stp_request *stp_req)
+{
+	struct scic_sds_request *sci_req;
+
+	sci_req = container_of(stp_req, typeof(*sci_req), stp.req);
+	return sci_req;
+}
 
 /**
  * enum sci_base_request_states - This enumeration depicts all the states for

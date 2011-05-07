@@ -134,8 +134,7 @@ u32 scic_sds_stp_request_get_object_size(void)
 
 void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	sci_req->command_buffer = scic_sds_stp_request_get_h2d_reg_buffer(stp_req);
 	sci_req->response_buffer = scic_sds_stp_request_get_response_buffer(stp_req);
@@ -344,17 +343,18 @@ enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_
  * utilizing the raw frame method. none
  */
 static void scu_stp_raw_request_construct_task_context(
-	struct scic_sds_stp_request *sci_req,
+	struct scic_sds_stp_request *stp_req,
 	struct scu_task_context *task_context)
 {
-	scu_sata_reqeust_construct_task_context(&sci_req->parent, task_context);
+	struct scic_sds_request *sci_req = to_sci_req(stp_req);
+
+	scu_sata_reqeust_construct_task_context(sci_req, task_context);
 
 	task_context->control_frame         = 0;
 	task_context->priority              = SCU_TASK_PRIORITY_NORMAL;
 	task_context->task_type             = SCU_TASK_TYPE_SATA_RAW_FRAME;
 	task_context->type.stp.fis_type     = FIS_REGH2D;
-	task_context->transfer_length_bytes =
-		sizeof(struct host_to_dev_fis) - sizeof(u32);
+	task_context->transfer_length_bytes = sizeof(struct host_to_dev_fis) - sizeof(u32);
 }
 
 void scic_stp_io_request_set_ncq_tag(
@@ -376,10 +376,11 @@ void *scic_stp_io_request_get_h2d_reg_address(
 }
 
 
-void *scic_stp_io_request_get_d2h_reg_address(
-	struct scic_sds_request *req)
+void *scic_stp_io_request_get_d2h_reg_address(struct scic_sds_request *sci_req)
 {
-	return &((struct scic_sds_stp_request *)req)->d2h_reg_fis;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+
+	return &stp_req->d2h_reg_fis;
 }
 
 /**
@@ -395,7 +396,7 @@ void *scic_stp_io_request_get_d2h_reg_address(
 static struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_stp_request *stp_req)
 {
 	struct scu_sgl_element *current_sgl;
-	struct scic_sds_request *sci_req = &stp_req->parent;
+	struct scic_sds_request *sci_req = to_sci_req(stp_req);
 	struct scic_sds_request_pio_sgl *pio_sgl = &stp_req->type.pio.request_current;
 
 	if (pio_sgl->sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
@@ -489,59 +490,53 @@ static enum sci_status scic_sds_stp_request_non_data_await_d2h_frame_handler(
 	enum sci_status status;
 	struct dev_to_host_fis *frame_header;
 	u32 *frame_buffer;
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&stp_req->parent.owning_controller->uf_control,
-		frame_index,
-		(void **)&frame_header);
+	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							       frame_index,
+							       (void **)&frame_header);
 
-	if (status == SCI_SUCCESS) {
-		switch (frame_header->fis_type) {
-		case FIS_REGD2H:
-			scic_sds_unsolicited_frame_control_get_buffer(
-				&stp_req->parent.owning_controller->uf_control,
-				frame_index,
-				(void **)&frame_buffer);
-
-			scic_sds_controller_copy_sata_response(
-				&stp_req->d2h_reg_fis,
-				(u32 *)frame_header,
-				frame_buffer);
-
-			/* The command has completed with error */
-			scic_sds_request_set_status(
-				&stp_req->parent,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_IO_RESPONSE_VALID);
-			break;
-
-		default:
-			dev_warn(scic_to_dev(sci_req->owning_controller),
-				 "%s: IO Request:0x%p Frame Id:%d protocol "
-				 "violation occurred\n",
-				 __func__, stp_req, frame_index);
-
-			scic_sds_request_set_status(
-				&stp_req->parent,
-				SCU_TASK_DONE_UNEXP_FIS,
-				SCI_FAILURE_PROTOCOL_VIOLATION);
-			break;
-		}
-
-		sci_base_state_machine_change_state(
-			&stp_req->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED);
-
-		/* Frame has been decoded return it to the controller */
-		scic_sds_controller_release_frame(
-			stp_req->parent.owning_controller, frame_index);
-	} else
+	if (status != SCI_SUCCESS) {
 		dev_err(scic_to_dev(sci_req->owning_controller),
 			"%s: SCIC IO Request 0x%p could not get frame header "
 			"for frame index %d, status %x\n",
 			__func__, stp_req, frame_index, status);
+
+		return status;
+	}
+
+	switch (frame_header->fis_type) {
+	case FIS_REGD2H:
+		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+							      frame_index,
+							      (void **)&frame_buffer);
+
+		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+						       frame_header,
+						       frame_buffer);
+
+		/* The command has completed with error */
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_CHECK_RESPONSE,
+					    SCI_FAILURE_IO_RESPONSE_VALID);
+		break;
+
+	default:
+		dev_warn(scic_to_dev(scic),
+			 "%s: IO Request:0x%p Frame Id:%d protocol "
+			  "violation occurred\n", __func__, stp_req,
+			  frame_index);
+
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
+					    SCI_FAILURE_PROTOCOL_VIOLATION);
+		break;
+	}
+
+	sci_base_state_machine_change_state(&sci_req->state_machine,
+					    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+	/* Frame has been decoded return it to the controller */
+	scic_sds_controller_release_frame(scic, frame_index);
 
 	return status;
 }
@@ -599,8 +594,7 @@ static const struct sci_base_state scic_sds_stp_request_started_non_data_substat
 
 enum sci_status scic_sds_stp_non_data_request_construct(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	scic_sds_stp_non_ncq_request_construct(sci_req);
 
@@ -617,36 +611,28 @@ enum sci_status scic_sds_stp_non_data_request_construct(struct scic_sds_request 
 
 #define SCU_MAX_FRAME_BUFFER_SIZE  0x400  /* 1K is the maximum SCU frame data payload */
 
-/**
- *
- * @sci_req:
- * @length:
- *
- * This function will transmit DATA_FIS from (current sgl + offset) for input
+/* transmit DATA_FIS from (current sgl + offset) for input
  * parameter length. current sgl and offset is alreay stored in the IO request
- * enum sci_status
  */
-
 static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	struct scic_sds_request *sci_req,
 	u32 length)
 {
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct scu_task_context *task_context;
 	struct scu_sgl_element *current_sgl;
 
-	/*
-	 * Recycle the TC and reconstruct it for sending out DATA FIS containing
-	 * for the data from current_sgl+offset for the input length */
-	struct scu_task_context *task_context = scic_sds_controller_get_task_context_buffer(
-		sci_req->owning_controller,
-		sci_req->io_tag
-		);
+	/* Recycle the TC and reconstruct it for sending out DATA FIS containing
+	 * for the data from current_sgl+offset for the input length
+	 */
+	task_context = scic_sds_controller_get_task_context_buffer(scic,
+								   sci_req->io_tag);
 
 	if (stp_req->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A)
-		current_sgl = &(stp_req->type.pio.request_current.sgl_pair->A);
+		current_sgl = &stp_req->type.pio.request_current.sgl_pair->A;
 	else
-		current_sgl = &(stp_req->type.pio.request_current.sgl_pair->B);
+		current_sgl = &stp_req->type.pio.request_current.sgl_pair->B;
 
 	/* update the TC */
 	task_context->command_iu_upper = current_sgl->address_upper;
@@ -658,23 +644,14 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	return scic_controller_continue_io(sci_req);
 }
 
-/**
- *
- * @sci_req:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(
-	struct scic_sds_request *sci_req)
+static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(struct scic_sds_request *sci_req)
 {
 
 	struct scu_sgl_element *current_sgl;
 	u32 sgl_offset;
 	u32 remaining_bytes_in_current_sgl = 0;
 	enum sci_status status = SCI_SUCCESS;
-
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	sgl_offset = stp_req->type.pio.request_current.sgl_offset;
 
@@ -740,7 +717,7 @@ scic_sds_stp_request_pio_data_in_copy_data_buffer(struct scic_sds_stp_request *s
 	void *kaddr;
 	int total_len = len;
 
-	sci_req = &stp_req->parent;
+	sci_req = to_sci_req(stp_req);
 	ireq = scic_sds_request_get_user_request(sci_req);
 	task = isci_request_access_task(ireq);
 	src_addr = data_buf;
@@ -846,234 +823,184 @@ static enum sci_status scic_sds_stp_request_pio_await_h2d_completion_tc_completi
 	return status;
 }
 
-/**
- *
- * @sci_req:
- * @frame_index:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
+static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(struct scic_sds_request *sci_req,
+									  u32 frame_index)
 {
-	enum sci_status status;
-	struct dev_to_host_fis *frame_header;
-	u32 *frame_buffer;
-	struct scic_sds_stp_request *stp_req = container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	struct isci_request *ireq = sci_req->ireq;
 	struct sas_task *task = isci_request_access_task(ireq);
+	struct dev_to_host_fis *frame_header;
+	enum sci_status status;
+	u32 *frame_buffer;
 
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&(stp_req->parent.owning_controller->uf_control),
-		frame_index,
-		(void **)&frame_header);
+	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							       frame_index,
+							       (void **)&frame_header);
 
-	if (status == SCI_SUCCESS) {
-		switch (frame_header->fis_type) {
-		case FIS_PIO_SETUP:
-			/* Get from the frame buffer the PIO Setup Data */
-			scic_sds_unsolicited_frame_control_get_buffer(
-				&(stp_req->parent.owning_controller->uf_control),
-				frame_index,
-				(void **)&frame_buffer);
-
-			/* Get the data from the PIO Setup The SCU Hardware
-			 * returns first word in the frame_header and the rest
-			 * of the data is in the frame buffer so we need to back
-			 * up one dword
-			 */
-
-			/* transfer_count: first 16bits in the 4th dword */
-			stp_req->type.pio.pio_transfer_bytes =
-				frame_buffer[3] & 0xffff;
-
-			/* ending_status: 4th byte in the 3rd dword */
-			stp_req->type.pio.ending_status =
-				(frame_buffer[2] >> 24) & 0xff;
-
-			scic_sds_controller_copy_sata_response(
-				&stp_req->d2h_reg_fis,
-				(u32 *)frame_header,
-				frame_buffer);
-
-			stp_req->d2h_reg_fis.status =
-				stp_req->type.pio.ending_status;
-
-			/* The next state is dependent on whether the
-			 * request was PIO Data-in or Data out
-			 */
-			if (task->data_dir == DMA_FROM_DEVICE) {
-				sci_base_state_machine_change_state(
-					&stp_req->parent.started_substate_machine,
-					SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE);
-			} else if (task->data_dir == DMA_TO_DEVICE) {
-				/* Transmit data */
-				status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
-				if (status == SCI_SUCCESS) {
-					sci_base_state_machine_change_state(
-						&stp_req->parent.started_substate_machine,
-						SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE);
-				}
-			}
-			break;
-
-		case FIS_SETDEVBITS:
-			sci_base_state_machine_change_state(
-				&stp_req->parent.started_substate_machine,
-				SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
-			break;
-
-		case FIS_REGD2H:
-			if ((frame_header->status & ATA_BUSY) == 0) {
-				scic_sds_unsolicited_frame_control_get_buffer(
-					&(stp_req->parent.owning_controller->uf_control),
-					frame_index,
-					(void **)&frame_buffer);
-
-				scic_sds_controller_copy_sata_response(
-					&stp_req->d2h_reg_fis,
-					(u32 *)frame_header,
-					frame_buffer);
-
-				scic_sds_request_set_status(
-					&stp_req->parent,
-					SCU_TASK_DONE_CHECK_RESPONSE,
-					SCI_FAILURE_IO_RESPONSE_VALID);
-
-				sci_base_state_machine_change_state(
-					&stp_req->parent.state_machine,
-					SCI_BASE_REQUEST_STATE_COMPLETED);
-			} else {
-				/* Now why is the drive sending a D2H Register
-				 * FIS when it is still busy?
-				 * Do nothing since we are still in the right
-				 * state.
-				 */
-				dev_dbg(scic_to_dev(sci_req->owning_controller),
-					"%s: SCIC PIO Request 0x%p received "
-					"D2H Register FIS with BSY status "
-					"0x%x\n",
-					__func__,
-					stp_req,
-					frame_header->status);
-			}
-			break;
-
-		default:
-			/* FIXME: what do we do here? */
-			break;
-		}
-
-		/* Frame is decoded return it to the controller */
-		scic_sds_controller_release_frame(
-			stp_req->parent.owning_controller,
-			frame_index);
-	} else
-		dev_err(scic_to_dev(sci_req->owning_controller),
+	if (status != SCI_SUCCESS) {
+		dev_err(scic_to_dev(scic),
 			"%s: SCIC IO Request 0x%p could not get frame header "
 			"for frame index %d, status %x\n",
 			__func__, stp_req, frame_index, status);
+		return status;
+	}
+
+	switch (frame_header->fis_type) {
+	case FIS_PIO_SETUP:
+		/* Get from the frame buffer the PIO Setup Data */
+		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+							      frame_index,
+							      (void **)&frame_buffer);
+
+		/* Get the data from the PIO Setup The SCU Hardware returns
+		 * first word in the frame_header and the rest of the data is in
+		 * the frame buffer so we need to back up one dword
+		 */
+
+		/* transfer_count: first 16bits in the 4th dword */
+		stp_req->type.pio.pio_transfer_bytes = frame_buffer[3] & 0xffff;
+
+		/* ending_status: 4th byte in the 3rd dword */
+		stp_req->type.pio.ending_status = (frame_buffer[2] >> 24) & 0xff;
+
+		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+						       frame_header,
+						       frame_buffer);
+
+		stp_req->d2h_reg_fis.status = stp_req->type.pio.ending_status;
+
+		/* The next state is dependent on whether the
+		 * request was PIO Data-in or Data out
+		 */
+		if (task->data_dir == DMA_FROM_DEVICE) {
+			sci_base_state_machine_change_state(&sci_req->started_substate_machine,
+							    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE);
+		} else if (task->data_dir == DMA_TO_DEVICE) {
+			/* Transmit data */
+			status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
+			if (status != SCI_SUCCESS)
+				break;
+			sci_base_state_machine_change_state(&sci_req->started_substate_machine,
+							    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE);
+		}
+		break;
+	case FIS_SETDEVBITS:
+		sci_base_state_machine_change_state(&sci_req->started_substate_machine,
+						    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+		break;
+	case FIS_REGD2H:
+		if (frame_header->status & ATA_BUSY) {
+			/* Now why is the drive sending a D2H Register FIS when
+			 * it is still busy?  Do nothing since we are still in
+			 * the right state.
+			 */
+			dev_dbg(scic_to_dev(scic),
+				"%s: SCIC PIO Request 0x%p received "
+				"D2H Register FIS with BSY status "
+				"0x%x\n", __func__, stp_req,
+				frame_header->status);
+			break;
+		}
+
+		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+							      frame_index,
+							      (void **)&frame_buffer);
+
+		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+						       frame_header,
+						       frame_buffer);
+
+		scic_sds_request_set_status(sci_req,
+					    SCU_TASK_DONE_CHECK_RESPONSE,
+					    SCI_FAILURE_IO_RESPONSE_VALID);
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		break;
+	default:
+		/* FIXME: what do we do here? */
+		break;
+	}
+
+	/* Frame is decoded return it to the controller */
+	scic_sds_controller_release_frame(scic, frame_index);
 
 	return status;
 }
 
-/**
- *
- * @sci_req:
- * @frame_index:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_stp_request_pio_data_in_await_data_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
+static enum sci_status scic_sds_stp_request_pio_data_in_await_data_frame_handler(struct scic_sds_request *sci_req,
+										 u32 frame_index)
 {
 	enum sci_status status;
 	struct dev_to_host_fis *frame_header;
 	struct sata_fis_data *frame_buffer;
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&(stp_req->parent.owning_controller->uf_control),
-		frame_index,
-		(void **)&frame_header);
+	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							       frame_index,
+							       (void **)&frame_header);
 
-	if (status == SCI_SUCCESS) {
-		if (frame_header->fis_type == FIS_DATA) {
-			if (stp_req->type.pio.request_current.sgl_pair ==
-					NULL) {
-				stp_req->parent.saved_rx_frame_index =
-					frame_index;
-				stp_req->type.pio.pio_transfer_bytes = 0;
-			} else {
-				status = scic_sds_unsolicited_frame_control_get_buffer(
-					&(stp_req->parent.owning_controller->uf_control),
-					frame_index,
-					(void **)&frame_buffer);
-
-				status = scic_sds_stp_request_pio_data_in_copy_data(
-						stp_req,
-						(u8 *)frame_buffer);
-
-				/* Frame is decoded return it to the controller */
-				scic_sds_controller_release_frame(
-					stp_req->parent.owning_controller,
-					frame_index);
-			}
-
-			/*
-			 * Check for the end of the transfer, are there more
-			 * bytes remaining for this data transfer
-			 */
-			if ((status == SCI_SUCCESS) &&
-			    (stp_req->type.pio.pio_transfer_bytes == 0)) {
-				if ((stp_req->type.pio.ending_status &
-							ATA_BUSY) == 0) {
-					scic_sds_request_set_status(
-						&stp_req->parent,
-						SCU_TASK_DONE_CHECK_RESPONSE,
-						SCI_FAILURE_IO_RESPONSE_VALID);
-
-					sci_base_state_machine_change_state(
-						&stp_req->parent.state_machine,
-						SCI_BASE_REQUEST_STATE_COMPLETED);
-				} else {
-					sci_base_state_machine_change_state(
-						&sci_req->started_substate_machine,
-						SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
-				}
-			}
-		} else {
-			dev_err(scic_to_dev(sci_req->owning_controller),
-				"%s: SCIC PIO Request 0x%p received frame %d "
-				"with fis type 0x%02x when expecting a data "
-				"fis.\n",
-				__func__,
-				stp_req,
-				frame_index,
-				frame_header->fis_type);
-
-			scic_sds_request_set_status(
-				&stp_req->parent,
-				SCU_TASK_DONE_GOOD,
-				SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
-
-			sci_base_state_machine_change_state(
-				&stp_req->parent.state_machine,
-				SCI_BASE_REQUEST_STATE_COMPLETED);
-
-			/* Frame is decoded return it to the controller */
-			scic_sds_controller_release_frame(
-				stp_req->parent.owning_controller,
-				frame_index);
-		}
-	} else
-		dev_err(scic_to_dev(sci_req->owning_controller),
+	if (status != SCI_SUCCESS) {
+		dev_err(scic_to_dev(scic),
 			"%s: SCIC IO Request 0x%p could not get frame header "
 			"for frame index %d, status %x\n",
 			__func__, stp_req, frame_index, status);
+		return status;
+	}
+
+	if (frame_header->fis_type == FIS_DATA) {
+		if (stp_req->type.pio.request_current.sgl_pair == NULL) {
+			sci_req->saved_rx_frame_index = frame_index;
+			stp_req->type.pio.pio_transfer_bytes = 0;
+		} else {
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			status = scic_sds_stp_request_pio_data_in_copy_data(stp_req,
+									    (u8 *)frame_buffer);
+
+			/* Frame is decoded return it to the controller */
+			scic_sds_controller_release_frame(scic, frame_index);
+		}
+
+		/* Check for the end of the transfer, are there more
+		 * bytes remaining for this data transfer
+		 */
+		if (status != SCI_SUCCESS ||
+		    stp_req->type.pio.pio_transfer_bytes != 0)
+			return status;
+
+		if ((stp_req->type.pio.ending_status & ATA_BUSY) == 0) {
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCI_BASE_REQUEST_STATE_COMPLETED);
+		} else {
+			sci_base_state_machine_change_state(&sci_req->started_substate_machine,
+							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+		}
+	} else {
+		dev_err(scic_to_dev(scic),
+			"%s: SCIC PIO Request 0x%p received frame %d "
+			"with fis type 0x%02x when expecting a data "
+			"fis.\n", __func__, stp_req, frame_index,
+			frame_header->fis_type);
+
+		scic_sds_request_set_status(sci_req,
+					    SCU_TASK_DONE_GOOD,
+					    SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+		/* Frame is decoded return it to the controller */
+		scic_sds_controller_release_frame(scic, frame_index);
+	}
 
 	return status;
 }
@@ -1093,8 +1020,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_await_data_transmit_com
 {
 	enum sci_status status = SCI_SUCCESS;
 	bool all_frames_transferred = false;
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
@@ -1280,8 +1206,7 @@ enum sci_status
 scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
 				   bool copy_rx_frame)
 {
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	struct scic_sds_stp_pio_request *pio = &stp_req->type.pio;
 
 	scic_sds_stp_non_ncq_request_construct(sci_req);
@@ -1325,91 +1250,66 @@ static void scic_sds_stp_request_udma_complete_request(
 		SCI_BASE_REQUEST_STATE_COMPLETED);
 }
 
-/**
- *
- * @sci_req:
- * @frame_index:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_stp_request_udma_general_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
+static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct scic_sds_request *sci_req,
+								       u32 frame_index)
 {
-	enum sci_status status;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	struct dev_to_host_fis *frame_header;
+	enum sci_status status;
 	u32 *frame_buffer;
 
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&sci_req->owning_controller->uf_control,
-		frame_index,
-		(void **)&frame_header);
+	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							       frame_index,
+							       (void **)&frame_header);
 
 	if ((status == SCI_SUCCESS) &&
 	    (frame_header->fis_type == FIS_REGD2H)) {
-		scic_sds_unsolicited_frame_control_get_buffer(
-			&sci_req->owning_controller->uf_control,
-			frame_index,
-			(void **)&frame_buffer);
+		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+							      frame_index,
+							      (void **)&frame_buffer);
 
-		scic_sds_controller_copy_sata_response(
-			&((struct scic_sds_stp_request *)sci_req)->d2h_reg_fis,
-			(u32 *)frame_header,
-			frame_buffer);
+		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+						       frame_header,
+						       frame_buffer);
 	}
 
-	scic_sds_controller_release_frame(
-		sci_req->owning_controller, frame_index);
+	scic_sds_controller_release_frame(scic, frame_index);
 
 	return status;
 }
 
-/**
- * This method process TC completions while in the state where we are waiting
- *    for TC completions.
- * @sci_req:
- * @completion_code:
- *
- * enum sci_status
- */
 static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *request,
+	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_stp_request *sci_req = (struct scic_sds_stp_request *)request;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		scic_sds_stp_request_udma_complete_request(
-			&sci_req->parent, SCU_TASK_DONE_GOOD, SCI_SUCCESS
-			);
+		scic_sds_stp_request_udma_complete_request(sci_req,
+							   SCU_TASK_DONE_GOOD,
+							   SCI_SUCCESS);
 		break;
-
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_FIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 		/*
 		 * We must check ther response buffer to see if the D2H Register FIS was
 		 * received before we got the TC completion. */
-		if (sci_req->d2h_reg_fis.fis_type == FIS_REGD2H) {
-			scic_sds_remote_device_suspend(
-				sci_req->parent.target_device,
-				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code))
-				);
+		if (stp_req->d2h_reg_fis.fis_type == FIS_REGD2H) {
+			scic_sds_remote_device_suspend(sci_req->target_device,
+				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
 
-			scic_sds_stp_request_udma_complete_request(
-				&sci_req->parent,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_IO_RESPONSE_VALID
-				);
+			scic_sds_stp_request_udma_complete_request(sci_req,
+								   SCU_TASK_DONE_CHECK_RESPONSE,
+								   SCI_FAILURE_IO_RESPONSE_VALID);
 		} else {
 			/*
 			 * If we have an error completion status for the TC then we can expect a
 			 * D2H register FIS from the device so we must change state to wait for it */
-			sci_base_state_machine_change_state(
-				&sci_req->parent.started_substate_machine,
-				SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE
-				);
+			sci_base_state_machine_change_state(&sci_req->started_substate_machine,
+				SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE);
 		}
 		break;
 
@@ -1422,18 +1322,14 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_R_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CMD_LL_R_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CRC_ERR):
-		scic_sds_remote_device_suspend(
-			sci_req->parent.target_device,
-			SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code))
-			);
+		scic_sds_remote_device_suspend(sci_req->target_device,
+			SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
 	/* Fall through to the default case */
 	default:
 		/* All other completion status cause the IO to be complete. */
-		scic_sds_stp_request_udma_complete_request(
-			&sci_req->parent,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+		scic_sds_stp_request_udma_complete_request(sci_req,
+					SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 		break;
 	}
 
@@ -1449,13 +1345,12 @@ static enum sci_status scic_sds_stp_request_udma_await_d2h_reg_fis_frame_handler
 	/* Use the general frame handler to copy the resposne data */
 	status = scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
 
-	if (status == SCI_SUCCESS) {
-		scic_sds_stp_request_udma_complete_request(
-			sci_req,
-			SCU_TASK_DONE_CHECK_RESPONSE,
-			SCI_FAILURE_IO_RESPONSE_VALID
-			);
-	}
+	if (status != SCI_SUCCESS)
+		return status;
+
+	scic_sds_stp_request_udma_complete_request(sci_req,
+						   SCU_TASK_DONE_CHECK_RESPONSE,
+						   SCI_FAILURE_IO_RESPONSE_VALID);
 
 	return status;
 }
@@ -1636,67 +1531,58 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_c
  * if the received frame was processed successfully.
  */
 static enum sci_status scic_sds_stp_request_soft_reset_await_d2h_frame_handler(
-	struct scic_sds_request *request,
+	struct scic_sds_request *sci_req,
 	u32 frame_index)
 {
 	enum sci_status status;
 	struct dev_to_host_fis *frame_header;
 	u32 *frame_buffer;
-	struct scic_sds_stp_request *stp_req =
-		(struct scic_sds_stp_request *)request;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&(stp_req->parent.owning_controller->uf_control),
-		frame_index,
-		(void **)&frame_header);
-
-	if (status == SCI_SUCCESS) {
-		switch (frame_header->fis_type) {
-		case FIS_REGD2H:
-			scic_sds_unsolicited_frame_control_get_buffer(
-				&(stp_req->parent.owning_controller->uf_control),
-				frame_index,
-				(void **)&frame_buffer);
-
-			scic_sds_controller_copy_sata_response(
-				&stp_req->d2h_reg_fis,
-				(u32 *)frame_header,
-				frame_buffer);
-
-			/* The command has completed with error */
-			scic_sds_request_set_status(
-				&stp_req->parent,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_IO_RESPONSE_VALID);
-			break;
-
-		default:
-			dev_warn(scic_to_dev(request->owning_controller),
-				 "%s: IO Request:0x%p Frame Id:%d protocol "
-				 "violation occurred\n",
-				 __func__,
-				 stp_req,
-				 frame_index);
-
-			scic_sds_request_set_status(
-				&stp_req->parent,
-				SCU_TASK_DONE_UNEXP_FIS,
-				SCI_FAILURE_PROTOCOL_VIOLATION);
-			break;
-		}
-
-		sci_base_state_machine_change_state(
-			&stp_req->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED);
-
-		/* Frame has been decoded return it to the controller */
-		scic_sds_controller_release_frame(
-			stp_req->parent.owning_controller, frame_index);
-	} else
-		dev_err(scic_to_dev(request->owning_controller),
+	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							       frame_index,
+							       (void **)&frame_header);
+	if (status != SCI_SUCCESS) {
+		dev_err(scic_to_dev(scic),
 			"%s: SCIC IO Request 0x%p could not get frame header "
 			"for frame index %d, status %x\n",
 			__func__, stp_req, frame_index, status);
+		return status;
+	}
+
+	switch (frame_header->fis_type) {
+	case FIS_REGD2H:
+		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+							      frame_index,
+							      (void **)&frame_buffer);
+
+		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+						       frame_header,
+						       frame_buffer);
+
+		/* The command has completed with error */
+		scic_sds_request_set_status(sci_req,
+					    SCU_TASK_DONE_CHECK_RESPONSE,
+					    SCI_FAILURE_IO_RESPONSE_VALID);
+		break;
+
+	default:
+		dev_warn(scic_to_dev(scic),
+			 "%s: IO Request:0x%p Frame Id:%d protocol "
+			 "violation occurred\n", __func__, stp_req,
+			 frame_index);
+
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
+					    SCI_FAILURE_PROTOCOL_VIOLATION);
+		break;
+	}
+
+	sci_base_state_machine_change_state(&sci_req->state_machine,
+					    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+	/* Frame has been decoded return it to the controller */
+	scic_sds_controller_release_frame(scic, frame_index);
 
 	return status;
 }
@@ -1787,8 +1673,7 @@ static const struct sci_base_state scic_sds_stp_request_started_soft_reset_subst
 
 enum sci_status scic_sds_stp_soft_reset_request_construct(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	scic_sds_stp_non_ncq_request_construct(sci_req);
 

@@ -64,7 +64,7 @@
 #include "request.h"
 #include "sata.h"
 #include "task.h"
-#include "scic_sds_stp_request.h"
+#include "scic_sds_request.h"
 
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in
@@ -1435,8 +1435,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
 	struct scic_sds_request *sci_req = ireq->sci_request_handle;
-	struct scic_sds_stp_request *stp_req =
-		container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",

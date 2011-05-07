@@ -58,17 +58,8 @@
 
 #include <linux/dma-mapping.h>
 #include <scsi/sas.h>
-#include "scic_sds_request.h"
 
-/**
- * This structure represents the additional information that is required to
- *    handle SATA PIO requests.
- *
- *
- */
 struct scic_sds_stp_request {
-	struct scic_sds_request parent;
-
 	struct dev_to_host_fis d2h_reg_fis;
 
 	union {
@@ -125,7 +116,6 @@ struct scic_sds_stp_request {
 			u32 device_preferred_cdb_length;
 		} packet;
 	} type;
-
 };
 
 /**
