@@ -140,7 +140,6 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	bb.flags = 1 << BIO_UPTODATE;
 	bb.wait = &wait;
 
-submit:
 	ret = 0;
 	while (nr_sects != 0) {
 		bio = bio_alloc(gfp_mask,
@@ -157,9 +156,6 @@ submit:
 
 		while (nr_sects != 0) {
 			sz = min((sector_t) PAGE_SIZE >> 9 , nr_sects);
-			if (sz == 0)
-				/* bio has maximum size possible */
-				break;
 			ret = bio_add_page(bio, ZERO_PAGE(0), sz << 9, 0);
 			nr_sects -= ret >> 9;
 			sector += ret >> 9;
@@ -179,16 +175,6 @@ submit:
 		/* One of bios in the batch was completed with error.*/
 		ret = -EIO;
 
-	if (ret)
-		goto out;
-
-	if (test_bit(BIO_EOPNOTSUPP, &bb.flags)) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
-	if (nr_sects != 0)
-		goto submit;
-out:
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_zeroout);
