@@ -93,21 +93,21 @@ void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
 void amiga_chip_free(void *ptr)
 {
 	unsigned long start = ZTWO_PADDR(ptr);
-	struct resource **p, *res;
+	struct resource *res;
 	unsigned long size;
 
-	for (p = &chipram_res.child; (res = *p); p = &res->sibling) {
-		if (res->start != start)
-			continue;
-		*p = res->sibling;
-		size = resource_size(res);
-		pr_debug("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
-		atomic_add(size, &chipavail);
-		kfree(res);
+	res = lookup_resource(&chipram_res, start);
+	if (!res) {
+		pr_err("amiga_chip_free: trying to free nonexistent region at "
+		       "%p\n", ptr);
 		return;
 	}
-	pr_err("amiga_chip_free: trying to free nonexistent region at %p\n",
-	       ptr);
+
+	size = resource_size(res);
+	pr_debug("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
+	atomic_add(size, &chipavail);
+	release_resource(res);
+	kfree(res);
 }
 EXPORT_SYMBOL(amiga_chip_free);
 
