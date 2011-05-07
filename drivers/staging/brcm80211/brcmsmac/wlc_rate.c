@@ -332,7 +332,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 		return false;
 }
 
-/* caluclate the rate of a rx'd frame and return it as a ratespec */
+/* calculate the rate of a rx'd frame and return it as a ratespec */
 ratespec_t BCMFASTPATH wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 {
 	int phy_type;

@@ -497,7 +497,7 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-bool __early_alloc_p2m(unsigned long pfn)
+static bool __init __early_alloc_p2m(unsigned long pfn)
 {
 	unsigned topidx, mididx, idx;
 
@@ -530,7 +530,7 @@ bool __early_alloc_p2m(unsigned long pfn)
 	}
 	return idx != 0;
 }
-unsigned long set_phys_range_identity(unsigned long pfn_s,
+unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 				      unsigned long pfn_e)
 {
 	unsigned long pfn;
@@ -671,7 +671,9 @@ int m2p_add_override(unsigned long mfn, struct page *page)
 	page->private = mfn;
 	page->index = pfn_to_mfn(pfn);
 
-	__set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
+	if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn))))
+		return -ENOMEM;
+
 	if (!PageHighMem(page))
 		/* Just zap old mapping for now */
 		pte_clear(&init_mm, address, ptep);
@@ -709,7 +711,7 @@ int m2p_remove_override(struct page *page)
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
-	__set_phys_to_machine(pfn, page->index);
+	set_phys_to_machine(pfn, page->index);
 
 	if (!PageHighMem(page))
 		set_pte_at(&init_mm, address, ptep,

@@ -194,7 +194,7 @@ void rh_port_disconnect(int rhport)
  *
  * So, the maximum number of ports is 31 ( port 0 to port 30) ?
  *
- * The return value is the actual transfered length in byte. If nothing has
+ * The return value is the actual transferred length in byte. If nothing has
  * been changed, return 0. In the case that the number of ports is less than or
  * equal to 6 (VHCI_NPORTS==7), return 1.
  *

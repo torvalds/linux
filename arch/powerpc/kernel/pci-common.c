@@ -261,7 +261,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
-			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
 			 oirq.size, oirq.specifier[0], oirq.specifier[1],

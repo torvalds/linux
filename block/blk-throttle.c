@@ -77,7 +77,7 @@ struct throtl_grp {
 	unsigned long slice_end[2];
 
 	/* Some throttle limits got updated for the group */
-	bool limits_changed;
+	int limits_changed;
 };
 
 struct throtl_data
@@ -102,7 +102,7 @@ struct throtl_data
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
 
-	atomic_t limits_changed;
+	int limits_changed;
 };
 
 enum tg_state_flags {
@@ -201,6 +201,7 @@ static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
 	bio_list_init(&tg->bio_lists[1]);
+	td->limits_changed = false;
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -737,34 +738,36 @@ static void throtl_process_limit_change(struct throtl_data *td)
 	struct throtl_grp *tg;
 	struct hlist_node *pos, *n;
 
-	if (!atomic_read(&td->limits_changed))
+	if (!td->limits_changed)
 		return;
 
-	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
+	xchg(&td->limits_changed, false);
 
-	/*
-	 * Make sure updates from throtl_update_blkio_group_read_bps() group
-	 * of functions to tg->limits_changed are visible. We do not
-	 * want update td->limits_changed to be visible but update to
-	 * tg->limits_changed not being visible yet on this cpu. Hence
-	 * the read barrier.
-	 */
-	smp_rmb();
+	throtl_log(td, "limits changed");
 
 	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
-		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
-			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
-				" riops=%u wiops=%u", tg->bps[READ],
-				tg->bps[WRITE], tg->iops[READ],
-				tg->iops[WRITE]);
-			tg_update_disptime(td, tg);
-			tg->limits_changed = false;
-		}
-	}
+		if (!tg->limits_changed)
+			continue;
 
-	smp_mb__before_atomic_dec();
-	atomic_dec(&td->limits_changed);
-	smp_mb__after_atomic_dec();
+		if (!xchg(&tg->limits_changed, false))
+			continue;
+
+		throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
+			" riops=%u wiops=%u", tg->bps[READ], tg->bps[WRITE],
+			tg->iops[READ], tg->iops[WRITE]);
+
+		/*
+		 * Restart the slices for both READ and WRITES. It
+		 * might happen that a group's limit are dropped
+		 * suddenly and we don't want to account recently
+		 * dispatched IO with new low rate
+		 */
+		throtl_start_new_slice(td, tg, 0);
+		throtl_start_new_slice(td, tg, 1);
+
+		if (throtl_tg_on_rr(tg))
+			tg_update_disptime(td, tg);
+	}
 }
 
 /* Dispatch throttled bios. Should be called without queue lock held. */
@@ -774,6 +777,7 @@ static int throtl_dispatch(struct request_queue *q)
 	unsigned int nr_disp = 0;
 	struct bio_list bio_list_on_stack;
 	struct bio *bio;
+	struct blk_plug plug;
 
 	spin_lock_irq(q->queue_lock);
 
@@ -802,9 +806,10 @@ out:
 	 * immediate dispatch
 	 */
 	if (nr_disp) {
+		blk_start_plug(&plug);
 		while((bio = bio_list_pop(&bio_list_on_stack)))
 			generic_make_request(bio);
-		blk_unplug(q);
+		blk_finish_plug(&plug);
 	}
 	return nr_disp;
 }
@@ -825,7 +830,8 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 
 	struct delayed_work *dwork = &td->throtl_work;
 
-	if (total_nr_queued(td) > 0) {
+	/* schedule work if limits changed even if no bio is queued */
+	if (total_nr_queued(td) > 0 || td->limits_changed) {
 		/*
 		 * We might have a work scheduled to be executed in future.
 		 * Cancel that and schedule a new one.
@@ -898,10 +904,19 @@ void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
 	spin_unlock_irqrestore(td->queue->queue_lock, flags);
 }
 
+static void throtl_update_blkio_group_common(struct throtl_data *td,
+				struct throtl_grp *tg)
+{
+	xchg(&tg->limits_changed, true);
+	xchg(&td->limits_changed, true);
+	/* Schedule a work now to process the limit change */
+	throtl_schedule_delayed_work(td, 0);
+}
+
 /*
  * For all update functions, key should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn key is valid. queue exit path can not race becuase
+ * valid and in turn key is valid. queue exit path can not race because
  * of blkcg_lock
  *
  * Can not take queue lock in update functions as queue lock under blkcg_lock
@@ -911,64 +926,43 @@ static void throtl_update_blkio_group_read_bps(void *key,
 				struct blkio_group *blkg, u64 read_bps)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->bps[READ] = read_bps;
-	/* Make sure read_bps is updated before setting limits_changed */
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-
-	/* Make sure tg->limits_changed is updated before td->limits_changed */
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-
-	/* Schedule a work now to process the limit change */
-	throtl_schedule_delayed_work(td, 0);
+	tg->bps[READ] = read_bps;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_write_bps(void *key,
 				struct blkio_group *blkg, u64 write_bps)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->bps[WRITE] = write_bps;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->bps[WRITE] = write_bps;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_read_iops(void *key,
 			struct blkio_group *blkg, unsigned int read_iops)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->iops[READ] = read_iops;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->iops[READ] = read_iops;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_write_iops(void *key,
 			struct blkio_group *blkg, unsigned int write_iops)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->iops[WRITE] = write_iops;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->iops[WRITE] = write_iops;
+	throtl_update_blkio_group_common(td, tg);
 }
 
-void throtl_shutdown_timer_wq(struct request_queue *q)
+static void throtl_shutdown_wq(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
 
@@ -1009,20 +1003,28 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		/*
 		 * There is already another bio queued in same dir. No
 		 * need to update dispatch time.
-		 * Still update the disptime if rate limits on this group
-		 * were changed.
 		 */
-		if (!tg->limits_changed)
-			update_disptime = false;
-		else
-			tg->limits_changed = false;
-
+		update_disptime = false;
 		goto queue_bio;
+
 	}
 
 	/* Bio is with-in rate limit of group */
 	if (tg_may_dispatch(td, tg, bio, NULL)) {
 		throtl_charge_bio(tg, bio);
+
+		/*
+		 * We need to trim slice even when bios are not being queued
+		 * otherwise it might happen that a bio is not queued for
+		 * a long time and slice keeps on extending and trim is not
+		 * called for a long time. Now if limits are reduced suddenly
+		 * we take into account all the IO dispatched so far at new
+		 * low rate and * newly queued IO gets a really long dispatch
+		 * time.
+		 *
+		 * So keep on trimming slice even if bio is not queued.
+		 */
+		throtl_trim_slice(td, tg, rw);
 		goto out;
 	}
 
@@ -1058,7 +1060,7 @@ int blk_throtl_init(struct request_queue *q)
 
 	INIT_HLIST_HEAD(&td->tg_list);
 	td->tg_service_tree = THROTL_RB_ROOT;
-	atomic_set(&td->limits_changed, 0);
+	td->limits_changed = false;
 
 	/* Init root group */
 	tg = &td->root_tg;
@@ -1070,6 +1072,7 @@ int blk_throtl_init(struct request_queue *q)
 	/* Practically unlimited BW */
 	tg->bps[0] = tg->bps[1] = -1;
 	tg->iops[0] = tg->iops[1] = -1;
+	td->limits_changed = false;
 
 	/*
 	 * Set root group reference to 2. One reference will be dropped when
@@ -1102,7 +1105,7 @@ void blk_throtl_exit(struct request_queue *q)
 
 	BUG_ON(!td);
 
-	throtl_shutdown_timer_wq(q);
+	throtl_shutdown_wq(q);
 
 	spin_lock_irq(q->queue_lock);
 	throtl_release_tgs(td);
@@ -1132,7 +1135,7 @@ void blk_throtl_exit(struct request_queue *q)
 	 * update limits through cgroup and another work got queued, cancel
 	 * it.
 	 */
-	throtl_shutdown_timer_wq(q);
+	throtl_shutdown_wq(q);
 	throtl_td_free(td);
 }
 

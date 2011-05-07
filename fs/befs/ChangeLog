@@ -24,7 +24,7 @@ Version 0.9 (2002-03-14)
 
 Version 0.64 (2002-02-07)
 ==========
-* Did the string comparision really right this time (btree.c) [WD]
+* Did the string comparison really right this time (btree.c) [WD]
 
 * Fixed up some places where I assumed that a long int could hold
 	a pointer value. (btree.c) [WD]
@@ -114,7 +114,7 @@ Version 0.6 (2001-12-15)
 	More flexible. Will soon be controllable at mount time 
 	(see TODO). [WD]
 
-* Rewrote datastream positon lookups.
+* Rewrote datastream position lookups.
 	(datastream.c) [WD]
 
 * Moved the TODO list to its own file.
@@ -150,7 +150,7 @@ Version 0.50 (2001-11-13)
 * Anton also told me that the blocksize is not allowed to be larger than 
 	the page size in linux, which is 4k i386. Oops. Added a test for 
 	(blocksize > PAGE_SIZE), and refuse to mount in that case. What this 
-	practicaly means is that 8k blocksize volumes won't work without a major
+	practically means is that 8k blocksize volumes won't work without a major
 	restructuring of the driver (or an alpha or other 64bit hardware). [WD]
 
 * Cleaned up the befs_count_blocks() function. Much smarter now. 
@@ -183,7 +183,7 @@ Version 0.45 (2001-10-29)
 	structures into the generic pointer fields of the public structures 
 	with kmalloc(). put_super and put_inode free them. This allows us not 
 	to have to touch the definitions of the public structures in 
-	include/linux/fs.h. Also, befs_inode_info is huge (becuase of the 
+	include/linux/fs.h. Also, befs_inode_info is huge (because of the 
 	symlink string). (super.c, inode.c, befs_fs.h) [WD]
 
 * Fixed a thinko that was corrupting file reads after the first block_run 
@@ -404,7 +404,7 @@ Version 0.4 (2001-10-28)
 
 * Fixed compile errors on 2.4.1 kernel (WD)
 	Resolve rejected patches
-	Accomodate changed NLS interface (util.h)
+	Accommodate changed NLS interface (util.h)
 	Needed to include <linux/slab.h> in most files
 	Makefile changes
 	fs/Config.in changes

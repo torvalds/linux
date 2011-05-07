@@ -30,7 +30,7 @@
   changelog for the 1.x series, David?
 
 2.00  Dec  2, 1997 -- Erik Andersen <andersee@debian.org>
-  -- New maintainer! As David A. van Leeuwen has been too busy to activly
+  -- New maintainer! As David A. van Leeuwen has been too busy to actively
   maintain and improve this driver, I am now carrying on the torch. If
   you have a problem with this driver, please feel free to contact me.
 
@@ -2520,7 +2520,7 @@ static int cdrom_ioctl_drive_status(struct cdrom_device_info *cdi,
 /*
  * Ok, this is where problems start.  The current interface for the
  * CDROM_DISC_STATUS ioctl is flawed.  It makes the false assumption that
- * CDs are all CDS_DATA_1 or all CDS_AUDIO, etc.  Unfortunatly, while this
+ * CDs are all CDS_DATA_1 or all CDS_AUDIO, etc.  Unfortunately, while this
  * is often the case, it is also very common for CDs to have some tracks
  * with data, and some tracks with audio.  Just because I feel like it,
  * I declare the following to be the best way to cope.  If the CD has ANY

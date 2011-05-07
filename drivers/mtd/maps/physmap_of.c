@@ -104,12 +104,10 @@ static int of_flash_remove(struct platform_device *dev)
 		return 0;
 	dev_set_drvdata(&dev->dev, NULL);
 
-#ifdef CONFIG_MTD_CONCAT
 	if (info->cmtd != info->list[0].mtd) {
 		del_mtd_device(info->cmtd);
 		mtd_concat_destroy(info->cmtd);
 	}
-#endif
 
 	if (info->cmtd) {
 		if (OF_FLASH_PARTS(info)) {
@@ -337,16 +335,10 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 		/*
 		 * We detected multiple devices. Concatenate them together.
 		 */
-#ifdef CONFIG_MTD_CONCAT
 		info->cmtd = mtd_concat_create(mtd_list, info->list_size,
 					       dev_name(&dev->dev));
 		if (info->cmtd == NULL)
 			err = -ENXIO;
-#else
-		printk(KERN_ERR "physmap_of: multiple devices "
-		       "found but MTD concat support disabled.\n");
-		err = -ENXIO;
-#endif
 	}
 	if (err)
 		goto err_out;

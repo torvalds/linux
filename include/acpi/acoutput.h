@@ -183,13 +183,19 @@
 
 #if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
 /*
- * Module name is included in both debug and non-debug versions primarily for
- * error messages. The __FILE__ macro is not very useful for this, because it
- * often includes the entire pathname to the module
+ * The module name is used primarily for error and debug messages.
+ * The __FILE__ macro is not very useful for this, because it
+ * usually includes the entire pathname to the module making the
+ * debug output difficult to read.
  */
 #define ACPI_MODULE_NAME(name)          static const char ACPI_UNUSED_VAR _acpi_module_name[] = name;
 #else
+/*
+ * For the no-debug and no-error-msg cases, we must at least define
+ * a null module name.
+ */
 #define ACPI_MODULE_NAME(name)
+#define _acpi_module_name ""
 #endif
 
 /*

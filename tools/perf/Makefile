@@ -165,8 +165,12 @@ grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
 $(OUTPUT)python/perf.so: $(PYRF_OBJS)
-	$(QUIET_GEN)python util/setup.py --quiet  build_ext --build-lib='$(OUTPUT)python' \
-						--build-temp='$(OUTPUT)python/temp'
+	$(QUIET_GEN)( \
+		export CFLAGS="$(BASIC_CFLAGS)"; \
+		python util/setup.py --quiet  build_ext --build-lib='$(OUTPUT)python' \
+			--build-temp='$(OUTPUT)python/temp' \
+	)
+
 #
 # No Perl scripts right now:
 #

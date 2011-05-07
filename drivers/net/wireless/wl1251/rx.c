@@ -179,7 +179,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 	rx_buffer = skb_put(skb, length);
 	wl1251_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
 
-	/* The actual lenght doesn't include the target's alignment */
+	/* The actual length doesn't include the target's alignment */
 	skb->len = desc->length  - PLCP_HEADER_LENGTH;
 
 	fc = (u16 *)skb->data;

@@ -211,8 +211,10 @@ int __init get_memcfg_from_srat(void)
 {
 	int i, j, nid;
 
-
 	if (srat_disabled())
+		goto out_fail;
+
+	if (acpi_numa_init() < 0)
 		goto out_fail;
 
 	if (num_memory_chunks == 0) {

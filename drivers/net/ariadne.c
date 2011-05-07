@@ -182,14 +182,14 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
 	return -EBUSY;
     r2 = request_mem_region(mem_start, ARIADNE_RAM_SIZE, "RAM");
     if (!r2) {
-	release_resource(r1);
+	release_mem_region(base_addr, sizeof(struct Am79C960));
 	return -EBUSY;
     }
 
     dev = alloc_etherdev(sizeof(struct ariadne_private));
     if (dev == NULL) {
-	release_resource(r1);
-	release_resource(r2);
+	release_mem_region(base_addr, sizeof(struct Am79C960));
+	release_mem_region(mem_start, ARIADNE_RAM_SIZE);
 	return -ENOMEM;
     }
 
@@ -213,8 +213,8 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
 
     err = register_netdev(dev);
     if (err) {
-	release_resource(r1);
-	release_resource(r2);
+	release_mem_region(base_addr, sizeof(struct Am79C960));
+	release_mem_region(mem_start, ARIADNE_RAM_SIZE);
 	free_netdev(dev);
 	return err;
     }

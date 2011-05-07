@@ -892,7 +892,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
 		seq_printf(m, "CAGF: %dMHz\n", ((rpstat & GEN6_CAGF_MASK) >>
-						GEN6_CAGF_SHIFT) * 100);
+						GEN6_CAGF_SHIFT) * 50);
 		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
 			   GEN6_CURICONT_MASK);
 		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
@@ -908,15 +908,15 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
-			   max_freq * 100);
+			   max_freq * 50);
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
-			   max_freq * 100);
+			   max_freq * 50);
 
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
-			   max_freq * 100);
+			   max_freq * 50);
 
 		__gen6_gt_force_wake_put(dev_priv);
 	} else {

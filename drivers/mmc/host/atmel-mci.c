@@ -127,7 +127,7 @@ struct atmel_mci_dma {
  * EVENT_DATA_COMPLETE is set in @pending_events, all data-related
  * interrupts must be disabled and @data_status updated with a
  * snapshot of SR. Similarly, before EVENT_CMD_COMPLETE is set, the
- * CMDRDY interupt must be disabled and @cmd_status updated with a
+ * CMDRDY interrupt must be disabled and @cmd_status updated with a
  * snapshot of SR, and before EVENT_XFER_COMPLETE can be set, the
  * bytes_xfered field of @data must be written. This is ensured by
  * using barriers.
@@ -1082,7 +1082,7 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 	/*
 	 * Update the MMC clock rate if necessary. This may be
 	 * necessary if set_ios() is called when a different slot is
-	 * busy transfering data.
+	 * busy transferring data.
 	 */
 	if (host->need_clock_update) {
 		mci_writel(host, MR, host->mode_reg);

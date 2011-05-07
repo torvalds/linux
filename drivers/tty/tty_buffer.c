@@ -442,10 +442,8 @@ static void flush_to_ldisc(struct work_struct *work)
 			   line discipline as we want to empty the queue */
 			if (test_bit(TTY_FLUSHPENDING, &tty->flags))
 				break;
-			if (!tty->receive_room || seen_tail) {
-				schedule_work(&tty->buf.work);
+			if (!tty->receive_room || seen_tail)
 				break;
-			}
 			if (count > tty->receive_room)
 				count = tty->receive_room;
 			char_buf = head->char_buf_ptr + head->read;

@@ -6,7 +6,7 @@
  * GPL v2
  *
  * This driver assumes single CPU. That's okay, because collie is
- * slightly old hardware, and noone is going to retrofit second CPU to
+ * slightly old hardware, and no one is going to retrofit second CPU to
  * old PDA.
  */
 

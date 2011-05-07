@@ -300,7 +300,7 @@ static int __devinit gvp11_probe(struct zorro_dev *z,
 	/*
 	 * Rumors state that some GVP ram boards use the same product
 	 * code as the SCSI controllers. Therefore if the board-size
-	 * is not 64KB we asume it is a ram board and bail out.
+	 * is not 64KB we assume it is a ram board and bail out.
 	 */
 	if (zorro_resource_len(z) != 0x10000)
 		return -ENODEV;

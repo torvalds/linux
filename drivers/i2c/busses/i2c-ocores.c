@@ -49,6 +49,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -305,7 +306,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	pdata = pdev->dev.platform_data;
+	pdata = mfd_get_data(pdev);
 	if (pdata) {
 		i2c->regstep = pdata->regstep;
 		i2c->clock_khz = pdata->clock_khz;

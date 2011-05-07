@@ -4,6 +4,7 @@
 
 config HWSPINLOCK
 	tristate "Generic Hardware Spinlock framework"
+	depends on ARCH_OMAP4
 	help
 	  Say y here to support the generic hardware spinlock framework.
 	  You only need to enable this if you have hardware spinlock module

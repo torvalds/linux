@@ -2309,7 +2309,7 @@ unsigned long wait_task_inactive(struct task_struct *p, long match_state)
  * Cause a process which is running on another CPU to enter
  * kernel-mode, without any delay. (to get signals handled.)
  *
- * NOTE: this function doesnt have to take the runqueue lock,
+ * NOTE: this function doesn't have to take the runqueue lock,
  * because all it wants to ensure is that the remote task enters
  * the kernel. If the IPI races and the task has been migrated
  * to another CPU then no harm is done and the purpose has been
@@ -4111,6 +4111,16 @@ need_resched:
 					try_to_wake_up_local(to_wakeup);
 			}
 			deactivate_task(rq, prev, DEQUEUE_SLEEP);
+
+			/*
+			 * If we are going to sleep and we have plugged IO queued, make
+			 * sure to submit it to avoid deadlocks.
+			 */
+			if (blk_needs_flush_plug(prev)) {
+				raw_spin_unlock(&rq->lock);
+				blk_schedule_flush_plug(prev);
+				raw_spin_lock(&rq->lock);
+			}
 		}
 		switch_count = &prev->nvcsw;
 	}
@@ -4892,8 +4902,11 @@ static bool check_same_owner(struct task_struct *p)
 
 	rcu_read_lock();
 	pcred = __task_cred(p);
-	match = (cred->euid == pcred->euid ||
-		 cred->euid == pcred->uid);
+	if (cred->user->user_ns == pcred->user->user_ns)
+		match = (cred->euid == pcred->euid ||
+			 cred->euid == pcred->uid);
+	else
+		match = false;
 	rcu_read_unlock();
 	return match;
 }
@@ -4984,7 +4997,7 @@ recheck:
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	/*
-	 * To be able to change p->policy safely, the apropriate
+	 * To be able to change p->policy safely, the appropriate
 	 * runqueue lock must be held.
 	 */
 	rq = __task_rq_lock(p);
@@ -4996,6 +5009,17 @@ recheck:
 		__task_rq_unlock(rq);
 		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 		return -EINVAL;
+	}
+
+	/*
+	 * If not changing anything there's no need to proceed further:
+	 */
+	if (unlikely(policy == p->policy && (!rt_policy(policy) ||
+			param->sched_priority == p->rt_priority))) {
+
+		__task_rq_unlock(rq);
+		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+		return 0;
 	}
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -5221,7 +5245,7 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 		goto out_free_cpus_allowed;
 	}
 	retval = -EPERM;
-	if (!check_same_owner(p) && !capable(CAP_SYS_NICE))
+	if (!check_same_owner(p) && !task_ns_capable(p, CAP_SYS_NICE))
 		goto out_unlock;
 
 	retval = security_task_setscheduler(p);
@@ -5460,6 +5484,8 @@ EXPORT_SYMBOL(yield);
  * yield_to - yield the current processor to another thread in
  * your thread group, or accelerate that thread toward the
  * processor it's on.
+ * @p: target task
+ * @preempt: whether task preemption is allowed or not
  *
  * It's the caller's job to ensure that the target task struct
  * can't go away on us before we can do any checks.
@@ -5525,6 +5551,7 @@ void __sched io_schedule(void)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
+	blk_flush_plug(current);
 	current->in_iowait = 1;
 	schedule();
 	current->in_iowait = 0;
@@ -5540,6 +5567,7 @@ long __sched io_schedule_timeout(long timeout)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
+	blk_flush_plug(current);
 	current->in_iowait = 1;
 	ret = schedule_timeout(timeout);
 	current->in_iowait = 0;
@@ -5688,7 +5716,7 @@ void show_state_filter(unsigned long state_filter)
 	do_each_thread(g, p) {
 		/*
 		 * reset the NMI-timeout, listing all files on a slow
-		 * console might take alot of time:
+		 * console might take a lot of time:
 		 */
 		touch_nmi_watchdog();
 		if (!state_filter || (p->state & state_filter))
@@ -6303,6 +6331,9 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 #endif
 	}
+
+	update_max_interval();
+
 	return NOTIFY_OK;
 }
 
@@ -8434,7 +8465,6 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
-	struct rq *rq;
 	int i;
 
 	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * nr_cpu_ids, GFP_KERNEL);
@@ -8447,8 +8477,6 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 	tg->shares = NICE_0_LOAD;
 
 	for_each_possible_cpu(i) {
-		rq = cpu_rq(i);
-
 		cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
 				      GFP_KERNEL, cpu_to_node(i));
 		if (!cfs_rq)

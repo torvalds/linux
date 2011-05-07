@@ -1046,7 +1046,7 @@ static int __devinit prodigy_hifi_init(struct snd_ice1712 *ice)
 	* don't call snd_ice1712_gpio_get/put(), otherwise it's overwritten
 	*/
 	ice->gpio.saved[0] = 0;
-	/* to remeber the register values */
+	/* to remember the register values */
 
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
@@ -1128,7 +1128,7 @@ static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
 	* don't call snd_ice1712_gpio_get/put(), otherwise it's overwritten
 	*/
 	ice->gpio.saved[0] = 0;
-	/* to remeber the register values */
+	/* to remember the register values */
 
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)

@@ -1,0 +1,133 @@
+<refentry id="media-ioc-device-info">
+  <refmeta>
+    <refentrytitle>ioctl MEDIA_IOC_DEVICE_INFO</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>MEDIA_IOC_DEVICE_INFO</refname>
+    <refpurpose>Query device information</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct media_device_info *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>File descriptor returned by
+	  <link linkend='media-func-open'><function>open()</function></link>.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>MEDIA_IOC_DEVICE_INFO</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>All media devices must support the <constant>MEDIA_IOC_DEVICE_INFO</constant>
+    ioctl. To query device information, applications call the ioctl with a
+    pointer to a &media-device-info;. The driver fills the structure and returns
+    the information to the application.
+    The ioctl never fails.</para>
+
+    <table pgwide="1" frame="none" id="media-device-info">
+      <title>struct <structname>media_device_info</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>char</entry>
+	    <entry><structfield>driver</structfield>[16]</entry>
+	    <entry><para>Name of the driver implementing the media API as a
+	    NUL-terminated ASCII string. The driver version is stored in the
+	    <structfield>driver_version</structfield> field.</para>
+	    <para>Driver specific applications can use this information to
+	    verify the driver identity. It is also useful to work around
+	    known bugs, or to identify drivers in error reports.</para></entry>
+	  </row>
+	  <row>
+	    <entry>char</entry>
+	    <entry><structfield>model</structfield>[32]</entry>
+	    <entry>Device model name as a NUL-terminated UTF-8 string. The
+	    device version is stored in the <structfield>device_version</structfield>
+	    field and is not be appended to the model name.</entry>
+	  </row>
+	  <row>
+	    <entry>char</entry>
+	    <entry><structfield>serial</structfield>[40]</entry>
+	    <entry>Serial number as a NUL-terminated ASCII string.</entry>
+	  </row>
+	  <row>
+	    <entry>char</entry>
+	    <entry><structfield>bus_info</structfield>[32]</entry>
+	    <entry>Location of the device in the system as a NUL-terminated
+	    ASCII string. This includes the bus type name (PCI, USB, ...) and a
+	    bus-specific identifier.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>media_version</structfield></entry>
+	    <entry>Media API version, formatted with the
+	    <constant>KERNEL_VERSION()</constant> macro.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>hw_revision</structfield></entry>
+	    <entry>Hardware device revision in a driver-specific format.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>media_version</structfield></entry>
+	    <entry>Media device driver version, formatted with the
+	    <constant>KERNEL_VERSION()</constant> macro. Together with the
+	    <structfield>driver</structfield> field this identifies a particular
+	    driver.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[31]</entry>
+	    <entry>Reserved for future extensions. Drivers and applications must
+	    set this array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+    <para>The <structfield>serial</structfield> and <structfield>bus_info</structfield>
+    fields can be used to distinguish between multiple instances of otherwise
+    identical hardware. The serial number takes precedence when provided and can
+    be assumed to be unique. If the serial number is an empty string, the
+    <structfield>bus_info</structfield> field can be used instead. The
+    <structfield>bus_info</structfield> field is guaranteed to be unique, but
+    can vary across reboots or device unplug/replug.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return value</title>
+    <para>This function doesn't return specific error codes.</para>
+  </refsect1>
+</refentry>

@@ -67,7 +67,7 @@ MODULE_PARM_DESC(index, "Index value for the USB MIDI Gadget adapter.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for the USB MIDI Gadget adapter.");
 
-/* Some systems will want different product identifers published in the
+/* Some systems will want different product identifiers published in the
  * device descriptor, either numbers or strings or both.  These string
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */

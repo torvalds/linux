@@ -101,7 +101,7 @@ cflags-y += -ffreestanding
 # carefully avoid to add it redundantly because gcc 3.3/3.4 complains
 # when fed the toolchain default!
 #
-# Certain gcc versions upto gcc 4.1.1 (probably 4.2-subversion as of
+# Certain gcc versions up to gcc 4.1.1 (probably 4.2-subversion as of
 # 2006-10-10 don't properly change the predefined symbols if -EB / -EL
 # are used, so we kludge that here.  A bug has been filed at
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29413.
@@ -314,5 +314,5 @@ define archhelp
 	echo '  vmlinuz.bin          - Raw binary zboot image'
 	echo '  vmlinuz.srec         - SREC zboot image'
 	echo
-	echo '  These will be default as apropriate for a configured platform.'
+	echo '  These will be default as appropriate for a configured platform.'
 endef

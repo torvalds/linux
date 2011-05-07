@@ -136,7 +136,7 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxs_gpio_port *port = (struct mxs_gpio_port *)get_irq_data(irq);
+	struct mxs_gpio_port *port = (struct mxs_gpio_port *)irq_get_handler_data(irq);
 	u32 gpio_irq_no_base = port->virtual_irq_start;
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
@@ -265,14 +265,14 @@ int __init mxs_gpio_init(struct mxs_gpio_port *port, int cnt)
 
 		for (j = port[i].virtual_irq_start;
 			j < port[i].virtual_irq_start + 32; j++) {
-			set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, handle_level_irq);
+			irq_set_chip_and_handler(j, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
 		/* setup one handler for each entry */
-		set_irq_chained_handler(port[i].irq, mxs_gpio_irq_handler);
-		set_irq_data(port[i].irq, &port[i]);
+		irq_set_chained_handler(port[i].irq, mxs_gpio_irq_handler);
+		irq_set_handler_data(port[i].irq, &port[i]);
 
 		/* register gpio chip */
 		port[i].chip.direction_input = mxs_gpio_direction_input;

@@ -153,7 +153,8 @@ static int cq93vc_resume(struct snd_soc_codec *codec)
 
 static int cq93vc_probe(struct snd_soc_codec *codec)
 {
-	struct davinci_vc *davinci_vc = snd_soc_codec_get_drvdata(codec);
+	struct davinci_vc *davinci_vc =
+			mfd_get_data(to_platform_device(codec->dev));
 
 	davinci_vc->cq93vc.codec = codec;
 	codec->control_data = davinci_vc;

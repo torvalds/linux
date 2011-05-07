@@ -25,6 +25,8 @@
 
 #include <mach/balloon3.h>
 
+#include <asm/mach-types.h>
+
 #include "soc_common.h"
 
 /*
@@ -126,6 +128,9 @@ static struct platform_device *balloon3_pcmcia_device;
 static int __init balloon3_pcmcia_init(void)
 {
 	int ret;
+
+	if (!machine_is_balloon3())
+		return -ENODEV;
 
 	balloon3_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!balloon3_pcmcia_device)

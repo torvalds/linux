@@ -269,7 +269,7 @@ static const struct drm_encoder_helper_funcs radeon_legacy_lvds_helper_funcs = {
 	.disable = radeon_legacy_encoder_disable,
 };
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
 #define MAX_RADEON_LEVEL 0xFF
 

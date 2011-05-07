@@ -110,8 +110,7 @@ config SENSORS_ADM1021
 	help
 	  If you say yes here you get support for Analog Devices ADM1021
 	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
-	  Genesys Logic GL523SM, National Semiconductor LM84, TI THMC10,
-	  and the XEON processor built-in sensor.
+	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1021.
@@ -315,11 +314,22 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71858FG, F71862FG, F71882FG, F71889FG and F8000"
+	tristate "Fintek F71882FG and compatibles"
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG,
-	  F71889FG and F8000 Super-I/O chips.
+	  features of many Fintek Super-I/O (LPC) chips. The currently
+	  supported chips are:
+	    F71808E
+	    F71858FG
+	    F71862FG
+	    F71863FG
+	    F71869F/E
+	    F71882FG
+	    F71883FG
+	    F71889FG/ED/A
+	    F8000
+	    F81801U
+	    F81865F
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.
@@ -607,10 +617,10 @@ config SENSORS_LM90
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, Maxim
-	  MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
-	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, and Winbond/Nuvoton
-	  W83L771W/G/AWG/ASG sensor chips.
+	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
+	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
+	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
+	  and Winbond/Nuvoton W83L771W/G/AWG/ASG sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -1046,6 +1056,16 @@ config SENSORS_TMP421
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp421.
+
+config SENSORS_TWL4030_MADC
+	tristate "Texas Instruments TWL4030 MADC Hwmon"
+	depends on TWL4030_MADC
+	help
+	If you say yes here you get hwmon support for triton
+	TWL4030-MADC.
+
+	This driver can also be built as a module. If so it will be called
+	twl4030-madc-hwmon.
 
 config SENSORS_VIA_CPUTEMP
 	tristate "VIA CPU temperature sensor"

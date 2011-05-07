@@ -109,7 +109,7 @@ int RIOBootCodeRTA(struct rio_info *p, struct DownLoad * rbp)
 	rio_dprintk(RIO_DEBUG_BOOT, "Data at user address %p\n", rbp->DataP);
 
 	/*
-	 ** Check that we have set asside enough memory for this
+	 ** Check that we have set aside enough memory for this
 	 */
 	if (rbp->Count > SIXTY_FOUR_K) {
 		rio_dprintk(RIO_DEBUG_BOOT, "RTA Boot Code Too Large!\n");
@@ -293,7 +293,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		/*
 		 **                     S T O P !
 		 **
-		 ** Upto this point the code has been fairly rational, and possibly
+		 ** Up to this point the code has been fairly rational, and possibly
 		 ** even straight forward. What follows is a pile of crud that will
 		 ** magically turn into six bytes of transputer assembler. Normally
 		 ** you would expect an array or something, but, being me, I have
@@ -419,7 +419,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		rio_dprintk(RIO_DEBUG_BOOT, "Set control port\n");
 
 		/*
-		 ** Now, wait for upto five seconds for the Tp to setup the parmmap
+		 ** Now, wait for up to five seconds for the Tp to setup the parmmap
 		 ** pointer:
 		 */
 		for (wait_count = 0; (wait_count < p->RIOConf.StartupTime) && (readw(&HostP->__ParmMapR) == OldParmMap); wait_count++) {
@@ -475,7 +475,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 
 		/*
 		 ** now wait for the card to set all the parmmap->XXX stuff
-		 ** this is a wait of upto two seconds....
+		 ** this is a wait of up to two seconds....
 		 */
 		rio_dprintk(RIO_DEBUG_BOOT, "Looking for init_done - %d ticks\n", p->RIOConf.StartupTime);
 		HostP->timeout_id = 0;

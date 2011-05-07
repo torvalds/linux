@@ -44,8 +44,6 @@ typedef struct {
 
 typedef __vector128 vector128;
 
-typedef u64 dma64_addr_t;
-
 typedef struct {
 	unsigned long entry;
 	unsigned long toc;

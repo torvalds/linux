@@ -1042,7 +1042,7 @@ static void fc_exch_set_addr(struct fc_exch *ep,
 }
 
 /**
- * fc_seq_els_rsp_send() - Send an ELS response using infomation from
+ * fc_seq_els_rsp_send() - Send an ELS response using information from
  *			   the existing sequence/exchange.
  * @fp:	      The received frame
  * @els_cmd:  The ELS command to be sent
@@ -1153,7 +1153,7 @@ static void fc_seq_send_ack(struct fc_seq *sp, const struct fc_frame *rx_fp)
  * fc_exch_send_ba_rjt() - Send BLS Reject
  * @rx_fp:  The frame being rejected
  * @reason: The reason the frame is being rejected
- * @explan: The explaination for the rejection
+ * @explan: The explanation for the rejection
  *
  * This is for rejecting BA_ABTS only.
  */

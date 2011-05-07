@@ -450,7 +450,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 		 ** we reset the unit, because we didn't boot it.
 		 ** However, if the table is full, it could be that we did boot
 		 ** this unit, and so we won't reboot it, because it isn't really
-		 ** all that disasterous to keep the old bins in most cases. This
+		 ** all that disastrous to keep the old bins in most cases. This
 		 ** is a rather tacky feature, but we are on the edge of reallity
 		 ** here, because the implication is that someone has connected
 		 ** 16+MAX_EXTRA_UNITS onto one host.
@@ -678,7 +678,7 @@ static int RIOCheck(struct Host *HostP, unsigned int UnitId)
 
 	HostP->Mapping[UnitId].Flags &= ~BEEN_HERE;
 
-	/* rio_dprint(RIO_DEBUG_ROUTE, ("Unit %d DOESNT KNOW THE HOST!\n", UnitId)); */
+	/* rio_dprint(RIO_DEBUG_ROUTE, ("Unit %d DOESN'T KNOW THE HOST!\n", UnitId)); */
 
 	return 0;
 }

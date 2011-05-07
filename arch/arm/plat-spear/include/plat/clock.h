@@ -89,7 +89,7 @@ struct rate_config {
  * @sibling: node for list of clocks having same parents
  * @private_data: clock specific private data
  * @node: list to maintain clocks linearly
- * @cl: clocklook up assoicated with this clock
+ * @cl: clocklook up associated with this clock
  * @dent: object for debugfs
  */
 struct clk {

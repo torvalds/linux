@@ -72,6 +72,7 @@ MODULE_FIRMWARE("b43/ucode11.fw");
 MODULE_FIRMWARE("b43/ucode13.fw");
 MODULE_FIRMWARE("b43/ucode14.fw");
 MODULE_FIRMWARE("b43/ucode15.fw");
+MODULE_FIRMWARE("b43/ucode16_mimo.fw");
 MODULE_FIRMWARE("b43/ucode5.fw");
 MODULE_FIRMWARE("b43/ucode9.fw");
 
@@ -4010,7 +4011,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 
-	/* Start maintainance work */
+	/* Start maintenance work */
 	b43_periodic_tasks_setup(dev);
 
 	b43_leds_init(dev);

@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/xilinx_spi.h>
@@ -470,7 +471,7 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 	struct spi_master *master;
 	u8 i;
 
-	pdata = dev->dev.platform_data;
+	pdata = mfd_get_data(dev);
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		little_endian = pdata->little_endian;

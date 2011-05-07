@@ -331,7 +331,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			goto err;
 
 		if (gpios[i].wake) {
-			ret = set_irq_wake(gpio_to_irq(gpios[i].gpio), 1);
+			ret = irq_set_irq_wake(gpio_to_irq(gpios[i].gpio), 1);
 			if (ret != 0)
 				printk(KERN_ERR
 				  "Failed to mark GPIO %d as wake source: %d\n",

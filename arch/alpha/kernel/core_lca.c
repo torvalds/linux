@@ -133,7 +133,7 @@ conf_read(unsigned long addr)
 
 	local_irq_save(flags);
 
-	/* Reset status register to avoid loosing errors.  */
+	/* Reset status register to avoid losing errors.  */
 	stat0 = *(vulp)LCA_IOC_STAT0;
 	*(vulp)LCA_IOC_STAT0 = stat0;
 	mb();
@@ -170,7 +170,7 @@ conf_write(unsigned long addr, unsigned int value)
 
 	local_irq_save(flags);	/* avoid getting hit by machine check */
 
-	/* Reset status register to avoid loosing errors.  */
+	/* Reset status register to avoid losing errors.  */
 	stat0 = *(vulp)LCA_IOC_STAT0;
 	*(vulp)LCA_IOC_STAT0 = stat0;
 	mb();

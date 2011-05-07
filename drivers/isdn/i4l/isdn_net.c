@@ -1530,7 +1530,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 		printk (KERN_WARNING
 				"UPDOWN: Line protocol on Interface %s,"
 				" changed state to down\n", lp->netdev->dev->name);
-		/* should stop routing higher-level data accross */
+		/* should stop routing higher-level data across */
 	} else if ((!lp->cisco_line_state) &&
 		(myseq_diff >= 0) && (myseq_diff <= 2)) {
 		/* line down -> up */
@@ -1538,7 +1538,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 		printk (KERN_WARNING
 				"UPDOWN: Line protocol on Interface %s,"
 				" changed state to up\n", lp->netdev->dev->name);
-		/* restart routing higher-level data accross */
+		/* restart routing higher-level data across */
 	}
 
 	if (lp->cisco_debserint)

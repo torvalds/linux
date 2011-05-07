@@ -949,7 +949,7 @@ static int cx24123_set_frontend(struct dvb_frontend *fe,
 	else
 		err("it seems I don't have a tuner...");
 
-	/* Enable automatic aquisition and reset cycle */
+	/* Enable automatic acquisition and reset cycle */
 	cx24123_writereg(state, 0x03, (cx24123_readreg(state, 0x03) | 0x07));
 	cx24123_writereg(state, 0x00, 0x10);
 	cx24123_writereg(state, 0x00, 0);

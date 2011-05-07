@@ -562,7 +562,7 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, NULL, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Exection SD Init Code Fail !!\n");
+		US_DEBUGP("Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -581,7 +581,7 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Exection SD Init Code Fail !!\n");
+		US_DEBUGP("Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 

@@ -33,7 +33,7 @@ struct pt_regs {
 	 * things like "in a system call" etc. for an arbitray
 	 * process.
 	 *
-	 * The PT_REGS_MAGIC is choosen such that it can be
+	 * The PT_REGS_MAGIC is chosen such that it can be
 	 * loaded completely using just a sethi instruction.
 	 */
 	unsigned int magic;

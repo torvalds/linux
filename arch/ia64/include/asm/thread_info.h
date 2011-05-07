@@ -91,7 +91,7 @@ struct thread_info {
 					     KERNEL_STACK_SIZE_ORDER);		\
 	struct task_struct *ret = page ? page_address(page) : NULL;		\
 										\
-	ret;
+	ret;									\
 })
 #define free_task_struct(tsk)	free_pages((unsigned long) (tsk), KERNEL_STACK_SIZE_ORDER)
 

@@ -61,7 +61,7 @@ Usage
   Hotkeys are also reported as input keys (like keyboards) you can check
   which key are supported using "xev" under X11.
 
-  You can get informations on the version of your DSDT table by reading the
+  You can get information on the version of your DSDT table by reading the
   /sys/devices/platform/asus-laptop/infos entry. If you have a question or a
   bug report to do, please include the output of this entry.
 
@@ -178,7 +178,7 @@ LED display
 -----------
 
   Some models like the W1N have a LED display that can be used to display
-  several informations.
+  several items of information.
 
   LED display works for the following models:
     W1000N

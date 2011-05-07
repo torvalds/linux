@@ -50,6 +50,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
@@ -405,11 +406,21 @@ struct cx18_stream {
 };
 
 struct cx18_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;
 	int type;
-	enum v4l2_priority prio;
 	struct cx18 *cx;
 };
+
+static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct cx18_open_id, fh);
+}
+
+static inline struct cx18_open_id *file2id(struct file *file)
+{
+	return fh2id(file->private_data);
+}
 
 /* forward declaration of struct defined in cx18-cards.h */
 struct cx18_card;
@@ -565,7 +576,7 @@ struct cx18 {
 	struct cx18_av_state av_state;
 
 	/* codec settings */
-	struct cx2341x_mpeg_params params;
+	struct cx2341x_handler cxhdl;
 	u32 filter_mode;
 	u32 temporal_strength;
 	u32 spatial_strength;
@@ -593,7 +604,6 @@ struct cx18 {
 				   uninitialized value in the stream->id. */
 
 	u32 base_addr;
-	struct v4l2_prio_state prio;
 
 	u8 card_rev;
 	void __iomem *enc_mem, *reg_mem;

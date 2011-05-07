@@ -99,7 +99,7 @@ rx164_init_irq(void)
 
 	rx164_update_irq_hw(0);
 	for (i = 16; i < 40; ++i) {
-		set_irq_chip_and_handler(i, &rx164_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &rx164_irq_type, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

@@ -214,7 +214,7 @@ static struct {
 	{ "SMC1211TX EZCard 10/100 (RealTek RTL8139)" },
 /*	{ MPX5030, "Accton MPX5030 (RealTek RTL8139)" },*/
 	{ "Delta Electronics 8139 10/100BaseTX" },
-	{ "Addtron Technolgy 8139 10/100BaseTX" },
+	{ "Addtron Technology 8139 10/100BaseTX" },
 };
 
 

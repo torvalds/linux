@@ -165,7 +165,7 @@ static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
 /**
  * ad7887_poll_func_th() th of trigger launched polling to ring buffer
  *
- * As sampling only occurs on spi comms occuring, leave timestamping until
+ * As sampling only occurs on spi comms occurring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/

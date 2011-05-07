@@ -619,28 +619,6 @@ void __init reserve_standard_io_resources(void)
 
 }
 
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
-
-#ifdef CONFIG_CRASH_DUMP
-/* elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel. This option will be passed
- * by kexec loader to the capture kernel.
- */
-static int __init setup_elfcorehdr(char *arg)
-{
-	char *end;
-	if (!arg)
-		return -EINVAL;
-	elfcorehdr_addr = memparse(arg, &end);
-	return end > arg ? 0 : -EINVAL;
-}
-early_param("elfcorehdr", setup_elfcorehdr);
-#endif
-
 static __init void reserve_ibft_region(void)
 {
 	unsigned long addr, size = 0;
@@ -997,6 +975,11 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.paging.pagetable_setup_start(swapper_pg_dir);
 	paging_init();
 	x86_init.paging.pagetable_setup_done(swapper_pg_dir);
+
+	if (boot_cpu_data.cpuid_level >= 0) {
+		/* A CPU has %cr4 if and only if it has CPUID */
+		mmu_cr4_features = read_cr4();
+	}
 
 #ifdef CONFIG_X86_32
 	/* sync back kernel address range */

@@ -1220,7 +1220,7 @@ struct bnx2x {
 	struct bnx2x_dcbx_port_params		dcbx_port_params;
 	int					dcb_version;
 
-	/* DCBX Negotation results */
+	/* DCBX Negotiation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
 	u32					pending_max;

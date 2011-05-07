@@ -109,10 +109,23 @@ static void ipi_flush_icache(void *info)
 	struct blackfin_flush_data *fdata = info;
 
 	/* Invalidate the memory holding the bounds of the flushed region. */
-	invalidate_dcache_range((unsigned long)fdata,
-		(unsigned long)fdata + sizeof(*fdata));
+	blackfin_dcache_invalidate_range((unsigned long)fdata,
+					 (unsigned long)fdata + sizeof(*fdata));
 
-	flush_icache_range(fdata->start, fdata->end);
+	/* Make sure all write buffers in the data side of the core
+	 * are flushed before trying to invalidate the icache.  This
+	 * needs to be after the data flush and before the icache
+	 * flush so that the SSYNC does the right thing in preventing
+	 * the instruction prefetcher from hitting things in cached
+	 * memory at the wrong time -- it runs much further ahead than
+	 * the pipeline.
+	 */
+	SSYNC();
+
+	/* ipi_flaush_icache is invoked by generic flush_icache_range,
+	 * so call blackfin arch icache flush directly here.
+	 */
+	blackfin_icache_flush_range(fdata->start, fdata->end);
 }
 
 static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)

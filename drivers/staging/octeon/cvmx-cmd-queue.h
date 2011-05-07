@@ -214,7 +214,7 @@ static inline int __cvmx_cmd_queue_get_index(cvmx_cmd_queue_id_t queue_id)
 	/*
 	 * Warning: This code currently only works with devices that
 	 * have 256 queues or less. Devices with more than 16 queues
-	 * are layed out in memory to allow cores quick access to
+	 * are laid out in memory to allow cores quick access to
 	 * every 16th queue. This reduces cache thrashing when you are
 	 * running 16 queues per port to support lockless operation.
 	 */

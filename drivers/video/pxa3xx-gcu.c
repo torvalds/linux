@@ -25,7 +25,7 @@
 
 /*
  * WARNING: This controller is attached to System Bus 2 of the PXA which
- * needs its arbiter to be enabled explictly (CKENB & 1<<9).
+ * needs its arbiter to be enabled explicitly (CKENB & 1<<9).
  * There is currently no way to do this from Linux, so you need to teach
  * your bootloader for now.
  */

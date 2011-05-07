@@ -152,7 +152,7 @@ static void ip_vs_dest_set_eraseall(struct ip_vs_dest_set *set)
 	write_lock(&set->lock);
 	list_for_each_entry_safe(e, ep, &set->list, list) {
 		/*
-		 * We don't kfree dest because it is refered either
+		 * We don't kfree dest because it is referred either
 		 * by its service or by the trash dest list.
 		 */
 		atomic_dec(&e->dest->refcnt);

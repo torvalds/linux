@@ -175,13 +175,13 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 
 	/* We block the internal cascade */
 	if (hw == 2)
-		irq_to_desc(virq)->status |= IRQ_NOREQUEST;
+		irq_set_status_flags(virq, IRQ_NOREQUEST);
 
 	/* We use the level handler only for now, we might want to
 	 * be more cautious here but that works for now
 	 */
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &i8259_pic, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &i8259_pic, handle_level_irq);
 	return 0;
 }
 
@@ -191,7 +191,7 @@ static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
 	i8259_mask_irq(irq_get_irq_data(virq));
 
 	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
+	irq_set_chip_and_handler(virq, NULL, NULL);
 
 	/* Make sure it's completed */
 	synchronize_irq(virq);

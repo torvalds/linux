@@ -616,7 +616,7 @@
  * READ_CONTROL: 0 write BBP, 1 read BBP
  * BUSY: ASIC is busy executing BBP commands
  * BBP_PAR_DUR: 0 4 MAC clocks, 1 8 MAC clocks
- * BBP_RW_MODE: 0 serial, 1 paralell
+ * BBP_RW_MODE: 0 serial, 1 parallel
  */
 #define BBP_CSR_CFG			0x101c
 #define BBP_CSR_CFG_VALUE		FIELD32(0x000000ff)

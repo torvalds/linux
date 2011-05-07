@@ -171,13 +171,13 @@ void __init netx_init_irq(void)
 	vic_init(__io(io_p2v(NETX_PA_VIC)), 0, ~0, 0);
 
 	for (irq = NETX_IRQ_HIF_CHAINED(0); irq <= NETX_IRQ_HIF_LAST; irq++) {
-		set_irq_chip(irq, &netx_hif_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &netx_hif_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	writel(NETX_DPMAS_INT_EN_GLB_EN, NETX_DPMAS_INT_EN);
-	set_irq_chained_handler(NETX_IRQ_HIF, netx_hif_demux_handler);
+	irq_set_chained_handler(NETX_IRQ_HIF, netx_hif_demux_handler);
 }
 
 static int __init netx_init(void)

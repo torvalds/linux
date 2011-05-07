@@ -1399,7 +1399,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
 
 /*
-* Make ther structure we read from the beacon packet has
+* Make the structure we read from the beacon packet to have
 * the right values
 */
 static int ieee80211_verify_qos_info(struct ieee80211_qos_information_element

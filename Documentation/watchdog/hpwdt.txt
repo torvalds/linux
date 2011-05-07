@@ -8,7 +8,7 @@ Last reviewed: 06/02/2009
  The HP iLO2 NMI Watchdog driver is a kernel module that provides basic
  watchdog functionality and the added benefit of NMI sourcing. Both the
  watchdog functionality and the NMI sourcing capability need to be enabled
- by the user. Remember that the two modes are not dependant on one another.
+ by the user. Remember that the two modes are not dependent on one another.
  A user can have the NMI sourcing without the watchdog timer and vice-versa.
 
  Watchdog functionality is enabled like any other common watchdog driver. That

@@ -546,7 +546,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	}
 
 	/*
-	 * When DMA allocation is required we should guarentee to the
+	 * When DMA allocation is required we should guarantee to the
 	 * driver that the DMA is aligned to a 4-byte boundary.
 	 * However some drivers require L2 padding to pad the payload
 	 * rather then the header. This could be a requirement for
@@ -689,7 +689,7 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 
 	/*
-	 * Start from the TX done pointer, this guarentees that we will
+	 * Start from the TX done pointer, this guarantees that we will
 	 * send out all frames in the correct order.
 	 */
 	if (index_start < index_end) {
@@ -883,7 +883,7 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	}
 
 	/*
-	 * Check if driver supports flushing, we can only guarentee
+	 * Check if driver supports flushing, we can only guarantee
 	 * full support for flushing if the driver is able
 	 * to cancel all pending frames (drop = true).
 	 */

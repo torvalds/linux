@@ -109,7 +109,7 @@ static unsigned long corgibl_flags;
 #define CORGIBL_BATTLOW       0x02
 
 /*
- * This is only a psuedo I2C interface. We can't use the standard kernel
+ * This is only a pseudo I2C interface. We can't use the standard kernel
  * routines as the interface is write only. We just assume the data is acked...
  */
 static void lcdtg_ssp_i2c_send(struct corgi_lcd *lcd, uint8_t data)

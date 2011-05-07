@@ -228,7 +228,7 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 					  AMS_DELTA_LATCH2_NAND_NCE |
 					  AMS_DELTA_LATCH2_NAND_NWP);
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(ams_delta_mtd, 1)) {
 		err = -ENXIO;
 		goto out_mtd;

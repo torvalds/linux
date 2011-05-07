@@ -484,13 +484,13 @@ struct rt2x00intf_conf {
 	enum nl80211_iftype type;
 
 	/*
-	 * TSF sync value, this is dependant on the operation type.
+	 * TSF sync value, this is dependent on the operation type.
 	 */
 	enum tsf_sync sync;
 
 	/*
-	 * The MAC and BSSID addressess are simple array of bytes,
-	 * these arrays are little endian, so when sending the addressess
+	 * The MAC and BSSID addresses are simple array of bytes,
+	 * these arrays are little endian, so when sending the addresses
 	 * to the drivers, copy the it into a endian-signed variable.
 	 *
 	 * Note that all devices (except rt2500usb) have 32 bits
@@ -1131,7 +1131,7 @@ void rt2x00queue_stop_queue(struct data_queue *queue);
  * @drop: True to drop all pending frames.
  *
  * This function will flush the queue. After this call
- * the queue is guarenteed to be empty.
+ * the queue is guaranteed to be empty.
  */
 void rt2x00queue_flush_queue(struct data_queue *queue, bool drop);
 

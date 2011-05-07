@@ -792,7 +792,7 @@ isdn_tty_suspend(char *id, modem_info * info, atemu * m)
 }
 
 /* isdn_tty_resume() tries to resume a suspended call
- * setup of the lower levels before that. unfortunatly here is no
+ * setup of the lower levels before that. unfortunately here is no
  * checking for compatibility of used protocols implemented by Q931
  * It does the same things like isdn_tty_dial, the last command
  * is different, may be we can merge it.

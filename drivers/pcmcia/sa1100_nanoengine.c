@@ -86,7 +86,7 @@ static int nanoengine_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	GPDR &= ~nano_skts[i].input_pins;
 	GPDR |= nano_skts[i].output_pins;
 	GPCR = nano_skts[i].clear_outputs;
-	set_irq_type(nano_skts[i].transition_pins, IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(nano_skts[i].transition_pins, IRQ_TYPE_EDGE_BOTH);
 	skt->socket.pci_irq = nano_skts[i].pci_irq;
 
 	return soc_pcmcia_request_irqs(skt,

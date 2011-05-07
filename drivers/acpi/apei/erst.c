@@ -430,6 +430,22 @@ ssize_t erst_get_record_count(void)
 }
 EXPORT_SYMBOL_GPL(erst_get_record_count);
 
+#define ERST_RECORD_ID_CACHE_SIZE_MIN	16
+#define ERST_RECORD_ID_CACHE_SIZE_MAX	1024
+
+struct erst_record_id_cache {
+	struct mutex lock;
+	u64 *entries;
+	int len;
+	int size;
+	int refcount;
+};
+
+static struct erst_record_id_cache erst_record_id_cache = {
+	.lock = __MUTEX_INITIALIZER(erst_record_id_cache.lock),
+	.refcount = 0,
+};
+
 static int __erst_get_next_record_id(u64 *record_id)
 {
 	struct apei_exec_context ctx;
@@ -444,26 +460,179 @@ static int __erst_get_next_record_id(u64 *record_id)
 	return 0;
 }
 
+int erst_get_record_id_begin(int *pos)
+{
+	int rc;
+
+	if (erst_disable)
+		return -ENODEV;
+
+	rc = mutex_lock_interruptible(&erst_record_id_cache.lock);
+	if (rc)
+		return rc;
+	erst_record_id_cache.refcount++;
+	mutex_unlock(&erst_record_id_cache.lock);
+
+	*pos = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(erst_get_record_id_begin);
+
+/* erst_record_id_cache.lock must be held by caller */
+static int __erst_record_id_cache_add_one(void)
+{
+	u64 id, prev_id, first_id;
+	int i, rc;
+	u64 *entries;
+	unsigned long flags;
+
+	id = prev_id = first_id = APEI_ERST_INVALID_RECORD_ID;
+retry:
+	raw_spin_lock_irqsave(&erst_lock, flags);
+	rc = __erst_get_next_record_id(&id);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
+	if (rc == -ENOENT)
+		return 0;
+	if (rc)
+		return rc;
+	if (id == APEI_ERST_INVALID_RECORD_ID)
+		return 0;
+	/* can not skip current ID, or loop back to first ID */
+	if (id == prev_id || id == first_id)
+		return 0;
+	if (first_id == APEI_ERST_INVALID_RECORD_ID)
+		first_id = id;
+	prev_id = id;
+
+	entries = erst_record_id_cache.entries;
+	for (i = 0; i < erst_record_id_cache.len; i++) {
+		if (entries[i] == id)
+			break;
+	}
+	/* record id already in cache, try next */
+	if (i < erst_record_id_cache.len)
+		goto retry;
+	if (erst_record_id_cache.len >= erst_record_id_cache.size) {
+		int new_size, alloc_size;
+		u64 *new_entries;
+
+		new_size = erst_record_id_cache.size * 2;
+		new_size = clamp_val(new_size, ERST_RECORD_ID_CACHE_SIZE_MIN,
+				     ERST_RECORD_ID_CACHE_SIZE_MAX);
+		if (new_size <= erst_record_id_cache.size) {
+			if (printk_ratelimit())
+				pr_warning(FW_WARN ERST_PFX
+					   "too many record ID!\n");
+			return 0;
+		}
+		alloc_size = new_size * sizeof(entries[0]);
+		if (alloc_size < PAGE_SIZE)
+			new_entries = kmalloc(alloc_size, GFP_KERNEL);
+		else
+			new_entries = vmalloc(alloc_size);
+		if (!new_entries)
+			return -ENOMEM;
+		memcpy(new_entries, entries,
+		       erst_record_id_cache.len * sizeof(entries[0]));
+		if (erst_record_id_cache.size < PAGE_SIZE)
+			kfree(entries);
+		else
+			vfree(entries);
+		erst_record_id_cache.entries = entries = new_entries;
+		erst_record_id_cache.size = new_size;
+	}
+	entries[i] = id;
+	erst_record_id_cache.len++;
+
+	return 1;
+}
+
 /*
  * Get the record ID of an existing error record on the persistent
  * storage. If there is no error record on the persistent storage, the
  * returned record_id is APEI_ERST_INVALID_RECORD_ID.
  */
-int erst_get_next_record_id(u64 *record_id)
+int erst_get_record_id_next(int *pos, u64 *record_id)
 {
-	int rc;
-	unsigned long flags;
+	int rc = 0;
+	u64 *entries;
 
 	if (erst_disable)
 		return -ENODEV;
 
-	raw_spin_lock_irqsave(&erst_lock, flags);
-	rc = __erst_get_next_record_id(record_id);
-	raw_spin_unlock_irqrestore(&erst_lock, flags);
+	/* must be enclosed by erst_get_record_id_begin/end */
+	BUG_ON(!erst_record_id_cache.refcount);
+	BUG_ON(*pos < 0 || *pos > erst_record_id_cache.len);
+
+	mutex_lock(&erst_record_id_cache.lock);
+	entries = erst_record_id_cache.entries;
+	for (; *pos < erst_record_id_cache.len; (*pos)++)
+		if (entries[*pos] != APEI_ERST_INVALID_RECORD_ID)
+			break;
+	/* found next record id in cache */
+	if (*pos < erst_record_id_cache.len) {
+		*record_id = entries[*pos];
+		(*pos)++;
+		goto out_unlock;
+	}
+
+	/* Try to add one more record ID to cache */
+	rc = __erst_record_id_cache_add_one();
+	if (rc < 0)
+		goto out_unlock;
+	/* successfully add one new ID */
+	if (rc == 1) {
+		*record_id = erst_record_id_cache.entries[*pos];
+		(*pos)++;
+		rc = 0;
+	} else {
+		*pos = -1;
+		*record_id = APEI_ERST_INVALID_RECORD_ID;
+	}
+out_unlock:
+	mutex_unlock(&erst_record_id_cache.lock);
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(erst_get_next_record_id);
+EXPORT_SYMBOL_GPL(erst_get_record_id_next);
+
+/* erst_record_id_cache.lock must be held by caller */
+static void __erst_record_id_cache_compact(void)
+{
+	int i, wpos = 0;
+	u64 *entries;
+
+	if (erst_record_id_cache.refcount)
+		return;
+
+	entries = erst_record_id_cache.entries;
+	for (i = 0; i < erst_record_id_cache.len; i++) {
+		if (entries[i] == APEI_ERST_INVALID_RECORD_ID)
+			continue;
+		if (wpos != i)
+			memcpy(&entries[wpos], &entries[i], sizeof(entries[i]));
+		wpos++;
+	}
+	erst_record_id_cache.len = wpos;
+}
+
+void erst_get_record_id_end(void)
+{
+	/*
+	 * erst_disable != 0 should be detected by invoker via the
+	 * return value of erst_get_record_id_begin/next, so this
+	 * function should not be called for erst_disable != 0.
+	 */
+	BUG_ON(erst_disable);
+
+	mutex_lock(&erst_record_id_cache.lock);
+	erst_record_id_cache.refcount--;
+	BUG_ON(erst_record_id_cache.refcount < 0);
+	__erst_record_id_cache_compact();
+	mutex_unlock(&erst_record_id_cache.lock);
+}
+EXPORT_SYMBOL_GPL(erst_get_record_id_end);
 
 static int __erst_write_to_storage(u64 offset)
 {
@@ -704,56 +873,34 @@ ssize_t erst_read(u64 record_id, struct cper_record_header *record,
 }
 EXPORT_SYMBOL_GPL(erst_read);
 
-/*
- * If return value > buflen, the buffer size is not big enough,
- * else if return value = 0, there is no more record to read,
- * else if return value < 0, something goes wrong,
- * else everything is OK, and return value is record length
- */
-ssize_t erst_read_next(struct cper_record_header *record, size_t buflen)
-{
-	int rc;
-	ssize_t len;
-	unsigned long flags;
-	u64 record_id;
-
-	if (erst_disable)
-		return -ENODEV;
-
-	raw_spin_lock_irqsave(&erst_lock, flags);
-	rc = __erst_get_next_record_id(&record_id);
-	if (rc) {
-		raw_spin_unlock_irqrestore(&erst_lock, flags);
-		return rc;
-	}
-	/* no more record */
-	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
-		raw_spin_unlock_irqrestore(&erst_lock, flags);
-		return 0;
-	}
-
-	len = __erst_read(record_id, record, buflen);
-	raw_spin_unlock_irqrestore(&erst_lock, flags);
-
-	return len;
-}
-EXPORT_SYMBOL_GPL(erst_read_next);
-
 int erst_clear(u64 record_id)
 {
-	int rc;
+	int rc, i;
 	unsigned long flags;
+	u64 *entries;
 
 	if (erst_disable)
 		return -ENODEV;
 
+	rc = mutex_lock_interruptible(&erst_record_id_cache.lock);
+	if (rc)
+		return rc;
 	raw_spin_lock_irqsave(&erst_lock, flags);
 	if (erst_erange.attr & ERST_RANGE_NVRAM)
 		rc = __erst_clear_from_nvram(record_id);
 	else
 		rc = __erst_clear_from_storage(record_id);
 	raw_spin_unlock_irqrestore(&erst_lock, flags);
-
+	if (rc)
+		goto out;
+	entries = erst_record_id_cache.entries;
+	for (i = 0; i < erst_record_id_cache.len; i++) {
+		if (entries[i] == record_id)
+			entries[i] = APEI_ERST_INVALID_RECORD_ID;
+	}
+	__erst_record_id_cache_compact();
+out:
+	mutex_unlock(&erst_record_id_cache.lock);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(erst_clear);

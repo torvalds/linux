@@ -195,7 +195,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 EXPORT_SYMBOL(arch_local_irq_restore);
 #endif /* CONFIG_PPC64 */
 
-static int show_other_interrupts(struct seq_file *p, int prec)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
 
@@ -231,65 +231,6 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
-int show_interrupts(struct seq_file *p, void *v)
-{
-	unsigned long flags, any_count = 0;
-	int i = *(loff_t *) v, j, prec;
-	struct irqaction *action;
-	struct irq_desc *desc;
-	struct irq_chip *chip;
-
-	if (i > nr_irqs)
-		return 0;
-
-	for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
-		j *= 10;
-
-	if (i == nr_irqs)
-		return show_other_interrupts(p, prec);
-
-	/* print header */
-	if (i == 0) {
-		seq_printf(p, "%*s", prec + 8, "");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%-8d", j);
-		seq_putc(p, '\n');
-	}
-
-	desc = irq_to_desc(i);
-	if (!desc)
-		return 0;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	for_each_online_cpu(j)
-		any_count |= kstat_irqs_cpu(i, j);
-	action = desc->action;
-	if (!action && !any_count)
-		goto out;
-
-	seq_printf(p, "%*d: ", prec, i);
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-
-	chip = get_irq_desc_chip(desc);
-	if (chip)
-		seq_printf(p, "  %-16s", chip->name);
-	else
-		seq_printf(p, "  %-16s", "None");
-	seq_printf(p, " %-8s", (desc->status & IRQ_LEVEL) ? "Level" : "Edge");
-
-	if (action) {
-		seq_printf(p, "     %s", action->name);
-		while ((action = action->next) != NULL)
-			seq_printf(p, ", %s", action->name);
-	}
-
-	seq_putc(p, '\n');
-out:
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	return 0;
-}
-
 /*
  * /proc/stat helpers
  */
@@ -305,34 +246,37 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void fixup_irqs(const struct cpumask *map)
+void migrate_irqs(void)
 {
 	struct irq_desc *desc;
 	unsigned int irq;
 	static int warned;
 	cpumask_var_t mask;
+	const struct cpumask *map = cpu_online_mask;
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
 	for_each_irq(irq) {
+		struct irq_data *data;
 		struct irq_chip *chip;
 
 		desc = irq_to_desc(irq);
 		if (!desc)
 			continue;
 
-		if (desc->status & IRQ_PER_CPU)
+		data = irq_desc_get_irq_data(desc);
+		if (irqd_is_per_cpu(data))
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_data_get_irq_chip(data);
 
-		cpumask_and(mask, desc->irq_data.affinity, map);
+		cpumask_and(mask, data->affinity, map);
 		if (cpumask_any(mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
 			cpumask_copy(mask, map);
 		}
 		if (chip->irq_set_affinity)
-			chip->irq_set_affinity(&desc->irq_data, mask, true);
+			chip->irq_set_affinity(data, mask, true);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
@@ -618,7 +562,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			smp_wmb();
 
 			/* Clear norequest flags */
-			irq_to_desc(i)->status &= ~IRQ_NOREQUEST;
+			irq_clear_status_flags(i, IRQ_NOREQUEST);
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
@@ -827,8 +771,8 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
-	    type != (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
-		set_irq_type(virq, type);
+	    type != (irqd_get_trigger_type(irq_get_irq_data(virq))))
+		irq_set_irq_type(virq, type);
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
@@ -851,7 +795,7 @@ void irq_dispose_mapping(unsigned int virq)
 		return;
 
 	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
+	irq_set_chip_and_handler(virq, NULL, NULL);
 
 	/* Make sure it's completed */
 	synchronize_irq(virq);
@@ -1156,7 +1100,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%5d  ", i);
 			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
 
-			chip = get_irq_desc_chip(desc);
+			chip = irq_desc_get_chip(desc);
 			if (chip && chip->name)
 				p = chip->name;
 			else

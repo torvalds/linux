@@ -1350,7 +1350,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		 * we remove all keys like in the WPA/WPA2 setup,
 		 * we just don't set RSN.
 		 *
-		 * Therefore: fall-throught
+		 * Therefore: fall-through
 		 */
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:

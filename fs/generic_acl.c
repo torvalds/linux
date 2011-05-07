@@ -74,7 +74,7 @@ generic_acl_set(struct dentry *dentry, const char *name, const void *value,
 		return -EINVAL;
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);

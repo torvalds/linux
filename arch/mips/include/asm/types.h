@@ -33,8 +33,6 @@ typedef unsigned short umode_t;
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-typedef u64 dma64_addr_t;
-
 /*
  * Don't use phys_t.  You've been warned.
  */

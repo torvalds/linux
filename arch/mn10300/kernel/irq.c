@@ -153,7 +153,7 @@ mn10300_cpupic_setaffinity(struct irq_data *d, const struct cpumask *mask,
 	case LOCAL_TIMER_IPI:
 	case FLUSH_CACHE_IPI:
 	case CALL_FUNCTION_NMI_IPI:
-	case GDB_NMI_IPI:
+	case DEBUGGER_NMI_IPI:
 #ifdef CONFIG_MN10300_TTYSM0
 	case SC0RXIRQ:
 	case SC0TXIRQ:
@@ -263,7 +263,7 @@ void set_intr_level(int irq, u16 level)
  */
 void mn10300_set_lateack_irq_type(int irq)
 {
-	set_irq_chip_and_handler(irq, &mn10300_cpu_pic_level,
+	irq_set_chip_and_handler(irq, &mn10300_cpu_pic_level,
 				 handle_level_irq);
 }
 
@@ -275,12 +275,12 @@ void __init init_IRQ(void)
 	int irq;
 
 	for (irq = 0; irq < NR_IRQS; irq++)
-		if (get_irq_chip(irq) == &no_irq_chip)
+		if (irq_get_chip(irq) == &no_irq_chip)
 			/* due to the PIC latching interrupt requests, even
 			 * when the IRQ is disabled, IRQ_PENDING is superfluous
 			 * and we can use handle_level_irq() for edge-triggered
 			 * interrupts */
-			set_irq_chip_and_handler(irq, &mn10300_cpu_pic_edge,
+			irq_set_chip_and_handler(irq, &mn10300_cpu_pic_edge,
 						 handle_level_irq);
 
 	unit_init_IRQ();
@@ -335,91 +335,42 @@ asmlinkage void do_IRQ(void)
 /*
  * Display interrupt management information through /proc/interrupts
  */
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j, cpu;
-	struct irqaction *action;
-	unsigned long flags;
-
-	switch (i) {
-		/* display column title bar naming CPUs */
-	case 0:
-		seq_printf(p, "           ");
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-		break;
-
-		/* display information rows, one per active CPU */
-	case 1 ... NR_IRQS - 1:
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-
-		action = irq_desc[i].action;
-		if (action) {
-			seq_printf(p, "%3d: ", i);
-			for_each_present_cpu(cpu)
-				seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-
-			if (i < NR_CPU_IRQS)
-				seq_printf(p, " %14s.%u",
-					   irq_desc[i].irq_data.chip->name,
-					   (GxICR(i) & GxICR_LEVEL) >>
-					   GxICR_LEVEL_SHIFT);
-			else
-				seq_printf(p, " %14s",
-					   irq_desc[i].irq_data.chip->name);
-
-			seq_printf(p, "  %s", action->name);
-
-			for (action = action->next;
-			     action;
-			     action = action->next)
-				seq_printf(p, ", %s", action->name);
-
-			seq_putc(p, '\n');
-		}
-
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-		break;
-
-		/* polish off with NMI and error counters */
-	case NR_IRQS:
 #ifdef CONFIG_MN10300_WD_TIMER
-		seq_printf(p, "NMI: ");
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "%10u ", nmi_count(j));
-		seq_putc(p, '\n');
+	int j;
+
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for (j = 0; j < NR_CPUS; j++)
+		if (cpu_online(j))
+			seq_printf(p, "%10u ", nmi_count(j));
+	seq_putc(p, '\n');
 #endif
 
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-		break;
-	}
-
+	seq_printf(p, "%*s: ", prec, "ERR");
+	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 void migrate_irqs(void)
 {
-	irq_desc_t *desc;
 	int irq;
 	unsigned int self, new;
 	unsigned long flags;
 
 	self = smp_processor_id();
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		desc = irq_desc + irq;
+		struct irq_data *data = irq_get_irq_data(irq);
 
-		if (desc->status == IRQ_PER_CPU)
+		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (cpu_isset(self, irq_desc[irq].affinity) &&
+		if (cpu_isset(self, data->affinity) &&
 		    !cpus_intersects(irq_affinity[irq], cpu_online_map)) {
 			int cpu_id;
 			cpu_id = first_cpu(cpu_online_map);
-			cpu_set(cpu_id, irq_desc[irq].affinity);
+			cpu_set(cpu_id, data->affinity);
 		}
 		/* We need to operate irq_affinity_online atomically. */
 		arch_local_cli_save(flags);
@@ -430,7 +381,7 @@ void migrate_irqs(void)
 			GxICR(irq) = x & GxICR_LEVEL;
 			tmp = GxICR(irq);
 
-			new = any_online_cpu(irq_desc[irq].affinity);
+			new = any_online_cpu(data->affinity);
 			irq_affinity_online[irq] = new;
 
 			CROSS_GxICR(irq, new) =

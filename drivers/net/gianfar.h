@@ -1043,7 +1043,7 @@ enum gfar_errata {
 };
 
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
- * (Ok, that's not so true anymore, but there is a family resemblence)
+ * (Ok, that's not so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
  * and tx_bd_base always point to the currently available buffer.
  * The dirty_tx tracks the current buffer that is being sent by the

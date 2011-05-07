@@ -90,7 +90,7 @@ struct mad_jack_msg_wq {
  * @card_index: sound card index
  * @card_id: sound card id detected
  * @sstdrv_ops: ptr to sst driver ops
- * @pdev: ptr to platfrom device
+ * @pdev: ptr to platform device
  * @irq: interrupt number detected
  * @pmic_status: Device status of sound card
  * @int_base: ptr to MMIO interrupt region

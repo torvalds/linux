@@ -82,7 +82,7 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	kfree(pdata);
 
 	if (IS_ERR(od)) {
-		WARN(1, "Cant build omap_device for %s:%s.\n",
+		WARN(1, "Can't build omap_device for %s:%s.\n",
 					name, oh->name);
 		return PTR_ERR(od);
 	}

@@ -2738,7 +2738,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	cfg_queues(adapter);
 
 	/*
-	 * Print a short notice on the existance and configuration of the new
+	 * Print a short notice on the existence and configuration of the new
 	 * VF network device ...
 	 */
 	for_each_port(adapter, pidx) {

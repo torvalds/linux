@@ -810,7 +810,7 @@ static int tcp_accept_from_sock(struct connection *con)
 
 	/*
 	 * Add it to the active queue in case we got data
-	 * beween processing the accept adding the socket
+	 * between processing the accept adding the socket
 	 * to the read_sockets list
 	 */
 	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))

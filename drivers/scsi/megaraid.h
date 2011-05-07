@@ -532,9 +532,9 @@ struct uioctl_t {
 
 /*
  * struct mcontroller is used to pass information about the controllers in the
- * system. Its upto the application how to use the information. We are passing
+ * system. Its up to the application how to use the information. We are passing
  * as much info about the cards as possible and useful. Before issuing the
- * call to find information about the cards, the applicaiton needs to issue a
+ * call to find information about the cards, the application needs to issue a
  * ioctl first to find out the number of controllers in the system.
  */
 #define MAX_CONTROLLERS 32
@@ -804,7 +804,7 @@ typedef struct {
 	unsigned long		base;
 	void __iomem		*mmio_base;
 
-	/* mbox64 with mbox not aligned on 16-byte boundry */
+	/* mbox64 with mbox not aligned on 16-byte boundary */
 	mbox64_t	*una_mbox64;
 	dma_addr_t	una_mbox64_dma;
 

@@ -305,7 +305,12 @@ static int raw_init(struct sock *sk)
 static int raw_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct raw_sock *ro = raw_sk(sk);
+	struct raw_sock *ro;
+
+	if (!sk)
+		return 0;
+
+	ro = raw_sk(sk);
 
 	unregister_netdevice_notifier(&ro->notifier);
 
@@ -742,7 +747,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct socket *sock,
 	return size;
 }
 
-static struct proto_ops raw_ops __read_mostly = {
+static const struct proto_ops raw_ops = {
 	.family        = PF_CAN,
 	.release       = raw_release,
 	.bind          = raw_bind,
@@ -751,7 +756,7 @@ static struct proto_ops raw_ops __read_mostly = {
 	.accept        = sock_no_accept,
 	.getname       = raw_getname,
 	.poll          = datagram_poll,
-	.ioctl         = NULL,		/* use can_ioctl() from af_can.c */
+	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
 	.setsockopt    = raw_setsockopt,

@@ -1030,6 +1030,7 @@ static void musb_shutdown(struct platform_device *pdev)
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 	unsigned long	flags;
 
+	pm_runtime_get_sync(musb->controller);
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
@@ -1040,6 +1041,7 @@ static void musb_shutdown(struct platform_device *pdev)
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_platform_exit(musb);
 
+	pm_runtime_put(musb->controller);
 	/* FIXME power down */
 }
 

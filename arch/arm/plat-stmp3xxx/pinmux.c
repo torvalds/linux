@@ -489,14 +489,13 @@ static void stmp3xxx_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static void stmp3xxx_gpio_irq(u32 irq, struct irq_desc *desc)
 {
-	struct stmp3xxx_pinmux_bank *pm = get_irq_data(irq);
+	struct stmp3xxx_pinmux_bank *pm = irq_get_handler_data(irq);
 	int gpio_irq = pm->virq;
 	u32 stat = __raw_readl(pm->irqstat);
 
 	while (stat) {
 		if (stat & 1)
-			irq_desc[gpio_irq].handle_irq(gpio_irq,
-				&irq_desc[gpio_irq]);
+			generic_handle_irq(gpio_irq);
 		gpio_irq++;
 		stat >>= 1;
 	}
@@ -534,15 +533,15 @@ int __init stmp3xxx_pinmux_init(int virtual_irq_start)
 
 		for (virq = pm->virq; virq < pm->virq; virq++) {
 			gpio_irq_chip.irq_mask(irq_get_irq_data(virq));
-			set_irq_chip(virq, &gpio_irq_chip);
-			set_irq_handler(virq, handle_level_irq);
+			irq_set_chip_and_handler(virq, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(virq, IRQF_VALID);
 		}
 		r = gpiochip_add(&pm->chip);
 		if (r < 0)
 			break;
-		set_irq_chained_handler(pm->irq, stmp3xxx_gpio_irq);
-		set_irq_data(pm->irq, pm);
+		irq_set_chained_handler(pm->irq, stmp3xxx_gpio_irq);
+		irq_set_handler_data(pm->irq, pm);
 	}
 	return r;
 }

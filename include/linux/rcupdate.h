@@ -339,6 +339,12 @@ extern int rcu_my_thread_group_empty(void);
 		((typeof(*p) __force __kernel *)(p)); \
 	})
 
+#define __rcu_access_index(p, space) \
+	({ \
+		typeof(p) _________p1 = ACCESS_ONCE(p); \
+		rcu_dereference_sparse(p, space); \
+		(_________p1); \
+	})
 #define __rcu_dereference_index_check(p, c) \
 	({ \
 		typeof(p) _________p1 = ACCESS_ONCE(p); \
@@ -427,6 +433,20 @@ extern int rcu_my_thread_group_empty(void);
 				__rcu)
 
 #define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
+
+/**
+ * rcu_access_index() - fetch RCU index with no dereferencing
+ * @p: The index to read
+ *
+ * Return the value of the specified RCU-protected index, but omit the
+ * smp_read_barrier_depends() and keep the ACCESS_ONCE().  This is useful
+ * when the value of this index is accessed, but the index is not
+ * dereferenced, for example, when testing an RCU-protected index against
+ * -1.  Although rcu_access_index() may also be used in cases where
+ * update-side locks prevent the value of the index from changing, you
+ * should instead use rcu_dereference_index_protected() for this use case.
+ */
+#define rcu_access_index(p) __rcu_access_index((p), __rcu)
 
 /**
  * rcu_dereference_index_check() - rcu_dereference for indices with debug checking

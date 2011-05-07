@@ -90,7 +90,7 @@ static void wdt_setload(unsigned int timeout)
 	/*
 	 * sp805 runs counter with given value twice, after the end of first
 	 * counter it gives an interrupt and then starts counter again. If
-	 * interrupt already occured then it resets the system. This is why
+	 * interrupt already occurred then it resets the system. This is why
 	 * load is half of what should be required.
 	 */
 	load = div_u64(rate, 2) * timeout - 1;

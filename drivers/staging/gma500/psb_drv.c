@@ -561,7 +561,7 @@ static int psb_driver_unload(struct drm_device *dev)
 		kfree(dev_priv);
 		dev->dev_private = NULL;
 
-		/*destory VBT data*/
+		/*destroy VBT data*/
 		psb_intel_destroy_bios(dev);
 	}
 

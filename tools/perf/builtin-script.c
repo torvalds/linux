@@ -162,19 +162,11 @@ static void print_sample_start(struct perf_sample *sample,
 
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
+			  struct perf_evsel *evsel,
 			  struct perf_session *session,
 			  struct thread *thread)
 {
-	struct perf_event_attr *attr;
-	struct perf_evsel *evsel;
-
-	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
-	if (evsel == NULL) {
-		pr_err("Invalid data. Contains samples with id not in "
-		       "its header!\n");
-		return;
-	}
-	attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->attr;
 
 	if (output_fields[attr->type] == 0)
 		return;
@@ -244,6 +236,7 @@ static char const		*input_name = "perf.data";
 
 static int process_sample_event(union perf_event *event,
 				struct perf_sample *sample,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, event->ip.pid);
@@ -264,7 +257,7 @@ static int process_sample_event(union perf_event *event,
 		last_timestamp = sample->time;
 		return 0;
 	}
-	scripting_ops->process_event(event, sample, session, thread);
+	scripting_ops->process_event(event, sample, evsel, session, thread);
 
 	session->hists.stats.total_period += sample->period;
 	return 0;

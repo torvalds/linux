@@ -32,7 +32,7 @@ void free_thread_xstate(struct task_struct *tsk)
 #if THREAD_SHIFT < PAGE_SHIFT
 static struct kmem_cache *thread_info_cache;
 
-struct thread_info *alloc_thread_info(struct task_struct *tsk, int node)
+struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
 {
 	struct thread_info *ti;
 #ifdef CONFIG_DEBUG_STACK_USAGE
@@ -57,7 +57,7 @@ void thread_info_cache_init(void)
 					      THREAD_SIZE, SLAB_PANIC, NULL);
 }
 #else
-struct thread_info *alloc_thread_info(struct task_struct *tsk)
+struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
 {
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	gfp_t mask = GFP_KERNEL | __GFP_ZERO;

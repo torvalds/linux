@@ -230,7 +230,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	}
 
 	/* Zero out all of the reserved backup group descriptor table blocks */
-	ext4_debug("clear inode table blocks %#04llx -> %#04llx\n",
+	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
 			block, sbi->s_itb_per_group);
 	err = sb_issue_zeroout(sb, gdblocks + start + 1, reserved_gdb,
 			       GFP_NOFS);
@@ -248,7 +248,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 
 	/* Zero out all of the inode table blocks */
 	block = input->inode_table;
-	ext4_debug("clear inode table blocks %#04llx -> %#04llx\n",
+	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
 			block, sbi->s_itb_per_group);
 	err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group, GFP_NOFS);
 	if (err)
@@ -499,12 +499,12 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	return err;
 
 exit_inode:
-	/* ext4_journal_release_buffer(handle, iloc.bh); */
+	/* ext4_handle_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
 exit_dindj:
-	/* ext4_journal_release_buffer(handle, dind); */
+	/* ext4_handle_release_buffer(handle, dind); */
 exit_sbh:
-	/* ext4_journal_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
+	/* ext4_handle_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
 exit_dind:
 	brelse(dind);
 exit_bh:
@@ -586,7 +586,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			/*
 			int j;
 			for (j = 0; j < i; j++)
-				ext4_journal_release_buffer(handle, primary[j]);
+				ext4_handle_release_buffer(handle, primary[j]);
 			 */
 			goto exit_bh;
 		}

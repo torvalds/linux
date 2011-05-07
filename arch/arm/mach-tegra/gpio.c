@@ -208,9 +208,9 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	spin_unlock_irqrestore(&bank->lvl_lock[port], flags);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__set_irq_handler_unlocked(d->irq, handle_level_irq);
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
-		__set_irq_handler_unlocked(d->irq, handle_edge_irq);
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 
 	return 0;
 }
@@ -224,7 +224,7 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
-	bank = get_irq_data(irq);
+	bank = irq_get_handler_data(irq);
 
 	for (port = 0; port < 4; port++) {
 		int gpio = tegra_gpio_compose(bank->bank, port, 0);
@@ -257,7 +257,8 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 void tegra_gpio_resume(void)
 {
 	unsigned long flags;
-	int b, p, i;
+	int b;
+	int p;
 
 	local_irq_save(flags);
 
@@ -275,31 +276,13 @@ void tegra_gpio_resume(void)
 	}
 
 	local_irq_restore(flags);
-
-	for (i = INT_GPIO_BASE; i < (INT_GPIO_BASE + TEGRA_NR_GPIOS); i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-		if (!desc || (desc->status & IRQ_WAKEUP))
-			continue;
-		enable_irq(i);
-	}
 }
 
 void tegra_gpio_suspend(void)
 {
 	unsigned long flags;
-	int b, p, i;
-
-	for (i = INT_GPIO_BASE; i < (INT_GPIO_BASE + TEGRA_NR_GPIOS); i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-		if (!desc)
-			continue;
-		if (desc->status & IRQ_WAKEUP) {
-			int gpio = i - INT_GPIO_BASE;
-			pr_debug("gpio %d.%d is wakeup\n", gpio/8, gpio&7);
-			continue;
-		}
-		disable_irq(i);
-	}
+	int b;
+	int p;
 
 	local_irq_save(flags);
 	for (b = 0; b < ARRAY_SIZE(tegra_gpio_banks); b++) {
@@ -320,7 +303,7 @@ void tegra_gpio_suspend(void)
 static int tegra_gpio_wake_enable(struct irq_data *d, unsigned int enable)
 {
 	struct tegra_gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	return set_irq_wake(bank->irq, enable);
+	return irq_set_irq_wake(bank->irq, enable);
 }
 #endif
 
@@ -359,18 +342,18 @@ static int __init tegra_gpio_init(void)
 	for (i = INT_GPIO_BASE; i < (INT_GPIO_BASE + TEGRA_NR_GPIOS); i++) {
 		bank = &tegra_gpio_banks[GPIO_BANK(irq_to_gpio(i))];
 
-		lockdep_set_class(&irq_desc[i].lock, &gpio_lock_class);
-		set_irq_chip_data(i, bank);
-		set_irq_chip(i, &tegra_gpio_irq_chip);
-		set_irq_handler(i, handle_simple_irq);
+		irq_set_lockdep_class(i, &gpio_lock_class);
+		irq_set_chip_data(i, bank);
+		irq_set_chip_and_handler(i, &tegra_gpio_irq_chip,
+					 handle_simple_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(tegra_gpio_banks); i++) {
 		bank = &tegra_gpio_banks[i];
 
-		set_irq_chained_handler(bank->irq, tegra_gpio_irq_handler);
-		set_irq_data(bank->irq, bank);
+		irq_set_chained_handler(bank->irq, tegra_gpio_irq_handler);
+		irq_set_handler_data(bank->irq, bank);
 
 		for (j = 0; j < 4; j++)
 			spin_lock_init(&bank->lvl_lock[j]);

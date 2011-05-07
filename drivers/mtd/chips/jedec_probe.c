@@ -2075,7 +2075,7 @@ static inline int jedec_match( uint32_t base,
 	}
 
 	/*
-	 * Make sure the ID's dissappear when the device is taken out of
+	 * Make sure the ID's disappear when the device is taken out of
 	 * ID mode.  The only time this should fail when it should succeed
 	 * is when the ID's are written as data to the same
 	 * addresses.  For this rare and unfortunate case the chip

@@ -111,7 +111,7 @@
 #define IPC_SST_PERIOD_ELAPSED 0x97 /* period elapsed */
 #define IPC_IA_TARGET_DEV_CHNGD 0x98 /* error in processing a stream */
 
-#define IPC_SST_ERROR_EVENT 0x99 /* Buffer over run occured */
+#define IPC_SST_ERROR_EVENT 0x99 /* Buffer over run occurred */
 /* L2S messages */
 #define IPC_SC_DDR_LINK_UP 0xC0
 #define IPC_SC_DDR_LINK_DOWN 0xC1

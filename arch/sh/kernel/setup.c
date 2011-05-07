@@ -150,7 +150,7 @@ void __init check_for_initrd(void)
 	}
 
 	/*
-	 * If we got this far inspite of the boot loader's best efforts
+	 * If we got this far in spite of the boot loader's best efforts
 	 * to the contrary, assume we actually have a valid initrd and
 	 * fix up the root dev.
 	 */

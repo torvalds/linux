@@ -98,7 +98,6 @@ static int udf_adinicb_write_end(struct file *file,
 const struct address_space_operations udf_adinicb_aops = {
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
-	.sync_page	= block_sync_page,
 	.write_begin = simple_write_begin,
 	.write_end = udf_adinicb_write_end,
 };

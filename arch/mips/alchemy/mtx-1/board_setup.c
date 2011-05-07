@@ -123,11 +123,11 @@ mtx1_pci_idsel(unsigned int devsel, int assert)
 
 static int __init mtx1_init_irq(void)
 {
-	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	irq_set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

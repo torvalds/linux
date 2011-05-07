@@ -359,7 +359,7 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer)
  * @wl: wl struct
  * @id: acx id
  * @buf: buffer for the response, including all headers, must work with dma
- * @len: lenght of buf
+ * @len: length of buf
  */
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
 {

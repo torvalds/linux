@@ -55,7 +55,7 @@ early_param("initrd", early_initrd);
  */
 struct meminfo meminfo;
 
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	int free = 0, total = 0, reserved = 0;
 	int shared = 0, cached = 0, slab = 0, i;

@@ -154,13 +154,13 @@ void platform_clear_ipi(unsigned int cpu, int irq)
 void __cpuinit bfin_local_timer_setup(void)
 {
 #if defined(CONFIG_TICKSOURCE_CORETMR)
-	struct irq_chip *chip = get_irq_chip(IRQ_CORETMR);
-	struct irq_desc *desc = irq_to_desc(IRQ_CORETMR);
+	struct irq_data *data = irq_get_irq_data(IRQ_CORETMR);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
 	bfin_coretmr_init();
 	bfin_coretmr_clockevent_init();
 
-	chip->irq_unmask(&desc->irq_data);
+	chip->irq_unmask(data);
 #else
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);

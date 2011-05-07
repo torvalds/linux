@@ -342,7 +342,7 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	num = 0;
 	snapc->seq = realm->seq;
 	if (parent) {
-		/* include any of parent's snaps occuring _after_ my
+		/* include any of parent's snaps occurring _after_ my
 		   parent became my parent */
 		for (i = 0; i < parent->cached_context->num_snaps; i++)
 			if (parent->cached_context->snaps[i] >=
@@ -463,8 +463,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 		dout("queue_cap_snap %p cap_snap %p queuing under %p\n", inode,
 		     capsnap, snapc);
-		igrab(inode);
-		
+		ihold(inode);
+
 		atomic_set(&capsnap->nref, 1);
 		capsnap->ci = ci;
 		INIT_LIST_HEAD(&capsnap->ci_item);

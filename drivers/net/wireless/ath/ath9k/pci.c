@@ -44,7 +44,7 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 	*csz = (int)u8tmp;
 
 	/*
-	 * This check was put in to avoid "unplesant" consequences if
+	 * This check was put in to avoid "unpleasant" consequences if
 	 * the bootrom has not fully initialized all PCI devices.
 	 * Sometimes the cache line size register is not set
 	 */

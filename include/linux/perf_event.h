@@ -662,7 +662,7 @@ struct pmu {
 	int  (*commit_txn)	(struct pmu *pmu); /* optional */
 	/*
 	 * Will cancel the transaction, assumes ->del() is called
-	 * for each successfull ->add() during the transaction.
+	 * for each successful ->add() during the transaction.
 	 */
 	void (*cancel_txn)	(struct pmu *pmu); /* optional */
 };
@@ -938,9 +938,7 @@ struct perf_cpu_context {
 	struct list_head		rotation_list;
 	int				jiffies_interval;
 	struct pmu			*active_pmu;
-#ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp;
-#endif
 };
 
 struct perf_output_handle {
@@ -1088,7 +1086,7 @@ void perf_event_task_sched_out(struct task_struct *task, struct task_struct *nex
 {
 	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
 
-	COND_STMT(&perf_sched_events, __perf_event_task_sched_out(task, next));
+	__perf_event_task_sched_out(task, next);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);

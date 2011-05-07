@@ -176,7 +176,7 @@ static struct rc_map_table rc_map_digitv_table[] = {
 	{ 0xaf59, KEY_AUX },
 	{ 0x5f5a, KEY_DVD },
 	{ 0x6f5a, KEY_POWER },
-	{ 0x9f5a, KEY_MHP },     /* labelled 'Picture' */
+	{ 0x9f5a, KEY_CAMERA },     /* labelled 'Picture' */
 	{ 0xaf5a, KEY_AUDIO },
 	{ 0x5f65, KEY_INFO },
 	{ 0x6f65, KEY_F13 },     /* 16:9 */

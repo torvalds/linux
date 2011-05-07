@@ -517,12 +517,8 @@ stop_exit:
 
 static int check_hardware_prerequisites(void)
 {
-	unsigned long long facility_bits[2];
-
-	memcpy(facility_bits, S390_lowcore.stfle_fac_list, 32);
-	if (!(facility_bits[1] & (1ULL << 59)))
+	if (!test_facility(68))
 		return -EOPNOTSUPP;
-
 	return 0;
 }
 /*

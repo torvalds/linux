@@ -643,7 +643,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
 			module_put(board_cfg->owner);
 		}
@@ -688,7 +688,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
@@ -1032,6 +1032,49 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	return 0;
 }
 
+/*
+ * Screen blanking. Behavior is as follows:
+ * FB_BLANK_UNBLANK: screen unblanked, clocks enabled
+ * FB_BLANK_NORMAL: screen blanked, clocks enabled
+ * FB_BLANK_VSYNC,
+ * FB_BLANK_HSYNC,
+ * FB_BLANK_POWEROFF: screen blanked, clocks disabled
+ */
+static int sh_mobile_lcdc_blank(int blank, struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *p = ch->lcdc;
+
+	/* blank the screen? */
+	if (blank > FB_BLANK_UNBLANK && ch->blank_status == FB_BLANK_UNBLANK) {
+		struct fb_fillrect rect = {
+			.width = info->var.xres,
+			.height = info->var.yres,
+		};
+		sh_mobile_lcdc_fillrect(info, &rect);
+	}
+	/* turn clocks on? */
+	if (blank <= FB_BLANK_NORMAL && ch->blank_status > FB_BLANK_NORMAL) {
+		sh_mobile_lcdc_clk_on(p);
+	}
+	/* turn clocks off? */
+	if (blank > FB_BLANK_NORMAL && ch->blank_status <= FB_BLANK_NORMAL) {
+		/* make sure the screen is updated with the black fill before
+		 * switching the clocks off. one vsync is not enough since
+		 * blanking may occur in the middle of a refresh. deferred io
+		 * mode will reenable the clocks and update the screen in time,
+		 * so it does not need this. */
+		if (!info->fbdefio) {
+			sh_mobile_wait_for_vsync(info);
+			sh_mobile_wait_for_vsync(info);
+		}
+		sh_mobile_lcdc_clk_off(p);
+	}
+
+	ch->blank_status = blank;
+	return 0;
+}
+
 static struct fb_ops sh_mobile_lcdc_ops = {
 	.owner          = THIS_MODULE,
 	.fb_setcolreg	= sh_mobile_lcdc_setcolreg,
@@ -1040,6 +1083,7 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_fillrect	= sh_mobile_lcdc_fillrect,
 	.fb_copyarea	= sh_mobile_lcdc_copyarea,
 	.fb_imageblit	= sh_mobile_lcdc_imageblit,
+	.fb_blank	= sh_mobile_lcdc_blank,
 	.fb_pan_display = sh_mobile_fb_pan_display,
 	.fb_ioctl       = sh_mobile_ioctl,
 	.fb_open	= sh_mobile_open,
@@ -1088,8 +1132,9 @@ static struct backlight_device *sh_mobile_lcdc_bl_probe(struct device *parent,
 
 	bl = backlight_device_register(ch->cfg.bl_info.name, parent, ch,
 				       &sh_mobile_lcdc_bl_ops, NULL);
-	if (!bl) {
-		dev_err(parent, "unable to register backlight device\n");
+	if (IS_ERR(bl)) {
+		dev_err(parent, "unable to register backlight device: %ld\n",
+			PTR_ERR(bl));
 		return NULL;
 	}
 
@@ -1253,7 +1298,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 
 	switch(action) {
 	case FB_EVENT_SUSPEND:
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
@@ -1266,7 +1311,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 		mutex_unlock(&ch->open_lock);
 
 		/* HDMI must be enabled before LCDC configuration */
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, info);
 			module_put(board_cfg->owner);
 		}

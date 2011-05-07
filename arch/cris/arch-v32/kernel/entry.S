@@ -182,7 +182,7 @@ _syscall_traced:
 	move.d	$r0, [$sp]
 
 	;; The registers carrying parameters (R10-R13) are intact. The optional
-	;; fifth and sixth parameters is in MOF and SRP respectivly. Put them
+	;; fifth and sixth parameters is in MOF and SRP respectively. Put them
 	;; back on the stack.
 	subq	4, $sp
 	move	$srp, [$sp]

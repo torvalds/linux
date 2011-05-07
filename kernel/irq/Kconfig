@@ -10,13 +10,6 @@ menu "IRQ subsystem"
 config GENERIC_HARDIRQS
        def_bool y
 
-# Select this to disable the deprecated stuff
-config GENERIC_HARDIRQS_NO_DEPRECATED
-       bool
-
-config GENERIC_HARDIRQS_NO_COMPAT
-       bool
-
 # Options selectable by the architecture code
 
 # Make sparse irq Kconfig switch below available
@@ -29,6 +22,10 @@ config GENERIC_IRQ_PROBE
 
 # Use the generic /proc/interrupts implementation
 config GENERIC_IRQ_SHOW
+       bool
+
+# Print level/edge extra information
+config GENERIC_IRQ_SHOW_LEVEL
        bool
 
 # Support for delayed migration from interrupt context
@@ -45,6 +42,10 @@ config HARDIRQS_SW_RESEND
 
 # Preflow handler support for fasteoi (sparc64)
 config IRQ_PREFLOW_FASTEOI
+       bool
+
+# Edge style eoi based handler (cell)
+config IRQ_EDGE_EOI_HANDLER
        bool
 
 # Support forced irq threading

@@ -535,7 +535,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 			/* RX dribble */
 			if (err & DSC_RX_ERR_DRI)
 				dev->stats.rx_frame_errors++;
-			/* Buffer lenght exceeded */
+			/* Buffer length exceeded */
 			if (err & DSC_RX_ERR_BUF)
 				dev->stats.rx_length_errors++;
 			/* Packet too long */

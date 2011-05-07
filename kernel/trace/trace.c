@@ -3239,7 +3239,7 @@ waitagain:
 		trace_seq_init(&iter->seq);
 
 	/*
-	 * If there was nothing to send to user, inspite of consuming trace
+	 * If there was nothing to send to user, in spite of consuming trace
 	 * entries, go back to wait for more entries.
 	 */
 	if (sret == -EBUSY)

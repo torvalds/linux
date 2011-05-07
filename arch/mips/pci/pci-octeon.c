@@ -441,7 +441,7 @@ static void octeon_pci_initialize(void)
 
 	/*
 	 * TDOMC must be set to one in PCI mode. TDOMC should be set to 4
-	 * in PCI-X mode to allow four oustanding splits. Otherwise,
+	 * in PCI-X mode to allow four outstanding splits. Otherwise,
 	 * should not change from its reset value. Don't write PCI_CFG19
 	 * in PCI mode (0x82000001 reset value), write it to 0x82000004
 	 * after PCI-X mode is known. MRBCI,MDWE,MDRE -> must be zero.
@@ -515,7 +515,7 @@ static void octeon_pci_initialize(void)
 #endif	/* USE_OCTEON_INTERNAL_ARBITER */
 
 	/*
-	 * Preferrably written to 1 to set MLTD. [RDSATI,TRTAE,
+	 * Preferably written to 1 to set MLTD. [RDSATI,TRTAE,
 	 * TWTAE,TMAE,DPPMR -> must be zero. TILT -> must not be set to
 	 * 1..7.
 	 */

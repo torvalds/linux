@@ -521,7 +521,7 @@ int nf_nat_protocol_register(const struct nf_nat_protocol *proto)
 }
 EXPORT_SYMBOL(nf_nat_protocol_register);
 
-/* Noone stores the protocol anywhere; simply delete it. */
+/* No one stores the protocol anywhere; simply delete it. */
 void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 {
 	spin_lock_bh(&nf_nat_lock);
@@ -532,7 +532,7 @@ void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
-/* Noone using conntrack by the time this called. */
+/* No one using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
 	struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);

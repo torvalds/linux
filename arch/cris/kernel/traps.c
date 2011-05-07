@@ -183,7 +183,7 @@ __initcall(oops_nmi_register);
 
 /*
  * This gets called from entry.S when the watchdog has bitten. Show something
- * similiar to an Oops dump, and if the kernel is configured to be a nice
+ * similar to an Oops dump, and if the kernel is configured to be a nice
  * doggy, then halt instead of reboot.
  */
 void

@@ -465,7 +465,7 @@ static void start_event_scan(void)
 	pr_debug("rtasd: will sleep for %d milliseconds\n",
 		 (30000 / rtas_event_scan_rate));
 
-	/* Retreive errors from nvram if any */
+	/* Retrieve errors from nvram if any */
 	retreive_nvram_error_log();
 
 	schedule_delayed_work_on(cpumask_first(cpu_online_mask),

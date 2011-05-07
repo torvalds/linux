@@ -434,7 +434,7 @@ struct dma_tx_state {
  *	zero or error code
  * @device_tx_status: poll for transaction completion, the optional
  *	txstate parameter can be supplied with a pointer to get a
- *	struct with auxilary transfer status information, otherwise the call
+ *	struct with auxiliary transfer status information, otherwise the call
  *	will just return a simple status code
  * @device_issue_pending: push pending transactions to hardware
  */

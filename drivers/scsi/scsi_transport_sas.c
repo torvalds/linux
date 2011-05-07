@@ -173,11 +173,7 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 	int ret;
 	int (*handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
 
-	while (!blk_queue_plugged(q)) {
-		req = blk_fetch_request(q);
-		if (!req)
-			break;
-
+	while ((req = blk_fetch_request(q)) != NULL) {
 		spin_unlock_irq(q->queue_lock);
 
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;

@@ -433,7 +433,7 @@ static int write_i2c_mem(struct edgeport_serial *serial,
 
 	/* We can only send a maximum of 1 aligned byte page at a time */
 
-	/* calulate the number of bytes left in the first page */
+	/* calculate the number of bytes left in the first page */
 	write_length = EPROM_PAGE_SIZE -
 				(start_address & (EPROM_PAGE_SIZE - 1));
 

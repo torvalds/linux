@@ -862,18 +862,18 @@ static struct vm_area_struct gate_vma = {
 	.vm_flags	= VM_READ | VM_EXEC
 };
 
-struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
 #ifdef CONFIG_IA32_EMULATION
-	if (test_tsk_thread_flag(tsk, TIF_IA32))
+	if (!mm || mm->context.ia32_compat)
 		return NULL;
 #endif
 	return &gate_vma;
 }
 
-int in_gate_area(struct task_struct *task, unsigned long addr)
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
 {
-	struct vm_area_struct *vma = get_gate_vma(task);
+	struct vm_area_struct *vma = get_gate_vma(mm);
 
 	if (!vma)
 		return 0;
@@ -882,11 +882,11 @@ int in_gate_area(struct task_struct *task, unsigned long addr)
 }
 
 /*
- * Use this when you have no reliable task/vma, typically from interrupt
- * context. It is less reliable than using the task's vma and may give
- * false positives:
+ * Use this when you have no reliable mm, typically from interrupt
+ * context. It is less reliable than using a task's mm and may give
+ * false positives.
  */
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
 }

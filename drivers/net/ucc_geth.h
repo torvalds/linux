@@ -80,7 +80,7 @@ struct ucc_geth {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in successfull
+				   that where involved in successful
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
@@ -759,7 +759,7 @@ struct ucc_geth_hardware_statistics {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in successfull
+				   that where involved in successful
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */

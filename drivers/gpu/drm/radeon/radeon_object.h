@@ -87,7 +87,7 @@ static inline void radeon_bo_unreserve(struct radeon_bo *bo)
  * Returns current GPU offset of the object.
  *
  * Note: object should either be pinned or reserved when calling this
- * function, it might be usefull to add check for this for debugging.
+ * function, it might be useful to add check for this for debugging.
  */
 static inline u64 radeon_bo_gpu_offset(struct radeon_bo *bo)
 {

@@ -52,7 +52,7 @@
  * while making the callback. To ensure that the rport is not free'd while
  * processing the callback the rport callbacks are serialized through a
  * single-threaded workqueue. An rport would never be free'd while in a
- * callback handler becuase no other rport work in this queue can be executed
+ * callback handler because no other rport work in this queue can be executed
  * at the same time.
  *
  * When discovery succeeds or fails a callback is made to the lport as
@@ -163,7 +163,7 @@ static int fc_frame_drop(struct fc_lport *lport, struct fc_frame *fp)
  * fc_lport_rport_callback() - Event handler for rport events
  * @lport: The lport which is receiving the event
  * @rdata: private remote port data
- * @event: The event that occured
+ * @event: The event that occurred
  *
  * Locking Note: The rport lock should not be held when calling
  *		 this function.
@@ -379,7 +379,7 @@ static void fc_lport_add_fc4_type(struct fc_lport *lport, enum fc_fh_type type)
 
 /**
  * fc_lport_recv_rlir_req() - Handle received Registered Link Incident Report.
- * @lport: Fibre Channel local port recieving the RLIR
+ * @lport: Fibre Channel local port receiving the RLIR
  * @fp:	   The RLIR request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
@@ -396,7 +396,7 @@ static void fc_lport_recv_rlir_req(struct fc_lport *lport, struct fc_frame *fp)
 
 /**
  * fc_lport_recv_echo_req() - Handle received ECHO request
- * @lport: The local port recieving the ECHO
+ * @lport: The local port receiving the ECHO
  * @fp:	   ECHO request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
@@ -432,7 +432,7 @@ static void fc_lport_recv_echo_req(struct fc_lport *lport,
 
 /**
  * fc_lport_recv_rnid_req() - Handle received Request Node ID data request
- * @lport: The local port recieving the RNID
+ * @lport: The local port receiving the RNID
  * @fp:	   The RNID request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
@@ -491,7 +491,7 @@ static void fc_lport_recv_rnid_req(struct fc_lport *lport,
 
 /**
  * fc_lport_recv_logo_req() - Handle received fabric LOGO request
- * @lport: The local port recieving the LOGO
+ * @lport: The local port receiving the LOGO
  * @fp:	   The LOGO request frame
  *
  * Locking Note: The lport lock is exected to be held before calling
@@ -771,7 +771,7 @@ EXPORT_SYMBOL(fc_lport_set_local_id);
 
 /**
  * fc_lport_recv_flogi_req() - Receive a FLOGI request
- * @lport: The local port that recieved the request
+ * @lport: The local port that received the request
  * @rx_fp: The FLOGI frame
  *
  * A received FLOGI request indicates a point-to-point connection.
@@ -858,7 +858,7 @@ out:
  * if an rport should handle the request.
  *
  * Locking Note: This function should not be called with the lport
- *		 lock held becuase it will grab the lock.
+ *		 lock held because it will grab the lock.
  */
 static void fc_lport_recv_els_req(struct fc_lport *lport,
 				  struct fc_frame *fp)
@@ -925,7 +925,7 @@ struct fc4_prov fc_lport_els_prov = {
  * @fp: The frame the request is in
  *
  * Locking Note: This function should not be called with the lport
- *		 lock held becuase it may grab the lock.
+ *		 lock held because it may grab the lock.
  */
 static void fc_lport_recv_req(struct fc_lport *lport,
 			      struct fc_frame *fp)

@@ -383,7 +383,8 @@ xfs_trans_read_buf(
 	bp = xfs_buf_read(target, blkno, len, flags | XBF_DONT_BLOCK);
 	if (bp == NULL) {
 		*bpp = NULL;
-		return 0;
+		return (flags & XBF_TRYLOCK) ?
+					0 : XFS_ERROR(ENOMEM);
 	}
 	if (XFS_BUF_GETERROR(bp) != 0) {
 	    XFS_BUF_SUPER_STALE(bp);

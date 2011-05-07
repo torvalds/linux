@@ -1094,7 +1094,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		}
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
 		ubifs_err("cannot allocate memory to scan LEB %d", lnum);
 		goto out;

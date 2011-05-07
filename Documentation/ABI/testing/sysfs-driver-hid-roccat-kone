@@ -40,7 +40,7 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
-                press of a button. A profile holds informations like button
+                press of a button. A profile holds information like button
                 mappings, sensitivity, the colors of the 5 leds and light
                 effects.
                 When read, these files return the respective profile. The

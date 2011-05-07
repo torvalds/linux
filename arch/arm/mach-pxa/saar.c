@@ -473,7 +473,7 @@ static struct pxafb_mach_info saar_lcd_info = {
 
 static void __init saar_init_lcd(void)
 {
-	set_pxa_fb_info(&saar_lcd_info);
+	pxa_set_fb_info(NULL, &saar_lcd_info);
 }
 #else
 static inline void saar_init_lcd(void) {}

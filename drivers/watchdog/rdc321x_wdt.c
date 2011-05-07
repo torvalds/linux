@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/rdc321x.h>
+#include <linux/mfd/core.h>
 
 #define RDC_WDT_MASK	0x80000000 /* Mask */
 #define RDC_WDT_EN	0x00800000 /* Enable bit */
@@ -231,7 +232,7 @@ static int __devinit rdc321x_wdt_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct rdc321x_wdt_pdata *pdata;
 
-	pdata = platform_get_drvdata(pdev);
+	pdata = mfd_get_data(pdev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data supplied\n");
 		return -ENODEV;

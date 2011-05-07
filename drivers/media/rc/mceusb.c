@@ -186,7 +186,7 @@ static const struct mceusb_model mceusb_model[] = {
 		 * remotes, but we should have something handy,
 		 * to allow testing it
 		 */
-		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
+		.rc_map = RC_MAP_HAUPPAUGE,
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 	[CX_HYBRID_TV] = {
@@ -261,7 +261,7 @@ static struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = MCE_GEN2_TX_INV },
 	/* Topseed eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x0011),
-	  .driver_info = MCE_GEN2_TX_INV },
+	  .driver_info = MCE_GEN3 },
 	/* Ricavision internal Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_RICAVISION, 0x0010) },
 	/* Itron ione Libra Q-11 */

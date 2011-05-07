@@ -125,7 +125,7 @@ void __devinit register_pci_controller(struct pci_controller *hose)
 	hose_tail = &hose->next;
 
 	/*
-	 * Do not panic here but later - this might hapen before console init.
+	 * Do not panic here but later - this might happen before console init.
 	 */
 	if (!hose->io_map_base) {
 		printk(KERN_WARNING

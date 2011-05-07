@@ -101,8 +101,6 @@
 
 #include <linux/version.h>
 
-#define __OLD_VIDIOC_
-
 #include "matroxfb_base.h"
 #include "matroxfb_misc.h"
 #include "matroxfb_accel.h"
@@ -623,7 +621,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		var->yoffset = var->yres_virtual - var->yres;
 
 	if (bpp == 16 && var->green.length == 5) {
-		bpp--; /* an artifical value - 15 */
+		bpp--; /* an artificial value - 15 */
 	}
 
 	for (rgbt = table; rgbt->bpp < bpp; rgbt++);
@@ -1152,7 +1150,6 @@ static int matroxfb_ioctl(struct fb_info *info,
 					return -EFAULT;
 				return err;
 			}
-		case VIDIOC_S_CTRL_OLD:
 		case VIDIOC_S_CTRL:
 			{
 				struct v4l2_control ctrl;

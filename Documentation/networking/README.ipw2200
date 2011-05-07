@@ -256,7 +256,7 @@ You can set the debug level via:
 
 Where $VALUE would be a number in the case of this sysfs entry.  The 
 input to sysfs files does not have to be a number.  For example, the 
-firmware loader used by hotplug utilizes sysfs entries for transfering 
+firmware loader used by hotplug utilizes sysfs entries for transferring 
 the firmware image from user space into the driver.
 
 The Intel(R) PRO/Wireless 2915ABG Driver for Linux exposes sysfs entries 

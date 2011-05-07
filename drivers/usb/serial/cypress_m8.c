@@ -35,7 +35,7 @@
  *
  *  Lonnie Mendez <dignome@gmail.com>
  *  04-10-2004
- *	Driver modified to support dynamic line settings.  Various improvments
+ *	Driver modified to support dynamic line settings.  Various improvements
  *      and features.
  *
  *  Neil Whelchel

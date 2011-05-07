@@ -72,7 +72,7 @@ aggr_process_bar(void *cntxt, u8 tid, u16 seq_no);
  * This event is to initiate/modify the receive side window.
  * Target will send WMI_ADDBA_REQ_EVENTID event to host - to setup 
  * recv re-ordering queues. Target will negotiate ADDBA with peer, 
- * and indicate via this event after succesfully completing the 
+ * and indicate via this event after successfully completing the 
  * negotiation. This happens in two situations:
  *  1. Initial setup of aggregation
  *  2. Renegotiation of current recv window.

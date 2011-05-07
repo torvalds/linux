@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/slab.h>
 
 #include <linux/timb_dma.h>
@@ -684,7 +685,7 @@ static irqreturn_t td_irq(int irq, void *devid)
 
 static int __devinit td_probe(struct platform_device *pdev)
 {
-	struct timb_dma_platform_data *pdata = pdev->dev.platform_data;
+	struct timb_dma_platform_data *pdata = mfd_get_data(pdev);
 	struct timb_dma *td;
 	struct resource *iomem;
 	int irq;

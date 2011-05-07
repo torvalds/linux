@@ -140,7 +140,7 @@ out_free:
 	goto out;
 }
 
-static struct of_device_id __initdata clock_board_match[] = {
+static const struct of_device_id clock_board_match[] = {
 	{
 		.name = "clock-board",
 	},
@@ -245,7 +245,7 @@ out_free:
 	goto out;
 }
 
-static struct of_device_id __initdata fhc_match[] = {
+static const struct of_device_id fhc_match[] = {
 	{
 		.name = "fhc",
 	},

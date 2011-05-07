@@ -905,7 +905,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			"IO write error!\n");
 		message->state = ERROR_STATE;
 	} else {
-		/* Update total byte transfered */
+		/* Update total byte transferred */
 		message->actual_length += drv_data->len_in_bytes;
 		/* Move to next transfer of this msg */
 		message->state = bfin_spi_next_transfer(drv_data);
@@ -1284,7 +1284,7 @@ static inline int bfin_spi_stop_queue(struct bfin_spi_master_data *drv_data)
 	 * friends on every SPI message. Do this instead
 	 */
 	drv_data->running = false;
-	while (!list_empty(&drv_data->queue) && drv_data->busy && limit--) {
+	while ((!list_empty(&drv_data->queue) || drv_data->busy) && limit--) {
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&drv_data->lock, flags);

@@ -140,7 +140,7 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 	unsigned long usp = regs->gpr[1];
 
 	/*
-	 * We cant access below the stack pointer in the 32bit ABI and
+	 * We can't access below the stack pointer in the 32bit ABI and
 	 * can access 288 bytes in the 64bit ABI
 	 */
 	if (!is_32bit_task())

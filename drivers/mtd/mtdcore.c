@@ -43,7 +43,7 @@
  * backing device capabilities for non-mappable devices (such as NAND flash)
  * - permits private mappings, copies are taken of the data
  */
-struct backing_dev_info mtd_bdi_unmappable = {
+static struct backing_dev_info mtd_bdi_unmappable = {
 	.capabilities	= BDI_CAP_MAP_COPY,
 };
 
@@ -52,7 +52,7 @@ struct backing_dev_info mtd_bdi_unmappable = {
  * - permits private mappings, copies are taken of the data
  * - permits non-writable shared mappings
  */
-struct backing_dev_info mtd_bdi_ro_mappable = {
+static struct backing_dev_info mtd_bdi_ro_mappable = {
 	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
 			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP),
 };
@@ -62,7 +62,7 @@ struct backing_dev_info mtd_bdi_ro_mappable = {
  * - permits private mappings, copies are taken of the data
  * - permits non-writable shared mappings
  */
-struct backing_dev_info mtd_bdi_rw_mappable = {
+static struct backing_dev_info mtd_bdi_rw_mappable = {
 	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
 			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP |
 			   BDI_CAP_WRITE_MAP),

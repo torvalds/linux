@@ -175,26 +175,6 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 }
 
 /**
- * ubifs_create_buds_lists - create journal head buds lists for remount rw.
- * @c: UBIFS file-system description object
- */
-void ubifs_create_buds_lists(struct ubifs_info *c)
-{
-	struct rb_node *p;
-
-	spin_lock(&c->buds_lock);
-	p = rb_first(&c->buds);
-	while (p) {
-		struct ubifs_bud *bud = rb_entry(p, struct ubifs_bud, rb);
-		struct ubifs_jhead *jhead = &c->jheads[bud->jhead];
-
-		list_add_tail(&bud->list, &jhead->buds_list);
-		p = rb_next(p);
-	}
-	spin_unlock(&c->buds_lock);
-}
-
-/**
  * ubifs_add_bud_to_log - add a new bud to the log.
  * @c: UBIFS file-system description object
  * @jhead: journal head the bud belongs to

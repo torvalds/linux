@@ -36,7 +36,7 @@
  * registry.
  *
  * Note:  This value is used in defining the KVP exchange message - this value
- * cannot be modified without affecting the message size and compatability.
+ * cannot be modified without affecting the message size and compatibility.
  */
 
 /*

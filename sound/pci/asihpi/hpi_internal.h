@@ -607,7 +607,7 @@ struct hpi_data_compat32 {
 #endif
 
 struct hpi_buffer {
-  /** placehoder for backward compatability (see dwBufferSize) */
+  /** placehoder for backward compatibility (see dwBufferSize) */
 	struct hpi_msg_format reserved;
 	u32 command; /**< HPI_BUFFER_CMD_xxx*/
 	u32 pci_address; /**< PCI physical address of buffer for DSP DMA */

@@ -276,7 +276,7 @@ static void exynos4_mct_tick_start(unsigned long cycles,
 	/* update interrupt count buffer */
 	exynos4_mct_write(tmp, mevt->base + MCT_L_ICNTB_OFFSET);
 
-	/* enable MCT tick interupt */
+	/* enable MCT tick interrupt */
 	exynos4_mct_write(0x1, mevt->base + MCT_L_INT_ENB_OFFSET);
 
 	tmp = __raw_readl(mevt->base + MCT_L_TCON_OFFSET);

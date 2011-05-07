@@ -41,7 +41,7 @@
 #define LM3530_RAMP_TIME_8s		(7)
 
 /* ALS Resistor Select */
-#define LM3530_ALS_IMPD_Z		(0x00) /* ALS Impedence */
+#define LM3530_ALS_IMPD_Z		(0x00) /* ALS Impedance */
 #define LM3530_ALS_IMPD_13_53kOhm	(0x01)
 #define LM3530_ALS_IMPD_9_01kOhm	(0x02)
 #define LM3530_ALS_IMPD_5_41kOhm	(0x03)

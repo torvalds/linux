@@ -694,7 +694,7 @@ void ScanNextChannel(struct rt_rtmp_adapter *pAd)
 			MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 			MlmeFreeMemory(pAd, pOutBuffer);
 		}
-		/* For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse */
+		/* For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe response */
 
 		pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
 	}

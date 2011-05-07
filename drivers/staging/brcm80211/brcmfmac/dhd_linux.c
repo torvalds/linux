@@ -478,7 +478,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			dhd_set_packet_filter(1, dhd);
 
 			/* if dtim skip setup as default force it
-			 * to wake each thrid dtim
+			 * to wake each third dtim
 			 * for better power saving.
 			 * Note that side effect is chance to miss BC/MC
 			 * packet

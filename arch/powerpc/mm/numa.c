@@ -440,11 +440,11 @@ static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
 }
 
 /*
- * Retreive and validate the ibm,dynamic-memory property of the device tree.
+ * Retrieve and validate the ibm,dynamic-memory property of the device tree.
  *
  * The layout of the ibm,dynamic-memory property is a number N of memblock
  * list entries followed by N memblock list entries.  Each memblock list entry
- * contains information as layed out in the of_drconf_cell struct above.
+ * contains information as laid out in the of_drconf_cell struct above.
  */
 static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 {
@@ -468,7 +468,7 @@ static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 }
 
 /*
- * Retreive and validate the ibm,lmb-size property for drconf memory
+ * Retrieve and validate the ibm,lmb-size property for drconf memory
  * from the device tree.
  */
 static u64 of_get_lmb_size(struct device_node *memory)
@@ -490,7 +490,7 @@ struct assoc_arrays {
 };
 
 /*
- * Retreive and validate the list of associativity arrays for drconf
+ * Retrieve and validate the list of associativity arrays for drconf
  * memory from the ibm,associativity-lookup-arrays property of the
  * device tree..
  *
@@ -604,7 +604,7 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
  * Returns the size the region should have to enforce the memory limit.
  * This will either be the original value of size, a truncated value,
  * or zero. If the returned value of size is 0 the region should be
- * discarded as it lies wholy above the memory limit.
+ * discarded as it lies wholly above the memory limit.
  */
 static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 						      unsigned long size)

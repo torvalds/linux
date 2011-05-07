@@ -93,7 +93,7 @@ void auxio_set_lte(int on)
 }
 EXPORT_SYMBOL(auxio_set_lte);
 
-static struct of_device_id __initdata auxio_match[] = {
+static const struct of_device_id auxio_match[] = {
 	{
 		.name = "auxio",
 	},

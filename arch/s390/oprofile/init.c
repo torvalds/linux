@@ -18,6 +18,11 @@
 #include <linux/fs.h>
 
 #include "../../../drivers/oprofile/oprof.h"
+
+extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
+
+#ifdef CONFIG_64BIT
+
 #include "hwsampler.h"
 
 #define DEFAULT_INTERVAL	4096
@@ -36,8 +41,6 @@ static int hwsampler_file;
 static int hwsampler_running;	/* start_mutex must be held to change */
 
 static struct oprofile_operations timer_ops;
-
-extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
 
 static int oprofile_hwsampler_start(void)
 {
@@ -172,14 +175,22 @@ static void oprofile_hwsampler_exit(void)
 	hwsampler_shutdown();
 }
 
+#endif /* CONFIG_64BIT */
+
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = s390_backtrace;
 
+#ifdef CONFIG_64BIT
 	return oprofile_hwsampler_init(ops);
+#else
+	return -ENODEV;
+#endif
 }
 
 void oprofile_arch_exit(void)
 {
+#ifdef CONFIG_64BIT
 	oprofile_hwsampler_exit();
+#endif
 }

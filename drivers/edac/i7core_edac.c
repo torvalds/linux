@@ -1772,7 +1772,7 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	/*
 	 * MCE first step: Copy all mce errors into a temporary buffer
 	 * We use a double buffering here, to reduce the risk of
-	 * loosing an error.
+	 * losing an error.
 	 */
 	smp_rmb();
 	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)

@@ -403,8 +403,9 @@
 #define __NR_name_to_handle_at	332
 #define __NR_open_by_handle_at	333
 #define __NR_clock_adjtime	334
+#define __NR_syncfs		335
 
-#define NR_syscalls		335
+#define NR_syscalls		336
 
 #ifdef __32bit_syscall_numbers__
 /* Sparc 32-bit only has the "setresuid32", "getresuid32" variants,

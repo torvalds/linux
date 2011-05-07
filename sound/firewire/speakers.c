@@ -778,10 +778,9 @@ static int __devexit fwspk_remove(struct device *dev)
 {
 	struct fwspk *fwspk = dev_get_drvdata(dev);
 
-	snd_card_disconnect(fwspk->card);
-
 	mutex_lock(&fwspk->mutex);
 	amdtp_out_stream_pcm_abort(&fwspk->stream);
+	snd_card_disconnect(fwspk->card);
 	fwspk_stop_stream(fwspk);
 	mutex_unlock(&fwspk->mutex);
 

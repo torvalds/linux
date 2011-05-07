@@ -37,7 +37,7 @@ To associate an interface with a physical adapter use "ethtool -p <ethX>".
 The corresponding adapter's LED will blink multiple times.
 
 3.	Features supported:
-a. Jumbo frames. Xframe I/II supports MTU upto 9600 bytes,
+a. Jumbo frames. Xframe I/II supports MTU up to 9600 bytes,
 modifiable using ifconfig command.
 
 b. Offloads. Supports checksum offload(TCP/UDP/IP) on transmit
@@ -49,7 +49,7 @@ significant performance improvement on certain platforms(SGI Altix,
 IBM xSeries).
 
 d. MSI/MSI-X. Can be enabled on platforms which support this feature
-(IA64, Xeon) resulting in noticeable performance improvement(upto 7%
+(IA64, Xeon) resulting in noticeable performance improvement(up to 7%
 on certain platforms).
 
 e. Statistics. Comprehensive MAC-level and software statistics displayed

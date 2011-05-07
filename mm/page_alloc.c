@@ -53,6 +53,7 @@
 #include <linux/compaction.h>
 #include <trace/events/kmem.h>
 #include <linux/ftrace_event.h>
+#include <linux/memcontrol.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -565,7 +566,8 @@ static inline int free_pages_check(struct page *page)
 	if (unlikely(page_mapcount(page) |
 		(page->mapping != NULL)  |
 		(atomic_read(&page->_count) != 0) |
-		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
+		(page->flags & PAGE_FLAGS_CHECK_AT_FREE) |
+		(mem_cgroup_bad_page_check(page)))) {
 		bad_page(page);
 		return 1;
 	}
@@ -754,7 +756,8 @@ static inline int check_new_page(struct page *page)
 	if (unlikely(page_mapcount(page) |
 		(page->mapping != NULL)  |
 		(atomic_read(&page->_count) != 0)  |
-		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
+		(page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
+		(mem_cgroup_bad_page_check(page)))) {
 		bad_page(page);
 		return 1;
 	}
@@ -939,7 +942,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 			 * If breaking a large block of pages, move all free
 			 * pages to the preferred allocation list. If falling
 			 * back for a reclaimable kernel allocation, be more
-			 * agressive about taking ownership of free pages
+			 * aggressive about taking ownership of free pages
 			 */
 			if (unlikely(current_order >= (pageblock_order >> 1)) ||
 					start_migratetype == MIGRATE_RECLAIMABLE ||
@@ -2192,7 +2195,7 @@ nopage:
 			current->comm, order, gfp_mask);
 		dump_stack();
 		if (!should_suppress_show_mem())
-			__show_mem(filter);
+			show_mem(filter);
 	}
 	return page;
 got_pg:
@@ -3173,7 +3176,7 @@ static __init_refok int __build_all_zonelists(void *data)
  * Called with zonelists_mutex held always
  * unless system_state == SYSTEM_BOOTING.
  */
-void build_all_zonelists(void *data)
+void __ref build_all_zonelists(void *data)
 {
 	set_zonelist_order();
 
@@ -3923,7 +3926,7 @@ static void __init find_usable_zone_for_movable(void)
 
 /*
  * The zone ranges provided by the architecture do not include ZONE_MOVABLE
- * because it is sized independant of architecture. Unlike the other zones,
+ * because it is sized independent of architecture. Unlike the other zones,
  * the starting point for ZONE_MOVABLE is not fixed. It may be different
  * in each node depending on the size of each node and how evenly kernelcore
  * is distributed. This helper function adjusts the zone ranges
@@ -5684,4 +5687,5 @@ void dump_page(struct page *page)
 		page, atomic_read(&page->_count), page_mapcount(page),
 		page->mapping, page->index);
 	dump_page_flags(page->flags);
+	mem_cgroup_print_bad_page(page);
 }

@@ -551,7 +551,7 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * corrupted.
  *
  * When the scan list is empty, the selected memory nodes can be freed. An
- * immediatly following drm_mm_search_free with best_match = 0 will then return
+ * immediately following drm_mm_search_free with best_match = 0 will then return
  * the just freed block (because its at the top of the free_stack list).
  *
  * Returns one if this block should be evicted, zero otherwise. Will always

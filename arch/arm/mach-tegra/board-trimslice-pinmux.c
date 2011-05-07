@@ -16,8 +16,11 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <mach/pinmux.h>
 
+#include <mach/pinmux.h>
+#include <mach/gpio.h>
+
+#include "gpio-names.h"
 #include "board-trimslice.h"
 
 static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
@@ -139,7 +142,13 @@ static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,      TEGRA_TRI_NORMAL},
 };
 
+static struct tegra_gpio_table gpio_table[] = {
+	{ .gpio = TRIMSLICE_GPIO_SD4_CD, .enable = true	}, /* mmc4 cd */
+	{ .gpio = TRIMSLICE_GPIO_SD4_WP, .enable = true	}, /* mmc4 wp */
+};
+
 void __init trimslice_pinmux_init(void)
 {
 	tegra_pinmux_config_table(trimslice_pinmux, ARRAY_SIZE(trimslice_pinmux));
+	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
 }

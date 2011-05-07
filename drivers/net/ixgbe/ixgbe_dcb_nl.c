@@ -360,7 +360,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return DCB_NO_HW_CHG;
 
 	/*
-	 * Only take down the adapter if an app change occured. FCoE
+	 * Only take down the adapter if an app change occurred. FCoE
 	 * may shuffle tx rings in this case and this can not be done
 	 * without a reset currently.
 	 */
@@ -599,7 +599,7 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 				break;
 
 			/* The FCoE application priority may be changed multiple
-			 * times in quick sucession with switches that build up
+			 * times in quick succession with switches that build up
 			 * TLVs. To avoid creating uneeded device resets this
 			 * checks the actual HW configuration and clears
 			 * BIT_APP_UPCHG if a HW configuration change is not

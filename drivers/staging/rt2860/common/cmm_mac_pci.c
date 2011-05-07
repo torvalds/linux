@@ -1446,7 +1446,7 @@ BOOLEAN RT28xxPciAsicRadioOff(struct rt_rtmp_adapter *pAd,
 	   pAd->CheckDmaBusyCount = 0;
 	   }
 	 */
-/*KH Debug:My original codes have the follwoing codes, but currecnt codes do not have it. */
+/*KH Debug:My original codes have the following codes, but currecnt codes do not have it. */
 /* Disable for stability. If PCIE Link Control is modified for advance power save, re-covery this code segment. */
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0x1280);
 /*OPSTATUS_SET_FLAG(pAd, fOP_STATUS_CLKSELECT_40MHZ); */

@@ -436,7 +436,7 @@
  * @finished_rb_num [0:11] - Indicates the index of the current RB
  * 	in which the last frame was written to
  * @finished_fr_num [0:11] - Indicates the index of the RX Frame
- * 	which was transfered
+ * 	which was transferred
  */
 struct iwl_rb_status {
 	__le16 closed_rb_num;

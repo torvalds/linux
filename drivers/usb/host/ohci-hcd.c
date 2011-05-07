@@ -162,7 +162,7 @@ static int ohci_urb_enqueue (
 		// case PIPE_INTERRUPT:
 		// case PIPE_BULK:
 		default:
-			/* one TD for every 4096 Bytes (can be upto 8K) */
+			/* one TD for every 4096 Bytes (can be up to 8K) */
 			size += urb->transfer_buffer_length / 4096;
 			/* ... and for any remaining bytes ... */
 			if ((urb->transfer_buffer_length % 4096) != 0)

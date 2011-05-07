@@ -88,7 +88,7 @@ conf_read(unsigned long addr, unsigned char type1,
 {
 	unsigned long flags;
 	unsigned long mid = MCPCIA_HOSE2MID(hose->index);
-	unsigned int stat0, value, temp, cpu;
+	unsigned int stat0, value, cpu;
 
 	cpu = smp_processor_id();
 
@@ -101,7 +101,7 @@ conf_read(unsigned long addr, unsigned char type1,
 	stat0 = *(vuip)MCPCIA_CAP_ERR(mid);
 	*(vuip)MCPCIA_CAP_ERR(mid) = stat0;
 	mb();
-	temp = *(vuip)MCPCIA_CAP_ERR(mid);
+	*(vuip)MCPCIA_CAP_ERR(mid);
 	DBG_CFG(("conf_read: MCPCIA_CAP_ERR(%d) was 0x%x\n", mid, stat0));
 
 	mb();
@@ -136,7 +136,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1,
 {
 	unsigned long flags;
 	unsigned long mid = MCPCIA_HOSE2MID(hose->index);
-	unsigned int stat0, temp, cpu;
+	unsigned int stat0, cpu;
 
 	cpu = smp_processor_id();
 
@@ -145,7 +145,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1,
 	/* Reset status register to avoid losing errors.  */
 	stat0 = *(vuip)MCPCIA_CAP_ERR(mid);
 	*(vuip)MCPCIA_CAP_ERR(mid) = stat0; mb();
-	temp = *(vuip)MCPCIA_CAP_ERR(mid);
+	*(vuip)MCPCIA_CAP_ERR(mid);
 	DBG_CFG(("conf_write: MCPCIA CAP_ERR(%d) was 0x%x\n", mid, stat0));
 
 	draina();
@@ -157,7 +157,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1,
 	*((vuip)addr) = value;
 	mb();
 	mb();  /* magic */
-	temp = *(vuip)MCPCIA_CAP_ERR(mid); /* read to force the write */
+	*(vuip)MCPCIA_CAP_ERR(mid); /* read to force the write */
 	mcheck_expected(cpu) = 0;
 	mb();
 
@@ -572,12 +572,10 @@ mcpcia_print_system_area(unsigned long la_ptr)
 void
 mcpcia_machine_check(unsigned long vector, unsigned long la_ptr)
 {
-	struct el_common *mchk_header;
 	struct el_MCPCIA_uncorrected_frame_mcheck *mchk_logout;
 	unsigned int cpu = smp_processor_id();
 	int expected;
 
-	mchk_header = (struct el_common *)la_ptr;
 	mchk_logout = (struct el_MCPCIA_uncorrected_frame_mcheck *)la_ptr;
 	expected = mcheck_expected(cpu);
 

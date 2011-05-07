@@ -353,7 +353,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	if (opt->name)
 		seq_printf(m, ",name=%s", opt->name);
-	if (opt->secret)
+	if (opt->key)
 		seq_puts(m, ",secret=<hidden>");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)

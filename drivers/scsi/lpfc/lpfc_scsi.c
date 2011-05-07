@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -577,7 +577,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 			iocb->un.fcpi64.bdl.addrHigh = 0;
 			iocb->ulpBdeCount = 0;
 			iocb->ulpLe = 0;
-			/* fill in responce BDE */
+			/* fill in response BDE */
 			iocb->unsli3.fcp_ext.rbde.tus.f.bdeFlags =
 							BUFF_TYPE_BDE_64;
 			iocb->unsli3.fcp_ext.rbde.tus.f.bdeSize =
@@ -1217,10 +1217,10 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 				     (2 * sizeof(struct ulp_bde64)));
 			data_bde->addrHigh = putPaddrHigh(physaddr);
 			data_bde->addrLow = putPaddrLow(physaddr);
-			/* ebde count includes the responce bde and data bpl */
+			/* ebde count includes the response bde and data bpl */
 			iocb_cmd->unsli3.fcp_ext.ebde_count = 2;
 		} else {
-			/* ebde count includes the responce bde and data bdes */
+			/* ebde count includes the response bde and data bdes */
 			iocb_cmd->unsli3.fcp_ext.ebde_count = (num_bde + 1);
 		}
 	} else {
@@ -1514,10 +1514,11 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct scatterlist *sgpe = NULL; /* s/g prot entry */
 	struct lpfc_pde5 *pde5 = NULL;
 	struct lpfc_pde6 *pde6 = NULL;
-	struct ulp_bde64 *prot_bde = NULL;
+	struct lpfc_pde7 *pde7 = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
 	unsigned short curr_data = 0, curr_prot = 0;
-	unsigned int split_offset, protgroup_len;
+	unsigned int split_offset;
+	unsigned int protgroup_len, protgroup_offset = 0, protgroup_remainder;
 	unsigned int protgrp_blks, protgrp_bytes;
 	unsigned int remainder, subtotal;
 	int status;
@@ -1585,23 +1586,33 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		bpl++;
 
 		/* setup the first BDE that points to protection buffer */
-		prot_bde = (struct ulp_bde64 *) bpl;
-		protphysaddr = sg_dma_address(sgpe);
-		prot_bde->addrHigh = le32_to_cpu(putPaddrLow(protphysaddr));
-		prot_bde->addrLow = le32_to_cpu(putPaddrHigh(protphysaddr));
-		protgroup_len = sg_dma_len(sgpe);
+		protphysaddr = sg_dma_address(sgpe) + protgroup_offset;
+		protgroup_len = sg_dma_len(sgpe) - protgroup_offset;
 
 		/* must be integer multiple of the DIF block length */
 		BUG_ON(protgroup_len % 8);
 
+		pde7 = (struct lpfc_pde7 *) bpl;
+		memset(pde7, 0, sizeof(struct lpfc_pde7));
+		bf_set(pde7_type, pde7, LPFC_PDE7_DESCRIPTOR);
+
+		pde7->addrHigh = le32_to_cpu(putPaddrLow(protphysaddr));
+		pde7->addrLow = le32_to_cpu(putPaddrHigh(protphysaddr));
+
 		protgrp_blks = protgroup_len / 8;
 		protgrp_bytes = protgrp_blks * blksize;
 
-		prot_bde->tus.f.bdeSize = protgroup_len;
-		prot_bde->tus.f.bdeFlags = LPFC_PDE7_DESCRIPTOR;
-		prot_bde->tus.w = le32_to_cpu(bpl->tus.w);
+		/* check if this pde is crossing the 4K boundary; if so split */
+		if ((pde7->addrLow & 0xfff) + protgroup_len > 0x1000) {
+			protgroup_remainder = 0x1000 - (pde7->addrLow & 0xfff);
+			protgroup_offset += protgroup_remainder;
+			protgrp_blks = protgroup_remainder / 8;
+			protgrp_bytes = protgroup_remainder * blksize;
+		} else {
+			protgroup_offset = 0;
+			curr_prot++;
+		}
 
-		curr_prot++;
 		num_bde++;
 
 		/* setup BDE's for data blocks associated with DIF data */
@@ -1653,6 +1664,13 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		}
 
+		if (protgroup_offset) {
+			/* update the reference tag */
+			reftag += protgrp_blks;
+			bpl++;
+			continue;
+		}
+
 		/* are we done ? */
 		if (curr_prot == protcnt) {
 			alldone = 1;
@@ -1675,6 +1693,7 @@ out:
 
 	return num_bde;
 }
+
 /*
  * Given a SCSI command that supports DIF, determine composition of protection
  * groups involved in setting up buffer lists
@@ -2361,7 +2380,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		}
 		/*
 		 * The cmnd->underflow is the minimum number of bytes that must
-		 * be transfered for this command.  Provided a sense condition
+		 * be transferred for this command.  Provided a sense condition
 		 * is not present, make sure the actual amount transferred is at
 		 * least the underflow value or fail.
 		 */
@@ -2854,7 +2873,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_scsi_api_table_setup - Set up scsi api fucntion jump table
+ * lpfc_scsi_api_table_setup - Set up scsi api function jump table
  * @phba: The hba struct for which this call is being executed.
  * @dev_grp: The HBA PCI-Device group number.
  *

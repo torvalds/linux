@@ -8317,7 +8317,7 @@ static const struct net_device_ops bnx2_netdev_ops = {
 #endif
 };
 
-static void inline vlan_features_add(struct net_device *dev, u32 flags)
+static inline void vlan_features_add(struct net_device *dev, u32 flags)
 {
 	dev->vlan_features |= flags;
 }
@@ -8412,6 +8412,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	unregister_netdev(dev);
+
+	del_timer_sync(&bp->timer);
 
 	if (bp->mips_firmware)
 		release_firmware(bp->mips_firmware);

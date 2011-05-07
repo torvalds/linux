@@ -160,7 +160,7 @@ void tipc_named_withdraw(struct publication *publ)
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Withdrawl distribution failure\n");
+		warn("Withdrawal distribution failure\n");
 		return;
 	}
 

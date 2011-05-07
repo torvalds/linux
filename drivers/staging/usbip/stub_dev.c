@@ -220,8 +220,10 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* 1. stop threads */
-	kthread_stop(ud->tcp_rx);
-	kthread_stop(ud->tcp_tx);
+	if (ud->tcp_rx && !task_is_dead(ud->tcp_rx))
+		kthread_stop(ud->tcp_rx);
+	if (ud->tcp_tx && !task_is_dead(ud->tcp_tx))
+		kthread_stop(ud->tcp_tx);
 
 	/* 2. close the socket */
 	/*

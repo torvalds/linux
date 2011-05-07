@@ -36,6 +36,11 @@ config MACH_KAEN
        help
          Support for the Kaen version of Seaboard
 
+config MACH_PAZ00
+       bool "Paz00 board"
+       help
+         Support for the Toshiba AC100/Dynabook AZ netbook
+
 config MACH_SEABOARD
        bool "Seaboard board"
        help

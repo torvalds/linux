@@ -35,19 +35,22 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct nouveau_bo *ntfy = NULL;
-	uint32_t flags;
+	uint32_t flags, ttmpl;
 	int ret;
 
-	if (nouveau_vram_notify)
+	if (nouveau_vram_notify) {
 		flags = NOUVEAU_GEM_DOMAIN_VRAM;
-	else
+		ttmpl = TTM_PL_FLAG_VRAM;
+	} else {
 		flags = NOUVEAU_GEM_DOMAIN_GART;
+		ttmpl = TTM_PL_FLAG_TT;
+	}
 
 	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags, 0, 0, &ntfy);
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(ntfy, flags);
+	ret = nouveau_bo_pin(ntfy, ttmpl);
 	if (ret)
 		goto out_err;
 

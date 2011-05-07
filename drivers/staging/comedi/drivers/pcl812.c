@@ -34,7 +34,7 @@
  *	       and I cann't test all features.)
  *
  * This driver supports insn and cmd interfaces. Some boards support only insn
- * becouse their hardware don't allow more (PCL-813/B, ACL-8113, ISO-813).
+ * because their hardware don't allow more (PCL-813/B, ACL-8113, ISO-813).
  * Data transfer over DMA is supported only when you measure only one
  * channel, this is too hardware limitation of these boards.
  *

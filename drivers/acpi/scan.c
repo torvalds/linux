@@ -797,7 +797,6 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 	acpi_status status;
 	acpi_event_status event_status;
 
-	device->wakeup.run_wake_count = 0;
 	device->wakeup.flags.notifier_present = 0;
 
 	/* Power button, Lid switch always enable wakeup */
@@ -943,6 +942,10 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 	status = acpi_get_handle(device->handle, "_LCK", &temp);
 	if (ACPI_SUCCESS(status))
 		device->flags.lockable = 1;
+
+	/* Power resources cannot be power manageable. */
+	if (device->device_type == ACPI_BUS_TYPE_POWER)
+		return 0;
 
 	/* Presence of _PS0|_PR0 indicates 'power manageable' */
 	status = acpi_get_handle(device->handle, "_PS0", &temp);

@@ -33,7 +33,7 @@
 #include <asm/sync_serial.h>
 
 
-/* The receiver is a bit tricky beacuse of the continuous stream of data.*/
+/* The receiver is a bit tricky because of the continuous stream of data.*/
 /*                                                                       */
 /* Three DMA descriptors are linked together. Each DMA descriptor is     */
 /* responsible for port->bufchunk of a common buffer.                    */

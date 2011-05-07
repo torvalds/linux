@@ -17,7 +17,7 @@
 
 static struct rc_map_table kworld_315u[] = {
 	{ 0x6143, KEY_POWER },
-	{ 0x6101, KEY_TUNER },		/* source */
+	{ 0x6101, KEY_VIDEO },		/* source */
 	{ 0x610b, KEY_ZOOM },
 	{ 0x6103, KEY_POWER2 },		/* shutdown */
 

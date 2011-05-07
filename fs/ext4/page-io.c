@@ -259,6 +259,11 @@ static void ext4_end_bio(struct bio *bio, int error)
 			     bi_sector >> (inode->i_blkbits - 9));
 	}
 
+	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
+		ext4_free_io_end(io_end);
+		return;
+	}
+
 	/* Add the io_end to per-inode completed io list*/
 	spin_lock_irqsave(&EXT4_I(inode)->i_completed_io_lock, flags);
 	list_add_tail(&io_end->list, &EXT4_I(inode)->i_completed_io_list);
@@ -279,9 +284,9 @@ void ext4_io_submit(struct ext4_io_submit *io)
 		BUG_ON(bio_flagged(io->io_bio, BIO_EOPNOTSUPP));
 		bio_put(io->io_bio);
 	}
-	io->io_bio = 0;
+	io->io_bio = NULL;
 	io->io_op = 0;
-	io->io_end = 0;
+	io->io_end = NULL;
 }
 
 static int io_submit_init(struct ext4_io_submit *io,
@@ -310,8 +315,7 @@ static int io_submit_init(struct ext4_io_submit *io,
 	io_end->offset = (page->index << PAGE_CACHE_SHIFT) + bh_offset(bh);
 
 	io->io_bio = bio;
-	io->io_op = (wbc->sync_mode == WB_SYNC_ALL ?
-			WRITE_SYNC_PLUG : WRITE);
+	io->io_op = (wbc->sync_mode == WB_SYNC_ALL ?  WRITE_SYNC : WRITE);
 	io->io_next_block = bh->b_blocknr;
 	return 0;
 }
@@ -381,8 +385,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
-	ClearPageError(page);
 
 	io_page = kmem_cache_alloc(io_page_cachep, GFP_NOFS);
 	if (!io_page) {
@@ -393,6 +395,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	io_page->p_page = page;
 	atomic_set(&io_page->p_count, 1);
 	get_page(page);
+	set_page_writeback(page);
+	ClearPageError(page);
 
 	for (bh = head = page_buffers(page), block_start = 0;
 	     bh != head || !block_start;

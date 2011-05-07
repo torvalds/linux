@@ -497,7 +497,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		dev->pcmcia_map.set_vpp = pcmciamtd_set_vpp;
 
 	/* Request a memory window for PCMCIA. Some architeures can map windows
-	 * upto the maximum that PCMCIA can support (64MiB) - this is ideal and
+	 * up to the maximum that PCMCIA can support (64MiB) - this is ideal and
 	 * we aim for a window the size of the whole card - otherwise we try
 	 * smaller windows until we succeed
 	 */

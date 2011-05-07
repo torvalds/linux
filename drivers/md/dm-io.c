@@ -352,7 +352,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	BUG_ON(num_regions > DM_IO_MAX_REGIONS);
 
 	if (sync)
-		rw |= REQ_SYNC | REQ_UNPLUG;
+		rw |= REQ_SYNC;
 
 	/*
 	 * For multiple regions we need to be careful to rewind

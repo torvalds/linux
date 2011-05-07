@@ -52,7 +52,7 @@
 #define SHT15_TSU		150	/* data setup time */
 
 /**
- * struct sht15_temppair - elements of voltage dependant temp calc
+ * struct sht15_temppair - elements of voltage dependent temp calc
  * @vdd:	supply voltage in microvolts
  * @d1:		see data sheet
  */
@@ -251,7 +251,7 @@ static inline int sht15_update_single_val(struct sht15_data *data,
 	enable_irq(gpio_to_irq(data->pdata->gpio_data));
 	if (gpio_get_value(data->pdata->gpio_data) == 0) {
 		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
-		/* Only relevant if the interrupt hasn't occured. */
+		/* Only relevant if the interrupt hasn't occurred. */
 		if (!atomic_read(&data->interrupt_handled))
 			schedule_work(&data->read_work);
 	}
@@ -452,7 +452,7 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 		*/
 		atomic_set(&data->interrupt_handled, 0);
 		enable_irq(gpio_to_irq(data->pdata->gpio_data));
-		/* If still not occured or another handler has been scheduled */
+		/* If still not occurred or another handler has been scheduled */
 		if (gpio_get_value(data->pdata->gpio_data)
 		    || atomic_read(&data->interrupt_handled))
 			return;

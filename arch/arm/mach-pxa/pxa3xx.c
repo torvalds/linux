@@ -362,8 +362,8 @@ static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
 	int irq;
 
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
-		set_irq_chip(irq, &pxa_ext_wakeup_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

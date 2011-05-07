@@ -3019,7 +3019,7 @@ struct tstorm_eth_mac_filter_config {
 
 
 /*
- * common flag to indicate existance of TPA.
+ * common flag to indicate existence of TPA.
  */
 struct tstorm_eth_tpa_exist {
 #if defined(__BIG_ENDIAN)

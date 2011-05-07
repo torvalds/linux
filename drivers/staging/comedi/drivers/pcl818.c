@@ -1231,7 +1231,7 @@ static int check_channel_list(struct comedi_device *dev,
 	}
 
 	if (n_chan > 1) {
-		/*  first channel is everytime ok */
+		/*  first channel is every time ok */
 		chansegment[0] = chanlist[0];
 		/*  build part of chanlist */
 		for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {
@@ -1245,9 +1245,9 @@ static int check_channel_list(struct comedi_device *dev,
 				break;
 			nowmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
-			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continous :-( */
+			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continuous :-( */
 				printk
-				    ("comedi%d: pcl818: channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
+				    ("comedi%d: pcl818: channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
 				     dev->minor, i, CR_CHAN(chanlist[i]),
 				     nowmustbechan, CR_CHAN(chanlist[0]));
 				return 0;

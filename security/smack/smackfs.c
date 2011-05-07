@@ -208,7 +208,7 @@ static ssize_t smk_write_load_list(struct file *file, const char __user *buf,
 	if (*ppos != 0)
 		return -EINVAL;
 	/*
-	 * Minor hack for backward compatability
+	 * Minor hack for backward compatibility
 	 */
 	if (count < (SMK_OLOADLEN) || count > SMK_LOADLEN)
 		return -EINVAL;
@@ -223,7 +223,7 @@ static ssize_t smk_write_load_list(struct file *file, const char __user *buf,
 	}
 
 	/*
-	 * More on the minor hack for backward compatability
+	 * More on the minor hack for backward compatibility
 	 */
 	if (count == (SMK_OLOADLEN))
 		data[SMK_OLOADLEN] = '-';
@@ -927,7 +927,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 		}
 	} else {
 		/* we delete the unlabeled entry, only if the previous label
-		 * wasnt the special CIPSO option */
+		 * wasn't the special CIPSO option */
 		if (skp->smk_label != smack_cipso_option)
 			rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
 					&skp->smk_host.sin_addr, &skp->smk_mask,

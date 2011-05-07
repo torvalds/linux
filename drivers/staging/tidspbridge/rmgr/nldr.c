@@ -57,9 +57,9 @@
  *   uuuuuuuu|fueeeeee|fudddddd|fucccccc|
  *  where
  *      u = unused
- *      cccccc = prefered/required dynamic mem segid for create phase data/code
- *      dddddd = prefered/required dynamic mem segid for delete phase data/code
- *      eeeeee = prefered/req. dynamic mem segid for execute phase data/code
+ *      cccccc = preferred/required dynamic mem segid for create phase data/code
+ *      dddddd = preferred/required dynamic mem segid for delete phase data/code
+ *      eeeeee = preferred/req. dynamic mem segid for execute phase data/code
  *      f = flag indicating if memory is preferred or required:
  *	  f = 1 if required, f = 0 if preferred.
  *

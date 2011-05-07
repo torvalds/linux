@@ -263,13 +263,13 @@ static void __init msm_timer_init(void)
 }
 
 #ifdef CONFIG_SMP
-void __cpuinit local_timer_setup(struct clock_event_device *evt)
+int __cpuinit local_timer_setup(struct clock_event_device *evt)
 {
 	struct msm_clock *clock = &msm_clocks[MSM_GLOBAL_TIMER];
 
 	/* Use existing clock_event for cpu 0 */
 	if (!smp_processor_id())
-		return;
+		return 0;
 
 	writel(DGT_CLK_CTL_DIV_4, MSM_TMR_BASE + DGT_CLK_CTL);
 
@@ -295,6 +295,7 @@ void __cpuinit local_timer_setup(struct clock_event_device *evt)
 	gic_enable_ppi(clock->irq.irq);
 
 	clockevents_register_device(evt);
+	return 0;
 }
 
 inline int local_timer_ack(void)

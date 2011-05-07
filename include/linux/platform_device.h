@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+struct mfd_cell;
+
 struct platform_device {
 	const char	* name;
 	int		id;
@@ -22,6 +24,9 @@ struct platform_device {
 	struct resource	* resource;
 
 	const struct platform_device_id	*id_entry;
+
+	/* MFD cell pointer */
+	struct mfd_cell *mfd_cell;
 
 	/* arch specific additions */
 	struct pdev_archdata	archdata;

@@ -114,9 +114,8 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 
-/* routines for saving/restoring kernel state */
-extern int acpi_save_state_mem(void);
-extern void acpi_restore_state_mem(void);
+/* Low-level suspend routine. */
+extern int acpi_suspend_lowlevel(void);
 
 extern const unsigned char acpi_wakeup_code[];
 #define acpi_wakeup_address (__pa(TRAMPOLINE_SYM(acpi_wakeup_code)))

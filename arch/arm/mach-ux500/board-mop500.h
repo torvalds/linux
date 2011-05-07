@@ -27,6 +27,10 @@
 #define GPIO_BU21013_CS			MOP500_EGPIO(13)
 #define GPIO_SDMMC_EN			MOP500_EGPIO(17)
 #define GPIO_SDMMC_1V8_3V_SEL		MOP500_EGPIO(18)
+#define MOP500_EGPIO_END		MOP500_EGPIO(24)
+
+/* GPIOs on the AB8500 mixed-signals circuit */
+#define MOP500_AB8500_GPIO(x)		(MOP500_EGPIO_END + (x))
 
 struct i2c_board_info;
 

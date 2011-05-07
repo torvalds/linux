@@ -168,33 +168,22 @@ static u32 a20r_ack_hwint(void)
 	return status;
 }
 
-static inline void unmask_a20r_irq(unsigned int irq)
+static inline void unmask_a20r_irq(struct irq_data *d)
 {
-	set_c0_status(0x100 << (irq - SNI_A20R_IRQ_BASE));
+	set_c0_status(0x100 << (d->irq - SNI_A20R_IRQ_BASE));
 	irq_enable_hazard();
 }
 
-static inline void mask_a20r_irq(unsigned int irq)
+static inline void mask_a20r_irq(struct irq_data *d)
 {
-	clear_c0_status(0x100 << (irq - SNI_A20R_IRQ_BASE));
+	clear_c0_status(0x100 << (d->irq - SNI_A20R_IRQ_BASE));
 	irq_disable_hazard();
-}
-
-static void end_a20r_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		a20r_ack_hwint();
-		unmask_a20r_irq(irq);
-	}
 }
 
 static struct irq_chip a20r_irq_type = {
 	.name		= "A20R",
-	.ack		= mask_a20r_irq,
-	.mask		= mask_a20r_irq,
-	.mask_ack	= mask_a20r_irq,
-	.unmask		= unmask_a20r_irq,
-	.end		= end_a20r_irq,
+	.irq_mask	= mask_a20r_irq,
+	.irq_unmask	= unmask_a20r_irq,
 };
 
 /*
@@ -220,7 +209,7 @@ void __init sni_a20r_irq_init(void)
 	int i;
 
 	for (i = SNI_A20R_IRQ_BASE + 2 ; i < SNI_A20R_IRQ_BASE + 8; i++)
-		set_irq_chip_and_handler(i, &a20r_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &a20r_irq_type, handle_level_irq);
 	sni_hwint = a20r_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
 	setup_irq(SNI_A20R_IRQ_BASE + 3, &sni_isa_irq);

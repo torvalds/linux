@@ -76,7 +76,7 @@ void __init init_IRQ(void)
 
 #if defined(CONFIG_SMC91X)
 	/* INT#0: LAN controller on M32104UT-LAN (SMC91C111)*/
-	set_irq_chip_and_handler(M32R_IRQ_INT0, &m32104ut_irq_type,
+	irq_set_chip_and_handler(M32R_IRQ_INT0, &m32104ut_irq_type,
 				 handle_level_irq);
 	/* "H" level sense */
 	cu_data[M32R_IRQ_INT0].icucr = M32R_ICUCR_IEN | M32R_ICUCR_ISMOD11;
@@ -84,20 +84,20 @@ void __init init_IRQ(void)
 #endif  /* CONFIG_SMC91X */
 
 	/* MFT2 : system timer */
-	set_irq_chip_and_handler(M32R_IRQ_MFT2, &m32104ut_irq_type,
+	irq_set_chip_and_handler(M32R_IRQ_MFT2, &m32104ut_irq_type,
 				 handle_level_irq);
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
 	disable_m32104ut_irq(M32R_IRQ_MFT2);
 
 #ifdef CONFIG_SERIAL_M32R_SIO
 	/* SIO0_R : uart receive data */
-	set_irq_chip_and_handler(M32R_IRQ_SIO0_R, &m32104ut_irq_type,
+	irq_set_chip_and_handler(M32R_IRQ_SIO0_R, &m32104ut_irq_type,
 				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO0_R].icucr = M32R_ICUCR_IEN;
 	disable_m32104ut_irq(M32R_IRQ_SIO0_R);
 
 	/* SIO0_S : uart send data */
-	set_irq_chip_and_handler(M32R_IRQ_SIO0_S, &m32104ut_irq_type,
+	irq_set_chip_and_handler(M32R_IRQ_SIO0_S, &m32104ut_irq_type,
 				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO0_S].icucr = M32R_ICUCR_IEN;
 	disable_m32104ut_irq(M32R_IRQ_SIO0_S);

@@ -145,6 +145,9 @@ extern void led_trigger_register_simple(const char *name,
 extern void led_trigger_unregister_simple(struct led_trigger *trigger);
 extern void led_trigger_event(struct led_trigger *trigger,
 				enum led_brightness event);
+extern void led_trigger_blink(struct led_trigger *trigger,
+			      unsigned long *delay_on,
+			      unsigned long *delay_off);
 
 #else
 

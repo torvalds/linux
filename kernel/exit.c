@@ -841,7 +841,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	/* Let father know we died
 	 *
 	 * Thread signals are configurable, but you aren't going to use
-	 * that to send signals to arbitary processes.
+	 * that to send signals to arbitrary processes.
 	 * That stops right now.
 	 *
 	 * If the parent exec id doesn't match the exec id we saved
@@ -908,6 +908,7 @@ NORET_TYPE void do_exit(long code)
 	profile_task_exit(tsk);
 
 	WARN_ON(atomic_read(&tsk->fs_excl));
+	WARN_ON(blk_needs_flush_plug(tsk));
 
 	if (unlikely(in_interrupt()))
 		panic("Aiee, killing interrupt handler!");

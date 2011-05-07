@@ -65,12 +65,10 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 		return 0;
 	ret = ih->xlate(ih, intspec, intsize, &virq, &type);
 	if (ret)
-		return ret;
+		return 0;
 	if (type == IRQ_TYPE_NONE)
 		return virq;
-	/* set the mask if it is different from current */
-	if (type == (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
-		set_irq_type(virq, type);
+	irq_set_irq_type(virq, type);
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
@@ -393,7 +391,7 @@ static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
 
 	set_io_apic_irq_attr(&attr, idx, line, it->trigger, it->polarity);
 
-	return io_apic_setup_irq_pin(*out_hwirq, cpu_to_node(0), &attr);
+	return io_apic_setup_irq_pin_once(*out_hwirq, cpu_to_node(0), &attr);
 }
 
 static void __init ioapic_add_ofnode(struct device_node *np)

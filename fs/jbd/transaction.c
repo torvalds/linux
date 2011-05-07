@@ -1392,7 +1392,7 @@ int journal_stop(handle_t *handle)
 	 * by 30x or more...
 	 *
 	 * We try and optimize the sleep time against what the underlying disk
-	 * can do, instead of having a static sleep time.  This is usefull for
+	 * can do, instead of having a static sleep time.  This is useful for
 	 * the case where our storage is so fast that it is more optimal to go
 	 * ahead and force a flush and wait for the transaction to be committed
 	 * than it is to wait for an arbitrary amount of time for new writers to

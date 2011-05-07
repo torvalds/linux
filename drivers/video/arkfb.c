@@ -158,12 +158,19 @@ static void arkfb_settile(struct fb_info *info, struct fb_tilemap *map)
 	}
 }
 
+static void arkfb_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+{
+	struct arkfb_info *par = info->par;
+
+	svga_tilecursor(par->state.vgabase, info, cursor);
+}
+
 static struct fb_tile_ops arkfb_tile_ops = {
 	.fb_settile	= arkfb_settile,
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
-	.fb_tilecursor  = svga_tilecursor,
+	.fb_tilecursor  = arkfb_tilecursor,
 	.fb_get_tilemax = svga_get_tilemax,
 };
 
@@ -466,32 +473,40 @@ static unsigned short dac_regs[4] = {0x3c8, 0x3c9, 0x3c6, 0x3c7};
 
 static void ark_dac_read_regs(void *data, u8 *code, int count)
 {
-	u8 regval = vga_rseq(NULL, 0x1C);
+	struct fb_info *info = data;
+	struct arkfb_info *par;
+	u8 regval;
 
+	par = info->par;
+	regval = vga_rseq(par->state.vgabase, 0x1C);
 	while (count != 0)
 	{
-		vga_wseq(NULL, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
-		code[1] = vga_r(NULL, dac_regs[code[0] & 3]);
+		vga_wseq(par->state.vgabase, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
+		code[1] = vga_r(par->state.vgabase, dac_regs[code[0] & 3]);
 		count--;
 		code += 2;
 	}
 
-	vga_wseq(NULL, 0x1C, regval);
+	vga_wseq(par->state.vgabase, 0x1C, regval);
 }
 
 static void ark_dac_write_regs(void *data, u8 *code, int count)
 {
-	u8 regval = vga_rseq(NULL, 0x1C);
+	struct fb_info *info = data;
+	struct arkfb_info *par;
+	u8 regval;
 
+	par = info->par;
+	regval = vga_rseq(par->state.vgabase, 0x1C);
 	while (count != 0)
 	{
-		vga_wseq(NULL, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
-		vga_w(NULL, dac_regs[code[0] & 3], code[1]);
+		vga_wseq(par->state.vgabase, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
+		vga_w(par->state.vgabase, dac_regs[code[0] & 3], code[1]);
 		count--;
 		code += 2;
 	}
 
-	vga_wseq(NULL, 0x1C, regval);
+	vga_wseq(par->state.vgabase, 0x1C, regval);
 }
 
 
@@ -507,8 +522,8 @@ static void ark_set_pixclock(struct fb_info *info, u32 pixclock)
 	}
 
 	/* Set VGA misc register  */
-	regval = vga_r(NULL, VGA_MIS_R);
-	vga_w(NULL, VGA_MIS_W, regval | VGA_MIS_ENB_PLL_LOAD);
+	regval = vga_r(par->state.vgabase, VGA_MIS_R);
+	vga_w(par->state.vgabase, VGA_MIS_W, regval | VGA_MIS_ENB_PLL_LOAD);
 }
 
 
@@ -520,7 +535,10 @@ static int arkfb_open(struct fb_info *info, int user)
 
 	mutex_lock(&(par->open_lock));
 	if (par->ref_count == 0) {
+		void __iomem *vgabase = par->state.vgabase;
+
 		memset(&(par->state), 0, sizeof(struct vgastate));
+		par->state.vgabase = vgabase;
 		par->state.flags = VGA_SAVE_MODE | VGA_SAVE_FONTS | VGA_SAVE_CMAP;
 		par->state.num_crtc = 0x60;
 		par->state.num_seq = 0x30;
@@ -646,50 +664,50 @@ static int arkfb_set_par(struct fb_info *info)
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	/* Unlock registers */
-	svga_wcrt_mask(0x11, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
 
 	/* Blank screen and turn off sync */
-	svga_wseq_mask(0x01, 0x20, 0x20);
-	svga_wcrt_mask(0x17, 0x00, 0x80);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 
 	/* Set default values */
-	svga_set_default_gfx_regs();
-	svga_set_default_atc_regs();
-	svga_set_default_seq_regs();
-	svga_set_default_crt_regs();
-	svga_wcrt_multi(ark_line_compare_regs, 0xFFFFFFFF);
-	svga_wcrt_multi(ark_start_address_regs, 0);
+	svga_set_default_gfx_regs(par->state.vgabase);
+	svga_set_default_atc_regs(par->state.vgabase);
+	svga_set_default_seq_regs(par->state.vgabase);
+	svga_set_default_crt_regs(par->state.vgabase);
+	svga_wcrt_multi(par->state.vgabase, ark_line_compare_regs, 0xFFFFFFFF);
+	svga_wcrt_multi(par->state.vgabase, ark_start_address_regs, 0);
 
 	/* ARK specific initialization */
-	svga_wseq_mask(0x10, 0x1F, 0x1F); /* enable linear framebuffer and full memory access */
-	svga_wseq_mask(0x12, 0x03, 0x03); /* 4 MB linear framebuffer size */
+	svga_wseq_mask(par->state.vgabase, 0x10, 0x1F, 0x1F); /* enable linear framebuffer and full memory access */
+	svga_wseq_mask(par->state.vgabase, 0x12, 0x03, 0x03); /* 4 MB linear framebuffer size */
 
-	vga_wseq(NULL, 0x13, info->fix.smem_start >> 16);
-	vga_wseq(NULL, 0x14, info->fix.smem_start >> 24);
-	vga_wseq(NULL, 0x15, 0);
-	vga_wseq(NULL, 0x16, 0);
+	vga_wseq(par->state.vgabase, 0x13, info->fix.smem_start >> 16);
+	vga_wseq(par->state.vgabase, 0x14, info->fix.smem_start >> 24);
+	vga_wseq(par->state.vgabase, 0x15, 0);
+	vga_wseq(par->state.vgabase, 0x16, 0);
 
 	/* Set the FIFO threshold register */
 	/* It is fascinating way to store 5-bit value in 8-bit register */
 	regval = 0x10 | ((threshold & 0x0E) >> 1) | (threshold & 0x01) << 7 | (threshold & 0x10) << 1;
-	vga_wseq(NULL, 0x18, regval);
+	vga_wseq(par->state.vgabase, 0x18, regval);
 
 	/* Set the offset register */
 	pr_debug("fb%d: offset register       : %d\n", info->node, offset_value);
-	svga_wcrt_multi(ark_offset_regs, offset_value);
+	svga_wcrt_multi(par->state.vgabase, ark_offset_regs, offset_value);
 
 	/* fix for hi-res textmode */
-	svga_wcrt_mask(0x40, 0x08, 0x08);
+	svga_wcrt_mask(par->state.vgabase, 0x40, 0x08, 0x08);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
-		svga_wcrt_mask(0x09, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x80, 0x80);
 	else
-		svga_wcrt_mask(0x09, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x00, 0x80);
 
 	if (info->var.vmode & FB_VMODE_INTERLACED)
-		svga_wcrt_mask(0x44, 0x04, 0x04);
+		svga_wcrt_mask(par->state.vgabase, 0x44, 0x04, 0x04);
 	else
-		svga_wcrt_mask(0x44, 0x00, 0x04);
+		svga_wcrt_mask(par->state.vgabase, 0x44, 0x00, 0x04);
 
 	hmul = 1;
 	hdiv = 1;
@@ -699,40 +717,40 @@ static int arkfb_set_par(struct fb_info *info)
 	switch (mode) {
 	case 0:
 		pr_debug("fb%d: text mode\n", info->node);
-		svga_set_textmode_vga_regs();
+		svga_set_textmode_vga_regs(par->state.vgabase);
 
-		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x10); /* basic VGA mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 
 		break;
 	case 1:
 		pr_debug("fb%d: 4 bit pseudocolor\n", info->node);
-		vga_wgfx(NULL, VGA_GFX_MODE, 0x40);
+		vga_wgfx(par->state.vgabase, VGA_GFX_MODE, 0x40);
 
-		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x10); /* basic VGA mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		break;
 	case 2:
 		pr_debug("fb%d: 4 bit pseudocolor, planar\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x10); /* basic VGA mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		break;
 	case 3:
 		pr_debug("fb%d: 8 bit pseudocolor\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x16); /* 8bpp accel mode */
+		vga_wseq(par->state.vgabase, 0x11, 0x16); /* 8bpp accel mode */
 
 		if (info->var.pixclock > 20000) {
 			pr_debug("fb%d: not using multiplex\n", info->node);
-			svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+			svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 			dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		} else {
 			pr_debug("fb%d: using multiplex\n", info->node);
-			svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+			svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 			dac_set_mode(par->dac, DAC_PSEUDO8_16);
 			hdiv = 2;
 		}
@@ -740,22 +758,22 @@ static int arkfb_set_par(struct fb_info *info)
 	case 4:
 		pr_debug("fb%d: 5/5/5 truecolor\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x1A); /* 16bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x1A); /* 16bpp accel mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB1555_16);
 		break;
 	case 5:
 		pr_debug("fb%d: 5/6/5 truecolor\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x1A); /* 16bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x1A); /* 16bpp accel mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB0565_16);
 		break;
 	case 6:
 		pr_debug("fb%d: 8/8/8 truecolor\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x16); /* 8bpp accel mode ??? */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x16); /* 8bpp accel mode ??? */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB0888_16);
 		hmul = 3;
 		hdiv = 2;
@@ -763,8 +781,8 @@ static int arkfb_set_par(struct fb_info *info)
 	case 7:
 		pr_debug("fb%d: 8/8/8/8 truecolor\n", info->node);
 
-		vga_wseq(NULL, 0x11, 0x1E); /* 32bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		vga_wseq(par->state.vgabase, 0x11, 0x1E); /* 32bpp accel mode */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB8888_16);
 		hmul = 2;
 		break;
@@ -774,7 +792,7 @@ static int arkfb_set_par(struct fb_info *info)
 	}
 
 	ark_set_pixclock(info, (hdiv * info->var.pixclock) / hmul);
-	svga_set_timings(&ark_timing_regs, &(info->var), hmul, hdiv,
+	svga_set_timings(par->state.vgabase, &ark_timing_regs, &(info->var), hmul, hdiv,
 			 (info->var.vmode & FB_VMODE_DOUBLE)     ? 2 : 1,
 			 (info->var.vmode & FB_VMODE_INTERLACED) ? 2 : 1,
 			  hmul, info->node);
@@ -782,12 +800,12 @@ static int arkfb_set_par(struct fb_info *info)
 	/* Set interlaced mode start/end register */
 	value = info->var.xres + info->var.left_margin + info->var.right_margin + info->var.hsync_len;
 	value = ((value * hmul / hdiv) / 8) - 5;
-	vga_wcrt(NULL, 0x42, (value + 1) / 2);
+	vga_wcrt(par->state.vgabase, 0x42, (value + 1) / 2);
 
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
-	svga_wcrt_mask(0x17, 0x80, 0x80);
-	svga_wseq_mask(0x01, 0x00, 0x20);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
 }
@@ -857,23 +875,25 @@ static int arkfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static int arkfb_blank(int blank_mode, struct fb_info *info)
 {
+	struct arkfb_info *par = info->par;
+
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
-		svga_wseq_mask(0x01, 0x00, 0x20);
-		svga_wcrt_mask(0x17, 0x80, 0x80);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
-		svga_wseq_mask(0x01, 0x20, 0x20);
-		svga_wcrt_mask(0x17, 0x80, 0x80);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: sync down\n", info->node);
-		svga_wseq_mask(0x01, 0x20, 0x20);
-		svga_wcrt_mask(0x17, 0x00, 0x80);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 		break;
 	}
 	return 0;
@@ -884,6 +904,7 @@ static int arkfb_blank(int blank_mode, struct fb_info *info)
 
 static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct arkfb_info *par = info->par;
 	unsigned int offset;
 
 	/* Calculate the offset */
@@ -897,7 +918,7 @@ static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	}
 
 	/* Set the offset */
-	svga_wcrt_multi(ark_start_address_regs, offset);
+	svga_wcrt_multi(par->state.vgabase, ark_start_address_regs, offset);
 
 	return 0;
 }
@@ -930,6 +951,8 @@ static struct fb_ops arkfb_ops = {
 /* PCI probe */
 static int __devinit ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct pci_bus_region bus_reg;
+	struct resource vga_res;
 	struct fb_info *info;
 	struct arkfb_info *par;
 	int rc;
@@ -985,8 +1008,17 @@ static int __devinit ark_pci_probe(struct pci_dev *dev, const struct pci_device_
 		goto err_iomap;
 	}
 
+	bus_reg.start = 0;
+	bus_reg.end = 64 * 1024;
+
+	vga_res.flags = IORESOURCE_IO;
+
+	pcibios_bus_to_resource(dev, &vga_res, &bus_reg);
+
+	par->state.vgabase = (void __iomem *) vga_res.start;
+
 	/* FIXME get memsize */
-	regval = vga_rseq(NULL, 0x10);
+	regval = vga_rseq(par->state.vgabase, 0x10);
 	info->screen_size = (1 << (regval >> 6)) << 20;
 	info->fix.smem_len = info->screen_size;
 

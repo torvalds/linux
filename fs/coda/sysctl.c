@@ -61,4 +61,13 @@ void coda_sysctl_clean(void)
 		fs_table_header = NULL;
 	}
 }
+
+#else
+void coda_sysctl_init(void)
+{
+}
+
+void coda_sysctl_clean(void)
+{
+}
 #endif

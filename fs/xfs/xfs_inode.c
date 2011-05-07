@@ -2789,7 +2789,7 @@ xfs_iflush(
 
 	/*
 	 * We can't flush the inode until it is unpinned, so wait for it if we
-	 * are allowed to block.  We know noone new can pin it, because we are
+	 * are allowed to block.  We know no one new can pin it, because we are
 	 * holding the inode lock shared and you need to hold it exclusively to
 	 * pin the inode.
 	 *
@@ -2835,7 +2835,7 @@ xfs_iflush(
 	 * Get the buffer containing the on-disk inode.
 	 */
 	error = xfs_itobp(mp, NULL, ip, &dip, &bp,
-				(flags & SYNC_WAIT) ? XBF_LOCK : XBF_TRYLOCK);
+				(flags & SYNC_TRYLOCK) ? XBF_TRYLOCK : XBF_LOCK);
 	if (error || !bp) {
 		xfs_ifunlock(ip);
 		return error;

@@ -142,7 +142,7 @@ static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 
 /**
  * ar5008_hw_set_channel - tune to a channel on the external AR2133/AR5133 radios
- * @ah: atheros hardware stucture
+ * @ah: atheros hardware structure
  * @chan:
  *
  * For the external AR2133/AR5133 radios, takes the MHz channel value and set

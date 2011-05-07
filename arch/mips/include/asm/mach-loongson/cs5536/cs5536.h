@@ -1,5 +1,5 @@
 /*
- * The header file of cs5536 sourth bridge.
+ * The header file of cs5536 south bridge.
  *
  * Copyright (C) 2007 Lemote, Inc.
  * Author : jlliu <liujl@lemote.com>

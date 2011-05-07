@@ -2823,7 +2823,7 @@ static u16 bnx2x_wait_reset_complete(struct bnx2x *bp,
 				     struct link_params *params)
 {
 	u16 cnt, ctrl;
-	/* Wait for soft reset to get cleared upto 1 sec */
+	/* Wait for soft reset to get cleared up to 1 sec */
 	for (cnt = 0; cnt < 1000; cnt++) {
 		bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, &ctrl);
@@ -4141,7 +4141,7 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 			val = (1<<5);
 			/*
 			 * Note that 2.5G works only when used with 1G
-			 * advertisment
+			 * advertisement
 			 */
 		} else
 			val = (1<<5);
@@ -4151,7 +4151,7 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 			PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
 			val |= (1<<7);
 
-		/* Note that 2.5G works only when used with 1G advertisment */
+		/* Note that 2.5G works only when used with 1G advertisement */
 		if (phy->speed_cap_mask &
 			(PORT_HW_CFG_SPEED_CAPABILITY_D0_1G |
 			 PORT_HW_CFG_SPEED_CAPABILITY_D0_2_5G))
@@ -5232,14 +5232,14 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 1);
 	} else {
-		/* Force 1Gbps using autoneg with 1G advertisment */
+		/* Force 1Gbps using autoneg with 1G advertisement */
 
 		/* Allow CL37 through CL73 */
 		DP(NETIF_MSG_LINK, "XGXS 8706 AutoNeg\n");
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_CL73, 0x040c);
 
-		/* Enable Full-Duplex advertisment on CL37 */
+		/* Enable Full-Duplex advertisement on CL37 */
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_FC_LP, 0x0020);
 		/* Enable CL37 AN */
@@ -6269,7 +6269,7 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 
 	switch (actual_phy_selection) {
 	case PORT_HW_CFG_PHY_SELECTION_HARDWARE_DEFAULT:
-		/* Do nothing. Essentialy this is like the priority copper */
+		/* Do nothing. Essentially this is like the priority copper */
 		break;
 	case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY_PRIORITY:
 		val |= MDIO_CTL_REG_84823_MEDIA_PRIORITY_COPPER;
@@ -7765,7 +7765,7 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 0);
 
 	msleep(10);
-	/* The PHY reset is controled by GPIO 1
+	/* The PHY reset is controlled by GPIO 1
 	 * Hold it as vars low
 	 */
 	 /* clear link led */

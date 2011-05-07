@@ -499,11 +499,12 @@ EXPORT_SYMBOL(drm_gem_vm_open);
 void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
+	struct drm_device *dev = obj->dev;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&dev->struct_mutex);
 	drm_vm_close_locked(vma);
 	drm_gem_object_unreference(obj);
-	mutex_unlock(&obj->dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 

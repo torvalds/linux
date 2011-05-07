@@ -2659,7 +2659,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 #define DBGUNDO(x...) do { } while (0)
 #endif
 
-static void tcp_undo_cwr(struct sock *sk, const int undo)
+static void tcp_undo_cwr(struct sock *sk, const bool undo_ssthresh)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2671,14 +2671,13 @@ static void tcp_undo_cwr(struct sock *sk, const int undo)
 		else
 			tp->snd_cwnd = max(tp->snd_cwnd, tp->snd_ssthresh << 1);
 
-		if (undo && tp->prior_ssthresh > tp->snd_ssthresh) {
+		if (undo_ssthresh && tp->prior_ssthresh > tp->snd_ssthresh) {
 			tp->snd_ssthresh = tp->prior_ssthresh;
 			TCP_ECN_withdraw_cwr(tp);
 		}
 	} else {
 		tp->snd_cwnd = max(tp->snd_cwnd, tp->snd_ssthresh);
 	}
-	tcp_moderate_cwnd(tp);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
@@ -2699,7 +2698,7 @@ static int tcp_try_undo_recovery(struct sock *sk)
 		 * or our original transmission succeeded.
 		 */
 		DBGUNDO(sk, inet_csk(sk)->icsk_ca_state == TCP_CA_Loss ? "loss" : "retrans");
-		tcp_undo_cwr(sk, 1);
+		tcp_undo_cwr(sk, true);
 		if (inet_csk(sk)->icsk_ca_state == TCP_CA_Loss)
 			mib_idx = LINUX_MIB_TCPLOSSUNDO;
 		else
@@ -2726,7 +2725,7 @@ static void tcp_try_undo_dsack(struct sock *sk)
 
 	if (tp->undo_marker && !tp->undo_retrans) {
 		DBGUNDO(sk, "D-SACK");
-		tcp_undo_cwr(sk, 1);
+		tcp_undo_cwr(sk, true);
 		tp->undo_marker = 0;
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDSACKUNDO);
 	}
@@ -2779,7 +2778,7 @@ static int tcp_try_undo_partial(struct sock *sk, int acked)
 		tcp_update_reordering(sk, tcp_fackets_out(tp) + acked, 1);
 
 		DBGUNDO(sk, "Hoe");
-		tcp_undo_cwr(sk, 0);
+		tcp_undo_cwr(sk, false);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPPARTIALUNDO);
 
 		/* So... Do not make Hoe's retransmit yet.
@@ -2808,7 +2807,7 @@ static int tcp_try_undo_loss(struct sock *sk)
 
 		DBGUNDO(sk, "partial loss");
 		tp->lost_out = 0;
-		tcp_undo_cwr(sk, 1);
+		tcp_undo_cwr(sk, true);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPLOSSUNDO);
 		inet_csk(sk)->icsk_retransmits = 0;
 		tp->undo_marker = 0;
@@ -2822,8 +2821,11 @@ static int tcp_try_undo_loss(struct sock *sk)
 static inline void tcp_complete_cwr(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+	/* Do not moderate cwnd if it's already undone in cwr or recovery */
+	if (tp->undo_marker && tp->snd_cwnd > tp->snd_ssthresh) {
+		tp->snd_cwnd = tp->snd_ssthresh;
+		tp->snd_cwnd_stamp = tcp_time_stamp;
+	}
 	tcp_ca_event(sk, CA_EVENT_COMPLETE_CWR);
 }
 
@@ -3494,7 +3496,7 @@ static void tcp_undo_spur_to_response(struct sock *sk, int flag)
 	if (flag & FLAG_ECE)
 		tcp_ratehalving_spur_to_response(sk);
 	else
-		tcp_undo_cwr(sk, 1);
+		tcp_undo_cwr(sk, true);
 }
 
 /* F-RTO spurious RTO detection algorithm (RFC4138)

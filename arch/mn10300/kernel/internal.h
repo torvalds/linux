@@ -30,6 +30,13 @@ extern void mn10300_low_ipi_handler(void);
 #endif
 
 /*
+ * smp.c
+ */
+#ifdef CONFIG_SMP
+extern void smp_jump_to_debugger(void);
+#endif
+
+/*
  * time.c
  */
 extern irqreturn_t local_timer_interrupt(void);

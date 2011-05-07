@@ -742,18 +742,42 @@ static inline int sched_find_first_bit(unsigned long *b)
  *    23 22 21 20 19 18 17 16 31 30 29 28 27 26 25 24
  */
 
-#define ext2_set_bit(nr, addr)       \
-	__test_and_set_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
-#define ext2_set_bit_atomic(lock, nr, addr)       \
-	test_and_set_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
-#define ext2_clear_bit(nr, addr)     \
-	__test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
-#define ext2_clear_bit_atomic(lock, nr, addr)     \
-	test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
-#define ext2_test_bit(nr, addr)      \
-	test_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
+static inline void __set_bit_le(unsigned long nr, void *addr)
+{
+	__set_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
 
-static inline int ext2_find_first_zero_bit(void *vaddr, unsigned int size)
+static inline void __clear_bit_le(unsigned long nr, void *addr)
+{
+	__clear_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int __test_and_set_bit_le(unsigned long nr, void *addr)
+{
+	return __test_and_set_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int test_and_set_bit_le(unsigned long nr, void *addr)
+{
+	return test_and_set_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int __test_and_clear_bit_le(unsigned long nr, void *addr)
+{
+	return __test_and_clear_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int test_and_clear_bit_le(unsigned long nr, void *addr)
+{
+	return test_and_clear_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int test_bit_le(unsigned long nr, const void *addr)
+{
+	return test_bit(nr ^ (__BITOPS_WORDSIZE - 8), addr);
+}
+
+static inline int find_first_zero_bit_le(void *vaddr, unsigned int size)
 {
 	unsigned long bytes, bits;
 
@@ -764,7 +788,7 @@ static inline int ext2_find_first_zero_bit(void *vaddr, unsigned int size)
 	return (bits < size) ? bits : size;
 }
 
-static inline int ext2_find_next_zero_bit(void *vaddr, unsigned long size,
+static inline int find_next_zero_bit_le(void *vaddr, unsigned long size,
 					  unsigned long offset)
 {
         unsigned long *addr = vaddr, *p;
@@ -790,11 +814,10 @@ static inline int ext2_find_next_zero_bit(void *vaddr, unsigned long size,
 		size -= __BITOPS_WORDSIZE;
 		p++;
         }
-	return offset + ext2_find_first_zero_bit(p, size);
+	return offset + find_first_zero_bit_le(p, size);
 }
 
-static inline unsigned long ext2_find_first_bit(void *vaddr,
-						unsigned long size)
+static inline unsigned long find_first_bit_le(void *vaddr, unsigned long size)
 {
 	unsigned long bytes, bits;
 
@@ -805,7 +828,7 @@ static inline unsigned long ext2_find_first_bit(void *vaddr,
 	return (bits < size) ? bits : size;
 }
 
-static inline int ext2_find_next_bit(void *vaddr, unsigned long size,
+static inline int find_next_bit_le(void *vaddr, unsigned long size,
 				     unsigned long offset)
 {
 	unsigned long *addr = vaddr, *p;
@@ -831,10 +854,14 @@ static inline int ext2_find_next_bit(void *vaddr, unsigned long size,
 		size -= __BITOPS_WORDSIZE;
 		p++;
 	}
-	return offset + ext2_find_first_bit(p, size);
+	return offset + find_first_bit_le(p, size);
 }
 
-#include <asm-generic/bitops/minix.h>
+#define ext2_set_bit_atomic(lock, nr, addr)	\
+	test_and_set_bit_le(nr, addr)
+#define ext2_clear_bit_atomic(lock, nr, addr)	\
+	test_and_clear_bit_le(nr, addr)
+
 
 #endif /* __KERNEL__ */
 

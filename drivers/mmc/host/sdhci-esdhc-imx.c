@@ -16,13 +16,39 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdhci-pltfm.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/sdio.h>
 #include <mach/hardware.h>
 #include <mach/esdhc.h>
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
+
+/* VENDOR SPEC register */
+#define SDHCI_VENDOR_SPEC		0xC0
+#define  SDHCI_VENDOR_SPEC_SDIO_QUIRK	0x00000002
+
+#define ESDHC_FLAG_GPIO_FOR_CD_WP	(1 << 0)
+/*
+ * The CMDTYPE of the CMD register (offset 0xE) should be set to
+ * "11" when the STOP CMD12 is issued on imx53 to abort one
+ * open ended multi-blk IO. Otherwise the TC INT wouldn't
+ * be generated.
+ * In exact block transfer, the controller doesn't complete the
+ * operations automatically as required at the end of the
+ * transfer and remains on hold if the abort command is not sent.
+ * As a result, the TC flag is not asserted and SW  received timeout
+ * exeception. Bit1 of Vendor Spec registor is used to fix it.
+ */
+#define ESDHC_FLAG_MULTIBLK_NO_INT	(1 << 1)
+
+struct pltfm_imx_data {
+	int flags;
+	u32 scratchpad;
+};
 
 static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, int reg)
 {
@@ -34,10 +60,14 @@ static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, i
 
 static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+
 	/* fake CARD_PRESENT flag on mx25/35 */
 	u32 val = readl(host->ioaddr + reg);
 
-	if (unlikely(reg == SDHCI_PRESENT_STATE)) {
+	if (unlikely((reg == SDHCI_PRESENT_STATE)
+			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD_WP))) {
 		struct esdhc_platform_data *boarddata =
 				host->mmc->parent->platform_data;
 
@@ -55,12 +85,25 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 
 static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 {
-	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE))
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+
+	if (unlikely((reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)
+			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD_WP)))
 		/*
 		 * these interrupts won't work with a custom card_detect gpio
 		 * (only applied to mx25/35)
 		 */
 		val &= ~(SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT);
+
+	if (unlikely((imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+				&& (reg == SDHCI_INT_STATUS)
+				&& (val & SDHCI_INT_DATA_END))) {
+			u32 v;
+			v = readl(host->ioaddr + SDHCI_VENDOR_SPEC);
+			v &= ~SDHCI_VENDOR_SPEC_SDIO_QUIRK;
+			writel(v, host->ioaddr + SDHCI_VENDOR_SPEC);
+	}
 
 	writel(val, host->ioaddr + reg);
 }
@@ -76,6 +119,7 @@ static u16 esdhc_readw_le(struct sdhci_host *host, int reg)
 static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 
 	switch (reg) {
 	case SDHCI_TRANSFER_MODE:
@@ -83,10 +127,22 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		 * Postpone this write, we must do it together with a
 		 * command write that is down below.
 		 */
-		pltfm_host->scratchpad = val;
+		if ((imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+				&& (host->cmd->opcode == SD_IO_RW_EXTENDED)
+				&& (host->cmd->data->blocks > 1)
+				&& (host->cmd->data->flags & MMC_DATA_READ)) {
+			u32 v;
+			v = readl(host->ioaddr + SDHCI_VENDOR_SPEC);
+			v |= SDHCI_VENDOR_SPEC_SDIO_QUIRK;
+			writel(v, host->ioaddr + SDHCI_VENDOR_SPEC);
+		}
+		imx_data->scratchpad = val;
 		return;
 	case SDHCI_COMMAND:
-		writel(val << 16 | pltfm_host->scratchpad,
+		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION)
+			&& (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+			val |= SDHCI_CMD_ABORTCMD;
+		writel(val << 16 | imx_data->scratchpad,
 			host->ioaddr + SDHCI_TRANSFER_MODE);
 		return;
 	case SDHCI_BLOCK_SIZE:
@@ -146,7 +202,9 @@ static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
 }
 
 static struct sdhci_ops sdhci_esdhc_ops = {
+	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
+	.write_l = esdhc_writel_le,
 	.write_w = esdhc_writew_le,
 	.write_b = esdhc_writeb_le,
 	.set_clock = esdhc_set_clock,
@@ -168,6 +226,7 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
 	struct clk *clk;
 	int err;
+	struct pltfm_imx_data *imx_data;
 
 	clk = clk_get(mmc_dev(host->mmc), NULL);
 	if (IS_ERR(clk)) {
@@ -177,7 +236,15 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 	clk_enable(clk);
 	pltfm_host->clk = clk;
 
-	if (cpu_is_mx35() || cpu_is_mx51())
+	imx_data = kzalloc(sizeof(struct pltfm_imx_data), GFP_KERNEL);
+	if (!imx_data) {
+		clk_disable(pltfm_host->clk);
+		clk_put(pltfm_host->clk);
+		return -ENOMEM;
+	}
+	pltfm_host->priv = imx_data;
+
+	if (!cpu_is_mx25())
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
 	if (cpu_is_mx25() || cpu_is_mx35()) {
@@ -186,6 +253,9 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 		/* write_protect can't be routed to controller, use gpio */
 		sdhci_esdhc_ops.get_ro = esdhc_pltfm_get_ro;
 	}
+
+	if (!(cpu_is_mx25() || cpu_is_mx35() || cpu_is_mx51()))
+		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
 	if (boarddata) {
 		err = gpio_request_one(boarddata->wp_gpio, GPIOF_IN, "ESDHC_WP");
@@ -214,8 +284,7 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 			goto no_card_detect_irq;
 		}
 
-		sdhci_esdhc_ops.write_l = esdhc_writel_le;
-		sdhci_esdhc_ops.read_l = esdhc_readl_le;
+		imx_data->flags |= ESDHC_FLAG_GPIO_FOR_CD_WP;
 		/* Now we have a working card_detect again */
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 	}
@@ -227,6 +296,7 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
  no_card_detect_pin:
 	boarddata->cd_gpio = err;
  not_supported:
+	kfree(imx_data);
 	return 0;
 }
 
@@ -234,6 +304,7 @@ static void esdhc_pltfm_exit(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 
 	if (boarddata && gpio_is_valid(boarddata->wp_gpio))
 		gpio_free(boarddata->wp_gpio);
@@ -247,6 +318,7 @@ static void esdhc_pltfm_exit(struct sdhci_host *host)
 
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
+	kfree(imx_data);
 }
 
 struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {

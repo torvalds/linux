@@ -47,7 +47,7 @@
  * 	on the meta type. Obviously, the length of the data must also
  * 	be provided for non-numeric types.
  *
- * 	Additionaly, type dependant modifiers such as shift operators
+ * 	Additionally, type dependent modifiers such as shift operators
  * 	or mask may be applied to extend the functionaliy. As of now,
  * 	the variable length type supports shifting the byte string to
  * 	the right, eating up any number of octets and thus supporting

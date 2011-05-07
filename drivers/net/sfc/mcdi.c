@@ -453,7 +453,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 	 *
 	 * There's a race here with efx_mcdi_rpc(), because we might receive
 	 * a REBOOT event *before* the request has been copied out. In polled
-	 * mode (during startup) this is irrelevent, because efx_mcdi_complete()
+	 * mode (during startup) this is irrelevant, because efx_mcdi_complete()
 	 * is ignored. In event mode, this condition is just an edge-case of
 	 * receiving a REBOOT event after posting the MCDI request. Did the mc
 	 * reboot before or after the copyout? The best we can do always is

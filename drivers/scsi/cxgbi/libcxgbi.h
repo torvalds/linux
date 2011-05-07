@@ -262,9 +262,9 @@ struct cxgbi_skb_tx_cb {
 enum cxgbi_skcb_flags {
 	SKCBF_TX_NEED_HDR,	/* packet needs a header */
 	SKCBF_RX_COALESCED,	/* received whole pdu */
-	SKCBF_RX_HDR,		/* recieved pdu header */
-	SKCBF_RX_DATA,		/* recieved pdu payload */
-	SKCBF_RX_STATUS,	/* recieved ddp status */
+	SKCBF_RX_HDR,		/* received pdu header */
+	SKCBF_RX_DATA,		/* received pdu payload */
+	SKCBF_RX_STATUS,	/* received ddp status */
 	SKCBF_RX_DATA_DDPD,	/* pdu payload ddp'd */
 	SKCBF_RX_HCRC_ERR,	/* header digest error */
 	SKCBF_RX_DCRC_ERR,	/* data digest error */

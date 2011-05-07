@@ -14,12 +14,10 @@
 #include <asm/mach-types.h>
 
 #define board_is_a9m9750dev()	(0			\
-		|| machine_is_cc9p9360dev()		\
 		|| machine_is_cc9p9750dev()		\
 		)
 
 #define board_is_a9mvali()	(0			\
-		|| machine_is_cc9p9360val() 		\
 		|| machine_is_cc9p9750val()		\
 		)
 

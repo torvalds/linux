@@ -170,7 +170,7 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	int ret;
 	struct posix_acl *acl = NULL;
 
-	if (!is_owner_or_cap(dentry->d_inode))
+	if (!inode_owner_or_capable(dentry->d_inode))
 		return -EPERM;
 
 	if (!IS_POSIXACL(dentry->d_inode))
@@ -178,16 +178,17 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
-		if (acl == NULL) {
-			value = NULL;
-			size = 0;
+		if (acl) {
+			ret = posix_acl_valid(acl);
+			if (ret)
+				goto out;
 		} else if (IS_ERR(acl)) {
 			return PTR_ERR(acl);
 		}
 	}
 
 	ret = btrfs_set_acl(NULL, dentry->d_inode, acl, type);
-
+out:
 	posix_acl_release(acl);
 
 	return ret;

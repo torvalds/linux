@@ -569,6 +569,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);
+			rt = NULL;
 			goto done;
 		}
 	}
@@ -621,7 +622,7 @@ do_confirm:
 static void raw_close(struct sock *sk, long timeout)
 {
 	/*
-	 * Raw sockets may have direct kernel refereneces. Kill them.
+	 * Raw sockets may have direct kernel references. Kill them.
 	 */
 	ip_ra_control(sk, 0, NULL);
 

@@ -63,7 +63,7 @@ static void __iomem *start_scan_addr;
  */
 
 #ifdef CONFIG_MTD_PARTITIONS
-/* Currently, TQM8xxL has upto 8MiB flash */
+/* Currently, TQM8xxL has up to 8MiB flash */
 static unsigned long tqm8xxl_max_flash_size = 0x00800000;
 
 /* partition definition for first flash bank

@@ -25,21 +25,6 @@
 #include "raid0.h"
 #include "raid5.h"
 
-static void raid0_unplug(struct request_queue *q)
-{
-	mddev_t *mddev = q->queuedata;
-	raid0_conf_t *conf = mddev->private;
-	mdk_rdev_t **devlist = conf->devlist;
-	int raid_disks = conf->strip_zone[0].nb_dev;
-	int i;
-
-	for (i=0; i < raid_disks; i++) {
-		struct request_queue *r_queue = bdev_get_queue(devlist[i]->bdev);
-
-		blk_unplug(r_queue);
-	}
-}
-
 static int raid0_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
@@ -272,7 +257,6 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 		       mdname(mddev),
 		       (unsigned long long)smallest->sectors);
 	}
-	mddev->queue->unplug_fn = raid0_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 
@@ -395,8 +379,7 @@ static int raid0_run(mddev_t *mddev)
 
 	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	dump_zones(mddev);
-	md_integrity_register(mddev);
-	return 0;
+	return md_integrity_register(mddev);
 }
 
 static int raid0_stop(mddev_t *mddev)

@@ -1478,7 +1478,7 @@ static inline unsigned long rb_page_entries(struct buffer_page *bpage)
 	return local_read(&bpage->entries) & RB_WRITE_MASK;
 }
 
-/* Size is determined by what has been commited */
+/* Size is determined by what has been committed */
 static inline unsigned rb_page_size(struct buffer_page *bpage)
 {
 	return rb_page_commit(bpage);
@@ -2932,7 +2932,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	/*
 	 * cpu_buffer->pages just needs to point to the buffer, it
 	 *  has no specific buffer page to point to. Lets move it out
-	 *  of our way so we don't accidently swap it.
+	 *  of our way so we don't accidentally swap it.
 	 */
 	cpu_buffer->pages = reader->list.prev;
 

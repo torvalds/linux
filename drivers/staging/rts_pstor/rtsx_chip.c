@@ -684,6 +684,11 @@ static int rts5209_init(struct rtsx_chip *chip)
 	RTSX_DEBUGP("dw in 0x724: 0x%x\n", lval);
 	val = (u8)lval;
 	if (!(val & 0x80)) {
+		if (val & 0x08)
+			chip->lun_mode = DEFAULT_SINGLE;
+		else
+			chip->lun_mode = SD_MS_2LUN;
+
 		if (val & 0x04) {
 			SET_SDIO_EXIST(chip);
 		} else {
@@ -704,12 +709,6 @@ static int rts5209_init(struct rtsx_chip *chip)
 		u8 clk;
 
 		chip->aspm_l0s_l1_en = (val >> 5) & 0x03;
-
-		if (val & 0x08) {
-			chip->lun_mode = DEFAULT_SINGLE;
-		} else {
-			chip->lun_mode = SD_MS_2LUN;
-		}
 
 		val = (u8)(lval >> 8);
 

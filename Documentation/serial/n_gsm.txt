@@ -34,7 +34,7 @@ Major parts of the initialization program :
 	/* configure the serial port : speed, flow control ... */
 
 	/* send the AT commands to switch the modem to CMUX mode
-	   and check that it's succesful (should return OK) */
+	   and check that it's successful (should return OK) */
 	write(fd, "AT+CMUX=0\r", 10);
 
 	/* experience showed that some modems need some time before

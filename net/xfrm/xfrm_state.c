@@ -1181,6 +1181,12 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 			goto error;
 	}
 
+	if (orig->replay_esn) {
+		err = xfrm_replay_clone(x, orig);
+		if (err)
+			goto error;
+	}
+
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
 
 	err = xfrm_init_state(x);

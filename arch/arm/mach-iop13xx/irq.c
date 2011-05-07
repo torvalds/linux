@@ -224,15 +224,15 @@ void __init iop13xx_init_irq(void)
 
 	for(i = 0; i <= IRQ_IOP13XX_HPI; i++) {
 		if (i < 32)
-			set_irq_chip(i, &iop13xx_irqchip1);
+			irq_set_chip(i, &iop13xx_irqchip1);
 		else if (i < 64)
-			set_irq_chip(i, &iop13xx_irqchip2);
+			irq_set_chip(i, &iop13xx_irqchip2);
 		else if (i < 96)
-			set_irq_chip(i, &iop13xx_irqchip3);
+			irq_set_chip(i, &iop13xx_irqchip3);
 		else
-			set_irq_chip(i, &iop13xx_irqchip4);
+			irq_set_chip(i, &iop13xx_irqchip4);
 
-		set_irq_handler(i, handle_level_irq);
+		irq_set_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 

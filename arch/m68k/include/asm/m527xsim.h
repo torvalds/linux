@@ -283,7 +283,7 @@
 #endif
 
 /*
- *  Reset Controll Unit (relative to IPSBAR).
+ *  Reset Control Unit (relative to IPSBAR).
  */
 #define	MCF_RCR			0x110000
 #define	MCF_RSR			0x110001

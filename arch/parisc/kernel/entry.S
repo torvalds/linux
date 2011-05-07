@@ -187,8 +187,8 @@
 
 	/* Register definitions for tlb miss handler macros */
 
-	va  = r8	/* virtual address for which the trap occured */
-	spc = r24	/* space for which the trap occured */
+	va  = r8	/* virtual address for which the trap occurred */
+	spc = r24	/* space for which the trap occurred */
 
 #ifndef CONFIG_64BIT
 
@@ -882,7 +882,7 @@ ENTRY(syscall_exit_rfi)
 	 * (we don't store them in the sigcontext), so set them
 	 * to "proper" values now (otherwise we'll wind up restoring
 	 * whatever was last stored in the task structure, which might
-	 * be inconsistent if an interrupt occured while on the gateway
+	 * be inconsistent if an interrupt occurred while on the gateway
 	 * page). Note that we may be "trashing" values the user put in
 	 * them, but we don't support the user changing them.
 	 */
@@ -1156,11 +1156,11 @@ ENDPROC(intr_save)
 	 */
 
 	t0 = r1		/* temporary register 0 */
-	va = r8		/* virtual address for which the trap occured */
+	va = r8		/* virtual address for which the trap occurred */
 	t1 = r9		/* temporary register 1 */
 	pte  = r16	/* pte/phys page # */
 	prot = r17	/* prot bits */
-	spc  = r24	/* space for which the trap occured */
+	spc  = r24	/* space for which the trap occurred */
 	ptp = r25	/* page directory/page table pointer */
 
 #ifdef CONFIG_64BIT

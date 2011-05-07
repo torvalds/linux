@@ -990,7 +990,7 @@ static int configfs_dump(struct configfs_dirent *sd, int level)
  * This describes these functions and their helpers.
  *
  * Allow another kernel system to depend on a config_item.  If this
- * happens, the item cannot go away until the dependant can live without
+ * happens, the item cannot go away until the dependent can live without
  * it.  The idea is to give client modules as simple an interface as
  * possible.  When a system asks them to depend on an item, they just
  * call configfs_depend_item().  If the item is live and the client

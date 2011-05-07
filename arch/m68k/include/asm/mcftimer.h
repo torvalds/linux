@@ -27,7 +27,7 @@
 
 /*
  *	Bit definitions for the Timer Mode Register (TMR).
- *	Register bit flags are common accross ColdFires.
+ *	Register bit flags are common across ColdFires.
  */
 #define	MCFTIMER_TMR_PREMASK	0xff00		/* Prescalar mask */
 #define	MCFTIMER_TMR_DISCE	0x0000		/* Disable capture */

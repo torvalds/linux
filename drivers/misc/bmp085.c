@@ -2,7 +2,7 @@
 
     This driver supports the bmp085 digital barometric pressure
     and temperature sensor from Bosch Sensortec. The datasheet
-    is avaliable from their website:
+    is available from their website:
     http://www.bosch-sensortec.com/content/language1/downloads/BST-BMP085-DS000-05.pdf
 
     A pressure measurement is issued by reading from pressure0_input.
@@ -429,7 +429,7 @@ static int __devinit bmp085_probe(struct i2c_client *client,
 	if (err)
 		goto exit_free;
 
-	dev_info(&data->client->dev, "Succesfully initialized bmp085!\n");
+	dev_info(&data->client->dev, "Successfully initialized bmp085!\n");
 	goto exit;
 
 exit_free:

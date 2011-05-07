@@ -2395,17 +2395,33 @@ xfs_free_extent(
 	memset(&args, 0, sizeof(xfs_alloc_arg_t));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
+
+	/*
+	 * validate that the block number is legal - the enables us to detect
+	 * and handle a silent filesystem corruption rather than crashing.
+	 */
 	args.agno = XFS_FSB_TO_AGNO(args.mp, bno);
-	ASSERT(args.agno < args.mp->m_sb.sb_agcount);
+	if (args.agno >= args.mp->m_sb.sb_agcount)
+		return EFSCORRUPTED;
+
 	args.agbno = XFS_FSB_TO_AGBNO(args.mp, bno);
+	if (args.agbno >= args.mp->m_sb.sb_agblocks)
+		return EFSCORRUPTED;
+
 	args.pag = xfs_perag_get(args.mp, args.agno);
-	if ((error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING)))
+	ASSERT(args.pag);
+
+	error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING);
+	if (error)
 		goto error0;
-#ifdef DEBUG
-	ASSERT(args.agbp != NULL);
-	ASSERT((args.agbno + len) <=
-		be32_to_cpu(XFS_BUF_TO_AGF(args.agbp)->agf_length));
-#endif
+
+	/* validate the extent size is legal now we have the agf locked */
+	if (args.agbno + len >
+			be32_to_cpu(XFS_BUF_TO_AGF(args.agbp)->agf_length)) {
+		error = EFSCORRUPTED;
+		goto error0;
+	}
+
 	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno, len, 0);
 error0:
 	xfs_perag_put(args.pag);

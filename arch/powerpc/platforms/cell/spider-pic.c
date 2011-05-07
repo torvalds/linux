@@ -102,7 +102,7 @@ static void spider_ack_irq(struct irq_data *d)
 
 	/* Reset edge detection logic if necessary
 	 */
-	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		return;
 
 	/* Only interrupts 47 to 50 can be set to edge */
@@ -119,7 +119,6 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 	struct spider_pic *pic = spider_virq_to_pic(d->irq);
 	unsigned int hw = irq_map[d->irq].hwirq;
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 old_mask;
 	u32 ic;
 
@@ -147,12 +146,6 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	/* Update irq_desc */
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= type & IRQ_TYPE_SENSE_MASK;
-	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		desc->status |= IRQ_LEVEL;
-
 	/* Configure the source. One gross hack that was there before and
 	 * that I've kept around is the priority to the BE which I set to
 	 * be the same as the interrupt source number. I don't know wether
@@ -178,10 +171,10 @@ static struct irq_chip spider_pic = {
 static int spider_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
-	set_irq_chip_and_handler(virq, &spider_pic, handle_level_irq);
+	irq_set_chip_and_handler(virq, &spider_pic, handle_level_irq);
 
 	/* Set default irq type */
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	return 0;
 }
@@ -207,8 +200,8 @@ static struct irq_host_ops spider_host_ops = {
 
 static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	struct spider_pic *pic = get_irq_desc_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct spider_pic *pic = irq_desc_get_handler_data(desc);
 	unsigned int cs, virq;
 
 	cs = in_be32(pic->regs + TIR_CS) >> 24;
@@ -328,8 +321,8 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 	virq = spider_find_cascade_and_node(pic);
 	if (virq == NO_IRQ)
 		return;
-	set_irq_data(virq, pic);
-	set_irq_chained_handler(virq, spider_irq_cascade);
+	irq_set_handler_data(virq, pic);
+	irq_set_chained_handler(virq, spider_irq_cascade);
 
 	printk(KERN_INFO "spider_pic: node %d, addr: 0x%lx %s\n",
 	       pic->node_id, addr, of_node->full_name);

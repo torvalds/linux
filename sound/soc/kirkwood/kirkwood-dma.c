@@ -132,7 +132,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	priv = snd_soc_dai_get_dma_data(cpu_dai, substream);
 	snd_soc_set_runtime_hwparams(substream, &kirkwood_dma_snd_hw);
 
-	/* Ensure that all constraints linked to dma burst are fullfilled */
+	/* Ensure that all constraints linked to dma burst are fulfilled */
 	err = snd_pcm_hw_constraint_minmax(runtime,
 			SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 			priv->burst * 2,
@@ -170,7 +170,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 
 		/*
 		 * Enable Error interrupts. We're only ack'ing them but
-		 * it's usefull for diagnostics
+		 * it's useful for diagnostics
 		 */
 		writel((unsigned long)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}

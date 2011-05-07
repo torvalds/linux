@@ -51,7 +51,7 @@
 #define CAN_ERR_PROT_BIT1        0x10 /* unable to send recessive bit */
 #define CAN_ERR_PROT_OVERLOAD    0x20 /* bus overload */
 #define CAN_ERR_PROT_ACTIVE      0x40 /* active error announcement */
-#define CAN_ERR_PROT_TX          0x80 /* error occured on transmission */
+#define CAN_ERR_PROT_TX          0x80 /* error occurred on transmission */
 
 /* error in CAN protocol (location) / data[3] */
 #define CAN_ERR_PROT_LOC_UNSPEC  0x00 /* unspecified */

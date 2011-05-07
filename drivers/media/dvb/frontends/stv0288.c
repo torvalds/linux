@@ -367,8 +367,11 @@ static int stv0288_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	dprintk("%s : FE_READ_STATUS : VSTATUS: 0x%02x\n", __func__, sync);
 
 	*status = 0;
-
-	if ((sync & 0x08) == 0x08) {
+	if (sync & 0x80)
+		*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
+	if (sync & 0x10)
+		*status |= FE_HAS_VITERBI;
+	if (sync & 0x08) {
 		*status |= FE_HAS_LOCK;
 		dprintk("stv0288 has locked\n");
 	}

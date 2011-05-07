@@ -85,7 +85,7 @@
 #define CHIP_NORMALMODE		0x00
 #define CHIP_DEBUGMODE		0x01
 
-/* SD Pass Through Command Extention */
+/* SD Pass Through Command Extension */
 #define SD_PASS_THRU_MODE	0xD0
 #define SD_EXECUTE_NO_DATA	0xD1
 #define SD_EXECUTE_READ		0xD2

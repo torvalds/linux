@@ -454,10 +454,9 @@ void __cpuinit numa_remove_cpu(int cpu)
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
 }
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
-static void __cpuinit numa_set_cpumask(int cpu, int enable)
+static void __cpuinit numa_set_cpumask(int cpu, bool enable)
 {
-	struct cpumask *mask;
-	int nid, physnid, i;
+	int nid, physnid;
 
 	nid = early_cpu_to_node(cpu);
 	if (nid == NUMA_NO_NODE) {
@@ -467,28 +466,21 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 
 	physnid = emu_nid_to_phys[nid];
 
-	for_each_online_node(i) {
+	for_each_online_node(nid) {
 		if (emu_nid_to_phys[nid] != physnid)
 			continue;
 
-		mask = debug_cpumask_set_cpu(cpu, enable);
-		if (!mask)
-			return;
-
-		if (enable)
-			cpumask_set_cpu(cpu, mask);
-		else
-			cpumask_clear_cpu(cpu, mask);
+		debug_cpumask_set_cpu(cpu, nid, enable);
 	}
 }
 
 void __cpuinit numa_add_cpu(int cpu)
 {
-	numa_set_cpumask(cpu, 1);
+	numa_set_cpumask(cpu, true);
 }
 
 void __cpuinit numa_remove_cpu(int cpu)
 {
-	numa_set_cpumask(cpu, 0);
+	numa_set_cpumask(cpu, false);
 }
 #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */

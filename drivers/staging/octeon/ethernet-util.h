@@ -55,7 +55,7 @@ static inline int INTERFACE(int ipd_port)
 		return 2;
 	else if (ipd_port < 40)	/* Interface 3 for loopback */
 		return 3;
-	else if (ipd_port == 40)	/* Non existant interface for POW0 */
+	else if (ipd_port == 40)	/* Non existent interface for POW0 */
 		return 4;
 	else
 		panic("Illegal ipd_port %d passed to INTERFACE\n", ipd_port);

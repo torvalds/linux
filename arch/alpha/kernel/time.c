@@ -153,6 +153,7 @@ void read_persistent_clock(struct timespec *ts)
 		year += 100;
 
 	ts->tv_sec = mktime(year, mon, day, hour, min, sec);
+	ts->tv_nsec = 0;
 }
 
 

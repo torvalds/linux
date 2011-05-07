@@ -27,7 +27,7 @@ struct eeprom_header
 	u_int8_t  ver_maj;
 	u_int8_t  ver_min;
 	u_int8_t  num_slots;        /* number of EISA slots in system */
-	u_int16_t csum;             /* checksum, I don't know how to calulate this */
+	u_int16_t csum;             /* checksum, I don't know how to calculate this */
 	u_int8_t  pad[10];
 } __attribute__ ((packed));
 

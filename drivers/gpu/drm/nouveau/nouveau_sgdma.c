@@ -55,6 +55,7 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 				be->func->clear(be);
 				return -EFAULT;
 			}
+			nvbe->ttm_alloced[nvbe->nr_pages] = false;
 		}
 
 		nvbe->nr_pages++;
@@ -427,7 +428,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	u32 aper_size, align;
 	int ret;
 
-	if (dev_priv->card_type >= NV_50 || drm_pci_device_is_pcie(dev))
+	if (dev_priv->card_type >= NV_40 && drm_pci_device_is_pcie(dev))
 		aper_size = 512 * 1024 * 1024;
 	else
 		aper_size = 64 * 1024 * 1024;
@@ -457,7 +458,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 		dev_priv->gart_info.func = &nv50_sgdma_backend;
 	} else
 	if (drm_pci_device_is_pcie(dev) &&
-	    dev_priv->chipset != 0x40 && dev_priv->chipset != 0x45) {
+	    dev_priv->chipset > 0x40 && dev_priv->chipset != 0x45) {
 		if (nv44_graph_class(dev)) {
 			dev_priv->gart_info.func = &nv44_sgdma_backend;
 			align = 512 * 1024;

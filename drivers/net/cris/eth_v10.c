@@ -1383,7 +1383,7 @@ e100_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	spin_lock(&np->lock); /* Preempt protection */
 	switch (cmd) {
 		/* The ioctls below should be considered obsolete but are */
-		/* still present for compatability with old scripts/apps  */
+		/* still present for compatibility with old scripts/apps  */
 		case SET_ETH_SPEED_10:                  /* 10 Mbps */
 			e100_set_speed(dev, 10);
 			break;

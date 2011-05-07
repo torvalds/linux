@@ -533,7 +533,7 @@ static void __init *early_alloc(unsigned long sz)
 static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr, unsigned long prot)
 {
 	if (pmd_none(*pmd)) {
-		pte_t *pte = early_alloc(2 * PTRS_PER_PTE * sizeof(pte_t));
+		pte_t *pte = early_alloc(PTE_HWTABLE_OFF + PTE_HWTABLE_SIZE);
 		__pmd_populate(pmd, __pa(pte), prot);
 	}
 	BUG_ON(pmd_bad(*pmd));
@@ -551,11 +551,11 @@ static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
-static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
+static void __init alloc_init_section(pud_t *pud, unsigned long addr,
 				      unsigned long end, phys_addr_t phys,
 				      const struct mem_type *type)
 {
-	pmd_t *pmd = pmd_offset(pgd, addr);
+	pmd_t *pmd = pmd_offset(pud, addr);
 
 	/*
 	 * Try a section mapping - end, addr and phys must all be aligned
@@ -584,6 +584,19 @@ static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
 	}
 }
 
+static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
+	unsigned long phys, const struct mem_type *type)
+{
+	pud_t *pud = pud_offset(pgd, addr);
+	unsigned long next;
+
+	do {
+		next = pud_addr_end(addr, end);
+		alloc_init_section(pud, addr, next, phys, type);
+		phys += next - addr;
+	} while (pud++, addr = next, addr != end);
+}
+
 static void __init create_36bit_mapping(struct map_desc *md,
 					const struct mem_type *type)
 {
@@ -592,13 +605,13 @@ static void __init create_36bit_mapping(struct map_desc *md,
 	pgd_t *pgd;
 
 	addr = md->virtual;
-	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	phys = __pfn_to_phys(md->pfn);
 	length = PAGE_ALIGN(md->length);
 
 	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
 		printk(KERN_ERR "MM: CPU does not support supersection "
 		       "mapping for 0x%08llx at 0x%08lx\n",
-		       __pfn_to_phys((u64)md->pfn), addr);
+		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
 
@@ -611,14 +624,14 @@ static void __init create_36bit_mapping(struct map_desc *md,
 	if (type->domain) {
 		printk(KERN_ERR "MM: invalid domain in supersection "
 		       "mapping for 0x%08llx at 0x%08lx\n",
-		       __pfn_to_phys((u64)md->pfn), addr);
+		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
 
 	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
-		printk(KERN_ERR "MM: cannot create mapping for "
-		       "0x%08llx at 0x%08lx invalid alignment\n",
-		       __pfn_to_phys((u64)md->pfn), addr);
+		printk(KERN_ERR "MM: cannot create mapping for 0x%08llx"
+		       " at 0x%08lx invalid alignment\n",
+		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
 
@@ -631,7 +644,8 @@ static void __init create_36bit_mapping(struct map_desc *md,
 	pgd = pgd_offset_k(addr);
 	end = addr + length;
 	do {
-		pmd_t *pmd = pmd_offset(pgd, addr);
+		pud_t *pud = pud_offset(pgd, addr);
+		pmd_t *pmd = pmd_offset(pud, addr);
 		int i;
 
 		for (i = 0; i < 16; i++)
@@ -652,22 +666,23 @@ static void __init create_36bit_mapping(struct map_desc *md,
  */
 static void __init create_mapping(struct map_desc *md)
 {
-	unsigned long phys, addr, length, end;
+	unsigned long addr, length, end;
+	phys_addr_t phys;
 	const struct mem_type *type;
 	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		printk(KERN_WARNING "BUG: not creating mapping for "
-		       "0x%08llx at 0x%08lx in user region\n",
-		       __pfn_to_phys((u64)md->pfn), md->virtual);
+		printk(KERN_WARNING "BUG: not creating mapping for 0x%08llx"
+		       " at 0x%08lx in user region\n",
+		       (long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
-		printk(KERN_WARNING "BUG: mapping for 0x%08llx at 0x%08lx "
-		       "overlaps vmalloc space\n",
-		       __pfn_to_phys((u64)md->pfn), md->virtual);
+		printk(KERN_WARNING "BUG: mapping for 0x%08llx"
+		       " at 0x%08lx overlaps vmalloc space\n",
+		       (long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
 	type = &mem_types[md->type];
@@ -681,13 +696,13 @@ static void __init create_mapping(struct map_desc *md)
 	}
 
 	addr = md->virtual & PAGE_MASK;
-	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	phys = __pfn_to_phys(md->pfn);
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
+		printk(KERN_WARNING "BUG: map for 0x%08llx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
-		       __pfn_to_phys(md->pfn), addr);
+		       (long long)__pfn_to_phys(md->pfn), addr);
 		return;
 	}
 
@@ -696,7 +711,7 @@ static void __init create_mapping(struct map_desc *md)
 	do {
 		unsigned long next = pgd_addr_end(addr, end);
 
-		alloc_init_section(pgd, addr, next, phys, type);
+		alloc_init_pud(pgd, addr, next, phys, type);
 
 		phys += next - addr;
 		addr = next;
@@ -794,9 +809,10 @@ static void __init sanity_check_meminfo(void)
 		 */
 		if (__va(bank->start) >= vmalloc_min ||
 		    __va(bank->start) < (void *)PAGE_OFFSET) {
-			printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
+			printk(KERN_NOTICE "Ignoring RAM at %.8llx-%.8llx "
 			       "(vmalloc region overlap).\n",
-			       bank->start, bank->start + bank->size - 1);
+			       (unsigned long long)bank->start,
+			       (unsigned long long)bank->start + bank->size - 1);
 			continue;
 		}
 
@@ -807,10 +823,11 @@ static void __init sanity_check_meminfo(void)
 		if (__va(bank->start + bank->size) > vmalloc_min ||
 		    __va(bank->start + bank->size) < __va(bank->start)) {
 			unsigned long newsize = vmalloc_min - __va(bank->start);
-			printk(KERN_NOTICE "Truncating RAM at %.8lx-%.8lx "
-			       "to -%.8lx (vmalloc region overlap).\n",
-			       bank->start, bank->start + bank->size - 1,
-			       bank->start + newsize - 1);
+			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
+			       "to -%.8llx (vmalloc region overlap).\n",
+			       (unsigned long long)bank->start,
+			       (unsigned long long)bank->start + bank->size - 1,
+			       (unsigned long long)bank->start + newsize - 1);
 			bank->size = newsize;
 		}
 #endif

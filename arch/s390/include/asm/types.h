@@ -30,8 +30,6 @@ typedef __signed__ long saddr_t;
 
 #ifndef __ASSEMBLY__
 
-typedef u64 dma64_addr_t;
-
 #ifndef __s390x__
 typedef union {
 	unsigned long long pair;

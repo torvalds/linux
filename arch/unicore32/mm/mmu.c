@@ -338,15 +338,6 @@ void __init uc32_mm_memblock_reserve(void)
 	 * and can only be in node 0.
 	 */
 	memblock_reserve(__pa(swapper_pg_dir), PTRS_PER_PGD * sizeof(pgd_t));
-
-#ifdef CONFIG_PUV3_UNIGFX
-	/*
-	 * These should likewise go elsewhere.  They pre-reserve the
-	 * screen/video memory region at the 48M~64M of main system memory.
-	 */
-	memblock_reserve(PKUNITY_UNIGFX_MMAP_BASE, PKUNITY_UNIGFX_MMAP_SIZE);
-	memblock_reserve(PKUNITY_UVC_MMAP_BASE, PKUNITY_UVC_MMAP_SIZE);
-#endif
 }
 
 /*
@@ -369,17 +360,6 @@ static void __init devicemaps_init(void)
 
 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
-
-	/*
-	 * Create a mapping for UniGFX VRAM
-	 */
-#ifdef CONFIG_PUV3_UNIGFX
-	map.pfn = __phys_to_pfn(PKUNITY_UNIGFX_MMAP_BASE);
-	map.virtual = KUSER_UNIGFX_BASE;
-	map.length = PKUNITY_UNIGFX_MMAP_SIZE;
-	map.type = MT_KUSER;
-	create_mapping(&map);
-#endif
 
 	/*
 	 * Create a mapping for the machine vectors at the high-vectors

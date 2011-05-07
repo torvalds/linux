@@ -35,6 +35,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "devices.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
@@ -65,7 +66,7 @@ static int __init omap3_l3_init(void)
 
 	WARN(IS_ERR(od), "could not build omap_device for %s\n", oh_name);
 
-	return PTR_ERR(od);
+	return IS_ERR(od) ? PTR_ERR(od) : 0;
 }
 postcore_initcall(omap3_l3_init);
 
@@ -102,7 +103,7 @@ postcore_initcall(omap4_l3_init);
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
-static struct resource cam_resources[] = {
+static struct resource omap2cam_resources[] = {
 	{
 		.start		= OMAP24XX_CAMERA_BASE,
 		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
@@ -114,29 +115,18 @@ static struct resource cam_resources[] = {
 	}
 };
 
-static struct platform_device omap_cam_device = {
+static struct platform_device omap2cam_device = {
 	.name		= "omap24xxcam",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(cam_resources),
-	.resource	= cam_resources,
+	.num_resources	= ARRAY_SIZE(omap2cam_resources),
+	.resource	= omap2cam_resources,
 };
-
-static inline void omap_init_camera(void)
-{
-	platform_device_register(&omap_cam_device);
-}
-
-#elif defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
+#endif
 
 static struct resource omap3isp_resources[] = {
 	{
 		.start		= OMAP3430_ISP_BASE,
 		.end		= OMAP3430_ISP_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_CBUFF_BASE,
-		.end		= OMAP3430_ISP_CBUFF_END,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -175,13 +165,33 @@ static struct resource omap3isp_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= OMAP3430_ISP_CSI2A_BASE,
-		.end		= OMAP3430_ISP_CSI2A_END,
+		.start		= OMAP3430_ISP_CSI2A_REGS1_BASE,
+		.end		= OMAP3430_ISP_CSI2A_REGS1_END,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= OMAP3430_ISP_CSI2PHY_BASE,
-		.end		= OMAP3430_ISP_CSI2PHY_END,
+		.start		= OMAP3430_ISP_CSIPHY2_BASE,
+		.end		= OMAP3430_ISP_CSIPHY2_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3630_ISP_CSI2A_REGS2_BASE,
+		.end		= OMAP3630_ISP_CSI2A_REGS2_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3630_ISP_CSI2C_REGS1_BASE,
+		.end		= OMAP3630_ISP_CSI2C_REGS1_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3630_ISP_CSIPHY1_BASE,
+		.end		= OMAP3630_ISP_CSIPHY1_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3630_ISP_CSI2C_REGS2_BASE,
+		.end		= OMAP3630_ISP_CSI2C_REGS2_END,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -197,15 +207,19 @@ static struct platform_device omap3isp_device = {
 	.resource	= omap3isp_resources,
 };
 
+int omap3_init_camera(struct isp_platform_data *pdata)
+{
+	omap3isp_device.dev.platform_data = pdata;
+	return platform_device_register(&omap3isp_device);
+}
+
 static inline void omap_init_camera(void)
 {
-	platform_device_register(&omap3isp_device);
-}
-#else
-static inline void omap_init_camera(void)
-{
-}
+#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
+	if (cpu_is_omap24xx())
+		platform_device_register(&omap2cam_device);
 #endif
+}
 
 struct omap_device_pm_latency omap_keyboard_latency[] = {
 	{
@@ -239,7 +253,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 			ARRAY_SIZE(omap_keyboard_latency), 0);
 
 	if (IS_ERR(od)) {
-		WARN(1, "Cant build omap_device for %s:%s.\n",
+		WARN(1, "Can't build omap_device for %s:%s.\n",
 						name, oh->name);
 		return PTR_ERR(od);
 	}
@@ -359,7 +373,7 @@ static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 	od = omap_device_build(name, spi_num, oh, pdata,
 				sizeof(*pdata),	omap_mcspi_latency,
 				ARRAY_SIZE(omap_mcspi_latency), 0);
-	WARN(IS_ERR(od), "Cant build omap_device for %s:%s\n",
+	WARN(IS_ERR(od), "Can't build omap_device for %s:%s\n",
 				name, oh->name);
 	kfree(pdata);
 	return 0;
@@ -711,7 +725,7 @@ static int __init omap_init_wdt(void)
 	od = omap_device_build(dev_name, id, oh, NULL, 0,
 				omap_wdt_latency,
 				ARRAY_SIZE(omap_wdt_latency), 0);
-	WARN(IS_ERR(od), "Cant build omap_device for %s:%s.\n",
+	WARN(IS_ERR(od), "Can't build omap_device for %s:%s.\n",
 				dev_name, oh->name);
 	return 0;
 }

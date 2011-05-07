@@ -55,11 +55,7 @@ source "drivers/staging/cx25821/Kconfig"
 
 source "drivers/staging/tm6000/Kconfig"
 
-source "drivers/staging/dabusb/Kconfig"
-
-source "drivers/staging/se401/Kconfig"
-
-source "drivers/staging/usbvideo/Kconfig"
+source "drivers/staging/cxd2099/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
 
@@ -121,8 +117,6 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
-source "drivers/staging/memrar/Kconfig"
-
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
@@ -136,8 +130,6 @@ source "drivers/staging/zcache/Kconfig"
 source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
-
-source "drivers/staging/samsung-laptop/Kconfig"
 
 source "drivers/staging/sm7xx/Kconfig"
 
@@ -182,6 +174,8 @@ source "drivers/staging/cptm1217/Kconfig"
 source "drivers/staging/ste_rmi4/Kconfig"
 
 source "drivers/staging/gma500/Kconfig"
+
+source "drivers/staging/altera-stapl/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

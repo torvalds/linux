@@ -1039,19 +1039,20 @@ nv_ro32(struct nouveau_gpuobj *gpuobj, u32 offset)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 	struct drm_device *dev = gpuobj->dev;
+	unsigned long flags;
 
 	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
 		u64  ptr = gpuobj->vinst + offset;
 		u32 base = ptr >> 16;
 		u32  val;
 
-		spin_lock(&dev_priv->ramin_lock);
+		spin_lock_irqsave(&dev_priv->vm_lock, flags);
 		if (dev_priv->ramin_base != base) {
 			dev_priv->ramin_base = base;
 			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
 		}
 		val = nv_rd32(dev, 0x700000 + (ptr & 0xffff));
-		spin_unlock(&dev_priv->ramin_lock);
+		spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 		return val;
 	}
 
@@ -1063,18 +1064,19 @@ nv_wo32(struct nouveau_gpuobj *gpuobj, u32 offset, u32 val)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 	struct drm_device *dev = gpuobj->dev;
+	unsigned long flags;
 
 	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
 		u64  ptr = gpuobj->vinst + offset;
 		u32 base = ptr >> 16;
 
-		spin_lock(&dev_priv->ramin_lock);
+		spin_lock_irqsave(&dev_priv->vm_lock, flags);
 		if (dev_priv->ramin_base != base) {
 			dev_priv->ramin_base = base;
 			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
 		}
 		nv_wr32(dev, 0x700000 + (ptr & 0xffff), val);
-		spin_unlock(&dev_priv->ramin_lock);
+		spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 		return;
 	}
 

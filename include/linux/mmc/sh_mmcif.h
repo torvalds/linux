@@ -104,9 +104,6 @@ static inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
 
 #define SH_MMCIF_BBS 512 /* boot block size */
 
-enum { MMCIF_PROGRESS_ENTER, MMCIF_PROGRESS_INIT,
-       MMCIF_PROGRESS_LOAD, MMCIF_PROGRESS_DONE };
-
 static inline void sh_mmcif_boot_cmd_send(void __iomem *base,
 					  unsigned long cmd, unsigned long arg)
 {

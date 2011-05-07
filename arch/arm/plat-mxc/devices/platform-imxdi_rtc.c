@@ -27,7 +27,7 @@ struct platform_device *__init imx_add_imxdi_rtc(
 	struct resource res[] = {
 		{
 			.start = data->iobase,
-			.end = data->iobase + SZ_16K,
+			.end = data->iobase + SZ_16K - 1,
 			.flags = IORESOURCE_MEM,
 		}, {
 			.start = data->irq,

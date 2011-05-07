@@ -32,7 +32,7 @@ static struct rc_map_table dntv_live_dvb_t[] = {
 	{ 0x0c, KEY_SEARCH },		/* scan */
 	{ 0x0d, KEY_STOP },
 	{ 0x0e, KEY_PAUSE },
-	{ 0x0f, KEY_LIST },		/* source */
+	{ 0x0f, KEY_VIDEO },		/* source */
 
 	{ 0x10, KEY_MUTE },
 	{ 0x11, KEY_REWIND },		/* backward << */

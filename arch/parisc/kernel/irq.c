@@ -113,13 +113,8 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 	int cpu_dest;
 
 	/* timer and ipi have to always be received on all CPUs */
-	if (CHECK_IRQ_PER_CPU(irq_to_desc(d->irq)->status)) {
-		/* Bad linux design decision.  The mask has already
-		 * been set; we must reset it. Will fix - tglx
-		 */
-		cpumask_setall(d->affinity);
+	if (irqd_is_per_cpu(d))
 		return -EINVAL;
-	}
 
 	/* whatever mask they set, we just allow one CPU */
 	cpu_dest = first_cpu(*dest);
@@ -174,10 +169,11 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
+		struct irq_desc *desc = irq_to_desc(i);
 		struct irqaction *action;
 
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
@@ -188,7 +184,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
 
-		seq_printf(p, " %14s", irq_desc[i].irq_data.chip->name);
+		seq_printf(p, " %14s", irq_desc_get_chip(desc)->name);
 #ifndef PARISC_IRQ_CR16_COUNTS
 		seq_printf(p, "  %s", action->name);
 
@@ -220,7 +216,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
  skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	return 0;
@@ -238,15 +234,15 @@ int show_interrupts(struct seq_file *p, void *v)
 
 int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 {
-	if (irq_desc[irq].action)
+	if (irq_has_action(irq))
 		return -EBUSY;
-	if (get_irq_chip(irq) != &cpu_interrupt_type)
+	if (irq_get_chip(irq) != &cpu_interrupt_type)
 		return -EBUSY;
 
 	/* for iosapic interrupts */
 	if (type) {
-		set_irq_chip_and_handler(irq, type, handle_percpu_irq);
-		set_irq_chip_data(irq, data);
+		irq_set_chip_and_handler(irq, type, handle_percpu_irq);
+		irq_set_chip_data(irq, data);
 		__cpu_unmask_irq(irq);
 	}
 	return 0;
@@ -357,7 +353,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 	desc = irq_to_desc(irq);
 	cpumask_copy(&dest, desc->irq_data.affinity);
-	if (CHECK_IRQ_PER_CPU(desc->status) &&
+	if (irqd_is_per_cpu(&desc->irq_data) &&
 	    !cpu_isset(smp_processor_id(), dest)) {
 		int cpu = first_cpu(dest);
 
@@ -398,14 +394,14 @@ static void claim_cpu_irqs(void)
 {
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
-		set_irq_chip_and_handler(i, &cpu_interrupt_type,
+		irq_set_chip_and_handler(i, &cpu_interrupt_type,
 					 handle_percpu_irq);
 	}
 
-	set_irq_handler(TIMER_IRQ, handle_percpu_irq);
+	irq_set_handler(TIMER_IRQ, handle_percpu_irq);
 	setup_irq(TIMER_IRQ, &timer_action);
 #ifdef CONFIG_SMP
-	set_irq_handler(IPI_IRQ, handle_percpu_irq);
+	irq_set_handler(IPI_IRQ, handle_percpu_irq);
 	setup_irq(IPI_IRQ, &ipi_action);
 #endif
 }

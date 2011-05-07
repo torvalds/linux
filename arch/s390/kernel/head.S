@@ -460,7 +460,7 @@ startup:
 #ifndef CONFIG_MARCH_G5
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
-	stfl	__LC_STFL_FAC_LIST	# store facility list
+	.insn	s,0xb2b10000,__LC_STFL_FAC_LIST	# store facility list
 	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
 	jz	0f
 	la	%r0,0

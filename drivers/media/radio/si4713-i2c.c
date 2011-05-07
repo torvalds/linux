@@ -481,7 +481,7 @@ unlock:
 }
 
 /*
- * si4713_wait_stc - Waits STC interrupt and clears status bits. Usefull
+ * si4713_wait_stc - Waits STC interrupt and clears status bits. Useful
  *		     for TX_TUNE_POWER, TX_TUNE_FREQ and TX_TUNE_MEAS
  * @sdev: si4713_device structure for the device we are communicating
  * @usecs: timeout to wait for STC interrupt signal

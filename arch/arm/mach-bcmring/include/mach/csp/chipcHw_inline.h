@@ -832,7 +832,7 @@ static inline void chipcHw_setUsbDevice(void)
 
 /****************************************************************************/
 /**
-*  @brief   Lower layer funtion to enable/disable a clock of a certain device
+*  @brief   Lower layer function to enable/disable a clock of a certain device
 *
 *  This function enables/disables a core clock
 *

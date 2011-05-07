@@ -202,7 +202,6 @@ static int armflash_probe(struct platform_device *dev)
 	if (info->nr_subdev == 1)
 		info->mtd = info->subdev[0].mtd;
 	else if (info->nr_subdev > 1) {
-#ifdef CONFIG_MTD_CONCAT
 		struct mtd_info *cdev[info->nr_subdev];
 
 		/*
@@ -215,11 +214,6 @@ static int armflash_probe(struct platform_device *dev)
 					      dev_name(&dev->dev));
 		if (info->mtd == NULL)
 			err = -ENXIO;
-#else
-		printk(KERN_ERR "armflash: multiple devices found but "
-		       "MTD concat support disabled.\n");
-		err = -ENXIO;
-#endif
 	}
 
 	if (err < 0)
@@ -244,10 +238,8 @@ static int armflash_probe(struct platform_device *dev)
  cleanup:
 	if (info->mtd) {
 		del_mtd_partitions(info->mtd);
-#ifdef CONFIG_MTD_CONCAT
 		if (info->mtd != info->subdev[0].mtd)
 			mtd_concat_destroy(info->mtd);
-#endif
 	}
 	kfree(info->parts);
  subdev_err:
@@ -272,10 +264,8 @@ static int armflash_remove(struct platform_device *dev)
 	if (info) {
 		if (info->mtd) {
 			del_mtd_partitions(info->mtd);
-#ifdef CONFIG_MTD_CONCAT
 			if (info->mtd != info->subdev[0].mtd)
 				mtd_concat_destroy(info->mtd);
-#endif
 		}
 		kfree(info->parts);
 

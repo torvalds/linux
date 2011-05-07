@@ -2598,8 +2598,8 @@ static inline int dev_ethtool_get_settings(struct net_device *dev,
 
 static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
 {
-	if (dev->hw_features & NETIF_F_RXCSUM)
-		return !!(dev->features & NETIF_F_RXCSUM);
+	if (dev->features & NETIF_F_RXCSUM)
+		return 1;
 	if (!dev->ethtool_ops || !dev->ethtool_ops->get_rx_csum)
 		return 0;
 	return dev->ethtool_ops->get_rx_csum(dev);

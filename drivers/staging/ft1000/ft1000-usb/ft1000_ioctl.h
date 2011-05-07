@@ -55,7 +55,7 @@ struct pseudo_hdr {
    unsigned char     seq_num;          //sequence number
    unsigned char     rsvd2;            //reserved
    unsigned short    qos_class;        //Quality of Service class (Not applicable on Mobile)
-   unsigned short    checksum;         //Psuedo header checksum
+   unsigned short    checksum;         //Pseudo header checksum
 } __attribute__ ((packed));
 
 typedef struct _IOCTL_GET_VER

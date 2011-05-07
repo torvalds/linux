@@ -206,6 +206,7 @@ static inline struct event *find_cache_event(int type)
 
 static void python_process_event(union perf_event *pevent __unused,
 				 struct perf_sample *sample,
+				 struct perf_evsel *evsel __unused,
 				 struct perf_session *session __unused,
 				 struct thread *thread)
 {

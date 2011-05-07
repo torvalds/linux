@@ -47,7 +47,7 @@
 #ifdef CONFIG_PPC_I8259
 static void mpc85xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ) {
@@ -122,7 +122,7 @@ void __init mpc85xx_ds_pic_init(void)
 	i8259_init(cascade_node, 0);
 	of_node_put(cascade_node);
 
-	set_irq_chained_handler(cascade_irq, mpc85xx_8259_cascade);
+	irq_set_chained_handler(cascade_irq, mpc85xx_8259_cascade);
 #endif	/* CONFIG_PPC_I8259 */
 }
 

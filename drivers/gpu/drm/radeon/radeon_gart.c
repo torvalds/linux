@@ -285,4 +285,6 @@ void radeon_gart_fini(struct radeon_device *rdev)
 	rdev->gart.pages = NULL;
 	rdev->gart.pages_addr = NULL;
 	rdev->gart.ttm_alloced = NULL;
+
+	radeon_dummy_page_fini(rdev);
 }

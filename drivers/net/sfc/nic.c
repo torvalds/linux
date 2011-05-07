@@ -84,7 +84,8 @@ static inline void efx_write_buf_tbl(struct efx_nic *efx, efx_qword_t *value,
 static inline efx_qword_t *efx_event(struct efx_channel *channel,
 				     unsigned int index)
 {
-	return ((efx_qword_t *) (channel->eventq.addr)) + index;
+	return ((efx_qword_t *) (channel->eventq.addr)) +
+		(index & channel->eventq_mask);
 }
 
 /* See if an event is present
@@ -673,7 +674,8 @@ void efx_nic_eventq_read_ack(struct efx_channel *channel)
 	efx_dword_t reg;
 	struct efx_nic *efx = channel->efx;
 
-	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR, channel->eventq_read_ptr);
+	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR,
+			     channel->eventq_read_ptr & channel->eventq_mask);
 	efx_writed_table(efx, &reg, efx->type->evq_rptr_tbl_base,
 			 channel->channel);
 }
@@ -908,7 +910,7 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 
 	code = EFX_QWORD_FIELD(*event, FSF_AZ_DRV_GEN_EV_MAGIC);
 	if (code == EFX_CHANNEL_MAGIC_TEST(channel))
-		++channel->magic_count;
+		; /* ignore */
 	else if (code == EFX_CHANNEL_MAGIC_FILL(channel))
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
@@ -1015,8 +1017,7 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 		/* Clear this event by marking it all ones */
 		EFX_SET_QWORD(*p_event);
 
-		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & channel->eventq_mask;
+		++read_ptr;
 
 		ev_code = EFX_QWORD_FIELD(event, FSF_AZ_EV_CODE);
 
@@ -1060,6 +1061,13 @@ out:
 	return spent;
 }
 
+/* Check whether an event is present in the eventq at the current
+ * read pointer.  Only useful for self-test.
+ */
+bool efx_nic_event_present(struct efx_channel *channel)
+{
+	return efx_event_present(efx_event(channel, channel->eventq_read_ptr));
+}
 
 /* Allocate buffer table entries for event queue */
 int efx_nic_probe_eventq(struct efx_channel *channel)
@@ -1165,7 +1173,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	unsigned int read_ptr = channel->eventq_read_ptr;
-	unsigned int end_ptr = (read_ptr - 1) & channel->eventq_mask;
+	unsigned int end_ptr = read_ptr + channel->eventq_mask - 1;
 
 	do {
 		efx_qword_t *event = efx_event(channel, read_ptr);
@@ -1205,7 +1213,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 		 * it's ok to throw away every non-flush event */
 		EFX_SET_QWORD(*event);
 
-		read_ptr = (read_ptr + 1) & channel->eventq_mask;
+		++read_ptr;
 	} while (read_ptr != end_ptr);
 
 	channel->eventq_read_ptr = read_ptr;

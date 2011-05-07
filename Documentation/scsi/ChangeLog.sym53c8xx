@@ -457,7 +457,7 @@ Fri Jan  1  20:00 1999 Gerard Roudier (groudier@club-internet.fr)
 Sat Dec 19  21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.0
 	- Define some new IO registers for the 896 (istat1, mbox0, mbox1)
-	- Revamp slighly the Symbios NVRAM lay-out based on the excerpt of 
+	- Revamp slightly the Symbios NVRAM lay-out based on the excerpt of 
 	  the header file I received from Symbios.
 	- Check the PCI bus number for the boot order (Using a fast 
 	  PCI controller behing a PCI-PCI bridge seems sub-optimal).

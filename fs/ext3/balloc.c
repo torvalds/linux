@@ -590,7 +590,7 @@ do_more:
 				BUFFER_TRACE(debug_bh, "Deleted!");
 				if (!bh2jh(bitmap_bh)->b_committed_data)
 					BUFFER_TRACE(debug_bh,
-						"No commited data in bitmap");
+						"No committed data in bitmap");
 				BUFFER_TRACE2(debug_bh, bitmap_bh, "bitmap");
 				__brelse(debug_bh);
 			}
@@ -1063,7 +1063,7 @@ static int find_next_reservable_window(
 		rsv_window_remove(sb, my_rsv);
 
 	/*
-	 * Let's book the whole avaliable window for now.  We will check the
+	 * Let's book the whole available window for now.  We will check the
 	 * disk bitmap later and then, if there are free blocks then we adjust
 	 * the window size if it's larger than requested.
 	 * Otherwise, we will remove this node from the tree next time
@@ -1456,7 +1456,7 @@ static int ext3_has_free_blocks(struct ext3_sb_info *sbi)
  *
  * ext3_should_retry_alloc() is called when ENOSPC is returned, and if
  * it is profitable to retry the operation, this function will wait
- * for the current or commiting transaction to complete, and then
+ * for the current or committing transaction to complete, and then
  * return TRUE.
  *
  * if the total number of retries exceed three times, return FALSE.
@@ -1632,9 +1632,9 @@ retry_alloc:
 			goto allocated;
 	}
 	/*
-	 * We may end up a bogus ealier ENOSPC error due to
+	 * We may end up a bogus earlier ENOSPC error due to
 	 * filesystem is "full" of reservations, but
-	 * there maybe indeed free blocks avaliable on disk
+	 * there maybe indeed free blocks available on disk
 	 * In this case, we just forget about the reservations
 	 * just do block allocation as without reservations.
 	 */

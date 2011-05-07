@@ -505,6 +505,9 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	int rc;
 	int is_udplite = IS_UDPLITE(sk);
 
+	if (!ipv6_addr_any(&inet6_sk(sk)->daddr))
+		sock_rps_save_rxhash(sk, skb->rxhash);
+
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
 
@@ -1332,7 +1335,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb, u32 features)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Check if there is enough headroom to insert fragment header. */
-	if ((skb_headroom(skb) < frag_hdr_sz) &&
+	if ((skb_mac_header(skb) < skb->head + frag_hdr_sz) &&
 	    pskb_expand_head(skb, frag_hdr_sz, 0, GFP_ATOMIC))
 		goto out;
 

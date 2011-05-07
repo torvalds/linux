@@ -142,9 +142,9 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
 		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus == CifsGood), 10 * HZ);
+			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
 
-		/* is TCP session is reestablished now ?*/
+		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
 			break;
 
@@ -729,7 +729,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 		return rc;
 
 	/* set up echo request */
-	smb->hdr.Tid = cpu_to_le16(0xffff);
+	smb->hdr.Tid = 0xffff;
 	smb->hdr.WordCount = 1;
 	put_unaligned_le16(1, &smb->EchoCount);
 	put_bcc_le(1, &smb->hdr);
@@ -1884,10 +1884,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 					__constant_cpu_to_le16(CIFS_WRLCK))
 				pLockData->fl_type = F_WRLCK;
 
-			pLockData->fl_start = parm_data->start;
-			pLockData->fl_end = parm_data->start +
-						parm_data->length - 1;
-			pLockData->fl_pid = parm_data->pid;
+			pLockData->fl_start = le64_to_cpu(parm_data->start);
+			pLockData->fl_end = pLockData->fl_start +
+					le64_to_cpu(parm_data->length) - 1;
+			pLockData->fl_pid = le32_to_cpu(parm_data->pid);
 		}
 	}
 
@@ -5247,7 +5247,7 @@ cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
 	 * Samba server ignores set of file size to zero due to bugs in some
 	 * older clients, but we should be precise - we use SetFileSize to
 	 * set file size and do not want to truncate file size to zero
-	 * accidently as happened on one Samba server beta by putting
+	 * accidentally as happened on one Samba server beta by putting
 	 * zero instead of -1 here
 	 */
 	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);

@@ -30,7 +30,7 @@
 
 /* Default. Add Payload to PDU before sending it down to transport layer */
 #define P9_TRANS_PREF_PAYLOAD_DEF  0x0
-/* Send pay load seperately to transport layer along with PDU.*/
+/* Send pay load separately to transport layer along with PDU.*/
 #define P9_TRANS_PREF_PAYLOAD_SEP  0x1
 
 /**

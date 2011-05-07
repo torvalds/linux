@@ -127,7 +127,8 @@ noritake_init_irq(void)
 	outw(0, 0x54c);
 
 	for (i = 16; i < 48; ++i) {
-		set_irq_chip_and_handler(i, &noritake_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &noritake_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

@@ -2395,9 +2395,9 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		int i;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		for (i = 1; *nent < maxnent; ++i) {
-			if (entry[i - 1].eax == 0 && i != 2)
-				break;
+		for (i = 1; *nent < maxnent && i < 64; ++i) {
+			if (entry[i].eax == 0)
+				continue;
 			do_cpuid_1_ent(&entry[i], function, i);
 			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
@@ -4958,12 +4958,6 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 			best = e;
 			break;
 		}
-		/*
-		 * Both basic or both extended?
-		 */
-		if (((e->function ^ function) & 0x80000000) == 0)
-			if (!best || e->function > best->function)
-				best = e;
 	}
 	return best;
 }
@@ -4983,6 +4977,27 @@ not_found:
 	return 36;
 }
 
+/*
+ * If no match is found, check whether we exceed the vCPU's limit
+ * and return the content of the highest valid _standard_ leaf instead.
+ * This is to satisfy the CPUID specification.
+ */
+static struct kvm_cpuid_entry2* check_cpuid_limit(struct kvm_vcpu *vcpu,
+                                                  u32 function, u32 index)
+{
+	struct kvm_cpuid_entry2 *maxlevel;
+
+	maxlevel = kvm_find_cpuid_entry(vcpu, function & 0x80000000, 0);
+	if (!maxlevel || maxlevel->eax >= function)
+		return NULL;
+	if (function & 0x80000000) {
+		maxlevel = kvm_find_cpuid_entry(vcpu, 0, 0);
+		if (!maxlevel)
+			return NULL;
+	}
+	return kvm_find_cpuid_entry(vcpu, maxlevel->eax, index);
+}
+
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 function, index;
@@ -4995,6 +5010,10 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	kvm_register_write(vcpu, VCPU_REGS_RCX, 0);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, 0);
 	best = kvm_find_cpuid_entry(vcpu, function, index);
+
+	if (!best)
+		best = check_cpuid_limit(vcpu, function, index);
+
 	if (best) {
 		kvm_register_write(vcpu, VCPU_REGS_RAX, best->eax);
 		kvm_register_write(vcpu, VCPU_REGS_RBX, best->ebx);

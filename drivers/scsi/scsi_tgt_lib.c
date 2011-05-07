@@ -93,7 +93,7 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 
 	/*
 	 * The blk helpers are used to the READ/WRITE requests
-	 * transfering data from a initiator point of view. Since
+	 * transferring data from a initiator point of view. Since
 	 * we are in target mode we want the opposite.
 	 */
 	rq = blk_get_request(shost->uspace_req_q, !write, gfp_mask);

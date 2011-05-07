@@ -254,7 +254,6 @@ static struct miscdevice pnx4008_wdt_miscdev = {
 static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0, size;
-	struct resource *res;
 
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
@@ -262,42 +261,42 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	printk(KERN_INFO MODULE_NAME
 		"PNX4008 Watchdog Timer: heartbeat %d sec\n", heartbeat);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
+	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (wdt_mem == NULL) {
 		printk(KERN_INFO MODULE_NAME
 			"failed to get memory region resouce\n");
 		return -ENOENT;
 	}
 
-	size = resource_size(res);
-	wdt_mem = request_mem_region(res->start, size, pdev->name);
+	size = resource_size(wdt_mem);
 
-	if (wdt_mem == NULL) {
+	if (!request_mem_region(wdt_mem->start, size, pdev->name)) {
 		printk(KERN_INFO MODULE_NAME "failed to get memory region\n");
 		return -ENOENT;
 	}
-	wdt_base = (void __iomem *)IO_ADDRESS(res->start);
+	wdt_base = (void __iomem *)IO_ADDRESS(wdt_mem->start);
 
 	wdt_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt_clk)) {
 		ret = PTR_ERR(wdt_clk);
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
+		release_mem_region(wdt_mem->start, size);
+		wdt_mem = NULL;
 		goto out;
 	}
 
 	ret = clk_enable(wdt_clk);
 	if (ret) {
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
+		release_mem_region(wdt_mem->start, size);
+		wdt_mem = NULL;
+		clk_put(wdt_clk);
 		goto out;
 	}
 
 	ret = misc_register(&pnx4008_wdt_miscdev);
 	if (ret < 0) {
 		printk(KERN_ERR MODULE_NAME "cannot register misc device\n");
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
+		release_mem_region(wdt_mem->start, size);
+		wdt_mem = NULL;
 		clk_disable(wdt_clk);
 		clk_put(wdt_clk);
 	} else {
@@ -320,8 +319,7 @@ static int __devexit pnx4008_wdt_remove(struct platform_device *pdev)
 	clk_put(wdt_clk);
 
 	if (wdt_mem) {
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
+		release_mem_region(wdt_mem->start, resource_size(wdt_mem));
 		wdt_mem = NULL;
 	}
 	return 0;

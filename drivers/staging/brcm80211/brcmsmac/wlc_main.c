@@ -6283,7 +6283,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	       ((preamble_type[1] == WLC_MM_PREAMBLE) ==
 		(txh->MModeFbrLen != 0)));
 
-	ac = wme_fifo2ac[queue];
+	ac = skb_get_queue_mapping(p);
 	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
@@ -6919,8 +6919,7 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 		preamble = 0;
 		if (IS_CCK(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
-				WL_ERROR("Short CCK\n");
-			rx_status->flag |= RX_FLAG_SHORTPRE;
+				rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else if (IS_OFDM(rspec)) {
 			rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else {
@@ -7079,10 +7078,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (ieee80211_is_probe_req(h->frame_control))
 		goto toss;
 
-	if (is_amsdu) {
-		WL_ERROR("%s: is_amsdu causing toss\n", __func__);
+	if (is_amsdu)
 		goto toss;
-	}
 
 	wlc_recvctl(wlc, rxh, p);
 	return;
@@ -8295,7 +8292,7 @@ wlc_txflowcontrol_prio_isset(struct wlc_info *wlc, struct wlc_txq_info *q,
 	return (q->stopped & prio_mask) == prio_mask;
 }
 
-/* propogate the flow control to all interfaces using the given tx queue */
+/* propagate the flow control to all interfaces using the given tx queue */
 void wlc_txflowcontrol(struct wlc_info *wlc, struct wlc_txq_info *qi,
 		       bool on, int prio)
 {
@@ -8462,7 +8459,7 @@ static void wlc_txq_free(struct wlc_info *wlc, struct wlc_txq_info *qi)
 }
 
 /*
- * Flag 'scan in progress' to withold dynamic phy calibration
+ * Flag 'scan in progress' to withhold dynamic phy calibration
  */
 void wlc_scan_start(struct wlc_info *wlc)
 {

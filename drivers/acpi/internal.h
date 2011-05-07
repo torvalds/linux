@@ -21,8 +21,6 @@
 #ifndef _ACPI_INTERNAL_H_
 #define _ACPI_INTERNAL_H_
 
-#include <linux/sysdev.h>
-
 #define PREFIX "ACPI: "
 
 int init_acpi_device_notify(void);
@@ -64,7 +62,6 @@ struct acpi_ec {
 	struct list_head list;
 	struct transaction *curr;
 	spinlock_t curr_lock;
-	struct sys_device sysdev;
 };
 
 extern struct acpi_ec *first_ec;

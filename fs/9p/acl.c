@@ -323,7 +323,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 	if (value) {
 		/* update the cached acl value */

@@ -161,7 +161,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 			}
 			if (offset > 0 && offset > skb->len) {
 				pr_info("tc filter pedit"
-					" offset %d cant exceed pkt length %d\n",
+					" offset %d can't exceed pkt length %d\n",
 				       offset, skb->len);
 				goto bad;
 			}

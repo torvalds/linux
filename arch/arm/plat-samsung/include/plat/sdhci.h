@@ -57,7 +57,7 @@ enum clk_types {
  * @cfg_gpio: Configure the GPIO for a specific card bit-width
  * @cfg_card: Configure the interface for a specific card and speed. This
  *            is necessary the controllers and/or GPIO blocks require the
- *	      changing of driver-strength and other controls dependant on
+ *	      changing of driver-strength and other controls dependent on
  *	      the card and speed of operation.
  *
  * Initialisation data specific to either the machine or the platform
@@ -108,7 +108,7 @@ extern struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata;
 extern struct s3c_sdhci_platdata s3c_hsmmc2_def_platdata;
 extern struct s3c_sdhci_platdata s3c_hsmmc3_def_platdata;
 
-/* Helper function availablity */
+/* Helper function availability */
 
 extern void s3c2416_setup_sdhci0_cfg_gpio(struct platform_device *, int w);
 extern void s3c2416_setup_sdhci1_cfg_gpio(struct platform_device *, int w);

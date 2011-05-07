@@ -247,7 +247,7 @@ static void sr_stop_vddautocomp(struct omap_sr *sr)
  * driver register and sr device intializtion API's. Only one call
  * will ultimately succeed.
  *
- * Currenly this function registers interrrupt handler for a particular SR
+ * Currently this function registers interrrupt handler for a particular SR
  * if smartreflex class driver is already registered and has
  * requested for interrupts and the SR interrupt line in present.
  */

@@ -154,11 +154,11 @@ void __init davinci_irq_init(void)
 
 	/* set up genirq dispatch for ARM INTC */
 	for (i = 0; i < davinci_soc_info.intc_irq_num; i++) {
-		set_irq_chip(i, &davinci_irq_chip_0);
+		irq_set_chip(i, &davinci_irq_chip_0);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		if (i != IRQ_TINT1_TINT34)
-			set_irq_handler(i, handle_edge_irq);
+			irq_set_handler(i, handle_edge_irq);
 		else
-			set_irq_handler(i, handle_level_irq);
+			irq_set_handler(i, handle_level_irq);
 	}
 }

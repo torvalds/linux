@@ -434,11 +434,9 @@ config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
 
 config DEBUG_KMEMLEAK_TEST
 	tristate "Simple test for the kernel memory leak detector"
-	depends on DEBUG_KMEMLEAK
+	depends on DEBUG_KMEMLEAK && m
 	help
-	  Say Y or M here to build a test for the kernel memory leak
-	  detector. This option enables a module that explicitly leaks
-	  memory.
+	  This option enables a module that explicitly leaks memory.
 
 	  If unsure, say N.
 

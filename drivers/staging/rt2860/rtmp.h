@@ -756,7 +756,7 @@ struct rt_tkip_key_info {
 /* */
 struct rt_private {
 	u32 SystemResetCnt;	/* System reset counter */
-	u32 TxRingFullCnt;	/* Tx ring full occurrance number */
+	u32 TxRingFullCnt;	/* Tx ring full occurrence number */
 	u32 PhyRxErrCnt;	/* PHY Rx error count, for debug purpose, might move to global counter */
 	/* Variables for WEP encryption / decryption in rtmp_wep.c */
 	u32 FCSCRC32;
@@ -925,7 +925,7 @@ struct rt_mlme {
   **************************************************************************/
 struct reordering_mpdu {
 	struct reordering_mpdu *next;
-	void *pPacket;	/* coverted to 802.3 frame */
+	void *pPacket;	/* converted to 802.3 frame */
 	int Sequence;		/* sequence number of MPDU */
 	BOOLEAN bAMSDU;
 };

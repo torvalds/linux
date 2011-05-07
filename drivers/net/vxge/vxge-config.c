@@ -187,7 +187,7 @@ vxge_hw_vpath_fw_api(struct __vxge_hw_virtualpath *vpath, u32 action,
 					   VXGE_HW_DEF_DEVICE_POLL_MILLIS);
 
 	/* The __vxge_hw_device_register_poll can udelay for a significant
-	 * amount of time, blocking other proccess from the CPU.  If it delays
+	 * amount of time, blocking other process from the CPU.  If it delays
 	 * for ~5secs, a NMI error can occur.  A way around this is to give up
 	 * the processor via msleep, but this is not allowed is under lock.
 	 * So, only allow it to sleep for ~4secs if open.  Otherwise, delay for

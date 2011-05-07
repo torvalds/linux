@@ -173,7 +173,7 @@ static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 	/*
 	 * If the transfer to hardware succeeded, it does not mean the
 	 * frame was send out correctly. It only means the frame
-	 * was succesfully pushed to the hardware, we have no
+	 * was successfully pushed to the hardware, we have no
 	 * way to determine the transmission status right now.
 	 * (Only indirectly by looking at the failed TX counters
 	 * in the register).

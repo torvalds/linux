@@ -699,7 +699,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
 
-			This is desgined to be used in conjunction with
+			This is designed to be used in conjunction with
 			the boot argument: earlyprintk=vga
 
 	edd=		[EDD]
@@ -1832,15 +1832,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
 
-	oops=panic	Always panic on oopses. Default is to just kill the process,
-			but there is a small probability of deadlocking the machine.
+	oops=panic	Always panic on oopses. Default is to just kill the
+			process, but there is a small probability of
+			deadlocking the machine.
 			This will also cause panics on machine check exceptions.
 			Useful together with panic=30 to trigger a reboot.
 
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt
 
-	panic=		[KNL] Kernel behaviour on panic
+	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
+			seconds before rebooting
 			Format: <timeout>
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
@@ -2343,6 +2345,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
+			Format: <integer>
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
@@ -2475,8 +2478,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	topology=	[S390]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
-			topology informations if the hardware supports these.
-			The scheduler will make use of these informations and
+			topology information if the hardware supports this.
+			The scheduler will make use of this information and
 			e.g. base its process migration decisions on it.
 			Default is on.
 
@@ -2529,8 +2532,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			reported either.
 
 	unknown_nmi_panic
-			[X86]
-			Set unknown_nmi_panic=1 early on boot.
+			[X86] Cause panic on unknown NMI.
 
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used

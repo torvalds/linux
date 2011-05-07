@@ -821,7 +821,7 @@ static int has_noalias(const struct rtable *head, const struct rtable *rth)
 }
 
 /*
- * Pertubation of rt_genid by a small quantity [1..256]
+ * Perturbation of rt_genid by a small quantity [1..256]
  * Using 8 bits of shuffling ensure we can call rt_cache_invalidate()
  * many times (2^24) without giving recent rt_genid.
  * Jenkins hash is strong enough that litle changes of rt_genid are OK.
@@ -1191,7 +1191,7 @@ restart:
 #endif
 	/*
 	 * Since lookup is lockfree, we must make sure
-	 * previous writes to rt are comitted to memory
+	 * previous writes to rt are committed to memory
 	 * before making rt visible to other CPUS.
 	 */
 	rcu_assign_pointer(rt_hash_table[hash].chain, rt);
@@ -1593,8 +1593,6 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 			rt->rt_peer_genid = rt_peer_genid();
 		}
 		check_peer_pmtu(dst, peer);
-
-		inet_putpeer(peer);
 	}
 }
 
@@ -1720,7 +1718,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 
 		rcu_read_lock();
 		if (fib_lookup(dev_net(rt->dst.dev), &fl4, &res) == 0)
-			src = FIB_RES_PREFSRC(res);
+			src = FIB_RES_PREFSRC(dev_net(rt->dst.dev), res);
 		else
 			src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
 					RT_SCOPE_UNIVERSE);
@@ -1893,6 +1891,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
+	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->dst.dev	= init_net.loopback_dev;
 	dev_hold(rth->dst.dev);
@@ -2028,6 +2027,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_key_src	= saddr;
 	rth->rt_src	= saddr;
 	rth->rt_gateway	= daddr;
+	rth->rt_route_iif = in_dev->dev->ifindex;
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->dst.dev	= (out_dev)->dev;
 	dev_hold(rth->dst.dev);
@@ -2204,6 +2204,7 @@ local_input:
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
+	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->dst.dev	= net->loopback_dev;
 	dev_hold(rth->dst.dev);
@@ -2403,7 +2404,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_mark    = oldflp4->flowi4_mark;
 	rth->rt_dst	= fl4->daddr;
 	rth->rt_src	= fl4->saddr;
-	rth->rt_iif	= 0;
+	rth->rt_route_iif = 0;
+	rth->rt_iif	= oldflp4->flowi4_oif ? : dev_out->ifindex;
 	/* get references to the devices that are to be hold by the routing
 	   cache entry */
 	rth->dst.dev	= dev_out;
@@ -2617,7 +2619,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		fib_select_default(&res);
 
 	if (!fl4.saddr)
-		fl4.saddr = FIB_RES_PREFSRC(res);
+		fl4.saddr = FIB_RES_PREFSRC(net, res);
 
 	dev_out = FIB_RES_DEV(res);
 	fl4.flowi4_oif = dev_out->ifindex;
@@ -2688,6 +2690,12 @@ static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static u32 *ipv4_rt_blackhole_cow_metrics(struct dst_entry *dst,
+					  unsigned long old)
+{
+	return NULL;
+}
+
 static struct dst_ops ipv4_dst_blackhole_ops = {
 	.family			=	AF_INET,
 	.protocol		=	cpu_to_be16(ETH_P_IP),
@@ -2696,6 +2704,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.default_mtu		=	ipv4_blackhole_default_mtu,
 	.default_advmss		=	ipv4_default_advmss,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
+	.cow_metrics		=	ipv4_rt_blackhole_cow_metrics,
 };
 
 struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig)
@@ -2718,6 +2727,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_key_dst = ort->rt_key_dst;
 		rt->rt_key_src = ort->rt_key_src;
 		rt->rt_tos = ort->rt_tos;
+		rt->rt_route_iif = ort->rt_route_iif;
 		rt->rt_iif = ort->rt_iif;
 		rt->rt_oif = ort->rt_oif;
 		rt->rt_mark = ort->rt_mark;
@@ -2727,7 +2737,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_type = ort->rt_type;
 		rt->rt_dst = ort->rt_dst;
 		rt->rt_src = ort->rt_src;
-		rt->rt_iif = ort->rt_iif;
 		rt->rt_gateway = ort->rt_gateway;
 		rt->rt_spec_dst = ort->rt_spec_dst;
 		rt->peer = ort->peer;
@@ -3221,6 +3230,8 @@ static __net_init int rt_genid_init(struct net *net)
 {
 	get_random_bytes(&net->ipv4.rt_genid,
 			 sizeof(net->ipv4.rt_genid));
+	get_random_bytes(&net->ipv4.dev_addr_genid,
+			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;
 }
 

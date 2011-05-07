@@ -274,7 +274,7 @@ static inline void uwb_mas_bm_copy_le(void *dst, const struct uwb_mas_bm *mas)
 
 /**
  * struct uwb_drp_avail - a radio controller's view of MAS usage
- * @global:   MAS unused by neighbors (excluding reservations targetted
+ * @global:   MAS unused by neighbors (excluding reservations targeted
  *            or owned by the local radio controller) or the beaon period
  * @local:    MAS unused by local established reservations
  * @pending:  MAS unused by local pending reservations
@@ -702,10 +702,10 @@ void edc_init(struct edc *edc)
 	edc->timestart = jiffies;
 }
 
-/* Called when an error occured.
+/* Called when an error occurred.
  * This is way to determine if the number of acceptable errors per time
  * period has been exceeded. It is not accurate as there are cases in which
- * this scheme will not work, for example if there are periodic occurences
+ * this scheme will not work, for example if there are periodic occurrences
  * of errors that straddle updates to the start time. This scheme is
  * sufficient for our usage.
  *

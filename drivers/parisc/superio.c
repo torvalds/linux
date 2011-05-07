@@ -355,7 +355,8 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		set_irq_chip_and_handler(i, &superio_interrupt_type, handle_simple_irq);
+		irq_set_chip_and_handler(i, &superio_interrupt_type,
+					 handle_simple_irq);
 	}
 
 	/*

@@ -57,7 +57,7 @@ struct mpc52xx_lpbfifo {
 static struct mpc52xx_lpbfifo lpbfifo;
 
 /**
- * mpc52xx_lpbfifo_kick - Trigger the next block of data to be transfered
+ * mpc52xx_lpbfifo_kick - Trigger the next block of data to be transferred
  */
 static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 {
@@ -179,7 +179,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
  *
  * On transmit, the dma completion irq triggers before the fifo completion
  * triggers.  Handle the dma completion here instead of the LPB FIFO Bestcomm
- * task completion irq becuase everyting is not really done until the LPB FIFO
+ * task completion irq because everything is not really done until the LPB FIFO
  * completion irq triggers.
  *
  * In other words:
@@ -195,7 +195,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
  * Exit conditions:
  * 1) Transfer aborted
  * 2) FIFO complete without DMA; more data to do
- * 3) FIFO complete without DMA; all data transfered
+ * 3) FIFO complete without DMA; all data transferred
  * 4) FIFO complete using DMA
  *
  * Condition 1 can occur regardless of whether or not DMA is used.

@@ -621,7 +621,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		ace_dump_mem(ace->cf_id, 512);	/* Debug: Dump out disk ID */
 
 		if (ace->data_result) {
-			/* Error occured, disable the disk */
+			/* Error occurred, disable the disk */
 			ace->media_change = 1;
 			set_capacity(ace->gd, 0);
 			dev_err(ace->dev, "error fetching CF id (%i)\n",
@@ -801,7 +801,7 @@ static int ace_interrupt_checkstate(struct ace_device *ace)
 	u32 sreg = ace_in32(ace, ACE_STATUS);
 	u16 creg = ace_in(ace, ACE_CTRL);
 
-	/* Check for error occurance */
+	/* Check for error occurrence */
 	if ((sreg & (ACE_STATUS_CFGERROR | ACE_STATUS_CFCERROR)) &&
 	    (creg & ACE_CTRL_ERRORIRQ)) {
 		dev_err(ace->dev, "transfer failure\n");
@@ -867,12 +867,12 @@ static void ace_request(struct request_queue * q)
 	}
 }
 
-static int ace_media_changed(struct gendisk *gd)
+static unsigned int ace_check_events(struct gendisk *gd, unsigned int clearing)
 {
 	struct ace_device *ace = gd->private_data;
-	dev_dbg(ace->dev, "ace_media_changed(): %i\n", ace->media_change);
+	dev_dbg(ace->dev, "ace_check_events(): %i\n", ace->media_change);
 
-	return ace->media_change;
+	return ace->media_change ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int ace_revalidate_disk(struct gendisk *gd)
@@ -953,7 +953,7 @@ static const struct block_device_operations ace_fops = {
 	.owner = THIS_MODULE,
 	.open = ace_open,
 	.release = ace_release,
-	.media_changed = ace_media_changed,
+	.check_events = ace_check_events,
 	.revalidate_disk = ace_revalidate_disk,
 	.getgeo = ace_getgeo,
 };
@@ -1005,6 +1005,7 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace->gd->major = ace_major;
 	ace->gd->first_minor = ace->id * ACE_NUM_MINORS;
 	ace->gd->fops = &ace_fops;
+	ace->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	ace->gd->queue = ace->queue;
 	ace->gd->private_data = ace;
 	snprintf(ace->gd->disk_name, 32, "xs%c", ace->id + 'a');
@@ -1168,7 +1169,7 @@ static int __devinit ace_probe(struct platform_device *dev)
 			irq = dev->resource[i].start;
 	}
 
-	/* Call the bus-independant setup code */
+	/* Call the bus-independent setup code */
 	return ace_alloc(&dev->dev, id, physaddr, irq, bus_width);
 }
 
@@ -1221,7 +1222,7 @@ static int __devinit ace_of_probe(struct platform_device *op)
 	if (of_find_property(op->dev.of_node, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
 
-	/* Call the bus-independant setup code */
+	/* Call the bus-independent setup code */
 	return ace_alloc(&op->dev, id ? be32_to_cpup(id) : 0,
 						physaddr, irq, bus_width);
 }

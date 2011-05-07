@@ -1255,7 +1255,7 @@ static inline void lanai_endtx(struct lanai_dev *lanai,
 	/*
 	 * Since the "butt register" is a shared resounce on the card we
 	 * serialize all accesses to it through this spinlock.  This is
-	 * mostly just paranoia sicne the register is rarely "busy" anyway
+	 * mostly just paranoia since the register is rarely "busy" anyway
 	 * but is needed for correctness.
 	 */
 	spin_lock(&lanai->endtxlock);
@@ -1990,7 +1990,7 @@ static int __devinit lanai_pci_start(struct lanai_dev *lanai)
 
 /*
  * We _can_ use VCI==0 for normal traffic, but only for UBR (or we'll
- * get a CBRZERO interrupt), and we can use it only if noone is receiving
+ * get a CBRZERO interrupt), and we can use it only if no one is receiving
  * AAL0 traffic (since they will use the same queue) - according to the
  * docs we shouldn't even use it for AAL0 traffic
  */

@@ -520,7 +520,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			 *because hw will nerver use hw_rate
 			 *when tcb_desc->use_driver_rate = false
 			 *so we never set highest N rate here,
-			 *and N rate will all be controled by FW
+			 *and N rate will all be controlled by FW
 			 *when tcb_desc->use_driver_rate = false
 			 */
 			if (rtlmac->ht_enable) {

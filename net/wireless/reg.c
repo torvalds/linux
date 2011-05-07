@@ -809,7 +809,7 @@ static void handle_channel(struct wiphy *wiphy,
 	if (r) {
 		/*
 		 * We will disable all channels that do not match our
-		 * recieved regulatory rule unless the hint is coming
+		 * received regulatory rule unless the hint is coming
 		 * from a Country IE and the Country IE had no information
 		 * about a band. The IEEE 802.11 spec allows for an AP
 		 * to send only a subset of the regulatory rules allowed,
@@ -838,7 +838,7 @@ static void handle_channel(struct wiphy *wiphy,
 	    request_wiphy && request_wiphy == wiphy &&
 	    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
 		/*
-		 * This gaurantees the driver's requested regulatory domain
+		 * This guarantees the driver's requested regulatory domain
 		 * will always be used as a base for further regulatory
 		 * settings
 		 */

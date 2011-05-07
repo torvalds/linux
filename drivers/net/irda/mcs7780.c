@@ -588,7 +588,7 @@ static int mcs_speed_change(struct mcs_cb *mcs)
 
 	mcs_get_reg(mcs, MCS_MODE_REG, &rval);
 
-	/* MINRXPW values recomended by MosChip */
+	/* MINRXPW values recommended by MosChip */
 	if (mcs->new_speed <= 115200) {
 		rval &= ~MCS_FIR;
 
@@ -799,7 +799,7 @@ static void mcs_receive_irq(struct urb *urb)
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-/* Transmit callback funtion.  */
+/* Transmit callback function.  */
 static void mcs_send_irq(struct urb *urb)
 {
 	struct mcs_cb *mcs = urb->context;
@@ -811,7 +811,7 @@ static void mcs_send_irq(struct urb *urb)
 		netif_wake_queue(ndev);
 }
 
-/* Transmit callback funtion.  */
+/* Transmit callback function.  */
 static netdev_tx_t mcs_hard_xmit(struct sk_buff *skb,
 				       struct net_device *ndev)
 {

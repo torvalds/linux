@@ -135,14 +135,14 @@ void nfs_clear_page_tag_locked(struct nfs_page *req)
 		nfs_unlock_request(req);
 }
 
-/**
+/*
  * nfs_clear_request - Free up all resources allocated to the request
  * @req:
  *
  * Release page and open context resources associated with a read/write
  * request after it has completed.
  */
-void nfs_clear_request(struct nfs_page *req)
+static void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
 	struct nfs_open_context *ctx = req->wb_context;
@@ -223,6 +223,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_count = 0;
 	desc->pg_bsize = bsize;
 	desc->pg_base = 0;
+	desc->pg_moreio = 0;
 	desc->pg_inode = inode;
 	desc->pg_doio = doio;
 	desc->pg_ioflags = io_flags;
@@ -335,9 +336,11 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			   struct nfs_page *req)
 {
 	while (!nfs_pageio_do_add_request(desc, req)) {
+		desc->pg_moreio = 1;
 		nfs_pageio_doio(desc);
 		if (desc->pg_error < 0)
 			return 0;
+		desc->pg_moreio = 0;
 	}
 	return 1;
 }
@@ -395,6 +398,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 	pgoff_t idx_end;
 	int found, i;
 	int res;
+	struct list_head *list;
 
 	res = 0;
 	if (npages == 0)
@@ -415,10 +419,10 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 			idx_start = req->wb_index + 1;
 			if (nfs_set_page_tag_locked(req)) {
 				kref_get(&req->wb_kref);
-				nfs_list_remove_request(req);
 				radix_tree_tag_clear(&nfsi->nfs_page_tree,
 						req->wb_index, tag);
-				nfs_list_add_request(req, dst);
+				list = pnfs_choose_commit_list(req, dst);
+				nfs_list_add_request(req, list);
 				res++;
 				if (res == INT_MAX)
 					goto out;

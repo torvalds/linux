@@ -1677,7 +1677,7 @@ W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
-D: Fedora kernel maintainence.
+D: Fedora kernel maintenance.
 D: Misc/Other.
 S: 314 Littleton Rd, Westford, MA 01886, USA
 
@@ -3211,7 +3211,7 @@ N: James Simmons
 E: jsimmons@infradead.org
 E: jsimmons@users.sf.net 
 D: Frame buffer device maintainer
-D: input layer developement 
+D: input layer development
 D: tty/console layer
 D: various mipsel devices 
 S: 115 Carmel Avenue 
@@ -3290,7 +3290,7 @@ S: USA
 N: Manfred Spraul
 E: manfred@colorfullife.com
 W: http://www.colorfullife.com/~manfred
-D: Lots of tiny hacks. Larger improvments to SysV IPC msg,
+D: Lots of tiny hacks. Larger improvements to SysV IPC msg,
 D: slab, pipe, select.
 S: 71701 Schwieberdingen
 S: Germany

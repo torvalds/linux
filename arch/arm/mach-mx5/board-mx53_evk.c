@@ -34,7 +34,7 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx53.h>
 
-#define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
+#define MX53_EVK_FEC_PHY_RST	IMX_GPIO_NR(7, 6)
 #define EVK_ECSPI1_CS0		IMX_GPIO_NR(2, 30)
 #define EVK_ECSPI1_CS1		IMX_GPIO_NR(3, 19)
 
@@ -82,15 +82,14 @@ static inline void mx53_evk_fec_reset(void)
 	int ret;
 
 	/* reset FEC PHY */
-	ret = gpio_request(SMD_FEC_PHY_RST, "fec-phy-reset");
+	ret = gpio_request_one(MX53_EVK_FEC_PHY_RST, GPIOF_OUT_INIT_LOW,
+							"fec-phy-reset");
 	if (ret) {
 		printk(KERN_ERR"failed to get GPIO_FEC_PHY_RESET: %d\n", ret);
 		return;
 	}
-	gpio_direction_output(SMD_FEC_PHY_RST, 0);
-	gpio_set_value(SMD_FEC_PHY_RST, 0);
 	msleep(1);
-	gpio_set_value(SMD_FEC_PHY_RST, 1);
+	gpio_set_value(MX53_EVK_FEC_PHY_RST, 1);
 }
 
 static struct fec_platform_data mx53_evk_fec_pdata = {

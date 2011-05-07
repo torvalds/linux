@@ -100,7 +100,8 @@ void __init irq_fpga_init(void)
 	SyncExBus();
 
 	for (irq = NR_CPU_IRQS; irq < NR_IRQS; irq++)
-		set_irq_chip_and_handler(irq, &asb2364_fpga_pic, handle_level_irq);
+		irq_set_chip_and_handler(irq, &asb2364_fpga_pic,
+					 handle_level_irq);
 
 	/* the FPGA drives the XIRQ1 input on the CPU PIC */
 	setup_irq(XIRQ1, &fpga_irq[0]);

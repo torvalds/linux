@@ -1187,12 +1187,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		pid = alloc_pid(p->nsproxy->pid_ns);
 		if (!pid)
 			goto bad_fork_cleanup_io;
-
-		if (clone_flags & CLONE_NEWPID) {
-			retval = pid_ns_prepare_proc(p->nsproxy->pid_ns);
-			if (retval < 0)
-				goto bad_fork_free_pid;
-		}
 	}
 
 	p->pid = pid_nr(pid);
@@ -1211,6 +1205,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * Clear TID on mm_release()?
 	 */
 	p->clear_child_tid = (clone_flags & CLONE_CHILD_CLEARTID) ? child_tidptr: NULL;
+#ifdef CONFIG_BLOCK
+	p->plug = NULL;
+#endif
 #ifdef CONFIG_FUTEX
 	p->robust_list = NULL;
 #ifdef CONFIG_COMPAT
@@ -1296,7 +1293,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		tracehook_finish_clone(p, clone_flags, trace);
 
 		if (thread_group_leader(p)) {
-			if (clone_flags & CLONE_NEWPID)
+			if (is_child_reaper(pid))
 				p->nsproxy->pid_ns->child_reaper = p;
 
 			p->signal->leader_pid = pid;

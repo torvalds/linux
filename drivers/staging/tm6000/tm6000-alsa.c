@@ -76,14 +76,11 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 static int _tm6000_start_audio_dma(struct snd_tm6000_card *chip)
 {
 	struct tm6000_core *core = chip->core;
-	int val;
 
 	dprintk(1, "Starting audio DMA\n");
 
 	/* Enables audio */
-	val = tm6000_get_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x0);
-	val |= 0x20;
-	tm6000_set_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
+	tm6000_set_reg_mask(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x40, 0x40);
 
 	tm6000_set_audio_bitrate(core, 48000);
 
@@ -98,13 +95,11 @@ static int _tm6000_start_audio_dma(struct snd_tm6000_card *chip)
 static int _tm6000_stop_audio_dma(struct snd_tm6000_card *chip)
 {
 	struct tm6000_core *core = chip->core;
-	int val;
+
 	dprintk(1, "Stopping audio DMA\n");
 
-	/* Enables audio */
-	val = tm6000_get_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x0);
-	val &= ~0x20;
-	tm6000_set_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
+	/* Disables audio */
+	tm6000_set_reg_mask(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x00, 0x40);
 
 	tm6000_set_reg(core, TM6010_REQ08_R01_A_INIT, 0);
 

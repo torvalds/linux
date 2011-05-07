@@ -213,11 +213,12 @@ static int mv64x60_host_map(struct irq_host *h, unsigned int virq,
 {
 	int level1;
 
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
+	irq_set_status_flags(virq, IRQ_LEVEL);
 
 	level1 = (hwirq & MV64x60_LEVEL1_MASK) >> MV64x60_LEVEL1_OFFSET;
 	BUG_ON(level1 > MV64x60_LEVEL1_GPP);
-	set_irq_chip_and_handler(virq, mv64x60_chips[level1], handle_level_irq);
+	irq_set_chip_and_handler(virq, mv64x60_chips[level1],
+				 handle_level_irq);
 
 	return 0;
 }

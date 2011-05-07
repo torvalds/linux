@@ -144,6 +144,7 @@ static inline uint xlog_get_client_id(__be32 i)
 #define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
 #define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
 					   shutdown */
+#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
 
 #ifdef __KERNEL__
 /*
@@ -570,7 +571,7 @@ int	xlog_write(struct log *log, struct xfs_log_vec *log_vector,
  * When we crack an atomic LSN, we sample it first so that the value will not
  * change while we are cracking it into the component values. This means we
  * will always get consistent component values to work from. This should always
- * be used to smaple and crack LSNs taht are stored and updated in atomic
+ * be used to sample and crack LSNs that are stored and updated in atomic
  * variables.
  */
 static inline void

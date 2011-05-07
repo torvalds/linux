@@ -2,6 +2,7 @@
 #define __ASM_ARM_CPUTYPE_H
 
 #include <linux/stringify.h>
+#include <linux/kernel.h>
 
 #define CPUID_ID	0
 #define CPUID_CACHETYPE	1

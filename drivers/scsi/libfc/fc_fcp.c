@@ -870,7 +870,7 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 				fsp->scsi_resid = ntohl(rp_ex->fr_resid);
 				/*
 				 * The cmnd->underflow is the minimum number of
-				 * bytes that must be transfered for this
+				 * bytes that must be transferred for this
 				 * command.  Provided a sense condition is not
 				 * present, make sure the actual amount
 				 * transferred is at least the underflow value
@@ -1306,7 +1306,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 }
 
 /**
- * fc_tm_done() - Task Managment response handler
+ * fc_tm_done() - Task Management response handler
  * @seq: The sequence that the response is on
  * @fp:	 The response frame
  * @arg: The FCP packet the response is for

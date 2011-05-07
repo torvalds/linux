@@ -692,7 +692,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 	efx_oword_t md_stat;
 	int count;
 
-	/* wait upto 50ms - taken max from datasheet */
+	/* wait up to 50ms - taken max from datasheet */
 	for (count = 0; count < 5000; count++) {
 		efx_reado(efx, &md_stat, FR_AB_MD_STAT);
 		if (EFX_OWORD_FIELD(md_stat, FRF_AB_MD_BSY) == 0) {
@@ -1221,7 +1221,7 @@ static int falcon_reset_sram(struct efx_nic *efx)
 
 			return 0;
 		}
-	} while (++count < 20);	/* wait upto 0.4 sec */
+	} while (++count < 20);	/* wait up to 0.4 sec */
 
 	netif_err(efx, hw, efx->net_dev, "timed out waiting for SRAM reset\n");
 	return -ETIMEDOUT;

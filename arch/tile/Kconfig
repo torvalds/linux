@@ -11,7 +11,7 @@ config TILE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
-	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -51,7 +51,7 @@ config GENERIC_TIME
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
-# FIXME: tilegx can implement a more efficent rwsem.
+# FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

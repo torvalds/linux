@@ -1179,7 +1179,7 @@ static void BCMFASTPATH dma64_txreclaim(dma_info_t *di, txd_range_t range)
 		   (range == HNDDMA_RANGE_ALL) ? "all" :
 		   ((range ==
 		     HNDDMA_RANGE_TRANSMITTED) ? "transmitted" :
-		    "transfered")));
+		    "transferred")));
 
 	if (di->txin == di->txout)
 		return;
@@ -1549,7 +1549,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
  * If range is HNDDMA_RANGE_TRANSMITTED, reclaim descriptors that have be
  * transmitted as noted by the hardware "CurrDescr" pointer.
  * If range is HNDDMA_RANGE_TRANSFERED, reclaim descriptors that have be
- * transfered by the DMA as noted by the hardware "ActiveDescr" pointer.
+ * transferred by the DMA as noted by the hardware "ActiveDescr" pointer.
  * If range is HNDDMA_RANGE_ALL, reclaim all txd(s) posted to the ring and
  * return associated packet regardless of the value of hardware pointers.
  */
@@ -1563,7 +1563,7 @@ static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 		   (range == HNDDMA_RANGE_ALL) ? "all" :
 		   ((range ==
 		     HNDDMA_RANGE_TRANSMITTED) ? "transmitted" :
-		    "transfered")));
+		    "transferred")));
 
 	if (di->ntxd == 0)
 		return NULL;

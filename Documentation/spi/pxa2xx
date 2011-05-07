@@ -143,7 +143,7 @@ configured to use SSPFRM instead.
 NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
 asserted around the complete message.  Use SSPFRM as a GPIO (through cs_control)
-to accomodate these chips.
+to accommodate these chips.
 
 
 NSSP SLAVE SAMPLE

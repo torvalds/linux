@@ -97,7 +97,7 @@ functions:
 The passed struct file_system_type describes your filesystem. When a
 request is made to mount a filesystem onto a directory in your namespace,
 the VFS will call the appropriate mount() method for the specific
-filesystem.  New vfsmount refering to the tree returned by ->mount()
+filesystem.  New vfsmount referring to the tree returned by ->mount()
 will be attached to the mountpoint, so that when pathname resolution
 reaches the mountpoint it will jump into the root of that vfsmount.
 
@@ -254,7 +254,7 @@ or bottom half).
 	should be synchronous or not, not all filesystems check this flag.
 
   drop_inode: called when the last access to the inode is dropped,
-	with the inode_lock spinlock held.
+	with the inode->i_lock spinlock held.
 
 	This method should be either NULL (normal UNIX filesystem
 	semantics) or "generic_delete_inode" (for filesystems that do not
