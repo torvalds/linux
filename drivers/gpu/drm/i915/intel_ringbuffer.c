@@ -551,10 +551,31 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 {
+	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	u32 mmio = (IS_GEN6(ring->dev) || IS_GEN7(ring->dev)) ?
-		RING_HWS_PGA_GEN6(ring->mmio_base) :
-		RING_HWS_PGA(ring->mmio_base);
+	u32 mmio = 0;
+
+	/* The ring status page addresses are no longer next to the rest of
+	 * the ring registers as of gen7.
+	 */
+	if (IS_GEN7(dev)) {
+		switch (ring->id) {
+		case RING_RENDER:
+			mmio = RENDER_HWS_PGA_GEN7;
+			break;
+		case RING_BLT:
+			mmio = BLT_HWS_PGA_GEN7;
+			break;
+		case RING_BSD:
+			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		}
+	} else if (IS_GEN6(ring->dev)) {
+		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+	} else {
+		mmio = RING_HWS_PGA(ring->mmio_base);
+	}
+
 	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
 	POSTING_READ(mmio);
 }
