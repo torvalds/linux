@@ -1420,11 +1420,6 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst_mac")) {
-		char *v = valstr;
-		unsigned char old_dmac[ETH_ALEN];
-		unsigned char *m = pkt_dev->dst_mac;
-		memcpy(old_dmac, pkt_dev->dst_mac, ETH_ALEN);
-
 		len = strn_len(&user_buffer[i], sizeof(valstr) - 1);
 		if (len < 0)
 			return len;
@@ -1432,35 +1427,16 @@ static ssize_t pktgen_if_write(struct file *file,
 		memset(valstr, 0, sizeof(valstr));
 		if (copy_from_user(valstr, &user_buffer[i], len))
 			return -EFAULT;
-		i += len;
 
-		for (*m = 0; *v && m < pkt_dev->dst_mac + 6; v++) {
-			int value;
-
-			value = hex_to_bin(*v);
-			if (value >= 0)
-				*m = *m * 16 + value;
-
-			if (*v == ':') {
-				m++;
-				*m = 0;
-			}
-		}
-
+		if (!mac_pton(valstr, pkt_dev->dst_mac))
+			return -EINVAL;
 		/* Set up Dest MAC */
-		if (compare_ether_addr(old_dmac, pkt_dev->dst_mac))
-			memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, ETH_ALEN);
+		memcpy(&pkt_dev->hh[0], pkt_dev->dst_mac, ETH_ALEN);
 
-		sprintf(pg_result, "OK: dstmac");
+		sprintf(pg_result, "OK: dstmac %pM", pkt_dev->dst_mac);
 		return count;
 	}
 	if (!strcmp(name, "src_mac")) {
-		char *v = valstr;
-		unsigned char old_smac[ETH_ALEN];
-		unsigned char *m = pkt_dev->src_mac;
-
-		memcpy(old_smac, pkt_dev->src_mac, ETH_ALEN);
-
 		len = strn_len(&user_buffer[i], sizeof(valstr) - 1);
 		if (len < 0)
 			return len;
@@ -1468,26 +1444,13 @@ static ssize_t pktgen_if_write(struct file *file,
 		memset(valstr, 0, sizeof(valstr));
 		if (copy_from_user(valstr, &user_buffer[i], len))
 			return -EFAULT;
-		i += len;
 
-		for (*m = 0; *v && m < pkt_dev->src_mac + 6; v++) {
-			int value;
-
-			value = hex_to_bin(*v);
-			if (value >= 0)
-				*m = *m * 16 + value;
-
-			if (*v == ':') {
-				m++;
-				*m = 0;
-			}
-		}
-
+		if (!mac_pton(valstr, pkt_dev->src_mac))
+			return -EINVAL;
 		/* Set up Src MAC */
-		if (compare_ether_addr(old_smac, pkt_dev->src_mac))
-			memcpy(&(pkt_dev->hh[6]), pkt_dev->src_mac, ETH_ALEN);
+		memcpy(&pkt_dev->hh[6], pkt_dev->src_mac, ETH_ALEN);
 
-		sprintf(pg_result, "OK: srcmac");
+		sprintf(pg_result, "OK: srcmac %pM", pkt_dev->src_mac);
 		return count;
 	}
 

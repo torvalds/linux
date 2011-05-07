@@ -429,8 +429,6 @@ static ssize_t store_remote_mac(struct netconsole_target *nt,
 				size_t count)
 {
 	u8 remote_mac[ETH_ALEN];
-	char *p = (char *) buf;
-	int i;
 
 	if (nt->enabled) {
 		printk(KERN_ERR "netconsole: target (%s) is enabled, "
@@ -439,23 +437,13 @@ static ssize_t store_remote_mac(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < ETH_ALEN - 1; i++) {
-		remote_mac[i] = simple_strtoul(p, &p, 16);
-		if (*p != ':')
-			goto invalid;
-		p++;
-	}
-	remote_mac[ETH_ALEN - 1] = simple_strtoul(p, &p, 16);
-	if (*p && (*p != '\n'))
-		goto invalid;
-
+	if (!mac_pton(buf, remote_mac))
+		return -EINVAL;
+	if (buf[3 * ETH_ALEN - 1] && buf[3 * ETH_ALEN - 1] != '\n')
+		return -EINVAL;
 	memcpy(nt->np.remote_mac, remote_mac, ETH_ALEN);
 
 	return strnlen(buf, count);
-
-invalid:
-	printk(KERN_ERR "netconsole: invalid input\n");
-	return -EINVAL;
 }
 
 /*
