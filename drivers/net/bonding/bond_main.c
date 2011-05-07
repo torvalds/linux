@@ -344,32 +344,6 @@ out:
 }
 
 /**
- * bond_has_challenged_slaves
- * @bond: the bond we're working on
- *
- * Searches the slave list. Returns 1 if a vlan challenged slave
- * was found, 0 otherwise.
- *
- * Assumes bond->lock is held.
- */
-static int bond_has_challenged_slaves(struct bonding *bond)
-{
-	struct slave *slave;
-	int i;
-
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->features & NETIF_F_VLAN_CHALLENGED) {
-			pr_debug("found VLAN challenged slave - %s\n",
-				 slave->dev->name);
-			return 1;
-		}
-	}
-
-	pr_debug("no VLAN challenged slaves found\n");
-	return 0;
-}
-
-/**
  * bond_next_vlan - safely skip to the next item in the vlans list.
  * @bond: the bond we're working on
  * @curr: item we're advancing from
@@ -1406,52 +1380,68 @@ static int bond_sethwaddr(struct net_device *bond_dev,
 	return 0;
 }
 
-#define BOND_VLAN_FEATURES \
-	(NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX | \
-	 NETIF_F_HW_VLAN_FILTER)
+static u32 bond_fix_features(struct net_device *dev, u32 features)
+{
+	struct slave *slave;
+	struct bonding *bond = netdev_priv(dev);
+	u32 mask;
+	int i;
 
-/*
- * Compute the common dev->feature set available to all slaves.  Some
- * feature bits are managed elsewhere, so preserve those feature bits
- * on the master device.
- */
-static int bond_compute_features(struct bonding *bond)
+	read_lock(&bond->lock);
+
+	if (!bond->first_slave) {
+		/* Disable adding VLANs to empty bond. But why? --mq */
+		features |= NETIF_F_VLAN_CHALLENGED;
+		goto out;
+	}
+
+	mask = features;
+	features &= ~NETIF_F_ONE_FOR_ALL;
+	features |= NETIF_F_ALL_FOR_ALL;
+
+	bond_for_each_slave(bond, slave, i) {
+		features = netdev_increment_features(features,
+						     slave->dev->features,
+						     mask);
+	}
+
+out:
+	read_unlock(&bond->lock);
+	return features;
+}
+
+#define BOND_VLAN_FEATURES	(NETIF_F_ALL_TX_OFFLOADS | \
+				 NETIF_F_SOFT_FEATURES | \
+				 NETIF_F_LRO)
+
+static void bond_compute_features(struct bonding *bond)
 {
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
-	u32 features = bond_dev->features;
-	u32 vlan_features = 0;
-	unsigned short max_hard_header_len = max((u16)ETH_HLEN,
-						bond_dev->hard_header_len);
+	u32 vlan_features = BOND_VLAN_FEATURES;
+	unsigned short max_hard_header_len = ETH_HLEN;
 	int i;
 
-	features &= ~(NETIF_F_ALL_CSUM | BOND_VLAN_FEATURES);
-	features |=  NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_NOCACHE_COPY;
+	read_lock(&bond->lock);
 
 	if (!bond->first_slave)
 		goto done;
 
-	features &= ~NETIF_F_ONE_FOR_ALL;
-
-	vlan_features = bond->first_slave->dev->vlan_features;
 	bond_for_each_slave(bond, slave, i) {
-		features = netdev_increment_features(features,
-						     slave->dev->features,
-						     NETIF_F_ONE_FOR_ALL);
 		vlan_features = netdev_increment_features(vlan_features,
-							slave->dev->vlan_features,
-							NETIF_F_ONE_FOR_ALL);
+			slave->dev->vlan_features, BOND_VLAN_FEATURES);
+
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
 
 done:
-	features |= (bond_dev->features & BOND_VLAN_FEATURES);
-	bond_dev->features = netdev_fix_features(bond_dev, features);
-	bond_dev->vlan_features = netdev_fix_features(bond_dev, vlan_features);
+	bond_dev->vlan_features = vlan_features;
 	bond_dev->hard_header_len = max_hard_header_len;
 
-	return 0;
+	read_unlock(&bond->lock);
+
+	netdev_change_features(bond_dev);
 }
 
 static void bond_setup_by_slave(struct net_device *bond_dev,
@@ -1544,7 +1534,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct netdev_hw_addr *ha;
 	struct sockaddr addr;
 	int link_reporting;
-	int old_features = bond_dev->features;
 	int res = 0;
 
 	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
@@ -1577,16 +1566,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			pr_warning("%s: Warning: enslaved VLAN challenged slave %s. Adding VLANs will be blocked as long as %s is part of bond %s\n",
 				   bond_dev->name, slave_dev->name,
 				   slave_dev->name, bond_dev->name);
-			bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 		}
 	} else {
 		pr_debug("%s: ! NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
-		if (bond->slave_cnt == 0) {
-			/* First slave, and it is not VLAN challenged,
-			 * so remove the block of adding VLANs over the bond.
-			 */
-			bond_dev->features &= ~NETIF_F_VLAN_CHALLENGED;
-		}
 	}
 
 	/*
@@ -1775,9 +1757,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	new_slave->delay = 0;
 	new_slave->link_failure_count = 0;
 
-	bond_compute_features(bond);
-
 	write_unlock_bh(&bond->lock);
+
+	bond_compute_features(bond);
 
 	read_lock(&bond->lock);
 
@@ -1958,7 +1940,7 @@ err_free:
 	kfree(new_slave);
 
 err_undo_flags:
-	bond_dev->features = old_features;
+	bond_compute_features(bond);
 
 	return res;
 }
@@ -1979,6 +1961,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
 	struct sockaddr addr;
+	u32 old_features = bond_dev->features;
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
@@ -2039,8 +2022,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* release the slave from its bond */
 	bond_detach_slave(bond, slave);
 
-	bond_compute_features(bond);
-
 	if (bond->primary_slave == slave)
 		bond->primary_slave = NULL;
 
@@ -2084,23 +2065,22 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		 */
 		memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
 
-		if (!bond->vlgrp) {
-			bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
-		} else {
+		if (bond->vlgrp) {
 			pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
 				   bond_dev->name, bond_dev->name);
 			pr_warning("%s: When re-adding slaves, make sure the bond's HW address matches its VLANs'.\n",
 				   bond_dev->name);
 		}
-	} else if ((bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
-		   !bond_has_challenged_slaves(bond)) {
-		pr_info("%s: last VLAN challenged slave %s left bond %s. VLAN blocking is removed\n",
-			bond_dev->name, slave_dev->name, bond_dev->name);
-		bond_dev->features &= ~NETIF_F_VLAN_CHALLENGED;
 	}
 
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
+
+	bond_compute_features(bond);
+	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
+	    (old_features & NETIF_F_VLAN_CHALLENGED))
+		pr_info("%s: last VLAN challenged slave %s left bond %s. VLAN blocking is removed\n",
+			bond_dev->name, slave_dev->name, bond_dev->name);
 
 	/* must do this from outside any spinlocks */
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
@@ -2219,8 +2199,6 @@ static int bond_release_all(struct net_device *bond_dev)
 			bond_alb_deinit_slave(bond, slave);
 		}
 
-		bond_compute_features(bond);
-
 		bond_destroy_slave_symlinks(bond_dev, slave_dev);
 		bond_del_vlans_from_slave(bond, slave_dev);
 
@@ -2269,9 +2247,7 @@ static int bond_release_all(struct net_device *bond_dev)
 	 */
 	memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
 
-	if (!bond->vlgrp) {
-		bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
-	} else {
+	if (bond->vlgrp) {
 		pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
 			   bond_dev->name, bond_dev->name);
 		pr_warning("%s: When re-adding slaves, make sure the bond's HW address matches its VLANs'.\n",
@@ -2282,6 +2258,9 @@ static int bond_release_all(struct net_device *bond_dev)
 
 out:
 	write_unlock_bh(&bond->lock);
+
+	bond_compute_features(bond);
+
 	return 0;
 }
 
@@ -4337,11 +4316,6 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tso		= ethtool_op_get_tso,
-	.get_ufo		= ethtool_op_get_ufo,
-	.get_flags		= ethtool_op_get_flags,
 };
 
 static const struct net_device_ops bond_netdev_ops = {
@@ -4367,6 +4341,7 @@ static const struct net_device_ops bond_netdev_ops = {
 #endif
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
+	.ndo_fix_features	= bond_fix_features,
 };
 
 static void bond_destructor(struct net_device *bond_dev)
@@ -4422,14 +4397,14 @@ static void bond_setup(struct net_device *bond_dev)
 	 * when there are slaves that are not hw accel
 	 * capable
 	 */
-	bond_dev->features |= (NETIF_F_HW_VLAN_TX |
-			       NETIF_F_HW_VLAN_RX |
-			       NETIF_F_HW_VLAN_FILTER);
 
-	/* By default, we enable GRO on bonding devices.
-	 * Actual support requires lowlevel drivers are GRO ready.
-	 */
-	bond_dev->features |= NETIF_F_GRO;
+	bond_dev->hw_features = BOND_VLAN_FEATURES |
+				NETIF_F_HW_VLAN_TX |
+				NETIF_F_HW_VLAN_RX |
+				NETIF_F_HW_VLAN_FILTER;
+
+	bond_dev->hw_features &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_NO_CSUM);
+	bond_dev->features |= bond_dev->hw_features;
 }
 
 static void bond_work_cancel_all(struct bonding *bond)
