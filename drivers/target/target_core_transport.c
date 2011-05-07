@@ -3132,7 +3132,12 @@ static int transport_generic_cmd_sequencer(
 			sectors = transport_get_sectors_32(cdb, cmd, &sector_ret);
 			if (sector_ret)
 				goto out_unsupported_cdb;
-			size = transport_get_size(sectors, cdb, cmd);
+
+			if (sectors != 0)
+				size = transport_get_size(sectors, cdb, cmd);
+			else
+				size = dev->se_sub_dev->se_dev_attrib.block_size;
+
 			cmd->t_task.t_task_lba = get_unaligned_be64(&cdb[12]);
 			cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 
@@ -3416,7 +3421,12 @@ static int transport_generic_cmd_sequencer(
 		sectors = transport_get_sectors_16(cdb, cmd, &sector_ret);
 		if (sector_ret)
 			goto out_unsupported_cdb;
-		size = transport_get_size(sectors, cdb, cmd);
+
+		if (sectors != 0)
+			size = transport_get_size(sectors, cdb, cmd);
+		else
+			size = dev->se_sub_dev->se_dev_attrib.block_size;
+
 		cmd->t_task.t_task_lba = get_unaligned_be64(&cdb[2]);
 		passthrough = (dev->transport->transport_type ==
 				TRANSPORT_PLUGIN_PHBA_PDEV);

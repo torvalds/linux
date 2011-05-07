@@ -1008,18 +1008,30 @@ target_emulate_unmap(struct se_task *task)
  * Note this is not used for TCM/pSCSI passthrough
  */
 static int
-target_emulate_write_same(struct se_task *task)
+target_emulate_write_same(struct se_task *task, int write_same32)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
-	sector_t lba = cmd->t_task.t_task_lba;
-	unsigned int range;
+	sector_t range, lba = cmd->t_task.t_task_lba;
+	unsigned int num_blocks;
 	int ret;
+	/*
+	 * Extract num_blocks from the WRITE_SAME_* CDB.  Then use the explict
+	 * range when non zero is supplied, otherwise calculate the remaining
+	 * range based on ->get_blocks() - starting LBA.
+	 */
+	if (write_same32)
+		num_blocks = get_unaligned_be32(&cmd->t_task.t_task_cdb[28]);
+	else
+		num_blocks = get_unaligned_be32(&cmd->t_task.t_task_cdb[10]);
 
-	range = (cmd->data_length / dev->se_sub_dev->se_dev_attrib.block_size);
+	if (num_blocks != 0)
+		range = num_blocks;
+	else
+		range = (dev->transport->get_blocks(dev) - lba);
 
-	printk(KERN_INFO "WRITE_SAME UNMAP: LBA: %llu Range: %u\n",
-			 (unsigned long long)lba, range);
+	printk(KERN_INFO "WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
+		 (unsigned long long)lba, (unsigned long long)range);
 
 	ret = dev->transport->do_discard(dev, lba, range);
 	if (ret < 0) {
@@ -1081,7 +1093,7 @@ transport_emulate_control_cdb(struct se_task *task)
 					" for: %s\n", dev->transport->name);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
-		ret = target_emulate_write_same(task);
+		ret = target_emulate_write_same(task, 0);
 		break;
 	case VARIABLE_LENGTH_CMD:
 		service_action =
@@ -1094,7 +1106,7 @@ transport_emulate_control_cdb(struct se_task *task)
 					dev->transport->name);
 				return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 			}
-			ret = target_emulate_write_same(task);
+			ret = target_emulate_write_same(task, 1);
 			break;
 		default:
 			printk(KERN_ERR "Unsupported VARIABLE_LENGTH_CMD SA:"
