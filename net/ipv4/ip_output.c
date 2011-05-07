@@ -327,12 +327,12 @@ int ip_queue_xmit(struct sk_buff *skb, struct flowi *fl)
 	 */
 	rcu_read_lock();
 	inet_opt = rcu_dereference(inet->inet_opt);
+	fl4 = &fl->u.ip4;
 	rt = skb_rtable(skb);
 	if (rt != NULL)
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
-	fl4 = &fl->u.ip4;
 	rt = (struct rtable *)__sk_dst_check(sk, 0);
 	if (rt == NULL) {
 		__be32 daddr;
@@ -360,7 +360,7 @@ int ip_queue_xmit(struct sk_buff *skb, struct flowi *fl)
 	skb_dst_set_noref(skb, &rt->dst);
 
 packet_routed:
-	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (inet_opt && inet_opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
@@ -374,8 +374,8 @@ packet_routed:
 		iph->frag_off = 0;
 	iph->ttl      = ip_select_ttl(inet, &rt->dst);
 	iph->protocol = sk->sk_protocol;
-	iph->saddr    = rt->rt_src;
-	iph->daddr    = rt->rt_dst;
+	iph->saddr    = fl4->saddr;
+	iph->daddr    = fl4->daddr;
 	/* Transport layer set skb->h.foo itself. */
 
 	if (inet_opt && inet_opt->opt.optlen) {
