@@ -57,7 +57,7 @@
 #define SW_AVG_16			0x60
 #define ADC_SW_CONV			0x04
 #define EN_ICHAR			0x80
-#define BATTEMP_PULLUP			0x04
+#define BTEMP_PULL_UP			0x08
 #define EN_BUF				0x40
 #define DIS_ZERO			0x00
 #define GPADC_BUSY			0x01
@@ -306,8 +306,8 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 			ret = abx500_mask_and_set_register_interruptible(
 				gpadc->dev,
 				AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
-				EN_BUF | BATTEMP_PULLUP,
-				EN_BUF | BATTEMP_PULLUP);
+				EN_BUF | BTEMP_PULL_UP,
+				EN_BUF | BTEMP_PULL_UP);
 
 		 /*
 		  * Delay might be needed for ABB8500 cut 3.0, if not, remove
