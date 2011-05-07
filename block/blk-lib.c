@@ -9,17 +9,23 @@
 
 #include "blk.h"
 
-static void blkdev_discard_end_io(struct bio *bio, int err)
+struct bio_batch {
+	atomic_t		done;
+	unsigned long		flags;
+	struct completion	*wait;
+};
+
+static void bio_batch_end_io(struct bio *bio, int err)
 {
+	struct bio_batch *bb = bio->bi_private;
+
 	if (err) {
 		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+			set_bit(BIO_EOPNOTSUPP, &bb->flags);
+		clear_bit(BIO_UPTODATE, &bb->flags);
 	}
-
-	if (bio->bi_private)
-		complete(bio->bi_private);
-
+	if (atomic_dec_and_test(&bb->done))
+		complete(bb->wait);
 	bio_put(bio);
 }
 
@@ -41,6 +47,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = REQ_WRITE | REQ_DISCARD;
 	unsigned int max_discard_sectors;
+	struct bio_batch bb;
 	struct bio *bio;
 	int ret = 0;
 
@@ -67,7 +74,11 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		type |= REQ_SECURE;
 	}
 
-	while (nr_sects && !ret) {
+	atomic_set(&bb.done, 1);
+	bb.flags = 1 << BIO_UPTODATE;
+	bb.wait = &wait;
+
+	while (nr_sects) {
 		bio = bio_alloc(gfp_mask, 1);
 		if (!bio) {
 			ret = -ENOMEM;
@@ -75,9 +86,9 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		}
 
 		bio->bi_sector = sector;
-		bio->bi_end_io = blkdev_discard_end_io;
+		bio->bi_end_io = bio_batch_end_io;
 		bio->bi_bdev = bdev;
-		bio->bi_private = &wait;
+		bio->bi_private = &bb;
 
 		if (nr_sects > max_discard_sectors) {
 			bio->bi_size = max_discard_sectors << 9;
@@ -88,44 +99,22 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			nr_sects = 0;
 		}
 
-		bio_get(bio);
+		atomic_inc(&bb.done);
 		submit_bio(type, bio);
+	}
 
+	/* Wait for bios in-flight */
+	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion(&wait);
 
-		if (bio_flagged(bio, BIO_EOPNOTSUPP))
-			ret = -EOPNOTSUPP;
-		else if (!bio_flagged(bio, BIO_UPTODATE))
-			ret = -EIO;
-		bio_put(bio);
-	}
+	if (test_bit(BIO_EOPNOTSUPP, &bb.flags))
+		ret = -EOPNOTSUPP;
+	else if (!test_bit(BIO_UPTODATE, &bb.flags))
+		ret = -EIO;
 
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
-
-struct bio_batch
-{
-	atomic_t 		done;
-	unsigned long 		flags;
-	struct completion 	*wait;
-};
-
-static void bio_batch_end_io(struct bio *bio, int err)
-{
-	struct bio_batch *bb = bio->bi_private;
-
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bb->flags);
-		else
-			clear_bit(BIO_UPTODATE, &bb->flags);
-	}
-	if (bb)
-		if (atomic_dec_and_test(&bb->done))
-			complete(bb->wait);
-	bio_put(bio);
-}
 
 /**
  * blkdev_issue_zeroout - generate number of zero filed write bios
