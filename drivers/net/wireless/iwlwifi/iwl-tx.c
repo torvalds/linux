@@ -582,6 +582,11 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int trace_idx;
 #endif
 
+	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
+		IWL_WARN(priv, "fw recovery, no hcmd send\n");
+		return -EIO;
+	}
+
 	copy_size = sizeof(out_cmd->hdr);
 	cmd_size = sizeof(out_cmd->hdr);
 

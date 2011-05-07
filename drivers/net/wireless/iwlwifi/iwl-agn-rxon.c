@@ -389,11 +389,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * AP station must be done after the BSSID is set to correctly
 	 * set up filters in the device.
 	 */
-	if ((old_assoc && new_assoc) || !new_assoc) {
-		ret = iwlagn_rxon_disconn(priv, ctx);
-		if (ret)
-			return ret;
-	}
+	ret = iwlagn_rxon_disconn(priv, ctx);
+	if (ret)
+		return ret;
 
 	if (new_assoc)
 		return iwlagn_rxon_connect(priv, ctx);
