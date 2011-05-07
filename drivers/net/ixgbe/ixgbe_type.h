@@ -707,6 +707,13 @@
 #define IXGBE_HFDR      0x15FE8
 #define IXGBE_FLEX_MNG  0x15800 /* 0x15800 - 0x15EFC */
 
+#define IXGBE_HICR_EN              0x01  /* Enable bit - RO */
+/* Driver sets this bit when done to put command in RAM */
+#define IXGBE_HICR_C               0x02
+#define IXGBE_HICR_SV              0x04  /* Status Validity */
+#define IXGBE_HICR_FW_RESET_ENABLE 0x40
+#define IXGBE_HICR_FW_RESET        0x80
+
 /* PCI-E registers */
 #define IXGBE_GCR       0x11000
 #define IXGBE_GTV       0x11004
@@ -2124,6 +2131,41 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIR_INIT_DONE_POLL               10
 #define IXGBE_FDIRCMD_CMD_POLL                  10
 
+/* Manageablility Host Interface defines */
+#define IXGBE_HI_MAX_BLOCK_BYTE_LENGTH       1792 /* Num of bytes in range */
+#define IXGBE_HI_MAX_BLOCK_DWORD_LENGTH      448 /* Num of dwords in range */
+#define IXGBE_HI_COMMAND_TIMEOUT             500 /* Process HI command limit */
+
+/* CEM Support */
+#define FW_CEM_HDR_LEN                0x4
+#define FW_CEM_CMD_DRIVER_INFO        0xDD
+#define FW_CEM_CMD_DRIVER_INFO_LEN    0x5
+#define FW_CEM_CMD_RESERVED           0X0
+#define FW_CEM_MAX_RETRIES            3
+#define FW_CEM_RESP_STATUS_SUCCESS    0x1
+
+/* Host Interface Command Structures */
+struct ixgbe_hic_hdr {
+	u8 cmd;
+	u8 buf_len;
+	union {
+		u8 cmd_resv;
+		u8 ret_status;
+	} cmd_or_resp;
+	u8 checksum;
+};
+
+struct ixgbe_hic_drv_info {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_num;
+	u8 ver_sub;
+	u8 ver_build;
+	u8 ver_min;
+	u8 ver_maj;
+	u8 pad; /* end spacing to ensure length is mult. of dword */
+	u16 pad2; /* end spacing to ensure length is mult. of dword2 */
+};
+
 /* Transmit Descriptor - Advanced */
 union ixgbe_adv_tx_desc {
 	struct {
@@ -2663,6 +2705,9 @@ struct ixgbe_mac_operations {
 
 	/* Flow Control */
 	s32 (*fc_enable)(struct ixgbe_hw *, s32);
+
+	/* Manageability interface */
+	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
 };
 
 struct ixgbe_phy_operations {
@@ -2832,6 +2877,7 @@ struct ixgbe_info {
 #define IXGBE_ERR_SFP_SETUP_NOT_COMPLETE        -30
 #define IXGBE_ERR_PBA_SECTION                   -31
 #define IXGBE_ERR_INVALID_ARGUMENT              -32
+#define IXGBE_ERR_HOST_INTERFACE_COMMAND        -33
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #endif /* _IXGBE_TYPE_H_ */

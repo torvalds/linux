@@ -3333,3 +3333,177 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw,
 		IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i), 0);
 	}
 }
+
+/**
+ *  ixgbe_calculate_checksum - Calculate checksum for buffer
+ *  @buffer: pointer to EEPROM
+ *  @length: size of EEPROM to calculate a checksum for
+ *  Calculates the checksum for some buffer on a specified length.  The
+ *  checksum calculated is returned.
+ **/
+static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
+{
+	u32 i;
+	u8 sum = 0;
+
+	if (!buffer)
+		return 0;
+
+	for (i = 0; i < length; i++)
+		sum += buffer[i];
+
+	return (u8) (0 - sum);
+}
+
+/**
+ *  ixgbe_host_interface_command - Issue command to manageability block
+ *  @hw: pointer to the HW structure
+ *  @buffer: contains the command to write and where the return status will
+ *           be placed
+ *  @lenght: lenght of buffer, must be multiple of 4 bytes
+ *
+ *  Communicates with the manageability block.  On success return 0
+ *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.
+ **/
+static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u8 *buffer,
+					u32 length)
+{
+	u32 hicr, i;
+	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
+	u8 buf_len, dword_len;
+
+	s32 ret_val = 0;
+
+	if (length == 0 || length & 0x3 ||
+	    length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
+		hw_dbg(hw, "Buffer length failure.\n");
+		ret_val = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Check that the host interface is enabled. */
+	hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
+	if ((hicr & IXGBE_HICR_EN) == 0) {
+		hw_dbg(hw, "IXGBE_HOST_EN bit disabled.\n");
+		ret_val = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Calculate length in DWORDs */
+	dword_len = length >> 2;
+
+	/*
+	 * The device driver writes the relevant command block
+	 * into the ram area.
+	 */
+	for (i = 0; i < dword_len; i++)
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
+				      i, *((u32 *)buffer + i));
+
+	/* Setting this bit tells the ARC that a new command is pending. */
+	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
+
+	for (i = 0; i < IXGBE_HI_COMMAND_TIMEOUT; i++) {
+		hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
+		if (!(hicr & IXGBE_HICR_C))
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	/* Check command successful completion. */
+	if (i == IXGBE_HI_COMMAND_TIMEOUT ||
+	    (!(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV))) {
+		hw_dbg(hw, "Command has failed with no status valid.\n");
+		ret_val = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Calculate length in DWORDs */
+	dword_len = hdr_size >> 2;
+
+	/* first pull in the header so we know the buffer length */
+	for (i = 0; i < dword_len; i++)
+		*((u32 *)buffer + i) =
+			IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, i);
+
+	/* If there is any thing in data position pull it in */
+	buf_len = ((struct ixgbe_hic_hdr *)buffer)->buf_len;
+	if (buf_len == 0)
+		goto out;
+
+	if (length < (buf_len + hdr_size)) {
+		hw_dbg(hw, "Buffer not large enough for reply message.\n");
+		ret_val = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Calculate length in DWORDs, add one for odd lengths */
+	dword_len = (buf_len + 1) >> 2;
+
+	/* Pull in the rest of the buffer (i is where we left off)*/
+	for (; i < buf_len; i++)
+		*((u32 *)buffer + i) =
+			IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, i);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  ixgbe_set_fw_drv_ver_generic - Sends driver version to firmware
+ *  @hw: pointer to the HW structure
+ *  @maj: driver version major number
+ *  @min: driver version minor number
+ *  @build: driver version build number
+ *  @sub: driver version sub build number
+ *
+ *  Sends driver version number to firmware through the manageability
+ *  block.  On success return 0
+ *  else returns IXGBE_ERR_SWFW_SYNC when encountering an error acquiring
+ *  semaphore or IXGBE_ERR_HOST_INTERFACE_COMMAND when command fails.
+ **/
+s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
+				 u8 build, u8 sub)
+{
+	struct ixgbe_hic_drv_info fw_cmd;
+	int i;
+	s32 ret_val = 0;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM) != 0) {
+		ret_val = IXGBE_ERR_SWFW_SYNC;
+		goto out;
+	}
+
+	fw_cmd.hdr.cmd = FW_CEM_CMD_DRIVER_INFO;
+	fw_cmd.hdr.buf_len = FW_CEM_CMD_DRIVER_INFO_LEN;
+	fw_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+	fw_cmd.port_num = (u8)hw->bus.func;
+	fw_cmd.ver_maj = maj;
+	fw_cmd.ver_min = min;
+	fw_cmd.ver_build = build;
+	fw_cmd.ver_sub = sub;
+	fw_cmd.hdr.checksum = 0;
+	fw_cmd.hdr.checksum = ixgbe_calculate_checksum((u8 *)&fw_cmd,
+				(FW_CEM_HDR_LEN + fw_cmd.hdr.buf_len));
+	fw_cmd.pad = 0;
+	fw_cmd.pad2 = 0;
+
+	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
+		ret_val = ixgbe_host_interface_command(hw, (u8 *)&fw_cmd,
+						       sizeof(fw_cmd));
+		if (ret_val != 0)
+			continue;
+
+		if (fw_cmd.hdr.cmd_or_resp.ret_status ==
+		    FW_CEM_RESP_STATUS_SUCCESS)
+			ret_val = 0;
+		else
+			ret_val = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+
+		break;
+	}
+
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM);
+out:
+	return ret_val;
+}
