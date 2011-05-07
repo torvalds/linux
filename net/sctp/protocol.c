@@ -848,8 +848,8 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n",
 			  __func__, skb, skb->len,
-			  &skb_rtable(skb)->rt_src,
-			  &skb_rtable(skb)->rt_dst);
+			  transport->fl.u.ip4.saddr,
+			  transport->fl.u.ip4.daddr);
 
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
