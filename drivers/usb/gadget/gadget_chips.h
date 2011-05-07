@@ -136,6 +136,12 @@
 #define gadget_is_s3c_hsotg(g)    0
 #endif
 
+#ifdef CONFIG_USB_S3C_HSUDC
+#define gadget_is_s3c_hsudc(g) (!strcmp("s3c-hsudc", (g)->name))
+#else
+#define gadget_is_s3c_hsudc(g) 0
+#endif
+
 #ifdef CONFIG_USB_GADGET_EG20T
 #define	gadget_is_pch(g)	(!strcmp("pch_udc", (g)->name))
 #else
@@ -215,6 +221,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x28;
 	else if (gadget_is_renesas_usbhs(gadget))
 		return 0x29;
+	else if (gadget_is_s3c_hsudc(gadget))
+		return 0x30;
 
 	return -ENOENT;
 }
