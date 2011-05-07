@@ -19,11 +19,8 @@ static void bio_batch_end_io(struct bio *bio, int err)
 {
 	struct bio_batch *bb = bio->bi_private;
 
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bb->flags);
+	if (err && (err != -EOPNOTSUPP))
 		clear_bit(BIO_UPTODATE, &bb->flags);
-	}
 	if (atomic_dec_and_test(&bb->done))
 		complete(bb->wait);
 	bio_put(bio);
@@ -107,9 +104,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion(&wait);
 
-	if (test_bit(BIO_EOPNOTSUPP, &bb.flags))
-		ret = -EOPNOTSUPP;
-	else if (!test_bit(BIO_UPTODATE, &bb.flags))
+	if (!test_bit(BIO_UPTODATE, &bb.flags))
 		ret = -EIO;
 
 	return ret;
