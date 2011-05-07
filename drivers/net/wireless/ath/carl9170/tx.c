@@ -156,10 +156,8 @@ out_rcu:
 
 static void carl9170_tx_accounting_free(struct ar9170 *ar, struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *txinfo;
 	int queue;
 
-	txinfo = IEEE80211_SKB_CB(skb);
 	queue = skb_get_queue_mapping(skb);
 
 	spin_lock_bh(&ar->tx_stats_lock);
@@ -380,7 +378,6 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 {
 	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct ieee80211_hdr *hdr = (void *) super->frame_data;
-	struct carl9170_tx_info *ar_info;
 	struct ieee80211_sta *sta;
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *tid_info;
@@ -390,8 +387,6 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	    txinfo->flags & IEEE80211_TX_CTL_INJECTED ||
 	   (!(super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_AGGR))))
 		return;
-
-	ar_info = (void *) txinfo->rate_driver_data;
 
 	rcu_read_lock();
 	sta = __carl9170_get_tx_sta(ar, skb);
@@ -623,7 +618,6 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 {
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *txinfo;
-	struct carl9170_tx_info *arinfo;
 	unsigned int r, t, q;
 	bool success = true;
 
@@ -639,7 +633,6 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 	}
 
 	txinfo = IEEE80211_SKB_CB(skb);
-	arinfo = (void *) txinfo->rate_driver_data;
 
 	if (!(info & CARL9170_TX_STATUS_SUCCESS))
 		success = false;
@@ -1321,7 +1314,6 @@ static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
-	unsigned int max;
 	u16 tid, seq, qseq, off;
 	bool run = false;
 
@@ -1331,7 +1323,6 @@ static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 
 	rcu_read_lock();
 	agg = rcu_dereference(sta_info->agg[tid]);
-	max = sta_info->ampdu_max_len;
 
 	if (!agg)
 		goto err_unlock_rcu;
