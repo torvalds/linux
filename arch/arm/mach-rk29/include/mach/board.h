@@ -190,6 +190,14 @@ struct mma8452_platform_data {
     int     (*mma8452_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+
+struct cm3202_platform_data {
+	int CM3202_SD_IOPIN;
+	int DATA_ADC_CHN;
+	int     (*init_platform_hw)(void);
+	void    (*exit_platform_hw)(void);
+};
+
 /*it7260 touch */
 struct it7260_platform_data {
     int     (*get_pendown_state)(void);

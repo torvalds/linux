@@ -1071,7 +1071,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_ANX7150)
+#if defined (CONFIG_ANX7150) || defined (CONFIG_ANX7150_NEW)
     {
 		.type           = "anx7150",
         .addr           = 0x39,             //0x39, 0x3d
@@ -1651,6 +1651,43 @@ struct rk29_bl_info rk29_bl_info = {
 };
 #endif
 
+#ifdef CONFIG_CM3202 
+/**********************************
+ * cm3202 lightsensor *
+**********************************/
+#define CM3202_SD 	RK29_PIN5_PA2
+static int cm3202_init_hw(void)
+{
+	int ret;
+	ret = gpio_request(CM3202_SD, "cm3202_sd");
+	if (ret) {
+		printk( "failed to request cm3202 SD GPIO%d\n",CM3202_SD);
+	}
+	gpio_pull_updown(CM3202_SD,GPIOPullDown);
+	return ret;
+}
+
+static void cm3202_exit_hw(void)
+{
+	gpio_free(CM3202_SD);
+}
+
+struct cm3202_platform_data cm3202_info = {
+	.CM3202_SD_IOPIN = CM3202_SD,
+	.DATA_ADC_CHN = 2,
+	.init_platform_hw = cm3202_init_hw,
+	.exit_platform_hw = cm3202_exit_hw,
+};
+
+struct platform_device cm3202_device = {
+	.name = "lightsensor",
+	.id = -1,
+	.dev = {
+		.platform_data = &cm3202_info,
+	}
+};
+#endif
+
 #ifdef CONFIG_FIH_TOUCHKEY_LED
 #define FIH_TOUCHKEY_LED_PWM_ID 1
 #define FIH_TOUCHKEY_LED_PWM_MUX_NAME      	GPIO5D2_PWM1_UART1SIRIN_NAME 
@@ -2116,17 +2153,6 @@ struct platform_device rk29_device_vibrator ={
 
 };
 #endif
-/*****************************************************************************************
- * mc3202 light sensor
- * author: sevenxuemin@sina.com
- *****************************************************************************************/
-#ifdef CONFIG_CM3202
-static struct platform_device rk29_device_lsr = {
-	.name		= "rk29-lsr",
-	.id			= -1,
-};
-
-#endif
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -2192,6 +2218,10 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_sdmmc1,
 #endif
 
+#ifdef CONFIG_CM3202
+	&cm3202_device,
+#endif
+
 #ifdef CONFIG_MTD_NAND_RK29XX
 	&rk29xx_device_nand,
 #endif
@@ -2251,9 +2281,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
-#endif
-#ifdef CONFIG_CM3202
-	&rk29_device_lsr,
 #endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk29_device_vibrator,

@@ -1,3 +1,3 @@
 # gsensor drivers
 
-obj-$(CONFIG_CM3202) 	+= rk29_lightsensor.o
+obj-$(CONFIG_CM3202) 	+= cm3202.o
