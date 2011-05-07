@@ -1225,15 +1225,9 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
-	/* make sure that the curr_active_slave and the slaves list do
-	 * not change during tx
+	/* make sure that the curr_active_slave do not change during tx
 	 */
-	read_lock(&bond->lock);
 	read_lock(&bond->curr_slave_lock);
-
-	if (!BOND_IS_OK(bond)) {
-		goto out;
-	}
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP: {
@@ -1334,13 +1328,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-out:
 	if (res) {
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 

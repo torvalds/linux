@@ -4004,10 +4004,6 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	int i, slave_no, res = 1;
 	struct iphdr *iph = ip_hdr(skb);
 
-	read_lock(&bond->lock);
-
-	if (!BOND_IS_OK(bond))
-		goto out;
 	/*
 	 * Start with the curr_active_slave that joined the bond as the
 	 * default for sending IGMP traffic.  For failover purposes one
@@ -4054,7 +4050,7 @@ out:
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 	}
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 
@@ -4068,24 +4064,18 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 	struct bonding *bond = netdev_priv(bond_dev);
 	int res = 1;
 
-	read_lock(&bond->lock);
 	read_lock(&bond->curr_slave_lock);
 
-	if (!BOND_IS_OK(bond))
-		goto out;
+	if (bond->curr_active_slave)
+		res = bond_dev_queue_xmit(bond, skb,
+			bond->curr_active_slave->dev);
 
-	if (!bond->curr_active_slave)
-		goto out;
-
-	res = bond_dev_queue_xmit(bond, skb, bond->curr_active_slave->dev);
-
-out:
 	if (res)
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 
 	read_unlock(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 
@@ -4101,11 +4091,6 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 	int slave_no;
 	int i;
 	int res = 1;
-
-	read_lock(&bond->lock);
-
-	if (!BOND_IS_OK(bond))
-		goto out;
 
 	slave_no = bond->xmit_hash_policy(skb, bond->slave_cnt);
 
@@ -4126,12 +4111,11 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-out:
 	if (res) {
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 	}
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 
@@ -4145,11 +4129,6 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 	struct net_device *tx_dev = NULL;
 	int i;
 	int res = 1;
-
-	read_lock(&bond->lock);
-
-	if (!BOND_IS_OK(bond))
-		goto out;
 
 	read_lock(&bond->curr_slave_lock);
 	start_at = bond->curr_active_slave;
@@ -4189,7 +4168,6 @@ out:
 		dev_kfree_skb(skb);
 
 	/* frame sent to all suitable interfaces */
-	read_unlock(&bond->lock);
 	return NETDEV_TX_OK;
 }
 
@@ -4221,10 +4199,8 @@ static inline int bond_slave_override(struct bonding *bond,
 	struct slave *slave = NULL;
 	struct slave *check_slave;
 
-	read_lock(&bond->lock);
-
-	if (!BOND_IS_OK(bond) || !skb->queue_mapping)
-		goto out;
+	if (!skb->queue_mapping)
+		return 1;
 
 	/* Find out if any slaves have the same mapping as this skb. */
 	bond_for_each_slave(bond, check_slave, i) {
@@ -4240,8 +4216,6 @@ static inline int bond_slave_override(struct bonding *bond,
 		res = bond_dev_queue_xmit(bond, skb, slave->dev);
 	}
 
-out:
-	read_unlock(&bond->lock);
 	return res;
 }
 
@@ -4263,16 +4237,9 @@ static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return txq;
 }
 
-static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bonding *bond = netdev_priv(dev);
-
-	/*
-	 * If we risk deadlock from transmitting this in the
-	 * netpoll path, tell netpoll to queue the frame for later tx
-	 */
-	if (is_netpoll_tx_blocked(dev))
-		return NETDEV_TX_BUSY;
 
 	if (TX_QUEUE_OVERRIDE(bond->params.mode)) {
 		if (!bond_slave_override(bond, skb))
@@ -4303,6 +4270,29 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 }
 
+static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct bonding *bond = netdev_priv(dev);
+	netdev_tx_t ret = NETDEV_TX_OK;
+
+	/*
+	 * If we risk deadlock from transmitting this in the
+	 * netpoll path, tell netpoll to queue the frame for later tx
+	 */
+	if (is_netpoll_tx_blocked(dev))
+		return NETDEV_TX_BUSY;
+
+	read_lock(&bond->lock);
+
+	if (bond->slave_cnt)
+		ret = __bond_start_xmit(skb, dev);
+	else
+		dev_kfree_skb(skb);
+
+	read_unlock(&bond->lock);
+
+	return ret;
+}
 
 /*
  * set bond mode specific net device operations
