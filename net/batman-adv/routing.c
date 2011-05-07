@@ -169,65 +169,41 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	uint8_t orig_eq_count, neigh_rq_count, tq_own;
 	int tq_asym_penalty, ret = 0;
 
-	if (orig_node == orig_neigh_node) {
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(tmp_neigh_node, node,
-					 &orig_node->neigh_list, list) {
+	/* find corresponding one hop neighbor */
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_neigh_node, node,
+				 &orig_neigh_node->neigh_list, list) {
 
-			if (!compare_eth(tmp_neigh_node->addr,
-					 orig_neigh_node->orig))
-				continue;
+		if (!compare_eth(tmp_neigh_node->addr, orig_neigh_node->orig))
+			continue;
 
-			if (tmp_neigh_node->if_incoming != if_incoming)
-				continue;
+		if (tmp_neigh_node->if_incoming != if_incoming)
+			continue;
 
-			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-				continue;
+		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+			continue;
 
-			neigh_node = tmp_neigh_node;
-		}
-		rcu_read_unlock();
-
-		if (!neigh_node)
-			neigh_node = create_neighbor(orig_node,
-						     orig_neigh_node,
-						     orig_neigh_node->orig,
-						     if_incoming);
-		if (!neigh_node)
-			goto out;
-
-		neigh_node->last_valid = jiffies;
-	} else {
-		/* find packet count of corresponding one hop neighbor */
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(tmp_neigh_node, node,
-					 &orig_neigh_node->neigh_list, list) {
-
-			if (!compare_eth(tmp_neigh_node->addr,
-					 orig_neigh_node->orig))
-				continue;
-
-			if (tmp_neigh_node->if_incoming != if_incoming)
-				continue;
-
-			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-				continue;
-
-			neigh_node = tmp_neigh_node;
-		}
-		rcu_read_unlock();
-
-		if (!neigh_node)
-			neigh_node = create_neighbor(orig_neigh_node,
-						     orig_neigh_node,
-						     orig_neigh_node->orig,
-						     if_incoming);
-		if (!neigh_node)
-			goto out;
+		neigh_node = tmp_neigh_node;
+		break;
 	}
+	rcu_read_unlock();
+
+	if (!neigh_node)
+		neigh_node = create_neighbor(orig_neigh_node,
+					     orig_neigh_node,
+					     orig_neigh_node->orig,
+					     if_incoming);
+
+	if (!neigh_node)
+		goto out;
+
+	/* if orig_node is direct neighbour update neigh_node last_valid */
+	if (orig_node == orig_neigh_node)
+		neigh_node->last_valid = jiffies;
 
 	orig_node->last_valid = jiffies;
 
+	/* find packet count of corresponding one hop neighbor */
 	spin_lock_bh(&orig_node->ogm_cnt_lock);
 	orig_eq_count = orig_neigh_node->bcast_own_sum[if_incoming->if_num];
 	neigh_rq_count = neigh_node->real_packet_count;
