@@ -837,33 +837,28 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		/* kick things off */
 
 		if ((is_cppi_enabled() || tusb_dma_omap()) && dma_channel) {
-			/* candidate for DMA */
-			if (dma_channel) {
-				dma_channel->actual_len = 0L;
-				qh->segsize = len;
+			/* Candidate for DMA */
+			dma_channel->actual_len = 0L;
+			qh->segsize = len;
 
-				/* AUTOREQ is in a DMA register */
-				musb_writew(hw_ep->regs, MUSB_RXCSR, csr);
-				csr = musb_readw(hw_ep->regs,
-						MUSB_RXCSR);
+			/* AUTOREQ is in a DMA register */
+			musb_writew(hw_ep->regs, MUSB_RXCSR, csr);
+			csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 
-				/* unless caller treats short rx transfers as
-				 * errors, we dare not queue multiple transfers.
-				 */
-				dma_ok = dma_controller->channel_program(
-						dma_channel, packet_sz,
-						!(urb->transfer_flags
-							& URB_SHORT_NOT_OK),
-						urb->transfer_dma + offset,
-						qh->segsize);
-				if (!dma_ok) {
-					dma_controller->channel_release(
-							dma_channel);
-					hw_ep->rx_channel = NULL;
-					dma_channel = NULL;
-				} else
-					csr |= MUSB_RXCSR_DMAENAB;
-			}
+			/*
+			 * Unless caller treats short RX transfers as
+			 * errors, we dare not queue multiple transfers.
+			 */
+			dma_ok = dma_controller->channel_program(dma_channel,
+					packet_sz, !(urb->transfer_flags &
+						     URB_SHORT_NOT_OK),
+					urb->transfer_dma + offset,
+					qh->segsize);
+			if (!dma_ok) {
+				dma_controller->channel_release(dma_channel);
+				hw_ep->rx_channel = dma_channel = NULL;
+			} else
+				csr |= MUSB_RXCSR_DMAENAB;
 		}
 
 		csr |= MUSB_RXCSR_H_REQPKT;
