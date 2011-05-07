@@ -141,14 +141,15 @@ static struct scic_sds_port *scic_sds_port_configuration_agent_find_port(
 	scic_sds_phy_get_attached_sas_address(phy, &phy_attached_device_address);
 
 	for (i = 0; i < scic->logical_port_entries; i++) {
-		struct scic_sds_port *port = &scic->port_table[i];
+		struct isci_host *ihost = scic_to_ihost(scic);
+		struct scic_sds_port *sci_port = &ihost->ports[i].sci;
 
-		scic_sds_port_get_sas_address(port, &port_sas_address);
-		scic_sds_port_get_attached_sas_address(port, &port_attached_device_address);
+		scic_sds_port_get_sas_address(sci_port, &port_sas_address);
+		scic_sds_port_get_attached_sas_address(sci_port, &port_attached_device_address);
 
-		if ((sci_sas_address_compare(port_sas_address, phy_sas_address) == 0) &&
-		    (sci_sas_address_compare(port_attached_device_address, phy_attached_device_address) == 0))
-			return port;
+		if (sci_sas_address_compare(port_sas_address, phy_sas_address) == 0 &&
+		    sci_sas_address_compare(port_attached_device_address, phy_attached_device_address) == 0)
+			return sci_port;
 	}
 
 	return NULL;
@@ -324,7 +325,7 @@ static enum sci_status scic_sds_mpc_agent_validate_phy_configuration(
 			port_agent->phy_valid_port_range[phy_index].min_index = port_index;
 			port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
 
-			scic_sds_port_add_phy(&controller->port_table[port_index],
+			scic_sds_port_add_phy(&ihost->ports[port_index].sci,
 					      &ihost->phys[phy_index].sci);
 
 			assigned_phy_mask |= (1 << phy_index);
@@ -550,6 +551,7 @@ static void scic_sds_apc_agent_configure_ports(
 	enum sci_status status;
 	struct scic_sds_port *port;
 	enum SCIC_SDS_APC_ACTIVITY apc_activity = SCIC_SDS_APC_SKIP_PHY;
+	struct isci_host *ihost = scic_to_ihost(controller);
 
 	port = scic_sds_port_configuration_agent_find_port(controller, phy);
 
@@ -571,7 +573,7 @@ static void scic_sds_apc_agent_configure_ports(
 			port_index++
 			) {
 
-			port = &controller->port_table[port_index];
+			port = &ihost->ports[port_index].sci;
 
 			/* First we must make sure that this PHY can be added to this Port. */
 			if (scic_sds_port_is_valid_phy_assignment(port, phy->phy_index)) {

@@ -283,18 +283,14 @@ static enum sci_status scic_sds_port_clear_phy(
 	struct scic_sds_phy *phy)
 {
 	/* Make sure that this phy is part of this port */
-	if (
-		(port->phy_table[phy->phy_index] == phy)
-		&& (scic_sds_phy_get_port(phy) == port)
-		) {
+	if (port->phy_table[phy->phy_index] == phy &&
+	    scic_sds_phy_get_port(phy) == port) {
+		struct scic_sds_controller *scic = port->owning_controller;
+		struct isci_host *ihost = scic_to_ihost(scic);
+
 		/* Yep it is assigned to this port so remove it */
-		scic_sds_phy_set_port(
-			phy,
-			&scic_sds_port_get_controller(port)->port_table[SCI_MAX_PORTS]
-			);
-
+		scic_sds_phy_set_port(phy, &ihost->ports[SCI_MAX_PORTS].sci);
 		port->phy_table[phy->phy_index] = NULL;
-
 		return SCI_SUCCESS;
 	}
 
@@ -643,7 +639,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 				  bool do_notify_user)
 {
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
@@ -1620,10 +1616,9 @@ static void scic_sds_port_ready_substate_operational_enter(void *object)
 {
 	u32 index;
 	struct scic_sds_port *sci_port = object;
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
 			sci_port,
@@ -1661,10 +1656,9 @@ static void scic_sds_port_ready_substate_operational_enter(void *object)
 static void scic_sds_port_ready_substate_operational_exit(void *object)
 {
 	struct scic_sds_port *sci_port = object;
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	/*
 	 * Kill the dummy task for this port if it has not yet posted
@@ -1692,10 +1686,9 @@ static void scic_sds_port_ready_substate_operational_exit(void *object)
 static void scic_sds_port_ready_substate_configuring_enter(void *object)
 {
 	struct scic_sds_port *sci_port = object;
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
 			sci_port,
@@ -2259,7 +2252,7 @@ static void scic_sds_port_ready_state_enter(void *object)
 	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 	u32 prev_state;
 
 	/* Put the ready state handlers in place though they will not be there long */
@@ -2366,7 +2359,7 @@ scic_sds_port_stopping_state_exit(void *object)
 static void scic_sds_port_failed_state_enter(void *object)
 {
 	struct scic_sds_port *sci_port = object;
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	scic_sds_port_set_base_state_handlers(sci_port,
 					      SCI_BASE_PORT_STATE_FAILED);
@@ -2398,11 +2391,9 @@ static const struct sci_base_state scic_sds_port_state_table[] = {
 	}
 };
 
-void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
+void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 index,
 			     struct scic_sds_controller *scic)
 {
-	u32 index;
-
 	sci_base_state_machine_construct(&sci_port->state_machine,
 					 sci_port,
 					 scic_sds_port_state_table,
@@ -2416,7 +2407,7 @@ void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
 					 SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
 
 	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
-	sci_port->physical_port_index = port_index;
+	sci_port->physical_port_index = index;
 	sci_port->active_phy_mask     = 0;
 
 	sci_port->owning_controller = scic;
@@ -2428,7 +2419,6 @@ void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
 	sci_port->reserved_tci = SCU_DUMMY_INDEX;
 
 	sci_port->timer_handle = NULL;
-
 	sci_port->port_task_scheduler_registers = NULL;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++)

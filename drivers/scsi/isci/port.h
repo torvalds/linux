@@ -53,19 +53,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the isci_port object definition.
- *
- * port.h
- */
-
-#if !defined(_ISCI_PORT_H_)
+#ifndef _ISCI_PORT_H_
 #define _ISCI_PORT_H_
+#include "scic_sds_port.h"
 
 struct isci_phy;
 struct isci_host;
-struct scic_sds_phy;
-
 
 enum isci_status {
 	isci_freed        = 0x00,
@@ -84,9 +77,6 @@ enum isci_status {
  *
  */
 struct isci_port {
-
-	struct scic_sds_port *sci_port_handle;
-
 	enum isci_status status;
 	struct isci_host *isci_host;
 	struct asd_sas_port sas_port;
@@ -96,15 +86,18 @@ struct isci_port {
 	struct completion start_complete;
 	struct completion hard_reset_complete;
 	enum sci_status hard_reset_status;
+	struct scic_sds_port sci;
 };
 
-#define to_isci_port(p)	\
-	container_of(p, struct isci_port, sas_port);
+static inline struct isci_port *sci_port_to_iport(struct scic_sds_port *sci_port)
+{
+	struct isci_port *iport = container_of(sci_port, typeof(*iport), sci);
+
+	return iport;
+}
 
 enum isci_status isci_port_get_state(
 	struct isci_port *isci_port);
-
-
 
 void isci_port_formed(
 	struct asd_sas_phy *);

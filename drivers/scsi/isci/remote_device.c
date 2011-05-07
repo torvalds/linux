@@ -1264,7 +1264,7 @@ static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *s
 static enum sci_status isci_remote_device_construct(struct isci_port *iport,
 						    struct isci_remote_device *idev)
 {
-	struct scic_sds_port *sci_port = iport->sci_port_handle;
+	struct scic_sds_port *sci_port = &iport->sci;
 	struct isci_host *ihost = iport->isci_host;
 	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status;

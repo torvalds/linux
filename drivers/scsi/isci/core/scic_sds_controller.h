@@ -161,13 +161,6 @@ struct scic_sds_controller {
 	struct scic_sds_port_configuration_agent port_agent;
 
 	/**
-	 * This field is the array of port objects that are controlled by this
-	 * controller object.  There is one dummy port object also contained within
-	 * this controller object.
-	 */
-	struct scic_sds_port port_table[SCI_MAX_PORTS + 1];
-
-	/**
 	 * This field is the array of device objects that are currently constructed
 	 * for this controller object.  This table is used as a fast lookup of device
 	 * objects that need to handle device completion notifications from the

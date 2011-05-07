@@ -70,28 +70,29 @@
 #include "request.h"
 #include "core/scic_sds_controller.h"
 
-static void isci_port_change_state(
-	struct isci_port *isci_port,
-	enum isci_status status);
+static void isci_port_change_state(struct isci_port *iport, enum isci_status status)
+{
+	unsigned long flags;
 
+	dev_dbg(&iport->isci_host->pdev->dev,
+		"%s: iport = %p, state = 0x%x\n",
+		__func__, iport, status);
 
+	/* XXX pointless lock */
+	spin_lock_irqsave(&iport->state_lock, flags);
+	iport->status = status;
+	spin_unlock_irqrestore(&iport->state_lock, flags);
+}
 
 void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 {
-	struct scic_sds_port *sci_port;
-
 	INIT_LIST_HEAD(&iport->remote_dev_list);
 	INIT_LIST_HEAD(&iport->domain_dev_list);
 	spin_lock_init(&iport->state_lock);
 	init_completion(&iport->start_complete);
 	iport->isci_host = ihost;
 	isci_port_change_state(iport, isci_freed);
-
-	sci_port = &ihost->sci.port_table[index];
-	iport->sci_port_handle = sci_port;
-	sci_port->iport = iport;
 }
-
 
 /**
  * isci_port_get_state() - This function gets the status of the port object.
@@ -103,21 +104,6 @@ enum isci_status isci_port_get_state(
 	struct isci_port *isci_port)
 {
 	return isci_port->status;
-}
-
-static void isci_port_change_state(
-	struct isci_port *isci_port,
-	enum isci_status status)
-{
-	unsigned long flags;
-
-	dev_dbg(&isci_port->isci_host->pdev->dev,
-		"%s: isci_port = %p, state = 0x%x\n",
-		__func__, isci_port, status);
-
-	spin_lock_irqsave(&isci_port->state_lock, flags);
-	isci_port->status = status;
-	spin_unlock_irqrestore(&isci_port->state_lock, flags);
 }
 
 void isci_port_bc_change_received(struct isci_host *ihost,
@@ -140,7 +126,7 @@ void isci_port_link_up(struct isci_host *isci_host,
 	unsigned long flags;
 	struct scic_port_properties properties;
 	struct isci_phy *isci_phy = sci_phy_to_iphy(phy);
-	struct isci_port *isci_port = port->iport;
+	struct isci_port *isci_port = sci_port_to_iport(port);
 	unsigned long success = true;
 
 	BUG_ON(isci_phy->isci_port != NULL);
@@ -346,8 +332,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	#define ISCI_PORT_RESET_TIMEOUT SCIC_SDS_SIGNATURE_FIS_TIMEOUT
-	status = scic_port_hard_reset(iport->sci_port_handle,
-				      ISCI_PORT_RESET_TIMEOUT);
+	status = scic_port_hard_reset(&iport->sci, ISCI_PORT_RESET_TIMEOUT);
 
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 

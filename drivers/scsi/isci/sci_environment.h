@@ -77,7 +77,7 @@ static inline struct device *sciphy_to_dev(struct scic_sds_phy *sci_phy)
 
 static inline struct device *sciport_to_dev(struct scic_sds_port *sci_port)
 {
-	struct isci_port *iport = sci_port->iport;
+	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	if (!iport || !iport->isci_host)
 		return NULL;

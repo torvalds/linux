@@ -277,10 +277,10 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	isci_host_change_state(ihost, isci_stopping);
 	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		struct isci_port *port = &ihost->isci_ports[i];
+		struct isci_port *iport = &ihost->ports[i];
 		struct isci_remote_device *idev, *d;
 
-		list_for_each_entry_safe(idev, d, &port->remote_dev_list, node) {
+		list_for_each_entry_safe(idev, d, &iport->remote_dev_list, node) {
 			isci_remote_device_change_state(idev, isci_stopping);
 			isci_remote_device_stop(ihost, idev);
 		}
@@ -442,7 +442,7 @@ int isci_host_init(struct isci_host *isci_host)
 		return -ENOMEM;
 
 	for (i = 0; i < SCI_MAX_PORTS; i++)
-		isci_port_init(&isci_host->isci_ports[i], isci_host, i);
+		isci_port_init(&isci_host->ports[i], isci_host, i);
 
 	for (i = 0; i < SCI_MAX_PHYS; i++)
 		isci_phy_init(&isci_host->phys[i], isci_host, i);

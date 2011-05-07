@@ -221,8 +221,8 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 
 	/* set the array of phy and port structs.  */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		sas_phys[i] = &(isci_host->phys[i].sas_phy);
-		sas_ports[i] = &(isci_host->sas_ports[i]);
+		sas_phys[i] = &isci_host->phys[i].sas_phy;
+		sas_ports[i] = &isci_host->ports[i].sas_port;
 	}
 
 	sas_ha->sas_phy  = sas_phys;

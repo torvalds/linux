@@ -84,12 +84,7 @@ struct isci_host {
 	struct dma_pool *dma_pool;
 	unsigned int dma_pool_alloc_size;
 	struct isci_phy phys[SCI_MAX_PHYS];
-
-	/* isci_ports and sas_ports are implicitly parallel to the
-	 * ports maintained by the core
-	 */
-	struct isci_port isci_ports[SCI_MAX_PORTS];
-	struct asd_sas_port sas_ports[SCI_MAX_PORTS];
+	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
 	struct sas_ha_struct sas_ha;
 
 	int can_queue;
