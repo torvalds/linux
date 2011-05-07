@@ -723,12 +723,12 @@ static const struct file_operations sparc_io_proc_fops = {
  * This probably warrants some sort of hashing.
  */
 static struct resource *_sparc_find_resource(struct resource *root,
-					     unsigned long hit)
+					     unsigned long start)
 {
 	struct resource *tmp;
 
 	for (tmp = root->child; tmp != 0; tmp = tmp->sibling) {
-		if (tmp->start <= hit && tmp->end >= hit)
+		if (tmp->start == start)
 			return tmp;
 	}
 	return NULL;
