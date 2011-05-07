@@ -144,6 +144,9 @@ typedef struct _gcsSIGNAL
 
     /* The owner of the signal. */
     gctHANDLE process;
+
+    /* Destroyed flag. */
+    gctBOOL destroyed;
 }
 gcsSIGNAL;
 
@@ -273,6 +276,11 @@ FindMdlMap(
     )
 {
     PLINUX_MDL_MAP  mdlMap;
+
+    if (Mdl == gcvNULL)
+    {
+        return gcvNULL;
+    }
 
     mdlMap = Mdl->maps;
 
@@ -567,7 +575,9 @@ gckOS_Destroy(
     IN gckOS Os
     )
 {
-    gckHEAP heap;
+    gckHEAP     heap    = gcvNULL;
+    gctINT      i       = 0;
+    gctPOINTER *table   = Os->signal.table; 
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
@@ -581,8 +591,20 @@ gckOS_Destroy(
     gcmkVERIFY_OK(
         gckOS_DeleteMutex(Os, Os->signal.lock));
 
+    /* Free remain signal left in table */
+    for (i = 0; i < Os->signal.tableLen; i++)
+    {
+        if(table[i] != gcvNULL)
+        {
+            kfree(table[i]);
+            table[i] = gcvNULL;
+        }
+    }
+
     /* Free the signal table. */
     kfree(Os->signal.table);
+    Os->signal.table    = gcvNULL;
+    Os->signal.tableLen = 0;
 #endif
 
     if (Os->heap != NULL)
@@ -643,7 +665,7 @@ gckOS_Allocate(
 {
     gceSTATUS status;
 
-    //gcmkHEADER_ARG("Os=0x%x Bytes=%lu", Os, Bytes);
+    /* gcmkHEADER_ARG("Os=0x%x Bytes=%lu", Os, Bytes); */
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
@@ -662,12 +684,12 @@ gckOS_Allocate(
     }
 
     /* Success. */
-    //gcmkFOOTER_ARG("*memory=0x%x", *Memory);
+    /* gcmkFOOTER_ARG("*memory=0x%x", *Memory); */
     return gcvSTATUS_OK;
 
 OnError:
     /* Return the status. */
-    gcmkFOOTER();
+    /* gcmkFOOTER(); */
     return status;
 }
 
@@ -701,7 +723,7 @@ gckOS_Free(
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
     gcmkVERIFY_ARGUMENT(Memory != NULL);
 
-    //gcmkHEADER_ARG("Os=0x%x Memory=0x%x", Os, memory);
+    /* gcmkHEADER_ARG("Os=0x%x Memory=0x%x", Os, memory); */
 
     /* Do we have a heap? */
     if (Os->heap != NULL)
@@ -715,12 +737,12 @@ gckOS_Free(
     }
 
     /* Success. */
-    //gcmkFOOTER_NO();
+    /* gcmkFOOTER_NO(); */
     return gcvSTATUS_OK;
 
 OnError:
     /* Return the status. */
-    gcmkFOOTER();
+    /* gcmkFOOTER(); */
     return status;
 }
 
@@ -3708,7 +3730,7 @@ gckOS_CreateSignal(
     gcmkVERIFY_ARGUMENT(Signal != NULL);
 
     /* Create an event structure. */
-    signal = (gcsSIGNAL_PTR)kmalloc(sizeof(gcsSIGNAL), GFP_KERNEL);
+    signal = (gcsSIGNAL_PTR)kmalloc(sizeof(gcsSIGNAL), GFP_ATOMIC);
 
     if (signal == gcvNULL)
     {
@@ -3720,6 +3742,8 @@ gckOS_CreateSignal(
     init_completion(&signal->event);
 
     atomic_set(&signal->ref, 1);
+
+    signal->destroyed = gcvFALSE;
 
     *Signal = (gctSIGNAL) signal;
 
@@ -3754,18 +3778,21 @@ gckOS_DestroySignal(
 #if USE_NEW_LINUX_SIGNAL
     return gcvSTATUS_NOT_SUPPORTED;
 #else
-    gcsSIGNAL_PTR signal;
+    gcsSIGNAL_PTR signal = (gcsSIGNAL_PTR) Signal;
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
     gcmkVERIFY_ARGUMENT(Signal != NULL);
 
-    signal = (gcsSIGNAL_PTR) Signal;
-
     if (atomic_dec_and_test(&signal->ref))
     {
-         /* Free the sgianl. */
-        kfree(Signal);
+         /* Free the signal. */
+        kfree(signal);
+    }
+    else
+    {
+        /* Set destroyed flag */
+    	signal->destroyed = gcvTRUE;
     }
 
     /* Success. */
@@ -3983,6 +4010,29 @@ gckOS_MapSignal(
     return gcvSTATUS_NOT_SUPPORTED;
 }
 
+/*******************************************************************************
+**
+**	gckOS_UnmapSignal
+**
+**	Unmap a signal .
+**
+**	INPUT:
+**
+**		gckOS Os
+**			Pointer to an gckOS object.
+**
+**		gctSIGNAL Signal
+**			Pointer to that gctSIGNAL mapped.
+*/
+gceSTATUS
+gckOS_UnmapSignal(
+    IN gckOS Os,
+    IN gctSIGNAL Signal
+    )
+{
+    return gcvSTATUS_NOT_SUPPORTED;
+}
+
 #else
 
 /*******************************************************************************
@@ -4013,21 +4063,33 @@ gckOS_UserSignal(
     IN gctHANDLE Process
     )
 {
-    gceSTATUS status;
-    gctSIGNAL signal;
+    gceSTATUS status = gcvSTATUS_OK;
+    gctSIGNAL signal = gcvNULL;
+    gctBOOL   mapped = gcvFALSE;
 
     gcmkHEADER_ARG("Os=0x%x Signal=%d Process=0x%x",
                    Os, (gctINT) Signal, Process);
 
     /* Map the signal into kernel space. */
     gcmkONERROR(gckOS_MapSignal(Os, Signal, Process, &signal));
+    mapped = gcvTRUE;
 
     /* Signal. */
     status = gckOS_Signal(Os, signal, gcvTRUE);
-    gcmkFOOTER();
-    return status;
+
+    /* Unmap the signal */
+    mapped = gcvFALSE;
+    gcmkONERROR(gckOS_UnmapSignal(Os, signal));
+
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
 
 OnError:
+    if (mapped)
+    {
+        gcmkVERIFY_OK(gckOS_UnmapSignal(Os, signal));
+    }
+
     /* Return the status. */
     gcmkFOOTER();
     return status;
@@ -4180,6 +4242,67 @@ OnError:
 
 /*******************************************************************************
 **
+**	gckOS_UnmapSignal
+**
+**	Unmap a signal .
+**
+**	INPUT:
+**
+**		gckOS Os
+**			Pointer to an gckOS object.
+**
+**		gctSIGNAL Signal
+**			Pointer to that gctSIGNAL mapped.
+*/
+gceSTATUS
+gckOS_UnmapSignal(
+    IN gckOS Os,
+    IN gctSIGNAL Signal
+    )
+{
+    gceSTATUS       status      = gcvSTATUS_OK;
+    gctBOOL         acquired    = gcvFALSE;
+    gcsSIGNAL_PTR   signal      = (gcsSIGNAL_PTR)Signal;
+
+    gcmkVERIFY_ARGUMENT(Signal != gcvNULL);
+
+    gcmkONERROR(gckOS_AcquireMutex(Os, Os->signal.lock, gcvINFINITE));
+    acquired = gcvTRUE;
+
+    if (atomic_dec_return(&signal->ref) < 1)
+    {
+        if (signal->destroyed)
+        {
+            /* Free the signal. */
+            kfree(signal);
+        }
+        else
+        {
+            /* The previous value is less than 1, it hasn't been mapped. */
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+    }
+
+    /* Release the mutex. */
+    acquired = gcvFALSE;
+    gcmkONERROR(gckOS_ReleaseMutex(Os, Os->signal.lock));
+
+    /* Success. */
+    return gcvSTATUS_OK;
+
+OnError:
+    if (acquired)
+    {
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(Os, Os->signal.lock));
+    }
+
+    /* Return the staus. */
+    return status;
+}
+
+/*******************************************************************************
+**
 **  gckOS_CreateUserSignal
 **
 **  Create a new signal to be used in the user space.
@@ -4292,6 +4415,7 @@ gckOS_CreateUserSignal(
     Os->signal.tableLen = tableLen;
     Os->signal.unused = unused;
 
+    acquired = gcvFALSE;
     gcmkONERROR(
         gckOS_ReleaseMutex(Os, Os->signal.lock));
 
@@ -4302,7 +4426,7 @@ OnError:
     if (acquired)
     {
         /* Release the mutex. */
-        gcmkONERROR(
+        gcmkVERIFY_OK(
             gckOS_ReleaseMutex(Os, Os->signal.lock));
     }
 
@@ -4397,7 +4521,8 @@ gckOS_DestroyUserSignal(
         Os->signal.currentID = SignalID;
     }
 
-    gcmkVERIFY_OK(
+    acquired = gcvFALSE;
+    gcmkONERROR(
         gckOS_ReleaseMutex(Os, Os->signal.lock));
 
     /* Success. */
@@ -4408,7 +4533,7 @@ OnError:
     if (acquired)
     {
         /* Release the mutex. */
-        gcmkONERROR(
+        gcmkVERIFY_OK(
             gckOS_ReleaseMutex(Os, Os->signal.lock));
     }
 
@@ -4473,8 +4598,8 @@ gckOS_WaitUserSignal(
 
     signal = Os->signal.table[SignalID];
 
-    gcmkONERROR(gckOS_ReleaseMutex(Os, Os->signal.lock));
     acquired = gcvFALSE;
+    gcmkONERROR(gckOS_ReleaseMutex(Os, Os->signal.lock));
 
     if (signal == gcvNULL)
     {
@@ -4499,10 +4624,16 @@ gckOS_WaitUserSignal(
     }
 
 
-do{
-    status = gckOS_WaitSignal(Os, signal, Wait==gcvINFINITE?5000:Wait);
-if(Wait==gcvINFINITE&&status==gcvSTATUS_TIMEOUT){gcmkPRINT("$$FLUSH$$");}
-}while(status==gcvSTATUS_TIMEOUT&&Wait==gcvINFINITE);
+    do
+    {
+        status = gckOS_WaitSignal(Os, signal, Wait == gcvINFINITE? 5000 : Wait);
+
+        if (Wait == gcvINFINITE && status == gcvSTATUS_TIMEOUT)
+        {
+            gcmkPRINT("$$FLUSH$$");
+        }
+    }
+    while (status == gcvSTATUS_TIMEOUT && Wait == gcvINFINITE);
 
     /* Return the status. */
     gcmkFOOTER();
@@ -4512,7 +4643,7 @@ OnError:
     if (acquired)
     {
         /* Release the mutex. */
-        gcmkONERROR(
+        gcmkVERIFY_OK(
             gckOS_ReleaseMutex(Os, Os->signal.lock));
     }
 
@@ -4576,8 +4707,8 @@ gckOS_SignalUserSignal(
 
     signal = Os->signal.table[SignalID];
 
-    gcmkONERROR(gckOS_ReleaseMutex(Os, Os->signal.lock));
     acquired = gcvFALSE;
+    gcmkONERROR(gckOS_ReleaseMutex(Os, Os->signal.lock));
 
     if (signal == gcvNULL)
     {
@@ -4611,7 +4742,7 @@ OnError:
     if (acquired)
     {
         /* Release the mutex. */
-        gcmkONERROR(
+        gcmkVERIFY_OK(
             gckOS_ReleaseMutex(Os, Os->signal.lock));
     }
 
@@ -4648,6 +4779,8 @@ gckOS_DestroyAllUserSignals(
         if (Os->signal.table[signal] != gcvNULL &&
             ((gcsSIGNAL_PTR)Os->signal.table[signal])->process == (gctHANDLE) current->tgid)
         {
+            gckOS_Signal(Os, Os->signal.table[signal], gcvTRUE);
+
             gckOS_DestroySignal(Os, Os->signal.table[signal]);
 
             /* Update the signal table. */
@@ -4799,10 +4932,10 @@ gckOS_MapUserMemory(
                     unsigned long pfn;
 
                     pgd_t * pgd = pgd_offset(current->mm, memory);
-                    pud_t * pud = pud_alloc(current->mm, pgd, memory);
+                    pud_t * pud = pud_offset(pgd, memory);
                     if (pud)
                     {
-                        pmd_t * pmd = pmd_alloc(current->mm, pud, memory);
+                        pmd_t * pmd = pmd_offset(pud, memory);
                         if (pmd)
                         {
                             pte = pte_offset_map_lock(current->mm, pmd, memory, &ptl);
@@ -4835,14 +4968,30 @@ gckOS_MapUserMemory(
                         kfree(info);
                     }
 
+                    /* Free the page table. */
                     if (pages != gcvNULL)
                     {
-                        /* Free the page table. */
+                        /* Release the pages if any. */
+                        if (result > 0)
+                        {
+                            for (i = 0; i < result; i++)
+                            {
+                                if (pages[i] == gcvNULL)
+                                {
+                                    break;
+                                }
+
+                                page_cache_release(pages[i]);
+                            }
+                        }
+
                         kfree(pages);
                     }
 
                     MEMORY_MAP_UNLOCK(Os);
 
+                    gcmkFOOTER_ARG("*Info=0x%x *Address=0x%08x",
+                                   *Info, *Address);
                     return gcvSTATUS_OK;
                 }
                 while (gcvFALSE);

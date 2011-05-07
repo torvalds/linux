@@ -784,6 +784,13 @@ gckOS_MapSignal(
     OUT gctSIGNAL * MappedSignal
     );
 
+/* Unmap a user signal */
+gceSTATUS
+gckOS_UnmapSignal(
+    IN gckOS Os,
+    IN gctSIGNAL MappedSignal
+    );
+
 /* Map user memory. */
 gceSTATUS
 gckOS_MapUserMemory(
