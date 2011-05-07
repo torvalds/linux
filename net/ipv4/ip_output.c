@@ -312,7 +312,7 @@ int ip_output(struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_queue_xmit(struct sk_buff *skb)
+int ip_queue_xmit(struct sk_buff *skb, struct flowi *fl)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
@@ -332,7 +332,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
-	fl4 = &inet->cork.fl.u.ip4;
+	fl4 = &fl->u.ip4;
 	rt = (struct rtable *)__sk_dst_check(sk, 0);
 	if (rt == NULL) {
 		__be32 daddr;

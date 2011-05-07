@@ -855,7 +855,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
-	return ip_queue_xmit(skb);
+	return ip_queue_xmit(skb, &transport->fl);
 }
 
 static struct sctp_af sctp_af_inet;
