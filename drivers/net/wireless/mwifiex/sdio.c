@@ -68,6 +68,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	if (ret) {
 		pr_err("%s: failed to enable function\n", __func__);
+		kfree(card);
 		return -EIO;
 	}
 
@@ -676,7 +677,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	if (!fwbuf) {
 		dev_err(adapter->dev, "unable to alloc buffer for firmware."
 				" Terminating download\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	/* Perform firmware data transfer */
@@ -1605,7 +1606,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	card->mp_regs = kzalloc(MAX_MP_REGS, GFP_KERNEL);
 	if (!card->mp_regs) {
 		dev_err(adapter->dev, "failed to alloc mp_regs\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	ret = mwifiex_alloc_sdio_mpa_buffers(adapter,

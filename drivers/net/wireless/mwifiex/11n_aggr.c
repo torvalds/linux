@@ -318,7 +318,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		else
 			skb_src = NULL;
 
-		pra_list->total_pkts_size -= skb_src->len;
+		if (skb_src)
+			pra_list->total_pkts_size -= skb_src->len;
 
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
@@ -373,7 +374,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			(adapter->pps_uapsd_mode) &&
 			(adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
-				ptx_pd->flags = 0;
+				if (ptx_pd)
+					ptx_pd->flags = 0;
 		}
 
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);

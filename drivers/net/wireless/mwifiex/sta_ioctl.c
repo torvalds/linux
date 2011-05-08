@@ -895,7 +895,7 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 	if (!buf) {
 		dev_err(priv->adapter->dev, "%s: failed to alloc cmd buffer\n",
 				__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	txp_cfg = (struct host_cmd_ds_txpwr_cfg *) buf;

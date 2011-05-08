@@ -41,7 +41,7 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	if (!bss_prio) {
 		dev_err(adapter->dev, "%s: failed to alloc bss_prio\n",
 						__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	bss_prio->priv = priv;
@@ -161,7 +161,7 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 	if (!temp_scan_table) {
 		dev_err(adapter->dev, "%s: failed to alloc temp_scan_table\n",
 		       __func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	adapter->scan_table = temp_scan_table;

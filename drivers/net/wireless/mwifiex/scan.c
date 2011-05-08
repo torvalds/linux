@@ -2283,7 +2283,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 					GFP_KERNEL);
 	if (!scan_cfg_out) {
 		dev_err(adapter->dev, "failed to alloc scan_cfg_out\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	buf_size = sizeof(struct mwifiex_chan_scan_param_set) *
@@ -2292,7 +2292,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	if (!scan_chan_list) {
 		dev_err(adapter->dev, "failed to alloc scan_chan_list\n");
 		kfree(scan_cfg_out);
-		return -1;
+		return -ENOMEM;
 	}
 
 	keep_previous_scan = false;
@@ -2491,7 +2491,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 				GFP_KERNEL);
 	if (!bss_new_entry) {
 		dev_err(adapter->dev, " failed to alloc bss_new_entry\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (idx = 0; idx < scan_rsp->number_of_sets && bytes_left; idx++) {
@@ -2881,7 +2881,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 	scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg), GFP_KERNEL);
 	if (!scan_cfg) {
 		dev_err(adapter->dev, "failed to alloc scan_cfg\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	memcpy(scan_cfg->ssid_list[0].ssid, req_ssid->ssid,

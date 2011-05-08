@@ -69,7 +69,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 	adapter = kzalloc(sizeof(struct mwifiex_adapter), GFP_KERNEL);
 	if (!adapter)
-		return -1;
+		return -ENOMEM;
 
 	g_adapter = adapter;
 	adapter->card = card;
@@ -516,13 +516,13 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				jiffies, priv->bss_index);
 
 	if (priv->adapter->surprise_removed) {
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
 	if (!skb->len || (skb->len > ETH_FRAME_LEN)) {
 		dev_err(priv->adapter->dev, "Tx: bad skb len %d\n", skb->len);
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
@@ -535,7 +535,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
 			dev_err(priv->adapter->dev, "Tx: cannot alloca new_skb\n");
-			kfree(skb);
+			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return 0;
 		}

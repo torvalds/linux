@@ -1255,8 +1255,10 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	wdev->wiphy =
 		wiphy_new(&mwifiex_cfg80211_ops,
 			  sizeof(struct mwifiex_private *));
-	if (!wdev->wiphy)
+	if (!wdev->wiphy) {
+		kfree(wdev);
 		return -ENOMEM;
+	}
 	wdev->iftype = NL80211_IFTYPE_STATION;
 	wdev->wiphy->max_scan_ssids = 10;
 	wdev->wiphy->interface_modes =
@@ -1296,6 +1298,7 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 		dev_err(priv->adapter->dev, "%s: registering cfg80211 device\n",
 						__func__);
 		wiphy_free(wdev->wiphy);
+		kfree(wdev);
 		return ret;
 	} else {
 		dev_dbg(priv->adapter->dev,

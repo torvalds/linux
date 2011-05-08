@@ -292,7 +292,7 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 	if (!cmd_array) {
 		dev_err(adapter->dev, "%s: failed to alloc cmd_array\n",
 				__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	adapter->cmd_pool = cmd_array;
