@@ -682,6 +682,7 @@ static int __devexit ssm2602_i2c_remove(struct i2c_client *client)
 
 static const struct i2c_device_id ssm2602_i2c_id[] = {
 	{ "ssm2602", SSM2602 },
+	{ "ssm2603", SSM2602 },
 	{ "ssm2604", SSM2604 },
 	{ }
 };
@@ -732,6 +733,6 @@ static void __exit ssm2602_exit(void)
 }
 module_exit(ssm2602_exit);
 
-MODULE_DESCRIPTION("ASoC SSM2602/SSM2604 driver");
+MODULE_DESCRIPTION("ASoC SSM2602/SSM2603/SSM2604 driver");
 MODULE_AUTHOR("Cliff Cai");
 MODULE_LICENSE("GPL");
