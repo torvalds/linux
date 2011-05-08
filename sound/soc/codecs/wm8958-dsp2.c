@@ -99,7 +99,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 	len = fw->size - len;
 	while (len) {
 		if (len < 12) {
-			dev_err(codec->dev, "%s short data block of %d\n",
+			dev_err(codec->dev, "%s short data block of %zd\n",
 				name, len);
 			goto err;
 		}
@@ -107,7 +107,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 		memcpy(&data32, data + 4, sizeof(data32));
 		block_len = be32_to_cpu(data32);
 		if (block_len + 8 > len) {
-			dev_err(codec->dev, "%d byte block longer than file\n",
+			dev_err(codec->dev, "%zd byte block longer than file\n",
 				block_len);
 			goto err;
 		}
@@ -141,7 +141,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 		case WM_FW_BLOCK_I:
 		case WM_FW_BLOCK_A:
 		case WM_FW_BLOCK_C:
-			dev_dbg(codec->dev, "%s: %d bytes of %x@%x\n", name,
+			dev_dbg(codec->dev, "%s: %zd bytes of %x@%x\n", name,
 				block_len, (data32 >> 24) & 0xff,
 				data32 & 0xffffff);
 
