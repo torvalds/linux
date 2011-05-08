@@ -500,10 +500,11 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 		/* This should never happen, but if it does, preserve
 		   the evidence before kjournald goes into a loop and
 		   increments j_commit_sequence beyond all recognition. */
-		WARN(1, "jbd: bad log_start_commit: %u %u %u %u\n",
-		     journal->j_commit_request, journal->j_commit_sequence,
-		     target, journal->j_running_transaction ? 
-		     journal->j_running_transaction->t_tid : 0);
+		WARN_ONCE(1, "jbd: bad log_start_commit: %u %u %u %u\n",
+			  journal->j_commit_request,
+			  journal->j_commit_sequence,
+			  target, journal->j_running_transaction ? 
+			  journal->j_running_transaction->t_tid : 0);
 	return 0;
 }
 
