@@ -1060,6 +1060,12 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 			      IPSKB_REROUTED);
 	nf_reset(skb);
 
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) {
+		dev_kfree_skb(skb);
+		goto out_unlock;
+	}
+
 	/* Get routing info from the tunnel socket */
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst_clone(__sk_dst_get(sk)));
@@ -1106,6 +1112,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	l2tp_skb_set_owner_w(skb, sk);
 
 	l2tp_xmit_core(session, skb, data_len);
+out_unlock:
+	bh_unlock_sock(sk);
 
 abort:
 	return 0;
