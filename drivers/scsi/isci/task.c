@@ -298,14 +298,10 @@ static enum sci_status isci_task_request_build(
 		goto out;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(
-		&isci_host->sci,
-		sci_device,
-		SCI_CONTROLLER_INVALID_IO_TAG,
-		request,
-		request->sci_request_mem_ptr,
-		&request->sci_request_handle
-		);
+	status = scic_task_request_construct(&isci_host->sci, sci_device,
+					     SCI_CONTROLLER_INVALID_IO_TAG,
+					     request, &request->sci_req,
+					     &request->sci_request_handle);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,

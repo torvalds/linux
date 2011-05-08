@@ -106,18 +106,6 @@
 		 ))
 
 /**
- * scic_sds_stp_request_get_sgl_element_buffer() -
- *
- * This macro returns the address of the sgl elment pairs in the io request
- * memory buffer
- */
-#define scic_sds_stp_request_get_sgl_element_buffer(memory) \
-	((struct scu_sgl_element_pair *)(\
-		 ((char *)(scic_sds_stp_request_get_task_context_buffer(memory))) \
-		 + sizeof(struct scu_task_context) \
-		 ))
-
-/**
  *
  *
  * This method return the memory space required for STP PIO requests. u32
@@ -128,8 +116,7 @@ u32 scic_sds_stp_request_get_object_size(void)
 	       + sizeof(struct host_to_dev_fis)
 	       + sizeof(struct dev_to_host_fis)
 	       + sizeof(struct scu_task_context)
-	       + SMP_CACHE_BYTES
-	       + sizeof(struct scu_sgl_element_pair) * SCU_MAX_SGL_ELEMENT_PAIRS;
+	       + SMP_CACHE_BYTES;
 }
 
 void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
@@ -138,9 +125,6 @@ void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 
 	sci_req->command_buffer = scic_sds_stp_request_get_h2d_reg_buffer(stp_req);
 	sci_req->response_buffer = scic_sds_stp_request_get_response_buffer(stp_req);
-	sci_req->sgl_element_pair_buffer = scic_sds_stp_request_get_sgl_element_buffer(stp_req);
-	sci_req->sgl_element_pair_buffer = PTR_ALIGN(sci_req->sgl_element_pair_buffer,
-						     sizeof(struct scu_sgl_element_pair));
 
 	if (sci_req->was_tag_assigned_by_user == false) {
 		sci_req->task_context_buffer =

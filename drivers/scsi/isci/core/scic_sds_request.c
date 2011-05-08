@@ -212,8 +212,7 @@ static u32 scic_sds_ssp_request_get_object_size(void)
 	return sizeof(struct scic_sds_request)
 	       + scic_ssp_io_request_get_object_size()
 	       + sizeof(struct scu_task_context)
-	       + SMP_CACHE_BYTES
-	       + sizeof(struct scu_sgl_element_pair) * SCU_MAX_SGL_ELEMENT_PAIRS;
+	       + SMP_CACHE_BYTES;
 }
 
 /**
@@ -239,7 +238,7 @@ static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
 		return &task_context->sgl_pair_cd;
 	}
 
-	return &sci_req->sgl_element_pair_buffer[sgl_pair_index - 2];
+	return &sci_req->sg_table[sgl_pair_index - 2];
 }
 
 /**
@@ -328,11 +327,6 @@ static void scic_sds_ssp_io_request_assign_buffers(
 		scic_sds_ssp_request_get_command_buffer(sci_req);
 	sci_req->response_buffer =
 		scic_sds_ssp_request_get_response_buffer(sci_req);
-	sci_req->sgl_element_pair_buffer =
-		scic_sds_ssp_request_get_sgl_element_buffer(sci_req);
-	sci_req->sgl_element_pair_buffer =
-		PTR_ALIGN(sci_req->sgl_element_pair_buffer,
-			  sizeof(struct scu_sgl_element_pair));
 
 	if (sci_req->was_tag_assigned_by_user == false) {
 		sci_req->task_context_buffer =
@@ -535,7 +529,6 @@ static void scic_sds_ssp_task_request_assign_buffers(
 		scic_sds_ssp_task_request_get_command_buffer(sci_req);
 	sci_req->response_buffer =
 		scic_sds_ssp_task_request_get_response_buffer(sci_req);
-	sci_req->sgl_element_pair_buffer = NULL;
 
 	if (sci_req->was_tag_assigned_by_user == false) {
 		sci_req->task_context_buffer =

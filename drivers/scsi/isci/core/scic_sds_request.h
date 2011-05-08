@@ -60,6 +60,7 @@
 #include "sci_base_state_machine.h"
 #include "scu_task_context.h"
 #include "scic_sds_stp_request.h"
+#include "scu_constants.h"
 
 struct scic_sds_controller;
 struct scic_sds_remote_device;
@@ -183,7 +184,10 @@ struct scic_sds_request {
 	void *command_buffer;
 	void *response_buffer;
 	struct scu_task_context *task_context_buffer;
-	struct scu_sgl_element_pair *sgl_element_pair_buffer;
+
+	/* could be larger with sg chaining */
+	#define SCU_SGL_SIZE ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
+	struct scu_sgl_element_pair sg_table[SCU_SGL_SIZE] __attribute__ ((aligned(32)));
 
 	/**
 	 * This field indicates if this request is a task management request or
@@ -326,14 +330,6 @@ struct scic_sds_io_request_state_handler {
 };
 
 extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substate_table[];
-
-/**
- *
- *
- * This macro returns the maximum number of SGL element paris that we will
- * support in a single IO request.
- */
-#define SCU_MAX_SGL_ELEMENT_PAIRS ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
 
 /**
  * scic_sds_request_get_controller() -

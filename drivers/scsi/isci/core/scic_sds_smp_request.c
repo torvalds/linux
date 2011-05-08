@@ -131,7 +131,6 @@ void scic_sds_smp_request_assign_buffers(
 		scic_sds_smp_request_get_command_buffer(sci_req);
 	sci_req->response_buffer =
 		scic_sds_smp_request_get_response_buffer(sci_req);
-	sci_req->sgl_element_pair_buffer = NULL;
 
 	if (sci_req->was_tag_assigned_by_user == false) {
 		sci_req->task_context_buffer =

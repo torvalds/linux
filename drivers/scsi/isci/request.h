@@ -53,10 +53,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if !defined(_ISCI_REQUEST_H_)
+#ifndef _ISCI_REQUEST_H_
 #define _ISCI_REQUEST_H_
 
 #include "isci.h"
+#include "scic_sds_request.h"
 
 /**
  * struct isci_request_status - This enum defines the possible states of an I/O
@@ -80,16 +81,8 @@ enum task_type {
 	tmf_task = 1
 };
 
-/**
- * struct isci_request - This class represents the request object used to track
- *    IO, smp and TMF request internal. It wraps the SCIC request object.
- *
- *
- */
 struct isci_request {
-
 	struct scic_sds_request *sci_request_handle;
-
 	enum isci_request_status status;
 	enum task_type ttype;
 	unsigned short io_tag;
@@ -105,7 +98,6 @@ struct isci_request {
 	struct list_head completed_node;
 	/* For use in the reqs_in_process list: */
 	struct list_head dev_node;
-	void *sci_request_mem_ptr;
 	spinlock_t state_lock;
 	dma_addr_t request_daddr;
 	dma_addr_t zero_scatter_daddr;
@@ -123,6 +115,7 @@ struct isci_request {
 	 * TMF was aborting is guaranteed to have completed.
 	 */
 	struct completion *io_request_completion;
+	struct scic_sds_request sci_req[0] ____cacheline_aligned;
 };
 
 /**

@@ -200,14 +200,10 @@ static enum sci_status isci_io_request_build(
 	/* build the common request object. For now,
 	 * we will let the core allocate the IO tag.
 	 */
-	status = scic_io_request_construct(
-		&isci_host->sci,
-		sci_device,
-		SCI_CONTROLLER_INVALID_IO_TAG,
-		request,
-		request->sci_request_mem_ptr,
-		(struct scic_sds_request **)&request->sci_request_handle
-		);
+	status = scic_io_request_construct(&isci_host->sci, sci_device,
+					   SCI_CONTROLLER_INVALID_IO_TAG,
+					   request, request->sci_req,
+					   &request->sci_request_handle);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -277,8 +273,6 @@ static int isci_request_alloc_core(
 
 	/* initialize the request object.	*/
 	spin_lock_init(&request->state_lock);
-	request->sci_request_mem_ptr = ((u8 *)request) +
-				       sizeof(struct isci_request);
 	request->request_daddr = handle;
 	request->isci_host = isci_host;
 	request->isci_device = isci_device;
