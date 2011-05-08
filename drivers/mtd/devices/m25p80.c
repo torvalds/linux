@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/mod_devicetable.h>
 
+#include <linux/mtd/cfi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -75,6 +76,8 @@
 #define OPCODE_READ 	OPCODE_NORM_READ
 #define FAST_READ_DUMMY_BYTE 0
 #endif
+
+#define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
 
 /****************************************************************************/
 
@@ -872,9 +875,9 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	 * up with the software protection bits set
 	 */
 
-	if (info->jedec_id >> 16 == 0x1f ||
-	    info->jedec_id >> 16 == 0x89 ||
-	    info->jedec_id >> 16 == 0xbf) {
+	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ATMEL ||
+	    JEDEC_MFR(info->jedec_id) == CFI_MFR_INTEL ||
+	    JEDEC_MFR(info->jedec_id) == CFI_MFR_SST) {
 		write_enable(flash);
 		write_sr(flash, 0);
 	}
@@ -892,7 +895,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->mtd.read = m25p80_read;
 
 	/* sst flash chips use AAI word program */
-	if (info->jedec_id >> 16 == 0xbf)
+	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_SST)
 		flash->mtd.write = sst_write;
 	else
 		flash->mtd.write = m25p80_write;
