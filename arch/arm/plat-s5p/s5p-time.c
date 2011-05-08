@@ -290,7 +290,7 @@ static void __init s5p_clockevent_init(void)
 	setup_irq(irq_number, &s5p_clock_event_irq);
 }
 
-static cycle_t s5p_timer_read(struct clocksource *cs)
+static void __iomem *s5p_timer_reg(void)
 {
 	unsigned long offset = 0;
 
@@ -308,10 +308,17 @@ static cycle_t s5p_timer_read(struct clocksource *cs)
 
 	default:
 		printk(KERN_ERR "Invalid Timer %d\n", timer_source.source_id);
-		return 0;
+		return NULL;
 	}
 
-	return (cycle_t) ~__raw_readl(S3C_TIMERREG(offset));
+	return S3C_TIMERREG(offset);
+}
+
+static cycle_t s5p_timer_read(struct clocksource *cs)
+{
+	void __iomem *reg = s5p_timer_reg();
+
+	return (cycle_t) (reg ? ~__raw_readl(reg) : 0);
 }
 
 /*
@@ -325,53 +332,22 @@ static DEFINE_CLOCK_DATA(cd);
 
 unsigned long long notrace sched_clock(void)
 {
-	u32 cyc;
-	unsigned long offset = 0;
+	void __iomem *reg = s5p_timer_reg();
 
-	switch (timer_source.source_id) {
-	case S5P_PWM0:
-	case S5P_PWM1:
-	case S5P_PWM2:
-	case S5P_PWM3:
-		offset = (timer_source.source_id * 0x0c) + 0x14;
-		break;
-
-	case S5P_PWM4:
-		offset = 0x40;
-		break;
-
-	default:
-		printk(KERN_ERR "Invalid Timer %d\n", timer_source.source_id);
+	if (!reg)
 		return 0;
-	}
 
-	cyc = ~__raw_readl(S3C_TIMERREG(offset));
-	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+	return cyc_to_sched_clock(&cd, ~__raw_readl(reg), (u32)~0);
 }
 
 static void notrace s5p_update_sched_clock(void)
 {
-	u32 cyc;
-	unsigned long offset = 0;
+	void __iomem *reg = s5p_timer_reg();
 
-	switch (timer_source.source_id) {
-	case S5P_PWM0:
-	case S5P_PWM1:
-	case S5P_PWM2:
-	case S5P_PWM3:
-		offset = (timer_source.source_id * 0x0c) + 0x14;
-		break;
+	if (!reg)
+		return;
 
-	case S5P_PWM4:
-		offset = 0x40;
-		break;
-
-	default:
-		printk(KERN_ERR "Invalid Timer %d\n", timer_source.source_id);
-	}
-
-	cyc = ~__raw_readl(S3C_TIMERREG(offset));
-	update_sched_clock(&cd, cyc, (u32)~0);
+	update_sched_clock(&cd, ~__raw_readl(reg), (u32)~0);
 }
 
 struct clocksource time_clocksource = {
