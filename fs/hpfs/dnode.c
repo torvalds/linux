@@ -145,9 +145,10 @@ static void set_last_pointer(struct super_block *s, struct dnode *d, dnode_secno
 		}
 	}
 	if (ptr) {
-		if ((d->first_free += 4) > 2048) {
-			hpfs_error(s,"set_last_pointer: too long dnode %08x", d->self);
-			d->first_free -= 4;
+		d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + 4);
+		if (le32_to_cpu(d->first_free) > 2048) {
+			hpfs_error(s, "set_last_pointer: too long dnode %08x", d->self);
+			d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) - 4);
 			return;
 		}
 		de->length = 36;
@@ -184,7 +185,7 @@ struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d,
 	de->not_8x3 = hpfs_is_name_long(name, namelen);
 	de->namelen = namelen;
 	memcpy(de->name, name, namelen);
-	d->first_free += d_size;
+	d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + d_size);
 	return de;
 }
 
@@ -197,8 +198,8 @@ static void hpfs_delete_de(struct super_block *s, struct dnode *d,
 		hpfs_error(s, "attempt to delete last dirent in dnode %08x", d->self);
 		return;
 	}
-	d->first_free -= de->length;
-	memmove(de, de_next_de(de), d->first_free + (char *)d - (char *)de);
+	d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) - de->length);
+	memmove(de, de_next_de(de), le32_to_cpu(d->first_free) + (char *)d - (char *)de);
 }
 
 static void fix_up_ptrs(struct super_block *s, struct dnode *d)
@@ -262,7 +263,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 			kfree(nname);
 			return 1;
 		}
-	if (d->first_free + de_size(namelen, down_ptr) <= 2048) {
+	if (le32_to_cpu(d->first_free) + de_size(namelen, down_ptr) <= 2048) {
 		loff_t t;
 		copy_de(de=hpfs_add_de(i->i_sb, d, name, namelen, down_ptr), new_de);
 		t = get_pos(d, de);
@@ -286,11 +287,11 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 		kfree(nname);
 		return 1;
 	}	
-	memcpy(nd, d, d->first_free);
+	memcpy(nd, d, le32_to_cpu(d->first_free));
 	copy_de(de = hpfs_add_de(i->i_sb, nd, name, namelen, down_ptr), new_de);
 	for_all_poss(i, hpfs_pos_ins, get_pos(nd, de), 1);
 	h = ((char *)dnode_last_de(nd) - (char *)nd) / 2 + 10;
-	if (!(ad = hpfs_alloc_dnode(i->i_sb, d->up, &adno, &qbh1, 0))) {
+	if (!(ad = hpfs_alloc_dnode(i->i_sb, d->up, &adno, &qbh1))) {
 		hpfs_error(i->i_sb, "unable to alloc dnode - dnode tree will be corrupted");
 		hpfs_brelse4(&qbh);
 		kfree(nd);
@@ -313,9 +314,9 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	down_ptr = adno;
 	set_last_pointer(i->i_sb, ad, de->down ? de_down_pointer(de) : 0);
 	de = de_next_de(de);
-	memmove((char *)nd + 20, de, nd->first_free + (char *)nd - (char *)de);
-	nd->first_free -= (char *)de - (char *)nd - 20;
-	memcpy(d, nd, nd->first_free);
+	memmove((char *)nd + 20, de, le32_to_cpu(nd->first_free) + (char *)nd - (char *)de);
+	nd->first_free = cpu_to_le32(le32_to_cpu(nd->first_free) - (char *)de - (char *)nd - 20);
+	memcpy(d, nd, le32_to_cpu(nd->first_free));
 	for_all_poss(i, hpfs_pos_del, (loff_t)dno << 4, pos);
 	fix_up_ptrs(i->i_sb, ad);
 	if (!d->root_dnode) {
@@ -326,7 +327,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 		hpfs_brelse4(&qbh1);
 		goto go_up;
 	}
-	if (!(rd = hpfs_alloc_dnode(i->i_sb, d->up, &rdno, &qbh2, 0))) {
+	if (!(rd = hpfs_alloc_dnode(i->i_sb, d->up, &rdno, &qbh2))) {
 		hpfs_error(i->i_sb, "unable to alloc dnode - dnode tree will be corrupted");
 		hpfs_brelse4(&qbh);
 		hpfs_brelse4(&qbh1);
@@ -373,7 +374,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 
 int hpfs_add_dirent(struct inode *i,
 		    const unsigned char *name, unsigned namelen,
-		    struct hpfs_dirent *new_de, int cdepth)
+		    struct hpfs_dirent *new_de)
 {
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
 	struct dnode *d;
@@ -403,7 +404,6 @@ int hpfs_add_dirent(struct inode *i,
 		}
 	}
 	hpfs_brelse4(&qbh);
-	if (!cdepth) hpfs_lock_creation(i->i_sb);
 	if (hpfs_check_free_dnodes(i->i_sb, FREE_DNODES_ADD)) {
 		c = 1;
 		goto ret;
@@ -411,7 +411,6 @@ int hpfs_add_dirent(struct inode *i,
 	i->i_version++;
 	c = hpfs_add_to_dnode(i, dno, name, namelen, new_de, 0);
 	ret:
-	if (!cdepth) hpfs_unlock_creation(i->i_sb);
 	return c;
 }
 
@@ -474,7 +473,7 @@ static secno move_to_top(struct inode *i, dnode_secno from, dnode_secno to)
 			hpfs_brelse4(&qbh);
 			return 0;
 		}
-		dnode->first_free -= 4;
+		dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
 		de->length -= 4;
 		de->down = 0;
 		hpfs_mark_4buffers_dirty(&qbh);
@@ -517,8 +516,8 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 	try_it_again:
 	if (hpfs_stop_cycles(i->i_sb, dno, &c1, &c2, "delete_empty_dnode")) return;
 	if (!(dnode = hpfs_map_dnode(i->i_sb, dno, &qbh))) return;
-	if (dnode->first_free > 56) goto end;
-	if (dnode->first_free == 52 || dnode->first_free == 56) {
+	if (le32_to_cpu(dnode->first_free) > 56) goto end;
+	if (le32_to_cpu(dnode->first_free) == 52 || le32_to_cpu(dnode->first_free) == 56) {
 		struct hpfs_dirent *de_end;
 		int root = dnode->root_dnode;
 		up = dnode->up;
@@ -571,9 +570,9 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		if (!down) {
 			de->down = 0;
 			de->length -= 4;
-			dnode->first_free -= 4;
+			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
 			memmove(de_next_de(de), (char *)de_next_de(de) + 4,
-				(char *)dnode + dnode->first_free - (char *)de_next_de(de));
+				(char *)dnode + le32_to_cpu(dnode->first_free) - (char *)de_next_de(de));
 		} else {
 			struct dnode *d1;
 			struct quad_buffer_head qbh1;
@@ -585,7 +584,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			}
 		}
 	} else {
-		hpfs_error(i->i_sb, "delete_empty_dnode: dnode %08x, first_free == %03x", dno, dnode->first_free);
+		hpfs_error(i->i_sb, "delete_empty_dnode: dnode %08x, first_free == %03x", dno, le32_to_cpu(dnode->first_free));
 		goto end;
 	}
 
@@ -635,7 +634,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			struct hpfs_dirent *del = dnode_last_de(d1);
 			dlp = del->down ? de_down_pointer(del) : 0;
 			if (!dlp && down) {
-				if (d1->first_free > 2044) {
+				if (le32_to_cpu(d1->first_free) > 2044) {
 					if (hpfs_sb(i->i_sb)->sb_chk >= 2) {
 						printk("HPFS: warning: unbalanced dnode tree, see hpfs.txt 4 more info\n");
 						printk("HPFS: warning: terminating balancing operation\n");
@@ -649,12 +648,12 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 				}
 				del->length += 4;
 				del->down = 1;
-				d1->first_free += 4;
+				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) + 4);
 			}
 			if (dlp && !down) {
 				del->length -= 4;
 				del->down = 0;
-				d1->first_free -= 4;
+				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) - 4);
 			} else if (down)
 				*(dnode_secno *) ((void *) del + del->length - 4) = down;
 		} else goto endm;
@@ -670,7 +669,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		if (!de_prev->down) {
 			de_prev->length += 4;
 			de_prev->down = 1;
-			dnode->first_free += 4;
+			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) + 4);
 		}
 		*(dnode_secno *) ((void *) de_prev + de_prev->length - 4) = ndown;
 		hpfs_mark_4buffers_dirty(&qbh);
@@ -701,7 +700,6 @@ int hpfs_remove_dirent(struct inode *i, dnode_secno dno, struct hpfs_dirent *de,
 {
 	struct dnode *dnode = qbh->data;
 	dnode_secno down = 0;
-	int lock = 0;
 	loff_t t;
 	if (de->first || de->last) {
 		hpfs_error(i->i_sb, "hpfs_remove_dirent: attempt to delete first or last dirent in dnode %08x", dno);
@@ -710,11 +708,8 @@ int hpfs_remove_dirent(struct inode *i, dnode_secno dno, struct hpfs_dirent *de,
 	}
 	if (de->down) down = de_down_pointer(de);
 	if (depth && (de->down || (de == dnode_first_de(dnode) && de_next_de(de)->last))) {
-		lock = 1;
-		hpfs_lock_creation(i->i_sb);
 		if (hpfs_check_free_dnodes(i->i_sb, FREE_DNODES_DEL)) {
 			hpfs_brelse4(qbh);
-			hpfs_unlock_creation(i->i_sb);
 			return 2;
 		}
 	}
@@ -727,11 +722,9 @@ int hpfs_remove_dirent(struct inode *i, dnode_secno dno, struct hpfs_dirent *de,
 		dnode_secno a = move_to_top(i, down, dno);
 		for_all_poss(i, hpfs_pos_subst, 5, t);
 		if (a) delete_empty_dnode(i, a);
-		if (lock) hpfs_unlock_creation(i->i_sb);
 		return !a;
 	}
 	delete_empty_dnode(i, dno);
-	if (lock) hpfs_unlock_creation(i->i_sb);
 	return 0;
 }
 

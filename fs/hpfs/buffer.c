@@ -9,22 +9,6 @@
 #include <linux/slab.h>
 #include "hpfs_fn.h"
 
-void hpfs_lock_creation(struct super_block *s)
-{
-#ifdef DEBUG_LOCKS
-	printk("lock creation\n");
-#endif
-	mutex_lock(&hpfs_sb(s)->hpfs_creation_de);
-}
-
-void hpfs_unlock_creation(struct super_block *s)
-{
-#ifdef DEBUG_LOCKS
-	printk("unlock creation\n");
-#endif
-	mutex_unlock(&hpfs_sb(s)->hpfs_creation_de);
-}
-
 /* Map a sector into a buffer and return pointers to it and to the buffer. */
 
 void *hpfs_map_sector(struct super_block *s, unsigned secno, struct buffer_head **bhp,

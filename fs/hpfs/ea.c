@@ -266,7 +266,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		secno n;
 		struct buffer_head *bh;
 		char *data;
-		if (!(n = hpfs_alloc_sector(s, fno, 1, 0, 1))) return;
+		if (!(n = hpfs_alloc_sector(s, fno, 1, 0))) return;
 		if (!(data = hpfs_get_sector(s, n, &bh))) {
 			hpfs_free_sectors(s, n, 1);
 			return;
@@ -284,7 +284,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 	if (pos >= 30000) goto bail;
 	while (((pos + 511) >> 9) > len) {
 		if (!len) {
-			if (!(fnode->ea_secno = hpfs_alloc_sector(s, fno, 1, 0, 1)))
+			if (!(fnode->ea_secno = hpfs_alloc_sector(s, fno, 1, 0)))
 				goto bail;
 			fnode->ea_anode = 0;
 			len++;
@@ -312,7 +312,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 				fnode->ea_secno = a_s;*/
 				secno new_sec;
 				int i;
-				if (!(new_sec = hpfs_alloc_sector(s, fno, 1, 1 - ((pos + 511) >> 9), 1)))
+				if (!(new_sec = hpfs_alloc_sector(s, fno, 1, 1 - ((pos + 511) >> 9))))
 					goto bail;
 				for (i = 0; i < len; i++) {
 					struct buffer_head *bh1, *bh2;

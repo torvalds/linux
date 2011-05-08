@@ -56,8 +56,6 @@ struct hpfs_inode_info {
 	unsigned i_ea_uid : 1;	/* file's uid is stored in ea */
 	unsigned i_ea_gid : 1;	/* file's gid is stored in ea */
 	unsigned i_dirty : 1;
-	struct mutex i_mutex;
-	struct mutex i_parent_mutex;
 	loff_t **i_rddir_off;
 	struct inode vfs_inode;
 };
@@ -88,8 +86,6 @@ struct hpfs_sb_info {
 	unsigned *sb_bmp_dir;		/* main bitmap directory */
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
-	struct mutex hpfs_creation_de;	/* when creating dirents, nobody else
-					   can alloc blocks */
 	/*unsigned sb_mounting : 1;*/
 	int sb_timeshift;
 };
@@ -201,12 +197,12 @@ static inline unsigned tstbits(unsigned *bmp, unsigned b, unsigned n)
 /* alloc.c */
 
 int hpfs_chk_sectors(struct super_block *, secno, int, char *);
-secno hpfs_alloc_sector(struct super_block *, secno, unsigned, int, int);
+secno hpfs_alloc_sector(struct super_block *, secno, unsigned, int);
 int hpfs_alloc_if_possible(struct super_block *, secno);
 void hpfs_free_sectors(struct super_block *, secno, unsigned);
 int hpfs_check_free_dnodes(struct super_block *, int);
 void hpfs_free_dnode(struct super_block *, secno);
-struct dnode *hpfs_alloc_dnode(struct super_block *, secno, dnode_secno *, struct quad_buffer_head *, int);
+struct dnode *hpfs_alloc_dnode(struct super_block *, secno, dnode_secno *, struct quad_buffer_head *);
 struct fnode *hpfs_alloc_fnode(struct super_block *, secno, fnode_secno *, struct buffer_head **);
 struct anode *hpfs_alloc_anode(struct super_block *, secno, anode_secno *, struct buffer_head **);
 
@@ -223,8 +219,6 @@ void hpfs_remove_fnode(struct super_block *, fnode_secno fno);
 
 /* buffer.c */
 
-void hpfs_lock_creation(struct super_block *);
-void hpfs_unlock_creation(struct super_block *);
 void *hpfs_map_sector(struct super_block *, unsigned, struct buffer_head **, int);
 void *hpfs_get_sector(struct super_block *, unsigned, struct buffer_head **);
 void *hpfs_map_4sectors(struct super_block *, unsigned, struct quad_buffer_head *, int);
@@ -248,7 +242,7 @@ void hpfs_del_pos(struct inode *, loff_t *);
 struct hpfs_dirent *hpfs_add_de(struct super_block *, struct dnode *,
 				const unsigned char *, unsigned, secno);
 int hpfs_add_dirent(struct inode *, const unsigned char *, unsigned,
-		    struct hpfs_dirent *, int);
+		    struct hpfs_dirent *);
 int hpfs_remove_dirent(struct inode *, dnode_secno, struct hpfs_dirent *, struct quad_buffer_head *, int);
 void hpfs_count_dnodes(struct super_block *, dnode_secno, int *, int *, int *);
 dnode_secno hpfs_de_as_down_as_possible(struct super_block *, dnode_secno dno);

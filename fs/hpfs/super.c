@@ -191,8 +191,6 @@ static void init_once(void *foo)
 {
 	struct hpfs_inode_info *ei = (struct hpfs_inode_info *) foo;
 
-	mutex_init(&ei->i_mutex);
-	mutex_init(&ei->i_parent_mutex);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -495,8 +493,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	mutex_init(&sbi->hpfs_mutex);
 	hpfs_lock(s);
-
-	mutex_init(&sbi->hpfs_creation_de);
 
 	uid = current_uid();
 	gid = current_gid();
