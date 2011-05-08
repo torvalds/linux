@@ -283,8 +283,8 @@ extern struct au1xmmc_platform_data au1xmmc_platdata[2];
 
 static struct resource au1200_mmc0_resources[] = {
 	[0] = {
-		.start          = SD0_PHYS_ADDR,
-		.end            = SD0_PHYS_ADDR + 0x7ffff,
+		.start          = AU1100_SD0_PHYS_ADDR,
+		.end            = AU1100_SD0_PHYS_ADDR + 0xfff,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -319,8 +319,8 @@ static struct platform_device au1200_mmc0_device = {
 #ifndef CONFIG_MIPS_DB1200
 static struct resource au1200_mmc1_resources[] = {
 	[0] = {
-		.start          = SD1_PHYS_ADDR,
-		.end            = SD1_PHYS_ADDR + 0x7ffff,
+		.start          = AU1100_SD1_PHYS_ADDR,
+		.end            = AU1100_SD1_PHYS_ADDR + 0xfff,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
