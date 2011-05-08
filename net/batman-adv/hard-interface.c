@@ -31,9 +31,6 @@
 
 #include <linux/if_arp.h>
 
-/* protect update critical side of hardif_list - but not the content */
-static DEFINE_SPINLOCK(hardif_list_lock);
-
 
 static int batman_skb_recv(struct sk_buff *skb,
 			   struct net_device *dev,
@@ -136,7 +133,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	struct hard_iface *curr_hard_iface;
 	struct batman_packet *batman_packet;
 
-	spin_lock_bh(&hardif_list_lock);
+	ASSERT_RTNL();
 
 	if (new_hard_iface && !atomic_inc_not_zero(&new_hard_iface->refcount))
 		new_hard_iface = NULL;
@@ -148,7 +145,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 		hardif_free_ref(curr_hard_iface);
 
 	if (!new_hard_iface)
-		goto out;
+		return;
 
 	batman_packet = (struct batman_packet *)(new_hard_iface->packet_buff);
 	batman_packet->flags = PRIMARIES_FIRST_HOP;
@@ -157,13 +154,10 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	primary_if_update_addr(bat_priv);
 
 	/***
-	 * hacky trick to make sure that we send the HNA information via
+	 * hacky trick to make sure that we send the TT information via
 	 * our new primary interface
 	 */
-	atomic_set(&bat_priv->hna_local_changed, 1);
-
-out:
-	spin_unlock_bh(&hardif_list_lock);
+	atomic_set(&bat_priv->tt_local_changed, 1);
 }
 
 static bool hardif_is_iface_up(struct hard_iface *hard_iface)
@@ -345,7 +339,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 	batman_packet->flags = 0;
 	batman_packet->ttl = 2;
 	batman_packet->tq = TQ_MAX_VALUE;
-	batman_packet->num_hna = 0;
+	batman_packet->num_tt = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -456,6 +450,8 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	struct hard_iface *hard_iface;
 	int ret;
 
+	ASSERT_RTNL();
+
 	ret = is_valid_iface(net_dev);
 	if (ret != 1)
 		goto out;
@@ -482,10 +478,7 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	atomic_set(&hard_iface->refcount, 2);
 
 	check_known_mac_addr(hard_iface->net_dev);
-
-	spin_lock(&hardif_list_lock);
 	list_add_tail_rcu(&hard_iface->list, &hardif_list);
-	spin_unlock(&hardif_list_lock);
 
 	return hard_iface;
 
@@ -499,6 +492,8 @@ out:
 
 static void hardif_remove_interface(struct hard_iface *hard_iface)
 {
+	ASSERT_RTNL();
+
 	/* first deactivate interface */
 	if (hard_iface->if_status != IF_NOT_IN_USE)
 		hardif_disable_interface(hard_iface);
@@ -514,20 +509,11 @@ static void hardif_remove_interface(struct hard_iface *hard_iface)
 void hardif_remove_interfaces(void)
 {
 	struct hard_iface *hard_iface, *hard_iface_tmp;
-	struct list_head if_queue;
 
-	INIT_LIST_HEAD(&if_queue);
-
-	spin_lock(&hardif_list_lock);
+	rtnl_lock();
 	list_for_each_entry_safe(hard_iface, hard_iface_tmp,
 				 &hardif_list, list) {
 		list_del_rcu(&hard_iface->list);
-		list_add_tail(&hard_iface->list, &if_queue);
-	}
-	spin_unlock(&hardif_list_lock);
-
-	rtnl_lock();
-	list_for_each_entry_safe(hard_iface, hard_iface_tmp, &if_queue, list) {
 		hardif_remove_interface(hard_iface);
 	}
 	rtnl_unlock();
@@ -556,9 +542,7 @@ static int hard_if_event(struct notifier_block *this,
 		hardif_deactivate_interface(hard_iface);
 		break;
 	case NETDEV_UNREGISTER:
-		spin_lock(&hardif_list_lock);
 		list_del_rcu(&hard_iface->list);
-		spin_unlock(&hardif_list_lock);
 
 		hardif_remove_interface(hard_iface);
 		break;

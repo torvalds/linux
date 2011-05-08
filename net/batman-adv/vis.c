@@ -194,7 +194,7 @@ static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 {
 	/* maximal length: max(4+17+2, 3+17+1+3+2) == 26 */
 	if (primary && entry->quality == 0)
-		return sprintf(buff, "HNA %pM, ", entry->dest);
+		return sprintf(buff, "TT %pM, ", entry->dest);
 	else if (compare_eth(entry->src, src))
 		return sprintf(buff, "TQ %pM %d, ", entry->dest,
 			       entry->quality);
@@ -622,7 +622,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	struct vis_info *info = (struct vis_info *)bat_priv->my_vis_info;
 	struct vis_packet *packet = (struct vis_packet *)info->skb_packet->data;
 	struct vis_info_entry *entry;
-	struct hna_local_entry *hna_local_entry;
+	struct tt_local_entry *tt_local_entry;
 	int best_tq = -1, i;
 
 	info->first_seen = jiffies;
@@ -678,29 +678,29 @@ next:
 		rcu_read_unlock();
 	}
 
-	hash = bat_priv->hna_local_hash;
+	hash = bat_priv->tt_local_hash;
 
-	spin_lock_bh(&bat_priv->hna_lhash_lock);
+	spin_lock_bh(&bat_priv->tt_lhash_lock);
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(hna_local_entry, node, head, hash_entry) {
+		hlist_for_each_entry(tt_local_entry, node, head, hash_entry) {
 			entry = (struct vis_info_entry *)
 					skb_put(info->skb_packet,
 						sizeof(*entry));
 			memset(entry->src, 0, ETH_ALEN);
-			memcpy(entry->dest, hna_local_entry->addr, ETH_ALEN);
-			entry->quality = 0; /* 0 means HNA */
+			memcpy(entry->dest, tt_local_entry->addr, ETH_ALEN);
+			entry->quality = 0; /* 0 means TT */
 			packet->entries++;
 
 			if (vis_packet_full(info)) {
-				spin_unlock_bh(&bat_priv->hna_lhash_lock);
+				spin_unlock_bh(&bat_priv->tt_lhash_lock);
 				return 0;
 			}
 		}
 	}
 
-	spin_unlock_bh(&bat_priv->hna_lhash_lock);
+	spin_unlock_bh(&bat_priv->tt_lhash_lock);
 	return 0;
 
 unlock:

@@ -64,28 +64,28 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 	}
 }
 
-static void update_HNA(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		       unsigned char *hna_buff, int hna_buff_len)
+static void update_TT(struct bat_priv *bat_priv, struct orig_node *orig_node,
+		       unsigned char *tt_buff, int tt_buff_len)
 {
-	if ((hna_buff_len != orig_node->hna_buff_len) ||
-	    ((hna_buff_len > 0) &&
-	     (orig_node->hna_buff_len > 0) &&
-	     (memcmp(orig_node->hna_buff, hna_buff, hna_buff_len) != 0))) {
+	if ((tt_buff_len != orig_node->tt_buff_len) ||
+	    ((tt_buff_len > 0) &&
+	     (orig_node->tt_buff_len > 0) &&
+	     (memcmp(orig_node->tt_buff, tt_buff, tt_buff_len) != 0))) {
 
-		if (orig_node->hna_buff_len > 0)
-			hna_global_del_orig(bat_priv, orig_node,
-					    "originator changed hna");
+		if (orig_node->tt_buff_len > 0)
+			tt_global_del_orig(bat_priv, orig_node,
+					    "originator changed tt");
 
-		if ((hna_buff_len > 0) && (hna_buff))
-			hna_global_add_orig(bat_priv, orig_node,
-					    hna_buff, hna_buff_len);
+		if ((tt_buff_len > 0) && (tt_buff))
+			tt_global_add_orig(bat_priv, orig_node,
+					    tt_buff, tt_buff_len);
 	}
 }
 
 static void update_route(struct bat_priv *bat_priv,
 			 struct orig_node *orig_node,
 			 struct neigh_node *neigh_node,
-			 unsigned char *hna_buff, int hna_buff_len)
+			 unsigned char *tt_buff, int tt_buff_len)
 {
 	struct neigh_node *curr_router;
 
@@ -96,7 +96,7 @@ static void update_route(struct bat_priv *bat_priv,
 
 		bat_dbg(DBG_ROUTES, bat_priv, "Deleting route towards: %pM\n",
 			orig_node->orig);
-		hna_global_del_orig(bat_priv, orig_node,
+		tt_global_del_orig(bat_priv, orig_node,
 				    "originator timed out");
 
 	/* route added */
@@ -105,8 +105,8 @@ static void update_route(struct bat_priv *bat_priv,
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Adding route towards: %pM (via %pM)\n",
 			orig_node->orig, neigh_node->addr);
-		hna_global_add_orig(bat_priv, orig_node,
-				    hna_buff, hna_buff_len);
+		tt_global_add_orig(bat_priv, orig_node,
+				    tt_buff, tt_buff_len);
 
 	/* route changed */
 	} else {
@@ -135,8 +135,8 @@ static void update_route(struct bat_priv *bat_priv,
 
 
 void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		   struct neigh_node *neigh_node, unsigned char *hna_buff,
-		   int hna_buff_len)
+		   struct neigh_node *neigh_node, unsigned char *tt_buff,
+		   int tt_buff_len)
 {
 	struct neigh_node *router = NULL;
 
@@ -147,10 +147,10 @@ void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
 
 	if (router != neigh_node)
 		update_route(bat_priv, orig_node, neigh_node,
-			     hna_buff, hna_buff_len);
-	/* may be just HNA changed */
+			     tt_buff, tt_buff_len);
+	/* may be just TT changed */
 	else
-		update_HNA(bat_priv, orig_node, hna_buff, hna_buff_len);
+		update_TT(bat_priv, orig_node, tt_buff, tt_buff_len);
 
 out:
 	if (router)
@@ -169,65 +169,41 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	uint8_t orig_eq_count, neigh_rq_count, tq_own;
 	int tq_asym_penalty, ret = 0;
 
-	if (orig_node == orig_neigh_node) {
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(tmp_neigh_node, node,
-					 &orig_node->neigh_list, list) {
+	/* find corresponding one hop neighbor */
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_neigh_node, node,
+				 &orig_neigh_node->neigh_list, list) {
 
-			if (!compare_eth(tmp_neigh_node->addr,
-					 orig_neigh_node->orig))
-				continue;
+		if (!compare_eth(tmp_neigh_node->addr, orig_neigh_node->orig))
+			continue;
 
-			if (tmp_neigh_node->if_incoming != if_incoming)
-				continue;
+		if (tmp_neigh_node->if_incoming != if_incoming)
+			continue;
 
-			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-				continue;
+		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+			continue;
 
-			neigh_node = tmp_neigh_node;
-		}
-		rcu_read_unlock();
-
-		if (!neigh_node)
-			neigh_node = create_neighbor(orig_node,
-						     orig_neigh_node,
-						     orig_neigh_node->orig,
-						     if_incoming);
-		if (!neigh_node)
-			goto out;
-
-		neigh_node->last_valid = jiffies;
-	} else {
-		/* find packet count of corresponding one hop neighbor */
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(tmp_neigh_node, node,
-					 &orig_neigh_node->neigh_list, list) {
-
-			if (!compare_eth(tmp_neigh_node->addr,
-					 orig_neigh_node->orig))
-				continue;
-
-			if (tmp_neigh_node->if_incoming != if_incoming)
-				continue;
-
-			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-				continue;
-
-			neigh_node = tmp_neigh_node;
-		}
-		rcu_read_unlock();
-
-		if (!neigh_node)
-			neigh_node = create_neighbor(orig_neigh_node,
-						     orig_neigh_node,
-						     orig_neigh_node->orig,
-						     if_incoming);
-		if (!neigh_node)
-			goto out;
+		neigh_node = tmp_neigh_node;
+		break;
 	}
+	rcu_read_unlock();
+
+	if (!neigh_node)
+		neigh_node = create_neighbor(orig_neigh_node,
+					     orig_neigh_node,
+					     orig_neigh_node->orig,
+					     if_incoming);
+
+	if (!neigh_node)
+		goto out;
+
+	/* if orig_node is direct neighbour update neigh_node last_valid */
+	if (orig_node == orig_neigh_node)
+		neigh_node->last_valid = jiffies;
 
 	orig_node->last_valid = jiffies;
 
+	/* find packet count of corresponding one hop neighbor */
 	spin_lock_bh(&orig_node->ogm_cnt_lock);
 	orig_eq_count = orig_neigh_node->bcast_own_sum[if_incoming->if_num];
 	neigh_rq_count = neigh_node->real_packet_count;
@@ -387,14 +363,14 @@ static void update_orig(struct bat_priv *bat_priv,
 			struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
 			struct hard_iface *if_incoming,
-			unsigned char *hna_buff, int hna_buff_len,
+			unsigned char *tt_buff, int tt_buff_len,
 			char is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct neigh_node *router = NULL;
 	struct orig_node *orig_node_tmp;
 	struct hlist_node *node;
-	int tmp_hna_buff_len;
+	int tmp_tt_buff_len;
 	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
 
 	bat_dbg(DBG_BATMAN, bat_priv, "update_originator(): "
@@ -459,18 +435,18 @@ static void update_orig(struct bat_priv *bat_priv,
 
 	bonding_candidate_add(orig_node, neigh_node);
 
-	tmp_hna_buff_len = (hna_buff_len > batman_packet->num_hna * ETH_ALEN ?
-			    batman_packet->num_hna * ETH_ALEN : hna_buff_len);
+	tmp_tt_buff_len = (tt_buff_len > batman_packet->num_tt * ETH_ALEN ?
+			    batman_packet->num_tt * ETH_ALEN : tt_buff_len);
 
 	/* if this neighbor already is our next hop there is nothing
 	 * to change */
 	router = orig_node_get_router(orig_node);
 	if (router == neigh_node)
-		goto update_hna;
+		goto update_tt;
 
 	/* if this neighbor does not offer a better TQ we won't consider it */
 	if (router && (router->tq_avg > neigh_node->tq_avg))
-		goto update_hna;
+		goto update_tt;
 
 	/* if the TQ is the same and the link not more symetric we
 	 * won't consider it either */
@@ -488,16 +464,16 @@ static void update_orig(struct bat_priv *bat_priv,
 		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
 
 		if (bcast_own_sum_orig >= bcast_own_sum_neigh)
-			goto update_hna;
+			goto update_tt;
 	}
 
 	update_routes(bat_priv, orig_node, neigh_node,
-		      hna_buff, tmp_hna_buff_len);
+		      tt_buff, tmp_tt_buff_len);
 	goto update_gw;
 
-update_hna:
+update_tt:
 	update_routes(bat_priv, orig_node, router,
-		      hna_buff, tmp_hna_buff_len);
+		      tt_buff, tmp_tt_buff_len);
 
 update_gw:
 	if (orig_node->gw_flags != batman_packet->gw_flags)
@@ -621,7 +597,7 @@ out:
 
 void receive_bat_packet(struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
-			unsigned char *hna_buff, int hna_buff_len,
+			unsigned char *tt_buff, int tt_buff_len,
 			struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -818,14 +794,14 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	     ((orig_node->last_real_seqno == batman_packet->seqno) &&
 	      (orig_node->last_ttl - 3 <= batman_packet->ttl))))
 		update_orig(bat_priv, orig_node, ethhdr, batman_packet,
-			    if_incoming, hna_buff, hna_buff_len, is_duplicate);
+			    if_incoming, tt_buff, tt_buff_len, is_duplicate);
 
 	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
 
 		/* mark direct link on incoming interface */
 		schedule_forward_packet(orig_node, ethhdr, batman_packet,
-					1, hna_buff_len, if_incoming);
+					1, tt_buff_len, if_incoming);
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Forwarding packet: "
 			"rebroadcast neighbor packet with direct link flag\n");
@@ -848,7 +824,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
 	schedule_forward_packet(orig_node, ethhdr, batman_packet,
-				0, hna_buff_len, if_incoming);
+				0, tt_buff_len, if_incoming);
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
@@ -1213,7 +1189,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 
 	router = orig_node_get_router(orig_node);
 	if (!router)
-		return NULL;
+		goto err;
 
 	/* without bonding, the first node should
 	 * always choose the default router. */
@@ -1222,10 +1198,8 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	/* select default router to output */
 	router_orig = router->orig_node;
-	if (!router_orig) {
-		rcu_read_unlock();
-		return NULL;
-	}
+	if (!router_orig)
+		goto err_unlock;
 
 	if ((!recv_if) && (!bonding_enabled))
 		goto return_router;
@@ -1268,6 +1242,12 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 return_router:
 	rcu_read_unlock();
 	return router;
+err_unlock:
+	rcu_read_unlock();
+err:
+	if (router)
+		neigh_node_free_ref(router);
+	return NULL;
 }
 
 static int check_unicast_packet(struct sk_buff *skb, int hdr_size)

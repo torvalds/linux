@@ -24,10 +24,10 @@
 #include "send.h"
 #include "routing.h"
 
-/* calculate the size of the hna information for a given packet */
-static int hna_len(struct batman_packet *batman_packet)
+/* calculate the size of the tt information for a given packet */
+static int tt_len(struct batman_packet *batman_packet)
 {
-	return batman_packet->num_hna * ETH_ALEN;
+	return batman_packet->num_tt * ETH_ALEN;
 }
 
 /* return true if new_packet can be aggregated with forw_packet */
@@ -250,7 +250,7 @@ void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
 {
 	struct batman_packet *batman_packet;
 	int buff_pos = 0;
-	unsigned char *hna_buff;
+	unsigned char *tt_buff;
 
 	batman_packet = (struct batman_packet *)packet_buff;
 
@@ -259,14 +259,14 @@ void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
 		   orig_interval. */
 		batman_packet->seqno = ntohl(batman_packet->seqno);
 
-		hna_buff = packet_buff + buff_pos + BAT_PACKET_LEN;
+		tt_buff = packet_buff + buff_pos + BAT_PACKET_LEN;
 		receive_bat_packet(ethhdr, batman_packet,
-				   hna_buff, hna_len(batman_packet),
+				   tt_buff, tt_len(batman_packet),
 				   if_incoming);
 
-		buff_pos += BAT_PACKET_LEN + hna_len(batman_packet);
+		buff_pos += BAT_PACKET_LEN + tt_len(batman_packet);
 		batman_packet = (struct batman_packet *)
 			(packet_buff + buff_pos);
 	} while (aggregated_packet(buff_pos, packet_len,
-				   batman_packet->num_hna));
+				   batman_packet->num_tt));
 }
