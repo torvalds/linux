@@ -2596,14 +2596,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto scrub;
 
-	/* set supply regulator if it exists */
-	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
-		dev_err(dev,
-			"Supply regulator specified by both name and dev\n");
-		ret = -EINVAL;
-		goto scrub;
-	}
-
 	if (init_data->supply_regulator) {
 		struct regulator_dev *r;
 		int found = 0;
@@ -2624,14 +2616,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		}
 
 		ret = set_supply(rdev, r);
-		if (ret < 0)
-			goto scrub;
-	}
-
-	if (init_data->supply_regulator_dev) {
-		dev_warn(dev, "Uses supply_regulator_dev instead of regulator_supply\n");
-		ret = set_supply(rdev,
-			dev_get_drvdata(init_data->supply_regulator_dev));
 		if (ret < 0)
 			goto scrub;
 	}
