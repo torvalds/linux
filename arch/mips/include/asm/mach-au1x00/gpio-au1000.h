@@ -24,6 +24,7 @@
 
 #define MAKE_IRQ(intc, off)	(AU1000_INTC##intc##_INT_BASE + (off))
 
+struct gpio;
 
 static inline int au1000_gpio1_to_irq(int gpio)
 {
@@ -556,6 +557,16 @@ static inline void gpio_set_value(int gpio, int v)
 	alchemy_gpio_set_value(gpio, v);
 }
 
+static inline int gpio_get_value_cansleep(unsigned gpio)
+{
+	return gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value_cansleep(unsigned gpio, int value)
+{
+	gpio_set_value(gpio, value);
+}
+
 static inline int gpio_is_valid(int gpio)
 {
 	return alchemy_gpio_is_valid(gpio);
@@ -581,7 +592,47 @@ static inline int gpio_request(unsigned gpio, const char *label)
 	return 0;
 }
 
+static inline int gpio_request_one(unsigned gpio,
+					unsigned long flags, const char *label)
+{
+	return 0;
+}
+
+static inline int gpio_request_array(struct gpio *array, size_t num)
+{
+	return 0;
+}
+
 static inline void gpio_free(unsigned gpio)
+{
+}
+
+static inline void gpio_free_array(struct gpio *array, size_t num)
+{
+}
+
+static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_export(unsigned gpio, bool direction_may_change)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_export_link(struct device *dev, const char *name,
+				   unsigned gpio)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_sysfs_set_active_low(unsigned gpio, int value)
+{
+	return -ENOSYS;
+}
+
+static inline void gpio_unexport(unsigned gpio)
 {
 }
 
