@@ -76,6 +76,7 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 	unsigned pos;
 	int ano, len;
 	secno a;
+	char ex[4 + 255 + 1 + 8];
 	struct extended_attribute *ea;
 	struct extended_attribute *ea_end = fnode_end_ea(fnode);
 	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
@@ -93,7 +94,6 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 	ano = fnode->ea_anode;
 	pos = 0;
 	while (pos < len) {
-		char ex[4 + 255 + 1 + 8];
 		ea = (struct extended_attribute *)ex;
 		if (pos + 4 > len) {
 			hpfs_error(s, "EAs don't end correctly, %s %08x, len %08x",
