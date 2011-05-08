@@ -94,18 +94,6 @@
 		 ))
 
 /**
- * scic_sds_stp_request_get_task_context_buffer() -
- *
- * This macro returns the address of the task context buffer in the io request
- * memory
- */
-#define scic_sds_stp_request_get_task_context_buffer(memory) \
-	((struct scu_task_context *)(\
-		 ((char *)(scic_sds_stp_request_get_response_buffer(memory))) \
-		 + SSP_RESP_IU_MAX_SIZE \
-		 ))
-
-/**
  *
  *
  * This method return the memory space required for STP PIO requests. u32
@@ -114,9 +102,7 @@ u32 scic_sds_stp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_stp_request)
 	       + sizeof(struct host_to_dev_fis)
-	       + sizeof(struct dev_to_host_fis)
-	       + sizeof(struct scu_task_context)
-	       + SMP_CACHE_BYTES;
+	       + sizeof(struct dev_to_host_fis);
 }
 
 void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
@@ -126,12 +112,8 @@ void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 	sci_req->command_buffer = scic_sds_stp_request_get_h2d_reg_buffer(stp_req);
 	sci_req->response_buffer = scic_sds_stp_request_get_response_buffer(stp_req);
 
-	if (sci_req->was_tag_assigned_by_user == false) {
-		sci_req->task_context_buffer =
-			scic_sds_stp_request_get_task_context_buffer(stp_req);
-		sci_req->task_context_buffer = PTR_ALIGN(sci_req->task_context_buffer,
-							 SMP_CACHE_BYTES);
-	}
+	if (sci_req->was_tag_assigned_by_user == false)
+		sci_req->task_context_buffer = &sci_req->tc;
 }
 
 /**

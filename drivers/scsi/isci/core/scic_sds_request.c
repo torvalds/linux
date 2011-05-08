@@ -125,31 +125,6 @@
 		 ))
 
 /**
- * scic_sds_ssp_request_get_task_context_buffer() -
- *
- * This macro returns the address of the task context buffer in the io request
- * memory
- */
-#define scic_sds_ssp_request_get_task_context_buffer(memory) \
-	((struct scu_task_context *)(\
-		 ((char *)(scic_sds_ssp_request_get_response_buffer(memory))) \
-		 + SSP_RESP_IU_MAX_SIZE \
-		 ))
-
-/**
- * scic_sds_ssp_request_get_sgl_element_buffer() -
- *
- * This macro returns the address of the sgl elment pairs in the io request
- * memory buffer
- */
-#define scic_sds_ssp_request_get_sgl_element_buffer(memory) \
-	((struct scu_sgl_element_pair *)(\
-		 ((char *)(scic_sds_ssp_request_get_task_context_buffer(memory))) \
-		 + sizeof(struct scu_task_context) \
-		 ))
-
-
-/**
  * scic_ssp_task_request_get_object_size() -
  *
  * This macro returns the sizeof of memory required to store an SSP Task
@@ -185,24 +160,6 @@
 		 ))
 
 /**
- * scic_sds_ssp_task_request_get_task_context_buffer() -
- *
- * This macro returs the task context buffer for the SSP task request.
- */
-#define scic_sds_ssp_task_request_get_task_context_buffer(memory) \
-	((struct scu_task_context *)(\
-		 ((char *)(scic_sds_ssp_task_request_get_response_buffer(memory))) \
-		 + SSP_RESP_IU_MAX_SIZE \
-		 ))
-
-
-
-/*
- * ****************************************************************************
- * * SCIC SDS IO REQUEST PRIVATE METHODS
- * **************************************************************************** */
-
-/**
  *
  *
  * This method returns the size required to store an SSP IO request object. u32
@@ -210,9 +167,7 @@
 static u32 scic_sds_ssp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_request)
-	       + scic_ssp_io_request_get_object_size()
-	       + sizeof(struct scu_task_context)
-	       + SMP_CACHE_BYTES;
+	       + scic_ssp_io_request_get_object_size();
 }
 
 /**
@@ -328,13 +283,8 @@ static void scic_sds_ssp_io_request_assign_buffers(
 	sci_req->response_buffer =
 		scic_sds_ssp_request_get_response_buffer(sci_req);
 
-	if (sci_req->was_tag_assigned_by_user == false) {
-		sci_req->task_context_buffer =
-			scic_sds_ssp_request_get_task_context_buffer(sci_req);
-		sci_req->task_context_buffer =
-			PTR_ALIGN(sci_req->task_context_buffer,
-				  SMP_CACHE_BYTES);
-	}
+	if (sci_req->was_tag_assigned_by_user == false)
+		sci_req->task_context_buffer = &sci_req->tc;
 }
 
 static void scic_sds_io_request_build_ssp_command_iu(struct scic_sds_request *sci_req)
@@ -530,12 +480,8 @@ static void scic_sds_ssp_task_request_assign_buffers(
 	sci_req->response_buffer =
 		scic_sds_ssp_task_request_get_response_buffer(sci_req);
 
-	if (sci_req->was_tag_assigned_by_user == false) {
-		sci_req->task_context_buffer =
-			scic_sds_ssp_task_request_get_task_context_buffer(sci_req);
-		sci_req->task_context_buffer =
-			PTR_ALIGN(sci_req->task_context_buffer, SMP_CACHE_BYTES);
-	}
+	if (sci_req->was_tag_assigned_by_user == false)
+		sci_req->task_context_buffer = &sci_req->tc;
 }
 
 /**

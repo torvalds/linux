@@ -78,9 +78,7 @@ u32 scic_sds_smp_request_get_object_size(void)
 {
 	return sizeof(struct scic_sds_request)
 	       + sizeof(struct smp_req)
-	       + sizeof(struct smp_resp)
-	       + sizeof(struct scu_task_context)
-	       + SMP_CACHE_BYTES;
+	       + sizeof(struct smp_resp);
 }
 
 /**
@@ -102,29 +100,7 @@ u32 scic_sds_smp_request_get_object_size(void)
 	(((char *)(scic_sds_smp_request_get_command_buffer(memory))) \
 	 + sizeof(struct smp_req))
 
-/**
- * scic_sds_smp_request_get_task_context_buffer() -
- *
- * This macro returs the task context buffer for the SMP request.
- */
-#define scic_sds_smp_request_get_task_context_buffer(memory) \
-	((struct scu_task_context *)(\
-		 ((char *)(scic_sds_smp_request_get_response_buffer(memory))) \
-		 + sizeof(struct smp_resp) \
-		 ))
-
-
-
-/**
- * This method build the remainder of the IO request object.
- * @sci_req: This parameter specifies the request object being constructed.
- *
- * The scic_sds_general_request_construct() must be called before this call is
- * valid. none
- */
-
-void scic_sds_smp_request_assign_buffers(
-	struct scic_sds_request *sci_req)
+void scic_sds_smp_request_assign_buffers(struct scic_sds_request *sci_req)
 {
 	/* Assign all of the buffer pointers */
 	sci_req->command_buffer =
@@ -132,13 +108,8 @@ void scic_sds_smp_request_assign_buffers(
 	sci_req->response_buffer =
 		scic_sds_smp_request_get_response_buffer(sci_req);
 
-	if (sci_req->was_tag_assigned_by_user == false) {
-		sci_req->task_context_buffer =
-			scic_sds_smp_request_get_task_context_buffer(sci_req);
-		sci_req->task_context_buffer =
-			PTR_ALIGN(sci_req->task_context_buffer, SMP_CACHE_BYTES);
-	}
-
+	if (sci_req->was_tag_assigned_by_user == false)
+		sci_req->task_context_buffer = &sci_req->tc;
 }
 
 /*

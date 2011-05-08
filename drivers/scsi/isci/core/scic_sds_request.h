@@ -184,6 +184,7 @@ struct scic_sds_request {
 	void *command_buffer;
 	void *response_buffer;
 	struct scu_task_context *task_context_buffer;
+	struct scu_task_context tc ____cacheline_aligned;
 
 	/* could be larger with sg chaining */
 	#define SCU_SGL_SIZE ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
