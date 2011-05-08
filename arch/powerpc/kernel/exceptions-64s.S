@@ -211,11 +211,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
 	GET_PACA(r13)
 	mfspr	r11,SPRN_SRR0
-	ld	r12,PACAKBASE(r13)
-	ld	r10,PACAKMSR(r13)
-	LOAD_HANDLER(r12, system_call_entry)
-	mtspr	SPRN_SRR0,r12
 	mfspr	r12,SPRN_SRR1
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, system_call_entry)
+	mtspr	SPRN_SRR0,r10
+	ld	r10,PACAKMSR(r13)
 	mtspr	SPRN_SRR1,r10
 	rfid
 	b	.	/* prevent speculative execution */
