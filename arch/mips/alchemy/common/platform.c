@@ -13,9 +13,10 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
-#include <linux/init.h>
+#include <linux/slab.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
@@ -372,15 +373,16 @@ static struct platform_device pbdb_smbus_device = {
 #endif
 
 /* Macro to help defining the Ethernet MAC resources */
+#define MAC_RES_COUNT	3	/* MAC regs base, MAC enable reg, MAC INT */
 #define MAC_RES(_base, _enable, _irq)			\
 	{						\
-		.start	= CPHYSADDR(_base),		\
-		.end	= CPHYSADDR(_base + 0xffff),	\
+		.start	= _base,			\
+		.end	= _base + 0xffff,		\
 		.flags	= IORESOURCE_MEM,		\
 	},						\
 	{						\
-		.start	= CPHYSADDR(_enable),		\
-		.end	= CPHYSADDR(_enable + 0x3),	\
+		.start	= _enable,			\
+		.end	= _enable + 0x3,		\
 		.flags	= IORESOURCE_MEM,		\
 	},						\
 	{						\
@@ -389,18 +391,28 @@ static struct platform_device pbdb_smbus_device = {
 		.flags	= IORESOURCE_IRQ		\
 	}
 
-static struct resource au1xxx_eth0_resources[] = {
-#if defined(CONFIG_SOC_AU1000)
-	MAC_RES(AU1000_ETH0_BASE, AU1000_MAC0_ENABLE, AU1000_MAC0_DMA_INT),
-#elif defined(CONFIG_SOC_AU1100)
-	MAC_RES(AU1100_ETH0_BASE, AU1100_MAC0_ENABLE, AU1100_MAC0_DMA_INT),
-#elif defined(CONFIG_SOC_AU1550)
-	MAC_RES(AU1550_ETH0_BASE, AU1550_MAC0_ENABLE, AU1550_MAC0_DMA_INT),
-#elif defined(CONFIG_SOC_AU1500)
-	MAC_RES(AU1500_ETH0_BASE, AU1500_MAC0_ENABLE, AU1500_MAC0_DMA_INT),
-#endif
+static struct resource au1xxx_eth0_resources[][MAC_RES_COUNT] __initdata = {
+	[ALCHEMY_CPU_AU1000] = {
+		MAC_RES(AU1000_MAC0_PHYS_ADDR,
+			AU1000_MACEN_PHYS_ADDR,
+			AU1000_MAC0_DMA_INT)
+	},
+	[ALCHEMY_CPU_AU1500] = {
+		MAC_RES(AU1500_MAC0_PHYS_ADDR,
+			AU1500_MACEN_PHYS_ADDR,
+			AU1500_MAC0_DMA_INT)
+	},
+	[ALCHEMY_CPU_AU1100] = {
+		MAC_RES(AU1000_MAC0_PHYS_ADDR,
+			AU1000_MACEN_PHYS_ADDR,
+			AU1100_MAC0_DMA_INT)
+	},
+	[ALCHEMY_CPU_AU1550] = {
+		MAC_RES(AU1000_MAC0_PHYS_ADDR,
+			AU1000_MACEN_PHYS_ADDR,
+			AU1550_MAC0_DMA_INT)
+	},
 };
-
 
 static struct au1000_eth_platform_data au1xxx_eth0_platform_data = {
 	.phy1_search_mac0 = 1,
@@ -409,20 +421,26 @@ static struct au1000_eth_platform_data au1xxx_eth0_platform_data = {
 static struct platform_device au1xxx_eth0_device = {
 	.name		= "au1000-eth",
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(au1xxx_eth0_resources),
-	.resource	= au1xxx_eth0_resources,
+	.num_resources	= MAC_RES_COUNT,
 	.dev.platform_data = &au1xxx_eth0_platform_data,
 };
 
-#ifndef CONFIG_SOC_AU1100
-static struct resource au1xxx_eth1_resources[] = {
-#if defined(CONFIG_SOC_AU1000)
-	MAC_RES(AU1000_ETH1_BASE, AU1000_MAC1_ENABLE, AU1000_MAC1_DMA_INT),
-#elif defined(CONFIG_SOC_AU1550)
-	MAC_RES(AU1550_ETH1_BASE, AU1550_MAC1_ENABLE, AU1550_MAC1_DMA_INT),
-#elif defined(CONFIG_SOC_AU1500)
-	MAC_RES(AU1500_ETH1_BASE, AU1500_MAC1_ENABLE, AU1500_MAC1_DMA_INT),
-#endif
+static struct resource au1xxx_eth1_resources[][MAC_RES_COUNT] __initdata = {
+	[ALCHEMY_CPU_AU1000] = {
+		MAC_RES(AU1000_MAC1_PHYS_ADDR,
+			AU1000_MACEN_PHYS_ADDR + 4,
+			AU1000_MAC1_DMA_INT)
+	},
+	[ALCHEMY_CPU_AU1500] = {
+		MAC_RES(AU1500_MAC1_PHYS_ADDR,
+			AU1500_MACEN_PHYS_ADDR + 4,
+			AU1500_MAC1_DMA_INT)
+	},
+	[ALCHEMY_CPU_AU1550] = {
+		MAC_RES(AU1000_MAC1_PHYS_ADDR,
+			AU1000_MACEN_PHYS_ADDR + 4,
+			AU1550_MAC1_DMA_INT)
+	},
 };
 
 static struct au1000_eth_platform_data au1xxx_eth1_platform_data = {
@@ -432,11 +450,9 @@ static struct au1000_eth_platform_data au1xxx_eth1_platform_data = {
 static struct platform_device au1xxx_eth1_device = {
 	.name		= "au1000-eth",
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(au1xxx_eth1_resources),
-	.resource	= au1xxx_eth1_resources,
+	.num_resources	= MAC_RES_COUNT,
 	.dev.platform_data = &au1xxx_eth1_platform_data,
 };
-#endif
 
 void __init au1xxx_override_eth_cfg(unsigned int port,
 			struct au1000_eth_platform_data *eth_data)
@@ -447,11 +463,62 @@ void __init au1xxx_override_eth_cfg(unsigned int port,
 	if (port == 0)
 		memcpy(&au1xxx_eth0_platform_data, eth_data,
 			sizeof(struct au1000_eth_platform_data));
-#ifndef CONFIG_SOC_AU1100
 	else
 		memcpy(&au1xxx_eth1_platform_data, eth_data,
 			sizeof(struct au1000_eth_platform_data));
-#endif
+}
+
+static void __init alchemy_setup_macs(int ctype)
+{
+	int ret, i;
+	unsigned char ethaddr[6];
+	struct resource *macres;
+
+	/* Handle 1st MAC */
+	if (alchemy_get_macs(ctype) < 1)
+		return;
+
+	macres = kmalloc(sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	if (!macres) {
+		printk(KERN_INFO "Alchemy: no memory for MAC0 resources\n");
+		return;
+	}
+	memcpy(macres, au1xxx_eth0_resources[ctype],
+	       sizeof(struct resource) * MAC_RES_COUNT);
+	au1xxx_eth0_device.resource = macres;
+
+	i = prom_get_ethernet_addr(ethaddr);
+	if (!i && !is_valid_ether_addr(au1xxx_eth0_platform_data.mac))
+		memcpy(au1xxx_eth0_platform_data.mac, ethaddr, 6);
+
+	ret = platform_device_register(&au1xxx_eth0_device);
+	if (!ret)
+		printk(KERN_INFO "Alchemy: failed to register MAC0\n");
+
+
+	/* Handle 2nd MAC */
+	if (alchemy_get_macs(ctype) < 2)
+		return;
+
+	macres = kmalloc(sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	if (!macres) {
+		printk(KERN_INFO "Alchemy: no memory for MAC1 resources\n");
+		return;
+	}
+	memcpy(macres, au1xxx_eth1_resources[ctype],
+	       sizeof(struct resource) * MAC_RES_COUNT);
+	au1xxx_eth1_device.resource = macres;
+
+	ethaddr[5] += 1;	/* next addr for 2nd MAC */
+	if (!i && !is_valid_ether_addr(au1xxx_eth1_platform_data.mac))
+		memcpy(au1xxx_eth1_platform_data.mac, ethaddr, 6);
+
+	/* Register second MAC if enabled in pinfunc */
+	if (!(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2)) {
+		ret = platform_device_register(&au1xxx_eth1_device);
+		if (ret)
+			printk(KERN_INFO "Alchemy: failed to register MAC1\n");
+	}
 }
 
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
@@ -472,33 +539,17 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 #ifdef SMBUS_PSC_BASE
 	&pbdb_smbus_device,
 #endif
-	&au1xxx_eth0_device,
 };
 
 static int __init au1xxx_platform_init(void)
 {
-	int err, i, ctype = alchemy_get_cputype();
-	unsigned char ethaddr[6];
+	int err, ctype = alchemy_get_cputype();
 
 	alchemy_setup_uarts(ctype);
-
-	/* use firmware-provided mac addr if available and necessary */
-	i = prom_get_ethernet_addr(ethaddr);
-	if (!i && !is_valid_ether_addr(au1xxx_eth0_platform_data.mac))
-		memcpy(au1xxx_eth0_platform_data.mac, ethaddr, 6);
+	alchemy_setup_macs(ctype);
 
 	err = platform_add_devices(au1xxx_platform_devices,
 				   ARRAY_SIZE(au1xxx_platform_devices));
-#ifndef CONFIG_SOC_AU1100
-	ethaddr[5] += 1;	/* next addr for 2nd MAC */
-	if (!i && !is_valid_ether_addr(au1xxx_eth1_platform_data.mac))
-		memcpy(au1xxx_eth1_platform_data.mac, ethaddr, 6);
-
-	/* Register second MAC if enabled in pinfunc */
-	if (!err && !(au_readl(SYS_PINFUNC) & (u32)SYS_PF_NI2))
-		err = platform_device_register(&au1xxx_eth1_device);
-#endif
-
 	return err;
 }
 
