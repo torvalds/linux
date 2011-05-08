@@ -2,6 +2,8 @@
 #define _ASM_POWERPC_IO_H
 #ifdef __KERNEL__
 
+#define ARCH_HAS_IOREMAP_WC
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -628,6 +630,8 @@ static inline void iosync(void)
  *
  * * ioremap_nocache is identical to ioremap
  *
+ * * ioremap_wc enables write combining
+ *
  * * iounmap undoes such a mapping and can be hooked
  *
  * * __ioremap_at (and the pending __iounmap_at) are low level functions to
@@ -648,6 +652,7 @@ static inline void iosync(void)
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
 extern void __iomem *ioremap_flags(phys_addr_t address, unsigned long size,
 				   unsigned long flags);
+extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
 #define ioremap_prot(addr, size, prot)	ioremap_flags((addr), (size), (prot))
 
