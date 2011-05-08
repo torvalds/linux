@@ -265,7 +265,7 @@ void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 	return __ioremap_caller(addr, size, flags, caller);
 }
 
-void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
+void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
 	void *caller = __builtin_return_address(0);
@@ -322,7 +322,7 @@ void iounmap(volatile void __iomem *token)
 
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(ioremap_wc);
-EXPORT_SYMBOL(ioremap_flags);
+EXPORT_SYMBOL(ioremap_prot);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(__ioremap_at);
 EXPORT_SYMBOL(iounmap);
