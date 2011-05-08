@@ -1023,10 +1023,9 @@ static int is_legacy_delivery_system(fe_delivery_system_t s)
  * it's being used for the legacy or new API, reducing code and complexity.
  */
 static void dtv_property_cache_sync(struct dvb_frontend *fe,
-				    struct dvb_frontend_parameters *p)
+				    struct dtv_frontend_properties *c,
+				    const struct dvb_frontend_parameters *p)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-
 	c->frequency = p->frequency;
 	c->inversion = p->inversion;
 
@@ -1200,7 +1199,19 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 				    struct file *file)
 {
 	const struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dtv_frontend_properties cdetected;
 	int r;
+
+	/*
+	 * If the driver implements a get_frontend function, then convert
+	 * detected parameters to S2API properties.
+	 */
+	if (fe->ops.get_frontend) {
+		cdetected = *c;
+		dtv_property_cache_sync(fe, &cdetected, &fepriv->parameters_out);
+		c = &cdetected;
+	}
 
 	switch(tvp->cmd) {
 	case DTV_FREQUENCY:
@@ -1812,7 +1823,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 			memcpy (&fepriv->parameters_in, parg,
 				sizeof (struct dvb_frontend_parameters));
-			dtv_property_cache_sync(fe, &fepriv->parameters_in);
+			dtv_property_cache_sync(fe, c, &fepriv->parameters_in);
 		}
 
 		memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
