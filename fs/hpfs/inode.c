@@ -17,7 +17,6 @@ void hpfs_init_inode(struct inode *i)
 	i->i_uid = hpfs_sb(sb)->sb_uid;
 	i->i_gid = hpfs_sb(sb)->sb_gid;
 	i->i_mode = hpfs_sb(sb)->sb_mode;
-	hpfs_inode->i_conv = hpfs_sb(sb)->sb_conv;
 	i->i_size = -1;
 	i->i_blocks = -1;
 	

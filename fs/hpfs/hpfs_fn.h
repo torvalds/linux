@@ -51,7 +51,6 @@ struct hpfs_inode_info {
 	unsigned i_disk_sec;	/* (files) minimalist cache of alloc info */
 	unsigned i_n_secs;	/* (files) minimalist cache of alloc info */
 	unsigned i_ea_size;	/* size of extended attributes */
-	unsigned i_conv : 2;	/* (files) crlf->newline hackery */
 	unsigned i_ea_mode : 1;	/* file's permission is stored in ea */
 	unsigned i_ea_uid : 1;	/* file's uid is stored in ea */
 	unsigned i_ea_gid : 1;	/* file's gid is stored in ea */
@@ -73,7 +72,6 @@ struct hpfs_sb_info {
 	uid_t sb_uid;			/* uid from mount options */
 	gid_t sb_gid;			/* gid from mount options */
 	umode_t sb_mode;		/* mode from mount options */
-	unsigned sb_conv : 2;		/* crlf->newline hackery */
 	unsigned sb_eas : 2;		/* eas: 0-ignore, 1-ro, 2-rw */
 	unsigned sb_err : 2;		/* on errs: 0-cont, 1-ro, 2-panic */
 	unsigned sb_chk : 2;		/* checks: 0-no, 1-normal, 2-strict */
@@ -89,14 +87,6 @@ struct hpfs_sb_info {
 	/*unsigned sb_mounting : 1;*/
 	int sb_timeshift;
 };
-
-/*
- * conv= options
- */
-
-#define CONV_BINARY 0			/* no conversion */
-#define CONV_TEXT 1			/* crlf->newline */
-#define CONV_AUTO 2			/* decide based on file contents */
 
 /* Four 512-byte buffers and the 2k block obtained by concatenating them */
 
@@ -298,7 +288,6 @@ int hpfs_compare_names(struct super_block *, const unsigned char *, unsigned,
 		       const unsigned char *, unsigned, int);
 int hpfs_is_name_long(const unsigned char *, unsigned);
 void hpfs_adjust_length(const unsigned char *, unsigned *);
-void hpfs_decide_conv(struct inode *, const unsigned char *, unsigned);
 
 /* namei.c */
 

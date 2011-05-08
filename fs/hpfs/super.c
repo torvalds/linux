@@ -219,7 +219,6 @@ static void destroy_inodecache(void)
 
 enum {
 	Opt_help, Opt_uid, Opt_gid, Opt_umask, Opt_case_lower, Opt_case_asis,
-	Opt_conv_binary, Opt_conv_text, Opt_conv_auto,
 	Opt_check_none, Opt_check_normal, Opt_check_strict,
 	Opt_err_cont, Opt_err_ro, Opt_err_panic,
 	Opt_eas_no, Opt_eas_ro, Opt_eas_rw,
@@ -234,9 +233,6 @@ static const match_table_t tokens = {
 	{Opt_umask, "umask=%o"},
 	{Opt_case_lower, "case=lower"},
 	{Opt_case_asis, "case=asis"},
-	{Opt_conv_binary, "conv=binary"},
-	{Opt_conv_text, "conv=text"},
-	{Opt_conv_auto, "conv=auto"},
 	{Opt_check_none, "check=none"},
 	{Opt_check_normal, "check=normal"},
 	{Opt_check_strict, "check=strict"},
@@ -254,7 +250,7 @@ static const match_table_t tokens = {
 };
 
 static int parse_opts(char *opts, uid_t *uid, gid_t *gid, umode_t *umask,
-		      int *lowercase, int *conv, int *eas, int *chk, int *errs,
+		      int *lowercase, int *eas, int *chk, int *errs,
 		      int *chkdsk, int *timeshift)
 {
 	char *p;
@@ -295,15 +291,6 @@ static int parse_opts(char *opts, uid_t *uid, gid_t *gid, umode_t *umask,
 			break;
 		case Opt_case_asis:
 			*lowercase = 0;
-			break;
-		case Opt_conv_binary:
-			*conv = CONV_BINARY;
-			break;
-		case Opt_conv_text:
-			*conv = CONV_TEXT;
-			break;
-		case Opt_conv_auto:
-			*conv = CONV_AUTO;
 			break;
 		case Opt_check_none:
 			*chk = 0;
@@ -371,9 +358,6 @@ HPFS filesystem options:\n\
       umask=xxx         set mode of files that don't have mode specified in eas\n\
       case=lower        lowercase all files\n\
       case=asis         do not lowercase files (default)\n\
-      conv=binary       do not convert CR/LF -> LF (default)\n\
-      conv=auto         convert only files with known text extensions\n\
-      conv=text         convert all files\n\
       check=none        no fs checks - kernel may crash on corrupted filesystem\n\
       check=normal      do some checks - it should not crash (default)\n\
       check=strict      do extra time-consuming checks, used for debugging\n\
@@ -395,7 +379,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	uid_t uid;
 	gid_t gid;
 	umode_t umask;
-	int lowercase, conv, eas, chk, errs, chkdsk, timeshift;
+	int lowercase, eas, chk, errs, chkdsk, timeshift;
 	int o;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	char *new_opts = kstrdup(data, GFP_KERNEL);
@@ -406,11 +390,11 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	lock_super(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
-	lowercase = sbi->sb_lowercase; conv = sbi->sb_conv;
+	lowercase = sbi->sb_lowercase;
 	eas = sbi->sb_eas; chk = sbi->sb_chk; chkdsk = sbi->sb_chkdsk;
 	errs = sbi->sb_err; timeshift = sbi->sb_timeshift;
 
-	if (!(o = parse_opts(data, &uid, &gid, &umask, &lowercase, &conv,
+	if (!(o = parse_opts(data, &uid, &gid, &umask, &lowercase,
 	    &eas, &chk, &errs, &chkdsk, &timeshift))) {
 		printk("HPFS: bad mount options.\n");
 		goto out_err;
@@ -428,7 +412,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	sbi->sb_uid = uid; sbi->sb_gid = gid;
 	sbi->sb_mode = 0777 & ~umask;
-	sbi->sb_lowercase = lowercase; sbi->sb_conv = conv;
+	sbi->sb_lowercase = lowercase;
 	sbi->sb_eas = eas; sbi->sb_chk = chk; sbi->sb_chkdsk = chkdsk;
 	sbi->sb_err = errs; sbi->sb_timeshift = timeshift;
 
@@ -472,7 +456,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	uid_t uid;
 	gid_t gid;
 	umode_t umask;
-	int lowercase, conv, eas, chk, errs, chkdsk, timeshift;
+	int lowercase, eas, chk, errs, chkdsk, timeshift;
 
 	dnode_secno root_dno;
 	struct hpfs_dirent *de = NULL;
@@ -498,14 +482,13 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	gid = current_gid();
 	umask = current_umask();
 	lowercase = 0;
-	conv = CONV_BINARY;
 	eas = 2;
 	chk = 1;
 	errs = 1;
 	chkdsk = 1;
 	timeshift = 0;
 
-	if (!(o = parse_opts(options, &uid, &gid, &umask, &lowercase, &conv,
+	if (!(o = parse_opts(options, &uid, &gid, &umask, &lowercase,
 	    &eas, &chk, &errs, &chkdsk, &timeshift))) {
 		printk("HPFS: bad mount options.\n");
 		goto bail0;
@@ -558,7 +541,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_n_free = -1;
 	sbi->sb_n_free_dnodes = -1;
 	sbi->sb_lowercase = lowercase;
-	sbi->sb_conv = conv;
 	sbi->sb_eas = eas;
 	sbi->sb_chk = chk;
 	sbi->sb_chkdsk = chkdsk;

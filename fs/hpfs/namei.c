@@ -151,7 +151,6 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	result->i_op = &hpfs_file_iops;
 	result->i_fop = &hpfs_file_ops;
 	result->i_nlink = 1;
-	hpfs_decide_conv(result, name, len);
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
 	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
 	result->i_ctime.tv_nsec = 0;
@@ -616,8 +615,6 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		mark_buffer_dirty(bh);
 		brelse(bh);
 	}
-	hpfs_i(i)->i_conv = hpfs_sb(i->i_sb)->sb_conv;
-	hpfs_decide_conv(i, new_name, new_len);
 end1:
 	hpfs_unlock(i->i_sb);
 	return err;
