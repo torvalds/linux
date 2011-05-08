@@ -884,6 +884,7 @@ config PLAT_SPEAR
 	select ARM_AMBA
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	help
