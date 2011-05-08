@@ -56,17 +56,6 @@
 #ifndef _SCIC_SDS_USER_PARAMETERS_H_
 #define _SCIC_SDS_USER_PARAMETERS_H_
 
-/**
- * This file contains all of the structure definitions and interface methods
- *    that can be called by a SCIC user on the SCU Driver Standard
- *    (struct scic_sds_user_parameters) user parameter block.
- *
- *
- */
-
-
-#include "sci_status.h"
-#include "sci_controller_constants.h"
 #include "probe_roms.h"
 
 struct scic_sds_controller;

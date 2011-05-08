@@ -64,6 +64,7 @@
 #include "scic_sds_request.h"
 #include "sci_environment.h"
 #include "scu_registers.h"
+#include "timers.h"
 
 #define SCIC_SDS_PORT_MIN_TIMER_COUNT  (SCI_MAX_PORTS)
 #define SCIC_SDS_PORT_MAX_TIMER_COUNT  (SCI_MAX_PORTS)

@@ -53,17 +53,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the implementation for the public and protected methods
- *    for the port configuration agent.
- *
- *
- */
-
 #include "sci_environment.h"
 #include "scic_controller.h"
 #include "scic_sds_controller.h"
 #include "scic_sds_port_configuration_agent.h"
+#include "timers.h"
 
 #define SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT    (10)
 #define SCIC_SDS_APC_RECONFIGURATION_TIMEOUT    (10)

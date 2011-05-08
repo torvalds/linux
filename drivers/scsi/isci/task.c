@@ -65,6 +65,8 @@
 #include "sata.h"
 #include "task.h"
 #include "scic_sds_request.h"
+#include "scic_controller.h"
+#include "timers.h"
 
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in

@@ -66,7 +66,6 @@
 
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
-#include "sci_status.h"
 
 struct scic_sds_phy;
 struct scic_sds_port;

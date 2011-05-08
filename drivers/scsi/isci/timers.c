@@ -55,6 +55,7 @@
 
 #include "isci.h"
 #include "timers.h"
+#include "host.h"
 
 /**
  * isci_timer_list_construct() - This method contrucst the SCI Timer List

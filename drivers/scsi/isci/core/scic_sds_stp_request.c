@@ -69,6 +69,7 @@
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
 #include "scu_task_context.h"
+#include "request.h"
 
 void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 {

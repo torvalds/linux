@@ -56,22 +56,470 @@
 #ifndef __ISCI_H__
 #define __ISCI_H__
 
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/bug.h>
-#include <scsi/libsas.h>
-#include <scsi/scsi.h>
 
-#include "scic_controller.h"
-#include "host.h"
-#include "timers.h"
-#include "sci_status.h"
-#include "request.h"
-#include "task.h"
-#include "sata.h"
+#define DRV_NAME "isci"
+#define SCI_PCI_BAR_COUNT 2
+#define SCI_NUM_MSI_X_INT 2
+#define SCI_SMU_BAR       0
+#define SCI_SMU_BAR_SIZE  (16*1024)
+#define SCI_SCU_BAR       1
+#define SCI_SCU_BAR_SIZE  (4*1024*1024)
+#define SCI_IO_SPACE_BAR0 2
+#define SCI_IO_SPACE_BAR1 3
+#define ISCI_CAN_QUEUE_VAL 250 /* < SCI_MAX_IO_REQUESTS ? */
+#define SCIC_CONTROLLER_STOP_TIMEOUT 5000
+
+#define SCI_CONTROLLER_INVALID_IO_TAG 0xFFFF
+
+enum sci_controller_mode {
+	SCI_MODE_SPEED,
+	SCI_MODE_SIZE /* deprecated */
+};
+
+#define SCI_MAX_PHYS  (4)
+#define SCI_MAX_PORTS SCI_MAX_PHYS
+#define SCI_MIN_SMP_PHYS  (38)
+#define SCI_MAX_SMP_PHYS  (384) /* not silicon constrained */
+#define SCI_MAX_REMOTE_DEVICES (256)
+#define SCI_MIN_REMOTE_DEVICES (16)
+#define SCI_MAX_IO_REQUESTS (256)
+#define SCI_MIN_IO_REQUESTS (1)
+#define SCI_MAX_MSIX_MESSAGES  (2)
+#define SCI_MAX_SCATTER_GATHER_ELEMENTS 130 /* not silicon constrained */
+#define SCI_MIN_SCATTER_GATHER_ELEMENTS 1
+#define SCI_MAX_CONTROLLERS 2
+#define SCI_MAX_DOMAINS  SCI_MAX_PORTS
+
+/* 2 indicates the maximum number of UFs that can occur for a given IO request.
+ * The hardware handles reception of additional unsolicited frames while all
+ * UFs are in use, by holding off the transmitting device.  This number could
+ * be theoretically reduced to 1, but 2 provides for more reliable operation.
+ * During SATA PIO operation, it is possible under some conditions for there to
+ * be 3 separate FISes received, back to back to back (PIO Setup, Data, D2H
+ * Register). It is unlikely to have all 3 pending all at once without some of
+ * them already being processed.
+ */
+#define SCU_MIN_UNSOLICITED_FRAMES        (1)
+#define SCU_MIN_CRITICAL_NOTIFICATIONS    (24)
+#define SCU_MIN_EVENTS                    (4)
+#define SCU_MIN_COMPLETION_QUEUE_SCRATCH  (2)
+#define SCU_MIN_COMPLETION_QUEUE_ENTRIES  (SCU_MIN_CRITICAL_NOTIFICATIONS \
+					   + SCU_MIN_EVENTS \
+					   + SCU_MIN_UNSOLICITED_FRAMES	\
+					   + SCI_MIN_IO_REQUESTS \
+					   + SCU_MIN_COMPLETION_QUEUE_SCRATCH)
+
+#define SCU_MAX_CRITICAL_NOTIFICATIONS    (384)
+#define SCU_MAX_EVENTS                    (128)
+#define SCU_MAX_UNSOLICITED_FRAMES        (128)
+#define SCU_MAX_COMPLETION_QUEUE_SCRATCH  (128)
+#define SCU_MAX_COMPLETION_QUEUE_ENTRIES  (SCU_MAX_CRITICAL_NOTIFICATIONS \
+					   + SCU_MAX_EVENTS \
+					   + SCU_MAX_UNSOLICITED_FRAMES	\
+					   + SCI_MAX_IO_REQUESTS \
+					   + SCU_MAX_COMPLETION_QUEUE_SCRATCH)
+
+#if !defined(ENABLE_MINIMUM_MEMORY_MODE)
+#define SCU_UNSOLICITED_FRAME_COUNT      SCU_MAX_UNSOLICITED_FRAMES
+#define SCU_CRITICAL_NOTIFICATION_COUNT  SCU_MAX_CRITICAL_NOTIFICATIONS
+#define SCU_EVENT_COUNT                  SCU_MAX_EVENTS
+#define SCU_COMPLETION_QUEUE_SCRATCH     SCU_MAX_COMPLETION_QUEUE_SCRATCH
+#define SCU_IO_REQUEST_COUNT             SCI_MAX_IO_REQUESTS
+#define SCU_IO_REQUEST_SGE_COUNT         SCI_MAX_SCATTER_GATHER_ELEMENTS
+#define SCU_COMPLETION_QUEUE_COUNT       SCU_MAX_COMPLETION_QUEUE_ENTRIES
+#else
+#define SCU_UNSOLICITED_FRAME_COUNT      SCU_MIN_UNSOLICITED_FRAMES
+#define SCU_CRITICAL_NOTIFICATION_COUNT  SCU_MIN_CRITICAL_NOTIFICATIONS
+#define SCU_EVENT_COUNT                  SCU_MIN_EVENTS
+#define SCU_COMPLETION_QUEUE_SCRATCH     SCU_MIN_COMPLETION_QUEUE_SCRATCH
+#define SCU_IO_REQUEST_COUNT             SCI_MIN_IO_REQUESTS
+#define SCU_IO_REQUEST_SGE_COUNT         SCI_MIN_SCATTER_GATHER_ELEMENTS
+#define SCU_COMPLETION_QUEUE_COUNT       SCU_MIN_COMPLETION_QUEUE_ENTRIES
+#endif /* !defined(ENABLE_MINIMUM_MEMORY_OPERATION) */
+
+/**
+ *
+ *
+ * The SCU_COMPLETION_QUEUE_COUNT constant indicates the size of the completion
+ * queue into which the hardware DMAs 32-bit quantas (completion entries).
+ */
+
+/**
+ *
+ *
+ * This queue must be programmed to a power of 2 size (e.g. 32, 64, 1024, etc.).
+ */
+#if (SCU_COMPLETION_QUEUE_COUNT != 16)  && \
+	(SCU_COMPLETION_QUEUE_COUNT != 32)  && \
+	(SCU_COMPLETION_QUEUE_COUNT != 64)  && \
+	(SCU_COMPLETION_QUEUE_COUNT != 128) && \
+	(SCU_COMPLETION_QUEUE_COUNT != 256) && \
+	(SCU_COMPLETION_QUEUE_COUNT != 512) && \
+	(SCU_COMPLETION_QUEUE_COUNT != 1024)
+#error "SCU_COMPLETION_QUEUE_COUNT must be set to a power of 2."
+#endif
+
+#if SCU_MIN_UNSOLICITED_FRAMES > SCU_MAX_UNSOLICITED_FRAMES
+#error "Invalid configuration of unsolicited frame constants"
+#endif /* SCU_MIN_UNSOLICITED_FRAMES > SCU_MAX_UNSOLICITED_FRAMES */
+
+#define SCU_MIN_UF_TABLE_ENTRIES            (8)
+#define SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES (4096)
+#define SCU_UNSOLICITED_FRAME_BUFFER_SIZE   (1024)
+#define SCU_INVALID_FRAME_INDEX             (0xFFFF)
+
+#define SCU_IO_REQUEST_MAX_SGE_SIZE         (0x00FFFFFF)
+#define SCU_IO_REQUEST_MAX_TRANSFER_LENGTH  (0x00FFFFFF)
+
+/*
+ * Determine the size of the unsolicited frame array including
+ * unused buffers. */
+#if SCU_UNSOLICITED_FRAME_COUNT <= SCU_MIN_UF_TABLE_ENTRIES
+#define SCU_UNSOLICITED_FRAME_CONTROL_ARRAY_SIZE SCU_MIN_UF_TABLE_ENTRIES
+#else
+#define SCU_UNSOLICITED_FRAME_CONTROL_ARRAY_SIZE SCU_MAX_UNSOLICITED_FRAMES
+#endif /* SCU_UNSOLICITED_FRAME_COUNT <= SCU_MIN_UF_TABLE_ENTRIES */
+
+/**
+ * enum sci_status - This is the general return status enumeration for non-IO,
+ *    non-task management related SCI interface methods.
+ *
+ *
+ */
+enum sci_status {
+	/**
+	 * This member indicates successful completion.
+	 */
+	SCI_SUCCESS = 0,
+
+	/**
+	 * This value indicates that the calling method completed successfully,
+	 * but that the IO may have completed before having it's start method
+	 * invoked.  This occurs during SAT translation for requests that do
+	 * not require an IO to the target or for any other requests that may
+	 * be completed without having to submit IO.
+	 */
+	SCI_SUCCESS_IO_COMPLETE_BEFORE_START,
+
+	/**
+	 *  This Value indicates that the SCU hardware returned an early response
+	 *  because the io request specified more data than is returned by the
+	 *  target device (mode pages, inquiry data, etc.). The completion routine
+	 *  will handle this case to get the actual number of bytes transferred.
+	 */
+	SCI_SUCCESS_IO_DONE_EARLY,
+
+	/**
+	 * This member indicates that the object for which a state change is
+	 * being requested is already in said state.
+	 */
+	SCI_WARNING_ALREADY_IN_STATE,
+
+	/**
+	 * This member indicates interrupt coalescence timer may cause SAS
+	 * specification compliance issues (i.e. SMP target mode response
+	 * frames must be returned within 1.9 milliseconds).
+	 */
+	SCI_WARNING_TIMER_CONFLICT,
+
+	/**
+	 * This field indicates a sequence of action is not completed yet. Mostly,
+	 * this status is used when multiple ATA commands are needed in a SATI translation.
+	 */
+	SCI_WARNING_SEQUENCE_INCOMPLETE,
+
+	/**
+	 * This member indicates that there was a general failure.
+	 */
+	SCI_FAILURE,
+
+	/**
+	 * This member indicates that the SCI implementation is unable to complete
+	 * an operation due to a critical flaw the prevents any further operation
+	 * (i.e. an invalid pointer).
+	 */
+	SCI_FATAL_ERROR,
+
+	/**
+	 * This member indicates the calling function failed, because the state
+	 * of the controller is in a state that prevents successful completion.
+	 */
+	SCI_FAILURE_INVALID_STATE,
+
+	/**
+	 * This member indicates the calling function failed, because there is
+	 * insufficient resources/memory to complete the request.
+	 */
+	SCI_FAILURE_INSUFFICIENT_RESOURCES,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * controller object required for the operation can't be located.
+	 */
+	SCI_FAILURE_CONTROLLER_NOT_FOUND,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * discovered controller type is not supported by the library.
+	 */
+	SCI_FAILURE_UNSUPPORTED_CONTROLLER_TYPE,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * requested initialization data version isn't supported.
+	 */
+	SCI_FAILURE_UNSUPPORTED_INIT_DATA_VERSION,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * requested configuration of SAS Phys into SAS Ports is not supported.
+	 */
+	SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * requested protocol is not supported by the remote device, port,
+	 * or controller.
+	 */
+	SCI_FAILURE_UNSUPPORTED_PROTOCOL,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * requested information type is not supported by the SCI implementation.
+	 */
+	SCI_FAILURE_UNSUPPORTED_INFORMATION_TYPE,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * device already exists.
+	 */
+	SCI_FAILURE_DEVICE_EXISTS,
+
+	/**
+	 * This member indicates the calling function failed, because adding
+	 * a phy to the object is not possible.
+	 */
+	SCI_FAILURE_ADDING_PHY_UNSUPPORTED,
+
+	/**
+	 * This member indicates the calling function failed, because the
+	 * requested information type is not supported by the SCI implementation.
+	 */
+	SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD,
+
+	/**
+	 * This member indicates the calling function failed, because the SCI
+	 * implementation does not support the supplied time limit.
+	 */
+	SCI_FAILURE_UNSUPPORTED_TIME_LIMIT,
+
+	/**
+	 * This member indicates the calling method failed, because the SCI
+	 * implementation does not contain the specified Phy.
+	 */
+	SCI_FAILURE_INVALID_PHY,
+
+	/**
+	 * This member indicates the calling method failed, because the SCI
+	 * implementation does not contain the specified Port.
+	 */
+	SCI_FAILURE_INVALID_PORT,
+
+	/**
+	 * This member indicates the calling method was partly successful
+	 * The port was reset but not all phys in port are operational
+	 */
+	SCI_FAILURE_RESET_PORT_PARTIAL_SUCCESS,
+
+	/**
+	 * This member indicates that calling method failed
+	 * The port reset did not complete because none of the phys are operational
+	 */
+	SCI_FAILURE_RESET_PORT_FAILURE,
+
+	/**
+	 * This member indicates the calling method failed, because the SCI
+	 * implementation does not contain the specified remote device.
+	 */
+	SCI_FAILURE_INVALID_REMOTE_DEVICE,
+
+	/**
+	 * This member indicates the calling method failed, because the remote
+	 * device is in a bad state and requires a reset.
+	 */
+	SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED,
+
+	/**
+	 * This member indicates the calling method failed, because the SCI
+	 * implementation does not contain or support the specified IO tag.
+	 */
+	SCI_FAILURE_INVALID_IO_TAG,
+
+	/**
+	 * This member indicates that the operation failed and the user should
+	 * check the response data associated with the IO.
+	 */
+	SCI_FAILURE_IO_RESPONSE_VALID,
+
+	/**
+	 * This member indicates that the operation failed, the failure is
+	 * controller implementation specific, and the response data associated
+	 * with the request is not valid.  You can query for the controller
+	 * specific error information via scic_controller_get_request_status()
+	 */
+	SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
+
+	/**
+	 * This member indicated that the operation failed because the
+	 * user requested this IO to be terminated.
+	 */
+	SCI_FAILURE_IO_TERMINATED,
+
+	/**
+	 * This member indicates that the operation failed and the associated
+	 * request requires a SCSI abort task to be sent to the target.
+	 */
+	SCI_FAILURE_IO_REQUIRES_SCSI_ABORT,
+
+	/**
+	 * This member indicates that the operation failed because the supplied
+	 * device could not be located.
+	 */
+	SCI_FAILURE_DEVICE_NOT_FOUND,
+
+	/**
+	 * This member indicates that the operation failed because the
+	 * objects association is required and is not correctly set.
+	 */
+	SCI_FAILURE_INVALID_ASSOCIATION,
+
+	/**
+	 * This member indicates that the operation failed, because a timeout
+	 * occurred.
+	 */
+	SCI_FAILURE_TIMEOUT,
+
+	/**
+	 * This member indicates that the operation failed, because the user
+	 * specified a value that is either invalid or not supported.
+	 */
+	SCI_FAILURE_INVALID_PARAMETER_VALUE,
+
+	/**
+	 * This value indicates that the operation failed, because the number
+	 * of messages (MSI-X) is not supported.
+	 */
+	SCI_FAILURE_UNSUPPORTED_MESSAGE_COUNT,
+
+	/**
+	 * This value indicates that the method failed due to a lack of
+	 * available NCQ tags.
+	 */
+	SCI_FAILURE_NO_NCQ_TAG_AVAILABLE,
+
+	/**
+	 * This value indicates that a protocol violation has occurred on the
+	 * link.
+	 */
+	SCI_FAILURE_PROTOCOL_VIOLATION,
+
+	/**
+	 * This value indicates a failure condition that retry may help to clear.
+	 */
+	SCI_FAILURE_RETRY_REQUIRED,
+
+	/**
+	 * This field indicates the retry limit was reached when a retry is attempted
+	 */
+	SCI_FAILURE_RETRY_LIMIT_REACHED,
+
+	/**
+	 * This member indicates the calling method was partly successful.
+	 * Mostly, this status is used when a LUN_RESET issued to an expander attached
+	 * STP device in READY NCQ substate needs to have RNC suspended/resumed
+	 * before posting TC.
+	 */
+	SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS,
+
+	/**
+	 * This field indicates an illegal phy connection based on the routing attribute
+	 * of both expander phy attached to each other.
+	 */
+	SCI_FAILURE_ILLEGAL_ROUTING_ATTRIBUTE_CONFIGURATION,
+
+	/**
+	 * This field indicates a CONFIG ROUTE INFO command has a response with function result
+	 * INDEX DOES NOT EXIST, usually means exceeding max route index.
+	 */
+	SCI_FAILURE_EXCEED_MAX_ROUTE_INDEX,
+
+	/**
+	 * This value indicates that an unsupported PCI device ID has been
+	 * specified.  This indicates that attempts to invoke
+	 * scic_library_allocate_controller() will fail.
+	 */
+	SCI_FAILURE_UNSUPPORTED_PCI_DEVICE_ID
+
+};
+
+/**
+ * enum sci_io_status - This enumeration depicts all of the possible IO
+ *    completion status values.  Each value in this enumeration maps directly
+ *    to a value in the enum sci_status enumeration.  Please refer to that
+ *    enumeration for detailed comments concerning what the status represents.
+ *
+ * Add the API to retrieve the SCU status from the core. Check to see that the
+ * following status are properly handled: - SCI_IO_FAILURE_UNSUPPORTED_PROTOCOL
+ * - SCI_IO_FAILURE_INVALID_IO_TAG
+ */
+enum sci_io_status {
+	SCI_IO_SUCCESS                         = SCI_SUCCESS,
+	SCI_IO_FAILURE                         = SCI_FAILURE,
+	SCI_IO_SUCCESS_COMPLETE_BEFORE_START   = SCI_SUCCESS_IO_COMPLETE_BEFORE_START,
+	SCI_IO_SUCCESS_IO_DONE_EARLY           = SCI_SUCCESS_IO_DONE_EARLY,
+	SCI_IO_FAILURE_INVALID_STATE           = SCI_FAILURE_INVALID_STATE,
+	SCI_IO_FAILURE_INSUFFICIENT_RESOURCES  = SCI_FAILURE_INSUFFICIENT_RESOURCES,
+	SCI_IO_FAILURE_UNSUPPORTED_PROTOCOL    = SCI_FAILURE_UNSUPPORTED_PROTOCOL,
+	SCI_IO_FAILURE_RESPONSE_VALID          = SCI_FAILURE_IO_RESPONSE_VALID,
+	SCI_IO_FAILURE_CONTROLLER_SPECIFIC_ERR = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
+	SCI_IO_FAILURE_TERMINATED              = SCI_FAILURE_IO_TERMINATED,
+	SCI_IO_FAILURE_REQUIRES_SCSI_ABORT     = SCI_FAILURE_IO_REQUIRES_SCSI_ABORT,
+	SCI_IO_FAILURE_INVALID_PARAMETER_VALUE = SCI_FAILURE_INVALID_PARAMETER_VALUE,
+	SCI_IO_FAILURE_NO_NCQ_TAG_AVAILABLE    = SCI_FAILURE_NO_NCQ_TAG_AVAILABLE,
+	SCI_IO_FAILURE_PROTOCOL_VIOLATION      = SCI_FAILURE_PROTOCOL_VIOLATION,
+
+	SCI_IO_FAILURE_REMOTE_DEVICE_RESET_REQUIRED = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED,
+
+	SCI_IO_FAILURE_RETRY_REQUIRED      = SCI_FAILURE_RETRY_REQUIRED,
+	SCI_IO_FAILURE_RETRY_LIMIT_REACHED = SCI_FAILURE_RETRY_LIMIT_REACHED,
+	SCI_IO_FAILURE_INVALID_REMOTE_DEVICE = SCI_FAILURE_INVALID_REMOTE_DEVICE
+};
+
+/**
+ * enum sci_task_status - This enumeration depicts all of the possible task
+ *    completion status values.  Each value in this enumeration maps directly
+ *    to a value in the enum sci_status enumeration.  Please refer to that
+ *    enumeration for detailed comments concerning what the status represents.
+ *
+ * Check to see that the following status are properly handled:
+ */
+enum sci_task_status {
+	SCI_TASK_SUCCESS                         = SCI_SUCCESS,
+	SCI_TASK_FAILURE                         = SCI_FAILURE,
+	SCI_TASK_FAILURE_INVALID_STATE           = SCI_FAILURE_INVALID_STATE,
+	SCI_TASK_FAILURE_INSUFFICIENT_RESOURCES  = SCI_FAILURE_INSUFFICIENT_RESOURCES,
+	SCI_TASK_FAILURE_UNSUPPORTED_PROTOCOL    = SCI_FAILURE_UNSUPPORTED_PROTOCOL,
+	SCI_TASK_FAILURE_INVALID_TAG             = SCI_FAILURE_INVALID_IO_TAG,
+	SCI_TASK_FAILURE_RESPONSE_VALID          = SCI_FAILURE_IO_RESPONSE_VALID,
+	SCI_TASK_FAILURE_CONTROLLER_SPECIFIC_ERR = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
+	SCI_TASK_FAILURE_TERMINATED              = SCI_FAILURE_IO_TERMINATED,
+	SCI_TASK_FAILURE_INVALID_PARAMETER_VALUE = SCI_FAILURE_INVALID_PARAMETER_VALUE,
+
+	SCI_TASK_FAILURE_REMOTE_DEVICE_RESET_REQUIRED = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED,
+	SCI_TASK_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS = SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS
+
+};
 
 extern unsigned char no_outbound_task_to;
 extern u16 ssp_max_occ_to;
@@ -85,9 +533,9 @@ irqreturn_t isci_msix_isr(int vec, void *data);
 irqreturn_t isci_intx_isr(int vec, void *data);
 irqreturn_t isci_error_isr(int vec, void *data);
 
+struct scic_sds_controller;
 bool scic_sds_controller_isr(struct scic_sds_controller *scic);
 void scic_sds_controller_completion_handler(struct scic_sds_controller *scic);
 bool scic_sds_controller_error_isr(struct scic_sds_controller *scic);
 void scic_sds_controller_error_handler(struct scic_sds_controller *scic);
-
 #endif  /* __ISCI_H__ */

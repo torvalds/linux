@@ -60,7 +60,9 @@
 #include "request.h"
 #include "host.h"
 #include "probe_roms.h"
+#include "scic_controller.h"
 #include "scic_sds_controller.h"
+#include "timers.h"
 
 irqreturn_t isci_msix_isr(int vec, void *data)
 {

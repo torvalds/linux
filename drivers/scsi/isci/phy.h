@@ -52,16 +52,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-
 #ifndef _ISCI_PHY_H_
 #define _ISCI_PHY_H_
 
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
 #include "scic_sds_phy.h"
-#include "port.h"
-#include "host.h"
 
 struct isci_phy {
 	struct scic_sds_phy sci;
@@ -89,6 +85,7 @@ static inline struct isci_phy *sci_phy_to_iphy(struct scic_sds_phy *sci_phy)
 	return iphy;
 }
 
+struct isci_host;
 void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index);
 int isci_phy_control(struct asd_sas_phy *phy, enum phy_func func, void *buf);
 

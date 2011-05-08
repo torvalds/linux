@@ -58,6 +58,7 @@
 #ifdef __KERNEL__
 #include <linux/firmware.h>
 #include <linux/pci.h>
+#include "isci.h"
 
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
 

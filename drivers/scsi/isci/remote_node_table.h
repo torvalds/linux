@@ -56,14 +56,7 @@
 #ifndef _SCIC_SDS_REMOTE_NODE_TABLE_H_
 #define _SCIC_SDS_REMOTE_NODE_TABLE_H_
 
-/**
- * This file contains the structures, constants and prototypes used for the
- *    remote node table.
- *
- *
- */
-
-#include "sci_controller_constants.h"
+#include "isci.h"
 
 /**
  *

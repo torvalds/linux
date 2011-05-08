@@ -54,10 +54,10 @@
  */
 
 #include "isci.h"
+#include "host.h"
 #include "phy.h"
 #include "scic_port.h"
 #include "scic_config_parameters.h"
-#include "core/scic_sds_phy.h"
 
 struct scic_sds_phy;
 extern enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy);

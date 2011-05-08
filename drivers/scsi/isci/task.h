@@ -56,6 +56,7 @@
 #define _ISCI_TASK_H_
 
 #include <scsi/sas_ata.h>
+#include "host.h"
 
 struct isci_request;
 

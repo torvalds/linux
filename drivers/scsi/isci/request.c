@@ -62,6 +62,7 @@
 #include "sata.h"
 #include "scu_completion_codes.h"
 #include "scic_sds_request.h"
+#include "scic_controller.h"
 #include "sas.h"
 
 static enum sci_status isci_request_ssp_request_construct(

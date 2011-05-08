@@ -65,6 +65,7 @@
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_event_codes.h"
+#include "timers.h"
 
 #define SCIC_SDS_PHY_MIN_TIMER_COUNT  (SCI_MAX_PHYS)
 #define SCIC_SDS_PHY_MAX_TIMER_COUNT  (SCI_MAX_PHYS)

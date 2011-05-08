@@ -53,26 +53,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#if !defined(_SCI_HOST_H_)
+#ifndef _SCI_HOST_H_
 #define _SCI_HOST_H_
 
-#include "phy.h"
 #include "scic_sds_controller.h"
-#include "timers.h"
 #include "remote_device.h"
-
-#define DRV_NAME "isci"
-#define SCI_PCI_BAR_COUNT 2
-#define SCI_NUM_MSI_X_INT 2
-#define SCI_SMU_BAR       0
-#define SCI_SMU_BAR_SIZE  (16*1024)
-#define SCI_SCU_BAR       1
-#define SCI_SCU_BAR_SIZE  (4*1024*1024)
-#define SCI_IO_SPACE_BAR0 2
-#define SCI_IO_SPACE_BAR1 3
-#define ISCI_CAN_QUEUE_VAL 250 /* < SCI_MAX_IO_REQUESTS ? */
-#define SCIC_CONTROLLER_STOP_TIMEOUT 5000
+#include "phy.h"
 
 struct isci_host {
 	struct scic_sds_controller sci;

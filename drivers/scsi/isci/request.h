@@ -57,6 +57,7 @@
 #define _ISCI_REQUEST_H_
 
 #include "isci.h"
+#include "host.h"
 #include "scic_sds_request.h"
 
 /**

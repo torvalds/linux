@@ -53,19 +53,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains all of the unsolicited frame related management for the
- *    address table, the headers, and actual payload buffers.
- *
- *
- */
-
 #ifndef _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_
 #define _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_
 
+#include "isci.h"
 #include "scu_unsolicited_frame.h"
-#include "scu_constants.h"
-#include "sci_status.h"
 
 /**
  * enum unsolicited_frame_state -
@@ -143,15 +135,6 @@ struct scic_sds_uf_header_array {
 	dma_addr_t physical_address;
 
 };
-
-/*
- * Determine the size of the unsolicited frame array including
- * unused buffers. */
-#if SCU_UNSOLICITED_FRAME_COUNT <= SCU_MIN_UF_TABLE_ENTRIES
-#define SCU_UNSOLICITED_FRAME_CONTROL_ARRAY_SIZE SCU_MIN_UF_TABLE_ENTRIES
-#else
-#define SCU_UNSOLICITED_FRAME_CONTROL_ARRAY_SIZE SCU_MAX_UNSOLICITED_FRAMES
-#endif /* SCU_UNSOLICITED_FRAME_COUNT <= SCU_MIN_UF_TABLE_ENTRIES */
 
 /**
  * struct scic_sds_uf_buffer_array -

@@ -56,15 +56,7 @@
 #ifndef _SCIC_IO_REQUEST_H_
 #define _SCIC_IO_REQUEST_H_
 
-/**
- * This file contains the structures and interface methods that can be
- *    referenced and used by the SCI user for the SCI IO request object.
- *
- * Determine the failure situations and return values.
- */
-
 #include <linux/kernel.h>
-#include "sci_status.h"
 
 struct scic_sds_request;
 struct scic_sds_remote_device;

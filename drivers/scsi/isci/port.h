@@ -55,6 +55,9 @@
 
 #ifndef _ISCI_PORT_H_
 #define _ISCI_PORT_H_
+
+#include <scsi/libsas.h>
+#include "isci.h"
 #include "scic_sds_port.h"
 
 struct isci_phy;

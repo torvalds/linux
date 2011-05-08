@@ -56,8 +56,7 @@
 #ifndef _SCI_ENVIRONMENT_H_
 #define _SCI_ENVIRONMENT_H_
 
-#include "isci.h"
-#include "core/scic_sds_controller.h"
+#include "host.h"
 
 
 static inline struct device *scic_to_dev(struct scic_sds_controller *scic)

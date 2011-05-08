@@ -56,11 +56,11 @@
 #ifndef _SCIC_SDS_IO_REQUEST_H_
 #define _SCIC_SDS_IO_REQUEST_H_
 
+#include "isci.h"
 #include "scic_io_request.h"
 #include "sci_base_state_machine.h"
 #include "scu_task_context.h"
 #include "scic_sds_stp_request.h"
-#include "scu_constants.h"
 #include "sas.h"
 
 struct scic_sds_controller;

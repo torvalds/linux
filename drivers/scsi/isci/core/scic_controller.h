@@ -56,20 +56,12 @@
 #ifndef _SCIC_CONTROLLER_H_
 #define _SCIC_CONTROLLER_H_
 
-#include "sci_status.h"
-#include "sci_controller.h"
 #include "scic_config_parameters.h"
 
 struct scic_sds_request;
 struct scic_sds_phy;
 struct scic_sds_port;
 struct scic_sds_remote_device;
-
-
-enum sci_controller_mode {
-	SCI_MODE_SPEED,		/* Optimized for performance */
-	SCI_MODE_SIZE		/* Optimized for memory use */
-};
 
 enum sci_status scic_controller_construct(struct scic_sds_controller *c,
 					  void __iomem *scu_base,

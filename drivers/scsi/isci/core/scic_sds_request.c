@@ -67,8 +67,9 @@
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
-#include "scu_constants.h"
 #include "scu_task_context.h"
+#include "request.h"
+#include "task.h"
 
 /*
  * ****************************************************************************

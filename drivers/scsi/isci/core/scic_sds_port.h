@@ -58,21 +58,15 @@
 
 #include <linux/kernel.h>
 #include "sas.h"
-#include "sci_controller_constants.h"
 #include "scu_registers.h"
-
-#define SCIC_SDS_DUMMY_PORT   0xFF
+#include "sci_base_state_machine.h"
 
 struct scic_sds_controller;
 struct scic_sds_phy;
 struct scic_sds_remote_device;
 struct scic_sds_request;
 
-/**
- * This constant defines the value utilized by SCI Components to indicate
- * an invalid handle.
- */
-#define SCI_INVALID_HANDLE 0x0
+#define SCIC_SDS_DUMMY_PORT   0xFF
 
 /**
  * enum SCIC_SDS_PORT_READY_SUBSTATES -

@@ -56,16 +56,7 @@
 #ifndef _SCIC_TASK_REQUEST_H_
 #define _SCIC_TASK_REQUEST_H_
 
-/**
- * This file contains the structures and interface methods that can be
- *    referenced and used by the SCI user for to utilize task management
- *    requests.
- *
- *
- */
-
-
-#include "sci_status.h"
+#include "isci.h"
 
 struct scic_sds_request;
 struct scic_sds_remote_device;
