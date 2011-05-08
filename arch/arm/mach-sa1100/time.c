@@ -97,19 +97,6 @@ static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.set_mode	= sa1100_osmr0_set_mode,
 };
 
-static cycle_t sa1100_read_oscr(struct clocksource *s)
-{
-	return OSCR;
-}
-
-static struct clocksource cksrc_sa1100_oscr = {
-	.name		= "oscr",
-	.rating		= 200,
-	.read		= sa1100_read_oscr,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static struct irqaction sa1100_timer_irq = {
 	.name		= "ost0",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
@@ -134,7 +121,8 @@ static void __init sa1100_timer_init(void)
 
 	setup_irq(IRQ_OST0, &sa1100_timer_irq);
 
-	clocksource_register_hz(&cksrc_sa1100_oscr, CLOCK_TICK_RATE);
+	clocksource_mmio_init(&OSCR, "oscr", CLOCK_TICK_RATE, 200, 32,
+		clocksource_mmio_readl_up);
 	clockevents_register_device(&ckevt_sa1100_osmr0);
 }
 
