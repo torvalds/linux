@@ -32,35 +32,17 @@
 #define TIMER_FREQ_KHZ	(1000)
 #define TIMER_RELOAD	(TIMER_FREQ_KHZ * 1000 / HZ)
 
-static void __iomem *clksrc_base;
-
-static cycle_t sp804_read(struct clocksource *cs)
-{
-	return ~readl(clksrc_base + TIMER_VALUE);
-}
-
-static struct clocksource clocksource_sp804 = {
-	.name		= "timer3",
-	.rating		= 200,
-	.read		= sp804_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 void __init sp804_clocksource_init(void __iomem *base)
 {
-	struct clocksource *cs = &clocksource_sp804;
-
-	clksrc_base = base;
-
 	/* setup timer 0 as free-running clocksource */
-	writel(0, clksrc_base + TIMER_CTRL);
-	writel(0xffffffff, clksrc_base + TIMER_LOAD);
-	writel(0xffffffff, clksrc_base + TIMER_VALUE);
+	writel(0, base + TIMER_CTRL);
+	writel(0xffffffff, base + TIMER_LOAD);
+	writel(0xffffffff, base + TIMER_VALUE);
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
-		clksrc_base + TIMER_CTRL);
+		base + TIMER_CTRL);
 
-	clocksource_register_khz(cs, TIMER_FREQ_KHZ);
+	clocksource_mmio_init(base + TIMER_VALUE, "timer3",
+		TIMER_FREQ_KHZ * 1000, 200, 32, clocksource_mmio_readl_down);
 }
 
 

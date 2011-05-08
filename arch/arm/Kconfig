@@ -1042,6 +1042,7 @@ config PLAT_IOP
 
 config PLAT_ORION
 	bool
+	select CLKSRC_MMIO
 	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA
@@ -1052,6 +1053,7 @@ config PLAT_VERSATILE
 
 config ARM_TIMER_SP804
 	bool
+	select CLKSRC_MMIO
 
 source arch/arm/mm/Kconfig
 
