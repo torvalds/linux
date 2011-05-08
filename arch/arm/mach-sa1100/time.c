@@ -92,7 +92,6 @@ sa1100_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *c)
 static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 200,
 	.set_next_event	= sa1100_osmr0_set_next_event,
 	.set_mode	= sa1100_osmr0_set_mode,
@@ -120,14 +119,13 @@ static struct irqaction sa1100_timer_irq = {
 
 static void __init sa1100_timer_init(void)
 {
-	OIER = 0;		/* disable any timer interrupts */
-	OSSR = 0xf;		/* clear status on all timers */
+	OIER = 0;
+	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
 
 	init_fixed_sched_clock(&cd, sa1100_update_sched_clock, 32,
 			       3686400, SC_MULT, SC_SHIFT);
 
-	ckevt_sa1100_osmr0.mult =
-		div_sc(3686400, NSEC_PER_SEC, ckevt_sa1100_osmr0.shift);
+	clockevents_calc_mult_shift(&ckevt_sa1100_osmr0, 3686400, 4);
 	ckevt_sa1100_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_sa1100_osmr0);
 	ckevt_sa1100_osmr0.min_delta_ns =
