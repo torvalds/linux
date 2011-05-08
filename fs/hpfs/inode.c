@@ -261,6 +261,10 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	hpfs_lock(inode->i_sb);
 	if (inode->i_ino == hpfs_sb(inode->i_sb)->sb_root)
 		goto out_unlock;
+	if ((attr->ia_valid & ATTR_UID) && attr->ia_uid >= 0x10000)
+		goto out_unlock;
+	if ((attr->ia_valid & ATTR_GID) && attr->ia_gid >= 0x10000)
+		goto out_unlock;
 	if ((attr->ia_valid & ATTR_SIZE) && attr->ia_size > inode->i_size)
 		goto out_unlock;
 
