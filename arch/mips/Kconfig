@@ -2339,6 +2339,7 @@ config MMU
 
 config I8253
 	bool
+	select CLKSRC_I8253
 	select MIPS_EXTERNAL_TIMER
 
 config ZONE_DMA32
