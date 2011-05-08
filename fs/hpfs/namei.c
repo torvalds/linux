@@ -37,8 +37,8 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (!(mode & 0222)) dee.read_only = 1;
 	/*dee.archive = 0;*/
 	dee.hidden = name[0] == '.';
-	dee.fnode = fno;
-	dee.creation_date = dee.write_date = dee.read_date = gmt_to_local(dir->i_sb, get_seconds());
+	dee.fnode = cpu_to_le32(fno);
+	dee.creation_date = dee.write_date = dee.read_date = cpu_to_le32(gmt_to_local(dir->i_sb, get_seconds()));
 	result = new_inode(dir->i_sb);
 	if (!result)
 		goto bail2;
@@ -46,7 +46,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	result->i_ino = fno;
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
 	hpfs_i(result)->i_dno = dno;
-	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
+	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
 	result->i_ctime.tv_nsec = 0; 
 	result->i_mtime.tv_nsec = 0; 
 	result->i_atime.tv_nsec = 0; 
@@ -69,21 +69,21 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	}
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
-	fnode->up = dir->i_ino;
+	fnode->up = cpu_to_le32(dir->i_ino);
 	fnode->dirflag = 1;
 	fnode->btree.n_free_nodes = 7;
 	fnode->btree.n_used_nodes = 1;
-	fnode->btree.first_free = 0x14;
-	fnode->u.external[0].disk_secno = dno;
-	fnode->u.external[0].file_secno = -1;
+	fnode->btree.first_free = cpu_to_le16(0x14);
+	fnode->u.external[0].disk_secno = cpu_to_le32(dno);
+	fnode->u.external[0].file_secno = cpu_to_le32(-1);
 	dnode->root_dnode = 1;
-	dnode->up = fno;
+	dnode->up = cpu_to_le32(fno);
 	de = hpfs_add_de(dir->i_sb, dnode, "\001\001", 2, 0);
-	de->creation_date = de->write_date = de->read_date = gmt_to_local(dir->i_sb, get_seconds());
+	de->creation_date = de->write_date = de->read_date = cpu_to_le32(gmt_to_local(dir->i_sb, get_seconds()));
 	if (!(mode & 0222)) de->read_only = 1;
 	de->first = de->directory = 1;
 	/*de->hidden = de->system = 0;*/
-	de->fnode = fno;
+	de->fnode = cpu_to_le32(fno);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 	hpfs_mark_4buffers_dirty(&qbh0);
@@ -137,8 +137,8 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	if (!(mode & 0222)) dee.read_only = 1;
 	dee.archive = 1;
 	dee.hidden = name[0] == '.';
-	dee.fnode = fno;
-	dee.creation_date = dee.write_date = dee.read_date = gmt_to_local(dir->i_sb, get_seconds());
+	dee.fnode = cpu_to_le32(fno);
+	dee.creation_date = dee.write_date = dee.read_date = cpu_to_le32(gmt_to_local(dir->i_sb, get_seconds()));
 
 	result = new_inode(dir->i_sb);
 	if (!result)
@@ -152,7 +152,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	result->i_fop = &hpfs_file_ops;
 	result->i_nlink = 1;
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
-	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
+	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
 	result->i_ctime.tv_nsec = 0;
 	result->i_mtime.tv_nsec = 0;
 	result->i_atime.tv_nsec = 0;
@@ -173,7 +173,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	}
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
-	fnode->up = dir->i_ino;
+	fnode->up = cpu_to_le32(dir->i_ino);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
@@ -225,8 +225,8 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	if (!(mode & 0222)) dee.read_only = 1;
 	dee.archive = 1;
 	dee.hidden = name[0] == '.';
-	dee.fnode = fno;
-	dee.creation_date = dee.write_date = dee.read_date = gmt_to_local(dir->i_sb, get_seconds());
+	dee.fnode = cpu_to_le32(fno);
+	dee.creation_date = dee.write_date = dee.read_date = cpu_to_le32(gmt_to_local(dir->i_sb, get_seconds()));
 
 	result = new_inode(dir->i_sb);
 	if (!result)
@@ -235,7 +235,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	hpfs_init_inode(result);
 	result->i_ino = fno;
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
-	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
+	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
 	result->i_ctime.tv_nsec = 0;
 	result->i_mtime.tv_nsec = 0;
 	result->i_atime.tv_nsec = 0;
@@ -256,7 +256,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	}
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
-	fnode->up = dir->i_ino;
+	fnode->up = cpu_to_le32(dir->i_ino);
 	mark_buffer_dirty(bh);
 
 	insert_inode_hash(result);
@@ -300,8 +300,8 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	memset(&dee, 0, sizeof dee);
 	dee.archive = 1;
 	dee.hidden = name[0] == '.';
-	dee.fnode = fno;
-	dee.creation_date = dee.write_date = dee.read_date = gmt_to_local(dir->i_sb, get_seconds());
+	dee.fnode = cpu_to_le32(fno);
+	dee.creation_date = dee.write_date = dee.read_date = cpu_to_le32(gmt_to_local(dir->i_sb, get_seconds()));
 
 	result = new_inode(dir->i_sb);
 	if (!result)
@@ -309,7 +309,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	result->i_ino = fno;
 	hpfs_init_inode(result);
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
-	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
+	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
 	result->i_ctime.tv_nsec = 0;
 	result->i_mtime.tv_nsec = 0;
 	result->i_atime.tv_nsec = 0;
@@ -332,7 +332,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	}
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
-	fnode->up = dir->i_ino;
+	fnode->up = cpu_to_le32(dir->i_ino);
 	hpfs_set_ea(result, fnode, "SYMLINK", symlink, strlen(symlink));
 	mark_buffer_dirty(bh);
 	brelse(bh);
@@ -382,7 +382,7 @@ again:
 	if (de->directory)
 		goto out1;
 
-	fno = de->fnode;
+	fno = le32_to_cpu(de->fnode);
 	r = hpfs_remove_dirent(dir, dno, de, &qbh, 1);
 	switch (r) {
 	case 1:
@@ -465,7 +465,7 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (n_items)
 		goto out1;
 
-	fno = de->fnode;
+	fno = le32_to_cpu(de->fnode);
 	r = hpfs_remove_dirent(dir, dno, de, &qbh, 1);
 	switch (r) {
 	case 1:
@@ -608,7 +608,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		drop_nlink(old_dir);
 	}
 	if ((fnode = hpfs_map_fnode(i->i_sb, i->i_ino, &bh))) {
-		fnode->up = new_dir->i_ino;
+		fnode->up = cpu_to_le32(new_dir->i_ino);
 		fnode->len = new_len;
 		memcpy(fnode->name, new_name, new_len>15?15:new_len);
 		if (new_len < 15) memset(&fnode->name[new_len], 0, 15 - new_len);

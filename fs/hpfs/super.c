@@ -135,7 +135,7 @@ static unsigned count_bitmaps(struct super_block *s)
 	n_bands = (hpfs_sb(s)->sb_fs_size + 0x3fff) >> 14;
 	count = 0;
 	for (n = 0; n < n_bands; n++)
-		count += hpfs_count_one_bitmap(s, hpfs_sb(s)->sb_bmp_dir[n]);
+		count += hpfs_count_one_bitmap(s, le32_to_cpu(hpfs_sb(s)->sb_bmp_dir[n]));
 	return count;
 }
 
@@ -509,9 +509,9 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	if (!(spareblock = hpfs_map_sector(s, 17, &bh2, 0))) goto bail3;
 
 	/* Check magics */
-	if (/*bootblock->magic != BB_MAGIC
-	    ||*/ superblock->magic != SB_MAGIC
-	    || spareblock->magic != SP_MAGIC) {
+	if (/*le16_to_cpu(bootblock->magic) != BB_MAGIC
+	    ||*/ le32_to_cpu(superblock->magic) != SB_MAGIC
+	    || le32_to_cpu(spareblock->magic) != SP_MAGIC) {
 		if (!silent) printk("HPFS: Bad magic ... probably not HPFS\n");
 		goto bail4;
 	}
@@ -532,12 +532,12 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	s->s_op = &hpfs_sops;
 	s->s_d_op = &hpfs_dentry_operations;
 
-	sbi->sb_root = superblock->root;
-	sbi->sb_fs_size = superblock->n_sectors;
-	sbi->sb_bitmaps = superblock->bitmaps;
-	sbi->sb_dirband_start = superblock->dir_band_start;
-	sbi->sb_dirband_size = superblock->n_dir_band;
-	sbi->sb_dmap = superblock->dir_band_bitmap;
+	sbi->sb_root = le32_to_cpu(superblock->root);
+	sbi->sb_fs_size = le32_to_cpu(superblock->n_sectors);
+	sbi->sb_bitmaps = le32_to_cpu(superblock->bitmaps);
+	sbi->sb_dirband_start = le32_to_cpu(superblock->dir_band_start);
+	sbi->sb_dirband_size = le32_to_cpu(superblock->n_dir_band);
+	sbi->sb_dmap = le32_to_cpu(superblock->dir_band_bitmap);
 	sbi->sb_uid = uid;
 	sbi->sb_gid = gid;
 	sbi->sb_mode = 0777 & ~umask;
@@ -555,7 +555,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_max_fwd_alloc = 0xffffff;
 	
 	/* Load bitmap directory */
-	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, superblock->bitmaps)))
+	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;
 	
 	/* Check for general fs errors*/
@@ -573,7 +573,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		mark_buffer_dirty(bh2);
 	}
 
-	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
+	if (le32_to_cpu(spareblock->hotfixes_used) || le32_to_cpu(spareblock->n_spares_used)) {
 		if (errs >= 2) {
 			printk("HPFS: Hotfixes not supported here, try chkdsk\n");
 			mark_dirty(s, 0);
@@ -583,7 +583,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		if (errs == 0) printk("HPFS: Proceeding, but your filesystem will be probably corrupted by this driver...\n");
 		else printk("HPFS: This driver may read bad files or crash when operating on disk with hotfixes.\n");
 	}
-	if (spareblock->n_dnode_spares != spareblock->n_dnode_spares_free) {
+	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
 		if (errs >= 2) {
 			printk("HPFS: Spare dnodes used, try chkdsk\n");
 			mark_dirty(s, 0);
@@ -594,17 +594,17 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	}
 	if (chk) {
 		unsigned a;
-		if (superblock->dir_band_end - superblock->dir_band_start + 1 != superblock->n_dir_band ||
-		    superblock->dir_band_end < superblock->dir_band_start || superblock->n_dir_band > 0x4000) {
+		if (le32_to_cpu(superblock->dir_band_end) - le32_to_cpu(superblock->dir_band_start) + 1 != le32_to_cpu(superblock->n_dir_band) ||
+		    le32_to_cpu(superblock->dir_band_end) < le32_to_cpu(superblock->dir_band_start) || le32_to_cpu(superblock->n_dir_band) > 0x4000) {
 			hpfs_error(s, "dir band size mismatch: dir_band_start==%08x, dir_band_end==%08x, n_dir_band==%08x",
-				superblock->dir_band_start, superblock->dir_band_end, superblock->n_dir_band);
+				le32_to_cpu(superblock->dir_band_start), le32_to_cpu(superblock->dir_band_end), le32_to_cpu(superblock->n_dir_band));
 			goto bail4;
 		}
 		a = sbi->sb_dirband_size;
 		sbi->sb_dirband_size = 0;
-		if (hpfs_chk_sectors(s, superblock->dir_band_start, superblock->n_dir_band, "dir_band") ||
-		    hpfs_chk_sectors(s, superblock->dir_band_bitmap, 4, "dir_band_bitmap") ||
-		    hpfs_chk_sectors(s, superblock->bitmaps, 4, "bitmaps")) {
+		if (hpfs_chk_sectors(s, le32_to_cpu(superblock->dir_band_start), le32_to_cpu(superblock->n_dir_band), "dir_band") ||
+		    hpfs_chk_sectors(s, le32_to_cpu(superblock->dir_band_bitmap), 4, "dir_band_bitmap") ||
+		    hpfs_chk_sectors(s, le32_to_cpu(superblock->bitmaps), 4, "bitmaps")) {
 			mark_dirty(s, 0);
 			goto bail4;
 		}
@@ -612,8 +612,8 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	} else printk("HPFS: You really don't want any checks? You are crazy...\n");
 
 	/* Load code page table */
-	if (spareblock->n_code_pages)
-		if (!(sbi->sb_cp_table = hpfs_load_code_page(s, spareblock->code_page_dir)))
+	if (le32_to_cpu(spareblock->n_code_pages))
+		if (!(sbi->sb_cp_table = hpfs_load_code_page(s, le32_to_cpu(spareblock->code_page_dir))))
 			printk("HPFS: Warning: code page support is disabled\n");
 
 	brelse(bh2);
@@ -642,13 +642,13 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	if (!de)
 		hpfs_error(s, "unable to find root dir");
 	else {
-		root->i_atime.tv_sec = local_to_gmt(s, de->read_date);
+		root->i_atime.tv_sec = local_to_gmt(s, le32_to_cpu(de->read_date));
 		root->i_atime.tv_nsec = 0;
-		root->i_mtime.tv_sec = local_to_gmt(s, de->write_date);
+		root->i_mtime.tv_sec = local_to_gmt(s, le32_to_cpu(de->write_date));
 		root->i_mtime.tv_nsec = 0;
-		root->i_ctime.tv_sec = local_to_gmt(s, de->creation_date);
+		root->i_ctime.tv_sec = local_to_gmt(s, le32_to_cpu(de->creation_date));
 		root->i_ctime.tv_nsec = 0;
-		hpfs_i(root)->i_ea_size = de->ea_size;
+		hpfs_i(root)->i_ea_size = le16_to_cpu(de->ea_size);
 		hpfs_i(root)->i_parent_dir = root->i_ino;
 		if (root->i_size == -1)
 			root->i_size = 2048;

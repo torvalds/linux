@@ -84,7 +84,6 @@ struct hpfs_sb_info {
 	unsigned *sb_bmp_dir;		/* main bitmap directory */
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
-	/*unsigned sb_mounting : 1;*/
 	int sb_timeshift;
 };
 
@@ -100,7 +99,7 @@ struct quad_buffer_head {
 static inline dnode_secno de_down_pointer (struct hpfs_dirent *de)
 {
   CHKCOND(de->down,("HPFS: de_down_pointer: !de->down\n"));
-  return *(dnode_secno *) ((void *) de + de->length - 4);
+  return le32_to_cpu(*(dnode_secno *) ((void *) de + le16_to_cpu(de->length) - 4));
 }
 
 /* The first dir entry in a dnode */
@@ -114,41 +113,41 @@ static inline struct hpfs_dirent *dnode_first_de (struct dnode *dnode)
 
 static inline struct hpfs_dirent *dnode_end_de (struct dnode *dnode)
 {
-  CHKCOND(dnode->first_free>=0x14 && dnode->first_free<=0xa00,("HPFS: dnode_end_de: dnode->first_free = %d\n",(int)dnode->first_free));
-  return (void *) dnode + dnode->first_free;
+  CHKCOND(le32_to_cpu(dnode->first_free)>=0x14 && le32_to_cpu(dnode->first_free)<=0xa00,("HPFS: dnode_end_de: dnode->first_free = %x\n",(unsigned)le32_to_cpu(dnode->first_free)));
+  return (void *) dnode + le32_to_cpu(dnode->first_free);
 }
 
 /* The dir entry after dir entry de */
 
 static inline struct hpfs_dirent *de_next_de (struct hpfs_dirent *de)
 {
-  CHKCOND(de->length>=0x20 && de->length<0x800,("HPFS: de_next_de: de->length = %d\n",(int)de->length));
-  return (void *) de + de->length;
+  CHKCOND(le16_to_cpu(de->length)>=0x20 && le16_to_cpu(de->length)<0x800,("HPFS: de_next_de: de->length = %x\n",(unsigned)le16_to_cpu(de->length)));
+  return (void *) de + le16_to_cpu(de->length);
 }
 
 static inline struct extended_attribute *fnode_ea(struct fnode *fnode)
 {
-	return (struct extended_attribute *)((char *)fnode + fnode->ea_offs + fnode->acl_size_s);
+	return (struct extended_attribute *)((char *)fnode + le16_to_cpu(fnode->ea_offs) + le16_to_cpu(fnode->acl_size_s));
 }
 
 static inline struct extended_attribute *fnode_end_ea(struct fnode *fnode)
 {
-	return (struct extended_attribute *)((char *)fnode + fnode->ea_offs + fnode->acl_size_s + fnode->ea_size_s);
+	return (struct extended_attribute *)((char *)fnode + le16_to_cpu(fnode->ea_offs) + le16_to_cpu(fnode->acl_size_s) + le16_to_cpu(fnode->ea_size_s));
 }
 
 static inline struct extended_attribute *next_ea(struct extended_attribute *ea)
 {
-	return (struct extended_attribute *)((char *)ea + 5 + ea->namelen + ea->valuelen);
+	return (struct extended_attribute *)((char *)ea + 5 + ea->namelen + le16_to_cpu(ea->valuelen));
 }
 
 static inline secno ea_sec(struct extended_attribute *ea)
 {
-	return *(secno *)((char *)ea + 9 + ea->namelen);
+	return le32_to_cpu(*((secno *)((char *)ea + 9 + ea->namelen)));
 }
 
 static inline secno ea_len(struct extended_attribute *ea)
 {
-	return *(secno *)((char *)ea + 5 + ea->namelen);
+	return le32_to_cpu(*((secno *)((char *)ea + 5 + ea->namelen)));
 }
 
 static inline char *ea_data(struct extended_attribute *ea)
@@ -173,13 +172,13 @@ static inline void copy_de(struct hpfs_dirent *dst, struct hpfs_dirent *src)
 	dst->not_8x3 = n;
 }
 
-static inline unsigned tstbits(unsigned *bmp, unsigned b, unsigned n)
+static inline unsigned tstbits(u32 *bmp, unsigned b, unsigned n)
 {
 	int i;
 	if ((b >= 0x4000) || (b + n - 1 >= 0x4000)) return n;
-	if (!((bmp[(b & 0x3fff) >> 5] >> (b & 0x1f)) & 1)) return 1;
+	if (!((le32_to_cpu(bmp[(b & 0x3fff) >> 5]) >> (b & 0x1f)) & 1)) return 1;
 	for (i = 1; i < n; i++)
-		if (/*b+i < 0x4000 &&*/ !((bmp[((b+i) & 0x3fff) >> 5] >> ((b+i) & 0x1f)) & 1))
+		if (!((le32_to_cpu(bmp[((b+i) & 0x3fff) >> 5]) >> ((b+i) & 0x1f)) & 1))
 			return i + 1;
 	return 0;
 }

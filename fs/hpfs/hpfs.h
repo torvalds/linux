@@ -19,6 +19,10 @@
    For definitive information on HPFS, ask somebody else -- this is guesswork.
    There are certain to be many mistakes. */
 
+#if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
+#error unknown endian
+#endif
+
 /* Notation */
 
 typedef u32 secno;			/* sector number, partition relative */
@@ -86,7 +90,6 @@ struct hpfs_super_block
   secno badblocks;			/* bad block list */
   u32 zero3;				/* 0 */
   time32_t last_chkdsk;			/* date last checked, 0 if never */
-  /*u32 zero4;*/			/* 0 */
   time32_t last_optimize;		/* date last optimized, 0 if never */
   secno n_dir_band;			/* number of sectors in dir band */
   secno dir_band_start;			/* first sector in dir band */
@@ -109,21 +112,44 @@ struct hpfs_spare_block
   u32 magic;				/* f991 1849 */
   u32 magic1;				/* fa52 29c5, more magic? */
 
-  unsigned dirty: 1;			/* 0 clean, 1 "improperly stopped" */
-  unsigned sparedir_used: 1;		/* spare dirblks used */
-  unsigned hotfixes_used: 1;		/* hotfixes used */
-  unsigned bad_sector: 1;		/* bad sector, corrupted disk (???) */
-  unsigned bad_bitmap: 1;		/* bad bitmap */
-  unsigned fast: 1;			/* partition was fast formatted */
-  unsigned old_wrote: 1;		/* old version wrote to partion */
-  unsigned old_wrote_1: 1;		/* old version wrote to partion (?) */
-  unsigned install_dasd_limits: 1;	/* HPFS386 flags */
-  unsigned resynch_dasd_limits: 1;
-  unsigned dasd_limits_operational: 1;
-  unsigned multimedia_active: 1;
-  unsigned dce_acls_active: 1;
-  unsigned dasd_limits_dirty: 1;
-  unsigned flag67: 2;
+#ifdef __LITTLE_ENDIAN
+  u8 dirty: 1;				/* 0 clean, 1 "improperly stopped" */
+  u8 sparedir_used: 1;			/* spare dirblks used */
+  u8 hotfixes_used: 1;			/* hotfixes used */
+  u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */
+  u8 bad_bitmap: 1;			/* bad bitmap */
+  u8 fast: 1;				/* partition was fast formatted */
+  u8 old_wrote: 1;			/* old version wrote to partion */
+  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
+#else
+  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
+  u8 old_wrote: 1;			/* old version wrote to partion */
+  u8 fast: 1;				/* partition was fast formatted */
+  u8 bad_bitmap: 1;			/* bad bitmap */
+  u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */
+  u8 hotfixes_used: 1;			/* hotfixes used */
+  u8 sparedir_used: 1;			/* spare dirblks used */
+  u8 dirty: 1;				/* 0 clean, 1 "improperly stopped" */
+#endif
+
+#ifdef __LITTLE_ENDIAN
+  u8 install_dasd_limits: 1;		/* HPFS386 flags */
+  u8 resynch_dasd_limits: 1;
+  u8 dasd_limits_operational: 1;
+  u8 multimedia_active: 1;
+  u8 dce_acls_active: 1;
+  u8 dasd_limits_dirty: 1;
+  u8 flag67: 2;
+#else
+  u8 flag67: 2;
+  u8 dasd_limits_dirty: 1;
+  u8 dce_acls_active: 1;
+  u8 multimedia_active: 1;
+  u8 dasd_limits_operational: 1;
+  u8 resynch_dasd_limits: 1;
+  u8 install_dasd_limits: 1;		/* HPFS386 flags */
+#endif
+
   u8 mm_contlgulty;
   u8 unused;
 
@@ -255,10 +281,18 @@ struct dnode {
   u32 magic;				/* 77e4 0aae */
   u32 first_free;			/* offset from start of dnode to
 					   first free dir entry */
-  unsigned root_dnode:1;		/* Is it root dnode? */
-  unsigned increment_me:31;		/* some kind of activity counter?
-					   Neither HPFS.IFS nor CHKDSK cares
+#ifdef __LITTLE_ENDIAN
+  u8 root_dnode: 1;			/* Is it root dnode? */
+  u8 increment_me: 7;			/* some kind of activity counter? */
+					/* Neither HPFS.IFS nor CHKDSK cares
 					   if you change this word */
+#else
+  u8 increment_me: 7;			/* some kind of activity counter? */
+					/* Neither HPFS.IFS nor CHKDSK cares
+					   if you change this word */
+  u8 root_dnode: 1;			/* Is it root dnode? */
+#endif
+  u8 increment_me2[3];
   secno up;				/* (root dnode) directory's fnode
 					   (nonroot) parent dnode */
   dnode_secno self;			/* pointer to this dnode */
@@ -266,33 +300,59 @@ struct dnode {
 };
 
 struct hpfs_dirent {
-  u16 length;			/* offset to next dirent */
-  unsigned first: 1;			/* set on phony ^A^A (".") entry */
-  unsigned has_acl: 1;
-  unsigned down: 1;			/* down pointer present (after name) */
-  unsigned last: 1;			/* set on phony \377 entry */
-  unsigned has_ea: 1;			/* entry has EA */
-  unsigned has_xtd_perm: 1;		/* has extended perm list (???) */
-  unsigned has_explicit_acl: 1;
-  unsigned has_needea: 1;		/* ?? some EA has NEEDEA set
+  u16 length;				/* offset to next dirent */
+
+#ifdef __LITTLE_ENDIAN
+  u8 first: 1;				/* set on phony ^A^A (".") entry */
+  u8 has_acl: 1;
+  u8 down: 1;				/* down pointer present (after name) */
+  u8 last: 1;				/* set on phony \377 entry */
+  u8 has_ea: 1;				/* entry has EA */
+  u8 has_xtd_perm: 1;			/* has extended perm list (???) */
+  u8 has_explicit_acl: 1;
+  u8 has_needea: 1;			/* ?? some EA has NEEDEA set
 					   I have no idea why this is
 					   interesting in a dir entry */
-  unsigned read_only: 1;		/* dos attrib */
-  unsigned hidden: 1;			/* dos attrib */
-  unsigned system: 1;			/* dos attrib */
-  unsigned flag11: 1;			/* would be volume label dos attrib */
-  unsigned directory: 1;		/* dos attrib */
-  unsigned archive: 1;			/* dos attrib */
-  unsigned not_8x3: 1;			/* name is not 8.3 */
-  unsigned flag15: 1;
+#else
+  u8 has_needea: 1;			/* ?? some EA has NEEDEA set
+					   I have no idea why this is
+					   interesting in a dir entry */
+  u8 has_explicit_acl: 1;
+  u8 has_xtd_perm: 1;			/* has extended perm list (???) */
+  u8 has_ea: 1;				/* entry has EA */
+  u8 last: 1;				/* set on phony \377 entry */
+  u8 down: 1;				/* down pointer present (after name) */
+  u8 has_acl: 1;
+  u8 first: 1;				/* set on phony ^A^A (".") entry */
+#endif
+
+#ifdef __LITTLE_ENDIAN
+  u8 read_only: 1;			/* dos attrib */
+  u8 hidden: 1;				/* dos attrib */
+  u8 system: 1;				/* dos attrib */
+  u8 flag11: 1;				/* would be volume label dos attrib */
+  u8 directory: 1;			/* dos attrib */
+  u8 archive: 1;			/* dos attrib */
+  u8 not_8x3: 1;			/* name is not 8.3 */
+  u8 flag15: 1;
+#else
+  u8 flag15: 1;
+  u8 not_8x3: 1;			/* name is not 8.3 */
+  u8 archive: 1;			/* dos attrib */
+  u8 directory: 1;			/* dos attrib */
+  u8 flag11: 1;				/* would be volume label dos attrib */
+  u8 system: 1;				/* dos attrib */
+  u8 hidden: 1;				/* dos attrib */
+  u8 read_only: 1;			/* dos attrib */
+#endif
+
   fnode_secno fnode;			/* fnode giving allocation info */
   time32_t write_date;			/* mtime */
   u32 file_size;			/* file length, bytes */
   time32_t read_date;			/* atime */
   time32_t creation_date;			/* ctime */
   u32 ea_size;				/* total EA length, bytes */
-  unsigned char no_of_acls : 3;		/* number of ACL's */
-  unsigned char reserver : 5;
+  u8 no_of_acls;			/* number of ACL's (low 3 bits) */
   u8 ix;				/* code page index (of filename), see
 					   struct code_page_data */
   u8 namelen, name[1];			/* file name */
@@ -328,21 +388,33 @@ struct bplus_internal_node
 
 struct bplus_header
 {
-  unsigned hbff: 1;	/* high bit of first free entry offset */
-  unsigned flag1: 1;
-  unsigned flag2: 1;
-  unsigned flag3: 1;
-  unsigned flag4: 1;
-  unsigned fnode_parent: 1;		/* ? we're pointed to by an fnode,
+#ifdef __LITTLE_ENDIAN
+  u8 hbff: 1;			/* high bit of first free entry offset */
+  u8 flag1234: 4;
+  u8 fnode_parent: 1;			/* ? we're pointed to by an fnode,
 					   the data btree or some ea or the
 					   main ea bootage pointer ea_secno */
 					/* also can get set in fnodes, which
 					   may be a chkdsk glitch or may mean
 					   this bit is irrelevant in fnodes,
 					   or this interpretation is all wet */
-  unsigned binary_search: 1;		/* suggest binary search (unused) */
-  unsigned internal: 1;			/* 1 -> (internal) tree of anodes
+  u8 binary_search: 1;			/* suggest binary search (unused) */
+  u8 internal: 1;			/* 1 -> (internal) tree of anodes
 					   0 -> (leaf) list of extents */
+#else
+  u8 internal: 1;			/* 1 -> (internal) tree of anodes
+					   0 -> (leaf) list of extents */
+  u8 binary_search: 1;			/* suggest binary search (unused) */
+  u8 fnode_parent: 1;			/* ? we're pointed to by an fnode,
+					   the data btree or some ea or the
+					   main ea bootage pointer ea_secno */
+					/* also can get set in fnodes, which
+					   may be a chkdsk glitch or may mean
+					   this bit is irrelevant in fnodes,
+					   or this interpretation is all wet */
+  u8 flag1234: 4;
+  u8 hbff: 1;			/* high bit of first free entry offset */
+#endif
   u8 fill[3];
   u8 n_free_nodes;			/* free nodes in following array */
   u8 n_used_nodes;			/* used nodes in following array */
@@ -379,23 +451,25 @@ struct fnode
   secno ea_secno;			/* first sector of disk-resident ea's*/
   u16 ea_size_s;			/* length of fnode-resident ea's */
 
-  unsigned flag0: 1;
-  unsigned ea_anode: 1;			/* 1 -> ea_secno is an anode */
-  unsigned flag2: 1;
-  unsigned flag3: 1;
-  unsigned flag4: 1;
-  unsigned flag5: 1;
-  unsigned flag6: 1;
-  unsigned flag7: 1;
-  unsigned dirflag: 1;			/* 1 -> directory.  first & only extent
+#ifdef __LITTLE_ENDIAN
+  u8 flag0: 1;
+  u8 ea_anode: 1;			/* 1 -> ea_secno is an anode */
+  u8 flag234567: 6;
+#else
+  u8 flag234567: 6;
+  u8 ea_anode: 1;			/* 1 -> ea_secno is an anode */
+  u8 flag0: 1;
+#endif
+
+#ifdef __LITTLE_ENDIAN
+  u8 dirflag: 1;			/* 1 -> directory.  first & only extent
 					   points to dnode. */
-  unsigned flag9: 1;
-  unsigned flag10: 1;
-  unsigned flag11: 1;
-  unsigned flag12: 1;
-  unsigned flag13: 1;
-  unsigned flag14: 1;
-  unsigned flag15: 1;
+  u8 flag9012345: 7;
+#else
+  u8 flag9012345: 7;
+  u8 dirflag: 1;			/* 1 -> directory.  first & only extent
+					   points to dnode. */
+#endif
 
   struct bplus_header btree;		/* b+ tree, 8 extents or 12 subtrees */
   union {
@@ -456,16 +530,21 @@ struct anode
 
 struct extended_attribute
 {
-  unsigned indirect: 1;			/* 1 -> value gives sector number
+#ifdef __LITTLE_ENDIAN
+  u8 indirect: 1;			/* 1 -> value gives sector number
 					   where real value starts */
-  unsigned anode: 1;			/* 1 -> sector is an anode
+  u8 anode: 1;				/* 1 -> sector is an anode
 					   that points to fragmented value */
-  unsigned flag2: 1;
-  unsigned flag3: 1;
-  unsigned flag4: 1;
-  unsigned flag5: 1;
-  unsigned flag6: 1;
-  unsigned needea: 1;			/* required ea */
+  u8 flag23456: 5;
+  u8 needea: 1;				/* required ea */
+#else
+  u8 needea: 1;				/* required ea */
+  u8 flag23456: 5;
+  u8 anode: 1;				/* 1 -> sector is an anode
+					   that points to fragmented value */
+  u8 indirect: 1;			/* 1 -> value gives sector number
+					   where real value starts */
+#endif
   u8 namelen;				/* length of name, bytes */
   u16 valuelen;				/* length of value, bytes */
   u8 name[0];
