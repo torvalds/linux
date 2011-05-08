@@ -785,6 +785,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	struct net_device *dev = ptr;
 	struct macvlan_dev *vlan, *next;
 	struct macvlan_port *port;
+	LIST_HEAD(list_kill);
 
 	if (!macvlan_port_exists(dev))
 		return NOTIFY_DONE;
@@ -810,7 +811,9 @@ static int macvlan_device_event(struct notifier_block *unused,
 			break;
 
 		list_for_each_entry_safe(vlan, next, &port->vlans, list)
-			vlan->dev->rtnl_link_ops->dellink(vlan->dev, NULL);
+			vlan->dev->rtnl_link_ops->dellink(vlan->dev, &list_kill);
+		unregister_netdevice_many(&list_kill);
+		list_del(&list_kill);
 		break;
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */
