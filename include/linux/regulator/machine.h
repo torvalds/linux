@@ -68,6 +68,8 @@ struct regulator_state {
  *
  * @min_uV: Smallest voltage consumers may set.
  * @max_uV: Largest voltage consumers may set.
+ * @uV_offset: Offset applied to voltages from consumer to compensate for
+ *             voltage drops.
  *
  * @min_uA: Smallest consumers consumers may set.
  * @max_uA: Largest current consumers may set.
@@ -98,6 +100,8 @@ struct regulation_constraints {
 	/* voltage output range (inclusive) - for voltage control */
 	int min_uV;
 	int max_uV;
+
+	int uV_offset;
 
 	/* current output range (inclusive) - for current control */
 	int min_uA;

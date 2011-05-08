@@ -724,6 +724,10 @@ static void print_constraints(struct regulator_dev *rdev)
 			count += sprintf(buf + count, "at %d mV ", ret / 1000);
 	}
 
+	if (constraints->uV_offset)
+		count += sprintf(buf, "%dmV offset ",
+				 constraints->uV_offset / 1000);
+
 	if (constraints->min_uA && constraints->max_uA) {
 		if (constraints->min_uA == constraints->max_uA)
 			count += sprintf(buf + count, "%d mA ",
@@ -1641,6 +1645,9 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 
 	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
 
+	min_uV += rdev->constraints->uV_offset;
+	max_uV += rdev->constraints->uV_offset;
+
 	if (rdev->desc->ops->set_voltage) {
 		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
 						   &selector);
@@ -1865,18 +1872,20 @@ EXPORT_SYMBOL_GPL(regulator_sync_voltage);
 
 static int _regulator_get_voltage(struct regulator_dev *rdev)
 {
-	int sel;
+	int sel, ret;
 
 	if (rdev->desc->ops->get_voltage_sel) {
 		sel = rdev->desc->ops->get_voltage_sel(rdev);
 		if (sel < 0)
 			return sel;
-		return rdev->desc->ops->list_voltage(rdev, sel);
+		ret = rdev->desc->ops->list_voltage(rdev, sel);
 	}
 	if (rdev->desc->ops->get_voltage)
-		return rdev->desc->ops->get_voltage(rdev);
+		ret = rdev->desc->ops->get_voltage(rdev);
 	else
 		return -EINVAL;
+
+	return ret - rdev->constraints->uV_offset;
 }
 
 /**
