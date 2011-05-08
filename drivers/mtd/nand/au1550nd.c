@@ -10,6 +10,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -470,7 +471,7 @@ static int __init au1xxx_nand_init(void)
 
 #ifdef CONFIG_MIPS_PB1550
 	/* set gpio206 high */
-	au_writel(au_readl(GPIO2_DIR) & ~(1 << 6), GPIO2_DIR);
+	gpio_direction_input(206);
 
 	boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) | ((bcsr_read(BCSR_STATUS) >> 6) & 0x1);
 

@@ -87,7 +87,7 @@ void __init board_setup(void)
 	au_writel(SYS_PF_NI2, SYS_PINFUNC);
 
 	/* Initialize GPIO */
-	au_writel(0xFFFFFFFF, SYS_TRIOUTCLR);
+	au_writel(~0, KSEG1ADDR(AU1000_SYS_PHYS_ADDR) + SYS_TRIOUTCLR);
 	alchemy_gpio_direction_output(0, 0);	/* Disable M66EN (PCI 66MHz) */
 	alchemy_gpio_direction_output(3, 1);	/* Disable PCI CLKRUN# */
 	alchemy_gpio_direction_output(1, 1);	/* Enable EXT_IO3 */
