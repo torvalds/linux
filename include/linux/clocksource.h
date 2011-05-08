@@ -341,4 +341,6 @@ static inline void update_vsyscall_tz(void)
 
 extern void timekeeping_notify(struct clocksource *clock);
 
+extern int clocksource_i8253_init(void);
+
 #endif /* _LINUX_CLOCKSOURCE_H */
