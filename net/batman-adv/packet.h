@@ -128,8 +128,7 @@ struct vis_packet {
 	uint8_t  entries;	 /* number of entries behind this struct */
 	uint32_t seqno;		 /* sequence number */
 	uint8_t  ttl;		 /* TTL */
-	uint8_t  vis_orig[6];	 /* originator that informs about its
-				  * neighbors */
+	uint8_t  vis_orig[6];	 /* originator that announces its neighbors */
 	uint8_t  target_orig[6]; /* who should receive this packet */
 	uint8_t  sender_orig[6]; /* who sent or rebroadcasted this packet */
 } __packed;

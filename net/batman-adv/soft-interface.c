@@ -793,8 +793,8 @@ static void interface_setup(struct net_device *dev)
 	 * have not been initialized yet
 	 */
 	dev->mtu = ETH_DATA_LEN;
-	dev->hard_header_len = BAT_HEADER_LEN; /* reserve more space in the
-						* skbuff for our header */
+	/* reserve more space in the skbuff for our header */
+	dev->hard_header_len = BAT_HEADER_LEN;
 
 	/* generate random address */
 	random_ether_addr(dev_addr);

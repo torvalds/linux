@@ -89,11 +89,11 @@ struct orig_node {
 	struct hlist_node hash_entry;
 	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
-	spinlock_t ogm_cnt_lock; /* protects: bcast_own, bcast_own_sum,
-				  * neigh_node->real_bits,
-				  * neigh_node->real_packet_count */
-	spinlock_t bcast_seqno_lock; /* protects bcast_bits,
-				      *	 last_bcast_seqno */
+	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
+	 * neigh_node->real_bits, neigh_node->real_packet_count */
+	spinlock_t ogm_cnt_lock;
+	/* bcast_seqno_lock protects bcast_bits, last_bcast_seqno */
+	spinlock_t bcast_seqno_lock;
 	atomic_t bond_candidates;
 	struct list_head bond_list;
 };
