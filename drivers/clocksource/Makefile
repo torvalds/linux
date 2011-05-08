@@ -7,3 +7,4 @@ obj-$(CONFIG_SH_TIMER_CMT)	+= sh_cmt.o
 obj-$(CONFIG_SH_TIMER_MTU2)	+= sh_mtu2.o
 obj-$(CONFIG_SH_TIMER_TMU)	+= sh_tmu.o
 obj-$(CONFIG_CLKSRC_I8253)	+= i8253.o
+obj-$(CONFIG_CLKSRC_MMIO)	+= mmio.o
