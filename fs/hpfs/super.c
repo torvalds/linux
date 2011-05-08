@@ -479,11 +479,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	int o;
 
-	if (num_possible_cpus() > 1) {
-		printk(KERN_ERR "HPFS is not SMP safe\n");
-		return -EINVAL;
-	}
-
 	save_mount_options(s, options);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
