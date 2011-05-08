@@ -396,14 +396,9 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 	if (sk_acceptq_is_full(sk))
 		goto exit_overflow;
 
-	if (dst == NULL && (dst = inet_csk_route_req(sk, req)) == NULL)
-		goto exit;
-
 	newsk = dccp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
 		goto exit_nonewsk;
-
-	sk_setup_caps(newsk, dst);
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
@@ -416,12 +411,15 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newinet->mc_ttl	   = ip_hdr(skb)->ttl;
 	newinet->inet_id   = jiffies;
 
+	if (dst == NULL && (dst = inet_csk_route_child_sock(sk, newsk, req)) == NULL)
+		goto put_and_exit;
+
+	sk_setup_caps(newsk, dst);
+
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	if (__inet_inherit_port(sk, newsk) < 0) {
-		sock_put(newsk);
-		goto exit;
-	}
+	if (__inet_inherit_port(sk, newsk) < 0)
+		goto put_and_exit;
 	__inet_hash_nolisten(newsk, NULL);
 
 	return newsk;
@@ -433,6 +431,9 @@ exit_nonewsk:
 exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
+put_and_exit:
+	sock_put(newsk);
+	goto exit;
 }
 
 EXPORT_SYMBOL_GPL(dccp_v4_request_recv_sock);
