@@ -161,6 +161,45 @@ static inline int alchemy_get_cputype(void)
 	return ALCHEMY_CPU_UNKNOWN;
 }
 
+/* return number of uarts on a given cputype */
+static inline int alchemy_get_uarts(int type)
+{
+	switch (type) {
+	case ALCHEMY_CPU_AU1000:
+		return 4;
+	case ALCHEMY_CPU_AU1500:
+	case ALCHEMY_CPU_AU1200:
+		return 2;
+	case ALCHEMY_CPU_AU1100:
+	case ALCHEMY_CPU_AU1550:
+		return 3;
+	}
+	return 0;
+}
+
+/* enable an UART block if it isn't already */
+static inline void alchemy_uart_enable(u32 uart_phys)
+{
+	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
+
+	/* reset, enable clock, deassert reset */
+	if ((__raw_readl(addr + 0x100) & 3) != 3) {
+		__raw_writel(0, addr + 0x100);
+		wmb();
+		__raw_writel(1, addr + 0x100);
+		wmb();
+	}
+	__raw_writel(3, addr + 0x100);
+	wmb();
+}
+
+static inline void alchemy_uart_disable(u32 uart_phys)
+{
+	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
+	__raw_writel(0, addr + 0x100);	/* UART_MOD_CNTRL */
+	wmb();
+}
+
 static inline void alchemy_uart_putchar(u32 uart_phys, u8 c)
 {
 	void __iomem *base = (void __iomem *)KSEG1ADDR(uart_phys);
@@ -634,6 +673,10 @@ enum soc_au1200_ints {
  */
 
 #define AU1000_IC0_PHYS_ADDR		0x10400000 /* 01234 */
+#define AU1000_UART0_PHYS_ADDR		0x11100000 /* 01234 */
+#define AU1000_UART1_PHYS_ADDR		0x11200000 /* 0234 */
+#define AU1000_UART2_PHYS_ADDR		0x11300000 /* 0 */
+#define AU1000_UART3_PHYS_ADDR		0x11400000 /* 0123 */
 #define AU1000_IC1_PHYS_ADDR		0x11800000 /* 01234 */
 #define AU1550_DBDMA_PHYS_ADDR		0x14002000 /* 34 */
 #define AU1550_DBDMA_CONF_PHYS_ADDR	0x14003000 /* 34 */
@@ -660,10 +703,6 @@ enum soc_au1200_ints {
 #define	MACDMA0_PHYS_ADDR	0x14004000
 #define	MACDMA1_PHYS_ADDR	0x14004200
 #define	I2S_PHYS_ADDR		0x11000000
-#define	UART0_PHYS_ADDR		0x11100000
-#define	UART1_PHYS_ADDR		0x11200000
-#define	UART2_PHYS_ADDR		0x11300000
-#define	UART3_PHYS_ADDR		0x11400000
 #define	SSI0_PHYS_ADDR		0x11600000
 #define	SSI1_PHYS_ADDR		0x11680000
 #define	SYS_PHYS_ADDR		0x11900000
@@ -695,8 +734,6 @@ enum soc_au1200_ints {
 #define	MACDMA0_PHYS_ADDR	0x14004000
 #define	MACDMA1_PHYS_ADDR	0x14004200
 #define	I2S_PHYS_ADDR		0x11000000
-#define	UART0_PHYS_ADDR		0x11100000
-#define	UART3_PHYS_ADDR		0x11400000
 #define GPIO2_PHYS_ADDR		0x11700000
 #define	SYS_PHYS_ADDR		0x11900000
 #define PCI_MEM_PHYS_ADDR	0x400000000ULL
@@ -732,9 +769,6 @@ enum soc_au1200_ints {
 #define	MACDMA0_PHYS_ADDR	0x14004000
 #define	MACDMA1_PHYS_ADDR	0x14004200
 #define	I2S_PHYS_ADDR		0x11000000
-#define	UART0_PHYS_ADDR		0x11100000
-#define	UART1_PHYS_ADDR		0x11200000
-#define	UART3_PHYS_ADDR		0x11400000
 #define	SSI0_PHYS_ADDR		0x11600000
 #define	SSI1_PHYS_ADDR		0x11680000
 #define GPIO2_PHYS_ADDR		0x11700000
@@ -758,9 +792,6 @@ enum soc_au1200_ints {
 #define	MACEN_PHYS_ADDR		0x10520000
 #define	MACDMA0_PHYS_ADDR	0x14004000
 #define	MACDMA1_PHYS_ADDR	0x14004200
-#define	UART0_PHYS_ADDR		0x11100000
-#define	UART1_PHYS_ADDR		0x11200000
-#define	UART3_PHYS_ADDR		0x11400000
 #define GPIO2_PHYS_ADDR		0x11700000
 #define	SYS_PHYS_ADDR		0x11900000
 #define PE_PHYS_ADDR		0x14008000
@@ -786,8 +817,6 @@ enum soc_au1200_ints {
 #define CIM_PHYS_ADDR		0x14004000
 #define USBM_PHYS_ADDR		0x14020000
 #define	USBH_PHYS_ADDR		0x14020100
-#define	UART0_PHYS_ADDR		0x11100000
-#define	UART1_PHYS_ADDR		0x11200000
 #define GPIO2_PHYS_ADDR		0x11700000
 #define	SYS_PHYS_ADDR		0x11900000
 #define PSC0_PHYS_ADDR	 	0x11A00000

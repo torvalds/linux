@@ -30,21 +30,12 @@ static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 #ifdef CONFIG_SERIAL_8250
 	switch (state) {
 	case 0:
-		if ((__raw_readl(port->membase + UART_MOD_CNTRL) & 3) != 3) {
-			/* power-on sequence as suggested in the databooks */
-			__raw_writel(0, port->membase + UART_MOD_CNTRL);
-			wmb();
-			__raw_writel(1, port->membase + UART_MOD_CNTRL);
-			wmb();
-		}
-		__raw_writel(3, port->membase + UART_MOD_CNTRL); /* full on */
-		wmb();
+		alchemy_uart_enable(CPHYSADDR(port->membase));
 		serial8250_do_pm(port, state, old_state);
 		break;
 	case 3:		/* power off */
 		serial8250_do_pm(port, state, old_state);
-		__raw_writel(0, port->membase + UART_MOD_CNTRL);
-		wmb();
+		alchemy_uart_disable(CPHYSADDR(port->membase));
 		break;
 	default:
 		serial8250_do_pm(port, state, old_state);
@@ -65,37 +56,59 @@ static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 		.pm		= alchemy_8250_pm,		\
 	}
 
-static struct plat_serial8250_port au1x00_uart_data[] = {
-#if defined(CONFIG_SOC_AU1000)
-	PORT(UART0_PHYS_ADDR, AU1000_UART0_INT),
-	PORT(UART1_PHYS_ADDR, AU1000_UART1_INT),
-	PORT(UART2_PHYS_ADDR, AU1000_UART2_INT),
-	PORT(UART3_PHYS_ADDR, AU1000_UART3_INT),
-#elif defined(CONFIG_SOC_AU1500)
-	PORT(UART0_PHYS_ADDR, AU1500_UART0_INT),
-	PORT(UART3_PHYS_ADDR, AU1500_UART3_INT),
-#elif defined(CONFIG_SOC_AU1100)
-	PORT(UART0_PHYS_ADDR, AU1100_UART0_INT),
-	PORT(UART1_PHYS_ADDR, AU1100_UART1_INT),
-	PORT(UART3_PHYS_ADDR, AU1100_UART3_INT),
-#elif defined(CONFIG_SOC_AU1550)
-	PORT(UART0_PHYS_ADDR, AU1550_UART0_INT),
-	PORT(UART1_PHYS_ADDR, AU1550_UART1_INT),
-	PORT(UART3_PHYS_ADDR, AU1550_UART3_INT),
-#elif defined(CONFIG_SOC_AU1200)
-	PORT(UART0_PHYS_ADDR, AU1200_UART0_INT),
-	PORT(UART1_PHYS_ADDR, AU1200_UART1_INT),
-#endif
-	{ },
+static struct plat_serial8250_port au1x00_uart_data[][4] __initdata = {
+	[ALCHEMY_CPU_AU1000] = {
+		PORT(AU1000_UART0_PHYS_ADDR, AU1000_UART0_INT),
+		PORT(AU1000_UART1_PHYS_ADDR, AU1000_UART1_INT),
+		PORT(AU1000_UART2_PHYS_ADDR, AU1000_UART2_INT),
+		PORT(AU1000_UART3_PHYS_ADDR, AU1000_UART3_INT),
+	},
+	[ALCHEMY_CPU_AU1500] = {
+		PORT(AU1000_UART0_PHYS_ADDR, AU1500_UART0_INT),
+		PORT(AU1000_UART3_PHYS_ADDR, AU1500_UART3_INT),
+	},
+	[ALCHEMY_CPU_AU1100] = {
+		PORT(AU1000_UART0_PHYS_ADDR, AU1100_UART0_INT),
+		PORT(AU1000_UART1_PHYS_ADDR, AU1100_UART1_INT),
+		PORT(AU1000_UART3_PHYS_ADDR, AU1100_UART3_INT),
+	},
+	[ALCHEMY_CPU_AU1550] = {
+		PORT(AU1000_UART0_PHYS_ADDR, AU1550_UART0_INT),
+		PORT(AU1000_UART1_PHYS_ADDR, AU1550_UART1_INT),
+		PORT(AU1000_UART3_PHYS_ADDR, AU1550_UART3_INT),
+	},
+	[ALCHEMY_CPU_AU1200] = {
+		PORT(AU1000_UART0_PHYS_ADDR, AU1200_UART0_INT),
+		PORT(AU1000_UART1_PHYS_ADDR, AU1200_UART1_INT),
+	},
 };
 
 static struct platform_device au1xx0_uart_device = {
 	.name			= "serial8250",
 	.id			= PLAT8250_DEV_AU1X00,
-	.dev			= {
-		.platform_data	= au1x00_uart_data,
-	},
 };
+
+static void __init alchemy_setup_uarts(int ctype)
+{
+	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
+	int s = sizeof(struct plat_serial8250_port);
+	int c = alchemy_get_uarts(ctype);
+	struct plat_serial8250_port *ports;
+
+	ports = kzalloc(s * (c + 1), GFP_KERNEL);
+	if (!ports) {
+		printk(KERN_INFO "Alchemy: no memory for UART data\n");
+		return;
+	}
+	memcpy(ports, au1x00_uart_data[ctype], s * c);
+	au1xx0_uart_device.dev.platform_data = ports;
+
+	/* Fill up uartclk. */
+	for (s = 0; s < c; s++)
+		ports[s].uartclk = uartclk;
+	if (platform_device_register(&au1xx0_uart_device))
+		printk(KERN_INFO "Alchemy: failed to register UARTs\n");
+}
 
 /* OHCI (USB full speed host controller) */
 static struct resource au1xxx_usb_ohci_resources[] = {
@@ -442,7 +455,6 @@ void __init au1xxx_override_eth_cfg(unsigned int port,
 }
 
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
-	&au1xx0_uart_device,
 	&au1xxx_usb_ohci_device,
 #ifdef CONFIG_FB_AU1100
 	&au1100_lcd_device,
@@ -465,13 +477,10 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 
 static int __init au1xxx_platform_init(void)
 {
-	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
-	int err, i;
+	int err, i, ctype = alchemy_get_cputype();
 	unsigned char ethaddr[6];
 
-	/* Fill up uartclk. */
-	for (i = 0; au1x00_uart_data[i].flags; i++)
-		au1x00_uart_data[i].uartclk = uartclk;
+	alchemy_setup_uarts(ctype);
 
 	/* use firmware-provided mac addr if available and necessary */
 	i = prom_get_ethernet_addr(ethaddr);
