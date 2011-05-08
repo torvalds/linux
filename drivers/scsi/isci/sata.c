@@ -71,24 +71,17 @@
  */
 struct host_to_dev_fis *isci_sata_task_to_fis_copy(struct sas_task *task)
 {
-	struct isci_request *request = task->lldd_task;
-	struct host_to_dev_fis *register_fis =
-		scic_stp_io_request_get_h2d_reg_address(
-			request->sci_request_handle
-			);
+	struct isci_request *ireq = task->lldd_task;
+	struct host_to_dev_fis *fis = &ireq->sci_request_handle->stp.cmd;
 
-	memcpy(
-		(u8 *)register_fis,
-		(u8 *)&task->ata_task.fis,
-		sizeof(struct host_to_dev_fis)
-		);
+	memcpy(fis, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
 
 	if (!task->ata_task.device_control_reg_update)
-		register_fis->flags |= 0x80;
+		fis->flags |= 0x80;
 
-	register_fis->flags &= 0xF0;
+	fis->flags &= 0xF0;
 
-	return register_fis;
+	return fis;
 }
 
 /**
@@ -161,36 +154,32 @@ void isci_request_process_stp_response(struct sas_task *task,
 	ts->resp = SAS_TASK_COMPLETE;
 }
 
-enum sci_status isci_sata_management_task_request_build(
-	struct isci_request *isci_request)
+enum sci_status isci_sata_management_task_request_build(struct isci_request *ireq)
 {
+	struct scic_sds_request *sci_req = ireq->sci_request_handle;
 	struct isci_tmf *isci_tmf;
 	enum sci_status status;
 
-	if (tmf_task != isci_request->ttype)
+	if (tmf_task != ireq->ttype)
 		return SCI_FAILURE;
 
-	isci_tmf = isci_request_access_tmf(isci_request);
+	isci_tmf = isci_request_access_tmf(ireq);
 
 	switch (isci_tmf->tmf_code) {
 
 	case isci_tmf_sata_srst_high:
-	case isci_tmf_sata_srst_low:
-	{
-		struct host_to_dev_fis *register_fis =
-			scic_stp_io_request_get_h2d_reg_address(
-				isci_request->sci_request_handle
-				);
+	case isci_tmf_sata_srst_low: {
+		struct host_to_dev_fis *fis = &sci_req->stp.cmd;
 
-		memset(register_fis, 0, sizeof(*register_fis));
+		memset(fis, 0, sizeof(*fis));
 
-		register_fis->fis_type  =  0x27;
-		register_fis->flags     &= ~0x80;
-		register_fis->flags     &= 0xF0;
+		fis->fis_type  =  0x27;
+		fis->flags     &= ~0x80;
+		fis->flags     &= 0xF0;
 		if (isci_tmf->tmf_code == isci_tmf_sata_srst_high)
-			register_fis->control |= ATA_SRST;
+			fis->control |= ATA_SRST;
 		else
-			register_fis->control &= ~ATA_SRST;
+			fis->control &= ~ATA_SRST;
 		break;
 	}
 	/* other management commnd go here... */
@@ -202,7 +191,7 @@ enum sci_status isci_sata_management_task_request_build(
 	 *  based on the h2d fis.
 	 */
 	status = scic_task_request_construct_sata(
-		isci_request->sci_request_handle
+		ireq->sci_request_handle
 		);
 
 	return status;

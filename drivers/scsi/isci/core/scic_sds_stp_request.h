@@ -60,8 +60,6 @@
 #include <scsi/sas.h>
 
 struct scic_sds_stp_request {
-	struct dev_to_host_fis d2h_reg_fis;
-
 	union {
 		u32 ncq;
 

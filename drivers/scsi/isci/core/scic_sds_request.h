@@ -61,6 +61,7 @@
 #include "scu_task_context.h"
 #include "scic_sds_stp_request.h"
 #include "scu_constants.h"
+#include "sas.h"
 
 struct scic_sds_controller;
 struct scic_sds_remote_device;
@@ -181,8 +182,6 @@ struct scic_sds_request {
 	 */
 	u32 post_context;
 
-	void *command_buffer;
-	void *response_buffer;
 	struct scu_task_context *task_context_buffer;
 	struct scu_task_context tc ____cacheline_aligned;
 
@@ -232,9 +231,30 @@ struct scic_sds_request {
 	 */
 	u8 device_sequence;
 
-	struct {
-		struct scic_sds_stp_request req;
-	} stp;
+	union {
+		struct {
+			union {
+				struct ssp_cmd_iu cmd;
+				struct ssp_task_iu tmf;
+			};
+			union {
+				struct ssp_response_iu rsp;
+				u8 rsp_buf[SSP_RESP_IU_MAX_SIZE];
+			};
+		} ssp;
+
+		struct {
+			struct smp_req cmd;
+			struct smp_resp rsp;
+		} smp;
+
+		struct {
+			struct scic_sds_stp_request req;
+			struct host_to_dev_fis cmd;
+			struct dev_to_host_fis rsp;
+		} stp;
+	};
+
 };
 
 static inline struct scic_sds_request *to_sci_req(struct scic_sds_stp_request *stp_req)

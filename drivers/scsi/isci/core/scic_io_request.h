@@ -104,14 +104,6 @@ typedef enum {
 
 
 /**
- * scic_io_request_get_object_size() - This method simply returns the size
- *    required to build an SCI based IO request object.
- *
- * Return the size of the SCI IO request object.
- */
-u32 scic_io_request_get_object_size(void);
-
-/**
  * scic_io_request_construct() - This method is called by the SCI user to
  *    construct all SCI Core IO requests.  Memory initialization and
  *    functionality common to all IO request types is performed in this method.
@@ -222,32 +214,6 @@ enum sci_status scic_io_request_construct_smp(
 u32 scic_request_get_controller_status(
 	struct scic_sds_request *io_request);
 
-
-
-/**
- * scic_io_request_get_command_iu_address() - This method will return the
- *    address to the command information unit.
- * @scic_io_request: This parameter specifies the handle to the io request
- *    object to be built.
- *
- * The address of the SSP/SMP command information unit.
- */
-void *scic_io_request_get_command_iu_address(
-	struct scic_sds_request *scic_io_request);
-
-/**
- * scic_io_request_get_response_iu_address() - This method will return the
- *    address to the response information unit.  For an SSP request this buffer
- *    is only valid if the IO request is completed with the status
- *    SCI_FAILURE_IO_RESPONSE_VALID.
- * @scic_io_request: This parameter specifies the handle to the io request
- *    object to be built.
- *
- * The address of the SSP/SMP response information unit.
- */
-void *scic_io_request_get_response_iu_address(
-	struct scic_sds_request *scic_io_request);
-
 /**
  * scic_io_request_get_io_tag() - This method will return the IO tag utilized
  *    by the IO request.
@@ -278,33 +244,6 @@ u16 scic_io_request_get_io_tag(
 void scic_stp_io_request_set_ncq_tag(
 	struct scic_sds_request *scic_io_request,
 	u16 ncq_tag);
-
-/**
- * scic_stp_io_request_get_h2d_reg_address() - This method will return the
- *    address of the host to device register fis region for the io request
- *    object.
- * @scic_io_request: This parameter specifies the handle to the io request
- *    object from which to get the host to device register fis buffer.
- *
- * The address of the host to device register fis buffer in the io request
- * object. This function is only valid for SATA requests.
- */
-void *scic_stp_io_request_get_h2d_reg_address(
-	struct scic_sds_request *scic_io_request);
-
-/**
- * scic_stp_io_request_get_d2h_reg_address() - This method will return the
- *    address of the device to host register fis region for the io request
- *    object.
- * @scic_io_request: This parameter specifies teh handle to the io request
- *    object from which to get the device to host register fis buffer.
- *
- * The address fo the device to host register fis ending the io request. This
- * function is only valid for SATA requests.
- */
-void *scic_stp_io_request_get_d2h_reg_address(
-	struct scic_sds_request *scic_io_request);
-
 
 /**
  * scic_io_request_get_number_of_bytes_transferred() - This method will return

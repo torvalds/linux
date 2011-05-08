@@ -69,45 +69,8 @@ static void scu_smp_request_construct_task_context(
 	struct scic_sds_request *sci_req,
 	struct smp_req *smp_req);
 
-/**
- *
- *
- * This method return the memory space required for STP PIO requests. u32
- */
-u32 scic_sds_smp_request_get_object_size(void)
-{
-	return sizeof(struct scic_sds_request)
-	       + sizeof(struct smp_req)
-	       + sizeof(struct smp_resp);
-}
-
-/**
- * scic_sds_smp_request_get_command_buffer() -
- *
- * This macro returns the address of the smp command buffer in the smp request
- * memory. No need to cast to SMP request type.
- */
-#define scic_sds_smp_request_get_command_buffer(memory)	\
-	(((char *)(memory)) + sizeof(struct scic_sds_request))
-
-/**
- * scic_sds_smp_request_get_response_buffer() -
- *
- * This macro returns the address of the smp response buffer in the smp request
- * memory.
- */
-#define scic_sds_smp_request_get_response_buffer(memory) \
-	(((char *)(scic_sds_smp_request_get_command_buffer(memory))) \
-	 + sizeof(struct smp_req))
-
 void scic_sds_smp_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	/* Assign all of the buffer pointers */
-	sci_req->command_buffer =
-		scic_sds_smp_request_get_command_buffer(sci_req);
-	sci_req->response_buffer =
-		scic_sds_smp_request_get_response_buffer(sci_req);
-
 	if (sci_req->was_tag_assigned_by_user == false)
 		sci_req->task_context_buffer = &sci_req->tc;
 }
@@ -135,7 +98,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	ssize_t word_cnt = sizeof(struct smp_req) / sizeof(u32);
 
 	/* byte swap the smp request. */
-	sci_swab32_cpy(sci_req->command_buffer, smp_req,
+	sci_swab32_cpy(&sci_req->smp.cmd, smp_req,
 		       word_cnt);
 
 	task_context = scic_sds_request_get_task_context(sci_req);
@@ -185,9 +148,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	 * 18h ~ 30h, protocol specific
 	 * since commandIU has been build by framework at this point, we just
 	 * copy the frist DWord from command IU to this location. */
-	memcpy((void *)(&task_context->type.smp),
-	       sci_req->command_buffer,
-	       sizeof(u32));
+	memcpy(&task_context->type.smp, &sci_req->smp.cmd, sizeof(u32));
 
 	/*
 	 * 40h
@@ -228,8 +189,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	 * Context command buffer should not contain command header.
 	 */
 	dma_addr = scic_io_request_get_dma_addr(sci_req,
-						(char *)
-						(sci_req->command_buffer) +
+						((char *) &sci_req->smp.cmd) +
 						sizeof(u32));
 
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
@@ -255,14 +215,12 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
  * indicates successful processing of the TC response.
  */
 static enum sci_status
-scic_sds_smp_request_await_response_frame_handler(
-		struct scic_sds_request *sci_req,
-		u32 frame_index)
+scic_sds_smp_request_await_response_frame_handler(struct scic_sds_request *sci_req,
+						  u32 frame_index)
 {
 	enum sci_status status;
 	void *frame_header;
-	struct smp_resp *rsp_hdr;
-	u8 *usr_smp_buf = sci_req->response_buffer;
+	struct smp_resp *rsp_hdr = &sci_req->smp.rsp;
 	ssize_t word_cnt = SMP_RESP_HDR_SZ / sizeof(u32);
 
 	status = scic_sds_unsolicited_frame_control_get_header(
@@ -271,9 +229,7 @@ scic_sds_smp_request_await_response_frame_handler(
 		&frame_header);
 
 	/* byte swap the header. */
-	sci_swab32_cpy(usr_smp_buf, frame_header, word_cnt);
-
-	rsp_hdr = (struct smp_resp *)usr_smp_buf;
+	sci_swab32_cpy(rsp_hdr, frame_header, word_cnt);
 
 	if (rsp_hdr->frame_type == SMP_RESPONSE) {
 		void *smp_resp;
@@ -286,7 +242,7 @@ scic_sds_smp_request_await_response_frame_handler(
 		word_cnt = (sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
 			sizeof(u32);
 
-		sci_swab32_cpy(usr_smp_buf + SMP_RESP_HDR_SZ,
+		sci_swab32_cpy(((u8 *) rsp_hdr) + SMP_RESP_HDR_SZ,
 			       smp_resp, word_cnt);
 
 		scic_sds_request_set_status(
@@ -532,7 +488,7 @@ enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 		);
 
 	/* Construct the SMP SCU Task Context */
-	memcpy(smp_req, sci_req->command_buffer, sizeof(*smp_req));
+	memcpy(smp_req, &sci_req->smp.cmd, sizeof(*smp_req));
 
 	/*
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP

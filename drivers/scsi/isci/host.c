@@ -433,7 +433,7 @@ int isci_host_init(struct isci_host *isci_host)
 	 * when trying to convert virtual addresses to physical addresses
 	 */
 	isci_host->dma_pool_alloc_size = sizeof(struct isci_request) +
-					 scic_io_request_get_object_size();
+					 sizeof(struct scic_sds_request);
 	isci_host->dma_pool = dmam_pool_create(DRV_NAME, &isci_host->pdev->dev,
 					       isci_host->dma_pool_alloc_size,
 					       SLAB_HWCACHE_ALIGN, 0);

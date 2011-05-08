@@ -83,93 +83,6 @@
 #define SCIC_SDS_IO_REQUEST_MINIMUM_TIMER_COUNT (0)
 #define SCIC_SDS_IO_REQUEST_MAXIMUM_TIMER_COUNT (0)
 
-/*
- * ****************************************************************************
- * * SCIC SDS IO REQUEST MACROS
- * **************************************************************************** */
-
-/**
- * scic_ssp_io_request_get_object_size() -
- *
- * This macro returns the sizeof memory required to store the an SSP IO
- * request.  This does not include the size of the SGL or SCU Task Context
- * memory.
- */
-#define scic_ssp_io_request_get_object_size() \
-	(\
-		sizeof(struct ssp_cmd_iu) \
-		+ SSP_RESP_IU_MAX_SIZE	\
-	)
-
-/**
- * scic_sds_ssp_request_get_command_buffer() -
- *
- * This macro returns the address of the ssp command buffer in the io request
- * memory
- */
-#define scic_sds_ssp_request_get_command_buffer(memory)	\
-	((struct ssp_cmd_iu *)(\
-		 ((char *)(memory)) + sizeof(struct scic_sds_request) \
-		 ))
-
-/**
- * scic_sds_ssp_request_get_response_buffer() -
- *
- * This macro returns the address of the ssp response buffer in the io request
- * memory
- */
-#define scic_sds_ssp_request_get_response_buffer(memory) \
-	((struct ssp_response_iu *)(\
-		 ((char *)(scic_sds_ssp_request_get_command_buffer(memory))) \
-		 + sizeof(struct ssp_cmd_iu)	\
-		 ))
-
-/**
- * scic_ssp_task_request_get_object_size() -
- *
- * This macro returns the sizeof of memory required to store an SSP Task
- * request.  This does not include the size of the SCU Task Context memory.
- */
-#define scic_ssp_task_request_get_object_size()	\
-	(\
-		sizeof(struct ssp_task_iu) \
-		+ SSP_RESP_IU_MAX_SIZE \
-	)
-
-/**
- * scic_sds_ssp_task_request_get_command_buffer() -
- *
- * This macro returns the address of the ssp command buffer in the task request
- * memory.  Yes its the same as the above macro except for the name.
- */
-#define scic_sds_ssp_task_request_get_command_buffer(memory) \
-	((struct ssp_task_iu *)(\
-		 ((char *)(memory)) + sizeof(struct scic_sds_request) \
-		 ))
-
-/**
- * scic_sds_ssp_task_request_get_response_buffer() -
- *
- * This macro returns the address of the ssp response buffer in the task
- * request memory.
- */
-#define scic_sds_ssp_task_request_get_response_buffer(memory) \
-	((struct ssp_response_iu *)(\
-		 ((char *)(scic_sds_ssp_task_request_get_command_buffer(memory))) \
-		 + sizeof(struct ssp_task_iu) \
-		 ))
-
-/**
- *
- *
- * This method returns the size required to store an SSP IO request object. u32
- */
-static u32 scic_sds_ssp_request_get_object_size(void)
-{
-	return sizeof(struct scic_sds_request)
-	       + scic_ssp_io_request_get_object_size();
-}
-
 /**
  * This method returns the sgl element pair for the specificed sgl_pair index.
  * @sci_req: This parameter specifies the IO request for which to retrieve
@@ -268,21 +181,8 @@ void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 	}
 }
 
-/**
- * This method build the remainder of the IO request object.
- * @sci_req: This parameter specifies the request object being constructed.
- *
- * The scic_sds_general_request_construct() must be called before this call is
- * valid. none
- */
-static void scic_sds_ssp_io_request_assign_buffers(
-	struct scic_sds_request *sci_req)
+static void scic_sds_ssp_io_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	sci_req->command_buffer =
-		scic_sds_ssp_request_get_command_buffer(sci_req);
-	sci_req->response_buffer =
-		scic_sds_ssp_request_get_response_buffer(sci_req);
-
 	if (sci_req->was_tag_assigned_by_user == false)
 		sci_req->task_context_buffer = &sci_req->tc;
 }
@@ -293,7 +193,7 @@ static void scic_sds_io_request_build_ssp_command_iu(struct scic_sds_request *sc
 	struct isci_request *ireq = sci_req->ireq;
 	struct sas_task *task = isci_request_access_task(ireq);
 
-	cmd_iu = sci_req->command_buffer;
+	cmd_iu = &sci_req->ssp.cmd;
 
 	memcpy(cmd_iu->LUN, task->ssp_task.LUN, 8);
 	cmd_iu->add_cdb_len = 0;
@@ -315,7 +215,7 @@ static void scic_sds_task_request_build_ssp_task_iu(struct scic_sds_request *sci
 	struct sas_task *task = isci_request_access_task(ireq);
 	struct isci_tmf *isci_tmf = isci_request_access_tmf(ireq);
 
-	task_iu = sci_req->command_buffer;
+	task_iu = &sci_req->ssp.tmf;
 
 	memset(task_iu, 0, sizeof(struct ssp_task_iu));
 
@@ -411,7 +311,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	 * SCU Task Context
 	 */
 	dma_addr = scic_io_request_get_dma_addr(sds_request,
-						sds_request->command_buffer);
+						&sds_request->ssp.cmd);
 
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
 	task_context->command_iu_lower = lower_32_bits(dma_addr);
@@ -421,7 +321,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	 * SCU Task Context
 	 */
 	dma_addr = scic_io_request_get_dma_addr(sds_request,
-						sds_request->response_buffer);
+						&sds_request->ssp.rsp);
 
 	task_context->response_iu_upper = upper_32_bits(dma_addr);
 	task_context->response_iu_lower = lower_32_bits(dma_addr);
@@ -464,22 +364,8 @@ static void scu_ssp_io_request_construct_task_context(
 		scic_sds_request_build_sgl(sci_req);
 }
 
-
-/**
- * This method will fill in the remainder of the io request object for SSP Task
- *    requests.
- * @sci_req:
- *
- */
-static void scic_sds_ssp_task_request_assign_buffers(
-	struct scic_sds_request *sci_req)
+static void scic_sds_ssp_task_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	/* Assign all of the buffer pointers */
-	sci_req->command_buffer =
-		scic_sds_ssp_task_request_get_command_buffer(sci_req);
-	sci_req->response_buffer =
-		scic_sds_ssp_task_request_get_response_buffer(sci_req);
-
 	if (sci_req->was_tag_assigned_by_user == false)
 		sci_req->task_context_buffer = &sci_req->tc;
 }
@@ -587,19 +473,6 @@ scic_io_request_construct_sata(struct scic_sds_request *sci_req,
 		return scic_sds_stp_pio_request_construct(sci_req, copy);
 
 	return status;
-}
-
-u32 scic_io_request_get_object_size(void)
-{
-	u32 ssp_request_size;
-	u32 stp_request_size;
-	u32 smp_request_size;
-
-	ssp_request_size = scic_sds_ssp_request_get_object_size();
-	stp_request_size = scic_sds_stp_request_get_object_size();
-	smp_request_size = scic_sds_smp_request_get_object_size();
-
-	return max(ssp_request_size, max(stp_request_size, smp_request_size));
 }
 
 enum sci_status scic_io_request_construct_basic_ssp(
@@ -711,21 +584,6 @@ u32 scic_request_get_controller_status(
 {
 	return sci_req->scu_status;
 }
-
-
-void *scic_io_request_get_command_iu_address(
-	struct scic_sds_request *sci_req)
-{
-	return sci_req->command_buffer;
-}
-
-
-void *scic_io_request_get_response_iu_address(
-	struct scic_sds_request *sci_req)
-{
-	return sci_req->response_buffer;
-}
-
 
 #define SCU_TASK_CONTEXT_SRAM 0x200000
 u32 scic_io_request_get_number_of_bytes_transferred(
@@ -885,7 +743,7 @@ void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
 	struct isci_request *ireq = sci_req->ireq;
 	struct isci_tmf *isci_tmf = isci_request_access_tmf(ireq);
 
-	ssp_response = sci_req->response_buffer;
+	ssp_response = &sci_req->ssp.rsp;
 
 	resp_buf = &isci_tmf->resp.resp_iu;
 
@@ -1053,11 +911,11 @@ scic_sds_request_started_state_tc_completion_handler(
 		 * truly a failed request or a good request that just got
 		 * completed early.
 		 */
-		struct ssp_response_iu *resp = sci_req->response_buffer;
+		struct ssp_response_iu *resp = &sci_req->ssp.rsp;
 		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
-		sci_swab32_cpy(sci_req->response_buffer,
-			       sci_req->response_buffer,
+		sci_swab32_cpy(&sci_req->ssp.rsp,
+			       &sci_req->ssp.rsp,
 			       word_cnt);
 
 		if (resp->status == 0) {
@@ -1078,8 +936,8 @@ scic_sds_request_started_state_tc_completion_handler(
 	{
 		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
-		sci_swab32_cpy(sci_req->response_buffer,
-			       sci_req->response_buffer,
+		sci_swab32_cpy(&sci_req->ssp.rsp,
+			       &sci_req->ssp.rsp,
 			       word_cnt);
 
 		scic_sds_request_set_status(sci_req,
@@ -1094,7 +952,7 @@ scic_sds_request_started_state_tc_completion_handler(
 		 * guaranteed to be received before this completion status is
 		 * posted?
 		 */
-		resp_iu = sci_req->response_buffer;
+		resp_iu = &sci_req->ssp.rsp;
 		datapres = resp_iu->datapres;
 
 		if ((datapres == 0x01) || (datapres == 0x02)) {
@@ -1222,10 +1080,10 @@ scic_sds_request_started_state_frame_handler(struct scic_sds_request *sci_req,
 			frame_index,
 			(void **)&resp_iu);
 
-		sci_swab32_cpy(sci_req->response_buffer,
+		sci_swab32_cpy(&sci_req->ssp.rsp,
 			       resp_iu, word_cnt);
 
-		resp_iu = sci_req->response_buffer;
+		resp_iu = &sci_req->ssp.rsp;
 
 		if ((resp_iu->datapres == 0x01) ||
 		    (resp_iu->datapres == 0x02)) {
@@ -1627,12 +1485,10 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 	else if ((dev->dev_type == SATA_DEV) ||
 		 (dev->tproto & SAS_PROTOCOL_STP)) {
 		scic_sds_stp_request_assign_buffers(sci_req);
-		memset(sci_req->command_buffer,
-		       0,
-		       sizeof(struct host_to_dev_fis));
+		memset(&sci_req->stp.cmd, 0, sizeof(sci_req->stp.cmd));
 	} else if (dev_is_expander(dev)) {
 		scic_sds_smp_request_assign_buffers(sci_req);
-		memset(sci_req->command_buffer, 0, sizeof(struct smp_req));
+		memset(&sci_req->smp.cmd, 0, sizeof(sci_req->smp.cmd));
 	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 

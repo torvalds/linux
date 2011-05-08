@@ -70,48 +70,8 @@
 #include "scu_event_codes.h"
 #include "scu_task_context.h"
 
-/**
- * scic_sds_stp_request_get_h2d_reg_buffer() -
- *
- * This macro returns the address of the stp h2d reg fis buffer in the io
- * request memory
- */
-#define scic_sds_stp_request_get_h2d_reg_buffer(memory)	\
-	((struct host_to_dev_fis *)(\
-		 ((char *)(memory)) + sizeof(struct scic_sds_stp_request) \
-		 ))
-
-/**
- * scic_sds_stp_request_get_response_buffer() -
- *
- * This macro returns the address of the ssp response iu buffer in the io
- * request memory
- */
-#define scic_sds_stp_request_get_response_buffer(memory) \
-	((struct dev_to_host_fis *)(\
-		 ((char *)(scic_sds_stp_request_get_h2d_reg_buffer(memory))) \
-		 + sizeof(struct host_to_dev_fis) \
-		 ))
-
-/**
- *
- *
- * This method return the memory space required for STP PIO requests. u32
- */
-u32 scic_sds_stp_request_get_object_size(void)
-{
-	return sizeof(struct scic_sds_stp_request)
-	       + sizeof(struct host_to_dev_fis)
-	       + sizeof(struct dev_to_host_fis);
-}
-
 void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-
-	sci_req->command_buffer = scic_sds_stp_request_get_h2d_reg_buffer(stp_req);
-	sci_req->response_buffer = scic_sds_stp_request_get_response_buffer(stp_req);
-
 	if (sci_req->was_tag_assigned_by_user == false)
 		sci_req->task_context_buffer = &sci_req->tc;
 }
@@ -129,7 +89,7 @@ void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
  * determine what is common for SSP/SMP/STP task context structures.
  */
 static void scu_sata_reqeust_construct_task_context(
-	struct scic_sds_request *sds_request,
+	struct scic_sds_request *sci_req,
 	struct scu_task_context *task_context)
 {
 	dma_addr_t dma_addr;
@@ -137,9 +97,9 @@ static void scu_sata_reqeust_construct_task_context(
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 
-	controller = scic_sds_request_get_controller(sds_request);
-	target_device = scic_sds_request_get_device(sds_request);
-	target_port = scic_sds_request_get_port(sds_request);
+	controller = scic_sds_request_get_controller(sci_req);
+	target_device = scic_sds_request_get_device(sci_req);
+	target_port = scic_sds_request_get_port(sci_req);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
@@ -155,7 +115,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	task_context->remote_node_index =
-		scic_sds_remote_device_get_index(sds_request->target_device);
+		scic_sds_remote_device_get_index(sci_req->target_device);
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -172,21 +132,21 @@ static void scu_sata_reqeust_construct_task_context(
 		(sizeof(struct host_to_dev_fis) - sizeof(u32)) / sizeof(u32);
 
 	/* Set the first word of the H2D REG FIS */
-	task_context->type.words[0] = *(u32 *)sds_request->command_buffer;
+	task_context->type.words[0] = *(u32 *)&sci_req->stp.cmd;
 
-	if (sds_request->was_tag_assigned_by_user) {
+	if (sci_req->was_tag_assigned_by_user) {
 		/*
 		 * Build the task context now since we have already read
 		 * the data
 		 */
-		sds_request->post_context =
+		sci_req->post_context =
 			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
 			 (scic_sds_controller_get_protocol_engine_group(
 							controller) <<
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
 			 (scic_sds_port_get_index(target_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			 scic_sds_io_tag_get_index(sds_request->io_tag));
+			 scic_sds_io_tag_get_index(sci_req->io_tag));
 	} else {
 		/*
 		 * Build the task context now since we have already read
@@ -194,7 +154,7 @@ static void scu_sata_reqeust_construct_task_context(
 		 * I/O tag index is not assigned because we have to wait
 		 * until we get a TCi.
 		 */
-		sds_request->post_context =
+		sci_req->post_context =
 			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
 			 (scic_sds_controller_get_protocol_engine_group(
 							controller) <<
@@ -208,11 +168,9 @@ static void scu_sata_reqeust_construct_task_context(
 	 * Context. We must offset the command buffer by 4 bytes because the
 	 * first 4 bytes are transfered in the body of the TC.
 	 */
-	dma_addr =
-		scic_io_request_get_dma_addr(sds_request,
-						(char *)sds_request->
-							command_buffer +
-							sizeof(u32));
+	dma_addr = scic_io_request_get_dma_addr(sci_req,
+					        ((char *) &sci_req->stp.cmd) +
+						sizeof(u32));
 
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
 	task_context->command_iu_lower = lower_32_bits(dma_addr);
@@ -332,21 +290,6 @@ void scic_stp_io_request_set_ncq_tag(
 	 *       attempts to set the NCQ tag in the wrong state.
 	 */
 	req->task_context_buffer->type.stp.ncq_tag = ncq_tag;
-}
-
-
-void *scic_stp_io_request_get_h2d_reg_address(
-	struct scic_sds_request *req)
-{
-	return req->command_buffer;
-}
-
-
-void *scic_stp_io_request_get_d2h_reg_address(struct scic_sds_request *sci_req)
-{
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-
-	return &stp_req->d2h_reg_fis;
 }
 
 /**
@@ -478,7 +421,7 @@ static enum sci_status scic_sds_stp_request_non_data_await_d2h_frame_handler(
 							      frame_index,
 							      (void **)&frame_buffer);
 
-		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
 						       frame_header,
 						       frame_buffer);
 
@@ -830,11 +773,11 @@ static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(struct
 		/* ending_status: 4th byte in the 3rd dword */
 		stp_req->type.pio.ending_status = (frame_buffer[2] >> 24) & 0xff;
 
-		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
 						       frame_header,
 						       frame_buffer);
 
-		stp_req->d2h_reg_fis.status = stp_req->type.pio.ending_status;
+		sci_req->stp.rsp.status = stp_req->type.pio.ending_status;
 
 		/* The next state is dependent on whether the
 		 * request was PIO Data-in or Data out
@@ -873,7 +816,7 @@ static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(struct
 							      frame_index,
 							      (void **)&frame_buffer);
 
-		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+		scic_sds_controller_copy_sata_response(&sci_req->stp.req,
 						       frame_header,
 						       frame_buffer);
 
@@ -1220,7 +1163,6 @@ static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct sc
 								       u32 frame_index)
 {
 	struct scic_sds_controller *scic = sci_req->owning_controller;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	struct dev_to_host_fis *frame_header;
 	enum sci_status status;
 	u32 *frame_buffer;
@@ -1235,7 +1177,7 @@ static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct sc
 							      frame_index,
 							      (void **)&frame_buffer);
 
-		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
 						       frame_header,
 						       frame_buffer);
 	}
@@ -1249,7 +1191,6 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	enum sci_status status = SCI_SUCCESS;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
@@ -1263,7 +1204,7 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 		/*
 		 * We must check ther response buffer to see if the D2H Register FIS was
 		 * received before we got the TC completion. */
-		if (stp_req->d2h_reg_fis.fis_type == FIS_REGD2H) {
+		if (sci_req->stp.rsp.fis_type == FIS_REGD2H) {
 			scic_sds_remote_device_suspend(sci_req->target_device,
 				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
 
@@ -1523,7 +1464,7 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_d2h_frame_handler(
 							      frame_index,
 							      (void **)&frame_buffer);
 
-		scic_sds_controller_copy_sata_response(&stp_req->d2h_reg_fis,
+		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
 						       frame_header,
 						       frame_buffer);
 
@@ -1595,7 +1536,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 	enum sci_status status;
 
 	/* Clear the SRST bit */
-	h2d_fis = scic_stp_io_request_get_h2d_reg_address(sci_req);
+	h2d_fis = &sci_req->stp.cmd;
 	h2d_fis->control = 0;
 
 	/* Clear the TC control bit */

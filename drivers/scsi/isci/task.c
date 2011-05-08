@@ -1431,7 +1431,6 @@ isci_task_request_complete(struct isci_host *ihost,
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
 	struct scic_sds_request *sci_req = ireq->sci_request_handle;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",
@@ -1444,11 +1443,11 @@ isci_task_request_complete(struct isci_host *ihost,
 
 	if (tmf->proto == SAS_PROTOCOL_SSP) {
 		memcpy(&tmf->resp.resp_iu,
-		       sci_req->response_buffer,
+		       &sci_req->ssp.rsp,
 		       SSP_RESP_IU_MAX_SIZE);
 	} else if (tmf->proto == SAS_PROTOCOL_SATA) {
 		memcpy(&tmf->resp.d2h_fis,
-		       &stp_req->d2h_reg_fis,
+		       &sci_req->stp.rsp,
 		       sizeof(struct dev_to_host_fis));
 	}
 

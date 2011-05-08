@@ -126,7 +126,6 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 	enum sci_status status = SCI_FAILURE;
 	struct sas_task *task = isci_request_access_task(ireq);
 	struct scic_sds_request *sci_req = ireq->sci_request_handle;
-	void *cmd_iu = sci_req->command_buffer;
 
 	dev_dbg(&ireq->isci_host->pdev->dev,
 		"%s: request = %p\n", __func__, ireq);
@@ -138,7 +137,7 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 
 	/* copy the smp_command to the address; */
 	sg_copy_to_buffer(&task->smp_task.smp_req, 1,
-			  (char *)cmd_iu,
+			  &sci_req->smp.cmd,
 			  sizeof(struct smp_req));
 
 	status = scic_io_request_construct_smp(sci_req);
@@ -998,25 +997,15 @@ void isci_request_io_request_complete(
 				task);
 
 			if (sas_protocol_ata(task->task_proto)) {
-				resp_buf
-					= scic_stp_io_request_get_d2h_reg_address(
-					request->sci_request_handle
-					);
+				resp_buf = &request->sci_request_handle->stp.rsp;
 				isci_request_process_stp_response(task,
-								  resp_buf
-								  );
-
+								  resp_buf);
 			} else if (SAS_PROTOCOL_SSP == task->task_proto) {
 
 				/* crack the iu response buffer. */
-				resp_iu
-					= scic_io_request_get_response_iu_address(
-					request->sci_request_handle
-					);
-
+				resp_iu = &request->sci_request_handle->ssp.rsp;
 				isci_request_process_response_iu(task, resp_iu,
-								 &isci_host->pdev->dev
-								 );
+								 &isci_host->pdev->dev);
 
 			} else if (SAS_PROTOCOL_SMP == task->task_proto) {
 
@@ -1045,11 +1034,7 @@ void isci_request_io_request_complete(
 			request->complete_in_target = true;
 
 			if (task->task_proto == SAS_PROTOCOL_SMP) {
-
-				u8 *command_iu_address
-					= scic_io_request_get_command_iu_address(
-					request->sci_request_handle
-					);
+				void *rsp = &request->sci_request_handle->smp.rsp;
 
 				dev_dbg(&isci_host->pdev->dev,
 					"%s: SMP protocol completion\n",
@@ -1057,9 +1042,7 @@ void isci_request_io_request_complete(
 
 				sg_copy_from_buffer(
 					&task->smp_task.smp_resp, 1,
-					command_iu_address
-					+ sizeof(struct smp_req),
-					sizeof(struct smp_resp));
+					rsp, sizeof(struct smp_resp));
 			} else if (completion_status
 				   == SCI_IO_SUCCESS_IO_DONE_EARLY) {
 
