@@ -546,7 +546,8 @@ struct extended_attribute
 					   where real value starts */
 #endif
   u8 namelen;				/* length of name, bytes */
-  u16 valuelen;				/* length of value, bytes */
+  u8 valuelen_lo;			/* length of value, bytes */
+  u8 valuelen_hi;			/* length of value, bytes */
   u8 name[0];
   /*
     u8 name[namelen];			ascii attrib name

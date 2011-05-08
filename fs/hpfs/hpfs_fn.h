@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 #include "hpfs.h"
 
@@ -135,19 +136,24 @@ static inline struct extended_attribute *fnode_end_ea(struct fnode *fnode)
 	return (struct extended_attribute *)((char *)fnode + le16_to_cpu(fnode->ea_offs) + le16_to_cpu(fnode->acl_size_s) + le16_to_cpu(fnode->ea_size_s));
 }
 
+static unsigned ea_valuelen(struct extended_attribute *ea)
+{
+	return ea->valuelen_lo + 256 * ea->valuelen_hi;
+}
+
 static inline struct extended_attribute *next_ea(struct extended_attribute *ea)
 {
-	return (struct extended_attribute *)((char *)ea + 5 + ea->namelen + le16_to_cpu(ea->valuelen));
+	return (struct extended_attribute *)((char *)ea + 5 + ea->namelen + ea_valuelen(ea));
 }
 
 static inline secno ea_sec(struct extended_attribute *ea)
 {
-	return le32_to_cpu(*((secno *)((char *)ea + 9 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 9 + ea->namelen)));
 }
 
 static inline secno ea_len(struct extended_attribute *ea)
 {
-	return le32_to_cpu(*((secno *)((char *)ea + 5 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 5 + ea->namelen)));
 }
 
 static inline char *ea_data(struct extended_attribute *ea)

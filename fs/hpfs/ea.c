@@ -24,7 +24,7 @@ void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
 		}
 		if (hpfs_ea_read(s, a, ano, pos, 4, ex)) return;
 		if (ea->indirect) {
-			if (le16_to_cpu(ea->valuelen) != 8) {
+			if (ea_valuelen(ea) != 8) {
 				hpfs_error(s, "ea->indirect set while ea->valuelen!=8, %s %08x, pos %08x",
 					ano ? "anode" : "sectors", a, pos);
 				return;
@@ -33,7 +33,7 @@ void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
 				return;
 			hpfs_ea_remove(s, ea_sec(ea), ea->anode, ea_len(ea));
 		}
-		pos += ea->namelen + le16_to_cpu(ea->valuelen) + 5;
+		pos += ea->namelen + ea_valuelen(ea) + 5;
 	}
 	if (!ano) hpfs_free_sectors(s, a, (len+511) >> 9);
 	else {
@@ -82,10 +82,10 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				goto indirect;
-			if (le16_to_cpu(ea->valuelen) >= size)
+			if (ea_valuelen(ea) >= size)
 				return -EINVAL;
-			memcpy(buf, ea_data(ea), le16_to_cpu(ea->valuelen));
-			buf[le16_to_cpu(ea->valuelen)] = 0;
+			memcpy(buf, ea_data(ea), ea_valuelen(ea));
+			buf[ea_valuelen(ea)] = 0;
 			return 0;
 		}
 	a = le32_to_cpu(fnode->ea_secno);
@@ -106,14 +106,14 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				goto indirect;
-			if (le16_to_cpu(ea->valuelen) >= size)
+			if (ea_valuelen(ea) >= size)
 				return -EINVAL;
-			if (hpfs_ea_read(s, a, ano, pos + 4 + ea->namelen + 1, le16_to_cpu(ea->valuelen), buf))
+			if (hpfs_ea_read(s, a, ano, pos + 4 + ea->namelen + 1, ea_valuelen(ea), buf))
 				return -EIO;
-			buf[le16_to_cpu(ea->valuelen)] = 0;
+			buf[ea_valuelen(ea)] = 0;
 			return 0;
 		}
-		pos += ea->namelen + le16_to_cpu(ea->valuelen) + 5;
+		pos += ea->namelen + ea_valuelen(ea) + 5;
 	}
 	return -ENOENT;
 indirect:
@@ -138,12 +138,12 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
-			if (!(ret = kmalloc((*size = le16_to_cpu(ea->valuelen)) + 1, GFP_NOFS))) {
+			if (!(ret = kmalloc((*size = ea_valuelen(ea)) + 1, GFP_NOFS))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
 			}
-			memcpy(ret, ea_data(ea), le16_to_cpu(ea->valuelen));
-			ret[le16_to_cpu(ea->valuelen)] = 0;
+			memcpy(ret, ea_data(ea), ea_valuelen(ea));
+			ret[ea_valuelen(ea)] = 0;
 			return ret;
 		}
 	a = le32_to_cpu(fnode->ea_secno);
@@ -164,18 +164,18 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
-			if (!(ret = kmalloc((*size = le16_to_cpu(ea->valuelen)) + 1, GFP_NOFS))) {
+			if (!(ret = kmalloc((*size = ea_valuelen(ea)) + 1, GFP_NOFS))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
 			}
-			if (hpfs_ea_read(s, a, ano, pos + 4 + ea->namelen + 1, le16_to_cpu(ea->valuelen), ret)) {
+			if (hpfs_ea_read(s, a, ano, pos + 4 + ea->namelen + 1, ea_valuelen(ea), ret)) {
 				kfree(ret);
 				return NULL;
 			}
-			ret[le16_to_cpu(ea->valuelen)] = 0;
+			ret[ea_valuelen(ea)] = 0;
 			return ret;
 		}
-		pos += ea->namelen + le16_to_cpu(ea->valuelen) + 5;
+		pos += ea->namelen + ea_valuelen(ea) + 5;
 	}
 	return NULL;
 }
@@ -202,7 +202,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 			if (ea->indirect) {
 				if (ea_len(ea) == size)
 					set_indirect_ea(s, ea->anode, ea_sec(ea), data, size);
-			} else if (le16_to_cpu(ea->valuelen) == size) {
+			} else if (ea_valuelen(ea) == size) {
 				memcpy(ea_data(ea), data, size);
 			}
 			return;
@@ -228,12 +228,12 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 					set_indirect_ea(s, ea->anode, ea_sec(ea), data, size);
 			}
 			else {
-				if (le16_to_cpu(ea->valuelen) == size)
+				if (ea_valuelen(ea) == size)
 					hpfs_ea_write(s, a, ano, pos + 4 + ea->namelen + 1, size, data);
 			}
 			return;
 		}
-		pos += ea->namelen + le16_to_cpu(ea->valuelen) + 5;
+		pos += ea->namelen + ea_valuelen(ea) + 5;
 	}
 	if (!le16_to_cpu(fnode->ea_offs)) {
 		/*if (le16_to_cpu(fnode->ea_size_s)) {
@@ -254,7 +254,8 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		ea = fnode_end_ea(fnode);
 		*(char *)ea = 0;
 		ea->namelen = strlen(key);
-		ea->valuelen = cpu_to_le16(size);
+		ea->valuelen_lo = size;
+		ea->valuelen_hi = size >> 8;
 		strcpy(ea->name, key);
 		memcpy(ea_data(ea), data, size);
 		fnode->ea_size_s = cpu_to_le16(le16_to_cpu(fnode->ea_size_s) + strlen(key) + size + 5);
