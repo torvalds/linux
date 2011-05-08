@@ -20,8 +20,8 @@ static int hpfs_file_release(struct inode *inode, struct file *file)
 
 int hpfs_file_fsync(struct file *file, int datasync)
 {
-	/*return file_fsync(file, datasync);*/
-	return 0; /* Don't fsync :-) */
+	struct inode *inode = file->f_mapping->host;
+	return sync_blockdev(inode->i_sb->s_bdev);
 }
 
 /*
