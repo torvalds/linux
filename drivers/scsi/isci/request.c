@@ -73,9 +73,7 @@ static enum sci_status isci_request_ssp_request_construct(
 		"%s: request = %p\n",
 		__func__,
 		request);
-	status = scic_io_request_construct_basic_ssp(
-		request->sci_request_handle
-		);
+	status = scic_io_request_construct_basic_ssp(&request->sci);
 	return status;
 }
 
@@ -96,9 +94,7 @@ static enum sci_status isci_request_stp_request_construct(
 	 */
 	register_fis = isci_sata_task_to_fis_copy(task);
 
-	status = scic_io_request_construct_basic_sata(
-		request->sci_request_handle
-		);
+	status = scic_io_request_construct_basic_sata(&request->sci);
 
 	/* Set the ncq tag in the fis, from the queue
 	 * command in the task.
@@ -125,7 +121,7 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 {
 	enum sci_status status = SCI_FAILURE;
 	struct sas_task *task = isci_request_access_task(ireq);
-	struct scic_sds_request *sci_req = ireq->sci_request_handle;
+	struct scic_sds_request *sci_req = &ireq->sci;
 
 	dev_dbg(&ireq->isci_host->pdev->dev,
 		"%s: request = %p\n", __func__, ireq);
@@ -201,8 +197,7 @@ static enum sci_status isci_io_request_build(
 	 */
 	status = scic_io_request_construct(&isci_host->sci, sci_device,
 					   SCI_CONTROLLER_INVALID_IO_TAG,
-					   request, request->sci_req,
-					   &request->sci_request_handle);
+					   &request->sci);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -210,8 +205,6 @@ static enum sci_status isci_io_request_build(
 			 __func__);
 		return SCI_FAILURE;
 	}
-
-	request->sci_request_handle->ireq = request;
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
@@ -276,8 +269,8 @@ static int isci_request_alloc_core(
 	request->isci_host = isci_host;
 	request->isci_device = isci_device;
 	request->io_request_completion = NULL;
+	request->terminated = false;
 
-	request->request_alloc_size = isci_host->dma_pool_alloc_size;
 	request->num_sg_entries = 0;
 
 	request->complete_in_target = false;
@@ -381,80 +374,74 @@ int isci_request_execute(
 		goto out;
 
 	status = isci_io_request_build(isci_host, request, isci_device);
-	if (status == SCI_SUCCESS) {
-
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
-
-		/* send the request, let the core assign the IO TAG.	*/
-		status = scic_controller_start_io(
-			&isci_host->sci,
-			sci_device,
-			request->sci_request_handle,
-			SCI_CONTROLLER_INVALID_IO_TAG
-			);
-
-		if (status == SCI_SUCCESS ||
-		    status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-
-			/* Either I/O started OK, or the core has signaled that
-			 * the device needs a target reset.
-			 *
-			 * In either case, hold onto the I/O for later.
-			 *
-			 * Update it's status and add it to the list in the
-			 * remote device object.
-			 */
-			isci_request_change_state(request, started);
-			list_add(&request->dev_node,
-				 &isci_device->reqs_in_process);
-
-			if (status == SCI_SUCCESS) {
-				/* Save the tag for possible task mgmt later. */
-				request->io_tag = scic_io_request_get_io_tag(
-						     request->sci_request_handle);
-			} else {
-				/* The request did not really start in the
-				 * hardware, so clear the request handle
-				 * here so no terminations will be done.
-				 */
-				request->sci_request_handle = NULL;
-			}
-
-		} else
-			dev_warn(&isci_host->pdev->dev,
-				 "%s: failed request start (0x%x)\n",
-				 __func__, status);
-
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-		if (status ==
-		    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-			/* Signal libsas that we need the SCSI error
-			* handler thread to work on this I/O and that
-			* we want a device reset.
-			*/
-			spin_lock_irqsave(&task->task_state_lock, flags);
-			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
-			spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-			/* Cause this task to be scheduled in the SCSI error
-			* handler thread.
-			*/
-			isci_execpath_callback(isci_host, task,
-					       sas_task_abort);
-
-			/* Change the status, since we are holding
-			* the I/O until it is managed by the SCSI
-			* error handler.
-			*/
-			status = SCI_SUCCESS;
-		}
-
-	} else
+	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
 			 "%s: request_construct failed - status = 0x%x\n",
 			 __func__,
 			 status);
+		goto out;
+	}
+
+	spin_lock_irqsave(&isci_host->scic_lock, flags);
+
+	/* send the request, let the core assign the IO TAG.	*/
+	status = scic_controller_start_io(&isci_host->sci, sci_device,
+					  &request->sci,
+					  SCI_CONTROLLER_INVALID_IO_TAG);
+	if (status != SCI_SUCCESS &&
+	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
+		dev_warn(&isci_host->pdev->dev,
+			 "%s: failed request start (0x%x)\n",
+			 __func__, status);
+		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+		goto out;
+	}
+
+	/* Either I/O started OK, or the core has signaled that
+	 * the device needs a target reset.
+	 *
+	 * In either case, hold onto the I/O for later.
+	 *
+	 * Update it's status and add it to the list in the
+	 * remote device object.
+	 */
+	isci_request_change_state(request, started);
+	list_add(&request->dev_node, &isci_device->reqs_in_process);
+
+	if (status == SCI_SUCCESS) {
+		/* Save the tag for possible task mgmt later. */
+		request->io_tag = scic_io_request_get_io_tag(&request->sci);
+	} else {
+		/* The request did not really start in the
+		 * hardware, so clear the request handle
+		 * here so no terminations will be done.
+		 */
+		request->terminated = true;
+	}
+	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+
+	if (status ==
+	    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
+		/* Signal libsas that we need the SCSI error
+		* handler thread to work on this I/O and that
+		* we want a device reset.
+		*/
+		spin_lock_irqsave(&task->task_state_lock, flags);
+		task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+		/* Cause this task to be scheduled in the SCSI error
+		* handler thread.
+		*/
+		isci_execpath_callback(isci_host, task,
+				       sas_task_abort);
+
+		/* Change the status, since we are holding
+		* the I/O until it is managed by the SCSI
+		* error handler.
+		*/
+		status = SCI_SUCCESS;
+	}
 
  out:
 	if (status != SCI_SUCCESS) {
@@ -554,9 +541,7 @@ static void isci_request_handle_controller_specific_errors(
 {
 	unsigned int cstatus;
 
-	cstatus = scic_request_get_controller_status(
-		request->sci_request_handle
-		);
+	cstatus = scic_request_get_controller_status(&request->sci);
 
 	dev_dbg(&request->isci_host->pdev->dev,
 		"%s: %p SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR "
@@ -997,13 +982,13 @@ void isci_request_io_request_complete(
 				task);
 
 			if (sas_protocol_ata(task->task_proto)) {
-				resp_buf = &request->sci_request_handle->stp.rsp;
+				resp_buf = &request->sci.stp.rsp;
 				isci_request_process_stp_response(task,
 								  resp_buf);
 			} else if (SAS_PROTOCOL_SSP == task->task_proto) {
 
 				/* crack the iu response buffer. */
-				resp_iu = &request->sci_request_handle->ssp.rsp;
+				resp_iu = &request->sci.ssp.rsp;
 				isci_request_process_response_iu(task, resp_iu,
 								 &isci_host->pdev->dev);
 
@@ -1034,7 +1019,7 @@ void isci_request_io_request_complete(
 			request->complete_in_target = true;
 
 			if (task->task_proto == SAS_PROTOCOL_SMP) {
-				void *rsp = &request->sci_request_handle->smp.rsp;
+				void *rsp = &request->sci.smp.rsp;
 
 				dev_dbg(&isci_host->pdev->dev,
 					"%s: SMP protocol completion\n",
@@ -1051,8 +1036,7 @@ void isci_request_io_request_complete(
 				 * the maximum was transferred.
 				 */
 				u32 transferred_length
-					= scic_io_request_get_number_of_bytes_transferred(
-					request->sci_request_handle);
+					= scic_io_request_get_number_of_bytes_transferred(&request->sci);
 
 				task->task_status.residual
 					= task->total_xfer_len - transferred_length;
@@ -1165,12 +1149,12 @@ void isci_request_io_request_complete(
 	/* complete the io request to the core. */
 	scic_controller_complete_io(&isci_host->sci,
 				    &isci_device->sci,
-				    request->sci_request_handle);
-	/* NULL the request handle so it cannot be completed or
+				    &request->sci);
+	/* set terminated handle so it cannot be completed or
 	 * terminated again, and to cause any calls into abort
 	 * task to recognize the already completed case.
 	 */
-	request->sci_request_handle = NULL;
+	request->terminated = true;
 
 	isci_host_can_dequeue(isci_host, 1);
 }

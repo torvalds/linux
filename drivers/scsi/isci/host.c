@@ -428,14 +428,8 @@ int isci_host_init(struct isci_host *isci_host)
 	if (err)
 		return err;
 
-	/*
-	 * keep the pool alloc size around, will use it for a bounds checking
-	 * when trying to convert virtual addresses to physical addresses
-	 */
-	isci_host->dma_pool_alloc_size = sizeof(struct isci_request) +
-					 sizeof(struct scic_sds_request);
 	isci_host->dma_pool = dmam_pool_create(DRV_NAME, &isci_host->pdev->dev,
-					       isci_host->dma_pool_alloc_size,
+					       sizeof(struct isci_request),
 					       SLAB_HWCACHE_ALIGN, 0);
 
 	if (!isci_host->dma_pool)

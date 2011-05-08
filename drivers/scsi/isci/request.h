@@ -82,11 +82,11 @@ enum task_type {
 };
 
 struct isci_request {
-	struct scic_sds_request *sci_request_handle;
 	enum isci_request_status status;
 	enum task_type ttype;
 	unsigned short io_tag;
 	bool complete_in_target;
+	bool terminated;
 
 	union ttype_ptr_union {
 		struct sas_task *io_task_ptr;   /* When ttype==io_task  */
@@ -103,7 +103,6 @@ struct isci_request {
 	dma_addr_t zero_scatter_daddr;
 
 	unsigned int num_sg_entries;                    /* returned by pci_alloc_sg */
-	unsigned int request_alloc_size;                /* size of block from dma_pool_alloc */
 
 	/** Note: "io_request_completion" is completed in two different ways
 	 * depending on whether this is a TMF or regular request.
@@ -115,8 +114,15 @@ struct isci_request {
 	 * TMF was aborting is guaranteed to have completed.
 	 */
 	struct completion *io_request_completion;
-	struct scic_sds_request sci_req[0] ____cacheline_aligned;
+	struct scic_sds_request sci;
 };
+
+static inline struct isci_request *sci_req_to_ireq(struct scic_sds_request *sci_req)
+{
+	struct isci_request *ireq = container_of(sci_req, typeof(*ireq), sci);
+
+	return ireq;
+}
 
 /**
  * This function gets the status of the request object.

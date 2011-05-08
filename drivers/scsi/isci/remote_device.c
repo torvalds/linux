@@ -473,7 +473,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 	struct sci_base_state_machine *sm = &sci_dev->state_machine;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_port *sci_port = sci_dev->owning_port;
-	struct isci_request *ireq = sci_req->ireq;
+	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 	enum sci_status status;
 
 	switch (state) {

@@ -300,8 +300,7 @@ static enum sci_status isci_task_request_build(
 	/* let the core do it's construct. */
 	status = scic_task_request_construct(&isci_host->sci, sci_device,
 					     SCI_CONTROLLER_INVALID_IO_TAG,
-					     request, &request->sci_req,
-					     &request->sci_request_handle);
+					     &request->sci);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -312,14 +311,10 @@ static enum sci_status isci_task_request_build(
 		goto errout;
 	}
 
-	request->sci_request_handle->ireq =  request;
-
 	/* XXX convert to get this from task->tproto like other drivers */
 	if (dev->dev_type == SAS_END_DEV) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
-		status = scic_task_request_construct_ssp(
-			request->sci_request_handle
-			);
+		status = scic_task_request_construct_ssp(&request->sci);
 		if (status != SCI_SUCCESS)
 			goto errout;
 	}
@@ -376,8 +371,7 @@ static void isci_tmf_timeout_cb(void *tmf_request_arg)
 		status = scic_controller_terminate_request(
 			&request->isci_host->sci,
 			&request->isci_device->sci,
-			request->sci_request_handle
-			);
+			&request->sci);
 
 		dev_dbg(&request->isci_host->pdev->dev,
 			"%s: tmf_request = %p; tmf = %p; status = %d\n",
@@ -467,9 +461,8 @@ int isci_task_execute_tmf(
 	status = scic_controller_start_task(
 		&isci_host->sci,
 		sci_device,
-		request->sci_request_handle,
-		SCI_CONTROLLER_INVALID_IO_TAG
-		);
+		&request->sci,
+		SCI_CONTROLLER_INVALID_IO_TAG);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -764,13 +757,13 @@ static void isci_terminate_request_core(
 	 * device condition (if the request handle is NULL, then the
 	 * request completed but needed additional handling here).
 	 */
-	if (isci_request->sci_request_handle != NULL) {
+	if (!isci_request->terminated) {
 		was_terminated = true;
 		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
 			&isci_host->sci,
 			&isci_device->sci,
-			isci_request->sci_request_handle);
+			&isci_request->sci);
 	}
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
@@ -1430,7 +1423,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	enum isci_request_status old_state;
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
-	struct scic_sds_request *sci_req = ireq->sci_request_handle;
+	struct scic_sds_request *sci_req = &ireq->sci;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",
@@ -1460,12 +1453,11 @@ isci_task_request_complete(struct isci_host *ihost,
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(&ihost->sci, &idev->sci,
-				    ireq->sci_request_handle);
-	/* NULL the request handle to make sure it cannot be terminated
+	scic_controller_complete_io(&ihost->sci, &idev->sci, &ireq->sci);
+	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
-	ireq->sci_request_handle = NULL;
+	ireq->terminated = true;;
 
 	isci_request_change_state(ireq, unallocated);
 	list_del_init(&ireq->dev_node);

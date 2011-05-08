@@ -627,7 +627,7 @@ scic_sds_stp_request_pio_data_in_copy_data_buffer(struct scic_sds_stp_request *s
 	int total_len = len;
 
 	sci_req = to_sci_req(stp_req);
-	ireq = scic_sds_request_get_user_request(sci_req);
+	ireq = sci_req_to_ireq(sci_req);
 	task = isci_request_access_task(ireq);
 	src_addr = data_buf;
 
@@ -737,7 +737,7 @@ static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(struct
 {
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct isci_request *ireq = sci_req->ireq;
+	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 	struct sas_task *task = isci_request_access_task(ireq);
 	struct dev_to_host_fis *frame_header;
 	enum sci_status status;

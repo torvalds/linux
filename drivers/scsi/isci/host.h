@@ -82,7 +82,6 @@ struct isci_host {
 	struct list_head timers;
 	void *core_ctrl_memory;
 	struct dma_pool *dma_pool;
-	unsigned int dma_pool_alloc_size;
 	struct isci_phy phys[SCI_MAX_PHYS];
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
 	struct sas_ha_struct sas_ha;

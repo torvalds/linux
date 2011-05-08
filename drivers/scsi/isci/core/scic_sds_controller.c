@@ -1572,7 +1572,7 @@ void scic_sds_controller_copy_task_context(
 
 	memcpy(task_context_buffer,
 	       sci_req->task_context_buffer,
-	       SCI_FIELD_OFFSET(struct scu_task_context, sgl_snapshot_ac));
+	       offsetof(struct scu_task_context, sgl_snapshot_ac));
 
 	/*
 	 * Now that the soft copy of the TC has been copied into the TC
