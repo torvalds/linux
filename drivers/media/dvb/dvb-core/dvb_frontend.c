@@ -1325,12 +1325,12 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		tvp->u.data = fe->dtv_property_cache.isdbs_ts_id;
 		break;
 	default:
-		r = -1;
+		return -EINVAL;
 	}
 
 	dtv_property_dump(tvp);
 
-	return r;
+	return 0;
 }
 
 static int dtv_property_process_set(struct dvb_frontend *fe,
@@ -1342,11 +1342,11 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	dtv_property_dump(tvp);
 
 	/* Allow the frontend to validate incoming properties */
-	if (fe->ops.set_property)
+	if (fe->ops.set_property) {
 		r = fe->ops.set_property(fe, tvp);
-
-	if (r < 0)
-		return r;
+		if (r < 0)
+			return r;
+	}
 
 	switch(tvp->cmd) {
 	case DTV_CLEAR:
@@ -1365,7 +1365,7 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		dprintk("%s() Finalised property cache\n", __func__);
 		dtv_property_cache_submit(fe);
 
-		r |= dvb_frontend_ioctl_legacy(file, FE_SET_FRONTEND,
+		r = dvb_frontend_ioctl_legacy(file, FE_SET_FRONTEND,
 			&fepriv->parameters);
 		break;
 	case DTV_FREQUENCY:
@@ -1480,7 +1480,7 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		fe->dtv_property_cache.isdbs_ts_id = tvp->u.data;
 		break;
 	default:
-		r = -1;
+		return -EINVAL;
 	}
 
 	return r;
@@ -1554,8 +1554,10 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++) {
-			(tvp + i)->result = dtv_property_process_set(fe, tvp + i, file);
-			err |= (tvp + i)->result;
+			err = dtv_property_process_set(fe, tvp + i, file);
+			if (err < 0)
+				goto out;
+			(tvp + i)->result = err;
 		}
 
 		if(fe->dtv_property_cache.state == DTV_TUNE)
@@ -1586,8 +1588,10 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++) {
-			(tvp + i)->result = dtv_property_process_get(fe, tvp + i, file);
-			err |= (tvp + i)->result;
+			err = dtv_property_process_get(fe, tvp + i, file);
+			if (err < 0)
+				goto out;
+			(tvp + i)->result = err;
 		}
 
 		if (copy_to_user(tvps->props, tvp, tvps->num * sizeof(struct dtv_property))) {
