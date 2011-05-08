@@ -27,6 +27,7 @@ static void mark_dirty(struct super_block *s)
 			sb->dirty = 1;
 			sb->old_wrote = 0;
 			mark_buffer_dirty(bh);
+			sync_dirty_buffer(bh);
 			brelse(bh);
 		}
 	}
@@ -40,10 +41,12 @@ static void unmark_dirty(struct super_block *s)
 	struct buffer_head *bh;
 	struct hpfs_spare_block *sb;
 	if (s->s_flags & MS_RDONLY) return;
+	sync_blockdev(s->s_bdev);
 	if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
 		sb->dirty = hpfs_sb(s)->sb_chkdsk > 1 - hpfs_sb(s)->sb_was_error;
 		sb->old_wrote = hpfs_sb(s)->sb_chkdsk >= 2 && !hpfs_sb(s)->sb_was_error;
 		mark_buffer_dirty(bh);
+		sync_dirty_buffer(bh);
 		brelse(bh);
 	}
 }
