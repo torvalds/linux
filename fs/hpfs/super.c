@@ -102,9 +102,12 @@ static void hpfs_put_super(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 
+	hpfs_lock(s);
+	unmark_dirty(s);
+	hpfs_unlock(s);
+
 	kfree(sbi->sb_cp_table);
 	kfree(sbi->sb_bmp_dir);
-	unmark_dirty(s);
 	s->s_fs_info = NULL;
 	kfree(sbi);
 }
@@ -490,6 +493,9 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_bmp_dir = NULL;
 	sbi->sb_cp_table = NULL;
 
+	mutex_init(&sbi->hpfs_mutex);
+	hpfs_lock(s);
+
 	mutex_init(&sbi->hpfs_creation_de);
 
 	uid = current_uid();
@@ -669,6 +675,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 			root->i_blocks = 5;
 		hpfs_brelse4(&qbh);
 	}
+	hpfs_unlock(s);
 	return 0;
 
 bail4:	brelse(bh2);
@@ -676,6 +683,7 @@ bail3:	brelse(bh1);
 bail2:	brelse(bh0);
 bail1:
 bail0:
+	hpfs_unlock(s);
 	kfree(sbi->sb_bmp_dir);
 	kfree(sbi->sb_cp_table);
 	s->s_fs_info = NULL;

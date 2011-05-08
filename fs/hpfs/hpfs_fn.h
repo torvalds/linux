@@ -63,6 +63,7 @@ struct hpfs_inode_info {
 };
 
 struct hpfs_sb_info {
+	struct mutex hpfs_mutex;	/* global hpfs lock */
 	ino_t sb_root;			/* inode number of root dir */
 	unsigned sb_fs_size;		/* file system size, sectors */
 	unsigned sb_bitmaps;		/* sector number of bitmap list */
@@ -346,21 +347,26 @@ static inline time32_t gmt_to_local(struct super_block *s, time_t t)
 /*
  * Locking:
  *
- * hpfs_lock() is a leftover from the big kernel lock.
- * Right now, these functions are empty and only left
- * for documentation purposes. The file system no longer
- * works on SMP systems, so the lock is not needed
- * any more.
+ * hpfs_lock() locks the whole filesystem. It must be taken
+ * on any method called by the VFS.
  *
- * If someone is interested in making it work again, this
- * would be the place to start by adding a per-superblock
- * mutex and fixing all the bugs and performance issues
- * caused by that.
+ * We don't do any per-file locking anymore, it is hard to
+ * review and HPFS is not performance-sensitive anyway.
  */
 static inline void hpfs_lock(struct super_block *s)
 {
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	mutex_lock(&sbi->hpfs_mutex);
 }
 
 static inline void hpfs_unlock(struct super_block *s)
 {
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	mutex_unlock(&sbi->hpfs_mutex);
+}
+
+static inline void hpfs_lock_assert(struct super_block *s)
+{
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	WARN_ON(!mutex_is_locked(&sbi->hpfs_mutex));
 }
