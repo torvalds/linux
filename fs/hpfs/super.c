@@ -18,9 +18,9 @@
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
-static void mark_dirty(struct super_block *s)
+static void mark_dirty(struct super_block *s, int remount)
 {
-	if (hpfs_sb(s)->sb_chkdsk && !(s->s_flags & MS_RDONLY)) {
+	if (hpfs_sb(s)->sb_chkdsk && (remount || !(s->s_flags & MS_RDONLY))) {
 		struct buffer_head *bh;
 		struct hpfs_spare_block *sb;
 		if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
@@ -66,13 +66,13 @@ void hpfs_error(struct super_block *s, const char *fmt, ...)
 	if (!hpfs_sb(s)->sb_was_error) {
 		if (hpfs_sb(s)->sb_err == 2) {
 			printk("; crashing the system because you wanted it\n");
-			mark_dirty(s);
+			mark_dirty(s, 0);
 			panic("HPFS panic");
 		} else if (hpfs_sb(s)->sb_err == 1) {
 			if (s->s_flags & MS_RDONLY) printk("; already mounted read-only\n");
 			else {
 				printk("; remounting read-only\n");
-				mark_dirty(s);
+				mark_dirty(s, 0);
 				s->s_flags |= MS_RDONLY;
 			}
 		} else if (s->s_flags & MS_RDONLY) printk("; going on - but anything won't be destroyed because it's read-only\n");
@@ -419,7 +419,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	sbi->sb_eas = eas; sbi->sb_chk = chk; sbi->sb_chkdsk = chkdsk;
 	sbi->sb_err = errs; sbi->sb_timeshift = timeshift;
 
-	if (!(*flags & MS_RDONLY)) mark_dirty(s);
+	if (!(*flags & MS_RDONLY)) mark_dirty(s, 1);
 
 	replace_mount_options(s, new_opts);
 
@@ -576,7 +576,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
 		if (errs >= 2) {
 			printk("HPFS: Hotfixes not supported here, try chkdsk\n");
-			mark_dirty(s);
+			mark_dirty(s, 0);
 			goto bail4;
 		}
 		hpfs_error(s, "hotfixes not supported here, try chkdsk");
@@ -586,7 +586,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	if (spareblock->n_dnode_spares != spareblock->n_dnode_spares_free) {
 		if (errs >= 2) {
 			printk("HPFS: Spare dnodes used, try chkdsk\n");
-			mark_dirty(s);
+			mark_dirty(s, 0);
 			goto bail4;
 		}
 		hpfs_error(s, "warning: spare dnodes used, try chkdsk");
@@ -605,7 +605,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		if (hpfs_chk_sectors(s, superblock->dir_band_start, superblock->n_dir_band, "dir_band") ||
 		    hpfs_chk_sectors(s, superblock->dir_band_bitmap, 4, "dir_band_bitmap") ||
 		    hpfs_chk_sectors(s, superblock->bitmaps, 4, "bitmaps")) {
-			mark_dirty(s);
+			mark_dirty(s, 0);
 			goto bail4;
 		}
 		sbi->sb_dirband_size = a;
