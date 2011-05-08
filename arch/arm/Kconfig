@@ -376,6 +376,7 @@ config ARCH_MXS
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	help
 	  Support for Freescale MXS-based family of processors
 
