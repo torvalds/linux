@@ -314,9 +314,6 @@ find_router:
 	if (!neigh_node)
 		goto out;
 
-	if (neigh_node->if_incoming->if_status != IF_ACTIVE)
-		goto out;
-
 	if (my_skb_head_push(skb, sizeof(struct unicast_packet)) < 0)
 		goto out;
 

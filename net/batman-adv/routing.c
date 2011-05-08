@@ -1240,6 +1240,9 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 		router = find_ifalter_router(primary_orig_node, recv_if);
 
 return_router:
+	if (router && router->if_incoming->if_status != IF_ACTIVE)
+		goto err_unlock;
+
 	rcu_read_unlock();
 	return router;
 err_unlock:
