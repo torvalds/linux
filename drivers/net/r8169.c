@@ -1606,8 +1606,9 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
-				    void __iomem *ioaddr)
+				    struct net_device *dev, u8 default_version)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
 	/*
 	 * The driver currently handles the 8168Bf and the 8168Be identically
 	 * but they can be identified more specifically through the test below
@@ -1694,6 +1695,12 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	while ((reg & p->mask) != p->val)
 		p++;
 	tp->mac_version = p->mac_version;
+
+	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
+		netif_notice(tp, probe, dev,
+			     "unknown MAC, using family default\n");
+		tp->mac_version = default_version;
+	}
 }
 
 static void rtl8169_print_mac_version(struct rtl8169_private *tp)
@@ -3353,7 +3360,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	/* Identify chip attached to board */
-	rtl8169_get_mac_version(tp, ioaddr);
+	rtl8169_get_mac_version(tp, dev, cfg->default_ver);
 
 	/*
 	 * Pretend we are using VLANs; This bypasses a nasty bug where
@@ -3364,13 +3371,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl_init_mdio_ops(tp);
 	rtl_init_pll_power_ops(tp);
-
-	/* Use appropriate default if unknown */
-	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
-		netif_notice(tp, probe, dev,
-			     "unknown MAC, using family default\n");
-		tp->mac_version = cfg->default_ver;
-	}
 
 	rtl8169_print_mac_version(tp);
 
