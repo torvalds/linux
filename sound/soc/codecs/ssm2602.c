@@ -509,8 +509,6 @@ static int ssm2602_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/*power on device*/
-	snd_soc_write(codec, SSM2602_ACTIVE, 0);
 	/* set the update bits */
 	reg = snd_soc_read(codec, SSM2602_LINVOL);
 	snd_soc_write(codec, SSM2602_LINVOL, reg | LINVOL_LRIN_BOTH);
@@ -523,7 +521,6 @@ static int ssm2602_probe(struct snd_soc_codec *codec)
 	/*select Line in as default input*/
 	snd_soc_write(codec, SSM2602_APANA, APANA_SELECT_DAC |
 			APANA_ENABLE_MIC_BOOST);
-	snd_soc_write(codec, SSM2602_PWR, 0);
 
 	snd_soc_add_controls(codec, ssm2602_snd_controls,
 				ARRAY_SIZE(ssm2602_snd_controls));
