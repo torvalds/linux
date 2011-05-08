@@ -361,7 +361,6 @@ static int hpfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct hpfs_dirent *de;
 	struct inode *inode = dentry->d_inode;
 	dnode_secno dno;
-	fnode_secno fno;
 	int r;
 	int rep = 0;
 	int err;
@@ -382,7 +381,6 @@ again:
 	if (de->directory)
 		goto out1;
 
-	fno = le32_to_cpu(de->fnode);
 	r = hpfs_remove_dirent(dir, dno, de, &qbh, 1);
 	switch (r) {
 	case 1:
@@ -440,7 +438,6 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct hpfs_dirent *de;
 	struct inode *inode = dentry->d_inode;
 	dnode_secno dno;
-	fnode_secno fno;
 	int n_items = 0;
 	int err;
 	int r;
@@ -465,7 +462,6 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (n_items)
 		goto out1;
 
-	fno = le32_to_cpu(de->fnode);
 	r = hpfs_remove_dirent(dir, dno, de, &qbh, 1);
 	switch (r) {
 	case 1:
