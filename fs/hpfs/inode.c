@@ -199,8 +199,6 @@ void hpfs_write_inode(struct inode *i)
 		}
 		hpfs_write_inode_nolock(i);
 		iput(parent);
-	} else {
-		mark_inode_dirty(i);
 	}
 }
 
@@ -278,7 +276,6 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
 
 	hpfs_write_inode(inode);
 
