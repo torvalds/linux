@@ -672,6 +672,10 @@
 #define IXGBE_FCOEDWRC  0x0242C /* Number of FCoE DWords Received */
 #define IXGBE_FCOEPTC   0x08784 /* Number of FCoE Packets Transmitted */
 #define IXGBE_FCOEDWTC  0x08788 /* Number of FCoE DWords Transmitted */
+#define IXGBE_O2BGPTC   0x041C4
+#define IXGBE_O2BSPC    0x087B0
+#define IXGBE_B2OSPC    0x041C0
+#define IXGBE_B2OGPRC   0x02F90
 #define IXGBE_PCRC8ECL  0x0E810
 #define IXGBE_PCRC8ECH  0x0E811
 #define IXGBE_PCRC8ECH_MASK     0x1F
@@ -2554,6 +2558,10 @@ struct ixgbe_hw_stats {
 	u64 fcoeptc;
 	u64 fcoedwrc;
 	u64 fcoedwtc;
+	u64 b2ospc;
+	u64 b2ogprc;
+	u64 o2bgptc;
+	u64 o2bspc;
 };
 
 /* forward declaration */
