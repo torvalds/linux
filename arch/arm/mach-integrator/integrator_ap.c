@@ -335,25 +335,9 @@ static void __init ap_init(void)
 
 static unsigned long timer_reload;
 
-static void __iomem * const clksrc_base = (void __iomem *)TIMER2_VA_BASE;
-
-static cycle_t timersp_read(struct clocksource *cs)
-{
-	return ~(readl(clksrc_base + TIMER_VALUE) & 0xffff);
-}
-
-static struct clocksource clocksource_timersp = {
-	.name		= "timer2",
-	.rating		= 200,
-	.read		= timersp_read,
-	.mask		= CLOCKSOURCE_MASK(16),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static void integrator_clocksource_init(u32 khz)
 {
-	struct clocksource *cs = &clocksource_timersp;
-	void __iomem *base = clksrc_base;
+	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
 	u32 ctrl = TIMER_CTRL_ENABLE;
 
 	if (khz >= 1500) {
@@ -364,7 +348,8 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
 
-	clocksource_register_khz(cs, khz);
+	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
+		khz * 1000, 200, 16, clocksource_mmio_readl_down);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
