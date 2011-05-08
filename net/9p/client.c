@@ -92,9 +92,6 @@ static int get_protocol_version(const substring_t *name)
 	return version;
 }
 
-static struct p9_req_t *
-p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
-
 /**
  * parse_options - parse mount options into client structure
  * @opts: options string passed from mount
@@ -518,12 +515,15 @@ out_err:
 	return err;
 }
 
+static struct p9_req_t *
+p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
+
 /**
  * p9_client_flush - flush (cancel) a request
  * @c: client state
  * @oldreq: request to cancel
  *
- * This sents a flush for a particular requests and links
+ * This sents a flush for a particular request and links
  * the flush request to the original request.  The current
  * code only supports a single flush request although the protocol
  * allows for multiple flush requests to be sent for a single request.
@@ -1298,7 +1298,7 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 	if (count < rsize)
 		rsize = count;
 
-	/* Don't bother zerocopy form small IO (< 1024) */
+	/* Don't bother zerocopy for small IO (< 1024) */
 	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
 			P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
 		req = p9_client_rpc(clnt, P9_TREAD, "dqE", fid->fid, offset,
