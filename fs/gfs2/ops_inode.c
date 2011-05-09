@@ -754,8 +754,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 		if (S_ISDIR(nip->i_inode.i_mode)) {
 			if (nip->i_entries < 2) {
-				if (gfs2_consist_inode(nip))
-					gfs2_dinode_print(nip);
+				gfs2_consist_inode(nip);
 				error = -EIO;
 				goto out_gunlock;
 			}

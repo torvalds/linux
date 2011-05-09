@@ -329,8 +329,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 
 	return 0;
 corrupt:
-	if (gfs2_consist_inode(ip))
-		gfs2_dinode_print(ip);
+	gfs2_consist_inode(ip);
 	return -EIO;
 }
 
@@ -901,24 +900,3 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_mtime_nsec = cpu_to_be32(ip->i_inode.i_mtime.tv_nsec);
 	str->di_ctime_nsec = cpu_to_be32(ip->i_inode.i_ctime.tv_nsec);
 }
-
-void gfs2_dinode_print(const struct gfs2_inode *ip)
-{
-	printk(KERN_INFO "  no_formal_ino = %llu\n",
-	       (unsigned long long)ip->i_no_formal_ino);
-	printk(KERN_INFO "  no_addr = %llu\n",
-	       (unsigned long long)ip->i_no_addr);
-	printk(KERN_INFO "  i_size = %llu\n",
-	       (unsigned long long)i_size_read(&ip->i_inode));
-	printk(KERN_INFO "  blocks = %llu\n",
-	       (unsigned long long)gfs2_get_inode_blocks(&ip->i_inode));
-	printk(KERN_INFO "  i_goal = %llu\n",
-	       (unsigned long long)ip->i_goal);
-	printk(KERN_INFO "  i_diskflags = 0x%.8X\n", ip->i_diskflags);
-	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
-	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
-	printk(KERN_INFO "  i_entries = %u\n", ip->i_entries);
-	printk(KERN_INFO "  i_eattr = %llu\n",
-	       (unsigned long long)ip->i_eattr);
-}
-

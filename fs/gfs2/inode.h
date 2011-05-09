@@ -115,7 +115,6 @@ extern int gfs2_permission(struct inode *inode, int mask, unsigned int flags);
 extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
-extern void gfs2_dinode_print(const struct gfs2_inode *ip);
 
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;

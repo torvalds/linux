@@ -1341,8 +1341,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	int error;
 
 	if (gfs2_get_inode_blocks(&ip->i_inode) != 1) {
-		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(ip);
+		gfs2_consist_inode(ip);
 		return -EIO;
 	}
 
