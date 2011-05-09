@@ -45,7 +45,6 @@ struct dss_reg {
 #define DSS_REVISION			DSS_REG(0x0000)
 #define DSS_SYSCONFIG			DSS_REG(0x0010)
 #define DSS_SYSSTATUS			DSS_REG(0x0014)
-#define DSS_IRQSTATUS			DSS_REG(0x0018)
 #define DSS_CONTROL			DSS_REG(0x0040)
 #define DSS_SDI_CONTROL			DSS_REG(0x0044)
 #define DSS_PLL_CONTROL			DSS_REG(0x0048)
@@ -286,7 +285,6 @@ void dss_dump_regs(struct seq_file *s)
 	DUMPREG(DSS_REVISION);
 	DUMPREG(DSS_SYSCONFIG);
 	DUMPREG(DSS_SYSSTATUS);
-	DUMPREG(DSS_IRQSTATUS);
 	DUMPREG(DSS_CONTROL);
 
 	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
