@@ -71,13 +71,6 @@ struct omap3_idle_statedata omap3_idle_data[OMAP3_NUM_STATES];
 
 struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 
-static int omap3_idle_bm_check(void)
-{
-	if (!omap3_can_sleep())
-		return 1;
-	return 0;
-}
-
 static int _cpuidle_allow_idle(struct powerdomain *pwrdm,
 				struct clockdomain *clkdm)
 {
@@ -157,9 +150,7 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 					      struct cpuidle_state *curr)
 {
 	struct cpuidle_state *next = NULL;
-	struct omap3_idle_statedata *cx;
-
-	cx = cpuidle_get_statedata(curr);
+	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr);
 
 	/* Check if current state is valid */
 	if (cx->valid) {
@@ -167,9 +158,7 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 	} else {
 		int idx = OMAP3_NUM_STATES - 1;
 
-		/*
-		 * Reach the current state starting at highest C-state
-		 */
+		/* Reach the current state starting at highest C-state */
 		for (; idx >= 0; idx--) {
 			if (&dev->states[idx] == curr) {
 				next = &dev->states[idx];
@@ -177,9 +166,7 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 			}
 		}
 
-		/*
-		 * Should never hit this condition.
-		 */
+		/* Should never hit this condition */
 		WARN_ON(next == NULL);
 
 		/*
@@ -214,28 +201,15 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 			       struct cpuidle_state *state)
 {
-	struct cpuidle_state *new_state = next_valid_state(dev, state);
-	u32 core_next_state, per_next_state = 0, per_saved_state = 0;
-	u32 cam_state;
+	struct cpuidle_state *new_state;
+	u32 core_next_state, per_next_state = 0, per_saved_state = 0, cam_state;
 	struct omap3_idle_statedata *cx;
 	int ret;
 
-	if (omap3_idle_bm_check()) {
-		BUG_ON(!dev->safe_state);
+	if (!omap3_can_sleep()) {
 		new_state = dev->safe_state;
 		goto select_state;
 	}
-
-	cx = cpuidle_get_statedata(state);
-	core_next_state = cx->core_state;
-
-	/*
-	 * FIXME: we currently manage device-specific idle states
-	 *        for PER and CORE in combination with CPU-specific
-	 *        idle states.  This is wrong, and device-specific
-	 *        idle management needs to be separated out into 
-	 *        its own code.
-	 */
 
 	/*
 	 * Prevent idle completely if CAM is active.
@@ -248,9 +222,19 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	}
 
 	/*
+	 * FIXME: we currently manage device-specific idle states
+	 *        for PER and CORE in combination with CPU-specific
+	 *        idle states.  This is wrong, and device-specific
+	 *        idle management needs to be separated out into
+	 *        its own code.
+	 */
+
+	/*
 	 * Prevent PER off if CORE is not in retention or off as this
 	 * would disable PER wakeups completely.
 	 */
+	cx = cpuidle_get_statedata(state);
+	core_next_state = cx->core_state;
 	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
 	if ((per_next_state == PWRDM_POWER_OFF) &&
 	    (core_next_state > PWRDM_POWER_RET))
@@ -259,6 +243,8 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	/* Are we changing PER target state? */
 	if (per_next_state != per_saved_state)
 		pwrdm_set_next_pwrst(per_pd, per_next_state);
+
+	new_state = next_valid_state(dev, state);
 
 select_state:
 	dev->last_state = new_state;
@@ -320,7 +306,7 @@ struct cpuidle_driver omap3_idle_driver = {
 	.owner = 	THIS_MODULE,
 };
 
-/* Fill in the state data from the mach tables and register the driver_data */
+/* Helper to fill the C-state common data and register the driver_data */
 static inline struct omap3_idle_statedata *_fill_cstate(
 					struct cpuidle_device *dev,
 					int idx, const char *descr)
