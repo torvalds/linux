@@ -213,32 +213,6 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 	return p;
 }
 
-#ifdef BRCM_FULLMAC
-void pktq_pflush(struct pktq *pq, int prec, bool dir)
-{
-	struct pktq_prec *q;
-	struct sk_buff *p;
-
-	q = &pq->q[prec];
-	p = q->head;
-	while (p) {
-		q->head = p->prev;
-		p->prev = NULL;
-		pkt_buf_free_skb(p);
-		q->len--;
-		pq->len--;
-		p = q->head;
-	}
-	q->tail = NULL;
-}
-
-void pktq_flush(struct pktq *pq, bool dir)
-{
-	int prec;
-	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(pq, prec, dir);
-}
-#else /* !BRCM_FULLMAC */
 void
 pktq_pflush(struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)
@@ -278,7 +252,6 @@ void pktq_flush(struct pktq *pq, bool dir,
 	for (prec = 0; prec < pq->num_prec; prec++)
 		pktq_pflush(pq, prec, dir, fn, arg);
 }
-#endif /* BRCM_FULLMAC */
 
 void pktq_init(struct pktq *pq, int num_prec, int max_len)
 {
