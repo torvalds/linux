@@ -1025,7 +1025,6 @@ extern void wlc_phy_txpower_update_shm(phy_info_t *pi);
 
 extern void wlc_phy_cordic(fixed theta, cs32 *val);
 extern u8 wlc_phy_nbits(s32 value);
-extern u32 wlc_phy_sqrt_int(u32 value);
 extern void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_dB, u8 core);
 
 extern uint wlc_phy_init_radio_regs_allbands(phy_info_t *pi,

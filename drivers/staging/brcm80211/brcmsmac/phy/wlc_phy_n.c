@@ -24608,7 +24608,7 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 		}
 		b /= temp;
 		b -= a * a;
-		b = (s32) wlc_phy_sqrt_int((u32) b);
+		b = (s32) int_sqrt((unsigned long) b);
 		b -= (1 << 10);
 
 		if ((curr_core == PHY_CORE_0) && (core_mask & 0x1)) {

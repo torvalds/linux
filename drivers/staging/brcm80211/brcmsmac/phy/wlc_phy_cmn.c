@@ -3117,25 +3117,6 @@ u8 wlc_phy_nbits(s32 value)
 	return nbits;
 }
 
-u32 wlc_phy_sqrt_int(u32 value)
-{
-	u32 root = 0, shift = 0;
-
-	for (shift = 0; shift < 32; shift += 2) {
-		if (((0x40000000 >> shift) + root) <= value) {
-			value -= ((0x40000000 >> shift) + root);
-			root = (root >> 1) | (0x40000000 >> shift);
-		} else {
-			root = root >> 1;
-		}
-	}
-
-	if (root < value)
-		++root;
-
-	return root;
-}
-
 void wlc_phy_stf_chain_init(wlc_phy_t *pih, u8 txchain, u8 rxchain)
 {
 	phy_info_t *pi = (phy_info_t *) pih;

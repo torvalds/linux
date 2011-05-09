@@ -3244,7 +3244,7 @@ static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, u16 num_samps)
 	}
 	b /= temp;
 	b -= a * a;
-	b = (s32) wlc_phy_sqrt_int((u32) b);
+	b = (s32) int_sqrt((unsigned long) b);
 	b -= (1 << 10);
 	a0_new = (u16) (a & 0x3ff);
 	b0_new = (u16) (b & 0x3ff);
