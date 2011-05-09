@@ -4732,9 +4732,9 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
 	 */
-	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb)) {
+	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb))
 		goto error_return;
-	}
+
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
 	if (!bitmap_bh)
 		goto error_return;
@@ -4753,12 +4753,8 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 		goto error_return;
 	}
 
-	/*
-	 * We are about to add blocks to the bitmap,
-	 * so we need undo access.
-	 */
-	BUFFER_TRACE(bitmap_bh, "getting undo access");
-	err = ext4_journal_get_undo_access(handle, bitmap_bh);
+	BUFFER_TRACE(bitmap_bh, "getting write access");
+	err = ext4_journal_get_write_access(handle, bitmap_bh);
 	if (err)
 		goto error_return;
 
