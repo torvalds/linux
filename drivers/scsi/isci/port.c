@@ -53,13 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the isci port implementation.
- *
- *
- */
-
-
 #include <linux/workqueue.h>
 #include "isci.h"
 #include "scic_io_request.h"
@@ -68,7 +61,6 @@
 #include "scic_port.h"
 #include "port.h"
 #include "request.h"
-#include "core/scic_sds_controller.h"
 
 static void isci_port_change_state(struct isci_port *iport, enum isci_status status)
 {

@@ -55,15 +55,13 @@
 
 #include <scsi/sas.h>
 #include "sci_base_state_machine.h"
-#include "scic_controller.h"
-#include "scic_sds_controller.h"
 #include "remote_device.h"
 #include "scic_sds_request.h"
 #include "scic_sds_smp_request.h"
-#include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
 #include "scu_task_context.h"
+#include "host.h"
 
 static void scu_smp_request_construct_task_context(
 	struct scic_sds_request *sci_req,

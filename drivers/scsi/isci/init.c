@@ -61,9 +61,7 @@
 #include <asm/string.h>
 #include "isci.h"
 #include "task.h"
-#include "sci_environment.h"
 #include "probe_roms.h"
-#include "scic_controller.h"
 
 static struct scsi_transport_template *isci_transport_template;
 

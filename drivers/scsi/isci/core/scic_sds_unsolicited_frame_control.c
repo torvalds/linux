@@ -53,19 +53,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the implementation of the
- *    struct scic_sds_unsolicited_frame_control object and it's public, protected, and
- *    private methods.
- *
- *
- */
-
+#include "host.h"
 #include "scic_sds_unsolicited_frame_control.h"
 #include "scu_registers.h"
-#include "scic_sds_controller.h"
 #include "sci_util.h"
-#include "sci_environment.h"
 
 /**
  * This method will program the unsolicited frames (UFs) into the UF address

@@ -53,11 +53,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "host.h"
 #include "sci_base_state_machine.h"
-#include "scic_controller.h"
-#include "scic_sds_controller.h"
 #include "scic_sds_request.h"
-#include "sci_environment.h"
 #include "scu_completion_codes.h"
 #include "scu_task_context.h"
 

@@ -532,10 +532,4 @@ extern unsigned char max_concurr_spinup;
 irqreturn_t isci_msix_isr(int vec, void *data);
 irqreturn_t isci_intx_isr(int vec, void *data);
 irqreturn_t isci_error_isr(int vec, void *data);
-
-struct scic_sds_controller;
-bool scic_sds_controller_isr(struct scic_sds_controller *scic);
-void scic_sds_controller_completion_handler(struct scic_sds_controller *scic);
-bool scic_sds_controller_error_isr(struct scic_sds_controller *scic);
-void scic_sds_controller_error_handler(struct scic_sds_controller *scic);
 #endif  /* __ISCI_H__ */

@@ -55,7 +55,6 @@
 
 #include <linux/kernel.h>
 #include "sci_util.h"
-#include "sci_environment.h"
 #include "request.h"
 
 void *scic_request_get_virt_addr(struct scic_sds_request *sci_req, dma_addr_t phys_addr)

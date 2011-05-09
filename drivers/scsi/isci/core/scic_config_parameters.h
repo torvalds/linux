@@ -229,44 +229,6 @@ union scic_oem_parameters {
 	struct scic_sds_oem_params sds1;
 };
 
-/**
- * scic_user_parameters_set() - This method allows the user to attempt to
- *    change the user parameters utilized by the controller.
- * @controller: This parameter specifies the controller on which to set the
- *    user parameters.
- * @user_parameters: This parameter specifies the USER_PARAMETERS object
- *    containing the potential new values.
- *
- * Indicate if the update of the user parameters was successful. SCI_SUCCESS
- * This value is returned if the operation succeeded. SCI_FAILURE_INVALID_STATE
- * This value is returned if the attempt to change the user parameter failed,
- * because changing one of the parameters is not currently allowed.
- * SCI_FAILURE_INVALID_PARAMETER_VALUE This value is returned if the user
- * supplied an invalid interrupt coalescence time, spin up delay interval, etc.
- */
-enum sci_status scic_user_parameters_set(
-	struct scic_sds_controller *controller,
-	union scic_user_parameters *user_parameters);
-
-/**
- * scic_oem_parameters_set() - This method allows the user to attempt to change
- *    the OEM parameters utilized by the controller.
- * @controller: This parameter specifies the controller on which to set the
- *    user parameters.
- * @oem_parameters: This parameter specifies the OEM parameters object
- *    containing the potential new values.
- *
- * Indicate if the update of the user parameters was successful. SCI_SUCCESS
- * This value is returned if the operation succeeded. SCI_FAILURE_INVALID_STATE
- * This value is returned if the attempt to change the user parameter failed,
- * because changing one of the parameters is not currently allowed.
- * SCI_FAILURE_INVALID_PARAMETER_VALUE This value is returned if the user
- * supplied an unsupported value for one of the OEM parameters.
- */
-enum sci_status scic_oem_parameters_set(
-	struct scic_sds_controller *controller,
-	union scic_oem_parameters *oem_parameters);
-
 int scic_oem_parameters_validate(struct scic_sds_oem_params *oem);
 
 /**

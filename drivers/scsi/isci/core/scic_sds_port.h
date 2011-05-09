@@ -57,6 +57,7 @@
 #define _SCIC_SDS_PORT_H_
 
 #include <linux/kernel.h>
+#include "isci.h"
 #include "sas.h"
 #include "scu_registers.h"
 #include "sci_base_state_machine.h"

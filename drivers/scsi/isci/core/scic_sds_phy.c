@@ -55,14 +55,13 @@
 
 #include <scsi/sas.h>
 #include "sas.h"
+#include "host.h"
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
 #include "scic_phy.h"
-#include "scic_sds_controller.h"
 #include "scic_sds_phy.h"
 #include "scic_sds_port.h"
 #include "remote_node_context.h"
-#include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_event_codes.h"
 #include "timers.h"

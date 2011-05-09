@@ -53,9 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sci_environment.h"
-#include "scic_controller.h"
-#include "scic_sds_controller.h"
+#include "host.h"
 #include "scic_sds_port_configuration_agent.h"
 #include "timers.h"
 

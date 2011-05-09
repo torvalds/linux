@@ -5,7 +5,6 @@ isci-objs := init.o phy.o request.o sata.o \
 	     host.o task.o probe_roms.o \
 	     remote_node_context.o \
 	     remote_node_table.o \
-	     core/scic_sds_controller.o  \
 	     core/scic_sds_request.o \
 	     core/scic_sds_stp_request.o \
 	     core/scic_sds_port.o \
