@@ -45,6 +45,26 @@ void __init at91_init_interrupts(unsigned int *priority)
 	at91_gpio_irq_setup();
 }
 
+static struct map_desc sram_desc[2] __initdata;
+
+void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
+{
+	struct map_desc *desc = &sram_desc[bank];
+
+	desc->virtual = AT91_IO_VIRT_BASE - length;
+	if (bank > 0)
+		desc->virtual -= sram_desc[bank - 1].length;
+
+	desc->pfn = __phys_to_pfn(base);
+	desc->length = length;
+	desc->type = MT_DEVICE;
+
+	pr_info("AT91: sram at 0x%lx of 0x%x mapped at 0x%lx\n",
+		base, length, desc->virtual);
+
+	iotable_init(desc, 1);
+}
+
 static struct map_desc at91_io_desc __initdata = {
 	.virtual	= AT91_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_BASE_SYS),

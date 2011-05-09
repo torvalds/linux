@@ -26,13 +26,6 @@
 #include "generic.h"
 #include "clock.h"
 
-static struct map_desc at91sam9rl_sram_desc[] __initdata = {
-	{
-		.pfn		= __phys_to_pfn(AT91SAM9RL_SRAM_BASE),
-		.type		= MT_DEVICE,
-	}
-};
-
 /* --------------------------------------------------------------------
  *  Clocks
  * -------------------------------------------------------------------- */
@@ -293,11 +286,8 @@ static void __init at91sam9rl_map_io(void)
 			sram_size = SZ_16K;
 	}
 
-	at91sam9rl_sram_desc->virtual = AT91_IO_VIRT_BASE - sram_size;
-	at91sam9rl_sram_desc->length = sram_size;
-
 	/* Map SRAM */
-	iotable_init(at91sam9rl_sram_desc, ARRAY_SIZE(at91sam9rl_sram_desc));
+	at91_init_sram(0, AT91SAM9RL_SRAM_BASE, sram_size);
 }
 
 static void __init at91sam9rl_initialize(void)

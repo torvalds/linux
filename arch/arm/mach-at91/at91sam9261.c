@@ -26,24 +26,6 @@
 #include "generic.h"
 #include "clock.h"
 
-static struct map_desc at91sam9261_sram_desc[] __initdata = {
-	{
-		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9261_SRAM_SIZE,
-		.pfn		= __phys_to_pfn(AT91SAM9261_SRAM_BASE),
-		.length		= AT91SAM9261_SRAM_SIZE,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc at91sam9g10_sram_desc[] __initdata = {
-	{
-		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9G10_SRAM_SIZE,
-		.pfn		= __phys_to_pfn(AT91SAM9G10_SRAM_BASE),
-		.length		= AT91SAM9G10_SRAM_SIZE,
-		.type		= MT_DEVICE,
-	},
-};
-
 /* --------------------------------------------------------------------
  *  Clocks
  * -------------------------------------------------------------------- */
@@ -297,9 +279,9 @@ static void at91sam9261_poweroff(void)
 static void __init at91sam9261_map_io(void)
 {
 	if (cpu_is_at91sam9g10())
-		iotable_init(at91sam9g10_sram_desc, ARRAY_SIZE(at91sam9g10_sram_desc));
+		at91_init_sram(0, AT91SAM9G10_SRAM_BASE, AT91SAM9G10_SRAM_SIZE);
 	else
-		iotable_init(at91sam9261_sram_desc, ARRAY_SIZE(at91sam9261_sram_desc));
+		at91_init_sram(0, AT91SAM9261_SRAM_BASE, AT91SAM9261_SRAM_SIZE);
 }
 
 static void __init at91sam9261_initialize(void)

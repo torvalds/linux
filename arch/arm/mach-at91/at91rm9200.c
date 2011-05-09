@@ -30,11 +30,6 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_IO_VIRT_BASE - AT91RM9200_SRAM_SIZE,
-		.pfn		= __phys_to_pfn(AT91RM9200_SRAM_BASE),
-		.length		= AT91RM9200_SRAM_SIZE,
-		.type		= MT_DEVICE,
 	},
 };
 
@@ -306,6 +301,7 @@ static void at91rm9200_reset(void)
 static void __init at91rm9200_map_io(void)
 {
 	/* Map peripherals */
+	at91_init_sram(0, AT91RM9200_SRAM_BASE, AT91RM9200_SRAM_SIZE);
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
