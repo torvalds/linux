@@ -84,6 +84,7 @@ struct tm6000_board {
 
 	struct tm6000_input	vinput[3];
 	struct tm6000_input	rinput;
+
 	char		*ir_codes;
 };
 
@@ -91,7 +92,8 @@ struct tm6000_board tm6000_boards[] = {
 	[TM6000_BOARD_UNKNOWN] = {
 		.name         = "Unknown tm6000 video grabber",
 		.caps = {
-			.has_tuner    = 1,
+			.has_tuner	= 1,
+			.has_eeprom	= 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
@@ -118,6 +120,7 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.caps = {
 			.has_tuner	= 1,
+			.has_eeprom	= 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
@@ -143,7 +146,7 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.caps = {
 			.has_tuner	= 1,
-			.has_dvb	= 1,
+			.has_eeprom	= 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
