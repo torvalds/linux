@@ -2299,7 +2299,8 @@ static void rk29fb_early_suspend(struct early_suspend *h)
         return;
     }
 
-    set_lcd_pin(g_pdev, 0);
+    if(inf->cur_screen != &inf->panel2_info)  // close lcd pwr when output screen is lcd
+        set_lcd_pin(g_pdev, 0);
 
 	if(inf->cur_screen->standby)
 	{
@@ -2381,7 +2382,8 @@ static void rk29fb_early_resume(struct early_suspend *h)
 		inf->cur_screen->standby(0);
 	}
     msleep(100);
-    set_lcd_pin(g_pdev, 1);
+    if(inf->cur_screen != &inf->panel2_info)  // open lcd pwr when output screen is lcd
+        set_lcd_pin(g_pdev, 1);
 	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
 }
 
