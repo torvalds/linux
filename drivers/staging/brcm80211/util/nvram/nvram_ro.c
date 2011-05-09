@@ -42,35 +42,6 @@ static vars_t *vars;
 
 static char *findvar(char *vars, char *lim, const char *name);
 
-#if defined(FLASH)
-/* copy flash to ram */
-static void get_flash_nvram(si_t *sih, struct nvram_header *nvh)
-{
-	uint nvs, bufsz;
-	vars_t *new;
-
-	nvs = R_REG(&nvh->len) - sizeof(struct nvram_header);
-	bufsz = nvs + VARS_T_OH;
-
-	new = kmalloc(bufsz, GFP_ATOMIC);
-	if (new == NULL) {
-		NVR_MSG(("Out of memory for flash vars\n"));
-		return;
-	}
-	new->vars = (char *)new + VARS_T_OH;
-
-	new->bufsz = bufsz;
-	new->size = nvs;
-	new->next = vars;
-	vars = new;
-
-	memcpy(new->vars, &nvh[1], nvs);
-
-	NVR_MSG(("%s: flash nvram @ %p, copied %d bytes to %p\n", __func__,
-		 nvh, nvs, new->vars));
-}
-#endif				/* FLASH */
-
 int nvram_init(void *si)
 {
 
