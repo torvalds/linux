@@ -150,6 +150,7 @@ static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 
 static int nouveau_dsm_switch_mux(acpi_handle handle, int mux_id)
 {
+	mxm_wmi_call_mxmx(mux_id == NOUVEAU_DSM_LED_STAMINA ? MXM_MXDS_ADAPTER_IGD : MXM_MXDS_ADAPTER_0);
 	mxm_wmi_call_mxds(mux_id == NOUVEAU_DSM_LED_STAMINA ? MXM_MXDS_ADAPTER_IGD : MXM_MXDS_ADAPTER_0);
 	return nouveau_dsm(handle, NOUVEAU_DSM_LED, mux_id, NULL);
 }
