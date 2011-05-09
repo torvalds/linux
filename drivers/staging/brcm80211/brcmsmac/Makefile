@@ -25,7 +25,6 @@ ccflags-y :=				\
 	-DBCMNVRAMR				\
 	-Idrivers/staging/brcm80211/brcmsmac \
 	-Idrivers/staging/brcm80211/brcmsmac/phy \
-	-Idrivers/staging/brcm80211/util \
 	-Idrivers/staging/brcm80211/include
 
 BRCMSMAC_OFILES := \
@@ -48,12 +47,12 @@ BRCMSMAC_OFILES := \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
 	phy/wlc_phy_qmath.o \
+	bcmotp.o \
+	bcmsrom.o \
+	hnddma.o \
+	nicpci.o \
 	../util/bcmutils.o \
 	../util/bcmwifi.o \
-	../util/bcmotp.o \
-	../util/bcmsrom.o \
-	../util/hnddma.o \
-	../util/nicpci.o \
 	../util/nvram/nvram_ro.o
 
 MODULEPFX := brcmsmac
