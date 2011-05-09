@@ -1250,11 +1250,9 @@ static void it8709_disable(struct ite_dev *dev)
 	ite_dbg("%s called", __func__);
 
 	/* clear out all interrupt enable flags */
-	it8709_wr(dev,
-			    it8709_rr(dev,
-				      IT85_C0IER) & ~(IT85_IEC | IT85_RFOIE |
-						      IT85_RDAIE |
-						      IT85_TLDLIE), IT85_C0IER);
+	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) &
+			~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
+		  IT85_C0IER);
 
 	/* disable the receiver */
 	it8709_disable_rx(dev);
@@ -1270,11 +1268,9 @@ static void it8709_init_hardware(struct ite_dev *dev)
 	ite_dbg("%s called", __func__);
 
 	/* disable all the interrupts */
-	it8709_wr(dev,
-			    it8709_rr(dev,
-				      IT85_C0IER) & ~(IT85_IEC | IT85_RFOIE |
-						      IT85_RDAIE |
-						      IT85_TLDLIE), IT85_C0IER);
+	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) &
+			~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
+		  IT85_C0IER);
 
 	/* program the baud rate divisor */
 	it8709_wr(dev, ITE_BAUDRATE_DIVISOR & 0xff, IT85_C0BDLR);
@@ -1282,28 +1278,22 @@ static void it8709_init_hardware(struct ite_dev *dev)
 			IT85_C0BDHR);
 
 	/* program the C0MSTCR register defaults */
-	it8709_wr(dev, (it8709_rr(dev, IT85_C0MSTCR) & ~(IT85_ILSEL |
-								   IT85_ILE
-								   | IT85_FIFOTL
-								   |
-								   IT85_FIFOCLR
-								   |
-								   IT85_RESET))
-			    | IT85_FIFOTL_DEFAULT, IT85_C0MSTCR);
+	it8709_wr(dev, (it8709_rr(dev, IT85_C0MSTCR) &
+			~(IT85_ILSEL | IT85_ILE | IT85_FIFOTL
+			  | IT85_FIFOCLR | IT85_RESET)) | IT85_FIFOTL_DEFAULT,
+		  IT85_C0MSTCR);
 
 	/* program the C0RCR register defaults */
-	it8709_wr(dev,
-			    (it8709_rr(dev, IT85_C0RCR) &
-			     ~(IT85_RXEN | IT85_RDWOS | IT85_RXEND
-			       | IT85_RXACT | IT85_RXDCR)) |
-			    ITE_RXDCR_DEFAULT, IT85_C0RCR);
+	it8709_wr(dev, (it8709_rr(dev, IT85_C0RCR) &
+			~(IT85_RXEN | IT85_RDWOS | IT85_RXEND | IT85_RXACT
+			  | IT85_RXDCR)) | ITE_RXDCR_DEFAULT,
+		  IT85_C0RCR);
 
 	/* program the C0TCR register defaults */
-	it8709_wr(dev, (it8709_rr(dev, IT85_C0TCR)
-				  &~(IT85_TXMPM | IT85_TXMPW))
-			    |IT85_TXRLE | IT85_TXENDF |
-			    IT85_TXMPM_DEFAULT |
-			    IT85_TXMPW_DEFAULT, IT85_C0TCR);
+	it8709_wr(dev, (it8709_rr(dev, IT85_C0TCR) & ~(IT85_TXMPM | IT85_TXMPW))
+			| IT85_TXRLE | IT85_TXENDF | IT85_TXMPM_DEFAULT
+			| IT85_TXMPW_DEFAULT,
+		  IT85_C0TCR);
 
 	/* program the carrier parameters */
 	ite_set_carrier_params(dev);
