@@ -13,10 +13,6 @@
  *	and need to be refreshed, or when a packet was damaged in transit.
  *	This may be have to be moved to the VFS layer.
  *
- *  NB: BSD uses a more intelligent approach to guessing when a request
- *  or reply has been lost by keeping the RTO estimate for each procedure.
- *  We currently make do with a constant timeout value.
- *
  *  Copyright (C) 1992,1993 Rick Sladkey <jrs@world.std.com>
  *  Copyright (C) 1995,1996 Olaf Kirch <okir@monad.swb.de>
  */
