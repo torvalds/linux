@@ -66,7 +66,7 @@ struct flash_info {
 
 #define to_sst25l_flash(x) container_of(x, struct sst25l_flash, mtd)
 
-static struct flash_info __initdata sst25l_flash_info[] = {
+static struct flash_info __devinitdata sst25l_flash_info[] = {
 	{"sst25lf020a", 0xbf43, 256, 1024, 4096},
 	{"sst25lf040a",	0xbf44,	256, 2048, 4096},
 };
@@ -469,7 +469,7 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __exit sst25l_remove(struct spi_device *spi)
+static int __devexit sst25l_remove(struct spi_device *spi)
 {
 	struct sst25l_flash *flash = dev_get_drvdata(&spi->dev);
 	int ret;
@@ -490,7 +490,7 @@ static struct spi_driver sst25l_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sst25l_probe,
-	.remove		= __exit_p(sst25l_remove),
+	.remove		= __devexit_p(sst25l_remove),
 };
 
 static int __init sst25l_init(void)
