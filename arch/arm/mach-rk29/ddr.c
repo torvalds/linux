@@ -1369,7 +1369,7 @@ typedef struct _dtt_cnt_t
 }dtt_cnt_t;
 
 //static int __init ddr_probe(void)
-int __init ddr_init(uint32_t dram_type, uint32_t freq)
+int ddr_init(uint32_t dram_type, uint32_t freq)
 {
     volatile uint32_t value = 0;
 	uint32_t          addr;

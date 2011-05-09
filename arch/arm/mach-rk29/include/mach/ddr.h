@@ -147,7 +147,7 @@ void __sramfunc ddr_suspend(void);
 void __sramfunc ddr_resume(void);
 void __sramlocalfunc delayus(uint32_t us);
 uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
-int __init ddr_init(uint32_t dram_type, uint32_t freq);
+int ddr_init(uint32_t dram_type, uint32_t freq);
 
 
 #endif
