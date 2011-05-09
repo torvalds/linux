@@ -1329,7 +1329,7 @@ static void hpsa_scsi_do_simple_cmd_with_retry(struct ctlr_info *h,
 	int retry_count = 0;
 
 	do {
-		memset(c->err_info, 0, sizeof(c->err_info));
+		memset(c->err_info, 0, sizeof(*c->err_info));
 		hpsa_scsi_do_simple_cmd_core(h, c);
 		retry_count++;
 	} while (check_for_unit_attention(h, c) && retry_count <= 3);
