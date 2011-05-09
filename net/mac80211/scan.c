@@ -170,7 +170,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	if (skb->len < 24)
-		return RX_DROP_MONITOR;
+		return RX_CONTINUE;
 
 	presp = ieee80211_is_probe_resp(fc);
 	if (presp) {
