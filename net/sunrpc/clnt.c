@@ -28,7 +28,9 @@
 #include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
+#include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/un.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
@@ -294,6 +296,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	 * up a string representation of the passed-in address.
 	 */
 	if (args->servername == NULL) {
+		struct sockaddr_un *sun =
+				(struct sockaddr_un *)args->address;
 		struct sockaddr_in *sin =
 				(struct sockaddr_in *)args->address;
 		struct sockaddr_in6 *sin6 =
@@ -301,6 +305,10 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 
 		servername[0] = '\0';
 		switch (args->address->sa_family) {
+		case AF_LOCAL:
+			snprintf(servername, sizeof(servername), "%s",
+				 sun->sun_path);
+			break;
 		case AF_INET:
 			snprintf(servername, sizeof(servername), "%pI4",
 				 &sin->sin_addr.s_addr);
