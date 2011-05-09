@@ -2981,15 +2981,8 @@ static int ext4_register_li_request(struct super_block *sb,
 
 	if (first_not_zeroed == ngroups ||
 	    (sb->s_flags & MS_RDONLY) ||
-	    !test_opt(sb, INIT_INODE_TABLE)) {
-		sbi->s_li_request = NULL;
+	    !test_opt(sb, INIT_INODE_TABLE))
 		return 0;
-	}
-
-	if (first_not_zeroed == ngroups) {
-		sbi->s_li_request = NULL;
-		return 0;
-	}
 
 	elr = ext4_li_request_new(sb, first_not_zeroed);
 	if (!elr)
