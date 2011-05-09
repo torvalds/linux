@@ -330,8 +330,7 @@ static void tulip_up(struct net_device *dev)
 	udelay(100);
 
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: tulip_up(), irq==%d\n",
-		       dev->name, dev->irq);
+		netdev_dbg(dev, "tulip_up(), irq==%d\n", dev->irq);
 
 	iowrite32(tp->rx_ring_dma, ioaddr + CSR3);
 	iowrite32(tp->tx_ring_dma, ioaddr + CSR4);
@@ -498,10 +497,10 @@ media_picked:
 	iowrite32(0, ioaddr + CSR2);		/* Rx poll demand */
 
 	if (tulip_debug > 2) {
-		printk(KERN_DEBUG "%s: Done tulip_up(), CSR0 %08x, CSR5 %08x CSR6 %08x\n",
-		       dev->name, ioread32(ioaddr + CSR0),
-		       ioread32(ioaddr + CSR5),
-		       ioread32(ioaddr + CSR6));
+		netdev_dbg(dev, "Done tulip_up(), CSR0 %08x, CSR5 %08x CSR6 %08x\n",
+			   ioread32(ioaddr + CSR0),
+			   ioread32(ioaddr + CSR5),
+			   ioread32(ioaddr + CSR6));
 	}
 
 	/* Set the timer to switch to check for link beat and perhaps switch
@@ -842,8 +841,7 @@ static int tulip_close (struct net_device *dev)
 	tulip_down (dev);
 
 	if (tulip_debug > 1)
-		dev_printk(KERN_DEBUG, &dev->dev,
-			   "Shutting down ethercard, status was %02x\n",
+		netdev_dbg(dev, "Shutting down ethercard, status was %02x\n",
 			   ioread32 (ioaddr + CSR5));
 
 	free_irq (dev->irq, dev);
@@ -1206,7 +1204,7 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 	u32 csr0;
 
 	if (tulip_debug > 3)
-		printk(KERN_DEBUG "%s: tulip_mwi_config()\n", pci_name(pdev));
+		netdev_dbg(dev, "tulip_mwi_config()\n");
 
 	tp->csr0 = csr0 = 0;
 
@@ -1268,8 +1266,8 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 out:
 	tp->csr0 = csr0;
 	if (tulip_debug > 2)
-		printk(KERN_DEBUG "%s: MWI config cacheline=%d, csr0=%08x\n",
-		       pci_name(pdev), cache, csr0);
+		netdev_dbg(dev, "MWI config cacheline=%d, csr0=%08x\n",
+			   cache, csr0);
 }
 #endif
 

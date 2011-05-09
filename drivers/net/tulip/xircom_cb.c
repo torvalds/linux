@@ -333,7 +333,7 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 
 	if (link_status_changed(card)) {
 		int newlink;
-		printk(KERN_DEBUG "xircom_cb: Link status has changed\n");
+		netdev_dbg(dev, "Link status has changed\n");
 		newlink = link_status(card);
 		netdev_info(dev, "Link is %d mbit\n", newlink);
 		if (newlink)

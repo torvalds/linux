@@ -377,9 +377,9 @@ static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
 			    u32 status, u32 len)
 {
-	netif_printk(de, rx_err, KERN_DEBUG, de->dev,
-		     "rx err, slot %d status 0x%x len %d\n",
-		     rx_tail, status, len);
+	netif_dbg(de, rx_err, de->dev,
+		  "rx err, slot %d status 0x%x len %d\n",
+		  rx_tail, status, len);
 
 	if ((status & 0x38000300) != 0x0300) {
 		/* Ingore earlier buffers. */
@@ -433,10 +433,9 @@ static void de_rx (struct de_private *de)
 
 		copying_skb = (len <= rx_copybreak);
 
-		if (unlikely(netif_msg_rx_status(de)))
-			printk(KERN_DEBUG "%s: rx slot %d status 0x%x len %d copying? %d\n",
-			       de->dev->name, rx_tail, status, len,
-			       copying_skb);
+		netif_dbg(de, rx_status, de->dev,
+			  "rx slot %d status 0x%x len %d copying? %d\n",
+			  rx_tail, status, len, copying_skb);
 
 		buflen = copying_skb ? (len + RX_OFFSET) : de->rx_buf_sz;
 		copy_skb = dev_alloc_skb (buflen);
@@ -504,10 +503,9 @@ static irqreturn_t de_interrupt (int irq, void *dev_instance)
 	if ((!(status & (IntrOK|IntrErr))) || (status == 0xFFFF))
 		return IRQ_NONE;
 
-	if (netif_msg_intr(de))
-		printk(KERN_DEBUG "%s: intr, status %08x mode %08x desc %u/%u/%u\n",
-		       dev->name, status, dr32(MacMode),
-		       de->rx_tail, de->tx_head, de->tx_tail);
+	netif_dbg(de, intr, dev, "intr, status %08x mode %08x desc %u/%u/%u\n",
+		  status, dr32(MacMode),
+		  de->rx_tail, de->tx_head, de->tx_tail);
 
 	dw32(MacStatus, status);
 
@@ -570,9 +568,9 @@ static void de_tx (struct de_private *de)
 
 		if (status & LastFrag) {
 			if (status & TxError) {
-				if (netif_msg_tx_err(de))
-					printk(KERN_DEBUG "%s: tx err, status 0x%x\n",
-					       de->dev->name, status);
+				netif_dbg(de, tx_err, de->dev,
+					  "tx err, status 0x%x\n",
+					  status);
 				de->net_stats.tx_errors++;
 				if (status & TxOWC)
 					de->net_stats.tx_window_errors++;
@@ -585,9 +583,8 @@ static void de_tx (struct de_private *de)
 			} else {
 				de->net_stats.tx_packets++;
 				de->net_stats.tx_bytes += skb->len;
-				if (netif_msg_tx_done(de))
-					printk(KERN_DEBUG "%s: tx done, slot %d\n",
-					       de->dev->name, tx_tail);
+				netif_dbg(de, tx_done, de->dev,
+					  "tx done, slot %d\n", tx_tail);
 			}
 			dev_kfree_skb_irq(skb);
 		}
@@ -644,9 +641,8 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 	wmb();
 
 	de->tx_head = NEXT_TX(entry);
-	if (netif_msg_tx_queued(de))
-		printk(KERN_DEBUG "%s: tx queued, slot %d, skblen %d\n",
-		       dev->name, entry, skb->len);
+	netif_dbg(de, tx_queued, dev, "tx queued, slot %d, skblen %d\n",
+		  entry, skb->len);
 
 	if (tx_free == 0)
 		netif_stop_queue(dev);
@@ -1387,7 +1383,7 @@ static int de_open (struct net_device *dev)
 	struct de_private *de = netdev_priv(dev);
 	int rc;
 
-	netif_printk(de, ifup, KERN_DEBUG, dev, "enabling interface\n");
+	netif_dbg(de, ifup, dev, "enabling interface\n");
 
 	de->rx_buf_sz = (dev->mtu <= 1500 ? PKT_BUF_SZ : dev->mtu + 32);
 
@@ -1429,7 +1425,7 @@ static int de_close (struct net_device *dev)
 	struct de_private *de = netdev_priv(dev);
 	unsigned long flags;
 
-	netif_printk(de, ifdown, KERN_DEBUG, dev, "disabling interface\n");
+	netif_dbg(de, ifdown, dev, "disabling interface\n");
 
 	del_timer_sync(&de->media_timer);
 
@@ -1450,10 +1446,9 @@ static void de_tx_timeout (struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
 
-	netdev_printk(KERN_DEBUG, dev,
-		      "NIC status %08x mode %08x sia %08x desc %u/%u/%u\n",
-		      dr32(MacStatus), dr32(MacMode), dr32(SIAStatus),
-		      de->rx_tail, de->tx_head, de->tx_tail);
+	netdev_dbg(dev, "NIC status %08x mode %08x sia %08x desc %u/%u/%u\n",
+		   dr32(MacStatus), dr32(MacMode), dr32(SIAStatus),
+		   de->rx_tail, de->tx_head, de->tx_tail);
 
 	del_timer_sync(&de->media_timer);
 
