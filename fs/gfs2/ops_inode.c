@@ -145,6 +145,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = old_dentry->d_inode;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder ghs[2];
+	struct buffer_head *dibh;
 	int alloc_required;
 	int error;
 
@@ -230,12 +231,22 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_ipres;
 	}
 
-	error = gfs2_dir_add(dir, &dentry->d_name, ip, IF2DT(inode->i_mode));
+	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_change_nlink(ip, +1);
+	error = gfs2_dir_add(dir, &dentry->d_name, ip, IF2DT(inode->i_mode));
+	if (error)
+		goto out_brelse;
 
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	inc_nlink(&ip->i_inode);
+	ip->i_inode.i_ctime = CURRENT_TIME;
+	gfs2_dinode_out(ip, dibh->b_data);
+	mark_inode_dirty(&ip->i_inode);
+
+out_brelse:
+	brelse(dibh);
 out_end_trans:
 	gfs2_trans_end(sdp);
 out_ipres:
