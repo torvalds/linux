@@ -1597,7 +1597,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
  */
 
 int gfs2_dir_add(struct inode *inode, const struct qstr *name,
-		 const struct gfs2_inode *nip, unsigned type)
+		 const struct gfs2_inode *nip)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *bh;
@@ -1613,7 +1613,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				return PTR_ERR(dent);
 			dent = gfs2_init_dirent(inode, dent, name, bh);
 			gfs2_inum_out(nip, dent);
-			dent->de_type = cpu_to_be16(type);
+			dent->de_type = cpu_to_be16(IF2DT(nip->i_inode.i_mode));
 			if (ip->i_diskflags & GFS2_DIF_EXHASH) {
 				leaf = (struct gfs2_leaf *)bh->b_data;
 				be16_add_cpu(&leaf->lf_entries, 1);
@@ -1625,6 +1625,8 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			ip->i_entries++;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+			if (S_ISDIR(nip->i_inode.i_mode))
+				inc_nlink(&ip->i_inode);
 			gfs2_dinode_out(ip, bh->b_data);
 			brelse(bh);
 			error = 0;

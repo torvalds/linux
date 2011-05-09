@@ -106,7 +106,6 @@ extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int nonbl
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
-extern int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
 extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 				  int is_root);
 extern struct inode *gfs2_createi(struct gfs2_holder *ghs,
