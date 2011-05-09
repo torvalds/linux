@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include <aiutils.h>
 #include <hndsoc.h>
 #include <bcmdevs.h>

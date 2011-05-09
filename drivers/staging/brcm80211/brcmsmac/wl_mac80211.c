@@ -30,6 +30,7 @@
 #include <bcmdefs.h>
 #include <bcmwifi.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include <pcicfg.h>
 #include <wlioctl.h>
 #include <sbhnddma.h>

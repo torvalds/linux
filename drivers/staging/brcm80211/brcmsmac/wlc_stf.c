@@ -24,6 +24,7 @@
 #include <aiutils.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>
+#include <bcmnvram.h>
 #include <sbhnddma.h>
 
 #include "wlc_types.h"

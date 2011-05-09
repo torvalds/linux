@@ -29,6 +29,7 @@
 #include <bcmsrom.h>
 #include <bcmotp.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>

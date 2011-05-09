@@ -23,6 +23,7 @@
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
+#include <bcmnvram.h>
 #include <aiutils.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>

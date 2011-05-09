@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <aiutils.h>
 #include <wlc_pmu.h>
+#include <bcmnvram.h>
 
 #include <bcmdevs.h>
 #include <sbhnddma.h>

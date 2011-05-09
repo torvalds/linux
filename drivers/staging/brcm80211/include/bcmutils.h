@@ -141,9 +141,6 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	struct ipv4_addr;
 	extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
-/* variable access */
-	extern char *getvar(char *vars, const char *name);
-	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
 	extern void prpkt(const char *msg, struct sk_buff *p0);
 #else

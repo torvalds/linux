@@ -147,6 +147,10 @@ u8 nvram_calc_crc(struct nvram_header *nvh);
 
 #endif				/* _LANGUAGE_ASSEMBLY */
 
+/* variable access */
+extern char *getvar(char *vars, const char *name);
+extern int getintvar(char *vars, const char *name);
+
 /* The NVRAM version number stored as an NVRAM variable */
 #define NVRAM_SOFTWARE_VERSION	"1"
 

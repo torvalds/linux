@@ -21,6 +21,7 @@
 #include <bcmdevs.h>
 #include <sbchipc.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include "wlc_pmu.h"
 
 /*

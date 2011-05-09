@@ -21,6 +21,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include <aiutils.h>
 #include <sbhnddma.h>
 #include <wlioctl.h>

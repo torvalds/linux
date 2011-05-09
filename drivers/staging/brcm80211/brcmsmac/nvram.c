@@ -108,6 +108,49 @@ static char *findvar(char *vars, char *lim, const char *name)
 	return NULL;
 }
 
+/*
+ * Search the name=value vars for a specific one and return its value.
+ * Returns NULL if not found.
+ */
+char *getvar(char *vars, const char *name)
+{
+	char *s;
+	int len;
+
+	if (!name)
+		return NULL;
+
+	len = strlen(name);
+	if (len == 0)
+		return NULL;
+
+	/* first look in vars[] */
+	for (s = vars; s && *s;) {
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
+			return &s[len + 1];
+
+		while (*s++)
+			;
+	}
+	/* then query nvram */
+	return nvram_get(name);
+}
+
+/*
+ * Search the vars for a specific one and return its value as
+ * an integer. Returns 0 if not found.
+ */
+int getintvar(char *vars, const char *name)
+{
+	char *val;
+
+	val = getvar(vars, name);
+	if (val == NULL)
+		return 0;
+
+	return simple_strtoul(val, NULL, 0);
+}
+
 char *nvram_get(const char *name)
 {
 	char *v = NULL;

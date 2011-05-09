@@ -22,6 +22,7 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
+#include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmdevs.h>
 #include <sbhnddma.h>
