@@ -43,7 +43,7 @@ static struct wlc_pub *wlc_pub_malloc(uint unit,
 static void wlc_pub_mfree(struct wlc_pub *pub);
 static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid);
 
-void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
+static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 {
 	tunables->ntxd = NTXD;
 	tunables->nrxd = NRXD;
@@ -137,7 +137,7 @@ static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg)
 	kfree(cfg);
 }
 
-void wlc_bsscfg_ID_assign(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg)
+static void wlc_bsscfg_ID_assign(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
