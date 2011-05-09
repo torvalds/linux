@@ -922,12 +922,8 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		memset(&ctl, 0, sizeof(ctl));
 
-		ctl.input1 = 1;
-		ctl.read_not_reliable = 0;
-		ctl.msleep = 10;
 		ctl.demod = XC3028_FE_ZARLINK456;
-		ctl.vhfbw7 = 1;
-		ctl.uhfbw8 = 1;
+
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
 
