@@ -110,6 +110,7 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 				  &dest->addr.ip,
 				  atomic_read(&rt->dst.__refcnt), rtos);
 		}
+		daddr = dest->addr.ip;
 		spin_unlock(&dest->dst_lock);
 	} else {
 		rt = ip_route_output(net, daddr, 0, rtos, 0);
@@ -125,7 +126,7 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 	      rt_mode)) {
 		IP_VS_DBG_RL("Stopping traffic to %s address, dest: %pI4\n",
 			     (rt->rt_flags & RTCF_LOCAL) ?
-			     "local":"non-local", &rt->rt_dst);
+			     "local":"non-local", &daddr);
 		ip_rt_put(rt);
 		return NULL;
 	}
@@ -133,14 +134,14 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 	    !((ort = skb_rtable(skb)) && ort->rt_flags & RTCF_LOCAL)) {
 		IP_VS_DBG_RL("Redirect from non-local address %pI4 to local "
 			     "requires NAT method, dest: %pI4\n",
-			     &ip_hdr(skb)->daddr, &rt->rt_dst);
+			     &ip_hdr(skb)->daddr, &daddr);
 		ip_rt_put(rt);
 		return NULL;
 	}
 	if (unlikely(!local && ipv4_is_loopback(ip_hdr(skb)->saddr))) {
 		IP_VS_DBG_RL("Stopping traffic from loopback address %pI4 "
 			     "to non-local address, dest: %pI4\n",
-			     &ip_hdr(skb)->saddr, &rt->rt_dst);
+			     &ip_hdr(skb)->saddr, &daddr);
 		ip_rt_put(rt);
 		return NULL;
 	}
