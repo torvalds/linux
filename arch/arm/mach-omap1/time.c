@@ -190,24 +190,11 @@ static __init void omap_init_mpu_timer(unsigned long rate)
  * ---------------------------------------------------------------------------
  */
 
-static cycle_t mpu_read(struct clocksource *cs)
-{
-	return ~omap_mpu_timer_read(1);
-}
-
-static struct clocksource clocksource_mpu = {
-	.name		= "mpu_timer2",
-	.rating		= 300,
-	.read		= mpu_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static DEFINE_CLOCK_DATA(cd);
 
 static inline unsigned long long notrace _omap_mpu_sched_clock(void)
 {
-	u32 cyc = mpu_read(&clocksource_mpu);
+	u32 cyc = ~omap_mpu_timer_read(1);
 	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
 
@@ -225,20 +212,22 @@ static unsigned long long notrace omap_mpu_sched_clock(void)
 
 static void notrace mpu_update_sched_clock(void)
 {
-	u32 cyc = mpu_read(&clocksource_mpu);
+	u32 cyc = ~omap_mpu_timer_read(1);
 	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 static void __init omap_init_clocksource(unsigned long rate)
 {
+	omap_mpu_timer_regs_t __iomem *timer = omap_mpu_timer_base(1);
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
 
 	omap_mpu_timer_start(1, ~0, 1);
 	init_sched_clock(&cd, mpu_update_sched_clock, 32, rate);
 
-	if (clocksource_register_hz(&clocksource_mpu, rate))
-		printk(err, clocksource_mpu.name);
+	if (clocksource_mmio_init(&timer->read_tim, "mpu_timer2", rate,
+			300, 32, clocksource_mmio_readl_down))
+		printk(err, "mpu_timer2");
 }
 
 static void __init omap_mpu_timer_init(void)
