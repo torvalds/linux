@@ -345,7 +345,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	icmp_param->data.icmph.checksum = 0;
 
 	inet->tos = ip_hdr(skb)->tos;
-	daddr = ipc.addr = rt->rt_src;
+	daddr = ipc.addr = ip_hdr(skb)->saddr;
 	ipc.opt = NULL;
 	ipc.tx_flags = 0;
 	if (icmp_param->replyopts.opt.opt.optlen) {
@@ -930,12 +930,12 @@ static void icmp_address_reply(struct sk_buff *skb)
 		BUG_ON(mp == NULL);
 		for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 			if (*mp == ifa->ifa_mask &&
-			    inet_ifa_match(rt->rt_src, ifa))
+			    inet_ifa_match(ip_hdr(skb)->saddr, ifa))
 				break;
 		}
 		if (!ifa && net_ratelimit()) {
 			printk(KERN_INFO "Wrong address mask %pI4 from %s/%pI4\n",
-			       mp, dev->name, &rt->rt_src);
+			       mp, dev->name, &ip_hdr(skb)->saddr);
 		}
 	}
 }
