@@ -1478,7 +1478,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		if (sig == 0x09811317) {
 			tp->flags |= COMET_PM;
 			tp->wolinfo.supported = WAKE_PHY | WAKE_MAGIC;
-			printk(KERN_INFO "tulip_init_one: Enabled WOL support for AN983B\n");
+			pr_info("%s: Enabled WOL support for AN983B\n",
+				__func__);
 		}
 	}
 	tp->pdev = pdev;
@@ -1874,7 +1875,7 @@ save_state:
 		tulip_set_wolopts(pdev, tp->wolinfo.wolopts);
 		rc = pci_enable_wake(pdev, pstate, tp->wolinfo.wolopts);
 		if (rc)
-			printk("tulip: pci_enable_wake failed (%d)\n", rc);
+			pr_err("pci_enable_wake failed (%d)\n", rc);
 	}
 	pci_set_power_state(pdev, pstate);
 

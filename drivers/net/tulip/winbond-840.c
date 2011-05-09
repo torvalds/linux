@@ -141,7 +141,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 
 /* These identify the driver base version and may not be removed. */
 static const char version[] __initconst =
-	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " (2.4 port) "
+	"v" DRV_VERSION " (2.4 port) "
 	DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
 	"  http://www.scyld.com/network/drivers.html\n";
 

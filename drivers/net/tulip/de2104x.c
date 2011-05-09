@@ -53,7 +53,7 @@
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =
-KERN_INFO DRV_NAME " PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")\n";
+"PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")";
 
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("Intel/Digital 21040/1 series PCI Ethernet driver");
@@ -1978,7 +1978,7 @@ static int __devinit de_init_one (struct pci_dev *pdev,
 
 #ifndef MODULE
 	if (board_idx == 0)
-		printk("%s", version);
+		pr_info("%s\n", version);
 #endif
 
 	/* allocate a new ethernet device structure, and fill in defaults */
@@ -2200,7 +2200,7 @@ static struct pci_driver de_driver = {
 static int __init de_init (void)
 {
 #ifdef MODULE
-	printk("%s", version);
+	pr_info("%s\n", version);
 #endif
 	return pci_register_driver(&de_driver);
 }

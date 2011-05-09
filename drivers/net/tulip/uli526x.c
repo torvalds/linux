@@ -209,8 +209,7 @@ enum uli526x_CR6_bits {
 /* Global variable declaration ----------------------------- */
 static int __devinitdata printed_version;
 static const char version[] __devinitconst =
-	KERN_INFO DRV_NAME ": ULi M5261/M5263 net driver, version "
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	"ULi M5261/M5263 net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
 
 static int uli526x_debug;
 static unsigned char uli526x_media_mode = ULI526X_AUTO;
@@ -283,7 +282,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
 
 	if (!printed_version++)
-		printk(version);
+		pr_info("%s\n", version);
 
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
@@ -667,15 +666,6 @@ static int uli526x_stop(struct net_device *dev)
 	/* free allocated rx buffer */
 	uli526x_free_rxbuffer(db);
 
-#if 0
-	/* show statistic counter */
-	printk(DRV_NAME ": FU:%lx EC:%lx LC:%lx NC:%lx LOC:%lx TXJT:%lx RESET:%lx RCR8:%lx FAL:%lx TT:%lx\n",
-		db->tx_fifo_underrun, db->tx_excessive_collision,
-		db->tx_late_collision, db->tx_no_carrier, db->tx_loss_carrier,
-		db->tx_jabber_timeout, db->reset_count, db->reset_cr8,
-		db->reset_fatal, db->reset_TXtimeout);
-#endif
-
 	return 0;
 }
 
@@ -755,7 +745,6 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 	txptr = db->tx_remove_ptr;
 	while(db->tx_packet_cnt) {
 		tdes0 = le32_to_cpu(txptr->tdes0);
-		/* printk(DRV_NAME ": tdes0=%x\n", tdes0); */
 		if (tdes0 & 0x80000000)
 			break;
 
@@ -765,7 +754,6 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 
 		/* Transmit statistic counter */
 		if ( tdes0 != 0x7fffffff ) {
-			/* printk(DRV_NAME ": tdes0=%x\n", tdes0); */
 			dev->stats.collisions += (tdes0 >> 3) & 0xf;
 			dev->stats.tx_bytes += le32_to_cpu(txptr->tdes1) & 0x7ff;
 			if (tdes0 & TDES0_ERR_MASK) {
@@ -838,7 +826,6 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 			/* error summary bit check */
 			if (rdes0 & 0x8000) {
 				/* This is a error packet */
-				//printk(DRV_NAME ": rdes0: %lx\n", rdes0);
 				dev->stats.rx_errors++;
 				if (rdes0 & 1)
 					dev->stats.rx_fifo_errors++;
@@ -1046,8 +1033,7 @@ static void uli526x_timer(unsigned long data)
 		if ( time_after(jiffies, dev_trans_start(dev) + ULI526X_TX_TIMEOUT) ) {
 			db->reset_TXtimeout++;
 			db->wait_reset = 1;
-			printk( "%s: Tx timeout - resetting\n",
-			       dev->name);
+			netdev_err(dev, " Tx timeout - resetting\n");
 		}
 	}
 
@@ -1534,7 +1520,6 @@ static u8 uli526x_sense_speed(struct uli526x_board_info * db)
 		else
 			phy_mode = 0x1000;
 
-		/* printk(DRV_NAME ": Phy_mode %x ",phy_mode); */
 		switch (phy_mode) {
 		case 0x1000: db->op_mode = ULI526X_10MHF; break;
 		case 0x2000: db->op_mode = ULI526X_10MFD; break;
@@ -1823,7 +1808,7 @@ MODULE_PARM_DESC(mode, "ULi M5261/M5263: Bit 0: 10/100Mbps, bit 2: duplex, bit 8
 static int __init uli526x_init_module(void)
 {
 
-	printk(version);
+	pr_info("%s\n", version);
 	printed_version = 1;
 
 	ULI526X_DBUG(0, "init_module() ", debug);
