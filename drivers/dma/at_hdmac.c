@@ -933,25 +933,9 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	dev_vdbg(chan2dev(chan), "atc_control (%d)\n", cmd);
 
 	if (cmd == DMA_PAUSE) {
-		int pause_timeout = 1000;
-
 		spin_lock_bh(&atchan->lock);
 
 		dma_writel(atdma, CHER, AT_DMA_SUSP(chan_id));
-
-		/* wait for FIFO to be empty */
-		while (!(dma_readl(atdma, CHSR) & AT_DMA_EMPT(chan_id))) {
-			if (pause_timeout-- > 0) {
-				/* the FIFO can only drain if the peripheral
-				 * is still requesting data:
-				 * -> timeout if it is not the case. */
-				dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
-				spin_unlock_bh(&atchan->lock);
-				return -ETIMEDOUT;
-			}
-			cpu_relax();
-		}
-
 		set_bit(ATC_IS_PAUSED, &atchan->status);
 
 		spin_unlock_bh(&atchan->lock);
