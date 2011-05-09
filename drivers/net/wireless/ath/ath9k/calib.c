@@ -409,14 +409,6 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 	}
 }
 
-s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	if (!ah->curchan || !ah->curchan->noisefloor)
-		return ath9k_hw_get_default_nf(ah, chan);
-
-	return ah->curchan->noisefloor;
-}
-EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
 void ath9k_hw_bstuck_nfcal(struct ath_hw *ah)
 {
