@@ -60,7 +60,7 @@
  *
  */
 
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 
 static void sci_state_machine_exit_state(struct sci_base_state_machine *sm)
 {
@@ -121,9 +121,6 @@ void sci_base_state_machine_construct(struct sci_base_state_machine *sm,
 void sci_base_state_machine_start(struct sci_base_state_machine *sm)
 {
 	sm->current_state_id = sm->initial_state_id;
-#if defined(SCI_BASE_ENABLE_SUBJECT_NOTIFICATION)
-	sci_base_subject_notify(&sm->parent);
-#endif
 	sci_state_machine_enter_state(sm);
 }
 
@@ -137,9 +134,6 @@ void sci_base_state_machine_stop(
 	struct sci_base_state_machine *sm)
 {
 	sci_state_machine_exit_state(sm);
-#if defined(SCI_BASE_ENABLE_SUBJECT_NOTIFICATION)
-	sci_base_subject_notify(&sm->parent);
-#endif
 }
 
 /**
@@ -157,11 +151,6 @@ void sci_base_state_machine_change_state(
 
 	sm->previous_state_id = sm->current_state_id;
 	sm->current_state_id = next_state;
-
-#if defined(SCI_BASE_ENABLE_SUBJECT_NOTIFICATION)
-	/* Notify of the state change prior to entering the state. */
-	sci_base_subject_notify(&sm->parent);
-#endif
 
 	sci_state_machine_enter_state(sm);
 }

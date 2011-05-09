@@ -56,8 +56,7 @@
 #include <scsi/sas.h>
 #include "sas.h"
 #include "host.h"
-#include "sci_base_state.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "scic_phy.h"
 #include "scic_sds_phy.h"
 #include "scic_sds_port.h"

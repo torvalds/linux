@@ -58,7 +58,7 @@
 
 #include "isci.h"
 #include "scic_io_request.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "scu_task_context.h"
 #include "scic_sds_stp_request.h"
 #include "sas.h"

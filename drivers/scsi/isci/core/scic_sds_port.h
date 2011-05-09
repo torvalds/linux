@@ -60,7 +60,7 @@
 #include "isci.h"
 #include "sas.h"
 #include "registers.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 
 struct scic_sds_controller;
 struct scic_sds_phy;

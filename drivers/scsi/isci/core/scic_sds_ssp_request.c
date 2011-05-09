@@ -54,7 +54,7 @@
  */
 
 #include "host.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "scic_sds_request.h"
 #include "scu_completion_codes.h"
 #include "scu_task_context.h"

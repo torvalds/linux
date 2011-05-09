@@ -56,18 +56,32 @@
 #ifndef _SCI_BASE_STATE_MACHINE_H_
 #define _SCI_BASE_STATE_MACHINE_H_
 
-#include <linux/string.h>
+#include <linux/types.h>
+
+typedef void (*sci_base_state_handler_t)(void);
+
+typedef void (*sci_state_transition_t)(void *base_object);
 
 /**
- * This file contains all structures, constants, or method declarations common
- *    to all state machines defined in SCI.
+ * struct sci_base_state - The base state object abstracts the fields common to
+ *    all state objects defined in SCI.
  *
  *
  */
+struct sci_base_state {
+	/**
+	 * This field is a function pointer that defines the method to be
+	 * invoked when the state is entered.
+	 */
+	sci_state_transition_t enter_state;
 
+	/**
+	 * This field is a function pointer that defines the method to be
+	 * invoked when the state is exited.
+	 */
+	sci_state_transition_t exit_state;
 
-#include "sci_base_state.h"
-
+};
 
 /**
  * SET_STATE_HANDLER() -

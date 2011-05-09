@@ -55,8 +55,7 @@
 
 #include <scsi/sas.h>
 #include "sas.h"
-#include "sci_base_state.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "scic_io_request.h"
 #include "remote_device.h"
 #include "scic_sds_request.h"

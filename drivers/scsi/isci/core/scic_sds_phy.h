@@ -59,7 +59,7 @@
 #include "sas.h"
 #include "scic_phy.h"
 #include "registers.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include <scsi/libsas.h>
 
 struct scic_sds_port;

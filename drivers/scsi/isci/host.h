@@ -59,7 +59,7 @@
 #include "remote_device.h"
 #include "phy.h"
 #include "pool.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "remote_node_table.h"
 #include "registers.h"
 #include "scu_unsolicited_frame.h"

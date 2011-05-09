@@ -54,7 +54,7 @@
  */
 
 #include "host.h"
-#include "sci_base_state_machine.h"
+#include "state_machine.h"
 #include "scic_sds_port.h"
 #include "remote_device.h"
 #include "remote_node_context.h"

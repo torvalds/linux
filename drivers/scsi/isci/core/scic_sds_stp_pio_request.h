@@ -56,7 +56,6 @@
 #ifndef _SCIC_SDS_SATA_PIO_REQUEST_H_
 #define _SCIC_SDS_SATA_PIO_REQUEST_H_
 
-#include "sci_base_state.h"
 #include "scic_sds_request.h"
 #include "scu_task_context.h"
 
