@@ -138,22 +138,40 @@ return_sleep_time:
 }
 
 /**
- * next_valid_state - Find next valid c-state
+ * next_valid_state - Find next valid C-state
  * @dev: cpuidle device
- * @state: Currently selected c-state
+ * @state: Currently selected C-state
  *
  * If the current state is valid, it is returned back to the caller.
  * Else, this function searches for a lower c-state which is still
  * valid.
+ *
+ * A state is valid if the 'valid' field is enabled and
+ * if it satisfies the enable_off_mode condition.
  */
 static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 					      struct cpuidle_state *curr)
 {
 	struct cpuidle_state *next = NULL;
 	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr);
+	u32 mpu_deepest_state = PWRDM_POWER_RET;
+	u32 core_deepest_state = PWRDM_POWER_RET;
+
+	if (enable_off_mode) {
+		mpu_deepest_state = PWRDM_POWER_OFF;
+		/*
+		 * Erratum i583: valable for ES rev < Es1.2 on 3630.
+		 * CORE OFF mode is not supported in a stable form, restrict
+		 * instead the CORE state to RET.
+		 */
+		if (!IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
+			core_deepest_state = PWRDM_POWER_OFF;
+	}
 
 	/* Check if current state is valid */
-	if (cx->valid) {
+	if ((cx->valid) &&
+	    (cx->mpu_state >= mpu_deepest_state) &&
+	    (cx->core_state >= core_deepest_state)) {
 		return curr;
 	} else {
 		int idx = OMAP3_NUM_STATES - 1;
@@ -176,7 +194,9 @@ static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
 		idx--;
 		for (; idx >= 0; idx--) {
 			cx = cpuidle_get_statedata(&dev->states[idx]);
-			if (cx->valid) {
+			if ((cx->valid) &&
+			    (cx->mpu_state >= mpu_deepest_state) &&
+			    (cx->core_state >= core_deepest_state)) {
 				next = &dev->states[idx];
 				break;
 			}
@@ -258,31 +278,6 @@ select_state:
 }
 
 DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
-
-/**
- * omap3_cpuidle_update_states() - Update the cpuidle states
- * @mpu_deepest_state:	Enable states up to and including this for mpu domain
- * @core_deepest_state:	Enable states up to and including this for core domain
- *
- * This goes through the list of states available and enables and disables the
- * validity of C states based on deepest state that can be achieved for the
- * variable domain
- */
-void omap3_cpuidle_update_states(u32 mpu_deepest_state, u32 core_deepest_state)
-{
-	int i;
-
-	for (i = 0; i < OMAP3_NUM_STATES; i++) {
-		struct omap3_idle_statedata *cx = &omap3_idle_data[i];
-
-		if ((cx->mpu_state >= mpu_deepest_state) &&
-		    (cx->core_state >= core_deepest_state)) {
-			cx->valid = 1;
-		} else {
-			cx->valid = 0;
-		}
-	}
-}
 
 void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
 {
@@ -392,11 +387,6 @@ int __init omap3_idle_init(void)
 	}
 	cx->mpu_state = PWRDM_POWER_OFF;
 	cx->core_state = PWRDM_POWER_OFF;
-
-	if (enable_off_mode)
-		omap3_cpuidle_update_states(PWRDM_POWER_OFF, PWRDM_POWER_OFF);
-	else
-		omap3_cpuidle_update_states(PWRDM_POWER_RET, PWRDM_POWER_RET);
 
 	dev->state_count = OMAP3_NUM_STATES;
 	if (cpuidle_register_device(dev)) {

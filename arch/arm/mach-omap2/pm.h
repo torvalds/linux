@@ -78,10 +78,6 @@ extern u32 sleep_while_idle;
 #define sleep_while_idle 0
 #endif
 
-#if defined(CONFIG_CPU_IDLE)
-extern void omap3_cpuidle_update_states(u32, u32);
-#endif
-
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 extern void pm_dbg_update_time(struct powerdomain *pwrdm, int prev);
 extern int pm_dbg_regset_save(int reg_set);
