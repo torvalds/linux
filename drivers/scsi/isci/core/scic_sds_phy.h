@@ -58,7 +58,7 @@
 
 #include "sas.h"
 #include "scic_phy.h"
-#include "scu_registers.h"
+#include "registers.h"
 #include "sci_base_state_machine.h"
 #include <scsi/libsas.h>
 

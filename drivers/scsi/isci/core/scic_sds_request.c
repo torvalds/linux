@@ -55,13 +55,13 @@
 
 #include <scsi/sas.h>
 #include "scic_io_request.h"
-#include "scu_registers.h"
+#include "registers.h"
 #include "scic_sds_port.h"
 #include "remote_device.h"
 #include "scic_sds_request.h"
 #include "scic_sds_smp_request.h"
 #include "scic_sds_stp_request.h"
-#include "scic_sds_unsolicited_frame_control.h"
+#include "unsolicited_frame_control.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
 #include "scu_task_context.h"

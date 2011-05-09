@@ -63,8 +63,116 @@
  *
  */
 
-#include "scu_viit_data.h"
+#define SCU_VIIT_ENTRY_ID_MASK         (0xC0000000)
+#define SCU_VIIT_ENTRY_ID_SHIFT        (30)
 
+#define SCU_VIIT_ENTRY_FUNCTION_MASK   (0x0FF00000)
+#define SCU_VIIT_ENTRY_FUNCTION_SHIFT  (20)
+
+#define SCU_VIIT_ENTRY_IPPTMODE_MASK   (0x0001F800)
+#define SCU_VIIT_ENTRY_IPPTMODE_SHIFT  (12)
+
+#define SCU_VIIT_ENTRY_LPVIE_MASK      (0x00000F00)
+#define SCU_VIIT_ENTRY_LPVIE_SHIFT     (8)
+
+#define SCU_VIIT_ENTRY_STATUS_MASK     (0x000000FF)
+#define SCU_VIIT_ENTRY_STATUS_SHIFT    (0)
+
+#define SCU_VIIT_ENTRY_ID_INVALID   (0 << SCU_VIIT_ENTRY_ID_SHIFT)
+#define SCU_VIIT_ENTRY_ID_VIIT      (1 << SCU_VIIT_ENTRY_ID_SHIFT)
+#define SCU_VIIT_ENTRY_ID_IIT       (2 << SCU_VIIT_ENTRY_ID_SHIFT)
+#define SCU_VIIT_ENTRY_ID_VIRT_EXP  (3 << SCU_VIIT_ENTRY_ID_SHIFT)
+
+#define SCU_VIIT_IPPT_SSP_INITIATOR (0x01 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
+#define SCU_VIIT_IPPT_SMP_INITIATOR (0x02 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
+#define SCU_VIIT_IPPT_STP_INITIATOR (0x04 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
+#define SCU_VIIT_IPPT_INITIATOR	    \
+	(\
+		SCU_VIIT_IPPT_SSP_INITIATOR  \
+		| SCU_VIIT_IPPT_SMP_INITIATOR  \
+		| SCU_VIIT_IPPT_STP_INITIATOR  \
+	)
+
+#define SCU_VIIT_STATUS_RNC_VALID      (0x01 << SCU_VIIT_ENTRY_STATUS_SHIFT)
+#define SCU_VIIT_STATUS_ADDRESS_VALID  (0x02 << SCU_VIIT_ENTRY_STATUS_SHIFT)
+#define SCU_VIIT_STATUS_RNI_VALID      (0x04 << SCU_VIIT_ENTRY_STATUS_SHIFT)
+#define SCU_VIIT_STATUS_ALL_VALID      \
+	(\
+		SCU_VIIT_STATUS_RNC_VALID	\
+		| SCU_VIIT_STATUS_ADDRESS_VALID	  \
+		| SCU_VIIT_STATUS_RNI_VALID	  \
+	)
+
+#define SCU_VIIT_IPPT_SMP_TARGET    (0x10 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
+
+/**
+ * struct scu_viit_entry - This is the SCU Virtual Initiator Table Entry
+ *
+ *
+ */
+struct scu_viit_entry {
+	/**
+	 * This must be encoded as to the type of initiator that is being constructed
+	 * for this port.
+	 */
+	u32 status;
+
+	/**
+	 * Virtual initiator high SAS Address
+	 */
+	u32 initiator_sas_address_hi;
+
+	/**
+	 * Virtual initiator low SAS Address
+	 */
+	u32 initiator_sas_address_lo;
+
+	/**
+	 * This must be 0
+	 */
+	u32 reserved;
+
+};
+
+
+/* IIT Status Defines */
+#define SCU_IIT_ENTRY_ID_MASK                (0xC0000000)
+#define SCU_IIT_ENTRY_ID_SHIFT               (30)
+
+#define SCU_IIT_ENTRY_STATUS_UPDATE_MASK     (0x20000000)
+#define SCU_IIT_ENTRY_STATUS_UPDATE_SHIFT    (29)
+
+#define SCU_IIT_ENTRY_LPI_MASK               (0x00000F00)
+#define SCU_IIT_ENTRY_LPI_SHIFT              (8)
+
+#define SCU_IIT_ENTRY_STATUS_MASK            (0x000000FF)
+#define SCU_IIT_ENTRY_STATUS_SHIFT           (0)
+
+/* IIT Remote Initiator Defines */
+#define SCU_IIT_ENTRY_REMOTE_TAG_MASK  (0x0000FFFF)
+#define SCU_IIT_ENTRY_REMOTE_TAG_SHIFT (0)
+
+#define SCU_IIT_ENTRY_REMOTE_RNC_MASK  (0x0FFF0000)
+#define SCU_IIT_ENTRY_REMOTE_RNC_SHIFT (16)
+
+#define SCU_IIT_ENTRY_ID_INVALID   (0 << SCU_IIT_ENTRY_ID_SHIFT)
+#define SCU_IIT_ENTRY_ID_VIIT      (1 << SCU_IIT_ENTRY_ID_SHIFT)
+#define SCU_IIT_ENTRY_ID_IIT       (2 << SCU_IIT_ENTRY_ID_SHIFT)
+#define SCU_IIT_ENTRY_ID_VIRT_EXP  (3 << SCU_IIT_ENTRY_ID_SHIFT)
+
+/**
+ * struct scu_iit_entry - This will be implemented later when we support
+ *    virtual functions
+ *
+ *
+ */
+struct scu_iit_entry {
+	u32 status;
+	u32 remote_initiator_sas_address_hi;
+	u32 remote_initiator_sas_address_lo;
+	u32 remote_initiator;
+
+};
 
 /* Generate a value for an SCU register */
 #define SCU_GEN_VALUE(name, value) \

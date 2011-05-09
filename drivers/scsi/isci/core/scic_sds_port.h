@@ -59,7 +59,7 @@
 #include <linux/kernel.h>
 #include "isci.h"
 #include "sas.h"
-#include "scu_registers.h"
+#include "registers.h"
 #include "sci_base_state_machine.h"
 
 struct scic_sds_controller;

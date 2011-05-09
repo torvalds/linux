@@ -54,8 +54,8 @@
  */
 
 #include "host.h"
-#include "scic_sds_unsolicited_frame_control.h"
-#include "scu_registers.h"
+#include "unsolicited_frame_control.h"
+#include "registers.h"
 #include "sci_util.h"
 
 /**

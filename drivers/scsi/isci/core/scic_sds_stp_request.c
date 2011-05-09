@@ -62,7 +62,7 @@
 #include "scic_sds_request.h"
 #include "scic_sds_stp_pio_request.h"
 #include "scic_sds_stp_request.h"
-#include "scic_sds_unsolicited_frame_control.h"
+#include "unsolicited_frame_control.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"

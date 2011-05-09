@@ -61,9 +61,9 @@
 #include "pool.h"
 #include "sci_base_state_machine.h"
 #include "remote_node_table.h"
-#include "scu_registers.h"
+#include "registers.h"
 #include "scu_unsolicited_frame.h"
-#include "scic_sds_unsolicited_frame_control.h"
+#include "unsolicited_frame_control.h"
 #include "scic_sds_port_configuration_agent.h"
 
 struct scic_sds_request;

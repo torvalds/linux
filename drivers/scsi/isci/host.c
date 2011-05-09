@@ -66,7 +66,7 @@
 #include "sci_util.h"
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
-#include "scu_registers.h"
+#include "registers.h"
 #include "scu_remote_node_context.h"
 #include "scu_task_context.h"
 #include "scu_unsolicited_frame.h"
