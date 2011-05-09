@@ -40,11 +40,24 @@
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 2)
 
 /* Inputs */
-
 enum tm6000_itype {
-	TM6000_INPUT_TV	= 0,
-	TM6000_INPUT_COMPOSITE,
+	TM6000_INPUT_TV	= 1,
+	TM6000_INPUT_COMPOSITE1,
+	TM6000_INPUT_COMPOSITE2,
 	TM6000_INPUT_SVIDEO,
+	TM6000_INPUT_DVB,
+	TM6000_INPUT_RADIO,
+};
+
+enum tm6000_mux {
+	TM6000_VMUX_VIDEO_A = 1,
+	TM6000_VMUX_VIDEO_B,
+	TM6000_VMUX_VIDEO_AB,
+	TM6000_AMUX_ADC1,
+	TM6000_AMUX_ADC2,
+	TM6000_AMUX_SIF1,
+	TM6000_AMUX_SIF2,
+	TM6000_AMUX_I2S,
 };
 
 enum tm6000_devtype {
@@ -53,12 +66,12 @@ enum tm6000_devtype {
 	TM6010,
 };
 
-enum tm6000_inaudio {
-	TM6000_AIP_UNK = 0,
-	TM6000_AIP_SIF1,
-	TM6000_AIP_SIF2,
-	TM6000_AIP_LINE1,
-	TM6000_AIP_LINE2,
+struct tm6000_input {
+	enum tm6000_itype	type;
+	enum tm6000_mux		vmux;
+	enum tm6000_mux		amux;
+	unsigned int		v_gpio;
+	unsigned int		a_gpio;
 };
 
 /* ------------------------------------------------------------------
@@ -214,6 +227,9 @@ struct tm6000_core {
 	struct v4l2_device		v4l2_dev;
 
 	int				input;
+	struct tm6000_input		vinput[3];	/* video input */
+	struct tm6000_input		rinput;		/* radio input */
+
 	int				freq;
 	unsigned int			fourcc;
 
@@ -230,8 +246,6 @@ struct tm6000_core {
 	struct snd_tm6000_card		*adev;
 	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
 	atomic_t			stream_started;  /* stream should be running if true */
-	enum tm6000_inaudio		avideo;
-	enum tm6000_inaudio		aradio;
 
 	struct tm6000_IR		*ir;
 

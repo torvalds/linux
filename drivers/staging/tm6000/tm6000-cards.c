@@ -74,8 +74,6 @@ struct tm6000_board {
 	unsigned	eename_pos;		/* Position where it appears at ROM */
 
 	struct tm6000_capabilities caps;
-	enum            tm6000_inaudio aradio;
-	enum            tm6000_inaudio avideo;
 
 	enum		tm6000_devtype type;	/* variant of the chipset */
 	int             tuner_type;     /* type of the tuner */
@@ -84,6 +82,8 @@ struct tm6000_board {
 
 	struct tm6000_gpio gpio;
 
+	struct tm6000_input	vinput[3];
+	struct tm6000_input	rinput;
 	char		*ir_codes;
 };
 
@@ -95,6 +95,20 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
 		},
 	},
 	[TM5600_BOARD_GENERIC] = {
@@ -108,6 +122,20 @@ struct tm6000_board tm6000_boards[] = {
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM6000_BOARD_GENERIC] = {
 		.name         = "Generic tm6000 board",
@@ -119,6 +147,20 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
 		},
 	},
 	[TM6010_BOARD_GENERIC] = {
@@ -143,6 +185,20 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM5600_BOARD_10MOONS_UT821] = {
 		.name         = "10Moons UT 821",
@@ -159,6 +215,20 @@ struct tm6000_board tm6000_boards[] = {
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_1,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM5600_BOARD_10MOONS_UT330] = {
 		.name         = "10Moons UT 330",
@@ -169,6 +239,20 @@ struct tm6000_board tm6000_boards[] = {
 			.has_dvb      = 0,
 			.has_zl10353  = 0,
 			.has_eeprom   = 1,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
 		},
 	},
 	[TM6000_BOARD_ADSTECH_DUAL_TV] = {
@@ -181,6 +265,20 @@ struct tm6000_board tm6000_boards[] = {
 			.has_dvb      = 1,
 			.has_zl10353  = 1,
 			.has_eeprom   = 1,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
 		},
 	},
 	[TM6000_BOARD_FREECOM_AND_SIMILAR] = {
@@ -198,6 +296,20 @@ struct tm6000_board tm6000_boards[] = {
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_4,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM6000_BOARD_ADSTECH_MINI_DUAL_TV] = {
 		.name         = "ADSTECH Mini Dual TV USB",
@@ -212,6 +324,20 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio = {
 			.tuner_reset	= TM6000_GPIO_4,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
 		},
 	},
 	[TM6010_BOARD_HAUPPAUGE_900H] = {
@@ -239,6 +365,20 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM6010_BOARD_BEHOLD_WANDER] = {
 		.name         = "Beholder Wander DVB-T/TV/FM USB2.0",
@@ -246,8 +386,6 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
-		.avideo       = TM6000_AIP_SIF1,
-		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner      = 1,
 			.has_dvb        = 1,
@@ -263,14 +401,30 @@ struct tm6000_board tm6000_boards[] = {
 			.demod_reset	= TM6010_GPIO_1,
 			.power_led	= TM6010_GPIO_6,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
+		.rinput = {
+			.type	= TM6000_INPUT_RADIO,
+			.amux	= TM6000_AMUX_ADC1,
+		},
 	},
 	[TM6010_BOARD_BEHOLD_VOYAGER] = {
 		.name         = "Beholder Voyager TV/FM USB2.0",
 		.tuner_type   = TUNER_XC5000,
 		.tuner_addr   = 0xc2 >> 1,
 		.type         = TM6010,
-		.avideo       = TM6000_AIP_SIF1,
-		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner      = 1,
 			.has_dvb        = 0,
@@ -284,6 +438,24 @@ struct tm6000_board tm6000_boards[] = {
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
 			.power_led	= TM6010_GPIO_6,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
+		.rinput = {
+			.type	= TM6000_INPUT_RADIO,
+			.amux	= TM6000_AMUX_ADC1,
 		},
 	},
 	[TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE] = {
@@ -309,11 +481,39 @@ struct tm6000_board tm6000_boards[] = {
 			.ir		= TM6010_GPIO_0,
 		},
 		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM5600_BOARD_TERRATEC_GRABSTER] = {
 		.name         = "Terratec Grabster AV 150/250 MX",
 		.type         = TM5600,
 		.tuner_type   = TUNER_ABSENT,
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_ADC1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
@@ -337,6 +537,20 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			}, {
+			.type	= TM6000_INPUT_COMPOSITE1,
+			.vmux	= TM6000_VMUX_VIDEO_A,
+			.amux	= TM6000_AMUX_ADC2,
+			}, {
+			.type	= TM6000_INPUT_SVIDEO,
+			.vmux	= TM6000_VMUX_VIDEO_AB,
+			.amux	= TM6000_AMUX_ADC2,
+			},
+		},
 	},
 	[TM6010_BOARD_BEHOLD_WANDER_LITE] = {
 		.name         = "Beholder Wander Lite DVB-T/TV/FM USB2.0",
@@ -344,8 +558,6 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
-		.avideo       = TM6000_AIP_SIF1,
-		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner      = 1,
 			.has_dvb        = 1,
@@ -361,14 +573,22 @@ struct tm6000_board tm6000_boards[] = {
 			.demod_reset	= TM6010_GPIO_1,
 			.power_led	= TM6010_GPIO_6,
 		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			},
+		},
+		.rinput = {
+			.type	= TM6000_INPUT_RADIO,
+			.amux	= TM6000_AMUX_ADC1,
+		},
 	},
 	[TM6010_BOARD_BEHOLD_VOYAGER_LITE] = {
 		.name         = "Beholder Voyager Lite TV/FM USB2.0",
 		.tuner_type   = TUNER_XC5000,
 		.tuner_addr   = 0xc2 >> 1,
 		.type         = TM6010,
-		.avideo       = TM6000_AIP_SIF1,
-		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner      = 1,
 			.has_dvb        = 0,
@@ -382,6 +602,16 @@ struct tm6000_board tm6000_boards[] = {
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
 			.power_led	= TM6010_GPIO_6,
+		},
+		.vinput = { {
+			.type	= TM6000_INPUT_TV,
+			.vmux	= TM6000_VMUX_VIDEO_B,
+			.amux	= TM6000_AMUX_SIF1,
+			},
+		},
+		.rinput = {
+			.type	= TM6000_INPUT_RADIO,
+			.amux	= TM6000_AMUX_ADC1,
 		},
 	},
 };
@@ -763,8 +993,11 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 
 	dev->caps = tm6000_boards[dev->model].caps;
 
-	dev->avideo = tm6000_boards[dev->model].avideo;
-	dev->aradio = tm6000_boards[dev->model].aradio;
+	dev->vinput[0] = tm6000_boards[dev->model].vinput[0];
+	dev->vinput[1] = tm6000_boards[dev->model].vinput[1];
+	dev->vinput[2] = tm6000_boards[dev->model].vinput[2];
+	dev->rinput = tm6000_boards[dev->model].rinput;
+
 	/* initialize hardware */
 	rc = tm6000_init(dev);
 	if (rc < 0)

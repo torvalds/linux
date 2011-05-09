@@ -661,20 +661,25 @@ int tm6000_set_audio_input(struct tm6000_core *dev, enum tm6000_inaudio ainp)
 {
 	if (dev->dev_type == TM6010) {
 		/* Audio crossbar setting, default SIF1 */
-		u8 areg_f0 = 0x03;
+		u8 areg_f0;
 
-		switch (ainp) {
-		case TM6000_AIP_SIF1:
-		case TM6000_AIP_SIF2:
+		switch (dev->rinput.amux) {
+		case TM6000_AMUX_SIF1:
+		case TM6000_AMUX_SIF2:
 			areg_f0 = 0x03;
 			break;
-		case TM6000_AIP_LINE1:
+		case TM6000_AMUX_ADC1:
 			areg_f0 = 0x00;
 			break;
-		case TM6000_AIP_LINE2:
+		case TM6000_AMUX_ADC2:
 			areg_f0 = 0x08;
 			break;
+		case TM6000_AMUX_I2S:
+			areg_f0 = 0x04;
+			break;
 		default:
+			printk(KERN_INFO "%s: audio input dosn't support\n",
+				dev->name);
 			return 0;
 			break;
 		}
@@ -682,17 +687,18 @@ int tm6000_set_audio_input(struct tm6000_core *dev, enum tm6000_inaudio ainp)
 		tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 							areg_f0, 0x0f);
 	} else {
+		u8 areg_eb;
 		/* Audio setting, default LINE1 */
-		u8 areg_eb = 0x00;
-
-		switch (ainp) {
-		case TM6000_AIP_LINE1:
+		switch (dev->rinput.amux) {
+		case TM6000_AMUX_ADC1:
 			areg_eb = 0x00;
 			break;
-		case TM6000_AIP_LINE2:
+		case TM6000_AMUX_ADC2:
 			areg_eb = 0x04;
 			break;
 		default:
+			printk(KERN_INFO "%s: audio input dosn't support\n",
+				dev->name);
 			return 0;
 			break;
 		}
@@ -736,16 +742,16 @@ void tm6010_set_mute_adc(struct tm6000_core *dev, u8 mute)
 
 int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
 {
-	enum tm6000_inaudio ainp;
+	enum tm6000_mux mux;
 
 	if (dev->radio)
-		ainp = dev->aradio;
+		mux = dev->rinput.amux;
 	else
-		ainp = dev->avideo;
+		mux = dev->vinput[dev->input].amux;
 
-	switch (ainp) {
-	case TM6000_AIP_SIF1:
-	case TM6000_AIP_SIF2:
+	switch (mux) {
+	case TM6000_AMUX_SIF1:
+	case TM6000_AMUX_SIF2:
 		if (dev->dev_type == TM6010)
 			tm6010_set_mute_sif(dev, mute);
 		else {
@@ -755,8 +761,8 @@ int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
 			return -EINVAL;
 		}
 		break;
-	case TM6000_AIP_LINE1:
-	case TM6000_AIP_LINE2:
+	case TM6000_AMUX_ADC1:
+	case TM6000_AMUX_ADC2:
 		tm6010_set_mute_adc(dev, mute);
 		break;
 	default:
@@ -797,17 +803,17 @@ void tm6010_set_volume_adc(struct tm6000_core *dev, int vol)
 
 void tm6000_set_volume(struct tm6000_core *dev, int vol)
 {
-	enum tm6000_inaudio ainp;
+	enum tm6000_mux mux;
 
 	if (dev->radio) {
-		ainp = dev->aradio;
+		mux = dev->rinput.amux;
 		vol += 8; /* Offset to 0 dB */
 	} else
-		ainp = dev->avideo;
+		mux = dev->vinput[dev->input].amux;
 
-	switch (ainp) {
-	case TM6000_AIP_SIF1:
-	case TM6000_AIP_SIF2:
+	switch (mux) {
+	case TM6000_AMUX_SIF1:
+	case TM6000_AMUX_SIF2:
 		if (dev->dev_type == TM6010)
 			tm6010_set_volume_sif(dev, vol);
 		else
@@ -815,8 +821,8 @@ void tm6000_set_volume(struct tm6000_core *dev, int vol)
 					" SIF audio inputs. Please check the %s"
 					" configuration.\n", dev->name);
 		break;
-	case TM6000_AIP_LINE1:
-	case TM6000_AIP_LINE2:
+	case TM6000_AMUX_ADC1:
+	case TM6000_AMUX_ADC2:
 		tm6010_set_volume_adc(dev, vol);
 		break;
 	default:
