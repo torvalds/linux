@@ -117,12 +117,14 @@ extern int		ip_generic_getfrag(void *from, char *to, int offset, int len, int od
 extern ssize_t		ip_append_page(struct sock *sk, struct page *page,
 				int offset, size_t size, int flags);
 extern struct sk_buff  *__ip_make_skb(struct sock *sk,
+				      struct flowi4 *fl4,
 				      struct sk_buff_head *queue,
 				      struct inet_cork *cork);
 extern int		ip_send_skb(struct sk_buff *skb);
-extern int		ip_push_pending_frames(struct sock *sk);
+extern int		ip_push_pending_frames(struct sock *sk, struct flowi4 *fl4);
 extern void		ip_flush_pending_frames(struct sock *sk);
 extern struct sk_buff  *ip_make_skb(struct sock *sk,
+				    struct flowi4 *fl4,
 				    int getfrag(void *from, char *to, int offset, int len,
 						int odd, struct sk_buff *skb),
 				    void *from, int length, int transhdrlen,
@@ -130,9 +132,9 @@ extern struct sk_buff  *ip_make_skb(struct sock *sk,
 				    struct rtable **rtp,
 				    unsigned int flags);
 
-static inline struct sk_buff *ip_finish_skb(struct sock *sk)
+static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 {
-	return __ip_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
+	return __ip_make_skb(sk, fl4, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
 }
 
 /* datagram.c */

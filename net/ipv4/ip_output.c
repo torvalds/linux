@@ -1267,6 +1267,7 @@ static void ip_cork_release(struct inet_cork *cork)
  *	and push them out.
  */
 struct sk_buff *__ip_make_skb(struct sock *sk,
+			      struct flowi4 *fl4,
 			      struct sk_buff_head *queue,
 			      struct inet_cork *cork)
 {
@@ -1333,8 +1334,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	ip_select_ident(iph, &rt->dst, sk);
 	iph->ttl = ttl;
 	iph->protocol = sk->sk_protocol;
-	iph->saddr = rt->rt_src;
-	iph->daddr = rt->rt_dst;
+	iph->saddr = fl4->saddr;
+	iph->daddr = fl4->daddr;
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
@@ -1370,11 +1371,11 @@ int ip_send_skb(struct sk_buff *skb)
 	return err;
 }
 
-int ip_push_pending_frames(struct sock *sk)
+int ip_push_pending_frames(struct sock *sk, struct flowi4 *fl4)
 {
 	struct sk_buff *skb;
 
-	skb = ip_finish_skb(sk);
+	skb = ip_finish_skb(sk, fl4);
 	if (!skb)
 		return 0;
 
@@ -1403,6 +1404,7 @@ void ip_flush_pending_frames(struct sock *sk)
 }
 
 struct sk_buff *ip_make_skb(struct sock *sk,
+			    struct flowi4 *fl4,
 			    int getfrag(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length, int transhdrlen,
@@ -1432,7 +1434,7 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 		return ERR_PTR(err);
 	}
 
-	return __ip_make_skb(sk, &queue, &cork);
+	return __ip_make_skb(sk, fl4, &queue, &cork);
 }
 
 /*
@@ -1461,6 +1463,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options_data replyopts;
 	struct ipcm_cookie ipc;
+	struct flowi4 fl4;
 	__be32 daddr;
 	struct rtable *rt = skb_rtable(skb);
 
@@ -1478,20 +1481,16 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 			daddr = replyopts.opt.opt.faddr;
 	}
 
-	{
-		struct flowi4 fl4;
-
-		flowi4_init_output(&fl4, arg->bound_dev_if, 0,
-				   RT_TOS(ip_hdr(skb)->tos),
-				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-				   ip_reply_arg_flowi_flags(arg),
-				   daddr, rt->rt_spec_dst,
-				   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
-		security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
-		rt = ip_route_output_key(sock_net(sk), &fl4);
-		if (IS_ERR(rt))
-			return;
-	}
+	flowi4_init_output(&fl4, arg->bound_dev_if, 0,
+			   RT_TOS(ip_hdr(skb)->tos),
+			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+			   ip_reply_arg_flowi_flags(arg),
+			   daddr, rt->rt_spec_dst,
+			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
+	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
+	rt = ip_route_output_key(sock_net(sk), &fl4);
+	if (IS_ERR(rt))
+		return;
 
 	/* And let IP do all the hard work.
 
@@ -1512,7 +1511,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 			  arg->csumoffset) = csum_fold(csum_add(skb->csum,
 								arg->csum));
 		skb->ip_summed = CHECKSUM_NONE;
-		ip_push_pending_frames(sk);
+		ip_push_pending_frames(sk, &fl4);
 	}
 
 	bh_unlock_sock(sk);

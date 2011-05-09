@@ -314,9 +314,10 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
-			struct rtable **rtp,
-			unsigned int flags)
+static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
+			   void *from, size_t length,
+			   struct rtable **rtp,
+			   unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
@@ -327,7 +328,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	struct rtable *rt = *rtp;
 
 	if (length > rt->dst.dev->mtu) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport,
+		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport,
 			       rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
@@ -372,7 +373,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 
 	if (iphlen >= sizeof(*iph)) {
 		if (!iph->saddr)
-			iph->saddr = rt->rt_src;
+			iph->saddr = fl4->saddr;
 		iph->check   = 0;
 		iph->tot_len = htons(length);
 		if (!iph->id)
@@ -455,6 +456,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = NULL;
+	struct flowi4 fl4;
 	int free = 0;
 	__be32 daddr;
 	__be32 saddr;
@@ -558,27 +560,23 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			saddr = inet->mc_addr;
 	}
 
-	{
-		struct flowi4 fl4;
+	flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
+			   RT_SCOPE_UNIVERSE,
+			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			   FLOWI_FLAG_CAN_SLEEP, daddr, saddr, 0, 0);
 
-		flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
-				   RT_SCOPE_UNIVERSE,
-				   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
-				   FLOWI_FLAG_CAN_SLEEP, daddr, saddr, 0, 0);
-
-		if (!inet->hdrincl) {
-			err = raw_probe_proto_opt(&fl4, msg);
-			if (err)
-				goto done;
-		}
-
-		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
-		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
-		if (IS_ERR(rt)) {
-			err = PTR_ERR(rt);
-			rt = NULL;
+	if (!inet->hdrincl) {
+		err = raw_probe_proto_opt(&fl4, msg);
+		if (err)
 			goto done;
-		}
+	}
+
+	security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+	rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
+	if (IS_ERR(rt)) {
+		err = PTR_ERR(rt);
+		rt = NULL;
+		goto done;
 	}
 
 	err = -EACCES;
@@ -590,19 +588,20 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 back_from_confirm:
 
 	if (inet->hdrincl)
-		err = raw_send_hdrinc(sk, msg->msg_iov, len,
-					&rt, msg->msg_flags);
+		err = raw_send_hdrinc(sk, &fl4, msg->msg_iov, len,
+				      &rt, msg->msg_flags);
 
 	 else {
 		if (!ipc.addr)
-			ipc.addr = rt->rt_dst;
+			ipc.addr = fl4.daddr;
 		lock_sock(sk);
-		err = ip_append_data(sk, ip_generic_getfrag, msg->msg_iov, len, 0,
-					&ipc, &rt, msg->msg_flags);
+		err = ip_append_data(sk, ip_generic_getfrag,
+				     msg->msg_iov, len, 0,
+				     &ipc, &rt, msg->msg_flags);
 		if (err)
 			ip_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE)) {
-			err = ip_push_pending_frames(sk);
+			err = ip_push_pending_frames(sk, &fl4);
 			if (err == -ENOBUFS && !inet->recverr)
 				err = 0;
 		}
