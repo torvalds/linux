@@ -1094,8 +1094,6 @@ extern void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode);
 extern void wlc_2064_vco_cal(phy_info_t *pi);
 
 extern void wlc_phy_txpower_recalc_target(phy_info_t *pi);
-extern u32 wlc_phy_qdiv_roundup(u32 dividend, u32 divisor,
-				   u8 precision);
 
 #define LCNPHY_TBL_ID_PAPDCOMPDELTATBL	0x18
 #define LCNPHY_TX_POWER_TABLE_SIZE	128

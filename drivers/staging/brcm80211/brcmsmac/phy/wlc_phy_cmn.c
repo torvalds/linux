@@ -3312,31 +3312,6 @@ wlc_phy_get_pwrdet_offsets(phy_info_t *pi, s8 *cckoffset, s8 *ofdmoffset)
 	*ofdmoffset = 0;
 }
 
-u32 wlc_phy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
-{
-	u32 quotient, remainder, roundup, rbit;
-
-	quotient = dividend / divisor;
-	remainder = dividend % divisor;
-	rbit = divisor & 1;
-	roundup = (divisor >> 1) + rbit;
-
-	while (precision--) {
-		quotient <<= 1;
-		if (remainder >= roundup) {
-			quotient++;
-			remainder = ((remainder - roundup) << 1) + rbit;
-		} else {
-			remainder <<= 1;
-		}
-	}
-
-	if (remainder >= roundup)
-		quotient++;
-
-	return quotient;
-}
-
 s8 wlc_phy_upd_rssi_offset(phy_info_t *pi, s8 rssi, chanspec_t chanspec)
 {
 
