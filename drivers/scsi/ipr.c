@@ -5200,7 +5200,8 @@ static int ipr_build_ioadl64(struct ipr_ioa_cfg *ioa_cfg,
 
 	nseg = scsi_dma_map(scsi_cmd);
 	if (nseg < 0) {
-		dev_err(&ioa_cfg->pdev->dev, "pci_map_sg failed!\n");
+		if (printk_ratelimit())
+			dev_err(&ioa_cfg->pdev->dev, "pci_map_sg failed!\n");
 		return -1;
 	}
 
