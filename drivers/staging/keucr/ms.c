@@ -25,10 +25,10 @@ int MS_ReaderCopyBlock(struct us_data *us, WORD oldphy, WORD newphy, WORD PhyBlo
 	bcb->CDB[1]			= 0x08;
 	bcb->CDB[4]			= (BYTE)(oldphy);
 	bcb->CDB[3]			= (BYTE)(oldphy>>8);
-	bcb->CDB[2]			= (BYTE)(oldphy>>16);
+	bcb->CDB[2]			= 0; /* (BYTE)(oldphy>>16) */
 	bcb->CDB[7]			= (BYTE)(newphy);
 	bcb->CDB[6]			= (BYTE)(newphy>>8);
-	bcb->CDB[5]			= (BYTE)(newphy>>16);
+	bcb->CDB[5]			= 0; /* (BYTE)(newphy>>16) */
 	bcb->CDB[9]			= (BYTE)(PhyBlockAddr);
 	bcb->CDB[8]			= (BYTE)(PhyBlockAddr>>8);
 	bcb->CDB[10]		= PageNum;
@@ -786,7 +786,8 @@ int MS_LibErrorPhyBlock(struct us_data *us, WORD phyblk)
     MS_LibSetAcquiredErrorBlock(us, phyblk);
 
     if (MS_LibIsWritable(us))
-        return MS_LibOverwriteExtra(us, phyblk, 0, (BYTE)(~MS_REG_OVR_BKST));
+        return MS_LibOverwriteExtra(us, phyblk, 0,
+				(BYTE)(~MS_REG_OVR_BKST & BYTE_MASK));
 
 
     return MS_STATUS_SUCCESS;
