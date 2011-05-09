@@ -269,8 +269,13 @@ interrupt_base_book3e:					/* fake trap */
 	EXCEPTION_STUB(0x1a0, watchdog)			/* 0x09f0 */
 	EXCEPTION_STUB(0x1c0, data_tlb_miss)
 	EXCEPTION_STUB(0x1e0, instruction_tlb_miss)
+	EXCEPTION_STUB(0x260, perfmon)
 	EXCEPTION_STUB(0x280, doorbell)
 	EXCEPTION_STUB(0x2a0, doorbell_crit)
+	EXCEPTION_STUB(0x2c0, guest_doorbell)
+	EXCEPTION_STUB(0x2e0, guest_doorbell_crit)
+	EXCEPTION_STUB(0x300, hypercall)
+	EXCEPTION_STUB(0x320, ehpriv)
 
 	.globl interrupt_end_book3e
 interrupt_end_book3e:
@@ -514,6 +519,8 @@ kernel_dbg_exc:
 	bl	.DebugException
 	b	.ret_from_except
 
+	MASKABLE_EXCEPTION(0x260, perfmon, .performance_monitor_exception, ACK_NONE)
+
 /* Doorbell interrupt */
 	MASKABLE_EXCEPTION(0x2070, doorbell, .doorbell_exception, ACK_NONE)
 
@@ -527,6 +534,11 @@ kernel_dbg_exc:
 //	bl	.doorbell_critical_exception
 //	b	ret_from_crit_except
 	b	.
+
+	MASKABLE_EXCEPTION(0x2c0, guest_doorbell, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x2e0, guest_doorbell_crit, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x310, hypercall, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x320, ehpriv, .unknown_exception, ACK_NONE)
 
 
 /*
@@ -647,7 +659,12 @@ fast_exception_return:
 BAD_STACK_TRAMPOLINE(0x000)
 BAD_STACK_TRAMPOLINE(0x100)
 BAD_STACK_TRAMPOLINE(0x200)
+BAD_STACK_TRAMPOLINE(0x260)
+BAD_STACK_TRAMPOLINE(0x2c0)
+BAD_STACK_TRAMPOLINE(0x2e0)
 BAD_STACK_TRAMPOLINE(0x300)
+BAD_STACK_TRAMPOLINE(0x310)
+BAD_STACK_TRAMPOLINE(0x320)
 BAD_STACK_TRAMPOLINE(0x400)
 BAD_STACK_TRAMPOLINE(0x500)
 BAD_STACK_TRAMPOLINE(0x600)
@@ -1182,4 +1199,34 @@ _GLOBAL(__setup_base_ivors)
 
 	sync
 
+	blr
+
+_GLOBAL(setup_perfmon_ivor)
+	SET_IVOR(35, 0x260) /* Performance Monitor */
+	blr
+
+_GLOBAL(setup_doorbell_ivors)
+	SET_IVOR(36, 0x280) /* Processor Doorbell */
+	SET_IVOR(37, 0x2a0) /* Processor Doorbell Crit */
+
+	/* Check MMUCFG[LPIDSIZE] to determine if we have category E.HV */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beqlr
+
+	SET_IVOR(38, 0x2c0) /* Guest Processor Doorbell */
+	SET_IVOR(39, 0x2e0) /* Guest Processor Doorbell Crit/MC */
+	blr
+
+_GLOBAL(setup_ehv_ivors)
+	/*
+	 * We may be running as a guest and lack E.HV even on a chip
+	 * that normally has it.
+	 */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beqlr
+
+	SET_IVOR(40, 0x300) /* Embedded Hypervisor System Call */
+	SET_IVOR(41, 0x320) /* Embedded Hypervisor Privilege */
 	blr
