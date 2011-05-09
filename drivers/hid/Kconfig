@@ -306,6 +306,7 @@ config HID_MULTITOUCH
 	  - Cando dual touch panel
 	  - Cypress TrueTouch panels
 	  - Hanvon dual touch panels
+	  - Ilitek dual touch panel
 	  - IrTouch Infrared USB panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
