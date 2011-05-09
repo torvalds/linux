@@ -674,6 +674,7 @@ int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
 	}
 
 	strcpy(dirent->d_name, nameptr);
+	kfree(nameptr);
 
 out:
 	return fake_pdu.offset;
