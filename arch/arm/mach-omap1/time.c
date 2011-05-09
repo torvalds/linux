@@ -189,20 +189,6 @@ static __init void omap_init_mpu_timer(unsigned long rate)
  * ---------------------------------------------------------------------------
  */
 
-static unsigned long omap_mpu_timer2_overflows;
-
-static irqreturn_t omap_mpu_timer2_interrupt(int irq, void *dev_id)
-{
-	omap_mpu_timer2_overflows++;
-	return IRQ_HANDLED;
-}
-
-static struct irqaction omap_mpu_timer2_irq = {
-	.name		= "mpu_timer2",
-	.flags		= IRQF_DISABLED,
-	.handler	= omap_mpu_timer2_interrupt,
-};
-
 static cycle_t mpu_read(struct clocksource *cs)
 {
 	return ~omap_mpu_timer_read(1);
@@ -247,7 +233,6 @@ static void __init omap_init_clocksource(unsigned long rate)
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
 
-	setup_irq(INT_TIMER2, &omap_mpu_timer2_irq);
 	omap_mpu_timer_start(1, ~0, 1);
 	init_sched_clock(&cd, mpu_update_sched_clock, 32, rate);
 
