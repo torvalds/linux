@@ -1504,13 +1504,14 @@ static int _regulator_force_disable(struct regulator_dev *rdev,
  */
 int regulator_force_disable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
 	struct regulator_dev *supply_rdev = NULL;
 	int ret;
 
-	mutex_lock(&regulator->rdev->mutex);
+	mutex_lock(&rdev->mutex);
 	regulator->uA_load = 0;
-	ret = _regulator_force_disable(regulator->rdev, &supply_rdev);
-	mutex_unlock(&regulator->rdev->mutex);
+	ret = _regulator_force_disable(rdev, &supply_rdev);
+	mutex_unlock(&rdev->mutex);
 
 	if (supply_rdev)
 		regulator_disable(get_device_regulator(rdev_get_dev(supply_rdev)));
