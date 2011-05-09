@@ -100,8 +100,8 @@ static int psb_gem_create(struct drm_file *file,
 	/* Allocate our object - for now a direct gtt range which is not 
 	   stolen memory backed */
 	r = psb_gtt_alloc_range(dev, size, "gem", 0);
-	if (IS_ERR(r))
-		return PTR_ERR(r);
+	if (r == NULL)
+		return -ENOSPC;
 	/* Initialize the extra goodies GEM needs to do all the hard work */
 	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
 		psb_gtt_free_range(dev, r);
@@ -135,7 +135,7 @@ static int psb_gem_create(struct drm_file *file,
 int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args)
 {
-	args->pitch = ALIGN(args->width & ((args->bpp + 1) / 8), 64);
+	args->pitch = ALIGN(args->width * ((args->bpp + 7) / 8), 64);
 	args->size = args->pitch * args->height;
 	return psb_gem_create(file, dev, args->size, &args->handle);
 }

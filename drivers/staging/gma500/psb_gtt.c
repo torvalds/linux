@@ -277,7 +277,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
         } else {
                 /* The rest we will use for GEM backed objects */
                 start = r->start + dev_priv->pg->stolen_size;
-                end = -1;
+                end = r->end;
         }
 
 	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
