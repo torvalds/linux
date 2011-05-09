@@ -293,6 +293,8 @@ asmlinkage long compat_sys_times(struct compat_tms __user *tbuf)
 	return compat_jiffies_to_clock_t(jiffies);
 }
 
+#ifdef __ARCH_WANT_SYS_SIGPENDING
+
 /*
  * Assumption: old_sigset_t and compat_old_sigset_t are both
  * types that can be passed to put_user()/get_user().
@@ -311,6 +313,10 @@ asmlinkage long compat_sys_sigpending(compat_old_sigset_t __user *set)
 		ret = put_user(s, set);
 	return ret;
 }
+
+#endif
+
+#ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
 asmlinkage long compat_sys_sigprocmask(int how, compat_old_sigset_t __user *set,
 		compat_old_sigset_t __user *oset)
@@ -332,6 +338,8 @@ asmlinkage long compat_sys_sigprocmask(int how, compat_old_sigset_t __user *set,
 			ret = put_user(s, oset);
 	return ret;
 }
+
+#endif
 
 asmlinkage long compat_sys_setrlimit(unsigned int resource,
 		struct compat_rlimit __user *rlim)

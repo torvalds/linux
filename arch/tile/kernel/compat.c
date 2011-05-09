@@ -135,7 +135,7 @@ long tile_compat_sys_msgrcv(int msqid,
 
 /* Provide the compat syscall number to call mapping. */
 #undef __SYSCALL
-#define __SYSCALL(nr, call) [nr] = (compat_##call),
+#define __SYSCALL(nr, call) [nr] = (call),
 
 /* The generic versions of these don't work for Tile. */
 #define compat_sys_msgrcv tile_compat_sys_msgrcv
