@@ -327,7 +327,7 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 
 	msleep(100);
-	tm6000_set_standard(dev, &dev->norm);
+	tm6000_set_standard(dev);
 	tm6000_set_vbi(dev);
 	tm6000_set_audio_bitrate(dev, 48000);
 
@@ -489,14 +489,6 @@ struct reg_init tm6010_init_tab[] = {
 	{ TM6010_REQ08_REB_SIF_GAIN_CTRL, 0xf0 },
 	{ TM6010_REQ08_REC_REVERSE_YC_CTRL, 0xc2 },
 	{ TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG, 0x60 },
-	{ TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00},
-	{ TM6010_REQ08_R04_A_SIF_AMP_CTRL, 0x80},
-	{ TM6010_REQ08_R0C_A_ASD_THRES2, 0x0a},
-	{ TM6010_REQ08_R0D_A_AMD_THRES, 0x40},
-	{ TM6010_REQ08_R1A_A_NICAM_SER_MAX, 0x64},
-	{ TM6010_REQ08_R1B_A_NICAM_SER_MIN, 0x20},
-	{ TM6010_REQ08_R16_A_AGC_GAIN_MAX, 0xfe},
-	{ TM6010_REQ08_R17_A_AGC_GAIN_MIN, 0x01},
 	{ TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc },
 
 	{ TM6010_REQ07_R3F_RESET, 0x01 },
@@ -657,7 +649,7 @@ int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 }
 EXPORT_SYMBOL_GPL(tm6000_set_audio_bitrate);
 
-int tm6000_set_audio_input(struct tm6000_core *dev, enum tm6000_inaudio ainp)
+int tm6000_set_audio_rinput(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
 		/* Audio crossbar setting, default SIF1 */

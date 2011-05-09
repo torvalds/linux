@@ -1271,6 +1271,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	dprintk(dev, 3, "audio mode: %x\n", t->audmode);
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
+
 	return 0;
 }
 
@@ -1537,15 +1538,11 @@ static int tm6000_open(struct file *file)
 
 	if (fh->radio) {
 		dprintk(dev, V4L2_DEBUG_OPEN, "video_open: setting radio device\n");
-		tm6000_set_audio_input(dev, dev->aradio);
-		tm6000_set_volume(dev, dev->ctl_volume);
+		dev->input = 5;
+		tm6000_set_audio_rinput(dev);
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_radio);
 		tm6000_prepare_isoc(dev);
 		tm6000_start_thread(dev);
-	}
-	else {
-		tm6000_set_audio_input(dev, dev->avideo);
-		tm6000_set_volume(dev, dev->ctl_volume);
 	}
 
 	return 0;
