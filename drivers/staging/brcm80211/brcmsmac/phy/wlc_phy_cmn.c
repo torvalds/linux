@@ -18,10 +18,12 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bcmdefs.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+
+#include <bcmdefs.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
@@ -2746,20 +2748,15 @@ s8 lcnphy_gain_index_offset_for_pkt_rssi[] = {
 
 void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 {
-	u8 shift_ct, lsb, msb, secondmsb, i;
+	u8 msb, secondmsb, i;
 	u32 tmp;
 
 	for (i = 0; i < core; i++) {
+		secondmsb = 0;
 		tmp = cmplx_pwr[i];
-		shift_ct = msb = secondmsb = 0;
-		while (tmp != 0) {
-			tmp = tmp >> 1;
-			shift_ct++;
-			lsb = (u8) (tmp & 1);
-			if (lsb == 1)
-				msb = shift_ct;
-		}
-		secondmsb = (u8) ((cmplx_pwr[i] >> (msb - 1)) & 1);
+		msb = fls(tmp);
+		if (msb)
+			secondmsb = (u8) ((tmp >> (--msb - 1)) & 1);
 		p_cmplx_pwr_dB[i] = (s8) (3 * msb + 2 * secondmsb);
 	}
 }
