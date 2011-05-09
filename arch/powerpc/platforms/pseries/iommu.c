@@ -1029,10 +1029,10 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
 		return -EIO;
 
+	pdev = to_pci_dev(dev);
+
 	/* only attempt to use a new window if 64-bit DMA is requested */
 	if (!disable_ddw && dma_mask == DMA_BIT_MASK(64)) {
-		pdev = to_pci_dev(dev);
-
 		dn = pci_device_to_OF_node(pdev);
 		dev_dbg(dev, "node is %s\n", dn->full_name);
 
@@ -1063,6 +1063,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	if (!ddw_enabled) {
 		dev_info(dev, "Using 32-bit DMA via iommu\n");
 		set_dma_ops(dev, &dma_iommu_ops);
+		pci_dma_dev_setup_pSeriesLP(pdev);
 	}
 
 	*dev->dma_mask = dma_mask;
