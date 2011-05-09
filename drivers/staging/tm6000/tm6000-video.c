@@ -344,17 +344,14 @@ static int copy_streams(u8 *data, unsigned long len,
 				if (vbuf)
 					memcpy(&voutp[pos], ptr, cpysize);
 				break;
-			case TM6000_URB_MSG_AUDIO:
-				/* Need some code to copy audio buffer */
-				if (dev->fourcc == V4L2_PIX_FMT_YUYV) {
-					/* Swap word bytes */
-					int i;
+			case TM6000_URB_MSG_AUDIO: {
+				int i;
+				for (i = 0; i < cpysize; i += 2)
+					swab16s((u16 *)(ptr + i));
 
-					for (i = 0; i < cpysize; i += 2)
-						swab16s((u16 *)(ptr + i));
-				}
 				tm6000_call_fillbuf(dev, TM6000_AUDIO, ptr, cpysize);
 				break;
+			}
 			case TM6000_URB_MSG_VBI:
 				/* Need some code to copy vbi buffer */
 				break;
