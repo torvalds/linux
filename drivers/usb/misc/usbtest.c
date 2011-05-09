@@ -268,9 +268,9 @@ static inline void simple_fill_buf(struct urb *urb)
 	}
 }
 
-static inline unsigned buffer_offset(void *buf)
+static inline unsigned long buffer_offset(void *buf)
 {
-	return (unsigned)buf & (ARCH_KMALLOC_MINALIGN - 1);
+	return (unsigned long)buf & (ARCH_KMALLOC_MINALIGN - 1);
 }
 
 static int check_guard_bytes(struct usbtest_dev *tdev, struct urb *urb)
@@ -329,7 +329,7 @@ static int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 
 static void simple_free_urb(struct urb *urb)
 {
-	unsigned offset = buffer_offset(urb->transfer_buffer);
+	unsigned long offset = buffer_offset(urb->transfer_buffer);
 
 	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 		usb_free_coherent(
