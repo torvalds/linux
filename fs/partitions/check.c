@@ -258,8 +258,7 @@ ssize_t part_discard_alignment_show(struct device *dev,
 	struct gendisk *disk = dev_to_disk(dev);
 
 	return sprintf(buf, "%u\n",
-		       (unsigned long long)queue_limit_discard_alignment(
-							&disk->queue->limits,
+			queue_limit_discard_alignment(&disk->queue->limits,
 							p->start_sect));
 }
 
