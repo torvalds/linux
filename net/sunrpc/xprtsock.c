@@ -495,6 +495,16 @@ static int xs_nospace(struct rpc_task *task)
 	return ret;
 }
 
+/*
+ * Construct a stream transport record marker in @buf.
+ */
+static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
+{
+	u32 reclen = buf->len - sizeof(rpc_fraghdr);
+	rpc_fraghdr *base = buf->head[0].iov_base;
+	*base = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT | reclen);
+}
+
 /**
  * xs_udp_send_request - write an RPC request to a UDP socket
  * @task: address of RPC task that manages the state of an RPC request
@@ -574,13 +584,6 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 		kernel_sock_shutdown(sock, SHUT_WR);
 }
 
-static inline void xs_encode_tcp_record_marker(struct xdr_buf *buf)
-{
-	u32 reclen = buf->len - sizeof(rpc_fraghdr);
-	rpc_fraghdr *base = buf->head[0].iov_base;
-	*base = htonl(RPC_LAST_STREAM_FRAGMENT | reclen);
-}
-
 /**
  * xs_tcp_send_request - write an RPC request to a TCP socket
  * @task: address of RPC task that manages the state of an RPC request
@@ -603,7 +606,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct xdr_buf *xdr = &req->rq_snd_buf;
 	int status;
 
-	xs_encode_tcp_record_marker(&req->rq_snd_buf);
+	xs_encode_stream_record_marker(&req->rq_snd_buf);
 
 	xs_pktdump("packet data:",
 				req->rq_svec->iov_base,
@@ -2024,10 +2027,7 @@ static int bc_sendto(struct rpc_rqst *req)
 	unsigned long headoff;
 	unsigned long tailoff;
 
-	/*
-	 * Set up the rpc header and record marker stuff
-	 */
-	xs_encode_tcp_record_marker(xbufp);
+	xs_encode_stream_record_marker(xbufp);
 
 	tailoff = (unsigned long)xbufp->tail[0].iov_base & ~PAGE_MASK;
 	headoff = (unsigned long)xbufp->head[0].iov_base & ~PAGE_MASK;
