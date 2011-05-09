@@ -340,7 +340,9 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		 */
 		wiphy_err(wiphy, "%s: %s: %sassociated\n", KBUILD_MODNAME,
 			  __func__, info->assoc ? "" : "dis");
+		WL_LOCK(wl);
 		wlc_associate_upd(wl->wlc, info->assoc);
+		WL_UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		/* slot timing changed */
@@ -356,12 +358,15 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HT) {
 		/* 802.11n parameters changed */
 		u16 mode = info->ht_operation_mode;
+
+		WL_LOCK(wl);
 		wlc_protection_upd(wl->wlc, WLC_PROT_N_CFG,
 			mode & IEEE80211_HT_OP_MODE_PROTECTION);
 		wlc_protection_upd(wl->wlc, WLC_PROT_N_NONGF,
 			mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 		wlc_protection_upd(wl->wlc, WLC_PROT_N_OBSS,
 			mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
+		WL_UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		struct ieee80211_supported_band *bi;
@@ -370,13 +375,11 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		struct wl_rateset rs;
 		int error;
 
-		/* Basic rateset changed */
-		no_printk("%s: change basic rates: 0x%x\n",
-			 __func__, (u32) info->basic_rates);
-
 		/* retrieve the current rates */
+		WL_LOCK(wl);
 		error = wlc_ioctl(wl->wlc, WLC_GET_CURR_RATESET,
 				  &rs, sizeof(rs), NULL);
+		WL_UNLOCK(wl);
 		if (error) {
 			wiphy_err(wiphy, "%s: retrieve rateset failed: %d\n",
 				  __func__, error);
@@ -394,11 +397,15 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		}
 
 		/* update the rate set */
+		WL_LOCK(wl);
 		wlc_ioctl(wl->wlc, WLC_SET_RATESET, &rs, sizeof(rs), NULL);
+		WL_UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
+		WL_LOCK(wl);
 		wlc_set(wl->wlc, WLC_SET_BCNPRD, info->beacon_int);
+		WL_UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
