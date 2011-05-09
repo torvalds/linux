@@ -1313,13 +1313,6 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/* always available as we are SIGIO'd */
-static unsigned int psb_poll(struct file *filp,
-			     struct poll_table_struct *wait)
-{
-	return POLLIN | POLLRDNORM;
-}
-
 static int psb_driver_open(struct drm_device *dev, struct drm_file *priv)
 {
 	return 0;
@@ -1345,29 +1338,9 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		pm_runtime_allow(&dev->pdev->dev);
 		dev_priv->rpm_enabled = 1;
 	}
-	/*
-	 * The driver private ioctls should be thread-safe.
-	 */
-
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
-	     && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		struct drm_ioctl_desc *ioctl =
-					&psb_ioctls[nr - DRM_COMMAND_BASE];
-
-		if (unlikely(ioctl->cmd != cmd)) {
-			DRM_ERROR(
-				"Invalid drm cmnd %d ioctl->cmd %x, cmd %x\n",
-				nr - DRM_COMMAND_BASE, ioctl->cmd, cmd);
-			return -EINVAL;
-		}
-
-		return drm_ioctl(filp, cmd, arg);
-	}
-	/*
-	 * Not all old drm ioctls are thread-safe.
-	 */
-
 	return drm_ioctl(filp, cmd, arg);
+	
+	/* FIXME: do we need to wrap the other side of this */
 }
 
 
@@ -1383,17 +1356,6 @@ static void psb_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	drm_put_dev(dev);
 }
-
-static int psb_open(struct inode *inode, struct file *filp)
-{
-	return 0;
-}
-
-static int psb_release(struct inode *inode, struct file *filp)
-{
-	return 0;
-}
-
 
 static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_suspend = psb_runtime_suspend,
@@ -1438,11 +1400,11 @@ static struct drm_driver driver = {
 
 	.fops = {
 		 .owner = THIS_MODULE,
-		 .open = psb_open,
-		 .release = psb_release,
+		 .open = drm_open,
+		 .release = drm_release,
 		 .unlocked_ioctl = psb_unlocked_ioctl,
-		/* .mmap = psb_mmap, */
-		 .poll = psb_poll,
+		 .mmap = drm_mmap,
+		 .poll = drm_poll,
 		 .fasync = drm_fasync,
 		 .read = drm_read,
 		 },
