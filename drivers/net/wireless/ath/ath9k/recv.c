@@ -917,7 +917,8 @@ static void ath9k_process_rssi(struct ath_common *common,
 	int last_rssi;
 	__le16 fc;
 
-	if (ah->opmode != NL80211_IFTYPE_STATION)
+	if ((ah->opmode != NL80211_IFTYPE_STATION) &&
+	    (ah->opmode != NL80211_IFTYPE_ADHOC))
 		return;
 
 	fc = hdr->frame_control;
