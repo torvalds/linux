@@ -174,8 +174,8 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
-		   unsigned int len); 
+void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
+		   struct ip_reply_arg *arg, unsigned int len);
 
 struct ipv4_config {
 	int	log_martians;
