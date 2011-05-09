@@ -544,6 +544,11 @@ static int garp_init_port(struct net_device *dev)
 	return 0;
 }
 
+static void garp_kfree_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct garp_port, rcu));
+}
+
 static void garp_release_port(struct net_device *dev)
 {
 	struct garp_port *port = rtnl_dereference(dev->garp_port);
@@ -554,8 +559,7 @@ static void garp_release_port(struct net_device *dev)
 			return;
 	}
 	rcu_assign_pointer(dev->garp_port, NULL);
-	synchronize_rcu();
-	kfree(port);
+	call_rcu(&port->rcu, garp_kfree_rcu);
 }
 
 int garp_init_applicant(struct net_device *dev, struct garp_application *appl)
