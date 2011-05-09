@@ -6,7 +6,7 @@
 /***************************************************************************
 Define Difinetion
 ***************************************************************************/
-#define SUCCESS             0x0000 /* SUCCESS */
+#define SMSUCCESS           0x0000 /* SUCCESS */
 #define ERROR               0xFFFF /* ERROR */
 #define CORRECT             0x0001 /* CORRECTABLE */
 

@@ -252,13 +252,13 @@ int Release_D_CopySector(struct us_data *us)
 	if (Media.PhyBlock==NO_ASSIGN)
 	{
 		Media.PhyBlock=WriteBlock;
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	Clr_D_Bit(Assign[Media.Zone],Media.PhyBlock);
 	Media.PhyBlock=WriteBlock;
 
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 /*
 //----- Media_D_WriteSector() ------------------------------------------
@@ -568,7 +568,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //        default:         *c= 0;  *h= 0; *s= 0; ErrCode = ERR_NoSmartMedia;    return(ERROR);
 //    }
 //
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 //
 ////Power Control & Media Exist Check Subroutine
@@ -595,7 +595,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //        MediaChange = ERROR;
 //    //usleep(56*1024);
 //    if ((!Check_D_CntPower())&&(!MediaChange))  // 有 power & Media 沒被 change, 則 return success
-//        return(SUCCESS);
+//        return(SMSUCCESS);
 //    //usleep(56*1024);
 //
 //    if (Check_D_CardExist())                    // Check if card is not exist, return err
@@ -614,7 +614,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //    //usleep(56*1024);
 //    Ssfdc_D_Reset(fdoExt);
 //    //usleep(56*1024);
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 //
 ////-----Check_D_MediaExist() --------------------------------------------
@@ -626,7 +626,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //    if (!Check_D_CardExist())
 //    {
 //        if (!MediaChange)
-//            return(SUCCESS);
+//            return(SMSUCCESS);
 //
 //        ErrCode = ERR_ChangedMedia;
 //        return(ERROR);
@@ -646,7 +646,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //        return(ERROR);
 //    }
 //
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 */
 //SmartMedia Physical Format Test Subroutine
@@ -658,7 +658,7 @@ int Check_D_MediaFmt(struct us_data *us)
 
 	//usleep(56*1024);
 	if (!MediaChange)
-		return(SUCCESS);
+		return(SMSUCCESS);
 
 	MediaChange  = ERROR;
 	SectCopyMode = COMPLETED;
@@ -678,8 +678,8 @@ int Check_D_MediaFmt(struct us_data *us)
 	}
 
 
-    MediaChange = SUCCESS;
-    return(SUCCESS);
+    MediaChange = SMSUCCESS;
+    return(SMSUCCESS);
 }
 /*
 ////----- Check_D_BlockIsFull() ----------------------------------
@@ -731,7 +731,7 @@ int Check_D_MediaFmt(struct us_data *us)
 //        return(ERROR);
 //    }
 //
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 */
 //SmartMedia Physical Address Control Subroutine
@@ -763,7 +763,7 @@ int Conv_D_MediaAddr(struct us_data *us, DWORD addr)
 		Clr_D_RedundantData(Redundant);
 		Set_D_LogBlockAddr(Redundant);
 		Media.PhyBlock = Log2Phy[Media.Zone][Media.LogBlock];
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	ErrCode = ERR_OutOfLBA;
@@ -778,7 +778,7 @@ int Inc_D_MediaAddr(struct us_data *us)
 	//ADDRESS_T   bb = (ADDRESS_T) &Media;
 
 	if (++Media.Sector<Ssfdc.MaxSectors)
-		return(SUCCESS);
+		return(SMSUCCESS);
 
 	if (Log2Phy[Media.Zone]==NULL)
 	{
@@ -797,7 +797,7 @@ int Inc_D_MediaAddr(struct us_data *us)
 		Clr_D_RedundantData(Redundant);
 		Set_D_LogBlockAddr(Redundant);
 		Media.PhyBlock=Log2Phy[Media.Zone][Media.LogBlock];
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	Media.LogBlock=0;
@@ -818,7 +818,7 @@ int Inc_D_MediaAddr(struct us_data *us)
 		Clr_D_RedundantData(Redundant);
 		Set_D_LogBlockAddr(Redundant);
 		Media.PhyBlock=Log2Phy[Media.Zone][Media.LogBlock];
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	Media.Zone=0;
@@ -834,7 +834,7 @@ int Check_D_FirstSect(void)
     ADDRESS_T   bb = (ADDRESS_T) &Media;
 
     if (!Media.Sector)
-        return(SUCCESS);
+        return(SMSUCCESS);
 
     return(ERROR);
 }
@@ -848,7 +848,7 @@ int Check_D_LastSect(void)
     if (Media.Sector<(Ssfdc.MaxSectors-1))
         return(ERROR);
 
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 */
 //SmartMedia Read/Write Subroutine with Retry
@@ -858,7 +858,7 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 	DWORD err, retry;
 
 	if (!Read_D_PhyOneSect(us, count, buf))
-		return(SUCCESS);
+		return(SMSUCCESS);
 	if (ErrCode==ERR_HwError)
 		return(ERROR);
 	if (ErrCode==ERR_DataStatus)
@@ -868,7 +868,7 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 	if (Ssfdc.Attribute &MWP)
 	{
 		if (ErrCode==ERR_CorReadErr)
-			return(SUCCESS);
+			return(SMSUCCESS);
 		return(ERROR);
 	}
 
@@ -884,13 +884,13 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 
 		ErrCode = err;
 		if (ErrCode==ERR_CorReadErr)
-			return(SUCCESS);
+			return(SMSUCCESS);
 		return(ERROR);
 	}
 
 	MediaChange = ERROR;
 #else
-	if (ErrCode==ERR_CorReadErr) return(SUCCESS);
+	if (ErrCode==ERR_CorReadErr) return(SMSUCCESS);
 #endif
 
 	return(ERROR);
@@ -904,7 +904,7 @@ int Media_D_WriteOneSect(PFDO_DEVICE_EXTENSION fdoExt, WORD count, BYTE *buf)
     ADDRESS_T   bb = (ADDRESS_T) &Media;
 
     if (!Write_D_PhyOneSect(fdoExt, count, buf))
-        return(SUCCESS);
+        return(SMSUCCESS);
     if (ErrCode==ERR_HwError)
         return(ERROR);
 
@@ -918,7 +918,7 @@ int Media_D_WriteOneSect(PFDO_DEVICE_EXTENSION fdoExt, WORD count, BYTE *buf)
         }
 
         if (!Write_D_PhyOneSect(fdoExt, count, buf))
-            return(SUCCESS);
+            return(SMSUCCESS);
         if (ErrCode==ERR_HwError)
             return(ERROR);
     }
@@ -940,7 +940,7 @@ int Media_D_CopyBlockHead(PFDO_DEVICE_EXTENSION fdoExt)
     for(retry=0; retry<2; retry++)
     {
         if (!Copy_D_BlockHead(fdoExt))
-            return(SUCCESS);
+            return(SMSUCCESS);
         if (ErrCode==ERR_HwError)
             return(ERROR);
     }
@@ -955,7 +955,7 @@ int Media_D_CopyBlockTail(PFDO_DEVICE_EXTENSION fdoExt)
     DWORD retry;
 
     if (!Copy_D_BlockTail(fdoExt))
-        return(SUCCESS);
+        return(SMSUCCESS);
     if (ErrCode==ERR_HwError)
         return(ERROR);
 
@@ -969,7 +969,7 @@ int Media_D_CopyBlockTail(PFDO_DEVICE_EXTENSION fdoExt)
         }
 
         if (!Copy_D_BlockTail(fdoExt))
-            return(SUCCESS);
+            return(SMSUCCESS);
         if (ErrCode==ERR_HwError)
             return(ERROR);
     }
@@ -991,7 +991,7 @@ int Media_D_CopyBlockTail(PFDO_DEVICE_EXTENSION fdoExt)
 //    ADDRESS_T   bb = (ADDRESS_T) &Media;
 //
 //    if (Media.PhyBlock==NO_ASSIGN)
-//        return(SUCCESS);
+//        return(SMSUCCESS);
 //
 //    if (Log2Phy[Media.Zone]==NULL)
 //    {
@@ -1019,7 +1019,7 @@ int Media_D_CopyBlockTail(PFDO_DEVICE_EXTENSION fdoExt)
 //
 //    Clr_D_Bit(Assign[Media.Zone],Media.PhyBlock);
 //    Media.PhyBlock=NO_ASSIGN;
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 //
 ////SmartMedia Erase Subroutine
@@ -1072,7 +1072,7 @@ int Media_D_CopyBlockTail(PFDO_DEVICE_EXTENSION fdoExt)
 //            }
 //
 //        }
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 */
 //SmartMedia Physical Sector Data Copy Subroutine
@@ -1112,7 +1112,7 @@ int Copy_D_BlockAll(struct us_data *us, DWORD mode)
 
 	Media.PhyBlock=WriteBlock;
 	Media.Sector=sect;
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 /*
 //----- Copy_D_BlockHead() ---------------------------------------------
@@ -1145,7 +1145,7 @@ int Copy_D_BlockHead(PFDO_DEVICE_EXTENSION fdoExt)
 
     Media.PhyBlock=WriteBlock;
     Media.Sector=sect;
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 
 //----- Copy_D_BlockTail() ---------------------------------------------
@@ -1174,7 +1174,7 @@ int Copy_D_BlockTail(PFDO_DEVICE_EXTENSION fdoExt)
 
     Media.PhyBlock=WriteBlock;
     Media.Sector=sect;
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 
 //----- Reassign_D_BlockHead() -----------------------------------------
@@ -1222,7 +1222,7 @@ int Reassign_D_BlockHead(PFDO_DEVICE_EXTENSION fdoExt)
     ReadBlock=block;
     Media.Sector=sect;
     Media.PhyBlock=WriteBlock;
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 */
 //SmartMedia Physical Block Assign/Release Subroutine
@@ -1242,7 +1242,7 @@ int Assign_D_WriteBlock(void)
 			Media.PhyBlock=WriteBlock;
 			SectCopyMode=REQ_ERASE;
 			//ErrXDCode = NO_ERROR;
-			return(SUCCESS);
+			return(SMSUCCESS);
 		}
 	}
 
@@ -1255,7 +1255,7 @@ int Assign_D_WriteBlock(void)
 			Media.PhyBlock=WriteBlock;
 			SectCopyMode=REQ_ERASE;
 			//ErrXDCode = NO_ERROR;
-			return(SUCCESS);
+			return(SMSUCCESS);
 		}
 	}
 
@@ -1278,7 +1278,7 @@ int Release_D_ReadBlock(struct us_data *us)
 	SectCopyMode=COMPLETED;
 
 	if (mode==COMPLETED)
-		return(SUCCESS);
+		return(SMSUCCESS);
 
 	Log2Phy[Media.Zone][Media.LogBlock]=WriteBlock;
 	Media.PhyBlock=ReadBlock;
@@ -1286,7 +1286,7 @@ int Release_D_ReadBlock(struct us_data *us)
 	if (Media.PhyBlock==NO_ASSIGN)
 	{
 		Media.PhyBlock=WriteBlock;
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	if (mode==REQ_ERASE)
@@ -1303,7 +1303,7 @@ int Release_D_ReadBlock(struct us_data *us)
 		return(ERROR);
 
 	Media.PhyBlock=WriteBlock;
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 
 //----- Release_D_WriteBlock() -----------------------------------------
@@ -1318,7 +1318,7 @@ int Release_D_WriteBlock(struct us_data *us)
 		return(ERROR);
 
 	Media.PhyBlock=ReadBlock;
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 
 //SmartMedia Physical Sector Data Copy Subroutine
@@ -1351,9 +1351,9 @@ int Copy_D_PhyOneSect(struct us_data *us)
 			if (Check_D_DataStatus(WorkRedund))
 			{ err=ERROR; break; }
 			if (!Check_D_ReadError(WorkRedund))
-			{ err=SUCCESS; break; }
+			{ err=SMSUCCESS; break; }
 			if (!Check_D_Correct(WorkBuf,WorkRedund))
-			{ err=SUCCESS; break; }
+			{ err=SMSUCCESS; break; }
 
 			err=ERROR;
 			SectCopyMode=REQ_FAIL;
@@ -1361,7 +1361,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 	}
 	else
 	{
-		err=SUCCESS;
+		err=SMSUCCESS;
 		for(i=0; i<SECTSIZE; i++)
 			WorkBuf[i]=DUMMY_DATA;
 		Clr_D_RedundantData(WorkRedund);
@@ -1382,7 +1382,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 	{ ErrCode = ERR_WriteFault; return(ERROR); }
 
 	Media.PhyBlock=ReadBlock;
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 
 //SmartMedia Physical Sector Read/Write/Erase Subroutine
@@ -1398,7 +1398,7 @@ int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
 	{
 		for(i=0; i<SECTSIZE; i++)
 			*buf++=DUMMY_DATA;
-		return(SUCCESS);
+		return(SMSUCCESS);
 	}
 
 	for(retry=0; retry<2; retry++)
@@ -1420,7 +1420,7 @@ int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
 		{ ErrCode = ERR_DataStatus; return(ERROR); }
 
 		if (!Check_D_ReadError(Redundant))
-			return(SUCCESS);
+			return(SMSUCCESS);
 
 		if (!Check_D_Correct(buf,Redundant))
 		{ ErrCode = ERR_CorReadErr; return(ERROR); }
@@ -1442,7 +1442,7 @@ int Write_D_PhyOneSect(PFDO_DEVICE_EXTENSION fdoExt, WORD count, BYTE *buf)
     if (Ssfdc_D_CheckStatus())
     { ErrCode = ERR_WriteFault; return(ERROR); }
 
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 */
 //----- Erase_D_PhyOneBlock() ------------------------------------------
@@ -1456,7 +1456,7 @@ int Erase_D_PhyOneBlock(struct us_data *us)
 	if (Ssfdc_D_CheckStatus())
 	{ ErrCode = ERR_WriteFault; return(ERROR); }
 
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 
 //SmartMedia Physical Format Check Local Subroutine
@@ -1540,7 +1540,7 @@ int Set_D_PhyFmtValue(struct us_data *us)
 //       }
 //    }
 
-    return(SUCCESS);
+    return(SMSUCCESS);
 }
 
 //----- Search_D_CIS() -------------------------------------------------
@@ -1596,7 +1596,7 @@ int Search_D_CIS(struct us_data *us)
 			CisArea.PhyBlock=Media.PhyBlock;
 			CisArea.Sector=Media.Sector;
 			Ssfdc_D_Reset(us);
-			return(SUCCESS);
+			return(SMSUCCESS);
 		}
 
 		Media.Sector++;
@@ -1733,7 +1733,7 @@ int Make_D_LogTable(struct us_data *us)
 	} // End for (Media.Zone<MAX_ZONENUM)
 
 	Ssfdc_D_Reset(us);
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 
 //----- MarkFail_D_PhyOneBlock() ---------------------------------------
@@ -1761,7 +1761,7 @@ int MarkFail_D_PhyOneBlock(struct us_data *us)
 
 	Ssfdc_D_Reset(us);
 	Media.Sector=sect;
-	return(SUCCESS);
+	return(SMSUCCESS);
 }
 /*
 //
@@ -1819,7 +1819,7 @@ int MarkFail_D_PhyOneBlock(struct us_data *us)
 //
 //    Ssfdc_D_Reset(fdoExt);
 //
-//    return(SUCCESS);
+//    return(SMSUCCESS);
 //}
 //
 ////----- Media_D_GetMediaInfo() ---------------------------------------
