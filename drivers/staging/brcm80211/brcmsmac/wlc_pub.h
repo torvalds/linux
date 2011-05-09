@@ -514,6 +514,8 @@ extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
 			struct wlc_if *wlcif);
 extern int wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		     struct wlc_if *wlcif);
+extern bool wlc_aggregatable(struct wlc_info *wlc, u8 tid);
+
 /* helper functions */
 extern void wlc_statsupd(struct wlc_info *wlc);
 extern void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val);
