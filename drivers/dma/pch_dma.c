@@ -138,7 +138,8 @@ struct pch_dma {
 #define dma_writel(pd, name, val) \
 	writel((val), (pd)->membase + PCH_DMA_##name)
 
-static inline struct pch_dma_desc *to_pd_desc(struct dma_async_tx_descriptor *txd)
+static inline
+struct pch_dma_desc *to_pd_desc(struct dma_async_tx_descriptor *txd)
 {
 	return container_of(txd, struct pch_dma_desc, txd);
 }
@@ -163,13 +164,15 @@ static inline struct device *chan2parent(struct dma_chan *chan)
 	return chan->dev->device.parent;
 }
 
-static inline struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
+static inline
+struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->active_list,
 				struct pch_dma_desc, desc_node);
 }
 
-static inline struct pch_dma_desc *pdc_first_queued(struct pch_dma_chan *pd_chan)
+static inline
+struct pch_dma_desc *pdc_first_queued(struct pch_dma_chan *pd_chan)
 {
 	return list_first_entry(&pd_chan->queue,
 				struct pch_dma_desc, desc_node);
