@@ -1684,6 +1684,8 @@ static int ite_resume(struct pnp_dev *pdev)
 		/* wake up the transmitter */
 		wake_up_interruptible(&dev->tx_queue);
 	} else {
+		/* reinitialize hardware config registers */
+		dev->params.init_hardware(dev);
 		/* enable the receiver */
 		dev->params.enable_rx(dev);
 	}
